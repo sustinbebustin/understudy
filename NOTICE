@@ -1,0 +1,57 @@
+understudy
+Copyright 2026 The understudy authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+understudy is an independent project. It is not affiliated with, endorsed by
+or sponsored by Amazon Web Services. Amazon Web Services, AWS and the names of
+AWS services are trademarks of Amazon.com, Inc. or its affiliates.
+
+Third-party material
+--------------------
+
+aws/api-models-aws
+  Source:  https://github.com/aws/api-models-aws
+  Version: commit 1cfdfb4bb9ea858e65623e66d73af04bec353201
+  License: Apache-2.0
+  Use:     the Smithy API models for the supported services, vendored
+           verbatim under third_party/api-models-aws and used as the input of
+           the code generator.
+
+Smithy protocol tests
+  Source:  https://github.com/smithy-lang/smithy
+  Version: 1.74.0
+  License: Apache-2.0
+  Use:     the protocol compliance test cases, converted to a flattened AST
+           under third_party/smithy-protocol-tests and used by the protocol
+           test harness.
+
+LocalStack snapshot-derived fixtures
+  Source:  https://github.com/localstack/localstack (archived repository)
+  Version: commit 8b9a79f05846835cf4dff63ab7eefdde9df83783
+  License: Apache-2.0
+  Use:     test fixtures derived from recorded LocalStack behavior. The commit
+           each fixture derives from is cited on the overlay entry that uses
+           it.
+
+AWS Service Authorization Reference (derived)
+  Source:  https://servicereference.us-east-1.amazonaws.com/
+  License: not stated by the source; the raw JSON is not vendored.
+  Use:     only derived facts are kept: the operation to IAM action table
+           under third_party/aws-service-reference, with the provenance of
+           each service file recorded beside it (see docs/adr/0016).
+
+pgregory.net/rapid
+  Source:  https://github.com/flyingmutant/rapid
+  Version: v1.3.0
+  License: MPL-2.0
+  Use:     property-based testing. Test code only: it is not part of the
+           understudy binary or the Docker image and is not distributed with
+           them.
+
+xxHash
+  Source:  the public xxHash specification (https://github.com/Cyan4973/xxHash)
+  License: not applicable; no xxHash source code is included.
+  Use:     XXHASH64, XXHASH3 and XXHASH128 are implemented in
+           internal/checksum from the public specification and validated
+           against the published test vectors (see docs/adr/0016).

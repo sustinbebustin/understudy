@@ -1,0 +1,151 @@
+version: "2"
+
+run:
+  go: "1.27"
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - bodyclose
+    - noctx
+    - contextcheck
+    - durationcheck
+    - errorlint
+    - exhaustive
+    - gochecksumtype
+    - forcetypeassert
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - makezero
+    - reassign
+    - copyloopvar
+    - fatcontext
+    - recvcheck
+    - gosec
+    - errchkjson
+    - nosprintfhostport
+    - canonicalheader
+    - usestdlibvars
+    - gocheckcompilerdirectives
+    - bidichk
+    - errname
+    - sloglint
+    - revive
+    - gocritic
+    - unparam
+    - unconvert
+    - predeclared
+    - perfsprint
+    - prealloc
+    - intrange
+    - modernize
+    - misspell
+    - dupword
+    - godot
+    - godox
+    - nolintlint
+    - gochecknoinits
+    - gochecknoglobals
+    - iface
+    - funcorder
+    - containedctx
+    - thelper
+    - tparallel
+    - usetesting
+    - testableexamples
+    - depguard
+    - forbidigo
+    - gomoddirectives
+    - gocognit
+    - nestif
+  settings:
+    errcheck: { check-type-assertions: true, check-blank: true }
+    govet:
+      enable-all: true
+      disable: [fieldalignment, shadow]
+    exhaustive: { default-signifies-exhaustive: false }
+    gochecksumtype: { default-signifies-exhaustive: false }
+    godox: { keywords: [TODO, FIXME, HACK, XXX] }
+    nolintlint: { require-explanation: true, require-specific: true }
+    sloglint:
+      no-mixed-args: true
+      attr-only: true
+      no-global: all
+      context: scope
+      static-msg: true
+      key-naming-case: snake
+    godot: { scope: toplevel, capital: false }
+    gocognit: { min-complexity: 20 }
+    nestif: { min-complexity: 5 }
+    gocritic:
+      enabled-tags: [diagnostic, style, performance]
+      disabled-checks: [hugeParam, ptrToRefParam]
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: error-return
+        - name: error-naming
+        - name: error-strings
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: indent-error-flow
+        - name: unexported-return
+        - name: blank-imports
+        - name: receiver-naming
+        - name: var-naming
+        - name: unused-parameter
+        - name: useless-break
+        - name: unreachable-code
+        - name: redefines-builtin-id
+    depguard:
+      rules:
+        main:
+          list-mode: strict
+          files: ["!$test"]
+          allow: [$gostd, github.com/sustinbebustin/understudy]
+        tests:
+          list-mode: strict
+          files: ["$test"]
+          allow: [$gostd, github.com/sustinbebustin/understudy, pgregory.net/rapid]
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^fmt\.Print(f|ln)?$
+          msg: use log/slog; stdout belongs to the CLI layer
+        - pattern: ^time\.(Now|Since|Until|Sleep|After|AfterFunc|NewTimer|NewTicker|Tick)$
+          msg: use the emulator clock (internal/clock) so time can be frozen and advanced
+        - pattern: ^os\.Exit$
+          msg: return an error to main
+        - pattern: ^panic$
+          msg: return an error value
+    gomoddirectives: { replace-allow-list: [] }
+  exclusions:
+    generated: strict
+    presets: [std-error-handling, common-false-positives]
+    rules:
+      - path: _test\.go
+        linters: [gochecknoglobals, forbidigo, gocognit, nestif, forcetypeassert]
+      - path: internal/clock/
+        linters: [forbidigo]
+      - path: cmd/
+        linters: [forbidigo, gochecknoglobals]
+
+formatters:
+  enable: [gofumpt, goimports]
+  settings:
+    gofumpt: { extra: { group-params: true } }
+    goimports: { local-prefixes: [github.com/sustinbebustin/understudy] }
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false

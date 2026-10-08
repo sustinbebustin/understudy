@@ -5,6 +5,7 @@ __pycache__/
 
 # Build outputs
 /.build/
+/bin/
 /dist/
 /understudy
 
@@ -13,8 +14,18 @@ __pycache__/
 *.test
 *.out
 coverage.txt
+*.snapshot
+/.data/
 
 # Terraform working state (conformance suites)
 .terraform/
 *.tfstate
 *.tfstate.backup
+
+# Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
