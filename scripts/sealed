@@ -1,0 +1,175 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
+"""Run a command against a local AWS emulator, sealed off from real AWS.
+
+    scripts/sealed aws sqs list-queues
+    scripts/sealed terraform apply -auto-approve
+    scripts/sealed python3 probe.py
+    scripts/sealed --endpoint http://127.0.0.1:45661 go test ./...
+    eval "$(scripts/sealed --print-env)"      # seal the current shell
+
+The command runs with every inherited AWS_* variable removed, so no profile,
+session token, role, SSO cache or service-specific endpoint can leak in. In
+their place it gets:
+
+- AWS_ENDPOINT_URL set to a loopback endpoint (refused if it is anything else);
+- dummy credentials, and AWS_CONFIG_FILE / AWS_SHARED_CREDENTIALS_FILE pointed
+  at /dev/null, so ~/.aws is never read;
+- instance metadata disabled, so no credentials come from IMDS either;
+- the AWS CLI pager and auto-prompt turned off, so nothing waits on a terminal.
+
+Even a call that somehow reached a real AWS endpoint would carry credentials
+AWS rejects. Configure with flags or SEALED_ENDPOINT, SEALED_REGION and
+SEALED_ACCESS_KEY_ID. Exit status is the command's own; 2 means sealed refused
+to run it.
+"""
+
+from __future__ import annotations
+
+import argparse
+import ipaddress
+import os
+import shlex
+import shutil
+import sys
+from collections.abc import Mapping
+from urllib.parse import urlsplit
+
+DEFAULT_ENDPOINT = "http://127.0.0.1:4566"
+DEFAULT_REGION = "us-east-1"
+DEFAULT_ACCESS_KEY_ID = "test"
+
+# Inherited AWS_* settings that change neither where a call goes nor who it is
+# signed as, so they may pass through. Everything else named AWS_* is dropped.
+PASSTHROUGH = frozenset(
+    {
+        "AWS_MAX_ATTEMPTS",
+        "AWS_RETRY_MODE",
+        "AWS_REQUEST_CHECKSUM_CALCULATION",
+        "AWS_RESPONSE_CHECKSUM_VALIDATION",
+        "AWS_CA_BUNDLE",
+    }
+)
+
+
+class SealError(Exception):
+    """A request sealed refuses, with the message to show the user."""
+
+
+def is_loopback_url(raw: str) -> bool:
+    """True when raw is an http(s) URL on localhost, *.localhost or a loopback IP."""
+    try:
+        parts = urlsplit(raw)
+        host = (parts.hostname or "").lower()
+        parts.port  # noqa: B018 -- raises ValueError on a malformed port
+    except ValueError:
+        return False
+    if parts.scheme not in ("http", "https") or parts.username or parts.password:
+        return False
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def sealed_env(
+    inherited: Mapping[str, str], endpoint: str, region: str, access_key_id: str
+) -> dict[str, str]:
+    """The environment a sealed command runs with."""
+    if not is_loopback_url(endpoint):
+        raise SealError(
+            f"sealed: refusing endpoint {endpoint!r}: it is not a loopback URL. "
+            "Use http://127.0.0.1:<port>, http://localhost:<port> or an *.localhost host, "
+            "so the command cannot reach real AWS."
+        )
+    env = {
+        k: v
+        for k, v in inherited.items()
+        if not k.startswith("AWS_") or k in PASSTHROUGH
+    }
+    env.update(
+        {
+            "AWS_ENDPOINT_URL": endpoint,
+            "AWS_ACCESS_KEY_ID": access_key_id,
+            "AWS_SECRET_ACCESS_KEY": "test",
+            "AWS_REGION": region,
+            "AWS_DEFAULT_REGION": region,
+            "AWS_CONFIG_FILE": os.devnull,
+            "AWS_SHARED_CREDENTIALS_FILE": os.devnull,
+            "AWS_EC2_METADATA_DISABLED": "true",
+            "AWS_PAGER": "",
+            "AWS_CLI_AUTO_PROMPT": "off",
+        }
+    )
+    return env
+
+
+def shell_exports(inherited: Mapping[str, str], env: Mapping[str, str]) -> str:
+    """Shell lines that turn the inherited environment into env."""
+    unset = sorted(k for k in inherited if k.startswith("AWS_") and k not in env)
+    lines = [f"unset {k}" for k in unset]
+    lines += [
+        f"export {k}={shlex.quote(v)}"
+        for k, v in sorted(env.items())
+        if k.startswith("AWS_")
+    ]
+    return "\n".join(lines)
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        prog="sealed",
+        description="Run a command against a local AWS emulator with real AWS sealed off.",
+        epilog="Example: scripts/sealed aws --region us-west-2 sqs list-queues",
+    )
+    p.add_argument(
+        "--endpoint",
+        default=os.environ.get("SEALED_ENDPOINT", DEFAULT_ENDPOINT),
+        help="loopback endpoint URL (default: $SEALED_ENDPOINT or %(default)s)",
+    )
+    p.add_argument(
+        "--region",
+        default=os.environ.get("SEALED_REGION", DEFAULT_REGION),
+        help="region (default: $SEALED_REGION or %(default)s)",
+    )
+    p.add_argument(
+        "--access-key-id",
+        default=os.environ.get("SEALED_ACCESS_KEY_ID", DEFAULT_ACCESS_KEY_ID),
+        help="access key id; emulators may derive the account from it (default: %(default)s)",
+    )
+    p.add_argument(
+        "--print-env",
+        action="store_true",
+        help="print shell lines that seal the current shell, for eval, and exit",
+    )
+    p.add_argument("command", nargs=argparse.REMAINDER, help="command and its arguments")
+    return p.parse_args(argv)
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+    command = args.command[1:] if args.command[:1] == ["--"] else args.command
+    try:
+        env = sealed_env(os.environ, args.endpoint, args.region, args.access_key_id)
+    except SealError as e:
+        print(e, file=sys.stderr)
+        return 2
+    if args.print_env:
+        print(shell_exports(os.environ, env))
+        return 0
+    if not command:
+        print("sealed: no command given. Example: scripts/sealed aws sqs list-queues", file=sys.stderr)
+        return 2
+    if shutil.which(command[0], path=env.get("PATH")) is None:
+        print(f"sealed: command not found: {command[0]!r}. Check it is installed and on PATH.", file=sys.stderr)
+        return 2
+    os.execvpe(command[0], command, env)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

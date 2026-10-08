@@ -1,0 +1,315 @@
+# Matching engines: EventBridge patterns, SNS filter policies, Lambda ESM filters
+
+As of 2026-10-08. Gap G2: pattern-matching semantics from the AWS-owned Event Ruler source, not from LocalStack/moto behavior or doc prose.
+
+## 0. Summary
+
+- **EventBridge runs on Event Ruler.** AWS says so ([What's New, 2024-02-01](https://aws.amazon.com/about-aws/whats-new/2024/02/amazon-eventbridge-event-bus-matching-event-ruler)), and Ruler v2.2.0 reproduces 154 of 155 AWS-validated EventBridge fixtures (the one miss is a service-level wildcard-complexity cap, section 4.8). Ruler is the executable specification for EventBridge.
+- **SNS and Lambda are not documented as using Ruler.** AWS names neither ([Ruler blog](https://aws.amazon.com/blogs/opensource/open-sourcing-event-ruler) says only "many more AWS services"). Lambda says only that it "uses the same syntax as EventBridge" ([Lambda filtering](https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventfiltering.html)). For SNS the compile-time error strings are Ruler's: 35 of 37 AWS-recorded SNS policy errors are byte-identical to Ruler's output, and the two that differ are both `anything-but` object forms where SNS applies its own allow-list (section 3). SNS is a Ruler-derived compiler behind a service-specific operator allow-list and service-specific limits. Lambda is unproven either way.
+- **Ruler has no key-count limit and no combination cap** (no such constant exists in `src/main`). Those are service layers: SNS 5 keys and 150 combinations, EventBridge 1000 `$or` combinations and 2048 characters. A 3^7 = 2187-combination `$or` rule compiles and matches in Ruler v2.2.0. This corrects [secrets-logs 4.4](secrets-logs-events-alarms.md), which attributed the 1000 cap to Ruler.
+- Resolved from source (section 4): `anything-but` over an array is **any element passes**; `exists:true` matches `null` and `""` in Ruler; an empty array or empty object is "no field"; numeric rules match JSON numbers only (string `"300"` never matches, `3.0e2` equals `300`); bare number rules are numeric-or-exact-text; `cidr` rejects `/32` and `/128`.
+- Still only settled by a human AWS recording (section 8): SNS `exists` with zero attributes and with `null`/`""`, SNS leaf-versus-top-level key counting, SNS numeric range and precision, SNS bare numbers on `Number` attributes, Lambda numeric-string equality, the Lambda operator allow-list, `cidr /32` on all three, the `$or` malformed-shape error paths, and the wildcard-complexity cap.
+
+## 1. Method and provenance
+
+- Cloned [aws/event-ruler](https://github.com/aws/event-ruler) and pinned commit `ced786201c1f43ec73482b78f3d1843aa4bd2f89` (tag `v2.2.0` plus two commits, committed 2026-09-21; Apache-2.0 per [LICENSE](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/LICENSE)). All `L<n>` references below are to that commit.
+- Built it in a throwaway `maven:3.9-eclipse-temurin-21` container (no Java is installed on the host) and ran a probe that compiles each rule with `JsonRuleCompiler.check`, `RuleCompiler.check` and `Machine.addRule`, then matches with `Machine.rulesForJSONEvent`. Ruler's own `JsonRuleCompilerTest` (18 tests) and `RulerTest` (11) pass in that environment. Every `RULER-RUN` result below was executed, not read.
+- Rebuilt tags v1.1.0 through v2.2.0 (14 builds) to see which behaviors changed with version. EventBridge says it moved to v1.5.0 in 2024-02 ([announcement](https://aws.amazon.com/about-aws/whats-new/2024/02/amazon-eventbridge-event-bus-matching-event-ruler)); its current docs describe float64 numerics, which exist only from v1.8.0 (2024-09-19, [commit 1406b64](https://github.com/aws/event-ruler/commit/1406b64b9986572895fe0992982895c705650926)). So production EventBridge is at least v1.8.0.
+- Ran the LocalStack `event_pattern_templates` corpus (157 files, [`8b9a79f`](https://github.com/localstack/localstack/tree/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/events/event_pattern_templates), recorded against real `TestEventPattern`, [last validated 2025-10-15](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/events/test_events_patterns.validation.json)) through Ruler as a differential check only. The fixtures are not copied into this repo (their license was reported as NOASSERTION by the GitHub API). Convention: `_NEG` = must not match, `_EXC` = pattern must be rejected. v2.2.0: 154 pass; v1.5.0: 135 pass (the 20 genuine misses are anything-but wildcard and prefix/suffix lists, features added in v1.7.3, [commit f03cde6](https://github.com/aws/event-ruler/commit/f03cde67ed5ebbbd513bf1090b3a4e6d75b62544)). The 3 non-passes on v2.2.0 are two non-fixture data files and `content_wildcard_complex_EXC`, which needs the complexity evaluator (4.8).
+- Confidence legend: **HIGH** = executed in Ruler and corroborated by an AWS-recorded fixture or AWS doc statement for that service; **MEDIUM** = executed in Ruler, service use inferred; **LOW** = doc prose only or docs conflict with Ruler; **UNVERIFIED** = nothing observed.
+- Basis tags in the vector table: `RULER-RUN` executed on v2.2.0 only; `AWS-DOC` an AWS doc example with the same outcome; `AWS-REC <name>` a LocalStack AWS-validated fixture of the same polarity and shape (the real fixture passes on v2.2.0); `SNS-REC` an SNS error recorded in [test_sns_filter_policy.snapshot.json](https://github.com/localstack/localstack/blob/main/tests/aws/services/sns/test_sns_filter_policy.snapshot.json); `CONFLICT` Ruler and a service doc disagree.
+
+## 2. Is it Ruler? Evidence per service
+
+| Service | AWS statement | Source-level evidence | Verdict |
+|---|---|---|---|
+| EventBridge event bus | "Event Bus event matching now runs on Open Source Event Ruler v1.5.0", 2024-02-01 ([What's New](https://aws.amazon.com/about-aws/whats-new/2024/02/amazon-eventbridge-event-bus-matching-event-ruler)); Ruler is "a key technology that powers EventBridge" ([blog](https://aws.amazon.com/blogs/opensource/open-sourcing-event-ruler)) | 154/155 AWS-validated fixtures reproduce, including 37 of 38 `_EXC` rejections (the 38th is the wildcard-complexity cap) and all anything-but variants; the EventBridge docs' numeric statement (binary64, exact within +/-2^53, unrepresentable values rejected at creation) is exactly [`ComparableNumber.generate`](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/ComparableNumber.java#L49-L67) ([EB operators](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern-operators.html)) | Ruler. HIGH |
+| EventBridge Pipes | Docs table marks wildcard, anything-but prefix/suffix/ignore-case/wildcard as "Pipe support: No" ([EB operators](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern-operators.html)); announcement covers the Event Bus only | Not needed for phase 1 | Different operator allow-list; engine UNVERIFIED |
+| SNS | No mention of Ruler or EventBridge on the filter-policy pages ([policies](https://docs.aws.amazon.com/sns/latest/dg/sns-subscription-filter-policies.html), [constraints](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html), [announcement](https://aws.amazon.com/about-aws/whats-new/2025/07/amazon-sns-message-filtering-operators)) | 35/37 recorded policy errors identical to Ruler's strings (section 3). The `$or` rules in [SNS AND/OR](https://docs.aws.amazon.com/sns/latest/dg/and-or-logic.html) are near-verbatim the README's `$or` conditions ([README L376-L386](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/README.md#L376-L386)). Operators are gated by an SNS allow-list: `anything-but` + `suffix` was rejected 2024-05-15 although every Ruler version since v1.1.0 accepts it | Ruler-derived compiler, SNS allow-list and limits. MEDIUM |
+| Lambda ESM | "Lambda supports the Amazon EventBridge rules and uses the same syntax as EventBridge" ([Lambda filtering](https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventfiltering.html)) | Only error seen is the generic `Invalid filter pattern definition.` ([LS-SQS snapshot](https://github.com/localstack/localstack/blob/main/tests/aws/services/lambda_/event_source_mapping/test_lambda_integration_sqs.snapshot.json)), which hides Ruler's text. The Lambda doc's numeric note ("300, 300.0, and 3.0e2 are not considered equal") contradicts Ruler (V14) | Same syntax, engine unproven. LOW |
+
+## 3. SNS recorded errors versus Ruler
+
+The 37 recorded SNS FilterPolicy errors in [sns.md 6.5](sns.md) were replayed through `JsonRuleCompiler.check` on all 14 tags. The detail text is identical on every tag for 35 cases, for example `Empty arrays are not allowed`, `"key" must be an object or an array`, `Match value must be String, number, true, false, or null`, `Only one key allowed in match expression`, `Bottom must be less than top`, `Nonstandard IP address: bad-filter`, `Malformed CIDR, mask bits must be an integer`, `Invalid member in numeric match: ]`, and the sic `prefix match pattern must be a string` for `{"cidr":["bad-filter"]}` ([JsonRuleCompiler.java L562-L571](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/JsonRuleCompiler.java#L562-L571)). The two that never match any Ruler tag:
+
+| Policy | SNS recorded 2024-05-15 | Ruler, all 14 tags |
+|---|---|---|
+| `{"key":[{"anything-but":{"suffix":"test"}}]}` | `Unsupported anything-but pattern: suffix` | accepted |
+| `{"key":[{"anything-but":{"prefix":false}}]}` | `prefix match pattern must be a string` | `prefix/suffix match pattern must be a string` (<= v1.7.2) or `Value of anything-but must be an array or single string/number value.` (>= v1.7.3) |
+
+Reading: SNS validates policies with Ruler's compiler (or a close fork) and layers its own check on the `anything-but` object forms. Both rows are why section 6 lists the SNS operator set separately.
+
+## 4. Ruler semantics by topic
+
+All results are Ruler v2.2.0 unless a version is named. Vector ids (V01...) refer to section 9.
+
+### 4.1 Compile paths and grammar
+
+- A rule is a JSON object. Object values nest (keys are joined with `.`); every leaf must be a non-empty array of: a string, a number, `true`, `false`, `null`, or a single-key operator object ([parseObject L217-L256](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/JsonRuleCompiler.java#L217-L256), [writeRules L366-L434](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/JsonRuleCompiler.java#L366-L434)). Errors: `"k" must be an object or an array`, `Empty objects are not allowed`, `Empty arrays are not allowed`, `Match value must be String, number, true, false, or null`, `Filter is not an object` (V77-V81). Top-level content after the rule is rejected since 2.2.0 ([JsonRuleCompiler L186-L215](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/JsonRuleCompiler.java#L186-L215)).
+- Operator keywords: `exactly` (Ruler-only, undocumented by every service), `prefix`, `suffix`, `equals-ignore-case`, `anything-but`, `exists`, `wildcard`, `numeric`, `cidr`; `prefix`/`suffix` take an object `{"equals-ignore-case":...}` for the ignore-case form ([processMatchExpression L441-L603](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/JsonRuleCompiler.java#L441-L603), [Constants L12-L21](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/Constants.java#L12-L21)). Operator names are case-sensitive (`Unrecognized match type EXISTS`, V82). Two operator keys in one object: `Only one key allowed in match expression` (V80).
+- **Two compile paths.** `Machine.addRule` calls the strict `JsonRuleCompiler` and, on any `JsonParseException`, retries with the legacy `RuleCompiler` ([GenericMachine L452-L458](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/GenericMachine.java#L452-L458)). Differences found by running both: the legacy path has no `$or` primitive (it treats `$or` as a plain key) and no `anything-but` `wildcard` (`Unsupported anything-but pattern: wildcard`). The README's own validation snippet uses the strict compiler ([README L544-L573](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/README.md#L544-L573)). Which one each AWS service calls is UNVERIFIED (human case H10).
+- A string rule value that parses as an IPv4/IPv6 literal compiles to an IP range, not an exact string, so `["2001:db8::1"]` also matches `"2001:0db8:0:0:0:0:0:1"` (V66, V67; [writeRules L381-L386](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/JsonRuleCompiler.java#L381-L386); test [testVariantForms](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/test/software/amazon/event/ruler/JsonRuleCompilerTest.java#L48-L72)).
+- Duplicate keys in a rule: last wins, by default ([writeRules L428-L433](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/JsonRuleCompiler.java#L428-L433); V76; EventBridge documents the same, [EB operators](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern-operators.html)).
+- Case: all string compare is exact bytes; `equals-ignore-case` builds a lower-case and an upper-case byte alternative per character with `Locale.ROOT` ([EqualsIgnoreCaseParser L32-L33](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/input/EqualsIgnoreCaseParser.java#L32-L33)). Keys are case-sensitive (`key_case_sensitive_NEG`).
+
+### 4.2 Event flattening
+
+- An event must be a JSON object (`Event must be a JSON object`, V83). Strings are stored quoted, everything else (`null`, booleans, numbers) as its raw JSON text; `null` becomes the text `null` ([Event.java L123-L152](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/Event.java#L123-L152)). That quoting is the whole reason `"300"`, `300`, `"true"`, `true`, `null` and `"null"` are six distinct values.
+- Empty arrays and empty objects emit **no field**, so the key behaves as absent (V28, V29, V34; AWS-REC `exists_list_empty_NEG`).
+- Arrays flatten to one field value per element with array-membership tags; arrays of arrays and arrays of objects flatten the same way ([traverseArray L154-](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/Event.java#L154)).
+- Dot joining: nested and dotted keys flatten to the same path, in rules and events (V75; [README L942-L965](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/README.md#L942-L965); AWS-REC `dot_joining_event`; SNS-REC `{"object.nested":...}` matched `{"object":{"nested":...}}`, [test](https://github.com/localstack/localstack/blob/main/tests/aws/services/sns/test_sns_filter_policy.py)).
+
+### 4.3 Array versus scalar
+
+- Each array element is a separate candidate; a leaf matches if **any** element matches any rule value (V01-V03; [README L91-L94](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/README.md#L91-L94); [EB arrays](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns-arrays.html)). Rule arrays are OR; sibling keys are AND.
+- Array consistency: two keys under the same array must be satisfied by the same element; keys under different arrays are unconstrained (V73, V74; [README L924-L926](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/README.md#L924-L926); [RulerTest L320-L383](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/test/software/amazon/event/ruler/RulerTest.java#L320-L383)). `exists:false` also honors it (a sibling element's field does not count; executed).
+- **`anything-but` is evaluated per element and a leaf passes if any element passes** (V35-V37): `["rugby","baseball"]` passes `anything-but ["rugby","tennis"]`, `["rugby"]` and `["rugby","tennis"]` do not. This is the same outcome as the SNS doc's examples ([SNS string matching](https://docs.aws.amazon.com/sns/latest/dg/string-value-matching.html)) and contradicts that page's own sentence "matches if none of the array elements are listed". Mechanism: [doTransitionOn L524-L531, L559-L569](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/ByteMachine.java#L524-L531) collects failures per value, not per field.
+
+### 4.4 Null, empty string, boolean, existence
+
+- `[null]` matches only JSON `null`; `[""]` only the empty string; they never cross (V05-V08; [EB null values](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns-null-values.html); AWS-REC `string_empty`). `[true]` does not match `"true"` and `["true"]` does not match `true` (V09, V10).
+- `exists:true` is satisfied by **any** field value, including `null` and `""`; it is not satisfied by a missing key, an empty array, or an object value (V30, V31, V29, V34; [addExistenceMatch L589-L609](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/ByteMachine.java#L589-L609), [RulerTest L386-L408](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/test/software/amazon/event/ruler/RulerTest.java#L386-L408)). CONFLICT: SNS says the key "must have a non-null and non-empty value" ([SNS key matching](https://docs.aws.amazon.com/sns/latest/dg/attribute-key-matching.html)).
+- `exists:false` is satisfied when no field with that path exists: missing key, empty array, empty object, or the key is an intermediate object (V26, V28, V32); not by `null` (V27). On an empty event `{}` it matches (V33), where SNS says "An empty set of attributes results in the filter not matching" ([SNS key matching](https://docs.aws.amazon.com/sns/latest/dg/attribute-key-matching.html)). That SNS rule is therefore a service-layer pre-check, not Ruler behavior. Mechanism: [NameState.getNameTransitions L235-L294](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/NameState.java#L235-L294), [StructuredFinder.handleAbsence L126](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/StructuredFinder.java#L126).
+- Existence is not "truthy": `0` and `false` satisfy `exists:true`.
+
+### 4.5 Numbers
+
+- Event numbers: the matcher first tries to turn the stored text into a number; a quoted string never parses, so a JSON string `"300"` is **never** numeric ([ByteMachine.transitionOn L109-L122](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/ByteMachine.java#L109-L122); V11, V12; AWS-REC `numeric-string_NEG`, `numeric-null_NEG`). There is no string-to-number coercion in body-scope matching.
+- Rule numbers: `numeric` operands and `anything-but` numbers must be JSON numbers (`Value of equals must be numeric` for `"300"`, V85) and must be exactly representable as binary64 under shortest-decimal round-trip, else `Cannot compare number : <text>` (V20, V21; [ComparableNumber L49-L67](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/ComparableNumber.java#L49-L67); [testNumericExpressions L288-L320](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/test/software/amazon/event/ruler/JsonRuleCompilerTest.java#L288-L320) lists `1E309` and `1E-325` as invalid and `1E-320` as valid). 2^53+1 is rejected; `1e20` is accepted; `0.1234567` is accepted.
+- A **bare** number rule compiles to two matchers, numeric equality and exact text, and the numeric half is silently dropped when the number is unrepresentable ([writeRules L394-L408](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/JsonRuleCompiler.java#L394-L408)). So `[300]` matches events `300`, `300.0`, `3.0e2` (V14, V15; [ByteMachineTest L111-L119](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/test/software/amazon/event/ruler/ByteMachineTest.java#L111-L119)), and `[12345678901234567890]` matches only the identical text (V22, V23; account-id style numbers: [testBigNumbers L25-L33](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/test/software/amazon/event/ruler/JsonRuleCompilerTest.java#L25-L33)).
+- Comparison is on the float64 order, so `-0 = 0`, ranges are exact at the boundary (V16-V19), and a numeric rule against an array event passes if any element passes (V24).
+- Range syntax: one comparator (`=`, `<`, `<=`, `>`, `>=`) or a lower (`>`/`>=`) then an upper (`<`/`<=`) pair; the pair must satisfy bottom < top, so `[">=",3,"<=",3]` is rejected (`Bottom must be less than top`); all other errors in [sns.md 6.5](sns.md) come from [processNumericMatchExpression L806-L898](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/JsonRuleCompiler.java#L806-L898).
+- **Version caveat.** Before v1.8.0 (2024-09-19) numeric values were limited to +/-5.0E9 with about 6 decimals and over-range values failed with `Value must be between -5.0E9 and 5.0E9, inclusive` (verified by building v1.1.0 to v1.7.3; older README: [v1.7.5 README L277-L279](https://github.com/aws/event-ruler/blob/v1.7.5/README.md#L277-L279)). That is the likely origin of moto's "in reality it is 6" digit comment cited in sns.md. SNS documents +/-1e9 with 5 decimals ([constraints](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html)), which matches no Ruler version, and a LocalStack-recorded SNS accepted an out-of-range bare number ([filter.py TODO](https://github.com/localstack/localstack/blob/main/localstack-core/localstack/services/sns/filter.py)). Which numeric model SNS has is UNVERIFIED (H5).
+
+### 4.6 `anything-but`
+
+- Forms: single string, single number, list (all strings or all numbers; `[]`, mixed, and `null`/boolean members are rejected, V44), and `{"prefix"|"suffix"|"equals-ignore-case"|"wildcard": value-or-list}` with strings only; empty `prefix`/`suffix` is rejected (`Null prefix/suffix not allowed`, V43) while an empty `equals-ignore-case` or `wildcard` is accepted ([L495-L559](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/JsonRuleCompiler.java#L495-L559), [L655-L804](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/JsonRuleCompiler.java#L655-L804), [JsonRuleCompilerTest L184-L252](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/test/software/amazon/event/ruler/JsonRuleCompilerTest.java#L184-L252)).
+- A **missing key never matches** `anything-but` (it needs a value to be "not X"); combine with `{"exists":false}` to include absent keys (V49). Without it, `ab-missing` is false (executed).
+- It is type-partitioned: a string list never excludes a number, a numeric list never excludes a string: `anything-but "5"` passes `5` (V39), `anything-but [111,222]` passes `"111"` (V40) and rejects `111` (V41). Numbers compare by value (`anything-but [300]` rejects `3.0e2`, executed).
+- It **passes** `null` and boolean event values and, for the string-based variants, number values: AWS-REC `content_anything_but_string_null`, `content_anything_prefix_int_value` (V38, V42). `RulerTest.WHEN_WeTryAnythingButRules_THEN_Theywork` encodes the type partition ([L431-L573](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/test/software/amazon/event/ruler/RulerTest.java#L431-L573)).
+- `anything-but` with `suffix` has existed since v1.1.0 (2023-02-02) and with `wildcard` since v1.7.3 (2024-03-14); the legacy compiler lacks `wildcard`.
+
+### 4.7 Strings: prefix, suffix, ignore-case, wildcard, cidr
+
+- `prefix`, `suffix` and the ignore-case forms match strings only (V60). `{"prefix":""}` is valid and matches every string including `""` (V59; AWS-REC `content_prefix_empty`).
+- `wildcard`: zero or more `*`; consecutive `*` rejected (`Consecutive wildcard characters at pos N`, N counts the injected opening quote, so it is index+1); `\*` and `\\` are the only escapes (`Invalid escape character at pos N`, a trailing `\` included); strings only; `{"wildcard":""}` matches only the empty string (V57, V58; [WildcardParser L25, L37](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/input/WildcardParser.java#L25-L37); [EB wildcard](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern-operators.html)). A literal `*` in an event is matched by `*` (executed). Correction to secrets-logs 4.4: AWS-REC `content_wildcard_empty_NEG` only shows that `""` does not match a non-empty value ([fixture](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/events/event_pattern_templates/content_wildcard_empty_NEG.json5)).
+- `cidr`: IPv4 or IPv6, event must be a string that parses as an address; **the mask must be < 32 (IPv4) or < 128 (IPv6)**, so `/32` and `/128` are rejected (`IPv4 mask bits must be < 32`, V64; [CIDR.cidr L124-L150](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/CIDR.java#L124-L150); same on all 14 tags). No AWS fixture covers a full-length mask; whether the services inherit this is H9. Other errors in V65 and [sns.md 6.5](sns.md).
+
+### 4.8 `$or`, combinations, keys, complexity
+
+- `$or` is the OR primitive only when its value is an array of >= 2 objects and no member contains an operator keyword as a field name ([README L376-L386](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/README.md#L376-L386), [Constants L52-L70](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/Constants.java#L52-L70)). Semantics: each branch is ANDed with the sibling keys; branches OR; arbitrary nesting; `$or` may sit inside nested objects ([parseIntoOrRelationship L327-L359](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/JsonRuleCompiler.java#L327-L359); V68, V69; examples in [README L388-L449](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/README.md#L388-L449)). A key repeated inside a branch overrides the sibling rule for that branch only (executed).
+- "Otherwise `$or` is an ordinary key" is only half true (the README and both SNS and Lambda-style docs say it). With `Machine.addRule`: object value or an array of plain values becomes an ordinary key (V71); a one-object array or an array with an operator-named member **fails** (`Unrecognized match type m` / `Value of numeric must be an array.`, V70, V72). The strict compiler fails all of these with its own messages (`There must have at least 2 Objects in $or relationship.`, `It must be an Array followed with $or.`, `numeric is Ruler reserved fieldName which cannot be used inside $or.`) ([testWrongOrRelationshipRules L546-L563](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/test/software/amazon/event/ruler/JsonRuleCompilerTest.java#L546-L563), [testOrFieldCanKeepWorkingInLegacyRuleCompiler L566-L610](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/test/software/amazon/event/ruler/JsonRuleCompilerTest.java#L566-L610)).
+- **No cap.** The compiler deep-copies the rule list per branch with no bound ([L362-L364](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/JsonRuleCompiler.java#L362-L364)); seven sibling `$or` arrays of three members (2187 combinations) compile and match (executed). The 1000 limit is an EventBridge API rule: "multiply the total number of arguments from each `$or` array" and exceeding it throws `InvalidEventPatternException` ([EB operators](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern-operators.html)); the newer Custom Event Bus quotas table repeats "1,000 $or combinations" ([EB quotas](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-quota.html)). How nested `$or` arrays count toward the 1000 is UNVERIFIED (H12).
+- **No key-count or leaf-count limit** exists in Ruler (grep of `src/main` finds no such constant). SNS "five keys" and "150 combinations" ([constraints](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html), [AND/OR](https://docs.aws.amazon.com/sns/latest/dg/and-or-logic.html)) are SNS-only, so whether SNS counts leaf keys (docs) or top-level keys (LocalStack) cannot be settled from Ruler. The AWS-validated SNS test never separates them: its nested case has 3 leaves under 2 top-level keys and fails on combinations (216) ([test_sub_filter_policy_nested_property_constraints](https://github.com/localstack/localstack/blob/main/tests/aws/services/sns/test_sns_filter_policy.py)). See H3.
+- **Complexity** in Ruler means wildcard non-determinism only: `MachineComplexityEvaluator` counts wildcard and anything-but-wildcard prefixes ([MATCH_TYPES_WITH_COMPLEXITY](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/MachineComplexityEvaluator.java#L24-L25)); the caller picks the cap. Evaluated on v2.2.0: `arn:aws:events:us-east-1:*:event-bus/*` = 3, `/Users/*/doc.txt` = 2, `/Users/*/dir/dir/dir/dir/dir/doc.txt` = 7, `*a*a*a*a*` = 9, `*:*:*:*:*:event-bus/*` = 11. EventBridge accepts the 3 and the 7 and rejects the 11 (AWS-REC `content_wildcard_nonrepeating`, `_repeating`, `_simplified`, `content_wildcard_complex_EXC`: `Rule is too complex - try using fewer wildcard characters or fewer repeating character sequences after a wildcard character`, [snapshot](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/events/test_events_patterns.snapshot.json)), so its cap on this scale is between 8 and 11 (inference; evaluator version in production unknown; H11). SNS uses a different, documented point system (100 points, 3 wildcards per pattern, [constraints](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html)) that Ruler does not implement.
+
+## 5. Documented differences between the services
+
+### 5.1 Operators (documentation, 2026-10-08)
+
+| Operator | EventBridge bus | EventBridge Pipes | SNS | Lambda ESM | Ruler 2.2.0 |
+|---|---|---|---|---|---|
+| exact string/number/true/false/null, `[""]` | yes | yes | yes | yes | yes |
+| `prefix`, `suffix`, `equals-ignore-case` | yes | yes | yes | yes | yes |
+| `prefix`/`suffix` + `equals-ignore-case` | yes | yes | not listed | not listed | yes |
+| `anything-but` string/number/list | yes | yes | yes | yes ("Not") | yes |
+| `anything-but` + `prefix` | yes | no | yes | not listed | yes |
+| `anything-but` + `suffix` | yes | no | listed in docs now; rejected 2024-05-15 | not listed | yes |
+| `anything-but` + `equals-ignore-case` | yes | no | not listed | not listed | yes |
+| `anything-but` + `wildcard` | yes | no | yes (announced 2025-07-31) | not listed | yes |
+| `wildcard` | yes | no | yes (2025-07-31) | not listed | yes |
+| `numeric` | yes | yes | yes | yes | yes |
+| `exists` | yes | yes | yes | yes | yes |
+| `cidr` | yes | listed in the section, not in table | yes | not listed | yes |
+| `$or` | yes | yes | yes | yes | yes |
+| `exactly` | no | no | no | no | yes |
+
+Sources: [EB operators](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern-operators.html), [SNS filter policies](https://docs.aws.amazon.com/sns/latest/dg/sns-subscription-filter-policies.html), [SNS string matching](https://docs.aws.amazon.com/sns/latest/dg/string-value-matching.html), [SNS 2025-07-31 announcement](https://aws.amazon.com/about-aws/whats-new/2025/07/amazon-sns-message-filtering-operators) (as summarized by a fetch tool, which listed anything-but prefix as the third addition; wording UNVERIFIED), [Lambda filtering](https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventfiltering.html). "Not listed" is not proof of rejection; whether Lambda rejects `wildcard` or `cidr` is H13.
+
+### 5.2 Limits
+
+| Limit | EventBridge | SNS | Lambda ESM |
+|---|---|---|---|
+| Pattern size | 2048 characters, adjustable, classic bus ([quotas](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-quota.html)); 4096 bytes across all filters on the newer Custom Event Bus | 256 KB ([constraints](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html)) | 4096 characters per `Pattern` ([API_Filter](https://docs.aws.amazon.com/lambda/latest/api/API_Filter.html)) |
+| Patterns per owner | 300 rules per bus (adjustable); 30 rules containing wildcards per bus, not adjustable ([quotas](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-quota.html)) | 200 per topic, 10,000 per account ([constraints](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html)) | 5 filters per mapping, 10 with a quota increase ([Lambda filtering](https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventfiltering.html)) |
+| Keys | none documented | 5; leaf keys count for nested body policies (docs) | none documented |
+| Combinations | 1000 `$or` combinations | 150 (product of rule counts times nesting level; sum over `$or` branches) | none documented |
+| Wildcard complexity | evaluator cap, 8..11 on Ruler's scale (inferred) | 100 points total, 3 wildcards per pattern | n/a (wildcard not listed) |
+| Numeric | binary64, exact within +/-2^53 | -1e9..1e9, 5 decimals (docs); observed laxer | string representation (docs); see V14 |
+| Propagation | "short period" | up to 15 minutes ([policies](https://docs.aws.amazon.com/sns/latest/dg/sns-subscription-filter-policies.html)) | not documented |
+
+### 5.3 Error shapes
+
+| Service | Shape | Source |
+|---|---|---|
+| EventBridge | `InvalidEventPatternException`, `Event pattern is not valid. Reason: <Ruler message>`, plus a Jackson location line in `MessageRaw` | [snapshot](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/events/test_events_patterns.snapshot.json) |
+| SNS | `InvalidParameter`: `Invalid parameter: FilterPolicy: <Ruler message>` on SetSubscriptionAttributes, `Invalid parameter: Attributes Reason: FilterPolicy: <...>` on Subscribe; plus SNS-only `Filter policy can not have more than 5 keys`, `Filter policy is too complex`, `Filter policy scope MessageAttributes does not support nested filter policy` | [sns.md 6.5](sns.md), [LS snapshot](https://github.com/localstack/localstack/blob/main/tests/aws/services/sns/test_sns_filter_policy.snapshot.json) |
+| Lambda | `InvalidParameterValueException`, `Invalid filter pattern definition.`, no Ruler detail | [LS-SQS snapshot](https://github.com/localstack/localstack/blob/main/tests/aws/services/lambda_/event_source_mapping/test_lambda_integration_sqs.snapshot.json) |
+
+### 5.4 Semantic differences already documented
+
+- SNS applies the filter to `MessageAttributes` (String, String.Array, Number; Binary ignored) or to the JSON `MessageBody`; attribute scope forbids nesting ([constraints](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html)). An AWS-validated SNS test shows a `Number` attribute `"99"` satisfying `{"numeric":[">",0,"<=",100]}` ([test_filter_policy](https://github.com/localstack/localstack/blob/main/tests/aws/services/sns/test_sns_filter_policy.py)); since Ruler numeric rules need a JSON number, SNS presents `Number` attributes to the matcher as JSON numbers (inference).
+- Lambda SQS mappings filter only `body` per [the SQS page](https://docs.aws.amazon.com/lambda/latest/dg/with-sqs-filtering.html) ("only support filtering on the `body` key"), while [the general page](https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventfiltering.html) shows metadata properties; the body is evaluated for JSON-versus-plain-string agreement. Under Ruler semantics the whole six-row body table falls out with no special case if Lambda parses a JSON body into a nested event: a JSON body has no scalar `body` leaf, so a `{"body":["plain"]}` pattern cannot match it, and a plain string has no nested `body.k` leaf (derived, not observed; H13).
+- The Lambda numeric note is the one place a service doc contradicts the open-source engine. Ruler: V14 matches. Doc: "300, 300.0, and 3.0e2 are not considered equal."
+
+## 6. Master table
+
+| behavior | EventBridge | SNS | Lambda ESM | evidence | confidence |
+|---|---|---|---|---|---|
+| Engine | Ruler (>= v1.8.0 inferred) | Ruler-derived compiler plus SNS allow-list and limits | "same syntax as EventBridge"; engine unproven | sections 2, 3 | EB HIGH; SNS MEDIUM; Lambda LOW |
+| Leaf array vs event array | any element intersects | same (policy `["rugby","tennis"]` matches `String.Array ["rugby","x"]`) | same (assumed) | V01-V03; [EB arrays](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns-arrays.html); [SNS string matching](https://docs.aws.amazon.com/sns/latest/dg/string-value-matching.html) | EB HIGH; SNS HIGH; Lambda LOW |
+| Array consistency | enforced | enforced? (body scope) | enforced? | V73, V74; Ruler README; SNS not recorded | EB HIGH; SNS UNVERIFIED; Lambda UNVERIFIED |
+| `anything-but` over array | any element passes | any element passes (doc examples; doc sentence says otherwise) | any element (assumed) | V35-V37; section 4.3 | EB HIGH; SNS MEDIUM (H4); Lambda LOW |
+| `anything-but` + missing key / null event | missing: no; null: passes | missing: no (SNS-REC `[null,{"anything-but":"whatever"}]` not delivered with no attributes) | assumed as EB | V38; `ab-missing`; AWS-REC `content_anything_but_string_null` | EB HIGH; SNS MEDIUM; Lambda LOW |
+| `anything-but` type partition | strings never exclude numbers and reverse | assumed | assumed | V39-V41 | EB MEDIUM; others UNVERIFIED |
+| `null` vs `""` | distinct | distinct (policy `[""]` matched `""`, SNS-REC `eventVersion`) | distinct (table lists both) | V05-V08; [EB null](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns-null-values.html) | EB HIGH; SNS MEDIUM; Lambda LOW |
+| `exists:true` on `null`, `""` | matches (Ruler) | doc: needs non-null, non-empty | assumed as EB | V30, V31 vs [SNS key matching](https://docs.aws.amazon.com/sns/latest/dg/attribute-key-matching.html) | EB MEDIUM; SNS LOW (H2); Lambda UNVERIFIED |
+| `exists:true` on `[]` / `{}` | no | no (assumed; SNS-REC shows only that an empty array does not break other keys) | assumed | V29, V34; AWS-REC `exists_list_empty_NEG` | EB HIGH; SNS LOW; Lambda LOW |
+| `exists:false` on empty event / zero attributes | matches `{}`-style events | doc: does not match | assumed as EB | V33 vs SNS key matching | EB MEDIUM; SNS LOW (H1); Lambda UNVERIFIED |
+| `exists` on intermediate node | `false` matches object-valued key; `true` does not | "works only on leaf nodes" | same wording | V32, V34; docs on all three | EB HIGH; SNS MEDIUM; Lambda LOW |
+| Numeric vs JSON string / null | never matches | strict assumed; LocalStack coerces | strict assumed | V11-V13; AWS-REC `numeric-string_NEG`, `numeric-null_NEG` | EB HIGH; SNS MEDIUM (H8); Lambda LOW |
+| Numeric equality forms `300`/`300.0`/`3.0e2` | equal | equal for `numeric =` (doc: `3.015e2` = `301.5`) | doc: **not equal** for bare rules | V14, V15; [SNS numeric](https://docs.aws.amazon.com/sns/latest/dg/numeric-value-matching.html); [Lambda](https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventfiltering.html) | EB HIGH; SNS HIGH (operator); Lambda CONFLICT (H7) |
+| Numeric range/precision | float64, +/-2^53 exact; unrepresentable rejected | docs +/-1e9, 5 decimals; observed laxer | n/a | 4.5; [EB operators](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern-operators.html) | EB HIGH; SNS LOW (H5); Lambda UNVERIFIED |
+| Bare number rule `[100]` | numeric-or-text; matches JSON `100`, `100.0` | likely matches `Number` attr 100 (moto reading); LocalStack never | likely as EB | 4.5, section 5.4; moto/LocalStack in [sns.md 6.4](sns.md) | EB HIGH; SNS MEDIUM (H6); Lambda LOW |
+| String/number coercion in body scope | none | none assumed | none | 4.5 | EB HIGH; SNS MEDIUM (H8) |
+| `prefix`/`suffix`/`ic` on non-strings | no match | assumed | assumed | V60 | EB HIGH |
+| `anything-but` suffix / wildcard / ignore-case | accepted (v1.1.0 / v1.7.3) | suffix rejected 2024-05-15; docs list suffix and wildcard now | not listed | section 3, 5.1 | EB HIGH; SNS LOW (H7); Lambda UNVERIFIED |
+| Wildcard grammar | `*`, `\*`, `\\`; no `**`; strings only | same text assumed (`Consecutive wildcard...` from Ruler) | not listed | V52-V58; [WildcardParser](https://github.com/aws/event-ruler/blob/ced786201c1f43ec73482b78f3d1843aa4bd2f89/src/main/software/amazon/event/ruler/input/WildcardParser.java#L25-L37) | EB HIGH; SNS MEDIUM; Lambda UNVERIFIED |
+| Wildcard complexity | evaluator cap in 8..11 | 100 points, 3 wildcards | n/a | 4.8 | EB MEDIUM; SNS LOW (error text UNVERIFIED) |
+| `$or` grammar | array of >= 2 objects, no operator keys | same (docs near-verbatim README) | listed | V68-V72; [SNS AND/OR](https://docs.aws.amazon.com/sns/latest/dg/and-or-logic.html) | EB HIGH; SNS MEDIUM; Lambda LOW |
+| `$or` malformed shapes | error or ordinary key depending on compile path | docs: ordinary key | UNVERIFIED | V70-V72; 4.8 | UNVERIFIED (H10) |
+| `$or` combination cap | 1000 (EB API); none in Ruler | 150 sum over branches | none documented | 4.8 | EB HIGH; SNS HIGH (recorded); Lambda UNVERIFIED |
+| Key count | none | 5, leaf vs top-level unknown | none | 4.8 | EB HIGH; SNS UNVERIFIED (H3) |
+| `cidr` full-length mask | `/32`, `/128` rejected in Ruler | assumed same | not listed | V64 | EB MEDIUM; SNS MEDIUM (H9) |
+| IP-literal string rules | become IP ranges | assumed | assumed | V66, V67 | EB MEDIUM |
+| Dot joining | `a.b` = nested | same (SNS-REC) | assumed | V75; SNS-REC `object.nested` | EB HIGH; SNS HIGH; Lambda UNVERIFIED |
+| Duplicate keys | last wins | not recorded | not recorded | V76; [EB operators](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-pattern-operators.html) | EB HIGH; others UNVERIFIED |
+| Plain-string `body` pattern | n/a | n/a | `{"body":["plain"]}` (derived); `{"body":"plain"}` is invalid | V77; section 5.4 | Lambda LOW (H13) |
+| Error text | `Event pattern is not valid. Reason: <Ruler>` | `Invalid parameter: FilterPolicy: <Ruler>` | `Invalid filter pattern definition.` | 5.3 | EB HIGH; SNS HIGH; Lambda LOW |
+| Non-object event | `Parameter Event is not valid.` (TestEventPattern) | message not JSON object: filtered out | body handled per format table | V83; [sns.md 6.3](sns.md) | EB MEDIUM; SNS HIGH |
+
+## 7. Corrections applied to other files
+
+Each was edited in place with a "G2 note" and the source.
+
+- [secrets-logs-events-alarms.md](secrets-logs-events-alarms.md) 4.4: (a) the EventBridge docs do not cite Event Ruler; AWS cites it in the 2024-02-01 announcement and the open-source blog. (b) The 1000 `$or` combination cap is an EventBridge API limit, not a Ruler rule; Ruler has none (2187 combinations compile). (c) `{"wildcard":""}` matches the empty string; the fixture only shows it does not match a non-empty value. (d) `$or` is an ordinary key only for an object value or an array of plain values; other malformed shapes are errors.
+- [sns.md](sns.md): Ruler/SNS relationship (6.2) now evidenced; `anything-but` array, `exists:false`, key counting, numeric range, `anything-but` suffix rows in section 9 annotated with Ruler results; `$or` ordinary-key sentence (6.1) qualified.
+- [lambda-events.md](lambda-events.md): the numeric-string note conflicts with Ruler; the plain-string pattern form is derived; "shared EventBridge engine" in implication 15 is not documented.
+
+## 8. Cases only a human-run AWS recording can settle
+
+Record each on real AWS in a disposable account, never from agent runs. Save requests, responses, and delivered messages verbatim. "Doc" and "Ruler" give the two competing expectations. Use `aws events test-event-pattern` for EventBridge (no resources needed); SNS needs a topic with an SQS subscription (raw delivery); Lambda needs an SQS queue, a logging function and `create-event-source-mapping` with `FilterCriteria`.
+
+- **H1. SNS `exists:false` with zero attributes.** Policy `{"store":[{"exists":false}]}`, scope `MessageAttributes`: publish with no attributes; publish with `other=x` (String). Repeat in scope `MessageBody` with message bodies `{}` and `{"other":"x"}`. Doc: not delivered, delivered. Ruler: delivered in both. Also `TestEventPattern` with pattern `{"detail":{"store":[{"exists":false}]}}` against an event with `"detail":{}`.
+- **H2. SNS and Lambda `exists:true` on empty values.** Policy `{"store":[{"exists":true}]}`, scope `MessageBody`: bodies `{"store":null}`, `{"store":""}`, `{"store":[]}`, `{"store":{}}`, `{"store":0}`, `{"store":false}`. Attribute scope: String attribute with value `x` and (if Publish accepts it) empty value. Lambda: pattern `{"body":{"store":[{"exists":true}]}}` with the same bodies. Doc (SNS): `null` and `""` do not match. Ruler: both match.
+- **H3. SNS key counting.** Scope `MessageBody`; try each via `SetSubscriptionAttributes` and record accept or the exact error: (a) `{"a":{"b":["1"],"c":["1"],"d":["1"]},"e":{"f":["1"],"g":["1"],"h":["1"]}}` (2 top-level, 6 leaf; 64 combinations); (b) `{"a":{"b":["1"],"c":["1"],"d":["1"],"e":["1"],"f":["1"]}}` (1 top-level, 5 leaf); (c) `{"$or":[{"a":["1"],"b":["1"],"c":["1"]},{"d":["1"],"e":["1"],"f":["1"]}]}`; (d) 6 flat keys with `$or`: `{"a":["1"],"$or":[{"b":["1"],"c":["1"]},{"d":["1"],"e":["1"],"f":["1"]}]}`. Doc: leaf keys counted. LocalStack: top-level keys counted.
+- **H4. SNS `anything-but` over arrays.** Policy `{"x":[{"anything-but":["rugby","tennis"]}]}`; attribute `x` as `String.Array` `["rugby","baseball"]`, `["rugby"]`, `["rugby","tennis"]`, `["baseball","golf"]`; body scope bodies `{"x":["rugby","baseball"]}`, `{"x":["rugby"]}`, `{"x":["rugby","tennis"]}`. Expected (Ruler): match, no, no, match; match, no, no.
+- **H5. SNS numeric range and precision.** Accept or reject, then match, for: `["=",1000000001]`, `[">",1000000000]`, `["=",5000000001]`, `["=",1000000000000]`, `["=",0.123456]`, `["=",0.1234567]`, `["=",9007199254740993]`, `["=",1e309]`, bare `[1000000000000]`. Match checks: `Number` attributes `0.123456`, `0.1234567`, `1000000000000`; body numbers likewise. Expected under modern Ruler: all accepted except `["=",9007199254740993]` and `["=",1e309]` (`Cannot compare number : ...`). Under pre-1.8 Ruler (executed on v1.1.0 to v1.7.3): `["=",9007199254740993]` gives `Value must be between -5.0E9 and 5.0E9, inclusive` and `[">",1000000000000]` gives `Bottom must be less than top`, so the first four numeric cases would tell the version apart.
+- **H6. SNS bare number on `Number` attributes and bodies.** Policy `{"p":[100]}`; `Number` attribute `100`, `100.0`, `1.0e2`; String attribute `100`; body `{"p":100}`, `{"p":100.0}`, `{"p":"100"}`. Also `{"p":[{"numeric":["=",100]}]}` with String attribute `100`. Moto expects numeric equality on the `Number` forms; LocalStack never matches.
+- **H7. Numeric-string equality, operators allow-list.** (a) Lambda: pattern `{"body":{"n":[300]}}` with bodies `{"n":300}`, `{"n":300.0}`, `{"n":3.0e2}`, `{"n":"300"}`, and `{"body":{"n":[{"numeric":["=",300]}]}}` with the same four. Lambda doc: only identical text matches; Ruler: first three match for both. (b) SNS operators on today's service: `{"x":[{"anything-but":{"suffix":"ball"}}]}`, `{"x":[{"anything-but":{"wildcard":"*ball"}}]}`, `{"x":[{"anything-but":{"equals-ignore-case":"A"}}]}`, `{"x":[{"prefix":{"equals-ignore-case":"A"}}]}`, `{"x":[{"suffix":{"equals-ignore-case":"A"}}]}`, `{"x":[{"anything-but":{"prefix":["a","b"]}}]}`, `{"x":[{"exactly":"a"}]}`, `{"x":[{"anything-but":{"prefix":false}}]}`; record accept or the exact error text.
+- **H8. Body-scope string versus number.** SNS and Lambda: pattern `{"n":[{"numeric":[">",5]}]}` with body `{"n":"10"}`; pattern `{"n":["10"]}` with `{"n":10}`; pattern `{"n":[10]}` with `{"n":"10"}`. Expected (Ruler, EventBridge fixtures): none match. EventBridge `TestEventPattern` control on the same three.
+- **H9. `cidr` full-length masks.** `{"ip":[{"cidr":"10.0.0.1/32"}]}`, `{"ip":[{"cidr":"2001:db8::1/128"}]}`, `{"ip":[{"cidr":"0.0.0.0/0"}]}` on EventBridge, SNS (both scopes) and Lambda; events `{"ip":"10.0.0.1"}` and `{"ip":"2001:db8::1"}`. Ruler rejects the first two with `IPv4 mask bits must be < 32` / `IPv6 mask bits must be < 128`.
+- **H10. `$or` malformed shapes.** On EventBridge `PutRule`/`TestEventPattern`, SNS, Lambda: `{"$or":{"m":["x"]}}`, `{"$or":["x","y"]}`, `{"$or":[{"m":["x"]}]}`, `{"s":["a"],"$or":[{"numeric":123},{"prefix":"abc"}]}`, `{"$or":[{},{"a":["1"]}]}`, `{"$or":[{"a":["1"]},"x"]}`. Record accept or exact error; for accepted ones test matching with `{"$or":{"m":"x"}}` and `{"m":"x"}` events. Ruler strict compile rejects all six; `addRule` accepts only the first two (as ordinary keys).
+- **H11. Wildcard complexity cap.** EventBridge `PutRule` with `{"x":[{"wildcard":P}]}` for `P` in `*:*:*:event-bus/*` (7), `*:*:*:*:event-bus/*` (9), `*a*a*a*a*a*` (11). Known: 7 accepted, 11 rejected. SNS (field points = sum of pattern points x number of patterns, [constraints](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html)): one field with 10 and with 11 distinct single-wildcard patterns (`a1*`, `a2*`, ... = 100 and 121 points); one pattern with 3 and with 4 wildcards (`a*b*c*d`, `a*b*c*d*e`); one field with 5 distinct two-wildcard patterns (`*a*`, `*b*`, ...) to learn whether "3 points each" is per pattern (75) or per wildcard (150). Record accept or the exact error text.
+- **H12. `$or` combination counting on EventBridge.** Three sibling `$or` arrays (each in its own nested object, members using distinct keys such as `{"k1":{"a1":["1"]}}`) of sizes 10, 10, 10 (1000) and 7, 11, 13 (1001); plus one nested `$or` inside a branch (outer 3 members, one containing an inner `$or` of 2) to see whether nesting adds or multiplies. Doc rule: multiply the argument counts of every `$or` array. Record which are rejected.
+- **H13. Lambda operator allow-list and SQS body forms.** `create-event-source-mapping` with each of: `{"body":{"ip":[{"cidr":"10.0.0.0/24"}]}}`, `{"body":{"f":[{"wildcard":"*.png"}]}}`, `{"body":{"f":[{"anything-but":{"prefix":"a"}}]}}`, `{"body":{"f":[{"anything-but":{"suffix":".png"}}]}}`, `{"body":{"f":[{"equals-ignore-case":"A"}]}}`, `{"body":{"f":[{"prefix":{"equals-ignore-case":"A"}}]}}`, `{"messageAttributes":{"k":{"stringValue":["v"]}}}`, `{"attributes":{"MessageGroupId":["g"]}}`, `{"messageId":["x"]}`, `{"eventSource":["aws:sqs"]}`; for the accepted ones send a message and see whether it invokes. Plain-string form: `{"body":["plain"]}` with message bodies `plain`, `{"a":1}`, `123`, `"plain"` (JSON string), `[1]`, `true`; `{"body":"plain"}` (non-array leaf) and its error. Also 6 filters (limit text), and a `Pattern` of 4097 characters.
+
+## 9. Seed vectors (85)
+
+Pattern and event are JSON. Result is what `Ruler.matchesRule` equivalent returned on v2.2.0 (`Machine.addRule` then `rulesForJSONEvent`); `REJECT` rows are `JsonRuleCompiler.check` errors, first line only. Scope: all vectors are the shared core; vectors using operators outside a service's allow-list (section 5.1) must be rejected by that service before reaching the core.
+
+| id | pattern | event | result | basis |
+|---|---|---|---|---|
+| V01 | `{"x":["a","b"]}` | `{"x":"b"}` | match | RULER-RUN |
+| V02 | `{"x":["a","b"]}` | `{"x":["c","b"]}` | match | AWS-DOC arrays |
+| V03 | `{"x":["a","b"]}` | `{"x":["c","d"]}` | no match | AWS-REC `arrays_NEG` |
+| V04 | `{"x":["abc"]}` | `{"x":"ABC"}` | no match | RULER-RUN |
+| V05 | `{"x":[""]}` | `{"x":""}` | match | AWS-REC `string_empty` |
+| V06 | `{"x":[""]}` | `{"x":null}` | no match | AWS-DOC null values |
+| V07 | `{"x":[null]}` | `{"x":null}` | match | AWS-DOC null values |
+| V08 | `{"x":[null]}` | `{"x":""}` | no match | AWS-DOC null values |
+| V09 | `{"x":[true]}` | `{"x":"true"}` | no match | RULER-RUN |
+| V10 | `{"x":["true"]}` | `{"x":true}` | no match | RULER-RUN |
+| V11 | `{"x":[300]}` | `{"x":"300"}` | no match | RULER-RUN |
+| V12 | `{"x":[{"numeric":[">",100]}]}` | `{"x":"300"}` | no match | AWS-REC `numeric-string_NEG` |
+| V13 | `{"x":[{"numeric":[">",100]}]}` | `{"x":null}` | no match | AWS-REC `numeric-null_NEG` |
+| V14 | `{"x":[300]}` | `{"x":3.0e2}` | match | CONFLICT (Lambda doc: not equal) |
+| V15 | `{"x":[{"numeric":["=",300]}]}` | `{"x":300.0}` | match | AWS-DOC SNS `3.015e2` |
+| V16 | `{"x":[{"numeric":[">",5]}]}` | `{"x":5}` | no match | RULER-RUN |
+| V17 | `{"x":[{"numeric":[">=",5]}]}` | `{"x":5}` | match | RULER-RUN |
+| V18 | `{"x":[{"numeric":[">",0,"<=",150]}]}` | `{"x":150}` | match | AWS-DOC SNS range |
+| V19 | `{"x":[{"numeric":[">",0,"<=",150]}]}` | `{"x":150.00001}` | no match | RULER-RUN |
+| V20 | `{"x":[{"numeric":["=",9007199254740993]}]}` | `{"x":1}` | REJECT `Cannot compare number : 9007199254740993` | AWS-DOC EB numerics |
+| V21 | `{"x":[{"numeric":["=",1e309]}]}` | `{"x":1}` | REJECT `Cannot compare number : 1e309` | Ruler test `testNumericExpressions` |
+| V22 | `{"x":[12345678901234567890]}` | `{"x":12345678901234567890}` | match | RULER-RUN |
+| V23 | `{"x":[12345678901234567890]}` | `{"x":12345678901234567891}` | no match | RULER-RUN |
+| V24 | `{"x":[{"numeric":[">",5]}]}` | `{"x":[1,10]}` | match | RULER-RUN |
+| V25 | `{"account":[123456789012]}` | `{"account":123456789012}` | match | Ruler test `testBigNumbers` |
+| V26 | `{"x":[{"exists":false}]}` | `{"y":1}` | match | AWS-REC `content_exists_false` |
+| V27 | `{"x":[{"exists":false}]}` | `{"x":null}` | no match | RULER-RUN |
+| V28 | `{"x":[{"exists":false}]}` | `{"x":[]}` | match | RULER-RUN |
+| V29 | `{"x":[{"exists":true}]}` | `{"x":[]}` | no match | AWS-REC `exists_list_empty_NEG` |
+| V30 | `{"x":[{"exists":true}]}` | `{"x":null}` | match | CONFLICT (SNS doc: needs non-null) |
+| V31 | `{"x":[{"exists":true}]}` | `{"x":""}` | match | CONFLICT (SNS doc: needs non-empty) |
+| V32 | `{"a":{"b":[{"exists":false}]}}` | `{"a":{"b":{"c":1}}}` | match | AWS-DOC README |
+| V33 | `{"x":[{"exists":false}]}` | `{}` | match | CONFLICT (SNS doc: no match on empty) |
+| V34 | `{"x":[{"exists":true}]}` | `{"x":{"y":1}}` | no match | AWS-DOC EB exists |
+| V35 | `{"x":[{"anything-but":["rugby","tennis"]}]}` | `{"x":["rugby","baseball"]}` | match | AWS-DOC SNS body example |
+| V36 | `{"x":[{"anything-but":["rugby","tennis"]}]}` | `{"x":["rugby"]}` | no match | AWS-DOC SNS body example |
+| V37 | `{"x":[{"anything-but":["rugby","tennis"]}]}` | `{"x":["rugby","tennis"]}` | no match | RULER-RUN |
+| V38 | `{"x":[{"anything-but":"a"}]}` | `{"x":null}` | match | AWS-REC `content_anything_but_string_null` |
+| V39 | `{"x":[{"anything-but":"5"}]}` | `{"x":5}` | match | RULER-RUN |
+| V40 | `{"x":[{"anything-but":[111,222]}]}` | `{"x":"111"}` | match | Ruler test `RulerTest L431` |
+| V41 | `{"x":[{"anything-but":[111,222]}]}` | `{"x":111}` | no match | AWS-DOC SNS numeric |
+| V42 | `{"x":[{"anything-but":{"prefix":"a"}}]}` | `{"x":12}` | match | AWS-REC `content_anything_prefix_int_value` |
+| V43 | `{"x":[{"anything-but":{"prefix":""}}]}` | `{"x":"a"}` | REJECT `Null prefix/suffix not allowed` | AWS-REC `content_anything_prefix_empty_EXC` |
+| V44 | `{"x":[{"anything-but":["a",1]}]}` | `{"x":"a"}` | REJECT `Inside anything but list, either all values are number or string, mixed type is not supported` | RULER-RUN |
+| V45 | `{"x":[{"anything-but":{"suffix":"ball"}}]}` | `{"x":["baseball","hockey"]}` | match | AWS-DOC SNS |
+| V46 | `{"x":[{"anything-but":{"suffix":"ball"}}]}` | `{"x":["baseball","basketball"]}` | no match | AWS-DOC SNS |
+| V47 | `{"x":[{"anything-but":{"wildcard":"*ball"}}]}` | `{"x":["hockey","rugby"]}` | match | AWS-DOC SNS |
+| V48 | `{"x":[{"anything-but":{"wildcard":"*ball"}}]}` | `{"x":["baseball","basketball"]}` | no match | AWS-DOC SNS |
+| V49 | `{"x":[{"anything-but":"a"},{"exists":false}]}` | `{"y":1}` | match | AWS-DOC SNS |
+| V50 | `{"x":[{"anything-but":{"equals-ignore-case":"ABC"}}]}` | `{"x":"abc"}` | no match | AWS-REC `content_anything_but_ignorecase_NEG` |
+| V51 | `{"x":[{"wildcard":"a*c"}]}` | `{"x":"ac"}` | match | RULER-RUN |
+| V52 | `{"x":[{"wildcard":"a\\*c"}]}` | `{"x":"a*c"}` | match | AWS-DOC EB escapes |
+| V53 | `{"x":[{"wildcard":"a\\*c"}]}` | `{"x":"abc"}` | no match | AWS-DOC EB escapes |
+| V54 | `{"x":[{"wildcard":"a**c"}]}` | `{"x":"abc"}` | REJECT `Consecutive wildcard characters at pos 2` | AWS-REC `content_wildcard_repeating_star_EXC` |
+| V55 | `{"x":[{"wildcard":"a\\nc"}]}` | `{"x":"abc"}` | REJECT `Invalid escape character at pos 2` | AWS-DOC EB escapes |
+| V56 | `{"x":[{"wildcard":"*"}]}` | `{"x":5}` | no match | RULER-RUN |
+| V57 | `{"x":[{"wildcard":""}]}` | `{"x":""}` | match | RULER-RUN |
+| V58 | `{"x":[{"wildcard":""}]}` | `{"x":"a"}` | no match | AWS-REC `content_wildcard_empty_NEG` |
+| V59 | `{"x":[{"prefix":""}]}` | `{"x":"abc"}` | match | AWS-REC `content_prefix_empty` |
+| V60 | `{"x":[{"prefix":"1"}]}` | `{"x":123}` | no match | RULER-RUN |
+| V61 | `{"x":[{"equals-ignore-case":"alice"}]}` | `{"x":"ALICE"}` | match | AWS-DOC EB |
+| V62 | `{"x":[{"cidr":"10.0.0.0/24"}]}` | `{"x":"10.0.0.255"}` | match | AWS-DOC SNS |
+| V63 | `{"x":[{"cidr":"10.0.0.0/24"}]}` | `{"x":"10.0.1.0"}` | no match | AWS-DOC SNS |
+| V64 | `{"x":[{"cidr":"10.0.0.1/32"}]}` | `{"x":"10.0.0.1"}` | REJECT `IPv4 mask bits must be < 32` | RULER-RUN (H9) |
+| V65 | `{"x":[{"cidr":"bad-filter/64"}]}` | `{"x":"10.0.0.1"}` | REJECT `Nonstandard IP address: bad-filter` | SNS-REC |
+| V66 | `{"x":["10.0.0.1"]}` | `{"x":"10.0.0.1"}` | match | RULER-RUN |
+| V67 | `{"x":["2001:db8::1"]}` | `{"x":"2001:0db8:0:0:0:0:0:1"}` | match | RULER-RUN |
+| V68 | `{"s":["a"],"$or":[{"m":["x"]},{"n":["y"]}]}` | `{"s":"a","n":"y"}` | match | AWS-DOC SNS AND/OR |
+| V69 | `{"s":["a"],"$or":[{"m":["x"]},{"n":["y"]}]}` | `{"s":"a"}` | no match | AWS-DOC SNS AND/OR |
+| V70 | `{"$or":[{"m":["x"]}]}` | `{"m":"x"}` | REJECT `There must have at least 2 Objects in $or relationship.` (via `addRule`: `Unrecognized match type m`) | RULER-RUN (H10) |
+| V71 | `{"s":["a"],"$or":{"m":["x"]}}` | `{"s":"a","$or":{"m":"x"}}` | match via `addRule` fallback; strict compile rejects | CONFLICT-ish (docs: ordinary key) |
+| V72 | `{"$or":[{"numeric":123},{"prefix":"abc"}]}` | `{"a":1}` | REJECT `numeric is Ruler reserved fieldName which cannot be used inside $or.` (via `addRule`: `Value of numeric must be an array.`) | CONFLICT (SNS doc: ordinary key) |
+| V73 | `{"employees":{"firstName":["Anna"],"lastName":["Jones"]}}` | `{"employees":[{"firstName":"John","lastName":"Doe"},{"firstName":"Anna","lastName":"Smith"},{"firstName":"Peter","lastName":"Jones"}]}` | no match | AWS-DOC README |
+| V74 | `{"employees":{"firstName":["Anna"],"lastName":["Smith"]}}` | `{"employees":[{"firstName":"John","lastName":"Doe"},{"firstName":"Anna","lastName":"Smith"}]}` | match | AWS-DOC README |
+| V75 | `{"detail":{"state":{"status":["running"]}}}` | `{"detail":{"state.status":"running"}}` | match | AWS-REC `dot_joining_event` |
+| V76 | `{"detail":{"location":[{"prefix":"us-"}],"location":[{"anything-but":"us-east"}]}}` | `{"detail":{"location":"us-east"}}` | no match (last key wins) | AWS-DOC EB operators |
+| V77 | `{"x":"a"}` | `{"x":"a"}` | REJECT `"x" must be an object or an array` | SNS-REC |
+| V78 | `{"x":[]}` | `{"x":"a"}` | REJECT `Empty arrays are not allowed` | SNS-REC |
+| V79 | `{"x":[["a"]]}` | `{"x":"a"}` | REJECT `Match value must be String, number, true, false, or null` | SNS-REC |
+| V80 | `{"x":[{"prefix":"a","suffix":"b"}]}` | `{"x":"ab"}` | REJECT `Only one key allowed in match expression` | SNS-REC |
+| V81 | `[1,2]` | `{"x":1}` | REJECT `Filter is not an object` | AWS-REC (secrets-logs 4.4) |
+| V82 | `{"x":[{"EXISTS":true}]}` | `{"x":1}` | REJECT `Unrecognized match type EXISTS` | AWS-REC `operator_case_sensitive_EXC` |
+| V83 | `{"x":["a"]}` | `[1]` | event error `Event must be a JSON object` | RULER-RUN |
+| V84 | `{"x":[{"numeric":[">=",1,">",2]}]}` | `{"x":3}` | REJECT `Bad numeric range operator: >` | SNS-REC |
+| V85 | `{"x":[{"numeric":["=","300"]}]}` | `{"x":300}` | REJECT `Value of equals must be numeric` | SNS-REC |
+
+## 10. Implications for understudy
+
+1. Build one matcher core with Ruler v2.2.0 semantics (compile to a typed pattern ADT, evaluate as a pure function) and gate it per service by an operator allow-list plus a limits module (SNS keys, combinations, wildcard points; EventBridge size, `$or` cap, wildcard complexity; Lambda size and filter count). Keep the allow-lists and limits out of the core, because Ruler has none of them.
+2. Treat the four known Ruler-versus-doc conflicts as named switches, default Ruler: `exists:true` on `null`/`""` (V30, V31), `exists:false` on empty input (V33), Lambda numeric text equality (V14), `$or` malformed shapes (V70-V72). Report them in the coverage output as "behavior from Ruler source, not AWS-recorded for this service" until H1, H2, H7, H10 land.
+3. Decide `$or` malformed-shape handling by choosing a compile path explicitly: strict compile errors (recommended for EventBridge and SNS error text) or `addRule` fallback. Record the decision in an ADR.
+4. Seed the property tests with section 9 and the invariants: array/scalar intersection, type distinctness, `anything-but` any-element, rule-order independence, and that `numeric` never matches a string.
+5. Wildcard complexity needs an evaluator equivalent to Ruler's if the EventBridge error is to be reproduced; cap 8..11 until H11 pins it. The SNS point system is independent and documented.

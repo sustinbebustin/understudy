@@ -130,5 +130,9 @@ Out of scope for phase 1 (roadmap): ECS, RDS, EC2/VPC, Step Functions, API Gatew
   - Never run `go mod tidy` unless you own `go.mod`.
   - Tests bind ephemeral ports (`127.0.0.1:0`), never fixed ports.
   - Docker containers you start carry the label `understudy.dev/test=1` and a unique name, and you remove them before you finish.
+- **Run every AWS-facing command through `scripts/sealed`**: the AWS CLI, Terraform, SDK probe scripts, conformance runs (`scripts/sealed aws sqs list-queues`, `scripts/sealed --endpoint http://127.0.0.1:45661 terraform apply`). It strips every inherited `AWS_*` setting, uses dummy credentials, never reads `~/.aws`, and refuses any endpoint that is not loopback. Never invoke `aws` or `terraform` bare. The scaffold justfile exposes it as `just aws ...` and `just tf ...`. Its tests run with `uv run --with pytest pytest scripts/tests`.
+- Shell hygiene that avoids blocked or prompted commands:
+  - Delete only explicit, literal paths: no `rm` with variables or globs.
+  - Put scratch work in a fresh `mktemp -d` directory and leave it there.
 - Read the architecture (`docs/design/ARCHITECTURE.md`) and ADRs (`docs/adr/`) before implementing. Where they are silent, follow the research in `docs/research/phase1/` and record a short decision in your report.
 - No emojis anywhere.

@@ -1,0 +1,20 @@
+# Python caches (scripts/ and conformance suites)
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Build outputs
+/.build/
+/dist/
+/understudy
+
+# Test and runtime artifacts
+*.log
+*.test
+*.out
+coverage.txt
+
+# Terraform working state (conformance suites)
+.terraform/
+*.tfstate
+*.tfstate.backup

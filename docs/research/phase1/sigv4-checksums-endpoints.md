@@ -1,0 +1,396 @@
+# SigV4, chunked streaming, flexible checksums, endpoints and addressing
+
+What the real clients send and what a server must accept, for SigV4 header and query auth, `aws-chunked` bodies with trailers, the 2025 flexible-checksum defaults, response-side checksum validation (S3, DynamoDB, SQS), endpoint resolution, S3 addressing, `*.localhost` name resolution and account ids from access keys. Written 2026-10-08.
+
+## 0. Evidence key and pinned sources
+
+Tags: **SRC** = SDK or tool source at a pinned commit. **DOC** = AWS documentation. **WIRE** = observed on this machine by pointing the real clients at a local raw-socket capture server (`127.0.0.1`, fake credentials `AKIAIOSFODNN7EXAMPLE`, instance metadata disabled, scratch directory outside the repo, nothing sent to AWS). **CALC** = computed with a scratch script from the documented algorithm and compared with a published or observed value. **REC** = behavior of another implementation (not AWS). Anything not confirmed on an owning source is marked UNVERIFIED.
+
+| Pin | Value |
+|---|---|
+| aws-sdk-go-v2 | [`ab2110b`](https://github.com/aws/aws-sdk-go-v2/tree/ab2110b01f03b3990bfd50208a8a05df1d8c5eac) (2026-10-07). WIRE used core v1.47.1, `service/s3` v1.114.1, `feature/s3/manager` v1.23.12, `service/sqs` v1.52.2, `service/cloudwatch` v1.73.1 |
+| botocore / boto3 | [`bfb412f`](https://github.com/boto/botocore/tree/bfb412faf00c249a54816e287a09a8bb79442c65) / [`1a2fc5c`](https://github.com/boto/boto3/tree/1a2fc5c27d8830186f75423e25293dc5a97694bc), version 1.43.109. s3transfer [`e6a7675`](https://github.com/boto/s3transfer/tree/e6a7675d40760c04920d8fae6cee34118deba21e) |
+| AWS CLI v2 | [`819fae8`](https://github.com/aws/aws-cli/tree/819fae80e541afd140d087ed9019065c1198a300) (source 2.37.10); WIRE used the installed 2.36.38 with awscrt 0.36.2 |
+| aws-sdk-js-v3 | [`0317bb8`](https://github.com/aws/aws-sdk-js-v3/tree/0317bb822abed1302aaae350a8bbfa40f60ef32d); WIRE used `client-s3`/`client-sqs` 3.1146.0, `client-cloudwatch` 3.1145.0 on Node 24 |
+| smithy-typescript | [`5d10456`](https://github.com/smithy-lang/smithy-typescript/tree/5d104567b7180c8a4055eb2f04c91854026a01c2) (SigV4 signer, aws-chunked encoder) |
+| Go toolchain | go1.27.1 (`net/http`, `net` read from the installed toolchain) |
+| Terraform AWS provider | [`972faab`](https://github.com/hashicorp/terraform-provider-aws/tree/972faab3f6e4e37aff0453fe05366f3bd3fc2b97) |
+
+**Removed AWS pages.** As of 2026-10-08 the S3 API Reference pages `sigv4-streaming.html`, `sigv4-streaming-trailers.html`, `sigv4-auth-using-authorization-header.html`, `sigv4-query-string-auth.html`, `sig-v4-header-based-auth.html` and `ErrorResponses.html` answer `302` to the API index (checked with `curl -I`). Their content is cited from Wayback Machine snapshots of the AWS originals (December 2025 to January 2026), tagged DOC-WB. The S3 User Guide pages and the IAM User Guide pages still resolve.
+
+## 1. SigV4 header authentication
+
+### 1.1 Grammar
+
+```
+Authorization: AWS4-HMAC-SHA256 Credential=<akid>/<yyyymmdd>/<region>/<service>/aws4_request, SignedHeaders=<h1;h2;...>, Signature=<64 lowercase hex>
+```
+
+Components, scope and signature definitions: [DOC-WB auth header](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html), [DOC IAM create-signed-request](https://docs.aws.amazon.com/IAM/latest/UserGuide/create-signed-request.html). The IAM page says "There is no comma between the algorithm and `Credential`. However, the other elements must be separated by commas." Observed separators: all four clients emit `, ` (comma plus space) between elements (WIRE); the S3 doc example uses bare commas in places. A parser must accept optional whitespace after commas and any element order.
+
+Date: `x-amz-date` (format `yyyyMMddTHHmmssZ`) or `Date`. "If we can't find an `x-amz-date` header, then we look for a `date` header." ([DOC IAM signing elements](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv-signing-elements.html)); when both are present `x-amz-date` wins ([DOC-WB auth header](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html)). "If the credential scope does not specify the same date as the `x-amz-date` header, the signature verification step fails" ([DOC troubleshooting](https://docs.aws.amazon.com/IAM/latest/UserGuide/signature-v4-troubleshooting.html)). botocore replaces `Date` with `X-Amz-Date` unless `Date` is already present ([SRC auth.py `_set_necessary_date_headers`](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/auth.py#L420-L440)); the DOC-WB PUT example signs both `date` and `x-amz-date`.
+
+### 1.2 Canonical request, string to sign, signing key
+
+Format and rules: [DOC IAM create-signed-request](https://docs.aws.amazon.com/IAM/latest/UserGuide/create-signed-request.html), [DOC-WB single chunk](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html).
+
+```
+<METHOD>\n<CanonicalURI>\n<CanonicalQueryString>\n<CanonicalHeaders>\n\n<SignedHeaders>\n<HashedPayload>      (CanonicalHeaders ends with "\n", so a blank line follows)
+StringToSign = "AWS4-HMAC-SHA256\n" + <ISO8601 ts> + "\n" + <yyyymmdd/region/service/aws4_request> + "\n" + hex(sha256(CanonicalRequest))
+kDate=HMAC("AWS4"+secret, yyyymmdd); kRegion=HMAC(kDate, region); kService=HMAC(kRegion, service); kSigning=HMAC(kService, "aws4_request"); Signature=hex(HMAC(kSigning, StringToSign))
+```
+
+Rules a verifier needs (all DOC unless noted):
+- **UriEncode**: encode every byte except `A-Za-z0-9-._~`; space is `%20`, never `+`; uppercase hex; `/` is not encoded in the path.
+- **CanonicalURI for S3**: "You do not normalize URI paths for requests to Amazon S3" (key `my-object//example//photo.user` must stay intact). Other services normalize dot segments and URI-encode the path a second time (JS: [`getCanonicalPath`](https://github.com/smithy-lang/smithy-typescript/blob/5d104567b7180c8a4055eb2f04c91854026a01c2/packages/signature-v4/src/SignatureV4Base.ts) double-encodes unless `uriEscapePath=false`; botocore: [`S3SigV4Auth._normalize_url_path`](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/auth.py#L489-L545) returns the path unchanged). Empty path is `/`.
+- **CanonicalQueryString**: encode names and values individually, sort by encoded name (then value); a subresource without value is `name=` (so `?uploads` and Go's `?uploads=` canonicalize identically; WIRE: botocore sends `?uploads`, Go and JS send `?uploads=`, `?delete=`, `?tagging=`).
+- **CanonicalHeaders**: lowercase names, sorted, `name:trimmed-value\n`, sequential spaces collapsed to one, multi-value headers joined with `,`. Required: `host` plus every `x-amz-*` header sent, plus `content-type` and `content-md5` when present. "Do not include hop-by-hop headers ... `connection`, `x-amzn-trace-id`, `user-agent`, `keep-alive`, `transfer-encoding`, `TE`, `trailer`, `upgrade`, `proxy-authorization`, `proxy-authenticate`" ([DOC](https://docs.aws.amazon.com/IAM/latest/UserGuide/create-signed-request.html)). "Host and x-amz-date are required headers for all signed requests" ([DOC troubleshooting](https://docs.aws.amazon.com/IAM/latest/UserGuide/signature-v4-troubleshooting.html)).
+- **The server must sign exactly what the client's `SignedHeaders` lists**, not its own idea of required headers: the sets differ per SDK (section 1.3).
+- **HashedPayload**: the value of `x-amz-content-sha256` for S3 (hex SHA-256, `UNSIGNED-PAYLOAD`, or a `STREAMING-*` marker, section 3.1); for other services the hex SHA-256 of the body. "Signing the `x-amz-content-sha256` header is optional because S3 will use its value when calculating the received request payload hash."
+- **Session token**: `X-Amz-Security-Token` is a header (or query parameter) and is signed as an `x-amz-*` header ([DOC](https://docs.aws.amazon.com/IAM/latest/UserGuide/create-signed-request.html)).
+
+**Published vectors, all reproduced by CALC** (credentials `AKIAIOSFODNN7EXAMPLE` / `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`, timestamp `20130524T000000Z`, `us-east-1`, `s3`; sources [DOC-WB single chunk](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html), [DOC-WB query](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html), [DOC-WB streaming](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming.html), [DOC-WB trailers](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming-trailers.html)):
+
+| Case | Expected signature |
+|---|---|
+| `GET /test.txt`, Host `examplebucket.s3.amazonaws.com`, `Range: bytes=0-9`, empty-body hash, signed `host;range;x-amz-content-sha256;x-amz-date` | `f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41` |
+| Presigned `GET /test.txt`, `X-Amz-Expires=86400`, `X-Amz-SignedHeaders=host`, `UNSIGNED-PAYLOAD` | `aeeed9bbccd4d02ee5c0109b86d86835f995330da4c265957d157751f604d404` |
+| Streaming seed signature (`STREAMING-AWS4-HMAC-SHA256-PAYLOAD`, `/examplebucket/chunkObject.txt`, 66560 decoded bytes) | `4f232c4386841ef735655705268965c44a0e4690baa4adea153f7db9fa80a0a9` |
+| Chunk 1 (65536 x `a`) / chunk 2 (1024 x `a`) / final empty chunk | `ad80c730...a288648` / `0055627c...ef5497` / `b6c6ea8a...449df9` |
+| Trailer variant seed (`...-PAYLOAD-TRAILER`, `x-amz-trailer: x-amz-checksum-crc32c`) | `106e2a8a18243abcf37539882f36619c00e2dfc72633413f02d3b74544bfeb8e` |
+| Trailer-variant chunks 1, 2, final | `b474d886...ef5aa2`, `1c1344b1...e51e5c7`, `2ca2aba2...63f992` |
+| Trailer signature over `x-amz-checksum-crc32c:sOO8/Q==\n` | `d81f82fc3505edab99d459891051a732e8730629a2e4a59689829ca17fe2e435` |
+
+Doc erratum found while reproducing: in the trailer example the printed `Authorization` header lists `SignedHeaders=content-encoding;content-length;host;...;x-amz-storage-class` (no `x-amz-trailer`), but the seed signature only reproduces with the canonical request's own list `content-encoding;host;x-amz-content-sha256;x-amz-date;x-amz-decoded-content-length;x-amz-storage-class;x-amz-trailer` and no `content-length` (CALC). Use the canonical request, not the Authorization line.
+
+### 1.3 What each client signs and sends (WIRE unless noted)
+
+| Client, request | Signed headers | Payload hash value |
+|---|---|---|
+| botocore / boto3, S3 PutObject over HTTP | `host;x-amz-checksum-crc32;x-amz-content-sha256;x-amz-date;x-amz-sdk-checksum-algorithm`; `content-length` not signed; `content-type` signed when set | hex SHA-256 of the body |
+| botocore, S3 over HTTPS, streaming upload | `content-encoding;host;x-amz-content-sha256;x-amz-date;x-amz-decoded-content-length;x-amz-sdk-checksum-algorithm;x-amz-trailer` (`transfer-encoding` not signed) | `STREAMING-UNSIGNED-PAYLOAD-TRAILER` |
+| botocore, S3 over HTTPS, non-streaming ops (DeleteObjects, PutBucketTagging) | `host;x-amz-checksum-crc32;x-amz-content-sha256;x-amz-date;x-amz-sdk-checksum-algorithm` | hex SHA-256 (still signed over TLS) |
+| AWS CLI v2 S3 | as botocore, with `x-amz-checksum-crc64nvme` | hex SHA-256 (HTTP); `STREAMING-UNSIGNED-PAYLOAD-TRAILER` (HTTPS) |
+| aws-sdk-go-v2 S3 | `accept-encoding;amz-sdk-invocation-id;amz-sdk-request;content-length;content-type;host;x-amz-checksum-crc32;x-amz-content-sha256;x-amz-date` (TLS trailer form adds `content-encoding`, `x-amz-decoded-content-length`, `x-amz-trailer`, and `x-amz-sdk-checksum-algorithm` when set) | hex SHA-256 over HTTP; `STREAMING-UNSIGNED-PAYLOAD-TRAILER` over HTTPS ([SRC dynamic payload signing](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/aws/signer/v4/middleware.go#L54-L91)) |
+| aws-sdk-js-v3 S3 | `amz-sdk-invocation-id;amz-sdk-request;content-length;content-type;host;x-amz-checksum-crc32;x-amz-content-sha256;x-amz-date;x-amz-sdk-checksum-algorithm;x-amz-user-agent` | hex SHA-256 for string/Buffer bodies; `STREAMING-UNSIGNED-PAYLOAD-TRAILER` for stream bodies on HTTP and HTTPS |
+| JSON services (SQS, DynamoDB), botocore / CLI | `content-type;host;x-amz-date;x-amz-target;x-amzn-query-mode` (SQS); no `x-amz-content-sha256` header | hex SHA-256 of the body, computed by the server |
+| JSON services, Go v2 | adds `amz-sdk-invocation-id;amz-sdk-request;content-length` (and `accept-encoding` for DynamoDB) | same |
+| JSON services, JS v3 | also sends `x-amz-content-sha256: <hex sha256 of body>` on SQS and DynamoDB calls | hex SHA-256 |
+
+Go's ignored (never signed) set is `Authorization, User-Agent, X-Amzn-Trace-Id, Expect, Transfer-Encoding` ([SRC headers.go](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/aws/signer/internal/v4/headers.go#L3-L13)); JS's always-unsignable set is `authorization, cache-control, connection, expect, from, keep-alive, max-forwards, pragma, referer, te, trailer, transfer-encoding, upgrade, user-agent, x-amzn-trace-id` plus `proxy-*` and `sec-*` ([SRC constants.ts](https://github.com/smithy-lang/smithy-typescript/blob/5d104567b7180c8a4055eb2f04c91854026a01c2/packages/signature-v4/src/constants.ts)). Go's `Amz-Sdk-Request: attempt=1; max=3` is signed and changes per retry, so every retry carries a fresh signature.
+
+Go's net/http server removes `Host` from `Request.Header` and exposes it as `Request.Host`, and removes `Transfer-Encoding` into `Request.TransferEncoding` ([`go doc net/http.Request.Header`](https://pkg.go.dev/net/http#Request)); a verifier built on `net/http` must re-add `host` (including a non-default port, which clients sign: `host:mybucket.localhost:36451`) when rebuilding canonical headers.
+
+### 1.4 Credential scope: service and region (WIRE, AWS CLI 2.36.38, `AWS_DEFAULT_REGION=us-west-2`, custom endpoint)
+
+| API | Scope service | Scope region |
+|---|---|---|
+| S3 | `s3` | `us-west-2` |
+| SQS, DynamoDB, Lambda, KMS, SNS, CloudWatch Logs, EventBridge, Secrets Manager | `sqs`, `dynamodb`, `lambda`, `kms`, `sns`, `logs`, `events`, `secretsmanager` | `us-west-2` |
+| IAM, STS | `iam`, `sts` | `us-west-2` (not `us-east-1`; with an endpoint override the configured region is used) |
+| CloudWatch (metrics) | **`monitoring`** | `us-west-2` |
+
+Signing names match each model's `signingName`/`endpointPrefix` (botocore `service-2.json` metadata; `cloudwatch` has `endpointPrefix: monitoring`). The service in the scope is therefore the reliable router key for S3 vs Lambda vs the JSON services ([SRC botocore cloudwatch metadata](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/data/cloudwatch/2010-08-01/service-2.json)).
+
+### 1.5 Clock skew and the `Date` response header
+
+S3 returns `RequestTimeTooSkewed`, 403, "The difference between the request time and the server's time is too large." ([DOC-WB error list](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html)). The permitted window in minutes was not found on an owning page (UNVERIFIED; commonly cited as 15 minutes for S3 and 5 for most other services). SDKs self-heal: Go v2 treats `InvalidSignatureException`, `SignatureDoesNotMatch`, `AuthFailure`, `RequestTimeTooSkewed` and `AccessDeniedException` as retryable clock-skew errors when the offset implied by the response `Date` header exceeds 4 minutes ([SRC retry/middleware.go L63, L339-L383](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/aws/retry/middleware.go#L339-L383)); JS keeps a `systemClockOffset` from the same header ([SRC](https://github.com/aws/aws-sdk-js-v3/blob/0317bb822abed1302aaae350a8bbfa40f60ef32d/packages-internal/core/src/submodules/httpAuthSchemes/aws_sdk/systemClockOffset.integ.spec.ts)). A response without a trustworthy wall-clock `Date` header disables that healing.
+
+## 2. Query-string (presigned) authentication
+
+### 2.1 SigV4 query form
+
+Parameters ([DOC-WB query](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html)): `X-Amz-Algorithm=AWS4-HMAC-SHA256`, `X-Amz-Credential=<akid>%2F<date>%2F<region>%2Fs3%2Faws4_request`, `X-Amz-Date`, `X-Amz-Expires` (integer, "The minimum value you can set is 1, and the maximum is 604800 (seven days)"), `X-Amz-SignedHeaders` (must include `host` and any `x-amz-*` header the request will carry), `X-Amz-Signature`, optional `X-Amz-Security-Token`. The canonical query string "must include all the query parameters from the preceding table except for `X-Amz-Signature`", the payload hash is the literal `UNSIGNED-PAYLOAD`, and "If you add a signed header that is also a signed query parameter, and they differ in value, you will receive an `InvalidRequest` error as the input is conflicting." Vector in section 1.2. Documented error codes: `AuthorizationQueryParametersError` (400, "The authorization query parameters that you provided are not valid."), `ExpiredToken` (400), `AccessDenied` (403) ([DOC-WB error list](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html)); the exact bodies for an expired presigned URL are UNVERIFIED here.
+
+### 2.2 What each client produces (WIRE)
+
+| Client | Output |
+|---|---|
+| Go v2 `PresignGetObject` | `?X-Amz-Algorithm=...&X-Amz-Checksum-Mode=ENABLED&X-Amz-Credential=...&X-Amz-Date=...&X-Amz-Expires=900&X-Amz-SignedHeaders=host&x-id=GetObject&X-Amz-Signature=...`; default expiry 900 s ([SRC presigned_expires.go](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/s3/internal/customizations/presigned_expires.go#L19-L45)); `x-id` and `X-Amz-Checksum-Mode` are inside the signed query |
+| Go v2 `PresignPutObject` | same shape with `x-id=PutObject`, no checksum parameters |
+| JS v3 `getSignedUrl` GET | `X-Amz-Content-Sha256=UNSIGNED-PAYLOAD` (hoisted `x-amz-*` header) plus `x-amz-checksum-mode=ENABLED`, `x-id=GetObject`, `X-Amz-Expires=900` ([SRC presigner.ts](https://github.com/aws/aws-sdk-js-v3/blob/0317bb822abed1302aaae350a8bbfa40f60ef32d/packages/s3-request-presigner/src/presigner.ts); hoisting rule in [moveHeadersToQuery.ts](https://github.com/smithy-lang/smithy-typescript/blob/5d104567b7180c8a4055eb2f04c91854026a01c2/packages/signature-v4/src/moveHeadersToQuery.ts): every `x-amz-*` header moves to the query) |
+| JS v3 `getSignedUrl` PUT | additionally carries **`x-amz-checksum-crc32=AAAAAA%3D%3D`** (the CRC32 of an empty body) and `x-amz-sdk-checksum-algorithm=CRC32` as signed query parameters. A server that validates a query-supplied `x-amz-checksum-crc32` against the uploaded body will reject every real upload through that URL. Real S3 behavior for this case is UNVERIFIED; the JS option `requestChecksumCalculation: WHEN_REQUIRED` removes the parameters ([SRC flexibleChecksumsMiddleware.ts](https://github.com/aws/aws-sdk-js-v3/blob/0317bb822abed1302aaae350a8bbfa40f60ef32d/packages-internal/checksums/src/submodules/flexible-checksums/flexibleChecksumsMiddleware.ts)) |
+| AWS CLI `s3 presign` | SigV4, `X-Amz-Expires=3600`, `X-Amz-SignedHeaders=host`, path-style against a custom endpoint |
+| **boto3 `generate_presigned_url` for S3** | **SigV2**: `?AWSAccessKeyId=<akid>&Signature=<base64>&Expires=<epoch>` (no `X-Amz-Algorithm`) in the legacy regions |
+
+### 2.3 boto3's SigV2 presigned URLs (needs a decision)
+
+botocore deliberately defaults S3 presigning to SigV2 "in regions where S3 supports it": the `choose-signer.s3` handler returns `s3-query` when the endpoint data lists `s3` among `signatureVersions` ([SRC client.py `_default_s3_presign_to_sigv2`](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/client.py#L440-L500)). The `generate_presigned_url` docstring warns: "For backwards compatibility, S3 presigned URLs use Signature Version 2 by default in regions where S3 supports it. As a result, some `Params` entries are not signed" ([SRC signers.py L755-L775](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/signers.py#L755-L775)). Regions with `['s3','s3v4']` in `endpoints.json`: `us-east-1, us-west-1, us-west-2, eu-west-1, ap-northeast-1, ap-southeast-1, ap-southeast-2, sa-east-1, aws-global, s3-external-1`; every other region gets SigV4 ([SRC endpoints.json](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/data/endpoints.json)). WIRE: `generate_presigned_url('get_object')` with `region_name='us-east-1'` and an `http://127.0.0.1:PORT` endpoint produced `.../b/k6?AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&Signature=J8h6b%2B6ZbLojGwbODQcBfutc%2Fh0%3D&Expires=1791438586`.
+
+SigV2 query signing ([SRC auth.py `HmacV1Auth`, `HmacV1QueryAuth`](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/auth.py#L866-L1075)):
+
+```
+StringToSign = METHOD "\n" Content-MD5 "\n" Content-Type "\n" Expires(epoch seconds) "\n"
+             [ lowercase(x-amz-name) ":" value "\n" ... sorted by name ]
+             CanonicalResource            (full path including bucket even for virtual-hosted, plus the sorted
+                                           sub-resources present: acl, versioning, versionId, uploads, uploadId,
+                                           partNumber, tagging, delete, lifecycle, response-content-type, ... )
+Signature    = base64( HMAC-SHA1( secret, StringToSign ) )
+Query        = AWSAccessKeyId, Signature, Expires, then every x-amz-* header plus content-md5 and content-type as lowercase query keys
+```
+
+Header-based SigV2 is `Authorization: AWS <akid>:<signature>`. `DEFAULT_EXPIRES` is 3600 for boto3 presigns ([SRC auth.py L1046](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/auth.py#L1035-L1050)). SigV2 is deprecated by AWS but boto3 users on the legacy regions get it by default, and AWS's own SigV4 troubleshooting page says "Update your signing protocol from AWS Signature version 2 (SigV2)" ([DOC](https://docs.aws.amazon.com/IAM/latest/UserGuide/signature-v4-troubleshooting.html)). The AWS pages describing SigV2 (`RESTAuthentication.html`) also redirect to the API index now (checked), so botocore is the available specification.
+
+## 3. `x-amz-content-sha256`, `aws-chunked` and trailers
+
+### 3.1 Header values
+
+[DOC-WB auth header](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html):
+
+| `x-amz-content-sha256` | Meaning |
+|---|---|
+| 64 hex | actual payload SHA-256, single chunk only |
+| `UNSIGNED-PAYLOAD` | single unsigned chunk |
+| `STREAMING-UNSIGNED-PAYLOAD-TRAILER` | multi-chunk, unsigned, trailing header follows |
+| `STREAMING-AWS4-HMAC-SHA256-PAYLOAD` | signed chunks |
+| `STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER` | signed chunks plus signed trailer |
+| `STREAMING-AWS4-ECDSA-P256-SHA256-PAYLOAD[-TRAILER]` | SigV4A equivalents (multi-region access points; out of scope) |
+
+"If you are using a trailing header, you must include `x-amz-trailer` ... All trailing headers are written after the final chunk. If you're uploading the data in multiple chunks, you must send a final chunk with 0 bytes of data before sending the trailing header." Observed use (WIRE): HTTP bodies use a hex digest; HTTPS stream uploads use `STREAMING-UNSIGNED-PAYLOAD-TRAILER`; presigned URLs use `UNSIGNED-PAYLOAD`. No tested client (Go, botocore, JS, CLI) emitted the signed `STREAMING-AWS4-HMAC-SHA256-*` forms; botocore and Go construct only the unsigned trailer form ([SRC botocore auth.py L334-L338](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/auth.py#L334-L338), [SRC Go aws_chunked_encoding.go](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/internal/checksum/aws_chunked_encoding.go#L298): "does not implement support for chunk extensions, e.g. chunk signing"). Signed streaming still has to exist for the Java, Kotlin, Rust, .NET and C++ SDKs and for Lambda functions using them.
+
+### 3.2 Unsigned trailer body (what the four SDKs actually send)
+
+Shape ([DOC checking-object-integrity](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity-upload.html)):
+
+```
+<hex-size>\r\n<bytes>\r\n   (zero or more)
+0\r\n
+x-amz-checksum-<alg>:<base64 big-endian digest>\r\n
+\r\n
+```
+
+Required headers per the same page: `x-amz-decoded-content-length` ("the plaintext size of the actual data"), `x-amz-content-sha256`, `x-amz-trailer` (documented values: `x-amz-checksum-crc32`, `-crc32c`, `-crc64nvme`, `-sha1`, `-sha256`), and optionally `Content-Encoding: aws-chunked` (with other encodings in a comma list: `aws-chunked, gzip`). Object body chunks "must contain at least 8,192 bytes ... except for the final body chunk"; there is "no explicit maximum chunk size". The trailer name must equal the `x-amz-trailer` value (a mismatch fails the request); only one trailing chunk is allowed; the stream ends with a final CRLF.
+
+Observed bytes (WIRE; `x` = payload of 1000 `a` bytes, CRC32 `mjjaAw==`):
+
+| Client | HTTP framing | Chunking | Notes |
+|---|---|---|---|
+| aws-sdk-go-v2 (HTTPS) | `Content-Length: 1043` (encoded length), no `Transfer-Encoding` | **one chunk for the whole payload** when the length is known (`3e8`, `200000` for a 2 MiB part, `500000` for 5 MiB); [SRC L103-L111](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/internal/checksum/aws_chunked_encoding.go#L103-L111) buffers 64 KiB chunks only for unknown lengths | `Content-Length` and `x-amz-trailer` are signed; trailer ends `\r\n\r\n` |
+| botocore / boto3 / AWS CLI (HTTPS) | `Transfer-Encoding: chunked`, no `Content-Length` | 1 MiB chunks (`100000`); 8 MiB part = 8 chunks; [SRC `_DEFAULT_CHUNK_SIZE`](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/httpchecksum.py#L201) | final bytes `0\r\nx-amz-checksum-crc32:mjjaAw==\r\n\r\n`; adds `X-Amz-Decoded-Content-Length` when the length is known ([SRC L458-L500](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/httpchecksum.py#L458-L500)) |
+| aws-sdk-js-v3 (HTTP and HTTPS, stream bodies only) | `Transfer-Encoding: chunked` | one aws-chunk per source-stream `data` event, any size ([SRC getAwsChunkedEncodingStream.ts](https://github.com/smithy-lang/smithy-typescript/blob/5d104567b7180c8a4055eb2f04c91854026a01c2/packages/core/src/submodules/serde/util-stream/getAwsChunkedEncodingStream.ts)); a `requestStreamBufferSize >= 8192` option buffers | JS never wraps string/Buffer/Uint8Array bodies, even on HTTPS |
+
+HTTP-level `Transfer-Encoding: chunked` is the outer layer and `aws-chunked` the inner one; a Go `net/http` server removes the outer layer before the handler reads the body. DOC says the trailer line may carry an extra linefeed: examples show `x-amz-checksum-crc32:YABb/g==\n\r\n` and "The usage of the linefeed `\n` at the end of the checksum value might vary across clients." No tested client sent it (all sent plain `\r\n`); which client does is UNVERIFIED. A parser should accept `\r\n` and `\n\r\n` after the value and require the closing empty line.
+
+### 3.3 Signed streaming and signed trailer (DOC-WB)
+
+- Chunk grammar: `hex(size) + ";chunk-signature=" + sig + "\r\n" + data + "\r\n"`; the last chunk has size 0. "The chunk size must be at least 8 KB" except the last chunk ([DOC-WB streaming](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming.html)).
+- Required headers: `x-amz-content-sha256: STREAMING-AWS4-HMAC-SHA256-PAYLOAD`, `Content-Encoding: aws-chunked`, `x-amz-decoded-content-length`, and either `Content-Length` (= sum of all encoded chunks) or `Transfer-Encoding` ("If you include the `Transfer-Encoding` header and specify any value other than `identity`, you must omit the `Content-Length` header"). S3 strips `aws-chunked` from the stored `Content-Encoding`; if it was the only value the stored header is empty.
+- Chunk string to sign: `AWS4-HMAC-SHA256-PAYLOAD\n<ts>\n<scope>\n<previous signature>\n<hex sha256 of empty string>\n<hex sha256 of chunk data>`; the first chunk's previous signature is the header (seed) signature, signed with the ordinary canonical request whose last line is the `STREAMING-*` marker.
+- Trailer variant: after the zero-length chunk, a trailer chunk `<name>:<value>` ends with `x-amz-trailer-signature:<sig>`; string to sign `AWS4-HMAC-SHA256-TRAILER\n<ts>\n<scope>\n<signature of the zero-length chunk>\n<hex sha256 of "<name>:<value>\n">` ([DOC-WB trailers](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming-trailers.html)). All vectors reproduced by CALC (section 1.2). The user-guide wire layout for the signed trailer is `<trailer line>\n\r\n<x-amz-trailer-signature:sig>\r\n\r\n` ([DOC](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity-upload.html)).
+
+### 3.4 `Expect: 100-continue`
+
+| Client | When sent |
+|---|---|
+| Go v2 S3 | PUT with `ContentLength >= 2 MiB` or unknown/streamed length; threshold `ContinueHeaderThresholdBytes` (-1 disables) ([SRC s3100continue.go](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/internal/s3shared/s3100continue.go#L10-L51)); WIRE: UploadPart of 2 MiB and larger |
+| botocore | any PUT/POST with a file-like body, regardless of size ([SRC handlers.py `add_expect_header`](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/handlers.py#L380-L397)); waits 1 s for `100 Continue`, then sends the body anyway ([SRC awsrequest.py L120-L160](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/awsrequest.py#L120-L160)); WIRE: also on a 1000-byte `put_object(Body=bytes)` and on the CLI |
+| JS v3 | Node only, body length >= `expectContinueHeader` (default 2 MiB) ([SRC s3Configuration.ts](https://github.com/aws/aws-sdk-js-v3/blob/0317bb822abed1302aaae350a8bbfa40f60ef32d/packages-internal/middleware-sdk-s3/src/submodules/s3/middleware-s3-configuration/s3Configuration.ts)); WIRE: parts of 2 MiB and larger |
+
+### 3.5 Error codes around checksums and framing
+
+[DOC-WB error list](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html): `BadDigest` 400 "The Content-MD5 or checksum value that you specified did not match what the server received."; `InvalidDigest` 400 "The Content-MD5 or checksum value that you specified is not valid."; `IncompleteBody` 400 "You did not provide the number of bytes specified by the Content-Length HTTP header."; `MissingContentLength` 411; `SignatureDoesNotMatch` 403; `InvalidAccessKeyId` 403; `AuthorizationHeaderMalformed` 400; `RequestTimeout` 400; `MissingSecurityHeader` 400. PutObject docs: sending `x-amz-sdk-checksum-algorithm` requires a matching `x-amz-checksum-<alg>` header or `x-amz-trailer`, otherwise 400; a conflicting algorithm gives `BadDigest` ([DOC PutObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)). Codes not on the DOC list but used by S3 and other servers: `XAmzContentSHA256Mismatch` 400 "The provided 'x-amz-content-sha256' header does not match what was computed." ([REC minio-go s3-error.go](https://github.com/minio/minio-go/blob/master/s3-error.go), [REC SeaweedFS s3api_errors.go](https://github.com/seaweedfs/seaweedfs/blob/master/weed/s3api/s3err/s3api_errors.go)); `MalformedTrailerError` 400 "The request contained trailing data that was not well-formed or did not conform to our published schema." ([REC Swift s3response.py](https://github.com/openstack/swift/blob/7d523586e18623f825d57dbf29b361f57da8c200/swift/common/middleware/s3api/s3response.py)). Swift's s3api, written against real S3 behavior, uses these `InvalidRequest` messages (REC, UNVERIFIED against AWS): "Expecting a single x-amz-checksum- header. Multiple checksum Types are not allowed."; "The value specified in the x-amz-trailer header is not supported"; "Value for x-amz-checksum-crc32 header is invalid."; "Value for x-amz-checksum-crc32 trailing header is invalid."; "x-amz-sdk-checksum-algorithm specified, but no corresponding x-amz-checksum-* or x-amz-trailer headers were found."; and `BadDigest` "The CRC32 you specified did not match the calculated checksum." ([REC s3request.py](https://github.com/openstack/swift/blob/7d523586e18623f825d57dbf29b361f57da8c200/swift/common/middleware/s3api/s3request.py)). Third-party stores that lack trailer support fail on default SDK settings with `XAmzContentSHA256Mismatch`, `InvalidContentEncoding` or `MalformedTrailerError`; the standard workaround in the wild is `RequestChecksumCalculation = WhenRequired` ([REC Litestream guide](https://github.com/benbjohnson/litestream.io/blob/main/content/guides/s3-compatible/index.md), [REC Grafana s3uploader.go](https://github.com/grafana/grafana/blob/main/pkg/components/imguploader/s3uploader.go)).
+
+## 4. Flexible checksums
+
+### 4.1 Settings
+
+| Setting | Env var | Config key | Default | Values |
+|---|---|---|---|---|
+| Request | `AWS_REQUEST_CHECKSUM_CALCULATION` | `request_checksum_calculation` | `when_supported` | `when_supported`, `when_required` |
+| Response | `AWS_RESPONSE_CHECKSUM_VALIDATION` | `response_checksum_validation` | `when_supported` | `when_supported`, `when_required` |
+
+[DOC sdkref data integrity](https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html). Sources: Go [env_config.go L88-L89](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/config/env_config.go#L88-L89) and [shared_config.go L123-L124](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/config/shared_config.go#L123-L124), botocore [configprovider.py L195-L205](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/configprovider.py#L195-L205) (invalid value raises `InvalidChecksumConfigError`), JS [NODE_REQUEST_CHECKSUM_CALCULATION_CONFIG_OPTIONS.ts](https://github.com/aws/aws-sdk-js-v3/blob/0317bb822abed1302aaae350a8bbfa40f60ef32d/packages-internal/checksums/src/submodules/flexible-checksums/NODE_REQUEST_CHECKSUM_CALCULATION_CONFIG_OPTIONS.ts). Semantics: `when_supported` computes a checksum for every operation modeled with `httpChecksum` that has a `requestAlgorithmMember` or `requestChecksumRequired`; `when_required` only when the operation requires it or the caller set the algorithm. Go's `Uploader` has its own copy of the setting that does not inherit from `aws.Config` ([SRC upload.go L259-L318](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/feature/s3/manager/upload.go#L259-L318)).
+
+Default algorithm: Go CRC32, botocore/boto3 CRC32 ([SRC L51](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/httpchecksum.py#L51)), JS CRC32, **AWS CLI v2 CRC64NVME** ([SRC `DEFAULT_CHECKSUM_ALGORITHM`](https://github.com/aws/aws-cli/blob/819fae80e541afd140d087ed9019065c1198a300/awscli/botocore/httpchecksum.py#L42), [DOC table](https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html)). Only S3 matters in phase 1: scanning the botocore models for `httpChecksum`/`httpChecksumRequired` found none on DynamoDB, SQS, SNS, Lambda, CloudWatch Logs, Secrets Manager, KMS, IAM, STS, EventBridge or CloudWatch ([SRC service-2.json files](https://github.com/boto/botocore/tree/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/data)). Operations that require a checksum in the S3 model (`requestChecksumRequired: true`) include DeleteObjects, PutBucketTagging, PutBucketCors, PutBucketLifecycleConfiguration, PutBucketPolicy, PutBucketEncryption, PutBucketVersioning, PutBucketAcl, PutBucketLogging, PutBucketNotification, PutBucketWebsite, PutBucketReplication, PutBucketOwnershipControls, PutBucketRequestPayer, PutPublicAccessBlock, PutObjectAcl, PutObjectTagging, PutObjectLegalHold, PutObjectLockConfiguration, PutObjectRetention ([SRC S3 service-2.json](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/data/s3/2006-03-01/service-2.json)); even with `when_required` these carry a CRC32 header.
+
+### 4.2 Algorithms
+
+| Alg | Wire form | Notes |
+|---|---|---|
+| CRC32 | 4 bytes big-endian, base64 | IEEE; check `"123456789"` = `cbf43926` (CALC) |
+| CRC32C | 4 bytes BE, base64 | Castagnoli; check `e3069283` (CALC); trailer vector `sOO8/Q==` for 66560 x `a` (DOC-WB, CALC) |
+| CRC64NVME | 8 bytes BE, base64 | reflected polynomial `0x9a6c9329ac4bc9b5`, init and xorout all ones; check `"123456789"` = `ae8b14860a799888` (CALC); Go: `crc64.MakeTable(0x9a6c_9329_ac4b_c9b5)` ([SRC algorithms.go L44](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/internal/checksum/algorithms.go#L44)). 1000 x `a` = `6rMjKymX9eU=` (WIRE from CLI and Go, CALC agrees) |
+| SHA1, SHA256 | raw digest, base64 | |
+| SHA512, MD5, XXHASH64, XXHASH3, XXHASH128 | base64 of the raw digest; XXHASH64 and XXHASH3 are 8 bytes big-endian, XXHASH128 is 16 bytes (`high64` then `low64`, each big-endian), seed 0 (SETTLED from the CRT source, see [s3-checksum-residuals-and-record-backlog.md](s3-checksum-residuals-and-record-backlog.md)) | new in the S3 model: `ChecksumAlgorithm` enum is `CRC32, CRC32C, SHA1, SHA256, CRC64NVME, SHA512, MD5, XXHASH64, XXHASH3, XXHASH128` ([SRC botocore S3 model](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/data/s3/2006-03-01/service-2.json), [DOC PutObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)); `GetObject` model `responseAlgorithms` lists all ten |
+
+Client support: Go v2 implements CRC32, CRC32C, CRC64NVME, SHA1, SHA256, SHA512 (the SDK reference table still lists five: [SRC supportedAlgorithms](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/internal/checksum/algorithms.go#L46-L53) vs [DOC](https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html)); JS CRC32, CRC32C, CRC64NVME (via CRT), SHA1, SHA256 ([SRC types.ts](https://github.com/aws/aws-sdk-js-v3/blob/0317bb822abed1302aaae350a8bbfa40f60ef32d/packages-internal/checksums/src/submodules/flexible-checksums/types.ts)); boto3 CRC32, SHA1, SHA256, SHA512 natively and CRC32C, CRC64NVME, XXHASH* with CRT ([SRC httpchecksum.py L560-L677](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/httpchecksum.py#L560-L677)); CLI v2 ships CRT so all ten. Per [DOC checking-object-integrity](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity-upload.html): "If you don't specify a checksum algorithm and the SDK also doesn't calculate a checksum for you, then S3 automatically chooses the CRC-64/NVME checksum algorithm"; the `Content-MD5` header remains valid.
+
+### 4.3 Request behavior per client (WIRE, plain HTTP, 1000-byte PutObject)
+
+| Client | Headers added to PutObject |
+|---|---|
+| boto3 1.43.109 | `x-amz-checksum-crc32`, `x-amz-sdk-checksum-algorithm: CRC32`, real SHA-256, `Expect: 100-continue` |
+| AWS CLI 2.36.38 | `x-amz-checksum-crc64nvme`, `x-amz-sdk-checksum-algorithm: CRC64NVME`, real SHA-256, `Expect: 100-continue` |
+| Go v2 | `X-Amz-Checksum-Crc32` only; **no** `x-amz-sdk-checksum-algorithm` unless `ChecksumAlgorithm` is set (then `X-Amz-Checksum-Crc64nvme` + `X-Amz-Sdk-Checksum-Algorithm`) |
+| JS v3 (string/Buffer) | `x-amz-checksum-crc32` + `x-amz-sdk-checksum-algorithm: CRC32`, real SHA-256 |
+
+Go over HTTP with a non-seekable body fails client-side: "operation error S3: PutObject, compute input header checksum failed, unseekable stream is not supported without TLS and trailing checksum" (WIRE; [SRC middleware_compute_input_checksum.go L186-L192](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/internal/checksum/middleware_compute_input_checksum.go#L186-L192)). The trailer branch is taken only when the request is HTTPS, not presigning, the stream is non-empty and the op enables trailers ([SRC L163-L184](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/internal/checksum/middleware_compute_input_checksum.go#L163-L184)); botocore picks a trailer for streaming-input ops over HTTPS except with legacy `signature_version='s3'` ([SRC L380-L395](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/httpchecksum.py#L380-L395)); JS picks it for any stream body regardless of scheme (section 3.2). Presigned requests get no default checksum in botocore ([SRC L355](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/httpchecksum.py#L340-L360)); Go's presigner omits it; JS's does not (section 2.2). If a checksum header is already set, every SDK skips computing one.
+
+### 4.4 Multipart: composite versus full-object
+
+Rules ([DOC checking-object-integrity](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity-upload.html)): `PutObject` is always full-object. Multipart supports `x-amz-checksum-type: COMPOSITE | FULL_OBJECT` on `CreateMultipartUpload`. Matrix: CRC64NVME full-object only; CRC32 and CRC32C both; SHA1, SHA256, MD5, SHA512, XXHASH64, XXHASH3, XXHASH128 composite only. Full-object values come from CRC linearity ("S3 can compute the checksum of the whole object from the part-level checksums"); the AWS CLI does the same client-side with `crt_checksums.combine_crc32/crc32c/crc64nvme` ([SRC s3transfer/checksums.py L21-L37](https://github.com/aws/aws-cli/blob/819fae80e541afd140d087ed9019065c1198a300/awscli/s3transfer/checksums.py)). Composite value = checksum of the concatenated raw part digests with `-<partCount>` appended ([DOC](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity-upload.html); Go doc comment "<checksum of checksum>-<numberParts> (e.g. "DUoRhQ==-3")", [SRC upload.go L195-L215](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/feature/s3/manager/upload.go#L195-L215)); CALC example: CRC32 parts of `xxxxx` and `yyy` give `rFFwCQ==-2`. If the algorithm was not declared at `CreateMultipartUpload`: "For existing checksum algorithms (CRC32, CRC32C, SHA-1, SHA-256) ... any checksum header provided in `CompleteMultipartUpload` is currently accepted but not validated or stored"; for MD5, XXHASH*, SHA512 a checksum on Complete without a declared algorithm fails `InvalidRequest`. Part numbers must be consecutive from 1 for composite checksums (else HTTP 500, per the same page). `CompleteMultipartUpload` accepts `x-amz-checksum-<alg>`, `x-amz-checksum-type` and `x-amz-mp-object-size` (a mismatch is `400 InvalidRequest`; a `x-amz-checksum-type` that differs from the Create is `BadDigest`) and returns `ChecksumType` and the checksum element in the XML result ([DOC CompleteMultipartUpload](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html)). Copies recompute a direct full-object checksum.
+
+Observed multipart flows with 20 MiB (CLI, boto3) or 12 MiB (Go, JS) bodies and a server that echoes `x-amz-checksum-*` on UploadPart (WIRE):
+
+| Client | Part sizes | CreateMultipartUpload | UploadPart | CompleteMultipartUpload body |
+|---|---|---|---|---|
+| AWS CLI | 8 MiB, 8 MiB, 4 MiB (parts sent concurrently, order 3,1,2) | `x-amz-checksum-algorithm: CRC64NVME`, no type header | `x-amz-checksum-crc64nvme` + sdk-algorithm; trailer over HTTPS | `<Part><ETag/><PartNumber/><ChecksumCRC64NVME/></Part>` |
+| boto3 | 8, 8, 4 MiB | `x-amz-checksum-algorithm: CRC32` | `x-amz-checksum-crc32` + sdk-algorithm | `<ETag><PartNumber><ChecksumCRC32>` |
+| Go `Uploader` | 5, 5, 2 MiB | `X-Amz-Checksum-Algorithm: CRC32` | CRC32 header + sdk-algorithm | `<ChecksumCRC32><ETag><PartNumber>`, ETag quotes as `&#34;` |
+| JS `lib-storage` | 5, 5, 2 MiB | `x-amz-checksum-algorithm: CRC32` | CRC32 header + sdk-algorithm | `<ETag><ChecksumCRC32><PartNumber>`, ETag quotes as `&quot;`, leading `<?xml ...?>` |
+
+Consequences: every client copies the per-part checksum into Complete **only if the UploadPart response carried it** (without the echo, all four sent bare `ETag`/`PartNumber`; WIRE; [SRC s3transfer upload.py L835-L839](https://github.com/boto/s3transfer/blob/e6a7675d40760c04920d8fae6cee34118deba21e/s3transfer/upload.py#L826-L840)); none of the four sent `x-amz-checksum-type`, so the default type is whatever the server infers (REC [s3.md](s3.md) records `COMPOSITE` for CRC32 and `FULL_OBJECT` for CRC64NVME from LocalStack snapshots); element order inside `<Part>` differs per client and the XML parser must be order-agnostic and decode both `&quot;` and `&#34;`. The three tiers of defaults: boto3's older s3transfer sent no `ChecksumAlgorithm` on `CreateMultipartUpload`, the one probed does.
+
+### 4.5 Response validation by clients
+
+- **S3 GET/HEAD**: checksums are returned "only if the checksum was uploaded with the object" and only when "this mode must be enabled": request header `x-amz-checksum-mode: ENABLED` ([DOC GetObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)). WIRE: boto3, Go and JS send `x-amz-checksum-mode: ENABLED` on every GetObject under `when_supported`. Presigned GETs from Go and JS carry it as a query parameter.
+- **Validation algorithm**: pick the first present `x-amz-checksum-*` response header by client priority, skip it if the value contains `-` (composite/multipart), otherwise hash the body and compare. Go ([SRC middleware_validate_output.go L81-L137](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/internal/checksum/middleware_validate_output.go#L81-L137)) validates at EOF of the body reader (error `checksum did not match: algorithm CRC32, expect ..., actual ...`); botocore `StreamingChecksumBody` raises `FlexibleChecksumError` "Expected checksum ... did not match calculated checksum" when the stream is fully read ([SRC L563-L660](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/httpchecksum.py#L563-L660)); JS skips `GetObject` when every returned checksum matches `-<1..10000>` ([SRC isChecksumWithPartNumber.ts](https://github.com/aws/aws-sdk-js-v3/blob/0317bb822abed1302aaae350a8bbfa40f60ef32d/packages-internal/checksums/src/submodules/flexible-checksums/isChecksumWithPartNumber.ts)) and otherwise throws `Checksum mismatch: expected ... in response header "x-amz-checksum-..."`. The Go comment states partNumber GETs and whole-object `Range` GETs "do carry a validatable checksum covering exactly the returned bytes, and are validated" while error responses and arbitrary ranges carry none. Consequence: a response must never include `x-amz-checksum-*` unless it is exactly correct for the body bytes being returned (including `Range`/`partNumber` slices, or the header must be omitted).
+- **Priority order** when several are present: Go iterates its configured list and the last present header wins ([SRC L89-L97](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/internal/checksum/middleware_validate_output.go#L89-L97)); botocore xxhash128, xxhash3, crc64nvme, xxhash64, crc32c, crc32, sha1, sha256, sha512; JS SHA256, SHA1, CRC32, CRC32C, CRC64NVME. Emit one checksum (the stored algorithm) to avoid ambiguity.
+
+### 4.6 DynamoDB `x-amz-crc32`
+
+DynamoDB responses carry `x-amz-crc32`: a **decimal unsigned 32-bit** CRC32 (IEEE) of the response bytes as sent; if the body is gzip it covers the gzipped bytes ([SRC Go doc.go](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/dynamodb/internal/customizations/doc.go), [checksum.go L69-L82](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/dynamodb/internal/customizations/checksum.go#L69-L82)). Clients:
+
+- Go validates when the body reader is closed and returns `response did not match expected checksum, <expect>, <actual>`; opt-out `DisableValidateResponseChecksum`.
+- botocore retries on mismatch: `_retry.json` policy `"crc32": {"applies_when": {"response": {"crc32body": "x-amz-crc32"}}}` with `max_attempts: 10` ([SRC `CRC32Checker`](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/retryhandler.py#L371-L400), [`_retry.json`](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/data/_retry.json)); a persistent mismatch surfaces as `ResponseChecksumError`/retry exhaustion after the backoff.
+- JS v3: no validation found (code search of `aws-sdk-js-v3` and `smithy-typescript` for `x-amz-crc32` finds only a clock-skew integ test).
+
+WIRE against `amazon/dynamodb-local:3.3.1` (Jetty): success bodies carry `x-amz-crc32: 1315925753` for `{"TableNames":[]}` (17 bytes; CALC `zlib.crc32` agrees); error responses (400 `ResourceNotFoundException`, `__type: com.amazonaws.dynamodb.v20120810#ResourceNotFoundException`) carry **no** `x-amz-crc32`; `Accept-Encoding: gzip` is ignored (no compression); signatures are not checked (a bogus `Signature=00` was accepted). Real DynamoDB's header on errors is UNVERIFIED. A proxy that edits, re-serializes or injects shim data into a body must recompute the header or drop it.
+
+### 4.7 SQS message checksums
+
+`MD5OfMessageBody`: lowercase hex MD5 of the UTF-8 body. `MD5OfMessageAttributes` and `MD5OfMessageSystemAttributes`: MD5 of a buffer built as [DOC SQS message metadata](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-message-metadata.html), matching the reference implementation [SRC Java `MessageMD5ChecksumInterceptor.java`](https://github.com/aws/aws-sdk-java-v2/blob/master/services/sqs/src/main/java/software/amazon/awssdk/services/sqs/internal/MessageMD5ChecksumInterceptor.java):
+
+1. Sort attributes by name ascending (names are restricted to `A-Za-z0-9_-.`, so byte order and UTF-16 order agree).
+2. For each: 4-byte big-endian length + UTF-8 bytes of the **name**; 4-byte length + UTF-8 bytes of the **data type string including any custom suffix** (`Number.int`, `Binary.png`); one transport-type byte (`1` for `String` and `Number`, `2` for `Binary`); 4-byte length + bytes of the **value** (UTF-8 for string transport, raw bytes for binary).
+3. MD5 over the whole buffer, hex-encoded. System attributes use the same encoding (only `AWSTraceHeader`, type `String`); they are digested separately from message attributes ([DOC](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-message-metadata.html)).
+
+CALC vectors: `{City: String "Any City"}` gives `0c32cb5c844c01fbd5b6b434b52cf670`; system attribute `AWSTraceHeader` = `Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8;Sampled=1` gives `5ae4d5d7636402d80f4eb6d213245a88` (matches the LocalStack snapshot value recorded in [sqs.md](sqs.md)); body `Hello` gives `8b1a9953c4611296a827abf8c47804d7`.
+
+Who validates (all WIRE-consistent with source):
+
+| Client | Validation |
+|---|---|
+| Go v2 | `MD5OfMessageBody` on SendMessage, per-entry on SendMessageBatch, `MD5OfBody` per message on ReceiveMessage; **skips** when either side is nil; attributes never checked ([SRC cust_checksum_validation.go](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/sqs/cust_checksum_validation.go)) |
+| JS v3 | SendMessage: **throws `InvalidChecksumError` when `MD5OfMessageBody` is absent or different** (WIRE: a server returning `{}` made `SendMessage` fail); ReceiveMessage: throws `Invalid MD5 checksum on messages: <ids>` for any message whose `MD5OfBody` is absent or wrong; batch entries are checked only when present in `Successful`; attributes never checked; option `md5: false` disables ([SRC send-message.ts](https://github.com/aws/aws-sdk-js-v3/blob/0317bb822abed1302aaae350a8bbfa40f60ef32d/packages-internal/middleware-sdk-sqs/src/send-message.ts), [receive-message.ts](https://github.com/aws/aws-sdk-js-v3/blob/0317bb822abed1302aaae350a8bbfa40f60ef32d/packages-internal/middleware-sdk-sqs/src/receive-message.ts), [send-message-batch.ts](https://github.com/aws/aws-sdk-js-v3/blob/0317bb822abed1302aaae350a8bbfa40f60ef32d/packages-internal/middleware-sdk-sqs/src/send-message-batch.ts)) |
+| botocore / boto3 / CLI | none (no MD5 handling for SQS in `handlers.py`) |
+| Java v2 | body and attributes ([SRC](https://github.com/aws/aws-sdk-java-v2/blob/master/services/sqs/src/main/java/software/amazon/awssdk/services/sqs/internal/MessageMD5ChecksumInterceptor.java)) |
+
+Both Go v2 and JS v3 and the CLI send `x-amzn-query-mode: true` with `X-Amz-Target: AmazonSQS.<Op>` and `Content-Type: application/x-amz-json-1.0` (WIRE), the `awsQueryCompatible` marker; botocore's compatibility shim is [`_handle_sqs_compatible_error`](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/handlers.py#L234-L250).
+
+## 5. Endpoint resolution
+
+### 5.1 Variables, precedence, service identifiers
+
+[DOC sdkref service-specific endpoints](https://docs.aws.amazon.com/sdkref/latest/guide/feature-ss-endpoints.html): precedence for a call is (1) explicit client/CLI setting (`--endpoint-url`, constructor `endpoint`/`BaseEndpoint`), (2) `AWS_ENDPOINT_URL_<SERVICE>`, (3) `AWS_ENDPOINT_URL`, (4) `endpoint_url` under the service key of the profile's `services` section in `~/.aws/config`, (5) `endpoint_url` directly in the profile, (6) the default. `AWS_IGNORE_CONFIGURED_ENDPOINT_URLS=true` / `ignore_configured_endpoint_urls` disables 2-5 ("explicit ... always take effect"). `<SERVICE>` is the model `serviceId` with spaces replaced by `_` and upper-cased (env) or lower-cased (config key). A URL may carry a path prefix. Implementations: Go [env_config.go L75-L76, L706](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/config/env_config.go#L700-L715); botocore lookup order `environment_service, environment_global, config_service, config_global` ([SRC configprovider.py L953-L958, L1002-L1041](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/configprovider.py#L953-L958)).
+
+Identifiers for the phase 1 services ([DOC table](https://docs.aws.amazon.com/sdkref/latest/guide/ss-endpoints-table.html); `serviceId` from the botocore models), all confirmed by routing real CLI 2.36.38 calls to the capture server using only the service variable (WIRE):
+
+| Service | `serviceId` | Env var | Config key |
+|---|---|---|---|
+| S3 | S3 | `AWS_ENDPOINT_URL_S3` | `s3` |
+| SQS | SQS | `AWS_ENDPOINT_URL_SQS` | `sqs` |
+| SNS | SNS | `AWS_ENDPOINT_URL_SNS` | `sns` |
+| DynamoDB | DynamoDB | `AWS_ENDPOINT_URL_DYNAMODB` | `dynamodb` |
+| Lambda | Lambda | `AWS_ENDPOINT_URL_LAMBDA` | `lambda` |
+| CloudWatch Logs | CloudWatch Logs | `AWS_ENDPOINT_URL_CLOUDWATCH_LOGS` | `cloudwatch_logs` |
+| Secrets Manager | Secrets Manager | `AWS_ENDPOINT_URL_SECRETS_MANAGER` | `secrets_manager` |
+| KMS | KMS | `AWS_ENDPOINT_URL_KMS` | `kms` |
+| IAM | IAM | `AWS_ENDPOINT_URL_IAM` | `iam` |
+| STS | STS | `AWS_ENDPOINT_URL_STS` | `sts` |
+| EventBridge | EventBridge | `AWS_ENDPOINT_URL_EVENTBRIDGE` | `eventbridge` |
+| CloudWatch (metrics) | CloudWatch | `AWS_ENDPOINT_URL_CLOUDWATCH` | `cloudwatch` |
+
+Terraform's AWS provider (Go v2 based) honors the same variables and an `endpoints {}` block; its precedence is service-specific env, then `AWS_ENDPOINT_URL`, then config ([provider guide](https://github.com/hashicorp/terraform-provider-aws/blob/972faab3f6e4e37aff0453fe05366f3bd3fc2b97/website/docs/guides/custom-service-endpoints.html.markdown)). Provider switches relevant to an emulator: `skip_credentials_validation` (skips the STS check), `skip_requesting_account_id`, `skip_metadata_api_check`, `skip_region_validation`, `s3_use_path_style`, `custom_ca_bundle`/`AWS_CA_BUNDLE`, `insecure` ([provider index](https://github.com/hashicorp/terraform-provider-aws/blob/972faab3f6e4e37aff0453fe05366f3bd3fc2b97/website/docs/index.html.markdown)); no environment variable is documented for `s3_use_path_style` (UNVERIFIED that none exists).
+
+### 5.2 Per-SDK specifics
+
+- **Go v2**: `AWS_ENDPOINT_URL`, `AWS_ENDPOINT_URL_<ID>` and the `services` config section feed `Options.BaseEndpoint`; S3 path style is the code option `UsePathStyle` only (no env or config key found in `config/`).
+- **boto3 / CLI**: same variables; CLI also `--endpoint-url`. S3 style: `Config(s3={"addressing_style": "auto|virtual|path"})` or `[default] s3 = addressing_style = virtual` in the config file ([SRC config.py L430-L440](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/config.py#L430-L440)).
+- **JS v3**: `AWS_ENDPOINT_URL`, `AWS_ENDPOINT_URL_<ID>` read through `getEndpointFromConfig`; S3 style `forcePathStyle: boolean` (default false); no env/config key found for it (UNVERIFIED).
+- **JS SQS and the returned `QueueUrl`**: JS SQS clients replace the resolved endpoint with the **origin of the `QueueUrl`** passed in the input when it differs, unless an explicit `endpoint` or `useQueueUrlAsEndpoint: false` is configured; setting only `AWS_ENDPOINT_URL` does not count as explicit ([SRC queue-url.ts L25-L77](https://github.com/aws/aws-sdk-js-v3/blob/0317bb822abed1302aaae350a8bbfa40f60ef32d/packages-internal/middleware-sdk-sqs/src/queue-url.ts#L25-L77)). The host inside the `QueueUrl` that `CreateQueue`/`GetQueueUrl` return therefore decides where all later JS SQS calls go. Go, boto3 and the CLI use their configured endpoint regardless (WIRE).
+- **Signing region with an override**: unchanged by the override; the configured region is used for every service including IAM and STS (section 1.4).
+- **Go and SQS content negotiation**: Go's SQS client sent `Accept-Encoding: gzip` (net/http default) while its DynamoDB client sent `identity` (WIRE); servers should not compress.
+
+### 5.3 Wire protocol facts discovered while probing (settles an open item in [smithy-protocol-tests.md](smithy-protocol-tests.md))
+
+CloudWatch metrics: **aws-sdk-go-v2 (cloudwatch 1.73.1) speaks Smithy RPC v2 CBOR**: `POST /service/GraniteServiceVersion20100801/operation/DescribeAlarms`, `Smithy-Protocol: rpc-v2-cbor`, `Content-Type: application/cbor`, `Accept: application/cbor`, `x-amzn-query-mode: true`, empty-input body `\xbf\xff` (indefinite-length empty map) ([SRC `rpcv2.NewCBOR(schemas.GraniteServiceVersion20100801)`](https://github.com/aws/aws-sdk-go-v2/blob/ab2110b01f03b3990bfd50208a8a05df1d8c5eac/service/cloudwatch/api_client.go#L215)). boto3, the AWS CLI and JS v3 send `awsJson1_0`: `POST /`, `X-Amz-Target: GraniteServiceVersion20100801.DescribeAlarms`, `Content-Type: application/x-amz-json-1.0`, `x-amzn-query-mode: true`, body `{}` (WIRE). Terraform uses the Go client, so Terraform-managed alarms require a CBOR codec on the CloudWatch route (signing name `monitoring`).
+
+## 6. S3 addressing and `*.localhost`
+
+### 6.1 What each client sends to a custom endpoint (WIRE; bucket `mybucket`, endpoint `http://localhost:PORT`)
+
+| Client / setting | Request line, Host |
+|---|---|
+| Go v2, default (`UsePathStyle=false`) | `PUT /k1?x-id=PutObject`, `Host: mybucket.localhost:PORT` (virtual-hosted; the request reached the server because this host resolves `*.localhost`) |
+| Go v2, `UsePathStyle=true` | `PUT /mybucket/k1?x-id=PutObject`, `Host: localhost:PORT` |
+| JS v3, default | `PUT /k1?x-id=PutObject`, `Host: mybucket.localhost:PORT`; presigned URLs are `http://mybucket.localhost:PORT/k7?...` |
+| JS v3, `forcePathStyle` | `/mybucket/...` |
+| boto3, `auto` (default) | `HEAD /mybucket`, `Host: localhost:PORT` (path-style) |
+| boto3, `virtual` | `HEAD /`, `Host: mybucket.localhost:PORT` |
+| boto3, `path` | path-style |
+| AWS CLI default | path-style; `s3 ls` sends `GET /mybucket?list-type=2&prefix=&delimiter=%2F&encoding-type=url` |
+| AWS CLI with `s3.addressing_style = virtual` | `HEAD /`, `Host: mybucket.localhost:PORT` |
+
+Rule behind it: botocore sets `ForcePathStyle` when an endpoint is given and `addressing_style != 'virtual'` ([SRC args.py L826-L838](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/args.py#L826-L838)); Go and JS use the endpoint ruleset, which keeps virtual-hosted style unless the bucket is not DNS-compatible or the endpoint host is an IP literal (see [wire-rest.md section 3.1](wire-rest.md) for the rule-set cases). WIRE caveats: a one-character bucket (`b`) made Go use path-style against `http://localhost:PORT`; a bucket must be at least 3 characters and DNS-safe to trigger virtual-hosting, and `http://127.0.0.1:PORT` is always path-style. Terraform passes `UsePathStyle` from `s3_use_path_style`.
+
+### 6.2 How `*.localhost` resolves (WIRE on this host, plus sources)
+
+- **Standard**: RFC 6761 section 6.3: names under `localhost.` "always resolve to the respective IP loopback address"; resolver APIs "SHOULD recognize localhost names as special"; caching DNS servers "SHOULD ... generate an immediate positive response giving the IP loopback address" ([RFC 6761](https://www.rfc-editor.org/rfc/rfc6761#section-6.3)). "MAY" applications special-case them. Support is uneven.
+- **This host** (Ubuntu 24.04, kernel 6.8): `/etc/nsswitch.conf` has `hosts: files dns` (no `myhostname`); `/etc/resolv.conf` is the systemd-resolved stub; `resolvectl query b.localhost` returns `127.0.0.1` and `::1` with "Data from: synthetic". So the name resolves through systemd-resolved's synthetic answer ([systemd-resolved: "any hostname ending in .localhost ... resolved to 127.0.0.1 and ::1"](https://www.freedesktop.org/software/systemd/man/latest/systemd-resolved.service.html)), not through `nss-myhostname` as [wire-rest.md section 3.1](wire-rest.md) states for this machine. `nss-myhostname` ([man](https://www.freedesktop.org/software/systemd/man/latest/nss-myhostname.html)) provides the same mapping only where `myhostname` is listed in `nsswitch.conf`.
+- **Go's resolver**: with `files dns` Go uses its pure-Go resolver (`GODEBUG=netdns=2`: `hostLookupOrder(localhost) = files,dns`) and sends the query to the configured nameserver; it only hands `.localhost` names to libc when `myhostname` is a configured source ([SRC net/conf.go L398-L402, L519-L523](https://github.com/golang/go/blob/go1.27.1/src/net/conf.go#L398-L402), read from the installed toolchain). Go does not synthesize `*.localhost` itself.
+- **Inside Docker** (WIRE, `debian:stable-slim`, `alpine:3`): on the default bridge the container uses the host's upstream resolver and `getent hosts mybucket.localhost` returns nothing (exit 2); on a user-defined network the embedded resolver (`127.0.0.11`) answers `::1`, which is the container's own loopback, not the emulator. Either way a container cannot reach the emulator through `bucket.localhost`.
+- **macOS, Windows, musl-based and static images**: UNVERIFIED. Not tested; do not rely on `*.localhost` there.
+
+### 6.3 Key and query encoding on the wire (WIRE, all four clients identical)
+
+Object keys are percent-encoded in the path with everything except `A-Za-z0-9-._~` and `/` encoded using uppercase hex: key `a b/c+d$e!f'g(h)i*j~k;l@m&n=o,p:q%r` + `é` + `中` becomes `a%20b/c%2Bd%24e%21f%27g%28h%29i%2Aj~k%3Bl%40m%26n%3Do%2Cp%3Aq%25r%C3%A9%E4%B8%AD`. Query values use the same strict encoding (`+` is `%2B`, space is `%20`); `prefix=a b+c/é~!*'()` is sent as `prefix=...%20...%2B...%2F%C3%A9~%21%2A%27%28%29`. Differences: Go and JS add `x-id=<Operation>` (path-style Go: `/mybucket?...`; JS adds a trailing slash: `/mybucket/?delimiter=...`), botocore and the CLI add `encoding-type=url` to list calls, Go sends `?uploads=`, botocore `?uploads`. Because clients agree on the encoding, using the raw request path as received for the S3 canonical URI reproduces every client's signature.
+
+## 7. Account ids from access keys
+
+- `sts:GetAccessKeyInfo` "returns the ID of the AWS account to which the keys belong" for `AKIA` (long-term) and `ASIA` (temporary) keys, 16 to 128 characters ([DOC](https://docs.aws.amazon.com/STS/latest/APIReference/API_GetAccessKeyInfo.html)).
+- Format (reverse-engineered, not AWS-documented; [Aidan Steele](https://awsteele.com/blog/2020/09/26/aws-access-key-format.html) with Tal Be'ery's bit-mask form noted in its updates): after the 4-character prefix the key is RFC 4648 base32 (`A-Z2-7`, no padding); account id = `(first 6 decoded bytes as big-endian integer & 0x7fffffffff80) >> 7`. Keys created before 2019-03-29 (fifth character `I`/`J`, i.e. `< Q`) and pre-2010 keys carry no account id.
+- CALC with that formula reproduces every data point on the blog: `ASIAY34FZKBOKMUTVV7A` = 609629065308, `...BNK...` = 609629065306, `...AOK...` = 609629065244, `ASIAQAAAAAAAAAAAAAAA` = 0, `ASIA6RVFFB77AAAAAAAA` = 999999999998, `ASIA6RVFFB77QAAAAAAA` = 999999999999. Also `AKIARZPUZDIKGB2VALC4` = 123456789012 (the LocalStack docstring example) and the documentation key `AKIAIOSFODNN7EXAMPLE` = 581039954779.
+- Fallback conventions in existing emulators are summarized in [iam-sts-kms.md section 2.3](iam-sts-kms.md) (LocalStack uses a 12-digit access key as the account id directly and defaults to `000000000000`; moto defaults to `123456789012`).
+
+## 8. Discrepancies between sources
+
+| Topic | Sources | Resolution |
+|---|---|---|
+| S3 SigV4 doc pages | search indexes and older notes still cite `AmazonS3/latest/API/sigv4-*.html`; those URLs now redirect to the API index | cite Wayback snapshots; the User Guide integrity page still carries the streaming and trailer facts |
+| Trailer example `SignedHeaders` | printed Authorization line vs the canonical request in [DOC-WB trailers](https://web.archive.org/web/2025id_/https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming-trailers.html) | canonical request is right (CALC) |
+| Trailer values supported | DOC lists five `x-amz-trailer` values; Go can trail SHA512; the model allows ten algorithms | accept all ten for headers; trailers: five documented, others UNVERIFIED |
+| Go supported algorithms | DOC table lists five; source lists six | source |
+| Go default chunk | [s3.md](s3.md) states a 64 KiB default; Go sends one chunk for known lengths | chunk size is a property of the sender; do not assume any |
+| `*.localhost` mechanism on the dev box | [wire-rest.md](wire-rest.md) attributes it to `nss-myhostname`; nsswitch has no `myhostname` | systemd-resolved stub |
+| JS SQS MD5 | an early reading of the source tree (file list truncated) suggested no validation; running the SDK showed `InvalidChecksumError` | JS validates body MD5 strictly |
+| Trailer terminator | DOC shows `\n\r\n`; all tested SDKs send `\r\n\r\n` | accept both |
+
+## 9. Gaps (UNVERIFIED)
+
+- Exact SigV4 timestamp window per service; wire body of expired and not-yet-valid presigned requests; real S3 behavior for JS presigned PUT URLs carrying `x-amz-checksum-crc32=AAAAAA==`.
+- Which client sends the `\n\r\n` trailer variant. Whether `x-amz-trailer` accepts SHA512 or XXHASH names: the user guide still lists only crc32, crc32c, crc64nvme, sha1 and sha256 ([DOC](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity-upload.html#trailing-checksums-headers)), yet botocore ([L393-L398](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/httpchecksum.py#L393-L398), [L458-L478](https://github.com/boto/botocore/blob/bfb412faf00c249a54816e287a09a8bb79442c65/botocore/httpchecksum.py#L458-L478)) and Java v2 ([ChecksumTrailerProvider.java](https://github.com/aws/aws-sdk-java-v2/blob/87f8087a446c51b0d05c06ef387712a6ce674b04/core/http-auth-aws/src/main/java/software/amazon/awssdk/http/auth/aws/internal/signer/chunkedencoding/ChecksumTrailerProvider.java)) name the trailer `x-amz-checksum-<algorithm>` for every algorithm they support, so a client that asks for one sends it; only a live S3 run settles acceptance (record-backlog item R08 in [s3-checksum-residuals-and-record-backlog.md](s3-checksum-residuals-and-record-backlog.md)). MD5 is never sent by SDKs as a flexible checksum (section 1.5 there).
+- Trailer-chunk handling in JS for stream bodies larger than the socket buffer (chunk sizes depend on the source stream); botocore/Go with HTTP/2.
+- Real DynamoDB `x-amz-crc32` presence on error responses.
+- `*.localhost` on macOS, Windows, musl, scratch images; `s3_use_path_style` environment variable; JS env/config key for `forcePathStyle`.
+- Behavior of the .NET, Java, Kotlin, Rust and C++ SDKs (signed streaming); not in scope for the phase 1 conformance suites.
+
+## Implications for understudy
+
+1. **Router key and parser.** Parse every request's auth into a sum type: `SigV4Header | SigV4Query | SigV2Header | SigV2Query | Anonymous`, tolerating whitespace after commas and any element order, `x-amz-date` before `Date`, and a missing/irrelevant `Authorization` on presigned requests. Route by the credential-scope service (`s3`, `sqs`, `sns`, `dynamodb`, `lambda`, `logs`, `secretsmanager`, `kms`, `iam`, `sts`, `events`, `monitoring`) and take account and region from the key and scope; never assume IAM/STS are `us-east-1` (they sign with the configured region against an override).
+2. **Signature validation is a pure function.** Implement `Verify(req, secret) -> Result` over a normalized request value (method, raw path, raw query, ordered header list incl. re-added `host`, payload-hash string). Use the client's `SignedHeaders`; S3 canonical URI is the raw path as received; other services normalize and double-encode; the ruleset is covered by the seven DOC vectors in section 1.2 as table-driven tests plus `rapid` properties (sign-then-verify round trips; query/path re-encoding invariance). Keep it opt-in as the brief requires, but always parse so account/region routing works.
+3. **Support SigV2 presigned S3 URLs.** boto3 emits them by default in `us-east-1`, `us-west-1/2`, `eu-west-1`, `ap-northeast-1`, `ap-southeast-1/2`, `sa-east-1`. A presign-then-GET test through boto3 will fail without it. HMAC-SHA1 string-to-sign is in section 2.3; header-form `Authorization: AWS akid:sig` is cheap to add alongside. Presigned URL expiry: `Expires` epoch for V2, `X-Amz-Expires` 1..604800 for V4; judge expiry against a documented clock (G4 correction: expiry on the emulator clock, skew on the wall clock; point 12 below covers skew only, see [lambda-runtime-contract.md](lambda-runtime-contract.md) rows 9 and 10).
+4. **Treat the payload hash as a tagged value.** `PayloadHash = Hex(sha256) | Unsigned | StreamingUnsignedTrailer | StreamingSigned | StreamingSignedTrailer | NotSent`; verify hex hashes against the actual body (`XAmzContentSHA256Mismatch`), compute the hash yourself for JSON/query services when the header is absent (botocore/Go/CLI omit it, JS sends it), and accept `X-Amz-Content-Sha256` supplied as a query parameter on presigned URLs (JS).
+5. **One `aws-chunked` decoder, four modes**, as a streaming reader over the (already HTTP-dechunked) body: plain unsigned chunks, unsigned plus trailer, signed chunks (`;chunk-signature=`, verify the chain and the 8 KiB rule except the last chunk), signed plus `x-amz-trailer-signature`. Accept any chunk size from one chunk of the whole payload (Go) to 1 MiB (botocore) to arbitrary (JS); accept `\r\n` and `\n\r\n` after trailer values; enforce `x-amz-decoded-content-length` (`IncompleteBody` / `MissingContentLength`), require the trailer name to equal `x-amz-trailer`, strip `aws-chunked` from the stored `Content-Encoding`. Errors: `MalformedTrailerError`, `BadDigest`, `XAmzContentSHA256Mismatch`, `InvalidRequest` with the messages in section 3.5. Frame golden tests from the byte layouts captured in section 3.2 and fuzz the decoder.
+6. **Honour `Expect: 100-continue` correctly.** Go's `net/http` sends `100 Continue` on the first body read, so validate headers (auth, bucket, preconditions, `x-amz-sdk-checksum-algorithm` consistency) before reading the body; botocore waits one second for it then sends anyway, so a handler that never reads still works.
+7. **Checksum engine (`internal/s3/checksum`).** One `Algorithm` sum type with `CRC32, CRC32C, CRC64NVME, SHA1, SHA256` required and `SHA512, MD5, XXHASH64, XXHASH3, XXHASH128` explicit decisions (the model advertises all ten; xxHash needs an ADR because the stdlib has none; its digest form and test vectors are settled in [s3-checksum-residuals-and-record-backlog.md](s3-checksum-residuals-and-record-backlog.md)). Standard library covers CRC32/CRC32C/SHA*/MD5 and `hash/crc64` with the NVME polynomial; add `crc32/crc64 combine` (GF(2) matrix method) for FULL_OBJECT multipart. Property tests: streaming equals one-shot; combine(partials) equals whole; composite equals hash(concat digests)-N. Compute CRC64NVME by default for objects uploaded without a checksum and report it with `x-amz-checksum-type: FULL_OBJECT`. Validate on write whichever source supplies the value: header, trailer, or Complete-time full-object header; reject multiple checksum headers.
+8. **Multipart wire tolerance.** Accept UploadPart checksums even when `CreateMultipartUpload` declared none (boto3 older flows) and accept Complete-time part checksums in any element order, with `&quot;`, `&#34;` and raw quotes in ETags. Always return `x-amz-checksum-<alg>` on UploadPart/PutObject responses (clients copy the part value into Complete only when it was returned). Default type with only an algorithm: COMPOSITE (CRC32/CRC32C/SHA*) and FULL_OBJECT (CRC64NVME); validate the matrix in section 4.4 with the `InvalidRequest` texts quoted in [s3.md](s3.md).
+9. **GET/HEAD checksum headers must be exactly right or absent.** Return `x-amz-checksum-*` only with `x-amz-checksum-mode: ENABLED`, never for a `Range` that is not a whole part, and never a composite value where the client will try to hash the body (clients skip values containing `-`, but a wrong full-object value fails the read in all four SDKs).
+10. **SQS responses.** Always return `MD5OfMessageBody` (JS throws when it is missing) and `MD5OfBody` on every received message; implement the attribute digest of section 4.7 exactly and reuse it for Lambda event `md5OfBody`/`md5OfMessageAttributes`. Put the vectors in section 4.7 into tests. Build `QueueUrl` from the request `Host` (scheme, host, port) so JS's queue-URL-as-endpoint behavior returns to understudy; a hostname that does not resolve from the caller breaks JS SQS clients. G4 verification: with `AWS_ENDPOINT_URL` set, only JS v3 sends SQS calls to the QueueUrl origin (explicit `endpoint` or `useQueueUrlAsEndpoint: false` disables it); Go v2, boto3 and the CLI ignore the QueueUrl host ([queue-url.ts](https://github.com/aws/aws-sdk-js-v3/blob/0317bb822abed1302aaae350a8bbfa40f60ef32d/packages-internal/middleware-sdk-sqs/src/queue-url.ts), observed in [lambda-runtime-contract.md](lambda-runtime-contract.md) section 5.1).
+11. **DynamoDB proxy.** Forward DynamoDB Local's `x-amz-crc32` untouched on pass-through responses; recompute it (decimal CRC32 of the exact bytes, success responses) whenever a shim rewrites a body, and drop it if the body is re-encoded; do not compress. Calls the shim answers itself (TTL, tags, PITR) should emit the header so Go validates and botocore does not retry.
+12. **Clock.** (Scope per G4: this point governs signature timestamp skew and the `Date` header only; presigned URL expiry is compared on the emulator clock, see [lambda-runtime-contract.md](lambda-runtime-contract.md) row 10.) SDKs correct skew from the response `Date` header (Go threshold 4 minutes). Use the real wall clock for signature timestamp checks and the `Date` response header even when the emulator clock is frozen or scaled, or disable timestamp validation; expose the emulator clock only through the admin API and service-level timestamps. A frozen `Date` header would cause Go to retry signature errors with a bogus offset.
+13. **Endpoint story for users and Lambda containers.** Document `AWS_ENDPOINT_URL=http://localhost:PORT` plus the per-service variables in section 5.1; print them from an `understudy env` helper. Inside Lambda containers inject `AWS_ENDPOINT_URL` as an **IPv4 literal** reachable from the container (bridge gateway or host IP): `bucket.localhost` resolves to the container itself on user-defined networks and fails on the default bridge, and Go/JS pick path-style for IP literals. Also set `AWS_REGION`, dummy credentials whose access key encodes the account (point 14), and disable IMDS.
+14. **Accounts.** Implement `accountFromAccessKey` with the bit-mask formula and strict range checks (fifth character in `Q..7`, result at most 999999999999), fall back as in [iam-sts-kms.md](iam-sts-kms.md); `AKIAIOSFODNN7EXAMPLE` decodes to a real-looking 581039954779, so map documentation keys explicitly to the default account instead of trusting the decode.
+15. **Addressing and TLS.** Detect virtual-hosted style from configured base domains (default `localhost`, plus AWS names), requiring a DNS-valid bucket label; document that Go and JS default to `bucket.localhost:PORT` while boto3 and the CLI default to path-style, and give the `UsePathStyle`/`forcePathStyle`/`addressing_style` knobs. Offer an opt-in HTTPS listener with a generated self-signed certificate (stdlib `crypto/tls`, SAN `localhost`, `*.localhost`, `127.0.0.1`) and print the CA-bundle variables (`AWS_CA_BUNDLE`, `SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `custom_ca_bundle`). Reason: aws-sdk-go-v2 refuses non-seekable `PutObject` bodies over plain HTTP ("unseekable stream is not supported without TLS and trailing checksum"), and the documented workaround is `AWS_REQUEST_CHECKSUM_CALCULATION=when_required` (or HTTPS). An `understudy doctor` check can tell users which applies.
+16. **CloudWatch needs CBOR for the Go clients.** Terraform (Go v2) talks `rpc-v2-cbor` to CloudWatch (section 5.3) while boto3, the CLI and JS use JSON 1.0; the route must accept both, keyed on `Smithy-Protocol: rpc-v2-cbor` and the `/service/GraniteServiceVersion20100801/operation/<Op>` path, signed with service `monitoring`.
+17. **Conformance harness.** Reuse the capture approach as a test asset: a tiny recording server plus per-SDK scripts in the conformance suites produce golden request fixtures (headers, bodies, signed header lists) for each SDK version; the checks in sections 1.3, 3.2, 4.3, 4.4, 6.1 and 6.3 then become regression tests that fail when an SDK release changes its wire behavior. Keep record mode local and offline (loopback only).
