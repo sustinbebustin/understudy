@@ -1,0 +1,8 @@
+501
+Content-Length: 148
+Content-Type: application/x-amz-json-1.0
+Date: <date>
+X-Amzn-Query-Error: NotImplemented;Receiver
+X-Amzn-Requestid: f86177a2-1c50-437d-95a4-9091a7c17b4a
+
+{"__type":"NotImplemented","message":"understudy does not implement sqs.ListQueues. Run 'understudy coverage --service sqs' for what is supported."}

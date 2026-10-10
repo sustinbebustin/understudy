@@ -36,3 +36,8 @@ The brief promises one controllable clock for every time-based behavior. The G4 
 - Timers carry no closure (engineering M11): `TimerKey{Kind TimerKind; ID string}`, the scheduler dispatches by `Kind` to the handler the service registered with `Kernel.Timers().Handle`, and arming an unregistered kind fails at bind time.
 - `Until(ctx, d)` and `Waiters.Wait(ctx, key)` end with their context (engineering m8).
 - The ESM pin is the overlay-declared internal operation `sqs.HoldVisibility` (ADR 0002).
+
+## Amendments (implementation, wave 2)
+
+- Mode changes return what changed: `Freeze() ModeChange[Frozen]`, `Resume() (ModeChange[Running], error)` and `Scale(f) (ModeChange[Scaled], error)`, so the admin endpoints journal `ClockChanged{From, To}` without reading `Mode()` twice. `Restore(at, Mode)` is the only way back in time and serves `reset` and `snapshot load`: the caller runs `Scheduler.Clear()`, then `Restore`, then each service's `Rearm`.
+- Every settable instant must lie within `MaxSkew` (100 years) of wall time, so a `Running` offset and the `Scaled` arithmetic never saturate. `New`, `Advance`, `AdvanceTo`, `Resume` and `Restore` refuse anything further with `*RangeError` and change nothing; the admin API and CLI report it as a client error.

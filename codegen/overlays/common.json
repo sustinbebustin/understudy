@@ -1,0 +1,63 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazon.coral.service#UnknownOperationException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/test/connection.js#L148-L172",
+          "validated": "2026-10-08"
+        }
+      }
+    },
+    "com.amazon.coral.service#InvalidAction": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.py#L5118"
+        }
+      }
+    },
+    "com.amazon.coral.service#SerializationException": {
+      "type": "structure",
+      "members": {
+        "Message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/index.js#L374"
+        }
+      }
+    },
+    "com.amazon.coral.validate#ValidationException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156",
+          "validated": "2025-09-22"
+        }
+      }
+    }
+  }
+}

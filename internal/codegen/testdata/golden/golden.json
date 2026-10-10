@@ -1,0 +1,275 @@
+{
+  "smithy": "2.0",
+  "metadata": {"suppressions": []},
+  "shapes": {
+    "com.example.golden#Golden": {
+      "type": "service",
+      "version": "2026-10-09",
+      "operations": [
+        {"target": "com.example.golden#Ping"},
+        {"target": "com.example.golden#PutKinds"}
+      ],
+      "resources": [{"target": "com.example.golden#Thing"}],
+      "traits": {
+        "aws.api#service": {"sdkId": "Golden", "arnNamespace": "golden"},
+        "aws.auth#sigv4": {"name": "golden"},
+        "aws.protocols#awsJson1_0": {},
+        "aws.protocols#awsQueryCompatible": {},
+        "smithy.api#documentation": "<p>A fixture service for the generator golden test.</p>",
+        "smithy.rules#endpointRuleSet": {"version": "1.0", "parameters": {}, "rules": []}
+      }
+    },
+    "com.example.golden#Thing": {
+      "type": "resource",
+      "identifiers": {"ThingId": {"target": "com.example.golden#String"}},
+      "read": {"target": "com.example.golden#GetThing"},
+      "resources": [{"target": "com.example.golden#Part"}]
+    },
+    "com.example.golden#Part": {
+      "type": "resource",
+      "identifiers": {
+        "ThingId": {"target": "com.example.golden#String"},
+        "PartId": {"target": "com.example.golden#String"}
+      },
+      "collectionOperations": [{"target": "com.example.golden#ListParts"}]
+    },
+    "com.example.golden#Ping": {
+      "type": "operation",
+      "traits": {"smithy.api#readonly": {}}
+    },
+    "com.example.golden#PutKinds": {
+      "type": "operation",
+      "input": {"target": "com.example.golden#PutKindsRequest"},
+      "output": {"target": "com.example.golden#PutKindsResponse"},
+      "errors": [
+        {"target": "com.example.golden#KindsFault"},
+        {"target": "com.example.golden#Throttled"}
+      ],
+      "traits": {
+        "smithy.api#idempotent": {},
+        "smithy.api#examples": [
+          {
+            "title": "To put one of every kind",
+            "documentation": "Every member kind the generator renders as an example literal.",
+            "input": {
+              "Name": "abc",
+              "Flag": true,
+              "Tiny": -1,
+              "Small": 300,
+              "Count": 2,
+              "Total": 1099511627776,
+              "Ratio": 0.5,
+              "Score": 2.5,
+              "Exact": 1.10,
+              "At": 1412896648.25,
+              "Data": "<b>",
+              "Doc": {"k": [1, "v", null]},
+              "Color": "dark-blue",
+              "Level": 9,
+              "Tags": ["a", "b"],
+              "Sparse": [1, null],
+              "Labels": {"z": "1", "a": "2"},
+              "Nested": {"Code": "a-b", "Weight": 1},
+              "Choice": {"Empty": {}},
+              "Secret": "s3cret"
+            },
+            "output": {"Id": "i-1", "Count": 0}
+          },
+          {
+            "title": "A name that breaks the pattern",
+            "input": {"Name": "ABC", "Nested": {"Code": "a"}},
+            "error": {"shapeId": "com.example.golden#InvalidInput", "content": {"message": "bad name"}},
+            "allowConstraintErrors": true
+          }
+        ]
+      }
+    },
+    "com.example.golden#GetThing": {
+      "type": "operation",
+      "input": {"target": "com.example.golden#GetThingRequest"},
+      "output": {"target": "com.example.golden#GetThingResponse"},
+      "traits": {
+        "smithy.api#readonly": {},
+        "smithy.api#examples": [
+          {"title": "To read a thing", "input": {"ThingId": "t-1"}, "output": {"Name": "n", "Created": "2014-10-09T22:57:28.000Z"}}
+        ]
+      }
+    },
+    "com.example.golden#ListParts": {
+      "type": "operation",
+      "input": {"target": "com.example.golden#ListPartsRequest"},
+      "output": {"target": "com.example.golden#ListPartsResponse"},
+      "traits": {"smithy.api#readonly": {}, "smithy.api#paginated": {"inputToken": "NextToken", "outputToken": "NextToken"}}
+    },
+    "com.example.golden#PutKindsRequest": {
+      "type": "structure",
+      "members": {
+        "Name": {"target": "com.example.golden#Name", "traits": {"smithy.api#required": {}}},
+        "Flag": {"target": "com.example.golden#Boolean"},
+        "Tiny": {"target": "com.example.golden#Byte"},
+        "Small": {"target": "com.example.golden#Short"},
+        "Count": {"target": "com.example.golden#Count"},
+        "Total": {"target": "com.example.golden#Long", "traits": {"smithy.api#default": 0}},
+        "Retries": {"target": "com.example.golden#Integer", "traits": {"smithy.api#default": 3}},
+        "Ratio": {"target": "com.example.golden#Float"},
+        "Score": {"target": "com.example.golden#Score"},
+        "Huge": {"target": "com.example.golden#BigInteger"},
+        "Exact": {"target": "com.example.golden#BigDecimal"},
+        "At": {"target": "com.example.golden#Timestamp", "traits": {"smithy.api#timestampFormat": "date-time"}},
+        "Data": {"target": "com.example.golden#Data"},
+        "Doc": {"target": "com.example.golden#Document"},
+        "Color": {"target": "com.example.golden#Color"},
+        "Level": {"target": "com.example.golden#Level"},
+        "Tags": {"target": "com.example.golden#TagList"},
+        "Sparse": {"target": "com.example.golden#SparseCounts"},
+        "Labels": {"target": "com.example.golden#LabelMap"},
+        "Nested": {"target": "com.example.golden#Nested", "traits": {"smithy.api#required": {}}},
+        "Choice": {"target": "com.example.golden#Choice"},
+        "Secret": {"target": "com.example.golden#Secret"}
+      },
+      "traits": {"smithy.api#input": {}}
+    },
+    "com.example.golden#PutKindsResponse": {
+      "type": "structure",
+      "members": {
+        "Id": {"target": "com.example.golden#String", "traits": {"smithy.api#required": {}}},
+        "Count": {"target": "com.example.golden#Integer"},
+        "Items": {"target": "com.example.golden#NestedList"},
+        "Choice": {"target": "com.example.golden#Choice"},
+        "Secret": {"target": "com.example.golden#Secret"}
+      },
+      "traits": {"smithy.api#output": {}}
+    },
+    "com.example.golden#GetThingRequest": {
+      "type": "structure",
+      "members": {
+        "ThingId": {"target": "com.example.golden#String", "traits": {"smithy.api#required": {}, "smithy.api#resourceIdentifier": "ThingId"}}
+      }
+    },
+    "com.example.golden#GetThingResponse": {
+      "type": "structure",
+      "members": {
+        "Name": {"target": "com.example.golden#String"},
+        "Created": {"target": "com.example.golden#Timestamp"}
+      }
+    },
+    "com.example.golden#ListPartsRequest": {
+      "type": "structure",
+      "members": {
+        "ThingId": {"target": "com.example.golden#String", "traits": {"smithy.api#required": {}}},
+        "NextToken": {"target": "com.example.golden#String"}
+      }
+    },
+    "com.example.golden#ListPartsResponse": {
+      "type": "structure",
+      "members": {
+        "Parts": {"target": "com.example.golden#NestedList"},
+        "NextToken": {"target": "com.example.golden#String"}
+      }
+    },
+    "com.example.golden#Nested": {
+      "type": "structure",
+      "members": {
+        "Code": {"target": "com.example.golden#Code", "traits": {"smithy.api#required": {}}},
+        "Weight": {"target": "com.example.golden#Double"}
+      }
+    },
+    "com.example.golden#Choice": {
+      "type": "union",
+      "members": {
+        "Text": {"target": "com.example.golden#String"},
+        "Number": {"target": "com.example.golden#Integer"},
+        "Empty": {"target": "smithy.api#Unit"}
+      }
+    },
+    "com.example.golden#Color": {
+      "type": "enum",
+      "members": {
+        "RED": {"target": "smithy.api#Unit", "traits": {"smithy.api#enumValue": "red"}},
+        "DARK_BLUE": {"target": "smithy.api#Unit", "traits": {"smithy.api#enumValue": "dark-blue"}}
+      }
+    },
+    "com.example.golden#Level": {
+      "type": "intEnum",
+      "members": {
+        "LOW": {"target": "smithy.api#Unit", "traits": {"smithy.api#enumValue": 1}},
+        "HIGH": {"target": "smithy.api#Unit", "traits": {"smithy.api#enumValue": 9}}
+      }
+    },
+    "com.example.golden#KindsFault": {
+      "type": "structure",
+      "members": {
+        "Message": {"target": "com.example.golden#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 409,
+        "aws.protocols#awsQueryError": {"code": "Kinds.Fault", "httpResponseCode": 404}
+      }
+    },
+    "com.example.golden#Throttled": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "server",
+        "smithy.api#httpError": 503,
+        "smithy.api#retryable": {"throttling": true}
+      }
+    },
+    "com.example.golden#TagList": {
+      "type": "list",
+      "member": {"target": "com.example.golden#String"},
+      "traits": {"smithy.api#length": {"max": 2}}
+    },
+    "com.example.golden#SparseCounts": {
+      "type": "list",
+      "member": {"target": "com.example.golden#Integer"},
+      "traits": {"smithy.api#sparse": {}}
+    },
+    "com.example.golden#NestedList": {
+      "type": "list",
+      "member": {"target": "com.example.golden#Nested"}
+    },
+    "com.example.golden#LabelMap": {
+      "type": "map",
+      "key": {"target": "com.example.golden#String"},
+      "value": {"target": "com.example.golden#String"}
+    },
+    "com.example.golden#Name": {
+      "type": "string",
+      "traits": {"smithy.api#length": {"min": 1, "max": 8}, "smithy.api#pattern": "^[a-z]+$"}
+    },
+    "com.example.golden#Code": {
+      "type": "string",
+      "traits": {"smithy.api#pattern": "^(?!-)[a-z-]+$"}
+    },
+    "com.example.golden#Secret": {
+      "type": "string",
+      "traits": {"smithy.api#sensitive": {}}
+    },
+    "com.example.golden#Count": {
+      "type": "integer",
+      "traits": {"smithy.api#range": {"min": 1, "max": 10}}
+    },
+    "com.example.golden#Score": {
+      "type": "double",
+      "traits": {"smithy.api#range": {"min": 0.5}}
+    },
+    "com.example.golden#Data": {
+      "type": "blob",
+      "traits": {"smithy.api#length": {"max": 4}}
+    },
+    "com.example.golden#String": {"type": "string"},
+    "com.example.golden#Boolean": {"type": "boolean"},
+    "com.example.golden#Byte": {"type": "byte"},
+    "com.example.golden#Short": {"type": "short"},
+    "com.example.golden#Integer": {"type": "integer"},
+    "com.example.golden#Long": {"type": "long"},
+    "com.example.golden#Float": {"type": "float"},
+    "com.example.golden#Double": {"type": "double"},
+    "com.example.golden#BigInteger": {"type": "bigInteger"},
+    "com.example.golden#BigDecimal": {"type": "bigDecimal"},
+    "com.example.golden#Timestamp": {"type": "timestamp"},
+    "com.example.golden#Document": {"type": "document"}
+  }
+}

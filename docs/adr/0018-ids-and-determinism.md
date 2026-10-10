@@ -34,3 +34,12 @@ The contract is narrowed (engineering M12, fidelity F14, product m7). A single c
 - Journals are equal as canonical trace trees: children sorted by kind, operation and resource, ids replaced by tree positions, `Wall` and `Latency` ignored. Golden fixtures never contain raw event ids.
 - SSE-KMS ETags and every other emulator-minted identifier come from the seeded source; only KMS key material and SNS signing keys do not.
 - A `--deterministic` single-worker mode is not built in phase 1; option (a) of the engineering review was taken.
+
+## Amendments (implementation, wave 4)
+
+The closed normalizer set of `snapshot diff --normalize` (`internal/snapshot` package doc, ARCHITECTURE.md 12 and 13) gained these entries:
+
+- Account ids: minted access key ids (members whose name ends in `AccessKeyId` and whose value encodes an account, `ids.DecodeAccount`) are masked whole, since a key minted from the same seed differs between accounts only by that account. AWS documentation keys and other strings that do not decode stay visible.
+- Wall-domain fields: STS expiry is masked under `Expiration` (the wire name) and `expiry` (the name identity's export persists).
+- Member-name rules do not apply inside user-keyed maps of strings persisted as `Tags`, `Variables` or `Metadata` (any case); their values are still normalized as text. An object under one of those names that holds anything other than strings is a record keyed by a user-chosen name and keeps every rule.
+- Normalizing never reorders arrays. State sorted by a masked value sorts by what the mask keeps: identity's export orders keys with `ids.CompareAccessKeys`, which ignores the account bits.

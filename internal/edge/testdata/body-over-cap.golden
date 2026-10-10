@@ -1,0 +1,8 @@
+413
+Content-Length: 170
+Content-Type: application/x-amz-json-1.0
+Date: <date>
+X-Amzn-Query-Error: RequestEntityTooLarge;Sender
+X-Amzn-Requestid: 782d0c0f-cc21-4b2c-af92-2a4890c2bed7
+
+{"__type":"com.amazon.coral.service#RequestEntityTooLargeException","message":"The request body exceeds the 16777216-byte limit of sqs.CreateQueue; send a smaller body."}

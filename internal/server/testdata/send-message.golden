@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+Content-Length: 106
+Content-Type: application/x-amz-json-1.0
+Date: <date>
+X-Amzn-Requestid: a6ec97aa-470a-4b19-b7ce-d9d907ac79de
+
+{"MD5OfMessageBody":"78e731027d8fd50ed642340b7c9a63b3","MessageId":"57275ac4-961c-4952-8b39-d4e3f3c9153e"}

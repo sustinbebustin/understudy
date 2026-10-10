@@ -36,3 +36,10 @@ The brief asks for declarative rules by service, operation, resource, account or
 - Typed per-operation validators (`kernel.WithValidator`) run before faults, so the validate-first argument holds for hand-owned checks too (engineering M7).
 - Calls with `Origin Internal{Via: Snapshot}` (the DynamoDB export and import) never match a rule (product M3).
 - The CLI exposes every match dimension and action: `--resource`, `--account`, `--region`, `--origin`, `--phase delivery`, `--after-commit`, `--status-ok`, `--drop` (product m4).
+
+## Amendments (implementation, wave 3)
+
+- `Store.Evaluate` takes a `Hook`, not a `Phase`: the `Request` phase has two hook points. `BeforeHandler` (step 8, and the DynamoDB proxy before forwarding) runs `Error`, `Throttle` and `Latency` rules; `AfterHandler` (step 10, called only when the handler succeeded) runs `AfterCommit` and `StatusOKError` rules, so their budgets are spent only on a committed result; `DeliveryAttempt` runs the `Delivery` phase.
+- The `Decision` sum is `None | Fail | Delay{Wall, Then} | FailAfterCommit | FailStatusOK | Drop`, each hit carrying `Injection{Rule, Hit, Of}`. Go cannot reuse the `Action` type names in the same package, hence `Delay`, `FailAfterCommit` and `FailStatusOK` for `Latency`, `AfterCommit` and `StatusOKError`.
+- `Delay.Then` is evaluated eagerly with the latency rule, so every injection in it is already a hit. The caller journals each of them, including when the client leaves during the hold and `Then` is never applied.
+- `Error`, `AfterCommit` and `StatusOKError` rules must name at least one operation, since error sets are per operation. Shapes in understudy's own `dev.understudy` namespace (such as `NotImplemented`) are never injectable: AWS never sends them.

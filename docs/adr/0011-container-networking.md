@@ -28,6 +28,12 @@ The brief binds to 127.0.0.1 by default and requires SDK calls inside functions 
 
 ## Amendments (review, 2026-10-08)
 
-- `DockerDesktop{HostAddr}` is specified (product M1): no container listener; the main and Runtime API listeners stay on `127.0.0.1` because Desktop forwards `host.docker.internal:<port>` to the host's loopback; the IPv4 literal handed to functions is resolved once per daemon by running the function's own image with `getent hosts host.docker.internal`, cached, with `192.168.65.254` as the documented fallback. Whether Docker Desktop becomes a tested topology is open decision 25.1 in the architecture (a human macOS run; agents only have Linux).
+- `DockerDesktop{HostAddr}` is specified (product M1): no container listener; the main and Runtime API listeners stay on `127.0.0.1` because Desktop forwards `host.docker.internal:<port>` to the host's loopback; the IPv4 literal handed to functions is resolved once per daemon by running the function's own image with `getent ahostsv4 host.docker.internal` (the command as amended in wave 2 below), cached, with `192.168.65.254` as the documented fallback. Whether Docker Desktop becomes a tested topology is open decision 25.1 in the architecture (a human macOS run; agents only have Linux).
 - `InContainer{Network, Self}` is CI-tested alongside Linux bridge (product C2): the main listener binds `0.0.0.0` inside the container under the config state `Exposed{ContainerPublished}`, accepted only when this topology is detected, with the published port as the exposure control; function containers and DynamoDB Local attach to understudy's network and are addressed by container IP; the smoke test runs inside the image.
 - Windows is supported through WSL2 only (product m9).
+
+## Amendments (implementation, wave 2)
+
+- Rootless Podman is unsupported in phase 1, like rootless Docker: `Addresses` returns an `UnsupportedError` naming the remedy. Its pasta gateway is not a path to the host, and `host.containers.internal` maps to an address that reaches only the host's external interface (`containers.md 8.1` row 7), which understudy does not bind; any address handed to functions would time out.
+- `DockerDesktop` has the shape `{Host DesktopHost}`, a sum of `ProbedHost{Addr, Cleanup}` (the address the probe printed; `Cleanup` reports a probe container that could not be removed) and `FallbackHost{Cause}` (the documented `192.168.65.254`, with the reason the probe failed for `doctor`). Only a successful probe is cached per daemon.
+- The probe sets the container's Entrypoint to `getent ahostsv4 host.docker.internal` instead of passing `Cmd`: the Lambda base images' entrypoint rejects more than one argument, and glibc's `getent hosts` prints only the IPv6 address of a dual-stack name.

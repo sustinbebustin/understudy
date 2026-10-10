@@ -1,0 +1,131 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.example.golden#Golden": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#errorNamespace": "com.example.golden.v1",
+        "dev.understudy#throttleError": "com.example.golden#Throttled",
+        "dev.understudy#malformedRequestError": "com.amazon.coral.service#SerializationException",
+        "dev.understudy#unknownOperationError": {"json": "com.amazon.coral.service#UnknownOperationException"},
+        "dev.understudy#validationError": {"code": "com.example.golden#InvalidInput"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.amazon.coral.service#UnknownOperationException": {
+      "type": "structure",
+      "members": {"message": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.amazon.coral.service#SerializationException": {
+      "type": "structure",
+      "members": {"Message": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.example.golden#InvalidInput": {
+      "type": "structure",
+      "members": {"message": {"target": "com.example.golden#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "aws.protocols#awsQueryError": {"code": "InvalidInput", "httpResponseCode": 400},
+        "dev.understudy#jsonType": "InvalidInputException",
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.example.golden#KindsFault": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageByProtocol": {"awsquery": "Kinds failed for this wsdl version."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.example.golden#PutKindsRequest$Name": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {
+          "code": "com.example.golden#InvalidInput",
+          "style": "parameter",
+          "constraints": ["length", "pattern"],
+          "reason": "Names are 1 to 8 lowercase letters."
+        },
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.example.golden#TagList$member": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#length": {"min": 1},
+        "dev.understudy#validationError": {
+          "code": "com.example.golden#InvalidInput",
+          "style": "parameter",
+          "constraints": ["length"],
+          "reason": "Tags are not empty."
+        },
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.example.golden#PutKindsRequest$Color": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "open"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.example.golden#Code": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {"allOf": ["^[a-z-]+$"], "noneOf": ["^-"]},
+        "dev.understudy#patternEcho": "^(?!-)[a-z-]+$",
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.example.golden#PutKinds": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#successCode": 201,
+        "dev.understudy#maxRequestBytes": 1024,
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.example.golden#PutKindsResponse$Items": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#emptyCollection": "emit",
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.example.golden#PutKindsResponse$Count": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#alwaysEmit": {},
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.example.golden#Sweep": {
+      "type": "operation",
+      "input": {"target": "com.example.golden#SweepRequest"},
+      "traits": {
+        "dev.understudy#internalOperation": {},
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.example.golden#SweepRequest": {
+      "type": "structure",
+      "members": {
+        "Before": {"target": "com.example.golden#Timestamp", "traits": {"smithy.api#required": {}}},
+        "Ids": {"target": "com.example.golden#TagList", "traits": {"smithy.api#required": {}}}
+      },
+      "traits": {
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    }
+  }
+}

@@ -1,0 +1,305 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.sqs#AmazonSQS": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#xmlNamespace": {"uri": "http://queue.amazonaws.com/doc/2012-11-05/"},
+        "dev.understudy#errorNamespace": "com.amazonaws.sqs",
+        "dev.understudy#emptyCollection": "omit",
+        "dev.understudy#throttleError": "com.amazonaws.sqs#RequestThrottled",
+        "dev.understudy#unknownOperationError": {
+          "json": "com.amazon.coral.service#UnknownOperationException",
+          "query": "com.amazon.coral.service#InvalidAction"
+        },
+        "dev.understudy#validationError": [
+          {"enumPolicy": "handler"},
+          {"code": "com.amazonaws.sqs#MissingParameter", "style": "missingParameter", "constraints": ["required"]},
+          {"code": "com.amazonaws.sqs#InvalidParameterValue"}
+        ],
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_DeleteMessage.html",
+            "covers": ["smithy.api#xmlNamespace"]
+          },
+          {
+            "label": "sdk-source",
+            "source": "https://github.com/boto/botocore/blob/develop/tests/functional/test_sqs.py",
+            "covers": ["dev.understudy#errorNamespace"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json",
+            "covers": ["dev.understudy#emptyCollection"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/phase1/error-matrix.md#51-sqs-json-10",
+            "covers": ["dev.understudy#throttleError", "dev.understudy#unknownOperationError", "dev.understudy#validationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.sqs#QueueDoesNotExist": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageByProtocol": {"awsquery": "The specified queue does not exist for this wsdl version."},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json"
+        }
+      }
+    },
+    "com.amazonaws.sqs#InvalidParameterValue": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "com.amazonaws.sqs#ExceptionMessage"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "aws.protocols#awsQueryError": {"code": "InvalidParameterValue", "httpResponseCode": 400},
+        "dev.understudy#jsonType": "InvalidParameterValueException",
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L2",
+          "validated": "2024-04-30"
+        }
+      }
+    },
+    "com.amazonaws.sqs#MissingParameter": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "com.amazonaws.sqs#ExceptionMessage"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "aws.protocols#awsQueryError": {"code": "MissingParameter", "httpResponseCode": 400},
+        "dev.understudy#jsonType": "MissingRequiredParameterException",
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3759",
+          "validated": "2025-09-22"
+        }
+      }
+    },
+    "com.amazonaws.sqs#CreateQueueRequest$QueueName": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#length": {"min": 1, "max": 80},
+        "smithy.api#pattern": "^[a-zA-Z0-9_-]+(\\.fifo)?$",
+        "dev.understudy#validationError": {
+          "code": "com.amazonaws.sqs#InvalidParameterValue",
+          "style": "parameter",
+          "constraints": ["length", "pattern"],
+          "reason": "Can only include alphanumeric characters, hyphens, or underscores. 1 to 80 in length."
+        },
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-queues.html",
+            "covers": ["smithy.api#length", "smithy.api#pattern"]
+          },
+          {
+            "label": "inferred",
+            "source": "Reason text from LocalStack https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/localstack-core/localstack/services/sqs/provider.py#L124-L138 and moto https://github.com/getmoto/moto/blob/636f64616f5efa7ec53a7bbf76cfb2f4bde5eda2/moto/sqs/models.py#L303-L311 (no recording shows AWS's text; docs/research/phase1/sqs.md#24-error-catalog); the Value/Reason frame is the one the recorded MessageGroupId and MaxNumberOfMessages texts use. Preferred over the developer guide example 'Must be an alphanumeric String of 1 to 80 in length.', whose frame no recording shows and which contradicts the quotas page that allows hyphens and underscores.",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.sqs#SendMessageRequest$MessageBody": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#length": {"min": 1},
+        "dev.understudy#validationError": {
+          "code": "com.amazonaws.sqs#MissingParameter",
+          "style": "missingParameter",
+          "constraints": ["length"]
+        },
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3759",
+          "validated": "2025-09-22"
+        }
+      }
+    },
+    "com.amazonaws.sqs#SendMessageRequest$DelaySeconds": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#range": {"min": 0, "max": 900},
+        "dev.understudy#validationError": {
+          "code": "com.amazonaws.sqs#InvalidParameterValue",
+          "style": "parameter",
+          "constraints": ["range"],
+          "reason": "Must be >= 0 and <= 900, if provided."
+        },
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html",
+            "covers": ["smithy.api#range"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/phase1/sqs.md#24-error-catalog",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.sqs#SendMessageRequest$MessageGroupId": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#length": {"min": 1, "max": 128},
+        "smithy.api#pattern": "^[!-~]+$",
+        "dev.understudy#validationError": {
+          "code": "com.amazonaws.sqs#InvalidParameterValue",
+          "style": "parameter",
+          "constraints": ["length", "pattern"],
+          "reason": "MessageGroupId can only include alphanumeric and punctuation characters. 1 to 128 in length."
+        },
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L4033",
+          "validated": "2025-07-30"
+        }
+      }
+    },
+    "com.amazonaws.sqs#SendMessageRequest$MessageDeduplicationId": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#length": {"min": 1, "max": 128},
+        "smithy.api#pattern": "^[!-~]+$",
+        "dev.understudy#validationError": {
+          "code": "com.amazonaws.sqs#InvalidParameterValue",
+          "style": "parameter",
+          "constraints": ["length", "pattern"],
+          "reason": "MessageDeduplicationId can only include alphanumeric and punctuation characters. 1 to 128 in length."
+        },
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L4033",
+          "validated": "2025-07-30"
+        }
+      }
+    },
+    "com.amazonaws.sqs#ReceiveMessageRequest$MaxNumberOfMessages": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#range": {"min": 1, "max": 10},
+        "dev.understudy#validationError": {
+          "code": "com.amazonaws.sqs#InvalidParameterValue",
+          "style": "parameter",
+          "constraints": ["range"],
+          "reason": "Must be between 1 and 10, if provided."
+        },
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L2",
+          "validated": "2024-04-30"
+        }
+      }
+    },
+    "com.amazonaws.sqs#ReceiveMessageRequest$WaitTimeSeconds": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#range": {"min": 0, "max": 20},
+        "dev.understudy#validationError": {
+          "code": "com.amazonaws.sqs#InvalidParameterValue",
+          "style": "parameter",
+          "constraints": ["range"],
+          "reason": "Must be >= 0 and <= 20, if provided."
+        },
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3599",
+          "validated": "2025-02-10"
+        }
+      }
+    },
+    "com.amazonaws.sqs#SendMessage": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#maxRequestBytes": 8388608,
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/sqs.md#13-implications-for-understudy"
+        }
+      }
+    },
+    "com.amazonaws.sqs#SendMessageBatch": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#maxRequestBytes": 8388608,
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/sqs.md#13-implications-for-understudy"
+        }
+      }
+    },
+    "com.amazonaws.sqs#HoldVisibility": {
+      "type": "operation",
+      "input": {"target": "com.amazonaws.sqs#HoldVisibilityRequest"},
+      "output": {"target": "smithy.api#Unit"},
+      "errors": [
+        {"target": "com.amazonaws.sqs#QueueDoesNotExist"},
+        {"target": "com.amazonaws.sqs#ReceiptHandleIsInvalid"}
+      ],
+      "traits": {
+        "dev.understudy#internalOperation": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/adr/0006-clock-domains-and-scheduler.md"
+        }
+      }
+    },
+    "com.amazonaws.sqs#HoldVisibilityRequest": {
+      "type": "structure",
+      "members": {
+        "QueueUrl": {"target": "com.amazonaws.sqs#String", "traits": {"smithy.api#required": {}}},
+        "ReceiptHandles": {"target": "com.amazonaws.sqs#ReceiptHandleList", "traits": {"smithy.api#required": {}}},
+        "Mode": {
+          "target": "com.amazonaws.sqs#HoldVisibilityMode",
+          "traits": {
+            "smithy.api#required": {},
+            "dev.understudy#validationError": {"enumPolicy": "closed"}
+          }
+        }
+      },
+      "traits": {
+        "smithy.api#input": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/adr/0006-clock-domains-and-scheduler.md"
+        }
+      }
+    },
+    "com.amazonaws.sqs#ReceiptHandleList": {
+      "type": "list",
+      "member": {"target": "com.amazonaws.sqs#String"},
+      "traits": {
+        "smithy.api#length": {"min": 1},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/adr/0006-clock-domains-and-scheduler.md"
+        }
+      }
+    },
+    "com.amazonaws.sqs#HoldVisibilityMode": {
+      "type": "enum",
+      "members": {
+        "PIN": {"target": "smithy.api#Unit", "traits": {"smithy.api#enumValue": "PIN"}},
+        "RELEASE": {"target": "smithy.api#Unit", "traits": {"smithy.api#enumValue": "RELEASE"}}
+      },
+      "traits": {
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/adr/0006-clock-domains-and-scheduler.md"
+        }
+      }
+    }
+  }
+}

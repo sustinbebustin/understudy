@@ -1,0 +1,106 @@
+{
+  "repository": "https://github.com/aws/api-models-aws",
+  "commit": "1cfdfb4bb9ea858e65623e66d73af04bec353201",
+  "retrieved": "2026-10-08",
+  "license": "Apache-2.0",
+  "legal": [
+    {
+      "path": "LICENSE",
+      "bytes": 10142,
+      "gitBlobSha1": "67db8588217f266eb561f75fae738656325deac9",
+      "sha256": "09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b"
+    },
+    {
+      "path": "NOTICE",
+      "bytes": 67,
+      "gitBlobSha1": "616fc5889451895dbf9768e6787c8308c33bef22",
+      "sha256": "d4290ed64c2edd0fce1d84e3f9dfb2881240fe534def76b8cd29ed6af683e287"
+    }
+  ],
+  "files": [
+    {
+      "dir": "cloudwatch",
+      "path": "models/cloudwatch/service/2010-08-01/cloudwatch-2010-08-01.json",
+      "bytes": 523004,
+      "gitBlobSha1": "f2d6c5f94c3fdc00d071bf58342d852476d36654",
+      "sha256": "3e768eb0948c3b8eb86666f2a35833029b74319a8bf9eda7a3ddc2b0586ea389"
+    },
+    {
+      "dir": "cloudwatch-logs",
+      "path": "models/cloudwatch-logs/service/2014-03-28/cloudwatch-logs-2014-03-28.json",
+      "bytes": 863827,
+      "gitBlobSha1": "2c6f4c9da595025bc4e88f56da868276ba252ee3",
+      "sha256": "188efdb5ed12f703134ca2db58dd5a3ca54dd6e6627daed658b83f0c6614c37d"
+    },
+    {
+      "dir": "dynamodb",
+      "path": "models/dynamodb/service/2012-08-10/dynamodb-2012-08-10.json",
+      "bytes": 1514176,
+      "gitBlobSha1": "b3809e41c2870192faf1e8cafa460f77d95f4162",
+      "sha256": "09ed07d716c40d1c8641f1641a380029a6b41cf412110aaca1d9c6db030d25ac"
+    },
+    {
+      "dir": "eventbridge",
+      "path": "models/eventbridge/service/2015-10-07/eventbridge-2015-10-07.json",
+      "bytes": 446265,
+      "gitBlobSha1": "2b1f4748798ee80191c01c063e0f5b75591a8e1f",
+      "sha256": "827b198895a92c2682123f331b103c0dcc39b491d0cffd9fbf20dfc1d5136360"
+    },
+    {
+      "dir": "iam",
+      "path": "models/iam/service/2010-05-08/iam-2010-05-08.json",
+      "bytes": 1168554,
+      "gitBlobSha1": "f5f522bc4f531b7b20ef1f3c6a88e9cdc6e7d40b",
+      "sha256": "c1f74d3eda269e4fa2f00b57d57ed19c0e0a6d7fc7c70d4e351e319d178430f9"
+    },
+    {
+      "dir": "kms",
+      "path": "models/kms/service/2014-11-01/kms-2014-11-01.json",
+      "bytes": 794362,
+      "gitBlobSha1": "47a740b50e65c29660c1160a04a7f254c4d2c8fb",
+      "sha256": "874c9682f2f5e5c63c1f448972f8a87808150c5b2b5f1cbcc806cca6d4b5cf50"
+    },
+    {
+      "dir": "lambda",
+      "path": "models/lambda/service/2015-03-31/lambda-2015-03-31.json",
+      "bytes": 1002500,
+      "gitBlobSha1": "4dafc182321a1c36ddd9917011091119ab5079de",
+      "sha256": "595dcd2bd52005ed888323578f9239a4e5b5ccccebf49ee3ab1e0057ce387c54"
+    },
+    {
+      "dir": "s3",
+      "path": "models/s3/service/2006-03-01/s3-2006-03-01.json",
+      "bytes": 2996942,
+      "gitBlobSha1": "656c63c1eb89d9c7b6625965c9e627e716fccb00",
+      "sha256": "73e4f75747396176053a0fcc910261cf670c7e133c1cebcfffefa703fad3ce68"
+    },
+    {
+      "dir": "secrets-manager",
+      "path": "models/secrets-manager/service/2017-10-17/secrets-manager-2017-10-17.json",
+      "bytes": 276931,
+      "gitBlobSha1": "69aaef3dc1ca895974bcf7b438b7aa39872e1cae",
+      "sha256": "2738bd8ded2b25834c71089cf71232738972d78befa80fa168ea476978ac8604"
+    },
+    {
+      "dir": "sns",
+      "path": "models/sns/service/2010-03-31/sns-2010-03-31.json",
+      "bytes": 293858,
+      "gitBlobSha1": "94f63f46df9c14a167b6896b3c6a2fc8300fb2f8",
+      "sha256": "4277558234bf8df413fe5b0945a61bc4db6ea8a72582c930b295f793a202da45"
+    },
+    {
+      "dir": "sqs",
+      "path": "models/sqs/service/2012-11-05/sqs-2012-11-05.json",
+      "bytes": 272518,
+      "gitBlobSha1": "613990f5a76786a4f7e1d90980e299be85779fef",
+      "sha256": "f34a7d2560fb9776206fb35958b8d0fc5f17d33f377bb7512d55a34a8c0c78f0"
+    },
+    {
+      "dir": "sts",
+      "path": "models/sts/service/2011-06-15/sts-2011-06-15.json",
+      "bytes": 263850,
+      "gitBlobSha1": "60e76ae03170e9990997c55aad690ac989547ca6",
+      "sha256": "794c8b2142e3a65bc6cc7922005eb85d6b71b02353fef03c0f395e8f902ee2d0"
+    }
+  ]
+}

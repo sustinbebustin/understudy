@@ -67,7 +67,11 @@ linters:
     - gocognit
     - nestif
   settings:
-    errcheck: { check-type-assertions: true, check-blank: true }
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+      # Like hash.Hash.Write, which errcheck exempts by default: it never fails.
+      exclude-functions: ["(*github.com/sustinbebustin/understudy/internal/checksum.Hash).Write"]
     govet:
       enable-all: true
       disable: [fieldalignment, shadow]

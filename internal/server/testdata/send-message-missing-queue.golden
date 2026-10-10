@@ -1,0 +1,8 @@
+HTTP/1.1 400 Bad Request
+Content-Length: 96
+Content-Type: application/x-amz-json-1.0
+Date: <date>
+X-Amzn-Query-Error: AWS.SimpleQueueService.NonExistentQueue;Sender
+X-Amzn-Requestid: 9e4870aa-0b76-402a-85e6-73b0d90b3a37
+
+{"__type":"com.amazonaws.sqs#QueueDoesNotExist","message":"The specified queue does not exist."}

@@ -1,0 +1,7 @@
+{
+  "service": "com.example.golden#Golden",
+  "package": "goldenapi",
+  "model": "golden",
+  "iamPrefix": "golden",
+  "extraProtocols": ["aws.protocols#awsQuery"]
+}

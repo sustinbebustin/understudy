@@ -1,0 +1,7 @@
+400
+Content-Length: 437
+Content-Type: application/x-amz-json-1.0
+Date: <date>
+X-Amzn-Requestid: 782d0c0f-cc21-4b2c-af92-2a4890c2bed7
+
+{"__type":"com.amazon.coral.service#UnknownOperationException","message":"understudy could not route this request to a service: rule 1: the path is not under /_understudy/; rule 2: host \"localhost\" is not a Lambda function URL host; rule 3: not an S3 Control request (<account>.<base> host and a /v20180820/ path); rule 5: the request carries both Smithy-Protocol: rpc-v2-cbor and X-Amz-Target, so its protocol is ambiguous; send one"}

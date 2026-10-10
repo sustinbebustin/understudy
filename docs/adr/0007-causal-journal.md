@@ -36,3 +36,7 @@ The brief wants every API call and every cross-service delivery recorded with ca
 - Queries filter by request id and traces are reachable by request id, since that is the key users hold (product m3). On Linux bridge the request's `RemoteAddr` is a second linking signal for in-function calls; init-phase calls link to the cold-start `Invocation` event (fidelity F18).
 - Golden fixtures compare canonical trace trees (children sorted by kind, operation and resource; ids replaced by tree positions; `Wall` and `Latency` ignored), never raw event ids (ADR 0018).
 - The kernel is the only writer of `APICall` events; the edge writes `Unclaimed` only (engineering M8).
+
+## Amendments (wave 3, 2026-10-10)
+
+- The NDJSON file is written by a background writer, never under the journal's lock, so a slow disk never backpressures the emulator. Its queue holds at most `MaxBytes` estimated bytes; when the disk falls that far behind, the file stops at the last event queued before the overflow and `FileErr` reports a `*journal.QueueFullError`. Every file failure stops the file, so it is always a prefix of recording order. `Close` waits for the queue to drain and has no deadline of its own.

@@ -377,6 +377,7 @@ Setup: topic `$P-t`; for each case one SQS queue `$P-fN` with the queue policy a
 | 16 | attr | a policy over 256 KB | n/a | oversize error text and status |
 | 17 | attr | `{"a.b":["x"]}` | attr `a.b` String `x` | dotted attribute names in attr scope |
 | 18 | body | `{"a":["x"]}` | `[{"a":"x"}]` (array root), and a plain non-JSON string | non-object bodies |
+| 19 | attr | `{"p":["100"]}`, then `{"p":[{"anything-but":"100"}]}` | attr `p` Number `100` | string and anything-but rules against a Number attribute (switch `sns.filter-policy.number-attribute-type`) |
 
 Also, for the whole topic, `set-subscription-attributes --attribute-name FilterPolicy` with a nested policy under attribute scope: record the error text and whether the Subscribe form carries the `Attributes Reason:` prefix.
 

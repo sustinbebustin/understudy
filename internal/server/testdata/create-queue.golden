@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+Content-Length: 58
+Content-Type: application/x-amz-json-1.0
+Date: <date>
+X-Amzn-Requestid: 224404d2-4285-4bec-8d1a-e0269e8eb518
+
+{"QueueUrl":"<endpoint>/000000000000/MyQueue"}

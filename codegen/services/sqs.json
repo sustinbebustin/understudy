@@ -1,0 +1,10 @@
+{
+  "service": "com.amazonaws.sqs#AmazonSQS",
+  "package": "sqsapi",
+  "model": "sqs",
+  "iamPrefix": "sqs",
+  "extraProtocols": ["aws.protocols#awsQuery"],
+  "rawBinding": false,
+  "rawOperations": [],
+  "routeOverrides": []
+}

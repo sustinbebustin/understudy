@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+Content-Length: 2
+Content-Type: application/x-amz-json-1.0
+Date: <date>
+X-Amzn-Requestid: 4c4c7010-0575-4332-a5fe-d161e8360e1f
+
+{}

@@ -1,0 +1,8 @@
+400
+Content-Length: 125
+Content-Type: application/x-amz-json-1.0
+Date: <date>
+X-Amzn-Query-Error: MissingAuthenticationToken;Sender
+X-Amzn-Requestid: 782d0c0f-cc21-4b2c-af92-2a4890c2bed7
+
+{"__type":"com.amazon.coral.service#MissingAuthenticationTokenException","message":"Request is missing Authentication Token"}
