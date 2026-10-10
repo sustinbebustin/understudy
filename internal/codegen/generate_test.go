@@ -39,7 +39,8 @@ func goldenInputs(t *testing.T, extra ...string) codegen.Inputs {
 	}
 	in := codegen.Inputs{
 		Config:   cfg,
-		Pin:      "fixture0",
+		Origin:   "api-models-aws@fixture",
+		IAM:      codegen.ActionsTable{Source: codegen.Source{Name: "testdata/golden/actions.json", Content: read("actions.json")}},
 		Model:    codegen.Source{Name: "testdata/golden/golden.json", Content: read("golden.json")},
 		Overlays: []codegen.Source{{Name: "testdata/golden/overlay.json", Content: read("overlay.json")}},
 	}

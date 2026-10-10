@@ -11,6 +11,10 @@ var schemaAWSAccountIdList = smithy.Schema{ID: "com.amazonaws.sqs#AWSAccountIdLi
 
 var memberAWSAccountIdList_member = smithy.Member{Name: "member", Index: 0}
 
+var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaActionNameList = smithy.Schema{ID: "com.amazonaws.sqs#ActionNameList", Type: smithy.TypeList}
 
 var memberActionNameList_member = smithy.Member{Name: "member", Index: 0}
@@ -197,6 +201,18 @@ var memberHoldVisibilityInput_Mode = smithy.Member{Name: "Mode", Index: 2, Requi
 
 var schemaHoldVisibilityMode = smithy.Schema{ID: "com.amazonaws.sqs#HoldVisibilityMode", Type: smithy.TypeEnum}
 
+var schemaIncompleteSignature = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignature", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberIncompleteSignature_message = smithy.Member{Name: "message", Index: 0}
+
+var schemaIncompleteSignatureException = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignatureException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberIncompleteSignatureException_message = smithy.Member{Name: "message", Index: 0}
+
+var schemaInternalFailure = smithy.Schema{ID: "com.amazon.coral.service#InternalFailure", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
+
+var memberInternalFailure_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaInvalidAction = smithy.Schema{ID: "com.amazon.coral.service#InvalidAction", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var memberInvalidAction_message = smithy.Member{Name: "message", Index: 0}
@@ -230,6 +246,10 @@ var memberInvalidParameterValue_message = smithy.Member{Name: "message", Index: 
 var schemaInvalidSecurity = smithy.Schema{ID: "com.amazonaws.sqs#InvalidSecurity", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
 var memberInvalidSecurity_message = smithy.Member{Name: "message", Index: 0}
+
+var schemaInvalidSignatureException = smithy.Schema{ID: "com.amazon.coral.service#InvalidSignatureException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberInvalidSignatureException_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaKmsAccessDenied = smithy.Schema{ID: "com.amazonaws.sqs#KmsAccessDenied", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
@@ -409,9 +429,21 @@ var memberMessageSystemAttributeValue_BinaryListValues = smithy.Member{Name: "Bi
 
 var memberMessageSystemAttributeValue_DataType = smithy.Member{Name: "DataType", Index: 4, Required: true}
 
+var schemaMissingAuthenticationToken = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationToken", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberMissingAuthenticationToken_message = smithy.Member{Name: "message", Index: 0}
+
+var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaMissingParameter = smithy.Schema{ID: "com.amazonaws.sqs#MissingParameter", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var memberMissingParameter_message = smithy.Member{Name: "message", Index: 0}
+
+var schemaNotImplemented = smithy.Schema{ID: "dev.understudy#NotImplemented", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
+
+var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaNullableInteger = smithy.Schema{ID: "com.amazonaws.sqs#NullableInteger", Type: smithy.TypeInteger}
 
@@ -465,9 +497,9 @@ var schemaReceiveMessageInput = smithy.Schema{ID: "com.amazonaws.sqs#ReceiveMess
 
 var memberReceiveMessageInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
 
-var memberReceiveMessageInput_AttributeNames = smithy.Member{Name: "AttributeNames", Index: 1, XMLName: "AttributeName", XMLFlattened: true}
+var memberReceiveMessageInput_AttributeNames = smithy.Member{Name: "AttributeNames", Index: 1, XMLName: "AttributeName", XMLFlattened: true, QueryKeyAlias: &smithy.QueryKeyAlias{Key: "AttributeName", Decode: smithy.AliasIgnore}}
 
-var memberReceiveMessageInput_MessageSystemAttributeNames = smithy.Member{Name: "MessageSystemAttributeNames", Index: 2, XMLName: "AttributeName", XMLFlattened: true}
+var memberReceiveMessageInput_MessageSystemAttributeNames = smithy.Member{Name: "MessageSystemAttributeNames", Index: 2, XMLName: "AttributeName", XMLFlattened: true, QueryKeyAlias: &smithy.QueryKeyAlias{Key: "AttributeName", Decode: smithy.AliasReceive}}
 
 var memberReceiveMessageInput_MessageAttributeNames = smithy.Member{Name: "MessageAttributeNames", Index: 3, XMLName: "MessageAttributeName", XMLFlattened: true}
 
@@ -488,6 +520,10 @@ var schemaRemovePermissionInput = smithy.Schema{ID: "com.amazonaws.sqs#RemovePer
 var memberRemovePermissionInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
 
 var memberRemovePermissionInput_Label = smithy.Member{Name: "Label", Index: 1, Required: true}
+
+var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
+
+var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaRequestThrottled = smithy.Schema{ID: "com.amazonaws.sqs#RequestThrottled", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
@@ -575,11 +611,19 @@ var memberSendMessageOutput_MessageId = smithy.Member{Name: "MessageId", Index: 
 
 var memberSendMessageOutput_SequenceNumber = smithy.Member{Name: "SequenceNumber", Index: 4}
 
+var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0}
+
 var schemaSetQueueAttributesInput = smithy.Schema{ID: "com.amazonaws.sqs#SetQueueAttributesRequest", Type: smithy.TypeStructure}
 
 var memberSetQueueAttributesInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
 
 var memberSetQueueAttributesInput_Attributes = smithy.Member{Name: "Attributes", Index: 1, Required: true, XMLName: "Attribute", XMLFlattened: true}
+
+var schemaSignatureDoesNotMatch = smithy.Schema{ID: "com.amazon.coral.service#SignatureDoesNotMatch", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberSignatureDoesNotMatch_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaSmithyString = smithy.Schema{ID: "smithy.api#String", Type: smithy.TypeString}
 
@@ -623,6 +667,10 @@ var memberTagQueueInput_Tags = smithy.Member{Name: "Tags", Index: 1, Required: t
 
 var schemaTagValue = smithy.Schema{ID: "com.amazonaws.sqs#TagValue", Type: smithy.TypeString}
 
+var schemaThrottlingException = smithy.Schema{ID: "com.amazon.coral.service#ThrottlingException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberThrottlingException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaToken = smithy.Schema{ID: "com.amazonaws.sqs#Token", Type: smithy.TypeString}
 
 var schemaTooManyEntriesInBatchRequest = smithy.Schema{ID: "com.amazonaws.sqs#TooManyEntriesInBatchRequest", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
@@ -646,6 +694,8 @@ var memberUntagQueueInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Req
 func init() {
 	memberAWSAccountIdList_member.Target = &schemaString
 	schemaAWSAccountIdList.Members = []*smithy.Member{&memberAWSAccountIdList_member}
+	memberAccessDeniedException_message.Target = &schemaSmithyString
+	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_message}
 	memberActionNameList_member.Target = &schemaString
 	schemaActionNameList.Members = []*smithy.Member{&memberActionNameList_member}
 	memberAddPermissionInput_QueueUrl.Target = &schemaString
@@ -734,6 +784,12 @@ func init() {
 	memberHoldVisibilityInput_ReceiptHandles.Target = &schemaReceiptHandleList
 	memberHoldVisibilityInput_Mode.Target = &schemaHoldVisibilityMode
 	schemaHoldVisibilityInput.Members = []*smithy.Member{&memberHoldVisibilityInput_QueueUrl, &memberHoldVisibilityInput_ReceiptHandles, &memberHoldVisibilityInput_Mode}
+	memberIncompleteSignature_message.Target = &schemaSmithyString
+	schemaIncompleteSignature.Members = []*smithy.Member{&memberIncompleteSignature_message}
+	memberIncompleteSignatureException_message.Target = &schemaSmithyString
+	schemaIncompleteSignatureException.Members = []*smithy.Member{&memberIncompleteSignatureException_message}
+	memberInternalFailure_message.Target = &schemaSmithyString
+	schemaInternalFailure.Members = []*smithy.Member{&memberInternalFailure_message}
 	memberInvalidAction_message.Target = &schemaSmithyString
 	schemaInvalidAction.Members = []*smithy.Member{&memberInvalidAction_message}
 	memberInvalidAddress_message.Target = &schemaExceptionMessage
@@ -750,6 +806,8 @@ func init() {
 	schemaInvalidParameterValue.Members = []*smithy.Member{&memberInvalidParameterValue_message}
 	memberInvalidSecurity_message.Target = &schemaExceptionMessage
 	schemaInvalidSecurity.Members = []*smithy.Member{&memberInvalidSecurity_message}
+	memberInvalidSignatureException_message.Target = &schemaSmithyString
+	schemaInvalidSignatureException.Members = []*smithy.Member{&memberInvalidSignatureException_message}
 	memberKmsAccessDenied_message.Target = &schemaExceptionMessage
 	schemaKmsAccessDenied.Members = []*smithy.Member{&memberKmsAccessDenied_message}
 	memberKmsDisabled_message.Target = &schemaExceptionMessage
@@ -834,8 +892,14 @@ func init() {
 	memberMessageSystemAttributeValue_BinaryListValues.Target = &schemaBinaryList
 	memberMessageSystemAttributeValue_DataType.Target = &schemaString
 	schemaMessageSystemAttributeValue.Members = []*smithy.Member{&memberMessageSystemAttributeValue_StringValue, &memberMessageSystemAttributeValue_BinaryValue, &memberMessageSystemAttributeValue_StringListValues, &memberMessageSystemAttributeValue_BinaryListValues, &memberMessageSystemAttributeValue_DataType}
+	memberMissingAuthenticationToken_message.Target = &schemaSmithyString
+	schemaMissingAuthenticationToken.Members = []*smithy.Member{&memberMissingAuthenticationToken_message}
+	memberMissingAuthenticationTokenException_message.Target = &schemaSmithyString
+	schemaMissingAuthenticationTokenException.Members = []*smithy.Member{&memberMissingAuthenticationTokenException_message}
 	memberMissingParameter_message.Target = &schemaExceptionMessage
 	schemaMissingParameter.Members = []*smithy.Member{&memberMissingParameter_message}
+	memberNotImplemented_message.Target = &schemaSmithyString
+	schemaNotImplemented.Members = []*smithy.Member{&memberNotImplemented_message}
 	memberOverLimit_message.Target = &schemaExceptionMessage
 	schemaOverLimit.Members = []*smithy.Member{&memberOverLimit_message}
 	memberPurgeQueueInProgress_message.Target = &schemaExceptionMessage
@@ -871,6 +935,8 @@ func init() {
 	memberRemovePermissionInput_QueueUrl.Target = &schemaString
 	memberRemovePermissionInput_Label.Target = &schemaString
 	schemaRemovePermissionInput.Members = []*smithy.Member{&memberRemovePermissionInput_QueueUrl, &memberRemovePermissionInput_Label}
+	memberRequestEntityTooLargeException_message.Target = &schemaSmithyString
+	schemaRequestEntityTooLargeException.Members = []*smithy.Member{&memberRequestEntityTooLargeException_message}
 	memberRequestThrottled_message.Target = &schemaExceptionMessage
 	schemaRequestThrottled.Members = []*smithy.Member{&memberRequestThrottled_message}
 	memberResourceNotFoundException_message.Target = &schemaExceptionMessage
@@ -914,9 +980,13 @@ func init() {
 	memberSendMessageOutput_MessageId.Target = &schemaString
 	memberSendMessageOutput_SequenceNumber.Target = &schemaString
 	schemaSendMessageOutput.Members = []*smithy.Member{&memberSendMessageOutput_MD5OfMessageBody, &memberSendMessageOutput_MD5OfMessageAttributes, &memberSendMessageOutput_MD5OfMessageSystemAttributes, &memberSendMessageOutput_MessageId, &memberSendMessageOutput_SequenceNumber}
+	memberSerializationException_Message.Target = &schemaSmithyString
+	schemaSerializationException.Members = []*smithy.Member{&memberSerializationException_Message}
 	memberSetQueueAttributesInput_QueueUrl.Target = &schemaString
 	memberSetQueueAttributesInput_Attributes.Target = &schemaQueueAttributeMap
 	schemaSetQueueAttributesInput.Members = []*smithy.Member{&memberSetQueueAttributesInput_QueueUrl, &memberSetQueueAttributesInput_Attributes}
+	memberSignatureDoesNotMatch_message.Target = &schemaSmithyString
+	schemaSignatureDoesNotMatch.Members = []*smithy.Member{&memberSignatureDoesNotMatch_message}
 	memberStartMessageMoveTaskInput_SourceArn.Target = &schemaString
 	memberStartMessageMoveTaskInput_DestinationArn.Target = &schemaString
 	memberStartMessageMoveTaskInput_MaxNumberOfMessagesPerSecond.Target = &schemaNullableInteger
@@ -933,6 +1003,8 @@ func init() {
 	memberTagQueueInput_QueueUrl.Target = &schemaString
 	memberTagQueueInput_Tags.Target = &schemaTagMap
 	schemaTagQueueInput.Members = []*smithy.Member{&memberTagQueueInput_QueueUrl, &memberTagQueueInput_Tags}
+	memberThrottlingException_message.Target = &schemaSmithyString
+	schemaThrottlingException.Members = []*smithy.Member{&memberThrottlingException_message}
 	memberTooManyEntriesInBatchRequest_message.Target = &schemaExceptionMessage
 	schemaTooManyEntriesInBatchRequest.Members = []*smithy.Member{&memberTooManyEntriesInBatchRequest_message}
 	memberUnknownOperationException_message.Target = &schemaSmithyString

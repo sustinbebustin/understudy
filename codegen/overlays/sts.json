@@ -1,0 +1,25 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.sts#AWSSecurityTokenServiceV20110615": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/STS/latest/APIReference/CommonErrors.html",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sts/test_sts.snapshot.json#L211",
+            "validated": "2025-07-21",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    }
+  }
+}

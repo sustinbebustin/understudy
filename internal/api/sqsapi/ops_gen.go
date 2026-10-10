@@ -30,7 +30,7 @@ var descCancelMessageMoveTask = registry.Operation{
 	Input:       &schemaCancelMessageMoveTaskInput,
 	Output:      &schemaCancelMessageMoveTaskOutput,
 	Errors:      []awserr.Identity{IdentityInvalidAddress(), IdentityInvalidSecurity(), IdentityRequestThrottled(), IdentityResourceNotFoundException(), IdentityUnsupportedOperation(), IdentityMissingParameter(), IdentityInvalidParameterValue()},
-	IAM:         []registry.IAMAction{{Prefix: "sqs", Name: "CancelMessageMoveTask"}},
+	IAM:         []registry.IAMAction{{Prefix: "sqs", Name: "CancelMessageMoveTask"}, {Prefix: "sqs", Name: "DeleteMessage"}, {Prefix: "sqs", Name: "GetQueueAttributes"}, {Prefix: "sqs", Name: "ReceiveMessage"}},
 	SuccessCode: 200,
 }
 
@@ -56,7 +56,7 @@ var descChangeMessageVisibilityBatch = registry.Operation{
 	Input:       &schemaChangeMessageVisibilityBatchInput,
 	Output:      &schemaChangeMessageVisibilityBatchOutput,
 	Errors:      []awserr.Identity{IdentityBatchEntryIdsNotDistinct(), IdentityEmptyBatchRequest(), IdentityInvalidAddress(), IdentityInvalidBatchEntryId(), IdentityInvalidSecurity(), IdentityQueueDoesNotExist(), IdentityRequestThrottled(), IdentityTooManyEntriesInBatchRequest(), IdentityUnsupportedOperation(), IdentityMissingParameter(), IdentityInvalidParameterValue()},
-	IAM:         []registry.IAMAction{{Prefix: "sqs", Name: "ChangeMessageVisibilityBatch"}},
+	IAM:         []registry.IAMAction{{Prefix: "sqs", Name: "ChangeMessageVisibility"}},
 	SuccessCode: 200,
 }
 
@@ -69,7 +69,7 @@ var descCreateQueue = registry.Operation{
 	Input:       &schemaCreateQueueInput,
 	Output:      &schemaCreateQueueOutput,
 	Errors:      []awserr.Identity{IdentityInvalidAddress(), IdentityInvalidAttributeName(), IdentityInvalidAttributeValue(), IdentityInvalidSecurity(), IdentityQueueDeletedRecently(), IdentityQueueNameExists(), IdentityRequestThrottled(), IdentityUnsupportedOperation(), IdentityInvalidParameterValue(), IdentityMissingParameter()},
-	IAM:         []registry.IAMAction{{Prefix: "sqs", Name: "CreateQueue"}},
+	IAM:         []registry.IAMAction{{Prefix: "sqs", Name: "CreateQueue"}, {Prefix: "sqs", Name: "TagQueue"}},
 	SuccessCode: 200,
 }
 
@@ -95,7 +95,7 @@ var descDeleteMessageBatch = registry.Operation{
 	Input:       &schemaDeleteMessageBatchInput,
 	Output:      &schemaDeleteMessageBatchOutput,
 	Errors:      []awserr.Identity{IdentityBatchEntryIdsNotDistinct(), IdentityEmptyBatchRequest(), IdentityInvalidAddress(), IdentityInvalidBatchEntryId(), IdentityInvalidSecurity(), IdentityQueueDoesNotExist(), IdentityRequestThrottled(), IdentityTooManyEntriesInBatchRequest(), IdentityUnsupportedOperation(), IdentityMissingParameter(), IdentityInvalidParameterValue()},
-	IAM:         []registry.IAMAction{{Prefix: "sqs", Name: "DeleteMessageBatch"}},
+	IAM:         []registry.IAMAction{{Prefix: "sqs", Name: "DeleteMessage"}},
 	SuccessCode: 200,
 }
 
@@ -147,7 +147,6 @@ var descHoldVisibility = registry.Operation{
 	Input:       &schemaHoldVisibilityInput,
 	Output:      &schemaSmithyUnit,
 	Errors:      []awserr.Identity{IdentityQueueDoesNotExist(), IdentityReceiptHandleIsInvalid(), IdentityMissingParameter(), IdentityInvalidParameterValue()},
-	IAM:         nil,
 	SuccessCode: 200,
 }
 
@@ -173,7 +172,7 @@ var descListMessageMoveTasks = registry.Operation{
 	Input:       &schemaListMessageMoveTasksInput,
 	Output:      &schemaListMessageMoveTasksOutput,
 	Errors:      []awserr.Identity{IdentityInvalidAddress(), IdentityInvalidSecurity(), IdentityRequestThrottled(), IdentityResourceNotFoundException(), IdentityUnsupportedOperation(), IdentityMissingParameter(), IdentityInvalidParameterValue()},
-	IAM:         []registry.IAMAction{{Prefix: "sqs", Name: "ListMessageMoveTasks"}},
+	IAM:         []registry.IAMAction{{Prefix: "sqs", Name: "ListMessageMoveTasks"}, {Prefix: "sqs", Name: "GetQueueAttributes"}},
 	SuccessCode: 200,
 }
 
@@ -265,7 +264,7 @@ var descSendMessageBatch = registry.Operation{
 	Input:           &schemaSendMessageBatchInput,
 	Output:          &schemaSendMessageBatchOutput,
 	Errors:          []awserr.Identity{IdentityBatchEntryIdsNotDistinct(), IdentityBatchRequestTooLong(), IdentityEmptyBatchRequest(), IdentityInvalidAddress(), IdentityInvalidBatchEntryId(), IdentityInvalidSecurity(), IdentityKmsAccessDenied(), IdentityKmsDisabled(), IdentityKmsInvalidKeyUsage(), IdentityKmsInvalidState(), IdentityKmsNotFound(), IdentityKmsOptInRequired(), IdentityKmsThrottled(), IdentityQueueDoesNotExist(), IdentityRequestThrottled(), IdentityTooManyEntriesInBatchRequest(), IdentityUnsupportedOperation(), IdentityMissingParameter(), IdentityInvalidParameterValue()},
-	IAM:             []registry.IAMAction{{Prefix: "sqs", Name: "SendMessageBatch"}},
+	IAM:             []registry.IAMAction{{Prefix: "sqs", Name: "SendMessage"}},
 	SuccessCode:     200,
 	MaxRequestBytes: 8388608,
 }
@@ -292,7 +291,7 @@ var descStartMessageMoveTask = registry.Operation{
 	Input:       &schemaStartMessageMoveTaskInput,
 	Output:      &schemaStartMessageMoveTaskOutput,
 	Errors:      []awserr.Identity{IdentityInvalidAddress(), IdentityInvalidSecurity(), IdentityRequestThrottled(), IdentityResourceNotFoundException(), IdentityUnsupportedOperation(), IdentityMissingParameter(), IdentityInvalidParameterValue()},
-	IAM:         []registry.IAMAction{{Prefix: "sqs", Name: "StartMessageMoveTask"}},
+	IAM:         []registry.IAMAction{{Prefix: "sqs", Name: "StartMessageMoveTask"}, {Prefix: "sqs", Name: "DeleteMessage"}, {Prefix: "sqs", Name: "GetQueueAttributes"}, {Prefix: "sqs", Name: "ReceiveMessage"}, {Prefix: "sqs", Name: "SendMessage"}},
 	SuccessCode: 200,
 }
 

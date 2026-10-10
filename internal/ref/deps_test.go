@@ -160,12 +160,16 @@ func importRules() []importRule {
 		{"internal/codegen/internal/goldenapi", []string{"internal/protocol/smithy/...", "internal/awserr", "internal/registry", "internal/kernel", "internal/aws", "internal/ref"}},
 		{"internal/codegen/serdetest", []string{"internal/protocol/smithy/..."}},
 		{"internal/codegen/validationpolicy", []string{"internal/awserr"}},
-		{"internal/cmd/budgets", nil},
+		// T19: the journal ring rows read journal.DefaultCapacity and
+		// DefaultMaxBytes rather than copying them.
+		{"internal/cmd/budgets", []string{"internal/journal"}},
 		{"internal/protocoltest", []string{
 			"internal/protocoltest/gen/...", "internal/protocol/...", "internal/registry", "internal/awserr", "internal/ref",
 			"internal/aws", "internal/evidence", "internal/kernel", "internal/edge",
 		}},
-		{"internal/protocoltest/gen/...", []string{"internal/protocol/smithy/...", "internal/awserr", "internal/registry", "internal/kernel", "internal/aws", "internal/ref"}},
+		// T19: each generated corpus service's cases_gen.go builds its tables
+		// from the case vocabulary in internal/protocoltest/gen (case.go).
+		{"internal/protocoltest/gen/...", []string{"internal/protocoltest/gen", "internal/protocol/smithy/...", "internal/awserr", "internal/registry", "internal/kernel", "internal/aws", "internal/ref"}},
 		{"internal/smoke", nil},
 		{"internal/parity", []string{"internal/snapshot", "internal/evidence", "internal/protocol/jsonx"}},
 		{"internal/distribution", nil},

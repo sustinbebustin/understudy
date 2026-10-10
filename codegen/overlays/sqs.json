@@ -220,6 +220,26 @@
         }
       }
     },
+    "com.amazonaws.sqs#ReceiveMessageRequest$AttributeNames": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#queryKeyAlias": {"key": "AttributeName", "decode": "ignore"},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/sqs.md#23-legacy-query-protocol"
+        }
+      }
+    },
+    "com.amazonaws.sqs#ReceiveMessageRequest$MessageSystemAttributeNames": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#queryKeyAlias": {"key": "AttributeName", "decode": "receive"},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/sqs.md#23-legacy-query-protocol"
+        }
+      }
+    },
     "com.amazonaws.sqs#SendMessage": {
       "type": "apply",
       "traits": {

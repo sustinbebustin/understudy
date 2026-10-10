@@ -15,6 +15,7 @@ const (
 	traitRange           = "smithy.api#range"
 	traitPattern         = "smithy.api#pattern"
 	traitEnumValue       = "smithy.api#enumValue"
+	traitEnum            = "smithy.api#enum"
 	traitTimestampFormat = "smithy.api#timestampFormat"
 	traitJSONName        = "smithy.api#jsonName"
 	traitXMLName         = "smithy.api#xmlName"
@@ -90,10 +91,14 @@ func Classify(id string) (Class, bool) {
 }
 
 // traitClasses is the closed table of every trait id the twelve vendored
-// models use, plus the prelude and corpus traits the generator reads.
-// idempotencyToken is honored by the services by hand (they deduplicate);
-// the traits in notYetEmitted are honored but their emission lands with the
-// all-models generator, so a model using them fails until then.
+// models and the protocol compliance corpus use. Some honored traits have
+// no runtime descriptor field yet and are honored by hand where they act:
+// idempotencyToken by the services (they deduplicate), eventPayload by the
+// handler that frames an event stream, requestCompression by the awsjson
+// codec (gzip accepted on every operation, a superset of PutMetricData's),
+// s3UnwrappedXmlOutput by the restxml codec (GetBucketLocation), and
+// httpChecksum by the S3 service, while the generator marks the checksum
+// headers it names as trailer-capable (HTTPHeader.Trailer).
 func traitClasses() map[string]Class {
 	return map[string]Class{
 		traitRequired:                   Honor,
@@ -102,6 +107,7 @@ func traitClasses() map[string]Class {
 		traitRange:                      Honor,
 		traitPattern:                    Honor,
 		traitEnumValue:                  Honor,
+		traitEnum:                       Honor,
 		traitTimestampFormat:            Honor,
 		traitJSONName:                   Honor,
 		traitXMLName:                    Honor,
@@ -165,6 +171,30 @@ func traitClasses() map[string]Class {
 		"aws.iam#disableConditionKeyInference": GenerationOnly,
 		"aws.iam#supportedPrincipalTypes":      GenerationOnly,
 
+		// Traits only the protocol compliance corpus uses. eventHeader and
+		// httpChecksumRequired are honored by hand like eventPayload and
+		// httpChecksum. uniqueItems has no AWS model use and no AWS error
+		// text; the corpus's uniqueItems cases are skip-listed with the
+		// smithy-rs reason (smithy-protocol-tests.md 4.2). The rest describe
+		// trait definitions, ec2Query and rpcv2Json, which no generated
+		// service speaks, or client concerns.
+		"smithy.api#eventHeader":          Honor,
+		"smithy.api#httpChecksumRequired": Honor,
+		"smithy.api#uniqueItems":          Ignore,
+		"smithy.api#internal":             GenerationOnly,
+		"smithy.api#recommended":          GenerationOnly,
+		"smithy.api#requiresLength":       GenerationOnly,
+		"smithy.api#unstable":             GenerationOnly,
+		"smithy.api#idRef":                Ignore,
+		"smithy.api#private":              Ignore,
+		"smithy.api#trait":                Ignore,
+		"smithy.api#traitValidators":      Ignore,
+		"smithy.api#protocolDefinition":   Ignore,
+		"smithy.api#authDefinition":       Ignore,
+		"aws.protocols#ec2Query":          Ignore,
+		"aws.protocols#ec2QueryName":      Ignore,
+		"smithy.protocols#rpcv2Json":      Ignore,
+
 		"aws.api#clientDiscoveredEndpoint": Ignore,
 		"aws.api#clientEndpointDiscovery":  Ignore,
 		"smithy.api#endpoint":              Ignore,
@@ -174,21 +204,6 @@ func traitClasses() map[string]Class {
 		"smithy.api#tags":                  Ignore,
 		"smithy.api#suppress":              Ignore,
 		"smithy.api#title":                 Ignore,
-	}
-}
-
-// notYetEmitted are honored traits, model and overlay alike, whose emission
-// belongs to the all-models generator (PHASE1-PLAN T19). A closure that uses
-// one fails rather than generating code that silently drops the behavior;
-// the overlay traits are still parsed and site-checked at merge.
-func notYetEmitted() []string {
-	return []string{
-		"smithy.api#eventPayload",
-		"smithy.api#requestCompression",
-		"aws.protocols#httpChecksum",
-		"aws.customizations#s3UnwrappedXmlOutput",
-		utQueryKeyAlias,
-		utNotConfigured,
 	}
 }
 

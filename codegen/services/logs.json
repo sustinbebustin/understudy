@@ -1,0 +1,6 @@
+{
+  "service": "com.amazonaws.cloudwatchlogs#Logs_20140328",
+  "package": "logsapi",
+  "model": "cloudwatch-logs",
+  "iamPrefix": "logs"
+}

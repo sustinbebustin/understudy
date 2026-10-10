@@ -1,0 +1,241 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.s3#AmazonS3": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazonaws.s3#SlowDown",
+        "dev.understudy#validationError": {"code": "com.amazonaws.s3#InvalidArgument"},
+        "dev.understudy#malformedRequestError": "com.amazonaws.s3#MalformedXML",
+        "dev.understudy#evidence": [
+          {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html", "covers": ["dev.understudy#throttleError"]},
+          {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2880", "validated": "2026-02-21", "covers": ["dev.understudy#validationError"]},
+          {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L1526", "validated": "2026-02-21", "covers": ["dev.understudy#malformedRequestError"]}
+        ]
+      }
+    },
+    "com.amazonaws.s3#BadDigest": {
+      "type": "structure",
+      "members": {"CalculatedDigest": {"target": "smithy.api#String"}, "ExpectedDigest": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#BucketNotEmpty": {
+      "type": "structure",
+      "members": {"BucketName": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 409,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#EntityTooSmall": {
+      "type": "structure",
+      "members": {
+        "ETag": {"target": "smithy.api#String"},
+        "MinSizeAllowed": {"target": "smithy.api#String"},
+        "PartNumber": {"target": "smithy.api#String"},
+        "ProposedSize": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#InternalError": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "server",
+        "smithy.api#httpError": 500,
+        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html"}
+      }
+    },
+    "com.amazonaws.s3#InvalidArgument": {
+      "type": "structure",
+      "members": {"ArgumentName": {"target": "smithy.api#String"}, "ArgumentValue": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2880", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#InvalidPart": {
+      "type": "structure",
+      "members": {
+        "ETag": {"target": "smithy.api#String"},
+        "PartNumber": {"target": "smithy.api#String"},
+        "UploadId": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#InvalidRange": {
+      "type": "structure",
+      "members": {"ActualObjectSize": {"target": "smithy.api#String"}, "RangeRequested": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 416,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#MalformedXML": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L1526", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#NoSuchBucketPolicy": {
+      "type": "structure",
+      "members": {"BucketName": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#NoSuchCORSConfiguration": {
+      "type": "structure",
+      "members": {"BucketName": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#NoSuchLifecycleConfiguration": {
+      "type": "structure",
+      "members": {"BucketName": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#NoSuchPublicAccessBlockConfiguration": {
+      "type": "structure",
+      "members": {"BucketName": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#NoSuchTagSet": {
+      "type": "structure",
+      "members": {"BucketName": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#NoSuchVersion": {
+      "type": "structure",
+      "members": {"Key": {"target": "smithy.api#String"}, "VersionId": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#NoSuchWebsiteConfiguration": {
+      "type": "structure",
+      "members": {"BucketName": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#NotModified": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 304,
+        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html"}
+      }
+    },
+    "com.amazonaws.s3#ObjectLockConfigurationNotFoundError": {
+      "type": "structure",
+      "members": {"BucketName": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#OwnershipControlsNotFoundError": {
+      "type": "structure",
+      "members": {"BucketName": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#PreconditionFailed": {
+      "type": "structure",
+      "members": {"Condition": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 412,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#ReplicationConfigurationNotFoundError": {
+      "type": "structure",
+      "members": {"BucketName": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#ServerSideEncryptionConfigurationNotFoundError": {
+      "type": "structure",
+      "members": {"BucketName": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/wire-rest.md#36-errors-and-not-configured-responses: AWS docs say 400, every other S3 not-configured error is 404; 404 is UNVERIFIED"}
+      }
+    },
+    "com.amazonaws.s3#SignatureDoesNotMatch": {
+      "type": "structure",
+      "members": {
+        "AWSAccessKeyId": {"target": "smithy.api#String"},
+        "CanonicalRequest": {"target": "smithy.api#String"},
+        "CanonicalRequestBytes": {"target": "smithy.api#String"},
+        "StringToSign": {"target": "smithy.api#String"},
+        "StringToSignBytes": {"target": "smithy.api#String"},
+        "SignatureProvided": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 403,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L3365", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#SlowDown": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "server",
+        "smithy.api#httpError": 503,
+        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html"}
+      }
+    }
+  }
+}

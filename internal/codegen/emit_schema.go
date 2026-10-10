@@ -69,6 +69,9 @@ func (f *file) schemaFields(s *ShapeIR) string {
 	if s.Sparse {
 		parts = append(parts, "Sparse: true")
 	}
+	if s.Streaming {
+		parts = append(parts, "Streaming: true")
+	}
 	if s.Error != nil {
 		fault := "smithy.ClientFault"
 		if s.Error.Fault == awserr.Receiver {
@@ -115,10 +118,48 @@ func (f *file) memberFields(m *MemberIR) (string, error) {
 	if m.Sensitive {
 		parts = append(parts, "Sensitive: true")
 	}
-	if m.HTTP != "" {
-		parts = append(parts, "HTTP: "+m.HTTP)
+	if m.HTTP != nil {
+		parts = append(parts, "HTTP: "+locationLit(m.HTTP))
+	}
+	if a := m.QueryKeyAlias; a != nil {
+		parts = append(parts, "QueryKeyAlias: &smithy.QueryKeyAlias{Key: "+goString(a.Key)+", Decode: smithy."+aliasDecodeConst(a.Decode)+"}")
 	}
 	return strings.Join(parts, ", "), nil
+}
+
+// aliasDecodeConst is the smithy constant naming d.
+func aliasDecodeConst(d smithy.AliasDecode) string {
+	switch d {
+	case smithy.AliasReceive:
+		return "AliasReceive"
+	case smithy.AliasIgnore:
+		return "AliasIgnore"
+	}
+	return fmt.Sprintf("AliasDecode(%d)", d)
+}
+
+// locationLit is the Go literal of an HTTP binding location.
+func locationLit(l smithy.Location) string {
+	switch l := l.(type) {
+	case smithy.HTTPLabel:
+		return "smithy.HTTPLabel{}"
+	case smithy.HTTPQuery:
+		return "smithy.HTTPQuery{Name: " + goString(l.Name) + "}"
+	case smithy.HTTPQueryParams:
+		return "smithy.HTTPQueryParams{}"
+	case smithy.HTTPHeader:
+		if l.Trailer {
+			return "smithy.HTTPHeader{Name: " + goString(l.Name) + ", Trailer: true}"
+		}
+		return "smithy.HTTPHeader{Name: " + goString(l.Name) + "}"
+	case smithy.HTTPPrefixHeaders:
+		return "smithy.HTTPPrefixHeaders{Prefix: " + goString(l.Prefix) + "}"
+	case smithy.HTTPPayload:
+		return "smithy.HTTPPayload{}"
+	case smithy.HTTPResponseCode:
+		return "smithy.HTTPResponseCode{}"
+	}
+	return "nil"
 }
 
 func xmlNamespaceLit(ns *smithy.XMLNamespace) string {

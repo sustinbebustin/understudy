@@ -2,6 +2,11 @@
 
 package sqsapi
 
+// AccessDeniedException is the error com.amazon.coral.service#AccessDeniedException.
+type AccessDeniedException struct {
+	Message *string
+}
+
 // AddPermissionInput is the input of AddPermission, com.amazonaws.sqs#AddPermissionRequest.
 type AddPermissionInput struct {
 	QueueUrl      string
@@ -259,6 +264,21 @@ func (HoldVisibilityMode) Values() []HoldVisibilityMode {
 // HoldVisibilityOutput is the empty output of HoldVisibility.
 type HoldVisibilityOutput struct{}
 
+// IncompleteSignature is the error com.amazon.coral.service#IncompleteSignature.
+type IncompleteSignature struct {
+	Message *string
+}
+
+// IncompleteSignatureException is the error com.amazon.coral.service#IncompleteSignatureException.
+type IncompleteSignatureException struct {
+	Message *string
+}
+
+// InternalFailure is the error com.amazon.coral.service#InternalFailure.
+type InternalFailure struct {
+	Message *string
+}
+
 // InvalidAction is the error com.amazon.coral.service#InvalidAction.
 type InvalidAction struct {
 	Message *string
@@ -299,6 +319,11 @@ type InvalidParameterValue struct {
 
 // InvalidSecurity is the error com.amazonaws.sqs#InvalidSecurity.
 type InvalidSecurity struct {
+	Message *string
+}
+
+// InvalidSignatureException is the error com.amazon.coral.service#InvalidSignatureException.
+type InvalidSignatureException struct {
 	Message *string
 }
 
@@ -542,8 +567,23 @@ type MessageSystemAttributeValue struct {
 	missing uint64
 }
 
+// MissingAuthenticationToken is the error com.amazon.coral.service#MissingAuthenticationToken.
+type MissingAuthenticationToken struct {
+	Message *string
+}
+
+// MissingAuthenticationTokenException is the error com.amazon.coral.service#MissingAuthenticationTokenException.
+type MissingAuthenticationTokenException struct {
+	Message *string
+}
+
 // MissingParameter is the error com.amazonaws.sqs#MissingParameter.
 type MissingParameter struct {
+	Message *string
+}
+
+// NotImplemented is the error dev.understudy#NotImplemented.
+type NotImplemented struct {
 	Message *string
 }
 
@@ -736,6 +776,11 @@ type RemovePermissionInput struct {
 // RemovePermissionOutput is the empty output of RemovePermission.
 type RemovePermissionOutput struct{}
 
+// RequestEntityTooLargeException is the error com.amazon.coral.service#RequestEntityTooLargeException.
+type RequestEntityTooLargeException struct {
+	Message *string
+}
+
 // RequestThrottled is the error com.amazonaws.sqs#RequestThrottled.
 type RequestThrottled struct {
 	Message *string
@@ -814,6 +859,11 @@ type SendMessageOutput struct {
 	SequenceNumber               *string
 }
 
+// SerializationException is the error com.amazon.coral.service#SerializationException.
+type SerializationException struct {
+	Message *string
+}
+
 // SetQueueAttributesInput is the input of SetQueueAttributes, com.amazonaws.sqs#SetQueueAttributesRequest.
 type SetQueueAttributesInput struct {
 	QueueUrl   string
@@ -827,6 +877,11 @@ type SetQueueAttributesInput struct {
 
 // SetQueueAttributesOutput is the empty output of SetQueueAttributes.
 type SetQueueAttributesOutput struct{}
+
+// SignatureDoesNotMatch is the error com.amazon.coral.service#SignatureDoesNotMatch.
+type SignatureDoesNotMatch struct {
+	Message *string
+}
 
 // StartMessageMoveTaskInput is the input of StartMessageMoveTask, com.amazonaws.sqs#StartMessageMoveTaskRequest.
 type StartMessageMoveTaskInput struct {
@@ -858,6 +913,11 @@ type TagQueueInput struct {
 
 // TagQueueOutput is the empty output of TagQueue.
 type TagQueueOutput struct{}
+
+// ThrottlingException is the error com.amazon.coral.service#ThrottlingException.
+type ThrottlingException struct {
+	Message *string
+}
 
 // TooManyEntriesInBatchRequest is the error com.amazonaws.sqs#TooManyEntriesInBatchRequest.
 type TooManyEntriesInBatchRequest struct {

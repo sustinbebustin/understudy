@@ -1,0 +1,38 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.iam#AWSIdentityManagementV20100508": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/iam/test_iam.snapshot.json#L940",
+            "validated": "2025-03-06",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.iam#accountAliasType": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$"],
+          "noneOf": ["--"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^[a-z0-9]([a-z0-9]|-(?!-)){1,61}[a-z0-9]$ is 3 to 63 lowercase letters, digits and hyphens, alphanumeric at both ends, with no two hyphens in a row"
+        }
+      }
+    }
+  }
+}

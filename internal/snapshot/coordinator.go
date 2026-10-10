@@ -298,7 +298,9 @@ func (c *Coordinator) WriteAfterCut(ctx context.Context, w io.Writer, cut *Cut, 
 //
 // A failure after the blob import still releases what the load holds and
 // prunes. A failure after the first Late import is a *LoadError: the state
-// is partially loaded. While a cut is outstanding or another load runs, Load
+// is partially loaded. A *BlobReleaseError means the load succeeded and
+// rearmed every service, but freeing the replaced state's blobs failed.
+// While a cut is outstanding or another load runs, Load
 // waits, and returns ctx's error with the state unchanged if ctx ends first.
 func (c *Coordinator) Load(ctx context.Context, a *Archive) error {
 	if err := c.take(ctx); err != nil {
@@ -326,7 +328,7 @@ func (c *Coordinator) Load(ctx context.Context, a *Archive) error {
 		return le
 	}
 	if settled != nil {
-		return fmt.Errorf("snapshot loaded, but freeing the blobs it no longer needs failed; some may stay in the blob store until the emulator restarts: %w", settled)
+		return &BlobReleaseError{Err: settled}
 	}
 	return nil
 }

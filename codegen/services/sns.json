@@ -1,0 +1,11 @@
+{
+  "service": "com.amazonaws.sns#AmazonSimpleNotificationService",
+  "package": "snsapi",
+  "model": "sns",
+  "iamPrefix": "sns",
+  "rawOperations": [
+    {"name": "ConfirmSubscriptionLink", "iam": ["sns:ConfirmSubscription"]},
+    {"name": "SigningCert", "iam": []},
+    {"name": "UnsubscribeLink", "iam": ["sns:Unsubscribe"]}
+  ]
+}

@@ -105,7 +105,9 @@ func serve(args []string, stdout, stderr io.Writer) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := srv.Serve(ctx); err != nil {
-		fmt.Fprintf(stderr, "understudy serve: %v\n", err)
+		// A Serve that could not listen leaves the Server built; Close
+		// releases what New opened, and is a no-op after a shutdown.
+		fmt.Fprintf(stderr, "understudy serve: %v\n", errors.Join(err, srv.Close()))
 		return exitFailed
 	}
 	return exitOK

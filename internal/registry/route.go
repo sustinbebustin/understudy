@@ -204,7 +204,7 @@ func validateLiteral(v string) error {
 }
 
 // validateQuery rejects query conditions with an empty key and keys that
-// appear more than once: compareSpecificity counts conditions, so a repeated
+// appear more than once: CompareSpecificity counts conditions, so a repeated
 // key would rank a row above one with more distinct conditions.
 func validateQuery(conds []QueryMatch) error {
 	keys := make(map[string]bool, len(conds))
@@ -237,7 +237,7 @@ type Route struct {
 }
 
 // validateHeaders rejects an empty required header name and a name required
-// twice, ignoring case: compareSpecificity counts required headers, so a
+// twice, ignoring case: CompareSpecificity counts required headers, so a
 // repeat would rank a row above one with more distinct headers.
 func validateHeaders(names []string) error {
 	seen := make(map[string]bool, len(names))
@@ -254,12 +254,13 @@ func validateHeaders(names []string) error {
 	return nil
 }
 
-// signature is equal for two routes exactly when Match cannot tell them
+// Signature is equal for two routes exactly when Match cannot tell them
 // apart: same method, a literal of the same value or a label of the same kind
 // at each position (label names aside), the same set of query conditions and
 // the same set of canonical header names. Every piece is quoted, so the
-// separators never collide with the content.
-func (r *Route) signature() string {
+// separators never collide with the content. The generator compares rows
+// with it before registry.New does.
+func (r *Route) Signature() string {
 	var b strings.Builder
 	b.WriteString(strconv.Quote(r.Method))
 	b.WriteString(" path")
@@ -321,7 +322,7 @@ func (t *RouteTable) Match(method, path string, query url.Values, header http.He
 		if r.Method != method || !matchPath(r.Path, segs) || !matchQuery(r.Query, query) || !matchHeaders(r.Headers, header) {
 			continue
 		}
-		if best == nil || compareSpecificity(r, best) > 0 {
+		if best == nil || CompareSpecificity(r, best) > 0 {
 			best = r
 		}
 	}
@@ -404,9 +405,12 @@ func matchHeaders(names []string, header http.Header) bool {
 	return true
 }
 
-// compareSpecificity returns a positive number when a is more specific than
-// b, negative when less, and 0 when equal.
-func compareSpecificity(a, b *Route) int {
+// CompareSpecificity returns a positive number when a is more specific than
+// b, negative when less, and 0 when equal: literal over label over greedy at
+// the first differing segment, then more segments, then more query
+// conditions, then more required headers. Match picks the most specific
+// matching row, and the generator orders its tables by the same rule.
+func CompareSpecificity(a, b *Route) int {
 	for i := range min(len(a.Path), len(b.Path)) {
 		if c := cmp.Compare(segmentRank(a.Path[i]), segmentRank(b.Path[i])); c != 0 {
 			return c

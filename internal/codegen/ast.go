@@ -51,6 +51,9 @@ type Shape struct {
 	Resources            []smithy.ShapeID
 	Lifecycle            []smithy.ShapeID // a resource's create, put, read, update, delete and list operations
 	CollectionOperations []smithy.ShapeID
+	// Rename gives shapes of the service's closure the names the service
+	// knows them by (the corpus's RestJson renames a nested GreetingStruct).
+	Rename map[smithy.ShapeID]string
 
 	// Source is the file that defined the shape, for error messages.
 	Source string
@@ -259,7 +262,8 @@ func strictUnmarshal(raw []byte, v any) error {
 // Load reads a vendored model. It fails on anything the published models do
 // not use and the generator would otherwise have to guess at
 // (smithy-models.md 2): unknown shape types, apply and set shapes, mixins,
-// renames and malformed ids. source names the file in messages.
+// renames outside a service shape and malformed ids. source names the file
+// in messages.
 func Load(r io.Reader, source string) (*Model, error) {
 	raw, err := io.ReadAll(r)
 	if err != nil {
@@ -305,8 +309,8 @@ func parseShape(key string, raw json.RawMessage, source string, stage Stage) (*S
 	switch {
 	case len(rs.Mixins) > 0:
 		return nil, failf(stage, subject, "uses mixins, which no published model uses; the generator does not flatten them")
-	case len(rs.Rename) > 0:
-		return nil, failf(stage, subject, "uses rename, which no published model uses; the generator does not apply renames")
+	case len(rs.Rename) > 0 && rs.Type != "service":
+		return nil, failf(stage, subject, "uses rename, which only a service shape may")
 	case rs.Replace && stage != StageOverlay:
 		return nil, failf(stage, subject, `"replace" is an overlay property`)
 	}
@@ -321,6 +325,7 @@ func parseShape(key string, raw json.RawMessage, source string, stage Stage) (*S
 		s.Operations = refs(rs.Operations)
 		s.Resources = refs(rs.Resources)
 		s.Errors = refs(rs.Errors)
+		s.Rename = renames(rs.Rename)
 	case "resource":
 		s.Kind = KindResource
 		s.Operations = refs(rs.Operations)
@@ -352,6 +357,18 @@ func parseShape(key string, raw json.RawMessage, source string, stage Stage) (*S
 		}
 	}
 	return s, nil
+}
+
+// renames reads a service's rename property, nil when it has none.
+func renames(raw map[string]string) map[smithy.ShapeID]string {
+	if len(raw) == 0 {
+		return nil
+	}
+	out := make(map[smithy.ShapeID]string, len(raw))
+	for id, name := range raw {
+		out[smithy.ShapeID(id)] = name
+	}
+	return out
 }
 
 func (s *Shape) setMembers(rs rawShape) error {

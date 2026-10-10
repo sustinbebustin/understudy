@@ -1,6 +1,58 @@
 {
   "smithy": "2.0",
   "shapes": {
+    "dev.understudy.defaults#JSONFamily": {
+      "type": "service",
+      "errors": [
+        {"target": "com.amazon.coral.service#SerializationException"},
+        {"target": "com.amazon.coral.service#UnknownOperationException"},
+        {"target": "com.amazon.coral.service#MissingAuthenticationTokenException"},
+        {"target": "com.amazon.coral.service#IncompleteSignatureException"},
+        {"target": "com.amazon.coral.service#InvalidSignatureException"},
+        {"target": "com.amazon.coral.service#AccessDeniedException"},
+        {"target": "com.amazon.coral.service#InternalFailure"},
+        {"target": "dev.understudy#NotImplemented"},
+        {"target": "com.amazon.coral.service#RequestEntityTooLargeException"},
+        {"target": "com.amazon.coral.service#ThrottlingException"}
+      ],
+      "traits": {
+        "dev.understudy#unknownOperationError": {"json": "com.amazon.coral.service#UnknownOperationException"},
+        "dev.understudy#malformedRequestError": "com.amazon.coral.service#SerializationException",
+        "dev.understudy#evidence": [
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/test/connection.js#L225-L258",
+            "covers": ["dev.understudy#unknownOperationError"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/test/connection.js#L195-L223",
+            "covers": ["dev.understudy#malformedRequestError"]
+          }
+        ]
+      }
+    },
+    "dev.understudy.defaults#QueryFamily": {
+      "type": "service",
+      "errors": [
+        {"target": "com.amazon.coral.service#InvalidAction"},
+        {"target": "com.amazon.coral.service#MissingAuthenticationToken"},
+        {"target": "com.amazon.coral.service#IncompleteSignature"},
+        {"target": "com.amazon.coral.service#SignatureDoesNotMatch"},
+        {"target": "com.amazon.coral.service#AccessDeniedException"},
+        {"target": "com.amazon.coral.service#InternalFailure"},
+        {"target": "dev.understudy#NotImplemented"},
+        {"target": "com.amazon.coral.service#RequestEntityTooLargeException"},
+        {"target": "com.amazon.coral.service#ThrottlingException"}
+      ],
+      "traits": {
+        "dev.understudy#unknownOperationError": {"query": "com.amazon.coral.service#InvalidAction"},
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/CommonErrors.html"
+        }
+      }
+    },
     "com.amazon.coral.service#UnknownOperationException": {
       "type": "structure",
       "members": {
@@ -44,7 +96,106 @@
         }
       }
     },
-    "com.amazon.coral.validate#ValidationException": {
+    "com.amazon.coral.service#ThrottlingException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "smithy.api#retryable": {"throttling": true},
+        "aws.protocols#awsQueryError": {"code": "ThrottlingException", "httpResponseCode": 400},
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/CommonErrors.html"
+        }
+      }
+    },
+    "com.amazon.coral.service#MissingAuthenticationTokenException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "aws.protocols#awsQueryError": {"code": "MissingAuthenticationToken", "httpResponseCode": 400},
+        "dev.understudy#evidence": [
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/test/connection.js#L158-L172",
+            "covers": ["smithy.api#error", "smithy.api#httpError"]
+          },
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/sns/latest/api/CommonErrors.html",
+            "covers": ["aws.protocols#awsQueryError"]
+          }
+        ]
+      }
+    },
+    "com.amazon.coral.service#IncompleteSignatureException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "aws.protocols#awsQueryError": {"code": "IncompleteSignature", "httpResponseCode": 400},
+        "dev.understudy#evidence": [
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/index.js#L296-L372",
+            "covers": ["smithy.api#error", "smithy.api#httpError"]
+          },
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/sns/latest/api/CommonErrors.html",
+            "covers": ["aws.protocols#awsQueryError"]
+          }
+        ]
+      }
+    },
+    "com.amazon.coral.service#InvalidSignatureException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "aws.protocols#awsQueryError": {"code": "SignatureDoesNotMatch", "httpResponseCode": 400},
+        "dev.understudy#evidence": [
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/index.js#L296-L372",
+            "covers": ["smithy.api#error", "smithy.api#httpError"]
+          },
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html",
+            "covers": ["aws.protocols#awsQueryError"]
+          }
+        ]
+      }
+    },
+    "com.amazon.coral.service#MissingAuthenticationToken": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 403,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/sns/latest/api/CommonErrors.html"
+        }
+      }
+    },
+    "com.amazon.coral.service#IncompleteSignature": {
       "type": "structure",
       "members": {
         "message": {"target": "smithy.api#String"}
@@ -53,10 +204,113 @@
         "smithy.api#error": "client",
         "smithy.api#httpError": 400,
         "dev.understudy#evidence": {
-          "label": "third-party-recorded",
-          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156",
-          "validated": "2025-09-22"
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/sns/latest/api/CommonErrors.html"
         }
+      }
+    },
+    "com.amazon.coral.service#SignatureDoesNotMatch": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 403,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html"
+        }
+      }
+    },
+    "com.amazon.coral.service#AccessDeniedException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 403,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/CommonErrors.html"
+        }
+      }
+    },
+    "com.amazon.coral.service#InternalFailure": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "server",
+        "smithy.api#httpError": 500,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/sns/latest/api/CommonErrors.html"
+        }
+      }
+    },
+    "dev.understudy#NotImplemented": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "server",
+        "smithy.api#httpError": 501,
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/adr/0003-operation-binding-and-coverage.md: understudy's own code for a modeled operation no handler is bound to; 501 is outside every SDK's retry set"
+        }
+      }
+    },
+    "com.amazon.coral.service#RequestEntityTooLargeException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 413,
+        "aws.protocols#awsQueryError": {"code": "RequestEntityTooLarge", "httpResponseCode": 413},
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/kms/latest/APIReference/CommonErrors.html",
+            "covers": ["smithy.api#error", "smithy.api#httpError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/phase1/error-matrix.md 3: the Query template lists no such code; the Query code drops the Exception suffix, as the Query codes of the auth family do",
+            "covers": ["aws.protocols#awsQueryError"]
+          }
+        ]
+      }
+    },
+    "com.amazon.coral.validate#ValidationException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "aws.protocols#awsQueryError": {"code": "ValidationError", "httpResponseCode": 400},
+        "dev.understudy#evidence": [
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156",
+            "validated": "2025-09-22",
+            "covers": ["smithy.api#error", "smithy.api#httpError"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sts/test_sts.snapshot.json#L211",
+            "validated": "2025-07-21",
+            "covers": ["aws.protocols#awsQueryError"]
+          }
+        ]
       }
     }
   }

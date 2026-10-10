@@ -24,11 +24,13 @@ type Source struct {
 // function of it.
 type Inputs struct {
 	Config ServiceConfig
-	// Pin is the upstream commit of the vendored models.
-	Pin   string
-	Model Source
+	// Origin names the pinned upstream of the model in the generated
+	// header: api-models-aws@1cfdfb4, smithy-protocol-tests@1.74.0.
+	Origin string
+	Model  Source
 	// Overlays apply in order: overlays/common.json, then the service's own.
 	Overlays []Source
+	IAM      IAMInput
 }
 
 // Generate runs every stage after verify (ARCHITECTURE.md 5.4) and returns
@@ -48,15 +50,21 @@ func Generate(in Inputs) (map[string][]byte, error) {
 			return nil, err
 		}
 	}
-	pin := in.Pin
-	if len(pin) > 7 {
-		pin = pin[:7]
+	iam, err := parseIAMTable(in.IAM)
+	if err != nil {
+		return nil, err
 	}
-	ir, err := Build(m, in.Config, path.Base(in.Model.Name), pin)
+	ir, err := Build(m, in.Config, iam, Header{Origin: in.Origin, ModelFile: path.Base(in.Model.Name)})
 	if err != nil {
 		return nil, err
 	}
 	return Emit(ir)
+}
+
+// Header names the generated files' source on their first line.
+type Header struct {
+	Origin    string // the pinned upstream: api-models-aws@1cfdfb4
+	ModelFile string // base name of the model file
 }
 
 // Emit renders the IR into the package's files.
@@ -74,6 +82,12 @@ func Emit(ir *ServiceIR) (map[string][]byte, error) {
 	}
 	if hasExamples(ir) {
 		emitters["examples_gen_test.go"] = emitExamples
+	}
+	if len(ir.Routes) > 0 {
+		emitters["routes_gen.go"] = emitRoutes
+	}
+	if ir.Cases != nil {
+		emitters["cases_gen.go"] = emitCases
 	}
 	out := make(map[string][]byte, len(emitters))
 	for _, name := range slices.Sorted(maps.Keys(emitters)) {
@@ -139,10 +153,15 @@ func (r Repo) Inputs(id ref.ServiceID) (Inputs, error) {
 	if err != nil {
 		return Inputs{}, err
 	}
-	in := Inputs{Config: cfg, Pin: pin}
+	in := Inputs{Config: cfg, Origin: "api-models-aws@" + pin[:min(7, len(pin))]}
 	if in.Model, err = r.read(path.Join("third_party/api-models-aws", modelPath)); err != nil {
 		return Inputs{}, err
 	}
+	actions, err := r.read("third_party/aws-service-reference/actions.json")
+	if err != nil {
+		return Inputs{}, err
+	}
+	in.IAM = ActionsTable{Source: actions}
 	for _, name := range []string{"codegen/overlays/common.json", "codegen/overlays/" + string(id) + ".json"} {
 		src, err := r.read(name)
 		if err != nil {
@@ -153,8 +172,11 @@ func (r Repo) Inputs(id ref.ServiceID) (Inputs, error) {
 	return in, nil
 }
 
-// OutputDir is where the package of service id is written.
+// OutputDir is where the package of service cfg is written.
 func (r Repo) OutputDir(cfg ServiceConfig) string {
+	if _, ok := cfg.Destination.(CorpusPackage); ok {
+		return r.corpusOutputDir(cfg.Package)
+	}
 	return filepath.Join(r.Root, "internal", "api", cfg.Package)
 }
 

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"io"
 	"net"
@@ -14,14 +15,21 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/sustinbebustin/understudy/admin"
+	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
+	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/journal"
+	"github.com/sustinbebustin/understudy/internal/protocol/restxml"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/server"
 )
 
@@ -79,16 +87,32 @@ const waitTimeout = 10 * time.Second
 
 // build creates a server for cfg on an ephemeral loopback port with a ready
 // file and discarded logs, and returns it with the ready file's path.
+// Cleanup closes it, which releases what New opened when it was never
+// served; cleanups run last-registered first, so a server stopped on
+// cleanup has shut down by then and Close does nothing.
 func build(t *testing.T, cfg server.Config) (srv *server.Server, ready string) {
 	t.Helper()
 	cfg.Listen = netip.MustParseAddrPort("127.0.0.1:0")
 	cfg.ReadyFile = filepath.Join(t.TempDir(), "ready.json")
 	cfg.LogOutput = io.Discard
+	srv = newServer(t, cfg)
+	return srv, cfg.ReadyFile
+}
+
+// newServer is server.New for a server the test may never serve: cleanup
+// closes it and checks the close.
+func newServer(t *testing.T, cfg server.Config) *server.Server {
+	t.Helper()
 	srv, err := server.New(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return srv, cfg.ReadyFile
+	t.Cleanup(func() {
+		if err := srv.Close(); err != nil {
+			t.Errorf("Close = %v", err)
+		}
+	})
+	return srv
 }
 
 // launch builds and serves cfg. The caller stops the server.
@@ -148,6 +172,22 @@ func waitFor(t *testing.T, r *running, what string, cond func() bool) {
 	}
 }
 
+// Close releases a server that was never served and is idempotent; the
+// released server refuses to serve rather than run on a closed blob store.
+func TestCloseReleasesAnUnservedServer(t *testing.T) {
+	srv, _ := build(t, server.Config{})
+	if err := srv.Close(); err != nil {
+		t.Fatalf("Close = %v", err)
+	}
+	if err := srv.Close(); err != nil {
+		t.Fatalf("second Close = %v, want nil", err)
+	}
+	var se *server.StateError
+	if err := srv.Serve(t.Context()); !errors.As(err, &se) || se.Op != "Serve" {
+		t.Fatalf("Serve after Close = %v, want a StateError", err)
+	}
+}
+
 // The admin handler reads the escaped path, as the edge does, so an encoded
 // spelling of the health path is no admin endpoint on either listener.
 func TestHealthMatchesTheEscapedPath(t *testing.T) {
@@ -159,12 +199,79 @@ func TestHealthMatchesTheEscapedPath(t *testing.T) {
 	}
 }
 
+// The edge stamps x-amz-id-2 on every S3 answer and the restXml codec
+// writes the same host id into an error body; both derive it from the
+// request id, so a client sees one host id.
+func TestS3HostIDAgreesBetweenEdgeAndCodec(t *testing.T) {
+	srv, _ := build(t, server.Config{Version: "test"})
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/bucket", http.NoBody))
+	requestID, hostID := rec.Header().Get("X-Amz-Request-Id"), rec.Header().Get("X-Amz-Id-2")
+	if requestID == "" || hostID != restxml.HostID(requestID) || !strings.Contains(rec.Body.String(), "<HostId>"+hostID+"</HostId>") {
+		t.Fatalf("GET /bucket = %d %v %s; want x-amz-id-2 = restxml.HostID(x-amz-request-id) = the body's HostId", rec.Code, rec.Header(), rec.Body)
+	}
+}
+
+// textBody is a request body read whole, never aws-chunked.
+type textBody string
+
+func (b textBody) Open() (io.ReadCloser, error) {
+	return io.NopCloser(strings.NewReader(string(b))), nil
+}
+func (b textBody) Len() (int64, bool)          { return int64(len(b)), true }
+func (textBody) Trailer(string) (string, bool) { return "", false }
+
+// The errors the restJson1 codec raises itself carry Lambda's Type User
+// field (error-matrix.md 5.6 T6), since no handler sees them to add it.
+func TestLambdaMalformedBodyCarriesTypeUser(t *testing.T) {
+	var op *registry.Operation
+	for _, o := range lambdaapi.Service().Operations {
+		if o.ID.Name == "CreateFunction" {
+			op = o
+		}
+	}
+	if op == nil {
+		t.Fatal("lambdaapi has no CreateFunction")
+	}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/2015-03-31/functions", http.NoBody)
+	req.Header.Set("Content-Type", "application/json")
+	aerr := server.Codecs()[ref.RESTJSON1].DecodeBody(req, op, textBody("{"), &lambdaapi.CreateFunctionInput{})
+	if aerr == nil || !slices.Contains(aerr.Fields, awserr.Field{Name: "Type", Value: "User"}) {
+		t.Fatalf("decoding a truncated CreateFunction body = %+v, want a client error with Type User", aerr)
+	}
+}
+
+// S3 renders an internal failure as its own InternalError, not the
+// generic InternalFailure (wire-rest.md 3.6).
+func TestS3InternalFailureIsInternalError(t *testing.T) {
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/bucket", http.NoBody)
+	resp := server.Codecs()[ref.RESTXML].EncodeError(req, s3api.Service(), "4442587FB7D0A2F9", awserr.Internalf(errors.New("a handler bug")))
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Status != http.StatusInternalServerError || !bytes.Contains(body, []byte("<Code>InternalError</Code>")) {
+		t.Fatalf("an internal S3 failure = %d %s, want 500 InternalError", resp.Status, body)
+	}
+}
+
 func TestHealthIsUnavailableUntilTheListenerAccepts(t *testing.T) {
 	srv, ready := build(t, server.Config{Version: "test"})
 	rec := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/_understudy/v1/health", http.NoBody))
 	if rec.Code != http.StatusServiceUnavailable || rec.Body.String() != "{\"ready\":false,\"waiting\":[\"listener\"]}\n" {
 		t.Fatalf("health before Serve = %d %s", rec.Code, rec.Body)
+	}
+	// The client reads that 503 as a server still starting, not a failure,
+	// which `health --wait` relies on.
+	front := httptest.NewServer(srv.Handler())
+	defer front.Close()
+	c, err := admin.New(front.URL, admin.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h, err := c.Health(t.Context()); err != nil || h == nil || h.Ready || !slices.Equal(h.Waiting, []string{"listener"}) {
+		t.Fatalf("Client.Health before Serve = %+v, %v; want not ready, waiting on the listener", h, err)
 	}
 
 	r := serve(t, srv, ready)

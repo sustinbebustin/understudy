@@ -1,0 +1,25 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.cloudwatchlogs#Logs_20140328": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazonaws.cloudwatchlogs#ThrottlingException",
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/phase1/error-matrix.md#57-cloudwatch-logs-json-11",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/logs/test_logs_events.snapshot.json#L77",
+            "validated": "2026-02-03",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    }
+  }
+}

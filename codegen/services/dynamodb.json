@@ -1,0 +1,29 @@
+{
+  "service": "com.amazonaws.dynamodb#DynamoDB_20120810",
+  "package": "dynamodbapi",
+  "model": "dynamodb",
+  "iamPrefix": "dynamodb",
+  "rawBinding": true,
+  "iamPrimary": [
+    {
+      "operation": "BatchExecuteStatement",
+      "action": "dynamodb:PartiQLSelect",
+      "reason": "the statement verbs decide the action per call; the descriptor lists PartiQLSelect first, as smithy-models.md 8 does"
+    },
+    {
+      "operation": "ExecuteStatement",
+      "action": "dynamodb:PartiQLSelect",
+      "reason": "the statement verb decides the action per call; the descriptor lists PartiQLSelect first, as smithy-models.md 8 does"
+    },
+    {
+      "operation": "ExecuteTransaction",
+      "action": "dynamodb:PartiQLSelect",
+      "reason": "the statement verbs decide the action per call; the descriptor lists PartiQLSelect first, as smithy-models.md 8 does"
+    },
+    {
+      "operation": "TransactWriteItems",
+      "action": "dynamodb:PutItem",
+      "reason": "the item kinds decide the actions per call; the descriptor lists PutItem first, as smithy-models.md 8 does"
+    }
+  ]
+}

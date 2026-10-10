@@ -31,6 +31,17 @@ func deserializeAWSAccountIdList(d smithy.Deserializer, m *smithy.Member) ([]str
 	}
 }
 
+// Serialize writes v through s.
+func (v *AccessDeniedException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *AccessDeniedException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaAccessDeniedException)
+	if v.Message != nil {
+		s.WriteString(&memberAccessDeniedException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
 func deserializeActionNameList(d smithy.Deserializer, m *smithy.Member) ([]string, error) {
 	if err := d.ReadList(m); err != nil {
 		return nil, err
@@ -852,6 +863,39 @@ func (v *HoldVisibilityOutput) serialize(s smithy.Serializer, m *smithy.Member) 
 }
 
 // Serialize writes v through s.
+func (v *IncompleteSignature) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *IncompleteSignature) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaIncompleteSignature)
+	if v.Message != nil {
+		s.WriteString(&memberIncompleteSignature_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *IncompleteSignatureException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *IncompleteSignatureException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaIncompleteSignatureException)
+	if v.Message != nil {
+		s.WriteString(&memberIncompleteSignatureException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *InternalFailure) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InternalFailure) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInternalFailure)
+	if v.Message != nil {
+		s.WriteString(&memberInternalFailure_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *InvalidAction) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *InvalidAction) serialize(s smithy.Serializer, m *smithy.Member) {
@@ -943,6 +987,17 @@ func (v *InvalidSecurity) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaInvalidSecurity)
 	if v.Message != nil {
 		s.WriteString(&memberInvalidSecurity_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *InvalidSignatureException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InvalidSignatureException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInvalidSignatureException)
+	if v.Message != nil {
+		s.WriteString(&memberInvalidSignatureException_message, *v.Message)
 	}
 	s.CloseStruct()
 }
@@ -1532,12 +1587,45 @@ func (v *MessageSystemAttributeValue) deserialize(d smithy.Deserializer) error {
 }
 
 // Serialize writes v through s.
+func (v *MissingAuthenticationToken) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *MissingAuthenticationToken) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaMissingAuthenticationToken)
+	if v.Message != nil {
+		s.WriteString(&memberMissingAuthenticationToken_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *MissingAuthenticationTokenException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *MissingAuthenticationTokenException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaMissingAuthenticationTokenException)
+	if v.Message != nil {
+		s.WriteString(&memberMissingAuthenticationTokenException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *MissingParameter) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *MissingParameter) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaMissingParameter)
 	if v.Message != nil {
 		s.WriteString(&memberMissingParameter_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *NotImplemented) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *NotImplemented) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaNotImplemented)
+	if v.Message != nil {
+		s.WriteString(&memberNotImplemented_message, *v.Message)
 	}
 	s.CloseStruct()
 }
@@ -1838,6 +1926,17 @@ func (v *RemovePermissionOutput) serialize(s smithy.Serializer, m *smithy.Member
 }
 
 // Serialize writes v through s.
+func (v *RequestEntityTooLargeException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *RequestEntityTooLargeException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaRequestEntityTooLargeException)
+	if v.Message != nil {
+		s.WriteString(&memberRequestEntityTooLargeException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *RequestThrottled) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *RequestThrottled) serialize(s smithy.Serializer, m *smithy.Member) {
@@ -2112,6 +2211,17 @@ func (v *SendMessageOutput) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.CloseStruct()
 }
 
+// Serialize writes v through s.
+func (v *SerializationException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *SerializationException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaSerializationException)
+	if v.Message != nil {
+		s.WriteString(&memberSerializationException_Message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
 // Deserialize reads v from d. Absent members stay absent; Validate
 // reports missing required ones.
 func (v *SetQueueAttributesInput) Deserialize(d smithy.Deserializer) error { return v.deserialize(d) }
@@ -2155,6 +2265,17 @@ func (v *SetQueueAttributesOutput) Serialize(s smithy.Serializer) { v.serialize(
 
 func (v *SetQueueAttributesOutput) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaSmithyUnit)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *SignatureDoesNotMatch) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *SignatureDoesNotMatch) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaSignatureDoesNotMatch)
+	if v.Message != nil {
+		s.WriteString(&memberSignatureDoesNotMatch_message, *v.Message)
+	}
 	s.CloseStruct()
 }
 
@@ -2336,6 +2457,17 @@ func (v *TagQueueOutput) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *TagQueueOutput) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaSmithyUnit)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *ThrottlingException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *ThrottlingException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaThrottlingException)
+	if v.Message != nil {
+		s.WriteString(&memberThrottlingException_message, *v.Message)
+	}
 	s.CloseStruct()
 }
 

@@ -18,7 +18,7 @@ import (
 func emitValidate(ir *ServiceIR) ([]byte, error) {
 	f := newFile(ir, "validate_gen.go")
 	f.use("awserr")
-	v := &validator{f: f, memo: map[*ShapeIR]bool{}, renders: map[*ShapeIR]bool{}}
+	v := &validator{f: f, style: ir.PathStyle, memo: map[*ShapeIR]bool{}, renders: map[*ShapeIR]bool{}}
 	emitPatterns(f, ir)
 	for _, s := range sortedShapes(ir) {
 		if s.Role&RoleInput == 0 {
@@ -37,6 +37,7 @@ func emitValidate(ir *ServiceIR) ([]byte, error) {
 
 type validator struct {
 	f         *file
+	style     PathStyle
 	memo      map[*ShapeIR]bool
 	renders   map[*ShapeIR]bool
 	usesAt    bool
@@ -47,7 +48,7 @@ type validator struct {
 // function of any input shape with something to check.
 func (v *validator) shape(s *ShapeIR) error {
 	f := v.f
-	if s.IO != nil && s == s.IO.Input {
+	if s.Top&RoleInput != 0 {
 		f.p("// Validate reports the constraint violations of v in AWS's order; nil")
 		f.p("// means v satisfies every generated constraint.")
 		f.p("func (v *%s) Validate() []awserr.Violation {", s.GoName)
@@ -124,8 +125,12 @@ func (v *validator) memberNeeds(m *MemberIR) bool {
 	return m.Bit >= 0 || v.valueNeeds(m)
 }
 
-// valueNeeds reports whether a present value of m has anything to check.
+// valueNeeds reports whether a present value of m has anything to check. A
+// stream's content is the handler's to read, so only its presence is.
 func (v *validator) valueNeeds(m *MemberIR) bool {
+	if m.Streaming {
+		return false
+	}
 	if m.Length != nil || m.Range != nil || m.Pattern != nil {
 		return true
 	}
@@ -219,9 +224,30 @@ func (v *validator) add(ind, path, value, constraint string) {
 // checks emits the checks of member m on value x at path. depth is the
 // indentation; nested loops name their variables by depth.
 func (v *validator) checks(m *MemberIR, x, path string, depth int) error {
-	f := v.f
 	ind := strings.Repeat("\t", depth)
+	cs, err := v.conds(m, x)
+	if err != nil {
+		return err
+	}
+	for _, c := range cs {
+		v.f.p("%sif %s {", ind, c.fails)
+		v.add(ind+"\t", path, v.rendered(m.Target, x), c.constraint)
+		v.f.p("%s}", ind)
+	}
+	return v.nested(m.Target, x, path, depth)
+}
+
+// failCond is one constraint on a value: the Go condition under which the
+// value fails it, and the awserr constraint literal a violation reports.
+type failCond struct {
+	fails, constraint string
+}
+
+// conds lists the constraints of member m on value x in AWS's order: enum,
+// pattern, length (maximum before minimum), range (minimum first).
+func (v *validator) conds(m *MemberIR, x string) ([]failCond, error) {
 	t := m.Target
+	var out []failCond
 	if (t.Type == smithy.TypeEnum || t.Type == smithy.TypeIntEnum) && m.EnumPolicy == EnumClosed {
 		vals := make([]string, len(t.Enum))
 		for i, e := range t.Enum {
@@ -234,29 +260,29 @@ func (v *validator) checks(m *MemberIR, x, path string, depth int) error {
 		if strings.HasPrefix(x, "*") {
 			recv = "(" + x + ")"
 		}
-		f.p("%sif !%s.Known() {", ind, recv)
-		v.add(ind+"\t", path, v.rendered(t, x), "awserr.Enum{Values: []string{"+strings.Join(vals, ", ")+"}}")
-		f.p("%s}", ind)
+		out = append(out, failCond{"!" + recv + ".Known()", "awserr.Enum{Values: []string{" + strings.Join(vals, ", ") + "}}"})
 	}
 	if p := m.Pattern; p != nil {
 		if t.Type != smithy.TypeString && t.Type != smithy.TypeEnum {
-			return failf(StageEmit, m.Var, "pattern applies to strings, not %s", t.Type)
+			return nil, failf(StageEmit, m.Var, "pattern applies to strings, not %s", t.Type)
 		}
-		f.p("%sif !%s {", ind, v.matches(p, stringExpr(t, x)))
-		v.add(ind+"\t", path, v.rendered(t, x), "awserr.Pattern{Echo: "+goString(p.Echo)+"}")
-		f.p("%s}", ind)
+		out = append(out, failCond{"!" + v.matches(p, stringExpr(t, x)), "awserr.Pattern{Echo: " + goString(p.Echo) + "}"})
 	}
 	if l := m.Length; l != nil {
-		if err := v.length(m, l, x, path, ind); err != nil {
-			return err
+		cs, err := v.length(m, l, x)
+		if err != nil {
+			return nil, err
 		}
+		out = append(out, cs...)
 	}
 	if r := m.Range; r != nil {
-		if err := v.rangeChecks(m, r, x, path, ind); err != nil {
-			return err
+		cs, err := v.rangeConds(m, r, x)
+		if err != nil {
+			return nil, err
 		}
+		out = append(out, cs...)
 	}
-	return v.nested(t, x, path, depth)
+	return out, nil
 }
 
 // stringExpr is x as a Go string: enums convert, strings are already one.
@@ -290,15 +316,28 @@ func (v *validator) nested(t *ShapeIR, x, path string, depth int) error {
 	return nil
 }
 
-// listElements checks every element at path.<n>.member, n from 1.
+// listElements checks every element at path.<n>.member, n from 1. Rolled
+// up, an element's own constraints are reported once at the list instead,
+// and only the members of structured elements keep indexed paths.
 func (v *validator) listElements(t *ShapeIR, x, path string, depth int) error {
 	f := v.f
 	ind := strings.Repeat("\t", depth)
+	elem := t.Members[0]
+	direct := v.style == PathIndexed
+	if !direct {
+		e := fmt.Sprintf("e%d", depth)
+		if err := v.rollUp(t, elem, x, path, "for _, "+e+" := range "+x, e, depth, "awserr.ElementScope"); err != nil {
+			return err
+		}
+		if !v.needs(elem.Target) {
+			return nil
+		}
+	}
 	f.use("strconv")
 	e, i, p := fmt.Sprintf("e%d", depth), fmt.Sprintf("i%d", depth), fmt.Sprintf("p%d", depth)
 	f.p("%sfor %s, %s := range %s {", ind, i, e, x)
 	f.p("%s\t%s := %s", ind, p, v.pathExpr(path, "strconv.Itoa("+i+"+1)", `"member"`))
-	if err := v.elem(t.Members[0], e, p, depth+1); err != nil {
+	if err := v.elem(elem, e, p, depth+1, direct); err != nil {
 		return err
 	}
 	f.p("%s}", ind)
@@ -306,15 +345,28 @@ func (v *validator) listElements(t *ShapeIR, x, path string, depth int) error {
 }
 
 // mapEntries checks every key at path.<key> and every value at
-// path.<key>.member, in key order.
+// path.<key>.member, in key order. Rolled up, the keys' and the values' own
+// constraints are reported once each at the map.
 func (v *validator) mapEntries(t *ShapeIR, x, path string, depth int) error {
 	f := v.f
 	ind := strings.Repeat("\t", depth)
-	f.use("slices", "maps")
 	k, e, kp, vp := fmt.Sprintf("k%d", depth), fmt.Sprintf("e%d", depth), fmt.Sprintf("kp%d", depth), fmt.Sprintf("vp%d", depth)
 	key, val := t.Members[0], t.Members[1]
+	direct := v.style == PathIndexed
+	if !direct {
+		if err := v.rollUp(t, key, x, path, "for "+k+" := range "+x, k, depth, "awserr.MapKeysScope"); err != nil {
+			return err
+		}
+		if err := v.rollUp(t, val, x, path, "for _, "+e+" := range "+x, e, depth, "awserr.MapValueScope"); err != nil {
+			return err
+		}
+		if !v.needs(val.Target) {
+			return nil
+		}
+	}
+	f.use("slices", "maps")
 	f.p("%sfor _, %s := range slices.Sorted(maps.Keys(%s)) {", ind, k, x)
-	if v.memberNeeds(key) {
+	if direct && v.memberNeeds(key) {
 		f.p("%s\t%s := %s", ind, kp, v.pathExpr(path, stringExpr(key.Target, k)))
 		if err := v.checks(key, k, kp, depth+1); err != nil {
 			return err
@@ -322,7 +374,7 @@ func (v *validator) mapEntries(t *ShapeIR, x, path string, depth int) error {
 	}
 	if v.memberNeeds(val) {
 		f.p("%s\t%s, %s := %s[%s], %s", ind, e, vp, x, k, v.pathExpr(path, stringExpr(key.Target, k), `"member"`))
-		if err := v.elem(val, e, vp, depth+1); err != nil {
+		if err := v.elem(val, e, vp, depth+1, direct); err != nil {
 			return err
 		}
 	}
@@ -330,8 +382,51 @@ func (v *validator) mapEntries(t *ShapeIR, x, path string, depth int) error {
 	return nil
 }
 
+// rollUp reports, at the collection's path with the whole collection as the
+// value, one Composite of every constraint of member m when any element the
+// loop header ranges over (as e) fails one (error-matrix.md 4, style B).
+func (v *validator) rollUp(coll *ShapeIR, m *MemberIR, x, path, loop, e string, depth int, scope string) error {
+	value := e
+	sparse := m.Owner.Sparse && pointerable(m.Target)
+	if sparse {
+		value = "*" + e
+	}
+	cs, err := v.conds(m, value)
+	if err != nil || len(cs) == 0 {
+		return err
+	}
+	f := v.f
+	ind := strings.Repeat("\t", depth)
+	fails := make([]string, len(cs))
+	lits := make([]string, len(cs))
+	for i, c := range cs {
+		fails[i], lits[i] = c.fails, c.constraint
+	}
+	cond := strings.Join(fails, " || ")
+	if sparse {
+		cond = e + " != nil && (" + cond + ")"
+	}
+	f.p("%sif func() bool {", ind)
+	f.p("%s\t%s {", ind, loop)
+	f.p("%s\t\tif %s {", ind, cond)
+	f.p("%s\t\t\treturn true", ind)
+	f.p("%s\t\t}", ind)
+	f.p("%s\t}", ind)
+	f.p("%s\treturn false", ind)
+	f.p("%s}() {", ind)
+	v.add(ind+"\t", path, v.rendered(coll, x), "awserr.Composite{Scope: "+scope+", Of: []awserr.MemberConstraint{"+strings.Join(lits, ", ")+"}}")
+	f.p("%s}", ind)
+	return nil
+}
+
 // elem checks a list element or map value, skipping null in sparse ones.
-func (v *validator) elem(m *MemberIR, e, path string, depth int) error {
+// With direct false only the members of a structured value are checked: its
+// own constraints were rolled up at the collection.
+func (v *validator) elem(m *MemberIR, e, path string, depth int, direct bool) error {
+	check := v.checks
+	if !direct {
+		check = func(m *MemberIR, x, path string, depth int) error { return v.nested(m.Target, x, path, depth) }
+	}
 	if m.Owner.Sparse && pointerable(m.Target) {
 		ind := strings.Repeat("\t", depth)
 		v.f.p("%sif %s != nil {", ind, e)
@@ -339,13 +434,13 @@ func (v *validator) elem(m *MemberIR, e, path string, depth int) error {
 		if !m.Target.IsStruct() {
 			x = "*" + e
 		}
-		if err := v.checks(m, x, path, depth+1); err != nil {
+		if err := check(m, x, path, depth+1); err != nil {
 			return err
 		}
 		v.f.p("%s}", ind)
 		return nil
 	}
-	return v.checks(m, e, path, depth)
+	return check(m, e, path, depth)
 }
 
 func (v *validator) matches(p *PatternIR, s string) string {
@@ -362,9 +457,9 @@ func (v *validator) matches(p *PatternIR, s string) string {
 	return "(" + strings.Join(parts, " && ") + ")"
 }
 
-// length emits the length checks: Unicode scalar values for strings
+// length lists the length constraints: Unicode scalar values for strings
 // (ARCHITECTURE.md 5.4), bytes for blobs, elements for collections.
-func (v *validator) length(m *MemberIR, l *Bounds, x, path, ind string) error {
+func (v *validator) length(m *MemberIR, l *Bounds, x string) ([]failCond, error) {
 	f := v.f
 	t := m.Target
 	var n string
@@ -377,26 +472,24 @@ func (v *validator) length(m *MemberIR, l *Bounds, x, path, ind string) error {
 	case smithy.TypeStructure, smithy.TypeUnion, smithy.TypeIntEnum, smithy.TypeBoolean, smithy.TypeByte,
 		smithy.TypeShort, smithy.TypeInteger, smithy.TypeLong, smithy.TypeFloat, smithy.TypeDouble,
 		smithy.TypeBigInteger, smithy.TypeBigDecimal, smithy.TypeTimestamp, smithy.TypeDocument, smithy.TypeUnit:
-		return failf(StageEmit, m.Var, "length applies to strings, blobs, lists and maps, not %s", t.Type)
+		return nil, failf(StageEmit, m.Var, "length applies to strings, blobs, lists and maps, not %s", t.Type)
 	}
+	var out []failCond
 	for _, c := range []struct{ bound, op, kind string }{{l.Max, ">", "LengthMax{Max: "}, {l.Min, "<", "LengthMin{Min: "}} {
 		if c.bound == "" {
 			continue
 		}
 		if _, err := strconv.ParseInt(c.bound, 10, 64); err != nil {
-			return failf(StageEmit, m.Var, "length bound %q is not an integer", c.bound)
+			return nil, failf(StageEmit, m.Var, "length bound %q is not an integer", c.bound)
 		}
-		f.p("%sif %s %s %s {", ind, n, c.op, c.bound)
-		v.add(ind+"\t", path, v.rendered(t, x), "awserr."+c.kind+c.bound+"}")
-		f.p("%s}", ind)
+		out = append(out, failCond{n + " " + c.op + " " + c.bound, "awserr." + c.kind + c.bound + "}"})
 	}
-	return nil
+	return out, nil
 }
 
-// rangeChecks emits the range checks, minimum first, comparing in int64 for
-// integers and float64 for floating-point members.
-func (v *validator) rangeChecks(m *MemberIR, r *Bounds, x, path, ind string) error {
-	f := v.f
+// rangeConds lists the range constraints, minimum first, comparing in int64
+// for integers and float64 for floating-point members.
+func (v *validator) rangeConds(m *MemberIR, r *Bounds, x string) ([]failCond, error) {
 	t := m.Target
 	var integer bool
 	switch t.Type {
@@ -407,8 +500,9 @@ func (v *validator) rangeChecks(m *MemberIR, r *Bounds, x, path, ind string) err
 	case smithy.TypeStructure, smithy.TypeUnion, smithy.TypeList, smithy.TypeMap, smithy.TypeString,
 		smithy.TypeEnum, smithy.TypeBlob, smithy.TypeBoolean, smithy.TypeBigInteger, smithy.TypeBigDecimal,
 		smithy.TypeTimestamp, smithy.TypeDocument, smithy.TypeUnit:
-		return failf(StageEmit, m.Var, "range on %s is not emitted; it applies to fixed-size numbers here", t.Type)
+		return nil, failf(StageEmit, m.Var, "range on %s is not emitted; it applies to fixed-size numbers here", t.Type)
 	}
+	var out []failCond
 	for _, c := range []struct{ bound, op, kind, field string }{{r.Min, "<", "RangeMin", "Min"}, {r.Max, ">", "RangeMax", "Max"}} {
 		if c.bound == "" {
 			continue
@@ -416,17 +510,15 @@ func (v *validator) rangeChecks(m *MemberIR, r *Bounds, x, path, ind string) err
 		lhs := "float64(" + x + ")"
 		if integer {
 			if _, ok := new(big.Int).SetString(c.bound, 10); !ok {
-				return failf(StageEmit, m.Var, "range bound %q is not an integer, but the member is %s", c.bound, t.Type)
+				return nil, failf(StageEmit, m.Var, "range bound %q is not an integer, but the member is %s", c.bound, t.Type)
 			}
 			lhs = "int64(" + x + ")"
 		} else if _, err := strconv.ParseFloat(c.bound, 64); err != nil {
-			return failf(StageEmit, m.Var, "range bound %q is not a number", c.bound)
+			return nil, failf(StageEmit, m.Var, "range bound %q is not a number", c.bound)
 		}
-		f.p("%sif %s %s %s {", ind, lhs, c.op, c.bound)
-		v.add(ind+"\t", path, v.rendered(t, x), "awserr."+c.kind+"{"+c.field+": "+goString(c.bound)+"}")
-		f.p("%s}", ind)
+		out = append(out, failCond{lhs + " " + c.op + " " + c.bound, "awserr." + c.kind + "{" + c.field + ": " + goString(c.bound) + "}"})
 	}
-	return nil
+	return out, nil
 }
 
 // rendered is the awserr.Rendered expression of value x of shape t: Java
@@ -471,22 +563,50 @@ func (v *validator) renderFunc(t *ShapeIR) {
 	f.use("strings")
 	f.p("func render%s(v %s) string {", t.GoName, f.valueType(t))
 	f.p("\tparts := make([]string, 0, len(v))")
-	elemText := func(m *MemberIR, x string) string {
+	// elemText renders one element or value e; ok is false for a shape AWS
+	// renders with no text v knows (structures, blobs), which become "".
+	elemText := func(m *MemberIR, e string) (string, bool) {
+		x := e
+		if m.Owner.Sparse && pointerable(m.Target) && !m.Target.IsStruct() {
+			x = "*" + e
+		}
 		r := v.rendered(m.Target, x)
 		if after, ok := strings.CutPrefix(r, "awserr.RenderedText{Text: "); ok {
-			return strings.TrimSuffix(after, "}")
+			return strings.TrimSuffix(after, "}"), true
 		}
-		return goString("")
+		return goString(""), false
+	}
+	// nullable guards a sparse collection's nil element, rendered null.
+	nullable := func(m *MemberIR, e, ind string) {
+		if m.Owner.Sparse && pointerable(m.Target) {
+			f.p("%sif %s == nil {", ind, e)
+			f.p("%s\tparts = append(parts, \"null\")", ind)
+			f.p("%s\tcontinue", ind)
+			f.p("%s}", ind)
+		}
 	}
 	if t.Type == smithy.TypeList {
-		f.p("\tfor _, e := range v {")
-		f.p("\t\tparts = append(parts, %s)", elemText(t.Members[0], "e"))
+		elem := t.Members[0]
+		text, ok := elemText(elem, "e")
+		if ok {
+			f.p("\tfor _, e := range v {")
+			nullable(elem, "e", "\t\t")
+		} else {
+			f.p("\tfor range v {")
+		}
+		f.p("\t\tparts = append(parts, %s)", text)
 		f.p("\t}")
 		f.p("\treturn \"[\" + strings.Join(parts, \", \") + \"]\"")
 	} else {
 		f.use("slices", "maps")
+		val := t.Members[1]
+		text, ok := elemText(val, "e")
 		f.p("\tfor _, k := range slices.Sorted(maps.Keys(v)) {")
-		f.p("\t\tparts = append(parts, %s+\"=\"+%s)", stringExpr(t.Members[0].Target, "k"), elemText(t.Members[1], "v[k]"))
+		if ok {
+			f.p("\t\te := v[k]")
+			nullable(val, "e", "\t\t")
+		}
+		f.p("\t\tparts = append(parts, %s+\"=\"+%s)", stringExpr(t.Members[0].Target, "k"), text)
 		f.p("\t}")
 		f.p("\treturn \"{\" + strings.Join(parts, \", \") + \"}\"")
 	}

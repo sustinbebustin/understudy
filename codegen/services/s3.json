@@ -1,0 +1,51 @@
+{
+  "service": "com.amazonaws.s3#AmazonS3",
+  "package": "s3api",
+  "model": "s3",
+  "iamPrefix": "s3",
+  "routeOverrides": [
+    {
+      "operation": "ListDirectoryBuckets",
+      "method": "GET",
+      "uri": "/?x-id=ListDirectoryBuckets",
+      "reason": "GET / without x-id is ListBuckets; directory buckets are S3 Express, whose Smithy-generated clients send the x-id literal"
+    }
+  ],
+  "iamPrimary": [
+    {
+      "operation": "CopyObject",
+      "action": "s3:PutObject",
+      "reason": "the request is addressed to the destination object it writes; s3:GetObject is the read of the copy source (smithy-models.md 8)"
+    },
+    {
+      "operation": "CreateMultipartUpload",
+      "action": "s3:PutObject",
+      "reason": "smithy-models.md 8 maps CreateMultipartUpload to s3:PutObject; the other s3 actions are the object ACL, tag, retention and legal hold writes"
+    },
+    {
+      "operation": "DeleteObjects",
+      "action": "s3:DeleteObject",
+      "reason": "smithy-models.md 8 maps DeleteObjects to s3:DeleteObject; DeleteObjectVersion and BypassGovernanceRetention are additions"
+    },
+    {
+      "operation": "HeadObject",
+      "action": "s3:GetObject",
+      "reason": "smithy-models.md 8 maps HeadObject to s3:GetObject; GetObjectLegalHold and GetObjectRetention are additions"
+    },
+    {
+      "operation": "ListObjects",
+      "action": "s3:ListBucket",
+      "reason": "smithy-models.md 8 maps ListObjects to s3:ListBucket; s3:GetObjectAcl is an addition"
+    },
+    {
+      "operation": "ListObjectsV2",
+      "action": "s3:ListBucket",
+      "reason": "smithy-models.md 8 maps ListObjectsV2 to s3:ListBucket; s3:GetObjectAcl is an addition"
+    },
+    {
+      "operation": "UploadPartCopy",
+      "action": "s3:PutObject",
+      "reason": "the request is addressed to the destination upload it writes; s3:GetObject is the read of the copy source (smithy-models.md 8)"
+    }
+  ]
+}

@@ -48,7 +48,30 @@ type Member struct {
 	// HTTP is the member's HTTP binding trait, or nil when it has none; an
 	// unbound top-level member of a REST operation travels in the body.
 	HTTP Location
+	// QueryKeyAlias is set when the member shares its awsQuery key with
+	// another member of its structure, or nil when the key is its own.
+	QueryKeyAlias *QueryKeyAlias
 }
+
+// QueryKeyAlias is the dev.understudy#queryKeyAlias overlay trait: the
+// awsQuery key a member shares with another member of its structure (SQS
+// ReceiveMessage's AttributeNames and MessageSystemAttributeNames are both
+// AttributeName.N), and whether values decoded from that key land in this
+// member.
+type QueryKeyAlias struct {
+	Key    string
+	Decode AliasDecode
+}
+
+// AliasDecode is what an awsQuery decoder does with a shared key's values
+// for one of the members sharing it.
+type AliasDecode uint8
+
+// AliasDecode values.
+const (
+	AliasReceive AliasDecode = iota + 1 // the member receives the values
+	AliasIgnore                         // the member stays unset
+)
 
 // XMLNamespace is the xmlNamespace trait.
 type XMLNamespace struct {

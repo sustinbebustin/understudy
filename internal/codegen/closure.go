@@ -16,45 +16,46 @@ type closure struct {
 	service    *Shape
 	operations []*Shape // sorted by name; overlay internal operations included
 	shapes     map[smithy.ShapeID]*Shape
+	// vocabularies are the generic vocabularies of the protocol families a
+	// real service speaks; corpus services have none.
+	vocabularies []familyVocabulary
 }
 
-// closure walks the service. It fails on a reference to a shape the model
-// does not have, naming the referrer.
-func (m *Model) closure(serviceID smithy.ShapeID) (*closure, error) {
-	svc, ok := m.Shapes[serviceID]
+// closure walks the service cfg names. It fails on a reference to a shape
+// the model does not have, naming the referrer.
+func (m *Model) closure(cfg ServiceConfig) (*closure, error) {
+	svc, ok := m.Shapes[cfg.Service]
 	if !ok || svc.Kind != KindService {
-		return nil, failf(StageClosure, string(serviceID), "is not a service shape in the model")
+		return nil, failf(StageClosure, string(cfg.Service), "is not a service shape in the model")
 	}
 	c := &closure{service: svc, shapes: map[smithy.ShapeID]*Shape{}}
-	ops := map[smithy.ShapeID]*Shape{}
-	if err := m.walkContainer(svc, ops, map[smithy.ShapeID]bool{}); err != nil {
+	if err := m.collectOperations(c); err != nil {
 		return nil, err
-	}
-	for _, id := range slices.Sorted(maps.Keys(m.Shapes)) {
-		s := m.Shapes[id]
-		if s.Kind == KindOperation && s.Traits.Has(utInternalOperation) && id.Namespace() == serviceID.Namespace() {
-			ops[id] = s
-		}
-	}
-	for _, id := range slices.Sorted(maps.Keys(ops)) {
-		op := ops[id]
-		c.operations = append(c.operations, op)
-		refs := slices.Concat([]smithy.ShapeID{op.Input, op.Output}, op.Errors, svc.Errors)
-		for _, r := range refs {
-			if err := m.walkData(string(id), r, c.shapes); err != nil {
-				return nil, err
-			}
-		}
-	}
-	slices.SortFunc(c.operations, func(a, b *Shape) int { return cmp.Compare(a.ID.Name(), b.ID.Name()) })
-	for i := 1; i < len(c.operations); i++ {
-		if c.operations[i].ID.Name() == c.operations[i-1].ID.Name() {
-			return nil, failf(StageClosure, string(c.operations[i].ID), "shares its name with %s", c.operations[i-1].ID)
-		}
 	}
 	extra, err := m.referencedErrors(c)
 	if err != nil {
 		return nil, err
+	}
+	// Every error structure of a real service's namespace is generated, the
+	// overlay's unmodeled codes (S3 NoSuchBucketPolicy) among them, so a
+	// handler can name it although no operation lists it. Corpus services
+	// share namespaces, so theirs take only the errors they reach. A real
+	// service also generates the generic vocabulary of its protocol
+	// families, the identities a fault rule may name beside the modeled
+	// errors; the compliance harness has no use for them.
+	if _, api := cfg.Destination.(APIPackage); api {
+		for _, id := range slices.Sorted(maps.Keys(m.Shapes)) {
+			s := m.Shapes[id]
+			if s.Kind == KindData && s.Traits.Has(traitError) && id.Namespace() == cfg.Service.Namespace() {
+				extra = append(extra, errorRef{from: string(cfg.Service) + " namespace", id: id})
+			}
+		}
+		c.vocabularies = m.familyVocabularies(svc, cfg)
+		for _, v := range c.vocabularies {
+			for _, id := range v.errors {
+				extra = append(extra, errorRef{from: string(v.from) + " errors", id: id})
+			}
+		}
 	}
 	for _, r := range extra {
 		if err := m.walkData(r.from, r.id, c.shapes); err != nil {
@@ -62,6 +63,39 @@ func (m *Model) closure(serviceID smithy.ShapeID) (*closure, error) {
 		}
 	}
 	return c, nil
+}
+
+// collectOperations gathers the service's operations, the overlay's internal
+// operations of its namespace among them, sorted by name, and every shape
+// their inputs, outputs and errors reach.
+func (m *Model) collectOperations(c *closure) error {
+	svc := c.service
+	ops := map[smithy.ShapeID]*Shape{}
+	if err := m.walkContainer(svc, ops, map[smithy.ShapeID]bool{}); err != nil {
+		return err
+	}
+	for _, id := range slices.Sorted(maps.Keys(m.Shapes)) {
+		s := m.Shapes[id]
+		if s.Kind == KindOperation && s.Traits.Has(utInternalOperation) && id.Namespace() == svc.ID.Namespace() {
+			ops[id] = s
+		}
+	}
+	for _, id := range slices.Sorted(maps.Keys(ops)) {
+		op := ops[id]
+		c.operations = append(c.operations, op)
+		for _, r := range slices.Concat([]smithy.ShapeID{op.Input, op.Output}, op.Errors, svc.Errors) {
+			if err := m.walkData(string(id), r, c.shapes); err != nil {
+				return err
+			}
+		}
+	}
+	slices.SortFunc(c.operations, func(a, b *Shape) int { return cmp.Compare(a.ID.Name(), b.ID.Name()) })
+	for i := 1; i < len(c.operations); i++ {
+		if c.operations[i].ID.Name() == c.operations[i-1].ID.Name() {
+			return failf(StageClosure, string(c.operations[i].ID), "shares its name with %s", c.operations[i-1].ID)
+		}
+	}
+	return nil
 }
 
 // walkContainer collects the operations of a service or resource.

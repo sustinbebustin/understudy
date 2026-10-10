@@ -21,9 +21,12 @@ func TestRunRejectsAnUnknownService(t *testing.T) {
 }
 
 // TestCheckedInPackagesAreCurrent is the drift check: every generated
-// package matches what its vendored model, overlays and config produce now.
+// package, the service APIs and the compliance corpus services, matches what
+// its vendored model, overlays and config produce now.
 func TestCheckedInPackagesAreCurrent(t *testing.T) {
-	if err := run([]string{"-all", "-check"}, io.Discard); err != nil {
-		t.Fatal(err)
+	for _, target := range []string{"-all", "-corpus"} {
+		if err := run([]string{target, "-check"}, io.Discard); err != nil {
+			t.Errorf("%s: %v", target, err)
+		}
 	}
 }

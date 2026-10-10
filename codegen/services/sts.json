@@ -1,0 +1,6 @@
+{
+  "service": "com.amazonaws.sts#AWSSecurityTokenServiceV20110615",
+  "package": "stsapi",
+  "model": "sts",
+  "iamPrefix": "sts"
+}

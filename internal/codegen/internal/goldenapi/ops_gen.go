@@ -31,7 +31,7 @@ var descListParts = registry.Operation{
 	Input:       &schemaListPartsInput,
 	Output:      &schemaListPartsOutput,
 	Errors:      []awserr.Identity{IdentityInvalidInput()},
-	IAM:         []registry.IAMAction{{Prefix: "golden", Name: "ListParts"}},
+	IAM:         []registry.IAMAction{{Prefix: "golden", Name: "ListThingParts"}},
 	SuccessCode: 200,
 	Readonly:    true,
 }
@@ -45,7 +45,6 @@ var descPing = registry.Operation{
 	Input:       &schemaSmithyUnit,
 	Output:      &schemaSmithyUnit,
 	Errors:      []awserr.Identity{IdentityInvalidInput()},
-	IAM:         []registry.IAMAction{{Prefix: "golden", Name: "Ping"}},
 	SuccessCode: 200,
 	Readonly:    true,
 }
@@ -59,7 +58,7 @@ var descPutKinds = registry.Operation{
 	Input:           &schemaPutKindsInput,
 	Output:          &schemaPutKindsOutput,
 	Errors:          []awserr.Identity{IdentityKindsFault(), IdentityThrottled(), IdentityInvalidInput()},
-	IAM:             []registry.IAMAction{{Prefix: "golden", Name: "PutKinds"}},
+	IAM:             []registry.IAMAction{{Prefix: "golden", Name: "PutKinds"}, {Prefix: "golden", Name: "TagThing"}, {Prefix: "iam", Name: "PassRole"}},
 	SuccessCode:     201,
 	MaxRequestBytes: 1024,
 	Idempotent:      true,
@@ -74,6 +73,5 @@ var descSweep = registry.Operation{
 	Input:       &schemaSweepInput,
 	Output:      &schemaSmithyUnit,
 	Errors:      []awserr.Identity{IdentityInvalidInput()},
-	IAM:         nil,
 	SuccessCode: 200,
 }

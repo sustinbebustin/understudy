@@ -18,9 +18,8 @@ func main() {
 	}
 }
 
-// errUsage reports a command line that names neither or both of -service
-// and -all.
-var errUsage = errors.New("understudy-gen: give exactly one of -service <id> or -all; see -h")
+// errUsage reports a command line that names no target or more than one.
+var errUsage = errors.New("understudy-gen: give exactly one of -service <id>, -all or -corpus; see -h")
 
 // run generates (or with -check, compares) the packages the flags name,
 // finding the repository from the working directory.
@@ -29,34 +28,35 @@ func run(args []string, stderr io.Writer) error {
 	fs.SetOutput(stderr)
 	service := fs.String("service", "", "generate the service with this codegen/services/<id>.json")
 	all := fs.Bool("all", false, "generate every service in codegen/services")
+	corpus := fs.Bool("corpus", false, "generate the synthetic protocol compliance services into internal/protocoltest/gen")
 	check := fs.Bool("check", false, "compare the generated files with the inputs and fail on drift; write nothing")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if (*service == "") == !*all || fs.NArg() > 0 {
+	targets := 0
+	for _, t := range []bool{*service != "", *all, *corpus} {
+		if t {
+			targets++
+		}
+	}
+	if targets != 1 || fs.NArg() > 0 {
 		return errUsage
 	}
 	repo, err := codegen.FindRepo(".")
 	if err != nil {
 		return err
 	}
-	ids := []ref.ServiceID{ref.ServiceID(*service)}
-	if *all {
-		if ids, err = repo.Services(); err != nil {
-			return err
-		}
+	inputs, err := selectInputs(repo, *service, *all)
+	if err != nil {
+		return err
 	}
 	var drift []error
-	for _, id := range ids {
-		in, err := repo.Inputs(id)
+	for i := range inputs {
+		files, err := codegen.Generate(inputs[i])
 		if err != nil {
 			return err
 		}
-		files, err := codegen.Generate(in)
-		if err != nil {
-			return err
-		}
-		out := repo.OutputDir(in.Config)
+		out := repo.OutputDir(inputs[i].Config)
 		if !*check {
 			if err := codegen.Write(out, files); err != nil {
 				return err
@@ -68,4 +68,38 @@ func run(args []string, stderr io.Writer) error {
 		}
 	}
 	return errors.Join(drift...)
+}
+
+// selectInputs reads the inputs of the named service, of every
+// codegen/services file, or, when neither is named, of every corpus
+// service.
+func selectInputs(repo codegen.Repo, service string, all bool) ([]codegen.Inputs, error) {
+	var out []codegen.Inputs
+	switch {
+	case service != "" || all:
+		ids := []ref.ServiceID{ref.ServiceID(service)}
+		if all {
+			var err error
+			if ids, err = repo.Services(); err != nil {
+				return nil, err
+			}
+		}
+		for _, id := range ids {
+			in, err := repo.Inputs(id)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, in)
+		}
+	default:
+		services := codegen.CorpusServices()
+		for i := range services {
+			in, err := repo.CorpusInputs(services[i])
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, in)
+		}
+	}
+	return out, nil
 }

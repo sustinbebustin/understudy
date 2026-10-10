@@ -61,7 +61,21 @@ func emitPolicies(f *file, ir *ServiceIR) error {
 	}
 	f.p("%s\n", runtime)
 	service := rulesLit(ir.Validation)
+	// Operations that share an input structure (DynamoDB's
+	// Enable/DisableKinesisStreamingDestination) share its one
+	// ValidationError method, so their operation-level rules must agree.
+	byInput := map[*ShapeIR]*OperationIR{}
 	for _, o := range ir.Operations {
+		if !o.HasIO() {
+			continue
+		}
+		if first, ok := byInput[o.Input]; ok {
+			if rulesLit(first.Validation) != rulesLit(o.Validation) {
+				return failf(StageEmit, string(o.ID), "shares its input %s with %s, but their validationError rules differ; one input type has one ValidationError", o.Input.ID, first.Name)
+			}
+			continue
+		}
+		byInput[o.Input] = o
 		pv := "policy" + o.Name
 		f.p("var %s = validationPolicy{", pv)
 		f.p("\tpaths: []validationPath{")

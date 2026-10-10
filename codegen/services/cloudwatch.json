@@ -1,0 +1,6 @@
+{
+  "service": "com.amazonaws.cloudwatch#GraniteServiceVersion20100801",
+  "package": "cloudwatchapi",
+  "model": "cloudwatch",
+  "iamPrefix": "cloudwatch"
+}

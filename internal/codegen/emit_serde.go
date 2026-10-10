@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -12,16 +13,17 @@ import (
 
 // emitSerde writes serde_gen.go by shape role (ARCHITECTURE.md 5.4):
 // deserializers for shapes inputs reach, serializers for shapes outputs and
-// errors reach, both for shapes in both roles. The code names schemas and
-// members and holds no protocol logic.
+// errors reach, both for shapes in both roles, and both for every shape of
+// a rawBinding service or a corpus service (ADR 0001 amendment). The code
+// names schemas and members and holds no protocol logic.
 func emitSerde(ir *ServiceIR) ([]byte, error) {
 	f := newFile(ir, "serde_gen.go")
 	f.use("smithy")
 	for _, s := range sortedShapes(ir) {
-		if s.Role&RoleOutput != 0 {
+		if s.Role&RoleOutput != 0 || ir.SerdeBoth {
 			f.serializer(s)
 		}
-		if s.Role&RoleInput != 0 {
+		if s.Role&RoleInput != 0 || ir.SerdeBoth {
 			if err := f.deserializer(s); err != nil {
 				return nil, err
 			}
@@ -67,7 +69,7 @@ func (f *file) serializer(s *ShapeIR) {
 }
 
 func (f *file) structSerializer(s *ShapeIR) {
-	if s.IO != nil || s.Error != nil {
+	if s.Top != 0 || s.Error != nil {
 		f.p("// Serialize writes v through s.")
 		f.p("func (v *%s) Serialize(s smithy.Serializer) { v.serialize(s, nil) }\n", s.GoName)
 	}
@@ -100,6 +102,13 @@ func (f *file) unionSerializer(s *ShapeIR) {
 // serializeMember writes one structure member, skipping absent values.
 func (f *file) serializeMember(m *MemberIR) {
 	switch {
+	case m.Streaming && m.Owner.Role&RoleInput != 0:
+		f.p("\t// %s is an input stream, a smithy.Body the handler reads; only an", m.GoName)
+		f.p("\t// output stream is written.")
+	case m.Streaming:
+		f.p("\tif v.%s != nil {", m.GoName)
+		f.p("\t\ts.WriteBody(&%s, v.%s)", m.Var, m.GoName)
+		f.p("\t}")
 	case m.Target.Type == smithy.TypeList || m.Target.Type == smithy.TypeMap:
 		switch {
 		case m.Empty == EmptyOmit:
@@ -304,7 +313,7 @@ func (f *file) unionDeserializer(s *ShapeIR) {
 }
 
 func (f *file) structDeserializer(s *ShapeIR) error {
-	if s.IO != nil {
+	if s.Top != 0 || s.Error != nil {
 		f.p("// Deserialize reads v from d. Absent members stay absent; Validate")
 		f.p("// reports missing required ones.")
 		f.p("func (v *%s) Deserialize(d smithy.Deserializer) error { return v.deserialize(d) }\n", s.GoName)
@@ -317,17 +326,8 @@ func (f *file) structDeserializer(s *ShapeIR) error {
 	if s.Tracked > 0 {
 		f.p("\tv.missing = 1<<%d - 1", s.Tracked)
 	}
-	for _, m := range s.Members {
-		if !m.Value || m.Default == nil {
-			continue
-		}
-		lit, set, err := defaultLit(m)
-		if err != nil {
-			return err
-		}
-		if set {
-			f.p("\tv.%s = %s", m.GoName, lit)
-		}
+	if err := f.memberDefaults(s); err != nil {
+		return err
 	}
 	f.p("\tfor {")
 	f.p("\t\tm, ok, err := d.ReadStructMember()")
@@ -340,15 +340,7 @@ func (f *file) structDeserializer(s *ShapeIR) error {
 	f.p("\t\tswitch m {")
 	for _, m := range s.Members {
 		f.p("\t\tcase &%s:", m.Var)
-		f.read(m, 3, "return err")
-		if m.Value || !pointerable(m.Target) {
-			f.p("\t\t\tv.%s = x", m.GoName)
-		} else {
-			f.p("\t\t\tv.%s = &x", m.GoName)
-		}
-		if m.Bit >= 0 {
-			f.p("\t\t\tv.missing &^= 1 << %d", m.Bit)
-		}
+		f.readMember(m)
 	}
 	f.p("\t\tdefault:")
 	f.p("\t\t\treturn fmt.Errorf(\"%s: structure %s has no member %%q; the codec returned a member of another shape\", m.Name)", f.ir.Package, s.ID)
@@ -356,6 +348,49 @@ func (f *file) structDeserializer(s *ShapeIR) error {
 	f.p("\t}")
 	f.p("}\n")
 	return nil
+}
+
+// memberDefaults sets, before any member is read, the default of each
+// member whose Go type cannot otherwise tell absent from the default.
+func (f *file) memberDefaults(s *ShapeIR) error {
+	for _, m := range s.Members {
+		if m.Default == nil || (!m.Value && !nilAbsent(m.Target.Type)) || m.Streaming {
+			continue
+		}
+		lit, set, err := f.defaultLit(m)
+		if err != nil {
+			return err
+		}
+		if set {
+			f.p("\tv.%s = %s", m.GoName, lit)
+		}
+	}
+	return nil
+}
+
+// readMember is the body of a structure deserializer's case for member m:
+// read the value, store it and clear the member's presence bit.
+func (f *file) readMember(m *MemberIR) {
+	switch {
+	case m.Streaming && m.Owner.Role&RoleInput == 0:
+		f.p("\t\t\treturn fmt.Errorf(\"%s: %s is an output stream, a smithy.BodySource; only an input stream is read\")", f.ir.Package, m.Var)
+		return
+	case m.Streaming:
+		f.p("\t\t\tx, err := d.ReadBody(&%s)", m.Var)
+		f.p("\t\t\tif err != nil {")
+		f.p("\t\t\t\treturn err")
+		f.p("\t\t\t}")
+	default:
+		f.read(m, 3, "return err")
+	}
+	if m.Value || !pointerable(m.Target) || m.Streaming {
+		f.p("\t\t\tv.%s = x", m.GoName)
+	} else {
+		f.p("\t\t\tv.%s = &x", m.GoName)
+	}
+	if m.Bit >= 0 {
+		f.p("\t\t\tv.missing &^= 1 << %d", m.Bit)
+	}
 }
 
 // readElem reads a list element or map value inside the loop of a
@@ -441,16 +476,41 @@ func failPrefix(fail string) string {
 	return ""
 }
 
-// defaultLit renders the default of a plain-value member as a Go literal of
-// its type. set is false for a zero default, which needs no assignment. A
-// default the generator cannot render fails rather than being dropped.
-func defaultLit(m *MemberIR) (lit string, set bool, err error) {
+// defaultLit renders the default of a member as a Go literal of its type.
+// set is false for a default equal to the Go zero value, which needs no
+// assignment; a slice, map, blob, document or big number is always set, as
+// its zero value means absent. A default the generator cannot render fails
+// rather than being dropped.
+func (f *file) defaultLit(m *MemberIR) (lit string, set bool, err error) {
 	text := strings.TrimSpace(string(m.Default))
 	t := m.Target
 	fail := func() (string, bool, error) {
 		return "", false, failf(StageEmit, m.Var, "default %s on a %s member is not rendered by this generator", text, t.Type)
 	}
 	switch t.Type {
+	case smithy.TypeList, smithy.TypeMap:
+		if text != "[]" && text != "{}" {
+			return fail()
+		}
+		return f.valueType(t) + "{}", true, nil
+	case smithy.TypeBlob:
+		// A blob default is base64 text (Smithy's default trait), unlike
+		// the plain text of examples and test params.
+		var s string
+		if json.Unmarshal(m.Default, &s) != nil {
+			return fail()
+		}
+		raw, derr := base64.StdEncoding.DecodeString(s)
+		if derr != nil {
+			return fail()
+		}
+		return "[]byte(" + goString(string(raw)) + ")", true, nil
+	case smithy.TypeTimestamp, smithy.TypeDocument, smithy.TypeBigInteger, smithy.TypeBigDecimal:
+		lit, err := f.exampleLit(t, m.Default, m.Var+" default")
+		if err != nil {
+			return "", false, err
+		}
+		return lit, true, nil
 	case smithy.TypeBoolean:
 		return text, text == "true", nil
 	case smithy.TypeByte, smithy.TypeShort, smithy.TypeInteger, smithy.TypeLong, smithy.TypeFloat,
@@ -473,8 +533,7 @@ func defaultLit(m *MemberIR) (lit string, set bool, err error) {
 			lit = t.GoName + "(" + lit + ")"
 		}
 		return lit, s != "", nil
-	case smithy.TypeStructure, smithy.TypeUnion, smithy.TypeList, smithy.TypeMap, smithy.TypeBlob,
-		smithy.TypeBigInteger, smithy.TypeBigDecimal, smithy.TypeTimestamp, smithy.TypeDocument, smithy.TypeUnit:
+	case smithy.TypeStructure, smithy.TypeUnion, smithy.TypeUnit:
 		return fail()
 	default:
 		return fail()

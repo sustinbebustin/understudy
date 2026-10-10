@@ -1,0 +1,13 @@
+{
+  "service": "com.amazonaws.kms#TrentService",
+  "package": "kmsapi",
+  "model": "kms",
+  "iamPrefix": "kms",
+  "iamPrimary": [
+    {
+      "operation": "ReEncrypt",
+      "action": "kms:ReEncryptFrom",
+      "reason": "the call needs both actions, ReEncryptFrom on the source key and ReEncryptTo on the destination key; the source key is checked first (smithy-models.md 8)"
+    }
+  ]
+}

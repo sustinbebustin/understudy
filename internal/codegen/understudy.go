@@ -475,32 +475,24 @@ func parsePathStyle(raw json.RawMessage) (PathStyle, error) {
 	}
 }
 
-// QueryKeyAlias is dev.understudy#queryKeyAlias: the awsQuery key a member
-// shares with another, and whether values decoded from that key land in
-// this member.
-type QueryKeyAlias struct {
-	Key     string
-	Receive bool
-}
-
-func parseQueryKeyAlias(raw json.RawMessage) (QueryKeyAlias, error) {
+func parseQueryKeyAlias(raw json.RawMessage) (smithy.QueryKeyAlias, error) {
 	var v struct {
 		Key    string `json:"key"`
 		Decode string `json:"decode"`
 	}
 	if err := decodeTrait(raw, &v); err != nil {
-		return QueryKeyAlias{}, err
+		return smithy.QueryKeyAlias{}, err
 	}
 	if v.Key == "" {
-		return QueryKeyAlias{}, errors.New(`"key" is required`)
+		return smithy.QueryKeyAlias{}, errors.New(`"key" is required`)
 	}
 	switch v.Decode {
 	case "receive":
-		return QueryKeyAlias{Key: v.Key, Receive: true}, nil
+		return smithy.QueryKeyAlias{Key: v.Key, Decode: smithy.AliasReceive}, nil
 	case "ignore":
-		return QueryKeyAlias{Key: v.Key}, nil
+		return smithy.QueryKeyAlias{Key: v.Key, Decode: smithy.AliasIgnore}, nil
 	default:
-		return QueryKeyAlias{}, fmt.Errorf(`"decode" is %q; use receive or ignore`, v.Decode)
+		return smithy.QueryKeyAlias{}, fmt.Errorf(`"decode" is %q; use receive or ignore`, v.Decode)
 	}
 }
 

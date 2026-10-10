@@ -233,6 +233,21 @@ func (e *LoadError) Error() string {
 // Unwrap returns the underlying cause.
 func (e *LoadError) Unwrap() error { return e.Err }
 
+// BlobReleaseError reports a load that replaced the state and rearmed every
+// service, but could not free the blobs only the replaced state used. The
+// loaded state is complete; the unfreed blobs stay in the blob store until
+// the emulator restarts.
+type BlobReleaseError struct {
+	Err error
+}
+
+func (e *BlobReleaseError) Error() string {
+	return "snapshot loaded, but freeing the blobs it no longer needs failed; some may stay in the blob store until the emulator restarts: " + e.Err.Error()
+}
+
+// Unwrap returns the underlying cause.
+func (e *BlobReleaseError) Unwrap() error { return e.Err }
+
 func writerName(w string) string {
 	if w == "" {
 		return "an unnamed understudy build"

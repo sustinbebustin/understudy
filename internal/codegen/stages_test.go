@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"io/fs"
+	"slices"
 	"strings"
 	"testing"
 	"testing/iotest"
 
 	"github.com/sustinbebustin/understudy/internal/codegen"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // evidence is the evidence trait every extra overlay entry carries.
@@ -38,28 +40,20 @@ func TestStageFailures(t *testing.T) {
 				"add it to traitClasses in internal/codegen/trait.go as honor, generation-only or ignore (smithy-models.md 4.3)",
 		},
 		{
-			name: "honored trait this generator does not emit yet",
-			extra: overlay(`"com.example.golden#PutKinds": {"type": "apply", "traits": {
-				"smithy.api#requestCompression": {"encodings": ["gzip"]}, ` + evidence + `}}`),
-			stage: codegen.StageClassify,
-			want: "understudy-gen classify: com.example.golden#PutKinds: trait smithy.api#requestCompression is honored " +
-				"but its emission lands with the all-models generator (PHASE1-PLAN T19)",
-		},
-		{
-			name: "queryKeyAlias before its emission exists",
+			name: "queryKeyAlias naming another key",
 			extra: overlay(`"com.example.golden#PutKindsRequest$Name": {"type": "apply", "traits": {
-				"dev.understudy#queryKeyAlias": {"key": "Name", "decode": "receive"}, ` + evidence + `}}`),
-			stage: codegen.StageClassify,
-			want: "understudy-gen classify: com.example.golden#PutKindsRequest$Name: trait dev.understudy#queryKeyAlias is honored " +
-				"but its emission lands with the all-models generator (PHASE1-PLAN T19)",
+				"dev.understudy#queryKeyAlias": {"key": "Other", "decode": "ignore"}, ` + evidence + `}}`),
+			stage: codegen.StageEffective,
+			want: "understudy-gen effective: com.example.golden#PutKindsRequest$Name: dev.understudy#queryKeyAlias key " +
+				`"Other" is not the member's awsQuery key "Name"; the alias names the key the member already has`,
 		},
 		{
-			name: "notConfigured before its emission exists",
+			name: "notConfigured naming a shape that is not an error",
 			extra: overlay(`"com.example.golden#GetThing": {"type": "apply", "traits": {
-				"dev.understudy#notConfigured": {"error": "com.example.golden#KindsFault"}, ` + evidence + `}}`),
-			stage: codegen.StageClassify,
-			want: "understudy-gen classify: com.example.golden#GetThing: trait dev.understudy#notConfigured is honored " +
-				"but its emission lands with the all-models generator (PHASE1-PLAN T19)",
+				"dev.understudy#notConfigured": {"error": "com.example.golden#Nested"}, ` + evidence + `}}`),
+			stage: codegen.StageIR,
+			want: "understudy-gen ir: com.example.golden#GetThing: dev.understudy#notConfigured names com.example.golden#Nested, " +
+				"which is not an error structure of golden",
 		},
 		{
 			name: "overlay operation no service reaches",
@@ -127,14 +121,6 @@ func TestStageFailures(t *testing.T) {
 			stage: codegen.StageOverlay,
 			want: `understudy-gen overlay: extra.json: com.example.golden#Extra: member "x": trait "smithy.api#required" ` +
 				"appears twice; merge the two into one",
-		},
-		{
-			name: "rolled-up validation paths",
-			extra: overlay(`"com.example.golden#Golden": {"type": "apply", "traits": {
-				"dev.understudy#validationPathStyle": "rolledUp", ` + evidence + `}}`),
-			stage: codegen.StageIR,
-			want: "understudy-gen ir: com.example.golden#Golden: validationPathStyle rolledUp is parsed, but this generator emits " +
-				"only indexed paths; rolled-up validators land with the all-models generator",
 		},
 		{
 			name: "replace that replaces nothing",
@@ -248,6 +234,24 @@ func TestReplaceLetsTheOverlayWin(t *testing.T) {
 	}
 }
 
+// TestQueryKeyAliasReachesTheSchema: the overlay's queryKeyAlias becomes the
+// member's smithy.QueryKeyAlias, which the awsQuery decoder applies.
+func TestQueryKeyAliasReachesTheSchema(t *testing.T) {
+	for _, tt := range []struct{ decode, want string }{
+		{"receive", `QueryKeyAlias: &smithy.QueryKeyAlias{Key: "Name", Decode: smithy.AliasReceive}`},
+		{"ignore", `QueryKeyAlias: &smithy.QueryKeyAlias{Key: "Name", Decode: smithy.AliasIgnore}`},
+	} {
+		files, err := codegen.Generate(goldenInputs(t, overlay(`"com.example.golden#PutKindsRequest$Name": {"type": "apply", "traits": {
+			"dev.understudy#queryKeyAlias": {"key": "Name", "decode": "`+tt.decode+`"}, `+evidence+`}}`)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(files["schema_gen.go"], []byte(tt.want)) {
+			t.Errorf("decode %q: schema_gen.go has no %s:\n%s", tt.decode, tt.want, files["schema_gen.go"])
+		}
+	}
+}
+
 // TestEntriesOnOneShapeMerge: two overlays may each apply traits to the
 // same shape, each with its own evidence (overlays/common.json and a
 // service overlay, or two entries of one research pass).
@@ -261,6 +265,74 @@ func TestEntriesOnOneShapeMerge(t *testing.T) {
 	src := files["errors_gen.go"]
 	if !bytes.Contains(src, []byte(`Status: 422`)) || !bytes.Contains(src, []byte(`Kinds failed for this wsdl version.`)) {
 		t.Fatalf("the two entries on KindsFault did not both apply:\n%s", src)
+	}
+}
+
+// TestFamilyVocabulary: the errors a family's defaults shape lists are the
+// generic vocabulary of every service speaking that family, in that order.
+func TestFamilyVocabulary(t *testing.T) {
+	vocabulary := func(errs string) string {
+		return overlay(`"dev.understudy.defaults#QueryFamily": {"type": "service", "errors": [` + errs + `], "traits": {` + evidence + `}}`)
+	}
+	files, err := codegen.Generate(goldenInputs(t, vocabulary(`{"target": "com.example.golden#KindsFault"}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "\tcase awserr.QueryFamily:\n\t\treturn []awserr.Identity{IdentityKindsFault()}\n\tdefault:\n\t\treturn nil\n"
+	if !bytes.Contains(files["errors_gen.go"], []byte(want)) {
+		t.Fatalf("errors_gen.go lacks the Query vocabulary:\n%s", files["errors_gen.go"])
+	}
+	_, err = codegen.Generate(goldenInputs(t, vocabulary(`{"target": "com.example.golden#Nested"}`)))
+	const failure = "understudy-gen ir: dev.understudy.defaults#QueryFamily: lists com.example.golden#Nested under errors, " +
+		"but it has no error trait; the family vocabulary holds error structures only"
+	var gerr *codegen.Error
+	if !errors.As(err, &gerr) || gerr.Stage != codegen.StageIR || err.Error() != failure {
+		t.Fatalf("Generate = %v\nwant %s", err, failure)
+	}
+}
+
+// TestNotConfiguredEmitsTheAnswer: an S3-style Get* operation with
+// notConfigured gets a NotConfigured<Op> constructor: the error, or the
+// default output as a typed literal (wire-rest.md Implications 7).
+func TestNotConfiguredEmitsTheAnswer(t *testing.T) {
+	tests := []struct{ name, trait, want string }{
+		{"error", `{"error": "com.example.golden#KindsFault"}`, "func NotConfiguredGetThing(message string) *awserr.Error { return ErrKindsFault(message) }"},
+		{"default", `{"default": {"Name": "unset"}}`, `func NotConfiguredGetThing() *GetThingOutput { return &GetThingOutput{Name: new("unset")} }`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			files, err := codegen.Generate(goldenInputs(t, overlay(`"com.example.golden#GetThing": {"type": "apply", "traits": {
+				"dev.understudy#notConfigured": `+tt.trait+`, `+evidence+`}}`)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Contains(files["ops_gen.go"], []byte(tt.want)) {
+				t.Fatalf("ops_gen.go lacks\n%s\n\n%s", tt.want, files["ops_gen.go"])
+			}
+		})
+	}
+}
+
+// TestRolledUpPathsReportAtTheCollection: with validationPathStyle rolledUp
+// (Lambda), a list element's own constraints are one Composite violation at
+// the list with the whole list as the value (error-matrix.md 4, style B).
+func TestRolledUpPathsReportAtTheCollection(t *testing.T) {
+	files, err := codegen.Generate(goldenInputs(t, overlay(`"com.example.golden#Golden": {"type": "apply", "traits": {
+		"dev.understudy#validationPathStyle": "rolledUp", `+evidence+`}}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := files["validate_gen.go"]
+	for _, want := range []string{
+		`Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{`,
+		`Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}`,
+	} {
+		if !bytes.Contains(src, []byte(want)) {
+			t.Fatalf("validate_gen.go lacks %s:\n%s", want, src)
+		}
+	}
+	if bytes.Contains(src, []byte(`at(path, "tags"), strconv.Itoa(`)) {
+		t.Fatalf("rolled-up validators still index the tags elements:\n%s", src)
 	}
 }
 
@@ -335,6 +407,152 @@ func TestLoadRejectsARepeatedShapeKey(t *testing.T) {
 	var gerr *codegen.Error
 	if !errors.As(err, &gerr) || gerr.Stage != codegen.StageLoad || err.Error() != want {
 		t.Fatalf("Load = %v\nwant %s", err, want)
+	}
+}
+
+// TestIAMPrimaryAction: a descriptor lists the primary action first, never
+// the Service Reference's alphabetical first (smithy-models.md 8). The
+// fixture's PutKinds authorizes golden:TagThing, golden:PutKinds and
+// iam:PassRole, and the service lists no Actions[]; each case swaps in
+// another list, Actions[], operation name or iamPrimary entry.
+func TestIAMPrimaryAction(t *testing.T) {
+	const fixture = `["golden:TagThing", "golden:PutKinds", "iam:PassRole"]`
+	const noActions = `"actions": []`
+	const listsPutKinds = `[{"name": "PutKinds"}]`
+	const config = "codegen/services/golden.json"
+	const putKinds = "understudy-gen ir: com.example.golden#PutKinds: "
+	mapTo := func(op, action string) []codegen.IAMPrimary {
+		prefix, name, _ := strings.Cut(action, ":")
+		return []codegen.IAMPrimary{{Operation: op, Action: registry.IAMAction{Prefix: prefix, Name: name}, Reason: "test"}}
+	}
+	tests := []struct {
+		name       string
+		authorized string
+		actions    string // the service's Actions[], when not empty
+		op         string // the name PutKinds is renamed to, when renamed
+		primary    []codegen.IAMPrimary
+		first      string // the first action of the operation, when generation succeeds
+		err        string
+	}{
+		{name: "same name", authorized: fixture, first: `{Prefix: "golden", Name: "PutKinds"}`},
+		{
+			name: "same-name action listed under Actions only", authorized: `["golden:TagThing", "iam:PassRole"]`, actions: listsPutKinds,
+			first: `{Prefix: "golden", Name: "PutKinds"}, {Prefix: "golden", Name: "TagThing"}, {Prefix: "iam", Name: "PassRole"}}`,
+		},
+		{
+			name: "same-name action listed under Actions, none authorized", authorized: `[]`, actions: listsPutKinds,
+			first: `{Prefix: "golden", Name: "PutKinds"}}`,
+		},
+		{
+			name: "iamPrimary the Actions same-name action makes redundant", authorized: `["golden:TagThing", "golden:WriteKinds"]`,
+			actions: listsPutKinds, primary: mapTo("PutKinds", "golden:WriteKinds"),
+			err: putKinds + "the rules already make golden:PutKinds the primary action; remove its iamPrimary entry from " + config,
+		},
+		{
+			name: "a Batch operation's single-item action", op: "PutKindsBatch",
+			authorized: `["golden:TagThing", "golden:PutKinds", "golden:WriteKinds"]`,
+			first:      `{Prefix: "golden", Name: "PutKinds"}, {Prefix: "golden", Name: "TagThing"}, {Prefix: "golden", Name: "WriteKinds"}}`,
+		},
+		{
+			name: "iamPrimary for an operation that authorizes nothing", authorized: fixture, primary: mapTo("Ping", "golden:Ping"),
+			err: "understudy-gen ir: com.example.golden#Ping: the Service Reference lists no authorized action; remove its iamPrimary entry from " + config,
+		},
+		{
+			name: "the one action under the service's prefix outranks iam:PassRole", authorized: `["iam:PassRole", "golden:ReplaceKinds"]`,
+			first: `{Prefix: "golden", Name: "ReplaceKinds"}`,
+		},
+		{
+			name: "iamPrimary picks among several", authorized: `["golden:TagThing", "golden:WriteKinds"]`,
+			primary: mapTo("PutKinds", "golden:WriteKinds"), first: `{Prefix: "golden", Name: "WriteKinds"}`,
+		},
+		{
+			name: "several and no iamPrimary", authorized: `["golden:TagThing", "golden:WriteKinds", "iam:PassRole"]`,
+			err: putKinds + "no rule picks the primary action among [golden:TagThing golden:WriteKinds iam:PassRole] (2 under golden); " +
+				"add an iamPrimary entry {operation, action, reason} to " + config,
+		},
+		{
+			name: "iamPrimary the rules make redundant", authorized: fixture, primary: mapTo("PutKinds", "golden:TagThing"),
+			err: putKinds + "the rules already make golden:PutKinds the primary action; remove its iamPrimary entry from " + config,
+		},
+		{
+			name: "iamPrimary naming an action not authorized", authorized: `["golden:TagThing", "golden:WriteKinds"]`,
+			primary: mapTo("PutKinds", "golden:DeleteKinds"),
+			err: putKinds + "the iamPrimary entry in " + config + " names golden:DeleteKinds, which is not among the authorized actions " +
+				"[golden:TagThing golden:WriteKinds]",
+		},
+		{
+			name: "iamPrimary naming no modeled operation", authorized: fixture, primary: mapTo("PutKind", "golden:TagThing"),
+			err: "understudy-gen ir: " + config + ": iamPrimary names PutKind, which is not a modeled operation of com.example.golden#Golden",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in := goldenInputs(t)
+			table, ok := in.IAM.(codegen.ActionsTable)
+			if !ok {
+				t.Fatalf("goldenInputs gives IAM %T, want an ActionsTable", in.IAM)
+			}
+			table.Source.Content = bytes.Replace(table.Source.Content, []byte(fixture), []byte(tt.authorized), 1)
+			if tt.actions != "" {
+				table.Source.Content = bytes.Replace(table.Source.Content, []byte(noActions), []byte(`"actions": `+tt.actions), 1)
+			}
+			if tt.op != "" {
+				table.Source.Content = bytes.Replace(table.Source.Content, []byte(`{"name": "PutKinds"`), []byte(`{"name": "`+tt.op+`"`), 1)
+				rename := func(src []byte) []byte {
+					return bytes.ReplaceAll(src, []byte("golden#PutKinds"), []byte("golden#"+tt.op))
+				}
+				in.Model.Content = rename(in.Model.Content)
+				for i := range in.Overlays {
+					in.Overlays[i].Content = rename(in.Overlays[i].Content)
+				}
+			}
+			in.IAM = table
+			in.Config.IAMPrimary = tt.primary
+			files, err := codegen.Generate(in)
+			if tt.err != "" {
+				var gerr *codegen.Error
+				if !errors.As(err, &gerr) || gerr.Stage != codegen.StageIR || err.Error() != tt.err {
+					t.Fatalf("Generate = %v\nwant %s", err, tt.err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := "[]registry.IAMAction{" + tt.first; !bytes.Contains(files["ops_gen.go"], []byte(want)) {
+				t.Fatalf("PutKinds does not list %s first:\n%s", tt.first, files["ops_gen.go"])
+			}
+		})
+	}
+}
+
+// TestServiceConfigIAMPrimaryEntries: an iamPrimary entry states its reason,
+// and one operation has one entry.
+func TestServiceConfigIAMPrimaryEntries(t *testing.T) {
+	const head = `{"service": "com.amazonaws.s3#AmazonS3", "package": "s3api", "model": "s3", "iamPrefix": "s3", "iamPrimary": [`
+	const entry = `{"operation": "ListObjects", "action": "s3:ListBucket", "reason": "smithy-models.md 8"}`
+	tests := []struct{ name, entries, want string }{
+		{
+			"no reason", `{"operation": "ListObjects", "action": "s3:ListBucket"}`,
+			`understudy-gen load: codegen/services/s3.json: iamPrimary[0]: an entry needs "operation", "action" and the "reason" that action is the primary one`,
+		},
+		{
+			"two entries for one operation", entry + ", " + entry,
+			"understudy-gen load: codegen/services/s3.json: iamPrimary[1]: ListObjects has two entries; merge them into one",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := codegen.ParseServiceConfig(strings.NewReader(head+tt.entries+"]}"), "s3")
+			if err == nil || err.Error() != tt.want {
+				t.Fatalf("ParseServiceConfig = %v\nwant %s", err, tt.want)
+			}
+		})
+	}
+	cfg, err := codegen.ParseServiceConfig(strings.NewReader(head+entry+"]}"), "s3")
+	want := []codegen.IAMPrimary{{Operation: "ListObjects", Action: registry.IAMAction{Prefix: "s3", Name: "ListBucket"}, Reason: "smithy-models.md 8"}}
+	if err != nil || !slices.Equal(cfg.IAMPrimary, want) {
+		t.Fatalf("ParseServiceConfig = %+v, %v; want iamPrimary %+v", cfg.IAMPrimary, err, want)
 	}
 }
 

@@ -1,0 +1,38 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.eventbridge#AWSEvents": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazonaws.eventbridge#ThrottlingException",
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/phase1/error-matrix.md#512-eventbridge-json-11",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/events/test_events.snapshot.json#L234",
+            "validated": "2025-01-08",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.eventbridge#PathParameter": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    }
+  }
+}

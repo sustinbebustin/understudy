@@ -1,0 +1,59 @@
+{
+  "smithy": "1.74.0",
+  "license": "Apache-2.0",
+  "generated": "2026-10-10",
+  "cli": {
+    "url": "https://github.com/smithy-lang/smithy/releases/download/1.74.0/smithy-cli-linux-x86_64.zip",
+    "sha256": "66e1fc2143bc707d177e63dee3f5303c8f347b6a9ca1282e5345eb02c1aebab4"
+  },
+  "command": "smithy ast --no-config --flatten smithy-aws-protocol-tests-1.74.0.jar smithy-protocol-tests-1.74.0.jar smithy-aws-traits-1.74.0.jar smithy-protocol-test-traits-1.74.0.jar smithy-protocol-traits-1.74.0.jar smithy-validation-model-1.74.0.jar > model.json",
+  "jars": [
+    {
+      "artifact": "software.amazon.smithy:smithy-aws-protocol-tests:1.74.0",
+      "url": "https://repo1.maven.org/maven2/software/amazon/smithy/smithy-aws-protocol-tests/1.74.0/smithy-aws-protocol-tests-1.74.0.jar",
+      "bytes": 235981,
+      "sha1": "4fba93d0f26b056d68679ecc5c142a17427d2f5f",
+      "sha256": "c9fd6736c1a04f09978bfe109e069d99aaab6b16bb02e8d406bc95e7b4397fa0"
+    },
+    {
+      "artifact": "software.amazon.smithy:smithy-protocol-tests:1.74.0",
+      "url": "https://repo1.maven.org/maven2/software/amazon/smithy/smithy-protocol-tests/1.74.0/smithy-protocol-tests-1.74.0.jar",
+      "bytes": 31787,
+      "sha1": "dff62e872ff63e7a138e21606106df8249c59a24",
+      "sha256": "743ae83b2149b5c65fff173f204ec60b0681b056defec63ba6faf9ab9606d801"
+    },
+    {
+      "artifact": "software.amazon.smithy:smithy-aws-traits:1.74.0",
+      "url": "https://repo1.maven.org/maven2/software/amazon/smithy/smithy-aws-traits/1.74.0/smithy-aws-traits-1.74.0.jar",
+      "bytes": 198733,
+      "sha1": "529769175d692038622bfb8e5eb5af0a1156d415",
+      "sha256": "87b6fb35dbc988b4db42184a84460932cd775d0fa3c94e2b53ddad3cee157ea9"
+    },
+    {
+      "artifact": "software.amazon.smithy:smithy-protocol-test-traits:1.74.0",
+      "url": "https://repo1.maven.org/maven2/software/amazon/smithy/smithy-protocol-test-traits/1.74.0/smithy-protocol-test-traits-1.74.0.jar",
+      "bytes": 118234,
+      "sha1": "1377631f9473e2f987448ba1a7d054220bd182bf",
+      "sha256": "be0af3d1c6d05981e6ae4f4d980a156e21d93be8c7d2a5e5eaab57b24d140b5e"
+    },
+    {
+      "artifact": "software.amazon.smithy:smithy-protocol-traits:1.74.0",
+      "url": "https://repo1.maven.org/maven2/software/amazon/smithy/smithy-protocol-traits/1.74.0/smithy-protocol-traits-1.74.0.jar",
+      "bytes": 19105,
+      "sha1": "ee99a4b20ab98042ff9b209578fa51ed26ca50cb",
+      "sha256": "bdc10a1eb56eaa6704994211b78778a9a8566d5b540a2c83d5d8d13292639c7f"
+    },
+    {
+      "artifact": "software.amazon.smithy:smithy-validation-model:1.74.0",
+      "url": "https://repo1.maven.org/maven2/software/amazon/smithy/smithy-validation-model/1.74.0/smithy-validation-model-1.74.0.jar",
+      "bytes": 5536,
+      "sha1": "cb60609310655f3178e2be719520cf40d32cc806",
+      "sha256": "4b0193dac7a3e41f48d31f1559d0957edde76f37c9400164553fb1987ace90bb"
+    }
+  ],
+  "output": {
+    "path": "model.json",
+    "bytes": 2400318,
+    "sha256": "e6b72aac32ddee9084a2086a8cce20cf80c9465bceb9387f47030b08ec4e503f"
+  }
+}

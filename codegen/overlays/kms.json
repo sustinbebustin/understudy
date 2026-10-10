@@ -1,0 +1,65 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.kms#TrentService": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/kms/latest/APIReference/CommonErrors.html",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/kms/test_kms.snapshot.json#L17",
+            "validated": "2024-04-11",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.kms#NotFoundException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#statusOverride": 400,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html"
+        }
+      }
+    },
+    "com.amazonaws.kms#DisabledException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#statusOverride": 400,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html"
+        }
+      }
+    },
+    "com.amazonaws.kms#KMSInvalidStateException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#statusOverride": 400,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html"
+        }
+      }
+    },
+    "com.amazonaws.kms#DependencyTimeoutException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#statusOverride": 500,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html"
+        }
+      }
+    }
+  }
+}

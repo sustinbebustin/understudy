@@ -51,6 +51,15 @@ func emitExamples(ir *ServiceIR) ([]byte, error) {
 	f.p("\t\t})")
 	f.p("\t}")
 	f.p("}")
+	if f.exampleBodies {
+		f.use("io", "strings")
+		f.p("")
+		f.p("// exampleBody is an example's streamed member: its text is the body.")
+		f.p("type exampleBody string\n")
+		f.p("func (b exampleBody) Open() (io.ReadCloser, error) { return io.NopCloser(strings.NewReader(string(b))), nil }\n")
+		f.p("func (b exampleBody) Len() (int64, bool) { return int64(len(b)), true }\n")
+		f.p("func (exampleBody) Trailer(string) (string, bool) { return \"\", false }")
+	}
 	return f.bytes()
 }
 
@@ -66,6 +75,7 @@ func (f *file) exampleLit(s *ShapeIR, raw json.RawMessage, subject string) (stri
 	if err := dec.Decode(&v); err != nil {
 		return fail("%v", err)
 	}
+	var lit, want string
 	switch s.Type {
 	case smithy.TypeStructure, smithy.TypeUnit:
 		return f.structLit(s, raw, subject)
@@ -75,45 +85,8 @@ func (f *file) exampleLit(s *ShapeIR, raw json.RawMessage, subject string) (stri
 		return f.listLit(s, raw, subject)
 	case smithy.TypeMap:
 		return f.mapLit(s, raw, subject)
-	case smithy.TypeString:
-		text, ok := v.(string)
-		if !ok {
-			return fail("want a string, have %s", raw)
-		}
-		return goString(text), nil
-	case smithy.TypeEnum:
-		text, ok := v.(string)
-		if !ok {
-			return fail("want a string, have %s", raw)
-		}
-		return s.GoName + "(" + goString(text) + ")", nil
-	case smithy.TypeBlob:
-		text, ok := v.(string)
-		if !ok {
-			return fail("want a string, have %s", raw)
-		}
-		return "[]byte(" + goString(text) + ")", nil
-	case smithy.TypeBoolean:
-		b, ok := v.(bool)
-		if !ok {
-			return fail("want a boolean, have %s", raw)
-		}
-		return strconv.FormatBool(b), nil
-	case smithy.TypeByte, smithy.TypeShort, smithy.TypeInteger, smithy.TypeLong, smithy.TypeIntEnum:
-		n, ok := v.(json.Number)
-		if _, err := n.Int64(); !ok || err != nil {
-			return fail("want an integer, have %s", raw)
-		}
-		return f.valueType(s) + "(" + n.String() + ")", nil
-	case smithy.TypeFloat, smithy.TypeDouble, smithy.TypeBigDecimal:
-		n, ok := v.(json.Number)
-		if _, err := n.Float64(); !ok || err != nil {
-			return fail("want a number, have %s", raw)
-		}
-		if s.Type == smithy.TypeBigDecimal {
-			return f.valueType(s) + "(" + goString(n.String()) + ")", nil
-		}
-		return f.valueType(s) + "(" + n.String() + ")", nil
+	case smithy.TypeDocument:
+		return f.documentLit(raw)
 	case smithy.TypeTimestamp:
 		at, err := exampleTime(v)
 		if err != nil {
@@ -122,13 +95,87 @@ func (f *file) exampleLit(s *ShapeIR, raw json.RawMessage, subject string) (stri
 		f.use("time")
 		return fmt.Sprintf("time.Date(%d, time.%s, %d, %d, %d, %d, %d, time.UTC)",
 			at.Year(), at.Month(), at.Day(), at.Hour(), at.Minute(), at.Second(), at.Nanosecond()), nil
-	case smithy.TypeDocument:
-		return f.documentLit(raw)
+	case smithy.TypeString, smithy.TypeEnum, smithy.TypeBlob:
+		lit, want = textLit(s, v)
+	case smithy.TypeBoolean:
+		if b, ok := v.(bool); ok {
+			lit = strconv.FormatBool(b)
+		} else {
+			want = "a boolean"
+		}
+	case smithy.TypeByte, smithy.TypeShort, smithy.TypeInteger, smithy.TypeLong, smithy.TypeIntEnum:
+		if n, ok := v.(json.Number); ok && isInt64(n) {
+			lit = f.valueType(s) + "(" + n.String() + ")"
+		} else {
+			want = "an integer"
+		}
+	case smithy.TypeFloat, smithy.TypeDouble:
+		lit, want = f.floatLit(s, v)
 	case smithy.TypeBigInteger:
-		return fail("bigInteger example values are not rendered")
+		if n, ok := v.(json.Number); ok && isInt64(n) {
+			f.use("big")
+			lit = "big.NewInt(" + n.String() + ")"
+		} else {
+			want = "an integer that fits 64 bits"
+		}
+	case smithy.TypeBigDecimal:
+		if n, ok := v.(json.Number); ok && isFloat64(n) {
+			lit = f.valueType(s) + "(" + goString(n.String()) + ")"
+		} else {
+			want = "a number"
+		}
 	default:
 		return fail("shape type %s has no example rendering", s.Type)
 	}
+	if want != "" {
+		return fail("want %s, have %s", want, raw)
+	}
+	return lit, nil
+}
+
+// textLit renders a string, enum or blob value v; want names the JSON kind
+// expected when v is not one.
+func textLit(s *ShapeIR, v any) (lit, want string) {
+	text, ok := v.(string)
+	switch {
+	case !ok:
+		return "", "a string"
+	case s.Type == smithy.TypeEnum:
+		return s.GoName + "(" + goString(text) + ")", ""
+	case s.Type == smithy.TypeBlob:
+		return "[]byte(" + goString(text) + ")", ""
+	default:
+		return goString(text), ""
+	}
+}
+
+// floatLit renders a float or double value v. Test params write the IEEE
+// specials as strings.
+func (f *file) floatLit(s *ShapeIR, v any) (lit, want string) {
+	const expected = "a number or NaN, Infinity or -Infinity"
+	if text, ok := v.(string); ok {
+		specials := map[string]string{"NaN": "math.NaN()", "Infinity": "math.Inf(1)", "-Infinity": "math.Inf(-1)"}
+		special, ok := specials[text]
+		if !ok {
+			return "", expected
+		}
+		f.use("math")
+		return f.valueType(s) + "(" + special + ")", ""
+	}
+	if n, ok := v.(json.Number); ok && isFloat64(n) {
+		return f.valueType(s) + "(" + n.String() + ")", ""
+	}
+	return "", expected
+}
+
+func isInt64(n json.Number) bool {
+	_, err := n.Int64()
+	return err == nil
+}
+
+func isFloat64(n json.Number) bool {
+	_, err := n.Float64()
+	return err == nil
 }
 
 // exampleTime reads a timestamp as Smithy examples write it: epoch seconds
@@ -173,6 +220,14 @@ func (f *file) structLit(s *ShapeIR, raw json.RawMessage, subject string) (strin
 		if !ok || string(v) == "null" {
 			continue
 		}
+		if m.Streaming {
+			body, err := f.exampleBody(m, v, subject)
+			if err != nil {
+				return "", err
+			}
+			fields = append(fields, m.GoName+": "+body)
+			continue
+		}
 		lit, err := f.exampleLit(m.Target, v, subject)
 		if err != nil {
 			return "", err
@@ -183,6 +238,29 @@ func (f *file) structLit(s *ShapeIR, raw json.RawMessage, subject string) (strin
 		fields = append(fields, m.GoName+": "+lit)
 	}
 	return s.GoName + "{" + strings.Join(fields, ", ") + "}", nil
+}
+
+// exampleBody renders a streamed member of an example or a compliance case:
+// its text is the body. A model example's input stream is an exampleBody
+// its test file declares; a case's stream is a gen.TextBody on input and a
+// gen.TextSource on output.
+func (f *file) exampleBody(m *MemberIR, raw json.RawMessage, subject string) (string, error) {
+	var text string
+	if err := json.Unmarshal(raw, &text); err != nil {
+		return "", failf(StageEmit, subject, "%s streams; only a stream given as text has a literal", m.Var)
+	}
+	input := m.Owner.Role&RoleInput != 0
+	switch {
+	case f.name == "cases_gen.go" && input:
+		return "gen.TextBody(" + goString(text) + ")", nil
+	case f.name == "cases_gen.go":
+		return "gen.TextSource(" + goString(text) + ")", nil
+	case strings.HasSuffix(f.name, "_test.go") && input:
+		f.exampleBodies = true
+		return "exampleBody(" + goString(text) + ")", nil
+	default:
+		return "", failf(StageEmit, subject, "%s streams; only a test file or a case table renders a stream literal", m.Var)
+	}
 }
 
 func (f *file) unionLit(s *ShapeIR, raw json.RawMessage, subject string) (string, error) {

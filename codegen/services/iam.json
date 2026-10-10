@@ -1,0 +1,13 @@
+{
+  "service": "com.amazonaws.iam#AWSIdentityManagementV20100508",
+  "package": "iamapi",
+  "model": "iam",
+  "iamPrefix": "iam",
+  "iamPrimary": [
+    {
+      "operation": "AcquireRole",
+      "action": "iam:CreateRole",
+      "reason": "the model documents AcquireRole as creating a role from a role template; the other actions apply the template's policies, boundary and tags"
+    }
+  ]
+}

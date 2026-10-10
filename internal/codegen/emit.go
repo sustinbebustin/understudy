@@ -19,13 +19,16 @@ func importPaths() map[string]string {
 	return map[string]string{
 		"smithy":   mod + "protocol/smithy",
 		"document": mod + "protocol/smithy/document",
+		"gen":      mod + "protocoltest/gen",
 		"awserr":   mod + "awserr",
 		"registry": mod + "registry",
 		"kernel":   mod + "kernel",
 		"ref":      mod + "ref",
 		"big":      "math/big",
 		"fmt":      "fmt",
+		"io":       "io",
 		"maps":     "maps",
+		"math":     "math",
 		"regexp":   "regexp",
 		"slices":   "slices",
 		"strconv":  "strconv",
@@ -50,6 +53,9 @@ type file struct {
 	doc     []string // package comment lines, set on one file per package
 	body    bytes.Buffer
 	imports map[string]bool
+	// exampleBodies records that an example literal used exampleBody, so the
+	// examples test file declares it.
+	exampleBodies bool
 }
 
 func newFile(ir *ServiceIR, name string) *file {
@@ -74,7 +80,7 @@ func (f *file) p(layout string, args ...any) {
 // through go/format.
 func (f *file) bytes() ([]byte, error) {
 	var out bytes.Buffer
-	fmt.Fprintf(&out, "%sfrom api-models-aws@%s %s%s\n\n", headerPrefix, f.ir.Pin, f.ir.ModelFile, headerSuffix)
+	fmt.Fprintf(&out, "%sfrom %s %s%s\n\n", headerPrefix, f.ir.Origin, f.ir.ModelFile, headerSuffix)
 	for _, l := range f.doc {
 		fmt.Fprintf(&out, "// %s\n", l)
 	}
@@ -209,8 +215,16 @@ func (f *file) elemType(m *MemberIR) string {
 	return t
 }
 
-// fieldType is the Go type of a structure member.
+// fieldType is the Go type of a structure member. A stream is a smithy.Body
+// in an input structure and a smithy.BodySource in an output one.
 func (f *file) fieldType(m *MemberIR) string {
+	if m.Streaming {
+		f.use("smithy")
+		if m.Owner.Role&RoleInput != 0 {
+			return "smithy.Body"
+		}
+		return "smithy.BodySource"
+	}
 	t := f.valueType(m.Target)
 	if !m.Value && pointerable(m.Target) {
 		return "*" + t

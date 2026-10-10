@@ -2,7 +2,9 @@ package kerneltest
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"testing/synctest"
 
@@ -40,9 +42,10 @@ type K struct {
 }
 
 type config struct {
-	services []*registry.Service
-	mode     clock.Mode
-	seed     uint64
+	services    []*registry.Service
+	mode        clock.Mode
+	seed        uint64
+	journalFile string
 }
 
 // Option adjusts Run.
@@ -61,6 +64,13 @@ func Mode(m clock.Mode) Option {
 // Seed seeds the identifier and fault streams; the default is 1.
 func Seed(n uint64) Option {
 	return func(c *config) { c.seed = n }
+}
+
+// JournalFile makes the journal also append to the NDJSON file at path.
+// Run closes the journal when fn returns and fails the test on a file
+// failure, except a write after a close fn made itself.
+func JournalFile(path string) Option {
+	return func(c *config) { c.journalFile = path }
 }
 
 // Run runs fn inside a synctest bubble against a running kernel: a frozen
@@ -89,6 +99,9 @@ func Run(t *testing.T, fn func(k *K), opts ...Option) {
 			if err := k.Kernel.BindErr(); err != nil {
 				t.Errorf("bind mistakes: %v", err)
 			}
+			if err := k.Journal.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+				t.Errorf("journal file: %v", err)
+			}
 		}()
 		fn(k)
 	})
@@ -101,7 +114,11 @@ func build(t *testing.T, cfg config) *K {
 	if err != nil {
 		t.Fatal(err)
 	}
-	j, err := journal.New(journal.Options{Clock: clk})
+	jopts := journal.Options{Clock: clk}
+	if cfg.journalFile != "" {
+		jopts.File = &journal.FileOptions{Path: cfg.journalFile}
+	}
+	j, err := journal.New(jopts)
 	if err != nil {
 		t.Fatal(err)
 	}

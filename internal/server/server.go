@@ -12,8 +12,11 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
+	"sync"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/journal"
 )
 
@@ -21,8 +24,16 @@ import (
 // later. The zero Config listens on an ephemeral loopback port with a
 // running clock, random ids and text logs at info level.
 type Config struct {
-	// Listen is the address to bind; port 0 picks a free one.
-	Listen     netip.AddrPort
+	// Listen is the address to bind; port 0 picks a free one. An address
+	// beyond loopback needs AdminToken.
+	Listen netip.AddrPort
+	// AdminToken, when set, is the bearer token every admin call on the
+	// main listener must carry.
+	AdminToken string
+	// Persist is where state persists; nil is Ephemeral.
+	Persist Persistence
+	// TLS is the TLS listener setting; nil is TLSOff.
+	TLS        TLS
 	ClockStart ClockStart
 	// Seed makes every generated id reproducible; nil draws from crypto/rand.
 	Seed      *uint64
@@ -52,6 +63,33 @@ type ClockFrozen struct{ At time.Time }
 func (ClockRunning) isClockStart() {}
 func (ClockFrozen) isClockStart()  {}
 
+// Persistence is where emulator state persists.
+//
+//sumtype:decl
+type Persistence interface{ isPersistence() }
+
+// Ephemeral keeps state in memory only.
+type Ephemeral struct{}
+
+// PersistDir keeps state under Path. In this build it roots the admin
+// snapshot path form ({"path"} on /snapshots); loading at startup and the
+// periodic checkpoint arrive with the persistence wiring.
+type PersistDir struct{ Path string }
+
+func (Ephemeral) isPersistence()  {}
+func (PersistDir) isPersistence() {}
+
+// TLS is the TLS listener setting.
+//
+//sumtype:decl
+type TLS interface{ isTLS() }
+
+// TLSOff serves plain HTTP only; the self-signed TLS listener arrives with
+// the distribution wiring.
+type TLSOff struct{}
+
+func (TLSOff) isTLS() {}
+
 // LogFormat is how log records are written.
 type LogFormat uint8
 
@@ -64,29 +102,57 @@ const (
 // Server is one understudy serve: the wired emulator and its main
 // listener.
 type Server struct {
-	cfg    Config
-	log    *slog.Logger
-	health *health
-	wired  *wiring
+	cfg   Config
+	log   *slog.Logger
+	wired *wiring
+	// mu guards phase.
+	mu    sync.Mutex
+	phase phase
+}
+
+// phase is where a Server is in its life. New returns it built; Serve moves
+// it to serving and, at shutdown, to released; Close moves a built Server
+// to released.
+type phase uint8
+
+const (
+	built phase = iota
+	serving
+	released
+)
+
+// StateError reports a Serve or Close the Server's phase does not allow.
+type StateError struct {
+	Op     string
+	Reason string
+}
+
+func (e *StateError) Error() string {
+	return "server: " + e.Op + " refused: " + e.Reason
 }
 
 // ListenError is a Config.Listen address serve refuses: a non-loopback
-// listener would expose the unauthenticated admin API (ARCHITECTURE.md 20).
+// listener without an admin token would expose the admin API under
+// /_understudy/ to the network (ARCHITECTURE.md 20).
 type ListenError struct{ Addr netip.AddrPort }
 
 func (e *ListenError) Error() string {
 	return fmt.Sprintf("refusing to listen on %s: a non-loopback listener would expose the admin API under /_understudy/ to the network. "+
-		"Listening beyond loopback needs an admin token or a published container port, and this build supports neither yet; "+
-		"listen on loopback instead, such as --listen 127.0.0.1:%d", e.Addr, e.Addr.Port())
+		"Listening beyond loopback needs an admin token, which every admin call must then send as Authorization: Bearer <token>, "+
+		"or a published container port inside a container, which this build does not detect yet; "+
+		"to stay local, listen on loopback, such as --listen 127.0.0.1:%d", e.Addr, e.Addr.Port())
 }
 
 // New wires the emulator. Nothing listens until Serve. A zero Listen is
-// 127.0.0.1:0; a non-loopback one is a *ListenError.
+// 127.0.0.1:0; a non-loopback one without an AdminToken is a *ListenError.
+// What New opens (the journal, the blob store and its temporary directory,
+// the data directory) is released when Serve shuts down, or by Close when
+// the Server is never served.
 func New(cfg Config) (*Server, error) {
 	if !cfg.Listen.IsValid() {
 		cfg.Listen = netip.AddrPortFrom(netip.AddrFrom4([4]byte{127, 0, 0, 1}), 0)
 	}
-	if !cfg.Listen.Addr().IsLoopback() {
+	if !cfg.Listen.Addr().IsLoopback() && cfg.AdminToken == "" {
 		return nil, &ListenError{Addr: cfg.Listen}
 	}
 	out := cfg.LogOutput
@@ -99,14 +165,11 @@ func New(cfg Config) (*Server, error) {
 		handler = slog.NewJSONHandler(out, hopts)
 	}
 	log := slog.New(handler)
-	h := &health{version: cfg.Version, log: log}
-	w, err := wire(cfg, log, h)
+	w, err := wire(cfg, log)
 	if err != nil {
 		return nil, fmt.Errorf("server: wiring the emulator: %w", err)
 	}
-	h.services = w.services
-	h.uptime = w.kernel.Clock().Stopwatch()
-	return &Server{cfg: cfg, log: log, health: h, wired: w}, nil
+	return &Server{cfg: cfg, log: log, wired: w}, nil
 }
 
 // Handler is the main listener's handler, the edge in front of the wired
@@ -118,6 +181,9 @@ func (s *Server) Handler() http.Handler { return s.wired.edge }
 // Journal is the emulator's journal.
 func (s *Server) Journal() *journal.Journal { return s.wired.journal }
 
+// Switches lists every wired service's fidelity switches, for coverage.
+func (s *Server) Switches() []fidelity.Entry { return slices.Clone(s.wired.switches) }
+
 // shutdownGrace bounds how long shutdown waits for requests in flight.
 const shutdownGrace = 5 * time.Second
 
@@ -125,10 +191,16 @@ const shutdownGrace = 5 * time.Second
 // ends, then shuts down gracefully: long polls end, requests in flight get
 // shutdownGrace to finish, the kernel stops and the ready file goes. The
 // returned error is nil after a graceful shutdown.
+// A Server serves once: Serve while serving, or after shutdown or Close,
+// is a *StateError. When listening fails the Server stays built, for Close.
 func (s *Server) Serve(ctx context.Context) error {
+	if err := s.begin(); err != nil {
+		return err
+	}
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", s.cfg.Listen.String())
 	if err != nil {
-		return fmt.Errorf("server: cannot listen on %s: %w; pick a free port or use 127.0.0.1:0", s.cfg.Listen, err)
+		s.setPhase(built)
+		return fmt.Errorf("server: cannot listen on %s: %w; pick a free port or use 127.0.0.1:0, then Serve again or Close", s.cfg.Listen, err)
 	}
 	endpoint := "http://" + ln.Addr().String()
 
@@ -146,14 +218,14 @@ func (s *Server) Serve(ctx context.Context) error {
 	served := make(chan error, 1)
 	go func() { served <- srv.Serve(ln) }()
 
-	s.health.ready.Store(true)
+	s.wired.admin.SetReady(true)
 	if err := s.writeReadyFile(endpoint); err != nil {
 		return errors.Join(err, s.shutdown(ctx, srv, tracked, endRequests, stopKernel, kernelDone))
 	}
 	s.log.LogAttrs(ctx, slog.LevelInfo, "understudy is serving",
 		slog.String("endpoint", endpoint),
 		slog.String("admin", endpoint+"/_understudy/v1/"),
-		slog.Any("services", s.wired.services),
+		slog.Any("services", s.services()),
 		slog.String("env", "AWS_ENDPOINT_URL="+endpoint),
 	)
 
@@ -166,14 +238,33 @@ func (s *Server) Serve(ctx context.Context) error {
 	return s.shutdown(ctx, srv, tracked, endRequests, stopKernel, kernelDone)
 }
 
+// Close releases what New opened for a Server that is not serving: one
+// never served, or one whose Serve could not listen. After Serve has shut
+// down, or a first Close, it does nothing and returns nil. While Serve runs
+// it is a *StateError; cancel Serve's context instead.
+func (s *Server) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	switch s.phase {
+	case built:
+		s.phase = released
+		return s.release()
+	case serving:
+		return &StateError{Op: "Close", Reason: "Serve is running and releases everything at shutdown; cancel the context passed to Serve instead"}
+	case released:
+	}
+	return nil
+}
+
 // shutdown ends requests in flight, stops the kernel and removes the ready
 // file.
 func (s *Server) shutdown(ctx context.Context, srv *http.Server, tracked *conns, endRequests, stopKernel context.CancelFunc, kernelDone <-chan error) error {
-	s.health.ready.Store(false)
+	s.wired.admin.SetReady(false)
 	endRequests()
 	errs := []error{drain(ctx, srv, tracked)}
 	stopKernel()
-	errs = append(errs, <-kernelDone, s.wired.journal.Close())
+	errs = append(errs, <-kernelDone, s.release())
+	s.setPhase(released)
 	if s.cfg.ReadyFile != "" {
 		if err := os.Remove(s.cfg.ReadyFile); err != nil && !errors.Is(err, os.ErrNotExist) {
 			errs = append(errs, err)
@@ -184,6 +275,33 @@ func (s *Server) shutdown(ctx context.Context, srv *http.Server, tracked *conns,
 	}
 	s.log.LogAttrs(ctx, slog.LevelInfo, "understudy stopped")
 	return nil
+}
+
+// begin moves a built Server to serving.
+func (s *Server) begin() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	switch s.phase {
+	case built:
+		s.phase = serving
+		return nil
+	case serving:
+		return &StateError{Op: "Serve", Reason: "Serve is already running on this Server"}
+	case released:
+		return &StateError{Op: "Serve", Reason: "this Server was shut down or closed and its state released; build a new one with New"}
+	}
+	return nil
+}
+
+func (s *Server) setPhase(p phase) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.phase = p
+}
+
+// release closes the journal and what wire opened.
+func (s *Server) release() error {
+	return errors.Join(s.wired.journal.Close(), s.wired.close())
 }
 
 // drain closes the listener and waits up to shutdownGrace for requests in
@@ -237,4 +355,14 @@ func (s *Server) writeReadyFile(endpoint string) error {
 		return fmt.Errorf("server: moving the ready file into place at %s: %w", s.cfg.ReadyFile, errors.Join(err, os.Remove(tmp.Name())))
 	}
 	return nil
+}
+
+// services names the services the registry wires, for the banner.
+func (s *Server) services() []string {
+	services := s.wired.kernel.Registry().Services()
+	out := make([]string, 0, len(services))
+	for _, svc := range services {
+		out = append(out, string(svc.ID))
+	}
+	return out
 }

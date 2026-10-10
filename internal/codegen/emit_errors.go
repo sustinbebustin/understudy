@@ -9,8 +9,9 @@ import (
 )
 
 // emitErrors writes errors_gen.go: an Identity function and an Err
-// constructor per error shape, and the service-level identities the
-// overlay names (throttle, unknown operation, malformed request).
+// constructor per error shape, the service-level identities the overlay
+// names (throttle, unknown operation, malformed request) and the families'
+// generic vocabularies.
 func emitErrors(ir *ServiceIR) ([]byte, error) {
 	f := newFile(ir, "errors_gen.go")
 	f.use("awserr")
@@ -48,7 +49,43 @@ func emitErrors(ir *ServiceIR) ([]byte, error) {
 		f.p("// body that does not decode (dev.understudy#malformedRequestError).")
 		f.p("func MalformedRequestError() awserr.Identity { return Identity%s() }\n", e.Shape.GoName)
 	}
+	if len(ir.Vocabularies) > 0 {
+		f.p("// GenericErrors returns the generic, protocol-level identities this")
+		f.p("// service sends over protocol family f (overlays/common.json), the codes a")
+		f.p("// fault rule may name beside each operation's own; nil for a family it")
+		f.p("// does not speak.")
+		f.p("func GenericErrors(f awserr.Family) []awserr.Identity {")
+		f.p("\tswitch f {")
+		for _, v := range ir.Vocabularies {
+			calls := make([]string, 0, len(v.Errors))
+			for _, e := range v.Errors {
+				calls = append(calls, "Identity"+e.Shape.GoName+"()")
+			}
+			fam, err := familyConst(v.Family)
+			if err != nil {
+				return nil, err
+			}
+			f.p("\tcase awserr.%s:", fam)
+			f.p("\t\treturn []awserr.Identity{%s}", strings.Join(calls, ", "))
+		}
+		f.p("\tdefault:")
+		f.p("\t\treturn nil")
+		f.p("\t}")
+		f.p("}\n")
+	}
 	return f.bytes()
+}
+
+// familyConst names family f's awserr constant.
+func familyConst(f awserr.Family) (string, error) {
+	switch f {
+	case awserr.JSONFamily:
+		return "JSONFamily", nil
+	case awserr.QueryFamily:
+		return "QueryFamily", nil
+	default:
+		return "", fmt.Errorf("emit errors_gen.go: awserr.Family(%d) has no constant; add it to familyConst", f)
+	}
 }
 
 // errorFuncs emits the Identity function and the Err constructor of one
@@ -138,9 +175,6 @@ func protocolConst(p ref.ProtocolID) string {
 
 // errorList is the Go literal of an operation's error identities.
 func errorList(errs []*ErrorIR) string {
-	if len(errs) == 0 {
-		return "nil"
-	}
 	parts := make([]string, len(errs))
 	for i, e := range errs {
 		parts[i] = "Identity" + e.Shape.GoName + "()"

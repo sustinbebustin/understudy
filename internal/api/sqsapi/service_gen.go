@@ -13,16 +13,17 @@ import (
 )
 
 var service = registry.Service{
-	ID:               "sqs",
-	Shape:            "com.amazonaws.sqs#AmazonSQS",
-	SigningName:      "sqs",
-	IAMPrefix:        "sqs",
-	ARNNamespace:     "sqs",
-	Protocols:        []ref.ProtocolID{ref.AWSJSON10, ref.AWSQuery},
-	JSONTargetPrefix: "AmazonSQS",
-	QueryVersion:     "2012-11-05",
-	XMLNamespace:     "http://queue.amazonaws.com/doc/2012-11-05/",
-	QueryCompatible:  true,
+	ID:                    "sqs",
+	Shape:                 "com.amazonaws.sqs#AmazonSQS",
+	SigningName:           "sqs",
+	IAMPrefix:             "sqs",
+	ARNNamespace:          "sqs",
+	Protocols:             []ref.ProtocolID{ref.AWSJSON10, ref.AWSQuery},
+	JSONTargetPrefix:      "AmazonSQS",
+	QueryVersion:          "2012-11-05",
+	XMLNamespace:          "http://queue.amazonaws.com/doc/2012-11-05/",
+	QueryCompatible:       true,
+	MalformedRequestError: IdentitySerializationException(),
 }
 
 // The operations point back at the service, so the list is linked once

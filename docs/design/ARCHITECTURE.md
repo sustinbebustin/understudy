@@ -422,7 +422,7 @@ Generated constructors read like the SDK's: `sqsapi.ErrQueueDoesNotExist(msg)`, 
 
 - Status comes from `httpError`; SQS `PurgeQueueInProgress` is 403 because the SQS model sets `httpError` equal to `awsQueryError.httpResponseCode` (`sqs.md` finding 4). CloudWatch's 404 under `x-amzn-query-mode: true` is `QueryModeStatus`.
 - Message member spelling is the shape's own (`Message` for Secrets Manager, `message` for KMS); Go v2 drops a differently cased message on modeled errors.
-- Unmodeled codes services really send are overlay shapes, so they are generated, typed and listed in coverage: the 20 S3 codes and their context members (`wire-rest.md 2.4`), SQS `InvalidParameterValue` and `MissingParameter` (`__type` `InvalidParameterValueException` and `MissingRequiredParameterException`), CloudWatch `ValidationError`, Lambda `RequestEntityTooLargeException`, every service's generic vocabulary (`overlays/common.json`).
+- Unmodeled codes services really send are overlay shapes, so they are generated, typed and listed in coverage: the 20 S3 codes and their context members (`wire-rest.md 2.4`), SQS `InvalidParameterValue` and `MissingParameter` (`__type` `InvalidParameterValueException` and `MissingRequiredParameterException`), CloudWatch `ValidationError`, Lambda `RequestEntityTooLargeException`, every service's generic vocabulary (`overlays/common.json`). The vocabulary is per protocol family: `common.json` declares one service shape per family (`dev.understudy.defaults#JSONFamily`, `#QueryFamily`) whose standard Smithy `errors` list is that family's generic errors, so no new trait is needed; each generated package emits them as `GenericErrors(f)`. `awserr.Catalogue` stays the runtime copy for the edge and the kernel, which act before a service is known, and a test in `internal/api` keeps the two in step for every service.
 - The constraint-violation code comes from `dev.understudy#validationError`, which applies at service, operation or member level with an optional constraint-kind filter (F5): `ValidationException`, `ValidationError`, `InvalidParameterException`, `InvalidParameterValueException`, or a hand-text style (SQS `Value X for parameter P is invalid. Reason: ...`, SNS `Invalid parameter: P Reason: ...`) with per-member reason templates. The same trait carries `enumPolicy: closed | open | handler`; `handler` defers a member's checks to the service so step 7 cannot pre-empt a business error (SQS `InvalidAttributeName`, Lambda's creatable runtime subset). Each recorded row in `error-matrix.md`, `lambda-api.md 2.1`, `lambda-events.md 1.3`, `sqs.md 2.4` and `sns.md 1` is a golden test.
 - Check order follows the Coral front end: unknown operation, auth, deserialization, constraint validation (generated, then the typed per-operation validator), faults, business rules.
 
@@ -663,7 +663,7 @@ The closed set of `dev.understudy#` traits; the generator fails on anything else
 | `validationError` | service, operation or member | constraint-failure code and text style; on a member: `{code, style?, constraints?: [...], reason?: "template", enumPolicy?: closed/open/handler}` (F5) |
 | `validationPathStyle` | service | `indexed` or `rolledUp` (Lambda) |
 | `successCode` | operation | HTTP status of a success where the model is wrong or silent (S3 `PutBucketPolicy` 204, Lambda `DeleteFunction` 204; `s3.md 14.1`, `lambda-api.md 2`) |
-| `queryKeyAlias` | member | the Query wire key when two members collide (`ReceiveMessage.AttributeNames` and `MessageSystemAttributeNames` both `AttributeName.N`; `sqs.md 2.3`) and how to resolve the ambiguity on decode |
+| `queryKeyAlias` | member | the Query wire key when two members collide (`ReceiveMessage.AttributeNames` and `MessageSystemAttributeNames` both `AttributeName.N`; `sqs.md 2.3`) and how to resolve the ambiguity on decode: `{key, decode: receive | ignore}`, emitted as `smithy.Member.QueryKeyAlias`; the awsQuery decoder leaves an `ignore` member unset |
 | `emptyCollection` | service or member | `omit` or `emit` for empty required collections (SQS omits `Successful`, `Failed`, `Tags`; IAM emits `<Roles/>`; `sqs.md 2.1`, `wire-json-query.md 8.5`) |
 | `internalOperation` | operation shape added by the overlay | typed, validated, journaled operation that the edge never claims and the access recorder skips (`sqs.HoldVisibility`, `logs.PutLogEventsInternal`); coverage lists it separately (M6) |
 | `patternEcho` | string shape | echo text when it is not "pattern minus anchors" |
@@ -686,6 +686,7 @@ Overlays are applied after loading and before validation of the merged model. Ap
   "package": "sqsapi",
   "model": "sqs",
   "iamPrefix": "sqs",
+  "iamPrimary": [],
   "extraProtocols": ["aws.protocols#awsQuery"],
   "rawBinding": false,
   "rawOperations": [],
@@ -693,7 +694,7 @@ Overlays are applied after loading and before validation of the merged model. Ap
 }
 ```
 
-`model` names the service's directory in `third_party/api-models-aws/UPSTREAM.json`. `iamPrefix` is the IAM action prefix (`cloudwatch` for CloudWatch, `events` for EventBridge, `logs` for CloudWatch Logs; `smithy-models.md 8`), required because the model's `arnNamespace` differs from it for some services; the Service Reference table replaces it when it lands (T19).
+`model` names the service's directory in `third_party/api-models-aws/UPSTREAM.json`. `iamPrefix` is the IAM action prefix (`cloudwatch` for CloudWatch, `events` for EventBridge, `logs` for CloudWatch Logs; `smithy-models.md 8`), required because the model's `arnNamespace` differs from it for some services. It is kept beside the Service Reference table: generation fails when `actions.json` has no entry under it, and `TestReferencePrefixesMatchTheServiceConfigs` checks it against `cmd/vendor`'s `referencePrefixes()`. An operation's IAM actions come from the Service Reference table; the primary one is the action of the same name, else the single form of a `*Batch` action, else the sole action under the service's own prefix. `iamPrimary` (`[{operation, action, reason}]`) names the primary only where those rules leave it ambiguous (S3 `CopyObject` is `s3:PutObject`, addressed to the destination); a redundant entry fails generation, so the list stays minimal and a Service Reference change that settles the ambiguity is noticed.
 
 Types, serde, validators and a binder method are generated for every operation in the model, so adding an operation needs no generator run. `rawBinding: true` (DynamoDB only) adds a `<Op>Raw` binder method per operation. `rawOperations` declares synthetic operations outside the model that still need a descriptor, an IAM action, journal, faults and coverage: Lambda `InvokeFunctionUrl` (`lambda:InvokeFunctionUrl`, claimed by the function URL host and path rules), SNS `ConfirmSubscriptionLink`, `UnsubscribeLink` and `SigningCert` (claimed under `/_understudy/`); each gets a `registry.Operation` of kind `Raw` and a `BindRawHTTP` method (F13). `routeOverrides` carries the hand S3 dispatch rows (`wire-rest.md` Implications 2) so the generated `RouteTable` is complete and the edge needs no S3-specific code.
 
@@ -740,7 +741,7 @@ Header on line 1: `// Code generated by understudy-gen from api-models-aws@1cfdf
 
 ### 5.6 Protocol-test generation
 
-The same generator runs over the corpus AST and emits `internal/protocoltest/gen/<testsvc>/`: types, schema, serde and binders for the synthetic services (`JsonRpc10`, `QueryCompatibleJsonRpc10`, `JsonProtocol`, `AwsQuery`, `RestJson`, `RestJsonValidation`, `RestXml`, `RestXmlWithNamespace`, the S3 slice, `RpcV2Protocol`) plus `cases_gen_test.go` with every server-runnable case as a typed Go literal. The corpus uses shape kinds the service models do not (documents, `byte`, `short`, `float`, `bigInteger`, `intEnum`, sparse collections); the generator supports them because the corpus needs them.
+The same generator runs over the corpus AST and emits `internal/protocoltest/gen/<testsvc>/`: types, schema, serde and binders for the synthetic services (`JsonRpc10`, `QueryCompatibleJsonRpc10`, `JsonProtocol`, `AwsQuery`, `RestJson`, `RestJsonValidation`, `RestXml`, `RestXmlWithNamespace`, the S3 slice, `RpcV2Protocol`) plus `cases_gen.go` with every server-runnable case as a typed Go literal (not a test file, since the harness in `internal/protocoltest` imports the tables and Go never lets one package read another's test files). The corpus uses shape kinds the service models do not (documents, `byte`, `short`, `float`, `bigInteger`, `intEnum`, sparse collections); the generator supports them because the corpus needs them.
 
 ### 5.7 Determinism and drift
 
@@ -1242,8 +1243,19 @@ type Request struct {
 ```go
 package outbox // the engine: a Stateful service with one cell per scope
 
-type Entry struct{ ID ids.DeliveryID; Request delivery.Request; Attempt int; NextAt clock.Instant; Cause ref.Cause; Accepted clock.Instant }
+type Entry struct {
+	ID       ids.DeliveryID
+	Request  delivery.Request
+	Attempt  int
+	NextAt   clock.Instant
+	Cause    ref.Cause
+	Accepted clock.Instant
+	Seq      uint64 // the order the outbox took deliveries in, drawn under the cell lock
+	Jitter   uint64 // seeds an EventBridge target's retry jitter; 0 for other policies
+}
 ```
+
+Deliveries to one SQS FIFO queue with one `GroupID` form a lane, attempted one at a time in `Seq` order: only the first pending one is armed, a retry keeps the lane blocked, and a terminal outcome arms the next no earlier than itself (`sns.md 10`). A group on a standard queue is a fair-queue tenant label and forms no lane (`sqs.md 8.5`); deliveries outside a lane run concurrently.
 
 A `Deliver` effect is an outbox insert the kernel performs before the source call returns, so an accepted delivery is state the moment SNS returns a `MessageId` (F4); the insert arms the attempt timer. Attempts, backoff and DLQ routing run on the emulator clock with jitter drawn from the seeded source, so `clock advance` replays a retry storm deterministically. A due attempt is tracked work (`DeliveryAttempt`) stamped `At = due` that calls the target through `kernel.Invoke` as `AsService{name}` with `Origin Internal{Via}`, is subject to `Phase: Delivery` rules, emits a `journal.Delivery` event whose parent is the source event, and removes the entry on a terminal outcome. `Rearm` restores every pending attempt after a snapshot load. Client-side failures (queue or function missing) go straight to the DLQ; filtered messages never reach a DLQ. Fan-out order is deterministic (subscription or target creation order). Before each attempt the access recorder checks the target's stored resource policy with `policydoc` and journals an `Advisory` when it would not allow the delivery in AWS (SNS to a queue without a `sqs:SendMessage` statement for the topic, EventBridge to a function without `lambda:InvokeFunction` permission); the delivery is still attempted (product C3).
 

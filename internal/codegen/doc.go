@@ -33,13 +33,31 @@
 //     members (ARCHITECTURE.md 4, step 1).
 //   - codegen/services/<svc>.json states the IAM action prefix
 //     ("iamPrefix"), since the model's arnNamespace is wrong for CloudWatch.
+//     It is kept beside the Service Reference table: generation fails when
+//     the table has no entry under it, and a cmd/vendor test checks it
+//     against the prefixes that tool fetches.
+//   - A descriptor lists the primary IAM action first. The Service
+//     Reference's lists are alphabetical, so the generator picks it by rule
+//     and codegen/services/<svc>.json names it ("iamPrimary") where the rules
+//     leave several candidates; generation fails rather than guess. An
+//     action of the operation's own name that the service lists under
+//     Actions[] but the operation's authorized list leaves out is added as
+//     the primary, since the Service Reference's mapping has gaps.
+//   - overlays/common.json lists each protocol family's generic vocabulary
+//     under its defaults shape's errors, and every real service speaking the
+//     family gets GenericErrors(f) in errors_gen.go. awserr.Catalogue stays
+//     the runtime copy the edge and the kernel use before a service is
+//     known; a test in internal/api checks the two agree for all twelve
+//     services. The Query family sets no malformedRequestError: no recording
+//     shows what a Query service sends, so the awsquery codec's fallback
+//     applies.
 //   - codegen/services/<svc>.json names its model's directory in
-//     third_party/api-models-aws/UPSTREAM.json ("model"); rawBinding,
-//     rawOperations and routeOverrides, and the honored traits listed in
-//     notYetEmitted (the overlay's queryKeyAlias and notConfigured among
-//     them), fail generation until the all-models generator emits them,
-//     rather than being dropped. So does an overlay operation without
-//     internalOperation, which no service would reach.
+//     third_party/api-models-aws/UPSTREAM.json ("model"). An overlay
+//     operation without internalOperation fails generation, since no
+//     service would reach it.
+//   - dev.understudy#queryKeyAlias is emitted as smithy.Member.QueryKeyAlias,
+//     which the awsQuery decoder applies; an alias naming a key other than
+//     the member's own fails generation.
 //
 // Overlay trait value formats, beyond ARCHITECTURE.md 5.2: evidence is one
 // {label, source, validated?} object or a list of them each naming the

@@ -1,0 +1,9 @@
+{
+  "service": "com.amazonaws.lambda#AWSGirApiService",
+  "package": "lambdaapi",
+  "model": "lambda",
+  "iamPrefix": "lambda",
+  "rawOperations": [
+    {"name": "InvokeFunctionUrl", "iam": ["lambda:InvokeFunctionUrl"]}
+  ]
+}

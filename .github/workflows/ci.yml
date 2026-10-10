@@ -26,3 +26,36 @@ jobs:
       - uses: astral-sh/setup-uv@v10.2.0
       - run: just verify
       - run: just sealed-test
+
+  # Regenerates every generated package from the vendored models, corpus,
+  # actions table and overlays, and fails when the result differs from what
+  # is checked in (ARCHITECTURE.md 5.7).
+  generate-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.1"
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: "1.58.0"
+      - run: just generate-check
+
+  # Binary size, startup, idle RSS, cold build and lint wall time against the
+  # ceilings of ARCHITECTURE.md 5.7, on the CI runner they are defined for.
+  budgets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.1"
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.2
+          install-only: true
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: "1.58.0"
+      - run: just budgets

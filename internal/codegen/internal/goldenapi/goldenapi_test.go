@@ -54,17 +54,31 @@ func TestOperations(t *testing.T) {
 	if put.Kind != registry.Modeled || put.SuccessCode != 201 || put.MaxRequestBytes != 1024 || !put.Idempotent {
 		t.Errorf("PutKinds = %+v", put)
 	}
-	if len(put.IAM) != 1 || put.IAM[0].String() != "golden:PutKinds" {
-		t.Errorf("PutKinds IAM = %v, want the same-name action", put.IAM)
+	// The Service Reference lists golden:TagThing first; the same-name
+	// action is primary and the others keep the table's order.
+	if got, want := iamStrings(put.IAM), []string{"golden:PutKinds", "golden:TagThing", "iam:PassRole"}; !slices.Equal(got, want) {
+		t.Errorf("PutKinds IAM = %v, want %v", got, want)
+	}
+	parts, _ := Service().Operation("ListParts")
+	if got, want := iamStrings(parts.IAM), []string{"golden:ListThingParts"}; !slices.Equal(got, want) {
+		t.Errorf("ListParts IAM = %v, want the renamed action %v", got, want)
 	}
 	want := []awserr.Identity{IdentityKindsFault(), IdentityThrottled(), IdentityInvalidInput()}
 	if !slices.Equal(put.Errors, want) {
 		t.Errorf("PutKinds errors = %v, want modeled errors then the validation identity", put.Errors)
 	}
 	ping, _ := Service().Operation("Ping")
-	if !ping.Readonly || ping.Input.Type != smithy.TypeUnit || ping.Output.Type != smithy.TypeUnit {
-		t.Errorf("Ping = %+v", ping)
+	if !ping.Readonly || ping.Input.Type != smithy.TypeUnit || ping.Output.Type != smithy.TypeUnit || ping.IAM != nil {
+		t.Errorf("Ping = %+v; want a readonly unit operation the Service Reference authorizes with no action", ping)
 	}
+}
+
+func iamStrings(acts []registry.IAMAction) []string {
+	out := make([]string, len(acts))
+	for i, a := range acts {
+		out[i] = a.String()
+	}
+	return out
 }
 
 // TestOpHandles: every operation, the internal Sweep included, has a typed

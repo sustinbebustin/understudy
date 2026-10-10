@@ -13,6 +13,9 @@ func emitRedact(ir *ServiceIR) ([]byte, error) {
 	f := newFile(ir, "redact_gen.go")
 	r := &redactor{f: f, memo: map[*ShapeIR]bool{}, emitted: map[*ShapeIR]bool{}}
 	for _, o := range ir.Operations {
+		if !o.HasIO() {
+			continue
+		}
 		for _, s := range []*ShapeIR{o.Input, o.Output} {
 			if r.done(s) {
 				continue
@@ -68,7 +71,7 @@ func (r *redactor) reaches(s *ShapeIR) bool {
 	r.memo[s] = false
 	out := false
 	for _, m := range s.Members {
-		if m.Sensitive || m.Target.Sensitive || r.reaches(m.Target) {
+		if cleared(m) || r.reaches(m.Target) {
 			out = true
 		}
 	}
@@ -118,7 +121,11 @@ func (r *redactor) collection(s *ShapeIR, index string, elem *MemberIR) {
 	f.p("\t\treturn nil")
 	f.p("\t}")
 	f.p("\tout := make(%s, len(v))", t)
-	f.p("\tfor %s, e := range v {", index)
+	if cleared(elem) {
+		f.p("\tfor %s := range v {", index)
+	} else {
+		f.p("\tfor %s, e := range v {", index)
+	}
 	f.p("\t\tout[%s] = %s", index, r.value(elem, "e"))
 	f.p("\t}")
 	f.p("\treturn out")
@@ -130,7 +137,7 @@ func (r *redactor) union(s *ShapeIR) {
 	f.p("func redact%s(v %s) %s {", s.GoName, s.GoName, s.GoName)
 	f.p("\tswitch x := v.(type) {")
 	for _, m := range s.Members {
-		if !m.Sensitive && !m.Target.Sensitive && !r.reaches(m.Target) {
+		if !cleared(m) && !r.reaches(m.Target) {
 			continue
 		}
 		f.p("\tcase %sMember%s:", s.GoName, m.GoName)
@@ -142,14 +149,19 @@ func (r *redactor) union(s *ShapeIR) {
 	f.p("}\n")
 }
 
+// cleared reports whether Redact clears member m: it is sensitive, or it is
+// a stream, whose bytes the journal never holds.
+func cleared(m *MemberIR) bool { return m.Sensitive || m.Target.Sensitive || m.Streaming }
+
 // member clears or recurses into one structure member of the copy v.
 func (r *redactor) member(m *MemberIR) {
 	f := r.f
 	switch {
-	case m.Sensitive || m.Target.Sensitive:
+	case cleared(m):
 		f.p("\tv.%s = %s", m.GoName, r.zero(m))
 	case !r.reaches(m.Target):
 	case m.Target.IsStruct() && !m.Value:
+		r.need(m.Target)
 		f.p("\tif v.%s != nil {", m.GoName)
 		f.p("\t\tc := v.%s.redacted()", m.GoName)
 		f.p("\t\tv.%s = &c", m.GoName)
@@ -162,7 +174,7 @@ func (r *redactor) member(m *MemberIR) {
 // value is the redacted copy of x, a value of member m's target.
 func (r *redactor) value(m *MemberIR, x string) string {
 	t := m.Target
-	if m.Sensitive || t.Sensitive {
+	if cleared(m) {
 		return r.zero(m)
 	}
 	if !r.reaches(t) {

@@ -64,6 +64,12 @@ func (s *Service) Rearm(now clock.Instant) {
 	}
 }
 
+// Scopes lists the scopes the service holds a cell for, whether or not
+// any queue lives there.
+func (s *Service) Scopes() []aws.Scope {
+	return s.cells.Keys(store.ScopeKeys())
+}
+
 // Resources lists the queues of scope, by name, with their message counts.
 func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 	cell, ok := s.cells.Lookup(scope)

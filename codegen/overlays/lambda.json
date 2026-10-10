@@ -1,0 +1,123 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.lambda#AWSGirApiService": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazonaws.lambda#TooManyRequestsException",
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#validationPathStyle": "rolledUp",
+        "dev.understudy#malformedRequestError": "com.amazonaws.lambda#InvalidRequestContentException",
+        "dev.understudy#unknownOperationError": {"json": "com.amazonaws.lambda#UnknownOperationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda.snapshot.json",
+            "validated": "2025-11-24",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8268",
+            "validated": "2026-01-12",
+            "covers": ["dev.understudy#validationError"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L18193",
+            "validated": "2025-11-25",
+            "covers": ["dev.understudy#validationPathStyle"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda.snapshot.json#L3476",
+            "validated": "2025-11-24",
+            "covers": ["dev.understudy#malformedRequestError"]
+          },
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/lambda/latest/api/CommonErrors.html",
+            "covers": ["dev.understudy#unknownOperationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.lambda#UnknownOperationException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/lambda/latest/api/CommonErrors.html"
+        }
+      }
+    },
+    "com.amazonaws.lambda#CreateFunction": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#maxRequestBytes": 70167211,
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7052",
+          "validated": "2025-11-25"
+        }
+      }
+    },
+    "com.amazonaws.lambda#Alias": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {"allOf": ["^[0-9]*[a-zA-Z\\-_][a-zA-Z0-9\\-_]*$"]},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!^[0-9]+$)([a-zA-Z0-9-_]+)$ is one or more of the class with at least one non-digit"
+        }
+      }
+    },
+    "com.amazonaws.lambda#CollectionName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {"allOf": ["^[_a-zA-Z0-9][^$]*$"], "noneOf": ["^system\\."]},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(^(?!(system\\x2e)))(^[_a-zA-Z0-9])([^$]*)$ is a word character, then anything but $, not starting with system."
+        }
+      }
+    },
+    "com.amazonaws.lambda#FunctionUrlFunctionName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-[0-9]{1}:)?([0-9]{12}:)?(function:)?([a-zA-Z0-9\\-_]{1,64})(:([0-9]*[a-zA-Z\\-_][0-9a-zA-Z\\-_]*))?$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: the qualifier (?!\\d+$)[0-9a-zA-Z-_]+ is one or more of the class with at least one non-digit"
+        }
+      }
+    },
+    "com.amazonaws.lambda#FunctionUrlQualifier": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {"allOf": ["^[0-9]*[a-zA-Z\\-_][0-9a-zA-Z\\-_]*$"]},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^((?!^\\d+$)^[0-9a-zA-Z-_]+$)$ is one or more of the class with at least one non-digit"
+        }
+      }
+    },
+    "com.amazonaws.lambda#S3Bucket": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {"allOf": ["^([0-9A-Za-z.\\-_]*[0-9A-Za-z\\-_])?$"]},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^[0-9A-Za-z\\.\\-_]*(?<!\\.)$ is the class repeated, not ending in a dot"
+        }
+      }
+    }
+  }
+}

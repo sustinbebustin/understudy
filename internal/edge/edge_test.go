@@ -291,6 +291,20 @@ func TestSmithyProtocolWithJSONTargetIsRejected(t *testing.T) {
 	}
 }
 
+// The rpcv2Cbor path may carry a prefix before /service/ (Smithy
+// rpcv2Cbor "Requests"); rule 5 still recognizes it, here to reject the
+// ambiguous X-Amz-Target.
+func TestSmithyProtocolPathMayCarryAPrefix(t *testing.T) {
+	f := newFront(t, nil)
+	h := jsonHeader("AmazonSQS.CreateQueue", "application/cbor")
+	h.Set("Smithy-Protocol", "rpc-v2-cbor")
+	f.serve(t, request(t, http.MethodPost, "/some/prefix/service/AmazonSQS/operation/CreateQueue", h, "", "sqs"))
+	reasons := f.unclaimedReasons(t)
+	if last := reasons[len(reasons)-1]; !strings.HasPrefix(last, "rule 5: the request carries both Smithy-Protocol: rpc-v2-cbor and X-Amz-Target") {
+		t.Errorf("reasons = %q, want rule 5 to recognize the prefixed path", reasons)
+	}
+}
+
 func TestUnknownAndUnboundOperations(t *testing.T) {
 	f := newFront(t, nil)
 	golden(t, "json-unknown-operation", f.serve(t, request(t, http.MethodPost, "/", jsonHeader("AmazonSQS.Bogus", "application/x-amz-json-1.0"), `{}`, "sqs")))

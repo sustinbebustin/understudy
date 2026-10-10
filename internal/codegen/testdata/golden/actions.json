@@ -1,0 +1,20 @@
+{
+  "source": "https://servicereference.us-east-1.amazonaws.com/",
+  "retrieved": "2026-10-10",
+  "services": [
+    {
+      "prefix": "golden",
+      "url": "https://servicereference.us-east-1.amazonaws.com/v1/golden/golden.json",
+      "version": "v1.4",
+      "modified": 1791496902,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "operations": [
+        {"name": "GetThing", "authorized": ["golden:GetThing"]},
+        {"name": "ListParts", "authorized": ["golden:ListThingParts"]},
+        {"name": "Ping", "authorized": []},
+        {"name": "PutKinds", "authorized": ["golden:TagThing", "golden:PutKinds", "iam:PassRole"]}
+      ],
+      "actions": []
+    }
+  ]
+}

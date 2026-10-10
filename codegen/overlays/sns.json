@@ -1,0 +1,25 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.sns#AmazonSimpleNotificationService": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazonaws.sns#ThrottledException",
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/phase1/error-matrix.md#53-sns-query",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sns/test_sns.snapshot.json#L1823",
+            "validated": "2024-11-15",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    }
+  }
+}

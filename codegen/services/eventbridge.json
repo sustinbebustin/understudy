@@ -1,0 +1,6 @@
+{
+  "service": "com.amazonaws.eventbridge#AWSEvents",
+  "package": "eventbridgeapi",
+  "model": "eventbridge",
+  "iamPrefix": "events"
+}

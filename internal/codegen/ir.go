@@ -23,7 +23,7 @@ type ServiceIR struct {
 	ID        ref.ServiceID
 	Package   string
 	ModelFile string // base name of the model file, for the header
-	Pin       string // short upstream commit, for the header
+	Origin    string // the pinned upstream, for the header
 
 	Shape            smithy.ShapeID
 	SigningName      string
@@ -39,11 +39,30 @@ type ServiceIR struct {
 	Shapes     []*ShapeIR      // every data shape, sorted by id; synthetic unit IO shapes last
 	Errors     []*ErrorIR      // sorted by Go name
 	Patterns   []*PatternVarIR // the distinct patterns input members check, by rendering
+	// Routes is the REST dispatch table, ordered as Match ranks it; empty for
+	// RPC services.
+	Routes []RouteIR
+	// RawBinding adds a <Op>Raw binder method per modeled operation.
+	RawBinding bool
+	// SerdeBoth emits both serde directions for every shape: a rawBinding
+	// service encodes inputs and decodes outputs for its passthrough, and
+	// the protocol compliance harness drives a corpus service both ways.
+	SerdeBoth bool
+	// Cases are a corpus service's compliance cases, nil for a real
+	// service.
+	Cases *CasesIR
+	// PathStyle is dev.understudy#validationPathStyle: whether a
+	// collection's element constraints are reported per element or rolled
+	// up at the collection (Lambda).
+	PathStyle PathStyle
 
 	Throttle         *ErrorIR
 	UnknownJSON      *ErrorIR
 	UnknownQuery     *ErrorIR
 	MalformedRequest *ErrorIR
+	// Vocabularies are the generic vocabularies of the protocol families
+	// the service speaks (overlays/common.json), JSON first.
+	Vocabularies []VocabularyIR
 
 	// Validation are the service-level validationError rules; the last
 	// rule with no constraint filter is the catch-all.
@@ -70,7 +89,26 @@ type OperationIR struct {
 	Validation      []RuleIR // operation-level rules
 	Paths           []PathIR // every member path of the input, for validation identity selection
 	Examples        []ExampleIR
+	// IAM are the operation's IAM actions, the primary first.
+	IAM []registry.IAMAction
+	// NotConfigured is the S3 answer while the operation's subresource is
+	// unset (dev.understudy#notConfigured), nil when the overlay sets none.
+	NotConfigured NotConfigured
+	// Checksum names the request checksum members of an operation with
+	// aws.protocols#httpChecksum, nil without the trait.
+	Checksum *ChecksumIR
 }
+
+// ChecksumIR is an operation's aws.protocols#httpChecksum: the input member
+// naming the algorithm. The checksum value headers it selects may arrive as
+// aws-chunked trailers.
+type ChecksumIR struct {
+	AlgorithmMember string
+}
+
+// HasIO reports whether the operation has generated input and output types:
+// every operation but a raw one, whose handler owns the HTTP exchange.
+func (o *OperationIR) HasIO() bool { return o.Kind != registry.Raw }
 
 // ExampleIR is one smithy.api#examples entry whose input the generated test
 // validates.
@@ -103,13 +141,21 @@ type ShapeIR struct {
 	MediaType       string
 	Sensitive       bool
 	Sparse          bool
-	XMLName         string
-	XMLNamespace    *smithy.XMLNamespace
-	Error           *ErrorIR // set on error structures
-	Role            Role
+	// Streaming is @streaming: a blob streamed as smithy.Body or
+	// smithy.BodySource, or an event stream union, framed by its handler
+	// and streamed the same way.
+	Streaming    bool
+	XMLName      string
+	XMLNamespace *smithy.XMLNamespace
+	Error        *ErrorIR // set on error structures
+	Role         Role
 	// IO is the operation whose input or output this shape is, renamed to
 	// <Op>Input or <Op>Output.
 	IO *OperationIR
+	// Top says whether the shape is some operation's input, output or both,
+	// shared or not: such a type has exported Serialize, Deserialize and
+	// Validate methods.
+	Top Role
 	// Unit marks a synthetic per-operation empty structure for a
 	// smithy.api#Unit input or output.
 	Unit bool
@@ -146,7 +192,12 @@ type MemberIR struct {
 	XMLNamespace    *smithy.XMLNamespace
 	TimestampFormat smithy.TimestampFormat
 	Sensitive       bool
-	HTTP            string // Go expression of the smithy.Location, or empty
+	HTTP            smithy.Location // nil when the member has no HTTP binding
+	// QueryKeyAlias is the overlay's queryKeyAlias, or nil without one.
+	QueryKeyAlias *smithy.QueryKeyAlias
+	// Streaming marks a member whose target is @streaming: a smithy.Body on
+	// input, a smithy.BodySource on output (ARCHITECTURE.md 3.2).
+	Streaming bool
 
 	Length     *Bounds
 	Range      *Bounds
@@ -207,6 +258,13 @@ type ErrorIR struct {
 	Generic bool
 }
 
+// VocabularyIR is one protocol family's generic vocabulary, in the order
+// the family's defaults shape lists it.
+type VocabularyIR struct {
+	Family awserr.Family
+	Errors []*ErrorIR
+}
+
 // RuleIR is a resolved validationError rule.
 type RuleIR struct {
 	Error      *ErrorIR // nil for a rule that only sets the enum policy
@@ -228,6 +286,7 @@ type PathIR struct {
 type builder struct {
 	model    *Model
 	cfg      ServiceConfig
+	iam      *iamTable
 	clo      *closure
 	ir       *ServiceIR
 	shapes   map[smithy.ShapeID]*ShapeIR
@@ -235,27 +294,37 @@ type builder struct {
 	goNames  map[string]smithy.ShapeID
 	enumDef  EnumPolicy
 	emptyDef EmptyCollection
-	style    PathStyle
 }
 
-// Build turns a merged model into the IR of the service cfg names.
-func Build(m *Model, cfg ServiceConfig, modelFile, pin string) (*ServiceIR, error) {
+// Build turns a merged model into the IR of the service cfg names; iam is
+// the Service Reference table (nil for services no IAM policy names).
+func Build(m *Model, cfg ServiceConfig, iam *iamTable, h Header) (*ServiceIR, error) {
 	if err := m.checkUnderstudy(); err != nil {
 		return nil, err
 	}
-	clo, err := m.closure(cfg.Service)
+	if err := m.applyFamilyDefaults(cfg); err != nil {
+		return nil, err
+	}
+	clo, err := m.closure(cfg)
 	if err != nil {
 		return nil, err
 	}
 	b := &builder{
-		model: m, cfg: cfg, clo: clo,
-		ir:      &ServiceIR{ID: cfg.ID, Package: cfg.Package, ModelFile: modelFile, Pin: pin, Shape: cfg.Service},
+		model: m, cfg: cfg, iam: iam, clo: clo,
+		ir: &ServiceIR{
+			ID: cfg.ID, Package: cfg.Package, ModelFile: h.ModelFile, Origin: h.Origin, Shape: cfg.Service,
+			RawBinding: cfg.RawBinding,
+		},
 		shapes:  map[smithy.ShapeID]*ShapeIR{},
 		errors:  map[smithy.ShapeID]*ErrorIR{},
 		goNames: map[string]smithy.ShapeID{},
 	}
+	if _, corpus := cfg.Destination.(CorpusPackage); corpus || cfg.RawBinding {
+		b.ir.SerdeBoth = true
+	}
 	for _, step := range []func() error{
-		b.classify, b.service, b.dataShapes, b.operations, b.members, b.roles, b.errorIdentities, b.policies, b.patterns,
+		b.classify, b.service, b.dataShapes, b.operations, b.members, b.checksums, b.roles, b.errorIdentities,
+		b.policies, b.patterns, b.iamActions, b.routes, b.notConfigured, b.cases,
 	} {
 		if err := step(); err != nil {
 			return nil, err
@@ -264,16 +333,12 @@ func Build(m *Model, cfg ServiceConfig, modelFile, pin string) (*ServiceIR, erro
 	return b.ir, nil
 }
 
-// classify fails on any trait the table does not know, and on honored traits
-// this generator cannot emit yet.
+// classify fails on any trait the table does not know.
 func (b *builder) classify() error {
 	check := func(subject string, traits Traits) error {
 		for _, id := range traits.IDs() {
 			if _, ok := Classify(id); !ok {
 				return failf(StageClassify, subject, "trait %s is unclassified; add it to traitClasses in internal/codegen/trait.go as honor, generation-only or ignore (smithy-models.md 4.3)", id)
-			}
-			if slices.Contains(notYetEmitted(), id) {
-				return failf(StageClassify, subject, "trait %s is honored but its emission lands with the all-models generator (PHASE1-PLAN T19)", id)
 			}
 		}
 		return nil
@@ -374,16 +439,13 @@ func (b *builder) serviceDefaults(svc *Shape) error {
 		}
 		b.emptyDef = e
 	}
-	b.style = PathIndexed
+	b.ir.PathStyle = PathIndexed
 	if raw, ok := svc.Traits[utValidationPathStyle]; ok {
 		s, err := parsePathStyle(raw)
 		if err != nil {
 			return failf(StageIR, string(svc.ID), "%w", err)
 		}
-		b.style = s
-	}
-	if b.style == PathRolledUp {
-		return failf(StageIR, string(svc.ID), "validationPathStyle rolledUp is parsed, but this generator emits only indexed paths; rolled-up validators land with the all-models generator")
+		b.ir.PathStyle = s
 	}
 	return nil
 }
@@ -403,10 +465,13 @@ func parseXMLNamespace(raw json.RawMessage) (smithy.XMLNamespace, error) {
 func (b *builder) dataShapes() error {
 	for _, id := range slices.Sorted(maps.Keys(b.clo.shapes)) {
 		s := b.clo.shapes[id]
-		if s.Traits.Has(traitStreaming) {
-			return failf(StageIR, string(id), "streaming shapes become smithy.Body and smithy.BodySource with the all-models generator; this generator does not emit them yet")
+		ir := &ShapeIR{
+			ID: id, Type: s.Type, Sparse: s.Traits.Has(traitSparse), Sensitive: s.Traits.Has(traitSensitive),
+			Streaming: s.Traits.Has(traitStreaming),
 		}
-		ir := &ShapeIR{ID: id, Type: s.Type, Sparse: s.Traits.Has(traitSparse), Sensitive: s.Traits.Has(traitSensitive)}
+		if ir.Streaming && s.Type != smithy.TypeBlob && s.Type != smithy.TypeUnion {
+			return failf(StageIR, string(id), "@streaming applies to a blob or an event stream union, not a %s", s.Type)
+		}
 		if err := b.shapeTraits(ir, s); err != nil {
 			return err
 		}
@@ -444,6 +509,36 @@ func (b *builder) shapeTraits(ir *ShapeIR, s *Shape) error {
 	}
 	if s.Type == smithy.TypeEnum || s.Type == smithy.TypeIntEnum {
 		return b.enumValues(ir, s)
+	}
+	if raw, ok := s.Traits[traitEnum]; ok && s.Type == smithy.TypeString {
+		return legacyEnum(ir, raw)
+	}
+	return nil
+}
+
+// legacyEnum reads the Smithy 1.0 enum trait on a string shape, which
+// Smithy 2.0 defines as an enum shape (the corpus's EnumTraitString): the
+// shape becomes an enum with the trait's values, named by their name or,
+// without one, their value.
+func legacyEnum(ir *ShapeIR, raw json.RawMessage) error {
+	var defs []struct {
+		Value string   `json:"value"`
+		Name  string   `json:"name"`
+		Tags  []string `json:"tags"`
+		Doc   string   `json:"documentation"`
+	}
+	if err := decodeTrait(raw, &defs); err != nil {
+		return failf(StageIR, string(ir.ID), "%s: %w", traitEnum, err)
+	}
+	ir.Type = smithy.TypeEnum
+	seen := map[string]bool{}
+	for _, d := range defs {
+		name := enumConstName(cmp.Or(d.Name, d.Value))
+		if seen[name] {
+			return failf(StageIR, string(ir.ID), "two %s values map onto the Go constant suffix %s", traitEnum, name)
+		}
+		seen[name] = true
+		ir.Enum = append(ir.Enum, EnumValueIR{Name: name, Value: d.Value})
 	}
 	return nil
 }
@@ -505,9 +600,9 @@ func (b *builder) operations() error {
 		refs[op.Input]++
 		refs[op.Output]++
 	}
-	for i, op := range b.clo.operations {
+	for _, op := range b.clo.operations {
 		o := &OperationIR{
-			Name: op.ID.Name(), ID: op.ID, Ordinal: i, Kind: registry.Modeled, SuccessCode: 200,
+			Name: op.ID.Name(), ID: op.ID, Kind: registry.Modeled, SuccessCode: 200,
 			Readonly: op.Traits.Has(traitReadonly), Idempotent: op.Traits.Has(traitIdempotent),
 		}
 		if op.Traits.Has(utInternalOperation) {
@@ -525,7 +620,47 @@ func (b *builder) operations() error {
 		}
 		b.ir.Operations = append(b.ir.Operations, o)
 	}
+	for _, r := range b.cfg.RawOperations {
+		id := smithy.ShapeID(b.cfg.Service.Namespace() + "#" + r.Name)
+		if slices.ContainsFunc(b.ir.Operations, func(o *OperationIR) bool { return o.Name == r.Name }) {
+			return failf(StageIR, "codegen/services/"+string(b.cfg.ID)+".json", "raw operation %s shares its name with an operation of the model", r.Name)
+		}
+		b.ir.Operations = append(b.ir.Operations, &OperationIR{Name: r.Name, ID: id, Kind: registry.Raw, SuccessCode: 200, IAM: r.IAM})
+	}
+	slices.SortFunc(b.ir.Operations, func(x, y *OperationIR) int { return cmp.Compare(x.Name, y.Name) })
+	for i, o := range b.ir.Operations {
+		o.Ordinal = i
+	}
 	return b.nameShapes()
+}
+
+// iamActions fills each modeled operation's IAM actions from the Service
+// Reference table, primary first. Internal operations are never
+// access-recorded and get none; raw ones state theirs in codegen/services.
+func (b *builder) iamActions() error {
+	config := "codegen/services/" + string(b.cfg.ID) + ".json"
+	mapped := map[string]IAMPrimary{}
+	for _, p := range b.cfg.IAMPrimary {
+		if !slices.ContainsFunc(b.ir.Operations, func(o *OperationIR) bool { return o.Kind == registry.Modeled && o.Name == p.Operation }) {
+			return failf(StageIR, config, "iamPrimary names %s, which is not a modeled operation of %s", p.Operation, b.cfg.Service)
+		}
+		mapped[p.Operation] = p
+	}
+	for _, o := range b.ir.Operations {
+		if o.Kind != registry.Modeled {
+			continue
+		}
+		row, ok := b.iam.entry(b.ir.IAMPrefix, o.Name)
+		if !ok {
+			return failf(StageIR, string(o.ID), "the Service Reference table has no %s entry for this operation; re-run go run ./internal/cmd/vendor -service-reference", b.ir.IAMPrefix)
+		}
+		ordered, err := primaryFirst(config, b.ir.IAMPrefix, o.Name, row, mapped)
+		if err != nil {
+			return failf(StageIR, string(o.ID), "%w", err)
+		}
+		o.IAM = ordered
+	}
+	return nil
 }
 
 func (b *builder) operationTraits(o *OperationIR, op *Shape) error {
@@ -572,8 +707,8 @@ func (b *builder) operationTraits(o *OperationIR, op *Shape) error {
 	return nil
 }
 
-// parseExamples keeps the examples with an input that is meant to satisfy
-// the constraints: one marked allowConstraintErrors shows a failure.
+// parseExamples keeps the examples whose input is meant to satisfy the
+// constraints: one marked allowConstraintErrors shows a failure.
 func parseExamples(raw json.RawMessage) ([]ExampleIR, error) {
 	var v []struct {
 		Title                 string          `json:"title"`
@@ -591,9 +726,16 @@ func parseExamples(raw json.RawMessage) ([]ExampleIR, error) {
 		if e.Title == "" {
 			return nil, fmt.Errorf("example %d has no title", i)
 		}
-		if e.Input != nil && !e.AllowConstraintErrors {
-			out = append(out, ExampleIR{Title: e.Title, Input: e.Input})
+		if e.AllowConstraintErrors {
+			continue
 		}
+		// An example without input calls the operation with none, as a
+		// client sends {}.
+		in := e.Input
+		if in == nil {
+			in = json.RawMessage("{}")
+		}
+		out = append(out, ExampleIR{Title: e.Title, Input: in})
 	}
 	return out, nil
 }
@@ -603,8 +745,12 @@ func parseExamples(raw json.RawMessage) ([]ExampleIR, error) {
 // synthetic empty structure of that name.
 func (b *builder) ioShape(o *OperationIR, id smithy.ShapeID, suffix string, refs map[smithy.ShapeID]int) (*ShapeIR, error) {
 	name := o.Name + suffix
+	top := RoleOutput
+	if suffix == "Input" {
+		top = RoleInput
+	}
 	if id == "smithy.api#Unit" {
-		u := &ShapeIR{ID: id, Type: smithy.TypeUnit, GoName: name, SchemaVar: "schemaSmithyUnit", IO: o, Unit: true}
+		u := &ShapeIR{ID: id, Type: smithy.TypeUnit, GoName: name, SchemaVar: "schemaSmithyUnit", IO: o, Unit: true, Top: top}
 		b.ir.Shapes = append(b.ir.Shapes, u)
 		return u, nil
 	}
@@ -616,34 +762,52 @@ func (b *builder) ioShape(o *OperationIR, id smithy.ShapeID, suffix string, refs
 		return nil, failf(StageIR, string(o.ID), "shares its %s structure %s with %s; give each operation its own", strings.ToLower(suffix), id, s.IO.Name)
 	}
 	if refs[id] == 1 {
-		s.IO = o
-		s.GoName = name
+		s.IO, s.GoName, s.Top = o, name, top
+		return s, nil
 	}
+	if b.streams(id) {
+		// A streaming structure used in more than one place (the corpus's
+		// StreamingTraitsInputOutput is one operation's input and output)
+		// gets a Go type per use, since a stream is a smithy.Body one way
+		// and a smithy.BodySource the other.
+		c := *s
+		c.IO, c.GoName, c.Top = o, name, top
+		b.ir.Shapes = append(b.ir.Shapes, &c)
+		return &c, nil
+	}
+	s.Top |= top
 	return s, nil
+}
+
+// streams reports whether structure id has a @streaming member.
+func (b *builder) streams(id smithy.ShapeID) bool {
+	return slices.ContainsFunc(b.clo.shapes[id].Members, func(m *Member) bool {
+		t, ok := b.clo.shapes[m.Target]
+		return ok && t.Traits.Has(traitStreaming)
+	})
 }
 
 // nameShapes gives every shape without a Go name one, and schema variables.
 func (b *builder) nameShapes() error {
-	reserved := []string{"Service", "Binder", "NewBinder", "ThrottleError", "UnknownOperationError", "MalformedRequestError"}
+	reserved := []string{"Service", "Binder", "NewBinder", "ThrottleError", "UnknownOperationError", "MalformedRequestError", "GenericErrors"}
 	for _, r := range reserved {
 		b.goNames[r] = "reserved"
 	}
-	for _, s := range b.ir.Shapes {
-		if s.Unit {
-			if err := b.claim(s.GoName, s.ID); err != nil {
-				return err
+	// The service's own shapes are named first, so a shape another
+	// namespace contributes (the generic vocabulary, the corpus's shared
+	// shapes) yields its name: it takes a namespace prefix instead
+	// (com.amazon.coral.validate#ValidationException beside CloudWatch's own
+	// is CoralValidateValidationException).
+	own := b.cfg.Service.Namespace()
+	for _, pass := range []func(*ShapeIR) bool{
+		func(s *ShapeIR) bool { return s.Unit || s.ID.Namespace() == own },
+		func(s *ShapeIR) bool { return !s.Unit && s.ID.Namespace() != own },
+	} {
+		for _, s := range b.ir.Shapes {
+			if !pass(s) {
+				continue
 			}
-			continue
-		}
-		if s.GoName == "" {
-			s.GoName = exportName(s.ID.Name())
-			if s.ID.Namespace() == "smithy.api" {
-				s.GoName = "Smithy" + s.GoName
-			}
-		}
-		s.SchemaVar = "schema" + s.GoName
-		if declaresGoType(s.Type) {
-			if err := b.claim(s.GoName, s.ID); err != nil {
+			if err := b.nameShape(s); err != nil {
 				return err
 			}
 		}
@@ -651,22 +815,50 @@ func (b *builder) nameShapes() error {
 	return nil
 }
 
-// declaresGoType reports whether shapes of type t become a named Go type;
-// lists, maps and simple values use Go's own types.
-func declaresGoType(t smithy.ShapeType) bool {
-	switch t {
-	case smithy.TypeStructure, smithy.TypeUnion, smithy.TypeEnum, smithy.TypeIntEnum:
-		return true
-	case smithy.TypeList, smithy.TypeMap, smithy.TypeString, smithy.TypeBlob, smithy.TypeBoolean,
-		smithy.TypeByte, smithy.TypeShort, smithy.TypeInteger, smithy.TypeLong, smithy.TypeFloat,
-		smithy.TypeDouble, smithy.TypeBigInteger, smithy.TypeBigDecimal, smithy.TypeTimestamp,
-		smithy.TypeDocument, smithy.TypeUnit:
-		return false
-	default:
-		return false
+// nameShape gives s its Go name and schema variable and claims the name.
+func (b *builder) nameShape(s *ShapeIR) error {
+	if s.Unit {
+		return b.claim(s.GoName, s.ID)
 	}
+	if s.GoName == "" {
+		s.GoName = exportName(s.ID.Name())
+		if name, ok := b.clo.service.Rename[s.ID]; ok {
+			s.GoName = exportName(name)
+		}
+		if s.ID.Namespace() == "smithy.api" {
+			s.GoName = "Smithy" + s.GoName
+		}
+		prev, taken := b.goNames[s.GoName]
+		switch {
+		case taken && prev == "reserved":
+			// A model shape named like a package-level function every
+			// generated package declares (Logs has a Service enum).
+			s.GoName += "Shape"
+		case taken && prev != s.ID && s.ID.Namespace() != b.cfg.Service.Namespace():
+			s.GoName = namespacePrefix(s.ID.Namespace()) + s.GoName
+		}
+	}
+	s.SchemaVar = "schema" + s.GoName
+	return b.claim(s.GoName, s.ID)
 }
 
+// namespacePrefix turns a namespace into a Go name prefix, leaving out the
+// segments every AWS namespace shares: com.amazon.coral.validate is
+// CoralValidate.
+func namespacePrefix(ns string) string {
+	var b strings.Builder
+	for part := range strings.SplitSeq(ns, ".") {
+		switch part {
+		case "com", "amazon", "amazonaws", "aws":
+			continue
+		}
+		b.WriteString(exportName(part))
+	}
+	return b.String()
+}
+
+// claim reserves a Go name for one shape: its type or helper functions and
+// its schema variable are named after it.
 func (b *builder) claim(name string, id smithy.ShapeID) error {
 	if prev, taken := b.goNames[name]; taken && prev != id {
 		return failf(StageIR, string(id), "its Go name %s is already %s", name, prev)
@@ -730,7 +922,32 @@ func (b *builder) member(owner *ShapeIR, src *Shape, m *Member, index int) (*Mem
 		}
 		mem.Empty = e
 	}
+	if raw, ok := m.Traits[utQueryKeyAlias]; ok {
+		a, err := parseQueryKeyAlias(raw)
+		if err != nil {
+			return nil, failf(StageEffective, subject, "%w", err)
+		}
+		if a.Key != queryKey(mem) {
+			return nil, failf(StageEffective, subject, "%s key %q is not the member's awsQuery key %q; the alias names the key the member already has", utQueryKeyAlias, a.Key, queryKey(mem))
+		}
+		mem.QueryKeyAlias = &a
+	}
+	if tsrc.Traits.Has(traitStreaming) {
+		if owner.Type != smithy.TypeStructure {
+			return nil, failf(StageEffective, subject, "targets the @streaming %s; only a structure member may stream", m.Target)
+		}
+		mem.Streaming = true
+	}
 	return mem, nil
+}
+
+// queryKey is a member's awsQuery key segment: its xmlName, else its name
+// (aws-query-protocol, "Query key resolution").
+func queryKey(m *MemberIR) string {
+	if m.XMLName != "" {
+		return m.XMLName
+	}
+	return m.Name
 }
 
 // memberWireTraits reads the naming, namespace, timestamp and HTTP binding
@@ -769,29 +986,35 @@ func memberWireTraits(mem *MemberIR, own, eff Traits) error {
 	return nil
 }
 
-func httpLocation(t Traits) (string, error) {
+// httpLocation reads a member's HTTP binding trait; nil when it has none.
+func httpLocation(t Traits) (smithy.Location, error) {
 	switch {
 	case t.Has(traitHTTPLabel):
-		return "smithy.HTTPLabel{}", nil
+		return smithy.HTTPLabel{}, nil
 	case t.Has(traitHTTPQueryParams):
-		return "smithy.HTTPQueryParams{}", nil
+		return smithy.HTTPQueryParams{}, nil
 	case t.Has(traitHTTPPayload):
-		return "smithy.HTTPPayload{}", nil
+		return smithy.HTTPPayload{}, nil
 	case t.Has(traitHTTPResponse):
-		return "smithy.HTTPResponseCode{}", nil
+		return smithy.HTTPResponseCode{}, nil
 	}
-	for _, f := range []struct{ id, typ, field string }{
-		{traitHTTPQuery, "HTTPQuery", "Name"}, {traitHTTPHeader, "HTTPHeader", "Name"}, {traitHTTPPrefix, "HTTPPrefixHeaders", "Prefix"},
+	for _, f := range []struct {
+		id   string
+		make func(string) smithy.Location
+	}{
+		{traitHTTPQuery, func(v string) smithy.Location { return smithy.HTTPQuery{Name: v} }},
+		{traitHTTPHeader, func(v string) smithy.Location { return smithy.HTTPHeader{Name: v} }},
+		{traitHTTPPrefix, func(v string) smithy.Location { return smithy.HTTPPrefixHeaders{Prefix: v} }},
 	} {
 		if raw, ok := t[f.id]; ok {
 			var v string
 			if err := decodeTrait(raw, &v); err != nil {
-				return "", err
+				return nil, fmt.Errorf("%s: %w", f.id, err)
 			}
-			return "smithy." + f.typ + "{" + f.field + ": " + goString(v) + "}", nil
+			return f.make(v), nil
 		}
 	}
-	return "", nil
+	return nil, nil //nolint:nilnil // a member without a binding trait has no location, which is not an error
 }
 
 // constraints reads length, range and pattern from the effective traits and
@@ -868,8 +1091,10 @@ func patternIR(raw json.RawMessage, target *Shape) (*PatternIR, error) {
 // and decides value or pointer fields and presence tracking.
 func (b *builder) roles() error {
 	for _, o := range b.ir.Operations {
-		markRole(o.Input, RoleInput)
-		markRole(o.Output, RoleOutput)
+		if o.HasIO() {
+			markRole(o.Input, RoleInput)
+			markRole(o.Output, RoleOutput)
+		}
 	}
 	for _, s := range b.ir.Shapes {
 		if !s.Unit && b.clo.shapes[s.ID].Traits.Has(traitError) {
@@ -929,7 +1154,11 @@ func markRole(s *ShapeIR, r Role) {
 	}
 	s.Role |= r
 	for _, m := range s.Members {
-		markRole(m.Target, r)
+		// A stream's bytes reach the handler unread: its target needs no
+		// serde of its own.
+		if !m.Streaming {
+			markRole(m.Target, r)
+		}
 	}
 }
 
@@ -940,6 +1169,9 @@ func (s *ShapeIR) fieldKinds() error {
 	for _, m := range s.Members {
 		if m.AlwaysEmit && s.Role&RoleOutput == 0 {
 			return failf(StageRoles, string(s.ID)+"$"+m.Name, "%s belongs on output members", utAlwaysEmit)
+		}
+		if m.Streaming && s.Role == RoleInput|RoleOutput {
+			return failf(StageRoles, string(s.ID)+"$"+m.Name, "streams in a structure used as both input and output; a stream is a smithy.Body on input and a smithy.BodySource on output, so give each direction its own structure")
 		}
 		m.Value = valueField(m)
 		if s.Type != smithy.TypeStructure || !m.Required || m.Default != nil || s.Role&RoleInput == 0 {
@@ -956,9 +1188,11 @@ func (s *ShapeIR) fieldKinds() error {
 
 // valueField reports whether a member is a plain Go value: required,
 // defaulted or alwaysEmit scalars and structures. Collections, unions,
-// documents, blobs and big integers use nil for absent instead.
+// documents, blobs, big integers and streams use nil for absent instead.
 func valueField(m *MemberIR) bool {
 	switch {
+	case m.Streaming:
+		return false
 	case m.Owner.Type != smithy.TypeStructure:
 		return true
 	case nilAbsent(m.Target.Type):
@@ -1004,6 +1238,9 @@ func (b *builder) errorIdentities() error {
 // operationErrors lists each operation's modeled errors, then the service's.
 func (b *builder) operationErrors() error {
 	for _, op := range b.ir.Operations {
+		if !op.HasIO() {
+			continue
+		}
 		src := b.model.Shapes[op.ID]
 		for _, id := range slices.Concat(src.Errors, b.clo.service.Errors) {
 			e, ok := b.errors[id]
@@ -1016,9 +1253,20 @@ func (b *builder) operationErrors() error {
 	return nil
 }
 
-// serviceErrors resolves throttleError, malformedRequestError and
-// unknownOperationError.
+// serviceErrors resolves throttleError, malformedRequestError,
+// unknownOperationError and the families' generic vocabularies.
 func (b *builder) serviceErrors() error {
+	for _, v := range b.clo.vocabularies {
+		voc := VocabularyIR{Family: v.family}
+		for _, id := range v.errors {
+			e, ok := b.errors[id]
+			if !ok {
+				return failf(StageIR, string(v.from), "lists %s under errors, but it has no error trait; the family vocabulary holds error structures only", id)
+			}
+			voc.Errors = append(voc.Errors, e)
+		}
+		b.ir.Vocabularies = append(b.ir.Vocabularies, voc)
+	}
 	var err error
 	if b.ir.Throttle, err = b.serviceError(utThrottleError); err != nil {
 		return err
@@ -1084,6 +1332,11 @@ func (b *builder) errorIR(s *ShapeIR, src *Shape, namespace string) (*ErrorIR, e
 	if err := e.queryError(src.Traits); err != nil {
 		return nil, failf(StageIR, subject, "%w", err)
 	}
+	if !slices.Contains(b.ir.Protocols, ref.AWSQuery) && !b.ir.QueryCompatible {
+		// awsQueryError's status applies over awsQuery and under
+		// x-amzn-query-mode; KMS's legacy traits name a 404 neither reaches.
+		e.QueryModeStatus = 0
+	}
 	name := s.ID.Name()
 	if raw, ok := src.Traits[utJSONType]; ok {
 		v, err := parseNonEmptyString(raw)
@@ -1108,6 +1361,11 @@ func (b *builder) errorIR(s *ShapeIR, src *Shape, namespace string) (*ErrorIR, e
 		case "Message":
 			e.MessageKey = awserr.MessageUpper
 		}
+	}
+	if e.MessageKey == awserr.NoMessage && slices.Contains(b.ir.Protocols, ref.RESTXML) {
+		// S3's <Error> always carries <Message>, although its error
+		// structures declare no members (wire-rest.md 2.4).
+		e.MessageKey = awserr.MessageUpper
 	}
 	if raw, ok := src.Traits[utMessageByProtocol]; ok {
 		msgs, err := parseMessageByProtocol(raw)
@@ -1202,6 +1460,9 @@ func (b *builder) policies() error {
 		return err
 	}
 	for _, o := range b.ir.Operations {
+		if !o.HasIO() {
+			continue
+		}
 		if err := b.operationRules(o); err != nil {
 			return err
 		}

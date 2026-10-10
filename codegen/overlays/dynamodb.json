@@ -1,0 +1,25 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.dynamodb#DynamoDB_20120810": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#errorNamespace": "com.amazonaws.dynamodb.v20120810",
+        "dev.understudy#throttleError": "com.amazonaws.dynamodb#ThrottlingException",
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html",
+            "covers": ["dev.understudy#errorNamespace", "dev.understudy#throttleError"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/db/index.js#L866-L874",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    }
+  }
+}

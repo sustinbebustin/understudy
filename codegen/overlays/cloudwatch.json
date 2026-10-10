@@ -1,0 +1,37 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.cloudwatch#GraniteServiceVersion20100801": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#errorNamespace": "com.amazonaws.cloudwatch.v2010_08_01",
+        "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156",
+            "validated": "2025-09-22",
+            "covers": ["dev.understudy#errorNamespace", "dev.understudy#validationError"]
+          },
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/CommonErrors.html",
+            "covers": ["dev.understudy#throttleError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.cloudwatch#ResourceNotFound": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#statusOverride": 400,
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156",
+          "validated": "2025-09-22"
+        }
+      }
+    }
+  }
+}

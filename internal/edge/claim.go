@@ -137,8 +137,9 @@ func (c *claimer) s3Control() (route, bool) {
 	return c.restService("s3", ref.RESTXML, "rule 3: S3 Control", c.r, c.path)
 }
 
-// smithyProtocolPath matches rpcv2Cbor's /service/<Name>/operation/<Op>.
-var smithyProtocolPath = regexp.MustCompile(`^/service/[^/]+/operation/[^/]+$`)
+// smithyProtocolPath matches rpcv2Cbor's /service/<Name>/operation/<Op>,
+// after any path prefix, which the protocol allows and the codec ignores.
+var smithyProtocolPath = regexp.MustCompile(`^(?:/.*)?/service/[^/]+/operation/[^/]+$`)
 
 // rpcv2cbor is rule 5. A request with both Smithy-Protocol and X-Amz-Target
 // is ambiguous and is rejected outright.

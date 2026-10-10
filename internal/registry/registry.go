@@ -255,7 +255,7 @@ func checkRoutes(s *Service) error {
 func checkRouteConflicts(s *Service) error {
 	seen := make(map[string]int, len(s.Routes.Routes))
 	for i, rt := range s.Routes.Routes {
-		sig := rt.signature()
+		sig := rt.Signature()
 		j, dup := seen[sig]
 		if !dup {
 			seen[sig] = i

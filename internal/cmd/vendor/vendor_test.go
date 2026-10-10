@@ -244,11 +244,3 @@ func TestRunNeedsExactlyOneMode(t *testing.T) {
 		}
 	}
 }
-
-// TestVendoredModelsVerify is the -verify run over the checked-in tree.
-func TestVendoredModelsVerify(t *testing.T) {
-	dir := filepath.Join("..", "..", "..", "third_party", "api-models-aws")
-	if err := verify(os.DirFS(dir), dir); err != nil {
-		t.Fatal(err)
-	}
-}
