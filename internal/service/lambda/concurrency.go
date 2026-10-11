@@ -10,10 +10,11 @@ import (
 )
 
 func (s *Service) bindConcurrency(b lambdaapi.Binder) {
-	const note = "reserved concurrency is stored, not enforced on invocations"
-	b.PutFunctionConcurrency(s.putFunctionConcurrency, stored(note))
+	// Invoke enforces reserved concurrency, and what reservations leave of
+	// the account's, before any container work (Execution).
+	b.PutFunctionConcurrency(s.putFunctionConcurrency, full())
 	b.GetFunctionConcurrency(s.getFunctionConcurrency, full())
-	b.DeleteFunctionConcurrency(s.deleteFunctionConcurrency, stored(note))
+	b.DeleteFunctionConcurrency(s.deleteFunctionConcurrency, full())
 }
 
 // functionOnly reads a FunctionName that must name the function itself,

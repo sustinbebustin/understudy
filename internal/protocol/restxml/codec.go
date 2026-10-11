@@ -50,17 +50,23 @@ type Dialect struct {
 	// so S3 keeps the bare head until its other bodiless answers are
 	// recorded.
 	OmitEmptyDocumentType bool
+	// PartialContent answers 206 Partial Content, in place of the
+	// operation's 200, for an output that sets a Content-Range header, as
+	// S3 answers a ranged or partNumber GetObject and HeadObject (s3.md
+	// 5.8, 5.9). The models give those operations no httpResponseCode
+	// member a handler could set.
+	PartialContent bool
 }
 
 // internalMessage is S3's InternalError text (wire-rest.md 3.7).
 const internalMessage = "We encountered an internal error. Please try again."
 
 // S3Dialect is S3's: bare <Error> roots, millisecond timestamps,
-// invalidArgument for unparsable request values, and no Content-Type on
-// a bodiless output. The composition root sets Internal to S3's
-// InternalError identity.
+// invalidArgument for unparsable request values, no Content-Type on a
+// bodiless output, and 206 for a partial read. The composition root sets
+// Internal to S3's InternalError identity.
 func S3Dialect(invalidArgument awserr.Identity) Dialect {
-	return Dialect{NoErrorWrapping: true, MillisecondTimestamps: true, InvalidArgument: invalidArgument, OmitEmptyDocumentType: true}
+	return Dialect{NoErrorWrapping: true, MillisecondTimestamps: true, InvalidArgument: invalidArgument, OmitEmptyDocumentType: true, PartialContent: true}
 }
 
 // S3ControlDialect is S3 Control's: S3's, but with Smithy's wrapped
@@ -147,7 +153,8 @@ func (c Codec) Decode(r *http.Request, op *registry.Operation, body smithy.Body,
 }
 
 // Encode renders out, the handler's output for op, with the status the
-// pipeline chose (an httpResponseCode member replaces it): header and
+// pipeline chose (an httpResponseCode member replaces it, and the
+// dialect's PartialContent turns 200 into 206): header and
 // prefix-header members as headers, the unbound members as an XML
 // document whose root carries the service namespace, a payload structure
 // as its own root, a blob or string payload as its bytes, a @streaming
@@ -170,6 +177,9 @@ func (c Codec) Encode(r *http.Request, op *registry.Operation, requestID string,
 	enc, err := restbind.Encode(op, out, status, restbind.HasResponseDocument, func() restbind.DocumentWriter { return newWriter(opts) })
 	if err != nil {
 		return Response{}, awserr.Internalf(fmt.Errorf("encoding the %s output: %w", op.ID, err))
+	}
+	if d.PartialContent && enc.Status == http.StatusOK && enc.Header.Get("Content-Range") != "" {
+		enc.Status = http.StatusPartialContent
 	}
 	if _, empty := enc.Body.(restbind.NoBody); empty && !d.OmitEmptyDocumentType && hasMembers(op.Output) &&
 		restbind.BodyAllowed(enc.Status) && enc.Header.Get("Content-Type") == "" {

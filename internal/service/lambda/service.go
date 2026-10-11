@@ -45,6 +45,10 @@ type Service struct {
 	// settle and image are TimerSettle and TimerImage as registered.
 	settle kernel.HandledKind
 	image  kernel.HandledKind
+	// overlayDir returns the directory of a function's active hot-reload
+	// overlay, false when none: the Execution's overlays, which
+	// NewExecution sets before any call is served; nil without one.
+	overlayDir func(fnKey) (string, bool)
 }
 
 // The service is the snapshot and reset view of its state.

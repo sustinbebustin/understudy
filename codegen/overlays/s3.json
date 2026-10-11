@@ -575,6 +575,170 @@
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L3021", "validated": "2026-10-11"}
       }
     },
+    "com.amazonaws.s3#IncompleteBody": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: IncompleteBody, 400, You did not provide the number of bytes specified by the Content-Length HTTP header."}
+      }
+    },
+    "com.amazonaws.s3#EntityTooLarge": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: EntityTooLarge, 400, Your proposed upload exceeds the maximum allowed object size."}
+      }
+    },
+    "com.amazonaws.s3#MissingContentLength": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 411,
+        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: MissingContentLength, 411, You must provide the Content-Length HTTP header."}
+      }
+    },
+    "com.amazonaws.s3#MetadataTooLarge": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: MetadataTooLarge, 400, Your metadata headers exceed the maximum allowed metadata size."}
+      }
+    },
+    "com.amazonaws.s3#InvalidDigest": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_invalid_content_md5", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#InvalidStorageClass": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_put_object_storage_class_outposts", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#KeyTooLongError": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: KeyTooLongError, 400, Your key is too long."}
+      }
+    },
+    "com.amazonaws.s3#NotImplemented": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "server",
+        "smithy.api#httpError": 501,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_preconditions.snapshot.json: conditional write headers S3 does not implement", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#MethodNotAllowed": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 405,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_delete_object_versioned, a delete marker addressed by version id", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#ConditionalRequestConflict": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 409,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_preconditions.snapshot.json: test_multipart_if_none_match_with_delete", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#XAmzContentSHA256Mismatch": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/minio/minio-go/blob/master/s3-error.go: XAmzContentSHA256Mismatch, The provided 'x-amz-content-sha256' header does not match what was computed."}
+      }
+    },
+    "com.amazonaws.s3#InvalidChunkSizeError": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "sdk-source", "source": "https://github.com/aws/aws-sdk-js-v3 middleware-flexible-checksums.e2e.spec.ts: S3 answers 8-byte unsigned chunks with InvalidChunkSizeError; the status is UNVERIFIED"}
+      }
+    },
+    "com.amazonaws.s3#MalformedTrailerError": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/openstack/swift/blob/7d523586e18623f825d57dbf29b361f57da8c200/swift/common/middleware/s3api/s3response.py: MalformedTrailerError, written against S3"}
+      }
+    },
+    "com.amazonaws.s3#InvalidPartNumber": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 416,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_get_object_part", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#KMSNotFoundException": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "aws.protocols#awsQueryError": {"code": "KMS.NotFoundException", "httpResponseCode": 400},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_sse_validate_kms_key", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#KMSDisabledException": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "aws.protocols#awsQueryError": {"code": "KMS.DisabledException", "httpResponseCode": 400},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_sse_validate_kms_key_state", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#KMSInvalidStateException": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "aws.protocols#awsQueryError": {"code": "KMS.KMSInvalidStateException", "httpResponseCode": 400},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_sse_validate_kms_key_state", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#CopySource": {
+      "type": "apply",
+      "replace": true,
+      "traits": {
+        "smithy.api#pattern": "^\\/?.+(\\/|%2[Ff]).+$",
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "docs/research/phase1/tf-remaining.md#8-aws_s3_object-family: terraform-provider-aws 6.68.0 aws_s3_object_copy sends x-amz-copy-source as url.QueryEscape(bucket/key), so the slash between bucket and key arrives as %2F; the model's pattern would refuse every Terraform copy"}
+      }
+    },
     "com.amazonaws.s3#NotFound": {
       "type": "apply",
       "traits": {

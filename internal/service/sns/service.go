@@ -8,6 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/service/sns/filterpolicy"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -19,6 +20,9 @@ type Service struct {
 	ids     *ids.Source
 	cells   *store.Partitioned[aws.Scope, State]
 	signers signerCache
+	// policies holds the subscriptions' filter policies compiled, filled
+	// where a policy is set and on its first publish after a load.
+	policies *filterpolicy.Cache
 }
 
 // New binds the SNS operations understudy implements. Every other SNS
@@ -26,9 +30,10 @@ type Service struct {
 // 501.
 func New(d kernel.ServiceDeps, _ Options) *Service {
 	s := &Service{
-		clock: d.Clock,
-		ids:   d.IDs,
-		cells: store.NewPartitioned(d.Kernel.Gate(), codec(), newState),
+		clock:    d.Clock,
+		ids:      d.IDs,
+		cells:    store.NewPartitioned(d.Kernel.Gate(), codec(), newState),
+		policies: filterpolicy.NewCache(),
 	}
 	b := snsapi.NewBinder(d.Binder)
 	s.bindTopics(b)
@@ -90,7 +95,9 @@ func fifoDuplicate() fidelity.Switch[string] {
 	}
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence.
+// Switches lists the behaviors chosen without AWS-recorded evidence,
+// filter policy evaluation's among them.
 func (s *Service) Switches() []fidelity.Entry {
-	return []fidelity.Entry{pendingInListings().Entry(), fifoSequence().Entry(), lambdaAttributeTypes().Entry(), fifoDuplicate().Entry()}
+	return append([]fidelity.Entry{pendingInListings().Entry(), fifoSequence().Entry(), lambdaAttributeTypes().Entry(), fifoDuplicate().Entry()},
+		filterpolicy.Switches()...)
 }

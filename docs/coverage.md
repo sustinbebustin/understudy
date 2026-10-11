@@ -136,13 +136,13 @@ Every operation of each service's model, with what its handler states: full, sto
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
 | cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
-| dynamodb | 58 | 2 | 0 | 17 | 39 | 0 | 0 |
+| dynamodb | 58 | 6 | 2 | 18 | 32 | 0 | 0 |
 | eventbridge | 57 | 9 | 0 | 8 | 40 | 0 | 0 |
 | iam | 180 | 44 | 11 | 9 | 116 | 1 | 0 |
 | kms | 54 | 19 | 3 | 5 | 27 | 0 | 0 |
-| lambda | 88 | 24 | 8 | 8 | 48 | 0 | 1 |
+| lambda | 88 | 26 | 4 | 10 | 48 | 0 | 1 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
-| s3 | 112 | 8 | 47 | 6 | 51 | 0 | 3 |
+| s3 | 112 | 11 | 47 | 15 | 39 | 0 | 3 |
 | secretsmanager | 23 | 12 | 1 | 2 | 8 | 0 | 0 |
 | sns | 42 | 12 | 2 | 5 | 23 | 0 | 3 |
 | sqs | 23 | 21 | 2 | 0 | 0 | 1 | 0 |
@@ -212,15 +212,21 @@ Every operation of each service's model, with what its handler states: full, sto
 
 | Operation | Status | Note |
 |---|---|---|
+| DeleteTable | full |  |
 | DescribeLimits | full |  |
 | ListTables | full |  |
+| ListTagsOfResource | full |  |
+| TagResource | full |  |
+| UntagResource | full |  |
+| DescribeContinuousBackups | stored-only | point-in-time recovery is recorded and described; no backups are taken, and the restore operations are not implemented |
+| UpdateContinuousBackups | stored-only | point-in-time recovery is recorded and described; no backups are taken, and the restore operations are not implemented |
 | BatchExecuteStatement | partial | aws-differs: dynamodb-local: requests are never throttled; inject com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
 | BatchGetItem | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
 | BatchWriteItem | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
-| CreateTable | partial | aws-differs: dynamodb-local: table names are case-insensitive, so a name that differs from an existing table's only in case is refused with ResourceInUseException; aws-differs: dynamodb-local: table descriptions lack WarmThroughput, TableClassSummary, SSEDescription and TableId, and Tags are dropped |
+| CreateTable | partial | aws-differs: dynamodb-local: table names are case-insensitive, so a name that differs from an existing table's only in case is refused with ResourceInUseException; aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one |
 | DeleteItem | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
-| DeleteTable | partial | aws-differs: dynamodb-local: the answer reports the table ACTIVE where AWS reports DELETING |
-| DescribeTable | partial | aws-differs: dynamodb-local: table descriptions lack WarmThroughput, TableClassSummary, SSEDescription and TableId, and Tags are dropped |
+| DescribeTable | partial | aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one |
+| DescribeTimeToLive | partial | aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; the one change per hour AWS allows is not enforced |
 | ExecuteStatement | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule; aws-differs: dynamodb-local: Limit is ignored; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
 | ExecuteTransaction | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict, and a fault rule cannot set cancellation reasons yet; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
 | GetItem | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
@@ -230,13 +236,13 @@ Every operation of each service's model, with what its handler states: full, sto
 | TransactGetItems | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict, and a fault rule cannot set cancellation reasons yet |
 | TransactWriteItems | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict, and a fault rule cannot set cancellation reasons yet |
 | UpdateItem | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
-| UpdateTable | partial | aws-differs: dynamodb-local: an update of only SSESpecification, TableClass or WarmThroughput answers ValidationException "Nothing to update" |
+| UpdateTable | partial | aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one |
+| UpdateTimeToLive | partial | aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; the one change per hour AWS allows is not enforced |
 | CreateBackup | unbound |  |
 | CreateGlobalTable | unbound |  |
 | DeleteBackup | unbound |  |
 | DeleteResourcePolicy | unbound |  |
 | DescribeBackup | unbound |  |
-| DescribeContinuousBackups | unbound |  |
 | DescribeContributorInsights | unbound |  |
 | DescribeEndpoints | unbound |  |
 | DescribeExport | unbound |  |
@@ -245,7 +251,6 @@ Every operation of each service's model, with what its handler states: full, sto
 | DescribeImport | unbound |  |
 | DescribeKinesisStreamingDestination | unbound |  |
 | DescribeTableReplicaAutoScaling | unbound |  |
-| DescribeTimeToLive | unbound |  |
 | DisableKinesisStreamingDestination | unbound |  |
 | EnableKinesisStreamingDestination | unbound |  |
 | ExportTableToPointInTime | unbound |  |
@@ -256,20 +261,15 @@ Every operation of each service's model, with what its handler states: full, sto
 | ListExports | unbound |  |
 | ListGlobalTables | unbound |  |
 | ListImports | unbound |  |
-| ListTagsOfResource | unbound |  |
 | PutResourcePolicy | unbound |  |
 | RestoreTableFromBackup | unbound |  |
 | RestoreTableToPointInTime | unbound |  |
 | SearchVectors | unbound |  |
-| TagResource | unbound |  |
-| UntagResource | unbound |  |
-| UpdateContinuousBackups | unbound |  |
 | UpdateContributorInsights | unbound |  |
 | UpdateGlobalTable | unbound |  |
 | UpdateGlobalTableSettings | unbound |  |
 | UpdateKinesisStreamingDestination | unbound |  |
 | UpdateTableReplicaAutoScaling | unbound |  |
-| UpdateTimeToLive | unbound |  |
 
 ### eventbridge
 
@@ -590,6 +590,7 @@ Internal operations:
 | DeleteAlias | full |  |
 | DeleteEventSourceMapping | full |  |
 | DeleteFunction | full |  |
+| DeleteFunctionConcurrency | full |  |
 | DeleteFunctionEventInvokeConfig | full |  |
 | DeleteFunctionUrlConfig | full |  |
 | GetAccountSettings | full |  |
@@ -608,25 +609,24 @@ Internal operations:
 | ListTags | full |  |
 | ListVersionsByFunction | full |  |
 | PublishVersion | full |  |
+| PutFunctionConcurrency | full |  |
 | RemovePermission | full |  |
 | TagResource | full |  |
 | UntagResource | full |  |
 | AddPermission | stored-only | statements are stored and returned by GetPolicy, not enforced |
 | CreateFunctionUrlConfig | stored-only | AuthType, CORS and InvokeMode are stored; the URL is not served in this build |
-| DeleteFunctionConcurrency | stored-only | reserved concurrency is stored, not enforced on invocations |
 | GetFunctionCodeSigningConfig | stored-only | code signing is not enforced; no function has a configuration |
-| PutFunctionConcurrency | stored-only | reserved concurrency is stored, not enforced on invocations |
-| PutFunctionEventInvokeConfig | stored-only | stored and echoed; asynchronous invocations do not apply them in this build |
-| UpdateFunctionEventInvokeConfig | stored-only | stored and echoed; asynchronous invocations do not apply them in this build |
 | UpdateFunctionUrlConfig | stored-only | AuthType, CORS and InvokeMode are stored; the URL is not served in this build |
 | CreateAlias | partial | weighted routing is stored, not applied to invocations |
 | CreateEventSourceMapping | partial | SQS queues only; the mapping is stored and its queue is not polled in this build |
 | CreateFunction | partial | code from S3 is not fetched; layers are refused; code signing and VPC networking are stored only |
 | GetFunction | partial | Code.Location is not returned; understudy serves no package download URL |
+| PutFunctionEventInvokeConfig | partial | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
 | UpdateAlias | partial | weighted routing is stored, not applied to invocations |
 | UpdateEventSourceMapping | partial | SQS queues only; the mapping is stored and its queue is not polled in this build |
 | UpdateFunctionCode | partial | code from S3 is not fetched |
 | UpdateFunctionConfiguration | partial | layers are refused; code signing and VPC networking are stored only |
+| UpdateFunctionEventInvokeConfig | partial | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
 | AddLayerVersionPermission | unbound |  |
 | CheckpointDurableExecution | unbound |  |
 | CreateCapacityProvider | unbound |  |
@@ -818,11 +818,14 @@ Internal operations:
 | CreateBucket | full |  |
 | DeleteBucket | full |  |
 | DeleteBucketTagging | full |  |
+| DeleteObjectTagging | full |  |
 | GetBucketLocation | full |  |
 | GetBucketNotificationConfiguration | full |  |
 | GetBucketTagging | full |  |
+| GetObjectTagging | full |  |
 | HeadBucket | full |  |
 | PutBucketTagging | full |  |
+| PutObjectTagging | full |  |
 | DeleteBucketAnalyticsConfiguration | stored-only | the analytics configuration is stored and echoed; not applied |
 | DeleteBucketCors | stored-only | the CORS configuration is stored and echoed; not applied |
 | DeleteBucketEncryption | stored-only | the default encryption rule is stored and echoed; not applied |
@@ -870,53 +873,50 @@ Internal operations:
 | PutBucketWebsite | stored-only | the website configuration is stored and echoed; not applied |
 | PutObjectLockConfiguration | stored-only | the Object Lock configuration is stored and echoed; not applied |
 | PutPublicAccessBlock | stored-only | the public access block is stored and echoed; not applied |
+| CopyObject | partial | no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error |
 | DeleteBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
+| DeleteObject | partial | no MFA delete or Object Lock retention |
+| DeleteObjects | partial | no MFA delete or Object Lock retention |
 | GetBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | GetBucketVersioning | partial | the status is stored and reported; objects keep no versions in this build |
+| GetObject | partial | no SSE-C, so SSE-C headers are refused; presigned URLs are not verified |
+| HeadObject | partial | no SSE-C, so SSE-C headers are refused; presigned URLs are not verified |
 | ListBuckets | partial | general purpose buckets only; no directory buckets |
+| ListObjectVersions | partial | no RestoreStatus |
+| ListObjects | partial | no RestoreStatus |
+| ListObjectsV2 | partial | no RestoreStatus |
 | PutBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | PutBucketVersioning | partial | the status is stored and reported; objects keep no versions in this build |
+| PutObject | partial | no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are not verified |
 | AbortMultipartUpload | unbound |  |
 | CompleteMultipartUpload | unbound |  |
-| CopyObject | unbound |  |
 | CreateBucketMetadataConfiguration | unbound |  |
 | CreateBucketMetadataTableConfiguration | unbound |  |
 | CreateMultipartUpload | unbound |  |
 | CreateSession | unbound |  |
 | DeleteBucketMetadataConfiguration | unbound |  |
 | DeleteBucketMetadataTableConfiguration | unbound |  |
-| DeleteObject | unbound |  |
 | DeleteObjectAnnotation | unbound |  |
-| DeleteObjectTagging | unbound |  |
-| DeleteObjects | unbound |  |
 | GetBucketAbac | unbound |  |
 | GetBucketMetadataConfiguration | unbound |  |
 | GetBucketMetadataTableConfiguration | unbound |  |
 | GetBucketPolicyStatus | unbound |  |
-| GetObject | unbound |  |
 | GetObjectAcl | unbound |  |
 | GetObjectAnnotation | unbound |  |
 | GetObjectAttributes | unbound |  |
 | GetObjectLegalHold | unbound |  |
 | GetObjectRetention | unbound |  |
-| GetObjectTagging | unbound |  |
 | GetObjectTorrent | unbound |  |
-| HeadObject | unbound |  |
 | ListDirectoryBuckets | unbound |  |
 | ListMultipartUploads | unbound |  |
 | ListObjectAnnotations | unbound |  |
-| ListObjectVersions | unbound |  |
-| ListObjects | unbound |  |
-| ListObjectsV2 | unbound |  |
 | ListParts | unbound |  |
 | PutBucketAbac | unbound |  |
 | PutBucketNotificationConfiguration | unbound |  |
-| PutObject | unbound |  |
 | PutObjectAcl | unbound |  |
 | PutObjectAnnotation | unbound |  |
 | PutObjectLegalHold | unbound |  |
 | PutObjectRetention | unbound |  |
-| PutObjectTagging | unbound |  |
 | RenameObject | unbound |  |
 | RestoreObject | unbound |  |
 | SelectObjectContent | unbound |  |
@@ -982,11 +982,11 @@ Raw operations:
 | UntagResource | full |  |
 | AddPermission | stored-only | statements are stored in the topic Policy; not enforced |
 | RemovePermission | stored-only | statements are stored in the topic Policy; not enforced |
-| Publish | partial | fan-out to sqs and lambda subscriptions; filter policies are not evaluated yet and http, https, email and email-json subscriptions receive nothing; RedrivePolicy is stored; failed deliveries are not sent to the DLQ yet |
-| PublishBatch | partial | fan-out to sqs and lambda subscriptions; filter policies are not evaluated yet and http, https, email and email-json subscriptions receive nothing; RedrivePolicy is stored; failed deliveries are not sent to the DLQ yet |
-| SetSubscriptionAttributes | partial | FilterPolicy and DeliveryPolicy are stored and echoed; publish does not filter yet; RedrivePolicy is stored; failed deliveries are not sent to the DLQ yet |
+| Publish | partial | fan-out to sqs and lambda subscriptions after their filter policies, with raw or enveloped delivery and the RedrivePolicy dead-letter queue; http, https, email and email-json subscriptions receive nothing |
+| PublishBatch | partial | fan-out to sqs and lambda subscriptions after their filter policies, with raw or enveloped delivery and the RedrivePolicy dead-letter queue; http, https, email and email-json subscriptions receive nothing |
+| SetSubscriptionAttributes | partial | DeliveryPolicy is stored and echoed but not applied: http and https endpoints receive nothing in phase 1; the quota of 10,000 filter policies per account is not enforced |
 | SetTopicAttributes | partial | Policy, DeliveryPolicy, KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never enforced |
-| Subscribe | partial | sqs and lambda endpoints are delivered to; http, https, email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; RedrivePolicy is stored; failed deliveries are not sent to the DLQ yet |
+| Subscribe | partial | sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; http, https, email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced |
 | CheckIfPhoneNumberIsOptedOut | unbound |  |
 | CreatePlatformApplication | unbound |  |
 | CreatePlatformEndpoint | unbound |  |
@@ -1075,7 +1075,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the record-backlog item that settles them.
 
-40 switches: 12 aws-doc, 28 inferred.
+55 switches: 12 aws-doc, 43 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1110,6 +1110,21 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `secretsmanager.restore.not-scheduled` | `no-op` | inferred | docs/research/phase1/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven |  |
 | `sns.fifo.duplicate` | `fresh-message-id-no-delivery` | inferred | docs/research/phase1/sns.md#43-fifo-publish |  |
 | `sns.fifo.sequence-number` | `20-digit-decimal-per-topic` | inferred | docs/research/phase1/sns.md#43-fifo-publish |  |
+| `sns.filter-policy.anything-but-arrays` | `any-element` | inferred | docs/research/phase1/matching-engines.md#4.3 | R09/8 (matching-engines.md H4) |
+| `sns.filter-policy.anything-but-list-forms` | `accepted` | inferred | docs/research/phase1/matching-engines.md#5.1 | matching-engines.md H7 |
+| `sns.filter-policy.anything-but-suffix` | `accepted` | inferred | docs/research/phase1/matching-engines.md#8 | R09/7 (matching-engines.md H7) |
+| `sns.filter-policy.array-consistency` | `enforced` | inferred | docs/research/phase1/matching-engines.md#4.3 | R09/14 |
+| `sns.filter-policy.bare-number` | `numeric-or-text` | inferred | docs/research/phase1/matching-engines.md#10 | R09/1 (matching-engines.md H6) |
+| `sns.filter-policy.empty-input` | `matchable` | inferred | docs/research/phase1/matching-engines.md#10 | R09/6 (matching-engines.md H1) |
+| `sns.filter-policy.exactly-operator` | `rejected` | inferred | docs/research/phase1/matching-engines.md#5.1 | matching-engines.md H7 |
+| `sns.filter-policy.exists-true-empty-value` | `any-value` | inferred | docs/research/phase1/matching-engines.md#10 | matching-engines.md H2 |
+| `sns.filter-policy.ignore-case-forms` | `rejected` | inferred | docs/research/phase1/matching-engines.md#8 | matching-engines.md H7 |
+| `sns.filter-policy.key-counting` | `leaf-keys-per-branch` | inferred | docs/research/phase1/matching-engines.md#8 | R09/11, R09/12 (matching-engines.md H3) |
+| `sns.filter-policy.limit-order` | `nesting-keys-combinations-wildcards` | inferred | docs/research/phase1/sns.md#6 | R09/13 |
+| `sns.filter-policy.malformed-or` | `rejected` | inferred | docs/research/phase1/matching-engines.md#10 | matching-engines.md H10 |
+| `sns.filter-policy.number-attribute-type` | `json-number` | inferred | docs/research/phase1/matching-engines.md#5.4 | R09/19 (matching-engines.md H6) |
+| `sns.filter-policy.numeric-range` | `binary64` | inferred | docs/research/phase1/matching-engines.md#5.2 | R09/15 (matching-engines.md H5) |
+| `sns.filter-policy.wildcard-points` | `3-per-star` | inferred | docs/research/phase1/matching-engines.md#8 | matching-engines.md H11 |
 | `sns.lambda.attribute-type` | `as-published` | inferred | docs/research/phase1/sns.md#9-conflicts-between-sources |  |
 | `sns.listing.pending-arn` | `PendingConfirmation` | inferred | docs/research/phase1/sns.md#34-listing |  |
 | `sqs.batch.unset-visibility-timeout` | `zero` | inferred | docs/research/phase1/sqs.md#62-sendmessagebatch-and-the-other-batch-apis |  |
@@ -1124,7 +1139,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item, strongest evidence first.
 
-186 evidence items: 99 third-party-recorded, 41 aws-doc, 1 sdk-source, 45 inferred.
+204 evidence items: 111 third-party-recorded, 46 aws-doc, 2 sdk-source, 45 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1161,6 +1176,8 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#AuthorizationHeaderMalformed` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L18208 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#BadDigest` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#BucketNotEmpty` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#ConditionalRequestConflict` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_preconditions.snapshot.json: test_multipart_if_none_match_with_delete (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#CopySource` |  | docs/research/phase1/tf-remaining.md#8-aws_s3_object-family: terraform-provider-aws 6.68.0 aws_s3_object_copy sends x-amz-copy-source as url.QueryEscape(bucket/key), so the slash between bucket and key arrives as %2F; the model's pattern would refuse every Terraform copy |
 | third-party-recorded | s3.json | `com.amazonaws.s3#CreateBucketConfiguration$LocationConstraint` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: an unknown constraint is InvalidLocationConstraint or IllegalLocationConstraintException by endpoint region, never InvalidArgument (validated 2026-02-23) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#CreateBucketRequest$ObjectOwnership` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json: InvalidArgument names the header, x-amz-object-ownership, and echoes the value (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#EntityTooSmall` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
@@ -1184,13 +1201,21 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidArgument` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2880 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidBucketName` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidBucketState` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#InvalidDigest` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_invalid_content_md5 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidLocationConstraint` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-23) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidPart` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#InvalidPartNumber` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_get_object_part (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidRange` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#InvalidStorageClass` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_put_object_storage_class_outposts (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidTag` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#KMSDisabledException` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_sse_validate_kms_key_state (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#KMSInvalidStateException` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_sse_validate_kms_key_state (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#KMSNotFoundException` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_sse_validate_kms_key (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#MalformedACLError` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2926: an AccessControlPolicy without Owner, with an unknown Permission or Grantee Type, or empty (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#MalformedPolicy` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#MalformedTrailerError` |  | https://github.com/openstack/swift/blob/7d523586e18623f825d57dbf29b361f57da8c200/swift/common/middleware/s3api/s3response.py: MalformedTrailerError, written against S3 |
 | third-party-recorded | s3.json | `com.amazonaws.s3#MalformedXML` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L1526 (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#MethodNotAllowed` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_delete_object_versioned, a delete marker addressed by version id (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#MissingSecurityHeader` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2873 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#NoSuchBucketPolicy` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#NoSuchCORSConfiguration` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
@@ -1200,6 +1225,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#NoSuchTagSet` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#NoSuchVersion` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#NoSuchWebsiteConfiguration` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#NotImplemented` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_preconditions.snapshot.json: conditional write headers S3 does not implement (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#ObjectLockConfigurationNotFoundError` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#OwnershipControlsNotFoundError` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#OwnershipControlsRule$ObjectOwnership` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json: an unknown ObjectOwnership is MalformedXML (validated 2026-02-21) |
@@ -1215,6 +1241,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#SignatureDoesNotMatch` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L3365 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#UnexpectedContent` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L3021 (validated 2026-10-11) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#VersioningConfiguration$Status` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json: a Status other than Enabled or Suspended is MalformedXML (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#XAmzContentSHA256Mismatch` |  | https://github.com/minio/minio-go/blob/master/s3-error.go: XAmzContentSHA256Mismatch, The provided 'x-amz-content-sha256' header does not match what was computed. |
 | third-party-recorded | secretsmanager.json | `com.amazonaws.secretsmanager#secretsmanager` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/secretsmanager/test_secretsmanager.snapshot.json#L891 (validated 2024-03-15) |
 | third-party-recorded | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sns/test_sns.snapshot.json#L1823 (validated 2024-11-15) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#emptyCollection | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json |
@@ -1256,9 +1283,14 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-doc | protocoltests.json | `aws.protocoltests.restjson.validation#RestJsonValidation` | dev.understudy#malformedRequestError | https://github.com/smithy-lang/smithy/blob/1.74.0/smithy-aws-protocol-tests/model/restJson1/malformedRequests/malformed-request-body.smithy |
 | aws-doc | s3.json | `com.amazonaws.s3#AccessControlListNotSupported` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html |
 | aws-doc | s3.json | `com.amazonaws.s3#AmazonS3` | dev.understudy#throttleError | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
+| aws-doc | s3.json | `com.amazonaws.s3#EntityTooLarge` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: EntityTooLarge, 400, Your proposed upload exceeds the maximum allowed object size. |
 | aws-doc | s3.json | `com.amazonaws.s3#GetBucketNotificationConfiguration` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketNotificationConfiguration.html |
 | aws-doc | s3.json | `com.amazonaws.s3#GetBucketRequestPayment` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketRequestPayment.html |
+| aws-doc | s3.json | `com.amazonaws.s3#IncompleteBody` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: IncompleteBody, 400, You did not provide the number of bytes specified by the Content-Length HTTP header. |
 | aws-doc | s3.json | `com.amazonaws.s3#InternalError` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
+| aws-doc | s3.json | `com.amazonaws.s3#KeyTooLongError` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: KeyTooLongError, 400, Your key is too long. |
+| aws-doc | s3.json | `com.amazonaws.s3#MetadataTooLarge` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: MetadataTooLarge, 400, Your metadata headers exceed the maximum allowed metadata size. |
+| aws-doc | s3.json | `com.amazonaws.s3#MissingContentLength` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: MissingContentLength, 411, You must provide the Content-Length HTTP header. |
 | aws-doc | s3.json | `com.amazonaws.s3#NotFound` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadBucket.html: a missing bucket answers 404 Not Found with no body; the model's NotFound carries no httpError, so it would render 400 |
 | aws-doc | s3.json | `com.amazonaws.s3#NotModified` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
 | aws-doc | s3.json | `com.amazonaws.s3#PermanentRedirect` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: PermanentRedirect is 301 Moved Permanently, which Smithy's httpError (4xx and 5xx only) cannot state |
@@ -1268,6 +1300,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-doc | sqs.json | `com.amazonaws.sqs#CreateQueueRequest$QueueName` | smithy.api#length, smithy.api#pattern | https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-queues.html |
 | aws-doc | sqs.json | `com.amazonaws.sqs#SendMessageRequest$DelaySeconds` | smithy.api#range | https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html |
 | aws-doc | sts.json | `com.amazonaws.sts#AWSSecurityTokenServiceV20110615` | dev.understudy#throttleError | https://docs.aws.amazon.com/STS/latest/APIReference/CommonErrors.html |
+| sdk-source | s3.json | `com.amazonaws.s3#InvalidChunkSizeError` |  | https://github.com/aws/aws-sdk-js-v3 middleware-flexible-checksums.e2e.spec.ts: S3 answers 8-byte unsigned chunks with InvalidChunkSizeError; the status is UNVERIFIED |
 | sdk-source | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#errorNamespace | https://github.com/boto/botocore/blob/develop/tests/functional/test_sqs.py |
 | inferred | common.json | `com.amazon.coral.service#RequestEntityTooLargeException` | aws.protocols#awsQueryError | docs/research/phase1/error-matrix.md 3: the Query template lists no such code; the Query code drops the Exception suffix, as the Query codes of the auth family do |
 | inferred | common.json | `dev.understudy#NotImplemented` |  | docs/adr/0003-operation-binding-and-coverage.md: understudy's own code for a modeled operation no handler is bound to; 501 is outside every SDK's retry set |

@@ -13,18 +13,17 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshots.
-const stateVersion = 1
+// stateVersion is the schema version of State in snapshots, and of the
+// item sections of ExportLate.
+const stateVersion = 2
 
 // State is the shim's view of one account and region: the tables Local
-// holds there, which Local itself cannot tell apart by letter case.
+// holds there, which Local itself cannot tell apart by letter case, and
+// what Local drops or answers wrongly about each (Table).
 type State struct {
 	// Tables is keyed by table name as created.
 	Tables map[string]Table `json:"tables"`
 }
-
-// Table is the shim's record of one table Local holds.
-type Table struct{}
 
 func newState(aws.Scope) State { return State{Tables: map[string]Table{}} }
 
@@ -68,13 +67,15 @@ func (s *Service) Import(ss []store.Section) error {
 }
 
 // Reset drops the scopes rs covers. The tables stay in Local; deleting
-// them there is the snapshot reset's work (ARCHITECTURE.md 13).
+// them there is ResetLate's work, which a reset runs first (ARCHITECTURE.md
+// 13).
 func (s *Service) Reset(rs kernel.ResetScope) {
 	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
 }
 
-// Rearm does nothing: the state arms no timers.
-func (*Service) Rearm(clock.Instant) {}
+// Rearm arms a TTL sweep due at now for every table with TTL enabled; each
+// sweep arms the next for the earliest expiry it finds.
+func (s *Service) Rearm(now clock.Instant) { s.sweeps.rearm(s.enabledTTL(), now) }
 
 // Resources lists the tables of scope by name.
 func (s *Service) Resources(scope aws.Scope) []kernel.Resource {

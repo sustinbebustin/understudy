@@ -111,7 +111,7 @@ func (l *Launcher) ensureImage(ctx context.Context, ref string, arch Architectur
 
 func present(ref string, arch Architecture, img docker.Image) Image {
 	digest := img.ID
-	repo := repository(ref)
+	repo := Repository(ref)
 	for _, rd := range img.RepoDigests {
 		if r, d, ok := strings.Cut(rd, "@"); ok && r == repo {
 			digest = d
@@ -121,8 +121,10 @@ func present(ref string, arch Architecture, img docker.Image) Image {
 	return Image{Ref: ref, Digest: digest, Architecture: arch}
 }
 
-// repository strips the tag and digest from a reference.
-func repository(ref string) string {
+// Repository strips the tag and digest from an image reference, the part
+// a repository digest is paired with (repo@sha256:...). A registry port is
+// not a tag.
+func Repository(ref string) string {
 	ref, _, _ = strings.Cut(ref, "@")
 	nameStart := strings.LastIndex(ref, "/") + 1
 	if i := strings.LastIndex(ref[nameStart:], ":"); i >= 0 {

@@ -19,6 +19,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
 )
 
@@ -438,5 +439,168 @@ func TestPublishBatch(t *testing.T) {
 			{Id: "a", Message: strings.Repeat("x", 600)}, {Id: "b", Message: strings.Repeat("x", 600)},
 		}})
 		wantError(h, err, "BatchRequestTooLong", "The length of all the messages put together is more than the limit.")
+	})
+}
+
+// deliveries returns the delivery events the journal holds whose outcome
+// is an O, by target ARN.
+func deliveries[O journal.DeliveryOutcome](h *harness) map[string][]journal.Delivery {
+	h.Helper()
+	out := map[string][]journal.Delivery{}
+	events := h.k.Journal().Query(journal.Filter{Kind: journal.KindDelivery, Limit: 1000}).Events
+	for i := range events {
+		if d, ok := events[i].Detail.(journal.Delivery); ok {
+			if _, ok := d.Outcome.(O); ok {
+				out[d.To.String()] = append(out[d.To.String()], d)
+			}
+		}
+	}
+	return out
+}
+
+// filtered returns the Filtered delivery events, by target ARN.
+func (h *harness) filtered() map[string][]journal.Delivery { return deliveries[journal.Filtered](h) }
+
+// TestUndecidedFilterDropsTheMessage: a body the filter policy's matcher
+// gives up on (its search budget, an understudy bound) is journaled as
+// Dropped at attempt 0 with the subscription named, and reaches neither the
+// outbox, the queue, nor the subscription's dead-letter queue. The policy
+// and body are inside SNS's limits: five keys, a 5 KB body.
+func TestUndecidedFilterDropsTheMessage(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		arn := h.subscribe(topic, "sqs", queueARN, map[string]string{
+			"FilterPolicy":      `{"a":{"b":["1"],"c":["1"],"d":["1"],"e":["1"],"z":["2"]}}`,
+			"FilterPolicyScope": "MessageBody",
+			"RedrivePolicy":     `{"deadLetterTargetArn":"arn:aws:sqs:us-east-1:000000000000:orders-dlq"}`,
+		})
+		elem := `{"b":"1","c":"1","d":"1","e":"1","z":"1"}`
+		array := `[` + strings.Repeat(elem+",", 31) + elem + `]`
+		body := `{` + strings.Repeat(`"a":`+array+",", 3) + `"a":` + array + `}`
+		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: body})
+		h.settle()
+		if n := len(h.sink.all()); n != 0 {
+			h.Fatalf("outbox took %d deliveries of an undecided message, want 0", n)
+		}
+		if sent := h.sent.all(); len(sent) != 0 {
+			h.Errorf("SendMessage ran %d times, want 0", len(sent))
+		}
+		if got := h.filtered(); len(got) != 0 {
+			h.Errorf("Filtered events = %+v, want none: the message was not decided", got)
+		}
+		dropped := deliveries[journal.Dropped](h)[queueARN]
+		if len(dropped) != 1 {
+			h.Fatalf("Dropped events to the queue = %+v, want one", dropped)
+		}
+		d := dropped[0]
+		outcome, ok := d.Outcome.(journal.Dropped)
+		id := arn[strings.LastIndex(arn, ":")+1:]
+		if !ok || d.Attempt != 0 || d.From.String() != topic || d.Mechanism != delivery.SNSToSQS ||
+			!strings.HasPrefix(outcome.Reason, "the filter policy of subscription "+id+" could not be evaluated") {
+			h.Errorf("Dropped event = %+v, want attempt 0 from %s over SNSToSQS naming subscription %s", d, topic, id)
+		}
+	})
+}
+
+// TestFilterPolicyDecidesDelivery publishes past an attribute-scope policy
+// on a queue and a body-scope policy on a function: a matching message
+// reaches the stub target, and a non-matching one is journaled as Filtered
+// with the policy and never reaches the outbox (sns.md 6.3).
+func TestFilterPolicyDecidesDelivery(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		byAttribute := `{"store":["north"],"price":[{"numeric":[">",100]}]}`
+		byBody := `{"detail":{"kind":["order"]}}`
+		h.subscribe(topic, "sqs", queueARN, map[string]string{"FilterPolicy": byAttribute, "RawMessageDelivery": "true"})
+		h.subscribe(topic, "lambda", functionARN, map[string]string{"FilterPolicy": byBody, "FilterPolicyScope": "MessageBody"})
+		publish := func(body string, attrs map[string]snsapi.MessageAttributeValue) {
+			must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: body, MessageAttributes: attrs})
+		}
+
+		publish(`{"detail":{"kind":"refund"}}`, map[string]snsapi.MessageAttributeValue{"store": attr("String", "south"), "price": attr("Number", "150")})
+		h.settle()
+		if n := len(h.sink.all()); n != 0 {
+			h.Fatalf("outbox took %d deliveries of a message neither policy matches, want 0", n)
+		}
+		got := h.filtered()
+		for target, rule := range map[string]string{queueARN: byAttribute, functionARN: byBody} {
+			events := got[target]
+			if len(events) != 1 {
+				h.Fatalf("Filtered events to %s = %+v, want one", target, events)
+			}
+			if d := events[0]; d.Outcome != (journal.Filtered{Rule: rule}) || d.From.String() != topic || d.Attempt != 0 {
+				h.Errorf("Filtered event to %s = %+v, want rule %s from %s at attempt 0", target, d, rule, topic)
+			}
+		}
+
+		publish(`{"detail":{"kind":["refund","order"]}}`, map[string]snsapi.MessageAttributeValue{"store": attr("String", "north"), "price": attr("Number", "1.5e2")})
+		h.settle()
+		if sent := h.sent.all(); len(sent) != 1 || sent[0].MessageAttributes["store"].StringValue == nil || *sent[0].MessageAttributes["store"].StringValue != "north" {
+			h.Errorf("SendMessage = %+v, want one raw message with its attributes", sent)
+		}
+		if n := len(h.invoked.all()); n != 1 {
+			h.Errorf("Invoke ran %d times, want 1", n)
+		}
+		if n := len(h.filtered()[queueARN]); n != 1 {
+			h.Errorf("%d Filtered events to the queue after a matching publish, want still 1", n)
+		}
+	})
+}
+
+// TestFilteredMessageNeverReachesTheDeadLetterQueue: a subscription with a
+// RedrivePolicy hands its queue to the outbox as the delivery's DLQ, and a
+// message its policy filters out produces no outbox entry at all, so it
+// cannot be redriven (sns.md 6.3, 7.4).
+func TestFilteredMessageNeverReachesTheDeadLetterQueue(t *testing.T) {
+	run(t, func(h *harness) {
+		const dlq = "arn:aws:sqs:us-east-1:000000000000:orders-dlq"
+		topic := h.topic("events", nil)
+		h.subscribe(topic, "sqs", queueARN, map[string]string{
+			"FilterPolicy":  `{"store":["north"]}`,
+			"RedrivePolicy": `{"deadLetterTargetArn":"` + dlq + `"}`,
+		})
+		h.subscribe(topic, "lambda", functionARN, map[string]string{"RedrivePolicy": `{"deadLetterTargetArn":"` + dlq + `"}`})
+		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
+		h.settle()
+		got := h.sink.all()
+		if len(got) != 1 {
+			h.Fatalf("outbox took %d deliveries, want only the function's", len(got))
+		}
+		if r := got[0].Request; r.DLQ == nil || r.DLQ.String() != dlq || r.Mechanism != delivery.SNSToLambda {
+			h.Errorf("delivery = %+v, want the function's with DLQ %s", r, dlq)
+		}
+		if len(h.filtered()[queueARN]) != 1 {
+			h.Error("the filtered message was not journaled as Filtered")
+		}
+		for _, in := range h.sent.all() {
+			h.Errorf("SendMessage ran for %s; a filtered message reached a queue", in.QueueUrl)
+		}
+	})
+}
+
+// TestFIFOFilterKeepsGroupAndOrder: on a FIFO topic a matching message
+// reaches a FIFO queue with its group and deduplication ids, in publish
+// order, while a filtered one in between is left out (sns.md 5.3).
+func TestFIFOFilterKeepsGroupAndOrder(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events.fifo", map[string]string{"FifoTopic": "true"})
+		h.subscribe(topic, "sqs", fifoQueueARN, map[string]string{"FilterPolicy": `{"kind":[{"anything-but":"skip"}]}`, "RawMessageDelivery": "true"})
+		for i, kind := range []string{"a", "skip", "b"} {
+			must(h, snsapi.OpPublish, &snsapi.PublishInput{
+				TopicArn: &topic, Message: kind, MessageGroupId: new("g1"), MessageDeduplicationId: new(strconv.Itoa(i)),
+				MessageAttributes: map[string]snsapi.MessageAttributeValue{"kind": attr("String", kind)},
+			})
+		}
+		h.settle()
+		sent := h.sent.all()
+		if len(sent) != 2 {
+			h.Fatalf("SendMessage ran %d times, want 2", len(sent))
+		}
+		for i, want := range []struct{ body, dedup string }{{"a", "0"}, {"b", "2"}} {
+			in := sent[i]
+			if in.MessageBody != want.body || in.MessageGroupId == nil || *in.MessageGroupId != "g1" || in.MessageDeduplicationId == nil || *in.MessageDeduplicationId != want.dedup {
+				h.Errorf("send %d = body %q group %v dedup %v, want %q in g1 with %s", i, in.MessageBody, in.MessageGroupId, in.MessageDeduplicationId, want.body, want.dedup)
+			}
+		}
 	})
 }

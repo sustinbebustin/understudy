@@ -351,7 +351,7 @@ func (p *Pool) start(ctx context.Context, e *Env, spec launcher.Spec) error {
 	var exit launcher.Exit
 	exited := false
 	if err == nil {
-		e.endpoint, e.container = endpoint, c
+		e.endpoint, e.container, e.logStream = endpoint, c, slot.LogStream
 		p.byContainer[c.ID] = e
 		exit, exited = p.unclaimed[c.ID]
 		delete(p.unclaimed, c.ID)

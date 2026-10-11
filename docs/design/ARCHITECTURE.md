@@ -1089,7 +1089,7 @@ faults.json                                     rules with seeds and remaining b
 services/sqs/000000000000/us-east-1.json        one canonical JSON document per cell (jsonx, Deterministic)
 services/s3/index.json                          bucket-name index cell
 services/s3/buckets/<bucket>.json               per-bucket metadata, versions, multipart state
-services/dynamodb/<account>/<region>/tables.json      shim state: tags, TTL, PITR, table class, SSE, table ids
+services/dynamodb/<account>/<region>.json            shim state: tags, TTL, PITR, table class, SSE, table ids
 services/dynamodb/<account>/<region>/<table>.ndjson   items exported by Scan through the proxy, sorted by key
 blobs/sha256/<hex>                              object bodies, multipart parts, Lambda code zips
 journal.ndjson                                  optional (--include-journal)
@@ -1190,7 +1190,7 @@ One `logs?follow=1&timestamps=1` stream per environment, opened right after star
 
 ### 14.7 Invoke, async, state machine, function URLs
 
-- RequestResponse 200 with `X-Amz-Executed-Version`; Event 202 into a per-function async queue kept in the Lambda cell on the emulator clock (retries after 60 s and 120 s on function errors; throttles and 5xx requeue with 1 s to 5 min backoff for up to 6 h, `lambda-events.md 8`; destinations are stretch and plug into `delivery`); DryRun 204. Limits: 6 MB sync, 1 MB async (`lambda-api.md` finding 4; the brief's 256 KB is outdated). `X-Amzn-RequestId` always.
+- RequestResponse 200 with `X-Amz-Executed-Version`; Event 202 into a per-function async queue on the emulator clock, kept in the Lambda execution layer's own per-scope cells rather than the Lambda cell (wave 7): it is a `Stateful` of its own with `ServiceID` `lambda-async`, listed beside `lambda` in snapshots, resources and reset, and a reset of `lambda` empties it too through the execution layer's `Drain` (retries after 60 s and 120 s on function errors; throttles and 5xx requeue with 1 s to 5 min backoff for up to 6 h, `lambda-events.md 8`; destinations are stretch and plug into `delivery`); DryRun 204. Limits: 6 MB sync, 1 MB async (`lambda-api.md` finding 4; the brief's 256 KB is outdated). `X-Amzn-RequestId` always.
 - Function state and `LastUpdateStatus` are final before the mutating call returns (`Active`, `Successful`) in every clock mode by default (F3, product C1); `lambda.stateTransitions: clock` restores `Pending -> Active` and `InProgress -> Successful` on the emulator clock with a 10 ms delay and the exact `ResourceConflictException` for updates inside the window, for SDK-waiter tests.
 - Docker unavailable: the control plane keeps working (Terraform applies cleanly); Invoke returns `ServiceException` naming the Docker endpoint tried and `understudy doctor`.
 - Containers keep running between invocations (AWS freezes the sandbox); background work between invocations belongs to no invocation and is journaled with the environment as its only link. Pausing environments through the Engine API is deferred (F18).

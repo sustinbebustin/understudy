@@ -5,9 +5,8 @@
 // State is one cell per account and region holding its topics by name and
 // the RSA key its notifications are signed with. A topic keeps its
 // subscriptions in creation order, which is the order Publish hands their
-// deliveries to the outbox as Deliver effects. Filter policies are stored
-// and echoed but not evaluated here; package filterpolicy and the publish
-// path add that.
+// deliveries to the outbox as Deliver effects, after each subscription's
+// filter policy (package filterpolicy) admits the message.
 //
 // # Decisions the architecture and research leave open
 //
@@ -33,10 +32,11 @@
 //     https, email and email-json subscriptions receive nothing in phase
 //     1, confirmed or not, and Subscribe and Publish say so in their
 //     coverage notes.
-//   - Redrive. A subscription's RedrivePolicy is checked, stored and
-//     echoed, but a delivery that fails is not sent to its DLQ yet; the
-//     Subscribe, SetSubscriptionAttributes, Publish and PublishBatch
-//     coverage notes say so.
+//   - Filter policy quota. A Subscribe whose FilterPolicy would pass the
+//     topic's 200 still creates the subscription, without the policy, and
+//     answers FilterPolicyLimitExceeded, as AWS documents (sns.md 3.1).
+//     The 10,000 per account is not enforced: state is per account and
+//     Region, so no topic write sees the account's count.
 //   - Unsubscribing. A subscription confirmed with
 //     AuthenticateOnUnsubscribe=true refuses the unsigned UnsubscribeURL
 //     with InvalidParameter and an inferred text.

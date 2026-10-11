@@ -254,14 +254,26 @@ func (SNS) admit(src []byte) *CompileError {
 	if len(src) > snsMaxBytes {
 		return limitError(LimitSize, "Filter policy can not be larger than "+strconv.Itoa(snsMaxBytes/1024)+" KB")
 	}
+	if message, ok := SyntaxError(src); ok {
+		return &CompileError{Cause: InvalidJSON{}, Detail: "failed to parse JSON. " + message}
+	}
+	return nil
+}
+
+// SyntaxError is the first JSON syntax error in src, worded as Jackson
+// words it without its location line, and false when src is a sequence of
+// well-formed JSON values. SNS appends it to "failed to parse JSON. " for
+// any JSON attribute it parses, a filter policy or a RedrivePolicy (sns.md
+// 3.3, 6.5).
+func SyntaxError(src []byte) (string, bool) {
 	lx := newLexer(src)
 	for {
 		t, err := lx.next()
 		if err != nil {
-			return &CompileError{Cause: InvalidJSON{}, Detail: "failed to parse JSON. " + err.message}
+			return err.message, true
 		}
 		if t.kind == tokEOF {
-			return nil
+			return "", false
 		}
 	}
 }

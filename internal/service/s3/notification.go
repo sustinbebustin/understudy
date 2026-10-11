@@ -27,8 +27,6 @@ func getNotification(_ *s3api.GetBucketNotificationConfigurationInput, b *Bucket
 
 // event is an object change that event notifications report: the event
 // name, such as ObjectCreated:Put, and the object it changed.
-//
-//nolint:unused // The input of notify, which commitObject calls.
 type event struct {
 	name      string
 	key       string
@@ -40,6 +38,4 @@ type event struct {
 // notify raises ev for every notification configuration of b that selects
 // it, as Deliver effects of the write that commits the change. No
 // configuration can be stored in this build, so it raises nothing.
-//
-//nolint:unused // Called by commitObject, the seam the object operations commit through.
 func (*Service) notify(*kernel.Tx, *Bucket, event) {}

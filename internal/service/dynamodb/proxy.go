@@ -15,10 +15,10 @@ import (
 
 // forward sends one call naming the tables addressed to Local and returns
 // its rewritten answer: the pre-forward checks, the scope and exact-name
-// checks of the addressed tables, Local's start under the licence gate, the body (the
-// client's bytes or the encoded input), the rewritten credential, then the
-// answer rewrite. Local's own error answers come back as raw responses,
-// written to the client as rewritten.
+// checks of the addressed tables, Local's start under the licence gate,
+// the body (the client's bytes or the encoded input), the rewritten
+// credential, then the answer rewrite. Local's own error answers come back
+// as raw responses, written to the client as rewritten.
 func (s *Service) forward(ctx context.Context, c *kernel.Call, in smithy.Serializable, w kernel.Wire, a answer, addressed []string) (kernel.RawResponse, *awserr.Error) {
 	if err := preForward(c); err != nil {
 		return kernel.RawResponse{}, err
@@ -37,7 +37,7 @@ func (s *Service) forward(ctx context.Context, c *kernel.Call, in smithy.Seriali
 	if err != nil {
 		return kernel.RawResponse{}, err
 	}
-	local, err := s.send(ctx, endpoint, c, body)
+	local, err := s.send(ctx, endpoint, exchangeOf(c), body)
 	if err != nil {
 		return kernel.RawResponse{}, err
 	}

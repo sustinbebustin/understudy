@@ -82,17 +82,14 @@ func TestLocalThatCannotStartAnswersWhy(t *testing.T) {
 	})
 }
 
-// TestOperationsLocalLacksNeverReachIt: an operation Local does not serve,
-// or one the shims own (TTL, tags, continuous backups), is not implemented
-// in understudy's error format before Local sees it, so neither Local's
-// generic UnknownOperationException nor its wall-clock TTL sweeper is ever
-// involved (dynamodb-local.md 4.2, 5.2).
+// TestOperationsLocalLacksNeverReachIt: an operation Local does not serve
+// is not implemented in understudy's error format before Local sees it, so
+// Local's generic UnknownOperationException is never involved
+// (dynamodb-local.md 4.2).
 func TestOperationsLocalLacksNeverReachIt(t *testing.T) {
 	run(t, func(h *harness) {
 		for _, op := range []string{
 			"CreateBackup", "DescribeEndpoints", "DescribeKinesisStreamingDestination", "GetResourcePolicy", "RestoreTableToPointInTime",
-			"UpdateTimeToLive", "DescribeTimeToLive", "TagResource", "UntagResource", "ListTagsOfResource",
-			"DescribeContinuousBackups", "UpdateContinuousBackups",
 		} {
 			got := h.call(op, `{}`)
 			if e := parseError(h, got.Body); got.Status != http.StatusNotImplemented || e.Type != "NotImplemented" || !strings.Contains(e.Message, "understudy does not implement dynamodb."+op) {
@@ -106,7 +103,9 @@ func TestOperationsLocalLacksNeverReachIt(t *testing.T) {
 }
 
 // TestEveryOperationLocalServesIsBound: the forwarded operations are
-// bound, with Full or a Partial naming Local's gap.
+// bound, with Full or a Partial naming Local's gap, and so are the
+// operations the shims answer; those whose answers carry LatestStreamLabel
+// list Local's labels as a deviation.
 func TestEveryOperationLocalServesIsBound(t *testing.T) {
 	run(t, func(h *harness) {
 		forwarded := []string{
@@ -114,15 +113,26 @@ func TestEveryOperationLocalServesIsBound(t *testing.T) {
 			"DescribeTable", "ExecuteStatement", "ExecuteTransaction", "GetItem", "ListTables", "PutItem", "Query", "Scan",
 			"TransactGetItems", "TransactWriteItems", "UpdateItem", "UpdateTable",
 		}
+		shimmed := []string{
+			"UpdateTimeToLive", "DescribeTimeToLive", "TagResource", "UntagResource", "ListTagsOfResource",
+			"DescribeContinuousBackups", "UpdateContinuousBackups",
+		}
+		labelled := []string{"CreateTable", "DescribeTable", "UpdateTable"}
 		for _, op := range dynamodbapi.Service().Operations {
 			status := h.Kernel.Bindings().Status(op)
 			bound, ok := status.(kernel.Bound)
-			if ok != slices.Contains(forwarded, op.ID.Name) {
+			if ok != (slices.Contains(forwarded, op.ID.Name) || slices.Contains(shimmed, op.ID.Name)) {
 				h.Errorf("%s: status %#v", op.ID.Name, status)
 				continue
 			}
-			if p, partial := bound.Coverage.(registry.Partial); ok && partial && !strings.HasPrefix(p.Note, "aws-differs: dynamodb-local: ") {
+			p, partial := bound.Coverage.(registry.Partial)
+			if ok && partial && slices.Contains(forwarded, op.ID.Name) && !strings.HasPrefix(p.Note, "aws-differs: dynamodb-local: ") {
 				h.Errorf("%s: partial note %q does not say how Local differs", op.ID.Name, p.Note)
+			}
+			// ADR 0009 amendment: Local's stream labels change across a
+			// snapshot load or reset, listed where answers carry them.
+			if slices.Contains(labelled, op.ID.Name) && (!partial || !strings.Contains(p.Note, "LatestStreamLabel is minted by DynamoDB Local")) {
+				h.Errorf("%s: coverage %#v does not list the stream-label deviation", op.ID.Name, bound.Coverage)
 			}
 		}
 	})

@@ -62,7 +62,7 @@ func ownership(t *testing.T) docker.Ownership {
 // newRealKernel is a kernel on a frozen clock with the DynamoDB service
 // over local. It runs outside a synctest bubble, because the calls go over
 // the network to a real container.
-func newRealKernel(t *testing.T, local dynamodb.Local) *kernel.Kernel {
+func newRealKernel(t *testing.T, local dynamodb.Local) (*kernel.Kernel, *dynamodb.Service) {
 	t.Helper()
 	timers := kernel.NewTimers()
 	clk, err := clock.New(clock.Options{Mode: clock.Frozen{}, Start: clock.FromWire(time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)), Timers: timers.Scheduler()})
@@ -82,12 +82,12 @@ func newRealKernel(t *testing.T, local dynamodb.Local) *kernel.Kernel {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dynamodb.New(kernel.ServiceDeps{Kernel: k, Binder: k.Binder(dynamodbapi.Service()), Clock: clk, IDs: src, Identity: identity.New(src, aws.DefaultAccount())},
+	svc := dynamodb.New(kernel.ServiceDeps{Kernel: k, Binder: k.Binder(dynamodbapi.Service()), Clock: clk, IDs: src, Identity: identity.New(src, aws.DefaultAccount())},
 		dynamodb.Options{Local: local})
 	if err := k.BindErr(); err != nil {
 		t.Fatal(err)
 	}
-	return k
+	return k, svc
 }
 
 // send runs a client request for op with body in scope, its original bytes
@@ -179,7 +179,7 @@ func TestLocalIsolatesAccountsAndRegions(t *testing.T) {
 		}
 	}
 
-	rk := newRealKernel(t, m)
+	rk, _ := newRealKernel(t, m)
 	scopes := []aws.Scope{
 		scopeOf(t, "111111111111", "us-east-1"), scopeOf(t, "111111111111", "eu-west-1"),
 		scopeOf(t, "222222222222", "us-east-1"), scopeOf(t, "222222222222", "eu-west-1"),
@@ -236,7 +236,7 @@ func TestLicenceGateBeforeAnyPull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rk := newRealKernel(t, m)
+	rk, _ := newRealKernel(t, m)
 	_, aerr := send(t, rk, scopeOf(t, "111111111111", "us-east-1"), dynamodbapi.OpListTablesRaw, `{}`)
 	if aerr == nil || aerr.ID.Status != http.StatusNotImplemented || aerr.Message != ddblocal.Notice() ||
 		!strings.Contains(aerr.Message, "start understudy with --accept-dynamodb-local-license or set UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1") {

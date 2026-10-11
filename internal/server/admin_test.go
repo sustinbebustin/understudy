@@ -148,7 +148,7 @@ func TestEveryProtocolReachesItsService(t *testing.T) {
 			header: map[string]string{"Content-Type": "application/cbor", "Smithy-Protocol": "rpc-v2-cbor"}, want: "NotImplemented",
 		},
 		{name: "restJson1", method: http.MethodGet, path: "/2018-10-31/layers", signing: "lambda", want: "understudy does not implement lambda.ListLayers"},
-		{name: "restXml", method: http.MethodGet, path: "/bucket/key", signing: "s3", want: "understudy does not implement s3.GetObject"},
+		{name: "restXml", method: http.MethodGet, path: "/bucket/key?uploadId=u", signing: "s3", want: "understudy does not implement s3.ListParts"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -562,8 +562,19 @@ func TestAdminUnimplementedHooksAreUnavailable(t *testing.T) {
 	}
 	_, err := c.PullImages(t.Context(), admin.ImagePullRequest{})
 	wantCode(t, err, admin.Unavailable)
-	_, err = c.SweepTTL(t.Context())
-	wantCode(t, err, admin.Unavailable)
+}
+
+// POST /dynamodb/ttl-sweep sweeps every table with TTL enabled; with no
+// table it deletes nothing and never starts DynamoDB Local.
+func TestAdminTTLSweepWithoutTablesDeletesNothing(t *testing.T) {
+	c, _ := adminServer(t, server.Config{})
+	got, err := c.SweepTTL(t.Context())
+	if err != nil {
+		t.Fatalf("SweepTTL = %v", err)
+	}
+	if got.Deleted != 0 {
+		t.Fatalf("SweepTTL deleted %d items, want 0", got.Deleted)
+	}
 }
 
 // GET /coverage reports the running server's protocol compliance, from

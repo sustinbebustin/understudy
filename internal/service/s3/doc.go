@@ -11,10 +11,13 @@
 // tagging, and the metrics, analytics, inventory and Intelligent-Tiering
 // families with their List operations); GetBucketNotificationConfiguration;
 // and the S3 Control tag operations ListTagsForResource, TagResource and
-// UntagResource, which share each bucket's tag set. Object and multipart
-// operations and PutBucketNotificationConfiguration answer 501; objects.go,
-// multipart.go and notification.go hold their bind functions and the
-// commitObject and notify seams the object operations will commit through.
+// UntagResource, which share each bucket's tag set. The object operations
+// PutObject, GetObject, HeadObject, DeleteObject, DeleteObjects,
+// CopyObject, ListObjects, ListObjectsV2, ListObjectVersions and the
+// object tagging operations are bound; every object change lands through
+// commitObject, which raises its event notifications (notify, which
+// raises none until PutBucketNotificationConfiguration is bound).
+// Multipart operations and PutBucketNotificationConfiguration answer 501.
 //
 // State is a partition-wide name index (bucket names are global across
 // accounts) and one cell per bucket (ARCHITECTURE.md 8 rule 3).
@@ -69,4 +72,48 @@
 //     encryption, lifecycle, ownership, Object Lock, policy, CORS) run at
 //     step 7 through kernel.WithCheck; the generated constraint checks
 //     still answer InvalidArgument in the Coral grammar, not S3's texts.
+//
+// Decisions for objects:
+//
+//   - Bodies live in the content-addressed blob store; a version holds one
+//     reference on its blob, which BucketCell.BlobRefs lists for snapshots
+//     and the admin reset. Objects.Keys is changed in place inside the
+//     bucket's kernel.Write, after every check passed, so a write copies
+//     no key set; no read returns the map or a version chain.
+//   - x-amz-version-id is left out for a null version unless versioning is
+//     Enabled (reportedVersion), so Terraform does not take its versioned
+//     delete path on an unversioned bucket (tf-remaining.md 8). A
+//     well-formed but unknown version id deletes nothing with 204, and
+//     DeleteObjects reports it as NoSuchVersion on a versioned bucket.
+//   - SSE-KMS stores the bytes as sent: a write asks KMS for a data key
+//     and every GetObject asks KMS to decrypt it, both charged to the
+//     caller, so the key's state is observable. Its ETag is random hex.
+//     SSE-C writes are refused with AccessDenied, as new buckets block
+//     SSE-C, and SSE-C headers on a read or copy source with
+//     InvalidRequest; a KMS key id without aws:kms is InvalidArgument
+//     whatever the bucket default.
+//   - aws-chunked bodies map their errors as bodyError says:
+//     IncompleteBody, MalformedTrailerError, InvalidChunkSizeError, and
+//     NotImplemented for SigV4a streaming. Chunk signatures are parsed but
+//     not verified.
+//   - A malformed or multi-range Range is ignored (whole object, 200) per
+//     RFC 9110; a ranged read answers 206 through the restXml S3
+//     dialect's PartialContent. An object written in one request is its
+//     own part 1, served whole.
+//   - GetObject opens the body while the read still holds a reference on
+//     the blob, so a concurrent overwrite cannot fail an admitted read.
+//   - CopyObject reads its source without the cross-region and owner
+//     admission, since copies may cross regions and phase 1 enforces no
+//     access. The source read's blob reference becomes the copy's. A copy
+//     source decodes valid %XX sequences, %2F included, as Terraform
+//     escapes the separator, and keeps a literal '+' (UNVERIFIED for
+//     Terraform's form). Its over-5-GiB text is UNVERIFIED.
+//   - encoding-type=url is applied by the restXml codec; the handlers only
+//     validate it and echo EncodingType.
+//   - On a BucketOwnerEnforced bucket, any object canned ACL other than
+//     bucket-owner-full-control and any x-amz-grant-* header is refused
+//     (s3.md 4.2.4); elsewhere an object ACL is accepted and not stored.
+//   - Presigned URLs are not verified: the edge recognizes a presigned
+//     request, but no seam hands the S3 handler the query signature, so a
+//     presigned URL never expires (docs/plan/DEFERRED.md).
 package s3

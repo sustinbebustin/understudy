@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
 )
 
 // The account limits GetAccountSettings reports and reserved concurrency
@@ -158,11 +159,7 @@ func renderCodeLocation(code Code) *lambdaapi.FunctionCodeLocation {
 	case ImageCode:
 		out := &lambdaapi.FunctionCodeLocation{RepositoryType: new("ECR"), ImageUri: new(code.URI)}
 		if digest, ok := cutDigest(code.Digest); ok {
-			repo, _, _ := strings.Cut(code.URI, "@")
-			if i := strings.LastIndex(repo, ":"); i > strings.LastIndex(repo, "/") {
-				repo = repo[:i]
-			}
-			out.ResolvedImageUri = new(repo + "@sha256:" + digest)
+			out.ResolvedImageUri = new(launcher.Repository(code.URI) + "@sha256:" + digest)
 		}
 		return out
 	}
@@ -383,7 +380,7 @@ func (s *Service) updateFunctionCode(ctx context.Context, c *kernel.Call, in *la
 	}
 	s.release(ctx, res.released...)
 	touch(c, ref.arn())
-	s.hotReloadAdvisory(c, ref)
+	s.hotReloadAdvisory(ctx, c, ref)
 	return &res.out, nil
 }
 

@@ -54,7 +54,9 @@ func newFlattener(src []byte) *flattener {
 	return &flattener{lx: newLexer(src), out: newFields()}
 }
 
-// flattenEvent parses an event, which must be a JSON object.
+// flattenEvent parses an event, which must be a single JSON object: content
+// after its closing brace makes the event malformed, as Compile treats a
+// pattern.
 func flattenEvent(src []byte) (*fields, *EventError) {
 	f := newFlattener(src)
 	t, err := f.lx.next()
@@ -67,6 +69,9 @@ func flattenEvent(src []byte) (*fields, *EventError) {
 	members, err := f.object("")
 	if err != nil {
 		return nil, &EventError{Detail: err.message}
+	}
+	if t, err := f.lx.next(); err != nil || t.kind != tokEOF {
+		return nil, &EventError{Detail: "Event must be a single JSON object; found content after it"}
 	}
 	f.out.empty = members == 0
 	return f.out, nil

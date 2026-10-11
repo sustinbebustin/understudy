@@ -15,6 +15,9 @@ type Env struct {
 	key       Key
 	endpoint  Endpoint
 	container launcher.Container
+	// logStream is the AWS_LAMBDA_LOG_STREAM_NAME the container was
+	// started with.
+	logStream string
 	state     EnvState
 	// leased: a caller holds the environment between Acquire and Release.
 	leased bool
@@ -33,6 +36,15 @@ func (e *Env) Container() launcher.Container {
 	e.pool.mu.Lock()
 	defer e.pool.mu.Unlock()
 	return e.container
+}
+
+// LogStream is the log stream name the environment's container was
+// started with as AWS_LAMBDA_LOG_STREAM_NAME, YYYY/MM/DD/[version]<id>,
+// dated when the pool started it.
+func (e *Env) LogStream() string {
+	e.pool.mu.Lock()
+	defer e.pool.mu.Unlock()
+	return e.logStream
 }
 
 // State is the environment's current state.

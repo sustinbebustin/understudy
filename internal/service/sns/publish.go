@@ -16,10 +16,12 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
+	"github.com/sustinbebustin/understudy/internal/service/sns/filterpolicy"
 )
 
 const (
@@ -38,7 +40,7 @@ const (
 
 // bindPublish binds Publish and PublishBatch.
 func (s *Service) bindPublish(b snsapi.Binder) {
-	const note = "fan-out to sqs and lambda subscriptions; filter policies are not evaluated yet and http, https, email and email-json subscriptions receive nothing; RedrivePolicy is stored; failed deliveries are not sent to the DLQ yet"
+	const note = "fan-out to sqs and lambda subscriptions after their filter policies, with raw or enveloped delivery and the RedrivePolicy dead-letter queue; http, https, email and email-json subscriptions receive nothing"
 	b.Publish(s.publish, registry.Partial{Note: note},
 		kernel.WithResources(func(_ *kernel.Call, in *snsapi.PublishInput) []aws.ARN {
 			for _, target := range []*string{in.TopicArn, in.TargetArn} {
@@ -351,12 +353,8 @@ func (s *Service) publishOne(t *Topic, n notifier, m *message, now clock.Instant
 		}
 	}
 	for i := range t.Subscriptions {
-		r, ok, err := n.request(&t.Subscriptions[i], m, p)
-		if err != nil {
+		if err := n.deliver(&t.Subscriptions[i], m, p, tx); err != nil {
 			return published{}, err
-		}
-		if ok {
-			tx.Deliver(r)
 		}
 	}
 	return p, nil
@@ -424,12 +422,14 @@ type notifier struct {
 	// signing signs a standard topic's notifications; zero on a FIFO
 	// topic, whose notifications are not signed.
 	signing envelope.Signing
+	// policies holds the subscriptions' compiled filter policies.
+	policies *filterpolicy.Cache
 }
 
 // newNotifier is the notifier of a publish to t at now: a standard topic's
 // notifications are signed with the scope's key.
 func (s *Service) newNotifier(st *State, ref topicRef, t *Topic, l links, now clock.Instant) (notifier, *awserr.Error) {
-	n := notifier{topic: ref, links: l, at: now.Wire()}
+	n := notifier{topic: ref, links: l, at: now.Wire(), policies: s.policies}
 	switch t.Kind.(type) {
 	case FIFO:
 	case Standard:
@@ -442,11 +442,110 @@ func (s *Service) newNotifier(st *State, ref topicRef, t *Topic, l links, now cl
 	return n, nil
 }
 
-// request is the delivery of m to sub, false when sub receives nothing: it
-// is pending, or its endpoint type is not delivered to in phase 1.
-func (n notifier) request(sub *Subscription, m *message, p published) (delivery.Request, bool, *awserr.Error) {
+// endpoint is where a subscription's deliveries go.
+//
+//sumtype:decl
+type endpoint interface {
+	// route is the delivery mechanism and the ARN it delivers to.
+	route() (delivery.Mechanism, aws.ARN)
+}
+
+// queueEndpoint is an sqs subscription's queue.
+type queueEndpoint struct{ queue aws.ARN }
+
+// functionEndpoint is a lambda subscription's function, invoked at
+// qualifier when the endpoint names one.
+type functionEndpoint struct {
+	function  aws.ARN
+	qualifier string
+}
+
+func (e queueEndpoint) route() (delivery.Mechanism, aws.ARN) { return delivery.SNSToSQS, e.queue }
+
+func (e functionEndpoint) route() (delivery.Mechanism, aws.ARN) {
+	return delivery.SNSToLambda, e.function
+}
+
+// endpointOf is the endpoint sub delivers to, false for an endpoint type
+// phase 1 does not deliver to (ADR 0015) or a lambda endpoint that names
+// no function.
+func endpointOf(sub *Subscription) (endpoint, bool, *awserr.Error) {
+	switch sub.Protocol {
+	case ProtocolSQS:
+		queue, err := aws.ParseARN(sub.Endpoint)
+		if err != nil {
+			return nil, false, awserr.Internalf(err)
+		}
+		return queueEndpoint{queue: queue}, true, nil
+	case ProtocolLambda:
+		qualifier, function, ok := lambdaTarget(sub.Endpoint)
+		if !ok {
+			return nil, false, nil
+		}
+		return functionEndpoint{function: function, qualifier: qualifier}, true, nil
+	case ProtocolHTTP, ProtocolHTTPS, ProtocolEmail, ProtocolEmailJSON:
+	}
+	return nil, false, nil
+}
+
+// deliver hands m to sub's endpoint through the outbox. A pending
+// subscription, or one whose endpoint type phase 1 does not deliver to,
+// receives nothing. A filter policy is evaluated before any outbox entry
+// exists, so a message it keeps out never reaches the subscription's
+// dead-letter queue (sns.md 6.3).
+func (n notifier) deliver(sub *Subscription, m *message, p published, tx *kernel.Tx) *awserr.Error {
 	if _, confirmed := sub.Status.(Confirmed); !confirmed {
-		return delivery.Request{}, false, nil
+		return nil
+	}
+	to, ok, err := endpointOf(sub)
+	if err != nil || !ok {
+		return err
+	}
+	if pass, err := n.admits(sub, m, to, tx); err != nil || !pass {
+		return err
+	}
+	r, err := n.request(sub, m, p, to)
+	if err != nil {
+		return err
+	}
+	tx.Deliver(r)
+	return nil
+}
+
+// admits applies sub's filter policy to m, read in the policy's scope: its
+// attributes, or the body sub's protocol receives. A message the policy
+// does not match is journaled as Filtered with the policy as the rule; one
+// the matcher gives up on (its work bound, an understudy limit) is
+// journaled as Dropped with the matcher's reason. Either Delivery event
+// has Attempt 0: the decision comes before any attempt.
+func (n notifier) admits(sub *Subscription, m *message, to endpoint, tx *kernel.Tx) (bool, *awserr.Error) {
+	policy, err := sub.filter(n.policies)
+	if err != nil || policy == nil {
+		return err == nil, err
+	}
+	matched, merr := policy.Match(m.attributes, m.bodyFor(sub.Protocol))
+	mechanism, target := to.route()
+	event := journal.Delivery{From: n.topic.arn(), To: target, Mechanism: mechanism}
+	switch {
+	case merr != nil:
+		event.Outcome = journal.Dropped{Reason: "the filter policy of subscription " + sub.ID + " could not be evaluated, so nothing was delivered " +
+			"and nothing was sent to its dead-letter queue: " + merr.Error()}
+	case !matched:
+		event.Outcome = journal.Filtered{Rule: policy.String()}
+	default:
+		return true, nil
+	}
+	tx.Record(n.topic.scope, event)
+	return false, nil
+}
+
+// request is the delivery of m to sub at to: the raw message or the
+// envelope for a queue, the event for a function, with sub's
+// RedrivePolicy queue as the dead-letter queue (sns.md 7.4).
+func (n notifier) request(sub *Subscription, m *message, p published, to endpoint) (delivery.Request, *awserr.Error) {
+	dlq, err := sub.deadLetterQueue()
+	if err != nil {
+		return delivery.Request{}, err
 	}
 	subARN := subscriptionRef{topic: n.topic, id: sub.ID}.arn().String()
 	note := envelope.Notification{
@@ -458,43 +557,32 @@ func (n notifier) request(sub *Subscription, m *message, p published) (delivery.
 		Attributes:     envelopeAttributes(m.attributes),
 		UnsubscribeURL: n.links.unsubscribe(subARN),
 	}
-	req := delivery.Request{Source: n.topic.arn(), Policy: delivery.SNSManaged{}}
-	switch sub.Protocol {
-	case ProtocolSQS:
-		target, err := n.sqsTarget(sub, m, note, p)
+	req := delivery.Request{Source: n.topic.arn(), Policy: delivery.SNSManaged{}, DLQ: dlq}
+	req.Mechanism, _ = to.route()
+	switch to := to.(type) {
+	case queueEndpoint:
+		target, err := n.sqsTarget(sub, m, note, p, to.queue)
 		if err != nil {
-			return delivery.Request{}, false, err
+			return delivery.Request{}, err
 		}
-		req.Mechanism, req.Target = delivery.SNSToSQS, target
-	case ProtocolLambda:
-		qualifier, function, ok := lambdaTarget(sub.Endpoint)
-		if !ok {
-			return delivery.Request{}, false, nil
-		}
+		req.Target = target
+	case functionEndpoint:
 		event, err := envelope.Lambda(note, subARN, n.signing.Signer, n.signing.CertURL)
 		if err != nil {
-			return delivery.Request{}, false, awserr.Internalf(err)
+			return delivery.Request{}, awserr.Internalf(err)
 		}
-		req.Mechanism = delivery.SNSToLambda
-		req.Target = delivery.LambdaFunction{ARN: function, Qualifier: qualifier, Event: event, Invocation: delivery.InvocationEvent}
-	case ProtocolHTTP, ProtocolHTTPS, ProtocolEmail, ProtocolEmailJSON:
-		// Outbound HTTP and email delivery are phase 2 (ADR 0015).
-		return delivery.Request{}, false, nil
+		req.Target = delivery.LambdaFunction{ARN: to.function, Qualifier: to.qualifier, Event: event, Invocation: delivery.InvocationEvent}
 	}
-	return req, true, nil
+	return req, nil
 }
 
-// sqsTarget is the SQS message of a delivery (sns.md 5.1 to 5.3): the raw
-// message with its attributes as SQS message attributes, else the
-// envelope; a FIFO topic gives a FIFO queue the group and deduplication
-// ids, and a standard topic gives a standard queue the group id it was
-// published with (fair queues). Whether the topic is FIFO is read from
-// p.sequence, which the topic's Kind set in this write.
-func (n notifier) sqsTarget(sub *Subscription, m *message, note envelope.Notification, p published) (delivery.SQSQueue, *awserr.Error) {
-	queue, err := aws.ParseARN(sub.Endpoint)
-	if err != nil {
-		return delivery.SQSQueue{}, awserr.Internalf(err)
-	}
+// sqsTarget is the SQS message of a delivery to queue (sns.md 5.1 to
+// 5.3): the raw message with its attributes as SQS message attributes,
+// else the envelope; a FIFO topic gives a FIFO queue the group and
+// deduplication ids, and a standard topic gives a standard queue the group
+// id it was published with (fair queues). Whether the topic is FIFO is
+// read from p.sequence, which the topic's Kind set in this write.
+func (n notifier) sqsTarget(sub *Subscription, m *message, note envelope.Notification, p published, queue aws.ARN) (delivery.SQSQueue, *awserr.Error) {
 	fifoTopic := p.sequence != nil
 	target := delivery.SQSQueue{ARN: queue}
 	switch {

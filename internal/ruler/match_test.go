@@ -404,6 +404,8 @@ func TestEventErrors(t *testing.T) {
 		{``, notObject},
 		{`{"x":`, "Unexpected end-of-input within/between Object entries"},
 		{`{"x":tru}`, "Unrecognized token 'tru': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false')"},
+		{`{"x":"a"} trailing`, "Event must be a single JSON object; found content after it"},
+		{`{"x":"a"}{}`, "Event must be a single JSON object; found content after it"},
 	}
 	for _, tc := range tests {
 		_, err := Match(p, []byte(tc.event))

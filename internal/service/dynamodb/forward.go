@@ -10,7 +10,9 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/awsjson"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
@@ -58,15 +60,29 @@ func encodeInput(op *registry.Operation, in smithy.Serializable) ([]byte, *awser
 	return resp.Body, nil
 }
 
-// credential is the SigV4 credential Local partitions by: the caller's
-// account as the access key and its region, which comes from understudy's
-// validated region table, so it is safe as part of a file name under
-// -dbPath (dynamodb-local.md 3). Local reads the scope and never checks
-// the signature.
-func credential(c *kernel.Call) string {
-	scope := c.Scope()
-	date := c.Admitted().Wire().UTC().Format("20060102")
-	return scope.Account.String() + "/" + date + "/" + scope.Region.String() + "/dynamodb/aws4_request"
+// exchange is one request to Local: the account and region it partitions
+// by, the operation it names and the instant it is dated. A forwarded
+// call's exchange is its own; the shims' internal requests (snapshot export
+// and import, an UpdateTable answered locally) name theirs.
+type exchange struct {
+	scope aws.Scope
+	op    ref.OperationID
+	at    clock.Instant
+}
+
+// exchangeOf is the exchange that forwards c.
+func exchangeOf(c *kernel.Call) exchange {
+	return exchange{scope: c.Scope(), op: c.OperationID(), at: c.Admitted()}
+}
+
+// credential is the SigV4 credential Local partitions by: the account as
+// the access key and the region, which comes from understudy's validated
+// region table, so it is safe as part of a file name under -dbPath
+// (dynamodb-local.md 3). Local reads the scope and never checks the
+// signature.
+func credential(x exchange) string {
+	date := x.at.Wire().UTC().Format("20060102")
+	return x.scope.Account.String() + "/" + date + "/" + x.scope.Region.String() + "/dynamodb/aws4_request"
 }
 
 // unsignedSignature fills the 64 hex digits of signature Local requires to
@@ -78,25 +94,25 @@ const unsignedSignature = "00000000000000000000000000000000000000000000000000000
 // Local's x-amz-crc32 is over the bytes the client receives. The client's
 // other headers stay behind: Local reads none of them, and its session
 // token names a credential Local never sees.
-func upstream(ctx context.Context, endpoint *url.URL, c *kernel.Call, body []byte) (*http.Request, error) {
+func upstream(ctx context.Context, endpoint *url.URL, x exchange, body []byte) (*http.Request, error) {
 	r, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.JoinPath("/").String(), bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	r.Header = http.Header{
 		"Content-Type":    {jsonMediaType},
-		"X-Amz-Target":    {dynamodbapi.Service().JSONTargetPrefix + "." + c.OperationID().Name},
-		"X-Amz-Date":      {c.Admitted().Wire().UTC().Format("20060102T150405Z")},
+		"X-Amz-Target":    {dynamodbapi.Service().JSONTargetPrefix + "." + x.op.Name},
+		"X-Amz-Date":      {x.at.Wire().UTC().Format("20060102T150405Z")},
 		"Accept-Encoding": {"identity"},
-		"Authorization": {"AWS4-HMAC-SHA256 Credential=" + credential(c) +
+		"Authorization": {"AWS4-HMAC-SHA256 Credential=" + credential(x) +
 			", SignedHeaders=content-type;host;x-amz-date;x-amz-target, Signature=" + unsignedSignature},
 	}
 	return r, nil
 }
 
-// send forwards body to Local and returns its answer as received.
-func (s *Service) send(ctx context.Context, endpoint *url.URL, c *kernel.Call, body []byte) (kernel.RawResponse, *awserr.Error) {
-	req, err := upstream(ctx, endpoint, c, body)
+// send sends body to Local as x and returns its answer as received.
+func (s *Service) send(ctx context.Context, endpoint *url.URL, x exchange, body []byte) (kernel.RawResponse, *awserr.Error) {
+	req, err := upstream(ctx, endpoint, x, body)
 	if err != nil {
 		return kernel.RawResponse{}, awserr.Internalf(fmt.Errorf("building the request to DynamoDB Local at %s: %w", endpoint, err))
 	}
@@ -113,7 +129,7 @@ func (s *Service) send(ctx context.Context, endpoint *url.URL, c *kernel.Call, b
 	case err != nil:
 		return kernel.RawResponse{}, errLocalUnavailable("read DynamoDB Local's answer", err)
 	case len(answer) > maxAnswerBytes:
-		return kernel.RawResponse{}, awserr.Internalf(&AnswerTooLargeError{Op: c.OperationID(), Limit: maxAnswerBytes})
+		return kernel.RawResponse{}, awserr.Internalf(&AnswerTooLargeError{Op: x.op, Limit: maxAnswerBytes})
 	}
 	return kernel.RawResponse{Status: resp.StatusCode, Header: resp.Header, Body: answer}, nil
 }

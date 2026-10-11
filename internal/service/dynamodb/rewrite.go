@@ -26,6 +26,9 @@ type answer struct {
 	// table is the table a ResourceNotFoundException names; empty for the
 	// operations whose AWS text names none.
 	table string
+	// shim completes the table description of a successful table
+	// operation; nil for the other operations.
+	shim *shimmed
 }
 
 // Local mints every ARN in this account and region, whatever the
@@ -106,7 +109,11 @@ func rewritten(c *kernel.Call, a answer, local kernel.RawResponse) (document.Val
 		return nil, false
 	}
 	if local.Status == http.StatusOK {
-		return m, rewriteARNs(m, c.Scope())
+		changed := rewriteARNs(m, c.Scope())
+		if a.shim != nil {
+			changed = a.shim.complete(m) || changed
+		}
+		return m, changed
 	}
 	return m, fixError(m, c.Op(), a)
 }

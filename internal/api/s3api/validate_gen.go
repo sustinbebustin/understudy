@@ -11,11 +11,14 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 )
 
-// pattern0 is "^\\/?.+\\/.+$".
-var pattern0 = regexp.MustCompile("^/?[^\\n\\r\\x{2028}\\x{2029}]+/[^\\n\\r\\x{2028}\\x{2029}]+$")
+// pattern0 is "^\\/?.+(\\/|%2[Ff]).+$".
+var pattern0 = regexp.MustCompile("^/?[^\\n\\r\\x{2028}\\x{2029}]+(/|%2[Ff])[^\\n\\r\\x{2028}\\x{2029}]+$")
 
-// pattern1 is "^arn:aws[a-zA-Z0-9-]*:kms:[a-z0-9-]+:[0-9]{12}:key/[a-zA-Z0-9-]+$".
-var pattern1 = regexp.MustCompile("^arn:aws[a-zA-Z0-9\\-]*:kms:[a-z0-9\\-]+:[0-9]{12}:key/[a-zA-Z0-9\\-]+$")
+// pattern1 is "^\\/?.+\\/.+$".
+var pattern1 = regexp.MustCompile("^/?[^\\n\\r\\x{2028}\\x{2029}]+/[^\\n\\r\\x{2028}\\x{2029}]+$")
+
+// pattern2 is "^arn:aws[a-zA-Z0-9-]*:kms:[a-z0-9-]+:[0-9]{12}:key/[a-zA-Z0-9-]+$".
+var pattern2 = regexp.MustCompile("^arn:aws[a-zA-Z0-9\\-]*:kms:[a-z0-9\\-]+:[0-9]{12}:key/[a-zA-Z0-9\\-]+$")
 
 func (v *AbacStatus) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.Status != nil {
@@ -297,7 +300,7 @@ func (v *CopyObjectInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "copySource"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern0.MatchString(v.CopySource) {
-			*out = append(*out, awserr.Violation{Path: at(path, "copySource"), Value: awserr.RenderedText{Text: v.CopySource}, Constraint: awserr.Pattern{Echo: "\\/?.+\\/.+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "copySource"), Value: awserr.RenderedText{Text: v.CopySource}, Constraint: awserr.Pattern{Echo: "\\/?.+(\\/|%2[Ff]).+"}})
 		}
 	}
 	if v.missing&(1<<2) != 0 {
@@ -3203,7 +3206,7 @@ func (v *RenameObjectInput) validate(path awserr.Path, out *[]awserr.Violation) 
 	if v.missing&(1<<2) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "renameSource"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern0.MatchString(v.RenameSource) {
+		if !pattern1.MatchString(v.RenameSource) {
 			*out = append(*out, awserr.Violation{Path: at(path, "renameSource"), Value: awserr.RenderedText{Text: v.RenameSource}, Constraint: awserr.Pattern{Echo: "\\/?.+\\/.+"}})
 		}
 	}
@@ -3424,7 +3427,7 @@ func (v *SSEKMSEncryption) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern1.MatchString(v.KMSKeyArn) {
+		if !pattern2.MatchString(v.KMSKeyArn) {
 			*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedText{Text: v.KMSKeyArn}, Constraint: awserr.Pattern{Echo: "arn:aws[a-zA-Z0-9-]*:kms:[a-z0-9-]+:[0-9]{12}:key/[a-zA-Z0-9-]+"}})
 		}
 		if utf8.RuneCountInString(v.KMSKeyArn) > 2048 {
@@ -3775,7 +3778,7 @@ func (v *UploadPartCopyInput) validate(path awserr.Path, out *[]awserr.Violation
 		*out = append(*out, awserr.Violation{Path: at(path, "copySource"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern0.MatchString(v.CopySource) {
-			*out = append(*out, awserr.Violation{Path: at(path, "copySource"), Value: awserr.RenderedText{Text: v.CopySource}, Constraint: awserr.Pattern{Echo: "\\/?.+\\/.+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "copySource"), Value: awserr.RenderedText{Text: v.CopySource}, Constraint: awserr.Pattern{Echo: "\\/?.+(\\/|%2[Ff]).+"}})
 		}
 	}
 	if v.missing&(1<<2) != 0 {

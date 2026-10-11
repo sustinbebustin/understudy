@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
+	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -27,6 +28,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb"
+	"github.com/sustinbebustin/understudy/internal/service/kms"
 )
 
 // forwarded is one request the fake Local received.
@@ -132,11 +134,29 @@ func run(t *testing.T, fn func(h *harness)) {
 	runWith(t, &fakeLocal{}, fn)
 }
 
+// neighbour is another service the harness serves beside DynamoDB.
+type neighbour struct {
+	api   func() *registry.Service
+	build func(k *kerneltest.K)
+}
+
+// withKMS serves KMS, which the shims resolve SSE keys through; without
+// it the kernel models no KMS operation.
+var withKMS = neighbour{api: kmsapi.Service, build: func(k *kerneltest.K) { kms.New(k.Deps(kmsapi.Service()), kms.Options{}) }}
+
 // runWith runs fn against the service over local; a nil local builds the
 // service without one, as a server that never accepted the licence does.
-func runWith(t *testing.T, local *fakeLocal, fn func(h *harness)) {
+func runWith(t *testing.T, local *fakeLocal, fn func(h *harness), others ...neighbour) {
 	t.Helper()
+	services := make([]*registry.Service, 0, 1+len(others))
+	services = append(services, dynamodbapi.Service())
+	for _, o := range others {
+		services = append(services, o.api())
+	}
 	kerneltest.Run(t, func(k *kerneltest.K) {
+		for _, o := range others {
+			o.build(k)
+		}
 		var opts dynamodb.Options
 		if local != nil {
 			opts.Local = local
@@ -157,7 +177,7 @@ func runWith(t *testing.T, local *fakeLocal, fn func(h *harness)) {
 			local = &fakeLocal{}
 		}
 		fn(&harness{K: k, local: local, svc: svc, front: front})
-	}, kerneltest.Services(dynamodbapi.Service()))
+	}, kerneltest.Services(services...))
 }
 
 // jsonCodec adapts the awsJson codec to the edge as server/codecs.go does;

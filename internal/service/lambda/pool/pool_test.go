@@ -188,6 +188,9 @@ func TestStartSlotNamesTheLogStreamAndRuntimeAPI(t *testing.T) {
 	if !regexp.MustCompile(`^2026/10/09/\[\$LATEST\][0-9a-f]{32}$`).MatchString(started.Slot.LogStream) || !strings.HasSuffix(started.Slot.LogStream, e.ID()) {
 		t.Errorf("LogStream = %q, want YYYY/MM/DD/[$LATEST]<environment id>", started.Slot.LogStream)
 	}
+	if e.LogStream() != started.Slot.LogStream {
+		t.Errorf("Env.LogStream = %q, want the name the container started with, %q", e.LogStream(), started.Slot.LogStream)
+	}
 	if started.Slot.RuntimeAPI != h.runtime.Endpoints()[0].Addr() {
 		t.Errorf("RuntimeAPI = %v, want the endpoint's address %v", started.Slot.RuntimeAPI, h.runtime.Endpoints()[0].Addr())
 	}

@@ -19,15 +19,23 @@ const describeLocal = `{"Table":{"AttributeDefinitions":[{"AttributeName":"LockI
 	`"StreamSpecification":{"StreamEnabled":true,"StreamViewType":"NEW_AND_OLD_IMAGES"},"LatestStreamLabel":"2026-10-08T04:40:16.197",` +
 	`"LatestStreamArn":"arn:aws:dynamodb:ddblocal:000000000000:table/Locks/stream/2026-10-08T04:40:16.197"}}`
 
+// defaultWarm is the WarmThroughput every table description carries,
+// appended after Local's members (dynamodb-local.md 7.2 item 1).
+const defaultWarm = `,"WarmThroughput":{"ReadUnitsPerSecond":12000,"WriteUnitsPerSecond":4000,"Status":"ACTIVE"}}}`
+
+// withWarm is a DescribeTable answer of Local's with defaultWarm added.
+func withWarm(local string) string { return strings.TrimSuffix(local, "}}") + defaultWarm }
+
 // TestTableARNsMoveIntoTheCallersScope: Local's table, index and stream
 // ARNs name the caller's account and region, everything else stays as
-// Local wrote it, and x-amz-crc32 and Content-Length match the new body
-// (dynamodb-local.md 7.2 item 6, 9.1).
+// Local wrote it but for the WarmThroughput the shim adds, and x-amz-crc32
+// and Content-Length match the new body (dynamodb-local.md 7.2 item 6,
+// 9.1).
 func TestTableARNsMoveIntoTheCallersScope(t *testing.T) {
 	run(t, func(h *harness) {
 		h.local.answer = func(string, string) reply { return reply{Status: http.StatusOK, Body: describeLocal} }
 		got := h.post(target("DescribeTable"), `{"TableName":"Locks"}`, &caller{Account: "222222222222", Region: "eu-west-1"})
-		want := strings.ReplaceAll(describeLocal, "arn:aws:dynamodb:ddblocal:000000000000:", "arn:aws:dynamodb:eu-west-1:222222222222:")
+		want := withWarm(strings.ReplaceAll(describeLocal, "arn:aws:dynamodb:ddblocal:000000000000:", "arn:aws:dynamodb:eu-west-1:222222222222:"))
 		if got.Status != http.StatusOK || got.Body != want {
 			h.Fatalf("DescribeTable = %d\n%s\nwant\n%s", got.Status, got.Body, want)
 		}
@@ -125,9 +133,10 @@ func TestLocalErrorsTakeAWSWordsAndSpelling(t *testing.T) {
 }
 
 // TestRewrittenTableDescriptionsKeepEverythingButLocalsARNs: for any
-// table description Local could write, the client reads the same JSON
-// value with every ARN Local minted moved into its scope and nothing else
-// changed, and a checksum that matches the body it reads.
+// table description Local could write of a table the shim does not
+// record, the client reads the same JSON value with every ARN Local minted
+// moved into its scope and AWS's default WarmThroughput added, nothing
+// else changed, and a checksum that matches the body it reads.
 func TestRewrittenTableDescriptionsKeepEverythingButLocalsARNs(t *testing.T) {
 	run(t, func(h *harness) {
 		rapid.Check(bubbleTB{h.T}, func(rt *rapid.T) {
@@ -145,10 +154,10 @@ func TestRewrittenTableDescriptionsKeepEverythingButLocalsARNs(t *testing.T) {
 			local := `{"Table":{` + strings.Join(members, ",") + `}}`
 			h.local.answer = func(string, string) reply { return reply{Status: http.StatusOK, Body: local} }
 			got := h.post(target("DescribeTable"), `{"TableName":"`+table+`"}`, &caller{Account: "333333333333", Region: "ap-southeast-2"})
-			want := strings.NewReplacer(
+			want := withWarm(strings.NewReplacer(
 				`"TableArn":"arn:aws:dynamodb:ddblocal:000000000000:`, `"TableArn":"arn:aws:dynamodb:ap-southeast-2:333333333333:`,
 				`"IndexArn":"arn:aws:dynamodb:ddblocal:000000000000:`, `"IndexArn":"arn:aws:dynamodb:ap-southeast-2:333333333333:`,
-			).Replace(local)
+			).Replace(local))
 			if got.Body != want {
 				rt.Fatalf("DescribeTable =\n%s\nwant\n%s", got.Body, want)
 			}

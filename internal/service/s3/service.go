@@ -10,6 +10,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -21,6 +22,10 @@ import (
 // Service is Amazon S3: a partition-wide bucket name index and one cell
 // per bucket (ARCHITECTURE.md 8 rule 3).
 type Service struct {
+	k *kernel.Kernel
+	// blobs holds object bodies; nil until wire.go hands the service a
+	// store, and object writes then answer InternalError.
+	blobs   *blob.Store
 	log     *slog.Logger
 	opts    Options
 	codec   store.Codec
@@ -41,6 +46,8 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		log = slog.New(slog.DiscardHandler)
 	}
 	s := &Service{
+		k:       d.Kernel,
+		blobs:   d.Blob,
 		log:     log,
 		opts:    o,
 		codec:   codec,

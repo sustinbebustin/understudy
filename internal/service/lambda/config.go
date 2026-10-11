@@ -416,9 +416,9 @@ func deref[T any](p *T) T {
 // invoke path.
 
 func (s *Service) bindEventInvokeConfigs(b lambdaapi.Binder) {
-	const note = "stored and echoed; asynchronous invocations do not apply them in this build"
-	b.PutFunctionEventInvokeConfig(s.putEventInvokeConfig, stored(note))
-	b.UpdateFunctionEventInvokeConfig(s.updateEventInvokeConfig, stored(note))
+	const note = "asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything"
+	b.PutFunctionEventInvokeConfig(s.putEventInvokeConfig, partial(note))
+	b.UpdateFunctionEventInvokeConfig(s.updateEventInvokeConfig, partial(note))
 	b.GetFunctionEventInvokeConfig(s.getEventInvokeConfig, full())
 	b.DeleteFunctionEventInvokeConfig(s.deleteEventInvokeConfig, full())
 	b.ListFunctionEventInvokeConfigs(s.listEventInvokeConfigs, full())

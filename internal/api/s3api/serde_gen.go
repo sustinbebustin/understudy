@@ -1649,6 +1649,14 @@ func (v *Condition) deserialize(d smithy.Deserializer) error {
 	}
 }
 
+// Serialize writes v through s.
+func (v *ConditionalRequestConflict) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *ConditionalRequestConflict) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaConditionalRequestConflict)
+	s.CloseStruct()
+}
+
 // Deserialize reads v from d. Absent members stay absent; Validate
 // reports missing required ones.
 func (v *CopyObjectInput) Deserialize(d smithy.Deserializer) error { return v.deserialize(d) }
@@ -4265,6 +4273,14 @@ func (v *EncryptionTypeMismatch) Serialize(s smithy.Serializer) { v.serialize(s,
 
 func (v *EncryptionTypeMismatch) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaEncryptionTypeMismatch)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *EntityTooLarge) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *EntityTooLarge) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaEntityTooLarge)
 	s.CloseStruct()
 }
 
@@ -7363,6 +7379,14 @@ func (v *IllegalVersioningConfigurationException) serialize(s smithy.Serializer,
 	s.CloseStruct()
 }
 
+// Serialize writes v through s.
+func (v *IncompleteBody) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *IncompleteBody) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaIncompleteBody)
+	s.CloseStruct()
+}
+
 func (v *IndexDocument) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaIndexDocument)
 	s.WriteString(&memberIndexDocument_Suffix, v.Suffix)
@@ -7669,6 +7693,22 @@ func (v *InvalidBucketState) serialize(s smithy.Serializer, m *smithy.Member) {
 }
 
 // Serialize writes v through s.
+func (v *InvalidChunkSizeError) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InvalidChunkSizeError) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInvalidChunkSizeError)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *InvalidDigest) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InvalidDigest) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInvalidDigest)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *InvalidLocationConstraint) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *InvalidLocationConstraint) serialize(s smithy.Serializer, m *smithy.Member) {
@@ -7711,6 +7751,14 @@ func (v *InvalidPart) serialize(s smithy.Serializer, m *smithy.Member) {
 }
 
 // Serialize writes v through s.
+func (v *InvalidPartNumber) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InvalidPartNumber) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInvalidPartNumber)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *InvalidPrefix) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *InvalidPrefix) serialize(s smithy.Serializer, m *smithy.Member) {
@@ -7737,6 +7785,14 @@ func (v *InvalidRequest) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *InvalidRequest) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaInvalidRequest)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *InvalidStorageClass) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InvalidStorageClass) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInvalidStorageClass)
 	s.CloseStruct()
 }
 
@@ -8304,6 +8360,38 @@ func (v *JournalTableConfigurationUpdates) deserialize(d smithy.Deserializer) er
 			return fmt.Errorf("s3api: structure com.amazonaws.s3#JournalTableConfigurationUpdates has no member %q; the codec returned a member of another shape", m.Name)
 		}
 	}
+}
+
+// Serialize writes v through s.
+func (v *KMSDisabledException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *KMSDisabledException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaKMSDisabledException)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *KMSInvalidStateException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *KMSInvalidStateException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaKMSInvalidStateException)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *KMSNotFoundException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *KMSNotFoundException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaKMSNotFoundException)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *KeyTooLongError) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *KeyTooLongError) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaKeyTooLongError)
+	s.CloseStruct()
 }
 
 func (v *LambdaFunctionConfiguration) serialize(s smithy.Serializer, m *smithy.Member) {
@@ -9981,6 +10069,14 @@ func (v *MalformedPolicy) serialize(s smithy.Serializer, m *smithy.Member) {
 }
 
 // Serialize writes v through s.
+func (v *MalformedTrailerError) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *MalformedTrailerError) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaMalformedTrailerError)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *MalformedXML) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *MalformedXML) serialize(s smithy.Serializer, m *smithy.Member) {
@@ -10169,6 +10265,22 @@ func (v *MetadataTableEncryptionConfiguration) deserialize(d smithy.Deserializer
 			return fmt.Errorf("s3api: structure com.amazonaws.s3#MetadataTableEncryptionConfiguration has no member %q; the codec returned a member of another shape", m.Name)
 		}
 	}
+}
+
+// Serialize writes v through s.
+func (v *MetadataTooLarge) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *MetadataTooLarge) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaMetadataTooLarge)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *MethodNotAllowed) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *MethodNotAllowed) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaMethodNotAllowed)
+	s.CloseStruct()
 }
 
 func (v *Metrics) serialize(s smithy.Serializer, m *smithy.Member) {
@@ -10368,6 +10480,14 @@ func deserializeMetricsFilter(d smithy.Deserializer) (MetricsFilter, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+// Serialize writes v through s.
+func (v *MissingContentLength) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *MissingContentLength) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaMissingContentLength)
+	s.CloseStruct()
 }
 
 // Serialize writes v through s.
@@ -10666,6 +10786,14 @@ func (v *NotFound) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *NotFound) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaNotFound)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *NotImplemented) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *NotImplemented) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaNotImplemented)
 	s.CloseStruct()
 }
 
@@ -17509,5 +17637,13 @@ func (v *WriteGetObjectResponseOutput) Serialize(s smithy.Serializer) { v.serial
 
 func (v *WriteGetObjectResponseOutput) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaSmithyUnit)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *XAmzContentSHA256Mismatch) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *XAmzContentSHA256Mismatch) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaXAmzContentSHA256Mismatch)
 	s.CloseStruct()
 }

@@ -531,6 +531,8 @@ var memberCondition_HttpErrorCodeReturnedEquals = smithy.Member{Name: "HttpError
 
 var memberCondition_KeyPrefixEquals = smithy.Member{Name: "KeyPrefixEquals", Index: 1}
 
+var schemaConditionalRequestConflict = smithy.Schema{ID: "com.amazonaws.s3#ConditionalRequestConflict", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
+
 var schemaConfirmRemoveSelfBucketAccess = smithy.Schema{ID: "com.amazonaws.s3#ConfirmRemoveSelfBucketAccess", Type: smithy.TypeBoolean}
 
 var schemaContentDisposition = smithy.Schema{ID: "com.amazonaws.s3#ContentDisposition", Type: smithy.TypeString}
@@ -1256,6 +1258,8 @@ var schemaEncryptionTypeMismatch = smithy.Schema{ID: "com.amazonaws.s3#Encryptio
 var schemaEnd = smithy.Schema{ID: "com.amazonaws.s3#End", Type: smithy.TypeLong}
 
 var schemaEndEvent = smithy.Schema{ID: "com.amazonaws.s3#EndEvent", Type: smithy.TypeStructure}
+
+var schemaEntityTooLarge = smithy.Schema{ID: "com.amazonaws.s3#EntityTooLarge", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var schemaEntityTooSmall = smithy.Schema{ID: "com.amazonaws.s3#EntityTooSmall", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
@@ -2197,6 +2201,8 @@ var schemaIllegalLocationConstraintException = smithy.Schema{ID: "com.amazonaws.
 
 var schemaIllegalVersioningConfigurationException = smithy.Schema{ID: "com.amazonaws.s3#IllegalVersioningConfigurationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
+var schemaIncompleteBody = smithy.Schema{ID: "com.amazonaws.s3#IncompleteBody", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
 var schemaIndexDocument = smithy.Schema{ID: "com.amazonaws.s3#IndexDocument", Type: smithy.TypeStructure}
 
 var memberIndexDocument_Suffix = smithy.Member{Name: "Suffix", Index: 0, Required: true}
@@ -2273,6 +2279,10 @@ var memberInvalidBucketName_BucketName = smithy.Member{Name: "BucketName", Index
 
 var schemaInvalidBucketState = smithy.Schema{ID: "com.amazonaws.s3#InvalidBucketState", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
+var schemaInvalidChunkSizeError = smithy.Schema{ID: "com.amazonaws.s3#InvalidChunkSizeError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var schemaInvalidDigest = smithy.Schema{ID: "com.amazonaws.s3#InvalidDigest", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
 var schemaInvalidLocationConstraint = smithy.Schema{ID: "com.amazonaws.s3#InvalidLocationConstraint", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var memberInvalidLocationConstraint_LocationConstraint = smithy.Member{Name: "LocationConstraint", Index: 0}
@@ -2291,6 +2301,8 @@ var memberInvalidPart_PartNumber = smithy.Member{Name: "PartNumber", Index: 1}
 
 var memberInvalidPart_UploadId = smithy.Member{Name: "UploadId", Index: 2}
 
+var schemaInvalidPartNumber = smithy.Schema{ID: "com.amazonaws.s3#InvalidPartNumber", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 416}}
+
 var schemaInvalidPrefix = smithy.Schema{ID: "com.amazonaws.s3#InvalidPrefix", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var schemaInvalidRange = smithy.Schema{ID: "com.amazonaws.s3#InvalidRange", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 416}}
@@ -2300,6 +2312,8 @@ var memberInvalidRange_ActualObjectSize = smithy.Member{Name: "ActualObjectSize"
 var memberInvalidRange_RangeRequested = smithy.Member{Name: "RangeRequested", Index: 1}
 
 var schemaInvalidRequest = smithy.Schema{ID: "com.amazonaws.s3#InvalidRequest", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var schemaInvalidStorageClass = smithy.Schema{ID: "com.amazonaws.s3#InvalidStorageClass", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var schemaInvalidTag = smithy.Schema{ID: "com.amazonaws.s3#InvalidTag", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
@@ -2443,11 +2457,19 @@ var memberJournalTableConfigurationUpdates_RecordExpiration = smithy.Member{Name
 
 var schemaKMSContext = smithy.Schema{ID: "com.amazonaws.s3#KMSContext", Type: smithy.TypeString}
 
+var schemaKMSDisabledException = smithy.Schema{ID: "com.amazonaws.s3#KMSDisabledException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var schemaKMSInvalidStateException = smithy.Schema{ID: "com.amazonaws.s3#KMSInvalidStateException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var schemaKMSNotFoundException = smithy.Schema{ID: "com.amazonaws.s3#KMSNotFoundException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
 var schemaKeyCount = smithy.Schema{ID: "com.amazonaws.s3#KeyCount", Type: smithy.TypeInteger}
 
 var schemaKeyMarker = smithy.Schema{ID: "com.amazonaws.s3#KeyMarker", Type: smithy.TypeString}
 
 var schemaKeyPrefixEquals = smithy.Schema{ID: "com.amazonaws.s3#KeyPrefixEquals", Type: smithy.TypeString}
+
+var schemaKeyTooLongError = smithy.Schema{ID: "com.amazonaws.s3#KeyTooLongError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var schemaKmsKeyArn = smithy.Schema{ID: "com.amazonaws.s3#KmsKeyArn", Type: smithy.TypeString}
 
@@ -2955,6 +2977,8 @@ var schemaMalformedACLError = smithy.Schema{ID: "com.amazonaws.s3#MalformedACLEr
 
 var schemaMalformedPolicy = smithy.Schema{ID: "com.amazonaws.s3#MalformedPolicy", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
+var schemaMalformedTrailerError = smithy.Schema{ID: "com.amazonaws.s3#MalformedTrailerError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
 var schemaMalformedXML = smithy.Schema{ID: "com.amazonaws.s3#MalformedXML", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var schemaMarker = smithy.Schema{ID: "com.amazonaws.s3#Marker", Type: smithy.TypeString}
@@ -3025,7 +3049,11 @@ var memberMetadataTableEncryptionConfiguration_KmsKeyArn = smithy.Member{Name: "
 
 var schemaMetadataTableStatus = smithy.Schema{ID: "com.amazonaws.s3#MetadataTableStatus", Type: smithy.TypeString}
 
+var schemaMetadataTooLarge = smithy.Schema{ID: "com.amazonaws.s3#MetadataTooLarge", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
 var schemaMetadataValue = smithy.Schema{ID: "com.amazonaws.s3#MetadataValue", Type: smithy.TypeString}
+
+var schemaMethodNotAllowed = smithy.Schema{ID: "com.amazonaws.s3#MethodNotAllowed", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 405}}
 
 var schemaMetrics = smithy.Schema{ID: "com.amazonaws.s3#Metrics", Type: smithy.TypeStructure}
 
@@ -3066,6 +3094,8 @@ var schemaMetricsId = smithy.Schema{ID: "com.amazonaws.s3#MetricsId", Type: smit
 var schemaMetricsStatus = smithy.Schema{ID: "com.amazonaws.s3#MetricsStatus", Type: smithy.TypeEnum}
 
 var schemaMinutes = smithy.Schema{ID: "com.amazonaws.s3#Minutes", Type: smithy.TypeInteger}
+
+var schemaMissingContentLength = smithy.Schema{ID: "com.amazonaws.s3#MissingContentLength", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 411}}
 
 var schemaMissingMeta = smithy.Schema{ID: "com.amazonaws.s3#MissingMeta", Type: smithy.TypeInteger}
 
@@ -3172,6 +3202,8 @@ var schemaNoncurrentVersionTransitionList = smithy.Schema{ID: "com.amazonaws.s3#
 var memberNoncurrentVersionTransitionList_member = smithy.Member{Name: "member", Index: 0}
 
 var schemaNotFound = smithy.Schema{ID: "com.amazonaws.s3#NotFound", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
+
+var schemaNotImplemented = smithy.Schema{ID: "com.amazonaws.s3#NotImplemented", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
 
 var schemaNotModified = smithy.Schema{ID: "com.amazonaws.s3#NotModified", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 304}}
 
@@ -5040,6 +5072,8 @@ var memberWriteGetObjectResponseInput_VersionId = smithy.Member{Name: "VersionId
 var memberWriteGetObjectResponseInput_BucketKeyEnabled = smithy.Member{Name: "BucketKeyEnabled", Index: 45, HTTP: smithy.HTTPHeader{Name: "x-amz-fwd-header-x-amz-server-side-encryption-bucket-key-enabled"}}
 
 var schemaWriteOffsetBytes = smithy.Schema{ID: "com.amazonaws.s3#WriteOffsetBytes", Type: smithy.TypeLong}
+
+var schemaXAmzContentSHA256Mismatch = smithy.Schema{ID: "com.amazonaws.s3#XAmzContentSHA256Mismatch", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var schemaYears = smithy.Schema{ID: "com.amazonaws.s3#Years", Type: smithy.TypeInteger}
 

@@ -34,7 +34,9 @@ const (
 
 // bindSubscriptions binds the subscription lifecycle and listings.
 func (s *Service) bindSubscriptions(b snsapi.Binder) {
-	b.Subscribe(s.subscribe, registry.Partial{Note: "sqs and lambda endpoints are delivered to; http, https, email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; RedrivePolicy is stored; failed deliveries are not sent to the DLQ yet"},
+	b.Subscribe(s.subscribe, registry.Partial{Note: "sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; " +
+		"http, https, email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; " +
+		"the quota of 10,000 filter policies per account is not enforced"},
 		arnResource(func(in *snsapi.SubscribeInput) string { return in.TopicArn }))
 	b.ConfirmSubscription(s.confirmSubscription, registry.Full{},
 		arnResource(func(in *snsapi.ConfirmSubscriptionInput) string { return in.TopicArn }))
@@ -65,7 +67,7 @@ func (s *Service) subscribe(_ context.Context, c *kernel.Call, in *snsapi.Subscr
 	if err != nil {
 		return nil, err
 	}
-	settings, err := subscriptionSettings(subscriber{protocol: protocol, endpoint: endpoint, topicFIFO: ref.fifo()}, in.Attributes)
+	settings, err := s.subscriptionSettings(subscriber{endpoint: endpoint, topicFIFO: ref.fifo(), home: ref.scope}, in.Attributes)
 	if err != nil {
 		return nil, err
 	}
@@ -121,9 +123,20 @@ func confirmRouteOf(protocol Protocol, owner string, ref topicRef, c *kernel.Cal
 	}
 }
 
+// added is the outcome of a Subscribe write that stored or found a
+// subscription: refused is the FilterPolicy quota error of a new
+// subscription that was stored without its policy, nil otherwise.
+type added struct {
+	sub     Subscription
+	refused *awserr.Error
+}
+
 // addSubscription adds candidate to the topic ref names, confirmed by
 // route, or returns the topic's subscription of the same protocol and
-// endpoint when settings agree with it.
+// endpoint when settings agree with it. A new subscription whose
+// FilterPolicy would pass the topic's quota is still stored, without the
+// policy, and Subscribe answers the quota error, as AWS still creates it
+// (sns.md 3.1).
 func (s *Service) addSubscription(c *kernel.Call, ref topicRef, candidate Subscription, settings []subscriptionSetting, route confirmRoute) (Subscription, *awserr.Error) {
 	token := ""
 	if route != confirmedAtSubscribe {
@@ -135,33 +148,37 @@ func (s *Service) addSubscription(c *kernel.Call, ref topicRef, candidate Subscr
 		}
 	}
 	links := linksOf(c.Endpoint())
-	return kernel.Write(c, s.cells, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (Subscription, *awserr.Error) {
+	out, err := kernel.Write(c, s.cells, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (added, *awserr.Error) {
 		t, ok := st.writable(ref.name, now)
 		if !ok {
-			return Subscription{}, errTopicNotFound()
+			return added{}, errTopicNotFound()
 		}
 		if existing, ok := t.subscribed(candidate.Protocol, candidate.Endpoint); ok {
 			tx.Unchanged()
-			conflict := existing.agrees(settings)
-			return existing, conflict
+			return added{sub: existing}, existing.agrees(settings)
 		}
 		if route != confirmedAtSubscribe {
 			candidate.Status = Pending{Token: token, Expires: now.Add(tokenValidity)}
 		}
+		refused := t.admitFilterPolicy(&candidate)
 		t.Subscriptions = append(t.Subscriptions, candidate)
 		if reason := t.largeMessageViolation(); reason != "" {
-			return Subscription{}, errLargeMessages(reason)
+			return added{}, errLargeMessages(reason)
 		}
 		if route == confirmedFromQueue {
 			r, err := s.confirmation(st, ref, &t, &candidate, token, links, now)
 			if err != nil {
-				return Subscription{}, err
+				return added{}, err
 			}
 			tx.Deliver(r)
 		}
 		st.Topics[ref.name] = t
-		return candidate, nil
+		return added{sub: candidate, refused: refused}, nil
 	})
+	if err != nil {
+		return Subscription{}, err
+	}
+	return out.sub, out.refused
 }
 
 // subscribed returns a copy of t's subscription of protocol and endpoint,
@@ -243,10 +260,12 @@ func subscribeProtocol(name string) (Protocol, *awserr.Error) {
 
 // checkEndpoint checks a Subscribe endpoint against its protocol and the
 // topic's kind and returns the account that owns an ARN endpoint, "" for
-// the others. Only the SQS endpoint ARN text and the FIFO-queue-on-a-
-// standard-topic text are AWS-recorded (sns.md 3.1); the FIFO-topic
-// endpoint text, whose wording sns.md 3.1 leaves UNVERIFIED, and the
-// lambda, http and email texts are inferred.
+// the others. An sqs or lambda ARN must name a scope the outbox delivers
+// to (servedScope), or every later publish to the topic would fail. Only
+// the SQS endpoint ARN text and the FIFO-queue-on-a-standard-topic text
+// are AWS-recorded (sns.md 3.1); the FIFO-topic endpoint text, whose
+// wording sns.md 3.1 leaves UNVERIFIED, and the lambda, http and email
+// texts are inferred.
 func checkEndpoint(p Protocol, endpoint string, topic topicRef) (string, *awserr.Error) {
 	if endpoint == "" {
 		return "", errReason("Endpoint", "no value for required parameter")
@@ -256,17 +275,12 @@ func checkEndpoint(p Protocol, endpoint string, topic topicRef) (string, *awserr
 	}
 	switch p {
 	case ProtocolSQS:
-		a, err := aws.ParseARN(endpoint)
-		if err != nil || a.Service != "sqs" || strings.Contains(a.Resource, ":") {
-			return "", errInvalidParameter("SQS endpoint ARN")
-		}
-		if !topic.fifo() && isFIFOQueue(a.Resource) {
-			return "", errInvalidParameter("Invalid parameter: Endpoint Reason: FIFO SQS Queues can not be subscribed to standard SNS topics")
-		}
-		return a.Account, nil
+		return queueOwner(endpoint, topic)
 	case ProtocolLambda:
 		if _, a, ok := lambdaTarget(endpoint); ok {
-			return a.Account, nil
+			if _, served := servedScope(a); served {
+				return a.Account, nil
+			}
 		}
 		return "", errInvalidParameter("Lambda endpoint ARN")
 	case ProtocolHTTP, ProtocolHTTPS:
@@ -279,6 +293,22 @@ func checkEndpoint(p Protocol, endpoint string, topic topicRef) (string, *awserr
 		}
 	}
 	return "", nil
+}
+
+// queueOwner checks an sqs endpoint, a queue ARN in a served scope that is
+// FIFO only on a FIFO topic, and returns the account that owns it.
+func queueOwner(endpoint string, topic topicRef) (string, *awserr.Error) {
+	a, err := aws.ParseARN(endpoint)
+	if err != nil || a.Service != "sqs" || strings.Contains(a.Resource, ":") {
+		return "", errInvalidParameter("SQS endpoint ARN")
+	}
+	if _, ok := servedScope(a); !ok {
+		return "", errInvalidParameter("SQS endpoint ARN")
+	}
+	if !topic.fifo() && isFIFOQueue(a.Resource) {
+		return "", errInvalidParameter("Invalid parameter: Endpoint Reason: FIFO SQS Queues can not be subscribed to standard SNS topics")
+	}
+	return a.Account, nil
 }
 
 // lambdaTarget splits a function ARN endpoint into the unqualified

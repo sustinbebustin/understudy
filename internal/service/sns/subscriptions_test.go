@@ -179,6 +179,13 @@ func TestSubscribeErrors(t *testing.T) {
 			{topic, "test-protocol", "x", nil, "InvalidParameter", "Invalid parameter: Amazon SNS does not support this protocol string: test-protocol"},
 			{topic, "sqs", "https://sqs.us-east-1.amazonaws.com/000000000000/orders", nil, "InvalidParameter", "Invalid parameter: SQS endpoint ARN"},
 			{topic, "sqs", fifoQueueARN, nil, "InvalidParameter", "Invalid parameter: Invalid parameter: Endpoint Reason: FIFO SQS Queues can not be subscribed to standard SNS topics"},
+			// Queues and functions the outbox cannot deliver to: another
+			// partition, no Region, no 12-digit account.
+			{topic, "sqs", "arn:aws-cn:sqs:cn-north-1:000000000000:q", nil, "InvalidParameter", "Invalid parameter: SQS endpoint ARN"},
+			{topic, "sqs", "arn:aws:sqs:::q", nil, "InvalidParameter", "Invalid parameter: SQS endpoint ARN"},
+			{topic, "sqs", "arn:aws:sqs:us-east-1:12345:q", nil, "InvalidParameter", "Invalid parameter: SQS endpoint ARN"},
+			{topic, "lambda", "arn:aws-cn:lambda:cn-north-1:000000000000:function:f", nil, "InvalidParameter", "Invalid parameter: Lambda endpoint ARN"},
+			{topic, "lambda", "arn:aws:lambda:::function:f", nil, "InvalidParameter", "Invalid parameter: Lambda endpoint ARN"},
 			{topic, "sqs", queueARN, map[string]string{"Bogus": "x"}, "InvalidParameter", "Invalid parameter: Attributes Reason: AttributeName"},
 			{topic, "sqs", queueARN, map[string]string{"RawMessageDelivery": "wrongvalue"}, "InvalidParameter", "Invalid parameter: Attributes Reason: RawMessageDelivery: Invalid value [wrongvalue]. Must be true or false."},
 			{topic, "sqs", queueARN, map[string]string{"RedrivePolicy": `{"deadLetterTargetArn":"not-an-arn"}`}, "InvalidParameter", "Invalid parameter: Attributes Reason: RedrivePolicy: deadLetterTargetArn is an invalid arn"},
@@ -195,6 +202,12 @@ func TestSubscribeErrors(t *testing.T) {
 		}
 		// A queue that does not exist is accepted (sns.md 3.1).
 		h.subscribe(topic, "sqs", "arn:aws:sqs:us-east-1:000000000000:nowhere", nil)
+		// Nothing refused was stored, so a publish reaches the one queue.
+		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
+		h.settle()
+		if sent := h.sent.all(); len(sent) != 1 {
+			h.Errorf("SendMessage ran %d times after the refused subscriptions, want 1", len(sent))
+		}
 	})
 }
 

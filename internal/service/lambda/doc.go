@@ -1,13 +1,17 @@
 // Package lambda implements AWS Lambda: functions, versions and aliases,
 // permissions, Invoke, SQS event source mappings and function URLs.
 //
-// This build binds the control plane: functions and their code and
+// New binds the control plane: functions and their code and
 // configuration, versions, aliases, resource policies, reserved
 // concurrency, tags, function URL configurations, asynchronous invocation
 // configurations and SQS event source mappings, with the validation texts
-// of docs/research/phase1/lambda-api.md and lambda-events.md. Invoke, the
-// SQS poller, the function URL data plane and log delivery are not bound
-// and answer 501 in Lambda's error format.
+// of docs/research/phase1/lambda-api.md and lambda-events.md. The data
+// plane is an Execution built beside the Service (NewExecution): Invoke
+// in its three modes, the asynchronous queue with its retries, function
+// logs delivered to CloudWatch Logs, reset draining and hot reload; the
+// decisions it takes are listed at the top of invoke.go. Until the server
+// builds an Execution, Invoke answers 501 in Lambda's error format. The
+// SQS poller and the function URL data plane are not bound yet.
 //
 // Provisioning states follow the lambda.stateTransitions switch
 // (ARCHITECTURE.md 9): with the default, a function is Active and an
@@ -54,11 +58,10 @@
 //     missing. Mappings outlive their function, as AWS's do.
 //   - Deleting a mapping answers with State Deleting; with the default
 //     transitions the mapping is already gone.
-//   - Drain has nothing to stop, since no execution environment runs in
-//     this build. Hot reload is not part of this build: the service does
-//     not implement the admin API's HotReloader, so the hot-reload
-//     endpoint answers unavailable, and UpdateFunctionCode's advisory hook
-//     for a code update a hot-reload overlay shadows records nothing.
+//   - The admin API's Drainer, HotReloader and ImagePuller are the
+//     Execution, not the Service, whose Drain has nothing to stop. When
+//     the Execution binds a hot-reload overlay, UpdateFunctionCode of a
+//     zip function under it records the shadowed-update Advisory.
 //   - Publishing while $LATEST waits for an image update publishes that
 //     image, the new version waiting for it too; UpdateFunctionCode with
 //     Publish therefore always yields the image it names. $LATEST's

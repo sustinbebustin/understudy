@@ -1041,6 +1041,9 @@ type Condition struct {
 	KeyPrefixEquals             *string
 }
 
+// ConditionalRequestConflict is the error com.amazonaws.s3#ConditionalRequestConflict.
+type ConditionalRequestConflict struct{}
+
 // ContinuationEvent is com.amazonaws.s3#ContinuationEvent.
 type ContinuationEvent struct{}
 
@@ -1820,6 +1823,9 @@ type EncryptionTypeMismatch struct{}
 
 // EndEvent is com.amazonaws.s3#EndEvent.
 type EndEvent struct{}
+
+// EntityTooLarge is the error com.amazonaws.s3#EntityTooLarge.
+type EntityTooLarge struct{}
 
 // EntityTooSmall is the error com.amazonaws.s3#EntityTooSmall.
 type EntityTooSmall struct {
@@ -3022,6 +3028,9 @@ type IllegalLocationConstraintException struct{}
 // IllegalVersioningConfigurationException is the error com.amazonaws.s3#IllegalVersioningConfigurationException.
 type IllegalVersioningConfigurationException struct{}
 
+// IncompleteBody is the error com.amazonaws.s3#IncompleteBody.
+type IncompleteBody struct{}
+
 // IndexDocument is com.amazonaws.s3#IndexDocument.
 type IndexDocument struct {
 	Suffix string
@@ -3155,6 +3164,12 @@ type InvalidBucketName struct {
 // InvalidBucketState is the error com.amazonaws.s3#InvalidBucketState.
 type InvalidBucketState struct{}
 
+// InvalidChunkSizeError is the error com.amazonaws.s3#InvalidChunkSizeError.
+type InvalidChunkSizeError struct{}
+
+// InvalidDigest is the error com.amazonaws.s3#InvalidDigest.
+type InvalidDigest struct{}
+
 // InvalidLocationConstraint is the error com.amazonaws.s3#InvalidLocationConstraint.
 type InvalidLocationConstraint struct {
 	LocationConstraint *string
@@ -3173,6 +3188,9 @@ type InvalidPart struct {
 	UploadId   *string
 }
 
+// InvalidPartNumber is the error com.amazonaws.s3#InvalidPartNumber.
+type InvalidPartNumber struct{}
+
 // InvalidPrefix is the error com.amazonaws.s3#InvalidPrefix.
 type InvalidPrefix struct{}
 
@@ -3184,6 +3202,9 @@ type InvalidRange struct {
 
 // InvalidRequest is the error com.amazonaws.s3#InvalidRequest.
 type InvalidRequest struct{}
+
+// InvalidStorageClass is the error com.amazonaws.s3#InvalidStorageClass.
+type InvalidStorageClass struct{}
 
 // InvalidTag is the error com.amazonaws.s3#InvalidTag.
 type InvalidTag struct {
@@ -3582,6 +3603,18 @@ type JournalTableConfigurationUpdates struct {
 	// union, blob, document or big integer as missing.
 	missing uint64
 }
+
+// KMSDisabledException is the error com.amazonaws.s3#KMSDisabledException.
+type KMSDisabledException struct{}
+
+// KMSInvalidStateException is the error com.amazonaws.s3#KMSInvalidStateException.
+type KMSInvalidStateException struct{}
+
+// KMSNotFoundException is the error com.amazonaws.s3#KMSNotFoundException.
+type KMSNotFoundException struct{}
+
+// KeyTooLongError is the error com.amazonaws.s3#KeyTooLongError.
+type KeyTooLongError struct{}
 
 // LambdaFunctionConfiguration is com.amazonaws.s3#LambdaFunctionConfiguration.
 type LambdaFunctionConfiguration struct {
@@ -4073,6 +4106,9 @@ type MalformedACLError struct{}
 // MalformedPolicy is the error com.amazonaws.s3#MalformedPolicy.
 type MalformedPolicy struct{}
 
+// MalformedTrailerError is the error com.amazonaws.s3#MalformedTrailerError.
+type MalformedTrailerError struct{}
+
 // MalformedXML is the error com.amazonaws.s3#MalformedXML.
 type MalformedXML struct{}
 
@@ -4158,6 +4194,12 @@ type MetadataTableEncryptionConfiguration struct {
 	missing uint64
 }
 
+// MetadataTooLarge is the error com.amazonaws.s3#MetadataTooLarge.
+type MetadataTooLarge struct{}
+
+// MethodNotAllowed is the error com.amazonaws.s3#MethodNotAllowed.
+type MethodNotAllowed struct{}
+
 // Metrics is com.amazonaws.s3#Metrics.
 type Metrics struct {
 	Status         MetricsStatus
@@ -4242,6 +4284,9 @@ func (MetricsStatus) Values() []MetricsStatus {
 	}
 }
 
+// MissingContentLength is the error com.amazonaws.s3#MissingContentLength.
+type MissingContentLength struct{}
+
 // MissingSecurityHeader is the error com.amazonaws.s3#MissingSecurityHeader.
 type MissingSecurityHeader struct {
 	MissingHeaderName *string
@@ -4325,6 +4370,9 @@ type NoncurrentVersionTransition struct {
 
 // NotFound is the error com.amazonaws.s3#NotFound.
 type NotFound struct{}
+
+// NotImplemented is the error com.amazonaws.s3#NotImplemented.
+type NotImplemented struct{}
 
 // NotModified is the error com.amazonaws.s3#NotModified.
 type NotModified struct{}
@@ -7154,3 +7202,6 @@ type WriteGetObjectResponseInput struct {
 
 // WriteGetObjectResponseOutput is the empty output of WriteGetObjectResponse.
 type WriteGetObjectResponseOutput struct{}
+
+// XAmzContentSHA256Mismatch is the error com.amazonaws.s3#XAmzContentSHA256Mismatch.
+type XAmzContentSHA256Mismatch struct{}
