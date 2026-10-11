@@ -4599,6 +4599,57 @@ func (v *PutLogEventsInput) validate(path awserr.Path, out *[]awserr.Violation) 
 
 // Validate reports the constraint violations of v in AWS's order; nil
 // means v satisfies every generated constraint.
+func (v *PutLogEventsInternalInput) Validate() []awserr.Violation {
+	var out []awserr.Violation
+	v.validate(nil, &out)
+	return out
+}
+
+func (v *PutLogEventsInternalInput) validate(path awserr.Path, out *[]awserr.Violation) {
+	if v.missing&(1<<0) != 0 {
+		*out = append(*out, awserr.Violation{Path: at(path, "logGroupName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
+	} else {
+		if !pattern7.MatchString(v.LogGroupName) {
+			*out = append(*out, awserr.Violation{Path: at(path, "logGroupName"), Value: awserr.RenderedText{Text: v.LogGroupName}, Constraint: awserr.Pattern{Echo: "[\\.\\-_/#A-Za-z0-9]+"}})
+		}
+		if utf8.RuneCountInString(v.LogGroupName) > 512 {
+			*out = append(*out, awserr.Violation{Path: at(path, "logGroupName"), Value: awserr.RenderedText{Text: v.LogGroupName}, Constraint: awserr.LengthMax{Max: 512}})
+		}
+		if utf8.RuneCountInString(v.LogGroupName) < 1 {
+			*out = append(*out, awserr.Violation{Path: at(path, "logGroupName"), Value: awserr.RenderedText{Text: v.LogGroupName}, Constraint: awserr.LengthMin{Min: 1}})
+		}
+	}
+	if v.missing&(1<<1) != 0 {
+		*out = append(*out, awserr.Violation{Path: at(path, "logStreamName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
+	} else {
+		if !pattern16.MatchString(v.LogStreamName) {
+			*out = append(*out, awserr.Violation{Path: at(path, "logStreamName"), Value: awserr.RenderedText{Text: v.LogStreamName}, Constraint: awserr.Pattern{Echo: "[^:*]*"}})
+		}
+		if utf8.RuneCountInString(v.LogStreamName) > 512 {
+			*out = append(*out, awserr.Violation{Path: at(path, "logStreamName"), Value: awserr.RenderedText{Text: v.LogStreamName}, Constraint: awserr.LengthMax{Max: 512}})
+		}
+		if utf8.RuneCountInString(v.LogStreamName) < 1 {
+			*out = append(*out, awserr.Violation{Path: at(path, "logStreamName"), Value: awserr.RenderedText{Text: v.LogStreamName}, Constraint: awserr.LengthMin{Min: 1}})
+		}
+	}
+	if v.missing&(1<<2) != 0 || v.LogEvents == nil {
+		*out = append(*out, awserr.Violation{Path: at(path, "logEvents"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
+	} else {
+		if len(v.LogEvents) > 10000 {
+			*out = append(*out, awserr.Violation{Path: at(path, "logEvents"), Value: awserr.RenderedText{Text: renderInputLogEvents(v.LogEvents)}, Constraint: awserr.LengthMax{Max: 10000}})
+		}
+		if len(v.LogEvents) < 1 {
+			*out = append(*out, awserr.Violation{Path: at(path, "logEvents"), Value: awserr.RenderedText{Text: renderInputLogEvents(v.LogEvents)}, Constraint: awserr.LengthMin{Min: 1}})
+		}
+		for i2, e2 := range v.LogEvents {
+			p2 := at(at(path, "logEvents"), strconv.Itoa(i2+1), "member")
+			e2.validate(p2, out)
+		}
+	}
+}
+
+// Validate reports the constraint violations of v in AWS's order; nil
+// means v satisfies every generated constraint.
 func (v *PutLogGroupDeletionProtectionInput) Validate() []awserr.Violation {
 	var out []awserr.Violation
 	v.validate(nil, &out)
@@ -7871,6 +7922,25 @@ var policyPutLogEvents = validationPolicy{
 // when vs is empty.
 func (*PutLogEventsInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 	return policyPutLogEvents.render(vs)
+}
+
+var policyPutLogEventsInternal = validationPolicy{
+	paths: []validationPath{
+		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logStreamName"}, param: "logStreamName"},
+		{segments: []string{"logEvents"}, param: "logEvents"},
+		{segments: []string{"logEvents", "*", "member"}, param: "logEvents"},
+		{segments: []string{"logEvents", "*", "member", "timestamp"}, param: "timestamp"},
+		{segments: []string{"logEvents", "*", "member", "message"}, param: "message"},
+	},
+	service: []validationRule{{id: IdentityInvalidParameterException, style: styleCoral}},
+}
+
+// ValidationError returns the error PutLogEventsInternal answers for vs, the
+// violations of the generated and the hand-written validators, or nil
+// when vs is empty.
+func (*PutLogEventsInternalInput) ValidationError(vs []awserr.Violation) *awserr.Error {
+	return policyPutLogEventsInternal.render(vs)
 }
 
 var policyPutLogGroupDeletionProtection = validationPolicy{

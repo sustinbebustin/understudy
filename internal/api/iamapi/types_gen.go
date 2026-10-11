@@ -3565,6 +3565,21 @@ type ResetServiceSpecificCredentialOutput struct {
 	ServiceSpecificCredential *ServiceSpecificCredential
 }
 
+// ResolveRoleInput is the input of ResolveRole, com.amazonaws.iam#ResolveRoleRequest.
+type ResolveRoleInput struct {
+	RoleArn string
+	// missing has a bit set per required member Deserialize did not
+	// find, so Validate tells absent from zero. Values built in Go
+	// leave it zero; Validate then treats a nil required list, map,
+	// union, blob, document or big integer as missing.
+	missing uint64
+}
+
+// ResolveRoleOutput is the output of ResolveRole, com.amazonaws.iam#ResolveRoleResponse.
+type ResolveRoleOutput struct {
+	Role Role
+}
+
 // ResourceSpecificResult is com.amazonaws.iam#ResourceSpecificResult.
 type ResourceSpecificResult struct {
 	EvalResourceName                  string

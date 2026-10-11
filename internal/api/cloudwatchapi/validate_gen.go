@@ -2637,10 +2637,6 @@ func (v *SetAlarmStateInput) validate(path awserr.Path, out *[]awserr.Violation)
 	}
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "stateValue"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
-	} else {
-		if !v.StateValue.Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "stateValue"), Value: awserr.RenderedText{Text: string(v.StateValue)}, Constraint: awserr.Enum{Values: []string{"OK", "ALARM", "INSUFFICIENT_DATA"}}})
-		}
 	}
 	if v.missing&(1<<2) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "stateReason"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})

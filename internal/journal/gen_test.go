@@ -164,7 +164,7 @@ func genOrigin(text *rapid.Generator[string]) *rapid.Generator[ref.Origin] {
 	internal := rapid.Custom(func(t *rapid.T) ref.Origin {
 		return ref.Internal{Via: rapid.SampledFrom([]ref.Via{
 			ref.SNSDelivery, ref.LambdaESM, ref.EventsTarget, ref.S3Notification, ref.LambdaLogs,
-			ref.DynamoDBTTL, ref.Timer, ref.Snapshot, ref.Admin, ref.KMSForward,
+			ref.DynamoDBTTL, ref.Timer, ref.Snapshot, ref.Admin, ref.KMSForward, ref.STSAssumeRole,
 		}).Draw(t, "via")}
 	})
 	return rapid.OneOf(external, internal)
@@ -321,7 +321,7 @@ func genDetailOf(text *rapid.Generator[string]) *rapid.Generator[Detail] {
 		}),
 		rapid.Custom(func(t *rapid.T) Detail {
 			return Advisory{
-				Kind:     rapid.SampledFrom([]AdvisoryKind{AdvisoryPolicyWouldDeny, AdvisoryUnmintedCredentials, AdvisoryShadowedCodeUpdate}).Draw(t, "kind"),
+				Kind:     rapid.SampledFrom([]AdvisoryKind{AdvisoryPolicyWouldDeny, AdvisoryUnmintedCredentials, AdvisoryShadowedCodeUpdate, AdvisoryCrossRegionServed}).Draw(t, "kind"),
 				Resource: genARN().Draw(t, "resource"),
 				Text:     text.Draw(t, "text"),
 			}

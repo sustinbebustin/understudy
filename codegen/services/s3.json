@@ -3,6 +3,11 @@
   "package": "s3api",
   "model": "s3",
   "iamPrefix": "s3",
+  "rawOperations": [
+    {"name": "ListTagsForResource", "iam": ["s3:ListTagsForResource"]},
+    {"name": "TagResource", "iam": ["s3:TagResource"]},
+    {"name": "UntagResource", "iam": ["s3:UntagResource"]}
+  ],
   "routeOverrides": [
     {
       "operation": "ListDirectoryBuckets",

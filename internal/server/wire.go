@@ -181,6 +181,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		Regions:               aws.KnownRegions(),
 		Codecs:                Codecs(),
 		S3BaseDomains:         []string{"localhost", "s3.localhost"},
+		S3Control:             S3ControlCodec(),
 		Listener:              ref.ListenerMain,
 		Admin:                 w.admin,
 		Unclaimed:             ref.AWSJSON10,

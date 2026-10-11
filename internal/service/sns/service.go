@@ -1,67 +1,96 @@
 package sns
 
 import (
+	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
-	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
-	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshots.
-const stateVersion = 1
-
-// State is the SNS state of one account and region; this build keeps none.
-type State struct{}
-
-// Service is Amazon SNS: one state cell per account and region. This build
-// binds none of its operations, so each answers 501 in SNS's own error
-// format and coverage lists it as unbound.
+// Service is Amazon SNS: one state cell per account and region.
 type Service struct {
-	cells *store.Partitioned[aws.Scope, State]
+	// clock gives reads outside a write the instant pending subscriptions
+	// expire against.
+	clock   *clock.Clock
+	ids     *ids.Source
+	cells   *store.Partitioned[aws.Scope, State]
+	signers signerCache
 }
 
-// The service is the snapshot and reset view of its state.
-var _ kernel.Stateful = (*Service)(nil)
-
-// New returns the service. It binds no operation.
+// New binds the SNS operations understudy implements. Every other SNS
+// operation (SMS, mobile push, data protection) stays unbound and answers
+// 501.
 func New(d kernel.ServiceDeps, _ Options) *Service {
-	codec := jsonx.NewCodec()
-	return &Service{cells: store.NewPartitioned(d.Kernel.Gate(), store.Codec{Marshal: codec.Marshal, Unmarshal: codec.Unmarshal},
-		func(aws.Scope) State { return State{} })}
+	s := &Service{
+		clock: d.Clock,
+		ids:   d.IDs,
+		cells: store.NewPartitioned(d.Kernel.Gate(), codec(), newState),
+	}
+	b := snsapi.NewBinder(d.Binder)
+	s.bindTopics(b)
+	s.bindTags(b)
+	s.bindPermissions(b)
+	s.bindSubscriptions(b)
+	s.bindSubscriptionAttributes(b)
+	s.bindPublish(b)
+	s.bindLinks(b)
+	return s
 }
 
-// Name returns "sns".
-func (*Service) Name() ref.ServiceID { return "sns" }
-
-// SchemaVersion returns the version of State.
-func (*Service) SchemaVersion() int { return stateVersion }
-
-// Export serializes every non-empty scope to one section.
-func (s *Service) Export() ([]store.Section, error) {
-	return s.cells.Export(store.ScopeKeys(), stateVersion)
+// pendingInListings is how ListSubscriptions shows a pending
+// subscription: AWS's widely observed "PendingConfirmation" in place of the
+// ARN, which no primary source documents (sns.md 3.4).
+func pendingInListings() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:  "sns.listing.pending-arn",
+		Value: "PendingConfirmation",
+		Label: evidence.Inferred,
+		Ref:   "docs/research/phase1/sns.md#34-listing",
+	}
 }
 
-// Import loads sections written by Export of this schema version.
-func (s *Service) Import(ss []store.Section) error {
-	return s.cells.Import(store.ScopeKeys(), stateVersion, ss)
+// fifoSequence is the text of a FIFO SequenceNumber: a 20-digit decimal
+// counter per topic, as LocalStack renders it; AWS documents a 128-bit
+// increasing number without its text (sns.md 4.3).
+func fifoSequence() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:  "sns.fifo.sequence-number",
+		Value: "20-digit-decimal-per-topic",
+		Label: evidence.Inferred,
+		Ref:   "docs/research/phase1/sns.md#43-fifo-publish",
+	}
 }
 
-// Reset drops the scopes rs covers.
-func (s *Service) Reset(rs kernel.ResetScope) {
-	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
+// lambdaAttributeTypes is the DataType a Lambda event carries for Number
+// and String.Array attributes: the published one, where the docs say
+// String and no recording exists (sns.md 9).
+func lambdaAttributeTypes() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:  "sns.lambda.attribute-type",
+		Value: "as-published",
+		Label: evidence.Inferred,
+		Ref:   "docs/research/phase1/sns.md#9-conflicts-between-sources",
+	}
 }
 
-// Rearm does nothing: the state arms no timers.
-func (*Service) Rearm(clock.Instant) {}
+// fifoDuplicate is what a FIFO publish inside the deduplication window
+// answers: a fresh MessageId and SequenceNumber with no delivery, as the
+// research recommends; no recording shows whether AWS returns the
+// original's (sns.md Implications 10).
+func fifoDuplicate() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:  "sns.fifo.duplicate",
+		Value: "fresh-message-id-no-delivery",
+		Label: evidence.Inferred,
+		Ref:   "docs/research/phase1/sns.md#43-fifo-publish",
+	}
+}
 
-// Resources lists nothing: the state holds no resources.
-func (*Service) Resources(aws.Scope) []kernel.Resource { return nil }
-
-// Scopes returns the accounts and regions that hold a state cell.
-func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) }
-
-// Switches lists no behaviors: the service implements none yet.
-func (*Service) Switches() []fidelity.Entry { return nil }
+// Switches lists the behaviors chosen without AWS-recorded evidence.
+func (s *Service) Switches() []fidelity.Entry {
+	return []fidelity.Entry{pendingInListings().Entry(), fifoSequence().Entry(), lambdaAttributeTypes().Entry(), fifoDuplicate().Entry()}
+}

@@ -92,6 +92,62 @@ func TestDeliveriesRunAfterCommitWithTheCallsCause(t *testing.T) {
 	}
 }
 
+// A handler's records carry the call's event as their parent and its trace:
+// Call.Record at once, Tx.Record only when the write commits. A malformed
+// record fails the write as Internal after it commits.
+func TestRecordsAreCausedByTheCall(t *testing.T) {
+	run(t, func(k *kerneltest.K) {
+		t := k.T
+		p := cells(k)
+		queue := aws.ARN{Partition: "aws", Service: "sqs", Region: k.Scope.Region.String(), Account: k.Scope.Account.String(), Resource: "q"}
+		advice := func(text string) journal.Advisory {
+			return journal.Advisory{Kind: journal.AdvisoryPolicyWouldDeny, Resource: queue, Text: text}
+		}
+		var call ref.Cause
+		var werr *awserr.Error
+		k.Stub(sqsapi.OpSendMessage, func(ctx context.Context, c *kernel.Call, _ *sqsapi.SendMessageInput) (*sqsapi.SendMessageOutput, *awserr.Error) {
+			call = ref.Cause{Parent: c.Event(), Trace: c.Cause().Trace}
+			c.Record(ctx, c.Scope(), advice("recorded"))
+			if _, err := kernel.Write(c, p, c.Scope(), func(_ *int, _ clock.Instant, tx *kernel.Tx) (int, *awserr.Error) {
+				tx.Record(c.Scope(), advice("rolled back"))
+				return 0, sqsapi.ErrQueueDoesNotExist("no")
+			}); err == nil {
+				t.Error("the failing write succeeded")
+			}
+			if _, err := kernel.Write(c, p, c.Scope(), func(_ *int, _ clock.Instant, tx *kernel.Tx) (int, *awserr.Error) {
+				tx.Record(c.Scope(), advice("committed"))
+				return 0, nil
+			}); err != nil {
+				return nil, err
+			}
+			_, werr = kernel.Write(c, p, c.Scope(), func(_ *int, _ clock.Instant, tx *kernel.Tx) (int, *awserr.Error) {
+				tx.Record(c.Scope(), journal.Delivery{From: queue, To: queue})
+				return 0, nil
+			})
+			return &sqsapi.SendMessageOutput{}, nil
+		})
+		if _, err := k.Invoke(t.Context(), sqsapi.OpSendMessage, &sqsapi.SendMessageInput{QueueUrl: "u", MessageBody: "b"}); err != nil {
+			t.Fatal(err.AsError())
+		}
+		events := k.Journal.Query(journal.Filter{Kind: journal.KindAdvisory}).Events
+		texts := make([]string, 0, len(events))
+		for _, e := range events {
+			if e.Cause != call || e.Scope != k.Scope {
+				t.Errorf("record %+v is not caused by the call (%+v) in %v", e, call, k.Scope)
+			}
+			if a, ok := e.Detail.(journal.Advisory); ok {
+				texts = append(texts, a.Text)
+			}
+		}
+		if call.Parent == 0 || !slices.Equal(texts, []string{"recorded", "committed"}) {
+			t.Errorf("records = %q of call %+v, want the call's and the committed write's", texts, call)
+		}
+		if !isA[*kernel.RecordError](internalCause(t, werr)) {
+			t.Errorf("a malformed record = %v, want a RecordError", werr)
+		}
+	})
+}
+
 func TestCatalogueListsModeledAndGenericErrors(t *testing.T) {
 	reg, err := registry.New(sqsapi.Service())
 	if err != nil {
@@ -237,6 +293,9 @@ func TestInvokeReadsAPassthroughResponse(t *testing.T) {
 		}
 		if _, ok := wire.(kernel.Synthesized); !ok {
 			t.Errorf("the handler's wire = %T, want kernel.Synthesized", wire)
+		}
+		if !k.Kernel.Passthrough(raw.Descriptor()) || k.Kernel.Passthrough(sqsapi.OpSendMessage.Descriptor()) {
+			t.Error("Passthrough does not tell the BindRaw operation from the Bind one")
 		}
 		if got == nil || got.Response.Status != want.Status || !bytes.Equal(got.Response.Body, want.Body) ||
 			got.Response.Header.Get("Content-Type") != want.Header.Get("Content-Type") {

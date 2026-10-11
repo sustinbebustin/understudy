@@ -250,6 +250,16 @@ func clientFaultFields(svc ref.ServiceID) []awserr.Field {
 	return nil
 }
 
+// S3ControlCodec renders the errors of the S3 Control tag operations,
+// which S3 serves as raw operations: S3's dialect with wrapped errors.
+func S3ControlCodec() edge.Codec {
+	return restXMLCodec{c: restxml.Codec{Dialect: func(ref.ServiceID) restxml.Dialect {
+		d := restxml.S3ControlDialect(s3api.IdentityInvalidArgument())
+		d.Internal = s3api.IdentityInternalError()
+		return d
+	}}}
+}
+
 // dialect is S3's restXml dialect, which renders internal failures as S3's
 // own InternalError; other services speak Smithy's.
 func dialect(svc ref.ServiceID) restxml.Dialect {

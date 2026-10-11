@@ -30,9 +30,12 @@ const (
 	KindDeliveryID
 	KindFaultStream
 	KindJitter
+	// KindEventID is EventBridge's: PutEvents entry ids and the ids of
+	// scheduled events. Declared last, so existing kinds keep their values.
+	KindEventID
 )
 
-const kindCount = int(KindJitter) + 1
+const kindCount = int(KindEventID) + 1
 
 // String returns the kind's stable name, which also seeds its stream and
 // keys it in snapshot manifests.
@@ -72,6 +75,8 @@ func (k Kind) String() string {
 		return "fault-stream"
 	case KindJitter:
 		return "jitter"
+	case KindEventID:
+		return "events-event-id"
 	}
 	return fmt.Sprintf("kind(%d)", uint8(k))
 }

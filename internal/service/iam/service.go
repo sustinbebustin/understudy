@@ -1,75 +1,50 @@
 package iam
 
 import (
+	"log/slog"
+
+	"github.com/sustinbebustin/understudy/internal/api/iamapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
+	"github.com/sustinbebustin/understudy/internal/identity"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
-	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshots.
-const stateVersion = 1
-
-// State is the IAM state of one account; this build keeps none.
-type State struct{}
-
 // Service is AWS IAM: one state cell per account, since IAM is global.
-// This build binds none of its operations, so each answers 501 in IAM's
-// own error format and coverage lists it as unbound.
 type Service struct {
-	cells *store.Partitioned[aws.AccountID, State]
+	ids      *ids.Source
+	identity *identity.Store
+	log      *slog.Logger
+	codec    jsonx.Codec
+	cells    *store.Partitioned[aws.AccountID, State]
 }
 
-// The service is the snapshot and reset view of its state.
-var _ kernel.Stateful = (*Service)(nil)
-
-// New returns the service. It binds no operation.
+// New binds the IAM operations understudy implements. Every other IAM
+// operation stays unbound and answers 501.
 func New(d kernel.ServiceDeps, _ Options) *Service {
 	codec := jsonx.NewCodec()
-	return &Service{cells: store.NewPartitioned(d.Kernel.Gate(), store.Codec{Marshal: codec.Marshal, Unmarshal: codec.Unmarshal},
-		func(aws.AccountID) State { return State{} })}
-}
-
-// Name returns "iam".
-func (*Service) Name() ref.ServiceID { return "iam" }
-
-// SchemaVersion returns the version of State.
-func (*Service) SchemaVersion() int { return stateVersion }
-
-// Export serializes every non-empty account to one section.
-func (s *Service) Export() ([]store.Section, error) {
-	return s.cells.Export(store.AccountKeys(), stateVersion)
-}
-
-// Import loads sections written by Export of this schema version.
-func (s *Service) Import(ss []store.Section) error {
-	return s.cells.Import(store.AccountKeys(), stateVersion, ss)
-}
-
-// Reset drops the accounts rs covers; IAM has no regions.
-func (s *Service) Reset(rs kernel.ResetScope) {
-	s.cells.Reset(func(k aws.AccountID) bool { return !rs.Covers(aws.Scope{Partition: aws.PartitionAWS(), Account: k}) })
-}
-
-// Rearm does nothing: the state arms no timers.
-func (*Service) Rearm(clock.Instant) {}
-
-// Resources lists nothing: the state holds no resources.
-func (*Service) Resources(aws.Scope) []kernel.Resource { return nil }
-
-// Scopes returns the accounts that hold a state cell, each with a zero
-// region; IAM has no regions.
-func (s *Service) Scopes() []aws.Scope {
-	accounts := s.cells.Keys(store.AccountKeys())
-	out := make([]aws.Scope, len(accounts))
-	for i, a := range accounts {
-		out[i] = aws.Scope{Partition: aws.PartitionAWS(), Account: a}
+	s := &Service{
+		ids:      d.IDs,
+		identity: d.Identity,
+		log:      d.Log,
+		codec:    codec,
+		cells:    store.NewPartitioned(d.Kernel.Gate(), store.Codec{Marshal: codec.Marshal, Unmarshal: codec.Unmarshal}, newState),
 	}
-	return out
+	b := iamapi.NewBinder(d.Binder)
+	s.bindRoles(b)
+	s.bindInline(b)
+	s.bindAttachments(b)
+	s.bindPolicies(b)
+	s.bindUsers(b)
+	s.bindAccessKeys(b)
+	s.bindInstanceProfiles(b)
+	s.bindTags(b)
+	return s
 }
 
-// Switches lists no behaviors: the service implements none yet.
+// Switches lists no behaviors: every IAM choice without AWS evidence is a
+// documented decision of the package, none a switchable behavior.
 func (*Service) Switches() []fidelity.Entry { return nil }

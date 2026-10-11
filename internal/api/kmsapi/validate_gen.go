@@ -366,8 +366,8 @@ func (v *CreateKeyInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		if !pattern9.MatchString(*v.Policy) {
 			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: *v.Policy}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
 		}
-		if utf8.RuneCountInString(*v.Policy) > 131072 {
-			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: *v.Policy}, Constraint: awserr.LengthMax{Max: 131072}})
+		if utf8.RuneCountInString(*v.Policy) > 32768 {
+			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: *v.Policy}, Constraint: awserr.LengthMax{Max: 32768}})
 		}
 		if utf8.RuneCountInString(*v.Policy) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: *v.Policy}, Constraint: awserr.LengthMin{Min: 1}})
@@ -1741,8 +1741,8 @@ func (v *PutKeyPolicyInput) validate(path awserr.Path, out *[]awserr.Violation) 
 		if !pattern9.MatchString(v.Policy) {
 			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: v.Policy}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
 		}
-		if utf8.RuneCountInString(v.Policy) > 131072 {
-			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: v.Policy}, Constraint: awserr.LengthMax{Max: 131072}})
+		if utf8.RuneCountInString(v.Policy) > 32768 {
+			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: v.Policy}, Constraint: awserr.LengthMax{Max: 32768}})
 		}
 		if utf8.RuneCountInString(v.Policy) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: v.Policy}, Constraint: awserr.LengthMin{Min: 1}})
@@ -2004,11 +2004,11 @@ func (v *ScheduleKeyDeletionInput) validate(path awserr.Path, out *[]awserr.Viol
 		}
 	}
 	if v.PendingWindowInDays != nil {
-		if int64(*v.PendingWindowInDays) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "pendingWindowInDays"), Value: awserr.RenderedText{Text: strconv.FormatInt(int64(*v.PendingWindowInDays), 10)}, Constraint: awserr.RangeMin{Min: "1"}})
+		if int64(*v.PendingWindowInDays) < 7 {
+			*out = append(*out, awserr.Violation{Path: at(path, "pendingWindowInDays"), Value: awserr.RenderedText{Text: strconv.FormatInt(int64(*v.PendingWindowInDays), 10)}, Constraint: awserr.RangeMin{Min: "7"}})
 		}
-		if int64(*v.PendingWindowInDays) > 365 {
-			*out = append(*out, awserr.Violation{Path: at(path, "pendingWindowInDays"), Value: awserr.RenderedText{Text: strconv.FormatInt(int64(*v.PendingWindowInDays), 10)}, Constraint: awserr.RangeMax{Max: "365"}})
+		if int64(*v.PendingWindowInDays) > 30 {
+			*out = append(*out, awserr.Violation{Path: at(path, "pendingWindowInDays"), Value: awserr.RenderedText{Text: strconv.FormatInt(int64(*v.PendingWindowInDays), 10)}, Constraint: awserr.RangeMax{Max: "30"}})
 		}
 	}
 }

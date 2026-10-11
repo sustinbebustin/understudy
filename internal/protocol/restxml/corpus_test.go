@@ -93,6 +93,40 @@ func TestCorpusResponses(t *testing.T) {
 	}
 }
 
+// An output whose members all bind outside the body still serializes an
+// empty document in Smithy's restXml, so it carries Content-Type
+// application/xml (RestXmlHttpResponseCode). S3's dialect sends no
+// Content-Type there.
+func TestCorpusBodilessOutputContentType(t *testing.T) {
+	var c gen.ResponseCase
+	for _, x := range corpus.Suite().Responses {
+		if x.ID == "RestXmlHttpResponseCode" {
+			c = x
+		}
+	}
+	out, ok := c.Outcome.(gen.Output)
+	if !ok {
+		t.Fatalf("the corpus has no output case RestXmlHttpResponseCode (outcome %T)", c.Outcome)
+	}
+	for _, tc := range []struct {
+		name  string
+		codec restxml.Codec
+		want  string
+	}{
+		{"zero dialect", restxml.Codec{}, "application/xml"},
+		{"S3 dialect", codec, ""},
+	} {
+		resp, err := tc.codec.Encode(nil, c.Operation, requestID, out.Value, http.StatusOK)
+		if err != nil {
+			t.Errorf("%s: %v", tc.name, err.AsError())
+			continue
+		}
+		if got := readAll(t, resp.Body); resp.Status != c.Code || got != "" || resp.Header.Get("Content-Type") != tc.want {
+			t.Errorf("%s: %d %v %q, want %d with no body and Content-Type %q", tc.name, resp.Status, resp.Header, got, c.Code, tc.want)
+		}
+	}
+}
+
 // Server cases from the Smithy restXml corpus whose output has no members:
 // "Empty output serializes no payload", so the body is empty and carries
 // no Content-Type. The generated cases leave the empty body unasserted, so

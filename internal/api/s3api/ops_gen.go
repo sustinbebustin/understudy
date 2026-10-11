@@ -1056,10 +1056,22 @@ var descListParts = registry.Operation{
 	SuccessCode: 200,
 }
 
+// descListTagsForResource is a raw operation (codegen/services rawOperations): its
+// handler owns the HTTP exchange, so it has no input or output schema.
+var descListTagsForResource = registry.Operation{
+	Service:     &service,
+	ID:          ref.OperationID{Service: "s3", Name: "ListTagsForResource"},
+	Ordinal:     75,
+	Kind:        registry.Raw,
+	Shape:       "com.amazonaws.s3#ListTagsForResource",
+	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "ListTagsForResource"}},
+	SuccessCode: 200,
+}
+
 var descPutBucketAbac = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketAbac"},
-	Ordinal:     75,
+	Ordinal:     76,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketAbac",
 	Input:       &schemaPutBucketAbacInput,
@@ -1073,7 +1085,7 @@ var descPutBucketAbac = registry.Operation{
 var descPutBucketAccelerateConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketAccelerateConfiguration"},
-	Ordinal:     76,
+	Ordinal:     77,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketAccelerateConfiguration",
 	Input:       &schemaPutBucketAccelerateConfigurationInput,
@@ -1087,7 +1099,7 @@ var descPutBucketAccelerateConfiguration = registry.Operation{
 var descPutBucketAcl = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketAcl"},
-	Ordinal:     77,
+	Ordinal:     78,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketAcl",
 	Input:       &schemaPutBucketAclInput,
@@ -1101,7 +1113,7 @@ var descPutBucketAcl = registry.Operation{
 var descPutBucketAnalyticsConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketAnalyticsConfiguration"},
-	Ordinal:     78,
+	Ordinal:     79,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketAnalyticsConfiguration",
 	Input:       &schemaPutBucketAnalyticsConfigurationInput,
@@ -1109,13 +1121,13 @@ var descPutBucketAnalyticsConfiguration = registry.Operation{
 	Errors:      []awserr.Identity{IdentityInvalidArgument()},
 	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "PutAnalyticsConfiguration"}},
 	HTTP:        &registry.HTTPBinding{Method: "PUT", Path: []registry.Segment{registry.Label{Name: "Bucket"}}, Query: []registry.QueryMatch{registry.QueryPresent{Key: "analytics"}}},
-	SuccessCode: 200,
+	SuccessCode: 204,
 }
 
 var descPutBucketCors = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketCors"},
-	Ordinal:     79,
+	Ordinal:     80,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketCors",
 	Input:       &schemaPutBucketCorsInput,
@@ -1129,7 +1141,7 @@ var descPutBucketCors = registry.Operation{
 var descPutBucketEncryption = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketEncryption"},
-	Ordinal:     80,
+	Ordinal:     81,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketEncryption",
 	Input:       &schemaPutBucketEncryptionInput,
@@ -1143,7 +1155,7 @@ var descPutBucketEncryption = registry.Operation{
 var descPutBucketIntelligentTieringConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketIntelligentTieringConfiguration"},
-	Ordinal:     81,
+	Ordinal:     82,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketIntelligentTieringConfiguration",
 	Input:       &schemaPutBucketIntelligentTieringConfigurationInput,
@@ -1151,13 +1163,13 @@ var descPutBucketIntelligentTieringConfiguration = registry.Operation{
 	Errors:      []awserr.Identity{IdentityInvalidArgument()},
 	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "PutIntelligentTieringConfiguration"}},
 	HTTP:        &registry.HTTPBinding{Method: "PUT", Path: []registry.Segment{registry.Label{Name: "Bucket"}}, Query: []registry.QueryMatch{registry.QueryPresent{Key: "intelligent-tiering"}}},
-	SuccessCode: 200,
+	SuccessCode: 204,
 }
 
 var descPutBucketInventoryConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketInventoryConfiguration"},
-	Ordinal:     82,
+	Ordinal:     83,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketInventoryConfiguration",
 	Input:       &schemaPutBucketInventoryConfigurationInput,
@@ -1165,13 +1177,13 @@ var descPutBucketInventoryConfiguration = registry.Operation{
 	Errors:      []awserr.Identity{IdentityInvalidArgument()},
 	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "PutInventoryConfiguration"}},
 	HTTP:        &registry.HTTPBinding{Method: "PUT", Path: []registry.Segment{registry.Label{Name: "Bucket"}}, Query: []registry.QueryMatch{registry.QueryPresent{Key: "inventory"}}},
-	SuccessCode: 200,
+	SuccessCode: 204,
 }
 
 var descPutBucketLifecycleConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketLifecycleConfiguration"},
-	Ordinal:     83,
+	Ordinal:     84,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketLifecycleConfiguration",
 	Input:       &schemaPutBucketLifecycleConfigurationInput,
@@ -1185,7 +1197,7 @@ var descPutBucketLifecycleConfiguration = registry.Operation{
 var descPutBucketLogging = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketLogging"},
-	Ordinal:     84,
+	Ordinal:     85,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketLogging",
 	Input:       &schemaPutBucketLoggingInput,
@@ -1199,7 +1211,7 @@ var descPutBucketLogging = registry.Operation{
 var descPutBucketMetricsConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketMetricsConfiguration"},
-	Ordinal:     85,
+	Ordinal:     86,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketMetricsConfiguration",
 	Input:       &schemaPutBucketMetricsConfigurationInput,
@@ -1207,13 +1219,13 @@ var descPutBucketMetricsConfiguration = registry.Operation{
 	Errors:      []awserr.Identity{IdentityInvalidArgument()},
 	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "PutMetricsConfiguration"}},
 	HTTP:        &registry.HTTPBinding{Method: "PUT", Path: []registry.Segment{registry.Label{Name: "Bucket"}}, Query: []registry.QueryMatch{registry.QueryPresent{Key: "metrics"}}},
-	SuccessCode: 200,
+	SuccessCode: 204,
 }
 
 var descPutBucketNotificationConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketNotificationConfiguration"},
-	Ordinal:     86,
+	Ordinal:     87,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketNotificationConfiguration",
 	Input:       &schemaPutBucketNotificationConfigurationInput,
@@ -1227,7 +1239,7 @@ var descPutBucketNotificationConfiguration = registry.Operation{
 var descPutBucketOwnershipControls = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketOwnershipControls"},
-	Ordinal:     87,
+	Ordinal:     88,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketOwnershipControls",
 	Input:       &schemaPutBucketOwnershipControlsInput,
@@ -1241,7 +1253,7 @@ var descPutBucketOwnershipControls = registry.Operation{
 var descPutBucketPolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketPolicy"},
-	Ordinal:     88,
+	Ordinal:     89,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketPolicy",
 	Input:       &schemaPutBucketPolicyInput,
@@ -1249,13 +1261,13 @@ var descPutBucketPolicy = registry.Operation{
 	Errors:      []awserr.Identity{IdentityInvalidArgument()},
 	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "PutBucketPolicy"}},
 	HTTP:        &registry.HTTPBinding{Method: "PUT", Path: []registry.Segment{registry.Label{Name: "Bucket"}}, Query: []registry.QueryMatch{registry.QueryPresent{Key: "policy"}}},
-	SuccessCode: 200,
+	SuccessCode: 204,
 }
 
 var descPutBucketReplication = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketReplication"},
-	Ordinal:     89,
+	Ordinal:     90,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketReplication",
 	Input:       &schemaPutBucketReplicationInput,
@@ -1269,7 +1281,7 @@ var descPutBucketReplication = registry.Operation{
 var descPutBucketRequestPayment = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketRequestPayment"},
-	Ordinal:     90,
+	Ordinal:     91,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketRequestPayment",
 	Input:       &schemaPutBucketRequestPaymentInput,
@@ -1283,7 +1295,7 @@ var descPutBucketRequestPayment = registry.Operation{
 var descPutBucketTagging = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketTagging"},
-	Ordinal:     91,
+	Ordinal:     92,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketTagging",
 	Input:       &schemaPutBucketTaggingInput,
@@ -1291,13 +1303,13 @@ var descPutBucketTagging = registry.Operation{
 	Errors:      []awserr.Identity{IdentityInvalidArgument()},
 	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "PutBucketTagging"}},
 	HTTP:        &registry.HTTPBinding{Method: "PUT", Path: []registry.Segment{registry.Label{Name: "Bucket"}}, Query: []registry.QueryMatch{registry.QueryPresent{Key: "tagging"}}},
-	SuccessCode: 200,
+	SuccessCode: 204,
 }
 
 var descPutBucketVersioning = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketVersioning"},
-	Ordinal:     92,
+	Ordinal:     93,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketVersioning",
 	Input:       &schemaPutBucketVersioningInput,
@@ -1311,7 +1323,7 @@ var descPutBucketVersioning = registry.Operation{
 var descPutBucketWebsite = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutBucketWebsite"},
-	Ordinal:     93,
+	Ordinal:     94,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutBucketWebsite",
 	Input:       &schemaPutBucketWebsiteInput,
@@ -1325,7 +1337,7 @@ var descPutBucketWebsite = registry.Operation{
 var descPutObject = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutObject"},
-	Ordinal:     94,
+	Ordinal:     95,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutObject",
 	Input:       &schemaPutObjectInput,
@@ -1339,7 +1351,7 @@ var descPutObject = registry.Operation{
 var descPutObjectAcl = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutObjectAcl"},
-	Ordinal:     95,
+	Ordinal:     96,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutObjectAcl",
 	Input:       &schemaPutObjectAclInput,
@@ -1353,7 +1365,7 @@ var descPutObjectAcl = registry.Operation{
 var descPutObjectAnnotation = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutObjectAnnotation"},
-	Ordinal:     96,
+	Ordinal:     97,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutObjectAnnotation",
 	Input:       &schemaPutObjectAnnotationInput,
@@ -1367,7 +1379,7 @@ var descPutObjectAnnotation = registry.Operation{
 var descPutObjectLegalHold = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutObjectLegalHold"},
-	Ordinal:     97,
+	Ordinal:     98,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutObjectLegalHold",
 	Input:       &schemaPutObjectLegalHoldInput,
@@ -1381,7 +1393,7 @@ var descPutObjectLegalHold = registry.Operation{
 var descPutObjectLockConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutObjectLockConfiguration"},
-	Ordinal:     98,
+	Ordinal:     99,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutObjectLockConfiguration",
 	Input:       &schemaPutObjectLockConfigurationInput,
@@ -1395,7 +1407,7 @@ var descPutObjectLockConfiguration = registry.Operation{
 var descPutObjectRetention = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutObjectRetention"},
-	Ordinal:     99,
+	Ordinal:     100,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutObjectRetention",
 	Input:       &schemaPutObjectRetentionInput,
@@ -1409,7 +1421,7 @@ var descPutObjectRetention = registry.Operation{
 var descPutObjectTagging = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutObjectTagging"},
-	Ordinal:     100,
+	Ordinal:     101,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutObjectTagging",
 	Input:       &schemaPutObjectTaggingInput,
@@ -1423,7 +1435,7 @@ var descPutObjectTagging = registry.Operation{
 var descPutPublicAccessBlock = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "PutPublicAccessBlock"},
-	Ordinal:     101,
+	Ordinal:     102,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#PutPublicAccessBlock",
 	Input:       &schemaPutPublicAccessBlockInput,
@@ -1437,7 +1449,7 @@ var descPutPublicAccessBlock = registry.Operation{
 var descRenameObject = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "RenameObject"},
-	Ordinal:     102,
+	Ordinal:     103,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#RenameObject",
 	Input:       &schemaRenameObjectInput,
@@ -1450,7 +1462,7 @@ var descRenameObject = registry.Operation{
 var descRestoreObject = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "RestoreObject"},
-	Ordinal:     103,
+	Ordinal:     104,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#RestoreObject",
 	Input:       &schemaRestoreObjectInput,
@@ -1464,7 +1476,7 @@ var descRestoreObject = registry.Operation{
 var descSelectObjectContent = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "SelectObjectContent"},
-	Ordinal:     104,
+	Ordinal:     105,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#SelectObjectContent",
 	Input:       &schemaSelectObjectContentInput,
@@ -1475,10 +1487,34 @@ var descSelectObjectContent = registry.Operation{
 	SuccessCode: 200,
 }
 
+// descTagResource is a raw operation (codegen/services rawOperations): its
+// handler owns the HTTP exchange, so it has no input or output schema.
+var descTagResource = registry.Operation{
+	Service:     &service,
+	ID:          ref.OperationID{Service: "s3", Name: "TagResource"},
+	Ordinal:     106,
+	Kind:        registry.Raw,
+	Shape:       "com.amazonaws.s3#TagResource",
+	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "TagResource"}},
+	SuccessCode: 200,
+}
+
+// descUntagResource is a raw operation (codegen/services rawOperations): its
+// handler owns the HTTP exchange, so it has no input or output schema.
+var descUntagResource = registry.Operation{
+	Service:     &service,
+	ID:          ref.OperationID{Service: "s3", Name: "UntagResource"},
+	Ordinal:     107,
+	Kind:        registry.Raw,
+	Shape:       "com.amazonaws.s3#UntagResource",
+	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "UntagResource"}},
+	SuccessCode: 200,
+}
+
 var descUpdateBucketMetadataAnnotationTableConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "UpdateBucketMetadataAnnotationTableConfiguration"},
-	Ordinal:     105,
+	Ordinal:     108,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#UpdateBucketMetadataAnnotationTableConfiguration",
 	Input:       &schemaUpdateBucketMetadataAnnotationTableConfigurationInput,
@@ -1492,7 +1528,7 @@ var descUpdateBucketMetadataAnnotationTableConfiguration = registry.Operation{
 var descUpdateBucketMetadataInventoryTableConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "UpdateBucketMetadataInventoryTableConfiguration"},
-	Ordinal:     106,
+	Ordinal:     109,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#UpdateBucketMetadataInventoryTableConfiguration",
 	Input:       &schemaUpdateBucketMetadataInventoryTableConfigurationInput,
@@ -1506,7 +1542,7 @@ var descUpdateBucketMetadataInventoryTableConfiguration = registry.Operation{
 var descUpdateBucketMetadataJournalTableConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "UpdateBucketMetadataJournalTableConfiguration"},
-	Ordinal:     107,
+	Ordinal:     110,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#UpdateBucketMetadataJournalTableConfiguration",
 	Input:       &schemaUpdateBucketMetadataJournalTableConfigurationInput,
@@ -1520,7 +1556,7 @@ var descUpdateBucketMetadataJournalTableConfiguration = registry.Operation{
 var descUpdateObjectEncryption = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "UpdateObjectEncryption"},
-	Ordinal:     108,
+	Ordinal:     111,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#UpdateObjectEncryption",
 	Input:       &schemaUpdateObjectEncryptionInput,
@@ -1534,7 +1570,7 @@ var descUpdateObjectEncryption = registry.Operation{
 var descUploadPart = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "UploadPart"},
-	Ordinal:     109,
+	Ordinal:     112,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#UploadPart",
 	Input:       &schemaUploadPartInput,
@@ -1548,7 +1584,7 @@ var descUploadPart = registry.Operation{
 var descUploadPartCopy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "UploadPartCopy"},
-	Ordinal:     110,
+	Ordinal:     113,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#UploadPartCopy",
 	Input:       &schemaUploadPartCopyInput,
@@ -1562,7 +1598,7 @@ var descUploadPartCopy = registry.Operation{
 var descWriteGetObjectResponse = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "s3", Name: "WriteGetObjectResponse"},
-	Ordinal:     111,
+	Ordinal:     114,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.s3#WriteGetObjectResponse",
 	Input:       &schemaWriteGetObjectResponseInput,
@@ -1570,4 +1606,114 @@ var descWriteGetObjectResponse = registry.Operation{
 	Errors:      []awserr.Identity{IdentityInvalidArgument()},
 	HTTP:        &registry.HTTPBinding{Method: "POST", Path: []registry.Segment{registry.Literal{Value: "WriteGetObjectResponse"}}},
 	SuccessCode: 200,
+}
+
+// NotConfiguredGetBucketAccelerateConfiguration is GetBucketAccelerateConfiguration's answer while its subresource is unset: the
+// default configuration (dev.understudy#notConfigured).
+func NotConfiguredGetBucketAccelerateConfiguration() *GetBucketAccelerateConfigurationOutput {
+	return &GetBucketAccelerateConfigurationOutput{}
+}
+
+// NotConfiguredGetBucketAnalyticsConfiguration is GetBucketAnalyticsConfiguration's answer while its subresource is unset:
+// com.amazonaws.s3#NoSuchConfiguration (dev.understudy#notConfigured).
+func NotConfiguredGetBucketAnalyticsConfiguration(message string) *awserr.Error {
+	return ErrNoSuchConfiguration(message)
+}
+
+// NotConfiguredGetBucketCors is GetBucketCors's answer while its subresource is unset:
+// com.amazonaws.s3#NoSuchCORSConfiguration (dev.understudy#notConfigured).
+func NotConfiguredGetBucketCors(message string) *awserr.Error {
+	return ErrNoSuchCORSConfiguration(message)
+}
+
+// NotConfiguredGetBucketEncryption is GetBucketEncryption's answer while its subresource is unset: the
+// default configuration (dev.understudy#notConfigured).
+func NotConfiguredGetBucketEncryption() *GetBucketEncryptionOutput {
+	return &GetBucketEncryptionOutput{ServerSideEncryptionConfiguration: new(ServerSideEncryptionConfiguration{Rules: []ServerSideEncryptionRule{ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: new(ServerSideEncryptionByDefault{SSEAlgorithm: ServerSideEncryption("AES256")}), BucketKeyEnabled: new(false)}}})}
+}
+
+// NotConfiguredGetBucketIntelligentTieringConfiguration is GetBucketIntelligentTieringConfiguration's answer while its subresource is unset:
+// com.amazonaws.s3#NoSuchConfiguration (dev.understudy#notConfigured).
+func NotConfiguredGetBucketIntelligentTieringConfiguration(message string) *awserr.Error {
+	return ErrNoSuchConfiguration(message)
+}
+
+// NotConfiguredGetBucketInventoryConfiguration is GetBucketInventoryConfiguration's answer while its subresource is unset:
+// com.amazonaws.s3#NoSuchConfiguration (dev.understudy#notConfigured).
+func NotConfiguredGetBucketInventoryConfiguration(message string) *awserr.Error {
+	return ErrNoSuchConfiguration(message)
+}
+
+// NotConfiguredGetBucketLifecycleConfiguration is GetBucketLifecycleConfiguration's answer while its subresource is unset:
+// com.amazonaws.s3#NoSuchLifecycleConfiguration (dev.understudy#notConfigured).
+func NotConfiguredGetBucketLifecycleConfiguration(message string) *awserr.Error {
+	return ErrNoSuchLifecycleConfiguration(message)
+}
+
+// NotConfiguredGetBucketLogging is GetBucketLogging's answer while its subresource is unset: the
+// default configuration (dev.understudy#notConfigured).
+func NotConfiguredGetBucketLogging() *GetBucketLoggingOutput { return &GetBucketLoggingOutput{} }
+
+// NotConfiguredGetBucketMetricsConfiguration is GetBucketMetricsConfiguration's answer while its subresource is unset:
+// com.amazonaws.s3#NoSuchConfiguration (dev.understudy#notConfigured).
+func NotConfiguredGetBucketMetricsConfiguration(message string) *awserr.Error {
+	return ErrNoSuchConfiguration(message)
+}
+
+// NotConfiguredGetBucketNotificationConfiguration is GetBucketNotificationConfiguration's answer while its subresource is unset: the
+// default configuration (dev.understudy#notConfigured).
+func NotConfiguredGetBucketNotificationConfiguration() *NotificationConfiguration {
+	return &NotificationConfiguration{}
+}
+
+// NotConfiguredGetBucketOwnershipControls is GetBucketOwnershipControls's answer while its subresource is unset:
+// com.amazonaws.s3#OwnershipControlsNotFoundError (dev.understudy#notConfigured).
+func NotConfiguredGetBucketOwnershipControls(message string) *awserr.Error {
+	return ErrOwnershipControlsNotFoundError(message)
+}
+
+// NotConfiguredGetBucketPolicy is GetBucketPolicy's answer while its subresource is unset:
+// com.amazonaws.s3#NoSuchBucketPolicy (dev.understudy#notConfigured).
+func NotConfiguredGetBucketPolicy(message string) *awserr.Error {
+	return ErrNoSuchBucketPolicy(message)
+}
+
+// NotConfiguredGetBucketReplication is GetBucketReplication's answer while its subresource is unset:
+// com.amazonaws.s3#ReplicationConfigurationNotFoundError (dev.understudy#notConfigured).
+func NotConfiguredGetBucketReplication(message string) *awserr.Error {
+	return ErrReplicationConfigurationNotFoundError(message)
+}
+
+// NotConfiguredGetBucketRequestPayment is GetBucketRequestPayment's answer while its subresource is unset: the
+// default configuration (dev.understudy#notConfigured).
+func NotConfiguredGetBucketRequestPayment() *GetBucketRequestPaymentOutput {
+	return &GetBucketRequestPaymentOutput{Payer: new(Payer("BucketOwner"))}
+}
+
+// NotConfiguredGetBucketTagging is GetBucketTagging's answer while its subresource is unset:
+// com.amazonaws.s3#NoSuchTagSet (dev.understudy#notConfigured).
+func NotConfiguredGetBucketTagging(message string) *awserr.Error { return ErrNoSuchTagSet(message) }
+
+// NotConfiguredGetBucketVersioning is GetBucketVersioning's answer while its subresource is unset: the
+// default configuration (dev.understudy#notConfigured).
+func NotConfiguredGetBucketVersioning() *GetBucketVersioningOutput {
+	return &GetBucketVersioningOutput{}
+}
+
+// NotConfiguredGetBucketWebsite is GetBucketWebsite's answer while its subresource is unset:
+// com.amazonaws.s3#NoSuchWebsiteConfiguration (dev.understudy#notConfigured).
+func NotConfiguredGetBucketWebsite(message string) *awserr.Error {
+	return ErrNoSuchWebsiteConfiguration(message)
+}
+
+// NotConfiguredGetObjectLockConfiguration is GetObjectLockConfiguration's answer while its subresource is unset:
+// com.amazonaws.s3#ObjectLockConfigurationNotFoundError (dev.understudy#notConfigured).
+func NotConfiguredGetObjectLockConfiguration(message string) *awserr.Error {
+	return ErrObjectLockConfigurationNotFoundError(message)
+}
+
+// NotConfiguredGetPublicAccessBlock is GetPublicAccessBlock's answer while its subresource is unset:
+// com.amazonaws.s3#NoSuchPublicAccessBlockConfiguration (dev.understudy#notConfigured).
+func NotConfiguredGetPublicAccessBlock(message string) *awserr.Error {
+	return ErrNoSuchPublicAccessBlockConfiguration(message)
 }

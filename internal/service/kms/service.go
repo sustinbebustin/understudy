@@ -1,67 +1,76 @@
 package kms
 
 import (
+	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
-	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
-	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshots.
-const stateVersion = 1
+// TimerKeyDeletion fires when a key's waiting period ends; the key and its
+// aliases are then deleted. The key's ID is the key ARN.
+const TimerKeyDeletion kernel.TimerKind = "kms.key-deletion"
 
-// State is the KMS state of one account and region; this build keeps none.
-type State struct{}
-
-// Service is AWS KMS: one state cell per account and region. This build
-// binds none of its operations, so each answers 501 in KMS's own error
-// format and coverage lists it as unbound.
+// Service is AWS KMS: one state cell per account and region.
 type Service struct {
+	k     *kernel.Kernel
+	ids   *ids.Source
 	cells *store.Partitioned[aws.Scope, State]
+	// deletion is TimerKeyDeletion as registered with the kernel.
+	deletion kernel.HandledKind
 }
 
-// The service is the snapshot and reset view of its state.
-var _ kernel.Stateful = (*Service)(nil)
-
-// New returns the service. It binds no operation.
+// New binds the KMS operations understudy implements and registers the
+// deletion timer. Every other KMS operation stays unbound and answers 501.
 func New(d kernel.ServiceDeps, _ Options) *Service {
-	codec := jsonx.NewCodec()
-	return &Service{cells: store.NewPartitioned(d.Kernel.Gate(), store.Codec{Marshal: codec.Marshal, Unmarshal: codec.Unmarshal},
-		func(aws.Scope) State { return State{} })}
+	s := &Service{
+		k:     d.Kernel,
+		ids:   d.IDs,
+		cells: store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
+	}
+	s.deletion = d.Kernel.Timers().Handle(TimerKeyDeletion, s.onDeletion)
+	b := kmsapi.NewBinder(d.Binder)
+	s.bindKeys(b)
+	s.bindPolicies(b)
+	s.bindRotation(b)
+	s.bindAliases(b)
+	s.bindTags(b)
+	s.bindCrypto(b)
+	return s
 }
 
-// Name returns "kms".
-func (*Service) Name() ref.ServiceID { return "kms" }
-
-// SchemaVersion returns the version of State.
-func (*Service) SchemaVersion() int { return stateVersion }
-
-// Export serializes every non-empty scope to one section.
-func (s *Service) Export() ([]store.Section, error) {
-	return s.cells.Export(store.ScopeKeys(), stateVersion)
+// Switches lists the behaviors chosen without AWS-recorded evidence.
+func (*Service) Switches() []fidelity.Entry {
+	return []fidelity.Entry{pendingCryptoError().Entry(), crossAccountManagementError().Entry()}
 }
 
-// Import loads sections written by Export of this schema version.
-func (s *Service) Import(ss []store.Section) error {
-	return s.cells.Import(store.ScopeKeys(), stateVersion, ss)
+// crossAccountManagementError is the error a key management operation
+// (one AWS documents with "Cross-account use: No") gets for another
+// account's key ARN. AWS's answer is unrecorded; understudy answers the
+// NotFoundException of a key the caller's account does not have. Each key
+// management operation's API reference page carries the "Cross-account
+// use: No" line; Ref names one of them.
+func crossAccountManagementError() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:  "kms.cross-account.management-error",
+		Value: "NotFoundException",
+		Label: evidence.Inferred,
+		Ref:   "https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyPolicy.html",
+	}
 }
 
-// Reset drops the scopes rs covers.
-func (s *Service) Reset(rs kernel.ResetScope) {
-	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
+// pendingCryptoError is the error a cryptographic operation gets from a key
+// pending deletion: AWS's key-state page documents both
+// KMSInvalidStateException and DisabledException with the pending text;
+// understudy answers the first.
+func pendingCryptoError() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:  "kms.pending-deletion.crypto-error",
+		Value: "KMSInvalidStateException",
+		Label: evidence.AWSDoc,
+		Ref:   "docs/research/phase1/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix",
+	}
 }
-
-// Rearm does nothing: the state arms no timers.
-func (*Service) Rearm(clock.Instant) {}
-
-// Resources lists nothing: the state holds no resources.
-func (*Service) Resources(aws.Scope) []kernel.Resource { return nil }
-
-// Scopes returns the accounts and regions that hold a state cell.
-func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) }
-
-// Switches lists no behaviors: the service implements none yet.
-func (*Service) Switches() []fidelity.Entry { return nil }

@@ -41,6 +41,26 @@ func importRules() []importRule {
 		// ServiceDeps carries the blob store, the Docker client and the topology (ARCHITECTURE.md 3.2).
 		"internal/blob", "internal/docker", "internal/topology",
 	}
+	service := []string{
+		"internal/service/{self}/...", "internal/api/...", "internal/kernel", "internal/store", "internal/clock",
+		"internal/ids", "internal/blob", "internal/delivery", "internal/fidelity", "internal/evidence",
+		// The vocabulary the generated ops, errors and descriptors expose.
+		"internal/aws", "internal/ref", "internal/awserr", "internal/registry", "internal/protocol/smithy/...",
+		// "The engines it needs" (ARCHITECTURE.md 2).
+		"internal/checksum", "internal/awschunked", "internal/ruler", "internal/logsfilter", "internal/schedexpr",
+		"internal/policydoc", "internal/docker", "internal/topology",
+		// T30 and T38: access keys and execution-role credentials are minted
+		// through identity.Store; T33: the DynamoDB proxy rewrites the SigV4
+		// credential scope through auth.
+		"internal/identity", "internal/auth",
+		// Persisted sums use the jsonx tagged-union convention (ARCHITECTURE.md
+		// 13); T33 rewrites DynamoDB Local responses through jsonx.Value.
+		"internal/protocol/jsonx",
+		// Wave 6: a handler describes the events it causes with journal
+		// Detail values and records them through kernel.Call.Record or
+		// kernel.Tx.Record, which stamp the cause (ARCHITECTURE.md 10).
+		"internal/journal",
+	}
 	return []importRule{
 		// Leaves.
 		{"internal/aws", nil},
@@ -110,22 +130,13 @@ func importRules() []importRule {
 
 		// Generated API packages and services.
 		{"internal/api/...", []string{"internal/protocol/smithy/...", "internal/awserr", "internal/registry", "internal/kernel", "internal/aws", "internal/ref"}},
-		{"internal/service/...", []string{
-			"internal/service/{self}/...", "internal/api/...", "internal/kernel", "internal/store", "internal/clock",
-			"internal/ids", "internal/blob", "internal/delivery", "internal/fidelity", "internal/evidence",
-			// The vocabulary the generated ops, errors and descriptors expose.
-			"internal/aws", "internal/ref", "internal/awserr", "internal/registry", "internal/protocol/smithy/...",
-			// "The engines it needs" (ARCHITECTURE.md 2).
-			"internal/checksum", "internal/awschunked", "internal/ruler", "internal/logsfilter", "internal/schedexpr",
-			"internal/policydoc", "internal/docker", "internal/topology",
-			// T30 and T38: access keys and execution-role credentials are minted
-			// through identity.Store; T33: the DynamoDB proxy rewrites the SigV4
-			// credential scope through auth.
-			"internal/identity", "internal/auth",
-			// Persisted sums use the jsonx tagged-union convention (ARCHITECTURE.md
-			// 13); T33 rewrites DynamoDB Local responses through jsonx.Value.
-			"internal/protocol/jsonx",
-		}},
+		{"internal/service/...", service},
+		// T33: a Synthesized call is encoded for DynamoDB Local through the
+		// awsJson codec, the bytes a client would send (ARCHITECTURE.md 15).
+		{"internal/service/dynamodb", append(slices.Clone(service), "internal/protocol/awsjson")},
+		// T28: the raw S3 Control tag operations read and write their XML
+		// bodies with xmlw and stamp x-amz-id-2 as the restXml codec does.
+		{"internal/service/s3", append(slices.Clone(service), "internal/protocol/xmlw", "internal/protocol/restxml")},
 
 		// Front door, composition root and tools.
 		{"internal/edge", []string{
@@ -154,6 +165,9 @@ func importRules() []importRule {
 		// T10: the -service flag is a ref.ServiceID, a leaf codegen imports too.
 		{"internal/cmd/gen", []string{"internal/codegen", "internal/ref"}},
 		{"internal/cmd/vendor", nil},
+		// T25: until T44 adds `understudy coverage`, this thin main builds the
+		// wiring in process and prints the Markdown report.
+		{"internal/cmd/coverage", []string{"internal/coverage", "internal/server"}},
 		// T10: the golden fixture is generated like internal/api/..., so it
 		// mirrors that row; serdetest holds the serde test doubles, and
 		// validationpolicy is the policy runtime codegen embeds and copies.

@@ -210,7 +210,7 @@ var descDeleteFunction = registry.Operation{
 	Errors:      []awserr.Identity{IdentityInvalidParameterValueException(), IdentityResourceConflictException(), IdentityResourceNotFoundException(), IdentityServiceException(), IdentityTooManyRequestsException(), IdentityValidationException()},
 	IAM:         []registry.IAMAction{{Prefix: "lambda", Name: "DeleteFunction"}},
 	HTTP:        &registry.HTTPBinding{Method: "DELETE", Path: []registry.Segment{registry.Literal{Value: "2015-03-31"}, registry.Literal{Value: "functions"}, registry.Label{Name: "FunctionName"}}},
-	SuccessCode: 200,
+	SuccessCode: 204,
 	Idempotent:  true,
 }
 

@@ -18,10 +18,28 @@ import (
 
 // element is an element the serializer has opened. Its start tag is written
 // only when content follows, so an element that stays empty is written as
-// <Name/>: the empty Result, the empty list.
+// <Name/>: the empty Result, the empty list. decls are the namespaces it
+// declares.
 type element struct {
 	name  string
-	xmlns string
+	decls []nsDecl
+}
+
+// nsDecl is a namespace an element declares: the default one when prefix
+// is empty.
+type nsDecl struct {
+	prefix, uri string
+}
+
+// memberDecls is the xmlNamespace of a member, declared on the member's
+// element. Unlike restXml, awsQuery ignores a namespace on the member's
+// target shape: the corpus writes such a nested structure without one
+// (XmlNamespaces).
+func memberDecls(m *smithy.Member) []nsDecl {
+	if m == nil || m.XMLNamespace == nil {
+		return nil
+	}
+	return []nsDecl{{prefix: m.XMLNamespace.Prefix, uri: m.XMLNamespace.URI}}
 }
 
 // writeFrame is an open container being written.
@@ -33,8 +51,15 @@ type writeFrame struct {
 	element bool
 	// itemName names a list's items, or a map's entries.
 	itemName string
-	// keyName and valueName name a map entry's key and value.
-	keyName, valueName string
+	// itemMember is a list's member, whose xmlNamespace its items declare.
+	itemMember *smithy.Member
+	// entryDecls are the namespaces a flattened map's entries declare: the
+	// structure member's.
+	entryDecls []nsDecl
+	// keyName and valueName name a map entry's key and value, and
+	// keyMember and valueMember are the map's members.
+	keyName, valueName     string
+	keyMember, valueMember *smithy.Member
 	// inEntry is set from a map key until its value is written.
 	inEntry bool
 	// members counts the members written into a union.
@@ -66,8 +91,8 @@ func (s *serializer) WriteStruct(m *smithy.Member, _ *smithy.Schema) {
 		s.open = append(s.open, writeFrame{kind: structFrame})
 		return
 	}
-	if name, ok := s.begin(m); ok {
-		s.start(name, "")
+	if name, decls, ok := s.begin(m); ok {
+		s.startNS(name, decls)
 		s.open = append(s.open, writeFrame{kind: structFrame, element: true})
 	}
 }
@@ -75,8 +100,8 @@ func (s *serializer) WriteStruct(m *smithy.Member, _ *smithy.Schema) {
 func (s *serializer) CloseStruct() { s.close(structFrame, "CloseStruct") }
 
 func (s *serializer) WriteUnion(m *smithy.Member, _ *smithy.Schema) {
-	if name, ok := s.begin(m); ok {
-		s.start(name, "")
+	if name, decls, ok := s.begin(m); ok {
+		s.startNS(name, decls)
 		s.open = append(s.open, writeFrame{kind: unionFrame, element: true})
 	}
 }
@@ -89,32 +114,43 @@ func (s *serializer) CloseUnion() {
 	s.close(unionFrame, "CloseUnion")
 }
 
+// WriteList opens a list. A flattened list's items are named by the
+// structure member and declare the list member's namespace, not the
+// structure member's, as the corpus asserts (XmlLists).
 func (s *serializer) WriteList(m *smithy.Member, _ int) {
 	flat := s.flattened(m)
-	name, ok := s.begin(m)
+	name, decls, ok := s.begin(m)
 	if !ok {
 		return
 	}
+	item := listMember(m.Target)
 	if flat {
-		s.open = append(s.open, writeFrame{kind: listFrame, itemName: name})
+		s.open = append(s.open, writeFrame{kind: listFrame, itemName: name, itemMember: item})
 		return
 	}
-	s.start(name, "")
-	s.open = append(s.open, writeFrame{kind: listFrame, element: true, itemName: elementName(listMember(m.Target), "member")})
+	s.startNS(name, decls)
+	s.open = append(s.open, writeFrame{kind: listFrame, element: true, itemName: elementName(item, "member"), itemMember: item})
 }
 
 func (s *serializer) CloseList() { s.close(listFrame, "CloseList") }
 
+// WriteMap opens a map. A flattened map's entries are named by the
+// structure member and declare its namespace (FlattenedXmlMapWithXmlNamespace).
 func (s *serializer) WriteMap(m *smithy.Member, _ int) {
 	flat := s.flattened(m)
-	name, ok := s.begin(m)
+	name, decls, ok := s.begin(m)
 	if !ok {
 		return
 	}
 	key, value := mapMembers(m.Target)
-	f := writeFrame{kind: mapFrame, itemName: name, keyName: elementName(key, "key"), valueName: elementName(value, "value")}
-	if !flat {
-		s.start(name, "")
+	f := writeFrame{
+		kind: mapFrame, itemName: name, keyName: elementName(key, "key"), valueName: elementName(value, "value"),
+		keyMember: key, valueMember: value,
+	}
+	if flat {
+		f.entryDecls = memberDecls(m)
+	} else {
+		s.startNS(name, decls)
 		f.element, f.itemName = true, "entry"
 	}
 	s.open = append(s.open, f)
@@ -129,8 +165,8 @@ func (s *serializer) WriteMapKey(key string) {
 		s.fail("WriteMapKey outside a map, or before the previous entry's value")
 		return
 	}
-	s.start(top.itemName, "")
-	s.leaf(top.keyName, key)
+	s.startNS(top.itemName, top.entryDecls)
+	s.leafNS(top.keyName, memberDecls(top.keyMember), key)
 	top.inEntry = true
 }
 
@@ -202,7 +238,7 @@ func (s *serializer) WriteDocument(m *smithy.Member, _ document.Value) {
 // WriteNull writes nothing: XML has no null, and an absent element reads as
 // an absent value.
 func (s *serializer) WriteNull(m *smithy.Member) {
-	if _, ok := s.begin(m); ok {
+	if _, _, ok := s.begin(m); ok {
 		s.finish()
 	}
 }
@@ -214,38 +250,40 @@ func (s *serializer) WriteBody(m *smithy.Member, _ smithy.BodySource) {
 
 // scalar writes text as the element m names in the open container.
 func (s *serializer) scalar(m *smithy.Member, text string) {
-	if name, ok := s.begin(m); ok {
-		s.leaf(name, text)
+	if name, decls, ok := s.begin(m); ok {
+		s.leafNS(name, decls, text)
 		s.finish()
 	}
 }
 
-// begin prepares for a value held by m and returns its element name: the
-// member's in a structure or union, the item name in a list, the value
-// name in a map. It reports false once the serializer has failed.
-func (s *serializer) begin(m *smithy.Member) (string, bool) {
+// begin prepares for a value held by m and returns its element name and
+// the namespaces it declares: the member's name and namespace in a
+// structure or union, the item name and the list member's namespace in a
+// list, the value name and the value member's namespace in a map. It
+// reports false once the serializer has failed.
+func (s *serializer) begin(m *smithy.Member) (string, []nsDecl, bool) {
 	if s.err != nil {
-		return "", false
+		return "", nil, false
 	}
 	top := s.top()
 	switch {
 	case top == nil:
 		s.fail("a value was written outside the output structure")
 	case top.kind == listFrame:
-		return top.itemName, true
+		return top.itemName, memberDecls(top.itemMember), true
 	case top.kind == mapFrame:
 		if !top.inEntry {
 			s.fail("a map value was written without its key")
-			return "", false
+			return "", nil, false
 		}
-		return top.valueName, true
+		return top.valueName, memberDecls(top.valueMember), true
 	case m == nil:
 		s.fail("a structure or union member was written without its member")
 	default:
 		top.members++
-		return elementName(m, m.Name), true
+		return elementName(m, m.Name), memberDecls(m), true
 	}
-	return "", false
+	return "", nil, false
 }
 
 // finish ends the value just written: in a map it closes the entry.
@@ -290,12 +328,24 @@ func (s *serializer) top() *writeFrame {
 // start opens an element; its start tag waits for content. xmlns, when not
 // empty, is declared as its default namespace.
 func (s *serializer) start(name, xmlns string) {
-	s.els = append(s.els, element{name: name, xmlns: xmlns})
+	var decls []nsDecl
+	if xmlns != "" {
+		decls = []nsDecl{{uri: xmlns}}
+	}
+	s.startNS(name, decls)
+}
+
+// startNS opens an element that declares decls.
+func (s *serializer) startNS(name string, decls []nsDecl) {
+	s.els = append(s.els, element{name: name, decls: decls})
 }
 
 // leaf writes <name>text</name>, or <name/> for the empty text.
-func (s *serializer) leaf(name, text string) {
-	s.start(name, "")
+func (s *serializer) leaf(name, text string) { s.leafNS(name, nil, text) }
+
+// leafNS is leaf for an element that declares decls.
+func (s *serializer) leafNS(name string, decls []nsDecl, text string) {
+	s.startNS(name, decls)
 	if text != "" {
 		s.flush(len(s.els))
 		s.w.Text(text)
@@ -304,9 +354,14 @@ func (s *serializer) leaf(name, text string) {
 }
 
 // end closes the innermost open element: an end tag after content, or a
-// self-closing tag when nothing was written into it.
+// self-closing tag when nothing was written into it. An empty element
+// that declares a namespace is written as a start and an end tag, which
+// carry the declaration.
 func (s *serializer) end() {
 	n := len(s.els)
+	if s.flushed < n && len(s.els[n-1].decls) > 0 {
+		s.flush(n)
+	}
 	if s.flushed == n {
 		s.w.End()
 		s.flushed--
@@ -321,10 +376,13 @@ func (s *serializer) end() {
 func (s *serializer) flush(n int) {
 	for ; s.flushed < n; s.flushed++ {
 		el := s.els[s.flushed]
-		if el.xmlns != "" {
-			s.w.StartNS(el.name, el.xmlns)
-		} else {
-			s.w.Start(el.name)
+		s.w.Start(el.name)
+		for _, d := range el.decls {
+			if d.prefix == "" {
+				s.w.Attr("xmlns", d.uri)
+			} else {
+				s.w.AttrNS("xmlns", d.prefix, d.uri)
+			}
 		}
 	}
 }

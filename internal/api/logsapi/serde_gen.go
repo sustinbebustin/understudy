@@ -9276,6 +9276,59 @@ func (v *PutLogEventsInput) deserialize(d smithy.Deserializer) error {
 	}
 }
 
+// Deserialize reads v from d. Absent members stay absent; Validate
+// reports missing required ones.
+func (v *PutLogEventsInternalInput) Deserialize(d smithy.Deserializer) error { return v.deserialize(d) }
+
+func (v *PutLogEventsInternalInput) deserialize(d smithy.Deserializer) error {
+	if err := d.ReadStruct(&schemaPutLogEventsInternalInput); err != nil {
+		return err
+	}
+	v.missing = 1<<3 - 1
+	for {
+		m, ok, err := d.ReadStructMember()
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		switch m {
+		case &memberPutLogEventsInternalInput_logGroupName:
+			x, err := d.ReadString(&memberPutLogEventsInternalInput_logGroupName)
+			if err != nil {
+				return err
+			}
+			v.LogGroupName = x
+			v.missing &^= 1 << 0
+		case &memberPutLogEventsInternalInput_logStreamName:
+			x, err := d.ReadString(&memberPutLogEventsInternalInput_logStreamName)
+			if err != nil {
+				return err
+			}
+			v.LogStreamName = x
+			v.missing &^= 1 << 1
+		case &memberPutLogEventsInternalInput_logEvents:
+			x, err := deserializeInputLogEvents(d, &memberPutLogEventsInternalInput_logEvents)
+			if err != nil {
+				return err
+			}
+			v.LogEvents = x
+			v.missing &^= 1 << 2
+		default:
+			return fmt.Errorf("logsapi: structure com.amazonaws.cloudwatchlogs#PutLogEventsInternalRequest has no member %q; the codec returned a member of another shape", m.Name)
+		}
+	}
+}
+
+// Serialize writes v through s.
+func (v *PutLogEventsInternalOutput) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *PutLogEventsInternalOutput) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaSmithyUnit)
+	s.CloseStruct()
+}
+
 // Serialize writes v through s.
 func (v *PutLogEventsOutput) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 

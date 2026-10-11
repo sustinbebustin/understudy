@@ -187,6 +187,22 @@ func TestHeaderMemberWinsOverPrefixHeaders(t *testing.T) {
 	}
 }
 
+// A header-bound list that is set but empty still sends its header, with
+// an empty value; an unset one sends none (the Smithy cases
+// RestJsonNullAndEmptyHeaders and NullAndEmptyHeaders).
+func TestEmptyHeaderListSendsEmptyHeader(t *testing.T) {
+	out := &smithy.Schema{ID: "test#Out", Type: smithy.TypeStructure, Members: []*smithy.Member{mNames}}
+	enc, err := restbind.Encode(operation("/", nil, out), serializeFunc(func(s smithy.Serializer) {
+		s.WriteStruct(nil, out)
+		s.WriteList(mNames, 0)
+		s.CloseList()
+		s.CloseStruct()
+	}), http.StatusOK, restbind.HasResponseDocument, nil)
+	if got, ok := enc.Header["X-Names"]; err != nil || !ok || !reflect.DeepEqual(got, []string{""}) {
+		t.Errorf("Encode = %v, %v; want X-Names with one empty value", enc.Header, err)
+	}
+}
+
 // A status that allows no body sends none, whatever the output holds, and
 // the codec adds no Content-Type or Content-Length for it.
 func TestFinishSendsNoBodyForBodilessStatus(t *testing.T) {

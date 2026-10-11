@@ -2,6 +2,7 @@ package sqs_test
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -18,18 +19,20 @@ import (
 // modelMessage is what the model knows of one message in the queue.
 type modelMessage struct {
 	id        string
+	sent      clock.Instant
 	visibleAt clock.Instant
 	// handle is the latest receipt handle, empty before the first receive.
 	handle string
 }
 
-// visibilityMachine drives one queue through random sends, receives,
-// deletes and clock advances against a model of each message's visibility
-// (ADR 0005). After every step the armed sqs.visibility timers of the queue
-// are exactly the messages hidden at now, due when they become visible, and
-// the queue holds exactly the model's messages; every receive returns the
-// model's messages, so none is lost, duplicated or brought back after a
-// delete.
+// visibilityMachine drives one queue through random sends with delays,
+// receives, deletes, visibility changes, purges and clock advances against
+// a model of each message's visibility (ADR 0005). After every step the
+// armed sqs.visibility timers of the queue are exactly the messages hidden
+// at now, due when they become visible, every message has its retention
+// timer, and the queue holds exactly the model's messages; every receive
+// returns the model's messages, so none is lost, duplicated or brought
+// back after a delete or a purge.
 type visibilityMachine struct {
 	h   *harness
 	url string
@@ -40,6 +43,9 @@ type visibilityMachine struct {
 	// or of a message deleted already.
 	stale   []string
 	deleted map[string]bool
+	// purged is when the last PurgeQueue ran; purgedOnce says one has.
+	purged     clock.Instant
+	purgedOnce bool
 }
 
 func newVisibilityMachine(t *rapid.T, h *harness, name string) *visibilityMachine {
@@ -65,7 +71,8 @@ func (m *visibilityMachine) send(t *rapid.T) {
 	if delay != nil {
 		d = *delay
 	}
-	m.messages = append(m.messages, modelMessage{id: val(out.MessageId), visibleAt: m.h.Clock.Now().Add(time.Duration(d) * time.Second)})
+	now := m.h.Clock.Now()
+	m.messages = append(m.messages, modelMessage{id: val(out.MessageId), sent: now, visibleAt: now.Add(time.Duration(d) * time.Second)})
 }
 
 func (m *visibilityMachine) receive(t *rapid.T) {
@@ -158,6 +165,64 @@ func (m *visibilityMachine) deleteUnknown(t *rapid.T) {
 	}
 }
 
+// changeCurrent sets a received message's visibility timeout from now with
+// its latest handle, receivable again or not (sqs.md 7.2).
+func (m *visibilityMachine) changeCurrent(t *rapid.T) {
+	var received []int
+	for i, msg := range m.messages {
+		if msg.handle != "" {
+			received = append(received, i)
+		}
+	}
+	if len(received) == 0 {
+		t.Skip("no message has been received")
+	}
+	i := rapid.SampledFrom(received).Draw(t, "message")
+	vt := rapid.Int32Range(0, 60).Draw(t, "visibilityTimeout")
+	msg := &m.messages[i]
+	if _, err := m.h.Invoke(m.h.Context(), sqsapi.OpChangeMessageVisibility, &sqsapi.ChangeMessageVisibilityInput{QueueUrl: m.url, ReceiptHandle: msg.handle, VisibilityTimeout: vt}); err != nil {
+		t.Fatalf("ChangeMessageVisibility(%s) = %s: %s", msg.id, err.ID.QueryCode, err.Message)
+	}
+	msg.visibleAt = m.h.Clock.Now().Add(time.Duration(vt) * time.Second)
+}
+
+// changeStale changes visibility with a handle that matches no message:
+// it fails and changes nothing.
+func (m *visibilityMachine) changeStale(t *rapid.T) {
+	if len(m.stale) == 0 {
+		t.Skip("no stale handle")
+	}
+	handle := rapid.SampledFrom(m.stale).Draw(t, "handle")
+	_, err := m.h.Invoke(m.h.Context(), sqsapi.OpChangeMessageVisibility, &sqsapi.ChangeMessageVisibilityInput{QueueUrl: m.url, ReceiptHandle: handle, VisibilityTimeout: 10})
+	if err == nil || err.ID.QueryCode != "InvalidParameterValue" {
+		t.Fatalf("ChangeMessageVisibility with a stale handle = %v, want InvalidParameterValue", err)
+	}
+}
+
+// purge deletes every message, delayed and in flight ones too, once per
+// 60 s of emulator time (sqs.md 5.3).
+func (m *visibilityMachine) purge(t *rapid.T) {
+	now := m.h.Clock.Now()
+	_, err := m.h.Invoke(m.h.Context(), sqsapi.OpPurgeQueue, &sqsapi.PurgeQueueInput{QueueUrl: m.url})
+	if m.purgedOnce && now.Before(m.purged.Add(time.Minute)) {
+		if err == nil || err.ID.QueryCode != "AWS.SimpleQueueService.PurgeQueueInProgress" {
+			t.Fatalf("PurgeQueue %s after the last = %v, want PurgeQueueInProgress", now.Sub(m.purged), err)
+		}
+		return
+	}
+	if err != nil {
+		t.Fatalf("PurgeQueue = %s: %s", err.ID.QueryCode, err.Message)
+	}
+	for _, msg := range m.messages {
+		m.deleted[msg.id] = true
+		if msg.handle != "" {
+			m.stale = append(m.stale, msg.handle)
+		}
+	}
+	m.messages = nil
+	m.purged, m.purgedOnce = now, true
+}
+
 func (m *visibilityMachine) advance(t *rapid.T) {
 	d := time.Duration(rapid.IntRange(0, 45).Draw(t, "seconds")) * time.Second
 	if _, err := m.h.Clock.Advance(d); err != nil {
@@ -173,25 +238,31 @@ func (m *visibilityMachine) check(t *rapid.T) {
 			want[m.arn+"/"+msg.id] = msg.visibleAt
 		}
 	}
-	got := map[string]clock.Instant{}
-	for _, a := range m.h.Kernel.Timers().Scheduler().Snapshot() {
-		if a.Key.Kind == sqs.TimerVisibility && strings.HasPrefix(a.Key.ID, m.arn+"/") {
-			got[a.Key.ID] = a.Due
-		}
+	retention := map[string]clock.Instant{}
+	for _, msg := range m.messages {
+		retention[m.arn+"/"+msg.id] = msg.sent.Add(4 * 24 * time.Hour)
 	}
-	if len(got) != len(want) {
-		t.Fatalf("at %s armed visibility timers = %v, want %v", now, got, want)
-	}
-	for id, due := range want {
-		if at, ok := got[id]; !ok || at.Compare(due) != 0 {
-			t.Fatalf("at %s armed visibility timers = %v, want %v", now, got, want)
-		}
-	}
+	m.checkTimers(t, sqs.TimerVisibility, want)
+	m.checkTimers(t, sqs.TimerRetention, retention)
 	summary := fmt.Sprintf("%d messages", len(m.messages))
 	res := m.h.svc.Resources(m.h.Scope)
 	i := slices.IndexFunc(res, func(r kernel.Resource) bool { return r.ARN.String() == m.arn })
 	if i < 0 || res[i].Summary != summary {
 		t.Fatalf("Resources = %+v, want %s with %s", res, m.arn, summary)
+	}
+}
+
+// checkTimers fails unless the armed timers of kind for the queue are
+// exactly want, by id and due instant.
+func (m *visibilityMachine) checkTimers(t *rapid.T, kind clock.TimerKind, want map[string]clock.Instant) {
+	got := map[string]clock.Instant{}
+	for _, a := range m.h.Kernel.Timers().Scheduler().Snapshot() {
+		if a.Key.Kind == kind && strings.HasPrefix(a.Key.ID, m.arn+"/") {
+			got[a.Key.ID] = a.Due
+		}
+	}
+	if !maps.EqualFunc(got, want, func(a, b clock.Instant) bool { return a.Compare(b) == 0 }) {
+		t.Fatalf("at %s armed %s timers = %v, want %v", m.h.Clock.Now(), kind, got, want)
 	}
 }
 
@@ -211,6 +282,9 @@ func TestVisibilityStateMachine(t *testing.T) {
 				"deleteCurrent": m.deleteCurrent,
 				"deleteStale":   m.deleteStale,
 				"deleteUnknown": m.deleteUnknown,
+				"changeCurrent": m.changeCurrent,
+				"changeStale":   m.changeStale,
+				"purge":         m.purge,
 				"advance":       m.advance,
 				"":              m.check,
 			})

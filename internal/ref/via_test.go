@@ -11,7 +11,7 @@ import (
 func TestViaWireNamesRoundTrip(t *testing.T) {
 	all := []ref.Via{
 		ref.SNSDelivery, ref.LambdaESM, ref.EventsTarget, ref.S3Notification, ref.LambdaLogs,
-		ref.DynamoDBTTL, ref.Timer, ref.Snapshot, ref.Admin, ref.KMSForward,
+		ref.DynamoDBTTL, ref.Timer, ref.Snapshot, ref.Admin, ref.KMSForward, ref.STSAssumeRole,
 	}
 	seen := map[string]bool{}
 	for _, v := range all {

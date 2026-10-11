@@ -427,6 +427,9 @@ var OpRemoveUserFromGroup = kernel.NewOp[RemoveUserFromGroupInput, RemoveUserFro
 // OpResetServiceSpecificCredential is the typed handle on ResetServiceSpecificCredential.
 var OpResetServiceSpecificCredential = kernel.NewOp[ResetServiceSpecificCredentialInput, ResetServiceSpecificCredentialOutput](&descResetServiceSpecificCredential)
 
+// OpResolveRole is the typed handle on ResolveRole.
+var OpResolveRole = kernel.NewOp[ResolveRoleInput, ResolveRoleOutput](&descResolveRole)
+
 // OpResyncMFADevice is the typed handle on ResyncMFADevice.
 var OpResyncMFADevice = kernel.NewOp[ResyncMFADeviceInput, ResyncMFADeviceOutput](&descResyncMFADevice)
 
@@ -1251,6 +1254,11 @@ func (b Binder) RemoveUserFromGroup(h kernel.Handler[RemoveUserFromGroupInput, R
 // ResetServiceSpecificCredential binds the handler of ResetServiceSpecificCredential.
 func (b Binder) ResetServiceSpecificCredential(h kernel.Handler[ResetServiceSpecificCredentialInput, ResetServiceSpecificCredentialOutput], cov registry.BindCoverage, opts ...kernel.BindOption) {
 	kernel.Bind(b.b, OpResetServiceSpecificCredential, h, cov, opts...)
+}
+
+// ResolveRole binds the handler of ResolveRole.
+func (b Binder) ResolveRole(h kernel.Handler[ResolveRoleInput, ResolveRoleOutput], cov registry.BindCoverage, opts ...kernel.BindOption) {
+	kernel.Bind(b.b, OpResolveRole, h, cov, opts...)
 }
 
 // ResyncMFADevice binds the handler of ResyncMFADevice.

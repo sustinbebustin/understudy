@@ -37,101 +37,101 @@ var pattern6 = regexp.MustCompile("^([a-zA-Z0-9\\-_]+)$")
 // pattern7 is "^(\\$LATEST(\\.PUBLISHED)?|[0-9]+)$".
 var pattern7 = regexp.MustCompile("^(\\$LATEST(\\.PUBLISHED)?|[0-9]+)$")
 
-// pattern8 is "^(\\$LATEST\\.PUBLISHED|[0-9]+)$".
-var pattern8 = regexp.MustCompile("^(\\$LATEST\\.PUBLISHED|[0-9]+)$")
+// pattern8 is "^(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_$]+)$".
+var pattern8 = regexp.MustCompile("^(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9\\-_$]+)$")
 
-// pattern9 is "^(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()$".
-var pattern9 = regexp.MustCompile("^(arn:(aws[a-zA-Z\\-]*)?:[a-z0-9\\-.]+:[^\\n\\r\\x{2028}\\x{2029}]*)|()$")
+// pattern9 is "^(\\$LATEST\\.PUBLISHED|[0-9]+)$".
+var pattern9 = regexp.MustCompile("^(\\$LATEST\\.PUBLISHED|[0-9]+)$")
 
-// pattern10 is "^(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+$".
-var pattern10 = regexp.MustCompile("^(arn:(aws[a-zA-Z\\-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9\\-_]+)|[a-zA-Z0-9\\-_]+$")
+// pattern10 is "^(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()$".
+var pattern10 = regexp.MustCompile("^(arn:(aws[a-zA-Z\\-]*)?:[a-z0-9\\-.]+:[^\\n\\r\\x{2028}\\x{2029}]*)|()$")
 
-// pattern11 is "^(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?$".
-var pattern11 = regexp.MustCompile("^(arn:(aws[a-zA-Z\\-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9\\-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9\\-_]+))?$")
+// pattern11 is "^(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+$".
+var pattern11 = regexp.MustCompile("^(arn:(aws[a-zA-Z\\-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9\\-_]+)|[a-zA-Z0-9\\-_]+$")
 
-// pattern12 is "^(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)$".
-var pattern12 = regexp.MustCompile("^(arn:(aws[a-zA-Z\\-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9\\-_]+)$")
+// pattern12 is "^(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?$".
+var pattern12 = regexp.MustCompile("^(arn:(aws[a-zA-Z\\-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9\\-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9\\-_]+))?$")
 
-// pattern13 is "^(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?$".
-var pattern13 = regexp.MustCompile("^(arn:(aws[a-zA-Z\\-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9\\-_]+)(:(\\$LATEST|[a-zA-Z0-9\\-_]+))?$")
+// pattern13 is "^(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)$".
+var pattern13 = regexp.MustCompile("^(arn:(aws[a-zA-Z\\-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9\\-_]+)$")
 
-// pattern14 is "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:capacity-provider:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+$".
-var pattern14 = regexp.MustCompile("^(arn:aws[a-zA-Z\\-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:capacity-provider:[a-zA-Z0-9\\-_]+)|[a-zA-Z0-9\\-_]+$")
+// pattern14 is "^(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?$".
+var pattern14 = regexp.MustCompile("^(arn:(aws[a-zA-Z\\-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9\\-_]+)(:(\\$LATEST|[a-zA-Z0-9\\-_]+))?$")
 
-// pattern15 is "^(lambda:[*]|lambda:[a-zA-Z]+|[*])$".
-var pattern15 = regexp.MustCompile("^(lambda:[*]|lambda:[a-zA-Z]+|[*])$")
+// pattern15 is "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:capacity-provider:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+$".
+var pattern15 = regexp.MustCompile("^(arn:aws[a-zA-Z\\-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:capacity-provider:[a-zA-Z0-9\\-_]+)|[a-zA-Z0-9\\-_]+$")
 
-// pattern16 is "^(|[a-zA-Z0-9$_-]+)$".
-var pattern16 = regexp.MustCompile("^(|[a-zA-Z0-9$_\\-]+)$")
+// pattern16 is "^(lambda:[*]|lambda:[a-zA-Z]+|[*])$".
+var pattern16 = regexp.MustCompile("^(lambda:[*]|lambda:[a-zA-Z]+|[*])$")
 
-// pattern17 is "^/mnt/[a-zA-Z0-9-_.]+$".
-var pattern17 = regexp.MustCompile("^/mnt/[a-zA-Z0-9\\-_.]+$")
+// pattern17 is "^(|[a-zA-Z0-9$_-]+)$".
+var pattern17 = regexp.MustCompile("^(|[a-zA-Z0-9$_\\-]+)$")
 
-// pattern18 is "^ALL|(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}$".
-var pattern18 = regexp.MustCompile("^ALL|(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}$")
+// pattern18 is "^/mnt/[a-zA-Z0-9-_.]+$".
+var pattern18 = regexp.MustCompile("^/mnt/[a-zA-Z0-9\\-_.]+$")
 
-// pattern19 is "^[ a-zA-Z0-9-\\/*:_+=.@-]*$".
-var pattern19 = regexp.MustCompile("^[ a-zA-Z0-9\\-/*:_+=.@\\-]*$")
+// pattern19 is "^ALL|(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}$".
+var pattern19 = regexp.MustCompile("^ALL|(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}$")
 
-// pattern20 is "^[0-9]+$".
-var pattern20 = regexp.MustCompile("^[0-9]+$")
+// pattern20 is "^[ a-zA-Z0-9-\\/*:_+=.@-]*$".
+var pattern20 = regexp.MustCompile("^[ a-zA-Z0-9\\-/*:_+=.@\\-]*$")
 
-// pattern21 is "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$".
-var pattern21 = regexp.MustCompile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+// pattern21 is "^[0-9]+$".
+var pattern21 = regexp.MustCompile("^[0-9]+$")
 
-// pattern22 is "^[A-Za-z0-9+/]+={0,2}$".
-var pattern22 = regexp.MustCompile("^[A-Za-z0-9+/]+={0,2}$")
+// pattern22 is "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$".
+var pattern22 = regexp.MustCompile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
-// pattern23 is "^[\\.\\-_/#A-Za-z0-9]+$".
-var pattern23 = regexp.MustCompile("^[\\.\\-_/#A-Za-z0-9]+$")
+// pattern23 is "^[A-Za-z0-9+/]+={0,2}$".
+var pattern23 = regexp.MustCompile("^[A-Za-z0-9+/]+={0,2}$")
 
-// pattern24 is "^[\\s\\S]*$".
-var pattern24 = regexp.MustCompile("^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}\\x00-\\x08\\x0E-\\x1F\\x21-\\x{9F}\\x{A1}-\\x{167F}\\x{1681}-\\x{1FFF}\\x{200B}-\\x{2027}\\x{202A}-\\x{202E}\\x{2030}-\\x{205E}\\x{2060}-\\x{2FFF}\\x{3001}-\\x{FEFE}\\x{FF00}-\\x{10FFFF}]*$")
+// pattern24 is "^[\\.\\-_/#A-Za-z0-9]+$".
+var pattern24 = regexp.MustCompile("^[\\.\\-_/#A-Za-z0-9]+$")
 
-// pattern25 is "^[\\s\\S]+$".
-var pattern25 = regexp.MustCompile("^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}\\x00-\\x08\\x0E-\\x1F\\x21-\\x{9F}\\x{A1}-\\x{167F}\\x{1681}-\\x{1FFF}\\x{200B}-\\x{2027}\\x{202A}-\\x{202E}\\x{2030}-\\x{205E}\\x{2060}-\\x{2FFF}\\x{3001}-\\x{FEFE}\\x{FF00}-\\x{10FFFF}]+$")
+// pattern25 is "^[\\s\\S]*$".
+var pattern25 = regexp.MustCompile("^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}\\x00-\\x08\\x0E-\\x1F\\x21-\\x{9F}\\x{A1}-\\x{167F}\\x{1681}-\\x{1FFF}\\x{200B}-\\x{2027}\\x{202A}-\\x{202E}\\x{2030}-\\x{205E}\\x{2060}-\\x{2FFF}\\x{3001}-\\x{FEFE}\\x{FF00}-\\x{10FFFF}]*$")
 
-// pattern26 is "^[\\x20-\\x7E]+$".
-var pattern26 = regexp.MustCompile("^[\\x{20}-\\x{7E}]+$")
+// pattern26 is "^[\\s\\S]+$".
+var pattern26 = regexp.MustCompile("^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}\\x00-\\x08\\x0E-\\x1F\\x21-\\x{9F}\\x{A1}-\\x{167F}\\x{1681}-\\x{1FFF}\\x{200B}-\\x{2027}\\x{202A}-\\x{202E}\\x{2030}-\\x{205E}\\x{2060}-\\x{2FFF}\\x{3001}-\\x{FEFE}\\x{FF00}-\\x{10FFFF}]+$")
 
-// pattern27 is "^[\\x21-\\x7E]+$".
-var pattern27 = regexp.MustCompile("^[\\x{21}-\\x{7E}]+$")
+// pattern27 is "^[\\x20-\\x7E]+$".
+var pattern27 = regexp.MustCompile("^[\\x{20}-\\x{7E}]+$")
 
-// pattern28 is "^[^ /\\.$\\x22]*$".
-var pattern28 = regexp.MustCompile("^[^ /\\.$\\x{22}]*$")
+// pattern28 is "^[\\x21-\\x7E]+$".
+var pattern28 = regexp.MustCompile("^[\\x{21}-\\x{7E}]+$")
 
-// pattern29 is "^[^.]([a-zA-Z0-9\\-_.]+)$".
-var pattern29 = regexp.MustCompile("^[^.]([a-zA-Z0-9\\-_.]+)$")
+// pattern29 is "^[^ /\\.$\\x22]*$".
+var pattern29 = regexp.MustCompile("^[^ /\\.$\\x{22}]*$")
 
-// pattern30 is "^.*$".
-var pattern30 = regexp.MustCompile("^[^\\n\\r\\x{2028}\\x{2029}]*$")
+// pattern30 is "^[^.]([a-zA-Z0-9\\-_.]+)$".
+var pattern30 = regexp.MustCompile("^[^.]([a-zA-Z0-9\\-_.]+)$")
 
-// pattern31 is "^[^\\s]+$".
-var pattern31 = regexp.MustCompile("^[^\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]+$")
+// pattern31 is "^.*$".
+var pattern31 = regexp.MustCompile("^[^\\n\\r\\x{2028}\\x{2029}]*$")
 
-// pattern32 is "^[a-zA-Z0-9._\\-]+$".
-var pattern32 = regexp.MustCompile("^[a-zA-Z0-9._\\-]+$")
+// pattern32 is "^[^\\s]+$".
+var pattern32 = regexp.MustCompile("^[^\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]+$")
 
-// pattern33 is "^[a-zA-Z0-9-\\/*:_+=.@-]*$".
-var pattern33 = regexp.MustCompile("^[a-zA-Z0-9\\-/*:_+=.@\\-]*$")
+// pattern33 is "^[a-zA-Z0-9._\\-]+$".
+var pattern33 = regexp.MustCompile("^[a-zA-Z0-9._\\-]+$")
 
-// pattern34 is "^[a-zA-Z0-9-_]*$".
-var pattern34 = regexp.MustCompile("^[a-zA-Z0-9\\-_]*$")
+// pattern34 is "^[a-zA-Z0-9-\\/*:_+=.@-]*$".
+var pattern34 = regexp.MustCompile("^[a-zA-Z0-9\\-/*:_+=.@\\-]*$")
 
-// pattern35 is "^[a-zA-Z0-9-_]+$".
-var pattern35 = regexp.MustCompile("^[a-zA-Z0-9\\-_]+$")
+// pattern35 is "^[a-zA-Z0-9-_]*$".
+var pattern35 = regexp.MustCompile("^[a-zA-Z0-9\\-_]*$")
 
-// pattern36 is "^[a-zA-Z0-9\\.\\*\\-]+$".
-var pattern36 = regexp.MustCompile("^[a-zA-Z0-9\\.\\*\\-]+$")
+// pattern36 is "^[a-zA-Z0-9-_]+$".
+var pattern36 = regexp.MustCompile("^[a-zA-Z0-9\\-_]+$")
 
-// pattern37 is "^[a-zA-Z0-9\\._:\\/=+\\-@ ]+$".
-var pattern37 = regexp.MustCompile("^[a-zA-Z0-9\\._:/=+\\-@ ]+$")
+// pattern37 is "^[a-zA-Z0-9\\.\\*\\-]+$".
+var pattern37 = regexp.MustCompile("^[a-zA-Z0-9\\.\\*\\-]+$")
 
-// pattern38 is "^[a-zA-Z]([a-zA-Z0-9_])+$".
-var pattern38 = regexp.MustCompile("^[a-zA-Z]([a-zA-Z0-9_])+$")
+// pattern38 is "^[a-zA-Z0-9\\._:\\/=+\\-@ ]+$".
+var pattern38 = regexp.MustCompile("^[a-zA-Z0-9\\._:/=+\\-@ ]+$")
 
-// pattern39 is "^\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+$".
-var pattern39 = regexp.MustCompile("^\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9\\-_$]+$")
+// pattern39 is "^[a-zA-Z]([a-zA-Z0-9_])+$".
+var pattern39 = regexp.MustCompile("^[a-zA-Z]([a-zA-Z0-9_])+$")
 
 // pattern40 is "^\\d{12}$".
 var pattern40 = regexp.MustCompile("^\\d{12}$")
@@ -209,7 +209,7 @@ func (v *AddLayerVersionPermissionInput) validate(path awserr.Path, out *[]awser
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern10.MatchString(v.LayerName) {
+		if !pattern11.MatchString(v.LayerName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedText{Text: v.LayerName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(v.LayerName) > 140 {
@@ -286,7 +286,7 @@ func (v *AddPermissionInput) validate(path awserr.Path, out *[]awserr.Violation)
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -312,7 +312,7 @@ func (v *AddPermissionInput) validate(path awserr.Path, out *[]awserr.Violation)
 	if v.missing&(1<<2) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "action"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern15.MatchString(v.Action) {
+		if !pattern16.MatchString(v.Action) {
 			*out = append(*out, awserr.Violation{Path: at(path, "action"), Value: awserr.RenderedText{Text: v.Action}, Constraint: awserr.Pattern{Echo: "(lambda:[*]|lambda:[a-zA-Z]+|[*])"}})
 		}
 		if utf8.RuneCountInString(v.Action) > 10000 {
@@ -325,7 +325,7 @@ func (v *AddPermissionInput) validate(path awserr.Path, out *[]awserr.Violation)
 	if v.missing&(1<<3) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "principal"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern31.MatchString(v.Principal) {
+		if !pattern32.MatchString(v.Principal) {
 			*out = append(*out, awserr.Violation{Path: at(path, "principal"), Value: awserr.RenderedText{Text: v.Principal}, Constraint: awserr.Pattern{Echo: "[^\\s]+"}})
 		}
 		if utf8.RuneCountInString(v.Principal) > 2048 {
@@ -363,7 +363,7 @@ func (v *AddPermissionInput) validate(path awserr.Path, out *[]awserr.Violation)
 		}
 	}
 	if v.EventSourceToken != nil {
-		if !pattern32.MatchString(*v.EventSourceToken) {
+		if !pattern33.MatchString(*v.EventSourceToken) {
 			*out = append(*out, awserr.Violation{Path: at(path, "eventSourceToken"), Value: awserr.RenderedText{Text: *v.EventSourceToken}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9._\\-]+"}})
 		}
 		if utf8.RuneCountInString(*v.EventSourceToken) > 256 {
@@ -374,7 +374,7 @@ func (v *AddPermissionInput) validate(path awserr.Path, out *[]awserr.Violation)
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -401,7 +401,7 @@ func (v *AliasRoutingConfiguration) validate(path awserr.Path, out *[]awserr.Vio
 	if v.AdditionalVersionWeights != nil {
 		if func() bool {
 			for k2 := range v.AdditionalVersionWeights {
-				if !pattern20.MatchString(k2) || utf8.RuneCountInString(k2) > 1024 || utf8.RuneCountInString(k2) < 1 {
+				if !pattern21.MatchString(k2) || utf8.RuneCountInString(k2) > 1024 || utf8.RuneCountInString(k2) < 1 {
 					return true
 				}
 			}
@@ -447,7 +447,7 @@ func (v *AllowedPublishers) validate(path awserr.Path, out *[]awserr.Violation) 
 
 func (v *AmazonManagedKafkaEventSourceConfig) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.ConsumerGroupId != nil {
-		if !pattern19.MatchString(*v.ConsumerGroupId) {
+		if !pattern20.MatchString(*v.ConsumerGroupId) {
 			*out = append(*out, awserr.Violation{Path: at(path, "consumerGroupId"), Value: awserr.RenderedText{Text: *v.ConsumerGroupId}, Constraint: awserr.Pattern{Echo: "[ a-zA-Z0-9-\\/*:_+=.@-]*"}})
 		}
 		if utf8.RuneCountInString(*v.ConsumerGroupId) > 200 {
@@ -492,7 +492,7 @@ func (v *CapacityProviderLoggingConfig) validate(path awserr.Path, out *[]awserr
 		}
 	}
 	if v.LogGroup != nil {
-		if !pattern23.MatchString(*v.LogGroup) {
+		if !pattern24.MatchString(*v.LogGroup) {
 			*out = append(*out, awserr.Violation{Path: at(path, "logGroup"), Value: awserr.RenderedText{Text: *v.LogGroup}, Constraint: awserr.Pattern{Echo: "[\\.\\-_/#A-Za-z0-9]+"}})
 		}
 		if utf8.RuneCountInString(*v.LogGroup) > 512 {
@@ -601,7 +601,7 @@ func (v *ChainedInvokeOptions) validate(path awserr.Path, out *[]awserr.Violatio
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -612,7 +612,7 @@ func (v *ChainedInvokeOptions) validate(path awserr.Path, out *[]awserr.Violatio
 		}
 	}
 	if v.TenantId != nil {
-		if !pattern37.MatchString(*v.TenantId) {
+		if !pattern38.MatchString(*v.TenantId) {
 			*out = append(*out, awserr.Violation{Path: at(path, "tenantId"), Value: awserr.RenderedText{Text: *v.TenantId}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9\\._:\\/=+\\-@ ]+"}})
 		}
 		if utf8.RuneCountInString(*v.TenantId) > 256 {
@@ -649,7 +649,7 @@ func (v *CheckpointDurableExecutionInput) validate(path awserr.Path, out *[]awse
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "checkpointToken"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern22.MatchString(v.CheckpointToken) {
+		if !pattern23.MatchString(v.CheckpointToken) {
 			*out = append(*out, awserr.Violation{Path: at(path, "checkpointToken"), Value: awserr.RenderedText{Text: v.CheckpointToken}, Constraint: awserr.Pattern{Echo: "[A-Za-z0-9+/]+={0,2}"}})
 		}
 		if utf8.RuneCountInString(v.CheckpointToken) > 2048 {
@@ -666,7 +666,7 @@ func (v *CheckpointDurableExecutionInput) validate(path awserr.Path, out *[]awse
 		}
 	}
 	if v.ClientToken != nil {
-		if !pattern27.MatchString(*v.ClientToken) {
+		if !pattern28.MatchString(*v.ClientToken) {
 			*out = append(*out, awserr.Violation{Path: at(path, "clientToken"), Value: awserr.RenderedText{Text: *v.ClientToken}, Constraint: awserr.Pattern{Echo: "[\\x21-\\x7E]+"}})
 		}
 		if utf8.RuneCountInString(*v.ClientToken) > 64 {
@@ -781,7 +781,7 @@ func (v *CreateAliasInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -842,7 +842,7 @@ func (v *CreateCapacityProviderInput) validate(path awserr.Path, out *[]awserr.V
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern14.MatchString(v.CapacityProviderName) {
+		if !pattern15.MatchString(v.CapacityProviderName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderName"), Value: awserr.RenderedText{Text: v.CapacityProviderName}, Constraint: awserr.Pattern{Echo: "(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:capacity-provider:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(v.CapacityProviderName) > 140 {
@@ -981,7 +981,7 @@ func (v *CreateEventSourceMappingInput) validate(path awserr.Path, out *[]awserr
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -1003,7 +1003,7 @@ func (v *CreateEventSourceMappingInput) validate(path awserr.Path, out *[]awserr
 		v.FilterCriteria.validate(at(path, "filterCriteria"), out)
 	}
 	if v.KMSKeyArn != nil {
-		if !pattern9.MatchString(*v.KMSKeyArn) {
+		if !pattern10.MatchString(*v.KMSKeyArn) {
 			*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedText{Text: *v.KMSKeyArn}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()"}})
 		}
 		if utf8.RuneCountInString(*v.KMSKeyArn) > 10000 {
@@ -1036,11 +1036,6 @@ func (v *CreateEventSourceMappingInput) validate(path awserr.Path, out *[]awserr
 		}
 		if int64(*v.ParallelizationFactor) > 10 {
 			*out = append(*out, awserr.Violation{Path: at(path, "parallelizationFactor"), Value: awserr.RenderedText{Text: strconv.FormatInt(int64(*v.ParallelizationFactor), 10)}, Constraint: awserr.RangeMax{Max: "10"}})
-		}
-	}
-	if v.StartingPosition != nil {
-		if !(*v.StartingPosition).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "startingPosition"), Value: awserr.RenderedText{Text: string(*v.StartingPosition)}, Constraint: awserr.Enum{Values: []string{"TRIM_HORIZON", "LATEST", "AT_TIMESTAMP"}}})
 		}
 	}
 	if v.DestinationConfig != nil {
@@ -1101,7 +1096,7 @@ func (v *CreateEventSourceMappingInput) validate(path awserr.Path, out *[]awserr
 		}
 		if func() bool {
 			for _, e2 := range v.Topics {
-				if !pattern29.MatchString(e2) || utf8.RuneCountInString(e2) > 249 || utf8.RuneCountInString(e2) < 1 {
+				if !pattern30.MatchString(e2) || utf8.RuneCountInString(e2) > 249 || utf8.RuneCountInString(e2) < 1 {
 					return true
 				}
 			}
@@ -1119,7 +1114,7 @@ func (v *CreateEventSourceMappingInput) validate(path awserr.Path, out *[]awserr
 		}
 		if func() bool {
 			for _, e2 := range v.Queues {
-				if !pattern24.MatchString(e2) || utf8.RuneCountInString(e2) > 1000 || utf8.RuneCountInString(e2) < 1 {
+				if !pattern25.MatchString(e2) || utf8.RuneCountInString(e2) > 1000 || utf8.RuneCountInString(e2) < 1 {
 					return true
 				}
 			}
@@ -1187,7 +1182,7 @@ func (v *CreateFunctionInput) validate(path awserr.Path, out *[]awserr.Violation
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -1195,11 +1190,6 @@ func (v *CreateFunctionInput) validate(path awserr.Path, out *[]awserr.Violation
 		}
 		if utf8.RuneCountInString(v.FunctionName) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.LengthMin{Min: 1}})
-		}
-	}
-	if v.Runtime != nil {
-		if !(*v.Runtime).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "runtime"), Value: awserr.RenderedText{Text: string(*v.Runtime)}, Constraint: awserr.Enum{Values: []string{"nodejs", "nodejs4.3", "nodejs6.10", "nodejs8.10", "nodejs10.x", "nodejs12.x", "nodejs14.x", "nodejs16.x", "nodejs18.x", "nodejs20.x", "nodejs22.x", "nodejs24.x", "java8", "java8.al2", "java11", "java17", "java21", "java25", "python2.7", "python3.6", "python3.7", "python3.8", "python3.9", "python3.10", "python3.11", "python3.12", "python3.13", "python3.14", "dotnetcore1.0", "dotnetcore2.0", "dotnetcore2.1", "dotnetcore3.1", "dotnet6", "dotnet8", "dotnet10", "nodejs4.3-edge", "go1.x", "ruby2.5", "ruby2.7", "ruby3.2", "ruby3.3", "ruby3.4", "ruby4.0", "provided", "provided.al2", "provided.al2023", "nodejs26.x", "python3.15", "java8.al2023", "java11.al2023", "java17.al2023"}}})
 		}
 	}
 	if v.missing&(1<<1) != 0 {
@@ -1216,7 +1206,7 @@ func (v *CreateFunctionInput) validate(path awserr.Path, out *[]awserr.Violation
 		}
 	}
 	if v.Handler != nil {
-		if !pattern31.MatchString(*v.Handler) {
+		if !pattern32.MatchString(*v.Handler) {
 			*out = append(*out, awserr.Violation{Path: at(path, "handler"), Value: awserr.RenderedText{Text: *v.Handler}, Constraint: awserr.Pattern{Echo: "[^\\s]+"}})
 		}
 		if utf8.RuneCountInString(*v.Handler) > 128 {
@@ -1275,7 +1265,7 @@ func (v *CreateFunctionInput) validate(path awserr.Path, out *[]awserr.Violation
 		v.Environment.validate(at(path, "environment"), out)
 	}
 	if v.KMSKeyArn != nil {
-		if !pattern9.MatchString(*v.KMSKeyArn) {
+		if !pattern10.MatchString(*v.KMSKeyArn) {
 			*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedText{Text: *v.KMSKeyArn}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()"}})
 		}
 		if utf8.RuneCountInString(*v.KMSKeyArn) > 10000 {
@@ -1355,16 +1345,6 @@ func (v *CreateFunctionInput) validate(path awserr.Path, out *[]awserr.Violation
 		if len(v.Architectures) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "architectures"), Value: awserr.RenderedText{Text: renderArchitecturesList(v.Architectures)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		if func() bool {
-			for _, e2 := range v.Architectures {
-				if !e2.Known() {
-					return true
-				}
-			}
-			return false
-		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "architectures"), Value: awserr.RenderedText{Text: renderArchitecturesList(v.Architectures)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Enum{Values: []string{"x86_64", "arm64"}}}}})
-		}
 	}
 	if v.EphemeralStorage != nil {
 		v.EphemeralStorage.validate(at(path, "ephemeralStorage"), out)
@@ -1438,7 +1418,7 @@ func (v *CreateFunctionUrlConfigInput) validate(path awserr.Path, out *[]awserr.
 
 func (v *DeadLetterConfig) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.TargetArn != nil {
-		if !pattern9.MatchString(*v.TargetArn) {
+		if !pattern10.MatchString(*v.TargetArn) {
 			*out = append(*out, awserr.Violation{Path: at(path, "targetArn"), Value: awserr.RenderedText{Text: *v.TargetArn}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()"}})
 		}
 		if utf8.RuneCountInString(*v.TargetArn) > 10000 {
@@ -1462,7 +1442,7 @@ func (v *DeleteAliasInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -1499,7 +1479,7 @@ func (v *DeleteCapacityProviderInput) validate(path awserr.Path, out *[]awserr.V
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern14.MatchString(v.CapacityProviderName) {
+		if !pattern15.MatchString(v.CapacityProviderName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderName"), Value: awserr.RenderedText{Text: v.CapacityProviderName}, Constraint: awserr.Pattern{Echo: "(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:capacity-provider:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(v.CapacityProviderName) > 140 {
@@ -1568,7 +1548,7 @@ func (v *DeleteFunctionCodeSigningConfigInput) validate(path awserr.Path, out *[
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -1592,7 +1572,7 @@ func (v *DeleteFunctionConcurrencyInput) validate(path awserr.Path, out *[]awser
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -1616,7 +1596,7 @@ func (v *DeleteFunctionEventInvokeConfigInput) validate(path awserr.Path, out *[
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -1627,7 +1607,7 @@ func (v *DeleteFunctionEventInvokeConfigInput) validate(path awserr.Path, out *[
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -1651,7 +1631,7 @@ func (v *DeleteFunctionInput) validate(path awserr.Path, out *[]awserr.Violation
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -1662,7 +1642,7 @@ func (v *DeleteFunctionInput) validate(path awserr.Path, out *[]awserr.Violation
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -1721,7 +1701,7 @@ func (v *DeleteLayerVersionInput) validate(path awserr.Path, out *[]awserr.Viola
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern10.MatchString(v.LayerName) {
+		if !pattern11.MatchString(v.LayerName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedText{Text: v.LayerName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(v.LayerName) > 140 {
@@ -1748,7 +1728,7 @@ func (v *DeleteProvisionedConcurrencyConfigInput) validate(path awserr.Path, out
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -1761,7 +1741,7 @@ func (v *DeleteProvisionedConcurrencyConfigInput) validate(path awserr.Path, out
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern16.MatchString(v.Qualifier) {
+		if !pattern17.MatchString(v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: v.Qualifier}, Constraint: awserr.Pattern{Echo: "(|[a-zA-Z0-9$_-]+)"}})
 		}
 		if utf8.RuneCountInString(v.Qualifier) > 128 {
@@ -1796,7 +1776,7 @@ func (v *DeleteResourcePolicyInput) validate(path awserr.Path, out *[]awserr.Vio
 		}
 	}
 	if v.RevisionId != nil {
-		if !pattern21.MatchString(*v.RevisionId) {
+		if !pattern22.MatchString(*v.RevisionId) {
 			*out = append(*out, awserr.Violation{Path: at(path, "revisionId"), Value: awserr.RenderedText{Text: *v.RevisionId}, Constraint: awserr.Pattern{Echo: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"}})
 		}
 		if utf8.RuneCountInString(*v.RevisionId) > 36 {
@@ -1819,7 +1799,7 @@ func (v *DestinationConfig) validate(path awserr.Path, out *[]awserr.Violation) 
 
 func (v *DocumentDBEventSourceConfig) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.DatabaseName != nil {
-		if !pattern28.MatchString(*v.DatabaseName) {
+		if !pattern29.MatchString(*v.DatabaseName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "databaseName"), Value: awserr.RenderedText{Text: *v.DatabaseName}, Constraint: awserr.Pattern{Echo: "[^ /\\.$\\x22]*"}})
 		}
 		if utf8.RuneCountInString(*v.DatabaseName) > 63 {
@@ -1849,7 +1829,7 @@ func (v *DocumentDBEventSourceConfig) validate(path awserr.Path, out *[]awserr.V
 
 func (v *DurableConfig) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.KMSKeyArn != nil {
-		if !pattern9.MatchString(*v.KMSKeyArn) {
+		if !pattern10.MatchString(*v.KMSKeyArn) {
 			*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedText{Text: *v.KMSKeyArn}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()"}})
 		}
 		if utf8.RuneCountInString(*v.KMSKeyArn) > 10000 {
@@ -1881,7 +1861,7 @@ func (v *Environment) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.Variables != nil {
 		if func() bool {
 			for k2 := range v.Variables {
-				if !pattern38.MatchString(k2) {
+				if !pattern39.MatchString(k2) {
 					return true
 				}
 			}
@@ -1951,7 +1931,7 @@ func (v *FileSystemConfig) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "localMountPath"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern17.MatchString(v.LocalMountPath) {
+		if !pattern18.MatchString(v.LocalMountPath) {
 			*out = append(*out, awserr.Violation{Path: at(path, "localMountPath"), Value: awserr.RenderedText{Text: v.LocalMountPath}, Constraint: awserr.Pattern{Echo: "/mnt/[a-zA-Z0-9-_.]+"}})
 		}
 		if utf8.RuneCountInString(v.LocalMountPath) > 160 {
@@ -1968,7 +1948,7 @@ func (v *FileSystemConfig) validate(path awserr.Path, out *[]awserr.Violation) {
 
 func (v *Filter) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.Pattern != nil {
-		if !pattern24.MatchString(*v.Pattern) {
+		if !pattern25.MatchString(*v.Pattern) {
 			*out = append(*out, awserr.Violation{Path: at(path, "pattern"), Value: awserr.RenderedText{Text: *v.Pattern}, Constraint: awserr.Pattern{Echo: "[\\s\\S]*"}})
 		}
 		if utf8.RuneCountInString(*v.Pattern) > 4096 {
@@ -2002,7 +1982,7 @@ func (v *FunctionCode) validate(path awserr.Path, out *[]awserr.Violation) {
 		}
 	}
 	if v.S3Key != nil {
-		if !pattern30.MatchString(*v.S3Key) {
+		if !pattern31.MatchString(*v.S3Key) {
 			*out = append(*out, awserr.Violation{Path: at(path, "s3Key"), Value: awserr.RenderedText{Text: *v.S3Key}, Constraint: awserr.Pattern{Echo: ".*"}})
 		}
 		if utf8.RuneCountInString(*v.S3Key) > 1024 {
@@ -2013,7 +1993,7 @@ func (v *FunctionCode) validate(path awserr.Path, out *[]awserr.Violation) {
 		}
 	}
 	if v.S3ObjectVersion != nil {
-		if !pattern30.MatchString(*v.S3ObjectVersion) {
+		if !pattern31.MatchString(*v.S3ObjectVersion) {
 			*out = append(*out, awserr.Violation{Path: at(path, "s3ObjectVersion"), Value: awserr.RenderedText{Text: *v.S3ObjectVersion}, Constraint: awserr.Pattern{Echo: ".*"}})
 		}
 		if utf8.RuneCountInString(*v.S3ObjectVersion) > 1024 {
@@ -2029,7 +2009,7 @@ func (v *FunctionCode) validate(path awserr.Path, out *[]awserr.Violation) {
 		}
 	}
 	if v.SourceKMSKeyArn != nil {
-		if !pattern9.MatchString(*v.SourceKMSKeyArn) {
+		if !pattern10.MatchString(*v.SourceKMSKeyArn) {
 			*out = append(*out, awserr.Violation{Path: at(path, "sourceKMSKeyArn"), Value: awserr.RenderedText{Text: *v.SourceKMSKeyArn}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()"}})
 		}
 		if utf8.RuneCountInString(*v.SourceKMSKeyArn) > 10000 {
@@ -2078,7 +2058,7 @@ func (v *GetAliasInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -2115,7 +2095,7 @@ func (v *GetCapacityProviderInput) validate(path awserr.Path, out *[]awserr.Viol
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern14.MatchString(v.CapacityProviderName) {
+		if !pattern15.MatchString(v.CapacityProviderName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderName"), Value: awserr.RenderedText{Text: v.CapacityProviderName}, Constraint: awserr.Pattern{Echo: "(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:capacity-provider:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(v.CapacityProviderName) > 140 {
@@ -2230,7 +2210,7 @@ func (v *GetDurableExecutionStateInput) validate(path awserr.Path, out *[]awserr
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "checkpointToken"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern22.MatchString(v.CheckpointToken) {
+		if !pattern23.MatchString(v.CheckpointToken) {
 			*out = append(*out, awserr.Violation{Path: at(path, "checkpointToken"), Value: awserr.RenderedText{Text: v.CheckpointToken}, Constraint: awserr.Pattern{Echo: "[A-Za-z0-9+/]+={0,2}"}})
 		}
 		if utf8.RuneCountInString(v.CheckpointToken) > 2048 {
@@ -2281,7 +2261,7 @@ func (v *GetFunctionCodeSigningConfigInput) validate(path awserr.Path, out *[]aw
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -2305,7 +2285,7 @@ func (v *GetFunctionConcurrencyInput) validate(path awserr.Path, out *[]awserr.V
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -2329,7 +2309,7 @@ func (v *GetFunctionConfigurationInput) validate(path awserr.Path, out *[]awserr
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -2340,7 +2320,7 @@ func (v *GetFunctionConfigurationInput) validate(path awserr.Path, out *[]awserr
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -2364,7 +2344,7 @@ func (v *GetFunctionEventInvokeConfigInput) validate(path awserr.Path, out *[]aw
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -2375,7 +2355,7 @@ func (v *GetFunctionEventInvokeConfigInput) validate(path awserr.Path, out *[]aw
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -2399,7 +2379,7 @@ func (v *GetFunctionInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -2410,7 +2390,7 @@ func (v *GetFunctionInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -2434,7 +2414,7 @@ func (v *GetFunctionRecursionConfigInput) validate(path awserr.Path, out *[]awse
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern12.MatchString(v.FunctionName) {
+		if !pattern13.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -2458,7 +2438,7 @@ func (v *GetFunctionScalingConfigInput) validate(path awserr.Path, out *[]awserr
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern12.MatchString(v.FunctionName) {
+		if !pattern13.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -2471,7 +2451,7 @@ func (v *GetFunctionScalingConfigInput) validate(path awserr.Path, out *[]awserr
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern8.MatchString(v.Qualifier) {
+		if !pattern9.MatchString(v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: v.Qualifier}, Constraint: awserr.Pattern{Echo: "(\\$LATEST\\.PUBLISHED|[0-9]+)"}})
 		}
 		if utf8.RuneCountInString(v.Qualifier) > 128 {
@@ -2554,7 +2534,7 @@ func (v *GetLayerVersionInput) validate(path awserr.Path, out *[]awserr.Violatio
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern10.MatchString(v.LayerName) {
+		if !pattern11.MatchString(v.LayerName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedText{Text: v.LayerName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(v.LayerName) > 140 {
@@ -2581,7 +2561,7 @@ func (v *GetLayerVersionPolicyInput) validate(path awserr.Path, out *[]awserr.Vi
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern10.MatchString(v.LayerName) {
+		if !pattern11.MatchString(v.LayerName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedText{Text: v.LayerName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(v.LayerName) > 140 {
@@ -2608,7 +2588,7 @@ func (v *GetPolicyInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -2619,7 +2599,7 @@ func (v *GetPolicyInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -2643,7 +2623,7 @@ func (v *GetProvisionedConcurrencyConfigInput) validate(path awserr.Path, out *[
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -2656,7 +2636,7 @@ func (v *GetProvisionedConcurrencyConfigInput) validate(path awserr.Path, out *[
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern16.MatchString(v.Qualifier) {
+		if !pattern17.MatchString(v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: v.Qualifier}, Constraint: awserr.Pattern{Echo: "(|[a-zA-Z0-9$_-]+)"}})
 		}
 		if utf8.RuneCountInString(v.Qualifier) > 128 {
@@ -2704,7 +2684,7 @@ func (v *GetRuntimeManagementConfigInput) validate(path awserr.Path, out *[]awse
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -2715,7 +2695,7 @@ func (v *GetRuntimeManagementConfigInput) validate(path awserr.Path, out *[]awse
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -2762,16 +2742,6 @@ func (v *InstanceRequirements) validate(path awserr.Path, out *[]awserr.Violatio
 		if len(v.Architectures) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "architectures"), Value: awserr.RenderedText{Text: renderArchitecturesList(v.Architectures)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		if func() bool {
-			for _, e2 := range v.Architectures {
-				if !e2.Known() {
-					return true
-				}
-			}
-			return false
-		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "architectures"), Value: awserr.RenderedText{Text: renderArchitecturesList(v.Architectures)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Enum{Values: []string{"x86_64", "arm64"}}}}})
-		}
 	}
 	if v.AllowedInstanceTypes != nil {
 		if len(v.AllowedInstanceTypes) > 400 {
@@ -2782,7 +2752,7 @@ func (v *InstanceRequirements) validate(path awserr.Path, out *[]awserr.Violatio
 		}
 		if func() bool {
 			for _, e2 := range v.AllowedInstanceTypes {
-				if !pattern36.MatchString(e2) || utf8.RuneCountInString(e2) > 30 || utf8.RuneCountInString(e2) < 1 {
+				if !pattern37.MatchString(e2) || utf8.RuneCountInString(e2) > 30 || utf8.RuneCountInString(e2) < 1 {
 					return true
 				}
 			}
@@ -2800,7 +2770,7 @@ func (v *InstanceRequirements) validate(path awserr.Path, out *[]awserr.Violatio
 		}
 		if func() bool {
 			for _, e2 := range v.ExcludedInstanceTypes {
-				if !pattern36.MatchString(e2) || utf8.RuneCountInString(e2) > 30 || utf8.RuneCountInString(e2) < 1 {
+				if !pattern37.MatchString(e2) || utf8.RuneCountInString(e2) > 30 || utf8.RuneCountInString(e2) < 1 {
 					return true
 				}
 			}
@@ -2823,7 +2793,7 @@ func (v *InvokeAsyncInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -2850,7 +2820,7 @@ func (v *InvokeInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -2871,7 +2841,7 @@ func (v *InvokeInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		}
 	}
 	if v.DurableExecutionName != nil {
-		if !pattern35.MatchString(*v.DurableExecutionName) {
+		if !pattern36.MatchString(*v.DurableExecutionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "durableExecutionName"), Value: awserr.RenderedText{Text: *v.DurableExecutionName}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(*v.DurableExecutionName) > 64 {
@@ -2882,7 +2852,7 @@ func (v *InvokeInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -2893,7 +2863,7 @@ func (v *InvokeInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		}
 	}
 	if v.TenantId != nil {
-		if !pattern37.MatchString(*v.TenantId) {
+		if !pattern38.MatchString(*v.TenantId) {
 			*out = append(*out, awserr.Violation{Path: at(path, "tenantId"), Value: awserr.RenderedText{Text: *v.TenantId}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9\\._:\\/=+\\-@ ]+"}})
 		}
 		if utf8.RuneCountInString(*v.TenantId) > 256 {
@@ -2917,7 +2887,7 @@ func (v *InvokeWithResponseStreamInput) validate(path awserr.Path, out *[]awserr
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -2933,7 +2903,7 @@ func (v *InvokeWithResponseStreamInput) validate(path awserr.Path, out *[]awserr
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -2944,7 +2914,7 @@ func (v *InvokeWithResponseStreamInput) validate(path awserr.Path, out *[]awserr
 		}
 	}
 	if v.TenantId != nil {
-		if !pattern37.MatchString(*v.TenantId) {
+		if !pattern38.MatchString(*v.TenantId) {
 			*out = append(*out, awserr.Violation{Path: at(path, "tenantId"), Value: awserr.RenderedText{Text: *v.TenantId}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9\\._:\\/=+\\-@ ]+"}})
 		}
 		if utf8.RuneCountInString(*v.TenantId) > 256 {
@@ -2982,7 +2952,7 @@ func (v *KafkaSchemaRegistryAccessConfig) validate(path awserr.Path, out *[]awse
 
 func (v *KafkaSchemaRegistryConfig) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.SchemaRegistryURI != nil {
-		if !pattern33.MatchString(*v.SchemaRegistryURI) {
+		if !pattern34.MatchString(*v.SchemaRegistryURI) {
 			*out = append(*out, awserr.Violation{Path: at(path, "schemaRegistryURI"), Value: awserr.RenderedText{Text: *v.SchemaRegistryURI}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9-\\/*:_+=.@-]*"}})
 		}
 		if utf8.RuneCountInString(*v.SchemaRegistryURI) > 10000 {
@@ -3064,7 +3034,7 @@ func (v *LayerVersionContentInput) validate(path awserr.Path, out *[]awserr.Viol
 		}
 	}
 	if v.S3Key != nil {
-		if !pattern30.MatchString(*v.S3Key) {
+		if !pattern31.MatchString(*v.S3Key) {
 			*out = append(*out, awserr.Violation{Path: at(path, "s3Key"), Value: awserr.RenderedText{Text: *v.S3Key}, Constraint: awserr.Pattern{Echo: ".*"}})
 		}
 		if utf8.RuneCountInString(*v.S3Key) > 1024 {
@@ -3075,7 +3045,7 @@ func (v *LayerVersionContentInput) validate(path awserr.Path, out *[]awserr.Viol
 		}
 	}
 	if v.S3ObjectVersion != nil {
-		if !pattern30.MatchString(*v.S3ObjectVersion) {
+		if !pattern31.MatchString(*v.S3ObjectVersion) {
 			*out = append(*out, awserr.Violation{Path: at(path, "s3ObjectVersion"), Value: awserr.RenderedText{Text: *v.S3ObjectVersion}, Constraint: awserr.Pattern{Echo: ".*"}})
 		}
 		if utf8.RuneCountInString(*v.S3ObjectVersion) > 1024 {
@@ -3104,7 +3074,7 @@ func (v *ListAliasesInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -3190,7 +3160,7 @@ func (v *ListDurableExecutionsByFunctionInput) validate(path awserr.Path, out *[
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -3201,7 +3171,7 @@ func (v *ListDurableExecutionsByFunctionInput) validate(path awserr.Path, out *[
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -3212,7 +3182,7 @@ func (v *ListDurableExecutionsByFunctionInput) validate(path awserr.Path, out *[
 		}
 	}
 	if v.DurableExecutionName != nil {
-		if !pattern35.MatchString(*v.DurableExecutionName) {
+		if !pattern36.MatchString(*v.DurableExecutionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "durableExecutionName"), Value: awserr.RenderedText{Text: *v.DurableExecutionName}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(*v.DurableExecutionName) > 64 {
@@ -3269,7 +3239,7 @@ func (v *ListEventSourceMappingsInput) validate(path awserr.Path, out *[]awserr.
 		}
 	}
 	if v.FunctionName != nil {
-		if !pattern11.MatchString(*v.FunctionName) {
+		if !pattern12.MatchString(*v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: *v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(*v.FunctionName) > 256 {
@@ -3301,7 +3271,7 @@ func (v *ListFunctionEventInvokeConfigsInput) validate(path awserr.Path, out *[]
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -3365,7 +3335,7 @@ func (v *ListFunctionVersionsByCapacityProviderInput) validate(path awserr.Path,
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern14.MatchString(v.CapacityProviderName) {
+		if !pattern15.MatchString(v.CapacityProviderName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderName"), Value: awserr.RenderedText{Text: v.CapacityProviderName}, Constraint: awserr.Pattern{Echo: "(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:capacity-provider:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(v.CapacityProviderName) > 140 {
@@ -3427,7 +3397,7 @@ func (v *ListFunctionsInput) Validate() []awserr.Violation {
 
 func (v *ListFunctionsInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.MasterRegion != nil {
-		if !pattern18.MatchString(*v.MasterRegion) {
+		if !pattern19.MatchString(*v.MasterRegion) {
 			*out = append(*out, awserr.Violation{Path: at(path, "masterRegion"), Value: awserr.RenderedText{Text: *v.MasterRegion}, Constraint: awserr.Pattern{Echo: "ALL|(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}"}})
 		}
 		if utf8.RuneCountInString(*v.MasterRegion) > 50 {
@@ -3474,7 +3444,7 @@ func (v *ListLayerVersionsInput) validate(path awserr.Path, out *[]awserr.Violat
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern10.MatchString(v.LayerName) {
+		if !pattern11.MatchString(v.LayerName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedText{Text: v.LayerName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(v.LayerName) > 140 {
@@ -3535,7 +3505,7 @@ func (v *ListProvisionedConcurrencyConfigsInput) validate(path awserr.Path, out 
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -3591,7 +3561,7 @@ func (v *ListVersionsByFunctionInput) validate(path awserr.Path, out *[]awserr.V
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -3628,7 +3598,7 @@ func (v *LoggingConfig) validate(path awserr.Path, out *[]awserr.Violation) {
 		}
 	}
 	if v.LogGroup != nil {
-		if !pattern23.MatchString(*v.LogGroup) {
+		if !pattern24.MatchString(*v.LogGroup) {
 			*out = append(*out, awserr.Violation{Path: at(path, "logGroup"), Value: awserr.RenderedText{Text: *v.LogGroup}, Constraint: awserr.Pattern{Echo: "[\\.\\-_/#A-Za-z0-9]+"}})
 		}
 		if utf8.RuneCountInString(*v.LogGroup) > 512 {
@@ -3672,7 +3642,7 @@ func (v *OperationUpdate) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "id"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern35.MatchString(v.Id) {
+		if !pattern36.MatchString(v.Id) {
 			*out = append(*out, awserr.Violation{Path: at(path, "id"), Value: awserr.RenderedText{Text: v.Id}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(v.Id) > 64 {
@@ -3683,7 +3653,7 @@ func (v *OperationUpdate) validate(path awserr.Path, out *[]awserr.Violation) {
 		}
 	}
 	if v.ParentId != nil {
-		if !pattern35.MatchString(*v.ParentId) {
+		if !pattern36.MatchString(*v.ParentId) {
 			*out = append(*out, awserr.Violation{Path: at(path, "parentId"), Value: awserr.RenderedText{Text: *v.ParentId}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(*v.ParentId) > 64 {
@@ -3694,7 +3664,7 @@ func (v *OperationUpdate) validate(path awserr.Path, out *[]awserr.Violation) {
 		}
 	}
 	if v.Name != nil {
-		if !pattern26.MatchString(*v.Name) {
+		if !pattern27.MatchString(*v.Name) {
 			*out = append(*out, awserr.Violation{Path: at(path, "name"), Value: awserr.RenderedText{Text: *v.Name}, Constraint: awserr.Pattern{Echo: "[\\x20-\\x7E]+"}})
 		}
 		if utf8.RuneCountInString(*v.Name) > 256 {
@@ -3712,7 +3682,7 @@ func (v *OperationUpdate) validate(path awserr.Path, out *[]awserr.Violation) {
 		}
 	}
 	if v.SubType != nil {
-		if !pattern35.MatchString(*v.SubType) {
+		if !pattern36.MatchString(*v.SubType) {
 			*out = append(*out, awserr.Violation{Path: at(path, "subType"), Value: awserr.RenderedText{Text: *v.SubType}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(*v.SubType) > 32 {
@@ -3805,7 +3775,7 @@ func (v *ProvisionedPollerConfig) validate(path awserr.Path, out *[]awserr.Viola
 		}
 	}
 	if v.PollerGroupName != nil {
-		if !pattern34.MatchString(*v.PollerGroupName) {
+		if !pattern35.MatchString(*v.PollerGroupName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "pollerGroupName"), Value: awserr.RenderedText{Text: *v.PollerGroupName}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9-_]*"}})
 		}
 		if utf8.RuneCountInString(*v.PollerGroupName) > 128 {
@@ -3829,7 +3799,7 @@ func (v *PublishLayerVersionInput) validate(path awserr.Path, out *[]awserr.Viol
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern10.MatchString(v.LayerName) {
+		if !pattern11.MatchString(v.LayerName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedText{Text: v.LayerName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(v.LayerName) > 140 {
@@ -3889,7 +3859,7 @@ func (v *PublishLayerVersionInput) validate(path awserr.Path, out *[]awserr.Viol
 		}
 	}
 	if v.LicenseInfo != nil {
-		if !pattern30.MatchString(*v.LicenseInfo) {
+		if !pattern31.MatchString(*v.LicenseInfo) {
 			*out = append(*out, awserr.Violation{Path: at(path, "licenseInfo"), Value: awserr.RenderedText{Text: *v.LicenseInfo}, Constraint: awserr.Pattern{Echo: ".*"}})
 		}
 		if utf8.RuneCountInString(*v.LicenseInfo) > 512 {
@@ -3913,7 +3883,7 @@ func (v *PublishVersionInput) validate(path awserr.Path, out *[]awserr.Violation
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -3963,7 +3933,7 @@ func (v *PutFunctionCodeSigningConfigInput) validate(path awserr.Path, out *[]aw
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -3987,7 +3957,7 @@ func (v *PutFunctionConcurrencyInput) validate(path awserr.Path, out *[]awserr.V
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -4018,7 +3988,7 @@ func (v *PutFunctionEventInvokeConfigInput) validate(path awserr.Path, out *[]aw
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -4029,7 +3999,7 @@ func (v *PutFunctionEventInvokeConfigInput) validate(path awserr.Path, out *[]aw
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -4072,7 +4042,7 @@ func (v *PutFunctionRecursionConfigInput) validate(path awserr.Path, out *[]awse
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern12.MatchString(v.FunctionName) {
+		if !pattern13.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -4103,7 +4073,7 @@ func (v *PutFunctionScalingConfigInput) validate(path awserr.Path, out *[]awserr
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern12.MatchString(v.FunctionName) {
+		if !pattern13.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -4116,7 +4086,7 @@ func (v *PutFunctionScalingConfigInput) validate(path awserr.Path, out *[]awserr
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern8.MatchString(v.Qualifier) {
+		if !pattern9.MatchString(v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: v.Qualifier}, Constraint: awserr.Pattern{Echo: "(\\$LATEST\\.PUBLISHED|[0-9]+)"}})
 		}
 		if utf8.RuneCountInString(v.Qualifier) > 128 {
@@ -4143,7 +4113,7 @@ func (v *PutProvisionedConcurrencyConfigInput) validate(path awserr.Path, out *[
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -4156,7 +4126,7 @@ func (v *PutProvisionedConcurrencyConfigInput) validate(path awserr.Path, out *[
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern16.MatchString(v.Qualifier) {
+		if !pattern17.MatchString(v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: v.Qualifier}, Constraint: awserr.Pattern{Echo: "(|[a-zA-Z0-9$_-]+)"}})
 		}
 		if utf8.RuneCountInString(v.Qualifier) > 128 {
@@ -4200,7 +4170,7 @@ func (v *PutResourcePolicyInput) validate(path awserr.Path, out *[]awserr.Violat
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern25.MatchString(v.Policy) {
+		if !pattern26.MatchString(v.Policy) {
 			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: v.Policy}, Constraint: awserr.Pattern{Echo: "[\\s\\S]+"}})
 		}
 		if utf8.RuneCountInString(v.Policy) > 20480 {
@@ -4211,7 +4181,7 @@ func (v *PutResourcePolicyInput) validate(path awserr.Path, out *[]awserr.Violat
 		}
 	}
 	if v.RevisionId != nil {
-		if !pattern21.MatchString(*v.RevisionId) {
+		if !pattern22.MatchString(*v.RevisionId) {
 			*out = append(*out, awserr.Violation{Path: at(path, "revisionId"), Value: awserr.RenderedText{Text: *v.RevisionId}, Constraint: awserr.Pattern{Echo: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"}})
 		}
 		if utf8.RuneCountInString(*v.RevisionId) > 36 {
@@ -4235,7 +4205,7 @@ func (v *PutRuntimeManagementConfigInput) validate(path awserr.Path, out *[]awse
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -4246,7 +4216,7 @@ func (v *PutRuntimeManagementConfigInput) validate(path awserr.Path, out *[]awse
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -4288,7 +4258,7 @@ func (v *RemoveLayerVersionPermissionInput) validate(path awserr.Path, out *[]aw
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern10.MatchString(v.LayerName) {
+		if !pattern11.MatchString(v.LayerName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedText{Text: v.LayerName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(v.LayerName) > 140 {
@@ -4328,7 +4298,7 @@ func (v *RemovePermissionInput) validate(path awserr.Path, out *[]awserr.Violati
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -4352,7 +4322,7 @@ func (v *RemovePermissionInput) validate(path awserr.Path, out *[]awserr.Violati
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {
@@ -4429,7 +4399,7 @@ func (v *SelfManagedEventSource) validate(path awserr.Path, out *[]awserr.Violat
 
 func (v *SelfManagedKafkaEventSourceConfig) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.ConsumerGroupId != nil {
-		if !pattern19.MatchString(*v.ConsumerGroupId) {
+		if !pattern20.MatchString(*v.ConsumerGroupId) {
 			*out = append(*out, awserr.Violation{Path: at(path, "consumerGroupId"), Value: awserr.RenderedText{Text: *v.ConsumerGroupId}, Constraint: awserr.Pattern{Echo: "[ a-zA-Z0-9-\\/*:_+=.@-]*"}})
 		}
 		if utf8.RuneCountInString(*v.ConsumerGroupId) > 200 {
@@ -4456,7 +4426,7 @@ func (v *SendDurableExecutionCallbackFailureInput) validate(path awserr.Path, ou
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "callbackId"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern22.MatchString(v.CallbackId) {
+		if !pattern23.MatchString(v.CallbackId) {
 			*out = append(*out, awserr.Violation{Path: at(path, "callbackId"), Value: awserr.RenderedText{Text: v.CallbackId}, Constraint: awserr.Pattern{Echo: "[A-Za-z0-9+/]+={0,2}"}})
 		}
 		if utf8.RuneCountInString(v.CallbackId) > 1024 {
@@ -4480,7 +4450,7 @@ func (v *SendDurableExecutionCallbackHeartbeatInput) validate(path awserr.Path, 
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "callbackId"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern22.MatchString(v.CallbackId) {
+		if !pattern23.MatchString(v.CallbackId) {
 			*out = append(*out, awserr.Violation{Path: at(path, "callbackId"), Value: awserr.RenderedText{Text: v.CallbackId}, Constraint: awserr.Pattern{Echo: "[A-Za-z0-9+/]+={0,2}"}})
 		}
 		if utf8.RuneCountInString(v.CallbackId) > 1024 {
@@ -4504,7 +4474,7 @@ func (v *SendDurableExecutionCallbackSuccessInput) validate(path awserr.Path, ou
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "callbackId"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern22.MatchString(v.CallbackId) {
+		if !pattern23.MatchString(v.CallbackId) {
 			*out = append(*out, awserr.Violation{Path: at(path, "callbackId"), Value: awserr.RenderedText{Text: v.CallbackId}, Constraint: awserr.Pattern{Echo: "[A-Za-z0-9+/]+={0,2}"}})
 		}
 		if utf8.RuneCountInString(v.CallbackId) > 1024 {
@@ -4539,7 +4509,7 @@ func (v *SourceAccessConfiguration) validate(path awserr.Path, out *[]awserr.Vio
 		}
 	}
 	if v.URI != nil {
-		if !pattern19.MatchString(*v.URI) {
+		if !pattern20.MatchString(*v.URI) {
 			*out = append(*out, awserr.Violation{Path: at(path, "uRI"), Value: awserr.RenderedText{Text: *v.URI}, Constraint: awserr.Pattern{Echo: "[ a-zA-Z0-9-\\/*:_+=.@-]*"}})
 		}
 		if utf8.RuneCountInString(*v.URI) > 200 {
@@ -4722,7 +4692,7 @@ func (v *UpdateAliasInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -4781,7 +4751,7 @@ func (v *UpdateCapacityProviderInput) validate(path awserr.Path, out *[]awserr.V
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern14.MatchString(v.CapacityProviderName) {
+		if !pattern15.MatchString(v.CapacityProviderName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderName"), Value: awserr.RenderedText{Text: v.CapacityProviderName}, Constraint: awserr.Pattern{Echo: "(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:capacity-provider:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+"}})
 		}
 		if utf8.RuneCountInString(v.CapacityProviderName) > 140 {
@@ -4860,7 +4830,7 @@ func (v *UpdateEventSourceMappingInput) validate(path awserr.Path, out *[]awserr
 		}
 	}
 	if v.FunctionName != nil {
-		if !pattern11.MatchString(*v.FunctionName) {
+		if !pattern12.MatchString(*v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: *v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(*v.FunctionName) > 256 {
@@ -4882,7 +4852,7 @@ func (v *UpdateEventSourceMappingInput) validate(path awserr.Path, out *[]awserr
 		v.FilterCriteria.validate(at(path, "filterCriteria"), out)
 	}
 	if v.KMSKeyArn != nil {
-		if !pattern9.MatchString(*v.KMSKeyArn) {
+		if !pattern10.MatchString(*v.KMSKeyArn) {
 			*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedText{Text: *v.KMSKeyArn}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()"}})
 		}
 		if utf8.RuneCountInString(*v.KMSKeyArn) > 10000 {
@@ -5000,7 +4970,7 @@ func (v *UpdateFunctionCodeInput) validate(path awserr.Path, out *[]awserr.Viola
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -5022,7 +4992,7 @@ func (v *UpdateFunctionCodeInput) validate(path awserr.Path, out *[]awserr.Viola
 		}
 	}
 	if v.S3Key != nil {
-		if !pattern30.MatchString(*v.S3Key) {
+		if !pattern31.MatchString(*v.S3Key) {
 			*out = append(*out, awserr.Violation{Path: at(path, "s3Key"), Value: awserr.RenderedText{Text: *v.S3Key}, Constraint: awserr.Pattern{Echo: ".*"}})
 		}
 		if utf8.RuneCountInString(*v.S3Key) > 1024 {
@@ -5033,7 +5003,7 @@ func (v *UpdateFunctionCodeInput) validate(path awserr.Path, out *[]awserr.Viola
 		}
 	}
 	if v.S3ObjectVersion != nil {
-		if !pattern30.MatchString(*v.S3ObjectVersion) {
+		if !pattern31.MatchString(*v.S3ObjectVersion) {
 			*out = append(*out, awserr.Violation{Path: at(path, "s3ObjectVersion"), Value: awserr.RenderedText{Text: *v.S3ObjectVersion}, Constraint: awserr.Pattern{Echo: ".*"}})
 		}
 		if utf8.RuneCountInString(*v.S3ObjectVersion) > 1024 {
@@ -5055,16 +5025,6 @@ func (v *UpdateFunctionCodeInput) validate(path awserr.Path, out *[]awserr.Viola
 		if len(v.Architectures) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "architectures"), Value: awserr.RenderedText{Text: renderArchitecturesList(v.Architectures)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		if func() bool {
-			for _, e2 := range v.Architectures {
-				if !e2.Known() {
-					return true
-				}
-			}
-			return false
-		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "architectures"), Value: awserr.RenderedText{Text: renderArchitecturesList(v.Architectures)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Enum{Values: []string{"x86_64", "arm64"}}}}})
-		}
 	}
 	if v.PublishTo != nil {
 		if !(*v.PublishTo).Known() {
@@ -5072,7 +5032,7 @@ func (v *UpdateFunctionCodeInput) validate(path awserr.Path, out *[]awserr.Viola
 		}
 	}
 	if v.SourceKMSKeyArn != nil {
-		if !pattern9.MatchString(*v.SourceKMSKeyArn) {
+		if !pattern10.MatchString(*v.SourceKMSKeyArn) {
 			*out = append(*out, awserr.Violation{Path: at(path, "sourceKMSKeyArn"), Value: awserr.RenderedText{Text: *v.SourceKMSKeyArn}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()"}})
 		}
 		if utf8.RuneCountInString(*v.SourceKMSKeyArn) > 10000 {
@@ -5096,7 +5056,7 @@ func (v *UpdateFunctionConfigurationInput) validate(path awserr.Path, out *[]aws
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern13.MatchString(v.FunctionName) {
+		if !pattern14.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 140 {
@@ -5118,7 +5078,7 @@ func (v *UpdateFunctionConfigurationInput) validate(path awserr.Path, out *[]aws
 		}
 	}
 	if v.Handler != nil {
-		if !pattern31.MatchString(*v.Handler) {
+		if !pattern32.MatchString(*v.Handler) {
 			*out = append(*out, awserr.Violation{Path: at(path, "handler"), Value: awserr.RenderedText{Text: *v.Handler}, Constraint: awserr.Pattern{Echo: "[^\\s]+"}})
 		}
 		if utf8.RuneCountInString(*v.Handler) > 128 {
@@ -5158,16 +5118,11 @@ func (v *UpdateFunctionConfigurationInput) validate(path awserr.Path, out *[]aws
 	if v.Environment != nil {
 		v.Environment.validate(at(path, "environment"), out)
 	}
-	if v.Runtime != nil {
-		if !(*v.Runtime).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "runtime"), Value: awserr.RenderedText{Text: string(*v.Runtime)}, Constraint: awserr.Enum{Values: []string{"nodejs", "nodejs4.3", "nodejs6.10", "nodejs8.10", "nodejs10.x", "nodejs12.x", "nodejs14.x", "nodejs16.x", "nodejs18.x", "nodejs20.x", "nodejs22.x", "nodejs24.x", "java8", "java8.al2", "java11", "java17", "java21", "java25", "python2.7", "python3.6", "python3.7", "python3.8", "python3.9", "python3.10", "python3.11", "python3.12", "python3.13", "python3.14", "dotnetcore1.0", "dotnetcore2.0", "dotnetcore2.1", "dotnetcore3.1", "dotnet6", "dotnet8", "dotnet10", "nodejs4.3-edge", "go1.x", "ruby2.5", "ruby2.7", "ruby3.2", "ruby3.3", "ruby3.4", "ruby4.0", "provided", "provided.al2", "provided.al2023", "nodejs26.x", "python3.15", "java8.al2023", "java11.al2023", "java17.al2023"}}})
-		}
-	}
 	if v.DeadLetterConfig != nil {
 		v.DeadLetterConfig.validate(at(path, "deadLetterConfig"), out)
 	}
 	if v.KMSKeyArn != nil {
-		if !pattern9.MatchString(*v.KMSKeyArn) {
+		if !pattern10.MatchString(*v.KMSKeyArn) {
 			*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedText{Text: *v.KMSKeyArn}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()"}})
 		}
 		if utf8.RuneCountInString(*v.KMSKeyArn) > 10000 {
@@ -5236,7 +5191,7 @@ func (v *UpdateFunctionEventInvokeConfigInput) validate(path awserr.Path, out *[
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern11.MatchString(v.FunctionName) {
+		if !pattern12.MatchString(v.FunctionName) {
 			*out = append(*out, awserr.Violation{Path: at(path, "functionName"), Value: awserr.RenderedText{Text: v.FunctionName}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:)?((eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_\\.]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?"}})
 		}
 		if utf8.RuneCountInString(v.FunctionName) > 256 {
@@ -5247,7 +5202,7 @@ func (v *UpdateFunctionEventInvokeConfigInput) validate(path awserr.Path, out *[
 		}
 	}
 	if v.Qualifier != nil {
-		if !pattern39.MatchString(*v.Qualifier) {
+		if !pattern8.MatchString(*v.Qualifier) {
 			*out = append(*out, awserr.Violation{Path: at(path, "qualifier"), Value: awserr.RenderedText{Text: *v.Qualifier}, Constraint: awserr.Pattern{Echo: "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+"}})
 		}
 		if utf8.RuneCountInString(*v.Qualifier) > 128 {

@@ -3,7 +3,9 @@ package sqs_test
 import (
 	"bytes"
 	"context"
+	"maps"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -19,6 +21,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/sqs"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -160,7 +163,7 @@ func TestCreateQueueRefusesBadNamesAndAttributes(t *testing.T) {
 			{sqsapi.CreateQueueInput{QueueName: strings.Repeat("q", 81)}, "InvalidParameterValue", nameText(strings.Repeat("q", 81))},
 			{sqsapi.CreateQueueInput{QueueName: "standard.fifo"}, "InvalidParameterValue", nameText("standard.fifo")},
 			{sqsapi.CreateQueueInput{QueueName: "nofifo", Attributes: map[sqsapi.QueueAttributeName]string{"FifoQueue": "true"}}, "InvalidParameterValue", nameText("nofifo")},
-			{sqsapi.CreateQueueInput{QueueName: "q.fifo", Attributes: map[sqsapi.QueueAttributeName]string{"FifoQueue": "true"}}, "AWS.SimpleQueueService.UnsupportedOperation", "understudy does not implement FIFO queues yet; create a standard queue (a name without .fifo and no FifoQueue attribute). Run 'understudy coverage --service sqs' for what is supported."},
+			{sqsapi.CreateQueueInput{QueueName: "q.fifo", Attributes: map[sqsapi.QueueAttributeName]string{"FifoQueue": "true", "FifoThroughputLimit": "perMessageGroupId"}}, "InvalidAttributeValue", "Invalid value for the parameter FifoThroughputLimit."},
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"FifoQueue": "false"}}, "InvalidAttributeName", "Unknown Attribute FifoQueue."},
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"Foobar": "1"}}, "InvalidAttributeName", "Unknown Attribute Foobar."},
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"DeduplicationScope": "queue"}}, "InvalidAttributeName", "You can specify the DeduplicationScope only when FifoQueue is set to true."},
@@ -172,13 +175,22 @@ func TestCreateQueueRefusesBadNamesAndAttributes(t *testing.T) {
 			{redrive(`{"deadLetterTargetArn":"arn:aws:sqs:us-east-1:000000000000:dlq","maxReceiveCount":1001}`), "InvalidParameterValue", `Value {"deadLetterTargetArn":"arn:aws:sqs:us-east-1:000000000000:dlq","maxReceiveCount":1001} for parameter RedrivePolicy is invalid. Reason: Invalid value for maxReceiveCount: 1001, valid values are from 1 to 1000 both inclusive.`},
 			{redrive(`not json`), "InvalidAttributeValue", "Invalid value for the parameter RedrivePolicy."},
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"Policy": "{"}}, "InvalidAttributeValue", "Invalid value for the parameter Policy."},
+			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"Policy": "null"}}, "InvalidAttributeValue", "Invalid value for the parameter Policy."},
+			// sqs.md 4: a Policy holds at most 8,192 bytes and 20 statements.
+			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"Policy": `{"Id":"` + strings.Repeat("x", 8192) + `"}`}}, "InvalidAttributeValue", "Invalid value for the parameter Policy. Reason: the policy is 8201 bytes; at most 8192 are allowed."},
+			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"Policy": policyOf(21)}}, "InvalidAttributeValue", "Invalid value for the parameter Policy. Reason: the policy has 21 statements; at most 20 are allowed."},
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"RedriveAllowPolicy": `{"redrivePermission":"sometimes"}`}}, "InvalidAttributeValue", "Invalid value for the parameter RedriveAllowPolicy."},
 		} {
 			_, err := h.create(&tt.in)
 			wantError(h.T, err, tt.code, tt.message)
 		}
-		// A numeric string maxReceiveCount is accepted, and "" means no
-		// policy (sqs.md 4 and 5.1).
+		// A target that does not exist is refused; a numeric string
+		// maxReceiveCount is accepted, and "" means no policy (sqs.md 4,
+		// 5.1 and 9.1).
+		in := redrive(`{"deadLetterTargetArn":"arn:aws:sqs:us-east-1:000000000000:dlq","maxReceiveCount":3}`)
+		_, err := h.create(&in)
+		wantError(h.T, err, "InvalidParameterValue", `Value {"deadLetterTargetArn":"arn:aws:sqs:us-east-1:000000000000:dlq","maxReceiveCount":3} for parameter RedrivePolicy is invalid. Reason: Dead letter target does not exist.`)
+		h.queue("dlq", nil)
 		for i, policy := range []string{`{"deadLetterTargetArn":"arn:aws:sqs:us-east-1:000000000000:dlq","maxReceiveCount":"42"}`, ""} {
 			in := redrive(policy)
 			in.QueueName += strconv.Itoa(i)
@@ -186,11 +198,23 @@ func TestCreateQueueRefusesBadNamesAndAttributes(t *testing.T) {
 				h.Errorf("RedrivePolicy %q = %s: %s", policy, err.ID.QueryCode, err.Message)
 			}
 		}
+		if _, err := h.create(&sqsapi.CreateQueueInput{QueueName: "policed", Attributes: map[sqsapi.QueueAttributeName]string{"Policy": policyOf(20)}}); err != nil {
+			h.Errorf("a Policy of 20 statements = %s: %s", err.ID.QueryCode, err.Message)
+		}
 	})
 }
 
 func redrive(policy string) sqsapi.CreateQueueInput {
 	return sqsapi.CreateQueueInput{QueueName: "redriven", Attributes: map[sqsapi.QueueAttributeName]string{"RedrivePolicy": policy}}
+}
+
+// policyOf is a queue policy of n statements.
+func policyOf(n int) string {
+	statements := make([]string, n)
+	for i := range statements {
+		statements[i] = `{"Sid":"s` + strconv.Itoa(i) + `","Effect":"Allow","Principal":"*","Action":"SQS:SendMessage"}`
+	}
+	return `{"Version":"2012-10-17","Statement":[` + strings.Join(statements, ",") + `]}`
 }
 
 // throttleAll injects a throttle into every SQS call whose touched queue
@@ -601,6 +625,57 @@ func TestReceiveSelectsAttributesAndDigestsWhatItReturns(t *testing.T) {
 	})
 }
 
+// Every SQS operation, HoldVisibility included, is bound: in full, or
+// stored only for the permission operations, which edit the Policy
+// attribute nothing enforces.
+func TestEveryOperationIsBound(t *testing.T) {
+	run(t, func(h *harness) {
+		for _, o := range sqsapi.Service().Operations {
+			bound, ok := h.Kernel.Bindings().Status(o).(kernel.Bound)
+			if !ok {
+				h.Errorf("%s is not bound", o.ID.Name)
+				continue
+			}
+			_, stored := bound.Coverage.(registry.StoredOnly)
+			if permission := o.ID.Name == "AddPermission" || o.ID.Name == "RemovePermission"; stored != permission {
+				h.Errorf("%s is bound %T", o.ID.Name, bound.Coverage)
+			}
+		}
+	})
+}
+
+// sqs.md 6.3: the receive-side vectors, digests of the attributes a
+// receive selected.
+func TestReceiveDigestsMatchAWS(t *testing.T) {
+	run(t, func(h *harness) {
+		url := h.queue("subsets", nil)
+		v := func(s string) sqsapi.MessageAttributeValue {
+			return sqsapi.MessageAttributeValue{DataType: "String", StringValue: &s}
+		}
+		_, err := h.send(&sqsapi.SendMessageInput{QueueUrl: url, MessageBody: "b", MessageAttributes: map[string]sqsapi.MessageAttributeValue{
+			"General": v("Kenobi"), "Hello": v("There"), "Help.Me": v("Me"),
+		}})
+		if err != nil {
+			h.Fatal(err.Message)
+		}
+		for _, tt := range []struct {
+			names []string
+			want  string
+		}{
+			{[]string{"All"}, "4c360f3fdafd970e05fae2f149d997f5"},
+			{[]string{"Hello", "General"}, "fca026605781cb4126a1e9044df24232"},
+			{[]string{"Hello"}, "a311262e065454b75da111d535b8dacd"},
+			{[]string{"Hello", "Help.Me"}, "83fee93c1bcd8b9a5a923ffacdc636c7"},
+			{[]string{"Absent"}, "<nil>"},
+		} {
+			msgs := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url, VisibilityTimeout: new(int32(0)), MessageAttributeNames: tt.names})
+			if len(msgs) != 1 || val(msgs[0].MD5OfMessageAttributes) != tt.want {
+				h.Errorf("MessageAttributeNames %q: digest %s, want %s", tt.names, val(msgs[0].MD5OfMessageAttributes), tt.want)
+			}
+		}
+	})
+}
+
 // The journal records each call with the message's enqueue event as the
 // sender's call, so later deliveries can name their cause.
 func TestCallsAreJournaledAgainstTheQueue(t *testing.T) {
@@ -629,11 +704,17 @@ func TestCallsAreJournaledAgainstTheQueue(t *testing.T) {
 // the timers the state implies.
 func TestSnapshotRoundTripAndRearm(t *testing.T) {
 	run(t, func(h *harness) {
-		url := h.queue("saved", map[sqsapi.QueueAttributeName]string{"Policy": `{"Version":"2012-10-17"}`})
+		url := h.queue("saved", map[sqsapi.QueueAttributeName]string{"Policy": `{"Version":"2012-10-17"}`, "MessageRetentionPeriod": "120"})
 		h.mustSend(url, "in flight")
 		h.mustSend(url, "waiting")
 		h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url})
-		before := h.Kernel.Timers().Scheduler().Snapshot()
+		h.queue("dlq", nil)
+		src := h.queue("src", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "0", "RedrivePolicy": redrivePolicy("dlq", 1)})
+		h.deadLetterMessages(src, 3)
+		if _, err := h.startTask(&sqsapi.StartMessageMoveTaskInput{SourceArn: arnPrefix + "dlq", MaxNumberOfMessagesPerSecond: new(int32(1))}); err != nil {
+			h.Fatal(err.Message)
+		}
+		before := armed(h)
 		sections, err := h.svc.Export()
 		if err != nil {
 			h.Fatal(err)
@@ -651,14 +732,34 @@ func TestSnapshotRoundTripAndRearm(t *testing.T) {
 		if len(again) != 1 || !bytes.Equal(again[0].Data, sections[0].Data) || again[0].Path != "000000000000/us-east-1.json" {
 			h.Errorf("export after import differs:\n%s\n%s", sections[0].Data, again[0].Data)
 		}
-		after := h.Kernel.Timers().Scheduler().Snapshot()
-		if len(after) != len(before) || after[0] != before[0] {
-			h.Errorf("timers after Rearm = %v, want %v", after, before)
+		if after := armed(h); !maps.Equal(after, before) {
+			h.Errorf("timers after Rearm = %v\nwant %v", after, before)
 		}
-		if res := h.svc.Resources(h.Scope); len(res) != 1 || res[0].Summary != "2 messages" {
-			h.Errorf("Resources = %+v", res)
+		// The re-armed timers fire: the in-flight message comes back after
+		// its visibility timeout, the task moves on, and both messages go
+		// at the end of their retention.
+		h.advance(30 * time.Second)
+		if got := h.receiveBodies(url, 10); len(got) != 2 {
+			h.Errorf("after the visibility timeout = %q, want both messages", got)
+		}
+		if task := h.tasks("dlq", 1)[0]; task.ApproximateNumberOfMessagesMoved != 3 {
+			h.Errorf("the re-armed task moved %d, want 3", task.ApproximateNumberOfMessagesMoved)
+		}
+		h.advance(90 * time.Second)
+		res := h.svc.Resources(h.Scope)
+		if i := slices.IndexFunc(res, func(r kernel.Resource) bool { return r.ARN.String() == arnPrefix+"saved" }); i < 0 || res[i].Summary != "0 messages" {
+			h.Errorf("Resources after retention = %+v", res)
 		}
 	})
+}
+
+// armed returns the pending timers by key, rendered as text.
+func armed(h *harness) map[string]string {
+	out := map[string]string{}
+	for _, a := range h.Kernel.Timers().Scheduler().Snapshot() {
+		out[string(a.Key.Kind)+" "+a.Key.ID] = a.Due.String()
+	}
+	return out
 }
 
 // The URL echoes the host the client used, and the queue it names is

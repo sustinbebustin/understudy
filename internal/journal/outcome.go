@@ -123,6 +123,10 @@ const (
 	// AdvisoryShadowedCodeUpdate: a code update is stored but a hot-reload
 	// overlay keeps serving the local directory.
 	AdvisoryShadowedCodeUpdate
+	// AdvisoryCrossRegionServed: under the s3.crossRegion lenient switch, a
+	// request that asserted one region was served from a bucket in another,
+	// which AWS refuses or redirects.
+	AdvisoryCrossRegionServed
 )
 
 // String returns the wire name, such as "policy-would-deny".
@@ -134,6 +138,8 @@ func (k AdvisoryKind) String() string {
 		return "unminted-credentials"
 	case AdvisoryShadowedCodeUpdate:
 		return "shadowed-code-update"
+	case AdvisoryCrossRegionServed:
+		return "cross-region-served"
 	default:
 		return fmt.Sprintf("AdvisoryKind(%d)", uint8(k))
 	}
@@ -145,12 +151,12 @@ type AdvisoryKindError struct {
 }
 
 func (e *AdvisoryKindError) Error() string {
-	return fmt.Sprintf("%q names no advisory kind; known names are policy-would-deny, unminted-credentials and shadowed-code-update", e.Text)
+	return fmt.Sprintf("%q names no advisory kind; known names are policy-would-deny, unminted-credentials, shadowed-code-update and cross-region-served", e.Text)
 }
 
 // ParseAdvisoryKind returns the AdvisoryKind whose wire name is s.
 func ParseAdvisoryKind(s string) (AdvisoryKind, error) {
-	for k := AdvisoryPolicyWouldDeny; k <= AdvisoryShadowedCodeUpdate; k++ {
+	for k := AdvisoryPolicyWouldDeny; k <= AdvisoryCrossRegionServed; k++ {
 		if k.String() == s {
 			return k, nil
 		}
@@ -160,7 +166,7 @@ func ParseAdvisoryKind(s string) (AdvisoryKind, error) {
 
 // MarshalText encodes the wire name.
 func (k AdvisoryKind) MarshalText() ([]byte, error) {
-	if k < AdvisoryPolicyWouldDeny || k > AdvisoryShadowedCodeUpdate {
+	if k < AdvisoryPolicyWouldDeny || k > AdvisoryCrossRegionServed {
 		return nil, &AdvisoryKindError{Text: k.String()}
 	}
 	return []byte(k.String()), nil

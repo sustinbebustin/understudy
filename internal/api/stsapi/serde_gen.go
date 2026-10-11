@@ -9,6 +9,17 @@ import (
 )
 
 // Serialize writes v through s.
+func (v *AccessDenied) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *AccessDenied) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaAccessDenied)
+	if v.Message != nil {
+		s.WriteString(&memberAccessDenied_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *AccessDeniedException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *AccessDeniedException) serialize(s smithy.Serializer, m *smithy.Member) {

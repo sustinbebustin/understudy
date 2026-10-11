@@ -39,8 +39,13 @@ type toUnknown struct {
 	req   *http.Request
 }
 
-// toRaw is a raw operation claimed by host (rule 2).
-type toRaw struct{ op *registry.Operation }
+// toRaw is a raw operation claimed by host (rule 2) or by S3 Control's
+// account host (rule 3). errors renders the errors its handler returns;
+// nil means the codec of the operation's service.
+type toRaw struct {
+	op     *registry.Operation
+	errors Codec
+}
 
 // toService is a request signed for a service that no rule claimed (rule 8,
 // F7): that service answers it, never S3.
@@ -84,6 +89,9 @@ func (c *claimer) decline(format string, args ...any) {
 // parsed credentials, nil when they cannot be read, and parseErr says why.
 func (h *Handler) claim(r *http.Request, a auth.Auth, parseErr auth.ParseError) route {
 	c := &claimer{h: h, r: r, path: requestPath(r), host: hostname(r.Host), auth: a, parseErr: parseErr}
+	if rt, ok := c.snsLink(); ok {
+		return rt
+	}
 	switch {
 	case !strings.HasPrefix(c.path, adminPrefix):
 		c.decline("rule 1: the path is not under %s", adminPrefix)
@@ -104,6 +112,30 @@ func (h *Handler) claim(r *http.Request, a auth.Auth, parseErr auth.ParseError) 
 		}
 	}
 	return unclaimed{reasons: c.reasons}
+}
+
+// snsLinkPrefix is where the links SNS writes into notifications live
+// (SigningCertURL, UnsubscribeURL, SubscribeURL): the reserved prefix, then
+// the raw SNS operation that serves the link.
+const snsLinkPrefix = adminPrefix + "sns/"
+
+// snsLink is rule 1's SNS part: on the main listener, /_understudy/sns/<Op>
+// goes to SNS's raw operation <Op>. The links carry no credentials; the
+// operations serve them as AWS serves its own (ARCHITECTURE.md 4.1). Any
+// other request goes on to the admin part of rule 1, which says why it
+// declines.
+func (c *claimer) snsLink() (route, bool) {
+	rest, ok := strings.CutPrefix(c.path, snsLinkPrefix)
+	if !ok || c.h.opts.Listener != ref.ListenerMain {
+		return nil, false
+	}
+	name, _, _ := strings.Cut(rest, "/")
+	op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: "sns", Name: name})
+	if !ok || op.Kind != registry.Raw {
+		c.decline("rule 1: %s names no raw SNS link operation (SigningCert, UnsubscribeLink, ConfirmSubscriptionLink)", c.path)
+		return unclaimed{reasons: c.reasons}, true
+	}
+	return toRaw{op: op}, true
 }
 
 // functionURLHost matches <url-id>.lambda-url.<region>.<base>.
@@ -127,14 +159,40 @@ func (c *claimer) functionURL() (route, bool) {
 // accountHost matches <12 digits>.<base>, the S3 Control authority.
 var accountHost = regexp.MustCompile(`^\d{12}\.`)
 
+// s3ControlTag names the raw S3 operation that serves S3 Control tagging
+// at /v20180820/tags/{ResourceArn+} for method (s3.md 4.2.9).
+func s3ControlTag(method string) (string, bool) {
+	switch method {
+	case http.MethodGet:
+		return "ListTagsForResource", true
+	case http.MethodPost:
+		return "TagResource", true
+	case http.MethodDelete:
+		return "UntagResource", true
+	}
+	return "", false
+}
+
 // s3Control is rule 3: S3 Control tagging on <account>.<base> with a
-// /v20180820/ path, served by S3's route table.
+// /v20180820/tags/ path goes to S3's raw tag operations, whose errors
+// Options.S3Control renders. understudy serves no other S3 Control
+// operation, so any other /v20180820/ request on that host is unclaimed.
 func (c *claimer) s3Control() (route, bool) {
 	if !accountHost.MatchString(c.host) || !strings.HasPrefix(c.path, "/v20180820/") {
 		c.decline("rule 3: not an S3 Control request (<account>.<base> host and a /v20180820/ path)")
 		return nil, false
 	}
-	return c.restService("s3", ref.RESTXML, "rule 3: S3 Control", c.r, c.path)
+	name, ok := s3ControlTag(c.r.Method)
+	if !strings.HasPrefix(c.path, "/v20180820/tags/") || !ok {
+		c.decline("rule 3: %s %s is an S3 Control request, but understudy serves only its tag operations: GET, POST and DELETE /v20180820/tags/{ResourceArn}", c.r.Method, c.path)
+		return unclaimed{reasons: c.reasons}, true
+	}
+	op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: "s3", Name: name})
+	if !ok || op.Kind != registry.Raw {
+		c.decline("rule 3: %s %s is S3 Control's %s, but no raw s3.%s operation is registered", c.r.Method, c.path, name, name)
+		return unclaimed{reasons: c.reasons}, true
+	}
+	return toRaw{op: op, errors: c.h.opts.S3Control}, true
 }
 
 // smithyProtocolPath matches rpcv2Cbor's /service/<Name>/operation/<Op>,

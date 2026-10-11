@@ -724,6 +724,11 @@ func (b Binder) ListParts(h kernel.Handler[ListPartsInput, ListPartsOutput], cov
 	kernel.Bind(b.b, OpListParts, h, cov, opts...)
 }
 
+// ListTagsForResource binds the raw HTTP handler of ListTagsForResource.
+func (b Binder) ListTagsForResource(h kernel.RawHTTPHandler, cov registry.BindCoverage) {
+	kernel.BindRawHTTP(b.b, &descListTagsForResource, h, cov)
+}
+
 // PutBucketAbac binds the handler of PutBucketAbac.
 func (b Binder) PutBucketAbac(h kernel.Handler[PutBucketAbacInput, PutBucketAbacOutput], cov registry.BindCoverage, opts ...kernel.BindOption) {
 	kernel.Bind(b.b, OpPutBucketAbac, h, cov, opts...)
@@ -872,6 +877,16 @@ func (b Binder) RestoreObject(h kernel.Handler[RestoreObjectInput, RestoreObject
 // SelectObjectContent binds the handler of SelectObjectContent.
 func (b Binder) SelectObjectContent(h kernel.Handler[SelectObjectContentInput, SelectObjectContentOutput], cov registry.BindCoverage, opts ...kernel.BindOption) {
 	kernel.Bind(b.b, OpSelectObjectContent, h, cov, opts...)
+}
+
+// TagResource binds the raw HTTP handler of TagResource.
+func (b Binder) TagResource(h kernel.RawHTTPHandler, cov registry.BindCoverage) {
+	kernel.BindRawHTTP(b.b, &descTagResource, h, cov)
+}
+
+// UntagResource binds the raw HTTP handler of UntagResource.
+func (b Binder) UntagResource(h kernel.RawHTTPHandler, cov registry.BindCoverage) {
+	kernel.BindRawHTTP(b.b, &descUntagResource, h, cov)
 }
 
 // UpdateBucketMetadataAnnotationTableConfiguration binds the handler of UpdateBucketMetadataAnnotationTableConfiguration.

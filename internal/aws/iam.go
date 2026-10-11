@@ -1,6 +1,21 @@
 package aws
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
+
+// SplitIAMPath splits the part of an IAM ARN's resource after its type,
+// such as "service-role/name", into the IAM path ("/service-role/") and
+// the name. A resource without a slash is on the root path "/". It does
+// not validate either part: check them with ValidIAMPath and ValidIAMName.
+func SplitIAMPath(rest string) (path, name string) {
+	i := strings.LastIndexByte(rest, '/')
+	if i < 0 {
+		return "/", rest
+	}
+	return "/" + rest[:i+1], rest[i+1:]
+}
 
 // ValidIAMPath reports whether path is one IAM's CreateUser and CreateRole
 // accept: the IAM model's pathType, "/" or a run of printable ASCII between

@@ -20,6 +20,21 @@
           }
         ]
       }
+    },
+    "com.amazonaws.sts#AccessDenied": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 403,
+        "aws.protocols#awsQueryError": {"code": "AccessDenied", "httpResponseCode": 403},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/iam-sts-kms.md#42-assumerole: AssumeRole trust failures use the common AccessDenied code (403, IAM CommonErrors) with text 'User: <caller arn> is not authorized to perform: sts:AssumeRole on resource: <role arn>' (AWS CDK pipelines README)"
+        }
+      }
     }
   }
 }

@@ -29,7 +29,9 @@
 //     millisecond timestamps or S3's InvalidArgument identity, so a
 //     per-service Dialect supplies them; S3Dialect is S3's. The zero
 //     Dialect is Smithy's restXml, which the synthetic corpus services
-//     speak: <ErrorResponse> wrapping and plain date-time.
+//     speak: <ErrorResponse> wrapping, plain date-time, and Content-Type
+//     application/xml on an output whose members all bind outside the
+//     body.
 //   - awserr.Internalf carries the generic InternalFailure, but S3's bug
 //     answer is InternalError, "We encountered an internal error. Please
 //     try again." (wire-rest.md 3.6, 3.7). Dialect.Internal holds S3's

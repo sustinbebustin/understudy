@@ -1242,10 +1242,22 @@ var descPutLogEvents = registry.Operation{
 	SuccessCode: 200,
 }
 
+var descPutLogEventsInternal = registry.Operation{
+	Service:     &service,
+	ID:          ref.OperationID{Service: "logs", Name: "PutLogEventsInternal"},
+	Ordinal:     95,
+	Kind:        registry.Internal,
+	Shape:       "com.amazonaws.cloudwatchlogs#PutLogEventsInternal",
+	Input:       &schemaPutLogEventsInternalInput,
+	Output:      &schemaSmithyUnit,
+	Errors:      []awserr.Identity{IdentityInvalidParameterException(), IdentityResourceNotFoundException()},
+	SuccessCode: 200,
+}
+
 var descPutLogGroupDeletionProtection = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "PutLogGroupDeletionProtection"},
-	Ordinal:     95,
+	Ordinal:     96,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#PutLogGroupDeletionProtection",
 	Input:       &schemaPutLogGroupDeletionProtectionInput,
@@ -1258,7 +1270,7 @@ var descPutLogGroupDeletionProtection = registry.Operation{
 var descPutMetricFilter = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "PutMetricFilter"},
-	Ordinal:     96,
+	Ordinal:     97,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#PutMetricFilter",
 	Input:       &schemaPutMetricFilterInput,
@@ -1271,7 +1283,7 @@ var descPutMetricFilter = registry.Operation{
 var descPutQueryDefinition = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "PutQueryDefinition"},
-	Ordinal:     97,
+	Ordinal:     98,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#PutQueryDefinition",
 	Input:       &schemaPutQueryDefinitionInput,
@@ -1284,7 +1296,7 @@ var descPutQueryDefinition = registry.Operation{
 var descPutResourcePolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "PutResourcePolicy"},
-	Ordinal:     98,
+	Ordinal:     99,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#PutResourcePolicy",
 	Input:       &schemaPutResourcePolicyInput,
@@ -1297,7 +1309,7 @@ var descPutResourcePolicy = registry.Operation{
 var descPutRetentionPolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "PutRetentionPolicy"},
-	Ordinal:     99,
+	Ordinal:     100,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#PutRetentionPolicy",
 	Input:       &schemaPutRetentionPolicyInput,
@@ -1310,7 +1322,7 @@ var descPutRetentionPolicy = registry.Operation{
 var descPutStorageTierPolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "PutStorageTierPolicy"},
-	Ordinal:     100,
+	Ordinal:     101,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#PutStorageTierPolicy",
 	Input:       &schemaPutStorageTierPolicyInput,
@@ -1323,7 +1335,7 @@ var descPutStorageTierPolicy = registry.Operation{
 var descPutSubscriptionFilter = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "PutSubscriptionFilter"},
-	Ordinal:     101,
+	Ordinal:     102,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#PutSubscriptionFilter",
 	Input:       &schemaPutSubscriptionFilterInput,
@@ -1336,7 +1348,7 @@ var descPutSubscriptionFilter = registry.Operation{
 var descPutSyslogConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "PutSyslogConfiguration"},
-	Ordinal:     102,
+	Ordinal:     103,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#PutSyslogConfiguration",
 	Input:       &schemaPutSyslogConfigurationInput,
@@ -1349,7 +1361,7 @@ var descPutSyslogConfiguration = registry.Operation{
 var descPutTransformer = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "PutTransformer"},
-	Ordinal:     103,
+	Ordinal:     104,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#PutTransformer",
 	Input:       &schemaPutTransformerInput,
@@ -1362,7 +1374,7 @@ var descPutTransformer = registry.Operation{
 var descStartLiveTail = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "StartLiveTail"},
-	Ordinal:     104,
+	Ordinal:     105,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#StartLiveTail",
 	Input:       &schemaStartLiveTailInput,
@@ -1375,7 +1387,7 @@ var descStartLiveTail = registry.Operation{
 var descStartQuery = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "StartQuery"},
-	Ordinal:     105,
+	Ordinal:     106,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#StartQuery",
 	Input:       &schemaStartQueryInput,
@@ -1388,7 +1400,7 @@ var descStartQuery = registry.Operation{
 var descStopQuery = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "StopQuery"},
-	Ordinal:     106,
+	Ordinal:     107,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#StopQuery",
 	Input:       &schemaStopQueryInput,
@@ -1401,7 +1413,7 @@ var descStopQuery = registry.Operation{
 var descTagLogGroup = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "TagLogGroup"},
-	Ordinal:     107,
+	Ordinal:     108,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#TagLogGroup",
 	Input:       &schemaTagLogGroupInput,
@@ -1414,7 +1426,7 @@ var descTagLogGroup = registry.Operation{
 var descTagResource = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "TagResource"},
-	Ordinal:     108,
+	Ordinal:     109,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#TagResource",
 	Input:       &schemaTagResourceInput,
@@ -1427,7 +1439,7 @@ var descTagResource = registry.Operation{
 var descTestMetricFilter = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "TestMetricFilter"},
-	Ordinal:     109,
+	Ordinal:     110,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#TestMetricFilter",
 	Input:       &schemaTestMetricFilterInput,
@@ -1440,7 +1452,7 @@ var descTestMetricFilter = registry.Operation{
 var descTestTransformer = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "TestTransformer"},
-	Ordinal:     110,
+	Ordinal:     111,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#TestTransformer",
 	Input:       &schemaTestTransformerInput,
@@ -1453,7 +1465,7 @@ var descTestTransformer = registry.Operation{
 var descUntagLogGroup = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "UntagLogGroup"},
-	Ordinal:     111,
+	Ordinal:     112,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#UntagLogGroup",
 	Input:       &schemaUntagLogGroupInput,
@@ -1466,7 +1478,7 @@ var descUntagLogGroup = registry.Operation{
 var descUntagResource = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "UntagResource"},
-	Ordinal:     112,
+	Ordinal:     113,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#UntagResource",
 	Input:       &schemaUntagResourceInput,
@@ -1479,7 +1491,7 @@ var descUntagResource = registry.Operation{
 var descUpdateAnomaly = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "UpdateAnomaly"},
-	Ordinal:     113,
+	Ordinal:     114,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#UpdateAnomaly",
 	Input:       &schemaUpdateAnomalyInput,
@@ -1492,7 +1504,7 @@ var descUpdateAnomaly = registry.Operation{
 var descUpdateDeliveryConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "UpdateDeliveryConfiguration"},
-	Ordinal:     114,
+	Ordinal:     115,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#UpdateDeliveryConfiguration",
 	Input:       &schemaUpdateDeliveryConfigurationInput,
@@ -1505,7 +1517,7 @@ var descUpdateDeliveryConfiguration = registry.Operation{
 var descUpdateLogAnomalyDetector = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "UpdateLogAnomalyDetector"},
-	Ordinal:     115,
+	Ordinal:     116,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#UpdateLogAnomalyDetector",
 	Input:       &schemaUpdateLogAnomalyDetectorInput,
@@ -1518,7 +1530,7 @@ var descUpdateLogAnomalyDetector = registry.Operation{
 var descUpdateLookupTable = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "UpdateLookupTable"},
-	Ordinal:     116,
+	Ordinal:     117,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#UpdateLookupTable",
 	Input:       &schemaUpdateLookupTableInput,
@@ -1531,7 +1543,7 @@ var descUpdateLookupTable = registry.Operation{
 var descUpdateScheduledQuery = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "logs", Name: "UpdateScheduledQuery"},
-	Ordinal:     117,
+	Ordinal:     118,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.cloudwatchlogs#UpdateScheduledQuery",
 	Input:       &schemaUpdateScheduledQueryInput,

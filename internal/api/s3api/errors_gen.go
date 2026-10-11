@@ -6,6 +6,16 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 )
 
+// IdentityAccessControlListNotSupported returns the identity of com.amazonaws.s3#AccessControlListNotSupported.
+func IdentityAccessControlListNotSupported() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#AccessControlListNotSupported", JSONType: "AccessControlListNotSupported", QueryCode: "AccessControlListNotSupported", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrAccessControlListNotSupported returns an AccessControlListNotSupported error with message.
+func ErrAccessControlListNotSupported(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityAccessControlListNotSupported(), Message: message, Origin: awserr.Modeled{}}
+}
+
 // IdentityAccessDenied returns the identity of com.amazonaws.s3#AccessDenied.
 func IdentityAccessDenied() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.s3#AccessDenied", JSONType: "AccessDenied", QueryCode: "AccessDenied", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -34,6 +44,16 @@ func IdentityAnnotationNameTooLong() awserr.Identity {
 // ErrAnnotationNameTooLong returns an AnnotationNameTooLong error with message.
 func ErrAnnotationNameTooLong(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityAnnotationNameTooLong(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityAuthorizationHeaderMalformed returns the identity of com.amazonaws.s3#AuthorizationHeaderMalformed.
+func IdentityAuthorizationHeaderMalformed() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#AuthorizationHeaderMalformed", JSONType: "AuthorizationHeaderMalformed", QueryCode: "AuthorizationHeaderMalformed", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrAuthorizationHeaderMalformed returns an AuthorizationHeaderMalformed error with message.
+func ErrAuthorizationHeaderMalformed(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityAuthorizationHeaderMalformed(), Message: message, Origin: awserr.Modeled{}}
 }
 
 // IdentityBadDigest returns the identity of com.amazonaws.s3#BadDigest.
@@ -106,6 +126,26 @@ func ErrIdempotencyParameterMismatch(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityIdempotencyParameterMismatch(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// IdentityIllegalLocationConstraintException returns the identity of com.amazonaws.s3#IllegalLocationConstraintException.
+func IdentityIllegalLocationConstraintException() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#IllegalLocationConstraintException", JSONType: "IllegalLocationConstraintException", QueryCode: "IllegalLocationConstraintException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrIllegalLocationConstraintException returns an IllegalLocationConstraintException error with message.
+func ErrIllegalLocationConstraintException(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityIllegalLocationConstraintException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityIllegalVersioningConfigurationException returns the identity of com.amazonaws.s3#IllegalVersioningConfigurationException.
+func IdentityIllegalVersioningConfigurationException() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#IllegalVersioningConfigurationException", JSONType: "IllegalVersioningConfigurationException", QueryCode: "IllegalVersioningConfigurationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrIllegalVersioningConfigurationException returns an IllegalVersioningConfigurationException error with message.
+func ErrIllegalVersioningConfigurationException(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityIllegalVersioningConfigurationException(), Message: message, Origin: awserr.Modeled{}}
+}
+
 // IdentityInternalError returns the identity of com.amazonaws.s3#InternalError.
 func IdentityInternalError() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.s3#InternalError", JSONType: "InternalError", QueryCode: "InternalError", Status: 500, Fault: awserr.Receiver, MessageKey: awserr.MessageUpper}
@@ -134,6 +174,46 @@ func IdentityInvalidArgument() awserr.Identity {
 // ErrInvalidArgument returns an InvalidArgument error with message.
 func ErrInvalidArgument(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidArgument(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityInvalidBucketAclWithObjectOwnership returns the identity of com.amazonaws.s3#InvalidBucketAclWithObjectOwnership.
+func IdentityInvalidBucketAclWithObjectOwnership() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidBucketAclWithObjectOwnership", JSONType: "InvalidBucketAclWithObjectOwnership", QueryCode: "InvalidBucketAclWithObjectOwnership", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrInvalidBucketAclWithObjectOwnership returns an InvalidBucketAclWithObjectOwnership error with message.
+func ErrInvalidBucketAclWithObjectOwnership(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityInvalidBucketAclWithObjectOwnership(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityInvalidBucketName returns the identity of com.amazonaws.s3#InvalidBucketName.
+func IdentityInvalidBucketName() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidBucketName", JSONType: "InvalidBucketName", QueryCode: "InvalidBucketName", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrInvalidBucketName returns an InvalidBucketName error with message.
+func ErrInvalidBucketName(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityInvalidBucketName(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityInvalidBucketState returns the identity of com.amazonaws.s3#InvalidBucketState.
+func IdentityInvalidBucketState() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidBucketState", JSONType: "InvalidBucketState", QueryCode: "InvalidBucketState", Status: 409, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrInvalidBucketState returns an InvalidBucketState error with message.
+func ErrInvalidBucketState(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityInvalidBucketState(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityInvalidLocationConstraint returns the identity of com.amazonaws.s3#InvalidLocationConstraint.
+func IdentityInvalidLocationConstraint() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidLocationConstraint", JSONType: "InvalidLocationConstraint", QueryCode: "InvalidLocationConstraint", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrInvalidLocationConstraint returns an InvalidLocationConstraint error with message.
+func ErrInvalidLocationConstraint(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityInvalidLocationConstraint(), Message: message, Origin: awserr.Modeled{}}
 }
 
 // IdentityInvalidObjectState returns the identity of com.amazonaws.s3#InvalidObjectState.
@@ -186,6 +266,16 @@ func ErrInvalidRequest(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidRequest(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// IdentityInvalidTag returns the identity of com.amazonaws.s3#InvalidTag.
+func IdentityInvalidTag() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidTag", JSONType: "InvalidTag", QueryCode: "InvalidTag", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrInvalidTag returns an InvalidTag error with message.
+func ErrInvalidTag(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityInvalidTag(), Message: message, Origin: awserr.Modeled{}}
+}
+
 // IdentityInvalidWriteOffset returns the identity of com.amazonaws.s3#InvalidWriteOffset.
 func IdentityInvalidWriteOffset() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidWriteOffset", JSONType: "InvalidWriteOffset", QueryCode: "InvalidWriteOffset", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -196,6 +286,26 @@ func ErrInvalidWriteOffset(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidWriteOffset(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// IdentityMalformedACLError returns the identity of com.amazonaws.s3#MalformedACLError.
+func IdentityMalformedACLError() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#MalformedACLError", JSONType: "MalformedACLError", QueryCode: "MalformedACLError", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrMalformedACLError returns a MalformedACLError error with message.
+func ErrMalformedACLError(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityMalformedACLError(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityMalformedPolicy returns the identity of com.amazonaws.s3#MalformedPolicy.
+func IdentityMalformedPolicy() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#MalformedPolicy", JSONType: "MalformedPolicy", QueryCode: "MalformedPolicy", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrMalformedPolicy returns a MalformedPolicy error with message.
+func ErrMalformedPolicy(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityMalformedPolicy(), Message: message, Origin: awserr.Modeled{}}
+}
+
 // IdentityMalformedXML returns the identity of com.amazonaws.s3#MalformedXML.
 func IdentityMalformedXML() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.s3#MalformedXML", JSONType: "MalformedXML", QueryCode: "MalformedXML", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -204,6 +314,16 @@ func IdentityMalformedXML() awserr.Identity {
 // ErrMalformedXML returns a MalformedXML error with message.
 func ErrMalformedXML(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityMalformedXML(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityMissingSecurityHeader returns the identity of com.amazonaws.s3#MissingSecurityHeader.
+func IdentityMissingSecurityHeader() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#MissingSecurityHeader", JSONType: "MissingSecurityHeader", QueryCode: "MissingSecurityHeader", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrMissingSecurityHeader returns a MissingSecurityHeader error with message.
+func ErrMissingSecurityHeader(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityMissingSecurityHeader(), Message: message, Origin: awserr.Modeled{}}
 }
 
 // IdentityNoSuchAnnotation returns the identity of com.amazonaws.s3#NoSuchAnnotation.
@@ -244,6 +364,16 @@ func IdentityNoSuchCORSConfiguration() awserr.Identity {
 // ErrNoSuchCORSConfiguration returns a NoSuchCORSConfiguration error with message.
 func ErrNoSuchCORSConfiguration(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityNoSuchCORSConfiguration(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityNoSuchConfiguration returns the identity of com.amazonaws.s3#NoSuchConfiguration.
+func IdentityNoSuchConfiguration() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#NoSuchConfiguration", JSONType: "NoSuchConfiguration", QueryCode: "NoSuchConfiguration", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrNoSuchConfiguration returns a NoSuchConfiguration error with message.
+func ErrNoSuchConfiguration(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityNoSuchConfiguration(), Message: message, Origin: awserr.Modeled{}}
 }
 
 // IdentityNoSuchKey returns the identity of com.amazonaws.s3#NoSuchKey.
@@ -318,7 +448,7 @@ func ErrNoSuchWebsiteConfiguration(message string) *awserr.Error {
 
 // IdentityNotFound returns the identity of com.amazonaws.s3#NotFound.
 func IdentityNotFound() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.s3#NotFound", JSONType: "NotFound", QueryCode: "NotFound", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+	return awserr.Identity{Shape: "com.amazonaws.s3#NotFound", JSONType: "NotFound", QueryCode: "NotFound", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
 }
 
 // ErrNotFound returns a NotFound error with message.
@@ -374,6 +504,16 @@ func IdentityOwnershipControlsNotFoundError() awserr.Identity {
 // ErrOwnershipControlsNotFoundError returns an OwnershipControlsNotFoundError error with message.
 func ErrOwnershipControlsNotFoundError(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityOwnershipControlsNotFoundError(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityPermanentRedirect returns the identity of com.amazonaws.s3#PermanentRedirect.
+func IdentityPermanentRedirect() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#PermanentRedirect", JSONType: "PermanentRedirect", QueryCode: "PermanentRedirect", Status: 301, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrPermanentRedirect returns a PermanentRedirect error with message.
+func ErrPermanentRedirect(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityPermanentRedirect(), Message: message, Origin: awserr.Modeled{}}
 }
 
 // IdentityPreconditionFailed returns the identity of com.amazonaws.s3#PreconditionFailed.
@@ -434,6 +574,16 @@ func IdentityTooManyParts() awserr.Identity {
 // ErrTooManyParts returns a TooManyParts error with message.
 func ErrTooManyParts(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityTooManyParts(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityUnexpectedContent returns the identity of com.amazonaws.s3#UnexpectedContent.
+func IdentityUnexpectedContent() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#UnexpectedContent", JSONType: "UnexpectedContent", QueryCode: "UnexpectedContent", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrUnexpectedContent returns an UnexpectedContent error with message.
+func ErrUnexpectedContent(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityUnexpectedContent(), Message: message, Origin: awserr.Modeled{}}
 }
 
 // IdentityUnsupportedMediaType returns the identity of com.amazonaws.s3#UnsupportedMediaType.

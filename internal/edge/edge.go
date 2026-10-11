@@ -43,6 +43,11 @@ type Options struct {
 	BucketExists func(name string) bool
 	// S3BaseDomains are the hosts virtual-hosted S3 addresses end in.
 	S3BaseDomains []string
+	// S3Control renders the errors of the S3 Control tag operations rule 3
+	// claims: restXml with wrapped errors (<ErrorResponse><Error>), which
+	// the SDKs' s3control clients read, unlike S3's bare <Error>. nil
+	// renders them with S3's codec.
+	S3Control Codec
 	// Listener says which listener the handler serves.
 	Listener ref.ListenerKind
 	// MaxHeaderBytes bounds request headers; 0 means net/http's default.
@@ -138,7 +143,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return kernel.Rejected{Err: h.unknownOperation(rt.svc, rt.codec.Protocol(), rt.name)}
 		})
 	case toRaw:
-		h.dispatchRaw(ctx, x, rt.op, a)
+		h.dispatchRaw(ctx, x, rt, a)
 	case toService:
 		h.answerForService(ctx, x, rt.svc, rt.reasons)
 	case unclaimed:
@@ -232,17 +237,48 @@ func (h *Handler) decode(x *exchange, codec Codec, op *registry.Operation) kerne
 	if x.r.ContentLength > limit {
 		return kernel.Rejected{Err: tooLarge(op.ID, limit)}
 	}
+	var wire kernel.Wire
+	if h.opts.Kernel.Passthrough(op) {
+		client, err := clientRequest(x.r, limit, op.ID)
+		if err != nil {
+			return kernel.Rejected{Err: err}
+		}
+		wire = client
+	}
 	if err := codec.DecodeHead(x.r, op, des); err != nil {
 		return kernel.Rejected{Err: err}
 	}
 	if err := codec.DecodeBody(x.r, op, &requestBody{r: x.r, limit: limit, op: op.ID}, des); err != nil {
 		return kernel.Rejected{Err: err}
 	}
-	return kernel.Ok{In: in}
+	return kernel.Ok{In: in, Wire: wire}
 }
 
-// dispatchRaw runs a raw operation, whose handler writes the response.
-func (h *Handler) dispatchRaw(ctx context.Context, x *exchange, op *registry.Operation, a auth.Auth) {
+// clientRequest buffers r's body, within limit, for a passthrough handler
+// that forwards the client's exact bytes (ADR 0014), and leaves r reading
+// the same bytes for the codec.
+func clientRequest(r *http.Request, limit int64, op ref.OperationID) (kernel.FromClient, *awserr.Error) {
+	var body []byte
+	if r.Body != nil {
+		read, err := io.ReadAll(&cappedReader{rc: r.Body, limit: limit, op: op})
+		if err != nil {
+			if boundary, ok := errors.AsType[*awserr.BoundaryError](err); ok && boundary.Err != nil {
+				return kernel.FromClient{}, boundary.Err
+			}
+			return kernel.FromClient{}, awserr.RequestAborted()
+		}
+		body = read
+	}
+	r.Body = io.NopCloser(bytes.NewReader(body))
+	return kernel.FromClient{Request: kernel.RawRequest{
+		Method: r.Method, Path: r.URL.EscapedPath(), RawQuery: r.URL.RawQuery, Header: r.Header.Clone(), Body: body,
+	}}, nil
+}
+
+// dispatchRaw runs a raw operation, whose handler writes the response; the
+// route's codec, or else its service's, renders an error it returns.
+func (h *Handler) dispatchRaw(ctx context.Context, x *exchange, rt toRaw, a auth.Auth) {
+	op := rt.op
 	c := h.call(ctx, x, op.ID, ref.Raw, a)
 	res := h.opts.Kernel.Dispatch(ctx, c, kernel.Ok{In: kernel.RawExchange{Request: x.r, Writer: x.w}})
 	var err *awserr.Error
@@ -253,6 +289,10 @@ func (h *Handler) dispatchRaw(ctx context.Context, x *exchange, op *registry.Ope
 		err = res.Err
 	case kernel.StatusOKFailure:
 		err = res.Err
+	}
+	if rt.errors != nil {
+		h.write(ctx, x, rt.errors.EncodeError(x.r, op.Service, string(x.id), err))
+		return
 	}
 	for _, p := range op.Service.Protocols {
 		if codec, ok := h.opts.Codecs[p]; ok {
@@ -272,8 +312,10 @@ func (h *Handler) call(ctx context.Context, x *exchange, op ref.OperationID, p r
 		account = aws.DefaultAccount()
 	}
 	region := aws.DefaultRegion()
+	var src aws.RegionSource = aws.None{}
 	if a != nil {
-		if cs, ok := a.RegionSource().(aws.CredentialScope); ok {
+		src = a.RegionSource()
+		if cs, ok := src.(aws.CredentialScope); ok {
 			region = cs.Region
 		}
 	}
@@ -283,14 +325,15 @@ func (h *Handler) call(ctx context.Context, x *exchange, op ref.OperationID, p r
 		scheme = "https"
 	}
 	return h.opts.Kernel.NewCall(kernel.ExternalCall{
-		RequestID: x.id,
-		Operation: op,
-		Scope:     aws.Scope{Partition: aws.PartitionAWS(), Account: account, Region: region},
-		Principal: principal,
-		Origin:    ref.External{Protocol: p, Listener: h.opts.Listener, RemoteAddr: remote, UserAgent: x.r.UserAgent()},
-		Admitted:  x.admitted,
-		Endpoint:  kernel.Endpoint{Scheme: scheme, Host: x.r.Host},
-		Header:    x.r.Header,
+		RequestID:    x.id,
+		Operation:    op,
+		Scope:        aws.Scope{Partition: aws.PartitionAWS(), Account: account, Region: region},
+		RegionSource: src,
+		Principal:    principal,
+		Origin:       ref.External{Protocol: p, Listener: h.opts.Listener, RemoteAddr: remote, UserAgent: x.r.UserAgent()},
+		Admitted:     x.admitted,
+		Endpoint:     kernel.Endpoint{Scheme: scheme, Host: x.r.Host},
+		Header:       x.r.Header,
 	})
 }
 

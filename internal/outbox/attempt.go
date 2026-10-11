@@ -220,12 +220,18 @@ func (a *attempt) deadLetter(ctx context.Context, err *awserr.Error, end ending)
 // changes and journals nothing, when the cell the entry came from was
 // retired (a reset or snapshot load replaced it, even with an entry of the
 // same id and attempt, which Rearm attempts afresh), when the entry is
-// gone, or when another attempt has moved it on. The write can fail
-// only on a zero HandledKind, which Bind rules out; if it ever fails, the
-// error is logged and nothing is journaled either: the entry is still
-// pending as it was, so the next Rearm attempts it again.
+// gone, or when another attempt has moved it on. The event is appended
+// inside the write, before it commits: the write arms the next attempt's
+// timer under the cell's lock, and that attempt could otherwise journal
+// its own outcome before this one, so the journal would show a retry after
+// the delivery it led to. The write can fail only on a zero HandledKind,
+// which Bind rules out; if it ever fails, the error is logged. The entry
+// is then still pending as it was, so the next Rearm attempts it again.
 func (a *attempt) finish(ctx context.Context, outcome journal.DeliveryOutcome) {
 	id := a.entry.ID
+	req := a.entry.Request
+	target, _ := targetARN(req.Target)
+	event := journal.Delivery{From: req.Source, To: target, Mechanism: req.Mechanism, Attempt: a.entry.Attempt + 1, Outcome: outcome}
 	changed, err := kernel.Write(a.c, a.e.cells, a.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (bool, *awserr.Error) {
 		// Import and Reset retire cells under the gate's exclusive side and
 		// Write holds its shared side, so the check cannot race them.
@@ -234,6 +240,7 @@ func (a *attempt) finish(ctx context.Context, outcome journal.DeliveryOutcome) {
 			tx.Unchanged()
 			return false, nil
 		}
+		a.journal(ctx, event)
 		if r, retry := outcome.(journal.Retrying); retry {
 			cur.Attempt++
 			cur.NextAt = r.Next
@@ -261,11 +268,7 @@ func (a *attempt) finish(ctx context.Context, outcome journal.DeliveryOutcome) {
 	if !changed {
 		a.e.k.Log().LogAttrs(ctx, slog.LevelDebug, "outbox discarded the outcome of a delivery attempt: the delivery was reset, reloaded or moved on while the attempt ran",
 			slog.String("delivery", string(id)), slog.Int("attempt", a.entry.Attempt+1))
-		return
 	}
-	req := a.entry.Request
-	target, _ := targetARN(req.Target)
-	a.journal(ctx, journal.Delivery{From: req.Source, To: target, Mechanism: req.Mechanism, Attempt: a.entry.Attempt + 1, Outcome: outcome})
 }
 
 // journal records d at the due instant, caused by the source call.

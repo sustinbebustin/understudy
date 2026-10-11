@@ -22,6 +22,17 @@
         ]
       }
     },
+    "com.amazonaws.cloudwatch#SetAlarmStateInput$StateValue": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L6194",
+          "validated": "2025-09-22"
+        }
+      }
+    },
     "com.amazonaws.cloudwatch#ResourceNotFound": {
       "type": "apply",
       "traits": {

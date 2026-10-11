@@ -236,9 +236,7 @@ func (s *serializer) WriteList(m *smithy.Member, n int) {
 func (s *serializer) CloseList() {
 	if s.err == nil && s.depth == 2 && s.route == toHeaderList {
 		s.depth = 1
-		if len(s.list) > 0 {
-			s.setBound(s.name, joinHeaderList(s.list, s.quote))
-		}
+		s.setBound(s.name, joinHeaderList(s.list, s.quote))
 		return
 	}
 	s.closeContainer(func(w smithy.Serializer) { w.CloseList() })

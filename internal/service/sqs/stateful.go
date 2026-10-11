@@ -36,8 +36,8 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
 }
 
-// Rearm arms the visibility timer of every message that is not yet
-// receivable at now; timers are never saved.
+// Rearm arms the timers the state implies at now (timersOf), since timers
+// are never saved.
 func (s *Service) Rearm(now clock.Instant) {
 	sched := s.k.Timers().Scheduler()
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
@@ -45,19 +45,7 @@ func (s *Service) Rearm(now clock.Instant) {
 		if !ok {
 			continue
 		}
-		pending := store.Read(cell, func(st *State) []clock.Armed {
-			var out []clock.Armed
-			for _, name := range slices.Sorted(maps.Keys(st.Queues)) {
-				queue := st.Queues[name]
-				q := queueRef{scope: scope, name: name}
-				for i := range queue.Messages {
-					if m := &queue.Messages[i]; !m.visible(now) {
-						out = append(out, clock.Armed{Key: s.visibility.Key(visibilityID(q, m.ID)), Due: m.VisibleAt})
-					}
-				}
-			}
-			return out
-		})
+		pending := store.Read(cell, func(st *State) []clock.Armed { return s.timersOf(scope, st, now) })
 		for _, a := range pending {
 			sched.Arm(a.Key, a.Due)
 		}
@@ -86,4 +74,29 @@ func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 		}
 		return out
 	})
+}
+
+// timersOf lists the timers the state of scope implies at now: the
+// visibility timer of every message hidden and not pinned, the retention
+// timer of every message and the timer of every running move task.
+func (s *Service) timersOf(scope aws.Scope, st *State, now clock.Instant) []clock.Armed {
+	var out []clock.Armed
+	for _, name := range slices.Sorted(maps.Keys(st.Queues)) {
+		queue := st.Queues[name]
+		q := queueRef{scope: scope, name: name}
+		for i := range queue.Messages {
+			m := &queue.Messages[i]
+			id := timerID(q, string(m.ID))
+			if !m.pinned() && !m.visible(now) {
+				out = append(out, clock.Armed{Key: s.visibility.Key(id), Due: m.VisibleAt})
+			}
+			out = append(out, clock.Armed{Key: s.retention.Key(id), Due: m.Sent.Add(seconds(queue.Attributes.MessageRetentionPeriod))})
+		}
+	}
+	for i := range st.Tasks {
+		if run, ok := st.Tasks[i].State.(TaskRunning); ok {
+			out = append(out, clock.Armed{Key: s.moveTask.Key(st.Tasks[i].timerID()), Due: run.Next})
+		}
+	}
+	return out
 }

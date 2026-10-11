@@ -1,0 +1,428 @@
+{
+  "skips": [
+    {
+      "protocol": "awsjson1_0", "kind": "request", "id": "AwsJson10EndpointTrait",
+      "category": "client-only",
+      "reason": "Tests the endpoint trait's host prefix (host and resolvedHost), a client concern; the request carries no X-Amz-Target or Content-Type, so no server can route it. smithy-rs skips every host case (smithy-protocol-tests.md 4.2, 8)."
+    },
+    {
+      "protocol": "awsjson1_0", "kind": "request", "id": "AwsJson10EndpointTraitWithHostLabel",
+      "category": "client-only",
+      "reason": "Tests the endpoint trait's host label, a client concern; the request carries no X-Amz-Target or Content-Type, so no server can route it (smithy-protocol-tests.md 4.2, 8)."
+    },
+    {
+      "protocol": "awsjson1_0", "kind": "request", "id": "AwsJson10ServerPopulatesDefaultsWhenMissingInRequestBody",
+      "category": "corpus-bug",
+      "reason": "The request has no X-Amz-Target header, so no awsJson server can route it; smithy-rs lists it in ExpectFail as missing a target header (smithy-protocol-tests.md 4.2)."
+    },
+    {
+      "protocol": "awsjson1_0", "kind": "request", "id": "AwsJson10ServerPopulatesNestedDefaultsWhenMissingInRequestBody",
+      "category": "corpus-bug",
+      "reason": "The request has no X-Amz-Target header, so no awsJson server can route it; smithy-rs lists it in ExpectFail as missing a target header (smithy-protocol-tests.md 4.2)."
+    },
+    {
+      "protocol": "awsjson1_0", "kind": "request", "id": "SDKAppendsGzipAndIgnoresHttpProvidedEncoding_awsJson1_0",
+      "category": "client-only",
+      "reason": "requestCompression: asserts the SDK gzips the body; the request is only a Content-Encoding header, with no target and no body. smithy-rs disables the requestCompression cases (smithy-protocol-tests.md 4.2)."
+    },
+    {
+      "protocol": "awsjson1_0", "kind": "request", "id": "SDKAppliedContentEncoding_awsJson1_0",
+      "category": "client-only",
+      "reason": "requestCompression: asserts the SDK gzips the body; the request is only a Content-Encoding header, with no target and no body (smithy-protocol-tests.md 4.2)."
+    },
+    {
+      "protocol": "awsjson1_0", "kind": "response", "id": "AwsJson10ComplexError",
+      "category": "gap",
+      "reason": "The error carries a nested structure member. A handler returns *awserr.Error, which holds a message, flat string fields and headers (internal/awserr), so the bench cannot express the value."
+    },
+    {
+      "protocol": "awsjson1_0", "kind": "response", "id": "AwsJson10ServerPopulatesDefaultsInResponseWhenMissingInParams",
+      "category": "gap",
+      "reason": "Asserts the server writes modeled defaults for members the output leaves unset. Generated types hold defaulted members as plain values and the generated case output is the zero value, so the codec writes zeros (internal/codegen)."
+    },
+    {
+      "protocol": "awsjson1_0", "kind": "response", "id": "AwsJson10ServerPopulatesNestedDefaultValuesWhenMissingInInResponseParams",
+      "category": "gap",
+      "reason": "Asserts the server writes modeled defaults inside nested structures; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen)."
+    },
+    {
+      "protocol": "awsjson1_0", "kind": "response", "id": "QueryCompatibleAwsJson10CustomCodeError",
+      "category": "aws-differs", "label": "third-party-recorded",
+      "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (error-matrix.md 5, CloudWatch not found)",
+      "reason": "Expects status 400 for an awsQueryError with httpResponseCode 402. Recorded CloudWatch answers a query-compatible JSON request that sends x-amzn-query-mode: true with the awsQueryError status (404 for ResourceNotFound), so the codec does too, and this case's request sends that header."
+    },
+    {
+      "protocol": "awsjson1_1", "kind": "request", "id": "SDKAppendsGzipAndIgnoresHttpProvidedEncoding_awsJson1_1",
+      "category": "client-only",
+      "reason": "requestCompression: asserts the SDK gzips the body; the request is only a Content-Encoding header, with no target and no body (smithy-protocol-tests.md 4.2)."
+    },
+    {
+      "protocol": "awsjson1_1", "kind": "request", "id": "SDKAppliedContentEncoding_awsJson1_1",
+      "category": "client-only",
+      "reason": "requestCompression: asserts the SDK gzips the body; the request is only a Content-Encoding header, with no target and no body (smithy-protocol-tests.md 4.2)."
+    },
+    {
+      "protocol": "awsjson1_1", "kind": "response", "id": "AwsJson11ComplexError",
+      "category": "gap",
+      "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
+    },
+    {
+      "protocol": "awsjson1_1", "kind": "response", "id": "AwsJson11IntEnums",
+      "category": "corpus-bug",
+      "reason": "The response case lists the request's X-Amz-Target header among the response headers; no response carries it."
+    },
+    {
+      "protocol": "awsquery", "kind": "request", "id": "QueryEmptyQueryMaps",
+      "category": "client-only",
+      "reason": "Asserts a client sends no key for an empty map; the server sees no key and cannot tell an empty map from an absent one."
+    },
+    {
+      "protocol": "awsquery", "kind": "request", "id": "SDKAppendsGzipAndIgnoresHttpProvidedEncoding_awsQuery",
+      "category": "client-only",
+      "reason": "requestCompression: asserts the SDK gzips the body; the request is only a Content-Encoding header, with no Action and no body (smithy-protocol-tests.md 4.2)."
+    },
+    {
+      "protocol": "awsquery", "kind": "request", "id": "SDKAppliedContentEncoding_awsQuery",
+      "category": "client-only",
+      "reason": "requestCompression: asserts the SDK gzips the body; the request is only a Content-Encoding header, with no Action and no body (smithy-protocol-tests.md 4.2)."
+    },
+    {
+      "protocol": "awsquery", "kind": "response", "id": "QueryComplexError",
+      "category": "gap",
+      "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
+    },
+    {
+      "protocol": "awsquery", "kind": "response", "id": "QueryNoInputAndNoOutputWithResponseMetadata",
+      "category": "client-only",
+      "reason": "Tests that clients tolerate ResponseMetadata on a no-output response. It states no bodyMediaType, so the body compares byte for byte, and its RequestId is the client fixture's, not one a server mints."
+    },
+    {
+      "protocol": "restjson1", "kind": "request", "id": "RestJsonHttpWithEmptyStructurePayload",
+      "category": "client-only",
+      "reason": "Asserts a client sends {} for an unset structure payload; a server reading {} cannot tell it from an empty structure, so it decodes one."
+    },
+    {
+      "protocol": "restjson1", "kind": "request", "id": "RestJsonHttpWithHeadersButNoPayload",
+      "category": "client-only",
+      "reason": "Asserts a client sends {} for an unset structure payload; a server reading {} cannot tell it from an empty structure, so it decodes one."
+    },
+    {
+      "protocol": "restjson1", "kind": "request", "id": "RestJsonOmitsEmptyListQueryValues",
+      "category": "client-only",
+      "reason": "Asserts a client sends no query parameter for an empty list; the server sees none and cannot tell an empty list from an absent one."
+    },
+    {
+      "protocol": "restjson1", "kind": "request", "id": "RestJsonSerializesSparseSetMapAndRetainsNull",
+      "category": "gap",
+      "reason": "A sparse map whose values are sets holds a null value. The generated serde reads a sparse map's list values as lists only, so the null fails to decode (internal/codegen)."
+    },
+    {
+      "protocol": "restjson1", "kind": "request", "id": "SDKAppendedGzipAfterProvidedEncoding_restJson1",
+      "category": "client-only",
+      "reason": "requestCompression: asserts the SDK appends gzip to the modeled Content-Encoding and compresses the body; the request carries the appended header but an uncompressed body (smithy-protocol-tests.md 4.2)."
+    },
+    {
+      "protocol": "restjson1", "kind": "request", "id": "SDKAppliedContentEncoding_restJson1",
+      "category": "client-only",
+      "reason": "requestCompression: asserts the SDK sets Content-Encoding: gzip and compresses the body; the request carries the header but an uncompressed body (smithy-protocol-tests.md 4.2)."
+    },
+    {
+      "protocol": "restjson1", "kind": "response", "id": "RestJsonComplexErrorWithNoMessage",
+      "category": "gap",
+      "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
+    },
+    {
+      "protocol": "restjson1", "kind": "response", "id": "RestJsonDeserializesSparseSetMapAndRetainsNull",
+      "category": "gap",
+      "reason": "A sparse map whose values are sets holds a null value. The generated types hold it as a nil slice and the generated serde writes every list value as a list, so null goes out as [] (internal/codegen)."
+    },
+    {
+      "protocol": "restjson1", "kind": "response", "id": "RestJsonServerPopulatesDefaultsInResponseWhenMissingInParams",
+      "category": "gap",
+      "reason": "Asserts the server writes modeled defaults for members the output leaves unset; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen)."
+    },
+    {
+      "protocol": "restjson1", "kind": "response", "id": "RestJsonServerPopulatesNestedDefaultValuesWhenMissingInInResponseParams",
+      "category": "gap",
+      "reason": "Asserts the server writes modeled defaults inside nested structures; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonBodyMalformedListNullItem",
+      "category": "aws-differs", "label": "inferred",
+      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "reason": "The Smithy server framework rejects a null in a dense list; understudy's codecs are lenient on input and drop it, as AWS's Coral services are inferred to."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonBodyMalformedMapNullValue",
+      "category": "aws-differs", "label": "inferred",
+      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "reason": "The Smithy server framework rejects a null in a dense map; understudy's codecs are lenient on input and drop it."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonBodyTimestampDateTimeRejectsUTCOffsets_case0",
+      "category": "aws-differs", "label": "inferred",
+      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "reason": "The Smithy server framework rejects a date-time with a UTC offset; understudy's codecs accept any RFC 3339 offset on input and write UTC."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonPathTimestampDefaultRejectsUTCOffsets",
+      "category": "aws-differs", "label": "inferred",
+      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "reason": "The Smithy server framework rejects a date-time label with a UTC offset; understudy's codecs accept any RFC 3339 offset on input."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUnionKnownAndUnknownFieldsSet",
+      "category": "aws-differs", "label": "inferred",
+      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "reason": "The Smithy server framework rejects a union with a known and an unknown member set; understudy's codecs skip unknown members, as forward-compatible clients and servers do."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsBlobList",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsBooleanList_case0",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsBooleanList_case1",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsByteList",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsDateTimeList",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsEnumList",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsHttpDateList_case0",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsIntEnumList",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsIntegerList",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsListList",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsLongList",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsShortList",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsStringList",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsStructureList",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsTimestampList",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsUnionList_case0",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsUnionList_case1",
+      "category": "corpus-bug",
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonStringPayloadNoContentType",
+      "category": "aws-differs", "label": "sdk-source",
+      "source": "docs/research/phase1/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
+      "reason": "The Smithy server framework answers 415 for a payload without Content-Type; the restJson1 codec serves Lambda, whose clients send inconsistent Content-Type values, so it accepts any."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonStringPayloadWrongContentType",
+      "category": "aws-differs", "label": "sdk-source",
+      "source": "docs/research/phase1/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
+      "reason": "The Smithy server framework answers 415 for a payload with another Content-Type; the restJson1 codec serves Lambda, whose clients send inconsistent Content-Type values, so it accepts any."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonStringPayloadUnsatisfiableAccept",
+      "category": "aws-differs", "label": "inferred",
+      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "reason": "The Smithy server framework answers 406 for an Accept it cannot satisfy; understudy ignores Accept, as no Lambda client relies on 406."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithBodyExpectsApplicationJsonAccept",
+      "category": "aws-differs", "label": "inferred",
+      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "reason": "The Smithy server framework answers 406 for an Accept other than application/json; understudy ignores Accept."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithBodyExpectsApplicationJsonContentType",
+      "category": "aws-differs", "label": "sdk-source",
+      "source": "docs/research/phase1/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
+      "reason": "The Smithy server framework answers 415 for a JSON body sent with another Content-Type; the restJson1 codec serves Lambda, whose clients send inconsistent Content-Type values, so it accepts any."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithBodyExpectsApplicationJsonContentTypeNoHeaders",
+      "category": "aws-differs", "label": "sdk-source",
+      "source": "docs/research/phase1/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
+      "reason": "The Smithy server framework answers 415 for a JSON body without Content-Type; botocore sends none for some Lambda bodies, so the codec accepts it."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithPayloadExpectsImpliedAccept",
+      "category": "aws-differs", "label": "inferred",
+      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "reason": "The Smithy server framework answers 406 for an Accept other than the payload's media type; understudy ignores Accept."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithPayloadExpectsImpliedContentType",
+      "category": "aws-differs", "label": "sdk-source",
+      "source": "docs/research/phase1/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
+      "reason": "The Smithy server framework answers 415 for a blob payload with a Content-Type other than application/octet-stream; Lambda's Invoke takes any, so the codec does."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithPayloadExpectsModeledAccept",
+      "category": "aws-differs", "label": "inferred",
+      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "reason": "The Smithy server framework answers 406 for an Accept other than the payload's modeled media type; understudy ignores Accept."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithPayloadExpectsModeledContentType",
+      "category": "aws-differs", "label": "sdk-source",
+      "source": "docs/research/phase1/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
+      "reason": "The Smithy server framework answers 415 for a payload with a Content-Type other than its modeled media type; Lambda's Invoke takes any, so the codec does."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithoutBodyEmptyInputExpectsEmptyContentType",
+      "category": "aws-differs", "label": "sdk-source",
+      "source": "docs/research/phase1/wire-rest.md#1-protocol-rules-shared-by-restjson1-and-restxml (boto3 sends {} and a Content-Type for restJson1 inputs)",
+      "reason": "The Smithy server framework answers 415 for a Content-Type on an operation with no body; clients send one on bodiless Lambda requests, so the codec ignores it."
+    },
+    {
+      "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithoutBodyExpectsEmptyContentType",
+      "category": "aws-differs", "label": "sdk-source",
+      "source": "docs/research/phase1/wire-rest.md#1-protocol-rules-shared-by-restjson1-and-restxml (boto3 sends {} and a Content-Type for restJson1 inputs)",
+      "reason": "The Smithy server framework answers 415 for a Content-Type on an operation with no body; clients send one on bodiless Lambda requests, so the codec ignores it."
+    },
+    {
+      "protocol": "restxml", "kind": "request", "id": "AllQueryStringTypes",
+      "category": "corpus-bug",
+      "reason": "Its params omit queryParamsMapOfStrings, which an httpQueryParams map fills with every query parameter on a server (RestXmlServersPutAllQueryParamsInMap); the restJson1 twin lists them."
+    },
+    {
+      "protocol": "restxml", "kind": "request", "id": "RestXmlQueryStringEscaping",
+      "category": "corpus-bug",
+      "reason": "Its params omit queryParamsMapOfStrings, which an httpQueryParams map fills with every query parameter on a server (RestXmlServersPutAllQueryParamsInMap); the restJson1 twin lists them."
+    },
+    {
+      "protocol": "restxml", "kind": "request", "id": "RestXmlSupportsInfinityFloatQueryValues",
+      "category": "corpus-bug",
+      "reason": "Its params omit queryParamsMapOfStrings, which an httpQueryParams map fills with every query parameter on a server (RestXmlServersPutAllQueryParamsInMap); the restJson1 twin lists them."
+    },
+    {
+      "protocol": "restxml", "kind": "request", "id": "RestXmlSupportsNaNFloatQueryValues",
+      "category": "corpus-bug",
+      "reason": "Its params omit queryParamsMapOfStrings, which an httpQueryParams map fills with every query parameter on a server (RestXmlServersPutAllQueryParamsInMap); the restJson1 twin lists them."
+    },
+    {
+      "protocol": "restxml", "kind": "request", "id": "RestXmlSupportsNegativeInfinityFloatQueryValues",
+      "category": "corpus-bug",
+      "reason": "Its params omit queryParamsMapOfStrings, which an httpQueryParams map fills with every query parameter on a server (RestXmlServersPutAllQueryParamsInMap); the restJson1 twin lists them."
+    },
+    {
+      "protocol": "restxml", "kind": "request", "id": "RestXmlZeroAndFalseQueryValues",
+      "category": "corpus-bug",
+      "reason": "Its params omit queryParamsMapOfStrings, which an httpQueryParams map fills with every query parameter on a server (RestXmlServersPutAllQueryParamsInMap); the restJson1 twin lists them."
+    },
+    {
+      "protocol": "restxml", "kind": "request", "id": "SDKAppendedGzipAfterProvidedEncoding_restXml",
+      "category": "client-only",
+      "reason": "requestCompression: asserts the SDK appends gzip to the modeled Content-Encoding and compresses the body; the request carries the appended header but an uncompressed body (smithy-protocol-tests.md 4.2)."
+    },
+    {
+      "protocol": "restxml", "kind": "request", "id": "SDKAppliedContentEncoding_restXml",
+      "category": "client-only",
+      "reason": "requestCompression: asserts the SDK sets Content-Encoding: gzip and compresses the body; the request carries the header but an uncompressed body (smithy-protocol-tests.md 4.2)."
+    },
+    {
+      "protocol": "restxml", "kind": "response", "id": "ComplexError",
+      "category": "gap",
+      "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
+    },
+    {
+      "protocol": "restxml", "kind": "response", "id": "InvalidGreetingError",
+      "category": "client-only",
+      "reason": "The expected body carries AnotherSetting, which InvalidGreeting does not model, to test that clients skip unknown elements; a server sends only modeled members."
+    },
+    {
+      "protocol": "restxml", "kind": "response", "id": "RestXmlDateTimeWithNegativeOffset",
+      "category": "client-only",
+      "reason": "Tests that clients parse a date-time with a UTC offset; a server writes the instant in UTC."
+    },
+    {
+      "protocol": "restxml", "kind": "response", "id": "RestXmlDateTimeWithPositiveOffset",
+      "category": "client-only",
+      "reason": "Tests that clients parse a date-time with a UTC offset; a server writes the instant in UTC."
+    },
+    {
+      "protocol": "restxml", "kind": "response", "id": "S3OperationNoErrorWrappingResponse",
+      "category": "aws-differs", "label": "aws-doc",
+      "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html (wire-rest.md 2, S3 errors)",
+      "reason": "Expects <Error><Type>Sender</Type><Code>NoSuchBucket</Code></Error>. S3 documents its error body as Code, Message and context elements with RequestId and HostId, and no Type, which the S3 dialect sends."
+    },
+    {
+      "protocol": "restxml", "kind": "response", "id": "SimpleScalarPropertiesWithXMLPreamble",
+      "category": "client-only",
+      "reason": "Tests that clients skip an XML preamble and CDATA text in a response; a server writes neither."
+    },
+    {
+      "protocol": "rpcv2cbor", "kind": "request", "id": "RpcV2CborSerializesSparseSetMapAndRetainsNull",
+      "category": "gap",
+      "reason": "A sparse map whose values are sets holds a null value. The generated serde reads a sparse map's list values as lists only, so the null fails to decode (internal/codegen)."
+    },
+    {
+      "protocol": "rpcv2cbor", "kind": "response", "id": "RpcV2CborComplexError",
+      "category": "gap",
+      "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
+    },
+    {
+      "protocol": "rpcv2cbor", "kind": "response", "id": "RpcV2CborDeserializesSparseSetMapAndRetainsNull",
+      "category": "gap",
+      "reason": "A sparse map whose values are sets holds a null value; the generated serde writes every list value as a list, so null goes out as an empty array (internal/codegen)."
+    },
+    {
+      "protocol": "rpcv2cbor", "kind": "response", "id": "RpcV2CborServerPopulatesDefaultsInResponseWhenMissingInParams",
+      "category": "gap",
+      "reason": "Asserts the server writes modeled defaults for members the output leaves unset; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen)."
+    }
+  ]
+}

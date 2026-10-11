@@ -18,6 +18,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -305,10 +306,12 @@ func TestSmithyProtocolPathMayCarryAPrefix(t *testing.T) {
 	}
 }
 
+// SQS binds every operation, so the unbound one is a CloudWatch Logs
+// operation of a registered service nothing binds.
 func TestUnknownAndUnboundOperations(t *testing.T) {
-	f := newFront(t, nil)
+	f := newFront(t, nil, logsapi.Service())
 	golden(t, "json-unknown-operation", f.serve(t, request(t, http.MethodPost, "/", jsonHeader("AmazonSQS.Bogus", "application/x-amz-json-1.0"), `{}`, "sqs")))
-	golden(t, "json-unbound-operation", f.serve(t, request(t, http.MethodPost, "/", jsonHeader("AmazonSQS.ListQueues", "application/x-amz-json-1.0"), `{}`, "sqs")))
+	golden(t, "json-unbound-operation", f.serve(t, request(t, http.MethodPost, "/", jsonHeader("Logs_20140328.DescribeLogGroups", "application/x-amz-json-1.1"), `{}`, "logs")))
 	page := f.journal.Query(journal.Filter{Kind: journal.KindAPICall})
 	var ops []string
 	for i := range page.Events {
@@ -316,7 +319,7 @@ func TestUnknownAndUnboundOperations(t *testing.T) {
 			ops = append(ops, call.Op.String())
 		}
 	}
-	if !slices.Equal(ops, []string{"sqs.Bogus", "sqs.ListQueues"}) {
+	if !slices.Equal(ops, []string{"sqs.Bogus", "logs.DescribeLogGroups"}) {
 		t.Errorf("journaled calls = %v, want the unknown and the unbound one", ops)
 	}
 }

@@ -6,6 +6,10 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
+var schemaAccessDenied = smithy.Schema{ID: "com.amazonaws.sts#AccessDenied", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberAccessDenied_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
 var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
@@ -505,6 +509,8 @@ var schemaWebIdentityTokenDurationSecondsType = smithy.Schema{ID: "com.amazonaws
 var schemaWebIdentityTokenType = smithy.Schema{ID: "com.amazonaws.sts#webIdentityTokenType", Type: smithy.TypeString, Sensitive: true}
 
 func init() {
+	memberAccessDenied_message.Target = &schemaSmithyString
+	schemaAccessDenied.Members = []*smithy.Member{&memberAccessDenied_message}
 	memberAccessDeniedException_message.Target = &schemaSmithyString
 	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_message}
 	memberAssumeRoleInput_RoleArn.Target = &schemaArnType

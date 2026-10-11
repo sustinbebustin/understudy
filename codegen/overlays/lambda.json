@@ -67,6 +67,60 @@
         }
       }
     },
+    "com.amazonaws.lambda#DeleteFunction": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#successCode": 204,
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L309",
+          "validated": "2025-11-25"
+        }
+      }
+    },
+    "com.amazonaws.lambda#CreateFunctionRequest$Runtime": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7869",
+          "validated": "2026-01-12"
+        }
+      }
+    },
+    "com.amazonaws.lambda#UpdateFunctionConfigurationRequest$Runtime": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/lambda-api.md#42-runtime-enum-and-deprecation: the deprecation text covers creating or updating functions, so the update answers like the create"
+        }
+      }
+    },
+    "com.amazonaws.lambda#CreateEventSourceMappingRequest$StartingPosition": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L12330",
+          "validated": "2025-11-25"
+        }
+      }
+    },
+    "com.amazonaws.lambda#ArchitecturesList$member": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7904",
+          "validated": "2026-01-12"
+        }
+      }
+    },
     "com.amazonaws.lambda#Alias": {
       "type": "apply",
       "traits": {
@@ -106,6 +160,19 @@
         "dev.understudy#evidence": {
           "label": "inferred",
           "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^((?!^\\d+$)^[0-9a-zA-Z-_]+$)$ is one or more of the class with at least one non-digit"
+        }
+      }
+    },
+    "com.amazonaws.lambda#NumericLatestPublishedOrAliasQualifier": {
+      "type": "apply",
+      "replace": true,
+      "traits": {
+        "smithy.api#pattern": "^(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_$]+)$",
+        "dev.understudy#patternEcho": "\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9-_$]+",
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7779: AWS matches the whole value against either branch of the model's top-level alternation, so 'invalid-qualifier-with-?-char' fails it",
+          "validated": "2025-11-25"
         }
       }
     },

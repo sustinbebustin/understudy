@@ -1,69 +1,63 @@
 package cloudwatch
 
 import (
+	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
-	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
-	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshots.
-const stateVersion = 1
-
-// State is the CloudWatch state of one account and region; this build
-// keeps none.
-type State struct{}
-
 // Service is Amazon CloudWatch metrics and alarms: one state cell per
-// account and region. This build binds none of its operations, so each
-// answers 501 in CloudWatch's own error format and coverage lists it as
-// unbound.
+// account and region. Its handlers are written once and served through
+// every protocol the registry lists for it: awsJson1_0, awsQuery and
+// rpcv2Cbor.
 type Service struct {
+	k     *kernel.Kernel
 	cells *store.Partitioned[aws.Scope, State]
 }
 
-// The service is the snapshot and reset view of its state.
-var _ kernel.Stateful = (*Service)(nil)
-
-// New returns the service. It binds no operation.
+// New binds the CloudWatch operations understudy implements. Every other
+// operation stays unbound and answers 501 in CloudWatch's own error format.
 func New(d kernel.ServiceDeps, _ Options) *Service {
-	codec := jsonx.NewCodec()
-	return &Service{cells: store.NewPartitioned(d.Kernel.Gate(), store.Codec{Marshal: codec.Marshal, Unmarshal: codec.Unmarshal},
-		func(aws.Scope) State { return State{} })}
+	s := &Service{
+		k:     d.Kernel,
+		cells: store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
+	}
+	b := cloudwatchapi.NewBinder(d.Binder)
+	s.bindAlarms(b)
+	s.bindTags(b)
+	s.bindMetrics(b)
+	return s
 }
 
-// Name returns "cloudwatch".
-func (*Service) Name() ref.ServiceID { return "cloudwatch" }
-
-// SchemaVersion returns the version of State.
-func (*Service) SchemaVersion() int { return stateVersion }
-
-// Export serializes every non-empty scope to one section.
-func (s *Service) Export() ([]store.Section, error) {
-	return s.cells.Export(store.ScopeKeys(), stateVersion)
+// timestampWindow is which clock PutMetricData's two-week and two-hour
+// windows read: a datum inside them by wall time or by emulator time is
+// stored, as Logs does for PutLogEvents (lambda-runtime-contract.md 3),
+// since an application stamps its data with wall time.
+func timestampWindow() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:  "cloudwatch.put-metric-data.timestamp-window",
+		Value: "wall-or-emulator",
+		Label: evidence.Inferred,
+		Ref:   "docs/research/phase1/secrets-logs-events-alarms.md#52-putmetricdata",
+	}
 }
 
-// Import loads sections written by Export of this schema version.
-func (s *Service) Import(ss []store.Section) error {
-	return s.cells.Import(store.ScopeKeys(), stateVersion, ss)
+// startRounding is how GetMetricData aligns its periods: StartTime rounds
+// down to the minute, five minutes or hour by its age on the emulator
+// clock, as AWS documents; no recording shows the period boundaries.
+func startRounding() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:  "cloudwatch.get-metric-data.start-rounding",
+		Value: "by-age",
+		Label: evidence.AWSDoc,
+		Ref:   "docs/research/phase1/secrets-logs-events-alarms.md#53-getmetricdata",
+	}
 }
 
-// Reset drops the scopes rs covers.
-func (s *Service) Reset(rs kernel.ResetScope) {
-	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
+// Switches lists the behaviors chosen without AWS-recorded evidence.
+func (*Service) Switches() []fidelity.Entry {
+	return []fidelity.Entry{timestampWindow().Entry(), startRounding().Entry()}
 }
-
-// Rearm does nothing: the state arms no timers.
-func (*Service) Rearm(clock.Instant) {}
-
-// Resources lists nothing: the state holds no resources.
-func (*Service) Resources(aws.Scope) []kernel.Resource { return nil }
-
-// Scopes returns the accounts and regions that hold a state cell.
-func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) }
-
-// Switches lists no behaviors: the service implements none yet.
-func (*Service) Switches() []fidelity.Entry { return nil }

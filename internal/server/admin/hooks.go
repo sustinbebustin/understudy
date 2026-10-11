@@ -79,16 +79,19 @@ func notInBuild(what string) *admin.Error {
 	}
 }
 
-// fromAWS maps a service's AWS-shaped error onto the admin vocabulary.
+// fromAWS maps a service's AWS-shaped error onto the admin vocabulary. A
+// 501 is a hook the service has but does not implement yet: unavailable,
+// as for a hook the build lacks, not an internal failure.
 func fromAWS(e *awserr.Error) *admin.Error {
-	code := admin.Internal
 	switch {
+	case e.ID.Status == http.StatusNotImplemented:
+		return &admin.Error{Code: admin.Unavailable, Message: e.ID.Shape.Name() + ": " + e.Message, Hint: "check `understudy coverage` for what this build implements"}
 	case e.ID.Status == http.StatusNotFound:
-		code = admin.NotFound
+		return &admin.Error{Code: admin.NotFound, Message: e.ID.Shape.Name() + ": " + e.Message}
 	case e.ID.Status >= 400 && e.ID.Status < 500:
-		code = admin.InvalidRequest
+		return &admin.Error{Code: admin.InvalidRequest, Message: e.ID.Shape.Name() + ": " + e.Message}
 	}
-	return &admin.Error{Code: code, Message: e.ID.Shape.Name() + ": " + e.Message}
+	return &admin.Error{Code: admin.Internal, Message: e.ID.Shape.Name() + ": " + e.Message}
 }
 
 func (h *Handler) hotReload(w http.ResponseWriter, r *http.Request, args []string) {

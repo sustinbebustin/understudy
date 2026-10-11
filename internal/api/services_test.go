@@ -155,6 +155,9 @@ func TestEveryRouteRowRoundTrips(t *testing.T) {
 func TestRawOperations(t *testing.T) {
 	want := map[ref.OperationID][]string{
 		{Service: "lambda", Name: "InvokeFunctionUrl"}:    {"lambda:InvokeFunctionUrl"},
+		{Service: "s3", Name: "ListTagsForResource"}:      {"s3:ListTagsForResource"},
+		{Service: "s3", Name: "TagResource"}:              {"s3:TagResource"},
+		{Service: "s3", Name: "UntagResource"}:            {"s3:UntagResource"},
 		{Service: "sns", Name: "ConfirmSubscriptionLink"}: {"sns:ConfirmSubscription"},
 		{Service: "sns", Name: "SigningCert"}:             nil,
 		{Service: "sns", Name: "UnsubscribeLink"}:         {"sns:Unsubscribe"},

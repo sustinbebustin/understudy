@@ -2547,6 +2547,14 @@ var schemaResetServiceSpecificCredentialOutput = smithy.Schema{ID: "com.amazonaw
 
 var memberResetServiceSpecificCredentialOutput_ServiceSpecificCredential = smithy.Member{Name: "ServiceSpecificCredential", Index: 0}
 
+var schemaResolveRoleInput = smithy.Schema{ID: "com.amazonaws.iam#ResolveRoleRequest", Type: smithy.TypeStructure}
+
+var memberResolveRoleInput_RoleArn = smithy.Member{Name: "RoleArn", Index: 0, Required: true}
+
+var schemaResolveRoleOutput = smithy.Schema{ID: "com.amazonaws.iam#ResolveRoleResponse", Type: smithy.TypeStructure}
+
+var memberResolveRoleOutput_Role = smithy.Member{Name: "Role", Index: 0, Required: true}
+
 var schemaResourceHandlingOptionType = smithy.Schema{ID: "com.amazonaws.iam#ResourceHandlingOptionType", Type: smithy.TypeString}
 
 var schemaResourceNameListType = smithy.Schema{ID: "com.amazonaws.iam#ResourceNameListType", Type: smithy.TypeList}
@@ -4607,6 +4615,10 @@ func init() {
 	schemaResetServiceSpecificCredentialInput.Members = []*smithy.Member{&memberResetServiceSpecificCredentialInput_UserName, &memberResetServiceSpecificCredentialInput_ServiceSpecificCredentialId}
 	memberResetServiceSpecificCredentialOutput_ServiceSpecificCredential.Target = &schemaServiceSpecificCredential
 	schemaResetServiceSpecificCredentialOutput.Members = []*smithy.Member{&memberResetServiceSpecificCredentialOutput_ServiceSpecificCredential}
+	memberResolveRoleInput_RoleArn.Target = &schemaArnType
+	schemaResolveRoleInput.Members = []*smithy.Member{&memberResolveRoleInput_RoleArn}
+	memberResolveRoleOutput_Role.Target = &schemaRole
+	schemaResolveRoleOutput.Members = []*smithy.Member{&memberResolveRoleOutput_Role}
 	memberResourceNameListType_member.Target = &schemaResourceNameType
 	schemaResourceNameListType.Members = []*smithy.Member{&memberResourceNameListType_member}
 	memberResourceSpecificResult_EvalResourceName.Target = &schemaResourceNameType

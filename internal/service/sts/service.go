@@ -1,75 +1,103 @@
 package sts
 
 import (
+	"fmt"
+	"strings"
+
+	"github.com/sustinbebustin/understudy/internal/api/stsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
+	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
-	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshots.
-const stateVersion = 1
+// schemaVersion is the snapshot schema version of STS, which writes no
+// sections.
+const schemaVersion = 1
 
-// State is the STS state of one account; this build keeps none.
-type State struct{}
-
-// Service is AWS STS: one state cell per account. This build binds none of
-// its operations, so each answers 501 in STS's own error format and
-// coverage lists it as unbound.
+// Service is AWS STS. It keeps no state: the identity store holds the
+// credentials it mints.
 type Service struct {
-	cells *store.Partitioned[aws.AccountID, State]
+	k        *kernel.Kernel
+	clock    *clock.Clock
+	identity *identity.Store
+	opts     Options
 }
 
-// The service is the snapshot and reset view of its state.
+// The service takes part in snapshots and resets, with nothing to save.
 var _ kernel.Stateful = (*Service)(nil)
 
-// New returns the service. It binds no operation.
-func New(d kernel.ServiceDeps, _ Options) *Service {
-	codec := jsonx.NewCodec()
-	return &Service{cells: store.NewPartitioned(d.Kernel.Gate(), store.Codec{Marshal: codec.Marshal, Unmarshal: codec.Unmarshal},
-		func(aws.AccountID) State { return State{} })}
+// New binds the STS operations understudy implements. Every other STS
+// operation stays unbound and answers 501.
+func New(d kernel.ServiceDeps, o Options) *Service {
+	s := &Service{k: d.Kernel, clock: d.Clock, identity: d.Identity, opts: o}
+	b := stsapi.NewBinder(d.Binder)
+	b.GetCallerIdentity(s.getCallerIdentity, registry.Full{})
+	b.AssumeRole(s.assumeRole, registry.Partial{Note: "the role's trust policy and session policies are not evaluated; tags, MFA and source identity are accepted and not checked"})
+	b.GetSessionToken(s.getSessionToken, registry.Partial{Note: "MFA is accepted and not checked"})
+	return s
+}
+
+// Switches lists the behaviors chosen without AWS-recorded evidence.
+func (s *Service) Switches() []fidelity.Entry {
+	return []fidelity.Entry{s.roleCheck().Entry()}
 }
 
 // Name returns "sts".
 func (*Service) Name() ref.ServiceID { return "sts" }
 
-// SchemaVersion returns the version of State.
-func (*Service) SchemaVersion() int { return stateVersion }
+// SchemaVersion returns the snapshot schema version.
+func (*Service) SchemaVersion() int { return schemaVersion }
 
-// Export serializes every non-empty account to one section.
-func (s *Service) Export() ([]store.Section, error) {
-	return s.cells.Export(store.AccountKeys(), stateVersion)
+// Export writes no sections: STS keeps no state.
+func (*Service) Export() ([]store.Section, error) { return nil, nil }
+
+// Import accepts only the empty set of sections Export writes.
+func (*Service) Import(ss []store.Section) error {
+	if len(ss) > 0 {
+		return &sectionsError{paths: sectionPaths(ss)}
+	}
+	return nil
 }
 
-// Import loads sections written by Export of this schema version.
-func (s *Service) Import(ss []store.Section) error {
-	return s.cells.Import(store.AccountKeys(), stateVersion, ss)
-}
+// Reset does nothing: STS keeps no state.
+func (*Service) Reset(kernel.ResetScope) {}
 
-// Reset drops the accounts rs covers; STS state has no regions.
-func (s *Service) Reset(rs kernel.ResetScope) {
-	s.cells.Reset(func(k aws.AccountID) bool { return !rs.Covers(aws.Scope{Partition: aws.PartitionAWS(), Account: k}) })
-}
-
-// Rearm does nothing: the state arms no timers.
+// Rearm does nothing: STS arms no timers.
 func (*Service) Rearm(clock.Instant) {}
 
-// Resources lists nothing: the state holds no resources.
+// Resources lists nothing: STS holds no resources.
 func (*Service) Resources(aws.Scope) []kernel.Resource { return nil }
 
-// Scopes returns the accounts that hold a state cell, each with a zero
-// region; STS has no regional state.
-func (s *Service) Scopes() []aws.Scope {
-	accounts := s.cells.Keys(store.AccountKeys())
-	out := make([]aws.Scope, len(accounts))
-	for i, a := range accounts {
-		out[i] = aws.Scope{Partition: aws.PartitionAWS(), Account: a}
+// Scopes returns nothing: STS keeps no state in any account or region.
+func (*Service) Scopes() []aws.Scope { return nil }
+
+// sectionsError is a snapshot that holds STS sections, which no build of
+// STS writes.
+type sectionsError struct{ paths []string }
+
+func (e *sectionsError) Error() string {
+	return fmt.Sprintf("sts: the snapshot holds %d STS sections (%s), but STS keeps no state and writes none; the snapshot was edited or written by another program, and none of its STS sections were loaded", len(e.paths), strings.Join(e.paths, ", "))
+}
+
+func sectionPaths(ss []store.Section) []string {
+	out := make([]string, len(ss))
+	for i := range ss {
+		out[i] = ss[i].Path
 	}
 	return out
 }
 
-// Switches lists no behaviors: the service implements none yet.
-func (*Service) Switches() []fidelity.Entry { return nil }
+// roleCheck is the iam.assumeRole switch as configured.
+func (s *Service) roleCheck() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:  "iam.assumeRole",
+		Value: s.opts.AssumeRole.String(),
+		Label: s.opts.AssumeRole.label(),
+		Ref:   "docs/design/ARCHITECTURE.md#7-identity-auth-accounts-and-regions",
+	}
+}

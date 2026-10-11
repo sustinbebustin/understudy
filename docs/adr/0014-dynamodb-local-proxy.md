@@ -40,3 +40,8 @@ The brief proxies DynamoDB to an understudy-managed DynamoDB Local container, pu
 - When the topology is `InContainer`, Local attaches to understudy's network and is addressed by container IP (product C2).
 - The config state is `Disabled | AwaitingLicence | Accepted{Digest}`; the 501 text, the startup banner and `understudy env` all print the exact flag and environment variable (engineering m15, product M4).
 - Open decision: the licence reading needs counsel before the first public tag (architecture 25.2). If the answer is no, the fallback is a native lock-table subset (`CreateTable`, `PutItem`, `GetItem`, `DeleteItem`, `UpdateItem`, `Query` with condition expressions, TTL) behind the same generated API and `RawHandler` seam; it is not built in phase 1.
+
+## Amendment (wave 6, 2026-10-11)
+
+- Until `internal/docker` carries port bindings (`Config.ExposedPorts`, `HostConfig.PortBindings`, `NetworkSettings.Ports`), the Manager reaches DynamoDB Local at its default-bridge address instead of a port published on `127.0.0.1:0`. That address is routable from a Linux host only, so DynamoDB is unsupported under Docker Desktop until then; `ddblocal.NotReadyError` says so, and `docs/plan/DEFERRED.md` (wave 6) tracks the fix.
+- The edge buffers a client's body for every operation bound with `kernel.BindRaw` and passes it as the `FromClient` wire, so the passthrough is byte-exact through the front door as the amendment above requires.

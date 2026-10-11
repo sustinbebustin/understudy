@@ -142,13 +142,15 @@ func Bind[In, Out any](b *Binder, op Op[In, Out], h Handler[In, Out], cov regist
 // input is decoded and validated like any other; the handler answers with
 // the bytes to send, which the call's output carries as a *RawOutput.
 func BindRaw[In any](b *Binder, op Op[In, RawOutput], h RawHandler[In], cov registry.BindCoverage, opts ...BindOption) {
-	b.bind(op.desc, cov, typedBinding[In](b, op.desc, opts, func(ctx context.Context, c *Call, in *In, w Wire) (any, *awserr.Error) {
+	bnd := typedBinding[In](b, op.desc, opts, func(ctx context.Context, c *Call, in *In, w Wire) (any, *awserr.Error) {
 		resp, err := h(ctx, c, in, w)
 		if err != nil {
 			return nil, err
 		}
 		return &RawOutput{Response: resp}, nil
-	}))
+	})
+	bnd.passthrough = true
+	b.bind(op.desc, cov, bnd)
 }
 
 // BindRawHTTP binds the handler of a raw operation, which owns the HTTP body
@@ -253,6 +255,9 @@ type binding struct {
 	// raw is set for an operation bound with BindRawHTTP, whose input is a
 	// RawExchange and whose output the handler writes itself.
 	raw bool
+	// passthrough is set for an operation bound with BindRaw, whose handler
+	// forwards the client's bytes: the edge hands it a FromClient wire.
+	passthrough bool
 	// newInput returns a new *In to decode into; nil for raw HTTP bindings.
 	newInput func() any
 	validate func(in any) *awserr.Error
@@ -308,6 +313,14 @@ func (k *Kernel) NewInput(op *registry.Operation) (any, bool) {
 		return nil, false
 	}
 	return bnd.newInput(), true
+}
+
+// Passthrough reports whether op is bound with BindRaw. Its handler
+// forwards the client's request, so the edge buffers the body (within the
+// operation's cap) and passes it as a FromClient wire (ADR 0014).
+func (k *Kernel) Passthrough(op *registry.Operation) bool {
+	bnd, ok := k.bindings.lookup(op)
+	return ok && bnd.passthrough
 }
 
 func (b *Bindings) lookup(op *registry.Operation) (*binding, bool) {

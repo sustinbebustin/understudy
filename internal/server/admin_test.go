@@ -18,6 +18,7 @@ import (
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/coverage"
 	"github.com/sustinbebustin/understudy/internal/server"
 )
 
@@ -124,8 +125,8 @@ func TestAdminHealthReportsReadinessAndServices(t *testing.T) {
 	}
 }
 
-// Each protocol's codec is registered: a request for an operation no
-// service binds yet reaches its service and is answered 501 in that
+// Each protocol's codec is registered: a request for an operation its
+// service leaves unbound reaches the service and is answered 501 in that
 // protocol's envelope.
 func TestEveryProtocolReachesItsService(t *testing.T) {
 	_, endpoint := adminServer(t, server.Config{})
@@ -135,19 +136,19 @@ func TestEveryProtocolReachesItsService(t *testing.T) {
 		want                              string
 	}{
 		{
-			name: "awsQuery", method: http.MethodPost, path: "/", signing: "sns", body: "Action=ListTopics&Version=2010-03-31",
+			name: "awsQuery", method: http.MethodPost, path: "/", signing: "sns", body: "Action=ListPlatformApplications&Version=2010-03-31",
 			header: map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, want: "<ErrorResponse",
 		},
 		{
-			name: "awsJson1_1", method: http.MethodPost, path: "/", signing: "logs", body: "{}",
-			header: map[string]string{"Content-Type": "application/x-amz-json-1.1", "X-Amz-Target": "Logs_20140328.DescribeLogGroups"}, want: "NotImplemented",
+			name: "awsJson1_1", method: http.MethodPost, path: "/", signing: "logs", body: `{"logGroupIdentifier":"g"}`,
+			header: map[string]string{"Content-Type": "application/x-amz-json-1.1", "X-Amz-Target": "Logs_20140328.AssociateKmsKey"}, want: "NotImplemented",
 		},
 		{
-			name: "rpcv2Cbor", method: http.MethodPost, path: "/service/GraniteServiceVersion20100801/operation/ListMetrics", signing: "monitoring",
+			name: "rpcv2Cbor", method: http.MethodPost, path: "/service/GraniteServiceVersion20100801/operation/ListDashboards", signing: "monitoring",
 			header: map[string]string{"Content-Type": "application/cbor", "Smithy-Protocol": "rpc-v2-cbor"}, want: "NotImplemented",
 		},
-		{name: "restJson1", method: http.MethodGet, path: "/2015-03-31/functions/", signing: "lambda", want: "understudy does not implement lambda.ListFunctions"},
-		{name: "restXml", method: http.MethodGet, path: "/", signing: "s3", want: "understudy does not implement s3.ListBuckets"},
+		{name: "restJson1", method: http.MethodGet, path: "/2018-10-31/layers", signing: "lambda", want: "understudy does not implement lambda.ListLayers"},
+		{name: "restXml", method: http.MethodGet, path: "/bucket/key", signing: "s3", want: "understudy does not implement s3.GetObject"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -556,16 +557,29 @@ func TestAdminIAM(t *testing.T) {
 // unavailable with a hint.
 func TestAdminUnimplementedHooksAreUnavailable(t *testing.T) {
 	c, _ := adminServer(t, server.Config{})
-	_, err := c.Coverage(t.Context(), "json")
-	wantCode(t, err, admin.Unavailable)
-	wantCode(t, c.HotReload(t.Context(), "fn", admin.HotReloadRequest{Dir: "/tmp/build"}), admin.Unavailable)
-	_, err = c.PullImages(t.Context(), admin.ImagePullRequest{})
+	if e := adminErr(t, c.HotReload(t.Context(), "fn", admin.HotReloadRequest{Dir: "/tmp/build"}), admin.Unavailable); e.Hint == "" {
+		t.Fatalf("unavailable without a hint: %+v", e)
+	}
+	_, err := c.PullImages(t.Context(), admin.ImagePullRequest{})
 	wantCode(t, err, admin.Unavailable)
 	_, err = c.SweepTTL(t.Context())
 	wantCode(t, err, admin.Unavailable)
-	_, err = c.SubscriptionToken(t.Context(), "arn:aws:sns:us-east-1:000000000000:t:1")
-	if e := adminErr(t, err, admin.Unavailable); e.Hint == "" {
-		t.Fatalf("unavailable without a hint: %+v", e)
+}
+
+// GET /coverage reports the running server's protocol compliance, from
+// the checked-in baseline, and every wired service.
+func TestAdminCoverageReportsTheRunningServer(t *testing.T) {
+	c, _ := adminServer(t, server.Config{})
+	data, err := c.Coverage(t.Context(), "json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := coverage.ParseJSON(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Protocols) == 0 || len(report.Services) != 12 {
+		t.Fatalf("coverage lists %d protocol suites and %d services, want some suites and the twelve services", len(report.Protocols), len(report.Services))
 	}
 }
 

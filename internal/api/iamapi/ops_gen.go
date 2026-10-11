@@ -1828,10 +1828,22 @@ var descResetServiceSpecificCredential = registry.Operation{
 	SuccessCode: 200,
 }
 
+var descResolveRole = registry.Operation{
+	Service:     &service,
+	ID:          ref.OperationID{Service: "iam", Name: "ResolveRole"},
+	Ordinal:     140,
+	Kind:        registry.Internal,
+	Shape:       "com.amazonaws.iam#ResolveRole",
+	Input:       &schemaResolveRoleInput,
+	Output:      &schemaResolveRoleOutput,
+	Errors:      []awserr.Identity{IdentityNoSuchEntityException(), IdentityValidationException()},
+	SuccessCode: 200,
+}
+
 var descResyncMFADevice = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "ResyncMFADevice"},
-	Ordinal:     140,
+	Ordinal:     141,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#ResyncMFADevice",
 	Input:       &schemaResyncMFADeviceInput,
@@ -1844,7 +1856,7 @@ var descResyncMFADevice = registry.Operation{
 var descSendDelegationToken = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "SendDelegationToken"},
-	Ordinal:     141,
+	Ordinal:     142,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#SendDelegationToken",
 	Input:       &schemaSendDelegationTokenInput,
@@ -1857,7 +1869,7 @@ var descSendDelegationToken = registry.Operation{
 var descSetDefaultPolicyVersion = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "SetDefaultPolicyVersion"},
-	Ordinal:     142,
+	Ordinal:     143,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#SetDefaultPolicyVersion",
 	Input:       &schemaSetDefaultPolicyVersionInput,
@@ -1870,7 +1882,7 @@ var descSetDefaultPolicyVersion = registry.Operation{
 var descSetSecurityTokenServicePreferences = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "SetSecurityTokenServicePreferences"},
-	Ordinal:     143,
+	Ordinal:     144,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#SetSecurityTokenServicePreferences",
 	Input:       &schemaSetSecurityTokenServicePreferencesInput,
@@ -1883,7 +1895,7 @@ var descSetSecurityTokenServicePreferences = registry.Operation{
 var descSimulateCustomPolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "SimulateCustomPolicy"},
-	Ordinal:     144,
+	Ordinal:     145,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#SimulateCustomPolicy",
 	Input:       &schemaSimulateCustomPolicyInput,
@@ -1896,7 +1908,7 @@ var descSimulateCustomPolicy = registry.Operation{
 var descSimulatePrincipalPolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "SimulatePrincipalPolicy"},
-	Ordinal:     145,
+	Ordinal:     146,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#SimulatePrincipalPolicy",
 	Input:       &schemaSimulatePrincipalPolicyInput,
@@ -1909,7 +1921,7 @@ var descSimulatePrincipalPolicy = registry.Operation{
 var descTagInstanceProfile = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "TagInstanceProfile"},
-	Ordinal:     146,
+	Ordinal:     147,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#TagInstanceProfile",
 	Input:       &schemaTagInstanceProfileInput,
@@ -1922,7 +1934,7 @@ var descTagInstanceProfile = registry.Operation{
 var descTagMFADevice = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "TagMFADevice"},
-	Ordinal:     147,
+	Ordinal:     148,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#TagMFADevice",
 	Input:       &schemaTagMFADeviceInput,
@@ -1935,7 +1947,7 @@ var descTagMFADevice = registry.Operation{
 var descTagOpenIDConnectProvider = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "TagOpenIDConnectProvider"},
-	Ordinal:     148,
+	Ordinal:     149,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#TagOpenIDConnectProvider",
 	Input:       &schemaTagOpenIDConnectProviderInput,
@@ -1948,7 +1960,7 @@ var descTagOpenIDConnectProvider = registry.Operation{
 var descTagPolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "TagPolicy"},
-	Ordinal:     149,
+	Ordinal:     150,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#TagPolicy",
 	Input:       &schemaTagPolicyInput,
@@ -1961,7 +1973,7 @@ var descTagPolicy = registry.Operation{
 var descTagRole = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "TagRole"},
-	Ordinal:     150,
+	Ordinal:     151,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#TagRole",
 	Input:       &schemaTagRoleInput,
@@ -1974,7 +1986,7 @@ var descTagRole = registry.Operation{
 var descTagSAMLProvider = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "TagSAMLProvider"},
-	Ordinal:     151,
+	Ordinal:     152,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#TagSAMLProvider",
 	Input:       &schemaTagSAMLProviderInput,
@@ -1987,7 +1999,7 @@ var descTagSAMLProvider = registry.Operation{
 var descTagServerCertificate = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "TagServerCertificate"},
-	Ordinal:     152,
+	Ordinal:     153,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#TagServerCertificate",
 	Input:       &schemaTagServerCertificateInput,
@@ -2000,7 +2012,7 @@ var descTagServerCertificate = registry.Operation{
 var descTagUser = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "TagUser"},
-	Ordinal:     153,
+	Ordinal:     154,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#TagUser",
 	Input:       &schemaTagUserInput,
@@ -2013,7 +2025,7 @@ var descTagUser = registry.Operation{
 var descUntagInstanceProfile = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UntagInstanceProfile"},
-	Ordinal:     154,
+	Ordinal:     155,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UntagInstanceProfile",
 	Input:       &schemaUntagInstanceProfileInput,
@@ -2026,7 +2038,7 @@ var descUntagInstanceProfile = registry.Operation{
 var descUntagMFADevice = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UntagMFADevice"},
-	Ordinal:     155,
+	Ordinal:     156,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UntagMFADevice",
 	Input:       &schemaUntagMFADeviceInput,
@@ -2039,7 +2051,7 @@ var descUntagMFADevice = registry.Operation{
 var descUntagOpenIDConnectProvider = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UntagOpenIDConnectProvider"},
-	Ordinal:     156,
+	Ordinal:     157,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UntagOpenIDConnectProvider",
 	Input:       &schemaUntagOpenIDConnectProviderInput,
@@ -2052,7 +2064,7 @@ var descUntagOpenIDConnectProvider = registry.Operation{
 var descUntagPolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UntagPolicy"},
-	Ordinal:     157,
+	Ordinal:     158,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UntagPolicy",
 	Input:       &schemaUntagPolicyInput,
@@ -2065,7 +2077,7 @@ var descUntagPolicy = registry.Operation{
 var descUntagRole = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UntagRole"},
-	Ordinal:     158,
+	Ordinal:     159,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UntagRole",
 	Input:       &schemaUntagRoleInput,
@@ -2078,7 +2090,7 @@ var descUntagRole = registry.Operation{
 var descUntagSAMLProvider = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UntagSAMLProvider"},
-	Ordinal:     159,
+	Ordinal:     160,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UntagSAMLProvider",
 	Input:       &schemaUntagSAMLProviderInput,
@@ -2091,7 +2103,7 @@ var descUntagSAMLProvider = registry.Operation{
 var descUntagServerCertificate = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UntagServerCertificate"},
-	Ordinal:     160,
+	Ordinal:     161,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UntagServerCertificate",
 	Input:       &schemaUntagServerCertificateInput,
@@ -2104,7 +2116,7 @@ var descUntagServerCertificate = registry.Operation{
 var descUntagUser = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UntagUser"},
-	Ordinal:     161,
+	Ordinal:     162,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UntagUser",
 	Input:       &schemaUntagUserInput,
@@ -2117,7 +2129,7 @@ var descUntagUser = registry.Operation{
 var descUpdateAccessKey = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateAccessKey"},
-	Ordinal:     162,
+	Ordinal:     163,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateAccessKey",
 	Input:       &schemaUpdateAccessKeyInput,
@@ -2130,7 +2142,7 @@ var descUpdateAccessKey = registry.Operation{
 var descUpdateAccountPasswordPolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateAccountPasswordPolicy"},
-	Ordinal:     163,
+	Ordinal:     164,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateAccountPasswordPolicy",
 	Input:       &schemaUpdateAccountPasswordPolicyInput,
@@ -2143,7 +2155,7 @@ var descUpdateAccountPasswordPolicy = registry.Operation{
 var descUpdateAssumeRolePolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateAssumeRolePolicy"},
-	Ordinal:     164,
+	Ordinal:     165,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateAssumeRolePolicy",
 	Input:       &schemaUpdateAssumeRolePolicyInput,
@@ -2156,7 +2168,7 @@ var descUpdateAssumeRolePolicy = registry.Operation{
 var descUpdateDelegationRequest = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateDelegationRequest"},
-	Ordinal:     165,
+	Ordinal:     166,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateDelegationRequest",
 	Input:       &schemaUpdateDelegationRequestInput,
@@ -2168,7 +2180,7 @@ var descUpdateDelegationRequest = registry.Operation{
 var descUpdateGroup = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateGroup"},
-	Ordinal:     166,
+	Ordinal:     167,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateGroup",
 	Input:       &schemaUpdateGroupInput,
@@ -2181,7 +2193,7 @@ var descUpdateGroup = registry.Operation{
 var descUpdateLoginProfile = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateLoginProfile"},
-	Ordinal:     167,
+	Ordinal:     168,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateLoginProfile",
 	Input:       &schemaUpdateLoginProfileInput,
@@ -2194,7 +2206,7 @@ var descUpdateLoginProfile = registry.Operation{
 var descUpdateOpenIDConnectProviderThumbprint = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateOpenIDConnectProviderThumbprint"},
-	Ordinal:     168,
+	Ordinal:     169,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateOpenIDConnectProviderThumbprint",
 	Input:       &schemaUpdateOpenIDConnectProviderThumbprintInput,
@@ -2207,7 +2219,7 @@ var descUpdateOpenIDConnectProviderThumbprint = registry.Operation{
 var descUpdateRole = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateRole"},
-	Ordinal:     169,
+	Ordinal:     170,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateRole",
 	Input:       &schemaUpdateRoleInput,
@@ -2220,7 +2232,7 @@ var descUpdateRole = registry.Operation{
 var descUpdateRoleDescription = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateRoleDescription"},
-	Ordinal:     170,
+	Ordinal:     171,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateRoleDescription",
 	Input:       &schemaUpdateRoleDescriptionInput,
@@ -2233,7 +2245,7 @@ var descUpdateRoleDescription = registry.Operation{
 var descUpdateSAMLProvider = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateSAMLProvider"},
-	Ordinal:     171,
+	Ordinal:     172,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateSAMLProvider",
 	Input:       &schemaUpdateSAMLProviderInput,
@@ -2246,7 +2258,7 @@ var descUpdateSAMLProvider = registry.Operation{
 var descUpdateSSHPublicKey = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateSSHPublicKey"},
-	Ordinal:     172,
+	Ordinal:     173,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateSSHPublicKey",
 	Input:       &schemaUpdateSSHPublicKeyInput,
@@ -2259,7 +2271,7 @@ var descUpdateSSHPublicKey = registry.Operation{
 var descUpdateServerCertificate = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateServerCertificate"},
-	Ordinal:     173,
+	Ordinal:     174,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateServerCertificate",
 	Input:       &schemaUpdateServerCertificateInput,
@@ -2272,7 +2284,7 @@ var descUpdateServerCertificate = registry.Operation{
 var descUpdateServiceSpecificCredential = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateServiceSpecificCredential"},
-	Ordinal:     174,
+	Ordinal:     175,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateServiceSpecificCredential",
 	Input:       &schemaUpdateServiceSpecificCredentialInput,
@@ -2285,7 +2297,7 @@ var descUpdateServiceSpecificCredential = registry.Operation{
 var descUpdateSigningCertificate = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateSigningCertificate"},
-	Ordinal:     175,
+	Ordinal:     176,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateSigningCertificate",
 	Input:       &schemaUpdateSigningCertificateInput,
@@ -2298,7 +2310,7 @@ var descUpdateSigningCertificate = registry.Operation{
 var descUpdateUser = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UpdateUser"},
-	Ordinal:     176,
+	Ordinal:     177,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UpdateUser",
 	Input:       &schemaUpdateUserInput,
@@ -2311,7 +2323,7 @@ var descUpdateUser = registry.Operation{
 var descUploadSSHPublicKey = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UploadSSHPublicKey"},
-	Ordinal:     177,
+	Ordinal:     178,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UploadSSHPublicKey",
 	Input:       &schemaUploadSSHPublicKeyInput,
@@ -2324,7 +2336,7 @@ var descUploadSSHPublicKey = registry.Operation{
 var descUploadServerCertificate = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UploadServerCertificate"},
-	Ordinal:     178,
+	Ordinal:     179,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UploadServerCertificate",
 	Input:       &schemaUploadServerCertificateInput,
@@ -2337,7 +2349,7 @@ var descUploadServerCertificate = registry.Operation{
 var descUploadSigningCertificate = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "iam", Name: "UploadSigningCertificate"},
-	Ordinal:     179,
+	Ordinal:     180,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.iam#UploadSigningCertificate",
 	Input:       &schemaUploadSigningCertificateInput,

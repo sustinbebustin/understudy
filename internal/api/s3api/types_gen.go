@@ -43,6 +43,9 @@ type AccelerateConfiguration struct {
 	Status *BucketAccelerateStatus
 }
 
+// AccessControlListNotSupported is the error com.amazonaws.s3#AccessControlListNotSupported.
+type AccessControlListNotSupported struct{}
+
 // AccessControlPolicy is com.amazonaws.s3#AccessControlPolicy.
 type AccessControlPolicy struct {
 	Grants []Grant
@@ -287,6 +290,11 @@ func (ArchiveStatus) Values() []ArchiveStatus {
 		ArchiveStatusArchiveAccess,
 		ArchiveStatusDeepArchiveAccess,
 	}
+}
+
+// AuthorizationHeaderMalformed is the error com.amazonaws.s3#AuthorizationHeaderMalformed.
+type AuthorizationHeaderMalformed struct {
+	Region *string
 }
 
 // BadDigest is the error com.amazonaws.s3#BadDigest.
@@ -3008,6 +3016,12 @@ type HeadObjectOutput struct {
 // IdempotencyParameterMismatch is the error com.amazonaws.s3#IdempotencyParameterMismatch.
 type IdempotencyParameterMismatch struct{}
 
+// IllegalLocationConstraintException is the error com.amazonaws.s3#IllegalLocationConstraintException.
+type IllegalLocationConstraintException struct{}
+
+// IllegalVersioningConfigurationException is the error com.amazonaws.s3#IllegalVersioningConfigurationException.
+type IllegalVersioningConfigurationException struct{}
+
 // IndexDocument is com.amazonaws.s3#IndexDocument.
 type IndexDocument struct {
 	Suffix string
@@ -3130,6 +3144,22 @@ type InvalidArgument struct {
 	ArgumentValue *string
 }
 
+// InvalidBucketAclWithObjectOwnership is the error com.amazonaws.s3#InvalidBucketAclWithObjectOwnership.
+type InvalidBucketAclWithObjectOwnership struct{}
+
+// InvalidBucketName is the error com.amazonaws.s3#InvalidBucketName.
+type InvalidBucketName struct {
+	BucketName *string
+}
+
+// InvalidBucketState is the error com.amazonaws.s3#InvalidBucketState.
+type InvalidBucketState struct{}
+
+// InvalidLocationConstraint is the error com.amazonaws.s3#InvalidLocationConstraint.
+type InvalidLocationConstraint struct {
+	LocationConstraint *string
+}
+
 // InvalidObjectState is the error com.amazonaws.s3#InvalidObjectState.
 type InvalidObjectState struct {
 	StorageClass *StorageClass
@@ -3154,6 +3184,12 @@ type InvalidRange struct {
 
 // InvalidRequest is the error com.amazonaws.s3#InvalidRequest.
 type InvalidRequest struct{}
+
+// InvalidTag is the error com.amazonaws.s3#InvalidTag.
+type InvalidTag struct {
+	TagKey   *string
+	TagValue *string
+}
 
 // InvalidWriteOffset is the error com.amazonaws.s3#InvalidWriteOffset.
 type InvalidWriteOffset struct{}
@@ -4031,6 +4067,12 @@ func (MFADeleteStatus) Values() []MFADeleteStatus {
 	}
 }
 
+// MalformedACLError is the error com.amazonaws.s3#MalformedACLError.
+type MalformedACLError struct{}
+
+// MalformedPolicy is the error com.amazonaws.s3#MalformedPolicy.
+type MalformedPolicy struct{}
+
 // MalformedXML is the error com.amazonaws.s3#MalformedXML.
 type MalformedXML struct{}
 
@@ -4200,6 +4242,11 @@ func (MetricsStatus) Values() []MetricsStatus {
 	}
 }
 
+// MissingSecurityHeader is the error com.amazonaws.s3#MissingSecurityHeader.
+type MissingSecurityHeader struct {
+	MissingHeaderName *string
+}
+
 // MultipartUpload is com.amazonaws.s3#MultipartUpload.
 type MultipartUpload struct {
 	UploadId          *string
@@ -4227,6 +4274,9 @@ type NoSuchBucketPolicy struct {
 type NoSuchCORSConfiguration struct {
 	BucketName *string
 }
+
+// NoSuchConfiguration is the error com.amazonaws.s3#NoSuchConfiguration.
+type NoSuchConfiguration struct{}
 
 // NoSuchKey is the error com.amazonaws.s3#NoSuchKey.
 type NoSuchKey struct{}
@@ -4953,6 +5003,12 @@ func (Payer) Values() []Payer {
 		PayerRequester,
 		PayerBucketOwner,
 	}
+}
+
+// PermanentRedirect is the error com.amazonaws.s3#PermanentRedirect.
+type PermanentRedirect struct {
+	Endpoint *string
+	Bucket   *string
 }
 
 // Permission is com.amazonaws.s3#Permission.
@@ -6854,6 +6910,9 @@ func (Type) Values() []Type {
 		TypeGroup,
 	}
 }
+
+// UnexpectedContent is the error com.amazonaws.s3#UnexpectedContent.
+type UnexpectedContent struct{}
 
 // UnsupportedMediaType is the error com.amazonaws.s3#UnsupportedMediaType.
 type UnsupportedMediaType struct{}

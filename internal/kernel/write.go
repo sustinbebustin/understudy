@@ -3,9 +3,11 @@ package kernel
 import (
 	"fmt"
 
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -19,9 +21,9 @@ type Delivery struct {
 	Accepted clock.Instant
 }
 
-// Tx collects the effects of one Write: timer arms and disarms, applied
-// inside the critical section in commit order, and wakes and deliveries,
-// run after unlock.
+// Tx collects the effects of one Write: journal records and timer arms and
+// disarms, applied inside the critical section in commit order, and wakes
+// and deliveries, run after unlock.
 type Tx struct {
 	k *Kernel
 	// now is the commit instant; deliveries are accepted at it.
@@ -29,7 +31,10 @@ type Tx struct {
 	timers []timerEffect
 	wakes  []store.WaitKey
 	sends  []delivery.Request
-	err    error
+	// records are journal events applied in the critical section, in
+	// Record order, before the timers.
+	records []recordEffect
+	err     error
 	// unchanged is set by Unchanged: the cell's revision stays.
 	unchanged bool
 }
@@ -79,6 +84,22 @@ func (tx *Tx) Deliver(r delivery.Request) {
 	tx.sends = append(tx.sends, r)
 }
 
+// Record journals d, in scope, as an event the writing call caused, once
+// the write commits: at the commit instant, under the cell's lock and
+// before any timer the write arms can fire, so the journal never shows an
+// effect of the change before the change. A write that fails journals
+// nothing. As with Call.Record, the kernel stamps the cause. The journal
+// refuses only a malformed detail, a bug that, like the zero HandledKind,
+// makes the write an Internal error after it commits.
+func (tx *Tx) Record(scope aws.Scope, d journal.Detail) {
+	tx.records = append(tx.records, recordEffect{scope: scope, detail: d})
+}
+
+type recordEffect struct {
+	scope  aws.Scope
+	detail journal.Detail
+}
+
 func (tx *Tx) fail(err error) {
 	if tx.err == nil {
 		tx.err = err
@@ -94,6 +115,18 @@ type UnregisteredKindError struct {
 func (e *UnregisteredKindError) Error() string {
 	return fmt.Sprintf("timer %q was armed with the zero HandledKind and was not scheduled; arm with the value Kernel.Timers().Handle returned in the service constructor", e.ID)
 }
+
+// RecordError is a Record effect the journal refused: its detail is
+// malformed. The write committed without the event.
+type RecordError struct {
+	Err error
+}
+
+func (e *RecordError) Error() string {
+	return "a write's journal record was refused and the write committed without it: " + e.Err.Error()
+}
+
+func (e *RecordError) Unwrap() error { return e.Err }
 
 // NoDeliverSinkError is a Deliver effect in a kernel built without a
 // DeliverSink.
@@ -174,6 +207,11 @@ func commit[S, R any](c *Call, cell *store.Cell[S], fn func(s *S, now clock.Inst
 		r, err := fn(s, tx.now, tx)
 		if err != nil {
 			return committed[R]{err: err}, false
+		}
+		for _, rec := range tx.records {
+			if err := k.record(c, tx.now, rec.scope, rec.detail); err != nil {
+				tx.fail(&RecordError{Err: err})
+			}
 		}
 		for _, t := range tx.timers {
 			if t.arm {

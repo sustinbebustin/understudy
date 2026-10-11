@@ -8795,6 +8795,46 @@ func (v *ResetServiceSpecificCredentialOutput) serialize(s smithy.Serializer, m 
 	s.CloseStruct()
 }
 
+// Deserialize reads v from d. Absent members stay absent; Validate
+// reports missing required ones.
+func (v *ResolveRoleInput) Deserialize(d smithy.Deserializer) error { return v.deserialize(d) }
+
+func (v *ResolveRoleInput) deserialize(d smithy.Deserializer) error {
+	if err := d.ReadStruct(&schemaResolveRoleInput); err != nil {
+		return err
+	}
+	v.missing = 1<<1 - 1
+	for {
+		m, ok, err := d.ReadStructMember()
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		switch m {
+		case &memberResolveRoleInput_RoleArn:
+			x, err := d.ReadString(&memberResolveRoleInput_RoleArn)
+			if err != nil {
+				return err
+			}
+			v.RoleArn = x
+			v.missing &^= 1 << 0
+		default:
+			return fmt.Errorf("iamapi: structure com.amazonaws.iam#ResolveRoleRequest has no member %q; the codec returned a member of another shape", m.Name)
+		}
+	}
+}
+
+// Serialize writes v through s.
+func (v *ResolveRoleOutput) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *ResolveRoleOutput) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaResolveRoleOutput)
+	v.Role.serialize(s, &memberResolveRoleOutput_Role)
+	s.CloseStruct()
+}
+
 func deserializeResourceNameListType(d smithy.Deserializer, m *smithy.Member) ([]string, error) {
 	if err := d.ReadList(m); err != nil {
 		return nil, err

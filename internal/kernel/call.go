@@ -1,6 +1,8 @@
 package kernel
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
 	"slices"
 	"sync"
@@ -11,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
@@ -20,9 +23,12 @@ import (
 // it through accessors and may Touch resources. A Call belongs to one
 // pipeline run and is not reused.
 type Call struct {
-	k         *Kernel
-	id        ids.RequestID
-	scope     aws.Scope
+	k     *Kernel
+	id    ids.RequestID
+	scope aws.Scope
+	// region is where an external request asserts its region from; nil
+	// for internal and timer calls, which assert none.
+	region    aws.RegionSource
 	principal identity.Principal
 	origin    ref.Origin
 	// mode is how an internal call is authorized; nil for external and
@@ -62,6 +68,17 @@ func (c *Call) ID() ids.RequestID { return c.id }
 
 // Scope returns the account and region the call runs in.
 func (c *Call) Scope() aws.Scope { return c.scope }
+
+// RegionSource returns where the call's region came from (ARCHITECTURE.md
+// 7): the credential scope a SigV4 request signed for, or aws.None for a
+// SigV2 or anonymous request and for every internal and timer call, whose
+// region is the scope it was given.
+func (c *Call) RegionSource() aws.RegionSource {
+	if c.region == nil {
+		return aws.None{}
+	}
+	return c.region
+}
 
 // Principal returns who makes the call.
 func (c *Call) Principal() identity.Principal { return c.principal }
@@ -122,6 +139,26 @@ func (c *Call) Touch(arns ...aws.ARN) {
 	}
 }
 
+// Record journals d as an event the call caused, at its admission instant
+// in scope (the affected resource's, which a cross-scope effect makes
+// differ from the call's). The kernel stamps the cause, the call's event
+// and trace, so a handler describes what happened but never links it
+// (ARCHITECTURE.md 10). The journal refuses only a malformed detail, a
+// caller bug, which is logged while the call goes on, as for the
+// pipeline's own events. A record that describes a state change belongs on
+// the Write that makes it: Tx.Record.
+func (c *Call) Record(ctx context.Context, scope aws.Scope, d journal.Detail) {
+	if err := c.k.record(c, c.admitted, scope, d); err != nil {
+		c.k.log.LogAttrs(ctx, slog.LevelWarn, "journal refused an event a handler recorded",
+			slog.String("op", c.label), slog.String("request_id", string(c.id)), slog.String("error", err.Error()))
+	}
+}
+
+func (k *Kernel) record(c *Call, at clock.Instant, scope aws.Scope, d journal.Detail) error {
+	_, err := k.journal.Append(journal.Event{Cause: ref.Cause{Parent: c.event, Trace: c.cause.Trace}, At: at, Scope: scope, Detail: d})
+	return err
+}
+
 // Touched returns the resources the call has touched so far, in first-touch
 // order.
 func (c *Call) Touched() []aws.ARN {
@@ -145,10 +182,14 @@ type ExternalCall struct {
 	// Op is nil.
 	Operation ref.OperationID
 	Scope     aws.Scope
-	Principal identity.Principal
-	Origin    ref.External
-	Admitted  clock.Instant
-	Endpoint  Endpoint
+	// RegionSource is where the request asserts its region from (ARCHITECTURE.md
+	// 7): the SigV4 credential scope, or none for SigV2 and anonymous
+	// requests. nil is read as aws.None.
+	RegionSource aws.RegionSource
+	Principal    identity.Principal
+	Origin       ref.External
+	Admitted     clock.Instant
+	Endpoint     Endpoint
 	// Header is the request's header; the call keeps CallHeaders only.
 	Header http.Header
 }
@@ -164,10 +205,15 @@ func (k *Kernel) NewCall(e ExternalCall) *Call {
 			kept[name] = slices.Clone(v)
 		}
 	}
+	src := e.RegionSource
+	if src == nil {
+		src = aws.None{}
+	}
 	c := &Call{
 		k:         k,
 		id:        e.RequestID,
 		scope:     e.Scope,
+		region:    src,
 		principal: e.Principal,
 		origin:    e.Origin,
 		op:        op,

@@ -292,6 +292,9 @@ var OpPutIntegration = kernel.NewOp[PutIntegrationInput, PutIntegrationOutput](&
 // OpPutLogEvents is the typed handle on PutLogEvents.
 var OpPutLogEvents = kernel.NewOp[PutLogEventsInput, PutLogEventsOutput](&descPutLogEvents)
 
+// OpPutLogEventsInternal is the typed handle on PutLogEventsInternal.
+var OpPutLogEventsInternal = kernel.NewOp[PutLogEventsInternalInput, PutLogEventsInternalOutput](&descPutLogEventsInternal)
+
 // OpPutLogGroupDeletionProtection is the typed handle on PutLogGroupDeletionProtection.
 var OpPutLogGroupDeletionProtection = kernel.NewOp[PutLogGroupDeletionProtectionInput, PutLogGroupDeletionProtectionOutput](&descPutLogGroupDeletionProtection)
 
@@ -840,6 +843,11 @@ func (b Binder) PutIntegration(h kernel.Handler[PutIntegrationInput, PutIntegrat
 // PutLogEvents binds the handler of PutLogEvents.
 func (b Binder) PutLogEvents(h kernel.Handler[PutLogEventsInput, PutLogEventsOutput], cov registry.BindCoverage, opts ...kernel.BindOption) {
 	kernel.Bind(b.b, OpPutLogEvents, h, cov, opts...)
+}
+
+// PutLogEventsInternal binds the handler of PutLogEventsInternal.
+func (b Binder) PutLogEventsInternal(h kernel.Handler[PutLogEventsInternalInput, PutLogEventsInternalOutput], cov registry.BindCoverage, opts ...kernel.BindOption) {
+	kernel.Bind(b.b, OpPutLogEventsInternal, h, cov, opts...)
 }
 
 // PutLogGroupDeletionProtection binds the handler of PutLogGroupDeletionProtection.

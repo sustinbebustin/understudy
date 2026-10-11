@@ -63,12 +63,12 @@ coverage-check:
     #!/usr/bin/env bash
     set -euo pipefail
     if ! git ls-files --error-unmatch docs/coverage.md >/dev/null 2>&1; then
-        echo "docs/coverage.md is not tracked; generate it with 'go run ./cmd/understudy coverage --format markdown' and commit it" >&2
+        echo "docs/coverage.md is not tracked; generate it with 'go run ./internal/cmd/coverage > docs/coverage.md' and commit it" >&2
         exit 1
     fi
     tmp=$(mktemp)
     trap 'rm -f -- "$tmp"' EXIT
-    go run ./cmd/understudy coverage --format markdown > "$tmp"
+    go run ./internal/cmd/coverage > "$tmp"
     cat -- "$tmp" > docs/coverage.md
     git diff --exit-code -- docs/coverage.md
 

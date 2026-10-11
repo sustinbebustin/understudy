@@ -20,6 +20,37 @@
           }
         ]
       }
+    },
+    "com.amazonaws.cloudwatchlogs#PutLogEventsInternal": {
+      "type": "operation",
+      "input": {"target": "com.amazonaws.cloudwatchlogs#PutLogEventsInternalRequest"},
+      "output": {"target": "smithy.api#Unit"},
+      "errors": [
+        {"target": "com.amazonaws.cloudwatchlogs#InvalidParameterException"},
+        {"target": "com.amazonaws.cloudwatchlogs#ResourceNotFoundException"}
+      ],
+      "traits": {
+        "dev.understudy#internalOperation": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/design/ARCHITECTURE.md#146-logs"
+        }
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#PutLogEventsInternalRequest": {
+      "type": "structure",
+      "members": {
+        "logGroupName": {"target": "com.amazonaws.cloudwatchlogs#LogGroupName", "traits": {"smithy.api#required": {}}},
+        "logStreamName": {"target": "com.amazonaws.cloudwatchlogs#LogStreamName", "traits": {"smithy.api#required": {}}},
+        "logEvents": {"target": "com.amazonaws.cloudwatchlogs#InputLogEvents", "traits": {"smithy.api#required": {}}}
+      },
+      "traits": {
+        "smithy.api#input": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/design/ARCHITECTURE.md#146-logs"
+        }
+      }
     }
   }
 }

@@ -51,6 +51,39 @@
         }
       }
     },
+    "com.amazonaws.kms#ScheduleKeyDeletionRequest$PendingWindowInDays": {
+      "type": "apply",
+      "replace": true,
+      "traits": {
+        "smithy.api#range": {"min": 7, "max": 30},
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_ScheduleKeyDeletion.html"
+        }
+      }
+    },
+    "com.amazonaws.kms#CreateKeyRequest$Policy": {
+      "type": "apply",
+      "replace": true,
+      "traits": {
+        "smithy.api#length": {"min": 1, "max": 32768},
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_CreateKey.html"
+        }
+      }
+    },
+    "com.amazonaws.kms#PutKeyPolicyRequest$Policy": {
+      "type": "apply",
+      "replace": true,
+      "traits": {
+        "smithy.api#length": {"min": 1, "max": 32768},
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_PutKeyPolicy.html"
+        }
+      }
+    },
     "com.amazonaws.kms#DependencyTimeoutException": {
       "type": "apply",
       "traits": {

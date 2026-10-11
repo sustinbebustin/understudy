@@ -2,82 +2,378 @@ package sqs
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"maps"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
-	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
-	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// bindMessages binds the message data plane.
-func (s *Service) bindMessages(b sqsapi.Binder) {
-	b.SendMessage(s.sendMessage,
-		registry.Partial{Note: "not validated: message attribute names, Number attribute values, the format and length of attribute data types, the characters of String attribute values and the data type of AWSTraceHeader; MessageDeduplicationId is ignored on standard queues"},
+// bindSends binds SendMessage and SendMessageBatch.
+func (s *Service) bindSends(b sqsapi.Binder) {
+	b.SendMessage(s.sendMessage, registry.Full{},
 		kernel.WithCheck(checkSendMessage),
 		queueByURL(func(in *sqsapi.SendMessageInput) string { return in.QueueUrl }))
-	b.ReceiveMessage(s.receiveMessage,
-		registry.Partial{Note: "no redrive to a dead-letter queue; ReceiveRequestAttemptId is ignored"},
-		kernel.WithCheck(checkReceiveMessage),
-		queueByURL(func(in *sqsapi.ReceiveMessageInput) string { return in.QueueUrl }))
-	b.DeleteMessage(s.deleteMessage, registry.Full{},
-		queueByURL(func(in *sqsapi.DeleteMessageInput) string { return in.QueueUrl }))
+	b.SendMessageBatch(s.sendMessageBatch, registry.Full{},
+		kernel.WithCheck(checkSendMessageBatch),
+		queueByURL(func(in *sqsapi.SendMessageBatchInput) string { return in.QueueUrl }))
 }
 
 // checkSendMessage runs SendMessage's stateless checks before fault rules
-// (M7): the body's characters, the MessageGroupId, then the message
-// attributes. Their codes or texts are not the generated policy's, so they
-// are checks, not validators.
+// (M7): the body's characters, then the message and system attributes.
+// Their codes or texts are not the generated policy's, so they are checks,
+// not validators.
 func checkSendMessage(in *sqsapi.SendMessageInput) *awserr.Error {
-	if !validBody(in.MessageBody) {
+	if !validText(in.MessageBody) {
 		return errInvalidMessageContents()
 	}
-	if g := in.MessageGroupId; g != nil && !validGroupID(*g) {
-		return errInvalidGroupID(*g)
+	if err := checkMessageAttributes(in.MessageAttributes); err != nil {
+		return err
 	}
-	return checkMessageAttributes(in.MessageAttributes)
+	return checkSystemAttributes(in.MessageSystemAttributes)
 }
 
-// validGroupID reports whether id is 1 to 128 ASCII alphanumeric and
-// punctuation characters, the rule a MessageGroupId follows on standard
-// and FIFO queues alike (sqs.md 6.1).
-func validGroupID(id string) bool {
+// checkSendMessageBatch checks the entry ids and the total size, which
+// fail the whole request (sqs.md 6.2); everything else about an entry
+// fails that entry only.
+func checkSendMessageBatch(in *sqsapi.SendMessageBatchInput) *awserr.Error {
+	total := 0
+	for i := range in.Entries {
+		e := &in.Entries[i]
+		total += len(e.MessageBody) + attributesSize(messageAttributes(e.MessageAttributes))
+	}
+	if err := checkBatchIDs("SendMessageBatchRequestEntry", entryIDs(in.Entries, func(e *sqsapi.SendMessageBatchRequestEntry) string { return e.Id })); err != nil {
+		return err
+	}
+	if total > maxBatchBytes {
+		return errBatchTooLong(total)
+	}
+	return nil
+}
+
+// checkBatchEntry runs the stateless checks of one SendMessageBatch entry,
+// which SendMessage's validators and checks make for a single message.
+func checkBatchEntry(e *sqsapi.SendMessageBatchRequestEntry) *awserr.Error {
+	switch {
+	case e.MessageBody == "":
+		return errMissingBody()
+	case e.DelaySeconds != nil && (*e.DelaySeconds < 0 || *e.DelaySeconds > 900):
+		return errDelaySeconds(*e.DelaySeconds)
+	case e.MessageGroupId != nil && !validFIFOID(*e.MessageGroupId):
+		return errInvalidGroupID(*e.MessageGroupId)
+	case e.MessageDeduplicationId != nil && !validFIFOID(*e.MessageDeduplicationId):
+		return errInvalidDedupID(*e.MessageDeduplicationId)
+	case !validText(e.MessageBody):
+		return errInvalidMessageContents()
+	}
+	if err := checkMessageAttributes(e.MessageAttributes); err != nil {
+		return err
+	}
+	return checkSystemAttributes(e.MessageSystemAttributes)
+}
+
+// validFIFOID reports whether id is 1 to 128 ASCII alphanumeric and
+// punctuation characters, the rule of MessageGroupId and
+// MessageDeduplicationId (sqs.md 6.1), as the overlay's pattern says for
+// the single send.
+func validFIFOID(id string) bool {
 	if len(id) < 1 || len(id) > 128 {
 		return false
 	}
 	for i := range len(id) {
-		b := id[i]
-		alnum := (b >= '0' && b <= '9') || (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')
-		if !alnum && !strings.ContainsRune("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", rune(b)) {
+		if id[i] < '!' || id[i] > '~' {
 			return false
 		}
 	}
 	return true
 }
 
-// checkReceiveMessage checks the VisibilityTimeout range (sqs.md 7.1),
-// whose hand text no overlay template renders yet.
-func checkReceiveMessage(in *sqsapi.ReceiveMessageInput) *awserr.Error {
-	if v := in.VisibilityTimeout; v != nil && (*v < 0 || *v > 43200) {
-		return errVisibilityTimeout(*v)
+// checkMessageAttributes checks a send's message attributes (sqs.md 6.1):
+// at most 10; each name valid; each data type String, Number or Binary
+// with an optional custom label, at most 256 characters; each value
+// non-empty and of its type. The first offending name in name order is
+// reported.
+func checkMessageAttributes(in map[string]sqsapi.MessageAttributeValue) *awserr.Error {
+	if len(in) > 10 {
+		return errTooManyAttributes(len(in))
+	}
+	for _, name := range slices.Sorted(maps.Keys(in)) {
+		if err := checkMessageAttribute(name, in[name]); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-// sent is what SendMessage reports about the enqueued message.
+// checkMessageAttribute checks one message attribute's name, data type
+// and value.
+func checkMessageAttribute(name string, v sqsapi.MessageAttributeValue) *awserr.Error {
+	if !validAttributeName(name) {
+		return errAttributeName(name)
+	}
+	base, label, labelled := strings.Cut(v.DataType, ".")
+	if utf8.RuneCountInString(v.DataType) > 256 || (labelled && label == "") {
+		return errAttributeDataType(name)
+	}
+	switch base {
+	case "Binary":
+		if len(v.BinaryValue) == 0 {
+			return errEmptyAttributeValue(name, base)
+		}
+		return nil
+	case "String", "Number":
+	default:
+		return errAttributeDataType(name)
+	}
+	switch {
+	case v.StringValue == nil || *v.StringValue == "":
+		return errEmptyAttributeValue(name, base)
+	case base == "String" && !validText(*v.StringValue):
+		return errAttributeString(name)
+	case base == "Number" && !validNumber(*v.StringValue):
+		return errAttributeNumber(name, *v.StringValue)
+	}
+	return nil
+}
+
+// validAttributeName reports a message attribute name of at most 256
+// letters, digits, underscores, hyphens and periods, which does not start
+// or end with a period, has no two periods in a row and does not start
+// with AWS. or Amazon. in any case (sqs.md 6.1; AWS accepted non-ASCII
+// letters).
+func validAttributeName(name string) bool {
+	n := utf8.RuneCountInString(name)
+	lower := strings.ToLower(name)
+	if n < 1 || n > 256 || strings.HasPrefix(name, ".") || strings.HasSuffix(name, ".") ||
+		strings.Contains(name, "..") || strings.HasPrefix(lower, "aws.") || strings.HasPrefix(lower, "amazon.") {
+		return false
+	}
+	for _, r := range name {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r != '-' && r != '.' {
+			return false
+		}
+	}
+	return true
+}
+
+// validNumber reports a decimal number SQS accepts as a Number attribute:
+// at most 38 significant digits, magnitude from 10^-128 to below 10^126
+// (sqs.md 6.1).
+func validNumber(v string) bool {
+	mantissa, exponent, hasExp := strings.Cut(strings.ToLower(v), "e")
+	mantissa = strings.TrimLeft(mantissa, "+-")
+	exp := 0
+	if hasExp {
+		e, err := strconv.Atoi(exponent)
+		if err != nil || e < -1000 || e > 1000 {
+			return false
+		}
+		exp = e
+	}
+	whole, frac, _ := strings.Cut(mantissa, ".")
+	digits := whole + frac
+	if digits == "" || strings.Trim(digits, "0123456789") != "" {
+		return false
+	}
+	first := strings.IndexFunc(digits, func(r rune) bool { return r != '0' })
+	if first < 0 {
+		return true
+	}
+	last := strings.LastIndexFunc(digits, func(r rune) bool { return r != '0' })
+	magnitude := len(whole) - 1 - first + exp
+	return last-first < 38 && magnitude >= -128 && magnitude < 126
+}
+
+// checkSystemAttributes checks a send's system attributes (sqs.md 6.1):
+// AWSTraceHeader is the only one a send may carry, a non-empty String. The
+// overlay leaves the name's enum to the handler, so any other name arrives
+// here and is refused rather than dropped; the first in name order is
+// reported.
+func checkSystemAttributes(in map[sqsapi.MessageSystemAttributeNameForSends]sqsapi.MessageSystemAttributeValue) *awserr.Error {
+	for _, name := range slices.Sorted(maps.Keys(in)) {
+		if name != sqsapi.MessageSystemAttributeNameForSendsAWSTraceHeader {
+			return errSystemAttributeName(string(name))
+		}
+		if v := in[name]; v.DataType != "String" || v.StringValue == nil || *v.StringValue == "" {
+			return errTraceHeader()
+		}
+	}
+	return nil
+}
+
+// validText reports whether every character is one SQS accepts in a body
+// or a String attribute: #x9, #xA, #xD, #x20 to #xD7FF, #xE000 to #xFFFD
+// and #x10000 to #x10FFFF.
+func validText(text string) bool {
+	for i, r := range text {
+		if r == utf8.RuneError {
+			if _, size := utf8.DecodeRuneInString(text[i:]); size == 1 {
+				return false
+			}
+		}
+		ok := r == 0x9 || r == 0xA || r == 0xD ||
+			(r >= 0x20 && r <= 0xD7FF) || (r >= 0xE000 && r <= 0xFFFD) || (r >= 0x10000 && r <= 0x10FFFF)
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// maxBatchBytes is the total payload a batch may carry, whatever the
+// queue's MaximumMessageSize (sqs.md 6.2).
+const maxBatchBytes = 1 << 20
+
+// outgoing is a checked message a send enqueues.
+type outgoing struct {
+	body          string
+	attrs, system map[string]Attribute
+	// sentSystem are the system attributes the request carried, which
+	// MD5OfMessageSystemAttributes covers; an AWSTraceHeader taken from
+	// the X-Amzn-Trace-Id header is kept but not digested (sqs.md 6.1).
+	sentSystem   map[string]Attribute
+	group, dedup *string
+	delay        *int32
+}
+
+func newOutgoing(c *kernel.Call, body string, attrs map[string]sqsapi.MessageAttributeValue,
+	system map[sqsapi.MessageSystemAttributeNameForSends]sqsapi.MessageSystemAttributeValue,
+	group, dedup *string, delay *int32,
+) outgoing {
+	sentSystem := sentSystemAttributes(system)
+	return outgoing{
+		body: body, attrs: messageAttributes(attrs), sentSystem: sentSystem, system: withTraceHeader(c, sentSystem),
+		group: group, dedup: dedup, delay: delay,
+	}
+}
+
+// sent is what a send reports about the message it enqueued, or about
+// the original of a suppressed duplicate.
 type sent struct {
-	id                  ids.MessageID
-	bodyMD5, attrs, sys string
+	id                            ids.MessageID
+	bodyMD5, attrs, sys, sequence string
+}
+
+// enqueue checks o against the queue and appends it, or acknowledges a
+// FIFO duplicate within the deduplication window with the original's id
+// and sequence number (sqs.md 8.2). tooLong is the size error of the
+// calling operation. It runs inside kernel.Write; every check precedes
+// every change.
+func (s *Service) enqueue(c *kernel.Call, q queueRef, queue *Queue, o *outgoing, now clock.Instant, tx *kernel.Tx, tooLong func(int32) *awserr.Error) (sent, *awserr.Error) {
+	fifo := queue.FIFO
+	switch {
+	case fifo == nil && o.dedup != nil:
+		return sent{}, errNotForQueueType("MessageDeduplicationId", *o.dedup)
+	case fifo != nil && o.group == nil:
+		return sent{}, errMissingGroupID()
+	case fifo != nil && o.dedup == nil && !fifo.ContentBasedDeduplication:
+		return sent{}, errDedupRequired()
+	case fifo != nil && o.delay != nil && *o.delay > 0:
+		return sent{}, errNotForQueueType("DelaySeconds", strconv.Itoa(int(*o.delay)))
+	}
+	if size := len(o.body) + attributesSize(o.attrs); size > int(queue.Attributes.MaximumMessageSize) {
+		return sent{}, tooLong(queue.Attributes.MaximumMessageSize)
+	}
+	out := sent{bodyMD5: bodyMD5(o.body), attrs: attributesMD5(o.attrs), sys: attributesMD5(o.sentSystem)}
+	delay := queue.Attributes.DelaySeconds
+	if fifo == nil && o.delay != nil {
+		delay = *o.delay
+	}
+	m := Message{
+		Body:       o.body,
+		BodyMD5:    out.bodyMD5,
+		Attributes: o.attrs,
+		System:     o.system,
+		SenderID:   senderID(c.Principal()),
+		Enqueued:   c.Event(),
+		Sent:       now,
+		VisibleAt:  now.Add(seconds(delay)),
+	}
+	if o.group != nil {
+		m.GroupID = *o.group
+	}
+	if fifo == nil {
+		m.ID = s.ids.MessageID()
+		s.append(tx, q, queue, m, now)
+		out.id = m.ID
+		return out, nil
+	}
+	dedupID := contentDedupID(o.body)
+	if o.dedup != nil {
+		dedupID = *o.dedup
+	}
+	key := fifo.dedupKey(m.GroupID, dedupID)
+	fifo.pruneDedup(now)
+	if d, ok := fifo.Dedup.get(key, now); ok {
+		out.id, out.sequence = d.MessageID, d.Sequence
+		return out, nil
+	}
+	m.ID = s.ids.MessageID()
+	m.FIFO = &FIFOMessage{DedupID: dedupID, Sequence: fifo.nextSequence()}
+	fifo.Dedup.put(key, Dedup{MessageID: m.ID, Sequence: m.FIFO.Sequence, Expires: now.Add(dedupWindow)})
+	s.append(tx, q, queue, m, now)
+	out.id, out.sequence = m.ID, m.FIFO.Sequence
+	return out, nil
+}
+
+// append adds m to the end of queue and arms its timers.
+func (s *Service) append(tx *kernel.Tx, q queueRef, queue *Queue, m Message, now clock.Instant) {
+	queue.Messages = append(queue.Messages, m)
+	last := &queue.Messages[len(queue.Messages)-1]
+	s.armRetention(tx, q, queue, last)
+	s.armVisibility(tx, q, last, now)
+}
+
+// sequenceBase makes every SequenceNumber 20 digits, as AWS's are, so
+// they order as numbers and as strings alike.
+const sequenceBase uint64 = 18_000_000_000_000_000_000
+
+// nextSequence issues the queue's next SequenceNumber.
+func (f *FIFO) nextSequence() string {
+	f.Sequence++
+	return strconv.FormatUint(sequenceBase+f.Sequence, 10)
+}
+
+// dedupKey is the deduplication cache key: the id alone for a queue
+// created with queue scope, the group and the id for messageGroup scope
+// (sqs.md 8.2). A newline appears in neither.
+func (f *FIFO) dedupKey(group, id string) string {
+	if f.CreatedScope == DedupMessageGroup {
+		return group + "\n" + id
+	}
+	return id
+}
+
+// pruneDedup forgets the receive attempts and the generations of
+// deduplication ids whose windows have ended (DedupCache.prune), and
+// reports whether it forgot any.
+func (f *FIFO) pruneDedup(now clock.Instant) bool {
+	pruned := f.Dedup.prune(now)
+	attemptEnded := func(_ string, a Attempt) bool { return !now.Before(a.Expires) }
+	if anyEntry(f.Attempts, attemptEnded) {
+		maps.DeleteFunc(f.attempts(), attemptEnded)
+		pruned = true
+	}
+	return pruned
+}
+
+// contentDedupID is the content-based deduplication id: the hex SHA-256
+// of the body alone (sqs.md 8.2).
+func contentDedupID(body string) string {
+	sum := sha256.Sum256([]byte(body))
+	return hex.EncodeToString(sum[:])
 }
 
 // sendMessage enqueues a message, visible after its delay (sqs.md 6.1).
@@ -86,47 +382,9 @@ func (s *Service) sendMessage(_ context.Context, c *kernel.Call, in *sqsapi.Send
 	if err != nil {
 		return nil, err
 	}
-	attrs := messageAttributes(in.MessageAttributes)
-	sentSystem := sentSystemAttributes(in.MessageSystemAttributes)
-	system := withTraceHeader(c, sentSystem)
-	size := len(in.MessageBody) + attributesSize(attrs)
-	out, err := kernel.Write(c, s.cells, q.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (sent, *awserr.Error) {
-		queue, ok := st.Queues[q.name]
-		if !ok {
-			return sent{}, errQueueDoesNotExist()
-		}
-		if size > int(queue.Attributes.MaximumMessageSize) {
-			return sent{}, errMessageTooLong(queue.Attributes.MaximumMessageSize)
-		}
-		delay := queue.Attributes.DelaySeconds
-		if in.DelaySeconds != nil {
-			delay = *in.DelaySeconds
-		}
-		m := Message{
-			ID:         s.ids.MessageID(),
-			Body:       in.MessageBody,
-			BodyMD5:    bodyMD5(in.MessageBody),
-			Attributes: attrs,
-			System:     system,
-			SenderID:   senderID(c.Principal()),
-			Enqueued:   c.Event(),
-			Sent:       now,
-			VisibleAt:  now.Add(seconds(delay)),
-		}
-		if in.MessageGroupId != nil {
-			m.GroupID = *in.MessageGroupId
-		}
-		queue.Messages = append(slices.Clip(queue.Messages), m)
-		st.Queues[q.name] = queue
-		if delay > 0 {
-			tx.Arm(s.visibility, visibilityID(q, m.ID), m.VisibleAt)
-		} else {
-			tx.Wake(q.waitKey())
-		}
-		// The system digest covers only what the request sent (sqs.md 6.1):
-		// an AWSTraceHeader taken from X-Amzn-Trace-Id is stored, not
-		// digested.
-		return sent{id: m.ID, bodyMD5: m.BodyMD5, attrs: attributesMD5(attrs), sys: attributesMD5(sentSystem)}, nil
+	o := newOutgoing(c, in.MessageBody, in.MessageAttributes, in.MessageSystemAttributes, in.MessageGroupId, in.MessageDeduplicationId, in.DelaySeconds)
+	out, err := writeQueue(s, c, q, func(_ *State, queue *Queue, now clock.Instant, tx *kernel.Tx) (sent, *awserr.Error) {
+		return s.enqueue(c, q, queue, &o, now, tx, errMessageTooLong)
 	})
 	if err != nil {
 		return nil, err
@@ -136,338 +394,93 @@ func (s *Service) sendMessage(_ context.Context, c *kernel.Call, in *sqsapi.Send
 		MD5OfMessageBody:             new(out.bodyMD5),
 		MD5OfMessageAttributes:       optional(out.attrs),
 		MD5OfMessageSystemAttributes: optional(out.sys),
+		SequenceNumber:               optional(out.sequence),
 	}, nil
 }
 
-// receiveParams are a ReceiveMessage's limits; nil pointers take the
-// queue's attribute.
-type receiveParams struct {
-	max        int
-	wait       *int32
-	visibility *int32
+// batchSend is one SendMessageBatch entry: the message, or the error its
+// stateless checks found.
+type batchSend struct {
+	o   outgoing
+	err *awserr.Error
 }
 
-// received is one receive attempt: the messages it took, copied out of the
-// state, and the wait time that applies.
-type received struct {
-	messages []Message
-	wait     int32
+// entryResult is one batch entry's outcome inside the write.
+type entryResult struct {
+	sent sent
+	err  *awserr.Error
 }
 
-// receiveMessage is the long poll of ARCHITECTURE.md 8: subscribe, try a
-// receive, and wait for a send or a visibility expiry until WaitTimeSeconds
-// of emulator time passes. The same wait on the wall clock caps it, so a
-// frozen clock still ends the HTTP request (sqs.md 13.11).
-func (s *Service) receiveMessage(ctx context.Context, c *kernel.Call, in *sqsapi.ReceiveMessageInput) (*sqsapi.ReceiveMessageOutput, *awserr.Error) {
+// sendMessageBatch enqueues up to ten messages in entry order. A FIFO
+// entry without a MessageGroupId or a needed deduplication id fails the
+// whole request; any other problem fails its entry only (sqs.md 6.2).
+func (s *Service) sendMessageBatch(_ context.Context, c *kernel.Call, in *sqsapi.SendMessageBatchInput) (*sqsapi.SendMessageBatchOutput, *awserr.Error) {
 	q, err := s.existingQueue(c, in.QueueUrl)
 	if err != nil {
 		return nil, err
 	}
-	p := receiveParams{max: 1, wait: in.WaitTimeSeconds, visibility: in.VisibilityTimeout}
-	if in.MaxNumberOfMessages != nil {
-		p.max = int(*in.MaxNumberOfMessages)
+	entries := make([]batchSend, len(in.Entries))
+	for i := range in.Entries {
+		e := &in.Entries[i]
+		entries[i] = batchSend{
+			o:   newOutgoing(c, e.MessageBody, e.MessageAttributes, e.MessageSystemAttributes, e.MessageGroupId, e.MessageDeduplicationId, e.DelaySeconds),
+			err: checkBatchEntry(e),
+		}
 	}
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	var expired <-chan struct{}
-	for {
-		woke := s.k.Waiters().Wait(ctx, q.waitKey())
-		got, err := kernel.Write(c, s.cells, q.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (received, *awserr.Error) {
-			return s.receive(st, q, p, now, tx)
-		})
-		if err != nil {
+	results, err := writeQueue(s, c, q, func(_ *State, queue *Queue, now clock.Instant, tx *kernel.Tx) ([]entryResult, *awserr.Error) {
+		if err := checkFIFOBatch(queue.FIFO, entries); err != nil {
 			return nil, err
 		}
-		if len(got.messages) > 0 {
-			return &sqsapi.ReceiveMessageOutput{Messages: render(got.messages, in)}, nil
-		}
-		if expired == nil {
-			wait := seconds(got.wait)
-			expired = s.k.Clock().Until(ctx, clock.Deadline{Emu: c.Admitted().Add(wait), WallCap: s.k.Clock().Wall().Add(wait)})
-		}
-		select {
-		case <-woke:
-		case <-expired:
-			if ctx.Err() == nil {
-				return &sqsapi.ReceiveMessageOutput{}, nil
+		out := make([]entryResult, len(entries))
+		for i := range entries {
+			if out[i].err = entries[i].err; out[i].err == nil {
+				out[i].sent, out[i].err = s.enqueue(c, q, queue, &entries[i].o, now, tx, errBatchEntryTooLong)
 			}
-			return nil, awserr.RequestAborted()
-		case <-ctx.Done():
-			return nil, awserr.RequestAborted()
 		}
+		return out, nil
+	})
+	if err != nil {
+		return nil, err
 	}
-}
-
-// receive takes up to p.max visible messages in enqueue order, giving each
-// a new receipt handle and hiding it for the visibility timeout, and drops
-// messages past the retention period. It runs inside kernel.Write.
-func (s *Service) receive(st *State, q queueRef, p receiveParams, now clock.Instant, tx *kernel.Tx) (received, *awserr.Error) {
-	queue, ok := st.Queues[q.name]
-	if !ok {
-		return received{}, errQueueDoesNotExist()
-	}
-	wait := queue.Attributes.ReceiveMessageWaitTimeSeconds
-	if p.wait != nil {
-		wait = *p.wait
-	}
-	vt := queue.Attributes.VisibilityTimeout
-	if p.visibility != nil {
-		vt = *p.visibility
-	}
-	retention := seconds(queue.Attributes.MessageRetentionPeriod)
-	kept := make([]Message, 0, len(queue.Messages))
-	var out []Message
-	dropped := false
-	for i := range queue.Messages {
-		m := queue.Messages[i]
-		timer := visibilityID(q, m.ID)
-		if m.Sent.Add(retention).Compare(now) <= 0 {
-			tx.Disarm(s.visibility, timer)
-			dropped = true
+	out := &sqsapi.SendMessageBatchOutput{}
+	for i, r := range results {
+		id := in.Entries[i].Id
+		if r.err != nil {
+			out.Failed = append(out.Failed, batchFailure(id, r.err))
 			continue
 		}
-		if len(out) < p.max && m.visible(now) {
-			m.ReceiveCount++
-			if m.FirstReceived.IsZero() {
-				m.FirstReceived = now
-			}
-			m.Receipt = s.ids.ReceiptHandle()
-			m.VisibleAt = now.Add(seconds(vt))
-			if vt > 0 {
-				tx.Arm(s.visibility, timer, m.VisibleAt)
-			} else {
-				tx.Disarm(s.visibility, timer)
-			}
-			out = append(out, m.clone())
-		}
-		kept = append(kept, m)
+		out.Successful = append(out.Successful, sqsapi.SendMessageBatchResultEntry{
+			Id:                           id,
+			MessageId:                    string(r.sent.id),
+			MD5OfMessageBody:             r.sent.bodyMD5,
+			MD5OfMessageAttributes:       optional(r.sent.attrs),
+			MD5OfMessageSystemAttributes: optional(r.sent.sys),
+			SequenceNumber:               optional(r.sent.sequence),
+		})
 	}
-	if len(out) == 0 && !dropped {
-		// An empty poll changes nothing, so an idle long poller never marks
-		// the cell dirty.
-		tx.Unchanged()
-		return received{wait: wait}, nil
-	}
-	queue.Messages = kept
-	st.Queues[q.name] = queue
-	return received{messages: out, wait: wait}, nil
+	return out, nil
 }
 
-// deleteMessage deletes the message whose latest receipt handle is given.
-// A handle of the right form that matches no message succeeds: the message
-// was deleted already, or it was received again since (staleReceipt).
-func (s *Service) deleteMessage(_ context.Context, c *kernel.Call, in *sqsapi.DeleteMessageInput) (*sqsapi.DeleteMessageOutput, *awserr.Error) {
-	q, err := s.existingQueue(c, in.QueueUrl)
-	if err != nil {
-		return nil, err
-	}
-	_, err = kernel.Write(c, s.cells, q.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		queue, ok := st.Queues[q.name]
-		if !ok {
-			return struct{}{}, errQueueDoesNotExist()
-		}
-		// The queue is resolved before the handle is read, as AWS and
-		// LocalStack do: a bad handle to a missing queue is NonExistentQueue.
-		if _, ok := ids.ParseReceiptHandle(in.ReceiptHandle); !ok {
-			return struct{}{}, errReceiptHandleIsInvalid(in.ReceiptHandle)
-		}
-		i := slices.IndexFunc(queue.Messages, func(m Message) bool { return string(m.Receipt) == in.ReceiptHandle })
-		if i < 0 {
-			return struct{}{}, nil
-		}
-		tx.Disarm(s.visibility, visibilityID(q, queue.Messages[i].ID))
-		queue.Messages = slices.Delete(slices.Clone(queue.Messages), i, i+1)
-		st.Queues[q.name] = queue
-		return struct{}{}, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &sqsapi.DeleteMessageOutput{}, nil
-}
-
-// onVisibility wakes the queue's receivers when the timer's message is
-// still there and receivable; a deleted message's timer does nothing.
-func (s *Service) onVisibility(_ *kernel.Call, key clock.TimerKey, due clock.Instant) {
-	q, id, ok := parseVisibilityKey(key.ID)
-	if !ok {
-		return
-	}
-	cell, ok := s.cells.Lookup(q.scope)
-	if !ok {
-		return
-	}
-	visible := store.Read(cell, func(st *State) bool {
-		queue := st.Queues[q.name]
-		i := slices.IndexFunc(queue.Messages, func(m Message) bool { return m.ID == id })
-		return i >= 0 && queue.Messages[i].visible(due)
-	})
-	if visible {
-		s.k.Waiters().Wake(q.waitKey())
-	}
-}
-
-// visibilityID is the visibility timer's id of message id in q:
-// "<queue-arn>/<message-id>".
-func visibilityID(q queueRef, id ids.MessageID) string {
-	return q.arn().String() + "/" + string(id)
-}
-
-func parseVisibilityKey(key string) (queueRef, ids.MessageID, bool) {
-	i := strings.LastIndexByte(key, '/')
-	if i < 0 {
-		return queueRef{}, "", false
-	}
-	arn, err := aws.ParseARN(key[:i])
-	if err != nil {
-		return queueRef{}, "", false
-	}
-	q, ok := queueOf(arn)
-	return q, ids.MessageID(key[i+1:]), ok
-}
-
-// queueOf reads a queue ARN back into its scope and name.
-func queueOf(arn aws.ARN) (queueRef, bool) {
-	account, err := aws.ParseAccountID(arn.Account)
-	if err != nil {
-		return queueRef{}, false
-	}
-	var region aws.Region
-	if err := region.UnmarshalText([]byte(arn.Region)); err != nil {
-		return queueRef{}, false
-	}
-	return queueRef{scope: aws.Scope{Partition: aws.PartitionAWS(), Account: account, Region: region}, name: arn.Resource}, true
-}
-
-// render builds the received messages with the system and message
-// attributes the request selected (sqs.md 7.1); MD5OfMessageAttributes
-// covers the attributes returned.
-func render(ms []Message, in *sqsapi.ReceiveMessageInput) []sqsapi.Message {
-	sysNames := make([]string, 0, len(in.AttributeNames)+len(in.MessageSystemAttributeNames))
-	for _, n := range in.AttributeNames {
-		sysNames = append(sysNames, string(n))
-	}
-	for _, n := range in.MessageSystemAttributeNames {
-		sysNames = append(sysNames, string(n))
-	}
-	out := make([]sqsapi.Message, len(ms))
-	for i := range ms {
-		m := &ms[i]
-		attrs := selectAttributes(m.Attributes, in.MessageAttributeNames)
-		out[i] = sqsapi.Message{
-			MessageId:              new(string(m.ID)),
-			ReceiptHandle:          new(string(m.Receipt)),
-			MD5OfBody:              new(m.BodyMD5),
-			Body:                   new(m.Body),
-			Attributes:             systemView(m, sysNames),
-			MessageAttributes:      wireAttributes(attrs),
-			MD5OfMessageAttributes: optional(attributesMD5(attrs)),
-		}
-	}
-	return out
-}
-
-// systemView returns the system attributes names selects; "All" selects
-// every one, and a name that does not apply is left out.
-func systemView(m *Message, names []string) map[sqsapi.MessageSystemAttributeName]string {
-	if len(names) == 0 {
+// checkFIFOBatch refuses a batch to a FIFO queue, f, with an entry
+// without a MessageGroupId or without the deduplication id the queue needs;
+// a standard queue's f is nil and passes.
+func checkFIFOBatch(f *FIFO, entries []batchSend) *awserr.Error {
+	if f == nil {
 		return nil
 	}
-	all := map[sqsapi.MessageSystemAttributeName]string{
-		sqsapi.MessageSystemAttributeNameSenderId:                         m.SenderID,
-		sqsapi.MessageSystemAttributeNameSentTimestamp:                    millis(m.Sent),
-		sqsapi.MessageSystemAttributeNameApproximateReceiveCount:          strconv.Itoa(m.ReceiveCount),
-		sqsapi.MessageSystemAttributeNameApproximateFirstReceiveTimestamp: millis(m.FirstReceived),
-	}
-	if m.GroupID != "" {
-		all[sqsapi.MessageSystemAttributeNameMessageGroupId] = m.GroupID
-	}
-	if trace, ok := m.System[string(sqsapi.MessageSystemAttributeNameForSendsAWSTraceHeader)]; ok {
-		all[sqsapi.MessageSystemAttributeNameAWSTraceHeader] = trace.String
-	}
-	if slices.Contains(names, string(sqsapi.MessageSystemAttributeNameAll)) {
-		return all
-	}
-	out := map[sqsapi.MessageSystemAttributeName]string{}
-	for _, n := range names {
-		if v, ok := all[sqsapi.MessageSystemAttributeName(n)]; ok {
-			out[sqsapi.MessageSystemAttributeName(n)] = v
-		}
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-// selectAttributes returns the message attributes names selects: All, *
-// and .* select every one, "prefix.*" those starting with prefix, any other
-// name itself. Names that match nothing are not errors.
-func selectAttributes(attrs map[string]Attribute, names []string) map[string]Attribute {
-	out := map[string]Attribute{}
-	for _, n := range names {
-		prefix, wildcard := strings.CutSuffix(n, ".*")
-		for name, a := range attrs {
-			switch {
-			case n == "All" || n == "*" || n == ".*":
-				out[name] = a
-			case wildcard && strings.HasPrefix(name, prefix):
-				out[name] = a
-			case name == n:
-				out[name] = a
-			}
-		}
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-func wireAttributes(attrs map[string]Attribute) map[string]sqsapi.MessageAttributeValue {
-	if len(attrs) == 0 {
-		return nil
-	}
-	out := make(map[string]sqsapi.MessageAttributeValue, len(attrs))
-	for name, a := range attrs {
-		v := sqsapi.MessageAttributeValue{DataType: a.DataType}
-		if binaryType(a.DataType) {
-			v.BinaryValue = slices.Clone(a.Binary)
-		} else {
-			v.StringValue = new(a.String)
-		}
-		out[name] = v
-	}
-	return out
-}
-
-// checkMessageAttributes checks a send's message attributes: at most 10,
-// each with a String, Number or Binary type and a non-empty value of that
-// type, reported for the first offending name in name order.
-func checkMessageAttributes(in map[string]sqsapi.MessageAttributeValue) *awserr.Error {
-	if len(in) > 10 {
-		return errTooManyAttributes(len(in))
-	}
-	for _, name := range slices.Sorted(maps.Keys(in)) {
-		v := in[name]
-		base, _, _ := strings.Cut(v.DataType, ".")
-		switch {
-		case base == "Binary" && len(v.BinaryValue) == 0:
-			return errEmptyAttributeValue(name, base)
-		case base == "Binary":
-		case (base == "String" || base == "Number") && (v.StringValue == nil || *v.StringValue == ""):
-			return errEmptyAttributeValue(name, base)
-		case base == "String" || base == "Number":
-		default:
-			return errAttributeDataType(name)
+	for i := range entries {
+		switch o := &entries[i].o; {
+		case o.group == nil:
+			return errBatchMissingGroupID()
+		case o.dedup == nil && !f.ContentBasedDeduplication:
+			return errDedupRequired()
 		}
 	}
 	return nil
 }
 
-// messageAttributes converts a send's message attributes, which
-// checkMessageAttributes passed: a Binary type keeps its bytes, the others
-// their text.
+// messageAttributes converts a send's message attributes: a Binary type
+// keeps its bytes, the others their text.
 func messageAttributes(in map[string]sqsapi.MessageAttributeValue) map[string]Attribute {
 	if len(in) == 0 {
 		return nil
@@ -487,7 +500,8 @@ func messageAttributes(in map[string]sqsapi.MessageAttributeValue) map[string]At
 }
 
 // sentSystemAttributes keeps the AWSTraceHeader system attribute the
-// request sent, the only one SQS accepts (sqs.md 6.1).
+// request sent, the only one checkSystemAttributes lets through (sqs.md
+// 6.1).
 func sentSystemAttributes(in map[sqsapi.MessageSystemAttributeNameForSends]sqsapi.MessageSystemAttributeValue) map[string]Attribute {
 	name := sqsapi.MessageSystemAttributeNameForSendsAWSTraceHeader
 	if v, ok := in[name]; ok && v.StringValue != nil {
@@ -519,24 +533,6 @@ func attributesSize(attrs map[string]Attribute) int {
 	return n
 }
 
-// validBody reports whether every character is one SQS accepts: #x9, #xA,
-// #xD, #x20 to #xD7FF, #xE000 to #xFFFD and #x10000 to #x10FFFF.
-func validBody(body string) bool {
-	for i, r := range body {
-		if r == utf8.RuneError {
-			if _, size := utf8.DecodeRuneInString(body[i:]); size == 1 {
-				return false
-			}
-		}
-		ok := r == 0x9 || r == 0xA || r == 0xD ||
-			(r >= 0x20 && r <= 0xD7FF) || (r >= 0xE000 && r <= 0xFFFD) || (r >= 0x10000 && r <= 0x10FFFF)
-		if !ok {
-			return false
-		}
-	}
-	return true
-}
-
 // senderID is the SenderId system attribute: the account of a root caller,
 // the unique id of a user, role-id:session for a role session.
 func senderID(p identity.Principal) string {
@@ -554,12 +550,22 @@ func senderID(p identity.Principal) string {
 	return ""
 }
 
-// clone copies the message's maps and slices, so a value handed out of a
-// cell never aliases it.
+// clone copies the message's maps, slices and pointers, so a value handed
+// out of a cell never aliases it.
 func (m *Message) clone() Message {
 	c := *m
 	c.Attributes = cloneAttributes(m.Attributes)
 	c.System = cloneAttributes(m.System)
+	if m.FIFO != nil {
+		c.FIFO = new(*m.FIFO)
+	}
+	if m.Receives != nil {
+		r := *m.Receives
+		if r.Latest != nil {
+			r.Latest = new(*r.Latest)
+		}
+		c.Receives = &r
+	}
 	return c
 }
 

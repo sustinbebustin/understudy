@@ -3466,6 +3466,21 @@ type PutLogEventsInput struct {
 	missing uint64
 }
 
+// PutLogEventsInternalInput is the input of PutLogEventsInternal, com.amazonaws.cloudwatchlogs#PutLogEventsInternalRequest.
+type PutLogEventsInternalInput struct {
+	LogGroupName  string
+	LogStreamName string
+	LogEvents     []InputLogEvent
+	// missing has a bit set per required member Deserialize did not
+	// find, so Validate tells absent from zero. Values built in Go
+	// leave it zero; Validate then treats a nil required list, map,
+	// union, blob, document or big integer as missing.
+	missing uint64
+}
+
+// PutLogEventsInternalOutput is the empty output of PutLogEventsInternal.
+type PutLogEventsInternalOutput struct{}
+
 // PutLogEventsOutput is the output of PutLogEvents, com.amazonaws.cloudwatchlogs#PutLogEventsResponse.
 type PutLogEventsOutput struct {
 	NextSequenceToken     *string

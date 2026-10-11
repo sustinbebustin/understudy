@@ -438,6 +438,36 @@ func TestContainerServesOnlyHealthAndClock(t *testing.T) {
 	})
 }
 
+// tokens is a SubscriptionTokens hook that answers err for every
+// subscription.
+type tokens struct{ err *awserr.Error }
+
+func (t tokens) SubscriptionToken(aws.ARN) (string, *awserr.Error) { return "", t.err }
+
+// A hook's AWS-shaped error maps onto the admin vocabulary: a 501, a hook
+// its service has but does not implement yet, is unavailable like a hook
+// the build lacks, not an internal failure.
+func TestHookErrorsMapOntoAdminCodes(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		for _, tc := range []struct {
+			err  *awserr.Error
+			code admin.ErrorCode
+		}{
+			{&awserr.Error{ID: awserr.NotImplemented(), Message: "not yet"}, admin.Unavailable},
+			{snsapi.ErrNotFoundException("Subscription does not exist"), admin.NotFound},
+			{snsapi.ErrInvalidParameterException("Invalid parameter"), admin.InvalidRequest},
+			{awserr.Internalf(errors.New("bug")), admin.Internal},
+		} {
+			h := handlerWith(k, func(o *serveradmin.Options) { o.Subscriptions = tokens{err: tc.err} })
+			rec := serve(k, h, http.MethodGet, admin.Prefix+"/sns/subscriptions/arn:aws:sns:us-east-1:000000000000:t:1/token")
+			var got struct{ Error admin.Error }
+			if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || got.Error.Code != tc.code {
+				k.Errorf("%s (%d) = %d %s, want code %s", tc.err.ID.Shape, tc.err.ID.Status, rec.Code, rec.Body, tc.code)
+			}
+		}
+	})
+}
+
 // Settle that times out answers condition_not_met naming the pending work
 // by kind, exit code 4.
 func TestSettleTimeoutNamesPendingWork(t *testing.T) {

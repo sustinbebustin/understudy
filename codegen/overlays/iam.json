@@ -33,6 +33,47 @@
           "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^[a-z0-9]([a-z0-9]|-(?!-)){1,61}[a-z0-9]$ is 3 to 63 lowercase letters, digits and hyphens, alphanumeric at both ends, with no two hyphens in a row"
         }
       }
+    },
+    "com.amazonaws.iam#ResolveRole": {
+      "type": "operation",
+      "input": {"target": "com.amazonaws.iam#ResolveRoleRequest"},
+      "output": {"target": "com.amazonaws.iam#ResolveRoleResponse"},
+      "errors": [
+        {"target": "com.amazonaws.iam#NoSuchEntityException"}
+      ],
+      "traits": {
+        "dev.understudy#internalOperation": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/design/ARCHITECTURE.md#7-identity-auth-accounts-and-regions: STS AssumeRole succeeds only if the role exists, and the same path mints Lambda execution-role credentials; STS reads the role from IAM through this operation"
+        }
+      }
+    },
+    "com.amazonaws.iam#ResolveRoleRequest": {
+      "type": "structure",
+      "members": {
+        "RoleArn": {"target": "com.amazonaws.iam#arnType", "traits": {"smithy.api#required": {}}}
+      },
+      "traits": {
+        "smithy.api#input": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/iam-sts-kms.md#42-assumerole: AssumeRole names the role by ARN"
+        }
+      }
+    },
+    "com.amazonaws.iam#ResolveRoleResponse": {
+      "type": "structure",
+      "members": {
+        "Role": {"target": "com.amazonaws.iam#Role", "traits": {"smithy.api#required": {}}}
+      },
+      "traits": {
+        "smithy.api#output": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/phase1/iam-sts-kms.md#42-assumerole: the session needs the role's id for AssumedRoleId and its MaxSessionDuration for the DurationSeconds check"
+        }
+      }
     }
   }
 }

@@ -17,6 +17,7 @@ const (
 	Snapshot                      // snapshot export and import
 	Admin                         // the admin API
 	KMSForward                    // S3, Secrets Manager or SQS calling KMS for the caller
+	STSAssumeRole                 // STS reading the role AssumeRole names from IAM, for the caller
 )
 
 // String returns the wire name, such as "sns-delivery".
@@ -42,6 +43,8 @@ func (v Via) String() string {
 		return "admin"
 	case KMSForward:
 		return "kms-forward"
+	case STSAssumeRole:
+		return "sts-assume-role"
 	default:
 		return fmt.Sprintf("Via(%d)", uint8(v))
 	}
@@ -53,7 +56,7 @@ type ViaError struct {
 }
 
 func (e *ViaError) Error() string {
-	return fmt.Sprintf("%q names no internal call mechanism; known names are sns-delivery, lambda-esm, events-target, s3-notification, lambda-logs, dynamodb-ttl, timer, snapshot, admin and kms-forward", e.Text)
+	return fmt.Sprintf("%q names no internal call mechanism; known names are sns-delivery, lambda-esm, events-target, s3-notification, lambda-logs, dynamodb-ttl, timer, snapshot, admin, kms-forward and sts-assume-role", e.Text)
 }
 
 // ParseVia returns the Via whose wire name is s.
@@ -85,4 +88,4 @@ func (v *Via) UnmarshalText(text []byte) error {
 }
 
 // valid reports whether v is one of the declared values.
-func (v Via) valid() bool { return v >= SNSDelivery && v <= KMSForward }
+func (v Via) valid() bool { return v >= SNSDelivery && v <= STSAssumeRole }

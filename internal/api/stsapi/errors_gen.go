@@ -6,6 +6,16 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 )
 
+// IdentityAccessDenied returns the identity of com.amazonaws.sts#AccessDenied.
+func IdentityAccessDenied() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.sts#AccessDenied", JSONType: "AccessDenied", QueryCode: "AccessDenied", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrAccessDenied returns an AccessDenied error with message.
+func ErrAccessDenied(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityAccessDenied(), Message: message, Origin: awserr.Modeled{}}
+}
+
 // IdentityAccessDeniedException returns the identity of com.amazon.coral.service#AccessDeniedException.
 func IdentityAccessDeniedException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}

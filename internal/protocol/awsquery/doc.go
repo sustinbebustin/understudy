@@ -30,8 +30,12 @@
 // operation has an output shape, <OpResult/> when no member is set, the
 // envelope with ResponseMetadata alone for smithy.api#Unit, the service's
 // xmlNamespace on the root (SQS's legacy namespace comes from its
-// overlay), an empty element as <Name/>, lowercase booleans, date-time
-// timestamps with millisecond precision, padded base64 blobs, NaN,
+// overlay), a member's own xmlNamespace on its element (a flattened
+// list's items take the list member's, a flattened map's entries the
+// structure member's; a namespace on a member's target shape is not
+// written, as the corpus asserts), an empty element as <Name/>, lowercase
+// booleans, date-time timestamps with millisecond precision, padded base64
+// blobs, NaN,
 // Infinity and -Infinity for the non-finite floats, flattened collections
 // as contiguous repeated elements, and IAM policy documents percent-encoded
 // as RFC 3986 asks, '+' as %2B and a space as %20 (iam-sts-kms.md 3.3).

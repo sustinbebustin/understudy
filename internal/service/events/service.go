@@ -1,69 +1,97 @@
 package events
 
 import (
+	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
-	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
-	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/ruler"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshots.
-const stateVersion = 1
+// TimerSchedule fires when a scheduled rule is due. The key's ID is the
+// rule's ARN.
+const TimerSchedule kernel.TimerKind = "events.schedule"
 
-// State is the EventBridge state of one account and region; this build
-// keeps none.
-type State struct{}
-
-// Service is Amazon EventBridge: one state cell per account and region.
-// This build binds none of its operations, so each answers 501 in
-// EventBridge's own error format and coverage lists it as unbound.
+// Service is Amazon EventBridge: one state cell per account and region,
+// holding the rules and targets of its default bus.
 type Service struct {
+	k     *kernel.Kernel
+	ids   *ids.Source
 	cells *store.Partitioned[aws.Scope, State]
+	// schedule is TimerSchedule as registered with the kernel.
+	schedule kernel.HandledKind
+	// profile is the Event Ruler profile event patterns compile with.
+	profile ruler.EventBridge
+	// patterns holds the rules' event patterns compiled with profile.
+	patterns *patternCache
 }
 
-// The service is the snapshot and reset view of its state.
-var _ kernel.Stateful = (*Service)(nil)
-
-// New returns the service. It binds no operation.
+// New binds the EventBridge operations understudy implements and registers
+// the schedule timer. Every other operation stays unbound and answers 501.
 func New(d kernel.ServiceDeps, _ Options) *Service {
-	codec := jsonx.NewCodec()
-	return &Service{cells: store.NewPartitioned(d.Kernel.Gate(), store.Codec{Marshal: codec.Marshal, Unmarshal: codec.Unmarshal},
-		func(aws.Scope) State { return State{} })}
+	c, err := codec()
+	if err != nil {
+		c = store.Codec{
+			Marshal:   func(any) ([]byte, error) { return nil, err },
+			Unmarshal: func([]byte, any) error { return err },
+		}
+	}
+	s := &Service{
+		k:     d.Kernel,
+		ids:   d.IDs,
+		cells: store.NewPartitioned(d.Kernel.Gate(), c, newState),
+	}
+	s.patterns = newPatternCache(s.profile)
+	s.schedule = d.Kernel.Timers().Handle(TimerSchedule, s.onSchedule)
+	b := eventbridgeapi.NewBinder(d.Binder)
+	s.bindBuses(b)
+	s.bindRules(b)
+	s.bindTags(b)
+	s.bindTargets(b)
+	s.bindEvents(b)
+	return s
 }
 
-// Name returns "eventbridge", the service's registry id; its ARNs use the
-// "events" namespace.
-func (*Service) Name() ref.ServiceID { return "eventbridge" }
-
-// SchemaVersion returns the version of State.
-func (*Service) SchemaVersion() int { return stateVersion }
-
-// Export serializes every non-empty scope to one section.
-func (s *Service) Export() ([]store.Section, error) {
-	return s.cells.Export(store.ScopeKeys(), stateVersion)
+// rateRestart is when a rate schedule's period starts: AWS documents that
+// a rate rule starts when it is created; whether a later PutRule or
+// EnableRule restarts it is unrecorded (secrets-logs-events-alarms.md 4.2).
+func rateRestart() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:  "events.schedule.restart",
+		Value: "on-schedule-change-or-enable",
+		Label: evidence.Inferred,
+		Ref:   "docs/research/phase1/secrets-logs-events-alarms.md#42-schedule-expressions-rate-and-cron",
+	}
 }
 
-// Import loads sections written by Export of this schema version.
-func (s *Service) Import(ss []store.Section) error {
-	return s.cells.Import(store.ScopeKeys(), stateVersion, ss)
+// unmatchedInputPath is what a target whose InputPath selects nothing in
+// an event receives: no AWS source says; understudy delivers nothing.
+func unmatchedInputPath() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:  "events.input-path.unmatched",
+		Value: "not-delivered",
+		Label: evidence.Inferred,
+		Ref:   "docs/research/phase1/secrets-logs-events-alarms.md#45-targets",
+	}
 }
 
-// Reset drops the scopes rs covers.
-func (s *Service) Reset(rs kernel.ResetScope) {
-	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
+// Switches lists the behaviors chosen without AWS-recorded evidence: the
+// service's own and those of its Event Ruler profile.
+func (s *Service) Switches() []fidelity.Entry {
+	profile := ruler.Switches(s.profile)
+	out := make([]fidelity.Entry, 0, 2+len(profile))
+	out = append(out, rateRestart().Entry(), unmatchedInputPath().Entry())
+	for _, sw := range profile {
+		out = append(out, fidelity.Switch[string]{
+			Name:   sw.Name,
+			Value:  sw.Value,
+			Label:  evidence.Inferred,
+			Ref:    sw.Ref,
+			Record: sw.Record,
+		}.Entry())
+	}
+	return out
 }
-
-// Rearm does nothing: the state arms no timers.
-func (*Service) Rearm(clock.Instant) {}
-
-// Resources lists nothing: the state holds no resources.
-func (*Service) Resources(aws.Scope) []kernel.Resource { return nil }
-
-// Scopes returns the accounts and regions that hold a state cell.
-func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) }
-
-// Switches lists no behaviors: the service implements none yet.
-func (*Service) Switches() []fidelity.Entry { return nil }

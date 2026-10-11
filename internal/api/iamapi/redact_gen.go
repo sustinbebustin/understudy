@@ -1430,6 +1430,16 @@ func (v *ResetServiceSpecificCredentialOutput) Redact() *ResetServiceSpecificCre
 }
 
 // Redact returns v with its sensitive members cleared.
+func (v *ResolveRoleInput) Redact() *ResolveRoleInput {
+	return v
+}
+
+// Redact returns v with its sensitive members cleared.
+func (v *ResolveRoleOutput) Redact() *ResolveRoleOutput {
+	return v
+}
+
+// Redact returns v with its sensitive members cleared.
 func (v *ResyncMFADeviceInput) Redact() *ResyncMFADeviceInput {
 	return v
 }

@@ -4926,6 +4926,27 @@ func (v *ResetServiceSpecificCredentialInput) validate(path awserr.Path, out *[]
 
 // Validate reports the constraint violations of v in AWS's order; nil
 // means v satisfies every generated constraint.
+func (v *ResolveRoleInput) Validate() []awserr.Violation {
+	var out []awserr.Violation
+	v.validate(nil, &out)
+	return out
+}
+
+func (v *ResolveRoleInput) validate(path awserr.Path, out *[]awserr.Violation) {
+	if v.missing&(1<<0) != 0 {
+		*out = append(*out, awserr.Violation{Path: at(path, "roleArn"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
+	} else {
+		if utf8.RuneCountInString(v.RoleArn) > 2048 {
+			*out = append(*out, awserr.Violation{Path: at(path, "roleArn"), Value: awserr.RenderedText{Text: v.RoleArn}, Constraint: awserr.LengthMax{Max: 2048}})
+		}
+		if utf8.RuneCountInString(v.RoleArn) < 20 {
+			*out = append(*out, awserr.Violation{Path: at(path, "roleArn"), Value: awserr.RenderedText{Text: v.RoleArn}, Constraint: awserr.LengthMin{Min: 20}})
+		}
+	}
+}
+
+// Validate reports the constraint violations of v in AWS's order; nil
+// means v satisfies every generated constraint.
 func (v *ResyncMFADeviceInput) Validate() []awserr.Violation {
 	var out []awserr.Violation
 	v.validate(nil, &out)
@@ -9116,6 +9137,20 @@ var policyResetServiceSpecificCredential = validationPolicy{
 // when vs is empty.
 func (*ResetServiceSpecificCredentialInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 	return policyResetServiceSpecificCredential.render(vs)
+}
+
+var policyResolveRole = validationPolicy{
+	paths: []validationPath{
+		{segments: []string{"roleArn"}, param: "RoleArn"},
+	},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+}
+
+// ValidationError returns the error ResolveRole answers for vs, the
+// violations of the generated and the hand-written validators, or nil
+// when vs is empty.
+func (*ResolveRoleInput) ValidationError(vs []awserr.Violation) *awserr.Error {
+	return policyResolveRole.render(vs)
 }
 
 var policyResyncMFADevice = validationPolicy{

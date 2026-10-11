@@ -2851,6 +2851,14 @@ var memberPutLogEventsInput_sequenceToken = smithy.Member{Name: "sequenceToken",
 
 var memberPutLogEventsInput_entity = smithy.Member{Name: "entity", Index: 4}
 
+var schemaPutLogEventsInternalInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutLogEventsInternalRequest", Type: smithy.TypeStructure}
+
+var memberPutLogEventsInternalInput_logGroupName = smithy.Member{Name: "logGroupName", Index: 0, Required: true}
+
+var memberPutLogEventsInternalInput_logStreamName = smithy.Member{Name: "logStreamName", Index: 1, Required: true}
+
+var memberPutLogEventsInternalInput_logEvents = smithy.Member{Name: "logEvents", Index: 2, Required: true}
+
 var schemaPutLogEventsOutput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#PutLogEventsResponse", Type: smithy.TypeStructure}
 
 var memberPutLogEventsOutput_nextSequenceToken = smithy.Member{Name: "nextSequenceToken", Index: 0}
@@ -5085,6 +5093,10 @@ func init() {
 	memberPutLogEventsInput_sequenceToken.Target = &schemaSequenceToken
 	memberPutLogEventsInput_entity.Target = &schemaEntity
 	schemaPutLogEventsInput.Members = []*smithy.Member{&memberPutLogEventsInput_logGroupName, &memberPutLogEventsInput_logStreamName, &memberPutLogEventsInput_logEvents, &memberPutLogEventsInput_sequenceToken, &memberPutLogEventsInput_entity}
+	memberPutLogEventsInternalInput_logGroupName.Target = &schemaLogGroupName
+	memberPutLogEventsInternalInput_logStreamName.Target = &schemaLogStreamName
+	memberPutLogEventsInternalInput_logEvents.Target = &schemaInputLogEvents
+	schemaPutLogEventsInternalInput.Members = []*smithy.Member{&memberPutLogEventsInternalInput_logGroupName, &memberPutLogEventsInternalInput_logStreamName, &memberPutLogEventsInternalInput_logEvents}
 	memberPutLogEventsOutput_nextSequenceToken.Target = &schemaSequenceToken
 	memberPutLogEventsOutput_rejectedLogEventsInfo.Target = &schemaRejectedLogEventsInfo
 	memberPutLogEventsOutput_rejectedEntityInfo.Target = &schemaRejectedEntityInfo

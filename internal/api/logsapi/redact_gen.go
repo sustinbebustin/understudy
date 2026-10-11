@@ -957,6 +957,16 @@ func (v *PutLogEventsOutput) Redact() *PutLogEventsOutput {
 }
 
 // Redact returns v with its sensitive members cleared.
+func (v *PutLogEventsInternalInput) Redact() *PutLogEventsInternalInput {
+	return v
+}
+
+// Redact returns v with its sensitive members cleared.
+func (v *PutLogEventsInternalOutput) Redact() *PutLogEventsInternalOutput {
+	return v
+}
+
+// Redact returns v with its sensitive members cleared.
 func (v *PutLogGroupDeletionProtectionInput) Redact() *PutLogGroupDeletionProtectionInput {
 	return v
 }

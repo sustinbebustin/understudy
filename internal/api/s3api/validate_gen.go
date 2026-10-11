@@ -355,11 +355,6 @@ func (v *CopyObjectInput) validate(path awserr.Path, out *[]awserr.Violation) {
 }
 
 func (v *CreateBucketConfiguration) validate(path awserr.Path, out *[]awserr.Violation) {
-	if v.LocationConstraint != nil {
-		if !(*v.LocationConstraint).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "locationConstraint"), Value: awserr.RenderedText{Text: string(*v.LocationConstraint)}, Constraint: awserr.Enum{Values: []string{"af-south-1", "ap-east-1", "ap-east-2", "ap-northeast-1", "ap-northeast-2", "ap-northeast-3", "ap-south-1", "ap-south-2", "ap-southeast-1", "ap-southeast-2", "ap-southeast-3", "ap-southeast-4", "ap-southeast-5", "ap-southeast-6", "ap-southeast-7", "ca-central-1", "ca-west-1", "cn-north-1", "cn-northwest-1", "EU", "eu-central-1", "eu-central-2", "eu-north-1", "eu-south-1", "eu-south-2", "eu-west-1", "eu-west-2", "eu-west-3", "il-central-1", "me-central-1", "me-south-1", "mx-central-1", "sa-east-1", "us-east-2", "us-gov-east-1", "us-gov-west-1", "us-west-1", "us-west-2"}}})
-		}
-	}
 	if v.Location != nil {
 		v.Location.validate(at(path, "location"), out)
 	}
@@ -393,11 +388,6 @@ func (v *CreateBucketInput) validate(path awserr.Path, out *[]awserr.Violation) 
 	}
 	if v.CreateBucketConfiguration != nil {
 		v.CreateBucketConfiguration.validate(at(path, "createBucketConfiguration"), out)
-	}
-	if v.ObjectOwnership != nil {
-		if !(*v.ObjectOwnership).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectOwnership"), Value: awserr.RenderedText{Text: string(*v.ObjectOwnership)}, Constraint: awserr.Enum{Values: []string{"BucketOwnerPreferred", "ObjectWriter", "BucketOwnerEnforced"}}})
-		}
 	}
 	if v.BucketNamespace != nil {
 		if !(*v.BucketNamespace).Known() {
@@ -2400,10 +2390,6 @@ func (v *OwnershipControls) validate(path awserr.Path, out *[]awserr.Violation) 
 func (v *OwnershipControlsRule) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "objectOwnership"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
-	} else {
-		if !v.ObjectOwnership.Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectOwnership"), Value: awserr.RenderedText{Text: string(v.ObjectOwnership)}, Constraint: awserr.Enum{Values: []string{"BucketOwnerPreferred", "ObjectWriter", "BucketOwnerEnforced"}}})
-		}
 	}
 }
 
@@ -2623,11 +2609,6 @@ func (v *PutBucketLifecycleConfigurationInput) validate(path awserr.Path, out *[
 	}
 	if v.LifecycleConfiguration != nil {
 		v.LifecycleConfiguration.validate(at(path, "lifecycleConfiguration"), out)
-	}
-	if v.TransitionDefaultMinimumObjectSize != nil {
-		if !(*v.TransitionDefaultMinimumObjectSize).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "transitionDefaultMinimumObjectSize"), Value: awserr.RenderedText{Text: string(*v.TransitionDefaultMinimumObjectSize)}, Constraint: awserr.Enum{Values: []string{"varies_by_storage_class", "all_storage_classes_128K"}}})
-		}
 	}
 }
 
@@ -3858,11 +3839,6 @@ func (v *VersioningConfiguration) validate(path awserr.Path, out *[]awserr.Viola
 	if v.MFADelete != nil {
 		if !(*v.MFADelete).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "mFADelete"), Value: awserr.RenderedText{Text: string(*v.MFADelete)}, Constraint: awserr.Enum{Values: []string{"Enabled", "Disabled"}}})
-		}
-	}
-	if v.Status != nil {
-		if !(*v.Status).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "status"), Value: awserr.RenderedText{Text: string(*v.Status)}, Constraint: awserr.Enum{Values: []string{"Enabled", "Suspended"}}})
 		}
 	}
 }

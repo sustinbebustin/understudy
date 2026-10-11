@@ -124,6 +124,9 @@ func (s *Source) PolicyID() IAMID { return s.iamID("ANPA") }
 // UserID mints an IAM user id (AIDA).
 func (s *Source) UserID() IAMID { return s.iamID("AIDA") }
 
+// InstanceProfileID mints an IAM instance profile id (AIPA).
+func (s *Source) InstanceProfileID() IAMID { return s.iamID("AIPA") }
+
 // SecretAccessKey mints a secret access key.
 func (s *Source) SecretAccessKey() SecretAccessKey {
 	return SecretAccessKey(s.chars(KindSecretAccessKey, base64Alphabet, secretKeyLen))
