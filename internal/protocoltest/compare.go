@@ -157,12 +157,12 @@ func equalDocument(where string, want, got document.Value) error {
 			return mismatch()
 		}
 		return nil
-	default:
-		if want != got {
-			return mismatch()
-		}
-		return nil
+	case document.Null, document.Bool, document.String:
 	}
+	if want != got {
+		return mismatch()
+	}
+	return nil
 }
 
 func equalMembers(where string, want, got document.Map) error {
@@ -447,12 +447,12 @@ func equalCBOR(where string, want, got cbor.Value) error {
 			return equalCBOR(where, w.Content, g.Content)
 		}
 		return mismatch
-	default:
-		if !equalCBORScalar(want, got) {
-			return mismatch
-		}
-		return nil
+	case cbor.Bool, cbor.Bytes, cbor.Float32, cbor.Float64, cbor.NegInt, cbor.Null, cbor.Text, cbor.Uint, cbor.Undefined:
 	}
+	if !equalCBORScalar(want, got) {
+		return mismatch
+	}
+	return nil
 }
 
 // equalCBORScalar compares two values that are neither maps, arrays nor
@@ -466,9 +466,9 @@ func equalCBORScalar(want, got cbor.Value) bool {
 		wf, _ := asFloat(want)
 		gf, ok := asFloat(got)
 		return ok && (wf == gf || math.IsNaN(wf) && math.IsNaN(gf))
-	default:
-		return want == got
+	case cbor.Bool, cbor.NegInt, cbor.Null, cbor.Text, cbor.Uint, cbor.Undefined, cbor.Array, cbor.Map, cbor.Tag:
 	}
+	return want == got
 }
 
 func equalCBORMap(where string, want, got cbor.Map) error {
@@ -491,7 +491,7 @@ func asFloat(v cbor.Value) (float64, bool) {
 		return float64(v), true
 	case cbor.Float64:
 		return float64(v), true
-	default:
-		return 0, false
+	case cbor.Array, cbor.Bool, cbor.Bytes, cbor.Map, cbor.NegInt, cbor.Null, cbor.Tag, cbor.Text, cbor.Uint, cbor.Undefined:
 	}
+	return 0, false
 }

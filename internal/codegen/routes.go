@@ -114,6 +114,9 @@ func requireMembers(r *RouteIR) {
 			}
 		case smithy.HTTPHeader:
 			r.Headers = append(r.Headers, l.Name)
+		case smithy.HTTPLabel, smithy.HTTPPayload, smithy.HTTPPrefixHeaders, smithy.HTTPQueryParams, smithy.HTTPResponseCode:
+			// A label is in the URI pattern already; the others are never
+			// required to tell routes apart.
 		}
 	}
 }

@@ -98,9 +98,9 @@
 // envelope builder can produce; closing the gap needs the producer to hand
 // the outbox its dead letter in delivery.Request.
 //
-// The attempt's journal events (Delivery, Advisory, FaultInjected) carry
-// the source call's cause, but the target call itself, and everything it
-// causes, is the child of the attempt timer's TimerFired event, which roots
-// a new trace: kernel.Invoke takes its parent from the Call the timer
-// handler received and has no way to resume a stored cause.
+// The attempt's journal events (Delivery, Advisory, FaultInjected) and its
+// target call carry the source call's cause: the call resumes the entry's
+// stored cause through kernel.Target.Resume, so the target call and
+// everything it causes stay in the source call's trace, beside the
+// Delivery event, rather than under the attempt timer's TimerFired event.
 package outbox

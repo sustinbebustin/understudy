@@ -205,6 +205,7 @@ func (h *harness) link(name, target string) (*httptest.ResponseRecorder, *awserr
 		return rec, r.Err
 	case kernel.StatusOKFailure:
 		return rec, r.Err
+	case kernel.Output:
 	}
 	return rec, nil
 }

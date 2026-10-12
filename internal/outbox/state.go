@@ -491,13 +491,13 @@ func timerID(scope aws.Scope, id ids.DeliveryID) string {
 
 // parseTimerID reverses timerID.
 func parseTimerID(s string) (aws.Scope, ids.DeliveryID, bool) {
-	i := strings.LastIndexByte(s, '/')
-	if i < 0 {
+	before, after, ok := strings.CutLast(s, "/")
+	if !ok {
 		return aws.Scope{}, "", false
 	}
-	scope, err := store.ScopeKeys().Decode(s[:i])
-	if err != nil || s[i+1:] == "" {
+	scope, err := store.ScopeKeys().Decode(before)
+	if err != nil || after == "" {
 		return aws.Scope{}, "", false
 	}
-	return scope, ids.DeliveryID(s[i+1:]), true
+	return scope, ids.DeliveryID(after), true
 }

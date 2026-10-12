@@ -13,8 +13,8 @@
 //     entry may back different traits with different labels. A running
 //     server carries no overlay files, so its report (GET
 //     /_understudy/v1/coverage) says so and points to docs/coverage.md,
-//     which internal/cmd/coverage generates in the repository with the
-//     overlays read from codegen/overlays.
+//     which `understudy coverage --format markdown --overlays
+//     codegen/overlays` generates offline in the repository.
 //   - Operations are ordered by status (full, stored-only, partial,
 //     unbound), then name; switches and overlay rows by label, strongest
 //     evidence first.

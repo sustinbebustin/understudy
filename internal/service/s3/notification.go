@@ -364,6 +364,7 @@ func sequenced(c notify.Change, seq notify.Sequencer) notify.Change {
 	case notify.Removed:
 		c.Sequencer = seq
 		return c
+	case notify.Tagged:
 	}
 	return c
 }

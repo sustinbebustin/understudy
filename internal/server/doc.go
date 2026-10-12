@@ -1,46 +1,119 @@
-// Package server runs understudy serve: listeners, the explicit construction of
-// every service in wire.go, startup, shutdown and the container sweep.
+// Package server runs understudy serve: the listeners, the explicit
+// construction of every service in wire.go, startup with the persisted
+// state, shutdown, the containers Lambda and DynamoDB Local run in, and the
+// startup sweep of what a crashed run left.
 //
-// It is the only package that names every service, every codec and the outbox.
+// It is the only package that names every service, every codec and the
+// outbox.
 //
 // Decisions the architecture leaves open:
 //
-//   - Config is the serve subset (listen address, admin token, persistence,
-//     TLS, clock start, seed, log format and level, ready file); the
-//     configuration package maps onto it later. ClockFrozen takes a
-//     time.Time, so the command line parses at its boundary without
-//     importing the clock. Persistence and TLS are sums whose later variants
-//     arrive with their wiring: PersistDir roots the admin snapshot path
-//     form, and TLSOff is the only TLS setting.
-//   - A non-loopback listen address needs an admin token; without one New
-//     refuses with a *ListenError that explains the token and the published
-//     container port. The token applies on any address once set.
+//   - Config is what the CLI maps config.Config onto. The settings the CLI
+//     may not import a service to express (the fidelity switches) are the
+//     services' own types, re-exported as aliases with their constants;
+//     settings that need parsing against the region table (hot-reload
+//     bindings, extra regions) arrive as strings and are parsed in wire.go.
+//     The CLI reads the environment, including DOCKER_HOST, and this
+//     package reads none.
+//   - A non-loopback listen address needs an admin token or the
+//     ContainerPublished exposure, which New accepts only inside a
+//     container, recognized by the markers topology.RunsInContainer reads;
+//     otherwise New refuses with a *ListenError that explains both.
+//     An IPv4 address listens on IPv4 only, and a wildcard listener is
+//     advertised (ready file, banner) at loopback.
 //   - The admin API (internal/server/admin) serves the /_understudy/v1/
 //     prefix; its health endpoint answers 503 {"ready": false, "waiting":
-//     ["listener"]} until Serve's listener accepts.
-//   - The registry holds all twelve generated descriptors; the eleven
-//     services other than SQS are stubs that bind nothing, so each of their
-//     operations answers 501 in its protocol's envelope. A service's
-//     throttleError and unknownOperationError come from its generated
-//     package (apis in wire.go), since the descriptors do not carry them.
-//   - Every codec is registered (Codecs). The REST codecs never claim: the
-//     edge routes REST requests through the route tables. A request the
-//     rpcv2Cbor codec rejects outright is Declined to the edge, which has no
-//     claim that answers with the codec's error and so answers it as
-//     unclaimed, with the same UnknownOperationException identity.
-//   - wire.go hands the admin API each service that implements one of its
-//     hooks (draining, hot reload, image pulls, the TTL sweep, subscription
-//     tokens) by a type check, so a service task that adds the method is
-//     wired without editing wire.go. The Late list is collected the same way.
+//     ["listener"]} until Serve's listeners accept. Health also reports
+//     Docker (disabled without a socket, degraded when it does not answer a
+//     ping) and DynamoDB Local (degraded with the last start's error until
+//     a start succeeds); Lambda and DynamoDB take Docker's state and reason
+//     while Docker is not enabled, and Lambda is disabled while
+//     lambda.network is. Health names the main listener's bound address
+//     under "listener" and the topology under "topology": the detected one
+//     once a container needed it, before that in-container inside a
+//     container and host otherwise (admin.Topology).
+//   - lambda.network bridge skips detection with the configured gateway as
+//     a Linux bridge; disabled keeps the pool but refuses every function
+//     container with a *LambdaNetworkDisabledError, which Invoke reports
+//     as ServiceException, while DynamoDB Local still runs.
+//   - A configured snapshot (Config.LoadSnapshot) loads after the
+//     persisted state, the way PUT /snapshots does, so a persisting run
+//     checkpoints it as a change.
+//   - The topology is detected, and the launcher, the Runtime API server
+//     and the container listener built, at first use by a function
+//     environment, an image pull or DynamoDB Local (containers.go), not at
+//     startup: they need the main listener's port, which Serve learns. The
+//     Lambda pool and execution layer are built in wire.go against the
+//     containerHost, which stands in for all three until then, so the
+//     admin hooks and snapshots see the execution layer from the start.
+//     Without Docker configured, or without its socket, no pool is built:
+//     Invoke answers ServiceException naming Docker and the control planes
+//     keep working.
+//   - The container listener serves the AWS API and, from the admin
+//     prefix, only health and clock (edge.ListenerContainer); it opens on
+//     the topology's address at the main port and closes with the others.
+//   - DynamoDB Local's manager is built at its first start, when the
+//     topology says which network it joins (lazyLocal). With an accepted
+//     licence and the pinned image already present it starts in the
+//     background at serve; otherwise the first DynamoDB call starts it.
+//     Under persistence it stores items under <dir>/dynamodb.
+//   - Containers are owned per data directory: the owner label is a hash
+//     of the directory's absolute path, so a restart on the same directory
+//     sweeps what a crashed run left, under the directory's flock. Without
+//     persistence the owner is the run itself, nothing is swept, and
+//     `understudy cleanup` removes leftovers.
+//   - Persistence (persist.go) locks <dir>/.lock, keeps blobs in
+//     <dir>/blobs and the archive at <dir>/state.snapshot, loaded in New.
+//     A checkpoint is a snapshot cut whose sections and fault rules are
+//     hashed; it is written only when that digest differs from the last
+//     saved, since the clock, journal counter and id positions move without
+//     any state changing, and always at shutdown. The blob store is synced
+//     before the archive is renamed into place, and the blobs the archive
+//     on disk names stay pinned until a newer one replaces it, so a crash
+//     after a delete loses only the changes since the last checkpoint.
+//     Extracted function code lives in <dir>/code, or a temporary
+//     directory without persistence.
+//   - The TLS listener's certificate is generated at every start
+//     (ECDSA P-256, its own CA, SANs localhost, *.localhost, 127.0.0.1), and
+//     its URL is the ready file's tlsEndpoint. The certificate is not
+//     written to disk; a client trusts it by reading it from the handshake.
+//   - The admin hooks (draining, pollers, hot reload, image pulls, the TTL
+//     sweep, subscription tokens) are assigned by type, so the compiler
+//     checks that each service implements its hook. The outbox's
+//     PolicySource routes on the target ARN's service to SQS, SNS or
+//     Lambda, which read the queue's Policy, the topic's Policy and the
+//     function's permissions for the access advisory.
+//   - The kernel takes its Linker before the Lambda execution layer that
+//     implements it exists, so wire.go hands it a deferredLinker that the
+//     execution layer is set into.
 //   - The snapshot runtime restores id stream positions only when both the
 //     archive and this run are seeded, keeps this run's seed, and moves the
 //     journal counter forward only, so an event id is never issued twice.
 //   - The ready file is written atomically (temporary file and rename) once
-//     the listener accepts, and removed at shutdown, so a stale file never
+//     the listeners accept, and removed at shutdown, so a stale file never
 //     names a dead endpoint.
 //   - Shutdown cancels every request's context first, so parked long polls
-//     end at once, then gives requests in flight five seconds before the
-//     kernel stops.
+//     end at once, gives requests in flight five seconds, stops the
+//     background work (the pool's watch, checkpoints, the sweep and the
+//     background DynamoDB Local start), removes the Lambda environments
+//     (the pool drains them; function runtimes ignore SIGTERM) and DynamoDB
+//     Local, which refuses any later start, stops the kernel, then saves
+//     the state. With persistence, the startup sweep runs before the
+//     background DynamoDB Local start, so a crashed run's container never
+//     shares <dir>/dynamodb with the new one.
+//   - The banner is a text block on the log output with text logs and one
+//     record with JSON logs, so a log pipeline never sees an unparsable
+//     line. It reads the components as health does: it lists every
+//     service, marking those that cannot serve with their state, such as
+//     "lambda (disabled)", and warns when Docker is missing or does not
+//     answer and when lambda.network is disabled.
 //   - Codecs are adapted to edge.Codec here (codecs.go), since the edge may
 //     not import a protocol package.
+//   - Boot fails with an *UnhandledTimerError when the loaded state armed a
+//     timer whose kind no handler is registered for: New checks after
+//     loading, and Serve again once the pollers have registered their
+//     kind.
+//   - Serve reports readiness three ways: the ready file, Config.OnReady
+//     with the endpoints (for in-process callers such as understudytest),
+//     and the health endpoint. A listener it cannot open is a *BindError.
 package server

@@ -94,15 +94,21 @@ func build(t *testing.T, cfg server.Config) (srv *server.Server, ready string) {
 	t.Helper()
 	cfg.Listen = netip.MustParseAddrPort("127.0.0.1:0")
 	cfg.ReadyFile = filepath.Join(t.TempDir(), "ready.json")
-	cfg.LogOutput = io.Discard
+	if cfg.LogOutput == nil {
+		cfg.LogOutput = io.Discard
+	}
 	srv = newServer(t, cfg)
 	return srv, cfg.ReadyFile
 }
 
 // newServer is server.New for a server the test may never serve: cleanup
-// closes it and checks the close.
+// closes it and checks the close. Docker is disabled unless the test sets
+// it, so no test reaches the machine's daemon by accident.
 func newServer(t *testing.T, cfg server.Config) *server.Server {
 	t.Helper()
+	if cfg.Docker == nil {
+		cfg.Docker = server.DockerDisabled{}
+	}
 	srv, err := server.New(cfg)
 	if err != nil {
 		t.Fatal(err)

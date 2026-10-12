@@ -22,6 +22,12 @@ type Target struct {
 	// At is the admission instant of deferred work: a timer's due instant.
 	// Zero means the parent call's admission instant.
 	At clock.Instant
+	// Resume is a stored cause the call continues, such as an outbox
+	// entry's source call (ARCHITECTURE.md 10: state carries causes across
+	// time). The call's journal parent and trace come from it instead of
+	// from the parent call, whose TimerFired event only scheduled the work.
+	// Zero means the parent call's event and trace.
+	Resume ref.Cause
 }
 
 // PrincipalMode says whom AWS authorizes an internal call as.
@@ -121,6 +127,10 @@ func (k *Kernel) internalCall(parent *Call, id ref.OperationID, t Target) *Call 
 	if at.IsZero() {
 		at = parent.admitted
 	}
+	cause := t.Resume
+	if cause == (ref.Cause{}) {
+		cause = ref.Cause{Parent: parent.event, Trace: parent.cause.Trace}
+	}
 	return &Call{
 		k:         k,
 		id:        k.ids.RequestID(),
@@ -131,7 +141,7 @@ func (k *Kernel) internalCall(parent *Call, id ref.OperationID, t Target) *Call 
 		op:        op,
 		opID:      id,
 		label:     id.String(),
-		cause:     ref.Cause{Parent: parent.event, Trace: parent.cause.Trace},
+		cause:     cause,
 		admitted:  at,
 		endpoint:  parent.endpoint,
 		trace:     parent.trace,

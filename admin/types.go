@@ -44,7 +44,30 @@ type Health struct {
 	Journal ServiceStatus `json:"journal,omitzero"`
 	// Model is the vendored Smithy model pin the build was generated from.
 	Model string `json:"model,omitempty"`
+	// Topology is how containers reach understudy; absent when the server
+	// runs no containers.
+	Topology Topology `json:"topology,omitempty"`
+	// Listener is the main listener's bound address, such as 0.0.0.0:4566;
+	// absent until it accepts.
+	Listener string `json:"listener,omitempty"`
 }
+
+// Topology names how Lambda and DynamoDB Local containers reach
+// understudy (ARCHITECTURE.md 14.5).
+type Topology string
+
+// Topology values. TopologyHost is reported while nothing has been
+// detected and the server does not run in a container: detection waits
+// for the first container.
+const (
+	TopologyLinuxBridge    Topology = "linux-bridge"
+	TopologyDockerDesktop  Topology = "docker-desktop"
+	TopologyRootlessDocker Topology = "rootless-docker"
+	TopologyPodman         Topology = "podman"
+	TopologyRootlessPodman Topology = "rootless-podman"
+	TopologyInContainer    Topology = "in-container"
+	TopologyHost           Topology = "host"
+)
 
 // ServiceState is whether a wired service, or a component one runs on,
 // serves requests.

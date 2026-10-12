@@ -328,6 +328,15 @@ func (h *Handler) rearm() {
 	for _, s := range h.o.Services {
 		s.Rearm(now)
 	}
+	h.rearmPollers()
+}
+
+// rearmPollers reconciles the pollers with the state every service has
+// rearmed from, after a reset or a snapshot load.
+func (h *Handler) rearmPollers() {
+	if h.o.Pollers != nil {
+		h.o.Pollers.RearmPollers()
+	}
 }
 
 // journalClock records a clock mode change.

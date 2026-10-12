@@ -149,7 +149,7 @@ Dependency direction, checked by a test in `internal/ref` that walks imports wit
 - `protocol/*` imports `protocol/smithy`, `awserr`, `ref` and the other protocol helpers it builds on; the codecs and `restbind` also import `registry` and `aws`, because a codec claims requests through the service descriptor and reads its identities. It never sees a service or a generated package.
 - `outbox` imports `kernel`, `delivery`, `journal`, `store`, `clock`, and the generated `api/*` packages whose `SendMessage`, `Invoke` and `Publish` ops its attempts call. `edge` imports `kernel`, `registry`, `auth`, `identity` and the codec interface; `server` is the only package that names every service, every codec and `outbox`.
 - `snapshot` imports `store`, `blob`, `jsonx`, `clock`, `ids`; `kernel.Stateful` exports `store.Section` values and `snapshot` archives them, so neither imports the other.
-- `cli` depends on `admin`, `config` and `server` only: `serve` maps `config.Config` onto `server.Config`, and `coverage` runs offline in process.
+- `cli` depends on `admin`, `config` and `server`, plus the read-only non-service packages its offline subcommands need: `serve` maps `config.Config` onto `server.Config`; `coverage` runs offline in process and filters, renders and adds overlay evidence through `coverage`; `snapshot inspect` and `diff` read local archives through `snapshot`; `doctor` and `cleanup` reach the daemon through `docker` and detect the topology through `topology`. It never imports a service.
 
 Every service package has the same files, so reading one teaches all: `service.go` (struct, `New(kernel.ServiceDeps, Options)`, lifecycle, one `bind<Family>` call per resource family), `state.go` (persisted types with `json` tags and `stateVersion`), one file per resource family, `validate.go` for typed per-operation validators bound with `kernel.WithValidator`, `errors.go` for message builders over the generated constructors (never an `awserr.Identity` literal), `*_test.go` through `kernel.Invoke` inside `kerneltest` bubbles.
 
@@ -1125,7 +1125,7 @@ type Late interface { ExportLate(ctx context.Context) ([]store.Section, error); 
 - Load drains Lambda environments, stops pollers and clears the scheduler before the cut.
 - Accepted deliveries are state in the outbox (F4), so a save never names deliveries as not captured.
 - DynamoDB: under `--persist` Local runs with `-dbPath <dir>/dynamodb` and owns item data; the periodic archive carries shim state only. An explicit `snapshot save` exports items through the proxy (`DescribeTable` plus paginated `Scan`) as `Late` sections; `snapshot load` and `reset` issue `DeleteTable` per scope against the running container, then `CreateTable` plus `BatchWriteItem` from the sections (F11, product M3). Local's SQLite files are never copied. These calls are one summary journal event and never match fault rules.
-- Persistence across restarts is opt-in (`--persist <dir>`): the archive is written atomically to `<dir>/state.snapshot` on graceful shutdown and every 30 s of wall time while any cell is dirty, loaded at startup; blobs live in `<dir>/blobs` and the archive references them. No write-ahead log in phase 1: a crash loses at most 30 s. The data dir is `flock`ed so two `serve` processes cannot share it.
+- Persistence across restarts is opt-in (`--persist <dir>`): the archive is written atomically to `<dir>/state.snapshot` on graceful shutdown and every 30 s of wall time while any cell is dirty, loaded at startup; blobs live in `<dir>/blobs` and the archive references them, so the blobs the archive on disk names stay pinned until a newer archive replaces it. No write-ahead log in phase 1: a crash loses at most 30 s. The data dir is `flock`ed so two `serve` processes cannot share it. Archives saved through the admin path form live in `<dir>/snapshots`, which cannot reach the lock, the state file, the blobs or DynamoDB Local's files.
 - `understudy snapshot diff a b [--normalize]` compares archives section by section and prints resource-level differences; `--normalize` applies the closed normalizer set of section 12.
 
 ## 14. Lambda runtime
@@ -1283,14 +1283,14 @@ Mounted at `/_understudy/v1/` on the main listener; JSON both ways; errors `{"er
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /health` | version, uptime, per-service status (enabled, disabled with reason, degraded), Docker and DynamoDB Local status, model pin |
+| `GET /health` | version, uptime, per-service status (enabled, disabled with reason, degraded), Docker and DynamoDB Local status, model pin, the container topology (`admin.Topology`) and the bound main listener |
 | `POST /reset` | all state, or `{"services":[], "accounts":[], "regions":[]}`; drains Lambda environments; clock and faults kept unless asked |
 | `GET /clock`, `POST /clock` | read; `{"op":"freeze"|"resume"|"advance"|"set"|"scale", "by":"90s", "to":"...", "factor":60}`; returns timers fired |
 | `GET /faults`, `PUT /faults/{id}`, `DELETE /faults/{id}`, `DELETE /faults` | rules; PUT validates against the operation's catalogue |
 | `GET /journal/events` | query with cursor pagination; `request_id=` is a filter |
 | `GET /journal/stream` | NDJSON stream, same filters, `?after=<id>` |
 | `GET /journal/traces/{id}` | causal tree by trace id or by `request_id=`; `?canonical=1` returns the normalized tree of section 12 |
-| `POST /snapshots` (archive out), `PUT /snapshots` (archive in) | save and load; with `--persist` also `{"path": ...}` under the data dir |
+| `POST /snapshots` (archive out), `PUT /snapshots` (archive in) | save and load; with `--persist` also `{"path": ...}` under `<data dir>/snapshots`, apart from the lock, state file, blobs and DynamoDB files |
 | `GET /resources` | every resource ARN by service, account, region with a short state summary |
 | `GET /coverage?format=json|markdown` | registry coverage, protocol compliance results, fidelity switches; overlay evidence only in the offline report (`docs/coverage.md`, `understudy coverage`), since the binary does not carry the overlay files (wave 6 amendment) |
 | `GET /iam/usage`, `GET /iam/policy?principal=` | access record; least-privilege policy. Contract (product C3): one statement per `(service, resource ARN)` with exact ARNs (no wildcards unless the operation has no resource); `*Batch` and multi-action operations map to every action in `Operation.IAM`; failed calls that were not injected are recorded, because the application's handled failures need permissions too; a separate `resourcePolicies` section lists the resource-policy requirements deliveries would need (target ARN, service principal, action, source ARN) |

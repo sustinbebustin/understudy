@@ -408,6 +408,21 @@ func TestWriteReadWriteIsByteIdentical(t *testing.T) {
 	})
 }
 
+func TestClockModeName(t *testing.T) {
+	t.Parallel()
+	for mode, want := range map[clock.Mode]string{
+		clock.Running{}:            "running",
+		clock.Frozen{}:             "frozen",
+		clock.Scaled{Factor: 60}:   "scaled x60",
+		clock.Scaled{Factor: 0.5}:  "scaled x0.5",
+		clock.Scaled{Factor: 1e-3}: "scaled x0.001",
+	} {
+		if got := (snapshot.Clock{Mode: mode}).ModeName(); got != want {
+			t.Errorf("ModeName of %#v = %q, want %q", mode, got, want)
+		}
+	}
+}
+
 func sortedSections(ss []store.Section) []store.Section {
 	return slices.SortedFunc(slices.Values(ss), func(a, b store.Section) int { return strings.Compare(a.Path, b.Path) })
 }

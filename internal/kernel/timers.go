@@ -98,6 +98,23 @@ func (t *Timers) Handle(kind TimerKind, fn TimerHandler) HandledKind {
 	return HandledKind{kind: kind}
 }
 
+// Unhandled returns the armed timers whose kind has no handler, in firing
+// order. Tx.Arm cannot arm one, but Stateful.Rearm arms the scheduler
+// directly from loaded state; such a timer would only be logged when it
+// fires, so the server fails boot when any is armed.
+func (t *Timers) Unhandled() []clock.TimerKey {
+	armed := t.sched.Snapshot()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	var out []clock.TimerKey
+	for _, a := range armed {
+		if _, ok := t.handlers[a.Key.Kind]; !ok {
+			out = append(out, a.Key)
+		}
+	}
+	return out
+}
+
 func (t *Timers) attach(k *Kernel) error {
 	if !t.k.CompareAndSwap(nil, k) {
 		return &AttachError{}

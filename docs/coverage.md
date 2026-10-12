@@ -140,7 +140,7 @@ Every operation of each service's model, with what its handler states: full, sto
 | eventbridge | 57 | 9 | 0 | 8 | 40 | 0 | 0 |
 | iam | 180 | 44 | 11 | 9 | 116 | 1 | 0 |
 | kms | 54 | 19 | 3 | 5 | 27 | 0 | 0 |
-| lambda | 88 | 26 | 4 | 10 | 48 | 0 | 1 |
+| lambda | 88 | 26 | 4 | 11 | 47 | 0 | 1 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
 | s3 | 112 | 13 | 47 | 21 | 31 | 0 | 3 |
 | secretsmanager | 23 | 12 | 1 | 2 | 8 | 0 | 0 |
@@ -618,12 +618,13 @@ Internal operations:
 | GetFunctionCodeSigningConfig | stored-only | code signing is not enforced; no function has a configuration |
 | UpdateFunctionUrlConfig | stored-only | AuthType, CORS and InvokeMode are stored; the URL is not served in this build |
 | CreateAlias | partial | weighted routing is stored, not applied to invocations |
-| CreateEventSourceMapping | partial | SQS queues only; the mapping is stored and its queue is not polled in this build |
+| CreateEventSourceMapping | partial | SQS queues only; serve polls the queue and invokes the function with each batch |
 | CreateFunction | partial | code from S3 is not fetched; layers are refused; code signing and VPC networking are stored only |
 | GetFunction | partial | Code.Location is not returned; understudy serves no package download URL |
+| Invoke | partial | an alias with weighted routing always runs its primary version; asynchronous invocations retry but do not deliver to destinations or dead-letter queues; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
 | PutFunctionEventInvokeConfig | partial | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
 | UpdateAlias | partial | weighted routing is stored, not applied to invocations |
-| UpdateEventSourceMapping | partial | SQS queues only; the mapping is stored and its queue is not polled in this build |
+| UpdateEventSourceMapping | partial | SQS queues only; serve polls the queue and invokes the function with each batch |
 | UpdateFunctionCode | partial | code from S3 is not fetched |
 | UpdateFunctionConfiguration | partial | layers are refused; code signing and VPC networking are stored only |
 | UpdateFunctionEventInvokeConfig | partial | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
@@ -650,7 +651,6 @@ Internal operations:
 | GetProvisionedConcurrencyConfig | unbound |  |
 | GetResourcePolicy | unbound |  |
 | GetRuntimeManagementConfig | unbound |  |
-| Invoke | unbound |  |
 | InvokeAsync | unbound |  |
 | InvokeWithResponseStream | unbound |  |
 | ListCapacityProviders | unbound |  |
@@ -680,7 +680,7 @@ Raw operations:
 
 | Operation | Status | Note |
 |---|---|---|
-| InvokeFunctionUrl | unbound |  |
+| InvokeFunctionUrl | partial | BUFFERED only: a RESPONSE_STREAM URL answers buffered; AWS_IAM requires a SigV4 signature, verified under sigv4 verify, and IAM policies are not enforced |
 
 ### logs
 

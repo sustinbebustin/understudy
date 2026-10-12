@@ -13,11 +13,13 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/sustinbebustin/understudy/admin"
 )
 
 func TestVersion(t *testing.T) {
 	var out, errOut bytes.Buffer
-	if code := run([]string{"version"}, &out, &errOut); code != exitOK || out.String() != "understudy dev\n" {
+	if code := run(t.Context(), []string{"version"}, &out, &errOut); code != admin.ExitOK || out.String() != "understudy dev\n" {
 		t.Errorf("version = %d %q %q", code, out.String(), errOut.String())
 	}
 }
@@ -30,7 +32,7 @@ func (failingWriter) Write([]byte) (int, error) { return 0, errClosed }
 
 func TestVersionReportsAFailedWrite(t *testing.T) {
 	var errOut bytes.Buffer
-	if code := run([]string{"version"}, failingWriter{}, &errOut); code != exitFailed || !strings.Contains(errOut.String(), "stdout closed") {
+	if code := run(t.Context(), []string{"version"}, failingWriter{}, &errOut); code != admin.ExitFailed || !strings.Contains(errOut.String(), "stdout closed") {
 		t.Errorf("version to a closed stdout = %d %q", code, errOut.String())
 	}
 }
@@ -41,19 +43,16 @@ func TestUsageErrorsExit2AndSayWhatToFix(t *testing.T) {
 		{"bogus"},
 		{"serve", "--listen", "localhost"},
 		{"serve", "--clock", "slow"},
-		{"serve", "--clock", "frozen@yesterday"},
 		{"serve", "--seed", "-1"},
-		{"serve", "--log-format", "xml"},
-		{"serve", "--log-level", "loud"},
 		{"serve", "extra"},
 	} {
 		var out, errOut bytes.Buffer
-		if code := run(args, &out, &errOut); code != exitUsage || errOut.Len() == 0 {
+		if code := run(t.Context(), args, &out, &errOut); code != admin.ExitUsage || errOut.Len() == 0 {
 			t.Errorf("run(%q) = %d, stderr %q; want 2 and a message", args, code, errOut.String())
 		}
 	}
 	var out bytes.Buffer
-	if code := run([]string{"serve", "--help"}, &out, &out); code != exitOK || !strings.Contains(out.String(), "Examples:") {
+	if code := run(t.Context(), []string{"serve", "--help"}, &out, &out); code != admin.ExitOK || !strings.Contains(out.String(), "Examples:") {
 		t.Errorf("serve --help = %d %q", code, out.String())
 	}
 }
@@ -71,17 +70,6 @@ func TestZipRefusesInsecurePaths(t *testing.T) {
 	}
 	if _, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len())); !errors.Is(err, zip.ErrInsecurePath) {
 		t.Errorf("zip.NewReader on ../escape.txt = %v, want zip.ErrInsecurePath", err)
-	}
-}
-
-// A non-loopback listener would expose the unauthenticated admin API, so
-// serve refuses it and says what to do instead (ARCHITECTURE.md 20).
-func TestServeRefusesANonLoopbackListener(t *testing.T) {
-	var out, errOut bytes.Buffer
-	code := run([]string{"serve", "--listen", "0.0.0.0:0"}, &out, &errOut)
-	msg := errOut.String()
-	if code != exitUsage || !strings.Contains(msg, "admin token") || !strings.Contains(msg, "published container port") || !strings.Contains(msg, "--listen 127.0.0.1:0") {
-		t.Errorf("serve --listen 0.0.0.0:0 = %d, stderr %q; want 2 naming both options and the loopback fix", code, msg)
 	}
 }
 

@@ -63,12 +63,13 @@ coverage-check:
     #!/usr/bin/env bash
     set -euo pipefail
     if ! git ls-files --error-unmatch docs/coverage.md >/dev/null 2>&1; then
-        echo "docs/coverage.md is not tracked; generate it with 'go run ./internal/cmd/coverage > docs/coverage.md' and commit it" >&2
+        echo "docs/coverage.md is not tracked; generate it with 'go run ./cmd/understudy coverage --format markdown > docs/coverage.md' and commit it" >&2
         exit 1
     fi
     tmp=$(mktemp)
     trap 'rm -f -- "$tmp"' EXIT
-    go run ./internal/cmd/coverage > "$tmp"
+    # Port 1 never answers, so the report is built offline in process.
+    go run ./cmd/understudy coverage --endpoint http://127.0.0.1:1 --format markdown --overlays codegen/overlays > "$tmp"
     cat -- "$tmp" > docs/coverage.md
     git diff --exit-code -- docs/coverage.md
 
@@ -76,9 +77,10 @@ coverage-check:
 budgets:
     go run ./internal/cmd/budgets
 
-# Build and start the binary and send one request per service.
+# Build and start the binary and send one request per service. The test
+# builds the binary itself, which Go's test cache cannot see, so it always runs.
 smoke:
-    go test -race -tags smoke ./internal/smoke
+    go test -race -count=1 -tags smoke ./internal/smoke
 
 # Build the Docker image.
 image:

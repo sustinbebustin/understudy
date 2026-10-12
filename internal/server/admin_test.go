@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -468,6 +470,29 @@ func TestAdminSnapshotPathForm(t *testing.T) {
 	wantCode(t, err, admin.Unavailable)
 }
 
+// The path form is rooted in <data dir>/snapshots: a save named after a
+// persistence file lands there and leaves the lock that keeps a second
+// serve out, the state file and the blobs alone.
+func TestAdminSnapshotPathCannotReachPersistenceFiles(t *testing.T) {
+	dir := t.TempDir()
+	c, _ := adminServer(t, server.Config{Persist: server.PersistDir{Path: dir}})
+	for _, name := range []string{".lock", "state.snapshot", "blobs/x"} {
+		if _, err := c.SaveSnapshotTo(t.Context(), name, admin.SaveOptions{}); err != nil {
+			t.Fatalf("save to %s = %v", name, err)
+		}
+		if _, err := os.Stat(filepath.Join(dir, "snapshots", name)); err != nil {
+			t.Errorf("save to %s did not land under the snapshots directory: %v", name, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "state.snapshot")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the state file exists after path-form saves (%v); only a checkpoint writes it", err)
+	}
+	_, err := server.New(server.Config{Persist: server.PersistDir{Path: dir}, Docker: server.DockerDisabled{}, LogOutput: io.Discard})
+	if locked, ok := errors.AsType[*server.DataDirLockedError](err); !ok || locked.Path != dir {
+		t.Errorf("a second New on the data directory = %v, want a *DataDirLockedError: the lock must survive a save to .lock", err)
+	}
+}
+
 // Two saves to one path each write their own temporary file, so the
 // archive left at the path is whole and loads.
 func TestAdminConcurrentSavesToOnePath(t *testing.T) {
@@ -492,7 +517,7 @@ func TestAdminConcurrentSavesToOnePath(t *testing.T) {
 	if res, err := c.Resources(t.Context(), admin.ResourceQuery{Services: []string{"sqs"}}); err != nil || len(res) != 1 {
 		t.Fatalf("resources after the load = %+v, %v", res, err)
 	}
-	left, err := filepath.Glob(filepath.Join(dir, "snaps", "*.tmp"))
+	left, err := filepath.Glob(filepath.Join(dir, "snapshots", "snaps", "*.tmp"))
 	if err != nil || len(left) != 0 {
 		t.Fatalf("temporary files left behind = %v, %v", left, err)
 	}
@@ -553,15 +578,17 @@ func TestAdminIAM(t *testing.T) {
 	wantCode(t, err, admin.InvalidRequest)
 }
 
-// Endpoints whose service this build does not implement answer
-// unavailable with a hint.
-func TestAdminUnimplementedHooksAreUnavailable(t *testing.T) {
+// The Lambda hooks reach the execution layer: hot reload of a function
+// that does not exist is not_found, as Lambda answers for it, and an
+// image pull without Docker fails rather than answering that the build
+// lacks the endpoint.
+func TestAdminLambdaHooksReachTheExecutionLayer(t *testing.T) {
 	c, _ := adminServer(t, server.Config{})
-	if e := adminErr(t, c.HotReload(t.Context(), "fn", admin.HotReloadRequest{Dir: "/tmp/build"}), admin.Unavailable); e.Hint == "" {
-		t.Fatalf("unavailable without a hint: %+v", e)
-	}
+	adminErr(t, c.HotReload(t.Context(), "fn", admin.HotReloadRequest{Dir: t.TempDir()}), admin.NotFound)
 	_, err := c.PullImages(t.Context(), admin.ImagePullRequest{})
-	wantCode(t, err, admin.Unavailable)
+	if e := adminErr(t, err, admin.Unavailable); !strings.Contains(e.Message, "no Docker daemon") {
+		t.Fatalf("PullImages without Docker = %+v, want a failure naming Docker", e)
+	}
 }
 
 // POST /dynamodb/ttl-sweep sweeps every table with TTL enabled; with no

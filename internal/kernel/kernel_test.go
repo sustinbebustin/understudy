@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -513,6 +514,25 @@ func TestBindMistakesAreReportedAndStopRun(t *testing.T) {
 	}
 	if err := k.Run(t.Context()); err == nil {
 		t.Error("Run started with bind mistakes")
+	}
+}
+
+// A timer armed straight on the scheduler, as Stateful.Rearm does, is
+// reported when no handler is registered for its kind.
+func TestUnhandledListsArmedTimersWithoutAHandler(t *testing.T) {
+	timers := kernel.NewTimers()
+	handled := timers.Handle("fake.handled", func(*kernel.Call, clock.TimerKey, clock.Instant) {})
+	at := clock.Instant{}.Add(time.Second)
+	timers.Scheduler().Arm(handled.Key("a"), at)
+	if got := timers.Unhandled(); len(got) != 0 {
+		t.Fatalf("Unhandled with only handled timers armed = %v, want none", got)
+	}
+	orphans := []clock.TimerKey{{Kind: "fake.unhandled", ID: "b"}, {Kind: "other.unhandled", ID: "c"}}
+	for i, key := range orphans {
+		timers.Scheduler().Arm(key, at.Add(time.Duration(i+1)*time.Second))
+	}
+	if got := timers.Unhandled(); !slices.Equal(got, orphans) {
+		t.Errorf("Unhandled = %v, want %v in firing order", got, orphans)
 	}
 }
 

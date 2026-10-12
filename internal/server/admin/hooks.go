@@ -13,8 +13,8 @@ import (
 )
 
 // The hooks below are implemented by the services that own the behavior;
-// wire.go hands over the service when it implements one. A nil hook makes
-// its endpoint answer unavailable.
+// wire.go assigns each hook from the service that implements it. A nil
+// hook (as in tests) makes its endpoint answer unavailable.
 
 // Drainer stops the execution environments and pollers of the state a
 // reset or snapshot load replaces. The Lambda service implements it.
@@ -46,6 +46,29 @@ type Scoper interface {
 type Service interface {
 	kernel.Stateful
 	Scoper
+}
+
+// PollerRearmer reconciles the event source mapping pollers with the state
+// after a reset or snapshot load has rearmed every service. The Lambda
+// execution layer implements it.
+type PollerRearmer interface {
+	RearmPollers()
+}
+
+// Components reports the state of what services run on, for health.
+type Components interface {
+	Components(ctx context.Context) ComponentStatus
+}
+
+// ComponentStatus is the health of the components services run on.
+type ComponentStatus struct {
+	Docker        admin.ServiceStatus
+	DynamoDBLocal admin.ServiceStatus
+	// Topology names how containers reach understudy.
+	Topology admin.Topology
+	// Services replaces the status of the services that cannot serve
+	// without a component, such as Lambda and DynamoDB without Docker.
+	Services map[ref.ServiceID]admin.ServiceStatus
 }
 
 // HotReloader binds a host directory as a function's code.
@@ -172,7 +195,7 @@ func (h *Handler) subscriptionToken(w http.ResponseWriter, r *http.Request, args
 // scope parses an optional account and region, defaulting to the default
 // account and region.
 func (h *Handler) scope(account, region string) (aws.Scope, *admin.Error) {
-	s := aws.Scope{Partition: aws.PartitionAWS(), Account: aws.DefaultAccount(), Region: aws.DefaultRegion()}
+	s := aws.Scope{Partition: aws.PartitionAWS(), Account: h.o.DefaultAccount, Region: aws.DefaultRegion()}
 	if account != "" {
 		a, err := aws.ParseAccountID(account)
 		if err != nil {

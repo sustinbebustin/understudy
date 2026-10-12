@@ -265,9 +265,9 @@ func (d *deserializer) ReadBigInt(m *smithy.Member) (*big.Int, error) {
 	case cbor.NegInt:
 		n := new(big.Int).SetUint64(uint64(v))
 		return n.Neg(n.Add(n, big.NewInt(1))), nil
-	default:
-		return nil, d.usage(fmt.Sprintf("Peek said integer but ReadValue returned %T", v))
+	case cbor.Bytes, cbor.Text, cbor.Array, cbor.Map, cbor.Tag, cbor.Bool, cbor.Null, cbor.Undefined, cbor.Float32, cbor.Float64:
 	}
+	return nil, d.usage(fmt.Sprintf("Peek said integer but ReadValue returned %T", v))
 }
 
 func (d *deserializer) ReadBigDecimal(m *smithy.Member) (smithy.BigDecimal, error) {

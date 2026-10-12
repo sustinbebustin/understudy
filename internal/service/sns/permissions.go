@@ -118,9 +118,10 @@ func policyStatements(ref topicRef, t *Topic) (document.Map, []document.Value, b
 		return policy, slices.Clone(v), true
 	case document.Map:
 		return policy, []document.Value{v}, true
-	default:
-		return policy, nil, true
+	case document.Null, document.Bool, document.Number, document.String:
+		// Not a statement or a list of them: the policy has none.
 	}
+	return policy, nil, true
 }
 
 // storeStatements writes policy back to t with statements in place of its

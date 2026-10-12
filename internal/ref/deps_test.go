@@ -156,8 +156,14 @@ func importRules() []importRule {
 			"internal/ids", "internal/store", "internal/blob", "internal/policydoc", "internal/identity", "internal/protocol/jsonx",
 		}},
 		{"internal/config", []string{"internal/aws", "internal/ref", "internal/clock", "internal/fault", "internal/protocol/jsonx"}},
-		// T44: serve maps config.Config onto server.Config; coverage runs offline in process.
-		{"internal/cli", []string{"admin", "internal/config", "internal/server"}},
+		// T44: serve maps config.Config onto server.Config; coverage runs
+		// offline in process and renders, filters and adds overlays through
+		// coverage; snapshot inspect and diff read local archives; doctor and
+		// cleanup reach Docker and detect the topology. None is a service.
+		{"internal/cli", []string{
+			"admin", "internal/config", "internal/server",
+			"internal/coverage", "internal/snapshot", "internal/docker", "internal/topology",
+		}},
 		{"admin", nil},
 		{"understudytest", []string{"admin", "internal/config", "internal/server"}},
 		{"cmd/understudy", []string{"internal/cli", "internal/server", "internal/config", "admin"}},
@@ -165,9 +171,6 @@ func importRules() []importRule {
 		// T10: the -service flag is a ref.ServiceID, a leaf codegen imports too.
 		{"internal/cmd/gen", []string{"internal/codegen", "internal/ref"}},
 		{"internal/cmd/vendor", nil},
-		// T25: until T44 adds `understudy coverage`, this thin main builds the
-		// wiring in process and prints the Markdown report.
-		{"internal/cmd/coverage", []string{"internal/coverage", "internal/server"}},
 		// T10: the golden fixture is generated like internal/api/..., so it
 		// mirrors that row; serdetest holds the serde test doubles, and
 		// validationpolicy is the policy runtime codegen embeds and copies.

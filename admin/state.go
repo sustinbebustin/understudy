@@ -7,7 +7,7 @@ import (
 
 // SnapshotInfo describes an archive the server saved to or loaded from.
 type SnapshotInfo struct {
-	// Path is the archive's path under the data directory, for the path
+	// Path is the archive's path under <data dir>/snapshots, for the path
 	// form; empty when the archive travelled in the request or response.
 	Path string `json:"path,omitempty"`
 	// Bytes is the archive's size, for a save to a path.
@@ -26,7 +26,8 @@ type SnapshotInfo struct {
 // SnapshotRequest is the JSON body of the path form of POST and PUT
 // /snapshots, which needs persistence (serve --persist DIR).
 type SnapshotRequest struct {
-	// Path is relative to the data directory.
+	// Path is relative to the snapshots directory, <data dir>/snapshots,
+	// which keeps archives apart from the persisted state.
 	Path string `json:"path"`
 }
 

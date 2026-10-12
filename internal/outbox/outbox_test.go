@@ -1164,6 +1164,28 @@ func TestEventBridgeDeadLetterAttributes(t *testing.T) {
 	})
 }
 
+// The target call an attempt makes continues the source call's trace as a
+// child of the source event, like its Delivery event, and not the trace the
+// attempt timer's TimerFired event roots (ARCHITECTURE.md 10).
+func TestTargetCallJoinsTheSourceTrace(t *testing.T) {
+	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
+		stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil })
+		cause := source(k)
+		enqueue(k, o, toQueue("orders-queue", delivery.SNSManaged{}), cause)
+		settled(k)
+		sends := k.Journal.Query(journal.Filter{Operation: ref.OperationID{Service: "sqs", Name: "SendMessage"}, Limit: 10}).Events
+		if len(sends) != 1 {
+			k.Fatalf("%d SendMessage calls journaled, want 1", len(sends))
+		}
+		if sends[0].Cause != cause {
+			k.Errorf("SendMessage caused by %+v, want the source call's cause %+v", sends[0].Cause, cause)
+		}
+		if events := deliveries(k); len(events) != 1 || events[0].Cause != cause {
+			k.Errorf("delivery events = %+v, want one caused by %+v", events, cause)
+		}
+	})
+}
+
 func TestUnboundOutboxRefusesDeliveries(t *testing.T) {
 	var unbound *outbox.UnboundError
 	if err := outbox.New().Deliver(kernel.Delivery{Request: toQueue("q", delivery.None{})}); !errors.As(err, &unbound) {

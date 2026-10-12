@@ -22,12 +22,12 @@ func timerID(q queueRef, id string) string {
 // parseTimerID reads a timerID back: the scheduler keys timers by string,
 // so a timer handler parses its key once, here.
 func parseTimerID(key string) (queueRef, string, bool) {
-	i := strings.LastIndexByte(key, '/')
-	if i < 0 {
+	before, after, ok0 := strings.CutLast(key, "/")
+	if !ok0 {
 		return queueRef{}, "", false
 	}
-	q, ok := parseQueueARN(key[:i])
-	return q, key[i+1:], ok
+	q, ok := parseQueueARN(before)
+	return q, after, ok
 }
 
 // armVisibility makes the visibility timer of m agree with it at now: armed

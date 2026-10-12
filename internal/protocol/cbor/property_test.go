@@ -81,9 +81,11 @@ func sameValue(a, b cbor.Value) bool {
 	case cbor.Float64:
 		bb, ok := b.(cbor.Float64)
 		return ok && math.Float64bits(float64(a)) == math.Float64bits(float64(bb))
-	default:
+	case cbor.Bool, cbor.NegInt, cbor.Null, cbor.Text, cbor.Uint, cbor.Undefined:
 		return a == b
 	}
+	// a is nil.
+	return b == nil
 }
 
 func TestEncodeThenDecodeRoundTrips(t *testing.T) {

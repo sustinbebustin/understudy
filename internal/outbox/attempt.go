@@ -175,14 +175,16 @@ func (a *attempt) advise(ctx context.Context) {
 }
 
 // as is how every call of the attempt runs: in scope, as the delivering
-// service on behalf of the source, admitted at the due instant.
+// service on behalf of the source, admitted at the due instant and caused
+// by the source call, like the attempt's Delivery event.
 func (a *attempt) as(scope aws.Scope) kernel.Target {
 	req := a.entry.Request
 	return kernel.Target{
-		Scope: scope,
-		As:    kernel.AsService{Name: servicePrincipal(req.Mechanism), Source: req.Source},
-		Via:   req.Mechanism.Via(),
-		At:    a.due,
+		Scope:  scope,
+		As:     kernel.AsService{Name: servicePrincipal(req.Mechanism), Source: req.Source},
+		Via:    req.Mechanism.Via(),
+		At:     a.due,
+		Resume: a.entry.Cause,
 	}
 }
 

@@ -21,10 +21,11 @@ const noOperations = "no operations implemented in this build"
 
 // health is the readiness probe of ARCHITECTURE.md 17: 503 with what it is
 // waiting for until the listener accepts, then 200 with the version,
-// uptime, services and model pin. A service is enabled once it binds an
-// operation, and degraded before.
+// uptime, services, model pin, topology and listener. A service is enabled
+// once it binds an operation, and degraded before.
 func (h *Handler) health(w http.ResponseWriter, r *http.Request, _ []string) {
-	if !h.ready.Load() {
+	listener := h.listener.Load()
+	if listener == nil {
 		h.reply(w, r, http.StatusServiceUnavailable, admin.Health{Waiting: []string{"listener"}})
 		return
 	}
@@ -37,14 +38,23 @@ func (h *Handler) health(w http.ResponseWriter, r *http.Request, _ []string) {
 		}
 		services[string(svc.ID)] = status
 	}
-	h.ok(w, r, admin.Health{
+	out := admin.Health{
 		Ready:    true,
 		Version:  h.o.Version,
 		Uptime:   admin.Duration(h.o.Uptime().Round(time.Millisecond)),
 		Services: services,
 		Journal:  journalStatus(h.o.Kernel.Journal()),
 		Model:    h.o.ModelPin,
-	})
+		Listener: listener.String(),
+	}
+	if h.o.Components != nil {
+		c := h.o.Components.Components(r.Context())
+		out.Docker, out.DynamoDBLocal, out.Topology = c.Docker, c.DynamoDBLocal, c.Topology
+		for id, status := range c.Services {
+			services[string(id)] = status
+		}
+	}
+	h.ok(w, r, out)
 }
 
 // journalStatus is the journal's health: zero while it records normally,

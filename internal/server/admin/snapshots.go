@@ -30,7 +30,7 @@ const (
 )
 
 // snapshotSave cuts the state and writes the archive: in the response, or
-// with a JSON {"path"} body to that path under the data directory. The
+// with a JSON {"path"} body to that path under the snapshots directory. The
 // archive embeds its blobs and carries the late data, as `snapshot save`
 // needs.
 func (h *Handler) snapshotSave(w http.ResponseWriter, r *http.Request, _ []string) {
@@ -117,12 +117,12 @@ func (h *Handler) saveToPath(r *http.Request, target string, journalBytes []byte
 	root := h.o.DataDir
 	if dir := filepath.Dir(target); dir != "." {
 		if err := root.MkdirAll(dir, 0o750); err != nil {
-			return nil, internal("creating "+dir+" under the data directory", err)
+			return nil, internal("creating "+dir+" under the snapshots directory", err)
 		}
 	}
 	f, tmpName, err := createTemp(root, target)
 	if err != nil {
-		return nil, internal("creating a temporary file next to "+target+" under the data directory", err)
+		return nil, internal("creating a temporary file next to "+target+" under the snapshots directory", err)
 	}
 	counted := &countingWriter{w: f}
 	head, werr := h.writeArchive(ctx, counted, journalBytes, opts)
@@ -229,21 +229,23 @@ func (h *Handler) snapshotLoad(w http.ResponseWriter, r *http.Request, _ []strin
 			return
 		}
 	}
+	// Load rearmed every service; the pollers follow the loaded mappings.
+	h.rearmPollers()
 	info := describe(a.Manifest)
 	info.Path = target
 	h.ok(w, r, info)
 }
 
-// openArchive opens the archive at target under the data directory. A
+// openArchive opens the archive at target under the snapshots directory. A
 // missing file is not_found, a directory an invalid request, and anything
 // else, such as a permission error, internal; nothing has been loaded yet.
 func (h *Handler) openArchive(target string) (*os.File, *admin.Error) {
 	f, err := h.o.DataDir.Open(target)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		return nil, &admin.Error{Code: admin.NotFound, Field: "path", Message: "no archive at " + target + " under the data directory", Hint: "save one there first with POST " + admin.Prefix + "/snapshots and {\"path\": ...}"}
+		return nil, &admin.Error{Code: admin.NotFound, Field: "path", Message: "no archive at " + target + " under the snapshots directory", Hint: "save one there first with POST " + admin.Prefix + "/snapshots and {\"path\": ...}"}
 	case err != nil:
-		return nil, internal("opening the archive "+target+" under the data directory; nothing was loaded", err)
+		return nil, internal("opening the archive "+target+" under the snapshots directory; nothing was loaded", err)
 	}
 	info, err := f.Stat()
 	if err == nil && !info.IsDir() {
@@ -253,9 +255,9 @@ func (h *Handler) openArchive(target string) (*os.File, *admin.Error) {
 		err = errors.Join(err, cerr)
 	}
 	if err != nil {
-		return nil, internal("reading the archive "+target+" under the data directory; nothing was loaded", err)
+		return nil, internal("reading the archive "+target+" under the snapshots directory; nothing was loaded", err)
 	}
-	return nil, &admin.Error{Code: admin.InvalidRequest, Field: "path", Message: target + " under the data directory is a directory, not an archive"}
+	return nil, &admin.Error{Code: admin.InvalidRequest, Field: "path", Message: target + " under the snapshots directory is a directory, not an archive"}
 }
 
 // snapshotPath reads the path form's body, which needs persistence. It
@@ -276,7 +278,7 @@ func (h *Handler) snapshotPath(w http.ResponseWriter, r *http.Request) (string, 
 		}
 	}
 	if !filepath.IsLocal(in.Path) {
-		return "", &admin.Error{Code: admin.InvalidRequest, Field: "path", Message: fmt.Sprintf("%q is not a path inside the data directory", in.Path), Hint: "give a relative path without .., such as snapshots/before.tar"}
+		return "", &admin.Error{Code: admin.InvalidRequest, Field: "path", Message: fmt.Sprintf("%q is not a path inside the snapshots directory (<data dir>/snapshots)", in.Path), Hint: "give a relative path without .., such as before.tar"}
 	}
 	return filepath.Clean(in.Path), nil
 }
@@ -338,9 +340,9 @@ func modeName(m clock.Mode) admin.ClockMode {
 		return admin.Frozen
 	case clock.Scaled:
 		return admin.Scaled
-	default:
-		return admin.Running
+	case clock.Running:
 	}
+	return admin.Running
 }
 
 // readError maps a failure to read an archive. One this build cannot run

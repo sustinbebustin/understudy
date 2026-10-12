@@ -112,7 +112,7 @@ func (MaximumConcurrency) isScaling() {}
 func (ProvisionedPollers) isScaling() {}
 
 func (s *Service) bindMappings(b lambdaapi.Binder) {
-	const note = "SQS queues only; the mapping is stored and its queue is not polled in this build"
+	const note = "SQS queues only; serve polls the queue and invokes the function with each batch"
 	b.CreateEventSourceMapping(s.createMapping, partial(note), kernel.WithValidator(validateCreateMapping))
 	b.GetEventSourceMapping(s.getMapping, full())
 	b.ListEventSourceMappings(s.listMappings, full())

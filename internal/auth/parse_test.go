@@ -215,6 +215,8 @@ func TestParseErrors(t *testing.T) {
 				}
 				e.Message = ""
 				got = e
+			case auth.Conflict, auth.MissingQueryParameters, auth.UnknownScheme:
+				// Compared whole: they carry no free-text message.
 			}
 			if !reflect.DeepEqual(got, tc.want) {
 				t.Errorf("Parse = %#v, %#v; want error %#v", a, perr, tc.want)

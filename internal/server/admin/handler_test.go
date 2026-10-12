@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -78,7 +79,7 @@ func handlerWith(k *kerneltest.K, set func(*serveradmin.Options)) *serveradmin.H
 	if err != nil {
 		k.Fatal(err)
 	}
-	h.SetReady(true)
+	h.SetReady(netip.MustParseAddrPort("127.0.0.1:4566"))
 	return h
 }
 
@@ -287,6 +288,40 @@ func TestSnapshotLoadSucceedsWhenFreeingBlobsFails(t *testing.T) {
 		}
 		if svc.rearms != 0 {
 			k.Errorf("the handler rearmed %d times after a load that rearmed itself", svc.rearms)
+		}
+	})
+}
+
+// pollerCounter counts the poller reconciliations the handler asks for.
+type pollerCounter struct{ rearms int }
+
+func (p *pollerCounter) RearmPollers() { p.rearms++ }
+
+// A reset and a snapshot load each reconcile the pollers once with the
+// state they leave.
+func TestResetAndSnapshotLoadRearmThePollers(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		pollers := &pollerCounter{}
+		h := handlerWith(k, func(o *serveradmin.Options) { o.Pollers = pollers })
+		if rec := reset(k, h, `{}`); rec.Code != http.StatusOK {
+			k.Fatalf("reset = %d %s", rec.Code, rec.Body)
+		}
+		if pollers.rearms != 1 {
+			k.Fatalf("pollers rearmed %d times after a reset, want once", pollers.rearms)
+		}
+		saved := serve(k, h, http.MethodPost, admin.Prefix+"/snapshots")
+		if saved.Code != http.StatusOK {
+			k.Fatalf("save = %d %s", saved.Code, saved.Body)
+		}
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(k.Context(), http.MethodPut, admin.Prefix+"/snapshots", bytes.NewReader(saved.Body.Bytes()))
+		req.Header.Set("Content-Type", admin.Tar)
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			k.Fatalf("load = %d %s", rec.Code, rec.Body)
+		}
+		if pollers.rearms != 2 {
+			k.Fatalf("pollers rearmed %d times after a reset and a load, want twice", pollers.rearms)
 		}
 	})
 }

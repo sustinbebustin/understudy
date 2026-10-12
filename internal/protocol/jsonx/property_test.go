@@ -80,9 +80,10 @@ func mapStrings(v document.Value, f func(string) string) document.Value {
 			out[i] = document.Entry{Key: f(e.Key), Value: mapStrings(e.Value, f)}
 		}
 		return out
-	default:
-		return v
+	case document.Null, document.Bool, document.Number:
+		// Holds no string: returned as it is.
 	}
+	return v
 }
 
 func number() *rapid.Generator[document.Number] {
@@ -155,9 +156,10 @@ func sorted(v document.Value) document.Value {
 		}
 		slices.SortStableFunc(out, func(a, b document.Entry) int { return cmp.Compare(a.Key, b.Key) })
 		return out
-	default:
-		return v
+	case document.Null, document.Bool, document.Number, document.String:
+		// A scalar holds no map: returned as it is.
 	}
+	return v
 }
 
 // reversed returns v with every map's entries in reverse order.
@@ -175,9 +177,10 @@ func reversed(v document.Value) document.Value {
 			out[len(v)-1-i] = document.Entry{Key: e.Key, Value: reversed(e.Value)}
 		}
 		return out
-	default:
-		return v
+	case document.Null, document.Bool, document.Number, document.String:
+		// A scalar holds no map: returned as it is.
 	}
+	return v
 }
 
 func TestValueRoundTrips(t *testing.T) {

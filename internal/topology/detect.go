@@ -70,7 +70,7 @@ func (d *Detector) Detect(ctx context.Context, c *docker.Client, opts Options) (
 	if root == nil {
 		root = os.DirFS("/")
 	}
-	if inContainer(root) {
+	if RunsInContainer(root) {
 		t, found, err := detectSelf(ctx, c, root)
 		if err != nil || found {
 			return t, err
@@ -98,9 +98,11 @@ func (d *Detector) Detect(ctx context.Context, c *docker.Client, opts Options) (
 	return LinuxBridge{Gateway: gw}, nil
 }
 
-// inContainer looks for the markers Docker and Podman leave in a
-// container's filesystem.
-func inContainer(root fs.FS) bool {
+// RunsInContainer reports whether the filesystem root (os.DirFS("/") for
+// this process) is a container's, by the markers Docker and Podman leave:
+// /.dockerenv, /run/.containerenv, or a container runtime named in
+// /proc/1/cgroup (containers.md 8.3).
+func RunsInContainer(root fs.FS) bool {
 	for _, marker := range []string{".dockerenv", "run/.containerenv"} {
 		if _, err := fs.Stat(root, marker); err == nil {
 			return true

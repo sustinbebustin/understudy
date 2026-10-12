@@ -79,6 +79,8 @@ func TestPublishFansOutInSubscriptionOrder(t *testing.T) {
 				if tg.Qualifier != "live" || tg.Invocation != delivery.InvocationEvent {
 					h.Errorf("lambda target %+v, want qualifier live and an Event invocation", tg)
 				}
+			case delivery.SNSTopic:
+				target = tg.ARN.String()
 			}
 			if target != wantTargets[i] || d.Request.Source.String() != topic {
 				h.Errorf("delivery %d goes %s -> %s, want %s -> %s", i, d.Request.Source, target, topic, wantTargets[i])

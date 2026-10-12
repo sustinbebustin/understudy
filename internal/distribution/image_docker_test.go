@@ -52,19 +52,6 @@ type imageConfig struct {
 	}
 }
 
-// containerHealth is the health answer the in-container check pins:
-// admin.Health plus the serving topology under "topology" and the bound
-// listen address under "listener". The distribution spec of
-// docs/plan/PHASE1-PLAN.md requires health to report both, while admin.Health
-// and ARCHITECTURE.md 17 define neither, so the two keys are this test's
-// statement of that contract. Decoding admin.Health directly would drop them
-// and let the check pass vacuously.
-type containerHealth struct {
-	admin.Health
-	Topology string `json:"topology"`
-	Listener string `json:"listener"`
-}
-
 // imageFS is the exported filesystem of a container created from the image.
 type imageFS struct {
 	// Size is the length of the export, which is what a pull writes to
@@ -238,7 +225,7 @@ func containerLogs(t *testing.T, name string) string {
 // within readyWait. A 401 or 403 is final rather than "not yet": the
 // published port, not a token, guards the admin API of an
 // Exposed{ContainerPublished} listener.
-func awaitHealth(t *testing.T, name, endpoint string) containerHealth {
+func awaitHealth(t *testing.T, name, endpoint string) admin.Health {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), readyWait)
 	defer cancel()
@@ -273,21 +260,21 @@ func awaitHealth(t *testing.T, name, endpoint string) containerHealth {
 
 // getHealth makes one health request, bounded by attemptWait so a hung
 // connection cannot use up the whole readiness wait.
-func getHealth(ctx context.Context, endpoint string) (containerHealth, int, error) {
+func getHealth(ctx context.Context, endpoint string) (admin.Health, int, error) {
 	ctx, cancel := context.WithTimeout(ctx, attemptWait)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+healthPath, http.NoBody)
 	if err != nil {
-		return containerHealth{}, 0, err
+		return admin.Health{}, 0, err
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return containerHealth{}, 0, err
+		return admin.Health{}, 0, err
 	}
 	defer resp.Body.Close()
-	var h containerHealth
+	var h admin.Health
 	if err := json.NewDecoder(resp.Body).Decode(&h); err != nil {
-		return containerHealth{}, resp.StatusCode, fmt.Errorf("decode the health body: %w", err)
+		return admin.Health{}, resp.StatusCode, fmt.Errorf("decode the health body: %w", err)
 	}
 	return h, resp.StatusCode, nil
 }

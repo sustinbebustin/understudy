@@ -354,6 +354,7 @@ func TestInputTransformerJSONTemplateRendersJSON(t *testing.T) {
 				switch v.(type) {
 				case document.Map, document.List:
 					safe = false
+				case document.Null, document.Bool, document.Number, document.String:
 				}
 				if name == event {
 					safe = false

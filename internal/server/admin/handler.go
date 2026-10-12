@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"maps"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"slices"
@@ -49,8 +50,12 @@ type Options struct {
 	// ClockStart is how serve started the clock, which a reset with Clock
 	// returns to: the instant and the kind of mode.
 	ClockStart func() (clock.Instant, clock.Mode)
-	// DataDir is the persistence directory the snapshot path form is
-	// rooted in; nil without persistence.
+	// DefaultAccount is the account of an admin call that names none; the
+	// zero value is 000000000000.
+	DefaultAccount aws.AccountID
+	// DataDir is the directory the snapshot path form is rooted in, the
+	// snapshots directory under the persistence directory; nil without
+	// persistence.
 	DataDir *os.Root
 	// MaxSnapshotBytes caps an archive PUT /snapshots reads; 0 means
 	// DefaultMaxSnapshotBytes.
@@ -65,10 +70,14 @@ type Options struct {
 	Uptime func() time.Duration
 
 	Drainer       Drainer
+	Pollers       PollerRearmer
 	HotReloader   HotReloader
 	ImagePuller   ImagePuller
 	TTLSweeper    TTLSweeper
 	Subscriptions SubscriptionTokens
+	// Components reports Docker and DynamoDB Local for health; nil leaves
+	// them out.
+	Components Components
 
 	// Log receives handler diagnostics; nil discards them.
 	Log *slog.Logger
@@ -98,9 +107,11 @@ type BlobReleaser interface {
 
 // Handler serves the admin API under /_understudy/v1/.
 type Handler struct {
-	o     Options
-	log   *slog.Logger
-	ready atomic.Bool
+	o   Options
+	log *slog.Logger
+	// listener is the main listener's bound address while it accepts, and
+	// nil before and after: health is ready exactly while it is set.
+	listener atomic.Pointer[netip.AddrPort]
 	// stateOps serializes reset, snapshot save and snapshot load, each held
 	// from its drain or cut to its last late step, so none runs in another's
 	// gap between the gate and the late data.
@@ -108,7 +119,7 @@ type Handler struct {
 }
 
 // New returns the admin handler; it answers health with 503 until
-// SetReady(true).
+// SetReady.
 func New(o Options) (*Handler, error) {
 	switch {
 	case o.Kernel == nil:
@@ -126,6 +137,9 @@ func New(o Options) (*Handler, error) {
 	case o.Uptime == nil:
 		return nil, &OptionsError{Field: "Uptime"}
 	}
+	if o.DefaultAccount.IsZero() {
+		o.DefaultAccount = aws.DefaultAccount()
+	}
 	if o.MaxSnapshotBytes <= 0 {
 		o.MaxSnapshotBytes = DefaultMaxSnapshotBytes
 	}
@@ -136,8 +150,12 @@ func New(o Options) (*Handler, error) {
 	return &Handler{o: o, log: log}, nil
 }
 
-// SetReady reports whether the listener accepts, for the health endpoint.
-func (h *Handler) SetReady(ready bool) { h.ready.Store(ready) }
+// SetReady reports that the main listener accepts on listener, which
+// health then reports as ready and names.
+func (h *Handler) SetReady(listener netip.AddrPort) { h.listener.Store(&listener) }
+
+// SetNotReady reports that the main listener no longer accepts.
+func (h *Handler) SetNotReady() { h.listener.Store(nil) }
 
 // ServeHTTP serves the main listener: every call needs the bearer token
 // when one is configured.

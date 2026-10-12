@@ -107,7 +107,7 @@ func (s *Service) seal(ctx context.Context, c *kernel.Call, scope aws.Scope, arn
 	return sealed{
 		Kind:    p.kind,
 		DataKey: dk.CiphertextBlob,
-		Box:     aead.Seal(nil, make([]byte, aead.NonceSize()), p.bytes, aad(arn, versionID, p.kind)),
+		Box:     aead.Seal(nil, make([]byte, aead.NonceSize()), p.bytes, aad(arn, versionID, p.kind)), //nolint:gosec // every data key seals exactly one plaintext, so a fixed nonce never repeats under a key (see above)
 	}, nil
 }
 

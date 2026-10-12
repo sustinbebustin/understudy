@@ -88,3 +88,49 @@ jobs:
         with:
           just-version: "1.58.0"
       - run: just budgets
+
+  # Builds the binary, starts it with the TLS listener and drives one raw
+  # HTTP request per service (ARCHITECTURE.md 19, smoke row).
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.1"
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: "1.58.0"
+      - run: just smoke
+
+  # The tests that need a Docker daemon: Lambda execution, DynamoDB Local,
+  # the container topology and the image contract. The runner's daemon
+  # listens at /var/run/docker.sock. The DynamoDB Local licence is not
+  # accepted here, so nothing pulls its image.
+  test-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.1"
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: "1.58.0"
+      - run: just test-docker
+
+  # Builds the image, then runs the smoke workload with a Lambda invoke
+  # against the binary and against understudy inside the image with the
+  # Docker socket mounted, the InContainer topology.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.1"
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: "1.58.0"
+      - run: just image
+      - run: go test -race -tags 'smoke docker' ./internal/smoke/...

@@ -6,6 +6,7 @@ import (
 	"math"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/blob"
@@ -74,6 +75,20 @@ type Manifest struct {
 type Clock struct {
 	Mode clock.Mode
 	At   clock.Instant
+}
+
+// ModeName names the clock mode for people: "running", "frozen" or
+// "scaled x<factor>". A mode Read never returns is named "unknown".
+func (c Clock) ModeName() string {
+	switch m := c.Mode.(type) {
+	case clock.Running:
+		return modeRunning
+	case clock.Frozen:
+		return modeFrozen
+	case clock.Scaled:
+		return modeScaled + " x" + strconv.FormatFloat(m.Factor, 'g', -1, 64)
+	}
+	return "unknown"
 }
 
 // SectionMeta describes one section in the manifest.
