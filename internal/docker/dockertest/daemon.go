@@ -257,6 +257,7 @@ func (d *Daemon) routes() *http.ServeMux {
 		"POST /containers/{id}/wait":   d.containerWait,
 		"DELETE /containers/{id}":      d.containerRemove,
 		"GET /containers/{id}/logs":    d.containerLogs,
+		"GET /containers/{id}/stats":   d.containerStats,
 		"PUT /containers/{id}/archive": d.containerArchive,
 		"GET /events":                  d.eventStream,
 		"GET /networks":                d.networkList,

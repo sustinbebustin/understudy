@@ -63,7 +63,9 @@
 // {label, source, validated?} object or a list of them each naming the
 // traits it "covers"; validationError is one rule or a list tried in order,
 // a rule being {code, style: coral | parameter | missingParameter |
-// snsParameter, constraints, reason, enumPolicy} or {enumPolicy} alone;
+// snsParameter, constraints, reason, enumPolicy} or {enumPolicy} alone, or
+// at member level {patternPolicy: handler}, which leaves the member's
+// pattern to the handler so its own error text answers;
 // queryKeyAlias is {key, decode: receive | ignore}; unknownOperationError is
 // {json, query}; patternValidator is {allOf, noneOf} lists of RE2 patterns;
 // notConfigured is {error} or {default}.

@@ -279,3 +279,50 @@ func TestDeletedAliasLeavesNothingBehind(t *testing.T) {
 			"ResourceNotFoundException", "The function "+fnARN("fn")+":live doesn't have an EventInvokeConfig")
 	})
 }
+
+// TestURLConfigInvokeModeEcho replays LocalStack's AWS-validated
+// test_url_config_lifecycle (lambda-events.md 7.1): Create and Update
+// answer InvokeMode only once a request has set it, while Get reports the
+// BUFFERED default.
+func TestURLConfigInvokeModeEcho(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		h.createFunction("fn")
+		created := call(h, lambdaapi.OpCreateFunctionUrlConfig, &lambdaapi.CreateFunctionUrlConfigInput{FunctionName: "fn", AuthType: lambdaapi.FunctionUrlAuthTypeNone})
+		if created.InvokeMode != nil {
+			t.Errorf("CreateFunctionUrlConfig without InvokeMode answered InvokeMode %s; want it absent", *created.InvokeMode)
+		}
+		got := call(h, lambdaapi.OpGetFunctionUrlConfig, &lambdaapi.GetFunctionUrlConfigInput{FunctionName: "fn"})
+		if got.InvokeMode == nil || *got.InvokeMode != lambdaapi.InvokeModeBuffered {
+			t.Errorf("GetFunctionUrlConfig InvokeMode = %v; want BUFFERED", got.InvokeMode)
+		}
+		updated := call(h, lambdaapi.OpUpdateFunctionUrlConfig, &lambdaapi.UpdateFunctionUrlConfigInput{FunctionName: "fn", AuthType: new(lambdaapi.FunctionUrlAuthTypeAwsIam)})
+		if updated.InvokeMode != nil {
+			t.Errorf("UpdateFunctionUrlConfig of AuthType answered InvokeMode %s; want it absent", *updated.InvokeMode)
+		}
+		streamed := call(h, lambdaapi.OpUpdateFunctionUrlConfig, &lambdaapi.UpdateFunctionUrlConfigInput{FunctionName: "fn", InvokeMode: new(lambdaapi.InvokeModeResponseStream)})
+		if streamed.InvokeMode == nil || *streamed.InvokeMode != lambdaapi.InvokeModeResponseStream {
+			t.Errorf("UpdateFunctionUrlConfig of InvokeMode answered InvokeMode %v; want RESPONSE_STREAM", streamed.InvokeMode)
+		}
+	})
+}
+
+// TestPublishVersionAfterDescriptionChange: an update of $LATEST that
+// changes only its Description is a change PublishVersion publishes, and
+// the Description PublishVersion gave the last version is not one
+// (lambda-api.md 7.1; LocalStack's AWS-validated provider publishes after
+// any update of $LATEST).
+func TestPublishVersionAfterDescriptionChange(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		h.createFunction("fn")
+		v1 := call(h, lambdaapi.OpPublishVersion, &lambdaapi.PublishVersionInput{FunctionName: "fn", Description: new("release one")})
+		again := call(h, lambdaapi.OpPublishVersion, &lambdaapi.PublishVersionInput{FunctionName: "fn"})
+		if *again.Version != *v1.Version {
+			t.Fatalf("a publish without changes after a publish with a Description = version %s; want %s again", *again.Version, *v1.Version)
+		}
+		call(h, lambdaapi.OpUpdateFunctionConfiguration, &lambdaapi.UpdateFunctionConfigurationInput{FunctionName: "fn", Description: new("second")})
+		v2 := call(h, lambdaapi.OpPublishVersion, &lambdaapi.PublishVersionInput{FunctionName: "fn"})
+		if *v2.Version != "2" || *v2.Description != "second" {
+			t.Errorf("PublishVersion after a Description change = version %s, Description %q; want 2, second", *v2.Version, *v2.Description)
+		}
+	})
+}

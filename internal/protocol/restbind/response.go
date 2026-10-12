@@ -412,7 +412,11 @@ func (s *serializer) value(m *smithy.Member, text func() string, fwd func(smithy
 		case s.route == toHeaderList:
 			s.list = append(s.list, text())
 		case !s.bound[http.CanonicalHeaderKey(name)]:
-			s.header.Set(name, text())
+			// The name keeps the prefix's and the key's case rather than
+			// Go's canonical form: S3 sends x-amz-meta-color, and clients
+			// such as botocore keep the case of what follows the prefix as
+			// the metadata key (s3.md 5.4).
+			s.header[name] = []string{text()}
 		}
 	default:
 		if s.depth == 1 {
@@ -428,6 +432,13 @@ func (s *serializer) value(m *smithy.Member, text func() string, fwd func(smithy
 // prefix-header entry already written under that name (wire-rest.md 1.4).
 func (s *serializer) setBound(name, value string) {
 	s.bound[http.CanonicalHeaderKey(name)] = true
+	// A prefix-header entry written earlier keeps its own case, so it is
+	// found without case to be replaced.
+	for k := range s.header {
+		if strings.EqualFold(k, name) {
+			delete(s.header, k)
+		}
+	}
 	s.header.Set(name, value)
 }
 

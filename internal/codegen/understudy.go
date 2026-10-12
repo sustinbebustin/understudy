@@ -352,14 +352,32 @@ func enumPolicies() map[string]EnumPolicy {
 	return map[string]EnumPolicy{"closed": EnumClosed, "open": EnumOpen, "handler": EnumHandler}
 }
 
+// PatternPolicy says who rejects a member value that fails its pattern.
+// Generated validators check every pattern unless a member-level rule sets
+// PatternHandler.
+type PatternPolicy uint8
+
+// PatternPolicy values.
+const (
+	// PatternHandler: the service checks the value, so its own error, such
+	// as S3's InvalidArgument "Invalid copy source object key", is not
+	// pre-empted by step 7's Coral text.
+	PatternHandler PatternPolicy = iota + 1
+)
+
+func patternPolicies() map[string]PatternPolicy {
+	return map[string]PatternPolicy{"handler": PatternHandler}
+}
+
 // ValidationRule is one rule of dev.understudy#validationError. A rule with
-// no Code only sets the enum policy of its target.
+// no Code only sets the enum or pattern policy of its target.
 type ValidationRule struct {
-	Code       smithy.ShapeID
-	Style      ValidationStyle
-	Kinds      ConstraintKind // 0 matches every kind
-	Reason     string
-	EnumPolicy EnumPolicy // 0 when the rule does not set one
+	Code          smithy.ShapeID
+	Style         ValidationStyle
+	Kinds         ConstraintKind // 0 matches every kind
+	Reason        string
+	EnumPolicy    EnumPolicy    // 0 when the rule does not set one
+	PatternPolicy PatternPolicy // 0 when the rule does not set one
 }
 
 // parseValidationRules accepts one rule object or an array of them; rules
@@ -395,28 +413,46 @@ func parseValidationRules(raw json.RawMessage) ([]ValidationRule, error) {
 	return out, nil
 }
 
+// parsePolicies reads a rule's enumPolicy and patternPolicy; "" leaves a
+// policy unset.
+func parsePolicies(enum, pattern string) (EnumPolicy, PatternPolicy, error) {
+	var e EnumPolicy
+	var p PatternPolicy
+	if enum != "" {
+		var ok bool
+		if e, ok = enumPolicies()[enum]; !ok {
+			return 0, 0, fmt.Errorf("enumPolicy %q is not closed, open or handler", enum)
+		}
+	}
+	if pattern != "" {
+		var ok bool
+		if p, ok = patternPolicies()[pattern]; !ok {
+			return 0, 0, fmt.Errorf("patternPolicy %q is not handler", pattern)
+		}
+	}
+	return e, p, nil
+}
+
 func parseValidationRule(raw json.RawMessage) (ValidationRule, error) {
 	var v struct {
-		Code        string   `json:"code"`
-		Style       string   `json:"style"`
-		Constraints []string `json:"constraints"`
-		Reason      string   `json:"reason"`
-		EnumPolicy  string   `json:"enumPolicy"`
+		Code          string   `json:"code"`
+		Style         string   `json:"style"`
+		Constraints   []string `json:"constraints"`
+		Reason        string   `json:"reason"`
+		EnumPolicy    string   `json:"enumPolicy"`
+		PatternPolicy string   `json:"patternPolicy"`
 	}
 	if err := decodeTrait(raw, &v); err != nil {
 		return ValidationRule{}, err
 	}
 	var r ValidationRule
-	if v.EnumPolicy != "" {
-		p, ok := enumPolicies()[v.EnumPolicy]
-		if !ok {
-			return r, fmt.Errorf("enumPolicy %q is not closed, open or handler", v.EnumPolicy)
-		}
-		r.EnumPolicy = p
+	var err error
+	if r.EnumPolicy, r.PatternPolicy, err = parsePolicies(v.EnumPolicy, v.PatternPolicy); err != nil {
+		return r, err
 	}
 	if v.Code == "" {
-		if r.EnumPolicy == 0 || v.Style != "" || len(v.Constraints) > 0 || v.Reason != "" {
-			return r, errors.New(`"code" is required unless the rule only sets enumPolicy`)
+		if (r.EnumPolicy == 0 && r.PatternPolicy == 0) || v.Style != "" || len(v.Constraints) > 0 || v.Reason != "" {
+			return r, errors.New(`"code" is required unless the rule only sets enumPolicy or patternPolicy`)
 		}
 		return r, nil
 	}

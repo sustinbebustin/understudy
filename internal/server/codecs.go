@@ -196,8 +196,8 @@ func (c cborCodec) Encode(_ *http.Request, op *registry.Operation, requestID str
 	return response(resp.Status, resp.Header, resp.Body), nil
 }
 
-func (c cborCodec) EncodeError(_ *http.Request, svc *registry.Service, requestID string, e *awserr.Error) edge.Response {
-	resp := c.c.EncodeError(svc, requestID, e)
+func (c cborCodec) EncodeError(r *http.Request, svc *registry.Service, requestID string, e *awserr.Error) edge.Response {
+	resp := c.c.EncodeError(r, svc, requestID, e)
 	return response(resp.Status, resp.Header, resp.Body)
 }
 

@@ -38,6 +38,8 @@ type Launcher interface {
 	// Exits has one consumer at a time; its channel closes after ctx ends,
 	// once Exits may be called again.
 	Exits(ctx context.Context) (<-chan launcher.Exit, error)
+	// MemoryUsed reads the bytes of memory a container's processes hold.
+	MemoryUsed(ctx context.Context, id string) (uint64, error)
 }
 
 // Runtime opens a Runtime API endpoint per environment.

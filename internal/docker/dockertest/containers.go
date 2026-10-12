@@ -74,6 +74,8 @@ type container struct {
 	removed    bool
 	logs       []logEntry
 	uploads    []Upload
+	// memory is what GET /containers/{id}/stats reports; SetMemory sets it.
+	memory docker.Memory
 	// waitFailures are the FailWait messages in order; a wait ends with the
 	// first one scripted after it was registered.
 	waitFailures []string
@@ -149,6 +151,26 @@ func (d *Daemon) Created() []docker.Container {
 		out = append(out, d.inspect(c))
 	}
 	return out
+}
+
+// SetMemory sets the memory statistics the container reports. It reports
+// whether the container exists.
+func (d *Daemon) SetMemory(id string, m docker.Memory) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	c, ok := d.lookupContainer(id)
+	if ok {
+		c.memory = m
+	}
+	return ok
+}
+
+func (d *Daemon) containerStats(w http.ResponseWriter, r *http.Request) {
+	d.withContainer(w, r, func(c *container) {
+		writeJSON(w, http.StatusOK, struct {
+			Memory docker.Memory `json:"memory_stats"`
+		}{c.memory})
+	})
 }
 
 // Uploads returns the archives uploaded into a container, in order.

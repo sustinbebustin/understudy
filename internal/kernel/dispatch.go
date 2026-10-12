@@ -259,7 +259,7 @@ func (k *Kernel) begin(ctx context.Context, c *Call, d Decoded, bnd *binding) {
 		TraceHeader: c.trace,
 		Input:       k.redacted(ctx, c, d, bnd),
 	}
-	id, err := k.journal.Begin(journal.Event{Cause: c.cause, At: c.admitted, Scope: c.scope, Detail: call})
+	id, err := k.journal.Begin(journal.Event{Cause: c.cause, Links: c.links, At: c.admitted, Scope: c.scope, Detail: call})
 	if err != nil {
 		k.log.LogAttrs(ctx, slog.LevelWarn, "journal refused a call; it runs unrecorded",
 			slog.String("op", c.label), slog.String("request_id", string(c.id)), slog.String("error", err.Error()))
@@ -353,9 +353,10 @@ func (k *Kernel) journalFault(ctx context.Context, c *Call, inj fault.Injection)
 }
 
 // recordAccess records the IAM actions the call used (step 11): never for an
-// injected fault, an internal operation or an anonymous caller.
+// injected fault, an internal operation, an anonymous caller or a service
+// acting on its own behalf (AsPlatform), which no policy grants.
 func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result) {
-	if k.access == nil || c.op == nil || c.op.Kind == registry.Internal {
+	if _, platform := c.mode.(AsPlatform); k.access == nil || c.op == nil || c.op.Kind == registry.Internal || platform {
 		return
 	}
 	principal, ok := accessPrincipal(c.principal)
@@ -409,6 +410,9 @@ func accessMode(m PrincipalMode) access.Mode {
 		return access.AsExecutionRole{}
 	case AsService:
 		return access.AsService{Source: m.Source}
+	case AsPlatform:
+		// recordAccess records no AsPlatform call; Direct keeps the switch
+		// whole.
 	}
 	return access.Direct{}
 }

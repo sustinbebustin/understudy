@@ -70,6 +70,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.image = d.Kernel.Timers().Handle(TimerImage, s.onImage)
 	b := lambdaapi.NewBinder(d.Binder)
 	s.bindFunctions(b)
+	s.bindCodeLinks(b)
 	s.bindVersions(b)
 	s.bindAliases(b)
 	s.bindPermissions(b)

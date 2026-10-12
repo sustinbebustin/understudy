@@ -1,6 +1,7 @@
 package lambda
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
 	"slices"
@@ -9,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -18,7 +20,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/ruler"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
-	"github.com/sustinbebustin/understudy/internal/service/lambda/runtimeapi"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -770,15 +771,27 @@ func windowOpen(m *Mapping, h *held, now clock.Instant) (clock.Instant, bool) {
 	return closes, now.Before(closes)
 }
 
-// invoke runs the function synchronously on pl's batch, deletes the
-// messages that succeeded and releases the pins of the rest, which return
-// to the queue when their visibility timeout ends.
+// lambdaService is the service principal an event source mapping invokes
+// its function as.
+const lambdaService = "lambda.amazonaws.com"
+
+// invoke runs the function synchronously on pl's batch through Invoke, as
+// Lambda on its own behalf, so fault rules on lambda.Invoke reach it like
+// any internal call (ADR 0008). The Invoke continues the messages' causal
+// chains: its parent is the earliest message's enqueue event and the other
+// messages' are its links (ADR 0007), and the deletes hang from the same
+// event. It deletes the messages that succeeded and releases the pins of
+// the rest, which return to the queue when their visibility timeout ends.
 func (p *pollers) invoke(ctx context.Context, c *kernel.Call, pl *poller, m *Mapping, t target, sqs kernel.Target) {
 	h := &pl.held
 	batch := h.batch
 	h.batch, h.opened = esm.Batch{}, clock.Instant{}
-	res, err := p.x.runSync(ctx, c, t, syncRun{payload: batch.Event(), cause: ref.Cause{Parent: c.Event(), Trace: c.Cause().Trace}})
-	v := verdict(res, err, m.ReportFailures, batch.MessageIDs())
+	cause, links := p.causes(ctx, c, pl, sqs, &batch)
+	fn := kernel.Target{Scope: pl.scope, As: kernel.AsPlatform{Name: lambdaService}, Via: ref.LambdaESM, Resume: cause, Links: links}
+	out, err := kernel.Invoke(ctx, p.x.k, c, lambdaapi.OpInvoke, fn, &lambdaapi.InvokeInput{
+		FunctionName: t.invoked.String(), InvocationType: new(lambdaapi.InvocationTypeRequestResponse), Payload: batch.Event(),
+	})
+	v := verdict(out, err, m.ReportFailures, batch.MessageIDs())
 	if f, ok := v.(esm.Failed); ok {
 		p.x.k.Log().LogAttrs(ctx, slog.LevelInfo, "an event source mapping's batch failed; its messages return to the queue after their visibility timeout",
 			pl.attrs(slog.Int("messages", batch.Len()), slog.String("reason", f.Reason))...)
@@ -793,26 +806,53 @@ func (p *pollers) invoke(ctx context.Context, c *kernel.Call, pl *poller, m *Map
 			succeeded = append(succeeded, records[i].ReceiptHandle)
 		}
 	}
+	sqs.Resume = cause
 	undeleted := p.delete(ctx, c, pl, sqs, succeeded)
 	p.unpin(ctx, c, pl, append(succeeded, release...), append(release, undeleted...))
+}
+
+// causes asks the queue which calls enqueued batch's messages and returns
+// the earliest's event as the invocation's cause and the others' events,
+// oldest first, as its links. When the queue cannot say, the cause is
+// zero, so the invocation hangs from the poll; the lookup failure is
+// logged and the batch still runs.
+func (p *pollers) causes(ctx context.Context, c *kernel.Call, pl *poller, target kernel.Target, batch *esm.Batch) (ref.Cause, []ref.EventID) {
+	records := batch.Records()
+	handles := make([]string, len(records))
+	for i := range records {
+		handles[i] = records[i].ReceiptHandle
+	}
+	out, err := kernel.Invoke(ctx, p.x.k, c, sqsapi.OpMessageCauses, target, &sqsapi.MessageCausesInput{QueueUrl: esm.QueueURL(pl.queue), ReceiptHandles: handles})
+	if err != nil {
+		p.x.k.Log().LogAttrs(ctx, slog.LevelWarn, "an event source mapping could not read which calls sent its batch; the invocation is journaled under the poll",
+			pl.attrs(slog.String("error", err.Message))...)
+		return ref.Cause{}, nil
+	}
+	found := slices.SortedFunc(slices.Values(out.Causes), func(a, b sqsapi.MessageCause) int { return cmp.Compare(a.EnqueuedEvent, b.EnqueuedEvent) })
+	found = slices.CompactFunc(found, func(a, b sqsapi.MessageCause) bool { return a.EnqueuedEvent == b.EnqueuedEvent })
+	found = slices.DeleteFunc(found, func(m sqsapi.MessageCause) bool { return m.EnqueuedEvent <= 0 })
+	if len(found) == 0 {
+		return ref.Cause{}, nil
+	}
+	cause := ref.Cause{Parent: ref.EventID(found[0].EnqueuedEvent), Trace: ref.EventID(found[0].EnqueuedTrace)} //nolint:gosec // event ids are positive
+	var links []ref.EventID
+	for _, m := range found[1:] {
+		links = append(links, ref.EventID(m.EnqueuedEvent)) //nolint:gosec // event ids are positive
+	}
+	return cause, links
 }
 
 // verdict judges an invocation: an error or a function error fails the
 // batch; a success is read for batch item failures under
 // ReportBatchItemFailures and is a full success otherwise.
-func verdict(res ran, err *awserr.Error, report bool, ids []string) esm.Verdict {
+func verdict(out *lambdaapi.InvokeOutput, err *awserr.Error, report bool, ids []string) esm.Verdict {
 	switch {
 	case err != nil:
 		return esm.Failed{Reason: "the invocation did not run: " + err.Message}
-	case res.outcome == nil:
-		return esm.Failed{Reason: "the invocation has no outcome"}
-	}
-	success, ok := res.outcome.(runtimeapi.Success)
-	switch {
-	case !ok:
-		return esm.Failed{Reason: "the function failed: " + runtimeapi.FunctionErrorHeader(res.outcome)}
+	case out.FunctionError != nil:
+		return esm.Failed{Reason: "the function failed: " + *out.FunctionError}
 	case report:
-		return esm.ReadResponse(success.Payload, ids)
+		return esm.ReadResponse(out.Payload, ids)
 	}
 	return esm.Succeeded{}
 }

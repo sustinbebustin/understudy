@@ -117,7 +117,7 @@ func TestClaimRejectsRequestsTheProtocolForbids(t *testing.T) {
 			if got.Err.ID != awserr.UnknownOperationException() || got.Err.Message == "" {
 				t.Errorf("Rejected with %+v, want UnknownOperationException with a message", got.Err)
 			}
-			resp := rpcv2cbor.Codec{}.EncodeError(cw, "req-1", got.Err)
+			resp := rpcv2cbor.Codec{}.EncodeError(r, cw, "req-1", got.Err)
 			if resp.Status != http.StatusBadRequest {
 				t.Errorf("status = %d, want 400", resp.Status)
 			}

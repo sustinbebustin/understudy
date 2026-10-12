@@ -52,6 +52,9 @@ var OpListQueueTags = kernel.NewOp[ListQueueTagsInput, ListQueueTagsOutput](&des
 // OpListQueues is the typed handle on ListQueues.
 var OpListQueues = kernel.NewOp[ListQueuesInput, ListQueuesOutput](&descListQueues)
 
+// OpMessageCauses is the typed handle on MessageCauses.
+var OpMessageCauses = kernel.NewOp[MessageCausesInput, MessageCausesOutput](&descMessageCauses)
+
 // OpPurgeQueue is the typed handle on PurgeQueue.
 var OpPurgeQueue = kernel.NewOp[PurgeQueueInput, PurgeQueueOutput](&descPurgeQueue)
 
@@ -158,6 +161,11 @@ func (b Binder) ListQueueTags(h kernel.Handler[ListQueueTagsInput, ListQueueTags
 // ListQueues binds the handler of ListQueues.
 func (b Binder) ListQueues(h kernel.Handler[ListQueuesInput, ListQueuesOutput], cov registry.BindCoverage, opts ...kernel.BindOption) {
 	kernel.Bind(b.b, OpListQueues, h, cov, opts...)
+}
+
+// MessageCauses binds the handler of MessageCauses.
+func (b Binder) MessageCauses(h kernel.Handler[MessageCausesInput, MessageCausesOutput], cov registry.BindCoverage, opts ...kernel.BindOption) {
+	kernel.Bind(b.b, OpMessageCauses, h, cov, opts...)
 }
 
 // PurgeQueue binds the handler of PurgeQueue.

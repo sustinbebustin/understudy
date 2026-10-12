@@ -2,6 +2,7 @@ package s3_test
 
 import (
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -81,6 +82,59 @@ func TestWireForms(t *testing.T) {
 
 // TestPutStatusesRecordedAgainstAWS checks the Puts real S3 answers with
 // 204 although the model says 200 (s3.md 4).
+// TestListBucketsWithNoMatchSendsAnEmptyBucketsElement: AWS sends the
+// Buckets wrapper even when nothing matches, which SDKs read as an empty
+// list rather than an absent member (REC LocalStack
+// test_s3_list_operations.snapshot.json, TestS3ListBuckets
+// list-objects-by-prefix-empty: "Buckets": []).
+func TestListBucketsWithNoMatchSendsAnEmptyBucketsElement(t *testing.T) {
+	run(t, s3.Options{}, func(h *harness) {
+		h.createBucket("listed")
+		for name, w := range map[string]struct {
+			who who
+			in  s3api.ListBucketsInput
+		}{
+			"an account with no buckets": {who: who{account: "999999999999"}},
+			"a prefix nothing matches":   {in: s3api.ListBucketsInput{Prefix: new("absent")}},
+		} {
+			got := encode(h.T, s3api.OpListBuckets.Descriptor(), ok(h, w.who, s3api.OpListBuckets, &w.in))
+			if !strings.Contains(got.body, "<Buckets></Buckets>") {
+				t.Errorf("ListBuckets for %s = %q, want an empty <Buckets></Buckets>", name, got.body)
+			}
+		}
+	})
+}
+
+// TestObjectMetadataNamesGoOutLowerCase: S3 stores user metadata names in
+// lower case and sends them as x-amz-meta-<name>, never in Go's canonical
+// header case, because SDKs take the name after the prefix verbatim
+// (s3.md 5.4).
+func TestObjectMetadataNamesGoOutLowerCase(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("meta")
+		ok(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{
+			Bucket: "meta", Key: "k", Body: bytesBody("x"),
+			Metadata: map[string]string{"mixed-case": "v1", "under_score": "v2"},
+		})
+		want := map[string]string{"x-amz-meta-mixed-case": "v1", "x-amz-meta-under_score": "v2"}
+		check := func(op string, header http.Header) {
+			got := map[string]string{}
+			for name, values := range header {
+				if strings.HasPrefix(strings.ToLower(name), "x-amz-meta-") {
+					got[name] = strings.Join(values, ",")
+				}
+			}
+			if !maps.Equal(got, want) {
+				t.Errorf("%s metadata headers = %v, want exactly %v", op, got, want)
+			}
+		}
+		check("HeadObject", encode(h.T, s3api.OpHeadObject.Descriptor(),
+			ok(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "meta", Key: "k"})).header)
+		check("GetObject", encode(h.T, s3api.OpGetObject.Descriptor(),
+			ok(h, who{}, s3api.OpGetObject, &s3api.GetObjectInput{Bucket: "meta", Key: "k"})).header)
+	})
+}
+
 func TestPutStatusesRecordedAgainstAWS(t *testing.T) {
 	for _, op := range []*registry.Operation{
 		s3api.OpPutBucketPolicy.Descriptor(), s3api.OpPutBucketTagging.Descriptor(),

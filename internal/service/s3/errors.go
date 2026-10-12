@@ -83,10 +83,16 @@ func errIllegalLocationConstraint(constraint string) *awserr.Error {
 	return s3api.ErrIllegalLocationConstraintException("The " + constraint + " location constraint is incompatible for the region specific endpoint this request was sent to.")
 }
 
-// errBucketNotEmpty is the text for an unversioned bucket; a bucket that
-// holds versions adds "You must delete all versions in the bucket.".
-func errBucketNotEmpty(name string) *awserr.Error {
-	return withField(s3api.ErrBucketNotEmpty("The bucket you tried to delete is not empty"), "BucketName", name)
+// errBucketNotEmpty answers DeleteBucket of a bucket that still holds
+// objects: for a bucket versioning was ever set on, whose objects are
+// versions and delete markers, AWS adds "You must delete all versions in
+// the bucket." (s3.md 3, AWS-recorded).
+func errBucketNotEmpty(b *Bucket) *awserr.Error {
+	msg := "The bucket you tried to delete is not empty"
+	if b.Versioning != nil && b.Versioning.Status != nil {
+		msg += ". You must delete all versions in the bucket."
+	}
+	return withField(s3api.ErrBucketNotEmpty(msg), "BucketName", b.Name)
 }
 
 // errWrongRegion answers a request signed for region asserted at a bucket

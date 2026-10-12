@@ -386,6 +386,48 @@
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json: a Status other than Enabled or Suspended is MalformedXML", "validated": "2026-02-21"}
       }
     },
+    "com.amazonaws.s3#CopyObjectRequest$CopySource": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"patternPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json test_s3_copy_object_wrong_format: a source not matching bucket/key is InvalidArgument \"Invalid copy source object key\" naming x-amz-copy-source (s3.md 7)"}
+      }
+    },
+    "com.amazonaws.s3#UploadPartCopyRequest$CopySource": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"patternPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/s3.md#7-copyobject-and-uploadpartcopy: UploadPartCopy takes the same x-amz-copy-source as CopyObject"}
+      }
+    },
+    "com.amazonaws.s3#ListObjectsRequest$EncodingType": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_list_operations.snapshot.json test_list_ops_encoding_type_validation: InvalidArgument \"Invalid Encoding Method specified in Request\" naming encoding-type (s3.md 9.1)"}
+      }
+    },
+    "com.amazonaws.s3#ListObjectsV2Request$EncodingType": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_list_operations.snapshot.json test_list_ops_encoding_type_validation: InvalidArgument \"Invalid Encoding Method specified in Request\" naming encoding-type (s3.md 9.1)"}
+      }
+    },
+    "com.amazonaws.s3#ListObjectVersionsRequest$EncodingType": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_list_operations.snapshot.json test_list_ops_encoding_type_validation: InvalidArgument \"Invalid Encoding Method specified in Request\" naming encoding-type (s3.md 9.1)"}
+      }
+    },
+    "com.amazonaws.s3#ListMultipartUploadsRequest$EncodingType": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_list_operations.snapshot.json test_list_ops_encoding_type_validation: InvalidArgument \"Invalid Encoding Method specified in Request\" naming encoding-type (s3.md 9.1)"}
+      }
+    },
     "com.amazonaws.s3#OwnershipControlsRule$ObjectOwnership": {
       "type": "apply",
       "traits": {

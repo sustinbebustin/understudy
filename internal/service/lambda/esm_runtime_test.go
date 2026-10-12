@@ -506,8 +506,9 @@ func TestESMFrozenClockPinsHeldMessages(t *testing.T) {
 }
 
 // Filter criteria delete non-matching messages without invoking, and the
-// journal reads SendMessage, then the poller's ReceiveMessage, the
-// Invocation and its DeleteMessageBatch, all in the poll's trace.
+// journal reads SendMessage, then the poller's ReceiveMessage in the
+// poll's trace, then the Invocation and its DeleteMessageBatch in the
+// SendMessage's trace, which the batch continues (ADR 0007).
 func TestESMFilterAndJournalTrace(t *testing.T) {
 	rec := &recorder{}
 	runESM(t, rec, func(h *execHarness) {
@@ -539,8 +540,9 @@ func TestESMFilterAndJournalTrace(t *testing.T) {
 		if send.ID == 0 || (send.ID >= receive.ID || receive.ID >= inv.ID || inv.ID >= del.ID) {
 			h.Fatalf("journal order SendMessage %d, ReceiveMessage %d, Invocation %d, DeleteMessageBatch %d; want increasing", send.ID, receive.ID, inv.ID, del.ID)
 		}
-		if receive.Cause.Trace != inv.Cause.Trace || del.Cause.Trace != inv.Cause.Trace {
-			h.Fatalf("traces: ReceiveMessage %d, Invocation %d, DeleteMessageBatch %d; want one", receive.Cause.Trace, inv.Cause.Trace, del.Cause.Trace)
+		if inv.Cause.Trace != send.Cause.Trace || del.Cause.Trace != send.Cause.Trace || receive.Cause.Trace == send.Cause.Trace {
+			h.Fatalf("traces: SendMessage %d, ReceiveMessage %d, Invocation %d, DeleteMessageBatch %d; want the invocation and the delete in the send's, the receive in the poll's",
+				send.Cause.Trace, receive.Cause.Trace, inv.Cause.Trace, del.Cause.Trace)
 		}
 		if mode := journalMode(receive); mode != "execution-role" {
 			h.Fatalf("ReceiveMessage ran as %q, want the execution role", mode)
@@ -552,7 +554,6 @@ func TestESMFilterAndJournalTrace(t *testing.T) {
 // message, and the others' enqueue events are its links, so the trace of a
 // SendMessage reaches the invocation it fed (ARCHITECTURE.md 10).
 func TestESMInvocationParentIsEarliestEnqueue(t *testing.T) {
-	t.Skip("blocked on SQS: an internal receive does not return each message's enqueue event (Message.Enqueued, internal/service/sqs/state.go), so the invocation's parent is the poll's TimerFired event")
 	rec := &recorder{}
 	runESM(t, rec, func(h *execHarness) {
 		url, arn := h.queue("orders", nil)
@@ -820,6 +821,54 @@ func TestESMFailedDeleteReleasesItsPin(t *testing.T) {
 			h.Fatalf("queue holds %d visible and %d in flight, want none", visible, inFlight)
 		}
 	})
+}
+
+// A mapping invokes its function through Invoke, so a fault rule on
+// lambda.Invoke for the function's ARN and internal calls reaches it (ADR
+// 0008): the throttled batch fails, its message returns after its
+// visibility timeout and is delivered then, and the journal records the
+// hit. The Invoke runs as Lambda on its own behalf, which no policy grants,
+// so the access recorder leaves it out.
+func TestESMThrottledInvokeIsRetried(t *testing.T) {
+	rec := &recorder{}
+	runESM(t, rec, func(h *execHarness) {
+		h.Clock.Freeze()
+		url, arn := h.queue("orders", map[sqsapi.QueueAttributeName]string{sqsapi.QueueAttributeNameVisibilityTimeout: "30"})
+		h.mapQueue(arn, lambdaapi.CreateEventSourceMappingInput{})
+		h.quiesce()
+		if _, err := h.Faults.Add(fault.Rule{
+			Match: fault.Match{
+				Operations: []ref.OperationID{lambdaapi.OpInvoke.Descriptor().ID},
+				Resource:   fault.NewARNGlob(fnARN("worker") + "*"),
+				Origin:     fault.InternalOnly,
+			},
+			Phase:   fault.Request,
+			Action:  fault.Throttle{},
+			Trigger: fault.NextN{N: 1},
+		}); err != nil {
+			h.Fatal(err)
+		}
+		h.send(url, "once")
+		h.quiesce()
+		wantBodies(h, rec.bodies(), nil)
+		if hits := h.Journal.Query(journal.Filter{Kind: journal.KindFaultInjected, Limit: 10}).Events; len(hits) != 1 {
+			h.Fatalf("journaled %d fault hits, want the mapping's throttled Invoke", len(hits))
+		}
+		h.advancePolled(30 * time.Second)
+		wantBodies(h, rec.bodies(), [][]string{{"once"}})
+		invokes := esmCalls(h, lambdaapi.OpInvoke.Descriptor().ID)
+		if len(invokes) != 2 || journalMode(invokes[0]) != "platform:lambda.amazonaws.com" {
+			h.Fatalf("the mapping made %d Invoke calls, the first as %q; want 2 as Lambda on its own behalf", len(invokes), journalModeOf(invokes))
+		}
+	})
+}
+
+// journalModeOf is the mode of the first event of events, "" for none.
+func journalModeOf(events []journal.Event) string {
+	if len(events) == 0 {
+		return ""
+	}
+	return journalMode(events[0])
 }
 
 // Under a scaled clock the poller pins what it holds: wall time that takes

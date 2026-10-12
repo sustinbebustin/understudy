@@ -202,10 +202,22 @@ var descListQueues = registry.Operation{
 	SuccessCode: 200,
 }
 
+var descMessageCauses = registry.Operation{
+	Service:     &service,
+	ID:          ref.OperationID{Service: "sqs", Name: "MessageCauses"},
+	Ordinal:     15,
+	Kind:        registry.Internal,
+	Shape:       "com.amazonaws.sqs#MessageCauses",
+	Input:       &schemaMessageCausesInput,
+	Output:      &schemaMessageCausesOutput,
+	Errors:      []awserr.Identity{IdentityQueueDoesNotExist(), IdentityReceiptHandleIsInvalid(), IdentityMissingParameter(), IdentityInvalidParameterValue()},
+	SuccessCode: 200,
+}
+
 var descPurgeQueue = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "sqs", Name: "PurgeQueue"},
-	Ordinal:     15,
+	Ordinal:     16,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.sqs#PurgeQueue",
 	Input:       &schemaPurgeQueueInput,
@@ -218,7 +230,7 @@ var descPurgeQueue = registry.Operation{
 var descReceiveMessage = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "sqs", Name: "ReceiveMessage"},
-	Ordinal:     16,
+	Ordinal:     17,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.sqs#ReceiveMessage",
 	Input:       &schemaReceiveMessageInput,
@@ -231,7 +243,7 @@ var descReceiveMessage = registry.Operation{
 var descRemovePermission = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "sqs", Name: "RemovePermission"},
-	Ordinal:     17,
+	Ordinal:     18,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.sqs#RemovePermission",
 	Input:       &schemaRemovePermissionInput,
@@ -244,7 +256,7 @@ var descRemovePermission = registry.Operation{
 var descSendMessage = registry.Operation{
 	Service:         &service,
 	ID:              ref.OperationID{Service: "sqs", Name: "SendMessage"},
-	Ordinal:         18,
+	Ordinal:         19,
 	Kind:            registry.Modeled,
 	Shape:           "com.amazonaws.sqs#SendMessage",
 	Input:           &schemaSendMessageInput,
@@ -258,7 +270,7 @@ var descSendMessage = registry.Operation{
 var descSendMessageBatch = registry.Operation{
 	Service:         &service,
 	ID:              ref.OperationID{Service: "sqs", Name: "SendMessageBatch"},
-	Ordinal:         19,
+	Ordinal:         20,
 	Kind:            registry.Modeled,
 	Shape:           "com.amazonaws.sqs#SendMessageBatch",
 	Input:           &schemaSendMessageBatchInput,
@@ -272,7 +284,7 @@ var descSendMessageBatch = registry.Operation{
 var descSetQueueAttributes = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "sqs", Name: "SetQueueAttributes"},
-	Ordinal:     20,
+	Ordinal:     21,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.sqs#SetQueueAttributes",
 	Input:       &schemaSetQueueAttributesInput,
@@ -285,7 +297,7 @@ var descSetQueueAttributes = registry.Operation{
 var descStartMessageMoveTask = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "sqs", Name: "StartMessageMoveTask"},
-	Ordinal:     21,
+	Ordinal:     22,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.sqs#StartMessageMoveTask",
 	Input:       &schemaStartMessageMoveTaskInput,
@@ -298,7 +310,7 @@ var descStartMessageMoveTask = registry.Operation{
 var descTagQueue = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "sqs", Name: "TagQueue"},
-	Ordinal:     22,
+	Ordinal:     23,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.sqs#TagQueue",
 	Input:       &schemaTagQueueInput,
@@ -311,7 +323,7 @@ var descTagQueue = registry.Operation{
 var descUntagQueue = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "sqs", Name: "UntagQueue"},
-	Ordinal:     23,
+	Ordinal:     24,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.sqs#UntagQueue",
 	Input:       &schemaUntagQueueInput,

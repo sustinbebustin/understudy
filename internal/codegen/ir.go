@@ -267,11 +267,12 @@ type VocabularyIR struct {
 
 // RuleIR is a resolved validationError rule.
 type RuleIR struct {
-	Error      *ErrorIR // nil for a rule that only sets the enum policy
-	Style      ValidationStyle
-	Kinds      ConstraintKind
-	Reason     string
-	EnumPolicy EnumPolicy
+	Error         *ErrorIR // nil for a rule that only sets a policy
+	Style         ValidationStyle
+	Kinds         ConstraintKind
+	Reason        string
+	EnumPolicy    EnumPolicy
+	PatternPolicy PatternPolicy
 }
 
 // PathIR is one member path of an operation input: lowerCamel segments with
@@ -1436,7 +1437,7 @@ func (b *builder) rules(subject string, raw json.RawMessage) ([]RuleIR, error) {
 	}
 	out := make([]RuleIR, 0, len(parsed))
 	for _, r := range parsed {
-		ir := RuleIR{Style: r.Style, Kinds: r.Kinds, Reason: r.Reason, EnumPolicy: r.EnumPolicy}
+		ir := RuleIR{Style: r.Style, Kinds: r.Kinds, Reason: r.Reason, EnumPolicy: r.EnumPolicy, PatternPolicy: r.PatternPolicy}
 		if r.Code != "" {
 			e, ok := b.errors[r.Code]
 			if !ok {
@@ -1492,11 +1493,15 @@ func (b *builder) serviceRules() error {
 		if r.EnumPolicy != 0 {
 			b.enumDef = r.EnumPolicy
 		}
+		if r.PatternPolicy != 0 {
+			return failf(StageIR, string(svc.ID), "patternPolicy applies at member level, where the handler that checks the pattern is named")
+		}
 	}
 	return nil
 }
 
-// memberRules resolves member-level rules and each member's enum policy.
+// memberRules resolves member-level rules, each member's enum policy, and
+// drops the pattern a patternPolicy handler rule leaves to the handler.
 func (b *builder) memberRules() error {
 	for _, s := range b.ir.Shapes {
 		for _, m := range s.Members {
@@ -1506,15 +1511,24 @@ func (b *builder) memberRules() error {
 					return err
 				}
 			}
-			m.EnumPolicy = b.enumDef
-			for _, r := range m.Rules {
-				if r.EnumPolicy != 0 {
-					m.EnumPolicy = r.EnumPolicy
-				}
-			}
+			b.applyPolicies(m)
 		}
 	}
 	return nil
+}
+
+// applyPolicies sets m's enum policy, the service default unless a rule of
+// m's sets one, and drops its pattern when a rule leaves it to the handler.
+func (b *builder) applyPolicies(m *MemberIR) {
+	m.EnumPolicy = b.enumDef
+	for _, r := range m.Rules {
+		if r.EnumPolicy != 0 {
+			m.EnumPolicy = r.EnumPolicy
+		}
+		if r.PatternPolicy == PatternHandler {
+			m.Pattern = nil
+		}
+	}
 }
 
 // operationRules resolves an operation's rules; enumPolicy is not one of
@@ -1531,6 +1545,9 @@ func (b *builder) operationRules(o *OperationIR) error {
 	for _, r := range o.Validation {
 		if r.EnumPolicy != 0 {
 			return failf(StageIR, string(o.ID), "enumPolicy applies at service or member level, where the validator that checks the enum is generated")
+		}
+		if r.PatternPolicy != 0 {
+			return failf(StageIR, string(o.ID), "patternPolicy applies at member level, where the handler that checks the pattern is named")
 		}
 	}
 	return nil

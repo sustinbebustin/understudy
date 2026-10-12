@@ -75,17 +75,24 @@ func (s *Service) createFunctionURLConfig(_ context.Context, c *kernel.Call, in 
 		return nil, err
 	}
 	touch(c, ref.qualifiedARN())
-	out := &lambdaapi.CreateFunctionUrlConfigOutput{
+	return &lambdaapi.CreateFunctionUrlConfigOutput{
 		FunctionUrl:  functionURL(c.Endpoint(), ref.scope, u.ID),
 		FunctionArn:  ref.qualifiedARN(),
 		AuthType:     lambdaapi.FunctionUrlAuthType(u.AuthType),
 		Cors:         toCors(u.Cors),
 		CreationTime: urlTime(u.Created),
+		InvokeMode:   echoedInvokeMode(u),
+	}, nil
+}
+
+// echoedInvokeMode is InvokeMode as Create and Update answer it: present
+// only once a request has set it, as AWS-recorded responses leave it out
+// otherwise (LocalStack's AWS-validated test_url_config_lifecycle).
+func echoedInvokeMode(u URLConfig) *lambdaapi.InvokeMode {
+	if u.InvokeMode == "" {
+		return nil
 	}
-	if u.InvokeMode != "" {
-		out.InvokeMode = new(lambdaapi.InvokeMode(u.InvokeMode))
-	}
-	return out, nil
+	return new(lambdaapi.InvokeMode(u.InvokeMode))
 }
 
 // renderURLConfig is a configuration as the read operations report it,
@@ -164,7 +171,7 @@ func (s *Service) updateFunctionURLConfig(_ context.Context, c *kernel.Call, in 
 	r := renderURLConfig(c, ref, u)
 	return &lambdaapi.UpdateFunctionUrlConfigOutput{
 		FunctionUrl: r.FunctionUrl, FunctionArn: r.FunctionArn, AuthType: r.AuthType, Cors: r.Cors,
-		CreationTime: r.CreationTime, LastModifiedTime: r.LastModifiedTime, InvokeMode: r.InvokeMode,
+		CreationTime: r.CreationTime, LastModifiedTime: r.LastModifiedTime, InvokeMode: echoedInvokeMode(u),
 	}, nil
 }
 

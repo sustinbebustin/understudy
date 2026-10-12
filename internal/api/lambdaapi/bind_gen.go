@@ -382,6 +382,11 @@ func (b Binder) DeleteResourcePolicy(h kernel.Handler[DeleteResourcePolicyInput,
 	kernel.Bind(b.b, OpDeleteResourcePolicy, h, cov, opts...)
 }
 
+// DownloadFunctionCode binds the raw HTTP handler of DownloadFunctionCode.
+func (b Binder) DownloadFunctionCode(h kernel.RawHTTPHandler, cov registry.BindCoverage) {
+	kernel.BindRawHTTP(b.b, &descDownloadFunctionCode, h, cov)
+}
+
 // GetAccountSettings binds the handler of GetAccountSettings.
 func (b Binder) GetAccountSettings(h kernel.Handler[GetAccountSettingsInput, GetAccountSettingsOutput], cov registry.BindCoverage, opts ...kernel.BindOption) {
 	kernel.Bind(b.b, OpGetAccountSettings, h, cov, opts...)

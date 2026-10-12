@@ -50,17 +50,44 @@ func checkCreateKey(in *kmsapi.CreateKeyInput) *awserr.Error {
 	case in.CustomerMasterKeySpec != nil:
 		spec = kmsapi.KeySpec(*in.CustomerMasterKeySpec)
 	}
+	usage := kmsapi.KeyUsageTypeEncryptDecrypt
+	if in.KeyUsage != nil {
+		usage = *in.KeyUsage
+	}
+	// AWS checks the pair before whether it supports the spec, so a
+	// mismatch is a ValidationException even for a spec understudy refuses.
 	switch {
+	case !slices.Contains(keyUsages(spec), usage):
+		return kmsapi.ErrValidationException("KeyUsage " + string(usage) + " is not compatible with KeySpec " + string(spec))
 	case spec != kmsapi.KeySpecSymmetricDefault:
 		return errUnsupported("KeySpec " + string(spec))
-	case in.KeyUsage != nil && *in.KeyUsage != kmsapi.KeyUsageTypeEncryptDecrypt:
-		return kmsapi.ErrValidationException("KeyUsage " + string(*in.KeyUsage) + " is not compatible with KeySpec SYMMETRIC_DEFAULT")
 	case in.Origin != nil && *in.Origin != kmsapi.OriginTypeAwsKms:
 		return errUnsupported("Origin " + string(*in.Origin))
 	case in.CustomKeyStoreId != nil || in.XksKeyId != nil:
 		return errUnsupported("custom key stores")
 	case in.MultiRegion != nil && *in.MultiRegion:
 		return errUnsupported("multi-Region keys")
+	}
+	return nil
+}
+
+// keyUsages lists the KeyUsage values AWS accepts with spec (CreateKey's
+// KeyUsage documentation): ENCRYPT_DECRYPT, the default, is valid only for
+// symmetric, RSA and SM2 keys.
+func keyUsages(spec kmsapi.KeySpec) []kmsapi.KeyUsageType {
+	switch spec {
+	case kmsapi.KeySpecSymmetricDefault:
+		return []kmsapi.KeyUsageType{kmsapi.KeyUsageTypeEncryptDecrypt}
+	case kmsapi.KeySpecHmac224, kmsapi.KeySpecHmac256, kmsapi.KeySpecHmac384, kmsapi.KeySpecHmac512:
+		return []kmsapi.KeyUsageType{kmsapi.KeyUsageTypeGenerateVerifyMac}
+	case kmsapi.KeySpecRsa2048, kmsapi.KeySpecRsa3072, kmsapi.KeySpecRsa4096:
+		return []kmsapi.KeyUsageType{kmsapi.KeyUsageTypeEncryptDecrypt, kmsapi.KeyUsageTypeSignVerify}
+	case kmsapi.KeySpecEccNistP256, kmsapi.KeySpecEccNistP384, kmsapi.KeySpecEccNistP521:
+		return []kmsapi.KeyUsageType{kmsapi.KeyUsageTypeSignVerify, kmsapi.KeyUsageTypeKeyAgreement}
+	case kmsapi.KeySpecEccSecgP256k1, kmsapi.KeySpecEccNistEdwards25519, kmsapi.KeySpecMlDsa44, kmsapi.KeySpecMlDsa65, kmsapi.KeySpecMlDsa87:
+		return []kmsapi.KeyUsageType{kmsapi.KeyUsageTypeSignVerify}
+	case kmsapi.KeySpecSm2:
+		return []kmsapi.KeyUsageType{kmsapi.KeyUsageTypeEncryptDecrypt, kmsapi.KeyUsageTypeSignVerify, kmsapi.KeyUsageTypeKeyAgreement}
 	}
 	return nil
 }

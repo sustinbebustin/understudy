@@ -27,6 +27,8 @@ func (s *Service) bindObjects(b s3api.Binder) {
 	b.GetObject(s.getObject, registry.Partial{Note: "no SSE-C, so SSE-C headers are refused; presigned URLs are not verified"}, touches(get))
 	head := func(in *s3api.HeadObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.HeadObject(s.headObject, registry.Partial{Note: "no SSE-C, so SSE-C headers are refused; presigned URLs are not verified"}, touches(head))
+	attrs := func(in *s3api.GetObjectAttributesInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
+	b.GetObjectAttributes(reader(s, attrs, getObjectAttributes), registry.Partial{Note: "ObjectParts reports TotalPartsCount without the per-part list; no SSE-C, so SSE-C headers are refused"}, touches(attrs))
 	del := func(in *s3api.DeleteObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteObject(s.deleteObject, registry.Partial{Note: "no MFA delete or Object Lock retention"}, touches(del))
 	dels := func(in *s3api.DeleteObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }

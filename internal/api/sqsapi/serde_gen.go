@@ -1487,6 +1487,71 @@ func deserializeMessageBodySystemAttributeMap(d smithy.Deserializer, m *smithy.M
 	}
 }
 
+func (v *MessageCause) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaMessageCause)
+	s.WriteString(&memberMessageCause_ReceiptHandle, v.ReceiptHandle)
+	s.WriteInt64(&memberMessageCause_EnqueuedEvent, v.EnqueuedEvent)
+	s.WriteInt64(&memberMessageCause_EnqueuedTrace, v.EnqueuedTrace)
+	s.CloseStruct()
+}
+
+func serializeMessageCauseList(s smithy.Serializer, m *smithy.Member, v []MessageCause) {
+	s.WriteList(m, len(v))
+	for _, e := range v {
+		e.serialize(s, &memberMessageCauseList_member)
+	}
+	s.CloseList()
+}
+
+// Deserialize reads v from d. Absent members stay absent; Validate
+// reports missing required ones.
+func (v *MessageCausesInput) Deserialize(d smithy.Deserializer) error { return v.deserialize(d) }
+
+func (v *MessageCausesInput) deserialize(d smithy.Deserializer) error {
+	if err := d.ReadStruct(&schemaMessageCausesInput); err != nil {
+		return err
+	}
+	v.missing = 1<<2 - 1
+	for {
+		m, ok, err := d.ReadStructMember()
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		switch m {
+		case &memberMessageCausesInput_QueueUrl:
+			x, err := d.ReadString(&memberMessageCausesInput_QueueUrl)
+			if err != nil {
+				return err
+			}
+			v.QueueUrl = x
+			v.missing &^= 1 << 0
+		case &memberMessageCausesInput_ReceiptHandles:
+			x, err := deserializeReceiptHandleList(d, &memberMessageCausesInput_ReceiptHandles)
+			if err != nil {
+				return err
+			}
+			v.ReceiptHandles = x
+			v.missing &^= 1 << 1
+		default:
+			return fmt.Errorf("sqsapi: structure com.amazonaws.sqs#MessageCausesRequest has no member %q; the codec returned a member of another shape", m.Name)
+		}
+	}
+}
+
+// Serialize writes v through s.
+func (v *MessageCausesOutput) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *MessageCausesOutput) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaMessageCausesOutput)
+	if len(v.Causes) > 0 {
+		serializeMessageCauseList(s, &memberMessageCausesOutput_Causes, v.Causes)
+	}
+	s.CloseStruct()
+}
+
 func serializeMessageList(s smithy.Serializer, m *smithy.Member, v []Message) {
 	s.WriteList(m, len(v))
 	for _, e := range v {

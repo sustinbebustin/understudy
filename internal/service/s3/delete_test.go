@@ -72,6 +72,17 @@ func TestVersionedDeleteMarkers(t *testing.T) {
 		}
 		_, err = as(h, who{}, s3api.OpDeleteBucket, &s3api.DeleteBucketInput{Bucket: "versioned"})
 		wantCode(t, err, "BucketNotEmpty", http.StatusConflict)
+		// AWS-recorded for a versioned bucket (s3.md 3).
+		if want := "The bucket you tried to delete is not empty. You must delete all versions in the bucket."; err.Message != want {
+			t.Fatalf("DeleteBucket of a versioned bucket = %q, want %q", err.Message, want)
+		}
+		h.createBucket("plain")
+		h.put("plain", "k", "v")
+		_, err = as(h, who{}, s3api.OpDeleteBucket, &s3api.DeleteBucketInput{Bucket: "plain"})
+		wantCode(t, err, "BucketNotEmpty", http.StatusConflict)
+		if want := "The bucket you tried to delete is not empty"; err.Message != want {
+			t.Fatalf("DeleteBucket of an unversioned bucket = %q, want %q", err.Message, want)
+		}
 
 		listed := ok(h, who{}, s3api.OpListObjectVersions, &s3api.ListObjectVersionsInput{Bucket: "versioned", Prefix: new("k")})
 		if len(listed.Versions) != 2 || *listed.Versions[0].VersionId != second || !*listed.Versions[0].IsLatest || *listed.Versions[1].IsLatest {

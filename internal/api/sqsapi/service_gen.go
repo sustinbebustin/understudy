@@ -29,7 +29,7 @@ var service = registry.Service{
 // The operations point back at the service, so the list is linked once
 // at init; nothing changes the descriptors after that.
 func init() {
-	service.Operations = []*registry.Operation{&descAddPermission, &descCancelMessageMoveTask, &descChangeMessageVisibility, &descChangeMessageVisibilityBatch, &descCreateQueue, &descDeleteMessage, &descDeleteMessageBatch, &descDeleteQueue, &descGetQueueAttributes, &descGetQueueUrl, &descHoldVisibility, &descListDeadLetterSourceQueues, &descListMessageMoveTasks, &descListQueueTags, &descListQueues, &descPurgeQueue, &descReceiveMessage, &descRemovePermission, &descSendMessage, &descSendMessageBatch, &descSetQueueAttributes, &descStartMessageMoveTask, &descTagQueue, &descUntagQueue}
+	service.Operations = []*registry.Operation{&descAddPermission, &descCancelMessageMoveTask, &descChangeMessageVisibility, &descChangeMessageVisibilityBatch, &descCreateQueue, &descDeleteMessage, &descDeleteMessageBatch, &descDeleteQueue, &descGetQueueAttributes, &descGetQueueUrl, &descHoldVisibility, &descListDeadLetterSourceQueues, &descListMessageMoveTasks, &descListQueueTags, &descListQueues, &descMessageCauses, &descPurgeQueue, &descReceiveMessage, &descRemovePermission, &descSendMessage, &descSendMessageBatch, &descSetQueueAttributes, &descStartMessageMoveTask, &descTagQueue, &descUntagQueue}
 }
 
 // Service returns the sqs descriptor with every operation. It is

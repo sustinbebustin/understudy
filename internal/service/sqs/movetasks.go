@@ -332,16 +332,17 @@ func (t *MoveTask) nextMovable(queue *Queue) int {
 // takes m out of its queue.
 func (s *Service) moveMessage(c *kernel.Call, m *Message, d queueRef, dest *Queue, now clock.Instant, tx *kernel.Tx) {
 	moved := Message{
-		ID:         s.ids.MessageID(),
-		Body:       m.Body,
-		BodyMD5:    m.BodyMD5,
-		Attributes: cloneAttributes(m.Attributes),
-		System:     cloneAttributes(m.System),
-		GroupID:    m.GroupID,
-		SenderID:   m.SenderID,
-		Enqueued:   c.Event(),
-		Sent:       now,
-		VisibleAt:  now.Add(seconds(dest.Attributes.DelaySeconds)),
+		ID:            s.ids.MessageID(),
+		Body:          m.Body,
+		BodyMD5:       m.BodyMD5,
+		Attributes:    cloneAttributes(m.Attributes),
+		System:        cloneAttributes(m.System),
+		GroupID:       m.GroupID,
+		SenderID:      m.SenderID,
+		Enqueued:      c.Event(),
+		EnqueuedTrace: c.Cause().Trace,
+		Sent:          now,
+		VisibleAt:     now.Add(seconds(dest.Attributes.DelaySeconds)),
 	}
 	if dest.FIFO != nil {
 		moved.FIFO = &FIFOMessage{DedupID: string(moved.ID), Sequence: dest.FIFO.nextSequence()}

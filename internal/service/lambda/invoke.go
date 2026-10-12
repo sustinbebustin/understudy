@@ -71,14 +71,21 @@ const invokeNote = "an alias with weighted routing always runs its primary versi
 //     invocation (Invoke, or the Invoke an asynchronous event came from),
 //     which is also the Invocation event's parent: journal events cannot
 //     be amended, so the Invocation event, which carries the duration, is
-//     appended once the invocation ends. Init-phase calls run inside the
+//     appended once the invocation ends, after the calls it caused. An
+//     event source mapping's invocation and its function's calls hang from
+//     the batch's earliest message's enqueue event instead, with the
+//     others' as the Invocation event's links; the mapping's Invoke, which
+//     fault rules match, is their sibling. Init-phase calls run inside the
 //     first invocation and link the same way. A call between invocations
 //     roots its own trace.
 //   - Init is the wall time of the container start of a cold invocation;
 //     the runtime's own init until its first /next is part of Duration,
 //     as in Lambda's suppressed init.
-//   - REPORT has no Max Memory Used: understudy does not measure it. A
-//     runtime failure adds the new-style Status and Error Type.
+//   - REPORT's Max Memory Used is the memory the container holds when the
+//     invocation ends, read once from the daemon's statistics (AWS reports
+//     the peak, which the Docker API does not expose under cgroup v2); it
+//     is left out when the container is gone. A runtime failure adds the
+//     new-style Status and Error Type.
 //   - All of an invocation's log lines are stamped with the emulator time
 //     its batch is cut at; output that arrives between invocations goes
 //     ahead of the next START, or is cut on its own once it reaches a
@@ -211,8 +218,24 @@ func NewExecution(svc *Service, d kernel.ServiceDeps, o ExecutionOptions) (*Exec
 	}
 	x.async = d.Kernel.Timers().Handle(TimerAsync, x.onAsync)
 	svc.overlayDir = x.overlays.dirOf
-	lambdaapi.NewBinder(d.Binder).Invoke(x.invoke, partial(invokeNote))
+	lambdaapi.NewBinder(d.Binder).Invoke(x.invoke, partial(invokeNote), kernel.WithResources(invokedFunction))
 	return x, nil
+}
+
+// invokedFunction names the function, qualified as the input names it, an
+// Invoke addresses, so fault rules can match it by resource before the
+// handler runs; an unparsable name names nothing, and the handler answers
+// it.
+func invokedFunction(c *kernel.Call, in *lambdaapi.InvokeInput) []aws.ARN {
+	r, err := parseFunctionRef(c, in.FunctionName, in.Qualifier)
+	if err != nil {
+		return nil
+	}
+	a, perr := aws.ParseARN(r.qualifiedARN())
+	if perr != nil {
+		return nil
+	}
+	return []aws.ARN{a}
 }
 
 // Close stops every execution environment, log stream and watcher, and
@@ -357,11 +380,7 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 		ctx, stop = x.outliveCaller(ctx)
 		defer stop()
 	}
-	res, err := x.runSync(ctx, c, t, syncRun{
-		payload:       payload,
-		clientContext: clientContext,
-		cause:         ref.Cause{Parent: c.Event(), Trace: c.Cause().Trace},
-	})
+	res, err := x.runSync(ctx, c, t, syncRun{payload: payload, clientContext: clientContext})
 	if err != nil {
 		return nil, err
 	}
@@ -379,16 +398,11 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 	return out, nil
 }
 
-// syncRun is a RequestResponse invocation run on behalf of a call.
+// syncRun is a RequestResponse invocation run on behalf of a call; see
+// invocationCause for where it hangs in the journal.
 type syncRun struct {
 	payload       []byte
 	clientContext string
-	// cause is the Invocation event's parent and the cause of the calls
-	// the function makes: the Invoke call's event, or for an event source
-	// mapping its batch's earliest message's enqueue event. links are the
-	// related events, the batch's other messages.
-	cause ref.Cause
-	links []ref.EventID
 	// trace is the X-Ray trace header the function runs under, as a
 	// function URL's event reports it; empty derives one when it runs.
 	trace string
@@ -409,19 +423,34 @@ func (x *Execution) outliveCaller(ctx context.Context) (context.Context, context
 }
 
 // runSync runs a RequestResponse invocation of t under c's request id: the
-// Invoke operation's, and the in-package entry of event source mappings
-// and function URLs, which resolve t with resolve first.
+// Invoke operation's, and the in-package entry of function URLs, which
+// resolve t with resolve first.
 func (x *Execution) runSync(ctx context.Context, c *kernel.Call, t target, in syncRun) (ran, *awserr.Error) {
+	cause, links := invocationCause(c)
 	return x.execute(ctx, &run{
 		target:        t,
 		request:       ids.LambdaRequestID(c.ID()),
 		payload:       in.payload,
 		clientContext: in.clientContext,
 		parent:        c,
-		cause:         in.cause,
-		links:         in.links,
+		cause:         cause,
+		links:         links,
 		trace:         in.trace,
 	})
+}
+
+// invocationCause is the parent and links of the Invocation event a
+// synchronous run on behalf of c journals, which the calls the function
+// makes hang from too: c's own event, except for an event source mapping's
+// Invoke, whose invocation the batch's messages caused rather than the
+// Invoke that carries it (ADR 0007). That Invoke continues the earliest
+// message's enqueue event and links the others' (pollers.invoke), and so
+// does its invocation.
+func invocationCause(c *kernel.Call) (ref.Cause, []ref.EventID) {
+	if in, ok := c.Origin().(ref.Internal); ok && in.Via == ref.LambdaESM {
+		return c.Cause(), c.Links()
+	}
+	return ref.Cause{Parent: c.Event(), Trace: c.Cause().Trace}, nil
 }
 
 // checkPayload enforces the payload limit of the invocation mode and
@@ -611,7 +640,8 @@ func (x *Execution) runIn(ctx context.Context, r *run, fn fnVersion, l leased) (
 			duration = to.After
 		}
 		x.settleLogs()
-		tail, deliver = stream.end(endLine(r.request), reportLine(r.request, duration, t.version.Config.MemorySize, l.cold, l.init, outcome))
+		used := x.memoryUsed(ctx, l.env, r)
+		tail, deliver = stream.end(endLine(r.request), reportLine(r.request, duration, t.version.Config.MemorySize, used, l.cold, l.init, outcome))
 		x.logRelease(ctx, x.pool.Release(ctx, l.env, outcome))
 		inv := journal.Invocation{Function: fn.arn(), Version: fn.version, Env: l.env.ID(), Cold: l.cold, Duration: duration, Outcome: invocationOutcome(outcome)}
 		if l.cold {
@@ -636,6 +666,20 @@ func (x *Execution) record(ctx context.Context, r *run, d journal.Detail) {
 		x.k.Log().LogAttrs(ctx, slog.LevelWarn, "journal refused a Lambda invocation event",
 			slog.String("function", r.target.ref.qualifiedARN()), slog.String("error", err.Error()))
 	}
+}
+
+// memoryUsed is the memory env's container holds once r's invocation ended,
+// for REPORT's Max Memory Used; nil when the daemon cannot say, as for a
+// container a timeout or a crash already removed, and REPORT then leaves
+// the field out rather than invent it.
+func (x *Execution) memoryUsed(ctx context.Context, env *pool.Env, r *run) *uint64 {
+	used, err := env.MemoryUsed(ctx)
+	if err != nil {
+		x.k.Log().LogAttrs(ctx, slog.LevelDebug, "reading a Lambda container's memory failed; REPORT leaves out Max Memory Used",
+			slog.String("function", r.target.ref.qualifiedARN()), slog.String("error", err.Error()))
+		return nil
+	}
+	return &used
 }
 
 func (x *Execution) logRelease(ctx context.Context, err error) {

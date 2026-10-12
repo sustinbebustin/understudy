@@ -434,14 +434,19 @@ func endLine(request ids.LambdaRequestID) string {
 	return "END RequestId: " + string(request) + "\n"
 }
 
-// reportLine is REPORT with wall-measured durations, Init Duration on a
-// cold start and the new-style Status of a failed runtime. Max Memory Used
-// is left out: understudy does not measure it, and reports nothing it
-// would have to invent.
-func reportLine(request ids.LambdaRequestID, duration time.Duration, memoryMB int32, cold bool, initDur time.Duration, o runtimeapi.Outcome) string {
+// reportLine is REPORT with wall-measured durations, Max Memory Used, Init
+// Duration on a cold start and the new-style Status of a failed runtime.
+// Max Memory Used is the memory the container held when the invocation
+// ended, rounded up to the MB, which is at most the peak AWS measures;
+// used is nil when it could not be read, and the field is then left out
+// rather than invented.
+func reportLine(request ids.LambdaRequestID, duration time.Duration, memoryMB int32, used *uint64, cold bool, initDur time.Duration, o runtimeapi.Outcome) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "REPORT RequestId: %s\tDuration: %.2f ms\tBilled Duration: %d ms\tMemory Size: %d MB\t",
 		request, millis(duration), billed(duration), memoryMB)
+	if used != nil {
+		fmt.Fprintf(&b, "Max Memory Used: %d MB\t", max(1, (*used+1<<20-1)>>20))
+	}
 	if cold {
 		fmt.Fprintf(&b, "Init Duration: %.2f ms\t", millis(initDur))
 	}

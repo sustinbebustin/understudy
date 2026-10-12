@@ -228,9 +228,11 @@ type Message struct {
 	// SenderID is the SenderId system attribute: the sending principal.
 	SenderID string `json:"senderId"`
 	// Enqueued is the journal event of the call that sent the message, the
-	// cause of what its delivery leads to.
-	Enqueued ref.EventID   `json:"enqueuedEventId"`
-	Sent     clock.Instant `json:"sent"`
+	// cause of what its delivery leads to, and EnqueuedTrace that event's
+	// trace; zero in a state saved before the trace was kept.
+	Enqueued      ref.EventID   `json:"enqueuedEventId"`
+	EnqueuedTrace ref.EventID   `json:"enqueuedTrace,omitzero"`
+	Sent          clock.Instant `json:"sent"`
 	// VisibleAt is when the message can next be received: the end of its
 	// delay before the first receive, of its visibility timeout after one.
 	VisibleAt clock.Instant `json:"visibleAt"`

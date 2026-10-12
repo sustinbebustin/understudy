@@ -172,10 +172,12 @@ func errCodeSource(packageType string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("A function with PackageType Zip needs Code.ZipFile or Code.S3Bucket and Code.S3Key, and no ImageUri."))
 }
 
-// errS3CodeUnsupported answers code from an S3 location: fetching it needs
-// an internal S3 call that has no kernel path yet.
-func errS3CodeUnsupported() *awserr.Error {
-	return lambdaapi.ErrNotImplemented("understudy does not fetch Lambda code from S3 yet; upload the package as ZipFile instead. Run 'understudy coverage --service lambda' for what is supported.")
+// errS3Package answers a package S3 would not hand over, naming S3's error
+// (AWS-recorded, lambda-api.md 4.3: "Error occurred while GetObject. S3
+// Error Code: NoSuchBucket. S3 Error Message: The specified bucket does
+// not exist").
+func errS3Package(e *awserr.Error) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Error occurred while GetObject. S3 Error Code: " + e.ID.QueryCode + ". S3 Error Message: " + e.Message))
 }
 
 // errInvalidMarker is understudy's text for a Marker no listing page

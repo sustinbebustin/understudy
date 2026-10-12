@@ -65,11 +65,15 @@
 //     rpc-v2-cbor, or a service segment that names no rpcv2Cbor service,
 //     is Declined, so the later claim rules and rule 9 answer it.
 //
-//   - The status is the identity's Status. awsQueryError.httpResponseCode
-//     (Identity.QueryModeStatus) never applies on this protocol, even for
-//     a client in query mode: the corpus case
-//     QueryCompatibleRpcV2CborCustomCodeError expects 400 for a shape whose
-//     code is 402 (wire-cbor.md 3.4).
+//   - The status is the identity's Status, except that a query-compatible
+//     service answering a request that sent x-amzn-query-mode: true uses
+//     QueryModeStatus when the identity sets it, as the awsjson codec does:
+//     AWS answers CloudWatch's ResourceNotFound 400 by default and 404 in
+//     query mode on both wires (error-matrix.md 5.13), and the Go client
+//     always sends the header (wire-cbor.md 3.2). The corpus case
+//     QueryCompatibleRpcV2CborCustomCodeError, which expects 400 for a
+//     shape whose code is 402, is a response case with no request, so no
+//     query mode; its awsJson1_0 twin expects the same 400.
 //
 //   - A query-compatible service sends x-amzn-query-error on every error,
 //     with Identity.QueryCode, as the awsjson codec does; for a shape

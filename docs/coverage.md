@@ -22,7 +22,7 @@ Server-runnable cases of the Smithy protocol compliance corpus, run against the 
 | restxml | request | 101 | 93 | 8 | 0 |
 | restxml | response | 77 | 71 | 5 | 1 |
 | rpcv2cbor | request | 39 | 38 | 0 | 1 |
-| rpcv2cbor | response | 29 | 26 | 0 | 3 |
+| rpcv2cbor | response | 29 | 25 | 1 | 3 |
 
 5 server-runnable cases are not generated, so the counts above leave them out (ARCHITECTURE.md 6.4 counts them):
 
@@ -128,6 +128,7 @@ corpus-bug: the case's expectation is wrong; client-only: only a client can run 
 | restxml | response | `RestXmlDateTimeWithPositiveOffset` | client-only | Tests that clients parse a date-time with a UTC offset; a server writes the instant in UTC. |
 | restxml | response | `S3OperationNoErrorWrappingResponse` | aws-differs (aws-doc) | Expects <Error><Type>Sender</Type><Code>NoSuchBucket</Code></Error>. S3 documents its error body as Code, Message and context elements with RequestId and HostId, and no Type, which the S3 dialect sends. Source: https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html (wire-rest.md 2, S3 errors) |
 | restxml | response | `SimpleScalarPropertiesWithXMLPreamble` | client-only | Tests that clients skip an XML preamble and CDATA text in a response; a server writes neither. |
+| rpcv2cbor | response | `QueryCompatibleRpcV2CborCustomCodeError` | aws-differs (third-party-recorded) | Expects status 400 for an awsQueryError with httpResponseCode 402. Recorded CloudWatch answers a query-compatible request that sends x-amzn-query-mode: true with the awsQueryError status (404 for ResourceNotFound) on the CBOR wire as on JSON, so the codec does too, and this case's request sends that header. The awsJson1_0 twin is skipped for the same reason. Source: https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (error-matrix.md 5.13, CloudWatch not found) |
 
 ## Operations
 
@@ -140,12 +141,12 @@ Every operation of each service's model, with what its handler states: full, sto
 | eventbridge | 57 | 9 | 0 | 8 | 40 | 0 | 0 |
 | iam | 180 | 44 | 11 | 9 | 116 | 1 | 0 |
 | kms | 54 | 19 | 3 | 5 | 27 | 0 | 0 |
-| lambda | 88 | 26 | 4 | 11 | 47 | 0 | 1 |
+| lambda | 88 | 27 | 4 | 10 | 47 | 0 | 2 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
-| s3 | 112 | 13 | 47 | 21 | 31 | 0 | 3 |
+| s3 | 112 | 13 | 47 | 22 | 30 | 0 | 3 |
 | secretsmanager | 23 | 12 | 1 | 2 | 8 | 0 | 0 |
 | sns | 42 | 12 | 2 | 5 | 23 | 0 | 3 |
-| sqs | 23 | 21 | 2 | 0 | 0 | 1 | 0 |
+| sqs | 23 | 21 | 2 | 0 | 0 | 2 | 0 |
 | sts | 11 | 1 | 0 | 2 | 8 | 0 | 0 |
 
 ### cloudwatch
@@ -613,19 +614,19 @@ Internal operations:
 | RemovePermission | full |  |
 | TagResource | full |  |
 | UntagResource | full |  |
+| UpdateFunctionCode | full |  |
 | AddPermission | stored-only | statements are stored and returned by GetPolicy, not enforced |
 | CreateFunctionUrlConfig | stored-only | AuthType, CORS and InvokeMode are stored; the URL is not served in this build |
 | GetFunctionCodeSigningConfig | stored-only | code signing is not enforced; no function has a configuration |
 | UpdateFunctionUrlConfig | stored-only | AuthType, CORS and InvokeMode are stored; the URL is not served in this build |
 | CreateAlias | partial | weighted routing is stored, not applied to invocations |
 | CreateEventSourceMapping | partial | SQS queues only; serve polls the queue and invokes the function with each batch |
-| CreateFunction | partial | code from S3 is not fetched; layers are refused; code signing and VPC networking are stored only |
-| GetFunction | partial | Code.Location is not returned; understudy serves no package download URL |
+| CreateFunction | partial | layers are refused; code signing and VPC networking are stored only |
+| GetFunction | partial | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
 | Invoke | partial | an alias with weighted routing always runs its primary version; asynchronous invocations retry but do not deliver to destinations or dead-letter queues; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
 | PutFunctionEventInvokeConfig | partial | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
 | UpdateAlias | partial | weighted routing is stored, not applied to invocations |
 | UpdateEventSourceMapping | partial | SQS queues only; serve polls the queue and invokes the function with each batch |
-| UpdateFunctionCode | partial | code from S3 is not fetched |
 | UpdateFunctionConfiguration | partial | layers are refused; code signing and VPC networking are stored only |
 | UpdateFunctionEventInvokeConfig | partial | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
 | AddLayerVersionPermission | unbound |  |
@@ -680,6 +681,7 @@ Raw operations:
 
 | Operation | Status | Note |
 |---|---|---|
+| DownloadFunctionCode | full |  |
 | InvokeFunctionUrl | partial | BUFFERED only: a RESPONSE_STREAM URL answers buffered; AWS_IAM requires a SigV4 signature, verified under sigv4 verify, and IAM policies are not enforced |
 
 ### logs
@@ -885,6 +887,7 @@ Internal operations:
 | GetBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | GetBucketVersioning | partial | the status is stored and reported; objects keep no versions in this build |
 | GetObject | partial | no SSE-C, so SSE-C headers are refused; presigned URLs are not verified |
+| GetObjectAttributes | partial | ObjectParts reports TotalPartsCount without the per-part list; no SSE-C, so SSE-C headers are refused |
 | HeadObject | partial | no SSE-C, so SSE-C headers are refused; presigned URLs are not verified |
 | ListBuckets | partial | general purpose buckets only; no directory buckets |
 | ListObjectVersions | partial | no RestoreStatus |
@@ -908,7 +911,6 @@ Internal operations:
 | GetBucketPolicyStatus | unbound |  |
 | GetObjectAcl | unbound |  |
 | GetObjectAnnotation | unbound |  |
-| GetObjectAttributes | unbound |  |
 | GetObjectLegalHold | unbound |  |
 | GetObjectRetention | unbound |  |
 | GetObjectTorrent | unbound |  |
@@ -1052,6 +1054,7 @@ Internal operations:
 | Operation | Status | Note |
 |---|---|---|
 | HoldVisibility | full |  |
+| MessageCauses | full |  |
 
 ### sts
 
@@ -1145,7 +1148,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item, strongest evidence first.
 
-205 evidence items: 112 third-party-recorded, 46 aws-doc, 2 sdk-source, 45 inferred.
+216 evidence items: 117 third-party-recorded, 46 aws-doc, 2 sdk-source, 51 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1183,6 +1186,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#BadDigest` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#BucketNotEmpty` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#ConditionalRequestConflict` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_preconditions.snapshot.json: test_multipart_if_none_match_with_delete (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#CopyObjectRequest$CopySource` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json test_s3_copy_object_wrong_format: a source not matching bucket/key is InvalidArgument "Invalid copy source object key" naming x-amz-copy-source (s3.md 7) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#CopySource` |  | docs/research/phase1/tf-remaining.md#8-aws_s3_object-family: terraform-provider-aws 6.68.0 aws_s3_object_copy sends x-amz-copy-source as url.QueryEscape(bucket/key), so the slash between bucket and key arrives as %2F; the model's pattern would refuse every Terraform copy |
 | third-party-recorded | s3.json | `com.amazonaws.s3#CreateBucketConfiguration$LocationConstraint` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: an unknown constraint is InvalidLocationConstraint or IllegalLocationConstraintException by endpoint region, never InvalidArgument (validated 2026-02-23) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#CreateBucketRequest$ObjectOwnership` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json: InvalidArgument names the header, x-amz-object-ownership, and echoes the value (validated 2026-02-21) |
@@ -1218,6 +1222,10 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#KMSDisabledException` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_sse_validate_kms_key_state (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#KMSInvalidStateException` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_sse_validate_kms_key_state (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#KMSNotFoundException` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_sse_validate_kms_key (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#ListMultipartUploadsRequest$EncodingType` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_list_operations.snapshot.json test_list_ops_encoding_type_validation: InvalidArgument "Invalid Encoding Method specified in Request" naming encoding-type (s3.md 9.1) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#ListObjectVersionsRequest$EncodingType` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_list_operations.snapshot.json test_list_ops_encoding_type_validation: InvalidArgument "Invalid Encoding Method specified in Request" naming encoding-type (s3.md 9.1) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#ListObjectsRequest$EncodingType` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_list_operations.snapshot.json test_list_ops_encoding_type_validation: InvalidArgument "Invalid Encoding Method specified in Request" naming encoding-type (s3.md 9.1) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#ListObjectsV2Request$EncodingType` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_list_operations.snapshot.json test_list_ops_encoding_type_validation: InvalidArgument "Invalid Encoding Method specified in Request" naming encoding-type (s3.md 9.1) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#MalformedACLError` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2926: an AccessControlPolicy without Owner, with an unknown Permission or Grantee Type, or empty (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#MalformedPolicy` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#MalformedTrailerError` |  | https://github.com/openstack/swift/blob/7d523586e18623f825d57dbf29b361f57da8c200/swift/common/middleware/s3api/s3response.py: MalformedTrailerError, written against S3 |
@@ -1341,12 +1349,18 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | s3.json | `com.amazonaws.s3#GetBucketInventoryConfiguration` |  | docs/research/phase1/s3.md#41-state-of-a-freshly-created-bucket-and-what-unset-means: the Terraform provider checks NoSuchConfiguration; the real inventory code is UNVERIFIED |
 | inferred | s3.json | `com.amazonaws.s3#InvalidBucketAclWithObjectOwnership` |  | docs/research/phase1/s3.md#32-createbucket: a public ACL on a BucketOwnerEnforced bucket fails; the code is AWS's documented ACL-ownership conflict, UNVERIFIED by recording |
 | inferred | s3.json | `com.amazonaws.s3#ServerSideEncryptionConfigurationNotFoundError` |  | docs/research/phase1/wire-rest.md#36-errors-and-not-configured-responses: AWS docs say 400, every other S3 not-configured error is 404; 404 is UNVERIFIED |
+| inferred | s3.json | `com.amazonaws.s3#UploadPartCopyRequest$CopySource` |  | docs/research/phase1/s3.md#7-copyobject-and-uploadpartcopy: UploadPartCopy takes the same x-amz-copy-source as CopyObject |
 | inferred | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#throttleError | docs/research/phase1/error-matrix.md#53-sns-query |
 | inferred | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#throttleError, dev.understudy#unknownOperationError, dev.understudy#validationError | docs/research/phase1/error-matrix.md#51-sqs-json-10 |
 | inferred | sqs.json | `com.amazonaws.sqs#CreateQueueRequest$QueueName` | dev.understudy#validationError | Reason text from LocalStack https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/localstack-core/localstack/services/sqs/provider.py#L124-L138 and moto https://github.com/getmoto/moto/blob/636f64616f5efa7ec53a7bbf76cfb2f4bde5eda2/moto/sqs/models.py#L303-L311 (no recording shows AWS's text; docs/research/phase1/sqs.md#24-error-catalog); the Value/Reason frame is the one the recorded MessageGroupId and MaxNumberOfMessages texts use. Preferred over the developer guide example 'Must be an alphanumeric String of 1 to 80 in length.', whose frame no recording shows and which contradicts the quotas page that allows hyphens and underscores. |
 | inferred | sqs.json | `com.amazonaws.sqs#HoldVisibility` |  | docs/adr/0006-clock-domains-and-scheduler.md |
 | inferred | sqs.json | `com.amazonaws.sqs#HoldVisibilityMode` |  | docs/adr/0006-clock-domains-and-scheduler.md |
 | inferred | sqs.json | `com.amazonaws.sqs#HoldVisibilityRequest` |  | docs/adr/0006-clock-domains-and-scheduler.md |
+| inferred | sqs.json | `com.amazonaws.sqs#MessageCause` |  | docs/adr/0007-causal-journal.md |
+| inferred | sqs.json | `com.amazonaws.sqs#MessageCauseList` |  | docs/adr/0007-causal-journal.md |
+| inferred | sqs.json | `com.amazonaws.sqs#MessageCauses` |  | docs/adr/0007-causal-journal.md: the ESM invocation's parent is the earliest message's enqueue event, the rest are Links |
+| inferred | sqs.json | `com.amazonaws.sqs#MessageCausesRequest` |  | docs/adr/0007-causal-journal.md |
+| inferred | sqs.json | `com.amazonaws.sqs#MessageCausesResult` |  | docs/adr/0007-causal-journal.md |
 | inferred | sqs.json | `com.amazonaws.sqs#ReceiptHandleList` |  | docs/adr/0006-clock-domains-and-scheduler.md |
 | inferred | sqs.json | `com.amazonaws.sqs#ReceiveMessageRequest$AttributeNames` |  | docs/research/phase1/sqs.md#23-legacy-query-protocol |
 | inferred | sqs.json | `com.amazonaws.sqs#ReceiveMessageRequest$MessageSystemAttributeNames` |  | docs/research/phase1/sqs.md#23-legacy-query-protocol |

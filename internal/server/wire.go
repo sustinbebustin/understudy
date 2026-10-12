@@ -297,7 +297,11 @@ func (w *wiring) containers(cfg Config, clk *clock.Clock, log *slog.Logger) erro
 	codeDir := ""
 	if w.data != nil {
 		ownership.Owner = w.data.owner()
-		storage = ddblocal.DBPath{Dir: filepath.Join(w.data.path, ddbDir)}
+		ddb, err := w.data.dynamoDBDir()
+		if err != nil {
+			return err
+		}
+		storage = ddblocal.DBPath{Dir: ddb}
 		codeDir = filepath.Join(w.data.path, "code")
 	}
 	var err error

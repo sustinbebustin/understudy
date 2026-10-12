@@ -35,8 +35,11 @@ type codeSource interface{ isCodeSource() }
 // zipSource is a zip package sent inline.
 type zipSource struct{ bytes []byte }
 
-// s3Source is a package in an S3 bucket.
-type s3Source struct{}
+// s3Source is a package in an S3 bucket, at version when one is named.
+type s3Source struct {
+	bucket, key string
+	version     *string
+}
 
 // imageSource is a container image.
 type imageSource struct{ uri string }
@@ -47,8 +50,8 @@ func (imageSource) isCodeSource() {}
 
 // sourceOf reads which code source the members name for a function of the
 // package type: exactly one of ZipFile, S3Bucket with S3Key, or ImageUri,
-// matching the type.
-func sourceOf(packageType lambdaapi.PackageType, zipFile []byte, bucket, key, imageURI *string) (codeSource, *awserr.Error) {
+// matching the type; S3ObjectVersion goes with an S3 location.
+func sourceOf(packageType lambdaapi.PackageType, zipFile []byte, bucket, key, version, imageURI *string) (codeSource, *awserr.Error) {
 	hasZip, hasS3, hasImage := zipFile != nil, bucket != nil || key != nil, imageURI != nil
 	switch {
 	case packageType == lambdaapi.PackageTypeImage && hasImage && !hasZip && !hasS3:
@@ -56,18 +59,26 @@ func sourceOf(packageType lambdaapi.PackageType, zipFile []byte, bucket, key, im
 	case packageType == lambdaapi.PackageTypeZip && hasZip && !hasS3 && !hasImage:
 		return zipSource{bytes: zipFile}, nil
 	case packageType == lambdaapi.PackageTypeZip && hasS3 && bucket != nil && key != nil && !hasZip && !hasImage:
-		return s3Source{}, nil
+		return s3Source{bucket: *bucket, key: *key, version: version}, nil
 	}
 	return nil, errCodeSource(string(packageType))
 }
 
-// checkZip checks a zip package against Lambda's limits. The archive is
-// only read here; codestore extracts it, entry by entry and zip-slip safe,
-// when an environment first runs it.
+// checkZip checks a package sent inline: at most maxZipped bytes, and an
+// archive checkArchive accepts.
 func checkZip(b []byte) *awserr.Error {
 	if len(b) > maxZipped {
 		return errZippedTooLarge()
 	}
+	return checkArchive(b)
+}
+
+// checkArchive checks that b is a zip archive whose entries claim at most
+// maxUnzipped bytes; a package read from S3 has only this limit, since the
+// zipped one is the API upload's (lambda-api.md 4.3). The archive is only
+// read here; codestore extracts it, entry by entry and zip-slip safe, when
+// an environment first runs it.
+func checkArchive(b []byte) *awserr.Error {
 	r, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
 	if err != nil {
 		return errInvalidZip()
@@ -82,13 +93,10 @@ func checkZip(b []byte) *awserr.Error {
 	return nil
 }
 
-// storeZip checks a zip package and keeps it in the blob store. The
-// returned code holds one blob reference, which the caller hands to the
-// state or releases.
+// storeZip keeps a checked zip package in the blob store. The returned
+// code holds one blob reference, which the caller hands to the state or
+// releases.
 func (s *Service) storeZip(ctx context.Context, b []byte) (ZipCode, *awserr.Error) {
-	if err := checkZip(b); err != nil {
-		return ZipCode{}, err
-	}
 	if s.blobs == nil {
 		return ZipCode{}, awserr.Internalf(errors.New("the Lambda service was built without a blob store, so it cannot keep function code; wire kernel.ServiceDeps.Blob"))
 	}

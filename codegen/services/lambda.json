@@ -4,6 +4,7 @@
   "model": "lambda",
   "iamPrefix": "lambda",
   "rawOperations": [
-    {"name": "InvokeFunctionUrl", "iam": ["lambda:InvokeFunctionUrl"]}
+    {"name": "InvokeFunctionUrl", "iam": ["lambda:InvokeFunctionUrl"]},
+    {"name": "DownloadFunctionCode", "iam": []}
   ]
 }

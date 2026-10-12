@@ -95,6 +95,9 @@ func (h *Handler) claim(r *http.Request, a auth.Auth, parseErr auth.ParseError) 
 	if rt, ok := c.functionURLPath(); ok {
 		return rt
 	}
+	if rt, ok := c.lambdaCodeLink(); ok {
+		return rt
+	}
 	switch {
 	case !strings.HasPrefix(c.path, adminPrefix):
 		c.decline("rule 1: the path is not under %s", adminPrefix)
@@ -157,6 +160,25 @@ func (c *claimer) functionURLPath() (route, bool) {
 	op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: "lambda", Name: "InvokeFunctionUrl"})
 	if !ok || op.Kind != registry.Raw {
 		c.decline("rule 1: %s is the function URL path fallback, but no raw lambda.InvokeFunctionUrl operation is registered", c.path)
+		return unclaimed{reasons: c.reasons}, true
+	}
+	return toRaw{op: op}, true
+}
+
+// lambdaCodePrefix is where GetFunction's Code.Location links live.
+const lambdaCodePrefix = adminPrefix + "lambda-code/"
+
+// lambdaCodeLink is rule 1's Lambda code part: on the main listener, a
+// Code.Location link goes to Lambda's raw DownloadFunctionCode operation,
+// which carries no credentials, as a presigned URL's signature is its own.
+// Any other request goes on to the admin part of rule 1.
+func (c *claimer) lambdaCodeLink() (route, bool) {
+	if !strings.HasPrefix(c.path, lambdaCodePrefix) || c.h.opts.Listener != ref.ListenerMain {
+		return nil, false
+	}
+	op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: "lambda", Name: "DownloadFunctionCode"})
+	if !ok || op.Kind != registry.Raw {
+		c.decline("rule 1: %s is a Lambda code link, but no raw lambda.DownloadFunctionCode operation is registered", c.path)
 		return unclaimed{reasons: c.reasons}, true
 	}
 	return toRaw{op: op}, true

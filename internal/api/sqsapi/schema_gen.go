@@ -397,6 +397,28 @@ var memberMessageBodySystemAttributeMap_key = smithy.Member{Name: "key", Index: 
 
 var memberMessageBodySystemAttributeMap_value = smithy.Member{Name: "value", Index: 1, XMLName: "Value"}
 
+var schemaMessageCause = smithy.Schema{ID: "com.amazonaws.sqs#MessageCause", Type: smithy.TypeStructure}
+
+var memberMessageCause_ReceiptHandle = smithy.Member{Name: "ReceiptHandle", Index: 0, Required: true}
+
+var memberMessageCause_EnqueuedEvent = smithy.Member{Name: "EnqueuedEvent", Index: 1, Required: true, Default: document.Number("0")}
+
+var memberMessageCause_EnqueuedTrace = smithy.Member{Name: "EnqueuedTrace", Index: 2, Required: true, Default: document.Number("0")}
+
+var schemaMessageCauseList = smithy.Schema{ID: "com.amazonaws.sqs#MessageCauseList", Type: smithy.TypeList}
+
+var memberMessageCauseList_member = smithy.Member{Name: "member", Index: 0}
+
+var schemaMessageCausesInput = smithy.Schema{ID: "com.amazonaws.sqs#MessageCausesRequest", Type: smithy.TypeStructure}
+
+var memberMessageCausesInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+
+var memberMessageCausesInput_ReceiptHandles = smithy.Member{Name: "ReceiptHandles", Index: 1, Required: true}
+
+var schemaMessageCausesOutput = smithy.Schema{ID: "com.amazonaws.sqs#MessageCausesResult", Type: smithy.TypeStructure}
+
+var memberMessageCausesOutput_Causes = smithy.Member{Name: "Causes", Index: 0}
+
 var schemaMessageList = smithy.Schema{ID: "com.amazonaws.sqs#MessageList", Type: smithy.TypeList}
 
 var memberMessageList_member = smithy.Member{Name: "member", Index: 0}
@@ -879,6 +901,17 @@ func init() {
 	memberMessageBodySystemAttributeMap_key.Target = &schemaMessageSystemAttributeNameForSends
 	memberMessageBodySystemAttributeMap_value.Target = &schemaMessageSystemAttributeValue
 	schemaMessageBodySystemAttributeMap.Members = []*smithy.Member{&memberMessageBodySystemAttributeMap_key, &memberMessageBodySystemAttributeMap_value}
+	memberMessageCause_ReceiptHandle.Target = &schemaString
+	memberMessageCause_EnqueuedEvent.Target = &schemaLong
+	memberMessageCause_EnqueuedTrace.Target = &schemaLong
+	schemaMessageCause.Members = []*smithy.Member{&memberMessageCause_ReceiptHandle, &memberMessageCause_EnqueuedEvent, &memberMessageCause_EnqueuedTrace}
+	memberMessageCauseList_member.Target = &schemaMessageCause
+	schemaMessageCauseList.Members = []*smithy.Member{&memberMessageCauseList_member}
+	memberMessageCausesInput_QueueUrl.Target = &schemaString
+	memberMessageCausesInput_ReceiptHandles.Target = &schemaReceiptHandleList
+	schemaMessageCausesInput.Members = []*smithy.Member{&memberMessageCausesInput_QueueUrl, &memberMessageCausesInput_ReceiptHandles}
+	memberMessageCausesOutput_Causes.Target = &schemaMessageCauseList
+	schemaMessageCausesOutput.Members = []*smithy.Member{&memberMessageCausesOutput_Causes}
 	memberMessageList_member.Target = &schemaMessage
 	schemaMessageList.Members = []*smithy.Member{&memberMessageList_member}
 	memberMessageSystemAttributeList_member.Target = &schemaMessageSystemAttributeName

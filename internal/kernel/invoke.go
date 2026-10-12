@@ -28,6 +28,10 @@ type Target struct {
 	// from the parent call, whose TimerFired event only scheduled the work.
 	// Zero means the parent call's event and trace.
 	Resume ref.Cause
+	// Links are related events the call continues besides its parent, as
+	// an event source mapping's invocation links the batch's other
+	// messages' enqueue events (ADR 0007).
+	Links []ref.EventID
 }
 
 // PrincipalMode says whom AWS authorizes an internal call as.
@@ -52,9 +56,16 @@ type AsService struct {
 	Source aws.ARN
 }
 
+// AsPlatform is a call a service makes on its own behalf, which AWS
+// authorizes no principal or resource policy for: an event source mapping
+// invoking its function. It runs as the service principal Name and the
+// access recorder leaves it out, since no policy needs to grant it.
+type AsPlatform struct{ Name string }
+
 func (AsCaller) isPrincipalMode()        {}
 func (AsExecutionRole) isPrincipalMode() {}
 func (AsService) isPrincipalMode()       {}
+func (AsPlatform) isPrincipalMode()      {}
 
 // HoldingError is an Invoke or a nested Write made while a call holds a cell
 // lock (ARCHITECTURE.md 8 rule 1).
@@ -142,6 +153,7 @@ func (k *Kernel) internalCall(parent *Call, id ref.OperationID, t Target) *Call 
 		opID:      id,
 		label:     id.String(),
 		cause:     cause,
+		links:     t.Links,
 		admitted:  at,
 		endpoint:  parent.endpoint,
 		trace:     parent.trace,
@@ -159,6 +171,8 @@ func resolvePrincipal(parent *Call, m PrincipalMode) identity.Principal {
 	case AsExecutionRole:
 		return executionRole(m.Role)
 	case AsService:
+		return identity.ServicePrincipal{Name: m.Name}
+	case AsPlatform:
 		return identity.ServicePrincipal{Name: m.Name}
 	}
 	return identity.Anonymous{}
@@ -197,6 +211,8 @@ func modeName(m PrincipalMode) string {
 		return "execution-role"
 	case AsService:
 		return "service:" + m.Name
+	case AsPlatform:
+		return "platform:" + m.Name
 	}
 	return ""
 }

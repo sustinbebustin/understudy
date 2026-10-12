@@ -88,6 +88,12 @@ func errDataProtectionNotImplemented() *awserr.Error {
 // errProtocolNotImplemented is understudy's answer for an endpoint type it
 // does not deliver to (ADR 0015): 501 in SNS's error format, never a
 // subscription that silently receives nothing.
+// errSMSEndpoint answers an sms endpoint that is not an E.164 number; the
+// text has no "Invalid parameter: " prefix (AWS-recorded, sns.md 3.1).
+func errSMSEndpoint(endpoint string) *awserr.Error {
+	return snsapi.ErrInvalidParameterException("Invalid SMS endpoint: " + endpoint)
+}
+
 func errProtocolNotImplemented(protocol string) *awserr.Error {
 	return snsapi.ErrNotImplemented("understudy does not implement SNS delivery to " + protocol +
 		" endpoints; subscribe an sqs, lambda, http, https, email or email-json endpoint instead. Run 'understudy coverage --service sns' for what is supported.")

@@ -276,6 +276,42 @@ func (c *Client) ContainerInspect(ctx context.Context, id string) (Container, er
 	return out, err
 }
 
+// Memory is the memory_stats part of GET /containers/{id}/stats.
+type Memory struct {
+	// Usage is the cgroup's charged memory, page cache included.
+	Usage uint64 `json:"usage"`
+	// MaxUsage is the peak of Usage under cgroup v1; cgroup v2 daemons
+	// report none.
+	MaxUsage uint64 `json:"max_usage"`
+	Stats    struct {
+		// InactiveFile is reclaimable page cache under cgroup v2;
+		// TotalInactiveFile is its cgroup v1 name.
+		InactiveFile      uint64 `json:"inactive_file"`
+		TotalInactiveFile uint64 `json:"total_inactive_file"`
+	} `json:"stats"`
+}
+
+// Used is the memory the container's processes hold now, as docker stats
+// reports it: Usage without the reclaimable page cache.
+func (m Memory) Used() uint64 {
+	cache := max(m.Stats.InactiveFile, m.Stats.TotalInactiveFile)
+	if cache > m.Usage {
+		return 0
+	}
+	return m.Usage - cache
+}
+
+// ContainerMemory reads a running container's memory statistics once,
+// without the second CPU sample a plain stats read waits a second for.
+func (c *Client) ContainerMemory(ctx context.Context, id string) (Memory, error) {
+	var out struct {
+		Memory Memory `json:"memory_stats"`
+	}
+	q := url.Values{"stream": {"false"}, "one-shot": {"true"}}
+	err := c.callJSON(ctx, "ContainerStats", http.MethodGet, "/containers/"+id+"/stats", q, nil, &out)
+	return out.Memory, err
+}
+
 // ContainerSummary is one row of GET /containers/json.
 type ContainerSummary struct {
 	ID     string            `json:"Id"`

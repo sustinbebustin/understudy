@@ -221,6 +221,30 @@ func TestStageFailures(t *testing.T) {
 	}
 }
 
+// TestPatternPolicyHandlerDropsTheGeneratedCheck: a member-level
+// validationError {patternPolicy: handler} leaves the member's pattern to
+// the handler, so the generated validator does not check it and the
+// service's own error answers (S3's "Invalid copy source object key").
+func TestPatternPolicyHandlerDropsTheGeneratedCheck(t *testing.T) {
+	const pattern = `"smithy.api#pattern": "^[a-z]+/[a-z]+$", `
+	checked, err := codegen.Generate(goldenInputs(t, overlay(`"com.example.golden#GetThingRequest$ThingId": {"type": "apply", "traits": {
+		`+pattern+evidence+`}}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(checked["validate_gen.go"], []byte("[a-z]+/[a-z]+")) {
+		t.Fatalf("without a policy the pattern is not checked:\n%s", checked["validate_gen.go"])
+	}
+	handled, err := codegen.Generate(goldenInputs(t, overlay(`"com.example.golden#GetThingRequest$ThingId": {"type": "apply", "traits": {
+		`+pattern+`"dev.understudy#validationError": {"patternPolicy": "handler"}, `+evidence+`}}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(handled["validate_gen.go"], []byte("[a-z]+/[a-z]+")) {
+		t.Fatalf("with patternPolicy handler the pattern is still checked:\n%s", handled["validate_gen.go"])
+	}
+}
+
 // TestReplaceLetsTheOverlayWin: with "replace": true the overlay's value
 // replaces the model's, so a status the model gets wrong is corrected.
 func TestReplaceLetsTheOverlayWin(t *testing.T) {

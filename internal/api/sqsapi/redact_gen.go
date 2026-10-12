@@ -153,6 +153,16 @@ func (v *ListQueuesOutput) Redact() *ListQueuesOutput {
 }
 
 // Redact returns v with its sensitive members cleared.
+func (v *MessageCausesInput) Redact() *MessageCausesInput {
+	return v
+}
+
+// Redact returns v with its sensitive members cleared.
+func (v *MessageCausesOutput) Redact() *MessageCausesOutput {
+	return v
+}
+
+// Redact returns v with its sensitive members cleared.
 func (v *PurgeQueueInput) Redact() *PurgeQueueInput {
 	return v
 }

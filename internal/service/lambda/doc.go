@@ -33,12 +33,16 @@
 //     reason, and refuses updates with "The function is currently in the
 //     following state: Failed", the wording recorded for Pending.
 //   - Zip packages are checked when they arrive (readable, at most
-//     52,428,800 bytes zipped and 262,144,000 claimed unzipped) and kept in
-//     the blob store, one reference per version that runs them; codestore
-//     extracts a package when an environment first runs it. Code from S3
-//     answers 501 naming ZipFile, since fetching it needs an internal S3
-//     call no kernel path offers yet. GetFunction reports no Code.Location:
-//     AWS sends a presigned URL, and understudy serves none.
+//     52,428,800 bytes zipped when sent inline and 262,144,000 claimed
+//     unzipped) and kept in the blob store, one reference per version that
+//     runs them; codestore extracts a package when an environment first
+//     runs it. A package named by S3Bucket and S3Key is read with GetObject
+//     through the kernel for the caller (Via LambdaCode), and S3's refusal
+//     answers as AWS's "Error occurred while GetObject" text. GetFunction's
+//     Code.Location, a
+//     presigned S3 URL on AWS, is a link under /_understudy/lambda-code/
+//     that the raw DownloadFunctionCode serves while the version still
+//     runs that package.
 //   - The creatable runtimes are the enum recorded in AWS's answer on
 //     2026-01-12; the runtimes the model lists before them are deprecated,
 //     and anything else is outside the enum. Deprecation does not follow

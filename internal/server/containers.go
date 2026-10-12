@@ -138,6 +138,16 @@ func (h *containerHost) Remove(ctx context.Context, id string) error {
 	return run.launcher.Remove(ctx, id)
 }
 
+// MemoryUsed reads a function container's memory; before the runtime is
+// built there is no container to read.
+func (h *containerHost) MemoryUsed(ctx context.Context, id string) (uint64, error) {
+	run, ok := h.current()
+	if !ok {
+		return 0, errors.New("server: no Lambda runtime is built, so no container " + id + " runs")
+	}
+	return run.launcher.MemoryUsed(ctx, id)
+}
+
 // Exits relays the launcher's container exits once the runtime is built,
 // until ctx ends. The pool watches from Serve on, before any function
 // runs.

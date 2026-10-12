@@ -83,6 +83,21 @@ func (f *FakeLauncher) Remove(_ context.Context, id string) error {
 	return nil
 }
 
+// FakeMemoryUsed is what MemoryUsed reports for a live container: 36 MiB,
+// the Max Memory Used of AWS's recorded REPORT line (lambda-api.md 9.7).
+const FakeMemoryUsed = 36 << 20
+
+// MemoryUsed reports FakeMemoryUsed for a live container and fails for any
+// other, as the daemon has no statistics of a removed one.
+func (f *FakeLauncher) MemoryUsed(_ context.Context, id string) (uint64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.live[id] {
+		return 0, fmt.Errorf("pooltest: no container %s runs", id)
+	}
+	return FakeMemoryUsed, nil
+}
+
 // FailNextRemove makes the next Remove fail with err.
 func (f *FakeLauncher) FailNextRemove(err error) {
 	f.mu.Lock()

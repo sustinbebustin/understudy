@@ -154,6 +154,16 @@ func (l *Launcher) Remove(ctx context.Context, id string) error {
 	return err
 }
 
+// MemoryUsed reads the bytes of memory the container's processes hold
+// now, as docker stats reports them (without reclaimable page cache).
+func (l *Launcher) MemoryUsed(ctx context.Context, id string) (uint64, error) {
+	m, err := l.client.ContainerMemory(ctx, id)
+	if err != nil {
+		return 0, err
+	}
+	return m.Used(), nil
+}
+
 // Sweep removes the containers and networks earlier instances of this
 // launcher's owner left behind, after a crash (containers.md 9.3). The
 // caller must hold the owner's data-directory lock.

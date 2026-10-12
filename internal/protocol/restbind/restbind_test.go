@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -181,10 +182,40 @@ func TestHeaderMemberWinsOverPrefixHeaders(t *testing.T) {
 			}
 			s.CloseStruct()
 		}), http.StatusOK, restbind.HasResponseDocument, nil)
-		if err != nil || enc.Header.Get("X-Foo") != "specific" || enc.Header.Get("X-Bar") != "other" {
-			t.Errorf("%s: Encode = %v, %v; want X-Foo: specific and X-Bar: other", name, enc.Header, err)
+		if err != nil || enc.Header.Get("X-Foo") != "specific" || len(enc.Header) != 2 || !slices.Equal(exactHeader(enc.Header, "x-bar"), []string{"other"}) {
+			t.Errorf("%s: Encode = %v, %v; want X-Foo: specific and x-bar: other", name, enc.Header, err)
 		}
 	}
+}
+
+// A prefix-header entry goes out under the prefix and key as written, not
+// in Go's canonical case: S3 sends x-amz-meta-color, and botocore keeps
+// the case after the prefix as the metadata key (s3.md 5.4).
+func TestPrefixHeadersKeepTheirCase(t *testing.T) {
+	meta := &smithy.Member{Name: "Metadata", Target: stringMap, HTTP: smithy.HTTPPrefixHeaders{Prefix: "x-amz-meta-"}}
+	out := &smithy.Schema{ID: "test#Out", Type: smithy.TypeStructure, Members: []*smithy.Member{meta}}
+	enc, err := restbind.Encode(operation("/", nil, out), serializeFunc(func(s smithy.Serializer) {
+		s.WriteStruct(nil, out)
+		s.WriteMap(meta, 1)
+		s.WriteMapKey("color")
+		s.WriteString(stringMap.Members[1], "Blue")
+		s.CloseMap()
+		s.CloseStruct()
+	}), http.StatusOK, restbind.HasResponseDocument, nil)
+	if err != nil || len(enc.Header) != 1 || !slices.Equal(exactHeader(enc.Header, "x-amz-meta-color"), []string{"Blue"}) {
+		t.Errorf("Encode = %v, %v; want only x-amz-meta-color: Blue", enc.Header, err)
+	}
+}
+
+// exactHeader is the values of the header spelled exactly name, the case
+// a server writes to the wire.
+func exactHeader(h http.Header, name string) []string {
+	for k, v := range h {
+		if k == name {
+			return v
+		}
+	}
+	return nil
 }
 
 // A header-bound list that is set but empty still sends its header, with

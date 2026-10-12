@@ -1,6 +1,8 @@
 package cloudwatch_test
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -122,9 +124,16 @@ func TestTerraformAlarmSequenceOnTheWire(t *testing.T) {
 		if aerr == nil {
 			t.Fatal("SetAlarmState on a deleted alarm succeeded")
 		}
-		errResp := rpcv2cbor.Codec{}.EncodeError(cloudwatchapi.Service(), requestID, aerr)
+		// The Go client sends x-amzn-query-mode: true, under which AWS
+		// answers ResourceNotFound with 404 (error-matrix.md 5.13).
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/service/GraniteServiceVersion20100801/operation/SetAlarmState", nil)
+		req.Header.Set("X-Amzn-Query-Mode", "true")
+		errResp := rpcv2cbor.Codec{}.EncodeError(req, cloudwatchapi.Service(), requestID, aerr)
 		if got := errResp.Header.Get("X-Amzn-Query-Error"); got != "ResourceNotFound;Sender" {
 			t.Errorf("x-amzn-query-error = %q, want ResourceNotFound;Sender", got)
+		}
+		if errResp.Status != http.StatusNotFound {
+			t.Errorf("SetAlarmState on a missing alarm over CBOR in query mode: status = %d, want 404", errResp.Status)
 		}
 	})
 }

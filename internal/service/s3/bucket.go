@@ -286,7 +286,10 @@ func (s *Service) listBuckets(_ context.Context, c *kernel.Call, in *s3api.ListB
 		limit = int(cmp.Or(*in.MaxBuckets, int32(maxBucketsPage)))
 	}
 	homes := s.homes()
-	out := &s3api.ListBucketsOutput{Owner: &s3api.Owner{ID: new(canonicalID(account))}, Prefix: in.Prefix}
+	// Buckets is never nil: AWS sends an empty <Buckets/> when nothing
+	// matches, which SDKs read as an empty list (REC LocalStack
+	// TestS3ListBuckets list-objects-by-prefix-empty: "Buckets": []).
+	out := &s3api.ListBucketsOutput{Buckets: []s3api.Bucket{}, Owner: &s3api.Owner{ID: new(canonicalID(account))}, Prefix: in.Prefix}
 	for _, name := range slices.Sorted(maps.Keys(homes)) {
 		h := homes[name]
 		if h.OwnerAccount != account || name <= after || !strings.HasPrefix(name, prefix) || !region.IsZero() && h.Region != region {
@@ -330,7 +333,7 @@ func (s *Service) deleteBucket(ctx context.Context, c *kernel.Call, in *s3api.De
 			return deleted{}, err
 		}
 		if !b.Objects.empty() {
-			return deleted{}, inRegion(errBucketNotEmpty(b.Name), b.Home)
+			return deleted{}, inRegion(errBucketNotEmpty(b), b.Home)
 		}
 		s.buckets.Delete(a.name)
 		bc.Bucket = nil

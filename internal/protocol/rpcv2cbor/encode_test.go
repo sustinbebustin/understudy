@@ -1,10 +1,12 @@
 package rpcv2cbor_test
 
 import (
+	"context"
 	"encoding/hex"
 	"math"
 	"math/big"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
@@ -218,7 +220,7 @@ func TestEncodeErrorGoClientVectors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp := rpcv2cbor.Codec{}.EncodeError(cw, "req-1", tt.err)
+			resp := rpcv2cbor.Codec{}.EncodeError(errorRequest(false), cw, "req-1", tt.err)
 			if resp.Status != tt.status {
 				t.Errorf("status = %d, want %d", resp.Status, tt.status)
 			}
@@ -231,6 +233,42 @@ func TestEncodeErrorGoClientVectors(t *testing.T) {
 				t.Errorf("headers = %v, want %v", resp.Header, want)
 			}
 		})
+	}
+}
+
+// errorRequest is a CloudWatch request an error answers, sending
+// x-amzn-query-mode: true when queryMode is set, as the Go client does.
+func errorRequest(queryMode bool) *http.Request {
+	r := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/service/GraniteServiceVersion20100801/operation/SetAlarmState", http.NoBody)
+	r.Header.Set("Smithy-Protocol", "rpc-v2-cbor")
+	if queryMode {
+		r.Header.Set("X-Amzn-Query-Mode", "true")
+	}
+	return r
+}
+
+// A query-compatible service answers a client in query mode with the
+// awsQueryError status: AWS returns CloudWatch's ResourceNotFound as 400
+// by default and 404 under x-amzn-query-mode: true (error-matrix.md 5.13),
+// and the Go client always sends the header.
+func TestEncodeErrorQueryModeStatus(t *testing.T) {
+	_, cw := newRegistry(t)
+	id := cwIdentity("ResourceNotFound", "ResourceNotFound", 400, awserr.Sender, awserr.MessageLower)
+	id.QueryModeStatus = http.StatusNotFound
+	e := &awserr.Error{ID: id, Message: "Alarm not found", Origin: awserr.Modeled{}}
+	for _, tt := range []struct {
+		queryMode bool
+		svc       *registry.Service
+		want      int
+	}{
+		{queryMode: true, svc: cw, want: http.StatusNotFound},
+		{queryMode: false, svc: cw, want: http.StatusBadRequest},
+		{queryMode: true, svc: &registry.Service{ID: "plain", Shape: cw.Shape, Protocols: cw.Protocols}, want: http.StatusBadRequest},
+	} {
+		resp := rpcv2cbor.Codec{}.EncodeError(errorRequest(tt.queryMode), tt.svc, "req-1", e)
+		if resp.Status != tt.want {
+			t.Errorf("query mode %t, query compatible %t: status = %d, want %d", tt.queryMode, tt.svc.QueryCompatible, resp.Status, tt.want)
+		}
 	}
 }
 
@@ -260,7 +298,7 @@ func TestEncodeErrorCorpusInvalidGreeting(t *testing.T) {
 		},
 		Message: "Hi", Origin: awserr.Modeled{},
 	}
-	resp := rpcv2cbor.Codec{}.EncodeError(svc, "req-1", e)
+	resp := rpcv2cbor.Codec{}.EncodeError(errorRequest(false), svc, "req-1", e)
 	checkBody(t, resp.Body, canonical(t, "bf665f5f74797065782e736d697468792e70726f746f636f6c74657374732e727063763243626f7223496e76616c69644772656574696e67674d657373616765624869ff"))
 	if resp.Status != 400 || resp.Header.Get("X-Amzn-Query-Error") != "" {
 		t.Errorf("status %d, query error %q; want 400 and none", resp.Status, resp.Header.Get("X-Amzn-Query-Error"))
@@ -269,7 +307,7 @@ func TestEncodeErrorCorpusInvalidGreeting(t *testing.T) {
 
 // QueryCompatibleRpcV2CborCustomCodeError (S10): the header carries the
 // awsQueryError code, and its httpResponseCode does not change the status
-// on this protocol, even for a client in query mode.
+// of a request that did not send x-amzn-query-mode.
 func TestEncodeErrorCorpusCustomCode(t *testing.T) {
 	svc := &registry.Service{ID: "querycompatible", Shape: "aws.protocoltests.rpcv2cbor#QueryCompatibleRpcV2Protocol", Protocols: []ref.ProtocolID{ref.RPCv2CBOR}, QueryCompatible: true}
 	e := &awserr.Error{
@@ -279,7 +317,7 @@ func TestEncodeErrorCorpusCustomCode(t *testing.T) {
 		},
 		Message: "Hi", Origin: awserr.Modeled{},
 	}
-	resp := rpcv2cbor.Codec{}.EncodeError(svc, "req-1", e)
+	resp := rpcv2cbor.Codec{}.EncodeError(errorRequest(false), svc, "req-1", e)
 	checkBody(t, resp.Body, canonical(t, "b90002665f5f74797065782b6177732e70726f746f636f6c74657374732e727063763263626f7223437573746f6d436f64654572726f72676d657373616765624869"))
 	if resp.Status != 400 || resp.Header.Get("X-Amzn-Query-Error") != "Customized;Sender" {
 		t.Errorf("status %d, query error %q; want 400 and Customized;Sender", resp.Status, resp.Header.Get("X-Amzn-Query-Error"))
@@ -296,7 +334,7 @@ func TestEncodeErrorGenericShapes(t *testing.T) {
 		{ID: awserr.SerializationException(), Message: "bad body", Origin: awserr.Generic{}},
 		{ID: awserr.NotImplemented(), Message: "understudy does not implement cloudwatch.PutDashboard.", Origin: awserr.Unimplemented{}},
 	} {
-		resp := rpcv2cbor.Codec{}.EncodeError(cw, "req-1", e)
+		resp := rpcv2cbor.Codec{}.EncodeError(errorRequest(false), cw, "req-1", e)
 		want := cbor.Map{{Key: "__type", Value: cbor.Text(e.ID.Shape)}, {Key: "message", Value: cbor.Text(e.Message)}}
 		got, err := cbor.Decode(resp.Body)
 		if err != nil || !equalMap(got, want) {
@@ -346,7 +384,7 @@ func TestEncodeErrorIsNeverEmpty(t *testing.T) {
 		if rapid.Bool().Draw(t, "service known") {
 			svc = cw
 		}
-		resp := rpcv2cbor.Codec{}.EncodeError(svc, "req-1", e)
+		resp := rpcv2cbor.Codec{}.EncodeError(errorRequest(rapid.Bool().Draw(t, "query mode")), svc, "req-1", e)
 		v, err := cbor.Decode(resp.Body)
 		if err != nil {
 			t.Fatalf("error body %x does not decode: %v", resp.Body, err)

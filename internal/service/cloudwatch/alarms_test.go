@@ -229,9 +229,13 @@ func TestDescribeAlarmsFiltersAndPages(t *testing.T) {
 		if !slices.Equal(paged, []string{"api-errors", "api-latency", "db-cpu", "queue-depth"}) {
 			h.Errorf("pages = %v", paged)
 		}
-		_, err := call(h, cloudwatchapi.OpDescribeAlarms, &cloudwatchapi.DescribeAlarmsInput{NextToken: new("%%")})
-		wantError(h.T, err, "InvalidNextToken", "The specified NextToken is invalid.")
-		_, err = call(h, cloudwatchapi.OpDescribeAlarms, &cloudwatchapi.DescribeAlarmsInput{AlarmNames: []string{"a"}, AlarmNamePrefix: new("a")})
+		// "garbage" is valid unpadded base64, so the token must be refused
+		// for not being one this service issued, not only for its alphabet.
+		for _, token := range []string{"%%", "garbage"} {
+			_, err := call(h, cloudwatchapi.OpDescribeAlarms, &cloudwatchapi.DescribeAlarmsInput{NextToken: new(token)})
+			wantError(h.T, err, "InvalidNextToken", "The specified NextToken is invalid.")
+		}
+		_, err := call(h, cloudwatchapi.OpDescribeAlarms, &cloudwatchapi.DescribeAlarmsInput{AlarmNames: []string{"a"}, AlarmNamePrefix: new("a")})
 		wantError(h.T, err, "InvalidParameterCombination", "The parameters AlarmNames and AlarmNamePrefix are mutually exclusive and you have specified both.")
 	})
 }

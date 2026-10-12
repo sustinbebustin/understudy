@@ -1,9 +1,9 @@
 // Package sqs implements Amazon SQS: standard and FIFO queues, long
 // polling, visibility, receipt handles, retention, redrive to dead-letter
 // queues and message move tasks, every operation of the model plus the
-// internal HoldVisibility. State is one cell per account and region; a
-// dead-letter queue lives in its sources' cell, so a redrive or a move
-// changes one cell under one lock. Queues are value records: a write
+// internal HoldVisibility and MessageCauses. State is one cell per account
+// and region; a dead-letter queue lives in its sources' cell, so a redrive
+// or a move changes one cell under one lock. Queues are value records: a write
 // changes a working copy and stores it back (ARCHITECTURE.md 3.5). The
 // copy shares the stored messages and caches until the write first
 // changes them, so a send copies no queued message and filling a queue

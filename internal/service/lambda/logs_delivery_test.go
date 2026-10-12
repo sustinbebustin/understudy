@@ -38,7 +38,7 @@ func TestFunctionLogsReachCloudWatchLogsAsTheExecutionRole(t *testing.T) {
 			{got[1], got[1] == "START RequestId: "+id+" Version: $LATEST\n"},
 			{got[2], got[2] == "hello from fn\n"},
 			{got[3], got[3] == "END RequestId: "+id+"\n"},
-			{got[4], strings.HasPrefix(got[4], "REPORT RequestId: "+id+"\tDuration: ") && strings.Contains(got[4], "\tMemory Size: 128 MB\tInit Duration: ") && strings.HasSuffix(got[4], "\t\n")},
+			{got[4], strings.HasPrefix(got[4], "REPORT RequestId: "+id+"\tDuration: ") && strings.Contains(got[4], "\tMemory Size: 128 MB\tMax Memory Used: 36 MB\tInit Duration: ") && strings.HasSuffix(got[4], "\t\n")},
 		}
 		for i, c := range checks {
 			if !c.ok {

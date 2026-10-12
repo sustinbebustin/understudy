@@ -47,6 +47,12 @@ func (e *Env) LogStream() string {
 	return e.logStream
 }
 
+// MemoryUsed reads the bytes of memory the environment's container holds
+// now; the REPORT line's Max Memory Used reads it after each invocation.
+func (e *Env) MemoryUsed(ctx context.Context) (uint64, error) {
+	return e.pool.launcher.MemoryUsed(ctx, e.Container().ID)
+}
+
 // State is the environment's current state.
 func (e *Env) State() EnvState {
 	e.pool.mu.Lock()

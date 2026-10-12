@@ -97,6 +97,32 @@ func TestSeededRunsAgreeOnMaterialID(t *testing.T) {
 	}
 }
 
+// CreateKey checks KeyUsage against KeySpec before refusing a spec
+// understudy does not back: the pair AWS recorded refusing is a
+// ValidationException (iam-sts-kms.md 5.2, gap G7), and a compatible pair
+// of an asymmetric spec is the loud UnsupportedOperationException.
+func TestCreateKeyUsageSpecMismatch(t *testing.T) {
+	run(t, func(h *harness) {
+		for _, tc := range []struct {
+			spec  kmsapi.KeySpec
+			usage *kmsapi.KeyUsageType
+			want  string
+		}{
+			{kmsapi.KeySpecRsa2048, new(kmsapi.KeyUsageTypeKeyAgreement), "KeyUsage KEY_AGREEMENT is not compatible with KeySpec RSA_2048"},
+			{kmsapi.KeySpecHmac224, new(kmsapi.KeyUsageTypeEncryptDecrypt), "KeyUsage ENCRYPT_DECRYPT is not compatible with KeySpec HMAC_224"},
+			{kmsapi.KeySpecEccNistP256, nil, "KeyUsage ENCRYPT_DECRYPT is not compatible with KeySpec ECC_NIST_P256"},
+			{kmsapi.KeySpecSymmetricDefault, new(kmsapi.KeyUsageTypeSignVerify), "KeyUsage SIGN_VERIFY is not compatible with KeySpec SYMMETRIC_DEFAULT"},
+		} {
+			_, err := call(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{KeySpec: new(tc.spec), KeyUsage: tc.usage})
+			wantError(h.T, err, "ValidationException", tc.want)
+		}
+		_, err := call(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{KeySpec: new(kmsapi.KeySpecRsa2048), KeyUsage: new(kmsapi.KeyUsageTypeSignVerify)})
+		if err == nil || err.ID.JSONType != "UnsupportedOperationException" {
+			h.Errorf("CreateKey RSA_2048 SIGN_VERIFY = %v, want UnsupportedOperationException", err)
+		}
+	})
+}
+
 // CreateKey with no members answers the KeyMetadata of a default symmetric
 // key (iam-sts-kms.md 5.2), and DescribeKey answers the same.
 func TestCreateKeyDefaults(t *testing.T) {

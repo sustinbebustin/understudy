@@ -38,9 +38,12 @@ type Call struct {
 	opID ref.OperationID
 	// label names the call in diagnostics: its operation, or the timer kind
 	// of a timer callback.
-	label    string
-	event    ref.EventID
-	cause    ref.Cause
+	label string
+	event ref.EventID
+	cause ref.Cause
+	// links are the related events an internal call's Target named; the
+	// call's journal event carries them.
+	links    []ref.EventID
 	admitted clock.Instant
 	endpoint Endpoint
 	trace    string
@@ -97,6 +100,10 @@ func (c *Call) OperationID() ref.OperationID { return c.opID }
 // Event returns the call's journal event, the parent of everything the call
 // causes.
 func (c *Call) Event() ref.EventID { return c.event }
+
+// Links returns the related events an internal call's Target named besides
+// its parent; nil for every other call.
+func (c *Call) Links() []ref.EventID { return c.links }
 
 // Cause returns the call's parent event and trace; a root call has a zero
 // parent.

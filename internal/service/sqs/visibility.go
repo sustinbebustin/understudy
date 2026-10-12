@@ -1,6 +1,7 @@
 package sqs
 
 import (
+	"cmp"
 	"context"
 
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
@@ -13,7 +14,7 @@ import (
 
 // bindVisibility binds what acts on received messages by receipt handle:
 // DeleteMessage, ChangeMessageVisibility, their batches and the internal
-// HoldVisibility.
+// HoldVisibility and MessageCauses.
 func (s *Service) bindVisibility(b sqsapi.Binder) {
 	b.DeleteMessage(s.deleteMessage, registry.Full{},
 		queueByURL(func(in *sqsapi.DeleteMessageInput) string { return in.QueueUrl }))
@@ -34,6 +35,41 @@ func (s *Service) bindVisibility(b sqsapi.Binder) {
 		queueByURL(func(in *sqsapi.ChangeMessageVisibilityBatchInput) string { return in.QueueUrl }))
 	b.HoldVisibility(s.holdVisibility, registry.Full{},
 		queueByURL(func(in *sqsapi.HoldVisibilityInput) string { return in.QueueUrl }))
+	b.MessageCauses(s.messageCauses, registry.Full{},
+		queueByURL(func(in *sqsapi.MessageCausesInput) string { return in.QueueUrl }))
+}
+
+// messageCauses answers the internal MessageCauses: the journal event that
+// enqueued each message a receipt handle names, and its trace, so an event
+// source mapping's invocation continues the messages' causal chains
+// (ADR 0007). A handle of a message that is gone is left out. A message
+// saved before its trace was kept reports its event as the trace.
+func (s *Service) messageCauses(_ context.Context, c *kernel.Call, in *sqsapi.MessageCausesInput) (*sqsapi.MessageCausesOutput, *awserr.Error) {
+	q, err := s.existingQueue(c, in.QueueUrl)
+	if err != nil {
+		return nil, err
+	}
+	for _, h := range in.ReceiptHandles {
+		if _, ok := ids.ParseReceiptHandle(h); !ok {
+			return nil, errReceiptHandleIsInvalid(h)
+		}
+	}
+	causes, err := readQueue(s, q, func(_ *State, queue *Queue) []sqsapi.MessageCause {
+		var out []sqsapi.MessageCause
+		for _, h := range in.ReceiptHandles {
+			i := queue.byReceipt(h)
+			if i < 0 {
+				continue
+			}
+			m := &queue.Messages[i]
+			out = append(out, sqsapi.MessageCause{ReceiptHandle: h, EnqueuedEvent: int64(m.Enqueued), EnqueuedTrace: int64(cmp.Or(m.EnqueuedTrace, m.Enqueued))}) //nolint:gosec // event ids stay far below 2^63
+		}
+		return out
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &sqsapi.MessageCausesOutput{Causes: causes}, nil
 }
 
 func checkVisibility(v int32) *awserr.Error {

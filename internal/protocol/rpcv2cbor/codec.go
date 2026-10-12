@@ -174,9 +174,11 @@ func (Codec) Encode(op *registry.Operation, requestID string, out smithy.Seriali
 // spelling when the shape is in svc's namespace, which the client's error
 // registry knows; any other shape (the generic catalogue, understudy's
 // NotImplemented) reaches the client as an unknown type, whose message
-// smithy-go reads from message, so it goes there. svc is nil for a request
-// no service claimed.
-func (Codec) EncodeError(svc *registry.Service, requestID string, e *awserr.Error) Response {
+// smithy-go reads from message, so it goes there. When r sent
+// x-amzn-query-mode: true to a query-compatible service, the identity's
+// QueryModeStatus, if set, replaces the status (CloudWatch's 404 for
+// ResourceNotFound). svc is nil for a request no service claimed.
+func (Codec) EncodeError(r *http.Request, svc *registry.Service, requestID string, e *awserr.Error) Response {
 	members := []awserr.Field{{Name: "__type", Value: string(e.ID.Shape)}}
 	if msg := e.MessageFor(ref.RPCv2CBOR); msg != "" {
 		if key, ok := messageKey(svc, e.ID); ok {
@@ -190,13 +192,18 @@ func (Codec) EncodeError(svc *registry.Service, requestID string, e *awserr.Erro
 	}
 	h := header(requestID, len(body))
 	h.Set("Content-Type", mediaType)
-	if svc != nil && svc.QueryCompatible {
+	queryCompatible := svc != nil && svc.QueryCompatible
+	if queryCompatible {
 		h.Set("X-Amzn-Query-Error", e.ID.QueryCode+";"+e.ID.Fault.String())
 	}
 	for _, x := range e.Headers {
 		h.Add(x.Name, x.Value)
 	}
-	return Response{Status: e.ID.Status, Header: h, Body: body}
+	status := e.ID.Status
+	if queryCompatible && e.ID.QueryModeStatus != 0 && strings.EqualFold(r.Header.Get("X-Amzn-Query-Mode"), "true") {
+		status = e.ID.QueryModeStatus
+	}
+	return Response{Status: status, Header: h, Body: body}
 }
 
 // messageKey is the member that carries the message of an error with

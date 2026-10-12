@@ -303,6 +303,27 @@ func (v *MessageAttributeValue) validate(path awserr.Path, out *[]awserr.Violati
 	}
 }
 
+// Validate reports the constraint violations of v in AWS's order; nil
+// means v satisfies every generated constraint.
+func (v *MessageCausesInput) Validate() []awserr.Violation {
+	var out []awserr.Violation
+	v.validate(nil, &out)
+	return out
+}
+
+func (v *MessageCausesInput) validate(path awserr.Path, out *[]awserr.Violation) {
+	if v.missing&(1<<0) != 0 {
+		*out = append(*out, awserr.Violation{Path: at(path, "queueUrl"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
+	}
+	if v.missing&(1<<1) != 0 || v.ReceiptHandles == nil {
+		*out = append(*out, awserr.Violation{Path: at(path, "receiptHandles"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
+	} else {
+		if len(v.ReceiptHandles) < 1 {
+			*out = append(*out, awserr.Violation{Path: at(path, "receiptHandles"), Value: awserr.RenderedText{Text: renderReceiptHandleList(v.ReceiptHandles)}, Constraint: awserr.LengthMin{Min: 1}})
+		}
+	}
+}
+
 func (v *MessageSystemAttributeValue) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "dataType"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
@@ -956,6 +977,22 @@ var policyListQueues = validationPolicy{
 // when vs is empty.
 func (*ListQueuesInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 	return policyListQueues.render(vs)
+}
+
+var policyMessageCauses = validationPolicy{
+	paths: []validationPath{
+		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"receiptHandles"}, param: "ReceiptHandles"},
+		{segments: []string{"receiptHandles", "*", "member"}, param: "ReceiptHandles"},
+	},
+	service: []validationRule{{kinds: kindRequired, id: IdentityMissingParameter, style: styleMissingParameter}, {id: IdentityInvalidParameterValue, style: styleCoral}},
+}
+
+// ValidationError returns the error MessageCauses answers for vs, the
+// violations of the generated and the hand-written validators, or nil
+// when vs is empty.
+func (*MessageCausesInput) ValidationError(vs []awserr.Violation) *awserr.Error {
+	return policyMessageCauses.render(vs)
 }
 
 var policyPurgeQueue = validationPolicy{

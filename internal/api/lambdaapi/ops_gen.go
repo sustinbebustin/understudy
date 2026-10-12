@@ -315,10 +315,21 @@ var descDeleteResourcePolicy = registry.Operation{
 	Idempotent:  true,
 }
 
+// descDownloadFunctionCode is a raw operation (codegen/services rawOperations): its
+// handler owns the HTTP exchange, so it has no input or output schema.
+var descDownloadFunctionCode = registry.Operation{
+	Service:     &service,
+	ID:          ref.OperationID{Service: "lambda", Name: "DownloadFunctionCode"},
+	Ordinal:     21,
+	Kind:        registry.Raw,
+	Shape:       "com.amazonaws.lambda#DownloadFunctionCode",
+	SuccessCode: 200,
+}
+
 var descGetAccountSettings = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetAccountSettings"},
-	Ordinal:     21,
+	Ordinal:     22,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetAccountSettings",
 	Input:       &schemaGetAccountSettingsInput,
@@ -333,7 +344,7 @@ var descGetAccountSettings = registry.Operation{
 var descGetAlias = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetAlias"},
-	Ordinal:     22,
+	Ordinal:     23,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetAlias",
 	Input:       &schemaGetAliasInput,
@@ -348,7 +359,7 @@ var descGetAlias = registry.Operation{
 var descGetCapacityProvider = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetCapacityProvider"},
-	Ordinal:     23,
+	Ordinal:     24,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetCapacityProvider",
 	Input:       &schemaGetCapacityProviderInput,
@@ -363,7 +374,7 @@ var descGetCapacityProvider = registry.Operation{
 var descGetCodeSigningConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetCodeSigningConfig"},
-	Ordinal:     24,
+	Ordinal:     25,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetCodeSigningConfig",
 	Input:       &schemaGetCodeSigningConfigInput,
@@ -378,7 +389,7 @@ var descGetCodeSigningConfig = registry.Operation{
 var descGetDurableExecution = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetDurableExecution"},
-	Ordinal:     25,
+	Ordinal:     26,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetDurableExecution",
 	Input:       &schemaGetDurableExecutionInput,
@@ -393,7 +404,7 @@ var descGetDurableExecution = registry.Operation{
 var descGetDurableExecutionHistory = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetDurableExecutionHistory"},
-	Ordinal:     26,
+	Ordinal:     27,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetDurableExecutionHistory",
 	Input:       &schemaGetDurableExecutionHistoryInput,
@@ -408,7 +419,7 @@ var descGetDurableExecutionHistory = registry.Operation{
 var descGetDurableExecutionState = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetDurableExecutionState"},
-	Ordinal:     27,
+	Ordinal:     28,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetDurableExecutionState",
 	Input:       &schemaGetDurableExecutionStateInput,
@@ -423,7 +434,7 @@ var descGetDurableExecutionState = registry.Operation{
 var descGetEventSourceMapping = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetEventSourceMapping"},
-	Ordinal:     28,
+	Ordinal:     29,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetEventSourceMapping",
 	Input:       &schemaGetEventSourceMappingInput,
@@ -438,7 +449,7 @@ var descGetEventSourceMapping = registry.Operation{
 var descGetFunction = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetFunction"},
-	Ordinal:     29,
+	Ordinal:     30,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetFunction",
 	Input:       &schemaGetFunctionInput,
@@ -453,7 +464,7 @@ var descGetFunction = registry.Operation{
 var descGetFunctionCodeSigningConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetFunctionCodeSigningConfig"},
-	Ordinal:     30,
+	Ordinal:     31,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetFunctionCodeSigningConfig",
 	Input:       &schemaGetFunctionCodeSigningConfigInput,
@@ -468,7 +479,7 @@ var descGetFunctionCodeSigningConfig = registry.Operation{
 var descGetFunctionConcurrency = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetFunctionConcurrency"},
-	Ordinal:     31,
+	Ordinal:     32,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetFunctionConcurrency",
 	Input:       &schemaGetFunctionConcurrencyInput,
@@ -483,7 +494,7 @@ var descGetFunctionConcurrency = registry.Operation{
 var descGetFunctionConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetFunctionConfiguration"},
-	Ordinal:     32,
+	Ordinal:     33,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetFunctionConfiguration",
 	Input:       &schemaGetFunctionConfigurationInput,
@@ -498,7 +509,7 @@ var descGetFunctionConfiguration = registry.Operation{
 var descGetFunctionEventInvokeConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetFunctionEventInvokeConfig"},
-	Ordinal:     33,
+	Ordinal:     34,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetFunctionEventInvokeConfig",
 	Input:       &schemaGetFunctionEventInvokeConfigInput,
@@ -513,7 +524,7 @@ var descGetFunctionEventInvokeConfig = registry.Operation{
 var descGetFunctionRecursionConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetFunctionRecursionConfig"},
-	Ordinal:     34,
+	Ordinal:     35,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetFunctionRecursionConfig",
 	Input:       &schemaGetFunctionRecursionConfigInput,
@@ -528,7 +539,7 @@ var descGetFunctionRecursionConfig = registry.Operation{
 var descGetFunctionScalingConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetFunctionScalingConfig"},
-	Ordinal:     35,
+	Ordinal:     36,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetFunctionScalingConfig",
 	Input:       &schemaGetFunctionScalingConfigInput,
@@ -543,7 +554,7 @@ var descGetFunctionScalingConfig = registry.Operation{
 var descGetFunctionUrlConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetFunctionUrlConfig"},
-	Ordinal:     36,
+	Ordinal:     37,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetFunctionUrlConfig",
 	Input:       &schemaGetFunctionUrlConfigInput,
@@ -558,7 +569,7 @@ var descGetFunctionUrlConfig = registry.Operation{
 var descGetLayerVersion = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetLayerVersion"},
-	Ordinal:     37,
+	Ordinal:     38,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetLayerVersion",
 	Input:       &schemaGetLayerVersionInput,
@@ -573,7 +584,7 @@ var descGetLayerVersion = registry.Operation{
 var descGetLayerVersionByArn = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetLayerVersionByArn"},
-	Ordinal:     38,
+	Ordinal:     39,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetLayerVersionByArn",
 	Input:       &schemaGetLayerVersionByArnInput,
@@ -588,7 +599,7 @@ var descGetLayerVersionByArn = registry.Operation{
 var descGetLayerVersionPolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetLayerVersionPolicy"},
-	Ordinal:     39,
+	Ordinal:     40,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetLayerVersionPolicy",
 	Input:       &schemaGetLayerVersionPolicyInput,
@@ -603,7 +614,7 @@ var descGetLayerVersionPolicy = registry.Operation{
 var descGetPolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetPolicy"},
-	Ordinal:     40,
+	Ordinal:     41,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetPolicy",
 	Input:       &schemaGetPolicyInput,
@@ -618,7 +629,7 @@ var descGetPolicy = registry.Operation{
 var descGetProvisionedConcurrencyConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetProvisionedConcurrencyConfig"},
-	Ordinal:     41,
+	Ordinal:     42,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetProvisionedConcurrencyConfig",
 	Input:       &schemaGetProvisionedConcurrencyConfigInput,
@@ -633,7 +644,7 @@ var descGetProvisionedConcurrencyConfig = registry.Operation{
 var descGetResourcePolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetResourcePolicy"},
-	Ordinal:     42,
+	Ordinal:     43,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetResourcePolicy",
 	Input:       &schemaGetResourcePolicyInput,
@@ -648,7 +659,7 @@ var descGetResourcePolicy = registry.Operation{
 var descGetRuntimeManagementConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "GetRuntimeManagementConfig"},
-	Ordinal:     43,
+	Ordinal:     44,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#GetRuntimeManagementConfig",
 	Input:       &schemaGetRuntimeManagementConfigInput,
@@ -663,7 +674,7 @@ var descGetRuntimeManagementConfig = registry.Operation{
 var descInvoke = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "Invoke"},
-	Ordinal:     44,
+	Ordinal:     45,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#Invoke",
 	Input:       &schemaInvokeInput,
@@ -677,7 +688,7 @@ var descInvoke = registry.Operation{
 var descInvokeAsync = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "InvokeAsync"},
-	Ordinal:     45,
+	Ordinal:     46,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#InvokeAsync",
 	Input:       &schemaInvokeAsyncInput,
@@ -693,7 +704,7 @@ var descInvokeAsync = registry.Operation{
 var descInvokeFunctionUrl = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "InvokeFunctionUrl"},
-	Ordinal:     46,
+	Ordinal:     47,
 	Kind:        registry.Raw,
 	Shape:       "com.amazonaws.lambda#InvokeFunctionUrl",
 	IAM:         []registry.IAMAction{{Prefix: "lambda", Name: "InvokeFunctionUrl"}},
@@ -703,7 +714,7 @@ var descInvokeFunctionUrl = registry.Operation{
 var descInvokeWithResponseStream = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "InvokeWithResponseStream"},
-	Ordinal:     47,
+	Ordinal:     48,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#InvokeWithResponseStream",
 	Input:       &schemaInvokeWithResponseStreamInput,
@@ -717,7 +728,7 @@ var descInvokeWithResponseStream = registry.Operation{
 var descListAliases = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListAliases"},
-	Ordinal:     48,
+	Ordinal:     49,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListAliases",
 	Input:       &schemaListAliasesInput,
@@ -732,7 +743,7 @@ var descListAliases = registry.Operation{
 var descListCapacityProviders = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListCapacityProviders"},
-	Ordinal:     49,
+	Ordinal:     50,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListCapacityProviders",
 	Input:       &schemaListCapacityProvidersInput,
@@ -747,7 +758,7 @@ var descListCapacityProviders = registry.Operation{
 var descListCodeSigningConfigs = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListCodeSigningConfigs"},
-	Ordinal:     50,
+	Ordinal:     51,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListCodeSigningConfigs",
 	Input:       &schemaListCodeSigningConfigsInput,
@@ -762,7 +773,7 @@ var descListCodeSigningConfigs = registry.Operation{
 var descListDurableExecutionsByFunction = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListDurableExecutionsByFunction"},
-	Ordinal:     51,
+	Ordinal:     52,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListDurableExecutionsByFunction",
 	Input:       &schemaListDurableExecutionsByFunctionInput,
@@ -777,7 +788,7 @@ var descListDurableExecutionsByFunction = registry.Operation{
 var descListEventSourceMappings = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListEventSourceMappings"},
-	Ordinal:     52,
+	Ordinal:     53,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListEventSourceMappings",
 	Input:       &schemaListEventSourceMappingsInput,
@@ -792,7 +803,7 @@ var descListEventSourceMappings = registry.Operation{
 var descListFunctionEventInvokeConfigs = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListFunctionEventInvokeConfigs"},
-	Ordinal:     53,
+	Ordinal:     54,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListFunctionEventInvokeConfigs",
 	Input:       &schemaListFunctionEventInvokeConfigsInput,
@@ -807,7 +818,7 @@ var descListFunctionEventInvokeConfigs = registry.Operation{
 var descListFunctionUrlConfigs = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListFunctionUrlConfigs"},
-	Ordinal:     54,
+	Ordinal:     55,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListFunctionUrlConfigs",
 	Input:       &schemaListFunctionUrlConfigsInput,
@@ -822,7 +833,7 @@ var descListFunctionUrlConfigs = registry.Operation{
 var descListFunctionVersionsByCapacityProvider = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListFunctionVersionsByCapacityProvider"},
-	Ordinal:     55,
+	Ordinal:     56,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListFunctionVersionsByCapacityProvider",
 	Input:       &schemaListFunctionVersionsByCapacityProviderInput,
@@ -837,7 +848,7 @@ var descListFunctionVersionsByCapacityProvider = registry.Operation{
 var descListFunctions = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListFunctions"},
-	Ordinal:     56,
+	Ordinal:     57,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListFunctions",
 	Input:       &schemaListFunctionsInput,
@@ -852,7 +863,7 @@ var descListFunctions = registry.Operation{
 var descListFunctionsByCodeSigningConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListFunctionsByCodeSigningConfig"},
-	Ordinal:     57,
+	Ordinal:     58,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListFunctionsByCodeSigningConfig",
 	Input:       &schemaListFunctionsByCodeSigningConfigInput,
@@ -867,7 +878,7 @@ var descListFunctionsByCodeSigningConfig = registry.Operation{
 var descListLayerVersions = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListLayerVersions"},
-	Ordinal:     58,
+	Ordinal:     59,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListLayerVersions",
 	Input:       &schemaListLayerVersionsInput,
@@ -882,7 +893,7 @@ var descListLayerVersions = registry.Operation{
 var descListLayers = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListLayers"},
-	Ordinal:     59,
+	Ordinal:     60,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListLayers",
 	Input:       &schemaListLayersInput,
@@ -897,7 +908,7 @@ var descListLayers = registry.Operation{
 var descListProvisionedConcurrencyConfigs = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListProvisionedConcurrencyConfigs"},
-	Ordinal:     60,
+	Ordinal:     61,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListProvisionedConcurrencyConfigs",
 	Input:       &schemaListProvisionedConcurrencyConfigsInput,
@@ -912,7 +923,7 @@ var descListProvisionedConcurrencyConfigs = registry.Operation{
 var descListTags = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListTags"},
-	Ordinal:     61,
+	Ordinal:     62,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListTags",
 	Input:       &schemaListTagsInput,
@@ -927,7 +938,7 @@ var descListTags = registry.Operation{
 var descListVersionsByFunction = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "ListVersionsByFunction"},
-	Ordinal:     62,
+	Ordinal:     63,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#ListVersionsByFunction",
 	Input:       &schemaListVersionsByFunctionInput,
@@ -942,7 +953,7 @@ var descListVersionsByFunction = registry.Operation{
 var descPublishLayerVersion = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "PublishLayerVersion"},
-	Ordinal:     63,
+	Ordinal:     64,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#PublishLayerVersion",
 	Input:       &schemaPublishLayerVersionInput,
@@ -956,7 +967,7 @@ var descPublishLayerVersion = registry.Operation{
 var descPublishVersion = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "PublishVersion"},
-	Ordinal:     64,
+	Ordinal:     65,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#PublishVersion",
 	Input:       &schemaPublishVersionInput,
@@ -970,7 +981,7 @@ var descPublishVersion = registry.Operation{
 var descPutFunctionCodeSigningConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "PutFunctionCodeSigningConfig"},
-	Ordinal:     65,
+	Ordinal:     66,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#PutFunctionCodeSigningConfig",
 	Input:       &schemaPutFunctionCodeSigningConfigInput,
@@ -984,7 +995,7 @@ var descPutFunctionCodeSigningConfig = registry.Operation{
 var descPutFunctionConcurrency = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "PutFunctionConcurrency"},
-	Ordinal:     66,
+	Ordinal:     67,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#PutFunctionConcurrency",
 	Input:       &schemaPutFunctionConcurrencyInput,
@@ -998,7 +1009,7 @@ var descPutFunctionConcurrency = registry.Operation{
 var descPutFunctionEventInvokeConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "PutFunctionEventInvokeConfig"},
-	Ordinal:     67,
+	Ordinal:     68,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#PutFunctionEventInvokeConfig",
 	Input:       &schemaPutFunctionEventInvokeConfigInput,
@@ -1012,7 +1023,7 @@ var descPutFunctionEventInvokeConfig = registry.Operation{
 var descPutFunctionRecursionConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "PutFunctionRecursionConfig"},
-	Ordinal:     68,
+	Ordinal:     69,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#PutFunctionRecursionConfig",
 	Input:       &schemaPutFunctionRecursionConfigInput,
@@ -1026,7 +1037,7 @@ var descPutFunctionRecursionConfig = registry.Operation{
 var descPutFunctionScalingConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "PutFunctionScalingConfig"},
-	Ordinal:     69,
+	Ordinal:     70,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#PutFunctionScalingConfig",
 	Input:       &schemaPutFunctionScalingConfigInput,
@@ -1040,7 +1051,7 @@ var descPutFunctionScalingConfig = registry.Operation{
 var descPutProvisionedConcurrencyConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "PutProvisionedConcurrencyConfig"},
-	Ordinal:     70,
+	Ordinal:     71,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#PutProvisionedConcurrencyConfig",
 	Input:       &schemaPutProvisionedConcurrencyConfigInput,
@@ -1055,7 +1066,7 @@ var descPutProvisionedConcurrencyConfig = registry.Operation{
 var descPutResourcePolicy = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "PutResourcePolicy"},
-	Ordinal:     71,
+	Ordinal:     72,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#PutResourcePolicy",
 	Input:       &schemaPutResourcePolicyInput,
@@ -1070,7 +1081,7 @@ var descPutResourcePolicy = registry.Operation{
 var descPutRuntimeManagementConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "PutRuntimeManagementConfig"},
-	Ordinal:     72,
+	Ordinal:     73,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#PutRuntimeManagementConfig",
 	Input:       &schemaPutRuntimeManagementConfigInput,
@@ -1084,7 +1095,7 @@ var descPutRuntimeManagementConfig = registry.Operation{
 var descRemoveLayerVersionPermission = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "RemoveLayerVersionPermission"},
-	Ordinal:     73,
+	Ordinal:     74,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#RemoveLayerVersionPermission",
 	Input:       &schemaRemoveLayerVersionPermissionInput,
@@ -1098,7 +1109,7 @@ var descRemoveLayerVersionPermission = registry.Operation{
 var descRemovePermission = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "RemovePermission"},
-	Ordinal:     74,
+	Ordinal:     75,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#RemovePermission",
 	Input:       &schemaRemovePermissionInput,
@@ -1112,7 +1123,7 @@ var descRemovePermission = registry.Operation{
 var descSendDurableExecutionCallbackFailure = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "SendDurableExecutionCallbackFailure"},
-	Ordinal:     75,
+	Ordinal:     76,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#SendDurableExecutionCallbackFailure",
 	Input:       &schemaSendDurableExecutionCallbackFailureInput,
@@ -1126,7 +1137,7 @@ var descSendDurableExecutionCallbackFailure = registry.Operation{
 var descSendDurableExecutionCallbackHeartbeat = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "SendDurableExecutionCallbackHeartbeat"},
-	Ordinal:     76,
+	Ordinal:     77,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#SendDurableExecutionCallbackHeartbeat",
 	Input:       &schemaSendDurableExecutionCallbackHeartbeatInput,
@@ -1140,7 +1151,7 @@ var descSendDurableExecutionCallbackHeartbeat = registry.Operation{
 var descSendDurableExecutionCallbackSuccess = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "SendDurableExecutionCallbackSuccess"},
-	Ordinal:     77,
+	Ordinal:     78,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#SendDurableExecutionCallbackSuccess",
 	Input:       &schemaSendDurableExecutionCallbackSuccessInput,
@@ -1154,7 +1165,7 @@ var descSendDurableExecutionCallbackSuccess = registry.Operation{
 var descStopDurableExecution = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "StopDurableExecution"},
-	Ordinal:     78,
+	Ordinal:     79,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#StopDurableExecution",
 	Input:       &schemaStopDurableExecutionInput,
@@ -1168,7 +1179,7 @@ var descStopDurableExecution = registry.Operation{
 var descTagResource = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "TagResource"},
-	Ordinal:     79,
+	Ordinal:     80,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#TagResource",
 	Input:       &schemaTagResourceInput,
@@ -1182,7 +1193,7 @@ var descTagResource = registry.Operation{
 var descUntagResource = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "UntagResource"},
-	Ordinal:     80,
+	Ordinal:     81,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#UntagResource",
 	Input:       &schemaUntagResourceInput,
@@ -1196,7 +1207,7 @@ var descUntagResource = registry.Operation{
 var descUpdateAlias = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "UpdateAlias"},
-	Ordinal:     81,
+	Ordinal:     82,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#UpdateAlias",
 	Input:       &schemaUpdateAliasInput,
@@ -1210,7 +1221,7 @@ var descUpdateAlias = registry.Operation{
 var descUpdateCapacityProvider = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "UpdateCapacityProvider"},
-	Ordinal:     82,
+	Ordinal:     83,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#UpdateCapacityProvider",
 	Input:       &schemaUpdateCapacityProviderInput,
@@ -1224,7 +1235,7 @@ var descUpdateCapacityProvider = registry.Operation{
 var descUpdateCodeSigningConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "UpdateCodeSigningConfig"},
-	Ordinal:     83,
+	Ordinal:     84,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#UpdateCodeSigningConfig",
 	Input:       &schemaUpdateCodeSigningConfigInput,
@@ -1238,7 +1249,7 @@ var descUpdateCodeSigningConfig = registry.Operation{
 var descUpdateEventSourceMapping = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "UpdateEventSourceMapping"},
-	Ordinal:     84,
+	Ordinal:     85,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#UpdateEventSourceMapping",
 	Input:       &schemaUpdateEventSourceMappingInput,
@@ -1252,7 +1263,7 @@ var descUpdateEventSourceMapping = registry.Operation{
 var descUpdateFunctionCode = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "UpdateFunctionCode"},
-	Ordinal:     85,
+	Ordinal:     86,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#UpdateFunctionCode",
 	Input:       &schemaUpdateFunctionCodeInput,
@@ -1266,7 +1277,7 @@ var descUpdateFunctionCode = registry.Operation{
 var descUpdateFunctionConfiguration = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "UpdateFunctionConfiguration"},
-	Ordinal:     86,
+	Ordinal:     87,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#UpdateFunctionConfiguration",
 	Input:       &schemaUpdateFunctionConfigurationInput,
@@ -1280,7 +1291,7 @@ var descUpdateFunctionConfiguration = registry.Operation{
 var descUpdateFunctionEventInvokeConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "UpdateFunctionEventInvokeConfig"},
-	Ordinal:     87,
+	Ordinal:     88,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#UpdateFunctionEventInvokeConfig",
 	Input:       &schemaUpdateFunctionEventInvokeConfigInput,
@@ -1294,7 +1305,7 @@ var descUpdateFunctionEventInvokeConfig = registry.Operation{
 var descUpdateFunctionUrlConfig = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "lambda", Name: "UpdateFunctionUrlConfig"},
-	Ordinal:     88,
+	Ordinal:     89,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.lambda#UpdateFunctionUrlConfig",
 	Input:       &schemaUpdateFunctionUrlConfigInput,

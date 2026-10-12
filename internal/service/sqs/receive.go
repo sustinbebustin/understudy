@@ -259,7 +259,7 @@ func (s *Service) deadLetter(c *kernel.Call, st *State, q queueRef, queue *Queue
 		m := queue.Messages[i].clone()
 		m.DeadLetterSource = &q
 		m.dropHandle()
-		m.VisibleAt, m.Enqueued = now, c.Event()
+		m.VisibleAt, m.Enqueued, m.EnqueuedTrace = now, c.Event(), c.Cause().Trace
 		if dlq.FIFO != nil {
 			m.Sent = now
 			m.FIFO = &FIFOMessage{DedupID: string(m.ID), Sequence: dlq.FIFO.nextSequence()}

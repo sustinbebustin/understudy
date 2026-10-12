@@ -462,6 +462,29 @@ type MessageAttributeValue struct {
 	missing uint64
 }
 
+// MessageCause is com.amazonaws.sqs#MessageCause.
+type MessageCause struct {
+	ReceiptHandle string
+	EnqueuedEvent int64
+	EnqueuedTrace int64
+}
+
+// MessageCausesInput is the input of MessageCauses, com.amazonaws.sqs#MessageCausesRequest.
+type MessageCausesInput struct {
+	QueueUrl       string
+	ReceiptHandles []string
+	// missing has a bit set per required member Deserialize did not
+	// find, so Validate tells absent from zero. Values built in Go
+	// leave it zero; Validate then treats a nil required list, map,
+	// union, blob, document or big integer as missing.
+	missing uint64
+}
+
+// MessageCausesOutput is the output of MessageCauses, com.amazonaws.sqs#MessageCausesResult.
+type MessageCausesOutput struct {
+	Causes []MessageCause
+}
+
 // MessageNotInflight is the error com.amazonaws.sqs#MessageNotInflight.
 type MessageNotInflight struct{}
 

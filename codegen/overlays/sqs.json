@@ -320,6 +320,73 @@
           "source": "docs/adr/0006-clock-domains-and-scheduler.md"
         }
       }
+    },
+    "com.amazonaws.sqs#MessageCauses": {
+      "type": "operation",
+      "input": {"target": "com.amazonaws.sqs#MessageCausesRequest"},
+      "output": {"target": "com.amazonaws.sqs#MessageCausesResult"},
+      "errors": [
+        {"target": "com.amazonaws.sqs#QueueDoesNotExist"},
+        {"target": "com.amazonaws.sqs#ReceiptHandleIsInvalid"}
+      ],
+      "traits": {
+        "dev.understudy#internalOperation": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/adr/0007-causal-journal.md: the ESM invocation's parent is the earliest message's enqueue event, the rest are Links"
+        }
+      }
+    },
+    "com.amazonaws.sqs#MessageCausesRequest": {
+      "type": "structure",
+      "members": {
+        "QueueUrl": {"target": "com.amazonaws.sqs#String", "traits": {"smithy.api#required": {}}},
+        "ReceiptHandles": {"target": "com.amazonaws.sqs#ReceiptHandleList", "traits": {"smithy.api#required": {}}}
+      },
+      "traits": {
+        "smithy.api#input": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/adr/0007-causal-journal.md"
+        }
+      }
+    },
+    "com.amazonaws.sqs#MessageCausesResult": {
+      "type": "structure",
+      "members": {
+        "Causes": {"target": "com.amazonaws.sqs#MessageCauseList"}
+      },
+      "traits": {
+        "smithy.api#output": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/adr/0007-causal-journal.md"
+        }
+      }
+    },
+    "com.amazonaws.sqs#MessageCauseList": {
+      "type": "list",
+      "member": {"target": "com.amazonaws.sqs#MessageCause"},
+      "traits": {
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/adr/0007-causal-journal.md"
+        }
+      }
+    },
+    "com.amazonaws.sqs#MessageCause": {
+      "type": "structure",
+      "members": {
+        "ReceiptHandle": {"target": "com.amazonaws.sqs#String", "traits": {"smithy.api#required": {}}},
+        "EnqueuedEvent": {"target": "com.amazonaws.sqs#Long", "traits": {"smithy.api#required": {}}},
+        "EnqueuedTrace": {"target": "com.amazonaws.sqs#Long", "traits": {"smithy.api#required": {}}}
+      },
+      "traits": {
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/adr/0007-causal-journal.md"
+        }
+      }
     }
   }
 }

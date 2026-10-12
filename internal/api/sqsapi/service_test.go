@@ -30,15 +30,18 @@ func TestServiceDescriptorIsAccepted(t *testing.T) {
 }
 
 // TestOperations: the model's 23 operations plus the internal HoldVisibility
-// (ADR 0006), whose kind keeps the edge from claiming it.
+// (ADR 0006) and MessageCauses (ADR 0007), whose kind keeps the edge from
+// claiming them.
 func TestOperations(t *testing.T) {
 	ops := Service().Operations
-	if len(ops) != 24 {
-		t.Fatalf("%d operations, want 24", len(ops))
+	if len(ops) != 25 {
+		t.Fatalf("%d operations, want 25", len(ops))
 	}
-	hold, ok := Service().Operation("HoldVisibility")
-	if !ok || hold.Kind != registry.Internal || hold.IAM != nil {
-		t.Fatalf("HoldVisibility = %+v", hold)
+	for _, name := range []string{"HoldVisibility", "MessageCauses"} {
+		op, ok := Service().Operation(name)
+		if !ok || op.Kind != registry.Internal || op.IAM != nil {
+			t.Fatalf("%s = %+v", name, op)
+		}
 	}
 	send, _ := Service().Operation("SendMessage")
 	if send.Kind != registry.Modeled || send.MaxRequestBytes != 8<<20 || send.SuccessCode != 200 {

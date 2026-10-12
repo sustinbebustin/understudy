@@ -112,6 +112,27 @@ func TestContainerRunsToExitAndReportsItsCodeAndOutput(t *testing.T) {
 	}
 }
 
+// ContainerMemory reads the daemon's memory_stats once; Used is the usage
+// without reclaimable page cache, under either cgroup version's name.
+func TestContainerMemory(t *testing.T) {
+	d, c := daemonWithImage(t, dockertest.Options{})
+	id := create(t, c, "mem", docker.Config{}, docker.HostConfig{})
+	var m docker.Memory
+	m.Usage, m.Stats.InactiveFile = 40<<20, 8<<20
+	if !d.SetMemory(id, m) {
+		t.Fatal("SetMemory found no container")
+	}
+	got, err := c.ContainerMemory(t.Context(), id)
+	if err != nil || got.Usage != 40<<20 || got.Used() != 32<<20 {
+		t.Fatalf("ContainerMemory = %+v (used %d), %v; want usage 40 MiB, used 32 MiB", got, got.Used(), err)
+	}
+	var v1 docker.Memory
+	v1.Usage, v1.Stats.TotalInactiveFile = 10, 20
+	if v1.Used() != 0 {
+		t.Fatalf("Used with more cache than usage = %d, want 0", v1.Used())
+	}
+}
+
 func TestContainerStartAndStopAreIdempotent(t *testing.T) {
 	_, c := daemonWithImage(t, dockertest.Options{})
 	ctx := t.Context()

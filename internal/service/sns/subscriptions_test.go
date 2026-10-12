@@ -190,6 +190,13 @@ func TestSubscribeErrors(t *testing.T) {
 			{topic, "sqs", queueARN, map[string]string{"RawMessageDelivery": "wrongvalue"}, "InvalidParameter", "Invalid parameter: Attributes Reason: RawMessageDelivery: Invalid value [wrongvalue]. Must be true or false."},
 			{topic, "sqs", queueARN, map[string]string{"RedrivePolicy": `{"deadLetterTargetArn":"not-an-arn"}`}, "InvalidParameter", "Invalid parameter: Attributes Reason: RedrivePolicy: deadLetterTargetArn is an invalid arn"},
 			{fifo, "sqs", fifoQueueARN, map[string]string{"RedrivePolicy": `{"deadLetterTargetArn":"` + queueARN + `"}`}, "InvalidParameter", "Invalid parameter: Attributes Reason: RedrivePolicy: must use a FIFO queue as DLQ for a FIFO Subscription to a FIFO Topic."},
+			// The endpoints AWS recorded refusing (sns.md 3.1), before
+			// NotImplemented for a valid number.
+			{topic, "sms", "invalid-number", nil, "InvalidParameter", "Invalid SMS endpoint: invalid-number"},
+			{topic, "sms", "+15--551234567", nil, "InvalidParameter", "Invalid SMS endpoint: +15--551234567"},
+			{topic, "sms", "NAA+15551234567", nil, "InvalidParameter", "Invalid SMS endpoint: NAA+15551234567"},
+			{topic, "sms", "+15551234567.", nil, "InvalidParameter", "Invalid SMS endpoint: +15551234567."},
+			{topic, "sms", "/+15551234567", nil, "InvalidParameter", "Invalid SMS endpoint: /+15551234567"},
 			{topic, "sms", "+15551234567", nil, "NotImplemented", "understudy does not implement SNS delivery to sms endpoints; subscribe an sqs, lambda, http, https, email or email-json endpoint instead. Run 'understudy coverage --service sns' for what is supported."},
 			{"arn:aws:sns:us-east-1:000000000000:missing", "sqs", queueARN, nil, "NotFound", "Topic does not exist"},
 		}

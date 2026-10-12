@@ -410,6 +410,12 @@
       "reason": "A sparse map whose values are sets holds a null value. The generated serde reads a sparse map's list values as lists only, so the null fails to decode (internal/codegen)."
     },
     {
+      "protocol": "rpcv2cbor", "kind": "response", "id": "QueryCompatibleRpcV2CborCustomCodeError",
+      "category": "aws-differs", "label": "third-party-recorded",
+      "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (error-matrix.md 5.13, CloudWatch not found)",
+      "reason": "Expects status 400 for an awsQueryError with httpResponseCode 402. Recorded CloudWatch answers a query-compatible request that sends x-amzn-query-mode: true with the awsQueryError status (404 for ResourceNotFound) on the CBOR wire as on JSON, so the codec does too, and this case's request sends that header. The awsJson1_0 twin is skipped for the same reason."
+    },
+    {
       "protocol": "rpcv2cbor", "kind": "response", "id": "RpcV2CborComplexError",
       "category": "gap",
       "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."

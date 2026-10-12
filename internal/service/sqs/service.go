@@ -63,8 +63,8 @@ type Service struct {
 	visibility, retention, moveTask kernel.HandledKind
 }
 
-// New binds every SQS operation and the internal HoldVisibility, and
-// registers the timer kinds.
+// New binds every SQS operation and the internal HoldVisibility and
+// MessageCauses, and registers the timer kinds.
 func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{
 		k:     d.Kernel,

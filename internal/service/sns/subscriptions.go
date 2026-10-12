@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"maps"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -55,13 +56,13 @@ func (s *Service) subscribe(_ context.Context, c *kernel.Call, in *snsapi.Subscr
 	if err != nil {
 		return nil, err
 	}
-	protocol, err := subscribeProtocol(in.Protocol)
-	if err != nil {
-		return nil, err
-	}
 	endpoint := ""
 	if in.Endpoint != nil {
 		endpoint = *in.Endpoint
+	}
+	protocol, err := subscribeProtocol(in.Protocol, endpoint)
+	if err != nil {
+		return nil, err
 	}
 	owner, err := checkEndpoint(protocol, endpoint, ref)
 	if err != nil {
@@ -246,17 +247,29 @@ func (s *Service) confirmation(st *State, ref topicRef, t *Topic, sub *Subscript
 
 // subscribeProtocol parses Subscribe's Protocol: an endpoint type
 // understudy does not deliver to is NotImplemented (ADR 0015), anything
-// else unknown is AWS's recorded text (sns.md 3.1).
-func subscribeProtocol(name string) (Protocol, *awserr.Error) {
+// else unknown is AWS's recorded text (sns.md 3.1). An sms endpoint is
+// checked first, so a number AWS refuses gets AWS's answer rather than
+// NotImplemented.
+func subscribeProtocol(name, endpoint string) (Protocol, *awserr.Error) {
 	if p, ok := parseProtocol(name); ok {
 		return p, nil
 	}
 	switch name {
-	case "sms", "application", "firehose":
+	case "sms":
+		if !e164.MatchString(endpoint) {
+			return 0, errSMSEndpoint(endpoint)
+		}
+		return 0, errProtocolNotImplemented(name)
+	case "application", "firehose":
 		return 0, errProtocolNotImplemented(name)
 	}
 	return 0, errInvalidParameter("Amazon SNS does not support this protocol string: " + name)
 }
+
+// e164 is an E.164 phone number with an optional leading plus, the form
+// LocalStack's validated provider checks; it refuses every endpoint AWS
+// recorded refusing (sns.md 3.1).
+var e164 = regexp.MustCompile(`^\+?[1-9]\d{1,14}$`)
 
 // checkEndpoint checks a Subscribe endpoint against its protocol and the
 // topic's kind and returns the account that owns an ARN endpoint, "" for

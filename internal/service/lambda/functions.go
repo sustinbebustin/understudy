@@ -29,14 +29,14 @@ const (
 const listPageCap = 50
 
 func (s *Service) bindFunctions(b lambdaapi.Binder) {
-	b.CreateFunction(s.createFunction, partial("code from S3 is not fetched; layers are refused; code signing and VPC networking are stored only"),
+	b.CreateFunction(s.createFunction, partial("layers are refused; code signing and VPC networking are stored only"),
 		kernel.WithValidator(validateCreateFunction), kernel.WithCheck(checkCreateFunction))
-	b.GetFunction(s.getFunction, partial("Code.Location is not returned; understudy serves no package download URL"))
+	b.GetFunction(s.getFunction, partial("Code.Location is a link understudy serves the package at, not a presigned S3 URL"))
 	b.GetFunctionConfiguration(s.getFunctionConfiguration, full())
 	b.ListFunctions(s.listFunctions, full())
 	b.UpdateFunctionConfiguration(s.updateFunctionConfiguration, partial("layers are refused; code signing and VPC networking are stored only"),
 		kernel.WithValidator(validateUpdateConfiguration), kernel.WithCheck(checkUpdateConfiguration))
-	b.UpdateFunctionCode(s.updateFunctionCode, partial("code from S3 is not fetched"), kernel.WithValidator(validateUpdateCode))
+	b.UpdateFunctionCode(s.updateFunctionCode, full(), kernel.WithValidator(validateUpdateCode))
 	b.DeleteFunction(s.deleteFunction, full())
 	b.GetFunctionCodeSigningConfig(s.getFunctionCodeSigningConfig, stored("code signing is not enforced; no function has a configuration"))
 	b.GetAccountSettings(s.getAccountSettings, full())
@@ -54,11 +54,11 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 	if packageType == "" {
 		packageType = lambdaapi.PackageTypeZip
 	}
-	src, err := sourceOf(packageType, in.Code.ZipFile, in.Code.S3Bucket, in.Code.S3Key, in.Code.ImageUri)
+	src, err := sourceOf(packageType, in.Code.ZipFile, in.Code.S3Bucket, in.Code.S3Key, in.Code.S3ObjectVersion, in.Code.ImageUri)
 	if err != nil {
 		return nil, err
 	}
-	code, err := s.newCode(ctx, src)
+	code, err := s.newCode(ctx, c, src)
 	if err != nil {
 		return nil, err
 	}
@@ -112,13 +112,24 @@ func (s *Service) holdForPublish(ctx context.Context, publish bool, code Code) (
 }
 
 // newCode turns a code source into the code a version stores; a zip
-// package is checked and kept in the blob store first.
-func (s *Service) newCode(ctx context.Context, src codeSource) (Code, *awserr.Error) {
+// package, sent inline or read from S3 for c's caller, is checked and kept
+// in the blob store first.
+func (s *Service) newCode(ctx context.Context, c *kernel.Call, src codeSource) (Code, *awserr.Error) {
 	switch src := src.(type) {
 	case zipSource:
+		if err := checkZip(src.bytes); err != nil {
+			return nil, err
+		}
 		return s.storeZip(ctx, src.bytes)
 	case s3Source:
-		return nil, errS3CodeUnsupported()
+		b, err := s.fetchPackage(ctx, c, src)
+		if err != nil {
+			return nil, err
+		}
+		if err := checkArchive(b); err != nil {
+			return nil, err
+		}
+		return s.storeZip(ctx, b)
 	case imageSource:
 		return ImageCode{URI: src.uri}, nil
 	}
@@ -137,7 +148,7 @@ func (s *Service) getFunction(_ context.Context, c *kernel.Call, in *lambdaapi.G
 		}
 		out := &lambdaapi.GetFunctionOutput{
 			Configuration: new(renderConfig(ref.scope, &f, &v, ref.qualifiedARN(), false)),
-			Code:          renderCodeLocation(v.Code),
+			Code:          renderCodeLocation(c.Endpoint(), ref.scope, f.Name, v),
 		}
 		if len(f.Tags) > 0 {
 			out.Tags = maps.Clone(f.Tags)
@@ -149,13 +160,13 @@ func (s *Service) getFunction(_ context.Context, c *kernel.Call, in *lambdaapi.G
 	})
 }
 
-// renderCodeLocation is GetFunction's Code. A zip function's Location is
-// left out: AWS sends a presigned S3 URL, and understudy serves no URL its
-// package could be downloaded from.
-func renderCodeLocation(code Code) *lambdaapi.FunctionCodeLocation {
-	switch code := code.(type) {
+// renderCodeLocation is GetFunction's Code for version v of function: a
+// zip package's Location is the link understudy serves it at
+// (codeLocation), where AWS sends a presigned S3 URL.
+func renderCodeLocation(e kernel.Endpoint, scope aws.Scope, function string, v Version) *lambdaapi.FunctionCodeLocation {
+	switch code := v.Code.(type) {
 	case ZipCode:
-		return &lambdaapi.FunctionCodeLocation{RepositoryType: new("S3")}
+		return &lambdaapi.FunctionCodeLocation{RepositoryType: new("S3"), Location: new(codeLocation(e, scope, function, v.Number, code))}
 	case ImageCode:
 		out := &lambdaapi.FunctionCodeLocation{RepositoryType: new("ECR"), ImageUri: new(code.URI)}
 		if digest, ok := cutDigest(code.Digest); ok {
@@ -322,7 +333,7 @@ func (s *Service) codeUpdateSource(ref functionRef, in *lambdaapi.UpdateFunction
 	case packageType == lambdaapi.PackageTypeImage && in.ImageUri == nil:
 		return nil, errImageURIMissing()
 	}
-	return sourceOf(packageType, in.ZipFile, in.S3Bucket, in.S3Key, in.ImageUri)
+	return sourceOf(packageType, in.ZipFile, in.S3Bucket, in.S3Key, in.S3ObjectVersion, in.ImageUri)
 }
 
 func (s *Service) updateFunctionCode(ctx context.Context, c *kernel.Call, in *lambdaapi.UpdateFunctionCodeInput) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
@@ -338,9 +349,9 @@ func (s *Service) updateFunctionCode(ctx context.Context, c *kernel.Call, in *la
 		return nil, err
 	}
 	if in.DryRun {
-		return s.dryRunCode(ref, src)
+		return s.dryRunCode(ctx, c, ref, src)
 	}
-	code, err := s.newCode(ctx, src)
+	code, err := s.newCode(ctx, c, src)
 	if err != nil {
 		return nil, err
 	}
@@ -421,14 +432,20 @@ func samePackageType(current, code Code) *awserr.Error {
 
 // dryRunCode validates an UpdateFunctionCode without changing the
 // function: the package is checked and the current $LATEST returned.
-func (s *Service) dryRunCode(ref functionRef, src codeSource) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
+func (s *Service) dryRunCode(ctx context.Context, c *kernel.Call, ref functionRef, src codeSource) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
 	switch src := src.(type) {
 	case zipSource:
 		if err := checkZip(src.bytes); err != nil {
 			return nil, err
 		}
 	case s3Source:
-		return nil, errS3CodeUnsupported()
+		b, err := s.fetchPackage(ctx, c, src)
+		if err != nil {
+			return nil, err
+		}
+		if err := checkArchive(b); err != nil {
+			return nil, err
+		}
 	case imageSource:
 	}
 	return view(s, ref.scope, func(st *State) (*lambdaapi.FunctionConfiguration, *awserr.Error) {

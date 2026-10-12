@@ -71,6 +71,30 @@ func TestCheckpointSkipsAnUnchangedState(t *testing.T) {
 	}
 }
 
+// Serving with a data directory creates dynamodb/ under it before
+// DynamoDB Local starts: the daemon refuses to bind-mount a missing
+// source, and the image's uid 1000 must be able to write there whatever
+// uid serve runs as.
+func TestPersistCreatesTheDynamoDBLocalDirectory(t *testing.T) {
+	dir := t.TempDir()
+	srv, err := New(Config{Persist: PersistDir{Path: dir}, Docker: DockerDisabled{}, LogOutput: io.Discard})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := srv.Close(); err != nil {
+			t.Errorf("Close = %v", err)
+		}
+	})
+	info, err := os.Stat(filepath.Join(dir, ddbDir))
+	if err != nil {
+		t.Fatalf("the DynamoDB Local directory: %v", err)
+	}
+	if !info.IsDir() || info.Mode().Perm()&0o007 != 0o007 {
+		t.Fatalf("the DynamoDB Local directory is %v, want a directory every uid can write", info.Mode())
+	}
+}
+
 // A crash after an object is deleted, before the next checkpoint, loses
 // only the delete: the state file still names the object's blob, which
 // stays stored, so the restart loads and serves the object.

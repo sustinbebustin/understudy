@@ -109,7 +109,8 @@ func (s *Service) publish(st *State, tx *kernel.Tx, scope aws.Scope, f *Function
 		Modified:   now,
 		RevisionID: st.revision(scope),
 	}
-	if description != nil {
+	if description != nil && *description != v.Config.Description {
+		v.LatestDescription = new(v.Config.Description)
 		v.Config.Description = *description
 	}
 	f.LastVersion++
@@ -128,12 +129,17 @@ func pendingImage(v *Version) (ImageCode, bool) {
 	return ImageCode{}, false
 }
 
-// unchanged reports a published version with config and code, its
-// Description aside.
+// unchanged reports that $LATEST, with config and code, is what it was
+// when published was published. Its Description counts as configuration:
+// AWS publishes a new version after an update that changed only the
+// Description (LocalStack's AWS-validated provider compares $LATEST's
+// revision); the Description PublishVersion gave the version does not.
 func unchanged(published *Version, config Config, code Code) bool {
-	a, b := published.Config, config
-	a.Description, b.Description = "", ""
-	return reflect.DeepEqual(a, b) && codeSha256(published.Code) == codeSha256(code) && sameImage(published.Code, code)
+	was := published.Config
+	if published.LatestDescription != nil {
+		was.Description = *published.LatestDescription
+	}
+	return reflect.DeepEqual(was, config) && codeSha256(published.Code) == codeSha256(code) && sameImage(published.Code, code)
 }
 
 // sameImage reports image code naming the same URI; zip code compares by

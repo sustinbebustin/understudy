@@ -154,6 +154,21 @@ func (d *dataDir) blobStore() (*blob.Store, *os.Root, error) {
 	return store, root, nil
 }
 
+// dynamoDBDir creates dynamodb/ when missing and returns its absolute
+// path, which the daemon bind-mounts as DynamoDB Local's -dbPath and
+// refuses when it does not exist. The image runs as uid 1000, whatever
+// uid serve runs as, so the directory is writable by everyone; the data
+// directory above it keeps its 0o750, which keeps other host users out.
+func (d *dataDir) dynamoDBDir() (string, error) {
+	if err := d.root.MkdirAll(ddbDir, 0o750); err != nil {
+		return "", fmt.Errorf("server: creating %s under the data directory %s: %w", ddbDir, d.path, err)
+	}
+	if err := d.root.Chmod(ddbDir, 0o777); err != nil {
+		return "", fmt.Errorf("server: making %s under the data directory %s writable by DynamoDB Local's uid 1000: %w", ddbDir, d.path, err)
+	}
+	return filepath.Join(d.path, ddbDir), nil
+}
+
 // owner is the container ownership label of this data directory: stable
 // across restarts, so a restart sweeps what a crashed run left.
 func (d *dataDir) owner() string { return dirOwner(d.path) }

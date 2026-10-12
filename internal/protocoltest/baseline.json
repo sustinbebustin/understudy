@@ -1325,7 +1325,6 @@
       "kind": "response",
       "cases": 29,
       "passing": [
-        "QueryCompatibleRpcV2CborCustomCodeError",
         "QueryCompatibleRpcV2CborNoCustomCodeError",
         "RpcV2CborDeserializesDenseSetMap",
         "RpcV2CborDeserializesNestedUnionValue",

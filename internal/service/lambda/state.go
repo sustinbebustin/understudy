@@ -171,6 +171,10 @@ type Version struct {
 	// Modified is LastModified: the commit instant of the last change.
 	Modified   clock.Instant `json:"modified"`
 	RevisionID string        `json:"revisionId"`
+	// LatestDescription is $LATEST's Description when PublishVersion's
+	// Description replaced it in this version; nil when the version carries
+	// $LATEST's own. Publishing compares $LATEST with what it was then.
+	LatestDescription *string `json:"latestDescription,omitempty"`
 }
 
 // Code is where a version's code comes from.

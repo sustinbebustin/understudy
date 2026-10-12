@@ -20,7 +20,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
-	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/furl"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/runtimeapi"
 	"github.com/sustinbebustin/understudy/internal/store"
@@ -178,7 +177,7 @@ func (u *urlServer) invoke(ctx context.Context, c *kernel.Call, r *http.Request,
 	}
 	run, stop := u.x.outliveCaller(ctx)
 	defer stop()
-	res, err := u.x.runSync(run, c, t, syncRun{payload: payload, cause: ref.Cause{Parent: c.Event(), Trace: c.Cause().Trace}, trace: trace})
+	res, err := u.x.runSync(run, c, t, syncRun{payload: payload, trace: trace})
 	if err != nil {
 		return furl.Response{}, err
 	}
