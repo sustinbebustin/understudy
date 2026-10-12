@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -316,6 +317,8 @@ func (s *Service) deleteBucket(ctx context.Context, c *kernel.Call, in *s3api.De
 	type deleted struct {
 		home Home
 		ad   admitted
+		// parts are the references the dropped uploads' parts held.
+		parts []blob.Ref
 	}
 	got, err := kernel.Write(c, s.buckets, a.name, func(bc *BucketCell, _ clock.Instant, tx *kernel.Tx) (deleted, *awserr.Error) {
 		b := bc.Bucket
@@ -331,11 +334,12 @@ func (s *Service) deleteBucket(ctx context.Context, c *kernel.Call, in *s3api.De
 		}
 		s.buckets.Delete(a.name)
 		bc.Bucket = nil
-		return deleted{home: b.Home, ad: ad}, nil
+		return deleted{home: b.Home, ad: ad, parts: b.Uploads.blobs()}, nil
 	})
 	if err != nil {
 		return nil, err
 	}
+	s.release(ctx, got.parts...)
 	s.warnCrossed(ctx, c, a.name, got.home.Region, got.ad)
 	_, err = kernel.Write(c, s.index, indexKey{}, func(x *Index, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		if h, ok := x.Buckets[a.name]; !ok || h != got.home {

@@ -7759,6 +7759,17 @@ func (v *InvalidPartNumber) serialize(s smithy.Serializer, m *smithy.Member) {
 }
 
 // Serialize writes v through s.
+func (v *InvalidPartOrder) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InvalidPartOrder) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInvalidPartOrder)
+	if v.UploadId != nil {
+		s.WriteString(&memberInvalidPartOrder_UploadId, *v.UploadId)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *InvalidPrefix) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *InvalidPrefix) serialize(s smithy.Serializer, m *smithy.Member) {

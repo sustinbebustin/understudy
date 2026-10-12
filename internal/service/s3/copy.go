@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/checksum"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/service/s3/notify"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -252,7 +253,7 @@ func (s *Service) copyObject(ctx context.Context, c *kernel.Call, in *s3api.Copy
 		return nil, err
 	}
 	handedOver = true
-	done, err := s.commitWrite(ctx, c, a, in.Key, req.cond, obj, "ObjectCreated:Copy")
+	done, err := s.commitWrite(ctx, c, a, in.Key, req.cond, obj, notify.CreatedCopy)
 	if err != nil {
 		return nil, err
 	}

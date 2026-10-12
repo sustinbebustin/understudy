@@ -39,13 +39,16 @@ type served struct {
 }
 
 // span is the bytes a read returns: the whole object, or a range of it
-// reported in Content-Range, with the parts count of a partNumber read.
+// reported in Content-Range, with the parts count and the part of a
+// partNumber read of a multipart object.
 type span struct {
 	partial bool
 	first   int64
 	n       int64
 	size    int64
 	parts   *int32
+	// part is nil unless the read names a part of a multipart object.
+	part *ObjectPart
 }
 
 // contentRange is the Content-Range of a partial read.
@@ -123,7 +126,7 @@ func readSpan(o *Object, rangeSpec *string, partNumber *int32) (span, *awserr.Er
 func partSpan(o *Object, n int32) (span, *awserr.Error) {
 	parts := o.Parts
 	if len(parts) == 0 {
-		parts = []int64{o.Size}
+		parts = []ObjectPart{{Size: o.Size}}
 	}
 	if n < 1 || int(n) > len(parts) {
 		e := withField(s3api.ErrInvalidPartNumber("The requested partnumber is not satisfiable"), "ActualPartCount", strconv.Itoa(len(parts)))
@@ -133,10 +136,10 @@ func partSpan(o *Object, n int32) (span, *awserr.Error) {
 		return span{n: o.Size, size: o.Size}, nil
 	}
 	var first int64
-	for _, size := range parts[:n-1] {
-		first += size
+	for _, p := range parts[:n-1] {
+		first += p.Size
 	}
-	return span{partial: true, first: first, n: parts[n-1], size: o.Size, parts: count(len(parts))}, nil
+	return span{partial: true, first: first, n: parts[n-1].Size, size: o.Size, parts: count(len(parts)), part: &parts[n-1]}, nil
 }
 
 // byteRange is how a Range header resolves against an object (s3.md 5.9).
@@ -284,11 +287,30 @@ func headOf(got served, mode *s3api.ChecksumMode) *s3api.HeadObjectOutput {
 	}
 	sse := o.Encryption.headers()
 	h.ServerSideEncryption, h.SSEKMSKeyId, h.BucketKeyEnabled = sse.algorithm, sse.keyID, sse.bucketKey
-	if mode != nil && *mode == s3api.ChecksumModeEnabled && got.span.n == o.Size && o.Checksum.Value != "" {
-		m := membersOf(o.Checksum)
+	if sum, ok := reportedChecksum(o, got.span); ok && mode != nil && *mode == s3api.ChecksumModeEnabled {
+		m := membersOf(sum)
 		h.ChecksumCRC32, h.ChecksumCRC32C, h.ChecksumCRC64NVME, h.ChecksumSHA1, h.ChecksumSHA256 = m[0], m[1], m[2], m[3], m[4]
 		h.ChecksumSHA512, h.ChecksumMD5, h.ChecksumXXHASH64, h.ChecksumXXHASH3, h.ChecksumXXHASH128 = m[5], m[6], m[7], m[8], m[9]
-		h.ChecksumType = new(o.Checksum.Type)
+		h.ChecksumType = new(sum.Type)
 	}
 	return h
+}
+
+// reportedChecksum is the checksum a read of sp reports (s3.md 5.8): a
+// COMPOSITE object's part its own, with type COMPOSITE; a span covering
+// the whole object the object's; any other span none, since boto3
+// validates a reported checksum against the bytes it got.
+func reportedChecksum(o *Object, sp span) (StoredChecksum, bool) {
+	switch {
+	case o.Checksum.Value == "":
+		return StoredChecksum{}, false
+	case sp.part != nil && o.Checksum.Type == s3api.ChecksumTypeComposite:
+		if sp.part.Checksum == "" {
+			return StoredChecksum{}, false
+		}
+		return StoredChecksum{Algorithm: o.Checksum.Algorithm, Value: sp.part.Checksum, Type: s3api.ChecksumTypeComposite}, true
+	case sp.n == o.Size:
+		return o.Checksum, true
+	}
+	return StoredChecksum{}, false
 }

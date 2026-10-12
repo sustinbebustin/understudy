@@ -9,15 +9,17 @@
 // logging, lifecycle, replication, encryption, Object Lock, request
 // payment, transfer acceleration, public access block, ownership controls,
 // tagging, and the metrics, analytics, inventory and Intelligent-Tiering
-// families with their List operations); GetBucketNotificationConfiguration;
-// and the S3 Control tag operations ListTagsForResource, TagResource and
-// UntagResource, which share each bucket's tag set. The object operations
-// PutObject, GetObject, HeadObject, DeleteObject, DeleteObjects,
-// CopyObject, ListObjects, ListObjectsV2, ListObjectVersions and the
-// object tagging operations are bound; every object change lands through
-// commitObject, which raises its event notifications (notify, which
-// raises none until PutBucketNotificationConfiguration is bound).
-// Multipart operations and PutBucketNotificationConfiguration answer 501.
+// families with their List operations); Get and
+// PutBucketNotificationConfiguration; and the S3 Control tag operations
+// ListTagsForResource, TagResource and UntagResource, which share each
+// bucket's tag set. The object operations PutObject, GetObject, HeadObject,
+// DeleteObject, DeleteObjects, CopyObject, ListObjects, ListObjectsV2,
+// ListObjectVersions and the object tagging operations are bound, as are
+// the multipart operations CreateMultipartUpload, UploadPart,
+// UploadPartCopy, CompleteMultipartUpload, AbortMultipartUpload, ListParts
+// and ListMultipartUploads; every object change lands through
+// commitObject, which raises the bucket's event notifications as Deliver
+// effects in the same write (notify).
 //
 // State is a partition-wide name index (bucket names are global across
 // accounts) and one cell per bucket (ARCHITECTURE.md 8 rule 3).
@@ -76,10 +78,12 @@
 // Decisions for objects:
 //
 //   - Bodies live in the content-addressed blob store; a version holds one
-//     reference on its blob, which BucketCell.BlobRefs lists for snapshots
-//     and the admin reset. Objects.Keys is changed in place inside the
-//     bucket's kernel.Write, after every check passed, so a write copies
-//     no key set; no read returns the map or a version chain.
+//     reference on its blob, as an upload's part does; BucketCell.BlobRefs
+//     lists both, object versions and upload parts, for snapshots and the
+//     admin reset. Objects.Keys, Uploads.ByID and each Upload.Parts are
+//     changed in place inside the bucket's kernel.Write, after every check
+//     passed, so a write copies no key set; no read returns those maps, a
+//     version chain or an upload.
 //   - x-amz-version-id is left out for a null version unless versioning is
 //     Enabled (reportedVersion), so Terraform does not take its versioned
 //     delete path on an unversioned bucket (tf-remaining.md 8). A
@@ -116,4 +120,33 @@
 //   - Presigned URLs are not verified: the edge recognizes a presigned
 //     request, but no seam hands the S3 handler the query signature, so a
 //     presigned URL never expires (docs/plan/DEFERRED.md).
+//
+// Decisions for multipart uploads:
+//
+//   - A part is stored in the blob store as it arrives and holds one
+//     reference on its blob, which BucketCell.BlobRefs lists beside the
+//     object versions' and DeleteBucket releases with the uploads it drops.
+//     CompleteMultipartUpload concatenates the listed parts into one new
+//     blob, the object's, outside the bucket's lock and with a reference
+//     held on every listed part meanwhile; it then commits the object,
+//     drops the upload and releases every part, listed or not. A listed
+//     part replaced in between is InvalidPart.
+//   - Each part is checksummed with its upload's algorithm, CRC64NVME for an
+//     upload that declared none, so the object's checksum comes from the
+//     part checksums alone: checksum.Combine for FULL_OBJECT and
+//     checksum.Composite for COMPOSITE. A part that declares another
+//     algorithm (an undeclared upload accepts any) or none is verified as
+//     sent and checksummed with the upload's algorithm in the same pass.
+//   - An undeclared upload reports no part checksums (UploadPart,
+//     UploadPartCopy, ListParts), so clients restate none on Complete.
+//   - The completed object's Last-Modified is the upload's initiation, to
+//     the second, as its metadata, tags, storage class and encryption are
+//     Create's (s3.md 10). An SSE-KMS upload's data key is asked for at
+//     Create; its parts carry random hex ETags, and its object the MD5 of
+//     those raw part ETags with the "-N" suffix, as for any upload.
+//   - Every Complete error is found before the response starts, so the
+//     handler answers ordinary 4xx and 5xx; only a StatusOKError fault rule
+//     sends the 200-with-error answer (wire-rest.md 3.7).
+//   - A COMPOSITE Complete that skips a part number is InvalidPart, where
+//     S3 answers 500 (s3.md 6.4).
 package s3

@@ -10,23 +10,23 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
-	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/service/s3/notify"
 )
 
 // delivering is add followed by a Deliver effect, as the notifications of
 // commitObject raise one: in a kernel without a DeliverSink the write
 // commits and the call then answers Internal.
 func delivering(add objectWrite[committed]) objectWrite[committed] {
-	return func(b *Bucket, now clock.Instant, tx *kernel.Tx) (committed, []blob.Ref, *awserr.Error) {
-		r, released, err := add(b, now, tx)
+	return func(b *Bucket, w objectTx) (committed, []blob.Ref, *awserr.Error) {
+		r, released, err := add(b, w)
 		if err == nil {
-			tx.Deliver(delivery.Request{Source: bucketARN(b.Name)})
+			w.tx.Deliver(delivery.Request{Source: bucketARN(b.Name)})
 		}
 		return r, released, err
 	}
@@ -123,13 +123,13 @@ func TestLandedWriteKeepsItsBody(t *testing.T) {
 			k.Fatal(berr)
 		}
 		put := &Object{Blob: newRef, Size: size, Header: SystemMetadata{ContentType: defaultContentType}, StorageClass: s3api.StorageClassStandard}
-		_, cerr = s.commitOwned(k.Context(), f.call(s3api.OpPutObject), at("landed", nil), put, delivering(s.addVersion("k", unconditional{}, put, "ObjectCreated:Put")))
+		_, cerr = s.commitOwned(k.Context(), f.call(s3api.OpPutObject), at("landed", nil), put, delivering(s.addVersion("k", unconditional{}, put, notify.CreatedPut)))
 		wantInternal(k.T, "put", cerr)
 
 		src, serr := s.readSource(blobs, copySource{bucket: "landed", key: "src"}, nil, readConditions{}, k.Clock.Now().Wire())
 		f.must(serr)
 		cp := *src.version.Object
-		_, cerr = s.commitOwned(k.Context(), f.call(s3api.OpCopyObject), at("landed", nil), &cp, delivering(s.addVersion("copy", unconditional{}, &cp, "ObjectCreated:Copy")))
+		_, cerr = s.commitOwned(k.Context(), f.call(s3api.OpCopyObject), at("landed", nil), &cp, delivering(s.addVersion("copy", unconditional{}, &cp, notify.CreatedCopy)))
 		wantInternal(k.T, "copy", cerr)
 
 		f.remove("landed", "src")

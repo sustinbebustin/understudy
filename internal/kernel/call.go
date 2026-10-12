@@ -169,12 +169,13 @@ func (c *Call) Touched() []aws.ARN {
 
 // CallHeaders is the closed set of unmodeled request headers a Call keeps
 // for its handler: the trace header SQS copies into AWSTraceHeader, the
-// query-compatibility mode, the client's user agent, and the three headers
-// S3 reads to decode an aws-chunked body (its framing mode, declared
-// trailer and decoded length).
+// query-compatibility mode, the client's user agent, and the four headers
+// S3 reads to decode an aws-chunked body (Content-Encoding, which
+// UploadPart does not model, its framing mode, declared trailer and
+// decoded length).
 func CallHeaders() []string {
 	return []string{
-		"User-Agent", "X-Amz-Content-Sha256", "X-Amz-Decoded-Content-Length", "X-Amz-Trailer",
+		"Content-Encoding", "User-Agent", "X-Amz-Content-Sha256", "X-Amz-Decoded-Content-Length", "X-Amz-Trailer",
 		"X-Amzn-Query-Mode", "X-Amzn-Trace-Id",
 	}
 }

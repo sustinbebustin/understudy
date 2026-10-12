@@ -2303,6 +2303,10 @@ var memberInvalidPart_UploadId = smithy.Member{Name: "UploadId", Index: 2}
 
 var schemaInvalidPartNumber = smithy.Schema{ID: "com.amazonaws.s3#InvalidPartNumber", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 416}}
 
+var schemaInvalidPartOrder = smithy.Schema{ID: "com.amazonaws.s3#InvalidPartOrder", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberInvalidPartOrder_UploadId = smithy.Member{Name: "UploadId", Index: 0}
+
 var schemaInvalidPrefix = smithy.Schema{ID: "com.amazonaws.s3#InvalidPrefix", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var schemaInvalidRange = smithy.Schema{ID: "com.amazonaws.s3#InvalidRange", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 416}}
@@ -6074,6 +6078,8 @@ func init() {
 	memberInvalidPart_PartNumber.Target = &schemaSmithyString
 	memberInvalidPart_UploadId.Target = &schemaSmithyString
 	schemaInvalidPart.Members = []*smithy.Member{&memberInvalidPart_ETag, &memberInvalidPart_PartNumber, &memberInvalidPart_UploadId}
+	memberInvalidPartOrder_UploadId.Target = &schemaSmithyString
+	schemaInvalidPartOrder.Members = []*smithy.Member{&memberInvalidPartOrder_UploadId}
 	memberInvalidRange_ActualObjectSize.Target = &schemaSmithyString
 	memberInvalidRange_RangeRequested.Target = &schemaSmithyString
 	schemaInvalidRange.Members = []*smithy.Member{&memberInvalidRange_ActualObjectSize, &memberInvalidRange_RangeRequested}

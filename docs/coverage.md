@@ -142,7 +142,7 @@ Every operation of each service's model, with what its handler states: full, sto
 | kms | 54 | 19 | 3 | 5 | 27 | 0 | 0 |
 | lambda | 88 | 26 | 4 | 10 | 48 | 0 | 1 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
-| s3 | 112 | 11 | 47 | 15 | 39 | 0 | 3 |
+| s3 | 112 | 13 | 47 | 21 | 31 | 0 | 3 |
 | secretsmanager | 23 | 12 | 1 | 2 | 8 | 0 | 0 |
 | sns | 42 | 12 | 2 | 5 | 23 | 0 | 3 |
 | sqs | 23 | 21 | 2 | 0 | 0 | 1 | 0 |
@@ -824,6 +824,8 @@ Internal operations:
 | GetBucketTagging | full |  |
 | GetObjectTagging | full |  |
 | HeadBucket | full |  |
+| ListMultipartUploads | full |  |
+| ListParts | full |  |
 | PutBucketTagging | full |  |
 | PutObjectTagging | full |  |
 | DeleteBucketAnalyticsConfiguration | stored-only | the analytics configuration is stored and echoed; not applied |
@@ -873,7 +875,10 @@ Internal operations:
 | PutBucketWebsite | stored-only | the website configuration is stored and echoed; not applied |
 | PutObjectLockConfiguration | stored-only | the Object Lock configuration is stored and echoed; not applied |
 | PutPublicAccessBlock | stored-only | the public access block is stored and echoed; not applied |
+| AbortMultipartUpload | partial | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
+| CompleteMultipartUpload | partial | no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
 | CopyObject | partial | no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error |
+| CreateMultipartUpload | partial | no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; no lifecycle abort date |
 | DeleteBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | DeleteObject | partial | no MFA delete or Object Lock retention |
 | DeleteObjects | partial | no MFA delete or Object Lock retention |
@@ -885,14 +890,14 @@ Internal operations:
 | ListObjectVersions | partial | no RestoreStatus |
 | ListObjects | partial | no RestoreStatus |
 | ListObjectsV2 | partial | no RestoreStatus |
+| PutBucketNotificationConfiguration | partial | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions |
 | PutBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | PutBucketVersioning | partial | the status is stored and reported; objects keep no versions in this build |
 | PutObject | partial | no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are not verified |
-| AbortMultipartUpload | unbound |  |
-| CompleteMultipartUpload | unbound |  |
+| UploadPart | partial | no SSE-C; chunk signatures are not verified |
+| UploadPartCopy | partial | no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
 | CreateBucketMetadataConfiguration | unbound |  |
 | CreateBucketMetadataTableConfiguration | unbound |  |
-| CreateMultipartUpload | unbound |  |
 | CreateSession | unbound |  |
 | DeleteBucketMetadataConfiguration | unbound |  |
 | DeleteBucketMetadataTableConfiguration | unbound |  |
@@ -908,11 +913,8 @@ Internal operations:
 | GetObjectRetention | unbound |  |
 | GetObjectTorrent | unbound |  |
 | ListDirectoryBuckets | unbound |  |
-| ListMultipartUploads | unbound |  |
 | ListObjectAnnotations | unbound |  |
-| ListParts | unbound |  |
 | PutBucketAbac | unbound |  |
-| PutBucketNotificationConfiguration | unbound |  |
 | PutObjectAcl | unbound |  |
 | PutObjectAnnotation | unbound |  |
 | PutObjectLegalHold | unbound |  |
@@ -924,8 +926,6 @@ Internal operations:
 | UpdateBucketMetadataInventoryTableConfiguration | unbound |  |
 | UpdateBucketMetadataJournalTableConfiguration | unbound |  |
 | UpdateObjectEncryption | unbound |  |
-| UploadPart | unbound |  |
-| UploadPartCopy | unbound |  |
 | WriteGetObjectResponse | unbound |  |
 
 Raw operations:
@@ -1075,7 +1075,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the record-backlog item that settles them.
 
-55 switches: 12 aws-doc, 43 inferred.
+61 switches: 12 aws-doc, 49 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1103,6 +1103,12 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `events.pattern.wildcard-complexity-cap` | `11` | inferred | docs/research/phase1/matching-engines.md#8 | matching-engines.md H11 |
 | `events.schedule.restart` | `on-schedule-change-or-enable` | inferred | docs/research/phase1/secrets-logs-events-alarms.md#42-schedule-expressions-rate-and-cron |  |
 | `kms.cross-account.management-error` | `NotFoundException` | inferred | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyPolicy.html |  |
+| `lambda.esm-filter.bare-number` | `numeric-or-text` | inferred | docs/research/phase1/matching-engines.md#10 | matching-engines.md H7 |
+| `lambda.esm-filter.empty-input` | `matchable` | inferred | docs/research/phase1/matching-engines.md#10 |  |
+| `lambda.esm-filter.exactly-operator` | `rejected` | inferred | docs/research/phase1/matching-engines.md#5.1 | matching-engines.md H13 |
+| `lambda.esm-filter.exists-true-empty-value` | `any-value` | inferred | docs/research/phase1/matching-engines.md#10 | matching-engines.md H2 |
+| `lambda.esm-filter.malformed-or` | `rejected` | inferred | docs/research/phase1/matching-engines.md#10 | matching-engines.md H10 |
+| `lambda.esm-filter.operator-allow-list` | `documented-table` | inferred | docs/research/phase1/matching-engines.md#8 | matching-engines.md H13 |
 | `logs.filter.delimited-field-count` | `last-absorbs` | inferred | docs/research/phase1/logs-filter-patterns.md#3 | R10/C6 |
 | `logs.filter.term-boundary` | `substring` | inferred | docs/research/phase1/logs-filter-patterns.md#5 | R10/C1 |
 | `s3.bucket.cross-account` | `served` | inferred | docs/brief/phase1-brief.md#services-and-depth |  |
@@ -1139,7 +1145,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item, strongest evidence first.
 
-204 evidence items: 111 third-party-recorded, 46 aws-doc, 2 sdk-source, 45 inferred.
+205 evidence items: 112 third-party-recorded, 46 aws-doc, 2 sdk-source, 45 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1205,6 +1211,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidLocationConstraint` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-23) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidPart` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidPartNumber` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_get_object_part (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#InvalidPartOrder` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidRange` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidStorageClass` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_put_object_storage_class_outposts (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidTag` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |

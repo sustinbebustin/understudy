@@ -77,6 +77,17 @@
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
       }
     },
+    "com.amazonaws.s3#InvalidPartOrder": {
+      "type": "structure",
+      "members": {
+        "UploadId": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+      }
+    },
     "com.amazonaws.s3#InvalidRange": {
       "type": "structure",
       "members": {"ActualObjectSize": {"target": "smithy.api#String"}, "RangeRequested": {"target": "smithy.api#String"}},

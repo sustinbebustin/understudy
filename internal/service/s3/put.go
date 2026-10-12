@@ -20,6 +20,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
+	"github.com/sustinbebustin/understudy/internal/service/s3/notify"
 )
 
 // The x-amz-content-sha256 values that frame a body as aws-chunked
@@ -69,7 +70,7 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 	if err != nil {
 		return nil, err
 	}
-	got, err := s.receive(ctx, blobs, in.Body, req.body)
+	got, err := s.receive(ctx, blobs, in.Body, req.body, req.body.checksum.algorithm())
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +87,7 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 		StorageClass: req.class,
 		Encryption:   enc,
 	}
-	committed, err := s.commitWrite(ctx, c, a, in.Key, req.cond, obj, "ObjectCreated:Put")
+	committed, err := s.commitWrite(ctx, c, a, in.Key, req.cond, obj, notify.CreatedPut)
 	if err != nil {
 		return nil, err
 	}
@@ -235,8 +236,8 @@ type committed struct {
 
 // commitWrite commits obj as key's newest version under the bucket's lock,
 // taking over the reference the caller holds on obj.Blob (commitOwned).
-func (s *Service) commitWrite(ctx context.Context, c *kernel.Call, a access, key string, cond writeCondition, obj *Object, eventName string) (committed, *awserr.Error) {
-	return s.commitOwned(ctx, c, a, obj, s.addVersion(key, cond, obj, eventName))
+func (s *Service) commitWrite(ctx context.Context, c *kernel.Call, a access, key string, cond writeCondition, obj *Object, action notify.CreatedAction) (committed, *awserr.Error) {
+	return s.commitOwned(ctx, c, a, obj, s.addVersion(key, cond, obj, action))
 }
 
 // commitOwned runs add, which makes obj a version of its key, and hands the
@@ -255,14 +256,14 @@ func (s *Service) commitOwned(ctx context.Context, c *kernel.Call, a access, obj
 // before the body was read; judged again here, a failure means another
 // write or delete landed in between, which S3 answers with 409
 // ConditionalRequestConflict (s3.md 5.10).
-func (s *Service) addVersion(key string, cond writeCondition, obj *Object, eventName string) objectWrite[committed] {
-	return func(b *Bucket, now clock.Instant, tx *kernel.Tx) (committed, []blob.Ref, *awserr.Error) {
+func (s *Service) addVersion(key string, cond writeCondition, obj *Object, action notify.CreatedAction) objectWrite[committed] {
+	return func(b *Bucket, w objectTx) (committed, []blob.Ref, *awserr.Error) {
 		if err := checkWrite(cond, key, currentValidator(b, key)); err != nil {
 			return committed{}, nil, errConditionalConflict(cond, key)
 		}
-		v := Version{ID: s.newVersionID(b), Modified: clock.FromWire(seconds(now.Wire())), Object: obj}
+		v := Version{ID: s.newVersionID(b), Modified: clock.FromWire(seconds(w.now.Wire())), Object: obj}
 		released := b.Objects.add(key, v)
-		s.commitObject(tx, b, event{name: eventName, key: key, size: obj.Size, etag: obj.ETag, versionID: v.ID})
+		s.commitObject(w, b, event{key: key, versionID: v.ID, change: notify.Created{Action: action, Size: obj.Size, ETag: obj.ETag}})
 		return committed{version: v, reported: reportedVersion(b, v.ID)}, blobsOf(released), nil
 	}
 }
@@ -370,19 +371,24 @@ func readChunkFraming(c *kernel.Call, sha, trailer string) (chunkFraming, int64,
 }
 
 // received is a body stored in the blob store, with what was computed
-// over it.
+// over it: sum under the algorithm the write declared (CRC64NVME when it
+// declared none), and kept under the algorithm the caller keeps.
 type received struct {
 	ref  blob.Ref
 	size int64
 	md5  []byte
 	sum  checksum.Sum
+	kept checksum.Sum
 }
 
 // receive streams the body into the blob store while hashing it, then
 // checks everything that could only be judged at EOF: the length, the
 // declared checksum (header or trailer), Content-MD5 and a hex
 // x-amz-content-sha256. On any failure the stored bytes are released.
-func (s *Service) receive(ctx context.Context, blobs *blob.Store, body smithy.Body, u upload) (received, *awserr.Error) {
+// keep is the algorithm the caller stores the body's checksum under; when
+// it differs from the declared one, the body is checksummed with both in
+// the same pass, so it is never read back.
+func (s *Service) receive(ctx context.Context, blobs *blob.Store, body smithy.Body, u upload, keep checksum.Algorithm) (received, *awserr.Error) {
 	src, err := openBody(body)
 	if err != nil {
 		return received{}, awserr.Internalf(err)
@@ -400,6 +406,13 @@ func (s *Service) receive(ctx context.Context, blobs *blob.Store, body smithy.Bo
 	}
 	md := md5.New() //nolint:gosec // see the import
 	hashes := []io.Writer{md, sum}
+	kept := sum
+	if keep != u.checksum.algorithm() {
+		if kept, err = checksum.New(keep); err != nil {
+			return received{}, awserr.Internalf(err)
+		}
+		hashes = append(hashes, kept)
+	}
 	var payload hash.Hash
 	if u.payloadSHA256 != "" {
 		payload = sha256.New()
@@ -410,7 +423,7 @@ func (s *Service) receive(ctx context.Context, blobs *blob.Store, body smithy.Bo
 	if perr != nil {
 		return received{}, bodyError(ctx, perr)
 	}
-	got := received{ref: ref, size: size, md5: md.Sum(nil), sum: sum.Checksum()}
+	got := received{ref: ref, size: size, md5: md.Sum(nil), sum: sum.Checksum(), kept: kept.Checksum()}
 	if err := u.verify(got, decoder, payload); err != nil {
 		s.release(ctx, ref)
 		return received{}, err

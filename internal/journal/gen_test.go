@@ -321,7 +321,7 @@ func genDetailOf(text *rapid.Generator[string]) *rapid.Generator[Detail] {
 		}),
 		rapid.Custom(func(t *rapid.T) Detail {
 			return Advisory{
-				Kind:     rapid.SampledFrom([]AdvisoryKind{AdvisoryPolicyWouldDeny, AdvisoryUnmintedCredentials, AdvisoryShadowedCodeUpdate, AdvisoryCrossRegionServed}).Draw(t, "kind"),
+				Kind:     rapid.SampledFrom([]AdvisoryKind{AdvisoryPolicyWouldDeny, AdvisoryUnmintedCredentials, AdvisoryShadowedCodeUpdate, AdvisoryCrossRegionServed, AdvisoryFilterUndecided}).Draw(t, "kind"),
 				Resource: genARN().Draw(t, "resource"),
 				Text:     text.Draw(t, "text"),
 			}

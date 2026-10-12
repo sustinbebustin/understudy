@@ -127,6 +127,10 @@ const (
 	// request that asserted one region was served from a bucket in another,
 	// which AWS refuses or redirects.
 	AdvisoryCrossRegionServed
+	// AdvisoryFilterUndecided: a filter the emulator's matching engine could
+	// not evaluate within its work bound, which AWS has no counterpart for,
+	// so the message or event was treated as unmatched.
+	AdvisoryFilterUndecided
 )
 
 // String returns the wire name, such as "policy-would-deny".
@@ -140,6 +144,8 @@ func (k AdvisoryKind) String() string {
 		return "shadowed-code-update"
 	case AdvisoryCrossRegionServed:
 		return "cross-region-served"
+	case AdvisoryFilterUndecided:
+		return "filter-undecided"
 	default:
 		return fmt.Sprintf("AdvisoryKind(%d)", uint8(k))
 	}
@@ -151,12 +157,12 @@ type AdvisoryKindError struct {
 }
 
 func (e *AdvisoryKindError) Error() string {
-	return fmt.Sprintf("%q names no advisory kind; known names are policy-would-deny, unminted-credentials, shadowed-code-update and cross-region-served", e.Text)
+	return fmt.Sprintf("%q names no advisory kind; known names are policy-would-deny, unminted-credentials, shadowed-code-update, cross-region-served and filter-undecided", e.Text)
 }
 
 // ParseAdvisoryKind returns the AdvisoryKind whose wire name is s.
 func ParseAdvisoryKind(s string) (AdvisoryKind, error) {
-	for k := AdvisoryPolicyWouldDeny; k <= AdvisoryCrossRegionServed; k++ {
+	for k := AdvisoryPolicyWouldDeny; k <= AdvisoryFilterUndecided; k++ {
 		if k.String() == s {
 			return k, nil
 		}
@@ -166,7 +172,7 @@ func ParseAdvisoryKind(s string) (AdvisoryKind, error) {
 
 // MarshalText encodes the wire name.
 func (k AdvisoryKind) MarshalText() ([]byte, error) {
-	if k < AdvisoryPolicyWouldDeny || k > AdvisoryCrossRegionServed {
+	if k < AdvisoryPolicyWouldDeny || k > AdvisoryFilterUndecided {
 		return nil, &AdvisoryKindError{Text: k.String()}
 	}
 	return []byte(k.String()), nil

@@ -389,6 +389,9 @@ type syncRun struct {
 	// related events, the batch's other messages.
 	cause ref.Cause
 	links []ref.EventID
+	// trace is the X-Ray trace header the function runs under, as a
+	// function URL's event reports it; empty derives one when it runs.
+	trace string
 }
 
 // outliveCaller is ctx without its cancellation, ending instead when the
@@ -417,6 +420,7 @@ func (x *Execution) runSync(ctx context.Context, c *kernel.Call, t target, in sy
 		parent:        c,
 		cause:         in.cause,
 		links:         in.links,
+		trace:         in.trace,
 	})
 }
 
@@ -484,6 +488,9 @@ type run struct {
 	// Invocation event's related events.
 	cause ref.Cause
 	links []ref.EventID
+	// trace is the X-Ray trace header the caller fixed; empty derives one
+	// from the request id when the attempt runs (traceID).
+	trace string
 }
 
 // ran is an attempt that reached the function: its outcome and its log
@@ -579,12 +586,16 @@ func (x *Execution) runIn(ctx context.Context, r *run, fn fnVersion, l leased) (
 	t := &r.target
 	stream := l.slot.stream
 	stream.begin(l.cold, initStartLine(t), startLine(r.request, t.version.Number), r.parent)
+	trace := r.trace
+	if trace == "" {
+		trace = traceID(r.request, x.k.Clock().Now().Wire().Unix())
+	}
 	elapsed := x.k.Clock().Stopwatch()
 	outcome, invErr := l.env.Invoke(ctx, runtimeapi.Invocation{
 		RequestID:     r.request,
 		InvocationID:  string(x.k.IDs().LambdaRequestID()),
 		FunctionARN:   t.invoked,
-		TraceID:       traceID(r.request, x.k.Clock().Now().Wire().Unix()),
+		TraceID:       trace,
 		ClientContext: r.clientContext,
 		Payload:       r.payload,
 		Timeout:       time.Duration(t.version.Config.Timeout) * time.Second,

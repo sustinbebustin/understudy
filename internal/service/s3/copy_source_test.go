@@ -8,6 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
+	"github.com/sustinbebustin/understudy/internal/service/s3/notify"
 )
 
 // TestParseCopySource: x-amz-copy-source is decoded leniently (wire-rest.md
@@ -70,7 +71,7 @@ func TestCopySourceOverLimit(t *testing.T) {
 			k.Fatal(berr)
 		}
 		huge := &Object{Blob: ref, Size: maxSinglePut + 1, Header: SystemMetadata{ContentType: defaultContentType}, StorageClass: s3api.StorageClassStandard}
-		_, cerr = f.s.commitOwned(k.Context(), f.call(s3api.OpPutObject), at("limits", nil), huge, f.s.addVersion("huge", unconditional{}, huge, "ObjectCreated:CompleteMultipartUpload"))
+		_, cerr = f.s.commitOwned(k.Context(), f.call(s3api.OpPutObject), at("limits", nil), huge, f.s.addVersion("huge", unconditional{}, huge, notify.CreatedCompleteMultipartUpload))
 		f.must(cerr)
 
 		_, cerr = f.s.copyObject(k.Context(), f.call(s3api.OpCopyObject), &s3api.CopyObjectInput{Bucket: "limits", Key: "copy", CopySource: "limits/huge"})

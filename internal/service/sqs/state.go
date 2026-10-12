@@ -258,11 +258,13 @@ type Receives struct {
 
 // Receive is one receive of a message: the handle it issued, when, and
 // whether HoldVisibility pins the message invisible whatever VisibleAt
-// says (ARCHITECTURE.md 9, ESM in-flight visibility).
+// says (ARCHITECTURE.md 9, ESM in-flight visibility). A pin is the live
+// poller's hold, not queue state, so snapshots leave it out: a loaded
+// message follows VisibleAt and gets its visibility timer back (timersOf).
 type Receive struct {
 	Handle ids.ReceiptHandle `json:"handle"`
 	At     clock.Instant     `json:"at"`
-	Pinned bool              `json:"pinned,omitempty"`
+	Pinned bool              `json:"-"`
 }
 
 // Attribute is a message attribute value; String holds String and Number

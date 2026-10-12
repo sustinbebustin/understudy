@@ -92,6 +92,9 @@ func (h *Handler) claim(r *http.Request, a auth.Auth, parseErr auth.ParseError) 
 	if rt, ok := c.snsLink(); ok {
 		return rt
 	}
+	if rt, ok := c.functionURLPath(); ok {
+		return rt
+	}
 	switch {
 	case !strings.HasPrefix(c.path, adminPrefix):
 		c.decline("rule 1: the path is not under %s", adminPrefix)
@@ -133,6 +136,27 @@ func (c *claimer) snsLink() (route, bool) {
 	op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: "sns", Name: name})
 	if !ok || op.Kind != registry.Raw {
 		c.decline("rule 1: %s names no raw SNS link operation (SigningCert, UnsubscribeLink, ConfirmSubscriptionLink)", c.path)
+		return unclaimed{reasons: c.reasons}, true
+	}
+	return toRaw{op: op}, true
+}
+
+// functionURLPathPrefix is the function URL path fallback,
+// /_understudy/lambda-url/<url-id>/<path>, for clients that cannot resolve
+// a function URL host.
+const functionURLPathPrefix = adminPrefix + "lambda-url/"
+
+// functionURLPath is rule 1's function URL part: on the main listener, the
+// path fallback goes to Lambda's raw InvokeFunctionUrl operation, which
+// resolves the url id from the path as it does from the host (rule 2).
+// Any other request goes on to the admin part of rule 1.
+func (c *claimer) functionURLPath() (route, bool) {
+	if !strings.HasPrefix(c.path, functionURLPathPrefix) || c.h.opts.Listener != ref.ListenerMain {
+		return nil, false
+	}
+	op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: "lambda", Name: "InvokeFunctionUrl"})
+	if !ok || op.Kind != registry.Raw {
+		c.decline("rule 1: %s is the function URL path fallback, but no raw lambda.InvokeFunctionUrl operation is registered", c.path)
 		return unclaimed{reasons: c.reasons}, true
 	}
 	return toRaw{op: op}, true

@@ -3191,6 +3191,11 @@ type InvalidPart struct {
 // InvalidPartNumber is the error com.amazonaws.s3#InvalidPartNumber.
 type InvalidPartNumber struct{}
 
+// InvalidPartOrder is the error com.amazonaws.s3#InvalidPartOrder.
+type InvalidPartOrder struct {
+	UploadId *string
+}
+
 // InvalidPrefix is the error com.amazonaws.s3#InvalidPrefix.
 type InvalidPrefix struct{}
 

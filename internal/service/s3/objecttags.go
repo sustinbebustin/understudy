@@ -9,9 +9,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
-	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/service/s3/notify"
 )
 
 // maxObjectTags is the object tag limit (s3.md 11.1).
@@ -51,7 +51,7 @@ func (s *Service) putObjectTagging(ctx context.Context, c *kernel.Call, in *s3ap
 	if err != nil {
 		return nil, err
 	}
-	id, err := s.retag(ctx, c, at(in.Bucket, in.ExpectedBucketOwner), in.Key, in.VersionId, "PUT", tags, "ObjectTagging:Put")
+	id, err := s.retag(ctx, c, at(in.Bucket, in.ExpectedBucketOwner), in.Key, in.VersionId, "PUT", tags, notify.TaggingPut)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (s *Service) putObjectTagging(ctx context.Context, c *kernel.Call, in *s3ap
 }
 
 func (s *Service) deleteObjectTagging(ctx context.Context, c *kernel.Call, in *s3api.DeleteObjectTaggingInput) (*s3api.DeleteObjectTaggingOutput, *awserr.Error) {
-	id, err := s.retag(ctx, c, at(in.Bucket, in.ExpectedBucketOwner), in.Key, in.VersionId, "DELETE", nil, "ObjectTagging:Delete")
+	id, err := s.retag(ctx, c, at(in.Bucket, in.ExpectedBucketOwner), in.Key, in.VersionId, "DELETE", nil, notify.TaggingDelete)
 	if err != nil {
 		return nil, err
 	}
@@ -68,8 +68,8 @@ func (s *Service) deleteObjectTagging(ctx context.Context, c *kernel.Call, in *s
 
 // retag replaces the tags of the version a request addresses. A tag change
 // keeps the ETag and Last-Modified (s3.md 11.1).
-func (s *Service) retag(ctx context.Context, c *kernel.Call, a access, key string, id *string, method string, tags map[string]string, eventName string) (*string, *awserr.Error) {
-	got, _, err := writeObjects(ctx, s, c, a, func(b *Bucket, _ clock.Instant, tx *kernel.Tx) (*string, []blob.Ref, *awserr.Error) {
+func (s *Service) retag(ctx context.Context, c *kernel.Call, a access, key string, id *string, method string, tags map[string]string, action notify.TaggingAction) (*string, *awserr.Error) {
+	got, _, err := writeObjects(ctx, s, c, a, func(b *Bucket, w objectTx) (*string, []blob.Ref, *awserr.Error) {
 		v, err := findVersion(b, key, id, method)
 		if err != nil {
 			return nil, nil, err
@@ -78,7 +78,7 @@ func (s *Service) retag(ctx context.Context, c *kernel.Call, a access, key strin
 		obj.Tags = tags
 		v.Object = &obj
 		b.Objects.replace(key, v)
-		s.commitObject(tx, b, event{name: eventName, key: key, etag: obj.ETag, versionID: v.ID})
+		s.commitObject(w, b, event{key: key, versionID: v.ID, change: notify.Tagged{Action: action, ETag: obj.ETag}})
 		return reportedVersion(b, v.ID), nil, nil
 	})
 	return got, err

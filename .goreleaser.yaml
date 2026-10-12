@@ -1,0 +1,64 @@
+# Release configuration. Nothing here publishes: the GitHub release is
+# disabled and the images are built but never pushed.
+version: 2
+
+project_name: understudy
+
+builds:
+  - id: understudy
+    main: ./cmd/understudy
+    binary: understudy
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: understudy
+    ids: [understudy]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - NOTICE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+# The images ship the binary built above, the one the archives and checksums
+# describe: the Dockerfile's release target copies it from the build context
+# instead of compiling again.
+#
+# dockers_v2 has no skip_push: outside snapshot mode it builds and pushes in
+# one step. It is therefore disabled unless the run is a snapshot, which
+# builds one image per platform into the local daemon and pushes nothing.
+dockers_v2:
+  - id: understudy
+    ids: [understudy]
+    dockerfile: Dockerfile
+    images:
+      - ghcr.io/sustinbebustin/understudy
+    tags:
+      - "{{ .Version }}"
+      - latest
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    extra_files:
+      - LICENSE
+      - NOTICE
+    build_args:
+      VERSION: "{{ .Version }}"
+    flags:
+      - --target=release
+    disable: "{{ not .IsSnapshot }}"
+
+changelog:
+  disable: true
+
+release:
+  disable: true

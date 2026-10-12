@@ -8,6 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
+	"github.com/sustinbebustin/understudy/internal/service/s3/notify"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -132,6 +133,10 @@ type Bucket struct {
 	// S3 Control tag operations share; empty is no tag set.
 	Tags         map[string]string                `json:"tags,omitempty"`
 	Notification *s3api.NotificationConfiguration `json:"notification,omitempty"`
+	// Sequencer is the last sequencer an event notification of the bucket
+	// carried, zero before the first. One per bucket is strictly
+	// increasing per key, which is all S3 promises (s3.md 13.2).
+	Sequencer notify.Sequencer `json:"sequencer,omitempty"`
 	// The configuration families are keyed by their Id.
 	Metrics            map[string]s3api.MetricsConfiguration            `json:"metrics,omitempty"`
 	Analytics          map[string]s3api.AnalyticsConfiguration          `json:"analytics,omitempty"`

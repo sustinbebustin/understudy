@@ -296,6 +296,16 @@ func ErrInvalidPartNumber(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidPartNumber(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// IdentityInvalidPartOrder returns the identity of com.amazonaws.s3#InvalidPartOrder.
+func IdentityInvalidPartOrder() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidPartOrder", JSONType: "InvalidPartOrder", QueryCode: "InvalidPartOrder", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrInvalidPartOrder returns an InvalidPartOrder error with message.
+func ErrInvalidPartOrder(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityInvalidPartOrder(), Message: message, Origin: awserr.Modeled{}}
+}
+
 // IdentityInvalidPrefix returns the identity of com.amazonaws.s3#InvalidPrefix.
 func IdentityInvalidPrefix() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidPrefix", JSONType: "InvalidPrefix", QueryCode: "InvalidPrefix", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}

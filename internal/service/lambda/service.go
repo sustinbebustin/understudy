@@ -16,6 +16,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -80,14 +81,15 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	return s
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence.
+// Switches lists the behaviors chosen without AWS-recorded evidence: the
+// state transitions and the event source mapping filter engine's choices.
 func (s *Service) Switches() []fidelity.Entry {
-	return []fidelity.Entry{fidelity.Switch[string]{
+	return append([]fidelity.Entry{fidelity.Switch[string]{
 		Name:  "lambda.stateTransitions",
 		Value: s.opts.StateTransitions.String(),
 		Label: evidence.AWSDoc,
 		Ref:   "docs/design/ARCHITECTURE.md#9-the-clock",
-	}.Entry()}
+	}.Entry()}, esm.Switches()...)
 }
 
 // Name returns "lambda".

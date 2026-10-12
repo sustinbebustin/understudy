@@ -1,0 +1,12 @@
+# An allowlist of what the image needs: the licence and notices it ships,
+# the module files and the packages the binary imports. A new top-level
+# package the binary needs must be added here, or `just image` fails to build.
+*
+!LICENSE
+!NOTICE
+!go.mod
+!go.sum
+!admin
+!cmd
+!internal
+**/testdata

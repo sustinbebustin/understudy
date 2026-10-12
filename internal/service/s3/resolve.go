@@ -226,9 +226,10 @@ func writer[In, Out any](s *Service, of func(*In) access, fn func(in *In, b *Buc
 
 // read runs fn on the bucket a names once the request is admitted. Writers
 // replace the bucket's documents rather than change them, so fn may return
-// documents it holds, with one exception: object writes change
-// Objects.Keys in place under the cell lock (Objects), so fn must never
-// return that map or a key's version chain.
+// documents it holds, with one exception: object and multipart writes
+// change Objects.Keys, Uploads.ByID and each Upload.Parts in place under
+// the cell lock (Objects, Uploads), so fn must never return those maps, a
+// key's version chain or an upload.
 func read[R any](ctx context.Context, s *Service, c *kernel.Call, a access, fn func(b *Bucket) (R, *awserr.Error)) (R, *awserr.Error) {
 	type result struct {
 		r       R
@@ -270,8 +271,9 @@ func read[R any](ctx context.Context, s *Service, c *kernel.Call, a access, fn f
 // change runs fn on a copy of the bucket a names, once the request is
 // admitted, and stores the copy when fn succeeds. fn replaces the copy's
 // documents, slices and maps; it never changes one in place, since readers
-// share them (with and without copy a map). Only writeObjects changes one
-// in place, Objects.Keys, for the reason Objects gives.
+// share them (with and without copy a map). Only writeObjects changes
+// maps in place, Objects.Keys, Uploads.ByID and each Upload.Parts, for the
+// reason Objects gives.
 func (s *Service) change(ctx context.Context, c *kernel.Call, a access, fn func(b *Bucket, now clock.Instant) *awserr.Error) *awserr.Error {
 	if _, ok := s.buckets.Lookup(a.name); !ok {
 		return errNoSuchBucket(a.name)

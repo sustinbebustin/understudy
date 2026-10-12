@@ -16,6 +16,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/service/s3/notify"
 )
 
 // bindObjects binds the object operations.
@@ -86,9 +87,17 @@ type Object struct {
 	// StorageClass is the class written; STANDARD when the write named none.
 	StorageClass s3api.StorageClass `json:"storageClass"`
 	Encryption   Encryption         `json:"encryption"`
-	// Parts are the part sizes of a multipart object, in part order; empty
-	// for an object written in one request.
-	Parts []int64 `json:"parts,omitempty"`
+	// Parts are a multipart object's parts, in part order; empty for an
+	// object written in one request.
+	Parts []ObjectPart `json:"parts,omitempty"`
+}
+
+// ObjectPart is one part of a multipart object: its size and, for a
+// COMPOSITE object, its own checksum in wire form, which a partNumber read
+// reports (s3.md 5.8).
+type ObjectPart struct {
+	Size     int64  `json:"size"`
+	Checksum string `json:"checksum,omitempty"`
 }
 
 // SystemMetadata is the system metadata an object keeps, returned as the
@@ -128,15 +137,16 @@ func (o *Objects) blobRefs() []string {
 	return refs
 }
 
-// BlobRefs lists the blob references the bucket's object versions hold,
-// for the snapshot section of the cell (store.Partitioned.Export): an
-// archive then embeds every body, a load retains them, and the admin
-// reset releases the references a dropped bucket held.
+// BlobRefs lists the blob references the bucket's object versions and
+// its uploads' parts hold, for the snapshot section of the cell
+// (store.Partitioned.Export): an archive then embeds every body, a load
+// retains them, and the admin reset releases the references a dropped
+// bucket held.
 func (c *BucketCell) BlobRefs() []string {
 	if c.Bucket == nil {
 		return nil
 	}
-	return c.Bucket.Objects.blobRefs()
+	return append(c.Bucket.Objects.blobRefs(), c.Bucket.Uploads.blobRefs()...)
 }
 
 // current returns the newest version of key, which may be a delete
@@ -313,7 +323,16 @@ func objectARN(bucket, key string) string {
 // objectWrite is a change to a bucket's objects: it changes b.Objects and
 // returns the blob refs the change released, which writeObjects releases
 // once the write commits, outside the cell lock (ARCHITECTURE.md 8 rule 4).
-type objectWrite[R any] func(b *Bucket, now clock.Instant, tx *kernel.Tx) (R, []blob.Ref, *awserr.Error)
+type objectWrite[R any] func(b *Bucket, w objectTx) (R, []blob.Ref, *awserr.Error)
+
+// objectTx is one attempt of a bucket write as an object change sees it:
+// the write's effects, its commit instant, and the call as the change's
+// event notifications echo it.
+type objectTx struct {
+	tx      *kernel.Tx
+	now     clock.Instant
+	request notify.Request
+}
 
 // writeObjects runs fn on the bucket a names once the request is admitted,
 // as change does, with the write's Tx for commitObject. landed reports
@@ -329,6 +348,7 @@ func writeObjects[R any](ctx context.Context, s *Service, c *kernel.Call, a acce
 		return zero, false, errNoSuchBucket(a.name)
 	}
 	src := s.regionSource(c, a.name)
+	req := requestOf(c)
 	type result struct {
 		r        R
 		released []blob.Ref
@@ -348,7 +368,7 @@ func writeObjects[R any](ctx context.Context, s *Service, c *kernel.Call, a acce
 			return result{}, err
 		}
 		next := *bc.Bucket
-		r, released, err := fn(&next, now, tx)
+		r, released, err := fn(&next, objectTx{tx: tx, now: now, request: req})
 		if err != nil {
 			tx.Unchanged()
 			return result{}, inRegion(err, next.Home)
@@ -454,6 +474,6 @@ func (e *BodyRangeError) Error() string {
 // check and after changing b.Objects, and it raises the change's event
 // notifications in the same commit, so a notification never reports a
 // change that did not happen.
-func (s *Service) commitObject(tx *kernel.Tx, b *Bucket, ev event) {
-	s.notify(tx, b, ev)
+func (s *Service) commitObject(w objectTx, b *Bucket, ev event) {
+	s.notify(w, b, ev)
 }

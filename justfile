@@ -84,12 +84,13 @@ smoke:
 image:
     docker build -t understudy:dev .
 
-# Validate the GoReleaser configuration when goreleaser is installed.
+# Validate the GoReleaser configuration and build a snapshot when goreleaser is installed.
 release-check:
     #!/usr/bin/env bash
     set -euo pipefail
     if command -v goreleaser >/dev/null; then
         goreleaser check
+        goreleaser build --snapshot --clean
     else
         echo "goreleaser is not installed; skipping the release configuration check" >&2
     fi
