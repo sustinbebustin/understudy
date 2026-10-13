@@ -1,0 +1,49 @@
+# understudy next to an application container.
+#
+#   docker compose up --build --wait understudy   # start understudy, wait until healthy
+#   docker compose run --rm app                   # run the app against it
+#   docker compose down --volumes                 # stop, and drop the saved state
+#
+# The app reaches understudy by its service name, http://understudy:4566, on
+# the network compose creates. Your host reaches it on 127.0.0.1:4566.
+
+services:
+  understudy:
+    # Nothing is published yet, so the image is built from this repository's
+    # Dockerfile. Once you have built it (`just image` builds the same tag),
+    # you can drop the build section.
+    image: understudy:dev
+    build:
+      context: ../..
+    ports:
+      # Publish on loopback only. Inside its container understudy listens on
+      # every interface without an admin token, so the published port is what
+      # keeps it private to this machine.
+      - "127.0.0.1:${UNDERSTUDY_PORT:-4566}:4566"
+    environment:
+      # Keep state in the volume below, so buckets, queues and messages
+      # survive `docker compose restart` and `down` without --volumes.
+      UNDERSTUDY_PERSIST: /data
+    volumes:
+      - understudy-data:/data
+    # The image's own healthcheck runs `understudy health`, which is what
+    # `depends_on: condition: service_healthy` and `up --wait` wait for.
+
+  app:
+    build: ./app
+    depends_on:
+      understudy:
+        condition: service_healthy
+    environment:
+      # Every AWS SDK reads AWS_ENDPOINT_URL. Credentials only need to be
+      # present: understudy accepts any, and a 12-digit access key id picks
+      # the account (any other, like "test", is account 000000000000).
+      AWS_ENDPOINT_URL: http://understudy:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
+    # A one-shot job: `docker compose up` starts it once, `run` starts it again.
+    restart: "no"
+
+volumes:
+  understudy-data:

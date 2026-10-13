@@ -1,89 +1,141 @@
 # understudy
 
-understudy is a local AWS emulator: a single Go binary that stands in for AWS on a developer machine and in CI. Applications, the AWS SDKs, the AWS CLI and Terraform reach it through the standard `AWS_ENDPOINT_URL` override with no code changes. It aims for fidelity on a small set of services (SQS, SNS, S3, DynamoDB, Lambda, CloudWatch Logs, Secrets Manager, KMS, IAM, STS, EventBridge and CloudWatch metrics) rather than shallow coverage of many, and adds a controllable clock, a causal event journal, fault injection and snapshots.
+understudy is a local AWS emulator: one Go binary, or a Docker image of about 11 MB compressed, that stands in for AWS on a developer machine and in CI. Applications, the AWS SDKs, the AWS CLI and Terraform reach it through the standard `AWS_ENDPOINT_URL` override, with no code changes.
+
+It covers twelve services (SQS, SNS, S3, DynamoDB, Lambda, CloudWatch Logs, Secrets Manager, KMS, IAM, STS, EventBridge and CloudWatch metrics) and tries to get them right rather than cover many. Around them it adds what tests of event-driven systems need: a clock you control, a causal journal of every call and delivery, fault injection, snapshots, and least-privilege policy generation.
 
 ## Status
 
-understudy is pre-release: nothing has been published as a release, a package or an image, so you build it from a clone. All twelve services above answer requests. Coverage is partial, and [docs/coverage.md](docs/coverage.md) lists every operation of every service as full, stored only, partial (with its gaps named) or unbound. An unbound operation answers `501 NotImplemented` in AWS's own error format; nothing is silently faked. `understudy coverage` prints the same report from a running server.
+Pre-release. Nothing is published yet: no release, package or image. You build it from a clone.
+
+Coverage is partial and listed operation by operation in [docs/coverage.md](docs/coverage.md). No behavior has been recorded against real AWS yet: the evidence behind it is AWS's documentation, recordings published by other projects, SDK source, and inference, and the coverage page labels each item.
+
+## What sets it apart
+
+- **Fidelity is generated, then checked from outside.** Request and response shapes, error codes and input validation come from AWS's own Smithy models. The protocol layer runs against Smithy's official protocol compliance tests. Behavior is checked with the Go v2, boto3 and JS v3 SDKs, the AWS CLI and Terraform.
+- **Nothing is silently faked.** An operation understudy does not implement answers `501 NotImplemented` in AWS's error format and names itself. Settings that are stored but have no effect are listed as such.
+- **A controllable clock.** Visibility timeouts, delays, retention, TTL, batching windows, schedules, secret deletion windows and log retention all run on one emulator clock. Freeze it, advance it an hour, or run it 60 times faster. Tests keep real AWS settings and finish in milliseconds.
+- **A causal journal.** Every API call, delivery, Lambda invocation and timer is recorded with its cause. `SNS Publish -> SQS SendMessage -> Lambda Invoke -> the function's own calls` is one tree you can query or stream.
+- **Fault injection.** Rules by service, operation, resource, account or region inject AWS's own errors, throttling or latency, for the next N calls or with a seeded probability.
+- **Snapshots and persistence.** The whole state saves to a deterministic archive you can commit, diff and load. Persistence across restarts is opt-in.
+- **Real Lambda execution.** Functions run in AWS's Lambda base images through Docker: zip and container-image functions, warm reuse, hot reload from a directory, SDK calls inside functions routed back to understudy, logs in CloudWatch Logs.
+- **Least-privilege policies.** understudy records which IAM actions each principal used, on which resources, and prints a policy built from that record, plus the resource-policy statements its deliveries would need on AWS.
+- **Small, fast, offline.** No account, token or telemetry (DynamoDB is the exception; see below). The binary is 36 MB, ready in about 15 ms and idles at about 32 MiB (`just budgets` on Linux). The only network access is pulling Docker images for Lambda and DynamoDB Local on first use.
 
 ## Quick start
 
-With Go 1.27, from a clone:
+With Go 1.27, from a clone of this repository:
 
 ```sh
 go install ./cmd/understudy
 understudy serve
 ```
 
-`serve` listens on `127.0.0.1:4566` and keeps its state in memory. In another shell, point the SDKs, the AWS CLI and Terraform at it, then check that it is ready:
+`serve` listens on `127.0.0.1:4566` and keeps its state in memory. In another shell, point your tools at it:
 
 ```sh
 eval "$(understudy env)"
 understudy health
 aws sqs create-queue --queue-name demo
+aws sqs send-message --queue-url http://localhost:4566/000000000000/demo --message-body hello
+aws sqs receive-message --queue-url http://localhost:4566/000000000000/demo
 ```
 
-`understudy env` prints `AWS_ENDPOINT_URL`, dummy credentials and a region, plus a comment for each client that needs a setting no variable carries, such as path-style S3 for the Go and JS SDKs. It also writes dotenv, fish and `$GITHUB_ENV` formats (`understudy env --help`). `understudy serve --help` lists every setting; each has a flag, an `UNDERSTUDY_*` variable and a key in an optional `understudy.json`, and [docs/configuration.md](docs/configuration.md) is the full reference.
+`understudy env` prints `AWS_ENDPOINT_URL`, dummy credentials and a region, plus a comment for each client that needs a setting no variable carries (path-style S3 in the Go and JS SDKs). Now move time and look at what happened:
 
-The access key picks the account: a 12-digit access key id is that account, and any other is the default account, `000000000000` unless `accounts.default` sets another. So `AWS_ACCESS_KEY_ID=111111111111` works in account 111111111111.
+```sh
+understudy clock freeze
+aws sqs send-message --queue-url http://localhost:4566/000000000000/demo --message-body later --delay-seconds 900
+understudy clock advance 15m
+aws sqs receive-message --queue-url http://localhost:4566/000000000000/demo --max-number-of-messages 10
+understudy journal --service sqs
+```
 
-### Lambda and DynamoDB
-
-Lambda functions run in AWS's Lambda base images and DynamoDB is served by AWS's DynamoDB Local, so both need a Docker Engine (`DOCKER_HOST`, else `/var/run/docker.sock`). The images are pulled on first use. DynamoDB Local is under the Amazon DynamoDB Local License Agreement, which you accept by starting understudy with `--accept-dynamodb-local-license` (or `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1`). Until then DynamoDB calls answer 501 and say how to accept it. `understudy doctor` checks what this machine provides.
+The receive returns both messages at once: `hello`, whose 30-second visibility timeout ran out during the advance, and `later`, whose 15-minute delay did. Nothing waited.
 
 ### Docker
 
-Build the image with `just image`, then run it with the port published on loopback:
+Build the image and publish its port on loopback only:
 
 ```sh
+just image
 docker run --rm -p 127.0.0.1:4566:4566 understudy:dev
 ```
 
-To run Lambda functions and DynamoDB Local from the container, mount the Docker socket and give the container user (65532) the socket's group:
+To run Lambda functions from the container, mount the Docker socket and give the container user the socket's group (Linux):
 
 ```sh
 docker run --rm -p 127.0.0.1:4566:4566 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   --group-add "$(stat -c %g /var/run/docker.sock)" \
-  -e UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 \
   understudy:dev
 ```
 
-Inside the container understudy listens on `0.0.0.0:4566` without an admin token, so the published port is what keeps it private: publish it on `127.0.0.1` only. Mount a volume on `/data` and set `UNDERSTUDY_PERSIST=/data` to keep state across restarts. The image's healthcheck runs `understudy health`, which finds the server at `UNDERSTUDY_ENDPOINT`, else at the port `UNDERSTUDY_LISTEN` names on loopback, else at `http://127.0.0.1:4566`; changing the port with `-e UNDERSTUDY_LISTEN=0.0.0.0:8080` alone keeps the container healthy.
+Inside the container understudy listens on `0.0.0.0:4566` without an admin token, so the published port is what keeps it private. Mount a volume on `/data` and set `UNDERSTUDY_PERSIST=/data` to keep state across restarts.
 
-Outside a container, listening beyond loopback needs an admin token (`UNDERSTUDY_ADMIN_TOKEN`) and `--allow-unauthenticated-aws-api`. The token guards only the admin API under `/_understudy/`: this build checks no request signature, so every peer that reaches the port can read every secret and object and run any image as a Lambda function. Do it only on a network whose every peer you trust.
+### DynamoDB
 
-## Admin API and CLI
+DynamoDB is served by AWS's DynamoDB Local, run in Docker and pulled on first use. It is under the Amazon DynamoDB Local License Agreement, not Apache-2.0, and that licence requires an AWS account in good standing. understudy never accepts it for you: until you start it with `--accept-dynamodb-local-license` (or `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1`), DynamoDB calls answer 501 with the licence terms. Every other service works without an AWS account.
 
-The admin API lives under `/_understudy/v1/` on the same port as the AWS API. The CLI is its client, and the Go package `github.com/sustinbebustin/understudy/admin` is another. Every command takes `--endpoint` (default `UNDERSTUDY_ENDPOINT`, else the port of `UNDERSTUDY_LISTEN` on loopback, else `http://127.0.0.1:4566`) and `--output json`, and `understudy <command> --help` shows its flags and examples.
+## Service coverage
 
-| Command | What it does |
-|---|---|
-| `health`, `settle` | Report readiness; wait until no delivery, invocation or poll is pending |
-| `reset` | Drop service state, all of it or by service, account and region |
-| `clock` | Read, freeze, advance or scale the emulator clock that drives every timeout, delay, retention and schedule |
-| `faults` | Add and remove rules that inject AWS-shaped errors, throttling or latency |
-| `journal` | Query or follow the causal journal of API calls, deliveries, invocations, timers and faults |
-| `snapshot` | Save, load, inspect and compare archives of the whole emulator state |
-| `resources` | List every resource by service, account and region |
-| `coverage` | Report protocol compliance, operation coverage and evidence |
-| `iam` | Show the IAM actions each principal used and the least-privilege policy they need |
-| `lambda`, `images` | Lambda conveniences and the container images understudy runs |
-| `doctor`, `cleanup` | Check this machine; remove containers a crashed understudy left behind |
+From [docs/coverage.md](docs/coverage.md), which `understudy coverage` regenerates. "Stored only" operations accept, store and return their input with no runtime effect; "unbound" ones answer 501.
 
-On loopback the admin API needs no token. A listener beyond loopback on a host requires one: start `serve` with `UNDERSTUDY_ADMIN_TOKEN` set (and `--allow-unauthenticated-aws-api`, since the token does not guard the AWS API), and set the same variable for the CLI.
+| Service | Operations in the model | Full | Stored only | Partial | Unbound |
+|---|---|---|---|---|---|
+| SQS | 23 | 21 | 2 | 0 | 0 |
+| SNS | 42 | 12 | 2 | 5 | 23 |
+| S3 | 112 | 14 | 47 | 21 | 30 |
+| DynamoDB | 58 | 6 | 2 | 18 | 32 |
+| Lambda | 88 | 25 | 2 | 14 | 47 |
+| CloudWatch Logs | 118 | 9 | 0 | 9 | 100 |
+| Secrets Manager | 23 | 12 | 1 | 2 | 8 |
+| KMS | 54 | 19 | 3 | 5 | 27 |
+| IAM | 180 | 42 | 6 | 16 | 116 |
+| STS | 11 | 1 | 0 | 2 | 8 |
+| EventBridge | 57 | 9 | 0 | 8 | 40 |
+| CloudWatch | 55 | 1 | 2 | 9 | 43 |
 
-Every command exits with one of these codes, which `understudy --help` also lists:
+The implemented operations are the ones an event-driven pipeline uses: SNS fan-out with filter policies to SQS, SQS with dead-letter queues feeding Lambda, S3 with SSE-KMS, a DynamoDB lock table with TTL, Secrets Manager, CloudWatch Logs, EventBridge schedules and the IAM, KMS and CloudWatch resources Terraform declares around them.
 
-| Code | Meaning |
-|---|---|
-| 0 | success |
-| 1 | the operation failed |
-| 2 | usage error: fix the command line |
-| 3 | understudy is not reachable at the endpoint, or did not answer in time |
-| 4 | a condition was not met, such as `health --wait` or `settle` timing out |
-| 5 | the server refused the admin token (`UNDERSTUDY_ADMIN_TOKEN`) |
+## How it compares
 
-## Development
+The landscape as of October 2026, from [docs/research/localstack-vs-aws-tooling.md](docs/research/localstack-vs-aws-tooling.md), which cites its sources.
 
-To check a change, install Go 1.27, [golangci-lint](https://golangci-lint.run) 2.13 and [just](https://just.systems), then run `just verify`. It checks formatting, runs `go vet` and `golangci-lint`, and runs the tests with the race detector. `just --list` shows the other recipes. The design lives in `docs/design/ARCHITECTURE.md` and the decisions behind it in `docs/adr/`. The suites under `conformance/` check understudy from the outside with the Go, Python and JS SDKs, the AWS CLI, Terraform and an end-to-end pipeline; each has its own `run.sh`.
+| | understudy | LocalStack for AWS | moto | AWS's own tooling |
+|---|---|---|---|---|
+| Licence and cost | Apache-2.0, free | Commercial use of current releases needs a paid plan (from $39 per user per month); the free Hobby plan is non-commercial; the open-source repository was archived in March 2026 | Apache-2.0, free | Free |
+| Form | One binary or image; no account or token | Docker image; an auth token is required | Python library with in-process mocks, plus a standalone server | SAM CLI, the Lambda Runtime Interface Emulator, DynamoDB Local and a few single-purpose images |
+| Services | 12 | About 100, depth varying by service | Many; see its implementation coverage page | No multi-service emulator; with SAM local, a function's calls to other services reach real AWS |
+| Clock, journal, faults, snapshots, policy generation | All included | Persistence and Cloud Pods (Base plan and up), App Inspector (10 stored operations on Hobby, 1,000 on Base), chaos engineering (Ultimate add-on or Enterprise), IAM Policy Stream (Ultimate) | State-transition delays, a request recorder for replay, opt-in basic IAM checks | Fault Injection Service works on real resources only, billed per action-minute |
+| IAM enforcement | No; access is recorded, not enforced | Yes, Base plan and up | Basic, opt-in | Real AWS only |
+
+Choose by what you need:
+
+- **LocalStack** when you need breadth (ECS, RDS, Step Functions, API Gateway, Cognito, CloudFormation and CDK deploys) or IAM enforcement, and its licence fits.
+- **moto** for Python unit tests that should not leave the process, or for services understudy does not have.
+- **AWS's own tooling and real accounts** for final validation. AWS documents that emulators can pass where the cloud fails, and that applies to understudy too.
+- **understudy** when your system lives in the twelve services above and you want fast, deterministic, free tests of how they interact, including time, failures and permissions.
+
+## Limitations
+
+- Twelve services, with many operations unbound; see the coverage table.
+- No behavior is recorded against real AWS yet; see [Status](#status).
+- IAM policies, resource policies and key policies are stored, not enforced. `iam policy` reports what a principal needs; nothing denies a call.
+- Request signatures are parsed, not verified. `--sigv4 verify` is refused by this build.
+- SNS stores HTTP/S subscriptions and their confirmation flow, but sends nothing to HTTP endpoints. Lambda destinations are stored and not delivered.
+- DynamoDB runs on DynamoDB Local and inherits its documented differences from the service, such as no throughput limits and no parallel scan.
+- Lambda needs a Docker Engine. It is tested on Linux. Docker Desktop on macOS is supported by design but not yet tested; rootless Docker and rootless Podman are not supported; Windows works through WSL2 only.
+- The snapshot format is version 0: archives from one build may be refused by another until the first release.
+
+## Documentation
+
+The [guide](docs/guide/README.md) covers getting started, configuration, each SDK and the CLI, Terraform, Lambda, the clock, fault injection, the journal, snapshots and persistence, policy generation and CI. [docs/configuration.md](docs/configuration.md) is the reference for every setting, [docs/coverage.md](docs/coverage.md) for every operation, and [docs/design/ARCHITECTURE.md](docs/design/ARCHITECTURE.md) with [docs/adr/](docs/adr/) for the design. Worked examples are in [examples/](examples/).
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add an operation or a service, and the test layers. Report vulnerabilities as [SECURITY.md](SECURITY.md) describes, not in public issues.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). DynamoDB Local and the Lambda base images are pulled at runtime under their own terms and are not part of understudy.

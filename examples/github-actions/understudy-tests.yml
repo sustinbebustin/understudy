@@ -1,0 +1,67 @@
+# Run your tests against understudy in GitHub Actions.
+#
+# Copy this file to .github/workflows/ in your repository and change the
+# setup-uv and "Run the tests" steps to run your own tests. As written, it
+# runs the python-worker example's suite from the understudy repository.
+#
+# understudy starts in milliseconds, needs no account or token, and keeps
+# nothing after the job. Docker is available on ubuntu-latest, so Lambda
+# functions run too.
+
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # The understudy version to install: a release tag or a commit. Pin it
+      # so a new understudy release cannot change your build unannounced.
+      UNDERSTUDY_VERSION: main
+    steps:
+      - uses: actions/checkout@v7
+
+      # Go is here only to install understudy, so there is no module cache
+      # worth saving.
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.1"
+          cache: false
+
+      - name: Install understudy
+        run: go install "github.com/sustinbebustin/understudy/cmd/understudy@${UNDERSTUDY_VERSION}"
+
+      # The server keeps running in the background for the rest of the job.
+      # Its log goes to a file, so the step does not wait on its output.
+      - name: Start understudy
+        run: |
+          understudy serve --log-format json >"$RUNNER_TEMP/understudy.log" 2>&1 &
+          understudy health --wait 30s
+          # Exports AWS_ENDPOINT_URL, dummy credentials and a region to every
+          # later step, so the SDKs, the AWS CLI and Terraform use understudy.
+          understudy env --format github >>"$GITHUB_ENV"
+
+      - uses: astral-sh/setup-uv@v10.2.0
+
+      - name: Run the tests
+        working-directory: examples/python-worker
+        run: uv run pytest
+
+      # On failure, print every call understudy answered with an error and
+      # keep its full log, which names the request ids SDK errors show.
+      - name: Show failed AWS calls
+        if: failure()
+        run: understudy journal --errors
+
+      - name: Keep understudy's log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: understudy-log
+          path: ${{ runner.temp }}/understudy.log

@@ -324,8 +324,8 @@ func socketGroup(t *testing.T) string {
 	return strconv.FormatUint(uint64(st.Gid), 10)
 }
 
-// noSocket is the cause ARCHITECTURE.md 24 gives for Docker, Lambda and
-// DynamoDB being disabled in an image started without the Docker socket.
+// noSocket is the cause ARCHITECTURE.md 24 gives for Docker and DynamoDB
+// being disabled in an image started without the Docker socket.
 const noSocket = "no Docker socket"
 
 // wantNoSocket fails unless s is disabled because no Docker socket is
@@ -384,8 +384,12 @@ func TestImage(t *testing.T) {
 			t.Errorf("listener = %q, want 0.0.0.0:4566", h.Listener)
 		}
 		wantNoSocket(t, "docker", h.Docker)
-		wantNoSocket(t, "lambda", h.Services["lambda"])
 		wantNoSocket(t, "dynamodb", h.Services["dynamodb"])
+		// Lambda's control plane works without Docker; only Invoke cannot
+		// run functions, and Docker's own row names the missing socket.
+		if s := h.Services["lambda"]; s.Status != admin.Degraded || !strings.Contains(s.Reason, "control plane only") || !strings.Contains(s.Reason, "Docker is disabled") {
+			t.Errorf("lambda = %+v without a mounted socket, want degraded to its control plane, naming Docker as disabled", s)
+		}
 	})
 
 	// The healthcheck runs inside the container, so it must find serve on
@@ -398,7 +402,7 @@ func TestImage(t *testing.T) {
 		{"is healthy on a port set with UNDERSTUDY_LISTEN alone", []string{"UNDERSTUDY_LISTEN=0.0.0.0:8080"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var extra []string
+			extra := make([]string, 0, 2*len(tc.env))
 			for _, kv := range tc.env {
 				extra = append(extra, "--env", kv)
 			}

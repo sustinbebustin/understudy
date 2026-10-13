@@ -229,3 +229,8 @@ Decisions this round took instead of changing code:
 - `internal/edge` imports the public `admin` package (standard library only) for the JSON error envelope it answers `/_localstack/` paths with; ARCHITECTURE.md section 2 and `internal/ref/deps_test.go` allow the edge.
 - Docker-tagged tests resolve the socket through `internal/config/configtest.EngineClient`, a test helper over `config.LoadHost`, rather than `internal/docker/dockertest`, which may import only `docker`; `docker.ParseDockerHost` is gone.
 - `aws.ScopeOf` refuses an ARN without a served partition or with an empty region. SQS, Lambda and Logs read some ARNs without those checks before; such ARNs now name no scope there, as they already did in SNS, S3, EventBridge and the outbox.
+
+## Docs and examples
+
+- **Linting the example Go modules** (examples). `examples/docker-compose/app` and `examples/sns-sqs-lambda-terraform/function` are separate modules, so the root `golangci-lint run ./...` skips them; they are gofmt-clean, pass `go vet`, and `examples/check.sh` builds and runs both. The root `.golangci.yml` does not fit them for the reason given for the conformance modules above (`depguard` forbids the AWS SDKs they use), so they wait for the same SDK-module lint config.
+- **Examples not in CI** (CI, examples). `examples/check.sh` needs Docker, Terraform, the AWS CLI, uv and actionlint and takes about four minutes; it is run by hand after changing understudy or an example. Adding it to `.github/workflows/ci.yml` as its own job is a CI-time decision for the first push.
