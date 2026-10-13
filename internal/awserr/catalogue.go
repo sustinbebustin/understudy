@@ -90,6 +90,35 @@ func SignatureDoesNotMatch() Identity {
 	return coral("SignatureDoesNotMatch", "SignatureDoesNotMatch", 403, Sender, MessageLower)
 }
 
+// UnrecognizedClientException is a JSON-family request signed with an
+// access key the service does not know, or with a session token that does
+// not belong to the key: 400, as real DynamoDB answers (error-matrix.md 5.5
+// T8). Its Query code is the Query family's InvalidClientTokenId.
+func UnrecognizedClientException() Identity {
+	return coral("UnrecognizedClientException", "InvalidClientTokenId", 400, Sender, MessageLower)
+}
+
+// ExpiredTokenException is a JSON-family request signed with temporary
+// credentials past their expiry: 403, as both CommonErrors templates give
+// it; no recording shows a real service's status.
+func ExpiredTokenException() Identity {
+	return coral("ExpiredTokenException", "ExpiredToken", 403, Sender, MessageLower)
+}
+
+// InvalidClientTokenId is a Query-family request signed with an access key
+// the service does not know, or with a session token that does not belong
+// to the key: 403.
+func InvalidClientTokenId() Identity { //nolint:revive // the AWS error code, spelled as AWS spells it
+	return coral("InvalidClientTokenId", "InvalidClientTokenId", 403, Sender, MessageLower)
+}
+
+// ExpiredToken is a Query-family request signed with temporary credentials
+// past their expiry: 403, the CommonErrors status of the expired-token
+// error.
+func ExpiredToken() Identity {
+	return coral("ExpiredToken", "ExpiredToken", 403, Sender, MessageLower)
+}
+
 // AccessDeniedException is a request the caller may not make: 403.
 func AccessDeniedException() Identity {
 	return coral("AccessDeniedException", "AccessDeniedException", 403, Sender, MessageLower)
@@ -173,6 +202,8 @@ func Catalogue(f Family) []Identity {
 			MissingAuthenticationTokenException(),
 			IncompleteSignatureException(),
 			InvalidSignatureException(),
+			UnrecognizedClientException(),
+			ExpiredTokenException(),
 		}, shared...)
 	case QueryFamily:
 		return append([]Identity{
@@ -180,6 +211,8 @@ func Catalogue(f Family) []Identity {
 			MissingAuthenticationToken(),
 			IncompleteSignature(),
 			SignatureDoesNotMatch(),
+			InvalidClientTokenId(),
+			ExpiredToken(),
 		}, shared...)
 	default:
 		return nil

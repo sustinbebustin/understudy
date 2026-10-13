@@ -12,7 +12,7 @@ An unknown flag, variable or key is refused with the closest valid name, and `se
 understudy serve: config: understudy.json: listn: is not a configuration key; the closest valid name is listen; fix or remove the key
 ```
 
-A setting this build cannot apply yet, such as `--sigv4 verify`, is refused by name rather than ignored.
+A setting this build cannot apply yet, such as `s3.maxObjectBytes`, is refused by name rather than ignored.
 
 ## A configuration file
 
@@ -71,7 +71,7 @@ UNDERSTUDY_CLOCK=frozen understudy serve
 
 ## Listening beyond loopback
 
-understudy binds `127.0.0.1` by default. The AWS API checks no signatures, so anyone who reaches the port can read every secret and object and run any image as a Lambda function. To listen on another address on a host, you must set an admin token, which guards the admin API under `/_understudy/`, and say explicitly that the AWS API is open:
+understudy binds `127.0.0.1` by default. The AWS API checks no signatures by default, and every client may sign with the public dummy pair `test`/`test` even under `--sigv4 verify`, so anyone who reaches the port can read every secret and object and run any image as a Lambda function. To listen on another address on a host, you must set an admin token, which guards the admin API under `/_understudy/`, and say explicitly that the AWS API is open:
 
 ```sh
 UNDERSTUDY_ADMIN_TOKEN=0123456789abcdef0123 understudy serve --listen 172.17.0.1:4590 --allow-unauthenticated-aws-api

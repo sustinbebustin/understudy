@@ -398,7 +398,7 @@ func (d *draft) resolveExposure() *Error {
 		if !d.awsAPI {
 			return &Error{
 				Where:  d.tokenAt,
-				Reason: "guards only the admin API under /_understudy/ of the listener beyond loopback (" + where + "); its AWS API checks no request signature, so every peer that reaches it could read every secret and object and run any image as a Lambda function",
+				Reason: "guards only the admin API under /_understudy/ of the listener beyond loopback (" + where + "); every client may sign its AWS API with the public dummy pair test/test, which verifies even under --sigv4 verify, so every peer that reaches it could read every secret and object and run any image as a Lambda function",
 				Hint:   "add --" + AWSAPIFlag + " (UNDERSTUDY_ALLOW_UNAUTHENTICATED_AWS_API=true) on a network whose every peer you trust, or stay local with --listen 127.0.0.1:" + strconv.Itoa(int(addr.Port())),
 			}
 		}

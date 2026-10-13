@@ -9,14 +9,38 @@ Loading is strict. An unknown flag, variable or file key is refused with the clo
 A request's account comes from the access key id it is signed with:
 
 - A key understudy minted, through IAM `CreateAccessKey`, STS `AssumeRole` or a Lambda execution role, is the principal it was minted for.
+- A key listed in `accounts.keys` is the root of the account its entry names.
 - A 12-digit access key id is the root of that account, so `AWS_ACCESS_KEY_ID=111111111111` works in account 111111111111.
-- Any other key is the root of the default account: `000000000000`, unless `accounts.default` in the file sets another. A real-looking `AKIA` or `ASIA` key is never decoded to the real account it belongs to; understudy logs one warning per such key.
+- Any other key, `test` among them, is the root of the default account: `000000000000`, unless `accounts.default` in the file sets another. A real-looking `AKIA` or `ASIA` key is never decoded to the real account it belongs to; understudy logs one warning per such key.
+
+`accounts.keys` lists keys with their own secret, for a CI setup that signs with fixed credentials:
+
+```json
+{"accounts": {"keys": [{"accessKeyId": "CIKEY0000000000001", "secretAccessKey": "ci-secret", "account": "222222222222"}]}}
+```
+
+Each `accessKeyId` is 16 to 128 letters and digits (DynamoDB Local accepts no others) and appears once; `secretAccessKey` may not be empty. Static keys come from the configuration at every start: snapshots never hold them, and a reset or a snapshot load keeps them.
 
 The region comes from the SigV4 credential scope. It must be an AWS region name, or a name listed in the top-level `regions` array of the file, such as `{"regions": ["local-1"]}`.
 
+## Signature verification
+
+`--sigv4` (`UNDERSTUDY_SIGV4`, file key `sigv4`) is `parse` by default: understudy reads every request's credentials for its account and region and checks no signature, so any secret works.
+
+`--sigv4 verify` checks every signed request as AWS does, in the claimed service's own error words:
+
+- The key must have a secret. A key understudy minted has its own; an `accounts.keys` entry has the one it lists; the dummy key `test` and every 12-digit key have the secret `test`, so `AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test` and the account-selecting keys keep working. Any other key is refused as unknown: `UnrecognizedClientException` (JSON services), `InvalidClientTokenId` (Query services), `InvalidAccessKeyId` (S3).
+- Temporary credentials (an `ASIA` key from STS `AssumeRole` or a Lambda execution role) must send their session token and be unexpired: a missing or wrong token is `UnrecognizedClientException`, `InvalidClientTokenId` or `InvalidToken`; an expired key is `ExpiredTokenException`, `ExpiredToken` or, on S3, `ExpiredToken`. Expiry is judged on the wall clock, as STS stamps `Expiration`.
+- The signature must verify: header-signed SigV4, presigned SigV4 and S3's SigV2 header and presigned forms. A mismatch is `InvalidSignatureException` (JSON), `SignatureDoesNotMatch` (Query), or S3's `SignatureDoesNotMatch` with its signing-debug elements. A request time more than 15 minutes from the wall clock is refused.
+- The body is bound to the signature. S3 checks the streamed bodies of `PutObject` and `UploadPart` against `x-amz-content-sha256` as they arrive; understudy hashes every other body before the call runs. A body that differs from the hash it was signed with is refused (`XAmzContentSHA256Mismatch` on S3) and changes nothing.
+- Presigned S3 URLs expire on the emulator clock. A SigV4 URL lives `X-Amz-Expires` of emulator time from the moment it was signed, so a URL presigned after `understudy clock advance` lives its full lifetime, and advancing the clock past its expiry makes it answer 403 `AccessDenied` "Request has expired", whether the clock is running, frozen or scaled. `X-Amz-Date` has whole-second precision, so under `verify` the answer to a call that changes the clock waits for the next whole second; only a URL signed while that call is in flight can be placed on the wrong side of the change. A SigV2 URL carries only its `Expires` instant, not when it was signed, so it is compared with emulator time directly and expires as intended only while the clock has not been moved away from wall time since it was signed; presign with SigV4 when a test moves the clock (boto3 presigns with SigV2 in `us-east-1` unless its client has `Config(signature_version="s3v4")`). Under `parse` a presigned URL never expires.
+- Signed `aws-chunked` uploads (`STREAMING-AWS4-HMAC-SHA256-PAYLOAD` and its `-TRAILER` form) verify every chunk and trailer signature.
+
+A refused request is journaled as a failed call. Neither mode logs a secret or a session token. Credentials that cannot be read at all are refused in both modes, on every route. The one exception is an `Authorization` header in no AWS scheme, such as `Bearer`, sent to a function URL: it reaches the function unsigned, as AWS passes it to a function whose URL has `AuthType` `NONE`.
+
 ## Browser pages
 
-The AWS API checks no signature, so understudy answers a call made from a web page only when the page is on a loopback origin (`localhost`, a name under it, or a loopback address) and on a port other than understudy's own. A page understudy served itself, such as an S3 object or a function URL response, is refused. So is a call a dev server proxies to understudy without rewriting the `Host` header, since the request then names the page's own port; let the proxy set `Host` to understudy's address (in Vite, `changeOrigin: true`). Serve the app from its own port, or make the call from an SDK outside the browser. Calls from the CLI and SDKs carry no `Origin` and are not affected.
+The AWS API checks no signature by default, and every client may sign with `test`/`test` even under `--sigv4 verify`, so understudy answers a call made from a web page only when the page is on a loopback origin (`localhost`, a name under it, or a loopback address) and on a port other than understudy's own. A page understudy served itself, such as an S3 object or a function URL response, is refused. So is a call a dev server proxies to understudy without rewriting the `Host` header, since the request then names the page's own port; let the proxy set `Host` to understudy's address (in Vite, `changeOrigin: true`). Serve the app from its own port, or make the call from an SDK outside the browser. Calls from the CLI and SDKs carry no `Origin` and are not affected.
 
 ## Exit codes
 
@@ -49,7 +73,7 @@ This is what `understudy serve --help` prints under Flags. A test keeps it in st
       what guards a listener beyond loopback: token, or container-published inside a container with its own network, outside Kubernetes (default container-published there, else token)
       variable UNDERSTUDY_LISTEN_AUTH, file key "listenAuth"
   --allow-unauthenticated-aws-api
-      serve the AWS API to every peer that reaches a listener guarded by the admin token; this build checks no request signature, so such a peer can read every secret and object and run any image as a Lambda function. Required with the token beyond loopback
+      serve the AWS API to every peer that reaches a listener guarded by the admin token; the token guards only /_understudy/, and every client may sign with the public dummy pair test/test, which verifies even under --sigv4 verify, so such a peer can read every secret and object and run any image as a Lambda function. Required with the token beyond loopback
       variable UNDERSTUDY_ALLOW_UNAUTHENTICATED_AWS_API, file key "allowUnauthenticatedAwsApi"
   --tls
       also serve HTTPS with a self-signed certificate for localhost, *.localhost and 127.0.0.1
@@ -76,7 +100,7 @@ This is what `understudy serve --help` prints under Flags. A test keeps it in st
       run the clock this many emulator seconds per wall second from start, above 0 and at most 10000; not with a frozen --clock (default 1)
       variable UNDERSTUDY_CLOCK_SCALE, file key "clockScale"
   --sigv4 MODE
-      signature checking: parse (default). verify, which refuses a bad signature, is not applied yet, and serve refuses it
+      signature checking: parse (default) reads credentials only; verify refuses a bad signature, an unknown key, a missing or expired session token, and expires presigned URLs on the emulator clock
       variable UNDERSTUDY_SIGV4, file key "sigv4"
   --docker URL
       Docker Engine for Lambda and DynamoDB Local: unix://<socket> or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)
@@ -132,10 +156,13 @@ setting has one; any key may be left out:
   journal.file               NDJSON file every event is appended to (default none)
   faults                     rules as 'understudy faults list --output json' prints each "rule"
 
-Not supported yet: this build refuses sigv4 verify, accounts.keys, s3.maxObjectBytes, dynamodb.registry rather than ignore them.
+Not supported yet: this build refuses s3.maxObjectBytes, dynamodb.registry rather than ignore them.
 
-Accounts: a request signed with a 12-digit access key id is in that account; any other key not
-minted by understudy is in the default account, 000000000000 unless accounts.default sets another.
+Accounts: a request signed with a 12-digit access key id is in that account; an accounts.keys
+entry is in its account; any other key not minted by understudy, test among them, is in the
+default account, 000000000000 unless accounts.default sets another. Under --sigv4 verify, test
+and every 12-digit key sign with the secret test, an accounts.keys entry with its own secret,
+and any other key understudy did not mint is refused.
 
 Reference: docs/configuration.md in the understudy repository.
 ```

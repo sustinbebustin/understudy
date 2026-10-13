@@ -62,5 +62,8 @@ export function clientConfig(
 /** Whether the caller accepted the DynamoDB Local licence for this run. */
 export const dynamoDbLicenceAccepted = process.env.UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE === "1";
 
+/** Whether understudy verifies signatures (run.sh's SIGV4=verify): a key it holds no secret for is refused. */
+export const sigv4Verify = process.env.CONFORMANCE_SIGV4 === "verify";
+
 /** Whether Lambda execution tests (which pull runtime images) are enabled. */
 export const lambdaExecutionEnabled = process.env.CONFORMANCE_LAMBDA_EXECUTION !== "0";

@@ -4,7 +4,10 @@
 // and 19). Phase 1 records access but never enforces it.
 //
 // The kernel calls Recorder.Record once per call with the Principal the
-// call's principal mode resolved to and every action of the operation;
+// call's principal mode resolved to, the IAM prefix of the operation's
+// service and the actions the call used (the primary action, the
+// secondaries its input declared, or every action of its service when its
+// binding declares none, and the operation's actions of other services);
 // Policy and ResourceRequirements answer GET /iam/policy, Usage answers
 // GET /iam/usage, and the delivery engine calls Advise before each attempt.
 // ParsePrincipal reads the principal a request names.
@@ -25,7 +28,7 @@
 //     delivery source, which ResourceRequirements reports; the principal
 //     itself is the Entry's Principal in every mode, a ServicePrincipal
 //     exactly when the mode is AsService.
-//   - Record refuses an Entry without a Principal, Mode, Outcome or
+//   - Record refuses an Entry without a Principal, Mode, Outcome, Service or
 //     admission instant (a zero At) rather than defaulting it, and one whose
 //     Principal ParsePrincipal would not
 //     read back, so a kernel bug shows as an error instead of wrong
@@ -40,9 +43,14 @@
 //   - Record pairs every action of an Entry with every touched resource of
 //     the action's own service (STS actions with IAM roles), so
 //     CopyObject's s3:GetObject also covers the destination; the record
-//     cannot tell which action needed which resource. An action with no
-//     touched resource of its service, such as iam:PassRole on a
-//     CreateFunction that touched only the function, is granted on "*".
+//     cannot tell which action needed which resource. An action of the
+//     Entry's Service with no touched resource of that service is granted
+//     on "*"; one of another service with none, such as iam:PassRole on a
+//     CreateFunction that passed no role, is dropped, since the call did
+//     not use it.
+//   - Policy grants an S3 object (arn:aws:s3:::<bucket>/<key>) as
+//     arn:aws:s3:::<bucket>/*, so a policy names each bucket's objects once
+//     rather than every key a run used; Usage keeps the exact ARNs.
 //   - ResourceRequirements and Usage take the same Filter; a zero Filter
 //     selects every recorded delivery.
 //   - Advise is a function of its arguments, not a Recorder method: it reads

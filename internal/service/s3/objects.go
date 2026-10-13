@@ -23,11 +23,11 @@ import (
 // bindObjects binds the object operations.
 func (s *Service) bindObjects(b s3api.Binder) {
 	put := func(in *s3api.PutObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutObject(s.putObject, registry.Partial{Note: "no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are not verified"}, touches(put))
+	b.PutObject(s.putObject, registry.Partial{Note: "no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify"}, touches(put))
 	get := func(in *s3api.GetObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.GetObject(s.getObject, registry.Partial{Note: "no SSE-C, so SSE-C headers are refused; presigned URLs are not verified"}, touches(get))
+	b.GetObject(s.getObject, registry.Partial{Note: "no SSE-C, so SSE-C headers are refused; presigned URLs are verified and expire on the emulator clock under sigv4 verify"}, touches(get))
 	head := func(in *s3api.HeadObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.HeadObject(s.headObject, registry.Partial{Note: "no SSE-C, so SSE-C headers are refused; presigned URLs are not verified"}, touches(head))
+	b.HeadObject(s.headObject, registry.Partial{Note: "no SSE-C, so SSE-C headers are refused; presigned URLs are verified and expire on the emulator clock under sigv4 verify"}, touches(head))
 	attrs := func(in *s3api.GetObjectAttributesInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetObjectAttributes(reader(s, attrs, getObjectAttributes), registry.Partial{Note: "no SSE-C, so SSE-C headers are refused"}, touches(attrs))
 	del := func(in *s3api.DeleteObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
@@ -393,11 +393,6 @@ func errMarkerAddressed(method string, v Version) *awserr.Error {
 
 func errInvalidVersionID(id string) *awserr.Error {
 	return errInvalidArgument("Invalid version id specified", "versionId", id)
-}
-
-// objectARN is an object's ARN: the encryption context S3 adds.
-func objectARN(bucket, key string) string {
-	return bucketARN(bucket).String() + "/" + key
 }
 
 // objectWrite is a change to a bucket's objects: it changes b.Objects and

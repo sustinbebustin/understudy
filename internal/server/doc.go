@@ -19,9 +19,10 @@
 //     which New accepts only inside a container with its own network
 //     namespace, outside Kubernetes (config.DetectPlacement), or, on the
 //     host, an admin token and
-//     AWSAPIUnauthenticated: the token guards only the admin API, and the
-//     AWS API verifies no signature in this build, so serving it beyond
-//     loopback is an explicit choice. Otherwise New refuses with a
+//     AWSAPIUnauthenticated: the token guards only the admin API, and every
+//     client may sign the AWS API with the public dummy pair test/test,
+//     which verifies even under SigV4Verify, so serving it beyond loopback
+//     is an explicit choice. Otherwise New refuses with a
 //     *ListenError that explains the options, and the banner warns about
 //     what an accepted one exposes.
 //     An IPv4 address listens on IPv4 only, and a wildcard listener is

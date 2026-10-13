@@ -122,7 +122,7 @@ Choose by what you need:
 - Twelve services, with many operations unbound; see the coverage table.
 - No behavior is recorded against real AWS yet; see [Status](#status).
 - IAM policies, resource policies and key policies are stored, not enforced. `iam policy` reports what a principal needs; nothing denies a call.
-- Request signatures are parsed, not verified. `--sigv4 verify` is refused by this build.
+- Request signatures are parsed, not verified, unless you start with `--sigv4 verify`. Even then every client may sign with the public dummy pair `test`/`test`, so a signature is not access control.
 - When understudy runs in a container or on Docker Desktop, Lambda function code can reach the admin API unless `UNDERSTUDY_ADMIN_TOKEN` is set; see [SECURITY.md](SECURITY.md).
 - SNS stores HTTP/S subscriptions and their confirmation flow, but sends nothing to HTTP endpoints. Lambda destinations are stored and not delivered.
 - DynamoDB runs on DynamoDB Local and inherits its documented differences from the service, such as no throughput limits and no parallel scan.

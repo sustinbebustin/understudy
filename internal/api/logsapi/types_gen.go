@@ -303,6 +303,11 @@ type CoralServiceThrottlingException struct {
 	Message *string
 }
 
+// CoralServiceUnrecognizedClientException is the error com.amazon.coral.service#UnrecognizedClientException.
+type CoralServiceUnrecognizedClientException struct {
+	Message *string
+}
+
 // CreateDeliveryInput is the input of CreateDelivery, com.amazonaws.cloudwatchlogs#CreateDeliveryRequest.
 type CreateDeliveryInput struct {
 	DeliverySourceName      string
@@ -1578,6 +1583,11 @@ func (ExecutionStatus) Values() []ExecutionStatus {
 		ExecutionStatusFailed,
 		ExecutionStatusTimeout,
 	}
+}
+
+// ExpiredTokenException is the error com.amazon.coral.service#ExpiredTokenException.
+type ExpiredTokenException struct {
+	Message *string
 }
 
 // ExportTask is com.amazonaws.cloudwatchlogs#ExportTask.

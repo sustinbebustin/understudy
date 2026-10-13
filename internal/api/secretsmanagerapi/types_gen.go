@@ -157,6 +157,11 @@ type EncryptionFailure struct {
 	Message *string
 }
 
+// ExpiredTokenException is the error com.amazon.coral.service#ExpiredTokenException.
+type ExpiredTokenException struct {
+	Message *string
+}
+
 // ExternalSecretRotationMetadataItem is com.amazonaws.secretsmanager#ExternalSecretRotationMetadataItem.
 type ExternalSecretRotationMetadataItem struct {
 	Key   *string
@@ -723,6 +728,11 @@ type ThrottlingException struct {
 
 // UnknownOperationException is the error com.amazon.coral.service#UnknownOperationException.
 type UnknownOperationException struct {
+	Message *string
+}
+
+// UnrecognizedClientException is the error com.amazon.coral.service#UnrecognizedClientException.
+type UnrecognizedClientException struct {
 	Message *string
 }
 

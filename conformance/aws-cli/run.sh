@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Build understudy from this repository, start it on 127.0.0.1:45664 with a
+# Build understudy from this repository, start it on 127.0.0.1:45664 (or
+# CONFORMANCE_PORT) with a
 # fresh data directory, run the AWS CLI conformance suite against it through
 # scripts/sealed, then stop it and remove its containers.
 #
@@ -9,19 +10,29 @@
 #                                                 # only tests whose name matches
 #   UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/aws-cli/run.sh
 #                                                 # also run DynamoDB (accepts the DynamoDB Local licence)
+#   SIGV4=verify conformance/aws-cli/run.sh       # serve with --sigv4 verify (default parse)
+#   CONFORMANCE_PORT=45674 conformance/aws-cli/run.sh
+#                                                 # serve on another port (default 45664)
+#   CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh
+#                                                 # skip DynamoDB even with the licence variable set
 #
 # Exits non-zero when any test fails, or when understudy cannot be built or
 # started. The work directory (data, server log, per-test logs) is removed on
 # success and kept on failure; its path is printed.
 set -euo pipefail
 
+if [[ "${CONFORMANCE_DYNAMODB:-}" == "0" ]]; then
+	unset UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE
+fi
+
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd -- "$here/../.." && pwd)"
 build="$repo/.build/conformance/aws-cli"
 bin="$build/understudy"
-listen="127.0.0.1:45664"
+listen="127.0.0.1:${CONFORMANCE_PORT:-45664}"
 endpoint="http://$listen"
 admin="$endpoint/_understudy/v1"
+sigv4="${SIGV4:-parse}"
 
 mkdir -p -- "$build"
 work="$(mktemp -d "$build/run.XXXXXX")"
@@ -29,6 +40,7 @@ data="$work/data"
 log="$work/understudy.log"
 pid=""
 
+# shellcheck disable=SC2329 # invoked by the trap below
 stop() {
 	local status=$?
 	trap - EXIT INT TERM
@@ -93,7 +105,7 @@ printf '%s\n' '{"lambda": {"stateTransitions": "clock"}, "sqs": {"queueDeletedRe
 
 echo "run.sh: starting understudy on $endpoint, data in $data" >&2
 (cd -- "$work" && exec env "${serve_env[@]}" "$bin" serve \
-	--listen "$listen" --persist "$data" --config "$work/understudy.json") >"$log" 2>&1 &
+	--listen "$listen" --persist "$data" --sigv4 "$sigv4" --config "$work/understudy.json") >"$log" 2>&1 &
 pid=$!
 
 if ! "$bin" health --endpoint "$endpoint" --wait 60s >/dev/null 2>&1; then

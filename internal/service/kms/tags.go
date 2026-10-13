@@ -96,8 +96,8 @@ func (s *Service) listResourceTags(_ context.Context, c *kernel.Call, in *kmsapi
 	if err != nil {
 		return nil, err
 	}
-	out := &kmsapi.ListResourceTagsOutput{Tags: make([]kmsapi.Tag, 0, len(p.items)), NextMarker: p.next, Truncated: p.truncated}
-	for _, key := range p.items {
+	out := &kmsapi.ListResourceTagsOutput{Tags: make([]kmsapi.Tag, 0, len(p.Items)), NextMarker: p.Next, Truncated: p.Truncated}
+	for _, key := range p.Items {
 		out.Tags = append(out.Tags, kmsapi.Tag{TagKey: key, TagValue: k.Tags[key]})
 	}
 	return out, nil

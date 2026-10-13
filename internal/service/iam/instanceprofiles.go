@@ -8,6 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -161,14 +162,14 @@ func (s *Service) removeRoleFromInstanceProfile(_ context.Context, c *kernel.Cal
 
 func (s *Service) listInstanceProfiles(_ context.Context, c *kernel.Call, in *iamapi.ListInstanceProfilesInput) (*iamapi.ListInstanceProfilesOutput, *awserr.Error) {
 	account := c.Scope().Account
-	p, err := view(s, account, func(st *State) (page[iamapi.InstanceProfile], *awserr.Error) {
+	p, err := view(s, account, func(st *State) (paging.Page[iamapi.InstanceProfile], *awserr.Error) {
 		all := st.apiInstanceProfiles(account, func(p *InstanceProfile) bool { return underPrefix(p.Path, in.PathPrefix) })
-		return paginate(all, func(p iamapi.InstanceProfile) string { return key(p.InstanceProfileName) }, in.Marker, in.MaxItems)
+		return paginate("instance-profiles", all, func(p iamapi.InstanceProfile) string { return key(p.InstanceProfileName) }, in.Marker, in.MaxItems)
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &iamapi.ListInstanceProfilesOutput{InstanceProfiles: p.items, IsTruncated: p.truncated, Marker: p.marker}, nil
+	return &iamapi.ListInstanceProfilesOutput{InstanceProfiles: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
 }
 
 // listInstanceProfilesForRole lists the profiles that hold a role, the call
@@ -177,7 +178,7 @@ func (s *Service) listInstanceProfilesForRole(_ context.Context, c *kernel.Call,
 	account := c.Scope().Account
 	type listed struct {
 		role Role
-		p    page[iamapi.InstanceProfile]
+		p    paging.Page[iamapi.InstanceProfile]
 	}
 	l, err := view(s, account, func(st *State) (listed, *awserr.Error) {
 		r, err := st.role(in.RoleName)
@@ -185,12 +186,12 @@ func (s *Service) listInstanceProfilesForRole(_ context.Context, c *kernel.Call,
 			return listed{}, err
 		}
 		all := st.apiInstanceProfiles(account, func(p *InstanceProfile) bool { return p.Role == key(r.Name) })
-		p, err := paginate(all, func(p iamapi.InstanceProfile) string { return key(p.InstanceProfileName) }, in.Marker, in.MaxItems)
+		p, err := paginate("instance-profiles-for-role", all, func(p iamapi.InstanceProfile) string { return key(p.InstanceProfileName) }, in.Marker, in.MaxItems)
 		return listed{role: r, p: p}, err
 	})
 	if err != nil {
 		return nil, err
 	}
 	c.Touch(roleARN(account, l.role.Path, l.role.Name))
-	return &iamapi.ListInstanceProfilesForRoleOutput{InstanceProfiles: l.p.items, IsTruncated: l.p.truncated, Marker: l.p.marker}, nil
+	return &iamapi.ListInstanceProfilesForRoleOutput{InstanceProfiles: l.p.Items, IsTruncated: l.p.Truncated, Marker: l.p.Next}, nil
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/logsfilter"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
+	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -42,7 +43,45 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	s.bindGroups(b)
 	s.bindStreams(b)
 	s.bindEvents(b)
+	declareActions(d.Binder)
 	return s
+}
+
+// declareActions states the IAM actions the access record keeps besides
+// each operation's primary one. PutLogEventsInternal, the internal
+// operation Lambda writes function logs through as the execution role,
+// has no generated list; it declares logs:PutLogEvents, the action AWS
+// writes those logs with, so the role's policy carries it beside
+// logs:CreateLogGroup and logs:CreateLogStream (AWSLambdaBasicExecutionRole).
+// CreateLogGroup with tags needs logs:TagResource (CreateLogGroup,
+// Permissions); logs:TagLogGroup, the deprecated tagging action, is never
+// declared. GetLogEvents and FilterLogEvents with unmask set need
+// logs:Unmask to read masked data unmasked (GetLogEvents, unmask). It
+// runs after the bind sites, whose bindings it extends.
+func declareActions(b *kernel.Binder) {
+	kernel.Declare(b, logsapi.OpGetLogEvents, kernel.WithActions(func(_ *kernel.Call, in *logsapi.GetLogEventsInput) []registry.IAMAction {
+		return unmasking(in.Unmask)
+	}))
+	kernel.Declare(b, logsapi.OpFilterLogEvents, kernel.WithActions(func(_ *kernel.Call, in *logsapi.FilterLogEventsInput) []registry.IAMAction {
+		return unmasking(in.Unmask)
+	}))
+	kernel.Declare(b, logsapi.OpPutLogEventsInternal, kernel.WithActions(func(*kernel.Call, *logsapi.PutLogEventsInternalInput) []registry.IAMAction {
+		return []registry.IAMAction{{Prefix: "logs", Name: "PutLogEvents"}}
+	}))
+	kernel.Declare(b, logsapi.OpCreateLogGroup, kernel.WithActions(func(_ *kernel.Call, in *logsapi.CreateLogGroupInput) []registry.IAMAction {
+		if len(in.Tags) == 0 {
+			return nil
+		}
+		return []registry.IAMAction{{Prefix: "logs", Name: "TagResource"}}
+	}))
+}
+
+// unmasking is logs:Unmask for a read that asks for unmasked data.
+func unmasking(unmask bool) []registry.IAMAction {
+	if !unmask {
+		return nil
+	}
+	return []registry.IAMAction{{Prefix: "logs", Name: "Unmask"}}
 }
 
 // expiryRule is how retention removes events: deterministically at

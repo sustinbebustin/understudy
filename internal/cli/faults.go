@@ -5,11 +5,9 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -225,30 +223,10 @@ func faultsAdd(fs *flag.FlagSet) action {
 		}
 		put, err := c.PutFault(ctx, rule)
 		if err != nil {
-			return withShortShapes(err)
+			return err
 		}
 		return r.emitFaults(put, []admin.Fault{*put})
 	}
-}
-
-// withShortShapes is err with the error shapes a refused rule lists by
-// their short names, the form --error takes, when no two share a short
-// name; any other err is returned as is.
-func withShortShapes(err error) error {
-	refused, ok := errors.AsType[*admin.Error](err)
-	if !ok || len(refused.Known) == 0 {
-		return err
-	}
-	short := make([]string, len(refused.Known))
-	for i, id := range refused.Known {
-		short[i] = shortShape(id)
-		if short[i] == id || slices.Contains(short[:i], short[i]) {
-			return err
-		}
-	}
-	out := *refused
-	out.Known = short
-	return &out
 }
 
 // operationForm checks that each --operation is service.Operation, the

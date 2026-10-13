@@ -32,8 +32,17 @@ type Options struct {
 	Kernel   *kernel.Kernel
 	Registry *registry.Registry
 	// Identity resolves access keys to principals; nil makes every caller
-	// the default account's root.
+	// the default account's root. Verify requires it.
 	Identity *identity.Store
+	// Verify turns on SigV4 verification (sigv4 verify, pipeline step 4a):
+	// every claimed request with credentials must carry a key with a secret
+	// and a signature that verifies. false parses credentials only.
+	Verify bool
+	// ServiceAuth is the auth vocabulary and parse-failure answer of each
+	// service whose protocol is in no awserr family (S3), used in both
+	// modes; a service without an entry answers in its protocol family's
+	// words.
+	ServiceAuth map[ref.ServiceID]ServiceAuth
 	// Regions is the table credential-scope regions are validated against.
 	Regions aws.Regions
 	// Codecs are the wire protocols, by the id each registers under.
@@ -61,6 +70,11 @@ type Options struct {
 	// any of them; Server adds each listener h serves. nil gives the
 	// handler a set of its own, which covers only the listeners it serves.
 	Served *ServedPorts
+	// Timeline is the emulator clock's history that places a presigned
+	// URL's signing on the emulator timeline under Verify, shared by the
+	// handlers of one server, since only the main listener serves the clock
+	// changes; nil gives the handler a timeline of its own.
+	Timeline *ClockTimeline
 	// MaxHeaderBytes bounds request headers; 0 means net/http's default.
 	MaxHeaderBytes int
 	// Admin serves the /_understudy/ prefix (rule 1).
@@ -84,6 +98,8 @@ type Handler struct {
 	log  *slog.Logger
 	// served is opts.Served, or the handler's own set when that is nil.
 	served *ServedPorts
+	// timeline is opts.Timeline, or the handler's own when that is nil.
+	timeline *ClockTimeline
 	// warned dedupes the edge's warnings about a recurring problem.
 	warned *warnings
 	// emulated lists the registered services, for a request signed for
@@ -91,20 +107,25 @@ type Handler struct {
 	emulated string
 }
 
-// OptionsError reports Options New cannot use.
-type OptionsError struct{ Field string }
+// OptionsError reports Options New cannot use. Nothing was created.
+type OptionsError struct {
+	Field  string
+	Reason string
+}
 
 func (e *OptionsError) Error() string {
-	return "edge: Options." + e.Field + " is required"
+	return "edge: Options." + e.Field + " " + e.Reason
 }
 
 // New returns the front door over o.Kernel.
 func New(o Options) (*Handler, error) {
 	switch {
 	case o.Kernel == nil:
-		return nil, &OptionsError{Field: "Kernel"}
+		return nil, &OptionsError{Field: "Kernel", Reason: "is required"}
 	case o.Registry == nil:
-		return nil, &OptionsError{Field: "Registry"}
+		return nil, &OptionsError{Field: "Registry", Reason: "is required"}
+	case o.Verify && o.Identity == nil:
+		return nil, &OptionsError{Field: "Identity", Reason: "is required with Verify: signatures are verified against the secrets it holds"}
 	}
 	log := o.Log
 	if log == nil {
@@ -114,13 +135,17 @@ func New(o Options) (*Handler, error) {
 	if served == nil {
 		served = &ServedPorts{}
 	}
+	timeline := o.Timeline
+	if timeline == nil {
+		timeline = &ClockTimeline{}
+	}
 	services := o.Registry.Services()
 	names := make([]string, len(services))
 	for i, svc := range services {
 		names[i] = string(svc.ID)
 	}
 	return &Handler{
-		opts: o, log: log, served: served,
+		opts: o, log: log, served: served, timeline: timeline,
 		warned:   &warnings{seen: map[string]struct{}{}},
 		emulated: strings.Join(names, ", "),
 	}, nil
@@ -191,6 +216,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Body != nil && r.Body != http.NoBody {
 		r.Body = &progressBody{rc: r.Body, ctrl: http.NewResponseController(dw), wall: k.Clock().Wall}
 	}
+	if h.opts.Verify {
+		h.timeline.observe(k.Clock())
+	}
 	a, parseErr := auth.Parse(r, h.opts.Regions)
 	rt := h.claim(r, a, parseErr)
 	target = routed(rt)
@@ -199,23 +227,49 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	switch rt := rt.(type) {
 	case toAdmin:
+		if h.opts.Verify {
+			// The call may move the clock; its answer waits for the era the
+			// move begins.
+			x.w = &settledWriter{ResponseWriter: x.w, r: r, clock: k.Clock(), timeline: h.timeline}
+		}
 		h.serveAdmin(ctx, x)
 	case toOperation:
 		x.r = rt.req
-		h.dispatch(ctx, x, rt.codec, rt.op.ID, a, parseErr, func() kernel.Decoded { return h.decode(x, rt.codec, rt.op) })
+		who := h.resolve(ctx, a)
+		var verified auth.Auth
+		var refused *awserr.Error
+		if parseErr != nil {
+			refused = h.authError(parseErr, rt.op.Service.ID, rt.codec.Protocol())
+		} else {
+			verified, refused = h.verify(verifyTarget{signed: r, claimed: rt.req, op: rt.op, p: rt.codec.Protocol(), codec: rt.codec}, a, who.res)
+		}
+		h.dispatch(ctx, x, rt.codec, rt.op.ID, a, who.principal, verified, func() kernel.Decoded {
+			if refused != nil {
+				return kernel.Rejected{Err: refused}
+			}
+			return h.decode(x, rt.codec, rt.op)
+		})
 	case toUnknown:
-		// Coral rejects an unknown operation before it reads the
-		// credentials (ARCHITECTURE.md 3.3), so a parse error is moot here.
+		// Coral rejects an unknown operation before it reads or verifies
+		// the credentials (ARCHITECTURE.md 3.3), so a parse error is moot
+		// here.
 		x.r = rt.req
 		id := ref.OperationID{Service: rt.svc.ID, Name: rt.name}
 		h.noteUnknown(ctx, x, id)
-		h.dispatch(ctx, x, rt.codec, id, a, nil, func() kernel.Decoded {
+		h.dispatch(ctx, x, rt.codec, id, a, h.resolve(ctx, a).principal, nil, func() kernel.Decoded {
 			return kernel.Rejected{Err: h.unknownOperation(rt.svc, rt.codec.Protocol(), rt.name)}
 		})
 	case toRaw:
-		h.dispatchRaw(ctx, x, rt, a)
+		h.dispatchRaw(ctx, x, rt, a, parseErr)
 	case toLink:
-		h.dispatchRaw(ctx, x, toRaw{op: rt.op}, a)
+		// A link is a page understudy hands out, such as a function URL,
+		// whose app may read an Authorization header of its own (Bearer):
+		// one in no AWS scheme reaches it as unsigned, as AWS passes it to
+		// an AuthType NONE function.
+		if unknownScheme(parseErr) {
+			a, parseErr = auth.Anonymous{}, nil
+		}
+		h.dispatchRaw(ctx, x, toRaw{op: rt.op}, a, parseErr)
 	case toService:
 		h.answerForService(ctx, x, rt.svc, rt.reasons)
 	case notEmulated:
@@ -267,18 +321,15 @@ func (h *Handler) serveAdmin(ctx context.Context, x *exchange) {
 	h.opts.Admin.ServeHTTP(x.w, x.r)
 }
 
-// dispatch builds the call of a claimed request and runs it through the
-// kernel. Unreadable credentials reject it with the protocol family's auth
-// error, which Coral checks before the body.
-func (h *Handler) dispatch(ctx context.Context, x *exchange, codec Codec, op ref.OperationID, a auth.Auth, parseErr auth.ParseError, decode func() kernel.Decoded) {
+// dispatch builds the call of a claimed request, carrying the credentials
+// verified, if any, and runs it through the kernel with what decode gives:
+// the decoded input, or the rejection of credentials that cannot be read or
+// do not verify, which Coral checks before the body, so it is journaled as
+// a failed call.
+func (h *Handler) dispatch(ctx context.Context, x *exchange, codec Codec, op ref.OperationID, a auth.Auth, principal identity.Principal, verified auth.Auth, decode func() kernel.Decoded) {
 	x.protocol = codec.Protocol()
-	c := h.call(ctx, x, op, codec.Protocol(), a)
-	var d kernel.Decoded
-	if parseErr != nil {
-		d = kernel.Rejected{Err: authError(parseErr, codec.Protocol())}
-	} else {
-		d = decode()
-	}
+	c := h.call(x, op, codec.Protocol(), a, principal, verified)
+	d := decode()
 	svc, _ := h.opts.Registry.Service(op.Service)
 	switch res := h.opts.Kernel.Dispatch(ctx, c, d).(type) {
 	case kernel.Output:
@@ -385,13 +436,33 @@ func clientRequest(r *http.Request, limit int64, op ref.OperationID) (kernel.Fro
 }
 
 // dispatchRaw runs a raw operation, whose handler writes the response; the
-// route's codec, or else its service's, renders an error it returns.
-func (h *Handler) dispatchRaw(ctx context.Context, x *exchange, rt toRaw, a auth.Auth) {
+// route's codec, or else its service's, renders an error it returns, and
+// credentials that cannot be read (in either mode) or do not verify, which
+// are dispatched as a rejection so the call is journaled and the handler
+// never runs.
+func (h *Handler) dispatchRaw(ctx context.Context, x *exchange, rt toRaw, a auth.Auth, parseErr auth.ParseError) {
 	op := rt.op
-	c := h.call(ctx, x, op.ID, ref.Raw, a)
-	res := h.opts.Kernel.Dispatch(ctx, c, kernel.Ok{In: kernel.RawExchange{Request: x.r, Writer: x.w}})
+	codec, hasCodec := h.rawCodec(rt)
+	var d kernel.Decoded = kernel.Ok{In: kernel.RawExchange{Request: x.r, Writer: x.w}}
+	who := h.resolve(ctx, a)
+	var verified auth.Auth
+	var refused *awserr.Error
+	_, signed := auth.AccessKey(a)
+	switch {
+	case parseErr != nil:
+		refused = h.authError(parseErr, op.Service.ID, ref.Raw)
+	case !signed || !h.opts.Verify:
+	case hasCodec:
+		verified, refused = h.verify(verifyTarget{signed: x.r, claimed: x.r, op: op, p: ref.Raw, codec: codec}, a, who.res)
+	default:
+		refused = awserr.Internalf(&RawCodecError{Op: op.ID})
+	}
+	if refused != nil {
+		d = kernel.Rejected{Err: refused}
+	}
+	c := h.call(x, op.ID, ref.Raw, a, who.principal, verified)
 	var err *awserr.Error
-	switch res := res.(type) {
+	switch res := h.opts.Kernel.Dispatch(ctx, c, d).(type) {
 	case kernel.Output:
 		return
 	case kernel.Failure:
@@ -400,23 +471,40 @@ func (h *Handler) dispatchRaw(ctx context.Context, x *exchange, rt toRaw, a auth
 		err = res.Err
 	}
 	h.noteUnimplemented(ctx, x, err)
-	if rt.errors != nil {
-		h.write(ctx, x, rt.errors.EncodeError(x.r, op.Service, string(x.id), err))
+	if hasCodec {
+		h.write(ctx, x, codec.EncodeError(x.r, op.Service, string(x.id), err))
 		return
-	}
-	for _, p := range op.Service.Protocols {
-		if codec, ok := h.opts.Codecs[p]; ok {
-			h.write(ctx, x, codec.EncodeError(x.r, op.Service, string(x.id), err))
-			return
-		}
 	}
 	h.write(ctx, x, plainError(err.ID.Status, err.Message))
 }
 
-// call builds the kernel call of a request: the caller from its access key
-// (step 3), the scope from the key's account and the credential region.
-func (h *Handler) call(ctx context.Context, x *exchange, op ref.OperationID, p ref.ProtocolID, a auth.Auth) *kernel.Call {
-	principal := h.principal(ctx, a)
+// rawCodec is the codec that renders a raw route's errors and caps its
+// body: the route's own, else the first registered codec of its service.
+func (h *Handler) rawCodec(rt toRaw) (Codec, bool) {
+	if rt.errors != nil {
+		return rt.errors, true
+	}
+	for _, p := range rt.op.Service.Protocols {
+		if codec, ok := h.opts.Codecs[p]; ok {
+			return codec, true
+		}
+	}
+	return nil, false
+}
+
+// RawCodecError is a signed request to a raw operation whose service has
+// no registered codec, so its body cannot be capped to verify it.
+type RawCodecError struct{ Op ref.OperationID }
+
+func (e *RawCodecError) Error() string {
+	return "edge: no codec is registered for the service of raw operation " + e.Op.String() +
+		", so its request body cannot be capped and its signature was not verified; register the service's codec in server/wire.go"
+}
+
+// call builds the kernel call of a request: the caller principal resolved
+// from its access key (step 3), the scope from the principal's account and
+// the credential region, and the credentials verified, nil when none were.
+func (h *Handler) call(x *exchange, op ref.OperationID, p ref.ProtocolID, a auth.Auth, principal identity.Principal, verified auth.Auth) *kernel.Call {
 	account, ok := identity.AccountOf(principal)
 	if !ok {
 		account = aws.DefaultAccount()
@@ -440,30 +528,12 @@ func (h *Handler) call(ctx context.Context, x *exchange, op ref.OperationID, p r
 		Scope:        aws.Scope{Partition: aws.PartitionAWS(), Account: account, Region: region},
 		RegionSource: src,
 		Principal:    principal,
+		Verified:     verified,
 		Origin:       ref.External{Protocol: p, Listener: h.opts.Listener, RemoteAddr: remote, UserAgent: x.r.UserAgent()},
 		Admitted:     x.admitted,
 		Endpoint:     kernel.Endpoint{Scheme: scheme, Host: x.r.Host},
 		Header:       x.r.Header,
 	})
-}
-
-// principal resolves the access key (ADR 0012). A real-looking key
-// understudy did not mint is read as the default account, with one warning
-// per key.
-func (h *Handler) principal(ctx context.Context, a auth.Auth) identity.Principal {
-	key, ok := auth.AccessKey(a)
-	switch {
-	case !ok && a != nil:
-		return identity.Anonymous{}
-	case h.opts.Identity == nil || a == nil:
-		return identity.Root{Account: aws.DefaultAccount()}
-	}
-	p, res := h.opts.Identity.Resolve(key)
-	if fb, ok := res.(identity.Fallback); ok && fb.Warn {
-		h.log.LogAttrs(ctx, slog.LevelWarn, "an AWS access key understudy did not mint is read as the default account, never decoded into its real account",
-			slog.String("account", aws.DefaultAccount().String()))
-	}
-	return p
 }
 
 // write sends a response: the request id headers and one Date header (the
@@ -555,17 +625,6 @@ func stampRequestID(x *exchange) {
 func hostID(id ids.RequestID) string {
 	sum := sha256.Sum256([]byte(id))
 	return base64.StdEncoding.EncodeToString(sum[:])
-}
-
-// authError renders credentials that cannot be read in the protocol
-// family's words.
-func authError(e auth.ParseError, p ref.ProtocolID) *awserr.Error {
-	family, ok := awserr.FamilyOf(p)
-	if !ok {
-		family = awserr.JSONFamily
-	}
-	v, _ := auth.VocabularyFor(family)
-	return e.AWSError(v)
 }
 
 func plainError(status int, message string) Response {

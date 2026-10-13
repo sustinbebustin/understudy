@@ -19,6 +19,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/edge"
 	"github.com/sustinbebustin/understudy/internal/identity"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
@@ -511,6 +512,26 @@ func TestFunctionURLVerifiesSignaturesUnderSigV4Verify(t *testing.T) {
 		}
 		if n := len(h.invocations()); n != 1 {
 			t.Errorf("invocations = %d, want only the valid signature's", n)
+		}
+	})
+}
+
+// Every key with a secret verifies, as at the edge: the dummy pair
+// test/test and a 12-digit account key with the secret test, while an
+// unknown key with no secret is refused.
+func TestFunctionURLVerifiesEveryKeyWithASecret(t *testing.T) {
+	runURLs(t, pooltest.Echo, lambda.FunctionURLOptions{SigV4: lambda.SigV4Verify}, func(h *urlHarness) {
+		host := h.createURL(lambdaapi.FunctionUrlAuthTypeAwsIam)
+		for _, key := range []ids.AccessKeyID{identity.DummyAccessKeyID, "111111111111"} {
+			creds := identity.Credentials{AccessKeyID: key, SecretAccessKey: identity.DummySecret}
+			if rec := h.send(h.signedRequest("http://"+host+"/", creds)); rec.Code != http.StatusOK {
+				t.Errorf("signed with %s/test: %d %s, want 200", key, rec.Code, rec.Body)
+			}
+		}
+		unknown := identity.Credentials{AccessKeyID: "AKIAIOSFODNN7EXAMPLE", SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"} //nolint:gosec // G101: AWS's published example key, not a credential
+		rec := h.send(h.signedRequest("http://"+host+"/", unknown))
+		if rec.Code != http.StatusForbidden || rec.Header().Get("X-Amzn-Errortype") != "UnrecognizedClientException" {
+			t.Errorf("an unknown key: %d %v %s, want 403 UnrecognizedClientException", rec.Code, rec.Header(), rec.Body)
 		}
 	})
 }

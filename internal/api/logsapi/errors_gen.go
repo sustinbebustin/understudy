@@ -46,6 +46,16 @@ func ErrCoralServiceThrottlingException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityCoralServiceThrottlingException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// IdentityCoralServiceUnrecognizedClientException returns the identity of com.amazon.coral.service#UnrecognizedClientException.
+func IdentityCoralServiceUnrecognizedClientException() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazon.coral.service#UnrecognizedClientException", JSONType: "UnrecognizedClientException", QueryCode: "InvalidClientTokenId", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrCoralServiceUnrecognizedClientException returns a CoralServiceUnrecognizedClientException error with message.
+func ErrCoralServiceUnrecognizedClientException(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityCoralServiceUnrecognizedClientException(), Message: message, Origin: awserr.Generic{}}
+}
+
 // IdentityDataAlreadyAcceptedException returns the identity of com.amazonaws.cloudwatchlogs#DataAlreadyAcceptedException.
 func IdentityDataAlreadyAcceptedException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.cloudwatchlogs#DataAlreadyAcceptedException", JSONType: "DataAlreadyAcceptedException", QueryCode: "DataAlreadyAcceptedException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -54,6 +64,16 @@ func IdentityDataAlreadyAcceptedException() awserr.Identity {
 // ErrDataAlreadyAcceptedException returns a DataAlreadyAcceptedException error with message.
 func ErrDataAlreadyAcceptedException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityDataAlreadyAcceptedException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityExpiredTokenException returns the identity of com.amazon.coral.service#ExpiredTokenException.
+func IdentityExpiredTokenException() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazon.coral.service#ExpiredTokenException", JSONType: "ExpiredTokenException", QueryCode: "ExpiredToken", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrExpiredTokenException returns an ExpiredTokenException error with message.
+func ErrExpiredTokenException(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityExpiredTokenException(), Message: message, Origin: awserr.Generic{}}
 }
 
 // IdentityIncompleteSignatureException returns the identity of com.amazon.coral.service#IncompleteSignatureException.
@@ -344,7 +364,7 @@ func MalformedRequestError() awserr.Identity { return IdentitySerializationExcep
 func GenericErrors(f awserr.Family) []awserr.Identity {
 	switch f {
 	case awserr.JSONFamily:
-		return []awserr.Identity{IdentitySerializationException(), IdentityUnknownOperationException(), IdentityMissingAuthenticationTokenException(), IdentityIncompleteSignatureException(), IdentityInvalidSignatureException(), IdentityCoralServiceAccessDeniedException(), IdentityInternalFailure(), IdentityNotImplemented(), IdentityRequestEntityTooLargeException(), IdentityCoralServiceThrottlingException()}
+		return []awserr.Identity{IdentitySerializationException(), IdentityUnknownOperationException(), IdentityMissingAuthenticationTokenException(), IdentityIncompleteSignatureException(), IdentityInvalidSignatureException(), IdentityCoralServiceUnrecognizedClientException(), IdentityExpiredTokenException(), IdentityCoralServiceAccessDeniedException(), IdentityInternalFailure(), IdentityNotImplemented(), IdentityRequestEntityTooLargeException(), IdentityCoralServiceThrottlingException()}
 	default:
 		return nil
 	}

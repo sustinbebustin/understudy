@@ -9,6 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -236,16 +237,16 @@ func (s *Service) deleteRole(_ context.Context, c *kernel.Call, in *iamapi.Delet
 
 func (s *Service) listRoles(_ context.Context, c *kernel.Call, in *iamapi.ListRolesInput) (*iamapi.ListRolesOutput, *awserr.Error) {
 	account := c.Scope().Account
-	p, err := view(s, account, func(st *State) (page[Role], *awserr.Error) {
+	p, err := view(s, account, func(st *State) (paging.Page[Role], *awserr.Error) {
 		roles := sortedWhere(st.Roles, func(r *Role) bool { return underPrefix(r.Path, in.PathPrefix) })
-		return paginate(roles, func(r Role) string { return key(r.Name) }, in.Marker, in.MaxItems)
+		return paginate("roles", roles, func(r Role) string { return key(r.Name) }, in.Marker, in.MaxItems)
 	})
 	if err != nil {
 		return nil, err
 	}
-	out := &iamapi.ListRolesOutput{Roles: make([]iamapi.Role, len(p.items)), IsTruncated: p.truncated, Marker: p.marker}
-	for i := range p.items {
-		out.Roles[i] = apiRole(account, p.items[i])
+	out := &iamapi.ListRolesOutput{Roles: make([]iamapi.Role, len(p.Items)), IsTruncated: p.Truncated, Marker: p.Next}
+	for i := range p.Items {
+		out.Roles[i] = apiRole(account, p.Items[i])
 	}
 	return out, nil
 }

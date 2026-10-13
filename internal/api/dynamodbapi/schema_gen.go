@@ -901,6 +901,10 @@ var memberExpectedAttributeValue_ComparisonOperator = smithy.Member{Name: "Compa
 
 var memberExpectedAttributeValue_AttributeValueList = smithy.Member{Name: "AttributeValueList", Index: 3}
 
+var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaExportArn = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportArn", Type: smithy.TypeString}
 
 var schemaExportConflictException = smithy.Schema{ID: "com.amazonaws.dynamodb#ExportConflictException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
@@ -2793,6 +2797,10 @@ var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.servic
 
 var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
 
+var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaUntagResourceInput = smithy.Schema{ID: "com.amazonaws.dynamodb#UntagResourceInput", Type: smithy.TypeStructure}
 
 var memberUntagResourceInput_ResourceArn = smithy.Member{Name: "ResourceArn", Index: 0, Required: true}
@@ -3536,6 +3544,8 @@ func init() {
 	memberExpectedAttributeValue_ComparisonOperator.Target = &schemaComparisonOperator
 	memberExpectedAttributeValue_AttributeValueList.Target = &schemaAttributeValueList
 	schemaExpectedAttributeValue.Members = []*smithy.Member{&memberExpectedAttributeValue_Value, &memberExpectedAttributeValue_Exists, &memberExpectedAttributeValue_ComparisonOperator, &memberExpectedAttributeValue_AttributeValueList}
+	memberExpiredTokenException_message.Target = &schemaSmithyString
+	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
 	memberExportConflictException_message.Target = &schemaErrorMessage
 	schemaExportConflictException.Members = []*smithy.Member{&memberExportConflictException_message}
 	memberExportDescription_ExportArn.Target = &schemaExportArn
@@ -4373,6 +4383,8 @@ func init() {
 	schemaTransactionInProgressException.Members = []*smithy.Member{&memberTransactionInProgressException_Message}
 	memberUnknownOperationException_message.Target = &schemaSmithyString
 	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
+	memberUnrecognizedClientException_message.Target = &schemaSmithyString
+	schemaUnrecognizedClientException.Members = []*smithy.Member{&memberUnrecognizedClientException_message}
 	memberUntagResourceInput_ResourceArn.Target = &schemaResourceArnString
 	memberUntagResourceInput_TagKeys.Target = &schemaTagKeyList
 	schemaUntagResourceInput.Members = []*smithy.Member{&memberUntagResourceInput_ResourceArn, &memberUntagResourceInput_TagKeys}

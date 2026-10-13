@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -216,11 +217,11 @@ func (s *Service) bindTags(b iamapi.Binder) {
 		return unit[iamapi.UntagRoleOutput](s.untag(c, roleTagged(c.Scope().Account, in.RoleName), in.TagKeys))
 	}, registry.Full{})
 	b.ListRoleTags(func(_ context.Context, c *kernel.Call, in *iamapi.ListRoleTagsInput) (*iamapi.ListRoleTagsOutput, *awserr.Error) {
-		p, err := s.listTags(c, roleTagged(c.Scope().Account, in.RoleName).get, in.Marker, in.MaxItems)
+		p, err := s.listTags(c, "role-tags", roleTagged(c.Scope().Account, in.RoleName).get, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
-		return &iamapi.ListRoleTagsOutput{Tags: p.items, IsTruncated: p.truncated, Marker: p.marker}, nil
+		return &iamapi.ListRoleTagsOutput{Tags: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
 	}, registry.Full{})
 	b.TagUser(func(_ context.Context, c *kernel.Call, in *iamapi.TagUserInput) (*iamapi.TagUserOutput, *awserr.Error) {
 		return unit[iamapi.TagUserOutput](s.tag(c, userTagged(c.Scope().Account, in.UserName), in.Tags))
@@ -229,11 +230,11 @@ func (s *Service) bindTags(b iamapi.Binder) {
 		return unit[iamapi.UntagUserOutput](s.untag(c, userTagged(c.Scope().Account, in.UserName), in.TagKeys))
 	}, registry.Full{})
 	b.ListUserTags(func(_ context.Context, c *kernel.Call, in *iamapi.ListUserTagsInput) (*iamapi.ListUserTagsOutput, *awserr.Error) {
-		p, err := s.listTags(c, userTagged(c.Scope().Account, in.UserName).get, in.Marker, in.MaxItems)
+		p, err := s.listTags(c, "user-tags", userTagged(c.Scope().Account, in.UserName).get, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
-		return &iamapi.ListUserTagsOutput{Tags: p.items, IsTruncated: p.truncated, Marker: p.marker}, nil
+		return &iamapi.ListUserTagsOutput{Tags: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
 	}, registry.Full{})
 	b.TagPolicy(func(_ context.Context, c *kernel.Call, in *iamapi.TagPolicyInput) (*iamapi.TagPolicyOutput, *awserr.Error) {
 		return unit[iamapi.TagPolicyOutput](s.tag(c, policyTagged(c.Scope().Account, in.PolicyArn), in.Tags))
@@ -242,11 +243,11 @@ func (s *Service) bindTags(b iamapi.Binder) {
 		return unit[iamapi.UntagPolicyOutput](s.untag(c, policyTagged(c.Scope().Account, in.PolicyArn), in.TagKeys))
 	}, registry.Full{})
 	b.ListPolicyTags(func(_ context.Context, c *kernel.Call, in *iamapi.ListPolicyTagsInput) (*iamapi.ListPolicyTagsOutput, *awserr.Error) {
-		p, err := s.listTags(c, policyTags(c.Scope().Account, in.PolicyArn), in.Marker, in.MaxItems)
+		p, err := s.listTags(c, "policy-tags", policyTags(c.Scope().Account, in.PolicyArn), in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
-		return &iamapi.ListPolicyTagsOutput{Tags: p.items, IsTruncated: p.truncated, Marker: p.marker}, nil
+		return &iamapi.ListPolicyTagsOutput{Tags: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
 	}, registry.Full{})
 	b.TagInstanceProfile(func(_ context.Context, c *kernel.Call, in *iamapi.TagInstanceProfileInput) (*iamapi.TagInstanceProfileOutput, *awserr.Error) {
 		return unit[iamapi.TagInstanceProfileOutput](s.tag(c, instanceProfileTagged(c.Scope().Account, in.InstanceProfileName), in.Tags))
@@ -255,11 +256,11 @@ func (s *Service) bindTags(b iamapi.Binder) {
 		return unit[iamapi.UntagInstanceProfileOutput](s.untag(c, instanceProfileTagged(c.Scope().Account, in.InstanceProfileName), in.TagKeys))
 	}, registry.Full{})
 	b.ListInstanceProfileTags(func(_ context.Context, c *kernel.Call, in *iamapi.ListInstanceProfileTagsInput) (*iamapi.ListInstanceProfileTagsOutput, *awserr.Error) {
-		p, err := s.listTags(c, instanceProfileTagged(c.Scope().Account, in.InstanceProfileName).get, in.Marker, in.MaxItems)
+		p, err := s.listTags(c, "instance-profile-tags", instanceProfileTagged(c.Scope().Account, in.InstanceProfileName).get, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
-		return &iamapi.ListInstanceProfileTagsOutput{Tags: p.items, IsTruncated: p.truncated, Marker: p.marker}, nil
+		return &iamapi.ListInstanceProfileTagsOutput{Tags: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
 	}, registry.Full{})
 }
 
@@ -299,12 +300,12 @@ func (s *Service) untag(c *kernel.Call, e tagged, keys []string) *awserr.Error {
 	return err
 }
 
-// listTags pages through the tags get reads, by key bounded with
-// boundedSortKey: a tag key is up to 128 characters of any script, so its
-// Marker can pass the 320 characters the Marker validator allows.
-func (s *Service) listTags(c *kernel.Call, get tagsOf, marker *string, maxItems *int32) (page[iamapi.Tag], *awserr.Error) {
+// listTags pages through the tags get reads, as listing, by key bounded
+// with boundedSortKey: a tag key is up to 128 characters of any script, so
+// its Marker can pass the 320 characters the Marker validator allows.
+func (s *Service) listTags(c *kernel.Call, listing paging.Listing, get tagsOf, marker *string, maxItems *int32) (paging.Page[iamapi.Tag], *awserr.Error) {
 	type listed struct {
-		p   page[iamapi.Tag]
+		p   paging.Page[iamapi.Tag]
 		arn aws.ARN
 	}
 	l, err := view(s, c.Scope().Account, func(st *State) (listed, *awserr.Error) {
@@ -312,13 +313,13 @@ func (s *Service) listTags(c *kernel.Call, get tagsOf, marker *string, maxItems 
 		if err != nil {
 			return listed{}, err
 		}
-		key := func(t iamapi.Tag) string { return boundedSortKey(t.Key) }
+		key := func(t iamapi.Tag) string { return boundedSortKey(listing, t.Key) }
 		tags := slices.SortedFunc(slices.Values(apiTags(have)), func(a, b iamapi.Tag) int { return strings.Compare(key(a), key(b)) })
-		p, err := paginate(tags, key, marker, maxItems)
+		p, err := paginate(listing, tags, key, marker, maxItems)
 		return listed{p: p, arn: arn}, err
 	})
 	if err != nil {
-		return page[iamapi.Tag]{}, err
+		return paging.Page[iamapi.Tag]{}, err
 	}
 	c.Touch(l.arn)
 	return l.p, nil

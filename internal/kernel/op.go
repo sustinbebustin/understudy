@@ -114,13 +114,18 @@ func Validate[In any](vs []awserr.Violation) *awserr.Error {
 	return awserr.Internalf(&NoValidationPolicyError{Type: fmt.Sprintf("%T", (*In)(nil))})
 }
 
+// issuesURL is where users ask for an operation understudy does not implement.
+const issuesURL = "https://github.com/sustinbebustin/understudy/issues"
+
 // NotImplemented is the answer for an operation in the model that no
 // handler is bound to: 501 in the protocol's native envelope (ADR 0003).
+// The message ends with the issue search URL and no trailing period, so
+// terminals link the whole URL.
 func NotImplemented(op *registry.Operation) *awserr.Error {
 	return &awserr.Error{
 		ID: awserr.NotImplemented(),
-		Message: fmt.Sprintf("understudy does not implement %s. Run 'understudy coverage --service %s' for what is supported.",
-			op.ID, op.ID.Service),
+		Message: fmt.Sprintf("understudy does not implement %s. Run 'understudy coverage --service %s' for what is supported; to ask for it, see %s?q=%s",
+			op.ID, op.ID.Service, issuesURL, op.ID),
 		Origin: awserr.Unimplemented{Op: op.ID},
 	}
 }

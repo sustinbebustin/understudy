@@ -37,9 +37,11 @@ type Body interface{ isBody() }
 // signatures cover the body hash whether or not x-amz-content-sha256 is sent.
 type Hashed struct{ SHA256 [32]byte }
 
-// Unread is a body not read before verification (S3 streams), so the signed
-// x-amz-content-sha256 value stands in for it; S3 checks the value against
-// the bytes at end of body.
+// Unread is a body not read before verification, so the signed
+// x-amz-content-sha256 value stands in for it: a SigV2 request, whose
+// signature covers no body, or the streamed input of an S3 operation
+// (PutObject, UploadPart), which S3 checks against the value at end of
+// body. Every other body is Hashed, or the signature would not bind it.
 type Unread struct{}
 
 func (Hashed) isBody() {}
@@ -78,6 +80,22 @@ func (req Normalized) withoutSessionToken() Normalized {
 	}
 	out.RawQuery = strings.Join(parts, "&")
 	return out
+}
+
+// SessionToken returns the session token r carries: the
+// X-Amz-Security-Token header, else the query parameter of that name in
+// any case, since a SigV2 presigned URL carries it as
+// x-amz-security-token. It reports false when r carries none.
+func SessionToken(r *http.Request) (string, bool) {
+	if v := r.Header.Values(hdrSecurityToken); len(v) > 0 {
+		return v[0], true
+	}
+	for part := range strings.SplitSeq(r.URL.RawQuery, "&") {
+		if k, v, _ := strings.Cut(part, "="); strings.EqualFold(unescape(k), qSecurityToken) {
+			return unescape(v), true
+		}
+	}
+	return "", false
 }
 
 // canonicalRequest is sigv4-checksums-endpoints.md 1.2. omit, when not

@@ -76,6 +76,16 @@ func ErrDuplicateItemException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityDuplicateItemException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// IdentityExpiredTokenException returns the identity of com.amazon.coral.service#ExpiredTokenException.
+func IdentityExpiredTokenException() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazon.coral.service#ExpiredTokenException", JSONType: "com.amazon.coral.service#ExpiredTokenException", QueryCode: "ExpiredToken", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrExpiredTokenException returns an ExpiredTokenException error with message.
+func ErrExpiredTokenException(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityExpiredTokenException(), Message: message, Origin: awserr.Generic{}}
+}
+
 // IdentityExportConflictException returns the identity of com.amazonaws.dynamodb#ExportConflictException.
 func IdentityExportConflictException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#ExportConflictException", JSONType: "com.amazonaws.dynamodb.v20120810#ExportConflictException", QueryCode: "ExportConflictException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -456,6 +466,16 @@ func ErrUnknownOperationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityUnknownOperationException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// IdentityUnrecognizedClientException returns the identity of com.amazon.coral.service#UnrecognizedClientException.
+func IdentityUnrecognizedClientException() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazon.coral.service#UnrecognizedClientException", JSONType: "com.amazon.coral.service#UnrecognizedClientException", QueryCode: "InvalidClientTokenId", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrUnrecognizedClientException returns an UnrecognizedClientException error with message.
+func ErrUnrecognizedClientException(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityUnrecognizedClientException(), Message: message, Origin: awserr.Generic{}}
+}
+
 // IdentityValidationException returns the identity of com.amazon.coral.validate#ValidationException.
 func IdentityValidationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.validate#ValidationException", JSONType: "com.amazon.coral.validate#ValidationException", QueryCode: "ValidationError", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -494,7 +514,7 @@ func MalformedRequestError() awserr.Identity { return IdentitySerializationExcep
 func GenericErrors(f awserr.Family) []awserr.Identity {
 	switch f {
 	case awserr.JSONFamily:
-		return []awserr.Identity{IdentitySerializationException(), IdentityUnknownOperationException(), IdentityMissingAuthenticationTokenException(), IdentityIncompleteSignatureException(), IdentityInvalidSignatureException(), IdentityAccessDeniedException(), IdentityInternalFailure(), IdentityNotImplemented(), IdentityRequestEntityTooLargeException(), IdentityCoralServiceThrottlingException()}
+		return []awserr.Identity{IdentitySerializationException(), IdentityUnknownOperationException(), IdentityMissingAuthenticationTokenException(), IdentityIncompleteSignatureException(), IdentityInvalidSignatureException(), IdentityUnrecognizedClientException(), IdentityExpiredTokenException(), IdentityAccessDeniedException(), IdentityInternalFailure(), IdentityNotImplemented(), IdentityRequestEntityTooLargeException(), IdentityCoralServiceThrottlingException()}
 	default:
 		return nil
 	}

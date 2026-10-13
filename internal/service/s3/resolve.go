@@ -5,6 +5,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -47,12 +48,82 @@ func at(name string, owner *string) access {
 	return a
 }
 
-// touches names the bucket an input addresses as the call's resource, so
-// fault rules scoped to it match before the handler runs.
+// touches names what an input addresses as the call's resources, so fault
+// rules scoped to them match before the handler runs and the access record
+// pairs the call's actions with them: the objects of an object operation
+// (objectsAddressed), the bucket of any other.
 func touches[In any](of func(*In) access) kernel.BindOption {
 	return kernel.WithResources(func(_ *kernel.Call, in *In) []aws.ARN {
+		if objects, ok := objectsAddressed(in); ok {
+			return objects
+		}
 		return []aws.ARN{bucketARN(of(in).name)}
 	})
+}
+
+// objectResource is the ARN of the object key in bucket,
+// arn:aws:s3:::<bucket>/<key>, which IAM authorizes object actions against
+// and object operations touch, and which SSE-KMS adds to the encryption
+// context.
+func objectResource(bucket, key string) aws.ARN {
+	return aws.ARN{Partition: aws.PartitionAWS().String(), Service: "s3", Resource: bucket + "/" + key}
+}
+
+// objectsAddressed returns the objects an object operation's input
+// addresses: the key it names, both objects of a copy, each key of a
+// DeleteObjects. false for a bucket operation, whose resource is the
+// bucket. A copy source that does not parse adds nothing; the handler
+// answers it.
+func objectsAddressed(in any) ([]aws.ARN, bool) {
+	switch in := in.(type) {
+	case *s3api.GetObjectInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.HeadObjectInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.GetObjectAttributesInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.PutObjectInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.DeleteObjectInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.GetObjectTaggingInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.PutObjectTaggingInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.DeleteObjectTaggingInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.CreateMultipartUploadInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.UploadPartInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.CompleteMultipartUploadInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.AbortMultipartUploadInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.ListPartsInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.CopyObjectInput:
+		return withCopySource(objectResource(in.Bucket, in.Key), in.CopySource), true
+	case *s3api.UploadPartCopyInput:
+		return withCopySource(objectResource(in.Bucket, in.Key), in.CopySource), true
+	case *s3api.DeleteObjectsInput:
+		out := make([]aws.ARN, 0, len(in.Delete.Objects))
+		for _, o := range in.Delete.Objects {
+			out = append(out, objectResource(in.Bucket, o.Key))
+		}
+		return out, true
+	}
+	return nil, false
+}
+
+// withCopySource returns the destination object and the object the
+// x-amz-copy-source header names, when it parses.
+func withCopySource(dst aws.ARN, header string) []aws.ARN {
+	src, err := parseCopySource(header)
+	if err != nil {
+		return []aws.ARN{dst}
+	}
+	return []aws.ARN{dst, objectResource(src.bucket, src.key)}
 }
 
 // regionSource is the region a call addressed to bucket asserts

@@ -1155,6 +1155,10 @@ var schemaExecutionTimeout = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionTi
 
 var schemaExecutionTimestamp = smithy.Schema{ID: "com.amazonaws.lambda#ExecutionTimestamp", Type: smithy.TypeTimestamp}
 
+var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaFileSystemArn = smithy.Schema{ID: "com.amazonaws.lambda#FileSystemArn", Type: smithy.TypeString}
 
 var schemaFileSystemConfig = smithy.Schema{ID: "com.amazonaws.lambda#FileSystemConfig", Type: smithy.TypeStructure}
@@ -3165,6 +3169,10 @@ var memberUnknownOperationException_message = smithy.Member{Name: "message", Ind
 
 var schemaUnqualifiedFunctionName = smithy.Schema{ID: "com.amazonaws.lambda#UnqualifiedFunctionName", Type: smithy.TypeString}
 
+var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaUnreservedConcurrentExecutions = smithy.Schema{ID: "com.amazonaws.lambda#UnreservedConcurrentExecutions", Type: smithy.TypeInteger}
 
 var schemaUnsupportedMediaTypeException = smithy.Schema{ID: "com.amazonaws.lambda#UnsupportedMediaTypeException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 415}}
@@ -3954,6 +3962,8 @@ func init() {
 	schemaExecutionSucceededDetails.Members = []*smithy.Member{&memberExecutionSucceededDetails_Result}
 	memberExecutionTimedOutDetails_Error.Target = &schemaEventError
 	schemaExecutionTimedOutDetails.Members = []*smithy.Member{&memberExecutionTimedOutDetails_Error}
+	memberExpiredTokenException_message.Target = &schemaSmithyString
+	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
 	memberFileSystemConfig_Arn.Target = &schemaFileSystemArn
 	memberFileSystemConfig_LocalMountPath.Target = &schemaLocalMountPath
 	memberFileSystemConfig_S3FilesConfig.Target = &schemaS3FilesConfig
@@ -4809,6 +4819,8 @@ func init() {
 	schemaTracingConfigResponse.Members = []*smithy.Member{&memberTracingConfigResponse_Mode}
 	memberUnknownOperationException_message.Target = &schemaSmithyString
 	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
+	memberUnrecognizedClientException_message.Target = &schemaSmithyString
+	schemaUnrecognizedClientException.Members = []*smithy.Member{&memberUnrecognizedClientException_message}
 	memberUnsupportedMediaTypeException_Type.Target = &schemaString
 	memberUnsupportedMediaTypeException_message.Target = &schemaString
 	schemaUnsupportedMediaTypeException.Members = []*smithy.Member{&memberUnsupportedMediaTypeException_Type, &memberUnsupportedMediaTypeException_message}

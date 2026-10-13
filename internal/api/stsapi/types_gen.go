@@ -159,6 +159,11 @@ type DecodeAuthorizationMessageOutput struct {
 	DecodedMessage *string
 }
 
+// ExpiredToken is the error com.amazon.coral.service#ExpiredToken.
+type ExpiredToken struct {
+	Message *string
+}
+
 // ExpiredTokenException is the error com.amazonaws.sts#ExpiredTokenException.
 type ExpiredTokenException struct {
 	Message *string
@@ -302,6 +307,11 @@ type InvalidAction struct {
 
 // InvalidAuthorizationMessageException is the error com.amazonaws.sts#InvalidAuthorizationMessageException.
 type InvalidAuthorizationMessageException struct {
+	Message *string
+}
+
+// InvalidClientTokenId is the error com.amazon.coral.service#InvalidClientTokenId.
+type InvalidClientTokenId struct {
 	Message *string
 }
 

@@ -8,18 +8,19 @@
 #   SUITE_GROUPS=modern conformance/python-boto3/run.sh
 #                                                      # modern | legacy-query | "modern legacy-query"
 #
-# SIGV4 (default parse) is passed to serve --sigv4 and to the tests. The
-# signature tests run only with SIGV4=verify, which this build's serve refuses
-# at startup until signature verification is wired (docs/plan/DEFERRED.md,
-# "SigV4 verification"), so they skip for now.
+# SIGV4 (default verify) is passed to serve --sigv4 and to the tests. The
+# signature tests run only under verify; SIGV4=parse runs the rest of the
+# suite against a server that checks no signature, and skips them.
 #
 # Environments (pyproject.toml dependency groups):
 #   modern        the current boto3: every test file.
 #   legacy-query  botocore 1.34.89, the last release that speaks the Query
 #                 protocol to SQS: test_sqs.py only.
 #
-# Passing the DynamoDB Local licence flag below accepts the Amazon DynamoDB
-# Local License Agreement for this run; the DynamoDB tests need that container.
+# UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 accepts the Amazon DynamoDB Local
+# License Agreement for this run (serve --accept-dynamodb-local-license); the
+# DynamoDB tests need that container and skip without it, or with
+# CONFORMANCE_DYNAMODB=0; pytest's summary lists every skip.
 #
 # Exits non-zero when any environment fails or understudy cannot be built or
 # started. The work directory (data, log) is removed on success and kept on
@@ -33,7 +34,7 @@ bin="$build/understudy"
 listen="127.0.0.1:45662"
 endpoint="http://$listen"
 groups="${SUITE_GROUPS:-modern legacy-query}"
-sigv4="${SIGV4:-parse}"
+sigv4="${SIGV4:-verify}"
 
 if curl -fsS -o /dev/null "$endpoint/_understudy/v1/health" 2>/dev/null; then
 	echo "run.sh: something already answers on $listen; stop it first, since the suite needs a fresh understudy there" >&2
@@ -91,14 +92,23 @@ while IFS='=' read -r key _; do
 	esac
 done < <(env)
 
+# The DynamoDB Local licence is the caller's to accept; without it the
+# DynamoDB tests skip.
+licence=()
+dynamodb=0
+if [[ "${UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE:-}" == "1" && "${CONFORMANCE_DYNAMODB:-}" != "0" ]]; then
+	licence=(--accept-dynamodb-local-license)
+	dynamodb=1
+fi
+
 echo "run.sh: starting understudy on $endpoint, data in $data" >&2
 (cd -- "$work" && exec env "${serve_env[@]}" "$bin" serve \
 	--listen "$listen" --persist "$data" --sigv4 "$sigv4" \
-	--accept-dynamodb-local-license) >"$log" 2>&1 &
+	"${licence[@]}") >"$log" 2>&1 &
 pid=$!
 
 # Poll rather than `health --wait`, so a server that refuses its settings and
-# exits (for example --sigv4 verify in this build) is reported at once.
+# exits is reported at once.
 ready=0
 for _ in $(seq 1 240); do
 	if ! kill -0 "$pid" 2>/dev/null; then
@@ -131,7 +141,7 @@ for group in $groups; do
 	esac
 	echo "run.sh: running the '$group' environment" >&2
 	set +e
-	(cd -- "$here" && CONFORMANCE_SIGV4="$sigv4" PYTHONDONTWRITEBYTECODE=1 \
+	(cd -- "$here" && CONFORMANCE_SIGV4="$sigv4" CONFORMANCE_DYNAMODB="$dynamodb" PYTHONDONTWRITEBYTECODE=1 \
 		"$repo/scripts/sealed" --endpoint "$endpoint" \
 		env -u VIRTUAL_ENV uv run --frozen --no-default-groups --group "$group" \
 		pytest -p no:cacheprovider "${targets[@]}" "$@")

@@ -394,11 +394,11 @@ func (s *Service) listMappings(_ context.Context, c *kernel.Call, in *lambdaapi.
 		}
 		return out, nil
 	})
-	p, err := page(rows, func(m lambdaapi.EventSourceMappingConfiguration) string { return *m.UUID }, in.MaxItems, maxMappingsPage, in.Marker)
+	p, err := page(listingEventSourceMappings, rows, func(m lambdaapi.EventSourceMappingConfiguration) string { return *m.UUID }, in.MaxItems, maxMappingsPage, in.Marker)
 	if err != nil {
 		return nil, err
 	}
-	return &lambdaapi.ListEventSourceMappingsOutput{EventSourceMappings: append([]lambdaapi.EventSourceMappingConfiguration{}, p.items...), NextMarker: p.next}, nil
+	return &lambdaapi.ListEventSourceMappingsOutput{EventSourceMappings: append([]lambdaapi.EventSourceMappingConfiguration{}, p.Items...), NextMarker: p.Next}, nil
 }
 
 // retarget resolves the function an update moves the mapping uuid to and

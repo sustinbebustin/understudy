@@ -9,6 +9,15 @@
 // account's root, and Fallback.Warn marks the first sighting of each so the
 // caller logs one warning per key.
 //
+// Every Resolution but Fallback carries the secret SigV4 verification checks
+// a signature against (ADR 0012 pre-tag review amendment): a minted key's
+// own; a static key's from configuration (accounts.keys, SetStaticKeys);
+// and DummySecret, "test", for the dummy key "test" and every 12-digit
+// account key, the pair every quickstart uses, so AWS_ACCESS_KEY_ID=test
+// AWS_SECRET_ACCESS_KEY=test and the account-selecting keys keep working
+// under verification. A Fallback key has no secret, and verification
+// refuses it as AWS refuses an unknown key.
+//
 // Decisions the architecture leaves open:
 //
 //   - Long-term and temporary keys are minted by separate functions,
@@ -16,15 +25,21 @@
 //     the Temporary lifetime, so long-term credentials with an expiry or a
 //     token, and temporary ones without, cannot be expressed. Assumed roles take
 //     only temporary credentials.
-//   - Credentials, Minted and Temporary redact the secret and the token in
-//     LogValue, MarshalJSON (for slog's JSONHandler, which json-encodes a
-//     struct or slice holding one), String and GoString. Export writes its
-//     own records, so it keeps the real values.
+//   - Static keys come from configuration at every start: Export never
+//     writes them, and Import and a reset, which replace the minted keys,
+//     keep them. SetStaticKeys refuses a key the store minted, and minting
+//     refuses to draw a configured key, so a key is minted or static, never
+//     both.
+//   - Credentials, Minted, Temporary, StaticKey, Static and AccountKey
+//     redact the secret and the token in LogValue, MarshalJSON (for slog's
+//     JSONHandler, which json-encodes a struct or slice holding one), String
+//     and GoString. Export writes its own records, so it keeps the real
+//     values.
+//   - Expiry is not enforced by Resolve: Minted carries the Lifetime, and
+//     the edge refuses an expired temporary key under SigV4 verification.
 //   - Resolve warns about at most 10,000 distinct real-looking keys; past
 //     that it stops recording them, so a client cycling random keys cannot
 //     grow memory.
-//   - Expiry is not enforced by Resolve: phase 1 does not enforce IAM, and
-//     Minted carries the Lifetime for a caller that wants to.
 //   - Minting and Import refuse a user or role name, session name or path
 //     that IAM or STS would refuse, using the rules in package aws that the
 //     access recorder also applies, so every principal the store holds can

@@ -21,6 +21,15 @@ their place it gets:
 - instance metadata disabled, so no credentials come from IMDS either;
 - the AWS CLI pager and auto-prompt turned off, so nothing waits on a terminal.
 
+Terraform is sealed the same way. Inherited TF_TOKEN_* and TF_CLOUD_* variables
+are removed, TF_CLI_CONFIG_FILE points at an empty file sealed rewrites on every
+run (so ~/.terraformrc and its credentials and host blocks are never read), and
+TF_PLUGIN_CACHE_DIR points at <repo>/.cache/terraform-plugins, or at
+SEALED_TF_PLUGIN_CACHE when set. An inherited TF_PLUGIN_CACHE_DIR is replaced,
+with a note on stderr naming SEALED_TF_PLUGIN_CACHE. <repo>/.cache ignores
+itself in git. CHECKPOINT_DISABLE=1 stops Terraform's version check to
+checkpoint-api.hashicorp.com, so a sealed run sends no telemetry.
+
 Even a call that somehow reached a real AWS endpoint would carry credentials
 AWS rejects. Configure with flags or SEALED_ENDPOINT, SEALED_REGION and
 SEALED_ACCESS_KEY_ID. Exit status is the command's own; 2 means sealed refused
@@ -36,11 +45,19 @@ import shlex
 import shutil
 import sys
 from collections.abc import Mapping
+from pathlib import Path
 from urllib.parse import urlsplit
 
 DEFAULT_ENDPOINT = "http://127.0.0.1:4566"
 DEFAULT_REGION = "us-east-1"
 DEFAULT_ACCESS_KEY_ID = "test"
+
+REPO = Path(__file__).resolve().parent.parent
+CACHE = REPO / ".cache"
+
+# Inherited Terraform settings that carry credentials for, or point at, HCP
+# Terraform and private registries.
+TF_DROPPED_PREFIXES = ("TF_TOKEN_", "TF_CLOUD_")
 
 # Inherited AWS_* settings that change neither where a call goes nor who it is
 # signed as, so they may pass through. Everything else named AWS_* is dropped.
@@ -87,11 +104,8 @@ def sealed_env(
             "Use http://127.0.0.1:<port>, http://localhost:<port> or an *.localhost host, "
             "so the command cannot reach real AWS."
         )
-    env = {
-        k: v
-        for k, v in inherited.items()
-        if not k.startswith("AWS_") or k in PASSTHROUGH
-    }
+    env = {k: v for k, v in inherited.items() if not is_dropped(k)}
+    plugin_cache = inherited.get("SEALED_TF_PLUGIN_CACHE")
     env.update(
         {
             "AWS_ENDPOINT_URL": endpoint,
@@ -104,19 +118,70 @@ def sealed_env(
             "AWS_EC2_METADATA_DISABLED": "true",
             "AWS_PAGER": "",
             "AWS_CLI_AUTO_PROMPT": "off",
+            "TF_CLI_CONFIG_FILE": str(CACHE / "sealed.tfrc"),
+            "CHECKPOINT_DISABLE": "1",
+            "TF_PLUGIN_CACHE_DIR": os.path.abspath(plugin_cache)
+            if plugin_cache
+            else str(CACHE / "terraform-plugins"),
         }
     )
     return env
 
 
+def is_dropped(name: str) -> bool:
+    """True when an inherited variable could route or sign a call outside the seal."""
+    if name.startswith("AWS_"):
+        return name not in PASSTHROUGH
+    return name.startswith(TF_DROPPED_PREFIXES)
+
+
+def plugin_cache_notice(inherited: Mapping[str, str], env: Mapping[str, str]) -> str | None:
+    """A note for stderr when env replaces an inherited TF_PLUGIN_CACHE_DIR, else None."""
+    ignored = inherited.get("TF_PLUGIN_CACHE_DIR")
+    if ignored is None or ignored == env["TF_PLUGIN_CACHE_DIR"]:
+        return None
+    return (
+        f"sealed: ignoring TF_PLUGIN_CACHE_DIR={ignored}; Terraform uses the plugin cache "
+        f"{env['TF_PLUGIN_CACHE_DIR']}. Set SEALED_TF_PLUGIN_CACHE to choose another."
+    )
+
+
+def prepare_terraform(env: Mapping[str, str]) -> None:
+    """Create the empty CLI config file and the plugin cache env points Terraform at.
+
+    The config file's directory gets a .gitignore of "*", as pytest and ruff do
+    for their caches, so provider binaries cached beside it never reach git.
+    Raises SealError naming the path that could not be written.
+    """
+    config = Path(env["TF_CLI_CONFIG_FILE"])
+    try:
+        config.parent.mkdir(parents=True, exist_ok=True)
+        (config.parent / ".gitignore").write_text("*\n")
+        config.write_bytes(b"")
+    except OSError as e:
+        raise SealError(
+            f"sealed: cannot write Terraform's sealed CLI config in {config.parent}: {e}. "
+            "Nothing was run. Make that directory writable; sealed always keeps the "
+            "config there, so no setting moves it."
+        ) from e
+    cache = Path(env["TF_PLUGIN_CACHE_DIR"])
+    try:
+        cache.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise SealError(
+            f"sealed: cannot create the Terraform plugin cache {cache}: {e}. "
+            "Nothing was run. Make that path creatable, or set SEALED_TF_PLUGIN_CACHE "
+            "to a writable directory."
+        ) from e
+
+
 def shell_exports(inherited: Mapping[str, str], env: Mapping[str, str]) -> str:
     """Shell lines that turn the inherited environment into env."""
-    unset = sorted(k for k in inherited if k.startswith("AWS_") and k not in env)
-    lines = [f"unset {k}" for k in unset]
+    lines = [f"unset {k}" for k in sorted(inherited) if k not in env]
     lines += [
         f"export {k}={shlex.quote(v)}"
         for k, v in sorted(env.items())
-        if k.startswith("AWS_")
+        if inherited.get(k) != v
     ]
     return "\n".join(lines)
 
@@ -125,7 +190,17 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         prog="sealed",
         description="Run a command against a local AWS emulator with real AWS sealed off.",
-        epilog="Example: scripts/sealed aws --region us-west-2 sqs list-queues",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "environment:\n"
+            "  SEALED_ENDPOINT, SEALED_REGION, SEALED_ACCESS_KEY_ID\n"
+            "                        defaults for the flags above\n"
+            "  SEALED_TF_PLUGIN_CACHE\n"
+            "                        Terraform plugin cache directory\n"
+            "                        (default: <repo>/.cache/terraform-plugins)\n"
+            "\n"
+            "example: scripts/sealed aws --region us-west-2 sqs list-queues"
+        ),
     )
     p.add_argument(
         "--endpoint",
@@ -156,9 +231,13 @@ def main(argv: list[str]) -> int:
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
     try:
         env = sealed_env(os.environ, args.endpoint, args.region, args.access_key_id)
+        prepare_terraform(env)
     except SealError as e:
         print(e, file=sys.stderr)
         return 2
+    notice = plugin_cache_notice(os.environ, env)
+    if notice is not None:
+        print(notice, file=sys.stderr)
     if args.print_env:
         print(shell_exports(os.environ, env))
         return 0

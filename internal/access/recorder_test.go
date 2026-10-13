@@ -23,6 +23,9 @@ const (
 	streamARN = "arn:aws:logs:us-east-1:111111111111:log-group:/aws/lambda/worker:log-stream:2026/10/08/[$LATEST]0123456789abcdef"
 	keyARN    = "arn:aws:kms:us-east-1:111111111111:key/1234abcd-12ab-34cd-56ef-1234567890ab"
 	objectARN = "arn:aws:s3:::uploads/report.csv"
+	// objectsARN is how a policy grants objectARN: every object of its
+	// bucket.
+	objectsARN = "arn:aws:s3:::uploads/*"
 )
 
 // t0 is an arbitrary emulator instant.
@@ -60,8 +63,8 @@ func act(prefix, name string) registry.IAMAction {
 // record records every entry, failing on a refusal.
 func record(t *testing.T, r *access.Recorder, entries ...access.Entry) {
 	t.Helper()
-	for _, e := range entries {
-		if err := r.Record(e); err != nil {
+	for i := range entries {
+		if err := r.Record(entries[i]); err != nil {
 			t.Fatalf("Record: %v", err)
 		}
 	}
@@ -106,7 +109,7 @@ func TestPolicyCoversLambdaSQSExecutionRoles(t *testing.T) {
 	var r access.Recorder
 	queue, group, stream := arn(t, queueARN), arn(t, groupARN), arn(t, streamARN)
 	role := func(mode access.Mode, action registry.IAMAction, res aws.ARN, out access.Outcome) access.Entry {
-		return access.Entry{Principal: worker, Mode: mode, Actions: []registry.IAMAction{action}, Resources: []aws.ARN{res}, Outcome: out, At: t0}
+		return access.Entry{Principal: worker, Mode: mode, Service: action.Prefix, Actions: []registry.IAMAction{action}, Resources: []aws.ARN{res}, Outcome: out, At: t0}
 	}
 	record(t, &r,
 		role(access.AsExecutionRole{}, act("sqs", "GetQueueAttributes"), queue, access.Succeeded{}),
@@ -117,8 +120,8 @@ func TestPolicyCoversLambdaSQSExecutionRoles(t *testing.T) {
 		role(access.AsExecutionRole{}, act("logs", "PutLogEvents"), stream, access.Succeeded{}),
 		role(access.Direct{}, act("sqs", "ReceiveMessage"), queue, access.Succeeded{}),
 		role(access.Direct{}, act("sqs", "ChangeMessageVisibility"), queue, access.Failed{Code: "ReceiptHandleIsInvalid"}),
-		access.Entry{Principal: app, Mode: access.Direct{}, Actions: []registry.IAMAction{act("sqs", "PurgeQueue")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0},
-		access.Entry{Principal: sns, Mode: access.AsService{Source: arn(t, topicARN)}, Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: app, Mode: access.Direct{}, Service: "sqs", Actions: []registry.IAMAction{act("sqs", "PurgeQueue")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: sns, Mode: access.AsService{Source: arn(t, topicARN)}, Service: "sqs", Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0},
 	)
 
 	got, ok := r.Policy(worker)
@@ -160,10 +163,10 @@ func TestPolicyMergesEverySessionOfARoleWithItsExecutionRoleCalls(t *testing.T) 
 	pathed := access.Role{Account: testAccount, Path: "/service-role/", Name: "worker"}
 	rootPath := access.Role{Account: testAccount, Path: "/", Name: "worker"}
 	record(t, &r,
-		access.Entry{Principal: worker, Mode: access.AsExecutionRole{}, Actions: []registry.IAMAction{act("sqs", "ReceiveMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0},
-		access.Entry{Principal: rootPath, Mode: access.Direct{}, Actions: []registry.IAMAction{act("s3", "PutObject")}, Resources: []aws.ARN{object}, Outcome: access.Succeeded{}, At: t0},
-		access.Entry{Principal: worker, Mode: access.AsCaller{}, Actions: []registry.IAMAction{act("kms", "GenerateDataKey")}, Resources: []aws.ARN{key}, Outcome: access.Succeeded{}, At: t0},
-		access.Entry{Principal: pathed, Mode: access.Direct{}, Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: worker, Mode: access.AsExecutionRole{}, Service: "sqs", Actions: []registry.IAMAction{act("sqs", "ReceiveMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: rootPath, Mode: access.Direct{}, Service: "s3", Actions: []registry.IAMAction{act("s3", "PutObject")}, Resources: []aws.ARN{object}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: worker, Mode: access.AsCaller{}, Service: "kms", Actions: []registry.IAMAction{act("kms", "GenerateDataKey")}, Resources: []aws.ARN{key}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: pathed, Mode: access.Direct{}, Service: "sqs", Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0},
 	)
 
 	parsed, err := access.ParsePrincipal(roleARN)
@@ -180,7 +183,7 @@ func TestPolicyMergesEverySessionOfARoleWithItsExecutionRoleCalls(t *testing.T) 
 	}
 	want := `{"Version":"2012-10-17","Statement":[` +
 		`{"Effect":"Allow","Action":"kms:GenerateDataKey","Resource":"` + keyARN + `"},` +
-		`{"Effect":"Allow","Action":"s3:PutObject","Resource":"` + objectARN + `"},` +
+		`{"Effect":"Allow","Action":"s3:PutObject","Resource":"` + objectsARN + `"},` +
 		`{"Effect":"Allow","Action":"sqs:ReceiveMessage","Resource":"` + queueARN + `"}]}`
 	if enc := string(policydoc.Encode(got)); enc != want {
 		t.Errorf("Policy(%s) =\n%s\nwant\n%s", roleARN, enc, want)
@@ -199,7 +202,7 @@ func TestPolicyCarriesForwardAccessKMSActions(t *testing.T) {
 	var r access.Recorder
 	object, key := arn(t, objectARN), arn(t, keyARN)
 	user := func(mode access.Mode, action registry.IAMAction, res aws.ARN) access.Entry {
-		return access.Entry{Principal: app, Mode: mode, Actions: []registry.IAMAction{action}, Resources: []aws.ARN{res}, Outcome: access.Succeeded{}, At: t0}
+		return access.Entry{Principal: app, Mode: mode, Service: action.Prefix, Actions: []registry.IAMAction{action}, Resources: []aws.ARN{res}, Outcome: access.Succeeded{}, At: t0}
 	}
 	record(t, &r,
 		user(access.AsCaller{}, act("kms", "GenerateDataKey"), key),
@@ -210,29 +213,61 @@ func TestPolicyCarriesForwardAccessKMSActions(t *testing.T) {
 
 	want := `{"Version":"2012-10-17","Statement":[` +
 		`{"Effect":"Allow","Action":["kms:Decrypt","kms:GenerateDataKey"],"Resource":"` + keyARN + `"},` +
-		`{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject"],"Resource":"` + objectARN + `"}]}`
+		`{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject"],"Resource":"` + objectsARN + `"}]}`
 	if got := userPolicy(t, &r); got != want {
 		t.Errorf("Policy =\n%s\nwant\n%s", got, want)
 	}
 }
 
-// An S3 key may hold * and ?, which a policy Resource reads as wildcards;
-// the policy escapes them, so it grants the touched object and no other.
+// A policy grants S3 objects as arn:aws:s3:::<bucket>/*, one statement per
+// bucket however many keys the calls used, while Usage keeps each object's
+// exact ARN; the bucket itself stays exact.
+func TestPolicyGrantsObjectsPerBucket(t *testing.T) {
+	var r access.Recorder
+	a, b, other := arn(t, "arn:aws:s3:::uploads/a.csv"), arn(t, "arn:aws:s3:::uploads/dir/*b?.csv"), arn(t, "arn:aws:s3:::archive/a.csv")
+	bucket := arn(t, "arn:aws:s3:::uploads")
+	put := func(res aws.ARN) access.Entry {
+		return access.Entry{Principal: app, Mode: access.Direct{}, Service: "s3", Actions: []registry.IAMAction{act("s3", "PutObject")}, Resources: []aws.ARN{res}, Outcome: access.Succeeded{}, At: t0}
+	}
+	record(t, &r, put(a), put(b), put(other),
+		access.Entry{Principal: app, Mode: access.Direct{}, Service: "s3", Actions: []registry.IAMAction{act("s3", "ListBucket")}, Resources: []aws.ARN{bucket}, Outcome: access.Succeeded{}, At: t0})
+
+	want := `{"Version":"2012-10-17","Statement":[` +
+		`{"Effect":"Allow","Action":"s3:ListBucket","Resource":"arn:aws:s3:::uploads"},` +
+		`{"Effect":"Allow","Action":"s3:PutObject","Resource":"arn:aws:s3:::archive/*"},` +
+		`{"Effect":"Allow","Action":"s3:PutObject","Resource":"arn:aws:s3:::uploads/*"}]}`
+	if got := userPolicy(t, &r); got != want {
+		t.Errorf("Policy =\n%s\nwant\n%s", got, want)
+	}
+	var objects []aws.ARN
+	for _, u := range r.Usage(access.Filter{Principal: app}) {
+		if on, ok := u.Resource.(access.OnResource); ok && u.Action == act("s3", "PutObject") {
+			objects = append(objects, on.ARN)
+		}
+	}
+	if want := []aws.ARN{other, a, b}; !reflect.DeepEqual(objects, want) {
+		t.Errorf("Usage lists PutObject on %v, want the exact objects %v", objects, want)
+	}
+}
+
+// A resource name may hold * and ?, which a policy Resource reads as
+// wildcards (a log stream name may hold ?); the policy escapes them, so it
+// grants the touched resource and no other.
 func TestPolicyEscapesWildcardsInResourceNames(t *testing.T) {
 	var r access.Recorder
-	object := arn(t, "arn:aws:s3:::uploads/*/report?.csv")
-	record(t, &r, access.Entry{Principal: app, Mode: access.Direct{}, Actions: []registry.IAMAction{act("s3", "GetObject")}, Resources: []aws.ARN{object}, Outcome: access.Succeeded{}, At: t0})
+	stream := arn(t, groupARN+":log-stream:run?1")
+	record(t, &r, access.Entry{Principal: app, Mode: access.Direct{}, Service: "logs", Actions: []registry.IAMAction{act("logs", "PutLogEvents")}, Resources: []aws.ARN{stream}, Outcome: access.Succeeded{}, At: t0})
 
-	want := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject","Resource":"arn:aws:s3:::uploads/${*}/report${?}.csv"}]}`
+	want := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"logs:PutLogEvents","Resource":"` + groupARN + `:log-stream:run${?}1"}]}`
 	if got := userPolicy(t, &r); got != want {
 		t.Errorf("Policy =\n%s\nwant\n%s", got, want)
 	}
 	doc, _ := r.Policy(app)
 	for resource, want := range map[string]bool{
-		object.String(): true,
-		"arn:aws:s3:::uploads/secret/report1.csv": false,
+		stream.String():                true,
+		groupARN + ":log-stream:run21": false,
 	} {
-		if got, ok := policydoc.Allows(doc, policydoc.Query{Action: "s3:GetObject", Resource: resource}).(policydoc.Allowed); ok != want {
+		if got, ok := policydoc.Allows(doc, policydoc.Query{Action: "logs:PutLogEvents", Resource: resource}).(policydoc.Allowed); ok != want {
 			t.Errorf("Policy allows %s: %t (%#v), want %t", resource, ok, got, want)
 		}
 	}
@@ -244,13 +279,13 @@ func TestPolicyCoversMultiActionAndResourcelessOperations(t *testing.T) {
 	var r access.Recorder
 	src, dst := arn(t, "arn:aws:s3:::in/a"), arn(t, "arn:aws:s3:::out/a")
 	record(t, &r,
-		access.Entry{Principal: app, Mode: access.Direct{}, Actions: []registry.IAMAction{act("s3", "GetObject"), act("s3", "PutObject")}, Resources: []aws.ARN{src, dst}, Outcome: access.Succeeded{}, At: t0},
-		access.Entry{Principal: app, Mode: access.Direct{}, Actions: []registry.IAMAction{act("s3", "ListAllMyBuckets")}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: app, Mode: access.Direct{}, Service: "s3", Actions: []registry.IAMAction{act("s3", "GetObject"), act("s3", "PutObject")}, Resources: []aws.ARN{src, dst}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: app, Mode: access.Direct{}, Service: "s3", Actions: []registry.IAMAction{act("s3", "ListAllMyBuckets")}, Outcome: access.Succeeded{}, At: t0},
 	)
 
 	want := `{"Version":"2012-10-17","Statement":[` +
-		`{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject"],"Resource":"arn:aws:s3:::in/a"},` +
-		`{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject"],"Resource":"arn:aws:s3:::out/a"},` +
+		`{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject"],"Resource":"arn:aws:s3:::in/*"},` +
+		`{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject"],"Resource":"arn:aws:s3:::out/*"},` +
 		`{"Effect":"Allow","Action":"s3:ListAllMyBuckets","Resource":"*"}]}`
 	if got := userPolicy(t, &r); got != want {
 		t.Errorf("Policy =\n%s\nwant\n%s", got, want)
@@ -258,26 +293,28 @@ func TestPolicyCoversMultiActionAndResourcelessOperations(t *testing.T) {
 }
 
 // IAM authorizes an action only against its own service's resources:
-// CreateFunction's iam:PassRole is granted on "*" when the call touched
-// only the function, and on the role when it touched the role; STS actions
-// act on IAM roles.
+// CreateFunction's iam:PassRole is granted on the role when the call
+// touched one and not at all when it touched only the function, since no
+// role was passed; STS actions act on IAM roles. An action of the
+// operation's own service with no resource is granted on "*".
 func TestPolicyPairsActionsWithTheirServicesResources(t *testing.T) {
 	var r access.Recorder
 	fn, role := arn(t, "arn:aws:lambda:us-east-1:111111111111:function:worker"), arn(t, roleARN)
 	record(t, &r,
-		access.Entry{Principal: app, Mode: access.Direct{}, Actions: []registry.IAMAction{act("lambda", "CreateFunction"), act("iam", "PassRole")}, Resources: []aws.ARN{fn}, Outcome: access.Succeeded{}, At: t0},
-		access.Entry{Principal: app, Mode: access.Direct{}, Actions: []registry.IAMAction{act("sts", "AssumeRole")}, Resources: []aws.ARN{role}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: app, Mode: access.Direct{}, Service: "lambda", Actions: []registry.IAMAction{act("lambda", "CreateFunction"), act("iam", "PassRole")}, Resources: []aws.ARN{fn}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: app, Mode: access.Direct{}, Service: "sts", Actions: []registry.IAMAction{act("sts", "AssumeRole")}, Resources: []aws.ARN{role}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: app, Mode: access.Direct{}, Service: "sts", Actions: []registry.IAMAction{act("sts", "GetCallerIdentity")}, Outcome: access.Succeeded{}, At: t0},
 	)
 	want := `{"Version":"2012-10-17","Statement":[` +
-		`{"Effect":"Allow","Action":"iam:PassRole","Resource":"*"},` +
 		`{"Effect":"Allow","Action":"lambda:CreateFunction","Resource":"` + fn.String() + `"},` +
-		`{"Effect":"Allow","Action":"sts:AssumeRole","Resource":"` + roleARN + `"}]}`
+		`{"Effect":"Allow","Action":"sts:AssumeRole","Resource":"` + roleARN + `"},` +
+		`{"Effect":"Allow","Action":"sts:GetCallerIdentity","Resource":"*"}]}`
 	if got := userPolicy(t, &r); got != want {
 		t.Errorf("Policy =\n%s\nwant\n%s", got, want)
 	}
 
 	var withRole access.Recorder
-	record(t, &withRole, access.Entry{Principal: app, Mode: access.Direct{}, Actions: []registry.IAMAction{act("lambda", "CreateFunction"), act("iam", "PassRole")}, Resources: []aws.ARN{fn, role}, Outcome: access.Succeeded{}, At: t0})
+	record(t, &withRole, access.Entry{Principal: app, Mode: access.Direct{}, Service: "lambda", Actions: []registry.IAMAction{act("lambda", "CreateFunction"), act("iam", "PassRole")}, Resources: []aws.ARN{fn, role}, Outcome: access.Succeeded{}, At: t0})
 	want = `{"Version":"2012-10-17","Statement":[` +
 		`{"Effect":"Allow","Action":"iam:PassRole","Resource":"` + roleARN + `"},` +
 		`{"Effect":"Allow","Action":"lambda:CreateFunction","Resource":"` + fn.String() + `"}]}`
@@ -291,7 +328,7 @@ func TestPolicyPairsActionsWithTheirServicesResources(t *testing.T) {
 // merge every principal's use.
 func TestPolicyOfAPrincipalWithoutUseIsNone(t *testing.T) {
 	var r access.Recorder
-	record(t, &r, access.Entry{Principal: app, Mode: access.Direct{}, Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{arn(t, queueARN)}, Outcome: access.Succeeded{}, At: t0})
+	record(t, &r, access.Entry{Principal: app, Mode: access.Direct{}, Service: "sqs", Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{arn(t, queueARN)}, Outcome: access.Succeeded{}, At: t0})
 	for _, principal := range []access.Identity{worker, nil} {
 		if doc, ok := r.Policy(principal); ok {
 			t.Errorf("Policy(%v) = %s, want no policy", principal, policydoc.Encode(doc))
@@ -303,7 +340,7 @@ func TestPolicyOfAPrincipalWithoutUseIsNone(t *testing.T) {
 // records nothing of it.
 func TestRecordRefusesIncompleteOrMismatchedEntries(t *testing.T) {
 	queue := arn(t, queueARN)
-	valid := access.Entry{Principal: app, Mode: access.Direct{}, Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0}
+	valid := access.Entry{Principal: app, Mode: access.Direct{}, Service: "sqs", Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0}
 	tests := []struct {
 		name string
 		edit func(*access.Entry)
@@ -313,6 +350,7 @@ func TestRecordRefusesIncompleteOrMismatchedEntries(t *testing.T) {
 		{"no mode", func(e *access.Entry) { e.Mode = nil }, access.EntryNoMode},
 		{"no outcome", func(e *access.Entry) { e.Outcome = nil }, access.EntryNoOutcome},
 		{"no instant", func(e *access.Entry) { e.At = time.Time{} }, access.EntryNoInstant},
+		{"no service", func(e *access.Entry) { e.Service = "" }, access.EntryNoService},
 		{"delivery by an IAM identity", func(e *access.Entry) { e.Mode = access.AsService{Source: arn(t, topicARN)} }, access.EntryModeMismatch},
 		{"direct call by a service principal", func(e *access.Entry) { e.Principal = sns }, access.EntryModeMismatch},
 		{"zero role", func(e *access.Entry) { e.Principal = access.Role{} }, access.EntryInvalidPrincipal},
@@ -353,14 +391,14 @@ func TestUsageAggregatesCalls(t *testing.T) {
 	var r access.Recorder
 	queue := arn(t, queueARN)
 	send := func(at time.Time, out access.Outcome) access.Entry {
-		return access.Entry{Principal: app, Mode: access.Direct{}, Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{queue}, Outcome: out, At: at}
+		return access.Entry{Principal: app, Mode: access.Direct{}, Service: "sqs", Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{queue}, Outcome: out, At: at}
 	}
 	record(t, &r,
 		send(t0.Add(time.Minute), access.Succeeded{}),
 		send(t0, access.Failed{Code: "QueueDoesNotExist"}),
 		send(t0.Add(2*time.Minute), access.Succeeded{}),
-		access.Entry{Principal: worker, Mode: access.AsExecutionRole{}, Actions: []registry.IAMAction{act("sqs", "ReceiveMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0},
-		access.Entry{Principal: worker, Mode: access.AsExecutionRole{}, Actions: []registry.IAMAction{act("logs", "PutLogEvents")}, Resources: []aws.ARN{arn(t, streamARN)}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: worker, Mode: access.AsExecutionRole{}, Service: "sqs", Actions: []registry.IAMAction{act("sqs", "ReceiveMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: worker, Mode: access.AsExecutionRole{}, Service: "logs", Actions: []registry.IAMAction{act("logs", "PutLogEvents")}, Resources: []aws.ARN{arn(t, streamARN)}, Outcome: access.Succeeded{}, At: t0},
 	)
 
 	got := r.Usage(access.Filter{Principal: app})
@@ -389,8 +427,8 @@ func TestUsageCountsAnEntryOncePerUse(t *testing.T) {
 	var r access.Recorder
 	object, queue := arn(t, objectARN), arn(t, queueARN)
 	record(t, &r,
-		access.Entry{Principal: app, Mode: access.Direct{}, Actions: []registry.IAMAction{act("s3", "GetObject"), act("s3", "PutObject")}, Resources: []aws.ARN{object, object}, Outcome: access.Failed{Code: "AccessDenied"}, At: t0},
-		access.Entry{Principal: app, Mode: access.Direct{}, Actions: []registry.IAMAction{act("sqs", "DeleteMessage"), act("sqs", "DeleteMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Failed{Code: "ReceiptHandleIsInvalid"}, At: t0},
+		access.Entry{Principal: app, Mode: access.Direct{}, Service: "s3", Actions: []registry.IAMAction{act("s3", "GetObject"), act("s3", "PutObject")}, Resources: []aws.ARN{object, object}, Outcome: access.Failed{Code: "AccessDenied"}, At: t0},
+		access.Entry{Principal: app, Mode: access.Direct{}, Service: "sqs", Actions: []registry.IAMAction{act("sqs", "DeleteMessage"), act("sqs", "DeleteMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Failed{Code: "ReceiptHandleIsInvalid"}, At: t0},
 	)
 
 	got := r.Usage(access.Filter{Principal: app})
@@ -410,11 +448,11 @@ func TestResourceRequirementsListDeliveries(t *testing.T) {
 	rule := arn(t, "arn:aws:events:us-east-1:111111111111:rule/nightly")
 	fn := arn(t, "arn:aws:lambda:us-east-1:111111111111:function:worker")
 	for range 2 {
-		record(t, &r, access.Entry{Principal: sns, Mode: access.AsService{Source: topic}, Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0})
+		record(t, &r, access.Entry{Principal: sns, Mode: access.AsService{Source: topic}, Service: "sqs", Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0})
 	}
 	record(t, &r,
-		access.Entry{Principal: events, Mode: access.AsService{Source: rule}, Actions: []registry.IAMAction{act("lambda", "InvokeFunction")}, Resources: []aws.ARN{fn}, Outcome: access.Succeeded{}, At: t0},
-		access.Entry{Principal: worker, Mode: access.AsExecutionRole{}, Actions: []registry.IAMAction{act("sqs", "ReceiveMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: events, Mode: access.AsService{Source: rule}, Service: "lambda", Actions: []registry.IAMAction{act("lambda", "InvokeFunction")}, Resources: []aws.ARN{fn}, Outcome: access.Succeeded{}, At: t0},
+		access.Entry{Principal: worker, Mode: access.AsExecutionRole{}, Service: "sqs", Actions: []registry.IAMAction{act("sqs", "ReceiveMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0},
 	)
 
 	want := []access.Requirement{
@@ -436,7 +474,7 @@ func TestRecorderIsSafeForConcurrentUse(t *testing.T) {
 	for range 8 {
 		wg.Go(func() {
 			for range 100 {
-				if err := r.Record(access.Entry{Principal: app, Mode: access.Direct{}, Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0}); err != nil {
+				if err := r.Record(access.Entry{Principal: app, Mode: access.Direct{}, Service: "sqs", Actions: []registry.IAMAction{act("sqs", "SendMessage")}, Resources: []aws.ARN{queue}, Outcome: access.Succeeded{}, At: t0}); err != nil {
 					t.Error(err)
 					return
 				}

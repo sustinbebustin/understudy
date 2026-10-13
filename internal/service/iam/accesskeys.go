@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -95,18 +96,18 @@ func (s *Service) listAccessKeys(_ context.Context, c *kernel.Call, in *iamapi.L
 	var name string
 	switch who := who.(type) {
 	case accountRoot:
-		p, err := paginate([]AccessKey(nil), func(k AccessKey) string { return string(k.ID) }, in.Marker, in.MaxItems)
+		p, err := paginate("access-keys", []AccessKey(nil), func(k AccessKey) string { return string(k.ID) }, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
 		c.Touch(rootARN(account))
-		return &iamapi.ListAccessKeysOutput{AccessKeyMetadata: []iamapi.AccessKeyMetadata{}, IsTruncated: p.truncated, Marker: p.marker}, nil
+		return &iamapi.ListAccessKeysOutput{AccessKeyMetadata: []iamapi.AccessKeyMetadata{}, IsTruncated: p.Truncated, Marker: p.Next}, nil
 	case namedUser:
 		name = who.name
 	}
 	type listed struct {
 		user User
-		p    page[AccessKey]
+		p    paging.Page[AccessKey]
 	}
 	l, err := view(s, account, func(st *State) (listed, *awserr.Error) {
 		u, err := st.user(name)
@@ -114,15 +115,15 @@ func (s *Service) listAccessKeys(_ context.Context, c *kernel.Call, in *iamapi.L
 			return listed{}, err
 		}
 		keys := slices.SortedFunc(slices.Values(u.AccessKeys), func(a, b AccessKey) int { return strings.Compare(string(a.ID), string(b.ID)) })
-		p, err := paginate(keys, func(k AccessKey) string { return string(k.ID) }, in.Marker, in.MaxItems)
+		p, err := paginate("access-keys", keys, func(k AccessKey) string { return string(k.ID) }, in.Marker, in.MaxItems)
 		return listed{user: u, p: p}, err
 	})
 	if err != nil {
 		return nil, err
 	}
 	c.Touch(userARN(account, l.user.Path, l.user.Name))
-	out := &iamapi.ListAccessKeysOutput{AccessKeyMetadata: make([]iamapi.AccessKeyMetadata, len(l.p.items)), IsTruncated: l.p.truncated, Marker: l.p.marker}
-	for i, k := range l.p.items {
+	out := &iamapi.ListAccessKeysOutput{AccessKeyMetadata: make([]iamapi.AccessKeyMetadata, len(l.p.Items)), IsTruncated: l.p.Truncated, Marker: l.p.Next}
+	for i, k := range l.p.Items {
 		out.AccessKeyMetadata[i] = iamapi.AccessKeyMetadata{
 			UserName:    new(l.user.Name),
 			AccessKeyId: new(string(k.ID)),

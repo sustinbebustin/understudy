@@ -2,6 +2,7 @@ package s3_test
 
 import (
 	"bytes"
+	"crypto/hmac"
 	"crypto/md5" //nolint:gosec // S3's ETag is an MD5; the test recomputes it
 	"crypto/sha256"
 	"encoding/base64"
@@ -14,10 +15,12 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/access"
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awschunked"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -90,7 +93,14 @@ func (u unreadable) Read([]byte) (int, error) {
 // withHeader runs op with in as the default account's root in us-east-1,
 // from a request that carried header.
 func withHeader[In, Out any](h *harness, op kernel.Op[In, Out], header http.Header, in *In) (*Out, *awserr.Error) {
+	return verifiedWith(h, op, header, nil, in)
+}
+
+// verifiedWith is withHeader for a request whose credentials the edge
+// verified as verified (sigv4 verify); nil is a request it did not verify.
+func verifiedWith[In, Out any](h *harness, op kernel.Op[In, Out], header http.Header, verified auth.Auth, in *In) (*Out, *awserr.Error) {
 	c := h.Kernel.NewCall(kernel.ExternalCall{
+		Verified:     verified,
 		RequestID:    h.Kernel.IDs().RequestID(),
 		Operation:    op.Descriptor().ID,
 		Scope:        aws.Scope{Partition: aws.PartitionAWS(), Account: aws.DefaultAccount(), Region: aws.DefaultRegion()},
@@ -300,6 +310,113 @@ func chunkedWith(t *testing.T, trailer awschunked.Trailer, chunks ...string) str
 		t.Fatal(err)
 	}
 	return b.String()
+}
+
+// chunkSigner signs aws-chunked chunks and trailers as a client holding
+// secret does for a, the reference signer of awschunked's tests
+// (sigv4-checksums-endpoints.md 3.3).
+func chunkSigner(a auth.SigV4Header, secret string) awschunked.SignFunc {
+	mac := func(key []byte, data string) []byte {
+		m := hmac.New(sha256.New, key)
+		m.Write([]byte(data))
+		return m.Sum(nil)
+	}
+	c := a.Credential
+	key := mac(mac(mac(mac([]byte("AWS4"+secret), c.Date), c.Region.String()), c.Service), "aws4_request")
+	stamp, scope := a.Time.UTC().Format("20060102T150405Z"), c.Date+"/"+c.Region.String()+"/"+c.Service+"/aws4_request"
+	empty := sha256.Sum256(nil)
+	return func(prev string, signed awschunked.SignedPayload) string {
+		sts := "AWS4-HMAC-SHA256-TRAILER\n" + stamp + "\n" + scope + "\n" + prev + "\n" + hex.EncodeToString(signed.SHA256[:])
+		if signed.Kind == awschunked.ChunkSigned {
+			sts = "AWS4-HMAC-SHA256-PAYLOAD\n" + stamp + "\n" + scope + "\n" + prev + "\n" + hex.EncodeToString(empty[:]) + "\n" + hex.EncodeToString(signed.SHA256[:])
+		}
+		return hex.EncodeToString(mac(key, sts))
+	}
+}
+
+// TestSignedAWSChunkedUploadsVerifyEachSignature: under sigv4 verify, a
+// signed aws-chunked body's chunk and trailer signatures are verified
+// against the secret of the key the edge verified the header with, and a
+// tampered chunk or trailer is SignatureDoesNotMatch with nothing stored;
+// without a verified header (sigv4 parse) the signatures are not checked.
+func TestSignedAWSChunkedUploadsVerifyEachSignature(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("signed")
+		header := auth.SigV4Header{
+			Credential:    auth.Credential{Key: "test", Date: "20261013", Region: aws.DefaultRegion(), Service: "s3"},
+			SignedHeaders: []string{"host", "x-amz-content-sha256", "x-amz-date"},
+			Signature:     strings.Repeat("ab", 32),
+			PayloadHash:   auth.StreamingSigned{},
+			Time:          time.Date(2026, 10, 13, 12, 0, 0, 0, time.UTC),
+		}
+		frame := func(mode awschunked.Mode, secret string, trailers ...awschunked.Trailer) string {
+			var b bytes.Buffer
+			w := awschunked.NewWriter(&b, mode, awschunked.WriterOptions{Seed: header.Signature, Sign: chunkSigner(header, secret)})
+			if _, err := w.Write([]byte("streamed-body")); err != nil {
+				t.Fatal(err)
+			}
+			if err := w.Finish(trailers...); err != nil {
+				t.Fatal(err)
+			}
+			return b.String()
+		}
+		crc := awschunked.Trailer{Name: "x-amz-checksum-crc32", Value: "Nyb53Q=="}
+		signedHeader := http.Header{"X-Amz-Content-Sha256": {"STREAMING-AWS4-HMAC-SHA256-PAYLOAD"}, "X-Amz-Decoded-Content-Length": {"13"}}
+		trailerHeader := http.Header{
+			"X-Amz-Content-Sha256": {"STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER"}, "X-Amz-Trailer": {"x-amz-checksum-crc32"},
+			"X-Amz-Decoded-Content-Length": {"13"},
+		}
+		in := func(key, wire string) *s3api.PutObjectInput {
+			return &s3api.PutObjectInput{Bucket: "signed", Key: key, ContentEncoding: new("aws-chunked"), Body: bytesBody(wire)}
+		}
+		good := frame(awschunked.Signed, "test")
+		goodTrailer := frame(awschunked.SignedTrailer, "test", crc)
+		for _, tc := range []struct {
+			name     string
+			header   http.Header
+			verified auth.Auth
+			wire     string
+			wantErr  bool
+		}{
+			{"signed chunks", signedHeader, header, good, false},
+			{"signed chunks and trailer", trailerHeader, header, goodTrailer, false},
+			{"a tampered chunk", signedHeader, header, strings.Replace(good, "streamed-body", "streamed-bodY", 1), true},
+			{"chunks signed with another secret", signedHeader, header, frame(awschunked.Signed, "other"), true},
+			{"a tampered trailer", trailerHeader, header, strings.Replace(goodTrailer, "Nyb53Q==", "AAAAAA==", 1), true},
+			{"another secret under parse", signedHeader, nil, frame(awschunked.Signed, "other"), false},
+		} {
+			key := strings.ReplaceAll(tc.name, " ", "-")
+			_, err := verifiedWith(h, s3api.OpPutObject, tc.header, tc.verified, in(key, tc.wire))
+			switch {
+			case tc.wantErr && (err == nil || err.ID != s3api.IdentitySignatureDoesNotMatch()):
+				t.Errorf("%s: PutObject = %v, want SignatureDoesNotMatch", tc.name, err)
+			case !tc.wantErr && err != nil:
+				t.Errorf("%s: PutObject = %s %s", tc.name, err.ID.Shape, err.Message)
+			}
+			_, getErr := invoke(h, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "signed", Key: key})
+			if stored := getErr == nil; stored == tc.wantErr {
+				t.Errorf("%s: stored is %v", tc.name, stored)
+			}
+		}
+
+		// UploadPart reads its body through the same framing: a signed
+		// part is stored, a tampered chunk is refused and stores nothing.
+		id := h.startUpload("signed", "parts", s3api.CreateMultipartUploadInput{})
+		part := func(n int32, wire string) *s3api.UploadPartInput {
+			return &s3api.UploadPartInput{Bucket: "signed", Key: "parts", UploadId: id, PartNumber: n, Body: bytesBody(wire)}
+		}
+		if _, err := verifiedWith(h, s3api.OpUploadPart, signedHeader, header, part(1, good)); err != nil {
+			t.Errorf("UploadPart of signed chunks = %s %s", err.ID.Shape, err.Message)
+		}
+		_, err := verifiedWith(h, s3api.OpUploadPart, signedHeader, header, part(2, strings.Replace(good, "streamed-body", "streamed-bodY", 1)))
+		if err == nil || err.ID != s3api.IdentitySignatureDoesNotMatch() {
+			t.Errorf("UploadPart of a tampered chunk = %v, want SignatureDoesNotMatch", err)
+		}
+		parts := ok(h, who{}, s3api.OpListParts, &s3api.ListPartsInput{Bucket: "signed", Key: "parts", UploadId: id})
+		if len(parts.Parts) != 1 || *parts.Parts[0].PartNumber != 1 {
+			t.Errorf("ListParts = %+v, want the signed part 1 alone", parts.Parts)
+		}
+	})
 }
 
 // TestAWSChunkedUploads: an aws-chunked body is decoded and its trailer

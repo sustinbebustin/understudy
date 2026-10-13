@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/config/configtest"
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb/ddblocal"
 )
@@ -18,6 +19,7 @@ import (
 // no container of its instance behind: neither when cancelled as soon as
 // it is ready, nor once the container has been created.
 func TestShutdownDuringTheBackgroundStartLeavesNoContainer(t *testing.T) {
+	configtest.DynamoDBLicence(t)
 	client, err := docker.New(docker.Options{Socket: docker.DefaultSocket})
 	if err != nil {
 		t.Fatal(err)

@@ -1492,6 +1492,11 @@ type ExecutionTimedOutDetails struct {
 	Error *EventError
 }
 
+// ExpiredTokenException is the error com.amazon.coral.service#ExpiredTokenException.
+type ExpiredTokenException struct {
+	Message *string
+}
+
 // FileSystemConfig is com.amazonaws.lambda#FileSystemConfig.
 type FileSystemConfig struct {
 	Arn            string
@@ -4813,6 +4818,11 @@ func (TracingMode) Values() []TracingMode {
 
 // UnknownOperationException is the error com.amazonaws.lambda#UnknownOperationException.
 type UnknownOperationException struct {
+	Message *string
+}
+
+// UnrecognizedClientException is the error com.amazon.coral.service#UnrecognizedClientException.
+type UnrecognizedClientException struct {
 	Message *string
 }
 

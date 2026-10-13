@@ -10,9 +10,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/config"
 	"github.com/sustinbebustin/understudy/internal/server"
 )
+
+func mustAccount(t *testing.T, s string) aws.AccountID {
+	t.Helper()
+	a, err := aws.ParseAccountID(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return a
+}
 
 // loadFile loads a configuration whose understudy.json is file, on a host.
 func loadFile(t *testing.T, args []string, file string) config.Config {
@@ -57,6 +67,13 @@ func TestServerConfigMapsAppliedSettings(t *testing.T) {
 		{"running clock", nil, `{}`, func(s server.Config) any { return s.ClockStart }, server.ClockRunning{}},
 		{"frozen clock", []string{"--clock", "frozen@2026-01-01T00:00:00Z"}, `{}`, func(s server.Config) any { return s.ClockStart }, server.ClockFrozen{At: at}},
 		{"scaled clock", []string{"--clock-scale", "60"}, `{}`, func(s server.Config) any { return s.ClockStart }, server.ClockScaled{Factor: 60}},
+		{"sigv4 parse", nil, `{}`, func(s server.Config) any { return s.SigV4 }, server.SigV4ParseOnly},
+		{"sigv4 verify", []string{"--sigv4", "verify"}, `{}`, func(s server.Config) any { return s.SigV4 }, server.SigV4Verify},
+		{
+			"static keys", nil, `{"accounts": {"keys": [{"accessKeyId": "LOCALKEY00000001", "secretAccessKey": "sk", "account": "222222222222"}]}}`,
+			func(s server.Config) any { return s.StaticKeys },
+			[]server.StaticKey{{AccessKeyID: "LOCALKEY00000001", Secret: "sk", Account: mustAccount(t, "222222222222")}},
+		},
 	}
 	for _, c := range cases {
 		s, err := serverConfig(loadFile(t, c.args, c.file), "test")
@@ -140,8 +157,6 @@ func TestConfigurationReferenceMatchesServeHelp(t *testing.T) {
 // this build's server does not apply; serve's help lists them.
 func TestServerConfigRefusesUnappliedSettings(t *testing.T) {
 	cases := map[string]struct{ file, where string }{
-		"sigv4 verify":      {`{"sigv4": "verify"}`, "--sigv4, UNDERSTUDY_SIGV4 or the key sigv4 of the configuration file"},
-		"accounts.keys":     {`{"accounts": {"keys": [{"accessKeyId": "LOCALKEY00000001", "secretAccessKey": "sk", "account": "222222222222"}]}}`, "the configuration file"},
 		"s3.maxObjectBytes": {`{"s3": {"maxObjectBytes": 1024}}`, "the configuration file"},
 		"dynamodb.registry": {`{"dynamodb": {"registry": "ecr-public"}}`, "the configuration file"},
 	}

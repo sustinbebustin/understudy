@@ -1,6 +1,6 @@
 # The clock
 
-Every time-based behavior in understudy runs on one emulator clock: SQS visibility timeouts, delays and retention, SNS and EventBridge delivery retries, Lambda batching windows and asynchronous retries, EventBridge schedules, DynamoDB TTL, Secrets Manager and KMS deletion windows, log retention, S3 presigned URL expiry, and the timestamps the APIs return. You can stop it, move it forward, or speed it up. A test keeps AWS's real settings (a 30-second visibility timeout, a 15-minute delay, a 7-day deletion window) and still finishes in milliseconds.
+Every time-based behavior in understudy runs on one emulator clock: SQS visibility timeouts, delays and retention, SNS and EventBridge delivery retries, Lambda batching windows and asynchronous retries, EventBridge schedules, DynamoDB TTL, Secrets Manager and KMS deletion windows, log retention, S3 presigned URL expiry (under `--sigv4 verify`; without it a presigned URL never expires), and the timestamps the APIs return. You can stop it, move it forward, or speed it up. A test keeps AWS's real settings (a 30-second visibility timeout, a 15-minute delay, a 7-day deletion window) and still finishes in milliseconds.
 
 ## Commands
 

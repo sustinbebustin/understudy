@@ -63,6 +63,22 @@ func (e *RuleError) Error() string {
 	return b.String()
 }
 
+// Choices renders Known in the form action.shape accepts: a shape's short
+// name when no other shape in Known shares it, else its full id. Known
+// lists every error the operation sends, or only the shapes a bare name
+// could mean, so a short name here names exactly one error the operation
+// sends.
+func (e *RuleError) Choices() []string {
+	out := make([]string, len(e.Known))
+	for i, id := range e.Known {
+		out[i] = string(id)
+		if slices.IndexFunc(e.Known, func(o smithy.ShapeID) bool { return o != id && o.Name() == id.Name() }) < 0 {
+			out[i] = id.Name()
+		}
+	}
+	return out
+}
+
 // statusOKOperations are the operations S3 answers with an error inside a
 // 200 response (wire-rest.md 3.7).
 func statusOKOperations() []ref.OperationID {

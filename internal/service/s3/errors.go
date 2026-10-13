@@ -186,6 +186,14 @@ func errAnonymousOverrides() *awserr.Error {
 	return errInvalidRequest("Request specific response headers cannot be used for anonymous GET requests.")
 }
 
+// errChunkSignature answers an aws-chunked chunk or trailer signature that
+// does not verify: SignatureDoesNotMatch with S3's mismatch text
+// (sigv4-checksums-endpoints.md 3.3). The signing-debug elements of a
+// header mismatch are left out: S3's for a chunk are unrecorded.
+func errChunkSignature() *awserr.Error {
+	return s3api.ErrSignatureDoesNotMatch("The request signature we calculated does not match the signature you provided. Check your key and signing method.")
+}
+
 func errInvalidRequest(message string) *awserr.Error {
 	return s3api.ErrInvalidRequest(message)
 }

@@ -33,7 +33,7 @@ func (h *Handler) faultClear(w http.ResponseWriter, _ *http.Request, _ []string)
 // faultPut adds the rule in the body under the id in the path, replacing an
 // active rule with that id. A rule the store refuses answers invalid_request
 // with the field at fault and, for an error shape the operation does not
-// send, the shapes it does.
+// send or a bare name it sends under several ids, the shapes to choose from.
 func (h *Handler) faultPut(w http.ResponseWriter, r *http.Request, args []string) {
 	id := args[0]
 	data, aerr := readBody(w, r, "fault rule")
@@ -52,10 +52,6 @@ func (h *Handler) faultPut(w http.ResponseWriter, r *http.Request, args []string
 	}
 	rule.ID = ref.RuleID(id)
 	if _, rerr := h.o.Faults.Add(rule); rerr != nil {
-		known := make([]string, len(rerr.Known))
-		for i, s := range rerr.Known {
-			known[i] = string(s)
-		}
 		h.fail(w, r, &admin.Error{
 			Code:  admin.InvalidRequest,
 			Field: rerr.Field,
@@ -64,7 +60,7 @@ func (h *Handler) faultPut(w http.ResponseWriter, r *http.Request, args []string
 			// The field leads the reason, which reads as its predicate;
 			// admin.Error.Error, the CLI's text, does not render Field.
 			Message: "fault rule rejected, no rule was added or changed: " + rerr.Field + ": " + rerr.Reason,
-			Known:   known,
+			Known:   rerr.Choices(),
 		})
 		return
 	}

@@ -203,11 +203,11 @@ func (s *Service) listAliases(_ context.Context, c *kernel.Call, in *lambdaapi.L
 	if err != nil {
 		return nil, err
 	}
-	p, err := page(aliases, func(a lambdaapi.AliasConfiguration) string { return deref(a.Name) }, in.MaxItems, listPageCap, in.Marker)
+	p, err := page(listingAliases, aliases, func(a lambdaapi.AliasConfiguration) string { return deref(a.Name) }, in.MaxItems, listPageCap, in.Marker)
 	if err != nil {
 		return nil, err
 	}
-	return &lambdaapi.ListAliasesOutput{Aliases: append([]lambdaapi.AliasConfiguration{}, p.items...), NextMarker: p.next}, nil
+	return &lambdaapi.ListAliasesOutput{Aliases: append([]lambdaapi.AliasConfiguration{}, p.Items...), NextMarker: p.Next}, nil
 }
 
 // renderAlias reports an alias; RoutingConfig only when it has weights,

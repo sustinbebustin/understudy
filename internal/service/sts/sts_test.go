@@ -8,6 +8,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
+	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/evidence"
@@ -29,6 +30,9 @@ type harness struct {
 	*kerneltest.K
 	svc       *sts.Service
 	principal identity.Principal
+	// verified is the credentials the edge verified the calls with, under
+	// sigv4 verify; nil under sigv4 parse.
+	verified auth.Auth
 }
 
 func run(t *testing.T, o sts.Options, fn func(h *harness)) {
@@ -48,6 +52,7 @@ func call[In, Out any](h *harness, op kernel.Op[In, Out], in *In) (*Out, *awserr
 		Operation: op.Descriptor().ID,
 		Scope:     h.Scope,
 		Principal: h.principal,
+		Verified:  h.verified,
 		Origin:    ref.External{Protocol: ref.AWSQuery, Listener: ref.ListenerMain},
 		Admitted:  h.Clock.Now(),
 		Endpoint:  h.Endpoint,
@@ -79,6 +84,14 @@ func fails[In, Out any](h *harness, op kernel.Op[In, Out], in *In, code, text st
 // resolves it.
 func (h *harness) signWith(key string) {
 	h.principal, _ = h.Identity.Resolve(key)
+	h.verified = nil
+}
+
+// verifyWith makes later calls signed with an access key whose signature
+// the edge verified, as under sigv4 verify.
+func (h *harness) verifyWith(key string) {
+	h.signWith(key)
+	h.verified = auth.SigV4Header{Credential: auth.Credential{Key: key}}
 }
 
 func (h *harness) whoAmI() *stsapi.GetCallerIdentityOutput {
@@ -409,5 +422,21 @@ func TestGetSessionToken(t *testing.T) {
 		session := must(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1"}).Credentials
 		h.signWith(session.AccessKeyId)
 		fails(h, stsapi.OpGetSessionToken, &stsapi.GetSessionTokenInput{}, "AccessDenied", "session credentials")
+	})
+}
+
+// Under sigv4 verify the call names the key it was signed with, so a
+// session from an earlier GetSessionToken is refused as AWS refuses it,
+// while the long-term key that minted it still may ask.
+func TestGetSessionTokenRefusesSessionCredentialsUnderVerify(t *testing.T) {
+	run(t, sts.Options{}, func(h *harness) {
+		must(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "u"})
+		key := must(h, iamapi.OpCreateAccessKey, &iamapi.CreateAccessKeyInput{UserName: new("u")}).AccessKey
+		h.verifyWith(key.AccessKeyId)
+		session := must(h, stsapi.OpGetSessionToken, &stsapi.GetSessionTokenInput{}).Credentials
+		h.verifyWith(session.AccessKeyId)
+		fails(h, stsapi.OpGetSessionToken, &stsapi.GetSessionTokenInput{}, "AccessDenied", "session credentials")
+		h.verifyWith(key.AccessKeyId)
+		must(h, stsapi.OpGetSessionToken, &stsapi.GetSessionTokenInput{})
 	})
 }

@@ -239,6 +239,55 @@
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L3365", "validated": "2026-02-21"}
       }
     },
+    "com.amazonaws.s3#InvalidAccessKeyId": {
+      "type": "structure",
+      "members": {"AWSAccessKeyId": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 403,
+        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html"}
+      }
+    },
+    "com.amazonaws.s3#InvalidToken": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html"}
+      }
+    },
+    "com.amazonaws.s3#ExpiredToken": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html"}
+      }
+    },
+    "com.amazonaws.s3#RequestTimeTooSkewed": {
+      "type": "structure",
+      "members": {
+        "RequestTime": {"target": "smithy.api#String"},
+        "ServerTime": {"target": "smithy.api#String"},
+        "MaxAllowedSkewMilliseconds": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 403,
+        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html"}
+      }
+    },
+    "com.amazonaws.s3#AuthorizationQueryParametersError": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L3661", "validated": "2026-02-21"}
+      }
+    },
     "com.amazonaws.s3#SlowDown": {
       "type": "structure",
       "members": {},

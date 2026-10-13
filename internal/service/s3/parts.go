@@ -111,7 +111,7 @@ func (s *Service) uploadPart(ctx context.Context, c *kernel.Call, in *s3api.Uplo
 	if v, ok := c.Header(headerContentEncoding); ok {
 		encoding = &v
 	}
-	u, err := readUpload(c, encoding, bodyLength(in.ContentLength, in.Body), checksumMembers{
+	u, err := readUpload(c, s.k.Identity(), encoding, bodyLength(in.ContentLength, in.Body), checksumMembers{
 		checksum.CRC32: in.ChecksumCRC32, checksum.CRC32C: in.ChecksumCRC32C, checksum.CRC64NVME: in.ChecksumCRC64NVME,
 		checksum.SHA1: in.ChecksumSHA1, checksum.SHA256: in.ChecksumSHA256, checksum.SHA512: in.ChecksumSHA512, checksum.MD5: in.ChecksumMD5,
 		checksum.XXHASH64: in.ChecksumXXHASH64, checksum.XXHASH3: in.ChecksumXXHASH3, checksum.XXHASH128: in.ChecksumXXHASH128,

@@ -227,6 +227,11 @@ type EndpointDisabledException struct {
 	Message *string
 }
 
+// ExpiredToken is the error com.amazon.coral.service#ExpiredToken.
+type ExpiredToken struct {
+	Message *string
+}
+
 // FilterPolicyLimitExceededException is the error com.amazonaws.sns#FilterPolicyLimitExceededException.
 type FilterPolicyLimitExceededException struct {
 	Message *string
@@ -347,6 +352,11 @@ type InvalidAction struct {
 
 // InvalidBatchEntryIdException is the error com.amazonaws.sns#InvalidBatchEntryIdException.
 type InvalidBatchEntryIdException struct {
+	Message *string
+}
+
+// InvalidClientTokenId is the error com.amazon.coral.service#InvalidClientTokenId.
+type InvalidClientTokenId struct {
 	Message *string
 }
 

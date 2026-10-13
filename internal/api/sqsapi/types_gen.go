@@ -187,6 +187,16 @@ type EmptyBatchRequest struct {
 	Message *string
 }
 
+// ExpiredToken is the error com.amazon.coral.service#ExpiredToken.
+type ExpiredToken struct {
+	Message *string
+}
+
+// ExpiredTokenException is the error com.amazon.coral.service#ExpiredTokenException.
+type ExpiredTokenException struct {
+	Message *string
+}
+
 // GetQueueAttributesInput is the input of GetQueueAttributes, com.amazonaws.sqs#GetQueueAttributesRequest.
 type GetQueueAttributesInput struct {
 	QueueUrl       string
@@ -301,6 +311,11 @@ type InvalidAttributeValue struct {
 
 // InvalidBatchEntryId is the error com.amazonaws.sqs#InvalidBatchEntryId.
 type InvalidBatchEntryId struct {
+	Message *string
+}
+
+// InvalidClientTokenId is the error com.amazon.coral.service#InvalidClientTokenId.
+type InvalidClientTokenId struct {
 	Message *string
 }
 
@@ -949,6 +964,11 @@ type TooManyEntriesInBatchRequest struct {
 
 // UnknownOperationException is the error com.amazon.coral.service#UnknownOperationException.
 type UnknownOperationException struct {
+	Message *string
+}
+
+// UnrecognizedClientException is the error com.amazon.coral.service#UnrecognizedClientException.
+type UnrecognizedClientException struct {
 	Message *string
 }
 

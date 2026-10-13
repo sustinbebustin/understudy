@@ -653,9 +653,9 @@ func (s *Service) listEventInvokeConfigs(_ context.Context, c *kernel.Call, in *
 	if err != nil {
 		return nil, err
 	}
-	p, err := page(configs, func(cfg lambdaapi.FunctionEventInvokeConfig) string { return deref(cfg.FunctionArn) }, in.MaxItems, listPageCap, in.Marker)
+	p, err := page(listingEventInvokeConfigs, configs, func(cfg lambdaapi.FunctionEventInvokeConfig) string { return deref(cfg.FunctionArn) }, in.MaxItems, listPageCap, in.Marker)
 	if err != nil {
 		return nil, err
 	}
-	return &lambdaapi.ListFunctionEventInvokeConfigsOutput{FunctionEventInvokeConfigs: append([]lambdaapi.FunctionEventInvokeConfig{}, p.items...), NextMarker: p.next}, nil
+	return &lambdaapi.ListFunctionEventInvokeConfigsOutput{FunctionEventInvokeConfigs: append([]lambdaapi.FunctionEventInvokeConfig{}, p.Items...), NextMarker: p.Next}, nil
 }

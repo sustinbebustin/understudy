@@ -249,11 +249,11 @@ func (s *Service) listFunctions(_ context.Context, c *kernel.Call, in *lambdaapi
 		}
 		return rows, nil
 	})
-	p, err := page(rows, func(r versionRow) string { return r.key }, in.MaxItems, listPageCap, in.Marker)
+	p, err := page(listingFunctions, rows, func(r versionRow) string { return r.key }, in.MaxItems, listPageCap, in.Marker)
 	if err != nil {
 		return nil, err
 	}
-	return &lambdaapi.ListFunctionsOutput{Functions: configs(p.items), NextMarker: p.next}, nil
+	return &lambdaapi.ListFunctionsOutput{Functions: configs(p.Items), NextMarker: p.Next}, nil
 }
 
 // updateLatest applies change to $LATEST of the function ref names, once

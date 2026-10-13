@@ -31,6 +31,8 @@ A rule has a match, an action and a trigger.
 
 Each flag repeats to match more values; a rule with no match flags matches every call.
 
+S3 object calls (`GetObject`, `HeadObject`, `GetObjectAttributes`, `PutObject`, `CopyObject`, `DeleteObject`, the object multipart operations `CreateMultipartUpload`, `UploadPart`, `UploadPartCopy`, `CompleteMultipartUpload`, `AbortMultipartUpload` and `ListParts`, the object tagging operations, and each key of `DeleteObjects`) touch the object's ARN, `arn:aws:s3:::<bucket>/<key>`, not the bucket's; a copy touches its source object too. Match the objects of a bucket with `--resource 'arn:aws:s3:::my-bucket/*'`; `--resource arn:aws:s3:::my-bucket` matches bucket calls such as `ListObjectsV2`, `ListMultipartUploads` and `GetBucketTagging` only.
+
 | Action | Flag | Effect |
 |---|---|---|
 | Error | `--error SHAPE [--message TEXT]` | The call fails with that error before the handler runs |

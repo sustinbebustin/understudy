@@ -216,6 +216,16 @@ func ErrENINotReadyException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityENINotReadyException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// IdentityExpiredTokenException returns the identity of com.amazon.coral.service#ExpiredTokenException.
+func IdentityExpiredTokenException() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazon.coral.service#ExpiredTokenException", JSONType: "ExpiredTokenException", QueryCode: "ExpiredToken", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrExpiredTokenException returns an ExpiredTokenException error with message.
+func ErrExpiredTokenException(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityExpiredTokenException(), Message: message, Origin: awserr.Generic{}}
+}
+
 // IdentityFunctionVersionsPerCapacityProviderLimitExceededException returns the identity of com.amazonaws.lambda#FunctionVersionsPerCapacityProviderLimitExceededException.
 func IdentityFunctionVersionsPerCapacityProviderLimitExceededException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.lambda#FunctionVersionsPerCapacityProviderLimitExceededException", JSONType: "FunctionVersionsPerCapacityProviderLimitExceededException", QueryCode: "FunctionVersionsPerCapacityProviderLimitExceededException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -666,6 +676,16 @@ func ErrUnknownOperationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityUnknownOperationException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// IdentityUnrecognizedClientException returns the identity of com.amazon.coral.service#UnrecognizedClientException.
+func IdentityUnrecognizedClientException() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazon.coral.service#UnrecognizedClientException", JSONType: "UnrecognizedClientException", QueryCode: "InvalidClientTokenId", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrUnrecognizedClientException returns an UnrecognizedClientException error with message.
+func ErrUnrecognizedClientException(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityUnrecognizedClientException(), Message: message, Origin: awserr.Generic{}}
+}
+
 // IdentityUnsupportedMediaTypeException returns the identity of com.amazonaws.lambda#UnsupportedMediaTypeException.
 func IdentityUnsupportedMediaTypeException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.lambda#UnsupportedMediaTypeException", JSONType: "UnsupportedMediaTypeException", QueryCode: "UnsupportedMediaTypeException", Status: 415, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -714,7 +734,7 @@ func MalformedRequestError() awserr.Identity { return IdentityInvalidRequestCont
 func GenericErrors(f awserr.Family) []awserr.Identity {
 	switch f {
 	case awserr.JSONFamily:
-		return []awserr.Identity{IdentitySerializationException(), IdentityCoralServiceUnknownOperationException(), IdentityMissingAuthenticationTokenException(), IdentityIncompleteSignatureException(), IdentityInvalidSignatureException(), IdentityAccessDeniedException(), IdentityInternalFailure(), IdentityNotImplemented(), IdentityRequestEntityTooLargeException(), IdentityThrottlingException()}
+		return []awserr.Identity{IdentitySerializationException(), IdentityCoralServiceUnknownOperationException(), IdentityMissingAuthenticationTokenException(), IdentityIncompleteSignatureException(), IdentityInvalidSignatureException(), IdentityUnrecognizedClientException(), IdentityExpiredTokenException(), IdentityAccessDeniedException(), IdentityInternalFailure(), IdentityNotImplemented(), IdentityRequestEntityTooLargeException(), IdentityThrottlingException()}
 	default:
 		return nil
 	}

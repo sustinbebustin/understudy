@@ -332,7 +332,7 @@ func TestEncodeErrorGenericShapes(t *testing.T) {
 	_, cw := newRegistry(t)
 	for _, e := range []*awserr.Error{
 		{ID: awserr.SerializationException(), Message: "bad body", Origin: awserr.Generic{}},
-		{ID: awserr.NotImplemented(), Message: "understudy does not implement cloudwatch.PutDashboard.", Origin: awserr.Unimplemented{}},
+		{ID: awserr.NotImplemented(), Message: "understudy does not implement cloudwatch.PutDashboard. Run 'understudy coverage --service cloudwatch' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=cloudwatch.PutDashboard", Origin: awserr.Unimplemented{}},
 	} {
 		resp := rpcv2cbor.Codec{}.EncodeError(errorRequest(false), cw, "req-1", e)
 		want := cbor.Map{{Key: "__type", Value: cbor.Text(e.ID.Shape)}, {Key: "message", Value: cbor.Text(e.Message)}}

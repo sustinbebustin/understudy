@@ -6,7 +6,24 @@
 #
 #   conformance/e2e-pipeline/run.sh                 # the whole suite
 #   conformance/e2e-pipeline/run.sh -run TestSQS    # extra arguments go to go test
+#   SIGV4=verify conformance/e2e-pipeline/run.sh    # serve with --sigv4 verify (default parse)
+#
+# Every worker takes its lock in DynamoDB, so the suite needs DynamoDB Local,
+# whose licence is the caller's to accept: UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1
+# accepts the Amazon DynamoDB Local License Agreement for the run (serve
+# --accept-dynamodb-local-license). CONFORMANCE_DYNAMODB=0 skips the whole
+# suite and exits 0; without either, run.sh refuses to start and exits 2.
 set -euo pipefail
+
+if [[ "${CONFORMANCE_DYNAMODB:-}" == "0" ]]; then
+    echo "run.sh: skipped the whole e2e-pipeline suite: CONFORMANCE_DYNAMODB=0, and every worker takes its lock in DynamoDB" >&2
+    exit 0
+fi
+if [[ "${UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE:-}" != "1" ]]; then
+    echo "run.sh: the e2e-pipeline workers take their locks in DynamoDB Local, whose licence is yours to accept." >&2
+    echo "run.sh: set UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 to accept the Amazon DynamoDB Local License Agreement for this run, or CONFORMANCE_DYNAMODB=0 to skip the suite. Nothing was run." >&2
+    exit 2
+fi
 
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 root=$(cd -- "$here/../.." && pwd)
@@ -29,7 +46,7 @@ data=$(mktemp -d "${TMPDIR:-/tmp}/understudy-e2e-pipeline.XXXXXX")
 log="$data/serve.log"
 echo "run.sh: serving on $listen with data directory $data (log: $log)" >&2
 "$bin" serve --listen "$listen" --persist "$data/state" --clock frozen --seed 1 \
-    --accept-dynamodb-local-license >"$log" 2>&1 &
+    --sigv4 "${SIGV4:-parse}" --accept-dynamodb-local-license >"$log" 2>&1 &
 server=$!
 
 cleanup() {

@@ -717,6 +717,17 @@ func (v *EndpointDisabledException) serialize(s smithy.Serializer, m *smithy.Mem
 }
 
 // Serialize writes v through s.
+func (v *ExpiredToken) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *ExpiredToken) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaExpiredToken)
+	if v.Message != nil {
+		s.WriteString(&memberExpiredToken_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *FilterPolicyLimitExceededException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *FilterPolicyLimitExceededException) serialize(s smithy.Serializer, m *smithy.Member) {
@@ -1070,6 +1081,17 @@ func (v *InvalidBatchEntryIdException) serialize(s smithy.Serializer, m *smithy.
 	s.WriteStruct(m, &schemaInvalidBatchEntryIdException)
 	if v.Message != nil {
 		s.WriteString(&memberInvalidBatchEntryIdException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *InvalidClientTokenId) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InvalidClientTokenId) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInvalidClientTokenId)
+	if v.Message != nil {
+		s.WriteString(&memberInvalidClientTokenId_message, *v.Message)
 	}
 	s.CloseStruct()
 }

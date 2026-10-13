@@ -255,8 +255,9 @@ func TestAdminFaults(t *testing.T) {
 	}
 	_, err := c.PutFault(t.Context(), bad)
 	e := adminErr(t, err, admin.InvalidRequest)
-	if e.Field != "action.shape" || !slices.Contains(e.Known, "com.amazonaws.sqs#QueueDoesNotExist") {
-		t.Fatalf("invalid rule = %+v, want the SQS codes", e)
+	if e.Field != "action.shape" || !slices.Contains(e.Known, "QueueDoesNotExist") ||
+		slices.ContainsFunc(e.Known, func(s string) bool { return strings.Contains(s, "#") }) {
+		t.Fatalf("invalid rule = %+v, want the SQS errors by short name", e)
 	}
 
 	url := queue(t, endpoint, "q", "m")
@@ -717,7 +718,7 @@ func TestNonLoopbackListenerNeedsATokenAndTheAWSAPIOptIn(t *testing.T) {
 		{"no token", server.Config{Listen: exposed}, server.RefusedNoAdminToken, "admin token"},
 		{"opt-in without a token", server.Config{Listen: exposed, AWSAPI: server.AWSAPIUnauthenticated{}}, server.RefusedNoAdminToken, "admin token"},
 		{"token alone", server.Config{Listen: exposed, AdminToken: "s3cret"}, server.RefusedUnauthenticatedAWSAPI, "--allow-unauthenticated-aws-api"},
-		{"token, loopback only", server.Config{Listen: exposed, AdminToken: "s3cret", AWSAPI: server.AWSAPILoopbackOnly{}}, server.RefusedUnauthenticatedAWSAPI, "checks no signature"},
+		{"token, loopback only", server.Config{Listen: exposed, AdminToken: "s3cret", AWSAPI: server.AWSAPILoopbackOnly{}}, server.RefusedUnauthenticatedAWSAPI, "test/test"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.cfg.LogOutput = io.Discard

@@ -1,6 +1,7 @@
 // Package configtest connects Docker-tagged tests to the Docker Engine
 // serve would use, resolved by config so the tests and serve agree on
-// which UNDERSTUDY_DOCKER and DOCKER_HOST values are usable.
+// which UNDERSTUDY_DOCKER and DOCKER_HOST values are usable, and runs
+// DynamoDB Local only when the caller accepted its licence.
 package configtest
 
 import (
@@ -34,4 +35,14 @@ func EngineClient(t *testing.T) *docker.Client {
 	}
 	t.Cleanup(c.Close)
 	return c
+}
+
+// DynamoDBLicence skips t unless UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1. A
+// test that pulls or runs DynamoDB Local accepts the Amazon DynamoDB Local
+// License Agreement, which is the caller's to accept, never the test's.
+func DynamoDBLicence(t *testing.T) {
+	t.Helper()
+	if os.Getenv(config.AcceptLicenceEnv) != "1" {
+		t.Skipf("runs DynamoDB Local, whose licence is the caller's to accept: set %s=1 to run it", config.AcceptLicenceEnv)
+	}
 }

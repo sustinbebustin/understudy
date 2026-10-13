@@ -70,7 +70,8 @@ func TestFaultsAddFlags(t *testing.T) {
 }
 
 // faults add refuses a rule the server would refuse with the flag to fix,
-// and lists the errors an operation sends by the short names --error takes.
+// and lists the errors an operation sends in the form --error takes: the
+// short name, or the full shape id where two of them share it.
 func TestFaultsAddRefusalsNameTheFix(t *testing.T) {
 	inst := start(t)
 	cases := []struct {
@@ -80,6 +81,8 @@ func TestFaultsAddRefusalsNameTheFix(t *testing.T) {
 		{[]string{"--operation", "SendMessage", "--throttle"}, `--operation "SendMessage" is not service.Operation, such as sqs.SendMessage`, "json:"},
 		{[]string{"--service", "sqs", "--error", "QueueDoesNotExist"}, "--error needs at least one --operation service.Operation", "match.operations"},
 		{[]string{"--operation", "sqs.SendMessage", "--error", "Nope"}, "QueueDoesNotExist", "com.amazonaws.sqs#"},
+		{[]string{"--operation", "dynamodb.GetItem", "--error", "Nope"}, "com.amazonaws.dynamodb#ThrottlingException", "com.amazonaws.dynamodb#ResourceNotFoundException"},
+		{[]string{"--operation", "dynamodb.GetItem", "--error", "ThrottlingException"}, "(known: com.amazonaws.dynamodb#ThrottlingException, com.amazon.coral.service#ThrottlingException)", "json:"},
 	}
 	for _, c := range cases {
 		r := runCLI(t.Context(), inst.Endpoint(), nil, append([]string{"faults", "add"}, c.args...)...)

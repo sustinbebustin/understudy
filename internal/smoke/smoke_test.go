@@ -19,6 +19,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/awschunked"
+	"github.com/sustinbebustin/understudy/internal/policydoc"
 	"github.com/sustinbebustin/understudy/internal/protocol/cbor"
 )
 
@@ -514,13 +515,46 @@ func (w *workload) cloudwatch(t *testing.T) {
 
 // policy asks the CLI for the smoke principal's least-privilege policy,
 // which carries the KMS action S3 called on its behalf for the SSE-KMS
-// put.
+// put, grants s3:PutObject on the bucket's objects and iam:PassRole on the
+// role CreateFunction passed, and nothing on Object Lambda access points;
+// with Docker, the execution role's policy carries the log actions.
 func (w *workload) policy(t *testing.T) {
 	t.Helper()
 	out := cli(t, w.emu, "iam", "policy", "--principal", principal)
 	for _, action := range []string{"kms:GenerateDataKey", "s3:PutObject", "sqs:SendMessage"} {
 		if !strings.Contains(out, action) {
 			t.Errorf("understudy iam policy for %s lacks %s:\n%s", principal, action, out)
+		}
+	}
+	if strings.Contains(out, "s3-object-lambda:") {
+		t.Errorf("understudy iam policy for %s grants an s3-object-lambda action no call used:\n%s", principal, out)
+	}
+	document, _, _ := strings.Cut(out, "\n")
+	doc, err := policydoc.Parse([]byte(document))
+	if err != nil {
+		t.Fatalf("understudy iam policy printed %q, which does not parse as a policy: %v", document, err)
+	}
+	for _, q := range []struct {
+		action, resource string
+		allowed          bool
+	}{
+		{"s3:PutObject", "arn:aws:s3:::" + bucket + "/plain.txt", true},
+		{"iam:PassRole", w.roleARN, true},
+		{"iam:PassRole", "arn:aws:iam::" + account + ":role/other", false},
+	} {
+		_, allowed := policydoc.Allows(doc, policydoc.Query{Action: q.action, Resource: q.resource}).(policydoc.Allowed)
+		if allowed != q.allowed {
+			t.Errorf("understudy iam policy for %s allows %s on %s: %t, want %t:\n%s", principal, q.action, q.resource, allowed, q.allowed, out)
+		}
+	}
+	if !w.invoke {
+		return
+	}
+	// The invoked function's logs were written as its execution role.
+	role := cli(t, w.emu, "iam", "policy", "--principal", w.roleARN)
+	for _, action := range []string{"logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"} {
+		if !strings.Contains(role, action) {
+			t.Errorf("understudy iam policy for the execution role %s lacks %s:\n%s", w.roleARN, action, role)
 		}
 	}
 }

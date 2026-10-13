@@ -301,6 +301,10 @@ var schemaCoralServiceThrottlingException = smithy.Schema{ID: "com.amazon.coral.
 
 var memberCoralServiceThrottlingException_message = smithy.Member{Name: "message", Index: 0}
 
+var schemaCoralServiceUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberCoralServiceUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaCount = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#Count", Type: smithy.TypeLong}
 
 var schemaCreateDeliveryInput = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#CreateDeliveryRequest", Type: smithy.TypeStructure}
@@ -1226,6 +1230,10 @@ var schemaExecutionStatusList = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#
 var memberExecutionStatusList_member = smithy.Member{Name: "member", Index: 0}
 
 var schemaExpectedRevisionId = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExpectedRevisionId", Type: smithy.TypeString}
+
+var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaExportDestinationBucket = smithy.Schema{ID: "com.amazonaws.cloudwatchlogs#ExportDestinationBucket", Type: smithy.TypeString}
 
@@ -3978,6 +3986,8 @@ func init() {
 	schemaCoralServiceAccessDeniedException.Members = []*smithy.Member{&memberCoralServiceAccessDeniedException_message}
 	memberCoralServiceThrottlingException_message.Target = &schemaSmithyString
 	schemaCoralServiceThrottlingException.Members = []*smithy.Member{&memberCoralServiceThrottlingException_message}
+	memberCoralServiceUnrecognizedClientException_message.Target = &schemaSmithyString
+	schemaCoralServiceUnrecognizedClientException.Members = []*smithy.Member{&memberCoralServiceUnrecognizedClientException_message}
 	memberCreateDeliveryInput_deliverySourceName.Target = &schemaDeliverySourceName
 	memberCreateDeliveryInput_deliveryDestinationArn.Target = &schemaArn
 	memberCreateDeliveryInput_recordFields.Target = &schemaRecordFields
@@ -4382,6 +4392,8 @@ func init() {
 	schemaEnumerations.Members = []*smithy.Member{&memberEnumerations_key, &memberEnumerations_value}
 	memberExecutionStatusList_member.Target = &schemaExecutionStatus
 	schemaExecutionStatusList.Members = []*smithy.Member{&memberExecutionStatusList_member}
+	memberExpiredTokenException_message.Target = &schemaSmithyString
+	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
 	memberExportTask_taskId.Target = &schemaExportTaskId
 	memberExportTask_taskName.Target = &schemaExportTaskName
 	memberExportTask_logGroupName.Target = &schemaLogGroupName

@@ -31,9 +31,9 @@ import (
 )
 
 // TestMultipartOverHTTP sends a multipart upload through the edge: the
-// Complete body's ETags may be quoted as &quot; or &#34; (sigv4-checksums-
-// endpoints.md 4.4); a partNumber GET answers 206 with the part and
-// x-amz-mp-parts-count (s3.md 5.8); and a StatusOKError rule on
+// Complete body's ETags may be quoted as &quot; or &#34;
+// (sigv4-checksums-endpoints.md 4.4); a partNumber GET answers 206 with
+// the part and x-amz-mp-parts-count (s3.md 5.8); and a StatusOKError rule on
 // CompleteMultipartUpload lets the upload complete, then answers 200 with
 // an <Error> document after the XML declaration (wire-rest.md 3.7).
 func TestMultipartOverHTTP(t *testing.T) {

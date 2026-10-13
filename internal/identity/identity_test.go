@@ -137,7 +137,7 @@ func TestResolveNeverDecodesUnmintedKeys(t *testing.T) {
 		t.Errorf("second Resolve(AKIAIOSFODNN7EXAMPLE) = %#v; want one warning per key", res)
 	}
 
-	for _, key := range []string{"test", "AKIAI44QH8DHBEXAMPLE", "", "ASIA"} {
+	for _, key := range []string{"AKIAI44QH8DHBEXAMPLE", "", "ASIA", "TEST", "test2"} {
 		p, res := s.Resolve(key)
 		if p != (identity.Root{Account: def}) || res != (identity.Fallback{Warn: false}) {
 			t.Errorf("Resolve(%q) = %#v, %#v; want the default account root without a warning", key, p, res)
@@ -173,11 +173,165 @@ func TestResolveWarnsAboutAtMostTenThousandKeys(t *testing.T) {
 func TestResolveTwelveDigitKeyIsThatAccountsRoot(t *testing.T) {
 	s := identity.New(ids.NewSeeded(1), aws.DefaultAccount())
 	p, res := s.Resolve("112233445566")
-	if p != (identity.Root{Account: account(t, "112233445566")}) || res != (identity.AccountKey{}) {
-		t.Errorf("Resolve(112233445566) = %#v, %#v; want that account's root", p, res)
+	if p != (identity.Root{Account: account(t, "112233445566")}) || res != (identity.AccountKey{Secret: identity.DummySecret}) {
+		t.Errorf("Resolve(112233445566) = %#v, %#v; want that account's root with the dummy secret", p, res)
 	}
 	if _, res := s.Resolve("11223344556"); res != (identity.Fallback{}) {
 		t.Errorf("an 11-digit key resolved as %#v; want the default account", res)
+	}
+}
+
+// The quickstart pair test/test is the default account's root, and its
+// secret is the dummy one, so it verifies under sigv4 verify.
+func TestResolveDummyKeyIsTheDefaultAccountsRoot(t *testing.T) {
+	def := account(t, "111122223333")
+	s := identity.New(ids.NewSeeded(1), def)
+	p, res := s.Resolve("test")
+	if p != (identity.Root{Account: def}) || res != (identity.Static{Secret: "test"}) {
+		t.Errorf("Resolve(test) = %#v, %#v; want the default account's root with secret test", p, res)
+	}
+}
+
+// Every resolution but Fallback carries the secret its key signs with.
+func TestSecretOf(t *testing.T) {
+	for _, tc := range []struct {
+		res    identity.Resolution
+		want   ids.SecretAccessKey
+		wantOK bool
+	}{
+		{identity.Minted{Secret: "minted", Lifetime: identity.LongTerm{}}, "minted", true},
+		{identity.Static{Secret: "static"}, "static", true},
+		{identity.AccountKey{Secret: identity.DummySecret}, identity.DummySecret, true},
+		{identity.Fallback{Warn: true}, "", false},
+	} {
+		if got, ok := identity.SecretOf(tc.res); got != tc.want || ok != tc.wantOK {
+			t.Errorf("SecretOf(%T) = %q, %v; want %q, %v", tc.res, got, ok, tc.want, tc.wantOK)
+		}
+	}
+}
+
+func TestStaticKeysResolveToTheirAccountsRoot(t *testing.T) {
+	s := identity.New(ids.NewSeeded(1), aws.DefaultAccount())
+	acct := account(t, "444455556666")
+	if err := s.SetStaticKeys([]identity.StaticKey{{AccessKeyID: "CIKEY0000000000001", Secret: "ci-secret", Account: acct}}); err != nil {
+		t.Fatal(err)
+	}
+	p, res := s.Resolve("CIKEY0000000000001")
+	if p != (identity.Root{Account: acct}) || res != (identity.Static{Secret: "ci-secret"}) {
+		t.Errorf("Resolve(static key) = %#v, %#v; want %s's root with its secret", p, res, acct)
+	}
+	// A static key wins over the dummy key and over a 12-digit key of the
+	// same name.
+	if err := s.SetStaticKeys([]identity.StaticKey{{AccessKeyID: "test", Secret: "other", Account: acct}, {AccessKeyID: "112233445566", Secret: "s", Account: acct}}); err != nil {
+		t.Fatal(err)
+	}
+	if p, res := s.Resolve("test"); p != (identity.Root{Account: acct}) || res != (identity.Static{Secret: "other"}) {
+		t.Errorf("Resolve(test) with a static key test = %#v, %#v; want the static key", p, res)
+	}
+	if p, res := s.Resolve("112233445566"); p != (identity.Root{Account: acct}) || res != (identity.Static{Secret: "s"}) {
+		t.Errorf("Resolve(112233445566) with a static key of that name = %#v, %#v; want the static key", p, res)
+	}
+	// The previous list is replaced as a whole.
+	if _, res := s.Resolve("CIKEY0000000000001"); res != (identity.Fallback{}) {
+		t.Errorf("a static key no longer configured resolved as %#v; want Fallback", res)
+	}
+}
+
+func TestSetStaticKeysRefusals(t *testing.T) {
+	s := identity.New(ids.NewSeeded(1), aws.DefaultAccount())
+	acct := account(t, "444455556666")
+	minted := mint(t, s, identity.Root{Account: acct}, identity.LongTerm{})
+	good := identity.StaticKey{AccessKeyID: "CIKEY0000000000001", Secret: "ci-secret", Account: acct}
+	if err := s.SetStaticKeys([]identity.StaticKey{good}); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name string
+		keys []identity.StaticKey
+		want identity.StaticKeyProblem
+	}{
+		{"empty secret", []identity.StaticKey{{AccessKeyID: "CIKEY0000000000002", Account: acct}}, identity.StaticKeyNoSecret},
+		{"minted key", []identity.StaticKey{{AccessKeyID: minted.AccessKeyID, Secret: "s", Account: acct}}, identity.StaticKeyMinted},
+		{"listed twice", []identity.StaticKey{{AccessKeyID: "CIKEY0000000000002", Secret: "a", Account: acct}, {AccessKeyID: "CIKEY0000000000002", Secret: "b", Account: acct}}, identity.StaticKeyListedTwice},
+	} {
+		err := s.SetStaticKeys(tc.keys)
+		keyErr, ok := errors.AsType[*identity.StaticKeyError](err)
+		if !ok || keyErr.Problem != tc.want {
+			t.Errorf("%s: SetStaticKeys = %v; want a StaticKeyError with problem %d", tc.name, err, tc.want)
+			continue
+		}
+		if strings.Contains(err.Error(), "ci-secret") || strings.Contains(err.Error(), string(minted.SecretAccessKey)) {
+			t.Errorf("%s: the error names a secret: %v", tc.name, err)
+		}
+		// All or nothing: the previous static keys stay.
+		if _, res := s.Resolve(string(good.AccessKeyID)); res != (identity.Static{Secret: good.Secret}) {
+			t.Errorf("%s: after the refusal the configured key resolved as %#v", tc.name, res)
+		}
+	}
+}
+
+// Static keys come from configuration at every start: a snapshot never
+// holds them, and loading one keeps them.
+func TestStaticKeysStayOutOfExportAndSurviveImport(t *testing.T) {
+	s := identity.New(ids.NewSeeded(1), aws.DefaultAccount())
+	acct := account(t, "444455556666")
+	empty, err := s.Export()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetStaticKeys([]identity.StaticKey{{AccessKeyID: "CIKEY0000000000001", Secret: "ci-secret", Account: acct}}); err != nil {
+		t.Fatal(err)
+	}
+	exported, err := s.Export()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(exported, empty) {
+		t.Errorf("Export with only a static key = %s; want the empty store's %s", exported, empty)
+	}
+	mint(t, s, identity.Root{Account: acct}, identity.LongTerm{})
+	if err := s.Import(empty); err != nil {
+		t.Fatal(err)
+	}
+	if _, res := s.Resolve("CIKEY0000000000001"); res != (identity.Static{Secret: "ci-secret"}) {
+		t.Errorf("after Import the static key resolved as %#v; want it kept", res)
+	}
+
+	// A snapshot minted elsewhere may hold a key now configured as static.
+	// A key is minted or static, never both, so Import refuses the snapshot
+	// rather than let the minted entry shadow the configured secret.
+	elsewhere := identity.New(ids.NewSeeded(2), aws.DefaultAccount())
+	taken := mint(t, elsewhere, identity.Root{Account: acct}, identity.LongTerm{})
+	snapshot, err := elsewhere.Export()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetStaticKeys([]identity.StaticKey{{AccessKeyID: taken.AccessKeyID, Secret: "configured", Account: acct}}); err != nil {
+		t.Fatal(err)
+	}
+	err = s.Import(snapshot)
+	if importErr, ok := errors.AsType[*identity.ImportError](err); !ok || !strings.Contains(importErr.Error(), string(taken.AccessKeyID)) {
+		t.Fatalf("Import of a snapshot minting configured key %s = %v; want an ImportError naming the key", taken.AccessKeyID, err)
+	}
+	if _, res := s.Resolve(string(taken.AccessKeyID)); res != (identity.Static{Secret: "configured"}) {
+		t.Errorf("after the refused Import the configured key resolved as %#v; want the static entry", res)
+	}
+}
+
+// Minting never hands out a configured key: the static key would shadow
+// nothing, and the minted principal would be unreachable.
+func TestMintRefusesAConfiguredKey(t *testing.T) {
+	acct := account(t, "123456789012")
+	probe := identity.New(ids.NewSeeded(9), aws.DefaultAccount())
+	next := mint(t, probe, identity.Root{Account: acct}, identity.LongTerm{})
+
+	s := identity.New(ids.NewSeeded(9), aws.DefaultAccount())
+	if err := s.SetStaticKeys([]identity.StaticKey{{AccessKeyID: next.AccessKeyID, Secret: "s", Account: acct}}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := s.MintLongTerm(identity.Root{Account: acct})
+	if mintErr, ok := errors.AsType[*identity.MintError](err); !ok || mintErr.Problem != identity.KeyCollision {
+		t.Errorf("MintLongTerm drawing a configured key = %v; want a KeyCollision MintError", err)
 	}
 }
 
@@ -338,6 +492,24 @@ func TestCredentialsNeverReachLogsOrFormatting(t *testing.T) {
 		t.Fatalf("temporary credentials have lifetime %#v", temp.Lifetime)
 	}
 	t.Run("temporary lifetime", func(t *testing.T) { assertRedacted(t, life, []string{sessionToken(temp)}, "[REDACTED]") })
+
+	static := identity.StaticKey{AccessKeyID: "CIKEY0000000000001", Secret: "ci-secret-value", Account: acct}
+	if err := s.SetStaticKeys([]identity.StaticKey{static}); err != nil {
+		t.Fatal(err)
+	}
+	t.Run("static key", func(t *testing.T) { assertRedacted(t, static, []string{"ci-secret-value"}, "CIKEY0000000000001") })
+	_, res := s.Resolve("CIKEY0000000000001")
+	staticRes, ok := res.(identity.Static)
+	if !ok {
+		t.Fatalf("Resolve(static key) = %#v, want Static", res)
+	}
+	t.Run("static resolution", func(t *testing.T) { assertRedacted(t, staticRes, []string{"ci-secret-value"}, "[REDACTED]") })
+	_, res = s.Resolve("112233445566")
+	accountRes, ok := res.(identity.AccountKey)
+	if !ok {
+		t.Fatalf("Resolve(112233445566) = %#v, want AccountKey", res)
+	}
+	t.Run("account key resolution", func(t *testing.T) { assertRedacted(t, accountRes, nil, "[REDACTED]") })
 
 	// The store holds every minted secret in unexported fields, which fmt
 	// reads past the Credentials redaction; kernel.ServiceDeps holds one, so

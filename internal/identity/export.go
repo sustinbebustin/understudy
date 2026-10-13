@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -97,7 +99,9 @@ func (s *Store) Export() ([]byte, error) {
 }
 
 // Import replaces every minted key with those in data, as Export wrote them.
-// It is all or nothing: on error the store keeps its keys.
+// It is all or nothing: on error the store keeps its keys. A key is minted
+// or static, never both, so data minting a configured static key is
+// refused: the minted entry would shadow the configured secret.
 func (s *Store) Import(data []byte) error {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
@@ -124,8 +128,13 @@ func (s *Store) Import(data []byte) error {
 		keys[key] = e
 	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, key := range slices.SortedFunc(maps.Keys(keys), ids.CompareAccessKeys) {
+		if _, static := s.static[key]; static {
+			return &ImportError{Detail: fmt.Sprintf("key %s is configured as a static key (accounts.keys) and also minted in this state; remove that accounts.keys entry or load state that does not hold the key", key)}
+		}
+	}
 	s.keys = keys
-	s.mu.Unlock()
 	return nil
 }
 

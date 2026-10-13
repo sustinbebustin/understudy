@@ -2,9 +2,7 @@ package lambda
 
 import (
 	"context"
-	"encoding/base64"
 	"reflect"
-	"sort"
 	"strconv"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
@@ -12,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/paging"
 )
 
 func (s *Service) bindVersions(b lambdaapi.Binder) {
@@ -182,40 +181,36 @@ func (s *Service) listVersionsByFunction(_ context.Context, c *kernel.Call, in *
 	if err != nil {
 		return nil, err
 	}
-	p, err := page(rows, func(r versionRow) string { return r.key }, in.MaxItems, listPageCap, in.Marker)
+	p, err := page(listingVersions, rows, func(r versionRow) string { return r.key }, in.MaxItems, listPageCap, in.Marker)
 	if err != nil {
 		return nil, err
 	}
-	return &lambdaapi.ListVersionsByFunctionOutput{Versions: configs(p.items), NextMarker: p.next}, nil
+	return &lambdaapi.ListVersionsByFunctionOutput{Versions: configs(p.Items), NextMarker: p.Next}, nil
 }
 
-// listPage is one page of a listing and the marker of the next.
-type listPage[T any] struct {
-	items []T
-	next  *string
-}
+// The Lambda listings, one per operation, each named inside the markers it
+// issues so that every other listing refuses them.
+const (
+	listingFunctions           paging.Listing = "functions"
+	listingVersions            paging.Listing = "versions"
+	listingAliases             paging.Listing = "aliases"
+	listingEventSourceMappings paging.Listing = "event-source-mappings"
+	listingEventInvokeConfigs  paging.Listing = "event-invoke-configs"
+	listingFunctionURLConfigs  paging.Listing = "function-url-configs"
+)
 
-// page returns the page of items, sorted by key, that starts at marker and
-// holds at most limit items, and never more than capacity. The marker is
-// opaque to clients: the base64 of the next item's key, so a listing that
-// changes between pages neither repeats nor skips an item still present.
-func page[T any](items []T, key func(T) string, limit *int32, capacity int, marker *string) (listPage[T], *awserr.Error) {
-	start := 0
-	if marker != nil {
-		from, err := base64.RawURLEncoding.DecodeString(*marker)
-		if err != nil {
-			return listPage[T]{}, errInvalidMarker(*marker)
-		}
-		start = sort.Search(len(items), func(i int) bool { return key(items[i]) >= string(from) })
-	}
+// page returns the page of listing l over items, sorted by key with unique
+// keys, that starts at marker and holds at most limit items, and never more
+// than capacity. A marker no page of l issued is InvalidParameterValue
+// rather than a silent seek.
+func page[T any](l paging.Listing, items []T, key func(T) string, limit *int32, capacity int, marker *string) (paging.Page[T], *awserr.Error) {
 	n := capacity
 	if limit != nil {
 		n = min(int(*limit), capacity)
 	}
-	end := min(start+n, len(items))
-	p := listPage[T]{items: items[start:end]}
-	if end < len(items) {
-		p.next = new(base64.RawURLEncoding.EncodeToString([]byte(key(items[end]))))
+	p, err := paging.Keyset(l, items, key, n, marker)
+	if err != nil {
+		return paging.Page[T]{}, errInvalidMarker(err.Marker)
 	}
 	return p, nil
 }

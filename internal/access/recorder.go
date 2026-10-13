@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -53,14 +54,19 @@ type Failed struct{ Code string }
 func (Succeeded) isOutcome() {}
 func (Failed) isOutcome()    {}
 
-// Entry is one call: every IAM action of its operation and every resource
-// it touched. Record pairs each action with the touched resources of its
-// own service.
+// Entry is one call: the IAM actions it used and every resource it
+// touched. Record pairs each action with the touched resources of its own
+// service.
 type Entry struct {
 	// Principal is a ServicePrincipal when Mode is AsService and an Identity
 	// otherwise; a role session is its Role (see Principal).
 	Principal Principal
 	Mode      Mode
+	// Service is the IAM prefix of the operation's service, such as "s3".
+	// An action under this prefix with no touched resource of its service
+	// is granted on "*"; an action under another prefix (iam:PassRole on
+	// CreateFunction) only on a touched resource of its service.
+	Service   string
 	Actions   []registry.IAMAction
 	Resources []aws.ARN
 	Outcome   Outcome
@@ -88,6 +94,10 @@ const (
 	// EntryInvalidAction is an action with an empty Prefix or Name, which
 	// would render as an action IAM rejects.
 	EntryInvalidAction
+	// EntryNoService is an Entry without the IAM prefix of its operation's
+	// service, without which an action of another service could not be
+	// told from the operation's own.
+	EntryNoService
 )
 
 // EntryError is an Entry Record refused; nothing of it was recorded.
@@ -117,6 +127,8 @@ func (e *EntryError) Error() string {
 		problem = "its Mode does not fit its Principal; an AsService delivery is attributed to a ServicePrincipal and every other mode to a Root, User or Role"
 	case EntryInvalidAction:
 		problem = "an action has an empty Prefix or Name, so no policy could grant it; take the actions from the operation's registry descriptor"
+	case EntryNoService:
+		problem = "it has no Service; set the IAM prefix of the operation's service (registry.Service.IAMPrefix)"
 	default:
 		problem = fmt.Sprintf("problem %d", uint8(e.Problem))
 	}
@@ -144,17 +156,17 @@ type Scope interface{ isScope() }
 // OnResource is an action called on one resource of its own service.
 type OnResource struct{ ARN aws.ARN }
 
-// AnyResource is an action whose call touched no resource of the action's
-// service, such as sqs:ListQueues or iam:PassRole on CreateFunction; a
-// policy grants it on "*".
+// AnyResource is an action of the operation's own service whose call
+// touched no resource of that service, such as sqs:ListQueues; a policy
+// grants it on "*".
 type AnyResource struct{}
 
 func (OnResource) isScope()  {}
 func (AnyResource) isScope() {}
 
-// scopeText is the policy Resource value of s. An ARN is escaped, because a
-// * or ? in a resource name (an S3 key may hold both) would otherwise widen
-// the grant to other resources.
+// scopeText is the exact text of s, as Usage reports it. An ARN is
+// escaped, because a * or ? in a resource name (an S3 key may hold both)
+// would otherwise widen the grant to other resources.
 func scopeText(s Scope) string {
 	if r, ok := s.(OnResource); ok {
 		return policydoc.Literal(r.ARN.String())
@@ -162,10 +174,37 @@ func scopeText(s Scope) string {
 	return "*"
 }
 
-// scopesFor pairs action with the resources of its own service, because
-// IAM authorizes an action only against its service's resource types; STS
-// actions act on IAM roles. An action with no such resource needs "*".
-func scopesFor(action registry.IAMAction, resources []aws.ARN) []Scope {
+// policyResource is the Resource a policy grants s on: its scopeText,
+// except that an S3 object is granted as every object of its bucket,
+// arn:aws:s3:::<bucket>/*, so a policy names each bucket once rather than
+// every key a run happened to use.
+func policyResource(s Scope) string {
+	if r, ok := s.(OnResource); ok {
+		if bucket, object := s3ObjectBucket(r.ARN); object {
+			return policydoc.Literal(aws.ARN{Partition: r.ARN.Partition, Service: "s3", Resource: bucket}.String()) + "/*"
+		}
+	}
+	return scopeText(s)
+}
+
+// s3ObjectBucket returns the bucket of an S3 object ARN,
+// arn:<partition>:s3:::<bucket>/<key>; false for any other ARN, a bucket's
+// and an access point's (which carries a region and account) included.
+func s3ObjectBucket(a aws.ARN) (string, bool) {
+	if a.Service != "s3" || a.Region != "" || a.Account != "" {
+		return "", false
+	}
+	bucket, _, object := strings.Cut(a.Resource, "/")
+	return bucket, object && bucket != ""
+}
+
+// scopesFor pairs action with the touched resources of its own service,
+// because IAM authorizes an action only against its service's resource
+// types; STS actions act on IAM roles. An action with no such resource is
+// granted on "*" when it is of the operation's service (sqs:ListQueues),
+// and not at all when it is of another (iam:PassRole on a CreateFunction
+// that passed no role): the call did not use it.
+func scopesFor(action registry.IAMAction, operation string, resources []aws.ARN) []Scope {
 	service := action.Prefix
 	if service == "sts" {
 		service = "iam"
@@ -176,7 +215,7 @@ func scopesFor(action registry.IAMAction, resources []aws.ARN) []Scope {
 			out = append(out, OnResource{ARN: r})
 		}
 	}
-	if len(out) == 0 {
+	if len(out) == 0 && action.Prefix == operation {
 		out = append(out, AnyResource{})
 	}
 	return out
@@ -221,11 +260,11 @@ type useKey struct {
 
 // Record adds a call. It refuses, with an *EntryError and recording
 // nothing, an Entry whose Principal, Mode or Outcome is nil, whose At is
-// zero, whose Principal ParsePrincipal would not read back from its
-// String, whose Mode does not fit its Principal, or with an action lacking
-// its Prefix or Name: none has a default the
-// kernel could rely on without stating it (a zero At would pin Use.First to
-// the zero time), and a malformed principal could never be queried.
+// zero, whose Service is empty, whose Principal ParsePrincipal would not
+// read back from its String, whose Mode does not fit its Principal, or
+// with an action lacking its Prefix or Name: none has a default the kernel
+// could rely on without stating it (a zero At would pin Use.First to the
+// zero time), and a malformed principal could never be queried.
 func (r *Recorder) Record(e Entry) error {
 	if err := checkEntry(e); err != nil {
 		return err
@@ -269,7 +308,7 @@ func (r *Recorder) Record(e Entry) error {
 func useKeys(principal Principal, e Entry) []useKey {
 	var out []useKey
 	for _, action := range e.Actions {
-		for _, res := range scopesFor(action, e.Resources) {
+		for _, res := range scopesFor(action, e.Service, e.Resources) {
 			k := useKey{principal: principal, mode: e.Mode, action: action, resource: res}
 			if !slices.Contains(out, k) {
 				out = append(out, k)
@@ -297,6 +336,8 @@ func checkEntry(e Entry) error {
 		return refuse(EntryNoOutcome)
 	case e.At.IsZero():
 		return refuse(EntryNoInstant)
+	case e.Service == "":
+		return refuse(EntryNoService)
 	}
 	c := canonical(e.Principal)
 	if p, err := ParsePrincipal(c.String()); err != nil || p != c {
@@ -338,8 +379,9 @@ func (r *Recorder) Usage(f Filter) []Use {
 
 // Policy returns the least-privilege identity policy for principal
 // (ARCHITECTURE.md 17): one Allow statement per (service, resource) with the
-// exact resource ARN, or "*" for an action without a resource of its
-// service, listing every action used there in any mode, failed calls
+// exact resource ARN, arn:aws:s3:::<bucket>/* for the objects of a bucket,
+// or "*" for an action of its operation's service without a resource of
+// that service, listing every action used there in any mode, failed calls
 // included. A Role's policy covers every session of the role. ok is false
 // when principal is nil or has no recorded use: there is no policy to
 // write, and IAM rejects one without statements.
@@ -352,7 +394,7 @@ func (r *Recorder) Policy(principal Identity) (doc policydoc.Document, ok bool) 
 	uses := r.Usage(Filter{Principal: principal})
 	for i := range uses {
 		u := &uses[i]
-		g := group{service: u.Action.Prefix, resource: scopeText(u.Resource)}
+		g := group{service: u.Action.Prefix, resource: policyResource(u.Resource)}
 		actions[g] = append(actions[g], u.Action.String())
 	}
 	grants := make([]policydoc.Grant, 0, len(actions))

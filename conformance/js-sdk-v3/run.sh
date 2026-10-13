@@ -10,11 +10,18 @@
 #                                                      # also run DynamoDB (accepts the DynamoDB Local licence)
 #   CONFORMANCE_LAMBDA_EXECUTION=0 conformance/js-sdk-v3/run.sh
 #                                                      # skip the Lambda tests that run functions in Docker
+#   SIGV4=verify conformance/js-sdk-v3/run.sh          # serve with --sigv4 verify (default parse)
+#   CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh
+#                                                      # skip DynamoDB even with the licence variable set
 #
 # Exits with bun test's status, or non-zero when understudy cannot be built
 # or started. The work directory (data, log) is removed on success and kept
 # on failure, and its path is printed.
 set -euo pipefail
+
+if [[ "${CONFORMANCE_DYNAMODB:-}" == "0" ]]; then
+	unset UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE
+fi
 
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd -- "$here/../.." && pwd)"
@@ -22,6 +29,7 @@ build="$repo/.build/conformance/js-sdk-v3"
 bin="$build/understudy"
 listen="127.0.0.1:45663"
 endpoint="http://$listen"
+sigv4="${SIGV4:-parse}"
 
 mkdir -p -- "$build"
 work="$(mktemp -d "$build/run.XXXXXX")"
@@ -29,6 +37,7 @@ data="$work/data"
 log="$work/understudy.log"
 pid=""
 
+# shellcheck disable=SC2329 # invoked by the trap below
 stop() {
 	local status=$?
 	trap - EXIT INT TERM
@@ -93,7 +102,7 @@ printf '%s\n' '{"lambda": {"stateTransitions": "clock"}, "sqs": {"queueDeletedRe
 
 echo "run.sh: starting understudy on $endpoint, data in $data" >&2
 (cd -- "$work" && exec env "${serve_env[@]}" "$bin" serve \
-	--listen "$listen" --persist "$data" --ready-file "$work/ready.json" --config "$work/understudy.json") >"$log" 2>&1 &
+	--listen "$listen" --persist "$data" --sigv4 "$sigv4" --ready-file "$work/ready.json" --config "$work/understudy.json") >"$log" 2>&1 &
 pid=$!
 
 if ! "$bin" health --endpoint "$endpoint" --wait 60s >/dev/null; then
@@ -110,7 +119,7 @@ echo "run.sh: understudy is ready" >&2
 
 echo "run.sh: running the suite" >&2
 set +e
-(cd -- "$here" && "$repo/scripts/sealed" --endpoint "$endpoint" bun test --timeout 60000 "$@")
+(cd -- "$here" && CONFORMANCE_SIGV4="$sigv4" "$repo/scripts/sealed" --endpoint "$endpoint" bun test --timeout 60000 "$@")
 status=$?
 set -e
 exit "$status"

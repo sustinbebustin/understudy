@@ -213,6 +213,39 @@ func TestPositionsRefusePastMaxPosition(t *testing.T) {
 	}
 }
 
+func TestUndeclaredKindsPanicOnBothSources(t *testing.T) {
+	sources := []struct {
+		name string
+		src  *Source
+	}{
+		{"random", NewRandom()},
+		{"seeded", NewSeeded(1)},
+	}
+	draws := []struct {
+		name string
+		draw func(*Source, Kind)
+	}{
+		{"Draw", func(s *Source, k Kind) { s.Draw(k, 8) }},
+		{"Uint64", func(s *Source, k Kind) { s.Uint64(k) }},
+		{"UUID", func(s *Source, k Kind) { s.UUID(k) }},
+	}
+	for _, k := range []Kind{Kind(kindCount), Kind(255)} {
+		want := fmt.Sprintf("ids: undeclared generator kind %d; only the declared Kind constants may be drawn from", uint8(k))
+		for _, s := range sources {
+			for _, d := range draws {
+				t.Run(fmt.Sprintf("%s/%s/%d", s.name, d.name, uint8(k)), func(t *testing.T) {
+					defer func() {
+						if got := recover(); got != want {
+							t.Errorf("panic = %#v, want %q", got, want)
+						}
+					}()
+					d.draw(s.src, k)
+				})
+			}
+		}
+	}
+}
+
 // mustPositions returns the source's positions, failing the test when it
 // refuses them.
 func mustPositions(t interface {

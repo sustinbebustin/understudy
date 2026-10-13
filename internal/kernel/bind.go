@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sync/atomic"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -18,8 +19,8 @@ type Binder struct {
 	svc *registry.Service
 }
 
-// BindOption adjusts one binding: WithValidator, WithCheck and
-// WithResources build them.
+// BindOption adjusts one binding: WithValidator, WithCheck, WithResources,
+// WithActions and WithoutSecondaryActions build them.
 type BindOption interface {
 	// apply adds the option to cfg, the *bindConfig of the operation's input
 	// type, and reports false when the option is for another input type.
@@ -31,6 +32,7 @@ type bindConfig[In any] struct {
 	validators []func(*In) []awserr.Violation
 	checks     []func(*In) *awserr.Error
 	resources  []func(*Call, *In) []aws.ARN
+	actions    []func(*Call, *In) []registry.IAMAction
 }
 
 // validate runs step 7 over in: the generated validator and the typed
@@ -180,20 +182,37 @@ func BindRawHTTP(b *Binder, op *registry.Operation, h RawHTTPHandler, cov regist
 }
 
 // typedBinding builds the type-erased binding of an operation whose input is
-// In: decode target, validators and checks, resource resolution, redaction
-// and the handler adapter.
+// In: decode target, validators and checks, resource resolution, declared
+// actions, redaction and the handler adapter.
 func typedBinding[In any](b *Binder, desc *registry.Operation, opts []BindOption, run func(ctx context.Context, c *Call, in *In, w Wire) (any, *awserr.Error)) *binding {
 	var id ref.OperationID
 	if desc != nil {
 		id = desc.ID
 	}
-	var cfg bindConfig[In]
+	return configured(b, id, bindConfig[In]{}, opts, run)
+}
+
+// clone returns a copy of cfg whose option lists share no backing array
+// with cfg's, so extending one leaves the other as it was.
+func (cfg *bindConfig[In]) clone() bindConfig[In] {
+	return bindConfig[In]{
+		validators: slices.Clone(cfg.validators),
+		checks:     slices.Clone(cfg.checks),
+		resources:  slices.Clone(cfg.resources),
+		actions:    slices.Clone(cfg.actions),
+	}
+}
+
+// configured builds the binding of base extended with opts; its extend
+// builds the same binding extended again, for Declare.
+func configured[In any](b *Binder, id ref.OperationID, base bindConfig[In], opts []BindOption, run func(ctx context.Context, c *Call, in *In, w Wire) (any, *awserr.Error)) *binding {
+	cfg := base.clone()
 	for _, o := range opts {
 		if !o.apply(&cfg) {
 			b.k.recordBindErr(&BindError{Op: id, Problem: OptionType})
 		}
 	}
-	return &binding{
+	bnd := &binding{
 		newInput: func() any { return new(In) },
 		validate: func(in any) *awserr.Error {
 			typed, ok := in.(*In)
@@ -222,7 +241,18 @@ func typedBinding[In any](b *Binder, desc *registry.Operation, opts []BindOption
 			}
 			return run(ctx, c, typed, w)
 		},
+		extend: func(more []BindOption) *binding { return configured(b, id, cfg, more, run) },
 	}
+	if len(cfg.actions) > 0 {
+		bnd.actions = func(c *Call, in any) []registry.IAMAction {
+			typed, ok := in.(*In)
+			if !ok {
+				return nil
+			}
+			return cfg.declare(c, typed)
+		}
+	}
+	return bnd
 }
 
 func (b *Binder) bind(op *registry.Operation, cov registry.BindCoverage, bnd *binding) {
@@ -264,8 +294,15 @@ type binding struct {
 	validate func(in any) *awserr.Error
 	// resources names what a valid input addresses (WithResources).
 	resources func(c *Call, in any) []aws.ARN
-	redact    func(in any) ([]byte, error)
-	run       func(ctx context.Context, c *Call, in any, w Wire) (any, *awserr.Error)
+	// actions are the IAM actions a valid input declares used besides the
+	// primary (WithActions, WithoutSecondaryActions); nil when the binding
+	// declares none, so its calls record the operation's whole list.
+	actions func(c *Call, in any) []registry.IAMAction
+	redact  func(in any) ([]byte, error)
+	run     func(ctx context.Context, c *Call, in any, w Wire) (any, *awserr.Error)
+	// extend returns the binding with more options (Declare); nil for raw
+	// HTTP bindings, which take none.
+	extend func(opts []BindOption) *binding
 }
 
 // Bindings is a kernel's binding table, indexed by service and
@@ -358,6 +395,12 @@ const (
 	NoCoverage
 	NotRaw
 	OptionType
+	// DeclaredUnbound is a Declare for an operation not bound yet, so no
+	// binding takes its options.
+	DeclaredUnbound
+	// DeclaredRaw is a Declare for an operation bound with BindRawHTTP,
+	// which takes no options.
+	DeclaredRaw
 )
 
 // BindError reports a bind the kernel refused; Kernel.BindErr collects them.
@@ -383,7 +426,11 @@ func (e *BindError) Error() string {
 	case NotRaw:
 		why = "BindRawHTTP binds only operations of kind raw"
 	case OptionType:
-		why = "a WithValidator, WithCheck or WithResources option is for another input type than the operation's"
+		why = "a WithValidator, WithCheck, WithResources or WithActions option is for another input type than the operation's"
+	case DeclaredUnbound:
+		why = "Declare names an operation that is not bound, so its options are not applied; call Declare after the operation's bind site"
+	case DeclaredRaw:
+		why = "Declare names an operation bound with BindRawHTTP, which takes no options; its options are not applied"
 	default:
 		why = "the bind is invalid"
 	}

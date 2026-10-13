@@ -756,6 +756,16 @@ type EvaluationWindowMemberSlidingWindow struct{ Value SlidingWindow }
 
 func (EvaluationWindowMemberSlidingWindow) isEvaluationWindow() {}
 
+// ExpiredToken is the error com.amazon.coral.service#ExpiredToken.
+type ExpiredToken struct {
+	Message *string
+}
+
+// ExpiredTokenException is the error com.amazon.coral.service#ExpiredTokenException.
+type ExpiredTokenException struct {
+	Message *string
+}
+
 // GetAlarmMuteRuleInput is the input of GetAlarmMuteRule, com.amazonaws.cloudwatch#GetAlarmMuteRuleInput.
 type GetAlarmMuteRuleInput struct {
 	AlarmMuteRuleName string
@@ -1055,6 +1065,11 @@ type InternalServiceFault struct {
 
 // InvalidAction is the error com.amazon.coral.service#InvalidAction.
 type InvalidAction struct {
+	Message *string
+}
+
+// InvalidClientTokenId is the error com.amazon.coral.service#InvalidClientTokenId.
+type InvalidClientTokenId struct {
 	Message *string
 }
 
@@ -2266,6 +2281,11 @@ type ThrottlingException struct {
 
 // UnknownOperationException is the error com.amazon.coral.service#UnknownOperationException.
 type UnknownOperationException struct {
+	Message *string
+}
+
+// UnrecognizedClientException is the error com.amazon.coral.service#UnrecognizedClientException.
+type UnrecognizedClientException struct {
 	Message *string
 }
 

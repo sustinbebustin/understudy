@@ -843,6 +843,10 @@ var schemaExceptionMessage = smithy.Schema{ID: "com.amazonaws.iam#ExceptionMessa
 
 var schemaExistingUserNameType = smithy.Schema{ID: "com.amazonaws.iam#existingUserNameType", Type: smithy.TypeString}
 
+var schemaExpiredToken = smithy.Schema{ID: "com.amazon.coral.service#ExpiredToken", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberExpiredToken_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaFeatureDisabledException = smithy.Schema{ID: "com.amazonaws.iam#FeatureDisabledException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
 
 var memberFeatureDisabledException_message = smithy.Member{Name: "message", Index: 0}
@@ -1384,6 +1388,10 @@ var schemaInvalidCertificateException = smithy.Schema{ID: "com.amazonaws.iam#Inv
 var memberInvalidCertificateException_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaInvalidCertificateMessage = smithy.Schema{ID: "com.amazonaws.iam#invalidCertificateMessage", Type: smithy.TypeString}
+
+var schemaInvalidClientTokenId = smithy.Schema{ID: "com.amazon.coral.service#InvalidClientTokenId", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberInvalidClientTokenId_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaInvalidInputException = smithy.Schema{ID: "com.amazonaws.iam#InvalidInputException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
@@ -3854,6 +3862,8 @@ func init() {
 	schemaEvaluationResult.Members = []*smithy.Member{&memberEvaluationResult_EvalActionName, &memberEvaluationResult_EvalResourceName, &memberEvaluationResult_EvalDecision, &memberEvaluationResult_MatchedStatements, &memberEvaluationResult_MissingContextValues, &memberEvaluationResult_OrganizationsDecisionDetail, &memberEvaluationResult_PermissionsBoundaryDecisionDetail, &memberEvaluationResult_EvalDecisionDetails, &memberEvaluationResult_ResourceSpecificResults}
 	memberEvaluationResultsListType_member.Target = &schemaEvaluationResult
 	schemaEvaluationResultsListType.Members = []*smithy.Member{&memberEvaluationResultsListType_member}
+	memberExpiredToken_message.Target = &schemaSmithyString
+	schemaExpiredToken.Members = []*smithy.Member{&memberExpiredToken_message}
 	memberFeatureDisabledException_message.Target = &schemaFeatureDisabledMessage
 	schemaFeatureDisabledException.Members = []*smithy.Member{&memberFeatureDisabledException_message}
 	memberFeatureEnabledException_message.Target = &schemaFeatureEnabledMessage
@@ -4114,6 +4124,8 @@ func init() {
 	schemaInvalidAuthenticationCodeException.Members = []*smithy.Member{&memberInvalidAuthenticationCodeException_message}
 	memberInvalidCertificateException_message.Target = &schemaInvalidCertificateMessage
 	schemaInvalidCertificateException.Members = []*smithy.Member{&memberInvalidCertificateException_message}
+	memberInvalidClientTokenId_message.Target = &schemaSmithyString
+	schemaInvalidClientTokenId.Members = []*smithy.Member{&memberInvalidClientTokenId_message}
 	memberInvalidInputException_message.Target = &schemaInvalidInputMessage
 	schemaInvalidInputException.Members = []*smithy.Member{&memberInvalidInputException_message}
 	memberInvalidPublicKeyException_message.Target = &schemaInvalidPublicKeyMessage

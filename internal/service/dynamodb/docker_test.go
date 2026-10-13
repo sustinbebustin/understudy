@@ -136,6 +136,7 @@ func scopeOf(t *testing.T, account, region string) aws.Scope {
 // from the others, ARNs name the caller's scope, and the container carries
 // understudy's labels until Stop removes it (ADR 0014).
 func TestLocalIsolatesAccountsAndRegions(t *testing.T) {
+	configtest.DynamoDBLicence(t)
 	d := engine(t)
 	own := ownership(t)
 	m, err := ddblocal.New(ddblocal.Config{

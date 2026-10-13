@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -30,11 +31,11 @@ func (s *Service) bindInline(b iamapi.Binder) {
 		return unit[iamapi.DeleteRolePolicyOutput](s.deleteInline(c, roleHolder(c.Scope().Account, in.RoleName), in.PolicyName))
 	}, registry.Full{})
 	b.ListRolePolicies(func(_ context.Context, c *kernel.Call, in *iamapi.ListRolePoliciesInput) (*iamapi.ListRolePoliciesOutput, *awserr.Error) {
-		p, err := s.listInline(c, roleHolder(c.Scope().Account, in.RoleName), in.Marker, in.MaxItems)
+		p, err := s.listInline(c, "role-policies", roleHolder(c.Scope().Account, in.RoleName), in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
-		return &iamapi.ListRolePoliciesOutput{PolicyNames: p.items, IsTruncated: p.truncated, Marker: p.marker}, nil
+		return &iamapi.ListRolePoliciesOutput{PolicyNames: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
 	}, registry.Full{})
 	b.PutUserPolicy(func(_ context.Context, c *kernel.Call, in *iamapi.PutUserPolicyInput) (*iamapi.PutUserPolicyOutput, *awserr.Error) {
 		return unit[iamapi.PutUserPolicyOutput](s.putInline(c, userHolder(c.Scope().Account, in.UserName), in.PolicyName, in.PolicyDocument))
@@ -50,11 +51,11 @@ func (s *Service) bindInline(b iamapi.Binder) {
 		return unit[iamapi.DeleteUserPolicyOutput](s.deleteInline(c, userHolder(c.Scope().Account, in.UserName), in.PolicyName))
 	}, registry.Full{})
 	b.ListUserPolicies(func(_ context.Context, c *kernel.Call, in *iamapi.ListUserPoliciesInput) (*iamapi.ListUserPoliciesOutput, *awserr.Error) {
-		p, err := s.listInline(c, userHolder(c.Scope().Account, in.UserName), in.Marker, in.MaxItems)
+		p, err := s.listInline(c, "user-policies", userHolder(c.Scope().Account, in.UserName), in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
-		return &iamapi.ListUserPoliciesOutput{PolicyNames: p.items, IsTruncated: p.truncated, Marker: p.marker}, nil
+		return &iamapi.ListUserPoliciesOutput{PolicyNames: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
 	}, registry.Full{})
 }
 
@@ -147,10 +148,10 @@ func (s *Service) deleteInline(c *kernel.Call, h holder, name string) *awserr.Er
 }
 
 // listInline pages through the entity's inline policy names in
-// alphabetical order regardless of case.
-func (s *Service) listInline(c *kernel.Call, h holder, marker *string, maxItems *int32) (page[string], *awserr.Error) {
+// alphabetical order regardless of case, as listing.
+func (s *Service) listInline(c *kernel.Call, listing paging.Listing, h holder, marker *string, maxItems *int32) (paging.Page[string], *awserr.Error) {
 	type listed struct {
-		p   page[string]
+		p   paging.Page[string]
 		arn aws.ARN
 	}
 	l, err := view(s, c.Scope().Account, func(st *State) (listed, *awserr.Error) {
@@ -163,11 +164,11 @@ func (s *Service) listInline(c *kernel.Call, h holder, marker *string, maxItems 
 			names[i] = p.Name
 		}
 		slices.SortFunc(names, func(a, b string) int { return strings.Compare(key(a), key(b)) })
-		p, err := paginate(names, key, marker, maxItems)
+		p, err := paginate(listing, names, key, marker, maxItems)
 		return listed{p: p, arn: arn}, err
 	})
 	if err != nil {
-		return page[string]{}, err
+		return paging.Page[string]{}, err
 	}
 	c.Touch(l.arn)
 	return l.p, nil

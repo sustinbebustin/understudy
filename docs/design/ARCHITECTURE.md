@@ -90,6 +90,7 @@ internal/
   fidelity/                     named behavior switches with evidence.Label provenance; Entry for coverage
   store/                        Gate, Cell[S], Partitioned[K,S], Waiters, WaitKey, Section (no effect types)
   paging/                       LEAF: keyset pager with listing-scoped, versioned markers; MarkerError
+  paging/pagingtest/            SurvivesChanges: page a service listing while items come and go between pages
   blob/                         content-addressed bytes under os.Root; memory and disk; refcounts
   snapshot/                     archive format, manifest, section readers and writers, normalizers, diff
   coverage/                     report (JSON, Markdown) from kernel bindings + protocol-test baseline + fidelity ledger
@@ -589,7 +590,7 @@ External request
          8 fault.Before   first matching Request-phase rule may short-circuit (Error, Throttle, Latency)
          9 handler    (pulls a streaming body only after its own pre-checks, so 100-continue and early rejects work)
         10 fault.After    AfterCommit, StatusOKError (S3 200-with-error)
-        11 access.Record(principal mode, primary action + actions the bind site declared used (WithActions), touched)   (never for injected faults; an internal operation only when its bind site declares actions)
+        11 access.Record(principal mode, primary action + actions the binding declared used (WithActions, Declare), or the whole generated list when it declared none, touched)   (never for injected faults; an internal operation only when its bind site declares actions)
         12 journal.End(outcome, latency)
   edge: 13 encode     generated Serialize + codec, or the protocol's error writer; Date header is wall time; streaming outputs stream from blob
 ```
@@ -1302,7 +1303,7 @@ Mounted at `/_understudy/v1/` on the main listener; JSON both ways; errors `{"er
 | `POST /snapshots` (archive out), `PUT /snapshots` (archive in) | save and load; with `--persist` also `{"path": ...}` under `<data dir>/snapshots`, apart from the lock, state file, blobs and DynamoDB files |
 | `GET /resources` | every resource ARN by service, account, region with a short state summary |
 | `GET /coverage?format=json|markdown` | registry coverage, protocol compliance results, fidelity switches; overlay evidence only in the offline report (`docs/coverage.md`, `understudy coverage`), since the binary does not carry the overlay files (wave 6 amendment) |
-| `GET /iam/usage`, `GET /iam/policy?principal=` | access record; least-privilege policy. Contract (product C3): one statement per `(service, resource ARN)` with exact ARNs (no wildcards unless the operation has no resource); policy rule (pre-tag review, ADR 0004 amendment): the primary action always; same-prefix secondaries when the bind site declares them used for the input (`kernel.WithActions`); other-prefix actions only on a touched resource of their service; S3 object operations touch object ARNs, which the policy renders as `<bucket>/*`; failed calls that were not injected are recorded, because the application's handled failures need permissions too; a separate `resourcePolicies` section lists the resource-policy requirements deliveries would need (target ARN, service principal, action, source ARN) |
+| `GET /iam/usage`, `GET /iam/policy?principal=` | access record; least-privilege policy. Contract (product C3): one statement per `(service, resource ARN)` with exact ARNs (no wildcards unless the operation has no resource); policy rule (pre-tag review, ADR 0004 amendment): the primary action always; same-prefix secondaries when the binding declares them used for the input (`kernel.WithActions`, or none with `kernel.WithoutSecondaryActions`, at the bind site or later through `kernel.Declare`), and the whole generated list for a binding that declares neither (an over-grant, until the service's actions are audited); other-prefix actions only on a touched resource of their service; S3 object operations touch object ARNs, which the policy renders as `<bucket>/*`; failed calls that were not injected are recorded, because the application's handled failures need permissions too; a separate `resourcePolicies` section lists the resource-policy requirements deliveries would need (target ARN, service principal, action, source ARN) |
 | `GET /settle?timeout=` | wait for quiescence; `pending` grouped by `WorkKind` on timeout |
 | `POST /lambda/functions/{name}/hot-reload` | bind a host directory |
 | `POST /lambda/images/pull` | pre-warm pinned runtime images |

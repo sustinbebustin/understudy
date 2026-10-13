@@ -201,6 +201,10 @@ var schemaExcludePunctuationType = smithy.Schema{ID: "com.amazonaws.secretsmanag
 
 var schemaExcludeUppercaseType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ExcludeUppercaseType", Type: smithy.TypeBoolean}
 
+var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaExternalSecretRotationMetadataItem = smithy.Schema{ID: "com.amazonaws.secretsmanager#ExternalSecretRotationMetadataItem", Type: smithy.TypeStructure}
 
 var memberExternalSecretRotationMetadataItem_Key = smithy.Member{Name: "Key", Index: 0}
@@ -745,6 +749,10 @@ var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.servic
 
 var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
 
+var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaUntagResourceInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#UntagResourceRequest", Type: smithy.TypeStructure}
 
 var memberUntagResourceInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
@@ -900,6 +908,8 @@ func init() {
 	schemaDescribeSecretOutput.Members = []*smithy.Member{&memberDescribeSecretOutput_ARN, &memberDescribeSecretOutput_Name, &memberDescribeSecretOutput_Type, &memberDescribeSecretOutput_Description, &memberDescribeSecretOutput_KmsKeyId, &memberDescribeSecretOutput_RotationEnabled, &memberDescribeSecretOutput_RotationLambdaARN, &memberDescribeSecretOutput_RotationRules, &memberDescribeSecretOutput_ExternalSecretRotationMetadata, &memberDescribeSecretOutput_ExternalSecretRotationRoleArn, &memberDescribeSecretOutput_LastRotatedDate, &memberDescribeSecretOutput_LastChangedDate, &memberDescribeSecretOutput_LastAccessedDate, &memberDescribeSecretOutput_DeletedDate, &memberDescribeSecretOutput_NextRotationDate, &memberDescribeSecretOutput_Tags, &memberDescribeSecretOutput_VersionIdsToStages, &memberDescribeSecretOutput_OwningService, &memberDescribeSecretOutput_CreatedDate, &memberDescribeSecretOutput_PrimaryRegion, &memberDescribeSecretOutput_ReplicationStatus}
 	memberEncryptionFailure_Message.Target = &schemaErrorMessage
 	schemaEncryptionFailure.Members = []*smithy.Member{&memberEncryptionFailure_Message}
+	memberExpiredTokenException_message.Target = &schemaSmithyString
+	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
 	memberExternalSecretRotationMetadataItem_Key.Target = &schemaExternalSecretRotationMetadataItemKeyType
 	memberExternalSecretRotationMetadataItem_Value.Target = &schemaExternalSecretRotationMetadataItemValueType
 	schemaExternalSecretRotationMetadataItem.Members = []*smithy.Member{&memberExternalSecretRotationMetadataItem_Key, &memberExternalSecretRotationMetadataItem_Value}
@@ -1129,6 +1139,8 @@ func init() {
 	schemaThrottlingException.Members = []*smithy.Member{&memberThrottlingException_message}
 	memberUnknownOperationException_message.Target = &schemaSmithyString
 	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
+	memberUnrecognizedClientException_message.Target = &schemaSmithyString
+	schemaUnrecognizedClientException.Members = []*smithy.Member{&memberUnrecognizedClientException_message}
 	memberUntagResourceInput_SecretId.Target = &schemaSecretIdType
 	memberUntagResourceInput_TagKeys.Target = &schemaTagKeyListType
 	schemaUntagResourceInput.Members = []*smithy.Member{&memberUntagResourceInput_SecretId, &memberUntagResourceInput_TagKeys}

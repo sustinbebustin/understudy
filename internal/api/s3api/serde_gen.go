@@ -740,6 +740,14 @@ func (v *AuthorizationHeaderMalformed) serialize(s smithy.Serializer, m *smithy.
 }
 
 // Serialize writes v through s.
+func (v *AuthorizationQueryParametersError) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *AuthorizationQueryParametersError) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaAuthorizationQueryParametersError)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *BadDigest) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *BadDigest) serialize(s smithy.Serializer, m *smithy.Member) {
@@ -4503,6 +4511,14 @@ func (v *ExistingObjectReplication) deserialize(d smithy.Deserializer) error {
 	}
 }
 
+// Serialize writes v through s.
+func (v *ExpiredToken) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *ExpiredToken) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaExpiredToken)
+	s.CloseStruct()
+}
+
 func serializeExposeHeaders(s smithy.Serializer, m *smithy.Member, v []string) {
 	s.WriteList(m, len(v))
 	for _, e := range v {
@@ -7644,6 +7660,17 @@ func (v *InternalError) serialize(s smithy.Serializer, m *smithy.Member) {
 }
 
 // Serialize writes v through s.
+func (v *InvalidAccessKeyId) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InvalidAccessKeyId) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInvalidAccessKeyId)
+	if v.AWSAccessKeyId != nil {
+		s.WriteString(&memberInvalidAccessKeyId_AWSAccessKeyId, *v.AWSAccessKeyId)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *InvalidAnnotationName) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *InvalidAnnotationName) serialize(s smithy.Serializer, m *smithy.Member) {
@@ -7818,6 +7845,14 @@ func (v *InvalidTag) serialize(s smithy.Serializer, m *smithy.Member) {
 	if v.TagValue != nil {
 		s.WriteString(&memberInvalidTag_TagValue, *v.TagValue)
 	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *InvalidToken) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InvalidToken) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInvalidToken)
 	s.CloseStruct()
 }
 
@@ -15011,6 +15046,23 @@ func (v *RequestProgress) deserialize(d smithy.Deserializer) error {
 			return fmt.Errorf("s3api: structure com.amazonaws.s3#RequestProgress has no member %q; the codec returned a member of another shape", m.Name)
 		}
 	}
+}
+
+// Serialize writes v through s.
+func (v *RequestTimeTooSkewed) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *RequestTimeTooSkewed) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaRequestTimeTooSkewed)
+	if v.RequestTime != nil {
+		s.WriteString(&memberRequestTimeTooSkewed_RequestTime, *v.RequestTime)
+	}
+	if v.ServerTime != nil {
+		s.WriteString(&memberRequestTimeTooSkewed_ServerTime, *v.ServerTime)
+	}
+	if v.MaxAllowedSkewMilliseconds != nil {
+		s.WriteString(&memberRequestTimeTooSkewed_MaxAllowedSkewMilliseconds, *v.MaxAllowedSkewMilliseconds)
+	}
+	s.CloseStruct()
 }
 
 // Deserialize reads v from d. Absent members stay absent; Validate

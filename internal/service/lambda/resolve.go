@@ -81,6 +81,20 @@ func splitFunctionName(scope aws.Scope, name string) (aws.ARN, string, *awserr.E
 	return a, rest, nil
 }
 
+// passedRole is the execution role a configuration write passes, which
+// iam:PassRole acts on; nothing when it passes none or the value is not an
+// IAM ARN, which validation answers.
+func passedRole(role *string) []aws.ARN {
+	if role == nil {
+		return nil
+	}
+	a, err := aws.ParseARN(*role)
+	if err != nil || a.Service != "iam" {
+		return nil
+	}
+	return []aws.ARN{a}
+}
+
 // regionPrefix is the region segment of the FunctionName grammar
 // (lambda-api.md 3).
 var regionPrefix = regexp.MustCompile(`^(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\d$`)

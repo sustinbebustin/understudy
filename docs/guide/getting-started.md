@@ -63,7 +63,7 @@ understudy coverage --service sqs
 An operation understudy does not implement fails fast, in AWS's error format, and says so:
 
 ```text
-An error occurred (NotImplemented) when calling the GetRandomPassword operation: understudy does not implement secretsmanager.GetRandomPassword. Run 'understudy coverage --service secretsmanager' for what is supported.
+An error occurred (NotImplemented) when calling the GetRandomPassword operation: understudy does not implement secretsmanager.GetRandomPassword. Run 'understudy coverage --service secretsmanager' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=secretsmanager.GetRandomPassword
 ```
 
 A call to a service understudy does not emulate at all, such as ECS, fails the same way and names the twelve it does.

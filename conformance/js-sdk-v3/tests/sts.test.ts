@@ -5,7 +5,7 @@
 import { describe, expect, test } from "bun:test";
 import { AssumeRoleCommand, GetCallerIdentityCommand, GetSessionTokenCommand, STSClient } from "@aws-sdk/client-sts";
 import { CreateRoleCommand, IAMClient } from "@aws-sdk/client-iam";
-import { clientConfig, defaultAccount } from "../support/env";
+import { clientConfig, defaultAccount, sigv4Verify } from "../support/env";
 import { awsFailure, expectFailure, uniq } from "../support/helpers";
 
 const sts = new STSClient(clientConfig());
@@ -34,14 +34,23 @@ describe("STS GetCallerIdentity", () => {
     expect(out).toMatchObject({ Account: "123456789012", Arn: "arn:aws:iam::123456789012:root", UserId: "123456789012" });
   });
 
-  test("an arbitrary access key maps to the default account", async () => {
+  // Under --sigv4 verify a key understudy holds no secret for is refused as AWS
+  // refuses an unknown key (ADR 0012 pre-tag review amendment).
+  test.skipIf(sigv4Verify)("an arbitrary access key maps to the default account", async () => {
     const client = new STSClient(clientConfig({ accessKeyId: "foobar123" }));
     expect((await client.send(new GetCallerIdentityCommand({}))).Account).toBe(defaultAccount);
   });
 
-  test("the documentation example key AKIAIOSFODNN7EXAMPLE is not decoded into a foreign account", async () => {
+  test.skipIf(sigv4Verify)("the documentation example key AKIAIOSFODNN7EXAMPLE is not decoded into a foreign account", async () => {
     const client = new STSClient(clientConfig({ accessKeyId: "AKIAIOSFODNN7EXAMPLE" }));
     expect((await client.send(new GetCallerIdentityCommand({}))).Account).toBe(defaultAccount);
+  });
+
+  test.skipIf(!sigv4Verify)("under sigv4 verify a key understudy did not mint is refused as unknown", async () => {
+    for (const accessKeyId of ["foobar123", "AKIAIOSFODNN7EXAMPLE"]) {
+      const client = new STSClient(clientConfig({ accessKeyId }));
+      await expectFailure(client.send(new GetCallerIdentityCommand({})), { name: "InvalidClientTokenId", status: 403 });
+    }
   });
 
   test("the region in the credential scope does not change the answer", async () => {

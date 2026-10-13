@@ -56,6 +56,16 @@ func ErrAuthorizationHeaderMalformed(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityAuthorizationHeaderMalformed(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// IdentityAuthorizationQueryParametersError returns the identity of com.amazonaws.s3#AuthorizationQueryParametersError.
+func IdentityAuthorizationQueryParametersError() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#AuthorizationQueryParametersError", JSONType: "AuthorizationQueryParametersError", QueryCode: "AuthorizationQueryParametersError", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrAuthorizationQueryParametersError returns an AuthorizationQueryParametersError error with message.
+func ErrAuthorizationQueryParametersError(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityAuthorizationQueryParametersError(), Message: message, Origin: awserr.Modeled{}}
+}
+
 // IdentityBadDigest returns the identity of com.amazonaws.s3#BadDigest.
 func IdentityBadDigest() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.s3#BadDigest", JSONType: "BadDigest", QueryCode: "BadDigest", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -136,6 +146,16 @@ func ErrEntityTooSmall(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityEntityTooSmall(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// IdentityExpiredToken returns the identity of com.amazonaws.s3#ExpiredToken.
+func IdentityExpiredToken() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#ExpiredToken", JSONType: "ExpiredToken", QueryCode: "ExpiredToken", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrExpiredToken returns an ExpiredToken error with message.
+func ErrExpiredToken(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityExpiredToken(), Message: message, Origin: awserr.Modeled{}}
+}
+
 // IdentityIdempotencyParameterMismatch returns the identity of com.amazonaws.s3#IdempotencyParameterMismatch.
 func IdentityIdempotencyParameterMismatch() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.s3#IdempotencyParameterMismatch", JSONType: "IdempotencyParameterMismatch", QueryCode: "IdempotencyParameterMismatch", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -184,6 +204,16 @@ func IdentityInternalError() awserr.Identity {
 // ErrInternalError returns an InternalError error with message.
 func ErrInternalError(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInternalError(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityInvalidAccessKeyId returns the identity of com.amazonaws.s3#InvalidAccessKeyId.
+func IdentityInvalidAccessKeyId() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidAccessKeyId", JSONType: "InvalidAccessKeyId", QueryCode: "InvalidAccessKeyId", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrInvalidAccessKeyId returns an InvalidAccessKeyId error with message.
+func ErrInvalidAccessKeyId(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityInvalidAccessKeyId(), Message: message, Origin: awserr.Modeled{}}
 }
 
 // IdentityInvalidAnnotationName returns the identity of com.amazonaws.s3#InvalidAnnotationName.
@@ -354,6 +384,16 @@ func IdentityInvalidTag() awserr.Identity {
 // ErrInvalidTag returns an InvalidTag error with message.
 func ErrInvalidTag(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidTag(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityInvalidToken returns the identity of com.amazonaws.s3#InvalidToken.
+func IdentityInvalidToken() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidToken", JSONType: "InvalidToken", QueryCode: "InvalidToken", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrInvalidToken returns an InvalidToken error with message.
+func ErrInvalidToken(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityInvalidToken(), Message: message, Origin: awserr.Modeled{}}
 }
 
 // IdentityInvalidWriteOffset returns the identity of com.amazonaws.s3#InvalidWriteOffset.
@@ -704,6 +744,16 @@ func IdentityReplicationConfigurationNotFoundError() awserr.Identity {
 // ErrReplicationConfigurationNotFoundError returns a ReplicationConfigurationNotFoundError error with message.
 func ErrReplicationConfigurationNotFoundError(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityReplicationConfigurationNotFoundError(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityRequestTimeTooSkewed returns the identity of com.amazonaws.s3#RequestTimeTooSkewed.
+func IdentityRequestTimeTooSkewed() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#RequestTimeTooSkewed", JSONType: "RequestTimeTooSkewed", QueryCode: "RequestTimeTooSkewed", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrRequestTimeTooSkewed returns a RequestTimeTooSkewed error with message.
+func ErrRequestTimeTooSkewed(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityRequestTimeTooSkewed(), Message: message, Origin: awserr.Modeled{}}
 }
 
 // IdentityServerSideEncryptionConfigurationNotFoundError returns the identity of com.amazonaws.s3#ServerSideEncryptionConfigurationNotFoundError.

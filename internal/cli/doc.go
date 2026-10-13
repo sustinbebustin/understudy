@@ -36,8 +36,8 @@
 //   - snapshot save gzips an archive whose name ends in .gz or .tgz.
 //   - serve parses its own flags through internal/config and maps the result
 //     onto server.Config with serverConfig. A setting this build's server
-//     does not apply yet (sigv4 verify, accounts.keys, s3.maxObjectBytes,
-//     dynamodb.registry) is refused by name with exit 2 rather than ignored.
+//     does not apply yet (s3.maxObjectBytes, dynamodb.registry) is refused
+//     by name with exit 2 rather than ignored.
 //     serve takes --output as another name for --log-format, its logs go to
 //     stderr, and with JSON asked for, by flag or UNDERSTUDY_LOG_FORMAT, a
 //     configuration error is the JSON envelope too. The configuration's

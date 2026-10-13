@@ -52,8 +52,11 @@ func serveFlags(w io.Writer) error {
 		refused[i] = s.name
 	}
 	b.WriteString("\nNot supported yet: this build refuses " + strings.Join(refused, ", ") + " rather than ignore them.\n" +
-		"\nAccounts: a request signed with a 12-digit access key id is in that account; any other key not\n" +
-		"minted by understudy is in the default account, 000000000000 unless accounts.default sets another.\n" +
+		"\nAccounts: a request signed with a 12-digit access key id is in that account; an accounts.keys\n" +
+		"entry is in its account; any other key not minted by understudy, test among them, is in the\n" +
+		"default account, 000000000000 unless accounts.default sets another. Under --sigv4 verify, test\n" +
+		"and every 12-digit key sign with the secret test, an accounts.keys entry with its own secret,\n" +
+		"and any other key understudy did not mint is refused.\n" +
 		"\nReference: docs/configuration.md in the understudy repository.\n")
 	_, err := io.WriteString(w, b.String())
 	return err
@@ -282,8 +285,21 @@ func serverConfig(cfg config.Config, version string) (server.Config, error) {
 	if cfg.IAM.AssumeRole == config.AssumeRoleLenient {
 		s.Switches.STSAssumeRole = server.STSAssumeRoleLenient
 	}
+	if cfg.SigV4 == config.Verify {
+		s.SigV4 = server.SigV4Verify
+	}
+	s.StaticKeys = mapStaticKeys(cfg.Accounts.Keys)
 	s.TLS, s.Persist, s.ClockStart, s.Docker, s.DynamoDB = mapTLS(cfg.TLS), mapPersistence(cfg.Persistence), mapClock(cfg.Clock), mapDocker(cfg.Docker), mapLicence(cfg.DynamoDB.Licence)
 	return s, nil
+}
+
+// mapStaticKeys maps accounts.keys onto the server's static keys.
+func mapStaticKeys(keys []config.StaticKey) []server.StaticKey {
+	out := make([]server.StaticKey, 0, len(keys))
+	for _, k := range keys {
+		out = append(out, server.StaticKey{AccessKeyID: k.AccessKeyID, Secret: string(k.Secret), Account: k.Account})
+	}
+	return out
 }
 
 func mapListen(l config.Listen, s *server.Config) {
@@ -372,8 +388,6 @@ type unappliedSetting struct {
 func unappliedSettings() []unappliedSetting {
 	const file = "the configuration file"
 	return []unappliedSetting{
-		{"sigv4 verify", "--sigv4, UNDERSTUDY_SIGV4 or the key sigv4 of " + file, func(cfg, def config.Config) bool { return cfg.SigV4 != def.SigV4 }},
-		{"accounts.keys", file, func(cfg, _ config.Config) bool { return len(cfg.Accounts.Keys) > 0 }},
 		{"s3.maxObjectBytes", file, func(cfg, def config.Config) bool { return cfg.S3.MaxObjectBytes != def.S3.MaxObjectBytes }},
 		{"dynamodb.registry", file, func(cfg, def config.Config) bool { return cfg.DynamoDB.Registry != def.DynamoDB.Registry }},
 	}

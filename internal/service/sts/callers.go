@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
+	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/identity"
@@ -54,6 +55,9 @@ func (s *Service) getSessionToken(_ context.Context, c *kernel.Call, in *stsapi.
 	if in.DurationSeconds != nil {
 		duration = time.Duration(*in.DurationSeconds) * time.Second
 	}
+	if s.signedWithSession(c) {
+		return nil, errSessionCredentials()
+	}
 	switch p := c.Principal().(type) {
 	case identity.Root:
 		duration = min(duration, maxRootSession)
@@ -70,6 +74,28 @@ func (s *Service) getSessionToken(_ context.Context, c *kernel.Call, in *stsapi.
 		return nil, err
 	}
 	return &stsapi.GetSessionTokenOutput{Credentials: creds}, nil
+}
+
+// signedWithSession reports whether the call was signed with temporary
+// credentials, such as an earlier GetSessionToken's. Only a call the edge
+// verified (sigv4 verify) names the key it was signed with; under sigv4
+// parse a root or user session is not recognised.
+func (s *Service) signedWithSession(c *kernel.Call) bool {
+	a, ok := c.VerifiedAuth()
+	if !ok {
+		return false
+	}
+	key, ok := auth.AccessKey(a)
+	if !ok {
+		return false
+	}
+	_, res := s.identity.Resolve(key)
+	minted, ok := res.(identity.Minted)
+	if !ok {
+		return false
+	}
+	_, temporary := minted.Lifetime.(identity.Temporary)
+	return temporary
 }
 
 // mint issues temporary credentials for p that last d of wall time:

@@ -4,6 +4,7 @@ clock, tags, continuous backups and per account and region isolation."""
 
 from __future__ import annotations
 
+import os
 import re
 import time
 from collections.abc import Callable
@@ -16,7 +17,13 @@ from botocore.exceptions import ClientError
 
 from support import Admin, eventually, raises, status_of, uniq
 
-pytestmark = pytest.mark.docker
+pytestmark = [
+    pytest.mark.docker,
+    pytest.mark.skipif(
+        os.environ.get("CONFORMANCE_DYNAMODB") != "1",
+        reason="needs DynamoDB Local, whose licence the caller accepts: run with UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1",
+    ),
+]
 
 SERIALIZER = TypeSerializer()
 DESERIALIZER = TypeDeserializer()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"testing"
 	"testing/synctest"
@@ -46,6 +47,7 @@ type config struct {
 	mode        clock.Mode
 	seed        uint64
 	journalFile string
+	log         *slog.Logger
 }
 
 // Option adjusts Run.
@@ -71,6 +73,11 @@ func Seed(n uint64) Option {
 // failure, except a write after a close fn made itself.
 func JournalFile(path string) Option {
 	return func(c *config) { c.journalFile = path }
+}
+
+// Log sends the kernel's diagnostics to l; by default they are discarded.
+func Log(l *slog.Logger) Option {
+	return func(c *config) { c.log = l }
 }
 
 // Run runs fn inside a synctest bubble against a running kernel: a frozen
@@ -132,7 +139,7 @@ func build(t *testing.T, cfg config) *K {
 	idStore := identity.New(src, aws.DefaultAccount())
 	k, err := kernel.New(kernel.Options{
 		Registry: reg, Clock: clk, Timers: timers, IDs: src, Journal: j,
-		Faults: faults, Access: rec, Identity: idStore, Strict: true,
+		Faults: faults, Access: rec, Identity: idStore, Log: cfg.log, Strict: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -156,6 +163,31 @@ func (k *K) Deps(svc *registry.Service) kernel.ServiceDeps {
 		Identity: k.Identity,
 		Log:      k.Kernel.Log(),
 	}
+}
+
+// UndeclaredActions returns the operations of svc bound in k whose
+// generated list holds more than one action under svc's IAM prefix and
+// whose binding declares none of them (kernel.WithActions,
+// kernel.WithoutSecondaryActions), so their calls record the whole list.
+// A service whose actions are reviewed asserts it returns none, so a new
+// bind cannot fall back to the whole list unnoticed.
+func UndeclaredActions(k *kernel.Kernel, svc *registry.Service) []ref.OperationID {
+	var out []ref.OperationID
+	for _, op := range svc.Operations {
+		if _, bound := k.Bindings().Status(op).(kernel.Bound); !bound || k.Bindings().DeclaresActions(op) {
+			continue
+		}
+		own := 0
+		for _, a := range op.IAM {
+			if a.Prefix == svc.IAMPrefix {
+				own++
+			}
+		}
+		if own > 1 {
+			out = append(out, op.ID)
+		}
+	}
+	return out
 }
 
 // Stub binds h as op's handler, for a service the test does not construct.

@@ -171,6 +171,14 @@ var memberEmptyBatchRequest_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaExceptionMessage = smithy.Schema{ID: "com.amazonaws.sqs#ExceptionMessage", Type: smithy.TypeString}
 
+var schemaExpiredToken = smithy.Schema{ID: "com.amazon.coral.service#ExpiredToken", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberExpiredToken_message = smithy.Member{Name: "message", Index: 0}
+
+var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaGetQueueAttributesInput = smithy.Schema{ID: "com.amazonaws.sqs#GetQueueAttributesRequest", Type: smithy.TypeStructure}
 
 var memberGetQueueAttributesInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
@@ -232,6 +240,10 @@ var memberInvalidAttributeValue_message = smithy.Member{Name: "message", Index: 
 var schemaInvalidBatchEntryId = smithy.Schema{ID: "com.amazonaws.sqs#InvalidBatchEntryId", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var memberInvalidBatchEntryId_message = smithy.Member{Name: "message", Index: 0}
+
+var schemaInvalidClientTokenId = smithy.Schema{ID: "com.amazon.coral.service#InvalidClientTokenId", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberInvalidClientTokenId_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaInvalidIdFormat = smithy.Schema{ID: "com.amazonaws.sqs#InvalidIdFormat", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
@@ -703,6 +715,10 @@ var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.servic
 
 var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
 
+var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaUnsupportedOperation = smithy.Schema{ID: "com.amazonaws.sqs#UnsupportedOperation", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var memberUnsupportedOperation_message = smithy.Member{Name: "message", Index: 0}
@@ -792,6 +808,10 @@ func init() {
 	schemaDeleteQueueInput.Members = []*smithy.Member{&memberDeleteQueueInput_QueueUrl}
 	memberEmptyBatchRequest_message.Target = &schemaExceptionMessage
 	schemaEmptyBatchRequest.Members = []*smithy.Member{&memberEmptyBatchRequest_message}
+	memberExpiredToken_message.Target = &schemaSmithyString
+	schemaExpiredToken.Members = []*smithy.Member{&memberExpiredToken_message}
+	memberExpiredTokenException_message.Target = &schemaSmithyString
+	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
 	memberGetQueueAttributesInput_QueueUrl.Target = &schemaString
 	memberGetQueueAttributesInput_AttributeNames.Target = &schemaAttributeNameList
 	schemaGetQueueAttributesInput.Members = []*smithy.Member{&memberGetQueueAttributesInput_QueueUrl, &memberGetQueueAttributesInput_AttributeNames}
@@ -822,6 +842,8 @@ func init() {
 	schemaInvalidAttributeValue.Members = []*smithy.Member{&memberInvalidAttributeValue_message}
 	memberInvalidBatchEntryId_message.Target = &schemaExceptionMessage
 	schemaInvalidBatchEntryId.Members = []*smithy.Member{&memberInvalidBatchEntryId_message}
+	memberInvalidClientTokenId_message.Target = &schemaSmithyString
+	schemaInvalidClientTokenId.Members = []*smithy.Member{&memberInvalidClientTokenId_message}
 	memberInvalidMessageContents_message.Target = &schemaExceptionMessage
 	schemaInvalidMessageContents.Members = []*smithy.Member{&memberInvalidMessageContents_message}
 	memberInvalidParameterValue_message.Target = &schemaExceptionMessage
@@ -1042,6 +1064,8 @@ func init() {
 	schemaTooManyEntriesInBatchRequest.Members = []*smithy.Member{&memberTooManyEntriesInBatchRequest_message}
 	memberUnknownOperationException_message.Target = &schemaSmithyString
 	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
+	memberUnrecognizedClientException_message.Target = &schemaSmithyString
+	schemaUnrecognizedClientException.Members = []*smithy.Member{&memberUnrecognizedClientException_message}
 	memberUnsupportedOperation_message.Target = &schemaExceptionMessage
 	schemaUnsupportedOperation.Members = []*smithy.Member{&memberUnsupportedOperation_message}
 	memberUntagQueueInput_QueueUrl.Target = &schemaString

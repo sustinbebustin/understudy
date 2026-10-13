@@ -9,6 +9,8 @@
         {"target": "com.amazon.coral.service#MissingAuthenticationTokenException"},
         {"target": "com.amazon.coral.service#IncompleteSignatureException"},
         {"target": "com.amazon.coral.service#InvalidSignatureException"},
+        {"target": "com.amazon.coral.service#UnrecognizedClientException"},
+        {"target": "com.amazon.coral.service#ExpiredTokenException"},
         {"target": "com.amazon.coral.service#AccessDeniedException"},
         {"target": "com.amazon.coral.service#InternalFailure"},
         {"target": "dev.understudy#NotImplemented"},
@@ -39,6 +41,8 @@
         {"target": "com.amazon.coral.service#MissingAuthenticationToken"},
         {"target": "com.amazon.coral.service#IncompleteSignature"},
         {"target": "com.amazon.coral.service#SignatureDoesNotMatch"},
+        {"target": "com.amazon.coral.service#InvalidClientTokenId"},
+        {"target": "com.amazon.coral.service#ExpiredToken"},
         {"target": "com.amazon.coral.service#AccessDeniedException"},
         {"target": "com.amazon.coral.service#InternalFailure"},
         {"target": "dev.understudy#NotImplemented"},
@@ -221,6 +225,88 @@
           "label": "aws-doc",
           "source": "https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html"
         }
+      }
+    },
+    "com.amazon.coral.service#UnrecognizedClientException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "aws.protocols#awsQueryError": {"code": "InvalidClientTokenId", "httpResponseCode": 400},
+        "dev.understudy#evidence": [
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/index.js#L296-L372",
+            "covers": ["smithy.api#error", "smithy.api#httpError"]
+          },
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/CommonErrors.html",
+            "covers": ["aws.protocols#awsQueryError"]
+          }
+        ]
+      }
+    },
+    "com.amazon.coral.service#ExpiredTokenException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 403,
+        "aws.protocols#awsQueryError": {"code": "ExpiredToken", "httpResponseCode": 403},
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/STS/latest/APIReference/CommonErrors.html",
+            "covers": ["smithy.api#error", "smithy.api#httpError"]
+          },
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html",
+            "covers": ["aws.protocols#awsQueryError"]
+          }
+        ]
+      }
+    },
+    "com.amazon.coral.service#InvalidClientTokenId": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 403,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/CommonErrors.html"
+        }
+      }
+    },
+    "com.amazon.coral.service#ExpiredToken": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 403,
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/STS/latest/APIReference/CommonErrors.html",
+            "covers": ["smithy.api#httpError"]
+          },
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html",
+            "covers": ["smithy.api#error"]
+          }
+        ]
       }
     },
     "com.amazon.coral.service#AccessDeniedException": {

@@ -49,8 +49,14 @@ const (
 	// understudy parses every request's credentials without verifying
 	// them by default.
 	SigV4Parse SigV4Mode = iota
-	// SigV4Verify also checks the signature against the secret of the key
-	// understudy minted for it; a key it did not mint is refused.
+	// SigV4Verify also checks the signature against its key's secret; a
+	// key with none is refused. A call the edge already verified (sigv4
+	// verify in the server, kernel.Call.VerifiedAuth) is not checked
+	// again, so this mode matters only to a Lambda served behind an edge
+	// that does not verify. Its presigned check reads X-Amz-Date as an
+	// emulator instant (auth.VerifyPresigned), right only while the
+	// emulator clock has not moved away from wall time; the edge places
+	// the signing on the emulator timeline instead.
 	SigV4Verify
 )
 
@@ -289,7 +295,14 @@ func (u *urlServer) signed(c *kernel.Call, r *http.Request, addr furl.Address, b
 	case auth.SigV2Header, auth.SigV2Query, auth.Anonymous:
 		return refused{furl.Forbidden()}
 	}
-	if u.opts.SigV4 == SigV4Verify {
+	if _, verified := c.VerifiedAuth(); verified {
+		// The edge verified the signature, the session token and a
+		// presigned URL's expiry on the emulator timeline (sigv4 verify);
+		// only the scope's service and region are the URL's to check.
+		if refusal := scoped(sig.cred, addr); refusal != nil {
+			return refused{*refusal}
+		}
+	} else if u.opts.SigV4 == SigV4Verify {
 		if refusal := u.verify(r, sig, addr, body); refusal != nil {
 			return refused{*refusal}
 		}
@@ -298,20 +311,22 @@ func (u *urlServer) signed(c *kernel.Call, r *http.Request, addr furl.Address, b
 }
 
 // verify checks a SigV4 request's credential scope against the URL, then
-// its signature against the secret of the key understudy minted, and a
-// temporary key's session token. A key understudy did not mint has no
-// secret to check against and is refused.
+// its signature against the secret of its key, and a temporary key's
+// session token. A key with no secret (identity.SecretOf) is refused, as
+// the edge refuses it.
 func (u *urlServer) verify(r *http.Request, sig sigV4, addr furl.Address, body []byte) *furl.Response {
 	if refusal := scoped(sig.cred, addr); refusal != nil {
 		return refusal
 	}
 	_, res := u.identity.Resolve(sig.cred.Key)
-	minted, ok := res.(identity.Minted)
+	secret, ok := identity.SecretOf(res)
 	if !ok {
-		return new(furl.Denied("UnrecognizedClientException", "The security token included in the request is invalid. understudy verifies signatures only for access keys it minted."))
-	}
-	if t, ok := minted.Lifetime.(identity.Temporary); ok && sessionToken(r) != string(t.SessionToken) {
 		return new(furl.Denied("UnrecognizedClientException", "The security token included in the request is invalid."))
+	}
+	if minted, ok := res.(identity.Minted); ok {
+		if t, ok := minted.Lifetime.(identity.Temporary); ok && sessionToken(r) != string(t.SessionToken) {
+			return new(furl.Denied("UnrecognizedClientException", "The security token included in the request is invalid."))
+		}
 	}
 	v, ok := auth.VocabularyFor(awserr.JSONFamily)
 	if !ok {
@@ -320,7 +335,7 @@ func (u *urlServer) verify(r *http.Request, sig sigV4, addr furl.Address, body [
 		return new(furl.Denied("AccessDeniedException", "understudy could not verify this signature: auth has no JSON family vocabulary. This is an understudy bug; the function did not run. Serving with sigv4 parse skips verification."))
 	}
 	req := auth.Normalize(r, auth.Hashed{SHA256: sha256.Sum256(body)})
-	if err := sig.check(req, string(minted.Secret), u.x.k.Clock(), v); err != nil {
+	if err := sig.check(req, string(secret), u.x.k.Clock(), v); err != nil {
 		return new(furl.Denied(err.ID.Shape.Name(), err.Message))
 	}
 	return nil

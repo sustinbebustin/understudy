@@ -221,12 +221,12 @@ func (s *Service) listFunctionURLConfigs(_ context.Context, c *kernel.Call, in *
 	if err != nil {
 		return nil, err
 	}
-	p, err := page(rows, func(r row) string { return r.qualifier }, in.MaxItems, maxURLConfigsPage, in.Marker)
+	p, err := page(listingFunctionURLConfigs, rows, func(r row) string { return r.qualifier }, in.MaxItems, maxURLConfigsPage, in.Marker)
 	if err != nil {
 		return nil, err
 	}
-	out := &lambdaapi.ListFunctionUrlConfigsOutput{FunctionUrlConfigs: []lambdaapi.FunctionUrlConfig{}, NextMarker: p.next}
-	for _, r := range p.items {
+	out := &lambdaapi.ListFunctionUrlConfigsOutput{FunctionUrlConfigs: []lambdaapi.FunctionUrlConfig{}, NextMarker: p.Next}
+	for _, r := range p.Items {
 		out.FunctionUrlConfigs = append(out.FunctionUrlConfigs, renderURLConfig(c, functionRef{scope: ref.scope, name: ref.name, qualifier: r.qualifier}, r.config))
 	}
 	return out, nil

@@ -126,8 +126,10 @@ type Error struct {
 	// Field is the request member at fault, spelled as in its JSON form,
 	// such as "action.shape" on a fault rule.
 	Field string `json:"field,omitempty"`
-	// Known lists the values the request may use instead: the error shapes
-	// the operation really sends, for a fault rule naming another.
+	// Known lists the values the request may use instead, each in the form
+	// the field accepts: for a fault rule's action.shape, the short error
+	// name when it names exactly one error the operation sends, else the
+	// full shape id.
 	Known []string `json:"known,omitempty"`
 	// Pending is the work still outstanding by kind when settle times out.
 	Pending map[string]int `json:"pending,omitempty"`

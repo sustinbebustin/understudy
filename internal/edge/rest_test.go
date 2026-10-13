@@ -17,6 +17,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/server"
+	s3svc "github.com/sustinbebustin/understudy/internal/service/s3"
 )
 
 // s3 is a one-route REST service standing in for S3: GET /{Bucket}.
@@ -58,10 +59,14 @@ func TestUnsignedRequestsReachS3WithItsRequestIDHeaders(t *testing.T) {
 }
 
 // A header-signed S3 request without x-amz-content-sha256 has credentials
-// auth refuses, but only S3 refuses them, so S3 answers it (with the auth
-// error) rather than the edge leaving it unclaimed.
+// auth refuses, but only S3 refuses them, so S3 answers it with its own
+// identity, InvalidRequest (Options.ServiceAuth), rather than the edge
+// leaving it unclaimed or answering in Coral's words.
 func TestS3RequestWithoutPayloadHashReachesS3(t *testing.T) {
-	f := newFront(t, map[ref.ProtocolID]edge.Codec{ref.RESTXML: xmlCodec{}}, s3())
+	vocabulary, refuse := s3svc.AuthDialect()
+	f := newFrontWith(t, map[ref.ProtocolID]edge.Codec{ref.RESTXML: xmlCodec{}}, func(o *edge.Options) {
+		o.ServiceAuth = map[ref.ServiceID]edge.ServiceAuth{"s3": {Vocabulary: vocabulary, ParseError: refuse}}
+	}, s3())
 	r := request(t, http.MethodGet, "/bucket", nil, "", "s3")
 	r.Header.Del("X-Amz-Content-Sha256")
 	got := f.serve(t, r)
@@ -72,6 +77,15 @@ func TestS3RequestWithoutPayloadHashReachesS3(t *testing.T) {
 	}
 	if page := f.journal.Query(journal.Filter{Kind: journal.KindUnclaimed}); len(page.Events) != 0 {
 		t.Errorf("the request was journaled as Unclaimed: %+v", page.Events[0].Detail)
+	}
+	calls := f.journal.Query(journal.Filter{Kind: journal.KindAPICall}).Events
+	if len(calls) != 1 {
+		t.Fatalf("journaled %d API calls, want 1", len(calls))
+	}
+	if call, ok := calls[0].Detail.(journal.APICall); !ok {
+		t.Errorf("journal event %+v is not an APICall", calls[0].Detail)
+	} else if failed, ok := call.Outcome.(journal.Failed); !ok || failed.Identity.Shape != "com.amazonaws.s3#InvalidRequest" {
+		t.Errorf("the call ended %#v, want S3's InvalidRequest", call.Outcome)
 	}
 }
 

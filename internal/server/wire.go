@@ -121,10 +121,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	if err != nil {
 		return w, err
 	}
-	src := ids.NewRandom()
-	if cfg.Seed != nil {
-		src = ids.NewSeeded(*cfg.Seed)
-	}
+	src := idSource(cfg.Seed)
 	timers := kernel.NewTimers()
 	clk, err := clock.New(clockOptions(cfg.ClockStart, timers))
 	if err != nil {
@@ -139,7 +136,10 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		return w, err
 	}
 	account := defaultAccount(cfg)
-	idStore := identity.New(src, account)
+	idStore, err := identityStore(cfg.StaticKeys, src, account)
+	if err != nil {
+		return w, err
+	}
 	w.faults = fault.New(cfg.Seed, src, kernel.NewCatalogue(reg, cat.throttles))
 	recorder := &access.Recorder{}
 	box := outbox.New()
@@ -248,6 +248,33 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		return w, err
 	}
 	return w, preload(w.faults, cfg.Faults)
+}
+
+// idSource draws ids from seed when one is set, else from crypto/rand. It
+// is apart from wire to keep wire within the gocognit limit.
+func idSource(seed *uint64) *ids.Source {
+	if seed != nil {
+		return ids.NewSeeded(*seed)
+	}
+	return ids.NewRandom()
+}
+
+// identityStore is the credential store, holding the static keys; a key it
+// refuses is a *SettingError naming the accounts.keys entry.
+func identityStore(keys []StaticKey, src *ids.Source, account aws.AccountID) (*identity.Store, error) {
+	store := identity.New(src, account)
+	static := make([]identity.StaticKey, len(keys))
+	for i, k := range keys {
+		static[i] = identity.StaticKey{AccessKeyID: ids.AccessKeyID(k.AccessKeyID), Secret: ids.SecretAccessKey(k.Secret), Account: k.Account}
+	}
+	if err := store.SetStaticKeys(static); err != nil {
+		setting := "accounts.keys"
+		if keyErr, ok := errors.AsType[*identity.StaticKeyError](err); ok {
+			setting = fmt.Sprintf("accounts.keys[%d]", keyErr.Index)
+		}
+		return nil, &SettingError{Setting: setting, Reason: err.Error(), Err: err}
+	}
+	return store, nil
 }
 
 // snapshotDirs sets the admin API's snapshot directories: with
@@ -457,7 +484,9 @@ func unwatchable(bindings []HotReload, err error) error {
 // has already required what guards it. The container listener keeps
 // LocalHosts: function containers address it by IP literal. Both share one
 // ServedPorts, so a page understudy served on any listener's port is
-// refused on every other one.
+// refused on every other one, and one ClockTimeline, so a URL presigned
+// after a clock change made on the main listener is placed after it on
+// the container listener too.
 func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idStore *identity.Store, regions aws.Regions, cat catalogue, bucketExists func(string) bool, log *slog.Logger) error {
 	domains := cfg.S3BaseDomains
 	if domains == nil {
@@ -479,11 +508,15 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 		S3Control:             S3ControlCodec(),
 		Listener:              ref.ListenerMain,
 		Served:                &edge.ServedPorts{},
+		Timeline:              &edge.ClockTimeline{},
 		Admin:                 w.admin,
 		Unclaimed:             ref.AWSJSON10,
 		UnknownOperationError: cat.unknownOperationError,
 		Log:                   log,
 	}
+	vocabulary, refuse := s3.AuthDialect()
+	o.ServiceAuth = map[ref.ServiceID]edge.ServiceAuth{s3api.Service().ID: {Vocabulary: vocabulary, ParseError: refuse, Payload: edge.ServiceChecksPayload}}
+	o.Verify = cfg.SigV4 == SigV4Verify
 	var err error
 	if w.edge, err = edge.New(o); err != nil {
 		return err
@@ -577,11 +610,7 @@ func ruleSettingError(i int, err *fault.RuleError) *SettingError {
 	}
 	out := &SettingError{Setting: setting, Reason: reason, Err: err}
 	if len(err.Known) > 0 {
-		names := make([]string, len(err.Known))
-		for j, s := range err.Known {
-			names[j] = string(s)
-		}
-		out.Hint = "use one of the errors it sends: " + strings.Join(names, ", ")
+		out.Hint = "use one of the errors it sends: " + strings.Join(err.Choices(), ", ")
 	}
 	return out
 }

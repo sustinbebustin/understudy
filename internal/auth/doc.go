@@ -5,7 +5,8 @@
 // (ARCHITECTURE.md 7). The verifiers are pure functions over a Normalized
 // request: request-time skew is judged on wall time, because clients sign
 // with their own clocks, and presigned-URL expiry on the emulator clock, so
-// advancing it expires URLs (lambda-runtime-contract.md 3 rows 9 and 10).
+// advancing it past a URL's lifetime expires the URL
+// (lambda-runtime-contract.md 3 rows 9 and 10).
 //
 // Decisions the architecture leaves open:
 //
@@ -62,7 +63,17 @@
 //     an S3 header request without x-amz-content-sha256.
 //   - A credential scope naming an unknown region is its own ParseError
 //     variant, UnknownRegion, carrying the name as sent, because S3 answers
-//     it with AuthorizationHeaderMalformed and the expected region.
+//     it with AuthorizationHeaderMalformed and the expected region, and the
+//     signing name, so the front door can still route it to S3.
+//   - The Vocabulary also holds the identities of credentials the caller
+//     cannot verify (ADR 0012 pre-tag review amendment): UnknownKey for a
+//     key with no secret, InvalidToken for temporary credentials sent
+//     without their session token or with another, ExpiredToken for expired
+//     ones. Coral answers an unknown key and a wrong token alike, "The
+//     security token included in the request is invalid." (dynalite
+//     index.js L296-L372); S3 has an identity and text for each and names an
+//     unknown key in its AWSAccessKeyId element. The token is never echoed.
+//     SessionToken reads it from the header or, in any case, the query.
 //   - Checks run in Coral's order (dynalite index.js L296-L372) with one
 //     deviation: Parse has no wall clock, so the skew check, which Coral runs
 //     right after the date format, comes after every parse check, and a
@@ -81,9 +92,12 @@
 //   - x-amz-content-sha256 must be lowercase hex: the payload line is the
 //     lowercase hash, so an uppercase value could never verify.
 //   - The skew window is 15 minutes for every service.
-//   - VerifyPresigned also takes the wall time: a URL whose X-Amz-Date is more
-//     than 15 minutes ahead of it is not yet valid, while expiry stays on the
-//     emulator clock.
+//   - VerifyPresignedSince also takes the wall time: a URL whose X-Amz-Date
+//     is more than 15 minutes ahead of it is not yet valid, while expiry
+//     stays on the emulator clock, counted from the emulator instant the
+//     URL was signed at, which the caller places on the emulator timeline
+//     (the edge's ClockTimeline). A SigV2 URL carries no signing time, so
+//     VerifySigV2Presigned reads its Expires as an emulator instant.
 //   - The dependency rules keep auth from importing awschunked, so
 //     ChunkSignatureVerifier returns a ChunkVerifier with Chunk and Trailer
 //     methods, and the S3 service adapts them to an awschunked.SignatureFunc.

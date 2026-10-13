@@ -36,12 +36,18 @@
 //   - Instance profile ids are AIPA and 17 characters drawn from the role
 //     id stream, since the id source has no instance profile kind.
 //   - Listings page in name order regardless of case (attachments by
-//     ARN, access keys by id, policy versions newest first). A Marker is
-//     the base64 form of the next page's first sort key, so a listing
-//     resumes correctly after entities before it are added or deleted.
-//     A policy ARN under a long path would make a Marker longer than the
-//     model's 320 characters, so an attachment whose ARN is over 240
-//     bytes sorts by its first 160 bytes and a SHA-256 prefix instead.
+//     ARN, access keys by id, tags by key, policy versions newest first).
+//     A Marker is internal/paging's listing-scoped "v1|<listing>|<key>",
+//     naming the next page's first sort key, so a listing resumes
+//     correctly after entities before it are added or deleted. Each
+//     operation names its own listing, and so does each holder kind of
+//     the tag, inline policy and attachment listings; a Marker another
+//     listing issued, or one that does not decode, is InvalidInput. An
+//     attachment ARN under a long path or a long multibyte tag key would
+//     make a Marker longer than markerType's 320 characters, so such a
+//     key is bounded by paging.Listing.BoundedKey: as much of its start
+//     as the listing's prefix leaves room for, then 16 hex digits of its
+//     SHA-256.
 //   - DeleteRole checks instance profile membership, then attached, then
 //     inline policies; DeleteUser checks attached policies, inline policies,
 //     then access keys. Each answers the DeleteConflict text of the first

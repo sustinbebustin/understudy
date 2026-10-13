@@ -45,6 +45,18 @@ type Vocabulary struct {
 	// InvalidRequest for one that does, documented in
 	// sigv4-checksums-endpoints.md 2.1, is UNVERIFIED.
 	Conflicting awserr.Identity
+	// UnknownKey: the access key names no credentials the emulator holds a
+	// secret for (ADR 0012 pre-tag review amendment).
+	UnknownKey awserr.Identity
+	// InvalidToken: temporary credentials sent without their session token,
+	// or with another one.
+	InvalidToken awserr.Identity
+	// ExpiredToken: temporary credentials past their expiry.
+	ExpiredToken awserr.Identity
+	// PayloadMismatch: the body does not hash to the x-amz-content-sha256
+	// the request signed. The Coral services use the mismatch identity; S3
+	// answers XAmzContentSHA256Mismatch.
+	PayloadMismatch awserr.Identity
 	// Dialect picks the texts and extra elements of the failures whose
 	// wording differs between the Coral services and S3.
 	Dialect Dialect
@@ -72,27 +84,72 @@ const (
 // distinct identity for an expired presigned URL, an unsigned x-amz-*
 // header, a header conflicting with the query, or a skewed request in the
 // Query family, so they use the mismatch identity too, whose message says
-// which it is.
+// which it is. An unknown key and a wrong session token share one identity
+// per family, as Coral answers both "invalid" (dynalite index.js
+// L296-L372).
 func VocabularyFor(f awserr.Family) (Vocabulary, bool) {
 	switch f {
 	case awserr.JSONFamily:
-		mismatch := awserr.InvalidSignatureException()
+		mismatch, unknown := awserr.InvalidSignatureException(), awserr.UnrecognizedClientException()
 		return Vocabulary{
 			Missing:    awserr.MissingAuthenticationTokenException(),
 			Incomplete: awserr.IncompleteSignatureException(),
-			Mismatch:   mismatch, Skewed: mismatch, Expired: mismatch, HeadersNotSigned: mismatch, Conflicting: mismatch,
+			Mismatch:   mismatch, Skewed: mismatch, Expired: mismatch, HeadersNotSigned: mismatch, Conflicting: mismatch, PayloadMismatch: mismatch,
+			UnknownKey: unknown, InvalidToken: unknown, ExpiredToken: awserr.ExpiredTokenException(),
 			Dialect: CoralDialect,
 		}, true
 	case awserr.QueryFamily:
-		mismatch := awserr.SignatureDoesNotMatch()
+		mismatch, unknown := awserr.SignatureDoesNotMatch(), awserr.InvalidClientTokenId()
 		return Vocabulary{
 			Missing:    awserr.MissingAuthenticationToken(),
 			Incomplete: awserr.IncompleteSignature(),
-			Mismatch:   mismatch, Skewed: mismatch, Expired: mismatch, HeadersNotSigned: mismatch, Conflicting: mismatch,
+			Mismatch:   mismatch, Skewed: mismatch, Expired: mismatch, HeadersNotSigned: mismatch, Conflicting: mismatch, PayloadMismatch: mismatch,
+			UnknownKey: unknown, InvalidToken: unknown, ExpiredToken: awserr.ExpiredToken(),
 			Dialect: CoralDialect,
 		}, true
 	}
 	return Vocabulary{}, false
+}
+
+// The Coral and S3 texts of the credential failures. Coral's are DynamoDB's
+// (dynalite index.js L296-L372) and AWS's documented expired-token text;
+// S3's are its error list's (ErrorResponses.html).
+const (
+	coralInvalidTokenMessage = "The security token included in the request is invalid."
+	coralExpiredTokenMessage = "The security token included in the request is expired"
+	s3UnknownKeyMessage      = "The AWS Access Key Id you provided does not exist in our records."
+	s3InvalidTokenMessage    = "The provided token is malformed or otherwise invalid."
+	s3ExpiredTokenMessage    = "The provided token has expired."
+)
+
+// UnknownKey is the answer to a request signed with an access key the
+// emulator holds no secret for. S3 names the key in its AWSAccessKeyId
+// element.
+func UnknownKey(key string, v Vocabulary) *awserr.Error {
+	if v.Dialect != S3Dialect {
+		return failure(v.UnknownKey, coralInvalidTokenMessage)
+	}
+	err := failure(v.UnknownKey, s3UnknownKeyMessage)
+	err.Fields = []awserr.Field{{Name: "AWSAccessKeyId", Value: key}}
+	return err
+}
+
+// InvalidToken is the answer to temporary credentials sent without their
+// session token or with another one. The token is never echoed: it is a
+// credential.
+func InvalidToken(v Vocabulary) *awserr.Error {
+	if v.Dialect == S3Dialect {
+		return failure(v.InvalidToken, s3InvalidTokenMessage)
+	}
+	return failure(v.InvalidToken, coralInvalidTokenMessage)
+}
+
+// ExpiredToken is the answer to temporary credentials past their expiry.
+func ExpiredToken(v Vocabulary) *awserr.Error {
+	if v.Dialect == S3Dialect {
+		return failure(v.ExpiredToken, s3ExpiredTokenMessage)
+	}
+	return failure(v.ExpiredToken, coralExpiredTokenMessage)
 }
 
 const (
@@ -182,21 +239,33 @@ func Verify(a SigV4Header, req Normalized, secret string, wallNow time.Time, v V
 	return checkSignature(a.Credential, a.Time, req, a.SignedHeaders, "", payload, a.Signature, secret, v)
 }
 
-// VerifyPresigned checks a SigV4 presigned URL against secret. Expiry is
-// judged on the emulator clock, so advancing it expires URLs; a request time
-// more than 15 minutes ahead of wallNow is not yet valid
-// (lambda-runtime-contract.md 3 row 10). Every x-amz-* header the request
-// carries must be signed, and no signed header may differ from a query
-// parameter of the same name (sigv4-checksums-endpoints.md 2.1). The
-// conflict is judged only once the signature verifies, as S3 reports a
-// mismatch first (REC test_s3_put_presigned_url_same_header_and_qs_parameter).
+// VerifyPresigned is VerifyPresignedSince with the URL taken as signed at
+// the emulator instant its X-Amz-Date names, which is right only while
+// emulator time read wall time when the URL was signed. A caller that can
+// place the signing on the emulator timeline (the edge) calls
+// VerifyPresignedSince.
 func VerifyPresigned(a SigV4Query, req Normalized, secret string, wallNow time.Time, emuNow clock.Instant, v Vocabulary) *awserr.Error {
+	return VerifyPresignedSince(a, req, secret, wallNow, clock.FromWire(a.Time), emuNow, v)
+}
+
+// VerifyPresignedSince checks a SigV4 presigned URL against secret. Expiry
+// is judged on the emulator clock: the URL expires once emuNow reaches
+// signed, the emulator instant it was signed at, plus X-Amz-Expires, so
+// advancing the clock expires it and a URL signed after an advance lives
+// its full lifetime. A request time more than 15 minutes ahead of wallNow
+// is not yet valid (lambda-runtime-contract.md 3 row 10). Every x-amz-*
+// header the request carries must be signed, and no signed header may
+// differ from a query parameter of the same name
+// (sigv4-checksums-endpoints.md 2.1). The conflict is judged only once the
+// signature verifies, as S3 reports a mismatch first (REC
+// test_s3_put_presigned_url_same_header_and_qs_parameter).
+func VerifyPresignedSince(a SigV4Query, req Normalized, secret string, wallNow time.Time, signed, emuNow clock.Instant, v Vocabulary) *awserr.Error {
 	if a.Time.After(wallNow.Add(skewWindow)) {
 		return notYetCurrent(a.Time, iso(a.Time), wallNow, v)
 	}
-	if expiry := a.Time.Add(a.Expires); !emuNow.Before(clock.FromWire(expiry)) {
+	if expiry := signed.Add(a.Expires); !emuNow.Before(expiry) {
 		lifetime := awserr.Field{Name: qExpires, Value: strconv.FormatInt(int64(a.Expires/time.Second), 10)}
-		return expired(expiry, emuNow, v, lifetime)
+		return expired(expiry.Wire(), emuNow, v, lifetime)
 	}
 	if err := checkAllAmzHeadersSigned(req, a.SignedHeaders, v); err != nil {
 		return err
@@ -333,7 +402,7 @@ func checkHeadersAgreeWithQuery(req Normalized, signed []string, v Vocabulary) *
 func payloadLine(h PayloadHash, body Body, v Vocabulary) (string, *awserr.Error) {
 	hashed, isHashed := body.(Hashed)
 	if sent, ok := h.(Hex); ok && isHashed && sent.SHA256 != hashed.SHA256 {
-		return "", failure(v.Mismatch, "The provided 'x-amz-content-sha256' header does not match what was computed.")
+		return "", failure(v.PayloadMismatch, "The provided 'x-amz-content-sha256' header does not match what was computed.")
 	}
 	if line, ok := wire(h); ok {
 		return line, nil

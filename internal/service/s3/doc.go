@@ -107,8 +107,10 @@
 //     whatever the bucket default.
 //   - aws-chunked bodies map their errors as bodyError says:
 //     IncompleteBody, MalformedTrailerError, InvalidChunkSizeError, and
-//     NotImplemented for SigV4a streaming. Chunk signatures are parsed but
-//     not verified.
+//     NotImplemented for SigV4a streaming. Under sigv4 verify, once the
+//     edge verified the header signature, each chunk and trailer signature
+//     is verified against the key's secret (readChunkFraming); under
+//     sigv4 parse they are parsed but not verified.
 //   - A malformed or multi-range Range is ignored (whole object, 200) per
 //     RFC 9110; a ranged read answers 206 through the restXml S3
 //     dialect's PartialContent. An object written in one request is its
@@ -132,9 +134,10 @@
 //   - On a BucketOwnerEnforced bucket, any object canned ACL other than
 //     bucket-owner-full-control and any x-amz-grant-* header is refused
 //     (s3.md 4.2.4); elsewhere an object ACL is accepted and not stored.
-//   - Presigned URLs are not verified: the edge recognizes a presigned
-//     request, but no seam hands the S3 handler the query signature, so a
-//     presigned URL never expires.
+//   - Presigned URLs, SigV4 and SigV2, are verified by the edge under
+//     sigv4 verify and expire on the emulator clock, refused in S3's words
+//     (AuthDialect); under sigv4 parse they are accepted unverified and
+//     never expire.
 //
 // Decisions for multipart uploads:
 //

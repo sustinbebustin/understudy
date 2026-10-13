@@ -895,6 +895,11 @@ type ExpiredImportTokenException struct {
 	Message *string
 }
 
+// ExpiredTokenException is the error com.amazon.coral.service#ExpiredTokenException.
+type ExpiredTokenException struct {
+	Message *string
+}
+
 // GenerateDataKeyInput is the input of GenerateDataKey, com.amazonaws.kms#GenerateDataKeyRequest.
 type GenerateDataKeyInput struct {
 	KeyId             string
@@ -2471,6 +2476,11 @@ type ThrottlingException struct {
 
 // UnknownOperationException is the error com.amazon.coral.service#UnknownOperationException.
 type UnknownOperationException struct {
+	Message *string
+}
+
+// UnrecognizedClientException is the error com.amazon.coral.service#UnrecognizedClientException.
+type UnrecognizedClientException struct {
 	Message *string
 }
 

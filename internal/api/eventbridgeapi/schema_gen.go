@@ -969,6 +969,10 @@ var schemaEventSourceState = smithy.Schema{ID: "com.amazonaws.eventbridge#EventS
 
 var schemaEventTime = smithy.Schema{ID: "com.amazonaws.eventbridge#EventTime", Type: smithy.TypeTimestamp}
 
+var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaFailoverConfig = smithy.Schema{ID: "com.amazonaws.eventbridge#FailoverConfig", Type: smithy.TypeStructure}
 
 var memberFailoverConfig_Primary = smithy.Member{Name: "Primary", Index: 0, Required: true}
@@ -1919,6 +1923,10 @@ var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.servic
 
 var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
 
+var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaUntagResourceInput = smithy.Schema{ID: "com.amazonaws.eventbridge#UntagResourceRequest", Type: smithy.TypeStructure}
 
 var memberUntagResourceInput_ResourceARN = smithy.Member{Name: "ResourceARN", Index: 0, Required: true}
@@ -2531,6 +2539,8 @@ func init() {
 	schemaEventSource.Members = []*smithy.Member{&memberEventSource_Arn, &memberEventSource_CreatedBy, &memberEventSource_CreationTime, &memberEventSource_ExpirationTime, &memberEventSource_Name, &memberEventSource_State}
 	memberEventSourceList_member.Target = &schemaEventSource
 	schemaEventSourceList.Members = []*smithy.Member{&memberEventSourceList_member}
+	memberExpiredTokenException_message.Target = &schemaSmithyString
+	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
 	memberFailoverConfig_Primary.Target = &schemaPrimary
 	memberFailoverConfig_Secondary.Target = &schemaSecondary
 	schemaFailoverConfig.Members = []*smithy.Member{&memberFailoverConfig_Primary, &memberFailoverConfig_Secondary}
@@ -2928,6 +2938,8 @@ func init() {
 	schemaTransformerPaths.Members = []*smithy.Member{&memberTransformerPaths_key, &memberTransformerPaths_value}
 	memberUnknownOperationException_message.Target = &schemaSmithyString
 	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
+	memberUnrecognizedClientException_message.Target = &schemaSmithyString
+	schemaUnrecognizedClientException.Members = []*smithy.Member{&memberUnrecognizedClientException_message}
 	memberUntagResourceInput_ResourceARN.Target = &schemaArn
 	memberUntagResourceInput_TagKeys.Target = &schemaTagKeyList
 	schemaUntagResourceInput.Members = []*smithy.Member{&memberUntagResourceInput_ResourceARN, &memberUntagResourceInput_TagKeys}

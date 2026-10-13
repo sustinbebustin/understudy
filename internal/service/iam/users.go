@@ -8,6 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -207,16 +208,16 @@ func (s *Service) deleteUser(_ context.Context, c *kernel.Call, in *iamapi.Delet
 
 func (s *Service) listUsers(_ context.Context, c *kernel.Call, in *iamapi.ListUsersInput) (*iamapi.ListUsersOutput, *awserr.Error) {
 	account := c.Scope().Account
-	p, err := view(s, account, func(st *State) (page[User], *awserr.Error) {
+	p, err := view(s, account, func(st *State) (paging.Page[User], *awserr.Error) {
 		users := sortedWhere(st.Users, func(u *User) bool { return underPrefix(u.Path, in.PathPrefix) })
-		return paginate(users, func(u User) string { return key(u.Name) }, in.Marker, in.MaxItems)
+		return paginate("users", users, func(u User) string { return key(u.Name) }, in.Marker, in.MaxItems)
 	})
 	if err != nil {
 		return nil, err
 	}
-	out := &iamapi.ListUsersOutput{Users: make([]iamapi.User, len(p.items)), IsTruncated: p.truncated, Marker: p.marker}
-	for i := range p.items {
-		out.Users[i] = apiUser(account, p.items[i])
+	out := &iamapi.ListUsersOutput{Users: make([]iamapi.User, len(p.Items)), IsTruncated: p.Truncated, Marker: p.Next}
+	for i := range p.Items {
+		out.Users[i] = apiUser(account, p.Items[i])
 	}
 	return out, nil
 }

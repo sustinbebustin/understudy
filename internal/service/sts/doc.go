@@ -35,8 +35,9 @@
 //     unminted key resolves to the default account's root (ADR 0012), so
 //     refusing the root would refuse every client using dummy credentials.
 //   - GetSessionToken signed with credentials from an earlier
-//     GetSessionToken is not refused, as AWS refuses it: a call does not
-//     say whether its signing key was temporary.
+//     GetSessionToken is refused, as AWS refuses it, only under sigv4
+//     verify: only a verified call names its signing key
+//     (kernel.Call.VerifiedAuth), so under sigv4 parse it is accepted.
 //   - A caller signing with role session credentials is role chaining, held
 //     to one hour.
 //   - GetSessionToken gives an IAM user 12 hours by default and the root at

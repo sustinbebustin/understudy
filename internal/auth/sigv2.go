@@ -30,7 +30,11 @@ var subresources = map[string]struct{}{ //nolint:gochecknoglobals // a constant 
 // VerifySigV2Presigned checks a SigV2 presigned S3 URL against secret.
 // resourcePath is the path-style path, /<bucket>/<key> as sent, which
 // differs from the wire path for a virtual-hosted request. Expiry is judged
-// on the emulator clock (lambda-runtime-contract.md 3 row 10).
+// on the emulator clock (lambda-runtime-contract.md 3 row 10), with Expires
+// read as an emulator instant: unlike SigV4's X-Amz-Date, a SigV2 URL
+// carries only when it expires, not when it was signed, so its expiry
+// cannot be placed on the emulator timeline. It is right only while
+// emulator time read wall time when the URL was signed.
 func VerifySigV2Presigned(a SigV2Query, req Normalized, resourcePath, secret string, emuNow clock.Instant, v Vocabulary) *awserr.Error {
 	if !emuNow.Before(clock.FromWire(a.Expires)) {
 		return expired(a.Expires, emuNow, v)

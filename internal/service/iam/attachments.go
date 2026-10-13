@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -24,11 +25,11 @@ func (s *Service) bindAttachments(b iamapi.Binder) {
 		return unit[iamapi.DetachRolePolicyOutput](s.detach(c, roleHolder(c.Scope().Account, in.RoleName), in.PolicyArn))
 	}, registry.Full{})
 	b.ListAttachedRolePolicies(func(_ context.Context, c *kernel.Call, in *iamapi.ListAttachedRolePoliciesInput) (*iamapi.ListAttachedRolePoliciesOutput, *awserr.Error) {
-		p, err := s.listAttached(c, roleHolder(c.Scope().Account, in.RoleName), in.PathPrefix, in.Marker, in.MaxItems)
+		p, err := s.listAttached(c, "attached-role-policies", roleHolder(c.Scope().Account, in.RoleName), in.PathPrefix, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
-		return &iamapi.ListAttachedRolePoliciesOutput{AttachedPolicies: p.items, IsTruncated: p.truncated, Marker: p.marker}, nil
+		return &iamapi.ListAttachedRolePoliciesOutput{AttachedPolicies: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
 	}, registry.Full{})
 	b.AttachUserPolicy(func(_ context.Context, c *kernel.Call, in *iamapi.AttachUserPolicyInput) (*iamapi.AttachUserPolicyOutput, *awserr.Error) {
 		return unit[iamapi.AttachUserPolicyOutput](s.attach(c, userHolder(c.Scope().Account, in.UserName), in.PolicyArn))
@@ -37,11 +38,11 @@ func (s *Service) bindAttachments(b iamapi.Binder) {
 		return unit[iamapi.DetachUserPolicyOutput](s.detach(c, userHolder(c.Scope().Account, in.UserName), in.PolicyArn))
 	}, registry.Full{})
 	b.ListAttachedUserPolicies(func(_ context.Context, c *kernel.Call, in *iamapi.ListAttachedUserPoliciesInput) (*iamapi.ListAttachedUserPoliciesOutput, *awserr.Error) {
-		p, err := s.listAttached(c, userHolder(c.Scope().Account, in.UserName), in.PathPrefix, in.Marker, in.MaxItems)
+		p, err := s.listAttached(c, "attached-user-policies", userHolder(c.Scope().Account, in.UserName), in.PathPrefix, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
-		return &iamapi.ListAttachedUserPoliciesOutput{AttachedPolicies: p.items, IsTruncated: p.truncated, Marker: p.marker}, nil
+		return &iamapi.ListAttachedUserPoliciesOutput{AttachedPolicies: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
 	}, registry.Full{})
 }
 
@@ -97,16 +98,16 @@ func (s *Service) detach(c *kernel.Call, h holder, arn string) *awserr.Error {
 	return nil
 }
 
-// listAttached pages through the entity's attached policies by ARN,
-// keeping those whose path starts with pathPrefix. The sort key is the
-// ARN bounded by boundedSortKey, since an ARN under a long path is too
+// listAttached pages through the entity's attached policies by ARN, as
+// listing, keeping those whose path starts with pathPrefix. The sort key is
+// the ARN bounded by boundedSortKey, since an ARN under a long path is too
 // long to be a Marker.
-func (s *Service) listAttached(c *kernel.Call, h holder, pathPrefix, marker *string, maxItems *int32) (page[iamapi.AttachedPolicy], *awserr.Error) {
+func (s *Service) listAttached(c *kernel.Call, listing paging.Listing, h holder, pathPrefix, marker *string, maxItems *int32) (paging.Page[iamapi.AttachedPolicy], *awserr.Error) {
 	type listed struct {
-		p   page[iamapi.AttachedPolicy]
+		p   paging.Page[iamapi.AttachedPolicy]
 		arn aws.ARN
 	}
-	key := func(r policyRef) string { return boundedSortKey(r.arn.String()) }
+	key := func(r policyRef) string { return boundedSortKey(listing, r.arn.String()) }
 	l, err := view(s, c.Scope().Account, func(st *State) (listed, *awserr.Error) {
 		have, arn, err := h.get(st)
 		if err != nil {
@@ -123,11 +124,11 @@ func (s *Service) listAttached(c *kernel.Call, h holder, pathPrefix, marker *str
 			}
 		}
 		slices.SortFunc(refs, func(a, b policyRef) int { return strings.Compare(key(a), key(b)) })
-		p, err := paginate(refs, key, marker, maxItems)
-		return listed{p: page[iamapi.AttachedPolicy]{items: apiAttached(p.items), truncated: p.truncated, marker: p.marker}, arn: arn}, err
+		p, err := paginate(listing, refs, key, marker, maxItems)
+		return listed{p: paging.Page[iamapi.AttachedPolicy]{Items: apiAttached(p.Items), Next: p.Next, Truncated: p.Truncated}, arn: arn}, err
 	})
 	if err != nil {
-		return page[iamapi.AttachedPolicy]{}, err
+		return paging.Page[iamapi.AttachedPolicy]{}, err
 	}
 	c.Touch(l.arn)
 	return l.p, nil

@@ -107,7 +107,7 @@ A new wire protocol needs an ADR; the protocol compliance corpus already carries
 |---|---|---|
 | Unit and service tests | `just test` | Service semantics on the emulator clock through `kernel.Invoke`; property tests for engines and codecs; generator golden tests; the 260 model examples |
 | Protocol compliance | `go test -race -run TestCorpus ./internal/protocoltest` | Codecs and error writers against Smithy's official compliance corpus, as a ratchet over `internal/protocoltest/baseline.json` |
-| Docker integration | `just test-docker` | Lambda execution, DynamoDB Local, container networking, the image |
+| Docker integration | `just test-docker` | Lambda execution, DynamoDB Local (only with `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1`), container networking, the image |
 | Smoke | `just smoke` | The built binary serves one request per service, over HTTP and TLS |
 | Budgets | `just budgets` | Binary size, startup time, idle memory, build and lint time stay under their ceilings |
 | Generated code | `go run ./internal/cmd/gen -all -check` | Regenerating from the vendored inputs reproduces what is committed; CI runs `just generate-check`, which also fails on any uncommitted change |
@@ -136,7 +136,7 @@ conformance/terraform/run.sh iam
 | `terraform/` | Terraform: apply, an empty second plan, an update, destroy, nothing left behind |
 | `e2e-pipeline/` | The phase 1 event-driven pipeline end to end, including Lambda workers |
 
-Every suite has one file per service so a fix can own one service. Each suite's README lists its requirements and options. The Python and end-to-end suites accept the DynamoDB Local licence for their run, because their DynamoDB tests need it; the others run DynamoDB only with `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1`.
+Every suite has one file per service so a fix can own one service. Each suite's README lists its requirements and options. Every suite runs DynamoDB only with `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1`, which accepts the DynamoDB Local licence for the run, and `CONFORMANCE_DYNAMODB=0` skips it even then; the end-to-end suite's workers lock in DynamoDB, so it needs one of the two to start.
 
 A conformance failure is a finding about understudy, or about the research: fix whichever is wrong, never the test to match understudy.
 

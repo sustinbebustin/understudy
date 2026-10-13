@@ -10,6 +10,8 @@ __pycache__/
 /.build/
 /bin/
 /dist/
+# scripts/sealed's Terraform config and plugin cache (it also ignores itself)
+/.cache/
 /understudy
 
 # Test and runtime artifacts

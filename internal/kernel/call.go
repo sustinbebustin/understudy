@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/identity"
@@ -30,7 +31,10 @@ type Call struct {
 	// for internal and timer calls, which assert none.
 	region    aws.RegionSource
 	principal identity.Principal
-	origin    ref.Origin
+	// verified is the credentials the edge verified; nil unless SigV4
+	// verification is on and passed.
+	verified auth.Auth
+	origin   ref.Origin
 	// mode is how an internal call is authorized; nil for external and
 	// timer calls.
 	mode PrincipalMode
@@ -85,6 +89,12 @@ func (c *Call) RegionSource() aws.RegionSource {
 
 // Principal returns who makes the call.
 func (c *Call) Principal() identity.Principal { return c.principal }
+
+// VerifiedAuth returns the credentials the edge verified the request's
+// signature with, and false when it verified none: under sigv4 parse, for
+// an anonymous request and for every internal and timer call. S3 reads it
+// to verify aws-chunked chunk signatures (ARCHITECTURE.md 7).
+func (c *Call) VerifiedAuth() (auth.Auth, bool) { return c.verified, c.verified != nil }
 
 // Origin returns where the call came from.
 func (c *Call) Origin() ref.Origin { return c.origin }
@@ -200,9 +210,13 @@ type ExternalCall struct {
 	// requests. nil is read as aws.None.
 	RegionSource aws.RegionSource
 	Principal    identity.Principal
-	Origin       ref.External
-	Admitted     clock.Instant
-	Endpoint     Endpoint
+	// Verified is the credentials whose signature the edge verified; the
+	// edge sets it only after a successful verification under sigv4
+	// verify, and nil means none was verified.
+	Verified auth.Auth
+	Origin   ref.External
+	Admitted clock.Instant
+	Endpoint Endpoint
 	// Header is the request's header; the call keeps CallHeaders only.
 	Header http.Header
 }
@@ -228,6 +242,7 @@ func (k *Kernel) NewCall(e ExternalCall) *Call {
 		scope:     e.Scope,
 		region:    src,
 		principal: e.Principal,
+		verified:  e.Verified,
 		origin:    e.Origin,
 		op:        op,
 		opID:      e.Operation,

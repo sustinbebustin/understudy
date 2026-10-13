@@ -650,6 +650,14 @@ var memberEvaluationWindow_SlidingWindow = smithy.Member{Name: "SlidingWindow", 
 
 var schemaExceptionType = smithy.Schema{ID: "com.amazonaws.cloudwatch#ExceptionType", Type: smithy.TypeString}
 
+var schemaExpiredToken = smithy.Schema{ID: "com.amazon.coral.service#ExpiredToken", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberExpiredToken_message = smithy.Member{Name: "message", Index: 0}
+
+var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaExpression = smithy.Schema{ID: "com.amazonaws.cloudwatch#Expression", Type: smithy.TypeString}
 
 var schemaExtendedStatistic = smithy.Schema{ID: "com.amazonaws.cloudwatch#ExtendedStatistic", Type: smithy.TypeString}
@@ -999,6 +1007,10 @@ var memberInternalServiceFault_Message = smithy.Member{Name: "Message", Index: 0
 var schemaInvalidAction = smithy.Schema{ID: "com.amazon.coral.service#InvalidAction", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var memberInvalidAction_message = smithy.Member{Name: "message", Index: 0}
+
+var schemaInvalidClientTokenId = smithy.Schema{ID: "com.amazon.coral.service#InvalidClientTokenId", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberInvalidClientTokenId_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaInvalidFormatFault = smithy.Schema{ID: "com.amazonaws.cloudwatch#InvalidFormatFault", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
@@ -2048,6 +2060,10 @@ var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.servic
 
 var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
 
+var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaUntagResourceInput = smithy.Schema{ID: "com.amazonaws.cloudwatch#UntagResourceInput", Type: smithy.TypeStructure}
 
 var memberUntagResourceInput_ResourceARN = smithy.Member{Name: "ResourceARN", Index: 0, Required: true}
@@ -2369,6 +2385,10 @@ func init() {
 	memberEvaluationWindow_WallClockWindow.Target = &schemaWallClockWindow
 	memberEvaluationWindow_SlidingWindow.Target = &schemaSlidingWindow
 	schemaEvaluationWindow.Members = []*smithy.Member{&memberEvaluationWindow_WallClockWindow, &memberEvaluationWindow_SlidingWindow}
+	memberExpiredToken_message.Target = &schemaSmithyString
+	schemaExpiredToken.Members = []*smithy.Member{&memberExpiredToken_message}
+	memberExpiredTokenException_message.Target = &schemaSmithyString
+	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
 	memberExtendedStatistics_member.Target = &schemaExtendedStatistic
 	schemaExtendedStatistics.Members = []*smithy.Member{&memberExtendedStatistics_member}
 	memberGetAlarmMuteRuleInput_AlarmMuteRuleName.Target = &schemaName
@@ -2515,6 +2535,8 @@ func init() {
 	schemaInternalServiceFault.Members = []*smithy.Member{&memberInternalServiceFault_Message}
 	memberInvalidAction_message.Target = &schemaSmithyString
 	schemaInvalidAction.Members = []*smithy.Member{&memberInvalidAction_message}
+	memberInvalidClientTokenId_message.Target = &schemaSmithyString
+	schemaInvalidClientTokenId.Members = []*smithy.Member{&memberInvalidClientTokenId_message}
 	memberInvalidFormatFault_message.Target = &schemaErrorMessage
 	schemaInvalidFormatFault.Members = []*smithy.Member{&memberInvalidFormatFault_message}
 	memberInvalidNextToken_message.Target = &schemaErrorMessage
@@ -2969,6 +2991,8 @@ func init() {
 	schemaTimestamps.Members = []*smithy.Member{&memberTimestamps_member}
 	memberUnknownOperationException_message.Target = &schemaSmithyString
 	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
+	memberUnrecognizedClientException_message.Target = &schemaSmithyString
+	schemaUnrecognizedClientException.Members = []*smithy.Member{&memberUnrecognizedClientException_message}
 	memberUntagResourceInput_ResourceARN.Target = &schemaAmazonResourceName
 	memberUntagResourceInput_TagKeys.Target = &schemaTagKeyList
 	schemaUntagResourceInput.Members = []*smithy.Member{&memberUntagResourceInput_ResourceARN, &memberUntagResourceInput_TagKeys}

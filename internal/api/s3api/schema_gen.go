@@ -197,6 +197,8 @@ var schemaAuthorizationHeaderMalformed = smithy.Schema{ID: "com.amazonaws.s3#Aut
 
 var memberAuthorizationHeaderMalformed_Region = smithy.Member{Name: "Region", Index: 0}
 
+var schemaAuthorizationQueryParametersError = smithy.Schema{ID: "com.amazonaws.s3#AuthorizationQueryParametersError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
 var schemaBadDigest = smithy.Schema{ID: "com.amazonaws.s3#BadDigest", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var memberBadDigest_CalculatedDigest = smithy.Member{Name: "CalculatedDigest", Index: 0}
@@ -1327,6 +1329,8 @@ var schemaExpirationStatus = smithy.Schema{ID: "com.amazonaws.s3#ExpirationStatu
 
 var schemaExpiredObjectDeleteMarker = smithy.Schema{ID: "com.amazonaws.s3#ExpiredObjectDeleteMarker", Type: smithy.TypeBoolean}
 
+var schemaExpiredToken = smithy.Schema{ID: "com.amazonaws.s3#ExpiredToken", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
 var schemaExpires = smithy.Schema{ID: "com.amazonaws.s3#Expires", Type: smithy.TypeString}
 
 var schemaExposeHeader = smithy.Schema{ID: "com.amazonaws.s3#ExposeHeader", Type: smithy.TypeString}
@@ -2263,6 +2267,10 @@ var schemaIntelligentTieringStatus = smithy.Schema{ID: "com.amazonaws.s3#Intelli
 
 var schemaInternalError = smithy.Schema{ID: "com.amazonaws.s3#InternalError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
 
+var schemaInvalidAccessKeyId = smithy.Schema{ID: "com.amazonaws.s3#InvalidAccessKeyId", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberInvalidAccessKeyId_AWSAccessKeyId = smithy.Member{Name: "AWSAccessKeyId", Index: 0}
+
 var schemaInvalidAnnotationName = smithy.Schema{ID: "com.amazonaws.s3#InvalidAnnotationName", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var schemaInvalidArgument = smithy.Schema{ID: "com.amazonaws.s3#InvalidArgument", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
@@ -2324,6 +2332,8 @@ var schemaInvalidTag = smithy.Schema{ID: "com.amazonaws.s3#InvalidTag", Type: sm
 var memberInvalidTag_TagKey = smithy.Member{Name: "TagKey", Index: 0}
 
 var memberInvalidTag_TagValue = smithy.Member{Name: "TagValue", Index: 1}
+
+var schemaInvalidToken = smithy.Schema{ID: "com.amazonaws.s3#InvalidToken", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var schemaInvalidWriteOffset = smithy.Schema{ID: "com.amazonaws.s3#InvalidWriteOffset", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
@@ -4327,6 +4337,14 @@ var memberRequestProgress_Enabled = smithy.Member{Name: "Enabled", Index: 0}
 
 var schemaRequestRoute = smithy.Schema{ID: "com.amazonaws.s3#RequestRoute", Type: smithy.TypeString}
 
+var schemaRequestTimeTooSkewed = smithy.Schema{ID: "com.amazonaws.s3#RequestTimeTooSkewed", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberRequestTimeTooSkewed_RequestTime = smithy.Member{Name: "RequestTime", Index: 0}
+
+var memberRequestTimeTooSkewed_ServerTime = smithy.Member{Name: "ServerTime", Index: 1}
+
+var memberRequestTimeTooSkewed_MaxAllowedSkewMilliseconds = smithy.Member{Name: "MaxAllowedSkewMilliseconds", Index: 2}
+
 var schemaRequestToken = smithy.Schema{ID: "com.amazonaws.s3#RequestToken", Type: smithy.TypeString}
 
 var schemaResponseCacheControl = smithy.Schema{ID: "com.amazonaws.s3#ResponseCacheControl", Type: smithy.TypeString}
@@ -6064,6 +6082,8 @@ func init() {
 	memberIntelligentTieringFilter_Tag.Target = &schemaTag
 	memberIntelligentTieringFilter_And.Target = &schemaIntelligentTieringAndOperator
 	schemaIntelligentTieringFilter.Members = []*smithy.Member{&memberIntelligentTieringFilter_Prefix, &memberIntelligentTieringFilter_Tag, &memberIntelligentTieringFilter_And}
+	memberInvalidAccessKeyId_AWSAccessKeyId.Target = &schemaSmithyString
+	schemaInvalidAccessKeyId.Members = []*smithy.Member{&memberInvalidAccessKeyId_AWSAccessKeyId}
 	memberInvalidArgument_ArgumentName.Target = &schemaSmithyString
 	memberInvalidArgument_ArgumentValue.Target = &schemaSmithyString
 	schemaInvalidArgument.Members = []*smithy.Member{&memberInvalidArgument_ArgumentName, &memberInvalidArgument_ArgumentValue}
@@ -6952,6 +6972,10 @@ func init() {
 	schemaRequestPaymentConfiguration.Members = []*smithy.Member{&memberRequestPaymentConfiguration_Payer}
 	memberRequestProgress_Enabled.Target = &schemaEnableRequestProgress
 	schemaRequestProgress.Members = []*smithy.Member{&memberRequestProgress_Enabled}
+	memberRequestTimeTooSkewed_RequestTime.Target = &schemaSmithyString
+	memberRequestTimeTooSkewed_ServerTime.Target = &schemaSmithyString
+	memberRequestTimeTooSkewed_MaxAllowedSkewMilliseconds.Target = &schemaSmithyString
+	schemaRequestTimeTooSkewed.Members = []*smithy.Member{&memberRequestTimeTooSkewed_RequestTime, &memberRequestTimeTooSkewed_ServerTime, &memberRequestTimeTooSkewed_MaxAllowedSkewMilliseconds}
 	memberRestoreObjectInput_Bucket.Target = &schemaBucketName
 	memberRestoreObjectInput_Key.Target = &schemaObjectKey
 	memberRestoreObjectInput_VersionId.Target = &schemaObjectVersionId

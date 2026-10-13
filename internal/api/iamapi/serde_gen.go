@@ -3467,6 +3467,17 @@ func serializeEvaluationResultsListType(s smithy.Serializer, m *smithy.Member, v
 }
 
 // Serialize writes v through s.
+func (v *ExpiredToken) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *ExpiredToken) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaExpiredToken)
+	if v.Message != nil {
+		s.WriteString(&memberExpiredToken_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *FeatureDisabledException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *FeatureDisabledException) serialize(s smithy.Serializer, m *smithy.Member) {
@@ -5349,6 +5360,17 @@ func (v *InvalidCertificateException) serialize(s smithy.Serializer, m *smithy.M
 	s.WriteStruct(m, &schemaInvalidCertificateException)
 	if v.Message != nil {
 		s.WriteString(&memberInvalidCertificateException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *InvalidClientTokenId) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InvalidClientTokenId) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInvalidClientTokenId)
+	if v.Message != nil {
+		s.WriteString(&memberInvalidClientTokenId_message, *v.Message)
 	}
 	s.CloseStruct()
 }

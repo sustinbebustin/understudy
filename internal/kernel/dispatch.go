@@ -16,7 +16,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/ref"
-	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // Decoded is what the edge hands the kernel. The kernel is the only caller
@@ -101,19 +100,21 @@ func (e *PanicError) Error() string {
 func (k *Kernel) Dispatch(ctx context.Context, c *Call, d Decoded) Result {
 	bnd, _ := k.bindings.lookup(c.op)
 	k.begin(ctx, c, d, bnd)
-	res, inj := k.pipeline(ctx, c, d, bnd)
+	used := secondariesBefore(bnd)
+	res, inj := k.pipeline(ctx, c, d, bnd, &used)
 	if inj == nil {
-		k.recordAccess(ctx, c, res)
+		k.recordAccess(ctx, c, res, used)
 	}
 	k.end(ctx, c, res, inj)
 	return res
 }
 
-// pipeline runs steps 7 to 10. A panic anywhere in them, in the bound
-// validators, checks and resource resolvers as much as in the handler,
-// becomes Internal carrying the stack, so steps 11 and 12 still record the
-// call and the client gets 500 InternalFailure.
-func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding) (res Result, inj *fault.Injection) {
+// pipeline runs steps 7 to 10, setting *used to what the binding says
+// about the secondary IAM actions a valid input used (WithActions). A
+// panic anywhere in them, in the bound validators, checks and resolvers as
+// much as in the handler, becomes Internal carrying the stack, so steps 11
+// and 12 still record the call and the client gets 500 InternalFailure.
+func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding, used *secondaries) (res Result, inj *fault.Injection) {
 	defer func() {
 		if v := recover(); v != nil {
 			res, inj = Failure{Err: awserr.Internalf(&PanicError{Op: c.label, Value: v, Stack: string(debug.Stack())})}, nil
@@ -138,6 +139,7 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding)
 		return Failure{Err: err}, nil
 	}
 	c.Touch(bnd.resources(c, in.In)...)
+	*used = bnd.secondaries(c, in.In)
 	if res, inj, stop := k.before(ctx, c); stop {
 		return res, inj
 	}
@@ -354,15 +356,21 @@ func (k *Kernel) journalFault(ctx context.Context, c *Call, inj fault.Injection)
 	}
 }
 
-// recordAccess records the IAM actions the call used (step 11): never for an
-// injected fault, an internal operation, an anonymous caller or a service
-// acting on its own behalf (AsPlatform), which no policy grants.
-func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result) {
-	if _, platform := c.mode.(AsPlatform); k.access == nil || c.op == nil || c.op.Kind == registry.Internal || platform {
+// recordAccess records the IAM actions the call used (step 11), as
+// recordedActions selects them from the operation's list and what its
+// binding declared: never for an injected fault, an anonymous caller, a
+// service acting on its own behalf (AsPlatform), which no policy grants,
+// or an internal operation that declares no action.
+func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used secondaries) {
+	if _, platform := c.mode.(AsPlatform); k.access == nil || c.op == nil || platform {
 		return
 	}
 	principal, ok := accessPrincipal(c.principal)
 	if !ok {
+		return
+	}
+	actions := k.recordedActions(ctx, c, used)
+	if len(actions) == 0 {
 		return
 	}
 	var outcome access.Outcome = access.Succeeded{}
@@ -376,7 +384,8 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result) {
 	err := k.access.Record(access.Entry{
 		Principal: principal,
 		Mode:      accessMode(c.mode),
-		Actions:   c.op.IAM,
+		Service:   c.op.Service.IAMPrefix,
+		Actions:   actions,
 		Resources: c.Touched(),
 		Outcome:   outcome,
 		At:        c.admitted.Wire(),

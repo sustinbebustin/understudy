@@ -103,6 +103,48 @@ func (m Minted) String() string { return m.view().String() }
 // GoString is String, so %#v redacts too.
 func (m Minted) GoString() string { return "identity.Minted" + m.String() }
 
+func (k StaticKey) view() redactedView { return viewOf(k.AccessKeyID, true, nil) }
+
+// LogValue logs the access key id; the secret never reaches a log.
+func (k StaticKey) LogValue() slog.Value { return k.view().logValue() }
+
+// MarshalJSON writes the LogValue view.
+func (k StaticKey) MarshalJSON() ([]byte, error) { return json.Marshal(k.view()) }
+
+// String formats the key with the secret redacted.
+func (k StaticKey) String() string { return k.view().String() }
+
+// GoString is String, so %#v redacts too.
+func (k StaticKey) GoString() string { return "identity.StaticKey" + k.String() }
+
+func (Static) view() redactedView { return viewOf("", true, nil) }
+
+// LogValue logs that a secret exists; the secret never reaches a log.
+func (s Static) LogValue() slog.Value { return s.view().logValue() }
+
+// MarshalJSON writes the LogValue view.
+func (s Static) MarshalJSON() ([]byte, error) { return json.Marshal(s.view()) }
+
+// String formats the resolution with the secret redacted.
+func (s Static) String() string { return s.view().String() }
+
+// GoString is String, so %#v redacts too.
+func (s Static) GoString() string { return "identity.Static" + s.String() }
+
+func (AccountKey) view() redactedView { return viewOf("", true, nil) }
+
+// LogValue logs that a secret exists; the secret never reaches a log.
+func (a AccountKey) LogValue() slog.Value { return a.view().logValue() }
+
+// MarshalJSON writes the LogValue view.
+func (a AccountKey) MarshalJSON() ([]byte, error) { return json.Marshal(a.view()) }
+
+// String formats the resolution with the secret redacted.
+func (a AccountKey) String() string { return a.view().String() }
+
+// GoString is String, so %#v redacts too.
+func (a AccountKey) GoString() string { return "identity.AccountKey" + a.String() }
+
 func (t Temporary) view() redactedView { return viewOf("", false, t) }
 
 // LogValue logs the expiry; the session token never reaches a log.

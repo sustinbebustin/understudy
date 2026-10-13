@@ -392,7 +392,7 @@ func (c *claimer) rest() (route, bool) {
 		return c.signedElsewhere(signed)
 	case refusedForS3(c.parseErr):
 		return c.s3("S3, whose credentials S3 alone refuses")
-	case c.auth == nil:
+	case c.auth == nil && !unknownScheme(c.parseErr):
 		c.decline(8, "the request's credentials cannot be read, so it cannot be routed by signing name")
 		return nil, false
 	}
@@ -404,13 +404,32 @@ func (c *claimer) rest() (route, bool) {
 	return c.s3("unsigned S3")
 }
 
-// refusedForS3 reports whether e is a parse failure auth raises only for a
-// request signed for S3: a header-signed request without
-// x-amz-content-sha256. S3 answers it with its own error, so the request
-// must reach S3 although its signing name could not be returned.
+// refusedForS3 reports whether e is a parse failure of credentials only S3
+// takes, which S3 answers in its own words (DEFERRED.md "S3 auth"), so the
+// request reaches S3 although no signing name could be read: a
+// header-signed request scoped to s3 without x-amz-content-sha256 or with
+// an unknown region, and every presigned or SigV2 credential, as rule 8
+// sends any presigned query credential or SigV2 request to S3. A conflict
+// always involves a query credential.
 func refusedForS3(e auth.ParseError) bool {
-	invalid, ok := e.(auth.Invalid)
-	return ok && invalid.Problem == auth.MissingPayloadHash
+	switch e := e.(type) {
+	case auth.Invalid:
+		return e.Problem == auth.MissingPayloadHash || e.Mechanism != auth.HeaderV4
+	case auth.UnknownRegion:
+		return e.Mechanism != auth.HeaderV4 || e.Service == "s3"
+	case auth.MissingQueryParameters, auth.Conflict:
+		return true
+	case auth.UnknownScheme, nil:
+	}
+	return false
+}
+
+// unknownScheme reports an Authorization header in no AWS scheme: the
+// request carries no AWS credentials, so it is routed as unsigned, and the
+// service it reaches answers the header in its own words.
+func unknownScheme(e auth.ParseError) bool {
+	_, ok := e.(auth.UnknownScheme)
+	return ok
 }
 
 // unsignedLambda claims an unsigned date path for Lambda only when it

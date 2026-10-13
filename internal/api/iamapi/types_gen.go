@@ -1314,6 +1314,11 @@ type EvaluationResult struct {
 	ResourceSpecificResults           []ResourceSpecificResult
 }
 
+// ExpiredToken is the error com.amazon.coral.service#ExpiredToken.
+type ExpiredToken struct {
+	Message *string
+}
+
 // FeatureDisabledException is the error com.amazonaws.iam#FeatureDisabledException.
 type FeatureDisabledException struct {
 	Message *string
@@ -1986,6 +1991,11 @@ type InvalidAuthenticationCodeException struct {
 
 // InvalidCertificateException is the error com.amazonaws.iam#InvalidCertificateException.
 type InvalidCertificateException struct {
+	Message *string
+}
+
+// InvalidClientTokenId is the error com.amazon.coral.service#InvalidClientTokenId.
+type InvalidClientTokenId struct {
 	Message *string
 }
 

@@ -10,6 +10,11 @@
 #   conformance/terraform/run.sh                 # every service
 #   conformance/terraform/run.sh sqs sns         # only these
 #   CONFORMANCE_JOBS=1 conformance/terraform/run.sh
+#   SIGV4=verify conformance/terraform/run.sh    # serve with --sigv4 verify (default parse)
+#   UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/terraform/run.sh
+#                                                # also run DynamoDB (accepts the DynamoDB Local licence)
+#   CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh
+#                                                # skip DynamoDB even with the licence variable set
 #
 # Every Terraform and AWS CLI call goes through scripts/sealed, so no real AWS
 # setting or credential is ever used.
@@ -129,9 +134,9 @@ trap stop_server EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-serve_args=(serve --listen "127.0.0.1:$port" --persist "$data_dir" --log-format json)
+serve_args=(serve --listen "127.0.0.1:$port" --persist "$data_dir" --sigv4 "${SIGV4:-parse}" --log-format json)
 ddb_accepted=false
-if [[ "${UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE:-}" == "1" ]]; then
+if [[ "${UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE:-}" == "1" && "${CONFORMANCE_DYNAMODB:-}" != "0" ]]; then
   ddb_accepted=true
   serve_args+=(--accept-dynamodb-local-license)
 fi
@@ -144,11 +149,11 @@ if ! "$binary" health --endpoint "$endpoint" --wait 60s >"$logs_dir/health.txt" 
   die "understudy did not become ready on $endpoint; see $logs_dir/server.log"
 fi
 
-export TF_PLUGIN_CACHE_DIR="$build_dir/plugin-cache"
+# sealed points Terraform at this cache, creates it and disables the
+# version check.
+export SEALED_TF_PLUGIN_CACHE="$build_dir/plugin-cache"
 export TF_IN_AUTOMATION=1
 export TF_INPUT=0
-export CHECKPOINT_DISABLE=1
-mkdir -p -- "$TF_PLUGIN_CACHE_DIR"
 
 run_id=$(printf '%x' "$(date +%s)")
 
@@ -322,7 +327,7 @@ prepare() {
 ready=()
 for svc in "${services[@]}"; do
   if [[ "$svc" == dynamodb && "$ddb_accepted" == false ]]; then
-    skip_rest "$svc" "${phases[0]}" "DynamoDB Local licence not accepted; set UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 to run it"
+    skip_rest "$svc" "${phases[0]}" "DynamoDB Local licence not accepted, or CONFORMANCE_DYNAMODB=0; set UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 to run it"
     continue
   fi
   echo "==> init $svc"

@@ -16,6 +16,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -62,7 +63,195 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.bindObjects(b)
 	s.bindMultipart(b)
 	s.bindNotification(b)
+	declareAccess(d.Binder)
 	return s
+}
+
+// declareAccess states, per input, the secondary IAM actions of every
+// bound operation whose generated list (third_party/aws-service-reference)
+// holds more than one s3 action; the access record keeps the primary
+// action always and a secondary only when declared here (ARCHITECTURE.md
+// 17). An operation none of whose secondaries any input needs says so
+// with WithoutSecondaryActions. The s3-object-lambda and s3express actions
+// need no decision: they act on Object Lambda access points and directory
+// buckets, which no call touches. It also names the role PutBucketReplication
+// passes. It runs after the bind sites, whose bindings it extends.
+func declareAccess(b *kernel.Binder) {
+	// PutObject, CopyObject and CreateMultipartUpload need s3:PutObjectAcl
+	// for an ACL or grant, s3:PutObjectTagging for tags,
+	// s3:PutObjectLegalHold for a legal hold and s3:PutObjectRetention for a
+	// retention mode or date (PutObject, Permissions).
+	kernel.Declare(b, s3api.OpPutObject, kernel.WithActions(func(_ *kernel.Call, in *s3api.PutObjectInput) []registry.IAMAction {
+		return objectWriteActions(objectWriteMembers{
+			acl:       in.ACL != nil || anySet(in.GrantFullControl, in.GrantRead, in.GrantReadACP, in.GrantWriteACP),
+			tagging:   anySet(in.Tagging),
+			legalHold: in.ObjectLockLegalHoldStatus != nil,
+			retention: in.ObjectLockMode != nil || in.ObjectLockRetainUntilDate != nil,
+		})
+	}))
+	kernel.Declare(b, s3api.OpCreateMultipartUpload, kernel.WithActions(func(_ *kernel.Call, in *s3api.CreateMultipartUploadInput) []registry.IAMAction {
+		return objectWriteActions(objectWriteMembers{
+			acl:       in.ACL != nil || anySet(in.GrantFullControl, in.GrantRead, in.GrantReadACP, in.GrantWriteACP),
+			tagging:   anySet(in.Tagging),
+			legalHold: in.ObjectLockLegalHoldStatus != nil,
+			retention: in.ObjectLockMode != nil || in.ObjectLockRetainUntilDate != nil,
+		})
+	}))
+	// A copy always reads its source, s3:GetObject, or
+	// s3:GetObjectVersion when the source names a version.
+	kernel.Declare(b, s3api.OpCopyObject, kernel.WithActions(func(_ *kernel.Call, in *s3api.CopyObjectInput) []registry.IAMAction {
+		return append(objectWriteActions(objectWriteMembers{
+			acl:       in.ACL != nil || anySet(in.GrantFullControl, in.GrantRead, in.GrantReadACP, in.GrantWriteACP),
+			tagging:   anySet(in.Tagging),
+			legalHold: in.ObjectLockLegalHoldStatus != nil,
+			retention: in.ObjectLockMode != nil || in.ObjectLockRetainUntilDate != nil,
+		}), copySourceRead(in.CopySource))
+	}))
+	kernel.Declare(b, s3api.OpUploadPartCopy, kernel.WithActions(func(_ *kernel.Call, in *s3api.UploadPartCopyInput) []registry.IAMAction {
+		return []registry.IAMAction{copySourceRead(in.CopySource)}
+	}))
+	// Reading a version needs s3:GetObjectVersion. Never declared:
+	// s3:GetObjectLegalHold, s3:GetObjectRetention and s3:GetObjectTagging,
+	// which only decide whether the response carries the object's lock
+	// headers; no input member asks for them.
+	kernel.Declare(b, s3api.OpGetObject, kernel.WithActions(func(_ *kernel.Call, in *s3api.GetObjectInput) []registry.IAMAction {
+		return versioned(in.VersionId, s3Action("GetObjectVersion"))
+	}))
+	// HeadObject declares no secondary, for the same reason as GetObject's
+	// lock actions. Heading a version needs s3:GetObjectVersion on AWS
+	// (HeadObject, Permissions), but its generated list has no
+	// s3:GetObjectVersion, so a versioned call's record lacks it; the
+	// policy guide lists the gap.
+	kernel.Declare(b, s3api.OpHeadObject, kernel.WithoutSecondaryActions())
+	// GetObjectAttributes needs s3:GetObject and s3:GetObjectAttributes
+	// without a version, s3:GetObjectVersion and
+	// s3:GetObjectVersionAttributes with one (GetObjectAttributes,
+	// Permissions). The primary s3:GetObjectAttributes is recorded either
+	// way; s3:GetObjectVersionAttributes is not in the generated list, so a
+	// versioned call's record lacks it.
+	kernel.Declare(b, s3api.OpGetObjectAttributes, kernel.WithActions(func(_ *kernel.Call, in *s3api.GetObjectAttributesInput) []registry.IAMAction {
+		if anySet(in.VersionId) {
+			return []registry.IAMAction{s3Action("GetObjectVersion")}
+		}
+		return []registry.IAMAction{s3Action("GetObject")}
+	}))
+	kernel.Declare(b, s3api.OpGetObjectTagging, kernel.WithActions(func(_ *kernel.Call, in *s3api.GetObjectTaggingInput) []registry.IAMAction {
+		return versioned(in.VersionId, s3Action("GetObjectVersionTagging"))
+	}))
+	kernel.Declare(b, s3api.OpPutObjectTagging, kernel.WithActions(func(_ *kernel.Call, in *s3api.PutObjectTaggingInput) []registry.IAMAction {
+		return versioned(in.VersionId, s3Action("PutObjectVersionTagging"))
+	}))
+	kernel.Declare(b, s3api.OpDeleteObjectTagging, kernel.WithActions(func(_ *kernel.Call, in *s3api.DeleteObjectTaggingInput) []registry.IAMAction {
+		return versioned(in.VersionId, s3Action("DeleteObjectVersionTagging"))
+	}))
+	// Deleting a version needs s3:DeleteObjectVersion, and overriding
+	// governance-mode retention s3:BypassGovernanceRetention.
+	kernel.Declare(b, s3api.OpDeleteObject, kernel.WithActions(func(_ *kernel.Call, in *s3api.DeleteObjectInput) []registry.IAMAction {
+		return append(versioned(in.VersionId, s3Action("DeleteObjectVersion")), bypassing(in.BypassGovernanceRetention)...)
+	}))
+	kernel.Declare(b, s3api.OpDeleteObjects, kernel.WithActions(func(_ *kernel.Call, in *s3api.DeleteObjectsInput) []registry.IAMAction {
+		var out []registry.IAMAction
+		if slices.ContainsFunc(in.Delete.Objects, func(o s3api.ObjectIdentifier) bool { return anySet(o.VersionId) }) {
+			out = append(out, s3Action("DeleteObjectVersion"))
+		}
+		return append(out, bypassing(in.BypassGovernanceRetention)...)
+	}))
+	// CreateBucket needs s3:PutBucketAcl for an ACL or grant,
+	// s3:PutBucketObjectLockConfiguration and s3:PutBucketVersioning to
+	// enable Object Lock, and s3:PutBucketOwnershipControls to set object
+	// ownership (CreateBucket, Permissions).
+	kernel.Declare(b, s3api.OpCreateBucket, kernel.WithActions(func(_ *kernel.Call, in *s3api.CreateBucketInput) []registry.IAMAction {
+		var out []registry.IAMAction
+		if in.ACL != nil || anySet(in.GrantFullControl, in.GrantRead, in.GrantReadACP, in.GrantWrite, in.GrantWriteACP) {
+			out = append(out, s3Action("PutBucketAcl"))
+		}
+		if in.ObjectLockEnabledForBucket != nil && *in.ObjectLockEnabledForBucket {
+			out = append(out, s3Action("PutBucketObjectLockConfiguration"), s3Action("PutBucketVersioning"))
+		}
+		if in.ObjectOwnership != nil {
+			out = append(out, s3Action("PutBucketOwnershipControls"))
+		}
+		return out
+	}))
+	// ListObjects and ListObjectsV2 declare no secondary: their Permissions
+	// sections name s3:ListBucket alone, and no input member selects
+	// s3:GetObjectAcl.
+	kernel.Declare(b, s3api.OpListObjects, kernel.WithoutSecondaryActions())
+	kernel.Declare(b, s3api.OpListObjectsV2, kernel.WithoutSecondaryActions())
+	// PutBucketReplication passes the replication role, on which the access
+	// record keeps iam:PassRole (PutBucketReplication, Permissions).
+	kernel.Declare(b, s3api.OpPutBucketReplication, kernel.WithResources(func(_ *kernel.Call, in *s3api.PutBucketReplicationInput) []aws.ARN {
+		return passedRole(in.ReplicationConfiguration.Role)
+	}))
+}
+
+// passedRole is the IAM role a configuration passes; nothing when the
+// value is not an IAM ARN, since no role is then passed.
+func passedRole(role string) []aws.ARN {
+	a, err := aws.ParseARN(role)
+	if err != nil || a.Service != "iam" {
+		return nil
+	}
+	return []aws.ARN{a}
+}
+
+// objectWriteMembers are the members of an object write that need an
+// action besides s3:PutObject.
+type objectWriteMembers struct {
+	acl, tagging, legalHold, retention bool
+}
+
+// objectWriteActions returns the secondary actions m needs.
+func objectWriteActions(m objectWriteMembers) []registry.IAMAction {
+	var out []registry.IAMAction
+	for _, need := range []struct {
+		set    bool
+		action string
+	}{{m.acl, "PutObjectAcl"}, {m.tagging, "PutObjectTagging"}, {m.legalHold, "PutObjectLegalHold"}, {m.retention, "PutObjectRetention"}} {
+		if need.set {
+			out = append(out, s3Action(need.action))
+		}
+	}
+	return out
+}
+
+// copySourceRead is the action reading a copy source needs:
+// s3:GetObjectVersion for a source naming a version, s3:GetObject
+// otherwise. A source that does not parse reads as unversioned; the
+// handler refuses it.
+func copySourceRead(header string) registry.IAMAction {
+	if src, err := parseCopySource(header); err == nil && src.versionID != nil {
+		return s3Action("GetObjectVersion")
+	}
+	return s3Action("GetObject")
+}
+
+// versioned returns action when the input names a version.
+func versioned(versionID *string, action registry.IAMAction) []registry.IAMAction {
+	if anySet(versionID) {
+		return []registry.IAMAction{action}
+	}
+	return nil
+}
+
+// bypassing returns s3:BypassGovernanceRetention when the input asks to
+// bypass governance-mode retention.
+func bypassing(bypass *bool) []registry.IAMAction {
+	if bypass != nil && *bypass {
+		return []registry.IAMAction{s3Action("BypassGovernanceRetention")}
+	}
+	return nil
+}
+
+// anySet reports whether any of the optional members is present and not
+// empty.
+func anySet(members ...*string) bool {
+	return slices.ContainsFunc(members, func(m *string) bool { return m != nil && *m != "" })
+}
+
+// s3Action is the s3 action name.
+func s3Action(name string) registry.IAMAction {
+	return registry.IAMAction{Prefix: "s3", Name: name}
 }
 
 // BucketExists reports whether a bucket of that name exists in any account

@@ -1,7 +1,7 @@
 501
-Content-Length: 157
+Content-Length: 253
 Content-Type: application/x-amz-json-1.1
 Date: <date>
 X-Amzn-Requestid: f86177a2-1c50-437d-95a4-9091a7c17b4a
 
-{"__type":"NotImplemented","message":"understudy does not implement logs.DescribeLogGroups. Run 'understudy coverage --service logs' for what is supported."}
+{"__type":"NotImplemented","message":"understudy does not implement logs.DescribeLogGroups. Run 'understudy coverage --service logs' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=logs.DescribeLogGroups"}

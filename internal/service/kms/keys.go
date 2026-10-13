@@ -170,8 +170,8 @@ func (s *Service) listKeys(_ context.Context, c *kernel.Call, in *kmsapi.ListKey
 	if err != nil {
 		return nil, err
 	}
-	out := &kmsapi.ListKeysOutput{Keys: make([]kmsapi.KeyListEntry, 0, len(p.items)), NextMarker: p.next, Truncated: p.truncated}
-	for _, id := range p.items {
+	out := &kmsapi.ListKeysOutput{Keys: make([]kmsapi.KeyListEntry, 0, len(p.Items)), NextMarker: p.Next, Truncated: p.Truncated}
+	for _, id := range p.Items {
 		out.Keys = append(out.Keys, kmsapi.KeyListEntry{KeyId: new(id), KeyArn: new(keyARN(scope, id).String())})
 	}
 	return out, nil

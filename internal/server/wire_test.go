@@ -1,9 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -19,6 +21,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/journal"
+	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -127,5 +130,89 @@ func TestFailedWiringClosesTheJournal(t *testing.T) {
 	}
 	if err := w.journal.FileErr(); !errors.Is(err, os.ErrClosed) {
 		t.Fatalf("journal file after a failed wiring: %v, want it closed", err)
+	}
+}
+
+// A configured rule naming an error the operation never sends is refused
+// with a hint that lists the errors it does send by the short names
+// action.shape takes, as the admin API lists them.
+func TestConfiguredRuleHintListsShortNames(t *testing.T) {
+	cfg := Config{
+		Faults: []fault.Rule{{
+			ID:      "wrong-shape",
+			Match:   fault.Match{Operations: []ref.OperationID{{Service: "sqs", Name: "SendMessage"}}},
+			Phase:   fault.Request,
+			Action:  fault.Error{Shape: "NoSuchThing"},
+			Trigger: fault.Always{},
+		}},
+		Docker: DockerDisabled{},
+	}
+	_, err := wire(cfg, slog.New(slog.DiscardHandler))
+	se, ok := errors.AsType[*SettingError](err)
+	if !ok || se.Setting != "faults[0].action.shape" {
+		t.Fatalf("wire with a rule injecting NoSuchThing on SendMessage = %v, want a SettingError for faults[0].action.shape", err)
+	}
+	if !strings.Contains(se.Hint, "QueueDoesNotExist") || strings.Contains(se.Hint, "#") {
+		t.Errorf("hint = %q, want the short names of the errors SendMessage sends", se.Hint)
+	}
+}
+
+// A static key the identity store refuses is a setting error naming its
+// accounts.keys entry, and its secret appears nowhere in the error.
+func TestRefusedStaticKeyNamesItsEntry(t *testing.T) {
+	acct, err := aws.ParseAccountID("222222222222")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := Config{
+		StaticKeys: []StaticKey{
+			{AccessKeyID: "CIKEY0000000000001", Secret: "first-secret", Account: acct},
+			{AccessKeyID: "CIKEY0000000000001", Secret: "second-secret", Account: acct},
+		},
+		Docker: DockerDisabled{},
+	}
+	_, err = wire(cfg, slog.New(slog.DiscardHandler))
+	se, ok := errors.AsType[*SettingError](err)
+	if !ok || se.Setting != "accounts.keys[1]" {
+		t.Fatalf("wire with a key listed twice = %v, want a SettingError for accounts.keys[1]", err)
+	}
+	if strings.Contains(err.Error(), "secret-") {
+		t.Errorf("the error names a secret: %v", err)
+	}
+}
+
+// A static key's secret shows nowhere a Config is rendered: fmt's verbs,
+// slog's text and JSON handlers, with the key alone or in a Config, and
+// JSON encoding. The key id shows, so the check sees the key rendered.
+func TestStaticKeySecretIsRedacted(t *testing.T) {
+	acct, err := aws.ParseAccountID("222222222222")
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := StaticKey{AccessKeyID: "CIKEY0000000000001", Secret: "static-secret-value", Account: acct}
+	cfg := Config{StaticKeys: []StaticKey{key}}
+	outputs := make([]string, 0, 13)
+	for _, verb := range []string{"%v", "%+v", "%#v", "%s"} {
+		outputs = append(outputs, fmt.Sprintf(verb, key), fmt.Sprintf(verb, cfg.StaticKeys))
+	}
+	for _, handler := range []func(*bytes.Buffer) slog.Handler{
+		func(b *bytes.Buffer) slog.Handler { return slog.NewTextHandler(b, nil) },
+		func(b *bytes.Buffer) slog.Handler { return slog.NewJSONHandler(b, nil) },
+	} {
+		for _, attr := range []slog.Attr{slog.Any("key", key), slog.Any("keys", cfg.StaticKeys)} {
+			var b bytes.Buffer
+			slog.New(handler(&b)).Info("m", attr)
+			outputs = append(outputs, b.String())
+		}
+	}
+	encoded, err := json.Marshal(cfg.StaticKeys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outputs = append(outputs, string(encoded))
+	for _, out := range outputs {
+		if strings.Contains(out, key.Secret) || !strings.Contains(out, key.AccessKeyID) {
+			t.Errorf("rendered as %s; want the key id without the secret", out)
+		}
 	}
 }

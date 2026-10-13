@@ -183,6 +183,10 @@ var schemaEndpointDisabledException = smithy.Schema{ID: "com.amazonaws.sns#Endpo
 
 var memberEndpointDisabledException_message = smithy.Member{Name: "message", Index: 0}
 
+var schemaExpiredToken = smithy.Schema{ID: "com.amazon.coral.service#ExpiredToken", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberExpiredToken_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaFilterPolicyLimitExceededException = smithy.Schema{ID: "com.amazonaws.sns#FilterPolicyLimitExceededException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
 var memberFilterPolicyLimitExceededException_message = smithy.Member{Name: "message", Index: 0}
@@ -260,6 +264,10 @@ var memberInvalidAction_message = smithy.Member{Name: "message", Index: 0}
 var schemaInvalidBatchEntryIdException = smithy.Schema{ID: "com.amazonaws.sns#InvalidBatchEntryIdException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var memberInvalidBatchEntryIdException_message = smithy.Member{Name: "message", Index: 0}
+
+var schemaInvalidClientTokenId = smithy.Schema{ID: "com.amazon.coral.service#InvalidClientTokenId", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberInvalidClientTokenId_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaInvalidParameterException = smithy.Schema{ID: "com.amazonaws.sns#InvalidParameterException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
@@ -900,6 +908,8 @@ func init() {
 	schemaEndpoint.Members = []*smithy.Member{&memberEndpoint_EndpointArn, &memberEndpoint_Attributes}
 	memberEndpointDisabledException_message.Target = &schemaString
 	schemaEndpointDisabledException.Members = []*smithy.Member{&memberEndpointDisabledException_message}
+	memberExpiredToken_message.Target = &schemaSmithyString
+	schemaExpiredToken.Members = []*smithy.Member{&memberExpiredToken_message}
 	memberFilterPolicyLimitExceededException_message.Target = &schemaString
 	schemaFilterPolicyLimitExceededException.Members = []*smithy.Member{&memberFilterPolicyLimitExceededException_message}
 	memberGetDataProtectionPolicyInput_ResourceArn.Target = &schemaTopicARN
@@ -938,6 +948,8 @@ func init() {
 	schemaInvalidAction.Members = []*smithy.Member{&memberInvalidAction_message}
 	memberInvalidBatchEntryIdException_message.Target = &schemaString
 	schemaInvalidBatchEntryIdException.Members = []*smithy.Member{&memberInvalidBatchEntryIdException_message}
+	memberInvalidClientTokenId_message.Target = &schemaSmithyString
+	schemaInvalidClientTokenId.Members = []*smithy.Member{&memberInvalidClientTokenId_message}
 	memberInvalidParameterException_message.Target = &schemaString
 	schemaInvalidParameterException.Members = []*smithy.Member{&memberInvalidParameterException_message}
 	memberInvalidParameterValueException_message.Target = &schemaString

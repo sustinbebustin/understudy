@@ -13,10 +13,12 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/awschunked"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/checksum"
+	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/service/s3/notify"
@@ -54,7 +56,7 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 	if err != nil {
 		return nil, err
 	}
-	req, err := readPut(c, in)
+	req, err := readPut(c, s.k.Identity(), in)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +143,7 @@ func (a objectACL) check(b *Bucket) *awserr.Error {
 
 // readPut runs the checks of a PutObject that need neither the bucket nor
 // the body.
-func readPut(c *kernel.Call, in *s3api.PutObjectInput) (putRequest, *awserr.Error) {
+func readPut(c *kernel.Call, secrets *identity.Store, in *s3api.PutObjectInput) (putRequest, *awserr.Error) {
 	if err := checkKey(in.Key); err != nil {
 		return putRequest{}, err
 	}
@@ -171,7 +173,7 @@ func readPut(c *kernel.Call, in *s3api.PutObjectInput) (putRequest, *awserr.Erro
 			length = &n
 		}
 	}
-	body, err := readUpload(c, in.ContentEncoding, length, checksumMembers{
+	body, err := readUpload(c, secrets, in.ContentEncoding, length, checksumMembers{
 		checksum.CRC32: in.ChecksumCRC32, checksum.CRC32C: in.ChecksumCRC32C, checksum.CRC64NVME: in.ChecksumCRC64NVME,
 		checksum.SHA1: in.ChecksumSHA1, checksum.SHA256: in.ChecksumSHA256, checksum.SHA512: in.ChecksumSHA512, checksum.MD5: in.ChecksumMD5,
 		checksum.XXHASH64: in.ChecksumXXHASH64, checksum.XXHASH3: in.ChecksumXXHASH3, checksum.XXHASH128: in.ChecksumXXHASH128,
@@ -207,7 +209,7 @@ func prepareWrite(b *Bucket, key string, cond writeCondition, r sseRequest, acl 
 	if err := acl.check(b); err != nil {
 		return preWrite{}, err
 	}
-	choice, err := resolveSSE(r, b, objectARN(b.Name, key))
+	choice, err := resolveSSE(r, b, objectResource(b.Name, key).String())
 	if err != nil {
 		return preWrite{}, err
 	}
@@ -301,7 +303,7 @@ type chunkFraming struct {
 // write: x-amz-content-sha256, x-amz-trailer, x-amz-decoded-content-length,
 // Content-Encoding, Content-Length, Content-MD5 and the checksum members.
 // A declared size over 5 GiB is refused before the body is read.
-func readUpload(c *kernel.Call, contentEncoding *string, contentLength *int64, sums checksumMembers, sdk *s3api.ChecksumAlgorithm, contentMD5 *string) (upload, *awserr.Error) {
+func readUpload(c *kernel.Call, secrets *identity.Store, contentEncoding *string, contentLength *int64, sums checksumMembers, sdk *s3api.ChecksumAlgorithm, contentMD5 *string) (upload, *awserr.Error) {
 	sha, _ := c.Header(headerContentSHA256)
 	trailer, _ := c.Header(headerTrailer)
 	u := upload{declared: -1}
@@ -309,7 +311,7 @@ func readUpload(c *kernel.Call, contentEncoding *string, contentLength *int64, s
 		u.declared = *contentLength
 	}
 	if chunked(contentEncoding) || strings.HasPrefix(sha, streamingPrefix) {
-		f, declared, err := readChunkFraming(c, sha, trailer)
+		f, declared, err := readChunkFraming(c, secrets, sha, trailer)
 		if err != nil {
 			return upload{}, err
 		}
@@ -340,8 +342,11 @@ func readUpload(c *kernel.Call, contentEncoding *string, contentLength *int64, s
 
 // readChunkFraming reads an aws-chunked body's mode from
 // x-amz-content-sha256 and its declared decoded length. A trailer mode
-// without x-amz-trailer is refused before any byte is read.
-func readChunkFraming(c *kernel.Call, sha, trailer string) (chunkFraming, int64, *awserr.Error) {
+// without x-amz-trailer is refused before any byte is read. In a signed
+// mode, when the edge verified the request's header signature (sigv4
+// verify), each chunk and trailer signature is verified against the
+// secret secrets holds for the key (sigv4-checksums-endpoints.md 3.3).
+func readChunkFraming(c *kernel.Call, secrets *identity.Store, sha, trailer string) (chunkFraming, int64, *awserr.Error) {
 	mode := awschunked.PlainChunked
 	switch sha {
 	case streamingUnsignedTrailer:
@@ -367,7 +372,49 @@ func readChunkFraming(c *kernel.Call, sha, trailer string) (chunkFraming, int64,
 	if n, ok := length.Get(); ok {
 		declared = n
 	}
-	return chunkFraming{mode: mode, opts: awschunked.Options{DecodedLength: length, Trailer: trailer}}, declared, nil
+	opts := awschunked.Options{DecodedLength: length, Trailer: trailer}
+	if a, ok := c.VerifiedAuth(); ok && (mode == awschunked.Signed || mode == awschunked.SignedTrailer) {
+		if header, ok := a.(auth.SigV4Header); ok {
+			check, err := chunkSignatures(header, secrets)
+			if err != nil {
+				return chunkFraming{}, 0, err
+			}
+			opts.Seed, opts.OnChunkSignature = header.Signature, check
+		}
+	}
+	return chunkFraming{mode: mode, opts: opts}, declared, nil
+}
+
+// chunkSignatures verifies a signed aws-chunked body's signature chain,
+// seeded by the header signature a, with the secret of a's key, adapting
+// auth's ChunkVerifier to awschunked by the payload kind. The edge verified
+// a with the same secret just before, so a key with none now was revoked in
+// between, and is answered as unknown.
+func chunkSignatures(a auth.SigV4Header, secrets *identity.Store) (awschunked.SignatureFunc, *awserr.Error) {
+	_, res := secrets.Resolve(a.Credential.Key)
+	secret, ok := identity.SecretOf(res)
+	if !ok {
+		v, _ := AuthDialect()
+		return nil, auth.UnknownKey(a.Credential.Key, v)
+	}
+	v := auth.ChunkSignatureVerifier(a, string(secret))
+	return func(prev string, signed awschunked.SignedPayload, sig string) error {
+		switch signed.Kind {
+		case awschunked.ChunkSigned:
+			return v.Chunk(prev, signed.SHA256, sig)
+		case awschunked.TrailerSigned:
+			return v.Trailer(prev, signed.SHA256, sig)
+		}
+		return &UnknownSignedKindError{Kind: signed.Kind}
+	}, nil
+}
+
+// UnknownSignedKindError is a signature link of a kind awschunked does not
+// declare, which only a fault in understudy can produce.
+type UnknownSignedKindError struct{ Kind awschunked.SignedKind }
+
+func (e *UnknownSignedKindError) Error() string {
+	return "s3: aws-chunked signature link of undeclared kind " + strconv.Itoa(int(e.Kind)) + "; the body is refused"
 }
 
 // received is a body stored in the blob store, with what was computed
@@ -478,8 +525,9 @@ func (l *limitReader) Read(p []byte) (int, error) {
 
 // bodyError is S3's answer for a body that failed while it was read: a
 // body over its cap is EntityTooLarge, another error the edge raised at
-// the body's boundary passes through, a short aws-chunked chunk
-// InvalidChunkSizeError with the chunk and its size, a bad trailer
+// the body's boundary passes through, an aws-chunked chunk or trailer
+// signature that does not verify SignatureDoesNotMatch, a short aws-chunked
+// chunk InvalidChunkSizeError with the chunk and its size, a bad trailer
 // MalformedTrailerError, and a truncated body IncompleteBody, as S3 names
 // each; a client that left is RequestAborted, and anything else, which
 // only a fault of understudy's own can cause, is InternalError.
@@ -489,6 +537,9 @@ func bodyError(ctx context.Context, err error) *awserr.Error {
 			return errEntityTooLarge(-1)
 		}
 		return b.Err
+	}
+	if isA[*auth.ChunkSignatureError](err) {
+		return errChunkSignature()
 	}
 	if short, ok := errors.AsType[*awschunked.ChunkTooSmallError](err); ok {
 		e := s3api.ErrInvalidChunkSizeError("Only the last chunk is allowed to have a size less than 8192 bytes")

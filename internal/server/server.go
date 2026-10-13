@@ -82,7 +82,7 @@ func (e *ListenError) Error() string {
 	case RefusedNotInContainer:
 		why = "the published container port can stand in for an admin token only inside a container with its own network namespace, outside Kubernetes, and this process does not run in one"
 	case RefusedUnauthenticatedAWSAPI:
-		why = "the admin token guards only the admin API under /_understudy/, and the AWS API on the same listener checks no signature, " +
+		why = "the admin token guards only the admin API under /_understudy/, and every client may sign the AWS API on the same listener with the public dummy pair test/test, which verifies even under --sigv4 verify, " +
 			"so anyone who reaches it could read every secret and object and run any container image as a Lambda function"
 	}
 	return fmt.Sprintf("refusing to listen on %s: %s. "+
@@ -153,8 +153,9 @@ func New(cfg Config) (*Server, error) {
 
 // checkExposure refuses a listener beyond loopback that nothing protects.
 // Inside a container the published port guards both APIs; on the host the
-// admin token guards only the admin API, so the AWS API, which verifies no
-// signature, needs the explicit AWSAPIUnauthenticated as well.
+// admin token guards only the admin API, so the AWS API, which every client
+// may sign with the public dummy pair test/test, needs the explicit
+// AWSAPIUnauthenticated as well.
 func checkExposure(cfg Config) error {
 	if cfg.Listen.Addr().IsLoopback() {
 		return nil

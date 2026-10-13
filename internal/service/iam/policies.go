@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -299,7 +300,7 @@ func (s *Service) deletePolicy(_ context.Context, c *kernel.Call, in *iamapi.Del
 
 func (s *Service) listPolicies(_ context.Context, c *kernel.Call, in *iamapi.ListPoliciesInput) (*iamapi.ListPoliciesOutput, *awserr.Error) {
 	account := c.Scope().Account
-	p, err := view(s, account, func(st *State) (page[iamapi.Policy], *awserr.Error) {
+	p, err := view(s, account, func(st *State) (paging.Page[iamapi.Policy], *awserr.Error) {
 		// Non-nil, so an empty page still sends <Policies/>.
 		all := []iamapi.Policy{}
 		if in.Scope == nil || *in.Scope != iamapi.PolicyScopeTypeAws {
@@ -314,12 +315,12 @@ func (s *Service) listPolicies(_ context.Context, c *kernel.Call, in *iamapi.Lis
 				}
 			}
 		}
-		return paginate(all, func(p iamapi.Policy) string { return key(*p.PolicyName) }, in.Marker, in.MaxItems)
+		return paginate("policies", all, func(p iamapi.Policy) string { return key(*p.PolicyName) }, in.Marker, in.MaxItems)
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &iamapi.ListPoliciesOutput{Policies: p.items, IsTruncated: p.truncated, Marker: p.marker}, nil
+	return &iamapi.ListPoliciesOutput{Policies: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
 }
 
 // inUse reports whether a policy attached or used as a permissions boundary
@@ -396,7 +397,7 @@ func (s *Service) listPolicyVersions(_ context.Context, c *kernel.Call, in *iama
 		key     string
 		version iamapi.PolicyVersion
 	}
-	p, err := view(s, account, func(st *State) (page[listed], *awserr.Error) {
+	p, err := view(s, account, func(st *State) (paging.Page[listed], *awserr.Error) {
 		var all []listed
 		add := func(v PolicyVersion, shown iamapi.PolicyVersion) *awserr.Error {
 			k, err := v.sortKey()
@@ -408,27 +409,27 @@ func (s *Service) listPolicyVersions(_ context.Context, c *kernel.Call, in *iama
 		}
 		if ref, ok := parsePolicyARN(in.PolicyArn); ok && ref.awsManaged() {
 			if err := add(PolicyVersion{ID: awsManagedVersion}, apiAWSManagedVersion(false)); err != nil {
-				return page[listed]{}, err
+				return paging.Page[listed]{}, err
 			}
 		} else {
 			pol, _, err := st.localPolicy(account, in.PolicyArn)
 			if err != nil {
-				return page[listed]{}, err
+				return paging.Page[listed]{}, err
 			}
 			for _, v := range slices.Backward(pol.Versions) {
 				if err := add(v, apiVersion(pol, v, false)); err != nil {
-					return page[listed]{}, err
+					return paging.Page[listed]{}, err
 				}
 			}
 		}
-		return paginate(all, func(l listed) string { return l.key }, in.Marker, in.MaxItems)
+		return paginate("policy-versions", all, func(l listed) string { return l.key }, in.Marker, in.MaxItems)
 	})
 	if err != nil {
 		return nil, err
 	}
 	c.Touch(policyTouch(in.PolicyArn))
-	out := &iamapi.ListPolicyVersionsOutput{Versions: make([]iamapi.PolicyVersion, len(p.items)), IsTruncated: p.truncated, Marker: p.marker}
-	for i, l := range p.items {
+	out := &iamapi.ListPolicyVersionsOutput{Versions: make([]iamapi.PolicyVersion, len(p.Items)), IsTruncated: p.Truncated, Marker: p.Next}
+	for i, l := range p.Items {
 		out.Versions[i] = l.version
 	}
 	return out, nil
@@ -476,21 +477,21 @@ func (s *Service) setDefaultPolicyVersion(_ context.Context, c *kernel.Call, in 
 // attachment, a permissions boundary or either (PolicyUsageFilter).
 func (s *Service) listEntitiesForPolicy(_ context.Context, c *kernel.Call, in *iamapi.ListEntitiesForPolicyInput) (*iamapi.ListEntitiesForPolicyOutput, *awserr.Error) {
 	account := c.Scope().Account
-	p, err := view(s, account, func(st *State) (page[policyEntity], *awserr.Error) {
+	p, err := view(s, account, func(st *State) (paging.Page[policyEntity], *awserr.Error) {
 		if ref, ok := parsePolicyARN(in.PolicyArn); !ok || !ref.awsManaged() {
 			if _, _, err := st.localPolicy(account, in.PolicyArn); err != nil {
-				return page[policyEntity]{}, err
+				return paging.Page[policyEntity]{}, err
 			}
 		}
-		return paginate(st.policyEntities(in), func(e policyEntity) string { return e.sortKey }, in.Marker, in.MaxItems)
+		return paginate("entities-for-policy", st.policyEntities(in), func(e policyEntity) string { return e.sortKey }, in.Marker, in.MaxItems)
 	})
 	if err != nil {
 		return nil, err
 	}
 	c.Touch(policyTouch(in.PolicyArn))
 	// IAM sends all three lists, empty ones included.
-	out := &iamapi.ListEntitiesForPolicyOutput{PolicyGroups: []iamapi.PolicyGroup{}, PolicyUsers: []iamapi.PolicyUser{}, PolicyRoles: []iamapi.PolicyRole{}, IsTruncated: p.truncated, Marker: p.marker}
-	for _, e := range p.items {
+	out := &iamapi.ListEntitiesForPolicyOutput{PolicyGroups: []iamapi.PolicyGroup{}, PolicyUsers: []iamapi.PolicyUser{}, PolicyRoles: []iamapi.PolicyRole{}, IsTruncated: p.Truncated, Marker: p.Next}
+	for _, e := range p.Items {
 		if e.kind == iamapi.EntityTypeRole {
 			out.PolicyRoles = append(out.PolicyRoles, iamapi.PolicyRole{RoleName: new(e.name), RoleId: new(e.id)})
 		} else {

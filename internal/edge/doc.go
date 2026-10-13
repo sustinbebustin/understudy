@@ -62,14 +62,49 @@
 //     envelope answers an unclaimed request (Unclaimed) and the handler of
 //     the /_understudy/ prefix (Admin). The container listener passes only
 //     GET health and clock to it.
-//   - Credentials are parsed, never verified: the edge has no verifier
-//     hook, and serve refuses the sigv4: verify setting rather than ignore
-//     it (cli.unappliedSettings). Credentials that cannot be read reject a claimed request with the protocol
-//     family's auth error, except that an operation the service does not
-//     model is rejected as unknown first, in Coral's check order. Rule 8
-//     routes by signing name, which unreadable credentials do not yield; a
-//     header-signed request without x-amz-content-sha256 is refused only
-//     when scoped to s3, so rule 8 sends that failure to S3 to answer.
+//   - Credentials are always parsed and, with Options.Verify (sigv4
+//     verify), verified after the claim and before decode (step 4a, verify
+//     .go): for a claimed operation and for raw routes and links that carry
+//     credentials, but not for an operation the service does not model,
+//     which is rejected as unknown first, in Coral's check order. A refusal
+//     is dispatched as kernel.Rejected through the claimed codec, so it is
+//     journaled as a failed call; a request that verifies carries its
+//     credentials on the call (kernel.Call.VerifiedAuth). Credentials that
+//     cannot be read reject a claimed request the same way, in either mode,
+//     raw routes and links included, so their handlers never run; only an
+//     Authorization header in no AWS scheme (Bearer) reaches a link, as
+//     unsigned, since a function URL's app may read one of its own, as AWS
+//     passes it to an AuthType NONE function.
+//     Both answer in the claimed service's words: Options.ServiceAuth for
+//     S3, whose identities no protocol family holds, else the protocol
+//     family's. Rule 8 routes by signing name, which unreadable
+//     credentials do not yield, so it sends the failures only S3 can
+//     raise to S3 to answer: a presigned or SigV2 credential, a conflict
+//     (which always involves a query credential), and a header scoped to
+//     s3 that lacks x-amz-content-sha256 or names an unknown region. An
+//     Authorization header in no AWS scheme is routed as unsigned.
+//   - A key verifies only when it has a secret: one understudy minted, a
+//     static key from accounts.keys, the dummy key test or a 12-digit key,
+//     whose secret is test (ADR 0012 pre-tag review amendment). Temporary
+//     credentials must send their session token and be unexpired on the
+//     wall clock, as STS stamps Expiration; presigned expiry runs on the
+//     emulator clock. A SigV4 URL's lifetime counts from its X-Amz-Date
+//     placed on the emulator timeline by the ClockTimeline the edge keeps
+//     of every clock mode it saw (before each request, and as it answers
+//     each admin call, holding an answer that changed the clock until the
+//     next whole wall second, since X-Amz-Date has whole-second precision),
+//     so a URL signed after `clock advance` lives its full lifetime and an
+//     advance past it expires the URL, frozen or not. A SigV2 URL
+//     carries only its Expires, which is read as an emulator instant, so it
+//     expires as intended only while emulator time read wall time when it
+//     was signed. A body is read whole within the operation's cap to hash
+//     it, then handed to the codec again, unless the operation streams its
+//     input and its service's ServiceAuth says it checks the sent payload
+//     hash itself (ServiceChecksPayload: S3 PutObject and UploadPart),
+//     whose bodies stay streamed; every other S3 body is bound to the
+//     signature by the edge. The key is resolved once per request, for
+//     both the secret and the caller. Neither credentials nor tokens are
+//     logged.
 //   - The Date header is stamped when the response is sent, on every path
 //     (codec answers, the admin handler, raw HTTP handlers), so a long poll
 //     answers with a current Date.

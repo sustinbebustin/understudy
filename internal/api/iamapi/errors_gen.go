@@ -126,6 +126,16 @@ func ErrEntityTemporarilyUnmodifiableException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityEntityTemporarilyUnmodifiableException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// IdentityExpiredToken returns the identity of com.amazon.coral.service#ExpiredToken.
+func IdentityExpiredToken() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazon.coral.service#ExpiredToken", JSONType: "ExpiredToken", QueryCode: "ExpiredToken", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrExpiredToken returns an ExpiredToken error with message.
+func ErrExpiredToken(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityExpiredToken(), Message: message, Origin: awserr.Generic{}}
+}
+
 // IdentityFeatureDisabledException returns the identity of com.amazonaws.iam#FeatureDisabledException.
 func IdentityFeatureDisabledException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.iam#FeatureDisabledException", JSONType: "FeatureDisabledException", QueryCode: "FeatureDisabled", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -194,6 +204,16 @@ func IdentityInvalidCertificateException() awserr.Identity {
 // ErrInvalidCertificateException returns an InvalidCertificateException error with message.
 func ErrInvalidCertificateException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidCertificateException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// IdentityInvalidClientTokenId returns the identity of com.amazon.coral.service#InvalidClientTokenId.
+func IdentityInvalidClientTokenId() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazon.coral.service#InvalidClientTokenId", JSONType: "InvalidClientTokenId", QueryCode: "InvalidClientTokenId", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrInvalidClientTokenId returns an InvalidClientTokenId error with message.
+func ErrInvalidClientTokenId(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityInvalidClientTokenId(), Message: message, Origin: awserr.Generic{}}
 }
 
 // IdentityInvalidInputException returns the identity of com.amazonaws.iam#InvalidInputException.
@@ -510,7 +530,7 @@ func UnknownOperationError(f awserr.Family) (awserr.Identity, bool) {
 func GenericErrors(f awserr.Family) []awserr.Identity {
 	switch f {
 	case awserr.QueryFamily:
-		return []awserr.Identity{IdentityInvalidAction(), IdentityMissingAuthenticationToken(), IdentityIncompleteSignature(), IdentitySignatureDoesNotMatch(), IdentityAccessDeniedException(), IdentityInternalFailure(), IdentityNotImplemented(), IdentityRequestEntityTooLargeException(), IdentityThrottlingException()}
+		return []awserr.Identity{IdentityInvalidAction(), IdentityMissingAuthenticationToken(), IdentityIncompleteSignature(), IdentitySignatureDoesNotMatch(), IdentityInvalidClientTokenId(), IdentityExpiredToken(), IdentityAccessDeniedException(), IdentityInternalFailure(), IdentityNotImplemented(), IdentityRequestEntityTooLargeException(), IdentityThrottlingException()}
 	default:
 		return nil
 	}

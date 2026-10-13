@@ -55,18 +55,54 @@ type Minted struct {
 	Lifetime Lifetime
 }
 
-// AccountKey is a 12-digit key, read as that account's root.
-type AccountKey struct{}
+// Static is a key from configuration (SetStaticKeys), or the dummy key
+// DummyAccessKeyID, read as an account's root. Secret verifies the request
+// signature when SigV4 verification is on. Static redacts it in slog
+// output, JSON and fmt formatting.
+type Static struct{ Secret ids.SecretAccessKey }
 
-// Fallback is any other key, read as the default account's root. Warn is
-// true the first time the store sees a real-looking AKIA or ASIA key it did
-// not mint: such a key would decode to a foreign account, which understudy
+// AccountKey is a 12-digit key, read as that account's root. Secret is
+// DummySecret, which verifies its signature when SigV4 verification is on.
+// AccountKey redacts it in slog output, JSON and fmt formatting.
+type AccountKey struct{ Secret ids.SecretAccessKey }
+
+// Fallback is any other key, read as the default account's root. It has no
+// secret, so SigV4 verification refuses it as an unknown key. Warn is true
+// the first time the store sees a real-looking AKIA or ASIA key it did not
+// mint: such a key would decode to a foreign account, which understudy
 // refuses to do (ADR 0012), so the caller logs one warning per key.
 type Fallback struct{ Warn bool }
 
 func (Minted) isResolution()     {}
+func (Static) isResolution()     {}
 func (AccountKey) isResolution() {}
 func (Fallback) isResolution()   {}
+
+// SecretOf returns the secret that verifies signatures by a key resolved as
+// r, and false for Fallback, which has none: SigV4 verification refuses
+// such a key as unknown.
+func SecretOf(r Resolution) (ids.SecretAccessKey, bool) {
+	switch r := r.(type) {
+	case Minted:
+		return r.Secret, true
+	case Static:
+		return r.Secret, true
+	case AccountKey:
+		return r.Secret, true
+	case Fallback:
+	}
+	return "", false
+}
+
+// The dummy credentials every quickstart uses: AWS_ACCESS_KEY_ID=test and
+// AWS_SECRET_ACCESS_KEY=test. The key is the default account's root, and
+// DummySecret is also the secret of every 12-digit account key, so both
+// keep working when SigV4 verification is on (ADR 0012 pre-tag review
+// amendment). They are no secret: anyone may sign with them.
+const (
+	DummyAccessKeyID ids.AccessKeyID     = "test"
+	DummySecret      ids.SecretAccessKey = "test"
+)
 
 // maxWarned caps the real-looking keys the store remembers having warned
 // about, so a client cycling random keys cannot grow memory without bound.
@@ -81,6 +117,9 @@ type Store struct {
 
 	mu   sync.Mutex
 	keys map[ids.AccessKeyID]entry
+	// static holds the keys from configuration, which Export never writes
+	// and Import never replaces.
+	static map[ids.AccessKeyID]StaticKey
 	// warned holds the real-looking unminted keys already reported, at most
 	// maxWarned of them.
 	warned map[string]struct{}
@@ -98,6 +137,7 @@ func New(src *ids.Source, defaultAccount aws.AccountID) *Store {
 		ids:            src,
 		defaultAccount: defaultAccount,
 		keys:           map[ids.AccessKeyID]entry{},
+		static:         map[ids.AccessKeyID]StaticKey{},
 		warned:         map[string]struct{}{},
 	}
 }
@@ -151,17 +191,26 @@ func (s *Store) MintTemporary(p Principal, expiry time.Time) (Credentials, error
 }
 
 // Resolve maps an access key to the principal making a call (ADR 0012), in
-// order: a key the store minted is its principal; a 12-digit key is that
-// account's root; anything else, including real-looking keys and AWS's
-// documentation keys, is the default account's root and is never decoded.
+// order: a key the store minted is its principal (Minted); a static key is
+// its account's root (Static); the dummy key DummyAccessKeyID is the
+// default account's root (Static with DummySecret); a 12-digit key is that
+// account's root (AccountKey with DummySecret); anything else, including
+// real-looking keys and AWS's documentation keys, is the default account's
+// root (Fallback, with no secret) and is never decoded.
 func (s *Store) Resolve(key string) (Principal, Resolution) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if e, ok := s.keys[ids.AccessKeyID(key)]; ok {
 		return e.principal, Minted{Secret: e.creds.SecretAccessKey, Lifetime: e.creds.Lifetime}
 	}
+	if k, ok := s.static[ids.AccessKeyID(key)]; ok {
+		return Root{Account: k.Account}, Static{Secret: k.Secret}
+	}
+	if ids.AccessKeyID(key) == DummyAccessKeyID {
+		return Root{Account: s.defaultAccount}, Static{Secret: DummySecret}
+	}
 	if account, err := aws.ParseAccountID(key); err == nil {
-		return Root{Account: account}, AccountKey{}
+		return Root{Account: account}, AccountKey{Secret: DummySecret}
 	}
 	warn := false
 	if _, decodes := ids.DecodeAccount(key); decodes {
@@ -188,7 +237,8 @@ func (s *Store) Revoke(key string) bool {
 func (s *Store) store(p Principal, creds Credentials) (Credentials, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, taken := s.keys[creds.AccessKeyID]; taken {
+	_, minted := s.keys[creds.AccessKeyID]
+	if _, static := s.static[creds.AccessKeyID]; minted || static {
 		return Credentials{}, &MintError{Principal: Render(p), Problem: KeyCollision}
 	}
 	s.keys[creds.AccessKeyID] = entry{principal: p, creds: creds}

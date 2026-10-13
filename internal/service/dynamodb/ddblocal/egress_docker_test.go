@@ -334,6 +334,7 @@ func cycle(t *testing.T, m *Manager, endpoint *url.URL) {
 // control run, without the two telemetry opt-outs, shows it sees Local's
 // telemetry, so the silence is Local's and not the harness's.
 func TestDynamoDBLocalMakesNoNetworkAttempts(t *testing.T) {
+	configtest.DynamoDBLicence(t)
 	e := newEgress(t)
 	e.checkHarness()
 	before := len(e.recorded())

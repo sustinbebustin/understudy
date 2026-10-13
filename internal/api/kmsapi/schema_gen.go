@@ -437,6 +437,10 @@ var schemaExpiredImportTokenException = smithy.Schema{ID: "com.amazonaws.kms#Exp
 
 var memberExpiredImportTokenException_message = smithy.Member{Name: "message", Index: 0}
 
+var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaGenerateDataKeyInput = smithy.Schema{ID: "com.amazonaws.kms#GenerateDataKeyRequest", Type: smithy.TypeStructure}
 
 var memberGenerateDataKeyInput_KeyId = smithy.Member{Name: "KeyId", Index: 0, Required: true}
@@ -1335,6 +1339,10 @@ var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.servic
 
 var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
 
+var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaUnsupportedOperationException = smithy.Schema{ID: "com.amazonaws.kms#UnsupportedOperationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var memberUnsupportedOperationException_message = smithy.Member{Name: "message", Index: 0}
@@ -1710,6 +1718,8 @@ func init() {
 	schemaEncryptionContextType.Members = []*smithy.Member{&memberEncryptionContextType_key, &memberEncryptionContextType_value}
 	memberExpiredImportTokenException_message.Target = &schemaErrorMessageType
 	schemaExpiredImportTokenException.Members = []*smithy.Member{&memberExpiredImportTokenException_message}
+	memberExpiredTokenException_message.Target = &schemaSmithyString
+	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
 	memberGenerateDataKeyInput_KeyId.Target = &schemaKeyIdType
 	memberGenerateDataKeyInput_EncryptionContext.Target = &schemaEncryptionContextType
 	memberGenerateDataKeyInput_NumberOfBytes.Target = &schemaNumberOfBytesType
@@ -2115,6 +2125,8 @@ func init() {
 	schemaThrottlingException.Members = []*smithy.Member{&memberThrottlingException_message}
 	memberUnknownOperationException_message.Target = &schemaSmithyString
 	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
+	memberUnrecognizedClientException_message.Target = &schemaSmithyString
+	schemaUnrecognizedClientException.Members = []*smithy.Member{&memberUnrecognizedClientException_message}
 	memberUnsupportedOperationException_message.Target = &schemaErrorMessageType
 	schemaUnsupportedOperationException.Members = []*smithy.Member{&memberUnsupportedOperationException_message}
 	memberUntagResourceInput_KeyId.Target = &schemaKeyIdType

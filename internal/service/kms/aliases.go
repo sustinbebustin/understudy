@@ -221,5 +221,5 @@ func (s *Service) listAliases(_ context.Context, c *kernel.Call, in *kmsapi.List
 	if err != nil {
 		return nil, err
 	}
-	return &kmsapi.ListAliasesOutput{Aliases: p.items, NextMarker: p.next, Truncated: p.truncated}, nil
+	return &kmsapi.ListAliasesOutput{Aliases: p.Items, NextMarker: p.Next, Truncated: p.Truncated}, nil
 }

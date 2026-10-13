@@ -712,6 +712,28 @@ func (v *EmptyBatchRequest) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.CloseStruct()
 }
 
+// Serialize writes v through s.
+func (v *ExpiredToken) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *ExpiredToken) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaExpiredToken)
+	if v.Message != nil {
+		s.WriteString(&memberExpiredToken_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *ExpiredTokenException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *ExpiredTokenException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaExpiredTokenException)
+	if v.Message != nil {
+		s.WriteString(&memberExpiredTokenException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
 // Deserialize reads v from d. Absent members stay absent; Validate
 // reports missing required ones.
 func (v *GetQueueAttributesInput) Deserialize(d smithy.Deserializer) error { return v.deserialize(d) }
@@ -946,6 +968,17 @@ func (v *InvalidBatchEntryId) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaInvalidBatchEntryId)
 	if v.Message != nil {
 		s.WriteString(&memberInvalidBatchEntryId_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *InvalidClientTokenId) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InvalidClientTokenId) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInvalidClientTokenId)
+	if v.Message != nil {
+		s.WriteString(&memberInvalidClientTokenId_message, *v.Message)
 	}
 	s.CloseStruct()
 }
@@ -2554,6 +2587,17 @@ func (v *UnknownOperationException) serialize(s smithy.Serializer, m *smithy.Mem
 	s.WriteStruct(m, &schemaUnknownOperationException)
 	if v.Message != nil {
 		s.WriteString(&memberUnknownOperationException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *UnrecognizedClientException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *UnrecognizedClientException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaUnrecognizedClientException)
+	if v.Message != nil {
+		s.WriteString(&memberUnrecognizedClientException_message, *v.Message)
 	}
 	s.CloseStruct()
 }

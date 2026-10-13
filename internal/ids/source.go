@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
 	"maps"
 	mathrand "math/rand/v2"
 	"slices"
@@ -55,10 +56,10 @@ const MaxPosition = 1 << 30
 // Draw returns n bytes from the kind's stream. The count is unsigned so a
 // caller that computes it as an int checks its sign where it converts.
 //
-// Draw, Uint64 and UUID require k to be one of the declared Kind constants.
-// Only a conversion such as Kind(n) can make another value (UnmarshalText
-// refuses unknown names), and its behavior is undefined: a seeded source
-// panics, a random source draws as for any kind.
+// Draw, Uint64 and UUID panic, on a seeded and a random source alike, for
+// any k other than the declared Kind constants. Only a conversion such as
+// Kind(n) can make such a value (UnmarshalText refuses unknown names), so the
+// panic marks a programming error, not a condition a caller handles.
 func (s *Source) Draw(k Kind, n uint) []byte {
 	b := make([]byte, n)
 	s.fill(k, b)
@@ -137,6 +138,9 @@ func (s *Source) Seek(positions map[Kind]uint64) error {
 }
 
 func (s *Source) fill(k Kind, b []byte) {
+	if !k.valid() {
+		panic(fmt.Sprintf("ids: undeclared generator kind %d; only the declared Kind constants may be drawn from", uint8(k))) //nolint:forbidigo // precondition: only a Kind(n) conversion makes an undeclared kind (see Draw)
+	}
 	if s.seeded == nil {
 		_, _ = rand.Read(b) // crypto/rand.Read never returns an error; it crashes the program instead
 		return

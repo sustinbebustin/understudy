@@ -39,6 +39,10 @@ func importRules() []importRule {
 		"internal/aws", "internal/protocol/smithy/...",
 		// ServiceDeps carries the blob store and the Docker client (ARCHITECTURE.md 3.2).
 		"internal/blob", "internal/docker",
+		// Call carries the credentials the edge verified (VerifiedAuth),
+		// which S3 reads to verify aws-chunked chunk signatures
+		// (ARCHITECTURE.md 7).
+		"internal/auth",
 	}
 	service := []string{
 		"internal/service/{self}/...", "internal/api/...", "internal/kernel", "internal/store", "internal/clock",
@@ -60,6 +64,9 @@ func importRules() []importRule {
 		// Detail values and records them through kernel.Call.Record or
 		// kernel.Tx.Record, which stamp the cause (ARCHITECTURE.md 10).
 		"internal/journal",
+		// Keyset pagination for listings. Its client-side checker,
+		// internal/paging/pagingtest, is for test files, which are exempt.
+		"internal/paging",
 	}
 	return []importRule{
 		// Leaves.
@@ -79,6 +86,8 @@ func importRules() []importRule {
 		{"internal/ids", nil},
 		{"internal/ruler", nil},
 		{"internal/logsfilter", nil},
+		{"internal/paging", nil},
+		{"internal/paging/pagingtest", nil},
 		{"internal/ref", []string{"internal/aws"}},
 		{"internal/store", []string{"internal/aws"}}, // key codecs for aws.Scope and aws.AccountID
 		{"internal/fidelity", []string{"internal/evidence"}},

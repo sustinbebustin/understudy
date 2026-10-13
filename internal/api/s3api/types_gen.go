@@ -297,6 +297,9 @@ type AuthorizationHeaderMalformed struct {
 	Region *string
 }
 
+// AuthorizationQueryParametersError is the error com.amazonaws.s3#AuthorizationQueryParametersError.
+type AuthorizationQueryParametersError struct{}
+
 // BadDigest is the error com.amazonaws.s3#BadDigest.
 type BadDigest struct {
 	CalculatedDigest *string
@@ -2114,6 +2117,9 @@ func (ExpirationStatus) Values() []ExpirationStatus {
 	}
 }
 
+// ExpiredToken is the error com.amazonaws.s3#ExpiredToken.
+type ExpiredToken struct{}
+
 // ExpressionType is com.amazonaws.s3#ExpressionType.
 type ExpressionType string
 
@@ -3144,6 +3150,11 @@ func (IntelligentTieringStatus) Values() []IntelligentTieringStatus {
 // InternalError is the error com.amazonaws.s3#InternalError.
 type InternalError struct{}
 
+// InvalidAccessKeyId is the error com.amazonaws.s3#InvalidAccessKeyId.
+type InvalidAccessKeyId struct {
+	AWSAccessKeyId *string
+}
+
 // InvalidAnnotationName is the error com.amazonaws.s3#InvalidAnnotationName.
 type InvalidAnnotationName struct{}
 
@@ -3216,6 +3227,9 @@ type InvalidTag struct {
 	TagKey   *string
 	TagValue *string
 }
+
+// InvalidToken is the error com.amazonaws.s3#InvalidToken.
+type InvalidToken struct{}
 
 // InvalidWriteOffset is the error com.amazonaws.s3#InvalidWriteOffset.
 type InvalidWriteOffset struct{}
@@ -6134,6 +6148,13 @@ type RequestPaymentConfiguration struct {
 // RequestProgress is com.amazonaws.s3#RequestProgress.
 type RequestProgress struct {
 	Enabled *bool
+}
+
+// RequestTimeTooSkewed is the error com.amazonaws.s3#RequestTimeTooSkewed.
+type RequestTimeTooSkewed struct {
+	RequestTime                *string
+	ServerTime                 *string
+	MaxAllowedSkewMilliseconds *string
 }
 
 // RestoreObjectInput is the input of RestoreObject, com.amazonaws.s3#RestoreObjectRequest.

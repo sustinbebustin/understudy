@@ -204,6 +204,10 @@ var schemaEncodedMessageType = smithy.Schema{ID: "com.amazonaws.sts#encodedMessa
 
 var schemaExpiredIdentityTokenMessage = smithy.Schema{ID: "com.amazonaws.sts#expiredIdentityTokenMessage", Type: smithy.TypeString}
 
+var schemaExpiredToken = smithy.Schema{ID: "com.amazon.coral.service#ExpiredToken", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberExpiredToken_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaExpiredTokenException = smithy.Schema{ID: "com.amazonaws.sts#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
@@ -343,6 +347,10 @@ var schemaInvalidAuthorizationMessage = smithy.Schema{ID: "com.amazonaws.sts#inv
 var schemaInvalidAuthorizationMessageException = smithy.Schema{ID: "com.amazonaws.sts#InvalidAuthorizationMessageException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var memberInvalidAuthorizationMessageException_message = smithy.Member{Name: "message", Index: 0}
+
+var schemaInvalidClientTokenId = smithy.Schema{ID: "com.amazon.coral.service#InvalidClientTokenId", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberInvalidClientTokenId_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaInvalidIdentityTokenException = smithy.Schema{ID: "com.amazonaws.sts#InvalidIdentityTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
@@ -595,6 +603,8 @@ func init() {
 	schemaDecodeAuthorizationMessageInput.Members = []*smithy.Member{&memberDecodeAuthorizationMessageInput_EncodedMessage}
 	memberDecodeAuthorizationMessageOutput_DecodedMessage.Target = &schemaDecodedMessageType
 	schemaDecodeAuthorizationMessageOutput.Members = []*smithy.Member{&memberDecodeAuthorizationMessageOutput_DecodedMessage}
+	memberExpiredToken_message.Target = &schemaSmithyString
+	schemaExpiredToken.Members = []*smithy.Member{&memberExpiredToken_message}
 	memberExpiredTokenException_message.Target = &schemaExpiredIdentityTokenMessage
 	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
 	memberExpiredTradeInTokenException_message.Target = &schemaExpiredTradeInTokenExceptionMessage
@@ -658,6 +668,8 @@ func init() {
 	schemaInvalidAction.Members = []*smithy.Member{&memberInvalidAction_message}
 	memberInvalidAuthorizationMessageException_message.Target = &schemaInvalidAuthorizationMessage
 	schemaInvalidAuthorizationMessageException.Members = []*smithy.Member{&memberInvalidAuthorizationMessageException_message}
+	memberInvalidClientTokenId_message.Target = &schemaSmithyString
+	schemaInvalidClientTokenId.Members = []*smithy.Member{&memberInvalidClientTokenId_message}
 	memberInvalidIdentityTokenException_message.Target = &schemaInvalidIdentityTokenMessage
 	schemaInvalidIdentityTokenException.Members = []*smithy.Member{&memberInvalidIdentityTokenException_message}
 	memberJWTPayloadSizeExceededException_message.Target = &schemaJWTPayloadSizeExceededException2

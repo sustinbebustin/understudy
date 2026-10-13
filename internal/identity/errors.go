@@ -61,7 +61,7 @@ func (p MintProblem) reason() string {
 	case RoleNeedsTemporary:
 		return "an assumed role takes only temporary credentials, as STS issues them; use MintTemporary"
 	case KeyCollision:
-		return "the id source drew a key the store already holds; restore the id stream positions saved with the snapshot"
+		return "the id source drew a key the store already holds, minted or configured in accounts.keys; restore the id stream positions saved with the snapshot, or rename the configured key"
 	case InvalidSessionSource:
 		return "the assumed role has no session source, or its execution environment function is not a well-formed ARN"
 	case InvalidExpiry:

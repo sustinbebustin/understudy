@@ -3684,6 +3684,17 @@ func (v *ExecutionTimedOutDetails) serialize(s smithy.Serializer, m *smithy.Memb
 	s.CloseStruct()
 }
 
+// Serialize writes v through s.
+func (v *ExpiredTokenException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *ExpiredTokenException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaExpiredTokenException)
+	if v.Message != nil {
+		s.WriteString(&memberExpiredTokenException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
 func (v *FileSystemConfig) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaFileSystemConfig)
 	s.WriteString(&memberFileSystemConfig_Arn, v.Arn)
@@ -9897,6 +9908,17 @@ func (v *UnknownOperationException) serialize(s smithy.Serializer, m *smithy.Mem
 	s.WriteStruct(m, &schemaUnknownOperationException)
 	if v.Message != nil {
 		s.WriteString(&memberUnknownOperationException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *UnrecognizedClientException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *UnrecognizedClientException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaUnrecognizedClientException)
+	if v.Message != nil {
+		s.WriteString(&memberUnrecognizedClientException_message, *v.Message)
 	}
 	s.CloseStruct()
 }

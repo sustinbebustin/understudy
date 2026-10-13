@@ -79,7 +79,81 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.bindURLConfigs(b)
 	s.bindEventInvokeConfigs(b)
 	s.bindMappings(b)
+	declareAccess(d.Binder)
 	return s
+}
+
+// declareAccess states what the bound operations whose generated list
+// holds more than one lambda action touch and use besides their primary
+// action (CreateFunction and UpdateFunctionConfiguration, Permissions):
+// the role passed as the execution role, on which the access record keeps
+// iam:PassRole; lambda:TagResource for tags; and
+// lambda:PassCapacityProvider for a capacity provider, which the call then
+// touches so the action lands on the provider's ARN. The recorder pairs
+// every lambda action of a call with every lambda resource it touched, so
+// the provider also gets the primary action and the function
+// lambda:PassCapacityProvider. lambda:GetLayerVersion is not declared:
+// validation refuses every layer (checkLayers) before a call's actions are
+// chosen, so no call that names one gets that far; declare it, touching
+// the layer version ARNs, once layers are accepted. It runs after the bind
+// sites, whose bindings it extends.
+func declareAccess(b *kernel.Binder) {
+	// GetFunction declares no secondary: lambda:ListTags only decides
+	// whether the response carries the function's tags.
+	kernel.Declare(b, lambdaapi.OpGetFunction, kernel.WithoutSecondaryActions())
+	kernel.Declare(b, lambdaapi.OpCreateEventSourceMapping,
+		kernel.WithActions(func(_ *kernel.Call, in *lambdaapi.CreateEventSourceMappingInput) []registry.IAMAction {
+			if len(in.Tags) == 0 {
+				return nil
+			}
+			return []registry.IAMAction{lambdaAction("TagResource")}
+		}))
+	kernel.Declare(b, lambdaapi.OpCreateFunction,
+		kernel.WithResources(func(_ *kernel.Call, in *lambdaapi.CreateFunctionInput) []aws.ARN {
+			return append(passedRole(&in.Role), capacityProvider(in.CapacityProviderConfig)...)
+		}),
+		kernel.WithActions(func(_ *kernel.Call, in *lambdaapi.CreateFunctionInput) []registry.IAMAction {
+			out := providerActions(in.CapacityProviderConfig)
+			if len(in.Tags) > 0 {
+				out = append(out, lambdaAction("TagResource"))
+			}
+			return out
+		}))
+	kernel.Declare(b, lambdaapi.OpUpdateFunctionConfiguration,
+		kernel.WithResources(func(_ *kernel.Call, in *lambdaapi.UpdateFunctionConfigurationInput) []aws.ARN {
+			return append(passedRole(in.Role), capacityProvider(in.CapacityProviderConfig)...)
+		}),
+		kernel.WithActions(func(_ *kernel.Call, in *lambdaapi.UpdateFunctionConfigurationInput) []registry.IAMAction {
+			return providerActions(in.CapacityProviderConfig)
+		}))
+}
+
+// providerActions is lambda:PassCapacityProvider for a configuration that
+// names a capacity provider.
+func providerActions(provider *lambdaapi.CapacityProviderConfig) []registry.IAMAction {
+	if provider == nil {
+		return nil
+	}
+	return []registry.IAMAction{lambdaAction("PassCapacityProvider")}
+}
+
+// capacityProvider is the capacity provider a configuration names, which
+// lambda:PassCapacityProvider acts on; validation has checked the ARN's
+// form.
+func capacityProvider(provider *lambdaapi.CapacityProviderConfig) []aws.ARN {
+	if provider == nil {
+		return nil
+	}
+	a, err := aws.ParseARN(provider.LambdaManagedInstancesCapacityProviderConfig.CapacityProviderArn)
+	if err != nil || a.Service != "lambda" {
+		return nil
+	}
+	return []aws.ARN{a}
+}
+
+// lambdaAction is the lambda action name.
+func lambdaAction(name string) registry.IAMAction {
+	return registry.IAMAction{Prefix: "lambda", Name: name}
 }
 
 // Switches lists the behaviors chosen without AWS-recorded evidence: the

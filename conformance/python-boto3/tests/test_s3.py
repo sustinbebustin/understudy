@@ -937,6 +937,25 @@ def test_presigned_url_expires_on_the_emulator_clock(
     assert b"<Code>AccessDenied</Code>" in body and b"Request has expired" in body
 
 
+def test_sigv4_presigned_url_lives_its_lifetime_after_a_clock_advance(
+    s3: Any, make_client: Callable[..., Any], make_bucket: Callable[..., str], clock: Admin, sigv4_verify: None
+) -> None:
+    """A SigV4 URL's lifetime counts from the emulator instant it was signed at.
+
+    A SigV2 URL names only its expiry, so only SigV4 follows a clock moved before signing.
+    """
+    bucket = make_bucket()
+    s3.put_object(Bucket=bucket, Key="k", Body=b"x")
+    clock.advance(3600)
+    presign = make_client("s3", config=Config(signature_version="s3v4"))
+    url = presign.generate_presigned_url("get_object", Params={"Bucket": bucket, "Key": "k"}, ExpiresIn=300)
+    assert http_get(url)[0] == 200
+    clock.advance(301)
+    status, _, body = http_get(url)
+    assert status == 403
+    assert b"Request has expired" in body
+
+
 def test_presigned_url_with_a_tampered_signature_is_rejected(
     s3: Any, presign: Any, make_bucket: Callable[..., str], sigv4_verify: None
 ) -> None:
@@ -966,8 +985,10 @@ def test_virtual_hosted_addressing(endpoint: str, s3: Any, make_bucket: Callable
     status, headers, body = signed_http("GET", url, connect_to=(host, port), region=REGION)
     assert (status, body) == (200, b"virtual hosted")
 
+    # botocore signs the query as the URL carries it, so the URL carries it encoded, as
+    # an SDK sends it; AWS re-encodes "/" as %2F and would refuse a raw one.
     listing_status, _, listing = signed_http(
-        "GET", f"http://{bucket}.{base}:{port}/?list-type=2&prefix=vh/", connect_to=(host, port), region=REGION
+        "GET", f"http://{bucket}.{base}:{port}/?list-type=2&prefix=vh%2F", connect_to=(host, port), region=REGION
     )
     assert listing_status == 200 and b"<Key>vh/key.txt</Key>" in listing
 

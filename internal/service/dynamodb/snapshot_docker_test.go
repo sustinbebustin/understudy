@@ -14,6 +14,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/config/configtest"
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
@@ -24,6 +25,7 @@ import (
 // it when the test ends.
 func startLocal(t *testing.T) *ddblocal.Manager {
 	t.Helper()
+	configtest.DynamoDBLicence(t)
 	d := engine(t)
 	own := ownership(t)
 	m, err := ddblocal.New(ddblocal.Config{

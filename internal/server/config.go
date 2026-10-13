@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/netip"
@@ -44,6 +45,13 @@ type Config struct {
 	// does not know (accounts.default), and of a hot-reload binding or an
 	// admin call that names none; the zero value is 000000000000.
 	DefaultAccount aws.AccountID
+	// SigV4 is how request signatures are checked (sigv4); the zero value
+	// is SigV4ParseOnly.
+	SigV4 SigV4Mode
+	// StaticKeys are access keys from configuration (accounts.keys), each
+	// its account's root, with the secret it signs with. New refuses a key
+	// listed twice or with an empty secret.
+	StaticKeys []StaticKey
 	// Journal bounds the event journal and names its file (journal.*).
 	Journal Journal
 	// LoadSnapshot, when set, is an archive loaded at start, over the
@@ -119,6 +127,62 @@ func (e *SettingError) Error() string {
 }
 
 func (e *SettingError) Unwrap() error { return e.Err }
+
+// SigV4Mode is how request signatures are checked.
+type SigV4Mode uint8
+
+// SigV4Mode values; credentials are parsed in both. The zero value is
+// SigV4ParseOnly.
+const (
+	// SigV4ParseOnly reads the credentials for the account and region and
+	// checks no signature.
+	SigV4ParseOnly SigV4Mode = iota
+	// SigV4Verify also refuses a request whose key has no secret, whose
+	// temporary credentials lack their token or have expired, or whose
+	// signature does not verify, and expires presigned URLs on the
+	// emulator clock (ADR 0012 pre-tag review amendment).
+	SigV4Verify
+)
+
+// StaticKey is an access key from configuration: the root of Account,
+// signing with Secret. It redacts the secret in fmt formatting, slog
+// output and JSON, so a logged or encoded Config never shows it.
+type StaticKey struct {
+	AccessKeyID string
+	Secret      string
+	Account     aws.AccountID
+}
+
+// redactedSecret stands for a StaticKey's secret wherever it is shown.
+const redactedSecret = "[REDACTED]"
+
+// String formats the key with its secret redacted.
+func (k StaticKey) String() string {
+	return "{AccessKeyID:" + k.AccessKeyID + " Secret:" + redactedSecret + " Account:" + k.Account.String() + "}"
+}
+
+// GoString is String, so %#v redacts too.
+func (k StaticKey) GoString() string { return "server.StaticKey" + k.String() }
+
+// LogValue logs the key and its account; the secret never reaches a log.
+func (k StaticKey) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("access_key_id", k.AccessKeyID),
+		slog.String("secret", redactedSecret),
+		slog.String("account", k.Account.String()),
+	)
+}
+
+// MarshalJSON writes the key with its secret redacted, so slog's
+// JSONHandler redacts a StaticKey held in a struct or slice, such as
+// Config.StaticKeys, too.
+func (k StaticKey) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		AccessKeyID string `json:"access_key_id"`
+		Secret      string `json:"secret"`
+		Account     string `json:"account"`
+	}{k.AccessKeyID, redactedSecret, k.Account.String()})
+}
 
 // ClockStart is how the emulator clock starts.
 //
@@ -209,8 +273,9 @@ func (TokenRequired) isExposure()      {}
 func (ContainerPublished) isExposure() {}
 
 // AWSAPIExposure is whether a main listener beyond loopback on the host may
-// serve the AWS API. The admin token guards only /_understudy/, and this
-// build verifies no request signature, so such a listener lets every peer
+// serve the AWS API. The admin token guards only /_understudy/, and every
+// client may sign with the public dummy key test/test, which verifies even
+// under SigV4Verify, so such a listener lets every peer
 // that reaches it read every secret and object and run any container image
 // as a Lambda function. Inside a container, ContainerPublished needs no
 // AWSAPIExposure: the published port guards both APIs.

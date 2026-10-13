@@ -11,4 +11,4 @@ Suites that check understudy from the outside, each a separate module or project
 | `terraform/` | Terraform: apply, a no-change plan, an update, destroy | `conformance/terraform/run.sh` |
 | `e2e-pipeline/` | the event-driven pipeline end to end | `conformance/e2e-pipeline/run.sh` |
 
-The python-boto3 and e2e-pipeline scripts accept the Amazon DynamoDB Local License Agreement for their run, because their DynamoDB tests need that container. The other suites run DynamoDB only when `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` is set. Lambda execution and DynamoDB need a Docker daemon.
+No script accepts the Amazon DynamoDB Local License Agreement for you: every suite runs DynamoDB only when `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` is set, and skips it, listing each skip in its summary, otherwise or when `CONFORMANCE_DYNAMODB=0` is set. The e2e-pipeline workers lock in DynamoDB, so that suite needs the licence: `CONFORMANCE_DYNAMODB=0` skips it whole, and without either variable it refuses to start. Lambda execution and DynamoDB need a Docker daemon.

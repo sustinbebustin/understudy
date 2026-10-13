@@ -801,6 +801,17 @@ func (v *CoralServiceThrottlingException) serialize(s smithy.Serializer, m *smit
 	s.CloseStruct()
 }
 
+// Serialize writes v through s.
+func (v *CoralServiceUnrecognizedClientException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *CoralServiceUnrecognizedClientException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaCoralServiceUnrecognizedClientException)
+	if v.Message != nil {
+		s.WriteString(&memberCoralServiceUnrecognizedClientException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
 // Deserialize reads v from d. Absent members stay absent; Validate
 // reports missing required ones.
 func (v *CreateDeliveryInput) Deserialize(d smithy.Deserializer) error { return v.deserialize(d) }
@@ -4419,6 +4430,17 @@ func deserializeExecutionStatusList(d smithy.Deserializer, m *smithy.Member) ([]
 		x := ExecutionStatus(raw)
 		out = append(out, x)
 	}
+}
+
+// Serialize writes v through s.
+func (v *ExpiredTokenException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *ExpiredTokenException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaExpiredTokenException)
+	if v.Message != nil {
+		s.WriteString(&memberExpiredTokenException_message, *v.Message)
+	}
+	s.CloseStruct()
 }
 
 func (v *ExportTask) serialize(s smithy.Serializer, m *smithy.Member) {

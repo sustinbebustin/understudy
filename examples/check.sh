@@ -17,6 +17,9 @@
 
 set -euo pipefail
 
+# Terraform skips its version check against checkpoint-api.hashicorp.com.
+export CHECKPOINT_DISABLE=1
+
 examples_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repo_root=$(cd -- "$examples_dir/.." && pwd)
 build_dir="$repo_root/.build/examples"
@@ -40,6 +43,20 @@ done
 for tool in go docker terraform aws uv jq actionlint; do
   command -v "$tool" >/dev/null || die "$tool is not on PATH; install it and run again"
 done
+
+# probe TOOL ARGS... dies when the TOOL first on PATH cannot run, so a broken
+# install stops the check here instead of failing an example after the build.
+# It runs under scripts/sealed like every other aws and terraform call here.
+probe() {
+  local out status=0
+  out=$("$sealed" "$@" 2>&1) || status=$?
+  if ((status != 0)); then
+    local first=${out%%$'\n'*}
+    die "$1 at $(command -v "$1") cannot run ('$*' exited $status: ${first:-no output}); install it or put a working one first on PATH"
+  fi
+}
+probe aws --version
+probe terraform version
 docker compose version >/dev/null 2>&1 || die "docker compose is not available; install the compose plugin"
 
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/understudy-examples.XXXXXX")
@@ -118,8 +135,7 @@ run_python_worker() {
 }
 
 run_sns_sqs_lambda_terraform() {
-  mkdir -p -- "$build_dir/plugin-cache" || return
-  TF_PLUGIN_CACHE_DIR="$build_dir/plugin-cache" TF_IN_AUTOMATION=1 CHECKPOINT_DISABLE=1 \
+  SEALED_TF_PLUGIN_CACHE="$build_dir/plugin-cache" TF_IN_AUTOMATION=1 \
     sealed_run "$endpoint" "$examples_dir/sns-sqs-lambda-terraform/demo.sh"
 }
 

@@ -28,7 +28,7 @@ This sets `AWS_ENDPOINT_URL`, dummy credentials and a region, so every AWS SDK, 
 
 ## Checking the examples
 
-`examples/check.sh` builds understudy from this repository and runs every example's `demo.sh` against it, sealed off from real AWS by `scripts/sealed`. It exits non-zero when one fails. Run it after changing understudy or an example. Once the images and providers are cached it takes about four minutes, most of it Terraform waiting on SQS queues.
+`examples/check.sh` builds understudy from this repository and runs every example the way its README does against it (each `demo.sh`; for `github-actions`, actionlint on the workflow and its steps replayed locally), sealed off from real AWS by `scripts/sealed`. It exits non-zero when one fails. CI runs it on every push to main and every pull request (the `examples` job in `.github/workflows/ci.yml`); run it yourself after changing understudy or an example. Once the images and providers are cached it takes about four minutes, most of it Terraform waiting on SQS queues.
 
 ```sh
 examples/check.sh                     # every example

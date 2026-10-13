@@ -106,7 +106,9 @@ jobs:
   # The tests that need a Docker daemon: Lambda execution, DynamoDB Local,
   # the container topology and the image contract. The runner's daemon
   # listens at /var/run/docker.sock. The DynamoDB Local licence is not
-  # accepted here, so nothing pulls its image.
+  # accepted here (ARCHITECTURE.md 25.6): the tests that run DynamoDB Local
+  # skip without UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1, so nothing pulls its
+  # image.
   test-docker:
     runs-on: ubuntu-latest
     steps:
@@ -134,3 +136,56 @@ jobs:
           just-version: "1.58.0"
       - run: just image
       - run: go test -race -tags 'smoke docker' ./internal/smoke/...
+
+  # Runs every example the way its README does (examples/check.sh): each
+  # demo.sh, and the github-actions workflow linted and its steps replayed
+  # locally, against understudy built from this commit. The runner provides
+  # Docker with compose, the AWS CLI v2 and jq; Terraform's wrapper is off
+  # because the examples read terraform output themselves.
+  examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.1"
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: "1.16.0"
+          terraform_wrapper: false
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - run: examples/check.sh
+
+  # Runs each real-client conformance suite's run.sh against understudy built
+  # from this commit, one matrix entry per suite (ARCHITECTURE.md 19), and
+  # lets every suite finish when another fails.
+  #
+  # DynamoDB is opted out until the DynamoDB Local licence is accepted for CI
+  # (ARCHITECTURE.md 25.6): every run.sh accepts it only with
+  # UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1, which is not set here, and
+  # CONFORMANCE_DYNAMODB=0 skips the DynamoDB tests, listing each skip. The
+  # e2e-pipeline workers lock in DynamoDB, so that suite is skipped whole.
+  conformance:
+    runs-on: ubuntu-latest
+    env:
+      CONFORMANCE_DYNAMODB: "0"
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [go-sdk, python-boto3, js-sdk-v3, aws-cli, terraform, e2e-pipeline]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.1"
+      - uses: astral-sh/setup-uv@v10.2.0
+      # The version conformance/js-sdk-v3/bun.lock resolves bun-types to.
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: "1.4.3"
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: "1.16.0"
+          terraform_wrapper: false
+      - run: conformance/${{ matrix.suite }}/run.sh

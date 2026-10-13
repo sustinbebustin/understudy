@@ -7,11 +7,18 @@
 #   conformance/go-sdk/run.sh -run TestSQS -v      # extra arguments go to go test
 #   UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/go-sdk/run.sh
 #                                                  # also run DynamoDB (accepts the DynamoDB Local licence)
+#   SIGV4=verify conformance/go-sdk/run.sh         # serve with --sigv4 verify (default parse)
+#   CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh
+#                                                  # skip DynamoDB even with the licence variable set
 #
 # Exits with go test's status, or non-zero when understudy cannot be built
 # or started. The work directory (data, log, TLS certificate) is removed on
 # success and kept on failure, and its path is printed.
 set -euo pipefail
+
+if [[ "${CONFORMANCE_DYNAMODB:-}" == "0" ]]; then
+	unset UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE
+fi
 
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd -- "$here/../.." && pwd)"
@@ -19,6 +26,7 @@ build="$repo/.build/conformance/go-sdk"
 bin="$build/understudy"
 listen="127.0.0.1:45661"
 endpoint="http://$listen"
+sigv4="${SIGV4:-parse}"
 
 mkdir -p -- "$build"
 work="$(mktemp -d "$build/run.XXXXXX")"
@@ -26,6 +34,7 @@ data="$work/data"
 log="$work/understudy.log"
 pid=""
 
+# shellcheck disable=SC2329 # invoked by the trap below
 stop() {
 	local status=$?
 	trap - EXIT INT TERM
@@ -80,7 +89,7 @@ printf '%s\n' '{"lambda": {"stateTransitions": "clock"}, "sqs": {"queueDeletedRe
 
 echo "run.sh: starting understudy on $endpoint, data in $data" >&2
 (cd -- "$work" && exec env "${serve_env[@]}" "$bin" serve \
-	--listen "$listen" --tls --tls-listen 127.0.0.1:0 \
+	--listen "$listen" --tls --tls-listen 127.0.0.1:0 --sigv4 "$sigv4" \
 	--persist "$data" --ready-file "$work/ready.json" --config "$work/understudy.json") >"$log" 2>&1 &
 pid=$!
 

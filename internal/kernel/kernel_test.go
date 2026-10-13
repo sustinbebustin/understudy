@@ -284,7 +284,7 @@ func TestUnboundOperationAnswers501AndIsJournaled(t *testing.T) {
 		if err == nil || err.ID.Status != 501 || err.ID.QueryCode != "NotImplemented" {
 			t.Fatalf("err = %+v, want 501 NotImplemented", err)
 		}
-		want := "understudy does not implement sqs.SendMessage. Run 'understudy coverage --service sqs' for what is supported."
+		want := "understudy does not implement sqs.SendMessage. Run 'understudy coverage --service sqs' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=sqs.SendMessage"
 		if err.Message != want {
 			t.Errorf("message = %q, want %q", err.Message, want)
 		}

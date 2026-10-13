@@ -5647,6 +5647,46 @@ func (v *ExpectedAttributeValue) deserialize(d smithy.Deserializer) error {
 }
 
 // Serialize writes v through s.
+func (v *ExpiredTokenException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *ExpiredTokenException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaExpiredTokenException)
+	if v.Message != nil {
+		s.WriteString(&memberExpiredTokenException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Deserialize reads v from d. Absent members stay absent; Validate
+// reports missing required ones.
+func (v *ExpiredTokenException) Deserialize(d smithy.Deserializer) error { return v.deserialize(d) }
+
+func (v *ExpiredTokenException) deserialize(d smithy.Deserializer) error {
+	if err := d.ReadStruct(&schemaExpiredTokenException); err != nil {
+		return err
+	}
+	for {
+		m, ok, err := d.ReadStructMember()
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		switch m {
+		case &memberExpiredTokenException_message:
+			x, err := d.ReadString(&memberExpiredTokenException_message)
+			if err != nil {
+				return err
+			}
+			v.Message = &x
+		default:
+			return fmt.Errorf("dynamodbapi: structure com.amazon.coral.service#ExpiredTokenException has no member %q; the codec returned a member of another shape", m.Name)
+		}
+	}
+}
+
+// Serialize writes v through s.
 func (v *ExportConflictException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *ExportConflictException) serialize(s smithy.Serializer, m *smithy.Member) {
@@ -16755,6 +16795,48 @@ func (v *UnknownOperationException) deserialize(d smithy.Deserializer) error {
 			v.Message = &x
 		default:
 			return fmt.Errorf("dynamodbapi: structure com.amazon.coral.service#UnknownOperationException has no member %q; the codec returned a member of another shape", m.Name)
+		}
+	}
+}
+
+// Serialize writes v through s.
+func (v *UnrecognizedClientException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *UnrecognizedClientException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaUnrecognizedClientException)
+	if v.Message != nil {
+		s.WriteString(&memberUnrecognizedClientException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Deserialize reads v from d. Absent members stay absent; Validate
+// reports missing required ones.
+func (v *UnrecognizedClientException) Deserialize(d smithy.Deserializer) error {
+	return v.deserialize(d)
+}
+
+func (v *UnrecognizedClientException) deserialize(d smithy.Deserializer) error {
+	if err := d.ReadStruct(&schemaUnrecognizedClientException); err != nil {
+		return err
+	}
+	for {
+		m, ok, err := d.ReadStructMember()
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		switch m {
+		case &memberUnrecognizedClientException_message:
+			x, err := d.ReadString(&memberUnrecognizedClientException_message)
+			if err != nil {
+				return err
+			}
+			v.Message = &x
+		default:
+			return fmt.Errorf("dynamodbapi: structure com.amazon.coral.service#UnrecognizedClientException has no member %q; the codec returned a member of another shape", m.Name)
 		}
 	}
 }

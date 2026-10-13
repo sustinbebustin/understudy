@@ -112,6 +112,15 @@ func TestDocVectorPresignedGetObject(t *testing.T) {
 	if err == nil || err.ID != v.Expired || err.Message != "Request has expired" {
 		t.Errorf("at expiry: %#v, want Expired \"Request has expired\"", err)
 	}
+
+	// The lifetime counts from the emulator instant the URL was signed at:
+	// signed after the clock moved a week ahead, it is valid until a day
+	// past that instant, whatever its X-Amz-Date reads.
+	signed := clock.FromWire(docTime.Add(7 * 24 * time.Hour))
+	mustVerify(t, auth.VerifyPresignedSince(q, req, docSecret, docTime, signed, signed.Add(24*time.Hour-time.Second), v))
+	if err := auth.VerifyPresignedSince(q, req, docSecret, docTime, signed, signed.Add(24*time.Hour), v); err == nil || err.ID != v.Expired {
+		t.Errorf("a day after the emulator signing instant: %#v, want Expired", err)
+	}
 }
 
 func streamingRequest(t *testing.T, payload, signedHeaders, signature string, extra map[string]string) auth.SigV4Header {

@@ -166,6 +166,10 @@ type UnknownRegion struct {
 	Mechanism Mechanism
 	// Region is the scope's region as sent.
 	Region string
+	// Service is the scope's signing name as sent, so the front door can
+	// still route the request to the service that answers it (S3 for
+	// aws-global, s3.md 3.2).
+	Service string
 	// Message is the AWS-style text, the same in every family. Like
 	// Coral's, it also reports a wrong terminator or date in the same scope.
 	Message string
@@ -401,7 +405,7 @@ func parseCredential(s string, t time.Time, regions aws.Regions, m Mechanism) (C
 	}
 	switch {
 	case regionErr != nil:
-		return Credential{}, UnknownRegion{Mechanism: m, Region: regionName, Message: strings.Join(messages, " ")}
+		return Credential{}, UnknownRegion{Mechanism: m, Region: regionName, Service: service, Message: strings.Join(messages, " ")}
 	case first != 0:
 		return Credential{}, Invalid{Mechanism: m, Problem: first, Message: strings.Join(messages, " ")}
 	}

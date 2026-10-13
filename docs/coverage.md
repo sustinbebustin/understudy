@@ -886,9 +886,9 @@ Internal operations:
 | DeleteObject | partial | no MFA delete or Object Lock retention |
 | DeleteObjects | partial | no MFA delete or Object Lock retention |
 | GetBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| GetObject | partial | no SSE-C, so SSE-C headers are refused; presigned URLs are not verified |
+| GetObject | partial | no SSE-C, so SSE-C headers are refused; presigned URLs are verified and expire on the emulator clock under sigv4 verify |
 | GetObjectAttributes | partial | no SSE-C, so SSE-C headers are refused |
-| HeadObject | partial | no SSE-C, so SSE-C headers are refused; presigned URLs are not verified |
+| HeadObject | partial | no SSE-C, so SSE-C headers are refused; presigned URLs are verified and expire on the emulator clock under sigv4 verify |
 | ListBuckets | partial | general purpose buckets only; no directory buckets |
 | ListObjectVersions | partial | no RestoreStatus |
 | ListObjects | partial | no RestoreStatus |
@@ -896,8 +896,8 @@ Internal operations:
 | PutBucketNotificationConfiguration | partial | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions |
 | PutBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | PutBucketVersioning | partial | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
-| PutObject | partial | no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are not verified |
-| UploadPart | partial | no SSE-C; chunk signatures are not verified |
+| PutObject | partial | no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify |
+| UploadPart | partial | no SSE-C; chunk signatures are verified under sigv4 verify |
 | UploadPartCopy | partial | no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
 | CreateBucketMetadataConfiguration | unbound |  |
 | CreateBucketMetadataTableConfiguration | unbound |  |
@@ -1062,7 +1062,7 @@ Internal operations:
 |---|---|---|
 | GetCallerIdentity | full |  |
 | AssumeRole | partial | the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; session tag errors answer ValidationError, not InvalidParameterValue; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012) |
-| GetSessionToken | partial | MFA is accepted and not checked; credentials from an earlier GetSessionToken are not refused |
+| GetSessionToken | partial | MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused only under sigv4 verify |
 | AssumeRoleWithSAML | unbound |  |
 | AssumeRoleWithWebIdentity | unbound |  |
 | AssumeRoot | unbound |  |
@@ -1153,7 +1153,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item, strongest evidence first.
 
-218 evidence items: 118 third-party-recorded, 47 aws-doc, 2 sdk-source, 51 inferred.
+230 evidence items: 120 third-party-recorded, 57 aws-doc, 2 sdk-source, 51 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1166,6 +1166,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | common.json | `com.amazon.coral.service#MissingAuthenticationTokenException` | smithy.api#error, smithy.api#httpError | https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/test/connection.js#L158-L172 |
 | third-party-recorded | common.json | `com.amazon.coral.service#SerializationException` |  | https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/index.js#L374 |
 | third-party-recorded | common.json | `com.amazon.coral.service#UnknownOperationException` |  | https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/test/connection.js#L148-L172 (validated 2026-10-08) |
+| third-party-recorded | common.json | `com.amazon.coral.service#UnrecognizedClientException` | smithy.api#error, smithy.api#httpError | https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/index.js#L296-L372 |
 | third-party-recorded | common.json | `com.amazon.coral.validate#ValidationException` | smithy.api#error, smithy.api#httpError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (validated 2025-09-22) |
 | third-party-recorded | common.json | `com.amazon.coral.validate#ValidationException` | aws.protocols#awsQueryError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sts/test_sts.snapshot.json#L211 (validated 2025-07-21) |
 | third-party-recorded | common.json | `dev.understudy.defaults#JSONFamily` | dev.understudy#unknownOperationError | https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/test/connection.js#L225-L258 |
@@ -1189,6 +1190,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#AmazonS3` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2880 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#AmazonS3` | dev.understudy#malformedRequestError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L1526 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#AuthorizationHeaderMalformed` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L18208 (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#AuthorizationQueryParametersError` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L3661 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#BadDigest` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#BucketNotEmpty` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#ConditionalRequestConflict` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_preconditions.snapshot.json: test_multipart_if_none_match_with_delete (validated 2026-02-21) |
@@ -1279,15 +1281,21 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-doc | cloudwatch.json | `com.amazonaws.cloudwatch#PutMetricAlarm` |  | https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricAlarm.html |
 | aws-doc | cloudwatch.json | `com.amazonaws.cloudwatch#PutMetricData` |  | https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html |
 | aws-doc | common.json | `com.amazon.coral.service#AccessDeniedException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/CommonErrors.html |
+| aws-doc | common.json | `com.amazon.coral.service#ExpiredToken` | smithy.api#httpError | https://docs.aws.amazon.com/STS/latest/APIReference/CommonErrors.html |
+| aws-doc | common.json | `com.amazon.coral.service#ExpiredToken` | smithy.api#error | https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html |
+| aws-doc | common.json | `com.amazon.coral.service#ExpiredTokenException` | smithy.api#error, smithy.api#httpError | https://docs.aws.amazon.com/STS/latest/APIReference/CommonErrors.html |
+| aws-doc | common.json | `com.amazon.coral.service#ExpiredTokenException` | aws.protocols#awsQueryError | https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html |
 | aws-doc | common.json | `com.amazon.coral.service#IncompleteSignature` |  | https://docs.aws.amazon.com/sns/latest/api/CommonErrors.html |
 | aws-doc | common.json | `com.amazon.coral.service#IncompleteSignatureException` | aws.protocols#awsQueryError | https://docs.aws.amazon.com/sns/latest/api/CommonErrors.html |
 | aws-doc | common.json | `com.amazon.coral.service#InternalFailure` |  | https://docs.aws.amazon.com/sns/latest/api/CommonErrors.html |
+| aws-doc | common.json | `com.amazon.coral.service#InvalidClientTokenId` |  | https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/CommonErrors.html |
 | aws-doc | common.json | `com.amazon.coral.service#InvalidSignatureException` | aws.protocols#awsQueryError | https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html |
 | aws-doc | common.json | `com.amazon.coral.service#MissingAuthenticationToken` |  | https://docs.aws.amazon.com/sns/latest/api/CommonErrors.html |
 | aws-doc | common.json | `com.amazon.coral.service#MissingAuthenticationTokenException` | aws.protocols#awsQueryError | https://docs.aws.amazon.com/sns/latest/api/CommonErrors.html |
 | aws-doc | common.json | `com.amazon.coral.service#RequestEntityTooLargeException` | smithy.api#error, smithy.api#httpError | https://docs.aws.amazon.com/kms/latest/APIReference/CommonErrors.html |
 | aws-doc | common.json | `com.amazon.coral.service#SignatureDoesNotMatch` |  | https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html |
 | aws-doc | common.json | `com.amazon.coral.service#ThrottlingException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/CommonErrors.html |
+| aws-doc | common.json | `com.amazon.coral.service#UnrecognizedClientException` | aws.protocols#awsQueryError | https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/CommonErrors.html |
 | aws-doc | common.json | `dev.understudy.defaults#QueryFamily` |  | https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/CommonErrors.html |
 | aws-doc | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#errorNamespace, dev.understudy#throttleError | https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html |
 | aws-doc | iam.json | `com.amazonaws.iam#AWSIdentityManagementV20100508` | dev.understudy#throttleError | https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html |
@@ -1306,16 +1314,20 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-doc | s3.json | `com.amazonaws.s3#AccessControlListNotSupported` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html |
 | aws-doc | s3.json | `com.amazonaws.s3#AmazonS3` | dev.understudy#throttleError | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
 | aws-doc | s3.json | `com.amazonaws.s3#EntityTooLarge` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: EntityTooLarge, 400, Your proposed upload exceeds the maximum allowed object size. |
+| aws-doc | s3.json | `com.amazonaws.s3#ExpiredToken` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
 | aws-doc | s3.json | `com.amazonaws.s3#GetBucketNotificationConfiguration` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketNotificationConfiguration.html |
 | aws-doc | s3.json | `com.amazonaws.s3#GetBucketRequestPayment` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketRequestPayment.html |
 | aws-doc | s3.json | `com.amazonaws.s3#IncompleteBody` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: IncompleteBody, 400, You did not provide the number of bytes specified by the Content-Length HTTP header. |
 | aws-doc | s3.json | `com.amazonaws.s3#InternalError` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
+| aws-doc | s3.json | `com.amazonaws.s3#InvalidAccessKeyId` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
+| aws-doc | s3.json | `com.amazonaws.s3#InvalidToken` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
 | aws-doc | s3.json | `com.amazonaws.s3#KeyTooLongError` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: KeyTooLongError, 400, Your key is too long. |
 | aws-doc | s3.json | `com.amazonaws.s3#MetadataTooLarge` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: MetadataTooLarge, 400, Your metadata headers exceed the maximum allowed metadata size. |
 | aws-doc | s3.json | `com.amazonaws.s3#MissingContentLength` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: MissingContentLength, 411, You must provide the Content-Length HTTP header. |
 | aws-doc | s3.json | `com.amazonaws.s3#NotFound` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadBucket.html: a missing bucket answers 404 Not Found with no body; the model's NotFound carries no httpError, so it would render 400 |
 | aws-doc | s3.json | `com.amazonaws.s3#NotModified` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
 | aws-doc | s3.json | `com.amazonaws.s3#PermanentRedirect` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: PermanentRedirect is 301 Moved Permanently, which Smithy's httpError (4xx and 5xx only) cannot state |
+| aws-doc | s3.json | `com.amazonaws.s3#RequestTimeTooSkewed` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
 | aws-doc | s3.json | `com.amazonaws.s3#SlowDown` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
 | aws-doc | secretsmanager.json | `com.amazonaws.secretsmanager#secretsmanager` | dev.understudy#throttleError | https://docs.aws.amazon.com/secretsmanager/latest/apireference/CommonErrors.html |
 | aws-doc | sqs.json | `com.amazonaws.sqs#AmazonSQS` | smithy.api#xmlNamespace | https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_DeleteMessage.html |
