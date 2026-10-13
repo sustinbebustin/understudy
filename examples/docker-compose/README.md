@@ -12,7 +12,7 @@ What the compose file shows:
 
 - **Endpoint.** The app reaches understudy by its service name, `AWS_ENDPOINT_URL=http://understudy:4566`. No other AWS setting changes, apart from path-style S3 (below).
 - **Readiness.** The image's healthcheck runs `understudy health`, so `depends_on: condition: service_healthy` and `docker compose up --wait` start the app only once understudy answers.
-- **Exposure.** The port is published on `127.0.0.1` only. Inside its container understudy listens on every interface without an admin token, so the published address is what keeps it private to your machine.
+- **Exposure.** The port is published on `127.0.0.1` only. Inside its container understudy listens on every interface without an admin token, so the published address is what keeps it private to your machine. With the Docker socket mounted (below), Lambda function code can reach the admin API unless `UNDERSTUDY_ADMIN_TOKEN` is set; see [SECURITY.md](../../SECURITY.md).
 - **Persistence.** `UNDERSTUDY_PERSIST=/data` on a named volume keeps buckets, queues and messages across `restart` and `down`. `down --volumes` starts you from empty.
 - **Path-style S3.** A bucket in the hostname (`compose-demo.understudy`) does not resolve on the compose network, so the Go client sets `UsePathStyle`. boto3 and the AWS CLI use path style with a custom endpoint by themselves; the JavaScript SDK needs `forcePathStyle: true`.
 

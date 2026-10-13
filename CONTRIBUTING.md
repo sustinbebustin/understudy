@@ -19,7 +19,7 @@ just verify
 
 - **Standard library only.** The main module depends on nothing outside the Go standard library except `pgregory.net/rapid` in tests. A new dependency needs an ADR in `docs/adr/` that justifies it. The conformance suites are separate modules with their own manifests and may use the AWS SDKs.
 - **Never call real AWS.** Run the AWS CLI, Terraform, SDK scripts and conformance suites through `scripts/sealed` (`just aws ...`, `just tf ...`). It strips inherited `AWS_*` settings, uses dummy credentials, never reads `~/.aws`, and refuses any endpoint that is not loopback.
-- **AWS is the arbiter.** Tests assert what AWS does, as the research in `docs/research/phase1/` documents it, never what understudy happens to do. Cite the research file and section next to a non-obvious expectation. When AWS's behavior is unknown, say so in the code and in the coverage note rather than guessing silently.
+- **AWS is the arbiter.** Tests assert what AWS does, as the research in `docs/research/phase1/` documents it, never what understudy happens to do. Cite the research next to a non-obvious expectation as `<note>.md <section>`, for example `(sqs.md 6.1)`: the file name of a note under `docs/research/` and the number of its section heading. Cite the architecture as `ARCHITECTURE.md <section>` and decisions as `ADR <number>`. Data shown outside the source tree, such as a `fidelity.Switch` `Ref`, uses the repo-relative path and an anchor (`docs/research/phase1/sqs.md#6.1`). Where a note is the only source of an AWS value, quote the value too. When AWS's behavior is unknown, say so in the code and in the coverage note rather than guessing silently.
 - **Nothing is silently faked.** An operation that is not implemented stays unbound and answers 501. An operation that stores a setting without acting on it is marked stored-only. A deviation from AWS is a named fidelity switch or a coverage note.
 - **Generated code is checked in** and carries a `// Code generated ... DO NOT EDIT.` header. Change the generator or its inputs, then run `just generate`; never edit generated files.
 - **Design.** Read `docs/design/ARCHITECTURE.md` and `docs/adr/` before a change that crosses packages. Prefer sum types over boolean flags, return typed errors as values, parse at boundaries, and keep packages small around one domain type. `internal/ref/deps_test.go` enforces which packages may import which.
@@ -82,7 +82,7 @@ Every operation of the twelve services already has generated types, serializatio
 
 A new service is a larger change; open an issue first so the depth and the research can be agreed.
 
-1. **Research.** Write `docs/research/phase1/<service>.md` (or a later phase's directory) from AWS's documentation, SDK source and published recordings, with every claim sourced.
+1. **Research.** Write `docs/research/phase1/<service>.md` (or a later phase's directory), under a file name no other document in `docs/` uses, from AWS's documentation, SDK source and published recordings, with every claim sourced.
 2. **Pin the model.** Add the model to `pinnedModels` in `internal/cmd/vendor/upstream.go` and its IAM prefix to `referencePrefixes` in `internal/cmd/vendor/reference.go`. A maintainer then runs the vendor command's two networked modes, `-fetch` (the models, with their hashes recorded in `third_party/api-models-aws/UPSTREAM.json`) and `-service-reference` (the operation-to-IAM-action table); `internal/cmd/vendor/doc.go` describes both. Everything after that is offline:
 
    ```sh

@@ -49,3 +49,9 @@ The closed normalizer set of `snapshot diff --normalize` (`internal/snapshot` pa
 - Internal delivery calls follow clock firing order: the outbox runs delivery attempts one at a time, in the order their timers fire, so the request-phase fault rules and seeded ids of their target calls (SQS `SendMessage`, SNS `Publish`, Lambda `Invoke` with `Event`) follow that order however goroutines are scheduled (`internal/outbox` package doc).
 - Two kinds of attempt run outside that order, on their own goroutine: an attempt a Delivery-phase latency rule delays, whose order against the others already depends on wall time, and a `RequestResponse` Lambda invoke, which waits for the function. Their target calls draw ids and fault hits in wall-time order.
 - A request-phase latency rule matching an attempt's target call still holds the whole sequencer for its wall time, because `kernel.Invoke` evaluates it and waits before returning. Closing that needs the kernel to report the request-phase decision before it waits (`docs/plan/DEFERRED.md`, hardening round 3).
+
+## Amendments (pre-tag review, 2026-10-13)
+
+Decided at the pre-tag review.
+
+- Drawing from an undeclared `ids.Kind`, which only a `Kind(n)` conversion can make, panics on both the seeded and the random source. It is a precondition failure, not an error value: no caller can recover from it, and an error on every generator would put an impossible failure on every write path. Such precondition panics are marked with a line-scoped `//nolint:forbidigo` that names the precondition, never with a path exclusion. The kernel's recovery turns one reached in a request into `Internal`.

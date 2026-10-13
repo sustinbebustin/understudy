@@ -36,3 +36,9 @@ The brief wants build-as-you-go extensibility, unimplemented operations that fai
 - Two kinds of operation exist outside the model (engineering M6, fidelity F13): `dev.understudy#internalOperation` (typed, non-routable, ADR 0002) and `rawOperations` in `codegen/services/<svc>.json` (a `registry.Operation` of kind `Raw` with an IAM action and a `BindRawHTTP` binder method, claimed by a prefix or host rule: Lambda `InvokeFunctionUrl`, SNS `ConfirmSubscriptionLink`, `UnsubscribeLink`, `SigningCert`). Both are journaled, faultable and listed separately in coverage.
 - `*awserr.Error` does not implement `error`; `Dispatch` maps `(nil, nil)` and `(out, err)` to `Internal` (engineering m1). `awserr.Identity` composite literals are forbidden outside `internal/api` and `internal/awserr` (engineering m11).
 - Services expose `Switches() []fidelity.Entry`; `wire.go` collects them for coverage (engineering m5).
+
+## Amendments (pre-tag review, 2026-10-13)
+
+Decided at the pre-tag review.
+
+- The unimplemented-operation message also names where to request the operation: `understudy does not implement <Service>.<Operation>. Run 'understudy coverage --service <svc>' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=<Service>.<Operation>`, with no trailing period so terminals link the whole URL. The code (`NotImplemented`) and status (501) are unchanged. Service-specific refusals of an unsupported feature inside an implemented operation keep their own workaround text.

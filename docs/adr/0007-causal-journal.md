@@ -40,3 +40,11 @@ The brief wants every API call and every cross-service delivery recorded with ca
 ## Amendments (wave 3, 2026-10-10)
 
 - The NDJSON file is written by a background writer, never under the journal's lock, so a slow disk never backpressures the emulator. Its queue holds at most `MaxBytes` estimated bytes; when the disk falls that far behind, the file stops at the last event queued before the overflow and `FileErr` reports a `*journal.QueueFullError`. Every file failure stops the file, so it is always a prefix of recording order. `Close` waits for the queue to drain and has no deadline of its own.
+
+## Amendments (pre-tag review, 2026-10-13)
+
+Decided at the pre-tag review.
+
+- `Detail` gains `Redrive{From, To, Messages, Reason}` (wire kind `redrive`), `Reason` a sealed `MaxReceiveCount{Count}` | `MoveTask{TaskHandle}`, recorded with `Tx.Record` from the SQS receive that exceeds `maxReceiveCount` and from each move-task step, so its parent is that receive or task event; it is the "journal edge source-receive to DLQ-send" of ARCHITECTURE.md 16. `delivery.Mechanism` stays the closed set of outbox paths; an in-service move is never a `Delivery`. Implementation is deferred to the first journal round after the tag (`docs/plan/DEFERRED.md`).
+- In-function calls, init phase included, are children of the `Invoke` call (the `Invocation` event's own parent), not of the `Invocation` event, which is written when the invocation ends; calls between invocations root their own trace. This supersedes the review amendment's "init-phase calls link to the cold-start `Invocation` event"; ARCHITECTURE.md 10 and 14.7 are amended to the implemented behavior.
+- `Detail` gains `AdminAction{Op: Reset | SnapshotSave | SnapshotLoad; Scope}` (wire kind `admin-action`), written by the admin handler like `ClockChanged`, one per action. It replaces the per-service DynamoDB summary event of ADR 0014; deferred to the post-tag journal round with `Redrive`.

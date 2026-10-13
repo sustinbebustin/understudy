@@ -26,7 +26,7 @@ LocalStack moved commercial use behind a paid plan in March 2026 and archived it
 4. **Fault injection.** Declarative rules by service, operation, resource, account or region inject AWS-shaped errors, throttling or latency. Rules can apply with a probability or for the next N matching calls, and use a seed so runs are deterministic.
 5. **Snapshots and persistence.** The whole emulator state can be saved to and loaded from a versioned, deterministic file. Persistence across restarts is opt-in.
 6. **Terraform-first.** `terraform apply` against understudy works for every phase 1 resource type. A second `terraform plan` shows no changes (read fidelity), and `terraform destroy` is clean.
-7. **Real Lambda execution.** Functions run in AWS's official Lambda base images, with the Runtime Interface Emulator, through the Docker Engine API. Supported:
+7. **Real Lambda execution.** Functions run in AWS's official Lambda base images with their official runtime interface clients, against a Lambda Runtime API (2018-06-01) that understudy serves itself (ADR 0010), through the Docker Engine API. Supported:
    - zip and container-image functions
    - warm container reuse
    - hot reload from a local directory
@@ -130,6 +130,7 @@ Out of scope for phase 1 (roadmap): ECS, RDS, EC2/VPC, Step Functions, API Gatew
   - Never run `go mod tidy` unless you own `go.mod`.
   - Tests bind ephemeral ports (`127.0.0.1:0`), never fixed ports.
   - Docker containers you start carry the label `understudy.dev/test=1` and a unique name, and you remove them before you finish.
+- Agents never accept the DynamoDB Local licence. Run conformance suites with `CONFORMANCE_DYNAMODB=0`; DynamoDB conformance runs are human runs.
 - **Run every AWS-facing command through `scripts/sealed`**: the AWS CLI, Terraform, SDK probe scripts, conformance runs (`scripts/sealed aws sqs list-queues`, `scripts/sealed --endpoint http://127.0.0.1:45661 terraform apply`). It strips every inherited `AWS_*` setting, uses dummy credentials, never reads `~/.aws`, and refuses any endpoint that is not loopback. Never invoke `aws` or `terraform` bare. The scaffold justfile exposes it as `just aws ...` and `just tf ...`. Its tests run with `uv run --with pytest pytest scripts/tests`.
 - Shell hygiene that avoids blocked or prompted commands:
   - Delete only explicit, literal paths: no `rm` with variables or globs.

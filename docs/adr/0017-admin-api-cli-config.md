@@ -40,3 +40,10 @@ The brief requires an admin API under a reserved prefix plus CLI subcommands for
 
 - Exit code 5 is an admin call refused for its token (`admin.Unauthorized`), so a script tells a missing or rejected `UNDERSTUDY_ADMIN_TOKEN` from a usage error (2). The mapping stays in the one table in `admin`.
 - On a host, a non-loopback listener needs `--allow-unauthenticated-aws-api` with the admin token: the token guards only `/_understudy/`, and the AWS API verifies no signature in this build. `ContainerPublished` is accepted only in a container with its own network namespace, outside Kubernetes.
+
+## Amendments (pre-tag review, 2026-10-13)
+
+Decided at the pre-tag review.
+
+- `admin.Error.Known` lists each alternative in the form the refused field accepts. For a fault rule's `action.shape` that is the short error name when it names exactly one error the operation sends, else the full shape id (the form an ambiguity rejection lists too); the server renders it and the CLI shows it unchanged. The other `Known` emitters (service names in reset and journal) already follow this rule, which is now the field's documented contract.
+- One setting, `snapshotMaxBytes` (`--snapshot-max-bytes`, `UNDERSTUDY_SNAPSHOT_MAX_BYTES`), caps every snapshot archive, counted as the uncompressed tar: save, upload, `--load-snapshot`, and the `--persist` load and checkpoint. It is a top-level scalar beside `persist`, `persistEvery` and `loadSnapshot`, default 1 GiB, accepted from 1 MiB to 4 GiB (ARCHITECTURE.md 13).

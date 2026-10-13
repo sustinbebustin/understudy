@@ -123,6 +123,7 @@ Choose by what you need:
 - No behavior is recorded against real AWS yet; see [Status](#status).
 - IAM policies, resource policies and key policies are stored, not enforced. `iam policy` reports what a principal needs; nothing denies a call.
 - Request signatures are parsed, not verified. `--sigv4 verify` is refused by this build.
+- When understudy runs in a container or on Docker Desktop, Lambda function code can reach the admin API unless `UNDERSTUDY_ADMIN_TOKEN` is set; see [SECURITY.md](SECURITY.md).
 - SNS stores HTTP/S subscriptions and their confirmation flow, but sends nothing to HTTP endpoints. Lambda destinations are stored and not delivered.
 - DynamoDB runs on DynamoDB Local and inherits its documented differences from the service, such as no throughput limits and no parallel scan.
 - Lambda needs a Docker Engine. It is tested on Linux. Docker Desktop on macOS is supported by design but not yet tested; rootless Docker and rootless Podman are not supported; Windows works through WSL2 only.

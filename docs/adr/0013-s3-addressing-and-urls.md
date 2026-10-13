@@ -8,7 +8,7 @@ Go v2 and JS v3 send `Host: <bucket>.localhost:<port>` against `http://localhost
 
 ## Decision
 
-- No DNS server in phase 1. Virtual-host detection is configuration: a request is virtual-hosted iff its Host (port stripped) ends in `.` plus a configured base domain (default `localhost`, `s3.localhost`, `s3.<region>.localhost`, plus the AWS names) with a DNS-valid bucket label in front, matched on the longest base suffix (dotted buckets), and the credential scope is `s3` or absent. Host equal to a base domain or an IP literal is path style. Requests signed for other services on such hosts are never captured.
+- No DNS server in phase 1. Virtual-host detection is configuration: a request is virtual-hosted iff its Host (port stripped) ends in `.` plus a configured base domain (default `localhost` and `s3.localhost`; the regional form `s3.<region>.<base>` of every base; names under `localhost` and `localhost.localstack.cloud` through `s3.baseDomains`) with a DNS-valid bucket label in front, matched on the longest base suffix (dotted buckets), and the credential scope is `s3` or absent. Host equal to a base domain or an IP literal is path style. Requests signed for other services on such hosts are never captured.
 - The documented endpoint is `http://localhost:4566`. `understudy env --sdk <sdk>` prints the exact variables per SDK and Terraform (including `UsePathStyle`, `forcePathStyle`, `s3_use_path_style` and `skip_requesting_account_id` where needed); `understudy doctor` tests `*.localhost` resolution on this host.
 - S3 Control `ListTagsForResource`, `TagResource`, `UntagResource` are served on any `<account>.<base>` host and share the bucket tag store.
 - Bucket namespace is global across accounts with a home region. Default is AWS behavior for cross-region access: `AuthorizationHeaderMalformed` 400 with the `Region` element for SigV4 requests signed for the wrong region, `PermanentRedirect` 301 for unsigned ones, `x-amz-bucket-region` on `HeadBucket` and bucket-addressed errors; `IllegalLocationConstraintException` only from `CreateBucket`. `s3.crossRegion: lenient` serves the bucket regardless and records a journal warning.
@@ -34,3 +34,9 @@ Go v2 and JS v3 send `Host: <bucket>.localhost:<port>` against `http://localhost
 - The S3 fallthrough in the front door applies only to unsigned, SigV2 or `s3`-scoped requests; a request signed for another service that no rule claimed is answered by that service's unknown-operation identity (fidelity F7).
 - `localhost.localstack.cloud` may be added to the base domains through configuration for LocalStack migrations (product m10).
 - The S3 bodies are streamed (ADR 0001 amendments); bucket subresource dispatch rows are generated from `routeOverrides` so the edge has no S3-specific code.
+
+## Amendments (pre-tag review, 2026-10-13)
+
+Decided at the pre-tag review.
+
+- `s3.amazonaws.com` and `s3.<region>.amazonaws.com` are not base domains in phase 1. Every supported client takes `AWS_ENDPOINT_URL`, serving the AWS names over TLS would need a certificate for `*.amazonaws.com`, and the loopback host policy (DNS rebinding) answers only names the operator chose under `localhost`, IP literals and `localhost.localstack.cloud`. The configuration and the host policy are unchanged. Capturing the AWS names is a phase 2 option behind the DNS ADR.

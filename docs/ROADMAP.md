@@ -1,0 +1,42 @@
+# Roadmap
+
+Where understudy goes after phase 1, ordered by value to the people it is for: teams testing event-driven systems on AWS who want fast, deterministic, free tests of how services interact, including time, failures and permissions. The ordering follows from three facts: the product's bet is fidelity (so trust comes before breadth), the phase 1 workload is a webhook-to-worker pipeline (so the services that sit at its edges come next), and the platform seams listed in [ARCHITECTURE.md section 21](design/ARCHITECTURE.md#21-phase-2-extension-points) make some items much cheaper than others.
+
+The [phase 1 report](plan/PHASE1-REPORT.md) is the baseline. Nothing here is scheduled; the order is the priority.
+
+## Phase 2: earn the trust the README asks for
+
+Phase 1 ships every promised feature but records nothing against real AWS. Until that changes, every other item inherits the same uncertainty, so this comes first and is mostly cheaper than any new service.
+
+1. **Recorded parity against real AWS.** Run the record mode of the parity harness (a human, with credentials, never an agent) over the backlog in `docs/research/phase1/`: the core workload and Terraform plan stability (R01 to R07), then the S3 checksum residuals, the SNS filter-policy and Ruler switches, and the Coral auth texts. Each recording retires an `inferred` overlay entry or fidelity switch (115 and 52 today) and lands as a checked-in fixture the replayer runs in CI. Publish the result as the coverage page's evidence column, so "fidelity you can trust" is a number, not a claim.
+2. **SigV4 verification and presigned URLs.** Closed before the first tag (pre-tag review, 2026-10-13; ADR 0012 amendment): `--sigv4 verify` verifies every credential form in the edge, checks session tokens and temporary-credential expiry, expires presigned URLs on the emulator clock with S3's own error texts, and verifies signed `aws-chunked` uploads. The default stays `parse`.
+3. **Protocol corpus to zero known failures.** Structured error members in `awserr` (6 cases, and the DynamoDB `TransactionCanceledException` fault that waits on it), modeled defaults on unset output members and null-preserving sparse maps in the generator (9 cases). Small, contained, and it removes a permanent asterisk from the coverage page.
+4. **Release.** Counsel's reading of the DynamoDB Local licence (ADR 0014; the native lock-table fallback is designed if the answer is no), the macOS Docker Desktop run, then the first tag: binaries for linux and darwin, the multi-arch image on GHCR, a Homebrew tap, and Testcontainers modules for Go, Python and JS over `--ready-file` and `/health`. Fix the JS suite's two DynamoDB tests and, once ARCHITECTURE.md 25.6 is decided, run DynamoDB in every conformance suite in CI.
+
+## Phase 3: close the loop on permissions
+
+5. **IAM enforcement, opt-in.** The access recorder already sees `(principal, actions, resources)` for every call, `policydoc.Allows` evaluates documents, and the pipeline has the slot (step 8). Enforcement turns today's advisories into AWS's denials: identity policies, resource policies on queues, topics, buckets and functions, KMS key policies, and trust policies on `AssumeRole`. The loop no alternative offers for free: run the tests, print the least-privilege policy, enforce it in the same run, and watch what breaks. LocalStack sells this; moto has a basic opt-in. It is the highest-value item that touches no new service, and it also forces the policy generator to tighten (the over-approximation the phase 1 report notes would otherwise deny calls the generated policy itself allowed). Evaluating attached AWS managed policies needs their documents, which waits on ARCHITECTURE.md 25.5.
+
+## Phase 4: the edges of the pipeline
+
+The phase 1 workload starts at a webhook and ends at a worker. The services at those edges are what users will ask for first, and each reuses a seam that exists.
+
+6. **API Gateway: HTTP APIs (v2) first, then a REST (v1) subset.** Function URLs already serve payload format 2.0, so Lambda proxy integrations are mostly routing, stages and `$default` handling; add SQS, SNS and EventBridge direct integrations (new `delivery.Target` variants) and the Terraform `aws_apigatewayv2_*` resources with an empty second plan. REST APIs follow with the subset Terraform and SAM templates use (resources, methods, `AWS_PROXY`, deployments, stages). Routing, request validation and mapping templates are parser work that suits property tests.
+7. **Step Functions.** An ASL interpreter (states, choices, JSONPath and intrinsics, retry and catch, map and parallel) over the existing targets: Lambda, SQS, SNS, DynamoDB, EventBridge. The clock makes `Wait`, timeouts and backoff instant; the journal gives each execution's tree for free; snapshots capture mid-execution state. Standard and Express, `StartExecution`, `GetExecutionHistory`, and the Terraform resource. The combination of real timing semantics in milliseconds and a causal history is where understudy can be better than the alternatives, not merely present.
+8. **DynamoDB Streams to Lambda, then Kinesis.** Streams was a phase 1 stretch with its seam named (`EventSourceKind.DynamoDBStream`, stream reads through the proxy with rewritten ARNs, TTL deletes already tagged). It completes DynamoDB for the lock-table and change-capture patterns. Kinesis Data Streams is a new service with the same consumer shape (shard iterators, retention on the clock, event source mappings with batching windows, bisect-on-error and parallelization), so it comes right after and shares the poller.
+9. **Phase 1 leftovers that users will ask about:** SNS HTTP/S delivery with signed envelopes and confirmation, Lambda asynchronous destinations and layers, S3 SSE-C and Object Lock, CloudWatch alarm evaluation over stored metric data with `GetMetricStatistics`, custom EventBridge buses, SSM Parameter Store (small, and read by nearly every Lambda in the wild), and SES in a journal-only form for notification paths.
+
+## Phase 5: seeing it
+
+10. **A web UI over the journal.** The data plane exists: the NDJSON stream, `/resources`, `/coverage`, `/iam/policy`, snapshots. A static single-page app served at `/_understudy/ui/` showing live traces as trees, resources by account and region, fault rules and the clock would make the journal the thing people open first. It is deliberately after enforcement and the edge services because it adds no fidelity, but it is independent of them and can run in parallel. The build toolchain lives outside the Go module, like the conformance suites; the module stays standard-library-only by embedding built assets.
+
+## Later, and why not sooner
+
+- **ECS.** High demand, large surface. Fargate `RunTask` and services could reuse the Lambda launcher (labels, networking, log capture) and land logs in CloudWatch Logs, but a faithful ECS needs VPC, load balancers and service discovery to mean anything in a test, so most of it would be stored-only. Worth doing once Step Functions and API Gateway exist, as the compute option for long-running workers.
+- **RDS.** The engine cannot be emulated; the realistic shape is a control plane plus a managed Postgres or MySQL container, as DynamoDB uses DynamoDB Local. Most teams already run the database from compose, so the value is Terraform plan cleanliness and connection details, which is small next to the items above.
+- **Cognito, EC2 and VPC, CloudFormation and CDK deploys.** Cognito is a token issuer and hosted UI, a product of its own. EC2 and VPC only make sense stored-only for Terraform. CloudFormation would be the largest adoption lever (CDK users) and the largest build; it belongs after the services it would create exist.
+- **Platform.** SigV4A and signed streaming for non-Go SDKs (the `auth` sum type names them), a write-ahead log for persistence instead of whole-state checkpoints, a reused TLS certificate under `--persist`, an admin-token boundary between function containers and the admin API in the in-container topology, and wildcard DNS for containers.
+
+## How items get in
+
+A service enters with research in `docs/research/<phase>/`, a pinned model, an overlay with evidence, a conformance file per client and a Terraform lifecycle, as `CONTRIBUTING.md` describes. A platform feature enters with an ADR. Anything that would make understudy fake what it does not do stays out.

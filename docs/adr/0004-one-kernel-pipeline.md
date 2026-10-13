@@ -31,3 +31,11 @@ The brief's platform features (journal with causal links, fault injection, acces
 - `Invoke` returns `Internal` (never panics) when the parent call holds a cell lock (engineering M1, m18).
 - `RawHandler` receives `Wire = FromClient{RawRequest} | Synthesized`; `Call` no longer carries a raw request, and the DynamoDB service encodes `Synthesized` inputs itself so the kernel never imports a codec (engineering m9).
 - Cross-scope references resolve through `kernel.ResolveScope(c, ref)` with per-service mismatch identities (fidelity F8).
+
+## Amendments (pre-tag review, 2026-10-13)
+
+Decided at the pre-tag review: access recording.
+
+- `kernel.WithActions[In](func(*Call, *In) []registry.IAMAction)` declares, per input, the secondary IAM actions a call used, evaluated like `WithResources`. The kernel records the primary action (the first in the operation's generated IAM list) always, the declared ones (refusing, and logging as a bug, any outside the generated list) and, for other service prefixes, only actions paired with a touched resource of that service, never on `*` (`iam:PassRole` lands on the passed role, which the handler touches).
+- S3 object operations touch object ARNs (`arn:aws:s3:::<bucket>/<key>`); the generated policy renders object-level resources as `arn:aws:s3:::<bucket>/*`.
+- Internal operations record only declared actions (`logs.PutLogEventsInternal` declares `logs:PutLogEvents`, so the execution role's policy carries it).
