@@ -110,7 +110,7 @@ func (c *Call) Links() []ref.EventID { return c.links }
 func (c *Call) Cause() ref.Cause { return c.cause }
 
 // Admitted returns the admission instant: the journal time and request time
-// of the call (F17). Deferred work carries the instant that triggered it.
+// of the call. Deferred work carries the instant that triggered it.
 // State deadlines use the commit instant Write passes instead.
 func (c *Call) Admitted() clock.Instant { return c.admitted }
 
@@ -119,7 +119,7 @@ func (c *Call) Admitted() clock.Instant { return c.admitted }
 func (c *Call) Endpoint() Endpoint { return c.endpoint }
 
 // Trace returns the X-Amzn-Trace-Id the request carried, or the parent
-// call's (F16).
+// call's, so a delivery chain keeps one trace.
 func (c *Call) Trace() string { return c.trace }
 
 // Header returns one of the unmodeled request headers the kernel keeps for

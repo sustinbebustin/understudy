@@ -123,6 +123,41 @@ func TestStartReachesRunning(t *testing.T) {
 	}
 }
 
+// TestLostContainerIsReplaced: a container that exited (killed for memory,
+// Docker restarted) is forgotten when a request to it fails, and the next
+// Start launches a new one; a running container reported lost is kept.
+func TestLostContainerIsReplaced(t *testing.T) {
+	d := presentDaemon(t)
+	m := manager(t, d, ddblocal.Config{})
+	answering(t, m, true)
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatalf("Start = %v", err)
+	}
+	endpoint, _ := m.Endpoint()
+	if err := m.Lost(t.Context(), endpoint); err != nil {
+		t.Fatalf("Lost of a running container = %v", err)
+	}
+	if _, ok := m.Endpoint(); !ok {
+		t.Fatal("Lost forgot a container that still runs")
+	}
+	first := runningContainers(d)
+	if len(first) != 1 || !d.Exit(first[0], 137) {
+		t.Fatalf("running containers = %v, want one to kill", first)
+	}
+	if err := m.Lost(t.Context(), endpoint); err != nil {
+		t.Fatalf("Lost of an exited container = %v", err)
+	}
+	if _, ok := m.Endpoint(); ok {
+		t.Fatal("Lost kept the endpoint of an exited container")
+	}
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatalf("Start after the container exited = %v", err)
+	}
+	if again := runningContainers(d); len(again) != 1 || again[0] == first[0] {
+		t.Errorf("running containers after the restart = %v, want one new container", again)
+	}
+}
+
 // TestConcurrentStartsShareOneStart: callers arriving together all wait
 // for the same start, so exactly one container is created.
 func TestConcurrentStartsShareOneStart(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -29,8 +30,19 @@ func (f files) read(path string) ([]byte, error) {
 	return []byte(data), nil
 }
 
-// inContainer holds the marker Docker puts in every container.
-func inContainer() files { return files{"/.dockerenv": ""} }
+// The network sysctls /proc/sys/net shows: somaxconn in every network
+// namespace, netdev_max_backlog only in the host's.
+const (
+	somaxconn        = "/proc/sys/net/core/somaxconn"
+	netdevMaxBacklog = "/proc/sys/net/core/netdev_max_backlog"
+)
+
+// inContainer holds the marker Docker puts in every container, in a network
+// namespace of its own.
+func inContainer() files { return files{"/.dockerenv": "", somaxconn: "4096"} }
+
+// token is an admin token long enough to guard a listener beyond loopback.
+const token = "s3cret-s3cret-s3cret"
 
 func load(t *testing.T, args, env []string, f files) config.Config {
 	t.Helper()
@@ -113,6 +125,29 @@ func TestConfigFileLocation(t *testing.T) {
 	}
 }
 
+// A section of the wrong JSON shape says the shape it needs, keys
+// included, and a fault rule that does not parse names its member in the
+// rule's terms rather than the decoder's Go types.
+func TestWrongShapesSayWhatIsExpected(t *testing.T) {
+	cases := []struct{ file, where, reason string }{
+		{
+			`{"lambda": {"hotReload": {"function": "f", "dir": "/x"}}}`, "understudy.json: lambda.hotReload",
+			`is a JSON object; expected an array of {"function": ..., "dir": ..., "account": ..., "region": ...}`,
+		},
+		{`{"regions": "eu-west-9"}`, "understudy.json: regions", "is a JSON string; expected an array of strings"},
+		{
+			`{"faults": [{"phase": "request", "match": {"operations": "sqs.SendMessage"}, "action": {"kind": "throttle"}, "trigger": {"kind": "always"}}]}`,
+			"understudy.json: faults[0]", "match.operations is a JSON string; expected an array",
+		},
+	}
+	for _, c := range cases {
+		err := loadErr(t, nil, nil, files{config.DefaultConfigFile: c.file})
+		if err.Where != c.where || err.Reason != c.reason {
+			t.Errorf("%s: error at %q: %q, want at %q: %q", c.file, err.Where, err.Reason, c.where, c.reason)
+		}
+	}
+}
+
 // An unknown key, at the top or inside a section, is refused with the
 // closest valid key at that depth.
 func TestUnknownKeysNameTheClosest(t *testing.T) {
@@ -137,6 +172,55 @@ func TestUnknownKeysNameTheClosest(t *testing.T) {
 	}
 }
 
+// A malformed flag is refused in words that name the fix, not in the flag
+// package's ("flag needs an argument: -listen", "bad flag syntax"), with
+// serve's help as the hint.
+func TestMalformedFlagsSayWhatToFix(t *testing.T) {
+	cases := []struct {
+		args          []string
+		where, reason string
+	}{
+		{[]string{"--listen"}, "--listen", "needs a value, as in --listen=VALUE or --listen VALUE"},
+		{[]string{"--tls", "-seed"}, "--seed", "needs a value, as in --seed=VALUE or --seed VALUE"},
+		{[]string{"---listen", "127.0.0.1:1"}, "flags", `"---listen" is not a flag: a flag starts with - or --, such as --listen`},
+	}
+	for _, c := range cases {
+		err := loadErr(t, c.args, nil, files{})
+		if err.Where != c.where || err.Reason != c.reason || err.Hint != config.HelpHint {
+			t.Errorf("Load(%q) = %q at %q hint %q, want %q at %q hint %q", c.args, err.Reason, err.Where, err.Hint, c.reason, c.where, config.HelpHint)
+		}
+	}
+	// A switch needs no value, and a value may follow = or the flag.
+	load(t, []string{"--tls"}, nil, files{})
+	load(t, []string{"--seed=1", "--listen", "127.0.0.1:1"}, nil, files{})
+}
+
+// A name too far from every valid one to be a typo of it is refused without
+// a suggestion, rather than pointed at an unrelated setting; a value still
+// names the values it could be.
+func TestUnrelatedNamesSuggestNothing(t *testing.T) {
+	cases := []struct {
+		args []string
+		env  []string
+		f    files
+	}{
+		{args: []string{"--bogus"}, f: files{}},
+		{env: []string{"UNDERSTUDY_X=1"}, f: files{}},
+		{f: files{config.DefaultConfigFile: `{"verbosity": 1}`}},
+		{f: files{config.DefaultConfigFile: `{"s3": {"zzz": 1}}`}},
+	}
+	for _, c := range cases {
+		err := loadErr(t, c.args, c.env, c.f)
+		if err.Closest != "" || strings.Contains(err.Error(), "closest") {
+			t.Errorf("Load(%q, %q) = %v, want no suggestion", c.args, c.env, err)
+		}
+	}
+	err := loadErr(t, nil, nil, files{config.DefaultConfigFile: `{"s3": {"crossRegion": "nowhere"}}`})
+	if err.Closest != "" || !strings.Contains(err.Hint, "aws or lenient") {
+		t.Errorf("s3.crossRegion nowhere = %v, want no suggestion and the values named", err)
+	}
+}
+
 // A listener beyond loopback without a token is refused on a host, with
 // both ways out and the loopback fix named.
 func TestNonLoopbackNeedsAToken(t *testing.T) {
@@ -146,16 +230,46 @@ func TestNonLoopbackNeedsAToken(t *testing.T) {
 			t.Errorf("error %q does not name %q", err, want)
 		}
 	}
-	cfg := load(t, []string{"--listen", "0.0.0.0:4566"}, []string{"UNDERSTUDY_ADMIN_TOKEN=s3cret"}, files{})
+	// The token guards only the admin API, so the open AWS API must be
+	// accepted as well, and that acceptance alone opens nothing.
+	err = loadErr(t, []string{"--listen", "0.0.0.0:4566"}, []string{"UNDERSTUDY_ADMIN_TOKEN=" + token}, files{})
+	if err.Where != "UNDERSTUDY_ADMIN_TOKEN" || !strings.Contains(err.Hint, "--allow-unauthenticated-aws-api") {
+		t.Errorf("a token without --allow-unauthenticated-aws-api = %v, want it refused naming the flag", err)
+	}
+	err = loadErr(t, []string{"--listen", "127.0.0.1:4566", "--allow-unauthenticated-aws-api"}, nil, files{})
+	if err.Where != "--allow-unauthenticated-aws-api" {
+		t.Errorf("--allow-unauthenticated-aws-api without a token = %v, want it refused", err)
+	}
+	cfg := load(t, []string{"--listen", "0.0.0.0:4566"}, []string{"UNDERSTUDY_ADMIN_TOKEN=" + token, "UNDERSTUDY_ALLOW_UNAUTHENTICATED_AWS_API=true"}, files{})
 	exposed, ok := cfg.Listen.(config.Exposed)
 	if !ok {
 		t.Fatalf("listen = %#v, want Exposed", cfg.Listen)
 	}
-	if tok, ok := exposed.Auth.(config.Token); !ok || tok.Secret != "s3cret" {
+	if tok, ok := exposed.Auth.(config.Token); !ok || tok.Secret != token {
 		t.Errorf("auth = %#v, want the token", exposed.Auth)
 	}
-	if strings.Contains(fmtGo(cfg.Listen), "s3cret") {
+	if strings.Contains(fmtGo(cfg.Listen), token) {
 		t.Errorf("the token leaks through %%#v: %s", fmtGo(cfg.Listen))
+	}
+}
+
+// Nothing rate-limits guesses at a listener beyond loopback, so its token
+// must be at least 16 characters; the refusal does not echo the token.
+func TestExposedTokenNeedsSixteenCharacters(t *testing.T) {
+	args := []string{"--listen", "0.0.0.0:4566"}
+	for _, short := range []string{"Q7", "s3cret", "0123456789abcde"} {
+		env := []string{"UNDERSTUDY_ADMIN_TOKEN=" + short, "UNDERSTUDY_ALLOW_UNAUTHENTICATED_AWS_API=true"}
+		err := loadErr(t, args, env, files{})
+		if err.Where != "UNDERSTUDY_ADMIN_TOKEN" || !strings.Contains(err.Reason, "16 characters") || !strings.Contains(err.Hint, "openssl rand -hex 32") {
+			t.Errorf("a %d-character token beyond loopback = %v, want it refused asking for 16", len(short), err)
+		}
+		if strings.Contains(err.Error(), short) {
+			t.Errorf("the refusal of a short token echoes it: %v", err)
+		}
+	}
+	env := []string{"UNDERSTUDY_ADMIN_TOKEN=0123456789abcdef", "UNDERSTUDY_ALLOW_UNAUTHENTICATED_AWS_API=true"}
+	if cfg := load(t, args, env, files{}); cfg.Listen != (config.Exposed{Addr: netip.MustParseAddrPort("0.0.0.0:4566"), Auth: config.Token{Secret: "0123456789abcdef"}}) {
+		t.Errorf("a 16-character token = %#v, want it to guard the listener", cfg.Listen)
 	}
 }
 
@@ -174,11 +288,53 @@ func TestContainerPublishedOnlyInAContainer(t *testing.T) {
 	if cfg := load(t, nil, nil, inContainer()); cfg.Listen != want {
 		t.Errorf("default listener in a container = %#v, want %#v", cfg.Listen, want)
 	}
-	if cfg := load(t, nil, nil, files{"/proc/1/cgroup": "0::/system.slice/containerd.service"}); cfg.Listen != want {
+	if cfg := load(t, nil, nil, files{"/proc/1/cgroup": "0::/system.slice/containerd.service", somaxconn: "4096"}); cfg.Listen != want {
 		t.Errorf("default listener under a containerd cgroup = %#v", cfg.Listen)
 	}
 	if cfg := load(t, []string{"--listen", "127.0.0.1:0"}, nil, inContainer()); cfg.Listen != (config.Loopback{Addr: netip.MustParseAddrPort("127.0.0.1:0")}) {
 		t.Errorf("loopback in a container = %#v", cfg.Listen)
+	}
+}
+
+// A container no published port guards (host networking, a namespace
+// /proc/sys/net cannot confirm, a Kubernetes pod) defaults to loopback with
+// a warning, refuses container-published, and listens beyond loopback only
+// with a token.
+func TestContainerPublishedNeedsAPublishedPort(t *testing.T) {
+	cases := []struct {
+		name   string
+		env    []string
+		f      files
+		reason string
+	}{
+		{"host network", nil, files{"/.dockerenv": "", somaxconn: "4096", netdevMaxBacklog: "1000"}, "host's network namespace"},
+		{"unreadable /proc/sys/net", nil, files{"/run/.containerenv": ""}, "host's network namespace"},
+		{"kubepods cgroup", nil, files{"/proc/1/cgroup": "0::/kubepods/besteffort/pod1/abc", somaxconn: "4096"}, "Kubernetes pod"},
+		{"KUBERNETES_SERVICE_HOST", []string{"KUBERNETES_SERVICE_HOST=10.96.0.1"}, inContainer(), "Kubernetes pod"},
+	}
+	for _, c := range cases {
+		cfg := load(t, nil, c.env, c.f)
+		if cfg.Listen != (config.Loopback{Addr: netip.MustParseAddrPort("127.0.0.1:4566")}) {
+			t.Errorf("%s: default listener = %#v, want loopback", c.name, cfg.Listen)
+		}
+		if len(cfg.Warnings) != 1 || cfg.Warnings[0].Setting != "--listen" || !strings.Contains(cfg.Warnings[0].Message, c.reason) ||
+			!strings.Contains(cfg.Warnings[0].Fix, "UNDERSTUDY_ADMIN_TOKEN") {
+			t.Errorf("%s: warnings %+v, want one on --listen naming %q", c.name, cfg.Warnings, c.reason)
+		}
+		args := []string{"--listen", "0.0.0.0:4566", "--listen-auth", "container-published"}
+		if err := loadErr(t, args, c.env, c.f); err.Where != "--listen-auth" || !strings.Contains(err.Reason, c.reason) {
+			t.Errorf("%s: container-published = %v, want it refused naming %q", c.name, err, c.reason)
+		}
+		if err := loadErr(t, args[:2], c.env, c.f); !strings.Contains(err.Reason, "without an admin token") {
+			t.Errorf("%s: 0.0.0.0 without a token = %v, want it refused", c.name, err)
+		}
+		env := append([]string{"UNDERSTUDY_ADMIN_TOKEN=" + token, "UNDERSTUDY_ALLOW_UNAUTHENTICATED_AWS_API=1"}, c.env...)
+		if cfg := load(t, args[:2], env, c.f); cfg.Listen != (config.Exposed{Addr: netip.MustParseAddrPort("0.0.0.0:4566"), Auth: config.Token{Secret: token}}) {
+			t.Errorf("%s: 0.0.0.0 with a token = %#v", c.name, cfg.Listen)
+		}
+	}
+	if cfg := load(t, []string{"--listen", "127.0.0.1:4566"}, nil, files{"/.dockerenv": ""}); len(cfg.Warnings) != 0 {
+		t.Errorf("an explicit loopback listener warns: %+v", cfg.Warnings)
 	}
 }
 
@@ -205,6 +361,7 @@ func TestRefusedValues(t *testing.T) {
 		{file: `{"s3": {"baseDomains": ["example.com"]}}`, where: "understudy.json: s3.baseDomains[0]"},
 		{file: `{"s3": {"maxObjectBytes": "big"}}`, where: "understudy.json: s3.maxObjectBytes"},
 		{file: `{"lambda": {"network": "bridge"}}`, where: "understudy.json: lambda.bridgeGateway"},
+		{file: `{"lambda": {"network": "bridge", "bridgeGateway": "fd00::1"}}`, where: "understudy.json: lambda.bridgeGateway"},
 		{file: `{"lambda": {"hotReload": [{"function": "f", "dir": "relative"}]}}`, where: "understudy.json: lambda.hotReload[0].dir"},
 		{file: `{"lambda": {"hotReload": [{"function": "f", "dir": "/src", "account": "12"}]}}`, where: "understudy.json: lambda.hotReload[0].account"},
 		{file: `{"lambda": {"hotReload": [{"function": "f", "dir": "/src", "region": "Nope"}]}}`, where: "understudy.json: lambda.hotReload[0].region"},
@@ -223,6 +380,32 @@ func TestRefusedValues(t *testing.T) {
 		_, err := config.Load(c.args, c.env, f.read)
 		if err == nil || err.Where != c.where {
 			t.Errorf("Load(%q, %q, %s) = %v, want an error at %q", c.args, c.env, c.file, err, c.where)
+		}
+	}
+}
+
+// The container listener binds lambda.bridgeGateway and serves the AWS API
+// unchecked, so only a private IPv4 address, where Docker puts its bridges,
+// is accepted: never every interface, loopback or a routable address.
+func TestBridgeGatewayMustBePrivate(t *testing.T) {
+	refused := map[string]string{
+		"0.0.0.0":     "every interface",
+		"127.0.0.1":   "loopback",
+		"203.0.113.7": "private",
+		"100.64.0.1":  "private",
+		"169.254.0.1": "private",
+	}
+	for gw, reason := range refused {
+		f := files{config.DefaultConfigFile: `{"lambda": {"network": "bridge", "bridgeGateway": "` + gw + `"}}`}
+		err := loadErr(t, nil, nil, f)
+		if err.Where != "understudy.json: lambda.bridgeGateway" || !strings.Contains(err.Reason, reason) || !strings.Contains(err.Hint, "network\": \"auto") {
+			t.Errorf("bridgeGateway %s = %v, want it refused naming %q", gw, err, reason)
+		}
+	}
+	for _, gw := range []string{"172.17.0.1", "10.89.0.1", "192.168.240.1"} {
+		f := files{config.DefaultConfigFile: `{"lambda": {"network": "bridge", "bridgeGateway": "` + gw + `"}}`}
+		if cfg := load(t, nil, nil, f); cfg.Lambda.Network != (config.NetworkBridge{Gateway: netip.MustParseAddr(gw)}) {
+			t.Errorf("bridgeGateway %s = %#v, want it accepted", gw, cfg.Lambda.Network)
 		}
 	}
 }
@@ -424,20 +607,44 @@ func TestSourcesAgree(t *testing.T) {
 	})
 }
 
-// An unknown key always names a closest key that is valid at its depth.
-func TestClosestIsAlwaysValid(t *testing.T) {
-	valid := map[string]bool{}
+// topKeys are the valid top-level keys of the configuration file.
+func topKeys() []string {
+	sections := []string{"accounts", "regions", "s3", "lambda", "sqs", "iam", "dynamodb", "journal", "faults"}
+	keys := make([]string, 0, len(sections)+len(config.Settings()))
+	keys = append(keys, sections...)
 	for _, s := range config.Settings() {
-		valid[s.Key] = true
+		keys = append(keys, s.Key)
 	}
-	for _, k := range []string{"accounts", "regions", "s3", "lambda", "sqs", "iam", "dynamodb", "journal", "faults"} {
-		valid[k] = true
-	}
+	return keys
+}
+
+// An unknown key is refused, and any closest key it names is valid at its
+// depth.
+func TestClosestIsAlwaysValid(t *testing.T) {
+	keys := topKeys()
 	rapid.Check(t, func(t *rapid.T) {
-		key := rapid.StringMatching(`[a-zA-Z]{1,20}`).Filter(func(k string) bool { return !valid[k] }).Draw(t, "key")
+		key := rapid.StringMatching(`[a-zA-Z]{1,20}`).Filter(func(k string) bool { return !slices.Contains(keys, k) }).Draw(t, "key")
 		_, err := config.Load(nil, nil, files{config.DefaultConfigFile: `{"` + key + `": 1}`}.read)
-		if err == nil || !valid[err.Closest] {
+		if err == nil || (err.Closest != "" && !slices.Contains(keys, err.Closest)) {
 			t.Fatalf("unknown key %q: %v, closest %q is not a valid key", key, err, closestOf(err))
+		}
+	})
+}
+
+// A one-letter typo of a valid key names a valid key as the closest.
+func TestTyposNameAValidKey(t *testing.T) {
+	keys := topKeys()
+	rapid.Check(t, func(t *rapid.T) {
+		key := rapid.SampledFrom(keys).Draw(t, "key")
+		at := rapid.IntRange(0, len(key)).Draw(t, "at")
+		letter := rapid.StringMatching(`[a-z]`).Draw(t, "letter")
+		typo := key[:at] + letter + key[at:]
+		if slices.Contains(keys, typo) {
+			t.Skip("the typo is itself a valid key")
+		}
+		_, err := config.Load(nil, nil, files{config.DefaultConfigFile: `{"` + typo + `": 1}`}.read)
+		if err == nil || !slices.Contains(keys, err.Closest) {
+			t.Fatalf("typo %q of %q: %v, want a valid closest key", typo, key, err)
 		}
 	})
 }

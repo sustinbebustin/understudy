@@ -29,8 +29,9 @@
 // answered from it and never reach Local; in particular a TTL
 // specification never does, so Local's wall-clock sweeper stays off. Every
 // table description Local writes is completed from it (describe.go): the
-// WarmThroughput Terraform waits on, TableId, TableClassSummary,
-// SSEDescription, the timestamps, and DELETING on DeleteTable. An
+// WarmThroughput Terraform waits on, of the table and of each global
+// secondary index, TableId, TableClassSummary, SSEDescription, the
+// timestamps, CREATING on CreateTable and DELETING on DeleteTable. An
 // UpdateTable of only the members the shims own is answered with Local's
 // description instead of Local's "Nothing to update". The TTL sweep runs on
 // the emulator clock (ttl.go), and snapshot export, import and reset reach
@@ -92,10 +93,8 @@
 //     reset that ARCHITECTURE.md 13 and the ADR 0014 amendment ask for.
 //     The journal's Detail kinds are a closed set without one, and
 //     kernel.Invoke refuses a nil parent, so this package writes none.
-//     Deferred to the journal (T15) or kernel (T16) owner, tracked in
-//     docs/plan/DEFERRED.md under "DynamoDB snapshot journal events";
-//     once either lands, ExportLate, ImportLate and ResetLate each emit
-//     one.
+//     Once the journal has such a kind, ExportLate, ImportLate and
+//     ResetLate should each emit one.
 //   - A TableId is derived from the request id of the CreateTable, so
 //     seeded runs mint the same ids without a stream of their own.
 //   - A KMS key is resolved with a DescribeKey forwarded to KMS as the
@@ -104,10 +103,10 @@
 //     is refused with ValidationException. A server that binds no KMS
 //     describes the ARN of the id, alias or ARN the request names instead.
 //   - A table Local holds that the shim does not record (kept under
-//     --persist without the archive) is adopted by the first tag, TTL or
-//     continuous-backup operation naming it, with Local's CreationDateTime
-//     and a TableId derived from its path; DescribeTable alone adopts
-//     nothing. Snapshot save exports it by Local's own table list, so the
+//     --persist without the archive) is adopted by the first tag, TTL,
+//     continuous-backup or UpdateTable operation naming it, with Local's
+//     CreationDateTime and last switch to PAY_PER_REQUEST and a TableId
+//     derived from its path; DescribeTable alone adopts nothing. Snapshot save exports it by Local's own table list, so the
 //     load, which deletes every table of the scope, brings it back.
 //   - Tags follow AWS's limits: at most 50 per table, and no key starting
 //     with aws: in any letter case.
@@ -122,5 +121,9 @@
 //     a tag operation's ResourceNotFoundException ("Requested resource not
 //     found: ResourcArn: <arn> not found", AWS's spelling as remembered),
 //     of the tag limits and of an unknown KMS key are UNVERIFIED against
-//     AWS, as are Local's TTL refusals reused here.
+//     AWS, as are Local's TTL refusals reused here, except enabling a
+//     different attribute: "TimeToLive is active on a different
+//     AttributeName: current AttributeName is <attr>" is AWS's text, as
+//     celery records it from the service (t/unit/backends/test_dynamodb.py
+//     L314-L320; celery/backends/dynamodb.py L374-L380).
 package dynamodb

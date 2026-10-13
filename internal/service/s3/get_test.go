@@ -126,8 +126,10 @@ func TestRangeReads(t *testing.T) {
 		wantCode(t, err, "InvalidRequest", http.StatusBadRequest)
 		_, err = as(h, who{}, s3api.OpGetObject, &s3api.GetObjectInput{Bucket: "ranges", Key: "k", PartNumber: new(int32(2))})
 		wantCode(t, err, "InvalidPartNumber", http.StatusRequestedRangeNotSatisfiable)
-		if got, _ := h.read(&s3api.GetObjectInput{Bucket: "ranges", Key: "k", PartNumber: new(int32(1))}); got != "0123456789" {
-			t.Errorf("partNumber=1 of a single-part object = %q, want the whole object", got)
+		got, out := h.read(&s3api.GetObjectInput{Bucket: "ranges", Key: "k", PartNumber: new(int32(1))})
+		if got != "0123456789" || out.ContentRange == nil || *out.ContentRange != "bytes 0-9/10" || out.PartsCount != nil {
+			t.Errorf("partNumber=1 of a single-part object = %q, Content-Range %v, PartsCount %v; want the whole object, bytes 0-9/10, none",
+				got, out.ContentRange, out.PartsCount)
 		}
 	})
 }
@@ -200,6 +202,21 @@ func TestResponseOverrides(t *testing.T) {
 		want := []string{"application/json", "max-age=60", "attachment", "gzip", "de", "Wed, 02 Jan 2030 03:04:05 GMT"}
 		if !slices.Equal(got, want) {
 			t.Fatalf("GetObject with response-* overrides = %q, want %q", got, want)
+		}
+	})
+}
+
+// TestAnonymousResponseOverridesRefused: the response-* overrides need a
+// signed or presigned request (s3.md 5.4); an unsigned one is refused
+// before the object is read, and without overrides it reads as usual.
+func TestAnonymousResponseOverridesRefused(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("public")
+		h.put("public", "k", "v")
+		_, err := as(h, who{anonymous: true}, s3api.OpGetObject, &s3api.GetObjectInput{Bucket: "public", Key: "k", ResponseContentType: new("text/html")})
+		wantCode(t, err, "InvalidRequest", http.StatusBadRequest)
+		if _, err := as(h, who{anonymous: true}, s3api.OpGetObject, &s3api.GetObjectInput{Bucket: "public", Key: "k"}); err != nil {
+			t.Fatalf("unsigned GetObject without overrides = %s: %s", err.ID.Shape, err.Message)
 		}
 	})
 }

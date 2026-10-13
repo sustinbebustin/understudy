@@ -21,7 +21,22 @@
 //     (Options.AssumeRole) set to lenient mints a session anyway, with a role
 //     id derived from the ARN and a MaxSessionDuration of 12 hours.
 //   - The role's trust policy, session policies, tags, MFA and external id
-//     are not evaluated: phase 1 does not enforce IAM.
+//     are not evaluated: phase 1 does not enforce IAM. Session policies and
+//     tags are still validated as AWS documents: at most 10 managed policy
+//     ARNs, an inline policy IAM would accept as an identity policy, at most
+//     2,048 characters of policy plaintext, no "aws:" prefix on a source
+//     identity or a session tag key or value, no two session tag keys that
+//     differ only in case, and no transitive tag key that names no session
+//     tag. The last two answer AWS's recorded texts; the others' texts are
+//     inferred. Session tag errors answer ValidationError where AWS answers
+//     InvalidParameterValue, which the STS model does not declare.
+//   - The account root user may assume a role, though AWS lets only IAM
+//     users and role sessions call AssumeRole and refuses the root: an
+//     unminted key resolves to the default account's root (ADR 0012), so
+//     refusing the root would refuse every client using dummy credentials.
+//   - GetSessionToken signed with credentials from an earlier
+//     GetSessionToken is not refused, as AWS refuses it: a call does not
+//     say whether its signing key was temporary.
 //   - A caller signing with role session credentials is role chaining, held
 //     to one hour.
 //   - GetSessionToken gives an IAM user 12 hours by default and the root at

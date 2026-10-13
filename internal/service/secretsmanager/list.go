@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -32,18 +33,29 @@ type listPage[T any] struct {
 	next  *string
 }
 
+// tokenVersion starts every NextToken, so a token of another format is
+// refused rather than misread.
+const tokenVersion = "v1"
+
 // page returns the page of items, sorted by key in o, that starts at token
-// and holds at most size items (defaultPageSize when nil). The token is
-// opaque to clients: the base64 of the next item's key, so a listing that
-// changes between pages neither repeats nor skips an item still present.
-func page[T any](items []T, key func(T) string, o order, size *int32, token *string) (listPage[T], *awserr.Error) {
+// and holds at most size items (defaultPageSize when nil). listing names
+// the listing and its order, and never contains "|". The token is opaque
+// to clients: the base64 of the format version, listing and the next
+// item's key, so a listing that changes between pages neither repeats nor
+// skips an item still present, and a token of another listing or order is
+// InvalidNextTokenException rather than a silent seek.
+func page[T any](items []T, key func(T) string, o order, listing string, size *int32, token *string) (listPage[T], *awserr.Error) {
+	prefix := tokenVersion + "|" + listing + "|"
 	start := 0
 	if token != nil {
 		raw, err := base64.RawURLEncoding.DecodeString(*token)
 		if err != nil {
 			return listPage[T]{}, errInvalidNextToken()
 		}
-		from := string(raw)
+		from, ok := strings.CutPrefix(string(raw), prefix)
+		if !ok {
+			return listPage[T]{}, errInvalidNextToken()
+		}
 		start = sort.Search(len(items), func(i int) bool {
 			if o == descending {
 				return key(items[i]) <= from
@@ -58,9 +70,16 @@ func page[T any](items []T, key func(T) string, o order, size *int32, token *str
 	end := min(start+n, len(items))
 	p := listPage[T]{items: items[start:end]}
 	if end < len(items) {
-		p.next = new(base64.RawURLEncoding.EncodeToString([]byte(key(items[end]))))
+		p.next = new(base64.RawURLEncoding.EncodeToString([]byte(prefix + key(items[end]))))
 	}
 	return p, nil
+}
+
+func orderName(o order) string {
+	if o == descending {
+		return "desc"
+	}
+	return "asc"
 }
 
 // instantKey renders i at a fixed width in UTC, so keys compare as the
@@ -104,7 +123,8 @@ func (s *Service) listSecrets(_ context.Context, c *kernel.Call, in *secretsmana
 		o = descending
 	}
 	key := sortKey(by)
-	secrets := readState(s, c.Scope(), func(st *State) []Secret {
+	scope := c.Scope()
+	secrets := readState(s, scope, func(st *State) []Secret {
 		var out []Secret
 		for _, name := range slices.Sorted(maps.Keys(st.Secrets)) {
 			sec := st.Secrets[name]
@@ -123,7 +143,7 @@ func (s *Service) listSecrets(_ context.Context, c *kernel.Call, in *secretsmana
 		}
 		return strings.Compare(key(a), key(b))
 	})
-	p, err := page(secrets, key, o, in.MaxResults, in.NextToken)
+	p, err := page(secrets, key, o, "secrets/"+string(by)+"/"+orderName(o), in.MaxResults, in.NextToken)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +151,7 @@ func (s *Service) listSecrets(_ context.Context, c *kernel.Call, in *secretsmana
 	for i := range p.items {
 		sec := &p.items[i]
 		out.SecretList = append(out.SecretList, secretsmanagerapi.SecretListEntry{
-			ARN:                    new(sec.ARN),
+			ARN:                    new(sec.arn(scope).String()),
 			Name:                   new(sec.Name),
 			Description:            sec.Description,
 			KmsKeyId:               sec.KMSKeyID,
@@ -171,41 +191,103 @@ func matchesFilter(sec Secret, key secretsmanagerapi.FilterNameStringType, value
 	return false
 }
 
-// matchesValue applies one filter value: a prefix match, case-insensitive
-// for description and all, case-sensitive otherwise (the Filter
-// reference). No secret has a primary Region or an owning service, since
+// matchesValue applies one filter value: a prefix of the whole name, tag
+// key or tag value, case-sensitive; words of the description or of every
+// attribute, case-insensitive (the Filter reference and the user guide's
+// search page). No secret has a primary Region or an owning service, since
 // understudy has neither replication nor service-owned secrets.
 func matchesValue(sec Secret, key secretsmanagerapi.FilterNameStringType, v string) bool {
 	switch key {
 	case secretsmanagerapi.FilterNameStringTypeName:
 		return strings.HasPrefix(sec.Name, v)
 	case secretsmanagerapi.FilterNameStringTypeDescription:
-		return hasPrefixFold(deref(sec.Description), v)
+		return matchesDescription(deref(sec.Description), v)
 	case secretsmanagerapi.FilterNameStringTypeTagKey:
 		return slices.ContainsFunc(sec.Tags, func(t Tag) bool { return strings.HasPrefix(t.Key, v) })
 	case secretsmanagerapi.FilterNameStringTypeTagValue:
 		return slices.ContainsFunc(sec.Tags, func(t Tag) bool { return strings.HasPrefix(t.Value, v) })
 	case secretsmanagerapi.FilterNameStringTypeAll:
-		return matchesAllWords(sec, v)
+		return matchesAnyWord(sec, v)
 	case secretsmanagerapi.FilterNameStringTypePrimaryRegion, secretsmanagerapi.FilterNameStringTypeOwningService:
 	}
 	return false
 }
 
-// matchesAllWords is the all filter: every word of v prefixes, ignoring
-// case, the name, the description or a tag key or value.
-func matchesAllWords(sec Secret, v string) bool {
-	attrs := make([]string, 0, 2+2*len(sec.Tags))
-	attrs = append(attrs, sec.Name, deref(sec.Description))
-	for _, t := range sec.Tags {
-		attrs = append(attrs, t.Key, t.Value)
-	}
+// matchesDescription is the description filter: every space-separated word
+// of v prefixes, ignoring case, some word of the description, in any order.
+// So "a secret" matches "an secret" but not "asecret" (AWS-recorded,
+// LocalStack test_list_secrets_filtering), and "My Description" matches
+// "Description of my secret" (the user guide's search page).
+func matchesDescription(desc, v string) bool {
+	descWords := strings.Fields(desc)
 	for word := range strings.FieldsSeq(v) {
-		if !slices.ContainsFunc(attrs, func(a string) bool { return hasPrefixFold(a, word) }) {
+		if !slices.ContainsFunc(descWords, func(d string) bool { return hasPrefixFold(d, word) }) {
 			return false
 		}
 	}
 	return true
+}
+
+// matchesAnyWord is the all filter: some word of v prefixes, ignoring case,
+// a word of the name, the description or a tag key or value. The user
+// guide's example is OR ("My_Secret matches secrets with the word my or
+// secret"); the prefix match within a word is the fidelity switch
+// secretsmanager.list-secrets.all-filter-match.
+func matchesAnyWord(sec Secret, v string) bool {
+	attrs := append(words(sec.Name), words(deref(sec.Description))...)
+	for _, t := range sec.Tags {
+		attrs = append(attrs, words(t.Key)...)
+		attrs = append(attrs, words(t.Value)...)
+	}
+	return slices.ContainsFunc(words(v), func(w string) bool {
+		return slices.ContainsFunc(attrs, func(a string) bool { return hasPrefixFold(a, w) })
+	})
+}
+
+// words splits s into the words the all filter compares: runs of letters
+// and digits, with every other character a separator, broken where a
+// letter meets a digit, where a lower-case letter is followed by an
+// upper-case one, and before the last upper-case letter of a run that a
+// lower-case letter follows. So credsDatabase#892 is creds, Database and
+// 892, as the user guide's search page has it, and DBPassword is DB and
+// Password.
+func words(s string) []string {
+	rs := []rune(s)
+	var out []string
+	start := -1
+	for i, r := range rs {
+		switch {
+		case !unicode.IsLetter(r) && !unicode.IsDigit(r):
+			if start >= 0 {
+				out = append(out, string(rs[start:i]))
+				start = -1
+			}
+		case start < 0:
+			start = i
+		case wordBreak(rs, i):
+			out = append(out, string(rs[start:i]))
+			start = i
+		}
+	}
+	if start >= 0 {
+		out = append(out, string(rs[start:]))
+	}
+	return out
+}
+
+// wordBreak reports a word boundary before rs[i], where rs[i-1] and rs[i]
+// are both letters or digits.
+func wordBreak(rs []rune, i int) bool {
+	prev, cur := rs[i-1], rs[i]
+	switch {
+	case unicode.IsDigit(prev) != unicode.IsDigit(cur):
+		return true
+	case unicode.IsLower(prev) && unicode.IsUpper(cur):
+		return true
+	case unicode.IsUpper(prev) && unicode.IsUpper(cur) && i+1 < len(rs) && unicode.IsLower(rs[i+1]):
+		return true
+	}
+	return false
 }
 
 func hasPrefixFold(s, prefix string) bool {

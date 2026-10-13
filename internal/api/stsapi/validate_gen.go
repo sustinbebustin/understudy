@@ -233,10 +233,10 @@ func (v *AssumeRoleWithSAMLInput) validate(path awserr.Path, out *[]awserr.Viola
 		*out = append(*out, awserr.Violation{Path: at(path, "sAMLAssertion"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if utf8.RuneCountInString(v.SAMLAssertion) > 100000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sAMLAssertion"), Value: awserr.RenderedText{Text: v.SAMLAssertion}, Constraint: awserr.LengthMax{Max: 100000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sAMLAssertion"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100000}})
 		}
 		if utf8.RuneCountInString(v.SAMLAssertion) < 4 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sAMLAssertion"), Value: awserr.RenderedText{Text: v.SAMLAssertion}, Constraint: awserr.LengthMin{Min: 4}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sAMLAssertion"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 4}})
 		}
 	}
 	if v.PolicyArns != nil {
@@ -313,10 +313,10 @@ func (v *AssumeRoleWithWebIdentityInput) validate(path awserr.Path, out *[]awser
 		*out = append(*out, awserr.Violation{Path: at(path, "webIdentityToken"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if utf8.RuneCountInString(v.WebIdentityToken) > 20000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "webIdentityToken"), Value: awserr.RenderedText{Text: v.WebIdentityToken}, Constraint: awserr.LengthMax{Max: 20000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "webIdentityToken"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20000}})
 		}
 		if utf8.RuneCountInString(v.WebIdentityToken) < 4 {
-			*out = append(*out, awserr.Violation{Path: at(path, "webIdentityToken"), Value: awserr.RenderedText{Text: v.WebIdentityToken}, Constraint: awserr.LengthMin{Min: 4}})
+			*out = append(*out, awserr.Violation{Path: at(path, "webIdentityToken"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 4}})
 		}
 	}
 	if v.ProviderId != nil {

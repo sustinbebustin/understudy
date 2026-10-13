@@ -29,6 +29,11 @@ type value struct {
 // every understudy command takes --output.
 const OutputFlag = "output"
 
+// HelpHint is the Hint of a refused flag or argument (Where "--<flag>",
+// "flags" or "arguments"): the next step is serve's own help, which a
+// caller that already points there can leave out.
+const HelpHint = "run 'understudy serve --help' for the flags"
+
 // Load reads the serve configuration: flags in args over UNDERSTUDY_*
 // variables in env ("NAME=value" pairs) over the JSON file (--config,
 // UNDERSTUDY_CONFIG, or understudy.json when it exists) over the defaults.
@@ -76,7 +81,7 @@ func load(args, env []string, readFile func(path string) ([]byte, error)) (*draf
 	if err != nil {
 		return nil, err
 	}
-	d := newDraft(DetectPlacement(readFile), envs.dockerHost)
+	d := newDraft(DetectPlacement(readFile, env), envs.dockerHost)
 	setters := setters()
 	for _, s := range Settings() {
 		v, ok := flags[s.Key]
@@ -122,7 +127,7 @@ func parseFlags(args []string) (map[string]value, *value, *Error) {
 	for _, s := range Settings() {
 		switch {
 		case s.Flag == "":
-		case s.Bool:
+		case s.Switch():
 			set.BoolFunc(s.Flag, s.Usage, record(s.Key, s.Flag))
 		default:
 			set.Func(s.Flag, s.Usage, record(s.Key, s.Flag))
@@ -133,24 +138,31 @@ func parseFlags(args []string) (map[string]value, *value, *Error) {
 		configPath = &value{text: text, where: "--" + ConfigFlag, source: fromFlag}
 		return nil
 	})
-	if err := unknownFlag(args, set); err != nil {
+	if err := checkFlags(args, set); err != nil {
 		return nil, nil, err
 	}
 	if err := set.Parse(args); err != nil {
 		if conflict != nil {
 			return nil, nil, conflict
 		}
-		return nil, nil, &Error{Where: "flags", Reason: err.Error(), Hint: "run 'understudy serve --help' for the flags"}
+		// checkFlags refuses every malformed flag the flag package does,
+		// so this is a refusal it does not know yet; its text is the
+		// flag package's.
+		return nil, nil, &Error{Where: "flags", Reason: err.Error(), Hint: HelpHint}
 	}
 	if set.NArg() > 0 {
-		return nil, nil, &Error{Where: "arguments", Reason: "unexpected argument " + quote(set.Arg(0)) + "; serve takes flags only", Hint: "run 'understudy serve --help' for the flags"}
+		return nil, nil, &Error{Where: "arguments", Reason: "unexpected argument " + quote(set.Arg(0)) + "; serve takes flags only", Hint: HelpHint}
 	}
 	return values, configPath, nil
 }
 
-// unknownFlag names the first flag in args set does not define, with the
-// closest one it does. The flag package would only say it is undefined.
-func unknownFlag(args []string, set *flag.FlagSet) *Error {
+// checkFlags refuses the first malformed flag in args before the flag
+// package parses them, in words a reader can act on: one with more than
+// two leading dashes, one set does not define (with the closest one it
+// does), and one that takes a value but ends the arguments without it.
+// The flag package would say "bad flag syntax", "flag provided but not
+// defined" or "flag needs an argument: -listen".
+func checkFlags(args []string, set *flag.FlagSet) *Error {
 	var names []string
 	set.VisitAll(func(f *flag.Flag) { names = append(names, f.Name) })
 	for i := 0; i < len(args); i++ {
@@ -158,24 +170,41 @@ func unknownFlag(args []string, set *flag.FlagSet) *Error {
 		if a == "--" || !strings.HasPrefix(a, "-") || a == "-" {
 			return nil
 		}
+		if strings.HasPrefix(a, "---") {
+			return &Error{Where: "flags", Reason: quote(a) + " is not a flag: a flag starts with - or --, such as --listen", Hint: HelpHint}
+		}
 		name, _, hasValue := strings.Cut(strings.TrimLeft(a, "-"), "=")
 		f := set.Lookup(name)
 		if f == nil {
-			return &Error{Where: "--" + name, Reason: "is not a serve flag", Closest: "--" + closest(name, names), Hint: "run 'understudy serve --help' for the flags"}
+			err := &Error{Where: "--" + name, Reason: "is not a serve flag", Hint: HelpHint}
+			if c := Closest(name, names); c != "" {
+				err.Closest = "--" + c
+			}
+			return err
 		}
-		if bf, ok := f.Value.(interface{ IsBoolFlag() bool }); !hasValue && (!ok || !bf.IsBoolFlag()) {
-			i++
+		if bf, ok := f.Value.(interface{ IsBoolFlag() bool }); hasValue || (ok && bf.IsBoolFlag()) {
+			continue
 		}
+		if i+1 == len(args) {
+			return &Error{Where: "--" + name, Reason: "needs a value, as in --" + name + "=VALUE or --" + name + " VALUE", Hint: HelpHint}
+		}
+		i++
 	}
 	return nil
 }
 
-// envValues are the UNDERSTUDY_* settings of the environment.
+// envValues are the UNDERSTUDY_* settings of the environment, with the
+// Docker variable that changes the default Docker setting.
+// KUBERNETES_SERVICE_HOST is read by DetectPlacement.
 type envValues struct {
 	values     map[string]value
 	configPath *value
 	dockerHost string
 }
+
+// envPrefix starts every variable understudy reads, bar DockerHostEnv and
+// KubernetesEnv.
+const envPrefix = "UNDERSTUDY_"
 
 // parseEnv reads the UNDERSTUDY_* variables of env; an empty value is
 // unset. A variable in that namespace that no setting reads is refused
@@ -183,29 +212,52 @@ type envValues struct {
 func parseEnv(env []string) (envValues, *Error) {
 	out := envValues{values: map[string]value{}}
 	byName := map[string]string{}
+	// The names after envPrefix, which alone tell two variables apart.
 	known := make([]string, 0, len(Settings())+2)
-	known = append(known, ConfigEnv, EndpointEnv)
+	known = append(known, strings.TrimPrefix(ConfigEnv, envPrefix), strings.TrimPrefix(EndpointEnv, envPrefix))
 	for _, s := range Settings() {
 		byName[s.Env] = s.Key
-		known = append(known, s.Env)
+		known = append(known, strings.TrimPrefix(s.Env, envPrefix))
 	}
 	for _, kv := range env {
 		name, text, _ := strings.Cut(kv, "=")
 		switch {
 		case name == DockerHostEnv:
 			out.dockerHost = text
-		case !strings.HasPrefix(name, "UNDERSTUDY_"), text == "", name == EndpointEnv:
+		case !strings.HasPrefix(name, envPrefix), text == "", name == EndpointEnv:
 		case name == ConfigEnv:
 			out.configPath = &value{text: text, where: ConfigEnv, source: fromEnv}
 		default:
 			key, ok := byName[name]
 			if !ok {
-				return envValues{}, &Error{Where: name, Reason: "is not an understudy variable", Closest: closest(name, known), Hint: "unset it or fix its name"}
+				err := &Error{Where: name, Reason: "is not an understudy variable", Hint: "unset it or fix its name"}
+				if c := Closest(strings.TrimPrefix(name, envPrefix), known); c != "" {
+					err.Closest = envPrefix + c
+				}
+				return envValues{}, err
 			}
 			out.values[key] = value{text: text, where: name, source: fromEnv}
 		}
 	}
 	return out, nil
+}
+
+// FileName is the configuration file args and env name, as Load reads
+// them: --config, else UNDERSTUDY_CONFIG, else DefaultConfigFile. A caller
+// names it in a refusal of a setting only the file holds, which a server
+// makes once it applies the configuration Load accepted.
+func FileName(args, env []string) string {
+	_, path, err := parseFlags(args)
+	if err == nil && path == nil {
+		envs, eerr := parseEnv(env)
+		if eerr == nil {
+			path = envs.configPath
+		}
+	}
+	if path == nil {
+		return DefaultConfigFile
+	}
+	return path.text
 }
 
 // readConfigFile reads the file path names, or understudy.json when path

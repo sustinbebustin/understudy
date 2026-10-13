@@ -18,9 +18,24 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// onAttempt is TimerAttempt's handler. It must not block, so it starts the
-// attempt due at due as tracked work, which Settle counts until it ends.
-// A timer whose entry is gone or rescheduled is stale and does nothing.
+// onAttempt is TimerAttempt's handler. It must not block, so it claims the
+// entry (Entry.Running), evaluates the Delivery-phase fault rules and hands
+// the attempt due at due to tracked work, which Settle counts until it
+// ends. A timer whose entry is gone, rescheduled or already being attempted
+// is stale and does nothing.
+//
+// The clock dispatches timers one at a time in firing order, and the
+// outbox keeps that order: the Delivery-phase rules are evaluated here, and
+// the attempt joins the sequencer, which makes the target calls one at a
+// time in the order onAttempt queued them. Attempts due together then
+// spend a NextN budget, draw from a seeded Probability stream and draw
+// seeded ids in that order, in both fault phases, not in the order
+// goroutines happen to run. An attempt that would hold the sequencer for
+// wall time runs on its own goroutine instead (attempt.blocks).
+//
+// The claim is a plain cell update, not a kernel.Write: it has no effects,
+// and Write would create the cell of a scope a reset just dropped. It
+// leaves the revision alone, since Running is never saved.
 func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant) {
 	scope, id, ok := parseTimerID(key.ID)
 	if !ok {
@@ -31,36 +46,96 @@ func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant
 	if !ok {
 		return
 	}
-	entry := store.Read(cell, func(st *State) *Entry {
+	entry := store.Update(cell, func(st *State) (*Entry, bool) {
 		en, ok := st.Entries[id]
-		if !ok || en.NextAt.Compare(due) != 0 {
-			return nil
+		if cell.Retired() || !ok || en.Running || en.NextAt.Compare(due) != 0 {
+			return nil, false
 		}
-		return &en
+		en.Running = true
+		st.Entries[id] = en
+		return &en, false
 	})
 	if entry == nil {
 		return
 	}
-	e.k.Go(kernel.DeliveryAttempt, func(ctx context.Context) {
-		a := attempt{e: e, c: c, cell: cell, scope: scope, entry: *entry, due: due}
-		if outcome, ok := a.run(ctx); ok {
-			a.finish(ctx, outcome)
-		}
+	a := &attempt{e: e, c: c, cell: cell, scope: scope, entry: *entry, due: due, decision: e.evaluateFaults(scope, entry)}
+	if a.blocks() {
+		e.k.Go(kernel.DeliveryAttempt, a.do)
+		return
+	}
+	e.sequence(a)
+}
+
+// evaluateFaults returns the Delivery-phase fault decision for the attempt
+// of en into scope, None when the outbox has no fault stage.
+func (e *engine) evaluateFaults(scope aws.Scope, en *Entry) fault.Decision {
+	if e.faults == nil {
+		return fault.None{}
+	}
+	req := en.Request
+	target, _ := targetARN(req.Target)
+	return e.faults.Evaluate(fault.DeliveryAttempt, fault.MatchInput{
+		Service:   req.Mechanism.Target(),
+		Mechanism: req.Mechanism,
+		Touched:   []aws.ARN{target},
+		Scope:     scope,
+		Origin:    ref.Internal{Via: req.Mechanism.Via()},
 	})
 }
 
 // attempt is one attempt of a delivery: its entry as it was when the
-// attempt became due, the cell it was read from, the scope of its target
-// and the due instant, which stamps every call and journal event it makes.
+// attempt became due, the cell it was read from, the scope of its target,
+// the due instant, which stamps every call and journal event it makes, and
+// the fault decision onAttempt made for it.
 type attempt struct {
 	e *engine
 	c *kernel.Call
 	// cell is the cell the entry was read from; once a reset or snapshot
 	// load retires it, the attempt's outcome is stale.
-	cell  *store.Cell[State]
-	scope aws.Scope
-	entry Entry
-	due   clock.Instant
+	cell     *store.Cell[State]
+	scope    aws.Scope
+	entry    Entry
+	due      clock.Instant
+	decision fault.Decision
+}
+
+// blocks reports whether the attempt would hold the sequencer for wall
+// time: a Delivery-phase latency rule holds it, or it invokes a function
+// synchronously, which waits for the function to run. Such an attempt runs
+// on its own goroutine, so its target call is not ordered with the others.
+func (a *attempt) blocks() bool {
+	if _, delayed := a.decision.(fault.Delay); delayed {
+		return true
+	}
+	f, ok := a.entry.Request.Target.(delivery.LambdaFunction)
+	return ok && f.Invocation == delivery.InvocationRequestResponse
+}
+
+// do makes the attempt and records its outcome.
+func (a *attempt) do(ctx context.Context) {
+	// finish ends the claim with the outcome; this releases it when the
+	// kernel stopped first or the attempt panicked, so the next Rearm can
+	// attempt the delivery again.
+	defer a.release()
+	if outcome, ok := a.run(ctx); ok {
+		a.finish(ctx, outcome)
+	}
+}
+
+// release ends the attempt's claim on its entry if it still holds it: the
+// cell is live and the entry is pending at the attempt's number. After
+// finish it finds the entry gone or moved on and does nothing.
+func (a *attempt) release() {
+	id := a.entry.ID
+	store.Update(a.cell, func(st *State) (struct{}, bool) {
+		cur, ok := st.Entries[id]
+		if a.cell.Retired() || !ok || !cur.Running || cur.Attempt != a.entry.Attempt {
+			return struct{}{}, false
+		}
+		cur.Running = false
+		st.Entries[id] = cur
+		return struct{}{}, false
+	})
 }
 
 // run makes the attempt and returns how it ended; false when the kernel
@@ -89,22 +164,12 @@ func (a *attempt) run(ctx context.Context) (journal.DeliveryOutcome, bool) {
 	}
 }
 
-// faults evaluates the Delivery-phase rules. decided is true when a rule
-// dropped the attempt; ok is false when the kernel stopped during an
+// faults applies the attempt's Delivery-phase decision: it journals each
+// rule hit, waits out a delay and drops the attempt. decided is true when a
+// rule dropped the attempt; ok is false when the kernel stopped during an
 // injected delay.
 func (a *attempt) faults(ctx context.Context) (outcome journal.DeliveryOutcome, decided, ok bool) {
-	if a.e.faults == nil {
-		return nil, false, true
-	}
-	req := a.entry.Request
-	target, _ := targetARN(req.Target)
-	decision := a.e.faults.Evaluate(fault.DeliveryAttempt, fault.MatchInput{
-		Service:   req.Mechanism.Target(),
-		Mechanism: req.Mechanism,
-		Touched:   []aws.ARN{target},
-		Scope:     a.scope,
-		Origin:    ref.Internal{Via: req.Mechanism.Via()},
-	})
+	decision := a.decision
 	for {
 		switch d := decision.(type) {
 		case fault.Drop:
@@ -221,14 +286,15 @@ func (a *attempt) deadLetter(ctx context.Context, err *awserr.Error, end ending)
 // journaled only when the write made that change. The write is stale, and
 // changes and journals nothing, when the cell the entry came from was
 // retired (a reset or snapshot load replaced it, even with an entry of the
-// same id and attempt, which Rearm attempts afresh), when the entry is
-// gone, or when another attempt has moved it on. The event is appended
+// same id and attempt, which Rearm attempts afresh), or when the entry is
+// gone or no longer at this attempt's number. The event is appended
 // inside the write, before it commits: the write arms the next attempt's
 // timer under the cell's lock, and that attempt could otherwise journal
 // its own outcome before this one, so the journal would show a retry after
 // the delivery it led to. The write can fail only on a zero HandledKind,
-// which Bind rules out; if it ever fails, the error is logged. The entry
-// is then still pending as it was, so the next Rearm attempts it again.
+// which Bind rules out; if it ever fails, the error is logged. The outcome
+// is then recorded but the next attempt's timer is not armed, so the next
+// Rearm arms it.
 func (a *attempt) finish(ctx context.Context, outcome journal.DeliveryOutcome) {
 	id := a.entry.ID
 	req := a.entry.Request
@@ -244,8 +310,11 @@ func (a *attempt) finish(ctx context.Context, outcome journal.DeliveryOutcome) {
 		}
 		a.journal(ctx, event)
 		if r, retry := outcome.(journal.Retrying); retry {
+			// The claim ends in the write that arms the retry, so a retry
+			// due at once finds the entry free when its timer fires.
 			cur.Attempt++
 			cur.NextAt = r.Next
+			cur.Running = false
 			st.Entries[id] = cur
 			tx.Arm(a.e.attempt, timerID(a.scope, id), r.Next)
 			return true, nil

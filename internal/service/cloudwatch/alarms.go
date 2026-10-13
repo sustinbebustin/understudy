@@ -15,7 +15,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// DescribeAlarms' default page size (secrets-logs-events-alarms.md 5.1).
+// DescribeAlarms' page size when MaxRecords is absent. Inferred: the
+// DescribeAlarms documentation gives MaxRecords a range of 1 to 100 and no
+// default.
 const defaultMaxRecords = 50
 
 // initialReason is the StateReason of a new alarm (AWS-recorded).
@@ -79,7 +81,7 @@ func alarmsNamed[In any](namesOf func(*In) []string) kernel.BindOption {
 	})
 }
 
-// putMetricAlarm creates an alarm in INSUFFICIENT_DATA or replaces the
+// putMetricAlarm creates an alarm in its initial state or replaces the
 // configuration of an existing one, which keeps its state and tags: AWS
 // ignores Tags on an update.
 func (s *Service) putMetricAlarm(_ context.Context, c *kernel.Call, in *cloudwatchapi.PutMetricAlarmInput) (*cloudwatchapi.PutMetricAlarmOutput, *awserr.Error) {
@@ -87,11 +89,12 @@ func (s *Service) putMetricAlarm(_ context.Context, c *kernel.Call, in *cloudwat
 	cfg.Tags, cfg.ActionsEnabled = nil, nil
 	enabled := in.ActionsEnabled == nil || *in.ActionsEnabled
 	tags := tagMap(nil, in.Tags)
+	initial := initialStateValue(in)
 	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
 		a, ok := st.Alarms[in.AlarmName]
 		if !ok {
 			a = Alarm{
-				State: AlarmState{Value: cloudwatchapi.StateValueInsufficientData, Reason: initialReason, Updated: now, Transitioned: now},
+				State: AlarmState{Value: initial, Reason: initialReason, Updated: now, Transitioned: now},
 				Tags:  tags,
 			}
 		}
@@ -103,6 +106,17 @@ func (s *Service) putMetricAlarm(_ context.Context, c *kernel.Call, in *cloudwat
 		return nil, err
 	}
 	return &cloudwatchapi.PutMetricAlarmOutput{}, nil
+}
+
+// initialStateValue is a new alarm's state: OK for a PromQL alarm and
+// INSUFFICIENT_DATA for the others, as AWS documents. Its reason is
+// initialReason either way (inferred for a PromQL alarm: no recording
+// shows one).
+func initialStateValue(in *cloudwatchapi.PutMetricAlarmInput) cloudwatchapi.StateValue {
+	if kind, err := alarmKindOf(in); err == nil && kind == promQLAlarm {
+		return cloudwatchapi.StateValueOk
+	}
+	return cloudwatchapi.StateValueInsufficientData
 }
 
 // describeAlarms lists the scope's metric alarms by name, one page at a

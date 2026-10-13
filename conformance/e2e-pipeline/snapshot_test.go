@@ -47,7 +47,7 @@ func TestSnapshotResetRestoreKeepsThePipeline(t *testing.T) {
 	before := pipelineState(t, p, id)
 
 	var archive bytes.Buffer
-	if err := env.admin.SaveSnapshot(t.Context(), &archive, admin.SaveOptions{}); err != nil {
+	if _, err := env.admin.SaveSnapshot(t.Context(), &archive, admin.SaveOptions{}); err != nil {
 		t.Fatalf("admin snapshot save: %v", err)
 	}
 	if _, err := env.admin.Reset(t.Context(), admin.ResetRequest{}); err != nil {

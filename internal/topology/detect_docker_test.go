@@ -3,23 +3,14 @@
 package topology_test
 
 import (
-	"os"
 	"testing"
 
-	"github.com/sustinbebustin/understudy/internal/docker"
+	"github.com/sustinbebustin/understudy/internal/config/configtest"
 	"github.com/sustinbebustin/understudy/internal/topology"
 )
 
 func TestDetectOnThisHost(t *testing.T) {
-	socket, err := docker.ParseDockerHost(os.Getenv("DOCKER_HOST"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := docker.New(docker.Options{Socket: socket})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(c.Close)
+	c := configtest.EngineClient(t)
 	got, err := new(topology.Detector).Detect(t.Context(), c, topology.Options{})
 	if err != nil {
 		t.Fatalf("Detect: %v", err)

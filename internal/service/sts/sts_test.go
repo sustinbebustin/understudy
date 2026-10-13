@@ -1,6 +1,7 @@
 package sts_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -270,6 +271,89 @@ func TestAssumeRoleValidation(t *testing.T) {
 		if out.SourceIdentity == nil || *out.SourceIdentity != "Alice" {
 			t.Errorf("SourceIdentity = %v, want Alice echoed", out.SourceIdentity)
 		}
+	})
+}
+
+// Session policies are not evaluated, but AssumeRole refuses ones AWS
+// refuses: more than 10 managed policy ARNs, an inline policy that is not a
+// valid identity policy, and over 2,048 characters of policy plaintext.
+func TestAssumeRoleSessionPolicies(t *testing.T) {
+	const allow = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject","Resource":"*"}]}`
+	arns := func(n int) []stsapi.PolicyDescriptorType {
+		out := make([]stsapi.PolicyDescriptorType, n)
+		for i := range out {
+			out[i].Arn = new("arn:aws:iam::000000000000:policy/p" + strconv.Itoa(i))
+		}
+		return out
+	}
+	run(t, sts.Options{}, func(h *harness) {
+		role := h.role("r", "/", 3600)
+		must(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Policy: new(allow), PolicyArns: arns(10)})
+		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", PolicyArns: arns(11)},
+			"ValidationError", "'policyArns' failed to satisfy constraint: Member must have length less than or equal to 10")
+		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Policy: new("not json")},
+			"MalformedPolicyDocument", "Syntax errors in policy.")
+		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Policy: new(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject"}]}`)},
+			"MalformedPolicyDocument", "Policy statement must contain resources.")
+
+		// The limit counts the inline policy and the ARNs together.
+		padded := func(n int) string {
+			return `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject","Resource":"arn:aws:s3:::` + strings.Repeat("b", n-len(allow)-len("arn:aws:s3:::")+1) + `"}]}`
+		}
+		ten := len(sessionARNText(arns(10)))
+		must(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Policy: new(padded(2048 - ten)), PolicyArns: arns(10)})
+		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Policy: new(padded(2049 - ten)), PolicyArns: arns(10)},
+			"PackedPolicyTooLarge", "2049 characters")
+		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Policy: new(padded(3000))},
+			"PackedPolicyTooLarge", "3000 characters")
+	})
+}
+
+func sessionARNText(ps []stsapi.PolicyDescriptorType) string {
+	var b strings.Builder
+	for _, p := range ps {
+		b.WriteString(*p.Arn)
+	}
+	return b.String()
+}
+
+// AWS reserves the "aws:" prefix, in any case, for source identities and
+// session tag keys and values.
+func TestAssumeRoleReservedPrefix(t *testing.T) {
+	run(t, sts.Options{}, func(h *harness) {
+		role := h.role("r", "/", 3600)
+		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", SourceIdentity: new("aws:alice")}, "ValidationError", "aws:alice")
+		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", SourceIdentity: new("AWS:alice")}, "ValidationError", "AWS:alice")
+		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Tags: []stsapi.Tag{{Key: "Aws:team", Value: "a"}}}, sessionTagCode, "Aws:team")
+		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Tags: []stsapi.Tag{{Key: "team", Value: "aws:a"}}}, sessionTagCode, "team")
+		out := must(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", SourceIdentity: new("alice-aws"), Tags: []stsapi.Tag{{Key: "team", Value: "a-aws:"}}})
+		if out.SourceIdentity == nil || *out.SourceIdentity != "alice-aws" {
+			t.Errorf("SourceIdentity = %v, want alice-aws echoed", out.SourceIdentity)
+		}
+	})
+}
+
+// sessionTagCode is the code of a session tag rule failure. AWS answers
+// InvalidParameterValue, which the STS model does not declare; the package
+// doc records the divergence.
+const sessionTagCode = "ValidationError"
+
+// Session tag keys are not case sensitive: AssumeRole refuses two keys that
+// differ only in case, and a transitive tag key that names no tag, with
+// AWS's recorded texts. A transitive key matches its tag in any case.
+func TestAssumeRoleSessionTagKeys(t *testing.T) {
+	run(t, sts.Options{}, func(h *harness) {
+		role := h.role("r", "/", 3600)
+		assume := func(tags []stsapi.Tag, transitive ...string) *stsapi.AssumeRoleInput {
+			return &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Tags: tags, TransitiveTagKeys: transitive}
+		}
+		fails(h, stsapi.OpAssumeRole, assume([]stsapi.Tag{{Key: "Dept", Value: "a"}, {Key: "Team", Value: "b"}, {Key: "dept", Value: "c"}}),
+			sessionTagCode, "Duplicate tag keys found. Please note that Tag keys are case insensitive.")
+		fails(h, stsapi.OpAssumeRole, assume([]stsapi.Tag{{Key: "Dept", Value: "a"}}, "Other"),
+			sessionTagCode, "The specified transitive tag key must be included in the requested tags.")
+		fails(h, stsapi.OpAssumeRole, assume(nil, "Dept"),
+			sessionTagCode, "The specified transitive tag key must be included in the requested tags.")
+		must(h, stsapi.OpAssumeRole, assume([]stsapi.Tag{{Key: "Dept", Value: "a"}, {Key: "Team", Value: "a"}}, "dept", "Team"))
 	})
 }
 

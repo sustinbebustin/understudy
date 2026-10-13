@@ -31,16 +31,18 @@ type StoredChecksum struct {
 	Type      s3api.ChecksumType `json:"type"`
 }
 
-// checksumMembers are an input's or output's ten x-amz-checksum-* members
-// in checksum.Algorithms order.
-type checksumMembers [10]*string
+// checksumMembers are an input's or output's x-amz-checksum-* members,
+// indexed by their checksum.Algorithm, so every literal and every read
+// names the algorithm of the member it fills (m[checksum.SHA256]). Index
+// 0, the zero Algorithm, is never set.
+type checksumMembers [checksum.XXHASH128 + 1]*string
 
 // sent returns the members a request set, each with its algorithm.
 func (m checksumMembers) sent() []sentChecksum {
 	var out []sentChecksum
-	for i, a := range checksum.Algorithms() {
-		if m[i] != nil {
-			out = append(out, sentChecksum{alg: a, value: *m[i]})
+	for _, a := range checksum.Algorithms() {
+		if m[a] != nil {
+			out = append(out, sentChecksum{alg: a, value: *m[a]})
 		}
 	}
 	return out
@@ -49,9 +51,9 @@ func (m checksumMembers) sent() []sentChecksum {
 // membersOf is s as the one set member of an output's checksum members.
 func membersOf(s StoredChecksum) checksumMembers {
 	var m checksumMembers
-	for i, a := range checksum.Algorithms() {
+	for _, a := range checksum.Algorithms() {
 		if a.String() == s.Algorithm {
-			m[i] = new(s.Value)
+			m[a] = new(s.Value)
 		}
 	}
 	return m

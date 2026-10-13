@@ -84,7 +84,7 @@ func (s *Service) createBucket(ctx context.Context, c *kernel.Call, in *s3api.Cr
 				return nil, errBucketAlreadyOwnedByYou(cr.name)
 			}
 		}
-		h := Home{OwnerAccount: account, Region: cr.region, Created: now}
+		h := Home{OwnerAccount: account, Region: cr.region, Created: clock.FromWire(seconds(now.Wire()))}
 		x.Buckets = with(x.Buckets, cr.name, h)
 		return reserved{home: h}, nil
 	})

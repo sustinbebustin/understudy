@@ -121,6 +121,12 @@ func (*Service) Switches() []fidelity.Entry {
 			Ref:   "docs/research/phase1/secrets-logs-events-alarms.md#24-operations-request-and-response-facts",
 		}.Entry(),
 		fidelity.Switch[string]{
+			Name:  "secretsmanager.list-secrets.all-filter-match",
+			Value: "any-word,word-prefix",
+			Label: evidence.Inferred,
+			Ref:   "https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html",
+		}.Entry(),
+		fidelity.Switch[string]{
 			Name:  "secretsmanager.last-accessed-date.granularity",
 			Value: "day",
 			Label: evidence.AWSDoc,

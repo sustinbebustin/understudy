@@ -34,7 +34,7 @@ type AccessRecorder interface {
 
 // DeliverSink accepts the cross-service deliveries Tx.Deliver produces. The
 // outbox implements it: Deliver inserts the delivery into its own state
-// before the source call returns, so an accepted delivery is state (F4).
+// before the source call returns, so an accepted delivery is state.
 type DeliverSink interface {
 	Deliver(d Delivery) error
 }

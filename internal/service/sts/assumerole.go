@@ -75,6 +75,9 @@ func (s *Service) assumeRole(ctx context.Context, c *kernel.Call, in *stsapi.Ass
 	if err != nil {
 		return nil, err
 	}
+	if err := checkSession(in); err != nil {
+		return nil, err
+	}
 	if target, err = s.resolve(ctx, c, target); err != nil {
 		return nil, err
 	}

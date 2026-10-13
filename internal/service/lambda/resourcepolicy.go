@@ -15,8 +15,8 @@ import (
 // when no such function exists, which skips the advisory.
 func (s *Service) ResourcePolicy(target aws.ARN) (doc *policydoc.Document, ok bool) {
 	rest, isFunction := strings.CutPrefix(target.Resource, "function:")
-	scope, inScope := scopeOf(target)
-	if target.Service != "lambda" || !isFunction || !inScope {
+	scope, serr := aws.ScopeOf(target)
+	if target.Service != "lambda" || !isFunction || serr != nil {
 		return nil, false
 	}
 	name, qualifier, _ := strings.Cut(rest, ":")
@@ -35,12 +35,8 @@ func (s *Service) ResourcePolicy(target aws.ARN) (doc *policydoc.Document, ok bo
 		}
 		return found{text: p.document(), ok: true}, nil
 	})
-	if !f.ok || f.text == "" {
-		return nil, f.ok
+	if !f.ok {
+		return nil, false
 	}
-	parsed, err := policydoc.Parse([]byte(f.text))
-	if err != nil {
-		return nil, true
-	}
-	return &parsed, true
+	return policydoc.ParseStored(f.text), true
 }

@@ -363,8 +363,12 @@ func TestAdminSnapshotRestoresAfterReset(t *testing.T) {
 	c, endpoint := adminServer(t, server.Config{})
 	url := queue(t, endpoint, "keep", "hello")
 	var archive bytes.Buffer
-	if err := c.SaveSnapshot(t.Context(), &archive, admin.SaveOptions{Gzip: true, IncludeJournal: true}); err != nil {
+	saved, err := c.SaveSnapshot(t.Context(), &archive, admin.SaveOptions{Gzip: true, IncludeJournal: true})
+	if err != nil {
 		t.Fatal(err)
+	}
+	if saved.Bytes != int64(archive.Len()) || saved.PendingEffects != 0 {
+		t.Errorf("SaveSnapshot = %+v, want the %d bytes written and no pending effects", saved, archive.Len())
 	}
 	reset, err := c.Reset(t.Context(), admin.ResetRequest{})
 	if err != nil || !slices.Contains(reset.Services, "sqs") {
@@ -384,7 +388,7 @@ func TestAdminSnapshotRestoresAfterReset(t *testing.T) {
 		t.Fatalf("after load the message is gone: %s", body)
 	}
 	_, err = c.LoadSnapshot(t.Context(), strings.NewReader("not an archive"))
-	wantCode(t, err, admin.InvalidRequest)
+	wantCode(t, err, admin.Conflict)
 }
 
 // Reset by service and region drops only what it selects.
@@ -698,16 +702,33 @@ func TestAdminRefusesUnknownRequests(t *testing.T) {
 	}
 }
 
-// A non-loopback listener needs an admin token; the refusal names the token
-// and the loopback alternative.
-func TestNonLoopbackListenerNeedsAToken(t *testing.T) {
+// A non-loopback listener on the host needs an admin token and the explicit
+// acceptance of an unauthenticated AWS API, since the token guards only the
+// admin API; each refusal names what is missing and the loopback
+// alternative.
+func TestNonLoopbackListenerNeedsATokenAndTheAWSAPIOptIn(t *testing.T) {
 	exposed := netip.MustParseAddrPort("0.0.0.0:0")
-	_, err := server.New(server.Config{Listen: exposed, LogOutput: io.Discard})
-	var le *server.ListenError
-	if !errors.As(err, &le) || !strings.Contains(err.Error(), "admin token") || !strings.Contains(err.Error(), "--listen 127.0.0.1:") {
-		t.Fatalf("New on 0.0.0.0 without a token = %v", err)
+	for _, tc := range []struct {
+		name   string
+		cfg    server.Config
+		reason server.ListenRefusal
+		says   string
+	}{
+		{"no token", server.Config{Listen: exposed}, server.RefusedNoAdminToken, "admin token"},
+		{"opt-in without a token", server.Config{Listen: exposed, AWSAPI: server.AWSAPIUnauthenticated{}}, server.RefusedNoAdminToken, "admin token"},
+		{"token alone", server.Config{Listen: exposed, AdminToken: "s3cret"}, server.RefusedUnauthenticatedAWSAPI, "--allow-unauthenticated-aws-api"},
+		{"token, loopback only", server.Config{Listen: exposed, AdminToken: "s3cret", AWSAPI: server.AWSAPILoopbackOnly{}}, server.RefusedUnauthenticatedAWSAPI, "checks no signature"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.cfg.LogOutput = io.Discard
+			_, err := server.New(tc.cfg)
+			le, ok := errors.AsType[*server.ListenError](err)
+			if !ok || le.Reason != tc.reason || !strings.Contains(err.Error(), tc.says) || !strings.Contains(err.Error(), "--listen 127.0.0.1:") {
+				t.Fatalf("New = %v, want a *ListenError with reason %d naming %q and the loopback alternative", err, tc.reason, tc.says)
+			}
+		})
 	}
-	newServer(t, server.Config{Listen: exposed, AdminToken: "s3cret", LogOutput: io.Discard})
+	newServer(t, server.Config{Listen: exposed, AdminToken: "s3cret", AWSAPI: server.AWSAPIUnauthenticated{}, LogOutput: io.Discard})
 }
 
 // With a token, every admin call without it is refused as unauthorized,
@@ -741,7 +762,7 @@ func TestAdminTokenGuardsEveryEndpoint(t *testing.T) {
 	for _, p := range paths {
 		for _, auth := range []string{"", "Bearer wrong", "s3cret"} {
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequestWithContext(t.Context(), p.method, "/_understudy/v1/"+p.path, http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), p.method, "http://localhost:4566/_understudy/v1/"+p.path, http.NoBody)
 			if auth != "" {
 				req.Header.Set("Authorization", auth)
 			}
@@ -755,7 +776,7 @@ func TestAdminTokenGuardsEveryEndpoint(t *testing.T) {
 	// The auth-scheme name is case-insensitive (RFC 7235 2.1).
 	for _, auth := range []string{"Bearer s3cret", "bearer s3cret", "BEARER s3cret"} {
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/_understudy/v1/clock", http.NoBody)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://localhost:4566/_understudy/v1/clock", http.NoBody)
 		req.Header.Set("Authorization", auth)
 		srv.Handler().ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {

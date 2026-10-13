@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
+	"github.com/sustinbebustin/understudy/internal/checksum"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -54,6 +55,9 @@ type Upload struct {
 	Key string `json:"key"`
 	// Initiated is when Create committed it.
 	Initiated clock.Instant `json:"initiated"`
+	// Seq is the bucket's version Seq taken at Create: the completed object
+	// is ordered among its key's versions by when the upload began.
+	Seq uint64 `json:"seq"`
 	// Initiator is the canonical user id of the account that created it.
 	Initiator    string             `json:"initiator"`
 	Checksum     UploadChecksum     `json:"checksum"`
@@ -203,6 +207,7 @@ func (s *Service) createMultipartUpload(ctx context.Context, c *kernel.Call, in 
 	_, _, err = writeObjects(ctx, s, c, a, func(b *Bucket, w objectTx) (struct{}, []blob.Ref, *awserr.Error) {
 		x := *u
 		x.Initiated = w.now
+		x.Seq = b.nextSeq()
 		b.Uploads.add(&x)
 		return struct{}{}, nil, nil
 	})
@@ -269,8 +274,9 @@ func readComplete(in *s3api.CompleteMultipartUploadInput) (completeRequest, *aws
 		return completeRequest{}, err
 	}
 	sums := checksumMembers{
-		in.ChecksumCRC32, in.ChecksumCRC32C, in.ChecksumCRC64NVME, in.ChecksumSHA1, in.ChecksumSHA256,
-		in.ChecksumSHA512, in.ChecksumMD5, in.ChecksumXXHASH64, in.ChecksumXXHASH3, in.ChecksumXXHASH128,
+		checksum.CRC32: in.ChecksumCRC32, checksum.CRC32C: in.ChecksumCRC32C, checksum.CRC64NVME: in.ChecksumCRC64NVME,
+		checksum.SHA1: in.ChecksumSHA1, checksum.SHA256: in.ChecksumSHA256, checksum.SHA512: in.ChecksumSHA512, checksum.MD5: in.ChecksumMD5,
+		checksum.XXHASH64: in.ChecksumXXHASH64, checksum.XXHASH3: in.ChecksumXXHASH3, checksum.XXHASH128: in.ChecksumXXHASH128,
 	}.sent()
 	r := completeRequest{id: in.UploadId, key: in.Key, parts: parts, typ: in.ChecksumType, size: in.MpuObjectSize, cond: cond}
 	switch len(sums) {
@@ -353,8 +359,8 @@ func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, i
 	if obj.Encryption.KMS == nil {
 		out.ChecksumType = new(obj.Checksum.Type)
 		m := membersOf(obj.Checksum)
-		out.ChecksumCRC32, out.ChecksumCRC32C, out.ChecksumCRC64NVME, out.ChecksumSHA1, out.ChecksumSHA256 = m[0], m[1], m[2], m[3], m[4]
-		out.ChecksumSHA512, out.ChecksumMD5, out.ChecksumXXHASH64, out.ChecksumXXHASH3, out.ChecksumXXHASH128 = m[5], m[6], m[7], m[8], m[9]
+		out.ChecksumCRC32, out.ChecksumCRC32C, out.ChecksumCRC64NVME, out.ChecksumSHA1, out.ChecksumSHA256 = m[checksum.CRC32], m[checksum.CRC32C], m[checksum.CRC64NVME], m[checksum.SHA1], m[checksum.SHA256]
+		out.ChecksumSHA512, out.ChecksumMD5, out.ChecksumXXHASH64, out.ChecksumXXHASH3, out.ChecksumXXHASH128 = m[checksum.SHA512], m[checksum.MD5], m[checksum.XXHASH64], m[checksum.XXHASH3], m[checksum.XXHASH128]
 	}
 	h := obj.Encryption.headers()
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
@@ -453,8 +459,9 @@ func orderedParts(id string, sent []s3api.CompletedPart) ([]listedPart, *awserr.
 		parts[i] = listedPart{
 			number: *cp.PartNumber, etag: unquote(deref(cp.ETag)),
 			restated: checksumMembers{
-				cp.ChecksumCRC32, cp.ChecksumCRC32C, cp.ChecksumCRC64NVME, cp.ChecksumSHA1, cp.ChecksumSHA256,
-				cp.ChecksumSHA512, cp.ChecksumMD5, cp.ChecksumXXHASH64, cp.ChecksumXXHASH3, cp.ChecksumXXHASH128,
+				checksum.CRC32: cp.ChecksumCRC32, checksum.CRC32C: cp.ChecksumCRC32C, checksum.CRC64NVME: cp.ChecksumCRC64NVME,
+				checksum.SHA1: cp.ChecksumSHA1, checksum.SHA256: cp.ChecksumSHA256, checksum.SHA512: cp.ChecksumSHA512, checksum.MD5: cp.ChecksumMD5,
+				checksum.XXHASH64: cp.ChecksumXXHASH64, checksum.XXHASH3: cp.ChecksumXXHASH3, checksum.XXHASH128: cp.ChecksumXXHASH128,
 			},
 		}
 	}
@@ -493,8 +500,9 @@ func errInvalidPartOrder(uploadID string) *awserr.Error {
 // completeWrite commits a judged Complete: the upload must still hold
 // every listed part as judged, and the write condition is judged again; a
 // failure there means another request landed in between. The object's
-// version is dated at the upload's initiation (s3.md 10), the upload is
-// dropped, and every part's reference is released.
+// version is dated at the upload's initiation (s3.md 10) and placed by
+// completedSeq, the upload is dropped, and every part's reference is
+// released.
 func (s *Service) completeWrite(req completeRequest, plan completion, obj *Object) objectWrite[committed] {
 	return func(b *Bucket, w objectTx) (committed, []blob.Ref, *awserr.Error) {
 		u, err := b.Uploads.find(req.id, req.key)
@@ -510,12 +518,25 @@ func (s *Service) completeWrite(req completeRequest, plan completion, obj *Objec
 		if err := checkWrite(req.cond, req.key, currentValidator(b, req.key)); err != nil {
 			return committed{}, nil, errConditionalConflict(req.cond, req.key)
 		}
-		v := Version{ID: s.newVersionID(b), Modified: clock.FromWire(seconds(u.Initiated.Wire())), Object: obj}
+		v := s.newVersion(b, completedSeq(b, u), u.Initiated, obj)
 		released := b.Objects.add(req.key, v)
 		b.Uploads.remove(req.id)
 		s.commitObject(w, b, event{key: req.key, versionID: v.ID, change: notify.Created{Action: notify.CreatedCompleteMultipartUpload, Size: obj.Size, ETag: obj.ETag}})
-		return committed{version: v, reported: reportedVersion(b, v.ID)}, append(blobsOf(released), u.blobs()...), nil
+		return committed{version: v, reported: writtenVersion(b, v.ID)}, append(blobsOf(released), u.blobs()...), nil
 	}
+}
+
+// completedSeq is the Seq a completed upload's version takes. With
+// versioning enabled it is the upload's own, taken at Create: of two
+// uploads to one key, the one initiated last stays current whichever
+// completes last (DOC mpuoverview, "Concurrent multipart upload
+// operations"). Otherwise the null version it makes takes a fresh Seq and
+// becomes current, as any later write may.
+func completedSeq(b *Bucket, u *Upload) uint64 {
+	if b.versioning() == versionsEnabled {
+		return u.Seq
+	}
+	return b.nextSeq()
 }
 
 // objectLocation is a completed object's URL, the result's Location, in

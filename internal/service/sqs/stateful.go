@@ -37,19 +37,44 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 }
 
 // Rearm arms the timers the state implies at now (timersOf), since timers
-// are never saved.
+// are never saved. It arms under the cell lock, where kernel.Write arms,
+// so a concurrent write either commits first and its timers are read
+// here, or commits after and its own arms replace these. It then wakes
+// the long polls parked on every queue that holds a visible message,
+// since no send or timer will wake them for messages the load brought.
 func (s *Service) Rearm(now clock.Instant) {
 	sched := s.k.Timers().Scheduler()
+	var ready []queueRef
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
 		cell, ok := s.cells.Lookup(scope)
 		if !ok {
 			continue
 		}
-		pending := store.Read(cell, func(st *State) []clock.Armed { return s.timersOf(scope, st, now) })
-		for _, a := range pending {
-			sched.Arm(a.Key, a.Due)
+		ready = append(ready, store.Read(cell, func(st *State) []queueRef {
+			for _, a := range s.timersOf(scope, st, now) {
+				sched.Arm(a.Key, a.Due)
+			}
+			return readyQueues(scope, st, now)
+		})...)
+	}
+	for _, q := range ready {
+		s.k.Waiters().Wake(q.waitKey())
+	}
+}
+
+// readyQueues lists the queues of scope holding a message visible at now.
+func readyQueues(scope aws.Scope, st *State, now clock.Instant) []queueRef {
+	var out []queueRef
+	for _, name := range slices.Sorted(maps.Keys(st.Queues)) {
+		queue := st.Queues[name]
+		for i := range queue.Messages {
+			if queue.Messages[i].visible(now) {
+				out = append(out, queueRef{scope: scope, name: name})
+				break
+			}
 		}
 	}
+	return out
 }
 
 // Scopes lists the scopes the service holds a cell for, whether or not

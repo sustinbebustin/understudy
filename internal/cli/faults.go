@@ -5,12 +5,13 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/sustinbebustin/understudy/admin"
@@ -85,7 +86,24 @@ func runFaultsList(ctx context.Context, r *runner, args []string) error {
 	if err != nil {
 		return err
 	}
-	return r.emit(admin.FaultList{Faults: faults}, func(w io.Writer) error { return writeFaults(w, faults) })
+	return r.emitFaults(admin.FaultList{Faults: faults}, faults)
+}
+
+// emitFaults prints v, whose rules are faults: JSON, where each rule
+// carries its own warning, or a table on stdout of rows only, with the
+// warnings on stderr. A warning's text names its rule.
+func (r *runner) emitFaults(v any, faults []admin.Fault) error {
+	if err := r.emit(v, func(w io.Writer) error { return writeFaults(w, faults) }); err != nil || r.output == outputJSON {
+		return err
+	}
+	var warnings strings.Builder
+	for i := range faults {
+		if faults[i].Warning != "" {
+			warnings.WriteString("warning: " + faults[i].Warning + "\n")
+		}
+	}
+	_, err := io.WriteString(r.o.Stderr, warnings.String())
+	return err
 }
 
 func writeFaults(w io.Writer, faults []admin.Fault) error {
@@ -93,21 +111,13 @@ func writeFaults(w io.Writer, faults []admin.Fault) error {
 		_, err := fmt.Fprintln(w, "no fault rules")
 		return err
 	}
-	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	tw := newTable(w)
 	fmt.Fprintln(tw, "ID\tPHASE\tACTION\tTRIGGER\tHITS\tMATCH")
-	var warnings strings.Builder
 	for i := range faults {
 		f := &faults[i]
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%d\t%s\n", f.Rule.ID, f.Rule.Phase, describeAction(f.Rule.Action), describeTrigger(f.Rule.Trigger), f.Hits, describeMatch(&f.Rule.Match))
-		if f.Warning != "" {
-			fmt.Fprintf(&warnings, "warning: %s: %s\n", f.Rule.ID, f.Warning)
-		}
 	}
-	if err := tw.Flush(); err != nil {
-		return err
-	}
-	_, err := io.WriteString(w, warnings.String())
-	return err
+	return tw.Flush()
 }
 
 func describeAction(a admin.FaultAction) string {
@@ -174,6 +184,9 @@ type faultFlags struct {
 	probability                              float64
 	services, operations, mechanisms         stringList
 	accounts, regions                        stringList
+	// set names the flags the command line gave, so a zero --next,
+	// --probability or --latency is told from an absent one.
+	set map[string]bool
 }
 
 func faultsAdd(fs *flag.FlagSet) action {
@@ -190,16 +203,18 @@ func faultsAdd(fs *flag.FlagSet) action {
 	fs.StringVar(&f.errShape, "error", "", "fail the call with this error shape, one the operation really sends")
 	fs.StringVar(&f.message, "message", "", "message of the --error (default one naming the rule)")
 	fs.BoolVar(&f.throttle, "throttle", false, "fail the call with the service's throttling error")
-	fs.DurationVar(&f.latency, "latency", 0, "delay the call by this much wall time")
+	durationVar(fs, &f.latency, "latency", 0, "delay the call by this much wall time")
 	fs.StringVar(&f.afterCommit, "after-commit", "", "let the call take effect, then answer with this error shape")
 	fs.StringVar(&f.statusOK, "status-ok", "", "answer 200 with this error shape in the body, as S3 does for some operations")
 	fs.BoolVar(&f.drop, "drop", false, "discard a delivery attempt (delivery phase)")
-	fs.IntVar(&f.next, "next", 0, "fire on the next N matching calls, then remove the rule")
-	fs.Float64Var(&f.probability, "probability", 0, "fire on each matching call with this probability, between 0 and 1")
+	intVar(fs, &f.next, "next", 0, "fire on the next N matching calls, then remove the rule")
+	fractionVar(fs, &f.probability, "probability", "fire on each matching call with this probability, between 0 and 1")
 	return func(ctx context.Context, r *runner, args []string) error {
 		if err := wantArgs(args, 0, "no arguments"); err != nil {
 			return err
 		}
+		f.set = map[string]bool{}
+		fs.Visit(func(fl *flag.Flag) { f.set[fl.Name] = true })
 		rule, err := f.rule()
 		if err != nil {
 			return err
@@ -210,10 +225,42 @@ func faultsAdd(fs *flag.FlagSet) action {
 		}
 		put, err := c.PutFault(ctx, rule)
 		if err != nil {
+			return withShortShapes(err)
+		}
+		return r.emitFaults(put, []admin.Fault{*put})
+	}
+}
+
+// withShortShapes is err with the error shapes a refused rule lists by
+// their short names, the form --error takes, when no two share a short
+// name; any other err is returned as is.
+func withShortShapes(err error) error {
+	refused, ok := errors.AsType[*admin.Error](err)
+	if !ok || len(refused.Known) == 0 {
+		return err
+	}
+	short := make([]string, len(refused.Known))
+	for i, id := range refused.Known {
+		short[i] = shortShape(id)
+		if short[i] == id || slices.Contains(short[:i], short[i]) {
 			return err
 		}
-		return r.emit(put, func(w io.Writer) error { return writeFaults(w, []admin.Fault{*put}) })
 	}
+	out := *refused
+	out.Known = short
+	return &out
+}
+
+// operationForm checks that each --operation is service.Operation, the
+// only form a rule takes, before the server's JSON decoder refuses it.
+func operationForm(ops []string) error {
+	for _, op := range ops {
+		svc, name, ok := strings.Cut(op, ".")
+		if !ok || svc == "" || name == "" {
+			return &usageError{msg: fmt.Sprintf("--operation %q is not service.Operation, such as sqs.SendMessage", op)}
+		}
+	}
+	return nil
 }
 
 // rule builds the rule the flags describe; exactly one action is required
@@ -226,7 +273,10 @@ func (f *faultFlags) rule() (admin.FaultRule, error) {
 	if f.throttle {
 		actions = append(actions, admin.Throttle{})
 	}
-	if f.latency != 0 {
+	if f.set["latency"] {
+		if f.latency <= 0 {
+			return admin.FaultRule{}, &usageError{msg: fmt.Sprintf("--latency %q is not a positive duration such as 250ms or 2s", f.latency)}
+		}
 		actions = append(actions, admin.Latency{Wall: f.latency})
 	}
 	if f.afterCommit != "" {
@@ -244,13 +294,21 @@ func (f *faultFlags) rule() (admin.FaultRule, error) {
 	if f.message != "" && f.errShape == "" {
 		return admin.FaultRule{}, &usageError{msg: "--message goes with --error"}
 	}
+	if err := operationForm(f.operations); err != nil {
+		return admin.FaultRule{}, err
+	}
+	if shaped := f.shapeFlag(); shaped != "" && len(f.operations) == 0 {
+		return admin.FaultRule{}, &usageError{msg: shaped + " needs at least one --operation service.Operation, such as --operation sqs.SendMessage, since each operation sends its own errors"}
+	}
+	// The server refuses a --next below 1 and a --probability outside
+	// (0, 1], so the values pass through as given.
 	var trigger admin.FaultTrigger = admin.Always{}
 	switch {
-	case f.next != 0 && f.probability != 0:
+	case f.set["next"] && f.set["probability"]:
 		return admin.FaultRule{}, &usageError{msg: "takes at most one of --next and --probability"}
-	case f.next != 0:
+	case f.set["next"]:
 		trigger = admin.NextN{N: f.next}
-	case f.probability != 0:
+	case f.set["probability"]:
 		trigger = admin.Probability{P: f.probability}
 	}
 	id := f.id
@@ -267,6 +325,21 @@ func (f *faultFlags) rule() (admin.FaultRule, error) {
 		Action:  actions[0],
 		Trigger: trigger,
 	}, nil
+}
+
+// shapeFlag is the flag of the action that names an error shape, which the
+// server resolves against the matched operations; empty for another
+// action.
+func (f *faultFlags) shapeFlag() string {
+	switch {
+	case f.errShape != "":
+		return "--error"
+	case f.afterCommit != "":
+		return "--after-commit"
+	case f.statusOK != "":
+		return "--status-ok"
+	}
+	return ""
 }
 
 // newRuleID mints a rule id for a rule added without one.
@@ -293,16 +366,21 @@ func runFaultsLoad(ctx context.Context, r *runner, args []string) error {
 	put := make([]admin.Fault, 0, len(rules))
 	for i := range rules {
 		rule := &rules[i]
+		// A rule is named by its index, and by its id only when the file
+		// gave one: a minted id means nothing to the user.
+		name := fmt.Sprintf("rule %d", i)
 		if rule.ID == "" {
 			rule.ID = newRuleID()
+		} else {
+			name += fmt.Sprintf(" (%s)", rule.ID)
 		}
 		f, err := c.PutFault(ctx, *rule)
 		if err != nil {
-			return fmt.Errorf("rule %d (%s) of %s, after %d rule(s) were added: %w", i, rule.ID, args[0], i, err)
+			return fmt.Errorf("%s of %s, after %d rule(s) were added: %w", name, args[0], i, err)
 		}
 		put = append(put, *f)
 	}
-	return r.emit(admin.FaultList{Faults: put}, func(w io.Writer) error { return writeFaults(w, put) })
+	return r.emitFaults(admin.FaultList{Faults: put}, put)
 }
 
 // parseRules reads a JSON list of rules, or the {"faults": [{"rule": ...}]}

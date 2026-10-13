@@ -263,6 +263,40 @@ func (m *Manager) Stop(ctx context.Context) error {
 	return nil
 }
 
+// Lost reports that a request to endpoint failed to reach DynamoDB Local.
+// When the container running there is gone or no longer running (killed
+// for memory, removed by hand, Docker restarted), the Manager forgets it,
+// so the next Start launches a new one; run removes what is left under the
+// container name first. A container that still runs, or an endpoint the
+// Manager has moved on from, changes nothing. An error means Docker could
+// not say, and the state is kept.
+func (m *Manager) Lost(ctx context.Context, endpoint *url.URL) error {
+	m.mu.Lock()
+	r, ok := m.state.(running)
+	m.mu.Unlock()
+	if !ok || r.endpoint.String() != endpoint.String() {
+		return nil
+	}
+	c, err := m.cfg.Docker.ContainerInspect(ctx, r.id)
+	switch {
+	case err != nil && !docker.IsNotFound(err):
+		return fmt.Errorf("ddblocal: inspecting container %s after a request to it failed: %w", r.id, err)
+	case err == nil && c.State.Running:
+		return nil
+	}
+	m.mu.Lock()
+	// Only the container inspected is forgotten: a Stop or a new start
+	// since then owns the state.
+	if now, ok := m.state.(running); ok && now.id == r.id {
+		m.state = stopped{}
+	}
+	m.mu.Unlock()
+	m.transport.CloseIdleConnections()
+	m.log.LogAttrs(ctx, slog.LevelWarn, "DynamoDB Local's container is gone or stopped; the next DynamoDB call starts a new one",
+		slog.String("container", r.id))
+	return nil
+}
+
 // launch runs one start once the previous launch has finished, and
 // publishes its outcome. A Stop during the start has already moved the
 // state on: its waiters get errStopped, and a container that came up is

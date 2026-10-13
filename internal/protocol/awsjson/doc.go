@@ -77,7 +77,7 @@
 //     not only on shapes with awsQueryError: modeled shapes without the
 //     trait carry their shape name as the code (Identity.QueryCode), and
 //     generic errors the catalogue's Query spelling. This follows
-//     PHASE1-PLAN.md T11 and error-matrix.md 3, which records the header on
+//     error-matrix.md 3, which records the header on
 //     SQS's unmodeled errors (boto3 derives Code from it), as
 //     ARCHITECTURE.md 6.2 and wire-json-query.md Implication 12 state.
 //     Smithy's QueryCompatibleAwsJson10NoCustomCodeError response test

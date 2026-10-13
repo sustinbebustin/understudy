@@ -50,6 +50,17 @@ type Options struct {
 	S3Control Codec
 	// Listener says which listener the handler serves.
 	Listener ref.ListenerKind
+	// Hosts is which Host headers the listener answers; nil means
+	// LocalHosts. An exposed main listener passes NetworkHosts.
+	Hosts HostPolicy
+	// Pages is which web pages may call the AWS APIs from a browser; nil
+	// means LocalPages.
+	Pages PagePolicy
+	// Served is the set of ports every understudy listener serves, shared
+	// by the handlers of one server so LocalPages refuses a page served on
+	// any of them; Server adds each listener h serves. nil gives the
+	// handler a set of its own, which covers only the listeners it serves.
+	Served *ServedPorts
 	// MaxHeaderBytes bounds request headers; 0 means net/http's default.
 	MaxHeaderBytes int
 	// Admin serves the /_understudy/ prefix (rule 1).
@@ -71,6 +82,13 @@ type Options struct {
 type Handler struct {
 	opts Options
 	log  *slog.Logger
+	// served is opts.Served, or the handler's own set when that is nil.
+	served *ServedPorts
+	// warned dedupes the edge's warnings about a recurring problem.
+	warned *warnings
+	// emulated lists the registered services, for a request signed for
+	// one understudy does not emulate.
+	emulated string
 }
 
 // OptionsError reports Options New cannot use.
@@ -92,20 +110,51 @@ func New(o Options) (*Handler, error) {
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
 	}
-	return &Handler{opts: o, log: log}, nil
+	served := o.Served
+	if served == nil {
+		served = &ServedPorts{}
+	}
+	services := o.Registry.Services()
+	names := make([]string, len(services))
+	for i, svc := range services {
+		names[i] = string(svc.ID)
+	}
+	return &Handler{
+		opts: o, log: log, served: served,
+		warned:   &warnings{seen: map[string]struct{}{}},
+		emulated: strings.Join(names, ", "),
+	}, nil
 }
 
-// readHeaderTimeout bounds how long a client may take to send its headers.
-const readHeaderTimeout = 30 * time.Second
+const (
+	// readHeaderTimeout bounds how long a client may take to send its
+	// headers.
+	readHeaderTimeout = 30 * time.Second
+	// idleTimeout closes a keep-alive connection idle that long between
+	// requests; long polls and journal streams run within a request, so it
+	// never cuts them.
+	idleTimeout = 2 * time.Minute
+)
 
-// Server returns an http.Server serving h with the header limits; base
-// gives each connection its context, so shutdown can end long polls.
+// Server returns an http.Server serving h with the header limits, the
+// keep-alive idle limit and net/http's own diagnostics (TLS handshake
+// failures, handler panics) logged through h's logger at Warn; base gives
+// each connection its context, so shutdown can end long polls, and nil
+// means context.Background. Each listener it serves joins h's ServedPorts.
 func (h *Handler) Server(base func(net.Listener) context.Context) *http.Server {
 	return &http.Server{
 		Handler:           h,
 		MaxHeaderBytes:    h.opts.MaxHeaderBytes,
 		ReadHeaderTimeout: readHeaderTimeout,
-		BaseContext:       base,
+		IdleTimeout:       idleTimeout,
+		ErrorLog:          slog.NewLogLogger(h.log.Handler(), slog.LevelWarn),
+		BaseContext: func(ln net.Listener) context.Context {
+			h.served.add(ln.Addr())
+			if base == nil {
+				return context.Background()
+			}
+			return base(ln)
+		},
 	}
 }
 
@@ -120,17 +169,37 @@ type exchange struct {
 	protocol ref.ProtocolID
 }
 
-// ServeHTTP admits a request (step 1), parses its credentials (2), resolves
-// the caller (3), claims it (4), decodes it (5), dispatches it to the
-// kernel and writes the answer (13).
+// ServeHTTP admits a request (step 1), refusing a Host the listener does
+// not answer, parses its credentials (2), resolves the caller (3), claims
+// it (4), refusing a web page on another site, decodes it (5), dispatches
+// it to the kernel and writes the answer (13). Each request is logged at
+// Debug.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	k := h.opts.Kernel
 	ctx := r.Context()
-	x := &exchange{w: &datedWriter{ResponseWriter: w, wall: k.Clock().Wall}, r: r, id: k.IDs().RequestID(), admitted: k.Clock().Now()}
+	elapsed := k.Clock().Stopwatch()
+	dw := &datedWriter{ResponseWriter: w, wall: k.Clock().Wall}
+	x := &exchange{w: dw, r: r, id: k.IDs().RequestID(), admitted: k.Clock().Now()}
+	target := "refused"
+	defer func() { h.logRequest(ctx, x, target, statusOf(dw), elapsed()) }()
+	if !h.hostAllowed(r) {
+		h.log.LogAttrs(ctx, slog.LevelWarn, "refused a request whose Host this listener does not answer (DNS rebinding defence)",
+			slog.String("host", r.Host), slog.String("request_id", string(x.id)))
+		h.write(ctx, x, refuseHost(r.Host))
+		return
+	}
+	if r.Body != nil && r.Body != http.NoBody {
+		r.Body = &progressBody{rc: r.Body, ctrl: http.NewResponseController(dw), wall: k.Clock().Wall}
+	}
 	a, parseErr := auth.Parse(r, h.opts.Regions)
-	switch rt := h.claim(r, a, parseErr).(type) {
+	rt := h.claim(r, a, parseErr)
+	target = routed(rt)
+	if h.refusedPage(ctx, x, rt) {
+		return
+	}
+	switch rt := rt.(type) {
 	case toAdmin:
-		h.serveAdmin(x)
+		h.serveAdmin(ctx, x)
 	case toOperation:
 		x.r = rt.req
 		h.dispatch(ctx, x, rt.codec, rt.op.ID, a, parseErr, func() kernel.Decoded { return h.decode(x, rt.codec, rt.op) })
@@ -139,21 +208,54 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// credentials (ARCHITECTURE.md 3.3), so a parse error is moot here.
 		x.r = rt.req
 		id := ref.OperationID{Service: rt.svc.ID, Name: rt.name}
+		h.noteUnknown(ctx, x, id)
 		h.dispatch(ctx, x, rt.codec, id, a, nil, func() kernel.Decoded {
 			return kernel.Rejected{Err: h.unknownOperation(rt.svc, rt.codec.Protocol(), rt.name)}
 		})
 	case toRaw:
 		h.dispatchRaw(ctx, x, rt, a)
+	case toLink:
+		h.dispatchRaw(ctx, x, toRaw{op: rt.op}, a)
 	case toService:
 		h.answerForService(ctx, x, rt.svc, rt.reasons)
+	case notEmulated:
+		h.notEmulated(ctx, x, rt)
 	case unclaimed:
 		h.unclaimed(ctx, x, rt.reasons)
+	case toLocalStack:
+		h.localStack(ctx, x, rt.reasons)
 	}
 }
 
-// serveAdmin hands the /_understudy/ prefix to the admin handler. The
-// container listener serves only health and clock from it.
-func (h *Handler) serveAdmin(x *exchange) {
+// refusedPage answers, and reports, a request routed to the AWS APIs that
+// the listener's PagePolicy refuses as a web page's on another site. The
+// admin API applies its own stricter rule, and links understudy hands out
+// are opened from any page by design.
+func (h *Handler) refusedPage(ctx context.Context, x *exchange, rt route) bool {
+	switch rt.(type) {
+	case toAdmin, toLink:
+		return false
+	case toOperation, toUnknown, toRaw, toService, notEmulated, unclaimed, toLocalStack:
+	}
+	why, refused := h.crossSitePage(x.r)
+	if !refused {
+		return false
+	}
+	h.log.LogAttrs(ctx, slog.LevelWarn, "refused an AWS API call from a web page on another site",
+		slog.String("reason", why), slog.String("request_id", string(x.id)))
+	h.write(ctx, x, refusePage(why))
+	return true
+}
+
+// serveAdmin hands the /_understudy/ prefix to the admin handler, unless a
+// web page on another site sent the call. The container listener serves
+// only health and clock from it.
+func (h *Handler) serveAdmin(ctx context.Context, x *exchange) {
+	if why, refused := crossSiteAdmin(x.r); refused {
+		h.log.LogAttrs(ctx, slog.LevelWarn, "refused a cross-site admin call", slog.String("reason", why), slog.String("request_id", string(x.id)))
+		h.write(ctx, x, refuseCrossSite(why))
+		return
+	}
 	stampRequestID(x)
 	if h.opts.Listener == ref.ListenerContainer {
 		path := requestPath(x.r)
@@ -182,6 +284,7 @@ func (h *Handler) dispatch(ctx context.Context, x *exchange, codec Codec, op ref
 	case kernel.Output:
 		h.writeOutput(ctx, x, codec, c, svc, res)
 	case kernel.Failure:
+		h.noteUnimplemented(ctx, x, res.Err)
 		h.write(ctx, x, codec.EncodeError(x.r, svc, string(x.id), res.Err))
 	case kernel.StatusOKFailure:
 		e := *res.Err
@@ -198,6 +301,12 @@ func (h *Handler) writeOutput(ctx context.Context, x *exchange, codec Codec, c *
 	case smithy.Serializable:
 		resp, err := codec.Encode(x.r, c.Op(), string(x.id), v, out.Status)
 		if err != nil {
+			// A failed encode took no body, so the output's open bodies,
+			// such as a GetObject blob file, are closed here.
+			if rerr := kernel.Release(v); rerr != nil {
+				h.log.LogAttrs(ctx, slog.LevelWarn, "an output that failed to encode has a body that did not close; its descriptor may stay open until garbage collection",
+					slog.String("op", c.OperationID().String()), slog.String("request_id", string(x.id)), slog.String("error", rerr.Error()))
+			}
 			h.write(ctx, x, codec.EncodeError(x.r, svc, string(x.id), err))
 			return
 		}
@@ -290,6 +399,7 @@ func (h *Handler) dispatchRaw(ctx context.Context, x *exchange, rt toRaw, a auth
 	case kernel.StatusOKFailure:
 		err = res.Err
 	}
+	h.noteUnimplemented(ctx, x, err)
 	if rt.errors != nil {
 		h.write(ctx, x, rt.errors.EncodeError(x.r, op.Service, string(x.id), err))
 		return
@@ -399,12 +509,15 @@ type datedWriter struct {
 	http.ResponseWriter
 	wall    func() time.Time
 	stamped bool
+	// status is the final status sent, 0 until then, for the request log.
+	status int
 }
 
 func (d *datedWriter) WriteHeader(status int) {
 	// A 1xx status is interim; the final status carries the Date.
 	if !d.stamped && status >= http.StatusOK {
 		d.stamped = true
+		d.status = status
 		d.Header().Set("Date", d.wall().UTC().Format(http.TimeFormat))
 	}
 	d.ResponseWriter.WriteHeader(status)

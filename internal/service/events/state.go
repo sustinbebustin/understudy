@@ -32,6 +32,10 @@ func newState(aws.Scope) State { return State{Rules: map[string]Rule{}} }
 // IsZero reports a scope without rules, which snapshots skip.
 func (s *State) IsZero() bool { return len(s.Rules) == 0 }
 
+// Partitioned finds IsZero by a type assertion; this keeps a rename from
+// silently dropping the skip.
+var _ store.Zeroer = (*State)(nil)
+
 // Rule is one rule of the default bus, as PutRule last set it.
 type Rule struct {
 	Name        string                   `json:"name"`
@@ -177,8 +181,8 @@ func (e *StoredRuleError) Error() string {
 // check refuses decoded state PutRule and PutTargets could not have stored:
 // a rule under a key that is not a rule name or not its own name, with no
 // trigger, a schedule the decoder left unset, an unknown state, a next fire
-// on a rule that has no schedule or is disabled, or more targets than a
-// rule may have; a target with no input form, an id another target of its
+// on a rule that has no schedule or is disabled, or more targets or tags
+// than a rule may have; a target with no input form, an id another target of its
 // rule has, or a creation sequence number that is zero, past TargetSeq or
 // shared with another target. A missing or null rules object is a scope
 // without rules.
@@ -221,6 +225,8 @@ func (r *Rule) problem(key string) (string, bool) {
 		return "is named " + strconv.Quote(r.Name) + " but stored under another name", true
 	case len(r.Targets) > maxTargets:
 		return "has " + strconv.Itoa(len(r.Targets)) + " targets; a rule has at most " + strconv.Itoa(maxTargets), true
+	case len(r.Tags) > maxTags:
+		return "has " + strconv.Itoa(len(r.Tags)) + " tags; a rule has at most " + strconv.Itoa(maxTags), true
 	case r.Trigger == nil:
 		return "has neither an event pattern nor a schedule expression", true
 	}

@@ -1,6 +1,8 @@
 package sns
 
 import (
+	"time"
+
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -95,9 +97,25 @@ func fifoDuplicate() fidelity.Switch[string] {
 	}
 }
 
+// detachedRetention is how long the subscriptions of a deleted topic stay
+// readable through GetSubscriptionAttributes. AWS keeps them after
+// DeleteTopic (LocalStack test_delete_subscriptions_on_delete_topic,
+// AWS-recorded) for a time no source documents; 48 hours is LocalStack's
+// report.
+func detachedRetention() fidelity.Switch[time.Duration] {
+	return fidelity.Switch[time.Duration]{
+		Name:  "sns.delete-topic.detached-retention",
+		Value: 48 * time.Hour,
+		Label: evidence.Inferred,
+		Ref:   "docs/research/phase1/sns.md#22-topic-attributes",
+	}
+}
+
 // Switches lists the behaviors chosen without AWS-recorded evidence,
 // filter policy evaluation's among them.
 func (s *Service) Switches() []fidelity.Entry {
-	return append([]fidelity.Entry{pendingInListings().Entry(), fifoSequence().Entry(), lambdaAttributeTypes().Entry(), fifoDuplicate().Entry()},
-		filterpolicy.Switches()...)
+	return append([]fidelity.Entry{
+		pendingInListings().Entry(), fifoSequence().Entry(), lambdaAttributeTypes().Entry(), fifoDuplicate().Entry(),
+		detachedRetention().Entry(),
+	}, filterpolicy.Switches()...)
 }

@@ -17,11 +17,12 @@ import (
 )
 
 // The account limits GetAccountSettings reports and reserved concurrency
-// is checked against (lambda-api.md 7.4).
+// is checked against (lambda-api.md 7.4). The code storage quota is the
+// documented 75 GB, which get-account-settings reports as 80530636800.
 const (
 	accountConcurrency       = 1000
 	minUnreservedConcurrency = 100
-	accountCodeStorage       = 80 << 30
+	accountCodeStorage       = 75 << 30
 )
 
 // listPageCap is the most functions or versions one listing page holds,
@@ -29,14 +30,17 @@ const (
 const listPageCap = 50
 
 func (s *Service) bindFunctions(b lambdaapi.Binder) {
-	b.CreateFunction(s.createFunction, partial("layers are refused; code signing and VPC networking are stored only"),
+	b.CreateFunction(s.createFunction, partial("layers and PublishTo are refused; code signing and VPC networking are stored only"),
 		kernel.WithValidator(validateCreateFunction), kernel.WithCheck(checkCreateFunction))
 	b.GetFunction(s.getFunction, partial("Code.Location is a link understudy serves the package at, not a presigned S3 URL"))
 	b.GetFunctionConfiguration(s.getFunctionConfiguration, full())
 	b.ListFunctions(s.listFunctions, full())
 	b.UpdateFunctionConfiguration(s.updateFunctionConfiguration, partial("layers are refused; code signing and VPC networking are stored only"),
 		kernel.WithValidator(validateUpdateConfiguration), kernel.WithCheck(checkUpdateConfiguration))
-	b.UpdateFunctionCode(s.updateFunctionCode, full(), kernel.WithValidator(validateUpdateCode))
+	b.UpdateFunctionCode(s.updateFunctionCode, partial(publishToRefused), kernel.WithValidator(validateUpdateCode),
+		kernel.WithCheck(func(in *lambdaapi.UpdateFunctionCodeInput) *awserr.Error {
+			return checkPublishTo("UpdateFunctionCode", in.PublishTo)
+		}))
 	b.DeleteFunction(s.deleteFunction, full())
 	b.GetFunctionCodeSigningConfig(s.getFunctionCodeSigningConfig, stored("code signing is not enforced; no function has a configuration"))
 	b.GetAccountSettings(s.getAccountSettings, full())
@@ -73,14 +77,16 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 			return lambdaapi.FunctionConfiguration{}, errFunctionExists(ref.name)
 		}
 		v := Version{Number: latest, Config: cfg, Code: code, Status: s.initialStatus(code, now), Modified: now, RevisionID: st.revision(ref.scope)}
-		f := Function{Name: ref.name, Created: now, Latest: v, Tags: maps.Clone(in.Tags), Generation: 1}
+		f := Function{Name: ref.name, Created: now, Latest: v, Tags: maps.Clone(in.Tags), Generation: 1, Incarnation: st.revision(ref.scope)}
 		s.armProvisioning(tx, ref.scope, ref.name, &v, now)
 		out := renderConfig(ref.scope, &f, &v, ref.arn(), false)
 		if in.Publish {
 			// A new function has no version yet, so publishing always adds
-			// version 1, which takes the held reference.
+			// version 1, which takes the held reference. AWS reports it
+			// under the unqualified ARN with Version "1"
+			// (test_publish_version_on_create), unlike UpdateFunctionCode.
 			pv, _ := s.publish(st, tx, ref.scope, &f, nil, now)
-			out = renderConfig(ref.scope, &f, &pv, ref.arn()+":"+pv.Number, false)
+			out = renderConfig(ref.scope, &f, &pv, ref.arn(), false)
 		}
 		st.Functions[ref.name] = f
 		return out, nil
@@ -252,8 +258,9 @@ func (s *Service) listFunctions(_ context.Context, c *kernel.Call, in *lambdaapi
 
 // updateLatest applies change to $LATEST of the function ref names, once
 // its state allows a change and the RevisionId precondition holds, and
-// stores the result as a new revision of a new generation.
-func (s *Service) updateLatest(st *State, tx *kernel.Tx, ref functionRef, revision *string, now clock.Instant, change func(v *Version) *awserr.Error) (Function, *awserr.Error) {
+// stores the result as a new revision of a new generation. change gets
+// what $LATEST was, for the status of an update in progress.
+func (s *Service) updateLatest(st *State, tx *kernel.Tx, ref functionRef, revision *string, now clock.Instant, change func(v *Version, was Serving) *awserr.Error) (Function, *awserr.Error) {
 	f, err := st.function(ref)
 	if err != nil {
 		return Function{}, err
@@ -266,7 +273,7 @@ func (s *Service) updateLatest(st *State, tx *kernel.Tx, ref functionRef, revisi
 	}
 	v := f.Latest
 	v.Config = v.Config.clone()
-	if err := change(&v); err != nil {
+	if err := change(&v, Serving{Config: f.Latest.Config.clone(), Generation: f.Generation}); err != nil {
 		return Function{}, err
 	}
 	v.Modified, v.RevisionID = now, st.revision(ref.scope)
@@ -286,12 +293,12 @@ func (s *Service) updateFunctionConfiguration(_ context.Context, c *kernel.Call,
 		return nil, err
 	}
 	out, err := write(s, c, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (lambdaapi.FunctionConfiguration, *awserr.Error) {
-		f, err := s.updateLatest(st, tx, ref, in.RevisionId, now, func(v *Version) *awserr.Error {
+		f, err := s.updateLatest(st, tx, ref, in.RevisionId, now, func(v *Version, was Serving) *awserr.Error {
 			if _, image := v.Code.(ImageCode); image && (in.Runtime != nil || in.Handler != nil) {
 				return errImageTakesNoRuntime()
 			}
 			v.Config.update(in)
-			v.Status = s.updatedStatus(now)
+			v.Status = s.updatedStatus(now, was)
 			return nil
 		})
 		if err != nil {
@@ -366,9 +373,9 @@ func (s *Service) updateFunctionCode(ctx context.Context, c *kernel.Call, in *la
 	}
 	res, err := write(s, c, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (result, *awserr.Error) {
 		var released []blob.Ref
-		f, err := s.updateLatest(st, tx, ref, in.RevisionId, now, func(v *Version) *awserr.Error {
+		f, err := s.updateLatest(st, tx, ref, in.RevisionId, now, func(v *Version, was Serving) *awserr.Error {
 			var err *awserr.Error
-			released, err = s.applyCode(v, code, in.Architectures, now)
+			released, err = s.applyCode(v, was, code, in.Architectures, now)
 			return err
 		})
 		if err != nil {
@@ -395,10 +402,12 @@ func (s *Service) updateFunctionCode(ctx context.Context, c *kernel.Call, in *la
 	return &res.out, nil
 }
 
-// applyCode is UpdateFunctionCode's change to $LATEST v: code, or the
-// image update v then waits for, on the architecture archs names. It
-// returns the package reference v no longer holds.
-func (s *Service) applyCode(v *Version, code Code, archs []lambdaapi.Architecture, now clock.Instant) ([]blob.Ref, *awserr.Error) {
+// applyCode is UpdateFunctionCode's change to $LATEST v, which was was:
+// code, or the image update v then waits for, on the architecture archs
+// names. It returns the package reference v no longer holds; an update in
+// progress keeps the replaced package for the invocations it serves until
+// it completes (settleVersion).
+func (s *Service) applyCode(v *Version, was Serving, code Code, archs []lambdaapi.Architecture, now clock.Instant) ([]blob.Ref, *awserr.Error) {
 	if err := samePackageType(v.Code, code); err != nil {
 		return nil, err
 	}
@@ -409,9 +418,12 @@ func (s *Service) applyCode(v *Version, code Code, archs []lambdaapi.Architectur
 		v.Status = Active{Update: UpdatingImage{Pending: image}}
 		return nil, nil
 	}
-	released := codeRefs(v.Code)
-	v.Code, v.Status = code, s.updatedStatus(now)
-	return released, nil
+	was.Code = v.Code
+	v.Code, v.Status = code, s.updatedStatus(now, was)
+	if s.clockTransitions() {
+		return nil, nil
+	}
+	return codeRefs(was.Code), nil
 }
 
 // samePackageType refuses code of the other package type than current.
@@ -462,6 +474,16 @@ func (s *Service) deleteFunction(ctx context.Context, c *kernel.Call, in *lambda
 	if err != nil {
 		return nil, err
 	}
+	// $LATEST and aliases are refused before the function is looked up:
+	// AWS answers them for a function that does not exist too
+	// (test_ops_with_arn_qualifier_mismatch[delete_function],
+	// test_function_name_and_qualifier_validation).
+	switch {
+	case ref.qualifier == latest:
+		return nil, errLatestNotDeletable()
+	case isAliasName(ref.qualifier):
+		return nil, errAliasNotDeletable()
+	}
 	released, err := write(s, c, ref.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) ([]blob.Ref, *awserr.Error) {
 		f, err := st.function(ref)
 		if err != nil {
@@ -473,10 +495,9 @@ func (s *Service) deleteFunction(ctx context.Context, c *kernel.Call, in *lambda
 			for i := range versions {
 				s.disarmProvisioning(tx, ref.scope, ref.name, versions[i].Number)
 			}
+			st.retireURLs(slices.Collect(maps.Values(f.URLs))...)
 			delete(st.Functions, ref.name)
 			return f.zipRefs(), nil
-		case q == latest:
-			return nil, errLatestNotDeletable()
 		case !isVersionNumber(q):
 			return nil, ref.notFound()
 		}
@@ -581,11 +602,11 @@ func isImageAwaited(code Code) bool {
 }
 
 // updatedStatus is $LATEST's status after an update applied in place:
-// InProgress until the settle timer under TransitionsClock, else
-// Successful at once.
-func (s *Service) updatedStatus(now clock.Instant) Status {
+// InProgress, still serving what $LATEST was, until the settle timer
+// under TransitionsClock, else Successful at once.
+func (s *Service) updatedStatus(now clock.Instant, was Serving) Status {
 	if s.clockTransitions() {
-		return Active{Update: Updating{Settles: now.Add(settleDelay)}}
+		return Active{Update: Updating{Settles: now.Add(settleDelay), Serving: was}}
 	}
 	return Active{Update: Successful{}}
 }
@@ -614,52 +635,60 @@ func mutable(arn string, v *Version) *awserr.Error {
 func (s *Service) onSettle(c *kernel.Call, key clock.TimerKey, due clock.Instant) {
 	ctx := context.Background()
 	a, err := aws.ParseARN(key.ID)
-	scope, ok := scopeOf(a)
-	if err != nil || !ok {
+	scope, serr := aws.ScopeOf(a)
+	if err != nil || serr != nil {
 		s.k.Log().LogAttrs(ctx, slog.LevelError, "Lambda settle timer names no resource", slog.String("timer", key.ID))
 		return
 	}
-	_, werr := write(s, c, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+	released, werr := write(s, c, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) ([]blob.Ref, *awserr.Error) {
 		changed := false
+		var released []blob.Ref
 		if uuid, ok := strings.CutPrefix(a.Resource, "event-source-mapping:"); ok {
 			changed = st.settleMapping(uuid, due)
 		} else if v, ok := parseVersionID(key.ID); ok {
-			changed = st.settleVersion(v.name, v.number, due)
+			released, changed = st.settleVersion(scope, v.name, v.number, due)
 		}
 		if !changed {
 			tx.Unchanged()
 		}
-		return struct{}{}, nil
+		return released, nil
 	})
 	if werr != nil {
 		s.k.Log().LogAttrs(ctx, slog.LevelError, "settling a Lambda resource failed", slog.String("resource", key.ID), slog.String("error", werr.Message))
+		return
 	}
+	s.release(ctx, released...)
 }
 
-// settleVersion ends a version's Creating or Updating that was due by due.
-func (st *State) settleVersion(name, number string, due clock.Instant) bool {
+// settleVersion ends a version's Creating or Updating that was due by due,
+// and returns the package reference of the code a completed update no
+// longer serves. The version gets a new RevisionId, as AWS's changes when
+// a function becomes Active and when an update completes
+// (test_function_revisions_basic).
+func (st *State) settleVersion(scope aws.Scope, name, number string, due clock.Instant) (released []blob.Ref, changed bool) {
 	f, ok := st.Functions[name]
 	if !ok {
-		return false
+		return nil, false
 	}
 	v, ok := f.version(number)
 	if !ok {
-		return false
+		return nil, false
 	}
 	switch status := v.Status.(type) {
 	case Creating:
 		if due.Before(status.Settles) {
-			return false
+			return nil, false
 		}
 	case Active:
 		u, ok := status.Update.(Updating)
 		if !ok || due.Before(u.Settles) {
-			return false
+			return nil, false
 		}
+		released = codeRefs(u.Serving.Code)
 	case PullingImage, Failed:
-		return false
+		return nil, false
 	}
-	v.Status = Active{Update: Successful{}}
+	v.Status, v.RevisionID = Active{Update: Successful{}}, st.revision(scope)
 	st.Functions[name] = f.withVersion(v)
-	return true
+	return released, true
 }

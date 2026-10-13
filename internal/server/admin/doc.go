@@ -6,18 +6,30 @@
 // Decisions the architecture leaves open:
 //
 //   - Routing reads the escaped path, as the edge does, and matches literal
-//     segments exactly; only the "*" segments of a route (a fault id, a
+//     segments exactly; only the "{name}" segments of a route (a fault id, a
 //     function name, a subscription ARN) are unescaped. A path that matches a
-//     route under another method answers 405 with invalid_request and Allow.
+//     route under another method answers 405 with invalid_request and Allow;
+//     one that matches none answers 404 with the listener's routes.
 //   - Errors carry three optional members beside code, message and hint:
 //     field (the request member at fault), known (the values allowed
-//     instead, such as the error shapes an operation really sends) and
-//     pending (settle's outstanding work by kind). The closed code set adds
-//     unauthorized, which the token check needs; admin.ErrorCode holds the
-//     one table from a code to its HTTP status and CLI exit code.
+//     instead, such as the error shapes an operation really sends, or the
+//     members a body may hold when it holds another) and pending (settle's
+//     outstanding work by kind). The closed code set adds unauthorized,
+//     which the token check needs; admin.ErrorCode holds the one table from
+//     a code to its HTTP status and CLI exit code.
+//   - Hints name the CLI command first and the HTTP route in parentheses,
+//     since the CLI prints them verbatim and other clients need the route.
 //   - A configured token guards every endpoint on the main listener,
 //     health included; Container serves GET health and GET clock without it,
 //     for function code.
+//   - The main listener refuses, before the token check, any call that
+//     carries Origin or a Sec-Fetch-Site other than "none": headers only
+//     browsers send, and that page scripts cannot drop. With no token on a
+//     loopback bind, that is what keeps a web page (cross-site, on a
+//     hostname rebound to 127.0.0.1, or served by the emulator itself) from
+//     resetting state or reading the journal. A request body that is not
+//     empty must also be application/json, the one form a page cannot send
+//     cross-site without a preflight.
 //   - Reset drains through the Drainer only when it selects the drainer's
 //     service and resets the cells under the gate's exclusive side. A Late
 //     service's data is dropped through LateResetter for the reset's scope;
@@ -57,13 +69,18 @@
 //     refused.
 //   - POST /snapshots spools the archive to a temporary file before
 //     answering, so a failed write is an error response rather than a
-//     truncated archive. PUT reads and checks the archive before draining
-//     and clearing the scheduler; a failed load rearms every service, since
-//     timers are a function of the state. A load that replaced the state
-//     but could not free the replaced state's blobs succeeded (Load has
-//     already rearmed): it answers 200 and logs the leftover blobs. Archive
-//     defects are invalid_request or conflict; every other failure is
-//     internal and says whether the state changed. The path form needs a
+//     truncated archive. One PUT runs at a time, since snapshot.Read holds
+//     a whole archive in memory; one that arrives meanwhile answers
+//     conflict before reading its body. PUT reads and checks the archive
+//     before draining and clearing the scheduler; a failed load rearms
+//     every service, since timers are a function of the state. A load that
+//     replaced the state but could not free the replaced state's blobs
+//     succeeded (Load has already rearmed): it answers 200 and logs the
+//     leftover blobs. An archive that is damaged or that this build cannot
+//     run is conflict, since the file is at fault rather than the request
+//     (the CLI exits 1, not with a usage error); one over the size limit is
+//     invalid_request; every other failure is internal and says whether the
+//     state changed. The path form needs a
 //     data directory, takes a local path under it, and writes atomically
 //     through a temporary file of its own, so concurrent saves to one path
 //     leave a whole archive.

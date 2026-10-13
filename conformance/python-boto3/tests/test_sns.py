@@ -81,9 +81,6 @@ def delivered(sqs: Any, admin: Admin, url: str, *, expect: bool = True) -> list[
     return drain(sqs, url)
 
 
-# --- Topics --------------------------------------------------------------------------------------------------
-
-
 def test_create_topic_is_idempotent_and_returns_an_arn(sns: Any, make_topic: Callable[..., str]) -> None:
     arn = make_topic("conf-t1")
     assert re.fullmatch(r"arn:aws:sns:us-east-1:\d{12}:conf-t1-[0-9a-f]{10}", arn)
@@ -171,9 +168,6 @@ def test_fifo_topic_attributes(sns: Any, make_topic: Callable[..., str]) -> None
     assert attrs["ContentBasedDeduplication"] == "false"
 
 
-# --- Subscriptions -----------------------------------------------------------------------------------------------
-
-
 def test_sqs_subscription_is_confirmed_on_return(
     sns: Any, make_topic: Callable[..., str], subscribe_queue: Callable[..., tuple[str, str]], queue_arn: Callable[[str], str]
 ) -> None:
@@ -252,9 +246,6 @@ def test_set_subscription_attributes(sns: Any, make_topic: Callable[..., str], s
     with raises("InvalidParameter") as exc:
         sns.set_subscription_attributes(SubscriptionArn=sub, AttributeName="Endpoint", AttributeValue="x")
     assert exc.value.response["Error"]["Message"] == "Invalid parameter: AttributeName"
-
-
-# --- Delivery: envelope and raw ----------------------------------------------------------------------------------------
 
 
 def test_enveloped_delivery_to_sqs(
@@ -380,9 +371,6 @@ def test_message_attribute_validation(sns: Any, make_topic: Callable[..., str]) 
         sns.publish(TopicArn=topic, Message="x", MessageAttributes={".bad": string("v")})
 
 
-# --- Filter policies, attribute scope ----------------------------------------------------------------------------------------
-
-
 def delivered_with(
     sns: Any,
     sqs: Any,
@@ -479,9 +467,6 @@ def test_filter_policy_changes_apply_immediately_and_can_be_cleared(
     assert delivered_with(sns, sqs, admin, topic, queue, {"k": string("other")}) is True
 
 
-# --- Filter policies, body scope -------------------------------------------------------------------------------------------------
-
-
 BODY_CASES: list[Any] = [
     pytest.param(
         {"order": {"status": ["paid"], "total": [{"numeric": [">", 100]}]}},
@@ -544,9 +529,6 @@ def test_body_scope_ignores_message_attributes(
     assert delivered(sqs, admin, queue, expect=False) == []
 
 
-# --- Filter policy validation ------------------------------------------------------------------------------------------------------
-
-
 INVALID_POLICIES: list[Any] = [
     pytest.param('{"key":[]}', "Empty arrays are not allowed", id="empty-array"),
     pytest.param('{"key":[{"wrong-operator":true}]}', "Unrecognized match type wrong-operator", id="unknown-operator"),
@@ -605,9 +587,6 @@ def test_nested_policy_is_invalid_under_attribute_scope(
     assert exc.value.response["Error"]["Message"] == "Invalid parameter: Filter policy scope MessageAttributes does not support nested filter policy"
 
 
-# --- PublishBatch -----------------------------------------------------------------------------------------------------------------------
-
-
 def test_publish_batch_delivers_each_entry(
     sns: Any, sqs: Any, admin: Admin, make_topic: Callable[..., str], subscribe_queue: Callable[..., tuple[str, str]]
 ) -> None:
@@ -655,9 +634,6 @@ def test_publish_batch_request_errors(sns: Any, make_topic: Callable[..., str]) 
         sns.publish_batch(TopicArn=topic, PublishBatchRequestEntries=[{"Id": "message.id", "Message": "a"}])
     with raises("EmptyBatchRequest"):
         sns.publish_batch(TopicArn=topic, PublishBatchRequestEntries=[])
-
-
-# --- FIFO topics ----------------------------------------------------------------------------------------------------------------------------
 
 
 def test_fifo_topic_to_fifo_queue_keeps_order_group_and_dedup_ids(
@@ -779,9 +755,6 @@ def test_publish_batch_to_a_fifo_topic(
     admin.settle()
     got = eventually(lambda: sqs.receive_message(QueueUrl=queue, MaxNumberOfMessages=10).get("Messages", []), bool, what="batch")
     assert [m["Body"] for m in got] == ["m0", "m1", "m2"]
-
-
-# --- Subscription redrive ---------------------------------------------------------------------------------------------------------------------------
 
 
 def test_undeliverable_messages_go_to_the_subscription_dlq(

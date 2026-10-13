@@ -182,10 +182,10 @@ func (v *CreateCustomKeyStoreInput) validate(path awserr.Path, out *[]awserr.Vio
 	}
 	if v.KeyStorePassword != nil {
 		if utf8.RuneCountInString(*v.KeyStorePassword) > 32 {
-			*out = append(*out, awserr.Violation{Path: at(path, "keyStorePassword"), Value: awserr.RenderedText{Text: *v.KeyStorePassword}, Constraint: awserr.LengthMax{Max: 32}})
+			*out = append(*out, awserr.Violation{Path: at(path, "keyStorePassword"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 32}})
 		}
 		if utf8.RuneCountInString(*v.KeyStorePassword) < 7 {
-			*out = append(*out, awserr.Violation{Path: at(path, "keyStorePassword"), Value: awserr.RenderedText{Text: *v.KeyStorePassword}, Constraint: awserr.LengthMin{Min: 7}})
+			*out = append(*out, awserr.Violation{Path: at(path, "keyStorePassword"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 7}})
 		}
 	}
 	if v.CustomKeyStoreType != nil {
@@ -366,8 +366,8 @@ func (v *CreateKeyInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		if !pattern9.MatchString(*v.Policy) {
 			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: *v.Policy}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
 		}
-		if utf8.RuneCountInString(*v.Policy) > 32768 {
-			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: *v.Policy}, Constraint: awserr.LengthMax{Max: 32768}})
+		if utf8.RuneCountInString(*v.Policy) > 131072 {
+			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: *v.Policy}, Constraint: awserr.LengthMax{Max: 131072}})
 		}
 		if utf8.RuneCountInString(*v.Policy) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: *v.Policy}, Constraint: awserr.LengthMin{Min: 1}})
@@ -1741,8 +1741,8 @@ func (v *PutKeyPolicyInput) validate(path awserr.Path, out *[]awserr.Violation) 
 		if !pattern9.MatchString(v.Policy) {
 			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: v.Policy}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
 		}
-		if utf8.RuneCountInString(v.Policy) > 32768 {
-			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: v.Policy}, Constraint: awserr.LengthMax{Max: 32768}})
+		if utf8.RuneCountInString(v.Policy) > 131072 {
+			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: v.Policy}, Constraint: awserr.LengthMax{Max: 131072}})
 		}
 		if utf8.RuneCountInString(v.Policy) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "policy"), Value: awserr.RenderedText{Text: v.Policy}, Constraint: awserr.LengthMin{Min: 1}})
@@ -2222,10 +2222,10 @@ func (v *UpdateCustomKeyStoreInput) validate(path awserr.Path, out *[]awserr.Vio
 	}
 	if v.KeyStorePassword != nil {
 		if utf8.RuneCountInString(*v.KeyStorePassword) > 32 {
-			*out = append(*out, awserr.Violation{Path: at(path, "keyStorePassword"), Value: awserr.RenderedText{Text: *v.KeyStorePassword}, Constraint: awserr.LengthMax{Max: 32}})
+			*out = append(*out, awserr.Violation{Path: at(path, "keyStorePassword"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 32}})
 		}
 		if utf8.RuneCountInString(*v.KeyStorePassword) < 7 {
-			*out = append(*out, awserr.Violation{Path: at(path, "keyStorePassword"), Value: awserr.RenderedText{Text: *v.KeyStorePassword}, Constraint: awserr.LengthMin{Min: 7}})
+			*out = append(*out, awserr.Violation{Path: at(path, "keyStorePassword"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 7}})
 		}
 	}
 	if v.CloudHsmClusterId != nil {
@@ -2498,26 +2498,26 @@ func (v *XksProxyAuthenticationCredentialType) validate(path awserr.Path, out *[
 		*out = append(*out, awserr.Violation{Path: at(path, "accessKeyId"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern5.MatchString(v.AccessKeyId) {
-			*out = append(*out, awserr.Violation{Path: at(path, "accessKeyId"), Value: awserr.RenderedText{Text: v.AccessKeyId}, Constraint: awserr.Pattern{Echo: "[A-Z2-7]+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "accessKeyId"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[A-Z2-7]+"}})
 		}
 		if utf8.RuneCountInString(v.AccessKeyId) > 30 {
-			*out = append(*out, awserr.Violation{Path: at(path, "accessKeyId"), Value: awserr.RenderedText{Text: v.AccessKeyId}, Constraint: awserr.LengthMax{Max: 30}})
+			*out = append(*out, awserr.Violation{Path: at(path, "accessKeyId"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 30}})
 		}
 		if utf8.RuneCountInString(v.AccessKeyId) < 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "accessKeyId"), Value: awserr.RenderedText{Text: v.AccessKeyId}, Constraint: awserr.LengthMin{Min: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "accessKeyId"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 20}})
 		}
 	}
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "rawSecretAccessKey"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern11.MatchString(v.RawSecretAccessKey) {
-			*out = append(*out, awserr.Violation{Path: at(path, "rawSecretAccessKey"), Value: awserr.RenderedText{Text: v.RawSecretAccessKey}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9\\/+=]+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "rawSecretAccessKey"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9\\/+=]+"}})
 		}
 		if utf8.RuneCountInString(v.RawSecretAccessKey) > 64 {
-			*out = append(*out, awserr.Violation{Path: at(path, "rawSecretAccessKey"), Value: awserr.RenderedText{Text: v.RawSecretAccessKey}, Constraint: awserr.LengthMax{Max: 64}})
+			*out = append(*out, awserr.Violation{Path: at(path, "rawSecretAccessKey"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 64}})
 		}
 		if utf8.RuneCountInString(v.RawSecretAccessKey) < 43 {
-			*out = append(*out, awserr.Violation{Path: at(path, "rawSecretAccessKey"), Value: awserr.RenderedText{Text: v.RawSecretAccessKey}, Constraint: awserr.LengthMin{Min: 43}})
+			*out = append(*out, awserr.Violation{Path: at(path, "rawSecretAccessKey"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 43}})
 		}
 	}
 }

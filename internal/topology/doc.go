@@ -33,4 +33,10 @@
 //     continues as on a host.
 //   - Addresses carries FunctionNetwork so launchers need not switch on
 //     the topology to place function containers.
+//   - InContainer opens no container listener, because the main listener
+//     binds 0.0.0.0 at the main port and a second listener on Self at that
+//     port would collide. Functions there call the main listener, which
+//     serves them the whole admin API; a listener on another port would
+//     not change that, since functions can still dial Self at the main
+//     port, so limiting them is the server's job, by peer address.
 package topology

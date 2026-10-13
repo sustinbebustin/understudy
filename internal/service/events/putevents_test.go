@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/journal"
 )
@@ -225,6 +226,112 @@ func TestPutEventsEntryFailures(t *testing.T) {
 	})
 }
 
+// DetailType holds at most 128 characters (API_PutEventsRequestEntry): a
+// longer one fails its entry alone, counted in characters, not bytes.
+func TestPutEventsDetailTypeLimit(t *testing.T) {
+	run(t, func(h *harness) {
+		h.patternRule("r", `{"source": ["s"]}`)
+		h.target("r", eventbridgeapi.Target{Id: "q", Arn: queueARN})
+		out := h.putEvents(
+			entry("s", strings.Repeat("x", 129), `{}`),
+			entry("s", strings.Repeat("x", 128), `{}`),
+			entry("s", strings.Repeat("é", 128), `{}`),
+		)
+		if out.FailedEntryCount != 1 || len(out.Entries) != 3 {
+			t.Fatalf("PutEvents = %+v", out)
+		}
+		if e := out.Entries[0]; e.EventId != nil || e.ErrorCode == nil || *e.ErrorCode != "InvalidArgument" ||
+			e.ErrorMessage == nil || *e.ErrorMessage != "Parameter DetailType is not valid. Reason: DetailType is longer than 128 characters." {
+			t.Errorf("129-character DetailType = %+v, want InvalidArgument", e)
+		}
+		for i := 1; i < 3; i++ {
+			if e := out.Entries[i]; e.EventId == nil || e.ErrorCode != nil {
+				t.Errorf("128-character DetailType entry %d = %+v, want an EventId", i, e)
+			}
+		}
+		if n := len(h.sink.take()); n != 2 {
+			t.Errorf("%d deliveries, want the two valid entries'", n)
+		}
+	})
+}
+
+// A FIFO queue target's MessageGroupId that is a JSON path is a dynamic
+// path parameter: each event goes in the group the path selects in the
+// event (eb-targets.html#dynamic-path-parameters). A literal stays as sent.
+// An event in which the path selects no scalar receives nothing, and the
+// journal records the dropped delivery.
+func TestSQSMessageGroupIDDynamicPath(t *testing.T) {
+	run(t, func(h *harness) {
+		const fifo = "arn:aws:sqs:us-east-1:000000000000:orders.fifo"
+		h.patternRule("r", `{"source": ["s"]}`)
+		h.target("r", eventbridgeapi.Target{Id: "dynamic", Arn: fifo, SqsParameters: &eventbridgeapi.SqsParameters{MessageGroupId: new("$.detail.customerId")}})
+		h.target("r", eventbridgeapi.Target{Id: "literal", Arn: fifo, SqsParameters: &eventbridgeapi.SqsParameters{MessageGroupId: new("fixed")}})
+		h.putEvents(entry("s", "t", `{"customerId": "alice"}`), entry("s", "t", `{"customerId": 42}`))
+		got := h.sink.take()
+		groups := make([]string, 0, len(got))
+		for _, d := range got {
+			q, ok := d.Request.Target.(delivery.SQSQueue)
+			if !ok {
+				t.Fatalf("delivery target %T, want an SQS queue", d.Request.Target)
+			}
+			groups = append(groups, q.GroupID)
+		}
+		if want := []string{"alice", "fixed", "42", "fixed"}; !slices.Equal(groups, want) {
+			t.Errorf("message groups = %v, want %v", groups, want)
+		}
+
+		h.putEvents(entry("s", "t", `{}`), entry("s", "t", `{"customerId": {"id": "alice"}}`))
+		var literal int
+		for _, d := range h.sink.take() {
+			if q, ok := d.Request.Target.(delivery.SQSQueue); !ok || q.GroupID != "fixed" {
+				t.Errorf("delivered %+v, want only the literal target's", d.Request.Target)
+			}
+			literal++
+		}
+		if literal != 2 {
+			t.Errorf("%d literal-group deliveries, want 2", literal)
+		}
+		page := h.Journal.Query(journal.Filter{Kind: journal.KindDelivery})
+		if len(page.Events) != 2 {
+			t.Fatalf("%d delivery events, want the 2 drops", len(page.Events))
+		}
+		for _, e := range page.Events {
+			d, ok := e.Detail.(journal.Delivery)
+			if !ok || d.To.String() != fifo {
+				t.Fatalf("journaled %+v", e.Detail)
+			}
+			if _, dropped := d.Outcome.(journal.Dropped); !dropped {
+				t.Errorf("outcome = %T, want Dropped", d.Outcome)
+			}
+		}
+	})
+}
+
+// The aws. source namespace is reserved for AWS services: a customer entry
+// in it fails alone with NotAuthorizedForSourceException and is delivered
+// to no rule, even one whose pattern matches it.
+func TestPutEventsRefusesReservedSources(t *testing.T) {
+	run(t, func(h *harness) {
+		h.patternRule("r", `{"source": ["aws.events", "awsome"]}`)
+		h.target("r", eventbridgeapi.Target{Id: "q", Arn: queueARN})
+		out := h.putEvents(entry("aws.events", "Scheduled Event", `{}`), entry("awsome", "t", `{}`))
+		if out.FailedEntryCount != 1 || len(out.Entries) != 2 {
+			t.Fatalf("PutEvents = %+v", out)
+		}
+		if e := out.Entries[0]; e.EventId != nil || e.ErrorCode == nil || *e.ErrorCode != "NotAuthorizedForSourceException" ||
+			e.ErrorMessage == nil || *e.ErrorMessage != "Not authorized for the source." {
+			t.Errorf("aws.events entry = %+v, want NotAuthorizedForSourceException", e)
+		}
+		if e := out.Entries[1]; e.EventId == nil || e.ErrorCode != nil {
+			t.Errorf("awsome entry = %+v, want an EventId", e)
+		}
+		got := h.sink.take()
+		if len(got) != 1 || decode(t, got[0]).Source != "awsome" {
+			t.Errorf("delivered %d events, want only the awsome one", len(got))
+		}
+	})
+}
+
 // A request whose entries add up to 1 MiB or more fails whole. An entry's
 // size counts 14 bytes for a Time and the bytes of Source, DetailType,
 // Detail and each Resources element.
@@ -325,7 +432,7 @@ func TestPutEventsToAMissingBusIsDropped(t *testing.T) {
 		}
 		// A bus ARN names its own account and region, not the caller's.
 		for _, bus := range []string{
-			"arn:aws:events:us-east-1:111111111111:event-bus/default",
+			"arn:aws:events:us-east-1:111111111111:event-bus/custom",
 			"arn:aws:events:eu-west-1:000000000000:event-bus/custom",
 		} {
 			e.EventBusName = new(bus)
@@ -348,6 +455,94 @@ func TestPutEventsToAMissingBusIsDropped(t *testing.T) {
 	})
 }
 
+// as runs fn with the harness calling in another account and region.
+func (h *harness) as(account, region string, fn func()) {
+	h.Helper()
+	saved := h.Scope
+	defer func() { h.Scope = saved }()
+	acct, err := aws.ParseAccountID(account)
+	if err != nil {
+		h.Fatal(err)
+	}
+	h.Scope.Account = acct
+	if err := h.Scope.Region.UnmarshalText([]byte(region)); err != nil {
+		h.Fatal(err)
+	}
+	fn()
+}
+
+// An event sent by ARN to another account's default bus in the caller's
+// region reaches that account's rules, stamped with the sender's account
+// (eb-cross-account.html). An event for a default bus in another region
+// fails its entry instead of being dropped unseen.
+func TestPutEventsToAnotherAccountsDefaultBus(t *testing.T) {
+	run(t, func(h *harness) {
+		const theirQueue = "arn:aws:sqs:us-east-1:111111111111:theirs"
+		h.as("111111111111", "us-east-1", func() {
+			h.patternRule("r", `{"source": ["s"]}`)
+			h.target("r", eventbridgeapi.Target{Id: "q", Arn: theirQueue})
+		})
+		h.patternRule("mine", `{"source": ["s"]}`)
+		h.target("mine", eventbridgeapi.Target{Id: "q", Arn: queueARN})
+
+		theirs := entry("s", "t", `{}`)
+		theirs.EventBusName = new("arn:aws:events:us-east-1:111111111111:event-bus/default")
+		west := entry("s", "t", `{}`)
+		west.EventBusName = new("arn:aws:events:eu-west-1:000000000000:event-bus/default")
+		westOther := entry("s", "t", `{}`)
+		westOther.EventBusName = new("arn:aws:events:eu-west-1:111111111111:event-bus/default")
+		out := h.putEvents(theirs, west, westOther, entry("s", "t", `{}`))
+
+		if out.FailedEntryCount != 2 || len(out.Entries) != 4 {
+			t.Fatalf("PutEvents = %+v", out)
+		}
+		for i, bus := range []string{"arn:aws:events:eu-west-1:000000000000:event-bus/default", "arn:aws:events:eu-west-1:111111111111:event-bus/default"} {
+			want := "understudy sends PutEvents entries to default event buses in the caller's region (us-east-1), and " + bus +
+				" is in eu-west-1; the event was not sent. Call PutEvents in eu-west-1, or run 'understudy coverage --service eventbridge' for what is supported."
+			if e := out.Entries[i+1]; e.EventId != nil || e.ErrorCode == nil || *e.ErrorCode != "NotImplemented" || *e.ErrorMessage != want {
+				t.Errorf("entry for %s = %+v, want NotImplemented %q", bus, e, want)
+			}
+		}
+		got := h.sink.take()
+		if !slices.Equal(targetARNs(got), []string{theirQueue, queueARN}) {
+			t.Fatalf("delivered to %v, want their queue then mine", targetARNs(got))
+		}
+		if e := decode(t, got[0]); e.ID != *out.Entries[0].EventId || e.Account != account || e.Region != "us-east-1" {
+			t.Errorf("cross-account event = %+v, want the sender's account %s", e, account)
+		}
+	})
+}
+
+// A Detail integer outside the signed 64-bit range API_PutEvents documents
+// fails its entry as a malformed Detail; a float of any size is accepted.
+func TestPutEventsDetailIntegerRange(t *testing.T) {
+	run(t, func(h *harness) {
+		h.patternRule("r", `{"source": ["s"]}`)
+		h.target("r", eventbridgeapi.Target{Id: "q", Arn: queueARN})
+		for detail, ok := range map[string]bool{
+			`{"a": 9223372036854775807}`:              true,
+			`{"a": -9223372036854775808}`:             true,
+			`{"a": 1e30}`:                             true,
+			`{"a": 99999999999999999999.5}`:           true,
+			`{"a": 9223372036854775808}`:              false,
+			`{"a": -9223372036854775809}`:             false,
+			`{"a": [1, {"b": 99999999999999999999}]}`: false,
+		} {
+			out := h.putEvents(entry("s", "t", detail))
+			e := out.Entries[0]
+			switch {
+			case ok && (e.EventId == nil || e.ErrorCode != nil):
+				t.Errorf("%s = %+v, want an EventId", detail, e)
+			case !ok && (e.EventId != nil || e.ErrorCode == nil || *e.ErrorCode != "MalformedDetail" || *e.ErrorMessage != "Detail is malformed."):
+				t.Errorf("%s = %+v, want MalformedDetail", detail, e)
+			}
+			if n := len(h.sink.take()); ok != (n == 1) {
+				t.Errorf("%s: %d deliveries", detail, n)
+			}
+		}
+	})
+}
+
 // TestEventPattern evaluates a pattern against an event envelope.
 func TestTestEventPattern(t *testing.T) {
 	run(t, func(h *harness) {
@@ -366,6 +561,17 @@ func TestTestEventPattern(t *testing.T) {
 		}
 		_, err := call(h, eventbridgeapi.OpTestEventPattern, &eventbridgeapi.TestEventPatternInput{EventPattern: `{"source": "shop"}`, Event: event})
 		wantError(t, err, "InvalidEventPatternException", `Event pattern is not valid. Reason: "source" must be an object or an array`)
+		// AWS matches an event without resources, although the API
+		// reference lists it as required (localstack
+		// test_events_patterns.snapshot.json, test_event_pattern_source,
+		// recorded against AWS).
+		const noResources = `{"id": "1", "source": "order", "detail-type": "Test", "account": "111111111111", "region": "us-east-1", "time": "2024-07-11T13:55:39Z"}`
+		for pattern, want := range map[string]bool{`{"source": ["order"]}`: true, `{"source": ["shop"]}`: false} {
+			out := must(h, eventbridgeapi.OpTestEventPattern, &eventbridgeapi.TestEventPatternInput{EventPattern: pattern, Event: noResources})
+			if out.Result != want {
+				t.Errorf("%s against an event without resources = %v, want %v", pattern, out.Result, want)
+			}
+		}
 		for _, bad := range []string{`"string"`, `{"source": "shop"}`, `{`} {
 			_, err := call(h, eventbridgeapi.OpTestEventPattern, &eventbridgeapi.TestEventPatternInput{EventPattern: `{"source": ["shop"]}`, Event: bad})
 			wantError(t, err, "ValidationException", "Parameter Event is not valid.")

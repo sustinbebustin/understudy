@@ -14,6 +14,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/clock"
 )
 
 // A checkpoint writes the state only when it changed since the last save:
@@ -33,7 +34,7 @@ func TestCheckpointSkipsAnUnchangedState(t *testing.T) {
 	state := filepath.Join(dir, stateFile)
 	createQueue := func(name string) {
 		t.Helper()
-		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(`{"QueueName":"`+name+`"}`))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://localhost:4566/", strings.NewReader(`{"QueueName":"`+name+`"}`))
 		req.Header.Set("Content-Type", "application/x-amz-json-1.0")
 		req.Header.Set("X-Amz-Target", "AmazonSQS.CreateQueue")
 		rec := httptest.NewRecorder()
@@ -127,6 +128,60 @@ func TestCrashAfterADeleteKeepsTheSavedState(t *testing.T) {
 	})
 	if body := s3Call(t, second, http.MethodGet, "/crash/k", "", http.StatusOK); body != "hello" {
 		t.Errorf("GetObject after the restart = %q, want the saved object's body", body)
+	}
+}
+
+// A restart resumes a Running clock at wall time, since wall time kept
+// passing while no serve ran, unless the saved instant is later, which it
+// keeps so emulator time never moves back. A Frozen clock holds its saved
+// instant, and a Scaled one resumes from it.
+func TestRestartResumesTheClock(t *testing.T) {
+	const downtime = 15 * time.Hour
+	wall := clock.FromWire(time.Now())
+	for _, tc := range []struct {
+		name  string
+		saved clock.Instant
+		mode  clock.Mode
+		// want is the emulator time the restart starts at.
+		want func(saved, wall clock.Instant) clock.Instant
+	}{
+		{"running, saved before the downtime", wall.Add(-downtime), clock.Running{}, func(_, wall clock.Instant) clock.Instant { return wall }},
+		{"running, advanced past wall time", wall.Add(48 * time.Hour), clock.Running{}, func(saved, _ clock.Instant) clock.Instant { return saved }},
+		{"frozen", wall.Add(-downtime), clock.Frozen{}, func(saved, _ clock.Instant) clock.Instant { return saved }},
+		{"scaled", wall.Add(-downtime), clock.Scaled{Factor: 2}, func(saved, _ clock.Instant) clock.Instant { return saved }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := Config{Persist: PersistDir{Path: t.TempDir()}, Docker: DockerDisabled{}, LogOutput: io.Discard}
+			first, err := New(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := first.wired.kernel.Clock().Restore(tc.saved, tc.mode); err != nil {
+				t.Fatal(err)
+			}
+			if err := first.wired.persist.checkpoint(t.Context(), true); err != nil {
+				t.Fatal(err)
+			}
+			if err := first.Close(); err != nil {
+				t.Fatal(err)
+			}
+			before := clock.FromWire(time.Now())
+			second, err := New(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			now := second.wired.kernel.Clock().Now()
+			after := clock.FromWire(time.Now())
+			if err := second.Close(); err != nil {
+				t.Fatal(err)
+			}
+			// A running clock moves between the restore and the read, by
+			// at most the time New took.
+			low, high := tc.want(tc.saved, before), tc.want(tc.saved, after).Add(after.Sub(before))
+			if now.Before(low) || high.Before(now) {
+				t.Errorf("emulator time after the restart = %s, want within [%s, %s]", now, low, high)
+			}
+		})
 	}
 }
 

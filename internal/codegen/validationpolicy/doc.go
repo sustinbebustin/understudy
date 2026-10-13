@@ -14,8 +14,9 @@
 // therefore imports nothing but internal/awserr and keeps every name
 // unexported.
 //
-// This is the interim home of the logic. kernel.Validate(op, v) needs the
-// policy reachable from the operation descriptor; until registry.Operation
-// carries it and this logic moves beside awserr.CoralMessage, the kernel
-// reaches it through the generated input's ValidationError method.
+// registry.Operation has no policy field, so the kernel reaches the policy
+// through the ValidationError method each generated input type carries.
+// Moving this logic into awserr and onto the operation descriptor, so each
+// validate_gen.go carries data only, is deferred: it reshapes awserr's
+// public API around the kernel's call site.
 package validationpolicy

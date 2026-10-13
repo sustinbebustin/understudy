@@ -23,8 +23,7 @@
 //     they assert (an error member holding a structure, modeled defaults, a
 //     null set in a sparse map). They are not skips: the coverage report
 //     counts them as failed and lists them with their owning package, and
-//     the ratchet accepts them until the fix lands (ARCHITECTURE.md 6.4,
-//     docs/plan/DEFERRED.md wave 6).
+//     the ratchet accepts them until the fix lands (ARCHITECTURE.md 6.4).
 //   - The baseline records each suite's case count beside its passing ids,
 //     so the coverage report states passed, skipped and failed counts
 //     without running the corpus, and a corpus update that adds or drops

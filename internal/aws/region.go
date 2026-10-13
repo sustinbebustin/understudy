@@ -46,7 +46,7 @@ func (e *RegionError) Error() string {
 	if e.Malformed {
 		return fmt.Sprintf("region %q is malformed: a region name is lowercase letters, digits and inner hyphens, such as us-east-1", e.Name)
 	}
-	return fmt.Sprintf("region %q is not an AWS region name; add it to regions.extra in the configuration to use it", e.Name)
+	return fmt.Sprintf("region %q is not an AWS region name; to use it, list it in the regions array of the configuration file (understudy.json by default), such as {\"regions\": [%q]}", e.Name, e.Name)
 }
 
 // Regions is the table of region names understudy accepts: the real AWS

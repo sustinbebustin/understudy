@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/blob"
+	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	serveradmin "github.com/sustinbebustin/understudy/internal/server/admin"
@@ -29,6 +30,7 @@ const (
 	blobsDir     = "blobs"
 	ddbDir       = "dynamodb"
 	snapshotsDir = "snapshots"
+	spoolDir     = "tmp"
 )
 
 // dataDir is the locked persistence directory: the archive, the blobs and
@@ -169,6 +171,20 @@ func (d *dataDir) dynamoDBDir() (string, error) {
 	return filepath.Join(d.path, ddbDir), nil
 }
 
+// spool empties tmp/ under the data directory and returns its absolute
+// path, where snapshot downloads are spooled before they are sent. The
+// lock is held, so anything already there is a spooled archive a crashed
+// run left behind.
+func (d *dataDir) spool() (string, error) {
+	if err := d.root.RemoveAll(spoolDir); err != nil {
+		return "", fmt.Errorf("server: removing what an earlier run left in %s under the data directory %s: %w", spoolDir, d.path, err)
+	}
+	if err := d.root.Mkdir(spoolDir, 0o700); err != nil {
+		return "", fmt.Errorf("server: creating %s under the data directory %s: %w", spoolDir, d.path, err)
+	}
+	return filepath.Join(d.path, spoolDir), nil
+}
+
 // owner is the container ownership label of this data directory: stable
 // across restarts, so a restart sweeps what a crashed run left.
 func (d *dataDir) owner() string { return dirOwner(d.path) }
@@ -196,6 +212,9 @@ type persister struct {
 	dir   *dataDir
 	coord *snapshot.Coordinator
 	blobs *blob.Store
+	// clock is the emulator clock, whose wall time a restart resumes a
+	// Running clock at.
+	clock *clock.Clock
 	log   *slog.Logger
 	// every is the checkpoint interval.
 	every time.Duration
@@ -244,39 +263,57 @@ func (p *persister) replacePin(unpin func() error) error {
 }
 
 // load replaces the empty state with the archive an earlier run saved,
-// when there is one, and drops the blobs no state names.
-func (p *persister) load(ctx context.Context) error {
+// when there is one, and drops the blobs no state names. restored reports
+// whether there was one, whose clock the emulator now runs on.
+func (p *persister) load(ctx context.Context) (restored bool, err error) {
 	f, err := p.dir.root.Open(stateFile)
 	if errors.Is(err, fs.ErrNotExist) {
 		if err := p.blobs.Prune(); err != nil {
-			return fmt.Errorf("server: removing blobs no state names under %s: %w", p.dir.path, err)
+			return false, fmt.Errorf("server: removing blobs no state names under %s: %w", p.dir.path, err)
 		}
-		return p.remember(ctx)
+		return false, p.remember(ctx)
 	}
 	if err != nil {
-		return fmt.Errorf("server: opening the saved state %s: %w", filepath.Join(p.dir.path, stateFile), err)
+		return false, fmt.Errorf("server: opening the saved state %s: %w", filepath.Join(p.dir.path, stateFile), err)
 	}
 	defer f.Close()
 	a, err := snapshot.Read(f, snapshot.ReadOptions{MaxBytes: serveradmin.DefaultMaxSnapshotBytes, Schemas: p.coord.Schemas()})
 	if err != nil {
-		return fmt.Errorf("server: reading the saved state %s; move it aside to start empty: %w", filepath.Join(p.dir.path, stateFile), err)
+		return false, fmt.Errorf("server: reading the saved state %s; move it aside to start empty: %w", filepath.Join(p.dir.path, stateFile), err)
 	}
+	a.Manifest.Clock = resumed(a.Manifest.Clock, clock.FromWire(p.clock.Wall()))
 	if err := p.coord.Load(ctx, a); err != nil {
 		released, ok := errors.AsType[*snapshot.BlobReleaseError](err)
 		if !ok {
-			return fmt.Errorf("server: loading the saved state %s; move it aside to start empty: %w", filepath.Join(p.dir.path, stateFile), err)
+			return false, fmt.Errorf("server: loading the saved state %s; move it aside to start empty: %w", filepath.Join(p.dir.path, stateFile), err)
 		}
 		p.log.LogAttrs(ctx, slog.LevelWarn, "saved state loaded; some blobs stay stored until the next start", slog.String("error", released.Error()))
 	}
 	unpin, err := p.pin(*a)
 	if err != nil {
-		return fmt.Errorf("server: keeping the blobs the saved state %s names: %w", filepath.Join(p.dir.path, stateFile), err)
+		return true, fmt.Errorf("server: keeping the blobs the saved state %s names: %w", filepath.Join(p.dir.path, stateFile), err)
 	}
 	if err := p.replacePin(unpin); err != nil {
-		return err
+		return true, err
 	}
 	p.log.LogAttrs(ctx, slog.LevelInfo, "loaded the saved state", slog.String("path", filepath.Join(p.dir.path, stateFile)))
-	return p.remember(ctx)
+	return true, p.remember(ctx)
+}
+
+// resumed is the clock a restart restores from the persisted saved one.
+// A Running clock follows wall time, which kept passing while no serve
+// ran, so it resumes at wall time, or at its saved instant when that is
+// later (a clock advanced ahead of wall time), so emulator time never
+// moves back past what the saved state recorded. The archive records no
+// offset from wall time, so an advance shorter than the downtime is
+// absorbed. A Frozen clock holds its instant, and a Scaled one resumes
+// from it, since nothing defines its time across the downtime. An
+// explicit snapshot load keeps the archive's instant in every mode.
+func resumed(saved snapshot.Clock, wall clock.Instant) snapshot.Clock {
+	if _, ok := saved.Mode.(clock.Running); ok && saved.At.Before(wall) {
+		saved.At = wall
+	}
+	return saved
 }
 
 // remember records the digest of the current state as saved.
@@ -301,6 +338,10 @@ func (p *persister) checkpoint(ctx context.Context, force bool) (err error) {
 	if !force && sum == p.last {
 		return cut.Release()
 	}
+	if n := cut.PendingEffects(); n > 0 {
+		p.log.LogAttrs(ctx, slog.LevelWarn, "the checkpoint holds writes whose effects, such as deliveries, had not run; a restart from it does not run them",
+			slog.Int("pending_effects", n))
+	}
 	// The cut holds its blobs until WriteAfterCut releases it, so this pin
 	// cannot miss one a delete removed in between.
 	unpin, err := p.pin(cut.Archive())
@@ -310,8 +351,34 @@ func (p *persister) checkpoint(ctx context.Context, force bool) (err error) {
 	if err := p.write(ctx, cut); err != nil {
 		return errors.Join(err, unpin())
 	}
+	// Until the rename is durable a crash can bring the replaced archive
+	// back, so its blobs stay pinned until the directory is synced.
+	if err := syncDir(p.dir.root); err != nil {
+		p.keepPin(unpin)
+		return fmt.Errorf("server: checkpoint: syncing the data directory %s after replacing %s; both the new and the replaced state keep their blobs, and the next checkpoint tries again: %w", p.dir.path, stateFile, err)
+	}
 	p.last = sum
 	return p.replacePin(unpin)
+}
+
+// keepPin adds unpin to the held pin without releasing it: both archives
+// may be the one on disk after a crash. The next replacePin releases both.
+func (p *persister) keepPin(unpin func() error) {
+	previous := p.unpin
+	if previous == nil {
+		p.unpin = unpin
+		return
+	}
+	p.unpin = func() error { return errors.Join(previous(), unpin()) }
+}
+
+// syncDir makes the renames in the directory root durable.
+func syncDir(root *os.Root) error {
+	d, err := root.Open(".")
+	if err != nil {
+		return err
+	}
+	return errors.Join(d.Sync(), d.Close())
 }
 
 // write writes cut's archive to state.snapshot atomically, after syncing

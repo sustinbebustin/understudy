@@ -131,6 +131,10 @@ const (
 	// not evaluate within its work bound, which AWS has no counterpart for,
 	// so the message or event was treated as unmatched.
 	AdvisoryFilterUndecided
+	// AdvisoryScheduleFiresSkipped: a scheduled rule's fires that came due
+	// while understudy was not running, or before a loaded snapshot's
+	// time, were skipped rather than delivered in a burst.
+	AdvisoryScheduleFiresSkipped
 )
 
 // String returns the wire name, such as "policy-would-deny".
@@ -146,6 +150,8 @@ func (k AdvisoryKind) String() string {
 		return "cross-region-served"
 	case AdvisoryFilterUndecided:
 		return "filter-undecided"
+	case AdvisoryScheduleFiresSkipped:
+		return "schedule-fires-skipped"
 	default:
 		return fmt.Sprintf("AdvisoryKind(%d)", uint8(k))
 	}
@@ -157,12 +163,12 @@ type AdvisoryKindError struct {
 }
 
 func (e *AdvisoryKindError) Error() string {
-	return fmt.Sprintf("%q names no advisory kind; known names are policy-would-deny, unminted-credentials, shadowed-code-update, cross-region-served and filter-undecided", e.Text)
+	return fmt.Sprintf("%q names no advisory kind; known names are policy-would-deny, unminted-credentials, shadowed-code-update, cross-region-served, filter-undecided and schedule-fires-skipped", e.Text)
 }
 
 // ParseAdvisoryKind returns the AdvisoryKind whose wire name is s.
 func ParseAdvisoryKind(s string) (AdvisoryKind, error) {
-	for k := AdvisoryPolicyWouldDeny; k <= AdvisoryFilterUndecided; k++ {
+	for k := AdvisoryPolicyWouldDeny; k <= AdvisoryScheduleFiresSkipped; k++ {
 		if k.String() == s {
 			return k, nil
 		}
@@ -172,7 +178,7 @@ func ParseAdvisoryKind(s string) (AdvisoryKind, error) {
 
 // MarshalText encodes the wire name.
 func (k AdvisoryKind) MarshalText() ([]byte, error) {
-	if k < AdvisoryPolicyWouldDeny || k > AdvisoryFilterUndecided {
+	if k < AdvisoryPolicyWouldDeny || k > AdvisoryScheduleFiresSkipped {
 		return nil, &AdvisoryKindError{Text: k.String()}
 	}
 	return []byte(k.String()), nil

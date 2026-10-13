@@ -549,7 +549,9 @@ func TestLambdaInvoke(t *testing.T) {
 		missing := name("missing")
 		_, err = client.Invoke(ctx, &lambda.InvokeInput{FunctionName: aws.String(missing)})
 		errAs[*types.ResourceNotFoundException](t, err, "Invoke of a missing function")
-		wantMessage(t, err, "Invoke of a missing function", "Function not found: arn:aws:lambda:"+region()+":"+acct+":function:"+missing)
+		// An unqualified Invoke names the $LATEST ARN (LocalStack
+		// test_invoke_exceptions, recorded against AWS 2025-11-24).
+		wantMessage(t, err, "Invoke of a missing function", "Function not found: arn:aws:lambda:"+region()+":"+acct+":function:"+missing+":$LATEST")
 	})
 
 	t.Run("function error", func(t *testing.T) {

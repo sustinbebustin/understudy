@@ -116,12 +116,12 @@ func parseFile(name string, data []byte) (fileDoc, *Error) {
 				return fileDoc{}, err
 			}
 		default:
-			return fileDoc{}, &Error{Where: where, Reason: "is not a configuration key", Closest: closest(key, valid), Hint: "fix or remove the key"}
+			return fileDoc{}, &Error{Where: where, Reason: "is not a configuration key", Closest: Closest(key, valid), Hint: "fix or remove the key"}
 		}
 	}
 	if err := json.Unmarshal(data, &doc.sections); err != nil {
 		if typeErr, ok := errors.AsType[*json.UnmarshalTypeError](err); ok {
-			return fileDoc{}, &Error{Where: name + ": " + typeErr.Field, Reason: "is a JSON " + typeErr.Value + " where " + typeName(typeErr.Type) + " belongs"}
+			return fileDoc{}, &Error{Where: name + ": " + typeErr.Field, Reason: "is a JSON " + typeErr.Value + "; expected " + typeName(typeErr.Type)}
 		}
 		return fileDoc{}, &Error{Where: name, Reason: err.Error()}
 	}
@@ -180,7 +180,7 @@ func checkMembers(members map[string]json.RawMessage, t reflect.Type, where stri
 	keys := jsonKeys(t)
 	for _, key := range slices.Sorted(maps.Keys(members)) {
 		if !slices.Contains(keys, key) {
-			return &Error{Where: where + "." + key, Reason: "is not a configuration key", Closest: closest(key, keys), Hint: "fix or remove the key"}
+			return &Error{Where: where + "." + key, Reason: "is not a configuration key", Closest: Closest(key, keys), Hint: "fix or remove the key"}
 		}
 		if err := checkKeys(members[key], fieldType(t, key), where+"."+key); err != nil {
 			return err
@@ -209,19 +209,42 @@ func fieldType(t reflect.Type, key string) reflect.Type {
 	return reflect.TypeFor[json.RawMessage]()
 }
 
-// typeName says what JSON a Go type takes.
+// typeName says what JSON a Go type takes, with the keys of an object, so
+// a section of the wrong shape names the shape it needs: an array of
+// {"function": ..., "dir": ...}.
 func typeName(t reflect.Type) string {
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	names := map[reflect.Kind]string{
-		reflect.String: "a string", reflect.Bool: "a boolean", reflect.Int: "an integer",
-		reflect.Int64: "an integer", reflect.Slice: "an array",
-	}
-	if name, ok := names[t.Kind()]; ok {
-		return name
+	kind := t.Kind()
+	switch {
+	case kind == reflect.String:
+		return "a string"
+	case kind == reflect.Bool:
+		return "a boolean"
+	case kind == reflect.Int || kind == reflect.Int64:
+		return "an integer"
+	case kind == reflect.Struct:
+		return "an object " + objectShape(t)
+	case kind == reflect.Slice && t.Elem() == reflect.TypeFor[json.RawMessage]():
+		// Only faults holds raw entries, parsed later as fault rules.
+		return `an array of fault rules, each {"phase": ..., "match": ..., "action": ..., "trigger": ...}`
+	case kind == reflect.Slice && t.Elem().Kind() == reflect.Struct:
+		return "an array of " + objectShape(t.Elem())
+	case kind == reflect.Slice:
+		_, elem, _ := strings.Cut(typeName(t.Elem()), " ")
+		return "an array of " + elem + "s"
 	}
 	return "an object"
+}
+
+// objectShape lists the keys of struct type t: {"function": ..., "dir": ...}.
+func objectShape(t reflect.Type) string {
+	keys := jsonKeys(t)
+	for i, k := range keys {
+		keys[i] = strconv.Quote(k) + ": ..."
+	}
+	return "{" + strings.Join(keys, ", ") + "}"
 }
 
 func describe(err error) string {

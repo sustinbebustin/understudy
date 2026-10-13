@@ -25,11 +25,13 @@ func (s *Service) bindTags(b kmsapi.Binder) {
 }
 
 // checkTags answers the recorded TagException texts for one request's tags:
-// a reserved aws: key, a key given twice and more than the quota.
+// a reserved aws: key in any case (AWS refuses AWS:key1 too), a key given
+// twice and more than the quota.
 func checkTags(tags []kmsapi.Tag) *awserr.Error {
+	const reserved = "aws:"
 	seen := make(map[string]bool, len(tags))
 	for _, t := range tags {
-		if strings.HasPrefix(t.TagKey, "aws:") {
+		if len(t.TagKey) >= len(reserved) && strings.EqualFold(t.TagKey[:len(reserved)], reserved) {
 			return errReservedTag()
 		}
 		if seen[t.TagKey] {
@@ -90,7 +92,7 @@ func (s *Service) listResourceTags(_ context.Context, c *kernel.Call, in *kmsapi
 	if err != nil {
 		return nil, err
 	}
-	p, err := page(slices.Sorted(maps.Keys(k.Tags)), func(key string) string { return key }, in.Limit, limits{def: maxTags, max: maxTags}, in.Marker)
+	p, err := page(listingTags, slices.Collect(maps.Keys(k.Tags)), func(key string) string { return key }, in.Limit, limits{def: maxTags, max: maxTags}, in.Marker)
 	if err != nil {
 		return nil, err
 	}

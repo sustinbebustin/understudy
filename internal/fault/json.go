@@ -1,7 +1,11 @@
 package fault
 
 import (
+	"encoding/json/v2"
+	"errors"
 	"fmt"
+	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -161,7 +165,7 @@ func (r *Rule) UnmarshalJSON(data []byte) error {
 	}
 	var w ruleJSON
 	if err := c.Unmarshal(data, &w); err != nil {
-		return err
+		return parseError(err)
 	}
 	var ops []ref.OperationID
 	for _, op := range w.Match.Operations {
@@ -178,6 +182,58 @@ func (r *Rule) UnmarshalJSON(data []byte) error {
 		Trigger: w.Trigger,
 	}
 	return nil
+}
+
+// RuleParseError is a rule's JSON that does not parse, said in the rule's
+// own terms rather than the decoder's Go types: Path is the member at
+// fault in dotted form ("match.operations"), empty for the rule itself.
+// Err is the decoder's error, which may wrap an *OperationNameError.
+type RuleParseError struct {
+	Path   string
+	Reason string
+	Err    error
+}
+
+func (e *RuleParseError) Error() string {
+	if e.Path == "" {
+		return "the rule " + e.Reason
+	}
+	return e.Path + " " + e.Reason
+}
+
+func (e *RuleParseError) Unwrap() error { return e.Err }
+
+// parseError turns the decoder's error into a *RuleParseError.
+func parseError(err error) error {
+	sem, ok := errors.AsType[*json.SemanticError](err)
+	if !ok {
+		return &RuleParseError{Reason: "is not valid JSON: " + strings.TrimPrefix(err.Error(), "jsontext: "), Err: err}
+	}
+	out := &RuleParseError{Path: strings.Join(slices.Collect(sem.JSONPointer.Tokens()), "."), Err: err}
+	switch {
+	case errors.Is(sem.Err, json.ErrUnknownName):
+		out.Reason = "is not a member a rule has"
+	case sem.Err != nil:
+		out.Reason = "is invalid: " + strings.TrimPrefix(sem.Err.Error(), "fault: ")
+	default:
+		out.Reason = "is a JSON " + sem.JSONKind.String() + "; expected " + jsonShape(sem.GoType)
+	}
+	return out
+}
+
+// jsonShape says what JSON a rule member of Go type t takes.
+func jsonShape(t reflect.Type) string {
+	if t == nil {
+		return "another JSON type"
+	}
+	shapes := map[reflect.Kind]string{
+		reflect.Slice: "an array", reflect.Struct: "an object", reflect.Interface: "an object",
+		reflect.Int: "a number", reflect.Int64: "a number", reflect.Float64: "a number", reflect.String: "a string",
+	}
+	if shape, ok := shapes[t.Kind()]; ok {
+		return shape
+	}
+	return "another JSON type"
 }
 
 // latencyJSON carries Wall as a Go duration string, as the config file

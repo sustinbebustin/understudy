@@ -179,6 +179,13 @@ func errReplicationNeedsVersioning() *awserr.Error {
 	return errInvalidRequest("Versioning must be 'Enabled' on the bucket to apply a replication configuration")
 }
 
+// errAnonymousOverrides refuses response-* overrides on an unsigned
+// GetObject, which AWS requires to be signed (s3.md 5.4). The text is the
+// one client reports quote; no recording exists.
+func errAnonymousOverrides() *awserr.Error {
+	return errInvalidRequest("Request specific response headers cannot be used for anonymous GET requests.")
+}
+
 func errInvalidRequest(message string) *awserr.Error {
 	return s3api.ErrInvalidRequest(message)
 }

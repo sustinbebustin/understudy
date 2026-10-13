@@ -7,6 +7,24 @@ import (
 	"github.com/sustinbebustin/understudy/internal/policydoc"
 )
 
+// A stored policy reads as a document when Parse accepts it, and as none
+// when it is empty or one Parse refuses.
+func TestParseStored(t *testing.T) {
+	const valid = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*","Action":"sqs:SendMessage","Resource":"*"}]}`
+	want, err := policydoc.Parse([]byte(valid))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := policydoc.ParseStored(valid); got == nil || !reflect.DeepEqual(*got, want) {
+		t.Errorf("ParseStored(valid) = %+v, want %+v", got, want)
+	}
+	for _, text := range []string{"", `{"Statement": 7}`, "not json"} {
+		if got := policydoc.ParseStored(text); got != nil {
+			t.Errorf("ParseStored(%q) = %+v, want nil", text, got)
+		}
+	}
+}
+
 func TestParseRecordedDocuments(t *testing.T) {
 	tests := []struct {
 		name string

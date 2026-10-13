@@ -37,8 +37,8 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{k: d.Kernel, clock: d.Clock, identity: d.Identity, opts: o}
 	b := stsapi.NewBinder(d.Binder)
 	b.GetCallerIdentity(s.getCallerIdentity, registry.Full{})
-	b.AssumeRole(s.assumeRole, registry.Partial{Note: "the role's trust policy and session policies are not evaluated; tags, MFA and source identity are accepted and not checked"})
-	b.GetSessionToken(s.getSessionToken, registry.Partial{Note: "MFA is accepted and not checked"})
+	b.AssumeRole(s.assumeRole, registry.Partial{Note: "the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; session tag errors answer ValidationError, not InvalidParameterValue; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012)"})
+	b.GetSessionToken(s.getSessionToken, registry.Partial{Note: "MFA is accepted and not checked; credentials from an earlier GetSessionToken are not refused"})
 	return s
 }
 
@@ -64,7 +64,9 @@ func (*Service) Import(ss []store.Section) error {
 	return nil
 }
 
-// Reset does nothing: STS keeps no state.
+// Reset does nothing: STS keeps no state. The sessions it minted live in
+// the identity store, which offers no way to revoke a reset account's
+// temporary keys, so they outlive the reset.
 func (*Service) Reset(kernel.ResetScope) {}
 
 // Rearm does nothing: STS arms no timers.

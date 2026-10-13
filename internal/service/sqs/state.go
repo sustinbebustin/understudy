@@ -43,6 +43,10 @@ func (s *State) IsZero() bool {
 	return len(s.Queues) == 0 && len(s.Deleted) == 0 && len(s.Tasks) == 0
 }
 
+// Partitioned finds IsZero by a type assertion; this keeps a rename from
+// silently dropping the skip.
+var _ store.Zeroer = (*State)(nil)
+
 // Queue is one standard or FIFO queue.
 type Queue struct {
 	Name       string            `json:"name"`

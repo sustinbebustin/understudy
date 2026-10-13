@@ -35,3 +35,8 @@ The brief requires an admin API under a reserved prefix plus CLI subcommands for
 - `GET /health` is a readiness probe: `503` with the list of components still starting, then `200`; `--ready-file`, `understudy health --wait` and container health checks key on it. `/settle` reports pending work by `WorkKind`.
 - CLI additions: `journal --request-id`, `journal trace --request-id`, `--canonical`, `snapshot diff --normalize`, every fault match dimension and action as a flag, `images pull` (product m3, m4, m5).
 - A short distribution section in the architecture defines the static binary matrix, the `scratch` image with a non-root user and the release configuration; nothing is published in phase 1 (product C2).
+
+## Amendments (hardening round 1)
+
+- Exit code 5 is an admin call refused for its token (`admin.Unauthorized`), so a script tells a missing or rejected `UNDERSTUDY_ADMIN_TOKEN` from a usage error (2). The mapping stays in the one table in `admin`.
+- On a host, a non-loopback listener needs `--allow-unauthenticated-aws-api` with the admin token: the token guards only `/_understudy/`, and the AWS API verifies no signature in this build. `ContainerPublished` is accepted only in a container with its own network namespace, outside Kubernetes.

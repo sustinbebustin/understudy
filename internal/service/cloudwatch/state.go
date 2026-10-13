@@ -32,6 +32,10 @@ func newState(aws.Scope) State {
 // IsZero reports a scope without alarms or metrics, which snapshots skip.
 func (s *State) IsZero() bool { return len(s.Alarms) == 0 && len(s.Series) == 0 }
 
+// Partitioned finds IsZero by a type assertion; this keeps a rename from
+// silently dropping the skip.
+var _ store.Zeroer = (*State)(nil)
+
 // Alarm is one metric alarm.
 type Alarm struct {
 	// Config is the PutMetricAlarm request that last set the alarm, without
@@ -66,8 +70,8 @@ type Series struct {
 	// whatever order a request lists it in.
 	Dimensions []Dimension `json:"dimensions,omitempty"`
 	Points     []Point     `json:"points,omitempty"`
-	// LastPut is when PutMetricData last stored a point, which ListMetrics'
-	// RecentlyActive reads.
+	// LastPut is when PutMetricData last stored a point, which ListMetrics
+	// reads for its two-week span and RecentlyActive.
 	LastPut clock.Instant `json:"lastPut"`
 }
 
@@ -77,8 +81,8 @@ type Dimension struct {
 	Value string `json:"value"`
 }
 
-// Point is one stored datum: its own timestamp, its unit and the statistic
-// set it carries. A Value is the set {1, v, v}; Values and Counts fold
+// Point is one stored datum: its timestamp at its storage resolution, its
+// unit and the statistic set it carries. A Value is the set {1, v, v}; Values and Counts fold
 // into one set.
 type Point struct {
 	At    clock.Instant `json:"at"`

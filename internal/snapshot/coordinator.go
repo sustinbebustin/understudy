@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -75,12 +76,38 @@ type Runtime interface {
 	// gate is released: Head returns copies (ids.Source.Positions returns
 	// a fresh map) and never changes them afterwards.
 	Head() (Head, error)
-	// Restore sets that state from a loaded archive, the clock included.
-	// Load calls it outside the gate, before the cells are imported.
-	Restore(h Head) error
+	// RestoreClock sets the clock from a loaded archive. Load calls it
+	// outside the gate, before the cells are imported: the clock's step
+	// lock, which timer handlers hold while they wait on the gate, comes
+	// before the gate in the lock order.
+	RestoreClock(c Clock) error
+	// RestoreUnderGate sets the id streams, the journal counter and the
+	// fault rules from a loaded archive; h.Clock is RestoreClock's and is
+	// not read. Load calls it under the gate's exclusive side, just before
+	// the cells are reset, so no call that can write a cell draws an id or
+	// a fault decision from the restored state while the old cells stand.
+	// It must do no I/O and take only leaf locks.
+	RestoreUnderGate(h Head) error
 	// Now is emulator time, which Rearm receives after a load.
 	Now() clock.Instant
 }
+
+// Effects counts the effects of committed writes that have not run yet: a
+// write commits its cell under the gate's shared side and hands its
+// deliveries to the outbox after releasing it. A cut that landed in between
+// would hold the write's state change without its delivery. *kernel.Kernel
+// implements it.
+type Effects interface {
+	// PendingEffects returns the count and a channel closed when it may
+	// have changed. The count rises only while a write holds the gate's
+	// shared side, so under the exclusive side it can only fall. It takes
+	// only leaf locks.
+	PendingEffects() (n int, changed <-chan struct{})
+}
+
+// EffectsWait is how long, in wall time, a cut waits for pending effects to
+// run before it cuts anyway and reports them (ADR 0009).
+const EffectsWait = 5 * time.Second
 
 // Head is what Runtime records and restores.
 type Head struct {
@@ -109,6 +136,7 @@ type Config struct {
 	Gate     *store.Gate
 	Blobs    BlobStore
 	Runtime  Runtime
+	Effects  Effects
 	Services []Stateful
 	Late     []Late
 	// Writer names this build in the manifests it writes.
@@ -130,12 +158,13 @@ type Coordinator struct {
 }
 
 // NewCoordinator checks cfg and returns a Coordinator. It refuses a missing
-// gate, blob store or runtime, a service name that is not one clean path
-// element, two services of one kind with the same name, and a service that
-// is both Stateful and Late with two schema versions.
+// gate, blob store, runtime, effects counter or writer, a service name that
+// is not one clean path element, two services of one kind with the same
+// name, and a service that is both Stateful and Late with two schema
+// versions.
 func NewCoordinator(cfg Config) (*Coordinator, error) {
-	if cfg.Gate == nil || cfg.Blobs == nil || cfg.Runtime == nil || cfg.Writer == "" {
-		return nil, &ConfigError{Reason: "a Coordinator needs a Gate, a BlobStore, a Runtime and a Writer"}
+	if cfg.Gate == nil || cfg.Blobs == nil || cfg.Runtime == nil || cfg.Effects == nil || cfg.Writer == "" {
+		return nil, &ConfigError{Reason: "a Coordinator needs a Gate, a BlobStore, a Runtime, an Effects counter and a Writer"}
 	}
 	schemas := map[ref.ServiceID]int{}
 	add := func(kind string, name ref.ServiceID, version int, seen map[ref.ServiceID]bool) error {
@@ -178,6 +207,8 @@ func (c *Coordinator) Schemas() map[ref.ServiceID]int {
 type Cut struct {
 	owner   *Coordinator
 	archive Archive
+	// pendingEffects is the Effects count when the cut was taken.
+	pendingEffects int
 	// claimed is set by the first Release or WriteAfterCut, which alone runs
 	// free.
 	claimed atomic.Bool
@@ -188,6 +219,13 @@ type Cut struct {
 // Archive returns the cut's archive, without the late sections and journal
 // that WriteAfterCut adds.
 func (c *Cut) Archive() Archive { return c.archive }
+
+// PendingEffects is how many effects of committed writes had still not run
+// when the cut was taken, after Cut waited EffectsWait for them. Zero means
+// the archive holds every committed write's deliveries; otherwise it holds
+// those writes' state changes without their deliveries, and a save reports
+// the count so the user knows what the archive misses.
+func (c *Cut) PendingEffects() int { return c.pendingEffects }
 
 // Release unpins the cut's blobs and frees the Coordinator for the next save
 // or load. WriteAfterCut releases the cut itself; a caller that abandons a
@@ -204,21 +242,24 @@ func (c *Cut) Release() error {
 // Stateful service and pins the blobs the sections name, then releases the
 // gate. Only Head, Export and Pin run under the gate; checking the sections
 // and hashing them wait until it is released, so writers blocked by the cut
-// proceed as soon as the exports and the pin return. The cut keeps the
-// Coordinator until WriteAfterCut or Release. Its archive's Manifest.Blobs
-// is unset: WriteOptions.Blobs places the blobs. While another cut is
-// outstanding or a load runs, Cut waits, and returns ctx's error with
-// nothing saved if ctx ends first.
+// proceed as soon as the exports and the pin return. Before cutting it waits
+// up to EffectsWait of wall time, with the gate released, for the effects of
+// committed writes to run, so the archive holds a write's deliveries along
+// with its state change; Cut.PendingEffects reports what it cut without. The
+// cut keeps the Coordinator until WriteAfterCut or Release. Its archive's
+// Manifest.Blobs is unset: WriteOptions.Blobs places the blobs. While another
+// cut is outstanding or a load runs, or while it waits for effects, Cut
+// returns ctx's error with nothing saved if ctx ends first.
 func (c *Coordinator) Cut(ctx context.Context) (*Cut, error) {
 	if err := c.take(ctx); err != nil {
 		return nil, fmt.Errorf("snapshot cut gave up waiting for the save or load in progress; nothing was saved: %w", err)
 	}
-	a, unpin, err := c.cut()
+	a, pending, unpin, err := c.cut(ctx)
 	if err != nil {
 		c.give()
 		return nil, err
 	}
-	return &Cut{owner: c, archive: a, free: func() error {
+	return &Cut{owner: c, archive: a, pendingEffects: pending, free: func() error {
 		defer c.give()
 		return unpin()
 	}}, nil
@@ -288,13 +329,15 @@ func (c *Coordinator) WriteAfterCut(ctx context.Context, w io.Writer, cut *Cut, 
 // references; a.Blobs is then ignored). It imports embedded blobs and pins
 // every pinned blob, so a concurrent delete cannot remove one the load
 // needs; runs ImportLate for each service in Manifest.LateServices, leaving
-// the other Late services' data alone; and restores the runtime head. Under
-// the gate it exports every Stateful service to learn the blob references
-// the state it replaces holds, resets it, imports its sections and retains
+// the other Late services' data alone; and restores the clock. Under the
+// gate it exports every Stateful service to learn the blob references the
+// state it replaces holds, restores the id streams, the journal counter and
+// the fault rules, resets every service, imports its sections and retains
 // each blob reference. With the gate released it rearms every service, then
 // releases the replaced state's references and the pin and prunes
 // unreferenced blobs. The caller drains Lambda environments, stops pollers
-// and clears the scheduler first.
+// and clears the scheduler first, and lifts the drain's hold through
+// LoadWith's LoadOptions.BeforeRearm.
 //
 // A failure after the blob import still releases what the load holds and
 // prunes. A failure after the first Late import is a *LoadError: the state
@@ -302,7 +345,27 @@ func (c *Coordinator) WriteAfterCut(ctx context.Context, w io.Writer, cut *Cut, 
 // rearmed every service, but freeing the replaced state's blobs failed.
 // While a cut is outstanding or another load runs, Load
 // waits, and returns ctx's error with the state unchanged if ctx ends first.
+//
+// Load is LoadWith with no options: for a load nothing was drained for, such
+// as the --persist startup.
 func (c *Coordinator) Load(ctx context.Context, a *Archive) error {
+	return c.LoadWith(ctx, a, LoadOptions{})
+}
+
+// LoadOptions are the hooks of a load.
+type LoadOptions struct {
+	// BeforeRearm, when set, runs once every service has imported the
+	// archive and the gate is released, before the first Rearm; it does not
+	// run when the load fails before that. A caller that drained work off
+	// the replaced state lifts the drain's hold here: a service's Rearm can
+	// fire work at once (a due asynchronous invocation, a wake of the queues
+	// an event source mapping polls), and that work must run against the
+	// loaded state, not be refused by a hold that outlives the load.
+	BeforeRearm func()
+}
+
+// LoadWith is Load with opts.
+func (c *Coordinator) LoadWith(ctx context.Context, a *Archive, opts LoadOptions) error {
 	if err := c.take(ctx); err != nil {
 		return fmt.Errorf("snapshot load gave up waiting for the save or load in progress; the state is unchanged: %w", err)
 	}
@@ -317,6 +380,9 @@ func (c *Coordinator) Load(ctx context.Context, a *Archive) error {
 	}
 	replaced, le := c.replace(ctx, a.Manifest, a.Faults, p)
 	if le == nil {
+		if opts.BeforeRearm != nil {
+			opts.BeforeRearm()
+		}
 		now := c.cfg.Runtime.Now()
 		for _, s := range c.cfg.Services {
 			s.Rearm(now)
@@ -394,9 +460,9 @@ func (c *Coordinator) settleBlobs(unpin func() error, replaced []string) error {
 	return errors.Join(errs...)
 }
 
-// replace runs the late imports, restores the runtime head and swaps the
-// cells. It returns the blob references the replaced cells held once they
-// are reset, also when a later step fails.
+// replace runs the late imports, restores the clock and swaps the rest of
+// the runtime head and the cells. It returns the blob references the
+// replaced cells held once they are reset, also when a later step fails.
 func (c *Coordinator) replace(ctx context.Context, m Manifest, faults []byte, p loadPlan) (replaced []string, le *LoadError) {
 	var loaded []ref.ServiceID
 	for _, l := range c.cfg.Late {
@@ -409,20 +475,20 @@ func (c *Coordinator) replace(ctx context.Context, m Manifest, faults []byte, p 
 		}
 		loaded = append(loaded, l.Name())
 	}
-	head := Head{Clock: m.Clock, Seed: m.Seed, Positions: m.Positions, JournalNext: m.JournalNext, Faults: faults}
-	if err := c.cfg.Runtime.Restore(head); err != nil {
-		return nil, &LoadError{Step: "restoring the clock, id streams, journal counter and fault rules", Loaded: loaded, Err: err}
+	if err := c.cfg.Runtime.RestoreClock(m.Clock); err != nil {
+		return nil, &LoadError{Step: "restoring the clock", Loaded: loaded, Err: err}
 	}
-	return c.importCut(p.cut, loaded)
+	head := Head{Clock: m.Clock, Seed: m.Seed, Positions: m.Positions, JournalNext: m.JournalNext, Faults: faults}
+	return c.importCut(head, p.cut, loaded)
 }
 
-func (c *Coordinator) cut() (Archive, func() error, error) {
-	head, sections, unpin, err := c.exportUnderGate()
+func (c *Coordinator) cut(ctx context.Context) (a Archive, pending int, unpin func() error, err error) {
+	head, sections, pending, unpin, err := c.exportUnderGate(ctx)
 	if err != nil {
-		return Archive{}, nil, err
+		return Archive{}, 0, nil, err
 	}
 	if err := distinctPaths(sections, func(s store.Section) string { return s.Path }); err != nil {
-		return Archive{}, nil, errors.Join(err, unpin())
+		return Archive{}, 0, nil, errors.Join(err, unpin())
 	}
 	return Archive{
 		Manifest: Manifest{
@@ -437,43 +503,77 @@ func (c *Coordinator) cut() (Archive, func() error, error) {
 		Sections: sections,
 		Faults:   head.Faults,
 		Blobs:    c.cfg.Blobs,
-	}, unpin, nil
+	}, pending, unpin, nil
 }
 
 // exportUnderGate reads the runtime head, exports every Stateful service and
-// pins the blobs the sections name, under the gate's exclusive side. It does
-// nothing else there: parsing the references is all the pin needs.
-func (c *Coordinator) exportUnderGate() (Head, []store.Section, func() error, error) {
-	release := c.cfg.Gate.Exclusive()
-	defer release()
-	head, err := c.cfg.Runtime.Head()
+// pins the blobs the sections name, under the gate's exclusive side once
+// settle has taken it. It does nothing else there: parsing the references is
+// all the pin needs. pending is the Effects count at the cut.
+func (c *Coordinator) exportUnderGate(ctx context.Context) (head Head, sections []store.Section, pending int, unpin func() error, err error) {
+	release, pending, err := c.settle(ctx)
 	if err != nil {
-		return Head{}, nil, nil, fmt.Errorf("snapshot cut failed reading the clock, id streams, journal and faults; nothing was saved: %w", err)
+		return Head{}, nil, 0, nil, err
 	}
-	var sections []store.Section
+	defer release()
+	head, err = c.cfg.Runtime.Head()
+	if err != nil {
+		return Head{}, nil, 0, nil, fmt.Errorf("snapshot cut failed reading the clock, id streams, journal and faults; nothing was saved: %w", err)
+	}
 	for _, s := range c.cfg.Services {
 		ss, err := s.Export()
 		if err != nil {
-			return Head{}, nil, nil, fmt.Errorf("snapshot cut failed exporting service %q; nothing was saved: %w", s.Name(), err)
+			return Head{}, nil, 0, nil, fmt.Errorf("snapshot cut failed exporting service %q; nothing was saved: %w", s.Name(), err)
 		}
 		sections = append(sections, prefixed(s.Name(), ss)...)
 	}
 	refs, err := pinned(sections, func(s store.Section) []string { return s.Blobs })
 	if err != nil {
-		return Head{}, nil, nil, fmt.Errorf("snapshot cut failed; nothing was saved: %w", err)
+		return Head{}, nil, 0, nil, fmt.Errorf("snapshot cut failed; nothing was saved: %w", err)
 	}
-	unpin, err := c.cfg.Blobs.Pin(refs)
+	unpin, err = c.cfg.Blobs.Pin(refs)
 	if err != nil {
-		return Head{}, nil, nil, fmt.Errorf("snapshot cut failed pinning the blobs its sections name; nothing was saved: %w", err)
+		return Head{}, nil, 0, nil, fmt.Errorf("snapshot cut failed pinning the blobs its sections name; nothing was saved: %w", err)
 	}
-	return head, sections, unpin, nil
+	return head, sections, pending, unpin, nil
+}
+
+// settle takes the gate's exclusive side once no effect of a committed write
+// is pending, or once EffectsWait of wall time has passed, and returns its
+// release with the count still pending. Under the exclusive side the count
+// can only fall, so a zero read there holds for the whole cut. The effects
+// themselves take the gate's shared side (an outbox enqueue is a cell
+// write), so settle waits with the gate released. If ctx ends first it
+// returns ctx's error with the gate released.
+func (c *Coordinator) settle(ctx context.Context) (release func(), pending int, err error) {
+	wait, cancel := context.WithTimeout(ctx, EffectsWait)
+	defer cancel()
+	for {
+		release := c.cfg.Gate.Exclusive()
+		n, changed := c.cfg.Effects.PendingEffects()
+		switch {
+		case n == 0:
+			return release, 0, nil
+		case ctx.Err() != nil:
+			release()
+			return nil, 0, fmt.Errorf("snapshot cut gave up waiting for %d pending effects of committed writes, such as deliveries, to run; nothing was saved: %w", n, ctx.Err())
+		case wait.Err() != nil:
+			return release, n, nil
+		}
+		release()
+		select {
+		case <-changed:
+		case <-wait.Done():
+		}
+	}
 }
 
 // importCut, under the gate, exports every Stateful service to collect the
-// blob references its current state holds, resets it, imports its sections
-// and retains each blob reference. Once the services are reset it returns
-// the collected references, also with an error, for the caller to release.
-func (c *Coordinator) importCut(cut map[ref.ServiceID][]store.Section, loaded []ref.ServiceID) (replaced []string, le *LoadError) {
+// blob references its current state holds, restores head through
+// RestoreUnderGate, resets every service, imports its sections and retains each blob
+// reference. Once the services are reset it returns the collected
+// references, also with an error, for the caller to release.
+func (c *Coordinator) importCut(head Head, cut map[ref.ServiceID][]store.Section, loaded []ref.ServiceID) (replaced []string, le *LoadError) {
 	release := c.cfg.Gate.Exclusive()
 	defer release()
 	for _, s := range c.cfg.Services {
@@ -484,6 +584,11 @@ func (c *Coordinator) importCut(cut map[ref.ServiceID][]store.Section, loaded []
 		for _, sec := range ss {
 			replaced = append(replaced, sec.Blobs...)
 		}
+	}
+	// The head moves with the cells: a call in flight before the gate was
+	// taken drew its ids and fault decisions from the old head.
+	if err := c.cfg.Runtime.RestoreUnderGate(head); err != nil {
+		return nil, &LoadError{Step: "restoring the id streams, journal counter and fault rules", Loaded: loaded, Err: err}
 	}
 	for _, s := range c.cfg.Services {
 		s.ResetAll()

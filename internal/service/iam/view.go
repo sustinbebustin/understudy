@@ -3,6 +3,7 @@ package iam
 import (
 	"maps"
 	"slices"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -60,9 +61,8 @@ func apiRole(account aws.AccountID, r Role) iamapi.Role {
 	return out
 }
 
-// apiRoleDetail is a role as GetRole, CreateRole and an instance profile
-// show it: everything, with an empty RoleLastUsed, since no session use is
-// tracked.
+// apiRoleDetail is a role in full, as GetRole shows it: everything, with an
+// empty RoleLastUsed, since no session use is tracked.
 func apiRoleDetail(account aws.AccountID, r Role) iamapi.Role {
 	out := apiRole(account, r)
 	out.Tags = apiTags(r.Tags)
@@ -92,6 +92,18 @@ func apiUserDetail(account aws.AccountID, u User) iamapi.User {
 	return out
 }
 
+// apiRootUser is the account's root user as GetUser shows it to a root
+// caller that names no user: the account id as UserId and the root ARN.
+// understudy does not track when an account was created, so CreateDate,
+// which the shape requires, is the Unix epoch.
+func apiRootUser(account aws.AccountID) iamapi.User {
+	return iamapi.User{
+		UserId:     account.String(),
+		Arn:        rootARN(account).String(),
+		CreateDate: time.Unix(0, 0).UTC(),
+	}
+}
+
 // apiBoundary is a permissions boundary, nil when none is set.
 func apiBoundary(arn string) *iamapi.AttachedPermissionsBoundary {
 	if arn == "" {
@@ -103,12 +115,29 @@ func apiBoundary(arn string) *iamapi.AttachedPermissionsBoundary {
 	}
 }
 
-// apiInstanceProfile is an instance profile with its role in full, as
-// Terraform reads it (tf-remaining.md 3.5).
+// apiInstanceProfile is an instance profile with its tags and its role in
+// full, as GetInstanceProfile shows it and Terraform reads it
+// (tf-remaining.md 3.5).
 func apiInstanceProfile(account aws.AccountID, st *State, p InstanceProfile) iamapi.InstanceProfile {
+	out := instanceProfileWith(account, st, p, apiRoleDetail)
+	out.Tags = apiTags(p.Tags)
+	return out
+}
+
+// apiListedInstanceProfile is an instance profile as ListInstanceProfiles
+// and ListInstanceProfilesForRole show it: without tags, which the model
+// says those listings do not return, and with its role as ListRoles shows
+// it.
+func apiListedInstanceProfile(account aws.AccountID, st *State, p InstanceProfile) iamapi.InstanceProfile {
+	return instanceProfileWith(account, st, p, apiRole)
+}
+
+// instanceProfileWith is an instance profile without tags, its role shown
+// by role.
+func instanceProfileWith(account aws.AccountID, st *State, p InstanceProfile, role func(aws.AccountID, Role) iamapi.Role) iamapi.InstanceProfile {
 	roles := []iamapi.Role{}
 	if r, ok := st.Roles[p.Role]; ok {
-		roles = append(roles, apiRoleDetail(account, r))
+		roles = append(roles, role(account, r))
 	}
 	return iamapi.InstanceProfile{
 		Path:                p.Path,
@@ -117,7 +146,6 @@ func apiInstanceProfile(account aws.AccountID, st *State, p InstanceProfile) iam
 		Arn:                 instanceProfileARN(account, p.Path, p.Name).String(),
 		CreateDate:          p.Created.Wire(),
 		Roles:               roles,
-		Tags:                apiTags(p.Tags),
 	}
 }
 

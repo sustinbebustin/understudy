@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/config/configtest"
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
@@ -31,20 +31,10 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb/ddblocal"
 )
 
-// engine connects to the local daemon named by DOCKER_HOST (or the
-// default socket).
+// engine connects to the daemon serve would use.
 func engine(t *testing.T) *docker.Client {
 	t.Helper()
-	socket, err := docker.ParseDockerHost(os.Getenv("DOCKER_HOST"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := docker.New(docker.Options{Socket: socket})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(c.Close)
-	return c
+	return configtest.EngineClient(t)
 }
 
 // ownership is unique per run, so names and owner labels never collide

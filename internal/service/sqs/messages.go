@@ -18,6 +18,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -32,8 +33,8 @@ func (s *Service) bindSends(b sqsapi.Binder) {
 }
 
 // checkSendMessage runs SendMessage's stateless checks before fault rules
-// (M7): the body's characters, then the message and system attributes.
-// Their codes or texts are not the generated policy's, so they are checks,
+// in AWS's order: the body's characters, then the message and system
+// attributes. Their codes or texts are not the generated policy's, so they are checks,
 // not validators.
 func checkSendMessage(in *sqsapi.SendMessageInput) *awserr.Error {
 	if !validText(in.MessageBody) {
@@ -169,11 +170,13 @@ func validAttributeName(name string) bool {
 }
 
 // validNumber reports a decimal number SQS accepts as a Number attribute:
-// at most 38 significant digits, magnitude from 10^-128 to below 10^126
-// (sqs.md 6.1).
+// one optional sign, at most 38 significant digits, magnitude from
+// 10^-128 to below 10^126 (sqs.md 6.1).
 func validNumber(v string) bool {
 	mantissa, exponent, hasExp := strings.Cut(strings.ToLower(v), "e")
-	mantissa = strings.TrimLeft(mantissa, "+-")
+	if strings.HasPrefix(mantissa, "+") || strings.HasPrefix(mantissa, "-") {
+		mantissa = mantissa[1:]
+	}
 	exp := 0
 	if hasExp {
 		e, err := strconv.Atoi(exponent)
@@ -236,6 +239,24 @@ func validText(text string) bool {
 // queue's MaximumMessageSize (sqs.md 6.2).
 const maxBatchBytes = 1 << 20
 
+// maxMessageBytes is SQS's absolute message size ceiling, the largest
+// MaximumMessageSize a queue can set.
+const maxMessageBytes = 1 << 20
+
+// sizeLimit is the largest message c may enqueue on queue: the queue's
+// MaximumMessageSize, except for a delivery from Amazon SNS, which only
+// SQS's absolute ceiling bounds ("The queue's own MaximumMessageSize does
+// not apply to messages from Amazon SNS",
+// https://docs.aws.amazon.com/sns/latest/dg/large-message-payloads.html).
+// Dead letters an SNS subscription sends carry the same Via and are
+// exempt alike; other services' deliveries keep the queue's limit.
+func sizeLimit(c *kernel.Call, queue *Queue) int32 {
+	if in, ok := c.Origin().(ref.Internal); ok && in.Via == ref.SNSDelivery {
+		return maxMessageBytes
+	}
+	return queue.Attributes.MaximumMessageSize
+}
+
 // outgoing is a checked message a send enqueues.
 type outgoing struct {
 	body          string
@@ -283,8 +304,8 @@ func (s *Service) enqueue(c *kernel.Call, q queueRef, queue *Queue, o *outgoing,
 	case fifo != nil && o.delay != nil && *o.delay > 0:
 		return sent{}, errNotForQueueType("DelaySeconds", strconv.Itoa(int(*o.delay)))
 	}
-	if size := len(o.body) + attributesSize(o.attrs); size > int(queue.Attributes.MaximumMessageSize) {
-		return sent{}, tooLong(queue.Attributes.MaximumMessageSize)
+	if limit := sizeLimit(c, queue); len(o.body)+attributesSize(o.attrs) > int(limit) {
+		return sent{}, tooLong(limit)
 	}
 	out := sent{bodyMD5: bodyMD5(o.body), attrs: attributesMD5(o.attrs), sys: attributesMD5(o.sentSystem)}
 	delay := queue.Attributes.DelaySeconds

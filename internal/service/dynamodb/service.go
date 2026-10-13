@@ -12,7 +12,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
-	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -34,10 +33,9 @@ var _ kernel.Stateful = (*Service)(nil)
 // answer. The rest, Local's gaps, stay unbound: they answer 501 before
 // Local sees them, and coverage lists them.
 func New(d kernel.ServiceDeps, o Options) *Service {
-	codec := jsonx.NewCodec()
 	s := &Service{
 		local:  o.Local,
-		cells:  store.NewPartitioned(d.Kernel.Gate(), store.Codec{Marshal: codec.Marshal, Unmarshal: codec.Unmarshal}, newState),
+		cells:  store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
 		kernel: d.Kernel,
 	}
 	if s.local == nil {
@@ -97,23 +95,24 @@ func (s *Service) bindTables(b dynamodbapi.Binder) {
 
 func (s *Service) bindItems(b dynamodbapi.Binder) {
 	getItem := named(func(in *dynamodbapi.GetItemInput) string { return in.TableName })
-	b.GetItemRaw(passthrough(s, getItem, plainAnswer), notes(noThroughput), tables(getItem))
+	b.GetItemRaw(passthrough(s, getItem, echoed(getItem)), notes(noThroughput), tables(getItem))
 	putItem := named(func(in *dynamodbapi.PutItemInput) string { return in.TableName })
-	b.PutItemRaw(ttlWrites(s, passthrough(s, putItem, plainAnswer), putItemWrites), notes(noThroughput, noConflicts), tables(putItem))
+	b.PutItemRaw(ttlWrites(s, passthrough(s, putItem, echoed(putItem)), putItemWrites), notes(noThroughput, noConflicts), tables(putItem))
 	updateItem := named(func(in *dynamodbapi.UpdateItemInput) string { return in.TableName })
-	b.UpdateItemRaw(ttlWrites(s, passthrough(s, updateItem, plainAnswer), updateItemWrites), notes(noThroughput, noConflicts), tables(updateItem))
+	b.UpdateItemRaw(ttlWrites(s, passthrough(s, updateItem, echoed(updateItem)), updateItemWrites), notes(noThroughput, noConflicts), tables(updateItem))
 	deleteItem := named(func(in *dynamodbapi.DeleteItemInput) string { return in.TableName })
-	b.DeleteItemRaw(passthrough(s, deleteItem, plainAnswer), notes(noThroughput, noConflicts), tables(deleteItem))
+	b.DeleteItemRaw(passthrough(s, deleteItem, echoed(deleteItem)), notes(noThroughput, noConflicts), tables(deleteItem))
 	query := named(func(in *dynamodbapi.QueryInput) string { return in.TableName })
-	b.QueryRaw(passthrough(s, query, plainAnswer), notes(noThroughput), tables(query))
+	b.QueryRaw(passthrough(s, query, echoed(query)), notes(noThroughput), tables(query))
 	scan := named(func(in *dynamodbapi.ScanInput) string { return in.TableName })
-	b.ScanRaw(passthrough(s, scan, plainAnswer), notes(noThroughput, parallelScan), tables(scan))
+	b.ScanRaw(passthrough(s, scan, echoed(scan)), notes(noThroughput, parallelScan), tables(scan))
 	batchGet := func(in *dynamodbapi.BatchGetItemInput) []string { return slices.Sorted(maps.Keys(in.RequestItems)) }
-	b.BatchGetItemRaw(passthrough(s, batchGet, plainAnswer), notes(noThroughput), tables(batchGet))
+	b.BatchGetItemRaw(passthrough(s, batchGet, echoed(batchGet, "Responses", "UnprocessedKeys")), notes(noThroughput), tables(batchGet))
 	batchWrite := func(in *dynamodbapi.BatchWriteItemInput) []string { return slices.Sorted(maps.Keys(in.RequestItems)) }
-	b.BatchWriteItemRaw(ttlWrites(s, passthrough(s, batchWrite, plainAnswer), batchWrites), notes(noThroughput), tables(batchWrite))
-	b.TransactGetItemsRaw(passthrough(s, transactGetTables, plainAnswer), notes(noThroughput, noTxConflicts), tables(transactGetTables))
-	b.TransactWriteItemsRaw(ttlWrites(s, passthrough(s, transactWriteTables, plainAnswer), transactWrites),
+	b.BatchWriteItemRaw(ttlWrites(s, passthrough(s, batchWrite, echoed(batchWrite, "UnprocessedItems", "ItemCollectionMetrics")), batchWrites),
+		notes(noThroughput), tables(batchWrite))
+	b.TransactGetItemsRaw(passthrough(s, transactGetTables, echoed(transactGetTables)), notes(noThroughput, noTxConflicts), tables(transactGetTables))
+	b.TransactWriteItemsRaw(ttlWrites(s, passthrough(s, transactWriteTables, echoed(transactWriteTables, "ItemCollectionMetrics")), transactWrites),
 		notes(noThroughput, noTxConflicts), tables(transactWriteTables))
 }
 
@@ -159,7 +158,10 @@ func transactWriteTables(in *dynamodbapi.TransactWriteItemsInput) []string {
 
 // createTable refuses a name Local would confuse with an existing table,
 // forwards the rest and records a table Local created, with what Local
-// drops from the request (newTable), which its answer then describes.
+// drops from the request (newTable), which its answer then describes. The
+// answer says CREATING, as AWS's always does, where Local's says ACTIVE;
+// DescribeTable then reports Local's ACTIVE, which the SDK waiters and
+// Terraform wait for.
 func (s *Service) createTable(ctx context.Context, c *kernel.Call, in *dynamodbapi.CreateTableInput, w kernel.Wire) (kernel.RawResponse, *awserr.Error) {
 	name := tableName(in.TableName)
 	if cell, ok := s.cells.Lookup(c.Scope()); ok {
@@ -175,7 +177,7 @@ func (s *Service) createTable(ctx context.Context, c *kernel.Call, in *dynamodba
 		return kernel.RawResponse{}, err
 	}
 	a := tableAnswer(in.TableName)
-	a.shim = &shimmed{table: &record}
+	a.shim = &shimmed{table: &record, status: dynamodbapi.TableStatusCreating}
 	resp, err := s.forward(ctx, c, in, w, a, []string{in.TableName})
 	if err != nil || resp.Status != http.StatusOK {
 		return resp, err

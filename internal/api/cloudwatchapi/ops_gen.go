@@ -567,29 +567,31 @@ var descPutManagedInsightRules = registry.Operation{
 }
 
 var descPutMetricAlarm = registry.Operation{
-	Service:     &service,
-	ID:          ref.OperationID{Service: "cloudwatch", Name: "PutMetricAlarm"},
-	Ordinal:     43,
-	Kind:        registry.Modeled,
-	Shape:       "com.amazonaws.cloudwatch#PutMetricAlarm",
-	Input:       &schemaPutMetricAlarmInput,
-	Output:      &schemaSmithyUnit,
-	Errors:      []awserr.Identity{IdentityLimitExceededFault(), IdentityCoralValidateValidationException()},
-	IAM:         []registry.IAMAction{{Prefix: "cloudwatch", Name: "PutMetricAlarm"}, {Prefix: "cloudwatch", Name: "TagResource"}},
-	SuccessCode: 200,
+	Service:         &service,
+	ID:              ref.OperationID{Service: "cloudwatch", Name: "PutMetricAlarm"},
+	Ordinal:         43,
+	Kind:            registry.Modeled,
+	Shape:           "com.amazonaws.cloudwatch#PutMetricAlarm",
+	Input:           &schemaPutMetricAlarmInput,
+	Output:          &schemaSmithyUnit,
+	Errors:          []awserr.Identity{IdentityLimitExceededFault(), IdentityCoralValidateValidationException()},
+	IAM:             []registry.IAMAction{{Prefix: "cloudwatch", Name: "PutMetricAlarm"}, {Prefix: "cloudwatch", Name: "TagResource"}},
+	SuccessCode:     200,
+	MaxRequestBytes: 122880,
 }
 
 var descPutMetricData = registry.Operation{
-	Service:     &service,
-	ID:          ref.OperationID{Service: "cloudwatch", Name: "PutMetricData"},
-	Ordinal:     44,
-	Kind:        registry.Modeled,
-	Shape:       "com.amazonaws.cloudwatch#PutMetricData",
-	Input:       &schemaPutMetricDataInput,
-	Output:      &schemaSmithyUnit,
-	Errors:      []awserr.Identity{IdentityInternalServiceFault(), IdentityInvalidParameterCombinationException(), IdentityInvalidParameterValueException(), IdentityMissingRequiredParameterException(), IdentityCoralValidateValidationException()},
-	IAM:         []registry.IAMAction{{Prefix: "cloudwatch", Name: "PutMetricData"}},
-	SuccessCode: 200,
+	Service:         &service,
+	ID:              ref.OperationID{Service: "cloudwatch", Name: "PutMetricData"},
+	Ordinal:         44,
+	Kind:            registry.Modeled,
+	Shape:           "com.amazonaws.cloudwatch#PutMetricData",
+	Input:           &schemaPutMetricDataInput,
+	Output:          &schemaSmithyUnit,
+	Errors:          []awserr.Identity{IdentityInternalServiceFault(), IdentityInvalidParameterCombinationException(), IdentityInvalidParameterValueException(), IdentityMissingRequiredParameterException(), IdentityCoralValidateValidationException()},
+	IAM:             []registry.IAMAction{{Prefix: "cloudwatch", Name: "PutMetricData"}},
+	SuccessCode:     200,
+	MaxRequestBytes: 1048576,
 }
 
 var descPutMetricStream = registry.Operation{

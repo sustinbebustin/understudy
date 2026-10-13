@@ -6,9 +6,11 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -215,6 +217,11 @@ func TestPutZipRejectsUnsafeArchives(t *testing.T) {
 			{name: "a", body: strings.Repeat("a", 60)},
 			{name: "b", body: strings.Repeat("b", 60)},
 		}, codestore.Options{MaxUnzipped: 100}, codestore.UnzippedTooLarge},
+		{"too many entries", []entry{
+			{name: "a/"},
+			{name: "a/b"},
+			{name: "c"},
+		}, codestore.Options{MaxEntries: 2}, codestore.TooManyEntries},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -230,6 +237,62 @@ func TestPutZipRejectsUnsafeArchives(t *testing.T) {
 			assertNoTrees(t, s)
 		})
 	}
+}
+
+// Empty entries pass every size limit, so only the entry limit stops a
+// package of millions of them from exhausting memory and inodes.
+func TestPutZipEntryLimitCountsEveryEntry(t *testing.T) {
+	entries := make([]entry, 0, 64)
+	for i := range 64 {
+		entries = append(entries, entry{name: fmt.Sprintf("empty-%d", i)})
+	}
+	raw := buildZip(t, entries...)
+
+	s := newStore(t)
+	if _, err := s.PutZip(t.Context(), bytes.NewReader(raw), codestore.Options{MaxEntries: 64}); err != nil {
+		t.Fatalf("PutZip of 64 empty entries with MaxEntries 64 = %v, want it accepted", err)
+	}
+
+	s = newStore(t)
+	_, err := s.PutZip(t.Context(), bytes.NewReader(raw), codestore.Options{MaxEntries: 63})
+	bad, ok := errors.AsType[*codestore.UnsafeZipError](err)
+	if !ok || bad.Problem != codestore.TooManyEntries || bad.Size != 64 || bad.Limit != 63 {
+		t.Fatalf("PutZip of 64 empty entries with MaxEntries 63 = %v, want *UnsafeZipError TooManyEntries 64 > 63", err)
+	}
+	assertNoTrees(t, s)
+}
+
+func TestPutZipRejectsNegativeEntryLimit(t *testing.T) {
+	s := newStore(t)
+	_, err := s.PutZip(t.Context(), bytes.NewReader(buildZip(t, entry{name: "f"})), codestore.Options{MaxEntries: -1})
+	if bad, ok := errors.AsType[*codestore.LimitError](err); !ok || bad.Name != "MaxEntries" {
+		t.Fatalf("PutZip with MaxEntries -1 = %v, want *LimitError for MaxEntries", err)
+	}
+}
+
+// The entry limit is checked against central header signatures counted
+// while the package streams in, so the count must not depend on how the
+// reader splits the bytes.
+func TestCentralHeaderCountIgnoresChunking(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		data := rapid.SliceOf(rapid.SampledFrom([]byte("PK\x01\x02x"))).Draw(t, "data")
+		cuts := rapid.SliceOf(rapid.IntRange(0, len(data))).Draw(t, "cuts")
+		slices.Sort(cuts)
+		chunks := make([][]byte, 0, len(cuts)+1)
+		prev := 0
+		for _, c := range cuts {
+			chunks = append(chunks, data[prev:c])
+			prev = c
+		}
+		chunks = append(chunks, data[prev:])
+		got, err := codestore.CountCentralHeaders(chunks)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64(bytes.Count(data, []byte("PK\x01\x02"))); got != want {
+			t.Fatalf("count over %d chunks = %d, want %d", len(chunks), got, want)
+		}
+	})
 }
 
 // endless is a package that never ends; it counts the bytes taken from it.

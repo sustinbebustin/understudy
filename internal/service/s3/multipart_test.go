@@ -5,10 +5,12 @@ import (
 	"crypto/md5" //nolint:gosec // S3's multipart ETag is built from MD5s; the test recomputes it
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/xml"
 	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -243,6 +245,13 @@ func TestMultipartUploadRoundTrip(t *testing.T) {
 		if !get.LastModified.Equal(initiated) || *get.ChecksumCRC32 != wantSum || *get.ChecksumType != s3api.ChecksumTypeComposite {
 			t.Fatalf("GetObject Last-Modified %s, CRC32 %v; want the initiation %s and %s", get.LastModified, get.ChecksumCRC32, initiated, wantSum)
 		}
+		// GetObjectAttributes reports the checksum of checksums without
+		// the -N parts suffix GetObject and HeadObject carry (LocalStack
+		// aws_validated test_complete_multipart_parts_checksum_composite).
+		attrs := ok(h, who{}, s3api.OpGetObjectAttributes, &s3api.GetObjectAttributesInput{Bucket: "mpu", Key: "big", ObjectAttributes: []s3api.ObjectAttributes{s3api.ObjectAttributesChecksum}})
+		if bare, _, _ := strings.Cut(wantSum, "-"); attrs.Checksum == nil || attrs.Checksum.ChecksumCRC32 == nil || *attrs.Checksum.ChecksumCRC32 != bare || *attrs.Checksum.ChecksumType != s3api.ChecksumTypeComposite {
+			t.Fatalf("GetObjectAttributes Checksum = %+v, want CRC32 %s COMPOSITE", attrs.Checksum, bare)
+		}
 		part2, out := h.readBytes(&s3api.GetObjectInput{Bucket: "mpu", Key: "big", PartNumber: new(int32(2))})
 		if !bytes.Equal(part2, second) || *out.PartsCount != 2 || *out.ContentRange != "bytes 5242880-5242979/5242980" {
 			t.Fatalf("partNumber=2 = %d bytes, parts %v, range %v; want part 2, 2 parts and bytes 5242880-5242979/5242980", len(part2), out.PartsCount, out.ContentRange)
@@ -262,6 +271,110 @@ func TestMultipartUploadRoundTrip(t *testing.T) {
 		ok(h, who{}, s3api.OpDeleteObject, &s3api.DeleteObjectInput{Bucket: "mpu", Key: "big"})
 		if refs := blobs.Refs(); len(refs) != 0 {
 			t.Fatalf("blob store holds %d blobs after the object was deleted, want none", len(refs))
+		}
+	})
+}
+
+// TestGetObjectAttributesObjectParts: ObjectParts of a SHA256 COMPOSITE
+// object lists each part with its size and checksum, paged by max-parts
+// and part-number-marker as ListParts is; a marker past the last part
+// lists none with NextPartNumberMarker 0 (LocalStack aws_validated
+// TestS3ListParts::test_list_parts_via_object_attrs_pagination).
+func TestGetObjectAttributesObjectParts(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("mpu")
+		id := h.startUpload("mpu", "paged", s3api.CreateMultipartUploadInput{ChecksumAlgorithm: new(s3api.ChecksumAlgorithmSha256)})
+		data := payload(1, minPart+1)
+		sum := sumOf(t, checksum.SHA256, data)
+		p1 := h.sendPart("mpu", "paged", id, 1, data, s3api.UploadPartInput{ChecksumSHA256: new(sum)})
+		p2 := h.sendPart("mpu", "paged", id, 2, data, s3api.UploadPartInput{ChecksumSHA256: new(sum)})
+		if _, err := complete(h, "mpu", "paged", id, []s3api.CompletedPart{listed(1, p1), listed(2, p2)}, s3api.CompleteMultipartUploadInput{}); err != nil {
+			t.Fatalf("CompleteMultipartUpload: %s %s", err.ID.QueryCode, err.Message)
+		}
+		part := func(n int32) s3api.ObjectPart {
+			return s3api.ObjectPart{PartNumber: new(n), Size: new(int64(len(data))), ChecksumSHA256: new(sum)}
+		}
+		attrs := func(maxParts *int32, marker *string) *s3api.GetObjectAttributesParts {
+			t.Helper()
+			out := ok(h, who{}, s3api.OpGetObjectAttributes, &s3api.GetObjectAttributesInput{
+				Bucket: "mpu", Key: "paged", ObjectAttributes: []s3api.ObjectAttributes{s3api.ObjectAttributesObjectParts}, MaxParts: maxParts, PartNumberMarker: marker,
+			})
+			if out.ObjectParts == nil {
+				t.Fatal("GetObjectAttributes of a multipart object returned no ObjectParts")
+			}
+			return out.ObjectParts
+		}
+		for name, c := range map[string]struct {
+			maxParts *int32
+			marker   *string
+			want     s3api.GetObjectAttributesParts
+		}{
+			"all": {want: s3api.GetObjectAttributesParts{
+				TotalPartsCount: new(int32(2)), PartNumberMarker: new("0"), NextPartNumberMarker: new("2"), MaxParts: new(int32(1000)), IsTruncated: new(false),
+				Parts: []s3api.ObjectPart{part(1), part(2)},
+			}},
+			"first page": {maxParts: new(int32(1)), want: s3api.GetObjectAttributesParts{
+				TotalPartsCount: new(int32(2)), PartNumberMarker: new("0"), NextPartNumberMarker: new("1"), MaxParts: new(int32(1)), IsTruncated: new(true),
+				Parts: []s3api.ObjectPart{part(1)},
+			}},
+			"next page": {maxParts: new(int32(1)), marker: new("1"), want: s3api.GetObjectAttributesParts{
+				TotalPartsCount: new(int32(2)), PartNumberMarker: new("1"), NextPartNumberMarker: new("2"), MaxParts: new(int32(1)), IsTruncated: new(false),
+				Parts: []s3api.ObjectPart{part(2)},
+			}},
+			"marker past the last part": {maxParts: new(int32(1)), marker: new("10"), want: s3api.GetObjectAttributesParts{
+				TotalPartsCount: new(int32(2)), PartNumberMarker: new("10"), NextPartNumberMarker: new("0"), MaxParts: new(int32(1)), IsTruncated: new(false),
+			}},
+		} {
+			if got := attrs(c.maxParts, c.marker); !reflect.DeepEqual(*got, c.want) {
+				t.Errorf("%s: ObjectParts = %s, want %s", name, jsonOf(t, *got), jsonOf(t, c.want))
+			}
+		}
+	})
+}
+
+// jsonOf renders v with its pointers followed, for a failure message.
+func jsonOf(t *testing.T, v any) string {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatalf("rendering %T: %v", v, err)
+	}
+	return string(b)
+}
+
+// TestConcurrentUploadsRankByInitiation: on a versioned bucket, of two
+// uploads to one key the one initiated last stays the current version
+// although the other completes after it (DOC mpuoverview, "Concurrent
+// multipart upload operations"); the versions list in initiation order.
+func TestConcurrentUploadsRankByInitiation(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("race")
+		h.enableVersioning("race")
+		create := func() string {
+			return *ok(h, who{}, s3api.OpCreateMultipartUpload, &s3api.CreateMultipartUploadInput{Bucket: "race", Key: "k"}).UploadId
+		}
+		finish := func(id, content string) string {
+			p := h.sendPart("race", "k", id, 1, []byte(content), s3api.UploadPartInput{})
+			done, err := complete(h, "race", "k", id, []s3api.CompletedPart{listed(1, p)}, s3api.CompleteMultipartUploadInput{})
+			if err != nil {
+				t.Fatalf("CompleteMultipartUpload: %s %s", err.ID.QueryCode, err.Message)
+			}
+			return *done.VersionId
+		}
+		earlier := create()
+		if _, err := h.Clock.Advance(time.Hour); err != nil {
+			t.Fatal(err)
+		}
+		later := create()
+		laterVersion := finish(later, "later")
+		earlierVersion := finish(earlier, "earlier")
+		if got, _ := h.read(&s3api.GetObjectInput{Bucket: "race", Key: "k"}); got != "later" {
+			t.Fatalf("GetObject = %q, want the upload initiated last", got)
+		}
+		versions := ok(h, who{}, s3api.OpListObjectVersions, &s3api.ListObjectVersionsInput{Bucket: "race"}).Versions
+		if len(versions) != 2 || *versions[0].VersionId != laterVersion || !*versions[0].IsLatest ||
+			*versions[1].VersionId != earlierVersion || *versions[1].IsLatest {
+			t.Fatalf("ListObjectVersions = %+v, want %s (latest) then %s", versions, laterVersion, earlierVersion)
 		}
 	})
 }

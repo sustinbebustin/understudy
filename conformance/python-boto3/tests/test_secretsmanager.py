@@ -32,9 +32,6 @@ def stages(secretsmanager: Any, secret_id: str) -> dict[str, list[str]]:
     return secretsmanager.describe_secret(SecretId=secret_id).get("VersionIdsToStages", {})
 
 
-# --- Create, read, versions ----------------------------------------------------------------------------------
-
-
 def test_create_secret_returns_arn_name_and_version(make_secret: Callable[..., dict[str, Any]]) -> None:
     out = make_secret(SecretString="v1")
     assert re.fullmatch(
@@ -174,9 +171,6 @@ def test_client_request_token_makes_writes_idempotent(secretsmanager: Any, make_
     assert secretsmanager.get_secret_value(SecretId=created["Name"])["SecretString"] == "v2"
 
 
-# --- Errors ----------------------------------------------------------------------------------------------------------
-
-
 def test_get_missing_secret(secretsmanager: Any) -> None:
     with raises("ResourceNotFoundException") as exc:
         secretsmanager.get_secret_value(SecretId=uniq("conf/missing"))
@@ -215,9 +209,6 @@ def test_invalid_secret_names(secretsmanager: Any, name: str) -> None:
 def test_secret_name_characters_round_trip(secretsmanager: Any, make_secret: Callable[..., dict[str, Any]]) -> None:
     created = make_secret("conf/_+=.@-Name", SecretString="x")
     assert secretsmanager.get_secret_value(SecretId=created["Name"])["Name"] == created["Name"]
-
-
-# --- Describe, update, list ------------------------------------------------------------------------------------------
 
 
 def test_describe_secret_fields(secretsmanager: Any, make_secret: Callable[..., dict[str, Any]]) -> None:
@@ -280,9 +271,6 @@ def test_list_secrets_by_tag(secretsmanager: Any, make_secret: Callable[..., dic
     assert out["SecretList"][0]["Tags"] == [{"Key": tag_key, "Value": "yes"}]
 
 
-# --- Tags and resource policy -----------------------------------------------------------------------------------------
-
-
 def test_secret_tags(secretsmanager: Any, make_secret: Callable[..., dict[str, Any]]) -> None:
     created = make_secret(SecretString="x", Tags=[{"Key": "env", "Value": "test"}])
     secretsmanager.tag_resource(SecretId=created["Name"], Tags=[{"Key": "Env", "Value": "case"}, {"Key": "team", "Value": "a"}])
@@ -314,9 +302,6 @@ def test_resource_policy_round_trip(secretsmanager: Any, make_secret: Callable[.
     assert got["ARN"] == created["ARN"]
     secretsmanager.delete_resource_policy(SecretId=created["Name"])
     assert "ResourcePolicy" not in secretsmanager.get_resource_policy(SecretId=created["Name"])
-
-
-# --- Deletion ------------------------------------------------------------------------------------------------------------
 
 
 def test_delete_secret_schedules_deletion(secretsmanager: Any, make_secret: Callable[..., dict[str, Any]]) -> None:
@@ -414,9 +399,6 @@ def test_secret_is_purged_when_the_recovery_window_ends_on_the_emulator_clock(
     reborn = secretsmanager.create_secret(Name=created["Name"], SecretString="after the window")
     assert reborn["ARN"] != created["ARN"]
     secretsmanager.delete_secret(SecretId=created["Name"], ForceDeleteWithoutRecovery=True)
-
-
-# --- Customer managed keys --------------------------------------------------------------------------------------------------
 
 
 def test_secret_with_a_customer_managed_key(

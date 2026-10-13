@@ -38,16 +38,21 @@
 //     The 10,000 per account is not enforced: state is per account and
 //     Region, so no topic write sees the account's count.
 //   - Unsubscribing. A subscription confirmed with
-//     AuthenticateOnUnsubscribe=true refuses the unsigned UnsubscribeURL
-//     with InvalidParameter and an inferred text.
+//     AuthenticateOnUnsubscribe=true, or an sqs subscription its queue's
+//     owner made, which AWS documents as setting it automatically, refuses
+//     the unsigned UnsubscribeURL with InvalidParameter and an inferred
+//     text.
 //   - MaximumMessageSize above 262144 bytes limits the topic to 100 sqs
 //     and lambda subscriptions; SetTopicAttributes and Subscribe refuse a
 //     change that breaks it with InvalidParameter and an inferred text.
 //   - Identifiers. Subscription ids and confirmation tokens are drawn from
 //     the SNS message id stream of internal/ids, so a seeded run repeats
 //     them; ids has no stream of their own.
-//   - DeleteTopic removes the topic's subscriptions at once; AWS keeps
-//     them detached for about two days, which no client observes.
+//   - DeleteTopic detaches the topic's subscriptions: they receive
+//     nothing and are not listed, but GetSubscriptionAttributes still
+//     reads them, as AWS-recorded, and Unsubscribe removes them, for 48
+//     hours of emulator time (the fidelity switch
+//     sns.delete-topic.detached-retention).
 //   - FIFO. A duplicate inside the five-minute window gets a fresh
 //     MessageId and the topic's next SequenceNumber and is not delivered
 //     (the fidelity switch sns.fifo.duplicate). The sequence counts per

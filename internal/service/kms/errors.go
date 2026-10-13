@@ -1,6 +1,8 @@
 package kms
 
 import (
+	"strconv"
+
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 )
@@ -51,6 +53,28 @@ func errAliasTarget() *awserr.Error {
 	return kmsapi.ErrValidationException("Aliases must refer to keys. Not aliases")
 }
 
+// errAliasQuota is unrecorded: AWS documents LimitExceededException for
+// CreateAlias past the quota of aliases per KMS key, but no capture of its
+// text exists, so the message is understudy's own and says so.
+func errAliasQuota(keyARN string, quota int) *awserr.Error {
+	return kmsapi.ErrLimitExceededException("Key " + keyARN + " already has " + strconv.Itoa(quota) +
+		" aliases, the quota of aliases per KMS key; delete one of its aliases or target another key (understudy's text; AWS's is unrecorded).")
+}
+
+// errPolicyTooLong is unrecorded: CreateKey and PutKeyPolicy document
+// LimitExceededException for a key policy past the length constraint, but
+// no capture of its text exists, so the message is understudy's own. The
+// policy itself is not echoed.
+func errPolicyTooLong(chars, quota int) *awserr.Error {
+	return kmsapi.ErrLimitExceededException("The key policy is " + strconv.Itoa(chars) + " characters long, more than the quota of " +
+		strconv.Itoa(quota) + "; shorten it, for example by merging statements (understudy's text; AWS's is unrecorded).")
+}
+
+// errInvalidMarker is unrecorded: the text is understudy's own.
+func errInvalidMarker(marker string) *awserr.Error {
+	return kmsapi.ErrInvalidMarkerException("The marker " + marker + " is not one a previous page of this listing returned; start the listing again without a Marker (understudy's text; AWS's is unrecorded).")
+}
+
 func errDisabled(keyARN string) *awserr.Error {
 	return kmsapi.ErrDisabledException(keyARN + " is disabled.")
 }
@@ -99,6 +123,25 @@ func errReservedTag() *awserr.Error {
 	return kmsapi.ErrTagException("Tags beginning with aws: are reserved")
 }
 
+// errKeyUsageRequired is recorded in test_hmac_create_key_invalid_operations
+// (create-hmac-key-without-key-usage, test_kms.snapshot.json@8b9a79f line
+// 902).
+func errKeyUsageRequired() *awserr.Error {
+	return kmsapi.ErrValidationException("You must specify a KeyUsage value for all KMS keys except for symmetric encryption keys.")
+}
+
+// errPolicyPrincipal is unrecorded: CreateKey and PutKeyPolicy document
+// that every key policy statement needs a principal, but no capture of
+// AWS's refusal exists, so the text is understudy's own. index counts from
+// 0, as the Statement array does.
+func errPolicyPrincipal(index int, sid string) *awserr.Error {
+	which := "Statement " + strconv.Itoa(index)
+	if sid != "" {
+		which += ` (Sid "` + sid + `")`
+	}
+	return kmsapi.ErrMalformedPolicyDocumentException(which + " of the key policy has no Principal or NotPrincipal element; each key policy statement must name one or more principals (understudy's text; AWS's is unrecorded).")
+}
+
 func errPolicyName() *awserr.Error {
 	return kmsapi.ErrNotFoundException("No such policy exists")
 }
@@ -106,13 +149,15 @@ func errPolicyName() *awserr.Error {
 // errAWSManagedKey and errAWSManagedAlias are unrecorded. AWS refuses these
 // changes through the fixed key policy of an AWS managed key, which phase 1
 // does not evaluate, so understudy answers with its own explicit refusal
-// rather than an imitation of a policy denial.
+// rather than an imitation of a policy denial. UpdateAlias and DeleteAlias
+// model no error for a managed alias, so errAWSManagedAlias answers only
+// one that exists; any other name is NotFoundException.
 func errAWSManagedKey(keyARN string) *awserr.Error {
 	return kmsapi.ErrUnsupportedOperationException(keyARN + " is an AWS managed key. Its tags, rotation, key state, key policy, description, aliases and deletion are managed by AWS and cannot be changed; use a customer managed key (CreateKey) instead.")
 }
 
 func errAWSManagedAlias(aliasARN string) *awserr.Error {
-	return kmsapi.ErrUnsupportedOperationException(aliasARN + " is the alias of an AWS managed key and cannot be deleted; aliases beginning with alias/aws/ are managed by AWS.")
+	return kmsapi.ErrUnsupportedOperationException(aliasARN + " is the alias of an AWS managed key and cannot be updated or deleted; aliases beginning with alias/aws/ are managed by AWS.")
 }
 
 // errUnsupported is understudy's own answer for what it does not implement,

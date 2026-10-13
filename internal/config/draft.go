@@ -24,6 +24,8 @@ type draft struct {
 	tokenAt     string
 	auth        *authChoice
 	authAt      string
+	awsAPI      bool
+	awsAPIAt    string
 	tls         *bool
 	tlsAt       string
 	tlsListen   *netip.AddrPort
@@ -62,6 +64,7 @@ func setters() map[string]func(*draft, value) *Error {
 		keyListen:       (*draft).setListen,
 		keyAdminToken:   (*draft).setToken,
 		keyListenAuth:   (*draft).setAuth,
+		keyAWSAPI:       (*draft).setAWSAPI,
 		keyTLS:          (*draft).setTLS,
 		keyTLSListen:    (*draft).setTLSListen,
 		keyPersist:      (*draft).setPersist,
@@ -130,6 +133,15 @@ func (d *draft) setAuth(v value) *Error {
 		return bad(v, "is not token or container-published", "")
 	}
 	d.auth, d.authAt = &a, v.where
+	return nil
+}
+
+func (d *draft) setAWSAPI(v value) *Error {
+	b, err := strconv.ParseBool(v.text)
+	if err != nil {
+		return bad(v, "is not true or false", "")
+	}
+	d.awsAPI, d.awsAPIAt = b, v.where
 	return nil
 }
 
@@ -330,12 +342,34 @@ func (d *draft) resolveHost() *Error {
 	return nil
 }
 
-// resolveListen builds the listener from its address, the admin token and
-// listenAuth. A token on loopback is refused rather than ignored; beyond
-// loopback a token wins, and without one the published container port is
-// accepted only inside a container.
+// resolveListen builds the listener from its address, the admin token,
+// listenAuth and the unauthenticated AWS API acceptance. A token on
+// loopback is refused rather than ignored; beyond loopback a token wins
+// when the AWS API it does not guard is accepted as open, and without one
+// the published container port is accepted only in a container with its
+// own network namespace, outside Kubernetes.
 func (d *draft) resolveListen() *Error {
+	if err := d.resolveExposure(); err != nil {
+		return err
+	}
+	// A token on loopback was refused above, so a token here guards a
+	// listener beyond loopback.
+	if d.awsAPI && d.token == nil {
+		return &Error{Where: d.awsAPIAt, Reason: "opens the AWS API to the network, but no listener beyond loopback uses an admin token", Hint: "remove it, or set UNDERSTUDY_ADMIN_TOKEN and --listen 0.0.0.0:4566 to serve other machines"}
+	}
+	return nil
+}
+
+// minExposedTokenLength is the shortest admin token a listener beyond
+// loopback accepts. Nothing rate-limits guesses, so a token any peer can
+// try must be too long to enumerate; 16 hex characters are 64 bits.
+const minExposedTokenLength = 16
+
+// resolveExposure builds the listener from its address, the admin token
+// and listenAuth.
+func (d *draft) resolveExposure() *Error {
 	if d.listen == nil && d.token == nil && d.auth == nil {
+		d.warnLoopbackInContainer()
 		return nil
 	}
 	addr := d.cfg.Listen.AddrPort()
@@ -354,6 +388,20 @@ func (d *draft) resolveListen() *Error {
 		return nil
 	}
 	if d.token != nil {
+		if len(*d.token) < minExposedTokenLength {
+			return &Error{
+				Where:  d.tokenAt,
+				Reason: "is shorter than the " + strconv.Itoa(minExposedTokenLength) + " characters a token guarding a listener beyond loopback (" + where + ") needs, since every peer that reaches it may guess without limit",
+				Hint:   "generate one with `openssl rand -hex 32`",
+			}
+		}
+		if !d.awsAPI {
+			return &Error{
+				Where:  d.tokenAt,
+				Reason: "guards only the admin API under /_understudy/ of the listener beyond loopback (" + where + "); its AWS API checks no request signature, so every peer that reaches it could read every secret and object and run any image as a Lambda function",
+				Hint:   "add --" + AWSAPIFlag + " (UNDERSTUDY_ALLOW_UNAUTHENTICATED_AWS_API=true) on a network whose every peer you trust, or stay local with --listen 127.0.0.1:" + strconv.Itoa(int(addr.Port())),
+			}
+		}
 		d.cfg.Listen = Exposed{Addr: addr, Auth: Token{Secret: *d.token}}
 		return nil
 	}
@@ -371,19 +419,35 @@ func (d *draft) resolveListen() *Error {
 			Hint:   "set UNDERSTUDY_ADMIN_TOKEN (every admin call then sends Authorization: Bearer <token>), or inside a container rely on the published port with --listen-auth container-published, or stay local with --listen 127.0.0.1:" + strconv.Itoa(int(addr.Port())),
 		}
 	}
-	if _, in := d.placement.(InContainer); !in {
+	if reason := unpublished(d.placement); reason != "" {
 		at := where
 		if d.auth != nil {
 			at = d.authAt
 		}
 		return &Error{
 			Where:  at,
-			Reason: "trusts a published container port, but understudy is not running in a container (no /.dockerenv, /run/.containerenv or container cgroup)",
-			Hint:   "set UNDERSTUDY_ADMIN_TOKEN to listen beyond loopback on a host, or listen on 127.0.0.1",
+			Reason: "trusts a published container port, but " + reason,
+			Hint:   "set UNDERSTUDY_ADMIN_TOKEN to listen beyond loopback here, or listen on 127.0.0.1",
 		}
 	}
 	d.cfg.Listen = Exposed{Addr: addr, Auth: ContainerPublished{}}
 	return nil
+}
+
+// warnLoopbackInContainer explains the loopback default of a container
+// whose published port cannot guard 0.0.0.0, since a container usually
+// listens beyond loopback.
+func (d *draft) warnLoopbackInContainer() {
+	switch d.placement.(type) {
+	case HostNetworkContainer, InPod:
+		addr := d.cfg.Listen.AddrPort()
+		d.cfg.Warnings = append(d.cfg.Warnings, Warning{
+			Setting: "--listen",
+			Message: "the default listener is " + addr.String() + " rather than 0.0.0.0:" + strconv.Itoa(int(addr.Port())) + " because " + unpublished(d.placement),
+			Fix:     "set UNDERSTUDY_ADMIN_TOKEN and --listen 0.0.0.0:" + strconv.Itoa(int(addr.Port())) + " to serve other machines, or pass --listen " + addr.String() + " to silence this warning",
+		})
+	case InContainer, OnHost:
+	}
 }
 
 // resolveTLS turns --tls and --tls-listen into the TLS setting; the

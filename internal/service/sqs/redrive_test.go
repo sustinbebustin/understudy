@@ -98,6 +98,37 @@ func enqueueEvents(h *harness, name string) []ref.EventID {
 	return out
 }
 
+// sqs-dead-letter-queues.html: on a standard queue whose maxReceiveCount
+// is above 3, a message received 3 times without being deleted goes to the
+// back of the queue, so newer messages are delivered ahead of it. Without
+// a redrive policy it keeps its place.
+func TestRepeatedlyReceivedMessageGoesToTheBack(t *testing.T) {
+	run(t, func(h *harness) {
+		h.queue("dlq", nil)
+		for _, tt := range []struct {
+			name   string
+			attrs  map[sqsapi.QueueAttributeName]string
+			fourth string
+		}{
+			{"redriven", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "0", "RedrivePolicy": redrivePolicy("dlq", 10)}, "B"},
+			{"plain", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "0"}, "A"},
+		} {
+			url := h.queue(tt.name, tt.attrs)
+			for _, body := range []string{"A", "B", "C"} {
+				h.mustSend(url, body)
+			}
+			for i := range 3 {
+				if got := h.receiveBodies(url, 1); !slices.Equal(got, []string{"A"}) {
+					h.Fatalf("%s: receive %d = %q, want A", tt.name, i+1, got)
+				}
+			}
+			if got := h.receiveBodies(url, 1); !slices.Equal(got, []string{tt.fourth}) {
+				h.Errorf("%s: fourth receive = %q, want %s", tt.name, got, tt.fourth)
+			}
+		}
+	})
+}
+
 // sqs.md 9.2: a FIFO message moves with its id as its deduplication id, and
 // the move opens its group for the same receive.
 func TestFIFORedriveOpensTheGroup(t *testing.T) {
@@ -214,6 +245,67 @@ func TestMoveTaskMovesAtItsRateUnderAdvance(t *testing.T) {
 		}
 		if _, err := h.Invoke(h.Context(), sqsapi.OpCancelMessageMoveTask, &sqsapi.CancelMessageMoveTaskInput{TaskHandle: handle}); err == nil || err.ID.QueryCode != "ResourceNotFoundException" {
 			h.Errorf("cancelling a finished task = %v, want ResourceNotFoundException", err)
+		}
+	})
+}
+
+// A move task receives the messages it moves, so a message in flight in
+// the dead-letter queue stays there and its receipt handle keeps working
+// (sqs-configure-dead-letter-queue-redrive.html: redrive needs
+// sqs:ReceiveMessage and sqs:DeleteMessage on the dead-letter queue).
+// ApproximateNumberOfMessagesToMove counts only the receivable messages.
+func TestMoveTaskLeavesInFlightMessages(t *testing.T) {
+	run(t, func(h *harness) {
+		dlq := h.queue("dlq", nil)
+		src := h.queue("src", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "0", "RedrivePolicy": redrivePolicy("dlq", 1)})
+		h.deadLetterMessages(src, 2)
+		held := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: dlq, VisibilityTimeout: new(int32(300))})
+		if len(held) != 1 {
+			h.Fatalf("receive from the dead-letter queue = %d messages, want 1", len(held))
+		}
+		if _, err := h.startTask(&sqsapi.StartMessageMoveTaskInput{SourceArn: arnPrefix + "dlq"}); err != nil {
+			h.Fatal(err.Message)
+		}
+		task := h.tasks("dlq", 1)[0]
+		if val(task.Status) != "COMPLETED" || task.ApproximateNumberOfMessagesMoved != 1 || *task.ApproximateNumberOfMessagesToMove != 1 {
+			h.Fatalf("task = %+v, want COMPLETED with 1 of 1 moved", task)
+		}
+		if h.count(src) != "1" {
+			h.Errorf("source holds %s messages, want the 1 that was receivable", h.count(src))
+		}
+		if _, err := h.Invoke(h.Context(), sqsapi.OpDeleteMessage, &sqsapi.DeleteMessageInput{QueueUrl: dlq, ReceiptHandle: val(held[0].ReceiptHandle)}); err != nil {
+			h.Fatal(err.Message)
+		}
+		h.advance(301 * time.Second)
+		if n := h.count(dlq); n != "0" {
+			h.Errorf("dead-letter queue holds %s messages after deleting the held one, want 0", n)
+		}
+	})
+}
+
+// A running task whose remaining messages are all in flight keeps running
+// and moves each once it is receivable again.
+func TestMoveTaskWaitsForInFlightMessages(t *testing.T) {
+	run(t, func(h *harness) {
+		dlq := h.queue("dlq", nil)
+		src := h.queue("src", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "0", "RedrivePolicy": redrivePolicy("dlq", 1)})
+		h.deadLetterMessages(src, 2)
+		if _, err := h.startTask(&sqsapi.StartMessageMoveTaskInput{SourceArn: arnPrefix + "dlq", MaxNumberOfMessagesPerSecond: new(int32(1))}); err != nil {
+			h.Fatal(err.Message)
+		}
+		if held := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: dlq, VisibilityTimeout: new(int32(5))}); len(held) != 1 {
+			h.Fatalf("receive from the dead-letter queue = %d messages, want 1", len(held))
+		}
+		h.advance(time.Second)
+		if task := h.tasks("dlq", 1)[0]; val(task.Status) != "RUNNING" || task.ApproximateNumberOfMessagesMoved != 1 || *task.ApproximateNumberOfMessagesToMove != 2 {
+			h.Fatalf("task while a message is in flight = %+v, want RUNNING with 1 of 2 moved", task)
+		}
+		h.advance(4 * time.Second)
+		if task := h.tasks("dlq", 1)[0]; val(task.Status) != "COMPLETED" || task.ApproximateNumberOfMessagesMoved != 2 {
+			h.Fatalf("task once the message is visible = %+v, want COMPLETED with 2 moved", task)
+		}
+		if h.count(src) != "2" || h.count(dlq) != "0" {
+			h.Errorf("source holds %s and the dead-letter queue %s, want 2 and 0", h.count(src), h.count(dlq))
 		}
 	})
 }

@@ -38,3 +38,12 @@ The brief requires a versioned, deterministic file for the whole emulator state 
 - Accepted deliveries are outbox state (ADR 0015), so a save never names deliveries as not captured; the 5 s settle wait is gone.
 - DynamoDB persistence has one source of truth per mode (fidelity F11, product M3): under `--persist` Local runs with `-dbPath <dir>/dynamodb` and owns item data while the periodic archive carries shim state only; an explicit `snapshot save` exports items as `Late` sections; `snapshot load` and `reset` delete the tables in the running container and recreate them from the sections. A fresh `-inMemory` container is never started for a load. Local-minted stream labels change across a load and are listed as `aws-differs: dynamodb-local`.
 - `snapshot diff --normalize` applies the closed normalizer set of ADR 0018.
+
+## Amendments (hardening round 1)
+
+- A restart under `--persist` resumes the clock from the checkpoint by mode. A Running clock resumes at wall time, or at its saved instant when that is later, so emulator time never trails wall time and never moves back. The manifest records no offset from wall time, so an advance ahead of wall time that is shorter than the downtime is absorbed. A Frozen clock holds its instant; a Scaled clock resumes from its saved instant, since its time across the downtime is undefined. An explicit `snapshot load` keeps the archive's instant in every mode. Keeping an advanced offset exactly would need the manifest to record the wall time of the cut, a format change.
+
+## Amendments (hardening round 2)
+
+- The review amendment's "the 5 s settle wait is gone" no longer holds. A committed write hands its deliveries to the outbox after the gate is released, so a cut taken in between would hold the write's state change without its delivery. Before taking the gate, a cut waits up to 5 s of wall time (`snapshot.EffectsWait`) for the kernel's count of committed writes' effects (wakes and deliveries) to reach zero, then cuts. A cut taken at the timeout reports the count (`Cut.PendingEffects`): `snapshot save` returns it as `pendingEffects` and logs it at Warn, and a `--persist` checkpoint logs it at Warn. The manifest does not carry it, so the archive format is unchanged.
+- Load restores the clock first, then, under the gate, the rest of the runtime head (identifier positions, the journal counter, fault rules), after the export that collects the blobs being replaced and before the reset. If that export fails, nothing under the gate has changed.

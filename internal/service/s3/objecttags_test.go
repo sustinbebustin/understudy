@@ -51,6 +51,16 @@ func TestObjectTags(t *testing.T) {
 		}
 		_, err := as(h, who{}, s3api.OpPutObjectTagging, &s3api.PutObjectTaggingInput{Bucket: "tags", Key: "k", Tagging: s3api.Tagging{TagSet: eleven}})
 		wantCode(t, err, "InvalidTag", http.StatusBadRequest)
+		// A comma in a key is refused, through either way of tagging.
+		comma := s3api.Tagging{TagSet: []s3api.Tag{{Key: "Key1,Key2", Value: "Val1"}}}
+		_, err = as(h, who{}, s3api.OpPutObjectTagging, &s3api.PutObjectTaggingInput{Bucket: "tags", Key: "k", Tagging: comma})
+		wantCode(t, err, "InvalidTag", http.StatusBadRequest)
+		if err.Message != "The TagKey you have provided is invalid" {
+			t.Errorf("comma key: %q", err.Message)
+		}
+		wantFields(t, err, map[string]string{"TagKey": "Key1,Key2"})
+		_, err = as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{Bucket: "tags", Key: "bad", Body: bytesBody("x"), Tagging: new("Key1%2CKey2=v")})
+		wantCode(t, err, "InvalidTag", http.StatusBadRequest)
 		_, err = as(h, who{}, s3api.OpGetObjectTagging, &s3api.GetObjectTaggingInput{Bucket: "tags", Key: "missing"})
 		wantCode(t, err, "NoSuchKey", http.StatusNotFound)
 	})

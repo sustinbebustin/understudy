@@ -77,6 +77,50 @@ func TestNormalizeMasksAccessKeysThatEncodeAnAccount(t *testing.T) {
 	}
 }
 
+// Members that share a name are numbered name#1, name#2, ...; the numbered
+// names keep the rules of the name, so a user map stays unmasked when the
+// normalized tree is normalized again.
+func TestNormalizeKeepsTheRulesOfNumberedNames(t *testing.T) {
+	t.Parallel()
+	obj := func(ms ...member) tree { return tree{kind: jsonx.Object, members: ms} }
+	cases := []struct {
+		name string
+		in   tree
+		want string
+	}{
+		{
+			name: "duplicate user map",
+			in: obj(member{name: "requestId", val: obj(
+				member{name: "metadata", val: obj(member{name: "requestId", val: str("")})},
+				member{name: "metadata", val: obj()},
+			)}),
+			want: `{"requestId":{"metadata#1":{"requestId":""},"metadata#2":{}}}`,
+		},
+		{
+			name: "duplicate cause",
+			in: obj(
+				member{name: "cause", val: obj(member{name: "parent", val: str("e1")})},
+				member{name: "cause", val: obj(member{name: "trace", val: str("e2")})},
+			),
+			want: `{"cause#1":{"parent":"<event-id>"},"cause#2":{"trace":"<event-id>"}}`,
+		},
+		{
+			name: "numbered name in the input",
+			in:   obj(member{name: "tags#2", val: obj(member{name: "lastRequestId", val: str("r1")})}),
+			want: `{"tags#2":{"lastRequestId":"r1"}}`,
+		},
+	}
+	for _, tc := range cases {
+		once := normalize(tc.in, "", plainScope)
+		if got := once.json(); got != tc.want {
+			t.Errorf("%s: normalize = %s; want %s", tc.name, got, tc.want)
+		}
+		if twice := normalize(once, "", plainScope).json(); twice != tc.want {
+			t.Errorf("%s: normalizing %s again gives %s", tc.name, tc.want, twice)
+		}
+	}
+}
+
 // fragment draws text the normalizers look at, mixed with plain text.
 func fragment() *rapid.Generator[string] {
 	return rapid.OneOf(

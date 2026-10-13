@@ -12,7 +12,10 @@
 // (no link is ever created from an archive, because a bind mount follows it
 // on the host), and uncompressed sizes are capped per entry and in total
 // (262,144,000 bytes by default, Lambda's unzipped limit). The package
-// itself is spooled to disk only up to Options.MaxZipped. Extraction
+// itself is spooled to disk only up to Options.MaxZipped, and an archive
+// with more central directory headers than Options.MaxEntries is refused
+// before archive/zip parses them, since empty entries pass every size
+// limit yet cost memory and an inode each. Extraction
 // writes to tmp/ and renames the finished tree into place, so a tree under
 // trees/ is always complete. `//go:debug zipinsecurepath=0` in main is a
 // second layer; this package does not rely on it.

@@ -12,7 +12,7 @@
 // operations through Binder. Run drives the clock and owns every goroutine
 // started with Go.
 //
-// Decisions the architecture leaves open:
+// Design decisions:
 //
 //   - Services are constructed after New, from the ServiceDeps it feeds, so
 //     a bind mistake (an operation bound twice or outside its binder's
@@ -21,13 +21,15 @@
 //     services exist, and Run refuses to start while it is non-nil.
 //     Bindings are atomic per operation, so a test can bind a stub while
 //     the kernel runs.
-//   - Write takes the Partitioned and the key instead of a cell: a cell
-//     that reset or snapshot load retired is resolved again with For, which
-//     needs both. The architecture's Write(c, cell, fn) cannot re-resolve.
+//   - Write takes the Partitioned and the key rather than a resolved cell,
+//     so a cell that reset or snapshot load retired is resolved again with
+//     For, which needs both.
 //   - Validate is generic over the input type, Validate[In](violations):
 //     the policy the generator copies into each api package is reached
-//     through the input type's ValidationError method (ARCHITECTURE.md 3.3,
-//     interim contract), which a *registry.Operation cannot name.
+//     through the input type's ValidationError method (ARCHITECTURE.md
+//     3.3), because registry.Operation has no policy field. Moving the
+//     policy onto the descriptor, so the generator emits data only, is
+//     deferred: it reshapes awserr's public API around this call site.
 //   - Result has a third variant, StatusOKFailure, for S3's 200-with-error
 //     answer, so the after-commit fault decision FailStatusOK has a result
 //     the edge renders with status 200.
@@ -55,4 +57,10 @@
 //   - Strict mode checks outputs codec-independently: the output is
 //     serialized through a serializer that writes nothing and notes every
 //     required timestamp member left at the zero time.
+//   - An output the kernel drops after the handler built it (an after-commit
+//     fault, a strict refusal) has its streaming bodies closed through
+//     Release, the same scan; a body holding a resource implements
+//     io.Closer, so no blob file waits on the garbage collector. Release is
+//     exported for the edge, which drops an output its codec fails to
+//     encode.
 package kernel

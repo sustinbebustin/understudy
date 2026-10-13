@@ -2,7 +2,6 @@ package admin
 
 import (
 	"errors"
-	"io"
 	"net/http"
 
 	"github.com/sustinbebustin/understudy/admin"
@@ -31,9 +30,9 @@ func (h *Handler) state() admin.ClockState {
 // clockChange applies one ClockOp. Mode changes are journaled as
 // ClockChanged; advances answer the timers they fired.
 func (h *Handler) clockChange(w http.ResponseWriter, r *http.Request, _ []string) {
-	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxJSONBytes))
-	if err != nil {
-		h.fail(w, r, &admin.Error{Code: admin.InvalidRequest, Message: "the clock op could not be read: " + err.Error()})
+	data, aerr := readBody(w, r, "clock op")
+	if aerr != nil {
+		h.fail(w, r, aerr)
 		return
 	}
 	op, err := admin.ParseClockOp(data)
@@ -54,7 +53,7 @@ func (h *Handler) clockChange(w http.ResponseWriter, r *http.Request, _ []string
 	case admin.Resume:
 		m, err := c.Resume()
 		if err != nil {
-			h.fail(w, r, &admin.Error{Code: admin.Conflict, Message: err.Error(), Hint: "reset the clock with POST /reset {\"clock\": true}"})
+			h.fail(w, r, &admin.Error{Code: admin.Conflict, Message: err.Error(), Hint: resetClockHint})
 			return
 		}
 		h.journalClock(r.Context(), m.From, m.To)
@@ -87,13 +86,16 @@ func (h *Handler) clockChange(w http.ResponseWriter, r *http.Request, _ []string
 	h.ok(w, r, out)
 }
 
-// moveError explains a refused advance or set.
+// resetClockHint names the ways back to an earlier emulator time, for the
+// CLI and for HTTP clients.
+const resetClockHint = "'understudy reset --clock' (POST " + admin.Prefix + "/reset with {\"clock\": true}) returns the clock to how serve started it; " +
+	"'understudy snapshot load FILE' (PUT " + admin.Prefix + "/snapshots) returns it to a saved time"
+
+// moveError explains a refused advance or set. The message already says
+// the clock only moves forward; the hint names the commands that go back.
 func moveError(field string, err error) *admin.Error {
 	if back, ok := errors.AsType[*clock.BackwardsError](err); ok {
-		return &admin.Error{
-			Code: admin.InvalidRequest, Field: field, Message: back.Error(),
-			Hint: "emulator time only moves forward; reset the clock with POST /reset {\"clock\": true} or load a snapshot to go back",
-		}
+		return &admin.Error{Code: admin.InvalidRequest, Field: field, Message: back.Error(), Hint: resetClockHint}
 	}
 	return &admin.Error{Code: admin.InvalidRequest, Field: field, Message: err.Error()}
 }

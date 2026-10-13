@@ -42,9 +42,7 @@ wait_table_active() {
   done
 }
 
-# ---------------------------------------------------------------------------
 # Table lifecycle
-# ---------------------------------------------------------------------------
 
 test_create_table_response() {
   new_table
@@ -136,9 +134,7 @@ test_delete_table_with_deletion_protection() {
   aws_ok dynamodb delete-table --table-name "$TABLE"
 }
 
-# ---------------------------------------------------------------------------
 # Items
-# ---------------------------------------------------------------------------
 
 test_put_get_delete_item() {
   new_table
@@ -200,9 +196,7 @@ test_update_item_remove_attribute() {
   assert_jq_true '.Attributes == {"LockID":{"S":"a"},"stay":{"S":"y"}}'
 }
 
-# ---------------------------------------------------------------------------
 # Conditional writes: the lock-table workload
-# ---------------------------------------------------------------------------
 
 LOCK_CONDITION='attribute_not_exists(LockID) OR ExpiresAt < :now'
 
@@ -271,9 +265,7 @@ test_update_item_condition_expression() {
     --expression-attribute-values '{":next":{"N":"2"},":expected":{"N":"1"}}'
 }
 
-# ---------------------------------------------------------------------------
 # Query, Scan, batch and transactions
-# ---------------------------------------------------------------------------
 
 # new_events_table: a table with a composite key (pk HASH, sk RANGE) and ten
 # items pk=p, sk=s00..s09 plus one item under pk=q.
@@ -375,9 +367,7 @@ test_transact_write_items_cancelled_writes_nothing() {
   assert_jq 'has("Item")' 'false'
 }
 
-# ---------------------------------------------------------------------------
 # TTL
-# ---------------------------------------------------------------------------
 
 test_ttl_disabled_by_default() {
   new_table
@@ -420,9 +410,7 @@ test_ttl_keeps_unexpired_items() {
   assert_jq '.Item.LockID.S' 'future'
 }
 
-# ---------------------------------------------------------------------------
 # Tags
-# ---------------------------------------------------------------------------
 
 test_create_table_with_tags() {
   new_table --tags Key=env,Value=test Key=team,Value=core
@@ -445,9 +433,7 @@ test_list_tags_without_tags_is_empty() {
   assert_jq_true '.Tags == []'
 }
 
-# ---------------------------------------------------------------------------
 # Continuous backups
-# ---------------------------------------------------------------------------
 
 test_describe_continuous_backups_defaults() {
   new_table
@@ -471,9 +457,7 @@ test_describe_continuous_backups_missing_table() {
   aws_error TableNotFoundException 400 dynamodb describe-continuous-backups --table-name "$(new_name ddb-missing)"
 }
 
-# ---------------------------------------------------------------------------
 # Account and region isolation
-# ---------------------------------------------------------------------------
 
 test_tables_are_isolated_per_region() {
   new_table

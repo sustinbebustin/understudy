@@ -3,7 +3,9 @@ package events
 import (
 	"context"
 	"slices"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -26,14 +28,17 @@ const timeSize = 14
 
 // bindEvents binds PutEvents and TestEventPattern.
 func (s *Service) bindEvents(b eventbridgeapi.Binder) {
-	b.PutEvents(s.putEvents, registry.Partial{Note: "the default bus; EndpointId and TraceHeader are accepted and not used"})
+	b.PutEvents(s.putEvents, registry.Partial{Note: "default buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used"})
 	b.TestEventPattern(s.testEventPattern, registry.Full{})
 }
 
-// putEvents takes each entry onto its bus and sends the default bus's
-// events to the targets of the rules that match them. An entry missing a
-// member or with a malformed Detail fails alone; an entry for any other bus
-// gets an EventId and is dropped, as AWS drops events to a bus that does not
+// putEvents takes each entry onto its bus and sends each bus's events to
+// the targets of the rules that match them. An entry missing a member, with
+// a Source in the reserved aws. namespace, with a malformed Detail or for
+// another region's default bus fails alone. An entry for the default bus of
+// another account in the caller's region reaches that account's rules,
+// stamped with the sender's account, as on AWS; one for any other bus gets
+// an EventId and is dropped, as AWS drops events to a bus that does not
 // exist.
 func (s *Service) putEvents(ctx context.Context, c *kernel.Call, in *eventbridgeapi.PutEventsInput) (*eventbridgeapi.PutEventsOutput, *awserr.Error) {
 	if entriesSize(in.Entries) >= maxEntriesSize {
@@ -41,10 +46,14 @@ func (s *Service) putEvents(ctx context.Context, c *kernel.Call, in *eventbridge
 	}
 	scope := c.Scope()
 	out := &eventbridgeapi.PutEventsOutput{Entries: make([]eventbridgeapi.PutEventsResultEntry, len(in.Entries))}
-	var accepted []envelope.Event
+	var buses busEvents
 	for i := range in.Entries {
 		e := &in.Entries[i]
+		bus := parseBus(scope, e.EventBusName)
 		detail, failure := parseEntry(e)
+		if failure == nil {
+			failure = foreignRegion(scope, bus)
+		}
 		if failure != nil {
 			out.Entries[i] = *failure
 			out.FailedEntryCount++
@@ -52,11 +61,7 @@ func (s *Service) putEvents(ctx context.Context, c *kernel.Call, in *eventbridge
 		}
 		id := s.ids.UUID(ids.KindEventID).String()
 		out.Entries[i] = eventbridgeapi.PutEventsResultEntry{EventId: new(id)}
-		if _, onDefault := busName(scope, e.EventBusName); !onDefault {
-			c.Touch(namedBus(scope, e.EventBusName))
-			continue
-		}
-		accepted = append(accepted, envelope.Event{
+		ev := envelope.Event{
 			ID:         id,
 			DetailType: *e.DetailType,
 			Source:     *e.Source,
@@ -65,15 +70,52 @@ func (s *Service) putEvents(ctx context.Context, c *kernel.Call, in *eventbridge
 			Region:     scope.Region.String(),
 			Resources:  slices.Clone(e.Resources),
 			Detail:     detail,
-		})
+		}
+		switch b := bus.(type) {
+		case ownBus:
+			buses.add(scope, ev)
+		case foreignBus:
+			buses.add(b.scope, ev)
+		case missingBus:
+			c.Touch(b.arn)
+		}
 	}
-	if len(accepted) > 0 {
-		c.Touch(busARN(scope, defaultBus))
-		if err := s.publish(ctx, c, scope, accepted); err != nil {
+	for _, g := range buses {
+		c.Touch(busARN(g.scope, defaultBus))
+		if err := s.publish(ctx, c, g.scope, g.events); err != nil {
 			return nil, err
 		}
 	}
 	return out, nil
+}
+
+// foreignRegion is the failure of an entry for the default bus of another
+// region, which understudy does not send to, or nil.
+func foreignRegion(scope aws.Scope, bus busRef) *eventbridgeapi.PutEventsResultEntry {
+	if b, ok := bus.(foreignBus); ok && b.scope.Region != scope.Region {
+		return entryFailure(codeNotImplemented, msgForeignRegionBus(scope, b.arn()))
+	}
+	return nil
+}
+
+// busBatch is the accepted events of a PutEvents call on the default bus
+// of one scope.
+type busBatch struct {
+	scope  aws.Scope
+	events []envelope.Event
+}
+
+// busEvents holds a call's batches in the order their buses first appear.
+type busEvents []busBatch
+
+func (b *busEvents) add(scope aws.Scope, ev envelope.Event) {
+	for i := range *b {
+		if (*b)[i].scope == scope {
+			(*b)[i].events = append((*b)[i].events, ev)
+			return
+		}
+	}
+	*b = append(*b, busBatch{scope: scope, events: []envelope.Event{ev}})
 }
 
 // entriesSize is a PutEvents request's size as AWS counts it: per entry,
@@ -98,8 +140,12 @@ func entriesSize(entries []eventbridgeapi.PutEventsRequestEntry) int {
 	return n
 }
 
-// parseEntry checks an entry's required members and parses its Detail; a
-// problem is the entry's failure.
+// maxDetailType is the most characters a DetailType holds
+// (API_PutEventsRequestEntry).
+const maxDetailType = 128
+
+// parseEntry checks an entry's required members, its DetailType's length
+// and its Source, and parses its Detail; a problem is the entry's failure.
 func parseEntry(e *eventbridgeapi.PutEventsRequestEntry) (document.Map, *eventbridgeapi.PutEventsResultEntry) {
 	for _, m := range []struct {
 		name  string
@@ -109,11 +155,38 @@ func parseEntry(e *eventbridgeapi.PutEventsRequestEntry) (document.Map, *eventbr
 			return nil, entryFailure(codeInvalidArgument, msgRequired(m.name))
 		}
 	}
+	if utf8.RuneCountInString(*e.DetailType) > maxDetailType {
+		return nil, entryFailure(codeInvalidArgument, msgTooLong("DetailType", maxDetailType))
+	}
+	if strings.HasPrefix(*e.Source, reservedSourcePrefix) {
+		return nil, entryFailure(codeNotAuthorizedForSource, msgNotAuthorizedForSource)
+	}
 	detail, ok := envelope.ParseDetail(*e.Detail)
-	if !ok {
+	if !ok || !integersInRange(detail) {
 		return nil, entryFailure(codeMalformedDetail, msgMalformedDetail)
 	}
 	return detail, nil
+}
+
+// integersInRange reports whether every integer in v, a number written
+// without a fraction or an exponent, is a signed 64-bit integer, the range
+// API_PutEvents documents for a JSON integer. A number with a fraction or an
+// exponent is a float, which the range does not bound.
+func integersInRange(v document.Value) bool {
+	switch v := v.(type) {
+	case document.Number:
+		if strings.ContainsAny(string(v), ".eE") {
+			return true
+		}
+		_, err := v.Int64()
+		return err == nil
+	case document.List:
+		return !slices.ContainsFunc(v, func(e document.Value) bool { return !integersInRange(e) })
+	case document.Map:
+		return !slices.ContainsFunc(v, func(e document.Entry) bool { return !integersInRange(e.Value) })
+	case document.Null, document.Bool, document.String:
+	}
+	return true
 }
 
 func entryFailure(code, message string) *eventbridgeapi.PutEventsResultEntry {
@@ -126,18 +199,6 @@ func eventTime(e *eventbridgeapi.PutEventsRequestEntry, admitted clock.Instant) 
 		return *e.Time
 	}
 	return admitted.Wire()
-}
-
-// namedBus is the ARN of the bus an EventBusName names: the ARN as sent,
-// with its own account and region, or the bus of that name in scope.
-func namedBus(scope aws.Scope, name *string) aws.ARN {
-	bus, _ := busName(scope, name)
-	if name != nil {
-		if arn, err := aws.ParseARN(*name); err == nil {
-			return arn
-		}
-	}
-	return busARN(scope, bus)
 }
 
 // publish sends events on scope's default bus to the targets of the rules
@@ -185,10 +246,12 @@ func (s *Service) testEventPattern(_ context.Context, _ *kernel.Call, in *eventb
 }
 
 // isEnvelope reports whether s is a JSON object with every member
-// TestEventPattern requires (API_TestEventPattern: id, account, source,
-// time, region, resources and detail-type).
+// TestEventPattern requires: id, account, source, time, region and
+// detail-type. API_TestEventPattern also lists resources, but AWS matches
+// an event without it (localstack test_events_patterns.snapshot.json,
+// test_event_pattern_source, recorded against AWS).
 func isEnvelope(s string) bool {
-	required := [...]string{"id", "account", "source", "time", "region", "resources", "detail-type"}
+	required := [...]string{"id", "account", "source", "time", "region", "detail-type"}
 	v, ok := envelope.ParseJSON(s)
 	if !ok {
 		return false

@@ -384,7 +384,7 @@ func parseCredential(s string, t time.Time, regions aws.Regions, m Mechanism) (C
 	var messages []string
 	region, regionErr := regions.Parse(regionName)
 	if regionErr != nil {
-		messages = append(messages, "Credential should be scoped to a valid region, not '"+regionName+"'. Add the name to regions.extra in the understudy configuration to use it.")
+		messages = append(messages, "Credential should be scoped to a valid region, not '"+regionName+"'. Add the name to the regions array in the understudy configuration to use it.")
 	}
 	// first is the first wrong piece after the region; the zero Problem is
 	// none.

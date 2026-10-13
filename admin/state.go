@@ -21,6 +21,24 @@ type SnapshotInfo struct {
 	Mode     ClockMode `json:"mode"`
 	Sections int       `json:"sections"`
 	Services []string  `json:"services,omitempty"`
+	// PendingEffects, for a save, counts the effects of committed writes,
+	// such as deliveries, that had still not run when the state was cut
+	// after the server's wait for them: the archive holds those writes'
+	// state changes without their effects. Zero means none was missed.
+	PendingEffects int `json:"pendingEffects,omitempty"`
+}
+
+// PendingEffectsHeader carries SnapshotInfo.PendingEffects on a save whose
+// archive travels in the response body, where no JSON body can.
+const PendingEffectsHeader = "Understudy-Pending-Effects"
+
+// SavedArchive describes an archive POST /snapshots sent in its response
+// body.
+type SavedArchive struct {
+	// Bytes is the archive's size as written.
+	Bytes int64 `json:"bytes"`
+	// PendingEffects is SnapshotInfo.PendingEffects for this archive.
+	PendingEffects int `json:"pendingEffects,omitempty"`
 }
 
 // SnapshotRequest is the JSON body of the path form of POST and PUT

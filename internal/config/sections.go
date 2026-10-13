@@ -52,7 +52,7 @@ func choose[T any](text, where string, values map[string]T, dst *T) *Error {
 	if !ok {
 		// Sorted, so closest breaks a tie the same way on every run.
 		names := slices.Sorted(maps.Keys(values))
-		return &Error{Where: where, Reason: quote(text) + " is not a value it takes", Closest: closest(text, names)}
+		return &Error{Where: where, Reason: quote(text) + " is not a value it takes", Closest: Closest(text, names), Hint: "it takes " + strings.Join(names, " or ")}
 	}
 	*dst = v
 	return nil
@@ -151,7 +151,7 @@ func (d *draft) applyS3(s *fileS3, where string) *Error {
 
 // allowedBaseDomain reports whether domain is localhost, a name under it
 // (RFC 6761 resolves both to loopback), or localhost.localstack.cloud,
-// LocalStack's public name for 127.0.0.1 (ADR 0013, product m10).
+// LocalStack's public name for 127.0.0.1 (ADR 0013).
 func allowedBaseDomain(domain string) bool {
 	if domain == "localhost.localstack.cloud" || domain == "localhost" {
 		return true
@@ -258,15 +258,38 @@ func (d *draft) applyNetwork(l *fileLambda, where string) *Error {
 		if l.BridgeGateway == nil {
 			return &Error{Where: where + ".bridgeGateway", Reason: "is missing; network bridge binds the container listener on this address", Hint: "write it as 172.17.0.1"}
 		}
-		gw, err := netip.ParseAddr(*l.BridgeGateway)
-		if err != nil || !gw.Is4() {
-			return &Error{Where: where + ".bridgeGateway", Reason: quote(*l.BridgeGateway) + " is not an IPv4 address"}
+		gw, reason := parseBridgeGateway(*l.BridgeGateway)
+		if reason != "" {
+			return &Error{
+				Where:  where + ".bridgeGateway",
+				Reason: quote(*l.BridgeGateway) + " " + reason,
+				Hint:   "write the gateway `docker network inspect bridge` reports, such as 172.17.0.1, or set \"network\": \"auto\" to detect it",
+			}
 		}
 		d.cfg.Lambda.Network = NetworkBridge{Gateway: gw}
 	default:
-		return &Error{Where: where + ".network", Reason: quote(network) + " is not auto, bridge or disabled", Closest: closest(network, []string{"auto", "bridge", "disabled"})}
+		return &Error{Where: where + ".network", Reason: quote(network) + " is not auto, bridge or disabled", Closest: Closest(network, []string{"auto", "bridge", "disabled"})}
 	}
 	return nil
+}
+
+// parseBridgeGateway reads a bridge gateway; the reason is empty when it is
+// valid. The container listener binds the gateway and serves the AWS API
+// without checking signatures, and no listener rule guards it, so only a
+// private (RFC 1918) IPv4 address, where Docker puts its bridges, passes.
+func parseBridgeGateway(text string) (gw netip.Addr, reason string) {
+	gw, err := netip.ParseAddr(text)
+	switch {
+	case err != nil || !gw.Is4():
+		return netip.Addr{}, "is not an IPv4 address"
+	case gw.IsUnspecified():
+		return netip.Addr{}, "is the unspecified address, which would bind the container listener on every interface and open its unauthenticated AWS API to the network"
+	case gw.IsLoopback():
+		return netip.Addr{}, "is a loopback address, which no container on a bridge network reaches"
+	case !gw.IsPrivate():
+		return netip.Addr{}, "is not a private (RFC 1918) address; the container listener binds it and serves the AWS API without authentication, so a public address would open that API beyond this machine"
+	}
+	return gw, ""
 }
 
 func positive(n *int, where string, dst *int) *Error {

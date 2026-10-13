@@ -13,7 +13,7 @@ import (
 // An SNS delivery to a queue whose stored policy does not allow the topic
 // to send journals a policy-would-deny advisory, and is delivered anyway;
 // once the queue policy allows sns.amazonaws.com from the topic, the next
-// delivery journals none (ARCHITECTURE.md 16, product C3).
+// delivery journals none (ARCHITECTURE.md 16).
 func TestDeliveryAdvisesOnTheQueuePolicy(t *testing.T) {
 	c, endpoint := adminServer(t, server.Config{})
 	const queueARN = "arn:aws:sqs:us-east-1:000000000000:advised"

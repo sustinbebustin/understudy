@@ -2,6 +2,7 @@ package sqs
 
 import (
 	"encoding/json"
+	"fmt"
 	"maps"
 	"slices"
 	"strconv"
@@ -125,11 +126,35 @@ func (p *RedriveAllowPolicy) allows(source string) bool {
 // text of a valid value and how to apply it, or the error that refuses
 // it; get returns a queue's current value in the same canonical text.
 type attribute struct {
-	name sqsapi.QueueAttributeName
-	// fifo marks the attributes only FIFO queues take.
-	fifo  bool
-	parse func(v string) (string, func(*Queue), *awserr.Error)
-	get   func(q *Queue) string
+	name     sqsapi.QueueAttributeName
+	standard onStandard
+	parse    func(v string) (string, func(*Queue), *awserr.Error)
+	get      func(q *Queue) string
+}
+
+// onStandard is how a standard queue answers an attribute. AWS refuses the
+// FIFO-only attributes in two ways (sqs.md 2.4): ContentBasedDeduplication
+// as unknown, DeduplicationScope and FifoThroughputLimit as FIFO-only.
+type onStandard int
+
+const (
+	standardTakes onStandard = iota
+	standardUnknown
+	standardFifoOnly
+)
+
+// refusal is the error a standard queue answers attribute name with, or
+// nil when it takes it.
+func (o onStandard) refusal(name sqsapi.QueueAttributeName) *awserr.Error {
+	switch o {
+	case standardTakes:
+		return nil
+	case standardUnknown:
+		return errUnknownAttribute(string(name))
+	case standardFifoOnly:
+		return errFifoOnlyAttribute(name)
+	}
+	return awserr.Internalf(fmt.Errorf("attribute %s has no standard-queue rule (%d)", name, o))
 }
 
 func intAttribute(name sqsapi.QueueAttributeName, minV, maxV int64, field func(*Attributes) *int32) attribute {
@@ -147,10 +172,10 @@ func intAttribute(name sqsapi.QueueAttributeName, minV, maxV int64, field func(*
 }
 
 // boolAttribute takes true or false in any case.
-func boolAttribute(name sqsapi.QueueAttributeName, fifo bool, set func(q *Queue, v bool), get func(q *Queue) bool) attribute {
+func boolAttribute(name sqsapi.QueueAttributeName, standard onStandard, set func(q *Queue, v bool), get func(q *Queue) bool) attribute {
 	return attribute{
-		name: name,
-		fifo: fifo,
+		name:     name,
+		standard: standard,
 		parse: func(v string) (string, func(*Queue), *awserr.Error) {
 			b, ok := parseBool(v)
 			if !ok {
@@ -172,11 +197,12 @@ func parseBool(v string) (value, ok bool) {
 	return false, false
 }
 
-// enumAttribute is a FIFO attribute with a closed set of values.
+// enumAttribute is a FIFO attribute with a closed set of values, refused
+// on a standard queue as FIFO-only.
 func enumAttribute[T ~string](name sqsapi.QueueAttributeName, values []T, field func(*FIFO) *T) attribute {
 	return attribute{
-		name: name,
-		fifo: true,
+		name:     name,
+		standard: standardFifoOnly,
 		parse: func(v string) (string, func(*Queue), *awserr.Error) {
 			i := slices.Index(values, T(v))
 			if i < 0 {
@@ -290,14 +316,14 @@ func parseRedriveAllowPolicy(v string) (canonical string, apply func(*Queue), er
 func settable() []attribute {
 	return []attribute{
 		intAttribute(sqsapi.QueueAttributeNameDelaySeconds, 0, 900, func(a *Attributes) *int32 { return &a.DelaySeconds }),
-		intAttribute(sqsapi.QueueAttributeNameMaximumMessageSize, 1024, 1<<20, func(a *Attributes) *int32 { return &a.MaximumMessageSize }),
+		intAttribute(sqsapi.QueueAttributeNameMaximumMessageSize, 1024, maxMessageBytes, func(a *Attributes) *int32 { return &a.MaximumMessageSize }),
 		intAttribute(sqsapi.QueueAttributeNameMessageRetentionPeriod, 60, 1209600, func(a *Attributes) *int32 { return &a.MessageRetentionPeriod }),
 		intAttribute(sqsapi.QueueAttributeNameReceiveMessageWaitTimeSeconds, 0, 20, func(a *Attributes) *int32 { return &a.ReceiveMessageWaitTimeSeconds }),
 		intAttribute(sqsapi.QueueAttributeNameVisibilityTimeout, 0, 43200, func(a *Attributes) *int32 { return &a.VisibilityTimeout }),
 		intAttribute(sqsapi.QueueAttributeNameKmsDataKeyReusePeriodSeconds, 60, 86400, func(a *Attributes) *int32 { return &a.KmsDataKeyReusePeriodSeconds }),
 		// SQS-managed encryption and a KMS key exclude each other: setting
 		// one clears the other (sqs.md 4).
-		boolAttribute(sqsapi.QueueAttributeNameSqsManagedSseEnabled, false,
+		boolAttribute(sqsapi.QueueAttributeNameSqsManagedSseEnabled, standardTakes,
 			func(q *Queue, v bool) {
 				q.Attributes.SqsManagedSseEnabled = v
 				if v {
@@ -330,7 +356,7 @@ func settable() []attribute {
 			}
 			return ""
 		}},
-		boolAttribute(sqsapi.QueueAttributeNameContentBasedDeduplication, true,
+		boolAttribute(sqsapi.QueueAttributeNameContentBasedDeduplication, standardUnknown,
 			func(q *Queue, v bool) { q.FIFO.ContentBasedDeduplication = v },
 			func(q *Queue) bool { return q.FIFO != nil && q.FIFO.ContentBasedDeduplication }),
 		enumAttribute(sqsapi.QueueAttributeNameDeduplicationScope, []DedupScope{DedupQueue, DedupMessageGroup},
@@ -364,11 +390,13 @@ func parseAttributes(in map[sqsapi.QueueAttributeName]string, fifo bool) ([]sett
 			continue
 		}
 		i := slices.IndexFunc(table, func(a attribute) bool { return a.name == name })
-		switch {
-		case i < 0:
+		if i < 0 {
 			return nil, errUnknownAttribute(string(name))
-		case table[i].fifo && !fifo:
-			return nil, errFifoOnlyAttribute(name)
+		}
+		if !fifo {
+			if err := table[i].standard.refusal(name); err != nil {
+				return nil, err
+			}
 		}
 		canonical, apply, err := table[i].parse(in[name])
 		if err != nil {

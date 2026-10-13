@@ -61,11 +61,46 @@ func (v *SweepOutput) Redact() *SweepOutput {
 }
 
 func (v PutKindsInput) redacted() PutKindsInput {
-	v.Secret = nil
+	v.Secret = redactedPtr(v.Secret)
+	v.Vault = redactSecretMap(v.Vault)
+	v.Hints = redactSparseSecrets(v.Hints)
 	return v
 }
 
 func (v PutKindsOutput) redacted() PutKindsOutput {
-	v.Secret = nil
+	v.Secret = redactedPtr(v.Secret)
 	return v
+}
+
+func redactSecretMap(v map[string]string) map[string]string {
+	if v == nil {
+		return nil
+	}
+	out := make(map[string]string, len(v))
+	for k := range v {
+		out[k] = redactedText
+	}
+	return out
+}
+
+func redactSparseSecrets(v []*string) []*string {
+	if v == nil {
+		return nil
+	}
+	out := make([]*string, len(v))
+	for i, e := range v {
+		out[i] = redactedPtr(e)
+	}
+	return out
+}
+
+// redactedText stands in for a sensitive string the client sent.
+const redactedText = "[redacted]"
+
+// redactedPtr is redactedText in place of a present *p, nil for nil.
+func redactedPtr[T ~string](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	return new(T(redactedText))
 }

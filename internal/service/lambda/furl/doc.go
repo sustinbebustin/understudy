@@ -32,7 +32,7 @@
 //   - An unknown url id answers 403 {"Message":null}. A NONE URL whose
 //     resource policy does not allow the request answers the recorded
 //     Forbidden help message with x-amzn-ErrorType AccessDeniedException
-//     (lambda-events.md 7.2), not the null message the plan names.
+//     (lambda-events.md 7.2), not the {"Message":null} of an unknown url id.
 //   - A body is text when its content type is text/*, JSON, XML or
 //     JavaScript and it is valid UTF-8; anything else, form posts
 //     included, is base64. A request without a body has no body key, and
@@ -51,10 +51,9 @@
 //     none. The preflight is answered before the auth type applies, since
 //     browsers never sign preflights: an AWS_IAM URL with CORS would
 //     otherwise refuse every browser preflight. AWS's order is UNVERIFIED.
-//   - An AuthType NONE URL runs when its resource policy allows public
-//     lambda:InvokeFunctionUrl with lambda:FunctionUrlAuthType NONE, the
-//     rule before October 2025 that the recorded fixtures follow. The
-//     lambda:InvokeFunction statement with lambda:InvokedViaFunctionUrl
-//     that AWS also requires since then (lambda-api.md 12 item 11) is not
-//     enforced.
+//   - An AuthType NONE URL runs only when its resource policy allows both
+//     public lambda:InvokeFunctionUrl with lambda:FunctionUrlAuthType NONE
+//     and public lambda:InvokeFunction with lambda:InvokedViaFunctionUrl,
+//     as AWS requires since October 2025 (lambda-api.md 12 item 11); either
+//     statement alone answers 403.
 package furl

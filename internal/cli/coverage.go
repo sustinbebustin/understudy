@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/coverage"
@@ -43,7 +42,7 @@ func coverageCmd() *command {
 		},
 		func(fs *flag.FlagSet) action {
 			var f coverageFlags
-			fs.Var(&f.services, "service", "report only this service's operations, such as sqs; repeat for more")
+			fs.Var(&f.services, "service", "report only this service, such as sqs, listing each operation's status; repeat for more")
 			fs.StringVar(&f.format, "format", "", "text, markdown or json (default json with --output json, else text)")
 			fs.BoolVar(&f.switches, "switches", false, "list the fidelity switches in the text report")
 			fs.StringVar(&f.overlays, "overlays", "", "directory of overlay files whose evidence to add, such as codegen/overlays")
@@ -91,7 +90,7 @@ func (r *runner) coverage(ctx context.Context, f coverageFlags) error {
 		out = report.Markdown()
 	default:
 		var b strings.Builder
-		if err := writeCoverageText(&b, report, f.switches, source); err != nil {
+		if err := writeCoverageText(&b, report, f, source); err != nil {
 			return err
 		}
 		out = []byte(b.String())
@@ -131,7 +130,9 @@ func offlineCoverage(ctx context.Context, version string) ([]byte, error) {
 		return nil, fmt.Errorf("building the emulator in process for an offline report: %w", err)
 	}
 	rec := httptest.NewRecorder()
-	srv.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(ctx, http.MethodGet, admin.Prefix+"/coverage?format=json", http.NoBody))
+	// Addressed as localhost: a loopback listener refuses other host names.
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "http://localhost"+admin.Prefix+"/coverage?format=json", http.NoBody)
+	srv.Handler().ServeHTTP(rec, req)
 	if err := srv.Close(); err != nil { //nolint:contextcheck // Close takes no context: it releases files and memory
 		return nil, fmt.Errorf("releasing the in-process emulator: %w", err)
 	}
@@ -141,8 +142,20 @@ func offlineCoverage(ctx context.Context, version string) ([]byte, error) {
 	return rec.Body.Bytes(), nil
 }
 
-// filterServices keeps the services named; an unknown name is refused
-// with the known ones.
+// switchOf reports whether the fidelity switch named name belongs to the
+// service with id svc: switch names start with the service's namespace,
+// its id except for EventBridge, whose switches go by its ARN and IAM
+// namespace, events.
+func switchOf(name, svc string) bool {
+	ns := svc
+	if svc == "eventbridge" {
+		ns = "events"
+	}
+	return strings.HasPrefix(name, ns+".")
+}
+
+// filterServices keeps the services named and their fidelity switches;
+// an unknown name is refused with the known ones.
 func filterServices(report *coverage.Report, names []string) error {
 	if len(names) == 0 {
 		return nil
@@ -157,6 +170,9 @@ func filterServices(report *coverage.Report, names []string) error {
 		}
 	}
 	report.Services = slices.DeleteFunc(report.Services, func(s coverage.Service) bool { return !slices.Contains(names, string(s.Service)) })
+	report.Switches = slices.DeleteFunc(report.Switches, func(s coverage.Switch) bool {
+		return !slices.ContainsFunc(names, func(svc string) bool { return switchOf(s.Name, svc) })
+	})
 	return nil
 }
 
@@ -185,13 +201,19 @@ func (r *runner) readOverlays(dir string) ([]coverage.OverlayEntry, error) {
 }
 
 // writeCoverageText writes the three measures apart, never added together.
-func writeCoverageText(w io.Writer, report coverage.Report, switches bool, source string) error {
-	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(tw, "Protocol compliance\tcases\tpassed\tskipped\tfailed")
-	for _, s := range report.Protocols {
-		fmt.Fprintf(tw, "  %s %s\t%d\t%d\t%d\t%d\n", s.Protocol, s.Kind, s.Cases, s.Passed, len(s.Skipped), s.Failed)
+// With --service it lists each operation of the services named, and leaves
+// out the protocol compliance, which no service owns.
+func writeCoverageText(w io.Writer, report coverage.Report, f coverageFlags, source string) error {
+	tw := newTable(w)
+	byService := len(f.services) > 0
+	if !byService {
+		fmt.Fprintln(tw, "Protocol compliance\tcases\tpassed\tskipped\tfailed")
+		for _, s := range report.Protocols {
+			fmt.Fprintf(tw, "  %s %s\t%d\t%d\t%d\t%d\n", s.Protocol, s.Kind, s.Cases, s.Passed, len(s.Skipped), s.Failed)
+		}
+		fmt.Fprintln(tw)
 	}
-	fmt.Fprintln(tw, "\nOperations\tmodel\tfull\tstored-only\tpartial\tunbound")
+	fmt.Fprintln(tw, "Operations\tmodel\tfull\tstored-only\tpartial\tunbound")
 	for _, s := range report.Services {
 		n := map[string]int{}
 		for _, op := range s.Operations {
@@ -199,8 +221,11 @@ func writeCoverageText(w io.Writer, report coverage.Report, switches bool, sourc
 		}
 		fmt.Fprintf(tw, "  %s\t%d\t%d\t%d\t%d\t%d\n", s.Service, len(s.Operations), n["full"], n["stored-only"], n["partial"], n["unbound"])
 	}
+	if byService {
+		writeOperations(tw, report.Services)
+	}
 	fmt.Fprintf(tw, "\nFidelity switches: %d\n", len(report.Switches))
-	if switches {
+	if f.switches {
 		for _, s := range report.Switches {
 			fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\n", s.Name, s.Value, s.Label, s.Ref)
 		}
@@ -210,4 +235,25 @@ func writeCoverageText(w io.Writer, report coverage.Report, switches bool, sourc
 	}
 	fmt.Fprintf(tw, "\nSource: %s\n", source)
 	return tw.Flush()
+}
+
+// writeOperations lists each service's operations with their status and
+// its note, in the report's order: full first, unbound last.
+func writeOperations(w io.Writer, services []coverage.Service) {
+	for _, s := range services {
+		fmt.Fprintf(w, "\n%s operations\tstatus\tnote\n", s.Service)
+		for _, op := range s.Operations {
+			note := ""
+			switch st := op.Status.(type) {
+			case coverage.StoredOnly:
+				note = st.Note
+			case coverage.Partial:
+				note = st.Note
+			case coverage.Unbound:
+				note = "answers 501 NotImplemented"
+			case coverage.Full:
+			}
+			fmt.Fprintf(w, "  %s\t%s\t%s\n", op.Name, coverage.StatusName(op.Status), note)
+		}
+	}
 }

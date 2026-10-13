@@ -149,10 +149,11 @@ func checkACP(acp *s3api.AccessControlPolicy) *awserr.Error {
 	return nil
 }
 
-// deref is *p, or "" for nil.
-func deref(p *string) string {
+// deref is *p, or the zero value for nil.
+func deref[T any](p *T) T {
 	if p == nil {
-		return ""
+		var zero T
+		return zero
 	}
 	return *p
 }

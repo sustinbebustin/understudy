@@ -12,7 +12,9 @@
 // snapshot cut, load and reset call them while holding Gate.Exclusive.
 //
 // Section paths are relative to the owning service's directory: the key's
-// encoding plus ".json". The snapshot layer adds "services/<svc>/". Optional
-// methods on the state type steer Export: IsZero() bool skips a cell, and
-// BlobRefs() []string fills Section.Blobs.
+// encoding plus ".json". The snapshot layer adds "services/<svc>/". Two
+// optional interfaces on the state's pointer type steer Export: Zeroer skips
+// a cell, and BlobHolder fills Section.Blobs. A state implementing either
+// pins it with a compile-time assertion, so a renamed method fails the build
+// instead of silently dropping cells or blobs from a snapshot.
 package store

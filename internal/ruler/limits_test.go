@@ -16,6 +16,30 @@ func values(prefix string, n int) string {
 	return "[" + strings.Join(vs, ",") + "]"
 }
 
+// TestUsesWildcard finds a wildcard wherever a pattern holds one: at the
+// top, nested, inside anything-but or in one $or branch; an object inside
+// $or is a sub-pattern, never an operator.
+func TestUsesWildcard(t *testing.T) {
+	t.Parallel()
+	for pattern, want := range map[string]bool{
+		`{"source":["a"]}`: false,
+		`{"source":[{"prefix":"a"}],"detail":{"n":[{"numeric":[">",1]}]}}`: false,
+		`{"source":[{"wildcard":"a*"}]}`:                                   true,
+		`{"detail":{"key":[{"wildcard":"dir/*.png"}]}}`:                    true,
+		`{"source":[{"anything-but":{"wildcard":"*.tmp"}}]}`:               true,
+		`{"$or":[{"a":["x"]},{"b":[{"wildcard":"y*"}]}]}`:                  true,
+		`{"$or":[{"a":["x"]},{"b":[{"prefix":"y"}]}]}`:                     false,
+	} {
+		p, err := Compile([]byte(pattern), EventBridge{})
+		if err != nil {
+			t.Fatalf("Compile(%s) = %v", pattern, err)
+		}
+		if got := p.UsesWildcard(); got != want {
+			t.Errorf("UsesWildcard(%s) = %t, want %t", pattern, got, want)
+		}
+	}
+}
+
 // TestSNSCombinations replays the documented examples and the AWS-recorded
 // boundaries of sns.md 6.5 (test_policy_complexity, _with_or and
 // test_sub_filter_policy_nested_property_constraints).

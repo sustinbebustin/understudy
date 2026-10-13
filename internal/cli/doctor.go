@@ -11,7 +11,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/sustinbebustin/understudy/admin"
@@ -90,7 +89,7 @@ func (r *runner) doctor(ctx context.Context, configArgs []string) doctorReport {
 	switch {
 	case cerr != nil:
 		add(check{Name: "configuration", Status: checkFail, Detail: cerr.Error(), Fix: "fix the setting it names"})
-		host = config.Defaults(config.DetectPlacement(r.o.ReadFile)).Host()
+		host = config.Defaults(config.DetectPlacement(r.o.ReadFile, r.o.Env)).Host()
 	case len(host.Warnings) == 0:
 		add(check{Name: "configuration", Status: checkOK, Detail: "loads without warnings"})
 	}
@@ -315,7 +314,7 @@ func serverLicence(l config.Licence, accept string) (status checkStatus, fix str
 }
 
 func writeChecks(w io.Writer, checks []check) error {
-	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	tw := newTable(w)
 	for _, c := range checks {
 		fmt.Fprintf(tw, "[%s]\t%s\t%s\n", strings.ToUpper(string(c.Status)), c.Name, c.Detail)
 		if c.Fix != "" {

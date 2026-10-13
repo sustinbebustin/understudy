@@ -122,9 +122,6 @@ def invoke_json(lambda_: Any, name: str, event: Any = None, **kwargs: Any) -> tu
     return out, (json.loads(body) if body else None)
 
 
-# --- Control plane ----------------------------------------------------------------------------------------------
-
-
 def test_create_function_configuration(lambda_: Any, make_function: Callable[..., dict[str, Any]], role_arn: str) -> None:
     code = lambda_zip({"lambda_function.py": ECHO})
     created = make_function(Description="conformance function", MemorySize=256, Timeout=10, Environment={"Variables": {"FOO": "bar"}})
@@ -271,9 +268,6 @@ def test_permissions_and_policy(lambda_: Any, make_function: Callable[..., dict[
         lambda_.get_policy(FunctionName=name)
 
 
-# --- Versions and aliases ---------------------------------------------------------------------------------------------
-
-
 def test_versions_and_aliases_pin_code(lambda_: Any, make_function: Callable[..., dict[str, Any]]) -> None:
     created = make_function('def handler(event, context):\n    return {"which": "one"}\n')
     name = created["FunctionName"]
@@ -303,9 +297,6 @@ def test_invoke_a_missing_version(lambda_: Any, make_function: Callable[..., dic
     with raises("ResourceNotFoundException") as exc:
         lambda_.invoke(FunctionName=created["FunctionName"], Qualifier="10", Payload=b"{}")
     assert exc.value.response["Error"]["Message"] == f"Function not found: {created['FunctionArn']}:10"
-
-
-# --- Invoke ---------------------------------------------------------------------------------------------------------------
 
 
 def test_request_response_invoke(lambda_: Any, make_function: Callable[..., dict[str, Any]]) -> None:
@@ -443,9 +434,6 @@ def _log_messages(logs: Any, function: str, marker: str) -> list[str]:
         return []
 
 
-# --- Logs ----------------------------------------------------------------------------------------------------------------------------
-
-
 def test_function_logs_land_in_cloudwatch_logs(lambda_: Any, logs: Any, admin: Admin, make_function: Callable[..., dict[str, Any]]) -> None:
     name = make_function()["FunctionName"]
     _, body = invoke_json(lambda_, name, {"log": "marker-cloudwatch-1"})
@@ -471,9 +459,6 @@ def test_the_log_group_appears_with_the_first_invocation(lambda_: Any, logs: Any
     assert [g["logGroupName"] for g in logs.describe_log_groups(logGroupNamePrefix=f"/aws/lambda/{name}")["logGroups"]] == [f"/aws/lambda/{name}"]
 
 
-# --- SDK calls from inside a function ---------------------------------------------------------------------------------------------------------
-
-
 def test_sdk_calls_inside_a_function_reach_understudy(
     lambda_: Any, sqs: Any, make_function: Callable[..., dict[str, Any]], make_queue: Callable[..., str]
 ) -> None:
@@ -493,9 +478,6 @@ def handler(event, context):
     assert re.fullmatch(r"arn:aws:sts::\d{12}:assumed-role/conf-lambda-role-[0-9a-f]{10}/.+", body["arn"])
     messages = eventually(lambda: sqs.receive_message(QueueUrl=queue, WaitTimeSeconds=1).get("Messages", []), bool, what="the message from the function")
     assert messages[0]["Body"] == "sent from inside a function"
-
-
-# --- Event source mappings -----------------------------------------------------------------------------------------------------------------------
 
 
 BATCH_HANDLER = """
@@ -666,9 +648,6 @@ def handler(event, context):
     clock.advance(31)
     again = eventually(received, lambda r: len(r) >= 2, timeout=40, what="the retry")
     assert any(m.endswith("retry-me 2") for m in again), f"the retry reports ApproximateReceiveCount 2; logged {again!r}"
-
-
-# --- Function URLs ----------------------------------------------------------------------------------------------------------------------------------
 
 
 URL_HANDLER = """

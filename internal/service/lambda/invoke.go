@@ -12,10 +12,10 @@ import (
 	"maps"
 	"net/http"
 	"net/netip"
-	"slices"
 	"strconv"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -102,7 +102,10 @@ const invokeNote = "an alias with weighted routing always runs its primary versi
 //     of 0 discards events without retries.
 //   - A client's synchronous invocation runs to its end or timeout after
 //     the client goes away, as on AWS; Close ends it. Drain waits for the
-//     invocations of its scope already running, not for later ones.
+//     invocations of its scope already running and refuses later ones
+//     with ServiceException until RearmPollers, which the admin API calls
+//     once the reset or load has replaced the state, so no invocation
+//     outlives the state it started in.
 //   - A hot-reload directory serves every version of its function; the
 //     admin API's overlays end with a reset of their scope, configured
 //     ones never. UpdateFunctionCode under an overlay records the
@@ -113,12 +116,16 @@ const invokeNote = "an alias with weighted routing always runs its primary versi
 type ExecutionOptions struct {
 	// Pool runs execution environments. nil means no Docker daemon is
 	// reachable: the control plane keeps working and Invoke answers
-	// ServiceException naming Docker. The caller owns the pool; Close
+	// NotImplemented naming Docker. The caller owns the pool; Close
 	// drains it for shutdown.
 	Pool *pool.Pool
 	// Docker names the Docker endpoint the pool uses, for the errors that
 	// say it cannot be reached; empty when none is configured.
 	Docker string
+	// NoPool says why Pool is nil and how to change that, such as Docker
+	// being disabled by configuration; empty means no Docker daemon is
+	// reachable at Docker, and Invoke tells the caller to start one.
+	NoPool string
 	// Images makes base and function images present; required with Pool.
 	Images ImageSource
 	// Code extracts zip packages for the read-only /var/task mount;
@@ -147,6 +154,7 @@ type Execution struct {
 	k      *kernel.Kernel
 	pool   *pool.Pool
 	docker string
+	noPool string
 	images ImageSource
 	logSrc LogSource
 	settle time.Duration
@@ -162,6 +170,9 @@ type Execution struct {
 
 	imagesMu sync.Mutex
 	resolved map[imageRequest]string
+
+	// noDockerLogged logs the first invocation refused for want of a pool.
+	noDockerLogged sync.Once
 
 	ctx  context.Context //nolint:containedctx // log pumps and watchers started by later calls must outlive them and end at Close
 	stop context.CancelFunc
@@ -194,6 +205,7 @@ func NewExecution(svc *Service, d kernel.ServiceDeps, o ExecutionOptions) (*Exec
 		k:        d.Kernel,
 		pool:     o.Pool,
 		docker:   o.Docker,
+		noPool:   o.NoPool,
 		images:   o.Images,
 		logSrc:   o.Logs,
 		settle:   settle,
@@ -240,12 +252,21 @@ func invokedFunction(c *kernel.Call, in *lambdaapi.InvokeInput) []aws.ARN {
 
 // Close stops every execution environment, log stream and watcher, and
 // gives back the extracted code and the minted credentials, at shutdown.
+// No invocation starts once it is called; those running are ended, an
+// asynchronous attempt as one that never reached the function, and Close
+// waits, while ctx lasts, until their environments are removed, so no
+// container outlives the process and none runs on released code or
+// revoked credentials.
 func (x *Execution) Close(ctx context.Context) error {
+	running := x.running.shutdown()
 	var errs []error
 	if x.pool != nil {
 		errs = append(errs, x.pool.Drain(ctx, pool.All{}, pool.Shutdown))
 	}
 	x.stop()
+	if err := x.running.wait(ctx, running); err != nil {
+		errs = append(errs, fmt.Errorf("lambda: shutdown stopped waiting for its invocations to end: %w; their containers may be left running, labeled as understudy's", err))
+	}
 	x.wg.Wait()
 	if x.trees.store != nil {
 		errs = append(errs, x.trees.release())
@@ -259,23 +280,35 @@ func (x *Execution) Name() ref.ServiceID { return x.svc.Name() }
 
 // Drain stops the execution environments and empties the asynchronous
 // queues of scope before a reset or snapshot load replaces its state, and
-// ends the hot-reload overlays bound through the admin API there. Idle
-// environments stop at once; Drain waits, while ctx lasts, for the
-// invocations of scope running when it was called to finish, whose
-// environments are removed on release, so none writes into the new state.
+// ends the hot-reload overlays bound through the admin API there. From
+// the moment it is called no invocation of scope starts, until
+// RearmPollers follows the reset or load; idle environments stop at once,
+// and Drain waits, while ctx lasts, for the invocations of scope already
+// running to finish, whose environments are removed on release. So none
+// writes into the new state. A failed Drain lets invocations start again
+// and keeps the queued events and the overlays, as the reset or load then
+// replaces nothing; only the stopped environments are gone, and the next
+// invocations start new ones.
 func (x *Execution) Drain(ctx context.Context, scope kernel.ResetScope) error {
+	running := x.running.hold(scope)
 	var errs []error
 	for _, fn := range x.envs.drop(scope) {
 		if x.pool != nil {
 			errs = append(errs, x.pool.Drain(ctx, pool.Function{ARN: fn}, pool.Reset))
 		}
 	}
-	errs = append(errs, x.running.wait(ctx, scope))
+	if err := x.running.wait(ctx, running); err != nil {
+		errs = append(errs, fmt.Errorf("lambda: the drain stopped waiting for the invocations of the reset scope: %w; their environments are stopped, and the queued asynchronous invocations and hot-reload overlays are kept", err))
+	}
+	if err := errors.Join(errs...); err != nil {
+		x.running.resume()
+		return err
+	}
 	release := x.k.Gate().Exclusive()
 	x.queues.Reset(func(s aws.Scope) bool { return !scope.Covers(s) })
 	release()
 	x.overlays.drop(scope)
-	return errors.Join(errs...)
+	return nil
 }
 
 // Link links a call made with an environment's minted credentials to the
@@ -297,10 +330,10 @@ type target struct {
 	// generation is the function's code generation for $LATEST and zero
 	// for a published version, which never changes.
 	generation uint64
-	// revision is the version's RevisionId. Revision ids never repeat in a
-	// scope until it is reset, so a function deleted and created again
-	// under its name, whose generations start over, still differs here.
-	revision string
+	// incarnation is the function's Incarnation, so a function deleted and
+	// created again under its name, whose generations start over, still
+	// differs here.
+	incarnation string
 	// reserved is the function's reserved concurrency, nil when none;
 	// unreserved the account's concurrency left after every reservation.
 	reserved   *int32
@@ -308,10 +341,18 @@ type target struct {
 	async      asyncConfig
 }
 
-// resolve reads the version ref names; a version that is not Active
-// cannot be invoked.
+// resolve reads the version ref names, as it was before an update in
+// progress (Version.serving); a version that is not Active cannot be
+// invoked. $LATEST.PUBLISHED is NoPublishedVersionException for every
+// function, as only Lambda Managed Instances publish it.
 func (x *Execution) resolve(r functionRef) (target, *awserr.Error) {
 	return view(x.svc, r.scope, func(st *State) (target, *awserr.Error) {
+		if r.qualifier == latestPublished {
+			if _, err := st.function(r); err != nil {
+				return target{}, err
+			}
+			return target{}, errNoPublishedVersion(r.arn())
+		}
 		f, v, err := st.lookup(r)
 		if err != nil {
 			return target{}, err
@@ -323,14 +364,15 @@ func (x *Execution) resolve(r functionRef) (target, *awserr.Error) {
 			return target{}, errFunctionState(lambdaapi.StateFailed)
 		case Active:
 		}
+		v, generation := v.serving(f.Generation)
 		role, perr := aws.ParseARN(v.Config.Role)
 		if perr != nil {
 			return target{}, errService(fmt.Sprintf("Lambda cannot run %s: its stored execution role %q is not an ARN (%v). Set a valid role with UpdateFunctionConfiguration.", r.qualifiedARN(), v.Config.Role, perr))
 		}
 		v.Config.Environment = maps.Clone(v.Config.Environment)
-		t := target{ref: r, version: v, invoked: invokedARN(r), role: role, revision: v.RevisionID, unreserved: st.unreserved(""), async: asyncConfigOf(f, r.qualifier)}
+		t := target{ref: r, version: v, invoked: invokedARN(r), role: role, incarnation: f.Incarnation, unreserved: st.unreserved(""), async: asyncConfigOf(f, r.qualifier)}
 		if v.Number == latest {
-			t.generation = f.Generation
+			t.generation = generation
 		}
 		if f.Reserved != nil {
 			t.reserved = new(*f.Reserved)
@@ -361,6 +403,11 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 	}
 	t, err := x.resolve(r)
 	if err != nil {
+		// Invoke names a missing function by its $LATEST ARN, unlike the
+		// read operations (test_invoke_exceptions).
+		if r.qualifier == "" && err.ID.Status == http.StatusNotFound {
+			return nil, errFunctionNotFound(r.arn() + ":" + latest)
+		}
 		return nil, err
 	}
 	touch(c, r.qualifiedARN())
@@ -376,9 +423,7 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 	}
 	tail := in.LogType != nil && *in.LogType == lambdaapi.LogTypeTail
 	if _, external := c.Origin().(ref.External); external {
-		var stop context.CancelFunc
-		ctx, stop = x.outliveCaller(ctx)
-		defer stop()
+		ctx = outliveCaller(ctx)
 	}
 	res, err := x.runSync(ctx, c, t, syncRun{payload: payload, clientContext: clientContext})
 	if err != nil {
@@ -408,18 +453,13 @@ type syncRun struct {
 	trace string
 }
 
-// outliveCaller is ctx without its cancellation, ending instead when the
-// Execution closes. A synchronous invocation a client asked for runs to
-// its end or its timeout after the client goes away, as on AWS; the
-// function's Timeout bounds it. An internal caller's context, such as
-// tracked work the kernel ends at shutdown, is kept as it is.
-func (x *Execution) outliveCaller(ctx context.Context) (context.Context, context.CancelFunc) {
-	run, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	unwatch := context.AfterFunc(x.ctx, cancel)
-	return run, func() {
-		unwatch()
-		cancel()
-	}
+// outliveCaller is ctx without its cancellation: a synchronous invocation
+// a client asked for runs to its end or its timeout after the client goes
+// away, as on AWS. The function's Timeout bounds it, and Close ends it
+// (execute). An internal caller's context, such as tracked work the kernel
+// ends at shutdown, is kept as it is.
+func outliveCaller(ctx context.Context) context.Context {
+	return context.WithoutCancel(ctx)
 }
 
 // runSync runs a RequestResponse invocation of t under c's request id: the
@@ -454,8 +494,9 @@ func invocationCause(c *kernel.Call) (ref.Cause, []ref.EventID) {
 }
 
 // checkPayload enforces the payload limit of the invocation mode and
-// Lambda's JSON requirement. An empty payload is the empty object, as
-// SDKs send no body for a nil payload.
+// Lambda's JSON requirement, which includes UTF-8: Go's parser would
+// replace invalid bytes rather than refuse them. An empty payload is the
+// empty object, as SDKs send no body for a nil payload.
 func checkPayload(p []byte, mode lambdaapi.InvocationType) ([]byte, *awserr.Error) {
 	limit := maxSyncRequest
 	if mode == lambdaapi.InvocationTypeEvent {
@@ -467,11 +508,27 @@ func checkPayload(p []byte, mode lambdaapi.InvocationType) ([]byte, *awserr.Erro
 	if len(p) == 0 {
 		return []byte("{}"), nil
 	}
+	if at := invalidUTF8At(p); at >= 0 {
+		return nil, errPayloadNotJSON(fmt.Errorf("invalid UTF-8 byte 0x%02x at offset %d", p[at], at))
+	}
 	var v any
 	if err := json.Unmarshal(p, &v); err != nil {
 		return nil, errPayloadNotJSON(err)
 	}
 	return p, nil
+}
+
+// invalidUTF8At is the offset of the first byte of p that is not valid
+// UTF-8, or -1 when p is valid.
+func invalidUTF8At(p []byte) int {
+	for i := 0; i < len(p); {
+		r, n := utf8.DecodeRune(p[i:])
+		if r == utf8.RuneError && n == 1 {
+			return i
+		}
+		i += n
+	}
+	return -1
 }
 
 // decodeClientContext reads X-Amz-Client-Context: base64 of a JSON object,
@@ -511,6 +568,10 @@ type run struct {
 	// parent is the call the attempt's own calls (log delivery) are
 	// children of: the Invoke call, or the asynchronous queue's timer.
 	parent *kernel.Call
+	// parentWrites is held by whoever writes on parent while the attempt's
+	// log lines may be in delivery (onBehalf): settleAsync for the timer;
+	// nil when nothing does.
+	parentWrites *sync.Mutex
 	// cause is the parent of the attempt's Invocation event and of every
 	// call the function makes while it runs: the Invoke call's event,
 	// carried in the queue for an asynchronous invocation. links are the
@@ -534,18 +595,25 @@ type ran struct {
 // spec lease a warm environment or start a cold one, the invocation runs,
 // its log lines are cut after the settle barrier and delivered, and the
 // journal records the Invocation. The error is a throttle (429) or a
-// failure of the emulator (500); a function error is an outcome.
+// failure of the emulator (500); a function error is an outcome. Close
+// ends the invocation, whoever started it.
 func (x *Execution) execute(ctx context.Context, r *run) (ran, *awserr.Error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	defer context.AfterFunc(x.ctx, cancel)() //nolint:contextcheck // ctx stays the invocation's; x.ctx only cancels it at Close
 	t := &r.target
 	fn := fnVersion{scope: t.ref.scope, name: t.ref.name, version: t.version.Number}
 	release, err := x.running.acquire(t)
 	if err != nil {
-		x.record(ctx, r, journal.Invocation{Function: fn.arn(), Version: fn.version, Outcome: journal.Throttled{}})
+		// A drain's refusal is no throttle and is not journaled as one.
+		if err.ID.Shape == lambdaapi.IdentityTooManyRequestsException().Shape {
+			x.record(ctx, r, journal.Invocation{Function: fn.arn(), Version: fn.version, Outcome: journal.Throttled{}})
+		}
 		return ran{}, err
 	}
 	defer release()
 	if x.pool == nil {
-		return ran{}, x.errNoDocker()
+		return ran{}, x.errNoDocker(ctx)
 	}
 	l, err := x.lease(ctx, r, fn)
 	if err != nil {
@@ -575,7 +643,7 @@ type leased struct {
 // releases the slot.
 func (x *Execution) lease(ctx context.Context, r *run, fn fnVersion) (leased, *awserr.Error) {
 	t := &r.target
-	w := leaseFor{code: t.generation, revision: t.revision, role: t.role, cause: r.cause}
+	w := leaseFor{code: t.generation, incarnation: t.incarnation, role: t.role, cause: r.cause}
 	overlayDir := ""
 	switch code := t.version.Code.(type) {
 	case ZipCode:
@@ -614,7 +682,7 @@ func (x *Execution) lease(ctx context.Context, r *run, fn fnVersion) (leased, *a
 func (x *Execution) runIn(ctx context.Context, r *run, fn fnVersion, l leased) (ran, *awserr.Error) {
 	t := &r.target
 	stream := l.slot.stream
-	stream.begin(l.cold, initStartLine(t), startLine(r.request, t.version.Number), r.parent)
+	stream.begin(l.cold, initStartLine(t), startLine(r.request, t.version.Number), &onBehalf{call: r.parent, writes: r.parentWrites})
 	trace := r.trace
 	if trace == "" {
 		trace = traceID(r.request, x.k.Clock().Now().Wire().Unix())
@@ -698,15 +766,26 @@ func (x *Execution) acquireError(fn fnVersion, image string, err error) *awserr.
 	case errors.As(err, &capacity):
 		return errThrottled(reasonAccountLimit)
 	case errors.As(err, &closed):
-		return errService("Lambda is shutting down and starts no execution environments; retry once understudy is running again.")
+		return errShuttingDown()
 	}
 	x.forgetImage(image)
 	return errService(fmt.Sprintf("Lambda could not start an execution environment for %s: %v. Check that Docker is running%s, or run `understudy doctor` to diagnose.", fn.arn(), err, x.dockerAt()))
 }
 
-// errNoDocker answers an invocation when no Docker daemon is reachable.
-func (x *Execution) errNoDocker() *awserr.Error {
-	return errService("Lambda cannot run functions because no Docker daemon is reachable" + x.dockerAt() + ". Start Docker, or run `understudy doctor` to diagnose; functions, versions and every other Lambda resource keep working.")
+// errNoDocker answers an invocation when there is no pool: the reason the
+// wiring gave, else no Docker daemon reachable. The Execution never gets a
+// pool later, so it is 501 NotImplemented, which no SDK retries, rather
+// than a 500 every SDK would retry in vain; the server log says it once.
+func (x *Execution) errNoDocker(ctx context.Context) *awserr.Error {
+	const kept = "; functions, versions and every other Lambda resource keep working."
+	msg := "Lambda cannot run functions because no Docker daemon is reachable" + x.dockerAt() + ". Start Docker and restart understudy, or run `understudy doctor` to diagnose" + kept
+	if x.noPool != "" {
+		msg = "Lambda cannot run functions: " + x.noPool + kept
+	}
+	x.noDockerLogged.Do(func() {
+		x.k.Log().LogAttrs(ctx, slog.LevelWarn, "Lambda refuses every invocation; later refusals are not logged", slog.String("reason", msg))
+	})
+	return &awserr.Error{ID: awserr.NotImplemented(), Message: msg, Origin: awserr.Generic{}}
 }
 
 func (x *Execution) dockerAt() string {
@@ -760,101 +839,6 @@ func invocationOutcome(o runtimeapi.Outcome) journal.InvocationOutcome {
 type fnKey struct {
 	scope aws.Scope
 	name  string
-}
-
-// concurrency counts running invocations: per function with a
-// reservation, and per account and region for the rest, which share what
-// the reservations leave (lambda-api.md 7.4). It also keeps each running
-// invocation's scope, so a drain can wait for those of the scope it
-// replaces.
-type concurrency struct {
-	mu         sync.Mutex
-	reserved   map[fnKey]int32
-	unreserved map[aws.Scope]int32
-	// running holds the scope of every running invocation by a serial;
-	// ended closes, and is replaced, whenever one ends.
-	running map[uint64]aws.Scope
-	serial  uint64
-	ended   chan struct{}
-}
-
-func newConcurrency() *concurrency {
-	return &concurrency{reserved: map[fnKey]int32{}, unreserved: map[aws.Scope]int32{}, running: map[uint64]aws.Scope{}, ended: make(chan struct{})}
-}
-
-// Throttle reasons (lambda-api.md 7.4).
-const (
-	reasonReservedLimit = "ReservedFunctionConcurrentInvocationLimitExceeded"
-	reasonAccountLimit  = "ConcurrentInvocationLimitExceeded"
-)
-
-// acquire counts one more invocation of t, or answers 429 when t's
-// concurrency is exhausted; release uncounts it.
-func (c *concurrency) acquire(t *target) (release func(), err *awserr.Error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	scope := t.ref.scope
-	var uncount func()
-	if t.reserved != nil {
-		k := fnKey{scope: scope, name: t.ref.name}
-		if c.reserved[k] >= *t.reserved {
-			return nil, errThrottled(reasonReservedLimit)
-		}
-		c.reserved[k]++
-		uncount = func() { c.reserved[k]-- }
-	} else {
-		if c.unreserved[scope] >= t.unreserved {
-			return nil, errThrottled(reasonAccountLimit)
-		}
-		c.unreserved[scope]++
-		uncount = func() { c.unreserved[scope]-- }
-	}
-	c.serial++
-	id := c.serial
-	c.running[id] = scope
-	return func() {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		uncount()
-		delete(c.running, id)
-		close(c.ended)
-		c.ended = make(chan struct{})
-	}, nil
-}
-
-// wait returns once every invocation of the scopes rs covers that runs
-// now has ended; invocations started meanwhile are not waited for, so a
-// steady stream of them cannot hold it. It fails when ctx ends first.
-func (c *concurrency) wait(ctx context.Context, rs kernel.ResetScope) error {
-	c.mu.Lock()
-	var pending []uint64
-	for id, s := range c.running {
-		if rs.Covers(s) {
-			pending = append(pending, id)
-		}
-	}
-	c.mu.Unlock()
-	for {
-		c.mu.Lock()
-		pending = slices.DeleteFunc(pending, func(id uint64) bool { _, ok := c.running[id]; return !ok })
-		ended := c.ended
-		c.mu.Unlock()
-		if len(pending) == 0 {
-			return nil
-		}
-		select {
-		case <-ended:
-		case <-ctx.Done():
-			return fmt.Errorf("%d Lambda invocations of the reset scope were still running when the drain was given up (%w); their environments are stopped, and the invocations may still write to the new state when they end", len(pending), ctx.Err())
-		}
-	}
-}
-
-// errThrottled is the recorded 429 (error-matrix.md T10).
-func errThrottled(reason string) *awserr.Error {
-	e := lambdaapi.ErrTooManyRequestsException("Rate Exceeded.")
-	e.Fields = append(e.Fields, awserr.Field{Name: "Reason", Value: reason})
-	return user(e)
 }
 
 // errService is a failure of the emulator, not of the request.

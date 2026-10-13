@@ -56,6 +56,18 @@ type topicSetting struct {
 	// applies; "" for an attribute it unsets.
 	shown string
 	apply func(t *Topic)
+	// refuse, when set, is why the setting cannot apply to an existing
+	// topic in its current state (a detail as topicAttribute returns), or
+	// "" when it can. A new topic is never refused.
+	refuse func(t *Topic) string
+}
+
+// refusal is why set cannot apply to the existing topic t, or "".
+func (set topicSetting) refusal(t *Topic) string {
+	if set.refuse == nil {
+		return ""
+	}
+	return set.refuse(t)
 }
 
 // storedTopicAttribute is a setting kept in Attributes as shown; the empty
@@ -117,12 +129,23 @@ func documentAttribute(name, value string) (set topicSetting, detail string) {
 		return storedTopicAttribute(name, ""), ""
 	}
 	if name == attrPolicy {
-		if _, err := policydoc.Parse([]byte(value)); err != nil {
+		doc, err := policydoc.Parse([]byte(value))
+		if err != nil {
 			return topicSetting{}, "Policy Error: " + err.Message()
+		}
+		if !inServiceScope(doc) {
+			return topicSetting{}, errActionOutOfScope
 		}
 		return storedTopicAttribute(name, value), ""
 	}
-	stored, ok := storedDeliveryPolicy(value)
+	m, ok := parseObject(value)
+	if !ok {
+		return topicSetting{}, attrDeliveryPolicy + ": failed to parse JSON."
+	}
+	if detail := checkTopicDeliveryPolicy(m); detail != "" {
+		return topicSetting{}, detail
+	}
+	stored, ok := storedDeliveryPolicy(m)
 	if !ok {
 		return topicSetting{}, attrDeliveryPolicy + ": failed to parse JSON."
 	}
@@ -145,9 +168,20 @@ func fifoAttribute(name, value string) (set topicSetting, detail string) {
 		if !ok {
 			return topicSetting{}, name
 		}
-		return topicSetting{name: name, shown: scope.String(), apply: func(t *Topic) {
-			t.updateFIFO(func(f *FIFO) { f.ThroughputScope = scope })
-		}}, ""
+		return topicSetting{
+			name:  name,
+			shown: scope.String(),
+			apply: func(t *Topic) { t.updateFIFO(func(f *FIFO) { f.ThroughputScope = scope }) },
+			refuse: func(t *Topic) string {
+				// A MessageGroup scope cannot be reverted to Topic
+				// (fifo-high-throughput.html). The text is inferred: no
+				// recording shows AWS's.
+				if f, ok := t.Kind.(FIFO); ok && f.ThroughputScope == ThroughputMessageGroup && scope == ThroughputTopic {
+					return name + " Reason: a FifoThroughputScope of MessageGroup cannot be reverted to Topic"
+				}
+				return ""
+			},
+		}, ""
 	}
 	return storedTopicAttribute(name, value), ""
 }

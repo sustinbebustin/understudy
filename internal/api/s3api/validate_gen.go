@@ -3401,13 +3401,13 @@ func (v *SSEKMSEncryption) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern1.MatchString(v.KMSKeyArn) {
-			*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedText{Text: v.KMSKeyArn}, Constraint: awserr.Pattern{Echo: "arn:aws[a-zA-Z0-9-]*:kms:[a-z0-9-]+:[0-9]{12}:key/[a-zA-Z0-9-]+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "arn:aws[a-zA-Z0-9-]*:kms:[a-z0-9-]+:[0-9]{12}:key/[a-zA-Z0-9-]+"}})
 		}
 		if utf8.RuneCountInString(v.KMSKeyArn) > 2048 {
-			*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedText{Text: v.KMSKeyArn}, Constraint: awserr.LengthMax{Max: 2048}})
+			*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2048}})
 		}
 		if utf8.RuneCountInString(v.KMSKeyArn) < 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedText{Text: v.KMSKeyArn}, Constraint: awserr.LengthMin{Min: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "kMSKeyArn"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 20}})
 		}
 	}
 }

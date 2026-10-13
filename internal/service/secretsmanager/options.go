@@ -1,6 +1,5 @@
 package secretsmanager
 
-// Options are the Secrets Manager settings wire.go fills from the
-// configuration. The zero value is AWS's behavior; there are no settings
-// yet.
+// Options are the Secrets Manager settings. There are none yet; the zero
+// value is AWS's behavior.
 type Options struct{}

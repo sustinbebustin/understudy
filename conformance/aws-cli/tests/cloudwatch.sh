@@ -19,9 +19,7 @@ describe_alarm() {
   aws_ok cloudwatch describe-alarms --alarm-names "$1"
 }
 
-# ---------------------------------------------------------------------------
 # PutMetricAlarm, DescribeAlarms, DeleteAlarms
-# ---------------------------------------------------------------------------
 
 test_put_metric_alarm_minimal() {
   new_alarm
@@ -169,9 +167,7 @@ test_enable_and_disable_alarm_actions() {
   assert_jq '.MetricAlarms[0].ActionsEnabled' 'true'
 }
 
-# ---------------------------------------------------------------------------
 # Tags
-# ---------------------------------------------------------------------------
 
 test_alarm_tags_at_creation() {
   new_alarm --tags Key=env,Value=test Key=team,Value=core
@@ -203,9 +199,7 @@ test_list_tags_for_deleted_alarm_is_empty() {
   assert_jq_true '.Tags == []'
 }
 
-# ---------------------------------------------------------------------------
 # PutMetricData, GetMetricData, ListMetrics
-# ---------------------------------------------------------------------------
 
 # iso EPOCH-SECONDS: an RFC 3339 UTC timestamp.
 iso() {

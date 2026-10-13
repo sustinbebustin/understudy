@@ -330,6 +330,15 @@ func (e *FakeEndpoint) Closed() bool {
 	return e.closed
 }
 
+// ServerRuntime adapts a real runtimeapi.Server to pool.Runtime, for the
+// Docker tests that run functions in containers without the server's
+// container host.
+func ServerRuntime(s *runtimeapi.Server) pool.Runtime { return serverRuntime{s} }
+
+type serverRuntime struct{ s *runtimeapi.Server }
+
+func (r serverRuntime) Open(ctx context.Context) (pool.Endpoint, error) { return r.s.Open(ctx) }
+
 // end wakes an in-flight Invoke, once. Callers hold e.mu.
 func (e *FakeEndpoint) end() {
 	select {

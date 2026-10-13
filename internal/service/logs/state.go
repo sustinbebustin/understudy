@@ -5,8 +5,10 @@ import (
 	"slices"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // stateVersion is the schema version of State in snapshot sections.
@@ -26,6 +28,10 @@ func newState(aws.Scope) State { return State{Groups: map[string]Group{}} }
 
 // IsZero reports a scope without log groups, which snapshots skip.
 func (s *State) IsZero() bool { return len(s.Groups) == 0 }
+
+// Partitioned finds IsZero by a type assertion; this keeps a rename from
+// silently dropping the skip.
+var _ store.Zeroer = (*State)(nil)
 
 // Group is one log group.
 type Group struct {
@@ -77,6 +83,10 @@ func (g *Group) retention() (time.Duration, bool) {
 	}
 	return time.Duration(g.RetentionDays) * 24 * time.Hour, true
 }
+
+// fixedRetention reports whether the group's class fixes its retention, so
+// PutRetentionPolicy and DeleteRetentionPolicy cannot change it.
+func (g *Group) fixedRetention() bool { return g.Class == string(logsapi.LogGroupClassDelivery) }
 
 // streamNames returns the group's stream names in order.
 func (g *Group) streamNames() []string { return slices.Sorted(maps.Keys(g.Streams)) }

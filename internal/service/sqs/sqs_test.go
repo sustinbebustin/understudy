@@ -167,6 +167,10 @@ func TestCreateQueueRefusesBadNamesAndAttributes(t *testing.T) {
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"FifoQueue": "false"}}, "InvalidAttributeName", "Unknown Attribute FifoQueue."},
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"Foobar": "1"}}, "InvalidAttributeName", "Unknown Attribute Foobar."},
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"DeduplicationScope": "queue"}}, "InvalidAttributeName", "You can specify the DeduplicationScope only when FifoQueue is set to true."},
+			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"FifoThroughputLimit": "perQueue"}}, "InvalidAttributeName", "You can specify the FifoThroughputLimit only when FifoQueue is set to true."},
+			// LocalStack's AWS recording of 2024-05-15
+			// (invalid-attribute-content-based-deduplication).
+			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"ContentBasedDeduplication": "false"}}, "InvalidAttributeName", "Unknown Attribute ContentBasedDeduplication."},
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"DelaySeconds": "901"}}, "InvalidAttributeValue", "Invalid value for the parameter DelaySeconds."},
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"KmsMasterKeyId": "alias/k", "SqsManagedSseEnabled": "true"}}, "InvalidAttributeName", "You can use one type of server-side encryption (SSE) at one time. You can either enable KMS SSE or SQS SSE."},
 			{redrive(`{"maxReceiveCount":3}`), "InvalidParameterValue", "The required parameter 'deadLetterTargetArn' is missing"},
@@ -259,8 +263,7 @@ func TestFaultRulesMatchTheQueueACallNames(t *testing.T) {
 	})
 }
 
-// SQS's limit texts precede an injected error, as generated constraints do
-// (M7).
+// SQS's limit texts precede an injected error, as generated constraints do.
 func TestLimitChecksPrecedeInjectedFaults(t *testing.T) {
 	run(t, func(h *harness) {
 		url := h.queue("limits", nil)
@@ -311,6 +314,23 @@ func TestCallsToAMissingQueueLeaveNoState(t *testing.T) {
 		wantError(h.T, err, code, message)
 		if scopes := h.svc.Scopes(); len(scopes) != 0 {
 			h.Errorf("scopes after calls to a missing queue = %v, want none", scopes)
+		}
+	})
+}
+
+// A QueueUrl that is neither a queue URL nor a queue name answers
+// InvalidAddress (404) on every queue operation, not NonExistentQueue.
+func TestMalformedQueueURLsAnswerInvalidAddress(t *testing.T) {
+	run(t, func(h *harness) {
+		for _, url := range []string{"http://127.0.0.1:4566/", "http://localhost:4566/queue/q1", "http://localhost/000000000000/a/b", "not a/name"} {
+			want := "The address " + url + " is not valid for this endpoint."
+			_, err := h.send(&sqsapi.SendMessageInput{QueueUrl: url, MessageBody: "m"})
+			wantError(h.T, err, "InvalidAddress", want)
+			if err.ID.Status != http.StatusNotFound {
+				h.Errorf("SendMessage(%q) status = %d, want 404", url, err.ID.Status)
+			}
+			_, err = h.Invoke(h.Context(), op[sqsapi.GetQueueAttributesInput, sqsapi.GetQueueAttributesOutput](h, "GetQueueAttributes"), &sqsapi.GetQueueAttributesInput{QueueUrl: url})
+			wantError(h.T, err, "InvalidAddress", want)
 		}
 	})
 }
@@ -425,6 +445,32 @@ func TestSendMessageSizeLimit(t *testing.T) {
 		}
 		_, err = h.send(&sqsapi.SendMessageInput{QueueUrl: "http://localhost:4566/000000000000/missing", MessageBody: "b"})
 		wantError(h.T, err, "AWS.SimpleQueueService.NonExistentQueue", "The specified queue does not exist.")
+	})
+}
+
+// A queue's own MaximumMessageSize does not apply to messages from Amazon
+// SNS (https://docs.aws.amazon.com/sns/latest/dg/large-message-payloads.html):
+// a delivery larger than the queue's limit is enqueued, while a client's
+// send of the same body is refused.
+func TestSNSDeliveriesSkipTheQueuesSizeLimit(t *testing.T) {
+	run(t, func(h *harness) {
+		url := h.queue("small", map[sqsapi.QueueAttributeName]string{"MaximumMessageSize": "2048"})
+		body := strings.Repeat("b", 4096)
+		_, err := h.send(&sqsapi.SendMessageInput{QueueUrl: url, MessageBody: body})
+		wantError(h.T, err, "InvalidParameterValue", "One or more parameters are invalid. Reason: Message must be shorter than 2048 bytes.")
+		send := op[sqsapi.SendMessageInput, sqsapi.SendMessageOutput](h, "SendMessage")
+		parent := h.Call(send.Descriptor())
+		delivery := kernel.Target{Scope: h.Scope, As: kernel.AsService{Name: "sns.amazonaws.com"}, Via: ref.SNSDelivery}
+		if _, err := kernel.Invoke(h.Context(), h.Kernel, parent, send, delivery, &sqsapi.SendMessageInput{QueueUrl: url, MessageBody: body}); err != nil {
+			h.Fatalf("an SNS delivery of %d bytes to a queue limited to 2048 = %s: %s", len(body), err.ID.QueryCode, err.Message)
+		}
+		// SQS's absolute ceiling, 1 MiB, still bounds a delivery.
+		over := strings.Repeat("b", 1<<20+1)
+		_, err = kernel.Invoke(h.Context(), h.Kernel, parent, send, delivery, &sqsapi.SendMessageInput{QueueUrl: url, MessageBody: over})
+		wantError(h.T, err, "InvalidParameterValue", "One or more parameters are invalid. Reason: Message must be shorter than 1048576 bytes.")
+		if msgs := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url}); len(msgs) != 1 || val(msgs[0].Body) != body {
+			h.Errorf("ReceiveMessage = %d messages, want the SNS delivery", len(msgs))
+		}
 	})
 }
 
@@ -753,6 +799,40 @@ func TestSnapshotRoundTripAndRearm(t *testing.T) {
 	})
 }
 
+// A long poll parked on an empty queue returns at once when a snapshot
+// load brings the queue a visible message, rather than waiting out its
+// WaitTimeSeconds.
+func TestRearmWakesALongPollForLoadedMessages(t *testing.T) {
+	run(t, func(h *harness) {
+		url := h.queue("loaded", nil)
+		h.mustSend(url, "fixture")
+		sections, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		h.mustDelete(url, &h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url})[0])
+		got := make(chan []sqsapi.Message, 1)
+		start := time.Now()
+		go func() {
+			got <- h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url, WaitTimeSeconds: new(int32(20))})
+		}()
+		synctest.Wait()
+		h.svc.Reset(kernel.ResetScope{})
+		h.Kernel.Timers().Scheduler().Clear()
+		if err := h.svc.Import(sections); err != nil {
+			h.Fatal(err)
+		}
+		h.svc.Rearm(h.Clock.Now())
+		msgs := <-got
+		if len(msgs) != 1 || val(msgs[0].Body) != "fixture" {
+			h.Fatalf("messages = %+v, want fixture", msgs)
+		}
+		if elapsed := time.Since(start); elapsed != 0 {
+			h.Errorf("the receive waited %s; the load should wake it at once", elapsed)
+		}
+	})
+}
+
 // armed returns the pending timers by key, rendered as text.
 func armed(h *harness) map[string]string {
 	out := map[string]string{}
@@ -780,6 +860,42 @@ func TestQueueURLsEchoTheHostAndKeepTheRegion(t *testing.T) {
 	})
 }
 
+// A QueueUrl that is a bare queue name reaches that queue in the caller's
+// account and region, as AWS answers it (LocalStack's AWS-validated
+// test_posting_to_queue_via_queue_name, sqs.md 3). A name no queue has is
+// NonExistentQueue; anything else that is not a /<account>/<name> URL is
+// InvalidAddress.
+func TestQueueURLMayBeTheQueueName(t *testing.T) {
+	run(t, func(h *harness) {
+		h.queue("orders", nil)
+		h.queue("orders.fifo", map[sqsapi.QueueAttributeName]string{"FifoQueue": "true", "ContentBasedDeduplication": "true"})
+		if out := h.mustSend("orders", "Using name instead of URL"); val(out.MD5OfMessageBody) != "86a83f96652a1bfad3891e7d523750cb" {
+			h.Errorf("MD5OfMessageBody = %s", val(out.MD5OfMessageBody))
+		}
+		if msgs := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: "orders"}); len(msgs) != 1 || val(msgs[0].Body) != "Using name instead of URL" {
+			h.Errorf("receive by name = %v, want the message sent by name", msgs)
+		}
+		if _, err := h.send(&sqsapi.SendMessageInput{QueueUrl: "orders.fifo", MessageBody: "m", MessageGroupId: new("g")}); err != nil {
+			h.Errorf("SendMessage to orders.fifo by name = %s: %s", err.ID.QueryCode, err.Message)
+		}
+		const code, message = "AWS.SimpleQueueService.NonExistentQueue", "The specified queue does not exist."
+		_, err := h.send(&sqsapi.SendMessageInput{QueueUrl: "missing", MessageBody: "m"})
+		wantError(h.T, err, code, message)
+		for _, raw := range []string{"orders/", "/orders", "bad name", "orders.fifo.fifo", ".fifo", strings.Repeat("q", 81)} {
+			_, err := h.send(&sqsapi.SendMessageInput{QueueUrl: raw, MessageBody: "m"})
+			wantError(h.T, err, "InvalidAddress", "The address "+raw+" is not valid for this endpoint.")
+		}
+		// The name resolves in the caller's account and region only.
+		h.Scope.Account = mustAccount(h.T, "111111111111")
+		_, err = h.send(&sqsapi.SendMessageInput{QueueUrl: "orders", MessageBody: "m"})
+		wantError(h.T, err, code, message)
+		h.Scope.Account = aws.DefaultAccount()
+		h.Scope.Region = mustRegion(h.T, "eu-west-1")
+		_, err = h.send(&sqsapi.SendMessageInput{QueueUrl: "orders", MessageBody: "m"})
+		wantError(h.T, err, code, message)
+	})
+}
+
 func mustRegion(t *testing.T, name string) aws.Region {
 	t.Helper()
 	r, err := aws.KnownRegions().Parse(name)
@@ -789,7 +905,7 @@ func mustRegion(t *testing.T, name string) aws.Region {
 	return r
 }
 
-// Waking a long poll 1,000 times leaves no registration behind (m8): two
+// Waking a long poll 1,000 times leaves no registration behind: two
 // polls park on one queue and each send wakes both; one takes the message
 // and comes back for the next, the other finds nothing and registers again.
 // When both end, by a receive and by the client leaving, no waiter remains.
@@ -827,6 +943,9 @@ func TestLongPollsLeaveNoWaiters(t *testing.T) {
 		if total := <-taken + <-taken; total != sends {
 			h.Errorf("messages received = %d, want %d", total, sends)
 		}
+		// A cancelled wait deregisters on its own goroutine (context.AfterFunc),
+		// which may still be pending when the polls have returned.
+		synctest.Wait()
 		if n := h.Kernel.Waiters().Len(key); n != 0 {
 			h.Errorf("waiters left = %d, want 0", n)
 		}

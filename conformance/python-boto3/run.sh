@@ -7,7 +7,11 @@
 #   conformance/python-boto3/run.sh -k sqs -x          # extra arguments go to pytest
 #   SUITE_GROUPS=modern conformance/python-boto3/run.sh
 #                                                      # modern | legacy-query | "modern legacy-query"
-#   SIGV4=verify conformance/python-boto3/run.sh       # serve with --sigv4 verify (enables the signature tests)
+#
+# SIGV4 (default parse) is passed to serve --sigv4 and to the tests. The
+# signature tests run only with SIGV4=verify, which this build's serve refuses
+# at startup until signature verification is wired (docs/plan/DEFERRED.md,
+# "SigV4 verification"), so they skip for now.
 #
 # Environments (pyproject.toml dependency groups):
 #   modern        the current boto3: every test file.
@@ -42,6 +46,7 @@ data="$work/data"
 log="$work/understudy.log"
 pid=""
 
+# shellcheck disable=SC2329 # invoked by the EXIT trap below
 stop() {
 	local status=$?
 	trap - EXIT INT TERM
@@ -92,8 +97,23 @@ echo "run.sh: starting understudy on $endpoint, data in $data" >&2
 	--accept-dynamodb-local-license) >"$log" 2>&1 &
 pid=$!
 
-if ! "$bin" health --endpoint "$endpoint" --wait 60s >/dev/null; then
-	echo "run.sh: understudy did not become healthy on $endpoint; its log:" >&2
+# Poll rather than `health --wait`, so a server that refuses its settings and
+# exits (for example --sigv4 verify in this build) is reported at once.
+ready=0
+for _ in $(seq 1 240); do
+	if ! kill -0 "$pid" 2>/dev/null; then
+		echo "run.sh: understudy exited during startup; its log:" >&2
+		cat -- "$log" >&2
+		exit 1
+	fi
+	if "$bin" health --endpoint "$endpoint" >/dev/null 2>&1; then
+		ready=1
+		break
+	fi
+	sleep 0.25
+done
+if [ "$ready" -ne 1 ]; then
+	echo "run.sh: understudy did not become healthy on $endpoint within 60s; its log:" >&2
 	cat -- "$log" >&2
 	exit 1
 fi

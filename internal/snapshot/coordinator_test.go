@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -29,6 +31,13 @@ type queues struct {
 func (q *queues) IsZero() bool { return len(q.Attributes) == 0 && len(q.Bodies) == 0 }
 
 func (q *queues) BlobRefs() []string { return q.Bodies }
+
+// The fixture relies on both hooks, which Partitioned finds by type
+// assertions.
+var (
+	_ store.Zeroer     = (*queues)(nil)
+	_ store.BlobHolder = (*queues)(nil)
+)
 
 // recorder logs the calls the Coordinator makes, in order.
 type recorder struct {
@@ -143,32 +152,79 @@ func (l *late) ImportLate(_ context.Context, ss []store.Section) error {
 	return nil
 }
 
-// fixedRuntime is a fixed head.
+// fixedRuntime is a fixed head. Its restores log whether the gate's
+// exclusive side was held.
 type fixedRuntime struct {
 	head snapshot.Head
+	gate *store.Gate
 	rec  *recorder
 	now  clock.Instant
 }
 
 func (r *fixedRuntime) Head() (snapshot.Head, error) { return r.head, nil }
 
-func (r *fixedRuntime) Restore(h snapshot.Head) error {
-	r.rec.log("restore clock %v journal %d", h.Clock.At, h.JournalNext)
+func (r *fixedRuntime) RestoreClock(c snapshot.Clock) error {
+	r.rec.log("restore clock %v (%s)", c.At, gateState(r.gate))
+	r.head.Clock = c
+	r.now = c.At
+	return nil
+}
+
+func (r *fixedRuntime) RestoreUnderGate(h snapshot.Head) error {
+	r.rec.log("restore journal %d (%s)", h.JournalNext, gateState(r.gate))
+	h.Clock = r.head.Clock
 	r.head = h
-	r.now = h.Clock.At
 	return nil
 }
 
 func (r *fixedRuntime) Now() clock.Instant { return r.now }
 
+func gateState(g *store.Gate) string {
+	if g.TryEnter() {
+		g.Leave()
+		return "gate free"
+	}
+	return "gate held"
+}
+
+// effects is a hand-driven Effects counter. read is closed by the first
+// PendingEffects call.
+type effects struct {
+	mu       sync.Mutex
+	n        int
+	changed  chan struct{}
+	read     chan struct{}
+	readOnce sync.Once
+}
+
+func newEffects() *effects {
+	return &effects{changed: make(chan struct{}), read: make(chan struct{})}
+}
+
+func (f *effects) PendingEffects() (n int, changed <-chan struct{}) {
+	f.readOnce.Do(func() { close(f.read) })
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.n, f.changed
+}
+
+func (f *effects) add(d int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.n += d
+	close(f.changed)
+	f.changed = make(chan struct{})
+}
+
 type emulator struct {
-	gate  *store.Gate
-	blobs *blob.Store
-	sqs   *service
-	late  *late
-	rt    *fixedRuntime
-	rec   *recorder
-	coord *snapshot.Coordinator
+	gate    *store.Gate
+	blobs   *blob.Store
+	sqs     *service
+	late    *late
+	rt      *fixedRuntime
+	effects *effects
+	rec     *recorder
+	coord   *snapshot.Coordinator
 }
 
 // newEmulator returns an emulator over a memory blob store.
@@ -212,13 +268,14 @@ func newEmulatorOver(t *testing.T, bs *blob.Store) *emulator {
 	e := &emulator{gate: &store.Gate{}, blobs: bs, rec: &recorder{}}
 	e.sqs = newService(e.gate, "sqs", e.rec)
 	e.late = &late{rec: e.rec}
-	e.rt = &fixedRuntime{rec: e.rec, head: snapshot.Head{
+	e.rt = &fixedRuntime{gate: e.gate, rec: e.rec, head: snapshot.Head{
 		Clock:       snapshot.Clock{Mode: clock.Frozen{}, At: instant(t, "2026-10-09T12:00:00Z")},
 		JournalNext: 9,
 		Faults:      []byte(`{"rules":[],"version":1}`),
 	}}
+	e.effects = newEffects()
 	e.coord, err = snapshot.NewCoordinator(snapshot.Config{
-		Gate: e.gate, Blobs: bs, Runtime: e.rt,
+		Gate: e.gate, Blobs: bs, Runtime: e.rt, Effects: e.effects,
 		Services: []snapshot.Stateful{e.sqs}, Late: []snapshot.Late{e.late},
 		Writer: "understudy v0.0.0-test",
 	})
@@ -355,11 +412,14 @@ func TestSaveLoadSaveIsByteIdentical(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	// Load mirrors the save: late imports, then the runtime, then reset and
-	// import under the gate, then rearm.
+	// Load mirrors the save: late imports, then the clock outside the gate,
+	// then the rest of the runtime head, reset and import under it, then
+	// rearm. The ids, journal counter and faults move only with the gate
+	// held, so no call against the old cells draws from the loaded head.
 	want := []string{
 		"import late 1 sections",
-		"restore clock 2026-10-09T12:00:00Z journal 9",
+		"restore clock 2026-10-09T12:00:00Z (gate free)",
+		"restore journal 9 (gate held)",
 		"reset sqs",
 		"import sqs 1 sections",
 		"rearm sqs at 2026-10-09T12:00:00Z",
@@ -385,6 +445,56 @@ func TestSaveLoadSaveIsByteIdentical(t *testing.T) {
 	}
 	if _, err := dst.blobs.Size(r); !errors.As(err, new(*blob.NotFoundError)) {
 		t.Errorf("after releasing the one loaded reference the blob is still stored (%v); the load or the save kept an extra reference", err)
+	}
+}
+
+// A caller that drained work off the replaced state must lift the drain's
+// hold before any service rearms: a Rearm can fire a due invocation or wake
+// a polled queue at once, and the hold would refuse that work.
+func TestLoadRunsBeforeRearmAfterTheImportAndBeforeAnyRearm(t *testing.T) {
+	t.Parallel()
+	src := newEmulator(t)
+	src.sqs.set("orders", queues{Attributes: map[string]string{"DelaySeconds": "5"}})
+	a := read(t, src.save(t))
+
+	dst := newEmulator(t)
+	err := dst.coord.LoadWith(context.Background(), a, snapshot.LoadOptions{BeforeRearm: func() {
+		dst.rec.log("before rearm (%s)", gateState(dst.gate))
+		if got := dst.sqs.get("orders"); got.Attributes["DelaySeconds"] != "5" {
+			t.Errorf("BeforeRearm ran before the state was imported: orders = %+v", got)
+		}
+	}})
+	if err != nil {
+		t.Fatalf("LoadWith: %v", err)
+	}
+	want := []string{
+		"import late 0 sections",
+		"restore clock 2026-10-09T12:00:00Z (gate free)",
+		"restore journal 9 (gate held)",
+		"reset sqs",
+		"import sqs 1 sections",
+		"before rearm (gate free)",
+		"rearm sqs at 2026-10-09T12:00:00Z",
+	}
+	if got := dst.rec.list(); !slices.Equal(got, want) {
+		t.Errorf("load calls\n got %q\nwant %q", got, want)
+	}
+}
+
+func TestFailedLoadDoesNotRunBeforeRearm(t *testing.T) {
+	t.Parallel()
+	src := newEmulator(t)
+	a := read(t, src.save(t))
+
+	dst := newEmulator(t)
+	dst.late.onImportLate = func() error { return errors.New("dynamodb local is gone") }
+	ran := false
+	err := dst.coord.LoadWith(context.Background(), a, snapshot.LoadOptions{BeforeRearm: func() { ran = true }})
+	if !errors.As(err, new(*snapshot.LoadError)) {
+		t.Fatalf("LoadWith error %v; want *LoadError", err)
+	}
+	if ran {
+		t.Error("BeforeRearm ran for a load that failed before importing the state; the caller's failure path owns the hold")
 	}
 }
 
@@ -415,16 +525,104 @@ func TestNewCoordinatorRefusesConflictingServices(t *testing.T) {
 	t.Parallel()
 	e := newEmulator(t)
 	cases := map[string]snapshot.Config{
-		"no gate":         {Blobs: e.blobs, Runtime: e.rt, Writer: "w"},
-		"duplicate names": {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Writer: "w", Services: []snapshot.Stateful{e.sqs, e.sqs}},
-		"bad name":        {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Writer: "w", Services: []snapshot.Stateful{&service{name: "a/b"}}},
-		"dot name":        {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Writer: "w", Services: []snapshot.Stateful{&service{name: "."}}},
-		"two versions":    {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Writer: "w", Services: []snapshot.Stateful{&service{name: "dynamodb", version: 2}}, Late: []snapshot.Late{e.late}},
+		"no gate":         {Blobs: e.blobs, Runtime: e.rt, Effects: e.effects, Writer: "w"},
+		"no effects":      {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Writer: "w"},
+		"duplicate names": {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Effects: e.effects, Writer: "w", Services: []snapshot.Stateful{e.sqs, e.sqs}},
+		"bad name":        {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Effects: e.effects, Writer: "w", Services: []snapshot.Stateful{&service{name: "a/b"}}},
+		"dot name":        {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Effects: e.effects, Writer: "w", Services: []snapshot.Stateful{&service{name: "."}}},
+		"two versions":    {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Effects: e.effects, Writer: "w", Services: []snapshot.Stateful{&service{name: "dynamodb", version: 2}}, Late: []snapshot.Late{e.late}},
 	}
 	for name, cfg := range cases {
-		if _, err := snapshot.NewCoordinator(cfg); err == nil {
-			t.Errorf("%s: NewCoordinator accepted the config", name)
+		if _, err := snapshot.NewCoordinator(cfg); !errors.As(err, new(*snapshot.ConfigError)) {
+			t.Errorf("%s: NewCoordinator error %v; want *ConfigError", name, err)
 		}
+	}
+}
+
+// A committed write's deliveries run after it releases the gate, and they
+// write cells themselves (the outbox). The cut waits for them with the gate
+// released, so the archive holds the delivery along with the state change.
+func TestCutWaitsForTheEffectsOfCommittedWrites(t *testing.T) {
+	t.Parallel()
+	e := newEmulator(t)
+	e.sqs.set("rules", queues{Attributes: map[string]string{"NextFire": "12:01"}})
+	e.effects.add(1)
+	delivered := make(chan struct{})
+	go func() {
+		defer close(delivered)
+		// The cut finds the effect pending, under the gate, before it runs.
+		<-e.effects.read
+		e.sqs.set("outbox", queues{Attributes: map[string]string{"target": "worker"}})
+		e.effects.add(-1)
+	}()
+	cut, err := e.coord.Cut(context.Background())
+	if err != nil {
+		t.Fatalf("Cut: %v", err)
+	}
+	defer func() {
+		if err := cut.Release(); err != nil {
+			t.Error(err)
+		}
+	}()
+	<-delivered
+	if n := cut.PendingEffects(); n != 0 {
+		t.Errorf("PendingEffects = %d; want 0", n)
+	}
+	var outbox bool
+	for _, s := range cut.Archive().Sections {
+		outbox = outbox || strings.Contains(string(s.Data), `"target":"worker"`)
+	}
+	if !outbox {
+		t.Errorf("cut sections %+v; want the delivery the committed write enqueued", cut.Archive().Sections)
+	}
+}
+
+// Effects that never run do not hold a save hostage: after EffectsWait the
+// cut is taken anyway and reports what it misses.
+func TestCutReportsEffectsStillPendingAfterTheWait(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		e := newEmulator(t)
+		e.effects.add(2)
+		start := time.Now()
+		cut, err := e.coord.Cut(context.Background())
+		if err != nil {
+			t.Fatalf("Cut: %v", err)
+		}
+		if waited := time.Since(start); waited != snapshot.EffectsWait {
+			t.Errorf("Cut returned after %v; want %v", waited, snapshot.EffectsWait)
+		}
+		if n := cut.PendingEffects(); n != 2 {
+			t.Errorf("PendingEffects = %d; want 2", n)
+		}
+		if err := cut.Release(); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+// A cut waiting for effects gives up when its context ends, saves nothing
+// and frees the Coordinator.
+func TestCutWaitingForEffectsHonorsTheContext(t *testing.T) {
+	t.Parallel()
+	e := newEmulator(t)
+	e.effects.add(1)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if cut, err := e.coord.Cut(ctx); !errors.Is(err, context.Canceled) || cut != nil {
+		t.Fatalf("Cut = %v, %v; want no cut and context.Canceled", cut, err)
+	}
+	if !e.gate.TryEnter() {
+		t.Fatal("the gate is still held after the cut gave up")
+	}
+	e.gate.Leave()
+	e.effects.add(-1)
+	cut, err := e.coord.Cut(context.Background())
+	if err != nil {
+		t.Fatalf("Cut after the one that gave up: %v", err)
+	}
+	if err := cut.Release(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -740,7 +938,7 @@ func TestLoadRefusesANewerFormat(t *testing.T) {
 func mustCoordinator(t *testing.T, e *emulator) *snapshot.Coordinator {
 	t.Helper()
 	c, err := snapshot.NewCoordinator(snapshot.Config{
-		Gate: e.gate, Blobs: e.blobs, Runtime: e.rt,
+		Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Effects: e.effects,
 		Services: []snapshot.Stateful{e.sqs}, Late: []snapshot.Late{e.late},
 		Writer: "understudy v0.0.0-test",
 	})

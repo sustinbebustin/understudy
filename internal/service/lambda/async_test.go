@@ -1,7 +1,11 @@
 package lambda_test
 
 import (
+	"context"
+	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -10,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/pool/pooltest"
 )
 
 // fnEvent is an Event Invoke of fn with payload.
@@ -174,6 +179,7 @@ func TestAsyncQueueSurvivesASnapshotLoad(t *testing.T) {
 			t.Fatal(err)
 		}
 		q.Rearm(h.Clock.Now())
+		h.x.RearmPollers()
 		if res := q.Resources(h.Scope); len(res) != 1 || res[0].Summary != "1 queued asynchronous invocation" {
 			t.Errorf("resources after the load = %+v, want fn with one queued invocation", res)
 		}
@@ -215,6 +221,7 @@ func TestAsyncEventPastItsMaximumAgeIsDiscardedAfterALoad(t *testing.T) {
 			t.Fatal(err)
 		}
 		q.Rearm(h.Clock.Now())
+		h.x.RearmPollers()
 		h.settle()
 		h.advance(time.Hour)
 		if n := len(s.invoked()); n != 1 {
@@ -222,6 +229,35 @@ func TestAsyncEventPastItsMaximumAgeIsDiscardedAfterALoad(t *testing.T) {
 		}
 		if res := q.Resources(h.Scope); len(res) != 0 {
 			t.Errorf("resources after the discard = %+v, want none queued", res)
+		}
+	})
+}
+
+// Every asynchronous invocation's own log lines reach CloudWatch Logs: the
+// delivery written on behalf of the queue's timer is never refused by the
+// queue's write that settles the same attempt.
+func TestEveryAsyncInvocationDeliversItsLog(t *testing.T) {
+	const events = 100
+	runExec(t, pooltest.Echo, func(h *execHarness) {
+		h.createFunction("fn")
+		for i := range events {
+			h.invoke(fnEvent(`{"n":` + strconv.Itoa(i) + `}`))
+		}
+		h.settle()
+		// The attempts past the pool's 64 environments are throttled and
+		// requeued one second later.
+		h.advance(time.Minute)
+		starts, reports := 0, 0
+		for _, m := range h.logs.messages() {
+			switch {
+			case strings.HasPrefix(m, "START RequestId: "):
+				starts++
+			case strings.HasPrefix(m, "REPORT RequestId: "):
+				reports++
+			}
+		}
+		if starts != events || reports != events {
+			t.Errorf("delivered %d START and %d REPORT lines, want %d of each", starts, reports, events)
 		}
 	})
 }
@@ -238,6 +274,50 @@ func TestDrainEmptiesTheAsyncQueue(t *testing.T) {
 		h.advance(time.Hour)
 		if n := len(s.invoked()); n != 1 {
 			t.Errorf("attempts = %d, want the first only: the drain dropped the queued retry", n)
+		}
+	})
+}
+
+// A drain that stops waiting for a running invocation refuses the reset or
+// load, so it keeps what that would have replaced: the queued retry still
+// runs on schedule and the admin-bound overlay still serves its directory.
+func TestFailedDrainKeepsTheAsyncQueueAndTheOverlays(t *testing.T) {
+	s := newScript()
+	runExec(t, s.handle, func(h *execHarness) {
+		h.createFunction("fn")
+		dir := buildDir(t)
+		if err := h.x.HotReload(h.Context(), h.Scope, "fn", dir); err != nil {
+			t.Fatalf("HotReload: %s %s", err.ID.Shape.Name(), err.Message)
+		}
+		h.invoke(fnEvent(`{"action":"fail"}`))
+		h.settle()
+		running := h.invokeInBackground(invokeInput("fn", `{"action":"block"}`))
+		synctest.Wait()
+
+		ctx, cancel := context.WithCancel(h.Context())
+		cancel()
+		if err := h.x.Drain(ctx, kernel.ResetScope{}); !errors.Is(err, context.Canceled) {
+			t.Fatalf("Drain with a cancelled context and a running invocation = %v, want context.Canceled", err)
+		}
+		if res := h.x.AsyncQueue().Resources(h.Scope); len(res) != 1 || res[0].Summary != "1 queued asynchronous invocation" {
+			t.Errorf("resources after the failed drain = %+v, want fn with its queued retry", res)
+		}
+
+		s.unblock()
+		h.wait(running)
+		h.invoke(invokeInput("fn", `{}`))
+		if specs := h.started(); codeDir(t, &specs[len(specs)-1]) != dir {
+			t.Errorf("after the failed drain fn runs %s, want the overlay %s", codeDir(t, &specs[len(specs)-1]), dir)
+		}
+		h.advance(time.Minute)
+		fails := 0
+		for _, inv := range s.invoked() {
+			if string(inv.Payload) == `{"action":"fail"}` {
+				fails++
+			}
+		}
+		if fails != 2 {
+			t.Errorf("attempts of the event a minute later = %d, want 2: the queued retry ran", fails)
 		}
 	})
 }

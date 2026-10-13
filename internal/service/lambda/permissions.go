@@ -48,10 +48,10 @@ func (s *Service) addPermission(_ context.Context, c *kernel.Call, in *lambdaapi
 		if err != nil {
 			return "", err
 		}
-		p := f.Policies[ref.qualifier]
-		if in.RevisionId != nil && *in.RevisionId != p.RevisionID {
-			return "", errPolicyRevisionMismatch()
+		if err := checkPolicyRevision(f, ref.qualifier, in.RevisionId); err != nil {
+			return "", err
 		}
+		p := f.Policies[ref.qualifier]
 		if slices.ContainsFunc(p.Statements, func(s Statement) bool { return s.Sid == in.StatementId }) {
 			return "", errStatementExists(in.StatementId)
 		}
@@ -59,8 +59,7 @@ func (s *Service) addPermission(_ context.Context, c *kernel.Call, in *lambdaapi
 		if size := len(p.document()); size > maxPolicyBytes {
 			return "", errPolicyTooLarge(size)
 		}
-		p.RevisionID = st.revision(ref.scope)
-		f = f.clone()
+		f = f.withRevision(ref.qualifier, st.revision(ref.scope))
 		if f.Policies == nil {
 			f.Policies = map[string]Policy{}
 		}
@@ -73,6 +72,20 @@ func (s *Service) addPermission(_ context.Context, c *kernel.Call, in *lambdaapi
 	}
 	touch(c, ref.qualifiedARN())
 	return &lambdaapi.AddPermissionOutput{Statement: new(out)}, nil
+}
+
+// checkPolicyRevision is AddPermission's and RemovePermission's RevisionId
+// precondition: rev, when given, must be the RevisionId of the policy's
+// target, $LATEST for the unqualified function, the version or the alias
+// (revisionOf).
+func checkPolicyRevision(f Function, qualifier string, rev *string) *awserr.Error {
+	if rev == nil {
+		return nil
+	}
+	if current, ok := f.revisionOf(qualifier); !ok || *rev != current {
+		return errPolicyRevisionMismatch()
+	}
+	return nil
 }
 
 // policyTarget finds the function AddPermission names, as lookup does,
@@ -107,7 +120,7 @@ func parsePrincipal(scope aws.Scope, p string) (policydoc.PrincipalElement, *aws
 	case p == "*":
 		return policydoc.Principal{Who: policydoc.Anyone{}}, nil
 	case len(p) == 12 && isVersionNumber(p):
-		return policydoc.Principal{Who: policydoc.Named{AWS: []string{"arn:" + scope.Partition.String() + ":iam::" + p + ":root"}}}, nil
+		return policydoc.Principal{Who: policydoc.Named{AWS: []string{aws.RootARN(scope.Partition, p).String()}}}, nil
 	case strings.HasPrefix(p, "arn:"):
 		if a, err := aws.ParseARN(p); err == nil && (a.Service == "iam" || a.Service == "sts") {
 			return policydoc.Principal{Who: policydoc.Named{AWS: []string{p}}}, nil
@@ -190,7 +203,8 @@ func (s *Service) getPolicy(_ context.Context, c *kernel.Call, in *lambdaapi.Get
 		if !ok || len(p.Statements) == 0 {
 			return nil, errResourceNotFound()
 		}
-		return &lambdaapi.GetPolicyOutput{Policy: new(p.document()), RevisionId: new(p.RevisionID)}, nil
+		rev, _ := f.revisionOf(ref.qualifier)
+		return &lambdaapi.GetPolicyOutput{Policy: new(p.document()), RevisionId: new(rev)}, nil
 	})
 }
 
@@ -215,15 +229,14 @@ func (s *Service) removePermission(_ context.Context, c *kernel.Call, in *lambda
 		if i < 0 {
 			return struct{}{}, errStatementNotFound(in.StatementId)
 		}
-		if in.RevisionId != nil && *in.RevisionId != p.RevisionID {
-			return struct{}{}, errPolicyRevisionMismatch()
+		if err := checkPolicyRevision(f, ref.qualifier, in.RevisionId); err != nil {
+			return struct{}{}, err
 		}
-		f = f.clone()
+		f = f.withRevision(ref.qualifier, st.revision(ref.scope))
 		p.Statements = slices.Delete(slices.Clone(p.Statements), i, i+1)
 		if len(p.Statements) == 0 {
 			delete(f.Policies, ref.qualifier)
 		} else {
-			p.RevisionID = st.revision(ref.scope)
 			f.Policies[ref.qualifier] = p
 		}
 		st.Functions[ref.name] = f

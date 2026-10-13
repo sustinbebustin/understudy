@@ -17,8 +17,8 @@ import (
 // bindAccessKeys binds the access keys of users. The identity store mints
 // each key, so a request signed with it runs as the user.
 func (s *Service) bindAccessKeys(b iamapi.Binder) {
-	b.CreateAccessKey(s.createAccessKey, registry.Partial{Note: "only for IAM users: a root caller must name a user"})
-	b.ListAccessKeys(s.listAccessKeys, registry.Partial{Note: "only for IAM users: a root caller must name a user"})
+	b.CreateAccessKey(s.createAccessKey, registry.Partial{Note: "only for IAM users: root user access keys are not managed, so a root caller must name a user"})
+	b.ListAccessKeys(s.listAccessKeys, registry.Partial{Note: "root user access keys are not managed, so a root caller that names no user lists none"})
 	b.UpdateAccessKey(s.updateAccessKey, registry.StoredOnly{Note: "an Inactive key still authenticates, since phase 1 does not enforce IAM"})
 	b.DeleteAccessKey(s.deleteAccessKey, registry.Full{})
 }
@@ -37,9 +37,16 @@ func (u User) principal(account aws.AccountID) identity.User {
 // createAccessKey mints a long-term key for a user. The secret is in this
 // response alone; IAM never returns it again.
 func (s *Service) createAccessKey(_ context.Context, c *kernel.Call, in *iamapi.CreateAccessKeyInput) (*iamapi.CreateAccessKeyOutput, *awserr.Error) {
-	name, err := callerUser(c, in.UserName)
+	who, err := callerUser(c, in.UserName)
 	if err != nil {
 		return nil, err
+	}
+	var name string
+	switch who := who.(type) {
+	case accountRoot:
+		return nil, errRootAccessKeys()
+	case namedUser:
+		name = who.name
 	}
 	account := c.Scope().Account
 	type created struct {
@@ -77,13 +84,26 @@ func (s *Service) createAccessKey(_ context.Context, c *kernel.Call, in *iamapi.
 }
 
 // listAccessKeys lists a user's keys by id. Every entry carries the user's
-// name, which Terraform reads back (tf-remaining.md 3.2).
+// name, which Terraform reads back (tf-remaining.md 3.2). The root user has
+// no keys IAM manages here.
 func (s *Service) listAccessKeys(_ context.Context, c *kernel.Call, in *iamapi.ListAccessKeysInput) (*iamapi.ListAccessKeysOutput, *awserr.Error) {
-	name, err := callerUser(c, in.UserName)
+	who, err := callerUser(c, in.UserName)
 	if err != nil {
 		return nil, err
 	}
 	account := c.Scope().Account
+	var name string
+	switch who := who.(type) {
+	case accountRoot:
+		p, err := paginate([]AccessKey(nil), func(k AccessKey) string { return string(k.ID) }, in.Marker, in.MaxItems)
+		if err != nil {
+			return nil, err
+		}
+		c.Touch(rootARN(account))
+		return &iamapi.ListAccessKeysOutput{AccessKeyMetadata: []iamapi.AccessKeyMetadata{}, IsTruncated: p.truncated, Marker: p.marker}, nil
+	case namedUser:
+		name = who.name
+	}
 	type listed struct {
 		user User
 		p    page[AccessKey]
@@ -114,11 +134,19 @@ func (s *Service) listAccessKeys(_ context.Context, c *kernel.Call, in *iamapi.L
 }
 
 // changeAccessKey applies change to one of a user's keys under the
-// account's cell, or answers that the user has no such key.
+// account's cell, or answers that the user has no such key, as the root
+// user has none here.
 func (s *Service) changeAccessKey(c *kernel.Call, userName *string, id string, change func(u User, i int) User) *awserr.Error {
-	name, err := callerUser(c, userName)
+	who, err := callerUser(c, userName)
 	if err != nil {
 		return err
+	}
+	var name string
+	switch who := who.(type) {
+	case accountRoot:
+		return errNoSuchAccessKey(id)
+	case namedUser:
+		name = who.name
 	}
 	account := c.Scope().Account
 	u, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (User, *awserr.Error) {

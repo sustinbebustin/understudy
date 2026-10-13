@@ -174,6 +174,8 @@ type PutKindsInput struct {
 	Nested  Nested
 	Choice  Choice
 	Secret  *string
+	Vault   map[string]string
+	Hints   []*string
 	// missing has a bit set per required member Deserialize did not
 	// find, so Validate tells absent from zero. Values built in Go
 	// leave it zero; Validate then treats a nil required list, map,

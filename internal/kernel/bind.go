@@ -95,7 +95,7 @@ func (o resourcesOption[In]) apply(cfg any) bool {
 
 // WithValidator adds a stateless, typed validator that runs at pipeline
 // step 7, after the generated validator and before fault rules, so hand-owned
-// limit texts keep the Coral check order (M7). Its violations are rendered
+// limit texts keep the Coral check order. Its violations are rendered
 // by the operation's generated policy.
 func WithValidator[In any](v func(*In) []awserr.Violation) BindOption {
 	return validatorOption[In](v)
@@ -128,6 +128,7 @@ func Bind[In, Out any](b *Binder, op Op[In, Out], h Handler[In, Out], cov regist
 		out, err := h(ctx, c, in)
 		switch {
 		case err != nil && out != nil:
+			b.k.discard(ctx, c, out)
 			return nil, awserr.Internalf(&HandlerContractError{Op: desc.ID, Both: true})
 		case err != nil:
 			return nil, err

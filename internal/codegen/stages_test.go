@@ -199,6 +199,15 @@ func TestStageFailures(t *testing.T) {
 				"which RE2 cannot compile; give the string shape dev.understudy#patternValidator {allOf, noneOf} with an RE2 rendering",
 		},
 		{
+			name: "sensitive map key in an indexed validation path",
+			extra: overlay(`"com.example.golden#SecretMap$key": {"type": "apply", "traits": {
+				"smithy.api#sensitive": {}, ` + evidence + `}}`),
+			stage: codegen.StageEmit,
+			want: "understudy-gen emit: com.example.golden#SecretMap$key: the key is sensitive, but an indexed validation path " +
+				"(<map>.<key>.member) would echo it; give the service dev.understudy#validationPathStyle rolledUp " +
+				"or remove the constraints below this map",
+		},
+		{
 			name: "validation code that is not an error",
 			extra: overlay(`"com.example.golden#Nested$Code": {"type": "apply", "traits": {
 				"dev.understudy#validationError": {"code": "com.example.golden#Nested"}, ` + evidence + `}}`),
@@ -350,6 +359,9 @@ func TestRolledUpPathsReportAtTheCollection(t *testing.T) {
 	for _, want := range []string{
 		`Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{`,
 		`Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}`,
+		// A collection holding sensitive values is never echoed.
+		`Path: at(path, "vault"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Composite{Scope: awserr.MapValueScope`,
+		`Path: at(path, "hints"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Composite{Scope: awserr.ElementScope`,
 	} {
 		if !bytes.Contains(src, []byte(want)) {
 			t.Fatalf("validate_gen.go lacks %s:\n%s", want, src)
@@ -357,6 +369,26 @@ func TestRolledUpPathsReportAtTheCollection(t *testing.T) {
 	}
 	if bytes.Contains(src, []byte(`at(path, "tags"), strconv.Itoa(`)) {
 		t.Fatalf("rolled-up validators still index the tags elements:\n%s", src)
+	}
+}
+
+// TestASensitiveMapKeyHidesTheWholeMap: no copy of a map can keep its keys
+// once they are sensitive, so Redact clears the map and a rolled-up
+// violation omits it.
+func TestASensitiveMapKeyHidesTheWholeMap(t *testing.T) {
+	files, err := codegen.Generate(goldenInputs(t, overlay(`"com.example.golden#Golden": {"type": "apply", "traits": {
+		"dev.understudy#validationPathStyle": "rolledUp", `+evidence+`}},
+		"com.example.golden#LabelMap$key": {"type": "apply", "traits": {
+		"smithy.api#sensitive": {}, "smithy.api#length": {"max": 3}, `+evidence+`}}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "\tv.Labels = nil\n"; !bytes.Contains(files["redact_gen.go"], []byte(want)) {
+		t.Fatalf("redact_gen.go lacks %q:\n%s", want, files["redact_gen.go"])
+	}
+	want := `Path: at(path, "labels"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope`
+	if !bytes.Contains(files["validate_gen.go"], []byte(want)) {
+		t.Fatalf("validate_gen.go lacks %s:\n%s", want, files["validate_gen.go"])
 	}
 }
 

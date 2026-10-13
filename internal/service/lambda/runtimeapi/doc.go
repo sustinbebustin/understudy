@@ -5,7 +5,8 @@
 // Runtime Interface Emulator (ADR 0010): a Server opens one net/http
 // listener per execution environment on the topology's bind address and an
 // ephemeral port, and the container is told Environment.Addr as
-// AWS_LAMBDA_RUNTIME_API. An Environment runs one invocation at a time:
+// AWS_LAMBDA_RUNTIME_API. On a bridge gateway each listener serves only
+// peers in the container network (Options.Peers, ADR 0011). An Environment runs one invocation at a time:
 // Invoke queues it, GET /next hands it over with Content-Type
 // application/json (the Python runtime crashes without it) and the
 // Lambda-Runtime-* headers, and /response or /error completes it with 202.
@@ -17,7 +18,7 @@
 // Time: Lambda-Runtime-Deadline-Ms is wall time at dispatch plus what is
 // left of the timeout (all of it unless the init retry used some), and the
 // timeout runs on a monotonic timer, so the emulator clock never reaches a
-// function (G4, lambda-runtime-contract.md 3 and 4).
+// function (gap-G4.md, lambda-runtime-contract.md 3 and 4).
 //
 // Decisions the architecture leaves open:
 //

@@ -3,6 +3,7 @@
 package goldenapi
 
 import (
+	"maps"
 	"regexp"
 	"slices"
 	"strconv"
@@ -12,12 +13,15 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 )
 
-// pattern0 is "^[a-z]+$".
-var pattern0 = regexp.MustCompile("^[a-z]+$")
+// pattern0 is "^[^!]*$".
+var pattern0 = regexp.MustCompile("^[^!]*$")
 
-// pattern1 is "^(?!-)[a-z-]+$".
-var pattern1All0 = regexp.MustCompile("^[a-z-]+$")
-var pattern1None0 = regexp.MustCompile("^-")
+// pattern1 is "^[a-z]+$".
+var pattern1 = regexp.MustCompile("^[a-z]+$")
+
+// pattern2 is "^(?!-)[a-z-]+$".
+var pattern2All0 = regexp.MustCompile("^[a-z-]+$")
+var pattern2None0 = regexp.MustCompile("^-")
 
 // Validate reports the constraint violations of v in AWS's order; nil
 // means v satisfies every generated constraint.
@@ -51,7 +55,7 @@ func (v *Nested) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "code"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !(pattern1All0.MatchString(v.Code) && !pattern1None0.MatchString(v.Code)) {
+		if !(pattern2All0.MatchString(v.Code) && !pattern2None0.MatchString(v.Code)) {
 			*out = append(*out, awserr.Violation{Path: at(path, "code"), Value: awserr.RenderedText{Text: v.Code}, Constraint: awserr.Pattern{Echo: "^(?!-)[a-z-]+$"}})
 		}
 	}
@@ -75,7 +79,7 @@ func (v *PutKindsInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "name"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		if !pattern0.MatchString(v.Name) {
+		if !pattern1.MatchString(v.Name) {
 			*out = append(*out, awserr.Violation{Path: at(path, "name"), Value: awserr.RenderedText{Text: v.Name}, Constraint: awserr.Pattern{Echo: "[a-z]+"}})
 		}
 		if utf8.RuneCountInString(v.Name) > 8 {
@@ -123,6 +127,38 @@ func (v *PutKindsInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "nested"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		v.Nested.validate(at(path, "nested"), out)
+	}
+	if v.Secret != nil {
+		if !pattern0.MatchString(*v.Secret) {
+			*out = append(*out, awserr.Violation{Path: at(path, "secret"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[^!]*"}})
+		}
+		if utf8.RuneCountInString(*v.Secret) > 8 {
+			*out = append(*out, awserr.Violation{Path: at(path, "secret"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 8}})
+		}
+	}
+	if v.Vault != nil {
+		for _, k2 := range slices.Sorted(maps.Keys(v.Vault)) {
+			e2, vp2 := v.Vault[k2], at(at(path, "vault"), k2, "member")
+			if !pattern0.MatchString(e2) {
+				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[^!]*"}})
+			}
+			if utf8.RuneCountInString(e2) > 8 {
+				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 8}})
+			}
+		}
+	}
+	if v.Hints != nil {
+		for i2, e2 := range v.Hints {
+			p2 := at(at(path, "hints"), strconv.Itoa(i2+1), "member")
+			if e2 != nil {
+				if !pattern0.MatchString(*e2) {
+					*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[^!]*"}})
+				}
+				if utf8.RuneCountInString(*e2) > 8 {
+					*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 8}})
+				}
+			}
+		}
 	}
 }
 
@@ -398,6 +434,11 @@ var policyPutKinds = validationPolicy{
 		{segments: []string{"choice", "number"}, param: "Number"},
 		{segments: []string{"choice", "empty"}, param: "Empty"},
 		{segments: []string{"secret"}, param: "Secret"},
+		{segments: []string{"vault"}, param: "Vault"},
+		{segments: []string{"vault", "*"}, param: "Vault"},
+		{segments: []string{"vault", "*", "member"}, param: "Vault"},
+		{segments: []string{"hints"}, param: "Hints"},
+		{segments: []string{"hints", "*", "member"}, param: "Hints"},
 	},
 	service: []validationRule{{id: IdentityInvalidInput, style: styleCoral}},
 }

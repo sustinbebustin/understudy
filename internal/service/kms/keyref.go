@@ -66,9 +66,9 @@ func (rc reach) check(c *kernel.Call, r keyRef) *awserr.Error {
 	}
 	switch r := r.(type) {
 	case keyByID:
-		return errKeyNotFound(keyARN(r.in, r.id))
+		return errKeyNotFound(keyARN(r.in, r.id).String())
 	case keyByAlias:
-		return errAliasNotFound(aliasARN(r.in, r.name))
+		return errAliasNotFound(aliasARN(r.in, r.name).String())
 	}
 	return awserr.Internalf(&RefError{})
 }
@@ -94,7 +94,12 @@ func parseKeyRef(c *kernel.Call, s string, forms refForms) (keyRef, *awserr.Erro
 	if perr != nil {
 		return nil, errInvalidKeyID(s)
 	}
-	scope.Account = account
+	// An ARN in the caller's partition and region may name another
+	// account's key.
+	scope, rerr := kernel.ResolveScope(c, kernel.CrossAccount{Account: account})
+	if rerr != nil {
+		return nil, rerr
+	}
 	if id, ok := strings.CutPrefix(a.Resource, "key/"); ok {
 		if !validKeyID(id) {
 			return nil, errInvalidKeyID(s)
@@ -167,12 +172,14 @@ func isHex(s string) bool {
 	return true
 }
 
-// keyARN is the ARN of key id in scope.
-func keyARN(scope aws.Scope, id string) string {
-	return aws.ARN{Partition: scope.Partition.String(), Service: "kms", Region: scope.Region.String(), Account: scope.Account.String(), Resource: "key/" + id}.String()
-}
+// keyARN is the ARN of key id in scope; callers render it with String only
+// where it goes on the wire or into a timer id.
+func keyARN(scope aws.Scope, id string) aws.ARN { return kmsARN(scope, "key/"+id) }
 
-// aliasARN is the ARN of the alias name ("alias/..." ) in scope.
-func aliasARN(scope aws.Scope, name string) string {
-	return aws.ARN{Partition: scope.Partition.String(), Service: "kms", Region: scope.Region.String(), Account: scope.Account.String(), Resource: name}.String()
+// aliasARN is the ARN of the alias name ("alias/...") in scope.
+func aliasARN(scope aws.Scope, name string) aws.ARN { return kmsARN(scope, name) }
+
+// kmsARN is the KMS ARN of resource in scope.
+func kmsARN(scope aws.Scope, resource string) aws.ARN {
+	return aws.ARN{Partition: scope.Partition.String(), Service: "kms", Region: scope.Region.String(), Account: scope.Account.String(), Resource: resource}
 }

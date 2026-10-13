@@ -16,6 +16,12 @@ func errQueueDoesNotExist() *awserr.Error {
 	return sqsapi.ErrQueueDoesNotExist("The specified queue does not exist.")
 }
 
+// errInvalidAddress answers a QueueUrl that is neither a queue URL nor a
+// queue name; the text is AWS's as client reports record it.
+func errInvalidAddress(raw string) *awserr.Error {
+	return sqsapi.ErrInvalidAddress("The address " + raw + " is not valid for this endpoint.")
+}
+
 func errQueueExists(attr sqsapi.QueueAttributeName) *awserr.Error {
 	return sqsapi.ErrQueueNameExists("A queue already exists with the same name and a different value for attribute " + string(attr))
 }
@@ -29,8 +35,8 @@ func errUnknownAttribute(name string) *awserr.Error {
 }
 
 // errFifoOnlyAttribute is recorded for DeduplicationScope and
-// FifoThroughputLimit; ContentBasedDeduplication follows the same text
-// (inferred).
+// FifoThroughputLimit only; a standard queue answers
+// ContentBasedDeduplication with errUnknownAttribute (onStandard).
 func errFifoOnlyAttribute(name sqsapi.QueueAttributeName) *awserr.Error {
 	return sqsapi.ErrInvalidAttributeName("You can specify the " + string(name) + " only when FifoQueue is set to true.")
 }

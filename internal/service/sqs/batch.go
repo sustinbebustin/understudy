@@ -20,7 +20,7 @@ func checkBatchIDs(entry string, entryIDs []string) *awserr.Error {
 		return errTooManyEntries(len(entryIDs))
 	}
 	for _, id := range entryIDs {
-		if !validBatchEntryID(id) {
+		if !isSQSToken(id) {
 			return errInvalidBatchEntryID()
 		}
 	}
@@ -41,19 +41,6 @@ func entryIDs[E any](entries []E, id func(*E) string) []string {
 		out[i] = id(&entries[i])
 	}
 	return out
-}
-
-func validBatchEntryID(id string) bool {
-	if len(id) < 1 || len(id) > 80 {
-		return false
-	}
-	for i := range len(id) {
-		b := id[i]
-		if (b < '0' || b > '9') && (b < 'A' || b > 'Z') && (b < 'a' || b > 'z') && b != '-' && b != '_' {
-			return false
-		}
-	}
-	return true
 }
 
 // batchFailure is the Failed entry of a batch entry err refused: the

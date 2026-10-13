@@ -321,6 +321,21 @@ func TestValidateAcceptsRecordedPolicies(t *testing.T) {
 			in:       `{"Version":"2012-10-17","Statement":{"Effect":"Allow","Principal":{"AWS":"111111111111"},"Action":["sts:AssumeRole","sts:TagSession"]}}`,
 		},
 		{
+			// Amazon Q Business's documented trust policy for trusted
+			// identity propagation (amazon-q-business-integrations-iam-trust-policy.html).
+			name:     "trust policy with session context",
+			validate: policydoc.ValidateTrust,
+			in: `{"Version":"2012-10-17","Statement":[{"Sid":"QBusinessTrustPolicy","Effect":"Allow",
+"Principal":{"Service":"qbusiness.amazonaws.com"},"Action":["sts:AssumeRole","sts:SetContext"],
+"Condition":{"StringEquals":{"aws:SourceAccount":"111111111111"},
+"ArnEquals":{"aws:SourceArn":"arn:aws:qbusiness:us-east-1:111111111111:application/app"}}}]}`,
+		},
+		{
+			name:     "trust policy naming a newer STS action",
+			validate: policydoc.ValidateTrust,
+			in:       `{"Version":"2012-10-17","Statement":{"Effect":"Allow","Principal":{"AWS":"111111111111"},"Action":"sts:AssumeRoot"}}`,
+		},
+		{
 			// IAM's Version element page lists 2008-10-17 as supported, and
 			// older roles carry trust policies of that version.
 			name:     "trust policy of the old version",

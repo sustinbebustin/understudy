@@ -1,7 +1,7 @@
 package lambda
 
 import (
-	"strconv"
+	"regexp"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -20,38 +20,25 @@ type functionRef struct {
 	qualifier string
 }
 
-// parseFunctionRef reads name in any of its accepted forms: a bare name,
-// name:qualifier, a partial ARN (123456789012:function:name[:qualifier])
-// or a full ARN. An ARN of another region answers "Functions from '<r>'
-// are not reachable in this region"; one of another account
-// AccessDeniedException. A qualifier in the name that differs from the
-// Qualifier member is "The derived qualifier from the function name does
-// not match the specified qualifier.".
+// parseFunctionRef reads name in any of its accepted forms: a full ARN, or
+// the model's partial grammar [region:][account:][function:]name[:qualifier]
+// (lambda-api.md 3), such as 123456789012:function:name. A name of another
+// region answers "Functions from '<r>' are not reachable in this region";
+// one of another account AccessDeniedException. A qualifier in the name
+// that differs from the Qualifier member is "The derived qualifier from the
+// function name does not match the specified qualifier.".
 func parseFunctionRef(c *kernel.Call, name string, qualifier *string) (functionRef, *awserr.Error) {
 	scope := c.Scope()
 	ref := functionRef{scope: scope}
-	rest := name
-	switch {
-	case strings.HasPrefix(name, "arn:"):
-		a, err := aws.ParseARN(name)
-		fn, ok := strings.CutPrefix(a.Resource, "function:")
-		if err != nil || a.Service != "lambda" || !ok {
-			return functionRef{}, errFunctionNotFound(name)
-		}
-		if a.Region != scope.Region.String() {
-			return functionRef{}, errNotReachable(a.Region, scope.Region.String())
-		}
-		if _, err := kernel.ResolveScope(c, kernel.SameScope{ARN: a, Mismatch: errOtherAccount()}); err != nil {
-			return functionRef{}, err
-		}
-		rest = fn
-	case isPartialARN(name):
-		account, fn, _ := strings.Cut(name, ":function:")
-		a := aws.ARN{Partition: scope.Partition.String(), Service: "lambda", Region: scope.Region.String(), Account: account, Resource: "function:" + fn}
-		if _, err := kernel.ResolveScope(c, kernel.SameScope{ARN: a, Mismatch: errOtherAccount()}); err != nil {
-			return functionRef{}, err
-		}
-		rest = fn
+	a, rest, err := splitFunctionName(scope, name)
+	if err != nil {
+		return functionRef{}, err
+	}
+	if a.Region != scope.Region.String() {
+		return functionRef{}, errNotReachable(a.Region, scope.Region.String())
+	}
+	if _, err := kernel.ResolveScope(c, kernel.SameScope{ARN: a, Mismatch: errOtherAccount()}); err != nil {
+		return functionRef{}, err
 	}
 	ref.name, ref.qualifier, _ = strings.Cut(rest, ":")
 	if qualifier != nil {
@@ -63,15 +50,40 @@ func parseFunctionRef(c *kernel.Call, name string, qualifier *string) (functionR
 	return ref, nil
 }
 
-// isPartialARN reports the 123456789012:function:name form.
-func isPartialARN(s string) bool {
-	account, _, ok := strings.Cut(s, ":function:")
-	if !ok || len(account) != 12 {
-		return false
+// splitFunctionName returns the function ARN name points at, its region
+// and account defaulting to scope's, and the name[:qualifier] it ends
+// with. The prefixes of a partial name are optional each on its own, so
+// a region or account segment is read only before at least two more
+// segments: "fn:1" stays name:qualifier, while "function:" is a prefix
+// wherever it leads, as in the model's left-to-right grammar.
+func splitFunctionName(scope aws.Scope, name string) (aws.ARN, string, *awserr.Error) {
+	if strings.HasPrefix(name, "arn:") {
+		a, err := aws.ParseARN(name)
+		fn, ok := strings.CutPrefix(a.Resource, "function:")
+		if err != nil || a.Service != "lambda" || !ok {
+			return aws.ARN{}, "", errFunctionNotFound(name)
+		}
+		return a, fn, nil
 	}
-	_, err := strconv.ParseUint(account, 10, 64)
-	return err == nil
+	a := aws.ARN{Partition: scope.Partition.String(), Service: "lambda", Region: scope.Region.String(), Account: scope.Account.String()}
+	segments := strings.Split(name, ":")
+	if len(segments) > 2 && regionPrefix.MatchString(segments[0]) {
+		a.Region, segments = segments[0], segments[1:]
+	}
+	if _, err := aws.ParseAccountID(segments[0]); err == nil && len(segments) > 2 {
+		a.Account, segments = segments[0], segments[1:]
+	}
+	if len(segments) > 1 && segments[0] == "function" {
+		segments = segments[1:]
+	}
+	rest := strings.Join(segments, ":")
+	a.Resource = "function:" + rest
+	return a, rest, nil
 }
+
+// regionPrefix is the region segment of the FunctionName grammar
+// (lambda-api.md 3).
+var regionPrefix = regexp.MustCompile(`^(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\d$`)
 
 // unqualified refuses a qualified reference for an operation that applies
 // to the function as a whole.
@@ -106,20 +118,6 @@ func functionARN(scope aws.Scope, name string) string {
 // mappingARN is the ARN of the event source mapping uuid in scope.
 func mappingARN(scope aws.Scope, uuid string) string {
 	return aws.ARN{Partition: scope.Partition.String(), Service: "lambda", Region: scope.Region.String(), Account: scope.Account.String(), Resource: "event-source-mapping:" + uuid}.String()
-}
-
-// scopeOf reads the account and region of an ARN this service minted,
-// as timer ids carry them.
-func scopeOf(a aws.ARN) (aws.Scope, bool) {
-	account, err := aws.ParseAccountID(a.Account)
-	if err != nil {
-		return aws.Scope{}, false
-	}
-	var region aws.Region
-	if err := region.UnmarshalText([]byte(a.Region)); err != nil {
-		return aws.Scope{}, false
-	}
-	return aws.Scope{Partition: aws.PartitionAWS(), Account: account, Region: region}, true
 }
 
 // lookup finds the function a reference names and the version its

@@ -11,6 +11,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
+	"github.com/sustinbebustin/understudy/internal/checksum"
+	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
@@ -122,7 +124,11 @@ func readSpan(o *Object, rangeSpec *string, partNumber *int32) (span, *awserr.Er
 }
 
 // partSpan is part n of o: a multipart object's part, or for an object
-// written in one request the whole object as part 1 (s3.md 5.8).
+// written in one request the whole object as part 1 (s3.md 5.8), served as
+// 206 with a Content-Range and no parts count (LocalStack aws_validated
+// snapshot test_get_object_part, step get-obj-no-multipart). An empty
+// object has no Content-Range to send, so its part 1 is served as the
+// plain object; AWS's answer there is UNVERIFIED.
 func partSpan(o *Object, n int32) (span, *awserr.Error) {
 	parts := o.Parts
 	if len(parts) == 0 {
@@ -133,7 +139,7 @@ func partSpan(o *Object, n int32) (span, *awserr.Error) {
 		return span{}, withField(e, "PartNumberRequested", strconv.Itoa(int(n)))
 	}
 	if len(o.Parts) == 0 {
-		return span{n: o.Size, size: o.Size}, nil
+		return span{partial: o.Size > 0, n: o.Size, size: o.Size}, nil
 	}
 	var first int64
 	for _, p := range parts[:n-1] {
@@ -205,6 +211,9 @@ func (s *Service) getObject(ctx context.Context, c *kernel.Call, in *s3api.GetOb
 	if err != nil {
 		return nil, err
 	}
+	if _, anonymous := c.Principal().(identity.Anonymous); anonymous && overrides(in) {
+		return nil, errAnonymousOverrides()
+	}
 	got, err := s.readObject(ctx, c, at(in.Bucket, in.ExpectedBucketOwner), readRequest{
 		key: in.Key, versionID: in.VersionId, method: http.MethodGet, rangeSpec: in.Range, partNumber: in.PartNumber,
 		conds:  readConditions{ifMatch: in.IfMatch, ifNoneMatch: in.IfNoneMatch, ifModifiedSince: in.IfModifiedSince, ifUnmodifiedSince: in.IfUnmodifiedSince},
@@ -252,6 +261,13 @@ func (s *Service) getObject(ctx context.Context, c *kernel.Call, in *s3api.GetOb
 	return out, nil
 }
 
+// overrides reports whether in sets any response-* query override, which
+// only a signed or presigned request may (s3.md 5.4).
+func overrides(in *s3api.GetObjectInput) bool {
+	return in.ResponseCacheControl != nil || in.ResponseContentDisposition != nil || in.ResponseContentEncoding != nil ||
+		in.ResponseContentLanguage != nil || in.ResponseContentType != nil || in.ResponseExpires != nil
+}
+
 // override applies a response-* query override (s3.md 5.4).
 func override(field **string, v *string) {
 	if v != nil {
@@ -289,8 +305,8 @@ func headOf(got served, mode *s3api.ChecksumMode) *s3api.HeadObjectOutput {
 	h.ServerSideEncryption, h.SSEKMSKeyId, h.BucketKeyEnabled = sse.algorithm, sse.keyID, sse.bucketKey
 	if sum, ok := reportedChecksum(o, got.span); ok && mode != nil && *mode == s3api.ChecksumModeEnabled {
 		m := membersOf(sum)
-		h.ChecksumCRC32, h.ChecksumCRC32C, h.ChecksumCRC64NVME, h.ChecksumSHA1, h.ChecksumSHA256 = m[0], m[1], m[2], m[3], m[4]
-		h.ChecksumSHA512, h.ChecksumMD5, h.ChecksumXXHASH64, h.ChecksumXXHASH3, h.ChecksumXXHASH128 = m[5], m[6], m[7], m[8], m[9]
+		h.ChecksumCRC32, h.ChecksumCRC32C, h.ChecksumCRC64NVME, h.ChecksumSHA1, h.ChecksumSHA256 = m[checksum.CRC32], m[checksum.CRC32C], m[checksum.CRC64NVME], m[checksum.SHA1], m[checksum.SHA256]
+		h.ChecksumSHA512, h.ChecksumMD5, h.ChecksumXXHASH64, h.ChecksumXXHASH3, h.ChecksumXXHASH128 = m[checksum.SHA512], m[checksum.MD5], m[checksum.XXHASH64], m[checksum.XXHASH3], m[checksum.XXHASH128]
 		h.ChecksumType = new(sum.Type)
 	}
 	return h

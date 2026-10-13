@@ -10,6 +10,7 @@ import (
 	"pgregory.net/rapid"
 
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 )
 
 const day = 24 * time.Hour
@@ -318,11 +319,162 @@ func TestPutMetricDataValidation(t *testing.T) {
 		}
 		_, err := call(h, cloudwatchapi.OpPutMetricData, &cloudwatchapi.PutMetricDataInput{Namespace: "AWS/EC2", MetricData: []cloudwatchapi.MetricDatum{{MetricName: "m", Value: new(1.0)}}})
 		wantError(h.T, err, "InvalidParameterValue", "The value AWS/EC2 for parameter Namespace is invalid.")
+		// The namespace is ASCII without control characters (the
+		// PutMetricData documentation).
+		for _, ns := range []string{"App\x01", "App\x7f", "Aplicación"} {
+			_, err = call(h, cloudwatchapi.OpPutMetricData, &cloudwatchapi.PutMetricDataInput{Namespace: ns, MetricData: []cloudwatchapi.MetricDatum{{MetricName: "m", Value: new(1.0)}}})
+			wantError(h.T, err, "InvalidParameterValue", "The value "+ns+" for parameter Namespace is invalid.")
+		}
 		entity := cloudwatchapi.EntityMetricData{MetricData: []cloudwatchapi.MetricDatum{{MetricName: "m", Value: new(1.0)}}}
-		_, err = call(h, cloudwatchapi.OpPutMetricData, &cloudwatchapi.PutMetricDataInput{Namespace: "ns", EntityMetricData: []cloudwatchapi.EntityMetricData{entity, entity, entity}})
+		_, err = call(h, cloudwatchapi.OpPutMetricData, &cloudwatchapi.PutMetricDataInput{Namespace: "ns", EntityMetricData: []cloudwatchapi.EntityMetricData{entity}})
+		wantError(h.T, err, "MissingParameter", "The parameter StrictEntityValidation is required.")
+		_, err = call(h, cloudwatchapi.OpPutMetricData, &cloudwatchapi.PutMetricDataInput{
+			Namespace: "ns", EntityMetricData: []cloudwatchapi.EntityMetricData{entity, entity, entity}, StrictEntityValidation: new(true),
+		})
 		wantError(h.T, err, "InvalidParameterValue", "The collection EntityMetricData must not have a size greater than 2.")
 		if got := must(h, cloudwatchapi.OpListMetrics, &cloudwatchapi.ListMetricsInput{}).Metrics; len(got) != 0 {
 			h.Errorf("a refused request stored %+v", got)
+		}
+	})
+}
+
+// Without strict entity validation an entity error does not refuse the
+// request: its metric data is stored (the PutMetricData documentation).
+func TestPutMetricDataStoresDataPastAnEntityErrorWhenNotStrict(t *testing.T) {
+	run(t, func(h *harness) {
+		entity := cloudwatchapi.EntityMetricData{MetricData: []cloudwatchapi.MetricDatum{{MetricName: "m", Value: new(1.0)}}}
+		must(h, cloudwatchapi.OpPutMetricData, &cloudwatchapi.PutMetricDataInput{
+			Namespace: "ns", EntityMetricData: []cloudwatchapi.EntityMetricData{entity, entity, entity}, StrictEntityValidation: new(false),
+		})
+		if got := results(h.around(stat("n", "m", "SampleCount", 60))); !equalResults(got, []labelled{{"n", "m", []float64{3}}}) {
+			h.Errorf("results = %+v, want the three data points", got)
+		}
+	})
+}
+
+// A datum with both Values and StatisticValues is accepted, as AWS accepts
+// it (AWS-recorded test_put_metric_data_validation), and stores its
+// StatisticValues.
+func TestPutMetricDataAcceptsValuesWithStatisticValues(t *testing.T) {
+	run(t, func(h *harness) {
+		must(h, cloudwatchapi.OpPutMetricData, &cloudwatchapi.PutMetricDataInput{Namespace: "ns", MetricData: []cloudwatchapi.MetricDatum{{
+			MetricName: "m", Values: []float64{1, 10},
+			StatisticValues: &cloudwatchapi.StatisticSet{SampleCount: 10, Sum: 55, Minimum: 1, Maximum: 10},
+		}}})
+		got := results(h.around(stat("n", "m", "SampleCount", 60), stat("s", "m", "Sum", 60)))
+		if want := []labelled{{"n", "m SampleCount", []float64{10}}, {"s", "m Sum", []float64{55}}}; !equalResults(got, want) {
+			h.Errorf("results = %+v\nwant %+v", got, want)
+		}
+	})
+}
+
+// A sub-minute period rounds StartTime down to its own division of the
+// minute, not to the minute: a 10-second query from 01:05:13 starts at
+// 01:05:10 (the GetMetricData documentation).
+func TestGetMetricDataRoundsStartTimeToASubMinutePeriod(t *testing.T) {
+	run(t, func(h *harness) {
+		minute := h.now().Truncate(time.Minute)
+		at := func(offset time.Duration, v float64) cloudwatchapi.MetricDatum {
+			return cloudwatchapi.MetricDatum{MetricName: "m", Value: new(v), Timestamp: new(minute.Add(offset)), StorageResolution: new(int32(1))}
+		}
+		must(h, cloudwatchapi.OpPutMetricData, &cloudwatchapi.PutMetricDataInput{Namespace: "ns", MetricData: []cloudwatchapi.MetricDatum{
+			at(5*time.Second, 1), at(15*time.Second, 2), at(25*time.Second, 4),
+		}})
+		for _, tc := range []struct {
+			period int32
+			start  time.Duration
+			want   []float64
+			first  time.Duration
+		}{
+			{10, 13 * time.Second, []float64{2, 4}, 10 * time.Second},
+			{1, 15 * time.Second, []float64{2, 4}, 15 * time.Second},
+			{60, 23 * time.Second, []float64{7}, 0},
+		} {
+			in := cloudwatchapi.GetMetricDataInput{
+				MetricDataQueries: []cloudwatchapi.MetricDataQuery{stat("s", "m", "Sum", tc.period)},
+				StartTime:         minute.Add(tc.start), EndTime: minute.Add(time.Minute),
+				ScanBy: new(cloudwatchapi.ScanByTimestampAscending),
+			}
+			r := must(h, cloudwatchapi.OpGetMetricData, &in).MetricDataResults[0]
+			if !slices.Equal(r.Values, tc.want) || len(r.Timestamps) == 0 || !r.Timestamps[0].Equal(minute.Add(tc.first)) {
+				h.Errorf("period %d from +%v = %v at %v, want %v from +%v", tc.period, tc.start, r.Values, r.Timestamps, tc.want, tc.first)
+			}
+		}
+	})
+}
+
+// A regular-resolution metric, StorageResolution 60 or absent, is stored at
+// one-minute resolution, so a sub-minute period sees its data only in the
+// period that starts the minute (the MetricDatum documentation).
+func TestGetMetricDataReadsRegularResolutionByTheMinute(t *testing.T) {
+	run(t, func(h *harness) {
+		minute := h.now().Truncate(time.Minute)
+		must(h, cloudwatchapi.OpPutMetricData, &cloudwatchapi.PutMetricDataInput{Namespace: "ns", MetricData: []cloudwatchapi.MetricDatum{
+			{MetricName: "m", Value: new(1.0), Timestamp: new(minute.Add(5 * time.Second))},
+			{MetricName: "m", Value: new(2.0), Timestamp: new(minute.Add(45 * time.Second)), StorageResolution: new(int32(60))},
+		}})
+		in := cloudwatchapi.GetMetricDataInput{
+			MetricDataQueries: []cloudwatchapi.MetricDataQuery{stat("s", "m", "Sum", 10)},
+			StartTime:         minute, EndTime: minute.Add(time.Minute),
+		}
+		r := must(h, cloudwatchapi.OpGetMetricData, &in).MetricDataResults[0]
+		if !slices.Equal(r.Values, []float64{3}) || !r.Timestamps[0].Equal(minute) {
+			h.Errorf("10-second periods = %v at %v, want [3] at the minute", r.Values, r.Timestamps)
+		}
+	})
+}
+
+// Past three hours of age, a StartTime needs a period of whole minutes,
+// past 15 days of five minutes and past 63 days of hours; a finer period
+// reads no data (the MetricStat documentation).
+func TestGetMetricDataNeedsAPeriodForStartTimesAge(t *testing.T) {
+	run(t, func(h *harness) {
+		at := h.now()
+		must(h, cloudwatchapi.OpPutMetricData, &cloudwatchapi.PutMetricDataInput{Namespace: "ns", MetricData: []cloudwatchapi.MetricDatum{
+			{MetricName: "m", Value: new(1.0), StorageResolution: new(int32(1))},
+		}})
+		read := func(period int32) []float64 {
+			h.Helper()
+			return must(h, cloudwatchapi.OpGetMetricData, &cloudwatchapi.GetMetricDataInput{
+				MetricDataQueries: []cloudwatchapi.MetricDataQuery{stat("s", "m", "Sum", period)},
+				StartTime:         at, EndTime: at.Add(time.Hour),
+			}).MetricDataResults[0].Values
+		}
+		for _, tc := range []struct {
+			age             time.Duration
+			served, refused int32
+		}{
+			{3 * time.Hour, 10, 0},
+			{4 * time.Hour, 60, 10},
+			{20 * day, 300, 60},
+			{70 * day, 3600, 300},
+		} {
+			h.advance(at.Add(tc.age).Sub(h.now()))
+			if got := read(tc.served); !slices.Equal(got, []float64{1}) {
+				h.Errorf("age %v, period %d = %v, want [1]", tc.age, tc.served, got)
+			}
+			if tc.refused == 0 {
+				continue
+			}
+			if got := read(tc.refused); len(got) != 0 {
+				h.Errorf("age %v, period %d = %v, want no data", tc.age, tc.refused, got)
+			}
+		}
+	})
+}
+
+// ListMetrics leaves out a metric that has not reported data for two
+// weeks of emulator time (the ListMetrics documentation); its points stay
+// readable.
+func TestListMetricsLeavesOutMetricsQuietForTwoWeeks(t *testing.T) {
+	run(t, func(h *harness) {
+		h.put("old", cloudwatchapi.StandardUnitCount, 1)
+		h.advance(14*day - time.Hour)
+		h.put("new", cloudwatchapi.StandardUnitCount, 1)
+		h.advance(2 * time.Hour)
+		metrics := must(h, cloudwatchapi.OpListMetrics, &cloudwatchapi.ListMetricsInput{Namespace: new("ns")}).Metrics
+		if len(metrics) != 1 || *metrics[0].MetricName != "new" {
+			h.Errorf("ListMetrics = %+v, want only the metric reported within two weeks", metrics)
 		}
 	})
 }
@@ -389,6 +541,78 @@ func TestGetMetricDataValidation(t *testing.T) {
 		}
 		_, err = call(h, cloudwatchapi.OpGetMetricData, &cloudwatchapi.GetMetricDataInput{MetricDataQueries: []cloudwatchapi.MetricDataQuery{stat("a", "m", "Sum", 45)}, StartTime: now, EndTime: now.Add(time.Minute)})
 		wantError(h.T, err, "InvalidParameterValue", "The value 45 for parameter MetricDataQueries.member.1.MetricStat.Period is invalid.")
+		// A name that is no statistic is invalid, not unimplemented.
+		_, err = call(h, cloudwatchapi.OpGetMetricData, &cloudwatchapi.GetMetricDataInput{MetricDataQueries: []cloudwatchapi.MetricDataQuery{stat("a", "m", "median", 60)}, StartTime: now, EndTime: now.Add(time.Minute)})
+		wantError(h.T, err, "InvalidParameterValue", "The value median for parameter MetricDataQueries.member.1.MetricStat.Stat is invalid.")
+		// An Id starts with a lowercase letter and holds letters, digits
+		// and underscores (the MetricDataQuery documentation).
+		for _, id := range []string{"Q1", "my-query", "1q", "_q"} {
+			_, err = call(h, cloudwatchapi.OpGetMetricData, &cloudwatchapi.GetMetricDataInput{MetricDataQueries: []cloudwatchapi.MetricDataQuery{stat(id, "m", "Sum", 60)}, StartTime: now, EndTime: now.Add(time.Minute)})
+			wantError(h.T, err, "InvalidParameterValue", "The value "+id+" for parameter MetricDataQueries.member.1.Id is invalid.")
+		}
+		if err := get(stat("q_1A", "m", "Sum", 60)); err != nil {
+			h.Errorf("a valid Id = %v", err)
+		}
+		queries := make([]cloudwatchapi.MetricDataQuery, 501)
+		for i := range queries {
+			queries[i] = stat(fmt.Sprintf("q%d", i), "m", "Sum", 60)
+		}
+		_, err = call(h, cloudwatchapi.OpGetMetricData, &cloudwatchapi.GetMetricDataInput{MetricDataQueries: queries, StartTime: now, EndTime: now.Add(time.Minute)})
+		wantError(h.T, err, "InvalidParameterValue", "The collection MetricDataQueries must not have a size greater than 500.")
+		if err := get(queries[:500]...); err != nil {
+			h.Errorf("500 queries = %v", err)
+		}
+		dimensioned := stat("a", "m", "Sum", 60)
+		dimensioned.MetricStat.Metric.Dimensions = []cloudwatchapi.Dimension{{Name: "Env", Value: "prod"}, {Name: "Env\x01", Value: "prod"}}
+		_, err = call(h, cloudwatchapi.OpGetMetricData, &cloudwatchapi.GetMetricDataInput{MetricDataQueries: []cloudwatchapi.MetricDataQuery{dimensioned}, StartTime: now, EndTime: now.Add(time.Minute)})
+		wantError(h.T, err, "InvalidParameterValue", "The value Env\x01 for parameter MetricDataQueries.member.1.MetricStat.Metric.Dimensions.member.2.Name is invalid.")
+	})
+}
+
+// A dimension name and value hold only printable ASCII and at least one
+// non-space character, and a name does not start with a colon (the
+// Dimension documentation).
+func TestPutMetricDataDimensionContent(t *testing.T) {
+	run(t, func(h *harness) {
+		put := func(d cloudwatchapi.Dimension) *awserr.Error {
+			_, err := call(h, cloudwatchapi.OpPutMetricData, &cloudwatchapi.PutMetricDataInput{
+				Namespace: "ns", MetricData: []cloudwatchapi.MetricDatum{{MetricName: "m", Value: new(1.0), Dimensions: []cloudwatchapi.Dimension{d}}},
+			})
+			return err
+		}
+		for _, tc := range []struct {
+			d            cloudwatchapi.Dimension
+			param, value string
+		}{
+			{cloudwatchapi.Dimension{Name: "Service", Value: "café"}, "Value", "café"},
+			{cloudwatchapi.Dimension{Name: "Ser\tvice", Value: "api"}, "Name", "Ser\tvice"},
+			{cloudwatchapi.Dimension{Name: "Service", Value: "api\x7f"}, "Value", "api\x7f"},
+			{cloudwatchapi.Dimension{Name: ":shard", Value: "1"}, "Name", ":shard"},
+			{cloudwatchapi.Dimension{Name: "Env", Value: "   "}, "Value", "   "},
+			{cloudwatchapi.Dimension{Name: "  ", Value: "prod"}, "Name", "  "},
+		} {
+			wantError(h.T, put(tc.d), "InvalidParameterValue", "The value "+tc.value+" for parameter MetricData.member.1.Dimensions.member.1."+tc.param+" is invalid.")
+		}
+		if got := must(h, cloudwatchapi.OpListMetrics, &cloudwatchapi.ListMetricsInput{}).Metrics; len(got) != 0 {
+			h.Errorf("a refused request stored %+v", got)
+		}
+		// Spaces inside, and a colon anywhere in a value or past a name's
+		// first character, are allowed.
+		for _, d := range []cloudwatchapi.Dimension{{Name: " a:b ", Value: ":x y~"}, {Name: "~", Value: " ! "}} {
+			if err := put(d); err != nil {
+				h.Errorf("%+v = %s %q, want it accepted", d, err.ID.QueryCode, err.Message)
+			}
+		}
+		// Any character outside printable ASCII refuses a valid value.
+		rapid.Check(bubbleTB{h.T}, func(t *rapid.T) {
+			value := rapid.StringMatching(`[!-~][ -~]{0,8}`).Draw(t, "value")
+			bad := rapid.Rune().Filter(func(r rune) bool { return r < ' ' || r > '~' }).Draw(t, "bad")
+			at := rapid.IntRange(0, len(value)).Draw(t, "at")
+			d := cloudwatchapi.Dimension{Name: "Env", Value: value[:at] + string(bad) + value[at:]}
+			if err := put(d); err == nil || err.ID.QueryCode != "InvalidParameterValue" {
+				t.Fatalf("%q = %v, want InvalidParameterValue", d.Value, err)
+			}
+		})
 	})
 }
 

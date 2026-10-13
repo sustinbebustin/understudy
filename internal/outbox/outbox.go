@@ -61,6 +61,8 @@ type engine struct {
 	// seq is the last Entry.Seq handed out; Import raises it past every
 	// loaded entry's.
 	seq atomic.Uint64
+	// ready runs the attempts onAttempt hands over in firing order.
+	ready sequencer
 }
 
 // The outbox is the kernel's delivery sink and is snapshotted like a
@@ -274,22 +276,12 @@ func (e *scopeError) Error() string { return fmt.Sprintf("%s: %v", e.ARN, e.Err)
 
 func (e *scopeError) Unwrap() error { return e.Err }
 
-// scopeOf returns the account and region an ARN names.
+// scopeOf returns the account and region an ARN names (aws.ScopeOf), with
+// the ARN in its error.
 func scopeOf(a aws.ARN) (aws.Scope, *scopeError) {
-	var s aws.Scope
-	if err := s.Partition.UnmarshalText([]byte(a.Partition)); err != nil {
-		return aws.Scope{}, &scopeError{ARN: a, Err: err}
-	}
-	account, err := aws.ParseAccountID(a.Account)
+	s, err := aws.ScopeOf(a)
 	if err != nil {
 		return aws.Scope{}, &scopeError{ARN: a, Err: err}
-	}
-	s.Account = account
-	if err := s.Region.UnmarshalText([]byte(a.Region)); err != nil {
-		return aws.Scope{}, &scopeError{ARN: a, Err: err}
-	}
-	if s.Partition != aws.PartitionAWS() || s.Region.IsZero() {
-		return aws.Scope{}, &scopeError{ARN: a, Err: fmt.Errorf("partition %q and region %q must both be set", a.Partition, a.Region)}
 	}
 	return s, nil
 }

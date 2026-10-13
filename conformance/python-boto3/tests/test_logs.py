@@ -57,9 +57,6 @@ def filtered(logs: Any, group: str, pattern: str | None = None, **kwargs: Any) -
     return [e["message"] for page in logs.get_paginator("filter_log_events").paginate(**args) for e in page["events"]]
 
 
-# --- Groups and streams -------------------------------------------------------------------------------------
-
-
 def test_create_and_describe_log_group(logs: Any, make_group: Callable[..., str]) -> None:
     name = make_group()
     [group] = logs.describe_log_groups(logGroupNamePrefix=name)["logGroups"]
@@ -148,9 +145,6 @@ def test_deleting_groups_and_streams(logs: Any, make_group: Callable[..., str], 
         logs.delete_log_group(logGroupName=group)
 
 
-# --- PutLogEvents -------------------------------------------------------------------------------------------
-
-
 def test_put_log_events_returns_a_sequence_token_and_stores_events(
     logs: Any, make_group: Callable[..., str], make_stream: Callable[[str, str], str]
 ) -> None:
@@ -217,9 +211,6 @@ def test_too_new_events_are_rejected(logs: Any, make_group: Callable[..., str], 
     assert filtered(logs, group) == ["now"]
 
 
-# --- GetLogEvents -------------------------------------------------------------------------------------------
-
-
 @pytest.fixture
 def five_events(logs: Any, make_group: Callable[..., str], make_stream: Callable[[str, str], str]) -> tuple[str, int]:
     group = make_group()
@@ -270,9 +261,6 @@ def test_get_log_events_rejects_bad_tokens_and_limits(logs: Any, five_events: tu
         "1 validation error detected: Value '10001' at 'limit' failed to satisfy constraint: "
         "Member must have value less than or equal to 10000"
     )
-
-
-# --- FilterLogEvents ---------------------------------------------------------------------------------------------
 
 
 TEXT_EVENTS = [
@@ -444,9 +432,6 @@ def test_filter_interleaves_streams_by_timestamp(logs: Any, make_group: Callable
     assert [(e["message"], e["logStreamName"]) for e in out] == [("a0", "a"), ("b1", "b"), ("a2", "a"), ("b3", "b")]
 
 
-# --- Retention on the emulator clock --------------------------------------------------------------------------------------
-
-
 def test_retention_policy_values(logs: Any, make_group: Callable[..., str]) -> None:
     group = make_group()
     logs.put_retention_policy(logGroupName=group, retentionInDays=7)
@@ -481,12 +466,12 @@ def test_events_older_than_the_retention_period_are_rejected_at_ingestion(
     make_stream(group, "s")
     logs.put_retention_policy(logGroupName=group, retentionInDays=1)
     t = now_ms()
-    out = put(logs, group, "s", [(t - 3 * DAY_MS, "expired"), (t, "kept")])
+    # A batch may span at most 24 hours, so the expired event is exactly one
+    # retention period older than the kept one: past it by the time the
+    # server reads the clock.
+    out = put(logs, group, "s", [(t - DAY_MS, "expired"), (t, "kept")])
     assert out["rejectedLogEventsInfo"]["expiredLogEventEndIndex"] == 1
     assert filtered(logs, group) == ["kept"]
-
-
-# --- Tags -----------------------------------------------------------------------------------------------------------------------
 
 
 def test_log_group_tags_are_shared_between_both_tag_apis(logs: Any, make_group: Callable[..., str]) -> None:
@@ -503,9 +488,6 @@ def test_log_group_tags_are_shared_between_both_tag_apis(logs: Any, make_group: 
     logs.untag_log_group(logGroupName=group, tags=["env"])
     logs.untag_resource(resourceArn=arn, tagKeys=["owner"])
     assert logs.list_tags_for_resource(resourceArn=arn)["tags"] == {"team": "pipeline"}
-
-
-# --- Documents sent as JSON events survive intact ------------------------------------------------------------------------------------------
 
 
 def test_messages_round_trip_byte_exact(logs: Any, make_group: Callable[..., str], make_stream: Callable[[str, str], str]) -> None:

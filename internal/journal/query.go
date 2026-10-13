@@ -4,6 +4,7 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/ids"
@@ -24,7 +25,8 @@ type Filter struct {
 	// ResourceGlob matches the ARNs an event is about: those an API call
 	// touched, both ends and the dead-letter queue of a delivery, the
 	// function of an invocation, the resource of a state change or advisory.
-	// * matches any run of characters, every other character itself.
+	// * matches any run of characters, ? exactly one character, every other
+	// character itself: the grammar of a fault rule's resource glob.
 	ResourceGlob string
 	Kind         Kind
 	Outcome      Result // see ResultOf; kinds without a result never match
@@ -131,7 +133,7 @@ func (j *Journal) candidates(f Filter) idList {
 	}
 	switch {
 	case f.ResourceGlob == "":
-	case !strings.Contains(f.ResourceGlob, "*"):
+	case !isGlob(f.ResourceGlob):
 		consider(j.index.resource[f.ResourceGlob])
 	default:
 		if l, ok := j.globbed(f.ResourceGlob, len(best)); ok {
@@ -199,25 +201,42 @@ func hasResource(d Detail, glob string) bool {
 	return false
 }
 
+// isGlob reports whether pattern has a wildcard, so that it cannot be looked
+// up as one ARN.
+func isGlob(pattern string) bool { return strings.ContainsAny(pattern, "*?") }
+
 // globMatch reports whether s matches pattern, where * matches any run of
-// characters, including none, and every other byte matches itself.
+// characters, including none, ? exactly one character, and every other
+// character itself. It is the grammar of fault rule resource globs
+// (fault.ARNGlob), so a glob that makes a rule fire finds the same calls
+// here. It backtracks only to the most recent *, so it runs in
+// O(len(pattern) * len(s)).
 func globMatch(pattern, s string) bool {
+	star, resume := -1, 0 // pattern index after the last *, and where its match ends in s
 	p, i := 0, 0
-	star, mark := -1, 0 // the last * seen and the s position it resumes from
 	for i < len(s) {
-		switch {
-		case p < len(pattern) && pattern[p] == '*':
-			star, mark = p, i
-			p++
-		case p < len(pattern) && pattern[p] == s[i]:
-			p++
-			i++
-		case star >= 0:
-			mark++
-			p, i = star+1, mark
-		default:
+		if p < len(pattern) {
+			pc, pw := utf8.DecodeRuneInString(pattern[p:])
+			switch {
+			case pc == '*':
+				star, resume = p+pw, i
+				p += pw
+				continue
+			case pc == '?':
+				_, sw := utf8.DecodeRuneInString(s[i:])
+				p, i = p+pw, i+sw
+				continue
+			case strings.HasPrefix(s[i:], pattern[p:p+pw]):
+				p, i = p+pw, i+pw
+				continue
+			}
+		}
+		if star < 0 {
 			return false
 		}
+		_, sw := utf8.DecodeRuneInString(s[resume:])
+		resume += sw
+		p, i = star, resume
 	}
 	for p < len(pattern) && pattern[p] == '*' {
 		p++

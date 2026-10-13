@@ -6,12 +6,14 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/events"
 )
@@ -94,8 +96,7 @@ func TestTerraformRuleAndTargetSequence(t *testing.T) {
 		must(h, eventbridgeapi.OpDeleteRule, &eventbridgeapi.DeleteRuleInput{Name: name, EventBusName: new("default")})
 		_, err = call(h, eventbridgeapi.OpDescribeRule, &eventbridgeapi.DescribeRuleInput{Name: name})
 		wantError(t, err, "ResourceNotFoundException", "Rule nightly does not exist on EventBus default.")
-		_, err = call(h, eventbridgeapi.OpDeleteRule, &eventbridgeapi.DeleteRuleInput{Name: name})
-		wantError(t, err, "ResourceNotFoundException", "Rule nightly does not exist on EventBus default.")
+		must(h, eventbridgeapi.OpDeleteRule, &eventbridgeapi.DeleteRuleInput{Name: name})
 		_, err = call(h, eventbridgeapi.OpRemoveTargets, &eventbridgeapi.RemoveTargetsInput{Rule: name, Ids: []string{"worker"}})
 		wantError(t, err, "ResourceNotFoundException", "Rule nightly does not exist on EventBus default.")
 		_, err = call(h, eventbridgeapi.OpListTargetsByRule, &eventbridgeapi.ListTargetsByRuleInput{Rule: name})
@@ -164,6 +165,10 @@ func TestPutTargetsRequestErrors(t *testing.T) {
 			{eventbridgeapi.Target{Id: "t", Arn: queueARN, Input: new(`not json`)}, "ValidationException", "Parameter Input is not valid."},
 			{eventbridgeapi.Target{Id: "t", Arn: queueARN, InputPath: new(`$..detail`)}, "ValidationException", "Parameter InputPath is not valid."},
 			{eventbridgeapi.Target{Id: "t", Arn: queueARN, DeadLetterConfig: &eventbridgeapi.DeadLetterConfig{Arn: new("arn:aws:sns:us-east-1:000000000000:t")}}, "ValidationException", "Parameter DeadLetterConfig.Arn is not valid."},
+			// EventBridge takes only a standard queue in the rule's region as
+			// a dead-letter queue (eb-rule-dlq.html).
+			{eventbridgeapi.Target{Id: "t", Arn: queueARN, DeadLetterConfig: &eventbridgeapi.DeadLetterConfig{Arn: new("arn:aws:sqs:us-east-1:000000000000:dlq.fifo")}}, "ValidationException", "Parameter DeadLetterConfig.Arn is not valid."},
+			{eventbridgeapi.Target{Id: "t", Arn: queueARN, DeadLetterConfig: &eventbridgeapi.DeadLetterConfig{Arn: new("arn:aws:sqs:us-west-2:000000000000:dlq")}}, "ValidationException", "Parameter DeadLetterConfig.Arn is not valid."},
 		} {
 			_, err := call(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "other", Targets: []eventbridgeapi.Target{tt.target}})
 			wantError(t, err, tt.id, tt.msg)
@@ -186,17 +191,22 @@ func TestPutTargetsRefusesUnsupportedTargetsPerEntry(t *testing.T) {
 				Id: "ecs", Arn: queueARN, EcsParameters: &eventbridgeapi.EcsParameters{TaskDefinitionArn: "arn:aws:ecs:us-east-1:000000000000:task-definition/t:1"},
 				KinesisParameters: &eventbridgeapi.KinesisParameters{PartitionKeyPath: "$.id"},
 			},
+			// AWS delivers to these targets across accounts, not regions.
+			{Id: "west", Arn: "arn:aws:sqs:us-west-2:000000000000:q"},
+			{Id: "other-account", Arn: "arn:aws:sqs:us-east-1:111111111111:q"},
 		}})
-		if out.FailedEntryCount != 3 || len(out.FailedEntries) != 3 {
+		if out.FailedEntryCount != 4 || len(out.FailedEntries) != 4 {
 			t.Fatalf("PutTargets = %+v", out)
 		}
 		for i, want := range []struct{ id, message string }{
-			{"stream", "understudy delivers EventBridge targets to Lambda functions, SQS queues and SNS topics in an account and region it serves, and " +
+			{"stream", "understudy delivers EventBridge targets to Lambda functions, SQS queues and SNS topics in the rule's region (us-east-1), in an account it serves, and " +
 				"arn:aws:kinesis:us-east-1:000000000000:stream/s is none of them; the target was not added. Run 'understudy coverage --service eventbridge' for what is supported."},
 			{"http", "understudy does not implement HttpParameters on EventBridge targets; the target was not added. " +
 				"Run 'understudy coverage --service eventbridge' for what is supported."},
 			{"ecs", "understudy does not implement KinesisParameters, EcsParameters on EventBridge targets; the target was not added. " +
 				"Run 'understudy coverage --service eventbridge' for what is supported."},
+			{"west", "understudy delivers EventBridge targets to Lambda functions, SQS queues and SNS topics in the rule's region (us-east-1), in an account it serves, and " +
+				"arn:aws:sqs:us-west-2:000000000000:q is none of them; the target was not added. Run 'understudy coverage --service eventbridge' for what is supported."},
 		} {
 			f := out.FailedEntries[i]
 			if *f.TargetId != want.id || *f.ErrorCode != "NotImplemented" || *f.ErrorMessage != want.message {
@@ -204,12 +214,43 @@ func TestPutTargetsRefusesUnsupportedTargetsPerEntry(t *testing.T) {
 			}
 		}
 		listed := must(h, eventbridgeapi.OpListTargetsByRule, &eventbridgeapi.ListTargetsByRuleInput{Rule: "r"}).Targets
-		if len(listed) != 1 || listed[0].Id != "q" {
+		if len(listed) != 2 || listed[0].Id != "q" || listed[1].Id != "other-account" {
 			t.Errorf("targets = %+v", listed)
 		}
 		names := must(h, eventbridgeapi.OpListRuleNamesByTarget, &eventbridgeapi.ListRuleNamesByTargetInput{TargetArn: queueARN}).RuleNames
 		if len(names) != 1 || names[0] != "r" {
 			t.Errorf("ListRuleNamesByTarget = %v", names)
+		}
+	})
+}
+
+// A Lambda target ARN must name a function with at most one qualifier,
+// each part non-empty; any other form fails its entry, since every delivery
+// to it would fail.
+func TestPutTargetsRefusesMalformedFunctionARNs(t *testing.T) {
+	run(t, func(h *harness) {
+		h.patternRule("r", `{"source": ["s"]}`)
+		const prefix = "arn:aws:lambda:us-east-1:000000000000:"
+		bad := []string{"function:", "function::1", "function:f:", "function:f:1:extra", "layer:l"}
+		targets := make([]eventbridgeapi.Target, 0, len(bad)+2)
+		for i, resource := range bad {
+			targets = append(targets, eventbridgeapi.Target{Id: "bad" + strconv.Itoa(i), Arn: prefix + resource})
+		}
+		targets = append(targets,
+			eventbridgeapi.Target{Id: "plain", Arn: prefix + "function:f"},
+			eventbridgeapi.Target{Id: "alias", Arn: prefix + "function:f:live"})
+		out := must(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "r", Targets: targets})
+		if int(out.FailedEntryCount) != len(bad) || len(out.FailedEntries) != len(bad) {
+			t.Fatalf("PutTargets = %+v", out)
+		}
+		for i, f := range out.FailedEntries {
+			if *f.TargetId != "bad"+strconv.Itoa(i) || *f.ErrorCode != "NotImplemented" {
+				t.Errorf("failed entry %d = %s %s, want bad%d NotImplemented", i, *f.TargetId, *f.ErrorCode, i)
+			}
+		}
+		listed := must(h, eventbridgeapi.OpListTargetsByRule, &eventbridgeapi.ListTargetsByRuleInput{Rule: "r"}).Targets
+		if len(listed) != 2 || listed[0].Id != "plain" || listed[1].Id != "alias" {
+			t.Errorf("targets = %+v, want plain and alias", listed)
 		}
 	})
 }
@@ -324,6 +365,7 @@ func TestImportRefusesRulesPutRuleWouldRefuse(t *testing.T) {
 		{"rule named other than its key", regexp.MustCompile(`"name":"r"`), `"name":"other"`, ruleSaying("r", "stored under another name")},
 		{"key that is not a rule name", regexp.MustCompile(`"r":\{"name":"r"`), `"a/b":{"name":"a/b"`, ruleSaying("a/b", "not a rule name")},
 		{"more targets than a rule may have", regexp.MustCompile(`"targets":\[(\{[^]]*\})\]`), `"targets":[$1,$1,$1,$1,$1,$1]`, ruleSaying("r", "at most 5")},
+		{"more tags than a rule may have", regexp.MustCompile(`"name":"r"`), `"name":"r","tags":` + manyTags(51), ruleSaying("r", "at most 50")},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			run(t, func(h *harness) {
@@ -353,6 +395,15 @@ func TestImportRefusesRulesPutRuleWouldRefuse(t *testing.T) {
 	}
 }
 
+// manyTags is a stored tags object with n tags.
+func manyTags(n int) string {
+	pairs := make([]string, n)
+	for i := range pairs {
+		pairs[i] = `"k` + strconv.Itoa(i) + `":"v"`
+	}
+	return "{" + strings.Join(pairs, ",") + "}"
+}
+
 // A section whose rules object is null or missing loads as a scope without
 // rules, which later writes can use.
 func TestImportReadsNullRulesAsNone(t *testing.T) {
@@ -372,6 +423,42 @@ func TestImportReadsNullRulesAsNone(t *testing.T) {
 		h.schedule("after", "rate(5 minutes)")
 		if n := len(must(h, eventbridgeapi.OpListRules, &eventbridgeapi.ListRulesInput{}).Rules); n != 1 {
 			h.Errorf("ListRules after the import and one PutRule = %d rules, want 1", n)
+		}
+	})
+}
+
+// Fires that came due while the state was not running, as after a
+// --persist restart, are skipped with one advisory rather than delivered
+// in a burst at Rearm, and the schedule keeps its phase: a rate(10
+// minutes) rule from t0, rearmed at t0+35m, next fires at t0+40m.
+func TestRearmSkipsMissedFires(t *testing.T) {
+	run(t, func(h *harness) {
+		h.schedule("timer", "rate(10 minutes)")
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		h.Kernel.Timers().Scheduler().Clear()
+		h.advance(35 * time.Minute)
+		if err := h.svc.Import(sections); err != nil {
+			t.Fatal(err)
+		}
+		h.svc.Rearm(h.Clock.Now())
+		h.advance(4 * time.Minute)
+		if n := len(h.sink.take()); n != 0 {
+			t.Fatalf("%d deliveries before the next fire in phase, want none: the missed fires were delivered", n)
+		}
+		h.advance(time.Minute)
+		if n := len(h.sink.take()); n != 1 {
+			t.Errorf("%d deliveries at the next fire in phase, want 1", n)
+		}
+		page := h.Kernel.Journal().Query(journal.Filter{Kind: journal.KindAdvisory})
+		if len(page.Events) != 1 {
+			t.Fatalf("%d advisories, want one schedule-fires-skipped", len(page.Events))
+		}
+		if a, ok := page.Events[0].Detail.(journal.Advisory); !ok || a.Kind != journal.AdvisoryScheduleFiresSkipped || !strings.HasSuffix(a.Resource.String(), ":rule/timer") {
+			t.Errorf("advisory = %+v, want schedule-fires-skipped on rule timer", page.Events[0].Detail)
 		}
 	})
 }

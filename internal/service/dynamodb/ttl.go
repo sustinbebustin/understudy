@@ -72,7 +72,7 @@ func (s *Service) updateTimeToLive(ctx context.Context, c *kernel.Call, in *dyna
 		case spec.Enabled && t.TTL != nil && t.TTL.Attribute == spec.AttributeName:
 			return dynamodbapi.ErrValidationException("TimeToLive is already enabled")
 		case spec.Enabled && t.TTL != nil:
-			return dynamodbapi.ErrValidationException("TimeToLive is active on a different AttributeName")
+			return dynamodbapi.ErrValidationException("TimeToLive is active on a different AttributeName: current AttributeName is " + t.TTL.Attribute)
 		case spec.Enabled:
 			t.TTL = &TTLSpec{Attribute: spec.AttributeName}
 		case t.TTL == nil:

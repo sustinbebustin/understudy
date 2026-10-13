@@ -108,6 +108,32 @@ func (s *Service) SubscriptionToken(subscription aws.ARN) (string, *awserr.Error
 	return pending.Token, nil
 }
 
+// read runs fn over the state of scope without creating its cell; false
+// means the scope has no SNS state. fn's result must not alias the state.
+func read[R any](s *Service, scope aws.Scope, fn func(st *State) R) (R, bool) {
+	cell, ok := s.cells.Lookup(scope)
+	if !ok {
+		var zero R
+		return zero, false
+	}
+	return store.Read(cell, fn), true
+}
+
+// readTopic returns a copy of the topic named without the pending
+// subscriptions expired by now.
+func (s *Service) readTopic(named topicRef) (Topic, bool) {
+	type found struct {
+		t  Topic
+		ok bool
+	}
+	now := s.clock.Now()
+	r, _ := read(s, named.scope, func(st *State) found {
+		t, ok := st.writable(named.name, now)
+		return found{t: t, ok: ok}
+	})
+	return r.t, r.ok
+}
+
 // readSubscription returns a copy of the subscription ref names, without
 // creating a cell; an expired pending subscription is gone.
 func (s *Service) readSubscription(named subscriptionRef) (Subscription, bool) {

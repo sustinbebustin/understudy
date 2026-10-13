@@ -58,8 +58,12 @@ EXPOSE 4566
 ENTRYPOINT ["/understudy"]
 CMD ["serve"]
 
+# No --endpoint: health resolves it as every CLI command does, from
+# UNDERSTUDY_ENDPOINT, else the port of UNDERSTUDY_LISTEN on loopback, else
+# http://127.0.0.1:4566. A container started on another port with
+# UNDERSTUDY_LISTEN stays healthy without a second variable.
 HEALTHCHECK --interval=5s --timeout=2s --start-period=3s \
-    CMD ["/understudy", "health", "--endpoint", "http://127.0.0.1:4566"]
+    CMD ["/understudy", "health"]
 
 # GoReleaser's image: its build context holds the prebuilt binary of each
 # platform under <os>/<arch>/.

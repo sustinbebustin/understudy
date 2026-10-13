@@ -1,6 +1,7 @@
 package sqs
 
 import (
+	"regexp"
 	"testing"
 
 	"pgregory.net/rapid"
@@ -26,6 +27,23 @@ func TestQueueURLRoundTrip(t *testing.T) {
 		gotAccount, gotName, ok := parseQueueURL(raw)
 		if !ok || gotAccount != account || gotName != name {
 			rt.Fatalf("parseQueueURL(%q) = %s, %q, %v; want %s, %q", raw, gotAccount, gotName, ok, account, name)
+		}
+	})
+}
+
+// isQueueName takes exactly the names CreateQueue's pattern and 80-character
+// limit admit.
+func TestIsQueueNameMatchesThePattern(t *testing.T) {
+	pattern := regexp.MustCompile(`^` + queueNamePattern + `$`)
+	rapid.Check(t, func(rt *rapid.T) {
+		s := rapid.OneOf(
+			rapid.StringMatching(`[a-zA-Z0-9_-]{0,82}(\.fifo)?`),
+			rapid.StringMatching(`[a-zA-Z0-9_./: -]{0,12}`),
+			rapid.String(),
+		).Draw(rt, "s")
+		want := len(s) <= 80 && pattern.MatchString(s)
+		if got := isQueueName(s); got != want {
+			rt.Fatalf("isQueueName(%q) = %v, want %v", s, got, want)
 		}
 	})
 }

@@ -17,7 +17,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/checksum"
-	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/service/s3/notify"
@@ -93,8 +92,8 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 	}
 	out := &s3api.PutObjectOutput{ETag: new(quote(etag)), ChecksumType: new(s3api.ChecksumTypeFullObject), VersionId: committed.reported}
 	m := membersOf(obj.Checksum)
-	out.ChecksumCRC32, out.ChecksumCRC32C, out.ChecksumCRC64NVME, out.ChecksumSHA1, out.ChecksumSHA256 = m[0], m[1], m[2], m[3], m[4]
-	out.ChecksumSHA512, out.ChecksumMD5, out.ChecksumXXHASH64, out.ChecksumXXHASH3, out.ChecksumXXHASH128 = m[5], m[6], m[7], m[8], m[9]
+	out.ChecksumCRC32, out.ChecksumCRC32C, out.ChecksumCRC64NVME, out.ChecksumSHA1, out.ChecksumSHA256 = m[checksum.CRC32], m[checksum.CRC32C], m[checksum.CRC64NVME], m[checksum.SHA1], m[checksum.SHA256]
+	out.ChecksumSHA512, out.ChecksumMD5, out.ChecksumXXHASH64, out.ChecksumXXHASH3, out.ChecksumXXHASH128 = m[checksum.SHA512], m[checksum.MD5], m[checksum.XXHASH64], m[checksum.XXHASH3], m[checksum.XXHASH128]
 	h := enc.headers()
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
 	if enc.KMS != nil && in.SSEKMSEncryptionContext != nil {
@@ -173,8 +172,9 @@ func readPut(c *kernel.Call, in *s3api.PutObjectInput) (putRequest, *awserr.Erro
 		}
 	}
 	body, err := readUpload(c, in.ContentEncoding, length, checksumMembers{
-		in.ChecksumCRC32, in.ChecksumCRC32C, in.ChecksumCRC64NVME, in.ChecksumSHA1, in.ChecksumSHA256,
-		in.ChecksumSHA512, in.ChecksumMD5, in.ChecksumXXHASH64, in.ChecksumXXHASH3, in.ChecksumXXHASH128,
+		checksum.CRC32: in.ChecksumCRC32, checksum.CRC32C: in.ChecksumCRC32C, checksum.CRC64NVME: in.ChecksumCRC64NVME,
+		checksum.SHA1: in.ChecksumSHA1, checksum.SHA256: in.ChecksumSHA256, checksum.SHA512: in.ChecksumSHA512, checksum.MD5: in.ChecksumMD5,
+		checksum.XXHASH64: in.ChecksumXXHASH64, checksum.XXHASH3: in.ChecksumXXHASH3, checksum.XXHASH128: in.ChecksumXXHASH128,
 	}, in.ChecksumAlgorithm, in.ContentMD5)
 	if err != nil {
 		return putRequest{}, err
@@ -261,10 +261,10 @@ func (s *Service) addVersion(key string, cond writeCondition, obj *Object, actio
 		if err := checkWrite(cond, key, currentValidator(b, key)); err != nil {
 			return committed{}, nil, errConditionalConflict(cond, key)
 		}
-		v := Version{ID: s.newVersionID(b), Modified: clock.FromWire(seconds(w.now.Wire())), Object: obj}
+		v := s.newVersion(b, b.nextSeq(), w.now, obj)
 		released := b.Objects.add(key, v)
 		s.commitObject(w, b, event{key: key, versionID: v.ID, change: notify.Created{Action: action, Size: obj.Size, ETag: obj.ETag}})
-		return committed{version: v, reported: reportedVersion(b, v.ID)}, blobsOf(released), nil
+		return committed{version: v, reported: writtenVersion(b, v.ID)}, blobsOf(released), nil
 	}
 }
 
@@ -476,8 +476,13 @@ func (l *limitReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// bodyError is S3's answer for a body that failed while it was read
-// (DEFERRED.md, S3 objects and checksums).
+// bodyError is S3's answer for a body that failed while it was read: a
+// body over its cap is EntityTooLarge, another error the edge raised at
+// the body's boundary passes through, a short aws-chunked chunk
+// InvalidChunkSizeError with the chunk and its size, a bad trailer
+// MalformedTrailerError, and a truncated body IncompleteBody, as S3 names
+// each; a client that left is RequestAborted, and anything else, which
+// only a fault of understudy's own can cause, is InternalError.
 func bodyError(ctx context.Context, err error) *awserr.Error {
 	if b, ok := errors.AsType[*awserr.BoundaryError](err); ok && b.Err != nil {
 		if b.Err.ID == awserr.RequestEntityTooLarge() {

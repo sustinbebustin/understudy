@@ -44,11 +44,13 @@ type lazyLocal struct {
 var _ dynamodb.Local = (*lazyLocal)(nil)
 
 // Start starts DynamoDB Local, building its manager first. An unaccepted
-// licence is a *ddblocal.LicenceError, before Docker is touched; a start
+// licence is a *ddblocal.LicenceError, before Docker is touched, that also
+// names why Docker is unavailable when it is, so accepting the licence is
+// not the caller's last surprise; a start
 // after shutdown began is errShuttingDown.
 func (l *lazyLocal) Start(ctx context.Context) error {
 	if !l.accepted() {
-		return &ddblocal.LicenceError{Licence: l.licence}
+		return &ddblocal.LicenceError{Licence: l.licence, NoDocker: l.host.missing()}
 	}
 	m, err := l.manager(ctx)
 	if err == nil {
@@ -77,6 +79,16 @@ func (l *lazyLocal) Endpoint() (*url.URL, bool) {
 
 // Transport reaches the running container.
 func (l *lazyLocal) Transport() http.RoundTripper { return localTransport{l} }
+
+// Lost hands a failed request to the manager, which forgets a container
+// that is gone so the next Start launches another.
+func (l *lazyLocal) Lost(ctx context.Context, endpoint *url.URL) error {
+	m, ok := l.current()
+	if !ok {
+		return nil
+	}
+	return m.Lost(ctx, endpoint)
+}
 
 // record keeps a start's outcome for health. A start ended by its caller
 // or by shutdown says nothing about DynamoDB Local.
@@ -172,7 +184,7 @@ func (l *lazyLocal) stop(ctx context.Context) error {
 // last start's error until a start succeeds.
 func (l *lazyLocal) status() admin.ServiceStatus {
 	if !l.accepted() {
-		return admin.ServiceStatus{Status: admin.Disabled, Reason: ddblocal.BannerLine(l.licence)}
+		return admin.ServiceStatus{Status: admin.Disabled, Reason: ddblocal.LicenceState(l.licence)}
 	}
 	l.outcome.Lock()
 	failed := l.failed

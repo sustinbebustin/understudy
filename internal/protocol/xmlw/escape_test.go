@@ -8,9 +8,9 @@ import (
 )
 
 // escapeCases is the AWS SDK escape table (smithy-go encoding/xml/escape.go)
-// extended with numeric references for every other control character, per the
-// T06 spec, and for U+FFFE and U+FFFF, the package's choice. Whether S3 writes
-// them the same way is UNVERIFIED.
+// extended with numeric references for every other control character and for
+// U+FFFE and U+FFFF, the package's choice. Whether S3 writes them the same way
+// is UNVERIFIED.
 var escapeCases = []struct {
 	name, in, want string
 }{

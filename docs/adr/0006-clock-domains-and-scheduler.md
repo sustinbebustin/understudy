@@ -41,3 +41,7 @@ The brief promises one controllable clock for every time-based behavior. The G4 
 
 - Mode changes return what changed: `Freeze() ModeChange[Frozen]`, `Resume() (ModeChange[Running], error)` and `Scale(f) (ModeChange[Scaled], error)`, so the admin endpoints journal `ClockChanged{From, To}` without reading `Mode()` twice. `Restore(at, Mode)` is the only way back in time and serves `reset` and `snapshot load`: the caller runs `Scheduler.Clear()`, then `Restore`, then each service's `Rearm`.
 - Every settable instant must lie within `MaxSkew` (100 years) of wall time, so a `Running` offset and the `Scaled` arithmetic never saturate. `New`, `Advance`, `AdvanceTo`, `Resume` and `Restore` refuse anything further with `*RangeError` and change nothing; the admin API and CLI report it as a client error.
+
+## Amendments (hardening round 2)
+
+- `Rearm(now)` does not replay a schedule's missed fires. When a stored next fire is before `now`, as after a `--persist` restart whose Running clock resumed at wall time, the EventBridge service moves it to the schedule's first fire at or after `now`, walked from the stored fire so a rate keeps its phase, and journals one `schedule-fires-skipped` Advisory per rule naming the skipped span. Only an explicit `Advance` or `AdvanceTo` delivers every fire it passes. A Running clock that jumps while the process runs (a host suspend) still fires due timers one after another, since the scheduler cannot tell that jump from an advance.

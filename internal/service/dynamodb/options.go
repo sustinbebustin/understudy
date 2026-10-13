@@ -27,6 +27,10 @@ type Local interface {
 	Endpoint() (*url.URL, bool)
 	// Transport reaches Endpoint.
 	Transport() http.RoundTripper
+	// Lost reports that a request to endpoint did not reach Local; when
+	// its container is gone, the next Start launches a new one. An error
+	// means whether it is gone could not be told.
+	Lost(ctx context.Context, endpoint *url.URL) error
 }
 
 // The manager is the production Local.
@@ -43,3 +47,5 @@ func (unlicensed) Start(context.Context) error {
 func (unlicensed) Endpoint() (*url.URL, bool) { return nil, false }
 
 func (unlicensed) Transport() http.RoundTripper { return http.DefaultTransport }
+
+func (unlicensed) Lost(context.Context, *url.URL) error { return nil }

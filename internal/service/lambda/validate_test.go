@@ -3,6 +3,7 @@ package lambda_test
 import (
 	"archive/zip"
 	"bytes"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -375,6 +376,69 @@ func TestMappingQueueCheckWrapsSQSErrors(t *testing.T) {
 			"throttled queue check", "InvalidParameterValueException", 400,
 			"Error occurred while ReceiveMessage. SQS Error Code: RequestThrottled. SQS Error Message: Request is throttled.", true,
 		}.check(t, fail(h, lambdaapi.OpCreateEventSourceMapping, &lambdaapi.CreateEventSourceMappingInput{FunctionName: "fn", EventSourceArn: new(queue)}))
+	})
+}
+
+// TestMappingFiltersAreCappedAtFive: a mapping takes up to five filters,
+// the default quota, on create and on update; a sixth is refused and the
+// mapping keeps the filters it had.
+func TestMappingFiltersAreCappedAtFive(t *testing.T) {
+	filters := func(n int) *lambdaapi.FilterCriteria {
+		fc := &lambdaapi.FilterCriteria{Filters: []lambdaapi.Filter{}}
+		for i := range n {
+			fc.Filters = append(fc.Filters, lambdaapi.Filter{Pattern: new(`{"body":{"n":[` + strconv.Itoa(i) + `]}}`)})
+		}
+		return fc
+	}
+	tooMany := golden{"six filters", "InvalidParameterValueException", 400, "FilterCriteria has 6 filters, above the quota of 5 per event source mapping. Combine patterns or remove filters.", true}
+	run(t, lambda.Options{}, func(h *harness) {
+		h.createFunction("fn")
+		tooMany.check(t, fail(h, lambdaapi.OpCreateEventSourceMapping, &lambdaapi.CreateEventSourceMappingInput{FunctionName: "fn", EventSourceArn: new(h.queue("refused")), FilterCriteria: filters(6)}))
+		m := call(h, lambdaapi.OpCreateEventSourceMapping, &lambdaapi.CreateEventSourceMappingInput{FunctionName: "fn", EventSourceArn: new(h.queue("q")), FilterCriteria: filters(5)})
+		if n := len(m.FilterCriteria.Filters); n != 5 {
+			t.Errorf("created with %d filters, want 5", n)
+		}
+		tooMany.check(t, fail(h, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *m.UUID, FilterCriteria: filters(6)}))
+		got := call(h, lambdaapi.OpGetEventSourceMapping, &lambdaapi.GetEventSourceMappingInput{UUID: *m.UUID})
+		if n := len(got.FilterCriteria.Filters); n != 5 {
+			t.Errorf("after the refused update the mapping has %d filters, want its 5", n)
+		}
+		call(h, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *m.UUID, FilterCriteria: filters(4)})
+	})
+}
+
+// TestListRedactsTheFiltersOfAMappingWithAKMSKey: ListEventSourceMappings
+// shows FilterCriteria as null for a mapping whose filters a customer key
+// encrypts; Get and Delete show them (lambda-events.md 1.2).
+func TestListRedactsTheFiltersOfAMappingWithAKMSKey(t *testing.T) {
+	const pattern = `{"body":{"kind":["a"]}}`
+	run(t, lambda.Options{}, func(h *harness) {
+		h.createFunction("fn")
+		criteria := &lambdaapi.FilterCriteria{Filters: []lambdaapi.Filter{{Pattern: new(pattern)}}}
+		keyed := call(h, lambdaapi.OpCreateEventSourceMapping, &lambdaapi.CreateEventSourceMappingInput{
+			FunctionName: "fn", EventSourceArn: new(h.queue("keyed")), FilterCriteria: criteria,
+			KMSKeyArn: new("arn:aws:kms:us-east-1:000000000000:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
+		})
+		plain := call(h, lambdaapi.OpCreateEventSourceMapping, &lambdaapi.CreateEventSourceMappingInput{FunctionName: "fn", EventSourceArn: new(h.queue("plain")), FilterCriteria: criteria})
+		for _, row := range call(h, lambdaapi.OpListEventSourceMappings, &lambdaapi.ListEventSourceMappingsInput{}).EventSourceMappings {
+			switch *row.UUID {
+			case *keyed.UUID:
+				if row.FilterCriteria != nil {
+					t.Errorf("List shows the keyed mapping's FilterCriteria %+v, want null", row.FilterCriteria)
+				}
+			case *plain.UUID:
+				if row.FilterCriteria == nil || *row.FilterCriteria.Filters[0].Pattern != pattern {
+					t.Errorf("List shows the plain mapping's FilterCriteria %+v, want %s", row.FilterCriteria, pattern)
+				}
+			}
+		}
+		got := call(h, lambdaapi.OpGetEventSourceMapping, &lambdaapi.GetEventSourceMappingInput{UUID: *keyed.UUID})
+		deleted := call(h, lambdaapi.OpDeleteEventSourceMapping, &lambdaapi.DeleteEventSourceMappingInput{UUID: *keyed.UUID})
+		for op, m := range map[string]*lambdaapi.EventSourceMappingConfiguration{"Get": got, "Delete": deleted} {
+			if m.FilterCriteria == nil || *m.FilterCriteria.Filters[0].Pattern != pattern {
+				t.Errorf("%s shows the keyed mapping's FilterCriteria %+v, want %s", op, m.FilterCriteria, pattern)
+			}
+		}
 	})
 }
 

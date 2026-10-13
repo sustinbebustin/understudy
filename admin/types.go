@@ -2,7 +2,10 @@ package admin
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"time"
 )
 
@@ -50,6 +53,9 @@ type Health struct {
 	// Listener is the main listener's bound address, such as 0.0.0.0:4566;
 	// absent until it accepts.
 	Listener string `json:"listener,omitempty"`
+	// Clock is the emulator clock: its mode, emulator time and, when
+	// scaled, its factor, as GET /clock reports it; absent until ready.
+	Clock ClockState `json:"clock,omitzero"`
 }
 
 // Topology names how Lambda and DynamoDB Local containers reach
@@ -100,9 +106,16 @@ type ResetRequest struct {
 	Faults bool `json:"faults,omitempty"`
 }
 
-// ResetResult names the services whose state the reset dropped.
+// ResetResult names the services whose state the reset dropped, and what
+// else the request asked to reset.
 type ResetResult struct {
 	Services []string `json:"services"`
+	// Clock is the mode the clock returned to when the request set Clock;
+	// empty when the clock was kept.
+	Clock ClockMode `json:"clock,omitempty"`
+	// Faults is how many fault rules the reset removed: 0 when the request
+	// kept them or there were none.
+	Faults int `json:"faults"`
 }
 
 // ClockMode is how emulator time relates to wall time.
@@ -209,20 +222,23 @@ func (Advance) isClockOp() {}
 func (Set) isClockOp()     {}
 func (Scale) isClockOp()   {}
 
+// clockOpHint shows every clock op's JSON form.
+const clockOpHint = `send {"op": "freeze"}, {"op": "resume"}, {"op": "advance", "by": "90s"}, {"op": "set", "to": "2026-12-31T23:59:00Z"} or {"op": "scale", "factor": 60}`
+
 // ParseClockOp reads the JSON form of a clock op, requiring exactly the
 // members its op takes. A refused op is an *Error with code
 // invalid_request, naming the member at fault.
 func ParseClockOp(data []byte) (ClockOp, error) {
-	var w clockOpJSON
-	if err := decodeStrict(data, &w); err != nil {
-		return nil, &Error{Code: InvalidRequest, Message: "the clock op is not valid JSON: " + err.Error(), Hint: `send {"op": "advance", "by": "90s"}`}
+	w, err := decodeClockOp(data)
+	if err != nil {
+		return nil, err
 	}
 	members := func(field string, by, to, factor bool) error {
 		if (w.By != nil) != by || (w.To != nil) != to || (w.Factor != nil) != factor {
 			return &Error{
 				Code: InvalidRequest, Field: field,
 				Message: fmt.Sprintf("op %q takes %s", w.Op, describeMembers(by, to, factor)),
-				Hint:    `send {"op": "freeze"}, {"op": "resume"}, {"op": "advance", "by": "90s"}, {"op": "set", "to": "2026-12-31T23:59:00Z"} or {"op": "scale", "factor": 60}`,
+				Hint:    clockOpHint,
 			}
 		}
 		return nil
@@ -260,6 +276,58 @@ func ParseClockOp(data []byte) (ClockOp, error) {
 			Known:   []string{opFreeze, opResume, opAdvance, opSet, opScale},
 		}
 	}
+}
+
+// decodeClockOp reads a clock op's members one at a time, so a JSON syntax
+// error, a member no op takes and a member holding the wrong kind of value
+// are each reported as what they are, the last two naming the member.
+func decodeClockOp(data []byte) (clockOpJSON, error) {
+	var raw map[string]json.RawMessage
+	if err := decodeStrict(data, &raw); err != nil {
+		if typeErr, ok := errors.AsType[*json.UnmarshalTypeError](err); ok {
+			return clockOpJSON{}, &Error{Code: InvalidRequest, Message: "the clock op is a JSON " + typeErr.Value + ", not an object", Hint: clockOpHint}
+		}
+		return clockOpJSON{}, &Error{Code: InvalidRequest, Message: "the clock op is not valid JSON: " + err.Error(), Hint: clockOpHint}
+	}
+	for _, name := range slices.Sorted(maps.Keys(raw)) {
+		switch name {
+		case "op", "by", "to", "factor":
+		default:
+			return clockOpJSON{}, &Error{
+				Code: InvalidRequest, Field: name,
+				Message: fmt.Sprintf("%q is not a clock op member; the members are op, by, to and factor", name),
+				Hint:    clockOpHint,
+			}
+		}
+	}
+	var w clockOpJSON
+	if err := decodeClockMember(raw, "op", &w.Op, "a clock op", clockOpHint); err != nil {
+		return clockOpJSON{}, err
+	}
+	if err := decodeClockMember(raw, "by", &w.By, `a duration such as "90s" or "1h30m"`, "a duration is a number with a unit: ns, us, ms, s, m or h"); err != nil {
+		return clockOpJSON{}, err
+	}
+	if err := decodeClockMember(raw, "to", &w.To, `an RFC 3339 time such as "2026-12-31T23:59:00Z"`, clockOpHint); err != nil {
+		return clockOpJSON{}, err
+	}
+	if err := decodeClockMember(raw, "factor", &w.Factor, "a number such as 60", clockOpHint); err != nil {
+		return clockOpJSON{}, err
+	}
+	return w, nil
+}
+
+// decodeClockMember decodes the clock op member name into into, leaving it
+// as it is when the member is absent. A value that does not decode is
+// refused as not being want, quoting the value as sent.
+func decodeClockMember[T any](raw map[string]json.RawMessage, name string, into *T, want, hint string) error {
+	data, ok := raw[name]
+	if !ok {
+		return nil
+	}
+	if err := json.Unmarshal(data, into); err != nil {
+		return &Error{Code: InvalidRequest, Field: name, Message: fmt.Sprintf("%s is not %s", data, want), Hint: hint}
+	}
+	return nil
 }
 
 func describeMembers(by, to, factor bool) string {

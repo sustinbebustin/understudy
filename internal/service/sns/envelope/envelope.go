@@ -90,11 +90,11 @@ func SQSFIFO(n Notification, sequenceNumber string) []byte {
 }
 
 // Lambda renders the event a function subscribed to a standard topic is
-// invoked with (sns.md 5.4). The signature is always version 1, as AWS
-// labels it, whatever the topic's SignatureVersion; signer is the topic's
-// key and certURL where its certificate is served.
-func Lambda(n Notification, subscriptionARN string, signer Signer, certURL string) ([]byte, error) {
-	signature, err := sign(signer, V1, n)
+// invoked with (sns.md 5.4). It is signed with the topic's SignatureVersion
+// but always labelled "1": AWS signs a version 2 topic's event with
+// SHA256withRSA and still reports SignatureVersion "1".
+func Lambda(n Notification, subscriptionARN string, s Signing) ([]byte, error) {
+	signature, err := sign(s.Signer, s.Version, n)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func Lambda(n Notification, subscriptionARN string, signer Signer, certURL strin
 	b = append(b, `,"SignatureVersion":"1","Signature":`...)
 	b = jsonx.AppendString(b, signature)
 	b = append(b, `,"SigningCertUrl":`...)
-	b = jsonx.AppendString(b, certURL)
+	b = jsonx.AppendString(b, s.CertURL)
 	b = append(b, `,"UnsubscribeUrl":`...)
 	b = jsonx.AppendString(b, n.UnsubscribeURL)
 	b = append(b, `,"MessageAttributes":{`...)

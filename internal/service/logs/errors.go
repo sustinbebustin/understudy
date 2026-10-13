@@ -77,15 +77,52 @@ func errStreamNamesAndPrefix() *awserr.Error {
 }
 
 // errBackwardBefore2024 is FilterLogEvents' documented rule for
-// startFromHead=false (inferred text).
+// startFromHead=false with a startTime before 2024 (inferred text).
 func errBackwardBefore2024() *awserr.Error {
-	return logsapi.ErrInvalidParameterException("startFromHead=false requires a startTime on or after 2024-01-01T00:00:00Z.")
+	return logsapi.ErrInvalidParameterException("startFromHead=false does not accept a startTime before 2024-01-01T00:00:00Z.")
 }
 
-// errDeletionProtected answers DeleteLogGroup on a protected group with
-// the ValidationException the model lists for it (inferred text).
-func errDeletionProtected(name string) *awserr.Error {
-	return logsapi.ErrValidationException("Log group " + name + " has deletion protection enabled. Disable deletion protection before deleting the log group.")
+// errDeletionProtected answers DeleteLogGroup on a protected group, in the
+// text the user guide documents
+// (https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/protecting-log-groups-from-deletion.html).
+func errDeletionProtected() *awserr.Error {
+	return logsapi.ErrValidationException("Cannot delete log group with deletion protection enabled. Disable deletion protection first.")
+}
+
+// errStreamDeletionProtected answers DeleteLogStream in a protected group,
+// which deletion protection also covers; the ValidationException is the
+// model's, the text is inferred from errDeletionProtected's.
+func errStreamDeletionProtected() *awserr.Error {
+	return logsapi.ErrValidationException("Cannot delete log stream in a log group with deletion protection enabled. Disable deletion protection first.")
+}
+
+// errIdentifiersAndFilters is DescribeLogGroups' documented rule that
+// logGroupIdentifiers takes no other filter but includeLinkedAccounts
+// (inferred text).
+func errIdentifiersAndFilters() *awserr.Error {
+	return logsapi.ErrInvalidParameterException("logGroupIdentifiers cannot be combined with logGroupNamePrefix, logGroupNamePattern or logGroupClass.")
+}
+
+// errInfrequentAccess refuses GetLogEvents and FilterLogEvents on an
+// INFREQUENT_ACCESS group, which the log class matrix lists as not
+// supported (inferred text).
+func errInfrequentAccess(op string) *awserr.Error {
+	return logsapi.ErrInvalidParameterException(op + " is not supported for log groups in the INFREQUENT_ACCESS log class. Use CloudWatch Logs Insights instead.")
+}
+
+// errFixedRetention refuses a retention change on a DELIVERY group, whose
+// retention the log class documentation fixes (inferred text).
+func errFixedRetention() *awserr.Error {
+	return logsapi.ErrInvalidParameterException("The retention period of a log group in the DELIVERY log class is fixed and cannot be changed.")
+}
+
+// errKMSKey refuses a kmsKeyId that is not the ARN of an enabled symmetric
+// encryption key. The text is the one third-party reports record for a
+// bare key ID (third-party:
+// https://github.com/hashicorp/terraform-provider-aws/issues/41606); that
+// AWS sends it for a missing, disabled or asymmetric key too is inferred.
+func errKMSKey() *awserr.Error {
+	return logsapi.ErrInvalidParameterException("The specified KMS Key Id could not be found.")
 }
 
 // errReservedGroupName refuses a CreateLogGroup name under the reserved
@@ -99,9 +136,24 @@ func errGroupLimit() *awserr.Error {
 	return logsapi.ErrLimitExceededException("Resource limit exceeded.")
 }
 
-// errTooManyTags is the 50-tag limit of a log group (inferred text).
+// errTooManyTags is the 50-tag limit of a log group under TagResource
+// (inferred text), with the modeled resourceName member naming the group's
+// ARN.
 func errTooManyTags(arn string) *awserr.Error {
-	return logsapi.ErrTooManyTagsException("A resource can have no more than " + strconv.Itoa(maxTags) + " tags: " + arn)
+	e := logsapi.ErrTooManyTagsException(tooManyTagsText(arn))
+	e.Fields = append(e.Fields, awserr.Field{Name: "resourceName", Value: arn})
+	return e
+}
+
+// errTooManyTagsLegacy is the same limit under TagLogGroup, whose model
+// lists no TooManyTagsException; the code is its modeled client error, the
+// text errTooManyTags' (inferred).
+func errTooManyTagsLegacy(arn string) *awserr.Error {
+	return logsapi.ErrInvalidParameterException(tooManyTagsText(arn))
+}
+
+func tooManyTagsText(arn string) string {
+	return "A resource can have no more than " + strconv.Itoa(maxTags) + " tags: " + arn
 }
 
 func errFilterPattern(message string) *awserr.Error {

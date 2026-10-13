@@ -21,6 +21,27 @@
         ]
       }
     },
+    "com.amazonaws.kms#AlreadyExistsException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#statusOverride": 400,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_CreateAlias.html"
+        }
+      }
+    },
+    "com.amazonaws.kms#DryRunOperationException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#statusOverride": 400,
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/kms/test_kms.snapshot.json#L2244-L2251",
+          "validated": "2025-04-06"
+        }
+      }
+    },
     "com.amazonaws.kms#NotFoundException": {
       "type": "apply",
       "traits": {
@@ -59,28 +80,6 @@
         "dev.understudy#evidence": {
           "label": "aws-doc",
           "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_ScheduleKeyDeletion.html"
-        }
-      }
-    },
-    "com.amazonaws.kms#CreateKeyRequest$Policy": {
-      "type": "apply",
-      "replace": true,
-      "traits": {
-        "smithy.api#length": {"min": 1, "max": 32768},
-        "dev.understudy#evidence": {
-          "label": "aws-doc",
-          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_CreateKey.html"
-        }
-      }
-    },
-    "com.amazonaws.kms#PutKeyPolicyRequest$Policy": {
-      "type": "apply",
-      "replace": true,
-      "traits": {
-        "smithy.api#length": {"min": 1, "max": 32768},
-        "dev.understudy#evidence": {
-          "label": "aws-doc",
-          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_PutKeyPolicy.html"
         }
       }
     },

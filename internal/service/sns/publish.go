@@ -28,8 +28,10 @@ const (
 	// dedupWindow is how long a FIFO topic remembers a deduplication id
 	// (sns.md 4.3).
 	dedupWindow = 5 * time.Minute
-	// maxSubjectRunes bounds Subject: under 100 characters (sns.md 4.1).
-	maxSubjectRunes = 99
+	// maxSubjectRunes bounds Subject. The API reference says "less than
+	// 100 characters", but AWS accepts 100 and refuses 101 (observed in
+	// moto issue 1503, getmoto/moto#1503).
+	maxSubjectRunes = 100
 	// maxFIFOIDLength bounds MessageGroupId and MessageDeduplicationId.
 	maxFIFOIDLength = 128
 	// maxBatchEntries is PublishBatch's entry limit (sns.md 4.4).
@@ -60,11 +62,14 @@ func (s *Service) bindPublish(b snsapi.Binder) {
 // message is one checked publish: what every subscription's delivery is
 // built from.
 type message struct {
+	// body is the default message: Message itself, or the "default" entry
+	// of a MessageStructure=json Message.
 	body string
-	// wireBytes is the length of Message as published, which the size
-	// limit counts even when MessageStructure=json picks a shorter body.
-	wireBytes int
-	subject   string
+	// wire is Message as published, which the size limit counts and
+	// content-based deduplication hashes even when MessageStructure=json
+	// picks another body.
+	wire    string
+	subject string
 	// perProtocol is the MessageStructure=json message by protocol name,
 	// nil for a plain message.
 	perProtocol map[string]string
@@ -85,11 +90,11 @@ func (m *message) bodyFor(p Protocol) string {
 // size is the message's size against MaximumMessageSize: the Message
 // parameter as sent and every attribute's name, type and value (sns.md
 // 4.1).
-func (m *message) size() int { return m.wireBytes + attributeBytes(m.attributes) }
+func (m *message) size() int { return len(m.wire) + attributeBytes(m.attributes) }
 
 // newMessage checks the members a Publish and a batch entry share.
 func newMessage(body string, subject, structure *string, attrs map[string]snsapi.MessageAttributeValue, groupID, dedupID *string) (message, *awserr.Error) {
-	m := message{body: body, wireBytes: len(body)}
+	m := message{body: body, wire: body}
 	if body == "" {
 		return message{}, errInvalidParameter("Empty message")
 	}
@@ -128,9 +133,9 @@ func newMessage(body string, subject, structure *string, attrs map[string]snsapi
 	return m, nil
 }
 
-// validSubject reports a Subject AWS accepts: non-empty, under 100
-// characters, no line breaks or control characters. Only the empty case
-// is recorded (sns.md 4.1).
+// validSubject reports a Subject AWS accepts: non-empty, at most
+// maxSubjectRunes characters, no line breaks or control characters. Only
+// the empty case is recorded (sns.md 4.1).
 func validSubject(s string) bool {
 	if s == "" || utf8.RuneCountInString(s) > maxSubjectRunes {
 		return false
@@ -154,14 +159,16 @@ func validFIFOID(s string) bool {
 
 // parseStructure parses a MessageStructure=json message: an object with a
 // string "default" and other string members by protocol; members of other
-// types are ignored (sns.md 4.1).
+// types are ignored (sns.md 4.1). AWS documents that duplicate keys are not
+// allowed and fail the whole Publish (API_Publish.html); answering them
+// with the parse-failure text is inferred.
 func parseStructure(body string) (def string, perProtocol map[string]string, err *awserr.Error) {
-	m, ok := parseObject(body)
+	members, ok := uniqueMembers(body)
 	if !ok {
 		return "", nil, errInvalidParameter("Message Structure - JSON message body failed to parse")
 	}
 	perProtocol = map[string]string{}
-	for _, e := range m {
+	for _, e := range members {
 		if v, ok := e.Value.(document.String); ok {
 			perProtocol[e.Key] = string(v)
 		}
@@ -389,12 +396,15 @@ func contentDedupID(body string) string {
 }
 
 // deduplicationID is the message's MessageDeduplicationId, or the content
-// one.
+// one: the hash of "the body of the message", which is Message as
+// published (Smithy Publish MessageDeduplicationId). That this is the whole
+// MessageStructure=json document, not its default entry, is inferred: no
+// recording covers it.
 func (m *message) deduplicationID() string {
 	if m.dedupID != "" {
 		return m.dedupID
 	}
-	return contentDedupID(m.body)
+	return contentDedupID(m.wire)
 }
 
 // dedupKey is what the deduplication window remembers: the id, within its
@@ -567,7 +577,7 @@ func (n notifier) request(sub *Subscription, m *message, p published, to endpoin
 		}
 		req.Target = target
 	case functionEndpoint:
-		event, err := envelope.Lambda(note, subARN, n.signing.Signer, n.signing.CertURL)
+		event, err := envelope.Lambda(note, subARN, n.signing)
 		if err != nil {
 			return delivery.Request{}, awserr.Internalf(err)
 		}

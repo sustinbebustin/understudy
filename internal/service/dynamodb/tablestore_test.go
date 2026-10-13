@@ -2,6 +2,7 @@ package dynamodb_test
 
 import (
 	"encoding/json"
+	"errors"
 	"maps"
 	"math/big"
 	"net/http"
@@ -78,7 +79,7 @@ func (s *tableStore) serve(op, body string) reply {
 	switch op {
 	case "CreateTable":
 		if t != nil {
-			return localErr("com.amazonaws.dynamodb.v20120810#ResourceInUseException", "Table already exists: "+in.TableName)
+			return localErr("com.amazonaws.dynamodb.v20120810#ResourceInUseException", "Cannot create preexisting table")
 		}
 		s.tables[in.TableName] = newFakeTable(in)
 		return ok(map[string]any{"TableDescription": s.tables[in.TableName].desc})
@@ -181,11 +182,23 @@ func unchangedThroughput(reads, writes int64) map[string]any {
 	}
 }
 
+// localWallClock is the wall-clock instant Local stamps a change with.
+const localWallClock = "1791845914.945"
+
 // updateTable answers as Local does: "Nothing to update" when only the
-// members Local ignores are set.
+// members Local ignores are set. A switch to PAY_PER_REQUEST stamps
+// LastUpdateToPayPerRequestDateTime from the wall clock, and a switch back
+// to PROVISIONED keeps it (dynamodb-local.md 4.2); an index created gets
+// no WarmThroughput.
 func (t *fakeTable) updateTable(body string) reply {
 	var members map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(body), &members); err != nil {
+		return localErr("com.amazon.coral.service#SerializationException", err.Error())
+	}
+	if err := t.switchBilling(members["BillingMode"]); err != nil {
+		return localErr("com.amazon.coral.service#SerializationException", err.Error())
+	}
+	if err := t.createIndexes(members["GlobalSecondaryIndexUpdates"]); err != nil {
 		return localErr("com.amazon.coral.service#SerializationException", err.Error())
 	}
 	var throughput struct{ ReadCapacityUnits, WriteCapacityUnits int64 }
@@ -207,6 +220,70 @@ func (t *fakeTable) updateTable(body string) reply {
 		}
 	}
 	return localErr("com.amazon.coral.validate#ValidationException", "Nothing to update")
+}
+
+// switchBilling applies an UpdateTable's BillingMode, raw; nil changes
+// nothing.
+func (t *fakeTable) switchBilling(raw json.RawMessage) error {
+	if raw == nil {
+		return nil
+	}
+	var mode string
+	if err := json.Unmarshal(raw, &mode); err != nil {
+		return err
+	}
+	summary := map[string]any{"BillingMode": mode}
+	if was, has := t.desc["BillingModeSummary"].(map[string]any); has && was["LastUpdateToPayPerRequestDateTime"] != nil {
+		summary["LastUpdateToPayPerRequestDateTime"] = was["LastUpdateToPayPerRequestDateTime"]
+	}
+	switch mode {
+	case "PAY_PER_REQUEST":
+		summary["LastUpdateToPayPerRequestDateTime"] = json.Number(localWallClock)
+		delete(t.desc, "ProvisionedThroughput")
+	case "PROVISIONED":
+		if t.desc["ProvisionedThroughput"] == nil {
+			t.desc["ProvisionedThroughput"] = unchangedThroughput(0, 0)
+		}
+	}
+	t.desc["BillingModeSummary"] = summary
+	return nil
+}
+
+// createIndexes adds the indexes an UpdateTable's
+// GlobalSecondaryIndexUpdates, raw, create; nil changes nothing.
+func (t *fakeTable) createIndexes(raw json.RawMessage) error {
+	if raw == nil {
+		return nil
+	}
+	var updates []struct {
+		Create *struct {
+			IndexName             string
+			KeySchema, Projection json.RawMessage
+		}
+	}
+	if err := json.Unmarshal(raw, &updates); err != nil {
+		return err
+	}
+	var indexes []map[string]any
+	if have, has := t.desc["GlobalSecondaryIndexes"].([]map[string]any); has {
+		indexes = have
+	}
+	arn, has := t.desc["TableArn"].(string)
+	if !has {
+		return errors.New("the fake table has no TableArn")
+	}
+	for _, u := range updates {
+		if u.Create == nil {
+			continue
+		}
+		indexes = append(indexes, map[string]any{
+			"IndexName": u.Create.IndexName, "KeySchema": u.Create.KeySchema, "Projection": u.Create.Projection, "IndexStatus": "CREATING",
+			"IndexArn":  arn + "/index/" + u.Create.IndexName,
+			"ItemCount": 0, "IndexSizeBytes": 0,
+		})
+	}
+	t.desc["GlobalSecondaryIndexes"] = indexes
+	return nil
 }
 
 // keyOf is the canonical encoding of the key attributes of it.

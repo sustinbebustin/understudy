@@ -157,27 +157,39 @@ To accept, start understudy with ` + AcceptFlag + ` or set ` + AcceptEnv + `=1.`
 }
 
 // BannerLine is the startup banner's and understudy env's line for l.
-func BannerLine(l Licence) string {
+func BannerLine(l Licence) string { return "DynamoDB: " + LicenceState(l) }
+
+// LicenceState is what l means for DynamoDB, without naming DynamoDB, for
+// a place that already does, such as the health row of dynamodb-local.
+func LicenceState(l Licence) string {
 	switch l := l.(type) {
 	case Accepted:
 		if covers(l) {
-			return "DynamoDB: DynamoDB Local licence accepted for " + Reference()
+			return "DynamoDB Local licence accepted for " + Reference()
 		}
 	case Disabled:
-		return "DynamoDB: disabled by configuration"
+		return "disabled by configuration"
 	case AwaitingLicence, nil:
 	}
-	return "DynamoDB: disabled until you accept the DynamoDB Local licence: start with " + AcceptFlag + " or set " + AcceptEnv + "=1"
+	return "disabled until you accept the DynamoDB Local licence: start with " + AcceptFlag + " or set " + AcceptEnv + "=1"
 }
 
 // LicenceError is a Start refused because l does not cover the pinned
 // image; its message is what a DynamoDB call answers.
-type LicenceError struct{ Licence Licence }
+type LicenceError struct {
+	Licence Licence
+	// NoDocker, when set, says why Docker is unavailable too, so a caller
+	// who accepts the licence is not then refused for Docker.
+	NoDocker string
+}
 
 func (e *LicenceError) Error() string {
 	if _, ok := e.Licence.(Disabled); ok {
 		return "The DynamoDB service is disabled by the DynamoDB setting of the understudy configuration (understudy.json, or the file --config names); " +
 			"remove that setting and restart understudy to use DynamoDB."
+	}
+	if e.NoDocker != "" {
+		return Notice() + " DynamoDB Local also needs Docker, which is unavailable: " + e.NoDocker + "."
 	}
 	return Notice()
 }

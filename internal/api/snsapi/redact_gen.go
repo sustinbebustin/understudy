@@ -459,17 +459,17 @@ func (v *VerifySMSSandboxPhoneNumberOutput) Redact() *VerifySMSSandboxPhoneNumbe
 }
 
 func (v CheckIfPhoneNumberIsOptedOutInput) redacted() CheckIfPhoneNumberIsOptedOutInput {
-	v.PhoneNumber = *new(string)
+	v.PhoneNumber = redactedText
 	return v
 }
 
 func (v CreateSMSSandboxPhoneNumberInput) redacted() CreateSMSSandboxPhoneNumberInput {
-	v.PhoneNumber = *new(string)
+	v.PhoneNumber = redactedText
 	return v
 }
 
 func (v DeleteSMSSandboxPhoneNumberInput) redacted() DeleteSMSSandboxPhoneNumberInput {
-	v.PhoneNumber = *new(string)
+	v.PhoneNumber = redactedText
 	return v
 }
 
@@ -489,17 +489,17 @@ func (v ListSMSSandboxPhoneNumbersOutput) redacted() ListSMSSandboxPhoneNumbersO
 }
 
 func (v OptInPhoneNumberInput) redacted() OptInPhoneNumberInput {
-	v.PhoneNumber = *new(string)
+	v.PhoneNumber = redactedText
 	return v
 }
 
 func (v PublishInput) redacted() PublishInput {
-	v.PhoneNumber = nil
+	v.PhoneNumber = redactedPtr(v.PhoneNumber)
 	return v
 }
 
 func (v VerifySMSSandboxPhoneNumberInput) redacted() VerifySMSSandboxPhoneNumberInput {
-	v.PhoneNumber = *new(string)
+	v.PhoneNumber = redactedText
 	return v
 }
 
@@ -520,7 +520,7 @@ func redactPhoneNumberList(v []string) []string {
 	}
 	out := make([]string, len(v))
 	for i := range v {
-		out[i] = *new(string)
+		out[i] = redactedText
 	}
 	return out
 }
@@ -537,11 +537,22 @@ func redactSMSSandboxPhoneNumberList(v []SMSSandboxPhoneNumber) []SMSSandboxPhon
 }
 
 func (v PhoneNumberInformation) redacted() PhoneNumberInformation {
-	v.PhoneNumber = nil
+	v.PhoneNumber = redactedPtr(v.PhoneNumber)
 	return v
 }
 
 func (v SMSSandboxPhoneNumber) redacted() SMSSandboxPhoneNumber {
-	v.PhoneNumber = nil
+	v.PhoneNumber = redactedPtr(v.PhoneNumber)
 	return v
+}
+
+// redactedText stands in for a sensitive string the client sent.
+const redactedText = "[redacted]"
+
+// redactedPtr is redactedText in place of a present *p, nil for nil.
+func redactedPtr[T ~string](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	return new(T(redactedText))
 }

@@ -74,17 +74,15 @@ func (o *Outbox) Rearm(clock.Instant) {
 		if !ok {
 			continue
 		}
-		pending := store.Read(cell, func(st *State) []clock.Armed {
-			armable := st.armable()
-			out := make([]clock.Armed, 0, len(armable))
-			for _, en := range armable {
-				out = append(out, clock.Armed{Key: e.attempt.Key(timerID(scope, en.ID)), Due: en.NextAt})
+		// Armed under the cell lock, where Enqueue arms, so a concurrent
+		// write either commits first and is read here, or commits after
+		// and its own arm replaces this one.
+		store.Read(cell, func(st *State) struct{} {
+			for _, en := range st.armable() {
+				sched.Arm(e.attempt.Key(timerID(scope, en.ID)), en.NextAt)
 			}
-			return out
+			return struct{}{}
 		})
-		for _, a := range pending {
-			sched.Arm(a.Key, a.Due)
-		}
 	}
 }
 

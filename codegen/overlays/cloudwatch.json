@@ -33,6 +33,26 @@
         }
       }
     },
+    "com.amazonaws.cloudwatch#PutMetricAlarm": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#maxRequestBytes": 122880,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricAlarm.html"
+        }
+      }
+    },
+    "com.amazonaws.cloudwatch#PutMetricData": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#maxRequestBytes": 1048576,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html"
+        }
+      }
+    },
     "com.amazonaws.cloudwatch#ResourceNotFound": {
       "type": "apply",
       "traits": {

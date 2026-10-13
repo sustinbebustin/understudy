@@ -12,9 +12,9 @@
 // &#34; and &#39;, tab, LF and CR as numeric references (so CR and attribute
 // whitespace survive parsing), and NEL U+0085 and LINE SEPARATOR U+2028 as
 // numeric references. Where the SDK replaces characters outside the XML 1.0
-// Char production with U+FFFD, this writer, per the phase 1 plan (task T06),
-// emits a numeric reference for every control character, and does the same for
-// U+FFFE and U+FFFF, so the code point is not lost silently. Whether S3 writes
+// Char production with U+FFFD, this writer emits a numeric reference for every
+// control character, and does the same for U+FFFE and U+FFFF, so the code
+// point is not lost silently. Whether S3 writes
 // such characters the same way is UNVERIFIED. Strict XML 1.0 parsers, Decode
 // among them, reject those references; a listing that may carry such keys
 // should use encoding-type=url. Bytes that are not valid UTF-8 are each

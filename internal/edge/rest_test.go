@@ -1,11 +1,15 @@
 package edge_test
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/edge"
 	"github.com/sustinbebustin/understudy/internal/journal"
@@ -68,6 +72,48 @@ func TestS3RequestWithoutPayloadHashReachesS3(t *testing.T) {
 	}
 	if page := f.journal.Query(journal.Filter{Kind: journal.KindUnclaimed}); len(page.Events) != 0 {
 		t.Errorf("the request was journaled as Unclaimed: %+v", page.Events[0].Detail)
+	}
+}
+
+// A LocalStack path, such as a migrated health check's, is never S3's
+// bucket "_localstack", which no bucket name can be: it is 404 in the admin
+// API's JSON error envelope naming understudy's own health check, and is
+// journaled as Unclaimed rather than as an S3 call. A bare /health is a
+// valid bucket path and stays S3's.
+func TestLocalStackPathsNameUnderstudysHealthCheck(t *testing.T) {
+	for _, c := range []struct{ path, signedFor string }{
+		{"/_localstack/health", ""},
+		{"/_localstack/health", "s3"},
+		{"/_localstack", ""},
+		{"/_localstack/init/ready", ""},
+	} {
+		f := newFront(t, map[ref.ProtocolID]edge.Codec{ref.RESTXML: xmlCodec{}}, s3())
+		rec := httptest.NewRecorder()
+		f.handler.ServeHTTP(rec, request(t, http.MethodGet, c.path, nil, "", c.signedFor))
+		var env admin.Envelope
+		if err := json.Unmarshal(rec.Body.Bytes(), &env); err != nil || env.Error == nil {
+			t.Errorf("GET %s signed for %q: body %q is not the admin error envelope: %v", c.path, c.signedFor, rec.Body, err)
+			continue
+		}
+		if rec.Code != http.StatusNotFound || rec.Header().Get("Content-Type") != "application/json" || env.Error.Code != admin.NotFound {
+			t.Errorf("GET %s signed for %q = %d %s %+v, want 404 application/json not_found", c.path, c.signedFor, rec.Code, rec.Header().Get("Content-Type"), env.Error)
+		}
+		for _, want := range []string{"GET " + admin.Prefix + "/health", "understudy health --wait"} {
+			if !strings.Contains(env.Error.Hint, want) {
+				t.Errorf("GET %s: hint %q does not name %q", c.path, env.Error.Hint, want)
+			}
+		}
+		if calls := f.journal.Query(journal.Filter{Kind: journal.KindAPICall}).Events; len(calls) != 0 {
+			t.Errorf("GET %s was journaled as an API call: %+v", c.path, calls[0].Detail)
+		}
+		reasons := f.unclaimedReasons(t)
+		if !slices.ContainsFunc(reasons, func(r string) bool { return strings.HasPrefix(r, "rule 1: ") && strings.Contains(r, "LocalStack") }) {
+			t.Errorf("GET %s: journaled reasons = %q, want rule 1 naming LocalStack", c.path, reasons)
+		}
+	}
+	f := newFront(t, map[ref.ProtocolID]edge.Codec{ref.RESTXML: xmlCodec{}}, s3())
+	if got := f.serve(t, request(t, http.MethodGet, "/health", nil, "", "")); !strings.HasPrefix(got, "501\n") || !strings.Contains(got, "X-Amz-Request-Id: ") {
+		t.Errorf("GET /health, the bucket health, did not reach S3:\n%s", got)
 	}
 }
 

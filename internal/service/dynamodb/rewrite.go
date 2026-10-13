@@ -29,6 +29,10 @@ type answer struct {
 	// shim completes the table description of a successful table
 	// operation; nil for the other operations.
 	shim *shimmed
+	// echo puts back the table ARNs an item operation's request named its
+	// tables by; nil when it named them by name, and for the other
+	// operations.
+	echo *tableEcho
 }
 
 // Local mints every ARN in this account and region, whatever the
@@ -51,6 +55,14 @@ func awsNotFound(table string) string {
 	}
 	return "Requested resource not found: Table: " + table + " not found"
 }
+
+// localPreexisting is Local's text for a CreateTable of a table that
+// exists.
+const localPreexisting = "Cannot create preexisting table"
+
+// awsPreexisting is AWS's text for a CreateTable of a table that exists,
+// which idempotent bootstrap code matches.
+func awsPreexisting(table string) string { return "Table already exists: " + table }
 
 // rewrite returns Local's answer as the client receives it. A table
 // operation's ARNs are moved into the caller's account and region; an
@@ -96,7 +108,7 @@ func rewrite(c *kernel.Call, a answer, local kernel.RawResponse) (kernel.RawResp
 // when the answer is to pass through: it needs no rewrite, or it is not
 // JSON (Local's 500 pages), which only Local can explain.
 func rewritten(c *kernel.Call, a answer, local kernel.RawResponse) (document.Value, bool) {
-	if local.Status == http.StatusOK && !a.arns {
+	if local.Status == http.StatusOK && !a.arns && a.echo == nil {
 		return nil, false
 	}
 	dec := jsonx.NewDecoder(local.Body)
@@ -109,9 +121,15 @@ func rewritten(c *kernel.Call, a answer, local kernel.RawResponse) (document.Val
 		return nil, false
 	}
 	if local.Status == http.StatusOK {
-		changed := rewriteARNs(m, c.Scope())
+		changed := false
+		if a.arns {
+			changed = rewriteARNs(m, c.Scope())
+		}
 		if a.shim != nil {
 			changed = a.shim.complete(m) || changed
+		}
+		if a.echo != nil {
+			changed = a.echo.apply(m) || changed
 		}
 		return m, changed
 	}
@@ -164,8 +182,9 @@ func scoped(arn string, scope aws.Scope) (string, bool) {
 }
 
 // fixError puts an error body's message under the member spelling of its
-// __type's shape and translates Local's texts, reporting whether it changed
-// anything. A __type the operation does not send stays as Local wrote it.
+// __type's shape and translates Local's texts for a missing and a
+// preexisting table, reporting whether it changed anything. A __type the
+// operation does not send stays as Local wrote it.
 func fixError(m document.Map, op *registry.Operation, a answer) bool {
 	id := identityOf(m, op)
 	if id == nil {
@@ -176,8 +195,14 @@ func fixError(m document.Map, op *registry.Operation, a answer) bool {
 		return false
 	}
 	changed := false
-	if text, ok := m[at].Value.(document.String); ok && text == localNotFound && id.Shape == dynamodbapi.IdentityResourceNotFoundException().Shape {
+	text, isText := m[at].Value.(document.String)
+	switch {
+	case !isText:
+	case text == localNotFound && id.Shape == dynamodbapi.IdentityResourceNotFoundException().Shape:
 		m[at].Value = document.String(awsNotFound(a.table))
+		changed = true
+	case text == localPreexisting && id.Shape == dynamodbapi.IdentityResourceInUseException().Shape && a.table != "":
+		m[at].Value = document.String(awsPreexisting(a.table))
 		changed = true
 	}
 	switch id.MessageKey {

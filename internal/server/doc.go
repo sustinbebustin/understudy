@@ -15,10 +15,15 @@
 //     bindings, extra regions) arrive as strings and are parsed in wire.go.
 //     The CLI reads the environment, including DOCKER_HOST, and this
 //     package reads none.
-//   - A non-loopback listen address needs an admin token or the
-//     ContainerPublished exposure, which New accepts only inside a
-//     container, recognized by the markers topology.RunsInContainer reads;
-//     otherwise New refuses with a *ListenError that explains both.
+//   - A non-loopback listen address needs the ContainerPublished exposure,
+//     which New accepts only inside a container with its own network
+//     namespace, outside Kubernetes (config.DetectPlacement), or, on the
+//     host, an admin token and
+//     AWSAPIUnauthenticated: the token guards only the admin API, and the
+//     AWS API verifies no signature in this build, so serving it beyond
+//     loopback is an explicit choice. Otherwise New refuses with a
+//     *ListenError that explains the options, and the banner warns about
+//     what an accepted one exposes.
 //     An IPv4 address listens on IPv4 only, and a wildcard listener is
 //     advertised (ready file, banner) at loopback.
 //   - The admin API (internal/server/admin) serves the /_understudy/v1/
@@ -47,11 +52,16 @@
 //     containerHost, which stands in for all three until then, so the
 //     admin hooks and snapshots see the execution layer from the start.
 //     Without Docker configured, or without its socket, no pool is built:
-//     Invoke answers ServiceException naming Docker and the control planes
-//     keep working.
+//     Invoke answers 501 NotImplemented naming Docker and the control
+//     planes keep working.
 //   - The container listener serves the AWS API and, from the admin
 //     prefix, only health and clock (edge.ListenerContainer); it opens on
 //     the topology's address at the main port and closes with the others.
+//     It accepts only peers inside the subnet of the host interface that
+//     holds that address (the bridge network) and closes every other
+//     connection with a warning: Linux accepts packets for a local address
+//     on any interface, so a LAN peer routing the bridge subnet through
+//     this host would otherwise reach the AWS API (peers.go).
 //   - DynamoDB Local's manager is built at its first start, when the
 //     topology says which network it joins (lazyLocal). With an accepted
 //     licence and the pinned image already present it starts in the
@@ -60,21 +70,33 @@
 //   - Containers are owned per data directory: the owner label is a hash
 //     of the directory's absolute path, so a restart on the same directory
 //     sweeps what a crashed run left, under the directory's flock. Without
-//     persistence the owner is the run itself, nothing is swept, and
-//     `understudy cleanup` removes leftovers.
+//     persistence the owner is the run's identity (runs.go): boot id, PID
+//     namespace, PID, process start time and instance, which also names
+//     its temporary directory (blob spill and extracted code). Every serve
+//     removes, in the background at start, the containers, networks and
+//     temporary directories of such runs whose process is gone; a run of
+//     another boot or PID namespace is never judged gone. Where there is no
+//     procfs the owner is random and `understudy cleanup` removes
+//     leftovers.
 //   - Persistence (persist.go) locks <dir>/.lock, keeps blobs in
 //     <dir>/blobs and the archive at <dir>/state.snapshot, loaded in New.
 //     A checkpoint is a snapshot cut whose sections and fault rules are
 //     hashed; it is written only when that digest differs from the last
 //     saved, since the clock, journal counter and id positions move without
 //     any state changing, and always at shutdown. The blob store is synced
-//     before the archive is renamed into place, and the blobs the archive
-//     on disk names stay pinned until a newer one replaces it, so a crash
-//     after a delete loses only the changes since the last checkpoint.
-//     Extracted function code lives in <dir>/code, or a temporary
-//     directory without persistence.
+//     before the archive is renamed into place and the directory is synced
+//     after, and the blobs the archive on disk names stay pinned until a
+//     newer one has durably replaced it, so a crash after a delete loses
+//     only the changes since the last checkpoint. At start a Running clock
+//     resumes at the later of the saved instant and wall time, since wall
+//     time passed while no serve ran; a Frozen or Scaled one resumes from
+//     the saved instant.
+//     Extracted function code lives in <dir>/code, or in the run's
+//     temporary directory without persistence.
 //   - The TLS listener's certificate is generated at every start
-//     (ECDSA P-256, its own CA, SANs localhost, *.localhost, 127.0.0.1), and
+//     (ECDSA P-256, its own CA, SANs localhost, *.localhost, 127.0.0.1,
+//     with critical name constraints to localhost, names under it and
+//     loopback addresses, so as a trust root it vouches for nothing else), and
 //     its URL is the ready file's tlsEndpoint. The certificate is not
 //     written to disk; a client trusts it by reading it from the handshake.
 //   - The admin hooks (draining, pollers, hot reload, image pulls, the TTL
@@ -83,6 +105,10 @@
 //     PolicySource routes on the target ARN's service to SQS, SNS or
 //     Lambda, which read the queue's Policy, the topic's Policy and the
 //     function's permissions for the access advisory.
+//   - Each service is named in apis(), its constructor block and its
+//     collect call; New refuses a registered service that is not collected
+//     with an *UncollectedServiceError, so none can silently drop out of
+//     snapshots, persistence, resets and the resource listing.
 //   - The kernel takes its Linker before the Lambda execution layer that
 //     implements it exists, so wire.go hands it a deferredLinker that the
 //     execution layer is set into.
@@ -91,7 +117,8 @@
 //     journal counter forward only, so an event id is never issued twice.
 //   - The ready file is written atomically (temporary file and rename) once
 //     the listeners accept, and removed at shutdown, so a stale file never
-//     names a dead endpoint.
+//     names a dead endpoint. New refuses a ready file whose directory it
+//     cannot write with a *ReadyFileError, before anything listens.
 //   - Shutdown cancels every request's context first, so parked long polls
 //     end at once, gives requests in flight five seconds, stops the
 //     background work (the pool's watch, checkpoints, the sweep and the

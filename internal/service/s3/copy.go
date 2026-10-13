@@ -231,11 +231,12 @@ func (s *Service) copyObject(ctx context.Context, c *kernel.Call, in *s3api.Copy
 	if so.Size > maxSinglePut {
 		return nil, errInvalidRequest(copySourceTooLargeMessage)
 	}
-	if srcRef.bucket == in.Bucket && srcRef.key == in.Key && src.current && !req.changes(in, so) {
-		return nil, errInvalidRequest(selfCopyMessage)
-	}
+	inPlace := srcRef.bucket == in.Bucket && srcRef.key == in.Key && src.current
 	a := at(in.Bucket, in.ExpectedBucketOwner)
 	pre, err := read(ctx, s, c, a, func(b *Bucket) (preWrite, *awserr.Error) {
+		if inPlace && !req.changes(in, so, b) {
+			return preWrite{}, errInvalidRequest(selfCopyMessage)
+		}
 		return prepareWrite(b, in.Key, req.cond, req.sse, req.acl)
 	})
 	if err != nil {
@@ -259,8 +260,8 @@ func (s *Service) copyObject(ctx context.Context, c *kernel.Call, in *s3api.Copy
 	}
 	result := &s3api.CopyObjectResult{ETag: new(quote(obj.ETag)), LastModified: new(done.version.Modified.Wire()), ChecksumType: new(obj.Checksum.Type)}
 	m := membersOf(obj.Checksum)
-	result.ChecksumCRC32, result.ChecksumCRC32C, result.ChecksumCRC64NVME, result.ChecksumSHA1, result.ChecksumSHA256 = m[0], m[1], m[2], m[3], m[4]
-	result.ChecksumSHA512, result.ChecksumMD5, result.ChecksumXXHASH64, result.ChecksumXXHASH3, result.ChecksumXXHASH128 = m[5], m[6], m[7], m[8], m[9]
+	result.ChecksumCRC32, result.ChecksumCRC32C, result.ChecksumCRC64NVME, result.ChecksumSHA1, result.ChecksumSHA256 = m[checksum.CRC32], m[checksum.CRC32C], m[checksum.CRC64NVME], m[checksum.SHA1], m[checksum.SHA256]
+	result.ChecksumSHA512, result.ChecksumMD5, result.ChecksumXXHASH64, result.ChecksumXXHASH3, result.ChecksumXXHASH128 = m[checksum.SHA512], m[checksum.MD5], m[checksum.XXHASH64], m[checksum.XXHASH3], m[checksum.XXHASH128]
 	out := &s3api.CopyObjectOutput{CopyObjectResult: result, VersionId: done.reported, CopySourceVersionId: src.reported}
 	h := enc.headers()
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
@@ -324,14 +325,21 @@ func readCopy(in *s3api.CopyObjectInput) (copyRequest, *awserr.Error) {
 	return r, nil
 }
 
-// changes reports whether a copy onto itself changes something S3 counts:
-// the metadata (REPLACE), the storage class, the website redirect, the
-// encryption or the checksum algorithm (s3.md 7).
-func (r copyRequest) changes(in *s3api.CopyObjectInput, so *Object) bool {
+// changes reports whether a copy of so onto itself in bucket b changes
+// something S3 counts (s3.md 7): the metadata (REPLACE), a storage class,
+// even the one the object has, the website redirect, the checksum
+// algorithm, or the encryption, which a write without SSE headers changes
+// when the bucket has a default rule of its own or when the object is
+// SSE-KMS and the implicit SSE-S3 default would re-encrypt it (LocalStack
+// aws_validated test_s3_copy_object_in_place_storage_class,
+// test_copy_in_place_with_bucket_encryption and
+// test_s3_copy_object_in_place_with_encryption).
+func (r copyRequest) changes(in *s3api.CopyObjectInput, so *Object, b *Bucket) bool {
 	return r.replaceMetadata ||
-		in.StorageClass != nil && *in.StorageClass != so.StorageClass ||
+		in.StorageClass != nil ||
 		in.WebsiteRedirectLocation != nil ||
 		in.ServerSideEncryption != nil || in.SSEKMSKeyId != nil ||
+		b.Encryption != nil || so.Encryption.KMS != nil ||
 		r.algorithm != nil && r.algorithm.String() != so.Checksum.Algorithm
 }
 

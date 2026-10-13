@@ -18,7 +18,7 @@ func ErrAccessDeniedException(message string) *awserr.Error {
 
 // IdentityAlreadyExistsException returns the identity of com.amazonaws.kms#AlreadyExistsException.
 func IdentityAlreadyExistsException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.kms#AlreadyExistsException", JSONType: "AlreadyExistsException", QueryCode: "AlreadyExists", Status: 409, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.kms#AlreadyExistsException", JSONType: "AlreadyExistsException", QueryCode: "AlreadyExists", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrAlreadyExistsException returns an AlreadyExistsException error with message.
@@ -148,7 +148,7 @@ func ErrDisabledException(message string) *awserr.Error {
 
 // IdentityDryRunOperationException returns the identity of com.amazonaws.kms#DryRunOperationException.
 func IdentityDryRunOperationException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.kms#DryRunOperationException", JSONType: "DryRunOperationException", QueryCode: "DryRunOperation", Status: 412, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.kms#DryRunOperationException", JSONType: "DryRunOperationException", QueryCode: "DryRunOperation", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrDryRunOperationException returns a DryRunOperationException error with message.

@@ -1,11 +1,14 @@
 package cloudwatch_test
 
 import (
+	"fmt"
 	"reflect"
 	"slices"
 	"strconv"
 	"testing"
 	"time"
+
+	"pgregory.net/rapid"
 
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -240,6 +243,45 @@ func TestDescribeAlarmsFiltersAndPages(t *testing.T) {
 	})
 }
 
+// ChildrenOfAlarmName and ParentsOfAlarmName take no other member but
+// MaxRecords and NextToken (the DescribeAlarms documentation).
+func TestDescribeAlarmsFamilyFiltersStandAlone(t *testing.T) {
+	run(t, func(h *harness) {
+		for _, family := range []string{"ChildrenOfAlarmName", "ParentsOfAlarmName"} {
+			base := func() cloudwatchapi.DescribeAlarmsInput {
+				in := cloudwatchapi.DescribeAlarmsInput{MaxRecords: new(int32(10))}
+				if family == "ChildrenOfAlarmName" {
+					in.ChildrenOfAlarmName = new("c")
+				} else {
+					in.ParentsOfAlarmName = new("p")
+				}
+				return in
+			}
+			in := base()
+			must(h, cloudwatchapi.OpDescribeAlarms, &in)
+			for _, tc := range []struct {
+				member string
+				set    func(*cloudwatchapi.DescribeAlarmsInput)
+			}{
+				{"AlarmNames", func(in *cloudwatchapi.DescribeAlarmsInput) { in.AlarmNames = []string{"x"} }},
+				{"AlarmNamePrefix", func(in *cloudwatchapi.DescribeAlarmsInput) { in.AlarmNamePrefix = new("x") }},
+				{"AlarmTypes", func(in *cloudwatchapi.DescribeAlarmsInput) {
+					in.AlarmTypes = []cloudwatchapi.AlarmType{cloudwatchapi.AlarmTypeCompositeAlarm}
+				}},
+				{"StateValue", func(in *cloudwatchapi.DescribeAlarmsInput) { in.StateValue = new(cloudwatchapi.StateValueAlarm) }},
+				{"ActionPrefix", func(in *cloudwatchapi.DescribeAlarmsInput) { in.ActionPrefix = new("arn:") }},
+			} {
+				in := base()
+				tc.set(&in)
+				_, err := call(h, cloudwatchapi.OpDescribeAlarms, &in)
+				wantError(h.T, err, "InvalidParameterCombination", "The parameters "+family+" and "+tc.member+" are mutually exclusive and you have specified both.")
+			}
+		}
+		_, err := call(h, cloudwatchapi.OpDescribeAlarms, &cloudwatchapi.DescribeAlarmsInput{ChildrenOfAlarmName: new("c"), ParentsOfAlarmName: new("p")})
+		wantError(h.T, err, "InvalidParameterCombination", "The parameters ChildrenOfAlarmName and ParentsOfAlarmName are mutually exclusive and you have specified both.")
+	})
+}
+
 // SetAlarmState answers the recorded errors: the Coral enum text as
 // ValidationError, and ResourceNotFound without a message, 404 in query
 // mode (error-matrix.md 5.13).
@@ -336,6 +378,27 @@ func TestPutMetricAlarmValidation(t *testing.T) {
 				"treat missing data", func(in *cloudwatchapi.PutMetricAlarmInput) { in.TreatMissingData = new("zero") },
 				"InvalidParameterValue", "The value zero for parameter TreatMissingData is invalid.",
 			},
+			{
+				"control character in the name", func(in *cloudwatchapi.PutMetricAlarmInput) { in.AlarmName = "cpu\nhigh" },
+				"InvalidParameterValue", "The value cpu\nhigh for parameter AlarmName is invalid.",
+			},
+			{
+				"DEL in the name", func(in *cloudwatchapi.PutMetricAlarmInput) { in.AlarmName = "cpu\x7f" },
+				"InvalidParameterValue", "The value cpu\x7f for parameter AlarmName is invalid.",
+			},
+			{
+				// M out of N needs M <= N (the alarm evaluation documentation).
+				"more datapoints than periods", func(in *cloudwatchapi.PutMetricAlarmInput) {
+					in.EvaluationPeriods, in.DatapointsToAlarm = new(int32(2)), new(int32(5))
+				},
+				"InvalidParameterCombination", "DatapointsToAlarm must be less than or equal to EvaluationPeriods.",
+			},
+			{
+				"non-ASCII dimension value", func(in *cloudwatchapi.PutMetricAlarmInput) {
+					in.Dimensions = []cloudwatchapi.Dimension{{Name: "Service", Value: "café"}}
+				},
+				"InvalidParameterValue", "The value café for parameter Dimensions.member.1.Value is invalid.",
+			},
 		} {
 			in := minimalAlarm("v")
 			tc.change(in)
@@ -365,6 +428,366 @@ func TestPutMetricAlarmValidation(t *testing.T) {
 		if got := h.describe("math").MetricAlarms[0].Metrics; !reflect.DeepEqual(got, math.Metrics) {
 			h.Errorf("Metrics = %+v\nwant %+v", got, math.Metrics)
 		}
+	})
+}
+
+// putAlarmCase is one PutMetricAlarm request a validation test sends and
+// the error it wants, or none.
+type putAlarmCase struct {
+	name          string
+	in            *cloudwatchapi.PutMetricAlarmInput
+	code, message string
+}
+
+// checkPutAlarm sends each case and checks its answer.
+func checkPutAlarm(h *harness, cases []putAlarmCase) {
+	h.Helper()
+	for _, tc := range cases {
+		_, err := call(h, cloudwatchapi.OpPutMetricAlarm, tc.in)
+		switch {
+		case tc.code == "" && err != nil:
+			h.Errorf("%s = %s %q, want it accepted", tc.name, err.ID.QueryCode, err.Message)
+		case tc.code == "":
+		case err == nil:
+			h.Errorf("%s: accepted, want %s %q", tc.name, tc.code, tc.message)
+		case err.ID.QueryCode != tc.code || err.Message != tc.message:
+			h.Errorf("%s = %s %q\nwant %s %q", tc.name, err.ID.QueryCode, err.Message, tc.code, tc.message)
+		}
+	}
+}
+
+// metricStatQuery is a Metrics entry reading metric "ns"/m.
+func metricStatQuery(id string, returnData *bool) cloudwatchapi.MetricDataQuery {
+	return cloudwatchapi.MetricDataQuery{
+		Id: id, ReturnData: returnData,
+		MetricStat: &cloudwatchapi.MetricStat{Metric: cloudwatchapi.Metric{Namespace: new("ns"), MetricName: new("m")}, Period: 60, Stat: "Sum"},
+	}
+}
+
+// expressionQuery is a Metrics entry computing expr.
+func expressionQuery(id, expr string, returnData *bool) cloudwatchapi.MetricDataQuery {
+	return cloudwatchapi.MetricDataQuery{Id: id, Expression: new(expr), ReturnData: returnData}
+}
+
+// mathAlarm is a static-threshold alarm on a Metrics array.
+func mathAlarm(name string, metrics ...cloudwatchapi.MetricDataQuery) *cloudwatchapi.PutMetricAlarmInput {
+	return &cloudwatchapi.PutMetricAlarmInput{
+		AlarmName: name, EvaluationPeriods: new(int32(1)), Threshold: new(1.0),
+		ComparisonOperator: new(cloudwatchapi.ComparisonOperatorGreaterThanThreshold),
+		Metrics:            metrics,
+	}
+}
+
+// anomalyAlarm is the documentation's anomaly detection alarm: the metric
+// returns data, and so does the band, whose ReturnData is absent.
+func anomalyAlarm(name string) *cloudwatchapi.PutMetricAlarmInput {
+	return &cloudwatchapi.PutMetricAlarmInput{
+		AlarmName: name, EvaluationPeriods: new(int32(2)), ThresholdMetricId: new("t1"),
+		ComparisonOperator: new(cloudwatchapi.ComparisonOperatorLessThanLowerOrGreaterThanUpperThreshold),
+		Metrics: []cloudwatchapi.MetricDataQuery{
+			metricStatQuery("m1", new(true)),
+			expressionQuery("t1", "ANOMALY_DETECTION_BAND(m1, 3)", nil),
+		},
+	}
+}
+
+// promQLAlarm is the documentation's PromQL alarm.
+func promQLAlarm(name string) *cloudwatchapi.PutMetricAlarmInput {
+	return &cloudwatchapi.PutMetricAlarmInput{
+		AlarmName:          name,
+		EvaluationCriteria: cloudwatchapi.EvaluationCriteriaMemberPromQLCriteria{Value: cloudwatchapi.AlarmPromQLCriteria{Query: "avg(cpu_utilization_percent) > 80"}},
+		EvaluationInterval: new(int32(30)),
+	}
+}
+
+// with returns a copy of in changed by change.
+func with(in *cloudwatchapi.PutMetricAlarmInput, change func(*cloudwatchapi.PutMetricAlarmInput)) *cloudwatchapi.PutMetricAlarmInput {
+	out := *in
+	change(&out)
+	return &out
+}
+
+// A PromQL alarm starts in OK, needs EvaluationInterval and takes none of
+// the members EvaluationCriteria replaces; the other kinds take no
+// EvaluationInterval (the PutMetricAlarm documentation).
+func TestPromQLAlarm(t *testing.T) {
+	run(t, func(h *harness) {
+		must(h, cloudwatchapi.OpPutMetricAlarm, promQLAlarm("promql"))
+		if a := h.describe("promql").MetricAlarms[0]; *a.StateValue != cloudwatchapi.StateValueOk || *a.StateReason != "Unchecked: Initial alarm creation" {
+			h.Errorf("a new PromQL alarm is %s %q, want OK", *a.StateValue, *a.StateReason)
+		}
+		checkPutAlarm(h, []putAlarmCase{
+			{
+				"threshold", with(promQLAlarm("p"), func(in *cloudwatchapi.PutMetricAlarmInput) { in.Threshold = new(5.0) }),
+				"InvalidParameterCombination", "The parameters EvaluationCriteria and Threshold are mutually exclusive and you have specified both.",
+			},
+			{
+				"evaluation periods", with(promQLAlarm("p"), func(in *cloudwatchapi.PutMetricAlarmInput) { in.EvaluationPeriods = new(int32(1)) }),
+				"InvalidParameterCombination", "The parameters EvaluationCriteria and EvaluationPeriods are mutually exclusive and you have specified both.",
+			},
+			{
+				"comparison operator", with(promQLAlarm("p"), func(in *cloudwatchapi.PutMetricAlarmInput) {
+					in.ComparisonOperator = new(cloudwatchapi.ComparisonOperatorGreaterThanThreshold)
+				}),
+				"InvalidParameterCombination", "The parameters EvaluationCriteria and ComparisonOperator are mutually exclusive and you have specified both.",
+			},
+			{
+				"no interval", with(promQLAlarm("p"), func(in *cloudwatchapi.PutMetricAlarmInput) { in.EvaluationInterval = nil }),
+				"MissingParameter", "The parameter EvaluationInterval is required.",
+			},
+			{
+				"bad interval", with(promQLAlarm("p"), func(in *cloudwatchapi.PutMetricAlarmInput) { in.EvaluationInterval = new(int32(45)) }),
+				"InvalidParameterValue", "The value 45 for parameter EvaluationInterval is invalid.",
+			},
+			{
+				"static with interval", with(minimalAlarm("p"), func(in *cloudwatchapi.PutMetricAlarmInput) { in.EvaluationInterval = new(int32(60)) }),
+				"InvalidParameterCombination", "The parameters MetricName and EvaluationInterval are mutually exclusive and you have specified both.",
+			},
+			{
+				"metrics with interval", with(anomalyAlarm("p"), func(in *cloudwatchapi.PutMetricAlarmInput) { in.EvaluationInterval = new(int32(60)) }),
+				"InvalidParameterCombination", "The parameters Metrics and EvaluationInterval are mutually exclusive and you have specified both.",
+			},
+		})
+		if out := h.describe("p"); len(out.MetricAlarms) != 0 {
+			h.Errorf("a refused alarm was stored: %+v", out.MetricAlarms)
+		}
+		must(h, cloudwatchapi.OpPutMetricAlarm, minimalAlarm("static"))
+		if a := h.describe("static").MetricAlarms[0]; *a.StateValue != cloudwatchapi.StateValueInsufficientData {
+			h.Errorf("a new static alarm is %s, want INSUFFICIENT_DATA", *a.StateValue)
+		}
+	})
+}
+
+// The anomaly detection operators belong to alarms on a band named by
+// ThresholdMetricId, which take no Threshold; every other operator needs a
+// Threshold (the PutMetricAlarm documentation).
+func TestPutMetricAlarmThresholdFollowsTheOperator(t *testing.T) {
+	run(t, func(h *harness) {
+		band := cloudwatchapi.ComparisonOperatorLessThanLowerOrGreaterThanUpperThreshold
+		checkPutAlarm(h, []putAlarmCase{
+			{"anomaly alarm", anomalyAlarm("ok"), "", ""},
+			{
+				"static with a band operator", with(minimalAlarm("v"), func(in *cloudwatchapi.PutMetricAlarmInput) { in.ComparisonOperator = new(band) }),
+				"InvalidParameterCombination", "The ComparisonOperator LessThanLowerOrGreaterThanUpperThreshold is valid only for alarms based on anomaly detection models, which use the Metrics array and ThresholdMetricId.",
+			},
+			{
+				"static with a threshold metric", with(minimalAlarm("v"), func(in *cloudwatchapi.PutMetricAlarmInput) { in.Threshold, in.ThresholdMetricId = nil, new("t1") }),
+				"InvalidParameterCombination", "The parameters MetricName and ThresholdMetricId are mutually exclusive and you have specified both.",
+			},
+			{
+				"band without a threshold metric", with(anomalyAlarm("v"), func(in *cloudwatchapi.PutMetricAlarmInput) { in.ThresholdMetricId = nil }),
+				"MissingParameter", "The parameter ThresholdMetricId is required.",
+			},
+			{
+				"band with a threshold", with(anomalyAlarm("v"), func(in *cloudwatchapi.PutMetricAlarmInput) { in.Threshold = new(5.0) }),
+				"InvalidParameterCombination", "The parameters ThresholdMetricId and Threshold are mutually exclusive and you have specified both.",
+			},
+			{
+				"threshold metric naming no entry", with(anomalyAlarm("v"), func(in *cloudwatchapi.PutMetricAlarmInput) { in.ThresholdMetricId = new("t2") }),
+				"InvalidParameterValue", "The value t2 for parameter ThresholdMetricId is invalid.",
+			},
+			{
+				"math without a threshold", with(mathAlarm("v", metricStatQuery("m1", new(true))), func(in *cloudwatchapi.PutMetricAlarmInput) { in.Threshold = nil }),
+				"MissingParameter", "The parameter Threshold is required.",
+			},
+		})
+		if out := h.describe("v"); len(out.MetricAlarms) != 0 {
+			h.Errorf("a refused alarm was stored: %+v", out.MetricAlarms)
+		}
+	})
+}
+
+// An alarm's Metrics array holds at most 20 entries, 10 of each form, with
+// valid Ids, periods and statistics, and exactly one returning data (the
+// MetricDataQuery documentation).
+func TestPutMetricAlarmMetricsArrayRules(t *testing.T) {
+	run(t, func(h *harness) {
+		no := new(false)
+		// queries is n entries of one form, with Ids prefix0, prefix1 and
+		// so on.
+		queries := func(n int, prefix string, form func(id string) cloudwatchapi.MetricDataQuery) []cloudwatchapi.MetricDataQuery {
+			out := make([]cloudwatchapi.MetricDataQuery, n)
+			for i := range out {
+				out[i] = form(fmt.Sprintf("%s%d", prefix, i))
+			}
+			return out
+		}
+		stats := func(n int) []cloudwatchapi.MetricDataQuery {
+			return queries(n, "m", func(id string) cloudwatchapi.MetricDataQuery { return metricStatQuery(id, no) })
+		}
+		exprs := func(n int) []cloudwatchapi.MetricDataQuery {
+			return queries(n, "e", func(id string) cloudwatchapi.MetricDataQuery { return expressionQuery(id, "m0 * 2", no) })
+		}
+		result := expressionQuery("result", "m0 * 2", new(true))
+		badPeriod := metricStatQuery("m1", new(true))
+		badPeriod.MetricStat.Period = 45
+		badStat := metricStatQuery("m1", new(true))
+		badStat.MetricStat.Stat = "median"
+		hourlyResult := expressionQuery("e1", "m1 * 2", new(true))
+		hourlyResult.Period = new(int32(3600))
+		badDimension := metricStatQuery("m1", new(true))
+		badDimension.MetricStat.Metric.Dimensions = []cloudwatchapi.Dimension{{Name: ":shard", Value: "1"}}
+		checkPutAlarm(h, []putAlarmCase{
+			{"one entry, ReturnData absent", mathAlarm("ok", metricStatQuery("m1", nil)), "", ""},
+			{
+				"as many datapoints as periods", with(mathAlarm("ok", metricStatQuery("m1", nil)), func(in *cloudwatchapi.PutMetricAlarmInput) {
+					in.EvaluationPeriods, in.DatapointsToAlarm = new(int32(3)), new(int32(3))
+				}),
+				"", "",
+			},
+			{
+				"more datapoints than periods", with(mathAlarm("v", metricStatQuery("m1", nil)), func(in *cloudwatchapi.PutMetricAlarmInput) {
+					in.EvaluationPeriods, in.DatapointsToAlarm = new(int32(3)), new(int32(4))
+				}),
+				"InvalidParameterCombination", "DatapointsToAlarm must be less than or equal to EvaluationPeriods.",
+			},
+			{
+				"dimension name starting with a colon", mathAlarm("v", badDimension),
+				"InvalidParameterValue", "The value :shard for parameter Metrics.member.1.MetricStat.Metric.Dimensions.member.1.Name is invalid.",
+			},
+			{"ten of each form", mathAlarm("ok", slices.Concat(stats(10), exprs(9), []cloudwatchapi.MetricDataQuery{result})...), "", ""},
+			{
+				"21 entries", mathAlarm("v", slices.Concat(exprs(20), []cloudwatchapi.MetricDataQuery{result})...),
+				"InvalidParameterValue", "The collection Metrics must not have a size greater than 20.",
+			},
+			{
+				"11 metric stats", mathAlarm("v", slices.Concat(stats(11), []cloudwatchapi.MetricDataQuery{result})...),
+				"InvalidParameterValue", "The Metrics array can contain at most 10 entries with a MetricStat.",
+			},
+			{
+				"11 expressions", mathAlarm("v", slices.Concat(exprs(10), []cloudwatchapi.MetricDataQuery{result})...),
+				"InvalidParameterValue", "The Metrics array can contain at most 10 entries with an Expression.",
+			},
+			{
+				"none returns data", mathAlarm("v", metricStatQuery("m1", no), expressionQuery("e1", "m1 * 2", no)),
+				"InvalidParameterValue", "Exactly one entry of the Metrics array must have ReturnData set to true; 0 do.",
+			},
+			{
+				"two return data, one by default", mathAlarm("v", metricStatQuery("m1", nil), expressionQuery("e1", "m1 * 2", new(true))),
+				"InvalidParameterValue", "Exactly one entry of the Metrics array must have ReturnData set to true; 2 do.",
+			},
+			{
+				"Id form", mathAlarm("v", metricStatQuery("M1", new(true))),
+				"InvalidParameterValue", "The value M1 for parameter Metrics.member.1.Id is invalid.",
+			},
+			{
+				"Id reused", mathAlarm("v", metricStatQuery("m1", no), expressionQuery("m1", "m1 * 2", new(true))),
+				"InvalidParameterValue", "The value m1 for parameter Metrics.member.2.Id is not unique.",
+			},
+			{
+				"neither form", mathAlarm("v", cloudwatchapi.MetricDataQuery{Id: "m1", ReturnData: new(true)}),
+				"MissingParameter", "One of the parameters Metrics.member.1.MetricStat or Metrics.member.1.Expression is required.",
+			},
+			{
+				"period", mathAlarm("v", badPeriod),
+				"InvalidParameterValue", "The value 45 for parameter Metrics.member.1.MetricStat.Period is invalid.",
+			},
+			{
+				"statistic", mathAlarm("v", badStat),
+				"InvalidParameterValue", "The value median for parameter Metrics.member.1.MetricStat.Stat is invalid.",
+			},
+			{
+				"range over a day", with(mathAlarm("v", metricStatQuery("m1", nil)), func(in *cloudwatchapi.PutMetricAlarmInput) { in.EvaluationPeriods = new(int32(1441)) }),
+				"InvalidParameterCombination", "The product of Period and EvaluationPeriods must not exceed 86400 seconds.",
+			},
+			{
+				"range over a week, by the expression's period", with(mathAlarm("v", metricStatQuery("m1", no), hourlyResult), func(in *cloudwatchapi.PutMetricAlarmInput) {
+					in.EvaluationPeriods = new(int32(169))
+				}),
+				"InvalidParameterCombination", "The product of Period and EvaluationPeriods must not exceed 604800 seconds.",
+			},
+			{
+				"a week by the expression's period", with(mathAlarm("ok", metricStatQuery("m1", no), hourlyResult), func(in *cloudwatchapi.PutMetricAlarmInput) {
+					in.EvaluationPeriods = new(int32(168))
+				}),
+				"", "",
+			},
+		})
+		if out := h.describe("v"); len(out.MetricAlarms) != 0 {
+			h.Errorf("a refused alarm was stored: %+v", out.MetricAlarms)
+		}
+	})
+}
+
+// extendedStat draws a statistic of the grammar AWS documents beyond the
+// basic five.
+func extendedStat() *rapid.Generator[string] {
+	decimals := func(t *rapid.T) string {
+		n := rapid.IntRange(0, 10).Draw(t, "decimals")
+		if n == 0 {
+			return ""
+		}
+		return "." + rapid.StringOfN(rapid.RuneFrom([]rune("0123456789")), n, n, n).Draw(t, "fraction")
+	}
+	percentage := rapid.Custom(func(t *rapid.T) string {
+		if rapid.Bool().Draw(t, "hundred") {
+			return "100"
+		}
+		return strconv.Itoa(rapid.IntRange(0, 99).Draw(t, "whole")) + decimals(t)
+	})
+	value := rapid.Custom(func(t *rapid.T) string {
+		return strconv.Itoa(rapid.IntRange(0, 1_000_000).Draw(t, "whole")) + decimals(t)
+	})
+	bounds := func(t *rapid.T, bound *rapid.Generator[string]) string {
+		lower, upper := bound.Draw(t, "lower"), bound.Draw(t, "upper")
+		switch rapid.IntRange(0, 2).Draw(t, "omit") {
+		case 1:
+			lower = ""
+		case 2:
+			upper = ""
+		}
+		return "(" + lower + ":" + upper + ")"
+	}
+	return rapid.OneOf(
+		rapid.Just("IQM"),
+		rapid.Custom(func(t *rapid.T) string {
+			return rapid.SampledFrom([]string{"p", "tm", "tc", "ts", "wm"}).Draw(t, "prefix") + percentage.Draw(t, "n")
+		}),
+		rapid.Custom(func(t *rapid.T) string {
+			bound := value
+			if rapid.Bool().Draw(t, "percent") {
+				bound = rapid.Custom(func(t *rapid.T) string { return percentage.Draw(t, "p") + "%" })
+			}
+			return rapid.SampledFrom([]string{"TM", "TC", "TS", "WM"}).Draw(t, "prefix") + bounds(t, bound)
+		}),
+		rapid.Custom(func(t *rapid.T) string { return "PR" + bounds(t, value) }),
+	)
+}
+
+// ExtendedStatistic takes the statistics AWS documents and refuses any
+// other name (CloudWatch statistics definitions).
+func TestPutMetricAlarmExtendedStatistic(t *testing.T) {
+	run(t, func(h *harness) {
+		alarm := func(s string) *cloudwatchapi.PutMetricAlarmInput {
+			return with(minimalAlarm("x"), func(in *cloudwatchapi.PutMetricAlarmInput) { in.Statistic, in.ExtendedStatistic = nil, new(s) })
+		}
+		valid := []string{
+			"p90", "p99.9", "tm90", "tc90", "ts90", "wm98", "IQM", "TM(2%:98%)", "TM(150:1000)", "TM(:95%)", "TS(80%:)",
+			"TC(0.005:0.030)", "TC(80:500)", "TC(:0.5)", "WM(10%:90%)", "PR(:300)", "PR(100:2000)", "PR(10:)",
+		}
+		invalid := []string{
+			"p101", "median", "P99", "Tm90", "tm", "p", "p.5", "p9.", "p99.12345678901", "IQM2", "TM()", "TM(:)", "TM(10%:500)",
+			"TM(10%:90%", "TM10%:90%)", "TM(1:2:3)", "TM(101%:)", "PR(10%:20%)", "pr(1:2)", "tm(10%:90%)", "TM(-1:5)", "Sum",
+		}
+		cases := make([]putAlarmCase, 0, len(valid)+len(invalid))
+		for _, s := range valid {
+			cases = append(cases, putAlarmCase{s, alarm(s), "", ""})
+		}
+		for _, s := range invalid {
+			cases = append(cases, putAlarmCase{s, alarm(s), "InvalidParameterValue", "The value " + s + " for parameter ExtendedStatistic is invalid."})
+		}
+		checkPutAlarm(h, cases)
+
+		rapid.Check(bubbleTB{h.T}, func(t *rapid.T) {
+			s := extendedStat().Draw(t, "stat")
+			if _, err := call(h, cloudwatchapi.OpPutMetricAlarm, alarm(s)); err != nil {
+				t.Fatalf("%s = %s %q, want it accepted", s, err.ID.QueryCode, err.Message)
+			}
+			bad := s + rapid.SampledFrom([]string{"x", "%", ")", ":", "("}).Draw(t, "suffix")
+			if _, err := call(h, cloudwatchapi.OpPutMetricAlarm, alarm(bad)); err == nil || err.ID.QueryCode != "InvalidParameterValue" {
+				t.Fatalf("%s = %v, want InvalidParameterValue", bad, err)
+			}
+		})
 	})
 }
 

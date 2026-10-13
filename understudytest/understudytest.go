@@ -14,8 +14,7 @@ import (
 
 // Options configure an Instance. The zero value runs a running clock with
 // random ids, Docker at its default socket, DynamoDB Local awaiting its
-// licence and AWS's own regions. Fault rules are added after Start through
-// Admin().PutFault.
+// licence and AWS's own regions.
 type Options struct {
 	// Seed makes every generated id reproducible; nil draws from
 	// crypto/rand.
@@ -56,8 +55,8 @@ type Docker interface{ isDocker() }
 // needs it.
 type DockerSocket struct{ Path string }
 
-// DockerDisabled runs no container: Invoke answers ServiceException and
-// DynamoDB answers 501, while every control plane keeps working.
+// DockerDisabled runs no container: Invoke and DynamoDB answer 501
+// NotImplemented, while every control plane keeps working.
 type DockerDisabled struct{}
 
 func (DockerSocket) isDocker()   {}

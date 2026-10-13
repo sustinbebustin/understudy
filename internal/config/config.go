@@ -105,7 +105,10 @@ func (Exposed) isListen()  {}
 //sumtype:decl
 type Auth interface{ isAuth() }
 
-// Token requires Authorization: Bearer <Secret> on every admin call.
+// Token requires Authorization: Bearer <Secret> on every admin call. It
+// guards only the admin API, so Load builds it only with
+// --allow-unauthenticated-aws-api, which accepts the AWS API as open to
+// every peer that reaches the listener.
 type Token struct{ Secret Secret }
 
 // ContainerPublished trusts Docker's port publishing as the exposure
@@ -260,7 +263,8 @@ type LambdaNetwork interface{ isLambdaNetwork() }
 // NetworkAuto detects the topology at first use.
 type NetworkAuto struct{}
 
-// NetworkBridge binds the container listener on Gateway.
+// NetworkBridge binds the container listener on Gateway, a private IPv4
+// address.
 type NetworkBridge struct{ Gateway netip.Addr }
 
 // NetworkDisabled runs no function.

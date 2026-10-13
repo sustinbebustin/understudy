@@ -302,9 +302,7 @@ test_put_log_events_multibyte_and_json_messages_round_trip() {
   assert_jq '.events[1].message' '{"level":"info","note":"quote \" and \\ backslash"}'
 }
 
-# --------------------------------------------------------------------------
 # FilterLogEvents
-# --------------------------------------------------------------------------
 
 # filter_messages ARGS...: run filter-log-events; AWS_OUT holds the response.
 filtered() { jqv '[.events[].message] | join("|")'; }
@@ -469,9 +467,7 @@ test_filter_log_events_unknown_group() {
   aws_error_message_contains 'The specified log group does not exist.'
 }
 
-# --------------------------------------------------------------------------
 # aws logs tail
-# --------------------------------------------------------------------------
 
 # tail_short GROUP [ARGS...]: `aws logs tail --format short` with the leading
 # timestamp of each line removed, so AWS_OUT holds only the messages.

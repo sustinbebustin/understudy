@@ -505,11 +505,16 @@ describe("SNS subscriptions", () => {
     expect(all.Endpoint).toBe(q.arn);
   });
 
-  test("DeleteTopic deletes its subscriptions", async () => {
+  // AWS keeps a deleted topic's subscriptions readable until they are
+  // unsubscribed (sns.md 2.2, test_delete_subscriptions_on_delete_topic).
+  test("DeleteTopic detaches its subscriptions until they are unsubscribed", async () => {
     const t = await makeTopic();
     const q = await makeQueue();
     const arn = await subscribeQueue(t.arn, q.arn);
     await sns.send(new DeleteTopicCommand({ TopicArn: t.arn }));
+    const detached = await sns.send(new GetSubscriptionAttributesCommand({ SubscriptionArn: arn }));
+    expect(detached.Attributes?.TopicArn).toBe(t.arn);
+    await sns.send(new UnsubscribeCommand({ SubscriptionArn: arn }));
     await expectFailure(sns.send(new GetSubscriptionAttributesCommand({ SubscriptionArn: arn })), { name: "NotFound", status: 404 });
   });
 

@@ -1,6 +1,8 @@
 package secretsmanager
 
 import (
+	"strconv"
+
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 )
@@ -112,6 +114,19 @@ func errTooManyVersions() *awserr.Error {
 
 func errTooManySecrets() *awserr.Error {
 	return secretsmanagerapi.ErrLimitExceededException("You have reached the quota of 500000 secrets in this account and Region.")
+}
+
+// errTooManyTags is unrecorded: AWS documents the quota of 50 user tags
+// per resource, not the error, and InvalidParameterException is the one
+// parameter error TagResource lists.
+func errTooManyTags(had, want int) *awserr.Error {
+	return secretsmanagerapi.ErrInvalidParameterException("A secret can have at most " + strconv.Itoa(maxTags) + " tags; it has " + strconv.Itoa(had) + " and this request would give it " + strconv.Itoa(want) + ". Remove tags with UntagResource first, or send fewer new tag keys.")
+}
+
+// errDefaultKeyOtherAccount is the text AWS answers when another account
+// reads or writes the value of a secret under the AWS managed key.
+func errDefaultKeyOtherAccount() *awserr.Error {
+	return secretsmanagerapi.ErrInvalidRequestException("You can't access a secret from a different AWS account if you encrypt the secret with the default KMS service key.")
 }
 
 func errInvalidNextToken() *awserr.Error {

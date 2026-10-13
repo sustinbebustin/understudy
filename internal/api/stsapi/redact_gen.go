@@ -165,7 +165,7 @@ func (v AssumeRoleOutput) redacted() AssumeRoleOutput {
 }
 
 func (v AssumeRoleWithSAMLInput) redacted() AssumeRoleWithSAMLInput {
-	v.SAMLAssertion = *new(string)
+	v.SAMLAssertion = redactedText
 	return v
 }
 
@@ -178,7 +178,7 @@ func (v AssumeRoleWithSAMLOutput) redacted() AssumeRoleWithSAMLOutput {
 }
 
 func (v AssumeRoleWithWebIdentityInput) redacted() AssumeRoleWithWebIdentityInput {
-	v.WebIdentityToken = *new(string)
+	v.WebIdentityToken = redactedText
 	return v
 }
 
@@ -199,7 +199,7 @@ func (v AssumeRootOutput) redacted() AssumeRootOutput {
 }
 
 func (v GetDelegatedAccessTokenInput) redacted() GetDelegatedAccessTokenInput {
-	v.TradeInToken = *new(string)
+	v.TradeInToken = redactedText
 	return v
 }
 
@@ -228,11 +228,22 @@ func (v GetSessionTokenOutput) redacted() GetSessionTokenOutput {
 }
 
 func (v GetWebIdentityTokenOutput) redacted() GetWebIdentityTokenOutput {
-	v.WebIdentityToken = nil
+	v.WebIdentityToken = redactedPtr(v.WebIdentityToken)
 	return v
 }
 
 func (v Credentials) redacted() Credentials {
-	v.SecretAccessKey = *new(string)
+	v.SecretAccessKey = redactedText
 	return v
+}
+
+// redactedText stands in for a sensitive string the client sent.
+const redactedText = "[redacted]"
+
+// redactedPtr is redactedText in place of a present *p, nil for nil.
+func redactedPtr[T ~string](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	return new(T(redactedText))
 }

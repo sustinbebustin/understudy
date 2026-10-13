@@ -44,16 +44,38 @@
 //   - LastAccessedDate is the UTC day of the last GetSecretValue.
 //   - ListSecrets combines filters with AND and a filter's values with OR;
 //     the primary-region and owning-service filters match no secret, since
-//     understudy has neither replication nor service-owned secrets.
+//     understudy has neither replication nor service-owned secrets. The all
+//     filter splits the value and every attribute into words (at
+//     punctuation, letter-digit and case changes) and matches when any
+//     value word prefixes an attribute word, ignoring case.
+//   - A NextToken carries its listing and sort order; a token of another
+//     listing or order is InvalidNextTokenException.
+//   - More than 50 tags on a secret is InvalidParameterException; AWS
+//     documents the quota but not its error.
+//   - A forced DeleteSecret of a secret that does not exist answers an ARN:
+//     the full ARN given, or the one a secret created under the name by
+//     that call would have.
 //   - RestoreSecret of a secret that is not scheduled for deletion succeeds
 //     and changes nothing.
 //   - UpdateSecret with a new KmsKeyId moves the data keys of the versions
 //     labeled AWSCURRENT, AWSPREVIOUS and AWSPENDING under the new key (KMS
 //     Decrypt, then Encrypt), as AWS does for a caller with kms:Encrypt on
-//     it, which every caller has while IAM is not enforced. When KMS
-//     refuses either call the update fails with DecryptionFailure or
-//     EncryptionFailure and changes nothing; AWS does not document that
-//     case. Versions without labels stay under the key that sealed them.
+//     it, which every caller has while IAM is not enforced. A version KMS
+//     refuses to move (the old key disabled, deleted or otherwise refusing
+//     Decrypt, or the new key refusing Encrypt) stays under its old key
+//     while the key still changes, as AWS documents for a caller without
+//     kms:Decrypt on the previous key or kms:Encrypt on the new one; only
+//     the access check of the new key fails the update. understudy treats
+//     every KMS refusal that way, a throttling fault included, since AWS
+//     documents no other outcome. Versions without labels stay under the
+//     key that sealed them.
+//   - A KmsKeyId naming the AWS managed key aws/secretsmanager by its alias
+//     ARN, key id or key ARN is stored as the default key, as the bare
+//     alias is. A key id or key ARN is recognized by a KMS ListAliases run
+//     as Secrets Manager itself (AsPlatform, so not recorded against the
+//     caller): AWS documents no kms:ListAliases or kms:DescribeKey
+//     permission for Secrets Manager callers. An alias is recognized by
+//     name, since no customer alias can point at an AWS managed key.
 //   - Request members understudy does not implement (AddReplicaRegions)
 //     answer NotImplemented rather than being ignored; RotationToken is
 //     accepted and ignored.

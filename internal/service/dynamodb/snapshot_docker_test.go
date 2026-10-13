@@ -156,7 +156,7 @@ func TestLateExportResetImportOnTheRealImage(t *testing.T) {
 	beforeLocks, beforeJobs := describe(east, "Locks"), describe(west, "Jobs")
 	// The read increase above happened at the frozen 2026-10-10T12:00:00Z,
 	// whatever Local's wall clock said.
-	if pt := beforeJobs["ProvisionedThroughput"]; path(pt, "LastIncreaseDateTime") != 1791633600.0 || path(pt, "LastDecreaseDateTime") != 0.0 {
+	if pt := beforeJobs["ProvisionedThroughput"]; path(pt, "LastIncreaseDateTime") != 1791633600.0 || path(pt, "LastDecreaseDateTime") != nil {
 		t.Errorf("Jobs ProvisionedThroughput = %v, want the increase at 1791633600 and no decrease", pt)
 	}
 

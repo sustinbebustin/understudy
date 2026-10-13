@@ -47,7 +47,88 @@ type Scope struct {
 	Region Region
 }
 
-// RegionSource says where a request's region came from (fidelity review F9).
+// ScopePart is the part of a scope a ScopeError is about.
+type ScopePart uint8
+
+// ScopePart values.
+const (
+	ScopeAccount ScopePart = iota + 1
+	ScopeRegion
+	ScopePartition
+)
+
+// String returns "account", "region" or "partition", the name a caller
+// gave the part.
+func (p ScopePart) String() string {
+	switch p {
+	case ScopeRegion:
+		return "region"
+	case ScopePartition:
+		return "partition"
+	case ScopeAccount:
+	}
+	return "account"
+}
+
+// ScopeError is a partition, account or region ParseScope or ScopeOf
+// refused.
+type ScopeError struct {
+	Part ScopePart
+	Err  error
+}
+
+func (e *ScopeError) Error() string { return e.Err.Error() }
+
+func (e *ScopeError) Unwrap() error { return e.Err }
+
+// ParseScope reads an account and a region given as text, each empty for
+// its value in defaults: the account as 12 digits, the region as a name
+// regions accepts. A refused part is a *ScopeError naming it.
+func ParseScope(account, region string, defaults Scope, regions Regions) (Scope, error) {
+	s := defaults
+	if account != "" {
+		a, err := ParseAccountID(account)
+		if err != nil {
+			return defaults, &ScopeError{Part: ScopeAccount, Err: err}
+		}
+		s.Account = a
+	}
+	if region != "" {
+		r, err := regions.Parse(region)
+		if err != nil {
+			return defaults, &ScopeError{Part: ScopeRegion, Err: err}
+		}
+		s.Region = r
+	}
+	return s, nil
+}
+
+// ScopeOf is the scope a regional ARN names: a partition understudy
+// serves, a 12-digit account and a region of valid syntax. The region need
+// not be one the configuration accepts, since an ARN may name a resource in
+// a region no request reached. An ARN without a partition, account or
+// region (an S3 or IAM ARN) names no regional scope; a refused part is a
+// *ScopeError naming it.
+func ScopeOf(a ARN) (Scope, error) {
+	var s Scope
+	if err := s.Partition.UnmarshalText([]byte(a.Partition)); err != nil || s.Partition == (Partition{}) {
+		return Scope{}, &ScopeError{Part: ScopePartition, Err: &PartitionError{Name: a.Partition}}
+	}
+	account, err := ParseAccountID(a.Account)
+	if err != nil {
+		return Scope{}, &ScopeError{Part: ScopeAccount, Err: err}
+	}
+	s.Account = account
+	if err := s.Region.UnmarshalText([]byte(a.Region)); err != nil {
+		return Scope{}, &ScopeError{Part: ScopeRegion, Err: err}
+	}
+	if s.Region.IsZero() {
+		return Scope{}, &ScopeError{Part: ScopeRegion, Err: &RegionError{Name: a.Region, Malformed: true}}
+	}
+	return s, nil
+}
+
+// RegionSource says where a request's region came from.
 //
 //sumtype:decl
 type RegionSource interface{ isRegionSource() }

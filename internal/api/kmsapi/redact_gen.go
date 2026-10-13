@@ -594,7 +594,7 @@ func (v *VerifyMacOutput) Redact() *VerifyMacOutput {
 }
 
 func (v CreateCustomKeyStoreInput) redacted() CreateCustomKeyStoreInput {
-	v.KeyStorePassword = nil
+	v.KeyStorePassword = redactedPtr(v.KeyStorePassword)
 	if v.XksProxyAuthenticationCredential != nil {
 		c := v.XksProxyAuthenticationCredential.redacted()
 		v.XksProxyAuthenticationCredential = &c
@@ -653,7 +653,7 @@ func (v SignInput) redacted() SignInput {
 }
 
 func (v UpdateCustomKeyStoreInput) redacted() UpdateCustomKeyStoreInput {
-	v.KeyStorePassword = nil
+	v.KeyStorePassword = redactedPtr(v.KeyStorePassword)
 	if v.XksProxyAuthenticationCredential != nil {
 		c := v.XksProxyAuthenticationCredential.redacted()
 		v.XksProxyAuthenticationCredential = &c
@@ -672,8 +672,8 @@ func (v VerifyMacInput) redacted() VerifyMacInput {
 }
 
 func (v XksProxyAuthenticationCredentialType) redacted() XksProxyAuthenticationCredentialType {
-	v.AccessKeyId = *new(string)
-	v.RawSecretAccessKey = *new(string)
+	v.AccessKeyId = redactedText
+	v.RawSecretAccessKey = redactedText
 	return v
 }
 
@@ -697,6 +697,17 @@ func (v CustomKeyStoresListEntry) redacted() CustomKeyStoresListEntry {
 }
 
 func (v XksProxyConfigurationType) redacted() XksProxyConfigurationType {
-	v.AccessKeyId = nil
+	v.AccessKeyId = redactedPtr(v.AccessKeyId)
 	return v
+}
+
+// redactedText stands in for a sensitive string the client sent.
+const redactedText = "[redacted]"
+
+// redactedPtr is redactedText in place of a present *p, nil for nil.
+func redactedPtr[T ~string](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	return new(T(redactedText))
 }

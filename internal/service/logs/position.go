@@ -4,6 +4,9 @@ import (
 	"cmp"
 	"fmt"
 	"strconv"
+	"strings"
+
+	"github.com/sustinbebustin/understudy/internal/clock"
 )
 
 // position is a point in the event order: a timestamp and an ingestion
@@ -58,39 +61,54 @@ const (
 	backward
 )
 
-// cursor is a paging token: a direction and the gap before at.
+// cursor is what a paging token points at: a direction and the gap before
+// at.
 type cursor struct {
 	dir direction
 	at  position
 }
 
-// String is the token form, "f/<56 digits>" or "b/<56 digits>", as AWS's
-// GetLogEvents tokens look.
-func (c cursor) String() string {
+// token is the cursor's paging token of l issued at the given emulator
+// instant: "f/" or "b/", as AWS's GetLogEvents tokens start, then the
+// 56-digit position, l's fingerprint and the 20-digit issue stamp.
+func (c cursor) token(l listing, issued clock.Instant) string {
+	dir := "f/"
 	if c.dir == backward {
-		return "b/" + c.at.String()
+		dir = "b/"
 	}
-	return "f/" + c.at.String()
+	return stamp(dir+c.at.String()+l.fingerprint(), issued)
 }
 
-// parseCursor reads a token; ok is false for anything this service did not
-// issue.
-func parseCursor(s string) (cursor, bool) {
-	if len(s) < 2 || s[1] != '/' {
-		return cursor{}, false
+// issuedCursor is a cursor with the emulator instant its token was issued
+// at, which an empty GetLogEvents page hands back unchanged.
+type issuedCursor struct {
+	cursor
+	issued clock.Instant
+}
+
+// parseCursor reads a token of l; ok is false for anything this service
+// did not issue for l and for a token expired at now.
+func parseCursor(s string, l listing, now clock.Instant) (issuedCursor, bool) {
+	stamped, issued, ok := unstamp(s, now)
+	if !ok {
+		return issuedCursor{}, false
+	}
+	body, ok := strings.CutSuffix(stamped, l.fingerprint())
+	if !ok || len(body) < 2 || body[1] != '/' {
+		return issuedCursor{}, false
 	}
 	var dir direction
-	switch s[0] {
+	switch body[0] {
 	case 'f':
 		dir = forward
 	case 'b':
 		dir = backward
 	default:
-		return cursor{}, false
+		return issuedCursor{}, false
 	}
-	at, ok := parsePosition(s[2:])
+	at, ok := parsePosition(body[2:])
 	if !ok {
-		return cursor{}, false
+		return issuedCursor{}, false
 	}
-	return cursor{dir: dir, at: at}, true
+	return issuedCursor{dir: dir, at: at, issued: issued}, true
 }

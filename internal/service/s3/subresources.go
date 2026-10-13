@@ -2,7 +2,9 @@ package s3
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
+	"fmt"
 	"maps"
 	"slices"
 	"time"
@@ -61,7 +63,7 @@ func (s *Service) bindVersioning(b s3api.Binder) {
 			out.MFADelete = new(s3api.MFADeleteStatus(*v.MFADelete))
 		}
 		return out, nil
-	}), registry.Partial{Note: "the status is stored and reported; objects keep no versions in this build"}, touches(get))
+	}), registry.Full{}, touches(get))
 	put := func(in *s3api.PutBucketVersioningInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketVersioning(writer[s3api.PutBucketVersioningInput, s3api.PutBucketVersioningOutput](s, put, func(in *s3api.PutBucketVersioningInput, b *Bucket) *awserr.Error {
 		cfg := in.VersioningConfiguration
@@ -70,7 +72,7 @@ func (s *Service) bindVersioning(b s3api.Binder) {
 		}
 		b.Versioning = &cfg
 		return nil
-	}), registry.Partial{Note: "the status is stored and reported; objects keep no versions in this build"}, touches(put),
+	}), registry.Partial{Note: "MFA delete is stored, not enforced, and the x-amz-mfa header is not verified"}, touches(put),
 		kernel.WithCheck(func(in *s3api.PutBucketVersioningInput) *awserr.Error {
 			st := in.VersioningConfiguration.Status
 			switch {
@@ -304,8 +306,22 @@ func transitionDefault(in *s3api.PutBucketLifecycleConfigurationInput) s3api.Tra
 	return *in.TransitionDefaultMinimumObjectSize
 }
 
+// maxLifecycleRules is the most rules one lifecycle configuration holds
+// (DOC lifecycle-configuration-examples, "up to 1,000 rules").
+const maxLifecycleRules = 1000
+
+// The lifecycle rule-set texts, which no AWS recording shows: S3-compatible
+// servers written against AWS use them (minio errLifecycleDuplicateID and
+// errLifecycleTooManyRules), so they are UNVERIFIED (lifecycleRuleLimits).
+const (
+	lifecycleDuplicateIDMessage  = "Rule ID must be unique. Found same ID for more than one rule"
+	lifecycleTooManyRulesMessage = "Lifecycle configuration allows a maximum of 1000 rules"
+)
+
 // checkLifecycle checks a lifecycle configuration with the errors recorded
-// against AWS (s3.md 4.2.8).
+// against AWS (s3.md 4.2.8), and the documented limits of its rule set:
+// at most 1,000 rules, each with its own ID, whose actions keep the day
+// limits of checkLifecycleDays.
 func checkLifecycle(in *s3api.PutBucketLifecycleConfigurationInput) *awserr.Error {
 	if v := in.TransitionDefaultMinimumObjectSize; v != nil && !v.Known() {
 		return errInvalidRequest("Invalid TransitionDefaultMinimumObjectSize found: " + string(*v))
@@ -313,10 +329,19 @@ func checkLifecycle(in *s3api.PutBucketLifecycleConfigurationInput) *awserr.Erro
 	if in.LifecycleConfiguration == nil || len(in.LifecycleConfiguration.Rules) == 0 {
 		return errMalformedXML()
 	}
-	for _, r := range in.LifecycleConfiguration.Rules {
+	rules := in.LifecycleConfiguration.Rules
+	if len(rules) > maxLifecycleRules {
+		return s3api.ErrInvalidArgument(lifecycleTooManyRulesMessage)
+	}
+	seen := make(map[string]bool, len(rules))
+	for _, r := range rules {
 		if err := checkLifecycleRule(r); err != nil {
 			return err
 		}
+		if seen[*r.ID] {
+			return errInvalidArgument(lifecycleDuplicateIDMessage, "ID", *r.ID)
+		}
+		seen[*r.ID] = true
 	}
 	return nil
 }
@@ -336,10 +361,108 @@ func checkLifecycleRule(r s3api.LifecycleRule) *awserr.Error {
 			return errInvalidArgument("'Date' must be at midnight GMT", "Date", e.Date.UTC().Format(time.RFC3339))
 		}
 	}
+	if err := checkLifecycleDays(r); err != nil {
+		return err
+	}
 	if f := r.Filter; f != nil {
 		return checkLifecycleFilter(f)
 	}
 	return nil
+}
+
+// checkLifecycleDays checks the days of a rule's actions against the
+// limits below.
+func checkLifecycleDays(r s3api.LifecycleRule) *awserr.Error {
+	if e := r.Expiration; e != nil && e.Days != nil && *e.Days < 1 {
+		return s3api.ErrInvalidArgument(lifecycleExpirationDaysMessage)
+	}
+	if e := r.NoncurrentVersionExpiration; e != nil && e.NoncurrentDays != nil && *e.NoncurrentDays < 1 {
+		return s3api.ErrInvalidArgument(lifecycleNoncurrentExpirationDaysMessage)
+	}
+	current := make([]transitionStep, 0, len(r.Transitions))
+	for _, t := range r.Transitions {
+		if t.StorageClass != nil && t.Date == nil {
+			current = append(current, transitionStep{days: deref(t.Days), class: *t.StorageClass})
+		}
+	}
+	if err := checkTransitionDays(transitionAction{name: "Transition", days: "Days"}, current); err != nil {
+		return err
+	}
+	noncurrent := make([]transitionStep, 0, len(r.NoncurrentVersionTransitions))
+	for _, t := range r.NoncurrentVersionTransitions {
+		if t.StorageClass != nil {
+			noncurrent = append(noncurrent, transitionStep{days: deref(t.NoncurrentDays), class: *t.StorageClass})
+		}
+	}
+	return checkTransitionDays(transitionAction{name: "NoncurrentVersionTransition", days: "NoncurrentDays"}, noncurrent)
+}
+
+// The lifecycle day limits. AWS documents them: Expiration Days is "a
+// non-zero positive integer" (API_LifecycleExpiration), and "you can't
+// create a single Lifecycle rule that transitions objects from one storage
+// class to another before the minimum storage duration period has passed"
+// (lifecycle-transition-general-considerations). Transition Days may be 0
+// (API_Transition), save to the Infrequent Access classes, which take 30
+// days at least. The IA text is an AWS answer quoted in a Terraform
+// write-up (zenn.dev/thaim 2024-04-s3-lifecycle-configuration-min-duration);
+// the expiration texts are those of S3-compatible servers (rustfs) and the
+// storage-duration text is composed, so all are UNVERIFIED
+// (lifecycleRuleLimits).
+const (
+	lifecycleExpirationDaysMessage           = "'Days' for Expiration action must be a positive integer"
+	lifecycleNoncurrentExpirationDaysMessage = "'NoncurrentDays' for NoncurrentVersionExpiration action must be a positive integer"
+	infrequentAccessMinDays                  = 30
+)
+
+// transitionStep is one Days-based transition of a rule: the days after
+// creation (or after becoming noncurrent) and the class it moves to. A
+// transition with neither Days nor Date is a 0-day one, as AWS reads it.
+type transitionStep struct {
+	days  int32
+	class s3api.TransitionStorageClass
+}
+
+// transitionAction names a transition action and its days member in a
+// refusal: Transition/Days or NoncurrentVersionTransition/NoncurrentDays.
+type transitionAction struct {
+	name string
+	days string
+}
+
+// checkTransitionDays refuses a transition to an Infrequent Access class
+// before 30 days, and a transition sooner after the one before it than
+// that one's class must hold an object.
+func checkTransitionDays(a transitionAction, steps []transitionStep) *awserr.Error {
+	for _, s := range steps {
+		if (s.class == s3api.TransitionStorageClassStandardIa || s.class == s3api.TransitionStorageClassOnezoneIa) && s.days < infrequentAccessMinDays {
+			return s3api.ErrInvalidArgument(fmt.Sprintf("'%s' in %s action must be greater than or equal to %d for storageClass '%s'", a.days, a.name, infrequentAccessMinDays, s.class))
+		}
+	}
+	slices.SortStableFunc(steps, func(x, y transitionStep) int { return cmp.Compare(x.days, y.days) })
+	for i := 1; i < len(steps); i++ {
+		prev, next := steps[i-1], steps[i]
+		if hold := minStorageDays(prev.class); next.days-prev.days < hold {
+			return s3api.ErrInvalidArgument(fmt.Sprintf("'%s' in the '%s' action for StorageClass '%s' must be at least %d days more than '%s' in the '%s' action for StorageClass '%s'",
+				a.days, a.name, next.class, hold, a.days, a.name, prev.class))
+		}
+	}
+	return nil
+}
+
+// minStorageDays is the minimum storage duration of class c (DOC
+// storage-class-intro, "Comparing the Amazon S3 storage classes"):
+// Intelligent-Tiering has none.
+func minStorageDays(c s3api.TransitionStorageClass) int32 {
+	switch c {
+	case s3api.TransitionStorageClassStandardIa, s3api.TransitionStorageClassOnezoneIa:
+		return infrequentAccessMinDays
+	case s3api.TransitionStorageClassGlacierIr, s3api.TransitionStorageClassGlacier:
+		return 90
+	case s3api.TransitionStorageClassDeepArchive:
+		return 180
+	case s3api.TransitionStorageClassIntelligentTiering:
+	}
+	return 0
 }
 
 // checkLifecycleFilter refuses a filter that sets more than one of Prefix,
@@ -381,7 +504,7 @@ func (s *Service) bindReplication(b s3api.Binder) {
 	}), stored("the replication configuration is"), touches(get))
 	put := func(in *s3api.PutBucketReplicationInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketReplication(writer[s3api.PutBucketReplicationInput, s3api.PutBucketReplicationOutput](s, put, func(in *s3api.PutBucketReplicationInput, b *Bucket) *awserr.Error {
-		if !versioningEnabled(b) {
+		if b.versioning() != versionsEnabled {
 			return errReplicationNeedsVersioning()
 		}
 		b.Replication = &in.ReplicationConfiguration
@@ -392,11 +515,6 @@ func (s *Service) bindReplication(b s3api.Binder) {
 		b.Replication = nil
 		return nil
 	}), stored("the replication configuration is"), touches(del))
-}
-
-// versioningEnabled reports a bucket whose versioning status is Enabled.
-func versioningEnabled(b *Bucket) bool {
-	return b.Versioning != nil && b.Versioning.Status != nil && *b.Versioning.Status == s3api.BucketVersioningStatusEnabled
 }
 
 func (s *Service) bindEncryption(b s3api.Binder) {
@@ -446,7 +564,7 @@ func (s *Service) bindObjectLock(b s3api.Binder) {
 	}), stored("the Object Lock configuration is"), touches(get))
 	put := func(in *s3api.PutObjectLockConfigurationInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutObjectLockConfiguration(writer[s3api.PutObjectLockConfigurationInput, s3api.PutObjectLockConfigurationOutput](s, put, func(in *s3api.PutObjectLockConfigurationInput, b *Bucket) *awserr.Error {
-		if !versioningEnabled(b) {
+		if b.versioning() != versionsEnabled {
 			return errObjectLockNeedsVersioning()
 		}
 		b.ObjectLock = in.ObjectLockConfiguration

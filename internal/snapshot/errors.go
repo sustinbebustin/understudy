@@ -154,7 +154,7 @@ type SizeError struct {
 }
 
 func (e *SizeError) Error() string {
-	return fmt.Sprintf("snapshot archive is larger than the %d byte limit once decompressed; nothing was loaded (raise the limit if the archive is trusted)", e.Max)
+	return fmt.Sprintf("snapshot archive is larger than the %d byte limit once decompressed; nothing was loaded. The limit guards against an archive that expands without bound, so check that this file is the snapshot you meant to load", e.Max)
 }
 
 // StreamError reports an archive stream that is damaged outside its

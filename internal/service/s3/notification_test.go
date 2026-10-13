@@ -149,7 +149,7 @@ func buildNotifier(t *testing.T) *notifier {
 	return &notifier{T: t, k: k, clock: clk, sink: sink}
 }
 
-// call runs op with in as the default account's root in us-east-1 and
+// notifyCall runs op with in as the default account's root in us-east-1 and
 // returns the output, the error and the request id the call answered with.
 func notifyCall[In, Out any](n *notifier, op kernel.Op[In, Out], in *In) (*Out, *awserr.Error, idsource.RequestID) {
 	id := n.k.IDs().RequestID()

@@ -16,6 +16,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
@@ -159,7 +160,7 @@ func oracle(f Filter, e Event) bool {
 		}
 	}
 	if f.ResourceGlob != "" {
-		re := regexp.MustCompile("^" + strings.ReplaceAll(regexp.QuoteMeta(f.ResourceGlob), `\*`, ".*") + "$")
+		re := globRegexp(f.ResourceGlob)
 		if !anyARN(func(a aws.ARN) bool { return re.MatchString(a.String()) }) {
 			return false
 		}
@@ -222,7 +223,10 @@ func genFilter(next ref.EventID) *rapid.Generator[Filter] {
 		if set("resource?") {
 			f.ResourceGlob = rapid.OneOf(
 				rapid.Custom(func(t *rapid.T) string { return genARN().Draw(t, "exact").String() }),
-				rapid.SampledFrom([]string{"arn:aws:sqs:*", "*orders*", "*:billing", "*", "arn:aws:*:us-east-1:000000000000:orders-*"}),
+				rapid.SampledFrom([]string{
+					"arn:aws:sqs:*", "*orders*", "*:billing", "*", "arn:aws:*:us-east-1:000000000000:orders-*",
+					"arn:aws:sqs:us-east-1:000000000000:orders-???", "*:?rders", "arn:aws:???:*",
+				}),
 			).Draw(t, "resource")
 		}
 		if set("kind?") {
@@ -453,10 +457,92 @@ func TestGlobMatch(t *testing.T) {
 		{"arn:aws:s3:::bucket/*", "arn:aws:s3:::bucket/a/b.txt", true},
 		{"exact", "exact", true},
 		{"exact", "exactly", false},
+		{"arn:aws:sqs:us-east-1:*:orders-?", "arn:aws:sqs:us-east-1:000000000000:orders-1", true},
+		{"arn:aws:sqs:us-east-1:*:orders-?", "arn:aws:sqs:us-east-1:000000000000:orders-", false},
+		{"arn:aws:sqs:us-east-1:*:orders-?", "arn:aws:sqs:us-east-1:000000000000:orders-12", false},
+		{"orders-?", "orders-?", true},
+		{"orders-?", "orders-日", true}, // ? is one character, not one byte
+		{"*-?", "x-é", true},
+		{"orders-??", "orders-日", false},
 	}
 	for _, c := range cases {
 		if got := globMatch(c.pattern, c.s); got != c.want {
 			t.Errorf("globMatch(%q, %q) = %v, want %v", c.pattern, c.s, got, c.want)
+		}
+	}
+}
+
+// globRegexp translates a resource glob to an anchored regular expression:
+// the independent oracle for globMatch.
+func globRegexp(glob string) *regexp.Regexp {
+	var re strings.Builder
+	re.WriteString(`(?s)\A`)
+	for _, r := range glob {
+		switch r {
+		case '*':
+			re.WriteString(".*")
+		case '?':
+			re.WriteString(".")
+		default:
+			re.WriteString(regexp.QuoteMeta(string(r)))
+		}
+	}
+	re.WriteString(`\z`)
+	return regexp.MustCompile(re.String())
+}
+
+// genGlobAndARN draws an ARN and a non-empty glob over a small alphabet, so
+// matches are common; é and 日 exercise multi-byte characters.
+func genGlobAndARN(t *rapid.T) (glob, s string) {
+	char := rapid.SampledFrom([]rune{'a', 'b', ':', '/', '-', 'é', '日'})
+	s = "arn:aws:sqs:" + string(rapid.SliceOfN(char, 0, 10).Draw(t, "arn"))
+	globChar := rapid.OneOf(char, rapid.Just('*'), rapid.Just('?'))
+	glob = string(rapid.SliceOfN(globChar, 1, 12).Draw(t, "glob"))
+	if rapid.Bool().Draw(t, "anchored") {
+		glob = "arn:aws:sqs:" + glob
+	}
+	return glob, s
+}
+
+func TestGlobMatchAgreesWithReferenceMatcher(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		glob, s := genGlobAndARN(t)
+		if got, want := globMatch(glob, s), globRegexp(glob).MatchString(s); got != want {
+			t.Fatalf("globMatch(%q, %q) = %v, reference says %v", glob, s, got, want)
+		}
+	})
+}
+
+// A user who finds a fault rule's resource glob firing pastes it into
+// `understudy journal --resource` to find the calls it hit, so both must
+// read a glob the same way.
+func TestResourceGlobMatchesWhatAFaultRuleGlobMatches(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		glob, s := genGlobAndARN(t)
+		if got, want := globMatch(glob, s), fault.NewARNGlob(glob).Match(s); got != want {
+			t.Fatalf("journal glob %q on %q = %v, fault rule glob = %v", glob, s, got, want)
+		}
+	})
+}
+
+func TestQueryByResourceGlobWithQuestionMark(t *testing.T) {
+	j := newTestJournal(t, Options{})
+	record := func(name string) ref.EventID {
+		return mustAppend(t, j, Event{Scope: scope(), Detail: StateChange{Resource: arn("sqs", name)}})
+	}
+	one, two, twelve := record("orders-1"), record("orders-2"), record("orders-12")
+	for _, c := range []struct {
+		glob string
+		want []ref.EventID
+	}{
+		{"arn:aws:sqs:us-east-1:*:orders-?", []ref.EventID{one, two}},
+		// Without a *, the glob still is one: not an exact ARN lookup.
+		{"arn:aws:sqs:us-east-1:000000000000:orders-?", []ref.EventID{one, two}},
+		{"arn:aws:sqs:us-east-1:000000000000:orders-1?", []ref.EventID{twelve}},
+		{"arn:aws:sqs:us-east-1:000000000000:orders-??", []ref.EventID{twelve}},
+	} {
+		if got := eventIDs(j.Query(Filter{ResourceGlob: c.glob}).Events); !slices.Equal(got, c.want) {
+			t.Errorf("Query(ResourceGlob %q) = %v, want %v", c.glob, got, c.want)
 		}
 	}
 }

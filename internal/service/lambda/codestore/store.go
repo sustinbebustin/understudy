@@ -2,6 +2,7 @@ package codestore
 
 import (
 	"archive/zip"
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -23,11 +24,18 @@ import (
 // (lambda-api.md 4.3).
 const DefaultMaxUnzipped int64 = 262_144_000
 
+// DefaultMaxEntries caps the entries in one archive, directories included.
+// Lambda documents no such limit; this one leaves an average of 1 KB per
+// file at the unzipped limit, room for a large node_modules tree, while
+// bounding the memory archive/zip spends on its central directory and the
+// inodes extraction creates.
+const DefaultMaxEntries int64 = 250_000
+
 // zipOverhead is what the default MaxZipped allows beyond MaxUnzipped for
 // the zip's own structure: local and central headers of a few hundred
-// bytes per entry, so room for a few hundred thousand entries. Lambda's
-// 50 MB zipped limit applies to API uploads only, not to packages from
-// S3, so it is the caller's to enforce.
+// bytes per entry, so room for DefaultMaxEntries entries. Lambda's 50 MB
+// zipped limit applies to API uploads only, not to packages from S3, so it
+// is the caller's to enforce.
 const zipOverhead int64 = 64 << 20
 
 const (
@@ -50,10 +58,14 @@ type Options struct {
 	// before the zip can be read; zero means MaxUnzipped plus 64 MiB for
 	// the zip's headers.
 	MaxZipped int64
+	// MaxEntries caps the number of entries, directories included; zero
+	// means DefaultMaxEntries.
+	MaxEntries int64
 }
 
 func (o Options) resolve() (Options, error) {
-	for _, l := range []LimitError{{"MaxUnzipped", o.MaxUnzipped}, {"MaxEntry", o.MaxEntry}, {"MaxZipped", o.MaxZipped}} {
+	limits := []LimitError{{"MaxUnzipped", o.MaxUnzipped}, {"MaxEntry", o.MaxEntry}, {"MaxZipped", o.MaxZipped}, {"MaxEntries", o.MaxEntries}}
+	for _, l := range limits {
 		if l.Value < 0 {
 			return o, &l
 		}
@@ -66,6 +78,9 @@ func (o Options) resolve() (Options, error) {
 	}
 	if o.MaxZipped == 0 {
 		o.MaxZipped = o.MaxUnzipped + zipOverhead
+	}
+	if o.MaxEntries == 0 {
+		o.MaxEntries = DefaultMaxEntries
 	}
 	return o, nil
 }
@@ -143,19 +158,19 @@ func (s *Store) PutZip(ctx context.Context, r io.Reader, opts Options) (Code, er
 	if err != nil {
 		return Code{}, err
 	}
-	spool, digest, size, err := s.spool(ctx, r, opts.MaxZipped)
+	pkg, err := s.spool(ctx, r, opts.MaxZipped)
 	if err != nil {
 		return Code{}, err
 	}
-	defer s.discard(spool)
-	if code, ok := s.retain(digest); ok {
+	defer s.discard(pkg.file)
+	if code, ok := s.retain(pkg.digest); ok {
 		return code, nil
 	}
-	staged, err := s.extract(ctx, spool, size, opts)
+	staged, err := s.extract(ctx, pkg, opts)
 	if err != nil {
 		return Code{}, err
 	}
-	return s.publish(staged, digest, size)
+	return s.publish(staged, pkg.digest, pkg.size)
 }
 
 // Dir returns the absolute path of the tree for sha.
@@ -237,33 +252,86 @@ func (s *Store) removeStaged(staged string) error {
 	return nil
 }
 
-// spool copies the package to a temporary file, hashing it on the way: the
-// zip reader needs random access and the digest names the tree. It reads at
-// most one byte past limit, so an oversized package never fills the disk.
-func (s *Store) spool(ctx context.Context, r io.Reader, limit int64) (*os.File, Digest, int64, error) {
+// spooled is a package copied to a temporary file.
+type spooled struct {
+	file   *os.File
+	digest Digest
+	size   int64
+	// headers counts the central directory header signatures in the
+	// package's bytes: an upper bound on the entries archive/zip can parse.
+	headers int64
+}
+
+// spool copies the package to a temporary file, hashing it and counting
+// central directory headers on the way: the zip reader needs random access,
+// the digest names the tree and the count bounds the entries before the
+// reader parses them. It reads at most one byte past limit, so an oversized
+// package never fills the disk.
+func (s *Store) spool(ctx context.Context, r io.Reader, limit int64) (spooled, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, Digest{}, 0, err
+		return spooled{}, err
 	}
 	f, err := s.root.OpenFile(path.Join(tmpDir, "upload-"+randomName()+".zip"), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
-		return nil, Digest{}, 0, fmt.Errorf("code store: create spool file: %w", err)
+		return spooled{}, fmt.Errorf("code store: create spool file: %w", err)
 	}
 	h := sha256.New()
-	size, err := io.Copy(io.MultiWriter(f, h), io.LimitReader(r, limit+1))
+	var headers headerCounter
+	size, err := io.Copy(io.MultiWriter(f, h, &headers), io.LimitReader(r, limit+1))
 	if err == nil {
 		err = ctx.Err()
 	}
 	if err != nil {
 		s.discard(f)
-		return nil, Digest{}, 0, fmt.Errorf("code store: read code package: %w", err)
+		return spooled{}, fmt.Errorf("code store: read code package: %w", err)
 	}
 	if size > limit {
 		s.discard(f)
-		return nil, Digest{}, 0, &UnsafeZipError{Problem: ZippedTooLarge, Size: size, Limit: limit}
+		return spooled{}, &UnsafeZipError{Problem: ZippedTooLarge, Size: size, Limit: limit}
 	}
-	var d Digest
-	h.Sum(d[:0])
-	return f, d, size, nil
+	pkg := spooled{file: f, size: size, headers: headers.n}
+	h.Sum(pkg.digest[:0])
+	return pkg, nil
+}
+
+// centralHeader is the signature that opens every central directory header.
+const centralHeader = "PK\x01\x02"
+
+// headerCounter counts centralHeader occurrences in the bytes written to
+// it, including those split across writes. archive/zip parses central
+// headers one after another wherever the directory starts and checks the
+// declared entry count only modulo 65536, so the declared count bounds
+// nothing; every header it parses starts with a distinct occurrence of the
+// signature, so this count does. It also counts signatures inside stored
+// (uncompressed) data, such as a nested zip, so it can exceed the true
+// entry count, never fall short of it.
+type headerCounter struct {
+	n int64
+	// carry holds the last len(centralHeader)-1 bytes written, where a
+	// signature split across writes begins.
+	carry [len(centralHeader) - 1]byte
+	held  int
+}
+
+func (c *headerCounter) Write(p []byte) (int, error) {
+	sig := []byte(centralHeader)
+	var buf [2 * len(c.carry)]byte
+	edge := append(append(buf[:0], c.carry[:c.held]...), p[:min(len(p), len(c.carry))]...)
+	c.n += int64(bytes.Count(edge, sig) + bytes.Count(p, sig))
+	if len(p) >= len(c.carry) {
+		c.held = copy(c.carry[:], p[len(p)-len(c.carry):])
+	} else {
+		c.held = copy(c.carry[:], edge[max(0, len(edge)-len(c.carry)):])
+	}
+	return len(p), nil
+}
+
+// Headers counts the central directory header signatures in b, a package
+// held in memory: an upper bound on the entries archive/zip parses from it,
+// as the count PutZip takes while spooling. A caller that opens b with
+// zip.NewReader compares it with DefaultMaxEntries first.
+func Headers(b []byte) int64 {
+	return int64(bytes.Count(b, []byte(centralHeader)))
 }
 
 // discard closes and deletes a spool file. Failing to delete it leaves a
@@ -283,8 +351,13 @@ type entryPlan struct {
 	size int64
 }
 
-func (s *Store) extract(ctx context.Context, spool *os.File, size int64, opts Options) (string, error) {
-	zr, err := zip.NewReader(spool, size)
+func (s *Store) extract(ctx context.Context, pkg spooled, opts Options) (string, error) {
+	// zip.NewReader allocates for every central header it parses, so the
+	// entry limit is checked before it runs, against an upper bound.
+	if pkg.headers > opts.MaxEntries {
+		return "", &UnsafeZipError{Problem: TooManyEntries, Size: pkg.headers, Limit: opts.MaxEntries}
+	}
+	zr, err := zip.NewReader(pkg.file, pkg.size)
 	// With GODEBUG zipinsecurepath=0 (set in main) the reader reports
 	// insecure names itself; plan reports them as UnsafeZipError.
 	if err != nil && !errors.Is(err, zip.ErrInsecurePath) {

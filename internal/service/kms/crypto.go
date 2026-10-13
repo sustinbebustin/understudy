@@ -104,7 +104,7 @@ func (s *Service) sealUnder(c *kernel.Call, keyID string, encCtx map[string]stri
 	if serr != nil {
 		return sealed{}, awserr.Internalf(serr)
 	}
-	c.Touch(arnOf(loc.scope, loc.ID))
+	c.Touch(keyARN(loc.scope, loc.ID))
 	return sealed{key: loc, blob: blob}, nil
 }
 
@@ -139,7 +139,7 @@ func (s *Service) openBlob(c *kernel.Call, blob []byte, keyID *string, encCtx ma
 		return opened{}, errInvalidCiphertext()
 	}
 	loc := locate(r.scope(), k)
-	c.Touch(arnOf(loc.scope, loc.ID))
+	c.Touch(keyARN(loc.scope, loc.ID))
 	return opened{key: loc, plain: plain}, nil
 }
 
@@ -153,13 +153,15 @@ func (s *Service) checkNamed(c *kernel.Call, keyID string, sealedBy keyRef) *aws
 		return err
 	}
 	k, err := lookup(s, named)
-	if a, isAlias := named.(keyByAlias); err != nil && isAlias && managedAlias(a.name) {
-		return errIncorrectKey()
+	if a, isAlias := named.(keyByAlias); err != nil && isAlias {
+		if _, managed := managedKeyFor(a.name); managed {
+			return errIncorrectKey()
+		}
 	}
 	if err != nil {
 		return err
 	}
-	c.Touch(arnOf(named.scope(), k.ID))
+	c.Touch(keyARN(named.scope(), k.ID))
 	if want, ok := sealedBy.(keyByID); !ok || named.scope() != want.in || k.ID != want.id {
 		return errIncorrectKey()
 	}

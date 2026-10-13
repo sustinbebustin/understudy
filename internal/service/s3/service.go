@@ -170,6 +170,7 @@ func (*Service) Switches() []fidelity.Entry {
 		crossAccountAccess().Entry(),
 		publicACLAtCreate().Entry(),
 		tagLimits().Entry(),
+		lifecycleRuleLimits().Entry(),
 	}
 }
 
@@ -299,5 +300,17 @@ func tagLimits() fidelity.Switch[string] {
 		Value: "InvalidTag",
 		Label: evidence.AWSDoc,
 		Ref:   "docs/research/phase1/s3.md#429-bucket-tagging",
+	}
+}
+
+// lifecycleRuleLimits are the unique rule IDs, the 1,000-rule limit and the
+// day limits of a lifecycle configuration's actions: documented, with
+// error texts no recording shows (checkLifecycle, checkLifecycleDays).
+func lifecycleRuleLimits() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:  "s3.lifecycle.rule-limits",
+		Value: "InvalidArgument",
+		Label: evidence.AWSDoc,
+		Ref:   "https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html",
 	}
 }

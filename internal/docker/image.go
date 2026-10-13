@@ -57,8 +57,12 @@ type ImageConfig struct {
 }
 
 // ImageInspect reads a local image by reference or ID. An absent image is an
-// *Error for which IsNotFound holds.
+// *Error for which IsNotFound holds; a ref outside the reference grammar is
+// an *InvalidReferenceError and nothing is sent.
 func (c *Client) ImageInspect(ctx context.Context, ref string) (Image, error) {
+	if err := ValidateReference(ref); err != nil {
+		return Image{}, err
+	}
 	var img Image
 	err := c.callJSON(ctx, "ImageInspect", http.MethodGet, "/images/"+ref+"/json", nil, nil, &img)
 	return img, err
@@ -90,8 +94,12 @@ type progressFrame struct {
 // ImagePull pulls ref (anonymously) for platform, calling progress for each
 // frame when it is non-nil. A reference without a tag or digest pulls
 // "latest", never every tag. A failure the daemon reports after the stream
-// has started is a *StreamError.
+// has started is a *StreamError; a ref outside the reference grammar is an
+// *InvalidReferenceError and nothing is sent.
 func (c *Client) ImagePull(ctx context.Context, ref string, platform Platform, progress func(Progress)) error {
+	if err := ValidateReference(ref); err != nil {
+		return err
+	}
 	from, tag := splitReference(ref)
 	q := url.Values{"fromImage": {from}}
 	if tag != "" {

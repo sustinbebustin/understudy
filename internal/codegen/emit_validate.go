@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -18,7 +19,7 @@ import (
 func emitValidate(ir *ServiceIR) ([]byte, error) {
 	f := newFile(ir, "validate_gen.go")
 	f.use("awserr")
-	v := &validator{f: f, style: ir.PathStyle, memo: map[*ShapeIR]bool{}, renders: map[*ShapeIR]bool{}}
+	v := &validator{f: f, style: ir.PathStyle, memo: map[*ShapeIR]bool{}, renders: map[*ShapeIR]bool{}, secrets: map[*ShapeIR]bool{}}
 	emitPatterns(f, ir)
 	for _, s := range sortedShapes(ir) {
 		if s.Role&RoleInput == 0 {
@@ -40,6 +41,7 @@ type validator struct {
 	style     PathStyle
 	memo      map[*ShapeIR]bool
 	renders   map[*ShapeIR]bool
+	secrets   map[*ShapeIR]bool // see secret
 	usesAt    bool
 	usesFloat bool
 }
@@ -231,10 +233,10 @@ func (v *validator) checks(m *MemberIR, x, path string, depth int) error {
 	}
 	for _, c := range cs {
 		v.f.p("%sif %s {", ind, c.fails)
-		v.add(ind+"\t", path, v.rendered(m.Target, x), c.constraint)
+		v.add(ind+"\t", path, v.rendered(m, x), c.constraint)
 		v.f.p("%s}", ind)
 	}
-	return v.nested(m.Target, x, path, depth)
+	return v.nested(m, x, path, depth)
 }
 
 // failCond is one constraint on a value: the Go condition under which the
@@ -293,7 +295,10 @@ func stringExpr(t *ShapeIR, x string) string {
 	return x
 }
 
-func (v *validator) nested(t *ShapeIR, x, path string, depth int) error {
+// nested checks the members, elements or entries of value x of member h,
+// whose target holds them.
+func (v *validator) nested(h *MemberIR, x, path string, depth int) error {
+	t := h.Target
 	if !v.needs(t) {
 		return nil
 	}
@@ -304,9 +309,9 @@ func (v *validator) nested(t *ShapeIR, x, path string, depth int) error {
 	case smithy.TypeUnion:
 		v.f.p("%svalidate%s(%s, %s, out)", ind, t.GoName, path, x)
 	case smithy.TypeList:
-		return v.listElements(t, x, path, depth)
+		return v.listElements(h, x, path, depth)
 	case smithy.TypeMap:
-		return v.mapEntries(t, x, path, depth)
+		return v.mapEntries(h, x, path, depth)
 	case smithy.TypeString, smithy.TypeEnum, smithy.TypeIntEnum, smithy.TypeBlob, smithy.TypeBoolean,
 		smithy.TypeByte, smithy.TypeShort, smithy.TypeInteger, smithy.TypeLong, smithy.TypeFloat,
 		smithy.TypeDouble, smithy.TypeBigInteger, smithy.TypeBigDecimal, smithy.TypeTimestamp,
@@ -319,14 +324,14 @@ func (v *validator) nested(t *ShapeIR, x, path string, depth int) error {
 // listElements checks every element at path.<n>.member, n from 1. Rolled
 // up, an element's own constraints are reported once at the list instead,
 // and only the members of structured elements keep indexed paths.
-func (v *validator) listElements(t *ShapeIR, x, path string, depth int) error {
+func (v *validator) listElements(h *MemberIR, x, path string, depth int) error {
 	f := v.f
 	ind := strings.Repeat("\t", depth)
-	elem := t.Members[0]
+	elem := h.Target.Members[0]
 	direct := v.style == PathIndexed
 	if !direct {
 		e := fmt.Sprintf("e%d", depth)
-		if err := v.rollUp(t, elem, x, path, "for _, "+e+" := range "+x, e, depth, "awserr.ElementScope"); err != nil {
+		if err := v.rollUp(h, elem, x, path, "for _, "+e+" := range "+x, e, depth, "awserr.ElementScope"); err != nil {
 			return err
 		}
 		if !v.needs(elem.Target) {
@@ -346,23 +351,28 @@ func (v *validator) listElements(t *ShapeIR, x, path string, depth int) error {
 
 // mapEntries checks every key at path.<key> and every value at
 // path.<key>.member, in key order. Rolled up, the keys' and the values' own
-// constraints are reported once each at the map.
-func (v *validator) mapEntries(t *ShapeIR, x, path string, depth int) error {
+// constraints are reported once each at the map. A sensitive key never
+// reaches an indexed path, which would echo it.
+func (v *validator) mapEntries(h *MemberIR, x, path string, depth int) error {
 	f := v.f
 	ind := strings.Repeat("\t", depth)
 	k, e, kp, vp := fmt.Sprintf("k%d", depth), fmt.Sprintf("e%d", depth), fmt.Sprintf("kp%d", depth), fmt.Sprintf("vp%d", depth)
-	key, val := t.Members[0], t.Members[1]
+	key, val := h.Target.Members[0], h.Target.Members[1]
 	direct := v.style == PathIndexed
 	if !direct {
-		if err := v.rollUp(t, key, x, path, "for "+k+" := range "+x, k, depth, "awserr.MapKeysScope"); err != nil {
+		if err := v.rollUp(h, key, x, path, "for "+k+" := range "+x, k, depth, "awserr.MapKeysScope"); err != nil {
 			return err
 		}
-		if err := v.rollUp(t, val, x, path, "for _, "+e+" := range "+x, e, depth, "awserr.MapValueScope"); err != nil {
+		if err := v.rollUp(h, val, x, path, "for _, "+e+" := range "+x, e, depth, "awserr.MapValueScope"); err != nil {
 			return err
 		}
 		if !v.needs(val.Target) {
 			return nil
 		}
+	} else if v.secret(key) {
+		return failf(StageEmit, string(h.Target.ID)+"$key", "the key is sensitive, but an indexed validation path "+
+			"(<map>.<key>.member) would echo it; give the service dev.understudy#validationPathStyle rolledUp "+
+			"or remove the constraints below this map")
 	}
 	f.use("slices", "maps")
 	f.p("%sfor _, %s := range slices.Sorted(maps.Keys(%s)) {", ind, k, x)
@@ -382,10 +392,11 @@ func (v *validator) mapEntries(t *ShapeIR, x, path string, depth int) error {
 	return nil
 }
 
-// rollUp reports, at the collection's path with the whole collection as the
-// value, one Composite of every constraint of member m when any element the
-// loop header ranges over (as e) fails one (error-matrix.md 4, style B).
-func (v *validator) rollUp(coll *ShapeIR, m *MemberIR, x, path, loop, e string, depth int, scope string) error {
+// rollUp reports, at the collection's path with the whole collection x of
+// member h as the value, one Composite of every constraint of member m when
+// any element the loop header ranges over (as e) fails one
+// (error-matrix.md 4, style B).
+func (v *validator) rollUp(h, m *MemberIR, x, path, loop, e string, depth int, scope string) error {
 	value := e
 	sparse := m.Owner.Sparse && pointerable(m.Target)
 	if sparse {
@@ -414,7 +425,7 @@ func (v *validator) rollUp(coll *ShapeIR, m *MemberIR, x, path, loop, e string, 
 	f.p("%s\t}", ind)
 	f.p("%s\treturn false", ind)
 	f.p("%s}() {", ind)
-	v.add(ind+"\t", path, v.rendered(coll, x), "awserr.Composite{Scope: "+scope+", Of: []awserr.MemberConstraint{"+strings.Join(lits, ", ")+"}}")
+	v.add(ind+"\t", path, v.rendered(h, x), "awserr.Composite{Scope: "+scope+", Of: []awserr.MemberConstraint{"+strings.Join(lits, ", ")+"}}")
 	f.p("%s}", ind)
 	return nil
 }
@@ -425,7 +436,7 @@ func (v *validator) rollUp(coll *ShapeIR, m *MemberIR, x, path, loop, e string, 
 func (v *validator) elem(m *MemberIR, e, path string, depth int, direct bool) error {
 	check := v.checks
 	if !direct {
-		check = func(m *MemberIR, x, path string, depth int) error { return v.nested(m.Target, x, path, depth) }
+		check = v.nested
 	}
 	if m.Owner.Sparse && pointerable(m.Target) {
 		ind := strings.Repeat("\t", depth)
@@ -521,9 +532,14 @@ func (v *validator) rangeConds(m *MemberIR, r *Bounds, x string) ([]failCond, er
 	return out, nil
 }
 
-// rendered is the awserr.Rendered expression of value x of shape t: Java
-// toString text, blobs omitted.
-func (v *validator) rendered(t *ShapeIR, x string) string {
+// rendered is the awserr.Rendered expression of value x of member m: Java
+// toString text, blobs and sensitive values omitted, as the sensitive trait
+// requires of exception messages.
+func (v *validator) rendered(m *MemberIR, x string) string {
+	if v.secret(m) {
+		return "awserr.RenderedOmitted{}"
+	}
+	t := m.Target
 	switch t.Type {
 	case smithy.TypeString, smithy.TypeEnum:
 		return "awserr.RenderedText{Text: " + stringExpr(t, x) + "}"
@@ -542,6 +558,26 @@ func (v *validator) rendered(t *ShapeIR, x string) string {
 	default:
 		return "awserr.RenderedOmitted{}"
 	}
+}
+
+// secret reports whether a value of member m holds sensitive data: m or its
+// target is sensitive, or it is a list or map whose keys or elements hold
+// some. A structure renders no text, so its members do not count.
+func (v *validator) secret(m *MemberIR) bool {
+	if m.Sensitive || m.Target.Sensitive {
+		return true
+	}
+	t := m.Target
+	if t.Type != smithy.TypeList && t.Type != smithy.TypeMap {
+		return false
+	}
+	if s, ok := v.secrets[t]; ok {
+		return s
+	}
+	v.secrets[t] = false
+	s := slices.ContainsFunc(t.Members, v.secret)
+	v.secrets[t] = s
+	return s
 }
 
 func (v *validator) markRender(t *ShapeIR) {
@@ -570,7 +606,7 @@ func (v *validator) renderFunc(t *ShapeIR) {
 		if m.Owner.Sparse && pointerable(m.Target) && !m.Target.IsStruct() {
 			x = "*" + e
 		}
-		r := v.rendered(m.Target, x)
+		r := v.rendered(m, x)
 		if after, ok := strings.CutPrefix(r, "awserr.RenderedText{Text: "); ok {
 			return strings.TrimSuffix(after, "}"), true
 		}

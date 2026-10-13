@@ -167,45 +167,92 @@ func (s *Service) dropExpired(tx *kernel.Tx, q queueRef, queue *Queue, now clock
 	return len(expired) > 0
 }
 
+// backAfterReceives is the receive count at which a standard queue whose
+// maxReceiveCount is above it sends a message to the back of the queue
+// (sqs-dead-letter-queues.html).
+const backAfterReceives = 3
+
 // plan picks the messages a receive takes, in delivery order, up to limit,
 // and the ones it moves to the dead-letter queue on the way. A standard
-// queue offers its receivable messages oldest first. A FIFO queue offers
+// queue offers its receivable messages oldest first; when its
+// maxReceiveCount is above backAfterReceives, the messages received that
+// many times come after all the others. A FIFO queue offers
 // group by group, in the order the groups first appear, each group's
 // messages in send order until the first that is not receivable: a group
 // with a message in flight ahead of the rest is closed (sqs.md 8.1).
 func plan(st *State, q queueRef, queue *Queue, limit int, now clock.Instant) (take, move []int) {
-	redrive := redriveLimit(st, q, queue)
-	offer := func(i int) bool {
-		m := &queue.Messages[i]
-		if !m.visible(now) {
-			return false
-		}
-		if redrive > 0 && m.receiveCount() >= redrive {
-			move = append(move, i)
-			return true
-		}
-		if len(take) < limit {
-			take = append(take, i)
-		}
+	p := planner{queue: queue, limit: limit, redrive: redriveLimit(st, q, queue), now: now}
+	if queue.FIFO == nil {
+		p.standard()
+	} else {
+		p.fifo()
+	}
+	return p.take, p.move
+}
+
+// planner is the state of one plan: the messages taken and moved so far.
+type planner struct {
+	queue   *Queue
+	limit   int
+	redrive int
+	now     clock.Instant
+	take    []int
+	move    []int
+}
+
+func (p *planner) full() bool { return len(p.take) == p.limit }
+
+// offer considers message i, reporting whether it was receivable: one
+// past the redrive limit is moved, any other taken while there is room.
+func (p *planner) offer(i int) bool {
+	m := &p.queue.Messages[i]
+	if !m.visible(p.now) {
+		return false
+	}
+	if p.redrive > 0 && m.receiveCount() >= p.redrive {
+		p.move = append(p.move, i)
 		return true
 	}
-	if queue.FIFO == nil {
-		for i := range queue.Messages {
-			if len(take) == limit {
-				break
-			}
-			offer(i)
-		}
-		return take, move
+	if !p.full() {
+		p.take = append(p.take, i)
 	}
-	for _, group := range groups(queue.Messages) {
+	return true
+}
+
+// standard offers a standard queue's messages oldest first, those sent to
+// the back after the others.
+func (p *planner) standard() {
+	if p.redrive <= backAfterReceives {
+		p.pass(func(*Message) bool { return true })
+		return
+	}
+	p.pass(func(m *Message) bool { return m.receiveCount() < backAfterReceives })
+	p.pass(func(m *Message) bool { return m.receiveCount() >= backAfterReceives })
+}
+
+// pass offers, oldest first, the messages pick selects until the receive
+// is full.
+func (p *planner) pass(pick func(*Message) bool) {
+	for i := range p.queue.Messages {
+		if p.full() {
+			return
+		}
+		if pick(&p.queue.Messages[i]) {
+			p.offer(i)
+		}
+	}
+}
+
+// fifo offers a FIFO queue's messages group by group, each group up to its
+// first message that is not receivable.
+func (p *planner) fifo() {
+	for _, group := range groups(p.queue.Messages) {
 		for _, i := range group {
-			if len(take) == limit || !offer(i) {
+			if p.full() || !p.offer(i) {
 				break
 			}
 		}
 	}
-	return take, move
 }
 
 // groups returns the indices of a FIFO queue's messages by group, the

@@ -175,10 +175,21 @@ func TestSNSLinksWorkThroughTheEdge(t *testing.T) {
 		t.Fatalf("the envelope's signature does not verify against the served certificate: %v", err)
 	}
 
-	if status, body := get(t, n.UnsubscribeURL); status != http.StatusOK {
-		t.Fatalf("UnsubscribeURL %s = %d %s, want 200", n.UnsubscribeURL, status, body)
+	// The queue owner subscribed its own queue, which sets
+	// AuthenticateOnUnsubscribe, so the unsigned link is refused and the
+	// subscription stays.
+	if status, body := get(t, n.UnsubscribeURL); status != http.StatusBadRequest || !strings.Contains(body, "AuthenticateOnUnsubscribe") {
+		t.Fatalf("UnsubscribeURL %s = %d %s, want 400 naming AuthenticateOnUnsubscribe", n.UnsubscribeURL, status, body)
 	}
-	if status, body := snsCall(t, endpoint, url.Values{"Action": {"GetSubscriptionAttributes"}, "SubscriptionArn": {sub}}); status != http.StatusNotFound || element(t, body, "Code") != "NotFound" {
+	mustSNS(t, endpoint, url.Values{"Action": {"GetSubscriptionAttributes"}, "SubscriptionArn": {sub}})
+
+	// The http subscription was confirmed without AuthenticateOnUnsubscribe,
+	// so the same link unsubscribes it.
+	unsubscribe := endpoint + "/_understudy/sns/UnsubscribeLink?" + url.Values{"Action": {"Unsubscribe"}, "SubscriptionArn": {pending}}.Encode()
+	if status, body := get(t, unsubscribe); status != http.StatusOK {
+		t.Fatalf("UnsubscribeURL %s = %d %s, want 200", unsubscribe, status, body)
+	}
+	if status, body := snsCall(t, endpoint, url.Values{"Action": {"GetSubscriptionAttributes"}, "SubscriptionArn": {pending}}); status != http.StatusNotFound || element(t, body, "Code") != "NotFound" {
 		t.Fatalf("GetSubscriptionAttributes after unsubscribing = %d %s, want 404 NotFound", status, body)
 	}
 }

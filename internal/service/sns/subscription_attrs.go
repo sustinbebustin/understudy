@@ -45,6 +45,7 @@ func (s *Service) bindSubscriptionAttributes(b snsapi.Binder) {
 
 // subscriber is what a subscription attribute is checked against.
 type subscriber struct {
+	protocol  Protocol
 	endpoint  string
 	topicFIFO bool
 	// home is the topic's scope, the subscription's account and Region,
@@ -87,7 +88,9 @@ func storedSubscriptionAttribute(name, value string) subscriptionSetting {
 // parameter: " (after "Attributes Reason: " at Subscribe), recorded where
 // sns.md has it and inferred otherwise; it is "" when the setting is good.
 // FilterPolicy is stored as given once it compiles for the scope in
-// effect, and DeliveryPolicy once it parses as a JSON object.
+// effect; a DeliveryPolicy that parses as a JSON object and keeps
+// checkSubscriptionDeliveryPolicy's constraints is stored as
+// storedSubscriptionDeliveryPolicy shapes it.
 func (s *Service) subscriptionAttribute(sub subscriber, name string, value *string) (set subscriptionSetting, detail string) {
 	v := ""
 	if value != nil {
@@ -95,13 +98,7 @@ func (s *Service) subscriptionAttribute(sub subscriber, name string, value *stri
 	}
 	switch name {
 	case attrRawMessageDelivery:
-		// Case-insensitive, shown lower case (sns.md 3.3).
-		raw := strings.ToLower(v)
-		if raw != "true" && raw != "false" {
-			return subscriptionSetting{}, attrRawMessageDelivery + ": Invalid value [" + v + "]. Must be true or false."
-		}
-		on := raw == "true"
-		return subscriptionSetting{name: name, shown: raw, apply: func(sub *Subscription) { sub.RawMessageDelivery = on }}, ""
+		return rawMessageDelivery(sub.protocol, v)
 	case attrRedrivePolicy:
 		if value == nil {
 			return storedSubscriptionAttribute(name, ""), ""
@@ -121,14 +118,55 @@ func (s *Service) subscriptionAttribute(sub subscriber, name string, value *stri
 			return subscriptionSetting{}, detail
 		}
 	case attrDeliveryPolicy:
-		if _, ok := parseObject(v); v != "" && !ok {
-			return subscriptionSetting{}, attrDeliveryPolicy + ": failed to parse JSON."
+		return subscriptionDeliveryPolicy(v)
+	case attrReplayPolicy:
+		// Message replay exists only for FIFO topics (sns.md 3.3); the
+		// text is inferred, in the form of a standard topic's
+		// ArchivePolicy.
+		if !sub.topicFIFO {
+			return subscriptionSetting{}, name
 		}
-	case attrSubscriptionRoleArn, attrReplayPolicy:
+	case attrSubscriptionRoleArn:
 	default:
 		return subscriptionSetting{}, "AttributeName"
 	}
 	return storedSubscriptionAttribute(name, v), ""
+}
+
+// subscriptionDeliveryPolicy checks a subscription DeliveryPolicy: "" unsets
+// it, and anything else must be a JSON object that keeps
+// checkSubscriptionDeliveryPolicy's constraints.
+func subscriptionDeliveryPolicy(v string) (set subscriptionSetting, detail string) {
+	if v == "" {
+		return storedSubscriptionAttribute(attrDeliveryPolicy, ""), ""
+	}
+	m, ok := parseObject(v)
+	if !ok {
+		return subscriptionSetting{}, attrDeliveryPolicy + ": failed to parse JSON."
+	}
+	if detail := checkSubscriptionDeliveryPolicy(m); detail != "" {
+		return subscriptionSetting{}, detail
+	}
+	stored, ok := storedSubscriptionDeliveryPolicy(m)
+	if !ok {
+		return subscriptionSetting{}, attrDeliveryPolicy + ": failed to parse JSON."
+	}
+	return storedSubscriptionAttribute(attrDeliveryPolicy, stored), ""
+}
+
+// rawMessageDelivery checks a RawMessageDelivery for a subscription of
+// protocol: true or false in any case, shown lower case (sns.md 3.3), and
+// true only where the protocol takes raw delivery.
+func rawMessageDelivery(protocol Protocol, v string) (set subscriptionSetting, detail string) {
+	raw := strings.ToLower(v)
+	if raw != "true" && raw != "false" {
+		return subscriptionSetting{}, attrRawMessageDelivery + ": Invalid value [" + v + "]. Must be true or false."
+	}
+	on := raw == "true"
+	if on && !protocol.rawDelivery() {
+		return subscriptionSetting{}, "Delivery protocol [" + protocol.String() + "] does not support raw message delivery."
+	}
+	return subscriptionSetting{name: attrRawMessageDelivery, shown: raw, apply: func(sub *Subscription) { sub.RawMessageDelivery = on }}, ""
 }
 
 // checkFilterPolicyScope checks a FilterPolicyScope (sns.md 3.3, 6.5): one
@@ -186,29 +224,11 @@ func deadLetterTarget(policy document.Map) (aws.ARN, aws.Scope, bool) {
 	if err != nil || dlq.Service != "sqs" {
 		return aws.ARN{}, aws.Scope{}, false
 	}
-	scope, ok := servedScope(dlq)
-	if !ok {
+	scope, err := aws.ScopeOf(dlq)
+	if err != nil {
 		return aws.ARN{}, aws.Scope{}, false
 	}
 	return dlq, scope, true
-}
-
-// servedScope is the scope of an ARN the outbox can deliver to: the aws
-// partition, a Region and a 12-digit account (the outbox's scopeOf). The
-// Region is checked for its syntax only.
-func servedScope(a aws.ARN) (aws.Scope, bool) {
-	if a.Partition != aws.PartitionAWS().String() {
-		return aws.Scope{}, false
-	}
-	account, err := aws.ParseAccountID(a.Account)
-	if err != nil {
-		return aws.Scope{}, false
-	}
-	var region aws.Region
-	if err := region.UnmarshalText([]byte(a.Region)); err != nil || region.IsZero() {
-		return aws.Scope{}, false
-	}
-	return aws.Scope{Partition: aws.PartitionAWS(), Account: account, Region: region}, true
 }
 
 // isFIFOQueue reports an SQS queue ARN or URL naming a FIFO queue.
@@ -235,8 +255,10 @@ func (s *Service) subscriptionSettings(sub subscriber, attrs map[string]string) 
 
 // renderSubscriptionAttributes is GetSubscriptionAttributes of sub
 // (sns.md 3.3, tf-messaging.md 3.5): the fixed members, then every
-// attribute set, with FilterPolicyScope shown only beside a FilterPolicy.
-func renderSubscriptionAttributes(ref subscriptionRef, sub *Subscription) map[string]string {
+// attribute set, with FilterPolicyScope shown only beside a FilterPolicy,
+// and an http or https subscription's EffectiveDeliveryPolicy under
+// topicPolicy, its topic's stored DeliveryPolicy ("" for none).
+func renderSubscriptionAttributes(ref subscriptionRef, sub *Subscription, topicPolicy string) map[string]string {
 	pending, authenticated := "false", "false"
 	switch st := sub.Status.(type) {
 	case Pending:
@@ -264,6 +286,9 @@ func renderSubscriptionAttributes(ref subscriptionRef, sub *Subscription) map[st
 	}
 	if _, ok := sub.Attributes[attrFilterPolicy]; ok {
 		out[attrFilterPolicyScope] = sub.filterPolicyScope()
+	}
+	if sub.Protocol == ProtocolHTTP || sub.Protocol == ProtocolHTTPS {
+		out[attrEffectiveDeliveryPolicy] = subscriptionEffectiveDeliveryPolicy(sub.Attributes[attrDeliveryPolicy], topicPolicy)
 	}
 	return out
 }
@@ -342,17 +367,30 @@ func (sub *Subscription) setting(name string) string {
 	return sub.Attributes[name]
 }
 
-// getSubscriptionAttributes returns every attribute of a subscription.
+// getSubscriptionAttributes returns every attribute of a subscription, of
+// a live topic or detached from a deleted one (LocalStack
+// test_delete_subscriptions_on_delete_topic, AWS-recorded).
 func (s *Service) getSubscriptionAttributes(_ context.Context, c *kernel.Call, in *snsapi.GetSubscriptionAttributesInput) (*snsapi.GetSubscriptionAttributesOutput, *awserr.Error) {
 	ref, err := resolveSubscription(c, in.SubscriptionArn)
 	if err != nil {
 		return nil, err
 	}
-	sub, ok := s.readSubscription(ref)
-	if !ok {
+	now := s.clock.Now()
+	attrs, _ := read(s, ref.topic.scope, func(st *State) map[string]string {
+		if t, ok := st.Topics[ref.topic.name]; ok {
+			if i := t.indexOf(ref.id); i >= 0 && !t.Subscriptions[i].expired(now) {
+				return renderSubscriptionAttributes(ref, &t.Subscriptions[i], t.Attributes[attrDeliveryPolicy])
+			}
+		}
+		if i := st.detachedIndex(ref, now); i >= 0 {
+			return renderSubscriptionAttributes(ref, &st.Detached[i].Subscription, "")
+		}
+		return nil
+	})
+	if attrs == nil {
 		return nil, errSubscriptionNotFound()
 	}
-	return &snsapi.GetSubscriptionAttributesOutput{Attributes: renderSubscriptionAttributes(ref, &sub)}, nil
+	return &snsapi.GetSubscriptionAttributesOutput{Attributes: attrs}, nil
 }
 
 // setSubscriptionAttributes sets one attribute of a subscription.
@@ -367,7 +405,7 @@ func (s *Service) setSubscriptionAttributes(_ context.Context, c *kernel.Call, i
 			return err
 		}
 		current := subscriber{
-			endpoint: sub.Endpoint, topicFIFO: ref.topic.fifo(), home: ref.topic.scope,
+			protocol: sub.Protocol, endpoint: sub.Endpoint, topicFIFO: ref.topic.fifo(), home: ref.topic.scope,
 			scope: scope, policy: sub.Attributes[attrFilterPolicy],
 		}
 		set, detail := s.subscriptionAttribute(current, in.AttributeName, in.AttributeValue)

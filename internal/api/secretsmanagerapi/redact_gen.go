@@ -263,31 +263,31 @@ func (v BatchGetSecretValueOutput) redacted() BatchGetSecretValueOutput {
 
 func (v CreateSecretInput) redacted() CreateSecretInput {
 	v.SecretBinary = nil
-	v.SecretString = nil
+	v.SecretString = redactedPtr(v.SecretString)
 	return v
 }
 
 func (v GetRandomPasswordOutput) redacted() GetRandomPasswordOutput {
-	v.RandomPassword = nil
+	v.RandomPassword = redactedPtr(v.RandomPassword)
 	return v
 }
 
 func (v GetSecretValueOutput) redacted() GetSecretValueOutput {
 	v.SecretBinary = nil
-	v.SecretString = nil
+	v.SecretString = redactedPtr(v.SecretString)
 	return v
 }
 
 func (v PutSecretValueInput) redacted() PutSecretValueInput {
 	v.SecretBinary = nil
-	v.SecretString = nil
-	v.RotationToken = nil
+	v.SecretString = redactedPtr(v.SecretString)
+	v.RotationToken = redactedPtr(v.RotationToken)
 	return v
 }
 
 func (v UpdateSecretInput) redacted() UpdateSecretInput {
 	v.SecretBinary = nil
-	v.SecretString = nil
+	v.SecretString = redactedPtr(v.SecretString)
 	return v
 }
 
@@ -304,6 +304,17 @@ func redactSecretValuesType(v []SecretValueEntry) []SecretValueEntry {
 
 func (v SecretValueEntry) redacted() SecretValueEntry {
 	v.SecretBinary = nil
-	v.SecretString = nil
+	v.SecretString = redactedPtr(v.SecretString)
 	return v
+}
+
+// redactedText stands in for a sensitive string the client sent.
+const redactedText = "[redacted]"
+
+// redactedPtr is redactedText in place of a present *p, nil for nil.
+func redactedPtr[T ~string](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	return new(T(redactedText))
 }

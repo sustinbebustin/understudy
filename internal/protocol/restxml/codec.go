@@ -56,6 +56,13 @@ type Dialect struct {
 	// 5.8, 5.9). The models give those operations no httpResponseCode
 	// member a handler could set.
 	PartialContent bool
+	// InertStreams sends X-Content-Type-Options: nosniff and
+	// Content-Security-Policy: sandbox with every @streaming payload, such
+	// as a GetObject body. AWS sends neither, but understudy serves object
+	// bodies on the origin of its own admin prefix, so a stored HTML or SVG
+	// object opened in a browser must not run script there. SDKs ignore
+	// both headers.
+	InertStreams bool
 }
 
 // internalMessage is S3's InternalError text (wire-rest.md 3.7).
@@ -63,10 +70,10 @@ const internalMessage = "We encountered an internal error. Please try again."
 
 // S3Dialect is S3's: bare <Error> roots, millisecond timestamps,
 // invalidArgument for unparsable request values, no Content-Type on a
-// bodiless output, and 206 for a partial read. The composition root sets
-// Internal to S3's InternalError identity.
+// bodiless output, 206 for a partial read, and inert object bodies. The
+// composition root sets Internal to S3's InternalError identity.
 func S3Dialect(invalidArgument awserr.Identity) Dialect {
-	return Dialect{NoErrorWrapping: true, MillisecondTimestamps: true, InvalidArgument: invalidArgument, OmitEmptyDocumentType: true, PartialContent: true}
+	return Dialect{NoErrorWrapping: true, MillisecondTimestamps: true, InvalidArgument: invalidArgument, OmitEmptyDocumentType: true, PartialContent: true, InertStreams: true}
 }
 
 // S3ControlDialect is S3 Control's: S3's, but with Smithy's wrapped
@@ -184,6 +191,10 @@ func (c Codec) Encode(r *http.Request, op *registry.Operation, requestID string,
 	if _, empty := enc.Body.(restbind.NoBody); empty && !d.OmitEmptyDocumentType && hasMembers(op.Output) &&
 		restbind.BodyAllowed(enc.Status) && enc.Header.Get("Content-Type") == "" {
 		enc.Header.Set("Content-Type", mediaXML)
+	}
+	if _, stream := enc.Body.(restbind.StreamBody); stream && d.InertStreams {
+		enc.Header.Set("X-Content-Type-Options", "nosniff")
+		enc.Header.Set("Content-Security-Policy", "sandbox")
 	}
 	body, err := enc.Finish(mediaXML)
 	if err != nil {

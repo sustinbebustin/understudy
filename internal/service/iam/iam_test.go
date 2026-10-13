@@ -1,10 +1,12 @@
 package iam_test
 
 import (
+	"net/http"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -12,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
+	"github.com/sustinbebustin/understudy/internal/protocol/awsquery"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/iam"
 )
@@ -44,10 +47,8 @@ func call[In, Out any](h *harness, op kernel.Op[In, Out], in *In) (*Out, *awserr
 	return h.Invoke(h.Context(), op, in)
 }
 
-// mustAs runs op as a client request signed by p and fails the test on an
-// error.
-func mustAs[In, Out any](h *harness, p identity.Principal, op kernel.Op[In, Out], in *In) *Out {
-	h.Helper()
+// callAs runs op as a client request signed by p.
+func callAs[In, Out any](h *harness, p identity.Principal, op kernel.Op[In, Out], in *In) (*Out, *awserr.Error) {
 	c := h.Kernel.NewCall(kernel.ExternalCall{
 		RequestID: h.Kernel.IDs().RequestID(),
 		Operation: op.Descriptor().ID,
@@ -57,7 +58,14 @@ func mustAs[In, Out any](h *harness, p identity.Principal, op kernel.Op[In, Out]
 		Admitted:  h.Clock.Now(),
 		Endpoint:  h.Endpoint,
 	})
-	out, err := kerneltest.Dispatch[In, Out](h.Context(), h.K, c, in)
+	return kerneltest.Dispatch[In, Out](h.Context(), h.K, c, in)
+}
+
+// mustAs runs op as a client request signed by p and fails the test on an
+// error.
+func mustAs[In, Out any](h *harness, p identity.Principal, op kernel.Op[In, Out], in *In) *Out {
+	h.Helper()
+	out, err := callAs(h, p, op, in)
 	if err != nil {
 		h.Fatalf("%s = %s: %s", op.Descriptor().ID.Name, err.ID.QueryCode, err.Message)
 	}
@@ -84,6 +92,14 @@ func fails[In, Out any](h *harness, op kernel.Op[In, Out], in *In, code, text st
 		h.Fatalf("%s succeeded, want %s", op.Descriptor().ID.Name, code)
 	case err.ID.QueryCode != code || !strings.Contains(err.Message, text):
 		h.Fatalf("%s = %s %q, want %s containing %q", op.Descriptor().ID.Name, err.ID.QueryCode, err.Message, code, text)
+	}
+}
+
+// advance moves the emulator clock forward by d.
+func (h *harness) advance(d time.Duration) {
+	h.Helper()
+	if _, err := h.Clock.Advance(d); err != nil {
+		h.Fatal(err)
 	}
 }
 
@@ -151,8 +167,13 @@ func TestTerraformRoleLifecycle(t *testing.T) {
 func TestCreateRoleDefaultsAndConflicts(t *testing.T) {
 	run(t, func(h *harness) {
 		r := h.role("Plain")
-		if r.Path != "/" || *r.MaxSessionDuration != 3600 || r.Description != nil || r.RoleLastUsed != nil {
-			t.Errorf("CreateRole = %+v, want path /, MaxSessionDuration 3600, no description, no RoleLastUsed", r)
+		// CreateRole leaves out MaxSessionDuration and RoleLastUsed, which
+		// GetRole shows.
+		if r.Path != "/" || r.MaxSessionDuration != nil || r.Description != nil || r.RoleLastUsed != nil {
+			t.Errorf("CreateRole = %+v, want path /, no MaxSessionDuration, no description, no RoleLastUsed", r)
+		}
+		if got := must(h, iamapi.OpGetRole, &iamapi.GetRoleInput{RoleName: "Plain"}).Role; got.MaxSessionDuration == nil || *got.MaxSessionDuration != 3600 {
+			t.Errorf("GetRole.MaxSessionDuration = %v, want the default 3600", got.MaxSessionDuration)
 		}
 		// Names are unique regardless of case, and keep the case they were
 		// created with.
@@ -166,6 +187,35 @@ func TestCreateRoleDefaultsAndConflicts(t *testing.T) {
 		withResource := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole","Resource":"*"}]}`
 		fails(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{RoleName: "bad", AssumeRolePolicyDocument: withResource}, "MalformedPolicyDocument", "Has prohibited field Resource.")
 		fails(h, iamapi.OpGetRole, &iamapi.GetRoleInput{RoleName: "bad"}, "NoSuchEntity", "")
+	})
+}
+
+// The model's pathType pattern, ^(/)|(/[!-~]+/)$, anchors each alternative
+// on one side only; IAM reads it as "/" or a run of printable ASCII between
+// slashes, and refuses the rest before storing anything.
+func TestPathsMustBeginAndEndWithASlash(t *testing.T) {
+	run(t, func(h *harness) {
+		const text = "Member must satisfy regular expression pattern: (\\u002F)|(\\u002F[\\u0021-\\u007E]+\\u002F)"
+		must(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "u"})
+		for _, path := range []string{"/svc", "/a b/", "x/a/", "svc/"} {
+			at := "Value '" + path + "' at 'path' failed to satisfy constraint: " + text
+			fails(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{RoleName: "r", Path: new(path), AssumeRolePolicyDocument: trustLambda}, "ValidationError", at)
+			fails(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "v", Path: new(path)}, "ValidationError", at)
+			fails(h, iamapi.OpCreateInstanceProfile, &iamapi.CreateInstanceProfileInput{InstanceProfileName: "p", Path: new(path)}, "ValidationError", at)
+			fails(h, iamapi.OpUpdateUser, &iamapi.UpdateUserInput{UserName: "u", NewPath: new(path)}, "ValidationError",
+				"Value '"+path+"' at 'newPath' failed to satisfy constraint: "+text)
+		}
+		fails(h, iamapi.OpGetRole, &iamapi.GetRoleInput{RoleName: "r"}, "NoSuchEntity", "")
+		fails(h, iamapi.OpGetUser, &iamapi.GetUserInput{UserName: new("v")}, "NoSuchEntity", "")
+		fails(h, iamapi.OpGetInstanceProfile, &iamapi.GetInstanceProfileInput{InstanceProfileName: "p"}, "NoSuchEntity", "")
+		if got := must(h, iamapi.OpGetUser, &iamapi.GetUserInput{UserName: new("u")}).User.Path; got != "/" {
+			t.Errorf("GetUser.Path after refused UpdateUser = %q, want /", got)
+		}
+
+		r := must(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{RoleName: "r", Path: new("/svc/"), AssumeRolePolicyDocument: trustLambda}).Role
+		if r.Arn != "arn:aws:iam::000000000000:role/svc/r" {
+			t.Errorf("CreateRole(Path /svc/).Arn = %q, want arn:aws:iam::000000000000:role/svc/r", r.Arn)
+		}
 	})
 }
 
@@ -224,6 +274,46 @@ func TestRolePermissionsBoundary(t *testing.T) {
 		must(h, iamapi.OpDeleteRolePermissionsBoundary, &iamapi.DeleteRolePermissionsBoundaryInput{RoleName: "r"})
 		if got := h.stableRole("r").PermissionsBoundary; got != nil {
 			t.Errorf("GetRole.PermissionsBoundary after delete = %+v, want none", got)
+		}
+	})
+}
+
+// ListPolicies applies OnlyAttached and PolicyUsageFilter independently:
+// OnlyAttached keeps policies attached to an entity, which a permissions
+// boundary is not, and the filter alone picks one kind of use.
+func TestListPoliciesUsageFilters(t *testing.T) {
+	run(t, func(h *harness) {
+		h.role("r")
+		for _, name := range []string{"attached", "bounding", "idle"} {
+			must(h, iamapi.OpCreatePolicy, &iamapi.CreatePolicyInput{PolicyName: name, PolicyDocument: allowLogs})
+		}
+		must(h, iamapi.OpAttachRolePolicy, &iamapi.AttachRolePolicyInput{RoleName: "r", PolicyArn: "arn:aws:iam::000000000000:policy/attached"})
+		must(h, iamapi.OpPutRolePermissionsBoundary, &iamapi.PutRolePermissionsBoundaryInput{RoleName: "r", PermissionsBoundary: "arn:aws:iam::000000000000:policy/bounding"})
+		usage := func(u iamapi.PolicyUsageType) *iamapi.PolicyUsageType { return &u }
+		for _, c := range []struct {
+			onlyAttached bool
+			filter       *iamapi.PolicyUsageType
+			want         []string
+		}{
+			{false, nil, []string{"attached", "bounding", "idle"}},
+			{true, nil, []string{"attached"}},
+			{false, usage(iamapi.PolicyUsageTypePermissionsPolicy), []string{"attached"}},
+			{false, usage(iamapi.PolicyUsageTypePermissionsBoundary), []string{"bounding"}},
+			{true, usage(iamapi.PolicyUsageTypePermissionsPolicy), []string{"attached"}},
+			{true, usage(iamapi.PolicyUsageTypePermissionsBoundary), []string{}},
+		} {
+			listed := must(h, iamapi.OpListPolicies, &iamapi.ListPoliciesInput{OnlyAttached: c.onlyAttached, PolicyUsageFilter: c.filter}).Policies
+			got := make([]string, len(listed))
+			for i, p := range listed {
+				got[i] = *p.PolicyName
+			}
+			if !reflect.DeepEqual(got, c.want) {
+				filter := "none"
+				if c.filter != nil {
+					filter = string(*c.filter)
+				}
+				t.Errorf("ListPolicies(OnlyAttached %v, PolicyUsageFilter %s) = %v, want %v", c.onlyAttached, filter, got, c.want)
+			}
 		}
 	})
 }
@@ -607,6 +697,52 @@ func TestAWSManagedPolicy(t *testing.T) {
 		if *again.PolicyId != *p.PolicyId {
 			t.Errorf("PolicyId = %s then %s, want a stable id", *p.PolicyId, *again.PolicyId)
 		}
+		// The Terraform aws_iam_policy data source reads the default
+		// version next and retries NoSuchEntity for minutes, so the
+		// default version answers, with a placeholder that says what it is.
+		v := must(h, iamapi.OpGetPolicyVersion, &iamapi.GetPolicyVersionInput{PolicyArn: basicExecution, VersionId: *p.DefaultVersionId}).PolicyVersion
+		if !v.IsDefaultVersion || *v.VersionId != *p.DefaultVersionId || !strings.Contains(*v.Document, "UnderstudyHoldsNoCopyOfThisAWSManagedPolicy") {
+			t.Errorf("GetPolicyVersion(AWS managed, default) = %+v", v)
+		}
+		fails(h, iamapi.OpGetPolicyVersion, &iamapi.GetPolicyVersionInput{PolicyArn: basicExecution, VersionId: "v2"}, "NoSuchEntity", "version v2 does not exist")
+	})
+}
+
+// A tool that walks a policy's versions and tags after GetPolicy finds an
+// AWS managed policy there too: its one version, the default, without a
+// document, and no tags of the account's. Another account's customer
+// managed policy stays out of reach.
+func TestAWSManagedPolicyVersionsAndTags(t *testing.T) {
+	run(t, func(h *harness) {
+		vs := must(h, iamapi.OpListPolicyVersions, &iamapi.ListPolicyVersionsInput{PolicyArn: basicExecution})
+		if len(vs.Versions) != 1 || *vs.Versions[0].VersionId != "v1" || !vs.Versions[0].IsDefaultVersion || vs.Versions[0].Document != nil || vs.IsTruncated {
+			t.Errorf("ListPolicyVersions(AWS managed) = %+v, want v1, the default, without a document", vs)
+		}
+		tags := must(h, iamapi.OpListPolicyTags, &iamapi.ListPolicyTagsInput{PolicyArn: basicExecution})
+		if len(tags.Tags) != 0 || tags.IsTruncated {
+			t.Errorf("ListPolicyTags(AWS managed) = %+v, want no tags", tags)
+		}
+		fails(h, iamapi.OpTagPolicy, &iamapi.TagPolicyInput{PolicyArn: basicExecution, Tags: []iamapi.Tag{{Key: "k", Value: "v"}}}, "NoSuchEntity", basicExecution)
+
+		other := "arn:aws:iam::111111111111:policy/p"
+		fails(h, iamapi.OpListPolicyVersions, &iamapi.ListPolicyVersionsInput{PolicyArn: other}, "NoSuchEntity", other)
+		fails(h, iamapi.OpListPolicyTags, &iamapi.ListPolicyTagsInput{PolicyArn: other}, "NoSuchEntity", other)
+	})
+}
+
+// ListPolicies sends its Policies list even when nothing matches, as every
+// IAM listing does: an SDK reads Policies without checking it is there.
+func TestListPoliciesSendsAnEmptyList(t *testing.T) {
+	run(t, func(h *harness) {
+		must(h, iamapi.OpCreatePolicy, &iamapi.CreatePolicyInput{PolicyName: "p", PolicyDocument: allowLogs})
+		out := must(h, iamapi.OpListPolicies, &iamapi.ListPoliciesInput{Scope: new(iamapi.PolicyScopeTypeLocal), PathPrefix: new("/zzz/")})
+		resp, err := awsquery.Codec{}.Encode(iamapi.OpListPolicies.Descriptor(), "req", out, http.StatusOK)
+		if err != nil {
+			t.Fatalf("Encode: %s %s", err.ID.QueryCode, err.Message)
+		}
+		if body := string(resp.Body); !strings.Contains(body, "<Policies/>") && !strings.Contains(body, "<Policies></Policies>") {
+			t.Errorf("ListPolicies body = %s, want an empty Policies element", body)
+		}
 	})
 }
 
@@ -643,5 +779,110 @@ func TestTags(t *testing.T) {
 			t.Errorf("tags = %v, want [A=3]: keys match regardless of case", got)
 		}
 		fails(h, iamapi.OpTagRole, &iamapi.TagRoleInput{RoleName: "r", Tags: []iamapi.Tag{{Key: "x", Value: ""}, {Key: "X", Value: ""}}}, "InvalidInput", "Duplicate tag keys")
+	})
+}
+
+// Tag keys of managed policies and instance profiles are case-sensitive:
+// Costcenter and costcenter are two tags (IAM User Guide, rules for
+// tagging).
+func TestPolicyAndInstanceProfileTagKeysAreCaseSensitive(t *testing.T) {
+	run(t, func(h *harness) {
+		both := []iamapi.Tag{{Key: "Costcenter", Value: "1234"}, {Key: "costcenter", Value: "5678"}}
+		p := must(h, iamapi.OpCreatePolicy, &iamapi.CreatePolicyInput{PolicyName: "p", PolicyDocument: allowLogs, Tags: both[:1]}).Policy
+		must(h, iamapi.OpTagPolicy, &iamapi.TagPolicyInput{PolicyArn: *p.Arn, Tags: both[1:]})
+		if got := must(h, iamapi.OpGetPolicy, &iamapi.GetPolicyInput{PolicyArn: *p.Arn}).Policy.Tags; !reflect.DeepEqual(got, both) {
+			t.Errorf("policy tags = %v, want both %v", got, both)
+		}
+		must(h, iamapi.OpUntagPolicy, &iamapi.UntagPolicyInput{PolicyArn: *p.Arn, TagKeys: []string{"COSTCENTER", "costcenter"}})
+		if got := must(h, iamapi.OpGetPolicy, &iamapi.GetPolicyInput{PolicyArn: *p.Arn}).Policy.Tags; !reflect.DeepEqual(got, both[:1]) {
+			t.Errorf("policy tags after untag = %v, want only %v", got, both[:1])
+		}
+
+		must(h, iamapi.OpCreateInstanceProfile, &iamapi.CreateInstanceProfileInput{InstanceProfileName: "ip", Tags: both})
+		if got := must(h, iamapi.OpGetInstanceProfile, &iamapi.GetInstanceProfileInput{InstanceProfileName: "ip"}).InstanceProfile.Tags; !reflect.DeepEqual(got, both) {
+			t.Errorf("instance profile tags = %v, want both %v", got, both)
+		}
+		fails(h, iamapi.OpTagInstanceProfile, &iamapi.TagInstanceProfileInput{InstanceProfileName: "ip", Tags: []iamapi.Tag{{Key: "k", Value: ""}, {Key: "k", Value: ""}}}, "InvalidInput", "Duplicate tag keys")
+	})
+}
+
+// Tag keys and values may not begin with aws:, in any case.
+func TestReservedTagPrefix(t *testing.T) {
+	run(t, func(h *harness) {
+		fails(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{RoleName: "r", AssumeRolePolicyDocument: trustLambda, Tags: []iamapi.Tag{{Key: "aws:cloudformation:stack-name", Value: "s"}}}, "InvalidInput", "aws:")
+		h.role("r")
+		fails(h, iamapi.OpTagRole, &iamapi.TagRoleInput{RoleName: "r", Tags: []iamapi.Tag{{Key: "AWS:x", Value: "v"}}}, "InvalidInput", "aws:")
+		fails(h, iamapi.OpTagRole, &iamapi.TagRoleInput{RoleName: "r", Tags: []iamapi.Tag{{Key: "k", Value: "Aws:v"}}}, "InvalidInput", "aws:")
+		must(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "u"})
+		fails(h, iamapi.OpTagUser, &iamapi.TagUserInput{UserName: "u", Tags: []iamapi.Tag{{Key: "aws:k", Value: ""}}}, "InvalidInput", "aws:")
+		if got := must(h, iamapi.OpGetRole, &iamapi.GetRoleInput{RoleName: "r"}).Role.Tags; got != nil {
+			t.Errorf("tags after refused TagRole = %v, want none", got)
+		}
+		// The prefix must begin the text: "xaws:" is an ordinary key.
+		must(h, iamapi.OpTagRole, &iamapi.TagRoleInput{RoleName: "r", Tags: []iamapi.Tag{{Key: "xaws:", Value: "aws"}}})
+	})
+}
+
+// UpdateDate is when the newest version was created, whatever the default
+// (API_Policy: "the date and time when the most recent policy version was
+// created").
+func TestPolicyUpdateDateFollowsTheNewestVersion(t *testing.T) {
+	run(t, func(h *harness) {
+		p := must(h, iamapi.OpCreatePolicy, &iamapi.CreatePolicyInput{PolicyName: "p", PolicyDocument: allowLogs}).Policy
+		arn := *p.Arn
+		updated := func() time.Time {
+			h.Helper()
+			return *must(h, iamapi.OpGetPolicy, &iamapi.GetPolicyInput{PolicyArn: arn}).Policy.UpdateDate
+		}
+		if !updated().Equal(*p.CreateDate) {
+			t.Errorf("UpdateDate of a one-version policy = %v, want its CreateDate %v", updated(), *p.CreateDate)
+		}
+		h.advance(time.Minute)
+		v2 := must(h, iamapi.OpCreatePolicyVersion, &iamapi.CreatePolicyVersionInput{PolicyArn: arn, PolicyDocument: allowLogs}).PolicyVersion
+		if !updated().Equal(*v2.CreateDate) {
+			t.Errorf("UpdateDate after a non-default version = %v, want its CreateDate %v", updated(), *v2.CreateDate)
+		}
+		h.advance(time.Minute)
+		must(h, iamapi.OpSetDefaultPolicyVersion, &iamapi.SetDefaultPolicyVersionInput{PolicyArn: arn, VersionId: "v2"})
+		must(h, iamapi.OpSetDefaultPolicyVersion, &iamapi.SetDefaultPolicyVersionInput{PolicyArn: arn, VersionId: "v1"})
+		if !updated().Equal(*v2.CreateDate) {
+			t.Errorf("UpdateDate after SetDefaultPolicyVersion = %v, want v2's CreateDate %v", updated(), *v2.CreateDate)
+		}
+		h.advance(time.Minute)
+		v3 := must(h, iamapi.OpCreatePolicyVersion, &iamapi.CreatePolicyVersionInput{PolicyArn: arn, PolicyDocument: allowLogs}).PolicyVersion
+		must(h, iamapi.OpDeletePolicyVersion, &iamapi.DeletePolicyVersionInput{PolicyArn: arn, VersionId: "v3"})
+		if !updated().Equal(*v2.CreateDate) || v3.CreateDate.Equal(*v2.CreateDate) {
+			t.Errorf("UpdateDate after deleting v3 = %v, want v2's CreateDate %v", updated(), *v2.CreateDate)
+		}
+		must(h, iamapi.OpDeletePolicyVersion, &iamapi.DeletePolicyVersionInput{PolicyArn: arn, VersionId: "v2"})
+		if !updated().Equal(*p.CreateDate) {
+			t.Errorf("UpdateDate back to one version = %v, want the CreateDate %v", updated(), *p.CreateDate)
+		}
+	})
+}
+
+// The listings show instance profiles without tags, and their role as
+// ListRoles does; GetInstanceProfile shows both in full.
+func TestInstanceProfileListingsLeaveOutTags(t *testing.T) {
+	run(t, func(h *harness) {
+		must(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{RoleName: "r", AssumeRolePolicyDocument: trustLambda, Tags: []iamapi.Tag{{Key: "k", Value: "v"}}})
+		must(h, iamapi.OpCreateInstanceProfile, &iamapi.CreateInstanceProfileInput{InstanceProfileName: "ip", Tags: []iamapi.Tag{{Key: "k", Value: "v"}}})
+		must(h, iamapi.OpAddRoleToInstanceProfile, &iamapi.AddRoleToInstanceProfileInput{InstanceProfileName: "ip", RoleName: "r"})
+		listings := map[string][]iamapi.InstanceProfile{
+			"ListInstanceProfiles":        must(h, iamapi.OpListInstanceProfiles, &iamapi.ListInstanceProfilesInput{}).InstanceProfiles,
+			"ListInstanceProfilesForRole": must(h, iamapi.OpListInstanceProfilesForRole, &iamapi.ListInstanceProfilesForRoleInput{RoleName: "r"}).InstanceProfiles,
+		}
+		for name, ps := range listings {
+			if len(ps) != 1 || ps[0].Tags != nil || len(ps[0].Roles) != 1 {
+				t.Fatalf("%s = %+v, want ip without tags, holding r", name, ps)
+			}
+			if r := ps[0].Roles[0]; r.Tags != nil || r.RoleLastUsed != nil || r.PermissionsBoundary != nil || r.RoleName != "r" {
+				t.Errorf("%s role = %+v, want r as ListRoles shows it", name, r)
+			}
+		}
+		got := must(h, iamapi.OpGetInstanceProfile, &iamapi.GetInstanceProfileInput{InstanceProfileName: "ip"}).InstanceProfile
+		if got.Tags == nil || got.Roles[0].Tags == nil {
+			t.Errorf("GetInstanceProfile = %+v, want the profile's and the role's tags", got)
+		}
 	})
 }

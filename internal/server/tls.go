@@ -21,7 +21,10 @@ const certValidity = 365 * 24 * time.Hour
 // and a self-signed certificate for localhost, *.localhost and 127.0.0.1
 // (ADR 0013), valid from an hour before now, so a client clock slightly
 // behind still accepts it. It is its own CA, so a client trusts it by
-// adding it as a root (AWS_CA_BUNDLE). now is wall time.
+// adding it as a root (AWS_CA_BUNDLE). Critical name constraints limit what
+// it can vouch for to localhost, names under it and loopback addresses, so
+// installing it as a root never lets its key sign for any other name. now
+// is wall time.
 func selfSigned(now time.Time) (tls.Certificate, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -42,6 +45,10 @@ func selfSigned(now time.Time) (tls.Certificate, error) {
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 		IsCA:                  true,
+		// "localhost" permits localhost and every name under it.
+		PermittedDNSDomains:         []string{"localhost"},
+		PermittedIPRanges:           loopbackRanges(),
+		PermittedDNSDomainsCritical: true,
 	}
 	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	if err != nil {
@@ -52,4 +59,13 @@ func selfSigned(now time.Time) (tls.Certificate, error) {
 		return tls.Certificate{}, fmt.Errorf("server: reading back the self-signed certificate: %w", err)
 	}
 	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key, Leaf: leaf}, nil
+}
+
+// loopbackRanges are the addresses the certificate may vouch for:
+// 127.0.0.0/8 and ::1.
+func loopbackRanges() []*net.IPNet {
+	return []*net.IPNet{
+		{IP: net.IPv4(127, 0, 0, 0).To4(), Mask: net.CIDRMask(8, 32)},
+		{IP: net.IPv6loopback, Mask: net.CIDRMask(128, 128)},
+	}
 }

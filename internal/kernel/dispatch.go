@@ -146,10 +146,12 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding)
 		return Failure{Err: err}, nil
 	}
 	if res, inj, hit := k.after(ctx, c); hit {
+		k.discard(ctx, c, out)
 		return res, inj
 	}
 	if k.strict {
 		if err := checkStrict(c.op, out); err != nil {
+			k.discard(ctx, c, out)
 			return Failure{Err: err}, nil
 		}
 	}

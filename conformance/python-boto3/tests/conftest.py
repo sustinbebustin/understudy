@@ -68,9 +68,16 @@ def admin(endpoint: str) -> Admin:
 
 @pytest.fixture(scope="session")
 def sigv4_verify() -> None:
-    """Skip unless understudy runs with signature verification (run.sh: SIGV4=verify)."""
+    """Skip unless understudy runs with signature verification.
+
+    This build's serve refuses --sigv4 verify: verification is deferred
+    (docs/plan/DEFERRED.md, "SigV4 verification"), so these tests skip.
+    """
     if os.environ.get("CONFORMANCE_SIGV4") != "verify":
-        pytest.skip("needs understudy serve --sigv4 verify; run SIGV4=verify ./run.sh")
+        pytest.skip(
+            "needs signature verification, which this build of understudy does not apply yet "
+            "(docs/plan/DEFERRED.md, 'SigV4 verification')"
+        )
 
 
 @pytest.fixture(scope="session")

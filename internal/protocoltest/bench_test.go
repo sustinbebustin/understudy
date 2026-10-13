@@ -118,9 +118,11 @@ func newBench(t *testing.T, cs corpusService, svc *registry.Service) *bench {
 	codecs := server.Codecs()
 	var front http.Handler
 	if routedByEdge(svc) {
+		// The endpoint-trait cases send Hosts such as foo.example.com; the
+		// corpus tests the protocols, not the listener's Host policy.
 		front, err = edge.New(edge.Options{
 			Kernel: k, Registry: reg, Codecs: codecs, S3BaseDomains: s3BaseDomains,
-			Listener: ref.ListenerMain, Unclaimed: svc.Protocols[0],
+			Listener: ref.ListenerMain, Unclaimed: svc.Protocols[0], Hosts: edge.AnyHost{},
 		})
 		if err != nil {
 			t.Fatal(err)

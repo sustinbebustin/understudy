@@ -34,8 +34,19 @@ func tree() *command {
 		"understudy health --wait 30s",
 		"understudy journal --follow --service sqs",
 	}
+	root.epilog = exitCodes
 	return root
 }
+
+// exitCodes is the root help's list of exit codes, admin.ExitCode's.
+const exitCodes = `Exit codes:
+  0  success
+  1  the operation failed
+  2  usage error: fix the command line
+  3  understudy is not reachable at the endpoint, or did not answer in time
+  4  a condition was not met, such as health --wait or settle timing out
+  5  the server refused the admin token (UNDERSTUDY_ADMIN_TOKEN)
+`
 
 func versionCmd() *command {
 	return leaf("version", "Print the version", "version",

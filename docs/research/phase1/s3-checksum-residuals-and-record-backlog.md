@@ -435,6 +435,7 @@ Script (bucket `$P-edge`; use `aws s3 presign` URLs with `curl -i` for raw reque
 9. Limits: key of 1025 bytes (`KeyTooLongError` text), user metadata over 2 KiB (`MetadataTooLarge` text), GET with `response-content-type` on an unsigned request, `upload-part-copy` with malformed `x-amz-copy-source-range` (`bytes=5-2`, `bytes=0-99999999`).
 10. `put-object` with a wrong `Content-MD5` and a wrong `x-amz-checksum-crc32` together: which error wins.
 11. Object Lock bucket (`--object-lock-enabled-for-bucket`) with a default retention: `put-object` without `Content-MD5`/checksum (the enforcement error text).
+12. `put-bucket-lifecycle-configuration` with one rule each (filter `{"Prefix": ""}`), recording status, `Code`, `Message` and whether the error carries `ArgumentName`/`ArgumentValue`: `Transition` `Days` 7 to `STANDARD_IA`; `NoncurrentVersionTransition` `NoncurrentDays` 10 to `STANDARD_IA`; `GLACIER_IR` at 4 then `DEEP_ARCHIVE` at 20; `STANDARD_IA` at 30 then `GLACIER` at 40; `Expiration` `Days` 0; `NoncurrentVersionExpiration` `NoncurrentDays` 0. These settle the texts `internal/service/s3` marks UNVERIFIED under the `s3.lifecycle.rule-limits` switch.
 
 Expected / decision: the cited UNVERIFIED lines in s3.md 5-6 and the S3 error table become recorded.
 

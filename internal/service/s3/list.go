@@ -19,6 +19,9 @@ const maxListKeys = 1000
 const (
 	invalidEncodingMessage = "Invalid Encoding Method specified in Request"
 	invalidMaxKeysMessage  = "Provided max-keys not an integer or within integer range"
+	// versionMarkerWithoutKeyMessage is AWS's text, recorded in LocalStack's
+	// aws_validated snapshot test_list_objects_versions_markers.
+	versionMarkerWithoutKeyMessage = "A version-id marker cannot be specified without a key marker."
 )
 
 // listQuery is what one listing page asks for: keys under prefix,
@@ -272,6 +275,9 @@ func listObjectVersions(in *s3api.ListObjectVersionsInput, b *Bucket) (*s3api.Li
 		return nil, err
 	}
 	keyMarker, versionMarker := deref(in.KeyMarker), deref(in.VersionIdMarker)
+	if versionMarker != "" && keyMarker == "" {
+		return nil, errInvalidArgument(versionMarkerWithoutKeyMessage, "version-id-marker", versionMarker)
+	}
 	out := &s3api.ListObjectVersionsOutput{
 		Name: new(b.Name), Prefix: new(p.prefix), Delimiter: in.Delimiter,
 		KeyMarker: new(keyMarker), VersionIdMarker: new(versionMarker), MaxKeys: count(p.limit), EncodingType: p.encoding,
@@ -326,12 +332,10 @@ func versionItems(b *Bucket, p listParams, keyMarker, versionMarker string) []ve
 		return nil
 	}
 	var items []versionItem
-	if versionMarker != "" {
+	if versionMarker != "" && strings.HasPrefix(keyMarker, p.prefix) {
 		chain := b.Objects.Keys[keyMarker]
-		if i := slices.IndexFunc(chain, func(v Version) bool { return v.ID == versionMarker }); i >= 0 && strings.HasPrefix(keyMarker, p.prefix) {
-			for j := i + 1; j < len(chain); j++ {
-				items = append(items, versionItem{key: keyMarker, version: chain[j], latest: j == 0})
-			}
+		for j := resumeAt(chain, versionMarker); j < len(chain); j++ {
+			items = append(items, versionItem{key: keyMarker, version: chain[j], latest: j == 0})
 		}
 	}
 	entries, _ := page(slices.Sorted(maps.Keys(b.Objects.Keys)), listQuery{prefix: p.prefix, delimiter: p.delimiter, after: keyMarker, limit: p.limit + 1})
@@ -348,6 +352,26 @@ func versionItems(b *Bucket, p listParams, keyMarker, versionMarker string) []ve
 		}
 	}
 	return items
+}
+
+// resumeAt is the index in chain of the first version a listing that
+// stopped at version-id-marker lists next: the one after the marker, or,
+// when the marker's version was deleted since, the first version older
+// than it, as AWS resumes (LocalStack aws_validated snapshot
+// test_list_objects_versions_with_prefix_only_and_pagination). A "null"
+// marker whose version is gone has no place, so the key is done.
+func resumeAt(chain []Version, versionMarker string) int {
+	if i := slices.IndexFunc(chain, func(v Version) bool { return v.ID == versionMarker }); i >= 0 {
+		return i + 1
+	}
+	seq, ok := versionSeq(versionMarker)
+	if !ok {
+		return len(chain)
+	}
+	if i := slices.IndexFunc(chain, func(v Version) bool { return v.Seq < seq }); i >= 0 {
+		return i
+	}
+	return len(chain)
 }
 
 // count is n as a wire integer; every count S3 reports is far below the

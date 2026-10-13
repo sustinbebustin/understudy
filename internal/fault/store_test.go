@@ -575,6 +575,9 @@ func TestAddExplainsHowToFixTheRule(t *testing.T) {
 	}{
 		{"delivery from a source service", fault.Rule{Match: fault.Match{Services: []ref.ServiceID{"s3"}}, Phase: fault.Delivery, Action: fault.DropDelivery{}, Trigger: fault.Always{}}, "s3-to-sqs, s3-to-sns or s3-to-lambda"},
 		{"error without a shape", fault.Rule{Match: fault.Match{Operations: []ref.OperationID{sendMessage}}, Phase: fault.Request, Action: fault.Error{}, Trigger: fault.Always{}}, "action.shape: is missing"},
+		{"missing phase", fault.Rule{Action: fault.Latency{Wall: time.Second}, Trigger: fault.Always{}}, `phase: is missing; set "phase" to request or delivery`},
+		{"unknown phase", fault.Rule{Phase: 7, Action: fault.Latency{Wall: time.Second}, Trigger: fault.Always{}}, `phase: 7 is not a phase; set "phase" to request or delivery`},
+		{"unknown origin", fault.Rule{Match: fault.Match{Origin: 9}, Phase: fault.Request, Action: fault.Latency{Wall: time.Second}, Trigger: fault.Always{}}, `match.origin: 9 is not an origin; set "match.origin" to any, external or internal`},
 		{
 			"message on a shape without one",
 			fault.Rule{Match: fault.Match{Operations: []ref.OperationID{changeVisibility}}, Phase: fault.Request, Action: fault.Error{Shape: "MessageNotInflight", Message: "boom"}, Trigger: fault.Always{}},
@@ -645,9 +648,14 @@ func TestRemoveAndClear(t *testing.T) {
 	if got := s.List(); len(got) != 1 || got[0].Rule.ID != b {
 		t.Errorf("List = %+v, want only %s", got, b)
 	}
-	s.Clear()
+	if n := s.Clear(); n != 1 {
+		t.Errorf("Clear = %d, want the 1 rule left", n)
+	}
 	if got := s.List(); len(got) != 0 {
 		t.Errorf("List after Clear = %+v", got)
+	}
+	if n := s.Clear(); n != 0 {
+		t.Errorf("Clear of no rules = %d, want 0", n)
 	}
 }
 

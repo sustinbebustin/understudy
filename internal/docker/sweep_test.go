@@ -73,6 +73,39 @@ func TestSweepRemovesOnlyThisOwnersEarlierInstances(t *testing.T) {
 	}
 }
 
+// RemoveInstance removes the containers and empty networks of its own
+// instance only: an earlier instance's and another owner's stay.
+func TestRemoveInstanceRemovesOnlyThisInstance(t *testing.T) {
+	d, c := daemonWithImage(t, dockertest.Options{})
+	ctx := t.Context()
+	own := docker.Ownership{Instance: "new", Owner: "me"}
+	current := labelMap(t, docker.Labels{Ownership: own})
+	previous := labelMap(t, docker.Labels{Ownership: docker.Ownership{Instance: "old", Owner: "me"}})
+	stranger := labelMap(t, docker.Labels{Ownership: docker.Ownership{Instance: "new", Owner: "someone-else"}})
+	running := create(t, c, "running", docker.Config{Labels: current}, docker.HostConfig{})
+	if err := c.ContainerStart(ctx, running); err != nil {
+		t.Fatal(err)
+	}
+	earlier := create(t, c, "earlier", docker.Config{Labels: previous}, docker.HostConfig{})
+	foreign := create(t, c, "foreign", docker.Config{Labels: stranger}, docker.HostConfig{})
+	net, err := c.NetworkCreate(ctx, "own-net", docker.NetworkOptions{Labels: current})
+	if err != nil {
+		t.Fatal(err)
+	}
+	removed, err := c.RemoveInstance(ctx, own)
+	if err != nil {
+		t.Fatalf("RemoveInstance: %v", err)
+	}
+	if !slices.Equal(removed.Containers, []string{running}) || !slices.Equal(removed.Networks, []string{net}) {
+		t.Errorf("RemoveInstance removed %+v, want container %s and network %s", removed, running, net)
+	}
+	for _, kept := range []string{earlier, foreign} {
+		if _, ok := d.Container(kept); !ok {
+			t.Errorf("container %s was removed", kept)
+		}
+	}
+}
+
 func TestSweepRefusesAnIncompleteOwnership(t *testing.T) {
 	d, c := daemonWithImage(t, dockertest.Options{})
 	labels := labelMap(t, docker.Labels{Ownership: docker.Ownership{Instance: "old", Owner: "me"}})

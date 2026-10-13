@@ -157,10 +157,10 @@ func (v *CreateSecretInput) validate(path awserr.Path, out *[]awserr.Violation) 
 	}
 	if v.SecretString != nil {
 		if utf8.RuneCountInString(*v.SecretString) > 65536 {
-			*out = append(*out, awserr.Violation{Path: at(path, "secretString"), Value: awserr.RenderedText{Text: *v.SecretString}, Constraint: awserr.LengthMax{Max: 65536}})
+			*out = append(*out, awserr.Violation{Path: at(path, "secretString"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 65536}})
 		}
 		if utf8.RuneCountInString(*v.SecretString) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "secretString"), Value: awserr.RenderedText{Text: *v.SecretString}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "secretString"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 	if v.Tags != nil {
@@ -537,10 +537,10 @@ func (v *PutSecretValueInput) validate(path awserr.Path, out *[]awserr.Violation
 	}
 	if v.SecretString != nil {
 		if utf8.RuneCountInString(*v.SecretString) > 65536 {
-			*out = append(*out, awserr.Violation{Path: at(path, "secretString"), Value: awserr.RenderedText{Text: *v.SecretString}, Constraint: awserr.LengthMax{Max: 65536}})
+			*out = append(*out, awserr.Violation{Path: at(path, "secretString"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 65536}})
 		}
 		if utf8.RuneCountInString(*v.SecretString) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "secretString"), Value: awserr.RenderedText{Text: *v.SecretString}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "secretString"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 	if v.VersionStages != nil {
@@ -562,13 +562,13 @@ func (v *PutSecretValueInput) validate(path awserr.Path, out *[]awserr.Violation
 	}
 	if v.RotationToken != nil {
 		if !pattern3.MatchString(*v.RotationToken) {
-			*out = append(*out, awserr.Violation{Path: at(path, "rotationToken"), Value: awserr.RenderedText{Text: *v.RotationToken}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9\\-]+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "rotationToken"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[a-zA-Z0-9\\-]+"}})
 		}
 		if utf8.RuneCountInString(*v.RotationToken) > 256 {
-			*out = append(*out, awserr.Violation{Path: at(path, "rotationToken"), Value: awserr.RenderedText{Text: *v.RotationToken}, Constraint: awserr.LengthMax{Max: 256}})
+			*out = append(*out, awserr.Violation{Path: at(path, "rotationToken"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 256}})
 		}
 		if utf8.RuneCountInString(*v.RotationToken) < 36 {
-			*out = append(*out, awserr.Violation{Path: at(path, "rotationToken"), Value: awserr.RenderedText{Text: *v.RotationToken}, Constraint: awserr.LengthMin{Min: 36}})
+			*out = append(*out, awserr.Violation{Path: at(path, "rotationToken"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 36}})
 		}
 	}
 }
@@ -931,10 +931,10 @@ func (v *UpdateSecretInput) validate(path awserr.Path, out *[]awserr.Violation) 
 	}
 	if v.SecretString != nil {
 		if utf8.RuneCountInString(*v.SecretString) > 65536 {
-			*out = append(*out, awserr.Violation{Path: at(path, "secretString"), Value: awserr.RenderedText{Text: *v.SecretString}, Constraint: awserr.LengthMax{Max: 65536}})
+			*out = append(*out, awserr.Violation{Path: at(path, "secretString"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 65536}})
 		}
 		if utf8.RuneCountInString(*v.SecretString) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "secretString"), Value: awserr.RenderedText{Text: *v.SecretString}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "secretString"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 	if v.Type != nil {

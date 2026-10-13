@@ -687,7 +687,7 @@ func (v UpdateConnectionAuthRequestParameters) redacted() UpdateConnectionAuthRe
 }
 
 func (v CreateConnectionBasicAuthRequestParameters) redacted() CreateConnectionBasicAuthRequestParameters {
-	v.Password = *new(string)
+	v.Password = redactedText
 	return v
 }
 
@@ -701,7 +701,7 @@ func (v CreateConnectionOAuthRequestParameters) redacted() CreateConnectionOAuth
 }
 
 func (v CreateConnectionApiKeyAuthRequestParameters) redacted() CreateConnectionApiKeyAuthRequestParameters {
-	v.ApiKeyValue = *new(string)
+	v.ApiKeyValue = redactedText
 	return v
 }
 
@@ -733,7 +733,7 @@ func (v Target) redacted() Target {
 }
 
 func (v UpdateConnectionBasicAuthRequestParameters) redacted() UpdateConnectionBasicAuthRequestParameters {
-	v.Password = nil
+	v.Password = redactedPtr(v.Password)
 	return v
 }
 
@@ -750,12 +750,12 @@ func (v UpdateConnectionOAuthRequestParameters) redacted() UpdateConnectionOAuth
 }
 
 func (v UpdateConnectionApiKeyAuthRequestParameters) redacted() UpdateConnectionApiKeyAuthRequestParameters {
-	v.ApiKeyValue = nil
+	v.ApiKeyValue = redactedPtr(v.ApiKeyValue)
 	return v
 }
 
 func (v CreateConnectionOAuthClientRequestParameters) redacted() CreateConnectionOAuthClientRequestParameters {
-	v.ClientSecret = *new(string)
+	v.ClientSecret = redactedText
 	return v
 }
 
@@ -793,32 +793,43 @@ func redactConnectionBodyParametersList(v []ConnectionBodyParameter) []Connectio
 }
 
 func (v RedshiftDataParameters) redacted() RedshiftDataParameters {
-	v.Sql = nil
+	v.Sql = redactedPtr(v.Sql)
 	v.Sqls = nil
 	return v
 }
 
 func (v AppSyncParameters) redacted() AppSyncParameters {
-	v.GraphQLOperation = nil
+	v.GraphQLOperation = redactedPtr(v.GraphQLOperation)
 	return v
 }
 
 func (v UpdateConnectionOAuthClientRequestParameters) redacted() UpdateConnectionOAuthClientRequestParameters {
-	v.ClientSecret = nil
+	v.ClientSecret = redactedPtr(v.ClientSecret)
 	return v
 }
 
 func (v ConnectionHeaderParameter) redacted() ConnectionHeaderParameter {
-	v.Value = nil
+	v.Value = redactedPtr(v.Value)
 	return v
 }
 
 func (v ConnectionQueryStringParameter) redacted() ConnectionQueryStringParameter {
-	v.Value = nil
+	v.Value = redactedPtr(v.Value)
 	return v
 }
 
 func (v ConnectionBodyParameter) redacted() ConnectionBodyParameter {
-	v.Value = nil
+	v.Value = redactedPtr(v.Value)
 	return v
+}
+
+// redactedText stands in for a sensitive string the client sent.
+const redactedText = "[redacted]"
+
+// redactedPtr is redactedText in place of a present *p, nil for nil.
+func redactedPtr[T ~string](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	return new(T(redactedText))
 }

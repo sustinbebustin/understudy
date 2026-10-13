@@ -127,6 +127,17 @@ func (v *SensitiveValidationOutput) Redact() *SensitiveValidationOutput {
 }
 
 func (v SensitiveValidationInput) redacted() SensitiveValidationInput {
-	v.String = nil
+	v.String = redactedPtr(v.String)
 	return v
+}
+
+// redactedText stands in for a sensitive string the client sent.
+const redactedText = "[redacted]"
+
+// redactedPtr is redactedText in place of a present *p, nil for nil.
+func redactedPtr[T ~string](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	return new(T(redactedText))
 }

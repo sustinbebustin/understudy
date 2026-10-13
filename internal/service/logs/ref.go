@@ -42,22 +42,18 @@ func (g groupRef) streamARN(name string) aws.ARN {
 // with the trailing ":*" never arrives here.
 func groupOfARN(raw string) (groupRef, bool) {
 	a, err := aws.ParseARN(raw)
-	if err != nil || a.Service != "logs" || a.Partition != aws.PartitionAWS().String() {
+	if err != nil || a.Service != "logs" {
 		return groupRef{}, false
 	}
 	name, ok := strings.CutPrefix(a.Resource, "log-group:")
 	if !ok || name == "" || strings.Contains(name, ":") {
 		return groupRef{}, false
 	}
-	account, err := aws.ParseAccountID(a.Account)
+	scope, err := aws.ScopeOf(a)
 	if err != nil {
 		return groupRef{}, false
 	}
-	var region aws.Region
-	if err := region.UnmarshalText([]byte(a.Region)); err != nil || region.IsZero() {
-		return groupRef{}, false
-	}
-	return groupRef{scope: aws.Scope{Partition: aws.PartitionAWS(), Account: account, Region: region}, name: name}, true
+	return groupRef{scope: scope, name: name}, true
 }
 
 // named is the group a logGroupName names, in the caller's scope.

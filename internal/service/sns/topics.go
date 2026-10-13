@@ -141,18 +141,21 @@ func createSettings(fifo bool, attrs map[string]string) ([]topicSetting, *awserr
 	return out, nil
 }
 
-// deleteTopic deletes a topic and its subscriptions; deleting a topic that
+// deleteTopic deletes a topic, detaching its subscriptions: they receive
+// nothing but stay readable for detachedRetention. Deleting a topic that
 // does not exist succeeds (sns.md 2.2).
 func (s *Service) deleteTopic(_ context.Context, c *kernel.Call, in *snsapi.DeleteTopicInput) (*snsapi.DeleteTopicOutput, *awserr.Error) {
 	ref, err := resolveTopic(c, "TopicArn", in.TopicArn)
 	if err != nil {
 		return nil, err
 	}
-	_, err = kernel.Write(c, s.cells, ref.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		if _, ok := st.Topics[ref.name]; !ok {
+	_, err = kernel.Write(c, s.cells, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+		t, ok := st.Topics[ref.name]
+		if !ok {
 			tx.Unchanged()
 			return struct{}{}, nil
 		}
+		st.detach(&t, now)
 		delete(st.Topics, ref.name)
 		return struct{}{}, nil
 	})
@@ -194,6 +197,9 @@ func (s *Service) setTopicAttributes(_ context.Context, c *kernel.Call, in *snsa
 		return nil, errInvalidParameter(detail)
 	}
 	_, err = writeTopic(s, c, ref, func(t *Topic, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+		if detail := set.refusal(t); detail != "" {
+			return struct{}{}, errInvalidParameter(detail)
+		}
 		set.apply(t)
 		if reason := t.largeMessageViolation(); reason != "" {
 			return struct{}{}, errLargeMessages(reason)

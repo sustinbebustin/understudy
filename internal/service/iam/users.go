@@ -13,12 +13,12 @@ import (
 
 // bindUsers binds the user control plane.
 func (s *Service) bindUsers(b iamapi.Binder) {
-	b.CreateUser(s.createUser, registry.Full{})
-	b.GetUser(s.getUser, registry.Partial{Note: "without UserName, answers only for a caller signing with an IAM user's access key"})
+	b.CreateUser(s.createUser, registry.Partial{Note: "as PermissionsBoundary, " + unknownAWSManaged})
+	b.GetUser(s.getUser, registry.Partial{Note: "without UserName, a root caller gets its root identity with the Unix epoch as CreateDate, since account creation is not tracked"})
 	b.UpdateUser(s.updateUser, registry.Partial{Note: "access keys minted before a rename or a path change still resolve to the user's old name and path"})
 	b.DeleteUser(s.deleteUser, registry.Full{})
 	b.ListUsers(s.listUsers, registry.Full{})
-	b.PutUserPermissionsBoundary(s.putUserPermissionsBoundary, registry.StoredOnly{Note: "the boundary is stored, not enforced"})
+	b.PutUserPermissionsBoundary(s.putUserPermissionsBoundary, registry.Partial{Note: boundaryNote})
 	b.DeleteUserPermissionsBoundary(s.deleteUserPermissionsBoundary, registry.Full{})
 	b.ListGroupsForUser(s.listGroupsForUser, registry.Partial{Note: "groups are not implemented, so a user belongs to none"})
 }
@@ -32,21 +32,45 @@ func (st *State) user(name string) (User, *awserr.Error) {
 	return u, nil
 }
 
-// callerUser is the user an operation names, or the calling user when it
-// names none, as IAM defaults UserName to the user that signed the
-// request.
-func callerUser(c *kernel.Call, name *string) (string, *awserr.Error) {
+// subject is the user an operation that defaults UserName to the caller
+// acts on.
+//
+//sumtype:decl
+type subject interface{ isSubject() }
+
+// namedUser is an IAM user of the account: the one the request names, or
+// the one whose access key signed it.
+type namedUser struct{ name string }
+
+// accountRoot is the account's root user: the caller of a request signed
+// with root credentials that names no user.
+type accountRoot struct{}
+
+func (namedUser) isSubject()   {}
+func (accountRoot) isSubject() {}
+
+// callerUser is the user an operation names, or the caller when it names
+// none, as IAM defaults UserName to whoever signed the request. A role
+// session, a service and an anonymous caller have no user to default to.
+func callerUser(c *kernel.Call, name *string) (subject, *awserr.Error) {
 	if name != nil {
-		return *name, nil
+		return namedUser{name: *name}, nil
 	}
-	if u, ok := c.Principal().(identity.User); ok {
-		return u.Name, nil
+	switch p := c.Principal().(type) {
+	case identity.User:
+		return namedUser{name: p.Name}, nil
+	case identity.Root:
+		return accountRoot{}, nil
+	case identity.AssumedRole, identity.ServicePrincipal, identity.Anonymous:
 	}
-	return "", errNonUserCredentials()
+	return nil, errNonUserCredentials()
 }
 
 func (s *Service) createUser(_ context.Context, c *kernel.Call, in *iamapi.CreateUserInput) (*iamapi.CreateUserOutput, *awserr.Error) {
-	tags, err := newTags(in.Tags)
+	if err := checkPath("path", in.Path); err != nil {
+		return nil, err
+	}
+	tags, err := newTags(foldedKeys, in.Tags)
 	if err != nil {
 		return nil, err
 	}
@@ -77,11 +101,19 @@ func (s *Service) createUser(_ context.Context, c *kernel.Call, in *iamapi.Creat
 }
 
 func (s *Service) getUser(_ context.Context, c *kernel.Call, in *iamapi.GetUserInput) (*iamapi.GetUserOutput, *awserr.Error) {
-	name, err := callerUser(c, in.UserName)
+	who, err := callerUser(c, in.UserName)
 	if err != nil {
 		return nil, err
 	}
 	account := c.Scope().Account
+	var name string
+	switch who := who.(type) {
+	case accountRoot:
+		c.Touch(rootARN(account))
+		return &iamapi.GetUserOutput{User: apiRootUser(account)}, nil
+	case namedUser:
+		name = who.name
+	}
 	u, err := view(s, account, func(st *State) (User, *awserr.Error) { return st.user(name) })
 	if err != nil {
 		return nil, err
@@ -114,6 +146,9 @@ func (s *Service) changeUser(c *kernel.Call, name string, change func(st *State,
 
 // updateUser renames a user or moves it to a new path.
 func (s *Service) updateUser(_ context.Context, c *kernel.Call, in *iamapi.UpdateUserInput) (*iamapi.UpdateUserOutput, *awserr.Error) {
+	if err := checkPath("newPath", in.NewPath); err != nil {
+		return nil, err
+	}
 	account := c.Scope().Account
 	u, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (User, *awserr.Error) {
 		u, err := st.user(in.UserName)

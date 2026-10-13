@@ -326,3 +326,168 @@ func TestPublishVersionAfterDescriptionChange(t *testing.T) {
 		}
 	})
 }
+
+// TestPolicyRevisionIsItsTargets: a resource policy has the RevisionId of
+// its target, $LATEST for the unqualified function, else the version or
+// the alias; AddPermission and RemovePermission check against it and
+// change it (test_lambda_permission_revisions,
+// test_lambda_permission_fn_versioning).
+func TestPolicyRevisionIsItsTargets(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		const stale = "The Revision Id provided does not match the latest Revision Id. Call the GetPolicy API to retrieve the latest Revision Id"
+		revision := func(qualifier *string) string {
+			h.Helper()
+			return *call(h, lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: "fn", Qualifier: qualifier}).Configuration.RevisionId
+		}
+		policyRevision := func(qualifier *string) string {
+			h.Helper()
+			return *call(h, lambdaapi.OpGetPolicy, &lambdaapi.GetPolicyInput{FunctionName: "fn", Qualifier: qualifier}).RevisionId
+		}
+		permission := func(sid string, qualifier, rev *string) *lambdaapi.AddPermissionInput {
+			return &lambdaapi.AddPermissionInput{FunctionName: "fn", Qualifier: qualifier, StatementId: sid, Action: "lambda:InvokeFunction", Principal: "s3.amazonaws.com", RevisionId: rev}
+		}
+
+		h.createFunction("fn")
+		created := revision(nil)
+		call(h, lambdaapi.OpAddPermission, permission("first", nil, new(created)))
+		latest := revision(nil)
+		if latest == created || policyRevision(nil) != latest {
+			t.Errorf("after the first statement: function %s (was %s), policy %s; want a new function RevisionId that the policy shares", latest, created, policyRevision(nil))
+		}
+		errorIs(t, fail(h, lambdaapi.OpAddPermission, permission("second", nil, new(created))), "PreconditionFailedException", stale)
+
+		call(h, lambdaapi.OpPublishVersion, &lambdaapi.PublishVersionInput{FunctionName: "fn"})
+		if got, want := policyRevision(nil), revision(nil); got != want {
+			t.Errorf("policy RevisionId after a publish = %s; want $LATEST's %s", got, want)
+		}
+
+		v1 := revision(new("1"))
+		call(h, lambdaapi.OpAddPermission, permission("v1", new("1"), new(v1)))
+		if got, want := policyRevision(new("1")), revision(new("1")); got != want || got == v1 {
+			t.Errorf("version 1's policy RevisionId = %s, version's %s (was %s); want the version's new one", got, want, v1)
+		}
+
+		alias := call(h, lambdaapi.OpCreateAlias, &lambdaapi.CreateAliasInput{FunctionName: "fn", Name: "live", FunctionVersion: "1"})
+		call(h, lambdaapi.OpAddPermission, permission("live", new("live"), alias.RevisionId))
+		aliasNow := *call(h, lambdaapi.OpGetAlias, &lambdaapi.GetAliasInput{FunctionName: "fn", Name: "live"}).RevisionId
+		if got := policyRevision(new("live")); got != aliasNow || got == *alias.RevisionId {
+			t.Errorf("alias policy RevisionId = %s, alias's %s (was %s); want the alias's new one", got, aliasNow, *alias.RevisionId)
+		}
+
+		before := revision(nil)
+		errorIs(t, fail(h, lambdaapi.OpRemovePermission, &lambdaapi.RemovePermissionInput{FunctionName: "fn", StatementId: "first", RevisionId: new(created)}),
+			"PreconditionFailedException", stale)
+		call(h, lambdaapi.OpRemovePermission, &lambdaapi.RemovePermissionInput{FunctionName: "fn", StatementId: "first", RevisionId: new(before)})
+		if revision(nil) == before {
+			t.Error("RemovePermission left $LATEST's RevisionId as it was")
+		}
+	})
+}
+
+// TestPublishChangesLatestRevision: publishing gives $LATEST a new
+// RevisionId, so one read before the publish is stale after it
+// (test_function_revisions_version_and_alias).
+func TestPublishChangesLatestRevision(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		rev := *h.createFunction("fn").RevisionId
+		call(h, lambdaapi.OpPublishVersion, &lambdaapi.PublishVersionInput{FunctionName: "fn"})
+		errorIs(t, fail(h, lambdaapi.OpUpdateFunctionConfiguration, &lambdaapi.UpdateFunctionConfigurationInput{FunctionName: "fn", Timeout: new(int32(5)), RevisionId: new(rev)}),
+			"PreconditionFailedException", "The Revision Id provided does not match the latest Revision Id. Call the GetFunction/GetAlias API to retrieve the latest Revision Id")
+	})
+}
+
+// TestSettlingChangesRevision: under TransitionsClock, a function becoming
+// Active and an update completing each give $LATEST a new RevisionId
+// (test_function_revisions_basic).
+func TestSettlingChangesRevision(t *testing.T) {
+	run(t, lambda.Options{StateTransitions: lambda.TransitionsClock}, func(h *harness) {
+		created := *h.createFunction("fn").RevisionId
+		h.passSettleDelay()
+		active := *call(h, lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: "fn"}).Configuration.RevisionId
+		if active == created {
+			t.Errorf("RevisionId after becoming Active = %s; want a new one", active)
+		}
+		updating := *call(h, lambdaapi.OpUpdateFunctionConfiguration, &lambdaapi.UpdateFunctionConfigurationInput{FunctionName: "fn", Timeout: new(int32(5))}).RevisionId
+		h.passSettleDelay()
+		if updated := *call(h, lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: "fn"}).Configuration.RevisionId; updated == updating {
+			t.Errorf("RevisionId after the update completed = %s; want a new one", updated)
+		}
+	})
+}
+
+// TestCreateFunctionPublishAnswersTheUnqualifiedARN: CreateFunction with
+// Publish reports version 1 under the unqualified function ARN
+// (test_publish_version_on_create).
+func TestCreateFunctionPublishAnswersTheUnqualifiedARN(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		in := zipFunction(t, "fn")
+		in.Publish = true
+		out := call(h, lambdaapi.OpCreateFunction, in)
+		if *out.FunctionArn != fnARN("fn") || *out.Version != "1" {
+			t.Errorf("CreateFunction with Publish = FunctionArn %s, Version %s; want %s, 1", *out.FunctionArn, *out.Version, fnARN("fn"))
+		}
+	})
+}
+
+// TestDeleteLatestIsRefusedBeforeTheLookup: DeleteFunction of $LATEST is
+// InvalidParameterValueException even for a function that does not exist
+// (test_ops_with_arn_qualifier_mismatch[delete_function]).
+func TestDeleteLatestIsRefusedBeforeTheLookup(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		errorIs(t, fail(h, lambdaapi.OpDeleteFunction, &lambdaapi.DeleteFunctionInput{FunctionName: fnARN("missing") + ":$LATEST", Qualifier: new("$LATEST")}),
+			"InvalidParameterValueException", "$LATEST version cannot be deleted without deleting the function.")
+	})
+}
+
+// TestDeleteAliasQualifierIsRefusedBeforeTheLookup: DeleteFunction of an
+// alias, by Qualifier or in the ARN, is InvalidParameterValueException
+// even for a function that does not exist; a qualifier of no alias's form
+// is a missing version
+// (test_function_name_and_qualifier_validation[*-delete_function]).
+func TestDeleteAliasQualifierIsRefusedBeforeTheLookup(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		const refused = "Deletion of aliases is not currently supported."
+		for _, in := range []*lambdaapi.DeleteFunctionInput{
+			{FunctionName: "missing", Qualifier: new("prod")},
+			{FunctionName: fnARN("missing") + ":prod"},
+		} {
+			golden{"delete " + in.FunctionName + " qualified by an alias", "InvalidParameterValueException", 400, refused, true}.check(t, fail(h, lambdaapi.OpDeleteFunction, in))
+		}
+		golden{"delete $latest of a missing function", "ResourceNotFoundException", 404, "Function not found: " + fnARN("missing"), true}.
+			check(t, fail(h, lambdaapi.OpDeleteFunction, &lambdaapi.DeleteFunctionInput{FunctionName: "missing", Qualifier: new("$latest")}))
+		h.createFunction("fn")
+		call(h, lambdaapi.OpPublishVersion, &lambdaapi.PublishVersionInput{FunctionName: "fn"})
+		call(h, lambdaapi.OpCreateAlias, &lambdaapi.CreateAliasInput{FunctionName: "fn", Name: "live", FunctionVersion: "1"})
+		golden{"delete an existing alias", "InvalidParameterValueException", 400, refused, true}.
+			check(t, fail(h, lambdaapi.OpDeleteFunction, &lambdaapi.DeleteFunctionInput{FunctionName: "fn", Qualifier: new("live")}))
+		call(h, lambdaapi.OpGetAlias, &lambdaapi.GetAliasInput{FunctionName: "fn", Name: "live"})
+	})
+}
+
+// TestAccountSettingsReportTheCodeStorageQuota: TotalCodeSize is the 75 GB
+// default AWS reports (get-account-settings).
+func TestAccountSettingsReportTheCodeStorageQuota(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		out := call(h, lambdaapi.OpGetAccountSettings, &lambdaapi.GetAccountSettingsInput{})
+		if got := out.AccountLimit.TotalCodeSize; got != 80530636800 {
+			t.Errorf("TotalCodeSize = %d; want 80530636800", got)
+		}
+	})
+}
+
+// TestEmptyEnvironmentAtCreateIsEchoed: Environment {"Variables":{}} sent
+// to CreateFunction reads back as such, from Create and from GetFunction
+// (test_function_revisions_basic).
+func TestEmptyEnvironmentAtCreateIsEchoed(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		in := zipFunction(t, "fn")
+		in.Environment = &lambdaapi.Environment{Variables: map[string]string{}}
+		created := call(h, lambdaapi.OpCreateFunction, in)
+		got := call(h, lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: "fn"}).Configuration
+		for name, c := range map[string]*lambdaapi.FunctionConfiguration{"CreateFunction": created, "GetFunction": got} {
+			if c.Environment == nil || c.Environment.Variables == nil || len(c.Environment.Variables) != 0 {
+				t.Errorf("%s Environment = %+v; want Variables {}", name, c.Environment)
+			}
+		}
+	})
+}

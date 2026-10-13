@@ -70,6 +70,14 @@ func (h *harness) advance(d time.Duration) {
 	}
 }
 
+// boundAliases is the first page of the caller's ListAliases without the
+// predefined alias/aws/ aliases that name no key yet.
+func (h *harness) boundAliases() []kmsapi.AliasListEntry {
+	h.Helper()
+	all := must(h, kmsapi.OpListAliases, &kmsapi.ListAliasesInput{}).Aliases
+	return slices.DeleteFunc(all, func(a kmsapi.AliasListEntry) bool { return a.TargetKeyId == nil })
+}
+
 func keyARN(id string) string { return arnPrefix + "key/" + id }
 
 func wantError(t *testing.T, err *awserr.Error, jsonType, message string) {
@@ -110,7 +118,7 @@ func TestCreateKeyUsageSpecMismatch(t *testing.T) {
 		}{
 			{kmsapi.KeySpecRsa2048, new(kmsapi.KeyUsageTypeKeyAgreement), "KeyUsage KEY_AGREEMENT is not compatible with KeySpec RSA_2048"},
 			{kmsapi.KeySpecHmac224, new(kmsapi.KeyUsageTypeEncryptDecrypt), "KeyUsage ENCRYPT_DECRYPT is not compatible with KeySpec HMAC_224"},
-			{kmsapi.KeySpecEccNistP256, nil, "KeyUsage ENCRYPT_DECRYPT is not compatible with KeySpec ECC_NIST_P256"},
+			{kmsapi.KeySpecEccNistP256, new(kmsapi.KeyUsageTypeEncryptDecrypt), "KeyUsage ENCRYPT_DECRYPT is not compatible with KeySpec ECC_NIST_P256"},
 			{kmsapi.KeySpecSymmetricDefault, new(kmsapi.KeyUsageTypeSignVerify), "KeyUsage SIGN_VERIFY is not compatible with KeySpec SYMMETRIC_DEFAULT"},
 		} {
 			_, err := call(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{KeySpec: new(tc.spec), KeyUsage: tc.usage})
@@ -120,6 +128,47 @@ func TestCreateKeyUsageSpecMismatch(t *testing.T) {
 		if err == nil || err.ID.JSONType != "UnsupportedOperationException" {
 			h.Errorf("CreateKey RSA_2048 SIGN_VERIFY = %v, want UnsupportedOperationException", err)
 		}
+	})
+}
+
+// KeyUsage defaults to ENCRYPT_DECRYPT only for a symmetric encryption key:
+// any other KeySpec without it is the ValidationException AWS recorded
+// (test_kms.snapshot.json@8b9a79f line 902), ahead of whether understudy
+// backs the spec.
+func TestCreateKeyUsageRequiredForNonSymmetricSpec(t *testing.T) {
+	run(t, func(h *harness) {
+		for _, spec := range []kmsapi.KeySpec{kmsapi.KeySpecHmac256, kmsapi.KeySpecRsa2048, kmsapi.KeySpecEccNistP256} {
+			_, err := call(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{KeySpec: new(spec)})
+			wantError(h.T, err, "ValidationException", "You must specify a KeyUsage value for all KMS keys except for symmetric encryption keys.")
+		}
+		m := must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{KeySpec: new(kmsapi.KeySpecSymmetricDefault)}).KeyMetadata
+		if *m.KeyUsage != kmsapi.KeyUsageTypeEncryptDecrypt {
+			h.Errorf("SYMMETRIC_DEFAULT key without KeyUsage has KeyUsage %v, want ENCRYPT_DECRYPT", *m.KeyUsage)
+		}
+	})
+}
+
+// Every key policy statement must name a principal (CreateKey and
+// PutKeyPolicy API references): a statement with neither Principal nor
+// NotPrincipal is MalformedPolicyDocumentException, while one without
+// Action or Resource is accepted, as AWS accepts it.
+func TestKeyPolicyStatementNeedsPrincipal(t *testing.T) {
+	run(t, func(h *harness) {
+		noPrincipal := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"kms:*","Resource":"*"}]}`
+		const tail = " of the key policy has no Principal or NotPrincipal element; each key policy statement must name one or more principals (understudy's text; AWS's is unrecorded)."
+		_, err := call(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{Policy: new(noPrincipal)})
+		wantError(h.T, err, "MalformedPolicyDocumentException", "Statement 0"+tail)
+
+		id := h.key()
+		second := `{"Version":"2012-10-17","Statement":[` +
+			`{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::000000000000:root"},"Action":"kms:*","Resource":"*"},` +
+			`{"Sid":"Open","Effect":"Allow","Action":"kms:Decrypt","Resource":"*"}]}`
+		_, err = call(h, kmsapi.OpPutKeyPolicy, &kmsapi.PutKeyPolicyInput{KeyId: id, Policy: second})
+		wantError(h.T, err, "MalformedPolicyDocumentException", `Statement 1 (Sid "Open")`+tail)
+
+		lenient := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","NotPrincipal":{"AWS":"arn:aws:iam::000000000000:root"}}]}`
+		must(h, kmsapi.OpPutKeyPolicy, &kmsapi.PutKeyPolicyInput{KeyId: id, Policy: lenient})
+		must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{Policy: new(lenient)})
 	})
 }
 
@@ -254,7 +303,7 @@ func TestOtherAccountARN(t *testing.T) {
 		wantError(h.T, err, "NotFoundException", "Alias "+other+"alias/aws/s3 is not found.")
 
 		h.Scope.Account = mustAccount(h, "111111111111")
-		aliases := must(h, kmsapi.OpListAliases, &kmsapi.ListAliasesInput{}).Aliases
+		aliases := h.boundAliases()
 		if len(aliases) != 1 || deref(aliases[0].AliasName) != "alias/shared" {
 			h.Errorf("aliases of the other account = %+v, want alias/shared alone", aliases)
 		}
@@ -488,6 +537,38 @@ func TestGenerateDataKeyDecryptRoundTrip(t *testing.T) {
 	})
 }
 
+// A dry run of a call that would succeed answers DryRunOperationException
+// with HTTP 400, AWS's recorded status (LocalStack test_kms.snapshot.json,
+// test_generate_data_key_pair_dry_run), not the model's 412.
+func TestDryRunAnswersDryRunOperation(t *testing.T) {
+	run(t, func(h *harness) {
+		id := h.key()
+		blob := must(h, kmsapi.OpEncrypt, &kmsapi.EncryptInput{KeyId: id, Plaintext: []byte("x")}).CiphertextBlob
+		const msg = "The request would have succeeded, but the DryRun option is set."
+		calls := map[string]func() *awserr.Error{
+			"GenerateDataKey": func() *awserr.Error {
+				_, err := call(h, kmsapi.OpGenerateDataKey, &kmsapi.GenerateDataKeyInput{KeyId: id, KeySpec: new(kmsapi.DataKeySpecAes256), DryRun: new(true)})
+				return err
+			},
+			"Encrypt": func() *awserr.Error {
+				_, err := call(h, kmsapi.OpEncrypt, &kmsapi.EncryptInput{KeyId: id, Plaintext: []byte("x"), DryRun: new(true)})
+				return err
+			},
+			"Decrypt": func() *awserr.Error {
+				_, err := call(h, kmsapi.OpDecrypt, &kmsapi.DecryptInput{CiphertextBlob: blob, DryRun: new(true)})
+				return err
+			},
+		}
+		for name, fn := range calls {
+			err := fn()
+			wantError(h.T, err, "DryRunOperationException", msg)
+			if err.ID.Status != 400 {
+				h.Errorf("%s with DryRun answers HTTP %d, want 400", name, err.ID.Status)
+			}
+		}
+	})
+}
+
 // ReEncrypt moves a ciphertext from one key and context to another; the
 // result decrypts only under the destination context.
 func TestReEncryptAcrossKeys(t *testing.T) {
@@ -537,7 +618,7 @@ func TestScheduledDeletionCompletesUnderAdvance(t *testing.T) {
 		h.advance(time.Second)
 		_, err = call(h, kmsapi.OpDescribeKey, &kmsapi.DescribeKeyInput{KeyId: id})
 		wantError(h.T, err, "NotFoundException", "Key '"+keyARN(id)+"' does not exist")
-		if aliases := must(h, kmsapi.OpListAliases, &kmsapi.ListAliasesInput{}).Aliases; len(aliases) != 0 {
+		if aliases := h.boundAliases(); len(aliases) != 0 {
 			h.Errorf("aliases after deletion = %d, want none", len(aliases))
 		}
 		if keys := must(h, kmsapi.OpListKeys, &kmsapi.ListKeysInput{}).Keys; len(keys) != 0 {
@@ -599,12 +680,17 @@ func TestTerraformKeyAndAliasSequence(t *testing.T) {
 
 		// aws_kms_alias with an ARN target reads back the bare key id.
 		must(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/probe", TargetKeyId: keyARN(id)})
-		aliases := must(h, kmsapi.OpListAliases, &kmsapi.ListAliasesInput{}).Aliases
+		aliases := h.boundAliases()
 		if len(aliases) != 1 || deref(aliases[0].AliasName) != "alias/probe" || deref(aliases[0].AliasArn) != arnPrefix+"alias/probe" || deref(aliases[0].TargetKeyId) != id {
 			h.Errorf("ListAliases = %+v", aliases)
 		}
 		_, err := call(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/probe", TargetKeyId: id})
 		wantError(h.T, err, "AlreadyExistsException", "An alias with the name "+arnPrefix+"alias/probe already exists")
+		// API_CreateAlias lists AlreadyExistsException as HTTP 400, not
+		// the model's 409.
+		if err.ID.Status != 400 {
+			h.Errorf("CreateAlias of an existing alias answers HTTP %d, want 400", err.ID.Status)
+		}
 
 		// Destroy: alias first, then the key with a 7-day window; a second
 		// schedule answers the "is pending deletion" text Terraform treats as
@@ -628,11 +714,108 @@ func TestAliasNameRules(t *testing.T) {
 		id := h.key()
 		_, err := call(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "nope", TargetKeyId: id})
 		wantError(h.T, err, "ValidationException", `Alias must start with the prefix "alias/". Please see https://docs.aws.amazon.com/kms/latest/developerguide/kms-alias.html`)
+		// The documented pattern ^alias/[a-zA-Z0-9/_-]+$ needs a name after the prefix.
+		_, err = call(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/", TargetKeyId: id})
+		wantError(h.T, err, "ValidationException", `Alias must start with the prefix "alias/". Please see https://docs.aws.amazon.com/kms/latest/developerguide/kms-alias.html`)
 		_, err = call(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/aws/mine", TargetKeyId: id})
 		wantError(h.T, err, "InvalidAliasNameException", "The alias name for a customer managed CMK cannot begin with alias/aws/.")
 		must(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/a", TargetKeyId: id})
 		_, err = call(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/b", TargetKeyId: "alias/a"})
 		wantError(h.T, err, "ValidationException", "Aliases must refer to keys. Not aliases")
+	})
+}
+
+// ListAliases lists a predefined alias/aws/ alias before its AWS managed key
+// exists, with a name and ARN but no TargetKeyId, as AWS documents. That is
+// how Terraform's aws_kms_alias data source finds alias/aws/s3 on fresh
+// state: it pages ListAliases for the name, then calls DescribeKey on it.
+// Listing writes nothing, and a listing by KeyId holds only that key's
+// aliases.
+func TestPredefinedAliasesListedBeforeFirstUse(t *testing.T) {
+	run(t, func(h *harness) {
+		find := func(name string) (kmsapi.AliasListEntry, int) {
+			var found kmsapi.AliasListEntry
+			n := 0
+			in := &kmsapi.ListAliasesInput{Limit: new(int32(5))}
+			for {
+				out := must(h, kmsapi.OpListAliases, in)
+				for _, a := range out.Aliases {
+					if deref(a.AliasName) == name {
+						found, n = a, n+1
+					}
+				}
+				if !out.Truncated {
+					return found, n
+				}
+				in.Marker = out.NextMarker
+			}
+		}
+		s3, n := find("alias/aws/s3")
+		if n != 1 || deref(s3.AliasArn) != arnPrefix+"alias/aws/s3" || s3.TargetKeyId != nil || s3.CreationDate != nil || s3.LastUpdatedDate != nil {
+			h.Fatalf("alias/aws/s3 on fresh state listed %d times as %+v; want once with name and ARN only", n, s3)
+		}
+		if scopes := h.svc.Scopes(); len(scopes) != 0 {
+			h.Errorf("Scopes() after ListAliases = %v, want none: listing stores nothing", scopes)
+		}
+
+		m := h.describe(deref(s3.AliasName))
+		s3, n = find("alias/aws/s3")
+		if n != 1 || deref(s3.TargetKeyId) != m.KeyId || s3.CreationDate == nil {
+			h.Errorf("alias/aws/s3 after first use listed %d times as %+v; want once naming %s", n, s3, m.KeyId)
+		}
+
+		id := h.key()
+		must(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/app", TargetKeyId: id})
+		byKey := must(h, kmsapi.OpListAliases, &kmsapi.ListAliasesInput{KeyId: new(id)}).Aliases
+		if len(byKey) != 1 || deref(byKey[0].AliasName) != "alias/app" {
+			h.Errorf("ListAliases by KeyId = %+v, want alias/app alone", byKey)
+		}
+	})
+}
+
+// A key holds at most 50 aliases (AWS's "Aliases per KMS key" quota):
+// CreateAlias and UpdateAlias past it answer LimitExceededException, while
+// an alias already on the key may be updated onto it again.
+func TestAliasQuotaPerKey(t *testing.T) {
+	run(t, func(h *harness) {
+		full, other := h.key(), h.key()
+		for i := range 50 {
+			must(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: fmt.Sprintf("alias/q%02d", i), TargetKeyId: full})
+		}
+		want := "Key " + keyARN(full) + " already has 50 aliases, the quota of aliases per KMS key; delete one of its aliases or target another key (understudy's text; AWS's is unrecorded)."
+		_, err := call(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/q50", TargetKeyId: full})
+		wantError(h.T, err, "LimitExceededException", want)
+
+		must(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/elsewhere", TargetKeyId: other})
+		_, err = call(h, kmsapi.OpUpdateAlias, &kmsapi.UpdateAliasInput{AliasName: "alias/elsewhere", TargetKeyId: full})
+		wantError(h.T, err, "LimitExceededException", want)
+		if m := h.describe("alias/elsewhere"); m.KeyId != other {
+			h.Errorf("alias/elsewhere after a refused UpdateAlias names %s, want %s", m.KeyId, other)
+		}
+		must(h, kmsapi.OpUpdateAlias, &kmsapi.UpdateAliasInput{AliasName: "alias/q00", TargetKeyId: full})
+
+		must(h, kmsapi.OpDeleteAlias, &kmsapi.DeleteAliasInput{AliasName: "alias/q00"})
+		must(h, kmsapi.OpUpdateAlias, &kmsapi.UpdateAliasInput{AliasName: "alias/elsewhere", TargetKeyId: full})
+	})
+}
+
+// The reserved aws: tag prefix is refused in any case: AWS answers
+// TagException for AWS:key1 (LocalStack's AWS-validated
+// test_create_key_with_invalid_tag_key[uppercase_prefix]), on CreateKey and
+// TagResource alike.
+func TestReservedTagPrefixAnyCase(t *testing.T) {
+	run(t, func(h *harness) {
+		for _, key := range []string{"aws:key1", "AWS:key1", "Aws:key1"} {
+			_, err := call(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{Tags: []kmsapi.Tag{{TagKey: key, TagValue: "value1"}}})
+			wantError(h.T, err, "TagException", "Tags beginning with aws: are reserved")
+		}
+		id := h.key()
+		_, err := call(h, kmsapi.OpTagResource, &kmsapi.TagResourceInput{KeyId: id, Tags: []kmsapi.Tag{{TagKey: "AWS:key1", TagValue: "value1"}}})
+		wantError(h.T, err, "TagException", "Tags beginning with aws: are reserved")
+		if tags := must(h, kmsapi.OpListResourceTags, &kmsapi.ListResourceTagsInput{KeyId: id}).Tags; len(tags) != 0 {
+			h.Errorf("tags after a refused TagResource = %+v, want none", tags)
+		}
+		must(h, kmsapi.OpTagResource, &kmsapi.TagResourceInput{KeyId: id, Tags: []kmsapi.Tag{{TagKey: "awsome", TagValue: "v"}}})
 	})
 }
 
@@ -654,6 +837,17 @@ func TestAWSManagedKeyOnFirstUse(t *testing.T) {
 	})
 }
 
+// The aws/s3 managed key carries the Description AWS recorded on DescribeKey
+// (test_s3_api.snapshot.json@c2cb023 lines 1500-1519).
+func TestS3ManagedKeyDescription(t *testing.T) {
+	run(t, func(h *harness) {
+		m := h.describe("alias/aws/s3")
+		if want := "Default key that protects my S3 objects when no other key is defined"; deref(m.Description) != want {
+			h.Errorf("alias/aws/s3 Description = %q, want %q", deref(m.Description), want)
+		}
+	})
+}
+
 // Decrypt's KeyId only names a key: an alias/aws/ alias with no AWS managed
 // key yet is IncorrectKeyException and creates none.
 func TestDecryptKeyIDCreatesNoManagedKey(t *testing.T) {
@@ -661,8 +855,8 @@ func TestDecryptKeyIDCreatesNoManagedKey(t *testing.T) {
 		blob := must(h, kmsapi.OpEncrypt, &kmsapi.EncryptInput{KeyId: h.key(), Plaintext: []byte("x")}).CiphertextBlob
 		_, err := call(h, kmsapi.OpDecrypt, &kmsapi.DecryptInput{CiphertextBlob: blob, KeyId: new("alias/aws/s3")})
 		wantError(h.T, err, "IncorrectKeyException", "The key ID in the request does not identify a CMK that can perform this operation.")
-		if aliases := must(h, kmsapi.OpListAliases, &kmsapi.ListAliasesInput{}).Aliases; len(aliases) != 0 {
-			h.Errorf("aliases after Decrypt named alias/aws/s3 = %+v, want none", aliases)
+		if aliases := h.boundAliases(); len(aliases) != 0 {
+			h.Errorf("aliases naming a key after Decrypt named alias/aws/s3 = %+v, want none", aliases)
 		}
 	})
 }
@@ -712,7 +906,9 @@ func TestAWSManagedKeyIsReadOnly(t *testing.T) {
 			}
 		}
 		_, err := call(h, kmsapi.OpDeleteAlias, &kmsapi.DeleteAliasInput{AliasName: "alias/aws/secretsmanager"})
-		wantError(h.T, err, "UnsupportedOperationException", arnPrefix+"alias/aws/secretsmanager is the alias of an AWS managed key and cannot be deleted; aliases beginning with alias/aws/ are managed by AWS.")
+		wantError(h.T, err, "UnsupportedOperationException", arnPrefix+"alias/aws/secretsmanager is the alias of an AWS managed key and cannot be updated or deleted; aliases beginning with alias/aws/ are managed by AWS.")
+		_, err = call(h, kmsapi.OpUpdateAlias, &kmsapi.UpdateAliasInput{AliasName: "alias/aws/secretsmanager", TargetKeyId: h.key()})
+		wantError(h.T, err, "UnsupportedOperationException", arnPrefix+"alias/aws/secretsmanager is the alias of an AWS managed key and cannot be updated or deleted; aliases beginning with alias/aws/ are managed by AWS.")
 
 		after := h.describe("alias/aws/secretsmanager")
 		if after.KeyId != id || *after.KeyState != kmsapi.KeyStateEnabled || deref(after.Description) != "Default key" {
@@ -725,6 +921,101 @@ func TestAWSManagedKeyIsReadOnly(t *testing.T) {
 			h.Error("AWS managed key rotation reported off")
 		}
 	})
+}
+
+// UpdateAlias and DeleteAlias model NotFoundException, not
+// InvalidAliasNameException or UnsupportedOperationException, for an
+// alias/aws/ name that names nothing: a typo, or a predefined alias before
+// its AWS managed key exists. Neither call creates the key.
+func TestAWSAliasNamingNothingIsNotFound(t *testing.T) {
+	run(t, func(h *harness) {
+		id := h.key()
+		for _, name := range []string{"alias/aws/typo", "alias/aws/s3"} {
+			want := "Alias " + arnPrefix + name + " is not found."
+			_, err := call(h, kmsapi.OpUpdateAlias, &kmsapi.UpdateAliasInput{AliasName: name, TargetKeyId: id})
+			wantError(h.T, err, "NotFoundException", want)
+			_, err = call(h, kmsapi.OpDeleteAlias, &kmsapi.DeleteAliasInput{AliasName: name})
+			wantError(h.T, err, "NotFoundException", want)
+		}
+		if aliases := h.boundAliases(); len(aliases) != 0 {
+			h.Errorf("aliases naming a key = %+v, want none", aliases)
+		}
+	})
+}
+
+// An AWS managed key carries the fixed key policy AWS documents for
+// aws/secretsmanager: use only through the service by principals of the
+// account, and read-only metadata access for the account root, never kms:*.
+func TestAWSManagedKeyPolicy(t *testing.T) {
+	run(t, func(h *harness) {
+		policyOf := func(alias string) any {
+			h.Helper()
+			id := h.describe(alias).KeyId
+			p := deref(must(h, kmsapi.OpGetKeyPolicy, &kmsapi.GetKeyPolicyInput{KeyId: id, PolicyName: new("default")}).Policy)
+			var doc any
+			if err := json.Unmarshal([]byte(p), &doc); err != nil {
+				h.Fatalf("GetKeyPolicy(%s) = %q, not JSON: %v", alias, p, err)
+			}
+			return doc
+		}
+		// The documented example with this account and Region, and the Id
+		// version understudy gives (-1; the example's is -2).
+		const documented = `{
+  "Id": "auto-secretsmanager-1",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Allow access through AWS Secrets Manager for all principals in the account that are authorized to use AWS Secrets Manager",
+      "Effect": "Allow",
+      "Principal": {"AWS": ["*"]},
+      "Action": ["kms:Encrypt", "kms:Decrypt", "kms:ReEncrypt*", "kms:CreateGrant", "kms:DescribeKey"],
+      "Resource": "*",
+      "Condition": {"StringEquals": {"kms:CallerAccount": "000000000000", "kms:ViaService": "secretsmanager.us-east-1.amazonaws.com"}}
+    },
+    {
+      "Sid": "Allow access through AWS Secrets Manager for all principals in the account that are authorized to use AWS Secrets Manager",
+      "Effect": "Allow",
+      "Principal": {"AWS": ["*"]},
+      "Action": "kms:GenerateDataKey*",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {"kms:CallerAccount": "000000000000"},
+        "StringLike": {"kms:ViaService": "secretsmanager.us-east-1.amazonaws.com"}
+      }
+    },
+    {
+      "Sid": "Allow direct access to key metadata to the account",
+      "Effect": "Allow",
+      "Principal": {"AWS": ["arn:aws:iam::000000000000:root"]},
+      "Action": ["kms:Describe*", "kms:Get*", "kms:List*", "kms:RevokeGrant"],
+      "Resource": "*"
+    }
+  ]
+}`
+		var want any
+		if err := json.Unmarshal([]byte(documented), &want); err != nil {
+			h.Fatal(err)
+		}
+		got := policyOf("alias/aws/secretsmanager")
+		if gotJSON, wantJSON := mustJSON(h, got), mustJSON(h, want); gotJSON != wantJSON {
+			h.Errorf("aws/secretsmanager key policy =\n%s\nwant\n%s", gotJSON, wantJSON)
+		}
+		s3 := mustJSON(h, policyOf("alias/aws/s3"))
+		if !strings.Contains(s3, `"kms:ViaService":"s3.us-east-1.amazonaws.com"`) || !strings.Contains(s3, `"Id":"auto-s3-1"`) || strings.Contains(s3, `"kms:*"`) {
+			h.Errorf("aws/s3 key policy = %s, want auto-s3-1 scoped to s3.us-east-1.amazonaws.com without kms:*", s3)
+		}
+	})
+}
+
+// mustJSON is v as compact JSON with sorted object keys, for comparing
+// documents regardless of layout.
+func mustJSON(h *harness, v any) string {
+	h.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		h.Fatal(err)
+	}
+	return string(b)
 }
 
 // NextRotationDate never lies in the past: rotation is not performed, so
@@ -750,8 +1041,8 @@ func TestNextRotationDateFollowsTheClock(t *testing.T) {
 	})
 }
 
-// The constraints the model overlays add: a waiting period of 7 to 30 days
-// (iam-sts-kms.md 1.4) and a key policy of at most 32768 characters.
+// The constraint the model overlays add: a waiting period of 7 to 30 days
+// (iam-sts-kms.md 1.4).
 func TestOverlayConstraints(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.key()
@@ -761,14 +1052,31 @@ func TestOverlayConstraints(t *testing.T) {
 				h.Errorf("ScheduleKeyDeletion with %d days = %v, want ValidationException", days, err)
 			}
 		}
-		policy := rootPolicy + strings.Repeat(" ", 32769-len(rootPolicy))
-		_, err := call(h, kmsapi.OpPutKeyPolicy, &kmsapi.PutKeyPolicyInput{KeyId: id, Policy: policy})
-		if err == nil || err.ID.JSONType != "ValidationException" {
-			h.Errorf("PutKeyPolicy with a 32769-character policy = %v, want ValidationException", err)
-		}
 		if m := h.describe(id); *m.KeyState != kmsapi.KeyStateEnabled {
 			h.Errorf("KeyState after refused requests = %v, want Enabled", *m.KeyState)
 		}
+	})
+}
+
+// A key policy past the 32768-character quota is LimitExceededException on
+// CreateKey and PutKeyPolicy, as both API pages document, not the
+// framework's ValidationException: the model allows 131072 characters. A
+// policy at the quota is accepted.
+func TestKeyPolicySizeQuota(t *testing.T) {
+	run(t, func(h *harness) {
+		id := h.key()
+		atQuota := rootPolicy + strings.Repeat(" ", 32768-len(rootPolicy))
+		tooLong := atQuota + " "
+		const want = "The key policy is 32769 characters long, more than the quota of 32768; shorten it, for example by merging statements (understudy's text; AWS's is unrecorded)."
+		_, err := call(h, kmsapi.OpPutKeyPolicy, &kmsapi.PutKeyPolicyInput{KeyId: id, Policy: tooLong})
+		wantError(h.T, err, "LimitExceededException", want)
+		_, err = call(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{Policy: new(tooLong)})
+		wantError(h.T, err, "LimitExceededException", want)
+		if keys := must(h, kmsapi.OpListKeys, &kmsapi.ListKeysInput{}).Keys; len(keys) != 1 {
+			h.Errorf("ListKeys after a refused CreateKey = %d keys, want 1", len(keys))
+		}
+		must(h, kmsapi.OpPutKeyPolicy, &kmsapi.PutKeyPolicyInput{KeyId: id, Policy: atQuota})
+		must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{Policy: new(atQuota)})
 	})
 }
 
@@ -777,9 +1085,11 @@ func TestOverlayConstraints(t *testing.T) {
 // the most tags a key holds, so its test pages by a smaller Limit instead.
 func TestListLimitsAreCapped(t *testing.T) {
 	run(t, func(h *harness) {
-		id := h.key()
+		// Three keys, since one key holds at most 50 aliases.
+		keys := []string{h.key(), h.key(), h.key()}
+		id := keys[0]
 		for i := range 101 {
-			must(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: fmt.Sprintf("alias/a%03d", i), TargetKeyId: id})
+			must(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: fmt.Sprintf("alias/a%03d", i), TargetKeyId: keys[i%len(keys)]})
 		}
 		out := must(h, kmsapi.OpListAliases, &kmsapi.ListAliasesInput{Limit: new(int32(1000))})
 		if len(out.Aliases) != 100 || !out.Truncated {
@@ -924,6 +1234,33 @@ func TestListKeysPaging(t *testing.T) {
 				h.Errorf("limit %d listed %d keys, want %d", limit, len(seen), len(want))
 			}
 		}
+	})
+}
+
+// A Marker no page of the same listing returned is InvalidMarkerException,
+// not a silent seek to an empty page: neither undecodable text, nor
+// decodable text understudy never issued, nor another listing's marker.
+func TestForeignMarkerRefused(t *testing.T) {
+	run(t, func(h *harness) {
+		id := h.key()
+		h.key()
+		must(h, kmsapi.OpTagResource, &kmsapi.TagResourceInput{KeyId: id, Tags: []kmsapi.Tag{{TagKey: "a", TagValue: "1"}, {TagKey: "b", TagValue: "2"}}})
+		aliasMarker := must(h, kmsapi.OpListAliases, &kmsapi.ListAliasesInput{Limit: new(int32(1))}).NextMarker
+		keyMarker := must(h, kmsapi.OpListKeys, &kmsapi.ListKeysInput{Limit: new(int32(1))}).NextMarker
+		if aliasMarker == nil || keyMarker == nil {
+			h.Fatalf("first pages of Limit 1 returned markers %v and %v, want both", aliasMarker, keyMarker)
+		}
+		want := func(marker string) string {
+			return "The marker " + marker + " is not one a previous page of this listing returned; start the listing again without a Marker (understudy's text; AWS's is unrecorded)."
+		}
+		for _, marker := range []string{"garbage", "!!", *aliasMarker} {
+			_, err := call(h, kmsapi.OpListKeys, &kmsapi.ListKeysInput{Marker: new(marker)})
+			wantError(h.T, err, "InvalidMarkerException", want(marker))
+		}
+		_, err := call(h, kmsapi.OpListAliases, &kmsapi.ListAliasesInput{Marker: keyMarker})
+		wantError(h.T, err, "InvalidMarkerException", want(*keyMarker))
+		_, err = call(h, kmsapi.OpListResourceTags, &kmsapi.ListResourceTagsInput{KeyId: id, Marker: keyMarker})
+		wantError(h.T, err, "InvalidMarkerException", want(*keyMarker))
 	})
 }
 

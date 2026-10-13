@@ -7,6 +7,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/identity"
 )
 
@@ -157,8 +158,51 @@ func TestAccessKeyQuotaAndCallerDefault(t *testing.T) {
 			t.Errorf("CreateAccessKey as u = key of %s", got)
 		}
 		fails(h, iamapi.OpCreateAccessKey, &iamapi.CreateAccessKeyInput{UserName: new("u")}, "LimitExceeded", "AccessKeysPerUser: 2")
-		// The account's root names no user of its own.
-		fails(h, iamapi.OpListAccessKeys, &iamapi.ListAccessKeysInput{}, "ValidationError", "Must specify userName")
+	})
+}
+
+// A root caller that names no user acts on the root user: GetUser shows the
+// root identity, the whoami check of the AWS CLI. Root access keys are not
+// managed, so it lists none and cannot create one.
+func TestRootCallerDefaultsToTheRootUser(t *testing.T) {
+	run(t, func(h *harness) {
+		u := must(h, iamapi.OpGetUser, &iamapi.GetUserInput{}).User
+		if u.Arn != "arn:aws:iam::000000000000:root" || u.UserId != "000000000000" || u.CreateDate.IsZero() {
+			t.Errorf("GetUser as root = %+v, want the root ARN, the account id and a CreateDate", u)
+		}
+		must(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "u"})
+		must(h, iamapi.OpCreateAccessKey, &iamapi.CreateAccessKeyInput{UserName: new("u")})
+		if keys := must(h, iamapi.OpListAccessKeys, &iamapi.ListAccessKeysInput{}).AccessKeyMetadata; len(keys) != 0 {
+			t.Errorf("ListAccessKeys as root = %+v, want none: u's key is not the root's", keys)
+		}
+		fails(h, iamapi.OpCreateAccessKey, &iamapi.CreateAccessKeyInput{}, "NotImplemented", "root user")
+		fails(h, iamapi.OpDeleteAccessKey, &iamapi.DeleteAccessKeyInput{AccessKeyId: "AKIAEXAMPLEEXAMPLE00"}, "NoSuchEntity", "AKIAEXAMPLEEXAMPLE00")
+	})
+}
+
+// A role session has no user to default to.
+func TestRoleSessionMustNameAUser(t *testing.T) {
+	run(t, func(h *harness) {
+		r := h.role("r")
+		session := identity.AssumedRole{Account: h.Scope.Account, Role: identity.RoleRef{Name: "r", Path: "/", ID: r.RoleId}, Session: "s", Source: identity.FromAssumeRole{}}
+		for name, call := range map[string]func() *awserr.Error{
+			"GetUser": func() *awserr.Error {
+				_, err := callAs(h, session, iamapi.OpGetUser, &iamapi.GetUserInput{})
+				return err
+			},
+			"ListAccessKeys": func() *awserr.Error {
+				_, err := callAs(h, session, iamapi.OpListAccessKeys, &iamapi.ListAccessKeysInput{})
+				return err
+			},
+			"CreateAccessKey": func() *awserr.Error {
+				_, err := callAs(h, session, iamapi.OpCreateAccessKey, &iamapi.CreateAccessKeyInput{})
+				return err
+			},
+		} {
+			if err := call(); err == nil || err.ID.QueryCode != "ValidationError" || !strings.Contains(err.Message, "Must specify userName") {
+				t.Errorf("%s as a role session = %v, want ValidationError Must specify userName", name, err)
+			}
+		}
 	})
 }
 

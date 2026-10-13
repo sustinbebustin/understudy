@@ -23,9 +23,5 @@ func (s *Service) ResourcePolicy(target aws.ARN) (doc *policydoc.Document, ok bo
 	if !set {
 		text = defaultPolicy(ref)
 	}
-	parsed, err := policydoc.Parse([]byte(text))
-	if err != nil {
-		return nil, true
-	}
-	return &parsed, true
+	return policydoc.ParseStored(text), true
 }

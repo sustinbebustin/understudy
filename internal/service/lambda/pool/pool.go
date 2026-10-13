@@ -26,7 +26,10 @@ const (
 	DefaultIdleTimeout      = 10 * time.Minute
 	// MinIdleTimeout keeps the reap interval (a quarter of the idle
 	// timeout) from spinning.
-	MinIdleTimeout  = time.Second
+	MinIdleTimeout = time.Second
+	// RemoveTimeout bounds each container removal, within any earlier
+	// deadline of the caller's context.
+	RemoveTimeout   = 30 * time.Second
 	minIdleCap      = 4
 	maxReapInterval = 30 * time.Second
 )
@@ -55,13 +58,6 @@ type Endpoint interface {
 	Terminate(o runtimeapi.Outcome)
 	Close() error
 }
-
-// ServerRuntime adapts a runtimeapi.Server to Runtime.
-func ServerRuntime(s *runtimeapi.Server) Runtime { return serverRuntime{s} }
-
-type serverRuntime struct{ s *runtimeapi.Server }
-
-func (r serverRuntime) Open(ctx context.Context) (Endpoint, error) { return r.s.Open(ctx) }
 
 // Options configures a Pool. Zero limits take the defaults.
 type Options struct {
@@ -513,7 +509,7 @@ func (p *Pool) retire(ctx context.Context, envs []*Env) error {
 	for _, e := range envs {
 		var err error
 		if e.endpoint != nil {
-			err = errors.Join(e.endpoint.Close(), p.launcher.Remove(context.WithoutCancel(ctx), e.container.ID))
+			err = errors.Join(e.endpoint.Close(), p.remove(ctx, e.container.ID))
 		}
 		if err != nil {
 			errs = append(errs, fmt.Errorf("remove Lambda environment %s (container %s): %w", e.id, e.container.Name, err))
@@ -525,6 +521,22 @@ func (p *Pool) retire(ctx context.Context, envs []*Env) error {
 		p.mu.Unlock()
 	}
 	return errors.Join(errs...)
+}
+
+// remove deletes a container under the caller's deadline but not its
+// cancellation, so an environment whose leaseholder gave up still goes,
+// and at most RemoveTimeout, so a wedged Docker daemon cannot hold a
+// lease, a release or shutdown forever. A container left behind carries
+// understudy's labels, so the next cleanup sweep removes it.
+func (p *Pool) remove(ctx context.Context, id string) error {
+	rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), RemoveTimeout)
+	defer cancel()
+	if deadline, ok := ctx.Deadline(); ok {
+		var cancelDeadline context.CancelFunc
+		rctx, cancelDeadline = context.WithDeadline(rctx, deadline)
+		defer cancelDeadline()
+	}
+	return p.launcher.Remove(rctx, id)
 }
 
 func selects(sel Selector, key Key) bool {

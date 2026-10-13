@@ -47,7 +47,7 @@ const (
 // (a queue called "tags", an S3 object keyed "metadata"), and every rule
 // applies to it.
 func scopeOf(name string, obj tree) scope {
-	switch foldName(name) {
+	switch ruleKey(name) {
 	case "cause":
 		return causeScope
 	case "tags", "variables", "metadata":
@@ -86,7 +86,7 @@ func normalize(t tree, name string, in scope) tree {
 		}
 		return tree{kind: jsonx.Array, elems: es}
 	case jsonx.String, jsonx.Number:
-		if mask, ok := maskByName(foldName(name), t, in); ok {
+		if mask, ok := maskByName(ruleKey(name), t, in); ok {
 			return str(mask)
 		}
 		if t.kind == jsonx.String {
@@ -152,6 +152,22 @@ func isWallName(key string) bool {
 		return true
 	}
 	return false
+}
+
+// ruleKey is the member name the member-name rules read: name without the
+// "#n" suffixes disambiguate numbers members with, folded. A second pass
+// over normalized output then applies the rules the first pass applied, so
+// "metadata#1" stays a user map and normalizing is idempotent. A masked name
+// keeps no text a rule could newly match: every mask ends in '>', and the
+// text after the last mask is the original name's.
+func ruleKey(name string) string {
+	for {
+		i := strings.LastIndexByte(name, '#')
+		if i < 0 || i == len(name)-1 || strings.TrimLeft(name[i+1:], "0123456789") != "" {
+			return foldName(name)
+		}
+		name = name[:i]
+	}
 }
 
 // foldName lowercases a member name and drops '_' and '-', so requestId,

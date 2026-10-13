@@ -5,6 +5,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/ids"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // stateVersion is the schema version of State in snapshot sections.
@@ -35,6 +36,10 @@ func newState(aws.AccountID) State {
 func (s *State) IsZero() bool {
 	return len(s.Roles) == 0 && len(s.Users) == 0 && len(s.Policies) == 0 && len(s.InstanceProfiles) == 0
 }
+
+// Partitioned finds IsZero by a type assertion; this keeps a rename from
+// silently dropping the skip.
+var _ store.Zeroer = (*State)(nil)
 
 // Tag is one tag of an IAM entity, in the order it was first added.
 type Tag struct {
@@ -96,7 +101,8 @@ type Policy struct {
 	Description string        `json:"description,omitempty"`
 	Tags        []Tag         `json:"tags,omitempty"`
 	Created     clock.Instant `json:"created"`
-	// Updated is when the default version last changed.
+	// Updated is the UpdateDate: when the newest version was created, or
+	// Created while the policy has one version.
 	Updated clock.Instant `json:"updated"`
 	// Versions are in creation order; at most maxPolicyVersions.
 	Versions []PolicyVersion `json:"versions"`

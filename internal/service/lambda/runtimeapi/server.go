@@ -35,6 +35,13 @@ type Options struct {
 	InitTimeout time.Duration
 	// Logger receives listener errors; nil discards them.
 	Logger *slog.Logger
+	// Peers, when valid, is the network the function containers are on,
+	// and every listener serves only peers inside it
+	// (topology.ScopePeers): set it when the listeners bind a bridge
+	// gateway a LAN peer could also reach. The zero Prefix serves every
+	// peer, for a bind address only the containers reach, such as the
+	// loopback address Docker Desktop forwards to.
+	Peers netip.Prefix
 }
 
 // Server opens one Runtime API listener per execution environment, on the
@@ -45,6 +52,7 @@ type Server struct {
 	bind        netip.Addr
 	advertise   netip.Addr
 	topology    string
+	peers       netip.Prefix
 	initTimeout time.Duration
 	log         *slog.Logger
 	// listen opens each environment's listener; tests replace it with an
@@ -86,6 +94,7 @@ func NewServer(opts Options) (*Server, error) {
 		bind:        addrs.ListenerBind,
 		advertise:   addrs.FunctionEndpointHost,
 		topology:    opts.Topology.String(),
+		peers:       opts.Peers,
 		initTimeout: initTimeout,
 		log:         log,
 		listen:      new(net.ListenConfig).Listen,
@@ -103,6 +112,9 @@ func (s *Server) Open(ctx context.Context) (*Environment, error) {
 	tcp, ok := ln.Addr().(*net.TCPAddr)
 	if !ok {
 		return nil, errors.Join(fmt.Errorf("runtime API: listener address %v is not TCP", ln.Addr()), ln.Close())
+	}
+	if s.peers.IsValid() {
+		ln = topology.ScopePeers(ln, s.peers, "Lambda Runtime API listener", s.log)
 	}
 	e := newEnvironment(s, netip.AddrPortFrom(s.advertise, uint16(tcp.Port))) //nolint:gosec // a TCP port fits in 16 bits
 	e.http = &http.Server{

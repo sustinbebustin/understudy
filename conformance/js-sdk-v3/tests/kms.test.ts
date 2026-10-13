@@ -196,9 +196,10 @@ describe("KMS aliases", () => {
     const { id } = await makeKey();
     const alias = aliasName();
     await kms.send(new CreateAliasCommand({ AliasName: alias, TargetKeyId: id }));
+    // API_CreateAlias lists AlreadyExistsException as HTTP 400, not the model's 409.
     await expectFailure(kms.send(new CreateAliasCommand({ AliasName: alias, TargetKeyId: id })), {
       name: "AlreadyExistsException",
-      status: 409,
+      status: 400,
       messageIncludes: `An alias with the name arn:aws:kms:${region}:${defaultAccount}:${alias} already exists`,
     });
   });

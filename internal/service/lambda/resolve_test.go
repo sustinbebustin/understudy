@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
@@ -28,6 +29,14 @@ func TestGetFunctionIdentifierForms(t *testing.T) {
 			{"fn", "$LATEST", arn},
 			{"fn:live", "1", arn + ":live"},
 			{"000000000000:function:fn", "$LATEST", arn},
+			// The region, account and function: prefixes are each optional.
+			{"us-east-1:000000000000:function:fn", "$LATEST", arn},
+			{"us-east-1:000000000000:function:fn:1", "1", arn + ":1"},
+			{"us-east-1:function:fn", "$LATEST", arn},
+			{"us-east-1:fn:live", "1", arn + ":live"},
+			{"000000000000:fn:1", "1", arn + ":1"},
+			{"function:fn", "$LATEST", arn},
+			{"function:fn:live", "1", arn + ":live"},
 			{arn, "$LATEST", arn},
 			{arn + ":1", "1", arn + ":1"},
 			{decodedName(t, url.PathEscape(arn)), "$LATEST", arn},
@@ -38,9 +47,11 @@ func TestGetFunctionIdentifierForms(t *testing.T) {
 				t.Errorf("GetFunction(%s) = %s %s %s; want fn %s %s", f.name, *c.FunctionName, *c.Version, *c.FunctionArn, f.version, f.arn)
 			}
 		}
-		errorIs(t, fail(h, lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: "arn:aws:lambda:ap-southeast-1:000000000000:function:fn"}),
-			"ResourceNotFoundException", "Functions from 'ap-southeast-1' are not reachable in this region ('us-east-1')")
-		for _, other := range []string{"arn:aws:lambda:us-east-1:111111111111:function:fn", "111111111111:function:fn"} {
+		for _, elsewhere := range []string{"arn:aws:lambda:ap-southeast-1:000000000000:function:fn", "ap-southeast-1:000000000000:function:fn", "ap-southeast-1:function:fn"} {
+			errorIs(t, fail(h, lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: elsewhere}),
+				"ResourceNotFoundException", "Functions from 'ap-southeast-1' are not reachable in this region ('us-east-1')")
+		}
+		for _, other := range []string{"arn:aws:lambda:us-east-1:111111111111:function:fn", "111111111111:function:fn", "us-east-1:111111111111:function:fn", "111111111111:fn:1"} {
 			errorIs(t, fail(h, lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: other}), "AccessDeniedException", "")
 		}
 		errorIs(t, fail(h, lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: "fn:1", Qualifier: new("live")}),
@@ -49,6 +60,24 @@ func TestGetFunctionIdentifierForms(t *testing.T) {
 			"ResourceNotFoundException", "Function not found: "+arn+":missing")
 		errorIs(t, fail(h, lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: "nope"}),
 			"ResourceNotFoundException", "Function not found: arn:aws:lambda:us-east-1:000000000000:function:nope")
+	})
+}
+
+// TestCreateFunctionReadsPartialNames: CreateFunction takes the same
+// optional region, account and function: prefixes, creates the bare name,
+// and measures only the bare name against its 64-character limit.
+func TestCreateFunctionReadsPartialNames(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		for _, tc := range []struct{ given, name string }{
+			{"function:a", "a"},
+			{"000000000000:function:b", "b"},
+			{"us-east-1:000000000000:function:c", "c"},
+			{"us-east-1:function:" + strings.Repeat("d", 64), strings.Repeat("d", 64)},
+		} {
+			if c := call(h, lambdaapi.OpCreateFunction, zipFunction(t, tc.given)); *c.FunctionName != tc.name {
+				t.Errorf("CreateFunction(%s) created %s, want %s", tc.given, *c.FunctionName, tc.name)
+			}
+		}
 	})
 }
 

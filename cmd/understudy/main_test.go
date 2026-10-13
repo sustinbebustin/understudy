@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -73,10 +75,110 @@ func TestZipRefusesInsecurePaths(t *testing.T) {
 	}
 }
 
-// TestServeBinary builds the binary, starts it on an ephemeral port with a
-// ready file, finds health ready within 250 ms of process start, and stops
-// it with SIGINT.
+// TestServeBinary finds health ready within 250 ms of process start and
+// stops the server with SIGINT.
 func TestServeBinary(t *testing.T) {
+	s := startServe(t)
+	if elapsed := time.Since(s.started); elapsed > 250*time.Millisecond {
+		t.Errorf("health was ready %s after the process started, over the 250 ms budget", elapsed)
+	}
+	if err := s.cmd.Process.Signal(syscall.SIGINT); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.cmd.Wait(); err != nil {
+		t.Fatalf("serve after SIGINT: %v\n%s", err, s.logs.String())
+	}
+	if _, err := os.Stat(s.ready); !os.IsNotExist(err) {
+		t.Errorf("the ready file outlived the process: %v", err)
+	}
+	if !strings.Contains(s.logs.String(), s.endpoint) {
+		t.Errorf("the banner does not name the endpoint %s:\n%s", s.endpoint, s.logs.String())
+	}
+}
+
+// TestSecondSignalForcesExit holds the graceful shutdown open with a
+// request whose body never finishes arriving, which drain waits
+// shutdownGrace (5 s) for, and checks a second SIGINT kills the process
+// at once instead of being swallowed.
+func TestSecondSignalForcesExit(t *testing.T) {
+	s := startServe(t)
+	var dialer net.Dialer
+	conn, err := dialer.DialContext(t.Context(), "tcp", strings.TrimPrefix(s.endpoint, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	stalled := "POST / HTTP/1.1\r\nHost: localhost\r\n" +
+		"Content-Type: application/x-amz-json-1.0\r\nX-Amz-Target: AmazonSQS.SendMessage\r\n" +
+		"Authorization: AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20260101/us-east-1/sqs/aws4_request, SignedHeaders=host, Signature=0\r\n" +
+		"Content-Length: 1000\r\n\r\n{\"QueueUrl\":"
+	if _, err := io.WriteString(conn, stalled); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := healthy(t, &http.Client{Timeout: time.Second}, s.ready); !ok {
+		t.Fatal("health is not ready while the stalled request is in flight")
+	}
+	exited := make(chan error, 1)
+	go func() { exited <- s.cmd.Wait() }()
+	if err := s.cmd.Process.Signal(syscall.SIGINT); err != nil {
+		t.Fatal(err)
+	}
+	waitListenerClosed(t, s.endpoint, exited)
+	if err := s.cmd.Process.Signal(syscall.SIGINT); err != nil {
+		t.Fatalf("second SIGINT: %v (the process exited before it; did the stalled request hold shutdown open?)\n%s", err, s.logs.String())
+	}
+	select {
+	case err := <-exited:
+		exit, ok := errors.AsType[*exec.ExitError](err)
+		if !ok {
+			t.Fatalf("serve after a second SIGINT = %v, want death by SIGINT\n%s", err, s.logs.String())
+		}
+		if ws, ok := exit.Sys().(syscall.WaitStatus); !ok || !ws.Signaled() || ws.Signal() != syscall.SIGINT {
+			t.Errorf("serve after a second SIGINT = %v, want death by SIGINT\n%s", err, s.logs.String())
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("serve was still running 2 s after a second SIGINT, so the signal was swallowed\n%s", s.logs.String())
+	}
+}
+
+// waitListenerClosed waits until the main listener refuses connections,
+// which means the graceful shutdown has begun. It fails the test when the
+// process exits first, since the stalled request should hold it open.
+func waitListenerClosed(t *testing.T, endpoint string, exited <-chan error) {
+	t.Helper()
+	deadline := time.After(readyTimeout)
+	tick := time.NewTicker(time.Millisecond)
+	defer tick.Stop()
+	var dialer net.Dialer
+	for {
+		conn, err := dialer.DialContext(t.Context(), "tcp", strings.TrimPrefix(endpoint, "http://"))
+		if err != nil {
+			return
+		}
+		_ = conn.Close()
+		select {
+		case err := <-exited:
+			t.Fatalf("serve exited %v after the first SIGINT although a request was in flight", err)
+		case <-deadline:
+			t.Fatalf("the listener at %s still accepted connections %s after SIGINT", endpoint, readyTimeout)
+		case <-tick.C:
+		}
+	}
+}
+
+// served is a serve process that reported ready.
+type served struct {
+	cmd      *exec.Cmd
+	ready    string
+	endpoint string
+	logs     *bytes.Buffer
+	started  time.Time
+}
+
+// startServe builds the binary, starts it on an ephemeral port with a
+// ready file, and waits until health is ready.
+func startServe(t *testing.T) served {
+	t.Helper()
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "understudy")
 	build := exec.CommandContext(t.Context(), "go", "build", "-o", bin, ".")
@@ -84,29 +186,15 @@ func TestServeBinary(t *testing.T) {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
 	ready := filepath.Join(dir, "ready.json")
-	var logs bytes.Buffer
+	logs := new(bytes.Buffer)
 	cmd := exec.CommandContext(t.Context(), bin, "serve", "--listen", "127.0.0.1:0", "--ready-file", ready)
-	cmd.Stderr = &logs
+	cmd.Stderr = logs
 	started := time.Now()
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	endpoint := waitReady(t, cmd, ready, &logs)
-	if elapsed := time.Since(started); elapsed > 250*time.Millisecond {
-		t.Errorf("health was ready %s after the process started, over the 250 ms budget", elapsed)
-	}
-	if err := cmd.Process.Signal(syscall.SIGINT); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.Wait(); err != nil {
-		t.Fatalf("serve after SIGINT: %v\n%s", err, logs.String())
-	}
-	if _, err := os.Stat(ready); !os.IsNotExist(err) {
-		t.Errorf("the ready file outlived the process: %v", err)
-	}
-	if !strings.Contains(logs.String(), endpoint) {
-		t.Errorf("the banner does not name the endpoint %s:\n%s", endpoint, logs.String())
-	}
+	endpoint := waitReady(t, cmd, ready, logs)
+	return served{cmd: cmd, ready: ready, endpoint: endpoint, logs: logs, started: started}
 }
 
 // readyTimeout bounds the wait for serve to become ready.

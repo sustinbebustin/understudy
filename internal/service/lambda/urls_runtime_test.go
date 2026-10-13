@@ -69,13 +69,32 @@ func (h *urlHarness) createURL(authType lambdaapi.FunctionUrlAuthType) string {
 	return host
 }
 
-// allowPublic adds the statement that opens urlFunction's AuthType NONE
-// URL to everyone (lambda-events.md 7.2).
+// allowPublic adds the two statements that open urlFunction's AuthType
+// NONE URL to everyone, as Terraform's aws_lambda_function_url does
+// (lambda-api.md section 11).
 func (h *urlHarness) allowPublic() {
+	h.Helper()
+	h.allowPublicURLAction()
+	h.allowPublicInvokeViaURL()
+}
+
+// allowPublicURLAction adds the lambda:InvokeFunctionUrl statement, the
+// only one AWS required before October 2025.
+func (h *urlHarness) allowPublicURLAction() {
 	h.Helper()
 	call(h.harness, lambdaapi.OpAddPermission, &lambdaapi.AddPermissionInput{
 		FunctionName: urlFunction, StatementId: "FunctionURLAllowPublicAccess", Action: "lambda:InvokeFunctionUrl", Principal: "*",
 		FunctionUrlAuthType: new(lambdaapi.FunctionUrlAuthTypeNone),
+	})
+}
+
+// allowPublicInvokeViaURL adds the lambda:InvokeFunction statement limited
+// to invocations through a function URL.
+func (h *urlHarness) allowPublicInvokeViaURL() {
+	h.Helper()
+	call(h.harness, lambdaapi.OpAddPermission, &lambdaapi.AddPermissionInput{
+		FunctionName: urlFunction, StatementId: "FunctionURLAllowInvokeAction", Action: "lambda:InvokeFunction", Principal: "*",
+		InvokedViaFunctionUrl: new(true),
 	})
 }
 
@@ -199,7 +218,11 @@ func TestFunctionURLWithAuthTypeNoneNeedsAPublicPolicyStatement(t *testing.T) {
 		if n := len(h.started()); n != 0 {
 			t.Errorf("a refused request started %d containers", n)
 		}
-		h.allowPublic()
+		// Since October 2025 the lambda:InvokeFunctionUrl statement alone
+		// no longer opens the URL.
+		h.allowPublicURLAction()
+		expect(t, h.send(h.request(http.MethodGet, "http://"+host+"/", "")), http.StatusForbidden, forbidden)
+		h.allowPublicInvokeViaURL()
 		rec = h.send(h.request(http.MethodGet, "http://"+host+"/", ""))
 		var ev struct {
 			RawPath string `json:"rawPath"`
@@ -221,6 +244,31 @@ func TestFunctionURLOfAnUnknownIDIsForbiddenWithANullMessage(t *testing.T) {
 		h.allowPublic()
 		other := strings.Replace(host, "us-east-1", "eu-west-1", 1)
 		expect(t, h.send(h.request(http.MethodGet, "http://"+other+"/", "")), http.StatusForbidden, `{"Message":null}`)
+	})
+}
+
+// A deleted function URL, directly or with its alias or function, answers
+// the Forbidden help message, unlike an id never minted
+// (test_lambda_url_persists_after_alias_delete).
+func TestFunctionURLOfADeletedConfigurationIsForbidden(t *testing.T) {
+	runURLs(t, pooltest.Echo, lambda.FunctionURLOptions{}, func(h *urlHarness) {
+		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
+		h.allowPublic()
+		call(h.harness, lambdaapi.OpPublishVersion, &lambdaapi.PublishVersionInput{FunctionName: urlFunction})
+		call(h.harness, lambdaapi.OpCreateAlias, &lambdaapi.CreateAliasInput{FunctionName: urlFunction, Name: "live", FunctionVersion: "1"})
+		aliased := call(h.harness, lambdaapi.OpCreateFunctionUrlConfig, &lambdaapi.CreateFunctionUrlConfigInput{FunctionName: urlFunction, Qualifier: new("live"), AuthType: lambdaapi.FunctionUrlAuthTypeNone}).FunctionUrl
+
+		call(h.harness, lambdaapi.OpDeleteAlias, &lambdaapi.DeleteAliasInput{FunctionName: urlFunction, Name: "live"})
+		expect(t, h.send(h.request(http.MethodGet, aliased, "")), http.StatusForbidden, forbidden)
+		call(h.harness, lambdaapi.OpDeleteFunctionUrlConfig, &lambdaapi.DeleteFunctionUrlConfigInput{FunctionName: urlFunction})
+		expect(t, h.send(h.request(http.MethodGet, "http://"+host+"/", "")), http.StatusForbidden, forbidden)
+
+		host = strings.TrimSuffix(strings.TrimPrefix(call(h.harness, lambdaapi.OpCreateFunctionUrlConfig, &lambdaapi.CreateFunctionUrlConfigInput{FunctionName: urlFunction, AuthType: lambdaapi.FunctionUrlAuthTypeNone}).FunctionUrl, "http://"), "/")
+		call(h.harness, lambdaapi.OpDeleteFunction, &lambdaapi.DeleteFunctionInput{FunctionName: urlFunction})
+		expect(t, h.send(h.request(http.MethodGet, "http://"+host+"/", "")), http.StatusForbidden, forbidden)
+		if n := len(h.started()); n != 0 {
+			t.Errorf("requests to deleted URLs started %d containers", n)
+		}
 	})
 }
 

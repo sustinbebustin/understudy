@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -32,7 +33,9 @@ const (
 // snapshotSave cuts the state and writes the archive: in the response, or
 // with a JSON {"path"} body to that path under the snapshots directory. The
 // archive embeds its blobs and carries the late data, as `snapshot save`
-// needs.
+// needs. Either form reports the effects the cut was taken without: the
+// path form in its JSON body, the response form in
+// admin.PendingEffectsHeader.
 func (h *Handler) snapshotSave(w http.ResponseWriter, r *http.Request, _ []string) {
 	v := r.URL.Query()
 	gz, aerr := boolParam(v, pGzip)
@@ -71,11 +74,12 @@ func (h *Handler) snapshotSave(w http.ResponseWriter, r *http.Request, _ []strin
 	h.ok(w, r, info)
 }
 
-// saveToResponse spools the archive to a temporary file, so a failure part
-// way answers an error instead of a truncated archive, then sends it.
+// saveToResponse spools the archive to a temporary file in Options.TempDir,
+// so a failure part way answers an error instead of a truncated archive,
+// then sends it.
 func (h *Handler) saveToResponse(w http.ResponseWriter, r *http.Request, journalBytes []byte, opts snapshot.WriteOptions) {
 	ctx := r.Context()
-	tmp, err := os.CreateTemp("", "understudy-snapshot-*")
+	tmp, err := os.CreateTemp(h.o.TempDir, "understudy-snapshot-*")
 	if err != nil {
 		h.fail(w, r, internal("creating a temporary file for the archive", err))
 		return
@@ -85,8 +89,9 @@ func (h *Handler) saveToResponse(w http.ResponseWriter, r *http.Request, journal
 			h.log.LogAttrs(ctx, slog.LevelWarn, "the temporary snapshot file was not removed", slog.String("path", tmp.Name()), slog.String("error", err.Error()))
 		}
 	}()
-	if _, err := h.writeArchive(ctx, tmp, journalBytes, opts); err != nil {
-		h.fail(w, r, internal("saving the snapshot", err))
+	_, pending, err := h.writeArchive(ctx, tmp, journalBytes, opts)
+	if err != nil {
+		h.fail(w, r, saveError("saving the snapshot", err))
 		return
 	}
 	size, err := tmp.Seek(0, io.SeekCurrent)
@@ -103,6 +108,7 @@ func (h *Handler) saveToResponse(w http.ResponseWriter, r *http.Request, journal
 	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
+	w.Header().Set(admin.PendingEffectsHeader, strconv.Itoa(pending))
 	w.WriteHeader(http.StatusOK)
 	if _, err := io.Copy(w, tmp); err != nil {
 		h.log.LogAttrs(ctx, slog.LevelDebug, "snapshot archive not sent; the client went away", slog.String("error", err.Error()))
@@ -125,19 +131,33 @@ func (h *Handler) saveToPath(r *http.Request, target string, journalBytes []byte
 		return nil, internal("creating a temporary file next to "+target+" under the snapshots directory", err)
 	}
 	counted := &countingWriter{w: f}
-	head, werr := h.writeArchive(ctx, counted, journalBytes, opts)
+	head, pending, werr := h.writeArchive(ctx, counted, journalBytes, opts)
 	if werr == nil {
 		werr = f.Sync()
 	}
 	if err := errors.Join(werr, f.Close()); err != nil {
-		return nil, internal("writing "+target, errors.Join(err, root.Remove(tmpName)))
+		return nil, saveError("writing "+target, errors.Join(err, root.Remove(tmpName)))
 	}
 	if err := root.Rename(tmpName, target); err != nil {
 		return nil, internal("moving the archive into place at "+target, errors.Join(err, root.Remove(tmpName)))
 	}
+	// The rename is durable only once its directory is synced.
+	if err := syncDir(root, filepath.Dir(target)); err != nil {
+		return nil, internal("syncing the directory of "+target+" after moving the archive into place; the archive is there but may not survive a power loss", err)
+	}
 	info := describe(head)
-	info.Path, info.Bytes = target, counted.n
+	info.Path, info.Bytes, info.PendingEffects = target, counted.n, pending
 	return &info, nil
+}
+
+// syncDir syncs the directory dir under root, making the renames in it
+// durable.
+func syncDir(root *os.Root, dir string) error {
+	d, err := root.Open(dir)
+	if err != nil {
+		return err
+	}
+	return errors.Join(d.Sync(), d.Close())
 }
 
 // createTemp creates a new file next to target in root, named
@@ -156,20 +176,84 @@ func createTemp(root *os.Root, target string) (*os.File, string, error) {
 }
 
 // writeArchive cuts the state and writes the archive with the late data to
-// dst, returning the cut's manifest. It holds the state lock from the cut
-// through the late exports, so no reset or load runs between them.
-func (h *Handler) writeArchive(ctx context.Context, dst io.Writer, journalBytes []byte, opts snapshot.WriteOptions) (snapshot.Manifest, error) {
+// dst, returning the cut's manifest and how many effects of committed
+// writes it was cut without, which it also logs (ADR 0009: a save names
+// what it did not capture). It holds the state lock from the cut through
+// the late exports, so no reset or load runs between them.
+//
+// An archive that would pass Options.MaxSnapshotBytes fails with
+// *archiveSizeError part way, since no load could read it back. Read counts
+// the tar decompressed, so the tar is counted before it is compressed: the
+// gzip stream is written here rather than by snapshot.Write, with the same
+// settings, so the bytes are the same.
+func (h *Handler) writeArchive(ctx context.Context, dst io.Writer, journalBytes []byte, opts snapshot.WriteOptions) (snapshot.Manifest, int, error) {
+	var zw *gzip.Writer
+	tarDst := dst
+	if opts.Gzip {
+		var err error
+		if zw, err = gzip.NewWriterLevel(dst, gzip.BestCompression); err != nil {
+			return snapshot.Manifest{}, 0, fmt.Errorf("starting the archive's gzip stream: %w", err)
+		}
+		tarDst, opts.Gzip = zw, false
+	}
+	capped := &capWriter{w: tarDst, left: h.o.MaxSnapshotBytes, max: h.o.MaxSnapshotBytes}
 	h.stateOps.Lock()
 	defer h.stateOps.Unlock()
 	cut, err := h.o.Snapshots.Cut(ctx)
 	if err != nil {
-		return snapshot.Manifest{}, fmt.Errorf("cutting the state: %w", err)
+		return snapshot.Manifest{}, 0, fmt.Errorf("cutting the state: %w", err)
 	}
-	head := cut.Archive().Manifest
-	if err := h.o.Snapshots.WriteAfterCut(ctx, dst, cut, snapshot.WithLateData, journalBytes, opts); err != nil {
-		return snapshot.Manifest{}, fmt.Errorf("writing the archive: %w", err)
+	head, pending := cut.Archive().Manifest, cut.PendingEffects()
+	if err := h.o.Snapshots.WriteAfterCut(ctx, capped, cut, snapshot.WithLateData, journalBytes, opts); err != nil {
+		return snapshot.Manifest{}, 0, fmt.Errorf("writing the archive: %w", err)
 	}
-	return head, nil
+	if zw != nil {
+		if err := zw.Close(); err != nil {
+			return snapshot.Manifest{}, 0, fmt.Errorf("finishing the archive's gzip stream: %w", err)
+		}
+	}
+	if pending > 0 {
+		h.log.LogAttrs(ctx, slog.LevelWarn, "the snapshot holds writes whose effects, such as deliveries, had not run; loading it does not run them",
+			slog.Int("pending_effects", pending))
+	}
+	return head, pending, nil
+}
+
+// saveError maps a failed save: an archive over the size cap is the
+// state's, a conflict the caller can act on; anything else is internal,
+// failing op.
+func saveError(op string, err error) *admin.Error {
+	if big, ok := errors.AsType[*archiveSizeError](err); ok {
+		return &admin.Error{
+			Code:    admin.Conflict,
+			Message: big.Error(),
+			Hint:    "reset or delete state the snapshot does not need, such as large S3 objects, and save again",
+		}
+	}
+	return internal(op, err)
+}
+
+// archiveSizeError reports a save whose archive would pass the size cap
+// loads read with. Nothing was saved.
+type archiveSizeError struct{ max int64 }
+
+func (e *archiveSizeError) Error() string {
+	return fmt.Sprintf("the snapshot archive would be larger than the %d byte limit a snapshot load reads, counted decompressed, so it could not be loaded back; nothing was saved and the emulator state is unchanged", e.max)
+}
+
+// capWriter fails with *archiveSizeError, writing nothing of p, once more
+// than max bytes would have been written.
+type capWriter struct {
+	w         io.Writer
+	left, max int64
+}
+
+func (c *capWriter) Write(p []byte) (int, error) {
+	if int64(len(p)) > c.left {
+		return 0, &archiveSizeError{max: c.max}
+	}
+	c.left -= int64(len(p))
+	return c.w.Write(p)
 }
 
 type countingWriter struct {
@@ -186,8 +270,18 @@ func (c *countingWriter) Write(p []byte) (int, error) {
 // snapshotLoad replaces the state with an archive: the request body, or
 // with a JSON {"path"} body the archive at that path under the data
 // directory. The archive is read and checked first; only then are the
-// environments drained and the scheduler cleared, as Load requires.
+// environments drained and the scheduler cleared, as Load requires. A load
+// that arrives while another runs is refused before it reads anything.
 func (h *Handler) snapshotLoad(w http.ResponseWriter, r *http.Request, _ []string) {
+	if !h.loading.TryLock() {
+		h.fail(w, r, &admin.Error{
+			Code:    admin.Conflict,
+			Message: "another snapshot load is in progress; this archive was not read and nothing was loaded",
+			Hint:    "send it again once the load in progress has answered",
+		})
+		return
+	}
+	defer h.loading.Unlock()
 	target, aerr := h.snapshotPath(w, r)
 	if aerr != nil {
 		h.fail(w, r, aerr)
@@ -208,32 +302,40 @@ func (h *Handler) snapshotLoad(w http.ResponseWriter, r *http.Request, _ []strin
 		h.fail(w, r, readError(err))
 		return
 	}
-	ctx := r.Context()
-	h.stateOps.Lock()
-	defer h.stateOps.Unlock()
-	if h.o.Drainer != nil {
-		if err := h.o.Drainer.Drain(ctx, kernel.ResetScope{}); err != nil {
-			h.fail(w, r, internal("draining "+string(h.o.Drainer.Name()), err))
-			return
-		}
+	if aerr := h.loadState(r.Context(), a); aerr != nil {
+		h.fail(w, r, aerr)
+		return
 	}
-	h.o.Kernel.Timers().Scheduler().Clear()
-	if err := h.o.Snapshots.Load(ctx, a); err != nil {
-		if released, ok := errors.AsType[*snapshot.BlobReleaseError](err); ok {
-			// The state is loaded and Load rearmed it; only blobs of the
-			// replaced state stay stored, which the caller cannot act on.
-			h.log.LogAttrs(ctx, slog.LevelWarn, "snapshot loaded; some blobs of the replaced state stay stored until restart", slog.String("error", released.Error()))
-		} else {
-			h.rearm()
-			h.fail(w, r, loadError(err))
-			return
-		}
-	}
-	// Load rearmed every service; the pollers follow the loaded mappings.
-	h.rearmPollers()
 	info := describe(a.Manifest)
 	info.Path = target
 	h.ok(w, r, info)
+}
+
+// loadState replaces the state with a's inside the drain bracket. It
+// returns only once the drain is lifted, so the answer never reaches a
+// caller whose next invocation the drain would still refuse.
+func (h *Handler) loadState(ctx context.Context, a *snapshot.Archive) *admin.Error {
+	h.stateOps.Lock()
+	defer h.stateOps.Unlock()
+	undrain, aerr := h.drain(ctx, h.stateful(), kernel.ResetScope{})
+	if aerr != nil {
+		return aerr
+	}
+	defer undrain()
+	h.o.Kernel.Timers().Scheduler().Clear()
+	err := h.o.Snapshots.Load(ctx, a)
+	if released, ok := errors.AsType[*snapshot.BlobReleaseError](err); ok {
+		// The state is loaded and Load rearmed it; only blobs of the
+		// replaced state stay stored, which the caller cannot act on.
+		h.log.LogAttrs(ctx, slog.LevelWarn, "snapshot loaded; some blobs of the replaced state stay stored until restart", slog.String("error", released.Error()))
+		return nil
+	}
+	if err != nil {
+		// Load rearms only the state it finished loading.
+		h.rearm()
+		return loadError(err)
+	}
+	return nil
 }
 
 // openArchive opens the archive at target under the snapshots directory. A
@@ -243,7 +345,7 @@ func (h *Handler) openArchive(target string) (*os.File, *admin.Error) {
 	f, err := h.o.DataDir.Open(target)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		return nil, &admin.Error{Code: admin.NotFound, Field: "path", Message: "no archive at " + target + " under the snapshots directory", Hint: "save one there first with POST " + admin.Prefix + "/snapshots and {\"path\": ...}"}
+		return nil, &admin.Error{Code: admin.NotFound, Field: "path", Message: "no archive at " + target + " under the snapshots directory", Hint: "save one there first with 'understudy snapshot save " + target + " --on-server' (POST " + admin.Prefix + "/snapshots with {\"path\": ...})"}
 	case err != nil:
 		return nil, internal("opening the archive "+target+" under the snapshots directory; nothing was loaded", err)
 	}
@@ -346,15 +448,19 @@ func modeName(m clock.Mode) admin.ClockMode {
 }
 
 // readError maps a failure to read an archive. One this build cannot run
-// is a conflict and a damaged or oversized one an invalid request; any
-// other failure, such as the request body breaking off, is internal.
-// Nothing was loaded in every case.
+// and a damaged one are conflicts, since the archive is at fault rather
+// than how it was sent, and an oversized one an invalid request; any other
+// failure, such as the request body breaking off, is internal. Nothing was
+// loaded in every case.
 func readError(err error) *admin.Error {
 	if refused, ok := archiveError(err); ok {
 		return refused
 	}
 	return internal("reading the archive; nothing was loaded", err)
 }
+
+// inspectHint is the next step for a damaged archive.
+const inspectHint = "check the file with 'understudy snapshot inspect FILE', or save a new archive with 'understudy snapshot save FILE'"
 
 // archiveError maps the errors that blame the archive itself.
 func archiveError(err error) (*admin.Error, bool) {
@@ -372,8 +478,13 @@ func archiveError(err error) (*admin.Error, bool) {
 		return &admin.Error{Code: admin.Conflict, Message: err.Error(), Hint: "load the archive with the understudy build that wrote it"}, true
 	case errors.As(err, &tooBig):
 		return &admin.Error{Code: admin.InvalidRequest, Message: fmt.Sprintf("the archive is larger than %d bytes; nothing was loaded", tooBig.Limit)}, true
-	case errors.As(err, &manifest), errors.As(err, &entry), errors.As(err, &size), errors.As(err, &stream):
-		return &admin.Error{Code: admin.InvalidRequest, Message: "the archive was refused, nothing was loaded: " + err.Error()}, true
+	case errors.As(err, &size):
+		return &admin.Error{Code: admin.InvalidRequest, Message: err.Error()}, true
+	case errors.As(err, &manifest):
+		// The one archive error whose text does not say nothing was loaded.
+		return &admin.Error{Code: admin.Conflict, Message: err.Error() + "; nothing was loaded", Hint: inspectHint}, true
+	case errors.As(err, &entry), errors.As(err, &stream):
+		return &admin.Error{Code: admin.Conflict, Message: err.Error(), Hint: inspectHint}, true
 	}
 	return nil, false
 }
@@ -386,7 +497,7 @@ func archiveError(err error) (*admin.Error, bool) {
 // unchanged.
 func loadError(err error) *admin.Error {
 	if partial, ok := errors.AsType[*snapshot.LoadError](err); ok {
-		return &admin.Error{Code: admin.Internal, Message: partial.Error(), Hint: "the state is partially loaded; reset with POST " + admin.Prefix + "/reset and load again"}
+		return &admin.Error{Code: admin.Internal, Message: partial.Error(), Hint: "the state is partially loaded; run 'understudy reset' (POST " + admin.Prefix + "/reset) and load again"}
 	}
 	if refused, ok := archiveError(err); ok {
 		return refused

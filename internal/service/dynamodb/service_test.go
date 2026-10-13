@@ -36,8 +36,8 @@ func parseError(h *harness, body string) errorBody {
 
 // TestLicenceGateAnswers501WithTheNotice: until the licence is accepted,
 // a DynamoDB call answers 501 with the notice, which names the exact flag
-// and environment variable, and nothing reaches Local (ADR 0014, product
-// M4). A service built without a Local behaves the same.
+// and environment variable, and nothing reaches Local (ADR 0014). A
+// service built without a Local behaves the same.
 func TestLicenceGateAnswers501WithTheNotice(t *testing.T) {
 	for name, local := range map[string]*fakeLocal{
 		"awaiting":    {startErr: &ddblocal.LicenceError{Licence: ddblocal.AwaitingLicence{}}},
@@ -141,7 +141,7 @@ func TestEveryOperationLocalServesIsBound(t *testing.T) {
 // TestTablesDifferingOnlyInCaseAreRefused: AWS keeps Authors and authors
 // apart; Local cannot, so the second is refused with ResourceInUseException
 // before Local sees it, in that scope only, until the first is deleted
-// (ADR 0014 amendment, F10).
+// (ADR 0014 amendment).
 func TestTablesDifferingOnlyInCaseAreRefused(t *testing.T) {
 	run(t, func(h *harness) {
 		create := func(name string, from *caller) response {

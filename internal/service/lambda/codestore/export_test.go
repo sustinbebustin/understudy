@@ -30,6 +30,18 @@ func (s *Store) Trees() ([]Digest, error) {
 	return held, nil
 }
 
+// CountCentralHeaders writes chunks in order to the counter the store runs
+// over a package while spooling it, and returns its count.
+func CountCentralHeaders(chunks [][]byte) (int64, error) {
+	var c headerCounter
+	for _, p := range chunks {
+		if _, err := c.Write(p); err != nil {
+			return 0, err
+		}
+	}
+	return c.n, nil
+}
+
 func (s *Store) list(dir string) ([]string, error) {
 	f, err := s.root.Open(dir)
 	if err != nil {

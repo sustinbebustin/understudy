@@ -30,18 +30,10 @@ func (s *Service) ResourcePolicy(target aws.ARN) (doc *policydoc.Document, ok bo
 		queue, ok := st.Queues[q.name]
 		return found{policy: queue.Attributes.Policy, ok: ok}
 	})
-	return parseStoredPolicy(f.policy, f.ok)
-}
-
-// parseStoredPolicy parses a queue's stored policy text. SetQueueAttributes
-// accepts any JSON object, so a text policydoc refuses reads as no policy.
-func parseStoredPolicy(text string, exists bool) (*policydoc.Document, bool) {
-	if !exists || text == "" {
-		return nil, exists
+	if !f.ok {
+		return nil, false
 	}
-	doc, err := policydoc.Parse([]byte(text))
-	if err != nil {
-		return nil, true
-	}
-	return &doc, true
+	// SetQueueAttributes accepts any JSON object, so a text policydoc
+	// refuses reads as no policy.
+	return policydoc.ParseStored(f.policy), true
 }

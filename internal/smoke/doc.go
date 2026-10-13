@@ -15,7 +15,7 @@
 // image built from the repository's Dockerfile, with the Docker socket
 // mounted: the InContainer topology.
 //
-// Where the plan leaves a choice open, this package decides:
+// Choices this package makes:
 //
 //   - Requests are signed with the access key "test", so every call is the
 //     default account's root, the principal whose policy is asked for.

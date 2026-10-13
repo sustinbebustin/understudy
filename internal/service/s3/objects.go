@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -28,7 +29,7 @@ func (s *Service) bindObjects(b s3api.Binder) {
 	head := func(in *s3api.HeadObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.HeadObject(s.headObject, registry.Partial{Note: "no SSE-C, so SSE-C headers are refused; presigned URLs are not verified"}, touches(head))
 	attrs := func(in *s3api.GetObjectAttributesInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.GetObjectAttributes(reader(s, attrs, getObjectAttributes), registry.Partial{Note: "ObjectParts reports TotalPartsCount without the per-part list; no SSE-C, so SSE-C headers are refused"}, touches(attrs))
+	b.GetObjectAttributes(reader(s, attrs, getObjectAttributes), registry.Partial{Note: "no SSE-C, so SSE-C headers are refused"}, touches(attrs))
 	del := func(in *s3api.DeleteObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteObject(s.deleteObject, registry.Partial{Note: "no MFA delete or Object Lock retention"}, touches(del))
 	dels := func(in *s3api.DeleteObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
@@ -48,9 +49,9 @@ func (s *Service) bindObjects(b s3api.Binder) {
 // unversioned or versioning was suspended (s3.md 8.3).
 const nullVersion = "null"
 
-// Objects is a bucket's keys, each with its versions newest first. Keys
-// are opaque strings, never paths: an object's bytes live in the blob
-// store under their content address.
+// Objects is a bucket's keys, each with its versions newest first, by
+// Version.Seq. Keys are opaque strings, never paths: an object's bytes
+// live in the blob store under their content address.
 //
 // Unlike the subresource documents, Keys is changed in place, so a write
 // costs no copy of the bucket's key set: only inside the bucket's
@@ -64,8 +65,12 @@ type Objects struct {
 // Version is one version of a key: an object, or a delete marker when
 // Object is nil.
 type Version struct {
-	// ID is the version id: nullVersion, or a minted 32-character id.
+	// ID is the version id: nullVersion, or a minted 32-character id that
+	// carries Seq (mintVersionID).
 	ID string `json:"id"`
+	// Seq is the version's place in its bucket's order of versions, larger
+	// is newer (Bucket.nextSeq).
+	Seq uint64 `json:"seq"`
 	// Modified is Last-Modified, truncated to the second (s3.md 5.5).
 	Modified clock.Instant `json:"modified"`
 	Object   *Object       `json:"object,omitempty"`
@@ -177,9 +182,12 @@ func (o *Objects) version(key, id string) (Version, bool) {
 	return o.Keys[key][i], true
 }
 
-// add makes v the newest version of key. A null version replaces the
-// key's previous null version, which it returns as released; versions
-// with minted ids accumulate (s3.md 8.1, 8.3).
+// add places v among key's versions by its Seq: ahead of every older
+// version, so a version minted by the write is the newest, and a multipart
+// object dated by its upload's Seq lands behind the versions of uploads
+// initiated after it (s3.md 10). A null version replaces the key's
+// previous null version, which it returns as released; versions with
+// minted ids accumulate (s3.md 8.1, 8.3).
 func (o *Objects) add(key string, v Version) (released *Version) {
 	chain := o.Keys[key]
 	if v.ID == nullVersion {
@@ -192,7 +200,11 @@ func (o *Objects) add(key string, v Version) (released *Version) {
 	if o.Keys == nil {
 		o.Keys = map[string][]Version{}
 	}
-	o.Keys[key] = append([]Version{v}, chain...)
+	at := slices.IndexFunc(chain, func(x Version) bool { return x.Seq < v.Seq })
+	if at < 0 {
+		at = len(chain)
+	}
+	o.Keys[key] = slices.Insert(slices.Clone(chain), at, v)
 	return released
 }
 
@@ -243,20 +255,79 @@ func (b *Bucket) versioning() versioning {
 	return versionsSuspended
 }
 
-// newVersionID is the id a write gives its new version: minted while
-// versioning is enabled, null otherwise.
-func (s *Service) newVersionID(b *Bucket) string {
-	if b.versioning() == versionsEnabled {
-		return string(s.k.IDs().VersionID())
-	}
-	return nullVersion
+// nextSeq takes the bucket's next version Seq. Uploads take theirs at
+// initiation, so a completed upload is ordered by when it began.
+func (b *Bucket) nextSeq() uint64 {
+	b.VersionSeq++
+	return b.VersionSeq
 }
 
-// reportedVersion is the x-amz-version-id a response reports: none for a
-// null version on a bucket that was never versioned (tf-remaining.md 8: a
-// "null" there sends Terraform down its versioned delete path) or written
-// while versioning is suspended (s3.md 8.1).
+// newVersion is the version a write makes of obj, or a delete marker when
+// obj is nil, at place seq: with a minted id while versioning is enabled,
+// null otherwise.
+func (s *Service) newVersion(b *Bucket, seq uint64, modified clock.Instant, obj *Object) Version {
+	id := nullVersion
+	if b.versioning() == versionsEnabled {
+		id = mintVersionID(string(s.k.IDs().VersionID()), seq)
+	}
+	return Version{ID: id, Seq: seq, Modified: clock.FromWire(seconds(modified.Wire())), Object: obj}
+}
+
+// versionSeqLen is how many leading characters of a minted version id
+// carry its Seq: eleven base-64 digits hold any uint64.
+const versionSeqLen = 11
+
+// mintVersionID is a version id that carries seq, so a listing can place
+// a version-id-marker whose version was deleted since (versionSeq). Its
+// first versionSeqLen characters are seq's base-64 digits, each offset by
+// the random character versionSeqLen places after it so the id stays as
+// opaque as AWS's; the rest is random's.
+func mintVersionID(random string, seq uint64) string {
+	id := []byte(random)
+	for i := versionSeqLen - 1; i >= 0; i-- {
+		mask := strings.IndexByte(versionIDChars, id[i+versionSeqLen])
+		id[i] = versionIDChars[(int(seq&63)+mask)&63]
+		seq >>= 6
+	}
+	return string(id)
+}
+
+// versionSeq reads the Seq a version id minted by mintVersionID carries;
+// false for "null" and for an id not of the minted form. Any id of that
+// form decodes, so an id understudy did not mint reads as some Seq.
+func versionSeq(id string) (uint64, bool) {
+	if checkVersionID(&id) != nil || id == nullVersion {
+		return 0, false
+	}
+	var seq uint64
+	for i := range versionSeqLen {
+		if seq>>58 != 0 {
+			return 0, false
+		}
+		digit := strings.IndexByte(versionIDChars, id[i]) - strings.IndexByte(versionIDChars, id[i+versionSeqLen])
+		seq = seq<<6 | uint64(digit&63)
+	}
+	return seq, true
+}
+
+// reportedVersion is the x-amz-version-id a read, a delete or a tag change
+// reports: "null" for a null version once the bucket was ever versioned,
+// none on a bucket that never was (tf-remaining.md 8: a "null" there sends
+// Terraform down its versioned delete path). AWS reports "null" on reads
+// and delete markers of a Suspended bucket (LocalStack recordings
+// test_delete_object_on_suspended_bucket, test_put_object_on_suspended_bucket).
 func reportedVersion(b *Bucket, id string) *string {
+	if id == nullVersion && b.versioning() == unversioned {
+		return nil
+	}
+	return new(id)
+}
+
+// writtenVersion is the x-amz-version-id of a write that made an object:
+// PutObject, CopyObject and CompleteMultipartUpload leave out a null
+// version unless versioning is enabled, so a write to a Suspended bucket
+// reports none (s3.md 8.1).
+func writtenVersion(b *Bucket, id string) *string {
 	if id == nullVersion && b.versioning() != versionsEnabled {
 		return nil
 	}
@@ -288,12 +359,15 @@ func findVersion(b *Bucket, key string, id *string, method string) (Version, *aw
 	return v, nil
 }
 
-// errNoSuchKeyAt is NoSuchKey for key, with x-amz-delete-marker when its
-// current version is a delete marker (s3.md 5.8).
+// errNoSuchKeyAt is NoSuchKey for key, with x-amz-delete-marker and the
+// marker's x-amz-version-id when its current version is a delete marker
+// (s3.md 5.8; LocalStack aws_validated test_delete_object_versioned).
 func errNoSuchKeyAt(b *Bucket, key string) *awserr.Error {
 	e := errNoSuchKey(key)
 	if v, ok := b.Objects.current(key); ok && v.marker() {
-		e.Headers = append(e.Headers, awserr.Header{Name: "x-amz-delete-marker", Value: "true"})
+		e.Headers = append(e.Headers,
+			awserr.Header{Name: "x-amz-delete-marker", Value: "true"},
+			awserr.Header{Name: "x-amz-version-id", Value: v.ID})
 	}
 	return e
 }
@@ -303,13 +377,17 @@ func errNoSuchVersion(key, id string) *awserr.Error {
 }
 
 // errMarkerAddressed answers a version id that names a delete marker: 405
-// with x-amz-delete-marker and Last-Modified (s3.md 5.8).
+// with x-amz-delete-marker, the marker's x-amz-version-id, Last-Modified
+// and Allow: DELETE, the one method a marker takes (s3.md 5.8; LocalStack
+// aws_validated test_delete_object_versioned).
 func errMarkerAddressed(method string, v Version) *awserr.Error {
 	e := s3api.ErrMethodNotAllowed("The specified method is not allowed against this resource.")
 	e = withField(withField(e, "Method", method), "ResourceType", "DeleteMarker")
 	e.Headers = append(e.Headers,
 		awserr.Header{Name: "x-amz-delete-marker", Value: "true"},
-		awserr.Header{Name: "Last-Modified", Value: v.Modified.Wire().UTC().Format(http.TimeFormat)})
+		awserr.Header{Name: "x-amz-version-id", Value: v.ID},
+		awserr.Header{Name: "Last-Modified", Value: v.Modified.Wire().UTC().Format(http.TimeFormat)},
+		awserr.Header{Name: "Allow", Value: http.MethodDelete})
 	return e
 }
 
@@ -436,8 +514,8 @@ func (*NoBlobStoreError) Error() string {
 // overwrite or delete that releases the version's last reference cannot
 // fail a read already admitted, and no body is held in memory whole. The
 // restXml encoder takes the whole body once through Range and closes it; a
-// body it never takes is left to the garbage collector, which closes the
-// file of a blob kept on disk.
+// body it never takes, because a fault, a contract check or a failed
+// encode dropped the output, is closed through Close by kernel.Release.
 type openedBody struct {
 	rc    io.ReadCloser
 	n     int64
@@ -454,6 +532,16 @@ func (b *openedBody) Range(off, n int64) (io.ReadCloser, error) {
 	}
 	b.taken = true
 	return b.rc, nil
+}
+
+// Close closes the opened reader unless Range handed it over, after which
+// it is the encoder's to close. A second Close does nothing.
+func (b *openedBody) Close() error {
+	if b.taken {
+		return nil
+	}
+	b.taken = true
+	return b.rc.Close()
 }
 
 // BodyRangeError is a GetObject body asked for other than once and whole:

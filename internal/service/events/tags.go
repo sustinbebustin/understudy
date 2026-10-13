@@ -14,6 +14,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
+// maxTags is how many tags a resource may have (API_TagResource).
+const maxTags = 50
+
 // bindTags binds the tag operations, which address rules by ARN.
 func (s *Service) bindTags(b eventbridgeapi.Binder) {
 	const note = "rules only; the default bus takes no tags"
@@ -82,7 +85,8 @@ func (s *Service) untagResource(_ context.Context, c *kernel.Call, in *eventbrid
 	return &eventbridgeapi.UntagResourceOutput{}, nil
 }
 
-// updateTags applies change to a copy of the rule's tags and stores it.
+// updateTags applies change to a copy of the rule's tags and stores it,
+// unless the copy holds more than maxTags.
 func (s *Service) updateTags(c *kernel.Call, resource string, change func(tags map[string]string)) *awserr.Error {
 	r, err := taggableRule(c, resource)
 	if err != nil {
@@ -98,6 +102,9 @@ func (s *Service) updateTags(c *kernel.Call, resource string, change func(tags m
 			tags = map[string]string{}
 		}
 		change(tags)
+		if len(tags) > maxTags {
+			return struct{}{}, errTooManyTags(len(tags))
+		}
 		rule.Tags = tags
 		if len(tags) == 0 {
 			rule.Tags = nil

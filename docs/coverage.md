@@ -36,7 +36,7 @@ Server-runnable cases of the Smithy protocol compliance corpus, run against the 
 
 ### Known failures
 
-Cases understudy fails because a part it builds on cannot yet express what they assert. They count as failed above; each reason names the package to fix, and docs/plan/DEFERRED.md tracks the work.
+Cases understudy fails because a part it builds on cannot yet express what they assert. They count as failed above; each reason names, in parentheses, the package to fix.
 
 | Protocol | Kind | Case | Reason |
 |---|---|---|---|
@@ -139,11 +139,11 @@ Every operation of each service's model, with what its handler states: full, sto
 | cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
 | dynamodb | 58 | 6 | 2 | 18 | 32 | 0 | 0 |
 | eventbridge | 57 | 9 | 0 | 8 | 40 | 0 | 0 |
-| iam | 180 | 44 | 11 | 9 | 116 | 1 | 0 |
+| iam | 180 | 42 | 6 | 16 | 116 | 1 | 0 |
 | kms | 54 | 19 | 3 | 5 | 27 | 0 | 0 |
-| lambda | 88 | 27 | 4 | 10 | 47 | 0 | 2 |
+| lambda | 88 | 25 | 2 | 14 | 47 | 0 | 2 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
-| s3 | 112 | 13 | 47 | 22 | 30 | 0 | 3 |
+| s3 | 112 | 14 | 47 | 21 | 30 | 0 | 3 |
 | secretsmanager | 23 | 12 | 1 | 2 | 8 | 0 | 0 |
 | sns | 42 | 12 | 2 | 5 | 23 | 0 | 3 |
 | sqs | 23 | 21 | 2 | 0 | 0 | 2 | 0 |
@@ -161,7 +161,7 @@ Every operation of each service's model, with what its handler states: full, sto
 | ListMetrics | partial | no linked accounts: IncludeLinkedAccounts and OwningAccount select nothing more |
 | ListTagsForResource | partial | alarms only: insight rules and metric streams are never stored |
 | PutMetricAlarm | partial | stored and echoed; alarms are never evaluated, so their state changes only through SetAlarmState, and their actions never run |
-| PutMetricData | partial | entities and StrictEntityValidation are accepted and ignored; points are kept until reset, not aged out by resolution |
+| PutMetricData | partial | entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution |
 | SetAlarmState | partial | the state is set and echoed; no action runs and no evaluation follows |
 | TagResource | partial | alarms only: insight rules and metric streams are never stored |
 | UntagResource | partial | alarms only: insight rules and metric streams are never stored |
@@ -288,9 +288,9 @@ Every operation of each service's model, with what its handler states: full, sto
 | DescribeEventBus | partial | the default bus only, with its Name and Arn; custom buses are not implemented |
 | ListEventBuses | partial | the default bus only, with its Name and Arn; custom buses are not implemented |
 | ListTagsForResource | partial | rules only; the default bus takes no tags |
-| PutEvents | partial | the default bus; EndpointId and TraceHeader are accepted and not used |
+| PutEvents | partial | default buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
 | PutRule | partial | the default bus only; RoleArn is stored, not used |
-| PutTargets | partial | Lambda function, SQS queue and SNS topic targets; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented |
+| PutTargets | partial | Lambda function, SQS queue and SNS topic targets in the rule's region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented |
 | TagResource | partial | rules only; the default bus takes no tags |
 | UntagResource | partial | rules only; the default bus takes no tags |
 | ActivateEventSource | unbound |  |
@@ -340,7 +340,6 @@ Every operation of each service's model, with what its handler states: full, sto
 |---|---|---|
 | AddRoleToInstanceProfile | full |  |
 | CreateInstanceProfile | full |  |
-| CreateUser | full |  |
 | DeleteAccessKey | full |  |
 | DeleteInstanceProfile | full |  |
 | DeletePolicy | full |  |
@@ -363,7 +362,6 @@ Every operation of each service's model, with what its handler states: full, sto
 | ListInstanceProfiles | full |  |
 | ListInstanceProfilesForRole | full |  |
 | ListPolicyTags | full |  |
-| ListPolicyVersions | full |  |
 | ListRolePolicies | full |  |
 | ListRoleTags | full |  |
 | ListRoles | full |  |
@@ -382,25 +380,27 @@ Every operation of each service's model, with what its handler states: full, sto
 | UntagUser | full |  |
 | UpdateRole | full |  |
 | UpdateRoleDescription | full |  |
-| AttachRolePolicy | stored-only | the attachment is stored, not enforced |
-| AttachUserPolicy | stored-only | the attachment is stored, not enforced |
 | CreatePolicy | stored-only | the document is validated and stored, not enforced |
 | CreatePolicyVersion | stored-only | the document is validated and stored, not enforced |
-| CreateRole | stored-only | the trust policy is validated and stored, not enforced |
-| PutRolePermissionsBoundary | stored-only | the boundary is stored, not enforced |
 | PutRolePolicy | stored-only | the document is validated and stored, not enforced |
-| PutUserPermissionsBoundary | stored-only | the boundary is stored, not enforced |
 | PutUserPolicy | stored-only | the document is validated and stored, not enforced |
 | UpdateAccessKey | stored-only | an Inactive key still authenticates, since phase 1 does not enforce IAM |
 | UpdateAssumeRolePolicy | stored-only | the trust policy is validated and stored, not enforced |
-| CreateAccessKey | partial | only for IAM users: a root caller must name a user |
+| AttachRolePolicy | partial | the attachment is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
+| AttachUserPolicy | partial | the attachment is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
+| CreateAccessKey | partial | only for IAM users: root user access keys are not managed, so a root caller must name a user |
+| CreateRole | partial | the trust policy is validated and stored, not enforced; as PermissionsBoundary, any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
+| CreateUser | partial | as PermissionsBoundary, any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
 | GetPolicy | partial | an AWS managed policy is any arn:aws:iam::aws:policy ARN, shown without dates; understudy carries no catalogue of them |
-| GetPolicyVersion | partial | AWS managed policies have no document in understudy |
-| GetUser | partial | without UserName, answers only for a caller signing with an IAM user's access key |
-| ListAccessKeys | partial | only for IAM users: a root caller must name a user |
+| GetPolicyVersion | partial | an AWS managed policy shows a placeholder document that grants nothing, since understudy carries no copy of AWS's documents |
+| GetUser | partial | without UserName, a root caller gets its root identity with the Unix epoch as CreateDate, since account creation is not tracked |
+| ListAccessKeys | partial | root user access keys are not managed, so a root caller that names no user lists none |
 | ListEntitiesForPolicy | partial | groups are not implemented, so PolicyGroups is always empty |
 | ListGroupsForUser | partial | groups are not implemented, so a user belongs to none |
 | ListPolicies | partial | lists the account's customer managed policies; Scope AWS lists nothing, since understudy carries no catalogue of AWS managed policies |
+| ListPolicyVersions | partial | an AWS managed policy lists one version, v1, without a date, since understudy carries no copy of AWS's version history |
+| PutRolePermissionsBoundary | partial | the boundary is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
+| PutUserPermissionsBoundary | partial | the boundary is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
 | UpdateUser | partial | access keys minted before a rename or a path change still resolve to the user's old name and path |
 | AcceptDelegationRequest | unbound |  |
 | AcquireRole | unbound |  |
@@ -609,26 +609,26 @@ Internal operations:
 | ListFunctions | full |  |
 | ListTags | full |  |
 | ListVersionsByFunction | full |  |
-| PublishVersion | full |  |
 | PutFunctionConcurrency | full |  |
 | RemovePermission | full |  |
 | TagResource | full |  |
 | UntagResource | full |  |
-| UpdateFunctionCode | full |  |
 | AddPermission | stored-only | statements are stored and returned by GetPolicy, not enforced |
-| CreateFunctionUrlConfig | stored-only | AuthType, CORS and InvokeMode are stored; the URL is not served in this build |
 | GetFunctionCodeSigningConfig | stored-only | code signing is not enforced; no function has a configuration |
-| UpdateFunctionUrlConfig | stored-only | AuthType, CORS and InvokeMode are stored; the URL is not served in this build |
 | CreateAlias | partial | weighted routing is stored, not applied to invocations |
 | CreateEventSourceMapping | partial | SQS queues only; serve polls the queue and invokes the function with each batch |
-| CreateFunction | partial | layers are refused; code signing and VPC networking are stored only |
+| CreateFunction | partial | layers and PublishTo are refused; code signing and VPC networking are stored only |
+| CreateFunctionUrlConfig | partial | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
 | GetFunction | partial | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
 | Invoke | partial | an alias with weighted routing always runs its primary version; asynchronous invocations retry but do not deliver to destinations or dead-letter queues; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
+| PublishVersion | partial | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
 | PutFunctionEventInvokeConfig | partial | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
 | UpdateAlias | partial | weighted routing is stored, not applied to invocations |
 | UpdateEventSourceMapping | partial | SQS queues only; serve polls the queue and invokes the function with each batch |
+| UpdateFunctionCode | partial | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
 | UpdateFunctionConfiguration | partial | layers are refused; code signing and VPC networking are stored only |
 | UpdateFunctionEventInvokeConfig | partial | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
+| UpdateFunctionUrlConfig | partial | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
 | AddLayerVersionPermission | unbound |  |
 | CheckpointDurableExecution | unbound |  |
 | CreateCapacityProvider | unbound |  |
@@ -697,10 +697,10 @@ Raw operations:
 | PutLogGroupDeletionProtection | full |  |
 | TagLogGroup | full |  |
 | UntagLogGroup | full |  |
-| CreateLogGroup | partial | kmsKeyId is stored and echoed; events are not encrypted with it |
+| CreateLogGroup | partial | kmsKeyId must name an enabled KMS key and is stored and echoed; events are not encrypted with it |
 | DescribeLogGroups | partial | no linked accounts: accountIdentifiers and includeLinkedAccounts select nothing more |
-| FilterLogEvents | partial | unmask is ignored: no data protection policies; tokens do not expire; logStreamNames that name no stream are skipped |
-| GetLogEvents | partial | unmask is ignored: no data protection policies; tokens do not expire |
+| FilterLogEvents | partial | unmask is ignored: no data protection policies; logStreamNames that name no stream are skipped |
+| GetLogEvents | partial | unmask is ignored: no data protection policies |
 | ListTagsForResource | partial | log groups only; destination and delivery ARNs name no resource |
 | PutLogEvents | partial | entity is accepted and ignored; sequenceToken is ignored, as AWS documents |
 | PutRetentionPolicy | partial | events expire exactly at timestamp plus retention on the emulator clock, not lazily within 72 hours |
@@ -824,6 +824,7 @@ Internal operations:
 | GetBucketLocation | full |  |
 | GetBucketNotificationConfiguration | full |  |
 | GetBucketTagging | full |  |
+| GetBucketVersioning | full |  |
 | GetObjectTagging | full |  |
 | HeadBucket | full |  |
 | ListMultipartUploads | full |  |
@@ -885,9 +886,8 @@ Internal operations:
 | DeleteObject | partial | no MFA delete or Object Lock retention |
 | DeleteObjects | partial | no MFA delete or Object Lock retention |
 | GetBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| GetBucketVersioning | partial | the status is stored and reported; objects keep no versions in this build |
 | GetObject | partial | no SSE-C, so SSE-C headers are refused; presigned URLs are not verified |
-| GetObjectAttributes | partial | ObjectParts reports TotalPartsCount without the per-part list; no SSE-C, so SSE-C headers are refused |
+| GetObjectAttributes | partial | no SSE-C, so SSE-C headers are refused |
 | HeadObject | partial | no SSE-C, so SSE-C headers are refused; presigned URLs are not verified |
 | ListBuckets | partial | general purpose buckets only; no directory buckets |
 | ListObjectVersions | partial | no RestoreStatus |
@@ -895,7 +895,7 @@ Internal operations:
 | ListObjectsV2 | partial | no RestoreStatus |
 | PutBucketNotificationConfiguration | partial | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions |
 | PutBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| PutBucketVersioning | partial | the status is stored and reported; objects keep no versions in this build |
+| PutBucketVersioning | partial | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
 | PutObject | partial | no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are not verified |
 | UploadPart | partial | no SSE-C; chunk signatures are not verified |
 | UploadPartCopy | partial | no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
@@ -1061,8 +1061,8 @@ Internal operations:
 | Operation | Status | Note |
 |---|---|---|
 | GetCallerIdentity | full |  |
-| AssumeRole | partial | the role's trust policy and session policies are not evaluated; tags, MFA and source identity are accepted and not checked |
-| GetSessionToken | partial | MFA is accepted and not checked |
+| AssumeRole | partial | the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; session tag errors answer ValidationError, not InvalidParameterValue; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012) |
+| GetSessionToken | partial | MFA is accepted and not checked; credentials from an earlier GetSessionToken are not refused |
 | AssumeRoleWithSAML | unbound |  |
 | AssumeRoleWithWebIdentity | unbound |  |
 | AssumeRoot | unbound |  |
@@ -1078,7 +1078,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the record-backlog item that settles them.
 
-61 switches: 12 aws-doc, 49 inferred.
+66 switches: 14 aws-doc, 52 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1086,9 +1086,11 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `iam.assumeRole` | `strict` | aws-doc | docs/design/ARCHITECTURE.md#7-identity-auth-accounts-and-regions |  |
 | `kms.pending-deletion.crypto-error` | `KMSInvalidStateException` | aws-doc | docs/research/phase1/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix |  |
 | `lambda.stateTransitions` | `final` | aws-doc | docs/design/ARCHITECTURE.md#9-the-clock |  |
+| `logs.delivery.retention-days` | `2` | aws-doc | https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html |  |
 | `logs.retention.expiry` | `at-expiry` | aws-doc | docs/research/phase1/secrets-logs-events-alarms.md#32-retention |  |
 | `s3.create-bucket.public-acl` | `InvalidBucketAclWithObjectOwnership` | aws-doc | docs/research/phase1/s3.md#32-createbucket |  |
 | `s3.encryption.after-delete` | `default-sse-s3` | aws-doc | docs/research/phase1/s3.md#41-state-of-a-freshly-created-bucket-and-what-unset-means |  |
+| `s3.lifecycle.rule-limits` | `InvalidArgument` | aws-doc | https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html |  |
 | `s3.tagging.limits` | `InvalidTag` | aws-doc | docs/research/phase1/s3.md#429-bucket-tagging |  |
 | `secretsmanager.last-accessed-date.granularity` | `day` | aws-doc | docs/research/phase1/secrets-logs-events-alarms.md#24-operations-request-and-response-facts |  |
 | `sqs.move-task.message-identity` | `new-message` | aws-doc | docs/research/phase1/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask |  |
@@ -1104,6 +1106,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `events.pattern.or-combination-counting` | `product-including-nested` | inferred | docs/research/phase1/matching-engines.md#8 | matching-engines.md H12 |
 | `events.pattern.or-shared-values` | `documented` | inferred | docs/research/phase1/matching-engines.md#8 | matching-engines.md H14 |
 | `events.pattern.wildcard-complexity-cap` | `11` | inferred | docs/research/phase1/matching-engines.md#8 | matching-engines.md H11 |
+| `events.put-events.detail-integer-range` | `MalformedDetail` | inferred | https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html |  |
 | `events.schedule.restart` | `on-schedule-change-or-enable` | inferred | docs/research/phase1/secrets-logs-events-alarms.md#42-schedule-expressions-rate-and-cron |  |
 | `kms.cross-account.management-error` | `NotFoundException` | inferred | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyPolicy.html |  |
 | `lambda.esm-filter.bare-number` | `numeric-or-text` | inferred | docs/research/phase1/matching-engines.md#10 | matching-engines.md H7 |
@@ -1115,8 +1118,10 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `logs.filter.delimited-field-count` | `last-absorbs` | inferred | docs/research/phase1/logs-filter-patterns.md#3 | R10/C6 |
 | `logs.filter.term-boundary` | `substring` | inferred | docs/research/phase1/logs-filter-patterns.md#5 | R10/C1 |
 | `s3.bucket.cross-account` | `served` | inferred | docs/brief/phase1-brief.md#services-and-depth |  |
+| `secretsmanager.list-secrets.all-filter-match` | `any-word,word-prefix` | inferred | https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html |  |
 | `secretsmanager.list-secrets.filter-combination` | `and-across-filters,or-across-values` | inferred | docs/research/phase1/secrets-logs-events-alarms.md#24-operations-request-and-response-facts |  |
 | `secretsmanager.restore.not-scheduled` | `no-op` | inferred | docs/research/phase1/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven |  |
+| `sns.delete-topic.detached-retention` | `48h0m0s` | inferred | docs/research/phase1/sns.md#22-topic-attributes |  |
 | `sns.fifo.duplicate` | `fresh-message-id-no-delivery` | inferred | docs/research/phase1/sns.md#43-fifo-publish |  |
 | `sns.fifo.sequence-number` | `20-digit-decimal-per-topic` | inferred | docs/research/phase1/sns.md#43-fifo-publish |  |
 | `sns.filter-policy.anything-but-arrays` | `any-element` | inferred | docs/research/phase1/matching-engines.md#4.3 | R09/8 (matching-engines.md H4) |
@@ -1148,7 +1153,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item, strongest evidence first.
 
-216 evidence items: 117 third-party-recorded, 46 aws-doc, 2 sdk-source, 51 inferred.
+218 evidence items: 118 third-party-recorded, 47 aws-doc, 2 sdk-source, 51 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1168,6 +1173,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#validationError | https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/db/index.js#L866-L874 |
 | third-party-recorded | eventbridge.json | `com.amazonaws.eventbridge#AWSEvents` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/events/test_events.snapshot.json#L234 (validated 2025-01-08) |
 | third-party-recorded | iam.json | `com.amazonaws.iam#AWSIdentityManagementV20100508` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/iam/test_iam.snapshot.json#L940 (validated 2025-03-06) |
+| third-party-recorded | kms.json | `com.amazonaws.kms#DryRunOperationException` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/kms/test_kms.snapshot.json#L2244-L2251 (validated 2025-04-06) |
 | third-party-recorded | kms.json | `com.amazonaws.kms#TrentService` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/kms/test_kms.snapshot.json#L17 (validated 2024-04-11) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#AWSGirApiService` | dev.understudy#throttleError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda.snapshot.json (validated 2025-11-24) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#AWSGirApiService` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8268 (validated 2026-01-12) |
@@ -1270,6 +1276,8 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#SendMessageRequest$MessageGroupId` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L4033 (validated 2025-07-30) |
 | third-party-recorded | sts.json | `com.amazonaws.sts#AWSSecurityTokenServiceV20110615` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sts/test_sts.snapshot.json#L211 (validated 2025-07-21) |
 | aws-doc | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#throttleError | https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/CommonErrors.html |
+| aws-doc | cloudwatch.json | `com.amazonaws.cloudwatch#PutMetricAlarm` |  | https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricAlarm.html |
+| aws-doc | cloudwatch.json | `com.amazonaws.cloudwatch#PutMetricData` |  | https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html |
 | aws-doc | common.json | `com.amazon.coral.service#AccessDeniedException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/CommonErrors.html |
 | aws-doc | common.json | `com.amazon.coral.service#IncompleteSignature` |  | https://docs.aws.amazon.com/sns/latest/api/CommonErrors.html |
 | aws-doc | common.json | `com.amazon.coral.service#IncompleteSignatureException` | aws.protocols#awsQueryError | https://docs.aws.amazon.com/sns/latest/api/CommonErrors.html |
@@ -1283,12 +1291,11 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-doc | common.json | `dev.understudy.defaults#QueryFamily` |  | https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/CommonErrors.html |
 | aws-doc | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#errorNamespace, dev.understudy#throttleError | https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html |
 | aws-doc | iam.json | `com.amazonaws.iam#AWSIdentityManagementV20100508` | dev.understudy#throttleError | https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html |
-| aws-doc | kms.json | `com.amazonaws.kms#CreateKeyRequest$Policy` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_CreateKey.html |
+| aws-doc | kms.json | `com.amazonaws.kms#AlreadyExistsException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_CreateAlias.html |
 | aws-doc | kms.json | `com.amazonaws.kms#DependencyTimeoutException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html |
 | aws-doc | kms.json | `com.amazonaws.kms#DisabledException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html |
 | aws-doc | kms.json | `com.amazonaws.kms#KMSInvalidStateException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html |
 | aws-doc | kms.json | `com.amazonaws.kms#NotFoundException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html |
-| aws-doc | kms.json | `com.amazonaws.kms#PutKeyPolicyRequest$Policy` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_PutKeyPolicy.html |
 | aws-doc | kms.json | `com.amazonaws.kms#ScheduleKeyDeletionRequest$PendingWindowInDays` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_ScheduleKeyDeletion.html |
 | aws-doc | kms.json | `com.amazonaws.kms#TrentService` | dev.understudy#throttleError | https://docs.aws.amazon.com/kms/latest/APIReference/CommonErrors.html |
 | aws-doc | lambda.json | `com.amazonaws.lambda#AWSGirApiService` | dev.understudy#unknownOperationError | https://docs.aws.amazon.com/lambda/latest/api/CommonErrors.html |

@@ -6,7 +6,7 @@ import (
 )
 
 // ScopeRef is how a resource reference in an input picks the scope it
-// resolves in (F8, ARCHITECTURE.md 8 rule 7).
+// resolves in (ARCHITECTURE.md 8 rule 7).
 //
 //sumtype:decl
 type ScopeRef interface{ isScopeRef() }

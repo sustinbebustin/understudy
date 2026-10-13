@@ -36,7 +36,8 @@ type RenderedText struct{ Text string }
 // RenderedNull is an absent value, rendered as null without quotes.
 type RenderedNull struct{}
 
-// RenderedOmitted is a value AWS never echoes (blobs): "Value at 'path'".
+// RenderedOmitted is a value AWS never echoes, a blob or a member with the
+// sensitive trait: "Value at 'path'".
 type RenderedOmitted struct{}
 
 func (RenderedText) isRendered()    {}

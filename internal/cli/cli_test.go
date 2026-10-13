@@ -3,24 +3,18 @@ package cli_test
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
-	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -323,169 +317,9 @@ func fixed(args ...string) func(string) []string {
 	return func(string) []string { return args }
 }
 
-// serve runs in both output modes: it becomes ready, writes its logs in
-// that format, and exits 0 when its context ends.
-func TestServeInBothOutputModes(t *testing.T) {
-	for _, mode := range []string{"text", "json"} {
-		s := serve(t, "--output", mode)
-		r := runCLI(t.Context(), s.endpoint, nil, "health")
-		if code := s.stop(); code != admin.ExitOK || r.code != admin.ExitOK {
-			t.Errorf("serve --output %s = %d, health %d %s; stderr:\n%s", mode, code, r.code, r.stderr, s.stderr)
-		}
-		first, _, _ := strings.Cut(s.stderr.String(), "\n")
-		if isJSON := json.Valid([]byte(first)); isJSON != (mode == "json") {
-			t.Errorf("serve --output %s logged %q", mode, first)
-		}
-	}
-}
-
-// serve applies the settings of its configuration file rather than
-// refusing them: the clock starts frozen at the configured time, or scaled,
-// and a call with a key understudy does not know lands in the configured
-// default account.
-func TestServeAppliesTheConfigurationFile(t *testing.T) {
-	settings := `{
-		"clock": "frozen@2026-01-01T00:00:00Z",
-		"accounts": {"default": "111111111111"},
-		"journal": {"capacity": 1000, "maxBytes": 1048576},
-		"lambda": {"network": "disabled", "startConcurrency": 4, "idleTimeout": "1m", "maxEnvironments": 8},
-		"dynamodb": {"memoryLimit": 536870912}
-	}`
-	s := serve(t, "--config", writeConfig(t, settings))
-	var now admin.ClockState
-	runJSON(t, s.endpoint, &now, "clock", "now")
-	if want := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC); now.Mode != admin.Frozen || !now.Now.Equal(want) {
-		t.Errorf("clock now = %s %s, want frozen at %s", now.Mode, now.Now, want)
-	}
-	createQueue(t, s.endpoint, "orders")
-	var list admin.ResourceList
-	runJSON(t, s.endpoint, &list, "resources", "--service", "sqs")
-	if len(list.Resources) != 1 || list.Resources[0].Account != "111111111111" {
-		t.Errorf("resources = %+v, want the queue in the default account 111111111111", list.Resources)
-	}
-	if code := s.stop(); code != admin.ExitOK {
-		t.Errorf("serve = %d:\n%s", code, s.stderr)
-	}
-
-	scaled := serve(t, "--config", writeConfig(t, `{"clockScale": 60}`))
-	defer scaled.stop()
-	runJSON(t, scaled.endpoint, &now, "clock", "now")
-	if now.Mode != admin.Scaled || now.Factor != 60 {
-		t.Errorf("clock now with clockScale 60 = %s x%v, want scaled x60", now.Mode, now.Factor)
-	}
-}
-
-// writeConfig writes a configuration file holding settings.
-func writeConfig(t *testing.T, settings string) string {
-	t.Helper()
-	file := filepath.Join(t.TempDir(), "understudy.json")
-	if err := os.WriteFile(file, []byte(settings), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	return file
-}
-
-// runJSON runs args against endpoint with --output json and decodes the
-// result into v.
-func runJSON(t *testing.T, endpoint string, v any, args ...string) {
-	t.Helper()
-	r := runCLI(t.Context(), endpoint, nil, append(args, "--output", "json")...)
-	if r.code != admin.ExitOK {
-		t.Fatalf("%q = %d, stderr %s", args, r.code, r.stderr)
-	}
-	if err := json.Unmarshal([]byte(r.stdout), v); err != nil {
-		t.Fatalf("%q wrote %q: %v", args, r.stdout, err)
-	}
-}
-
-// serve on an address another process holds exits 2 naming the address
-// and the command to run instead.
-func TestServeOnABusyAddressNamesTheNextCommand(t *testing.T) {
-	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-	addr := ln.Addr().String()
-	var out, errOut syncBuffer
-	code := cli.Run(t.Context(), []string{"serve", "--listen", addr, "--docker", "disabled"}, cli.Options{Stdout: &out, Stderr: &errOut, ReadFile: os.ReadFile})
-	msg := errOut.String()
-	if code != admin.ExitUsage || !strings.Contains(msg, addr+" is in use") || !strings.Contains(msg, "understudy serve --listen 127.0.0.1:0") || strings.Contains(msg, "Serve again") {
-		t.Errorf("serve --listen %s while it is taken = %d, stderr %q; want 2 naming the address and the next command", addr, code, msg)
-	}
-}
-
-// A configuration serve refuses is the JSON error envelope when JSON is
-// asked for, by --output, --log-format or UNDERSTUDY_LOG_FORMAT.
-func TestServeErrorsFollowTheOutputFormat(t *testing.T) {
-	cases := []struct {
-		args []string
-		env  []string
-	}{
-		{args: []string{"--output", "json", "--listen-auth", "bogus"}},
-		{args: []string{"--listen-auth=bogus", "--log-format=json"}},
-		{args: []string{"--listen-auth", "bogus"}, env: []string{"UNDERSTUDY_LOG_FORMAT=json"}},
-	}
-	for _, c := range cases {
-		var out, errOut syncBuffer
-		code := cli.Run(t.Context(), append([]string{"serve"}, c.args...), cli.Options{Stdout: &out, Stderr: &errOut, Env: c.env, ReadFile: os.ReadFile})
-		var envelope struct {
-			Error struct {
-				Code string `json:"code"`
-			} `json:"error"`
-		}
-		if err := json.Unmarshal([]byte(errOut.String()), &envelope); code != admin.ExitUsage || err != nil || envelope.Error.Code != "usage" {
-			t.Errorf("serve %q (env %q) = %d, stderr %q; want 2 with the JSON usage envelope", c.args, c.env, code, errOut.String())
-		}
-	}
-}
-
-// env --tls trusts the TLS listener of serve --tls: the CA file it writes
-// verifies the listener, and each SDK gets the variable it reads.
-func TestEnvTLS(t *testing.T) {
-	s := serve(t, "--tls")
-	defer s.stop()
-	if s.tlsEndpoint == "" {
-		t.Fatalf("serve --tls wrote no tlsEndpoint:\n%s", s.stderr)
-	}
-	ca := filepath.Join(t.TempDir(), "ca.pem")
-	r := runCLI(t.Context(), s.endpoint, nil, "env", "--sdk", "go", "--format", "dotenv", "--tls-endpoint", s.tlsEndpoint, "--ca-file", ca)
-	got := stripComments(r.stdout)
-	if r.code != admin.ExitOK || !strings.Contains(got, "AWS_ENDPOINT_URL="+s.tlsEndpoint+"\n") || !strings.Contains(got, "AWS_CA_BUNDLE="+ca+"\n") {
-		t.Fatalf("env --tls --sdk go = %d\n%s%s", r.code, r.stdout, r.stderr)
-	}
-	pemData, err := os.ReadFile(ca)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pool := x509.NewCertPool()
-	if !pool.AppendCertsFromPEM(pemData) {
-		t.Fatalf("%s holds no certificate: %q", ca, pemData)
-	}
-	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}}}
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, s.tlsEndpoint+admin.Prefix+"/health", http.NoBody)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatalf("GET health over TLS trusting only %s: %v", ca, err)
-	}
-	if err := resp.Body.Close(); err != nil {
-		t.Fatal(err)
-	}
-	js := runCLI(t.Context(), s.endpoint, nil, "env", "--sdk", "js", "--format", "dotenv", "--tls-endpoint", s.tlsEndpoint, "--ca-file", ca)
-	if !strings.Contains(js.stdout, "NODE_EXTRA_CA_CERTS="+ca+"\n") || strings.Contains(js.stdout, "AWS_CA_BUNDLE") {
-		t.Errorf("env --tls --sdk js:\n%s", js.stdout)
-	}
-	plain := runCLI(t.Context(), s.endpoint, nil, "env", "--tls-endpoint", s.endpoint)
-	if plain.code != admin.ExitUsage {
-		t.Errorf("env --tls-endpoint http://... = %d, want 2", plain.code)
-	}
-}
-
 // Each exit code comes from a scripted case: 0 success, 1 an operation the
-// server refused, 2 a usage error, 3 no server, 4 a condition not met.
+// server refused, 2 a usage error, 3 no server, 4 a condition not met; 5,
+// a refused token, is TestUnauthorizedNamesTheTokenVariable's.
 func TestExitCodes(t *testing.T) {
 	inst := start(t)
 	notReady := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -504,9 +338,9 @@ func TestExitCodes(t *testing.T) {
 		stderr   string
 	}{
 		{"success", inst.Endpoint(), []string{"version"}, admin.ExitOK, ""},
-		{"operation failed", inst.Endpoint(), []string{"faults", "remove", "no-such-rule"}, admin.ExitFailed, "not_found"},
+		{"operation failed", inst.Endpoint(), []string{"faults", "remove", "no-such-rule"}, admin.ExitFailed, `faults remove: no active fault rule has id "no-such-rule"`},
 		{"usage", inst.Endpoint(), []string{"faults", "add", "--operation", "sqs.SendMessage"}, admin.ExitUsage, "exactly one action"},
-		{"unknown flag", inst.Endpoint(), []string{"health", "--wiat", "1s"}, admin.ExitUsage, "flag provided but not defined"},
+		{"unknown flag", inst.Endpoint(), []string{"health", "--wiat", "1s"}, admin.ExitUsage, "--wiat is not a flag of understudy health; the closest valid name is --wait"},
 		{"unreachable", closedEndpoint(t), []string{"health"}, admin.ExitUnreachable, "understudy serve"},
 		{"not ready", notReady.URL, []string{"health", "--wait", "50ms"}, admin.ExitConditionNotMet, "health --wait"},
 	}
@@ -516,152 +350,164 @@ func TestExitCodes(t *testing.T) {
 			t.Errorf("%s: %q = %d, stderr %q; want %d and %q", c.name, c.args, r.code, r.stderr, c.code, c.stderr)
 		}
 	}
+	// A refusal whose hint names the next step gets no --help line too.
+	r := runCLI(t.Context(), inst.Endpoint(), nil, "clock", "set", "2020-01-01T00:00:00Z")
+	if r.code != admin.ExitUsage || !strings.Contains(r.stderr, "understudy reset --clock") || strings.Contains(r.stderr, "--help") {
+		t.Errorf("clock set into the past = %d, stderr %q; want 2 with the server's hint and no --help line", r.code, r.stderr)
+	}
 }
 
-// journal --follow prints the matching events, then the new ones as they
-// are recorded, and ends cleanly when its context does.
-func TestJournalFollow(t *testing.T) {
-	inst := start(t)
-	createQueue(t, inst.Endpoint(), "first")
-	ctx, cancel := context.WithCancel(t.Context())
-	var out, errOut syncBuffer
-	done := make(chan int, 1)
-	go func() {
-		done <- cli.Run(ctx, []string{"journal", "--operation", "sqs.CreateQueue", "--follow", "--output", "json"}, cli.Options{
-			Stdout: &out, Stderr: &errOut, Env: []string{config.EndpointEnv + "=" + inst.Endpoint()}, ReadFile: os.ReadFile,
-		})
-	}()
-	waitLines(t, &out, 1)
-	createQueue(t, inst.Endpoint(), "second")
-	waitLines(t, &out, 2)
-	cancel()
-	if code := <-done; code != admin.ExitOK {
-		t.Fatalf("journal --follow after cancel = %d, stderr %s", code, errOut.String())
+// A flag value that does not parse names the flag as the CLI spells it and
+// the form it takes, and help shows each flag with -- and a placeholder.
+func TestFlagValuesNameTheirForm(t *testing.T) {
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"journal", "--since", "garbage"}, `--since "garbage" is not a duration such as 90s`},
+		{[]string{"journal", "--limit", "many"}, `--limit "many" is not a whole number`},
+		{[]string{"journal", "--trace", "x"}, `--trace "x" is not an event id`},
+		{[]string{"journal", "--trace", "0"}, `--trace "0" is not an event id`},
+		{[]string{"health", "--wait", "abc"}, `--wait "abc" is not a duration`},
+		{[]string{"settle", "--timeout", "abc"}, `--timeout "abc" is not a duration`},
+		{[]string{"clock", "advance", "1m", "--settle-timeout", "abc"}, `--settle-timeout "abc" is not a duration`},
+		{[]string{"faults", "add", "--throttle", "--latency", "5x"}, `--latency "5x" is not a duration`},
+		{[]string{"faults", "add", "--throttle", "--next", "x"}, `--next "x" is not a whole number`},
+		{[]string{"faults", "add", "--throttle", "--probability", "half"}, `--probability "half" is not a number such as 0.25`},
 	}
-	var ids []uint64
-	for line := range strings.Lines(out.String()) {
-		var e admin.JournalEvent
-		if err := json.Unmarshal([]byte(line), &e); err != nil {
-			t.Fatalf("line %q: %v", line, err)
+	for _, c := range cases {
+		r := runCLI(t.Context(), closedEndpoint(t), nil, c.args...)
+		if r.code != admin.ExitUsage || !strings.Contains(r.stderr, c.want) {
+			t.Errorf("%q = %d, stderr %q; want 2 and %q", c.args, r.code, r.stderr, c.want)
 		}
-		ids = append(ids, e.ID)
 	}
-	if len(ids) != 2 || ids[0] >= ids[1] {
-		t.Errorf("followed events %v, want the two CreateQueue calls in order", ids)
-	}
-}
-
-// journal --follow prints every matching event recorded before it, whatever
-// --limit says, then the new ones.
-func TestJournalFollowIgnoresTheLimit(t *testing.T) {
-	inst := start(t)
-	createQueue(t, inst.Endpoint(), "first")
-	createQueue(t, inst.Endpoint(), "second")
-	ctx, cancel := context.WithCancel(t.Context())
-	var out, errOut syncBuffer
-	done := make(chan int, 1)
-	go func() {
-		done <- cli.Run(ctx, []string{"journal", "--operation", "sqs.CreateQueue", "--limit", "1", "--follow", "--output", "json"}, cli.Options{
-			Stdout: &out, Stderr: &errOut, Env: []string{config.EndpointEnv + "=" + inst.Endpoint()}, ReadFile: os.ReadFile,
-		})
-	}()
-	waitLines(t, &out, 2)
-	createQueue(t, inst.Endpoint(), "third")
-	waitLines(t, &out, 3)
-	cancel()
-	if code := <-done; code != admin.ExitOK {
-		t.Fatalf("journal --follow after cancel = %d, stderr %s", code, errOut.String())
-	}
-	if n := strings.Count(out.String(), "\n"); n != 3 {
-		t.Errorf("journal --limit 1 --follow printed %d events, want all 3:\n%s", n, out.String())
+	help := runCLI(t.Context(), closedEndpoint(t), nil, "journal", "--help")
+	for _, want := range []string{"\n  --since DURATION\n", "\n  --limit N\n", "\n  --trace ID\n", "\n  --endpoint URL\n", "\n  --errors\n"} {
+		if !strings.Contains(help.stdout, want) {
+			t.Errorf("journal --help lacks %q:\n%s", want, help.stdout)
+		}
 	}
 }
 
-// journal --follow loses nothing recorded between its query and the
-// stream: with nothing matching at first, a call recorded after the query
-// answered, before the CLI could act on the answer, is printed.
-func TestJournalFollowLosesNothingAfterAnEmptyQuery(t *testing.T) {
+// A flag before the command is named as misplaced, not as an unknown
+// command, and --version is the version command.
+func TestFlagsBeforeTheCommand(t *testing.T) {
+	r := runCLI(t.Context(), closedEndpoint(t), nil, "--endpoint", "http://127.0.0.1:4566", "health")
+	if r.code != admin.ExitUsage || !strings.Contains(r.stderr, "flags go after it") || strings.Contains(r.stderr, "is not a command") {
+		t.Errorf("--endpoint before health = %d, stderr %q; want 2 saying flags go after the command", r.code, r.stderr)
+	}
+	r = runCLI(t.Context(), closedEndpoint(t), nil, "faults", "--output", "json", "list")
+	if r.code != admin.ExitUsage || !strings.Contains(r.stderr, "'understudy faults <command> --output ...'") {
+		t.Errorf("--output before faults list = %d, stderr %q", r.code, r.stderr)
+	}
+	r = runCLI(t.Context(), closedEndpoint(t), nil, "--version")
+	if r.code != admin.ExitOK || r.stdout != "understudy test\n" {
+		t.Errorf("--version = %d, stdout %q, stderr %q", r.code, r.stdout, r.stderr)
+	}
+}
+
+// Command-line mistakes are named as the user typed them, with the fix: an
+// unknown flag with the closest valid name, a negative duration for what
+// it asks, a missing argument as none; -v is --version, and serve's flag
+// errors read like the others' with one pointer at --help.
+func TestCommandLineMistakesNameTheFix(t *testing.T) {
+	cases := []struct {
+		args []string
+		code int
+		want string
+	}{
+		{[]string{"-v"}, admin.ExitOK, "understudy test\n"},
+		{
+			[]string{"faults", "list", "--endpont", "http://127.0.0.1:1"},
+			admin.ExitUsage,
+			"understudy faults list: --endpont is not a flag of understudy faults list; the closest valid name is --endpoint\n",
+		},
+		{[]string{"clock", "advance", "-5s"}, admin.ExitUsage, `"-5s" would move emulator time back, and it only moves forward; 'understudy reset --clock'`},
+		{[]string{"clock", "advance"}, admin.ExitUsage, "takes one argument, DURATION; got none\n"},
+		{[]string{"clock", "now", "a", "b"}, admin.ExitUsage, `takes no arguments; got "a", "b"` + "\n"},
+		{[]string{"journal", "--follow=maybe"}, admin.ExitUsage, `--follow takes no value, or true or false; got "maybe"`},
+		{[]string{"journal", "--since"}, admin.ExitUsage, "--since needs a value: only events from this long ago"},
+		{
+			[]string{"serve", "--listne", "127.0.0.1:0"},
+			admin.ExitUsage,
+			"understudy serve: --listne is not a serve flag; the closest valid name is --listen\nRun 'understudy serve --help' for usage and examples.\n",
+		},
+	}
+	for _, c := range cases {
+		r := runCLI(t.Context(), closedEndpoint(t), nil, c.args...)
+		out := r.stderr
+		if c.code == admin.ExitOK {
+			out = r.stdout
+		}
+		if r.code != c.code || !strings.Contains(out, c.want) || strings.Count(r.stderr, "--help") > 1 {
+			t.Errorf("%q = %d, stdout %q, stderr %q; want %d and %q", c.args, r.code, r.stdout, r.stderr, c.code, c.want)
+		}
+	}
+}
+
+// The root help lists the exit codes a script can tell apart.
+func TestRootHelpListsTheExitCodes(t *testing.T) {
+	r := runCLI(t.Context(), closedEndpoint(t), nil, "--help")
+	for _, want := range []string{"Exit codes:", "  2  usage error", "  3  understudy is not reachable", "  4  a condition was not met", "  5  the server refused the admin token"} {
+		if !strings.Contains(r.stdout, want) {
+			t.Errorf("understudy --help lacks %q:\n%s", want, r.stdout)
+		}
+	}
+}
+
+// An admin call the server refuses for its token names the variable that
+// carries the token and whether it was missing or rejected, not the
+// command's usage or the Go client's option.
+func TestUnauthorizedNamesTheTokenVariable(t *testing.T) {
+	guarded := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		body := `{"error": {"code": "unauthorized", "message": "this listener requires the admin token as Authorization: Bearer <token>",` +
+			` "hint": "send Authorization: Bearer <token> with the token serve was configured with (admin.Options.Token for Go clients)"}}`
+		if _, err := w.Write([]byte(body)); err != nil {
+			t.Errorf("writing the scripted refusal: %v", err)
+		}
+	}))
+	t.Cleanup(guarded.Close)
+	cases := []struct {
+		env  []string
+		want string
+	}{
+		{nil, "UNDERSTUDY_ADMIN_TOKEN is not set"},
+		{[]string{"UNDERSTUDY_ADMIN_TOKEN=wrong"}, "the server rejected the token in UNDERSTUDY_ADMIN_TOKEN"},
+	}
+	for _, c := range cases {
+		r := runCLI(t.Context(), guarded.URL, c.env, "faults", "list")
+		if r.code != admin.ExitUnauthorized || !strings.Contains(r.stderr, c.want) || strings.Contains(r.stderr, "--help") || strings.Contains(r.stderr, "admin.Options") {
+			t.Errorf("faults list with %q against a guarded server = %d, stderr %q; want %q", c.env, r.code, r.stderr, c.want)
+		}
+		js := runCLI(t.Context(), guarded.URL, c.env, "faults", "list", "--output", "json")
+		var envelope struct {
+			Error struct{ Code, Hint string } `json:"error"`
+		}
+		if err := json.Unmarshal([]byte(js.stderr), &envelope); err != nil || envelope.Error.Code != "unauthorized" || !strings.Contains(envelope.Error.Hint, c.want) {
+			t.Errorf("faults list --output json with %q against a guarded server: stderr %q", c.env, js.stderr)
+		}
+	}
+}
+
+// Without --endpoint or UNDERSTUDY_ENDPOINT, a command finds the server
+// serve's own UNDERSTUDY_LISTEN names, on loopback when it listens on every
+// interface; UNDERSTUDY_ENDPOINT still wins.
+func TestEndpointFollowsTheListenAddress(t *testing.T) {
 	inst := start(t)
-	target, err := url.Parse(inst.Endpoint())
+	u, err := url.Parse(inst.Endpoint())
 	if err != nil {
 		t.Fatal(err)
 	}
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	proxy.FlushInterval = -1
-	var answered atomic.Bool
-	front := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != admin.Prefix+"/journal/events" {
-			proxy.ServeHTTP(w, r)
-			return
-		}
-		// Hold the query's answer until a matching call is recorded.
-		rec := httptest.NewRecorder()
-		proxy.ServeHTTP(rec, r)
-		if answered.CompareAndSwap(false, true) {
-			if err := sendCreateQueue(r.Context(), inst.Endpoint(), "late"); err != nil {
-				t.Errorf("recording the late call: %v", err)
-			}
-		}
-		maps.Copy(w.Header(), rec.Header())
-		w.WriteHeader(rec.Code)
-		if _, err := w.Write(rec.Body.Bytes()); err != nil {
-			t.Errorf("relaying the query's answer: %v", err)
-		}
-	}))
-	t.Cleanup(front.Close)
-	ctx, cancel := context.WithCancel(t.Context())
-	var out, errOut syncBuffer
-	done := make(chan int, 1)
-	go func() {
-		done <- cli.Run(ctx, []string{"journal", "--operation", "sqs.CreateQueue", "--follow", "--output", "json"}, cli.Options{
-			Stdout: &out, Stderr: &errOut, Env: []string{config.EndpointEnv + "=" + front.URL}, ReadFile: os.ReadFile,
-		})
-	}()
-	waitLines(t, &out, 1)
-	cancel()
-	if code := <-done; code != admin.ExitOK {
-		t.Fatalf("journal --follow after cancel = %d, stderr %s", code, errOut.String())
+	health := func(env ...string) int {
+		return cli.Run(t.Context(), []string{"health"}, cli.Options{Stdout: io.Discard, Stderr: io.Discard, Env: env, ReadFile: os.ReadFile})
 	}
-	if !strings.Contains(out.String(), `"CreateQueue"`) || strings.Count(out.String(), "\n") != 1 {
-		t.Errorf("followed %q, want the one late CreateQueue call", out.String())
+	if code := health(config.ListenEnv + "=0.0.0.0:" + u.Port()); code != 0 {
+		t.Errorf("health with only %s=0.0.0.0:%s = %d, want 0", config.ListenEnv, u.Port(), code)
 	}
-}
-
-// With no server at the endpoint, coverage builds the emulator in process
-// and reports exactly what a server reports.
-func TestCoverageOfflineEqualsServer(t *testing.T) {
-	inst := understudytest.Start(t, understudytest.Options{})
-	online := runCLI(t.Context(), inst.Endpoint(), nil, "coverage", "--format", "json")
-	offline := runCLI(t.Context(), closedEndpoint(t), nil, "coverage", "--format", "json")
-	if online.code != admin.ExitOK || offline.code != admin.ExitOK {
-		t.Fatalf("coverage online %d %s, offline %d %s", online.code, online.stderr, offline.code, offline.stderr)
-	}
-	if online.stdout != offline.stdout {
-		t.Errorf("offline report differs from the server's:\nonline:  %.300s\noffline: %.300s", online.stdout, offline.stdout)
-	}
-	text := runCLI(t.Context(), closedEndpoint(t), nil, "coverage", "--service", "sqs")
-	if !strings.Contains(text.stdout, "this binary (no server answered") || !strings.Contains(text.stdout, "sqs") || strings.Contains(text.stdout, "  sns") {
-		t.Errorf("offline text report for sqs:\n%s", text.stdout)
-	}
-	bad := runCLI(t.Context(), closedEndpoint(t), nil, "coverage", "--service", "nope")
-	if bad.code != admin.ExitUsage || !strings.Contains(bad.stderr, "sqs") {
-		t.Errorf("--service nope = %d %q, want 2 listing the services", bad.code, bad.stderr)
-	}
-}
-
-// serve refuses a listener beyond loopback on a host, naming the token,
-// the published container port and the loopback fix.
-func TestServeRefusesANonLoopbackListenerOnAHost(t *testing.T) {
-	var out, errOut syncBuffer
-	onHost := func(path string) ([]byte, error) {
-		return nil, &fs.PathError{Op: "open", Path: path, Err: fs.ErrNotExist}
-	}
-	code := cli.Run(t.Context(), []string{"serve", "--listen", "0.0.0.0:0"}, cli.Options{Stdout: &out, Stderr: &errOut, ReadFile: onHost})
-	msg := errOut.String()
-	for _, want := range []string{"UNDERSTUDY_ADMIN_TOKEN", "container-published", "--listen 127.0.0.1:0"} {
-		if code != admin.ExitUsage || !strings.Contains(msg, want) {
-			t.Errorf("serve --listen 0.0.0.0:0 = %d, stderr %q; want 2 naming %q", code, msg, want)
-		}
+	if code := health(config.ListenEnv+"=0.0.0.0:"+u.Port(), config.EndpointEnv+"="+closedEndpoint(t)); code != admin.ExitUnreachable {
+		t.Errorf("health with %s at a closed port = %d, want %d: the endpoint variable wins over the listen address", config.EndpointEnv, code, admin.ExitUnreachable)
 	}
 }
 
@@ -780,58 +626,4 @@ func TestClientCommandsAcceptTheAdminToken(t *testing.T) {
 	if !warned {
 		t.Errorf("doctor with DOCKER_HOST=tcp://docker:2375 reports %+v, want a configuration warning", report.Checks)
 	}
-}
-
-// env prints the exact variables an SDK reads, in each format.
-func TestEnvFormats(t *testing.T) {
-	endpoint := closedEndpoint(t)
-	// The loopback IP literal becomes localhost, the endpoint ADR 0013
-	// documents, so clients can address <bucket>.localhost and
-	// <account>.localhost.
-	sdk := "http://localhost:" + endpoint[strings.LastIndexByte(endpoint, ':')+1:]
-	cases := map[string]string{
-		"sh":     "export AWS_ENDPOINT_URL='" + sdk + "'\nexport AWS_ACCESS_KEY_ID='test'\nexport AWS_SECRET_ACCESS_KEY='test'\nexport AWS_REGION='eu-west-1'\n",
-		"fish":   "set -gx AWS_ENDPOINT_URL '" + sdk + "'\nset -gx AWS_ACCESS_KEY_ID 'test'\nset -gx AWS_SECRET_ACCESS_KEY 'test'\nset -gx AWS_REGION 'eu-west-1'\n",
-		"dotenv": "AWS_ENDPOINT_URL=" + sdk + "\nAWS_ACCESS_KEY_ID=test\nAWS_SECRET_ACCESS_KEY=test\nAWS_REGION=eu-west-1\n",
-		"github": "AWS_ENDPOINT_URL=" + sdk + "\nAWS_ACCESS_KEY_ID=test\nAWS_SECRET_ACCESS_KEY=test\nAWS_REGION=eu-west-1\n",
-	}
-	for format, want := range cases {
-		r := runCLI(t.Context(), endpoint, nil, "env", "--sdk", "go", "--format", format, "--region", "eu-west-1")
-		got := r.stdout
-		if format != "github" {
-			got = stripComments(got)
-		}
-		if r.code != admin.ExitOK || got != want {
-			t.Errorf("env --format %s = %d\n%s\nwant\n%s", format, r.code, got, want)
-		}
-		if !strings.Contains(r.stdout+r.stderr, "UsePathStyle") {
-			t.Errorf("env --sdk go --format %s does not name UsePathStyle", format)
-		}
-	}
-	r := runCLI(t.Context(), endpoint, nil, "env", "--sdk", "python", "--format", "dotenv")
-	if !strings.Contains(r.stdout, "AWS_DEFAULT_REGION=us-east-1\n") {
-		t.Errorf("env --sdk python lacks AWS_DEFAULT_REGION:\n%s", r.stdout)
-	}
-	// Terraform 6.x reads bucket tags through S3 Control at
-	// <account>.<endpoint host>, so it needs skip_requesting_account_id
-	// where *.localhost does not resolve.
-	tf := runCLI(t.Context(), endpoint, nil, "env", "--sdk", "terraform")
-	if !strings.Contains(tf.stdout, "skip_requesting_account_id = true") || !strings.Contains(tf.stdout, "s3_use_path_style = true") {
-		t.Errorf("env --sdk terraform names neither skip_requesting_account_id nor s3_use_path_style:\n%s", tf.stdout)
-	}
-	// A hostname endpoint is kept as given.
-	named := runCLI(t.Context(), "http://understudy:4566", nil, "env", "--format", "dotenv")
-	if !strings.Contains(named.stdout, "AWS_ENDPOINT_URL=http://understudy:4566\n") {
-		t.Errorf("env with a hostname endpoint rewrote it:\n%s", named.stdout)
-	}
-}
-
-func stripComments(s string) string {
-	var b strings.Builder
-	for line := range strings.Lines(s) {
-		if !strings.HasPrefix(line, "#") {
-			b.WriteString(line)
-		}
-	}
-	return b.String()
 }

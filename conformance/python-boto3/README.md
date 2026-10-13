@@ -8,8 +8,9 @@ boto3 and pytest tests that check understudy from the outside. Each test asserts
 conformance/python-boto3/run.sh                 # build, serve, run both environments, stop
 conformance/python-boto3/run.sh -k lock -x      # extra arguments go to pytest
 SUITE_GROUPS=modern conformance/python-boto3/run.sh
-SIGV4=verify conformance/python-boto3/run.sh    # serve with --sigv4 verify; enables the signature tests
 ```
+
+The SigV4 signature tests run only under `SIGV4=verify`, which passes `--sigv4 verify` to serve. This build's serve refuses that setting at startup until signature verification is wired (`docs/plan/DEFERRED.md`, "SigV4 verification"), so the tests skip and `SIGV4=verify` makes `run.sh` exit with serve's error.
 
 `run.sh` builds understudy into `.build/conformance/python-boto3/understudy`, serves it on `127.0.0.1:45662` with a fresh data directory, waits for the health endpoint, runs pytest through `scripts/sealed`, then stops the server and runs `understudy cleanup` on its data directory. It exits non-zero when any environment fails. On failure it keeps the work directory (server log and data) and prints its path.
 

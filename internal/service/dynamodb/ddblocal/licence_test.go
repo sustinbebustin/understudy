@@ -129,7 +129,7 @@ func TestAcceptanceThatCannotBeRecorded(t *testing.T) {
 }
 
 // TestNoticeNamesImageLicenceAndHowToAccept: the 501 and the banner name
-// the exact flag and environment variable (engineering m15, product M4).
+// the exact flag and environment variable (ADR 0014).
 func TestNoticeNamesImageLicenceAndHowToAccept(t *testing.T) {
 	notice := ddblocal.Notice()
 	for _, want := range []string{

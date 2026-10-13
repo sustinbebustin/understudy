@@ -19,10 +19,20 @@
 //     created with; state maps key them in lower case. Inline policy names
 //     follow the same rule within their role or user.
 //   - Any arn:aws:iam::aws:policy/... ARN is an attachable AWS managed
-//     policy; understudy carries no catalogue of them. GetPolicy shows one
-//     with default version v1, no dates and a PolicyId derived from the ARN,
-//     so it is the same in every account and run; GetPolicyVersion answers
-//     NoSuchEntity, since understudy holds no document for it.
+//     policy; understudy carries no catalogue of them, so a mistyped one
+//     attaches where AWS answers NoSuchEntity. GetPolicy shows one with
+//     default version v1, no dates and a PolicyId derived from the ARN, so
+//     it is the same in every account and run. GetPolicyVersion of v1 shows
+//     a placeholder document that grants nothing and whose Sid says it is
+//     one, so the Terraform aws_iam_policy data source, which retries
+//     NoSuchEntity for minutes, reads it at once.
+//   - Tag keys of roles and users match regardless of case; those of
+//     managed policies and instance profiles match exactly, as the IAM User
+//     Guide's tagging rules say. A tag key or value beginning with aws:, in
+//     any case, is InvalidInput.
+//   - A policy's UpdateDate is when its newest version was created, or its
+//     CreateDate while it has one version, as the Policy shape documents;
+//     SetDefaultPolicyVersion leaves it alone.
 //   - Instance profile ids are AIPA and 17 characters drawn from the role
 //     id stream, since the id source has no instance profile kind.
 //   - Listings page in name order regardless of case (attachments by
@@ -36,10 +46,19 @@
 //     inline policies; DeleteUser checks attached policies, inline policies,
 //     then access keys. Each answers the DeleteConflict text of the first
 //     dependency left.
-//   - GetUser, CreateAccessKey and ListAccessKeys without UserName answer
-//     for a caller signing with an IAM user's key; any other caller gets
-//     ValidationError "Must specify userName when calling with non-User
-//     credentials", which the Terraform provider's account lookup skips.
+//   - GetUser and the access key operations without UserName act on the
+//     caller. For an IAM user that is the user. For the account's root,
+//     GetUser shows the root identity (UserId the account id, the root ARN,
+//     the Unix epoch as CreateDate since account creation is not tracked);
+//     root access keys are not managed, so ListAccessKeys lists none,
+//     UpdateAccessKey and DeleteAccessKey answer NoSuchEntity and
+//     CreateAccessKey NotImplemented. A role session, a service or an
+//     anonymous caller gets ValidationError "Must specify userName when
+//     calling with non-User credentials", which the Terraform provider's
+//     account lookup skips.
+//   - CreateRole shows neither RoleLastUsed nor MaxSessionDuration;
+//     ListInstanceProfiles and ListInstanceProfilesForRole show no tags,
+//     and their roles as ListRoles shows them.
 //   - UpdateUser renames the user in IAM only: keys minted before the
 //     rename keep resolving to the old name and path, since the identity
 //     store cannot rename a principal (coverage lists UpdateUser as Partial).

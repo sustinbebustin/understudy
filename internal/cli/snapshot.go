@@ -23,7 +23,7 @@ const maxArchiveBytes = 4 << 30
 func snapshotCmd() *command {
 	return group("snapshot", "Save, load, inspect and compare snapshot archives of the emulator's state",
 		leaf("save", "Save the emulator's state to an archive", "snapshot save FILE [--gzip] [--include-journal] [--on-server]",
-			[]string{"understudy snapshot save state.tar", "understudy snapshot save state.tar.gz --gzip --include-journal", "understudy snapshot save fixtures/a.tar --on-server"},
+			[]string{"understudy snapshot save state.tar", "understudy snapshot save state.tar.gz --include-journal", "understudy snapshot save fixtures/a.tar --on-server"},
 			snapshotSave),
 		leaf("load", "Replace the emulator's state with an archive", "snapshot load FILE [--on-server]",
 			[]string{"understudy snapshot load state.tar", "understudy snapshot load fixtures/a.tar --on-server"},
@@ -39,14 +39,22 @@ func snapshotCmd() *command {
 
 func snapshotSave(fs *flag.FlagSet) action {
 	var o admin.SaveOptions
-	fs.BoolVar(&o.Gzip, "gzip", false, "gzip the archive")
+	fs.BoolVar(&o.Gzip, "gzip", false, "gzip the archive (default when FILE ends in .gz or .tgz)")
 	fs.BoolVar(&o.IncludeJournal, "include-journal", false, "add the retained journal as journal.ndjson")
 	onServer := fs.Bool("on-server", false, "write FILE under the server's <data dir>/snapshots instead (needs serve --persist)")
 	return func(ctx context.Context, r *runner, args []string) error {
 		if err := wantArgs(args, 1, "one argument, the archive path"); err != nil {
 			return err
 		}
-		c, err := r.client()
+		gzipSet := false
+		fs.Visit(func(f *flag.Flag) { gzipSet = gzipSet || f.Name == "gzip" })
+		if gzipName(args[0]) {
+			if gzipSet && !o.Gzip {
+				return &usageError{msg: args[0] + " names a gzipped archive, and --gzip=false asks for a plain one; drop --gzip=false, or name the file .tar"}
+			}
+			o.Gzip = true
+		}
+		c, err := r.slowClient()
 		if err != nil {
 			return err
 		}
@@ -57,53 +65,52 @@ func snapshotSave(fs *flag.FlagSet) action {
 			}
 			return r.emit(info, func(w io.Writer) error { return writeSnapshotInfo(w, "saved", args[0], info) })
 		}
-		n, err := saveArchive(ctx, c, args[0], o)
+		saved, err := saveArchive(ctx, c, args[0], o)
 		if err != nil {
 			return err
 		}
 		info := struct {
-			Path  string `json:"path"`
-			Bytes int64  `json:"bytes"`
-		}{args[0], n}
-		return r.emit(info, func(w io.Writer) error {
-			_, err := fmt.Fprintf(w, "saved %s (%d bytes)\n", args[0], n)
-			return err
-		})
+			Path string `json:"path"`
+			*admin.SavedArchive
+		}{args[0], saved}
+		return r.emit(info, func(w io.Writer) error { return writeSaved(w, args[0], saved) })
 	}
+}
+
+// writeSaved reports an archive saved to the local file path.
+func writeSaved(w io.Writer, path string, saved *admin.SavedArchive) error {
+	if _, err := fmt.Fprintf(w, "saved %s (%d bytes)\n", path, saved.Bytes); err != nil {
+		return err
+	}
+	return writePendingEffects(w, saved.PendingEffects)
+}
+
+// gzipName reports whether path names a gzipped file, by its extension.
+func gzipName(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".gz" || ext == ".tgz"
 }
 
 // saveArchive writes the archive to path through a temporary file in the
 // same directory, so a failed save leaves no partial archive.
-func saveArchive(ctx context.Context, c *admin.Client, path string, o admin.SaveOptions) (int64, error) {
+func saveArchive(ctx context.Context, c *admin.Client, path string, o admin.SaveOptions) (*admin.SavedArchive, error) {
 	retry := "check that the directory of " + path + " exists and is writable, then run 'understudy snapshot save " + path + "' again"
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".understudy-snapshot-*")
 	if err != nil {
-		return 0, &localError{op: "creating the archive next to " + path, err: err, next: retry}
+		return nil, &localError{op: "creating the archive next to " + path, err: err, next: retry}
 	}
-	counter := &countingWriter{w: tmp}
-	saveErr := c.SaveSnapshot(ctx, counter, o)
+	saved, saveErr := c.SaveSnapshot(ctx, tmp, o)
 	closeErr := tmp.Close()
 	if closeErr != nil {
 		closeErr = &localError{op: "writing the archive " + tmp.Name(), err: closeErr, next: retry}
 	}
 	if err := errors.Join(saveErr, closeErr); err != nil {
-		return 0, errors.Join(err, os.Remove(tmp.Name()))
+		return nil, errors.Join(err, os.Remove(tmp.Name()))
 	}
 	if err := os.Rename(tmp.Name(), path); err != nil {
-		return 0, &localError{op: "moving the archive into place at " + path, err: errors.Join(err, os.Remove(tmp.Name())), next: retry}
+		return nil, &localError{op: "moving the archive into place at " + path, err: errors.Join(err, os.Remove(tmp.Name())), next: retry}
 	}
-	return counter.n, nil
-}
-
-type countingWriter struct {
-	w io.Writer
-	n int64
-}
-
-func (c *countingWriter) Write(p []byte) (int, error) {
-	n, err := c.w.Write(p)
-	c.n += int64(n)
-	return n, err
+	return saved, nil
 }
 
 func snapshotLoad(fs *flag.FlagSet) action {
@@ -112,7 +119,7 @@ func snapshotLoad(fs *flag.FlagSet) action {
 		if err := wantArgs(args, 1, "one argument, the archive path"); err != nil {
 			return err
 		}
-		c, err := r.client()
+		c, err := r.slowClient()
 		if err != nil {
 			return err
 		}
@@ -152,6 +159,19 @@ func openArchive(path, verb string) (*os.File, error) {
 
 func writeSnapshotInfo(w io.Writer, verb, path string, info *admin.SnapshotInfo) error {
 	_, err := fmt.Fprintf(w, "%s %s: %d section(s) by %s, clock %s %s\n", verb, path, info.Sections, info.Writer, info.Clock.UTC().Format(time.RFC3339Nano), info.Mode)
+	if err == nil {
+		err = writePendingEffects(w, info.PendingEffects)
+	}
+	return err
+}
+
+// writePendingEffects warns that a saved archive lacks the effects of n
+// committed writes; it prints nothing when n is 0.
+func writePendingEffects(w io.Writer, n int) error {
+	if n == 0 {
+		return nil
+	}
+	_, err := fmt.Fprintf(w, "warning: %d effect(s) of committed writes, such as deliveries, had not run when the state was cut; the archive holds those writes without them\n", n)
 	return err
 }
 
@@ -228,12 +248,12 @@ func writeManifest(w io.Writer, v manifestView) error {
 	if v.Seed != nil {
 		seed = strconv.FormatUint(*v.Seed, 10)
 	}
-	fmt.Fprintf(&b, "writer        %s\nmodels        %s\nformat        %d\nclock         %s %s\nseed          %s\njournal next  %d\nblobs         %s\n",
+	fmt.Fprintf(&b, "writer        %s\nmodels        %s\nformat        archive format version %d\nclock         %s %s\nseed          %s\njournal next  %d\nblobs         %s\n",
 		v.Writer, v.ModelPin, v.Format, v.Clock.UTC().Format(time.RFC3339Nano), v.Mode, seed, v.JournalNext, v.Blobs)
 	if len(v.LateServices) > 0 {
 		fmt.Fprintf(&b, "late data     %s\n", strings.Join(v.LateServices, ", "))
 	}
-	fmt.Fprintf(&b, "faults        %t\njournal       %t\nsections      %d\n", v.Faults, v.Journal, len(v.Sections))
+	fmt.Fprintf(&b, "fault rules   %s\njournal       %s\nsections      %d\n", savedOrNot(v.Faults), savedOrNot(v.Journal), len(v.Sections))
 	for _, s := range v.Sections {
 		fmt.Fprintf(&b, "  %s  v%d  sha256:%s  %d blob(s)", s.Path, s.Version, s.SHA256[:min(12, len(s.SHA256))], s.Blobs)
 		if s.Late {
@@ -243,6 +263,14 @@ func writeManifest(w io.Writer, v manifestView) error {
 	}
 	_, err := io.WriteString(w, b.String())
 	return err
+}
+
+// savedOrNot says whether an archive holds an optional part.
+func savedOrNot(saved bool) string {
+	if saved {
+		return "saved in the archive"
+	}
+	return "not saved"
 }
 
 // diffView is snapshot diff's JSON result.

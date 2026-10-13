@@ -15,9 +15,8 @@ import (
 // retention policy expires. The key's ID is the group's ARN.
 const TimerRetention kernel.TimerKind = "logs.retention"
 
-// Options are the CloudWatch Logs settings wire.go fills from the
-// configuration. The zero value is AWS's behavior; there are no settings
-// yet.
+// Options are the CloudWatch Logs settings. There are none yet; the zero
+// value is AWS's behavior.
 type Options struct{}
 
 // Service is Amazon CloudWatch Logs: one state cell per account and region.
@@ -58,12 +57,26 @@ func expiryRule() fidelity.Switch[string] {
 	}
 }
 
+// deliveryRetention is the fixed retention, in days, of a DELIVERY-class
+// group. The log class guide says two days and that it cannot be changed;
+// the model's logGroupClass documentation says one. Two is what the
+// Terraform provider's acceptance tests read back from AWS.
+func deliveryRetention() fidelity.Switch[int32] {
+	return fidelity.Switch[int32]{
+		Name:  "logs.delivery.retention-days",
+		Value: 2,
+		Label: evidence.AWSDoc,
+		Ref:   "https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html",
+	}
+}
+
 // Switches lists the behaviors chosen without AWS-recorded evidence: the
-// filter-pattern questions logsfilter leaves open and the retention rule.
+// filter-pattern questions logsfilter leaves open, the retention rule and
+// the DELIVERY class's fixed retention.
 func (s *Service) Switches() []fidelity.Entry {
 	switches := s.filter.Switches()
-	out := make([]fidelity.Entry, 0, 1+len(switches))
-	out = append(out, expiryRule().Entry())
+	out := make([]fidelity.Entry, 0, 2+len(switches))
+	out = append(out, expiryRule().Entry(), deliveryRetention().Entry())
 	for _, sw := range switches {
 		out = append(out, fidelity.Switch[string]{
 			Name: sw.Name, Value: sw.Value, Label: evidence.Inferred, Ref: sw.Ref, Record: sw.Record,

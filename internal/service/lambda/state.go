@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -29,14 +30,29 @@ type State struct {
 	// function URL ids); each is derived from the scope and its serial, so
 	// none repeats until the scope is reset.
 	Serial uint64 `json:"serial,omitzero"`
+	// RetiredURLs are the ids of the function URLs deleted in the scope,
+	// directly or with their alias or function, which a request then finds
+	// forbidden rather than unknown, as on AWS.
+	RetiredURLs map[string]bool `json:"retiredUrls,omitempty"`
 }
 
 func newState(aws.Scope) State {
 	return State{Functions: map[string]Function{}, Mappings: map[string]Mapping{}}
 }
 
-// IsZero reports a scope with nothing in it, which snapshots skip.
-func (s *State) IsZero() bool { return len(s.Functions) == 0 && len(s.Mappings) == 0 }
+// IsZero reports a scope with nothing in it, which snapshots skip. A scope
+// that minted identifiers is not empty even once its functions are gone:
+// its serial and retired URL ids keep later ids from repeating them.
+func (s *State) IsZero() bool {
+	return len(s.Functions) == 0 && len(s.Mappings) == 0 && s.Serial == 0 && len(s.RetiredURLs) == 0
+}
+
+// Partitioned finds IsZero and BlobRefs by type assertions; these keep a
+// rename from silently dropping the skip or the blobs.
+var (
+	_ store.Zeroer     = (*State)(nil)
+	_ store.BlobHolder = (*State)(nil)
+)
 
 // BlobRefs lists one entry per reference the state holds on a zip package:
 // one per version whose code is a zip.
@@ -50,10 +66,19 @@ func (s *State) BlobRefs() []string {
 	return refs
 }
 
-// mint derives a new identifier of the scope from its serial: a revision
-// id or a function URL id. Identifiers derived this way are deterministic
-// under a seed, never repeat within the scope and draw from no identifier
-// stream.
+// retireURLs records the ids of urls, which are being deleted.
+func (s *State) retireURLs(urls ...URLConfig) {
+	for _, u := range urls {
+		if s.RetiredURLs == nil {
+			s.RetiredURLs = map[string]bool{}
+		}
+		s.RetiredURLs[u.ID] = true
+	}
+}
+
+// mint derives a new identifier of the scope from its serial and purpose:
+// a revision id or a function URL id. Identifiers derived this way never
+// repeat within the scope and draw from no identifier stream.
 func (s *State) mint(scope aws.Scope, purpose string) [sha256.Size]byte {
 	s.Serial++
 	var n [8]byte
@@ -69,9 +94,13 @@ func (s *State) revision(scope aws.Scope) string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", h[0:4], h[4:6], h[6:8], h[8:10], h[10:16])
 }
 
-// urlID mints a function URL id: 32 lowercase letters and digits.
-func (s *State) urlID(scope aws.Scope) string {
-	h := s.mint(scope, "url")
+// urlID mints a function URL id: 32 lowercase letters and digits. Any web
+// page a browser visits can send requests to a function URL, so, as on
+// AWS, the id must not be guessable: it also hashes request, the id of the
+// call creating the URL, which is random unless understudy runs under a
+// seed.
+func (s *State) urlID(scope aws.Scope, request ids.RequestID) string {
+	h := s.mint(scope, "url\x00"+string(request))
 	return strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(h[:20]))
 }
 
@@ -88,7 +117,8 @@ type Function struct {
 	LastVersion int              `json:"lastVersion,omitzero"`
 	Aliases     map[string]Alias `json:"aliases,omitempty"`
 	// Policies are the resource policies by qualifier; "" is the
-	// unqualified function's.
+	// unqualified function's. A policy has no RevisionId of its own: it
+	// shares its target's (revisionOf).
 	Policies map[string]Policy `json:"policies,omitempty"`
 	// Reserved is the reserved concurrency; nil when none is set.
 	Reserved *int32            `json:"reserved,omitempty"`
@@ -102,14 +132,58 @@ type Function struct {
 	// Generation counts code and configuration changes of $LATEST; an
 	// execution environment of an older generation is not reused.
 	Generation uint64 `json:"generation"`
+	// Incarnation is minted when the function is created and never
+	// changes, so the execution environments of a function deleted and
+	// created again under its name, whose generations start over, are not
+	// reused. Unlike a RevisionId, a permission change or a publish leaves
+	// it as it is.
+	Incarnation string `json:"incarnation,omitempty"`
 }
 
-// zipRefs lists the blob reference of every version whose code is a zip.
+// revisionOf is the RevisionId of what qualifier q names: $LATEST's for
+// the unqualified function, else the version's or the alias's. A resource
+// policy reports, and its changes are checked against, the RevisionId of
+// its target (test_lambda_permission_revisions).
+func (f Function) revisionOf(q string) (string, bool) {
+	if a, ok := f.Aliases[q]; ok {
+		return a.RevisionID, true
+	}
+	if q == "" {
+		q = latest
+	}
+	v, ok := f.version(q)
+	return v.RevisionID, ok
+}
+
+// withRevision returns a copy of f, sharing no map or slice with it, in
+// which what qualifier q names, as revisionOf reads it, has RevisionId rev.
+func (f Function) withRevision(q, rev string) Function {
+	f = f.clone()
+	if a, ok := f.Aliases[q]; ok {
+		a.RevisionID = rev
+		f.Aliases[q] = a
+		return f
+	}
+	if q == "" {
+		q = latest
+	}
+	if v, ok := f.version(q); ok {
+		v.RevisionID = rev
+		f = f.withVersion(v)
+	}
+	return f
+}
+
+// zipRefs lists the blob reference of every version whose code is a zip,
+// and of the zip an update in progress replaced.
 func (f Function) zipRefs() []blob.Ref {
 	versions := f.all()
-	codes := make([]Code, len(versions))
+	codes := make([]Code, 0, len(versions))
 	for i := range versions {
-		codes[i] = versions[i].Code
+		codes = append(codes, versions[i].Code)
+		if replaced := versions[i].replacedCode(); replaced != nil {
+			codes = append(codes, replaced)
+		}
 	}
 	return codeRefs(codes...)
 }
@@ -159,6 +233,11 @@ func (f Function) clone() Function {
 
 // latest is the version name of the unpublished, mutable version.
 const latest = "$LATEST"
+
+// latestPublished is the version PublishTo LATEST_PUBLISHED creates on a
+// Lambda Managed Instances function. understudy has no managed instances,
+// so no function has it.
+const latestPublished = "$LATEST.PUBLISHED"
 
 // Version is the configuration and code of $LATEST or of one published
 // version, with its provisioning status.
@@ -246,9 +325,53 @@ type Update interface{ isUpdate() }
 type Successful struct{}
 
 // Updating is an update being applied (InProgress) until Settles, under
-// TransitionsClock.
+// TransitionsClock. Invocations run Serving until then: AWS keeps running
+// a function's previous code and configuration until an update completes.
 type Updating struct {
 	Settles clock.Instant `json:"settles"`
+	Serving Serving       `json:"serving"`
+}
+
+// Serving is what $LATEST was before an update in progress.
+type Serving struct {
+	Config Config `json:"config"`
+	// Code is the code an UpdateFunctionCode replaced, which keeps its
+	// package reference until the update completes; nil when the update
+	// left the code as it was.
+	Code Code `json:"code,omitempty"`
+	// Generation is the function's Generation before the update, so the
+	// warm environments of the previous code keep serving.
+	Generation uint64 `json:"generation"`
+}
+
+// serving is what invocations of v run: v itself, or what it was while an
+// update is in progress. generation is the function's current Generation,
+// which a version that is not $LATEST ignores.
+func (v Version) serving(generation uint64) (runs Version, runsGeneration uint64) {
+	a, ok := v.Status.(Active)
+	if !ok {
+		return v, generation
+	}
+	u, ok := a.Update.(Updating)
+	if !ok {
+		return v, generation
+	}
+	v.Config = u.Serving.Config
+	if u.Serving.Code != nil {
+		v.Code = u.Serving.Code
+	}
+	return v, u.Serving.Generation
+}
+
+// replacedCode is the code an update in progress keeps for the
+// invocations it serves, nil when there is none.
+func (v Version) replacedCode() Code {
+	if a, ok := v.Status.(Active); ok {
+		if u, ok := a.Update.(Updating); ok {
+			return u.Serving.Code
+		}
+	}
+	return nil
 }
 
 // UpdatingImage is a code update to Pending's image, applied once the
@@ -283,7 +406,6 @@ type Alias struct {
 
 // Policy is a resource policy: its statements in insertion order.
 type Policy struct {
-	RevisionID string      `json:"revisionId"`
 	Statements []Statement `json:"statements"`
 }
 

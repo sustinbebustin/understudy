@@ -7,7 +7,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
-	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/s3/notify"
 )
@@ -97,7 +96,11 @@ func (s *Service) deleteObjects(ctx context.Context, c *kernel.Call, in *s3api.D
 }
 
 // deleteEntry deletes one entry of a DeleteObjects; its error goes into
-// the response's Error list instead of failing the request (s3.md 8.2).
+// the response's Error list instead of failing the request (s3.md 8.2). A
+// version id naming no version of the key is NoSuchVersion whatever the
+// bucket's versioning, where DeleteObject answers InvalidArgument (LocalStack
+// aws_validated test_delete_objects, step delete-object-wrong-version-id);
+// only "null" on a bucket never versioned falls through to deleteOne.
 func (s *Service) deleteEntry(b *Bucket, o s3api.ObjectIdentifier, w objectTx) (deleted, []blob.Ref, *awserr.Error) {
 	switch {
 	case o.LastModifiedTime != nil:
@@ -110,7 +113,7 @@ func (s *Service) deleteEntry(b *Bucket, o s3api.ObjectIdentifier, w objectTx) (
 	}
 	d := deletion{key: o.Key, versionID: o.VersionId, ifMatch: o.ETag}
 	if o.VersionId != nil {
-		if _, ok := b.Objects.version(o.Key, *o.VersionId); !ok && b.versioning() != unversioned {
+		if _, ok := b.Objects.version(o.Key, *o.VersionId); !ok && (*o.VersionId != nullVersion || b.versioning() != unversioned) {
 			return deleted{}, nil, errNoSuchVersion(o.Key, *o.VersionId)
 		}
 	}
@@ -128,14 +131,7 @@ func (s *Service) deleteOne(b *Bucket, d deletion, w objectTx) (deleted, []blob.
 		}
 	}
 	if d.versionID != nil {
-		if b.versioning() == unversioned && *d.versionID != nullVersion {
-			return deleted{}, nil, errInvalidVersionID(*d.versionID)
-		}
-		removed, ok := b.Objects.remove(d.key, *d.versionID)
-		if ok {
-			s.commitObject(w, b, event{key: d.key, versionID: removed.ID, change: notify.Removed{Action: notify.RemovedDelete}})
-		}
-		return deleted{versionID: d.versionID, marker: ok && removed.marker()}, blobsOf(&removed), nil
+		return s.deleteVersion(b, d.key, *d.versionID, w)
 	}
 	if b.versioning() == unversioned {
 		removed, ok := b.Objects.remove(d.key, nullVersion)
@@ -144,10 +140,29 @@ func (s *Service) deleteOne(b *Bucket, d deletion, w objectTx) (deleted, []blob.
 		}
 		return deleted{}, blobsOf(&removed), nil
 	}
-	marker := Version{ID: s.newVersionID(b), Modified: clock.FromWire(seconds(w.now.Wire()))}
+	marker := s.newVersion(b, b.nextSeq(), w.now, nil)
 	released := b.Objects.add(d.key, marker)
 	s.commitObject(w, b, event{key: d.key, versionID: marker.ID, change: notify.Removed{Action: notify.RemovedDeleteMarkerCreated}})
 	return deleted{versionID: reportedVersion(b, marker.ID), marker: true}, blobsOf(released), nil
+}
+
+// deleteVersion removes version id of key for good. An id naming none of
+// an existing key's versions is InvalidArgument; on a key with no versions
+// it deletes nothing with 204 (LocalStack aws_validated
+// test_delete_object_versioned, step delete-with-bad-version).
+func (s *Service) deleteVersion(b *Bucket, key, id string, w objectTx) (deleted, []blob.Ref, *awserr.Error) {
+	if b.versioning() == unversioned && id != nullVersion {
+		return deleted{}, nil, errInvalidVersionID(id)
+	}
+	removed, ok := b.Objects.remove(key, id)
+	if !ok {
+		if _, has := b.Objects.current(key); has {
+			return deleted{}, nil, errInvalidVersionID(id)
+		}
+		return deleted{versionID: &id}, nil, nil
+	}
+	s.commitObject(w, b, event{key: key, versionID: removed.ID, change: notify.Removed{Action: notify.RemovedDelete}})
+	return deleted{versionID: &id, marker: removed.marker()}, blobsOf(&removed), nil
 }
 
 // checkDeleteMatch applies a conditional delete's If-Match: the current

@@ -56,11 +56,14 @@ func TestVersionedDeleteMarkers(t *testing.T) {
 		}
 		_, err := as(h, who{}, s3api.OpGetObject, &s3api.GetObjectInput{Bucket: "versioned", Key: "k"})
 		wantCode(t, err, "NoSuchKey", http.StatusNotFound)
-		if header(err, "x-amz-delete-marker") != "true" {
-			t.Fatalf("NoSuchKey behind a delete marker lacks x-amz-delete-marker: %v", err.Headers)
+		if header(err, "x-amz-delete-marker") != "true" || header(err, "x-amz-version-id") != *del.VersionId {
+			t.Fatalf("NoSuchKey behind a delete marker = %v, want x-amz-delete-marker and the marker's x-amz-version-id %s", err.Headers, *del.VersionId)
 		}
 		_, err = as(h, who{}, s3api.OpGetObject, &s3api.GetObjectInput{Bucket: "versioned", Key: "k", VersionId: del.VersionId})
 		wantCode(t, err, "MethodNotAllowed", http.StatusMethodNotAllowed)
+		if header(err, "x-amz-delete-marker") != "true" || header(err, "x-amz-version-id") != *del.VersionId || header(err, "Allow") != "DELETE" {
+			t.Fatalf("405 for a delete marker = %v, want x-amz-delete-marker, x-amz-version-id %s and Allow: DELETE", err.Headers, *del.VersionId)
+		}
 		if got, _ := h.read(&s3api.GetObjectInput{Bucket: "versioned", Key: "k", VersionId: new(first)}); got != "one" {
 			t.Fatalf("GetObject of the first version = %q", got)
 		}
@@ -88,6 +91,29 @@ func TestVersionedDeleteMarkers(t *testing.T) {
 		if len(listed.Versions) != 2 || *listed.Versions[0].VersionId != second || !*listed.Versions[0].IsLatest || *listed.Versions[1].IsLatest {
 			t.Fatalf("ListObjectVersions = %+v, want the two versions newest first", listed.Versions)
 		}
+	})
+}
+
+// TestDeleteUnknownVersion: on a versioned bucket, a well-formed version
+// id that names no version of an existing key is InvalidArgument with no
+// x-amz-version-id, and deletes nothing; on a key with no versions it is
+// a 204 (LocalStack aws_validated test_delete_object_versioned, step
+// delete-with-bad-version; s3.md 8.1).
+func TestDeleteUnknownVersion(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("versioned")
+		h.enableVersioning("versioned")
+		v := *h.put("versioned", "k", "one").VersionId
+		bad := v[:len(v)-4] + "ABCD"
+		_, err := as(h, who{}, s3api.OpDeleteObject, &s3api.DeleteObjectInput{Bucket: "versioned", Key: "k", VersionId: new(bad)})
+		wantCode(t, err, "InvalidArgument", http.StatusBadRequest)
+		if err.Message != "Invalid version id specified" || header(err, "x-amz-version-id") != "" {
+			t.Fatalf("DeleteObject of an unknown version = %q headers %v, want \"Invalid version id specified\" without x-amz-version-id", err.Message, err.Headers)
+		}
+		if got, _ := h.read(&s3api.GetObjectInput{Bucket: "versioned", Key: "k", VersionId: new(v)}); got != "one" {
+			t.Fatalf("GetObject after the refused delete = %q, want the version kept", got)
+		}
+		ok(h, who{}, s3api.OpDeleteObject, &s3api.DeleteObjectInput{Bucket: "versioned", Key: "missing", VersionId: new(bad)})
 	})
 }
 
@@ -122,6 +148,75 @@ func TestSuspendedVersioningReplacesNullVersion(t *testing.T) {
 		if refs := blobs.Refs(); len(refs) != 2 {
 			t.Fatalf("blob store holds %d bodies, want 2: the replaced null version's body released", len(refs))
 		}
+	})
+}
+
+// TestSuspendedVersioningReportsNullOnReads: on a Suspended bucket a put
+// reports no version id, but a read of the null version and a delete
+// marker report "null" (LocalStack aws_validated snapshots
+// test_put_object_on_suspended_bucket, test_delete_object_on_suspended_bucket).
+func TestSuspendedVersioningReportsNullOnReads(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("suspended")
+		h.enableVersioning("suspended")
+		ok(h, who{}, s3api.OpPutBucketVersioning, &s3api.PutBucketVersioningInput{
+			Bucket: "suspended", VersioningConfiguration: s3api.VersioningConfiguration{Status: new(s3api.BucketVersioningStatusSuspended)},
+		})
+		if out := h.put("suspended", "k", "v"); out.VersionId != nil {
+			t.Fatalf("PutObject while suspended reports version %q, want none", *out.VersionId)
+		}
+		if _, got := h.read(&s3api.GetObjectInput{Bucket: "suspended", Key: "k"}); got.VersionId == nil || *got.VersionId != "null" {
+			t.Fatalf("GetObject of the null version reports version %v, want null", got.VersionId)
+		}
+		if head := ok(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "suspended", Key: "k"}); head.VersionId == nil || *head.VersionId != "null" {
+			t.Fatalf("HeadObject of the null version reports version %v, want null", head.VersionId)
+		}
+		del := ok(h, who{}, s3api.OpDeleteObject, &s3api.DeleteObjectInput{Bucket: "suspended", Key: "k"})
+		if del.DeleteMarker == nil || !*del.DeleteMarker || del.VersionId == nil || *del.VersionId != "null" {
+			t.Fatalf("DeleteObject while suspended = marker %v, version %v; want a null delete marker", del.DeleteMarker, del.VersionId)
+		}
+
+		h.createBucket("plain")
+		h.put("plain", "k", "v")
+		if _, got := h.read(&s3api.GetObjectInput{Bucket: "plain", Key: "k"}); got.VersionId != nil {
+			t.Fatalf("GetObject on a bucket never versioned reports version %q, want none", *got.VersionId)
+		}
+	})
+}
+
+// TestVersionListingResumesAfterDeletedMarker is how Terraform's
+// force_destroy empties a bucket: it deletes each ListObjectVersions page
+// before it asks for the next, so the next page's version-id-marker names
+// a version already gone. The listing resumes at the key's next older
+// version, as AWS does (LocalStack aws_validated snapshot
+// test_list_objects_versions_with_prefix_only_and_pagination), and the
+// bucket then empties.
+func TestVersionListingResumesAfterDeletedMarker(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("drain")
+		h.enableVersioning("drain")
+		contents := []string{"one", "two", "three", "four"}
+		ids := make([]string, 0, len(contents))
+		for _, content := range contents {
+			ids = append(ids, *h.put("drain", "k", content).VersionId)
+		}
+		in := s3api.ListObjectVersionsInput{Bucket: "drain", MaxKeys: new(int32(2))}
+		var listed []string
+		for range 4 {
+			page := ok(h, who{}, s3api.OpListObjectVersions, &in)
+			for _, v := range page.Versions {
+				listed = append(listed, *v.VersionId)
+				ok(h, who{}, s3api.OpDeleteObject, &s3api.DeleteObjectInput{Bucket: "drain", Key: "k", VersionId: v.VersionId})
+			}
+			if !*page.IsTruncated {
+				break
+			}
+			in.KeyMarker, in.VersionIdMarker = page.NextKeyMarker, page.NextVersionIdMarker
+		}
+		if want := []string{ids[3], ids[2], ids[1], ids[0]}; !slices.Equal(listed, want) {
+			t.Fatalf("versions listed while draining = %v, want %v", listed, want)
+		}
+		ok(h, who{}, s3api.OpDeleteBucket, &s3api.DeleteBucketInput{Bucket: "drain"})
 	})
 }
 
@@ -187,5 +282,28 @@ func TestDeleteObjects(t *testing.T) {
 		}
 		_, err := as(h, who{}, s3api.OpDeleteObjects, &s3api.DeleteObjectsInput{Bucket: "batch", Delete: s3api.Delete{Objects: []s3api.ObjectIdentifier{}}})
 		wantCode(t, err, "MalformedXML", http.StatusBadRequest)
+	})
+}
+
+// TestDeleteObjectsWrongVersionUnversioned: on a bucket never versioned, a
+// well-formed version id naming no version of a key is a NoSuchVersion
+// entry carrying the key and id, and the object stays (LocalStack
+// aws_validated TestS3ObjectCRUD::test_delete_objects, step
+// delete-object-wrong-version-id).
+func TestDeleteObjectsWrongVersionUnversioned(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("plain")
+		h.put("plain", "test-delete", "body")
+		id := "HPniJFCxqTsMuIH9KX8K8wEjNUgmABCD"
+		out := ok(h, who{}, s3api.OpDeleteObjects, &s3api.DeleteObjectsInput{Bucket: "plain", Delete: s3api.Delete{Objects: []s3api.ObjectIdentifier{
+			{Key: "test-delete", VersionId: new(id)},
+		}}})
+		if len(out.Deleted) != 0 || len(out.Errors) != 1 {
+			t.Fatalf("DeleteObjects = %d deleted, %d errors; want 0 and 1", len(out.Deleted), len(out.Errors))
+		}
+		if e := out.Errors[0]; *e.Code != "NoSuchVersion" || *e.Message != "The specified version does not exist." || *e.Key != "test-delete" || e.VersionId == nil || *e.VersionId != id {
+			t.Fatalf("Error entry = %s %s key %s version %v; want NoSuchVersion for test-delete %s", *e.Code, *e.Message, *e.Key, e.VersionId, id)
+		}
+		ok(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "plain", Key: "test-delete"})
 	})
 }

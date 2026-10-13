@@ -91,9 +91,7 @@ PY
 # make_file PATH BYTES: a file of random bytes.
 make_file() { head -c "$2" /dev/urandom >"$1"; }
 
-# --------------------------------------------------------------------------
 # aws s3: mb, rb, cp, ls, mv, rm, sync, presign
-# --------------------------------------------------------------------------
 
 test_s3_mb_and_rb() {
   local b
@@ -318,9 +316,7 @@ test_s3_presign_url_serves_object() {
   assert_eq 'presigned body' "$body"
 }
 
-# --------------------------------------------------------------------------
 # Buckets
-# --------------------------------------------------------------------------
 
 test_create_bucket_in_us_east_1() {
   local b
@@ -397,9 +393,7 @@ test_delete_bucket_non_empty() {
   aws_error BucketNotEmpty 409 s3api delete-bucket --bucket "$BUCKET"
 }
 
-# --------------------------------------------------------------------------
 # Bucket subresources: fresh state and "not configured" errors (s3.md 4.1)
-# --------------------------------------------------------------------------
 
 test_subresource_policy_not_configured() {
   mkbucket
@@ -628,9 +622,7 @@ test_delete_bucket_removes_its_configuration() {
   aws_error NoSuchTagSet 404 s3api get-bucket-tagging --bucket "$b"
 }
 
-# --------------------------------------------------------------------------
 # Objects: put, get, head, ranges, metadata, delete, copy
-# --------------------------------------------------------------------------
 
 test_put_get_head_object() {
   mkbucket
@@ -882,9 +874,7 @@ test_copy_object_special_character_source_key() {
   assert_eq special "$(cat "$UE_TMP/sp.out")"
 }
 
-# --------------------------------------------------------------------------
 # Listings
-# --------------------------------------------------------------------------
 
 seed_listing() {
   local k
@@ -994,9 +984,7 @@ test_list_objects_invalid_encoding_type() {
   aws_error InvalidArgument 400 s3api list-objects-v2 --bucket "$BUCKET" --no-paginate --encoding-type bogus
 }
 
-# --------------------------------------------------------------------------
 # Versioning
-# --------------------------------------------------------------------------
 
 test_versioned_bucket_keeps_versions() {
   mkbucket
@@ -1062,9 +1050,7 @@ test_versioned_bucket_delete_requires_empty_versions() {
   aws_error_message_contains 'You must delete all versions in the bucket.'
 }
 
-# --------------------------------------------------------------------------
 # Multipart uploads
-# --------------------------------------------------------------------------
 
 # start_mpu KEY [create-multipart-upload args...]: sets UPLOAD_ID.
 start_mpu() {
@@ -1219,9 +1205,7 @@ test_multipart_metadata_comes_from_create() {
   assert_jq_true '.TagSet == [{"Key":"k","Value":"v"}]'
 }
 
-# --------------------------------------------------------------------------
 # Object tagging
-# --------------------------------------------------------------------------
 
 test_object_tagging_crud() {
   mkbucket
@@ -1272,9 +1256,7 @@ test_object_tagging_missing_key() {
   aws_error NoSuchKey 404 s3api get-object-tagging --bucket "$BUCKET" --key absent
 }
 
-# --------------------------------------------------------------------------
 # Checksums and content digests
-# --------------------------------------------------------------------------
 
 # check_put_with_checksum ALGORITHM JQ-FIELD: put with the algorithm, expect the
 # server to return and store the digest the client computes independently.
@@ -1348,9 +1330,7 @@ test_multipart_with_part_checksums() {
   assert_jq_match '.ChecksumSHA256' '^.+-1$'
 }
 
-# --------------------------------------------------------------------------
 # SSE-KMS (cross-service with KMS)
-# --------------------------------------------------------------------------
 
 mkkey() {
   aws_ok kms create-key --description "s3 conformance $(new_name key)"
@@ -1432,9 +1412,7 @@ test_get_sse_kms_object_after_key_disabled() {
   aws_error KMS.DisabledException 400 s3api get-object --bucket "$BUCKET" --key enc.txt "$UE_TMP/enc.out"
 }
 
-# --------------------------------------------------------------------------
 # Addressing styles
-# --------------------------------------------------------------------------
 
 test_virtual_hosted_style_addressing() {
   mkbucket
@@ -1462,9 +1440,7 @@ test_virtual_hosted_style_listing_and_put() {
   assert_jq '.ContentLength' '27'
 }
 
-# --------------------------------------------------------------------------
 # Event notifications to SQS (should-have)
-# --------------------------------------------------------------------------
 
 # notify_setup EVENTS-JSON [FILTER-JSON]: a queue the bucket may publish to, wired
 # to BUCKET. Sets QUEUE_URL and drains the s3:TestEvent.

@@ -43,3 +43,9 @@ The closed normalizer set of `snapshot diff --normalize` (`internal/snapshot` pa
 - Wall-domain fields: STS expiry is masked under `Expiration` (the wire name) and `expiry` (the name identity's export persists).
 - Member-name rules do not apply inside user-keyed maps of strings persisted as `Tags`, `Variables` or `Metadata` (any case); their values are still normalized as text. An object under one of those names that holds anything other than strings is a record keyed by a user-chosen name and keeps every rule.
 - Normalizing never reorders arrays. State sorted by a masked value sorts by what the mask keeps: identity's export orders keys with `ids.CompareAccessKeys`, which ignores the account bits.
+
+## Amendments (hardening round 3)
+
+- Internal delivery calls follow clock firing order: the outbox runs delivery attempts one at a time, in the order their timers fire, so the request-phase fault rules and seeded ids of their target calls (SQS `SendMessage`, SNS `Publish`, Lambda `Invoke` with `Event`) follow that order however goroutines are scheduled (`internal/outbox` package doc).
+- Two kinds of attempt run outside that order, on their own goroutine: an attempt a Delivery-phase latency rule delays, whose order against the others already depends on wall time, and a `RequestResponse` Lambda invoke, which waits for the function. Their target calls draw ids and fault hits in wall-time order.
+- A request-phase latency rule matching an attempt's target call still holds the whole sequencer for its wall time, because `kernel.Invoke` evaluates it and waits before returning. Closing that needs the kernel to report the request-phase decision before it waits (`docs/plan/DEFERRED.md`, hardening round 3).

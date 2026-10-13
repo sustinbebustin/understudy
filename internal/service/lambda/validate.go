@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 )
@@ -153,6 +154,9 @@ func checkCreateFunction(in *lambdaapi.CreateFunctionInput) *awserr.Error {
 	if err := checkLayers(in.Layers); err != nil {
 		return err
 	}
+	if err := checkPublishTo("CreateFunction", in.PublishTo); err != nil {
+		return err
+	}
 	if err := checkEnvironment(in.Environment); err != nil {
 		return err
 	}
@@ -223,11 +227,13 @@ func checkEnvironment(env *lambdaapi.Environment) *awserr.Error {
 }
 
 // bareName is the function name inside a FunctionName member, without
-// ARN prefix or qualifier.
+// ARN, partial-ARN prefixes or qualifier; "" for an ARN that names no
+// function, which the handler answers.
 func bareName(s string) string {
-	if i := strings.LastIndex(s, "function:"); i >= 0 {
-		s = s[i+len("function:"):]
+	_, rest, err := splitFunctionName(aws.Scope{}, s)
+	if err != nil {
+		return ""
 	}
-	name, _, _ := strings.Cut(s, ":")
+	name, _, _ := strings.Cut(rest, ":")
 	return name
 }

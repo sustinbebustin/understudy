@@ -11,10 +11,10 @@
 //
 // Decisions the architecture leaves open:
 //
-//   - MintLongTerm and MintTemporary(expiry) replace the plan's
-//     Mint(Options{Session bool, Expiry}), and the session token lives in the
-//     Temporary lifetime, so long-term credentials with an expiry or a token,
-//     and temporary ones without, cannot be expressed. Assumed roles take
+//   - Long-term and temporary keys are minted by separate functions,
+//     MintLongTerm and MintTemporary(expiry), and the session token lives in
+//     the Temporary lifetime, so long-term credentials with an expiry or a
+//     token, and temporary ones without, cannot be expressed. Assumed roles take
 //     only temporary credentials.
 //   - Credentials, Minted and Temporary redact the secret and the token in
 //     LogValue, MarshalJSON (for slog's JSONHandler, which json-encodes a

@@ -137,8 +137,10 @@ func TestPartialReadsOverHTTP(t *testing.T) {
 		}{
 			{http.MethodGet, "/partial/k", "bytes=2-4", http.StatusPartialContent, "bytes 2-4/10", "234"},
 			// An object written in one request is its own part 1, served
-			// whole (s3.md 5.8).
-			{http.MethodGet, "/partial/k?partNumber=1", "", http.StatusOK, "", "0123456789"},
+			// whole as 206 with its Content-Range (LocalStack aws_validated
+			// snapshot test_get_object_part, step get-obj-no-multipart).
+			{http.MethodGet, "/partial/k?partNumber=1", "", http.StatusPartialContent, "bytes 0-9/10", "0123456789"},
+			{http.MethodHead, "/partial/k?partNumber=1", "", http.StatusPartialContent, "bytes 0-9/10", ""},
 			{http.MethodHead, "/partial/k", "bytes=-3", http.StatusPartialContent, "bytes 7-9/10", ""},
 			{http.MethodGet, "/partial/k", "items=0-1", http.StatusOK, "", "0123456789"},
 			{http.MethodGet, "/partial/k", "", http.StatusOK, "", "0123456789"},
@@ -152,6 +154,33 @@ func TestPartialReadsOverHTTP(t *testing.T) {
 				t.Errorf("%s %s Range %q = %d, Content-Range %q, body %q; want %d, %q, %q",
 					tc.method, tc.target, tc.rangeSpec, rec.Code, rec.Header().Get("Content-Range"), rec.Body, tc.status, tc.contentRange, tc.body)
 			}
+		}
+	}, kerneltest.Services(s3api.Service()))
+}
+
+// TestObjectBodiesAreInert: an object body shares an origin with the
+// admin prefix, so a stored HTML object opened in a browser is neither
+// sniffed nor run as an active document there.
+func TestObjectBodiesAreInert(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		t := k.T
+		e := newObjectEdge(k)
+		if rec := e.send(http.MethodPut, "/inert", strings.NewReader(""), 0, nil); rec.Code != http.StatusOK {
+			t.Fatalf("CreateBucket = %d %s", rec.Code, rec.Body)
+		}
+		page := "<script>fetch('/_understudy/reset')</script>"
+		if rec := e.send(http.MethodPut, "/inert/page.html", strings.NewReader(page), int64(len(page)), http.Header{"Content-Type": {"text/html"}}); rec.Code != http.StatusOK {
+			t.Fatalf("PutObject = %d %s", rec.Code, rec.Body)
+		}
+		rec := e.send(http.MethodGet, "/inert/page.html", strings.NewReader(""), 0, nil)
+		if rec.Code != http.StatusOK || rec.Body.String() != page {
+			t.Fatalf("GetObject = %d %q, want 200 and the page", rec.Code, rec.Body)
+		}
+		if got := rec.Header().Get("Content-Security-Policy"); got != "sandbox" {
+			t.Errorf("Content-Security-Policy = %q, want sandbox", got)
+		}
+		if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+			t.Errorf("X-Content-Type-Options = %q, want nosniff", got)
 		}
 	}, kerneltest.Services(s3api.Service()))
 }

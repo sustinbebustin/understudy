@@ -24,10 +24,9 @@
 //     always names the invocation it runs. Busy carries no deadline: the
 //     runtime API computes it at dispatch, after a cold start.
 //   - Fault causes are named InitFailed, Crashed, OutOfMemory, TimedOut and
-//     WrongArchitecture (the architecture's InitError, ExitError, OOM,
-//     Timeout and ArchMismatch; an *Error name is reserved for error
-//     types). Drain reasons add Abandoned, for an environment whose
-//     leaseholder gave up mid-invocation.
+//     WrongArchitecture: values, not error types, so none takes the *Error
+//     suffix error types carry. Drain reasons add Abandoned, for an
+//     environment whose leaseholder gave up mid-invocation.
 //   - Acquire takes the Spec and derives the Key itself (NewKey), so a key
 //     can never disagree with the spec it starts. The key hashes every
 //     Spec field, credentials included, so the Lambda service must keep a
@@ -35,7 +34,10 @@
 //     context for the container removal it may do and returns removal
 //     errors. Acquire never returns a lease together with an error:
 //     failing to remove environments drained on the way (an older
-//     generation, an evicted idle one) is logged.
+//     generation, an evicted idle one) is logged. A removal ignores the
+//     context's cancellation, so an abandoned lease still frees its
+//     container, but keeps its deadline and gives up after RemoveTimeout
+//     at most, so a wedged Docker daemon cannot hold shutdown forever.
 //   - IdleTimeout is at least one second (MinIdleTimeout); reaping runs
 //     every quarter of it, at most every 30 seconds.
 //   - A Starting environment waits only for its container to start; the

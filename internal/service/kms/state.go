@@ -28,6 +28,10 @@ func newState(aws.Scope) State {
 // IsZero reports a scope without keys or aliases, which snapshots skip.
 func (s *State) IsZero() bool { return len(s.Keys) == 0 && len(s.Aliases) == 0 }
 
+// Partitioned finds IsZero by a type assertion; this keeps a rename from
+// silently dropping the skip.
+var _ store.Zeroer = (*State)(nil)
+
 // Key is one symmetric encryption key with AWS_KMS origin, the only kind
 // understudy creates.
 type Key struct {

@@ -47,9 +47,6 @@ def receive_until(sqs: Any, url: str, count: int, *, timeout: float = 15.0, **kw
     return eventually(step, lambda s: len(s) >= count, timeout=timeout, interval=0.0, what=f"{count} messages on {url}")
 
 
-# --- Queues -----------------------------------------------------------------------------------
-
-
 def test_queue_url_is_account_slash_name(sqs: Any, make_queue: Callable[..., str]) -> None:
     url = make_queue("conf-url")
     assert re.fullmatch(r"https?://[^/]+/\d{12}/conf-url-[0-9a-f]{10}", url), url
@@ -179,9 +176,6 @@ def test_fifo_queue_name_must_end_in_fifo(sqs: Any) -> None:
     with pytest.raises(ClientError) as exc:
         sqs.create_queue(QueueName=uniq("conf-bad"), Attributes={"FifoQueue": "true"})
     assert error_code(exc.value) == "InvalidParameterValue"
-
-
-# --- Send, receive, delete ----------------------------------------------------------------------
 
 
 def test_send_receive_delete_round_trip(sqs: Any, make_queue: Callable[..., str]) -> None:
@@ -355,9 +349,6 @@ def test_deleting_twice_succeeds(sqs: Any, make_queue: Callable[..., str]) -> No
     sqs.delete_message(QueueUrl=url, ReceiptHandle=msg["ReceiptHandle"])
 
 
-# --- Batches ----------------------------------------------------------------------------------
-
-
 def test_send_message_batch_delivers_every_entry(sqs: Any, make_queue: Callable[..., str]) -> None:
     url = make_queue("conf-batch")
     entries = [{"Id": f"e{i}", "MessageBody": f"body-{i}"} for i in range(10)]
@@ -475,9 +466,6 @@ def test_change_message_visibility_batch(sqs: Any, make_queue: Callable[..., str
     assert [m["MessageId"] for m in visible] == [msgs[0]["MessageId"]], "the extended message became visible too early"
 
 
-# --- Visibility, delay, retention on the emulator clock -----------------------------------------
-
-
 def test_visibility_timeout_expires_on_the_emulator_clock(sqs: Any, make_queue: Callable[..., str], clock: Admin) -> None:
     url = make_queue("conf-vis")
     sqs.send_message(QueueUrl=url, MessageBody="b")
@@ -591,9 +579,6 @@ def test_purge_queue_removes_messages_and_limits_repeat_purges(
     assert receive(sqs, url) == []
 
 
-# --- Long polling -----------------------------------------------------------------------------
-
-
 def test_long_poll_returns_as_soon_as_a_message_arrives(sqs: Any, make_queue: Callable[..., str]) -> None:
     url = make_queue("conf-longpoll")
     threading.Timer(0.7, lambda: sqs.send_message(QueueUrl=url, MessageBody="arrived")).start()
@@ -629,9 +614,6 @@ def test_delayed_message_wakes_a_long_poll(sqs: Any, make_queue: Callable[..., s
     threading.Timer(0.5, lambda: clock.advance(31)).start()
     msgs = receive(sqs, url, WaitTimeSeconds=10)
     assert [m["Body"] for m in msgs] == ["b"]
-
-
-# --- Dead-letter queues and redrive ------------------------------------------------------------
 
 
 def redrive_policy(dlq_arn: str, max_receive_count: int) -> str:
@@ -721,9 +703,6 @@ def test_move_task_source_must_be_a_dlq(sqs: Any, make_queue: Callable[..., str]
         sqs.start_message_move_task(SourceArn=queue_arn(plain))
     assert error_code(exc.value) == "InvalidParameterValue"
     assert exc.value.response["Error"]["Message"] == "Source queue must be configured as a Dead Letter Queue."
-
-
-# --- FIFO ---------------------------------------------------------------------------------------
 
 
 def test_fifo_queue_attributes(sqs: Any, make_queue: Callable[..., str]) -> None:
@@ -869,9 +848,6 @@ def test_fifo_dedup_hash_is_sha256_of_the_body(sqs: Any, make_queue: Callable[..
     sqs.send_message(QueueUrl=url, MessageBody="Test", MessageGroupId="g")
     [msg] = receive(sqs, url)
     assert msg["Attributes"]["MessageDeduplicationId"] == hashlib.sha256(b"Test").hexdigest()
-
-
-# --- Message group ids on standard queues ----------------------------------------------------------
 
 
 def test_standard_queue_accepts_and_returns_a_message_group_id(sqs: Any, make_queue: Callable[..., str]) -> None:

@@ -23,19 +23,30 @@ const describeLocal = `{"Table":{"AttributeDefinitions":[{"AttributeName":"LockI
 // appended after Local's members (dynamodb-local.md 7.2 item 1).
 const defaultWarm = `,"WarmThroughput":{"ReadUnitsPerSecond":12000,"WriteUnitsPerSecond":4000,"Status":"ACTIVE"}}}`
 
+// defaultIndexWarm is the WarmThroughput every global secondary index
+// description carries, appended after Local's members of an index Local
+// describes without an IndexStatus.
+const defaultIndexWarm = `,"WarmThroughput":{"ReadUnitsPerSecond":12000,"WriteUnitsPerSecond":4000,"Status":"ACTIVE"}`
+
 // withWarm is a DescribeTable answer of Local's with defaultWarm added.
 func withWarm(local string) string { return strings.TrimSuffix(local, "}}") + defaultWarm }
 
+// withIndexWarm is local with defaultIndexWarm added to the index whose
+// IndexArn ends in /index/<index>.
+func withIndexWarm(local, index string) string {
+	return strings.Replace(local, `/index/`+index+`"}`, `/index/`+index+`"`+defaultIndexWarm+`}`, 1)
+}
+
 // TestTableARNsMoveIntoTheCallersScope: Local's table, index and stream
 // ARNs name the caller's account and region, everything else stays as
-// Local wrote it but for the WarmThroughput the shim adds, and x-amz-crc32
-// and Content-Length match the new body (dynamodb-local.md 7.2 item 6,
-// 9.1).
+// Local wrote it but for the WarmThroughput the shim adds to the table and
+// each index, and x-amz-crc32 and Content-Length match the new body
+// (dynamodb-local.md 7.2 item 6, 9.1).
 func TestTableARNsMoveIntoTheCallersScope(t *testing.T) {
 	run(t, func(h *harness) {
 		h.local.answer = func(string, string) reply { return reply{Status: http.StatusOK, Body: describeLocal} }
 		got := h.post(target("DescribeTable"), `{"TableName":"Locks"}`, &caller{Account: "222222222222", Region: "eu-west-1"})
-		want := withWarm(strings.ReplaceAll(describeLocal, "arn:aws:dynamodb:ddblocal:000000000000:", "arn:aws:dynamodb:eu-west-1:222222222222:"))
+		want := withWarm(withIndexWarm(strings.ReplaceAll(describeLocal, "arn:aws:dynamodb:ddblocal:000000000000:", "arn:aws:dynamodb:eu-west-1:222222222222:"), "ByHolder"))
 		if got.Status != http.StatusOK || got.Body != want {
 			h.Fatalf("DescribeTable = %d\n%s\nwant\n%s", got.Status, got.Body, want)
 		}
@@ -71,6 +82,67 @@ func TestItemAnswersPassThroughUntouched(t *testing.T) {
 	})
 }
 
+// TestItemAnswersEchoTheTableARNsTheRequestNamed: Local names each table by
+// its bare name in Responses, UnprocessedKeys, UnprocessedItems,
+// ItemCollectionMetrics and ConsumedCapacity's TableName; AWS echoes the
+// identifier the caller used (API_ConsumedCapacity, API_BatchGetItem), so a
+// table the request named by ARN is keyed by that ARN, one named by name
+// keeps its name, and item data is never touched.
+func TestItemAnswersEchoTheTableARNsTheRequestNamed(t *testing.T) {
+	const arn = "arn:aws:dynamodb:us-east-1:111111111111:table/Zed"
+	tests := []struct {
+		name, op, request, local, want string
+	}{
+		{
+			"GetItem's ConsumedCapacity", "GetItem",
+			`{"TableName":"` + arn + `","Key":{"id":{"S":"a"}},"ReturnConsumedCapacity":"TOTAL"}`,
+			`{"Item":{"TableName":{"S":"Zed"}},"ConsumedCapacity":{"TableName":"Zed","CapacityUnits":0.5}}`,
+			`{"Item":{"TableName":{"S":"Zed"}},"ConsumedCapacity":{"TableName":"` + arn + `","CapacityUnits":0.5}}`,
+		},
+		{
+			"BatchGetItem's maps and capacities", "BatchGetItem",
+			`{"RequestItems":{"` + arn + `":{"Keys":[{"id":{"S":"a"}}]},"Other":{"Keys":[{"id":{"S":"b"}}]}},"ReturnConsumedCapacity":"TOTAL"}`,
+			`{"Responses":{"Zed":[{"id":{"S":"a"}}],"Other":[{"id":{"S":"b"}}]},"UnprocessedKeys":{"Zed":{"Keys":[{"id":{"S":"c"}}]}},` +
+				`"ConsumedCapacity":[{"TableName":"Zed","CapacityUnits":0.5},{"TableName":"Other","CapacityUnits":0.5}]}`,
+			`{"Responses":{"` + arn + `":[{"id":{"S":"a"}}],"Other":[{"id":{"S":"b"}}]},"UnprocessedKeys":{"` + arn + `":{"Keys":[{"id":{"S":"c"}}]}},` +
+				`"ConsumedCapacity":[{"TableName":"` + arn + `","CapacityUnits":0.5},{"TableName":"Other","CapacityUnits":0.5}]}`,
+		},
+		{
+			"BatchWriteItem's maps", "BatchWriteItem",
+			`{"RequestItems":{"` + arn + `":[{"PutRequest":{"Item":{"id":{"S":"a"}}}}]},"ReturnItemCollectionMetrics":"SIZE"}`,
+			`{"UnprocessedItems":{"Zed":[{"PutRequest":{"Item":{"id":{"S":"a"}}}}]},"ItemCollectionMetrics":{"Zed":[]}}`,
+			`{"UnprocessedItems":{"` + arn + `":[{"PutRequest":{"Item":{"id":{"S":"a"}}}}]},"ItemCollectionMetrics":{"` + arn + `":[]}}`,
+		},
+		{
+			"TransactWriteItems' maps and capacities", "TransactWriteItems",
+			`{"TransactItems":[{"Put":{"TableName":"` + arn + `","Item":{"id":{"S":"a"}}}},{"Delete":{"TableName":"` + arn + `","Key":{"id":{"S":"b"}}}}],` +
+				`"ReturnConsumedCapacity":"TOTAL","ReturnItemCollectionMetrics":"SIZE"}`,
+			`{"ConsumedCapacity":[{"TableName":"Zed","CapacityUnits":4.0}],"ItemCollectionMetrics":{"Zed":[]}}`,
+			`{"ConsumedCapacity":[{"TableName":"` + arn + `","CapacityUnits":4.0}],"ItemCollectionMetrics":{"` + arn + `":[]}}`,
+		},
+		{
+			"a table named by name keeps it", "BatchGetItem",
+			`{"RequestItems":{"Zed":{"Keys":[{"id":{"S":"a"}}]}},"ReturnConsumedCapacity":"TOTAL"}`,
+			`{"Responses":{"Zed":[]},"ConsumedCapacity":[{"TableName":"Zed","CapacityUnits":0.5}]}`,
+			`{"Responses":{"Zed":[]},"ConsumedCapacity":[{"TableName":"Zed","CapacityUnits":0.5}]}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			run(t, func(h *harness) {
+				h.local.answer = func(string, string) reply { return reply{Status: http.StatusOK, Body: tt.local} }
+				got := h.call(tt.op, tt.request)
+				if got.Status != http.StatusOK || got.Body != tt.want {
+					h.Fatalf("%s = %d\n%s\nwant\n%s", tt.op, got.Status, got.Body, tt.want)
+				}
+				if got.Header.Get("X-Amz-Crc32") != crc(tt.want) {
+					h.Errorf("x-amz-crc32 = %s, want %s, the checksum of the body", got.Header.Get("X-Amz-Crc32"), crc(tt.want))
+				}
+			})
+		})
+	}
+}
+
 // TestLocalErrorsTakeAWSWordsAndSpelling: Local writes Message on every
 // error; AWS writes the shape's own member (message on all but four
 // DynamoDB shapes; error-matrix.md 5.5), and its ResourceNotFoundException
@@ -93,6 +165,12 @@ func TestLocalErrorsTakeAWSWordsAndSpelling(t *testing.T) {
 		{
 			"GetItem names none", "GetItem", `{"TableName":"Locks","Key":{"LockID":{"S":"a"}}}`, notFound,
 			`{"__type":"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException","message":"Requested resource not found"}`,
+		},
+		{
+			"CreateTable of an existing table names it", "CreateTable",
+			`{"AttributeDefinitions":[{"AttributeName":"LockID","AttributeType":"S"}],"TableName":"Locks","KeySchema":[{"AttributeName":"LockID","KeyType":"HASH"}]}`,
+			`{"__type":"com.amazonaws.dynamodb.v20120810#ResourceInUseException","Message":"Cannot create preexisting table"}`,
+			`{"__type":"com.amazonaws.dynamodb.v20120810#ResourceInUseException","message":"Table already exists: Locks"}`,
 		},
 		{
 			"conditional check keeps its text and item", "PutItem", `{"TableName":"Locks","Item":{"LockID":{"S":"a"}}}`,
@@ -135,8 +213,9 @@ func TestLocalErrorsTakeAWSWordsAndSpelling(t *testing.T) {
 // TestRewrittenTableDescriptionsKeepEverythingButLocalsARNs: for any
 // table description Local could write of a table the shim does not
 // record, the client reads the same JSON value with every ARN Local minted
-// moved into its scope and AWS's default WarmThroughput added, nothing
-// else changed, and a checksum that matches the body it reads.
+// moved into its scope and AWS's default WarmThroughput added to the table
+// and its index, nothing else changed, and a checksum that matches the
+// body it reads.
 func TestRewrittenTableDescriptionsKeepEverythingButLocalsARNs(t *testing.T) {
 	run(t, func(h *harness) {
 		rapid.Check(bubbleTB{h.T}, func(rt *rapid.T) {
@@ -154,10 +233,10 @@ func TestRewrittenTableDescriptionsKeepEverythingButLocalsARNs(t *testing.T) {
 			local := `{"Table":{` + strings.Join(members, ",") + `}}`
 			h.local.answer = func(string, string) reply { return reply{Status: http.StatusOK, Body: local} }
 			got := h.post(target("DescribeTable"), `{"TableName":"`+table+`"}`, &caller{Account: "333333333333", Region: "ap-southeast-2"})
-			want := withWarm(strings.NewReplacer(
+			want := withWarm(withIndexWarm(strings.NewReplacer(
 				`"TableArn":"arn:aws:dynamodb:ddblocal:000000000000:`, `"TableArn":"arn:aws:dynamodb:ap-southeast-2:333333333333:`,
 				`"IndexArn":"arn:aws:dynamodb:ddblocal:000000000000:`, `"IndexArn":"arn:aws:dynamodb:ap-southeast-2:333333333333:`,
-			).Replace(local))
+			).Replace(local), index))
 			if got.Body != want {
 				rt.Fatalf("DescribeTable =\n%s\nwant\n%s", got.Body, want)
 			}

@@ -23,9 +23,6 @@ def alias_name() -> str:
     return f"alias/{uniq('conf-kms')}"
 
 
-# --- Keys --------------------------------------------------------------------------------------------------
-
-
 def test_create_key_metadata(kms: Any, make_key: KeyFactory) -> None:
     key = make_key("conformance key")
     assert re.fullmatch(KEY_ID, key["KeyId"])
@@ -127,9 +124,6 @@ def test_aws_managed_keys_exist_for_the_services_that_use_kms(kms: Any) -> None:
         assert re.fullmatch(KEY_ID, meta["KeyId"])
 
 
-# --- Aliases -------------------------------------------------------------------------------------------------------
-
-
 def test_alias_lifecycle(kms: Any, make_key: KeyFactory) -> None:
     first, second = make_key("first"), make_key("second")
     alias = alias_name()
@@ -167,9 +161,6 @@ def test_duplicate_alias(kms: Any, make_key: KeyFactory) -> None:
     assert exc.value.response["Error"]["Message"] == (
         f"An alias with the name {key['Arn'].replace('key/' + key['KeyId'], alias)} already exists"
     )
-
-
-# --- Cryptography -----------------------------------------------------------------------------------------------
 
 
 def test_encrypt_decrypt_round_trip(kms: Any, make_key: KeyFactory) -> None:
@@ -284,9 +275,6 @@ def test_re_encrypt_moves_ciphertext_to_another_key(kms: Any, make_key: KeyFacto
     assert out["KeyId"] == destination["Arn"]
     dec = kms.decrypt(CiphertextBlob=out["CiphertextBlob"], EncryptionContext={"c": "2"})
     assert dec["Plaintext"] == b"move me" and dec["KeyId"] == destination["Arn"]
-
-
-# --- Key states, rotation, deletion --------------------------------------------------------------------------
 
 
 def test_disabled_key_cannot_be_used(kms: Any, make_key: KeyFactory) -> None:

@@ -94,6 +94,14 @@ func newBucketCell(string) BucketCell { return BucketCell{} }
 // IsZero reports a cell that holds no bucket, which snapshots skip.
 func (c *BucketCell) IsZero() bool { return c.Bucket == nil }
 
+// Partitioned finds IsZero and BlobRefs by type assertions; these keep a
+// rename from silently dropping the skip or the blobs.
+var (
+	_ store.Zeroer     = (*Index)(nil)
+	_ store.Zeroer     = (*BucketCell)(nil)
+	_ store.BlobHolder = (*BucketCell)(nil)
+)
+
 // Bucket is one bucket and its subresources. Records are values replaced on
 // change: a write builds a new Bucket and never mutates a document a reader
 // may hold, so the configuration pointers, slices and maps below are shared
@@ -137,6 +145,9 @@ type Bucket struct {
 	// carried, zero before the first. One per bucket is strictly
 	// increasing per key, which is all S3 promises (s3.md 13.2).
 	Sequencer notify.Sequencer `json:"sequencer,omitempty"`
+	// VersionSeq is the last Seq a version or an upload of the bucket took,
+	// zero before the first (nextSeq).
+	VersionSeq uint64 `json:"versionSeq,omitempty"`
 	// The configuration families are keyed by their Id.
 	Metrics            map[string]s3api.MetricsConfiguration            `json:"metrics,omitempty"`
 	Analytics          map[string]s3api.AnalyticsConfiguration          `json:"analytics,omitempty"`

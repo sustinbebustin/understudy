@@ -18,8 +18,9 @@ import (
 )
 
 // Every code maps to one HTTP status and one CLI exit code, through the
-// single table: 2 for a request the caller must change, 4 for a condition
-// that did not hold, 1 for the rest (ARCHITECTURE.md 17).
+// single table: 2 for a request the caller must change, 5 for a refused
+// token, 4 for a condition that did not hold, 1 for the rest
+// (ARCHITECTURE.md 17).
 func TestErrorCodeTable(t *testing.T) {
 	cases := []struct {
 		code   admin.ErrorCode
@@ -27,7 +28,7 @@ func TestErrorCodeTable(t *testing.T) {
 		exit   int
 	}{
 		{admin.InvalidRequest, http.StatusBadRequest, admin.ExitUsage},
-		{admin.Unauthorized, http.StatusUnauthorized, admin.ExitUsage},
+		{admin.Unauthorized, http.StatusUnauthorized, admin.ExitUnauthorized},
 		{admin.NotFound, http.StatusNotFound, admin.ExitFailed},
 		{admin.Conflict, http.StatusConflict, admin.ExitFailed},
 		{admin.ConditionNotMet, http.StatusPreconditionFailed, admin.ExitConditionNotMet},
@@ -118,7 +119,37 @@ func TestParseClockOpRefusesMismatchedMembers(t *testing.T) {
 	}
 }
 
-// FaultRuleGen draws fault rules covering every action and trigger.
+// A clock op that is valid JSON but carries a bad value is refused naming
+// the member and the value, not as a JSON syntax error; only a body that is
+// not JSON at all is reported as such.
+func TestParseClockOpNamesTheBadMember(t *testing.T) {
+	for _, tc := range []struct {
+		body, field, message string
+	}{
+		{`{"op":"advance","by":"5"}`, "by", `"5" is not a duration such as "90s" or "1h30m"`},
+		{`{"op":"advance","by":5}`, "by", `5 is not a duration such as "90s" or "1h30m"`},
+		{`{"op":"set","to":"yesterday"}`, "to", `"yesterday" is not an RFC 3339 time such as "2026-12-31T23:59:00Z"`},
+		{`{"op":"scale","factor":"60"}`, "factor", `"60" is not a number such as 60`},
+		{`{"op":7}`, "op", `7 is not a clock op`},
+		{`{"op":"scale","factor":2,"extra":1}`, "extra", `"extra" is not a clock op member; the members are op, by, to and factor`},
+		{`["advance"]`, "", `the clock op is a JSON array, not an object`},
+		{`{"op":"advance","by":"90s"`, "", `the clock op is not valid JSON: unexpected EOF`},
+		{`{"op":"freeze"} {}`, "", `the clock op is not valid JSON: unexpected data after the JSON value`},
+	} {
+		op, err := admin.ParseClockOp([]byte(tc.body))
+		e, ok := errors.AsType[*admin.Error](err)
+		if op != nil || !ok {
+			t.Errorf("ParseClockOp(%s) = %#v, %v; want no op and an *admin.Error", tc.body, op, err)
+			continue
+		}
+		if e.Code != admin.InvalidRequest || e.Field != tc.field || e.Message != tc.message {
+			t.Errorf("ParseClockOp(%s) = code %q field %q message %q; want code %q field %q message %q",
+				tc.body, e.Code, e.Field, e.Message, admin.InvalidRequest, tc.field, tc.message)
+		}
+	}
+}
+
+// faultRule draws fault rules covering every action and trigger.
 func faultRule() *rapid.Generator[admin.FaultRule] {
 	shape := rapid.SampledFrom([]string{"com.amazonaws.sqs#QueueDoesNotExist", "QueueDoesNotExist"})
 	action := rapid.OneOf(

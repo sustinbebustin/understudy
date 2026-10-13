@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // linkPrefix is where SNS's AWS-visible links live: the reserved prefix,
@@ -100,15 +101,20 @@ func (s *Service) unsubscribeLink(_ context.Context, c *kernel.Call, r *http.Req
 
 // confirmLink serves the SubscribeURL of a confirmation message:
 // ConfirmSubscription without credentials, from the TopicArn and Token
-// query members, so ConfirmationWasAuthenticated reads false.
+// query members, so ConfirmationWasAuthenticated reads false. As with the
+// call, only the ARN's scope matters, not its topic name; a token held in
+// another scope, such as the same topic in another Region, is "Invalid
+// parameter: Topic" (LocalStack test_subscribe_external_http_endpoint,
+// AWS-recorded).
 func (s *Service) confirmLink(_ context.Context, c *kernel.Call, r *http.Request, w http.ResponseWriter) *awserr.Error {
 	q := r.URL.Query()
 	ref, ok := s.topicOf(q.Get("TopicArn"))
-	if !ok {
+	token := q.Get("Token")
+	if home, held := s.tokenScope(token); !ok || (held && home != ref.scope) {
 		return errInvalidParameter("Topic")
 	}
 	c.Touch(ref.arn())
-	arn, err := s.confirm(c, ref, ByLink{Token: q.Get("Token")})
+	arn, err := s.confirm(c, ref.scope, ByLink{Token: token})
 	if err != nil {
 		return err
 	}
@@ -118,6 +124,18 @@ func (s *Service) confirmLink(_ context.Context, c *kernel.Call, r *http.Request
 	result.WriteString("</SubscriptionArn>")
 	writeQueryResponse(w, c, "ConfirmSubscription", result.String())
 	return nil
+}
+
+// tokenScope returns the scope with SNS state where token confirms a
+// subscription; false when it confirms none anywhere.
+func (s *Service) tokenScope(token string) (aws.Scope, bool) {
+	now := s.clock.Now()
+	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
+		if held, _ := read(s, scope, func(st *State) bool { _, _, ok := st.holder(token, now); return ok }); held {
+			return scope, true
+		}
+	}
+	return aws.Scope{}, false
 }
 
 // writeQueryResponse writes the awsQuery success document of action with

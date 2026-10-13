@@ -258,6 +258,35 @@ func awaitHealth(t *testing.T, name, endpoint string) admin.Health {
 	}
 }
 
+// healthyWait bounds the wait for Docker's healthcheck: the image's start
+// period and two intervals, plus readyWait for serve itself.
+const healthyWait = readyWait + 13*time.Second
+
+// awaitHealthy waits until Docker's own run of the image's HEALTHCHECK
+// reports the container healthy, failing with the check's output and the
+// container's logs when it reports unhealthy, the container stops, or
+// healthyWait passes.
+func awaitHealthy(t *testing.T, name string) {
+	t.Helper()
+	deadline := time.Now().Add(healthyWait)
+	for {
+		state := docker(t, "inspect", "--format", "{{.State.Running}} {{.State.Health.Status}}", name)
+		switch state {
+		case "true healthy":
+			return
+		case "true starting":
+		default:
+			t.Fatalf("container %s is %q, want running and healthy; healthcheck runs: %s\n%s", name, state,
+				docker(t, "inspect", "--format", "{{json .State.Health.Log}}", name), containerLogs(t, name))
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("container %s was not healthy within %s; healthcheck runs: %s\n%s", name, healthyWait,
+				docker(t, "inspect", "--format", "{{json .State.Health.Log}}", name), containerLogs(t, name))
+		}
+		time.Sleep(10 * pollEvery)
+	}
+}
+
 // getHealth makes one health request, bounded by attemptWait so a hung
 // connection cannot use up the whole readiness wait.
 func getHealth(ctx context.Context, endpoint string) (admin.Health, int, error) {
@@ -329,7 +358,7 @@ func TestImage(t *testing.T) {
 		if _, ok := cfg.Volumes["/data"]; !ok {
 			t.Errorf("volumes = %v, want /data", cfg.Volumes)
 		}
-		wantCheck := []string{"CMD", "/understudy", "health", "--endpoint", "http://127.0.0.1:4566"}
+		wantCheck := []string{"CMD", "/understudy", "health"}
 		hc := cfg.Healthcheck
 		if !slices.Equal(hc.Test, wantCheck) || hc.Interval != 5*time.Second || hc.Timeout != 2*time.Second || hc.StartPeriod != 3*time.Second {
 			t.Errorf("healthcheck = %+v, want %q every 5s with a 2s timeout and 3s start period", hc, wantCheck)
@@ -358,6 +387,25 @@ func TestImage(t *testing.T) {
 		wantNoSocket(t, "lambda", h.Services["lambda"])
 		wantNoSocket(t, "dynamodb", h.Services["dynamodb"])
 	})
+
+	// The healthcheck runs inside the container, so it must find serve on
+	// whatever port the container's own settings move it to.
+	for _, tc := range []struct {
+		name string
+		env  []string
+	}{
+		{"is healthy on a port set with UNDERSTUDY_LISTEN and UNDERSTUDY_ENDPOINT", []string{"UNDERSTUDY_LISTEN=0.0.0.0:8080", "UNDERSTUDY_ENDPOINT=http://127.0.0.1:8080"}},
+		{"is healthy on a port set with UNDERSTUDY_LISTEN alone", []string{"UNDERSTUDY_LISTEN=0.0.0.0:8080"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var extra []string
+			for _, kv := range tc.env {
+				extra = append(extra, "--env", kv)
+			}
+			name, _ := runContainer(t, tag, extra...)
+			awaitHealthy(t, name)
+		})
+	}
 
 	t.Run("reaches Docker through a mounted socket", func(t *testing.T) {
 		group := socketGroup(t)

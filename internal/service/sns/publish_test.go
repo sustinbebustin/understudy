@@ -279,6 +279,32 @@ func TestFIFOTopicDeliversWithGroupAndDeduplicates(t *testing.T) {
 	})
 }
 
+// TestContentDeduplicationHashesTheWholeMessage: content-based
+// deduplication hashes Message as published (Smithy Publish
+// MessageDeduplicationId), so two MessageStructure=json messages with the
+// same default and different sqs entries are both delivered.
+func TestContentDeduplicationHashesTheWholeMessage(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events.fifo", map[string]string{"FifoTopic": "true", "ContentBasedDeduplication": "true"})
+		h.subscribe(topic, "sqs", fifoQueueARN, map[string]string{"RawMessageDelivery": "true"})
+		bodies := []string{`{"default":"d","sqs":"one"}`, `{"default":"d","sqs":"two"}`}
+		for _, body := range bodies {
+			must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, MessageStructure: new("json"), Message: body, MessageGroupId: new("g")})
+		}
+		h.settle()
+		sent := h.sent.all()
+		if len(sent) != 2 {
+			h.Fatalf("SendMessage ran %d times, want 2: the messages differ", len(sent))
+		}
+		for i, in := range sent {
+			want := sha256.Sum256([]byte(bodies[i]))
+			if in.MessageDeduplicationId == nil || *in.MessageDeduplicationId != hex.EncodeToString(want[:]) {
+				h.Errorf("send %d MessageDeduplicationId = %v, want the SHA-256 of %s", i, in.MessageDeduplicationId, bodies[i])
+			}
+		}
+	})
+}
+
 func TestStandardTopicForwardsGroupToStandardQueue(t *testing.T) {
 	run(t, func(h *harness) {
 		topic := h.topic("events", nil)
@@ -308,9 +334,17 @@ func TestMessageStructureJSONPicksTheProtocolEntry(t *testing.T) {
 			"not json":            "Invalid parameter: Message Structure - JSON message body failed to parse",
 			`{"sqs":"x"}`:         "Invalid parameter: Message Structure - No default entry in JSON message body",
 			`{"default":{"a":1}}`: "Invalid parameter: Message Structure - No default entry in JSON message body",
+			// Duplicate keys fail the whole Publish (API_Publish.html); the
+			// text is inferred.
+			`{"default":"a","sqs":"x","sqs":"y"}`: "Invalid parameter: Message Structure - JSON message body failed to parse",
+			`{"default":"a","default":"b"}`:       "Invalid parameter: Message Structure - JSON message body failed to parse",
 		} {
 			_, err := call(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, MessageStructure: new("json"), Message: body})
 			wantError(h, err, "InvalidParameter", msg)
+		}
+		h.settle()
+		if n := len(h.sent.all()); n != 1 {
+			h.Errorf("SQS received %d messages, want only the first publish's: a refused publish delivers nothing", n)
 		}
 	})
 }
@@ -338,6 +372,7 @@ func TestPublishInputRules(t *testing.T) {
 		}{
 			{"empty message", snsapi.PublishInput{TopicArn: &topic}, "InvalidParameter", "Invalid parameter: Empty message"},
 			{"empty subject", snsapi.PublishInput{TopicArn: &topic, Message: "m", Subject: new("")}, "InvalidParameter", "Invalid parameter: Subject"},
+			{"subject over 100 characters", snsapi.PublishInput{TopicArn: &topic, Message: "m", Subject: new(strings.Repeat("é", 101))}, "InvalidParameter", "Invalid parameter: Subject"},
 			{"too long", snsapi.PublishInput{TopicArn: &topic, Message: strings.Repeat("x", 1017), MessageAttributes: map[string]snsapi.MessageAttributeValue{"a": attr("String", "b")}}, "InvalidParameter", "Invalid parameter: Message too long"},
 			// The limit counts Message as sent: here only the sqs entry
 			// makes it too long, and the default alone would fit.
@@ -358,6 +393,9 @@ func TestPublishInputRules(t *testing.T) {
 		}
 		// Exactly at the limit is accepted: 1016 + len("a") + len("String") + len("b") = 1024.
 		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: strings.Repeat("x", 1016), MessageAttributes: map[string]snsapi.MessageAttributeValue{"a": attr("String", "b")}})
+		// A Subject of exactly 100 characters is accepted; the bound counts
+		// characters, not bytes.
+		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m", Subject: new(strings.Repeat("é", 100))})
 		// TargetArn names a topic too.
 		must(h, snsapi.OpPublish, &snsapi.PublishInput{TargetArn: &topic, Message: "m"})
 	})

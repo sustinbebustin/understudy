@@ -7,9 +7,12 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/logs"
 )
@@ -116,16 +119,52 @@ func TestPutLogEventsReportsRejectedEvents(t *testing.T) {
 			h.Errorf("stored = %v, want only the valid event", got)
 		}
 
+		// An event exactly one day old has outlived a 1-day retention; the
+		// batch spans 24 hours, which the span rule still admits.
 		must(h, logsapi.OpPutRetentionPolicy, &logsapi.PutRetentionPolicyInput{LogGroupName: "g", RetentionInDays: 1})
-		out = h.put("g", "s", event(now-ms(2*day), "expired"), event(now, "kept"))
+		out = h.put("g", "s", event(now-ms(day), "expired"), event(now, "kept"))
 		if info := out.RejectedLogEventsInfo; info == nil || info.ExpiredLogEventEndIndex == nil || *info.ExpiredLogEventEndIndex != 1 {
 			h.Errorf("rejectedLogEventsInfo = %+v, want expiredLogEventEndIndex 1", info)
 		}
 	})
 }
 
+// The 24-hour span covers every event inside the 14-day and 2-hour windows
+// (PutLogEvents documentation), so an event retention would expire still
+// widens it, and the batch fails whole.
+func TestPutLogEventsSpanCountsRetentionExpiredEvents(t *testing.T) {
+	run(t, func(h *harness) {
+		h.group("g")
+		h.stream("g", "s")
+		must(h, logsapi.OpPutRetentionPolicy, &logsapi.PutRetentionPolicyInput{LogGroupName: "g", RetentionInDays: 1})
+		now := h.now()
+		_, err := call(h, logsapi.OpPutLogEvents, &logsapi.PutLogEventsInput{
+			LogGroupName: "g", LogStreamName: "s", LogEvents: []logsapi.InputLogEvent{event(now-int64(3*day/time.Millisecond), "expired"), event(now, "valid")},
+		})
+		wantError(h.T, err, "InvalidParameterException", "The batch of log events in a single PutLogEvents request cannot span more than 24 hours.")
+		if got := h.all("g", "s"); len(got) != 0 {
+			h.Errorf("stored after a refused batch = %v", got)
+		}
+	})
+}
+
+// GetLogEvents and FilterLogEvents are not supported on INFREQUENT_ACCESS
+// groups (CloudWatch_Logs_Log_Classes.html); events still arrive.
+func TestInfrequentAccessGroupsRefuseEventReads(t *testing.T) {
+	run(t, func(h *harness) {
+		must(h, logsapi.OpCreateLogGroup, &logsapi.CreateLogGroupInput{LogGroupName: "ia", LogGroupClass: new(logsapi.LogGroupClassInfrequentAccess)})
+		h.stream("ia", "s")
+		h.put("ia", "s", event(h.now(), "stored"))
+
+		_, err := call(h, logsapi.OpGetLogEvents, &logsapi.GetLogEventsInput{LogGroupName: new("ia"), LogStreamName: "s"})
+		wantError(h.T, err, "InvalidParameterException", "GetLogEvents is not supported for log groups in the INFREQUENT_ACCESS log class. Use CloudWatch Logs Insights instead.")
+		_, err = call(h, logsapi.OpFilterLogEvents, &logsapi.FilterLogEventsInput{LogGroupName: new("ia")})
+		wantError(h.T, err, "InvalidParameterException", "FilterLogEvents is not supported for log groups in the INFREQUENT_ACCESS log class. Use CloudWatch Logs Insights instead.")
+	})
+}
+
 // The 2-hour and 14-day windows judge a timestamp that containers stamp with
-// wall time, so an event inside them by either clock is stored (G4).
+// wall time, so an event inside them by either clock is stored (gap-G4.md).
 func TestWindowsAcceptAnEventValidByEitherClock(t *testing.T) {
 	run(t, func(h *harness) {
 		h.group("g")
@@ -296,8 +335,9 @@ func TestGetLogEventsTokens(t *testing.T) {
 			h.Errorf("default page = %v, want the newest two", got)
 		}
 		for _, tok := range []*string{tail.NextForwardToken, tail.NextBackwardToken} {
-			if tok == nil || !strings.HasPrefix(*tok, "f/") && !strings.HasPrefix(*tok, "b/") || len(*tok) != 58 {
-				h.Errorf("token = %v, want f/ or b/ and 56 digits", tok)
+			dir, digits, ok := strings.Cut(val(tok), "/")
+			if !ok || dir != "f" && dir != "b" || len(digits) != 96 || strings.Trim(digits, "0123456789") != "" {
+				h.Errorf("token = %s, want f/ or b/, the 56-digit position, the 20-digit listing fingerprint and the 20-digit issue stamp", val(tok))
 			}
 		}
 		// At the end the same token comes back.
@@ -333,6 +373,203 @@ func TestGetLogEventsForwardTokenOfAnEmptyStreamTails(t *testing.T) {
 		next := h.get(&logsapi.GetLogEventsInput{LogGroupName: new("g"), LogStreamName: "s", NextToken: empty.NextForwardToken, StartFromHead: new(true)})
 		if got := messages(next.Events); !slices.Equal(got, []string{"first"}) {
 			h.Errorf("following the empty page's forward token = %v, want [first]", got)
+		}
+	})
+}
+
+// FilterLogEvents with startFromHead=false and no startTime returns the
+// newest matching events first, as AWS's "most recent events in reverse
+// order" example does; only a startTime before 2024-01-01 is refused.
+func TestFilterLogEventsReadsBackwardWithoutAStartTime(t *testing.T) {
+	run(t, func(h *harness) {
+		h.group("g")
+		h.stream("g", "s")
+		now := h.now()
+		h.put("g", "s", event(now-3, "ERROR a"), event(now-2, "INFO b"), event(now-1, "ERROR c"))
+
+		out := must(h, logsapi.OpFilterLogEvents, &logsapi.FilterLogEventsInput{
+			LogGroupName: new("g"), FilterPattern: new("ERROR"), StartFromHead: new(false), Limit: new(int32(100)),
+		})
+		if got := filteredMessages(out.Events); !slices.Equal(got, []string{"ERROR c", "ERROR a"}) {
+			h.Errorf("backward without startTime = %v, want the newest first", got)
+		}
+
+		floor := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+		must(h, logsapi.OpFilterLogEvents, &logsapi.FilterLogEventsInput{LogGroupName: new("g"), StartFromHead: new(false), StartTime: new(floor)})
+		_, err := call(h, logsapi.OpFilterLogEvents, &logsapi.FilterLogEventsInput{LogGroupName: new("g"), StartFromHead: new(false), StartTime: new(floor - 1)})
+		wantError(h.T, err, "InvalidParameterException", "startFromHead=false does not accept a startTime before 2024-01-01T00:00:00Z.")
+	}, kerneltest.Mode(clock.Frozen{At: clock.FromWire(backwardEra)}))
+}
+
+// Every paging token expires 24 hours after it is issued on the emulator
+// clock, as AWS documents for GetLogEvents and FilterLogEvents tokens: until
+// then it reads the next page, from then on it is refused as invalid.
+func TestPagingTokensExpireAfter24Hours(t *testing.T) {
+	run(t, func(h *harness) {
+		h.group("g1")
+		h.group("g2")
+		h.stream("g1", "a")
+		h.stream("g1", "b")
+		now := h.now()
+		h.put("g1", "a", event(now-2, "x"), event(now-1, "y"))
+
+		// Each pager reads one item per page and returns the next token.
+		one := new(int32(1))
+		pagers := map[string]func(token *string) (*string, *awserr.Error){
+			"GetLogEvents": func(token *string) (*string, *awserr.Error) {
+				out, err := call(h, logsapi.OpGetLogEvents, &logsapi.GetLogEventsInput{LogGroupName: new("g1"), LogStreamName: "a", StartFromHead: new(true), Limit: one, NextToken: token})
+				if err != nil {
+					return nil, err
+				}
+				return out.NextForwardToken, nil
+			},
+			"FilterLogEvents": func(token *string) (*string, *awserr.Error) {
+				out, err := call(h, logsapi.OpFilterLogEvents, &logsapi.FilterLogEventsInput{LogGroupName: new("g1"), Limit: one, NextToken: token})
+				if err != nil {
+					return nil, err
+				}
+				return out.NextToken, nil
+			},
+			"DescribeLogGroups": func(token *string) (*string, *awserr.Error) {
+				out, err := call(h, logsapi.OpDescribeLogGroups, &logsapi.DescribeLogGroupsInput{Limit: one, NextToken: token})
+				if err != nil {
+					return nil, err
+				}
+				return out.NextToken, nil
+			},
+			"DescribeLogStreams": func(token *string) (*string, *awserr.Error) {
+				out, err := call(h, logsapi.OpDescribeLogStreams, &logsapi.DescribeLogStreamsInput{LogGroupName: new("g1"), Limit: one, NextToken: token})
+				if err != nil {
+					return nil, err
+				}
+				return out.NextToken, nil
+			},
+		}
+		issued := map[string]*string{}
+		for name, page := range pagers {
+			next, err := page(nil)
+			if err != nil || next == nil {
+				h.Fatalf("%s first page: token %s, error %v; want a token", name, val(next), err)
+			}
+			issued[name] = next
+		}
+
+		h.advance(day - time.Millisecond)
+		for name, page := range pagers {
+			if _, err := page(issued[name]); err != nil {
+				h.Errorf("%s token just before 24 hours = %s %q, want the next page", name, err.ID.JSONType, err.Message)
+			}
+		}
+		h.advance(time.Millisecond)
+		for name, page := range pagers {
+			_, err := page(issued[name])
+			if err == nil || err.ID.JSONType != "InvalidParameterException" || err.Message != "The specified nextToken is invalid." {
+				h.Errorf("%s token at 24 hours = %v, want InvalidParameterException \"The specified nextToken is invalid.\"", name, err)
+			}
+		}
+	}, kerneltest.Mode(clock.Frozen{At: clock.FromWire(backwardEra)}))
+}
+
+// A paging token reads only the listing that issued it. AWS refuses a token
+// from another operation, group, stream or account with "The specified
+// nextToken is invalid." (test_get_log_events_invalid_token,
+// test_filter_log_events_unknown_token), so a client that mixes tokens up
+// fails here as it does on AWS instead of reading a wrong page.
+func TestPagingTokensReadOnlyTheirOwnListing(t *testing.T) {
+	run(t, func(h *harness) {
+		populate := func() {
+			h.Helper()
+			now := h.now()
+			for _, g := range []string{"g1", "g2"} {
+				h.group(g)
+				h.stream(g, "a")
+				h.stream(g, "b")
+				h.put(g, "a", event(now-2, "x"), event(now-1, "y"))
+			}
+		}
+		one := new(int32(1))
+		type pager func(token *string) (*string, *awserr.Error)
+		get := func(group, stream string) pager {
+			return func(token *string) (*string, *awserr.Error) {
+				out, err := call(h, logsapi.OpGetLogEvents, &logsapi.GetLogEventsInput{LogGroupName: new(group), LogStreamName: stream, StartFromHead: new(true), Limit: one, NextToken: token})
+				if err != nil {
+					return nil, err
+				}
+				return out.NextForwardToken, nil
+			}
+		}
+		filter := func(group string) pager {
+			return func(token *string) (*string, *awserr.Error) {
+				out, err := call(h, logsapi.OpFilterLogEvents, &logsapi.FilterLogEventsInput{LogGroupName: new(group), Limit: one, NextToken: token})
+				if err != nil {
+					return nil, err
+				}
+				return out.NextToken, nil
+			}
+		}
+		streams := func(group string) pager {
+			return func(token *string) (*string, *awserr.Error) {
+				out, err := call(h, logsapi.OpDescribeLogStreams, &logsapi.DescribeLogStreamsInput{LogGroupName: new(group), Limit: one, NextToken: token})
+				if err != nil {
+					return nil, err
+				}
+				return out.NextToken, nil
+			}
+		}
+		pagers := map[string]pager{
+			"GetLogEvents g1/a":     get("g1", "a"),
+			"GetLogEvents g1/b":     get("g1", "b"),
+			"GetLogEvents g2/a":     get("g2", "a"),
+			"FilterLogEvents g1":    filter("g1"),
+			"FilterLogEvents g2":    filter("g2"),
+			"DescribeLogStreams g1": streams("g1"),
+			"DescribeLogStreams g2": streams("g2"),
+			"DescribeLogGroups": func(token *string) (*string, *awserr.Error) {
+				out, err := call(h, logsapi.OpDescribeLogGroups, &logsapi.DescribeLogGroupsInput{Limit: one, NextToken: token})
+				if err != nil {
+					return nil, err
+				}
+				return out.NextToken, nil
+			},
+		}
+		wantInvalid := func(what string, err *awserr.Error) {
+			h.Helper()
+			if err == nil || err.ID.JSONType != "InvalidParameterException" || err.Message != "The specified nextToken is invalid." {
+				h.Errorf("%s = %v, want InvalidParameterException \"The specified nextToken is invalid.\"", what, err)
+			}
+		}
+
+		populate()
+		issued := map[string]*string{}
+		for name, page := range pagers {
+			next, err := page(nil)
+			if err != nil || next == nil {
+				h.Fatalf("%s first page: token %s, error %v; want a token", name, val(next), err)
+			}
+			issued[name] = next
+		}
+		for from, token := range issued {
+			for to, page := range pagers {
+				_, err := page(token)
+				switch {
+				case from == to && err != nil:
+					h.Errorf("%s with its own token = %s %q, want the next page", to, err.ID.JSONType, err.Message)
+				case from != to:
+					wantInvalid(to+" with a token of "+from, err)
+				}
+			}
+		}
+
+		// The same names in another account are another listing.
+		other, perr := aws.ParseAccountID("111111111111")
+		if perr != nil {
+			h.Fatal(perr)
+		}
+		h.Scope.Account = other
+		populate()
+		for name, page := range pagers {
+			_, err := page(issued[name])
+			wantInvalid(name+" in another account with the default account's token", err)
 		}
 	})
 }

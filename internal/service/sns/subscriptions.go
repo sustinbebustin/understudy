@@ -19,6 +19,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 const (
@@ -68,7 +69,7 @@ func (s *Service) subscribe(_ context.Context, c *kernel.Call, in *snsapi.Subscr
 	if err != nil {
 		return nil, err
 	}
-	settings, err := s.subscriptionSettings(subscriber{endpoint: endpoint, topicFIFO: ref.fifo(), home: ref.scope}, in.Attributes)
+	settings, err := s.subscriptionSettings(subscriber{protocol: protocol, endpoint: endpoint, topicFIFO: ref.fifo(), home: ref.scope}, in.Attributes)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +79,10 @@ func (s *Service) subscribe(_ context.Context, c *kernel.Call, in *snsapi.Subscr
 		Endpoint:       endpoint,
 		OwnerAccountID: c.Scope().Account.String(),
 		Principal:      identity.Render(c.Principal()),
-		Status:         Confirmed{By: AtSubscribe{}},
+		// "AuthenticateOnUnsubscribe is automatically set to true when the
+		// queue owner creates the subscription" (cross-account doc, sns.md
+		// 3.1). A pending subscription replaces this status.
+		Status: Confirmed{By: AtSubscribe{AuthenticateOnUnsubscribe: protocol == ProtocolSQS && owner == c.Scope().Account.String()}},
 	}
 	for _, set := range settings {
 		set.apply(&candidate)
@@ -274,7 +278,7 @@ var e164 = regexp.MustCompile(`^\+?[1-9]\d{1,14}$`)
 // checkEndpoint checks a Subscribe endpoint against its protocol and the
 // topic's kind and returns the account that owns an ARN endpoint, "" for
 // the others. An sqs or lambda ARN must name a scope the outbox delivers
-// to (servedScope), or every later publish to the topic would fail. Only
+// to (aws.ScopeOf), or every later publish to the topic would fail. Only
 // the SQS endpoint ARN text and the FIFO-queue-on-a-standard-topic text
 // are AWS-recorded (sns.md 3.1); the FIFO-topic endpoint text, whose
 // wording sns.md 3.1 leaves UNVERIFIED, and the lambda, http and email
@@ -291,7 +295,7 @@ func checkEndpoint(p Protocol, endpoint string, topic topicRef) (string, *awserr
 		return queueOwner(endpoint, topic)
 	case ProtocolLambda:
 		if _, a, ok := lambdaTarget(endpoint); ok {
-			if _, served := servedScope(a); served {
+			if _, err := aws.ScopeOf(a); err == nil {
 				return a.Account, nil
 			}
 		}
@@ -315,7 +319,7 @@ func queueOwner(endpoint string, topic topicRef) (string, *awserr.Error) {
 	if err != nil || a.Service != "sqs" || strings.Contains(a.Resource, ":") {
 		return "", errInvalidParameter("SQS endpoint ARN")
 	}
-	if _, ok := servedScope(a); !ok {
+	if _, err := aws.ScopeOf(a); err != nil {
 		return "", errInvalidParameter("SQS endpoint ARN")
 	}
 	if !topic.fifo() && isFIFOQueue(a.Resource) {
@@ -345,12 +349,14 @@ func lambdaTarget(endpoint string) (qualifier string, function aws.ARN, ok bool)
 // confirmSubscription confirms a pending subscription by its token.
 func (s *Service) confirmSubscription(_ context.Context, c *kernel.Call, in *snsapi.ConfirmSubscriptionInput) (*snsapi.ConfirmSubscriptionOutput, *awserr.Error) {
 	// Every malformed or foreign topic ARN is "Invalid parameter: Topic"
-	// here (sns.md 3.2).
+	// here (sns.md 3.2). Only the ARN's scope matters: AWS finds the token
+	// in any topic of it, so a topic name that names no topic still
+	// confirms (LocalStack nonexistent-token-confirm, AWS-recorded).
 	ref, err := resolveTopic(c, "Topic", in.TopicArn)
 	if err != nil {
 		return nil, errInvalidParameter("Topic")
 	}
-	arn, err := s.confirm(c, ref, ByCall{
+	arn, err := s.confirm(c, ref.scope, ByCall{
 		Token:                     in.Token,
 		AuthenticateOnUnsubscribe: in.AuthenticateOnUnsubscribe != nil && strings.EqualFold(*in.AuthenticateOnUnsubscribe, "true"),
 	})
@@ -360,45 +366,69 @@ func (s *Service) confirmSubscription(_ context.Context, c *kernel.Call, in *sns
 	return &snsapi.ConfirmSubscriptionOutput{SubscriptionArn: new(arn.String())}, nil
 }
 
-// confirm confirms the subscription of topic waiting for by's token as by
-// says, and returns its ARN. Confirming again with the token it was
-// confirmed with succeeds and changes nothing. A token that is not 288 hex
-// characters is "Invalid parameter: Token"; one that confirms nothing, or
-// has expired, is "Invalid token" (sns.md 3.2).
-func (s *Service) confirm(c *kernel.Call, topic topicRef, by tokenConfirmation) (aws.ARN, *awserr.Error) {
+// confirm confirms the subscription of any topic of scope that waits for
+// by's token, as by says, and returns its ARN. Confirming again with the
+// token it was confirmed with succeeds and changes nothing. A token with a
+// character that is not hex is "Invalid token"; any other token that
+// confirms nothing, expired included, is "Invalid parameter: Token"
+// (LocalStack test_sns_confirm_subscription_wrong_token and
+// test_subscribe_external_http_endpoint, AWS-recorded). Which text an
+// odd-length hex token gets is inferred: none was recorded.
+func (s *Service) confirm(c *kernel.Call, scope aws.Scope, by tokenConfirmation) (aws.ARN, *awserr.Error) {
 	token := by.token()
-	if raw, err := hex.DecodeString(token); err != nil || len(raw) != tokenBytes {
-		return aws.ARN{}, errInvalidParameter("Token")
+	if !hexText(token) {
+		return aws.ARN{}, errInvalidToken()
 	}
-	id, err := kernel.Write(c, s.cells, topic.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (string, *awserr.Error) {
-		t, ok := st.writable(topic.name, now)
+	ref, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, tx *kernel.Tx) (subscriptionRef, *awserr.Error) {
+		name, i, ok := st.holder(token, now)
 		if !ok {
-			return "", errTopicNotFound()
+			return subscriptionRef{}, errInvalidParameter("Token")
 		}
-		for i := range t.Subscriptions {
-			sub := &t.Subscriptions[i]
-			switch status := sub.Status.(type) {
-			case Pending:
-				if status.Token == token {
-					sub.Status = Confirmed{By: by}
-					st.Topics[topic.name] = t
-					return sub.ID, nil
-				}
-			case Confirmed:
-				if prior, ok := status.By.(tokenConfirmation); ok && prior.token() == token {
-					// The copy is not stored: Unchanged requires the
-					// cell to stay exactly as it was.
-					tx.Unchanged()
-					return sub.ID, nil
-				}
-			}
+		ref := subscriptionRef{topic: topicRef{scope: scope, name: name}, id: st.Topics[name].Subscriptions[i].ID}
+		if _, pending := st.Topics[name].Subscriptions[i].Status.(Pending); !pending {
+			tx.Unchanged()
+			return ref, nil
 		}
-		return "", errInvalidToken()
+		t, _ := st.writable(name, now)
+		t.Subscriptions[t.indexOf(ref.id)].Status = Confirmed{By: by}
+		st.Topics[name] = t
+		return ref, nil
 	})
 	if err != nil {
 		return aws.ARN{}, err
 	}
-	return subscriptionRef{topic: topic, id: id}.arn(), nil
+	return ref.arn(), nil
+}
+
+// holder finds the subscription token confirms: the pending one waiting
+// for it, unless expired by now, or the one already confirmed with it. It
+// returns the topic's name and the subscription's index in it; topics are
+// searched by name, though a token drawn from 144 random bytes is in at
+// most one of them.
+func (s *State) holder(token string, now clock.Instant) (topic string, index int, ok bool) {
+	for _, name := range slices.Sorted(maps.Keys(s.Topics)) {
+		subs := s.Topics[name].Subscriptions
+		for i := range subs {
+			switch status := subs[i].Status.(type) {
+			case Pending:
+				if status.Token == token && !subs[i].expired(now) {
+					return name, i, true
+				}
+			case Confirmed:
+				if prior, ok := status.By.(tokenConfirmation); ok && prior.token() == token {
+					return name, i, true
+				}
+			}
+		}
+	}
+	return "", 0, false
+}
+
+// hexText reports a string of hex digits only.
+func hexText(s string) bool {
+	return !strings.ContainsFunc(s, func(r rune) bool {
+		return (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F')
+	})
 }
 
 // unsubscribeOp deletes a subscription. Deleting one that does not exist
@@ -428,24 +458,31 @@ const (
 )
 
 // unsubscribe removes the subscription ref names, counting it in its
-// topic's SubscriptionsDeleted. A pending subscription cannot be removed
-// (sns.md 3.2: Terraform swallows exactly this text), and one confirmed
-// with AuthenticateOnUnsubscribe only by an authenticated caller.
+// topic's SubscriptionsDeleted, or forgets it when DeleteTopic detached
+// it. A pending subscription cannot be removed (sns.md 3.2: Terraform
+// swallows exactly this text), and one with AuthenticateOnUnsubscribe only
+// by an authenticated caller.
 func (s *Service) unsubscribe(c *kernel.Call, ref subscriptionRef, by caller) *awserr.Error {
 	_, err := kernel.Write(c, s.cells, ref.topic.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		t, ok := st.writable(ref.topic.name, now)
 		i := t.indexOf(ref.id)
 		if !ok || i < 0 {
-			tx.Unchanged()
+			j := st.detachedIndex(ref, now)
+			if j < 0 {
+				tx.Unchanged()
+				return struct{}{}, nil
+			}
+			if err := mayUnsubscribe(&st.Detached[j].Subscription, by); err != nil {
+				return struct{}{}, err
+			}
+			st.Detached = slices.Delete(slices.Clone(st.Detached), j, j+1)
+			if len(st.Detached) == 0 {
+				st.Detached = nil
+			}
 			return struct{}{}, nil
 		}
-		switch status := t.Subscriptions[i].Status.(type) {
-		case Pending:
-			return struct{}{}, errInvalidParameter("Cannot unsubscribe a subscription that is pending confirmation")
-		case Confirmed:
-			if call, ok := status.By.(ByCall); ok && call.AuthenticateOnUnsubscribe && by != authenticated {
-				return struct{}{}, errUnsubscribeNeedsCredentials()
-			}
+		if err := mayUnsubscribe(&t.Subscriptions[i], by); err != nil {
+			return struct{}{}, err
 		}
 		t.Subscriptions = slices.Delete(t.Subscriptions, i, i+1)
 		t.Unsubscribed++
@@ -455,19 +492,47 @@ func (s *Service) unsubscribe(c *kernel.Call, ref subscriptionRef, by caller) *a
 	return err
 }
 
-// listSubscriptions lists every subscription in the caller's region: by
-// topic name, then in creation order.
-func (s *Service) listSubscriptions(_ context.Context, c *kernel.Call, in *snsapi.ListSubscriptionsInput) (*snsapi.ListSubscriptionsOutput, *awserr.Error) {
-	scope := c.Scope()
-	now := s.clock.Now()
-	all, _ := read(s, scope, func(st *State) []snsapi.Subscription {
-		var out []snsapi.Subscription
-		for _, name := range slices.Sorted(maps.Keys(st.Topics)) {
-			t := st.Topics[name]
-			out = append(out, listed(topicRef{scope: scope, name: name}, &t, now)...)
+// mayUnsubscribe is nil when by may remove sub: a confirmed subscription
+// that does not require credentials, or any confirmed one for a caller
+// with them.
+func mayUnsubscribe(sub *Subscription, by caller) *awserr.Error {
+	switch status := sub.Status.(type) {
+	case Pending:
+		return errInvalidParameter("Cannot unsubscribe a subscription that is pending confirmation")
+	case Confirmed:
+		if why := status.credentialsRequired(); why != "" && by != authenticated {
+			return errUnsubscribeNeedsCredentials(why)
 		}
-		return out
-	})
+	}
+	return nil
+}
+
+// listSubscriptions lists the caller's subscriptions in its partition and
+// region, those it owns on another account's topic included: "Returns a
+// list of the requester's subscriptions" (API_ListSubscriptions.html). A
+// subscription another account made on the caller's topic is that
+// account's. They come by topic account, then topic name, then in
+// creation order.
+func (s *Service) listSubscriptions(_ context.Context, c *kernel.Call, in *snsapi.ListSubscriptionsInput) (*snsapi.ListSubscriptionsOutput, *awserr.Error) {
+	own := c.Scope()
+	owner := own.Account.String()
+	now := s.clock.Now()
+	var all []snsapi.Subscription
+	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
+		if scope.Partition != own.Partition || scope.Region != own.Region {
+			continue
+		}
+		mine, _ := read(s, scope, func(st *State) []snsapi.Subscription {
+			var out []snsapi.Subscription
+			for _, name := range slices.Sorted(maps.Keys(st.Topics)) {
+				t := st.Topics[name]
+				t.Subscriptions = slices.DeleteFunc(slices.Clone(t.Subscriptions), func(sub Subscription) bool { return sub.OwnerAccountID != owner })
+				out = append(out, listed(topicRef{scope: scope, name: name}, &t, now)...)
+			}
+			return out
+		})
+		all = append(all, mine...)
+	}
 	items, next, err := page(all, in.NextToken)
 	if err != nil {
 		return nil, err

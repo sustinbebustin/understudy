@@ -51,12 +51,12 @@ func (h *Handler) iamPolicy(w http.ResponseWriter, r *http.Request, _ []string) 
 	}
 	identity, ok := p.(access.Identity)
 	if !ok {
-		h.fail(w, r, &admin.Error{Code: admin.InvalidRequest, Field: "principal", Message: text + " is a service principal, which no identity policy attaches to", Hint: "GET " + admin.Prefix + "/iam/usage?principal=" + text + " lists its deliveries"})
+		h.fail(w, r, &admin.Error{Code: admin.InvalidRequest, Field: "principal", Message: text + " is a service principal, which no identity policy attaches to", Hint: "'understudy iam usage --principal " + text + "' (GET " + admin.Prefix + "/iam/usage?principal=" + text + ") lists its deliveries"})
 		return
 	}
 	doc, ok := h.o.Access.Policy(identity)
 	if !ok {
-		h.fail(w, r, &admin.Error{Code: admin.NotFound, Message: "no call by " + text + " is recorded, so there is no policy to write", Hint: "GET " + admin.Prefix + "/iam/usage lists the principals that made calls"})
+		h.fail(w, r, &admin.Error{Code: admin.NotFound, Message: "no call by " + text + " is recorded, so there is no policy to write", Hint: "'understudy iam usage' (GET " + admin.Prefix + "/iam/usage) lists the principals that made calls"})
 		return
 	}
 	out := admin.Policy{Principal: identity.String(), Document: json.RawMessage(policydoc.Encode(doc))}

@@ -1255,51 +1255,51 @@ func (v *WriteGetObjectResponseOutput) Redact() *WriteGetObjectResponseOutput {
 }
 
 func (v CompleteMultipartUploadInput) redacted() CompleteMultipartUploadInput {
-	v.SSECustomerKey = nil
+	v.SSECustomerKey = redactedPtr(v.SSECustomerKey)
 	return v
 }
 
 func (v CompleteMultipartUploadOutput) redacted() CompleteMultipartUploadOutput {
-	v.SSEKMSKeyId = nil
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
 	return v
 }
 
 func (v CopyObjectInput) redacted() CopyObjectInput {
-	v.SSECustomerKey = nil
-	v.SSEKMSKeyId = nil
-	v.SSEKMSEncryptionContext = nil
-	v.CopySourceSSECustomerKey = nil
+	v.SSECustomerKey = redactedPtr(v.SSECustomerKey)
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
+	v.SSEKMSEncryptionContext = redactedPtr(v.SSEKMSEncryptionContext)
+	v.CopySourceSSECustomerKey = redactedPtr(v.CopySourceSSECustomerKey)
 	return v
 }
 
 func (v CopyObjectOutput) redacted() CopyObjectOutput {
-	v.SSEKMSKeyId = nil
-	v.SSEKMSEncryptionContext = nil
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
+	v.SSEKMSEncryptionContext = redactedPtr(v.SSEKMSEncryptionContext)
 	return v
 }
 
 func (v CreateMultipartUploadInput) redacted() CreateMultipartUploadInput {
-	v.SSECustomerKey = nil
-	v.SSEKMSKeyId = nil
-	v.SSEKMSEncryptionContext = nil
+	v.SSECustomerKey = redactedPtr(v.SSECustomerKey)
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
+	v.SSEKMSEncryptionContext = redactedPtr(v.SSEKMSEncryptionContext)
 	return v
 }
 
 func (v CreateMultipartUploadOutput) redacted() CreateMultipartUploadOutput {
-	v.SSEKMSKeyId = nil
-	v.SSEKMSEncryptionContext = nil
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
+	v.SSEKMSEncryptionContext = redactedPtr(v.SSEKMSEncryptionContext)
 	return v
 }
 
 func (v CreateSessionInput) redacted() CreateSessionInput {
-	v.SSEKMSKeyId = nil
-	v.SSEKMSEncryptionContext = nil
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
+	v.SSEKMSEncryptionContext = redactedPtr(v.SSEKMSEncryptionContext)
 	return v
 }
 
 func (v CreateSessionOutput) redacted() CreateSessionOutput {
-	v.SSEKMSKeyId = nil
-	v.SSEKMSEncryptionContext = nil
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
+	v.SSEKMSEncryptionContext = redactedPtr(v.SSEKMSEncryptionContext)
 	v.Credentials = v.Credentials.redacted()
 	return v
 }
@@ -1321,13 +1321,13 @@ func (v GetBucketInventoryConfigurationOutput) redacted() GetBucketInventoryConf
 }
 
 func (v GetObjectInput) redacted() GetObjectInput {
-	v.SSECustomerKey = nil
+	v.SSECustomerKey = redactedPtr(v.SSECustomerKey)
 	return v
 }
 
 func (v GetObjectOutput) redacted() GetObjectOutput {
 	v.Body = nil
-	v.SSEKMSKeyId = nil
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
 	return v
 }
 
@@ -1337,7 +1337,7 @@ func (v GetObjectAnnotationOutput) redacted() GetObjectAnnotationOutput {
 }
 
 func (v GetObjectAttributesInput) redacted() GetObjectAttributesInput {
-	v.SSECustomerKey = nil
+	v.SSECustomerKey = redactedPtr(v.SSECustomerKey)
 	return v
 }
 
@@ -1347,12 +1347,12 @@ func (v GetObjectTorrentOutput) redacted() GetObjectTorrentOutput {
 }
 
 func (v HeadObjectInput) redacted() HeadObjectInput {
-	v.SSECustomerKey = nil
+	v.SSECustomerKey = redactedPtr(v.SSECustomerKey)
 	return v
 }
 
 func (v HeadObjectOutput) redacted() HeadObjectOutput {
-	v.SSEKMSKeyId = nil
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
 	return v
 }
 
@@ -1362,7 +1362,7 @@ func (v ListBucketInventoryConfigurationsOutput) redacted() ListBucketInventoryC
 }
 
 func (v ListPartsInput) redacted() ListPartsInput {
-	v.SSECustomerKey = nil
+	v.SSECustomerKey = redactedPtr(v.SSECustomerKey)
 	return v
 }
 
@@ -1378,15 +1378,15 @@ func (v PutBucketInventoryConfigurationInput) redacted() PutBucketInventoryConfi
 
 func (v PutObjectInput) redacted() PutObjectInput {
 	v.Body = nil
-	v.SSECustomerKey = nil
-	v.SSEKMSKeyId = nil
-	v.SSEKMSEncryptionContext = nil
+	v.SSECustomerKey = redactedPtr(v.SSECustomerKey)
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
+	v.SSEKMSEncryptionContext = redactedPtr(v.SSEKMSEncryptionContext)
 	return v
 }
 
 func (v PutObjectOutput) redacted() PutObjectOutput {
-	v.SSEKMSKeyId = nil
-	v.SSEKMSEncryptionContext = nil
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
+	v.SSEKMSEncryptionContext = redactedPtr(v.SSEKMSEncryptionContext)
 	return v
 }
 
@@ -1404,7 +1404,7 @@ func (v RestoreObjectInput) redacted() RestoreObjectInput {
 }
 
 func (v SelectObjectContentInput) redacted() SelectObjectContentInput {
-	v.SSECustomerKey = nil
+	v.SSECustomerKey = redactedPtr(v.SSECustomerKey)
 	return v
 }
 
@@ -1420,35 +1420,35 @@ func (v UpdateObjectEncryptionInput) redacted() UpdateObjectEncryptionInput {
 
 func (v UploadPartInput) redacted() UploadPartInput {
 	v.Body = nil
-	v.SSECustomerKey = nil
+	v.SSECustomerKey = redactedPtr(v.SSECustomerKey)
 	return v
 }
 
 func (v UploadPartOutput) redacted() UploadPartOutput {
-	v.SSEKMSKeyId = nil
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
 	return v
 }
 
 func (v UploadPartCopyInput) redacted() UploadPartCopyInput {
-	v.SSECustomerKey = nil
-	v.CopySourceSSECustomerKey = nil
+	v.SSECustomerKey = redactedPtr(v.SSECustomerKey)
+	v.CopySourceSSECustomerKey = redactedPtr(v.CopySourceSSECustomerKey)
 	return v
 }
 
 func (v UploadPartCopyOutput) redacted() UploadPartCopyOutput {
-	v.SSEKMSKeyId = nil
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
 	return v
 }
 
 func (v WriteGetObjectResponseInput) redacted() WriteGetObjectResponseInput {
 	v.Body = nil
-	v.SSEKMSKeyId = nil
+	v.SSEKMSKeyId = redactedPtr(v.SSEKMSKeyId)
 	return v
 }
 
 func (v SessionCredentials) redacted() SessionCredentials {
-	v.SecretAccessKey = *new(string)
-	v.SessionToken = *new(string)
+	v.SecretAccessKey = redactedText
+	v.SessionToken = redactedText
 	return v
 }
 
@@ -1515,7 +1515,7 @@ func (v OutputLocation) redacted() OutputLocation {
 }
 
 func (v SSEKMSEncryption) redacted() SSEKMSEncryption {
-	v.KMSKeyArn = *new(string)
+	v.KMSKeyArn = redactedText
 	return v
 }
 
@@ -1544,7 +1544,7 @@ func (v S3Location) redacted() S3Location {
 }
 
 func (v ServerSideEncryptionByDefault) redacted() ServerSideEncryptionByDefault {
-	v.KMSMasterKeyID = nil
+	v.KMSMasterKeyID = redactedPtr(v.KMSMasterKeyID)
 	return v
 }
 
@@ -1557,11 +1557,22 @@ func (v InventoryEncryption) redacted() InventoryEncryption {
 }
 
 func (v Encryption) redacted() Encryption {
-	v.KMSKeyId = nil
+	v.KMSKeyId = redactedPtr(v.KMSKeyId)
 	return v
 }
 
 func (v SSEKMS) redacted() SSEKMS {
-	v.KeyId = *new(string)
+	v.KeyId = redactedText
 	return v
+}
+
+// redactedText stands in for a sensitive string the client sent.
+const redactedText = "[redacted]"
+
+// redactedPtr is redactedText in place of a present *p, nil for nil.
+func redactedPtr[T ~string](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	return new(T(redactedText))
 }

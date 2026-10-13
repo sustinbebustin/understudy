@@ -106,13 +106,15 @@ func objectTagSet(tags []s3api.Tag) (map[string]string, *awserr.Error) {
 	return out, nil
 }
 
-// checkObjectTag checks one object tag: unlike bucket tags, commas are
-// allowed in object tag keys and values.
+// checkObjectTag checks one object tag. A comma in a key is refused, as
+// for bucket tags (LocalStack aws_validated snapshot test_tagging_validation,
+// step put-object-tags-invalid-field); a comma in a value is accepted, which
+// is UNVERIFIED.
 func checkObjectTag(key, value string) *awserr.Error {
 	switch {
 	case strings.HasPrefix(key, systemTagPrefix):
 		return errInvalidTag(objectReservedTag, key)
-	case key == "" || utf8.RuneCountInString(key) > maxTagKey:
+	case key == "" || strings.Contains(key, ",") || utf8.RuneCountInString(key) > maxTagKey:
 		return errInvalidTag("The TagKey you have provided is invalid", key)
 	case utf8.RuneCountInString(value) > maxTagValue:
 		return errInvalidTagValue(key, value)

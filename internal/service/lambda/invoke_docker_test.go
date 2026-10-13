@@ -23,6 +23,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/config/configtest"
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
@@ -34,6 +35,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/pool"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/pool/pooltest"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/runtimeapi"
 	"github.com/sustinbebustin/understudy/internal/topology"
 )
@@ -101,15 +103,7 @@ func randomID(t *testing.T) string {
 func newDockerStack(t *testing.T) *dockerStack {
 	t.Helper()
 	ctx := t.Context()
-	socket, err := docker.ParseDockerHost(os.Getenv("DOCKER_HOST"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	client, err := docker.New(docker.Options{Socket: socket})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(client.Close)
+	client := configtest.EngineClient(t)
 	top, err := new(topology.Detector).Detect(ctx, client, topology.Options{})
 	if err != nil {
 		t.Fatalf("detect topology: %v", err)
@@ -150,7 +144,7 @@ func newDockerStack(t *testing.T) *dockerStack {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := pool.New(pool.Options{Launcher: l, Runtime: pool.ServerRuntime(srv), Clock: clk})
+	p, err := pool.New(pool.Options{Launcher: l, Runtime: pooltest.ServerRuntime(srv), Clock: clk})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +159,7 @@ func newDockerStack(t *testing.T) *dockerStack {
 	deps := kernel.ServiceDeps{Kernel: k, Binder: k.Binder(lambdaapi.Service()), Clock: clk, IDs: src, Blob: blobs, Identity: idStore, Docker: client, Log: k.Log()}
 	svc := lambda.New(deps, lambda.Options{Images: l})
 	x, err := lambda.NewExecution(svc, deps, lambda.ExecutionOptions{
-		Pool: p, Docker: "unix://" + socket, Images: l, Code: code, Logs: lambda.ContainerLogs(l),
+		Pool: p, Docker: "unix://" + client.Socket(), Images: l, Code: code, Logs: lambda.ContainerLogs(l),
 	})
 	if err != nil {
 		t.Fatal(err)

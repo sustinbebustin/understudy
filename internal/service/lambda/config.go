@@ -28,9 +28,11 @@ type Config struct {
 	MemorySize       int32  `json:"memorySize"`
 	Architecture     string `json:"architecture"`
 	EphemeralStorage int32  `json:"ephemeralStorage"`
-	// Environment is nil when the function has no variables; an empty map
-	// is never stored, so a cleared environment reads as none.
-	Environment      map[string]string `json:"environment,omitempty"`
+	// Environment is nil when the function has no environment. An empty
+	// map is the Variables {} CreateFunction was sent, which AWS echoes as
+	// {"Variables":{}}; UpdateFunctionConfiguration's Variables {} clears
+	// the environment instead, so it then reads as none.
+	Environment      map[string]string `json:"environment,omitzero"`
 	DeadLetterTarget string            `json:"deadLetterTarget,omitempty"`
 	KMSKeyArn        string            `json:"kmsKeyArn,omitempty"`
 	TracingMode      string            `json:"tracingMode"`
@@ -106,6 +108,9 @@ func newConfig(in *lambdaapi.CreateFunctionInput) Config {
 		KMSKeyArn: in.KMSKeyArn, Tracing: in.TracingConfig, Vpc: in.VpcConfig, FileSystems: in.FileSystemConfigs,
 		Image: in.ImageConfig, EphemeralStorage: in.EphemeralStorage, SnapStart: in.SnapStart, Logging: in.LoggingConfig,
 	})
+	if in.Environment != nil && c.Environment == nil {
+		c.Environment = map[string]string{}
+	}
 	return c
 }
 
@@ -285,7 +290,7 @@ func renderConfig(scope aws.Scope, f *Function, v *Version, arn string, rows lis
 			}}
 		}
 	}
-	if len(c.Environment) > 0 {
+	if c.Environment != nil {
 		out.Environment = &lambdaapi.EnvironmentResponse{Variables: maps.Clone(c.Environment)}
 	}
 	if c.DeadLetterTarget != "" {

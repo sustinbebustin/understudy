@@ -78,12 +78,25 @@ func unmatchedInputPath() fidelity.Switch[string] {
 	}
 }
 
+// detailIntegerRange is how PutEvents fails an entry whose Detail holds an
+// integer outside the signed 64-bit range API_PutEvents documents: no AWS
+// source records the code or text, so understudy uses the recorded
+// MalformedDetail failure for a bad Detail.
+func detailIntegerRange() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:  "events.put-events.detail-integer-range",
+		Value: codeMalformedDetail,
+		Label: evidence.Inferred,
+		Ref:   "https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html",
+	}
+}
+
 // Switches lists the behaviors chosen without AWS-recorded evidence: the
 // service's own and those of its Event Ruler profile.
 func (s *Service) Switches() []fidelity.Entry {
 	profile := ruler.Switches(s.profile)
-	out := make([]fidelity.Entry, 0, 2+len(profile))
-	out = append(out, rateRestart().Entry(), unmatchedInputPath().Entry())
+	out := make([]fidelity.Entry, 0, 3+len(profile))
+	out = append(out, rateRestart().Entry(), unmatchedInputPath().Entry(), detailIntegerRange().Entry())
 	for _, sw := range profile {
 		out = append(out, fidelity.Switch[string]{
 			Name:   sw.Name,

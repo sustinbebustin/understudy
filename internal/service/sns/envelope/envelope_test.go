@@ -205,7 +205,11 @@ func TestLambdaEventMatchesTheRecordedCasing(t *testing.T) {
 		`"UnsubscribeUrl":"https://sns.us-east-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-east-1:123456789012:sns-lambda:21be56ed-a058-49f5-8c98-aedd2564c486",` +
 		`"MessageAttributes":{"Test":{"Type":"String","Value":"TestString"},"TestBinary":{"Type":"Binary","Value":"VGVzdEJpbmFyeQ=="}}}}]}`
 	signer := &stubSigner{}
-	got, err := envelope.Lambda(n, sub, signer, "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-ac565b8b1a6c5d002d285f9598aa1d9b.pem")
+	got, err := envelope.Lambda(n, sub, envelope.Signing{
+		Version: envelope.V1,
+		Signer:  signer,
+		CertURL: "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-ac565b8b1a6c5d002d285f9598aa1d9b.pem",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,10 +221,44 @@ func TestLambdaEventMatchesTheRecordedCasing(t *testing.T) {
 	}
 }
 
+// TestLambdaEventOfAVersion2TopicIsLabelledOneAndSignedWithSHA256 checks
+// AWS's behavior for a topic with SignatureVersion 2: the event says "1"
+// but its signature verifies only as SHA256withRSA (sns.md 5.4).
+func TestLambdaEventOfAVersion2TopicIsLabelledOneAndSignedWithSHA256(t *testing.T) {
+	pub, signer := newKey(t)
+	n := example()
+	body, err := envelope.Lambda(n, exampleTopic+":sub", envelope.Signing{Version: envelope.V2, Signer: signer, CertURL: exampleCertURL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var event struct {
+		Records []struct {
+			Sns struct{ SignatureVersion, Signature string }
+		}
+	}
+	if err := json.Unmarshal(body, &event); err != nil {
+		t.Fatal(err)
+	}
+	if len(event.Records) != 1 {
+		t.Fatalf("Lambda event %s: want one record", body)
+	}
+	got := event.Records[0].Sns
+	if got.SignatureVersion != "1" {
+		t.Errorf("SignatureVersion = %q, want \"1\"", got.SignatureVersion)
+	}
+	sig, err := base64.StdEncoding.DecodeString(got.Signature)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := verify(pub, envelope.V2, envelope.StringToSign(n), sig); err != nil {
+		t.Errorf("signature does not verify as SHA256withRSA: %v", err)
+	}
+}
+
 func TestLambdaEventWithoutSubjectOrAttributes(t *testing.T) {
 	n := example()
 	n.Subject, n.Attributes = "", nil
-	got, err := envelope.Lambda(n, exampleTopic+":sub", &stubSigner{}, exampleCertURL)
+	got, err := envelope.Lambda(n, exampleTopic+":sub", envelope.Signing{Version: envelope.V1, Signer: &stubSigner{}, CertURL: exampleCertURL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +267,10 @@ func TestLambdaEventWithoutSubjectOrAttributes(t *testing.T) {
 	}
 }
 
-func TestSignaturesVerifyAgainstTheCertificate(t *testing.T) {
+// newKey makes a signing key and returns the public key of its certificate
+// and its Signer.
+func newKey(t *testing.T) (*rsa.PublicKey, envelope.Signer) {
+	t.Helper()
 	key, err := envelope.NewKey("understudy SNS 000000000000 us-east-1")
 	if err != nil {
 		t.Fatal(err)
@@ -250,6 +291,11 @@ func TestSignaturesVerifyAgainstTheCertificate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return pub, signer
+}
+
+func TestSignaturesVerifyAgainstTheCertificate(t *testing.T) {
+	pub, signer := newKey(t)
 	n := example()
 	for _, v := range []envelope.Version{envelope.V1, envelope.V2} {
 		body, err := envelope.SQS(n, envelope.Signing{Version: v, Signer: signer, CertURL: exampleCertURL})

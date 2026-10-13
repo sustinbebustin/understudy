@@ -26,28 +26,72 @@ func busARN(scope aws.Scope, name string) aws.ARN {
 	}
 }
 
-// busName is the bus an EventBusName names, a name or an ARN; nil and
-// empty name the default bus. isDefault says whether it is scope's default
-// bus, the only bus that exists.
-func busName(scope aws.Scope, name *string) (string, bool) {
-	if name == nil || *name == "" || *name == defaultBus {
-		return defaultBus, true
-	}
-	if arn, err := aws.ParseARN(*name); err == nil && arn.Service == "events" {
-		bus, ok := strings.CutPrefix(arn.Resource, "event-bus/")
-		if !ok {
-			return *name, false
-		}
-		return bus, arn == busARN(scope, defaultBus)
-	}
-	return *name, false
+// busRef is the bus an EventBusName names, read for a caller in a scope.
+// Every account and region has exactly one bus, its default bus.
+//
+//sumtype:decl
+type busRef interface{ isBusRef() }
+
+// ownBus is the caller's default bus: no name, the name default, or its ARN.
+type ownBus struct{}
+
+// foreignBus is, by ARN, the default bus of another served account or
+// region. It exists, but the caller does not own it.
+type foreignBus struct{ scope aws.Scope }
+
+// missingBus is any other bus, which does not exist. name is the bus name
+// AWS's not-found text quotes; arn is the bus the name or ARN denotes.
+type missingBus struct {
+	name string
+	arn  aws.ARN
 }
 
-// requireDefaultBus answers ResourceNotFoundException for any bus other
-// than the caller's default bus.
+func (ownBus) isBusRef()     {}
+func (foreignBus) isBusRef() {}
+func (missingBus) isBusRef() {}
+
+// arn is the ARN of the default bus.
+func (f foreignBus) arn() aws.ARN { return busARN(f.scope, defaultBus) }
+
+// parseBus reads an EventBusName, a name or an ARN, for a caller in scope;
+// nil and empty name the caller's default bus. An ARN names its own account
+// and region, not the caller's.
+func parseBus(scope aws.Scope, name *string) busRef {
+	if name == nil || *name == "" || *name == defaultBus {
+		return ownBus{}
+	}
+	arn, err := aws.ParseARN(*name)
+	if err != nil {
+		return missingBus{name: *name, arn: busARN(scope, *name)}
+	}
+	bus, isBus := strings.CutPrefix(arn.Resource, "event-bus/")
+	switch {
+	case arn.Service != "events" || !isBus:
+		return missingBus{name: *name, arn: arn}
+	case bus != defaultBus:
+		return missingBus{name: bus, arn: arn}
+	}
+	at, serr := aws.ScopeOf(arn)
+	switch {
+	case serr != nil:
+		return missingBus{name: bus, arn: arn}
+	case at == scope:
+		return ownBus{}
+	}
+	return foreignBus{scope: at}
+}
+
+// requireDefaultBus admits only the caller's default bus to a control-plane
+// call: another served account's or region's default bus is NotImplemented,
+// and any other bus does not exist.
 func requireDefaultBus(scope aws.Scope, name *string) *awserr.Error {
-	if bus, ok := busName(scope, name); !ok {
-		return errBusNotFound(bus)
+	switch b := parseBus(scope, name).(type) {
+	case ownBus:
+		return nil
+	case foreignBus:
+		return errForeignBus(b.arn())
+	case missingBus:
+		return errBusNotFound(b.name)
 	}
 	return nil
 }
@@ -80,29 +124,11 @@ func parseRuleARN(s string) (ruleRef, bool) {
 	if !ok || name == "" || strings.Contains(name, "/") {
 		return ruleRef{}, false
 	}
-	scope, ok := scopeOf(arn)
-	if !ok {
+	scope, err := aws.ScopeOf(arn)
+	if err != nil {
 		return ruleRef{}, false
 	}
 	return ruleRef{scope: scope, name: name}, true
-}
-
-// scopeOf returns the account and region an ARN names, when it names one
-// understudy serves: the aws partition, an account ID and a known region.
-func scopeOf(arn aws.ARN) (aws.Scope, bool) {
-	var s aws.Scope
-	if err := s.Partition.UnmarshalText([]byte(arn.Partition)); err != nil || s.Partition != aws.PartitionAWS() {
-		return aws.Scope{}, false
-	}
-	account, err := aws.ParseAccountID(arn.Account)
-	if err != nil {
-		return aws.Scope{}, false
-	}
-	s.Account = account
-	if err := s.Region.UnmarshalText([]byte(arn.Region)); err != nil || s.Region.IsZero() {
-		return aws.Scope{}, false
-	}
-	return s, true
 }
 
 // bindBuses binds the event bus operations: the default bus only.
@@ -138,7 +164,9 @@ const defaultPageSize = 100
 
 // page returns the page of items a NextToken and Limit select, and the
 // token of the next page. A token is the decimal offset of the page's first
-// item; one understudy did not issue answers ValidationException.
+// item; one understudy did not issue answers ValidationException. An empty
+// page is an empty slice, never nil: the serializers leave a nil list out,
+// and AWS sends an empty one ({"Rules": []}).
 func page[T any](items []T, token *string, limit *int32) (out []T, next *string, err *awserr.Error) {
 	start := 0
 	if token != nil {
@@ -153,6 +181,9 @@ func page[T any](items []T, token *string, limit *int32) (out []T, next *string,
 		size = int(*limit)
 	}
 	end := min(start+size, len(items))
+	if start == end {
+		return []T{}, nil, nil
+	}
 	if end == len(items) {
 		return items[start:end], nil, nil
 	}

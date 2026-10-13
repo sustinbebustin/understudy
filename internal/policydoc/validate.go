@@ -246,13 +246,19 @@ func checkTrustActions(statements []Statement) *ValidationError {
 	return nil
 }
 
-// isTrustAction reports whether a trust policy may name action: moto's
-// list, matched exactly.
+// isTrustAction reports whether a trust policy may name action, matched
+// exactly as moto does: every action the Service Authorization Reference
+// defines for STS (list_awssecuritytokenservice.html). All but
+// sts:GetServiceBearerToken, which no API operation authorizes, also appear
+// in third_party/aws-service-reference/actions.json. moto's own list lacks
+// the newer actions and so rejects documented trust policies such as
+// Amazon Q Business's ["sts:AssumeRole", "sts:SetContext"].
 func isTrustAction(action string) bool {
 	switch action {
-	case "sts:AssumeRole", "sts:AssumeRoleWithSAML", "sts:AssumeRoleWithWebIdentity", "sts:DecodeAuthorizationMessage",
-		"sts:GetAccessKeyInfo", "sts:GetCallerIdentity", "sts:GetFederationToken", "sts:GetServiceBearerToken",
-		"sts:GetSessionToken", "sts:SetSourceIdentity", "sts:TagSession":
+	case "sts:AssumeRole", "sts:AssumeRoleWithSAML", "sts:AssumeRoleWithWebIdentity", "sts:AssumeRoot",
+		"sts:DecodeAuthorizationMessage", "sts:GetAccessKeyInfo", "sts:GetCallerIdentity", "sts:GetDelegatedAccessToken",
+		"sts:GetFederationToken", "sts:GetServiceBearerToken", "sts:GetSessionToken", "sts:GetWebIdentityToken",
+		"sts:SetContext", "sts:SetSourceIdentity", "sts:TagGetWebIdentityToken", "sts:TagSession":
 		return true
 	default:
 		return false

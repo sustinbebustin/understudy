@@ -126,9 +126,15 @@ func (s *Service) Rearm(now clock.Instant) {
 		if !ok {
 			continue
 		}
-		for _, a := range store.Read(cell, func(st *State) []clock.Armed { return s.armed(scope, st, now) }) {
-			sched.Arm(a.Key, a.Due)
-		}
+		// Armed under the cell lock, where kernel.Write arms, so a
+		// concurrent write either commits first and is read here, or
+		// commits after and its own arms replace these.
+		store.Read(cell, func(st *State) struct{} {
+			for _, a := range s.armed(scope, st, now) {
+				sched.Arm(a.Key, a.Due)
+			}
+			return struct{}{}
+		})
 	}
 }
 

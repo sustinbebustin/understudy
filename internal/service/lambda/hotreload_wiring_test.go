@@ -9,7 +9,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/journal"
-	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/pool/pooltest"
@@ -69,9 +68,7 @@ func TestHotReloadRunsTheDirectoryAndAnEditColdStartsTheNextInvoke(t *testing.T)
 		}
 
 		// A reset ends an overlay bound through the admin API.
-		if err := h.x.Drain(h.Context(), kernel.ResetScope{}); err != nil {
-			t.Fatal(err)
-		}
+		h.drainAll()
 		h.invoke(invokeInput("fn", `{}`))
 		if specs = h.started(); codeDir(t, &specs[len(specs)-1]) == dir {
 			t.Error("the overlay outlived the reset of its scope")
@@ -133,9 +130,7 @@ func TestConfiguredHotReloadAppliesToFunctionsCreatedLater(t *testing.T) {
 	runExec(t, pooltest.Echo, func(h *execHarness) {
 		h.createFunction("fn")
 		h.invoke(invokeInput("fn", `{}`))
-		if err := h.x.Drain(h.Context(), kernel.ResetScope{}); err != nil {
-			t.Fatal(err)
-		}
+		h.drainAll()
 		h.invoke(invokeInput("fn", `{}`))
 		for i, spec := range h.started() {
 			if got := codeDir(t, &spec); got != dir {

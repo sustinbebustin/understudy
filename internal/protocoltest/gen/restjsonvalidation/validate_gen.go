@@ -689,7 +689,7 @@ func (v *SensitiveValidationInput) Validate() []awserr.Violation {
 func (v *SensitiveValidationInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.String != nil {
 		if !pattern1.MatchString(*v.String) {
-			*out = append(*out, awserr.Violation{Path: at(path, "string"), Value: awserr.RenderedText{Text: *v.String}, Constraint: awserr.Pattern{Echo: "[a-m]+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "string"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[a-m]+"}})
 		}
 	}
 }

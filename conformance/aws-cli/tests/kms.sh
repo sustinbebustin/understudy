@@ -100,8 +100,9 @@ test_alias_duplicate_is_already_exists() {
   local alias
   alias="alias/$(new_name kms-dupal)"
   aws_ok kms create-alias --alias-name "$alias" --target-key-id "$KEY_ID"
-  # The KMS model binds AlreadyExistsException to HTTP 409.
-  aws_error AlreadyExistsException 409 kms create-alias --alias-name "$alias" --target-key-id "$KEY_ID"
+  # The model binds AlreadyExistsException to HTTP 409, but API_CreateAlias
+  # lists it as 400, which understudy answers.
+  aws_error AlreadyExistsException 400 kms create-alias --alias-name "$alias" --target-key-id "$KEY_ID"
 }
 
 test_update_alias_retargets_key() {

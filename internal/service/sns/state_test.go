@@ -39,6 +39,9 @@ func TestStateCodecRoundTrips(t *testing.T) {
 				Unsubscribed:       rapid.IntRange(0, 100).Draw(t, "unsubscribed"),
 			}
 		}
+		for _, sub := range subscriptions(t) {
+			st.Detached = append(st.Detached, DetachedSubscription{Topic: "deleted", Subscription: sub, Until: instant(t, "detachedUntil")})
+		}
 		data, err := c.Marshal(&st)
 		if err != nil {
 			t.Fatal(err)
@@ -98,7 +101,7 @@ func confirmedBy(t *rapid.T) ConfirmedBy {
 	token := func() string { return rapid.StringMatching(`[0-9a-f]{8}`).Draw(t, "confirmedToken") }
 	switch rapid.IntRange(0, 2).Draw(t, "confirmedBy") {
 	case 0:
-		return AtSubscribe{}
+		return AtSubscribe{AuthenticateOnUnsubscribe: rapid.Bool().Draw(t, "ownerSubscribed")}
 	case 1:
 		return ByCall{Token: token(), AuthenticateOnUnsubscribe: rapid.Bool().Draw(t, "authenticateOnUnsubscribe")}
 	default:

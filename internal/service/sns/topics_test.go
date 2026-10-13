@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 )
 
 const defaultPolicy = `{"Version":"2008-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"__default_statement_ID","Effect":"Allow","Principal":{"AWS":"*"},` +
@@ -197,11 +198,115 @@ func TestFIFOTopicAttributes(t *testing.T) {
 		if attrs["ContentBasedDeduplication"] != "true" || attrs["FifoThroughputScope"] != "MessageGroup" {
 			h.Errorf("FIFO attributes = %v", attrs)
 		}
+		// A MessageGroup scope cannot be reverted to Topic
+		// (fifo-high-throughput.html); setting MessageGroup again is fine.
+		setScope := func(arn, scope string) *awserr.Error {
+			_, err := call(h, snsapi.OpSetTopicAttributes, &snsapi.SetTopicAttributesInput{TopicArn: arn, AttributeName: "FifoThroughputScope", AttributeValue: &scope})
+			return err
+		}
+		wantError(h, setScope(arn, "Topic"), "InvalidParameter", "Invalid parameter: FifoThroughputScope Reason: a FifoThroughputScope of MessageGroup cannot be reverted to Topic")
+		if err := setScope(arn, "MessageGroup"); err != nil {
+			h.Errorf("SetTopicAttributes FifoThroughputScope=MessageGroup again = %s %q", err.ID.QueryCode, err.Message)
+		}
+		if got := h.topicAttributes(arn)["FifoThroughputScope"]; got != "MessageGroup" {
+			h.Errorf("FifoThroughputScope after refused revert = %q, want MessageGroup", got)
+		}
+		// Topic to MessageGroup is the one-way change AWS allows.
+		widening := h.topic("widening.fifo", map[string]string{"FifoTopic": "true", "FifoThroughputScope": "Topic"})
+		if err := setScope(widening, "MessageGroup"); err != nil {
+			h.Errorf("SetTopicAttributes FifoThroughputScope Topic to MessageGroup = %s %q", err.ID.QueryCode, err.Message)
+		}
 		std := h.topic("plain", nil)
 		_, err := call(h, snsapi.OpSetTopicAttributes, &snsapi.SetTopicAttributesInput{TopicArn: std, AttributeName: "ContentBasedDeduplication", AttributeValue: new("true")})
 		wantError(h, err, "InvalidParameter", "Invalid parameter: ContentBasedDeduplication")
 		_, err = call(h, snsapi.OpSetTopicAttributes, &snsapi.SetTopicAttributesInput{TopicArn: std, AttributeName: "Bogus", AttributeValue: new("x")})
 		wantError(h, err, "InvalidParameter", "Invalid parameter: AttributeName")
+	})
+}
+
+// TestTopicDeliveryPolicyKeepsRetryConstraints: a topic DeliveryPolicy
+// outside the documented retry and throttle constraints (sns.md 7.3) is
+// refused at CreateTopic and SetTopicAttributes, with the numRetries text
+// AWS-recorded in ballerina topics-tests.bal and the others in its form,
+// and the stored policy is unchanged; the recorded valid policy and the
+// bounds themselves are accepted.
+func TestTopicDeliveryPolicyKeepsRetryConstraints(t *testing.T) {
+	const valid = `{"http":{"defaultHealthyRetryPolicy":{"minDelayTarget":10,"maxDelayTarget":20,"numRetries":3,"numNoDelayRetries":1,` +
+		`"numMinDelayRetries":1,"numMaxDelayRetries":1,"backoffFunction":"linear"},"disableSubscriptionOverrides":true,` +
+		`"defaultRequestPolicy":{"headerContentType":"application/json"}}}`
+	retry := func(members string) string {
+		return `{"http":{"defaultHealthyRetryPolicy":{` + members + `}}}`
+	}
+	run(t, func(h *harness) {
+		arn := h.topic("events", map[string]string{"DeliveryPolicy": valid})
+		setPolicy := func(v string) *awserr.Error {
+			_, err := call(h, snsapi.OpSetTopicAttributes, &snsapi.SetTopicAttributesInput{TopicArn: arn, AttributeName: "DeliveryPolicy", AttributeValue: &v})
+			return err
+		}
+		for _, ok := range []string{
+			retry(`"minDelayTarget":1,"maxDelayTarget":3600,"numRetries":100,"backoffFunction":"exponential"`),
+			retry(`"numRetries":0`),
+			retry(`"numRetries":3,"numNoDelayRetries":1,"numMinDelayRetries":1,"numMaxDelayRetries":1`),
+			`{"http":{"defaultHealthyRetryPolicy":null,"defaultThrottlePolicy":{"maxReceivesPerSecond":1}}}`,
+			valid,
+		} {
+			if err := setPolicy(ok); err != nil {
+				h.Errorf("SetTopicAttributes DeliveryPolicy %s = %s %q", ok, err.ID.QueryCode, err.Message)
+			}
+		}
+		for policy, detail := range map[string]string{
+			retry(`"minDelayTarget":10,"maxDelayTarget":20,"numRetries":300,"numNoDelayRetries":1,"numMinDelayRetries":1,"numMaxDelayRetries":1,"backoffFunction":"linear"`): "http.defaultHealthyRetryPolicy.numRetries must be less than or equal to 100",
+			retry(`"numRetries":-1`):                                             "http.defaultHealthyRetryPolicy.numRetries must be greater than or equal to 0",
+			retry(`"minDelayTarget":0`):                                          "http.defaultHealthyRetryPolicy.minDelayTarget must be greater than or equal to 1",
+			retry(`"minDelayTarget":30,"maxDelayTarget":20`):                     "http.defaultHealthyRetryPolicy.minDelayTarget must be less than or equal to 20",
+			retry(`"maxDelayTarget":3601`):                                       "http.defaultHealthyRetryPolicy.maxDelayTarget must be less than or equal to 3600",
+			retry(`"numNoDelayRetries":-2`):                                      "http.defaultHealthyRetryPolicy.numNoDelayRetries must be greater than or equal to 0",
+			retry(`"numRetries":2,"numNoDelayRetries":2,"numMaxDelayRetries":1`): "http.defaultHealthyRetryPolicy.numRetries must be greater than or equal to 3",
+			retry(`"backoffFunction":"cubic"`):                                   "http.defaultHealthyRetryPolicy.backoffFunction must be one of arithmetic, exponential, geometric, linear",
+			`{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":0}}}`:      "http.defaultThrottlePolicy.maxReceivesPerSecond must be greater than or equal to 1",
+		} {
+			wantError(h, setPolicy(policy), "InvalidParameter", "Invalid parameter: DeliveryPolicy: "+detail)
+			_, err := call(h, snsapi.OpCreateTopic, &snsapi.CreateTopicInput{Name: "refused", Attributes: map[string]string{"DeliveryPolicy": policy}})
+			wantError(h, err, "InvalidParameter", "Invalid parameter: Attributes Reason: DeliveryPolicy: "+detail)
+		}
+		if got := h.topicAttributes(arn)["DeliveryPolicy"]; !strings.Contains(got, `"disableSubscriptionOverrides":true`) {
+			h.Errorf("DeliveryPolicy after the refused values = %s, want the recorded valid policy", got)
+		}
+	})
+}
+
+// TestTopicPolicyActionsStayInServiceScope: a topic Policy naming an
+// action SNS does not serve is refused at CreateTopic (the policy and
+// text AWS-recorded in ballerina topics-tests.bal) and SetTopicAttributes;
+// SNS actions in any case, sns:* patterns that match one, and "*" are
+// accepted.
+func TestTopicPolicyActionsStayInServiceScope(t *testing.T) {
+	statement := func(action string) string {
+		return `{"Version":"2008-10-17","Id":"p","Statement":[{"Sid":"s","Effect":"Allow","Principal":{"AWS":"*"},"Action":` + action +
+			`,"Resource":"arn:aws:sns:us-east-1:000000000000:events"}]}`
+	}
+	run(t, func(h *harness) {
+		const recorded = `{"Version": "2008-10-17", "Id": "__default_policy_ID", "Statement": [{"Sid": "__default_statement_ID", "Effect": "Allow", ` +
+			`"Principal": {"AWS": "*"}, "Action": ["SNS:Publishx", "SNS:RemovePermission", "SNS:SetTopicAttributes", "SNS:DeleteTopic", ` +
+			`"SNS:ListSubscriptionsByTopic", "SNS:GetTopicAttributes", "SNS:AddPermission", "SNS:Subscribe"], "Resource": "", ` +
+			`"Condition": {"StringEquals": {"AWS:SourceOwner": "482724125666"}}}, {"Sid": "__console_sub_0", "Effect": "Allow", ` +
+			`"Principal": {"AWS": "*"}, "Action": ["SNS:Subscribe"], "Resource": ""}]}`
+		_, err := call(h, snsapi.OpCreateTopic, &snsapi.CreateTopicInput{Name: "refused", Attributes: map[string]string{"Policy": recorded}})
+		wantError(h, err, "InvalidParameter", "Invalid parameter: Attributes Reason: Policy statement action out of service scope!")
+
+		arn := h.topic("events", nil)
+		setPolicy := func(v string) *awserr.Error {
+			_, err := call(h, snsapi.OpSetTopicAttributes, &snsapi.SetTopicAttributesInput{TopicArn: arn, AttributeName: "Policy", AttributeValue: &v})
+			return err
+		}
+		for _, action := range []string{`"sqs:SendMessage"`, `["SNS:Publish","SNS:CreateTopic"]`, `"sns:Pub*x"`, `"Publish"`} {
+			wantError(h, setPolicy(statement(action)), "InvalidParameter", "Invalid parameter: Policy statement action out of service scope!")
+		}
+		for _, action := range []string{`"sns:publish"`, `"SNS:Receive"`, `"sns:ListTagsForResource"`, `"sns:*"`, `"SNS:Get*"`, `"*"`} {
+			if err := setPolicy(statement(action)); err != nil {
+				h.Errorf("SetTopicAttributes Policy with Action %s = %s %q", action, err.ID.QueryCode, err.Message)
+			}
+		}
 	})
 }
 
@@ -251,6 +356,12 @@ func TestTagsAndPermissions(t *testing.T) {
 		wantError(h, err, "InvalidParameter", "Invalid parameter: Statement already exists")
 		_, err = call(h, snsapi.OpAddPermission, &snsapi.AddPermissionInput{TopicArn: arn, Label: "x", AWSAccountId: []string{"111111111111"}, ActionName: []string{"CreateTopic"}})
 		wantError(h, err, "InvalidParameter", "Invalid parameter: Policy statement action out of service scope!")
+		// AWS-recorded in ballerina permission-tests.bal.
+		_, err = call(h, snsapi.OpAddPermission, &snsapi.AddPermissionInput{TopicArn: arn, Label: "bad", AWSAccountId: []string{"111111111111", "InvalidAccountId"}, ActionName: []string{"Publish"}})
+		wantError(h, err, "InvalidParameter", "Invalid parameter: A provided account ID is not valid")
+		if policy := h.topicAttributes(arn)["Policy"]; strings.Contains(policy, "InvalidAccountId") || strings.Contains(policy, `"bad"`) {
+			h.Errorf("Policy after a refused AddPermission = %s", policy)
+		}
 		must(h, snsapi.OpRemovePermission, &snsapi.RemovePermissionInput{TopicArn: arn, Label: "pub"})
 		if policy := h.topicAttributes(arn)["Policy"]; strings.Contains(policy, `"pub"`) {
 			h.Errorf("Policy after RemovePermission = %s", policy)

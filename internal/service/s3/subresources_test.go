@@ -3,6 +3,7 @@ package s3_test
 import (
 	"net/http"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
@@ -630,6 +631,27 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 			},
 			code: "InvalidRequest", status: 400,
 		},
+		"lifecycle rules sharing an ID": {
+			call: func(h *harness, b string) *awserr.Error {
+				rule := s3api.LifecycleRule{ID: new("same"), Status: s3api.ExpirationStatusEnabled, Filter: &s3api.LifecycleRuleFilter{}, Expiration: &s3api.LifecycleExpiration{Days: new(int32(1))}}
+				return errOnly(invoke(h, s3api.OpPutBucketLifecycleConfiguration, &s3api.PutBucketLifecycleConfigurationInput{
+					Bucket: b, LifecycleConfiguration: &s3api.BucketLifecycleConfiguration{Rules: []s3api.LifecycleRule{rule, rule}},
+				}))
+			},
+			code: "InvalidArgument", status: 400, fields: map[string]string{"ArgumentName": "ID", "ArgumentValue": "same"},
+		},
+		"over 1000 lifecycle rules": {
+			call: func(h *harness, b string) *awserr.Error {
+				rules := make([]s3api.LifecycleRule, 1001)
+				for i := range rules {
+					rules[i] = s3api.LifecycleRule{ID: new(strconv.Itoa(i)), Status: s3api.ExpirationStatusEnabled, Filter: &s3api.LifecycleRuleFilter{}, Expiration: &s3api.LifecycleExpiration{Days: new(int32(1))}}
+				}
+				return errOnly(invoke(h, s3api.OpPutBucketLifecycleConfiguration, &s3api.PutBucketLifecycleConfigurationInput{
+					Bucket: b, LifecycleConfiguration: &s3api.BucketLifecycleConfiguration{Rules: rules},
+				}))
+			},
+			code: "InvalidArgument", status: 400,
+		},
 		"two ownership rules": {
 			call: func(h *harness, b string) *awserr.Error {
 				rule := s3api.OwnershipControlsRule{ObjectOwnership: s3api.ObjectOwnershipObjectWriter}
@@ -756,6 +778,86 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 				wantFields(h.T, err, tc.fields)
 				if r := header(err, "x-amz-bucket-region"); tc.stateful && r != "us-east-1" {
 					t.Fatalf("x-amz-bucket-region = %q, want us-east-1", r)
+				}
+			})
+		})
+	}
+}
+
+// TestLifecycleDayLimits: a lifecycle Put is refused with InvalidArgument
+// when an expiration is not a positive number of days, a transition to an
+// Infrequent Access class comes before 30 days, or a rule moves an object
+// on before the earlier class's minimum storage duration (API_Transition,
+// API_LifecycleExpiration, lifecycle-transition-general-considerations).
+// A 0-day transition to another class and a chain that keeps the minimums
+// are stored.
+func TestLifecycleDayLimits(t *testing.T) {
+	transition := func(days int32, c s3api.TransitionStorageClass) s3api.Transition {
+		return s3api.Transition{Days: new(days), StorageClass: new(c)}
+	}
+	noncurrent := func(days int32, c s3api.TransitionStorageClass) s3api.NoncurrentVersionTransition {
+		return s3api.NoncurrentVersionTransition{NoncurrentDays: new(days), StorageClass: new(c)}
+	}
+	for name, tc := range map[string]struct {
+		rule s3api.LifecycleRule
+		// refusal is the InvalidArgument message, "" when the Put succeeds.
+		refusal string
+	}{
+		"0-day transition to Glacier": {rule: s3api.LifecycleRule{Transitions: []s3api.Transition{transition(0, s3api.TransitionStorageClassGlacier)}}},
+		"waterfall keeping each minimum": {rule: s3api.LifecycleRule{Transitions: []s3api.Transition{
+			transition(150, s3api.TransitionStorageClassDeepArchive), transition(30, s3api.TransitionStorageClassStandardIa), transition(60, s3api.TransitionStorageClassGlacierIr),
+		}}},
+		"30-day noncurrent transition to One Zone-IA": {rule: s3api.LifecycleRule{NoncurrentVersionTransitions: []s3api.NoncurrentVersionTransition{noncurrent(30, s3api.TransitionStorageClassOnezoneIa)}}},
+		"7-day transition to Standard-IA": {
+			rule:    s3api.LifecycleRule{Transitions: []s3api.Transition{transition(7, s3api.TransitionStorageClassStandardIa)}},
+			refusal: "'Days' in Transition action must be greater than or equal to 30 for storageClass 'STANDARD_IA'",
+		},
+		"transition to One Zone-IA without days": {
+			rule:    s3api.LifecycleRule{Transitions: []s3api.Transition{{StorageClass: new(s3api.TransitionStorageClassOnezoneIa)}}},
+			refusal: "'Days' in Transition action must be greater than or equal to 30 for storageClass 'ONEZONE_IA'",
+		},
+		"10-day noncurrent transition to Standard-IA": {
+			rule:    s3api.LifecycleRule{NoncurrentVersionTransitions: []s3api.NoncurrentVersionTransition{noncurrent(10, s3api.TransitionStorageClassStandardIa)}},
+			refusal: "'NoncurrentDays' in NoncurrentVersionTransition action must be greater than or equal to 30 for storageClass 'STANDARD_IA'",
+		},
+		"Deep Archive 16 days after Glacier Instant Retrieval": {
+			rule: s3api.LifecycleRule{Transitions: []s3api.Transition{
+				transition(4, s3api.TransitionStorageClassGlacierIr), transition(20, s3api.TransitionStorageClassDeepArchive),
+			}},
+			refusal: "'Days' in the 'Transition' action for StorageClass 'DEEP_ARCHIVE' must be at least 90 days more than 'Days' in the 'Transition' action for StorageClass 'GLACIER_IR'",
+		},
+		"noncurrent Glacier 10 days after Standard-IA": {
+			rule: s3api.LifecycleRule{NoncurrentVersionTransitions: []s3api.NoncurrentVersionTransition{
+				noncurrent(30, s3api.TransitionStorageClassStandardIa), noncurrent(40, s3api.TransitionStorageClassGlacier),
+			}},
+			refusal: "'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'GLACIER' must be at least 30 days more than 'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'STANDARD_IA'",
+		},
+		"0-day expiration": {
+			rule:    s3api.LifecycleRule{Expiration: &s3api.LifecycleExpiration{Days: new(int32(0))}},
+			refusal: "'Days' for Expiration action must be a positive integer",
+		},
+		"0-day noncurrent expiration": {
+			rule:    s3api.LifecycleRule{NoncurrentVersionExpiration: &s3api.NoncurrentVersionExpiration{NoncurrentDays: new(int32(0))}},
+			refusal: "'NoncurrentDays' for NoncurrentVersionExpiration action must be a positive integer",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			run(t, s3.Options{}, func(h *harness) {
+				h.createBucket("days")
+				rule := tc.rule
+				rule.ID, rule.Status, rule.Filter = new("r"), s3api.ExpirationStatusEnabled, &s3api.LifecycleRuleFilter{}
+				_, err := invoke(h, s3api.OpPutBucketLifecycleConfiguration, &s3api.PutBucketLifecycleConfigurationInput{
+					Bucket: "days", LifecycleConfiguration: &s3api.BucketLifecycleConfiguration{Rules: []s3api.LifecycleRule{rule}},
+				})
+				if tc.refusal == "" {
+					if err != nil {
+						h.Fatalf("PutBucketLifecycleConfiguration = %s (%s), want success", err.ID.QueryCode, err.Message)
+					}
+					return
+				}
+				wantCode(h.T, err, "InvalidArgument", http.StatusBadRequest)
+				if err.Message != tc.refusal {
+					h.Fatalf("message = %q, want %q", err.Message, tc.refusal)
 				}
 			})
 		})

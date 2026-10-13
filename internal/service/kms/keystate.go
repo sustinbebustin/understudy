@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"slices"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
@@ -74,7 +75,7 @@ func withKey[R any](s *Service, c *kernel.Call, r keyByID, rule stateRule, fn fu
 		if err != nil {
 			return zero, err
 		}
-		if err := rule.check(k, keyARN(r.scope(), k.ID)); err != nil {
+		if err := rule.check(k, keyARN(r.scope(), k.ID).String()); err != nil {
 			return zero, err
 		}
 		return fn(st, k, now, tx)
@@ -89,13 +90,13 @@ func withKey[R any](s *Service, c *kernel.Call, r keyByID, rule stateRule, fn fu
 // an AWS managed key's first use writes, to create it (mint).
 func (s *Service) keyFor(c *kernel.Call, r keyRef, rule stateRule) (Key, *awserr.Error) {
 	k, err := lookup(s, r)
-	if a, ok := mintable(r, c.Scope()); ok && err != nil {
-		k, err = s.mint(c, a)
+	if m, ok := mintable(r, c.Scope()); ok && err != nil {
+		k, err = s.mint(c, m)
 	}
 	if err != nil {
 		return Key{}, err
 	}
-	if err := rule.check(k, keyARN(r.scope(), k.ID)); err != nil {
+	if err := rule.check(k, keyARN(r.scope(), k.ID).String()); err != nil {
 		return Key{}, err
 	}
 	return k, nil
@@ -114,14 +115,24 @@ func lookup(s *Service, r keyRef) (Key, *awserr.Error) {
 	return f.k, f.err
 }
 
+// mintRef is a reference to an AWS managed key that its first use creates.
+type mintRef struct {
+	alias keyByAlias
+	key   managedKey
+}
+
 // mintable reports an alias/aws/ alias of an AWS service, which names an
 // AWS managed key that AWS creates on first use (iam-sts-kms.md 5.4). Only
 // a caller in the alias's own account creates one: AWS managed keys are not
 // usable across accounts, so a reference from another account finds only a
 // key that exists.
-func mintable(r keyRef, caller aws.Scope) (keyByAlias, bool) {
+func mintable(r keyRef, caller aws.Scope) (mintRef, bool) {
 	a, ok := r.(keyByAlias)
-	return a, ok && managedAlias(a.name) && a.in.Account == caller.Account
+	if !ok || a.in.Account != caller.Account {
+		return mintRef{}, false
+	}
+	m, ok := managedKeyFor(a.name)
+	return mintRef{alias: a, key: m}, ok
 }
 
 // wouldMint reports a mintable alias that names no key yet.
@@ -133,15 +144,16 @@ func (s *Service) wouldMint(c *kernel.Call, r keyRef) bool {
 	return err != nil
 }
 
-// mint creates the AWS managed key alias a names, or returns the one a
+// mint creates the AWS managed key m names, or returns the one a
 // concurrent first use created.
-func (s *Service) mint(c *kernel.Call, a keyByAlias) (Key, *awserr.Error) {
+func (s *Service) mint(c *kernel.Call, m mintRef) (Key, *awserr.Error) {
+	a := m.alias
 	return kernel.Write(c, s.cells, a.in, func(st *State, now clock.Instant, tx *kernel.Tx) (Key, *awserr.Error) {
 		if k, err := find(st, a); err == nil {
 			tx.Unchanged()
 			return k, nil
 		}
-		k, err := s.newKey(a.in, now, kmsapi.KeyManagerTypeAws, "Default key", "")
+		k, err := s.newKey(a.in, now, kmsapi.KeyManagerTypeAws, m.key.description, m.key.policy(a.in))
 		if err != nil {
 			return Key{}, err
 		}
@@ -158,17 +170,17 @@ func find(st *State, r keyRef) (Key, *awserr.Error) {
 	case keyByID:
 		k, ok := st.Keys[r.id]
 		if !ok {
-			return Key{}, errKeyNotFound(keyARN(r.in, r.id))
+			return Key{}, errKeyNotFound(keyARN(r.in, r.id).String())
 		}
 		return k, nil
 	case keyByAlias:
 		a, ok := st.Aliases[r.name]
 		if !ok {
-			return Key{}, errAliasNotFound(aliasARN(r.in, r.name))
+			return Key{}, errAliasNotFound(aliasARN(r.in, r.name).String())
 		}
 		k, ok := st.Keys[a.KeyID]
 		if !ok {
-			return Key{}, errKeyNotFound(keyARN(r.in, a.KeyID))
+			return Key{}, errKeyNotFound(keyARN(r.in, a.KeyID).String())
 		}
 		return k, nil
 	}
@@ -190,19 +202,115 @@ type RefError struct{}
 
 func (*RefError) Error() string { return "kms: a key reference of no known form reached resolve" }
 
-// managedAlias reports an alias/aws/ name of a service that keeps an AWS
-// managed key, from moto's table plus SNS and SQS (iam-sts-kms.md 5.4).
-func managedAlias(name string) bool {
-	svc, ok := strings.CutPrefix(name, "alias/aws/")
-	if !ok {
-		return false
+// managedKey is the AWS managed key a predefined alias/aws/ alias names:
+// the alias, the service's name as its key policy's statement ids give it,
+// and the Description AWS gives the key it creates.
+type managedKey struct {
+	alias, serviceName, description string
+}
+
+// unrecordedManagedDescription is the Description of an AWS managed key
+// whose service-specific text AWS has not been recorded giving; it is
+// understudy's own.
+const unrecordedManagedDescription = "Default key"
+
+// managedKeys returns the predefined alias/aws/ aliases of the services
+// that keep an AWS managed key, from moto's table plus SNS and SQS
+// (iam-sts-kms.md 5.4). The aws/s3 description is recorded on DescribeKey
+// in LocalStack's AWS-validated
+// test_s3_bucket_encryption_sse_kms_aws_managed_key
+// (tests/aws/services/s3/test_s3_api.snapshot.json@c2cb023 lines
+// 1500-1519). Only the aws/secretsmanager service name is documented in a
+// key policy (see policy); the others are the services' product names.
+func managedKeys() []managedKey {
+	return []managedKey{
+		{"alias/aws/acm", "AWS Certificate Manager", unrecordedManagedDescription},
+		{"alias/aws/dynamodb", "Amazon DynamoDB", unrecordedManagedDescription},
+		{"alias/aws/ebs", "Amazon EBS", unrecordedManagedDescription},
+		{"alias/aws/elasticfilesystem", "Amazon Elastic File System", unrecordedManagedDescription},
+		{"alias/aws/es", "Amazon OpenSearch Service", unrecordedManagedDescription},
+		{"alias/aws/glue", "AWS Glue", unrecordedManagedDescription},
+		{"alias/aws/kinesisvideo", "Amazon Kinesis Video Streams", unrecordedManagedDescription},
+		{"alias/aws/lambda", "AWS Lambda", unrecordedManagedDescription},
+		{"alias/aws/rds", "Amazon RDS", unrecordedManagedDescription},
+		{"alias/aws/redshift", "Amazon Redshift", unrecordedManagedDescription},
+		{"alias/aws/s3", "Amazon S3", "Default key that protects my S3 objects when no other key is defined"},
+		{"alias/aws/secretsmanager", "AWS Secrets Manager", unrecordedManagedDescription},
+		{"alias/aws/sns", "Amazon SNS", unrecordedManagedDescription},
+		{"alias/aws/sqs", "Amazon SQS", unrecordedManagedDescription},
+		{"alias/aws/ssm", "AWS Systems Manager", unrecordedManagedDescription},
+		{"alias/aws/xray", "AWS X-Ray", unrecordedManagedDescription},
 	}
-	switch svc {
-	case "acm", "dynamodb", "ebs", "elasticfilesystem", "es", "glue", "kinesisvideo", "lambda",
-		"rds", "redshift", "s3", "secretsmanager", "sns", "sqs", "ssm", "xray":
-		return true
+}
+
+// policy is the fixed key policy of m's key in scope, in the GetKeyPolicy
+// layout defaultPolicy uses. Its statements are the ones AWS documents for
+// aws/secretsmanager (iam-sts-kms.md 5.4, from
+// https://docs.aws.amazon.com/secretsmanager/latest/userguide/security-encryption.html):
+// principals of the account use the key only through the service
+// (kms:ViaService and kms:CallerAccount), and the account root may only
+// read the key's metadata and revoke grants, never kms:*. AWS documents no
+// other service's managed key policy, so theirs follow that one and are
+// understudy's own, as is the Id's version suffix -1 (the documented
+// example's is -2).
+func (m managedKey) policy(scope aws.Scope) string {
+	service := strings.TrimPrefix(m.alias, "alias/aws/")
+	account := scope.Account.String()
+	via := service + "." + scope.Region.String() + ".amazonaws.com"
+	sid := "Allow access through " + m.serviceName + " for all principals in the account that are authorized to use " + m.serviceName
+	return `{
+  "Version" : "2012-10-17",
+  "Id" : "auto-` + service + `-1",
+  "Statement" : [ {
+    "Sid" : "` + sid + `",
+    "Effect" : "Allow",
+    "Principal" : {
+      "AWS" : [ "*" ]
+    },
+    "Action" : [ "kms:Encrypt", "kms:Decrypt", "kms:ReEncrypt*", "kms:CreateGrant", "kms:DescribeKey" ],
+    "Resource" : "*",
+    "Condition" : {
+      "StringEquals" : {
+        "kms:CallerAccount" : "` + account + `",
+        "kms:ViaService" : "` + via + `"
+      }
+    }
+  }, {
+    "Sid" : "` + sid + `",
+    "Effect" : "Allow",
+    "Principal" : {
+      "AWS" : [ "*" ]
+    },
+    "Action" : "kms:GenerateDataKey*",
+    "Resource" : "*",
+    "Condition" : {
+      "StringEquals" : {
+        "kms:CallerAccount" : "` + account + `"
+      },
+      "StringLike" : {
+        "kms:ViaService" : "` + via + `"
+      }
+    }
+  }, {
+    "Sid" : "Allow direct access to key metadata to the account",
+    "Effect" : "Allow",
+    "Principal" : {
+      "AWS" : [ "` + aws.RootARN(scope.Partition, account).String() + `" ]
+    },
+    "Action" : [ "kms:Describe*", "kms:Get*", "kms:List*", "kms:RevokeGrant" ],
+    "Resource" : "*"
+  } ]
+}`
+}
+
+// managedKeyFor returns the AWS managed key the alias name names, if name
+// is a predefined alias/aws/ alias.
+func managedKeyFor(name string) (managedKey, bool) {
+	i := slices.IndexFunc(managedKeys(), func(m managedKey) bool { return m.alias == name })
+	if i < 0 {
+		return managedKey{}, false
 	}
-	return false
+	return managedKeys()[i], true
 }
 
 // newKey makes an enabled key with fresh material in scope: the default key
@@ -213,7 +321,7 @@ func (s *Service) newKey(scope aws.Scope, now clock.Instant, manager kmsapi.KeyM
 		return Key{}, err
 	}
 	if policy == "" {
-		policy = defaultPolicy(scope.Account)
+		policy = defaultPolicy(scope)
 	}
 	id := string(s.ids.KMSKeyID())
 	return Key{
@@ -246,9 +354,9 @@ func randomBytes(n int) ([]byte, *awserr.Error) {
 	return b, nil
 }
 
-// defaultPolicy is the key policy a key gets when CreateKey has none, in
-// the layout of the model's GetKeyPolicy example.
-func defaultPolicy(account aws.AccountID) string {
+// defaultPolicy is the key policy a key in scope gets when CreateKey has
+// none, in the layout of the model's GetKeyPolicy example.
+func defaultPolicy(scope aws.Scope) string {
 	return `{
   "Version" : "2012-10-17",
   "Id" : "key-default-1",
@@ -256,7 +364,7 @@ func defaultPolicy(account aws.AccountID) string {
     "Sid" : "Enable IAM User Permissions",
     "Effect" : "Allow",
     "Principal" : {
-      "AWS" : "arn:aws:iam::` + account.String() + `:root"
+      "AWS" : "` + aws.RootARN(scope.Partition, scope.Account.String()).String() + `"
     },
     "Action" : "kms:*",
     "Resource" : "*"

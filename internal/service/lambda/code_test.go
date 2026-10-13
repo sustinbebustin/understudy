@@ -1,6 +1,7 @@
 package lambda_test
 
 import (
+	"bytes"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/docker/dockertest"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
 	"github.com/sustinbebustin/understudy/internal/topology"
 )
@@ -101,6 +103,41 @@ func TestPublishWithImageUpdate(t *testing.T) {
 		v1Now := call(h, lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: "fn", Qualifier: new("1")})
 		if *v1Now.Code.ImageUri != "local/fn:1" {
 			t.Errorf("version 1 = %s, want its own image local/fn:1", *v1Now.Code.ImageUri)
+		}
+	})
+}
+
+// TestImageURIIsAnImageReference: an ImageUri the Docker Engine would not
+// accept is refused by the call that sets it, not when the image is first
+// pulled.
+func TestImageURIIsAnImageReference(t *testing.T) {
+	images, client := imageLauncher(t, "local/fn:latest")
+	run(t, lambda.Options{Images: images}, func(h *harness) {
+		defer client.Close()
+		const bad = "local/../../containers/fn"
+		err := fail(h, lambdaapi.OpCreateFunction, imageFunction("img", bad))
+		if err.ID.Shape.Name() != "InvalidParameterValueException" || !strings.Contains(err.Message, "Source image "+bad+" is not valid") {
+			t.Errorf("CreateFunction with ImageUri %q = %s %q", bad, err.ID.Shape.Name(), err.Message)
+		}
+		call(h, lambdaapi.OpCreateFunction, imageFunction("img", "local/fn:latest"))
+		h.settle()
+		err = fail(h, lambdaapi.OpUpdateFunctionCode, &lambdaapi.UpdateFunctionCodeInput{FunctionName: "img", ImageUri: new("local/FN:1")})
+		if err.ID.Shape.Name() != "InvalidParameterValueException" || !strings.Contains(err.Message, "is not valid") {
+			t.Errorf("UpdateFunctionCode with an uppercase repository = %s %q", err.ID.Shape.Name(), err.Message)
+		}
+	})
+}
+
+// TestPackageEntriesAreBoundedBeforeParsing: a package with more central
+// directory headers than the code store extracts is refused before the
+// zip reader allocates for each of them.
+func TestPackageEntriesAreBoundedBeforeParsing(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		in := zipFunction(h, "fn")
+		in.Code.ZipFile = bytes.Repeat([]byte("PK\x01\x02"), int(codestore.DefaultMaxEntries)+1)
+		err := fail(h, lambdaapi.OpCreateFunction, in)
+		if err.ID.Shape.Name() != "InvalidParameterValueException" || !strings.Contains(err.Message, "Package fewer files") {
+			t.Errorf("CreateFunction with too many entries = %s %q", err.ID.Shape.Name(), err.Message)
 		}
 	})
 }

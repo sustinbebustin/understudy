@@ -116,7 +116,7 @@ func runes() *rapid.Generator[rune] {
 }
 
 // TestTranslatedClassesHaveECMASemantics is the differential test of
-// ARCHITECTURE.md 5.4 (F19): each translated class matches exactly the code
+// ARCHITECTURE.md 5.4: each translated class matches exactly the code
 // points ECMA-262 says it does, which RE2's own \s and . do not.
 func TestTranslatedClassesHaveECMASemantics(t *testing.T) {
 	oracles := map[string]func(rune) bool{

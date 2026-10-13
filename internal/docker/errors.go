@@ -144,13 +144,15 @@ func (e *StreamError) Error() string {
 	return fmt.Sprintf("docker %s: %s", e.Op, e.Message)
 }
 
-// UnsupportedEndpointError reports a DOCKER_HOST that is not a unix socket.
-type UnsupportedEndpointError struct {
-	Value string
+// InvalidReferenceError reports an image reference that is not in the
+// Engine's reference grammar, refused before any request is sent.
+type InvalidReferenceError struct {
+	Ref    string
+	Reason string
 }
 
-func (e *UnsupportedEndpointError) Error() string {
-	return fmt.Sprintf("DOCKER_HOST=%q is not supported: understudy reaches the container engine only through a unix socket; set DOCKER_HOST=unix:///var/run/docker.sock or to the socket of Docker Desktop, Colima or Podman", e.Value)
+func (e *InvalidReferenceError) Error() string {
+	return fmt.Sprintf("image reference %q is invalid: %s; use a reference such as public.ecr.aws/lambda/provided:al2023 or registry.example.com:5000/team/app@sha256:<digest>", e.Ref, e.Reason)
 }
 
 // OwnershipError reports an Ownership without an instance or an owner.

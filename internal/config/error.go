@@ -34,18 +34,25 @@ func (e *Error) Error() string {
 	return b.String()
 }
 
-// closest returns the candidate with the smallest edit distance to name,
-// ignoring case, the first in candidates on a tie.
-func closest(name string, candidates []string) string {
-	best, bestDist := "", -1
+// Closest returns the candidate with the smallest edit distance to name,
+// ignoring case, the first in candidates on a tie. It is empty when even
+// that candidate is too far to be a typo of name, so an unrelated name
+// gets no suggestion rather than a misleading one. Every CLI command
+// suggests names by this rule, as serve's configuration does.
+func Closest(name string, candidates []string) string {
+	best, bestDist := "", maxTypoDistance(len(name))+1
 	for _, c := range candidates {
-		d := distance(strings.ToLower(name), strings.ToLower(c))
-		if bestDist < 0 || d < bestDist {
+		if d := distance(strings.ToLower(name), strings.ToLower(c)); d < bestDist {
 			best, bestDist = c, d
 		}
 	}
 	return best
 }
+
+// maxTypoDistance is the most edits a typo of an n-byte name makes: a third
+// of it, at least two, yet fewer than n, so a short name is never matched
+// by rewriting all of it.
+func maxTypoDistance(n int) int { return min(max(2, n/3), n-1) }
 
 // distance is the Levenshtein distance between a and b in bytes.
 func distance(a, b string) int {

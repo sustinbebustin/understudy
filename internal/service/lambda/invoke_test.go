@@ -54,10 +54,12 @@ type execHarness struct {
 	logs     *logSink
 }
 
-// execConfig is what the harness builds the Execution from: the options of
-// its pool of fake containers, nil when Docker is down, and the
-// ExecutionOptions, whose Pool the harness sets from them.
+// execConfig is what the harness builds the Execution from: the control
+// plane's options, whose Images the harness sets, the options of its pool
+// of fake containers, nil when Docker is down, and the ExecutionOptions,
+// whose Pool the harness sets from them.
 type execConfig struct {
+	svc  lambda.Options
 	pool *pool.Options
 	exec lambda.ExecutionOptions
 }
@@ -70,6 +72,10 @@ func noDocker(c *execConfig) { c.pool, c.exec.Images, c.exec.Code = nil, nil, ni
 
 // globalCap bounds the pool's environments to n.
 func globalCap(n int) execOptions { return func(c *execConfig) { c.pool.GlobalCap = n } }
+
+// clockTransitions makes versions Pending and updates InProgress until the
+// emulator clock passes the settle delay.
+func clockTransitions(c *execConfig) { c.svc.StateTransitions = lambda.TransitionsClock }
 
 func runExec(t *testing.T, handler pooltest.Handler, fn func(h *execHarness), opts ...execOptions) {
 	t.Helper()
@@ -161,24 +167,24 @@ func withExec(k *kerneltest.K, handler pooltest.Handler, link *linkTo, fn func(h
 	}
 	deps := k.Deps(lambdaapi.Service())
 	deps.Blob = blobs
-	images := &fakeImages{}
-	svc := lambda.New(deps, lambda.Options{Images: images})
 	h := &execHarness{
-		harness:  &harness{K: k, svc: svc},
 		launcher: pooltest.NewFakeLauncher(),
 		runtime:  pooltest.NewFakeRuntime(handler),
-		images:   images,
+		images:   &fakeImages{},
 		code:     code,
 		output:   newFakeOutput(),
 		logs:     &logSink{},
 	}
 	cfg := execConfig{
+		svc:  lambda.Options{Images: h.images},
 		pool: &pool.Options{Launcher: h.launcher, Runtime: h.runtime, Clock: k.Clock},
 		exec: lambda.ExecutionOptions{Docker: dockerEndpoint, Images: h.images, Code: code, Logs: h.output},
 	}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
+	svc := lambda.New(deps, cfg.svc)
+	h.harness = &harness{K: k, svc: svc}
 	runCtx, stopRun := context.WithCancel(context.Background())
 	ran := make(chan error, 1)
 	if cfg.pool == nil {
@@ -226,6 +232,17 @@ func (h *execHarness) invoke(in *lambdaapi.InvokeInput) *lambdaapi.InvokeOutput 
 func (h *execHarness) invokeFails(in *lambdaapi.InvokeInput) *awserr.Error {
 	h.Helper()
 	return fail(h.harness, lambdaapi.OpInvoke, in)
+}
+
+// drainAll drains every scope and then rearms the pollers, which ends the
+// drain's hold on invocations: the admin API's reset of everything, with
+// no state to replace in between.
+func (h *execHarness) drainAll() {
+	h.Helper()
+	if err := h.x.Drain(h.Context(), kernel.ResetScope{}); err != nil {
+		h.Fatal(err)
+	}
+	h.x.RearmPollers()
 }
 
 // invocations returns the journal's Invocation events, oldest first.
@@ -560,13 +577,15 @@ func TestDryRunAnswers204WithoutRunningTheFunction(t *testing.T) {
 			t.Errorf("DryRun started %d containers", n)
 		}
 		err := h.invokeFails(&lambdaapi.InvokeInput{FunctionName: "nope", InvocationType: new(lambdaapi.InvocationTypeDryRun)})
-		errorIs(t, err, "ResourceNotFoundException", "Function not found: arn:aws:lambda:us-east-1:000000000000:function:nope")
+		errorIs(t, err, "ResourceNotFoundException", "Function not found: arn:aws:lambda:us-east-1:000000000000:function:nope:$LATEST")
 	})
 }
 
 func TestInvokeRefusesBadRequestsBeforeRunning(t *testing.T) {
+	const noLatestPublished = "The function arn:aws:lambda:us-east-1:000000000000:function:fn has no $LATEST.PUBLISHED version: only Lambda Managed Instances functions publish one, and understudy does not implement them. Invoke $LATEST, a version number or an alias."
 	runExec(t, pooltest.Echo, func(h *execHarness) {
 		h.createFunction("fn")
+		call(h.harness, lambdaapi.OpPublishVersion, &lambdaapi.PublishVersionInput{FunctionName: "fn"})
 		// 6,291,457 bytes: one over the request limit, under the response's.
 		big := `"` + strings.Repeat("x", 6_291_455) + `"`
 		async := `"` + strings.Repeat("x", 1_048_576) + `"`
@@ -576,11 +595,19 @@ func TestInvokeRefusesBadRequestsBeforeRunning(t *testing.T) {
 			shape   string
 			message string
 		}{
-			{"missing function", invokeInput("nope", `{}`), "ResourceNotFoundException", "Function not found: arn:aws:lambda:us-east-1:000000000000:function:nope"},
+			// Invoke names the $LATEST ARN (test_invoke_exceptions).
+			{"missing function", invokeInput("nope", `{}`), "ResourceNotFoundException", "Function not found: arn:aws:lambda:us-east-1:000000000000:function:nope:$LATEST"},
 			{"missing version", &lambdaapi.InvokeInput{FunctionName: "fn", Qualifier: new("7")}, "ResourceNotFoundException", "Function not found: arn:aws:lambda:us-east-1:000000000000:function:fn:7"},
+			// Only Lambda Managed Instances functions have $LATEST.PUBLISHED.
+			{"$LATEST.PUBLISHED qualifier", &lambdaapi.InvokeInput{FunctionName: "fn", Qualifier: new("$LATEST.PUBLISHED")}, "NoPublishedVersionException", noLatestPublished},
+			{"$LATEST.PUBLISHED in the name", invokeInput("fn:$LATEST.PUBLISHED", `{}`), "NoPublishedVersionException", noLatestPublished},
+			{"$LATEST.PUBLISHED of a missing function", invokeInput("nope:$LATEST.PUBLISHED", `{}`), "ResourceNotFoundException", "Function not found: arn:aws:lambda:us-east-1:000000000000:function:nope"},
 			{"sync payload over 6 MB", invokeInput("fn", big), "RequestEntityTooLargeException", "Request must be smaller than 6291456 bytes for the InvokeFunction operation"},
 			{"async payload over 1 MB", &lambdaapi.InvokeInput{FunctionName: "fn", InvocationType: new(lambdaapi.InvocationTypeEvent), Payload: []byte(async)}, "RequestEntityTooLargeException", "Request must be smaller than 1048576 bytes for the InvokeFunction operation"},
 			{"payload not JSON", invokeInput("fn", `{nope`), "InvalidRequestContentException", "Could not parse request body into json: Could not parse payload into json: invalid character 'n' looking for beginning of object key string"},
+			// Latin-1 text inside a JSON string, which Go's parser alone
+			// would accept (test_lambda_invoke_payload_encoding_error).
+			{"payload not UTF-8", invokeInput("fn", "{\"name\":\"caf\xe9\"}"), "InvalidRequestContentException", "Could not parse request body into json: Could not parse payload into json: invalid UTF-8 byte 0xe9 at offset 12"},
 			{"client context not base64", &lambdaapi.InvokeInput{FunctionName: "fn", ClientContext: new("%%%")}, "InvalidRequestContentException", "X-Amz-Client-Context is not valid base64; send the base64 encoding of a JSON object of at most 3583 bytes."},
 		} {
 			if err := h.invokeFails(tc.in); err.ID.Shape.Name() != tc.shape || err.Message != tc.message {
@@ -766,6 +793,43 @@ func TestDrainWaitsForRunningInvocations(t *testing.T) {
 	})
 }
 
+// After Drain returns, and until RearmPollers follows the reset or load,
+// no invocation of the drained scope starts, so none can write into the
+// state being installed; it is refused, not journaled as a throttle.
+func TestDrainHoldsNewInvocationsUntilThePollersAreRearmed(t *testing.T) {
+	runExec(t, pooltest.Echo, func(h *execHarness) {
+		h.createFunction("fn")
+		if err := h.x.Drain(h.Context(), kernel.ResetScope{}); err != nil {
+			t.Fatal(err)
+		}
+		errorIs(t, h.invokeFails(invokeInput("fn", `{}`)), "ServiceException",
+			"Lambda starts no invocation in account 000000000000, region us-east-1 while a reset or snapshot load replaces its state; the function did not run. Retry once the reset or load has answered.")
+		if n, inv := len(h.started()), h.invocations(); n != 0 || len(inv) != 0 {
+			t.Errorf("a held invocation started %d containers and journaled %d invocations, want none", n, len(inv))
+		}
+		h.x.RearmPollers()
+		h.invoke(invokeInput("fn", `{}`))
+		if n := len(h.started()); n != 1 {
+			t.Errorf("containers started after the rearm = %d, want 1", n)
+		}
+	})
+}
+
+// A drain of one account holds only that account's invocations.
+func TestDrainHoldsOnlyItsScope(t *testing.T) {
+	runExec(t, pooltest.Echo, func(h *execHarness) {
+		h.createFunction("fn")
+		other, err := aws.ParseAccountID("111111111111")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := h.x.Drain(h.Context(), kernel.ResetScope{Accounts: []aws.AccountID{other}}); err != nil {
+			t.Fatal(err)
+		}
+		h.invoke(invokeInput("fn", `{}`))
+	})
+}
+
 // invokeInBackground runs Invoke as a client request on another goroutine;
 // wait reports its error on the test's.
 func (h *execHarness) invokeInBackground(in *lambdaapi.InvokeInput) <-chan *awserr.Error {
@@ -784,13 +848,15 @@ func (h *execHarness) wait(done <-chan *awserr.Error) {
 	}
 }
 
-func TestWithoutDockerInvokeAnswersServiceExceptionNamingDocker(t *testing.T) {
+// Without Docker, Invoke answers 501 NotImplemented, which no SDK retries,
+// since retrying cannot help: a 500 would have every client retry first.
+func TestWithoutDockerInvokeAnswersNotImplementedNamingDocker(t *testing.T) {
 	runExec(t, pooltest.Echo, func(h *execHarness) {
 		h.createFunction("fn")
 		err := h.invokeFails(invokeInput("fn", `{}`))
-		if err.ID.Shape.Name() != "ServiceException" || err.ID.Status != 500 ||
+		if err.ID.Shape.Name() != "NotImplemented" || err.ID.Status != http.StatusNotImplemented ||
 			!strings.Contains(err.Message, dockerEndpoint) || !strings.Contains(err.Message, "understudy doctor") {
-			t.Fatalf("Invoke without Docker = %s %d %q, want ServiceException naming %s and understudy doctor", err.ID.Shape.Name(), err.ID.Status, err.Message, dockerEndpoint)
+			t.Fatalf("Invoke without Docker = %s %d %q, want NotImplemented naming %s and understudy doctor", err.ID.Shape.Name(), err.ID.Status, err.Message, dockerEndpoint)
 		}
 		if out := h.invoke(&lambdaapi.InvokeInput{FunctionName: "fn", InvocationType: new(lambdaapi.InvocationTypeDryRun)}); out.StatusCode != http.StatusNoContent {
 			t.Errorf("DryRun without Docker = %d, want 204", out.StatusCode)
@@ -866,6 +932,7 @@ func TestDrainRemovesTheEnvironmentsOfTheResetScope(t *testing.T) {
 		if _, res := h.Identity.Resolve(key); isMinted(res) {
 			t.Errorf("the drained environment's key resolves as %T, want it revoked", res)
 		}
+		h.x.RearmPollers()
 		h.invoke(invokeInput("fn", `{}`))
 		if n := len(h.started()); n != 2 {
 			t.Errorf("containers started = %d, want a cold start after the drain", n)
@@ -899,9 +966,7 @@ func TestWarmReuseSurvivesADrainAfterACodeUpdate(t *testing.T) {
 		h.invoke(invokeInput("fn", `{}`))
 		call(h.harness, lambdaapi.OpUpdateFunctionCode, &lambdaapi.UpdateFunctionCodeInput{FunctionName: "fn", ZipFile: zipOf(t, "#!/bin/sh\necho v2\n")})
 		h.invoke(invokeInput("fn", `{}`))
-		if err := h.x.Drain(h.Context(), kernel.ResetScope{}); err != nil {
-			t.Fatal(err)
-		}
+		h.drainAll()
 		before := len(h.started())
 		for range 3 {
 			h.invoke(invokeInput("fn", `{}`))
@@ -985,4 +1050,83 @@ func TestCodeUpdatesReleaseTheExtractedTreesNoLongerRun(t *testing.T) {
 			}
 		}
 	})
+}
+
+// Close ends the invocations still running, synchronous and asynchronous,
+// and returns only once their containers are removed, so none outlives
+// shutdown. The asynchronous one stays queued: it never reached its end,
+// so it is no failure of the function.
+func TestCloseEndsRunningInvocationsAndRemovesTheirContainers(t *testing.T) {
+	// Every invocation runs until its context ends, which the runtime API
+	// then reports as an error, as a real environment's does.
+	untilEnded := func(ctx context.Context, _ runtimeapi.Invocation) (runtimeapi.Outcome, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	runExec(t, untilEnded, func(h *execHarness) {
+		h.createFunction("fn")
+		syncDone := h.invokeInBackground(invokeInput("fn", `{}`))
+		h.invoke(fnEvent(`{}`))
+		synctest.Wait()
+		if n := len(h.launcher.Live()); n != 2 {
+			t.Fatalf("%d containers run, want 2: one per blocked invocation", n)
+		}
+		if err := h.x.Close(h.Context()); err != nil {
+			t.Fatal(err)
+		}
+		if live := h.launcher.Live(); len(live) != 0 {
+			t.Errorf("containers %v outlive Close", live)
+		}
+		if err := <-syncDone; err == nil || err.ID.Shape.Name() != "ServiceException" {
+			t.Errorf("the synchronous Invoke = %v, want ServiceException: Close ended it", err)
+		}
+		h.settle()
+		if res := h.x.AsyncQueue().Resources(h.Scope); len(res) != 1 {
+			t.Errorf("queued after Close = %+v, want the asynchronous event still queued", res)
+		}
+		errorIs(t, h.invokeFails(invokeInput("fn", `{}`)), "ServiceException",
+			"Lambda is shutting down and starts no execution environments; retry once understudy is running again.")
+	})
+}
+
+// Under TransitionsClock an update stays InProgress until the clock passes
+// the settle delay, and invocations meanwhile run the previous
+// configuration and code in the warm environment, as AWS keeps serving
+// them until an update completes (functions-states).
+func TestInvocationsRunThePreviousVersionWhileAnUpdateIsInProgress(t *testing.T) {
+	runExec(t, pooltest.Echo, func(h *execHarness) {
+		in := zipFunction(t, "fn")
+		in.Environment = &lambdaapi.Environment{Variables: map[string]string{"MODE": "v1"}}
+		call(h.harness, lambdaapi.OpCreateFunction, in)
+		h.advance(10 * time.Millisecond)
+		h.invoke(invokeInput("fn", `{}`))
+
+		updated := call(h.harness, lambdaapi.OpUpdateFunctionConfiguration, &lambdaapi.UpdateFunctionConfigurationInput{
+			FunctionName: "fn", Environment: &lambdaapi.Environment{Variables: map[string]string{"MODE": "v2"}},
+		})
+		if *updated.LastUpdateStatus != lambdaapi.LastUpdateStatusInProgress || updated.Environment.Variables["MODE"] != "v2" {
+			t.Fatalf("update = %s with MODE %s, want InProgress reporting v2", *updated.LastUpdateStatus, updated.Environment.Variables["MODE"])
+		}
+		h.invoke(invokeInput("fn", `{}`))
+		if started := h.started(); len(started) != 1 {
+			t.Fatalf("%d containers started while the update is in progress, want the warm v1 one reused", len(started))
+		}
+		h.advance(10 * time.Millisecond)
+		h.invoke(invokeInput("fn", `{}`))
+		started := h.started()
+		if len(started) != 2 || started[1].Environment["MODE"] != "v2" {
+			t.Fatalf("after the update completed: %d containers, want a second one with MODE v2", len(started))
+		}
+
+		call(h.harness, lambdaapi.OpUpdateFunctionCode, &lambdaapi.UpdateFunctionCodeInput{FunctionName: "fn", ZipFile: zipOf(t, "#!/bin/sh\necho v3\n")})
+		h.invoke(invokeInput("fn", `{}`))
+		if n := len(h.started()); n != 2 {
+			t.Fatalf("%d containers started while the code update is in progress, want the warm one reused", n)
+		}
+		h.advance(10 * time.Millisecond)
+		h.invoke(invokeInput("fn", `{}`))
+		if n := len(h.started()); n != 3 {
+			t.Errorf("%d containers after the code update completed, want a third running the new code", n)
+		}
+	}, clockTransitions)
 }

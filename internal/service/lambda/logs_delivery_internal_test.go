@@ -67,7 +67,7 @@ func TestOpenInvocationOutputIsCutAtTheRequestSize(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := &logStream{clock: clk}
-	parent := &kernel.Call{}
+	parent := &onBehalf{call: &kernel.Call{}}
 	s.begin(true, "INIT_START\n", "START\n", parent)
 	line := strings.Repeat("y", 1000) + "\n"
 	deliverAt := -1

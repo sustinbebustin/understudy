@@ -25,6 +25,11 @@ func (q *queues) IsZero() bool { return len(q.Queues) == 0 && len(q.Bodies) == 0
 
 func (q *queues) BlobRefs() []string { return q.Bodies }
 
+var (
+	_ store.Zeroer     = (*queues)(nil)
+	_ store.BlobHolder = (*queues)(nil)
+)
+
 func newQueues[K comparable]() *store.Partitioned[K, queues] {
 	return store.NewPartitioned(&store.Gate{}, jsonCodec(), func(K) queues { return queues{} })
 }

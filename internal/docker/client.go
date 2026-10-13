@@ -15,8 +15,7 @@ import (
 	"time"
 )
 
-// DefaultSocket is the Engine socket used when Options.Socket is empty;
-// ParseDockerHost maps DOCKER_HOST to a socket.
+// DefaultSocket is the Engine socket used when Options.Socket is empty.
 const DefaultSocket = "/var/run/docker.sock"
 
 // requestHost is the Host header sent over the unix socket; the daemon
@@ -25,20 +24,6 @@ const requestHost = "api.moby.localhost"
 
 // maxErrorBody caps how much of an error response body is read.
 const maxErrorBody = 64 << 10
-
-// ParseDockerHost maps a DOCKER_HOST value to a socket path. An empty value
-// means DefaultSocket; anything but unix:// is refused because the client
-// speaks only to a unix socket (containers.md 2.1).
-func ParseDockerHost(value string) (string, error) {
-	if value == "" {
-		return DefaultSocket, nil
-	}
-	path, ok := strings.CutPrefix(value, "unix://")
-	if !ok || path == "" {
-		return "", &UnsupportedEndpointError{Value: value}
-	}
-	return path, nil
-}
 
 // Options configures a Client.
 type Options struct {

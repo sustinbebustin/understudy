@@ -97,17 +97,19 @@ func TestRedrivePolicyQueueMustBeDeliverable(t *testing.T) {
 }
 
 // TestSubscriptionDeliveryPolicyIsStored: a subscription DeliveryPolicy is
-// a JSON object stored and echoed verbatim, "" removes it, and anything
-// else is refused with the inferred text on SetSubscriptionAttributes and
-// Subscribe, leaving the stored policy unchanged. A repeated Subscribe
-// agrees only with the same policy (sns.md 3.1, 3.3).
+// a JSON object, stored with every member AWS shows (absent ones null,
+// guaranteed false), "" removes it, and anything else is refused with the
+// inferred text on SetSubscriptionAttributes and Subscribe, leaving the
+// stored policy unchanged. A repeated Subscribe agrees only with the same
+// policy (sns.md 3.1, 3.3).
 func TestSubscriptionDeliveryPolicyIsStored(t *testing.T) {
 	run(t, func(h *harness) {
 		topic := h.topic("events", nil)
 		const policy = `{"healthyRetryPolicy": {"numRetries": 5}}`
+		const stored = `{"healthyRetryPolicy":{"numRetries":5},"sicklyRetryPolicy":null,"throttlePolicy":null,"requestPolicy":null,"guaranteed":false}`
 		arn := h.subscribe(topic, "sqs", queueARN, map[string]string{"DeliveryPolicy": policy})
-		if got := h.subscriptionAttributes(arn)["DeliveryPolicy"]; got != policy {
-			h.Errorf("DeliveryPolicy after Subscribe = %q, want %q", got, policy)
+		if got := h.subscriptionAttributes(arn)["DeliveryPolicy"]; got != stored {
+			h.Errorf("DeliveryPolicy after Subscribe = %q, want %q", got, stored)
 		}
 		if again := h.subscribe(topic, "sqs", queueARN, map[string]string{"DeliveryPolicy": policy}); again != arn {
 			h.Errorf("a repeated Subscribe with the same DeliveryPolicy = %s, want %s", again, arn)
@@ -124,21 +126,157 @@ func TestSubscriptionDeliveryPolicyIsStored(t *testing.T) {
 			_, err := call(h, snsapi.OpSubscribe, &snsapi.SubscribeInput{TopicArn: topic, Protocol: "sqs", Endpoint: new(queueARN + "-new"), Attributes: map[string]string{"DeliveryPolicy": bad}})
 			wantError(h, err, "InvalidParameter", "Invalid parameter: Attributes Reason: DeliveryPolicy: failed to parse JSON.")
 		}
-		if got := h.subscriptionAttributes(arn)["DeliveryPolicy"]; got != policy {
-			h.Errorf("DeliveryPolicy after the refused values = %q, want %q", got, policy)
+		if got := h.subscriptionAttributes(arn)["DeliveryPolicy"]; got != stored {
+			h.Errorf("DeliveryPolicy after the refused values = %q, want %q", got, stored)
 		}
-		const replaced = `{"throttlePolicy":{"maxReceivesPerSecond":1}}`
-		if err := set(replaced); err != nil {
+		if err := set(`{"throttlePolicy":{"maxReceivesPerSecond":1}}`); err != nil {
 			h.Fatalf("SetSubscriptionAttributes DeliveryPolicy = %s %q", err.ID.QueryCode, err.Message)
 		}
+		const replaced = `{"healthyRetryPolicy":null,"sicklyRetryPolicy":null,"throttlePolicy":{"maxReceivesPerSecond":1},"requestPolicy":null,"guaranteed":false}`
 		if got := h.subscriptionAttributes(arn)["DeliveryPolicy"]; got != replaced {
 			h.Errorf("DeliveryPolicy after Set = %q, want %q", got, replaced)
+		}
+		if got, ok := h.subscriptionAttributes(arn)["EffectiveDeliveryPolicy"]; ok {
+			h.Errorf("an sqs subscription shows EffectiveDeliveryPolicy %q", got)
 		}
 		if err := set(""); err != nil {
 			h.Fatalf("clearing DeliveryPolicy = %s %q", err.ID.QueryCode, err.Message)
 		}
 		if got, ok := h.subscriptionAttributes(arn)["DeliveryPolicy"]; ok {
 			h.Errorf("DeliveryPolicy %q is still shown after a clear", got)
+		}
+	})
+}
+
+// TestSubscriptionDeliveryPolicyKeepsRetryConstraints: a subscription
+// DeliveryPolicy is held to the topic's retry and throttle constraints
+// (sns.md 7.3), its paths without the http. and default prefixes, on both
+// SetSubscriptionAttributes and Subscribe; the stored policy is unchanged.
+func TestSubscriptionDeliveryPolicyKeepsRetryConstraints(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		arn := h.subscribe(topic, "http", "http://127.0.0.1:9000/hook", map[string]string{"DeliveryPolicy": `{"healthyRetryPolicy":{"numRetries":100}}`})
+		for policy, detail := range map[string]string{
+			`{"healthyRetryPolicy":{"numRetries":101}}`:                      "healthyRetryPolicy.numRetries must be less than or equal to 100",
+			`{"healthyRetryPolicy":{"minDelayTarget":5,"maxDelayTarget":4}}`: "healthyRetryPolicy.minDelayTarget must be less than or equal to 4",
+			`{"throttlePolicy":{"maxReceivesPerSecond":0}}`:                  "throttlePolicy.maxReceivesPerSecond must be greater than or equal to 1",
+		} {
+			_, err := call(h, snsapi.OpSetSubscriptionAttributes, &snsapi.SetSubscriptionAttributesInput{SubscriptionArn: arn, AttributeName: "DeliveryPolicy", AttributeValue: new(policy)})
+			wantError(h, err, "InvalidParameter", "Invalid parameter: DeliveryPolicy: "+detail)
+			_, err = call(h, snsapi.OpSubscribe, &snsapi.SubscribeInput{TopicArn: topic, Protocol: "http", Endpoint: new("http://127.0.0.1:9000/other"), Attributes: map[string]string{"DeliveryPolicy": policy}})
+			wantError(h, err, "InvalidParameter", "Invalid parameter: Attributes Reason: DeliveryPolicy: "+detail)
+		}
+		if got := h.subscriptionAttributes(arn)["DeliveryPolicy"]; !strings.Contains(got, `"numRetries":100`) {
+			h.Errorf("DeliveryPolicy after the refused values = %s", got)
+		}
+	})
+}
+
+// TestHTTPSubscriptionDeliveryPolicyAsRecorded replays both AWS recordings
+// of test_subscribe_external_http_endpoint_content_type (LocalStack,
+// snapshot key sub-attrs): an http subscription's DeliveryPolicy shows
+// every member in AWS's order, its healthyRetryPolicy reordered, and its
+// EffectiveDeliveryPolicy fills the rest from the topic's effective http
+// policy.
+func TestHTTPSubscriptionDeliveryPolicyAsRecorded(t *testing.T) {
+	const defaultRetry = `{"minDelayTarget":20,"maxDelayTarget":20,"numRetries":3,"numMaxDelayRetries":0,"numNoDelayRetries":0,"numMinDelayRetries":0,"backoffFunction":"linear"}`
+	const fixtureRetry = `{"minDelayTarget":1,"maxDelayTarget":1,"numRetries":0,"numMaxDelayRetries":0,"numNoDelayRetries":0,"numMinDelayRetries":0,"backoffFunction":"linear"}`
+	// fixturePolicy is the policy LocalStack's sns_create_http_endpoint
+	// sets, in its member order.
+	const fixturePolicy = `{"healthyRetryPolicy": {"minDelayTarget": 1, "maxDelayTarget": 1, "numRetries": 0, "numNoDelayRetries": 0, "numMinDelayRetries": 0, ` +
+		`"numMaxDelayRetries": 0, "backoffFunction": "linear"}, "sicklyRetryPolicy": null, "throttlePolicy": {"maxReceivesPerSecond": 1000}, "guaranteed": false}`
+	run(t, func(h *harness) {
+		setSub := func(arn, policy string) {
+			must(h, snsapi.OpSetSubscriptionAttributes, &snsapi.SetSubscriptionAttributesInput{SubscriptionArn: arn, AttributeName: "DeliveryPolicy", AttributeValue: new(policy)})
+		}
+		want := func(arn, attr, value string) {
+			h.Helper()
+			if got := h.subscriptionAttributes(arn)[attr]; got != value {
+				h.Errorf("%s =\n%s\nwant\n%s", attr, got, value)
+			}
+		}
+
+		// [True]: the subscription's policy replaces the fixture's.
+		topic := h.topic("csv", nil)
+		arn := h.subscribe(topic, "http", "http://127.0.0.1:9000/sns-endpoint", nil)
+		setSub(arn, fixturePolicy)
+		setSub(arn, `{"requestPolicy": {"headerContentType": "text/csv"}}`)
+		want(arn, "DeliveryPolicy", `{"healthyRetryPolicy":null,"sicklyRetryPolicy":null,"throttlePolicy":null,"requestPolicy":{"headerContentType":"text/csv"},"guaranteed":false}`)
+		want(arn, "EffectiveDeliveryPolicy", `{"healthyRetryPolicy":`+defaultRetry+`,"sicklyRetryPolicy":null,"throttlePolicy":null,"requestPolicy":{"headerContentType":"text/csv"},"guaranteed":false}`)
+
+		// [False]: the topic's defaultRequestPolicy fills the null one.
+		topic = h.topic("json", nil)
+		arn = h.subscribe(topic, "http", "http://127.0.0.1:9000/sns-endpoint", nil)
+		setSub(arn, fixturePolicy)
+		must(h, snsapi.OpSetTopicAttributes, &snsapi.SetTopicAttributesInput{
+			TopicArn: topic, AttributeName: "DeliveryPolicy", AttributeValue: new(`{"http": {"defaultRequestPolicy": {"headerContentType": "application/json"}}}`),
+		})
+		want(arn, "DeliveryPolicy", `{"healthyRetryPolicy":`+fixtureRetry+`,"sicklyRetryPolicy":null,"throttlePolicy":{"maxReceivesPerSecond":1000},"requestPolicy":null,"guaranteed":false}`)
+		want(arn, "EffectiveDeliveryPolicy", `{"healthyRetryPolicy":`+fixtureRetry+`,"sicklyRetryPolicy":null,"throttlePolicy":{"maxReceivesPerSecond":1000},`+
+			`"requestPolicy":{"headerContentType":"application/json"},"guaranteed":false}`)
+	})
+}
+
+// TestRawMessageDeliveryOnlyWhereSupported: RawMessageDelivery=true is
+// refused for a protocol without raw delivery on both calls, with the
+// texts recorded against AWS for email and sms; false is accepted.
+func TestRawMessageDeliveryOnlyWhereSupported(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		for _, tc := range []struct{ protocol, endpoint string }{
+			{"email", "someone@example.com"},
+			{"email-json", "someone@example.com"},
+			{"lambda", functionARN},
+		} {
+			_, err := call(h, snsapi.OpSubscribe, &snsapi.SubscribeInput{
+				TopicArn: topic, Protocol: tc.protocol, Endpoint: new(tc.endpoint), Attributes: map[string]string{"RawMessageDelivery": "true"},
+			})
+			wantError(h, err, "InvalidParameter", "Invalid parameter: Attributes Reason: Delivery protocol ["+tc.protocol+"] does not support raw message delivery.")
+
+			arn := h.subscribe(topic, tc.protocol, tc.endpoint, map[string]string{"RawMessageDelivery": "false"})
+			_, err = call(h, snsapi.OpSetSubscriptionAttributes, &snsapi.SetSubscriptionAttributesInput{SubscriptionArn: arn, AttributeName: "RawMessageDelivery", AttributeValue: new("true")})
+			wantError(h, err, "InvalidParameter", "Invalid parameter: Delivery protocol ["+tc.protocol+"] does not support raw message delivery.")
+			if got := h.subscriptionAttributes(arn)["RawMessageDelivery"]; got != "false" {
+				h.Errorf("%s RawMessageDelivery after the refusal = %q, want false", tc.protocol, got)
+			}
+		}
+		for _, tc := range []struct{ protocol, endpoint string }{
+			{"sqs", queueARN},
+			{"http", "http://127.0.0.1:9000/hook"},
+			{"https", "https://127.0.0.1:9443/hook"},
+		} {
+			arn := h.subscribe(topic, tc.protocol, tc.endpoint, map[string]string{"RawMessageDelivery": "true"})
+			if got := h.subscriptionAttributes(arn)["RawMessageDelivery"]; got != "true" {
+				h.Errorf("%s RawMessageDelivery = %q, want true", tc.protocol, got)
+			}
+		}
+	})
+}
+
+// TestReplayPolicyOnlyOnFIFOTopics: message replay exists only for FIFO
+// topics (sns.md 3.3), so a ReplayPolicy on a standard topic's subscription
+// is refused at Subscribe and SetSubscriptionAttributes with an inferred
+// text and not stored, while a FIFO topic's subscription keeps it.
+func TestReplayPolicyOnlyOnFIFOTopics(t *testing.T) {
+	const replay = `{"PointType":"Timestamp","StartingPoint":"2025-01-01T00:00:00.000Z"}`
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		_, err := call(h, snsapi.OpSubscribe, &snsapi.SubscribeInput{
+			TopicArn: topic, Protocol: "sqs", Endpoint: new(queueARN), Attributes: map[string]string{"ReplayPolicy": replay},
+		})
+		wantError(h, err, "InvalidParameter", "Invalid parameter: Attributes Reason: ReplayPolicy")
+		arn := h.subscribe(topic, "sqs", queueARN, nil)
+		_, err = call(h, snsapi.OpSetSubscriptionAttributes, &snsapi.SetSubscriptionAttributesInput{SubscriptionArn: arn, AttributeName: "ReplayPolicy", AttributeValue: new(replay)})
+		wantError(h, err, "InvalidParameter", "Invalid parameter: ReplayPolicy")
+		if got, ok := h.subscriptionAttributes(arn)["ReplayPolicy"]; ok {
+			h.Errorf("refused ReplayPolicy was stored: %q", got)
+		}
+
+		fifo := h.topic("events.fifo", map[string]string{"FifoTopic": "true"})
+		fifoArn := h.subscribe(fifo, "sqs", fifoQueueARN, nil)
+		must(h, snsapi.OpSetSubscriptionAttributes, &snsapi.SetSubscriptionAttributesInput{SubscriptionArn: fifoArn, AttributeName: "ReplayPolicy", AttributeValue: new(replay)})
+		if got := h.subscriptionAttributes(fifoArn)["ReplayPolicy"]; got != replay {
+			h.Errorf("FIFO ReplayPolicy = %q, want %q", got, replay)
 		}
 	})
 }

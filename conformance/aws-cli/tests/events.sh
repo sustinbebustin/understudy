@@ -73,9 +73,7 @@ match() {
   jqv '.Result'
 }
 
-# ---------------------------------------------------------------------------
 # PutRule, DescribeRule, ListRules, EnableRule, DisableRule, DeleteRule
-# ---------------------------------------------------------------------------
 
 test_put_rule_event_pattern_and_describe() {
   aws_ok sts get-caller-identity
@@ -233,9 +231,7 @@ test_tag_resource_missing_rule() {
   aws_error_message_contains "Rule ${name} does not exist on EventBus default."
 }
 
-# ---------------------------------------------------------------------------
 # PutTargets, ListTargetsByRule, RemoveTargets
-# ---------------------------------------------------------------------------
 
 test_put_targets_and_list() {
   new_rule
@@ -312,9 +308,7 @@ test_put_targets_missing_rule() {
   aws_error_message_contains "Rule ${name} does not exist on EventBus default."
 }
 
-# ---------------------------------------------------------------------------
 # TestEventPattern: the matching grammar
-# ---------------------------------------------------------------------------
 
 test_event_pattern_exact_match_and_or() {
   assert_eq true "$(match '{"detail":{"state":["running","pending"]}}' '{"state":"pending"}')"
@@ -377,9 +371,7 @@ test_event_pattern_array_values_match_by_intersection() {
   assert_eq false "$(match '{"detail":{"tags":["c"]}}' '{"tags":["a","b"]}')"
 }
 
-# ---------------------------------------------------------------------------
 # PutEvents and delivery
-# ---------------------------------------------------------------------------
 
 test_put_events_delivers_full_event_to_sqs() {
   aws_ok sts get-caller-identity

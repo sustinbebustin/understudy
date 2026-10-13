@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -21,7 +22,7 @@ const maxTargets = 5
 // bindTargets binds the target operations.
 func (s *Service) bindTargets(b eventbridgeapi.Binder) {
 	b.PutTargets(s.putTargets,
-		registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; " +
+		registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; " +
 			"a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented"},
 		namedRule(func(in *eventbridgeapi.PutTargetsInput) string { return in.Rule }))
 	b.RemoveTargets(s.removeTargets, registry.Full{},
@@ -38,9 +39,10 @@ func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgea
 	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
 		return nil, err
 	}
+	scope := c.Scope()
 	parsed := make([]Target, len(in.Targets))
 	for i := range in.Targets {
-		t, err := parseTarget(&in.Targets[i])
+		t, err := parseTarget(scope, &in.Targets[i])
 		if err != nil {
 			return nil, err
 		}
@@ -49,15 +51,15 @@ func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgea
 	failed := []eventbridgeapi.PutTargetsResultEntry{}
 	accepted := make([]Target, 0, len(parsed))
 	for i := range in.Targets {
-		if message, refused := refusal(&in.Targets[i]); refused {
+		if message, refused := refusal(scope, &in.Targets[i]); refused {
 			failed = append(failed, eventbridgeapi.PutTargetsResultEntry{
-				TargetId: new(in.Targets[i].Id), ErrorCode: new(codeUnsupportedTarget), ErrorMessage: new(message),
+				TargetId: new(in.Targets[i].Id), ErrorCode: new(codeNotImplemented), ErrorMessage: new(message),
 			})
 			continue
 		}
 		accepted = append(accepted, parsed[i])
 	}
-	r := ruleRef{scope: c.Scope(), name: in.Rule}
+	r := ruleRef{scope: scope, name: in.Rule}
 	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
 		rule, ok := st.Rules[r.name]
 		if !ok {
@@ -89,10 +91,10 @@ func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgea
 	return &eventbridgeapi.PutTargetsOutput{FailedEntryCount: int32(len(failed)), FailedEntries: failed}, nil //nolint:gosec // at most 100 targets, the model's limit
 }
 
-// parseTarget checks a PutTargets entry and returns it as stored: at most
-// one input form, each well formed, a message group for a FIFO queue and an
-// SQS dead-letter queue.
-func parseTarget(t *eventbridgeapi.Target) (Target, *awserr.Error) {
+// parseTarget checks a PutTargets entry for a rule in scope and returns it
+// as stored: at most one input form, each well formed, a message group for a
+// FIFO queue and a dead-letter queue deadLetterQueue accepts.
+func parseTarget(scope aws.Scope, t *eventbridgeapi.Target) (Target, *awserr.Error) {
 	input, err := parseInput(t)
 	if err != nil {
 		return Target{}, err
@@ -101,14 +103,14 @@ func parseTarget(t *eventbridgeapi.Target) (Target, *awserr.Error) {
 	if p := t.SqsParameters; p != nil {
 		out.SQS = &SQSParameters{MessageGroupID: copyOf(p.MessageGroupId)}
 	}
-	if dt, ok := targetOf(t.Arn); ok {
+	if dt, ok := targetOf(scope, t.Arn); ok {
 		if q, ok := dt.(queueTarget); ok && q.fifo() && (out.SQS == nil || out.SQS.MessageGroupID == nil || *out.SQS.MessageGroupID == "") {
 			return Target{}, errFIFONeedsGroup(t.Id)
 		}
 	}
 	if d := t.DeadLetterConfig; d != nil {
 		if d.Arn != nil {
-			if _, ok := deadLetterQueue(*d.Arn); !ok {
+			if _, ok := deadLetterQueue(scope, *d.Arn); !ok {
 				return Target{}, errInvalidParameter("DeadLetterConfig.Arn")
 			}
 		}
@@ -122,11 +124,12 @@ func parseTarget(t *eventbridgeapi.Target) (Target, *awserr.Error) {
 
 // refusal is why understudy does not add a PutTargets entry, which fails
 // the entry with NotImplemented: its ARN is not a target understudy
-// delivers to, or it sets a member understudy does not model. Storing it
-// would make deliveries fail, or the member be ignored, silently.
-func refusal(t *eventbridgeapi.Target) (string, bool) {
-	if _, ok := targetOf(t.Arn); !ok {
-		return msgUnsupportedTarget(t.Arn), true
+// delivers to from a rule in scope, or it sets a member understudy does not
+// model. Storing it would make deliveries fail, or the member be ignored,
+// silently.
+func refusal(scope aws.Scope, t *eventbridgeapi.Target) (string, bool) {
+	if _, ok := targetOf(scope, t.Arn); !ok {
+		return msgUnsupportedTarget(scope, t.Arn), true
 	}
 	var unmodeled []string
 	for _, m := range []struct {

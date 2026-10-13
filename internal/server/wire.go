@@ -31,10 +31,10 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/config"
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/edge"
 	"github.com/sustinbebustin/understudy/internal/fault"
-	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
@@ -52,6 +52,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/kms"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/hotreload"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/pool"
 	"github.com/sustinbebustin/understudy/internal/service/logs"
 	"github.com/sustinbebustin/understudy/internal/service/s3"
@@ -65,10 +66,6 @@ import (
 // modelPin is the vendored Smithy model commit the generated packages come
 // from (third_party/api-models-aws/UPSTREAM.json; a test keeps them equal).
 const modelPin = "api-models-aws@1cfdfb4bb9ea858e65623e66d73af04bec353201"
-
-// defaultS3BaseDomains are the hosts virtual-hosted S3 addresses end in
-// when the configuration names none.
-func defaultS3BaseDomains() []string { return []string{"localhost", "s3.localhost"} }
 
 // wiring is the emulator constructed: every part in the order the
 // dependencies demand, with nothing registered in init().
@@ -87,19 +84,25 @@ type wiring struct {
 	host    *containerHost
 	local   *lazyLocal
 	licence ddblocal.Licence
-	// code holds extracted function code; codeTemp is its directory when
-	// it is temporary.
-	code     *codestore.Store
-	codeTemp string
-	pool     *pool.Pool
-	lambda   *lambda.Execution
-	admin    *serveradmin.Handler
-	edge     *edge.Handler
+	// runs is this process's identity, nil where there is no procfs.
+	runs *runs
+	// temp is the run's temporary directory without persistence, holding
+	// the blob spill and the extracted function code; empty with
+	// persistence, where both live under the data directory.
+	temp string
+	// code holds extracted function code.
+	code   *codestore.Store
+	pool   *pool.Pool
+	lambda *lambda.Execution
+	admin  *serveradmin.Handler
+	edge   *edge.Handler
 	// containerEdge serves the container listener: the AWS API and only
 	// health and clock from the admin prefix.
 	containerEdge *edge.Handler
-	switches      []fidelity.Entry
-	stopped       sync.Once
+	// clockFrom is what set the clock serve starts with, which the banner
+	// names.
+	clockFrom clockOrigin
+	stopped   sync.Once
 }
 
 // wire builds the registry, the kernel with its clock, journal, faults,
@@ -108,7 +111,7 @@ type wiring struct {
 // state. Each service constructor gets kernel.ServiceDeps and its Options;
 // this file is the only place that names every service and codec.
 func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
-	w = &wiring{}
+	w = &wiring{clockFrom: clockSetting{}}
 	defer func() {
 		if err != nil {
 			err = errors.Join(err, w.close(context.Background()))
@@ -158,10 +161,12 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		return w, err
 	}
 	w.kernel = k
-	if err := w.storage(cfg); err != nil {
+	instance := rand.Text()[:12]
+	w.identify(log)
+	if err := w.storage(cfg, instance); err != nil {
 		return w, err
 	}
-	if err := w.containers(cfg, clk, log); err != nil {
+	if err := w.containers(cfg, instance, clk, log); err != nil {
 		return w, err
 	}
 	deps := func(desc *registry.Service) kernel.ServiceDeps {
@@ -196,9 +201,12 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	if err := box.Bind(k, outbox.Options{Faults: w.faults, Policies: policies}); err != nil {
 		return w, err
 	}
-	stateful, late := collect(w, box, sqsSvc, snsSvc, s3Svc, dynamoSvc, lambdaSvc, w.lambda.AsyncQueue(), logsSvc, secretsSvc, kmsSvc, iamSvc, stsSvc, eventsSvc, cloudwatchSvc)
+	stateful, late := collect(box, sqsSvc, snsSvc, s3Svc, dynamoSvc, lambdaSvc, w.lambda.AsyncQueue(), logsSvc, secretsSvc, kmsSvc, iamSvc, stsSvc, eventsSvc, cloudwatchSvc)
+	if err := checkCollected(reg, stateful); err != nil {
+		return w, err
+	}
 	rt := &runtime{clock: clk, ids: src, seed: cfg.Seed, journal: w.journal, faults: w.faults}
-	snapshots, err := coordinator(k.Gate(), w.blobs, rt, stateful, late, "understudy "+cfg.Version)
+	snapshots, err := coordinator(k, w.blobs, rt, idStore, stateful, late, "understudy "+cfg.Version)
 	if err != nil {
 		return w, err
 	}
@@ -227,8 +235,8 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		TTLSweeper:    dynamoSvc,
 		Subscriptions: snsSvc,
 	}
-	if w.data != nil {
-		opts.DataDir = w.data.snapshots
+	if err := w.snapshotDirs(&opts); err != nil {
+		return w, err
 	}
 	if w.admin, err = serveradmin.New(opts); err != nil {
 		return w, err
@@ -240,6 +248,22 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		return w, err
 	}
 	return w, preload(w.faults, cfg.Faults)
+}
+
+// snapshotDirs sets the admin API's snapshot directories: with
+// persistence, the path form's snapshots/ and the download spool tmp/
+// under the data directory, emptied now; else only the spool, the run's
+// temporary directory. A later start removes either spool, so an archive
+// a crash leaves mid-download does not stay behind.
+func (w *wiring) snapshotDirs(o *serveradmin.Options) error {
+	if w.data == nil {
+		o.TempDir = w.temp
+		return nil
+	}
+	o.DataDir = w.data.snapshots
+	var err error
+	o.TempDir, err = w.data.spool()
+	return err
 }
 
 // policySources routes the outbox's access advisory to the service that
@@ -271,15 +295,18 @@ func journalOptions(j Journal, clk *clock.Clock) journal.Options {
 }
 
 // storage opens the data directory and the blob store: on disk under the
-// data directory with persistence, in memory otherwise.
-func (w *wiring) storage(cfg Config) error {
+// data directory with persistence, in memory otherwise, spilling into the
+// run's temporary directory.
+func (w *wiring) storage(cfg Config, instance string) error {
+	var err error
 	dir, ok := cfg.Persist.(PersistDir)
 	if !ok {
-		var err error
-		w.blobs, err = blob.NewMemory("", 0)
+		if w.temp, err = w.makeTemp(instance); err != nil {
+			return err
+		}
+		w.blobs, err = blob.NewMemory(w.temp, 0)
 		return err
 	}
-	var err error
 	if w.data, err = openDataDir(dir.Path); err != nil {
 		return err
 	}
@@ -289,13 +316,15 @@ func (w *wiring) storage(cfg Config) error {
 
 // containers builds the Docker host, the DynamoDB Local behind its
 // licence, the code store and, when Docker is there, the Lambda pool.
-// Nothing is dialed: the host detects the topology at first use.
-func (w *wiring) containers(cfg Config, clk *clock.Clock, log *slog.Logger) error {
-	instance := rand.Text()[:12]
-	ownership := docker.Ownership{Instance: instance, Owner: "run-" + instance}
-	storage := ddblocal.Storage(ddblocal.InMemory{})
-	codeDir := ""
-	if w.data != nil {
+// Nothing is dialed: the host detects the topology at first use. The
+// containers' owner is the data directory's with persistence, else the
+// run's identity, which a later run sweeps once this process is gone.
+func (w *wiring) containers(cfg Config, instance string, clk *clock.Clock, log *slog.Logger) error {
+	ownership := docker.Ownership{Instance: instance}
+	var storage ddblocal.Storage
+	var codeDir string
+	switch {
+	case w.data != nil:
 		ownership.Owner = w.data.owner()
 		ddb, err := w.data.dynamoDBDir()
 		if err != nil {
@@ -303,6 +332,12 @@ func (w *wiring) containers(cfg Config, clk *clock.Clock, log *slog.Logger) erro
 		}
 		storage = ddblocal.DBPath{Dir: ddb}
 		codeDir = filepath.Join(w.data.path, "code")
+	case w.runs != nil:
+		ownership.Owner = w.runs.newRun(instance).String()
+		storage, codeDir = ddblocal.InMemory{}, filepath.Join(w.temp, "code")
+	default:
+		ownership.Owner = runPrefix + instance
+		storage, codeDir = ddblocal.InMemory{}, filepath.Join(w.temp, "code")
 	}
 	var err error
 	if w.host, err = newContainerHost(cfg.Docker, cfg.LambdaNetwork, ownership, clk, log); err != nil {
@@ -312,12 +347,6 @@ func (w *wiring) containers(cfg Config, clk *clock.Clock, log *slog.Logger) erro
 		return err
 	}
 	w.local = &lazyLocal{host: w.host, licence: w.licence, storage: storage, memory: cfg.DynamoDBMemory, log: log}
-	if codeDir == "" {
-		if codeDir, err = os.MkdirTemp("", "understudy-code-"); err != nil {
-			return fmt.Errorf("server: creating a directory for extracted function code: %w", err)
-		}
-		w.codeTemp = codeDir
-	}
 	if w.code, err = codestore.Open(codeDir); err != nil {
 		return err
 	}
@@ -361,62 +390,85 @@ func (w *wiring) execution(cfg Config, account aws.AccountID, regions aws.Region
 		return err
 	}
 	o := lambda.ExecutionOptions{HotReload: bindings}
+	if w.host.client != nil {
+		// Named even without a pool, so Invoke's error names the socket
+		// that is missing.
+		o.Docker = "unix://" + w.host.socket
+	}
 	if w.pool != nil {
-		o.Pool, o.Docker, o.Images, o.Code, o.Logs = w.pool, "unix://"+w.host.socket, images, w.code, w.host
+		o.Pool, o.Images, o.Code, o.Logs = w.pool, images, w.code, w.host
+	} else if w.host.client == nil {
+		// Disabled by configuration: starting Docker would not help.
+		o.NoPool = w.host.missing()
 	}
 	if w.lambda, err = lambda.NewExecution(svc, d, o); err != nil {
-		return err
+		return unwatchable(cfg.HotReload, err)
 	}
 	w.lambda.BindFunctionURLs(d, lambda.FunctionURLOptions{Regions: regions})
 	return nil
 }
 
-// HotReloadError is a configured hot-reload binding whose account or
-// region does not parse.
-type HotReloadError struct {
-	Function string
-	Err      error
-}
-
-func (e *HotReloadError) Error() string {
-	return "server: hot reload of " + e.Function + ": " + e.Err.Error()
-}
-
-func (e *HotReloadError) Unwrap() error { return e.Err }
+// hotReloadSetting names the hot-reload binding at index i.
+func hotReloadSetting(i int) string { return fmt.Sprintf("lambda.hotReload[%d]", i) }
 
 // hotReloads parses the configured hot-reload bindings; one that names no
-// account binds in account.
+// account binds in account. A binding whose account or region does not
+// parse is a *SettingError.
 func hotReloads(in []HotReload, account aws.AccountID, regions aws.Regions) ([]lambda.HotReloadBinding, error) {
 	out := make([]lambda.HotReloadBinding, 0, len(in))
-	for _, h := range in {
-		scope := aws.Scope{Partition: aws.PartitionAWS(), Account: account, Region: aws.DefaultRegion()}
-		if h.Account != "" {
-			a, err := aws.ParseAccountID(h.Account)
-			if err != nil {
-				return nil, &HotReloadError{Function: h.Function, Err: err}
-			}
-			scope.Account = a
-		}
-		if h.Region != "" {
-			r, err := regions.Parse(h.Region)
-			if err != nil {
-				return nil, &HotReloadError{Function: h.Function, Err: err}
-			}
-			scope.Region = r
+	defaults := aws.Scope{Partition: aws.PartitionAWS(), Account: account, Region: aws.DefaultRegion()}
+	for i, h := range in {
+		scope, err := aws.ParseScope(h.Account, h.Region, defaults, regions)
+		if err != nil {
+			return nil, &SettingError{Setting: hotReloadSetting(i), Reason: "the function " + h.Function + ": " + err.Error(), Err: err}
 		}
 		out = append(out, lambda.HotReloadBinding{Scope: scope, Function: h.Function, Dir: h.Dir})
 	}
 	return out, nil
 }
 
+// unwatchable is err from building the Lambda execution layer, as a
+// *SettingError naming the binding when it is a hot-reload directory the
+// layer cannot watch. The bindings start in order and the first that
+// fails stops the rest, so the first binding of the directory is the one
+// that failed.
+func unwatchable(bindings []HotReload, err error) error {
+	dirErr, ok := errors.AsType[*hotreload.DirError](err)
+	if !ok {
+		return err
+	}
+	for i, h := range bindings {
+		if h.Dir == dirErr.Dir {
+			return &SettingError{
+				Setting: hotReloadSetting(i) + ".dir",
+				Reason:  fmt.Sprintf("the function %s cannot read its code from %q: %s", h.Function, h.Dir, dirErr.Reason),
+				Hint:    "create the directory, point dir at the function's build output, or remove the binding",
+				Err:     err,
+			}
+		}
+	}
+	return err
+}
+
 // edges builds the main listener's front door and the container
-// listener's.
+// listener's. A main listener beyond loopback answers every Host from a
+// client that is not a browser, since its clients name it by whatever
+// their network calls it, such as a compose service name; checkExposure
+// has already required what guards it. The container listener keeps
+// LocalHosts: function containers address it by IP literal. Both share one
+// ServedPorts, so a page understudy served on any listener's port is
+// refused on every other one.
 func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idStore *identity.Store, regions aws.Regions, cat catalogue, bucketExists func(string) bool, log *slog.Logger) error {
 	domains := cfg.S3BaseDomains
 	if domains == nil {
-		domains = defaultS3BaseDomains()
+		domains = config.DefaultBaseDomains()
+	}
+	var hosts edge.HostPolicy = edge.LocalHosts{}
+	if !cfg.Listen.Addr().IsLoopback() {
+		hosts = edge.NetworkHosts{}
 	}
 	o := edge.Options{
+		Hosts:                 hosts,
 		Kernel:                k,
 		Registry:              reg,
 		Identity:              idStore,
@@ -426,6 +478,7 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 		S3BaseDomains:         domains,
 		S3Control:             S3ControlCodec(),
 		Listener:              ref.ListenerMain,
+		Served:                &edge.ServedPorts{},
 		Admin:                 w.admin,
 		Unclaimed:             ref.AWSJSON10,
 		UnknownOperationError: cat.unknownOperationError,
@@ -435,7 +488,7 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 	if w.edge, err = edge.New(o); err != nil {
 		return err
 	}
-	o.Listener, o.Admin = ref.ListenerContainer, w.admin.Container()
+	o.Listener, o.Admin, o.Hosts = ref.ListenerContainer, w.admin.Container(), edge.LocalHosts{}
 	w.containerEdge, err = edge.New(o)
 	return err
 }
@@ -449,13 +502,20 @@ func (w *wiring) load(cfg Config, snapshots *snapshot.Coordinator, log *slog.Log
 		if every <= 0 {
 			every = DefaultSaveEvery
 		}
-		w.persist = &persister{dir: w.data, coord: snapshots, blobs: w.blobs, log: log, every: every}
-		if err := w.persist.load(context.Background()); err != nil {
+		w.persist = &persister{dir: w.data, coord: snapshots, blobs: w.blobs, clock: w.kernel.Clock(), log: log, every: every}
+		restored, err := w.persist.load(context.Background())
+		if err != nil {
 			return err
 		}
+		if restored {
+			w.clockFrom = clockRestored{dir: w.data.path}
+		}
 	}
-	if err := loadSnapshot(cfg.LoadSnapshot, w.kernel, snapshots, log); err != nil {
-		return err
+	if cfg.LoadSnapshot != "" {
+		if err := loadSnapshot(cfg.LoadSnapshot, w.kernel, snapshots, log); err != nil {
+			return err
+		}
+		w.clockFrom = clockLoaded{path: cfg.LoadSnapshot}
 	}
 	return checkTimers(w.kernel.Timers())
 }
@@ -494,39 +554,46 @@ func defaultAccount(cfg Config) aws.AccountID {
 	return cfg.DefaultAccount
 }
 
-// FaultRuleError is a configured fault rule the fault store refuses.
-type FaultRuleError struct {
-	Index int
-	Err   *fault.RuleError
-}
-
-func (e *FaultRuleError) Error() string {
-	return fmt.Sprintf("server: fault rule %d of the configuration: %s", e.Index, e.Err.Error())
-}
-
-func (e *FaultRuleError) Unwrap() error { return e.Err }
-
-// preload activates the configured fault rules.
+// preload activates the configured fault rules. A rule the fault store
+// refuses is a *SettingError naming the rule's field at fault.
 func preload(faults *fault.Store, rules []fault.Rule) error {
 	for i := range rules {
 		if _, err := faults.Add(rules[i]); err != nil {
-			return &FaultRuleError{Index: i, Err: err}
+			return ruleSettingError(i, err)
 		}
 	}
 	return nil
 }
 
-// collect gathers the Stateful views, with the outbox first, the Late
-// services, the fidelity switches of the services and the service names.
-func collect(w *wiring, box *outbox.Outbox, services ...serveradmin.Service) ([]serveradmin.Service, []snapshot.Late) {
+// ruleSettingError is the refusal of the configured fault rule at index i.
+func ruleSettingError(i int, err *fault.RuleError) *SettingError {
+	setting := fmt.Sprintf("faults[%d]", i)
+	if err.Field != "" {
+		setting += "." + err.Field
+	}
+	reason := err.Reason
+	if err.Rule != "" {
+		reason = fmt.Sprintf("rule %q: %s", err.Rule, reason)
+	}
+	out := &SettingError{Setting: setting, Reason: reason, Err: err}
+	if len(err.Known) > 0 {
+		names := make([]string, len(err.Known))
+		for j, s := range err.Known {
+			names[j] = string(s)
+		}
+		out.Hint = "use one of the errors it sends: " + strings.Join(names, ", ")
+	}
+	return out
+}
+
+// collect gathers the Stateful views, with the outbox first, and the Late
+// services.
+func collect(box *outbox.Outbox, services ...serveradmin.Service) ([]serveradmin.Service, []snapshot.Late) {
 	stateful := make([]serveradmin.Service, 0, 1+len(services))
 	stateful = append(stateful, box)
 	var late []snapshot.Late
 	for _, s := range services {
 		stateful = append(stateful, s)
-		if sw, ok := s.(switched); ok {
-			w.switches = append(w.switches, sw.Switches()...)
-		}
 		if l, ok := s.(snapshot.Late); ok {
 			late = append(late, l)
 		}
@@ -534,9 +601,39 @@ func collect(w *wiring, box *outbox.Outbox, services ...serveradmin.Service) ([]
 	return stateful, late
 }
 
-// switched is a service with fidelity switches.
-type switched interface {
-	Switches() []fidelity.Entry
+// UncollectedServiceError names registered services wire passed no
+// Stateful view of to collect: their state would silently be left out of
+// snapshots, persistence, resets and the resource listing. It is a bug in
+// wire.go, which names each service in apis(), its constructor block and
+// its collect call; nothing is served.
+type UncollectedServiceError struct{ Services []ref.ServiceID }
+
+func (e *UncollectedServiceError) Error() string {
+	names := make([]string, len(e.Services))
+	for i, s := range e.Services {
+		names[i] = string(s)
+	}
+	return "server: the registered services " + strings.Join(names, ", ") + " are not collected for snapshots, resets and resources; " +
+		"this is a bug in understudy's wiring: pass each one to collect in wire.go"
+}
+
+// checkCollected refuses a registry service without a collected Stateful
+// view of the same name.
+func checkCollected(reg *registry.Registry, stateful []serveradmin.Service) error {
+	collected := make(map[ref.ServiceID]bool, len(stateful))
+	for _, s := range stateful {
+		collected[s.Name()] = true
+	}
+	var missing []ref.ServiceID
+	for _, svc := range reg.Services() {
+		if !collected[svc.ID] {
+			missing = append(missing, svc.ID)
+		}
+	}
+	if len(missing) > 0 {
+		return &UncollectedServiceError{Services: missing}
+	}
+	return nil
 }
 
 // deferredLinker links calls made by function code to their invocations
@@ -619,6 +716,10 @@ func apis() []api {
 // and DynamoDB Local to go.
 const drainTimeout = 30 * time.Second
 
+// removeOwnTimeout bounds the last sweep of this instance's containers
+// after the drain.
+const removeOwnTimeout = 10 * time.Second
+
 // stopContainers removes the Lambda environments and DynamoDB Local, once:
 // at shutdown while the kernel still runs, or when a wiring that never
 // served is closed.
@@ -633,6 +734,13 @@ func (w *wiring) stopContainers(ctx context.Context) error {
 		}
 		if w.local != nil {
 			errs = append(errs, w.local.stop(ctx))
+		}
+		if w.host != nil {
+			// The orderly stop may have run out of time; this instance's
+			// labels find what it left, with a deadline of its own.
+			last, cancelLast := context.WithTimeout(context.WithoutCancel(ctx), removeOwnTimeout)
+			errs = append(errs, w.host.removeOwn(last))
+			cancelLast()
 		}
 		if err = errors.Join(errs...); err != nil {
 			err = fmt.Errorf("server: removing the Lambda environments and DynamoDB Local; run understudy cleanup to remove what is left: %w", err)
@@ -653,11 +761,11 @@ func (w *wiring) close(ctx context.Context) error {
 	if w.code != nil {
 		errs = append(errs, w.code.Close())
 	}
-	if w.codeTemp != "" {
-		errs = append(errs, os.RemoveAll(w.codeTemp))
-	}
 	if w.blobs != nil {
 		errs = append(errs, w.blobs.Close())
+	}
+	if w.temp != "" {
+		errs = append(errs, os.RemoveAll(w.temp))
 	}
 	if w.blobRoot != nil {
 		errs = append(errs, w.blobRoot.Close())

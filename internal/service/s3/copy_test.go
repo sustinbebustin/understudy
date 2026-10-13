@@ -166,6 +166,44 @@ func TestCopyObjectRewrites(t *testing.T) {
 	})
 }
 
+// TestCopyInPlaceAccepted: a copy onto itself that restates nothing else
+// is still accepted when it restates the storage class, even the same
+// one, when the bucket has a default encryption rule of its own, or when
+// the object is SSE-KMS and the bucket default would re-encrypt it as
+// AES256 (LocalStack aws_validated test_s3_copy_object_in_place_storage_class,
+// test_copy_in_place_with_bucket_encryption and
+// test_s3_copy_object_in_place_with_encryption).
+func TestCopyInPlaceAccepted(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("plain")
+		h.put("plain", "k", "hello")
+		ok(h, who{}, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "plain", Key: "k", CopySource: "plain/k", StorageClass: new(s3api.StorageClassStandard)})
+
+		key := ok(h, who{}, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata
+		ok(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{
+			Bucket: "plain", Key: "sealed", Body: bytesBody("hello"),
+			ServerSideEncryption: new(s3api.ServerSideEncryptionAwsKms), SSEKMSKeyId: new(key.KeyId),
+		})
+		out := ok(h, who{}, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "plain", Key: "sealed", CopySource: "plain/sealed"})
+		if *out.ServerSideEncryption != s3api.ServerSideEncryptionAes256 || out.SSEKMSKeyId != nil {
+			t.Fatalf("in-place copy of an SSE-KMS object = %s key %v, want AES256 under the bucket default", *out.ServerSideEncryption, out.SSEKMSKeyId)
+		}
+
+		h.createBucket("encrypted")
+		ok(h, who{}, s3api.OpPutBucketEncryption, &s3api.PutBucketEncryptionInput{
+			Bucket: "encrypted",
+			ServerSideEncryptionConfiguration: s3api.ServerSideEncryptionConfiguration{Rules: []s3api.ServerSideEncryptionRule{{
+				ApplyServerSideEncryptionByDefault: &s3api.ServerSideEncryptionByDefault{SSEAlgorithm: s3api.ServerSideEncryptionAes256},
+			}}},
+		})
+		h.put("encrypted", "k", "hello")
+		ok(h, who{}, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "encrypted", Key: "k", CopySource: "encrypted/k"})
+
+		_, err := as(h, who{}, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "plain", Key: "k", CopySource: "plain/k"})
+		wantCode(t, err, "InvalidRequest", http.StatusBadRequest)
+	})
+}
+
 // usedAsCaller reports that the default account's root was recorded using
 // action through a forward-access call it made, as S3 calls KMS.
 func (h *harness) usedAsCaller(action string) bool {

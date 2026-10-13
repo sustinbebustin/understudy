@@ -4,9 +4,7 @@ import (
 	"encoding/base64"
 	"strconv"
 
-	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
-	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // pageSize is how many topics or subscriptions one List call returns
@@ -35,30 +33,4 @@ func page[T any](items []T, token *string) (got []T, next *string, err *awserr.E
 		next = new(base64.RawURLEncoding.EncodeToString([]byte(strconv.Itoa(end))))
 	}
 	return items[start:end], next, nil
-}
-
-// read runs fn over the state of scope without creating its cell; false
-// means the scope has no SNS state. fn's result must not alias the state.
-func read[R any](s *Service, scope aws.Scope, fn func(st *State) R) (R, bool) {
-	cell, ok := s.cells.Lookup(scope)
-	if !ok {
-		var zero R
-		return zero, false
-	}
-	return store.Read(cell, fn), true
-}
-
-// readTopic returns a copy of the topic ref names without the pending
-// subscriptions expired by now.
-func (s *Service) readTopic(ref topicRef) (Topic, bool) {
-	type found struct {
-		t  Topic
-		ok bool
-	}
-	now := s.clock.Now()
-	r, _ := read(s, ref.scope, func(st *State) found {
-		t, ok := st.writable(ref.name, now)
-		return found{t: t, ok: ok}
-	})
-	return r.t, r.ok
 }

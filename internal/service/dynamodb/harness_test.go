@@ -57,6 +57,8 @@ type fakeLocal struct {
 	startBlocks bool
 	// stopped makes Endpoint report no running Local, as after shutdown.
 	stopped bool
+	// lost are the endpoints Lost was told a round trip failed to reach.
+	lost []string
 	// fail replaces the answer after the request is recorded: the round
 	// trip's own error or response.
 	fail func(r *http.Request) (*http.Response, error)
@@ -82,6 +84,14 @@ func (f *fakeLocal) Endpoint() (*url.URL, bool) {
 }
 
 func (f *fakeLocal) Transport() http.RoundTripper { return f }
+
+// Lost records the endpoint a failed round trip was sent to.
+func (f *fakeLocal) Lost(_ context.Context, endpoint *url.URL) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.lost = append(f.lost, endpoint.String())
+	return nil
+}
 
 func (f *fakeLocal) RoundTrip(r *http.Request) (*http.Response, error) {
 	body, err := io.ReadAll(r.Body)

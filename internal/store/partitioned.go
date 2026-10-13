@@ -11,6 +11,31 @@ import (
 // sectionExt is the extension of every section path; section data is JSON.
 const sectionExt = ".json"
 
+// Zeroer is implemented by a state whose pointer can report that it holds
+// nothing worth saving. Export skips a cell whose state's IsZero reports
+// true, so an untouched or emptied partition leaves no section behind.
+//
+// Export finds it by type assertion on *S, so an implementing package should
+// pin the contract with a compile-time assertion such as
+// var _ store.Zeroer = (*State)(nil).
+type Zeroer interface {
+	IsZero() bool
+}
+
+// BlobHolder is implemented by a state whose pointer holds references to blob
+// store entries, such as object bodies or code packages. Export sorts the
+// result of BlobRefs into Section.Blobs, which is how a snapshot knows which
+// blobs to archive beside the section.
+//
+// Export finds it by type assertion on *S, and a state that holds blobs but
+// does not implement BlobHolder saves an archive whose sections name blobs
+// the archive lacks. An implementing package should therefore pin the
+// contract with a compile-time assertion such as
+// var _ store.BlobHolder = (*State)(nil).
+type BlobHolder interface {
+	BlobRefs() []string
+}
+
 // Partitioned lazily creates one cell per key. Keys are aws.Scope for most
 // services, aws.AccountID for IAM and STS, a bucket name for S3 buckets and a
 // single key for indexes.
@@ -105,9 +130,8 @@ func (p *Partitioned[K, S]) Reset(keep func(K) bool) {
 }
 
 // Export serializes every cell to one section, sorted by path, stamped with
-// version. A cell whose state has an IsZero() bool method reporting true is
-// skipped. When the state has a BlobRefs() []string method, its result is
-// sorted into Section.Blobs. A key whose encoding is empty or not a local
+// version. When *S is a Zeroer, a cell whose IsZero reports true is skipped.
+// When *S is a BlobHolder, its BlobRefs are sorted into Section.Blobs. A key whose encoding is empty or not a local
 // path, or two keys encoding to one path, fail with *SectionError, so every
 // export Import accepts.
 //
@@ -192,7 +216,7 @@ func (p *Partitioned[K, S]) newCell(s S) *Cell[S] {
 func (p *Partitioned[K, S]) exportCell(kc KeyCodec[K], version int, k K, c *Cell[S]) (Section, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if z, ok := any(&c.s).(interface{ IsZero() bool }); ok && z.IsZero() {
+	if z, ok := any(&c.s).(Zeroer); ok && z.IsZero() {
 		return Section{}, false, nil
 	}
 	enc := kc.Encode(k)
@@ -205,7 +229,7 @@ func (p *Partitioned[K, S]) exportCell(kc KeyCodec[K], version int, k K, c *Cell
 		return Section{}, false, &SectionError{Path: path, Defect: UnencodableState, Err: err}
 	}
 	var blobs []string
-	if b, ok := any(&c.s).(interface{ BlobRefs() []string }); ok {
+	if b, ok := any(&c.s).(BlobHolder); ok {
 		blobs = slices.Sorted(slices.Values(b.BlobRefs()))
 	}
 	return Section{Path: path, Version: version, Data: data, Blobs: blobs}, true, nil

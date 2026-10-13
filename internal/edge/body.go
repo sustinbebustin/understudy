@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/ref"
@@ -54,6 +55,50 @@ func (b *requestBody) Trailer(name string) (string, bool) {
 		return "", false
 	}
 	return v[0], true
+}
+
+// bodyIdleTimeout bounds how long a client may pause in the middle of a
+// request body.
+const bodyIdleTimeout = time.Minute
+
+// progressBody is a request body read under a deadline renewed on every
+// read: a client that stops sending mid-body (a slow-body attack, or a
+// client that hung) frees its handler, spool file and connection after
+// bodyIdleTimeout, while an upload that keeps arriving is never cut. Each
+// read that ends in EOF or another error lifts the deadline: net/http
+// starts a background read of the connection at EOF, and a read after
+// EOF, as a decoder checking for trailing bytes makes, would otherwise
+// leave the deadline on it, which cancels the request when it passes
+// during a long poll. A writer without deadline support, such as a test
+// recorder, leaves the body unbounded.
+type progressBody struct {
+	rc   io.ReadCloser
+	ctrl *http.ResponseController
+	wall func() time.Time
+}
+
+func (b *progressBody) Read(p []byte) (int, error) {
+	b.setDeadline(b.wall().Add(bodyIdleTimeout))
+	n, err := b.rc.Read(p)
+	if err != nil {
+		b.setDeadline(time.Time{})
+	}
+	return n, err
+}
+
+func (b *progressBody) Close() error { return b.rc.Close() }
+
+// setDeadline sets the connection's read deadline. A writer without
+// deadline support, or a connection already gone, stops it trying again:
+// the body then reads unbounded, and a gone connection fails the read
+// itself.
+func (b *progressBody) setDeadline(t time.Time) {
+	if b.ctrl == nil {
+		return
+	}
+	if err := b.ctrl.SetReadDeadline(t); err != nil {
+		b.ctrl = nil
+	}
 }
 
 type eofReader struct{}

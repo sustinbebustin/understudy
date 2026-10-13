@@ -53,6 +53,11 @@ func TestLambdaCodeLocationServesThePackage(t *testing.T) {
 	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "application/zip" || !bytes.Equal(rec.Body.Bytes(), pkg) {
 		t.Fatalf("GET Code.Location = %d %q (%d bytes), want 200 application/zip with the package", rec.Code, rec.Header().Get("Content-Type"), rec.Body.Len())
 	}
+	// The package shares an origin with the admin prefix, so a browser
+	// must neither sniff it nor run it as a page.
+	if rec.Header().Get("X-Content-Type-Options") != "nosniff" || rec.Header().Get("Content-Security-Policy") != "sandbox" {
+		t.Errorf("GET Code.Location headers = %v, want nosniff and a sandbox policy", rec.Header())
+	}
 	update := `{"ZipFile":"` + base64.StdEncoding.EncodeToString(zipped(t, "second")) + `"}`
 	if rec := lambda(http.MethodPut, "/2015-03-31/functions/fn/code", update); rec.Code != http.StatusOK {
 		t.Fatalf("UpdateFunctionCode = %d %s", rec.Code, rec.Body)
@@ -62,6 +67,29 @@ func TestLambdaCodeLocationServesThePackage(t *testing.T) {
 	}
 	if rec := lambda(http.MethodGet, strings.TrimPrefix(first, "http://localhost:4566"), ""); rec.Code != http.StatusNotFound {
 		t.Fatalf("GET the first package's link after an update = %d %s, want 404", rec.Code, rec.Body)
+	}
+}
+
+// With Docker disabled by configuration, Invoke says so and how to turn it
+// back on, rather than telling the caller to start Docker. It is 501, which
+// no SDK retries, since no later attempt can succeed.
+func TestInvokeWithDockerDisabledNamesTheSetting(t *testing.T) {
+	srv, _ := build(t, server.Config{Docker: server.DockerDisabled{}})
+	lambda := func(method, path, body string) *httptest.ResponseRecorder {
+		t.Helper()
+		req := httptest.NewRequestWithContext(t.Context(), method, "http://localhost:4566"+path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	create := `{"FunctionName":"fn","Runtime":"provided.al2023","Handler":"bootstrap","Role":"arn:aws:iam::000000000000:role/r","Code":{"ZipFile":"` + base64.StdEncoding.EncodeToString(zipped(t, "x")) + `"}}`
+	if rec := lambda(http.MethodPost, "/2015-03-31/functions", create); rec.Code != http.StatusCreated {
+		t.Fatalf("CreateFunction = %d %s", rec.Code, rec.Body)
+	}
+	rec := lambda(http.MethodPost, "/2015-03-31/functions/fn/invocations", "{}")
+	if body := rec.Body.String(); rec.Code != http.StatusNotImplemented || !strings.Contains(body, "disabled by configuration") || strings.Contains(body, "Start Docker") {
+		t.Fatalf("Invoke with Docker disabled = %d %s, want 501 naming the setting", rec.Code, body)
 	}
 }
 

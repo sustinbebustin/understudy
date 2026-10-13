@@ -25,7 +25,8 @@ type harness struct {
 	svc *lambda.Service
 }
 
-func run(t *testing.T, opts lambda.Options, fn func(h *harness)) {
+// run runs fn against the services in a kernel built with kopts.
+func run(t *testing.T, opts lambda.Options, fn func(h *harness), kopts ...kerneltest.Option) {
 	t.Helper()
 	kerneltest.Run(t, func(k *kerneltest.K) {
 		blobs, err := blob.NewMemory("", 0)
@@ -41,7 +42,7 @@ func run(t *testing.T, opts lambda.Options, fn func(h *harness)) {
 		deps.Blob = blobs
 		sqs.New(k.Deps(sqsapi.Service()), sqs.Options{})
 		fn(&harness{K: k, svc: lambda.New(deps, opts)})
-	}, kerneltest.Services(lambdaapi.Service(), sqsapi.Service()))
+	}, append(kopts, kerneltest.Services(lambdaapi.Service(), sqsapi.Service()))...)
 }
 
 // call runs op as a client request and fails the test on an error.

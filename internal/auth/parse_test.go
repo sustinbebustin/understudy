@@ -234,7 +234,7 @@ func TestParseReportsEveryWrongScopePiece(t *testing.T) {
 		"Authorization": docAuthorization("AKIAIOSFODNN7EXAMPLE/b/c/s3/e", "host"),
 	})
 	_, perr := auth.Parse(r, aws.KnownRegions())
-	const want = "Credential should be scoped to a valid region, not 'c'. Add the name to regions.extra in the understudy configuration to use it. " +
+	const want = "Credential should be scoped to a valid region, not 'c'. Add the name to the regions array in the understudy configuration to use it. " +
 		"Credential should be scoped with a valid terminator: 'aws4_request', not 'e'. " +
 		"Date in Credential scope does not match YYYYMMDD from ISO-8601 version of date from HTTP: 'b' != '20130524', from '20130524T000000Z'."
 	if got, ok := perr.(auth.UnknownRegion); !ok || got.Region != "c" || got.Message != want {

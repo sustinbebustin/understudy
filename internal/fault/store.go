@@ -121,11 +121,13 @@ func (s *Store) List() []Active {
 	return out
 }
 
-// Clear deactivates every rule.
-func (s *Store) Clear() {
+// Clear deactivates every rule and returns how many there were.
+func (s *Store) Clear() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	n := len(s.rules)
 	s.rules = nil
+	return n
 }
 
 // Evaluate applies the active rules that belong to hook h to the call in.

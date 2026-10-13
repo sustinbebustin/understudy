@@ -11,13 +11,13 @@
 //	events, _ := inst.Admin().JournalEvents(ctx, admin.JournalQuery{Service: "sqs"})
 //
 // Each Instance serves on its own 127.0.0.1:0 listener with its own state,
-// so parallel tests each start one; it stops, releasing what it opened,
-// when the test ends, also when the server could not start. It learns the
-// endpoint from the server's readiness callback. Server logs go to the
-// test's output.
+// so parallel tests each start one. Each Instance stops when its test ends
+// and releases everything it opened, even if the server failed to start. It
+// learns the endpoint from the server's readiness callback. Server logs go
+// to the test's output.
 //
-// Options are this package's own types, never internal ones (ADR 0017,
-// engineering m13), so code outside the module can set every one: the
+// Options are this package's own types, never internal ones (ADR 0017), so
+// code outside the module can set every one: the
 // seed, the clock, Docker, the DynamoDB Local licence and extra regions.
 // The listener is always loopback, where the admin API needs no token.
 // Fault rules are added after Start with Admin().PutFault, the same

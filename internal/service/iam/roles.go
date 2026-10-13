@@ -19,14 +19,14 @@ const defaultMaxSessionDuration = 3600
 // bindRoles binds the role control plane and the internal ResolveRole.
 func (s *Service) bindRoles(b iamapi.Binder) {
 	stored := registry.StoredOnly{Note: "the trust policy is validated and stored, not enforced"}
-	b.CreateRole(s.createRole, stored)
+	b.CreateRole(s.createRole, registry.Partial{Note: stored.Note + "; as PermissionsBoundary, " + unknownAWSManaged})
 	b.GetRole(s.getRole, registry.Full{})
 	b.UpdateRole(s.updateRole, registry.Full{})
 	b.UpdateRoleDescription(s.updateRoleDescription, registry.Full{})
 	b.UpdateAssumeRolePolicy(s.updateAssumeRolePolicy, stored)
 	b.DeleteRole(s.deleteRole, registry.Full{})
 	b.ListRoles(s.listRoles, registry.Full{})
-	b.PutRolePermissionsBoundary(s.putRolePermissionsBoundary, registry.StoredOnly{Note: "the boundary is stored, not enforced"})
+	b.PutRolePermissionsBoundary(s.putRolePermissionsBoundary, registry.Partial{Note: boundaryNote})
 	b.DeleteRolePermissionsBoundary(s.deleteRolePermissionsBoundary, registry.Full{})
 	b.ResolveRole(s.resolveRole, registry.Full{})
 }
@@ -40,8 +40,13 @@ func (st *State) role(name string) (Role, *awserr.Error) {
 	return r, nil
 }
 
-// boundary checks a permissions boundary ARN: an AWS managed policy or a
-// customer managed one of the account.
+// boundaryNote is the coverage note of PutRolePermissionsBoundary and
+// PutUserPermissionsBoundary.
+const boundaryNote = "the boundary is stored, not enforced; " + unknownAWSManaged
+
+// boundary checks a permissions boundary ARN: an AWS managed policy,
+// existing or not (unknownAWSManaged), or a customer managed one of the
+// account.
 func (st *State) boundary(account aws.AccountID, arn string) *awserr.Error {
 	ref, ok := parsePolicyARN(arn)
 	if !ok {
@@ -57,10 +62,13 @@ func (st *State) boundary(account aws.AccountID, arn string) *awserr.Error {
 }
 
 func (s *Service) createRole(_ context.Context, c *kernel.Call, in *iamapi.CreateRoleInput) (*iamapi.CreateRoleOutput, *awserr.Error) {
+	if err := checkPath("path", in.Path); err != nil {
+		return nil, err
+	}
 	if err := checkTrustPolicy(in.AssumeRolePolicyDocument); err != nil {
 		return nil, err
 	}
-	tags, err := newTags(in.Tags)
+	tags, err := newTags(foldedKeys, in.Tags)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +101,12 @@ func (s *Service) createRole(_ context.Context, c *kernel.Call, in *iamapi.Creat
 		r.ID = s.ids.RoleID()
 		r.Created = now
 		st.Roles[key(r.Name)] = r
+		// CreateRole shows neither RoleLastUsed nor MaxSessionDuration,
+		// which GetRole and ListRoles return (LocalStack's AWS-recorded
+		// tests/aws/services/iam/test_iam.snapshot.json at 8b9a79f0, lines
+		// 117 to 200, recorded 2025-03-06).
 		created := apiRoleDetail(account, r)
-		created.RoleLastUsed = nil
+		created.RoleLastUsed, created.MaxSessionDuration = nil, nil
 		return created, nil
 	})
 	if err != nil {

@@ -252,17 +252,24 @@ func tracePath(key TraceKey) (string, url.Values, error) {
 	}
 }
 
-// SaveSnapshot writes an archive of the emulator's state to w.
-func (c *Client) SaveSnapshot(ctx context.Context, w io.Writer, o SaveOptions) error {
+// SaveSnapshot writes an archive of the emulator's state to w and reports
+// its size and the effects the cut was taken without.
+func (c *Client) SaveSnapshot(ctx context.Context, w io.Writer, o SaveOptions) (*SavedArchive, error) {
 	resp, err := c.send(ctx, http.MethodPost, "/snapshots", o.values(), nil, "")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
-	if _, err := io.Copy(w, resp.Body); err != nil {
-		return fmt.Errorf("admin: copying the snapshot archive: %w", err)
+	var saved SavedArchive
+	if h := resp.Header.Get(PendingEffectsHeader); h != "" {
+		if saved.PendingEffects, err = strconv.Atoi(h); err != nil || saved.PendingEffects < 0 {
+			return nil, fmt.Errorf("admin: the server answered %s: %q, which is not a count; nothing was written to the archive's writer", PendingEffectsHeader, h)
+		}
 	}
-	return nil
+	if saved.Bytes, err = io.Copy(w, resp.Body); err != nil {
+		return nil, fmt.Errorf("admin: copying the snapshot archive after %d bytes: %w", saved.Bytes, err)
+	}
+	return &saved, nil
 }
 
 // SaveSnapshotTo writes an archive to path under the server's data

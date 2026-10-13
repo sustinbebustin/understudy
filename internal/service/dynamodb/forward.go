@@ -3,6 +3,7 @@ package dynamodb
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -120,6 +121,11 @@ func (s *Service) send(ctx context.Context, endpoint *url.URL, x exchange, body 
 	if err != nil {
 		if ctx.Err() != nil {
 			return kernel.RawResponse{}, awserr.RequestAborted()
+		}
+		// A container that died is forgotten, so the next call starts a
+		// new one instead of failing until understudy restarts.
+		if lerr := s.local.Lost(ctx, endpoint); lerr != nil {
+			err = errors.Join(err, lerr)
 		}
 		return kernel.RawResponse{}, errLocalUnavailable("reach DynamoDB Local at "+endpoint.String(), err)
 	}

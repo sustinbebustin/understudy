@@ -23,7 +23,7 @@ type Batch struct {
 	ids map[string]struct{}
 }
 
-// eventFrame is the event's JSON around its records: {"Records":[...]}.
+// eventOpen and eventClose frame the records of an event: {"Records":[...]}.
 const (
 	eventOpen  = `{"Records":[`
 	eventClose = `]}`

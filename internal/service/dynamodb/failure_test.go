@@ -77,6 +77,23 @@ func TestLocalThatCannotBeReachedAnswersWhy(t *testing.T) {
 	}
 }
 
+// TestFailedRoundTripReportsTheLocalLost: a round trip that does not reach
+// Local tells it so, so a container that died is replaced by the next
+// call's Start.
+func TestFailedRoundTripReportsTheLocalLost(t *testing.T) {
+	local := &fakeLocal{fail: func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("dial tcp 172.17.0.2:8000: connect: connection refused")
+	}}
+	runWith(t, local, func(h *harness) {
+		h.call("ListTables", `{}`)
+		local.mu.Lock()
+		defer local.mu.Unlock()
+		if len(local.lost) != 1 || local.lost[0] != fakeEndpoint.String() {
+			h.Errorf("Lost calls = %v, want one for %s", local.lost, fakeEndpoint.String())
+		}
+	})
+}
+
 // TestClientLeavingMidForwardIsAborted: a client that goes away while
 // Local works is recorded as RequestAborted, not as Local's failure.
 func TestClientLeavingMidForwardIsAborted(t *testing.T) {

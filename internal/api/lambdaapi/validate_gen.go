@@ -1867,7 +1867,7 @@ func (v *Environment) validate(path awserr.Path, out *[]awserr.Violation) {
 			}
 			return false
 		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "variables"), Value: awserr.RenderedText{Text: renderEnvironmentVariables(v.Variables)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "[a-zA-Z]([a-zA-Z0-9_])+"}}}})
+			*out = append(*out, awserr.Violation{Path: at(path, "variables"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "[a-zA-Z]([a-zA-Z0-9_])+"}}}})
 		}
 	}
 }
@@ -3701,10 +3701,10 @@ func (v *OperationUpdate) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Payload != nil {
 		if utf8.RuneCountInString(*v.Payload) > 6291456 {
-			*out = append(*out, awserr.Violation{Path: at(path, "payload"), Value: awserr.RenderedText{Text: *v.Payload}, Constraint: awserr.LengthMax{Max: 6291456}})
+			*out = append(*out, awserr.Violation{Path: at(path, "payload"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 6291456}})
 		}
 		if utf8.RuneCountInString(*v.Payload) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "payload"), Value: awserr.RenderedText{Text: *v.Payload}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "payload"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 	}
 	if v.StepOptions != nil {
@@ -7404,15 +7404,6 @@ func renderEndpoints(v map[EndPointType][]string) string {
 	for _, k := range slices.Sorted(maps.Keys(v)) {
 		e := v[k]
 		parts = append(parts, string(k)+"="+renderEndpointLists(e))
-	}
-	return "{" + strings.Join(parts, ", ") + "}"
-}
-
-func renderEnvironmentVariables(v map[string]string) string {
-	parts := make([]string, 0, len(v))
-	for _, k := range slices.Sorted(maps.Keys(v)) {
-		e := v[k]
-		parts = append(parts, k+"="+e)
 	}
 	return "{" + strings.Join(parts, ", ") + "}"
 }

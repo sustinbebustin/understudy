@@ -7,7 +7,6 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/sustinbebustin/understudy/admin"
@@ -38,7 +37,7 @@ func resourcesCmd() *command {
 						_, err := fmt.Fprintln(w, "no resources")
 						return err
 					}
-					tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+					tw := newTable(w)
 					fmt.Fprintln(tw, "SERVICE\tACCOUNT\tREGION\tARN\tSUMMARY")
 					for _, x := range res {
 						fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", x.Service, x.Account, x.Region, x.ARN, x.Summary)
@@ -106,7 +105,7 @@ func writeUsage(w io.Writer, uses []admin.Usage) error {
 		_, err := fmt.Fprintln(w, "no recorded uses")
 		return err
 	}
-	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	tw := newTable(w)
 	fmt.Fprintln(tw, "PRINCIPAL\tMODE\tACTION\tRESOURCE\tCALLS\tFAILURES\tLAST")
 	for i := range uses {
 		u := &uses[i]
@@ -165,7 +164,7 @@ func imagesCmd() *command {
 					if err := wantArgs(args, 0, "no arguments"); err != nil {
 						return err
 					}
-					c, err := r.client()
+					c, err := r.slowClient()
 					if err != nil {
 						return err
 					}

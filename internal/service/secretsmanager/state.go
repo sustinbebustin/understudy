@@ -11,7 +11,7 @@ import (
 )
 
 // stateVersion is the schema version of State in snapshot sections.
-const stateVersion = 1
+const stateVersion = 2
 
 // State is the Secrets Manager state of one account and region. Records are
 // values: a handler copies a Secret out, changes the copy and stores it
@@ -28,19 +28,25 @@ func newState(aws.Scope) State { return State{Secrets: map[string]Secret{}} }
 // IsZero reports a scope without secrets, which snapshots skip.
 func (s *State) IsZero() bool { return len(s.Secrets) == 0 }
 
+// Partitioned finds IsZero by a type assertion; this keeps a rename from
+// silently dropping the skip.
+var _ store.Zeroer = (*State)(nil)
+
 // Secret is one secret: its metadata, its versions and which version holds
 // each staging label.
 type Secret struct {
 	Name string `json:"name"`
-	// ARN ends in "-" and six random characters, so a secret recreated with
-	// the same name has another ARN.
-	ARN string `json:"arn"`
+	// Suffix is the six random characters the secret's ARN ends with after
+	// its name and a hyphen, so a secret recreated with the same name has
+	// another ARN. The ARN itself is derived (arn), never stored.
+	Suffix string `json:"suffix"`
 	// CreateToken is the ClientRequestToken CreateSecret was given, which a
 	// retried CreateSecret repeats.
 	CreateToken string  `json:"createToken"`
 	Description *string `json:"description,omitempty"`
 	// KMSKeyID is the KmsKeyId as the caller sent it; nil is the AWS
-	// managed key aws/secretsmanager, which DescribeSecret does not show.
+	// managed key aws/secretsmanager, however the caller named it
+	// (resolveKey), which DescribeSecret does not show.
 	KMSKeyID *string       `json:"kmsKeyId,omitempty"`
 	Type     *string       `json:"type,omitempty"`
 	Created  clock.Instant `json:"created"`
@@ -77,6 +83,11 @@ type Version struct {
 	// ListSecretVersionIds reports.
 	KMSKeyID *string `json:"kmsKeyId,omitempty"`
 	Value    sealed  `json:"value"`
+}
+
+// arn is the ARN of the secret held by the cell of scope.
+func (s *Secret) arn(scope aws.Scope) aws.ARN {
+	return secretARN(scope, s.Name, s.Suffix)
 }
 
 // labels returns the staging labels on version id, sorted, as AWS lists

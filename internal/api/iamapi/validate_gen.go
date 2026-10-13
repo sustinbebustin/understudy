@@ -396,26 +396,26 @@ func (v *ChangePasswordInput) validate(path awserr.Path, out *[]awserr.Violation
 		*out = append(*out, awserr.Violation{Path: at(path, "oldPassword"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern17.MatchString(v.OldPassword) {
-			*out = append(*out, awserr.Violation{Path: at(path, "oldPassword"), Value: awserr.RenderedText{Text: v.OldPassword}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "oldPassword"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
 		}
 		if utf8.RuneCountInString(v.OldPassword) > 128 {
-			*out = append(*out, awserr.Violation{Path: at(path, "oldPassword"), Value: awserr.RenderedText{Text: v.OldPassword}, Constraint: awserr.LengthMax{Max: 128}})
+			*out = append(*out, awserr.Violation{Path: at(path, "oldPassword"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 128}})
 		}
 		if utf8.RuneCountInString(v.OldPassword) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "oldPassword"), Value: awserr.RenderedText{Text: v.OldPassword}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "oldPassword"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 	if v.missing&(1<<1) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "newPassword"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern17.MatchString(v.NewPassword) {
-			*out = append(*out, awserr.Violation{Path: at(path, "newPassword"), Value: awserr.RenderedText{Text: v.NewPassword}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "newPassword"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
 		}
 		if utf8.RuneCountInString(v.NewPassword) > 128 {
-			*out = append(*out, awserr.Violation{Path: at(path, "newPassword"), Value: awserr.RenderedText{Text: v.NewPassword}, Constraint: awserr.LengthMax{Max: 128}})
+			*out = append(*out, awserr.Violation{Path: at(path, "newPassword"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 128}})
 		}
 		if utf8.RuneCountInString(v.NewPassword) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "newPassword"), Value: awserr.RenderedText{Text: v.NewPassword}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "newPassword"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 }
@@ -678,13 +678,13 @@ func (v *CreateLoginProfileInput) validate(path awserr.Path, out *[]awserr.Viola
 	}
 	if v.Password != nil {
 		if !pattern17.MatchString(*v.Password) {
-			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedText{Text: *v.Password}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
 		}
 		if utf8.RuneCountInString(*v.Password) > 128 {
-			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedText{Text: *v.Password}, Constraint: awserr.LengthMax{Max: 128}})
+			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 128}})
 		}
 		if utf8.RuneCountInString(*v.Password) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedText{Text: *v.Password}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 }
@@ -984,13 +984,13 @@ func (v *CreateSAMLProviderInput) validate(path awserr.Path, out *[]awserr.Viola
 	}
 	if v.AddPrivateKey != nil {
 		if !pattern17.MatchString(*v.AddPrivateKey) {
-			*out = append(*out, awserr.Violation{Path: at(path, "addPrivateKey"), Value: awserr.RenderedText{Text: *v.AddPrivateKey}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "addPrivateKey"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
 		}
 		if utf8.RuneCountInString(*v.AddPrivateKey) > 16384 {
-			*out = append(*out, awserr.Violation{Path: at(path, "addPrivateKey"), Value: awserr.RenderedText{Text: *v.AddPrivateKey}, Constraint: awserr.LengthMax{Max: 16384}})
+			*out = append(*out, awserr.Violation{Path: at(path, "addPrivateKey"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 16384}})
 		}
 		if utf8.RuneCountInString(*v.AddPrivateKey) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "addPrivateKey"), Value: awserr.RenderedText{Text: *v.AddPrivateKey}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "addPrivateKey"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 }
@@ -6262,13 +6262,13 @@ func (v *UpdateLoginProfileInput) validate(path awserr.Path, out *[]awserr.Viola
 	}
 	if v.Password != nil {
 		if !pattern17.MatchString(*v.Password) {
-			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedText{Text: *v.Password}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
 		}
 		if utf8.RuneCountInString(*v.Password) > 128 {
-			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedText{Text: *v.Password}, Constraint: awserr.LengthMax{Max: 128}})
+			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 128}})
 		}
 		if utf8.RuneCountInString(*v.Password) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedText{Text: *v.Password}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 }
@@ -6421,13 +6421,13 @@ func (v *UpdateSAMLProviderInput) validate(path awserr.Path, out *[]awserr.Viola
 	}
 	if v.AddPrivateKey != nil {
 		if !pattern17.MatchString(*v.AddPrivateKey) {
-			*out = append(*out, awserr.Violation{Path: at(path, "addPrivateKey"), Value: awserr.RenderedText{Text: *v.AddPrivateKey}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "addPrivateKey"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
 		}
 		if utf8.RuneCountInString(*v.AddPrivateKey) > 16384 {
-			*out = append(*out, awserr.Violation{Path: at(path, "addPrivateKey"), Value: awserr.RenderedText{Text: *v.AddPrivateKey}, Constraint: awserr.LengthMax{Max: 16384}})
+			*out = append(*out, awserr.Violation{Path: at(path, "addPrivateKey"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 16384}})
 		}
 		if utf8.RuneCountInString(*v.AddPrivateKey) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "addPrivateKey"), Value: awserr.RenderedText{Text: *v.AddPrivateKey}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "addPrivateKey"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 	if v.RemovePrivateKey != nil {
@@ -6750,13 +6750,13 @@ func (v *UploadServerCertificateInput) validate(path awserr.Path, out *[]awserr.
 		*out = append(*out, awserr.Violation{Path: at(path, "privateKey"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern17.MatchString(v.PrivateKey) {
-			*out = append(*out, awserr.Violation{Path: at(path, "privateKey"), Value: awserr.RenderedText{Text: v.PrivateKey}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "privateKey"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"}})
 		}
 		if utf8.RuneCountInString(v.PrivateKey) > 16384 {
-			*out = append(*out, awserr.Violation{Path: at(path, "privateKey"), Value: awserr.RenderedText{Text: v.PrivateKey}, Constraint: awserr.LengthMax{Max: 16384}})
+			*out = append(*out, awserr.Violation{Path: at(path, "privateKey"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 16384}})
 		}
 		if utf8.RuneCountInString(v.PrivateKey) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "privateKey"), Value: awserr.RenderedText{Text: v.PrivateKey}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "privateKey"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 	if v.CertificateChain != nil {

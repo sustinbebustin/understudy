@@ -13,13 +13,10 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
-	"slices"
 	"sync"
 	"time"
 
-	"github.com/sustinbebustin/understudy/internal/fidelity"
-	"github.com/sustinbebustin/understudy/internal/journal"
-	"github.com/sustinbebustin/understudy/internal/topology"
+	"github.com/sustinbebustin/understudy/internal/config"
 )
 
 // Server is one understudy serve: the wired emulator and its listeners.
@@ -54,23 +51,44 @@ func (e *StateError) Error() string {
 }
 
 // ListenError is a Config.Listen address serve refuses: a non-loopback
-// listener without an admin token would expose the admin API under
-// /_understudy/ to the network (ARCHITECTURE.md 20).
+// listener that would expose the admin API under /_understudy/, or the
+// unauthenticated AWS API, to the network (ARCHITECTURE.md 20).
 type ListenError struct {
-	Addr netip.AddrPort
-	// Published is set when ContainerPublished was asked for outside a
-	// container.
-	Published bool
+	Addr   netip.AddrPort
+	Reason ListenRefusal
 }
 
+// ListenRefusal is why New refused a listener beyond loopback.
+type ListenRefusal uint8
+
+// ListenRefusal values.
+const (
+	// RefusedNoAdminToken is a listener without an admin token.
+	RefusedNoAdminToken ListenRefusal = iota
+	// RefusedNotInContainer is ContainerPublished asked for outside a
+	// container with its own network namespace, or in a Kubernetes pod.
+	RefusedNotInContainer
+	// RefusedUnauthenticatedAWSAPI is a listener on the host with an admin
+	// token but without AWSAPIUnauthenticated: the token guards only the
+	// admin API.
+	RefusedUnauthenticatedAWSAPI
+)
+
 func (e *ListenError) Error() string {
-	why := "a non-loopback listener would expose the admin API under /_understudy/ to the network"
-	if e.Published {
-		why = "the published container port can stand in for an admin token only inside a container, and this process does not run in one"
+	var why string
+	switch e.Reason {
+	case RefusedNoAdminToken:
+		why = "a non-loopback listener would expose the admin API under /_understudy/ to the network"
+	case RefusedNotInContainer:
+		why = "the published container port can stand in for an admin token only inside a container with its own network namespace, outside Kubernetes, and this process does not run in one"
+	case RefusedUnauthenticatedAWSAPI:
+		why = "the admin token guards only the admin API under /_understudy/, and the AWS API on the same listener checks no signature, " +
+			"so anyone who reaches it could read every secret and object and run any container image as a Lambda function"
 	}
 	return fmt.Sprintf("refusing to listen on %s: %s. "+
-		"Listening beyond loopback needs an admin token, which every admin call must then send as Authorization: Bearer <token>, "+
-		"or, inside a container, a published port (docker run -p 127.0.0.1:%d:%d); "+
+		"Listening beyond loopback on the host needs an admin token, which every admin call must then send as Authorization: Bearer <token>, "+
+		"and --allow-unauthenticated-aws-api, which accepts that every peer on the network can use the AWS API; "+
+		"inside a container, a published port (docker run -p 127.0.0.1:%d:%d) stands in for both; "+
 		"to stay local, listen on loopback, such as --listen 127.0.0.1:%d", e.Addr, why, e.Addr.Port(), e.Addr.Port(), e.Addr.Port())
 }
 
@@ -95,16 +113,22 @@ func (e *BindError) Unwrap() error { return e.Err }
 
 // New wires the emulator and, with persistence, locks the data directory
 // and loads the saved state. Nothing listens until Serve. A zero Listen is
-// 127.0.0.1:0; a non-loopback one without an AdminToken, or with
-// ContainerPublished outside a container, is a *ListenError. What New opens
-// (the journal, the blob store, the data directory, the code store) is
-// released when Serve shuts down, or by Close when the Server is never
-// served; a New that fails releases it before returning.
+// 127.0.0.1:0; a non-loopback one is a *ListenError unless it has the
+// ContainerPublished exposure inside a container, or an AdminToken and
+// AWSAPIUnauthenticated, and an unwritable ReadyFile is a *ReadyFileError.
+// A setting refused as it is applied, such as a fault rule or a hot-reload
+// directory, is a *SettingError.
+// What New opens (the journal, the blob store, the data directory, the
+// code store) is released when Serve shuts down, or by Close when the
+// Server is never served; a New that fails releases it before returning.
 func New(cfg Config) (*Server, error) {
 	if !cfg.Listen.IsValid() {
 		cfg.Listen = netip.AddrPortFrom(netip.AddrFrom4([4]byte{127, 0, 0, 1}), 0)
 	}
 	if err := checkExposure(cfg); err != nil {
+		return nil, err
+	}
+	if err := checkReadyFile(cfg.ReadyFile); err != nil {
 		return nil, err
 	}
 	out := cfg.LogOutput
@@ -118,43 +142,54 @@ func New(cfg Config) (*Server, error) {
 		handler = slog.NewJSONHandler(out, hopts)
 	}
 	log := slog.New(handler)
+	// Each wiring step names what it was doing, and a *SettingError reads
+	// as the configuration's own refusals do, so the error goes out bare.
 	w, err := wire(cfg, log)
 	if err != nil {
-		return nil, fmt.Errorf("server: wiring the emulator: %w", err)
+		return nil, err
 	}
 	return &Server{cfg: cfg, log: log, wired: w}, nil
 }
 
 // checkExposure refuses a listener beyond loopback that nothing protects.
+// Inside a container the published port guards both APIs; on the host the
+// admin token guards only the admin API, so the AWS API, which verifies no
+// signature, needs the explicit AWSAPIUnauthenticated as well.
 func checkExposure(cfg Config) error {
-	if cfg.Listen.Addr().IsLoopback() || cfg.AdminToken != "" {
+	if cfg.Listen.Addr().IsLoopback() {
 		return nil
 	}
-	if _, ok := cfg.Exposure.(ContainerPublished); ok {
-		if inContainer() {
-			return nil
-		}
-		return &ListenError{Addr: cfg.Listen, Published: true}
+	_, published := cfg.Exposure.(ContainerPublished)
+	switch {
+	case published && publishedPortGuards():
+		return nil
+	case cfg.AdminToken == "" && published:
+		return &ListenError{Addr: cfg.Listen, Reason: RefusedNotInContainer}
+	case cfg.AdminToken == "":
+		return &ListenError{Addr: cfg.Listen, Reason: RefusedNoAdminToken}
 	}
-	return &ListenError{Addr: cfg.Listen}
+	if _, ok := cfg.AWSAPI.(AWSAPIUnauthenticated); !ok {
+		return &ListenError{Addr: cfg.Listen, Reason: RefusedUnauthenticatedAWSAPI}
+	}
+	return nil
 }
 
-// inContainer reports whether this process runs in a Docker or Podman
-// container, by the markers topology reads, as config does when it picks
-// the default listener.
-func inContainer() bool { return topology.RunsInContainer(os.DirFS("/")) }
+// publishedPortGuards reports whether only published ports reach this
+// process: a container in its own network namespace, outside Kubernetes.
+// It repeats config's check, which picks the default listener, so a
+// ContainerPublished exposure built some other way is held to the same
+// rule. This package reads no environment, so a pod is recognized here by
+// its kubepods cgroup only; config also reads KUBERNETES_SERVICE_HOST.
+func publishedPortGuards() bool {
+	_, in := config.DetectPlacement(os.ReadFile, nil).(config.InContainer)
+	return in
+}
 
 // Handler is the main listener's handler, the edge in front of the wired
 // emulator, for tests that drive it without a listener. Only Serve runs the
 // kernel, so behind Handler alone no timer fires: a long poll parked on a
 // delayed or in-flight message is not woken when the message turns visible.
 func (s *Server) Handler() http.Handler { return s.wired.edge }
-
-// Journal is the emulator's journal.
-func (s *Server) Journal() *journal.Journal { return s.wired.journal }
-
-// Switches lists every wired service's fidelity switches, for coverage.
-func (s *Server) Switches() []fidelity.Entry { return slices.Clone(s.wired.switches) }
 
 // shutdownGrace bounds how long shutdown waits for requests in flight.
 const shutdownGrace = 5 * time.Second
@@ -202,9 +237,10 @@ func (s *Server) Serve(ctx context.Context) error {
 	if s.cfg.OnReady != nil {
 		s.cfg.OnReady(eps)
 	}
-	s.banner(ctx, eps)
+	s.banner(ctx, eps, main.Addr())
 	select {
 	case <-ctx.Done():
+		s.logStopping(ctx)
 	case err := <-sess.ls.failed:
 		return errors.Join(err, s.shutdown(ctx, sess))
 	case err := <-sess.kernelDone:
@@ -279,9 +315,9 @@ func (s *Server) start(ctx context.Context, main, secure net.Listener) (*session
 	// as the kernel runs, and the pollers register their timer kind, so
 	// both come first.
 	w.host.serving(bound.Port(), func(addr netip.AddrPort) error {
-		ln, err := listen(bg, addr)
+		ln, err := containerListen(bg, addr, net.InterfaceAddrs, s.log)
 		if err != nil {
-			return fmt.Errorf("server: cannot open the container listener on %s, which function containers reach understudy at: %w", addr, err)
+			return err
 		}
 		return sess.ls.serve("container listener", w.containerEdge, ln)
 	})
@@ -321,6 +357,7 @@ func (s *Server) start(ctx context.Context, main, secure net.Listener) (*session
 		}
 		w.local.startInBackground(bg)
 	})
+	sess.background.Go(func() { w.sweepGone(bg, s.log) })
 	w.admin.SetReady(bound)
 	return sess, nil
 }
@@ -335,6 +372,20 @@ func closeListeners(lns ...net.Listener) error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// logStopping logs once that the graceful shutdown has begun. A context
+// ended with a cause other than plain cancellation or a deadline was ended
+// by a signal (signal.NotifyContext's cause), and the understudy command
+// restores the default signal handling then, so the line says that a
+// second signal ends the process at once.
+func (s *Server) logStopping(ctx context.Context) {
+	cause := context.Cause(ctx)
+	attrs := []slog.Attr{slog.String("cause", cause.Error())}
+	if !errors.Is(cause, context.Canceled) && !errors.Is(cause, context.DeadlineExceeded) {
+		attrs = append(attrs, slog.String("force", "send the signal again to exit at once, skipping the cleanup"))
+	}
+	s.log.LogAttrs(ctx, slog.LevelInfo, "understudy shutting down", attrs...)
 }
 
 // shutdown ends requests in flight, stops the background work, removes the
@@ -428,6 +479,51 @@ type readyFile struct {
 	PID         int    `json:"pid"`
 }
 
+// ReadyFileError is a Config.ReadyFile path serve cannot write. New
+// refuses one whose directory is missing or not writable before anything
+// listens.
+type ReadyFileError struct {
+	Path string
+	Err  error
+}
+
+func (e *ReadyFileError) Error() string {
+	return "server: cannot write --ready-file " + e.Path + ": " + e.Err.Error() + "; create its directory or make it writable, or choose another path"
+}
+
+func (e *ReadyFileError) Unwrap() error { return e.Err }
+
+// checkReadyFile refuses a ready file path whose directory serve cannot
+// create the file in, by creating and removing a temporary file there.
+func checkReadyFile(path string) error {
+	if path == "" {
+		return nil
+	}
+	tmp, err := createReadyTemp(path)
+	if err != nil {
+		return err
+	}
+	if err := errors.Join(tmp.Close(), os.Remove(tmp.Name())); err != nil {
+		return &ReadyFileError{Path: path, Err: err}
+	}
+	return nil
+}
+
+// createReadyTemp creates the temporary file the ready file at path is
+// written to before it moves into place. A failure names the directory,
+// not the temporary file, which the user never named.
+func createReadyTemp(path string) (*os.File, error) {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".understudy-ready-*")
+	if err != nil {
+		if pe, ok := errors.AsType[*fs.PathError](err); ok {
+			err = fmt.Errorf("its directory %s: %w", dir, pe.Err)
+		}
+		return nil, &ReadyFileError{Path: path, Err: err}
+	}
+	return tmp, nil
+}
+
 // writeReadyFile writes the ready file atomically, so a watcher never reads
 // half a document.
 func (s *Server) writeReadyFile(eps Endpoints) error {
@@ -438,18 +534,17 @@ func (s *Server) writeReadyFile(eps Endpoints) error {
 	if err != nil {
 		return fmt.Errorf("server: encoding the ready file: %w", err)
 	}
-	dir := filepath.Dir(s.cfg.ReadyFile)
-	tmp, err := os.CreateTemp(dir, ".understudy-ready-*")
+	tmp, err := createReadyTemp(s.cfg.ReadyFile)
 	if err != nil {
-		return fmt.Errorf("server: cannot write the ready file in %s: %w", dir, err)
+		return err
 	}
 	_, werr := tmp.Write(append(data, '\n'))
 	cerr := tmp.Close()
 	if err := errors.Join(werr, cerr); err != nil {
-		return fmt.Errorf("server: writing the ready file %s: %w", tmp.Name(), errors.Join(err, os.Remove(tmp.Name())))
+		return &ReadyFileError{Path: s.cfg.ReadyFile, Err: errors.Join(err, os.Remove(tmp.Name()))}
 	}
 	if err := os.Rename(tmp.Name(), s.cfg.ReadyFile); err != nil {
-		return fmt.Errorf("server: moving the ready file into place at %s: %w", s.cfg.ReadyFile, errors.Join(err, os.Remove(tmp.Name())))
+		return &ReadyFileError{Path: s.cfg.ReadyFile, Err: errors.Join(err, os.Remove(tmp.Name()))}
 	}
 	return nil
 }

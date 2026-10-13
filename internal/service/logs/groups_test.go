@@ -2,8 +2,12 @@ package logs_test
 
 import (
 	"maps"
+	"reflect"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -276,6 +280,41 @@ func TestDescribeLogGroupsPages(t *testing.T) {
 	})
 }
 
+// DescribeLogGroups with logGroupNamePattern returns the field set AWS
+// records for it (test_describe_log_groups_with_pattern): arn,
+// creationTime, logGroupArn, logGroupClass, logGroupName and
+// metricFilterCount. storedBytes, deletionProtectionEnabled and
+// retentionInDays stay out even when set; a prefix listing keeps them.
+func TestDescribeLogGroupsByPatternReturnsTheRecordedFields(t *testing.T) {
+	run(t, func(h *harness) {
+		must(h, logsapi.OpCreateLogGroup, &logsapi.CreateLogGroupInput{LogGroupName: "/app/a", DeletionProtectionEnabled: new(true)})
+		must(h, logsapi.OpPutRetentionPolicy, &logsapi.PutRetentionPolicyInput{LogGroupName: "/app/a", RetentionInDays: 14})
+		const arn = "arn:aws:logs:us-east-1:000000000000:log-group:/app/a"
+
+		out := must(h, logsapi.OpDescribeLogGroups, &logsapi.DescribeLogGroupsInput{LogGroupNamePattern: new("app")})
+		want := logsapi.LogGroup{
+			Arn:               new(arn + ":*"),
+			CreationTime:      new(h.now()),
+			LogGroupArn:       new(arn),
+			LogGroupClass:     new(logsapi.LogGroupClassStandard),
+			LogGroupName:      new("/app/a"),
+			MetricFilterCount: new(int32(0)),
+		}
+		if len(out.LogGroups) != 1 || !reflect.DeepEqual(out.LogGroups[0], want) {
+			h.Errorf("by pattern = %+v\nwant [%+v]", out.LogGroups, want)
+		}
+
+		out = must(h, logsapi.OpDescribeLogGroups, &logsapi.DescribeLogGroupsInput{LogGroupNamePrefix: new("/app")})
+		if len(out.LogGroups) != 1 {
+			h.Fatalf("by prefix = %d groups, want 1", len(out.LogGroups))
+		}
+		g := out.LogGroups[0]
+		if g.StoredBytes == nil || g.DeletionProtectionEnabled == nil || !*g.DeletionProtectionEnabled || g.RetentionInDays == nil || *g.RetentionInDays != 14 {
+			h.Errorf("by prefix = storedBytes %v, deletionProtectionEnabled %v, retentionInDays %v; want all present", g.StoredBytes, g.DeletionProtectionEnabled, g.RetentionInDays)
+		}
+	})
+}
+
 // A Request fault rule scoped to a group's ARN throttles the tagging calls
 // that name it before their handlers run, and leaves other groups alone.
 func TestFaultRulesMatchTheGroupATaggingCallNames(t *testing.T) {
@@ -306,6 +345,113 @@ func TestFaultRulesMatchTheGroupATaggingCallNames(t *testing.T) {
 					h.Errorf("%s on %s injected = %v (error %v), want %v", op, c.arn, got, err, c.want)
 				}
 			}
+		}
+	})
+}
+
+// Deletion protection blocks every deletion in the group, its streams'
+// included, until it is turned off (CloudWatchLogsConcepts.html); the
+// group's refusal carries the user guide's text.
+func TestDeletionProtectionCoversStreams(t *testing.T) {
+	run(t, func(h *harness) {
+		must(h, logsapi.OpCreateLogGroup, &logsapi.CreateLogGroupInput{LogGroupName: "protected", DeletionProtectionEnabled: new(true)})
+		h.stream("protected", "s")
+		h.put("protected", "s", event(h.now(), "kept"))
+
+		_, err := call(h, logsapi.OpDeleteLogStream, &logsapi.DeleteLogStreamInput{LogGroupName: "protected", LogStreamName: "s"})
+		wantError(h.T, err, "ValidationException", "Cannot delete log stream in a log group with deletion protection enabled. Disable deletion protection first.")
+		_, err = call(h, logsapi.OpDeleteLogGroup, &logsapi.DeleteLogGroupInput{LogGroupName: "protected"})
+		wantError(h.T, err, "ValidationException", "Cannot delete log group with deletion protection enabled. Disable deletion protection first.")
+		if got := h.all("protected", "s"); len(got) != 1 {
+			h.Errorf("events after refused deletes = %v, want the stored one", got)
+		}
+
+		must(h, logsapi.OpPutLogGroupDeletionProtection, &logsapi.PutLogGroupDeletionProtectionInput{LogGroupIdentifier: "protected", DeletionProtectionEnabled: false})
+		must(h, logsapi.OpDeleteLogStream, &logsapi.DeleteLogStreamInput{LogGroupName: "protected", LogStreamName: "s"})
+	})
+}
+
+// logGroupIdentifiers takes no filter but includeLinkedAccounts
+// (DescribeLogGroups documentation), so a request adding a prefix, pattern
+// or class is refused instead of answering an empty listing.
+func TestDescribeLogGroupsIdentifiersExcludeOtherFilters(t *testing.T) {
+	run(t, func(h *harness) {
+		h.group("/app/a")
+		const want = "logGroupIdentifiers cannot be combined with logGroupNamePrefix, logGroupNamePattern or logGroupClass."
+		for name, in := range map[string]*logsapi.DescribeLogGroupsInput{
+			"prefix":  {LogGroupIdentifiers: []string{"/app/a"}, LogGroupNamePrefix: new("/other")},
+			"pattern": {LogGroupIdentifiers: []string{"/app/a"}, LogGroupNamePattern: new("app")},
+			"class":   {LogGroupIdentifiers: []string{"/app/a"}, LogGroupClass: new(logsapi.LogGroupClassStandard)},
+		} {
+			_, err := call(h, logsapi.OpDescribeLogGroups, in)
+			if err == nil || err.ID.JSONType != "InvalidParameterException" || err.Message != want {
+				h.Errorf("identifiers with %s = %+v, want InvalidParameterException %q", name, err, want)
+			}
+		}
+		out := must(h, logsapi.OpDescribeLogGroups, &logsapi.DescribeLogGroupsInput{
+			LogGroupIdentifiers: []string{"arn:aws:logs:us-east-1:000000000000:log-group:/app/a"}, IncludeLinkedAccounts: new(true),
+		})
+		if len(out.LogGroups) != 1 || val(out.LogGroups[0].LogGroupName) != "/app/a" {
+			h.Errorf("identifiers with includeLinkedAccounts = %+v", out.LogGroups)
+		}
+	})
+}
+
+// A DELIVERY group keeps its events two days, a period the log class
+// documentation fixes: DescribeLogGroups reports it, the retention
+// policy operations cannot change it, and events expire at it on the
+// emulator clock.
+func TestDeliveryClassRetentionIsFixed(t *testing.T) {
+	run(t, func(h *harness) {
+		must(h, logsapi.OpCreateLogGroup, &logsapi.CreateLogGroupInput{LogGroupName: "d", LogGroupClass: new(logsapi.LogGroupClassDelivery)})
+		out := must(h, logsapi.OpDescribeLogGroups, &logsapi.DescribeLogGroupsInput{LogGroupNamePrefix: new("d")})
+		if len(out.LogGroups) != 1 || out.LogGroups[0].RetentionInDays == nil || *out.LogGroups[0].RetentionInDays != 2 {
+			h.Fatalf("DescribeLogGroups = %+v, want retentionInDays 2", out.LogGroups)
+		}
+
+		const fixed = "The retention period of a log group in the DELIVERY log class is fixed and cannot be changed."
+		_, err := call(h, logsapi.OpPutRetentionPolicy, &logsapi.PutRetentionPolicyInput{LogGroupName: "d", RetentionInDays: 365})
+		wantError(h.T, err, "InvalidParameterException", fixed)
+		_, err = call(h, logsapi.OpDeleteRetentionPolicy, &logsapi.DeleteRetentionPolicyInput{LogGroupName: "d"})
+		wantError(h.T, err, "InvalidParameterException", fixed)
+
+		h.stream("d", "s")
+		h.put("d", "s", event(h.now(), "short-lived"))
+		h.advance(2*day - time.Millisecond)
+		if got := h.all("d", "s"); len(got) != 1 {
+			h.Errorf("just before two days = %v, want the event", got)
+		}
+		h.advance(time.Millisecond)
+		if got := h.all("d", "s"); len(got) != 0 {
+			h.Errorf("after two days = %v, want none", got)
+		}
+	})
+}
+
+// TagLogGroup's model lists no TooManyTagsException, so its over-limit
+// error is InvalidParameterException; TagResource keeps
+// TooManyTagsException. Neither changes the tag set.
+func TestTagLimitErrorFollowsEachFamilysModel(t *testing.T) {
+	run(t, func(h *harness) {
+		h.group("g")
+		const arn = "arn:aws:logs:us-east-1:000000000000:log-group:g"
+		tags := map[string]string{}
+		for i := range 50 {
+			tags["k"+strconv.Itoa(i)] = "v"
+		}
+		must(h, logsapi.OpTagLogGroup, &logsapi.TagLogGroupInput{LogGroupName: "g", Tags: tags})
+		const want = "A resource can have no more than 50 tags: " + arn
+
+		_, err := call(h, logsapi.OpTagLogGroup, &logsapi.TagLogGroupInput{LogGroupName: "g", Tags: map[string]string{"extra": "v"}})
+		wantError(h.T, err, "InvalidParameterException", want)
+		_, err = call(h, logsapi.OpTagResource, &logsapi.TagResourceInput{ResourceArn: arn, Tags: map[string]string{"extra": "v"}})
+		wantError(h.T, err, "TooManyTagsException", want)
+		// The model gives TooManyTagsException a resourceName member.
+		if !slices.Contains(err.Fields, awserr.Field{Name: "resourceName", Value: arn}) {
+			h.Errorf("TooManyTagsException fields = %v, want resourceName %s", err.Fields, arn)
+		}
+		if got := must(h, logsapi.OpListTagsLogGroup, &logsapi.ListTagsLogGroupInput{LogGroupName: "g"}).Tags; !maps.Equal(got, tags) {
+			h.Errorf("tags after refused additions = %d keys, want the 50 set", len(got))
 		}
 	})
 }

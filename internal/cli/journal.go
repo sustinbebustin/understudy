@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"iter"
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -42,7 +41,7 @@ type journalFlags struct {
 
 func journalQuery(fs *flag.FlagSet) action {
 	var f journalFlags
-	fs.Uint64Var(&f.q.Trace, "trace", 0, "events of the causal tree with this root event id")
+	eventIDVar(fs, &f.q.Trace, "trace", "events of the causal tree with this root event id")
 	fs.StringVar(&f.q.RequestID, "request-id", "", "the API call with this request id, as an SDK error or log line shows it")
 	fs.StringVar(&f.q.Service, "service", "", "events of a service, such as sqs")
 	fs.StringVar(&f.q.Operation, "operation", "", "events of an operation as service.Operation, such as sqs.SendMessage")
@@ -50,8 +49,8 @@ func journalQuery(fs *flag.FlagSet) action {
 	fs.StringVar(&f.q.Kind, "kind", "", "events of a kind, such as api-call, delivery, invocation or fault-injected")
 	fs.StringVar(&f.q.Principal, "principal", "", "events of a principal ARN")
 	fs.BoolVar(&f.errorsOnly, "errors", false, "only events that failed")
-	fs.DurationVar(&f.since, "since", 0, "only events from this long ago in emulator time, such as 10m")
-	fs.IntVar(&f.limit, "limit", 1000, "most events a query prints; --follow prints them all")
+	durationVar(fs, &f.since, "since", 0, "only events from this long ago in emulator time, such as 10m")
+	intVar(fs, &f.limit, "limit", 1000, "most events a query prints, the newest ones; --follow prints them all")
 	fs.BoolVar(&f.follow, "follow", false, "after the matching events, print new ones as they are recorded until interrupted")
 	return func(ctx context.Context, r *runner, args []string) error {
 		if err := wantArgs(args, 0, "no arguments, or trace ID"); err != nil {
@@ -77,32 +76,82 @@ func journalQuery(fs *flag.FlagSet) action {
 		if f.follow {
 			return r.follow(ctx, c, f.q)
 		}
-		_, err = r.printEvents(ctx, c, f.q, f.limit)
-		return err
+		return r.printNewest(ctx, c, f.q, f.limit)
 	}
 }
 
-// printEvents prints up to limit events q selects, page by page, and
-// returns the ids printed.
-func (r *runner) printEvents(ctx context.Context, c *admin.Client, q admin.JournalQuery, limit int) (map[uint64]bool, error) {
-	printed := map[uint64]bool{}
+// journalPageSize is the page size the CLI reads the journal in.
+const journalPageSize = 500
+
+// eachEvent calls f with every event q selects, oldest first, page by page.
+func eachEvent(ctx context.Context, c *admin.Client, q admin.JournalQuery, f func(*admin.JournalEvent) error) error {
+	q.Limit = journalPageSize
 	for {
-		q.Limit = min(limit-len(printed), 500)
 		page, err := c.JournalEvents(ctx, q)
 		if err != nil {
-			return printed, err
+			return err
 		}
 		for i := range page.Events {
-			if err := r.writeEvent(&page.Events[i]); err != nil {
-				return printed, err
+			if err := f(&page.Events[i]); err != nil {
+				return err
 			}
-			printed[page.Events[i].ID] = true
 		}
-		if page.Next == 0 || len(printed) >= limit {
-			return printed, nil
+		if page.Next == 0 {
+			return nil
 		}
 		q.Cursor = page.Next
 	}
+}
+
+// printNewest prints the newest limit events q selects, oldest first: the
+// end of a long session is what a query is usually after. In text, a
+// notice on stderr says when events were left out or none matched.
+func (r *runner) printNewest(ctx context.Context, c *admin.Client, q admin.JournalQuery, limit int) error {
+	// newest is a ring of the last limit events seen; matched counts them
+	// all, so matched % limit is the oldest kept once it is full.
+	var newest []admin.JournalEvent
+	matched := 0
+	err := eachEvent(ctx, c, q, func(e *admin.JournalEvent) error {
+		if len(newest) < limit {
+			newest = append(newest, *e)
+		} else {
+			newest[matched%limit] = *e
+		}
+		matched++
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	start := 0
+	if matched > limit {
+		start = matched % limit
+	}
+	for i := range newest {
+		if err := r.writeEvent(&newest[(start+i)%len(newest)]); err != nil {
+			return err
+		}
+	}
+	if r.output == outputJSON {
+		return nil
+	}
+	switch {
+	case matched == 0:
+		_, err = fmt.Fprintln(r.o.Stderr, "no events matched")
+	case matched > limit:
+		_, err = fmt.Fprintf(r.o.Stderr, "showing the newest %d of %d matching events; raise --limit, narrow with --since, --service or --errors, or use --follow\n", limit, matched)
+	}
+	return err
+}
+
+// printAll prints every event q selects and returns the ids printed.
+func (r *runner) printAll(ctx context.Context, c *admin.Client, q admin.JournalQuery) (map[uint64]bool, error) {
+	printed := map[uint64]bool{}
+	err := eachEvent(ctx, c, q, func(e *admin.JournalEvent) error {
+		printed[e.ID] = true
+		return r.writeEvent(e)
+	})
+	return printed, err
 }
 
 // follow subscribes to the events q selects, then prints every one already
@@ -115,7 +164,9 @@ func (r *runner) follow(ctx context.Context, c *admin.Client, q admin.JournalQue
 	// The buffer holds what the stream delivers while the query prints;
 	// beyond it the server's own buffer reports a gap rather than block.
 	s := &subscription{subscribed: make(chan struct{}), events: make(chan admin.JournalEvent, 1024)}
-	sc, err := r.clientWith(&http.Client{Transport: &onResponse{base: http.DefaultTransport, done: s.subscribed}})
+	// The stream's headers come once the server subscribes, so the
+	// answer bound holds; the body that follows is not bounded.
+	sc, err := r.clientWith(&http.Client{Transport: &onResponse{base: newAnswerBound(r.answer), done: s.subscribed}})
 	if err != nil {
 		return err
 	}
@@ -123,7 +174,7 @@ func (r *runner) follow(ctx context.Context, c *admin.Client, q admin.JournalQue
 	if !s.ready() {
 		return followEnd(ctx, s.err)
 	}
-	printed, err := r.printEvents(ctx, c, q, math.MaxInt)
+	printed, err := r.printAll(ctx, c, q)
 	if err != nil {
 		return err
 	}
@@ -243,31 +294,305 @@ func eventLine(e *admin.JournalEvent) string {
 	if e.Scope.Account == "" {
 		scope = "-"
 	}
-	return fmt.Sprintf("%-6d %s  %-14s %-22s %s", e.ID, e.At.UTC().Format(time.RFC3339Nano), e.Kind, scope, summary(e.Detail))
+	text, requestID := summary(e)
+	if requestID != "" {
+		text += " request-id " + requestID
+	}
+	return fmt.Sprintf("%-6d %s  %-14s %-22s %s", e.ID, e.At.UTC().Format(eventTime), e.Kind, scope, text)
 }
 
-// summary names the operation and outcome of a detail that has them, and
-// is the compact detail otherwise.
-func summary(detail json.RawMessage) string {
+// eventTime is RFC 3339 with every nanosecond digit kept, so the columns
+// after it line up; RFC3339Nano drops trailing zeros.
+const eventTime = "2006-01-02T15:04:05.000000000Z07:00"
+
+// summary is an event's detail in brief, one line per kind: an API call
+// names its operation and outcome, and when it failed the error; a
+// delivery its path, ends, attempt and outcome; an invocation its function
+// and outcome; a fault hit its rule and the call it hit. A detail the CLI
+// cannot read, such as a kind newer than it, is printed compact and cut,
+// pointing at --output json. requestID is the id of a call that failed,
+// which 'journal trace --request-id' takes.
+func summary(e *admin.JournalEvent) (text, requestID string) {
+	var ok bool
+	switch e.Kind {
+	case "api-call":
+		text, requestID, ok = callSummary(e.Detail)
+	case "fault-injected":
+		text, ok = faultHitSummary(e)
+	case "delivery":
+		text, ok = deliverySummary(e.Detail)
+	case "invocation":
+		text, ok = invocationSummary(e.Detail)
+	case "timer-fired":
+		text, ok = timerSummary(e.Detail)
+	case "state-change":
+		text, ok = stateChangeSummary(e.Detail)
+	case "clock-changed":
+		text, ok = clockChangeSummary(e.Detail)
+	case "advisory":
+		text, ok = advisorySummary(e.Detail)
+	case "unclaimed":
+		text, ok = unclaimedSummary(e.Detail)
+	case "gap":
+		text, ok = gapSummary(e.Detail)
+	}
+	if ok {
+		return text, requestID
+	}
+	text = string(e.Detail)
+	if len(text) > 160 {
+		text = text[:157] + "... (--output json has the full detail)"
+	}
+	return text, ""
+}
+
+// decodeDetail reads an event's detail into a kind's view of it; false
+// when it does not decode.
+func decodeDetail[T any](detail json.RawMessage) (T, bool) {
+	var d T
+	return d, json.Unmarshal(detail, &d) == nil
+}
+
+// deliverySummary is a delivery attempt in brief: "sns-to-sqs t1 -> q1
+// attempt 1 delivered", with the next attempt's time, the dead-letter
+// queue or the reason it was dropped.
+func deliverySummary(detail json.RawMessage) (string, bool) {
+	d, ok := decodeDetail[struct {
+		From      string `json:"from"`
+		To        string `json:"to"`
+		Mechanism string `json:"mechanism"`
+		Attempt   int    `json:"attempt"`
+		Outcome   struct {
+			Kind   string     `json:"kind"`
+			Rule   string     `json:"rule"`
+			Next   *time.Time `json:"next"`
+			DLQ    string     `json:"dlq"`
+			Reason string     `json:"reason"`
+		} `json:"outcome"`
+	}](detail)
+	if !ok || d.Mechanism == "" || d.Outcome.Kind == "" {
+		return "", false
+	}
+	text := fmt.Sprintf("%s %s -> %s attempt %d %s", d.Mechanism, shortARN(d.From), shortARN(d.To), d.Attempt, d.Outcome.Kind)
+	switch {
+	case d.Outcome.Rule != "":
+		text += " by " + d.Outcome.Rule
+	case d.Outcome.Next != nil:
+		text += ", next attempt at " + d.Outcome.Next.UTC().Format(time.RFC3339Nano)
+	case d.Outcome.DLQ != "":
+		text += " to " + shortARN(d.Outcome.DLQ)
+	case d.Outcome.Reason != "":
+		text += ": " + d.Outcome.Reason
+	}
+	return text, true
+}
+
+// invocationSummary is a function invocation in brief: "worker ok cold
+// 120ms", with a function error's type or an exit's code.
+func invocationSummary(detail json.RawMessage) (string, bool) {
+	d, ok := decodeDetail[struct {
+		Function string        `json:"function"`
+		Version  string        `json:"version"`
+		Cold     bool          `json:"cold"`
+		Duration time.Duration `json:"duration"`
+		Outcome  struct {
+			Kind string `json:"kind"`
+			Type string `json:"type"`
+			Code int    `json:"code"`
+		} `json:"outcome"`
+	}](detail)
+	if !ok || d.Function == "" || d.Outcome.Kind == "" {
+		return "", false
+	}
+	parts := []string{shortARN(d.Function)}
+	if d.Version != "" && d.Version != "$LATEST" {
+		parts[0] += ":" + d.Version
+	}
+	parts = append(parts, d.Outcome.Kind)
+	switch {
+	case d.Outcome.Type != "":
+		parts = append(parts, d.Outcome.Type)
+	case d.Outcome.Kind == "exit-error":
+		parts = append(parts, "code "+strconv.Itoa(d.Outcome.Code))
+	}
+	if d.Cold {
+		parts = append(parts, "cold")
+	}
+	if d.Duration > 0 {
+		parts = append(parts, d.Duration.String())
+	}
+	return strings.Join(parts, " "), true
+}
+
+// timerSummary is a fired timer: its kind and id.
+func timerSummary(detail json.RawMessage) (string, bool) {
+	d, ok := decodeDetail[struct {
+		Kind string `json:"timerKind"`
+		ID   string `json:"timerId"`
+	}](detail)
+	return d.Kind + " " + d.ID, ok && d.Kind != ""
+}
+
+// stateChangeSummary is a resource's move between states.
+func stateChangeSummary(detail json.RawMessage) (string, bool) {
+	d, ok := decodeDetail[struct {
+		Resource string `json:"resource"`
+		From     string `json:"from"`
+		To       string `json:"to"`
+	}](detail)
+	return fmt.Sprintf("%s %s -> %s", shortARN(d.Resource), d.From, d.To), ok && d.To != ""
+}
+
+// clockMode is a clock mode as the journal writes it.
+type clockMode struct {
+	Kind   string     `json:"kind"`
+	At     *time.Time `json:"at"`
+	Factor float64    `json:"factor"`
+}
+
+func (m clockMode) String() string {
+	switch {
+	case m.At != nil:
+		return m.Kind + " at " + m.At.UTC().Format(time.RFC3339Nano)
+	case m.Factor != 0:
+		return m.Kind + " x" + strconv.FormatFloat(m.Factor, 'g', -1, 64)
+	}
+	return m.Kind
+}
+
+// clockChangeSummary is the clock's move from one mode to another.
+func clockChangeSummary(detail json.RawMessage) (string, bool) {
+	d, ok := decodeDetail[struct {
+		From clockMode `json:"from"`
+		To   clockMode `json:"to"`
+	}](detail)
+	return d.From.String() + " -> " + d.To.String(), ok && d.To.Kind != ""
+}
+
+// advisorySummary is an advisory's name and its text, in full.
+func advisorySummary(detail json.RawMessage) (string, bool) {
+	d, ok := decodeDetail[struct {
+		Advisory string `json:"advisory"`
+		Text     string `json:"text"`
+	}](detail)
+	return d.Advisory + ": " + d.Text, ok && d.Advisory != ""
+}
+
+// unclaimedSummary is a request no route claimed, with why each declined.
+func unclaimedSummary(detail json.RawMessage) (string, bool) {
+	d, ok := decodeDetail[struct {
+		Method  string   `json:"method"`
+		Host    string   `json:"host"`
+		Path    string   `json:"path"`
+		Reasons []string `json:"reasons"`
+	}](detail)
+	text := d.Method + " " + d.Host + d.Path
+	if len(d.Reasons) > 0 {
+		text += ": " + strings.Join(d.Reasons, "; ")
+	}
+	return text, ok && d.Method != ""
+}
+
+// gapSummary is a stream's notice of the events it missed.
+func gapSummary(detail json.RawMessage) (string, bool) {
+	d, ok := decodeDetail[struct {
+		Missed uint64 `json:"missed"`
+	}](detail)
+	return fmt.Sprintf("missed %d event(s)", d.Missed), ok
+}
+
+// shortARN is an ARN's resource without its type: q1 for
+// arn:aws:sqs:us-east-1:000000000000:q1, worker for
+// arn:aws:lambda:us-east-1:000000000000:function:worker. Text that is no
+// ARN is returned as is.
+func shortARN(arn string) string {
+	parts := strings.SplitN(arn, ":", 6)
+	if len(parts) != 6 || parts[0] != "arn" {
+		return arn
+	}
+	resource := parts[5]
+	if kind, name, found := strings.Cut(resource, ":"); found && !strings.Contains(kind, "/") {
+		return name
+	}
+	return resource
+}
+
+// faultHitSummary is a fault-injected event in brief: the rule, which hit
+// of it, and the event of the call it hit; ok is false when the detail is
+// not a fault hit.
+func faultHitSummary(e *admin.JournalEvent) (text string, ok bool) {
+	var d struct {
+		Rule string `json:"rule"`
+		Hit  int    `json:"hit"`
+		Of   int    `json:"of"`
+	}
+	if json.Unmarshal(e.Detail, &d) != nil || d.Rule == "" {
+		return "", false
+	}
+	text = fmt.Sprintf("rule %s hit %d", d.Rule, d.Hit)
+	if d.Of > 0 {
+		text += fmt.Sprintf(" of %d", d.Of)
+	}
+	if e.Cause.Parent != 0 {
+		text += fmt.Sprintf(", on event %d", e.Cause.Parent)
+	}
+	return text, true
+}
+
+// callSummary is an API call's detail in brief: its operation and outcome,
+// with the error and the rule that injected it; requestID is set when the
+// call failed. A call the service could not name, such as one its front
+// end claimed as an unknown operation, has an empty operation. ok is false
+// when detail does not decode as an API call.
+func callSummary(detail json.RawMessage) (text, requestID string, ok bool) {
 	var d struct {
 		Service   string `json:"service"`
 		Operation string `json:"operation"`
+		RequestID string `json:"requestId"`
 		Outcome   struct {
-			Kind string `json:"kind"`
+			Kind     string `json:"kind"`
+			Identity struct {
+				Shape string `json:"shape"`
+			} `json:"identity"`
+			Status int    `json:"status"`
+			Rule   string `json:"rule"`
 		} `json:"outcome"`
 	}
-	if json.Unmarshal(detail, &d) == nil && d.Operation != "" {
-		s := d.Service + "." + d.Operation
-		if d.Outcome.Kind != "" {
-			s += " " + d.Outcome.Kind
-		}
-		return s
+	if json.Unmarshal(detail, &d) != nil || d.Service == "" {
+		return "", "", false
 	}
-	text := string(detail)
-	if len(text) > 160 {
-		text = text[:157] + "..."
+	operation := d.Operation
+	if operation == "" {
+		operation = "<unknown operation>"
 	}
-	return text
+	parts := []string{d.Service + "." + operation}
+	if d.Outcome.Kind != "" {
+		parts = append(parts, d.Outcome.Kind)
+	}
+	if d.Outcome.Identity.Shape != "" {
+		parts = append(parts, shortShape(d.Outcome.Identity.Shape))
+	}
+	if d.Outcome.Status != 0 {
+		parts = append(parts, strconv.Itoa(d.Outcome.Status))
+	}
+	if d.Outcome.Rule != "" {
+		parts = append(parts, "by rule "+d.Outcome.Rule)
+	}
+	if d.Outcome.Kind == "failed" || d.Outcome.Kind == "injected" {
+		requestID = d.RequestID
+	}
+	return strings.Join(parts, " "), requestID, true
+}
+
+// shortShape is an error shape id without its namespace, as AWS's error
+// codes and faults add --error spell it: QueueDoesNotExist for
+// com.amazonaws.sqs#QueueDoesNotExist.
+func shortShape(id string) string {
+	_, name, found := strings.Cut(id, "#")
+	if !found {
+		return id
+	}
+	return name
 }
 
 func traceCmd() *command {
@@ -329,7 +654,10 @@ func writeTrace(w io.Writer, t *admin.Trace, depth int) error {
 }
 
 func writeCanonical(w io.Writer, t *admin.CanonicalTrace, depth int) error {
-	line := fmt.Sprintf("%s%s %s %s", strings.Repeat("  ", depth), t.Position, t.Event.Kind, summary(t.Event.Detail))
+	// The request id stays out: two runs of one workload differ in it
+	// unless seeded, and the canonical tree is for comparing runs.
+	text, _ := summary(&t.Event)
+	line := fmt.Sprintf("%s%s %s %s", strings.Repeat("  ", depth), t.Position, t.Event.Kind, text)
 	if len(t.Links) > 0 {
 		line += " links " + strings.Join(t.Links, ",")
 	}

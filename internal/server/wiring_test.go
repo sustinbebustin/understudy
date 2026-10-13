@@ -139,15 +139,16 @@ func TestContainerPublishedNeedsAContainer(t *testing.T) {
 		}
 	}
 	_, err := server.New(server.Config{Listen: netip.MustParseAddrPort("0.0.0.0:0"), Exposure: server.ContainerPublished{}, LogOutput: io.Discard})
-	var le *server.ListenError
-	if !errors.As(err, &le) || !le.Published || !strings.Contains(err.Error(), "inside a container") {
+	le, ok := errors.AsType[*server.ListenError](err)
+	if !ok || le.Reason != server.RefusedNotInContainer || !strings.Contains(err.Error(), "inside a container") {
 		t.Fatalf("New with ContainerPublished outside a container = %v", err)
 	}
 }
 
-// Without Docker, health reports why, and Lambda and DynamoDB, which run
-// on it, in Docker's state for the same reason: disabled when Docker is
-// not there, degraded when it is configured but does not answer.
+// Without Docker, health reports why, and DynamoDB, which runs on it, in
+// Docker's state for the same reason: disabled when Docker is not there,
+// degraded when it is configured but does not answer. Lambda is degraded
+// to its control plane either way.
 func TestHealthReportsMissingDocker(t *testing.T) {
 	// A regular file where the socket should be is there, but answers
 	// nothing.
@@ -161,8 +162,8 @@ func TestHealthReportsMissingDocker(t *testing.T) {
 		state  admin.ServiceState
 		reason string
 	}{
-		{"disabled", server.DockerDisabled{}, admin.Disabled, "disabled by configuration"},
-		{"missing socket", server.DockerSocket{Path: filepath.Join(t.TempDir(), "docker.sock")}, admin.Disabled, "no Docker socket"},
+		{"disabled", server.DockerDisabled{}, admin.Disabled, "disabled by configuration (--docker disabled"},
+		{"missing socket", server.DockerSocket{Path: filepath.Join(t.TempDir(), "docker.sock")}, admin.Disabled, "point --docker (UNDERSTUDY_DOCKER, which wins over DOCKER_HOST)"},
 		{"no answer", server.DockerSocket{Path: mute}, admin.Degraded, "does not answer"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -171,10 +172,15 @@ func TestHealthReportsMissingDocker(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			for what, s := range map[string]admin.ServiceStatus{"docker": h.Docker, "dynamodbLocal": h.DynamoDBLocal, "lambda": h.Services["lambda"], "dynamodb": h.Services["dynamodb"]} {
+			for what, s := range map[string]admin.ServiceStatus{"docker": h.Docker, "dynamodbLocal": h.DynamoDBLocal, "dynamodb": h.Services["dynamodb"]} {
 				if s.Status != tc.state || !strings.Contains(s.Reason, tc.reason) {
 					t.Errorf("%s = %+v, want %s naming %q", what, s, tc.state, tc.reason)
 				}
+			}
+			// Lambda's control plane works without Docker; only Invoke
+			// cannot run functions.
+			if s := h.Services["lambda"]; s.Status != admin.Degraded || !strings.Contains(s.Reason, "control plane only") || !strings.Contains(s.Reason, "Docker is "+string(tc.state)) {
+				t.Errorf("lambda = %+v, want degraded to its control plane, naming Docker as %s", s, tc.state)
 			}
 			if h.Services["sqs"].Status != admin.Enabled {
 				t.Errorf("sqs = %+v, want enabled without Docker", h.Services["sqs"])
@@ -219,12 +225,12 @@ func TestBannerAnnouncesTheEndpoint(t *testing.T) {
 	}{
 		{"Docker disabled", server.Config{}, []string{
 			"warning: Docker is disabled by configuration",
-			"lambda (disabled)",
+			"lambda (degraded: control plane only)",
 			"dynamodb (disabled)",
 		}},
 		{"Docker does not answer", server.Config{Docker: server.DockerSocket{Path: mute}}, []string{
 			"warning: Docker at " + mute + " does not answer",
-			"lambda (degraded)",
+			"lambda (degraded: control plane only)",
 		}},
 		{"lambda.network disabled", server.Config{LambdaNetwork: server.NetworkDisabled{}}, []string{
 			"warning: Docker is disabled by configuration",
@@ -278,8 +284,22 @@ func TestHealthReportsListenerAndTopology(t *testing.T) {
 	}
 }
 
+// Health reports the clock as GET /clock does: frozen at the instant serve
+// was started at.
+func TestHealthReportsTheClock(t *testing.T) {
+	c, _ := adminServer(t, server.Config{})
+	h, err := c.Health(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.Clock.Mode != admin.Frozen || !h.Clock.Now.Equal(frozenAt) {
+		t.Errorf("health clock = %+v, want frozen at %s", h.Clock, frozenAt)
+	}
+}
+
 // Configured fault rules are active from the start, and one the fault
-// store refuses fails New with its position.
+// store refuses fails New with the configuration setting at fault, worded
+// as the configuration's own refusals are.
 func TestConfiguredFaultsArePreloaded(t *testing.T) {
 	throttle := fault.Rule{
 		ID: "throttle-sends", Phase: fault.Request,
@@ -294,12 +314,34 @@ func TestConfiguredFaultsArePreloaded(t *testing.T) {
 	bad := throttle
 	bad.Phase = 0
 	_, err = server.New(server.Config{Faults: []fault.Rule{throttle, bad}, Docker: server.DockerDisabled{}, LogOutput: io.Discard})
-	var fe *server.FaultRuleError
-	if !errors.As(err, &fe) || fe.Index != 1 {
-		t.Fatalf("New with an invalid rule = %v, want a FaultRuleError for rule 1", err)
+	se, ok := errors.AsType[*server.SettingError](err)
+	if !ok || !strings.HasPrefix(se.Setting, "faults[1]") {
+		t.Fatalf("New with an invalid rule = %v, want a SettingError for faults[1]", err)
 	}
-	if re, ok := errors.AsType[*fault.RuleError](err); !ok || !strings.Contains(err.Error(), re.Error()) {
-		t.Fatalf("New with an invalid rule = %v, want the fault store's RuleError inside, and its message", err)
+	if re, ok := errors.AsType[*fault.RuleError](err); !ok || !strings.Contains(err.Error(), re.Reason) {
+		t.Fatalf("New with an invalid rule = %v, want the fault store's RuleError inside", err)
+	}
+	msg := err.Error()
+	if !strings.HasPrefix(msg, "config: faults[1]") || strings.Contains(msg, "server:") || strings.Contains(msg, "no rule was added") {
+		t.Fatalf("New with an invalid rule = %q, want it to read as a configuration refusal of faults[1]", msg)
+	}
+}
+
+// A configured hot-reload directory that does not exist fails New with the
+// binding at fault and the next step.
+func TestUnwatchableHotReloadDirNamesTheBinding(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "absent")
+	_, err := server.New(server.Config{
+		HotReload: []server.HotReload{{Function: "ok", Dir: t.TempDir()}, {Function: "worker", Dir: missing}},
+		Docker:    server.DockerDisabled{}, LogOutput: io.Discard,
+	})
+	se, ok := errors.AsType[*server.SettingError](err)
+	if !ok || se.Setting != "lambda.hotReload[1].dir" {
+		t.Fatalf("New with a missing hot-reload directory = %v, want a SettingError for lambda.hotReload[1].dir", err)
+	}
+	msg := err.Error()
+	if !strings.HasPrefix(msg, "config: lambda.hotReload[1].dir: ") || !strings.Contains(msg, missing) || !strings.Contains(msg, "create the directory") {
+		t.Fatalf("New with a missing hot-reload directory = %q, want the binding, the directory and the next step", msg)
 	}
 }
 
@@ -309,14 +351,14 @@ func TestABucketNamedLikeALambdaDateTakesItsPath(t *testing.T) {
 	srv, _ := build(t, server.Config{})
 	get := func() *httptest.ResponseRecorder {
 		rec := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/2015-03-31/functions/", http.NoBody))
+		srv.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://localhost:4566/2015-03-31/functions/", http.NoBody))
 		return rec
 	}
 	if rec := get(); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"Functions"`) {
 		t.Fatalf("GET /2015-03-31/functions/ without the bucket = %d %s, want Lambda ListFunctions", rec.Code, rec.Body)
 	}
 	rec := httptest.NewRecorder()
-	srv.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/2015-03-31", http.NoBody))
+	srv.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodPut, "http://localhost:4566/2015-03-31", http.NoBody))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("CreateBucket 2015-03-31 = %d %s", rec.Code, rec.Body)
 	}

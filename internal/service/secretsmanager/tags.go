@@ -9,12 +9,17 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
+// maxTags is the quota of user tags on one resource (Tagging service
+// quotas, which the TagResource reference points to).
+const maxTags = 50
+
 // setTags returns existing with tags set over it, as a new slice: a key
 // already present keeps its position and takes the new value. No tags
 // leaves existing as it is, so a secret created without tags has none.
-func setTags(existing []Tag, tags []secretsmanagerapi.Tag) []Tag {
+// A result over maxTags keys is refused and existing is left as it is.
+func setTags(existing []Tag, tags []secretsmanagerapi.Tag) ([]Tag, *awserr.Error) {
 	if len(tags) == 0 {
-		return existing
+		return existing, nil
 	}
 	out := slices.Clone(existing)
 	for _, t := range tags {
@@ -25,7 +30,10 @@ func setTags(existing []Tag, tags []secretsmanagerapi.Tag) []Tag {
 		}
 		out = append(out, Tag{Key: key, Value: value})
 	}
-	return out
+	if len(out) > maxTags {
+		return nil, errTooManyTags(len(existing), len(out))
+	}
+	return out, nil
 }
 
 // removeTags returns existing without keys, as a new slice that is empty,
@@ -54,8 +62,12 @@ func renderTags(tags []Tag) []secretsmanagerapi.Tag {
 }
 
 func (s *Service) tagResource(_ context.Context, c *kernel.Call, in *secretsmanagerapi.TagResourceInput) (*secretsmanagerapi.TagResourceOutput, *awserr.Error) {
-	if _, err := s.update(c, in.SecretId, func(sec *Secret) *awserr.Error {
-		sec.Tags = setTags(sec.Tags, in.Tags)
+	if _, _, err := s.update(c, in.SecretId, func(sec *Secret) *awserr.Error {
+		tags, err := setTags(sec.Tags, in.Tags)
+		if err != nil {
+			return err
+		}
+		sec.Tags = tags
 		return nil
 	}); err != nil {
 		return nil, err
@@ -64,7 +76,7 @@ func (s *Service) tagResource(_ context.Context, c *kernel.Call, in *secretsmana
 }
 
 func (s *Service) untagResource(_ context.Context, c *kernel.Call, in *secretsmanagerapi.UntagResourceInput) (*secretsmanagerapi.UntagResourceOutput, *awserr.Error) {
-	if _, err := s.update(c, in.SecretId, func(sec *Secret) *awserr.Error {
+	if _, _, err := s.update(c, in.SecretId, func(sec *Secret) *awserr.Error {
 		sec.Tags = removeTags(sec.Tags, in.TagKeys)
 		return nil
 	}); err != nil {

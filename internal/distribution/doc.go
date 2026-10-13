@@ -34,9 +34,10 @@
 //     and copies only the binary into the target-platform image. Its release
 //     target copies the binary GoReleaser built instead, so released images
 //     ship the checksummed binary.
-//   - The plan names GoReleaser's dockers and docker_manifests with
-//     skip_push. GoReleaser v2 deprecates both in favor of dockers_v2, which
-//     has no skip_push, so .goreleaser.yaml uses one dockers_v2 entry for
+//   - The image is not built with GoReleaser's dockers and
+//     docker_manifests, which GoReleaser v2 deprecates in favor of
+//     dockers_v2. That has no skip_push, so .goreleaser.yaml uses one
+//     dockers_v2 entry for
 //     both platforms and disables it outside snapshot runs. Nothing is
 //     pushed either way.
 //   - Tests build the image under a unique tag with the label

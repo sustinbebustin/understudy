@@ -57,9 +57,11 @@ func runWith(t *testing.T, oo outbox.Options, fn func(k *kerneltest.K, o *outbox
 
 // sent is one SendMessage a stub received.
 type sent struct {
-	at    clock.Instant
-	queue string
-	in    sqsapi.SendMessageInput
+	at        clock.Instant
+	queue     string
+	in        sqsapi.SendMessageInput
+	principal identity.Principal
+	origin    ref.Origin
 }
 
 // recorder collects what a stub target received. Stubs run on attempt
@@ -93,7 +95,10 @@ type queues struct {
 func stubQueues(k *kerneltest.K, answer func(n int, in *sqsapi.SendMessageInput) *awserr.Error) *queues {
 	q := &queues{answer: answer}
 	k.Stub(sqsapi.OpSendMessage, func(_ context.Context, c *kernel.Call, in *sqsapi.SendMessageInput) (*sqsapi.SendMessageOutput, *awserr.Error) {
-		n := q.calls.add(sent{at: c.Admitted(), queue: in.QueueUrl[strings.LastIndexByte(in.QueueUrl, '/')+1:], in: *in})
+		n := q.calls.add(sent{
+			at: c.Admitted(), queue: in.QueueUrl[strings.LastIndexByte(in.QueueUrl, '/')+1:], in: *in,
+			principal: c.Principal(), origin: c.Origin(),
+		})
 		if err := q.answer(n, in); err != nil {
 			return nil, err
 		}
@@ -240,7 +245,9 @@ func storm(t *testing.T, seed uint64) map[string][]time.Duration {
 			advance(k, 10*time.Second)
 		}
 		out = map[string][]time.Duration{}
-		for _, s := range q.sent() {
+		sends := q.sent()
+		for i := range sends {
+			s := &sends[i]
 			out[s.queue] = append(out[s.queue], s.at.Sub(t0))
 		}
 		for _, at := range out {
@@ -268,7 +275,9 @@ func TestRetryStormReplaysWithTheSameSeed(t *testing.T) {
 
 // A missing queue is a client-side failure: no retry, and the message goes
 // to the subscription's dead-letter queue at once, as the subscription would
-// have received it (sns.md 7.1, 7.4).
+// have received it (sns.md 7.1, 7.4). Both sends come from SNS delivery as
+// sns.amazonaws.com: SQS tells messages from SNS apart by that, since the
+// queue's own MaximumMessageSize does not apply to them.
 func TestMissingQueueGoesToTheDLQAtOnce(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 		q := stubQueues(k, func(_ int, in *sqsapi.SendMessageInput) *awserr.Error {
@@ -297,6 +306,11 @@ func TestMissingQueueGoesToTheDLQAtOnce(t *testing.T) {
 		}
 		if dl := got[1]; dl.in.MessageBody != envelope || dl.at != t0 || len(dl.in.MessageAttributes) != 0 {
 			k.Errorf("DLQ message = %q at %v with attributes %v, want the envelope at the attempt's instant", dl.in.MessageBody, dl.at, dl.in.MessageAttributes)
+		}
+		for _, s := range got {
+			if s.principal != (identity.ServicePrincipal{Name: "sns.amazonaws.com"}) || s.origin != (ref.Internal{Via: ref.SNSDelivery}) {
+				k.Errorf("SendMessage to %s by %v from %v, want sns.amazonaws.com over SNS delivery", s.queue, s.principal, s.origin)
+			}
 		}
 		events := deliveries(k)
 		if len(events) != 1 {
@@ -504,6 +518,132 @@ func TestDeliveryPhaseDropRule(t *testing.T) {
 		hits := k.Journal.Query(journal.Filter{Kind: journal.KindFaultInjected}).Events
 		if len(hits) != 1 || hits[0].Detail != (journal.FaultInjected{Rule: rule, Hit: 1, Of: 1}) {
 			k.Errorf("fault events = %+v, want one hit of %s", hits, rule)
+		}
+	})
+}
+
+// Delivery-phase rules are evaluated in the order attempts fall due, not
+// the order their goroutines run: a publish fanned out to two queues, with
+// a rule that drops the next delivery, loses the delivery the outbox took
+// first on every run.
+func TestDeliveryPhaseRuleHitsAttemptsInDueOrder(t *testing.T) {
+	for range 20 {
+		run(t, func(k *kerneltest.K, o *outbox.Outbox) {
+			q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil })
+			if _, rerr := k.Faults.Add(fault.Rule{
+				Match:   fault.Match{Mechanisms: []delivery.Mechanism{delivery.SNSToSQS}},
+				Phase:   fault.Delivery,
+				Action:  fault.DropDelivery{},
+				Trigger: fault.NextN{N: 1},
+			}); rerr != nil {
+				k.Fatal(rerr)
+			}
+			cause := source(k)
+			enqueue(k, o, toQueue("first", delivery.SNSManaged{}), cause)
+			enqueue(k, o, toQueue("second", delivery.SNSManaged{}), cause)
+			settled(k)
+
+			if got := q.sent(); len(got) != 1 || got[0].queue != "second" {
+				k.Fatalf("sent %+v, want only the second delivery: the rule drops the first one due", got)
+			}
+			var dropped []aws.ARN
+			for _, ev := range deliveries(k) {
+				if d := detail[journal.Delivery](k, ev); isDropped(d.Outcome) {
+					dropped = append(dropped, d.To)
+				}
+			}
+			if want := []aws.ARN{arn("sqs", "first")}; !slices.Equal(dropped, want) {
+				k.Errorf("dropped deliveries to %v, want %v", dropped, want)
+			}
+		})
+	}
+}
+
+// The target calls of attempts due together run in the order the attempts
+// fell due, so the request-phase rules of those calls also hit in that
+// order: a publish fanned out to two queues, with a rule that throttles the
+// next SendMessage, throttles the delivery the outbox took first on every
+// run.
+func TestRequestPhaseRuleHitsTargetCallsInDueOrder(t *testing.T) {
+	for range 20 {
+		run(t, func(k *kerneltest.K, o *outbox.Outbox) {
+			q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil })
+			if _, rerr := k.Faults.Add(fault.Rule{
+				Match:   fault.Match{Operations: []ref.OperationID{sqsapi.OpSendMessage.Descriptor().ID}},
+				Phase:   fault.Request,
+				Action:  fault.Throttle{},
+				Trigger: fault.NextN{N: 1},
+			}); rerr != nil {
+				k.Fatal(rerr)
+			}
+			cause := source(k)
+			enqueue(k, o, toQueue("first", delivery.None{}), cause)
+			enqueue(k, o, toQueue("second", delivery.None{}), cause)
+			settled(k)
+
+			if got := q.sent(); len(got) != 1 || got[0].queue != "second" {
+				k.Fatalf("sent %+v, want only the second delivery: the rule throttles the first one due", got)
+			}
+		})
+	}
+}
+
+// The seeded ids a target mints for attempts due together follow the order
+// the attempts fell due: under one seed, each queue of a fan-out gets the
+// same message id on every run.
+func TestTargetIDsFollowDueOrder(t *testing.T) {
+	var first map[string]ids.MessageID
+	for range 20 {
+		run(t, func(k *kerneltest.K, o *outbox.Outbox) {
+			var mu sync.Mutex
+			got := map[string]ids.MessageID{}
+			k.Stub(sqsapi.OpSendMessage, func(_ context.Context, _ *kernel.Call, in *sqsapi.SendMessageInput) (*sqsapi.SendMessageOutput, *awserr.Error) {
+				id := k.Kernel.IDs().MessageID()
+				mu.Lock()
+				got[in.QueueUrl[strings.LastIndexByte(in.QueueUrl, '/')+1:]] = id
+				mu.Unlock()
+				return &sqsapi.SendMessageOutput{MessageId: new(string(id))}, nil
+			})
+			cause := source(k)
+			for _, queue := range []string{"a", "b", "c"} {
+				enqueue(k, o, toQueue(queue, delivery.SNSManaged{}), cause)
+			}
+			settled(k)
+
+			mu.Lock()
+			defer mu.Unlock()
+			if first == nil {
+				first = maps.Clone(got)
+			} else if !maps.Equal(got, first) {
+				k.Errorf("message ids = %v, want %v as on the first run with the same seed", got, first)
+			}
+		}, kerneltest.Seed(42))
+	}
+}
+
+// A delivery held by a Delivery-phase latency rule does not hold up the
+// attempts due after it: they reach their targets while it waits.
+func TestDelayedAttemptDoesNotBlockOthers(t *testing.T) {
+	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
+		q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil })
+		if _, rerr := k.Faults.Add(fault.Rule{
+			Match:   fault.Match{Resource: fault.NewARNGlob(arn("sqs", "slow").String())},
+			Phase:   fault.Delivery,
+			Action:  fault.Latency{Wall: 2 * time.Second},
+			Trigger: fault.NextN{N: 1},
+		}); rerr != nil {
+			k.Fatal(rerr)
+		}
+		cause := source(k)
+		enqueue(k, o, toQueue("slow", delivery.SNSManaged{}), cause)
+		enqueue(k, o, toQueue("fast", delivery.SNSManaged{}), cause)
+		synctest.Wait()
+		if got := q.sent(); len(got) != 1 || got[0].queue != "fast" {
+			k.Fatalf("sent %+v while slow waits, want the delivery to fast", got)
+		}
+		settled(k)
+		if got := q.sent(); len(got) != 2 || got[1].queue != "slow" {
+			k.Errorf("sent %+v, want slow delivered once its wait ended", got)
 		}
 	})
 }
@@ -740,6 +880,44 @@ func TestSettleWaitsForAnAttempt(t *testing.T) {
 		}
 		if n := len(deliveries(k)); n != 1 {
 			k.Errorf("%d delivery events, want 1", n)
+		}
+	})
+}
+
+// Rearm while an attempt is in flight (a reset of another service, a clock
+// reset, a failed snapshot load) re-arms the running delivery at its due
+// instant, which is past. The stale timer must not start a second attempt:
+// the target receives the delivery once.
+func TestRearmDuringAnAttemptDoesNotDuplicateIt(t *testing.T) {
+	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
+		release := make(chan struct{})
+		q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error {
+			<-release
+			return nil
+		})
+		enqueue(k, o, toQueue("orders-queue", delivery.SNSManaged{}), source(k))
+		synctest.Wait()
+		if n := len(q.sent()); n != 1 {
+			k.Fatalf("%d attempts in progress, want 1", n)
+		}
+
+		o.Rearm(k.Clock.Now())
+		synctest.Wait()
+		if n := len(q.sent()); n != 1 {
+			k.Errorf("%d attempts in progress after Rearm, want still 1", n)
+		}
+		close(release)
+		settled(k)
+		advance(k, time.Hour)
+
+		if n := len(q.sent()); n != 1 {
+			k.Errorf("%d attempts, want 1", n)
+		}
+		if events := deliveries(k); len(events) != 1 {
+			k.Errorf("delivery events = %+v, want 1", events)
+		}
+		if r := o.Resources(k.Scope); len(r) != 0 {
+			k.Errorf("Resources = %v, want nothing pending once delivered", r)
 		}
 	})
 }

@@ -122,13 +122,13 @@ func (v *CreateSMSSandboxPhoneNumberInput) validate(path awserr.Path, out *[]aws
 		*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern0.MatchString(v.PhoneNumber) {
-			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedText{Text: v.PhoneNumber}, Constraint: awserr.Pattern{Echo: "(\\+[0-9]{8,}|[0-9]{0,9})"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "(\\+[0-9]{8,}|[0-9]{0,9})"}})
 		}
 		if utf8.RuneCountInString(v.PhoneNumber) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedText{Text: v.PhoneNumber}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if utf8.RuneCountInString(v.PhoneNumber) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedText{Text: v.PhoneNumber}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 	}
 	if v.LanguageCode != nil {
@@ -199,13 +199,13 @@ func (v *DeleteSMSSandboxPhoneNumberInput) validate(path awserr.Path, out *[]aws
 		*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern0.MatchString(v.PhoneNumber) {
-			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedText{Text: v.PhoneNumber}, Constraint: awserr.Pattern{Echo: "(\\+[0-9]{8,}|[0-9]{0,9})"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "(\\+[0-9]{8,}|[0-9]{0,9})"}})
 		}
 		if utf8.RuneCountInString(v.PhoneNumber) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedText{Text: v.PhoneNumber}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if utf8.RuneCountInString(v.PhoneNumber) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedText{Text: v.PhoneNumber}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 	}
 }
@@ -740,13 +740,13 @@ func (v *VerifySMSSandboxPhoneNumberInput) validate(path awserr.Path, out *[]aws
 		*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern0.MatchString(v.PhoneNumber) {
-			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedText{Text: v.PhoneNumber}, Constraint: awserr.Pattern{Echo: "(\\+[0-9]{8,}|[0-9]{0,9})"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "(\\+[0-9]{8,}|[0-9]{0,9})"}})
 		}
 		if utf8.RuneCountInString(v.PhoneNumber) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedText{Text: v.PhoneNumber}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if utf8.RuneCountInString(v.PhoneNumber) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedText{Text: v.PhoneNumber}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "phoneNumber"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 	}
 	if v.missing&(1<<1) != 0 {

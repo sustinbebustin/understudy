@@ -2,12 +2,16 @@ package sns
 
 import (
 	"context"
+	"path"
 	"slices"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/policydoc"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
@@ -22,6 +26,11 @@ func (s *Service) bindPermissions(b snsapi.Binder) {
 		arnResource(func(in *snsapi.RemovePermissionInput) string { return in.TopicArn }))
 }
 
+// errActionOutOfScope is the detail for a policy action SNS does not
+// serve, AWS-recorded at AddPermission (sns.md 2.3) and at CreateTopic
+// (ballerina topics-tests.bal).
+const errActionOutOfScope = "Policy statement action out of service scope!"
+
 // permissionActions are the actions AddPermission may grant (sns.md 2.3).
 func permissionActions() []string {
 	return []string{
@@ -30,9 +39,54 @@ func permissionActions() []string {
 	}
 }
 
+// topicPolicyActions are the actions a topic Policy may name: those
+// AddPermission grants and those the SNS policy reference adds
+// (https://docs.aws.amazon.com/sns/latest/dg/sns-access-policy-language-api-permissions-reference.html).
+func topicPolicyActions() []string {
+	return append(permissionActions(), "GetDataProtectionPolicy", "PutDataProtectionPolicy", "ListTagsForResource")
+}
+
+// inServiceScope reports whether every Action and NotAction of doc names
+// SNS topic actions: "*", or "sns:" in any case followed by an action of
+// topicPolicyActions or a * and ? pattern that matches one. Accepting a
+// pattern that matches some action is inferred; the recorded refusal is of
+// a misspelled action.
+func inServiceScope(doc policydoc.Document) bool {
+	for _, st := range doc.Statements {
+		var patterns []string
+		switch a := st.Action.(type) {
+		case policydoc.Action:
+			patterns = a
+		case policydoc.NotAction:
+			patterns = a
+		}
+		if slices.ContainsFunc(patterns, func(p string) bool { return !topicActionPattern(p) }) {
+			return false
+		}
+	}
+	return true
+}
+
+// topicActionPattern reports whether p is "*" or an sns: pattern that
+// matches an action of topicPolicyActions.
+func topicActionPattern(p string) bool {
+	if p == "*" {
+		return true
+	}
+	vendor, action, ok := strings.Cut(strings.ToLower(p), ":")
+	if !ok || vendor != "sns" {
+		return false
+	}
+	return slices.ContainsFunc(topicPolicyActions(), func(known string) bool {
+		matched, err := path.Match(action, strings.ToLower(known))
+		return err == nil && matched
+	})
+}
+
 // addPermission appends a statement named Label that allows the accounts
 // the actions (sns.md 2.3): one principal or action is a string, several
-// an array.
+// an array. An AWSAccountId that is not a 12-digit account ID is refused
+// with the text AWS-recorded in ballerina permission-tests.bal.
 func (s *Service) addPermission(_ context.Context, c *kernel.Call, in *snsapi.AddPermissionInput) (*snsapi.AddPermissionOutput, *awserr.Error) {
 	ref, err := resolveTopic(c, "TopicArn", in.TopicArn)
 	if err != nil {
@@ -41,13 +95,17 @@ func (s *Service) addPermission(_ context.Context, c *kernel.Call, in *snsapi.Ad
 	actions := make([]document.Value, 0, len(in.ActionName))
 	for _, a := range in.ActionName {
 		if !slices.Contains(permissionActions(), a) {
-			return nil, errInvalidParameter("Policy statement action out of service scope!")
+			return nil, errInvalidParameter(errActionOutOfScope)
 		}
 		actions = append(actions, document.String("SNS:"+a))
 	}
 	principals := make([]document.Value, 0, len(in.AWSAccountId))
-	for _, account := range in.AWSAccountId {
-		principals = append(principals, document.String("arn:"+ref.scope.Partition.String()+":iam::"+account+":root"))
+	for _, raw := range in.AWSAccountId {
+		account, err := aws.ParseAccountID(raw)
+		if err != nil {
+			return nil, errInvalidParameter("A provided account ID is not valid")
+		}
+		principals = append(principals, document.String(aws.RootARN(ref.scope.Partition, account.String()).String()))
 	}
 	statement := document.Map{
 		{Key: "Sid", Value: document.String(in.Label)},

@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// WorkKind is the closed set of work the tracker counts for settling (M5).
+// WorkKind is the closed set of work the tracker counts for settling.
 // Parked waiters never count: a client long poll, an idle poller waiting on
 // its key, a journal stream.
 type WorkKind uint8
@@ -105,6 +105,15 @@ func (t *tracker) snapshot() (p Pending, changed <-chan struct{}) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return maps.Clone(t.counts), t.changed
+}
+
+// PendingEffects is the count of committed writes' wakes and deliveries not
+// yet run, and a channel closed by the next change to the tracked work. A
+// write adds its effects inside store.Update, which holds the gate's shared
+// side, so a reader holding the gate exclusively sees every committed one.
+func (k *Kernel) PendingEffects() (n int, changed <-chan struct{}) {
+	p, changed := k.work.snapshot()
+	return p[EffectPending], changed
 }
 
 // Go runs fn on a goroutine the kernel owns, counted as kind until it

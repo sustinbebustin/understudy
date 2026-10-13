@@ -35,8 +35,11 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
 }
 
-// Rearm arms the deletion timer of every secret scheduled for deletion;
-// timers are never saved.
+// Rearm arms the deletion timer of every secret scheduled for deletion
+// (timersOf), since timers are never saved. It arms under the cell lock,
+// where kernel.Write arms, so a concurrent write either commits first and
+// its deletion date is read here, or commits after and its own arm replaces
+// this one.
 func (s *Service) Rearm(clock.Instant) {
 	sched := s.k.Timers().Scheduler()
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
@@ -44,20 +47,26 @@ func (s *Service) Rearm(clock.Instant) {
 		if !ok {
 			continue
 		}
-		due := store.Read(cell, func(st *State) []clock.Armed {
-			var out []clock.Armed
-			for _, name := range slices.Sorted(maps.Keys(st.Secrets)) {
-				sec := st.Secrets[name]
-				if l, ok := sec.Lifecycle.(scheduled); ok {
-					out = append(out, clock.Armed{Key: s.deletion.Key(sec.ARN), Due: l.DeletionDate})
-				}
+		store.Read(cell, func(st *State) struct{} {
+			for _, a := range s.timersOf(scope, st) {
+				sched.Arm(a.Key, a.Due)
 			}
-			return out
+			return struct{}{}
 		})
-		for _, a := range due {
-			sched.Arm(a.Key, a.Due)
+	}
+}
+
+// timersOf lists the deletion timer of every secret of st, the state of
+// scope, scheduled for deletion.
+func (s *Service) timersOf(scope aws.Scope, st *State) []clock.Armed {
+	var out []clock.Armed
+	for _, name := range slices.Sorted(maps.Keys(st.Secrets)) {
+		sec := st.Secrets[name]
+		if l, ok := sec.Lifecycle.(scheduled); ok {
+			out = append(out, clock.Armed{Key: s.deletion.Key(sec.arn(scope).String()), Due: l.DeletionDate})
 		}
 	}
+	return out
 }
 
 // Resources lists the secrets of scope, those scheduled for deletion
@@ -67,15 +76,11 @@ func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 		out := make([]kernel.Resource, 0, len(st.Secrets))
 		for _, name := range slices.Sorted(maps.Keys(st.Secrets)) {
 			sec := st.Secrets[name]
-			arn, err := aws.ParseARN(sec.ARN)
-			if err != nil {
-				continue
-			}
 			summary := "active"
 			if _, ok := sec.Lifecycle.(scheduled); ok {
 				summary = "scheduled for deletion"
 			}
-			out = append(out, kernel.Resource{ARN: arn, Summary: summary})
+			out = append(out, kernel.Resource{ARN: sec.arn(scope), Summary: summary})
 		}
 		return out
 	})

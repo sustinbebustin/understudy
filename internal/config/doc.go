@@ -29,7 +29,14 @@
 //     checks the container again at boot.
 //   - The admin token has no flag, which would show in the process list. A
 //     token with a loopback listener is refused rather than ignored; beyond
-//     loopback a token wins over container-published.
+//     loopback a token wins over container-published and must be at least
+//     16 characters, since nothing rate-limits a peer's guesses.
+//   - lambda.bridgeGateway, where the container listener binds and serves
+//     the AWS API unchecked, must be a private (RFC 1918) IPv4 address, so
+//     a typo or a public address cannot open that API beyond the machine.
+//     A private LAN address still passes here: only the daemon's networks
+//     can tell a bridge gateway from one, and the server checks those
+//     before it opens the listener.
 //   - --tls enables the self-signed listener at the main address on port
 //     4567, or port 0 when the main port is 0, so parallel instances never
 //     collide; --tls-listen sets the address and implies --tls.

@@ -5,7 +5,9 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -84,6 +86,60 @@ func keyRef(kmsKeyID *string) string {
 	return *kmsKeyID
 }
 
+// servicePrincipal is the principal Secrets Manager calls KMS as on its own
+// behalf.
+const servicePrincipal = "secretsmanager.amazonaws.com"
+
+// resolveKey is the KMSKeyID a secret of scope stores for the KmsKeyId a
+// request sends: nil for none and for the AWS managed key
+// aws/secretsmanager however the request names it (alias, alias ARN, key
+// id or key ARN), and the identifier as sent for any other key. AWS treats
+// every name of that key as the managed key: DescribeSecret and ListSecrets
+// omit it, ListSecretVersionIds calls it DefaultEncryptionKey, and another
+// account cannot use it (API_DescribeSecret.html, API_UpdateSecret.html).
+// Like seal, it runs outside any cell.
+func (s *Service) resolveKey(ctx context.Context, c *kernel.Call, scope aws.Scope, kmsKeyID *string) (*string, *awserr.Error) {
+	var stored *string
+	if id := nonEmpty(kmsKeyID); id != nil {
+		managed, err := s.isDefaultKey(ctx, c, scope, *id)
+		if err != nil {
+			return nil, err
+		}
+		if !managed {
+			stored = id
+		}
+	}
+	return stored, nil
+}
+
+// isDefaultKey reports whether id names scope's AWS managed key
+// aws/secretsmanager. An alias or alias ARN does by its name alone, since
+// KMS lets no customer alias point at an AWS managed key. A key id or key
+// ARN does when KMS lists that alias for the key: a ListAliases that runs
+// as Secrets Manager itself and is not charged to the caller, since AWS
+// documents no kms:ListAliases permission for Secrets Manager callers. A
+// key KMS does not find in scope is not the managed key; seal or
+// checkKeyAccess then reports it as AWS does. A server without KMS bound
+// cannot tell, and keeps id as sent.
+func (s *Service) isDefaultKey(ctx context.Context, c *kernel.Call, scope aws.Scope, id string) (bool, *awserr.Error) {
+	if strings.HasPrefix(id, "alias/") {
+		return id == defaultKey, nil
+	}
+	if a, err := aws.ParseARN(id); err == nil && strings.HasPrefix(a.Resource, "alias/") {
+		return a.Resource == defaultKey && a.Partition == scope.Partition.String() && a.Region == scope.Region.String() && a.Account == scope.Account.String(), nil
+	}
+	out, err := kernel.Invoke(ctx, s.k, c, kmsapi.OpListAliases,
+		kernel.Target{Scope: scope, As: kernel.AsPlatform{Name: servicePrincipal}, Via: ref.KMSForward},
+		&kmsapi.ListAliasesInput{KeyId: &id})
+	switch {
+	case err == nil:
+		return slices.ContainsFunc(out.Aliases, func(a kmsapi.AliasListEntry) bool { return a.AliasName != nil && *a.AliasName == defaultKey }), nil
+	case err.ID.Shape == kmsapi.IdentityNotFoundException().Shape, err.ID.Shape == awserr.NotImplemented().Shape:
+		return false, nil
+	}
+	return false, kmsFailure(err, errEncryption)
+}
+
 // seal encrypts p as version versionID of the secret arn in scope: KMS
 // GenerateDataKey under kmsKeyID, then AES-256-GCM here. It runs before
 // the caller takes its cell, since an internal call under a cell lock is a
@@ -114,7 +170,7 @@ func (s *Service) seal(ctx context.Context, c *kernel.Call, scope aws.Scope, arn
 // open decrypts version v of the secret arn in scope: KMS Decrypt of its
 // data key, then AES-256-GCM here. Like seal, it runs outside any cell.
 func (s *Service) open(ctx context.Context, c *kernel.Call, scope aws.Scope, arn string, v Version) (plain, *awserr.Error) {
-	dk, err := s.decryptDataKey(ctx, c, scope, arn, v.ID, v.Value.DataKey)
+	dk, err := s.decryptDataKey(ctx, c, scope, arn, v.ID, v.KMSKeyID, v.Value.DataKey)
 	if err != nil {
 		return plain{}, err
 	}
@@ -130,10 +186,26 @@ func (s *Service) open(ctx context.Context, c *kernel.Call, scope aws.Scope, arn
 	return plain{kind: v.Value.Kind, bytes: b}, nil
 }
 
+// defaultKeyFromOtherAccount refuses a caller of another account than
+// scope's the use of scope's AWS managed key: that key serves only its own
+// account, whatever the secret's resource policy grants. Every KMS call of
+// the service checks it first, so a secret under the managed key stays
+// describable and taggable across accounts but its value cannot be read or
+// written.
+func defaultKeyFromOtherAccount(c *kernel.Call, scope aws.Scope, kmsKeyID *string) *awserr.Error {
+	if keyRef(kmsKeyID) == defaultKey && scope.Account != c.Scope().Account {
+		return errDefaultKeyOtherAccount()
+	}
+	return nil
+}
+
 // generateDataKey asks KMS for an AES-256 data key under kmsKeyID with the
 // encryption context of version versionID of the secret arn; a KMS refusal
 // is EncryptionFailure.
 func (s *Service) generateDataKey(ctx context.Context, c *kernel.Call, scope aws.Scope, arn, versionID string, kmsKeyID *string) (*kmsapi.GenerateDataKeyOutput, *awserr.Error) {
+	if err := defaultKeyFromOtherAccount(c, scope, kmsKeyID); err != nil {
+		return nil, err
+	}
 	dk, err := kernel.Invoke(ctx, s.k, c, kmsapi.OpGenerateDataKey, kmsTarget(scope), &kmsapi.GenerateDataKeyInput{
 		KeyId:             keyRef(kmsKeyID),
 		EncryptionContext: encryptionContext(arn, versionID),
@@ -145,32 +217,27 @@ func (s *Service) generateDataKey(ctx context.Context, c *kernel.Call, scope aws
 	return dk, nil
 }
 
-// decryptDataKey asks KMS to decrypt a data key sealed for version
-// versionID of the secret arn; a KMS refusal is DecryptionFailure.
-func (s *Service) decryptDataKey(ctx context.Context, c *kernel.Call, scope aws.Scope, arn, versionID string, blob []byte) (*kmsapi.DecryptOutput, *awserr.Error) {
-	dk, err := kernel.Invoke(ctx, s.k, c, kmsapi.OpDecrypt, kmsTarget(scope), &kmsapi.DecryptInput{
-		CiphertextBlob:    blob,
-		EncryptionContext: encryptionContext(arn, versionID),
-	})
+// decryptDataKey asks KMS to decrypt a data key sealed under kmsKeyID for
+// version versionID of the secret arn; a KMS refusal is DecryptionFailure.
+// KMS reads the key from the blob; kmsKeyID is for the account check.
+func (s *Service) decryptDataKey(ctx context.Context, c *kernel.Call, scope aws.Scope, arn, versionID string, kmsKeyID *string, blob []byte) (*kmsapi.DecryptOutput, *awserr.Error) {
+	if err := defaultKeyFromOtherAccount(c, scope, kmsKeyID); err != nil {
+		return nil, err
+	}
+	dk, err := s.kmsDecrypt(ctx, c, scope, arn, versionID, blob)
 	if err != nil {
 		return nil, kmsFailure(err, errDecryption)
 	}
 	return dk, nil
 }
 
-// encryptDataKey asks KMS to encrypt a data key under kmsKeyID with the
-// encryption context of version versionID of the secret arn; a KMS refusal
-// is EncryptionFailure.
-func (s *Service) encryptDataKey(ctx context.Context, c *kernel.Call, scope aws.Scope, arn, versionID string, kmsKeyID *string, dataKey []byte) ([]byte, *awserr.Error) {
-	out, err := kernel.Invoke(ctx, s.k, c, kmsapi.OpEncrypt, kmsTarget(scope), &kmsapi.EncryptInput{
-		KeyId:             keyRef(kmsKeyID),
-		Plaintext:         dataKey,
+// kmsDecrypt is the KMS Decrypt of a data key for version versionID of the
+// secret arn, with KMS's error as KMS answered it.
+func (s *Service) kmsDecrypt(ctx context.Context, c *kernel.Call, scope aws.Scope, arn, versionID string, blob []byte) (*kmsapi.DecryptOutput, *awserr.Error) {
+	return kernel.Invoke(ctx, s.k, c, kmsapi.OpDecrypt, kmsTarget(scope), &kmsapi.DecryptInput{
+		CiphertextBlob:    blob,
 		EncryptionContext: encryptionContext(arn, versionID),
 	})
-	if err != nil {
-		return nil, kmsFailure(err, errEncryption)
-	}
-	return out.CiphertextBlob, nil
 }
 
 // rewrapped is the data key of one version moved under another KMS key:
@@ -185,26 +252,59 @@ type rewrapped struct {
 // under the old key, then Encrypt under the new one, both with the
 // version's encryption context. The boxes stay as they are. Like seal, it
 // runs outside any cell; the result is by version id.
+//
+// A version whose data key KMS refuses to move, because it cannot decrypt
+// it under the old key or encrypt it under the new one, is left out and
+// stays under the key that sealed it: AWS documents that without
+// kms:Decrypt on the previous key, or kms:Encrypt on the new one, "the
+// existing versions are not re-encrypted" while the key still changes
+// (security-encryption.html, API_UpdateSecret.html). A disabled or deleted
+// old key therefore never traps a secret on it. Another account's use of
+// the AWS managed key is still refused, and an understudy bug still fails
+// the call.
 func (s *Service) rewrap(ctx context.Context, c *kernel.Call, scope aws.Scope, sec Secret, kmsKeyID *string) (map[string]rewrapped, *awserr.Error) {
+	arn := sec.arn(scope).String()
 	out := map[string]rewrapped{}
+	tried := map[string]bool{}
 	for _, label := range []string{stageCurrent, stagePrevious, stagePending} {
 		id, held := sec.Stages[label]
-		if _, done := out[id]; !held || done {
+		if !held || tried[id] {
 			continue
 		}
+		tried[id] = true
 		v := sec.Versions[id]
-		dk, err := s.decryptDataKey(ctx, c, scope, sec.ARN, id, v.Value.DataKey)
-		if err != nil {
+		if err := firstError(defaultKeyFromOtherAccount(c, scope, v.KMSKeyID), defaultKeyFromOtherAccount(c, scope, kmsKeyID)); err != nil {
 			return nil, err
 		}
-		blob, err := s.encryptDataKey(ctx, c, scope, sec.ARN, id, kmsKeyID, dk.Plaintext)
-		clear(dk.Plaintext)
-		if err != nil {
+		blob, err := s.moveDataKey(ctx, c, scope, arn, v, kmsKeyID)
+		switch {
+		case err == nil:
+			out[id] = rewrapped{from: v.Value.DataKey, to: blob}
+		case isInternal(err):
 			return nil, err
 		}
-		out[id] = rewrapped{from: v.Value.DataKey, to: blob}
 	}
 	return out, nil
+}
+
+// moveDataKey decrypts the data key of version v of the secret arn and
+// encrypts it under kmsKeyID, with the version's encryption context. Its
+// error is KMS's own, unwrapped, so rewrap can tell a refusal from a bug.
+func (s *Service) moveDataKey(ctx context.Context, c *kernel.Call, scope aws.Scope, arn string, v Version, kmsKeyID *string) ([]byte, *awserr.Error) {
+	dk, err := s.kmsDecrypt(ctx, c, scope, arn, v.ID, v.Value.DataKey)
+	if err != nil {
+		return nil, err
+	}
+	defer clear(dk.Plaintext)
+	out, err := kernel.Invoke(ctx, s.k, c, kmsapi.OpEncrypt, kmsTarget(scope), &kmsapi.EncryptInput{
+		KeyId:             keyRef(kmsKeyID),
+		Plaintext:         dk.Plaintext,
+		EncryptionContext: encryptionContext(arn, v.ID),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.CiphertextBlob, nil
 }
 
 // applyRewrap stores the data keys rewrap moved, on cur's own maps, with
@@ -235,7 +335,7 @@ func (s *Service) checkKeyAccess(ctx context.Context, c *kernel.Call, scope aws.
 		return err
 	}
 	clear(dk.Plaintext)
-	opened, err := s.decryptDataKey(ctx, c, scope, arn, validationVersion, dk.CiphertextBlob)
+	opened, err := s.decryptDataKey(ctx, c, scope, arn, validationVersion, kmsKeyID, dk.CiphertextBlob)
 	if err != nil {
 		return err
 	}
@@ -257,10 +357,16 @@ func (e *SealError) Error() string {
 // an understudy bug stays Internal; anything KMS answered becomes the
 // documented EncryptionFailure or DecryptionFailure.
 func kmsFailure(err *awserr.Error, wrap func(*awserr.Error) *awserr.Error) *awserr.Error {
-	if _, internal := err.Origin.(awserr.Internal); internal {
+	if isInternal(err) {
 		return err
 	}
 	return wrap(err)
+}
+
+// isInternal reports an understudy bug rather than an answer KMS gave.
+func isInternal(err *awserr.Error) bool {
+	_, internal := err.Origin.(awserr.Internal)
+	return internal
 }
 
 func newAEAD(key []byte) (cipher.AEAD, error) {

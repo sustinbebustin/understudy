@@ -99,7 +99,7 @@ func (e *NoValidationPolicyError) Error() string {
 
 // Validate renders violations of an In as the operation answers them: the
 // overlay's code and text per member path and constraint kind, then per
-// operation, then per service (F5), reporting the first violation in member
+// operation, then per service, reporting the first violation in member
 // order when they span two codes. The policy is generated onto *In; an In
 // without one is an Internal error.
 func Validate[In any](vs []awserr.Violation) *awserr.Error {

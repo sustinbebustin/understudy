@@ -8,6 +8,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/logsfilter"
 )
@@ -29,11 +30,21 @@ func (s *Service) filterLogEvents(_ context.Context, c *kernel.Call, in *logsapi
 	if err != nil {
 		return nil, err
 	}
-	q, err := s.parseFilterQuery(in)
+	now := c.Admitted()
+	l := filterListing(ref)
+	q, err := s.parseFilterQuery(in, l, now)
 	if err != nil {
 		return nil, err
 	}
-	matches, ok := group(s, ref, func(g *Group) []filtered {
+	// read is the matching events, or why the group yields none.
+	type read struct {
+		matches []filtered
+		err     *awserr.Error
+	}
+	r, ok := group(s, ref, func(g *Group) read {
+		if g.Class == string(logsapi.LogGroupClassInfrequentAccess) {
+			return read{err: errInfrequentAccess("FilterLogEvents")}
+		}
 		var out []filtered
 		for _, name := range g.streamNames() {
 			if !selects(in, name) {
@@ -46,12 +57,15 @@ func (s *Service) filterLogEvents(_ context.Context, c *kernel.Call, in *logsapi
 			}
 		}
 		slices.SortFunc(out, func(a, b filtered) int { return a.event.pos().compare(b.event.pos()) })
-		return out
+		return read{matches: out}
 	})
-	if !ok {
+	switch {
+	case !ok:
 		return nil, errGroupNotFound()
+	case r.err != nil:
+		return nil, r.err
 	}
-	page, next := filterPage(matches, q.cur, q.limit)
+	page, next := filterPage(r.matches, q.cur, q.limit)
 	out := &logsapi.FilterLogEventsOutput{
 		Events:             make([]logsapi.FilteredLogEvent, len(page)),
 		SearchedLogStreams: []logsapi.SearchedLogStream{},
@@ -66,7 +80,7 @@ func (s *Service) filterLogEvents(_ context.Context, c *kernel.Call, in *logsapi
 		}
 	}
 	if next != nil {
-		out.NextToken = new(next.String())
+		out.NextToken = new(next.token(l, now))
 	}
 	return out, nil
 }
@@ -80,9 +94,10 @@ type filterQuery struct {
 	limit  int
 }
 
-// parseFilterQuery compiles the pattern and reads the paging members; the
-// first page of startFromHead=false starts at the newest event.
-func (s *Service) parseFilterQuery(in *logsapi.FilterLogEventsInput) (filterQuery, *awserr.Error) {
+// parseFilterQuery compiles the pattern and reads the paging members,
+// refusing a token expired at now or not issued for l; the first page of
+// startFromHead=false starts at the newest event.
+func (s *Service) parseFilterQuery(in *logsapi.FilterLogEventsInput, l listing, now clock.Instant) (filterQuery, *awserr.Error) {
 	var pattern string
 	if in.FilterPattern != nil {
 		pattern = *in.FilterPattern
@@ -102,11 +117,11 @@ func (s *Service) parseFilterQuery(in *logsapi.FilterLogEventsInput) (filterQuer
 		q.cur = cursor{dir: backward, at: position{ts: math.MaxInt64}}
 	}
 	if in.NextToken != nil {
-		parsed, ok := parseCursor(*in.NextToken)
+		parsed, ok := parseCursor(*in.NextToken, l, now)
 		if !ok {
 			return filterQuery{}, errInvalidToken()
 		}
-		q.cur = parsed
+		q.cur = parsed.cursor
 	}
 	if in.Limit != nil {
 		q.limit = int(*in.Limit)

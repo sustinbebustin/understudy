@@ -2,8 +2,8 @@ package admin
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/sustinbebustin/understudy/admin"
@@ -36,18 +36,14 @@ func (h *Handler) faultClear(w http.ResponseWriter, _ *http.Request, _ []string)
 // send, the shapes it does.
 func (h *Handler) faultPut(w http.ResponseWriter, r *http.Request, args []string) {
 	id := args[0]
-	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxJSONBytes))
-	if err != nil {
-		h.fail(w, r, &admin.Error{Code: admin.InvalidRequest, Message: "the fault rule could not be read: " + err.Error()})
+	data, aerr := readBody(w, r, "fault rule")
+	if aerr != nil {
+		h.fail(w, r, aerr)
 		return
 	}
 	var rule fault.Rule
 	if err := json.Unmarshal(data, &rule); err != nil {
-		h.fail(w, r, &admin.Error{
-			Code:    admin.InvalidRequest,
-			Message: "the fault rule does not parse: " + err.Error(),
-			Hint:    `send {"phase": "request", "match": {"operations": ["sqs.SendMessage"]}, "action": {"kind": "throttle"}, "trigger": {"kind": "always"}}`,
-		})
+		h.fail(w, r, ruleParseError(err))
 		return
 	}
 	if rule.ID != "" && string(rule.ID) != id {
@@ -61,9 +57,13 @@ func (h *Handler) faultPut(w http.ResponseWriter, r *http.Request, args []string
 			known[i] = string(s)
 		}
 		h.fail(w, r, &admin.Error{
-			Code:    admin.InvalidRequest,
-			Field:   rerr.Field,
-			Message: fmt.Sprintf("fault rule %q rejected, no rule was added or changed: %s", id, rerr.Reason),
+			Code:  admin.InvalidRequest,
+			Field: rerr.Field,
+			// The caller chose the id in the path, and the CLI mints one
+			// for a rule given without, so the message leaves it out.
+			// The field leads the reason, which reads as its predicate;
+			// admin.Error.Error, the CLI's text, does not render Field.
+			Message: "fault rule rejected, no rule was added or changed: " + rerr.Field + ": " + rerr.Reason,
 			Known:   known,
 		})
 		return
@@ -76,9 +76,28 @@ func (h *Handler) faultPut(w http.ResponseWriter, r *http.Request, args []string
 	h.ok(w, r, f)
 }
 
+// ruleParseError is the refusal of a fault rule body that does not parse.
+// An operation not in service.Operation form is named on its own, without
+// the decoder's account of Go types the client never sees.
+func ruleParseError(err error) *admin.Error {
+	out := &admin.Error{
+		Code:    admin.InvalidRequest,
+		Message: "the fault rule does not parse: " + err.Error(),
+		Hint:    `'understudy faults add --help' lists a rule's parts; as JSON a rule reads {"phase": "request", "match": {"operations": ["sqs.SendMessage"]}, "action": {"kind": "throttle"}, "trigger": {"kind": "always"}}`,
+	}
+	if pe, ok := errors.AsType[*fault.RuleParseError](err); ok {
+		out.Field = pe.Path
+	}
+	if op, ok := errors.AsType[*fault.OperationNameError](err); ok {
+		out.Field = "match.operations"
+		out.Message = fmt.Sprintf("the fault rule does not parse: %q is not an operation; the form is service.Operation, such as sqs.SendMessage", op.Text)
+	}
+	return out
+}
+
 func (h *Handler) faultDelete(w http.ResponseWriter, r *http.Request, args []string) {
 	if !h.o.Faults.Remove(ref.RuleID(args[0])) {
-		h.fail(w, r, &admin.Error{Code: admin.NotFound, Message: fmt.Sprintf("no active fault rule has id %q", args[0]), Hint: "list the active rules with GET " + admin.Prefix + "/faults; a next-n rule leaves after its last hit"})
+		h.fail(w, r, &admin.Error{Code: admin.NotFound, Message: fmt.Sprintf("no active fault rule has id %q", args[0]), Hint: "list the active rules with 'understudy faults list' (GET " + admin.Prefix + "/faults); a next-n rule leaves after its last hit"})
 		return
 	}
 	h.noContent(w)

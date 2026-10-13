@@ -467,6 +467,6 @@ func TestQueueURLIdentifierForms(t *testing.T) {
 			h.Errorf("the other account's queue holds %s messages, want 1", got)
 		}
 		_, err := h.send(&sqsapi.SendMessageInput{QueueUrl: "http://localhost:4566/forms", MessageBody: "b"})
-		wantError(h.T, err, "AWS.SimpleQueueService.NonExistentQueue", "The specified queue does not exist.")
+		wantError(h.T, err, "InvalidAddress", "The address http://localhost:4566/forms is not valid for this endpoint.")
 	})
 }

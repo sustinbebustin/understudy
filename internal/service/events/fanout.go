@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 	"github.com/sustinbebustin/understudy/internal/ruler"
 	"github.com/sustinbebustin/understudy/internal/service/events/envelope"
 )
@@ -24,8 +26,10 @@ type deliveryTarget interface {
 	arn() aws.ARN
 	// mechanism is how the outbox delivers to the target.
 	mechanism() delivery.Mechanism
-	// receiver is the delivery of body to the target for stored target t.
-	receiver(body []byte, t *Target) delivery.Target
+	// receiver is the delivery of body, the payload for event ev, to the
+	// target for stored target t. An error is a target parameter ev
+	// cannot fill, and the target receives nothing.
+	receiver(body []byte, t *Target, ev envelope.Event) (delivery.Target, error)
 }
 
 // functionTarget is a Lambda function, with or without a qualifier, which
@@ -46,39 +50,78 @@ func (functionTarget) mechanism() delivery.Mechanism { return delivery.EventsToL
 func (queueTarget) mechanism() delivery.Mechanism    { return delivery.EventsToSQS }
 func (topicTarget) mechanism() delivery.Mechanism    { return delivery.EventsToSNS }
 
-func (f functionTarget) receiver(body []byte, _ *Target) delivery.Target {
-	return delivery.LambdaFunction{ARN: f.function, Event: body, Invocation: delivery.InvocationEvent}
+func (f functionTarget) receiver(body []byte, _ *Target, _ envelope.Event) (delivery.Target, error) {
+	return delivery.LambdaFunction{ARN: f.function, Event: body, Invocation: delivery.InvocationEvent}, nil
 }
 
-func (q queueTarget) receiver(body []byte, t *Target) delivery.Target {
+func (q queueTarget) receiver(body []byte, t *Target, ev envelope.Event) (delivery.Target, error) {
 	out := delivery.SQSQueue{ARN: q.queue, Body: string(body)}
 	if t.SQS != nil && t.SQS.MessageGroupID != nil {
-		out.GroupID = *t.SQS.MessageGroupID
+		group, err := messageGroup(*t.SQS.MessageGroupID, ev)
+		if err != nil {
+			return nil, err
+		}
+		out.GroupID = group
 	}
-	return out
+	return out, nil
 }
 
-func (t topicTarget) receiver(body []byte, _ *Target) delivery.Target {
-	return delivery.SNSTopic{ARN: t.topic, Message: string(body)}
+func (t topicTarget) receiver(body []byte, _ *Target, _ envelope.Event) (delivery.Target, error) {
+	return delivery.SNSTopic{ARN: t.topic, Message: string(body)}, nil
+}
+
+// messageGroup is the message group of an SQS target whose
+// SqsParameters.MessageGroupId is id, for event ev. An id that is a JSON
+// path is a dynamic path parameter, read from ev as it was matched, not
+// from the target's shaped input (eb-targets.html#dynamic-path-parameters);
+// any other id is the group as sent.
+//
+// An inferred fidelity switch: AWS's behavior when the path selects no
+// value, null, an object or an array is unrecorded, so understudy delivers
+// nothing and the error says why, rather than guess a group.
+func messageGroup(id string, ev envelope.Event) (string, error) {
+	if p, err := envelope.ParsePath(id); err == nil {
+		return dynamicGroup(id, p, ev)
+	}
+	return id, nil
+}
+
+// dynamicGroup is the message group path p, parsed from id, selects in ev.
+func dynamicGroup(id string, p envelope.Path, ev envelope.Event) (string, error) {
+	v, ok := p.Select(ev.Document())
+	if !ok {
+		return "", errors.New("SqsParameters.MessageGroupId " + id + " selects nothing in the event")
+	}
+	switch v := v.(type) {
+	case document.String:
+		return string(v), nil
+	case document.Number:
+		return string(v), nil
+	case document.Bool:
+		return strconv.FormatBool(bool(v)), nil
+	case document.Null, document.List, document.Map:
+	}
+	return "", errors.New("SqsParameters.MessageGroupId " + id + " selects null, an object or an array in the event, not a string, number or boolean")
 }
 
 // fifo reports whether the queue is a FIFO queue.
 func (q queueTarget) fifo() bool { return strings.HasSuffix(q.queue.Resource, ".fifo") }
 
-// targetOf parses a target ARN: a Lambda function (with or without a
-// qualifier), an SQS queue or an SNS topic in an account and region
-// understudy serves.
-func targetOf(s string) (deliveryTarget, bool) {
+// targetOf parses the ARN of a target of a rule in scope: a Lambda function
+// (with or without a qualifier), an SQS queue or an SNS topic in the rule's
+// partition and region, in an account understudy serves. AWS delivers to
+// these targets across accounts but not across regions (eb-targets.html).
+func targetOf(scope aws.Scope, s string) (deliveryTarget, bool) {
 	arn, err := aws.ParseARN(s)
 	if err != nil {
 		return nil, false
 	}
-	if _, ok := scopeOf(arn); !ok {
+	if at, err := aws.ScopeOf(arn); err != nil || at.Partition != scope.Partition || at.Region != scope.Region {
 		return nil, false
 	}
 	switch {
-	case arn.Service == "lambda" && strings.HasPrefix(arn.Resource, "function:"):
-		return functionTarget{function: arn}, true
+	case arn.Service == "lambda":
+		return functionOf(arn)
 	case arn.Service == "sqs" && !strings.ContainsAny(arn.Resource, ":/"):
 		return queueTarget{queue: arn}, true
 	case arn.Service == "sns" && !strings.ContainsAny(arn.Resource, ":/"):
@@ -87,15 +130,33 @@ func targetOf(s string) (deliveryTarget, bool) {
 	return nil, false
 }
 
-// deadLetterQueue parses a DeadLetterConfig Arn: an SQS queue in a served
-// account and region.
-func deadLetterQueue(s string) (aws.ARN, bool) {
-	t, ok := targetOf(s)
+// functionOf reads a Lambda ARN as a function target: function:<name> with
+// at most one qualifier, a version or alias, each part non-empty, as
+// Lambda's FunctionName pattern requires. Any other form names no function,
+// so every delivery to it would fail.
+func functionOf(arn aws.ARN) (deliveryTarget, bool) {
+	rest, ok := strings.CutPrefix(arn.Resource, "function:")
+	if !ok {
+		return nil, false
+	}
+	name, qualifier, qualified := strings.Cut(rest, ":")
+	if name == "" || qualified && (qualifier == "" || strings.Contains(qualifier, ":")) {
+		return nil, false
+	}
+	return functionTarget{function: arn}, true
+}
+
+// deadLetterQueue parses the DeadLetterConfig Arn of a target of a rule in
+// scope: a standard SQS queue in the rule's region, in a served account.
+// AWS takes no FIFO queue and no queue in another region as an EventBridge
+// dead-letter queue (eb-rule-dlq.html).
+func deadLetterQueue(scope aws.Scope, s string) (aws.ARN, bool) {
+	t, ok := targetOf(scope, s)
 	if !ok {
 		return aws.ARN{}, false
 	}
 	q, ok := t.(queueTarget)
-	if !ok {
+	if !ok || q.fifo() {
 		return aws.ARN{}, false
 	}
 	return q.queue, true
@@ -150,8 +211,8 @@ type stray struct {
 	target string
 }
 
-// strayDLQ is a stored DeadLetterConfig Arn that is not an SQS queue in a
-// served account and region. PutTargets refuses such an Arn, so one comes
+// strayDLQ is a stored DeadLetterConfig Arn that is not a standard SQS queue
+// in the rule's region. PutTargets refuses such an Arn, so one comes
 // from an edited snapshot. Its target is delivered to with no dead-letter
 // queue, and it is logged.
 type strayDLQ struct {
@@ -163,7 +224,7 @@ type strayDLQ struct {
 // resolve parses the ARN of target t of rule r, recording a stray when it
 // is not a delivery target.
 func (f *fanOut) resolve(r ruleRef, t *Target) (deliveryTarget, bool) {
-	dt, ok := targetOf(t.ARN)
+	dt, ok := targetOf(r.scope, t.ARN)
 	if !ok {
 		f.strays = append(f.strays, stray{rule: r.arn(), target: t.ARN})
 	}
@@ -172,16 +233,21 @@ func (f *fanOut) resolve(r ruleRef, t *Target) (deliveryTarget, bool) {
 
 // send adds the delivery of ev to target t of rule r, parsed as dt: its
 // payload shaped by the target's input, or a skip when AWS would deliver
-// nothing.
+// nothing or ev cannot fill the target's parameters.
 func (f *fanOut) send(r ruleRef, t *Target, dt deliveryTarget, ev envelope.Event, ingested clock.Instant) {
 	body, why, ok := payload(t.Input, ev, envelope.Context{RuleARN: r.arn().String(), RuleName: r.name, Ingested: ingested.Wire()})
 	if !ok {
 		f.skipped = append(f.skipped, skip{rule: r.arn(), target: dt, reason: why})
 		return
 	}
-	req := delivery.Request{Source: r.arn(), Mechanism: dt.mechanism(), Policy: retryPolicy(t.Retry), Target: dt.receiver(body, t)}
+	receiver, err := dt.receiver(body, t, ev)
+	if err != nil {
+		f.skipped = append(f.skipped, skip{rule: r.arn(), target: dt, reason: err.Error()})
+		return
+	}
+	req := delivery.Request{Source: r.arn(), Mechanism: dt.mechanism(), Policy: retryPolicy(t.Retry), Target: receiver}
 	if t.DeadLetter != nil && t.DeadLetter.ARN != nil {
-		if dlq, ok := deadLetterQueue(*t.DeadLetter.ARN); ok {
+		if dlq, ok := deadLetterQueue(r.scope, *t.DeadLetter.ARN); ok {
 			req.DLQ = &dlq
 		} else {
 			f.strayDLQs = append(f.strayDLQs, strayDLQ{rule: r.arn(), target: dt.arn(), dlq: *t.DeadLetter.ARN})
@@ -319,14 +385,14 @@ func (s *Service) report(ctx context.Context, c *kernel.Call, scope aws.Scope, f
 	}
 	for _, st := range f.strays {
 		s.k.Log().LogAttrs(ctx, slog.LevelError,
-			"an EventBridge rule's stored target is not a Lambda function, SQS queue or SNS topic in a served account and region; "+
+			"an EventBridge rule's stored target is not a Lambda function, SQS queue or SNS topic in the rule's region and a served account; "+
 				"nothing was delivered to it. Remove it with RemoveTargets and add it again with PutTargets",
 			slog.String("rule", st.rule.String()), slog.String("target", st.target))
 	}
 	for i := range f.strayDLQs {
 		sd := &f.strayDLQs[i]
 		s.k.Log().LogAttrs(ctx, slog.LevelError,
-			"an EventBridge target's stored DeadLetterConfig Arn is not an SQS queue in a served account and region; "+
+			"an EventBridge target's stored DeadLetterConfig Arn is not a standard SQS queue in the rule's region and a served account; "+
 				"the event was delivered without a dead-letter queue, so if delivery fails for good the event is dropped. "+
 				"Call PutTargets again for this target with a valid DeadLetterConfig",
 			slog.String("rule", sd.rule.String()), slog.String("target", sd.target.String()), slog.String("dead_letter_queue", sd.dlq))

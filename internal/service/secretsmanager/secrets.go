@@ -26,9 +26,9 @@ const (
 
 // find returns the secret id names, in any state, and touches it.
 func (s *Service) find(c *kernel.Call, id string) (secretRef, Secret, *awserr.Error) {
-	r, ok := parseSecretID(c, id)
-	if !ok {
-		return secretRef{}, Secret{}, errSecretNotFound()
+	r, err := parseSecretID(c, id)
+	if err != nil {
+		return secretRef{}, Secret{}, err
 	}
 	type found struct {
 		sec Secret
@@ -41,7 +41,7 @@ func (s *Service) find(c *kernel.Call, id string) (secretRef, Secret, *awserr.Er
 	if !f.ok {
 		return secretRef{}, Secret{}, errSecretNotFound()
 	}
-	touch(c, f.sec.ARN)
+	c.Touch(f.sec.arn(r.scope))
 	return r, f.sec, nil
 }
 
@@ -58,19 +58,16 @@ func (s *Service) findUsable(c *kernel.Call, id string) (secretRef, Secret, *aws
 	return r, sec, nil
 }
 
-// touch records the secret ARN for the journal and the access recorder.
-func touch(c *kernel.Call, arn string) {
-	if a, err := aws.ParseARN(arn); err == nil {
-		c.Touch(a)
-	}
-}
-
 func (s *Service) createSecret(ctx context.Context, c *kernel.Call, in *secretsmanagerapi.CreateSecretInput) (*secretsmanagerapi.CreateSecretOutput, *awserr.Error) {
 	if len(in.AddReplicaRegions) > 0 {
 		return nil, errUnsupported("replication (AddReplicaRegions)")
 	}
 	token := *in.ClientRequestToken
 	p, hasValue, err := valueOf(in.SecretString, in.SecretBinary)
+	if err != nil {
+		return nil, err
+	}
+	tags, err := setTags(nil, in.Tags)
 	if err != nil {
 		return nil, err
 	}
@@ -82,18 +79,11 @@ func (s *Service) createSecret(ctx context.Context, c *kernel.Call, in *secretsm
 	if f := readState(s, scope, func(st *State) found { sec, ok := st.Secrets[in.Name]; return found{sec, ok} }); f.ok {
 		return s.replayCreate(ctx, c, scope, f.sec, token, p, hasValue)
 	}
-	arn := secretARN(scope, in.Name, c.ID())
-	kmsKeyID := nonEmpty(in.KmsKeyId)
-	var box sealed
-	switch {
-	case hasValue:
-		if box, err = s.seal(ctx, c, scope, arn, token, kmsKeyID, p); err != nil {
-			return nil, err
-		}
-	case kmsKeyID != nil:
-		if err := s.checkKeyAccess(ctx, c, scope, arn, kmsKeyID); err != nil {
-			return nil, err
-		}
+	suffix := newSuffix(c.ID())
+	arn := secretARN(scope, in.Name, suffix)
+	kmsKeyID, box, err := s.encryptFirst(ctx, c, scope, arn.String(), in.KmsKeyId, token, p, hasValue)
+	if err != nil {
+		return nil, err
 	}
 	type created struct {
 		sec Secret
@@ -111,9 +101,9 @@ func (s *Service) createSecret(ctx context.Context, c *kernel.Call, in *secretsm
 			return created{}, errTooManySecrets()
 		}
 		sec := Secret{
-			Name: in.Name, ARN: arn, CreateToken: token,
+			Name: in.Name, Suffix: suffix, CreateToken: token,
 			Description: nonEmpty(in.Description), KMSKeyID: kmsKeyID, Type: in.Type,
-			Created: now, Changed: now, Tags: setTags(nil, in.Tags), Lifecycle: active{},
+			Created: now, Changed: now, Tags: tags, Lifecycle: active{},
 		}
 		sec.ownMaps()
 		if hasValue {
@@ -131,12 +121,31 @@ func (s *Service) createSecret(ctx context.Context, c *kernel.Call, in *secretsm
 		return s.replayCreate(ctx, c, scope, *w.raced, token, p, hasValue)
 	}
 	sec := w.sec
-	touch(c, sec.ARN)
-	out := &secretsmanagerapi.CreateSecretOutput{ARN: new(sec.ARN), Name: new(sec.Name)}
+	c.Touch(arn)
+	out := &secretsmanagerapi.CreateSecretOutput{ARN: new(arn.String()), Name: new(sec.Name)}
 	if hasValue {
 		out.VersionId = new(token)
 	}
 	return out, nil
+}
+
+// encryptFirst is the KMS work of a CreateSecret of the secret arn, before
+// its cell is taken: the key the secret stores for keyID (resolveKey) and,
+// with a value, that value sealed under the key as version token; without
+// one, a customer key's access is checked instead.
+func (s *Service) encryptFirst(ctx context.Context, c *kernel.Call, scope aws.Scope, arn string, keyID *string, token string, p plain, hasValue bool) (*string, sealed, *awserr.Error) {
+	kmsKeyID, err := s.resolveKey(ctx, c, scope, keyID)
+	if err != nil {
+		return nil, sealed{}, err
+	}
+	switch {
+	case hasValue:
+		box, err := s.seal(ctx, c, scope, arn, token, kmsKeyID, p)
+		return kmsKeyID, box, err
+	case kmsKeyID != nil:
+		return kmsKeyID, sealed{}, s.checkKeyAccess(ctx, c, scope, arn, kmsKeyID)
+	}
+	return kmsKeyID, sealed{}, nil
 }
 
 // replayCreate answers a CreateSecret for a name that exists: a retry with
@@ -150,8 +159,9 @@ func (s *Service) replayCreate(ctx context.Context, c *kernel.Call, scope aws.Sc
 	if sec.CreateToken != token || hasValue != hadValue {
 		return nil, errSecretExists(sec.Name)
 	}
-	touch(c, sec.ARN)
-	out := &secretsmanagerapi.CreateSecretOutput{ARN: new(sec.ARN), Name: new(sec.Name)}
+	arn := sec.arn(scope)
+	c.Touch(arn)
+	out := &secretsmanagerapi.CreateSecretOutput{ARN: new(arn.String()), Name: new(sec.Name)}
 	if !hasValue {
 		return out, nil
 	}
@@ -166,23 +176,24 @@ func (s *Service) replayCreate(ctx context.Context, c *kernel.Call, scope aws.Sc
 // conflict otherwise. Comparing needs the stored value, so it decrypts
 // through KMS, as AWS does for an idempotent retry.
 func (s *Service) sameValue(ctx context.Context, c *kernel.Call, scope aws.Scope, sec Secret, v Version, p plain) *awserr.Error {
-	stored, err := s.open(ctx, c, scope, sec.ARN, v)
+	arn := sec.arn(scope).String()
+	stored, err := s.open(ctx, c, scope, arn, v)
 	if err != nil {
 		return err
 	}
 	if !stored.equal(p) {
-		return errTokenInUse(v.ID, sec.ARN)
+		return errTokenInUse(v.ID, arn)
 	}
 	return nil
 }
 
 func (s *Service) describeSecret(_ context.Context, c *kernel.Call, in *secretsmanagerapi.DescribeSecretInput) (*secretsmanagerapi.DescribeSecretOutput, *awserr.Error) {
-	_, sec, err := s.find(c, in.SecretId)
+	r, sec, err := s.find(c, in.SecretId)
 	if err != nil {
 		return nil, err
 	}
 	return &secretsmanagerapi.DescribeSecretOutput{
-		ARN:                new(sec.ARN),
+		ARN:                new(sec.arn(r.scope).String()),
 		Name:               new(sec.Name),
 		Description:        sec.Description,
 		KmsKeyId:           sec.KMSKeyID,
@@ -203,12 +214,22 @@ func (s *Service) updateSecret(ctx context.Context, c *kernel.Call, in *secretsm
 	if err != nil {
 		return nil, err
 	}
+	var kmsKeyID *string
+	if in.KmsKeyId != nil {
+		r, _, err := s.findUsable(c, in.SecretId)
+		if err != nil {
+			return nil, err
+		}
+		if kmsKeyID, err = s.resolveKey(ctx, c, r.scope, in.KmsKeyId); err != nil {
+			return nil, err
+		}
+	}
 	meta := func(sec *Secret) {
 		if in.Description != nil {
 			sec.Description = nonEmpty(in.Description)
 		}
 		if in.KmsKeyId != nil {
-			sec.KMSKeyID = nonEmpty(in.KmsKeyId)
+			sec.KMSKeyID = kmsKeyID
 		}
 		if in.Type != nil {
 			sec.Type = in.Type
@@ -218,11 +239,11 @@ func (s *Service) updateSecret(ctx context.Context, c *kernel.Call, in *secretsm
 	if hasValue {
 		nv = &newVersion{token: *in.ClientRequestToken, value: p, reuse: alwaysConflicts}
 	}
-	sec, err := s.write(ctx, c, in.SecretId, meta, nv)
+	r, sec, err := s.write(ctx, c, in.SecretId, meta, nv)
 	if err != nil {
 		return nil, err
 	}
-	out := &secretsmanagerapi.UpdateSecretOutput{ARN: new(sec.ARN), Name: new(sec.Name)}
+	out := &secretsmanagerapi.UpdateSecretOutput{ARN: new(sec.arn(r.scope).String()), Name: new(sec.Name)}
 	if hasValue {
 		out.VersionId = new(nv.token)
 	}
@@ -237,31 +258,41 @@ func (s *Service) deleteSecret(_ context.Context, c *kernel.Call, in *secretsman
 	if in.RecoveryWindowInDays != nil {
 		window = *in.RecoveryWindowInDays
 	}
-	r, ok := parseSecretID(c, in.SecretId)
-	if !ok {
-		if force {
-			return &secretsmanagerapi.DeleteSecretOutput{Name: new(in.SecretId), DeletionDate: new(c.Admitted().Wire())}, nil
-		}
-		return nil, errSecretNotFound()
+	r, err := parseSecretID(c, in.SecretId)
+	switch {
+	case err != nil && force && isARN(in.SecretId):
+		// An ARN out of reach names no secret, and forcing the deletion of
+		// a secret that does not exist is not an error.
+		arn, name := unreachableIdentity(in.SecretId)
+		return &secretsmanagerapi.DeleteSecretOutput{ARN: new(arn), Name: new(name), DeletionDate: new(c.Admitted().Wire())}, nil
+	case err != nil:
+		return nil, err
 	}
 	type deleted struct {
 		arn, name string
 		date      clock.Instant
+		// secret is the ARN of the secret deleted, for the journal; nil when
+		// the secret did not exist, since arn then names no resource.
+		secret *aws.ARN
 	}
 	d, err := kernel.Write(c, s.cells, r.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (deleted, *awserr.Error) {
 		sec, ok := r.find(st)
 		switch {
 		case !ok && force:
 			// Forcing the deletion of a secret that does not exist is not
-			// an error (secrets-logs-events-alarms.md 2.5).
+			// an error (secrets-logs-events-alarms.md 2.5), and AWS still
+			// answers an ARN and a name.
 			tx.Unchanged()
-			return deleted{arn: r.arn, name: r.name, date: now}, nil
+			arn, name := r.missingIdentity(c)
+			return deleted{arn: arn, name: name, date: now}, nil
 		case !ok:
 			return deleted{}, errSecretNotFound()
-		case force:
+		}
+		arn := sec.arn(r.scope)
+		if force {
 			delete(st.Secrets, sec.Name)
-			tx.Disarm(s.deletion, sec.ARN)
-			return deleted{arn: sec.ARN, name: sec.Name, date: now}, nil
+			tx.Disarm(s.deletion, arn.String())
+			return deleted{arn: arn.String(), name: sec.Name, date: now, secret: &arn}, nil
 		}
 		if _, gone := sec.Lifecycle.(scheduled); gone {
 			return deleted{}, errMarkedForDeletion()
@@ -269,18 +300,47 @@ func (s *Service) deleteSecret(_ context.Context, c *kernel.Call, in *secretsman
 		date := now.Add(time.Duration(window) * day)
 		sec.Lifecycle = scheduled{DeletionDate: date}
 		st.Secrets[sec.Name] = sec
-		tx.Arm(s.deletion, sec.ARN, date)
-		return deleted{arn: sec.ARN, name: sec.Name, date: date}, nil
+		tx.Arm(s.deletion, arn.String(), date)
+		return deleted{arn: arn.String(), name: sec.Name, date: date, secret: &arn}, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	out := &secretsmanagerapi.DeleteSecretOutput{Name: new(d.name), DeletionDate: new(d.date.Wire())}
-	if d.arn != "" {
-		touch(c, d.arn)
-		out.ARN = new(d.arn)
+	if d.secret != nil {
+		c.Touch(*d.secret)
 	}
-	return out, nil
+	return &secretsmanagerapi.DeleteSecretOutput{ARN: new(d.arn), Name: new(d.name), DeletionDate: new(d.date.Wire())}, nil
+}
+
+// missingIdentity is the ARN and name a forced DeleteSecret answers for a
+// secret r names that does not exist: a full ARN as given, with the name it
+// carries, or for a name or a partial ARN the ARN a secret created under
+// that name by this call would have.
+func (r secretRef) missingIdentity(c *kernel.Call) (arn, name string) {
+	if r.arn != "" {
+		if name, _, ok := cutSuffix(r.name); ok {
+			return r.arn, name
+		}
+	}
+	return secretARN(r.scope, r.name, newSuffix(c.ID())).String(), r.name
+}
+
+// unreachableIdentity is missingIdentity for an ARN parseSecretID refuses
+// (another partition or Region, or not a secret's): the ARN as given and
+// the name it carries, or the whole id when it carries none.
+func unreachableIdentity(id string) (arn, name string) {
+	a, err := aws.ParseARN(id)
+	if err != nil {
+		return id, id
+	}
+	rest, ok := strings.CutPrefix(a.Resource, "secret:")
+	if !ok || rest == "" {
+		return id, id
+	}
+	if name, _, ok := cutSuffix(rest); ok {
+		return id, name
+	}
+	return id, rest
 }
 
 // restoreSecret cancels a scheduled deletion; a secret that is not
@@ -301,27 +361,27 @@ func (s *Service) restoreSecret(_ context.Context, c *kernel.Call, in *secretsma
 		}
 		sec.Lifecycle = active{}
 		st.Secrets[sec.Name] = sec
-		tx.Disarm(s.deletion, sec.ARN)
+		tx.Disarm(s.deletion, sec.arn(r.scope).String())
 		return sec, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &secretsmanagerapi.RestoreSecretOutput{ARN: new(sec.ARN), Name: new(sec.Name)}, nil
+	return &secretsmanagerapi.RestoreSecretOutput{ARN: new(sec.arn(r.scope).String()), Name: new(sec.Name)}, nil
 }
 
 // onDeletion deletes a secret whose recovery window ended. A secret that
 // was restored, or deleted and recreated under the same name, is left
 // alone.
 func (s *Service) onDeletion(c *kernel.Call, key clock.TimerKey, due clock.Instant) {
-	scope, name, ok := parseSecretARN(key.ID)
+	scope, name, suffix, ok := parseSecretARN(key.ID)
 	if !ok {
 		return
 	}
 	_, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		sec, ok := st.Secrets[name]
 		l, gone := sec.Lifecycle.(scheduled)
-		if !ok || sec.ARN != key.ID || !gone || due.Before(l.DeletionDate) {
+		if !ok || sec.Suffix != suffix || !gone || due.Before(l.DeletionDate) {
 			tx.Unchanged()
 			return struct{}{}, nil
 		}
@@ -334,23 +394,23 @@ func (s *Service) onDeletion(c *kernel.Call, key clock.TimerKey, due clock.Insta
 	}
 }
 
-// parseSecretARN reads the scope and name of a full secret ARN, for a
-// deletion timer's ID.
-func parseSecretARN(arn string) (aws.Scope, string, bool) {
+// parseSecretARN reads the scope, name and suffix of a full secret ARN, for
+// a deletion timer's ID.
+func parseSecretARN(arn string) (scope aws.Scope, name, suffix string, ok bool) {
 	a, err := aws.ParseARN(arn)
 	if err != nil {
-		return aws.Scope{}, "", false
+		return aws.Scope{}, "", "", false
 	}
-	rest, ok := strings.CutPrefix(a.Resource, "secret:")
-	i := len(rest) - suffixLen - 1
-	if !ok || i <= 0 || rest[i] != '-' {
-		return aws.Scope{}, "", false
+	rest, isSecret := strings.CutPrefix(a.Resource, "secret:")
+	name, suffix, hasSuffix := cutSuffix(rest)
+	if !isSecret || !hasSuffix {
+		return aws.Scope{}, "", "", false
 	}
-	scope, err := store.ScopeKeys().Decode(a.Account + "/" + a.Region)
+	scope, err = store.ScopeKeys().Decode(a.Account + "/" + a.Region)
 	if err != nil {
-		return aws.Scope{}, "", false
+		return aws.Scope{}, "", "", false
 	}
-	return scope, rest[:i], true
+	return scope, name, suffix, true
 }
 
 // deletedDate is DescribeSecret's DeletedDate: the deletion date of a

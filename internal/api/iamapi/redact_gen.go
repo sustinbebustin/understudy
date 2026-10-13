@@ -1847,8 +1847,8 @@ func (v *UploadSigningCertificateOutput) Redact() *UploadSigningCertificateOutpu
 }
 
 func (v ChangePasswordInput) redacted() ChangePasswordInput {
-	v.OldPassword = *new(string)
-	v.NewPassword = *new(string)
+	v.OldPassword = redactedText
+	v.NewPassword = redactedText
 	return v
 }
 
@@ -1858,12 +1858,12 @@ func (v CreateAccessKeyOutput) redacted() CreateAccessKeyOutput {
 }
 
 func (v CreateLoginProfileInput) redacted() CreateLoginProfileInput {
-	v.Password = nil
+	v.Password = redactedPtr(v.Password)
 	return v
 }
 
 func (v CreateSAMLProviderInput) redacted() CreateSAMLProviderInput {
-	v.AddPrivateKey = nil
+	v.AddPrivateKey = redactedPtr(v.AddPrivateKey)
 	return v
 }
 
@@ -1894,28 +1894,28 @@ func (v ResetServiceSpecificCredentialOutput) redacted() ResetServiceSpecificCre
 }
 
 func (v UpdateLoginProfileInput) redacted() UpdateLoginProfileInput {
-	v.Password = nil
+	v.Password = redactedPtr(v.Password)
 	return v
 }
 
 func (v UpdateSAMLProviderInput) redacted() UpdateSAMLProviderInput {
-	v.AddPrivateKey = nil
+	v.AddPrivateKey = redactedPtr(v.AddPrivateKey)
 	return v
 }
 
 func (v UploadServerCertificateInput) redacted() UploadServerCertificateInput {
-	v.PrivateKey = *new(string)
+	v.PrivateKey = redactedText
 	return v
 }
 
 func (v AccessKey) redacted() AccessKey {
-	v.SecretAccessKey = *new(string)
+	v.SecretAccessKey = redactedText
 	return v
 }
 
 func (v ServiceSpecificCredential) redacted() ServiceSpecificCredential {
-	v.ServicePassword = *new(string)
-	v.ServiceCredentialSecret = nil
+	v.ServicePassword = redactedText
+	v.ServiceCredentialSecret = redactedPtr(v.ServiceCredentialSecret)
 	return v
 }
 
@@ -1934,4 +1934,15 @@ func redactVirtualMFADeviceListType(v []VirtualMFADevice) []VirtualMFADevice {
 		out[i] = e.redacted()
 	}
 	return out
+}
+
+// redactedText stands in for a sensitive string the client sent.
+const redactedText = "[redacted]"
+
+// redactedPtr is redactedText in place of a present *p, nil for nil.
+func redactedPtr[T ~string](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	return new(T(redactedText))
 }

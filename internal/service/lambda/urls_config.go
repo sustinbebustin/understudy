@@ -15,10 +15,10 @@ import (
 const maxURLConfigsPage = 50
 
 func (s *Service) bindURLConfigs(b lambdaapi.Binder) {
-	const note = "AuthType, CORS and InvokeMode are stored; the URL is not served in this build"
-	b.CreateFunctionUrlConfig(s.createFunctionURLConfig, stored(note))
+	const note = "the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored"
+	b.CreateFunctionUrlConfig(s.createFunctionURLConfig, partial(note))
 	b.GetFunctionUrlConfig(s.getFunctionURLConfig, full())
-	b.UpdateFunctionUrlConfig(s.updateFunctionURLConfig, stored(note))
+	b.UpdateFunctionUrlConfig(s.updateFunctionURLConfig, partial(note))
 	b.DeleteFunctionUrlConfig(s.deleteFunctionURLConfig, full())
 	b.ListFunctionUrlConfigs(s.listFunctionURLConfigs, full())
 }
@@ -62,7 +62,7 @@ func (s *Service) createFunctionURLConfig(_ context.Context, c *kernel.Call, in 
 		if _, ok := f.URLs[ref.qualifier]; ok {
 			return URLConfig{}, errURLConfigExists(ref.qualifiedARN())
 		}
-		u := URLConfig{ID: st.urlID(ref.scope), AuthType: string(in.AuthType), InvokeMode: string(deref(in.InvokeMode)), Cors: fromCors(in.Cors), Created: now, Modified: now}
+		u := URLConfig{ID: st.urlID(ref.scope, c.ID()), AuthType: string(in.AuthType), InvokeMode: string(deref(in.InvokeMode)), Cors: fromCors(in.Cors), Created: now, Modified: now}
 		f = f.clone()
 		if f.URLs == nil {
 			f.URLs = map[string]URLConfig{}
@@ -181,11 +181,13 @@ func (s *Service) deleteFunctionURLConfig(_ context.Context, c *kernel.Call, in 
 		return nil, err
 	}
 	_, err = write(s, c, ref.scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
-		if _, ok := st.urlConfig(ref); !ok {
+		u, ok := st.urlConfig(ref)
+		if !ok {
 			return struct{}{}, errResourceNotFound()
 		}
 		f := st.Functions[ref.name].clone()
 		delete(f.URLs, ref.qualifier)
+		st.retireURLs(u)
 		st.Functions[ref.name] = f
 		return struct{}{}, nil
 	})

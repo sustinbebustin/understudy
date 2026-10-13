@@ -41,11 +41,8 @@ type matchLiteral struct{ literal jsonLiteral }
 type jsonLiteral uint8
 
 const (
-	// literalTrue is true.
 	literalTrue jsonLiteral = iota + 1
-	// literalFalse is false.
 	literalFalse
-	// literalNull is null.
 	literalNull
 )
 

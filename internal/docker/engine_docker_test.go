@@ -6,28 +6,18 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"os"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/sustinbebustin/understudy/internal/config/configtest"
 	"github.com/sustinbebustin/understudy/internal/docker"
 )
 
-// engineClient connects to the local daemon named by DOCKER_HOST (or the
-// default socket).
+// engineClient connects to the daemon serve would use.
 func engineClient(t *testing.T) *docker.Client {
 	t.Helper()
-	socket, err := docker.ParseDockerHost(os.Getenv("DOCKER_HOST"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := docker.New(docker.Options{Socket: socket})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(c.Close)
-	return c
+	return configtest.EngineClient(t)
 }
 
 // runID is unique per test run, so names and owner labels never collide

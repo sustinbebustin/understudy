@@ -41,8 +41,9 @@ func namedRule[In any](name func(*In) string) kernel.BindOption {
 	})
 }
 
-// checkPutRule runs PutRule's stateless checks before fault rules (M7): a
-// rule needs an event pattern or a schedule, and each must be valid.
+// checkPutRule runs PutRule's stateless checks before fault rules, as AWS
+// validates before anything else: a rule needs an event pattern or a
+// schedule, and each must be valid.
 func (s *Service) checkPutRule(in *eventbridgeapi.PutRuleInput) *awserr.Error {
 	if in.EventPattern != nil {
 		if _, err := s.patterns.compile(*in.EventPattern); err != nil {
@@ -61,6 +62,34 @@ func maxRules(region string) int {
 		return 100
 	}
 	return 300
+}
+
+// maxWildcardRules is how many rules whose event patterns hold a wildcard a
+// bus may have, a quota AWS does not raise (matching-engines.md 5.2).
+const maxWildcardRules = 30
+
+// usesWildcard reports whether t's event pattern holds a wildcard. A
+// stored pattern compiled when its rule was put, so one that does not
+// compile now holds none worth counting.
+func (s *Service) usesWildcard(t Trigger) bool {
+	text, ok := t.pattern()
+	if !ok {
+		return false
+	}
+	p, err := s.patterns.compile(text)
+	return err == nil && p.UsesWildcard()
+}
+
+// wildcardRules counts the rules of st other than name whose event
+// patterns hold a wildcard.
+func (s *Service) wildcardRules(st *State, name string) int {
+	n := 0
+	for other, rule := range st.Rules {
+		if other != name && s.usesWildcard(rule.Trigger) {
+			n++
+		}
+	}
+	return n
 }
 
 // putRule creates or replaces a rule: omitted members become empty, while
@@ -91,6 +120,11 @@ func (s *Service) putRule(_ context.Context, c *kernel.Call, in *eventbridgeapi.
 			prev = &existing
 			rule.Tags, rule.Targets = existing.Tags, existing.Targets
 		} else if len(st.Rules) >= maxRules(r.scope.Region.String()) {
+			return struct{}{}, errTooManyRules()
+		} else if len(rule.Tags) > maxTags {
+			return struct{}{}, errTooManyTags(len(rule.Tags))
+		}
+		if s.usesWildcard(rule.Trigger) && s.wildcardRules(st, r.name) >= maxWildcardRules {
 			return struct{}{}, errTooManyRules()
 		}
 		s.setSchedule(tx, r, prev, &rule, now)
@@ -203,7 +237,8 @@ func (s *Service) listRules(_ context.Context, c *kernel.Call, in *eventbridgeap
 }
 
 // deleteRule deletes a rule without targets (Force matters only for rules
-// another service manages, which understudy has none of).
+// another service manages, which understudy has none of). Deleting a rule
+// that does not exist succeeds and changes nothing, as on AWS.
 func (s *Service) deleteRule(_ context.Context, c *kernel.Call, in *eventbridgeapi.DeleteRuleInput) (*eventbridgeapi.DeleteRuleOutput, *awserr.Error) {
 	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
 		return nil, err
@@ -212,7 +247,8 @@ func (s *Service) deleteRule(_ context.Context, c *kernel.Call, in *eventbridgea
 	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		rule, ok := st.Rules[r.name]
 		if !ok {
-			return struct{}{}, errRuleNotFound(r.name)
+			tx.Unchanged()
+			return struct{}{}, nil
 		}
 		if len(rule.Targets) > 0 {
 			return struct{}{}, errRuleHasTargets()

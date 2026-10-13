@@ -365,6 +365,104 @@ func TestAcquireNeverReturnsALeaseWithAnError(t *testing.T) {
 	}
 }
 
+// slowRemoveLauncher removes a container only after delay, as a busy or
+// wedged Docker daemon does, and gives up when the removal's context ends.
+type slowRemoveLauncher struct {
+	*pooltest.FakeLauncher
+	delay time.Duration
+}
+
+func (l *slowRemoveLauncher) Remove(ctx context.Context, id string) error {
+	select {
+	case <-time.After(l.delay):
+		return l.FakeLauncher.Remove(ctx, id)
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// newSlowRemoveHarness builds a stopped pool whose container removals take
+// delay. It runs inside a synctest bubble, so the delay costs no real time.
+func newSlowRemoveHarness(t *testing.T, delay time.Duration) (*pool.Pool, *slowRemoveLauncher) {
+	t.Helper()
+	l := &slowRemoveLauncher{FakeLauncher: pooltest.NewFakeLauncher(), delay: delay}
+	c, err := clock.New(clock.Options{Wall: newFakeWall().now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := pool.New(pool.Options{Launcher: l, Runtime: pooltest.NewFakeRuntime(pooltest.Echo), Clock: c})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p, l
+}
+
+// A Docker daemon that accepts requests but never answers them must not
+// hold a release forever: the removal gives up after RemoveTimeout, says
+// so, and the environment still leaves the pool.
+func TestRemovalFromAWedgedDaemonGivesUp(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		p, _ := newSlowRemoveHarness(t, time.Duration(1<<62))
+		e := acquire(t, p, fnSpec("f", 1))
+		if _, err := e.Invoke(context.Background(), invocationOf("x")); err != nil {
+			t.Fatal(err)
+		}
+		start := time.Now()
+		err := p.Release(context.Background(), e, runtimeapi.ExitError{Code: 1})
+		if !errors.Is(err, context.DeadlineExceeded) || !strings.Contains(err.Error(), e.Container().Name) {
+			t.Errorf("Release of a crashed environment with the daemon wedged = %v, want the deadline naming container %s", err, e.Container().Name)
+		}
+		if waited := time.Since(start); waited != pool.RemoveTimeout {
+			t.Errorf("Release waited %s for the removal, want RemoveTimeout %s", waited, pool.RemoveTimeout)
+		}
+		if !isGone(e.State()) || p.Len() != 0 {
+			t.Errorf("environment = %#v, Len %d; want it out of the pool", e.State(), p.Len())
+		}
+	})
+}
+
+// A caller's deadline shorter than RemoveTimeout, such as the shutdown
+// budget, still bounds the removal.
+func TestRemovalKeepsTheCallersDeadline(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		p, _ := newSlowRemoveHarness(t, time.Duration(1<<62))
+		e := acquire(t, p, fnSpec("f", 1))
+		if err := p.Release(context.Background(), e, nil); err != nil {
+			t.Fatal(err)
+		}
+		const budget = 5 * time.Second
+		ctx, cancel := context.WithTimeout(context.Background(), budget)
+		defer cancel()
+		start := time.Now()
+		if err := p.Drain(ctx, pool.All{}, pool.Shutdown); !errors.Is(err, context.DeadlineExceeded) {
+			t.Errorf("Drain with the daemon wedged = %v, want the deadline", err)
+		}
+		if waited := time.Since(start); waited != budget {
+			t.Errorf("Drain waited %s, want the caller's %s", waited, budget)
+		}
+	})
+}
+
+// A caller that gives up does not leave its environment's container
+// behind: the removal ignores the caller's cancellation.
+func TestRemovalOutlivesTheCallersCancellation(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		p, l := newSlowRemoveHarness(t, time.Second)
+		e := acquire(t, p, fnSpec("f", 1))
+		if _, err := e.Invoke(context.Background(), invocationOf("x")); err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		if err := p.Release(ctx, e, nil); err != nil {
+			t.Errorf("Release with a cancelled context = %v, want the container removed", err)
+		}
+		if live := l.Live(); len(live) != 0 {
+			t.Errorf("live containers %v after an abandoned invocation, want none", live)
+		}
+	})
+}
+
 func TestNewRefusesAnIdleTimeoutThatWouldSpin(t *testing.T) {
 	c, err := clock.New(clock.Options{})
 	if err != nil {

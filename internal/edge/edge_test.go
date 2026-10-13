@@ -39,7 +39,8 @@ import (
 var update = flag.Bool("update", false, "rewrite the wire goldens in testdata")
 
 // dynamodb stands for a JSON service that speaks no other protocol, the
-// one the F7 rows were recorded against.
+// one the answers to requests signed for a service but claimed by no rule
+// were recorded against.
 func dynamodb() *registry.Service {
 	return &registry.Service{
 		ID:               "dynamodb",
@@ -81,6 +82,12 @@ func (r *recorder) seen() (uri, path string) {
 
 func newFront(t *testing.T, codecs map[ref.ProtocolID]edge.Codec, extra ...*registry.Service) *front {
 	t.Helper()
+	return newFrontWith(t, codecs, func(*edge.Options) {}, extra...)
+}
+
+// newFrontWith is newFront with adjust applied to the edge's options.
+func newFrontWith(t *testing.T, codecs map[ref.ProtocolID]edge.Codec, adjust func(*edge.Options), extra ...*registry.Service) *front {
+	t.Helper()
 	timers := kernel.NewTimers()
 	at, err := time.Parse(time.RFC3339, "2026-10-09T12:00:00Z")
 	if err != nil {
@@ -112,7 +119,7 @@ func newFront(t *testing.T, codecs map[ref.ProtocolID]edge.Codec, extra ...*regi
 		codecs = map[ref.ProtocolID]edge.Codec{ref.AWSJSON10: server.JSONCodec(awsjson.V10), ref.AWSJSON11: server.JSONCodec(awsjson.V11)}
 	}
 	admin := &recorder{}
-	h, err := edge.New(edge.Options{
+	o := edge.Options{
 		Kernel: k, Registry: reg, Identity: idStore, Regions: aws.KnownRegions(), Codecs: codecs,
 		S3BaseDomains: []string{"localhost"}, Listener: ref.ListenerMain, Admin: admin, Unclaimed: ref.AWSJSON10,
 		UnknownOperationError: func(svc ref.ServiceID, f awserr.Family) (awserr.Identity, bool) {
@@ -121,7 +128,9 @@ func newFront(t *testing.T, codecs map[ref.ProtocolID]edge.Codec, extra ...*regi
 			}
 			return awserr.Identity{}, false
 		},
-	})
+	}
+	adjust(&o)
+	h, err := edge.New(o)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,9 +223,8 @@ func (f *front) unclaimedReasons(t *testing.T) []string {
 	return u.Reasons
 }
 
-// The F7 table: a request signed for a service that no protocol rule
-// claims is answered by that service, never by S3, and journaled as
-// Unclaimed.
+// A request signed for a service that no protocol rule claims is answered
+// by that service, never by S3 (ADR 0013), and journaled as Unclaimed.
 func TestRequestsSignedForAServiceAreAnsweredByIt(t *testing.T) {
 	cases := []struct {
 		name, method, path string
@@ -225,19 +233,19 @@ func TestRequestsSignedForAServiceAreAnsweredByIt(t *testing.T) {
 	}{
 		// sqs.md 2.3: GET on a queue URL with no Action is 404 with an
 		// <UnknownOperationException body.
-		{"f7-sqs-get-without-action", http.MethodGet, "/000000000000/q", nil, "", "sqs"},
+		{"signed-sqs-get-without-action", http.MethodGet, "/000000000000/q", nil, "", "sqs"},
 		// error-matrix.md finding 6: DynamoDB without X-Amz-Target is 400
 		// UnknownOperationException.
-		{"f7-dynamodb-without-target", http.MethodPost, "/", jsonHeader("", "application/x-amz-json-1.0"), `{}`, "dynamodb"},
+		{"signed-dynamodb-without-target", http.MethodPost, "/", jsonHeader("", "application/x-amz-json-1.0"), `{}`, "dynamodb"},
 		// error-matrix.md H7: DynamoDB with a wrong Content-Type is 404
 		// <UnknownOperationException/>.
-		{"f7-dynamodb-wrong-content-type", http.MethodPost, "/", jsonHeader("DynamoDB_20120810.ListTables", "whatever"), `{}`, "dynamodb"},
+		{"signed-dynamodb-wrong-content-type", http.MethodPost, "/", jsonHeader("DynamoDB_20120810.ListTables", "whatever"), `{}`, "dynamodb"},
 		// error-matrix.md 5.5 T7: the other awsJson version is a wrong
 		// Content-Type too.
-		{"f7-dynamodb-json-1.1-content-type", http.MethodPost, "/", jsonHeader("DynamoDB_20120810.ListTables", "application/x-amz-json-1.1"), `{}`, "dynamodb"},
+		{"signed-dynamodb-json-1.1-content-type", http.MethodPost, "/", jsonHeader("DynamoDB_20120810.ListTables", "application/x-amz-json-1.1"), `{}`, "dynamodb"},
 		// A target of another service than the one signed is the signed
 		// service's to answer.
-		{"f7-sqs-signed-dynamodb-target", http.MethodPost, "/", jsonHeader("DynamoDB_20120810.ListTables", "application/x-amz-json-1.0"), `{}`, "sqs"},
+		{"signed-sqs-with-dynamodb-target", http.MethodPost, "/", jsonHeader("DynamoDB_20120810.ListTables", "application/x-amz-json-1.0"), `{}`, "sqs"},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {

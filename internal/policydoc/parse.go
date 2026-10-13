@@ -48,6 +48,20 @@ func (e *ParseError) Message() string {
 	}
 }
 
+// ParseStored reads a resource policy a service stored as the caller sent
+// it, for an advisory: nil when the text is empty, or when Parse refuses
+// it, since services such as SQS store any JSON object as a policy.
+func ParseStored(text string) *Document {
+	if text == "" {
+		return nil
+	}
+	doc, err := Parse([]byte(text))
+	if err != nil {
+		return nil
+	}
+	return &doc
+}
+
 // Parse decodes a policy document. It checks the grammar the way IAM's
 // syntax stage does: the whole document first, so a syntax error anywhere
 // outranks a legacy error. Rules that depend on what the policy is for

@@ -247,6 +247,27 @@ func TestAListElementRuleNamesItsCollection(t *testing.T) {
 	}
 }
 
+// TestSensitiveValuesNeverReachTheMessage: a violation of a sensitive member
+// omits its value ("Value at"), as the sensitive trait requires of exception
+// messages, whether the member holds the secret or a map or list does, so
+// neither the client nor the journal sees it.
+func TestSensitiveValuesNeverReachTheMessage(t *testing.T) {
+	const secret = "hunter2!x"
+	in := validInput()
+	in.Secret = new(secret)
+	in.Vault = map[string]string{"db": secret}
+	in.Hints = []*string{nil, new(secret)}
+	err := in.ValidationError(in.Validate())
+	entry := func(path string) string {
+		return "Value at '" + path + "' failed to satisfy constraint: Member must satisfy regular expression pattern: [^!]*; " +
+			"Value at '" + path + "' failed to satisfy constraint: Member must have length less than or equal to 8"
+	}
+	want := "6 validation errors detected: " + entry("secret") + "; " + entry("vault.db.member") + "; " + entry("hints.2.member")
+	if err.Message != want {
+		t.Fatalf("message = %q\nwant %q", err.Message, want)
+	}
+}
+
 // TestGoBuiltInputsNeedTheirRequiredCollections: an internal operation's
 // input is built in Go, never decoded; a nil required list is missing all
 // the same, an empty one is present.
@@ -396,20 +417,33 @@ func TestChoiceRoundTrips(t *testing.T) {
 	})
 }
 
-// TestRedactClearsSensitiveMembersInACopy: the journal stores the copy; the
+// TestRedactMasksSensitiveMembersInACopy: the journal stores the copy, where
+// a sensitive string the client sent reads "[redacted]", alone, as a map
+// value or as a sparse list element, and one it left out stays absent; the
 // handler's value keeps its secret.
-func TestRedactClearsSensitiveMembersInACopy(t *testing.T) {
+func TestRedactMasksSensitiveMembersInACopy(t *testing.T) {
 	in := validInput()
 	in.Secret = new("s3cret")
+	in.Vault = map[string]string{"db": "pw"}
+	in.Hints = []*string{nil, new("h")}
 	red := in.Redact()
-	if red == in || red.Secret != nil || red.Name != "abc" {
+	if red == in || red.Secret == nil || *red.Secret != "[redacted]" || red.Name != "abc" {
 		t.Fatalf("Redact = %+v", red)
 	}
-	if in.Secret == nil || *in.Secret != "s3cret" {
+	if want := map[string]string{"db": "[redacted]"}; !reflect.DeepEqual(red.Vault, want) {
+		t.Fatalf("Redact Vault = %v, want %v", red.Vault, want)
+	}
+	if len(red.Hints) != 2 || red.Hints[0] != nil || red.Hints[1] == nil || *red.Hints[1] != "[redacted]" {
+		t.Fatalf("Redact Hints = %v, want [nil [redacted]]", red.Hints)
+	}
+	if *in.Secret != "s3cret" || in.Vault["db"] != "pw" || *in.Hints[1] != "h" {
 		t.Fatal("Redact changed its receiver")
 	}
+	if absent := validInput().Redact(); absent.Secret != nil || absent.Vault != nil || absent.Hints != nil {
+		t.Fatalf("Redact of absent secrets = %+v, want them absent", absent)
+	}
 	out := (&PutKindsOutput{Id: "i", Secret: new("x")}).Redact()
-	if out.Secret != nil {
+	if out.Secret == nil || *out.Secret != "[redacted]" {
 		t.Fatal("output secret survived Redact")
 	}
 	ping := &PingOutput{}

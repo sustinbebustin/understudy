@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
@@ -28,34 +29,47 @@ type secretRef struct {
 	arn string
 }
 
+// isARN reports a SecretId given as an ARN rather than a name.
+func isARN(id string) bool { return strings.HasPrefix(id, "arn:") }
+
 // parseSecretID reads a SecretId from c's point of view: a name, a full
-// ARN or a partial ARN. ok is false for an ARN in another partition or
-// Region, or one that is not a Secrets Manager secret's, which no secret
-// in reach has.
-func parseSecretID(c *kernel.Call, id string) (r secretRef, ok bool) {
+// ARN or a partial ARN. A name outside the secret-name character set is
+// ValidationException, as AWS answers for every operation that takes a
+// SecretId. An ARN is never an invalid name: one in another partition or
+// Region, or one that is not a Secrets Manager secret's, names no secret in
+// reach and is ResourceNotFoundException.
+func parseSecretID(c *kernel.Call, id string) (secretRef, *awserr.Error) {
 	scope := c.Scope()
-	if !strings.HasPrefix(id, "arn:") {
-		return secretRef{scope: scope, name: id}, true
+	if !isARN(id) {
+		if !validName(id) {
+			return secretRef{}, errInvalidName()
+		}
+		return secretRef{scope: scope, name: id}, nil
 	}
 	a, err := aws.ParseARN(id)
 	if err != nil || a.Service != "secretsmanager" || a.Partition != scope.Partition.String() || a.Region != scope.Region.String() {
-		return secretRef{}, false
+		return secretRef{}, errSecretNotFound()
 	}
 	rest, isSecret := strings.CutPrefix(a.Resource, "secret:")
 	account, aerr := aws.ParseAccountID(a.Account)
 	if !isSecret || rest == "" || aerr != nil {
-		return secretRef{}, false
+		return secretRef{}, errSecretNotFound()
 	}
-	scope.Account = account
-	return secretRef{scope: scope, name: rest, arn: id}, true
+	// An ARN in the caller's partition and region may name another
+	// account's secret.
+	scope, rerr := kernel.ResolveScope(c, kernel.CrossAccount{Account: account})
+	if rerr != nil {
+		return secretRef{}, rerr
+	}
+	return secretRef{scope: scope, name: rest, arn: id}, nil
 }
 
 // find returns the secret r names in st: the one whose full ARN it is,
 // else the one whose name it is.
 func (r secretRef) find(st *State) (Secret, bool) {
 	if r.arn != "" {
-		if i := len(r.name) - suffixLen - 1; i > 0 && r.name[i] == '-' {
-			if s, ok := st.Secrets[r.name[:i]]; ok && s.ARN == r.arn {
+		if name, suffix, ok := cutSuffix(r.name); ok {
+			if s, ok := st.Secrets[name]; ok && s.Suffix == suffix {
 				return s, true
 			}
 		}
@@ -64,21 +78,37 @@ func (r secretRef) find(st *State) (Secret, bool) {
 	return s, ok
 }
 
-// secretARN is the ARN of a new secret: its name, a hyphen and a suffix
-// derived from the request id of the call that creates it. Request ids
-// come from the seeded identifier source, so a seeded run names secrets
-// deterministically without a stream of its own, and every CreateSecret
-// has its own request id, so a recreated secret gets another suffix.
-func secretARN(scope aws.Scope, name string, request ids.RequestID) string {
+// cutSuffix splits the resource part of a full ARN into the secret name and
+// the six-character suffix after its last hyphen. ok is false when rest is
+// too short to carry one.
+func cutSuffix(rest string) (name, suffix string, ok bool) {
+	i := len(rest) - suffixLen - 1
+	if i <= 0 || rest[i] != '-' {
+		return "", "", false
+	}
+	return rest[:i], rest[i+1:], true
+}
+
+// newSuffix is the ARN suffix of a new secret, derived from the request id
+// of the call that creates it. Request ids come from the seeded identifier
+// source, so a seeded run names secrets deterministically without a stream
+// of its own, and every CreateSecret has its own request id, so a recreated
+// secret gets another suffix.
+func newSuffix(request ids.RequestID) string {
 	sum := sha256.Sum256([]byte(request))
 	suffix := make([]byte, suffixLen)
 	for i := range suffix {
 		suffix[i] = suffixAlphabet[int(sum[i])%len(suffixAlphabet)]
 	}
+	return string(suffix)
+}
+
+// secretARN is the ARN of the secret name with suffix in scope.
+func secretARN(scope aws.Scope, name, suffix string) aws.ARN {
 	return aws.ARN{
 		Partition: scope.Partition.String(), Service: "secretsmanager", Region: scope.Region.String(),
-		Account: scope.Account.String(), Resource: "secret:" + name + "-" + string(suffix),
-	}.String()
+		Account: scope.Account.String(), Resource: "secret:" + name + "-" + suffix,
+	}
 }
 
 // validName reports a name of the characters AWS documents for secret

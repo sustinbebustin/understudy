@@ -72,6 +72,27 @@ func TestRuleDecodingIsStrict(t *testing.T) {
 	}
 }
 
+// A rule that does not parse is reported in the rule's own terms: the
+// member at fault in dotted form and what it should be, never the
+// decoder's Go type names.
+func TestRuleParseErrorsNameTheMember(t *testing.T) {
+	cases := []struct{ doc, path, reason string }{
+		{`{"phase":"request","match":{"operations":"sqs.SendMessage"},"action":{"kind":"throttle"},"trigger":{"kind":"always"}}`, "match.operations", "is a JSON string; expected an array"},
+		{`"throttle"`, "", "is a JSON string; expected an object"},
+		{`{"phase":"later","action":{"kind":"throttle"},"trigger":{"kind":"always"}}`, "phase", "is invalid: "},
+		{`{"phase":"request","extra":1,"action":{"kind":"throttle"},"trigger":{"kind":"always"}}`, "extra", "is not a member a rule has"},
+		{`{"phase":`, "", "is not valid JSON"},
+	}
+	for _, c := range cases {
+		var r fault.Rule
+		err := r.UnmarshalJSON([]byte(c.doc))
+		pe, ok := errors.AsType[*fault.RuleParseError](err)
+		if !ok || pe.Path != c.path || !strings.HasPrefix(pe.Reason, c.reason) || strings.Contains(err.Error(), "Go ") || strings.Contains(err.Error(), "ruleJSON") {
+			t.Errorf("UnmarshalJSON(%s) = %v; want a RuleParseError at %q that %s, naming no Go type", c.doc, err, c.path, c.reason)
+		}
+	}
+}
+
 func TestAMissingTriggerIsReportedByAdd(t *testing.T) {
 	var r fault.Rule
 	if err := jsonx.Unmarshal([]byte(`{"phase":"request","match":{"services":["sqs"]},"action":{"kind":"throttle"}}`), &r); err != nil {

@@ -36,7 +36,7 @@ func (s *Service) bindPermissions(b sqsapi.Binder) {
 // and underscores (sqs.md 5.3). RemovePermission checks it too, so an
 // empty label never matches a statement without a Sid.
 func checkLabel(label string) *awserr.Error {
-	if !validBatchEntryID(label) {
+	if !isSQSToken(label) {
 		return errInvalidLabel(label)
 	}
 	return nil
@@ -81,7 +81,7 @@ func (s *Service) addPermission(_ context.Context, c *kernel.Call, in *sqsapi.Ad
 	arn := q.arn().String()
 	principals := make([]string, len(in.AWSAccountIds))
 	for i, id := range in.AWSAccountIds {
-		principals[i] = "arn:aws:iam::" + id + ":root"
+		principals[i] = aws.RootARN(q.scope.Partition, id).String()
 	}
 	actions := make([]string, len(in.Actions))
 	for i, a := range in.Actions {

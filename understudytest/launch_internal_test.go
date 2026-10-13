@@ -12,7 +12,8 @@ import (
 )
 
 // When Serve cannot listen, release still closes what New opened: the
-// temporary directory for extracted function code is gone afterwards.
+// run's temporary directory, which holds extracted function code, is gone
+// afterwards.
 func TestReleaseAfterAFailedServeClosesWhatNewOpened(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("TMPDIR", tmp)
@@ -31,20 +32,22 @@ func TestReleaseAfterAFailedServeClosesWhatNewOpened(t *testing.T) {
 	if release == nil {
 		t.Fatal("launch returned no release after New succeeded")
 	}
-	if dirs := codeDirs(t, tmp); len(dirs) != 1 {
-		t.Fatalf("code directories before release = %v, want the one New made", dirs)
+	if dirs := runDirs(t, tmp); len(dirs) != 1 {
+		t.Fatalf("run directories before release = %v, want the one New made", dirs)
 	}
 	if err := release(); err != nil {
 		t.Errorf("release = %v, want nil: Serve's error was already returned", err)
 	}
-	if dirs := codeDirs(t, tmp); len(dirs) != 0 {
-		t.Errorf("code directories after release = %v, want none", dirs)
+	if dirs := runDirs(t, tmp); len(dirs) != 0 {
+		t.Errorf("run directories after release = %v, want none", dirs)
 	}
 }
 
-func codeDirs(t *testing.T, dir string) []string {
+// runDirs lists the understudy directories under dir, a test's own
+// temporary directory, so every match is the server's.
+func runDirs(t *testing.T, dir string) []string {
 	t.Helper()
-	dirs, err := filepath.Glob(filepath.Join(dir, "understudy-code-*"))
+	dirs, err := filepath.Glob(filepath.Join(dir, "understudy-*"))
 	if err != nil {
 		t.Fatal(err)
 	}

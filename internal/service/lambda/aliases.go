@@ -165,6 +165,9 @@ func (s *Service) deleteAlias(_ context.Context, c *kernel.Call, in *lambdaapi.D
 			return struct{}{}, nil
 		}
 		f = f.clone()
+		if u, ok := f.URLs[in.Name]; ok {
+			st.retireURLs(u)
+		}
 		delete(f.Aliases, in.Name)
 		delete(f.Policies, in.Name)
 		delete(f.URLs, in.Name)

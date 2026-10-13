@@ -37,7 +37,9 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 }
 
 // Rearm arms the retention timer of every group whose events expire;
-// timers are never saved.
+// timers are never saved. It arms under the cell lock, where kernel.Write
+// arms, so a concurrent write either commits first and its expiry is read
+// here, or commits after and its own arm replaces this one.
 func (s *Service) Rearm(clock.Instant) {
 	sched := s.k.Timers().Scheduler()
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
@@ -45,19 +47,15 @@ func (s *Service) Rearm(clock.Instant) {
 		if !ok {
 			continue
 		}
-		pending := store.Read(cell, func(st *State) []clock.Armed {
-			var out []clock.Armed
+		store.Read(cell, func(st *State) struct{} {
 			for _, name := range slices.Sorted(maps.Keys(st.Groups)) {
 				g := st.Groups[name]
 				if due, ok := nextExpiry(&g); ok {
-					out = append(out, clock.Armed{Key: s.retention.Key(groupRef{scope: scope, name: name}.arn().String()), Due: due})
+					sched.Arm(s.retention.Key(groupRef{scope: scope, name: name}.arn().String()), due)
 				}
 			}
-			return out
+			return struct{}{}
 		})
-		for _, a := range pending {
-			sched.Arm(a.Key, a.Due)
-		}
 	}
 }
 

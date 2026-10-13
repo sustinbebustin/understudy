@@ -35,7 +35,7 @@ func (h *Handler) journalEvents(w http.ResponseWriter, r *http.Request, _ []stri
 		h.fail(w, r, err)
 		return
 	}
-	if f.Limit, err = intParam(v, admin.ParamLimit); err != nil {
+	if f.Limit, err = limitParam(v, admin.ParamLimit); err != nil {
 		h.fail(w, r, err)
 		return
 	}
@@ -132,7 +132,7 @@ func (h *Handler) journalTrace(w http.ResponseWriter, r *http.Request, args []st
 		return
 	}
 	if !found {
-		h.fail(w, r, &admin.Error{Code: admin.NotFound, Message: "no retained journal event has " + key, Hint: "the journal is a bounded ring; query GET " + admin.Prefix + "/journal/events to see what it holds"})
+		h.fail(w, r, &admin.Error{Code: admin.NotFound, Message: "no retained journal event has " + key, Hint: "the journal is a bounded ring; 'understudy journal' (GET " + admin.Prefix + "/journal/events) shows what it holds"})
 		return
 	}
 	if canonical {
@@ -205,26 +205,41 @@ func (h *Handler) serviceNames() []string {
 	return out
 }
 
+// idParam reads an event id parameter; 0 when it is absent. Event ids
+// start at 1, and 0 is how journal.Filter spells an unset field, so an
+// explicit 0, such as an unset trace id a script interpolated, is refused
+// rather than read as no filter.
 func idParam(v url.Values, name string) (ref.EventID, *admin.Error) {
 	s := v.Get(name)
 	if s == "" {
 		return 0, nil
 	}
 	n, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		return 0, &admin.Error{Code: admin.InvalidRequest, Field: name, Message: fmt.Sprintf("%s=%q is not an event id", name, s)}
+	if err != nil || n == 0 {
+		return 0, &admin.Error{
+			Code: admin.InvalidRequest, Field: name,
+			Message: fmt.Sprintf("%s=%q is not an event id", name, s),
+			Hint:    "event ids are positive integers; leave " + name + " out rather than pass 0",
+		}
 	}
 	return ref.EventID(n), nil
 }
 
-func intParam(v url.Values, name string) (int, *admin.Error) {
+// limitParam reads a page size; 0, journal.Filter's default, when it is
+// absent. An explicit 0 is refused, as it reads like "no events" or "no
+// limit" and means neither.
+func limitParam(v url.Values, name string) (int, *admin.Error) {
 	s := v.Get(name)
 	if s == "" {
 		return 0, nil
 	}
 	n, err := strconv.Atoi(s)
-	if err != nil || n < 0 {
-		return 0, &admin.Error{Code: admin.InvalidRequest, Field: name, Message: fmt.Sprintf("%s=%q is not a count", name, s)}
+	if err != nil || n <= 0 {
+		return 0, &admin.Error{
+			Code: admin.InvalidRequest, Field: name,
+			Message: fmt.Sprintf("%s=%q is not a page size", name, s),
+			Hint:    fmt.Sprintf("pass a positive count, or leave %s out for pages of %d", name, journal.DefaultLimit),
+		}
 	}
 	return n, nil
 }

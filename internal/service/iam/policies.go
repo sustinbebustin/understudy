@@ -24,8 +24,8 @@ func (s *Service) bindPolicies(b iamapi.Binder) {
 	b.DeletePolicy(s.deletePolicy, registry.Full{})
 	b.ListPolicies(s.listPolicies, registry.Partial{Note: "lists the account's customer managed policies; Scope AWS lists nothing, since understudy carries no catalogue of AWS managed policies"})
 	b.CreatePolicyVersion(s.createPolicyVersion, stored)
-	b.GetPolicyVersion(s.getPolicyVersion, registry.Partial{Note: "AWS managed policies have no document in understudy"})
-	b.ListPolicyVersions(s.listPolicyVersions, registry.Full{})
+	b.GetPolicyVersion(s.getPolicyVersion, registry.Partial{Note: "an AWS managed policy shows a placeholder document that grants nothing, since understudy carries no copy of AWS's documents"})
+	b.ListPolicyVersions(s.listPolicyVersions, registry.Partial{Note: "an AWS managed policy lists one version, v1, without a date, since understudy carries no copy of AWS's version history"})
 	b.DeletePolicyVersion(s.deletePolicyVersion, registry.Full{})
 	b.SetDefaultPolicyVersion(s.setDefaultPolicyVersion, registry.Full{})
 	b.ListEntitiesForPolicy(s.listEntitiesForPolicy, registry.Partial{Note: "groups are not implemented, so PolicyGroups is always empty"})
@@ -49,8 +49,13 @@ func (st *State) localPolicy(account aws.AccountID, arn string) (Policy, policyR
 	return p, ref, nil
 }
 
+// unknownAWSManaged is the coverage note of every operation that accepts an
+// AWS managed policy ARN it cannot check, for want of a catalogue.
+const unknownAWSManaged = "any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies"
+
 // attachable resolves a policy ARN a role or user attaches: any AWS managed
-// policy, or a customer managed policy of the account. Text that is no ARN
+// policy, existing or not (unknownAWSManaged), or a customer managed policy
+// of the account. Text that is no ARN
 // is ValidationError; an ARN that names no attachable policy, of whatever
 // shape, NoSuchEntity.
 func (st *State) attachable(account aws.AccountID, arn string) (policyRef, *awserr.Error) {
@@ -134,6 +139,24 @@ func apiAWSManagedPolicy(st *State, ref policyRef) iamapi.Policy {
 // managed policy.
 const awsManagedVersion = "v1"
 
+// awsManagedPlaceholder is the document GetPolicyVersion shows for an AWS
+// managed policy, since understudy carries no copy of AWS's documents. It
+// grants nothing and its Sid says what it is. Answering NoSuchEntity
+// instead would hang the Terraform aws_iam_policy data source, which
+// retries GetPolicyVersion on not found for its propagation timeout.
+const awsManagedPlaceholder = `{"Version":"2012-10-17","Statement":[{"Sid":"UnderstudyHoldsNoCopyOfThisAWSManagedPolicy","Effect":"Allow","NotAction":"*","Resource":"*"}]}`
+
+// apiAWSManagedVersion is awsManagedVersion as understudy shows it: the
+// default, without a date, with awsManagedPlaceholder as its document when
+// withDocument is set.
+func apiAWSManagedVersion(withDocument bool) iamapi.PolicyVersion {
+	out := iamapi.PolicyVersion{VersionId: new(awsManagedVersion), IsDefaultVersion: true}
+	if withDocument {
+		out.Document = new(awsManagedPlaceholder)
+	}
+	return out
+}
+
 func (p Policy) version(id string) (PolicyVersion, bool) {
 	i := slices.IndexFunc(p.Versions, func(v PolicyVersion) bool { return v.ID == id })
 	if i < 0 {
@@ -175,7 +198,7 @@ func (s *Service) createPolicy(_ context.Context, c *kernel.Call, in *iamapi.Cre
 	if err := checkManagedPolicy(in.PolicyDocument); err != nil {
 		return nil, err
 	}
-	tags, err := newTags(in.Tags)
+	tags, err := newTags(exactKeys, in.Tags)
 	if err != nil {
 		return nil, err
 	}
@@ -277,14 +300,16 @@ func (s *Service) deletePolicy(_ context.Context, c *kernel.Call, in *iamapi.Del
 func (s *Service) listPolicies(_ context.Context, c *kernel.Call, in *iamapi.ListPoliciesInput) (*iamapi.ListPoliciesOutput, *awserr.Error) {
 	account := c.Scope().Account
 	p, err := view(s, account, func(st *State) (page[iamapi.Policy], *awserr.Error) {
-		var all []iamapi.Policy
+		// Non-nil, so an empty page still sends <Policies/>.
+		all := []iamapi.Policy{}
 		if in.Scope == nil || *in.Scope != iamapi.PolicyScopeTypeAws {
 			local := sortedWhere(st.Policies, func(p *Policy) bool { return underPrefix(p.Path, in.PathPrefix) })
 			for i := range local {
 				v := apiPolicy(st, account, local[i])
 				// ListPolicies shows neither tags nor descriptions.
 				v.Tags, v.Description = nil, nil
-				if !in.OnlyAttached || inUse(*v.AttachmentCount > 0, *v.PermissionsBoundaryUsageCount > 0, in.PolicyUsageFilter) {
+				attached, boundary := *v.AttachmentCount > 0, *v.PermissionsBoundaryUsageCount > 0
+				if (!in.OnlyAttached || attached) && (in.PolicyUsageFilter == nil || inUse(attached, boundary, in.PolicyUsageFilter)) {
 					all = append(all, v)
 				}
 			}
@@ -299,7 +324,8 @@ func (s *Service) listPolicies(_ context.Context, c *kernel.Call, in *iamapi.Lis
 
 // inUse reports whether a policy attached or used as a permissions boundary
 // is in use the way filter asks: attached, as a boundary, or either when
-// filter is nil.
+// filter is nil. ListPolicies applies it only with a filter, since a policy
+// in use in neither way is listed there too.
 func inUse(attached, boundary bool, filter *iamapi.PolicyUsageType) bool {
 	switch {
 	case filter == nil:
@@ -323,8 +349,9 @@ func (s *Service) createPolicyVersion(_ context.Context, c *kernel.Call, in *iam
 		created = PolicyVersion{ID: "v" + strconv.Itoa(p.Next), Document: in.PolicyDocument, Created: now}
 		p.Versions = append(slices.Clone(p.Versions), created)
 		p.Next++
+		p.Updated = now
 		if in.SetAsDefault {
-			p.Default, p.Updated = created.ID, now
+			p.Default = created.ID
 		}
 		return p, nil
 	})
@@ -338,7 +365,10 @@ func (s *Service) getPolicyVersion(_ context.Context, c *kernel.Call, in *iamapi
 	account := c.Scope().Account
 	out, err := view(s, account, func(st *State) (iamapi.PolicyVersion, *awserr.Error) {
 		if ref, ok := parsePolicyARN(in.PolicyArn); ok && ref.awsManaged() {
-			return iamapi.PolicyVersion{}, errAWSManagedDocument(in.PolicyArn, in.VersionId)
+			if in.VersionId != awsManagedVersion {
+				return iamapi.PolicyVersion{}, errNoSuchVersion(in.PolicyArn, in.VersionId)
+			}
+			return apiAWSManagedVersion(true), nil
 		}
 		p, _, err := st.localPolicy(account, in.PolicyArn)
 		if err != nil {
@@ -358,7 +388,8 @@ func (s *Service) getPolicyVersion(_ context.Context, c *kernel.Call, in *iamapi
 }
 
 // listPolicyVersions lists versions newest first, without documents
-// (iam-sts-kms.md 3.2).
+// (iam-sts-kms.md 3.2); an AWS managed policy lists its one version,
+// awsManagedVersion.
 func (s *Service) listPolicyVersions(_ context.Context, c *kernel.Call, in *iamapi.ListPolicyVersionsInput) (*iamapi.ListPolicyVersionsOutput, *awserr.Error) {
 	account := c.Scope().Account
 	type listed struct {
@@ -366,17 +397,29 @@ func (s *Service) listPolicyVersions(_ context.Context, c *kernel.Call, in *iama
 		version iamapi.PolicyVersion
 	}
 	p, err := view(s, account, func(st *State) (page[listed], *awserr.Error) {
-		pol, _, err := st.localPolicy(account, in.PolicyArn)
-		if err != nil {
-			return page[listed]{}, err
-		}
-		all := make([]listed, 0, len(pol.Versions))
-		for _, v := range slices.Backward(pol.Versions) {
+		var all []listed
+		add := func(v PolicyVersion, shown iamapi.PolicyVersion) *awserr.Error {
 			k, err := v.sortKey()
+			if err != nil {
+				return err
+			}
+			all = append(all, listed{key: k, version: shown})
+			return nil
+		}
+		if ref, ok := parsePolicyARN(in.PolicyArn); ok && ref.awsManaged() {
+			if err := add(PolicyVersion{ID: awsManagedVersion}, apiAWSManagedVersion(false)); err != nil {
+				return page[listed]{}, err
+			}
+		} else {
+			pol, _, err := st.localPolicy(account, in.PolicyArn)
 			if err != nil {
 				return page[listed]{}, err
 			}
-			all = append(all, listed{key: k, version: apiVersion(pol, v, false)})
+			for _, v := range slices.Backward(pol.Versions) {
+				if err := add(v, apiVersion(pol, v, false)); err != nil {
+					return page[listed]{}, err
+				}
+			}
 		}
 		return paginate(all, func(l listed) string { return l.key }, in.Marker, in.MaxItems)
 	})
@@ -400,19 +443,30 @@ func (s *Service) deletePolicyVersion(_ context.Context, c *kernel.Call, in *iam
 			return Policy{}, errDeleteDefaultVersion()
 		}
 		p.Versions = slices.DeleteFunc(slices.Clone(p.Versions), func(v PolicyVersion) bool { return v.ID == in.VersionId })
+		p.Updated = p.lastVersionCreated()
 		return p, nil
 	})
 	return unit[iamapi.DeletePolicyVersionOutput](err)
 }
 
+// lastVersionCreated is the policy's UpdateDate as the Policy shape defines
+// it: when its newest version was created, or when the policy was created
+// once it has one version left.
+func (p Policy) lastVersionCreated() clock.Instant {
+	if len(p.Versions) < 2 {
+		return p.Created
+	}
+	return p.Versions[len(p.Versions)-1].Created
+}
+
+// setDefaultPolicyVersion changes the default version, which leaves the
+// UpdateDate alone: it tracks version creation, not the default.
 func (s *Service) setDefaultPolicyVersion(_ context.Context, c *kernel.Call, in *iamapi.SetDefaultPolicyVersionInput) (*iamapi.SetDefaultPolicyVersionOutput, *awserr.Error) {
-	_, err := s.changePolicy(c, in.PolicyArn, func(_ *State, p Policy, now clock.Instant) (Policy, *awserr.Error) {
+	_, err := s.changePolicy(c, in.PolicyArn, func(_ *State, p Policy, _ clock.Instant) (Policy, *awserr.Error) {
 		if _, ok := p.version(in.VersionId); !ok {
 			return Policy{}, errNoSuchVersion(in.PolicyArn, in.VersionId)
 		}
-		if p.Default != in.VersionId {
-			p.Default, p.Updated = in.VersionId, now
-		}
+		p.Default = in.VersionId
 		return p, nil
 	})
 	return unit[iamapi.SetDefaultPolicyVersionOutput](err)

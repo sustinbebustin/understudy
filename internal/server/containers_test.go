@@ -7,12 +7,14 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/docker"
+	"github.com/sustinbebustin/understudy/internal/docker/dockertest"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb/ddblocal"
 	"github.com/sustinbebustin/understudy/internal/topology"
 )
@@ -25,6 +27,12 @@ func testHost(t *testing.T, network LambdaNetwork) *containerHost {
 	if err := os.WriteFile(socket, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	return testHostOn(t, network, socket)
+}
+
+// testHostOn is a container host on the Docker socket at socket.
+func testHostOn(t *testing.T, network LambdaNetwork, socket string) *containerHost {
+	t.Helper()
 	clk, err := clock.New(clock.Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -42,12 +50,21 @@ func testHost(t *testing.T, network LambdaNetwork) *containerHost {
 }
 
 // lambda.network bridge is the Linux bridge at the configured gateway,
-// without asking Docker.
-func TestBridgeNetworkSkipsDetection(t *testing.T) {
+// without topology detection, when the gateway is a Docker bridge
+// network's. Any other address, such as a private LAN address the
+// configuration cannot tell from a bridge gateway, is refused, so the
+// unauthenticated AWS API never opens on it.
+func TestBridgeNetworkNeedsADockerBridgeGateway(t *testing.T) {
+	daemon := dockertest.New(t, dockertest.Options{BridgeSubnet: netip.MustParsePrefix("172.31.0.0/16")})
 	gw := netip.MustParseAddr("172.31.0.1")
-	top, err := testHost(t, NetworkBridge{Gateway: gw}).topology(t.Context())
+	top, err := testHostOn(t, NetworkBridge{Gateway: gw}, daemon.Socket()).topology(t.Context())
 	if err != nil || top != (topology.LinuxBridge{Gateway: gw}) {
 		t.Fatalf("topology = %v, %v; want the Linux bridge at %s", top, err, gw)
+	}
+	lan := netip.MustParseAddr("192.168.1.10")
+	_, err = testHostOn(t, NetworkBridge{Gateway: lan}, daemon.Socket()).topology(t.Context())
+	if ge, ok := errors.AsType[*BridgeGatewayError](err); !ok || ge.Gateway != lan || !slices.Contains(ge.Known, gw) {
+		t.Fatalf("topology at %s = %v, want a BridgeGatewayError naming the daemon's gateway %s", lan, err, gw)
 	}
 }
 

@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/config/configtest"
 	"github.com/sustinbebustin/understudy/internal/docker"
 )
 
@@ -50,15 +51,7 @@ type egress struct {
 
 func newEgress(t *testing.T) *egress {
 	t.Helper()
-	socket, err := docker.ParseDockerHost(os.Getenv("DOCKER_HOST"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	d, err := docker.New(docker.Options{Socket: socket})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(d.Close)
+	d := configtest.EngineClient(t)
 	b := make([]byte, 6)
 	if _, err := rand.Read(b); err != nil {
 		t.Fatal(err)

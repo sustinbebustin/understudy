@@ -137,6 +137,10 @@ var memberPutKindsInput_Choice = smithy.Member{Name: "Choice", Index: 20}
 
 var memberPutKindsInput_Secret = smithy.Member{Name: "Secret", Index: 21, Sensitive: true}
 
+var memberPutKindsInput_Vault = smithy.Member{Name: "Vault", Index: 22}
+
+var memberPutKindsInput_Hints = smithy.Member{Name: "Hints", Index: 23}
+
 var schemaPutKindsOutput = smithy.Schema{ID: "com.example.golden#PutKindsResponse", Type: smithy.TypeStructure}
 
 var memberPutKindsOutput_Id = smithy.Member{Name: "Id", Index: 0, Required: true}
@@ -153,6 +157,12 @@ var schemaScore = smithy.Schema{ID: "com.example.golden#Score", Type: smithy.Typ
 
 var schemaSecret = smithy.Schema{ID: "com.example.golden#Secret", Type: smithy.TypeString, Sensitive: true}
 
+var schemaSecretMap = smithy.Schema{ID: "com.example.golden#SecretMap", Type: smithy.TypeMap}
+
+var memberSecretMap_key = smithy.Member{Name: "key", Index: 0}
+
+var memberSecretMap_value = smithy.Member{Name: "value", Index: 1, Sensitive: true}
+
 var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
 var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0}
@@ -166,6 +176,10 @@ var schemaSmithyUnit = smithy.Schema{ID: "smithy.api#Unit", Type: smithy.TypeUni
 var schemaSparseCounts = smithy.Schema{ID: "com.example.golden#SparseCounts", Type: smithy.TypeList, Sparse: true}
 
 var memberSparseCounts_member = smithy.Member{Name: "member", Index: 0}
+
+var schemaSparseSecrets = smithy.Schema{ID: "com.example.golden#SparseSecrets", Type: smithy.TypeList, Sparse: true}
+
+var memberSparseSecrets_member = smithy.Member{Name: "member", Index: 0, Sensitive: true}
 
 var schemaString = smithy.Schema{ID: "com.example.golden#String", Type: smithy.TypeString}
 
@@ -237,17 +251,24 @@ func init() {
 	memberPutKindsInput_Nested.Target = &schemaNested
 	memberPutKindsInput_Choice.Target = &schemaChoice
 	memberPutKindsInput_Secret.Target = &schemaSecret
-	schemaPutKindsInput.Members = []*smithy.Member{&memberPutKindsInput_Name, &memberPutKindsInput_Flag, &memberPutKindsInput_Tiny, &memberPutKindsInput_Small, &memberPutKindsInput_Count, &memberPutKindsInput_Total, &memberPutKindsInput_Retries, &memberPutKindsInput_Ratio, &memberPutKindsInput_Score, &memberPutKindsInput_Huge, &memberPutKindsInput_Exact, &memberPutKindsInput_At, &memberPutKindsInput_Data, &memberPutKindsInput_Doc, &memberPutKindsInput_Color, &memberPutKindsInput_Level, &memberPutKindsInput_Tags, &memberPutKindsInput_Sparse, &memberPutKindsInput_Labels, &memberPutKindsInput_Nested, &memberPutKindsInput_Choice, &memberPutKindsInput_Secret}
+	memberPutKindsInput_Vault.Target = &schemaSecretMap
+	memberPutKindsInput_Hints.Target = &schemaSparseSecrets
+	schemaPutKindsInput.Members = []*smithy.Member{&memberPutKindsInput_Name, &memberPutKindsInput_Flag, &memberPutKindsInput_Tiny, &memberPutKindsInput_Small, &memberPutKindsInput_Count, &memberPutKindsInput_Total, &memberPutKindsInput_Retries, &memberPutKindsInput_Ratio, &memberPutKindsInput_Score, &memberPutKindsInput_Huge, &memberPutKindsInput_Exact, &memberPutKindsInput_At, &memberPutKindsInput_Data, &memberPutKindsInput_Doc, &memberPutKindsInput_Color, &memberPutKindsInput_Level, &memberPutKindsInput_Tags, &memberPutKindsInput_Sparse, &memberPutKindsInput_Labels, &memberPutKindsInput_Nested, &memberPutKindsInput_Choice, &memberPutKindsInput_Secret, &memberPutKindsInput_Vault, &memberPutKindsInput_Hints}
 	memberPutKindsOutput_Id.Target = &schemaString
 	memberPutKindsOutput_Count.Target = &schemaInteger
 	memberPutKindsOutput_Items.Target = &schemaNestedList
 	memberPutKindsOutput_Choice.Target = &schemaChoice
 	memberPutKindsOutput_Secret.Target = &schemaSecret
 	schemaPutKindsOutput.Members = []*smithy.Member{&memberPutKindsOutput_Id, &memberPutKindsOutput_Count, &memberPutKindsOutput_Items, &memberPutKindsOutput_Choice, &memberPutKindsOutput_Secret}
+	memberSecretMap_key.Target = &schemaString
+	memberSecretMap_value.Target = &schemaSecret
+	schemaSecretMap.Members = []*smithy.Member{&memberSecretMap_key, &memberSecretMap_value}
 	memberSerializationException_Message.Target = &schemaSmithyString
 	schemaSerializationException.Members = []*smithy.Member{&memberSerializationException_Message}
 	memberSparseCounts_member.Target = &schemaInteger
 	schemaSparseCounts.Members = []*smithy.Member{&memberSparseCounts_member}
+	memberSparseSecrets_member.Target = &schemaSecret
+	schemaSparseSecrets.Members = []*smithy.Member{&memberSparseSecrets_member}
 	memberSweepInput_Before.Target = &schemaTimestamp
 	memberSweepInput_Ids.Target = &schemaTagList
 	schemaSweepInput.Members = []*smithy.Member{&memberSweepInput_Before, &memberSweepInput_Ids}

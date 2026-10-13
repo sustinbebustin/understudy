@@ -15,7 +15,9 @@ import (
 )
 
 func (s *Service) bindVersions(b lambdaapi.Binder) {
-	b.PublishVersion(s.publishVersion, full())
+	b.PublishVersion(s.publishVersion, partial(publishToRefused), kernel.WithCheck(func(in *lambdaapi.PublishVersionInput) *awserr.Error {
+		return checkPublishTo("PublishVersion", in.PublishTo)
+	}))
 	b.ListVersionsByFunction(s.listVersionsByFunction, full())
 }
 
@@ -115,6 +117,10 @@ func (s *Service) publish(st *State, tx *kernel.Tx, scope aws.Scope, f *Function
 	}
 	f.LastVersion++
 	f.Versions = append(f.Versions, v)
+	// Publishing changes $LATEST's RevisionId too, so a RevisionId read
+	// before the publish no longer matches it
+	// (test_function_revisions_version_and_alias).
+	f.Latest.RevisionID = st.revision(scope)
 	s.armProvisioning(tx, scope, f.Name, &v, now)
 	return v, true
 }

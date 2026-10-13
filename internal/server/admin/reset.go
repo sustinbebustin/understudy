@@ -31,12 +31,13 @@ func (h *Handler) reset(w http.ResponseWriter, r *http.Request, _ []string) {
 		h.fail(w, r, err)
 		return
 	}
-	selected, err := h.selectServices(in.Services)
+	fields := resetFields()
+	selected, err := h.selectServices(in.Services, fields)
 	if err != nil {
 		h.fail(w, r, err)
 		return
 	}
-	scope, err := h.resetScope(in.Accounts, in.Regions)
+	scope, err := h.resetScope(in.Accounts, in.Regions, fields)
 	if err != nil {
 		h.fail(w, r, err)
 		return
@@ -45,16 +46,29 @@ func (h *Handler) reset(w http.ResponseWriter, r *http.Request, _ []string) {
 		h.fail(w, r, err)
 		return
 	}
-	h.stateOps.Lock()
-	defer h.stateOps.Unlock()
-	ctx := r.Context()
-	if err := h.drain(ctx, selected, scope); err != nil {
-		h.fail(w, r, err)
+	res, aerr := h.resetState(r.Context(), in, selected, scope)
+	if aerr != nil {
+		h.fail(w, r, aerr)
 		return
 	}
+	h.ok(w, r, res)
+}
+
+// resetState runs the reset in from the drain to the late steps, returning
+// the services it reset, the clock mode it returned to and the number of
+// fault rules it removed. It returns only once the drain is lifted, so the
+// answer never reaches a caller whose next invocation the drain would
+// still refuse.
+func (h *Handler) resetState(ctx context.Context, in admin.ResetRequest, selected []ref.ServiceID, scope kernel.ResetScope) (admin.ResetResult, *admin.Error) {
+	h.stateOps.Lock()
+	defer h.stateOps.Unlock()
+	undrain, aerr := h.drain(ctx, selected, scope)
+	if aerr != nil {
+		return admin.ResetResult{}, aerr
+	}
+	defer undrain()
 	if err := h.resetLate(ctx, selected, scope); err != nil {
-		h.fail(w, r, err)
-		return
+		return admin.ResetResult{}, err
 	}
 	names, dropped, cellErr := h.resetCells(selected, scope)
 	releaseErr := h.releaseBlobs(dropped)
@@ -63,28 +77,27 @@ func (h *Handler) reset(w http.ResponseWriter, r *http.Request, _ []string) {
 		if releaseErr != nil {
 			cellErr.Message += "; also, " + releaseErr.Message
 		}
-		h.fail(w, r, cellErr)
-		return
+		return admin.ResetResult{}, cellErr
 	}
+	res := admin.ResetResult{Services: names}
 	var clockErr *admin.Error
 	if in.Clock {
-		clockErr = h.restartClock(ctx)
+		res.Clock, clockErr = h.restartClock(ctx)
 	} else {
 		h.rebuildTimers()
 	}
 	// The fault rules and the access record do not depend on the clock,
 	// so they are reset as asked even when restoring the clock failed.
 	if in.Faults {
-		h.o.Faults.Clear()
+		res.Faults = h.o.Faults.Clear()
 	}
 	if len(in.Services) == 0 && whole(scope) {
 		h.o.Access.Reset()
 	}
 	if aerr := afterReset(names, clockErr, releaseErr); aerr != nil {
-		h.fail(w, r, aerr)
-		return
+		return admin.ResetResult{}, aerr
 	}
-	h.ok(w, r, admin.ResetResult{Services: names})
+	return res, nil
 }
 
 // afterReset reports the steps that failed once the selected state was
@@ -98,7 +111,7 @@ func afterReset(names []string, clockErr, releaseErr *admin.Error) *admin.Error 
 	if releaseErr != nil {
 		msg += "; also, " + releaseErr.Message
 	}
-	return &admin.Error{Code: admin.Internal, Message: msg, Hint: "set the clock with POST " + admin.Prefix + "/clock"}
+	return &admin.Error{Code: admin.Internal, Message: msg, Hint: "set the clock with 'understudy clock set TIME' (POST " + admin.Prefix + "/clock)"}
 }
 
 // resetCells resets the cells of the selected services under the gate's
@@ -184,9 +197,41 @@ func (h *Handler) releaseBlobs(refs []string) *admin.Error {
 	}
 }
 
+// scopeFields are the names an endpoint reads its service, account and
+// region selection under, which its errors name: reset's body members or
+// resources' query parameters. none says what selecting no service does
+// at that endpoint, for the hint of an unknown service.
+type scopeFields struct{ services, accounts, regions, none string }
+
+// resetFields are POST /reset's body members.
+func resetFields() scopeFields {
+	return scopeFields{services: "services", accounts: "accounts", regions: "regions", none: "selecting no service resets every known one"}
+}
+
+// resourcesFields are GET /resources' query parameters.
+func resourcesFields() scopeFields {
+	return scopeFields{services: "service", accounts: "account", regions: "region", none: "selecting no service lists what every known one holds"}
+}
+
 // selectServices resolves service names to the Stateful and Late names they
-// select; none selects every one.
-func (h *Handler) selectServices(names []string) ([]ref.ServiceID, *admin.Error) {
+// select; none selects every one. fields name the selection in errors.
+func (h *Handler) selectServices(names []string, fields scopeFields) ([]ref.ServiceID, *admin.Error) {
+	known := h.stateful()
+	if len(names) == 0 {
+		return known, nil
+	}
+	selected := make([]ref.ServiceID, 0, len(names))
+	for _, n := range names {
+		if !slices.Contains(known, ref.ServiceID(n)) {
+			return nil, h.unknownService(n, fields, known)
+		}
+		selected = append(selected, ref.ServiceID(n))
+	}
+	return selected, nil
+}
+
+// stateful names every Stateful and Late service, each once.
+func (h *Handler) stateful() []ref.ServiceID {
 	var known []ref.ServiceID
 	for _, s := range h.o.Services {
 		known = append(known, s.Name())
@@ -196,51 +241,79 @@ func (h *Handler) selectServices(names []string) ([]ref.ServiceID, *admin.Error)
 			known = append(known, l.Name())
 		}
 	}
-	if len(names) == 0 {
-		return known, nil
-	}
-	selected := make([]ref.ServiceID, 0, len(names))
-	for _, n := range names {
-		if !slices.Contains(known, ref.ServiceID(n)) {
-			list := make([]string, len(known))
-			for i, k := range known {
-				list[i] = string(k)
-			}
-			return nil, &admin.Error{Code: admin.InvalidRequest, Field: "services", Message: "service " + n + " holds no state in this build", Known: list}
-		}
-		selected = append(selected, ref.ServiceID(n))
-	}
-	return selected, nil
+	return known
 }
 
-func (h *Handler) resetScope(accounts, regions []string) (kernel.ResetScope, *admin.Error) {
+// unknownService refuses a service name that holds no state, listing those
+// that do. Names the registry does not serve, such as the outbox, hold
+// understudy's own state rather than an AWS service's; the hint says so,
+// since the list would otherwise show them as services, and says what
+// selecting none does at the endpoint fields belong to.
+func (h *Handler) unknownService(name string, fields scopeFields, known []ref.ServiceID) *admin.Error {
+	served := h.serviceNames()
+	list := make([]string, len(known))
+	var own []string
+	for i, k := range known {
+		list[i] = string(k)
+		if !slices.Contains(served, string(k)) {
+			own = append(own, string(k))
+		}
+	}
+	e := &admin.Error{
+		Code:    admin.InvalidRequest,
+		Field:   fields.services,
+		Message: fmt.Sprintf("%s names %q, which is not a service this build holds state in; it takes the names listed as known", fields.services, name),
+		Known:   list,
+		Hint:    fields.none,
+	}
+	switch len(own) {
+	case 0:
+	case 1:
+		e.Hint = own[0] + " holds understudy's own state, such as deliveries and invocations still pending, rather than an AWS service's; " + fields.none
+	default:
+		e.Hint = strings.Join(own, ", ") + " hold understudy's own state, such as deliveries and invocations still pending, rather than an AWS service's; " + fields.none
+	}
+	return e
+}
+
+// resetScope parses the accounts and regions a selection names; fields
+// names them in errors.
+func (h *Handler) resetScope(accounts, regions []string, fields scopeFields) (kernel.ResetScope, *admin.Error) {
 	var rs kernel.ResetScope
 	for _, a := range accounts {
 		id, err := aws.ParseAccountID(a)
 		if err != nil {
-			return rs, &admin.Error{Code: admin.InvalidRequest, Field: "accounts", Message: err.Error()}
+			return rs, &admin.Error{Code: admin.InvalidRequest, Field: fields.accounts, Message: err.Error()}
 		}
 		rs.Accounts = append(rs.Accounts, id)
 	}
 	for _, name := range regions {
 		reg, err := h.o.Regions.Parse(name)
 		if err != nil {
-			return rs, &admin.Error{Code: admin.InvalidRequest, Field: "regions", Message: err.Error()}
+			return rs, &admin.Error{Code: admin.InvalidRequest, Field: fields.regions, Message: err.Error()}
 		}
 		rs.Regions = append(rs.Regions, reg)
 	}
 	return rs, nil
 }
 
-// drain stops the drainer's environments when its service is selected.
-func (h *Handler) drain(ctx context.Context, selected []ref.ServiceID, scope kernel.ResetScope) *admin.Error {
+// drain opens the bracket a reset or snapshot load replaces state in: it
+// stops the drainer's environments and pollers in scope when its service
+// is selected, and returns undrain, which reconciles the pollers with the
+// state left behind and so lifts the drain's block on invocations. The
+// caller defers undrain once it has rearmed the services, or replaced
+// nothing; the pollers follow the state whether or not the drain ran. A
+// drain that fails runs undrain itself, since it may have stopped part of
+// scope.
+func (h *Handler) drain(ctx context.Context, selected []ref.ServiceID, scope kernel.ResetScope) (undrain func(), aerr *admin.Error) {
 	if h.o.Drainer == nil || !slices.Contains(selected, h.o.Drainer.Name()) {
-		return nil
+		return h.rearmPollers, nil
 	}
 	if err := h.o.Drainer.Drain(ctx, scope); err != nil {
-		return internal("draining "+string(h.o.Drainer.Name()), err)
+		h.rearmPollers()
+		return nil, internal("draining "+string(h.o.Drainer.Name()), err)
 	}
-	return nil
+	return h.rearmPollers, nil
 }
 
 // whole reports whether scope selects every account and region.
@@ -267,7 +340,7 @@ func (h *Handler) checkLateScope(selected []ref.ServiceID, scope kernel.ResetSco
 	}
 	names := strings.Join(wholeOnly, ", ")
 	return &admin.Error{
-		Code: admin.Unavailable, Field: "services",
+		Code: admin.Unavailable, Field: resetFields().services,
 		Message: fmt.Sprintf("this build cannot reset the data of %s by account or region: it lives outside the emulator's cells and is dropped only whole; nothing was reset", names),
 		Hint:    "reset without accounts and regions, or name the services to reset in \"services\" and leave " + names + " out",
 	}
@@ -298,21 +371,21 @@ func (h *Handler) resetLate(ctx context.Context, selected []ref.ServiceID, scope
 	return nil
 }
 
-// restartClock returns the clock to how serve started it: the scheduler is
-// cleared, the clock restored, and every service rearms its timers from the
-// state it kept.
-func (h *Handler) restartClock(ctx context.Context) *admin.Error {
+// restartClock returns the clock to how serve started it, and returns the
+// mode it now runs in: the scheduler is cleared, the clock restored, and
+// every service rearms its timers from the state it kept.
+func (h *Handler) restartClock(ctx context.Context) (admin.ClockMode, *admin.Error) {
 	k := h.o.Kernel
 	at, mode := h.o.ClockStart()
 	k.Timers().Scheduler().Clear()
 	change, err := k.Clock().Restore(at, mode)
 	if err != nil {
 		h.rearm()
-		return internal("restoring the clock", err)
+		return "", internal("restoring the clock", err)
 	}
 	h.journalClock(ctx, change.From, change.To)
 	h.rearm()
-	return nil
+	return modeName(change.To), nil
 }
 
 // rebuildTimers clears the scheduler and rearms every service from its
@@ -322,17 +395,17 @@ func (h *Handler) rebuildTimers() {
 	h.rearm()
 }
 
-// rearm rebuilds every service's timers from its state.
+// rearm rebuilds every service's timers from its state. The pollers follow
+// when the drain bracket closes.
 func (h *Handler) rearm() {
 	now := h.o.Kernel.Clock().Now()
 	for _, s := range h.o.Services {
 		s.Rearm(now)
 	}
-	h.rearmPollers()
 }
 
 // rearmPollers reconciles the pollers with the state every service has
-// rearmed from, after a reset or a snapshot load.
+// rearmed from; drain hands it out as the bracket's undrain.
 func (h *Handler) rearmPollers() {
 	if h.o.Pollers != nil {
 		h.o.Pollers.RearmPollers()

@@ -242,8 +242,6 @@ func (e Encryption) headers() sseHeaders {
 	return h
 }
 
-// errSSECBlocked answers an SSE-C write: new general purpose buckets block
-// SSE-C since April 2026 (s3.md 5.7). The text is UNVERIFIED.
 // customerKeyed reports SSE-C headers on a read or a copy source: any of
 // the algorithm, the key or its MD5.
 func customerKeyed(algorithm, key, keyMD5 *string) bool {
@@ -257,6 +255,8 @@ func errSSECNotApplicable() *awserr.Error {
 	return errInvalidRequest("The encryption parameters are not applicable to this object.")
 }
 
+// errSSECBlocked answers an SSE-C write: new general purpose buckets block
+// SSE-C since April 2026 (s3.md 5.7). The text is UNVERIFIED.
 func errSSECBlocked() *awserr.Error {
 	return s3api.ErrAccessDenied("Requests specifying Server Side Encryption with Customer provided keys are blocked for this bucket")
 }

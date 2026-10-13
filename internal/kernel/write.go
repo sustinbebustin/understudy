@@ -40,10 +40,12 @@ type Tx struct {
 }
 
 // Unchanged tells the write that fn left the state exactly as it was (an
-// empty receive, an idempotent create), so the cell's revision does not
-// advance and persistence has nothing new to save. Its timers, wakes and
-// deliveries still apply. Calling it after changing the state loses that
-// change from the next persisted archive.
+// empty receive, an idempotent create), so the cell's revision
+// (store.Cell.Rev) does not advance. Its timers, wakes and deliveries still
+// apply. The --persist checkpoint does not read the revision: it compares
+// each cut's digest with the last saved one, so a change is saved whether
+// or not Unchanged was called. Calling it after changing the state only
+// leaves the revision behind.
 func (tx *Tx) Unchanged() { tx.unchanged = true }
 
 type timerEffect struct {
@@ -149,7 +151,7 @@ func (e *DeliverError) Unwrap() error { return e.Err }
 
 // Write is the only write entry point for handlers and timer callbacks. It
 // runs fn on the state of key's cell under the gate's shared side and the
-// cell's lock, with now read under the lock (the commit instant, F17). A
+// cell's lock, with now read under the lock (the commit instant). A
 // cell that reset or snapshot load retired is resolved again, so a long poll
 // survives both. When fn returns an error the state must be unchanged
 // (validate first, mutate last) and no effect runs.

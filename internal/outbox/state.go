@@ -32,6 +32,10 @@ func newState(aws.Scope) State { return State{Entries: map[ids.DeliveryID]Entry{
 // IsZero reports a scope with nothing pending, which snapshots skip.
 func (s *State) IsZero() bool { return len(s.Entries) == 0 }
 
+// Partitioned finds IsZero by a type assertion; this keeps a rename from
+// silently dropping the skip.
+var _ store.Zeroer = (*State)(nil)
+
 // lastSeq returns the greatest Seq of the pending entries, 0 for none.
 func (s *State) lastSeq() uint64 {
 	var last uint64
@@ -64,6 +68,11 @@ type Entry struct {
 	// every other policy. It is drawn once, at acceptance, so the delays do
 	// not depend on how concurrent attempts interleave.
 	Jitter uint64
+	// Running is set while an attempt of the entry is in flight, so its
+	// timer firing again (Rearm arms every pending entry, a running one
+	// included) starts no second attempt. It is this process's claim and is
+	// never saved: a loaded entry is attempted afresh.
+	Running bool
 }
 
 // The persisted forms below are the snapshot schema. The delivery types

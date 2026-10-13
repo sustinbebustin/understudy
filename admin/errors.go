@@ -24,7 +24,8 @@ const (
 	// does not exist.
 	NotFound ErrorCode = "not_found"
 	// Conflict is a request that clashes with the emulator's state, such as
-	// a snapshot whose schema versions this build does not run.
+	// a snapshot whose schema versions this build does not run, or a
+	// snapshot archive that is damaged or not a snapshot at all.
 	Conflict ErrorCode = "conflict"
 	// ConditionNotMet is a wait that ended before its condition held: settle
 	// timing out with work still pending.
@@ -44,11 +45,15 @@ const (
 	ExitUsage           = 2
 	ExitUnreachable     = 3
 	ExitConditionNotMet = 4
+	// ExitUnauthorized is a call the server refused for its admin token,
+	// kept apart from usage so a script can tell a bad token from a bad
+	// command line.
+	ExitUnauthorized = 5
 )
 
 // ExitCode returns the CLI exit code for c: 2 for a request the caller must
-// change (invalid_request, unauthorized), 4 for condition_not_met, 1 for
-// the rest.
+// change (invalid_request), 5 for unauthorized, 4 for condition_not_met, 1
+// for the rest.
 func (c ErrorCode) ExitCode() int {
 	if _, exit, ok := c.table(); ok {
 		return exit
@@ -81,7 +86,7 @@ func (c ErrorCode) table() (status, exit int, ok bool) {
 	case InvalidRequest:
 		return http.StatusBadRequest, ExitUsage, true
 	case Unauthorized:
-		return http.StatusUnauthorized, ExitUsage, true
+		return http.StatusUnauthorized, ExitUnauthorized, true
 	case NotFound:
 		return http.StatusNotFound, ExitFailed, true
 	case Conflict:

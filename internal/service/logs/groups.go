@@ -25,7 +25,7 @@ const (
 // bindGroups binds the log group control plane, retention and tags.
 func (s *Service) bindGroups(b logsapi.Binder) {
 	b.CreateLogGroup(s.createLogGroup,
-		registry.Partial{Note: "kmsKeyId is stored and echoed; events are not encrypted with it"},
+		registry.Partial{Note: "kmsKeyId must name an enabled KMS key and is stored and echoed; events are not encrypted with it"},
 		kernel.WithCheck(checkCreateLogGroup),
 		groupNamed(func(in *logsapi.CreateLogGroupInput) string { return in.LogGroupName }))
 	b.DeleteLogGroup(s.deleteLogGroup, registry.Full{},
@@ -37,7 +37,8 @@ func (s *Service) bindGroups(b logsapi.Binder) {
 			},
 			func(ref groupRef, _ *logsapi.PutLogGroupDeletionProtectionInput) aws.ARN { return ref.arn() }))
 	b.DescribeLogGroups(s.describeLogGroups,
-		registry.Partial{Note: "no linked accounts: accountIdentifiers and includeLinkedAccounts select nothing more"})
+		registry.Partial{Note: "no linked accounts: accountIdentifiers and includeLinkedAccounts select nothing more"},
+		kernel.WithCheck(checkDescribeLogGroups))
 	b.PutRetentionPolicy(s.putRetentionPolicy,
 		registry.Partial{Note: "events expire exactly at timestamp plus retention on the emulator clock, not lazily within 72 hours"},
 		kernel.WithValidator(validatePutRetentionPolicy),
@@ -66,8 +67,10 @@ func groupNamed[In any](nameOf func(*In) string) kernel.BindOption {
 	})
 }
 
-// createLogGroup creates a group; its class defaults to STANDARD.
-func (s *Service) createLogGroup(_ context.Context, c *kernel.Call, in *logsapi.CreateLogGroupInput) (*logsapi.CreateLogGroupOutput, *awserr.Error) {
+// createLogGroup creates a group; its class defaults to STANDARD. A
+// DELIVERY group gets the class's fixed retention, and a kmsKeyId must name
+// an enabled key.
+func (s *Service) createLogGroup(ctx context.Context, c *kernel.Call, in *logsapi.CreateLogGroupInput) (*logsapi.CreateLogGroupOutput, *awserr.Error) {
 	ref := named(c, in.LogGroupName)
 	g := Group{
 		Name:  ref.name,
@@ -77,7 +80,13 @@ func (s *Service) createLogGroup(_ context.Context, c *kernel.Call, in *logsapi.
 	if in.LogGroupClass != nil {
 		g.Class = string(*in.LogGroupClass)
 	}
+	if g.Class == string(logsapi.LogGroupClassDelivery) {
+		g.RetentionDays = deliveryRetention().Value
+	}
 	if in.KmsKeyId != nil {
+		if err := s.checkKey(ctx, c, *in.KmsKeyId); err != nil {
+			return nil, err
+		}
 		g.KMSKeyID = *in.KmsKeyId
 	}
 	if in.DeletionProtectionEnabled != nil {
@@ -113,7 +122,7 @@ func (s *Service) deleteLogGroup(_ context.Context, c *kernel.Call, in *logsapi.
 			return struct{}{}, errGroupNotFound()
 		}
 		if g.DeletionProtection {
-			return struct{}{}, errDeletionProtected(ref.name)
+			return struct{}{}, errDeletionProtected()
 		}
 		delete(st.Groups, ref.name)
 		tx.Disarm(s.retention, ref.arn().String())
@@ -144,10 +153,11 @@ func (s *Service) putLogGroupDeletionProtection(_ context.Context, c *kernel.Cal
 
 // describeLogGroups lists the scope's groups by name.
 func (s *Service) describeLogGroups(_ context.Context, c *kernel.Call, in *logsapi.DescribeLogGroupsInput) (*logsapi.DescribeLogGroupsOutput, *awserr.Error) {
-	if in.LogGroupNamePrefix != nil && in.LogGroupNamePattern != nil {
-		return nil, errPrefixAndPattern()
-	}
 	scope := c.Scope()
+	fields := allGroupFields
+	if in.LogGroupNamePattern != nil {
+		fields = patternGroupFields
+	}
 	var items []keyed[logsapi.LogGroup]
 	if cell, ok := s.cells.Lookup(scope); ok {
 		items = store.Read(cell, func(st *State) []keyed[logsapi.LogGroup] {
@@ -155,7 +165,7 @@ func (s *Service) describeLogGroups(_ context.Context, c *kernel.Call, in *logsa
 			for name, g := range st.Groups {
 				ref := groupRef{scope: scope, name: name}
 				if listsGroup(in, ref, &g) {
-					out = append(out, keyed[logsapi.LogGroup]{key: name, item: describeGroup(ref, &g)})
+					out = append(out, keyed[logsapi.LogGroup]{key: name, item: describeGroup(ref, &g, fields)})
 				}
 			}
 			return out
@@ -165,7 +175,7 @@ func (s *Service) describeLogGroups(_ context.Context, c *kernel.Call, in *logsa
 	if in.Limit != nil {
 		limit = int(*in.Limit)
 	}
-	page, next, ok := pageOf(items, false, in.NextToken, limit)
+	page, next, ok := pageOf(items, groupListing(scope), false, in.NextToken, limit, c.Admitted())
 	if !ok {
 		return nil, errInvalidToken()
 	}
@@ -192,20 +202,39 @@ func listsGroup(in *logsapi.DescribeLogGroupsInput, ref groupRef, g *Group) bool
 	return true
 }
 
+// groupFields is which LogGroup fields a DescribeLogGroups call returns.
+type groupFields uint8
+
+const (
+	// allGroupFields is every stored field, for a call without
+	// logGroupNamePattern.
+	allGroupFields groupFields = iota + 1
+	// patternGroupFields is the reduced set AWS returns for a call with
+	// logGroupNamePattern: arn, creationTime, logGroupArn, logGroupClass,
+	// logGroupName and metricFilterCount (AWS-REC
+	// test_describe_log_groups_with_pattern, secrets-logs-events-alarms.md
+	// 3.1), a superset of the three fields the documentation promises.
+	patternGroupFields
+)
+
 // describeGroup is the LogGroup DescribeLogGroups returns: both ARN forms,
-// retentionInDays and kmsKeyId only when set (secrets-logs-events-alarms.md
+// and with allGroupFields also storedBytes, deletionProtectionEnabled, and
+// retentionInDays and kmsKeyId when set (secrets-logs-events-alarms.md
 // 3.1, tf-compute.md 5).
-func describeGroup(ref groupRef, g *Group) logsapi.LogGroup {
+func describeGroup(ref groupRef, g *Group, fields groupFields) logsapi.LogGroup {
 	out := logsapi.LogGroup{
-		LogGroupName:              new(g.Name),
-		CreationTime:              new(millis(g.Created)),
-		MetricFilterCount:         new(int32(0)),
-		Arn:                       new(ref.wildcardARN()),
-		LogGroupArn:               new(ref.arn().String()),
-		StoredBytes:               new(g.storedBytes()),
-		LogGroupClass:             new(logsapi.LogGroupClass(g.Class)),
-		DeletionProtectionEnabled: new(g.DeletionProtection),
+		LogGroupName:      new(g.Name),
+		CreationTime:      new(millis(g.Created)),
+		MetricFilterCount: new(int32(0)),
+		Arn:               new(ref.wildcardARN()),
+		LogGroupArn:       new(ref.arn().String()),
+		LogGroupClass:     new(logsapi.LogGroupClass(g.Class)),
 	}
+	if fields == patternGroupFields {
+		return out
+	}
+	out.StoredBytes = new(g.storedBytes())
+	out.DeletionProtectionEnabled = new(g.DeletionProtection)
 	if g.RetentionDays != 0 {
 		out.RetentionInDays = new(g.RetentionDays)
 	}
@@ -220,6 +249,9 @@ func describeGroup(ref groupRef, g *Group) logsapi.LogGroup {
 func (s *Service) putRetentionPolicy(_ context.Context, c *kernel.Call, in *logsapi.PutRetentionPolicyInput) (*logsapi.PutRetentionPolicyOutput, *awserr.Error) {
 	ref := named(c, in.LogGroupName)
 	err := s.updateGroup(c, ref, func(g *Group, now clock.Instant, tx *kernel.Tx) *awserr.Error {
+		if g.fixedRetention() {
+			return errFixedRetention()
+		}
 		g.RetentionDays = in.RetentionInDays
 		expire(g, now)
 		s.armExpiry(tx, ref, g)
@@ -235,6 +267,9 @@ func (s *Service) putRetentionPolicy(_ context.Context, c *kernel.Call, in *logs
 func (s *Service) deleteRetentionPolicy(_ context.Context, c *kernel.Call, in *logsapi.DeleteRetentionPolicyInput) (*logsapi.DeleteRetentionPolicyOutput, *awserr.Error) {
 	ref := named(c, in.LogGroupName)
 	err := s.updateGroup(c, ref, func(g *Group, _ clock.Instant, tx *kernel.Tx) *awserr.Error {
+		if g.fixedRetention() {
+			return errFixedRetention()
+		}
 		g.RetentionDays = 0
 		s.armExpiry(tx, ref, g)
 		return nil
@@ -251,7 +286,7 @@ func (s *Service) tagResource(_ context.Context, c *kernel.Call, in *logsapi.Tag
 	if err != nil {
 		return nil, err
 	}
-	if err := s.addTags(c, ref, in.Tags); err != nil {
+	if err := s.addTags(c, ref, in.Tags, errTooManyTags); err != nil {
 		return nil, err
 	}
 	return &logsapi.TagResourceOutput{}, nil
@@ -285,7 +320,7 @@ func (s *Service) listTagsForResource(_ context.Context, c *kernel.Call, in *log
 // tagLogGroup is the legacy TagResource by group name; both families
 // operate on one tag set (secrets-logs-events-alarms.md 3.7).
 func (s *Service) tagLogGroup(_ context.Context, c *kernel.Call, in *logsapi.TagLogGroupInput) (*logsapi.TagLogGroupOutput, *awserr.Error) {
-	if err := s.addTags(c, named(c, in.LogGroupName), in.Tags); err != nil {
+	if err := s.addTags(c, named(c, in.LogGroupName), in.Tags, errTooManyTagsLegacy); err != nil {
 		return nil, err
 	}
 	return &logsapi.TagLogGroupOutput{}, nil
@@ -320,7 +355,10 @@ func taggable(c *kernel.Call, arn string) (groupRef, *awserr.Error) {
 	return ref, nil
 }
 
-func (s *Service) addTags(c *kernel.Call, ref groupRef, tags map[string]string) *awserr.Error {
+// addTags merges tags into the group's; tooMany is the calling operation's
+// error for a tag set over maxTags, since the two tag families model
+// different ones.
+func (s *Service) addTags(c *kernel.Call, ref groupRef, tags map[string]string, tooMany func(arn string) *awserr.Error) *awserr.Error {
 	return s.updateGroup(c, ref, func(g *Group, _ clock.Instant, _ *kernel.Tx) *awserr.Error {
 		merged := maps.Clone(g.Tags)
 		if merged == nil {
@@ -328,7 +366,7 @@ func (s *Service) addTags(c *kernel.Call, ref groupRef, tags map[string]string) 
 		}
 		maps.Copy(merged, tags)
 		if len(merged) > maxTags {
-			return errTooManyTags(ref.arn().String())
+			return tooMany(ref.arn().String())
 		}
 		g.Tags = merged
 		return nil

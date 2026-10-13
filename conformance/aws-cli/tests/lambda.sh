@@ -15,9 +15,7 @@ statement() {
   jqv '.Statement | if type == "string" then fromjson else . end'
 }
 
-# ---------------------------------------------------------------------------
 # CreateFunction, GetFunction, ListFunctions, DeleteFunction
-# ---------------------------------------------------------------------------
 
 test_create_function_response_shape() {
   new_fn
@@ -225,9 +223,7 @@ test_delete_function_latest_qualifier_is_rejected() {
   aws_error_message_contains '$LATEST version cannot be deleted without deleting the function.'
 }
 
-# ---------------------------------------------------------------------------
 # UpdateFunctionConfiguration, UpdateFunctionCode
-# ---------------------------------------------------------------------------
 
 test_update_function_configuration_is_partial() {
   new_fn --memory-size 192 --environment 'Variables={KEEPME=yes}' --description first
@@ -288,9 +284,7 @@ test_update_function_code_changes_sha() {
   assert_ne "$old_sha" "$(jqv '.CodeSha256')" 'CodeSha256 after the update completes'
 }
 
-# ---------------------------------------------------------------------------
 # Versions and aliases
-# ---------------------------------------------------------------------------
 
 test_publish_version() {
   new_fn --description "v1 description"
@@ -306,6 +300,9 @@ test_publish_version_unchanged_returns_existing() {
   new_fn
   wait_active "$FN"
   aws_ok lambda publish-version --function-name "$FN"
+  # A new version settles from Pending to Active, which changes its
+  # RevisionId; the unchanged publish returns the settled version.
+  wait_active "$FN:1"
   local rev
   rev=$(jqv '.RevisionId')
   aws_ok lambda publish-version --function-name "$FN"
@@ -407,9 +404,7 @@ test_create_alias_all_digit_name_is_rejected() {
   aws_error ValidationException 400 lambda create-alias --function-name "$FN" --name 123 --function-version 1
 }
 
-# ---------------------------------------------------------------------------
 # Resource policy: AddPermission, GetPolicy, RemovePermission
-# ---------------------------------------------------------------------------
 
 test_add_permission_service_principal() {
   new_fn
@@ -509,9 +504,7 @@ test_get_policy_without_policy() {
   aws_error ResourceNotFoundException 404 lambda get-policy --function-name "$FN"
 }
 
-# ---------------------------------------------------------------------------
 # Tags and concurrency
-# ---------------------------------------------------------------------------
 
 test_tag_untag_list_tags() {
   new_fn
@@ -557,9 +550,7 @@ test_reserved_concurrency_on_version_is_rejected() {
   aws_error_message_contains 'This operation is permitted on Lambda functions only.'
 }
 
-# ---------------------------------------------------------------------------
 # Function URLs
-# ---------------------------------------------------------------------------
 
 test_function_url_config_lifecycle() {
   new_fn
@@ -675,9 +666,7 @@ test_function_url_invocation_payload_v2() {
   assert_jq '.body' 'hello url'
 }
 
-# ---------------------------------------------------------------------------
 # Invoke
-# ---------------------------------------------------------------------------
 
 test_invoke_request_response() {
   require_docker
@@ -867,9 +856,7 @@ test_invoke_reserved_concurrency_zero_throttles() {
   aws_error_message_contains 'Rate Exceeded.'
 }
 
-# ---------------------------------------------------------------------------
 # Function logs in CloudWatch Logs
-# ---------------------------------------------------------------------------
 
 test_invoke_writes_function_logs() {
   require_docker
@@ -899,9 +886,7 @@ test_invoke_log_lines_have_start_end_report() {
   assert_match 'REPORT RequestId: [0-9a-f-]{36}	Duration: ' "$messages" 'platform REPORT line'
 }
 
-# ---------------------------------------------------------------------------
 # Event source mappings (SQS)
-# ---------------------------------------------------------------------------
 
 # new_queue: create an SQS queue; sets QUEUE_URL and QUEUE_ARN.
 new_queue() {

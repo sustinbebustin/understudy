@@ -28,7 +28,7 @@ func (st *State) apiInstanceProfiles(account aws.AccountID, keep func(*InstanceP
 	profiles := sortedWhere(st.InstanceProfiles, keep)
 	out := make([]iamapi.InstanceProfile, len(profiles))
 	for i := range profiles {
-		out[i] = apiInstanceProfile(account, st, profiles[i])
+		out[i] = apiListedInstanceProfile(account, st, profiles[i])
 	}
 	return out
 }
@@ -43,7 +43,10 @@ func (st *State) instanceProfile(name string) (InstanceProfile, *awserr.Error) {
 }
 
 func (s *Service) createInstanceProfile(_ context.Context, c *kernel.Call, in *iamapi.CreateInstanceProfileInput) (*iamapi.CreateInstanceProfileOutput, *awserr.Error) {
-	tags, err := newTags(in.Tags)
+	if err := checkPath("path", in.Path); err != nil {
+		return nil, err
+	}
+	tags, err := newTags(exactKeys, in.Tags)
 	if err != nil {
 		return nil, err
 	}

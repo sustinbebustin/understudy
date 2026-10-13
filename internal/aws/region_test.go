@@ -25,6 +25,19 @@ func TestKnownRegionsAcceptRealNamesOnly(t *testing.T) {
 	}
 }
 
+// The advice must name the real configuration key: the top-level regions
+// array, not a regions.extra object, which the loader rejects.
+func TestUnknownRegionErrorNamesTheRegionsArray(t *testing.T) {
+	_, err := aws.KnownRegions().Parse("mars-1")
+	if err == nil {
+		t.Fatal("Parse(mars-1) succeeded")
+	}
+	const want = `region "mars-1" is not an AWS region name; to use it, list it in the regions array of the configuration file (understudy.json by default), such as {"regions": ["mars-1"]}`
+	if got := err.Error(); got != want {
+		t.Errorf("Error() = %s\nwant      %s", got, want)
+	}
+}
+
 func TestWithExtraAddsNames(t *testing.T) {
 	base := aws.KnownRegions()
 	regions, err := base.WithExtra("local-1")

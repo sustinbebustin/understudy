@@ -84,9 +84,9 @@ type slot struct {
 // so exec must never go back.
 type versionSlots struct {
 	gen generations
-	// tree is the package the generation's environments mount, revision
-	// the version's RevisionId it was started for.
-	tree, revision string
+	// tree is the package the generation's environments mount, incarnation
+	// the function's Incarnation it was started for.
+	tree, incarnation string
 	// live is false before the first lease and after a drop: the next
 	// lease starts a new execution generation.
 	live  bool
@@ -95,10 +95,10 @@ type versionSlots struct {
 
 // leaseFor is what an invocation asks of its function version's slots.
 type leaseFor struct {
-	code, overlay  uint64
-	tree, revision string
-	role           aws.ARN
-	cause          ref.Cause
+	code, overlay     uint64
+	tree, incarnation string
+	role              aws.ARN
+	cause             ref.Cause
 }
 
 // environments keeps the slots of every function version. Its lock is a
@@ -121,9 +121,9 @@ func newEnvironments(store *identity.Store, clk *clock.Clock, trees *codeTrees) 
 
 // lease takes a free slot of v's current generation for an invocation,
 // minting a new one when every slot is busy. A code or overlay generation,
-// package or revision other than the last one seen, or the first lease
+// package or incarnation other than the last one seen, or the first lease
 // after a drop, starts a new execution generation, whose number lease
-// returns, and retires the older slots. The revision tells a function
+// returns, and retires the older slots. The incarnation tells a function
 // deleted and created again apart, whose generations start over.
 func (e *environments) lease(v fnVersion, w leaseFor) (*slot, uint64, error) {
 	e.mu.Lock()
@@ -133,10 +133,10 @@ func (e *environments) lease(v fnVersion, w leaseFor) (*slot, uint64, error) {
 		vs = &versionSlots{}
 		e.versions[v] = vs
 	}
-	if !vs.live || vs.gen.code != w.code || vs.gen.overlay != w.overlay || vs.tree != w.tree || vs.revision != w.revision {
+	if !vs.live || vs.gen.code != w.code || vs.gen.overlay != w.overlay || vs.tree != w.tree || vs.incarnation != w.incarnation {
 		e.retireLocked(vs)
 		vs.gen = generations{code: w.code, overlay: w.overlay, exec: vs.gen.exec + 1}
-		vs.tree, vs.revision, vs.live = w.tree, w.revision, true
+		vs.tree, vs.incarnation, vs.live = w.tree, w.incarnation, true
 	}
 	for _, s := range vs.slots {
 		if s.running == nil {
@@ -422,7 +422,7 @@ func (x *Execution) PullImages(ctx context.Context, runtimes []string) ([]string
 		for _, r := range runtimes {
 			img, ok := launcher.ImageForRuntime(r)
 			if !ok {
-				return nil, fmt.Errorf("understudy pins no image for the runtime %q; pull one of %s", r, strings.Join(pinnedRuntimes(), ", "))
+				return nil, &UnpinnedRuntimeError{Runtime: r, Pinned: pinnedRuntimes()}
 			}
 			pins = append(pins, img)
 		}
@@ -440,6 +440,22 @@ func (x *Execution) PullImages(ctx context.Context, runtimes []string) ([]string
 	}
 	return pulled, nil
 }
+
+// UnpinnedRuntimeError is a PullImages request for a runtime understudy
+// pins no image for: the caller's mistake, not an unavailable daemon.
+type UnpinnedRuntimeError struct {
+	Runtime string
+	// Pinned are the runtimes with a pinned image.
+	Pinned []string
+}
+
+func (e *UnpinnedRuntimeError) Error() string {
+	return fmt.Sprintf("understudy pins no image for the runtime %q; pull one of %s", e.Runtime, strings.Join(e.Pinned, ", "))
+}
+
+// RequestFault marks the error as one the request caused, which the admin
+// API answers as invalid_request.
+func (*UnpinnedRuntimeError) RequestFault() {}
 
 // pinnedRuntimes names the runtimes with a pinned image.
 func pinnedRuntimes() []string {

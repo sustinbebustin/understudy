@@ -6,9 +6,10 @@ import (
 
 // emitRedact writes redact_gen.go: Redact per operation input and output
 // type. A sensitive member (the sensitive trait, on the member or its
-// target, from the model or an overlay) is cleared in a copy, so the
-// journal never stores it; a type that reaches nothing sensitive returns
-// itself.
+// target, from the model or an overlay) is replaced in a copy, so the
+// journal never stores it: a string or enum the client sent reads
+// "[redacted]", telling it apart from one left out, and any other value is
+// cleared. A type that reaches nothing sensitive returns itself.
 func emitRedact(ir *ServiceIR) ([]byte, error) {
 	f := newFile(ir, "redact_gen.go")
 	r := &redactor{f: f, memo: map[*ShapeIR]bool{}, emitted: map[*ShapeIR]bool{}}
@@ -41,6 +42,19 @@ func emitRedact(ir *ServiceIR) ([]byte, error) {
 		r.queue = r.queue[1:]
 		r.helper(s)
 	}
+	if r.usesMark {
+		f.p("// redactedText stands in for a sensitive string the client sent.")
+		f.p("const redactedText = \"[redacted]\"\n")
+	}
+	if r.usesMarkPtr {
+		f.p("// redactedPtr is redactedText in place of a present *p, nil for nil.")
+		f.p("func redactedPtr[T ~string](p *T) *T {")
+		f.p("\tif p == nil {")
+		f.p("\t\treturn nil")
+		f.p("\t}")
+		f.p("\treturn new(T(redactedText))")
+		f.p("}\n")
+	}
 	return f.bytes()
 }
 
@@ -50,6 +64,9 @@ type redactor struct {
 	emitted map[*ShapeIR]bool
 	queue   []*ShapeIR
 	seen    map[*ShapeIR]bool
+	// usesMark and usesMarkPtr record whether a redacted string was
+	// emitted, plain or behind a pointer, so the helpers are.
+	usesMark, usesMarkPtr bool
 }
 
 func (r *redactor) done(s *ShapeIR) bool {
@@ -121,7 +138,7 @@ func (r *redactor) collection(s *ShapeIR, index string, elem *MemberIR) {
 	f.p("\t\treturn nil")
 	f.p("\t}")
 	f.p("\tout := make(%s, len(v))", t)
-	if cleared(elem) {
+	if cleared(elem) && (!masked(elem) || !behindPointer(elem)) {
 		f.p("\tfor %s := range v {", index)
 	} else {
 		f.p("\tfor %s, e := range v {", index)
@@ -149,18 +166,41 @@ func (r *redactor) union(s *ShapeIR) {
 	f.p("}\n")
 }
 
-// cleared reports whether Redact clears member m: it is sensitive, or it is
-// a stream, whose bytes the journal never holds.
-func cleared(m *MemberIR) bool { return m.Sensitive || m.Target.Sensitive || m.Streaming }
+// cleared reports whether Redact replaces member m whole: it is sensitive,
+// it is a map with sensitive keys, which no copy can keep, or it is a
+// stream, whose bytes the journal never holds.
+func cleared(m *MemberIR) bool {
+	t := m.Target
+	return m.Sensitive || t.Sensitive || m.Streaming ||
+		(t.Type == smithy.TypeMap && (t.Members[0].Sensitive || t.Members[0].Target.Sensitive))
+}
 
-// member clears or recurses into one structure member of the copy v.
+// masked reports whether Redact replaces a cleared member m with
+// redactedText rather than its absent value: a sensitive string or enum.
+func masked(m *MemberIR) bool {
+	return !m.Streaming && (m.Target.Type == smithy.TypeString || m.Target.Type == smithy.TypeEnum)
+}
+
+// behindPointer reports whether the Go type of m, a structure member, list
+// element, map value or union member, points to its target's (fieldType,
+// elemType): an optional structure member or a sparse collection's element.
+func behindPointer(m *MemberIR) bool {
+	if !pointerable(m.Target) {
+		return false
+	}
+	if m.Owner.Type == smithy.TypeStructure {
+		return !m.Value
+	}
+	return m.Owner.Sparse
+}
+
+// member replaces or recurses into one structure member of the copy v.
 func (r *redactor) member(m *MemberIR) {
 	f := r.f
 	switch {
-	case cleared(m):
-		f.p("\tv.%s = %s", m.GoName, r.zero(m))
-	case !r.reaches(m.Target):
-	case m.Target.IsStruct() && !m.Value:
+	case !cleared(m) && !r.reaches(m.Target):
+		// Nothing sensitive below m: the copy keeps it.
+	case !cleared(m) && m.Target.IsStruct() && !m.Value:
 		r.need(m.Target)
 		f.p("\tif v.%s != nil {", m.GoName)
 		f.p("\t\tc := v.%s.redacted()", m.GoName)
@@ -171,13 +211,19 @@ func (r *redactor) member(m *MemberIR) {
 	}
 }
 
-// value is the redacted copy of x, a value of member m's target.
+// value is the redacted copy of x, a value of member m's Go type.
 func (r *redactor) value(m *MemberIR, x string) string {
 	t := m.Target
-	if cleared(m) {
+	switch {
+	case cleared(m) && masked(m) && behindPointer(m):
+		r.usesMark, r.usesMarkPtr = true, true
+		return "redactedPtr(" + x + ")"
+	case cleared(m) && masked(m):
+		r.usesMark = true
+		return "redactedText"
+	case cleared(m):
 		return r.zero(m)
-	}
-	if !r.reaches(t) {
+	case !r.reaches(t):
 		return x
 	}
 	r.need(t)
@@ -190,7 +236,7 @@ func (r *redactor) value(m *MemberIR, x string) string {
 // zero is the absent value of a member's Go type: nil for pointers, slices,
 // maps and interfaces, else the zero value of a plain field or element.
 func (r *redactor) zero(m *MemberIR) string {
-	if !pointerable(m.Target) || (!m.Value && m.Owner.Type == smithy.TypeStructure) {
+	if !pointerable(m.Target) || behindPointer(m) {
 		return "nil"
 	}
 	return "*new(" + r.f.valueType(m.Target) + ")"

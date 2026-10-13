@@ -25,6 +25,9 @@ const (
 	maxMappingsPage   = 100
 	userInitiated     = "USER_INITIATED"
 	sqsBatchWindowCap = 10
+	// maxFilters is the default quota of filters per mapping; AWS raises
+	// it to 10 on request, which understudy does not model.
+	maxFilters = 5
 )
 
 // Mapping is an SQS event source mapping.
@@ -166,9 +169,13 @@ func (u mappingSettings) apply(m *Mapping) *awserr.Error {
 	return nil
 }
 
-// filterPatterns checks each filter pattern with Lambda's rules; nil
-// patterns clear the filters, as an empty FilterCriteria does.
+// filterPatterns checks the filter count against the default quota and
+// each filter pattern with Lambda's rules; nil patterns clear the filters,
+// as an empty FilterCriteria does.
 func filterPatterns(fc *lambdaapi.FilterCriteria) ([]string, *awserr.Error) {
+	if len(fc.Filters) > maxFilters {
+		return nil, errTooManyFilters(len(fc.Filters))
+	}
 	var out []string
 	for _, f := range fc.Filters {
 		if f.Pattern == nil {
@@ -241,8 +248,8 @@ func (s *Service) mappingFunction(c *kernel.Call, name string) (mappingTarget, *
 // execution role and refuses a missing queue or one whose visibility
 // timeout is shorter than the function's timeout (lambda-events.md 1.3).
 func (s *Service) checkQueue(ctx context.Context, c *kernel.Call, queue aws.ARN, target mappingTarget) *awserr.Error {
-	scope, ok := scopeOf(queue)
-	if !ok || queue.Region != c.Scope().Region.String() {
+	scope, serr := aws.ScopeOf(queue)
+	if serr != nil || queue.Region != c.Scope().Region.String() {
 		return errQueueMissing()
 	}
 	role, perr := aws.ParseARN(target.role)
@@ -359,7 +366,8 @@ func (s *Service) getMapping(_ context.Context, c *kernel.Call, in *lambdaapi.Ge
 }
 
 // listMappings filters by queue and function without checking that
-// either exists, as AWS does (lambda-events.md 1.1).
+// either exists, as AWS does (lambda-events.md 1.1), and leaves out the
+// FilterCriteria of a mapping with a KMSKeyArn.
 func (s *Service) listMappings(_ context.Context, c *kernel.Call, in *lambdaapi.ListEventSourceMappingsInput) (*lambdaapi.ListEventSourceMappingsOutput, *awserr.Error) {
 	scope := c.Scope()
 	var fn *functionRef
@@ -375,7 +383,13 @@ func (s *Service) listMappings(_ context.Context, c *kernel.Call, in *lambdaapi.
 		for _, uuid := range slices.Sorted(maps.Keys(st.Mappings)) {
 			m := st.Mappings[uuid]
 			if (in.EventSourceArn == nil || m.Source == *in.EventSourceArn) && (fn == nil || (m.Function == fn.name && m.Qualifier == fn.qualifier)) {
-				out = append(out, renderMapping(scope, m))
+				row := renderMapping(scope, m)
+				// Filters encrypted with a customer key read as null in a
+				// listing; Get and Delete show them (lambda-events.md 1.2).
+				if m.KMSKeyArn != "" {
+					row.FilterCriteria = nil
+				}
+				out = append(out, row)
 			}
 		}
 		return out, nil

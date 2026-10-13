@@ -193,8 +193,12 @@ type InContainer struct {
 }
 
 // Addresses binds understudy's own container address and puts functions on
-// its network. The main listener already binds 0.0.0.0 inside the container
-// (Exposed{ContainerPublished}), so no extra listener is needed.
+// its network. No container listener opens: the main listener already holds
+// the main port on every interface inside the container
+// (Exposed{ContainerPublished}), so functions call it at Self. Unlike the
+// container listener, it does not hold callers to health and clock from the
+// admin prefix, and ContainerPublished asks for no admin token, so function
+// containers reach the whole admin API here.
 func (t InContainer) Addresses() (Addresses, error) {
 	return Addresses{
 		ListenerBind:         t.Self,

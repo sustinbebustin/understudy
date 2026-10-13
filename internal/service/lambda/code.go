@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
@@ -55,6 +56,11 @@ func sourceOf(packageType lambdaapi.PackageType, zipFile []byte, bucket, key, ve
 	hasZip, hasS3, hasImage := zipFile != nil, bucket != nil || key != nil, imageURI != nil
 	switch {
 	case packageType == lambdaapi.PackageTypeImage && hasImage && !hasZip && !hasS3:
+		// Refused here rather than when the image is first inspected or
+		// pulled, so the caller hears of it from the call that set it.
+		if bad, ok := errors.AsType[*docker.InvalidReferenceError](docker.ValidateReference(*imageURI)); ok {
+			return nil, errImageURI(bad)
+		}
 		return imageSource{uri: *imageURI}, nil
 	case packageType == lambdaapi.PackageTypeZip && hasZip && !hasS3 && !hasImage:
 		return zipSource{bytes: zipFile}, nil
@@ -77,8 +83,12 @@ func checkZip(b []byte) *awserr.Error {
 // maxUnzipped bytes; a package read from S3 has only this limit, since the
 // zipped one is the API upload's (lambda-api.md 4.3). The archive is only
 // read here; codestore extracts it, entry by entry and zip-slip safe, when
-// an environment first runs it.
+// an environment first runs it. zip.NewReader allocates for every central
+// header it parses, so the entry bound codestore applies is checked first.
 func checkArchive(b []byte) *awserr.Error {
+	if headers := codestore.Headers(b); headers > codestore.DefaultMaxEntries {
+		return errTooManyEntries(headers)
+	}
 	r, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
 	if err != nil {
 		return errInvalidZip()
@@ -258,6 +268,9 @@ func (s *Service) imageReady(ctx context.Context, c *kernel.Call, ref versionRef
 		default:
 			v.Status = Active{Update: UpdateFailed{ReasonCode: failure.code, Reason: failure.reason}}
 		}
+		// Every outcome ends a Pending or InProgress status, which gives
+		// the version a new RevisionId, as settleVersion does.
+		v.RevisionID = st.revision(ref.scope)
 		st.Functions[ref.name] = f.withVersion(v)
 		return struct{}{}, nil
 	})
@@ -281,8 +294,8 @@ func parseVersionID(id string) (versionRef, bool) {
 	if !ok {
 		return versionRef{}, false
 	}
-	scope, ok := scopeOf(a)
-	return versionRef{scope: scope, name: name, number: number}, ok
+	scope, err := aws.ScopeOf(a)
+	return versionRef{scope: scope, name: name, number: number}, err == nil
 }
 
 // cutDigest returns the hex of a sha256 digest in a repository digest

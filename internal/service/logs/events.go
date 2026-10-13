@@ -35,13 +35,13 @@ func (s *Service) bindEvents(b logsapi.Binder) {
 		kernel.WithCheck(checkPutLogEventsInternal),
 		streamNamed(func(in *logsapi.PutLogEventsInternalInput) (string, string) { return in.LogGroupName, in.LogStreamName }))
 	b.GetLogEvents(s.getLogEvents,
-		registry.Partial{Note: "unmask is ignored: no data protection policies; tokens do not expire"},
+		registry.Partial{Note: "unmask is ignored: no data protection policies"},
 		kernel.WithCheck(checkGetLogEvents),
 		groupIdentified(
 			func(in *logsapi.GetLogEventsInput) (*string, *string) { return in.LogGroupName, in.LogGroupIdentifier },
 			func(ref groupRef, in *logsapi.GetLogEventsInput) aws.ARN { return ref.streamARN(in.LogStreamName) }))
 	b.FilterLogEvents(s.filterLogEvents,
-		registry.Partial{Note: "unmask is ignored: no data protection policies; tokens do not expire; logStreamNames that name no stream are skipped"},
+		registry.Partial{Note: "unmask is ignored: no data protection policies; logStreamNames that name no stream are skipped"},
 		kernel.WithCheck(checkFilterLogEvents),
 		groupIdentified(
 			func(in *logsapi.FilterLogEventsInput) (*string, *string) {
@@ -57,7 +57,7 @@ type admission interface{ isAdmission() }
 
 // clientWindows is a client's PutLogEvents: an event is stored when it is
 // inside the 2-hour and 14-day windows of the wall clock or of the
-// emulator clock, since containers stamp lines with wall time (G4), and
+// emulator clock, since containers stamp lines with wall time (gap-G4.md), and
 // not older than the group's retention on the emulator clock.
 type clientWindows struct{ wall clock.Instant }
 
@@ -130,8 +130,8 @@ func (s *Service) putLogEventsInternal(_ context.Context, c *kernel.Call, in *lo
 
 // ingest stores the admitted events of a chronological batch in a stream:
 // order and size were checked at step 7; here each event is judged, the
-// 24-hour span of the stored ones is checked, and they are merged into the
-// stream by position.
+// 24-hour span of the valid ones is checked, and the stored ones are merged
+// into the stream by position.
 func (s *Service) ingest(c *kernel.Call, ref groupRef, stream string, batch []logsapi.InputLogEvent, a admission) (putResult, *awserr.Error) {
 	if !s.exists(ref) {
 		return putResult{}, errGroupNotFound()
@@ -145,9 +145,9 @@ func (s *Service) ingest(c *kernel.Call, ref groupRef, stream string, batch []lo
 		if !ok {
 			return putResult{}, errStreamNotFound()
 		}
-		kept, rejected := admit(a, &g, batch, now)
-		if len(kept) > 0 && time.Duration(kept[len(kept)-1].Timestamp-kept[0].Timestamp)*time.Millisecond > maxBatchSpan {
-			return putResult{}, errSpan()
+		kept, rejected, err := admit(a, &g, batch, now)
+		if err != nil {
+			return putResult{}, err
 		}
 		if len(kept) > 0 {
 			fresh := make([]Event, len(kept))
@@ -176,19 +176,35 @@ func (s *Service) ingest(c *kernel.Call, ref groupRef, stream string, batch []lo
 // days 2 hours of each other: further apart, an event one clock rejects
 // can lie between two stored ones, AWS's index fields cannot express that,
 // and the reported indices can cover stored events.
-func admit(a admission, g *Group, batch []logsapi.InputLogEvent, now clock.Instant) ([]logsapi.InputLogEvent, *logsapi.RejectedLogEventsInfo) {
+//
+// The 24-hour span rule covers every event inside the time windows, stored
+// or expired by retention, as the PutLogEvents documentation words it; a
+// batch whose valid events span more fails whole.
+func admit(a admission, g *Group, batch []logsapi.InputLogEvent, now clock.Instant) ([]logsapi.InputLogEvent, *logsapi.RejectedLogEventsInfo, *awserr.Error) {
 	var (
 		kept     []logsapi.InputLogEvent
 		info     logsapi.RejectedLogEventsInfo
 		rejected bool
+		// first and last bound the batch's valid events, which are in
+		// chronological order; seen is false while there is none.
+		first, last int64
+		seen        bool
 	)
+	valid := func(ts int64) {
+		if !seen {
+			first, seen = ts, true
+		}
+		last = ts
+	}
 	for i, e := range batch {
 		switch judge(a, g, e.Timestamp, now) {
 		case accepted:
+			valid(e.Timestamp)
 			kept = append(kept, e)
 		case tooOld:
 			info.TooOldLogEventEndIndex, rejected = new(int32(i+1)), true
 		case expiredEvent:
+			valid(e.Timestamp)
 			info.ExpiredLogEventEndIndex, rejected = new(int32(i+1)), true
 		case tooNew:
 			if info.TooNewLogEventStartIndex == nil {
@@ -196,10 +212,13 @@ func admit(a admission, g *Group, batch []logsapi.InputLogEvent, now clock.Insta
 			}
 		}
 	}
-	if !rejected {
-		return kept, nil
+	if seen && time.Duration(last-first)*time.Millisecond > maxBatchSpan {
+		return nil, nil, errSpan()
 	}
-	return kept, &info
+	if !rejected {
+		return kept, nil, nil
+	}
+	return kept, &info, nil
 }
 
 // merge returns a new slice of the stream's events and the fresh ones, in
@@ -239,37 +258,43 @@ func (s *Service) getLogEvents(_ context.Context, c *kernel.Call, in *logsapi.Ge
 	if in.EndTime != nil {
 		w.hi = *in.EndTime
 	}
-	cur := cursor{dir: backward, at: position{ts: w.hi}}
+	now := c.Admitted()
+	l := eventListing(ref, in.LogStreamName)
+	from := issuedCursor{dir: backward, at: position{ts: w.hi}, issued: now}
 	if in.StartFromHead != nil && *in.StartFromHead {
-		cur = cursor{dir: forward, at: position{ts: w.lo}}
+		from.cursor = cursor{dir: forward, at: position{ts: w.lo}}
 	}
 	if in.NextToken != nil {
-		parsed, ok := parseCursor(*in.NextToken)
+		parsed, ok := parseCursor(*in.NextToken, l, now)
 		if !ok {
 			return nil, errInvalidToken()
 		}
-		cur = parsed
+		from = parsed
 	}
 	limit := maxPageEvents
 	if in.Limit != nil {
 		limit = int(*in.Limit)
 	}
+	// read is the page, or why the group yields none.
 	type read struct {
-		out   *logsapi.GetLogEventsOutput
-		found bool
+		out *logsapi.GetLogEventsOutput
+		err *awserr.Error
 	}
 	r, ok := group(s, ref, func(g *Group) read {
+		if g.Class == string(logsapi.LogGroupClassInfrequentAccess) {
+			return read{err: errInfrequentAccess("GetLogEvents")}
+		}
 		st, ok := g.Streams[in.LogStreamName]
 		if !ok {
-			return read{}
+			return read{err: errStreamNotFound()}
 		}
-		return read{out: streamPage(st.Events, w, cur, limit), found: true}
+		return read{out: streamPage(st.Events, w, l, from, now, limit)}
 	})
 	switch {
 	case !ok:
 		return nil, errGroupNotFound()
-	case !r.found:
-		return nil, errStreamNotFound()
+	case r.err != nil:
+		return nil, r.err
 	}
 	return r.out, nil
 }
@@ -280,12 +305,14 @@ type window struct{ lo, hi int64 }
 // streamPage cuts one GetLogEvents page from events in position order. A
 // page ends at limit events or maxPageBytes of messages. Its forward token
 // names the gap after its newest event and its backward token the gap
-// before its oldest. An empty page hands back the cursor it was read from,
-// which is how a client knows it reached the end; an empty backward page
-// instead points its forward token at the window's start, since nothing in
-// the window lies before the cursor, so following it (the default read of an empty
-// stream, say) returns the events that arrive later.
-func streamPage(events []Event, w window, cur cursor, limit int) *logsapi.GetLogEventsOutput {
+// before its oldest, both tokens of l issued at now. An empty page hands back the token
+// it was read from, issue time included, which is how a client knows it
+// reached the end; an empty backward page instead points its forward token
+// at the window's start, since nothing in the window lies before the
+// cursor, so following it (the default read of an empty stream, say)
+// returns the events that arrive later.
+func streamPage(events []Event, w window, l listing, from issuedCursor, now clock.Instant, limit int) *logsapi.GetLogEventsOutput {
+	cur := from.cursor
 	a := firstAt(events, position{ts: w.lo})
 	b := firstAt(events, position{ts: w.hi})
 	var lo, hi int
@@ -312,12 +339,12 @@ func streamPage(events []Event, w window, cur cursor, limit int) *logsapi.GetLog
 		if cur.dir == backward {
 			ahead = position{ts: w.lo}
 		}
-		out.NextForwardToken = new(cursor{dir: forward, at: ahead}.String())
-		out.NextBackwardToken = new(cursor{dir: backward, at: cur.at}.String())
+		out.NextForwardToken = new(cursor{dir: forward, at: ahead}.token(l, from.issued))
+		out.NextBackwardToken = new(cursor{dir: backward, at: cur.at}.token(l, from.issued))
 		return out
 	}
-	out.NextForwardToken = new(cursor{dir: forward, at: events[hi-1].pos().next()}.String())
-	out.NextBackwardToken = new(cursor{dir: backward, at: events[lo].pos()}.String())
+	out.NextForwardToken = new(cursor{dir: forward, at: events[hi-1].pos().next()}.token(l, now))
+	out.NextBackwardToken = new(cursor{dir: backward, at: events[lo].pos()}.token(l, now))
 	return out
 }
 

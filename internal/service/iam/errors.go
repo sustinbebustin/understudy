@@ -76,13 +76,6 @@ func errNoSuchVersion(arn, version string) *awserr.Error {
 	return iamapi.ErrNoSuchEntityException("Policy " + arn + " version " + version + " does not exist.")
 }
 
-// errAWSManagedDocument answers a request for the document of an AWS
-// managed policy, which understudy does not carry: it accepts any such
-// ARN as attachable without a catalogue of their contents.
-func errAWSManagedDocument(arn, version string) *awserr.Error {
-	return iamapi.ErrNoSuchEntityException("understudy does not hold the documents of AWS managed policies: " + arn + " can be attached, but its version " + version + " has no document here.")
-}
-
 func errTooManyVersions() *awserr.Error {
 	return iamapi.ErrLimitExceededException("A managed policy can have up to " + strconv.Itoa(maxPolicyVersions) + " versions. Before you create a new version, you must delete an existing version.")
 }
@@ -161,9 +154,22 @@ func errInlineTooLarge(kind, name string, limit int) *awserr.Error {
 	return iamapi.ErrLimitExceededException("Maximum policy size of " + strconv.Itoa(limit) + " bytes exceeded for " + kind + " " + name)
 }
 
-// errDuplicateTagKeys is moto's text (iam-sts-kms.md 3.2, UNVERIFIED).
-func errDuplicateTagKeys() *awserr.Error {
-	return iamapi.ErrInvalidInputException("Duplicate tag keys found. Please note that Tag keys are case insensitive.")
+// errDuplicateTagKeys is moto's text (iam-sts-kms.md 3.2, UNVERIFIED) for
+// keys that match regardless of case; for case-sensitive keys it drops the
+// note on case (inferred).
+func errDuplicateTagKeys(m tagKeys) *awserr.Error {
+	switch m {
+	case foldedKeys:
+		return iamapi.ErrInvalidInputException("Duplicate tag keys found. Please note that Tag keys are case insensitive.")
+	case exactKeys:
+	}
+	return iamapi.ErrInvalidInputException("Duplicate tag keys found.")
+}
+
+// errReservedTag answers a tag whose key or value begins with the prefix
+// AWS reserves (inferred).
+func errReservedTag(key string) *awserr.Error {
+	return iamapi.ErrInvalidInputException("Tag " + key + " is not valid: tag keys and values cannot begin with " + reservedTagPrefix + ", which AWS reserves for its own use.")
 }
 
 // errTooManyTags is inferred.
@@ -176,8 +182,14 @@ func errInvalidMarker() *awserr.Error {
 	return iamapi.ErrInvalidInputException("Invalid Marker: it is not one a previous response returned.")
 }
 
+// errRootAccessKeys answers a root caller's CreateAccessKey without
+// UserName, which AWS serves and understudy does not.
+func errRootAccessKeys() *awserr.Error {
+	return iamapi.ErrNotImplemented("understudy does not manage access keys of the account's root user; any access key id it did not mint already signs as the root. Pass UserName to create a key for an IAM user. Run 'understudy coverage --service iam' for what is supported.")
+}
+
 // errNonUserCredentials answers an operation that defaults to the calling
-// user when the caller is no IAM user.
+// user when the caller is a role session, a service or anonymous.
 func errNonUserCredentials() *awserr.Error {
 	return iamapi.ErrValidationException("Must specify userName when calling with non-User credentials")
 }

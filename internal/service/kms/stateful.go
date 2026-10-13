@@ -36,7 +36,9 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 }
 
 // Rearm arms the deletion timer of every key pending deletion; timers are
-// never saved.
+// never saved. It arms under the cell lock, where kernel.Write arms, so a
+// concurrent CancelKeyDeletion either commits first and its key is not
+// read here, or commits after and its own disarm wins.
 func (s *Service) Rearm(clock.Instant) {
 	sched := s.k.Timers().Scheduler()
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
@@ -44,18 +46,14 @@ func (s *Service) Rearm(clock.Instant) {
 		if !ok {
 			continue
 		}
-		pending := store.Read(cell, func(st *State) []clock.Armed {
-			var out []clock.Armed
+		store.Read(cell, func(st *State) struct{} {
 			for _, id := range slices.Sorted(maps.Keys(st.Keys)) {
 				if p, ok := st.Keys[id].Lifecycle.(pendingDeletion); ok {
-					out = append(out, clock.Armed{Key: s.deletion.Key(keyARN(scope, id)), Due: p.DeletionDate})
+					sched.Arm(s.deletion.Key(keyARN(scope, id).String()), p.DeletionDate)
 				}
 			}
-			return out
+			return struct{}{}
 		})
-		for _, a := range pending {
-			sched.Arm(a.Key, a.Due)
-		}
 	}
 }
 
@@ -68,11 +66,7 @@ func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 	return store.Read(cell, func(st *State) []kernel.Resource {
 		out := make([]kernel.Resource, 0, len(st.Keys))
 		for _, id := range slices.Sorted(maps.Keys(st.Keys)) {
-			arn, err := aws.ParseARN(keyARN(scope, id))
-			if err != nil {
-				continue
-			}
-			out = append(out, kernel.Resource{ARN: arn, Summary: string(st.Keys[id].Lifecycle.keyState())})
+			out = append(out, kernel.Resource{ARN: keyARN(scope, id), Summary: string(st.Keys[id].Lifecycle.keyState())})
 		}
 		return out
 	})

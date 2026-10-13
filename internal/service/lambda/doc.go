@@ -9,9 +9,8 @@
 // plane is an Execution built beside the Service (NewExecution): Invoke
 // in its three modes, the asynchronous queue with its retries, function
 // logs delivered to CloudWatch Logs, reset draining and hot reload; the
-// decisions it takes are listed at the top of invoke.go. Until the server
-// builds an Execution, Invoke answers 501 in Lambda's error format. The
-// SQS poller and the function URL data plane are not bound yet.
+// decisions it takes are listed at the top of invoke.go. Without a Docker
+// daemon, Invoke answers 501 NotImplemented naming Docker.
 //
 // Provisioning states follow the lambda.stateTransitions switch
 // (ARCHITECTURE.md 9): with the default, a function is Active and an

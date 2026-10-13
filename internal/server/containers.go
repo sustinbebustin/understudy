@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net"
 	"net/netip"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -94,6 +96,30 @@ type LambdaNetworkDisabledError struct{}
 
 func (*LambdaNetworkDisabledError) Error() string {
 	return "lambda.network is disabled by configuration, so no function container runs while every Lambda control plane operation keeps working; set lambda.network to auto or bridge to run functions"
+}
+
+// BridgeGatewayError is a configured lambda.network bridge gateway that no
+// Docker bridge network has. The container listener would serve the
+// unauthenticated AWS API on it, and a private LAN address such as
+// 192.168.1.10 passes every check the configuration can make, so only the
+// daemon's own networks can tell a bridge gateway apart.
+type BridgeGatewayError struct {
+	Gateway netip.Addr
+	// Known are the gateways of the daemon's bridge networks.
+	Known []netip.Addr
+}
+
+func (e *BridgeGatewayError) Error() string {
+	known := "none"
+	if len(e.Known) > 0 {
+		names := make([]string, len(e.Known))
+		for i, a := range e.Known {
+			names[i] = a.String()
+		}
+		known = strings.Join(names, ", ")
+	}
+	return fmt.Sprintf("lambda.network bridge gateway %s is not the gateway of any Docker bridge network (the daemon's are: %s), so understudy does not open the container listener on it; "+
+		"set lambda.network to the gateway function containers use, or to auto", e.Gateway, known)
 }
 
 func newContainerHost(setting Docker, network LambdaNetwork, ownership docker.Ownership, clk *clock.Clock, log *slog.Logger) (*containerHost, error) {
@@ -222,10 +248,12 @@ func (h *containerHost) serving(port uint16, open func(netip.AddrPort) error) {
 // socket that does not answer surfaces on the first call instead.
 func (h *containerHost) missing() string {
 	if h.client == nil {
-		return "Docker is disabled by configuration, so Lambda functions cannot run and DynamoDB Local cannot start"
+		return "Docker is disabled by configuration (--docker disabled, or a DOCKER_HOST that is not a unix:// socket), so Lambda functions cannot run and DynamoDB Local cannot start; " +
+			"set --docker (UNDERSTUDY_DOCKER) to a Docker socket such as unix:///var/run/docker.sock to run them"
 	}
 	if _, err := os.Stat(h.socket); errors.Is(err, fs.ErrNotExist) {
-		return "no Docker socket at " + h.socket + ": mount the Docker socket or point DOCKER_HOST at one to run Lambda functions and DynamoDB Local"
+		return "no Docker socket at " + h.socket + ": start Docker (in a container, mount its socket), or point --docker (UNDERSTUDY_DOCKER, which wins over DOCKER_HOST) at its unix:// socket, " +
+			"to run Lambda functions and DynamoDB Local"
 	}
 	return ""
 }
@@ -246,6 +274,9 @@ func (h *containerHost) topologyLocked(ctx context.Context) (topology.Topology, 
 		return nil, &NoDockerError{Reason: reason}
 	}
 	if bridge, ok := h.network.(NetworkBridge); ok {
+		if err := h.checkGateway(ctx, bridge.Gateway); err != nil {
+			return nil, err
+		}
 		h.top = topology.LinuxBridge{Gateway: bridge.Gateway}
 		h.log.LogAttrs(ctx, slog.LevelInfo, "using the configured container topology", slog.String("topology", h.top.String()))
 		return h.top, nil
@@ -257,6 +288,32 @@ func (h *containerHost) topologyLocked(ctx context.Context) (topology.Topology, 
 	h.top = top
 	h.log.LogAttrs(ctx, slog.LevelInfo, "detected the container topology", slog.String("topology", top.String()))
 	return top, nil
+}
+
+// checkGateway refuses a configured bridge gateway that is not the gateway
+// of one of the daemon's bridge networks.
+func (h *containerHost) checkGateway(ctx context.Context, gateway netip.Addr) error {
+	networks, err := h.client.NetworkList(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("server: listing Docker's networks to check the lambda.network bridge gateway %s: %w", gateway, err)
+	}
+	var known []netip.Addr
+	for _, n := range networks {
+		if n.Driver != "bridge" {
+			continue
+		}
+		for _, c := range n.IPAM.Config {
+			gw, err := netip.ParseAddr(c.Gateway)
+			if err != nil {
+				continue
+			}
+			if gw.Unmap() == gateway.Unmap() {
+				return nil
+			}
+			known = append(known, gw)
+		}
+	}
+	return &BridgeGatewayError{Gateway: gateway, Known: known}
 }
 
 // topologyName names how containers reach understudy, for health: the
@@ -282,7 +339,7 @@ func (h *containerHost) topologyName() admin.Topology {
 		return admin.TopologyInContainer
 	case nil:
 	}
-	if inContainer() {
+	if topology.RunsInContainer(os.DirFS("/")) {
 		return admin.TopologyInContainer
 	}
 	return admin.TopologyHost
@@ -326,7 +383,15 @@ func (h *containerHost) lambda(ctx context.Context) (*lambdaHost, error) {
 	if err != nil {
 		return nil, err
 	}
-	api, err := runtimeapi.NewServer(runtimeapi.Options{Clock: h.clock, Topology: top, Logger: h.log})
+	// The Runtime API listeners bind the same gateway as the container
+	// listener, so they serve the same container network only.
+	var peers netip.Prefix
+	if addrs.NeedsContainerListener {
+		if peers, err = bridgeSubnet(addrs.ListenerBind, net.InterfaceAddrs); err != nil {
+			return nil, err
+		}
+	}
+	api, err := runtimeapi.NewServer(runtimeapi.Options{Clock: h.clock, Topology: top, Logger: h.log, Peers: peers})
 	if err != nil {
 		return nil, err
 	}
@@ -364,6 +429,26 @@ func (h *containerHost) sweep(ctx context.Context) {
 	}
 }
 
+// removeOwn removes every container and empty network this instance still
+// has, the last defence after the orderly stop, which may have run out of
+// time. It returns what it could not remove. Every container starts after
+// the topology is known, so without one there is nothing to remove and
+// Docker is not asked.
+func (h *containerHost) removeOwn(ctx context.Context) error {
+	h.mu.Lock()
+	used := h.top != nil
+	h.mu.Unlock()
+	if !used || h.missing() != "" {
+		return nil
+	}
+	removed, err := h.client.RemoveInstance(ctx, h.ownership)
+	if n := len(removed.Containers) + len(removed.Networks); n > 0 {
+		h.log.LogAttrs(ctx, slog.LevelWarn, "removed containers the orderly shutdown left behind",
+			slog.Int("containers", len(removed.Containers)), slog.Int("networks", len(removed.Networks)))
+	}
+	return err
+}
+
 // close releases the Runtime API listeners and the Docker client's
 // connections, after the pool has drained.
 func (h *containerHost) close() error {
@@ -394,9 +479,10 @@ func (h *containerHost) dockerStatus(ctx context.Context) admin.ServiceStatus {
 	return admin.ServiceStatus{Status: admin.Enabled}
 }
 
-// components is the health of Docker and DynamoDB Local; Lambda and
-// DynamoDB take Docker's state while it is not enabled, and Lambda is
-// disabled while lambda.network is.
+// components is the health of Docker and DynamoDB Local. DynamoDB takes
+// Docker's state while it is not enabled. Lambda is degraded, not
+// disabled, while Docker is not enabled or lambda.network is disabled: its
+// control plane keeps working and only running functions fails.
 type components struct {
 	host  *containerHost
 	local *lazyLocal
@@ -409,7 +495,8 @@ var _ serveradmin.Components = components{}
 func (c components) Components(ctx context.Context) serveradmin.ComponentStatus {
 	out := serveradmin.ComponentStatus{Docker: c.host.dockerStatus(ctx), Topology: c.host.topologyName(), Services: map[ref.ServiceID]admin.ServiceStatus{}}
 	if out.Docker.Status != admin.Enabled {
-		out.Services["lambda"] = out.Docker
+		// Docker's own row gives its reason.
+		out.Services["lambda"] = controlPlaneOnly("Docker is " + string(out.Docker.Status))
 		out.Services["dynamodb"] = out.Docker
 		out.DynamoDBLocal = out.Docker
 	} else {
@@ -419,7 +506,17 @@ func (c components) Components(ctx context.Context) serveradmin.ComponentStatus 
 		}
 	}
 	if reason := c.host.lambdaOff(); reason != "" {
-		out.Services["lambda"] = admin.ServiceStatus{Status: admin.Disabled, Reason: reason}
+		out.Services["lambda"] = controlPlaneOnly(reason)
 	}
 	return out
+}
+
+// controlPlaneOnlyLabel qualifies a degraded Lambda in the banner.
+const controlPlaneOnlyLabel = "control plane only"
+
+// controlPlaneOnly is Lambda's status when no function can run, for why:
+// CreateFunction, GetFunction and every other control plane operation
+// still work, and only Invoke fails.
+func controlPlaneOnly(why string) admin.ServiceStatus {
+	return admin.ServiceStatus{Status: admin.Degraded, Reason: controlPlaneOnlyLabel + ": functions can be created, read and changed, but Invoke cannot run them: " + why}
 }

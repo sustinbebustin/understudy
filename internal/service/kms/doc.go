@@ -26,11 +26,19 @@
 //     key, created on first use by an operation of the key's own account
 //     that resolves the alias; an alias ARN from another account and the
 //     KeyId of Decrypt and ReEncrypt only find one that exists. ListAliases
-//     does not list predefined aliases that name no key yet.
+//     without KeyId lists a predefined alias that names no key yet with
+//     only its name and ARN, as AWS documents, and never stores it. The key
+//     gets the fixed policy AWS documents for aws/secretsmanager, scoped by
+//     kms:ViaService to its own service; AWS documents no other service's.
+//   - CreateAlias and UpdateAlias answer LimitExceededException past 50
+//     aliases per key, AWS's documented quota; the text is understudy's
+//     own.
 //   - Operations that change a key (tags, rotation, enable, disable,
 //     description, key policy, scheduled deletion), CreateAlias and
-//     UpdateAlias targeting one, and DeleteAlias of an alias/aws/ alias
-//     answer UnsupportedOperationException for AWS managed keys. AWS
+//     UpdateAlias targeting one, and UpdateAlias and DeleteAlias of an
+//     existing alias/aws/ alias answer UnsupportedOperationException for
+//     AWS managed keys; an alias/aws/ name that names nothing is
+//     NotFoundException, as UpdateAlias and DeleteAlias model. AWS
 //     refuses them through the managed key's fixed key policy, which
 //     phase 1 does not evaluate; the text is understudy's own.
 //   - The key management operations, which AWS documents as not usable

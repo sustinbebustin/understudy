@@ -121,29 +121,6 @@ func TestParseAPIVersionRejectsMalformedValues(t *testing.T) {
 	}
 }
 
-func TestParseDockerHost(t *testing.T) {
-	cases := []struct {
-		in, want string
-		ok       bool
-	}{
-		{in: "", want: docker.DefaultSocket, ok: true},
-		{in: "unix:///run/user/1000/docker.sock", want: "/run/user/1000/docker.sock", ok: true},
-		{in: "tcp://127.0.0.1:2375"},
-		{in: "ssh://me@host"},
-		{in: "unix://"},
-	}
-	for _, tc := range cases {
-		got, err := docker.ParseDockerHost(tc.in)
-		var uerr *docker.UnsupportedEndpointError
-		switch {
-		case tc.ok && (err != nil || got != tc.want):
-			t.Errorf("ParseDockerHost(%q) = %q, %v; want %q", tc.in, got, err, tc.want)
-		case !tc.ok && !errors.As(err, &uerr):
-			t.Errorf("ParseDockerHost(%q) error = %v, want *UnsupportedEndpointError", tc.in, err)
-		}
-	}
-}
-
 func TestUnreachableDaemonIsUnavailableWithTheReason(t *testing.T) {
 	dir, err := os.MkdirTemp("", "dkr-") //nolint:usetesting // t.TempDir paths can exceed the unix socket path limit
 	if err != nil {

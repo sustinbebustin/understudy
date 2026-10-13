@@ -59,7 +59,7 @@ func (r Report) writeKnownFailures(b *strings.Builder) {
 	}
 	b.WriteString("\n### Known failures\n\n")
 	b.WriteString("Cases understudy fails because a part it builds on cannot yet express what they assert. " +
-		"They count as failed above; each reason names the package to fix, and docs/plan/DEFERRED.md tracks the work.\n\n")
+		"They count as failed above; each reason names, in parentheses, the package to fix.\n\n")
 	b.WriteString(row("Protocol", "Kind", "Case", "Reason"))
 	b.WriteString("|---|---|---|---|\n")
 	for _, f := range failed {

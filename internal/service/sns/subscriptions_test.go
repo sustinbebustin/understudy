@@ -16,6 +16,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
 )
 
@@ -289,10 +290,10 @@ func TestPendingHTTPSubscriptionConfirmsAndUnsubscribesByLink(t *testing.T) {
 		if len(token) != 288 {
 			h.Errorf("token %q has %d characters, want 288", token, len(token))
 		}
-		_, err = call(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: "abc"})
+		_, err = call(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: "abc123"})
 		wantError(h, err, "InvalidParameter", "Invalid parameter: Token")
 		_, err = call(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: strings.Repeat("0", 288)})
-		wantError(h, err, "InvalidParameter", "Invalid token")
+		wantError(h, err, "InvalidParameter", "Invalid parameter: Token")
 		_, err = call(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: "arn:aws:sns:eu-west-1:000000000000:events", Token: token})
 		wantError(h, err, "InvalidParameter", "Invalid parameter: Topic")
 
@@ -352,7 +353,147 @@ func TestConfirmLinkAndTokenExpiry(t *testing.T) {
 		// Tokens confirm for two days of emulator time (sns.md 3.1).
 		h.advance(48 * time.Hour)
 		_, err := call(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: token})
-		wantError(h, err, "InvalidParameter", "Invalid token")
+		wantError(h, err, "InvalidParameter", "Invalid parameter: Token")
+	})
+}
+
+// TestConfirmSubscriptionTokenErrorsAsRecorded replays the AWS recordings
+// of LocalStack's test_sns_confirm_subscription_wrong_token and
+// test_subscribe_external_http_endpoint: a token that is not hex is
+// "Invalid token", a hex token that confirms nothing is "Invalid
+// parameter: Token" whatever the topic name, and a valid token confirms
+// its subscription even under a topic name that names no topic. No answer
+// is NotFound.
+func TestConfirmSubscriptionTokenErrorsAsRecorded(t *testing.T) {
+	// unmatched is the 288-hex token the recordings send, which confirms
+	// nothing.
+	const unmatched = "51b2ff3edb475b7d91550e0ab6edf0c1de2a34e6ebaf6c2262a001bcb7e051c43aa00022ceecce70bd2a67b2042da8d8eb47fef7a4e4e942d23e7fa56146b9ee35da040b4b8af564cc4184a7391c834cb75d75c22981f776ad1ce8805e9bab29da2329985337bb8095627907b46c8577c8440556b6f86582a954758026f41fc62041c4b3f67b0f5921232b5dae5aaca1"
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		missing := topic[:len(topic)-1] + "i"
+		for _, tc := range []struct{ topic, token, message string }{
+			{missing, unmatched, "Invalid parameter: Token"},
+			{topic, "randomtoken", "Invalid token"},
+			{topic, unmatched, "Invalid parameter: Token"},
+			{topic, "abc123", "Invalid parameter: Token"},
+		} {
+			_, err := call(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: tc.topic, Token: tc.token})
+			wantError(h, err, "InvalidParameter", tc.message)
+		}
+
+		arn := h.subscribe(topic, "http", "http://127.0.0.1:9000/hook", nil)
+		token := h.token(arn)
+		confirmed := must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: missing, Token: token})
+		if *confirmed.SubscriptionArn != arn {
+			h.Errorf("ConfirmSubscription under %s = %q, want the subscription's own ARN %q", missing, *confirmed.SubscriptionArn, arn)
+		}
+		if got := h.subscriptionAttributes(arn)["PendingConfirmation"]; got != "false" {
+			h.Errorf("PendingConfirmation after the confirmation = %q, want false", got)
+		}
+	})
+}
+
+// TestConfirmLinkChecksTheTokensScope: the SubscribeURL with the topic's
+// ARN in another Region is "Invalid parameter: Topic", as AWS-recorded,
+// even where that Region has topics of its own; under a topic name of the
+// right scope that names no topic it confirms; a token of the wrong
+// length is "Invalid parameter: Token".
+func TestConfirmLinkChecksTheTokensScope(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		home := h.scope
+		if err := h.scope.Region.UnmarshalText([]byte("eu-central-1")); err != nil {
+			h.Fatal(err)
+		}
+		h.topic("events", nil)
+		h.scope = home
+
+		arn := h.subscribe(topic, "http", "http://127.0.0.1:9000/hook", nil)
+		token := h.token(arn)
+		confirmLink := func(topicARN, token string) *awserr.Error {
+			h.Helper()
+			_, err := h.link("ConfirmSubscriptionLink", "/_understudy/sns/ConfirmSubscriptionLink?Action=ConfirmSubscription&TopicArn="+url.QueryEscape(topicARN)+"&Token="+token)
+			return err
+		}
+		wantError(h, confirmLink("not-an-arn", token), "InvalidParameter", "Invalid parameter: Topic")
+		wantError(h, confirmLink(topic, "abc123"), "InvalidParameter", "Invalid parameter: Token")
+		wantError(h, confirmLink(strings.Replace(topic, "us-east-1", "eu-central-1", 1), token), "InvalidParameter", "Invalid parameter: Topic")
+		if got := h.subscriptionAttributes(arn)["PendingConfirmation"]; got != "true" {
+			h.Fatalf("a refused link confirmed the subscription: PendingConfirmation = %q", got)
+		}
+		if err := confirmLink(topic[:len(topic)-1]+"a", token); err != nil {
+			h.Fatalf("ConfirmSubscriptionLink under a missing topic name = %s %q", err.ID.QueryCode, err.Message)
+		}
+		if got := h.subscriptionAttributes(arn)["PendingConfirmation"]; got != "false" {
+			h.Errorf("PendingConfirmation after the link = %q, want false", got)
+		}
+	})
+}
+
+// TestDeletedTopicsSubscriptionsStayReadable replays LocalStack's
+// test_delete_subscriptions_on_delete_topic (AWS-recorded): after
+// DeleteTopic its subscription still reads back with every attribute, its
+// TopicArn naming the deleted topic. It is not listed, receives nothing
+// from a topic recreated under the name, Unsubscribe removes it, and it is
+// gone once detached-retention passes.
+func TestDeletedTopicsSubscriptionsStayReadable(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		arn := h.subscribe(topic, "sqs", queueARN, map[string]string{"RawMessageDelivery": "true"})
+		before := h.subscriptionAttributes(arn)
+		must(h, snsapi.OpDeleteTopic, &snsapi.DeleteTopicInput{TopicArn: topic})
+
+		if after := h.subscriptionAttributes(arn); !maps.Equal(after, before) {
+			h.Errorf("GetSubscriptionAttributes after DeleteTopic =\n%v\nwant\n%v", after, before)
+		}
+		if listed := must(h, snsapi.OpListSubscriptions, &snsapi.ListSubscriptionsInput{}).Subscriptions; len(listed) != 0 {
+			h.Errorf("ListSubscriptions = %+v, want none", listed)
+		}
+		h.topic("events", nil)
+		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
+		if n := len(h.sink.all()); n != 0 {
+			h.Errorf("outbox took %d deliveries for a detached subscription, want 0", n)
+		}
+		h.subscriptionAttributes(arn)
+
+		must(h, snsapi.OpUnsubscribe, &snsapi.UnsubscribeInput{SubscriptionArn: arn})
+		_, err := call(h, snsapi.OpGetSubscriptionAttributes, &snsapi.GetSubscriptionAttributesInput{SubscriptionArn: arn})
+		wantError(h, err, "NotFound", "Subscription does not exist")
+
+		other := h.subscribe(topic, "sqs", queueARN, nil)
+		must(h, snsapi.OpDeleteTopic, &snsapi.DeleteTopicInput{TopicArn: topic})
+		h.advance(48*time.Hour - time.Millisecond)
+		h.subscriptionAttributes(other)
+		h.advance(time.Millisecond)
+		_, err = call(h, snsapi.OpGetSubscriptionAttributes, &snsapi.GetSubscriptionAttributesInput{SubscriptionArn: other})
+		wantError(h, err, "NotFound", "Subscription does not exist")
+	})
+}
+
+// TestQueueOwnersSubscriptionRefusesTheLink: an sqs subscription the
+// queue's owner made has AuthenticateOnUnsubscribe=true, as AWS documents
+// (cross-account doc), so the unsigned UnsubscribeURL cannot remove it and
+// an Unsubscribe call can. A lambda subscription has no such rule.
+func TestQueueOwnersSubscriptionRefusesTheLink(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		arn := h.subscribe(topic, "sqs", queueARN, nil)
+		unsubscribeLink := func(arn string) *awserr.Error {
+			h.Helper()
+			_, err := h.link("UnsubscribeLink", "/_understudy/sns/UnsubscribeLink?Action=Unsubscribe&SubscriptionArn="+url.QueryEscape(arn))
+			return err
+		}
+		wantError(h, unsubscribeLink(arn), "InvalidParameter", "Invalid parameter: SubscriptionArn Reason: the queue owner subscribed its own queue, "+
+			"which sets AuthenticateOnUnsubscribe=true, so only a signed Unsubscribe call can remove it; the subscription is unchanged")
+		h.subscriptionAttributes(arn)
+		must(h, snsapi.OpUnsubscribe, &snsapi.UnsubscribeInput{SubscriptionArn: arn})
+
+		lambda := h.subscribe(topic, "lambda", functionARN, nil)
+		if err := unsubscribeLink(lambda); err != nil {
+			h.Fatalf("UnsubscribeLink of a lambda subscription = %s %q", err.ID.QueryCode, err.Message)
+		}
+		_, err := call(h, snsapi.OpGetSubscriptionAttributes, &snsapi.GetSubscriptionAttributesInput{SubscriptionArn: lambda})
+		wantError(h, err, "NotFound", "Subscription does not exist")
 	})
 }
 
@@ -417,6 +558,41 @@ func TestAuthenticateOnUnsubscribeRefusesTheLink(t *testing.T) {
 		must(h, snsapi.OpUnsubscribe, &snsapi.UnsubscribeInput{SubscriptionArn: arn})
 		_, err := call(h, snsapi.OpGetSubscriptionAttributes, &snsapi.GetSubscriptionAttributesInput{SubscriptionArn: arn})
 		wantError(h, err, "NotFound", "Subscription does not exist")
+	})
+}
+
+// TestListSubscriptionsListsTheRequestersOwn: ListSubscriptions returns the
+// requester's subscriptions (API_ListSubscriptions.html): one an account
+// makes on another account's topic is listed for the subscriber, not for
+// the topic owner, while ListSubscriptionsByTopic shows both.
+func TestListSubscriptionsListsTheRequestersOwn(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		h.subscribe(topic, "sqs", queueARN, nil)
+		home := h.scope
+		other, err := aws.ParseAccountID("111111111111")
+		if err != nil {
+			h.Fatal(err)
+		}
+		h.scope.Account = other
+		h.subscribe(topic, "sqs", "arn:aws:sqs:us-east-1:111111111111:mine", nil)
+
+		listedFor := func(scope aws.Scope) []snsapi.Subscription {
+			h.Helper()
+			h.scope = scope
+			return must(h, snsapi.OpListSubscriptions, &snsapi.ListSubscriptionsInput{}).Subscriptions
+		}
+		subscriber := home
+		subscriber.Account = other
+		if got := listedFor(subscriber); len(got) != 1 || *got[0].Owner != "111111111111" || *got[0].TopicArn != topic {
+			h.Errorf("subscriber's ListSubscriptions = %+v, want its one subscription to %s", got, topic)
+		}
+		if got := listedFor(home); len(got) != 1 || *got[0].Owner != home.Account.String() || *got[0].Endpoint != queueARN {
+			h.Errorf("topic owner's ListSubscriptions = %+v, want only its own subscription", got)
+		}
+		if n := len(must(h, snsapi.OpListSubscriptionsByTopic, &snsapi.ListSubscriptionsByTopicInput{TopicArn: topic}).Subscriptions); n != 2 {
+			h.Errorf("ListSubscriptionsByTopic has %d subscriptions, want 2", n)
+		}
 	})
 }
 

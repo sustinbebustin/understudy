@@ -68,7 +68,9 @@
 // Object members and entries that share a normalized name, and any whose
 // name normalizing changed, are numbered name#1, name#2, ... in the order of
 // their normalized values, so maps keyed by ids line up by content and a
-// lone masked key lines up with the first of several.
+// lone masked key lines up with the first of several. The member-name rules
+// read a name without its trailing #n suffixes, so normalizing a normalized
+// tree changes nothing.
 //
 // Decisions the architecture leaves open:
 //
@@ -106,15 +108,22 @@
 //   - The load side of a service is Stateful (ResetAll, Import, Rearm) and
 //     Late (ImportLate): the package cannot import kernel, so the server
 //     adapts kernel.Stateful's Reset(scope) to ResetAll. Runtime reads and
-//     restores the clock, id streams, journal counter and fault rules;
-//     Restore runs outside the gate because the clock's step lock comes
-//     before the gate in the lock order.
+//     restores the clock, id streams, journal counter and fault rules.
+//     RestoreClock runs outside the gate because the clock's step lock comes
+//     before the gate in the lock order; RestoreUnderGate restores the rest
+//     under the gate with the cells, so no call against the old cells draws
+//     an id or a fault decision from the loaded head.
 //   - A Cut holds the Coordinator until WriteAfterCut or Release, so a load
 //     never lands between a cut and its late exports; a Cut or Load waiting
 //     behind it gives up when its context ends. WriteAfterCut refuses
 //     a cut that is released or belongs to another Coordinator. Only Head,
 //     the Exports and the Pin run under the gate; the duplicate-path check
 //     follows the release and hashing waits for Write.
+//   - A committed write hands its deliveries to the outbox after releasing
+//     the gate, so Cut first waits, gate released, up to EffectsWait of wall
+//     time for Effects to report none pending (ADR 0009's settle wait). A
+//     cut taken at the timeout carries the count in Cut.PendingEffects for
+//     the save to report.
 //   - Read holds the whole archive in memory and requires a positive
 //     MaxBytes, which caps the decompressed stream and every entry's
 //     contents; an archive over the cap is a *SizeError even when its format

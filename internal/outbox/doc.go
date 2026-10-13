@@ -12,8 +12,13 @@
 // When the timer fires, the attempt runs as kernel.DeliveryAttempt work,
 // which Settle counts:
 //
-//  1. Delivery-phase fault rules are evaluated; a Drop ends the delivery
-//     with no attempt, a Delay holds it for wall time.
+//  1. Delivery-phase fault rules apply; a Drop ends the delivery with no
+//     attempt, a Delay holds it for wall time. They are evaluated when the
+//     timer fires, before the work starts, so attempts due together hit
+//     NextN budgets and seeded Probability draws in firing order. The
+//     attempt then joins the sequencer, which runs attempts one at a time
+//     in that order, so the request-phase rules and seeded ids of their
+//     target calls follow it too.
 //  2. When a PolicySource is set, access.Advise checks the target's stored
 //     resource policy and a would-deny becomes a journal Advisory; the
 //     attempt is made anyway.
@@ -79,7 +84,22 @@
 // arms the next, due no earlier than the attempt that ended the previous
 // one, so a group arrives in order (sns.md 10). A message group of a
 // standard queue promises no order (sqs.md 8.5) and forms no lane.
-// Attempts outside a lane run concurrently.
+//
+// Attempts run one at a time in firing order on the sequencer, so the same
+// seed, rule set and call order give the same fault hits and ids however
+// the Go scheduler runs goroutines (ADR 0018). The target calls do not
+// block on anything but their target's cell: an SQS SendMessage, an SNS
+// Publish, whose own fan-out comes back through the outbox, and an Event
+// invoke, which Lambda queues. Two kinds of attempt would hold the
+// sequencer for wall time and run on their own goroutine instead, outside
+// that order: one a Delivery-phase latency rule delays, whose order
+// against the others depends on wall time anyway, and a RequestResponse
+// invoke, which waits for the function (no producer delivers one yet).
+// A delivery has at most one attempt in flight: the attempt claims its
+// entry (Entry.Running) until it records its outcome, so a timer that fires
+// again meanwhile, as one Rearm arms for every pending entry does, starts
+// no second attempt. The claim is never saved; an entry a snapshot load
+// brings back is attempted afresh.
 //
 // A dead letter is the payload the target would have received: for SQS the
 // body (the SNS envelope, or the raw message with its attributes as SQS
@@ -97,6 +117,20 @@
 // TopicArn, ..., SigningCertURL, UnsubscribeURL), which only the SNS
 // envelope builder can produce; closing the gap needs the producer to hand
 // the outbox its dead letter in delivery.Request.
+//
+// A FIFO lane is ordered by Seq, drawn when Enqueue runs, after the source
+// cell unlocked. Two publishes to one FIFO topic and group that commit
+// concurrently can reach Enqueue in the reverse of their commit order, so
+// the queue receives them in the reverse of their SNS sequence numbers.
+// Closing the gap needs the kernel to stamp each delivery with an order
+// drawn under the source cell's lock and hand it over in kernel.Delivery.
+//
+// A request-phase latency rule matching a target call holds the sequencer
+// for its wall time, so every delivery due after it waits too, not only
+// those to the matched resource. The outbox cannot hand the call off once
+// its fault decision is taken, because the kernel evaluates request-phase
+// rules inside kernel.Invoke and reports nothing before the delay; closing
+// the gap needs the kernel to signal that decision.
 //
 // The attempt's journal events (Delivery, Advisory, FaultInjected) and its
 // target call carry the source call's cause: the call resumes the entry's

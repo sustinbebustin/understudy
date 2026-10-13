@@ -55,10 +55,14 @@ func (s *Service) createLogStream(_ context.Context, c *kernel.Call, in *logsapi
 	return &logsapi.CreateLogStreamOutput{}, nil
 }
 
-// deleteLogStream deletes a stream with its events.
+// deleteLogStream deletes a stream with its events, unless the group's
+// deletion protection, which covers its streams, is on.
 func (s *Service) deleteLogStream(_ context.Context, c *kernel.Call, in *logsapi.DeleteLogStreamInput) (*logsapi.DeleteLogStreamOutput, *awserr.Error) {
 	ref := named(c, in.LogGroupName)
 	err := s.updateGroup(c, ref, func(g *Group, _ clock.Instant, tx *kernel.Tx) *awserr.Error {
+		if g.DeletionProtection {
+			return errStreamDeletionProtected()
+		}
 		if _, ok := g.Streams[in.LogStreamName]; !ok {
 			return errStreamNotFound()
 		}
@@ -105,7 +109,7 @@ func (s *Service) describeLogStreams(_ context.Context, c *kernel.Call, in *logs
 	if in.Limit != nil {
 		limit = int(*in.Limit)
 	}
-	page, next, ok := pageOf(items, in.Descending != nil && *in.Descending, in.NextToken, limit)
+	page, next, ok := pageOf(items, streamListing(ref), in.Descending != nil && *in.Descending, in.NextToken, limit, c.Admitted())
 	if !ok {
 		return nil, errInvalidToken()
 	}

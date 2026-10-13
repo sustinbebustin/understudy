@@ -1,9 +1,11 @@
 package events
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 )
 
@@ -19,6 +21,16 @@ func errRuleNotFound(name string) *awserr.Error {
 
 func errBusNotFound(name string) *awserr.Error {
 	return eventbridgeapi.ErrResourceNotFoundException("Event bus " + name + " does not exist.")
+}
+
+// errForeignBus is understudy's own answer to a control-plane call on
+// another account's or region's default bus: that bus exists, so "does not
+// exist" would mislead, and understudy does not manage it for this caller.
+func errForeignBus(bus aws.ARN) *awserr.Error {
+	return eventbridgeapi.ErrNotImplemented("understudy manages rules, targets and buses only on the caller's own default event bus, and " +
+		bus.String() + " belongs to account " + bus.Account + " in " + bus.Region +
+		". Call with that account's credentials in that region, or name the bus 'default'. " +
+		"Run 'understudy coverage --service eventbridge' for what is supported.")
 }
 
 // errNoPatternOrSchedule carries moto's text; AWS's is unrecorded.
@@ -85,19 +97,57 @@ const (
 	msgMalformedDetail  = "Detail is malformed."
 )
 
+// A customer event whose Source starts with reservedSourcePrefix fails with
+// NotAuthorizedForSourceException: the aws. namespace is reserved for AWS
+// services. The code is the model's PutEventsResultEntry ErrorCode and an
+// AWS sample records it for source aws.sagemaker; the message is inferred
+// from the model's documentation, as no recorded text exists.
+const (
+	reservedSourcePrefix       = "aws."
+	codeNotAuthorizedForSource = "NotAuthorizedForSourceException"
+	msgNotAuthorizedForSource  = "Not authorized for the source."
+)
+
 func msgRequired(param string) string {
 	return "Parameter " + param + " is not valid. Reason: " + param + " is a required argument."
 }
 
-// codeUnsupportedTarget, msgUnsupportedTarget and msgUnsupportedParameters
-// are understudy's own PutTargets per-entry failure for a target it cannot
-// deliver to or whose parameters it does not model: storing it would make
-// every delivery to it fail, or the parameters be ignored, silently.
-const codeUnsupportedTarget = "NotImplemented"
+// msgTooLong is inferred from msgRequired's recorded form: AWS's text for
+// a member over its documented length is unrecorded.
+func msgTooLong(param string, limit int) string {
+	return "Parameter " + param + " is not valid. Reason: " + param + " is longer than " + strconv.Itoa(limit) + " characters."
+}
 
-func msgUnsupportedTarget(arn string) string {
-	return "understudy delivers EventBridge targets to Lambda functions, SQS queues and SNS topics in an account and region it serves, and " + arn +
-		" is none of them; the target was not added. Run 'understudy coverage --service eventbridge' for what is supported."
+// errTooManyTags is inferred: AWS documents the 50-tag limit, and its
+// refusal's code and text are unrecorded. n is the tag count the request
+// would leave.
+func errTooManyTags(n int) *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Tags are not valid. Reason: a resource can have at most " + strconv.Itoa(maxTags) +
+		" tags, and this request would leave " + strconv.Itoa(n) + ".")
+}
+
+// codeNotImplemented is understudy's own per-entry failure code, in
+// PutTargets and PutEvents, for an entry it cannot act on faithfully.
+const codeNotImplemented = "NotImplemented"
+
+// msgForeignRegionBus is understudy's PutEvents per-entry failure for an
+// event sent, by ARN, to the default bus of another region: that bus
+// exists, so dropping the event as AWS drops one for a missing bus would
+// fail silently, and AWS's answer is unrecorded.
+func msgForeignRegionBus(scope aws.Scope, bus aws.ARN) string {
+	return "understudy sends PutEvents entries to default event buses in the caller's region (" + scope.Region.String() +
+		"), and " + bus.String() + " is in " + bus.Region + "; the event was not sent. " +
+		"Call PutEvents in " + bus.Region + ", or run 'understudy coverage --service eventbridge' for what is supported."
+}
+
+// msgUnsupportedTarget and msgUnsupportedParameters are understudy's own
+// PutTargets per-entry failure for a target it cannot deliver to or whose
+// parameters it does not model: storing it would make every delivery to it
+// fail, or the parameters be ignored, silently.
+func msgUnsupportedTarget(scope aws.Scope, arn string) string {
+	return "understudy delivers EventBridge targets to Lambda functions, SQS queues and SNS topics in the rule's region (" + scope.Region.String() +
+		"), in an account it serves, and " + arn + " is none of them; the target was not added. " +
+		"Run 'understudy coverage --service eventbridge' for what is supported."
 }
 
 func msgUnsupportedParameters(members []string) string {

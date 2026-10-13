@@ -125,7 +125,9 @@
         "Labels": {"target": "com.example.golden#LabelMap"},
         "Nested": {"target": "com.example.golden#Nested", "traits": {"smithy.api#required": {}}},
         "Choice": {"target": "com.example.golden#Choice"},
-        "Secret": {"target": "com.example.golden#Secret"}
+        "Secret": {"target": "com.example.golden#Secret"},
+        "Vault": {"target": "com.example.golden#SecretMap"},
+        "Hints": {"target": "com.example.golden#SparseSecrets"}
       },
       "traits": {"smithy.api#input": {}}
     },
@@ -245,7 +247,17 @@
     },
     "com.example.golden#Secret": {
       "type": "string",
-      "traits": {"smithy.api#sensitive": {}}
+      "traits": {"smithy.api#sensitive": {}, "smithy.api#length": {"max": 8}, "smithy.api#pattern": "^[^!]*$"}
+    },
+    "com.example.golden#SecretMap": {
+      "type": "map",
+      "key": {"target": "com.example.golden#String"},
+      "value": {"target": "com.example.golden#Secret"}
+    },
+    "com.example.golden#SparseSecrets": {
+      "type": "list",
+      "member": {"target": "com.example.golden#Secret"},
+      "traits": {"smithy.api#sparse": {}}
     },
     "com.example.golden#Count": {
       "type": "integer",

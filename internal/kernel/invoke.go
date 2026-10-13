@@ -16,7 +16,7 @@ import (
 type Target struct {
 	// Scope is the target resource's account and region.
 	Scope aws.Scope
-	// As is whom AWS would authorize the call as (F12).
+	// As is whom AWS would authorize the call as.
 	As  PrincipalMode
 	Via ref.Via
 	// At is the admission instant of deferred work: a timer's due instant.
@@ -40,7 +40,8 @@ type Target struct {
 type PrincipalMode interface{ isPrincipalMode() }
 
 // AsCaller is a forward-access call charged to the original principal: S3,
-// Secrets Manager and SQS calling KMS.
+// Secrets Manager, DynamoDB and CloudWatch Logs calling KMS, STS reading
+// the role AssumeRole names, and Lambda reading a package from S3.
 type AsCaller struct{}
 
 // AsExecutionRole is a call made as a function's execution role: event
@@ -120,6 +121,7 @@ func Invoke[In, Out any](ctx context.Context, k *Kernel, parent *Call, op Op[In,
 	case Output:
 		out, ok := r.Out.(*Out)
 		if !ok {
+			k.discard(ctx, c, r.Out)
 			return nil, awserr.Internalf(&TargetError{Op: id, Reason: fmt.Sprintf("the handler's output is %T, want %T", r.Out, (*Out)(nil))})
 		}
 		return out, nil

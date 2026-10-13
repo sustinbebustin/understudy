@@ -48,6 +48,19 @@ func checkCreateLogGroup(in *logsapi.CreateLogGroupInput) *awserr.Error {
 	return nil
 }
 
+// checkDescribeLogGroups runs DescribeLogGroups' exclusivity rules:
+// prefix and pattern exclude each other, and logGroupIdentifiers admits
+// no other filter but includeLinkedAccounts.
+func checkDescribeLogGroups(in *logsapi.DescribeLogGroupsInput) *awserr.Error {
+	switch {
+	case in.LogGroupNamePrefix != nil && in.LogGroupNamePattern != nil:
+		return errPrefixAndPattern()
+	case len(in.LogGroupIdentifiers) > 0 && (in.LogGroupNamePrefix != nil || in.LogGroupNamePattern != nil || in.LogGroupClass != nil):
+		return errIdentifiersAndFilters()
+	}
+	return nil
+}
+
 // checkPutLogEvents runs the batch rules that need no state: chronological
 // order first, as AWS checks it before the time windows, then the batch
 // size.
@@ -96,14 +109,17 @@ func checkGetLogEvents(in *logsapi.GetLogEventsInput) *awserr.Error {
 // startFromHead=false: 2024-01-01T00:00:00Z.
 func backwardFloor() int64 { return time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli() }
 
-// checkFilterLogEvents runs FilterLogEvents' exclusivity rules.
+// checkFilterLogEvents runs FilterLogEvents' exclusivity rules. With
+// startFromHead=false only a startTime that is sent and earlier than
+// backwardFloor is refused; AWS's own "most recent events" example sends
+// none.
 func checkFilterLogEvents(in *logsapi.FilterLogEventsInput) *awserr.Error {
 	switch {
 	case in.LogGroupName != nil && in.LogGroupIdentifier != nil:
 		return errNameAndIdentifier()
 	case len(in.LogStreamNames) > 0 && in.LogStreamNamePrefix != nil:
 		return errStreamNamesAndPrefix()
-	case in.StartFromHead != nil && !*in.StartFromHead && (in.StartTime == nil || *in.StartTime < backwardFloor()):
+	case in.StartFromHead != nil && !*in.StartFromHead && in.StartTime != nil && *in.StartTime < backwardFloor():
 		return errBackwardBefore2024()
 	}
 	return nil

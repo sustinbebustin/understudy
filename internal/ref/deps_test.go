@@ -24,22 +24,21 @@ type importRule struct {
 	imports []string
 }
 
-// importRules mirrors ARCHITECTURE.md section 2. Where a task in
-// docs/plan/PHASE1-PLAN.md specifies a type from another package, the edge is
-// added and the task named. Rows for packages section 2 does not list follow
-// the owning task's spec. Test files are exempt: cross-service imports are
-// allowed in tests.
+// importRules mirrors ARCHITECTURE.md section 2. An edge section 2 does not
+// list, and every row for a package section 2 does not name, carries a comment
+// giving its reason. Test files are exempt: cross-service imports are allowed
+// in tests.
 func importRules() []importRule {
 	codec := []string{"internal/protocol/smithy/...", "internal/awserr", "internal/ref", "internal/registry", "internal/aws"}
 	withCodec := func(extra ...string) []string { return append(slices.Clone(codec), extra...) }
 	kernel := []string{
 		"internal/registry", "internal/journal", "internal/fault", "internal/access", "internal/identity",
 		"internal/clock", "internal/ids", "internal/store", "internal/delivery", "internal/awserr", "internal/ref",
-		// T16: Call carries an aws.Scope (ResolveScope), and Validate selects
+		// Call carries an aws.Scope (ResolveScope), and Validate selects
 		// per-member identities from the generated smithy descriptors.
 		"internal/aws", "internal/protocol/smithy/...",
-		// ServiceDeps carries the blob store, the Docker client and the topology (ARCHITECTURE.md 3.2).
-		"internal/blob", "internal/docker", "internal/topology",
+		// ServiceDeps carries the blob store and the Docker client (ARCHITECTURE.md 3.2).
+		"internal/blob", "internal/docker",
 	}
 	service := []string{
 		"internal/service/{self}/...", "internal/api/...", "internal/kernel", "internal/store", "internal/clock",
@@ -49,14 +48,15 @@ func importRules() []importRule {
 		// "The engines it needs" (ARCHITECTURE.md 2).
 		"internal/checksum", "internal/awschunked", "internal/ruler", "internal/logsfilter", "internal/schedexpr",
 		"internal/policydoc", "internal/docker", "internal/topology",
-		// T30 and T38: access keys and execution-role credentials are minted
-		// through identity.Store; T33: the DynamoDB proxy rewrites the SigV4
-		// credential scope through auth.
+		// Access keys and execution-role credentials are minted through
+		// identity.Store; the DynamoDB proxy rewrites the SigV4 credential
+		// scope through auth.
 		"internal/identity", "internal/auth",
 		// Persisted sums use the jsonx tagged-union convention (ARCHITECTURE.md
-		// 13); T33 rewrites DynamoDB Local responses through jsonx.Value.
+		// 13); the DynamoDB proxy rewrites DynamoDB Local responses through
+		// jsonx.Value.
 		"internal/protocol/jsonx",
-		// Wave 6: a handler describes the events it causes with journal
+		// A handler describes the events it causes with journal
 		// Detail values and records them through kernel.Call.Record or
 		// kernel.Tx.Record, which stamp the cause (ARCHITECTURE.md 10).
 		"internal/journal",
@@ -80,7 +80,7 @@ func importRules() []importRule {
 		{"internal/ruler", nil},
 		{"internal/logsfilter", nil},
 		{"internal/ref", []string{"internal/aws"}},
-		{"internal/store", []string{"internal/aws"}}, // T04: key codecs for aws.Scope and aws.AccountID
+		{"internal/store", []string{"internal/aws"}}, // key codecs for aws.Scope and aws.AccountID
 		{"internal/fidelity", []string{"internal/evidence"}},
 		{"internal/topology", []string{"internal/docker"}},
 		{"internal/docker/dockertest", []string{"internal/docker"}},
@@ -92,9 +92,9 @@ func importRules() []importRule {
 		{"internal/registry", []string{"internal/awserr", "internal/protocol/smithy/...", "internal/ref", "internal/aws"}},
 		// ADR 0007 amendment and ARCHITECTURE.md 10: Delivery events carry a delivery.Mechanism.
 		{"internal/journal", []string{"internal/ref", "internal/aws", "internal/clock", "internal/ids", "internal/delivery"}},
-		// T13: rules export as JSON through the jsonx tagged-union convention.
+		// Rules export as JSON through the jsonx tagged-union convention.
 		{"internal/fault", []string{"internal/ref", "internal/aws", "internal/awserr", "internal/protocol/smithy/...", "internal/ids", "internal/delivery", "internal/protocol/jsonx"}},
-		// T14: recorder entries carry registry.IAMAction.
+		// Recorder entries carry registry.IAMAction.
 		{"internal/access", []string{"internal/ref", "internal/aws", "internal/policydoc", "internal/registry"}},
 		{"internal/identity", []string{"internal/aws", "internal/ids", "internal/clock"}},
 		{"internal/auth", []string{"internal/aws", "internal/awserr", "internal/clock", "internal/ref"}},
@@ -102,23 +102,23 @@ func importRules() []importRule {
 		{"internal/kernel/kerneltest", append(slices.Clone(kernel), "internal/kernel")},
 		{"internal/outbox", []string{
 			"internal/kernel", "internal/delivery", "internal/journal", "internal/store", "internal/clock",
-			"internal/api/...", // T23: attempts call the generated SendMessage, Invoke and Publish ops
-			// T23: entries live in Partitioned[aws.Scope, State], Enqueue takes a
+			"internal/api/...", // attempts call the generated SendMessage, Invoke and Publish ops
+			// Entries live in Partitioned[aws.Scope, State], Enqueue takes a
 			// ref.Cause and returns an ids.DeliveryID, and Stateful exports
 			// through jsonx (ARCHITECTURE.md 13).
 			"internal/aws", "internal/ref", "internal/ids", "internal/protocol/jsonx",
-			// T23: Phase Delivery fault evaluation; client-side failures
+			// Phase Delivery fault evaluation; client-side failures
 			// (QueueDoesNotExist) are told apart by their awserr identity.
 			"internal/fault", "internal/awserr",
-			// T23: access advisories call access.Advise with the target's stored
+			// Access advisories call access.Advise with the target's stored
 			// policydoc.Document and the registry.IAMAction of the attempt.
 			"internal/access", "internal/policydoc", "internal/registry",
 		}},
-		// T17: the manifest records JournalNext as a ref.EventID.
+		// The manifest records JournalNext as a ref.EventID.
 		{"internal/snapshot", []string{"internal/store", "internal/blob", "internal/protocol/jsonx", "internal/clock", "internal/ids", "internal/ref"}},
 		{"internal/coverage", []string{"internal/kernel", "internal/registry", "internal/fidelity", "internal/evidence", "internal/protocoltest", "internal/ref", "internal/protocol/jsonx"}},
 
-		// Wire protocols: never a service or a generated package. T11: a codec
+		// Wire protocols: never a service or a generated package. A codec
 		// claims through the registry and reads the descriptor's identities.
 		{"internal/protocol/jsonx", []string{"internal/protocol/smithy/...", "internal/awserr", "internal/ref"}},
 		{"internal/protocol/restbind", codec},
@@ -131,23 +131,27 @@ func importRules() []importRule {
 		// Generated API packages and services.
 		{"internal/api/...", []string{"internal/protocol/smithy/...", "internal/awserr", "internal/registry", "internal/kernel", "internal/aws", "internal/ref"}},
 		{"internal/service/...", service},
-		// T33: a Synthesized call is encoded for DynamoDB Local through the
+		// A Synthesized call is encoded for DynamoDB Local through the
 		// awsJson codec, the bytes a client would send (ARCHITECTURE.md 15).
 		{"internal/service/dynamodb", append(slices.Clone(service), "internal/protocol/awsjson")},
-		// T28: the raw S3 Control tag operations read and write their XML
+		// The raw S3 Control tag operations read and write their XML
 		// bodies with xmlw and stamp x-amz-id-2 as the restXml codec does.
 		{"internal/service/s3", append(slices.Clone(service), "internal/protocol/xmlw", "internal/protocol/restxml")},
 
 		// Front door, composition root and tools.
 		{"internal/edge", []string{
 			"internal/kernel", "internal/registry", "internal/auth", "internal/identity",
-			// T16: Codecs are keyed by ref.ProtocolID and the Codec interface
+			// Codecs are keyed by ref.ProtocolID and the Codec interface
 			// decodes into smithy descriptors; identity resolution yields an
 			// aws.Scope.
 			"internal/ref", "internal/protocol/smithy/...", "internal/aws",
-			// T16: the Unclaimed journal event and its AWS-shaped 400, request ids
+			// The Unclaimed journal event and its AWS-shaped 400, request ids
 			// and the wall-time Date header from Clock.Wall.
 			"internal/journal", "internal/awserr", "internal/ids", "internal/clock",
+			// The admin API's JSON error envelope for LocalStack paths
+			// (ARCHITECTURE.md 4.1 rule 1); admin imports nothing in the
+			// repository.
+			"admin",
 		}},
 		{"internal/server", []string{"internal/...", "admin"}},
 		{"internal/server/admin", []string{
@@ -156,35 +160,39 @@ func importRules() []importRule {
 			"internal/ids", "internal/store", "internal/blob", "internal/policydoc", "internal/identity", "internal/protocol/jsonx",
 		}},
 		{"internal/config", []string{"internal/aws", "internal/ref", "internal/clock", "internal/fault", "internal/protocol/jsonx"}},
-		// T44: serve maps config.Config onto server.Config; coverage runs
+		// Docker-tagged tests reach the daemon serve would use, resolved by
+		// config; only test files import it.
+		{"internal/config/configtest", []string{"internal/config", "internal/docker"}},
+		// Serve maps config.Config onto server.Config; coverage runs
 		// offline in process and renders, filters and adds overlays through
 		// coverage; snapshot inspect and diff read local archives; doctor and
-		// cleanup reach Docker and detect the topology. None is a service.
+		// cleanup reach Docker and detect the topology; env checks --region
+		// against the region names in the aws leaf. None is a service.
 		{"internal/cli", []string{
 			"admin", "internal/config", "internal/server",
-			"internal/coverage", "internal/snapshot", "internal/docker", "internal/topology",
+			"internal/coverage", "internal/snapshot", "internal/docker", "internal/topology", "internal/aws",
 		}},
 		{"admin", nil},
 		{"understudytest", []string{"admin", "internal/config", "internal/server"}},
 		{"cmd/understudy", []string{"internal/cli", "internal/server", "internal/config", "admin"}},
 		{"internal/codegen", []string{"internal/evidence", "internal/protocol/smithy/...", "internal/ref", "internal/registry", "internal/awserr", "internal/aws"}},
-		// T10: the -service flag is a ref.ServiceID, a leaf codegen imports too.
+		// The -service flag is a ref.ServiceID, a leaf codegen imports too.
 		{"internal/cmd/gen", []string{"internal/codegen", "internal/ref"}},
 		{"internal/cmd/vendor", nil},
-		// T10: the golden fixture is generated like internal/api/..., so it
+		// The golden fixture is generated like internal/api/..., so it
 		// mirrors that row; serdetest holds the serde test doubles, and
 		// validationpolicy is the policy runtime codegen embeds and copies.
 		{"internal/codegen/internal/goldenapi", []string{"internal/protocol/smithy/...", "internal/awserr", "internal/registry", "internal/kernel", "internal/aws", "internal/ref"}},
 		{"internal/codegen/serdetest", []string{"internal/protocol/smithy/..."}},
 		{"internal/codegen/validationpolicy", []string{"internal/awserr"}},
-		// T19: the journal ring rows read journal.DefaultCapacity and
+		// The journal ring rows read journal.DefaultCapacity and
 		// DefaultMaxBytes rather than copying them.
 		{"internal/cmd/budgets", []string{"internal/journal"}},
 		{"internal/protocoltest", []string{
 			"internal/protocoltest/gen/...", "internal/protocol/...", "internal/registry", "internal/awserr", "internal/ref",
 			"internal/aws", "internal/evidence", "internal/kernel", "internal/edge",
 		}},
-		// T19: each generated corpus service's cases_gen.go builds its tables
+		// Each generated corpus service's cases_gen.go builds its tables
 		// from the case vocabulary in internal/protocoltest/gen (case.go).
 		{"internal/protocoltest/gen/...", []string{"internal/protocoltest/gen", "internal/protocol/smithy/...", "internal/awserr", "internal/registry", "internal/kernel", "internal/aws", "internal/ref"}},
 		{"internal/smoke", nil},

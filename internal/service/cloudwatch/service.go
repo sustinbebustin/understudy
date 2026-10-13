@@ -47,7 +47,8 @@ func timestampWindow() fidelity.Switch[string] {
 
 // startRounding is how GetMetricData aligns its periods: StartTime rounds
 // down to the minute, five minutes or hour by its age on the emulator
-// clock, as AWS documents; no recording shows the period boundaries.
+// clock, or to a sub-minute period's division of the minute, as AWS
+// documents; no recording shows the period boundaries.
 func startRounding() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:  "cloudwatch.get-metric-data.start-rounding",

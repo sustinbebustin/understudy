@@ -60,7 +60,7 @@ func TestPreForwardChecksAnswerBeforeLocal(t *testing.T) {
 				"Content-Type": {"application/x-amz-json-1.0"}, "X-Amz-Target": {"DynamoDB_20120810.ListTables"}, "X-Amz-Date": {"20261010T120000Z"},
 				"Authorization": {"AWS4-HMAC-SHA256 Credential=111111111111/20261010/mars-north-1/dynamodb/aws4_request, SignedHeaders=host;x-amz-date, Signature=00"},
 			},
-			status: 400, want: `{"__type":"com.amazon.coral.service#InvalidSignatureException","message":"Credential should be scoped to a valid region, not 'mars-north-1'. Add the name to regions.extra in the understudy configuration to use it."}`,
+			status: 400, want: `{"__type":"com.amazon.coral.service#InvalidSignatureException","message":"Credential should be scoped to a valid region, not 'mars-north-1'. Add the name to the regions array in the understudy configuration to use it."}`,
 		},
 		{
 			name: "T3 generated validation", header: target("ListTables"), body: `{"Limit":101}`, from: defaultCaller(),

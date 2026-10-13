@@ -435,6 +435,18 @@ func (v *PutKindsInput) deserialize(d smithy.Deserializer) error {
 				return err
 			}
 			v.Secret = &x
+		case &memberPutKindsInput_Vault:
+			x, err := deserializeSecretMap(d, &memberPutKindsInput_Vault)
+			if err != nil {
+				return err
+			}
+			v.Vault = x
+		case &memberPutKindsInput_Hints:
+			x, err := deserializeSparseSecrets(d, &memberPutKindsInput_Hints)
+			if err != nil {
+				return err
+			}
+			v.Hints = x
 		default:
 			return fmt.Errorf("goldenapi: structure com.example.golden#PutKindsRequest has no member %q; the codec returned a member of another shape", m.Name)
 		}
@@ -456,6 +468,27 @@ func (v *PutKindsOutput) serialize(s smithy.Serializer, m *smithy.Member) {
 		s.WriteString(&memberPutKindsOutput_Secret, *v.Secret)
 	}
 	s.CloseStruct()
+}
+
+func deserializeSecretMap(d smithy.Deserializer, m *smithy.Member) (map[string]string, error) {
+	if err := d.ReadMap(m); err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for {
+		key, more, err := d.ReadMapKey()
+		if err != nil {
+			return nil, err
+		}
+		if !more {
+			return out, nil
+		}
+		x, err := d.ReadString(&memberSecretMap_value)
+		if err != nil {
+			return nil, err
+		}
+		out[key] = x
+	}
 }
 
 // Serialize writes v through s.
@@ -491,6 +524,35 @@ func deserializeSparseCounts(d smithy.Deserializer, m *smithy.Member) ([]*int32,
 			continue
 		}
 		x, err := d.ReadInt32(&memberSparseCounts_member)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, &x)
+	}
+}
+
+func deserializeSparseSecrets(d smithy.Deserializer, m *smithy.Member) ([]*string, error) {
+	if err := d.ReadList(m); err != nil {
+		return nil, err
+	}
+	out := []*string{}
+	for {
+		more, err := d.ReadListElement()
+		if err != nil {
+			return nil, err
+		}
+		if !more {
+			return out, nil
+		}
+		null, err := d.ReadNull(&memberSparseSecrets_member)
+		if err != nil {
+			return nil, err
+		}
+		if null {
+			out = append(out, nil)
+			continue
+		}
+		x, err := d.ReadString(&memberSparseSecrets_member)
 		if err != nil {
 			return nil, err
 		}

@@ -20,14 +20,18 @@ import (
 // its default socket and DynamoDB Local awaiting its licence.
 type Config struct {
 	// Listen is the address to bind; port 0 picks a free one. An address
-	// beyond loopback needs AdminToken or the ContainerPublished exposure.
+	// beyond loopback needs the ContainerPublished exposure, or AdminToken
+	// and AWSAPIUnauthenticated.
 	Listen netip.AddrPort
 	// AdminToken, when set, is the bearer token every admin call on the
-	// main listener must carry.
+	// main listener must carry. It guards the admin API only.
 	AdminToken string
 	// Exposure is what makes a non-loopback Listen safe without a token;
 	// nil is TokenRequired.
 	Exposure Exposure
+	// AWSAPI is whether a non-loopback Listen on the host may serve the
+	// AWS API to every peer that reaches it; nil is AWSAPILoopbackOnly.
+	AWSAPI AWSAPIExposure
 	// Persist is where state persists; nil is Ephemeral.
 	Persist Persistence
 	// TLS is the TLS listener setting; nil is TLSOff.
@@ -45,7 +49,8 @@ type Config struct {
 	// LoadSnapshot, when set, is an archive loaded at start, over the
 	// persisted state.
 	LoadSnapshot string
-	// Regions are region names accepted beyond AWS's own (regions.extra).
+	// Regions are region names accepted beyond AWS's own (the top-level
+	// regions array of the configuration file).
 	Regions []string
 	// Faults are fault rules active from the start.
 	Faults []fault.Rule
@@ -87,6 +92,33 @@ type Config struct {
 	// LogOutput receives the logs and the banner; nil means stderr.
 	LogOutput io.Writer
 }
+
+// SettingError is a setting New refuses as it applies it, after the
+// configuration accepted its form: a fault rule the fault store rejects, a
+// hot-reload binding whose scope does not parse or whose directory cannot
+// be watched. It renders as config.Error does, so the caller, which knows
+// the file that set the setting, can name it the same way. Nothing was
+// served.
+type SettingError struct {
+	// Setting names the setting as the configuration file spells it:
+	// "faults[0].trigger.n", "lambda.hotReload[1].dir".
+	Setting string
+	Reason  string
+	// Hint is the next thing to try; empty when Reason says it.
+	Hint string
+	// Err is the refusal Reason describes.
+	Err error
+}
+
+func (e *SettingError) Error() string {
+	msg := "config: " + e.Setting + ": " + e.Reason
+	if e.Hint != "" {
+		msg += "; " + e.Hint
+	}
+	return msg
+}
+
+func (e *SettingError) Unwrap() error { return e.Err }
 
 // ClockStart is how the emulator clock starts.
 //
@@ -176,6 +208,26 @@ type ContainerPublished struct{}
 func (TokenRequired) isExposure()      {}
 func (ContainerPublished) isExposure() {}
 
+// AWSAPIExposure is whether a main listener beyond loopback on the host may
+// serve the AWS API. The admin token guards only /_understudy/, and this
+// build verifies no request signature, so such a listener lets every peer
+// that reaches it read every secret and object and run any container image
+// as a Lambda function. Inside a container, ContainerPublished needs no
+// AWSAPIExposure: the published port guards both APIs.
+//
+//sumtype:decl
+type AWSAPIExposure interface{ isAWSAPIExposure() }
+
+// AWSAPILoopbackOnly refuses a main listener beyond loopback on the host.
+type AWSAPILoopbackOnly struct{}
+
+// AWSAPIUnauthenticated accepts one with an admin token, for a network
+// whose every peer is trusted (--allow-unauthenticated-aws-api).
+type AWSAPIUnauthenticated struct{}
+
+func (AWSAPILoopbackOnly) isAWSAPIExposure()    {}
+func (AWSAPIUnauthenticated) isAWSAPIExposure() {}
+
 // Docker is where the Docker Engine Lambda and DynamoDB Local run on is.
 //
 //sumtype:decl
@@ -186,8 +238,8 @@ type Docker interface{ isDocker() }
 // it.
 type DockerSocket struct{ Path string }
 
-// DockerDisabled runs no container: Invoke answers ServiceException and
-// DynamoDB answers 501, while every control plane keeps working.
+// DockerDisabled runs no container: Invoke and DynamoDB answer 501
+// NotImplemented, while every control plane keeps working.
 type DockerDisabled struct{}
 
 func (DockerSocket) isDocker()   {}

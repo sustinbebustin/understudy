@@ -6,6 +6,8 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/docker"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
 )
 
 // The message builders over the generated constructors. Texts are the ones
@@ -90,6 +92,12 @@ func errLatestNotDeletable() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("$LATEST version cannot be deleted without deleting the function."))
 }
 
+// errAliasNotDeletable is DeleteFunction's answer to an alias qualifier
+// (test_function_name_and_qualifier_validation[qualifier_too_long1-delete_function]).
+func errAliasNotDeletable() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Deletion of aliases is not currently supported."))
+}
+
 // errVersionAliased is understudy's text for deleting a version an alias
 // points to, which AWS refuses ("You can't delete a version that an alias
 // references", lambda-api.md 6.4) with an unrecorded message.
@@ -141,6 +149,21 @@ func errUnzippedTooLarge() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Unzipped size must be smaller than " + strconv.FormatInt(maxUnzipped, 10) + " bytes"))
 }
 
+// errTooManyEntries is understudy's own bound, not AWS's: Lambda documents
+// no file count limit, but every entry costs memory to parse and an inode
+// to extract (codestore.DefaultMaxEntries).
+func errTooManyEntries(headers int64) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("The deployment package has " + strconv.FormatInt(headers, 10) +
+		" central directory headers, above understudy's limit of " + strconv.FormatInt(codestore.DefaultMaxEntries, 10) +
+		" entries (a zip stored uncompressed inside the package counts its entries too). Package fewer files."))
+}
+
+// errImageURI answers an ImageUri the Docker Engine would not accept as an
+// image reference; the text is inferred.
+func errImageURI(bad *docker.InvalidReferenceError) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Source image " + bad.Ref + " is not valid: " + bad.Reason + ". Provide a valid source image."))
+}
+
 func errZippedTooLarge() *awserr.Error {
 	return lambdaapi.ErrRequestEntityTooLargeException("Zipped size must be smaller than " + strconv.FormatInt(maxZipped, 10) + " bytes")
 }
@@ -184,6 +207,14 @@ func errS3Package(e *awserr.Error) *awserr.Error {
 // returned; AWS's is unrecorded.
 func errInvalidMarker(marker string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("The marker " + marker + " is not one a previous page returned; start the listing again without a Marker."))
+}
+
+// errNoPublishedVersion answers Invoke on $LATEST.PUBLISHED, the version
+// of Lambda Managed Instances, which understudy does not implement. The
+// code is the documented one for a function without that version
+// (API_Invoke); the text is understudy's own.
+func errNoPublishedVersion(arn string) *awserr.Error {
+	return user(lambdaapi.ErrNoPublishedVersionException("The function " + arn + " has no $LATEST.PUBLISHED version: only Lambda Managed Instances functions publish one, and understudy does not implement them. Invoke $LATEST, a version number or an alias."))
 }
 
 func errTooManyTags() *awserr.Error {
@@ -313,6 +344,23 @@ func errEventSourceUnsupported(arn string) *awserr.Error {
 	return lambdaapi.ErrNotImplemented("understudy implements event source mappings for Amazon SQS queues only; " + arn + " is not an SQS queue ARN. Run 'understudy coverage --service lambda' for what is supported.")
 }
 
+// publishToRefused is the coverage note of an operation checkPublishTo
+// guards.
+const publishToRefused = "PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances"
+
+// checkPublishTo refuses PublishTo LATEST_PUBLISHED, which publishes the
+// $LATEST.PUBLISHED version of a Lambda Managed Instances function;
+// understudy does not implement those, and ignoring the member would fake
+// a version that never exists.
+func checkPublishTo(op string, to *lambdaapi.FunctionVersionLatestPublished) *awserr.Error {
+	if to == nil {
+		return nil
+	}
+	return lambdaapi.ErrNotImplemented(op + " with PublishTo " + string(*to) + " publishes the " + latestPublished +
+		" version of a Lambda Managed Instances function, which understudy does not implement; nothing was changed. " +
+		"Leave PublishTo out, and set Publish (or call PublishVersion) to publish a numbered version.")
+}
+
 func errUnsupportedDestination() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Unsupported DestinationConfig parameter for given event source mapping type."))
 }
@@ -332,6 +380,13 @@ func errFIFOBatchSize(size int32) *awserr.Error {
 // exclusive; AWS's text is unrecorded (lambda-events.md 1.3).
 func errPollerConfigs() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("ScalingConfig and ProvisionedPollerConfig cannot both be set on an event source mapping."))
+}
+
+// errTooManyFilters is understudy's text for more filters than the default
+// quota of 5 per mapping; AWS's text is unrecorded (lambda-events.md 1.2).
+func errTooManyFilters(n int) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("FilterCriteria has " + strconv.Itoa(n) + " filters, above the quota of " +
+		strconv.Itoa(maxFilters) + " per event source mapping. Combine patterns or remove filters."))
 }
 
 func errInvalidFilter() *awserr.Error {

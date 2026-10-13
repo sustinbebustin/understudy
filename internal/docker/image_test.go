@@ -24,6 +24,22 @@ func TestImageInspectOfAnAbsentImageIsNotFound(t *testing.T) {
 	}
 }
 
+func TestImageCallsRefuseAnInvalidReferenceWithoutSendingIt(t *testing.T) {
+	d := dockertest.New(t, dockertest.Options{})
+	c := d.Client(t)
+	const ref = "../containers/abc"
+	var ierr *docker.InvalidReferenceError
+	if _, err := c.ImageInspect(t.Context(), ref); !errors.As(err, &ierr) || ierr.Ref != ref {
+		t.Errorf("ImageInspect(%q) = %v, want *InvalidReferenceError", ref, err)
+	}
+	if err := c.ImagePull(t.Context(), ref, docker.Platform{}, nil); !errors.As(err, &ierr) || ierr.Ref != ref {
+		t.Errorf("ImagePull(%q) = %v, want *InvalidReferenceError", ref, err)
+	}
+	if reqs := d.Requests(); len(reqs) != 0 {
+		t.Errorf("daemon received %v, want no request for an invalid reference", reqs)
+	}
+}
+
 func TestImagePullStreamsProgressAndMakesTheImagePresent(t *testing.T) {
 	d := dockertest.New(t, dockertest.Options{})
 	d.AddRemoteImage(providedImage, dockertest.Remote{

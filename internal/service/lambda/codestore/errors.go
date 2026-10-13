@@ -26,6 +26,9 @@ const (
 	// ZippedTooLarge is a package longer than Options.MaxZipped; it is
 	// refused while being read, before its entries are looked at.
 	ZippedTooLarge
+	// TooManyEntries is an archive with more central directory headers than
+	// Options.MaxEntries; it is refused before its entries are parsed.
+	TooManyEntries
 )
 
 func (p Problem) String() string {
@@ -42,6 +45,8 @@ func (p Problem) String() string {
 		return "unzipped size too large"
 	case ZippedTooLarge:
 		return "zipped size too large"
+	case TooManyEntries:
+		return "too many entries"
 	}
 	return "Problem(" + strconv.Itoa(int(p)) + ")"
 }
@@ -50,13 +55,14 @@ func (p Problem) String() string {
 // the tree, because one entry is unsafe or the archive is too large.
 type UnsafeZipError struct {
 	// Entry is the name as the archive spells it; empty for
-	// ZippedTooLarge, which concerns the whole package.
+	// ZippedTooLarge and TooManyEntries, which concern the whole package.
 	Entry   string
 	Problem Problem
 	// Size and Limit are the offending size in bytes and the limit it
 	// exceeds: uncompressed for the entry problems, and for ZippedTooLarge
-	// the bytes read when reading stopped, one past Limit. Both are zero for
-	// the name and type problems.
+	// the bytes read when reading stopped, one past Limit. For
+	// TooManyEntries they are the central directory headers found and
+	// Options.MaxEntries. Both are zero for the name and type problems.
 	Size, Limit int64
 }
 
@@ -74,6 +80,8 @@ func (e *UnsafeZipError) Error() string {
 		return fmt.Sprintf("function code archive refused: unzipped size reaches %d bytes at entry %q, above the %d byte limit (Lambda allows 262144000 bytes unzipped)", e.Size, e.Entry, e.Limit)
 	case ZippedTooLarge:
 		return fmt.Sprintf("function code archive refused: the package is longer than the %d byte limit on its zipped size; reading stopped there and nothing was kept", e.Limit)
+	case TooManyEntries:
+		return fmt.Sprintf("function code archive refused: it has %d central directory headers, above the limit of %d entries (an uncompressed zip stored inside the package counts its entries too); nothing was extracted, so package fewer files", e.Size, e.Limit)
 	}
 	return fmt.Sprintf("function code archive refused: entry %q: %v", e.Entry, e.Problem)
 }
@@ -108,5 +116,5 @@ type LimitError struct {
 }
 
 func (e *LimitError) Error() string {
-	return fmt.Sprintf("code store option %s is %d; use a positive byte count, or zero for the default", e.Name, e.Value)
+	return fmt.Sprintf("code store option %s is %d; use a positive limit, or zero for the default", e.Name, e.Value)
 }

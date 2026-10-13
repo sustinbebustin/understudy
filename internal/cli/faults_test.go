@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -65,6 +66,93 @@ func TestFaultsAddFlags(t *testing.T) {
 	both := runCLI(t.Context(), inst.Endpoint(), nil, "faults", "add", "--throttle", "--next", "1", "--probability", "0.5")
 	if both.code != admin.ExitUsage {
 		t.Errorf("--next with --probability = %d, want 2", both.code)
+	}
+}
+
+// faults add refuses a rule the server would refuse with the flag to fix,
+// and lists the errors an operation sends by the short names --error takes.
+func TestFaultsAddRefusalsNameTheFix(t *testing.T) {
+	inst := start(t)
+	cases := []struct {
+		args       []string
+		want, none string
+	}{
+		{[]string{"--operation", "SendMessage", "--throttle"}, `--operation "SendMessage" is not service.Operation, such as sqs.SendMessage`, "json:"},
+		{[]string{"--service", "sqs", "--error", "QueueDoesNotExist"}, "--error needs at least one --operation service.Operation", "match.operations"},
+		{[]string{"--operation", "sqs.SendMessage", "--error", "Nope"}, "QueueDoesNotExist", "com.amazonaws.sqs#"},
+	}
+	for _, c := range cases {
+		r := runCLI(t.Context(), inst.Endpoint(), nil, append([]string{"faults", "add"}, c.args...)...)
+		if r.code != admin.ExitUsage || !strings.Contains(r.stderr, c.want) || strings.Contains(r.stderr, c.none) {
+			t.Errorf("faults add %q = %d, stderr %q; want 2 naming %q without %q", c.args, r.code, r.stderr, c.want, c.none)
+		}
+	}
+}
+
+// A refused rule the user gave no id is never named by the id the CLI
+// minted for it: faults add says nothing of an id, and faults load names
+// the rule by its index, adding the id only when the file gave one.
+func TestFaultRefusalsNeverQuoteAMintedID(t *testing.T) {
+	inst := start(t)
+	r := runCLI(t.Context(), inst.Endpoint(), nil, "faults", "add", "--operation", "sqs.SendMessage", "--error", "Nope")
+	if r.code != admin.ExitUsage || strings.Contains(r.stderr, "rule-") {
+		t.Errorf("faults add of a refused rule = %d, stderr %q; want 2 without a minted id", r.code, r.stderr)
+	}
+	rules := filepath.Join(t.TempDir(), "rules.json")
+	file := `[{"id": "named", "phase": "request", "match": {"operations": ["sqs.SendMessage"]}, "action": {"kind": "throttle"}, "trigger": {"kind": "always"}},
+		{"phase": "request", "match": {"operations": ["sqs.SendMessage"]}, "action": {"kind": "error", "shape": "Nope"}, "trigger": {"kind": "always"}}]`
+	if err := os.WriteFile(rules, []byte(file), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r = runCLI(t.Context(), inst.Endpoint(), nil, "faults", "load", rules)
+	if r.code == admin.ExitOK || !strings.Contains(r.stderr, "rule 1 of "+rules+", after 1 rule(s) were added") || strings.Contains(r.stderr, "rule-") {
+		t.Errorf("faults load with a refused unnamed rule = %d, stderr %q; want rule 1 named by index only", r.code, r.stderr)
+	}
+}
+
+// A trigger or action flag given a zero value is passed on rather than
+// read as unset, so --next 0 or --probability 0 is refused instead of
+// adding a rule that fires on every matching call.
+func TestFaultsAddZeroValuesAreRefused(t *testing.T) {
+	inst := start(t)
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--throttle", "--next", "0"}, "at least 1"},
+		{[]string{"--throttle", "--probability", "0"}, "probability"},
+		{[]string{"--latency", "0s"}, `--latency "0s" is not a positive duration`},
+		{[]string{"--latency", "-1s"}, `--latency "-1s" is not a positive duration`},
+		{[]string{"--throttle", "--next", "0", "--probability", "0.5"}, "at most one of --next and --probability"},
+	}
+	for _, c := range cases {
+		r := runCLI(t.Context(), inst.Endpoint(), nil, append([]string{"faults", "add", "--operation", "sqs.SendMessage"}, c.args...)...)
+		if r.code != admin.ExitUsage || !strings.Contains(r.stderr, c.want) {
+			t.Errorf("faults add %q = %d, stderr %q; want 2 naming %q", c.args, r.code, r.stderr, c.want)
+		}
+	}
+	faults, err := inst.Admin().Faults(t.Context())
+	if err != nil || len(faults) != 0 {
+		t.Errorf("after the refused adds the server holds %+v, %v; want no rules", faults, err)
+	}
+}
+
+// A warning about a rule goes to stderr, naming the rule once, so stdout
+// holds the table's rows only; JSON carries it on the rule instead.
+func TestFaultWarningsGoToStderr(t *testing.T) {
+	inst := start(t)
+	add := runCLI(t.Context(), inst.Endpoint(), nil, "faults", "add", "--id", "t1", "--operation", "sqs.SendMessage", "--throttle", "--next", "3")
+	list := runCLI(t.Context(), inst.Endpoint(), nil, "faults", "list")
+	for name, r := range map[string]result{"faults add": add, "faults list": list} {
+		if r.code != admin.ExitOK || strings.Contains(r.stdout, "warning") || !strings.HasPrefix(r.stderr, `warning: fault rule "t1" injects `) ||
+			strings.Count(r.stderr, "t1") != 1 {
+			t.Errorf("%s = %d, stdout %q, stderr %q; want the rows on stdout and one warning naming t1 once on stderr", name, r.code, r.stdout, r.stderr)
+		}
+	}
+	js := runCLI(t.Context(), inst.Endpoint(), nil, "faults", "list", "--output", "json")
+	var listed admin.FaultList
+	if err := json.Unmarshal([]byte(js.stdout), &listed); err != nil || len(listed.Faults) != 1 || listed.Faults[0].Warning == "" || js.stderr != "" {
+		t.Errorf("faults list --output json = %d, stdout %q, stderr %q, %v; want the warning on the rule and nothing on stderr", js.code, js.stdout, js.stderr, err)
 	}
 }
 

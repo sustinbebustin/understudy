@@ -61,9 +61,6 @@ def crc32_b64(data: bytes) -> str:
     return b64(struct.pack(">I", zlib.crc32(data)))
 
 
-# --- Managed transfers ---------------------------------------------------------------------------
-
-
 def test_upload_and_download_fileobj_round_trip(s3: Any, make_bucket: Callable[..., str]) -> None:
     bucket = make_bucket()
     data = payload(300_000)
@@ -142,9 +139,6 @@ def test_upload_fileobj_into_a_missing_bucket(s3: Any) -> None:
     with raises("NoSuchBucket") as exc:
         s3.upload_fileobj(io.BytesIO(b"x"), uniq("conf-nobucket"), "k")
     assert status_of(exc.value) == 404
-
-
-# --- Multipart API --------------------------------------------------------------------------------
 
 
 def test_multipart_lifecycle_with_listing_and_part_get(s3: Any, make_bucket: Callable[..., str]) -> None:
@@ -320,9 +314,6 @@ def test_upload_part_copy_with_a_range(s3: Any, make_bucket: Callable[..., str])
         MultipartUpload={"Parts": [{"PartNumber": 1, "ETag": e1}, {"PartNumber": 2, "ETag": e2}]},
     )
     assert s3.get_object(Bucket=bucket, Key="dst")["Body"].read() == source
-
-
-# --- Objects ---------------------------------------------------------------------------------------
 
 
 def test_put_get_head_object_headers(s3: Any, make_bucket: Callable[..., str]) -> None:
@@ -725,9 +716,6 @@ def test_storage_class_round_trip_and_validation(s3: Any, make_bucket: Callable[
         s3.put_object(Bucket=bucket, Key="bad", Body=b"x", StorageClass="OUTPOSTS")
 
 
-# --- Listing -----------------------------------------------------------------------------------------
-
-
 def put_keys(s3: Any, bucket: str, keys: list[str]) -> None:
     for k in keys:
         s3.put_object(Bucket=bucket, Key=k, Body=k.encode())
@@ -864,9 +852,6 @@ def test_listing_never_shows_in_progress_multipart_uploads(s3: Any, make_bucket:
     assert "Contents" not in s3.list_objects_v2(Bucket=bucket)
 
 
-# --- Presigned URLs ----------------------------------------------------------------------------------------
-
-
 @pytest.fixture(params=["s3", "s3v4"])
 def presign(request: pytest.FixtureRequest, make_client: Callable[..., Any]) -> Any:
     """A client that signs query-string URLs with SigV2 ("s3") or SigV4 ("s3v4").
@@ -968,9 +953,6 @@ def test_presigned_url_with_a_tampered_signature_is_rejected(
     assert b"<Code>SignatureDoesNotMatch</Code>" in body
 
 
-# --- Addressing ----------------------------------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize("base", ["localhost", "s3.localhost"])
 def test_virtual_hosted_addressing(endpoint: str, s3: Any, make_bucket: Callable[..., str], base: str) -> None:
     bucket = make_bucket()
@@ -998,9 +980,6 @@ def test_path_and_virtual_hosted_requests_see_the_same_bucket(endpoint: str, s3:
         "GET", f"http://{bucket}.s3.localhost:{port}/k", connect_to=(host, port), region=REGION
     )
     assert (status, body) == (200, b"via sdk")
-
-
-# --- Buckets and subresources -----------------------------------------------------------------------------
 
 
 def test_bucket_create_head_list_delete(s3: Any, make_bucket: Callable[..., str]) -> None:
@@ -1265,9 +1244,6 @@ def test_unversioned_bucket_rejects_a_real_version_id(s3: Any, make_bucket: Call
     assert s3.get_object(Bucket=bucket, Key="k", VersionId="null")["Body"].read() == b"x"
 
 
-# --- SSE-KMS -----------------------------------------------------------------------------------------------------------
-
-
 def test_put_object_with_sse_kms_reports_the_full_key_arn(
     s3: Any, make_bucket: Callable[..., str], make_key: Callable[..., dict[str, Any]]
 ) -> None:
@@ -1349,9 +1325,6 @@ def test_disabled_key_blocks_writes_and_reads_of_kms_objects(
         s3.get_object(Bucket=bucket, Key="k")
     kms.enable_key(KeyId=key["KeyId"])
     assert s3.get_object(Bucket=bucket, Key="k")["Body"].read() == b"x"
-
-
-# --- Event notifications to SQS (should-have in phase 1) --------------------------------------------------
 
 
 def allow_s3_to_send(sqs: Any, queue_url: str, queue_arn: str, bucket: str) -> None:

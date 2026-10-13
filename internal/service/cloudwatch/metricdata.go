@@ -20,9 +20,11 @@ import (
 // absent (secrets-logs-events-alarms.md 5.3).
 const defaultMaxDatapoints = 100_800
 
-// The ages past which GetMetricData rounds StartTime down to five minutes
-// and to the hour instead of the minute.
+// The ages of StartTime past which GetMetricData needs a period of whole
+// minutes, and past which it rounds StartTime down to five minutes and to
+// the hour instead of the minute and needs periods of those multiples.
 const (
+	minuteAge     = 3 * time.Hour
 	fiveMinuteAge = 15 * 24 * time.Hour
 	hourAge       = 63 * 24 * time.Hour
 )
@@ -108,9 +110,10 @@ type result struct {
 
 // getMetricData answers each MetricStat query with one value per period
 // that holds data, newest first unless ScanBy says otherwise. Periods start
-// at StartTime rounded down by its age on the emulator clock; EndTime is
-// exclusive. MaxDatapoints bounds the values of one page across all
-// results, and NextToken continues where the page stopped.
+// at StartTime rounded down by its age on the emulator clock and the
+// query's period, and a period too fine for that age reads no data;
+// EndTime is exclusive. MaxDatapoints bounds the values of one page across
+// all results, and NextToken continues where the page stopped.
 func (s *Service) getMetricData(_ context.Context, c *kernel.Call, in *cloudwatchapi.GetMetricDataInput) (*cloudwatchapi.GetMetricDataOutput, *awserr.Error) {
 	offset := 0
 	if in.NextToken != nil {
@@ -120,8 +123,7 @@ func (s *Service) getMetricData(_ context.Context, c *kernel.Call, in *cloudwatc
 		}
 		offset = n
 	}
-	start := roundStart(clock.FromWire(in.StartTime), c.Admitted())
-	end := clock.FromWire(in.EndTime)
+	start, end := clock.FromWire(in.StartTime), clock.FromWire(in.EndTime)
 	labels := defaultLabels(in.MetricDataQueries)
 	answer := func(st *State) []result {
 		var out []result
@@ -130,7 +132,7 @@ func (s *Service) getMetricData(_ context.Context, c *kernel.Call, in *cloudwatc
 			if q.ReturnData != nil && !*q.ReturnData {
 				continue
 			}
-			r := query(st, q.MetricStat, start, end)
+			r := read(st, q.MetricStat, start, c.Admitted(), end)
 			r.id, r.label = q.Id, labels[i]
 			if q.Label != nil {
 				r.label = *q.Label
@@ -156,6 +158,16 @@ func (s *Service) getMetricData(_ context.Context, c *kernel.Call, in *cloudwatc
 		limit = int(*in.MaxDatapoints)
 	}
 	return paged(results, offset, limit), nil
+}
+
+// read answers one MetricStat from StartTime at now: nothing when its
+// period is too fine for StartTime's age, its periods from the rounded
+// StartTime otherwise.
+func read(st *State, ms *cloudwatchapi.MetricStat, start, now, end clock.Instant) result {
+	if !periodServes(start, now, ms.Period) {
+		return result{}
+	}
+	return query(st, ms, roundStart(start, now, ms.Period), end)
 }
 
 // query reads one MetricStat's periods from the series it names exactly:
@@ -225,17 +237,40 @@ func oneUnit(points []Point) ([]Point, []cloudwatchapi.MessageData) {
 }
 
 // roundStart rounds StartTime down as AWS documents: to the minute when it
-// is less than 15 days old, to five minutes up to 63 days, to the hour
-// beyond.
-func roundStart(start, now clock.Instant) clock.Instant {
+// is less than 15 days old, or to the query's period when that is under a
+// minute, so 01:05:13 with a period of 10 starts at 01:05:10; to five
+// minutes up to 63 days; to the hour beyond. Every sub-minute period
+// divides the minute, so truncating to it lands on the minute's divisions.
+func roundStart(start, now clock.Instant, period int32) clock.Instant {
 	unit := time.Minute
 	switch age := now.Sub(start); {
 	case age >= hourAge:
 		unit = time.Hour
 	case age >= fiveMinuteAge:
 		unit = 5 * time.Minute
+	case time.Duration(period)*time.Second < time.Minute:
+		unit = time.Duration(period) * time.Second
 	}
 	return clock.FromWire(start.Wire().Truncate(unit))
+}
+
+// periodServes reports whether a query's period reads data from a
+// StartTime of its age: over three hours old the period must be a multiple
+// of 60 seconds, from 15 days of 300 and from 63 days of 3600, or AWS
+// returns no data points (the MetricStat documentation).
+func periodServes(start, now clock.Instant, period int32) bool {
+	var unit time.Duration
+	switch age := now.Sub(start); {
+	case age >= hourAge:
+		unit = time.Hour
+	case age >= fiveMinuteAge:
+		unit = 5 * time.Minute
+	case age > minuteAge:
+		unit = time.Minute
+	default:
+		return true
+	}
+	return (time.Duration(period)*time.Second)%unit == 0
 }
 
 // defaultLabels are the labels of queries without one: the metric name,

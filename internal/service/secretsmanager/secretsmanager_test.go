@@ -445,19 +445,29 @@ func TestSecretIDForms(t *testing.T) {
 	})
 }
 
+// asOther runs fn as account 111111111111 and returns to the caller's own.
+func (h *harness) asOther(fn func()) {
+	h.Helper()
+	home := h.Scope
+	other, perr := aws.ParseAccountID("111111111111")
+	if perr != nil {
+		h.Fatal(perr)
+	}
+	h.Scope.Account = other
+	defer func() { h.Scope = home }()
+	fn()
+}
+
 // A full or partial ARN of another account resolves in that account, as
-// cross-account access requires, and its value decrypts under that
-// account's key; the bare name stays the caller's own.
+// cross-account access requires, and a value under a customer key decrypts
+// under that account's key; the bare name stays the caller's own.
 func TestSecretIDOtherAccountARN(t *testing.T) {
 	run(t, func(h *harness) {
-		home := h.Scope
-		other, perr := aws.ParseAccountID("111111111111")
-		if perr != nil {
-			h.Fatal(perr)
-		}
-		h.Scope.Account = other
-		arn := val(h.create("shared", "theirs").ARN)
-		h.Scope = home
+		var arn string
+		h.asOther(func() {
+			key := must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata.KeyId
+			arn = val(must(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "shared", ClientRequestToken: new(h.token()), KmsKeyId: new(key), SecretString: new("theirs")}).ARN)
+		})
 		if !strings.HasPrefix(arn, "arn:aws:secretsmanager:us-east-1:111111111111:secret:shared-") {
 			h.Fatalf("ARN created in the other account = %s", arn)
 		}
@@ -467,8 +477,181 @@ func TestSecretIDOtherAccountARN(t *testing.T) {
 				h.Errorf("GetSecretValue(%s) = %s %q, %v", id, val(got.ARN), val(got.SecretString), err)
 			}
 		}
+		h.put(arn, "ours")
+		if got, err := h.get(arn, "AWSCURRENT"); err != nil || val(got.SecretString) != "ours" {
+			h.Errorf("GetSecretValue after a cross-account put = %q, %v", val(got.SecretString), err)
+		}
 		_, err := call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: "shared"})
 		wantError(h.T, err, "ResourceNotFoundException", "Secrets Manager can't find the specified secret.")
+	})
+}
+
+// Another account can never read or write the value of a secret under the
+// AWS managed key, whatever its resource policy says (AWS-recorded,
+// LocalStack test_cross_account_access); describing and tagging it still
+// work, and the refused writes store nothing.
+func TestDefaultKeySecretRefusesOtherAccountValues(t *testing.T) {
+	run(t, func(h *harness) {
+		var arn string
+		h.asOther(func() { arn = val(h.create("managed", "theirs").ARN) })
+		refused := "You can't access a secret from a different AWS account if you encrypt the secret with the default KMS service key."
+		for _, id := range []string{arn, arn[:len(arn)-7]} {
+			_, err := h.get(id, "AWSCURRENT")
+			wantError(h.T, err, "InvalidRequestException", refused)
+			_, err = call(h, sm.OpPutSecretValue, &sm.PutSecretValueInput{SecretId: id, ClientRequestToken: new(h.token()), SecretString: new("ours")})
+			wantError(h.T, err, "InvalidRequestException", refused)
+			_, err = call(h, sm.OpUpdateSecret, &sm.UpdateSecretInput{SecretId: id, ClientRequestToken: new(h.token()), SecretString: new("ours"), Description: new("changed")})
+			wantError(h.T, err, "InvalidRequestException", refused)
+		}
+		if got := val(h.describe(arn).ARN); got != arn {
+			h.Errorf("DescribeSecret across accounts = %s, want %s", got, arn)
+		}
+		must(h, sm.OpTagResource, &sm.TagResourceInput{SecretId: arn, Tags: []sm.Tag{{Key: new("k"), Value: new("v")}}})
+		h.asOther(func() {
+			got, err := h.get("managed", "AWSCURRENT")
+			if err != nil || val(got.SecretString) != "theirs" {
+				h.Errorf("owner's GetSecretValue = %q, %v; want theirs", val(got.SecretString), err)
+			}
+			if d := h.describe("managed"); len(d.VersionIdsToStages) != 1 || d.Description != nil {
+				h.Errorf("after the refused writes: %d versions, Description %q; want 1 and none", len(d.VersionIdsToStages), val(d.Description))
+			}
+		})
+	})
+}
+
+// Every name of the AWS managed key aws/secretsmanager (alias, alias ARN,
+// key id, key ARN) is the default key, whether CreateSecret or UpdateSecret
+// sends it: DescribeSecret and ListSecrets omit KmsKeyId,
+// ListSecretVersionIds says DefaultEncryptionKey, and another account
+// cannot read the value. Telling a key id is the managed key is not
+// charged to the caller. A customer alias is kept as sent.
+func TestDefaultKeyByAnyName(t *testing.T) {
+	run(t, func(h *harness) {
+		managed := must(h, kmsapi.OpDescribeKey, &kmsapi.DescribeKeyInput{KeyId: "alias/aws/secretsmanager"}).KeyMetadata
+		names := map[string]string{
+			"alias":     "alias/aws/secretsmanager",
+			"alias-arn": "arn:aws:kms:us-east-1:000000000000:alias/aws/secretsmanager",
+			"key-id":    managed.KeyId,
+			"key-arn":   val(managed.Arn),
+		}
+		custom := must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata.KeyId
+		for _, name := range slices.Sorted(maps.Keys(names)) {
+			must(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "created-" + name, ClientRequestToken: new(h.token()), KmsKeyId: new(names[name]), SecretString: new("v")})
+			must(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "updated-" + name, ClientRequestToken: new(h.token()), KmsKeyId: new(custom), SecretString: new("v")})
+			must(h, sm.OpUpdateSecret, &sm.UpdateSecretInput{SecretId: "updated-" + name, ClientRequestToken: new(h.token()), KmsKeyId: new(names[name])})
+		}
+		must(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/mine", TargetKeyId: custom})
+		must(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "customer-alias", ClientRequestToken: new(h.token()), KmsKeyId: new("alias/mine"), SecretString: new("v")})
+
+		for _, e := range must(h, sm.OpListSecrets, &sm.ListSecretsInput{}).SecretList {
+			want := ""
+			if val(e.Name) == "customer-alias" {
+				want = "alias/mine"
+			}
+			if got := val(h.describe(val(e.Name)).KmsKeyId); got != want || val(e.KmsKeyId) != want {
+				h.Errorf("%s: KmsKeyId DescribeSecret %q, ListSecrets %q; want %q", val(e.Name), got, val(e.KmsKeyId), want)
+			}
+			if want != "" {
+				continue
+			}
+			for _, v := range must(h, sm.OpListSecretVersionIds, &sm.ListSecretVersionIdsInput{SecretId: val(e.Name)}).Versions {
+				if !slices.Equal(v.KmsKeyIds, []string{"DefaultEncryptionKey"}) {
+					h.Errorf("%s version %s KmsKeyIds = %v, want [DefaultEncryptionKey]", val(e.Name), val(v.VersionId), v.KmsKeyIds)
+				}
+			}
+			h.asOther(func() {
+				_, err := h.get(val(e.ARN), "AWSCURRENT")
+				wantError(h.T, err, "InvalidRequestException", "You can't access a secret from a different AWS account if you encrypt the secret with the default KMS service key.")
+			})
+		}
+
+		root, perr := access.ParsePrincipal("arn:aws:iam::000000000000:root")
+		if perr != nil {
+			h.Fatal(perr)
+		}
+		for _, u := range h.Access.Usage(access.Filter{Principal: root, Service: "kms"}) {
+			if u.Action.String() == "kms:ListAliases" {
+				h.Errorf("kms:ListAliases recorded for the caller (%T); resolving the managed key is Secrets Manager's own lookup", u.Mode)
+			}
+		}
+	})
+}
+
+// A SecretId that is a name outside the secret-name character set is
+// ValidationException for every operation, a forced DeleteSecret included
+// (AWS-recorded, LocalStack test_invalid_secret_name).
+func TestInvalidSecretIDName(t *testing.T) {
+	run(t, func(h *harness) {
+		msg := "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!"
+		for _, id := range []string{"Inv Name", " Inv*Name? ", ` Inv *?!]Name\-`} {
+			for op, err := range map[string]*awserr.Error{
+				"DescribeSecret":        second(call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: id})),
+				"GetSecretValue":        second(h.get(id, "AWSCURRENT")),
+				"ListSecretVersionIds":  second(call(h, sm.OpListSecretVersionIds, &sm.ListSecretVersionIdsInput{SecretId: id})),
+				"PutSecretValue":        second(call(h, sm.OpPutSecretValue, &sm.PutSecretValueInput{SecretId: id, ClientRequestToken: new(h.token()), SecretString: new("x")})),
+				"TagResource":           second(call(h, sm.OpTagResource, &sm.TagResourceInput{SecretId: id, Tags: []sm.Tag{{Key: new("k"), Value: new("v")}}})),
+				"UntagResource":         second(call(h, sm.OpUntagResource, &sm.UntagResourceInput{SecretId: id, TagKeys: []string{"k"}})),
+				"UpdateSecret":          second(call(h, sm.OpUpdateSecret, &sm.UpdateSecretInput{SecretId: id, ClientRequestToken: new(h.token()), Description: new("d")})),
+				"DeleteSecret (forced)": second(call(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: id, ForceDeleteWithoutRecovery: new(true)})),
+			} {
+				if err == nil || err.ID.JSONType != "ValidationException" || err.Message != msg {
+					h.Errorf("%s(%q) = %v, want ValidationException %q", op, id, err, msg)
+				}
+			}
+		}
+	})
+}
+
+func second[A, B any](_ A, b B) B { return b }
+
+// A forced DeleteSecret of a secret that does not exist answers an ARN and
+// a name, as AWS always does (AWS-recorded, LocalStack
+// test_delete_non_existent_secret_returns_as_if_secret_exists): for a full
+// ARN the ARN given and the name without its suffix.
+func TestForceDeleteMissingAnswersARN(t *testing.T) {
+	run(t, func(h *harness) {
+		del := must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: "never-created", ForceDeleteWithoutRecovery: new(true)})
+		prefix := "arn:aws:secretsmanager:us-east-1:000000000000:secret:never-created-"
+		if a := val(del.ARN); !strings.HasPrefix(a, prefix) || len(a) != len(prefix)+6 || val(del.Name) != "never-created" || del.DeletionDate == nil {
+			h.Errorf("DeleteSecret(name) = %s %s %v, want an ARN of the name and a deletion date", a, val(del.Name), del.DeletionDate)
+		}
+
+		arn := val(h.create("gone", "x").ARN)
+		must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn, ForceDeleteWithoutRecovery: new(true)})
+		for _, id := range []string{arn, strings.Replace(arn, "us-east-1", "us-west-2", 1)} {
+			del = must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: id, ForceDeleteWithoutRecovery: new(true)})
+			if val(del.ARN) != id || val(del.Name) != "gone" {
+				h.Errorf("DeleteSecret(%s) of a deleted secret = %s %s, want the ARN given and gone", id, val(del.ARN), val(del.Name))
+			}
+		}
+	})
+}
+
+// A secret holds at most 50 tags: CreateSecret and TagResource past the
+// quota are refused and store nothing, while setting a key already present
+// at the quota succeeds.
+func TestTagQuota(t *testing.T) {
+	run(t, func(h *harness) {
+		tags := func(from, n int) []sm.Tag {
+			out := make([]sm.Tag, 0, n)
+			for i := from; i < from+n; i++ {
+				out = append(out, sm.Tag{Key: new(fmt.Sprintf("k%02d", i)), Value: new("v")})
+			}
+			return out
+		}
+		_, err := call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "over", ClientRequestToken: new(h.token()), Tags: tags(0, 51)})
+		wantError(h.T, err, "InvalidParameterException", "A secret can have at most 50 tags; it has 0 and this request would give it 51. Remove tags with UntagResource first, or send fewer new tag keys.")
+		if _, err := call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: "over"}); err == nil {
+			h.Error("CreateSecret over the tag quota stored the secret")
+		}
+
+		must(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "full", ClientRequestToken: new(h.token()), Tags: tags(0, 50)})
+		_, err = call(h, sm.OpTagResource, &sm.TagResourceInput{SecretId: "full", Tags: tags(50, 1)})
+		wantError(h.T, err, "InvalidParameterException", "A secret can have at most 50 tags; it has 50 and this request would give it 51. Remove tags with UntagResource first, or send fewer new tag keys.")
+		must(h, sm.OpTagResource, &sm.TagResourceInput{SecretId: "full", Tags: []sm.Tag{{Key: new("k07"), Value: new("changed")}}})
+		if n := len(h.describe("full").Tags); n != 50 {
+			h.Errorf("tags after a refused 51st and a retag = %d, want 50", n)
+		}
 	})
 }
 
@@ -530,9 +713,12 @@ func TestFirstVersionTakesAWSCurrent(t *testing.T) {
 
 // UpdateSecret with a new KmsKeyId moves the labeled versions under the new
 // key, with or without a new value: with the old key disabled afterwards,
-// every label still reads and ListSecretVersionIds reports the new key. A
-// KMS refusal while moving them (the old key disabled first) fails the
-// update with DecryptionFailure and changes nothing.
+// every label still reads and ListSecretVersionIds reports the new key.
+// When KMS refuses to move them (the old key disabled first) the key still
+// changes and those versions stay under the old key, as AWS documents for
+// a caller without kms:Decrypt on the previous key: the secret is not
+// trapped on the disabled key, a new value seals under the new one, and
+// the old versions read again once the old key is enabled.
 func TestUpdateSecretKeyReencryptsLabeledVersions(t *testing.T) {
 	for _, c := range []struct {
 		name  string
@@ -554,18 +740,32 @@ func TestUpdateSecretKeyReencryptsLabeledVersions(t *testing.T) {
 				must(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "moving", ClientRequestToken: new(h.token()), KmsKeyId: new(oldKey), SecretString: new("one")})
 				h.put("moving", "two")
 				h.put("moving", "pending", "AWSPENDING")
-				before := h.describe("moving")
 				update := &sm.UpdateSecretInput{SecretId: "moving", ClientRequestToken: new(h.token()), KmsKeyId: new(newKey), SecretString: c.value}
 
 				if c.refused {
 					must(h, kmsapi.OpDisableKey, &kmsapi.DisableKeyInput{KeyId: oldKey})
-					_, err := call(h, sm.OpUpdateSecret, update)
-					if err == nil || err.ID.JSONType != "DecryptionFailure" {
-						h.Fatalf("UpdateSecret with the old key disabled = %v, want DecryptionFailure", err)
+					must(h, sm.OpUpdateSecret, update)
+					if got := val(h.describe("moving").KmsKeyId); got != newKey {
+						h.Errorf("KmsKeyId after UpdateSecret with the old key disabled = %s, want %s", got, newKey)
 					}
-					after := h.describe("moving")
-					if val(after.KmsKeyId) != oldKey || !maps.EqualFunc(after.VersionIdsToStages, before.VersionIdsToStages, slices.Equal) {
-						h.Errorf("after a refused UpdateSecret: KmsKeyId %s, stages %v; want %s, %v", val(after.KmsKeyId), after.VersionIdsToStages, oldKey, before.VersionIdsToStages)
+					for _, v := range must(h, sm.OpListSecretVersionIds, &sm.ListSecretVersionIdsInput{SecretId: "moving"}).Versions {
+						want := oldKey
+						if c.value != nil && val(v.VersionId) == *update.ClientRequestToken {
+							want = newKey
+						}
+						if !slices.Equal(v.KmsKeyIds, []string{want}) {
+							h.Errorf("version %s %v KmsKeyIds = %v, want [%s]", val(v.VersionId), v.VersionStages, v.KmsKeyIds, want)
+						}
+					}
+					h.put("moving", "four")
+					if got, err := h.get("moving", "AWSCURRENT"); err != nil || val(got.SecretString) != "four" {
+						h.Errorf("GetSecretValue(AWSCURRENT) of a value put under the new key = %q, %v; want four", val(got.SecretString), err)
+					}
+					_, err := h.get("moving", "AWSPENDING")
+					wantError(h.T, err, "DecryptionFailure", "Secrets Manager can't decrypt the secret value with the KMS key: DisabledException: arn:aws:kms:us-east-1:000000000000:key/"+oldKey+" is disabled.")
+					must(h, kmsapi.OpEnableKey, &kmsapi.EnableKeyInput{KeyId: oldKey})
+					if got, err := h.get("moving", "AWSPENDING"); err != nil || val(got.SecretString) != "pending" {
+						h.Errorf("GetSecretValue(AWSPENDING) with the old key enabled again = %q, %v; want pending", val(got.SecretString), err)
 					}
 					return
 				}
@@ -672,6 +872,76 @@ func TestTagsPresence(t *testing.T) {
 	})
 }
 
+// LastChangedDate is "the last date and time that this secret was modified
+// in any way" (DescribeSecret reference): tags, policies and stage moves
+// advance it as values do, a read does not, and ListSecrets sorted by it
+// brings the modified secret forward.
+func TestEveryModificationAdvancesLastChangedDate(t *testing.T) {
+	run(t, func(h *harness) {
+		h.create("modified", "v1")
+		v2 := val(h.put("modified", "v2").VersionId)
+		v1 := ""
+		for id, stages := range h.describe("modified").VersionIdsToStages {
+			if slices.Contains(stages, "AWSPREVIOUS") {
+				v1 = id
+			}
+		}
+		policy := `{"Statement":[{"Action":"secretsmanager:GetSecretValue","Effect":"Allow","Principal":{"AWS":"arn:aws:iam::000000000000:root"},"Resource":"*"}],"Version":"2012-10-17"}`
+		modifications := []struct {
+			name string
+			do   func()
+		}{
+			{"TagResource", func() {
+				must(h, sm.OpTagResource, &sm.TagResourceInput{SecretId: "modified", Tags: []sm.Tag{{Key: new("k"), Value: new("v")}}})
+			}},
+			{"UntagResource", func() {
+				must(h, sm.OpUntagResource, &sm.UntagResourceInput{SecretId: "modified", TagKeys: []string{"k"}})
+			}},
+			{"PutResourcePolicy", func() {
+				must(h, sm.OpPutResourcePolicy, &sm.PutResourcePolicyInput{SecretId: "modified", ResourcePolicy: policy})
+			}},
+			{"DeleteResourcePolicy", func() {
+				must(h, sm.OpDeleteResourcePolicy, &sm.DeleteResourcePolicyInput{SecretId: "modified"})
+			}},
+			{"UpdateSecretVersionStage", func() {
+				must(h, sm.OpUpdateSecretVersionStage, &sm.UpdateSecretVersionStageInput{SecretId: "modified", VersionStage: "AWSCURRENT", MoveToVersionId: new(v1), RemoveFromVersionId: new(v2)})
+			}},
+			{"UpdateSecret", func() {
+				must(h, sm.OpUpdateSecret, &sm.UpdateSecretInput{SecretId: "modified", ClientRequestToken: new(h.token()), Description: new("changed")})
+			}},
+		}
+		for _, m := range modifications {
+			h.advance(day)
+			m.do()
+			if got, want := val(h.describe("modified").LastChangedDate), h.Clock.Now().Wire(); !got.Equal(want) {
+				h.Errorf("LastChangedDate after %s = %v, want %v", m.name, got, want)
+			}
+		}
+
+		changed := val(h.describe("modified").LastChangedDate)
+		h.advance(day)
+		if _, err := h.get("modified", "AWSCURRENT"); err != nil {
+			h.Fatal(err)
+		}
+		if got := val(h.describe("modified").LastChangedDate); !got.Equal(changed) {
+			h.Errorf("LastChangedDate after GetSecretValue = %v, want %v", got, changed)
+		}
+
+		h.advance(day)
+		h.create("later", "x")
+		h.advance(day)
+		must(h, sm.OpTagResource, &sm.TagResourceInput{SecretId: "modified", Tags: []sm.Tag{{Key: new("k"), Value: new("v")}}})
+		list := must(h, sm.OpListSecrets, &sm.ListSecretsInput{SortBy: new(sm.SortByTypeLastChangedDate), SortOrder: new(sm.SortOrderTypeDesc)}).SecretList
+		names := make([]string, 0, len(list))
+		for _, e := range list {
+			names = append(names, val(e.Name))
+		}
+		if want := []string{"modified", "later"}; !slices.Equal(names, want) {
+			h.Errorf("ListSecrets by last-changed-date desc = %v, want %v", names, want)
+		}
+	})
+}
+
 // ListSecrets filters by name prefix, description prefix ignoring case,
 // tag key and negation, and pages through every match exactly once.
 func TestListSecretsFiltersAndPaging(t *testing.T) {
@@ -706,7 +976,7 @@ func TestListSecretsFiltersAndPaging(t *testing.T) {
 			{[]sm.Filter{filter(sm.FilterNameStringTypeTagKey, "team-db")}, []string{"db/main", "db/replica"}},
 			{[]sm.Filter{filter(sm.FilterNameStringTypeName, "db/", "web")}, []string{"db/main", "db/replica", "web"}},
 			{[]sm.Filter{filter(sm.FilterNameStringTypeName, "db/"), filter(sm.FilterNameStringTypeDescription, "secret 2")}, []string{"db/main"}},
-			{[]sm.Filter{filter(sm.FilterNameStringTypeAll, "DB secret")}, []string{"db/main", "db/replica"}},
+			{[]sm.Filter{filter(sm.FilterNameStringTypeAll, "MAIN replica")}, []string{"db/main", "db/replica"}},
 		} {
 			if got := names(c.filters...); !slices.Equal(got, c.want) {
 				h.Errorf("filters %+v = %v, want %v", c.filters, got, c.want)
@@ -735,8 +1005,143 @@ func TestListSecretsFiltersAndPaging(t *testing.T) {
 	})
 }
 
+// listNames lists the names ListSecrets returns for one filter.
+func (h *harness) listNames(key sm.FilterNameStringType, values ...string) []string {
+	h.Helper()
+	list := must(h, sm.OpListSecrets, &sm.ListSecretsInput{Filters: []sm.Filter{{Key: new(key), Values: values}}}).SecretList
+	out := make([]string, 0, len(list))
+	for i := range list {
+		out = append(out, val(list[i].Name))
+	}
+	return out
+}
+
+// The description filter matches each of its words against the words of
+// the description, ignoring case and order; the name filter stays a prefix
+// of the whole name (AWS-recorded, LocalStack test_list_secrets_filtering,
+// and the user guide's search page).
+func TestListSecretsDescriptionWords(t *testing.T) {
+	run(t, func(h *harness) {
+		for i, desc := range []string{"a secret", "an secret", "asecret", "thesecret", "Description of my secret"} {
+			must(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: fmt.Sprintf("testing%d", i+1), ClientRequestToken: new(h.token()), Description: new(desc)})
+			h.advance(time.Second)
+		}
+		for _, c := range []struct {
+			key   sm.FilterNameStringType
+			value string
+			want  []string
+		}{
+			{sm.FilterNameStringTypeDescription, "a secret", []string{"testing1", "testing2"}},
+			{sm.FilterNameStringTypeDescription, "My Description", []string{"testing5"}},
+			{sm.FilterNameStringTypeDescription, "!a secret", []string{"testing3", "testing4", "testing5"}},
+			{sm.FilterNameStringTypeName, "testing1 one", []string{}},
+		} {
+			if got := h.listNames(c.key, c.value); !slices.Equal(got, c.want) {
+				h.Errorf("%s %q = %v, want %v", c.key, c.value, got, c.want)
+			}
+		}
+	})
+}
+
+// The all filter splits its value and every attribute into words, at
+// punctuation, letter-digit and case changes, and matches a secret when
+// any value word prefixes one of its words, ignoring case (the user guide's
+// search page and the Filter reference).
+func TestListSecretsAllFilterWords(t *testing.T) {
+	run(t, func(h *harness) {
+		for _, s := range []struct{ name, desc, tagValue string }{
+			{"app/prod/db", "primary", "x"},
+			{"credsDatabase892", "none", "x"},
+			{"mine", "my thing", "x"},
+			{"tagged", "none", "secret-ish"},
+			{"other", "none", "x"},
+		} {
+			must(h, sm.OpCreateSecret, &sm.CreateSecretInput{
+				Name: s.name, ClientRequestToken: new(h.token()), Description: new(s.desc),
+				Tags: []sm.Tag{{Key: new("t"), Value: new(s.tagValue)}},
+			})
+			h.advance(time.Second)
+		}
+		for _, c := range []struct {
+			value string
+			want  []string
+		}{
+			{"prod", []string{"app/prod/db"}},
+			{"DATA", []string{"credsDatabase892"}},
+			{"89", []string{"credsDatabase892"}},
+			{"My_Secret", []string{"mine", "tagged"}},
+			{"base", []string{}},
+		} {
+			if got := h.listNames(sm.FilterNameStringTypeAll, c.value); !slices.Equal(got, c.want) {
+				h.Errorf("all %q = %v, want %v", c.value, got, c.want)
+			}
+		}
+	})
+}
+
+// A NextToken works only in the listing and order that returned it; any
+// other token is InvalidNextTokenException rather than a page.
+func TestNextTokenBelongsToItsListing(t *testing.T) {
+	run(t, func(h *harness) {
+		for _, name := range []string{"a", "b", "c"} {
+			h.create(name, "v")
+			h.put(name, "w")
+			h.advance(time.Second)
+		}
+		byName := must(h, sm.OpListSecrets, &sm.ListSecretsInput{MaxResults: new(int32(1)), SortBy: new(sm.SortByTypeName)}).NextToken
+		versionsOfA := must(h, sm.OpListSecretVersionIds, &sm.ListSecretVersionIdsInput{SecretId: "a", MaxResults: new(int32(1))}).NextToken
+		if byName == nil || versionsOfA == nil {
+			h.Fatal("a listing of more than one page returned no NextToken")
+		}
+		if out := must(h, sm.OpListSecrets, &sm.ListSecretsInput{MaxResults: new(int32(1)), SortBy: new(sm.SortByTypeName), NextToken: byName}); len(out.SecretList) != 1 || val(out.SecretList[0].Name) != "b" {
+			h.Errorf("the page after a by-name token = %+v, want b", out.SecretList)
+		}
+		msg := "The NextToken value is not one a previous page returned."
+		for name, err := range map[string]*awserr.Error{
+			"garbage":                      second(call(h, sm.OpListSecrets, &sm.ListSecretsInput{NextToken: new("YWJj")})),
+			"by-name token, default order": second(call(h, sm.OpListSecrets, &sm.ListSecretsInput{NextToken: byName})),
+			"by-name token, descending":    second(call(h, sm.OpListSecrets, &sm.ListSecretsInput{SortBy: new(sm.SortByTypeName), SortOrder: new(sm.SortOrderTypeDesc), NextToken: byName})),
+			"secrets token, versions":      second(call(h, sm.OpListSecretVersionIds, &sm.ListSecretVersionIdsInput{SecretId: "a", NextToken: byName})),
+			"versions of a, versions of b": second(call(h, sm.OpListSecretVersionIds, &sm.ListSecretVersionIdsInput{SecretId: "b", NextToken: versionsOfA})),
+		} {
+			if err == nil || err.ID.JSONType != "InvalidNextTokenException" || err.Message != msg {
+				h.Errorf("%s = %v, want InvalidNextTokenException %q", name, err, msg)
+			}
+		}
+	})
+}
+
 // A snapshot of the state imported back over later changes serves the
 // secret values it held, sealed data keys and all.
+// The resource inventory lists every secret, scheduled for deletion or
+// not, under the ARN CreateSecret answered, and a snapshot round trip keeps
+// that ARN.
+func TestResourcesListSecretARNs(t *testing.T) {
+	run(t, func(h *harness) {
+		active := val(h.create("active", "v").ARN)
+		gone := val(h.create("gone", "v").ARN)
+		must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: "gone"})
+		want := map[string]string{active: "active", gone: "scheduled for deletion"}
+		got := map[string]string{}
+		for _, r := range h.svc.Resources(h.Scope) {
+			got[r.ARN.String()] = r.Summary
+		}
+		if !maps.Equal(got, want) {
+			h.Errorf("Resources = %v, want %v", got, want)
+		}
+		ss, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		if err := h.svc.Import(ss); err != nil {
+			h.Fatal(err)
+		}
+		if got := val(h.describe("active").ARN); got != active {
+			h.Errorf("ARN after a snapshot round trip = %s, want %s", got, active)
+		}
+	})
+}
+
 func TestSnapshotRoundTrip(t *testing.T) {
 	sections := map[string][]byte{}
 	run(t, func(h *harness) {

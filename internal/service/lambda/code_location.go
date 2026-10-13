@@ -76,7 +76,9 @@ func (s *Service) downloadFunctionCode(_ context.Context, c *kernel.Call, r *htt
 
 // servePackage writes the package in ref as an application/zip body. A
 // package released since the lookup, when its version was deleted, is
-// not found.
+// not found. The body shares an origin with the admin prefix, so it is
+// marked nosniff and sandboxed: a package crafted to sniff as HTML never
+// runs script there.
 func (s *Service) servePackage(w http.ResponseWriter, ref blob.Ref) *awserr.Error {
 	f, err := s.blobs.Open(ref)
 	if err != nil {
@@ -91,6 +93,8 @@ func (s *Service) servePackage(w http.ResponseWriter, ref blob.Ref) *awserr.Erro
 		return awserr.Internalf(err)
 	}
 	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "sandbox")
 	w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.Copy(w, f) //nolint:errcheck // the client went away; nothing is left to tell it

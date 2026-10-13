@@ -1,17 +1,25 @@
 package cloudwatch_test
 
 import (
+	"bytes"
+	"compress/gzip"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
+	"github.com/sustinbebustin/understudy/internal/auth"
+	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/edge"
 	"github.com/sustinbebustin/understudy/internal/protocol/awsquery"
 	"github.com/sustinbebustin/understudy/internal/protocol/cbor"
 	"github.com/sustinbebustin/understudy/internal/protocol/rpcv2cbor"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
+	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/server"
 )
 
 const requestID = "00000000-0000-0000-0000-000000000000"
@@ -134,6 +142,81 @@ func TestTerraformAlarmSequenceOnTheWire(t *testing.T) {
 		}
 		if errResp.Status != http.StatusNotFound {
 			t.Errorf("SetAlarmState on a missing alarm over CBOR in query mode: status = %d, want 404", errResp.Status)
+		}
+	})
+}
+
+// queryForm is a signed awsQuery request for CloudWatch whose form is
+// params padded with an unknown parameter, which the codec skips, to
+// exactly size bytes before any compression; gzipped when zipped.
+func queryForm(t *testing.T, params string, size int, zipped bool) *http.Request {
+	t.Helper()
+	form := params + "&Pad="
+	form += strings.Repeat("x", size-len(form))
+	body := []byte(form)
+	if zipped {
+		var b bytes.Buffer
+		zw := gzip.NewWriter(&b)
+		if _, err := zw.Write(body); err != nil {
+			t.Fatal(err)
+		}
+		if err := zw.Close(); err != nil {
+			t.Fatal(err)
+		}
+		body = b.Bytes()
+	}
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://localhost:4566/", bytes.NewReader(body))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
+	if zipped {
+		r.Header.Set("Content-Encoding", "gzip")
+	}
+	region, err := aws.KnownRegions().Parse("us-east-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	auth.Sign(r, body, auth.Signer{AccessKeyID: "test", SecretAccessKey: "test", Region: region, Service: "monitoring"}, time.Now())
+	return r
+}
+
+// PutMetricAlarm's body is capped at 120 KiB and PutMetricData's at 1 MiB,
+// counted decompressed for a gzipped body (botocore gzips PutMetricData,
+// wire-json-query.md 3.2). A body one byte over is refused before the
+// handler runs; one at the cap is served. The refusals' status and text
+// are inferred: AWS documents the caps (API_PutMetricAlarm,
+// API_PutMetricData) but no recording shows its answer past them.
+func TestQueryBodiesAreCappedPerOperation(t *testing.T) {
+	const alarm = "Action=PutMetricAlarm&Version=2010-08-01&AlarmName=capped&Namespace=ns&MetricName=m&Statistic=Average" +
+		"&Period=60&EvaluationPeriods=1&Threshold=1&ComparisonOperator=GreaterThanThreshold"
+	const data = "Action=PutMetricData&Version=2010-08-01&Namespace=ns&MetricData.member.1.MetricName=m&MetricData.member.1.Value=1"
+	cases := []struct {
+		name, params string
+		limit        int
+		zipped       bool
+		over         string
+	}{
+		{"PutMetricAlarm", alarm, 122880, false, "exceeds the 122880-byte limit"},
+		{"PutMetricData", data, 1048576, false, "exceeds the 1048576-byte limit"},
+		{"PutMetricData gzipped", data, 1048576, true, "the decompressed request body exceeds 1048576 bytes"},
+	}
+	run(t, func(h *harness) {
+		front, err := edge.New(edge.Options{
+			Kernel: h.Kernel, Registry: h.Kernel.Registry(), Identity: h.Identity, Regions: aws.KnownRegions(),
+			Codecs: server.Codecs(), Listener: ref.ListenerMain, Unclaimed: ref.AWSQuery,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range cases {
+			at := httptest.NewRecorder()
+			front.ServeHTTP(at, queryForm(t, c.params, c.limit, c.zipped))
+			if at.Code != http.StatusOK {
+				t.Errorf("%s of %d bytes = %d %s, want 200", c.name, c.limit, at.Code, at.Body)
+			}
+			over := httptest.NewRecorder()
+			front.ServeHTTP(over, queryForm(t, c.params, c.limit+1, c.zipped))
+			if over.Code < 400 || over.Code >= 500 || !strings.Contains(over.Body.String(), c.over) {
+				t.Errorf("%s of %d bytes = %d %s, want a client error saying it %s", c.name, c.limit+1, over.Code, over.Body, c.over)
+			}
 		}
 	})
 }

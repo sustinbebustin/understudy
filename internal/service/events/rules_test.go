@@ -3,6 +3,7 @@ package events_test
 import (
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
@@ -29,6 +30,40 @@ func TestPutRuleRefusesInvalidRules(t *testing.T) {
 		}
 		if n := len(must(h, eventbridgeapi.OpListRules, &eventbridgeapi.ListRulesInput{}).Rules); n != 0 {
 			t.Errorf("%d rules stored by refused calls", n)
+		}
+	})
+}
+
+// A list with nothing in it is an empty list, not an absent member: AWS
+// answers {"Rules": []}, {"RuleNames": []} and {"EventBuses": []}, and the
+// serializers leave out a nil list.
+func TestEmptyListsArePresent(t *testing.T) {
+	run(t, func(h *harness) {
+		if rules := must(h, eventbridgeapi.OpListRules, &eventbridgeapi.ListRulesInput{}).Rules; rules == nil || len(rules) != 0 {
+			t.Errorf("ListRules in a fresh scope = %#v, want an empty list", rules)
+		}
+		h.patternRule("r", `{"source": ["s"]}`)
+		must(h, eventbridgeapi.OpDeleteRule, &eventbridgeapi.DeleteRuleInput{Name: "r"})
+		if rules := must(h, eventbridgeapi.OpListRules, &eventbridgeapi.ListRulesInput{}).Rules; rules == nil || len(rules) != 0 {
+			t.Errorf("ListRules after the delete = %#v, want an empty list", rules)
+		}
+		names := must(h, eventbridgeapi.OpListRuleNamesByTarget, &eventbridgeapi.ListRuleNamesByTargetInput{TargetArn: queueARN}).RuleNames
+		if names == nil || len(names) != 0 {
+			t.Errorf("ListRuleNamesByTarget = %#v, want an empty list", names)
+		}
+		buses := must(h, eventbridgeapi.OpListEventBuses, &eventbridgeapi.ListEventBusesInput{NamePrefix: new("nomatch")}).EventBuses
+		if buses == nil || len(buses) != 0 {
+			t.Errorf("ListEventBuses = %#v, want an empty list", buses)
+		}
+	})
+}
+
+// DeleteRule is idempotent: deleting a rule that does not exist succeeds.
+func TestDeleteUnknownRuleSucceeds(t *testing.T) {
+	run(t, func(h *harness) {
+		out, err := call(h, eventbridgeapi.OpDeleteRule, &eventbridgeapi.DeleteRuleInput{Name: "never-created"})
+		if err != nil || out == nil || *out != (eventbridgeapi.DeleteRuleOutput{}) {
+			t.Errorf("DeleteRule of an unknown rule = %+v, %v; want an empty output", out, err)
 		}
 	})
 }
@@ -70,6 +105,18 @@ func TestDefaultBusOnly(t *testing.T) {
 		}
 		_, err := call(h, eventbridgeapi.OpDescribeEventBus, &eventbridgeapi.DescribeEventBusInput{Name: new("custom")})
 		wantError(t, err, "ResourceNotFoundException", "Event bus custom does not exist.")
+		// Another account's or region's default bus exists, but understudy
+		// does not manage it for this caller.
+		for _, foreign := range []struct{ bus, account, region string }{
+			{"arn:aws:events:us-east-1:111111111111:event-bus/default", "111111111111", "us-east-1"},
+			{"arn:aws:events:eu-west-1:000000000000:event-bus/default", "000000000000", "eu-west-1"},
+		} {
+			_, err = call(h, eventbridgeapi.OpDescribeRule, &eventbridgeapi.DescribeRuleInput{Name: "r", EventBusName: new(foreign.bus)})
+			wantError(t, err, "NotImplemented", "understudy manages rules, targets and buses only on the caller's own default event bus, and "+
+				foreign.bus+" belongs to account "+foreign.account+" in "+foreign.region+
+				". Call with that account's credentials in that region, or name the bus 'default'. "+
+				"Run 'understudy coverage --service eventbridge' for what is supported.")
+		}
 		if n := len(must(h, eventbridgeapi.OpListEventBuses, &eventbridgeapi.ListEventBusesInput{}).EventBuses); n != 1 {
 			t.Errorf("%d buses listed, want the default one", n)
 		}
@@ -90,6 +137,42 @@ func TestTagsAddressRulesByARN(t *testing.T) {
 		})
 		if err == nil || err.ID.JSONType != "NotImplemented" {
 			t.Errorf("tagging the bus = %v, want NotImplemented", err)
+		}
+	})
+}
+
+// A rule holds at most 50 tags (API_TagResource): PutRule creating a rule
+// with more, or a TagResource that would leave more, is refused and the
+// rule's tags stay as they were. Replacing a tag's value at the limit
+// succeeds.
+func TestTagLimitPerRule(t *testing.T) {
+	run(t, func(h *harness) {
+		tags := func(prefix string, n int) []eventbridgeapi.Tag {
+			out := make([]eventbridgeapi.Tag, n)
+			for i := range out {
+				out[i] = eventbridgeapi.Tag{Key: prefix + strconv.Itoa(i), Value: "v"}
+			}
+			return out
+		}
+		const over = "Tags are not valid. Reason: a resource can have at most 50 tags, and this request would leave 51."
+		_, err := call(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "r", EventPattern: new(`{"source": ["s"]}`), Tags: tags("k", 51)})
+		wantError(t, err, "ValidationException", over)
+		if _, err := call(h, eventbridgeapi.OpDescribeRule, &eventbridgeapi.DescribeRuleInput{Name: "r"}); err == nil {
+			t.Error("the refused PutRule created the rule")
+		}
+
+		must(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "r", EventPattern: new(`{"source": ["s"]}`), Tags: tags("k", 50)})
+		_, err = call(h, eventbridgeapi.OpTagResource, &eventbridgeapi.TagResourceInput{ResourceARN: ruleARN + "r", Tags: tags("extra", 1)})
+		wantError(t, err, "ValidationException", over)
+		must(h, eventbridgeapi.OpTagResource, &eventbridgeapi.TagResourceInput{
+			ResourceARN: ruleARN + "r", Tags: []eventbridgeapi.Tag{{Key: "k0", Value: "replaced"}},
+		})
+		got := must(h, eventbridgeapi.OpListTagsForResource, &eventbridgeapi.ListTagsForResourceInput{ResourceARN: ruleARN + "r"}).Tags
+		if len(got) != 50 || slices.ContainsFunc(got, func(tag eventbridgeapi.Tag) bool { return strings.HasPrefix(tag.Key, "extra") }) {
+			t.Errorf("tags after the refused TagResource = %d, %v", len(got), got)
+		}
+		if i := slices.IndexFunc(got, func(tag eventbridgeapi.Tag) bool { return tag.Key == "k0" }); i < 0 || got[i].Value != "replaced" {
+			t.Errorf("k0 after replacing its value = %v", got)
 		}
 	})
 }
@@ -134,4 +217,31 @@ func TestPutRuleQuotaPerBus(t *testing.T) {
 			})
 		})
 	}
+}
+
+// A bus holds at most 30 rules whose patterns use a wildcard, whether the
+// 31st is created or an existing rule is changed to use one; rules without
+// a wildcard are not counted, and a wildcard rule may be replaced at the
+// limit.
+func TestWildcardRulesPerBusAreLimitedTo30(t *testing.T) {
+	run(t, func(h *harness) {
+		put := func(name, pattern string) *awserr.Error {
+			_, err := call(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: name, EventPattern: new(pattern)})
+			return err
+		}
+		const wildcard, plain = `{"source": [{"wildcard": "app.*"}]}`, `{"source": ["app"]}`
+		for i := range 30 {
+			if err := put("w-"+strconv.Itoa(i), wildcard); err != nil {
+				h.Fatalf("PutRule w-%d = %s: %s", i, err.ID.JSONType, err.Message)
+			}
+		}
+		wantError(h.T, put("w-extra", `{"detail": {"key": [{"anything-but": {"wildcard": "*.tmp"}}]}}`), "LimitExceededException", "The requested resource exceeds the maximum number allowed.")
+		if err := put("plain", plain); err != nil {
+			h.Errorf("a 31st rule without a wildcard = %s: %s", err.ID.JSONType, err.Message)
+		}
+		wantError(h.T, put("plain", wildcard), "LimitExceededException", "The requested resource exceeds the maximum number allowed.")
+		if err := put("w-0", `{"source": [{"wildcard": "other.*"}]}`); err != nil {
+			h.Errorf("replacing a wildcard rule at the limit = %s: %s", err.ID.JSONType, err.Message)
+		}
+	})
 }

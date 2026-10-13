@@ -9,13 +9,32 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // stateVersion is the schema version of State in snapshots, and of the
 // item sections of ExportLate.
-const stateVersion = 2
+const stateVersion = 3
+
+// stateCodec is the snapshot codec of State, with the Billing sum in the
+// tagged-union form. A table jsonx refuses is a bug in this file; the codec
+// then fails every Export and Import with that error.
+func stateCodec() store.Codec {
+	u, err := jsonx.NewUnion("dynamodb.Billing",
+		jsonx.Variant[Billing, Provisioned]("provisioned"),
+		jsonx.Variant[Billing, OnDemand]("on-demand"),
+	)
+	if err != nil {
+		return store.Codec{
+			Marshal:   func(any) ([]byte, error) { return nil, err },
+			Unmarshal: func([]byte, any) error { return err },
+		}
+	}
+	c := jsonx.NewCodec(u)
+	return store.Codec{Marshal: c.Marshal, Unmarshal: c.Unmarshal}
+}
 
 // State is the shim's view of one account and region: the tables Local
 // holds there, which Local itself cannot tell apart by letter case, and

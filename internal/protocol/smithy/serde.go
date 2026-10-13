@@ -115,7 +115,7 @@ type Deserializable interface {
 	Deserialize(d Deserializer) error
 }
 
-// Body is an input @streaming blob (fidelity review F1): the handler pulls
+// Body is an input @streaming blob: the handler pulls
 // it after its pre-checks, never as []byte.
 type Body interface {
 	// Open returns the body; net/http sends 100 Continue on the first read.
@@ -127,7 +127,10 @@ type Body interface {
 	Trailer(name string) (string, bool)
 }
 
-// BodySource is an output @streaming blob, streamed from the blob store.
+// BodySource is an output @streaming blob, streamed from the blob store. A
+// source that holds a resource until Range hands it over, such as an open
+// file, also implements io.Closer, so an output dropped before encoding
+// (kernel.Release) frees it; the encoder closes what Range returns.
 type BodySource interface {
 	Size() int64
 	// Range returns n bytes starting at off.

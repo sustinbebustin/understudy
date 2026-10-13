@@ -233,6 +233,44 @@ func TestVersionPageSplitsAKey(t *testing.T) {
 	}
 }
 
+// TestVersionIDMarkerNeedsKeyMarker: a version-id-marker without a
+// key-marker is InvalidArgument (LocalStack aws_validated snapshot
+// test_list_objects_versions_markers, step list-objects-next-version-only).
+func TestVersionIDMarkerNeedsKeyMarker(t *testing.T) {
+	b := &Bucket{Name: "versions"}
+	id := mintVersionID(strings.Repeat("A", versionIDLen), 1)
+	_, err := listObjectVersions(&s3api.ListObjectVersionsInput{Bucket: b.Name, VersionIdMarker: new(id)}, b)
+	if err == nil || err.ID.QueryCode != "InvalidArgument" || err.Message != "A version-id marker cannot be specified without a key marker." {
+		t.Fatalf("ListObjectVersions with only a version-id-marker = %v, want InvalidArgument", err)
+	}
+	if name, value := fieldOf(err.Fields, "ArgumentName"), fieldOf(err.Fields, "ArgumentValue"); name != "version-id-marker" || value != id {
+		t.Fatalf("ArgumentName %q, ArgumentValue %q; want version-id-marker, %q", name, value, id)
+	}
+}
+
+// TestVersionIDsCarryTheirSeq: every minted version id is of the version
+// id form, keeps the random characters past the Seq digits, and reads
+// back the Seq it was minted with.
+func TestVersionIDsCarryTheirSeq(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		random := rapid.StringOfN(rapid.SampledFrom([]rune(versionIDChars)), versionIDLen, versionIDLen, -1).Draw(t, "random")
+		seq := rapid.Uint64().Draw(t, "seq")
+		id := mintVersionID(random, seq)
+		if err := checkVersionID(&id); err != nil {
+			t.Fatalf("minted id %q is not a version id: %s", id, err.Message)
+		}
+		if id[versionSeqLen:] != random[versionSeqLen:] {
+			t.Fatalf("minted id %q changed the random tail of %q", id, random)
+		}
+		if got, ok := versionSeq(id); !ok || got != seq {
+			t.Fatalf("versionSeq(%q) = %d, %v; want %d", id, got, ok, seq)
+		}
+	})
+	if _, ok := versionSeq(nullVersion); ok {
+		t.Fatal("versionSeq(null) reads a Seq")
+	}
+}
+
 // TestZeroMaxKeysListsNothing: max-keys=0 is an empty page, not truncated
 // (s3.md 9.1).
 func TestZeroMaxKeysListsNothing(t *testing.T) {

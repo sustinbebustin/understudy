@@ -101,6 +101,19 @@ func build(t *testing.T, cfg server.Config) (srv *server.Server, ready string) {
 	return srv, cfg.ReadyFile
 }
 
+// New refuses a ready file in a directory that does not exist before
+// anything listens, naming the path given rather than the temporary file
+// the ready file is written through.
+func TestNewRefusesAnUnwritableReadyFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing", "ready.json")
+	_, err := server.New(server.Config{ReadyFile: path, Docker: server.DockerDisabled{}, LogOutput: io.Discard})
+	refused, ok := errors.AsType[*server.ReadyFileError](err)
+	if !ok || refused.Path != path || !errors.Is(err, os.ErrNotExist) ||
+		!strings.Contains(err.Error(), "--ready-file "+path) || strings.Contains(err.Error(), ".understudy-ready-") {
+		t.Fatalf("New with a ready file in a missing directory = %v, want a *ReadyFileError naming %s", err, path)
+	}
+}
+
 // newServer is server.New for a server the test may never serve: cleanup
 // closes it and checks the close. Docker is disabled unless the test sets
 // it, so no test reaches the machine's daemon by accident.
@@ -199,7 +212,7 @@ func TestCloseReleasesAnUnservedServer(t *testing.T) {
 func TestHealthMatchesTheEscapedPath(t *testing.T) {
 	srv, _ := build(t, server.Config{Version: "test"})
 	rec := httptest.NewRecorder()
-	srv.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/_understudy/v1/heal%74h", http.NoBody))
+	srv.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://localhost:4566/_understudy/v1/heal%74h", http.NoBody))
 	if rec.Code != http.StatusNotFound || !strings.Contains(rec.Body.String(), `"code":"not_found"`) {
 		t.Fatalf("GET /_understudy/v1/heal%%74h = %d %s, want 404 not_found", rec.Code, rec.Body)
 	}
@@ -211,7 +224,7 @@ func TestHealthMatchesTheEscapedPath(t *testing.T) {
 func TestS3HostIDAgreesBetweenEdgeAndCodec(t *testing.T) {
 	srv, _ := build(t, server.Config{Version: "test"})
 	rec := httptest.NewRecorder()
-	srv.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/bucket", http.NoBody))
+	srv.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://localhost:4566/bucket", http.NoBody))
 	requestID, hostID := rec.Header().Get("X-Amz-Request-Id"), rec.Header().Get("X-Amz-Id-2")
 	if requestID == "" || hostID != restxml.HostID(requestID) || !strings.Contains(rec.Body.String(), "<HostId>"+hostID+"</HostId>") {
 		t.Fatalf("GET /bucket = %d %v %s; want x-amz-id-2 = restxml.HostID(x-amz-request-id) = the body's HostId", rec.Code, rec.Header(), rec.Body)
@@ -264,7 +277,7 @@ func TestS3InternalFailureIsInternalError(t *testing.T) {
 func TestHealthIsUnavailableUntilTheListenerAccepts(t *testing.T) {
 	srv, ready := build(t, server.Config{Version: "test"})
 	rec := httptest.NewRecorder()
-	srv.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/_understudy/v1/health", http.NoBody))
+	srv.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://localhost:4566/_understudy/v1/health", http.NoBody))
 	if rec.Code != http.StatusServiceUnavailable || rec.Body.String() != "{\"ready\":false,\"waiting\":[\"listener\"]}\n" {
 		t.Fatalf("health before Serve = %d %s", rec.Code, rec.Body)
 	}

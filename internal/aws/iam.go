@@ -5,6 +5,14 @@ import (
 	"strings"
 )
 
+// RootARN is the ARN of account's root user in partition p, the principal
+// a resource policy names when it grants an account:
+// arn:<partition>:iam::<account>:root. account is kept as given, as a
+// policy stores it.
+func RootARN(p Partition, account string) ARN {
+	return ARN{Partition: p.String(), Service: "iam", Account: account, Resource: "root"}
+}
+
 // SplitIAMPath splits the part of an IAM ARN's resource after its type,
 // such as "service-role/name", into the IAM path ("/service-role/") and
 // the name. A resource without a slash is on the root path "/". It does

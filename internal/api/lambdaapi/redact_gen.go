@@ -942,8 +942,8 @@ func (v FunctionConfiguration) redacted() FunctionConfiguration {
 }
 
 func (v GetDurableExecutionOutput) redacted() GetDurableExecutionOutput {
-	v.InputPayload = nil
-	v.Result = nil
+	v.InputPayload = redactedPtr(v.InputPayload)
+	v.Result = redactedPtr(v.Result)
 	if v.Error != nil {
 		c := v.Error.redacted()
 		v.Error = &c
@@ -1099,9 +1099,9 @@ func (v RuntimeVersionConfig) redacted() RuntimeVersionConfig {
 }
 
 func (v ErrorObject) redacted() ErrorObject {
-	v.ErrorMessage = nil
-	v.ErrorType = nil
-	v.ErrorData = nil
+	v.ErrorMessage = redactedPtr(v.ErrorMessage)
+	v.ErrorType = redactedPtr(v.ErrorType)
+	v.ErrorData = redactedPtr(v.ErrorData)
 	v.StackTrace = redactStackTraceEntries(v.StackTrace)
 	return v
 }
@@ -1153,7 +1153,7 @@ func (v LayerVersionContentInput) redacted() LayerVersionContentInput {
 }
 
 func (v OperationUpdate) redacted() OperationUpdate {
-	v.Payload = nil
+	v.Payload = redactedPtr(v.Payload)
 	if v.Error != nil {
 		c := v.Error.redacted()
 		v.Error = &c
@@ -1162,17 +1162,17 @@ func (v OperationUpdate) redacted() OperationUpdate {
 }
 
 func (v EnvironmentError) redacted() EnvironmentError {
-	v.Message = nil
+	v.Message = redactedPtr(v.Message)
 	return v
 }
 
 func (v ImageConfigError) redacted() ImageConfigError {
-	v.Message = nil
+	v.Message = redactedPtr(v.Message)
 	return v
 }
 
 func (v RuntimeVersionError) redacted() RuntimeVersionError {
-	v.Message = nil
+	v.Message = redactedPtr(v.Message)
 	return v
 }
 
@@ -1182,7 +1182,7 @@ func redactStackTraceEntries(v []string) []string {
 	}
 	out := make([]string, len(v))
 	for i := range v {
-		out[i] = *new(string)
+		out[i] = redactedText
 	}
 	return out
 }
@@ -1292,7 +1292,7 @@ func (v Operation) redacted() Operation {
 }
 
 func (v FunctionCodeLocationError) redacted() FunctionCodeLocationError {
-	v.Message = nil
+	v.Message = redactedPtr(v.Message)
 	return v
 }
 
@@ -1404,12 +1404,12 @@ func (v InvocationCompletedDetails) redacted() InvocationCompletedDetails {
 }
 
 func (v ExecutionDetails) redacted() ExecutionDetails {
-	v.InputPayload = nil
+	v.InputPayload = redactedPtr(v.InputPayload)
 	return v
 }
 
 func (v ContextDetails) redacted() ContextDetails {
-	v.Result = nil
+	v.Result = redactedPtr(v.Result)
 	if v.Error != nil {
 		c := v.Error.redacted()
 		v.Error = &c
@@ -1418,7 +1418,7 @@ func (v ContextDetails) redacted() ContextDetails {
 }
 
 func (v StepDetails) redacted() StepDetails {
-	v.Result = nil
+	v.Result = redactedPtr(v.Result)
 	if v.Error != nil {
 		c := v.Error.redacted()
 		v.Error = &c
@@ -1427,7 +1427,7 @@ func (v StepDetails) redacted() StepDetails {
 }
 
 func (v CallbackDetails) redacted() CallbackDetails {
-	v.Result = nil
+	v.Result = redactedPtr(v.Result)
 	if v.Error != nil {
 		c := v.Error.redacted()
 		v.Error = &c
@@ -1436,7 +1436,7 @@ func (v CallbackDetails) redacted() CallbackDetails {
 }
 
 func (v ChainedInvokeDetails) redacted() ChainedInvokeDetails {
-	v.Result = nil
+	v.Result = redactedPtr(v.Result)
 	if v.Error != nil {
 		c := v.Error.redacted()
 		v.Error = &c
@@ -1445,12 +1445,12 @@ func (v ChainedInvokeDetails) redacted() ChainedInvokeDetails {
 }
 
 func (v EventInput) redacted() EventInput {
-	v.Payload = nil
+	v.Payload = redactedPtr(v.Payload)
 	return v
 }
 
 func (v EventResult) redacted() EventResult {
-	v.Payload = nil
+	v.Payload = redactedPtr(v.Payload)
 	return v
 }
 
@@ -1460,4 +1460,15 @@ func (v EventError) redacted() EventError {
 		v.Payload = &c
 	}
 	return v
+}
+
+// redactedText stands in for a sensitive string the client sent.
+const redactedText = "[redacted]"
+
+// redactedPtr is redactedText in place of a present *p, nil for nil.
+func redactedPtr[T ~string](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	return new(T(redactedText))
 }

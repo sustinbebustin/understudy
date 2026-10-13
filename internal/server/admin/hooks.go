@@ -2,8 +2,14 @@ package admin
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io/fs"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -77,9 +83,18 @@ type HotReloader interface {
 }
 
 // ImagePuller pre-pulls the pinned runtime images, returning the images
-// pulled; empty runtimes means every pinned runtime.
+// pulled; empty runtimes means every pinned runtime. An error the request
+// caused, such as a runtime with no pinned image, implements RequestFault;
+// any other means the images cannot be pulled now.
 type ImagePuller interface {
 	PullImages(ctx context.Context, runtimes []string) ([]string, error)
+}
+
+// RequestFault is a hook error the request caused rather than the
+// emulator's state; it answers invalid_request.
+type RequestFault interface {
+	error
+	RequestFault()
 }
 
 // TTLSweeper runs the DynamoDB TTL sweep now, returning the items deleted.
@@ -136,11 +151,68 @@ func (h *Handler) hotReload(w http.ResponseWriter, r *http.Request, args []strin
 		h.fail(w, r, err)
 		return
 	}
-	if err := h.o.HotReloader.HotReload(r.Context(), scope, args[0], in.Dir); err != nil {
+	dir, err := overlayDir(in.Dir)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	if err := h.o.HotReloader.HotReload(r.Context(), scope, args[0], dir); err != nil {
 		h.fail(w, r, fromAWS(err))
 		return
 	}
 	h.noContent(w)
+}
+
+// overlayDir resolves dir, the directory a hot-reload call names, to the
+// one the function container binds: an absolute path with every symbolic
+// link resolved, to a directory the user understudy runs as owns. On
+// loopback the admin API answers any local user without a token, and the
+// Docker daemon binds the directory into a container that reads it as
+// root, so without the owner check any local user could read a directory
+// only root may, such as /root or /etc, through a function. The resolved
+// path is what is bound, so Docker does not follow a link the caller
+// controls. Bindings declared in the configuration file are the
+// operator's and are not checked here.
+func overlayDir(dir string) (string, *admin.Error) {
+	const nothing = "; nothing was bound"
+	refuse := func(msg, hint string) (string, *admin.Error) {
+		return "", &admin.Error{Code: admin.InvalidRequest, Field: "dir", Message: msg + nothing, Hint: hint}
+	}
+	if !filepath.IsAbs(dir) {
+		return refuse(fmt.Sprintf("%q is not an absolute path", dir), "give the directory's absolute host path, such as $PWD/build")
+	}
+	resolved, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return refuse(fmt.Sprintf("%s cannot be resolved on the host: %v", dir, err), "check that the directory exists and that the user understudy runs as can reach it")
+	}
+	named := resolved
+	if resolved != filepath.Clean(dir) {
+		named = fmt.Sprintf("%s (where %s leads)", resolved, dir)
+	}
+	info, err := os.Lstat(resolved)
+	switch {
+	case err != nil:
+		return refuse(fmt.Sprintf("%s cannot be read on the host: %v", named, err), "check that the user understudy runs as can reach the directory")
+	case !info.IsDir():
+		return refuse(named+" is not a directory", "give the directory the function's build writes its code to")
+	}
+	if owner, ok := ownerUID(info); !ok || owner != os.Getuid() {
+		return refuse(
+			fmt.Sprintf("%s is not owned by the user understudy runs as (uid %d): the function container reads the directory as root, so the admin API binds only directories that user owns", named, os.Getuid()),
+			"build into a directory the user running understudy owns, or declare the binding under lambda.hotReload in the configuration file",
+		)
+	}
+	return resolved, nil
+}
+
+// ownerUID is the uid that owns the file info describes; false where the
+// platform reports none.
+func ownerUID(info fs.FileInfo) (int, bool) {
+	st, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, false
+	}
+	return int(st.Uid), true
 }
 
 func (h *Handler) imagePull(w http.ResponseWriter, r *http.Request, _ []string) {
@@ -154,8 +226,13 @@ func (h *Handler) imagePull(w http.ResponseWriter, r *http.Request, _ []string) 
 		return
 	}
 	images, err := h.o.ImagePuller.PullImages(r.Context(), in.Runtimes)
+	if fault, ok := errors.AsType[RequestFault](err); ok {
+		h.fail(w, r, &admin.Error{Code: admin.InvalidRequest, Field: "runtimes", Message: fault.Error()})
+		return
+	}
 	if err != nil {
-		h.fail(w, r, &admin.Error{Code: admin.Unavailable, Message: "pulling runtime images failed: " + err.Error(), Hint: "run `understudy doctor` to check Docker"})
+		// Every cause names its own next step, such as starting Docker.
+		h.fail(w, r, &admin.Error{Code: admin.Unavailable, Message: "pulling runtime images failed: " + err.Error()})
 		return
 	}
 	h.ok(w, r, admin.ImagePullResult{Images: images})
@@ -195,20 +272,14 @@ func (h *Handler) subscriptionToken(w http.ResponseWriter, r *http.Request, args
 // scope parses an optional account and region, defaulting to the default
 // account and region.
 func (h *Handler) scope(account, region string) (aws.Scope, *admin.Error) {
-	s := aws.Scope{Partition: aws.PartitionAWS(), Account: h.o.DefaultAccount, Region: aws.DefaultRegion()}
-	if account != "" {
-		a, err := aws.ParseAccountID(account)
-		if err != nil {
-			return s, &admin.Error{Code: admin.InvalidRequest, Field: "account", Message: err.Error()}
+	defaults := aws.Scope{Partition: aws.PartitionAWS(), Account: h.o.DefaultAccount, Region: aws.DefaultRegion()}
+	s, err := aws.ParseScope(account, region, defaults, h.o.Regions)
+	if err != nil {
+		out := &admin.Error{Code: admin.InvalidRequest, Message: err.Error()}
+		if se, ok := errors.AsType[*aws.ScopeError](err); ok {
+			out.Field = se.Part.String()
 		}
-		s.Account = a
-	}
-	if region != "" {
-		reg, err := h.o.Regions.Parse(region)
-		if err != nil {
-			return s, &admin.Error{Code: admin.InvalidRequest, Field: "region", Message: err.Error()}
-		}
-		s.Region = reg
+		return s, out
 	}
 	return s, nil
 }

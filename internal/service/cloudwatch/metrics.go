@@ -14,7 +14,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// PutMetricData's timestamp windows and ListMetrics' page size and
+// PutMetricData's timestamp windows, which are also the span past which
+// ListMetrics stops listing a metric, and ListMetrics' page size and
 // RecentlyActive span (secrets-logs-events-alarms.md 5.2; the ListMetrics
 // documentation).
 const (
@@ -27,7 +28,7 @@ const (
 // bindMetrics binds the metric data operations.
 func (s *Service) bindMetrics(b cloudwatchapi.Binder) {
 	b.PutMetricData(s.putMetricData,
-		registry.Partial{Note: "entities and StrictEntityValidation are accepted and ignored; points are kept until reset, not aged out by resolution"},
+		registry.Partial{Note: "entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution"},
 		kernel.WithCheck(checkPutMetricData))
 	b.GetMetricData(s.getMetricData,
 		registry.Partial{Note: "MetricStat queries with SampleCount, Average, Sum, Minimum or Maximum; metric math, Metrics Insights and percentiles answer 501; LabelOptions is ignored"},
@@ -56,7 +57,7 @@ func (s *Service) putMetricData(_ context.Context, c *kernel.Call, in *cloudwatc
 			if d.d.Unit != nil {
 				unit = *d.d.Unit
 			}
-			points[i] = Point{At: at, Unit: string(unit), Stats: statsOf(d.d)}
+			points[i] = Point{At: storedAt(at, d.d.StorageResolution), Unit: string(unit), Stats: statsOf(d.d)}
 		}
 		for i, d := range ds {
 			dims := sortedDimensions(d.d.Dimensions)
@@ -97,6 +98,19 @@ func checkWindow(at, now, wall clock.Instant, path string) *awserr.Error {
 	return cloudwatchapi.ErrInvalidParameterValueException("The parameter " + path + ".Timestamp must specify a time no more than two weeks in the past.")
 }
 
+// storedAt is a datum's timestamp at the resolution CloudWatch stores it
+// at: the second for a high-resolution metric (StorageResolution 1), the
+// minute for a regular one (60, the default), so a sub-minute period sees
+// a regular metric's data only in the period that starts its minute (the
+// MetricDatum documentation).
+func storedAt(at clock.Instant, storageResolution *int32) clock.Instant {
+	unit := time.Minute
+	if storageResolution != nil && *storageResolution == 1 {
+		unit = time.Second
+	}
+	return clock.FromWire(at.Wire().Truncate(unit))
+}
+
 // statsOf folds a datum's value form into one statistic set; Counts
 // default to 1 per value.
 func statsOf(d *cloudwatchapi.MetricDatum) Stats {
@@ -128,12 +142,12 @@ func (s *Service) listMetrics(_ context.Context, c *kernel.Call, in *cloudwatcha
 	}
 	var all []listed
 	if cell, ok := s.cells.Lookup(c.Scope()); ok {
-		since := c.Admitted().Add(-recentlyActive)
+		now := c.Admitted()
 		all = store.Read(cell, func(st *State) []listed {
 			var out []listed
 			for _, key := range slices.Sorted(maps.Keys(st.Series)) {
 				series := st.Series[key]
-				if !lists(in, &series, since) {
+				if !lists(in, &series, now) {
 					continue
 				}
 				out = append(out, listed{key: key, metric: cloudwatchapi.Metric{
@@ -154,16 +168,19 @@ func (s *Service) listMetrics(_ context.Context, c *kernel.Call, in *cloudwatcha
 	return out, nil
 }
 
-// lists reports whether ListMetrics' filters select a series: every
-// dimension filter names one of its dimensions, with the given value when
-// there is one.
-func lists(in *cloudwatchapi.ListMetricsInput, s *Series, since clock.Instant) bool {
+// lists reports whether ListMetrics selects a series at now: one that
+// reported data within the past two weeks, as AWS documents, and that its
+// filters select, every dimension filter naming one of its dimensions with
+// the given value when there is one.
+func lists(in *cloudwatchapi.ListMetricsInput, s *Series, now clock.Instant) bool {
 	switch {
+	case s.LastPut.Before(now.Add(-pastWindow)):
+		return false
 	case in.Namespace != nil && *in.Namespace != s.Namespace:
 		return false
 	case in.MetricName != nil && *in.MetricName != s.Name:
 		return false
-	case in.RecentlyActive != nil && s.LastPut.Before(since):
+	case in.RecentlyActive != nil && s.LastPut.Before(now.Add(-recentlyActive)):
 		return false
 	}
 	for _, f := range in.Dimensions {

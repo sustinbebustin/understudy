@@ -213,8 +213,8 @@ func fifoOf(r *notify.Rule) (unvalidated, bool) {
 // not-found answer means "does not exist"; any other failure (an injected
 // fault, an emulator bug) is the call's InternalError.
 func (s *Service) destinationExists(ctx context.Context, c *kernel.Call, bucket string, r *notify.Rule) (bool, *awserr.Error) {
-	scope, ok := scopeOfARN(r.ARN)
-	if !ok {
+	scope, serr := aws.ScopeOf(r.ARN)
+	if serr != nil {
 		return false, nil
 	}
 	t := kernel.Target{Scope: scope, As: kernel.AsService{Name: "s3.amazonaws.com", Source: bucketARN(bucket)}, Via: ref.S3Notification}
@@ -255,19 +255,6 @@ type DestinationCheckError struct {
 
 func (e *DestinationCheckError) Error() string {
 	return fmt.Sprintf("s3: looking up notification destination %s failed with %s (%s); the configuration was not stored, retry the request", e.Destination, e.Code, e.Message)
-}
-
-// scopeOfARN is the account and region an ARN names, if it names both.
-func scopeOfARN(a aws.ARN) (aws.Scope, bool) {
-	account, err := aws.ParseAccountID(a.Account)
-	if err != nil {
-		return aws.Scope{}, false
-	}
-	var region aws.Region
-	if err := region.UnmarshalText([]byte(a.Region)); err != nil {
-		return aws.Scope{}, false
-	}
-	return aws.Scope{Partition: aws.PartitionAWS(), Account: account, Region: region}, true
 }
 
 // requestOf is the call as a notification echoes it: x-amz-request-id and

@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -29,9 +30,19 @@ const maxTags = 50
 // any letter case.
 const reservedTagPrefix = "aws:"
 
+// maxTagBytes is the most UTF-8 bytes a table's tag keys and values add up
+// to (Tagging.html, tagging restrictions: "The maximum size supported for
+// all the tags in a table is 10 KB").
+const maxTagBytes = 10 << 10
+
+// tagCharacters are the characters a tag key or value may hold besides
+// letters, digits and white space (Tagging.html, tagging restrictions).
+const tagCharacters = "+-=._:/"
+
 // checkTags refuses adding tags to a table holding have when the table
-// would hold more than maxTags, or a key is reserved. The texts are
-// UNVERIFIED against AWS.
+// would hold more than maxTags or more than maxTagBytes of them, a key is
+// reserved, or a key or value holds a character DynamoDB does not allow.
+// The texts are UNVERIFIED against AWS.
 func checkTags(have map[string]string, adding []dynamodbapi.Tag) *awserr.Error {
 	keys := maps.Clone(have)
 	if keys == nil {
@@ -41,12 +52,44 @@ func checkTags(have map[string]string, adding []dynamodbapi.Tag) *awserr.Error {
 		if strings.HasPrefix(strings.ToLower(tag.Key), reservedTagPrefix) {
 			return dynamodbapi.ErrValidationException("Invalid tag key " + tag.Key + ": tag keys starting with " + reservedTagPrefix + " are reserved for AWS use")
 		}
+		if !validTagText(tag.Key) {
+			return errTagCharacters("key", tag.Key)
+		}
+		if !validTagText(tag.Value) {
+			return errTagCharacters("value", tag.Value)
+		}
 		keys[tag.Key] = tag.Value
 	}
 	if len(keys) > maxTags {
 		return dynamodbapi.ErrValidationException(fmt.Sprintf("Too many tags: the table would have %d tags; a table can have at most %d", len(keys), maxTags))
 	}
+	size := 0
+	for k, v := range keys {
+		size += len(k) + len(v)
+	}
+	if size > maxTagBytes {
+		return dynamodbapi.ErrValidationException(fmt.Sprintf("Tags too large: the table's tag keys and values would add up to %d bytes; a table's tags can add up to at most %d bytes",
+			size, maxTagBytes))
+	}
 	return nil
+}
+
+// validTagText reports whether s holds only letters, digits, white space
+// and tagCharacters.
+func validTagText(s string) bool {
+	for _, r := range s {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && !unicode.IsSpace(r) && !strings.ContainsRune(tagCharacters, r) {
+			return false
+		}
+	}
+	return true
+}
+
+// errTagCharacters refuses a tag key or value holding a character DynamoDB
+// does not allow.
+func errTagCharacters(what, text string) *awserr.Error {
+	return dynamodbapi.ErrValidationException(fmt.Sprintf("Invalid tag %s %q: a tag %s may hold only letters, digits, white space and the characters %s",
+		what, text, what, strings.Join(strings.Split(tagCharacters, ""), " ")))
 }
 
 func (s *Service) tagResource(ctx context.Context, c *kernel.Call, in *dynamodbapi.TagResourceInput) (smithy.Serializable, *awserr.Error) {

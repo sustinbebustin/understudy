@@ -42,6 +42,12 @@
 //     ARCHITECTURE.md 10 lists is missing: a journal.Delivery needs a
 //     delivery.Mechanism, and the closed set of ARCHITECTURE.md 16 has
 //     none for a move inside SQS.
+//   - On a standard queue whose maxReceiveCount is above 3, AWS moves a
+//     message received 3 or more times to the back of the queue
+//     (sqs-dead-letter-queues.html). A receive offers such messages after
+//     every other receivable one, each group oldest first, rather than
+//     reordering the stored queue, so a message sent after one went to the
+//     back is still delivered ahead of it.
 //   - The 12-hour ChangeMessageVisibility ceiling counts from the receive
 //     that issued the handle, not the first receive sqs.md 7.2 quotes:
 //     every receive issues a new handle and starts a new visibility window
@@ -53,9 +59,14 @@
 //     it; otherwise the retry is a new attempt.
 //   - A message move task moves its first messages when it starts, then
 //     MaxNumberOfMessagesPerSecond more every second of emulator time;
-//     without a rate it moves everything in one step. It takes the oldest
-//     messages whatever their visibility, so an in-flight message's handle
-//     goes stale, and moves each as a new message
+//     without a rate it moves every receivable one in one step. It takes
+//     the oldest receivable messages, since AWS's redrive needs
+//     sqs:ReceiveMessage and sqs:DeleteMessage on the dead-letter queue
+//     (it receives what it moves): a message in flight or delayed
+//     stays, its receipt handle valid, ApproximateNumberOfMessagesToMove
+//     counts the messages receivable at the start, and a task whose
+//     remaining messages are all in flight keeps running until each is
+//     receivable or gone. It moves each as a new message
 //     (sqs.move-task.message-identity). A destination that does not exist
 //     fails the task with AWS.SimpleQueueService.NonExistentQueue; one
 //     that is the source is refused at the start. Without a DestinationArn

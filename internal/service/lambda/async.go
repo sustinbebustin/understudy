@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -233,8 +234,8 @@ func parseAsyncTimerID(id string) (aws.Scope, string, bool) {
 	if err != nil {
 		return aws.Scope{}, "", false
 	}
-	scope, ok := scopeOf(a)
-	return scope, request, ok
+	scope, err := aws.ScopeOf(a)
+	return scope, request, err == nil
 }
 
 // onAsync claims a due event and starts its attempt as tracked work; an
@@ -266,18 +267,26 @@ func (x *Execution) onAsync(c *kernel.Call, key clock.TimerKey, due clock.Instan
 	if !got.ok {
 		return
 	}
+	// The attempt's log lines are delivered on c's behalf, and may still
+	// be when settleAsync writes on c (onBehalf).
+	writes := &sync.Mutex{}
 	x.k.Go(kernel.InvocationRunning, func(ctx context.Context) {
 		// An attempt that panics is requeued, so the claimed event is
 		// never left running with no timer armed.
 		var result attemptResult = requeued{}
 		cfg := defaultAsyncConfig()
-		defer func() { x.settleAsync(ctx, c, scope, got.event.RequestID, result, cfg) }()
-		result, cfg = x.attempt(ctx, c, scope, &got.event)
+		defer func() {
+			writes.Lock()
+			defer writes.Unlock()
+			x.settleAsync(ctx, c, scope, got.event.RequestID, result, cfg)
+		}()
+		result, cfg = x.attempt(ctx, c, writes, scope, &got.event)
 	})
 }
 
-// attempt runs one attempt of ev and classifies it for the queue.
-func (x *Execution) attempt(ctx context.Context, c *kernel.Call, scope aws.Scope, ev *asyncEvent) (attemptResult, asyncConfig) {
+// attempt runs one attempt of ev on behalf of c, on which writes are made
+// holding writes, and classifies it for the queue.
+func (x *Execution) attempt(ctx context.Context, c *kernel.Call, writes *sync.Mutex, scope aws.Scope, ev *asyncEvent) (attemptResult, asyncConfig) {
 	t, err := x.resolve(functionRef{scope: scope, name: ev.Function, qualifier: ev.Qualifier})
 	switch {
 	case err != nil && err.ID.Status == http.StatusNotFound:
@@ -291,7 +300,7 @@ func (x *Execution) attempt(ctx context.Context, c *kernel.Call, scope aws.Scope
 		// snapshot or after a restart may be past it already.
 		return discarded{reason: "the event is older than its maximum age of " + t.async.maxAge.String()}, t.async
 	}
-	res, runErr := x.execute(ctx, &run{target: t, request: ev.RequestID, payload: ev.Payload, parent: c, cause: ev.cause()})
+	res, runErr := x.execute(ctx, &run{target: t, request: ev.RequestID, payload: ev.Payload, parent: c, parentWrites: writes, cause: ev.cause()})
 	if runErr != nil {
 		return requeued{}, t.async
 	}
@@ -382,21 +391,20 @@ func (q *AsyncQueue) Rearm(now clock.Instant) {
 		if !ok {
 			continue
 		}
-		armed := store.Read(cell, func(qu *asyncQueue) []clock.Armed {
-			out := make([]clock.Armed, 0, len(qu.Events))
+		// Armed under the cell lock, where a write arms, so a concurrent
+		// write either commits first and is read here, or commits after
+		// and its own arm replaces this one.
+		store.Read(cell, func(qu *asyncQueue) struct{} {
 			for _, id := range slices.Sorted(maps.Keys(qu.Events)) {
 				ev := qu.Events[id]
 				due := ev.Due
 				if due.Before(now) {
 					due = now
 				}
-				out = append(out, clock.Armed{Key: q.x.async.Key(asyncTimerID(scope, ev.Function, ev.RequestID)), Due: due})
+				sched.Arm(q.x.async.Key(asyncTimerID(scope, ev.Function, ev.RequestID)), due)
 			}
-			return out
+			return struct{}{}
 		})
-		for _, a := range armed {
-			sched.Arm(a.Key, a.Due)
-		}
 	}
 }
 

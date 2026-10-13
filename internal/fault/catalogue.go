@@ -137,8 +137,10 @@ func checkShape(r Rule) *RuleError {
 	switch {
 	case r.ID != "" && !validRuleID(r.ID):
 		return reject(r, "id", "%q is not a rule id: use 1 to %d letters, digits, '.', '_' and '-'", r.ID, maxRuleIDLen)
+	case r.Phase == 0:
+		return reject(r, "phase", `is missing; set "phase" to request or delivery`)
 	case !r.Phase.valid():
-		return reject(r, "phase", "is missing or unknown (%s); it must be request or delivery", r.Phase)
+		return reject(r, "phase", `%d is not a phase; set "phase" to request or delivery`, uint8(r.Phase))
 	case r.Action == nil:
 		return reject(r, "action", "is missing; give one of error, throttle, latency, after-commit, status-ok-error and drop-delivery")
 	case r.Trigger == nil:
@@ -170,7 +172,7 @@ func checkShape(r Rule) *RuleError {
 func checkMatch(cat Catalogue, r Rule) *RuleError {
 	m := r.Match
 	if !m.Origin.valid() {
-		return reject(r, "match.origin", "is %s; it must be any, external or internal", m.Origin)
+		return reject(r, "match.origin", `%d is not an origin; set "match.origin" to any, external or internal`, uint8(m.Origin))
 	}
 	if !m.Resource.canMatchARN() {
 		return reject(r, "match.resource", "%q can never match, because every ARN starts with %q; "+

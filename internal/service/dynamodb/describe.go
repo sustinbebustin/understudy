@@ -3,6 +3,7 @@ package dynamodb
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
@@ -31,8 +32,10 @@ type shimmed struct {
 	// table is the shim's record; nil for a table Local holds that the shim
 	// never saw created, which gets WarmThroughput only.
 	table *Table
-	// status replaces Local's TableStatus; empty keeps it. DeleteTable sets
-	// DELETING where Local answers ACTIVE (dynamodb-local.md 4.2).
+	// status replaces Local's TableStatus; empty keeps it. CreateTable sets
+	// CREATING, UpdateTable UPDATING and DeleteTable DELETING where Local
+	// answers ACTIVE (dynamodb-local.md 4.2). A table CREATING has its
+	// global secondary indexes CREATING too.
 	status dynamodbapi.TableStatus
 	// under renames the member holding the description: an UpdateTable
 	// answered from Local's DescribeTable moves Table to TableDescription.
@@ -88,16 +91,17 @@ func (d *shimmed) patch(desc document.Map) document.Map {
 		status = document.String(d.status)
 		desc = setMember(desc, "TableStatus", status)
 	}
-	reads, writes := int64(defaultWarmReads), int64(defaultWarmWrites)
+	warm := Warm{Reads: defaultWarmReads, Writes: defaultWarmWrites}
 	if t := d.table; t != nil && t.Warm != nil {
-		reads, writes = t.Warm.Reads, t.Warm.Writes
+		warm = *t.Warm
 	}
-	desc = setMember(desc, "WarmThroughput", document.Map{
-		{Key: "ReadUnitsPerSecond", Value: document.Number(strconv.FormatInt(reads, 10))},
-		{Key: "WriteUnitsPerSecond", Value: document.Number(strconv.FormatInt(writes, 10))},
-		{Key: "Status", Value: status},
-	})
+	desc = setMember(desc, "WarmThroughput", warmDescription(warm, status))
 	t := d.table
+	var indexStatus dynamodbapi.IndexStatus
+	if d.status == dynamodbapi.TableStatusCreating {
+		indexStatus = dynamodbapi.IndexStatusCreating
+	}
+	patchIndexes(desc, t, indexStatus)
 	if t == nil {
 		return desc
 	}
@@ -105,9 +109,8 @@ func (d *shimmed) patch(desc document.Map) document.Map {
 	if member(desc, "CreationDateTime") != nil {
 		desc = setMember(desc, "CreationDateTime", epochSeconds(t.Created))
 	}
-	if billing, ok := member(desc, "BillingModeSummary").(document.Map); ok && !t.OnDemandSince.IsZero() &&
-		member(billing, "LastUpdateToPayPerRequestDateTime") != nil {
-		desc = setMember(desc, "BillingModeSummary", setMember(billing, "LastUpdateToPayPerRequestDateTime", epochSeconds(t.OnDemandSince)))
+	if billing, ok := member(desc, "BillingModeSummary").(document.Map); ok && member(billing, "LastUpdateToPayPerRequestDateTime") != nil {
+		desc = setMember(desc, "BillingModeSummary", lastOnDemandPatched(billing, t.Billing))
 	}
 	if t.Class != nil {
 		summary := document.Map{{Key: "TableClass", Value: document.String(t.Class.Name)}}
@@ -123,14 +126,41 @@ func (d *shimmed) patch(desc document.Map) document.Map {
 			{Key: "KMSMasterKeyArn", Value: document.String(t.SSE.KMSKeyARN)},
 		})
 	}
-	desc = throughputPatched(desc, t.Throughput)
-	patchIndexes(desc, t.IndexThroughput)
-	return desc
+	return throughputPatched(desc, t.Throughput)
 }
 
-// patchIndexes patches the throughput of each global secondary index desc
-// describes, in place, from the record by index name.
-func patchIndexes(desc document.Map, record map[string]Throughput) {
+// warmDescription is a table's or an index's WarmThroughput description.
+// AWS reports the table's TableStatus as a table's Status and the index's
+// IndexStatus as an index's.
+func warmDescription(w Warm, status document.String) document.Map {
+	return document.Map{
+		{Key: "ReadUnitsPerSecond", Value: document.Number(strconv.FormatInt(w.Reads, 10))},
+		{Key: "WriteUnitsPerSecond", Value: document.Number(strconv.FormatInt(w.Writes, 10))},
+		{Key: "Status", Value: status},
+	}
+}
+
+// lastOnDemandPatched replaces the wall-clock LastUpdateToPayPerRequestDateTime
+// Local reports in billing, a BillingModeSummary, with the emulator-clock
+// instant the table last became PAY_PER_REQUEST, which AWS keeps after a
+// switch back to PROVISIONED. A table the shim never saw become
+// PAY_PER_REQUEST reports none: Local's instant is its own wall clock.
+func lastOnDemandPatched(billing document.Map, b Billing) document.Map {
+	if b != nil {
+		if last, ok := b.lastOnDemand(); ok {
+			return setMember(billing, "LastUpdateToPayPerRequestDateTime", epochSeconds(last))
+		}
+	}
+	return removeMember(billing, "LastUpdateToPayPerRequestDateTime")
+}
+
+// patchIndexes completes each global secondary index desc describes, in
+// place. status replaces Local's IndexStatus; empty keeps it. Every index
+// gets the WarmThroughput Terraform waits on after it adds or changes an
+// index: the record's IndexWarm, or AWS's default, with the index's
+// IndexStatus. An index of a table the shim records (t not nil) also gets
+// the emulator clock's throughput instants.
+func patchIndexes(desc document.Map, t *Table, status dynamodbapi.IndexStatus) {
 	indexes, ok := member(desc, "GlobalSecondaryIndexes").(document.List)
 	if !ok {
 		return
@@ -140,21 +170,41 @@ func patchIndexes(desc document.Map, record map[string]Throughput) {
 		if !ok {
 			continue
 		}
-		var p *Throughput
-		if name, ok := member(index, "IndexName").(document.String); ok {
-			if have, ok := record[string(name)]; ok {
-				p = &have
+		var name string
+		if n, named := member(index, "IndexName").(document.String); named {
+			name = string(n)
+		}
+		indexStatus, reported := member(index, "IndexStatus").(document.String)
+		if !reported {
+			indexStatus = document.String(dynamodbapi.IndexStatusActive)
+		}
+		if status != "" {
+			indexStatus = document.String(status)
+			index = setMember(index, "IndexStatus", indexStatus)
+		}
+		warm := Warm{Reads: defaultWarmReads, Writes: defaultWarmWrites}
+		if t != nil {
+			if have, ok := t.IndexWarm[name]; ok {
+				warm = have
 			}
 		}
-		indexes[i] = throughputPatched(index, p)
+		index = setMember(index, "WarmThroughput", warmDescription(warm, indexStatus))
+		if t != nil {
+			var p *Throughput
+			if have, ok := t.IndexThroughput[name]; ok {
+				p = &have
+			}
+			index = throughputPatched(index, p)
+		}
+		indexes[i] = index
 	}
 }
 
 // throughputPatched replaces the wall-clock LastIncreaseDateTime and
 // LastDecreaseDateTime of the ProvisionedThroughput in desc, a table's or
-// an index's, with the emulator-clock instants of p, or with 0 where the
-// shim saw no change, as Local reports a table whose throughput never
-// changed.
+// an index's, with the emulator-clock instants of p. Where the shim saw no
+// change the member is left out, as AWS leaves it out, where Local writes
+// 0.
 func throughputPatched(desc document.Map, p *Throughput) document.Map {
 	pt, ok := member(desc, "ProvisionedThroughput").(document.Map)
 	if !ok {
@@ -168,12 +218,11 @@ func throughputPatched(desc document.Map, p *Throughput) document.Map {
 		key string
 		at  clock.Instant
 	}{{"LastIncreaseDateTime", increased}, {"LastDecreaseDateTime", decreased}} {
-		switch {
-		case !m.at.IsZero():
-			pt = setMember(pt, m.key, epochSeconds(m.at))
-		case member(pt, m.key) != nil:
-			pt = setMember(pt, m.key, document.Number("0"))
+		if m.at.IsZero() {
+			pt = removeMember(pt, m.key)
+			continue
 		}
+		pt = setMember(pt, m.key, epochSeconds(m.at))
 	}
 	return setMember(desc, "ProvisionedThroughput", pt)
 }
@@ -197,6 +246,11 @@ func setMember(m document.Map, key string, v document.Value) document.Map {
 		}
 	}
 	return append(m, document.Entry{Key: key, Value: v})
+}
+
+// removeMember removes m's member key in place, if it has one.
+func removeMember(m document.Map, key string) document.Map {
+	return slices.DeleteFunc(m, func(e document.Entry) bool { return e.Key == key })
 }
 
 // epochSeconds is i as DynamoDB writes a timestamp: Unix seconds with

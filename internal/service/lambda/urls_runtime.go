@@ -105,8 +105,14 @@ func (u *urlServer) serve(ctx context.Context, c *kernel.Call, r *http.Request, 
 		furl.UnknownURL().Write(w)
 		return nil
 	}
-	s, ok := u.x.svc.findURL(addr)
-	if !ok {
+	var s served
+	switch found := u.x.svc.findURL(addr).(type) {
+	case urlLive:
+		s = found.served
+	case urlRetired:
+		furl.Forbidden().Write(w)
+		return nil
+	case urlUnknown:
 		furl.UnknownURL().Write(w)
 		return nil
 	}
@@ -175,9 +181,7 @@ func (u *urlServer) invoke(ctx context.Context, c *kernel.Call, r *http.Request,
 	if err != nil {
 		return furl.Response{}, err
 	}
-	run, stop := u.x.outliveCaller(ctx)
-	defer stop()
-	res, err := u.x.runSync(run, c, t, syncRun{payload: payload, trace: trace})
+	res, err := u.x.runSync(outliveCaller(ctx), c, t, syncRun{payload: payload, trace: trace})
 	if err != nil {
 		return furl.Response{}, err
 	}
@@ -225,10 +229,15 @@ func (u *urlServer) authorize(c *kernel.Call, r *http.Request, s served, addr fu
 		" is neither NONE nor AWS_IAM. This is an understudy bug; the function did not run. UpdateFunctionUrlConfig with a valid AuthType rewrites it.")
 }
 
-// public authorizes a request to an AuthType NONE URL: its resource policy
-// must allow lambda:InvokeFunctionUrl by the public principal with
-// lambda:FunctionUrlAuthType NONE. The error is a stored policy that
-// cannot be parsed, reported rather than read as no policy.
+// public authorizes a request to an AuthType NONE URL. Its resource policy
+// must allow the public principal both lambda:InvokeFunctionUrl and
+// lambda:InvokeFunction, in a request made through the URL: with
+// lambda:FunctionUrlAuthType NONE and lambda:InvokedViaFunctionUrl true.
+// That is the rule AWS applies since October 2025 (lambda-api.md finding
+// 7); the recorded fixtures, which add only the first statement, predate
+// it, and Terraform's aws_lambda_function_url adds both. The error is a
+// stored policy that cannot be parsed, reported rather than read as no
+// policy.
 func public(s served) (authorization, *awserr.Error) {
 	var doc policydoc.Document
 	if s.policy != "" {
@@ -239,14 +248,15 @@ func public(s served) (authorization, *awserr.Error) {
 		}
 		doc = parsed
 	}
-	q := policydoc.Query{
-		Principal: policydoc.Anonymous{},
-		Action:    "lambda:InvokeFunctionUrl",
-		Resource:  s.ref.qualifiedARN(),
-		Context:   map[string]string{"lambda:FunctionUrlAuthType": string(lambdaapi.FunctionUrlAuthTypeNone)},
+	keys := map[string]string{
+		"lambda:FunctionUrlAuthType":   string(lambdaapi.FunctionUrlAuthTypeNone),
+		"lambda:InvokedViaFunctionUrl": "true",
 	}
-	if _, ok := policydoc.Allows(doc, q).(policydoc.Allowed); !ok {
-		return refused{furl.Forbidden()}, nil
+	for _, action := range []string{"lambda:InvokeFunctionUrl", "lambda:InvokeFunction"} {
+		q := policydoc.Query{Principal: policydoc.Anonymous{}, Action: action, Resource: s.ref.qualifiedARN(), Context: keys}
+		if _, ok := policydoc.Allows(doc, q).(policydoc.Allowed); !ok {
+			return refused{furl.Forbidden()}, nil
+		}
 	}
 	return authorized{furl.Public{}}, nil
 }
@@ -356,13 +366,28 @@ func iamCaller(p identity.Principal, key string) furl.IAMCaller {
 	return c
 }
 
+// urlLookup is what a url id names.
+//
+//sumtype:decl
+type urlLookup interface{ isURLLookup() }
+
+// urlLive is a function URL configuration that exists.
+type urlLive struct{ served served }
+
+// urlRetired is the id of a deleted function URL configuration.
+type urlRetired struct{}
+
+// urlUnknown is an id no function URL configuration ever had.
+type urlUnknown struct{}
+
+func (urlLive) isURLLookup()    {}
+func (urlRetired) isURLLookup() {}
+func (urlUnknown) isURLLookup() {}
+
 // findURL finds the function URL configuration addr names, in any scope
 // of the region addr's host names, or of any region for the path fallback.
-func (s *Service) findURL(addr furl.Address) (served, bool) {
-	type found struct {
-		s  served
-		ok bool
-	}
+func (s *Service) findURL(addr furl.Address) urlLookup {
+	var found urlLookup = urlUnknown{}
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
 		if addr.Region != "" && scope.Region.String() != addr.Region {
 			continue
@@ -371,20 +396,23 @@ func (s *Service) findURL(addr furl.Address) (served, bool) {
 		if !ok {
 			continue
 		}
-		f := store.Read(cell, func(st *State) found {
-			s, ok := st.urlByID(scope, addr.ID)
-			return found{s, ok}
-		})
-		if f.ok {
-			return f.s, true
+		switch got := store.Read(cell, func(st *State) urlLookup { return st.urlByID(scope, addr.ID) }).(type) {
+		case urlLive:
+			return got
+		case urlRetired:
+			found = got
+		case urlUnknown:
 		}
 	}
-	return served{}, false
+	return found
 }
 
 // urlByID finds the URL configuration whose id is id, copied so it shares
-// nothing with the state.
-func (st *State) urlByID(scope aws.Scope, id string) (served, bool) {
+// nothing with the state, or the deleted one that had it.
+func (st *State) urlByID(scope aws.Scope, id string) urlLookup {
+	if st.RetiredURLs[id] {
+		return urlRetired{}
+	}
 	for name := range st.Functions {
 		f := st.Functions[name]
 		for qualifier, u := range f.URLs {
@@ -399,10 +427,10 @@ func (st *State) urlByID(scope aws.Scope, id string) (served, bool) {
 			if p, ok := f.Policies[qualifier]; ok {
 				s.policy = p.document()
 			}
-			return s, true
+			return urlLive{served: s}
 		}
 	}
-	return served{}, false
+	return urlUnknown{}
 }
 
 // forURL is the CORS configuration as the URL applies it, sharing nothing

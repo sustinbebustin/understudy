@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -247,6 +248,26 @@ func TestHeadBucket(t *testing.T) {
 		wantCode(h.T, err, "NotFound", http.StatusNotFound)
 		_, err = invoke(h, s3api.OpHeadBucket, &s3api.HeadBucketInput{Bucket: "headed", ExpectedBucketOwner: new(otherAccount)})
 		wantCode(h.T, err, "AccessDenied", http.StatusForbidden)
+	})
+}
+
+// TestListBucketsCreationDatePrecision: CreationDate is reported in whole
+// seconds, as S3 reports every date, whatever the clock's precision
+// (API_ListBuckets sample 2019-12-11T23:32:47+00:00).
+func TestListBucketsCreationDatePrecision(t *testing.T) {
+	run(t, s3.Options{}, func(h *harness) {
+		if _, err := h.Clock.Advance(1500 * time.Millisecond); err != nil {
+			t.Fatal(err)
+		}
+		now := h.Clock.Now().Wire()
+		if now.Equal(now.Truncate(time.Second)) {
+			t.Fatalf("clock at %s after a sub-second advance, want a fraction of a second to truncate", now)
+		}
+		h.createBucket("precise")
+		out := ok(h, who{}, s3api.OpListBuckets, &s3api.ListBucketsInput{})
+		if len(out.Buckets) != 1 || !out.Buckets[0].CreationDate.Equal(now.Truncate(time.Second)) {
+			t.Fatalf("ListBuckets = %+v, want one bucket created at %s", out.Buckets, now.Truncate(time.Second))
+		}
 	})
 }
 

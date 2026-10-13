@@ -134,10 +134,10 @@ func (v *ActivateEventSourceInput) validate(path awserr.Path, out *[]awserr.Viol
 func (v *AppSyncParameters) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.GraphQLOperation != nil {
 		if utf8.RuneCountInString(*v.GraphQLOperation) > 1048576 {
-			*out = append(*out, awserr.Violation{Path: at(path, "graphQLOperation"), Value: awserr.RenderedText{Text: *v.GraphQLOperation}, Constraint: awserr.LengthMax{Max: 1048576}})
+			*out = append(*out, awserr.Violation{Path: at(path, "graphQLOperation"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1048576}})
 		}
 		if utf8.RuneCountInString(*v.GraphQLOperation) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "graphQLOperation"), Value: awserr.RenderedText{Text: *v.GraphQLOperation}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "graphQLOperation"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 }
@@ -237,13 +237,13 @@ func (v *ConnectionHeaderParameter) validate(path awserr.Path, out *[]awserr.Vio
 	}
 	if v.Value != nil {
 		if !pattern7.MatchString(*v.Value) {
-			*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedText{Text: *v.Value}, Constraint: awserr.Pattern{Echo: "[ \\t]*[\\x20-\\x7E]+([ \\t]+[\\x20-\\x7E]+)*[ \\t]*"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[ \\t]*[\\x20-\\x7E]+([ \\t]+[\\x20-\\x7E]+)*[ \\t]*"}})
 		}
 		if utf8.RuneCountInString(*v.Value) > 512 {
-			*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedText{Text: *v.Value}, Constraint: awserr.LengthMax{Max: 512}})
+			*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 512}})
 		}
 		if utf8.RuneCountInString(*v.Value) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedText{Text: *v.Value}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 	}
 }
@@ -297,13 +297,13 @@ func (v *ConnectionQueryStringParameter) validate(path awserr.Path, out *[]awser
 	}
 	if v.Value != nil {
 		if !pattern17.MatchString(*v.Value) {
-			*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedText{Text: *v.Value}, Constraint: awserr.Pattern{Echo: "[^\\x00-\\x09\\x0B\\x0C\\x0E-\\x1F\\x7F]+"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[^\\x00-\\x09\\x0B\\x0C\\x0E-\\x1F\\x7F]+"}})
 		}
 		if utf8.RuneCountInString(*v.Value) > 512 {
-			*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedText{Text: *v.Value}, Constraint: awserr.LengthMax{Max: 512}})
+			*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 512}})
 		}
 		if utf8.RuneCountInString(*v.Value) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedText{Text: *v.Value}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "value"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 	}
 }
@@ -495,13 +495,13 @@ func (v *CreateConnectionApiKeyAuthRequestParameters) validate(path awserr.Path,
 		*out = append(*out, awserr.Violation{Path: at(path, "apiKeyValue"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern8.MatchString(v.ApiKeyValue) {
-			*out = append(*out, awserr.Violation{Path: at(path, "apiKeyValue"), Value: awserr.RenderedText{Text: v.ApiKeyValue}, Constraint: awserr.Pattern{Echo: "[ \\t]*[^\\x00-\\x1F:\\x7F]+([ \\t]+[^\\x00-\\x1F:\\x7F]+)*[ \\t]*"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "apiKeyValue"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[ \\t]*[^\\x00-\\x1F:\\x7F]+([ \\t]+[^\\x00-\\x1F:\\x7F]+)*[ \\t]*"}})
 		}
 		if utf8.RuneCountInString(v.ApiKeyValue) > 512 {
-			*out = append(*out, awserr.Violation{Path: at(path, "apiKeyValue"), Value: awserr.RenderedText{Text: v.ApiKeyValue}, Constraint: awserr.LengthMax{Max: 512}})
+			*out = append(*out, awserr.Violation{Path: at(path, "apiKeyValue"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 512}})
 		}
 		if utf8.RuneCountInString(v.ApiKeyValue) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "apiKeyValue"), Value: awserr.RenderedText{Text: v.ApiKeyValue}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "apiKeyValue"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 }
@@ -542,13 +542,13 @@ func (v *CreateConnectionBasicAuthRequestParameters) validate(path awserr.Path, 
 		*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern8.MatchString(v.Password) {
-			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedText{Text: v.Password}, Constraint: awserr.Pattern{Echo: "[ \\t]*[^\\x00-\\x1F:\\x7F]+([ \\t]+[^\\x00-\\x1F:\\x7F]+)*[ \\t]*"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[ \\t]*[^\\x00-\\x1F:\\x7F]+([ \\t]+[^\\x00-\\x1F:\\x7F]+)*[ \\t]*"}})
 		}
 		if utf8.RuneCountInString(v.Password) > 512 {
-			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedText{Text: v.Password}, Constraint: awserr.LengthMax{Max: 512}})
+			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 512}})
 		}
 		if utf8.RuneCountInString(v.Password) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedText{Text: v.Password}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 }
@@ -632,13 +632,13 @@ func (v *CreateConnectionOAuthClientRequestParameters) validate(path awserr.Path
 		*out = append(*out, awserr.Violation{Path: at(path, "clientSecret"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern8.MatchString(v.ClientSecret) {
-			*out = append(*out, awserr.Violation{Path: at(path, "clientSecret"), Value: awserr.RenderedText{Text: v.ClientSecret}, Constraint: awserr.Pattern{Echo: "[ \\t]*[^\\x00-\\x1F:\\x7F]+([ \\t]+[^\\x00-\\x1F:\\x7F]+)*[ \\t]*"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "clientSecret"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[ \\t]*[^\\x00-\\x1F:\\x7F]+([ \\t]+[^\\x00-\\x1F:\\x7F]+)*[ \\t]*"}})
 		}
 		if utf8.RuneCountInString(v.ClientSecret) > 512 {
-			*out = append(*out, awserr.Violation{Path: at(path, "clientSecret"), Value: awserr.RenderedText{Text: v.ClientSecret}, Constraint: awserr.LengthMax{Max: 512}})
+			*out = append(*out, awserr.Violation{Path: at(path, "clientSecret"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 512}})
 		}
 		if utf8.RuneCountInString(v.ClientSecret) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "clientSecret"), Value: awserr.RenderedText{Text: v.ClientSecret}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "clientSecret"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 }
@@ -2601,10 +2601,10 @@ func (v *RedshiftDataParameters) validate(path awserr.Path, out *[]awserr.Violat
 	}
 	if v.Sql != nil {
 		if utf8.RuneCountInString(*v.Sql) > 100000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sql"), Value: awserr.RenderedText{Text: *v.Sql}, Constraint: awserr.LengthMax{Max: 100000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sql"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100000}})
 		}
 		if utf8.RuneCountInString(*v.Sql) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sql"), Value: awserr.RenderedText{Text: *v.Sql}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sql"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 	if v.StatementName != nil {
@@ -2617,18 +2617,18 @@ func (v *RedshiftDataParameters) validate(path awserr.Path, out *[]awserr.Violat
 	}
 	if v.Sqls != nil {
 		if len(v.Sqls) > 40 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sqls"), Value: awserr.RenderedText{Text: renderSqls(v.Sqls)}, Constraint: awserr.LengthMax{Max: 40}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sqls"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 40}})
 		}
 		if len(v.Sqls) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sqls"), Value: awserr.RenderedText{Text: renderSqls(v.Sqls)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sqls"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Sqls {
 			p2 := at(at(path, "sqls"), strconv.Itoa(i2+1), "member")
 			if utf8.RuneCountInString(e2) > 100000 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 100000}})
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100000}})
 			}
 			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 			}
 		}
 	}
@@ -3298,13 +3298,13 @@ func (v *UpdateConnectionApiKeyAuthRequestParameters) validate(path awserr.Path,
 	}
 	if v.ApiKeyValue != nil {
 		if !pattern8.MatchString(*v.ApiKeyValue) {
-			*out = append(*out, awserr.Violation{Path: at(path, "apiKeyValue"), Value: awserr.RenderedText{Text: *v.ApiKeyValue}, Constraint: awserr.Pattern{Echo: "[ \\t]*[^\\x00-\\x1F:\\x7F]+([ \\t]+[^\\x00-\\x1F:\\x7F]+)*[ \\t]*"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "apiKeyValue"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[ \\t]*[^\\x00-\\x1F:\\x7F]+([ \\t]+[^\\x00-\\x1F:\\x7F]+)*[ \\t]*"}})
 		}
 		if utf8.RuneCountInString(*v.ApiKeyValue) > 512 {
-			*out = append(*out, awserr.Violation{Path: at(path, "apiKeyValue"), Value: awserr.RenderedText{Text: *v.ApiKeyValue}, Constraint: awserr.LengthMax{Max: 512}})
+			*out = append(*out, awserr.Violation{Path: at(path, "apiKeyValue"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 512}})
 		}
 		if utf8.RuneCountInString(*v.ApiKeyValue) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "apiKeyValue"), Value: awserr.RenderedText{Text: *v.ApiKeyValue}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "apiKeyValue"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 }
@@ -3341,13 +3341,13 @@ func (v *UpdateConnectionBasicAuthRequestParameters) validate(path awserr.Path, 
 	}
 	if v.Password != nil {
 		if !pattern8.MatchString(*v.Password) {
-			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedText{Text: *v.Password}, Constraint: awserr.Pattern{Echo: "[ \\t]*[^\\x00-\\x1F:\\x7F]+([ \\t]+[^\\x00-\\x1F:\\x7F]+)*[ \\t]*"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[ \\t]*[^\\x00-\\x1F:\\x7F]+([ \\t]+[^\\x00-\\x1F:\\x7F]+)*[ \\t]*"}})
 		}
 		if utf8.RuneCountInString(*v.Password) > 512 {
-			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedText{Text: *v.Password}, Constraint: awserr.LengthMax{Max: 512}})
+			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 512}})
 		}
 		if utf8.RuneCountInString(*v.Password) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedText{Text: *v.Password}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "password"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 }
@@ -3423,13 +3423,13 @@ func (v *UpdateConnectionOAuthClientRequestParameters) validate(path awserr.Path
 	}
 	if v.ClientSecret != nil {
 		if !pattern8.MatchString(*v.ClientSecret) {
-			*out = append(*out, awserr.Violation{Path: at(path, "clientSecret"), Value: awserr.RenderedText{Text: *v.ClientSecret}, Constraint: awserr.Pattern{Echo: "[ \\t]*[^\\x00-\\x1F:\\x7F]+([ \\t]+[^\\x00-\\x1F:\\x7F]+)*[ \\t]*"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "clientSecret"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Pattern{Echo: "[ \\t]*[^\\x00-\\x1F:\\x7F]+([ \\t]+[^\\x00-\\x1F:\\x7F]+)*[ \\t]*"}})
 		}
 		if utf8.RuneCountInString(*v.ClientSecret) > 512 {
-			*out = append(*out, awserr.Violation{Path: at(path, "clientSecret"), Value: awserr.RenderedText{Text: *v.ClientSecret}, Constraint: awserr.LengthMax{Max: 512}})
+			*out = append(*out, awserr.Violation{Path: at(path, "clientSecret"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 512}})
 		}
 		if utf8.RuneCountInString(*v.ClientSecret) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "clientSecret"), Value: awserr.RenderedText{Text: *v.ClientSecret}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "clientSecret"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
 }
@@ -4997,14 +4997,6 @@ func renderSageMakerPipelineParameterList(v []SageMakerPipelineParameter) string
 	parts := make([]string, 0, len(v))
 	for range v {
 		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderSqls(v []string) string {
-	parts := make([]string, 0, len(v))
-	for _, e := range v {
-		parts = append(parts, e)
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }

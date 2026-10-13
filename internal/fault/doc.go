@@ -49,9 +49,9 @@
 //     delivery mechanism's target service, that match.services leaves out,
 //     a Delivery-phase service that no mechanism delivers to, and a
 //     resource glob whose text before its first * cannot begin "arn:".
-//   - RetryableWarning is a method on *Store, not the free function
-//     PHASE1-PLAN.md names, because it resolves the rule's error identities
-//     through the store's Catalogue, the same way Add does. It names the
+//   - RetryableWarning is a method on *Store, not a free function, because
+//     it resolves the rule's error identities through the store's
+//     Catalogue, the same way Add does. It names the
 //     first retryable identity in a stable order: operations by service and
 //     name, then services.
 //   - RetryableWarning warns for every StatusOKError rule, whatever its

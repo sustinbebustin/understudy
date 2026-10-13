@@ -46,6 +46,7 @@ func (h *Handler) health(w http.ResponseWriter, r *http.Request, _ []string) {
 		Journal:  journalStatus(h.o.Kernel.Journal()),
 		Model:    h.o.ModelPin,
 		Listener: listener.String(),
+		Clock:    h.state(),
 	}
 	if h.o.Components != nil {
 		c := h.o.Components.Components(r.Context())

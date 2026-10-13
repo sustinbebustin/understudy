@@ -18,11 +18,13 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/config/configtest"
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/pool"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/pool/pooltest"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/runtimeapi"
 	"github.com/sustinbebustin/understudy/internal/topology"
 )
@@ -94,16 +96,7 @@ func runID(t *testing.T) string {
 
 func dockerClient(t *testing.T) *docker.Client {
 	t.Helper()
-	socket, err := docker.ParseDockerHost(os.Getenv("DOCKER_HOST"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := docker.New(docker.Options{Socket: socket})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(c.Close)
-	return c
+	return configtest.EngineClient(t)
 }
 
 // newStack wires the real runtime API, launcher and pool for one test, as
@@ -133,7 +126,7 @@ func newStack(t *testing.T, client *docker.Client, owner string) *stack {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := pool.New(pool.Options{Launcher: l, Runtime: pool.ServerRuntime(srv), Clock: c})
+	p, err := pool.New(pool.Options{Launcher: l, Runtime: pooltest.ServerRuntime(srv), Clock: c})
 	if err != nil {
 		t.Fatal(err)
 	}

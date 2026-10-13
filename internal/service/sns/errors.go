@@ -39,8 +39,9 @@ func errCertificateNotFound() *awserr.Error {
 	return snsapi.ErrNotFoundException("Certificate does not exist; SigningCertURL paths come from notifications this emulator signed")
 }
 
-// errInvalidToken is ConfirmSubscription's answer for a well-formed token
-// that confirms nothing (sns.md 3.2).
+// errInvalidToken is ConfirmSubscription's answer for a token that is not
+// hex text; a hex token that confirms nothing is "Invalid parameter:
+// Token" (AWS-recorded, Service.confirm).
 func errInvalidToken() *awserr.Error {
 	return snsapi.ErrInvalidParameterException("Invalid token")
 }
@@ -53,12 +54,12 @@ func errLargeMessages(reason string) *awserr.Error {
 }
 
 // errUnsubscribeNeedsCredentials answers an unsigned unsubscribe, such as
-// a GET of the UnsubscribeURL, of a subscription confirmed with
-// AuthenticateOnUnsubscribe=true (sns.md 3.2). The text is inferred: no
-// recording shows AWS's.
-func errUnsubscribeNeedsCredentials() *awserr.Error {
-	return errInvalidParameter("SubscriptionArn Reason: the subscription was confirmed with AuthenticateOnUnsubscribe=true, " +
-		"so only a signed Unsubscribe call can remove it; the subscription is unchanged")
+// a GET of the UnsubscribeURL, of a subscription with
+// AuthenticateOnUnsubscribe=true (sns.md 3.2); why is
+// Confirmed.credentialsRequired. The text is inferred: no recording shows
+// AWS's.
+func errUnsubscribeNeedsCredentials(why string) *awserr.Error {
+	return errInvalidParameter("SubscriptionArn Reason: " + why + ", so only a signed Unsubscribe call can remove it; the subscription is unchanged")
 }
 
 // errResourceNotFound answers a tag operation on a topic that does not
@@ -85,15 +86,15 @@ func errDataProtectionNotImplemented() *awserr.Error {
 	return snsapi.ErrNotImplemented("understudy does not implement SNS message data protection; create the topic without DataProtectionPolicy. Run 'understudy coverage --service sns' for what is supported.")
 }
 
-// errProtocolNotImplemented is understudy's answer for an endpoint type it
-// does not deliver to (ADR 0015): 501 in SNS's error format, never a
-// subscription that silently receives nothing.
 // errSMSEndpoint answers an sms endpoint that is not an E.164 number; the
 // text has no "Invalid parameter: " prefix (AWS-recorded, sns.md 3.1).
 func errSMSEndpoint(endpoint string) *awserr.Error {
 	return snsapi.ErrInvalidParameterException("Invalid SMS endpoint: " + endpoint)
 }
 
+// errProtocolNotImplemented is understudy's answer for an endpoint type it
+// does not deliver to (ADR 0015): 501 in SNS's error format, never a
+// subscription that silently receives nothing.
 func errProtocolNotImplemented(protocol string) *awserr.Error {
 	return snsapi.ErrNotImplemented("understudy does not implement SNS delivery to " + protocol +
 		" endpoints; subscribe an sqs, lambda, http, https, email or email-json endpoint instead. Run 'understudy coverage --service sns' for what is supported.")

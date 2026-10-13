@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"maps"
 	"math"
 	"net/http"
@@ -43,8 +44,9 @@ type fixedRuntime struct{ now clock.Instant }
 func (r fixedRuntime) Head() (snapshot.Head, error) {
 	return snapshot.Head{Clock: snapshot.Clock{Mode: clock.Frozen{}, At: r.now}}, nil
 }
-func (fixedRuntime) Restore(snapshot.Head) error { return nil }
-func (r fixedRuntime) Now() clock.Instant        { return r.now }
+func (fixedRuntime) RestoreClock(snapshot.Clock) error    { return nil }
+func (fixedRuntime) RestoreUnderGate(snapshot.Head) error { return nil }
+func (r fixedRuntime) Now() clock.Instant                 { return r.now }
 
 // handler builds the admin handler over k with no services, marked ready.
 func handler(k *kerneltest.K, token string) *serveradmin.Handler {
@@ -65,7 +67,7 @@ func handlerWith(k *kerneltest.K, set func(*serveradmin.Options)) *serveradmin.H
 			k.Error(err)
 		}
 	})
-	coord, err := snapshot.NewCoordinator(snapshot.Config{Gate: k.Kernel.Gate(), Blobs: blobs, Runtime: fixedRuntime{now: k.Clock.Now()}, Writer: "test"})
+	coord, err := snapshot.NewCoordinator(snapshot.Config{Gate: k.Kernel.Gate(), Blobs: blobs, Runtime: fixedRuntime{now: k.Clock.Now()}, Effects: k.Kernel, Writer: "test"})
 	if err != nil {
 		k.Fatal(err)
 	}
@@ -266,7 +268,7 @@ func TestSnapshotLoadSucceedsWhenFreeingBlobsFails(t *testing.T) {
 				k.Error(err)
 			}
 		})
-		coord, err := snapshot.NewCoordinator(snapshot.Config{Gate: k.Kernel.Gate(), Blobs: failingPrune{blobs}, Runtime: fixedRuntime{now: k.Clock.Now()}, Writer: "test"})
+		coord, err := snapshot.NewCoordinator(snapshot.Config{Gate: k.Kernel.Gate(), Blobs: failingPrune{blobs}, Runtime: fixedRuntime{now: k.Clock.Now()}, Effects: k.Kernel, Writer: "test"})
 		if err != nil {
 			k.Fatal(err)
 		}
@@ -278,16 +280,58 @@ func TestSnapshotLoadSucceedsWhenFreeingBlobsFails(t *testing.T) {
 		if saved.Code != http.StatusOK {
 			k.Fatalf("save = %d %s", saved.Code, saved.Body)
 		}
-		rec := httptest.NewRecorder()
-		req := httptest.NewRequestWithContext(k.Context(), http.MethodPut, admin.Prefix+"/snapshots", bytes.NewReader(saved.Body.Bytes()))
-		req.Header.Set("Content-Type", admin.Tar)
-		h.ServeHTTP(rec, req)
+		rec := load(k, h, bytes.NewReader(saved.Body.Bytes()))
 		var info admin.SnapshotInfo
 		if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &info) != nil || info.Writer != "test" {
 			k.Fatalf("load with a failing prune = %d %s, want 200 with the archive's summary", rec.Code, rec.Body)
 		}
 		if svc.rearms != 0 {
 			k.Errorf("the handler rearmed %d times after a load that rearmed itself", svc.rearms)
+		}
+	})
+}
+
+// load sends PUT /snapshots with the archive body.
+func load(k *kerneltest.K, h http.Handler, body io.Reader) *httptest.ResponseRecorder {
+	k.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(k.Context(), http.MethodPut, admin.Prefix+"/snapshots", body)
+	req.Header.Set("Content-Type", admin.Tar)
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
+// One snapshot load runs at a time, since each holds its whole archive in
+// memory: a load that arrives while another is still reading its upload is
+// refused with conflict before reading anything, and the next load after
+// the first answers is served.
+func TestSnapshotLoadsRunOneAtATime(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		h := handler(k, "")
+		saved := serve(k, h, http.MethodPost, admin.Prefix+"/snapshots")
+		if saved.Code != http.StatusOK {
+			k.Fatalf("save = %d %s", saved.Code, saved.Body)
+		}
+		archive := saved.Body.Bytes()
+		upload, uploading := io.Pipe()
+		first := make(chan *httptest.ResponseRecorder)
+		go func() { first <- load(k, h, upload) }()
+		// The handler has read this prefix, so the first load is admitted
+		// and waits for the rest of its upload.
+		if _, err := uploading.Write(archive[:len(archive)/2]); err != nil {
+			k.Fatal(err)
+		}
+		rec := load(k, h, bytes.NewReader(archive))
+		var env admin.Envelope
+		if err := json.Unmarshal(rec.Body.Bytes(), &env); err != nil || rec.Code != http.StatusConflict || env.Error == nil || env.Error.Code != admin.Conflict {
+			k.Errorf("load during another load = %d %s, want 409 conflict", rec.Code, rec.Body)
+		}
+		uploading.CloseWithError(errors.New("the client went away"))
+		if rec := <-first; rec.Code == http.StatusOK {
+			k.Errorf("load whose upload broke off = %d %s, want a failure", rec.Code, rec.Body)
+		}
+		if rec := load(k, h, bytes.NewReader(archive)); rec.Code != http.StatusOK {
+			k.Errorf("load after the first answered = %d %s, want 200", rec.Code, rec.Body)
 		}
 	})
 }
@@ -313,15 +357,73 @@ func TestResetAndSnapshotLoadRearmThePollers(t *testing.T) {
 		if saved.Code != http.StatusOK {
 			k.Fatalf("save = %d %s", saved.Code, saved.Body)
 		}
-		rec := httptest.NewRecorder()
-		req := httptest.NewRequestWithContext(k.Context(), http.MethodPut, admin.Prefix+"/snapshots", bytes.NewReader(saved.Body.Bytes()))
-		req.Header.Set("Content-Type", admin.Tar)
-		h.ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
+		if rec := load(k, h, bytes.NewReader(saved.Body.Bytes())); rec.Code != http.StatusOK {
 			k.Fatalf("load = %d %s", rec.Code, rec.Body)
 		}
 		if pollers.rearms != 2 {
 			k.Fatalf("pollers rearmed %d times after a reset and a load, want twice", pollers.rearms)
+		}
+	})
+}
+
+// failingLateService fails to drop its late data.
+type failingLateService struct{ lateService }
+
+func (*failingLateService) ImportLate(context.Context, []store.Section) error {
+	return errors.New("the late store is gone")
+}
+
+// A reset that fails after draining still lifts the drain's block on
+// invocations, so functions do not stay blocked until the next reset.
+func TestFailedResetRearmsThePollers(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		pollers := &pollerCounter{}
+		late := &failingLateService{}
+		h := handlerWith(k, func(o *serveradmin.Options) {
+			o.Pollers = pollers
+			o.Services, o.Late = []serveradmin.Service{late}, []snapshot.Late{late}
+		})
+		if rec := reset(k, h, `{}`); rec.Code != http.StatusInternalServerError {
+			k.Fatalf("reset whose late data cannot be dropped = %d %s, want 500", rec.Code, rec.Body)
+		}
+		if pollers.rearms != 1 {
+			k.Fatalf("pollers rearmed %d times after a failed reset, want once", pollers.rearms)
+		}
+	})
+}
+
+// failingDrainer is the drained service, whose drain fails part way.
+type failingDrainer struct{}
+
+func (failingDrainer) Name() ref.ServiceID { return "late" }
+func (failingDrainer) Drain(context.Context, kernel.ResetScope) error {
+	return errors.New("a container would not stop")
+}
+
+// A reset or snapshot load whose drain fails replaces nothing but still
+// lifts the block the drain may have put on invocations, once.
+func TestFailedDrainRearmsThePollers(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		pollers := &pollerCounter{}
+		h := handlerWith(k, func(o *serveradmin.Options) {
+			o.Pollers, o.Drainer = pollers, failingDrainer{}
+			o.Services = []serveradmin.Service{&lateService{}}
+		})
+		saved := serve(k, h, http.MethodPost, admin.Prefix+"/snapshots")
+		if saved.Code != http.StatusOK {
+			k.Fatalf("save = %d %s", saved.Code, saved.Body)
+		}
+		if rec := reset(k, h, `{}`); rec.Code != http.StatusInternalServerError {
+			k.Fatalf("reset whose drain fails = %d %s, want 500", rec.Code, rec.Body)
+		}
+		if pollers.rearms != 1 {
+			k.Fatalf("pollers rearmed %d times after a reset whose drain failed, want once", pollers.rearms)
+		}
+		if rec := load(k, h, bytes.NewReader(saved.Body.Bytes())); rec.Code != http.StatusInternalServerError {
+			k.Fatalf("load whose drain fails = %d %s, want 500", rec.Code, rec.Body)
+		}
+		if pollers.rearms != 2 {
+			k.Fatalf("pollers rearmed %d times after a reset and a load whose drains failed, want twice", pollers.rearms)
 		}
 	})
 }
@@ -356,6 +458,33 @@ func TestResetReportsAClockRestoreFailure(t *testing.T) {
 		}
 		if rules := k.Faults.List(); len(rules) != 0 {
 			k.Errorf("fault rules after the reset = %+v, want none", rules)
+		}
+	})
+}
+
+// A reset asked to return the clock and remove the fault rules answers the
+// mode the clock returned to and how many rules it removed; one that keeps
+// them answers neither.
+func TestResetAnswersTheClockModeAndRulesRemoved(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		h := handlerWith(k, func(o *serveradmin.Options) {
+			o.Services = []serveradmin.Service{&rearmCounter{}}
+			o.ClockStart = func() (clock.Instant, clock.Mode) { return k.Clock.Now(), clock.Frozen{} }
+		})
+		for range 2 {
+			if _, err := k.Faults.Add(fault.Rule{Phase: fault.Delivery, Action: fault.Latency{Wall: time.Second}, Trigger: fault.Always{}}); err != nil {
+				k.Fatal(err)
+			}
+		}
+		for body, want := range map[string]admin.ResetResult{
+			`{"clock":true,"faults":true}`: {Clock: admin.Frozen, Faults: 2},
+			`{}`:                           {},
+		} {
+			rec := reset(k, h, body)
+			var got admin.ResetResult
+			if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || got.Clock != want.Clock || got.Faults != want.Faults {
+				k.Errorf("reset %s = %d %s, want clock %q and %d rules removed", body, rec.Code, rec.Body, want.Clock, want.Faults)
+			}
 		}
 	})
 }

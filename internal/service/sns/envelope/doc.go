@@ -11,7 +11,8 @@
 //   - Lambda is the Records event of an SNS-triggered function: compact, with
 //     SigningCertUrl and UnsubscribeUrl in the recorded casing, Subject null
 //     when absent, MessageAttributes {} when empty, and SignatureVersion "1"
-//     whatever the topic says (5.4).
+//     whatever the topic says, though the signature follows the topic's
+//     version (5.4).
 //   - SQSConfirmation is the SubscriptionConfirmation an SQS endpoint gets
 //     when its subscription waits for ConfirmSubscription: the members of
 //     5.5 in the layout of SQS, signed.

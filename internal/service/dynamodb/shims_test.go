@@ -94,12 +94,16 @@ type terraformProbe struct {
 const created2000 = 946684800.0
 
 // unchangedUnits is a ProvisionedThroughput description of units reads and
-// writes that never changed on the emulator clock.
+// writes that never changed on the emulator clock: AWS leaves out
+// LastIncreaseDateTime and LastDecreaseDateTime, which Local writes as 0.
 func unchangedUnits(units float64) map[string]any {
-	return map[string]any{
-		"LastIncreaseDateTime": 0.0, "LastDecreaseDateTime": 0.0, "NumberOfDecreasesToday": 0.0,
-		"ReadCapacityUnits": units, "WriteCapacityUnits": units,
-	}
+	return map[string]any{"NumberOfDecreasesToday": 0.0, "ReadCapacityUnits": units, "WriteCapacityUnits": units}
+}
+
+// warmDefault is the WarmThroughput description of a table or index nobody
+// configured, in status.
+func warmDefault(status string) map[string]any {
+	return map[string]any{"ReadUnitsPerSecond": 12000.0, "WriteUnitsPerSecond": 4000.0, "Status": status}
 }
 
 var terraformProbes = []terraformProbe{
@@ -132,17 +136,20 @@ var terraformProbes = []terraformProbe{
 			"KeySchema":             []any{map[string]any{"AttributeName": "Owner", "KeyType": "HASH"}},
 			"Projection":            map[string]any{"ProjectionType": "ALL"},
 			"ProvisionedThroughput": unchangedUnits(1),
+			"WarmThroughput":        warmDefault("ACTIVE"),
 		},
 	},
 }
 
 // TestTerraformTableLifecycleReadsWithoutDiff replays the calls
 // aws_dynamodb_table makes (tf-storage.md 3) against a fake Local, for
-// each PROBE table: every member the provider reads is present, two reads
-// in a row agree, tags, TTL and point-in-time recovery round-trip, an
-// update of only the table class is answered without Local's "Nothing to
-// update", and the delete reports DELETING then not found in the words
-// the provider matches.
+// each PROBE table: the CreateTable answer says CREATING for the table and
+// its indexes and the UpdateTable answer UPDATING, as AWS's do,
+// every member the provider reads is present, two reads in a row agree,
+// tags, TTL and point-in-time recovery round-trip, an update of only the
+// table class is answered without Local's "Nothing to update", and the
+// delete reports DELETING then not found in the words the provider
+// matches.
 func TestTerraformTableLifecycleReadsWithoutDiff(t *testing.T) {
 	for _, p := range terraformProbes {
 		t.Run(p.name, func(t *testing.T) { runStore(t, func(h *harness, _ *tableStore) { replayTerraform(h, p) }, withKMS) })
@@ -160,13 +167,21 @@ func replayTerraform(h *harness, p terraformProbe) {
 	if !strings.HasPrefix(managed, "arn:aws:kms:us-east-1:111111111111:key/") {
 		h.Errorf("alias/aws/dynamodb names %s, want a key ARN in the caller's account", managed)
 	}
-	want := map[string]any{
+	active := map[string]any{
 		"TableArn":         arn,
 		"TableStatus":      "ACTIVE",
-		"WarmThroughput":   map[string]any{"ReadUnitsPerSecond": 12000.0, "WriteUnitsPerSecond": 4000.0, "Status": "ACTIVE"},
+		"WarmThroughput":   warmDefault("ACTIVE"),
 		"CreationDateTime": created2000,
 	}
-	maps.Copy(want, p.want(managed))
+	maps.Copy(active, p.want(managed))
+	creating := maps.Clone(active)
+	creating["TableStatus"], creating["WarmThroughput"] = "CREATING", warmDefault("CREATING")
+	want := creating
+	// A table CREATING has its indexes CREATING too.
+	wantIndex := maps.Clone(p.index)
+	if wantIndex != nil {
+		wantIndex["IndexStatus"], wantIndex["WarmThroughput"] = "CREATING", warmDefault("CREATING")
+	}
 	check := func(what string, desc any) {
 		h.Helper()
 		for k, v := range want {
@@ -184,7 +199,7 @@ func replayTerraform(h *harness, p terraformProbe) {
 		case p.index != nil && (!listed || len(indexes) != 1):
 			h.Errorf("%s: GlobalSecondaryIndexes = %v, want one", what, indexes)
 		case p.index != nil:
-			for k, v := range p.index {
+			for k, v := range wantIndex {
 				if got := path(indexes[0], k); !equalJSON(got, v) {
 					h.Errorf("%s: GlobalSecondaryIndexes[0].%s = %v, want %v", what, k, got, v)
 				}
@@ -193,6 +208,7 @@ func replayTerraform(h *harness, p terraformProbe) {
 	}
 	check("CreateTable", path(created, "TableDescription"))
 	tableID := path(created, "TableDescription", "TableId")
+	want, wantIndex = active, p.index
 
 	// waitTableActive and waitTableWarmThroughputActive.
 	for range 3 {
@@ -262,6 +278,12 @@ func replayTerraform(h *harness, p terraformProbe) {
 	}
 	if got := path(updated, "TableDescription", "TableId"); got != tableID {
 		h.Errorf("UpdateTable TableId = %v, want %v", got, tableID)
+	}
+	if got := path(updated, "TableDescription", "TableStatus"); got != "UPDATING" {
+		h.Errorf("UpdateTable TableStatus = %v, want UPDATING", got)
+	}
+	if got := path(updated, "TableDescription", "WarmThroughput", "Status"); got != "UPDATING" {
+		h.Errorf("UpdateTable WarmThroughput.Status = %v, want UPDATING, the table's status", got)
 	}
 	if n := h.localSaw("UpdateTable"); n != 0 {
 		h.Errorf("Local received %d UpdateTable requests; an update of only the table class is the shim's", n)
@@ -359,7 +381,9 @@ func TestUpdateTableAnswerAgreesWithDescribeOnAMovingClock(t *testing.T) {
 		}
 		h.mustCall("CreateTable", `{"AttributeDefinitions":[{"AttributeName":"id","AttributeType":"S"}],"TableName":"Jobs",`+
 			`"KeySchema":[{"AttributeName":"id","KeyType":"HASH"}],"ProvisionedThroughput":{"ReadCapacityUnits":5,"WriteCapacityUnits":5}}`)
-		check := func(what, body string, class, increased, decreased float64) {
+		// A nil increased or decreased is a member left out: the throughput
+		// never went that way.
+		check := func(what, body string, class float64, increased, decreased any) {
 			h.Helper()
 			updated := path(h.mustCall("UpdateTable", body), "TableDescription")
 			described := path(h.mustCall("DescribeTable", `{"TableName":"Jobs"}`), "Table")
@@ -379,23 +403,35 @@ func TestUpdateTableAnswerAgreesWithDescribeOnAMovingClock(t *testing.T) {
 			}
 		}
 		check("increase", `{"TableName":"Jobs","TableClass":"STANDARD_INFREQUENT_ACCESS","ProvisionedThroughput":{"ReadCapacityUnits":10,"WriteCapacityUnits":5}}`,
-			946684800, 946684800, 0)
+			946684800, 946684800.0, nil)
 		if _, err := h.Clock.Advance(time.Minute); err != nil {
 			h.Fatal(err)
 		}
 		check("decrease", `{"TableName":"Jobs","ProvisionedThroughput":{"ReadCapacityUnits":3,"WriteCapacityUnits":5}}`,
-			946684800, 946684800, 946684861)
+			946684800, 946684800.0, 946684861.0)
 	})
 }
 
-// TestTagLimits: a table holds at most 50 tags, and keys starting with
-// aws: are AWS's, on CreateTable as on TagResource; Local never sees a
+// TestTagLimits: a table holds at most 50 tags of at most 10 KB in all,
+// keys starting with aws: are AWS's, and keys and values hold only
+// letters, digits, white space and + - = . _ : / (Tagging.html, tagging
+// restrictions), on CreateTable as on TagResource; Local never sees a
 // refused CreateTable, and a refused TagResource changes nothing.
 func TestTagLimits(t *testing.T) {
 	tags := func(prefix string, n int) string {
 		out := make([]string, 0, n)
 		for i := range n {
 			out = append(out, fmt.Sprintf(`{"Key":"%s%d","Value":"v"}`, prefix, i))
+		}
+		return "[" + strings.Join(out, ",") + "]"
+	}
+	// large is n tags of 256 bytes each: a 128-byte key and value, the
+	// longest key.
+	large := func(n int) string {
+		out := make([]string, 0, n)
+		for i := range n {
+			key := fmt.Sprintf("k%03d", i)
+			out = append(out, fmt.Sprintf(`{"Key":%q,"Value":%q}`, key+strings.Repeat("k", 128-len(key)), strings.Repeat("v", 128)))
 		}
 		return "[" + strings.Join(out, ",") + "]"
 	}
@@ -411,6 +447,12 @@ func TestTagLimits(t *testing.T) {
 		{name: "51 by tagging", created: tags("k", 49), more: tags("n", 2), refused: true},
 		{name: "overwriting at 50", created: tags("k", 50), more: tags("k", 3)},
 		{name: "reserved by tagging", created: "[]", more: `[{"Key":"aws:owner","Value":"v"}]`, refused: true},
+		{name: "every allowed character", created: `[{"Key":"Été 1 +-=._:/","Value":"日本 ok"}]`, more: `[{"Key":"k","Value":""}]`},
+		{name: "a key outside the characters at creation", created: `[{"Key":"cost#center","Value":"v"}]`, refused: true},
+		{name: "a value outside the characters by tagging", created: "[]", more: `[{"Key":"k","Value":"a*b"}]`, refused: true},
+		{name: "10 KB at creation", created: large(40), more: "[]"},
+		{name: "past 10 KB at creation", created: large(41), refused: true},
+		{name: "past 10 KB by tagging", created: large(40), more: `[{"Key":"x","Value":"y"}]`, refused: true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			runStore(t, func(h *harness, _ *tableStore) {
@@ -440,9 +482,9 @@ func TestTagLimits(t *testing.T) {
 
 // TestUnrecordedTablesAreAdopted: a table Local holds that the shim never
 // saw created (one Local kept under --persist without the archive) answers
-// the shim operations as a fresh table does, as DescribeTable says it
-// exists, and keeps what they set; a name Local does not hold is still not
-// found.
+// the shim operations, and an UpdateTable of only the members the shim
+// owns, as a fresh table does, as DescribeTable says it exists, and keeps
+// what they set; a name Local does not hold is still not found.
 func TestUnrecordedTablesAreAdopted(t *testing.T) {
 	run(t, func(h *harness) {
 		h.local.answer = func(op, body string) reply {
@@ -469,9 +511,46 @@ func TestUnrecordedTablesAreAdopted(t *testing.T) {
 		if id, isString := path(desc, "TableId").(string); !isString || len(id) != 36 || path(desc, "CreationDateTime") != 1791434323.298 {
 			h.Errorf("DescribeTable of the adopted table = %v, want a TableId and Local's CreationDateTime", desc)
 		}
-		got := h.call("DescribeTimeToLive", `{"TableName":"Gone"}`)
-		if e := parseError(h, got.Body); got.Status != http.StatusBadRequest || e.Message != "Requested resource not found: Table: Gone not found" {
-			h.Errorf("DescribeTimeToLive of a table nobody holds = %d %s", got.Status, got.Body)
+		updated := h.mustCall("UpdateTable", `{"TableName":"Old","TableClass":"STANDARD_INFREQUENT_ACCESS"}`)
+		if got := path(updated, "TableDescription", "TableClassSummary", "TableClass"); got != "STANDARD_INFREQUENT_ACCESS" {
+			h.Errorf("UpdateTable of the adopted table: TableClassSummary = %v", path(updated, "TableDescription", "TableClassSummary"))
+		}
+		if n := h.localSaw("UpdateTable"); n != 0 {
+			h.Errorf("Local received %d UpdateTable requests; an update of only the table class is the shim's", n)
+		}
+		for _, c := range []struct{ op, body string }{
+			{"DescribeTimeToLive", `{"TableName":"Gone"}`},
+			{"UpdateTable", `{"TableName":"Gone","TableClass":"STANDARD"}`},
+		} {
+			got := h.call(c.op, c.body)
+			if e := parseError(h, got.Body); got.Status != http.StatusBadRequest || e.Message != "Requested resource not found: Table: Gone not found" {
+				h.Errorf("%s of a table nobody holds = %d %s", c.op, got.Status, got.Body)
+			}
+		}
+	})
+}
+
+// TestMalformedTableNamesAreTheClientsMistake: a table name outside AWS's
+// naming rules passes the model's TableArn constraint, and Local refuses
+// the shim's DescribeTable of it with a ValidationException
+// (dynamodb-local.md 4.2); the shim operations and UpdateTable answer that
+// 400, as AWS does, not a 500 the SDKs would retry.
+func TestMalformedTableNamesAreTheClientsMistake(t *testing.T) {
+	const invalid = "Invalid table/index name.  Table/index names must be between 3 and 255 characters long, and may contain only the characters a-z, A-Z, 0-9, '_', '-', and '.'"
+	run(t, func(h *harness) {
+		h.local.answer = func(string, string) reply {
+			return localErr("com.amazon.coral.validate#ValidationException", invalid)
+		}
+		for _, c := range []struct{ op, body string }{
+			{"DescribeTimeToLive", `{"TableName":"ab"}`},
+			{"UpdateContinuousBackups", `{"TableName":"ab","PointInTimeRecoverySpecification":{"PointInTimeRecoveryEnabled":true}}`},
+			{"UpdateTable", `{"TableName":"ab","TableClass":"STANDARD"}`},
+		} {
+			got := h.call(c.op, c.body)
+			e := parseError(h, got.Body)
+			if got.Status != http.StatusBadRequest || e.Type != "com.amazon.coral.validate#ValidationException" || e.Message != invalid {
+				h.Errorf("%s of table ab = %d %s, want 400 ValidationException %q", c.op, got.Status, got.Body, invalid)
+			}
 		}
 	})
 }
@@ -508,6 +587,9 @@ func TestShimFieldsFollowUpdates(t *testing.T) {
 		if got := path(updated, "TableDescription", "SSEDescription", "KMSMasterKeyArn"); got != "arn:aws:kms:us-east-1:111111111111:alias/jobs" {
 			h.Errorf("SSEDescription.KMSMasterKeyArn = %v", got)
 		}
+		if got := path(updated, "TableDescription", "TableStatus"); got != "UPDATING" {
+			h.Errorf("UpdateTable TableStatus = %v, want UPDATING, as AWS answers an update it has begun", got)
+		}
 		desc := path(h.mustCall("DescribeTable", `{"TableName":"Jobs"}`), "Table")
 		if got := path(desc, "WarmThroughput"); !equalJSON(got, map[string]any{"ReadUnitsPerSecond": 15000.0, "WriteUnitsPerSecond": 4000.0, "Status": "ACTIVE"}) {
 			h.Errorf("WarmThroughput = %v", got)
@@ -518,6 +600,81 @@ func TestShimFieldsFollowUpdates(t *testing.T) {
 		h.mustCall("UpdateTable", `{"TableName":"Jobs","SSESpecification":{"Enabled":false}}`)
 		if got := path(h.mustCall("DescribeTable", `{"TableName":"Jobs"}`), "Table", "SSEDescription"); got != nil {
 			h.Errorf("SSEDescription after disabling = %v, want none", got)
+		}
+	})
+}
+
+// TestLastSwitchToPayPerRequestStaysOnTheEmulatorClock: AWS reports
+// LastUpdateToPayPerRequestDateTime, when the table last became
+// PAY_PER_REQUEST, in either billing mode. The emulator clock's instant
+// replaces Local's wall-clock one after a switch back to PROVISIONED too,
+// and survives a snapshot export and import.
+func TestLastSwitchToPayPerRequestStaysOnTheEmulatorClock(t *testing.T) {
+	runStore(t, func(h *harness, _ *tableStore) {
+		h.mustCall("CreateTable", `{"AttributeDefinitions":[{"AttributeName":"id","AttributeType":"S"}],"TableName":"Jobs",`+
+			`"KeySchema":[{"AttributeName":"id","KeyType":"HASH"}],"ProvisionedThroughput":{"ReadCapacityUnits":5,"WriteCapacityUnits":5}}`)
+		billing := func(what string, want map[string]any) {
+			h.Helper()
+			if got := path(h.mustCall("DescribeTable", `{"TableName":"Jobs"}`), "Table", "BillingModeSummary"); !equalJSON(got, want) {
+				h.Errorf("%s: BillingModeSummary = %v, want %v", what, got, want)
+			}
+		}
+		if _, err := h.Clock.Advance(time.Minute); err != nil {
+			h.Fatal(err)
+		}
+		h.mustCall("UpdateTable", `{"TableName":"Jobs","BillingMode":"PAY_PER_REQUEST"}`)
+		const switched = created2000 + 60
+		billing("on demand", map[string]any{"BillingMode": "PAY_PER_REQUEST", "LastUpdateToPayPerRequestDateTime": switched})
+		if _, err := h.Clock.Advance(time.Minute); err != nil {
+			h.Fatal(err)
+		}
+		h.mustCall("UpdateTable", `{"TableName":"Jobs","BillingMode":"PROVISIONED","ProvisionedThroughput":{"ReadCapacityUnits":5,"WriteCapacityUnits":5}}`)
+		provisioned := map[string]any{"BillingMode": "PROVISIONED", "LastUpdateToPayPerRequestDateTime": switched}
+		billing("back to provisioned", provisioned)
+		sections, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		if err := h.svc.Import(sections); err != nil {
+			h.Fatal(err)
+		}
+		billing("after export and import", provisioned)
+	})
+}
+
+// TestAddedIndexesReportWarmThroughput: an index an UpdateTable adds is
+// described with a WarmThroughput in the index's status, which Terraform
+// waits on after adding one, though Local describes none: what the
+// request configured, or AWS's default.
+func TestAddedIndexesReportWarmThroughput(t *testing.T) {
+	runStore(t, func(h *harness, _ *tableStore) {
+		const attributes = `"AttributeDefinitions":[{"AttributeName":"id","AttributeType":"S"},{"AttributeName":"owner","AttributeType":"S"}]`
+		h.mustCall("CreateTable", `{`+attributes+`,"TableName":"Jobs","BillingMode":"PAY_PER_REQUEST","KeySchema":[{"AttributeName":"id","KeyType":"HASH"}]}`)
+		add := func(index, warm string) {
+			h.Helper()
+			h.mustCall("UpdateTable", `{"TableName":"Jobs",`+attributes+`,"GlobalSecondaryIndexUpdates":[{"Create":{"IndexName":"`+index+`",`+
+				`"KeySchema":[{"AttributeName":"owner","KeyType":"HASH"}],"Projection":{"ProjectionType":"ALL"}`+warm+`}}]}`)
+		}
+		add("configured", `,"WarmThroughput":{"ReadUnitsPerSecond":15000}`)
+		add("default", "")
+		indexes, listed := path(h.mustCall("DescribeTable", `{"TableName":"Jobs"}`), "Table", "GlobalSecondaryIndexes").([]any)
+		if !listed {
+			h.Fatal("DescribeTable lists no GlobalSecondaryIndexes")
+		}
+		want := map[string]any{
+			"configured": map[string]any{"ReadUnitsPerSecond": 15000.0, "WriteUnitsPerSecond": 4000.0, "Status": "CREATING"},
+			"default":    warmDefault("CREATING"),
+		}
+		for _, index := range indexes {
+			name := fmt.Sprint(path(index, "IndexName"))
+			if got := path(index, "WarmThroughput"); !equalJSON(got, want[name]) {
+				h.Errorf("index %s: WarmThroughput = %v, want %v", name, got, want[name])
+			}
+			delete(want, name)
+		}
+		if len(want) != 0 {
+			h.Errorf("DescribeTable lists no index %v", slices.Sorted(maps.Keys(want)))
 		}
 	})
 }
@@ -548,7 +705,9 @@ func TestTagOperationsCheckTheARN(t *testing.T) {
 
 // TestTimeToLiveChangesFollowLocalsRules: enabling twice, enabling another
 // attribute and disabling twice are refused with the texts Local gives
-// (dynamodb-local.md 5.2), and a disabled table describes no attribute.
+// (dynamodb-local.md 5.2), the second naming the enabled attribute as AWS's
+// does (celery t/unit/backends/test_dynamodb.py L314-L320, recorded
+// against the service), and a disabled table describes no attribute.
 func TestTimeToLiveChangesFollowLocalsRules(t *testing.T) {
 	runStore(t, func(h *harness, _ *tableStore) {
 		h.mustCall("CreateTable", `{"AttributeDefinitions":[{"AttributeName":"id","AttributeType":"S"}],"TableName":"Jobs","KeySchema":[{"AttributeName":"id","KeyType":"HASH"}]}`)
@@ -566,7 +725,7 @@ func TestTimeToLiveChangesFollowLocalsRules(t *testing.T) {
 		h.mustCall("UpdateTimeToLive", spec("ExpiresAt", true))
 		for body, message := range map[string]string{
 			spec("ExpiresAt", true): "TimeToLive is already enabled",
-			spec("Other", true):     "TimeToLive is active on a different AttributeName",
+			spec("Other", true):     "TimeToLive is active on a different AttributeName: current AttributeName is ExpiresAt",
 		} {
 			got := h.call("UpdateTimeToLive", body)
 			if e := parseError(h, got.Body); got.Status != http.StatusBadRequest || e.Message != message {

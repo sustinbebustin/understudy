@@ -53,6 +53,20 @@ func Compile(pattern []byte, p Profile) (*Pattern, *CompileError) {
 	return c.pattern(p), nil
 }
 
+// UsesWildcard reports whether any condition of any branch holds a
+// wildcard, plain or inside anything-but. EventBridge counts such rules
+// against a quota of their own (matching-engines.md 5.2, 30 per bus).
+func (p *Pattern) UsesWildcard() bool {
+	for _, branch := range p.branches {
+		for _, cd := range branch {
+			if len(cd.globs()) > 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (e *CompileError) forProfile(p Profile) *CompileError {
 	e.message = p.message(e)
 	return e

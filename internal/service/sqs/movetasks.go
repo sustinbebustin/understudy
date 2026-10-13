@@ -55,9 +55,10 @@ func (s *Service) bindMoveTasks(b sqsapi.Binder) {
 
 // startMessageMoveTask starts moving the messages of a dead-letter queue,
 // oldest first, to DestinationArn or each to the queue it was dead-lettered
-// from (sqs.md 9.3). The first messages move at once; a rate moves that
-// many more every second of emulator time, and no rate moves everything in
-// one step.
+// from (sqs.md 9.3). ApproximateNumberOfMessagesToMove counts the ones
+// receivable now. The first messages move at once; a rate moves that many
+// more every second of emulator time, and no rate moves every receivable
+// one in one step.
 func (s *Service) startMessageMoveTask(_ context.Context, c *kernel.Call, in *sqsapi.StartMessageMoveTaskInput) (*sqsapi.StartMessageMoveTaskOutput, *awserr.Error) {
 	src, err := s.taskQueue(c, in.SourceArn, "SourceArn")
 	if err != nil {
@@ -78,7 +79,7 @@ func (s *Service) startMessageMoveTask(_ context.Context, c *kernel.Call, in *sq
 		if err := checkMoveTask(st, source, &t); err != nil {
 			return MoveTask{}, err
 		}
-		t.ToMove, t.Started = t.movable(source), now
+		t.ToMove, t.Started = t.movable(source, now), now
 		if t.ToMove == 0 {
 			t.State = TaskCompleted{}
 		} else {
@@ -194,11 +195,11 @@ func (s *Service) cancelMessageMoveTask(_ context.Context, c *kernel.Call, in *s
 	return &sqsapi.CancelMessageMoveTaskOutput{ApproximateNumberOfMessagesMoved: moved}, nil
 }
 
-// onMoveTask moves a running task's next messages, oldest first: Rate of
-// them, or all that are left without one. A message whose destination does
-// not exist fails the task with that error's code (sqs.md 9.3). The task
-// completes once it has moved what it set out to or nothing it moves is
-// left.
+// onMoveTask moves a running task's next receivable messages, oldest
+// first: Rate of them, or all that are left without one. A message whose
+// destination does not exist fails the task with that error's code
+// (sqs.md 9.3). The task completes once it has moved what it set out to or
+// nothing it moves is left, receivable or in flight.
 func (s *Service) onMoveTask(c *kernel.Call, key clock.TimerKey, due clock.Instant) {
 	src, id, ok := parseTimerID(key.ID)
 	if !ok {
@@ -216,11 +217,14 @@ func (s *Service) onMoveTask(c *kernel.Call, key clock.TimerKey, due clock.Insta
 	})
 }
 
-// step moves t's next messages out of source and sets what t does next.
-// It copies each message to its destination, then takes every one it
-// copied out of source in one pass, so a step that moves a whole queue
-// costs one pass over it. The destination queues change through working
-// copies, stored back once the step ends.
+// step moves t's next receivable messages out of source and sets what t
+// does next. AWS moves a message by receiving and deleting it, so one in
+// flight or delayed stays, with its receipt handle, until it is receivable
+// again; a task with only such messages left waits for them. It copies
+// each message to its destination, then takes every one it copied out of
+// source in one pass, so a step that moves a whole queue costs one pass
+// over it. The destination queues change through working copies, stored
+// back once the step ends.
 func (s *Service) step(c *kernel.Call, st *State, src queueRef, source *Queue, t *MoveTask, due, now clock.Instant, tx *kernel.Tx) {
 	budget := t.ToMove - t.Moved
 	if t.Rate != nil {
@@ -234,6 +238,9 @@ func (s *Service) step(c *kernel.Call, st *State, src queueRef, source *Queue, t
 			break
 		}
 		m := &source.Messages[i]
+		if !m.visible(now) {
+			continue
+		}
 		to, ok := t.targetOf(m)
 		if !ok {
 			continue
@@ -254,7 +261,7 @@ func (s *Service) step(c *kernel.Call, st *State, src queueRef, source *Queue, t
 	switch {
 	case failed:
 		t.State = TaskFailed{Reason: sqsapi.IdentityQueueDoesNotExist().QueryCode}
-	case t.Moved >= t.ToMove || t.nextMovable(source) < 0:
+	case t.Moved >= t.ToMove || !t.anyLeft(source):
 		t.State = TaskCompleted{}
 	default:
 		next := due.Add(moveStep)
@@ -305,26 +312,26 @@ func (t *MoveTask) targetOf(m *Message) (queueRef, bool) {
 	return queueRef{}, false
 }
 
-// movable counts the messages of queue t moves.
-func (t *MoveTask) movable(queue *Queue) int64 {
+// movable counts the messages of queue t moves that are receivable at now.
+func (t *MoveTask) movable(queue *Queue, now clock.Instant) int64 {
 	var n int64
 	for i := range queue.Messages {
-		if t.moves(&queue.Messages[i]) {
+		if m := &queue.Messages[i]; m.visible(now) && t.moves(m) {
 			n++
 		}
 	}
 	return n
 }
 
-// nextMovable returns the index of the oldest message of queue t moves, or
-// -1 when there is none.
-func (t *MoveTask) nextMovable(queue *Queue) int {
+// anyLeft reports whether queue holds a message t moves, receivable or
+// not.
+func (t *MoveTask) anyLeft(queue *Queue) bool {
 	for i := range queue.Messages {
 		if t.moves(&queue.Messages[i]) {
-			return i
+			return true
 		}
 	}
-	return -1
+	return false
 }
 
 // moveMessage copies m to dest, the working copy of the queue d, as a new

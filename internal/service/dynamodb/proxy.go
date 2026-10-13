@@ -109,8 +109,8 @@ func (s *Service) resolveExactly(scope aws.Scope, names []string, a answer) *aws
 }
 
 // plainAnswer is the answer of an operation whose output holds no table
-// ARNs and whose not-found text names no table: passed through untouched
-// on success.
+// ARNs or names and whose not-found text names no table: passed through
+// untouched on success.
 func plainAnswer[In any](*In) answer { return answer{} }
 
 // tableAnswer is the answer of a table operation naming table: its ARNs

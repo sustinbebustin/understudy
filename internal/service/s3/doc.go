@@ -84,11 +84,20 @@
 //     changed in place inside the bucket's kernel.Write, after every check
 //     passed, so a write copies no key set; no read returns those maps, a
 //     version chain or an upload.
-//   - x-amz-version-id is left out for a null version unless versioning is
-//     Enabled (reportedVersion), so Terraform does not take its versioned
-//     delete path on an unversioned bucket (tf-remaining.md 8). A
-//     well-formed but unknown version id deletes nothing with 204, and
-//     DeleteObjects reports it as NoSuchVersion on a versioned bucket.
+//   - x-amz-version-id is left out for a null version on a bucket never
+//     versioned (reportedVersion), so Terraform does not take its
+//     versioned delete path there (tf-remaining.md 8); a write to a
+//     Suspended bucket leaves it out too, while reads and delete markers
+//     there report "null" (writtenVersion). A well-formed version id that
+//     names none of an existing key's versions is InvalidArgument on
+//     DeleteObject. In DeleteObjects an id naming no version of the key is
+//     a NoSuchVersion entry whatever the bucket's versioning, save "null"
+//     on a bucket never versioned. On a key with no versions, DeleteObject
+//     deletes nothing with 204.
+//   - Every version and upload takes the bucket's next Seq, which orders a
+//     key's versions and is carried in the version ids minted: a listing
+//     resumes after a version-id-marker deleted since, and a completed
+//     upload on a versioned bucket ranks by when it was initiated.
 //   - SSE-KMS stores the bytes as sent: a write asks KMS for a data key
 //     and every GetObject asks KMS to decrypt it, both charged to the
 //     caller, so the key's state is observable. Its ETag is random hex.
@@ -105,7 +114,13 @@
 //     dialect's PartialContent. An object written in one request is its
 //     own part 1, served whole.
 //   - GetObject opens the body while the read still holds a reference on
-//     the blob, so a concurrent overwrite cannot fail an admitted read.
+//     the blob, so a concurrent overwrite cannot fail an admitted read. A
+//     body the encoder never takes is closed by kernel.Release.
+//   - Object bodies are sent with X-Content-Type-Options: nosniff and
+//     Content-Security-Policy: sandbox (the dialect's InertStreams), which
+//     AWS does not send: they share an origin with the admin prefix. The
+//     response-* overrides need a signed or presigned request, as AWS
+//     documents; an unsigned one is InvalidRequest (text unrecorded).
 //   - CopyObject reads its source without the cross-region and owner
 //     admission, since copies may cross regions and phase 1 enforces no
 //     access. The source read's blob reference becomes the copy's. A copy
@@ -119,7 +134,7 @@
 //     (s3.md 4.2.4); elsewhere an object ACL is accepted and not stored.
 //   - Presigned URLs are not verified: the edge recognizes a presigned
 //     request, but no seam hands the S3 handler the query signature, so a
-//     presigned URL never expires (docs/plan/DEFERRED.md).
+//     presigned URL never expires.
 //
 // Decisions for multipart uploads:
 //

@@ -66,9 +66,6 @@ def make_table(dynamodb: Any, cleanup: Any) -> Callable[..., str]:
     return make
 
 
-# --- Tables ------------------------------------------------------------------------------------------------------
-
-
 def test_create_table_description(dynamodb: Any, make_table: Callable[..., str]) -> None:
     name = make_table(range_key="sk")
     table = dynamodb.describe_table(TableName=name)["Table"]
@@ -166,9 +163,6 @@ def test_tables_are_isolated_per_account_and_region(
     assert other_region.describe_table(TableName=twin_region)["Table"]["TableArn"].split(":")[3] == "eu-west-1"
 
 
-# --- Items ---------------------------------------------------------------------------------------------------------
-
-
 def test_every_attribute_type_round_trips(dynamodb: Any, make_table: Callable[..., str]) -> None:
     name = make_table()
     item = {
@@ -261,9 +255,6 @@ def test_delete_item_returns_old_values(dynamodb: Any, make_table: Callable[...,
     assert plain(old) == {"pk": "k", "v": Decimal(1)}
     assert "Item" not in dynamodb.get_item(TableName=name, Key=ddb_item(pk="k"))
     assert "Attributes" not in dynamodb.delete_item(TableName=name, Key=ddb_item(pk="k"), ReturnValues="ALL_OLD")
-
-
-# --- Conditional writes ---------------------------------------------------------------------------------------------
 
 
 def test_put_if_not_exists_fails_the_second_time(dynamodb: Any, make_table: Callable[..., str]) -> None:
@@ -398,9 +389,6 @@ def test_transact_write_and_get_succeed_together(dynamodb: Any, make_table: Call
     assert [plain(r["Item"])["v"] if "Item" in r else None for r in got] == [Decimal(1), Decimal(2), Decimal(3), None]
 
 
-# --- Batches, queries, scans ---------------------------------------------------------------------------------------------
-
-
 def test_batch_write_and_batch_get(dynamodb: Any, make_table: Callable[..., str]) -> None:
     name = make_table()
     out = dynamodb.batch_write_item(RequestItems={name: [{"PutRequest": {"Item": ddb_item(pk=f"k{i}", v=i)}} for i in range(25)]})
@@ -496,9 +484,6 @@ def test_scan_paginator_with_a_filter(dynamodb: Any, make_table: Callable[..., s
         for i in page["Items"]
     ]
     assert sorted(items) == ["k01", "k04", "k07", "k10"]
-
-
-# --- TTL on the emulator clock ------------------------------------------------------------------------------------------------
 
 
 def enable_ttl(dynamodb: Any, table: str, attribute: str = "ExpiresAt") -> None:

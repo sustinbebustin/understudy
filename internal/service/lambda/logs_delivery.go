@@ -84,13 +84,13 @@ type logStream struct {
 	pendingBytes int
 	// current is the call the open invocation's output is written on
 	// behalf of, from its begin until it ends; nil between invocations.
-	current *kernel.Call
+	current *onBehalf
 	// tail is the end of the open invocation's own log, from START, at
 	// most maxTail bytes: what X-Amz-Log-Result carries.
 	tail []byte
 	// last is the call the stream's last batch was written on behalf of;
 	// output arriving between invocations is written on its behalf too.
-	last       *kernel.Call
+	last       *onBehalf
 	queue      []logBatch
 	delivering bool
 	// ready is set once the group and stream are known to exist; only the
@@ -101,9 +101,30 @@ type logStream struct {
 // logBatch is one cut of messages, the emulator instant it was cut at,
 // which stamps every message, and the call they are written on behalf of.
 type logBatch struct {
-	parent   *kernel.Call
+	parent   *onBehalf
 	at       clock.Instant
 	messages []string
+}
+
+// onBehalf is the call an invocation's log lines are written on behalf
+// of: the parent of the CloudWatch Logs calls that deliver them. The
+// kernel refuses an Invoke whose parent holds a cell lock, and an
+// asynchronous attempt's timer call is written on (settleAsync) while its
+// lines may still be in delivery, from another goroutine; so a Write on
+// call holds writes, and so does each delivery while it invokes. writes is
+// nil for a call nothing writes on once its invocation runs.
+type onBehalf struct {
+	call   *kernel.Call
+	writes *sync.Mutex
+}
+
+// invoking keeps Writes on o's call from starting until done is called.
+func (o *onBehalf) invoking() (done func()) {
+	if o.writes == nil {
+		return func() {}
+	}
+	o.writes.Lock()
+	return o.writes.Unlock
 }
 
 // openStream creates the log stream of a newly started environment, under
@@ -198,7 +219,7 @@ func (s *logStream) close() bool {
 
 // begin opens an invocation written on behalf of parent: INIT_START on a
 // cold start, then START, where the invocation's own log begins.
-func (s *logStream) begin(cold bool, initStart, start string, parent *kernel.Call) {
+func (s *logStream) begin(cold bool, initStart, start string, parent *onBehalf) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.current, s.tail = parent, nil
@@ -259,7 +280,7 @@ func (s *logStream) takeLocked() []string {
 // queueLocked queues messages as a batch stamped with the emulator time
 // now, and reports whether no delivery runs to write it. Callers hold
 // s.mu.
-func (s *logStream) queueLocked(parent *kernel.Call, messages []string) bool {
+func (s *logStream) queueLocked(parent *onBehalf, messages []string) bool {
 	if len(messages) == 0 {
 		return false
 	}
@@ -325,7 +346,10 @@ func (x *Execution) write(ctx context.Context, s *logStream, b logBatch) {
 
 // put writes one request, creating the group and the stream first unless
 // they are known to exist; an existing one is not an error.
-func (x *Execution) put(ctx context.Context, s *logStream, parent *kernel.Call, events []logsapi.InputLogEvent) *awserr.Error {
+func (x *Execution) put(ctx context.Context, s *logStream, on *onBehalf, events []logsapi.InputLogEvent) *awserr.Error {
+	done := on.invoking()
+	defer done()
+	parent := on.call
 	target := kernel.Target{Scope: s.scope, As: kernel.AsExecutionRole{Role: s.role}, Via: ref.LambdaLogs}
 	if !s.ready {
 		if !x.groups.known(s.scope, s.group) {

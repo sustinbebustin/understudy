@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -50,9 +51,14 @@ func checkCreateKey(in *kmsapi.CreateKeyInput) *awserr.Error {
 	case in.CustomerMasterKeySpec != nil:
 		spec = kmsapi.KeySpec(*in.CustomerMasterKeySpec)
 	}
+	// KeyUsage defaults to ENCRYPT_DECRYPT only for a symmetric encryption
+	// key; every other spec must name it.
 	usage := kmsapi.KeyUsageTypeEncryptDecrypt
-	if in.KeyUsage != nil {
+	switch {
+	case in.KeyUsage != nil:
 		usage = *in.KeyUsage
+	case spec != kmsapi.KeySpecSymmetricDefault:
+		return errKeyUsageRequired()
 	}
 	// AWS checks the pair before whether it supports the spec, so a
 	// mismatch is a ValidationException even for a spec understudy refuses.
@@ -92,11 +98,32 @@ func keyUsages(spec kmsapi.KeySpec) []kmsapi.KeyUsageType {
 	return nil
 }
 
-// checkPolicy parses a key policy; KMS stores it and phase 1 does not
-// enforce it.
+// maxPolicyChars is the key policy size quota. The model allows 131072
+// characters, so the framework never refuses a longer policy; KMS answers
+// LimitExceededException past the quota, as CreateKey and PutKeyPolicy
+// document ("If the key policy exceeds the length constraint, AWS KMS
+// returns a LimitExceededException";
+// https://docs.aws.amazon.com/kms/latest/APIReference/API_CreateKey.html,
+// https://docs.aws.amazon.com/kms/latest/APIReference/API_PutKeyPolicy.html).
+const maxPolicyChars = 32768
+
+// checkPolicy checks a key policy against the size quota, parses it and
+// requires a Principal or NotPrincipal in every statement, as CreateKey and
+// PutKeyPolicy document; KMS stores it and phase 1 does not enforce it. A
+// statement without Action or Resource is accepted, as AWS accepts it (it
+// has no effect).
 func checkPolicy(policy string) *awserr.Error {
-	if _, err := policydoc.Parse([]byte(policy)); err != nil {
+	if n := utf8.RuneCountInString(policy); n > maxPolicyChars {
+		return errPolicyTooLong(n, maxPolicyChars)
+	}
+	doc, err := policydoc.Parse([]byte(policy))
+	if err != nil {
 		return kmsapi.ErrMalformedPolicyDocumentException(err.Message())
+	}
+	for i, st := range doc.Statements {
+		if st.Principal == nil {
+			return errPolicyPrincipal(i, st.Sid)
+		}
 	}
 	return nil
 }
@@ -124,7 +151,7 @@ func (s *Service) createKey(_ context.Context, c *kernel.Call, in *kmsapi.Create
 	if err != nil {
 		return nil, err
 	}
-	c.Touch(arnOf(scope, k.ID))
+	c.Touch(keyARN(scope, k.ID))
 	return &kmsapi.CreateKeyOutput{KeyMetadata: metadata(scope, k)}, nil
 }
 
@@ -138,14 +165,14 @@ func (s *Service) describeKey(_ context.Context, c *kernel.Call, in *kmsapi.Desc
 
 func (s *Service) listKeys(_ context.Context, c *kernel.Call, in *kmsapi.ListKeysInput) (*kmsapi.ListKeysOutput, *awserr.Error) {
 	scope := c.Scope()
-	keyIDs := readState(s, scope, func(st *State) []string { return slices.Sorted(maps.Keys(st.Keys)) })
-	p, err := page(keyIDs, func(id string) string { return id }, in.Limit, limits{def: 100, max: 1000}, in.Marker)
+	keyIDs := readState(s, scope, func(st *State) []string { return slices.Collect(maps.Keys(st.Keys)) })
+	p, err := page(listingKeys, keyIDs, func(id string) string { return id }, in.Limit, limits{def: 100, max: 1000}, in.Marker)
 	if err != nil {
 		return nil, err
 	}
 	out := &kmsapi.ListKeysOutput{Keys: make([]kmsapi.KeyListEntry, 0, len(p.items)), NextMarker: p.next, Truncated: p.truncated}
 	for _, id := range p.items {
-		out.Keys = append(out.Keys, kmsapi.KeyListEntry{KeyId: new(id), KeyArn: new(keyARN(scope, id))})
+		out.Keys = append(out.Keys, kmsapi.KeyListEntry{KeyId: new(id), KeyArn: new(keyARN(scope, id).String())})
 	}
 	return out, nil
 }
@@ -255,7 +282,7 @@ type located struct {
 }
 
 func locate(scope aws.Scope, k Key) located {
-	return located{Key: k, scope: scope, arn: keyARN(scope, k.ID)}
+	return located{Key: k, scope: scope, arn: keyARN(scope, k.ID).String()}
 }
 
 // readKey returns the key keyID names, in any state, and touches it.
@@ -271,7 +298,7 @@ func readKey(s *Service, c *kernel.Call, keyID string, forms refForms, rc reach)
 	if err != nil {
 		return located{}, err
 	}
-	c.Touch(arnOf(r.scope(), k.ID))
+	c.Touch(keyARN(r.scope(), k.ID))
 	return locate(r.scope(), k), nil
 }
 
@@ -287,7 +314,7 @@ func updateKey(s *Service, c *kernel.Call, keyID string, rule stateRule, fn func
 		return located{}, err
 	}
 	k, err := withKey(s, c, r, rule, func(st *State, k Key, now clock.Instant, tx *kernel.Tx) (Key, *awserr.Error) {
-		arn := keyARN(r.scope(), k.ID)
+		arn := keyARN(r.scope(), k.ID).String()
 		if err := customerOnly(k, arn); err != nil {
 			return Key{}, err
 		}
@@ -301,7 +328,7 @@ func updateKey(s *Service, c *kernel.Call, keyID string, rule stateRule, fn func
 	if err != nil {
 		return located{}, err
 	}
-	c.Touch(arnOf(r.scope(), k.ID))
+	c.Touch(keyARN(r.scope(), k.ID))
 	return locate(r.scope(), k), nil
 }
 
@@ -322,7 +349,7 @@ func metadata(scope aws.Scope, k Key) *kmsapi.KeyMetadata {
 	m := &kmsapi.KeyMetadata{
 		AWSAccountId:          new(scope.Account.String()),
 		KeyId:                 k.ID,
-		Arn:                   new(keyARN(scope, k.ID)),
+		Arn:                   new(keyARN(scope, k.ID).String()),
 		CreationDate:          new(k.Created.Wire()),
 		Enabled:               k.Lifecycle.keyState() == kmsapi.KeyStateEnabled,
 		Description:           new(k.Description),
@@ -340,11 +367,6 @@ func metadata(scope aws.Scope, k Key) *kmsapi.KeyMetadata {
 		m.DeletionDate = new(p.DeletionDate.Wire())
 	}
 	return m
-}
-
-// arnOf is the parsed ARN of key id in scope, for Call.Touch.
-func arnOf(scope aws.Scope, id string) aws.ARN {
-	return aws.ARN{Partition: scope.Partition.String(), Service: "kms", Region: scope.Region.String(), Account: scope.Account.String(), Resource: "key/" + id}
 }
 
 // parseKeyARN reverses keyARN for a deletion timer's ID.

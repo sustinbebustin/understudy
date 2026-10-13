@@ -89,7 +89,7 @@ func TestLoadSnapshotAtStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := c.SaveSnapshot(t.Context(), f, admin.SaveOptions{}); err != nil {
+	if _, err := c.SaveSnapshot(t.Context(), f, admin.SaveOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.Close(); err != nil {
@@ -110,9 +110,10 @@ func TestLoadSnapshotAtStart(t *testing.T) {
 	}
 }
 
-// With lambda.network disabled, health reports Lambda disabled for that
-// reason while Docker answers for the rest, and a runtime image pull is
-// refused naming the setting rather than reaching Docker.
+// With lambda.network disabled, health reports Lambda degraded to its
+// control plane for that reason while Docker answers for the rest, and a
+// runtime image pull is refused naming the setting rather than reaching
+// Docker.
 func TestLambdaNetworkDisabledRunsNoFunction(t *testing.T) {
 	mute := filepath.Join(t.TempDir(), "docker.sock")
 	if err := os.WriteFile(mute, nil, 0o600); err != nil {
@@ -123,8 +124,8 @@ func TestLambdaNetworkDisabledRunsNoFunction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s := h.Services["lambda"]; s.Status != admin.Disabled || !strings.Contains(s.Reason, "lambda.network is disabled") {
-		t.Errorf("lambda = %+v, want disabled naming lambda.network", s)
+	if s := h.Services["lambda"]; s.Status != admin.Degraded || !strings.Contains(s.Reason, "control plane only") || !strings.Contains(s.Reason, "lambda.network is disabled") {
+		t.Errorf("lambda = %+v, want degraded to its control plane naming lambda.network", s)
 	}
 	if s := h.Services["dynamodb"]; strings.Contains(s.Reason, "lambda.network") {
 		t.Errorf("dynamodb = %+v, want it untouched by lambda.network", s)

@@ -80,8 +80,6 @@ func TestWireForms(t *testing.T) {
 	})
 }
 
-// TestPutStatusesRecordedAgainstAWS checks the Puts real S3 answers with
-// 204 although the model says 200 (s3.md 4).
 // TestListBucketsWithNoMatchSendsAnEmptyBucketsElement: AWS sends the
 // Buckets wrapper even when nothing matches, which SDKs read as an empty
 // list rather than an absent member (REC LocalStack
@@ -135,6 +133,8 @@ func TestObjectMetadataNamesGoOutLowerCase(t *testing.T) {
 	})
 }
 
+// TestPutStatusesRecordedAgainstAWS checks the Puts real S3 answers with
+// 204 although the model says 200 (s3.md 4).
 func TestPutStatusesRecordedAgainstAWS(t *testing.T) {
 	for _, op := range []*registry.Operation{
 		s3api.OpPutBucketPolicy.Descriptor(), s3api.OpPutBucketTagging.Descriptor(),

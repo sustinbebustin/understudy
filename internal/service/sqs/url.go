@@ -78,14 +78,28 @@ func parseQueueURL(raw string) (aws.AccountID, string, bool) {
 	return id, name, true
 }
 
+// isQueueName reports whether s is a queue name CreateQueue could have
+// taken: 1 to 80 characters of letters, digits, hyphens and underscores,
+// the last five of a FIFO queue's name ".fifo".
+func isQueueName(s string) bool {
+	return len(s) <= 80 && isSQSToken(strings.TrimSuffix(s, ".fifo"))
+}
+
 // resolveURL locates the queue a URL names: the account in its path wins
 // over the caller's (cross-account by path) and the region is the call's,
-// whatever region the URL's host names (sqs.md Implications 6). Anything
-// without the /<account>/<name> path names no queue.
+// whatever region the URL's host names (sqs.md Implications 6). A bare
+// queue name names that queue in the caller's account, as AWS accepts one
+// in QueueUrl (sqs.md 3). Anything else is InvalidAddress, as AWS answers
+// an address that is no queue's; a well-formed URL or name whose queue is
+// missing is the caller's NonExistentQueue to answer.
 func resolveURL(c *kernel.Call, raw string) (queueRef, *awserr.Error) {
 	account, name, ok := parseQueueURL(raw)
-	if !ok {
-		return queueRef{}, errQueueDoesNotExist()
+	switch {
+	case ok:
+	case isQueueName(raw):
+		account, name = c.Scope().Account, raw
+	default:
+		return queueRef{}, errInvalidAddress(raw)
 	}
 	scope, err := kernel.ResolveScope(c, kernel.CrossAccount{Account: account})
 	if err != nil {
@@ -111,15 +125,11 @@ func parseQueueARN(raw string) (queueRef, bool) {
 
 // queueOf reads a queue ARN back into its scope and name.
 func queueOf(arn aws.ARN) (queueRef, bool) {
-	account, err := aws.ParseAccountID(arn.Account)
+	scope, err := aws.ScopeOf(arn)
 	if err != nil {
 		return queueRef{}, false
 	}
-	var region aws.Region
-	if err := region.UnmarshalText([]byte(arn.Region)); err != nil {
-		return queueRef{}, false
-	}
-	return queueRef{scope: aws.Scope{Partition: aws.PartitionAWS(), Account: account, Region: region}, name: arn.Resource}, true
+	return queueRef{scope: scope, name: arn.Resource}, true
 }
 
 // existingQueue is resolveURL for a handler: it answers NonExistentQueue

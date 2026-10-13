@@ -16,7 +16,7 @@ import (
 
 // bindAttachments binds the managed policy attachments of roles and users.
 func (s *Service) bindAttachments(b iamapi.Binder) {
-	stored := registry.StoredOnly{Note: "the attachment is stored, not enforced"}
+	stored := registry.Partial{Note: "the attachment is stored, not enforced; " + unknownAWSManaged}
 	b.AttachRolePolicy(func(_ context.Context, c *kernel.Call, in *iamapi.AttachRolePolicyInput) (*iamapi.AttachRolePolicyOutput, *awserr.Error) {
 		return unit[iamapi.AttachRolePolicyOutput](s.attach(c, roleHolder(c.Scope().Account, in.RoleName), in.PolicyArn))
 	}, stored)
