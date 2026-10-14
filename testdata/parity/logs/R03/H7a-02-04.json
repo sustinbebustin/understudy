@@ -1,0 +1,33 @@
+{
+  "step": "H7a-02-04",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,AD,AN,C,Z,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261014T070646Z"],
+          ["amz-sdk-invocation-id", "112a7a48-8385-462c-be26-4bdd8d8764a2"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "144"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/lambda/usr-rec-20261014-filter\", \"startTime\": 1791961512000, \"filterPattern\": \"\\\"7b6eedcd-6696-4135-ab0a-d8c9237ecbd1\\\"\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "62250d9c-2a88-4b2e-9f51-2d9bea2d4ce6"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "121"],
+          ["Date", "Wed, 14 Oct 2026 07:06:47 GMT"]
+        ],
+        "body": "{\"events\":[],\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "02-targets-cron",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutTargets"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AC,E,b,AD,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-targets"],
+          ["X-Amz-Date", "20261014T070434Z"],
+          ["amz-sdk-invocation-id", "a0d3e614-c646-429a-a6c2-ca4577979702"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "244"]
+        ],
+        "body": "{\"Rule\": \"usr-rec-20261014-cron\", \"Targets\": [{\"Id\": \"xf\", \"Arn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-r14q\", \"InputTransformer\": {\"InputPathsMap\": {\"t\": \"$.time\", \"id\": \"$.id\"}, \"InputTemplate\": \"{\\\"time\\\":<t>,\\\"id\\\":<id>}\"}}]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "850e1dbb-aba8-48f1-95b0-f3114b3a98e8"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "41"],
+          ["Date", "Wed, 14 Oct 2026 07:04:34 GMT"]
+        ],
+        "body": "{\"FailedEntries\":[],\"FailedEntryCount\":0}"
+      }
+    }
+  ]
+}

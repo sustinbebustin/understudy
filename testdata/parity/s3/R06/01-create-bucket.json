@@ -1,0 +1,35 @@
+{
+  "step": "01-create-bucket",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,E,Z,AN,b,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.create-bucket"],
+          ["X-Amz-Date", "20261014T063447Z"],
+          ["X-Amz-Content-SHA256", "70cae86320841ea73b0bdc759f99920c7caa405e61af2742575750c6586272c9"],
+          ["amz-sdk-invocation-id", "75b0600d-b64e-444a-942c-c67c0dac6500"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "153"]
+        ],
+        "body": "<CreateBucketConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><LocationConstraint>us-east-2</LocationConstraint></CreateBucketConfiguration>"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "GgCRElgHXpLz0EOxVVoUSTLSbe5N4vZzaSTiL0Il6Huc4uLQOt4+zYHOjQSIf26+dAoTJbWNI3p0PLkOvtEiJxIAV+fbSSYx"],
+          ["x-amz-request-id", "X7G0AR45BSNMAZGZ"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:34:48 GMT"],
+          ["Location", "http://usr-rec-20261014-s3.s3.amazonaws.com/"],
+          ["x-amz-bucket-arn", "arn:aws:s3:::usr-rec-20261014-s3"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

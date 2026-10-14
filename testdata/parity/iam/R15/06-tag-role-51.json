@@ -1,0 +1,34 @@
+{
+  "step": "06-tag-role-51",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationError) when calling the TagRole operation: 1 validation error detected: Value at 'tags' failed to satisfy constraint: Member must have length less than or equal to 50",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,b,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#iam.tag-role"],
+          ["X-Amz-Date", "20261014T070643Z"],
+          ["amz-sdk-invocation-id", "7d8daf38-f7ed-4145-99c6-7fab2f4a1f70"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "2382"]
+        ],
+        "body": "Action=TagRole&Version=2010-05-08&RoleName=usr-rec-20261014-r15&Tags.member.1.Key=k1&Tags.member.1.Value=v&Tags.member.2.Key=k2&Tags.member.2.Value=v&Tags.member.3.Key=k3&Tags.member.3.Value=v&Tags.member.4.Key=k4&Tags.member.4.Value=v&Tags.member.5.Key=k5&Tags.member.5.Value=v&Tags.member.6.Key=k6&Tags.member.6.Value=v&Tags.member.7.Key=k7&Tags.member.7.Value=v&Tags.member.8.Key=k8&Tags.member.8.Value=v&Tags.member.9.Key=k9&Tags.member.9.Value=v&Tags.member.10.Key=k10&Tags.member.10.Value=v&Tags.member.11.Key=k11&Tags.member.11.Value=v&Tags.member.12.Key=k12&Tags.member.12.Value=v&Tags.member.13.Key=k13&Tags.member.13.Value=v&Tags.member.14.Key=k14&Tags.member.14.Value=v&Tags.member.15.Key=k15&Tags.member.15.Value=v&Tags.member.16.Key=k16&Tags.member.16.Value=v&Tags.member.17.Key=k17&Tags.member.17.Value=v&Tags.member.18.Key=k18&Tags.member.18.Value=v&Tags.member.19.Key=k19&Tags.member.19.Value=v&Tags.member.20.Key=k20&Tags.member.20.Value=v&Tags.member.21.Key=k21&Tags.member.21.Value=v&Tags.member.22.Key=k22&Tags.member.22.Value=v&Tags.member.23.Key=k23&Tags.member.23.Value=v&Tags.member.24.Key=k24&Tags.member.24.Value=v&Tags.member.25.Key=k25&Tags.member.25.Value=v&Tags.member.26.Key=k26&Tags.member.26.Value=v&Tags.member.27.Key=k27&Tags.member.27.Value=v&Tags.member.28.Key=k28&Tags.member.28.Value=v&Tags.member.29.Key=k29&Tags.member.29.Value=v&Tags.member.30.Key=k30&Tags.member.30.Value=v&Tags.member.31.Key=k31&Tags.member.31.Value=v&Tags.member.32.Key=k32&Tags.member.32.Value=v&Tags.member.33.Key=k33&Tags.member.33.Value=v&Tags.member.34.Key=k34&Tags.member.34.Value=v&Tags.member.35.Key=k35&Tags.member.35.Value=v&Tags.member.36.Key=k36&Tags.member.36.Value=v&Tags.member.37.Key=k37&Tags.member.37.Value=v&Tags.member.38.Key=k38&Tags.member.38.Value=v&Tags.member.39.Key=k39&Tags.member.39.Value=v&Tags.member.40.Key=k40&Tags.member.40.Value=v&Tags.member.41.Key=k41&Tags.member.41.Value=v&Tags.member.42.Key=k42&Tags.member.42.Value=v&Tags.member.43.Key=k43&Tags.member.43.Value=v&Tags.member.44.Key=k44&Tags.member.44.Value=v&Tags.member.45.Key=k45&Tags.member.45.Value=v&Tags.member.46.Key=k46&Tags.member.46.Value=v&Tags.member.47.Key=k47&Tags.member.47.Value=v&Tags.member.48.Key=k48&Tags.member.48.Value=v&Tags.member.49.Key=k49&Tags.member.49.Value=v&Tags.member.50.Key=k50&Tags.member.50.Value=v&Tags.member.51.Key=k51&Tags.member.51.Value=v"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:06:43 GMT"],
+          ["x-amzn-RequestId", "ce07c23f-6061-46b9-a359-ab8c8c76e72a"],
+          ["Connection", "close"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "370"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>ValidationError</Code>\n    <Message>1 validation error detected: Value at 'tags' failed to satisfy constraint: Member must have length less than or equal to 50</Message>\n  </Error>\n  <RequestId>ce07c23f-6061-46b9-a359-ab8c8c76e72a</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

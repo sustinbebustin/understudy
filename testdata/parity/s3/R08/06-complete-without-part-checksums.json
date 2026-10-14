@@ -1,0 +1,32 @@
+{
+  "step": "06-complete-without-part-checksums",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/nf2?uploadId=tLqcbTRqpfesFE1AnRRFmM4j4M5Uzw3.d2xBfuWbtG7g3ZVluvD6PfeuOrjUD7SzxUbBDtSKY84mMRhMainbWv6gDdBjALDILpGPeG2Ooa0t.B7y8pqqi7RogF_eFkRewzAOAG8NIk09T5znznV8Ndt7OALGKcS_BvZx9w.AJCsDHeipdiX30ay9HkookbPO",
+        "headers": [
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064708Z"],
+          ["Content-Length", "107"]
+        ],
+        "body": "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>None</ETag></Part></CompleteMultipartUpload>"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amz-request-id", "FQ4K0KRNQGJHXHYE"],
+          ["x-amz-id-2", "LMxnJcXTe5E8GC1Ka3LAH/TxkG29YFVrCQ8m6pVQ3i63J4nYcXSpWSKy2LVY1Yr/AWA+hScsWVyQlXKGi7uIm2xRWcDO9EY+"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:47:08 GMT"],
+          ["Connection", "close"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<Error><Code>InvalidPart</Code><Message>One or more of the specified parts could not be found.  The part may not have been uploaded, or the specified entity tag may not match the part's entity tag.</Message><UploadId>tLqcbTRqpfesFE1AnRRFmM4j4M5Uzw3.d2xBfuWbtG7g3ZVluvD6PfeuOrjUD7SzxUbBDtSKY84mMRhMainbWv6gDdBjALDILpGPeG2Ooa0t.B7y8pqqi7RogF_eFkRewzAOAG8NIk09T5znznV8Ndt7OALGKcS_BvZx9w.AJCsDHeipdiX30ay9HkookbPO</UploadId><PartNumber>1</PartNumber><ETag>None</ETag><RequestId>FQ4K0KRNQGJHXHYE</RequestId><HostId>LMxnJcXTe5E8GC1Ka3LAH/TxkG29YFVrCQ8m6pVQ3i63J4nYcXSpWSKy2LVY1Yr/AWA+hScsWVyQlXKGi7uIm2xRWcDO9EY+</HostId></Error>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "std-04-dlq-poll-30s",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,AD,AC,E,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261014T063353Z"],
+          ["amz-sdk-invocation-id", "9a1dc01e-347e-4b88-80d4-1510841c0ba4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "197"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-dlq\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"VisibilityTimeout\": 0}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "7ef32e2b-e540-5598-acee-4d62c1d16410"],
+          ["Date", "Wed, 14 Oct 2026 06:33:53 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "3026"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\",\"ApproximateFirstReceiveTimestamp\":\"1791959587408\",\"ApproximateReceiveCount\":\"6\",\"SentTimestamp\":\"1791959580210\",\"DeadLetterQueueSourceArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-src\"},\"Body\":\"body1\",\"MD5OfBody\":\"d6ed8ba2adae5a938c5a3757bcccf4dd\",\"MD5OfMessageAttributes\":\"cfd3bfb043f86340e7dbc235456abbb0\",\"MessageAttributes\":{\"b\":{\"BinaryValue\":\"AAEC\",\"DataType\":\"Binary\"},\"s\":{\"DataType\":\"String\",\"StringValue\":\"v\"}},\"MessageId\":\"61ce9c1a-43a5-43ad-8ff7-0e0547a56a8c\",\"ReceiptHandle\":\"AQEBqGYWmJyGB1pldjJDhhDnolIclxSxaAG4hyBZjqN0OH+Mz5NfcFFsDANsfadOgF2TZ2ztBbz5EDiGO6fbO2Vs1iEtKhRb6ma3nb1TGkvxCx/WfSplu8g6DyK3qtIAdmqTxHaehT9dPzDbeCW5FMEwEZmykAzhbHINTNHfVes51NjVLV+dSiwgMRsXfDVF74CtPp+jakFJwQx3Dcxu2nPtyCxEXs0BuBWzmpTb9SqdczQ1uzd4SaX91XyviMExyeiXybnX6kZXhcGurzqPIHmrXKrPCagWZ9n4bcxYWp5f13JDnV8laKZm3ROOIdmhjvcbxUqEuh1QVq7K7nxYYdQpPiul9IITmgtv0tcvpluebGa3DNpzZYkPYMf/uHhi5HGTppw6fo0LU1vvnDksrEKMVA==\"},{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\",\"ApproximateFirstReceiveTimestamp\":\"1791959587408\",\"ApproximateReceiveCount\":\"7\",\"SentTimestamp\":\"1791959580210\",\"DeadLetterQueueSourceArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-src\"},\"Body\":\"body1\",\"MD5OfBody\":\"d6ed8ba2adae5a938c5a3757bcccf4dd\",\"MD5OfMessageAttributes\":\"cfd3bfb043f86340e7dbc235456abbb0\",\"MessageAttributes\":{\"b\":{\"BinaryValue\":\"AAEC\",\"DataType\":\"Binary\"},\"s\":{\"DataType\":\"String\",\"StringValue\":\"v\"}},\"MessageId\":\"61ce9c1a-43a5-43ad-8ff7-0e0547a56a8c\",\"ReceiptHandle\":\"AQEBWSMT2SOU7Vne1QLd/usTqwJZFNPEBg/1bpDF99kU6UcBP1/gq73fCllee2uhj2/ee8rH6VdV30PCcJNzK1JMAcTB9fjeFtTtlOOX8/b8FRkBcLhbo5B8PpioZYxeGJCzwsjc1aBN+XDxUQBeDp2lRzLvZFSTA53nVr+01R7w+CnHBSc106malcPY+KWy/bce47+ulIFg3Ekm4Phjq9O2H9bpMeCZvlu62ufwEx44jzjplRS/fWg66mu3b8UVokKpcg2q1lfuHNtEKycYPUCfsovVMNOfp9M+hPZdx3m0VtSyVdgOyktznF7vJ6lhOdJvbYQht1IqTv1EB/vr9C9BU9NaJ/75nbMO0iUmV+Jx3em2RHXl7FGrUkdPnLj8oFtE0JWNt3ztpSEzY5raivaEAQ==\"},{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\",\"ApproximateFirstReceiveTimestamp\":\"1791959587408\",\"ApproximateReceiveCount\":\"8\",\"SentTimestamp\":\"1791959580210\",\"DeadLetterQueueSourceArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-src\"},\"Body\":\"body1\",\"MD5OfBody\":\"d6ed8ba2adae5a938c5a3757bcccf4dd\",\"MD5OfMessageAttributes\":\"cfd3bfb043f86340e7dbc235456abbb0\",\"MessageAttributes\":{\"b\":{\"BinaryValue\":\"AAEC\",\"DataType\":\"Binary\"},\"s\":{\"DataType\":\"String\",\"StringValue\":\"v\"}},\"MessageId\":\"61ce9c1a-43a5-43ad-8ff7-0e0547a56a8c\",\"ReceiptHandle\":\"AQEB3pCOSwmLXi1ylN3V4OR/lXYiGwrqvMFAWPl7M8wrKqT2RMUZymHVU3NGawbK0KFvTwZdP6Uja7azqFHD4gNQ7byQO1mlF/a8Kp/ubdz2ZnZq5E8I81sD6WpBtywAL6fT4NVDQttpEj97Nzad7rYBrHmWK7SUJCAnySMhZjoTLb8uoNVrPRrHKjSF3fJmhl1Z3XnBFafZYZOMYlY1hI8u0Urh6kRynjmbI0Psli0UlL6Hk5NdLuyBYuBunLPrpzHCTsZdII4tgUzASAj7gxqpUL5Mn8ScMBpJKh77462KiPQOjsxKBvsm31qBpf9Dla7Gvku2ypvf21W4RDP1t57K1fLVihHvVr9uGIAlXQEQVsBVAtIcTZ1GauRzCbXGNugFem3gV6m4nBbVK4CtdNVrrA==\"}]}"
+      }
+    }
+  ]
+}

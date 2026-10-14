@@ -1,0 +1,37 @@
+{
+  "step": "x-send-datatype-257",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValue) when calling the SendMessage operation: Message (user) attribute type must be shorter than 256 bytes.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.SendMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,AN,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.send-message"],
+          ["X-Amz-Date", "20261014T070312Z"],
+          ["amz-sdk-invocation-id", "7d8e0439-88d3-4658-a52e-9fbf9ffd541b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "428"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-q11\", \"MessageBody\": \"x\", \"MessageAttributes\": {\"a\": {\"DataType\": \"String.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"StringValue\": \"v\"}}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "9d4d3860-d41d-5fca-b163-5b29ff6ddf7b"],
+          ["x-amzn-query-error", "InvalidParameterValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 07:03:12 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "142"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Message (user) attribute type must be shorter than 256 bytes.\"}"
+      }
+    }
+  ]
+}

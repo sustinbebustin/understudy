@@ -1,0 +1,32 @@
+{
+  "step": "01-get-get-bucket-location",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://s3.us-east-2.amazonaws.com/usr-rec-20261014-s3?location",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AC,Z,AN,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-bucket-location"],
+          ["X-Amz-Date", "20261014T063500Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "875a6288-c171-41f1-a9b4-bb1ab14bb095"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "7X6WsWqVtb4P8KHYUdseW3o2RuN9VHqz8DrT/xzxHavdpsYLjx2LcElfMHj0pLHf5epEchN9X3A="],
+          ["x-amz-request-id", "20FQ000E090QXNDH"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:35:01 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<LocationConstraint xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">us-east-2</LocationConstraint>"
+      }
+    }
+  ]
+}

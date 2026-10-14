@@ -1,0 +1,36 @@
+{
+  "step": "05-put-ok",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.PutItem"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,AC,P,b,AD,AN,T cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.put-item"],
+          ["X-Amz-Date", "20261014T063557Z"],
+          ["amz-sdk-invocation-id", "4abc37d3-fd70-4804-9077-236ddf21a6b7"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "225"]
+        ],
+        "body": "{\"TableName\": \"usr-rec-20261014-lock\", \"Item\": {\"LockID\": {\"S\": \"a\"}, \"ExpiresAt\": {\"N\": \"100\"}}, \"ConditionExpression\": \"attribute_not_exists(LockID) OR ExpiresAt < :now\", \"ExpressionAttributeValues\": {\":now\": {\"N\": \"200\"}}}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:35:57 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "2"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "50U7RBUBMF1FTNDCSDKAO73PTNVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2745614147"]
+        ],
+        "body": "{}"
+      }
+    }
+  ]
+}

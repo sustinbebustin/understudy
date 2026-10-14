@@ -1,0 +1,33 @@
+{
+  "step": "04-create-weighted-alias",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-url/aliases",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AC,b,AD,AN,E cfg/retry-mode#standard md/installer#source sid/000000000005 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-alias"],
+          ["X-Amz-Date", "20261014T142235Z"],
+          ["amz-sdk-invocation-id", "b8ef55c6-170a-4f4b-9dcc-664d8ae86073"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "99"]
+        ],
+        "body": "{\"Name\": \"live\", \"FunctionVersion\": \"4\", \"RoutingConfig\": {\"AdditionalVersionWeights\": {\"5\": 0.5}}}"
+      },
+      "response": {
+        "status": 201,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 14:22:36 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "247"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "92e191bd-f5fc-46f1-aafd-d4542ab588f8"]
+        ],
+        "body": "{\"AliasArn\":\"arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-url:live\",\"Description\":\"\",\"FunctionVersion\":\"4\",\"Name\":\"live\",\"RevisionId\":\"da745ae5-39aa-46cd-8dc1-57cd7f4b40d2\",\"RoutingConfig\":{\"AdditionalVersionWeights\":{\"5\":0.5}}}"
+      }
+    }
+  ]
+}

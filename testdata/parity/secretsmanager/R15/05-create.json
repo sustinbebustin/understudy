@@ -1,0 +1,33 @@
+{
+  "step": "05-create",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://secretsmanager.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "secretsmanager.CreateSecret"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,g,AN,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#secretsmanager.create-secret"],
+          ["X-Amz-Date", "20261014T070559Z"],
+          ["amz-sdk-invocation-id", "16ce7ebc-8a9e-4811-88f0-a917b4b90981"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "113"]
+        ],
+        "body": "{\"Name\": \"usr-rec-20261014-s\", \"SecretString\": \"x\", \"ClientRequestToken\": \"c8f8a6f0-508f-4393-8921-168158fb9b92\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:05:59 GMT"],
+          ["x-amzn-RequestId", "b45989c4-1335-4fbf-b358-2f6affa41063"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "167"]
+        ],
+        "body": "{\"ARN\":\"arn:aws:secretsmanager:us-east-2:123456789012:secret:usr-rec-20261014-s-XFyhEs\",\"Name\":\"usr-rec-20261014-s\",\"VersionId\":\"c8f8a6f0-508f-4393-8921-168158fb9b92\"}"
+      }
+    }
+  ]
+}

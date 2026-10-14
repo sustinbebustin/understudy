@@ -1,0 +1,35 @@
+{
+  "step": "02-add-permission-account",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the AddPermission operation: The provided principal was invalid. Please check the principal and try again.\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-r07/policy",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,AC,AD,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.add-permission"],
+          ["X-Amz-Date", "20261014T064451Z"],
+          ["amz-sdk-invocation-id", "f071b386-f0e3-4dca-b21c-9660137e2c2d"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "84"]
+        ],
+        "body": "{\"StatementId\": \"a\", \"Action\": \"lambda:InvokeFunction\", \"Principal\": \"123456789012\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:44:51 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "105"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "5adfa1a1-cadf-493e-9e0b-27fc0ca6952f"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"The provided principal was invalid. Please check the principal and try again.\"}"
+      }
+    }
+  ]
+}

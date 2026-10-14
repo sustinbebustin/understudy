@@ -1,0 +1,35 @@
+{
+  "step": "C-fifo-window-5",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the CreateEventSourceMapping operation: Batching window is not supported for FIFO queues\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,AD,Z,AN,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-event-source-mapping"],
+          ["X-Amz-Date", "20261014T071105Z"],
+          ["amz-sdk-invocation-id", "c9358e94-d33b-4532-a52b-59b6c35c9163"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "173"]
+        ],
+        "body": "{\"EventSourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-q.fifo\", \"FunctionName\": \"usr-rec-20261014-fn\", \"BatchSize\": 10, \"MaximumBatchingWindowInSeconds\": 5}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:11:06 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "76"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "dc2d818a-c22b-439b-b1ef-cadd645d09b6"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"Batching window is not supported for FIFO queues\"}"
+      }
+    }
+  ]
+}

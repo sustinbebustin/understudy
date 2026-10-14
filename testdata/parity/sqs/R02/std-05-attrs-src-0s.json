@@ -1,0 +1,35 @@
+{
+  "step": "std-05-attrs-src-0s",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.GetQueueAttributes"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,AD,AN,Z,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.get-queue-attributes"],
+          ["X-Amz-Date", "20261014T063319Z"],
+          ["amz-sdk-invocation-id", "de973e48-db21-4f1d-a54c-5cec0edbd824"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "112"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-src\", \"AttributeNames\": [\"All\"]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "c3d0bba9-00c9-5f31-b55d-d8e024a69cbc"],
+          ["Date", "Wed, 14 Oct 2026 06:33:19 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "573"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Attributes\":{\"QueueArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-src\",\"ApproximateNumberOfMessages\":\"0\",\"ApproximateNumberOfMessagesNotVisible\":\"0\",\"ApproximateNumberOfMessagesDelayed\":\"0\",\"CreatedTimestamp\":\"1791959577\",\"LastModifiedTimestamp\":\"1791959577\",\"VisibilityTimeout\":\"1\",\"MaximumMessageSize\":\"1048576\",\"MessageRetentionPeriod\":\"345600\",\"DelaySeconds\":\"0\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq\\\",\\\"maxReceiveCount\\\":2}\",\"ReceiveMessageWaitTimeSeconds\":\"0\",\"SqsManagedSseEnabled\":\"true\"}}"
+      }
+    }
+  ]
+}

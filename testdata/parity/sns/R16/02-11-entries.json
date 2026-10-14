@@ -1,0 +1,34 @@
+{
+  "step": "02-11-entries",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (TooManyEntriesInBatchRequest) when calling the PublishBatch operation: The batch request contains more entries than permissible.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,AN,AD,E,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.publish-batch"],
+          ["X-Amz-Date", "20261014T070628Z"],
+          ["amz-sdk-invocation-id", "822d1dde-e482-4fa2-8c3e-fe8b78cf0493"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "1086"]
+        ],
+        "body": "Action=PublishBatch&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-r16&PublishBatchRequestEntries.member.1.Id=e0&PublishBatchRequestEntries.member.1.Message=x&PublishBatchRequestEntries.member.2.Id=e1&PublishBatchRequestEntries.member.2.Message=x&PublishBatchRequestEntries.member.3.Id=e2&PublishBatchRequestEntries.member.3.Message=x&PublishBatchRequestEntries.member.4.Id=e3&PublishBatchRequestEntries.member.4.Message=x&PublishBatchRequestEntries.member.5.Id=e4&PublishBatchRequestEntries.member.5.Message=x&PublishBatchRequestEntries.member.6.Id=e5&PublishBatchRequestEntries.member.6.Message=x&PublishBatchRequestEntries.member.7.Id=e6&PublishBatchRequestEntries.member.7.Message=x&PublishBatchRequestEntries.member.8.Id=e7&PublishBatchRequestEntries.member.8.Message=x&PublishBatchRequestEntries.member.9.Id=e8&PublishBatchRequestEntries.member.9.Message=x&PublishBatchRequestEntries.member.10.Id=e9&PublishBatchRequestEntries.member.10.Message=x&PublishBatchRequestEntries.member.11.Id=e10&PublishBatchRequestEntries.member.11.Message=x"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "0329842d-42dd-5a65-b9ff-e7646ee91142"],
+          ["Date", "Wed, 14 Oct 2026 07:06:28 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "316"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>TooManyEntriesInBatchRequest</Code>\n    <Message>The batch request contains more entries than permissible.</Message>\n  </Error>\n  <RequestId>0329842d-42dd-5a65-b9ff-e7646ee91142</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "06-complete-wrong-mp-object-size",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/nf4?uploadId=a7L8CHugjWmc99tY0Rja.tNN1.iKFZlljJCXnE7mzy9PtnDCyx5RimukIvYKcKJh8SxAQ6CW1kpzV3llQ_IYhK_m..hoG93HpUNsdiJriW_3OBcN1i6V_ssLSrsfNqksyRlEjUa2yDeJoU9MwNIDTDInGESpJu_Blfalq3waknwx34ERVvV6k6eQJ.kDFZxJ",
+        "headers": [
+          ["x-amz-mp-object-size", "6"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064709Z"],
+          ["Content-Length", "137"]
+        ],
+        "body": "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"5d41402abc4b2a76b9719d911017c592\"</ETag></Part></CompleteMultipartUpload>"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amz-request-id", "3MTYNH21300EG1HJ"],
+          ["x-amz-id-2", "qOkaHYC+Yf3QlbVhTlbxcukRTcB+Bu9rhckONShKrFeH8v2FMWb5oYH/uGBhfcnz6WT2jE7XJlkIuhXOScmiWU5OjHGUVg+J"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:47:09 GMT"],
+          ["Connection", "close"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<Error><Code>InvalidRequest</Code><Message>The provided 'x-amz-mp-object-size' header value 6 does not match what was computed: 5</Message><RequestId>3MTYNH21300EG1HJ</RequestId><HostId>qOkaHYC+Yf3QlbVhTlbxcukRTcB+Bu9rhckONShKrFeH8v2FMWb5oYH/uGBhfcnz6WT2jE7XJlkIuhXOScmiWU5OjHGUVg+J</HostId></Error>"
+      }
+    }
+  ]
+}

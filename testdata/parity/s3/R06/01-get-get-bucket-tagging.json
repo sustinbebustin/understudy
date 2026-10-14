@@ -1,0 +1,33 @@
+{
+  "step": "01-get-get-bucket-tagging",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NoSuchTagSet) when calling the GetBucketTagging operation: The TagSet does not exist",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?tagging",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,AD,Z,E,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-bucket-tagging"],
+          ["X-Amz-Date", "20261014T063455Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "cf90add5-00d5-45c9-93ef-dfc916a8ad4f"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "G63GH2BGR4RT90YJ"],
+          ["x-amz-id-2", "2e9gKGQ3YgPElHS0VcltWYoVrk8RfC5ig0aIOFs3TmKhMb/PHNpmEIcOuYz8PivJEN8YZtxuTNlL1hMQt3FVVnTkilmfQH6t"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:34:55 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchTagSet</Code><Message>The TagSet does not exist</Message><BucketName>usr-rec-20261014-s3</BucketName><RequestId>G63GH2BGR4RT90YJ</RequestId><HostId>2e9gKGQ3YgPElHS0VcltWYoVrk8RfC5ig0aIOFs3TmKhMb/PHNpmEIcOuYz8PivJEN8YZtxuTNlL1hMQt3FVVnTkilmfQH6t</HostId></Error>"
+      }
+    }
+  ]
+}

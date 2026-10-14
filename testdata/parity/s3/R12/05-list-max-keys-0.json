@@ -1,0 +1,33 @@
+{
+  "step": "05-list-max-keys-0",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/?list-type=2&max-keys=0&encoding-type=url",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,g,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.list-objects-v2"],
+          ["X-Amz-Date", "20261014T070314Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "4ee5cfed-1b50-4277-90b2-242bc00a53dc"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "8OGVQHTzY67rT3HQp2C8a6wHTBYye7YRgLb/F93U66imtHqzeWZN3L3hYlps7mMX175ORpqljcUBCN7qwbJI7FtPGK+sGJ6p"],
+          ["x-amz-request-id", "39CH4VETJ52FJYSH"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 07:03:16 GMT"],
+          ["x-amz-bucket-region", "us-east-2"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>usr-rec-20261014-edge</Name><Prefix></Prefix><KeyCount>0</KeyCount><MaxKeys>0</MaxKeys><EncodingType>url</EncodingType><IsTruncated>false</IsTruncated></ListBucketResult>"
+      }
+    }
+  ]
+}

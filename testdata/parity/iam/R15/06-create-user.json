@@ -1,0 +1,32 @@
+{
+  "step": "06-create-user",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,AN,g,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#iam.create-user"],
+          ["X-Amz-Date", "20261014T070650Z"],
+          ["amz-sdk-invocation-id", "b09dca6d-d7e5-4476-b112-924777a8b8d4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "67"]
+        ],
+        "body": "Action=CreateUser&Version=2010-05-08&UserName=usr-rec-20261014-user"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:06:50 GMT"],
+          ["x-amzn-RequestId", "51013a28-56b7-428e-8a6c-744e9bd4c6ba"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "503"]
+        ],
+        "body": "<CreateUserResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <CreateUserResult>\n    <User>\n      <Path>/</Path>\n      <UserName>usr-rec-20261014-user</UserName>\n      <Arn>arn:aws:iam::123456789012:user/usr-rec-20261014-user</Arn>\n      <UserId>AIDARZPUZDIKAAAAAAAIA</UserId>\n      <CreateDate>2026-10-14T07:06:50Z</CreateDate>\n    </User>\n  </CreateUserResult>\n  <ResponseMetadata>\n    <RequestId>51013a28-56b7-428e-8a6c-744e9bd4c6ba</RequestId>\n  </ResponseMetadata>\n</CreateUserResponse>\n"
+      }
+    }
+  ]
+}

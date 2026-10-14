@@ -1,0 +1,32 @@
+{
+  "step": "02-get-policy-none",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the GetPolicy operation: The resource you requested does not exist.\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-r07/policy",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,AD,Z,E,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.get-policy"],
+          ["X-Amz-Date", "20261014T064450Z"],
+          ["amz-sdk-invocation-id", "0c542911-ea01-4f31-bd6b-4ba5739a42ae"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:44:50 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "70"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "05228216-4880-4883-8938-96e03a36022b"],
+          ["x-amzn-ErrorType", "ResourceNotFoundException"]
+        ],
+        "body": "{\"Message\":\"The resource you requested does not exist.\",\"Type\":\"User\"}"
+      }
+    }
+  ]
+}

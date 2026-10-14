@@ -1,0 +1,34 @@
+{
+  "step": "06-assume-denied",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDenied) when calling the AssumeRole operation: User: arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000003 is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::123456789012:role/usr-rec-20261014-deny",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sts.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AD,Z,E,AN,AC cfg/retry-mode#standard md/installer#source sid/000000000005 md/distrib#ubuntu.24 md/prompt#off md/command#sts.assume-role"],
+          ["X-Amz-Date", "20261014T142111Z"],
+          ["amz-sdk-invocation-id", "10bc3d90-3bd9-4e97-a6ec-38343d60c1e0"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "129"]
+        ],
+        "body": "Action=AssumeRole&Version=2011-06-15&RoleArn=arn%3Aaws%3Aiam%3A%3A123456789012%3Arole%2Fusr-rec-20261014-deny&RoleSessionName=rec"
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["x-amzn-RequestId", "df2e8210-de96-4ed7-802f-35e8d093d93f"],
+          ["X-Amz-Sts-Extended-Request-Id", "MTp1cy1lYXN0LTI6UzoxNzkxOTg3NjcxNjY4OlI6R2drNkZaaVY="],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "458"],
+          ["Date", "Wed, 14 Oct 2026 14:21:11 GMT"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>AccessDenied</Code>\n    <Message>User: arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000003 is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::123456789012:role/usr-rec-20261014-deny</Message>\n  </Error>\n  <RequestId>df2e8210-de96-4ed7-802f-35e8d093d93f</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

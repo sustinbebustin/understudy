@@ -1,0 +1,34 @@
+{
+  "step": "T16-subscribe",
+  "client": "boto3",
+  "exit": 1,
+  "error": "InvalidParameterException: An error occurred (InvalidParameter) when calling the Subscribe operation: Invalid parameter: Attributes Reason: FilterPolicy: must be at most 262144 bytes long in UTF-8 encoding",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sns.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070307Z"],
+          ["amz-sdk-invocation-id", "8d69f149-2fca-4625-aa13-7fccc13b3fd8"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "273862"]
+        ],
+        "body_omitted": {"bytes": 273862, "sha256": "f0be4e8d947329c563a0de141bc90d497bde9eb756aca238962cdc685200817f"}
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "40f96d23-bf95-502e-8d19-0e6a94fe4148"],
+          ["Date", "Wed, 14 Oct 2026 07:03:07 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "350"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>InvalidParameter</Code>\n    <Message>Invalid parameter: Attributes Reason: FilterPolicy: must be at most 262144 bytes long in UTF-8 encoding</Message>\n  </Error>\n  <RequestId>40f96d23-bf95-502e-8d19-0e6a94fe4148</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

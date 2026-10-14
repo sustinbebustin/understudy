@@ -1,0 +1,35 @@
+{
+  "step": "01-get-dlq",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.GetQueueAttributes"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,AC,E,AD,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.get-queue-attributes"],
+          ["X-Amz-Date", "20261014T063348Z"],
+          ["amz-sdk-invocation-id", "3d8c21c2-7667-459f-9a4a-f0fd460f42de"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "114"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-r5dlq\", \"AttributeNames\": [\"All\"]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "58cdae68-5806-50d0-b12d-cd217c8a1a63"],
+          ["Date", "Wed, 14 Oct 2026 06:33:48 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "589"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Attributes\":{\"QueueArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-r5dlq\",\"ApproximateNumberOfMessages\":\"0\",\"ApproximateNumberOfMessagesNotVisible\":\"0\",\"ApproximateNumberOfMessagesDelayed\":\"0\",\"CreatedTimestamp\":\"1791959624\",\"LastModifiedTimestamp\":\"1791959625\",\"VisibilityTimeout\":\"30\",\"MaximumMessageSize\":\"1048576\",\"MessageRetentionPeriod\":\"345600\",\"DelaySeconds\":\"0\",\"RedriveAllowPolicy\":\"{\\\"redrivePermission\\\":\\\"byQueue\\\",\\\"sourceQueueArns\\\":[\\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-a\\\"]}\",\"ReceiveMessageWaitTimeSeconds\":\"0\",\"SqsManagedSseEnabled\":\"true\"}}"
+      }
+    }
+  ]
+}

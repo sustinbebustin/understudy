@@ -1,0 +1,59 @@
+{
+  "step": "D-v5-invocations",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,Z,b,AC,AN,C,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261014T072254Z"],
+          ["amz-sdk-invocation-id", "61d30dd3-f2c0-4ccb-ad32-360abc5bf40a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "79"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/lambda/usr-rec-20261014-fn\", \"startTime\": 1791962502000}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "9dc219b3-bdd6-49a9-9d96-6e7d3e8ac641"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "7795"],
+          ["Date", "Wed, 14 Oct 2026 07:22:54 GMT"]
+        ],
+        "body": "{\"events\":[{\"eventId\":\"39962099315005120818838319128230918220556298981672550400\",\"ingestionTime\":1791962517859,\"logStreamName\":\"2026/10/14/[$LATEST]b86256ce00c046d8971db785e176bcba\",\"message\":\"START RequestId: 506c5772-74e6-5c0f-8e9b-343b5b5e5064 Version: $LATEST\\n\",\"timestamp\":1791962508842},{\"eventId\":\"39962099315005120818838319128230918220556298981672550401\",\"ingestionTime\":1791962517859,\"logStreamName\":\"2026/10/14/[$LATEST]b86256ce00c046d8971db785e176bcba\",\"message\":\"{\\\"t\\\": 1791962508.842869, \\\"event\\\": {\\\"Records\\\": [{\\\"messageId\\\": \\\"f69f42b9-ce05-4363-a39b-6c1a3b781a17\\\", \\\"receiptHandle\\\": \\\"AQEBI2EJRxHy4KKlAJWhxsZK0ul6uPPeFzPyEt5YiICQ93szlfmm+MLD/Yx5BuyhSUiTe1JrNQdDlbKhfj2uEP5gbGMcTPr0gV5lYdIIDhrfdZN6jNu5vWMWMAhX53WMHyN7B8Nm5qGxhDh4uGJ0u6b+XoaJnbzUY/K2qbfMBOss/UPaAVnKon9GnjAL856yNmOKxgJTwyjC+rJOTsB2wCMP/aPRFpZ4EMoefr8knJ1310HOKJflJWVV385xw3WzdzsXIkoSW3WJXVEfjnFQjPmYHID1gZh0vYQEIfGKeBFR7+MvHqiVtghQp9G/cNVsvQnrWRtjN+5gBa1pdfp8kjuyLegIlqGVU9l3HejmyFOIuclrKmZ+fqMKEDWhA1KqL0RstSXO1nh/4OJjFxHZ2wCT4A==\\\", \\\"body\\\": \\\"{\\\\\\\"mode\\\\\\\":\\\\\\\"v5\\\\\\\",\\\\\\\"n\\\\\\\":1}\\\", \\\"attributes\\\": {\\\"ApproximateReceiveCount\\\": \\\"1\\\", \\\"SentTimestamp\\\": \\\"1791962503148\\\", \\\"SenderId\\\": \\\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\\\", \\\"ApproximateFirstReceiveTimestamp\\\": \\\"1791962503153\\\"}, \\\"messageAttributes\\\": {}, \\\"md5OfBody\\\": \\\"3495c6b8e5fede53879f28204d9db581\\\", \\\"eventSource\\\": \\\"aws:sqs\\\", \\\"eventSourceARN\\\": \\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-q\\\", \\\"awsRegion\\\": \\\"us-east-2\\\"}, {\\\"messageId\\\": \\\"5ad151e4-ddbe-47a5-ad10-02b313f37dab\\\", \\\"receiptHandle\\\": \\\"AQEBK8mNCRSZu2+6AIYW+TRCkfKrp8mmoHq4ormx+PhcOMZjkuvnMIqF/bgZZvdb7KnA7u9Zz4dj75fdhfZ9CwWKZ+TL3WjXorTxYCAWi25T74XFxOOZTp6b4Xzn+vx7EgfdniciaOldA18LD1Gr8HgNJwsmOUrDZ/CQJQxVGqqphIMMXQC6GqHdnZZfslMwl+ZwW+mKbRRDABKrB6UWfIMlYeoLKVmljX5piU9VWe9H4yDaYlKogiu3SYxSCR6oJAI9V6bhQqzmimhXzpfcesBRkkIGBJt7Lh4UIecwAJbpiFvLDXQOCvwItzL94NmbhiIvlC9CORZoJE/xUHx7IZ7qPEu+G7hL2eR/G6b2DKGnANYNXbwPFP5ZBsi70eIywphkvFss86HzCsXfMnN4t2DY2A==\\\", \\\"body\\\": \\\"{\\\\\\\"mode\\\\\\\":\\\\\\\"v5\\\\\\\",\\\\\\\"n\\\\\\\":4}\\\", \\\"attributes\\\": {\\\"ApproximateReceiveCount\\\": \\\"1\\\", \\\"SentTimestamp\\\": \\\"1791962503153\\\", \\\"SenderId\\\": \\\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\\\", \\\"ApproximateFirstReceiveTimestamp\\\": \\\"1791962503155\\\"}, \\\"messageAttributes\\\": {}, \\\"md5OfBody\\\": \\\"603ffa02963b869adabdf201f3603bd7\\\", \\\"eventSource\\\": \\\"aws:sqs\\\", \\\"eventSourceARN\\\": \\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-q\\\", \\\"awsRegion\\\": \\\"us-east-2\\\"}]}}\\n\",\"timestamp\":1791962508842},{\"eventId\":\"39962099315272729761220686605929346839828079319744315394\",\"ingestionTime\":1791962517859,\"logStreamName\":\"2026/10/14/[$LATEST]b86256ce00c046d8971db785e176bcba\",\"message\":\"END RequestId: 506c5772-74e6-5c0f-8e9b-343b5b5e5064\\n\",\"timestamp\":1791962508854},{\"eventId\":\"39962099315272729761220686605929346839828079319744315395\",\"ingestionTime\":1791962517859,\"logStreamName\":\"2026/10/14/[$LATEST]b86256ce00c046d8971db785e176bcba\",\"message\":\"REPORT RequestId: 506c5772-74e6-5c0f-8e9b-343b5b5e5064\\tDuration: 11.85 ms\\tBilled Duration: 12 ms\\tMemory Size: 128 MB\\tMax Memory Used: 37 MB\\t\\n\",\"timestamp\":1791962508854},{\"eventId\":\"39962099635288423360135128704328370581852935151209676800\",\"ingestionTime\":1791962532220,\"logStreamName\":\"2026/10/14/[$LATEST]b86256ce00c046d8971db785e176bcba\",\"message\":\"START RequestId: 5c952598-ca6d-5408-ac66-46d1e5d5dcc4 Version: $LATEST\\n\",\"timestamp\":1791962523204},{\"eventId\":\"39962099635310724105333659327469906300125583512715657217\",\"ingestionTime\":1791962532220,\"logStreamName\":\"2026/10/14/[$LATEST]b86256ce00c046d8971db785e176bcba\",\"message\":\"{\\\"t\\\": 1791962523.2055056, \\\"event\\\": {\\\"Records\\\": [{\\\"messageId\\\": \\\"725aa02a-a641-466e-9571-86f86916f859\\\", \\\"receiptHandle\\\": \\\"AQEBygreM3bEPRcOavDZ7SmHVePoO4HJl/GM3LzYcI6lSG+omsCJItlawQG7OCx9rhDqoE/UIZ5lacSpwmewcnDEKdNSi9FwstW/8RwrSTfOWWWDs1Jw3YCNe/uPoSwCO3OVfyc3a359mjkzixOTqX52/FdVuuG+rne5oRqtrH5xToIebUCdNDXcCWOWGvoty37atbqI5Smf8aU9GZnTvY3psLJV+d12xiKUbaIDG87rNedr3tZiTE1e2wuB/cqoQGez3aXtQ1ma6orokXh45+XoN3qvkvwDyafK2E93dHzGtjbCRVl9yKcZZ1mzJJIDcYI2VXlFUcHxqxenSCObL9CENxyvFjXNMmjUvVL0jYJdD7GduCfy82NLq6WPDGqqdJ6+gY+bYURFszQ8/J5JwM4tzA==\\\", \\\"body\\\": \\\"{\\\\\\\"mode\\\\\\\":\\\\\\\"v5\\\\\\\",\\\\\\\"n\\\\\\\":5}\\\", \\\"attributes\\\": {\\\"ApproximateReceiveCount\\\": \\\"1\\\", \\\"SentTimestamp\\\": \\\"1791962503145\\\", \\\"SenderId\\\": \\\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\\\", \\\"ApproximateFirstReceiveTimestamp\\\": \\\"1791962503153\\\"}, \\\"messageAttributes\\\": {}, \\\"md5OfBody\\\": \\\"72ccb9a7af972027a9bd4aa9c5635a24\\\", \\\"eventSource\\\": \\\"aws:sqs\\\", \\\"eventSourceARN\\\": \\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-q\\\", \\\"awsRegion\\\": \\\"us-east-2\\\"}, {\\\"messageId\\\": \\\"96715e79-b82f-48f8-890e-d6617730c6b6\\\", \\\"receiptHandle\\\": \\\"AQEBGx+B4XXuCiGEdG2KlIM1AdMjhbiHkK8mcDx6ApCoIAhWyFFn1b5C4nfBlQ4JXtZeQ4WJjQ7R/Hb4W6YLKPHsI6npTQZOrMCxHBkYG84OBYAx2ryapGv2CKT16xoMxp6aIuzpqjZU6ayMlushcoAIx2/XSAQFjZpYAkavqCMNWIbKml+hSn6M4ZoN74yLTbr5UTi9bd3iCgwprttvctEt28A1cSshMXTNFjsjIL+Q1QTg2ydHeZNKPS7ilXgrJrlkfPangbGeQ0u15jE00tdfK67Bvx8Lm0zRkvhl0mmWlXJC3UfDrIqNHsXIq3Z0X0X7TtRvWsWJCFlxUdovtmKn76ta05/DiECJ26Rma2asjhHdvHDdu/gsokdi23PgqzY5vmtNsLfl0afUvwQ6yJHuew==\\\", \\\"body\\\": \\\"{\\\\\\\"mode\\\\\\\":\\\\\\\"v5\\\\\\\",\\\\\\\"n\\\\\\\":3}\\\", \\\"attributes\\\": {\\\"ApproximateReceiveCount\\\": \\\"1\\\", \\\"SentTimestamp\\\": \\\"1791962503147\\\", \\\"SenderId\\\": \\\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\\\", \\\"ApproximateFirstReceiveTimestamp\\\": \\\"1791962503153\\\"}, \\\"messageAttributes\\\": {}, \\\"md5OfBody\\\": \\\"525286823e0d9e100d63a874902ed3b0\\\", \\\"eventSource\\\": \\\"aws:sqs\\\", \\\"eventSourceARN\\\": \\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-q\\\", \\\"awsRegion\\\": \\\"us-east-2\\\"}, {\\\"messageId\\\": \\\"71645fea-f3b5-4bef-be68-1455aab33f4c\\\", \\\"receiptHandle\\\": \\\"AQEB3WUcnfDS9ihJiqlrdaPCsyyGsz6GqbpQbRXOUgaleMvy2/b0/sxpPf0crip/PG2DmAAJtXlmzdMkD+6F06tICZyYzMrgKWHz8edeZ/ExlCkDxkj8is0YbygrDhNZiXrtjuWxmRi983NfiP0S3GPzesN0P6xwIjLeLH4+O8kGdxTpIpdcYg1bf1KXkwv2urMU/DKG2pS4nInTsuF0GGWhi033nCBZjwRmbpaGGhPwSWpk0l6szgA8KVmuybcvCIRyy8O2MXni8/PyW13goikhJFqYzwZ1Jm3uAgvxX+3EhSnu4DRicd/HBLLJnPPuZ3Qe5QF8qalFdL5+i+1erwzJMeGcGeVvNCgBxeoF0ODimTaj/Y/AlFYf7xPv/3UrtkaGPp+D3aW87YcAqiDbaHwxFA==\\\", \\\"body\\\": \\\"{\\\\\\\"mode\\\\\\\":\\\\\\\"v5\\\\\\\",\\\\\\\"n\\\\\\\":2}\\\", \\\"attributes\\\": {\\\"ApproximateReceiveCount\\\": \\\"1\\\", \\\"SentTimestamp\\\": \\\"1791962503153\\\", \\\"SenderId\\\": \\\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\\\", \\\"ApproximateFirstReceiveTimestamp\\\": \\\"1791962503155\\\"}, \\\"messageAttributes\\\": {}, \\\"md5OfBody\\\": \\\"a2310512a6c26a9f5b3a3a7695e5da69\\\", \\\"eventSource\\\": \\\"aws:sqs\\\", \\\"eventSourceARN\\\": \\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-q\\\", \\\"awsRegion\\\": \\\"us-east-2\\\"}]}}\\n\",\"timestamp\":1791962523205},{\"eventId\":\"39962099635489130066921904312602192046306770404763500546\",\"ingestionTime\":1791962532220,\"logStreamName\":\"2026/10/14/[$LATEST]b86256ce00c046d8971db785e176bcba\",\"message\":\"END RequestId: 5c952598-ca6d-5408-ac66-46d1e5d5dcc4\\n\",\"timestamp\":1791962523213},{\"eventId\":\"39962099635489130066921904312602192046306770404763500547\",\"ingestionTime\":1791962532220,\"logStreamName\":\"2026/10/14/[$LATEST]b86256ce00c046d8971db785e176bcba\",\"message\":\"REPORT RequestId: 5c952598-ca6d-5408-ac66-46d1e5d5dcc4\\tDuration: 1.75 ms\\tBilled Duration: 2 ms\\tMemory Size: 128 MB\\tMax Memory Used: 37 MB\\t\\n\",\"timestamp\":1791962523213}],\"nextToken\":\"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCo3or9PVPTKVBoh4bD73nFT6VzkqSTMLPnYbzphOEGOS1nZLqvqg2HuPMwHLDTvtO7aYebiQepaQulbqERdVvfEh3QOXIbgHhRjWKRFOuoh0GmYwcOgxF5QTUXNIgjBM9VM8KYvPdT-hNttYq9YF0O2oPNvV7UeW3uXYxrk6ZrFVHglk9LOVck01iuKmViORzoLPAa1_SxF4xvh-HSwcwg3NW2i69t2lmEJkC1ts2lEzaE2qqstfw1HKyE1oKzAokk2mu7vZmYY_gF8tvWYbug0tfCmooK4zjjKOqYwTtIW0A\",\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,Z,b,AC,AN,C,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261014T072254Z"],
+          ["amz-sdk-invocation-id", "f1a4ecc8-2c44-47fe-b76a-91acd981744d"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "438"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/lambda/usr-rec-20261014-fn\", \"startTime\": 1791962502000, \"nextToken\": \"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCo3or9PVPTKVBoh4bD73nFT6VzkqSTMLPnYbzphOEGOS1nZLqvqg2HuPMwHLDTvtO7aYebiQepaQulbqERdVvfEh3QOXIbgHhRjWKRFOuoh0GmYwcOgxF5QTUXNIgjBM9VM8KYvPdT-hNttYq9YF0O2oPNvV7UeW3uXYxrk6ZrFVHglk9LOVck01iuKmViORzoLPAa1_SxF4xvh-HSwcwg3NW2i69t2lmEJkC1ts2lEzaE2qqstfw1HKyE1oKzAokk2mu7vZmYY_gF8tvWYbug0tfCmooK4zjjKOqYwTtIW0A\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "b8726e2c-7641-48cd-a781-90306f6974eb"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "121"],
+          ["Date", "Wed, 14 Oct 2026 07:22:54 GMT"]
+        ],
+        "body": "{\"events\":[],\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    }
+  ]
+}

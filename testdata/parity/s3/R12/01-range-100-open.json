@@ -1,0 +1,33 @@
+{
+  "step": "01-range-100-open",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/r",
+        "headers": [
+          ["Host", "usr-rec-20261014-edge.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070305Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["Range", "bytes=100-"]
+        ]
+      },
+      "response": {
+        "status": 416,
+        "reason": "Requested Range Not Satisfiable",
+        "headers": [
+          ["x-amz-request-id", "FQ9N989MQ9ETBK00"],
+          ["x-amz-id-2", "Knwbysv0BfWpbjTIZzoCXmsGb9e503vCq3tqjXeboAu5JHWlRYMf1xWxmLFyWmwwDT4C5Wn0XkIT+jeFAgT8SZ4H/feJEhBa"],
+          ["Date", "Wed, 14 Oct 2026 07:03:05 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Server", "AmazonS3"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRange</Code><Message>The requested range is not satisfiable</Message><RangeRequested>bytes=100-</RangeRequested><ActualObjectSize>10</ActualObjectSize><RequestId>FQ9N989MQ9ETBK00</RequestId><HostId>Knwbysv0BfWpbjTIZzoCXmsGb9e503vCq3tqjXeboAu5JHWlRYMf1xWxmLFyWmwwDT4C5Wn0XkIT+jeFAgT8SZ4H/feJEhBa</HostId></Error>"
+      }
+    }
+  ]
+}

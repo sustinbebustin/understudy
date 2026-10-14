@@ -1,0 +1,37 @@
+{
+  "step": "07-ttl-missing-table",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the DescribeTimeToLive operation: Requested resource not found: Table: does-not-exist not found",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.DescribeTimeToLive"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,AC,AD,AN,E,T,P cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.describe-time-to-live"],
+          ["X-Amz-Date", "20261014T063558Z"],
+          ["amz-sdk-invocation-id", "dc0548c0-35a5-4d04-9efd-24859b425bc5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "31"]
+        ],
+        "body": "{\"TableName\": \"does-not-exist\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:35:58 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "145"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "534GB9JFUSUT3MFKS8U6J8LBVBVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "55019076"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException\",\"message\":\"Requested resource not found: Table: does-not-exist not found\"}"
+      }
+    }
+  ]
+}

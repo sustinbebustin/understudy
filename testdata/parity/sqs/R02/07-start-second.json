@@ -1,0 +1,37 @@
+{
+  "step": "07-start-second",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValue) when calling the StartMessageMoveTask operation: There is already a task running. Only one active task is allowed for a source queue arn at a given time.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.StartMessageMoveTask"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,E,AN,AC,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.start-message-move-task"],
+          ["X-Amz-Date", "20261014T063604Z"],
+          ["amz-sdk-invocation-id", "f35cb5f5-7d4a-4f99-873e-550d28dd34a7"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "73"]
+        ],
+        "body": "{\"SourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq2\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "6b2cc5c9-c92b-5d59-ba74-a680ec3fa794"],
+          ["x-amzn-query-error", "InvalidParameterValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 06:36:04 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "185"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"There is already a task running. Only one active task is allowed for a source queue arn at a given time.\"}"
+      }
+    }
+  ]
+}

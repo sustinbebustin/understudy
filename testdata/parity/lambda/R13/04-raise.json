@@ -1,0 +1,36 @@
+{
+  "step": "04-raise",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-url/invocations",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,b,AC,E,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.invoke"],
+          ["X-Amz-Date", "20261014T070412Z"],
+          ["amz-sdk-invocation-id", "0b06ed8d-5320-49a4-a3fd-315952cdfec6"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "20"]
+        ],
+        "body": "{\"rawPath\":\"/raise\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:04:12 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "224"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "96924ba0-6027-4add-967d-c6eaee671831"],
+          ["X-Amz-Function-Error", "Unhandled"],
+          ["x-amzn-Remapped-Content-Length", "0"],
+          ["X-Amz-Executed-Version", "$LATEST"],
+          ["X-Amzn-Trace-Id", "Root=1-6acf296c-5f33f8482d307da974f51d93;Parent=06596f544366a255;Sampled=0;Lineage=1:d7b206da:0"]
+        ],
+        "body": "{\"errorMessage\": \"boom\", \"errorType\": \"Exception\", \"requestId\": \"96924ba0-6027-4add-967d-c6eaee671831\", \"stackTrace\": [\"  File \\\"/var/task/url.py\\\", line 16, in handler\\n    if p == \\\"/raise\\\": raise Exception(\\\"boom\\\")\\n\"]}"
+      }
+    }
+  ]
+}

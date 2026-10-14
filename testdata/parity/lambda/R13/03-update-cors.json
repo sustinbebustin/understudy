@@ -1,0 +1,33 @@
+{
+  "step": "03-update-cors",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2021-10-31/functions/usr-rec-20261014-url/url",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AN,b,E,Z,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.update-function-url-config"],
+          ["X-Amz-Date", "20261014T070359Z"],
+          ["amz-sdk-invocation-id", "f3f3191e-7632-4a86-b9e2-ebaaf38bd214"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "59"]
+        ],
+        "body": "{\"Cors\": {\"AllowOrigins\": [\"*\"], \"AllowMethods\": [\"POST\"]}}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:03:59 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "440"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "8a090fb1-a775-4f91-b436-4f721d3ff44a"]
+        ],
+        "body": "{\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-url\",\"FunctionUrl\":\"https://pm7otlm6r63bjci5xbwzffvnse0sebuz.lambda-url.us-east-2.on.aws/\",\"CreationTime\":\"2026-10-14T07:03:14.194926786Z\",\"LastModifiedTime\":\"2026-10-14T07:03:59.543601967Z\",\"InvokeMode\":null,\"AuthType\":\"NONE\",\"Cors\":{\"AllowCredentials\":null,\"AllowOrigins\":[\"*\"],\"ExposeHeaders\":null,\"AllowHeaders\":null,\"MaxAge\":null,\"AllowMethods\":[\"POST\"]}}"
+      }
+    }
+  ]
+}

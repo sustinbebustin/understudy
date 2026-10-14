@@ -1,0 +1,37 @@
+{
+  "step": "07-start-rate-501",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValue) when calling the StartMessageMoveTask operation: Value for parameter MaxNumberOfMessagesPerSecond is invalid. Reason: You must enter a number that's between 1 and 500.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.StartMessageMoveTask"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AC,AN,b,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.start-message-move-task"],
+          ["X-Amz-Date", "20261014T063603Z"],
+          ["amz-sdk-invocation-id", "0c2c3b12-8360-4adb-9a86-3c31b2527a9b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "110"]
+        ],
+        "body": "{\"SourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq2\", \"MaxNumberOfMessagesPerSecond\": 501}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "c6dcda9b-b384-513b-88a1-b9d296975e89"],
+          ["x-amzn-query-error", "InvalidParameterValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 06:36:03 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "199"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Value for parameter MaxNumberOfMessagesPerSecond is invalid. Reason: You must enter a number that's between 1 and 500.\"}"
+      }
+    }
+  ]
+}

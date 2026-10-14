@@ -1,0 +1,36 @@
+{
+  "step": "01-config-without-queue-policy",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutBucketNotificationConfiguration operation: Unable to validate the following destination configurations",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-ev.s3.us-east-2.amazonaws.com/?notification",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,b,AN,AD,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-notification-configuration"],
+          ["X-Amz-Date", "20261014T070621Z"],
+          ["X-Amz-Content-SHA256", "f6b4e1358b2258ab7a13e0040bb9235f2071e789f3ae7a8a719933a428f73b71"],
+          ["amz-sdk-invocation-id", "ffc2636a-a445-4a58-8d2c-8bc1f0529fd4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "289"]
+        ],
+        "body": "<NotificationConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><QueueConfiguration><Id>q</Id><Queue>arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-ev</Queue><Event>s3:ObjectCreated:*</Event><Event>s3:ObjectRemoved:*</Event></QueueConfiguration></NotificationConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "109QKR3YAKE5EWGW"],
+          ["x-amz-id-2", "pSZBLRjFE0aDTcG+JZuVe1Q1xxwNe521mNXvz3mkLAbal/PaqcK1kMhYzZTpZLgA7Hj6FHZN63HNIT6X+mHBLGgC5JT+2b8l"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:06:21 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Unable to validate the following destination configurations</Message><ArgumentName1>arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-ev</ArgumentName1><ArgumentValue1>Permissions on the destination queue do not allow S3 to publish notifications from this bucket</ArgumentValue1><RequestId>109QKR3YAKE5EWGW</RequestId><HostId>pSZBLRjFE0aDTcG+JZuVe1Q1xxwNe521mNXvz3mkLAbal/PaqcK1kMhYzZTpZLgA7Hj6FHZN63HNIT6X+mHBLGgC5JT+2b8l</HostId></Error>"
+      }
+    }
+  ]
+}

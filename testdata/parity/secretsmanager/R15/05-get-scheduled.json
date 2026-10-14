@@ -1,0 +1,35 @@
+{
+  "step": "05-get-scheduled",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequestException) when calling the GetSecretValue operation: You can't perform this operation on the secret because it was marked for deletion.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://secretsmanager.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "secretsmanager.GetSecretValue"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,g,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#secretsmanager.get-secret-value"],
+          ["X-Amz-Date", "20261014T070608Z"],
+          ["amz-sdk-invocation-id", "0e72a961-c1e9-47e4-a0d8-46861ccf198b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "34"]
+        ],
+        "body": "{\"SecretId\": \"usr-rec-20261014-s\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:06:08 GMT"],
+          ["x-amzn-RequestId", "3a7b875a-41be-4a57-b690-7e1b32001be5"],
+          ["Connection", "close"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "131"]
+        ],
+        "body": "{\"__type\":\"InvalidRequestException\",\"Message\":\"You can't perform this operation on the secret because it was marked for deletion.\"}"
+      }
+    }
+  ]
+}

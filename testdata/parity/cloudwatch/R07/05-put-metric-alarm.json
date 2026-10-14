@@ -1,0 +1,34 @@
+{
+  "step": "05-put-metric-alarm",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://monitoring.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "GraniteServiceVersion20100801.PutMetricAlarm"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,AD,b,AC,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#cloudwatch.put-metric-alarm"],
+          ["X-Amz-Date", "20261014T064551Z"],
+          ["amz-sdk-invocation-id", "5a0ea344-72e0-4584-b8a6-d9b670721d0f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "218"]
+        ],
+        "body": "{\"AlarmName\": \"usr-rec-20261014-al\", \"MetricName\": \"Errors\", \"Namespace\": \"AWS/Lambda\", \"Statistic\": \"Sum\", \"Period\": 60, \"EvaluationPeriods\": 1, \"Threshold\": 1.0, \"ComparisonOperator\": \"GreaterThanOrEqualToThreshold\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "4c6a609a-1a09-4d7c-925a-d8f86329cb83"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "0"],
+          ["Date", "Wed, 14 Oct 2026 06:45:51 GMT"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

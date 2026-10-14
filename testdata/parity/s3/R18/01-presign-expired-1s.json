@@ -1,0 +1,26 @@
+{
+  "step": "01-presign-expired-1s",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/r?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ASIAREDACTED%2F20261014%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20261014T070552Z&X-Amz-Expires=60&X-Amz-SignedHeaders=host&X-Amz-Security-Token=REDACTED&X-Amz-Signature=REDACTED",
+        "headers": []
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["x-amz-request-id", "53YR6BFYFKJSA762"],
+          ["x-amz-id-2", "SXc3D6dWPMYbGt+aiYHVpdCCBSudrar9rdJtHPu4q6RpN+d0Ma/9uXvagoX5IkumrdpWNJClbTE="],
+          ["Date", "Wed, 14 Oct 2026 07:06:53 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Server", "AmazonS3"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AccessDenied</Code><Message>Request has expired</Message><X-Amz-Expires>60</X-Amz-Expires><Expires>2026-10-14T07:06:52Z</Expires><ServerTime>2026-10-14T07:06:53Z</ServerTime><RequestId>53YR6BFYFKJSA762</RequestId><HostId>SXc3D6dWPMYbGt+aiYHVpdCCBSudrar9rdJtHPu4q6RpN+d0Ma/9uXvagoX5IkumrdpWNJClbTE=</HostId></Error>"
+      }
+    }
+  ]
+}

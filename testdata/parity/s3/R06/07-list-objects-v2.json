@@ -1,0 +1,33 @@
+{
+  "step": "07-list-objects-v2",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?list-type=2&encoding-type=url",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,E,AN,b,C,AD,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.list-objects-v2"],
+          ["X-Amz-Date", "20261014T063525Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "f9a5ee80-6191-462b-89e1-f40b5970e1c7"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "iFlRvIlZ8MtPhwXowI6R53qUrr/XahqyjHWUIepOV/no61Nx+F99MPDyiAf8XkEuJI9v7Y7P5GMye43hPrtob75LE8rGeniA"],
+          ["x-amz-request-id", "2SAY0XGK0RBZH6Q6"],
+          ["Date", "Wed, 14 Oct 2026 06:35:27 GMT"],
+          ["x-amz-bucket-region", "us-east-2"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>usr-rec-20261014-s3</Name><Prefix></Prefix><KeyCount>2</KeyCount><MaxKeys>1000</MaxKeys><EncodingType>url</EncodingType><IsTruncated>false</IsTruncated><Contents><Key>ia</Key><LastModified>2026-10-14T06:35:24.000Z</LastModified><ETag>&quot;01a020e0bcdd0c4ae5113e5a670260eb&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>6</Size><StorageClass>STANDARD_IA</StorageClass></Contents><Contents><Key>o</Key><LastModified>2026-10-14T06:35:23.000Z</LastModified><ETag>&quot;1d8ad2027419229bec1a6f9685cd8de3&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>6</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>"
+      }
+    }
+  ]
+}

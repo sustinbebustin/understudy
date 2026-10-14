@@ -1,0 +1,35 @@
+{
+  "step": "01-getqueueurl-missing",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070302Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "AmazonSQS.GetQueueUrl"],
+          ["Content-Length", "40"]
+        ],
+        "body_unrecorded": {"bytes": 40}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "6883c158-0824-561d-a6d3-a21123424859"],
+          ["x-amzn-query-error", "AWS.SimpleQueueService.NonExistentQueue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 07:03:02 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "96"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.sqs#QueueDoesNotExist\",\"message\":\"The specified queue does not exist.\"}"
+      }
+    }
+  ]
+}

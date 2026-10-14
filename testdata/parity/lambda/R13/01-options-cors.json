@@ -1,0 +1,21 @@
+{
+  "step": "01-options-cors",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:04:09 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "4"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "9a0e7ebb-5f1d-4c93-8770-6761fe866f7d"],
+          ["X-Amzn-Trace-Id", "Root=1-6acf2969-69d8b44f40f2f33a2aa6be36;Parent=2a8c1b6a9cf486b1;Sampled=0;Lineage=1:d7b206da:0"]
+        ],
+        "body": "echo"
+      }
+    }
+  ]
+}

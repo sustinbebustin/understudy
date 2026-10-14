@@ -1,0 +1,32 @@
+{
+  "step": "99-list-multipart-uploads",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-cks.s3.us-east-2.amazonaws.com/?uploads",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AC,b,E,C,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.list-multipart-uploads"],
+          ["X-Amz-Date", "20261014T064711Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "edc178ae-e6e1-4807-ad1f-c8df6b4d4944"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "TCYGdKL4VO8derdhQasEkDcbVviRe7d9q/uz3Co7iGGAk93IeqCK5ISLYV8KUzdQkxVNzaMgdqQ="],
+          ["x-amz-request-id", "CJNV1PBZCKNT2CEA"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:47:12 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListMultipartUploadsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>usr-rec-20261014-cks</Bucket><KeyMarker></KeyMarker><UploadIdMarker></UploadIdMarker><NextKeyMarker>nf4</NextKeyMarker><NextUploadIdMarker>a7L8CHugjWmc99tY0Rja.tNN1.iKFZlljJCXnE7mzy9PtnDCyx5RimukIvYKcKJh8SxAQ6CW1kpzV3llQ_IYhK_m..hoG93HpUNsdiJriW_3OBcN1i6V_ssLSrsfNqksyRlEjUa2yDeJoU9MwNIDTDInGESpJu_Blfalq3waknwx34ERVvV6k6eQJ.kDFZxJ</NextUploadIdMarker><MaxUploads>1000</MaxUploads><IsTruncated>false</IsTruncated><Upload><Key>nf2</Key><UploadId>tLqcbTRqpfesFE1AnRRFmM4j4M5Uzw3.d2xBfuWbtG7g3ZVluvD6PfeuOrjUD7SzxUbBDtSKY84mMRhMainbWv6gDdBjALDILpGPeG2Ooa0t.B7y8pqqi7RogF_eFkRewzAOAG8NIk09T5znznV8Ndt7OALGKcS_BvZx9w.AJCsDHeipdiX30ay9HkookbPO</UploadId><Initiator><ID>arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000003</ID><DisplayName>AccountFullAccessRole/00000000-0000-0000-0000-000000000003</DisplayName></Initiator><Owner><ID>2e746a1d43b12440ef4add11f747902e05c9343d80e24e4bc1435f7637cc4ebf</ID></Owner><StorageClass>STANDARD</StorageClass><Initiated>2026-10-14T06:47:09.000Z</Initiated><ChecksumAlgorithm>XXHASH64</ChecksumAlgorithm><ChecksumType>COMPOSITE</ChecksumType></Upload><Upload><Key>nf3</Key><UploadId>T3sVeJwMVnkuMPR5_bi08lcDSNI_OKUKFRCPWEHIaOwf8In5js8CMpZwlu546ygXWGkRBiMuSqe62BiPd4LyHvflFa_b0kSmyoGB5bOfL8R9mBibzMai6lONPuH7G21131_1i2jG2KcQQZraWYzcopOTViEMycgW5ABu63XdH_fVhX_2vv8C8bcvSV9C4Zve</UploadId><Initiator><ID>arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000003</ID><DisplayName>AccountFullAccessRole/00000000-0000-0000-0000-000000000003</DisplayName></Initiator><Owner><ID>2e746a1d43b12440ef4add11f747902e05c9343d80e24e4bc1435f7637cc4ebf</ID></Owner><StorageClass>STANDARD</StorageClass><Initiated>2026-10-14T06:47:09.000Z</Initiated><ChecksumAlgorithm>XXHASH64</ChecksumAlgorithm><ChecksumType>COMPOSITE</ChecksumType></Upload><Upload><Key>nf4</Key><UploadId>a7L8CHugjWmc99tY0Rja.tNN1.iKFZlljJCXnE7mzy9PtnDCyx5RimukIvYKcKJh8SxAQ6CW1kpzV3llQ_IYhK_m..hoG93HpUNsdiJriW_3OBcN1i6V_ssLSrsfNqksyRlEjUa2yDeJoU9MwNIDTDInGESpJu_Blfalq3waknwx34ERVvV6k6eQJ.kDFZxJ</UploadId><Initiator><ID>arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000003</ID><DisplayName>AccountFullAccessRole/00000000-0000-0000-0000-000000000003</DisplayName></Initiator><Owner><ID>2e746a1d43b12440ef4add11f747902e05c9343d80e24e4bc1435f7637cc4ebf</ID></Owner><StorageClass>STANDARD</StorageClass><Initiated>2026-10-14T06:47:10.000Z</Initiated></Upload></ListMultipartUploadsResult>"
+      }
+    }
+  ]
+}

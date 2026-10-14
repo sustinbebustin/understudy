@@ -1,0 +1,21 @@
+{
+  "step": "01-get-cookie",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:03:47 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "4"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "ede1934e-5ef3-4a65-be40-a0edaaad42e5"],
+          ["X-Amzn-Trace-Id", "Root=1-6acf2953-5e5297951f331e13156fbb00;Parent=550af01365f3c6b3;Sampled=0;Lineage=1:d7b206da:0"]
+        ],
+        "body": "echo"
+      }
+    }
+  ]
+}

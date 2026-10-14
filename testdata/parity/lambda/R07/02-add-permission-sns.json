@@ -1,0 +1,33 @@
+{
+  "step": "02-add-permission-sns",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-r07/policy",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AC,b,AN,AD,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.add-permission"],
+          ["X-Amz-Date", "20261014T064452Z"],
+          ["amz-sdk-invocation-id", "f0cbd52c-9876-4099-931c-9ae5dab512ab"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "163"]
+        ],
+        "body": "{\"StatementId\": \"c\", \"Action\": \"lambda:InvokeFunction\", \"Principal\": \"sns.amazonaws.com\", \"SourceArn\": \"arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-topic\"}"
+      },
+      "response": {
+        "status": 201,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:44:53 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "334"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "655fe403-0320-410f-a71f-301f95f27ed5"]
+        ],
+        "body": "{\"Statement\":\"{\\\"Sid\\\":\\\"c\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"Service\\\":\\\"sns.amazonaws.com\\\"},\\\"Action\\\":\\\"lambda:InvokeFunction\\\",\\\"Resource\\\":\\\"arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-r07\\\",\\\"Condition\\\":{\\\"ArnLike\\\":{\\\"AWS:SourceArn\\\":\\\"arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-topic\\\"}}}\"}"
+      }
+    }
+  ]
+}

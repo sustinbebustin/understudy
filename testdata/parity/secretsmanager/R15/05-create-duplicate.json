@@ -1,0 +1,35 @@
+{
+  "step": "05-create-duplicate",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceExistsException) when calling the CreateSecret operation: The operation failed because the secret usr-rec-20261014-s already exists.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://secretsmanager.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "secretsmanager.CreateSecret"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,E,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#secretsmanager.create-secret"],
+          ["X-Amz-Date", "20261014T070559Z"],
+          ["amz-sdk-invocation-id", "8248646b-84fd-477e-be36-b969c8e5c3ce"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "113"]
+        ],
+        "body": "{\"Name\": \"usr-rec-20261014-s\", \"SecretString\": \"x\", \"ClientRequestToken\": \"6dab0364-351c-4ec0-b8d2-0bc34c4c2b0a\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:05:59 GMT"],
+          ["x-amzn-RequestId", "5654ea12-4a3b-47bd-ada9-5e55607be129"],
+          ["Connection", "close"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "123"]
+        ],
+        "body": "{\"__type\":\"ResourceExistsException\",\"Message\":\"The operation failed because the secret usr-rec-20261014-s already exists.\"}"
+      }
+    }
+  ]
+}

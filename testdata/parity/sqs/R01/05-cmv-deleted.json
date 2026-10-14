@@ -1,0 +1,37 @@
+{
+  "step": "05-cmv-deleted",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValue) when calling the ChangeMessageVisibility operation: Value AQEBgrnWSldUsXUyPEJfOOZJJ5wf1ldkaAaJsFGKehr856Pn8APcurql+e8qm3XoRm7CiS0z7tGw3TbYq3AKogc9OSu/hpPzLAbhyWYHfpgwW+hiJlbDx9bXEYQwbG5hmgYfm7TrM66GSId0pFxOYXAi4rIS1TvHua51mmVdSVACU7PaB88Lw4Wf6Nse+0OiWwQ9+DYFNJLEvtT9RDkrvD+Qye5tL1M1nYiThWLApgFsI0J2Ntu1t6QBo2Ax3gV2E14OIkLYk7gw7HLAUOg+v5izZxXu/p1uhcFsDhC80TBK9dWdeVLNEz0MgLAxQ/18wcCHrDFA+KnuNYonuewSDhrpvssTME7fHPosz85nk3iVCNpQqgWSwVjyDEJ8S1IXi8LBC9vzqJL3GQsof82aqqHI2A== for parameter ReceiptHandle is invalid. Reason: Message does not exist or is not available for visibility timeout change.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ChangeMessageVisibility"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,Z,b,AN,E,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.change-message-visibility"],
+          ["X-Amz-Date", "20261014T063057Z"],
+          ["amz-sdk-invocation-id", "376b83f5-f05d-43f0-a800-06c5135aafd2"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "543"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-std\", \"ReceiptHandle\": \"AQEBgrnWSldUsXUyPEJfOOZJJ5wf1ldkaAaJsFGKehr856Pn8APcurql+e8qm3XoRm7CiS0z7tGw3TbYq3AKogc9OSu/hpPzLAbhyWYHfpgwW+hiJlbDx9bXEYQwbG5hmgYfm7TrM66GSId0pFxOYXAi4rIS1TvHua51mmVdSVACU7PaB88Lw4Wf6Nse+0OiWwQ9+DYFNJLEvtT9RDkrvD+Qye5tL1M1nYiThWLApgFsI0J2Ntu1t6QBo2Ax3gV2E14OIkLYk7gw7HLAUOg+v5izZxXu/p1uhcFsDhC80TBK9dWdeVLNEz0MgLAxQ/18wcCHrDFA+KnuNYonuewSDhrpvssTME7fHPosz85nk3iVCNpQqgWSwVjyDEJ8S1IXi8LBC9vzqJL3GQsof82aqqHI2A==\", \"VisibilityTimeout\": 30}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "77a40e7f-fe26-5608-bee1-6d36ddc77e86"],
+          ["x-amzn-query-error", "InvalidParameterValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 06:30:57 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "621"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Value AQEBgrnWSldUsXUyPEJfOOZJJ5wf1ldkaAaJsFGKehr856Pn8APcurql+e8qm3XoRm7CiS0z7tGw3TbYq3AKogc9OSu/hpPzLAbhyWYHfpgwW+hiJlbDx9bXEYQwbG5hmgYfm7TrM66GSId0pFxOYXAi4rIS1TvHua51mmVdSVACU7PaB88Lw4Wf6Nse+0OiWwQ9+DYFNJLEvtT9RDkrvD+Qye5tL1M1nYiThWLApgFsI0J2Ntu1t6QBo2Ax3gV2E14OIkLYk7gw7HLAUOg+v5izZxXu/p1uhcFsDhC80TBK9dWdeVLNEz0MgLAxQ/18wcCHrDFA+KnuNYonuewSDhrpvssTME7fHPosz85nk3iVCNpQqgWSwVjyDEJ8S1IXi8LBC9vzqJL3GQsof82aqqHI2A== for parameter ReceiptHandle is invalid. Reason: Message does not exist or is not available for visibility timeout change.\"}"
+      }
+    }
+  ]
+}

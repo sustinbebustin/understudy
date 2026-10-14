@@ -1,0 +1,33 @@
+{
+  "step": "H8-01-subscribe",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sns.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070327Z"],
+          ["amz-sdk-invocation-id", "5115d5c9-a304-4c7e-a088-a62d0ef57a5c"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "500"]
+        ],
+        "body": "Action=Subscribe&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-c59&Protocol=sqs&Endpoint=arn%3Aaws%3Asqs%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-f59&ReturnSubscriptionArn=true&Attributes.entry.1.key=RawMessageDelivery&Attributes.entry.1.value=true&Attributes.entry.2.key=FilterPolicy&Attributes.entry.2.value=%7B%22n%22%3A%5B%7B%22numeric%22%3A%5B%22%3E%22%2C5%5D%7D%5D%7D&Attributes.entry.3.key=FilterPolicyScope&Attributes.entry.3.value=MessageBody"
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "8e45f0d4-99c4-58b5-a9e6-939db2bbd6d2"],
+          ["Date", "Wed, 14 Oct 2026 07:03:27 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "370"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<SubscribeResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <SubscribeResult>\n    <SubscriptionArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c59:48d9c425-4243-4cf3-b13d-87128b1a7de4</SubscriptionArn>\n  </SubscribeResult>\n  <ResponseMetadata>\n    <RequestId>8e45f0d4-99c4-58b5-a9e6-939db2bbd6d2</RequestId>\n  </ResponseMetadata>\n</SubscribeResponse>\n"
+      }
+    }
+  ]
+}

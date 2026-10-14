@@ -1,0 +1,35 @@
+{
+  "step": "04-delete-current",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.DeleteMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AC,E,AN,Z,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.delete-message"],
+          ["X-Amz-Date", "20261014T063047Z"],
+          ["amz-sdk-invocation-id", "63f763eb-f09b-4753-b8dd-a4d1372a2cad"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "518"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-std\", \"ReceiptHandle\": \"AQEBB9uQP/rBE3xUTpLe4QBLLsfw2jTIYSqeAxtDLJO0/P76WeP5jGxi8OYRv6Zr/iM2+bAzcKXxLEcSTUM+f3FkSd5QU/S12AIGrEdGETD8PaJHbBoWFf/mmMYiJxm8R/w+GYdEIG/BwEAjeqUPdkAoz4i39rBMO427tpk46nJxaszKr+r39ecNgkcOrIDcC2INH9DcbbzRo9lcNfsWtJcOvw9k4G3KEpjN2c6ph1buH1FjOKwLBt7hQ+dGrndYWJSCOiG/BWnLWrHScS63YLo0QepbaVnlsumh0gjNi1yibwMc0CIaaONWvqfDbXjHdLBcKNCig+tKhn/aHPmpbI7tEEBm7G/DDPtstulwh/qFacq/Cwr7hjTT6wxqqo8dO5jAs/gfEw9aB7gyT6w3HQJJ8w==\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "b942d12e-fa87-5ddd-929d-b267d9500673"],
+          ["Date", "Wed, 14 Oct 2026 06:30:47 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "0"],
+          ["connection", "keep-alive"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

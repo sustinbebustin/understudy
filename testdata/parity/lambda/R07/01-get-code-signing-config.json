@@ -1,0 +1,30 @@
+{
+  "step": "01-get-code-signing-config",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://lambda.us-east-2.amazonaws.com/2020-06-30/functions/usr-rec-20261014-r07/code-signing-config",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AN,b,E,Z,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.get-function-code-signing-config"],
+          ["X-Amz-Date", "20261014T064450Z"],
+          ["amz-sdk-invocation-id", "102bd661-e80d-4497-a8a1-919b3d80a6ef"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:44:50 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "49"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "115de03a-9fbd-4f90-a25f-0dd8b8394daf"]
+        ],
+        "body": "{\"CodeSigningConfigArn\":null,\"FunctionName\":null}"
+      }
+    }
+  ]
+}

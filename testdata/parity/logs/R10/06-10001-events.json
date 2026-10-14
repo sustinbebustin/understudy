@@ -1,0 +1,35 @@
+{
+  "step": "06-10001-events",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterException) when calling the PutLogEvents operation: 1 validation error detected: Value at 'logEvents' failed to satisfy constraint: Member must have length less than or equal to 10000",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.PutLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,E,AC,AD,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.put-log-events"],
+          ["X-Amz-Date", "20261014T064939Z"],
+          ["amz-sdk-invocation-id", "bec74433-a04b-4571-8d13-9686fd8f6e6e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "460125"]
+        ],
+        "body_omitted": {"bytes": 460125, "sha256": "9f93ae6eaf18186f07db243b3789d526ee5f9250aa1bddb24ea0b109c7170616"}
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "38725588-6fbe-4842-b57b-f21b9750f6c3"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "182"],
+          ["Date", "Wed, 14 Oct 2026 06:49:39 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"InvalidParameterException\",\"message\":\"1 validation error detected: Value at 'logEvents' failed to satisfy constraint: Member must have length less than or equal to 10000\"}"
+      }
+    }
+  ]
+}

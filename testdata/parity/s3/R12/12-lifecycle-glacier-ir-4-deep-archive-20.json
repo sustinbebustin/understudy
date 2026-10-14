@@ -1,0 +1,38 @@
+{
+  "step": "12-lifecycle-glacier-ir-4-deep-archive-20",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutBucketLifecycleConfiguration operation: 'Days' in the 'Transition' action for StorageClass 'DEEP_ARCHIVE' for filter '(prefix=)' must be 90 days more than 'filter '(prefix=)'' in the 'Transition' action for StorageClass 'GLACIER_IR'",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/?lifecycle",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,W,AN,Z,g,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-lifecycle-configuration"],
+          ["x-amz-checksum-crc64nvme", "q3lVfsDS7x4="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261014T070436Z"],
+          ["X-Amz-Content-SHA256", "241232deaa3efa31990aa5bce61fe947a73b49da6f0f7ebe33435bc1ee4696b3"],
+          ["amz-sdk-invocation-id", "dbc6a9bf-ed75-4da4-be8d-2f9ab278cac1"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "330"]
+        ],
+        "body": "<LifecycleConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Rule><ID>r</ID><Status>Enabled</Status><Filter><Prefix /></Filter><Transition><Days>4</Days><StorageClass>GLACIER_IR</StorageClass></Transition><Transition><Days>20</Days><StorageClass>DEEP_ARCHIVE</StorageClass></Transition></Rule></LifecycleConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amz-id-2", "zuDBiMQcSuvlJTfKWSptNsgz9Vv2QL5rR2f9AY0MGmNVufFfgaPY/1kstOg5jnxvqE6ij/S5vUk="],
+          ["x-amz-request-id", "TP3N9HNTJF73788N"],
+          ["Date", "Wed, 14 Oct 2026 07:04:38 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Content-Length", "452"],
+          ["Connection", "close"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<Error><Code>InvalidArgument</Code><Message>'Days' in the 'Transition' action for StorageClass 'DEEP_ARCHIVE' for filter '(prefix=)' must be 90 days more than 'filter '(prefix=)'' in the 'Transition' action for StorageClass 'GLACIER_IR'</Message><ArgumentName>Days</ArgumentName><ArgumentValue>20</ArgumentValue><RequestId>TP3N9HNTJF73788N</RequestId><HostId>zuDBiMQcSuvlJTfKWSptNsgz9Vv2QL5rR2f9AY0MGmNVufFfgaPY/1kstOg5jnxvqE6ij/S5vUk=</HostId></Error>"
+      }
+    }
+  ]
+}

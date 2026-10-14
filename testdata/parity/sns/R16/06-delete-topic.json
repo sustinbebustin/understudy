@@ -1,0 +1,33 @@
+{
+  "step": "06-delete-topic",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,E,AN,AC,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.delete-topic"],
+          ["X-Amz-Date", "20261014T070649Z"],
+          ["amz-sdk-invocation-id", "e6a049a6-8d86-4811-8d13-09de178f3766"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "112"]
+        ],
+        "body": "Action=DeleteTopic&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-r16"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "4993c960-3ba0-569a-9548-aa2917e9b0b5"],
+          ["Date", "Wed, 14 Oct 2026 07:06:49 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "201"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<DeleteTopicResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <ResponseMetadata>\n    <RequestId>4993c960-3ba0-569a-9548-aa2917e9b0b5</RequestId>\n  </ResponseMetadata>\n</DeleteTopicResponse>\n"
+      }
+    }
+  ]
+}

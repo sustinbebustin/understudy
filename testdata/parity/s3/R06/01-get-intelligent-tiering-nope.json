@@ -1,0 +1,33 @@
+{
+  "step": "01-get-intelligent-tiering-nope",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NoSuchConfiguration) when calling the GetBucketIntelligentTieringConfiguration operation: The specified configuration does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?intelligent-tiering&id=nope",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AC,AN,Z,b,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-bucket-intelligent-tiering-configuration"],
+          ["X-Amz-Date", "20261014T063505Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "5f5b2f6b-8286-4910-b75a-b2e84b0e4874"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["x-amz-id-2", "qxZL1lcCz5khWC3v0gieB9+pTmaEIUsB1NgwLP1dRGySZeG0xoZtJTXg0RDp5PzUpb6lfeGcrWn5nMEffaKCObdvLxtv38kd"],
+          ["x-amz-request-id", "5HVE3W06148B98EJ"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:35:06 GMT"],
+          ["Content-Length", "261"],
+          ["Content-Type", "application/xml"]
+        ],
+        "body": "<Error><Code>NoSuchConfiguration</Code><Message>The specified configuration does not exist.</Message><RequestId>5HVE3W06148B98EJ</RequestId><HostId>qxZL1lcCz5khWC3v0gieB9+pTmaEIUsB1NgwLP1dRGySZeG0xoZtJTXg0RDp5PzUpb6lfeGcrWn5nMEffaKCObdvLxtv38kd</HostId></Error>"
+      }
+    }
+  ]
+}

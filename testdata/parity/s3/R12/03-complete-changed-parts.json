@@ -1,0 +1,35 @@
+{
+  "step": "03-complete-changed-parts",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NoSuchUpload) when calling the CompleteMultipartUpload operation: The specified upload does not exist. The upload ID may be invalid, or the upload may have been aborted or completed.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/mp?uploadId=74SFl5mkDArs5iPeQadKju4ebgjvN0j3Qbnx5nopXlnaW4Yx8sdHP6Be3.JTSVVgqVFuil2UKTFFZc4iWEQeowdFhoe21Te2Mq.SAfl0x4.ZmAWrc7e4ulHBByHIF2go8NGnlk6K1yaKQIlqcVzEBomW4kwcmNh.rh7WE4nO7qumJchHNSlggZOAnvUQ1f3v",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,AN,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.complete-multipart-upload"],
+          ["X-Amz-Date", "20261014T070311Z"],
+          ["X-Amz-Content-SHA256", "d4fe4b3f5773ba95f4ddf356ef7d45bfbfb788348938cbf13c99f0d302935cf8"],
+          ["amz-sdk-invocation-id", "6f4d0d7c-652d-4a06-865c-b5b66a532b18"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "185"]
+        ],
+        "body": "<CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><PartNumber>1</PartNumber><ETag>\"5f363e0e58a95f06cbe9bbc662c5dfb6\"</ETag></Part></CompleteMultipartUpload>"
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "JYE94TJQA7MD1RK6"],
+          ["x-amz-id-2", "PankzEeNrT1iJIMZNZVF3Tjvvp4MB4MzZQOLDujq4azhI7nDhkZpDz1d9frj6OJZ6w1PYp9Pijb7pFmNUzdIHqppNdJW0zKV"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:03:10 GMT"]
+        ],
+        "body": "<Error><Code>NoSuchUpload</Code><Message>The specified upload does not exist. The upload ID may be invalid, or the upload may have been aborted or completed.</Message><UploadId>74SFl5mkDArs5iPeQadKju4ebgjvN0j3Qbnx5nopXlnaW4Yx8sdHP6Be3.JTSVVgqVFuil2UKTFFZc4iWEQeowdFhoe21Te2Mq.SAfl0x4.ZmAWrc7e4ulHBByHIF2go8NGnlk6K1yaKQIlqcVzEBomW4kwcmNh.rh7WE4nO7qumJchHNSlggZOAnvUQ1f3v</UploadId><RequestId>JYE94TJQA7MD1RK6</RequestId><HostId>PankzEeNrT1iJIMZNZVF3Tjvvp4MB4MzZQOLDujq4azhI7nDhkZpDz1d9frj6OJZ6w1PYp9Pijb7pFmNUzdIHqppNdJW0zKV</HostId></Error>"
+      }
+    }
+  ]
+}

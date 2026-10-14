@@ -1,0 +1,35 @@
+{
+  "step": "04-remove-targets-missing",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the RemoveTargets operation: Rule usr-rec-20261014-missing does not exist on EventBus default.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.RemoveTargets"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,AD,AC,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.remove-targets"],
+          ["X-Amz-Date", "20261014T064550Z"],
+          ["amz-sdk-invocation-id", "09e29b1a-68a4-446d-a0d8-c3c37dafc0dc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "50"]
+        ],
+        "body": "{\"Rule\": \"usr-rec-20261014-missing\", \"Ids\": [\"a\"]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "9ba68b23-0706-4dc2-8d13-ef55e9a066ce"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "116"],
+          ["Date", "Wed, 14 Oct 2026 06:45:50 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ResourceNotFoundException\",\"message\":\"Rule usr-rec-20261014-missing does not exist on EventBus default.\"}"
+      }
+    }
+  ]
+}

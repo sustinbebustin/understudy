@@ -1,0 +1,41 @@
+{
+  "step": "x-kms-key-id-without-aws-kms",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutObject operation: Server Side Encryption with AWS KMS managed key requires HTTP header x-amz-server-side-encryption : aws:kms",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-sse.s3.us-east-2.amazonaws.com/k2",
+        "headers": [
+          ["x-amz-server-side-encryption-aws-kms-key-id", "d192340e-bc50-42f6-9977-9c9287e2e4fa"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,b,W,g,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-crc64nvme"],
+          ["X-Amz-Decoded-Content-Length", "1"],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261014T070556Z"],
+          ["X-Amz-Content-SHA256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "2a56e713-c49c-4940-a6fe-732bcd1f4b17"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "F5CT31K9R3B23DAD"],
+          ["x-amz-id-2", "4z/rsqy9fsr5pMWyqxVZ8Ot0ZUG7tnl7xl1OhUBg5fBgHuz6osdaWjgtsHx2OAtJcm9D1SBQpSC2jirr6ev/G8iviuzUMAVx"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:05:55 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Server Side Encryption with AWS KMS managed key requires HTTP header x-amz-server-side-encryption : aws:kms</Message><ArgumentName>x-amz-server-side-encryption</ArgumentName><RequestId>F5CT31K9R3B23DAD</RequestId><HostId>4z/rsqy9fsr5pMWyqxVZ8Ot0ZUG7tnl7xl1OhUBg5fBgHuz6osdaWjgtsHx2OAtJcm9D1SBQpSC2jirr6ev/G8iviuzUMAVx</HostId></Error>"
+      }
+    }
+  ]
+}

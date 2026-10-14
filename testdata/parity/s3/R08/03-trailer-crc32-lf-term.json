@@ -1,0 +1,37 @@
+{
+  "step": "03-trailer-crc32-lf-term",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/tr-03-trailer-crc32-lf-term",
+        "headers": [
+          ["Content-Encoding", "aws-chunked"],
+          ["x-amz-decoded-content-length", "5"],
+          ["x-amz-trailer", "x-amz-checksum-crc32"],
+          ["x-amz-content-sha256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["X-Amz-Date", "20261014T064650Z"],
+          ["Content-Length", "45"]
+        ],
+        "body": "5\r\nhello\r\n0\r\nx-amz-checksum-crc32:NhCmhg==\n\r\n"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "c7/Ropop6CYkgPLsJcIZMNd/nrrwH+duRxbzfVPShFjdyQPFca6PYrM5dz8PVzudyHUtoz/l4DYpkFjYdfiQXTGLQpopUn0u"],
+          ["x-amz-request-id", "3KB8JHBH2BVFMXNJ"],
+          ["Date", "Wed, 14 Oct 2026 06:46:51 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["ETag", "\"5d41402abc4b2a76b9719d911017c592\""],
+          ["x-amz-checksum-crc32", "NhCmhg=="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["Content-Length", "0"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "step": "01-range-abc",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/r",
+        "headers": [
+          ["Host", "usr-rec-20261014-edge.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070304Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["Range", "bytes=abc"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "FxAqXNzCzWIhhJxZYgliMnoaMn9lXjSgAPkhldNYvnlbKGSivDqWruIVfVS0sZy71+y+dTWHiUY1/EBDOPpxPNw5EIqpquhE"],
+          ["x-amz-request-id", "8DTN8G7J9MP9M0S3"],
+          ["Date", "Wed, 14 Oct 2026 07:03:05 GMT"],
+          ["Last-Modified", "Wed, 14 Oct 2026 07:03:04 GMT"],
+          ["ETag", "\"781e5e245d69b566979b86e28d23f2c7\""],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Accept-Ranges", "bytes"],
+          ["Content-Type", "binary/octet-stream"],
+          ["Content-Length", "10"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "0123456789"
+      }
+    }
+  ]
+}

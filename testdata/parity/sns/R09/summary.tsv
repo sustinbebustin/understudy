@@ -1,0 +1,94 @@
+case	message	result	body	attributes
+T01	m1	delivered	m1	{"p": {"DataType": "Number", "StringValue": "100"}}
+T02	m1	delivered	m1	{"p": {"DataType": "Number", "StringValue": "100.0"}}
+T03	m1	not delivered	m1	{"p": {"DataType": "String", "StringValue": "100"}}
+T04	m1	not delivered	{"p":"100"}	{}
+T05	m1	not delivered	{"p":100}	{}
+T06	m1	not delivered	m1	{}
+T07	m1	delivered	m1	{"t": {"DataType": "String", "StringValue": "a"}}
+T08	m1	delivered	m1	{"t": {"DataType": "String.Array", "StringValue": "[\"a\",\"c\"]"}}
+T09	m1	delivered	m1	{"t": {"DataType": "String", "StringValue": "ab"}}
+T10	m1	delivered	{"a":{"b":"x"},"c":"y"}	{}
+T14	m1	not delivered	{"o":[{"a":"1"},{"b":"2"}]}	{}
+T15	m1	delivered	{"p":2e9}	{}
+T17	m1	delivered	m1	{"a.b": {"DataType": "String", "StringValue": "x"}}
+T18	m1	not delivered	[{"a":"x"}]	{}
+T18	m2	not delivered	plain	{}
+T19a	m1	not delivered	m1	{"p": {"DataType": "Number", "StringValue": "100"}}
+T19b	m1	delivered	m1	{"p": {"DataType": "Number", "StringValue": "100"}}
+H1-attr	m1	not delivered	m1	{}
+H1-attr	m2	delivered	m2	{"other": {"DataType": "String", "StringValue": "x"}}
+H1-body	m1	delivered	{}	{}
+H1-body	m2	delivered	{"other":"x"}	{}
+H2-body	m1	not delivered	{"store":null}	{}
+H2-body	m2	delivered	{"store":""}	{}
+H2-body	m3	not delivered	{"store":[]}	{}
+H2-body	m4	not delivered	{"store":{}}	{}
+H2-body	m5	delivered	{"store":0}	{}
+H2-body	m6	delivered	{"store":false}	{}
+H2-attr	m1	delivered	m1	{"store": {"DataType": "String", "StringValue": "x"}}
+H2-attr	m2	not delivered	m2	{"store": {"DataType": "String", "StringValue": ""}}
+H4-attr	m1	delivered	m1	{"x": {"DataType": "String.Array", "StringValue": "[\"rugby\",\"baseball\"]"}}
+H4-attr	m2	not delivered	m2	{"x": {"DataType": "String.Array", "StringValue": "[\"rugby\"]"}}
+H4-attr	m3	not delivered	m3	{"x": {"DataType": "String.Array", "StringValue": "[\"rugby\",\"tennis\"]"}}
+H4-attr	m4	delivered	m4	{"x": {"DataType": "String.Array", "StringValue": "[\"baseball\",\"golf\"]"}}
+H4-body	m1	delivered	{"x":["rugby","baseball"]}	{}
+H4-body	m2	not delivered	{"x":["rugby"]}	{}
+H4-body	m3	not delivered	{"x":["rugby","tennis"]}	{}
+H5-01-attr	m1	not delivered	m1	{"n": {"DataType": "Number", "StringValue": "0.123456"}}
+H5-01-attr	m2	not delivered	m2	{"n": {"DataType": "Number", "StringValue": "0.1234567"}}
+H5-01-attr	m3	not delivered	m3	{"n": {"DataType": "Number", "StringValue": "1000000000000"}}
+H5-01-body	m1	not delivered	{"n":0.123456}	{}
+H5-01-body	m2	not delivered	{"n":0.1234567}	{}
+H5-01-body	m3	not delivered	{"n":1000000000000}	{}
+H5-02-attr	m1	not delivered	m1	{"n": {"DataType": "Number", "StringValue": "0.123456"}}
+H5-02-attr	m2	not delivered	m2	{"n": {"DataType": "Number", "StringValue": "0.1234567"}}
+H5-02-attr	m3	delivered	m3	{"n": {"DataType": "Number", "StringValue": "1000000000000"}}
+H5-02-body	m1	not delivered	{"n":0.123456}	{}
+H5-02-body	m2	not delivered	{"n":0.1234567}	{}
+H5-02-body	m3	delivered	{"n":1000000000000}	{}
+H5-03-attr	m1	not delivered	m1	{"n": {"DataType": "Number", "StringValue": "0.123456"}}
+H5-03-attr	m2	not delivered	m2	{"n": {"DataType": "Number", "StringValue": "0.1234567"}}
+H5-03-attr	m3	not delivered	m3	{"n": {"DataType": "Number", "StringValue": "1000000000000"}}
+H5-03-body	m1	not delivered	{"n":0.123456}	{}
+H5-03-body	m2	not delivered	{"n":0.1234567}	{}
+H5-03-body	m3	not delivered	{"n":1000000000000}	{}
+H5-04-attr	m1	not delivered	m1	{"n": {"DataType": "Number", "StringValue": "0.123456"}}
+H5-04-attr	m2	not delivered	m2	{"n": {"DataType": "Number", "StringValue": "0.1234567"}}
+H5-04-attr	m3	delivered	m3	{"n": {"DataType": "Number", "StringValue": "1000000000000"}}
+H5-04-body	m1	not delivered	{"n":0.123456}	{}
+H5-04-body	m2	not delivered	{"n":0.1234567}	{}
+H5-04-body	m3	delivered	{"n":1000000000000}	{}
+H5-05-attr	m1	delivered	m1	{"n": {"DataType": "Number", "StringValue": "0.123456"}}
+H5-05-attr	m2	not delivered	m2	{"n": {"DataType": "Number", "StringValue": "0.1234567"}}
+H5-05-attr	m3	not delivered	m3	{"n": {"DataType": "Number", "StringValue": "1000000000000"}}
+H5-05-body	m1	delivered	{"n":0.123456}	{}
+H5-05-body	m2	not delivered	{"n":0.1234567}	{}
+H5-05-body	m3	not delivered	{"n":1000000000000}	{}
+H5-06-attr	m1	not delivered	m1	{"n": {"DataType": "Number", "StringValue": "0.123456"}}
+H5-06-attr	m2	delivered	m2	{"n": {"DataType": "Number", "StringValue": "0.1234567"}}
+H5-06-attr	m3	not delivered	m3	{"n": {"DataType": "Number", "StringValue": "1000000000000"}}
+H5-06-body	m1	not delivered	{"n":0.123456}	{}
+H5-06-body	m2	delivered	{"n":0.1234567}	{}
+H5-06-body	m3	not delivered	{"n":1000000000000}	{}
+H5-09-attr	m1	not delivered	m1	{"n": {"DataType": "Number", "StringValue": "0.123456"}}
+H5-09-attr	m2	not delivered	m2	{"n": {"DataType": "Number", "StringValue": "0.1234567"}}
+H5-09-attr	m3	delivered	m3	{"n": {"DataType": "Number", "StringValue": "1000000000000"}}
+H5-09-body	m1	not delivered	{"n":0.123456}	{}
+H5-09-body	m2	not delivered	{"n":0.1234567}	{}
+H5-09-body	m3	delivered	{"n":1000000000000}	{}
+H6-attr	m1	delivered	m1	{"p": {"DataType": "Number", "StringValue": "100"}}
+H6-attr	m2	delivered	m2	{"p": {"DataType": "Number", "StringValue": "100.0"}}
+H6-attr	m3	delivered	m3	{"p": {"DataType": "Number", "StringValue": "1.0e2"}}
+H6-attr	m4	not delivered	m4	{"p": {"DataType": "String", "StringValue": "100"}}
+H6-body	m1	delivered	{"p":100}	{}
+H6-body	m2	delivered	{"p":100.0}	{}
+H6-body	m3	not delivered	{"p":"100"}	{}
+H6-numeric-string-attr	m1	not delivered	m1	{"p": {"DataType": "String", "StringValue": "100"}}
+H8-01	m1	not delivered	{"n":"10"}	{}
+H8-02	m1	not delivered	{"n":10}	{}
+H8-03	m1	not delivered	{"n":"10"}	{}
+H9-03-attr	m1	delivered	m1	{"ip": {"DataType": "String", "StringValue": "10.0.0.1"}}
+H9-03-attr	m2	delivered	m2	{"ip": {"DataType": "String", "StringValue": "2001:db8::1"}}
+H9-03-body	m1	delivered	{"ip":"10.0.0.1"}	{}
+H9-03-body	m2	delivered	{"ip":"2001:db8::1"}	{}

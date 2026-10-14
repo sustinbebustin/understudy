@@ -1,0 +1,36 @@
+{
+  "step": "06-dynamodb-unknown-target",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "dynamodb.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070310Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "DynamoDB_20120810.NoSuchOperation"],
+          ["Content-Length", "2"]
+        ],
+        "body_unrecorded": {"bytes": 2}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 07:03:10 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "63"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "JEGTULFJF2PIIOOHPIBK9I4QFFVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "1368724161"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#UnknownOperationException\"}"
+      }
+    }
+  ]
+}

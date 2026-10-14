@@ -1,0 +1,35 @@
+{
+  "step": "fifo-06-pre-send3",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.SendMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,AD,E,AN,Z,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.send-message"],
+          ["X-Amz-Date", "20261014T063844Z"],
+          ["amz-sdk-invocation-id", "f65e581a-1d89-4ff3-887f-203c4f66f3f5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "296"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-src-b.fifo\", \"MessageBody\": \"body3\", \"MessageAttributes\": {\"s\": {\"DataType\": \"String\", \"StringValue\": \"v\"}, \"b\": {\"DataType\": \"Binary\", \"BinaryValue\": \"AAEC\"}}, \"MessageDeduplicationId\": \"d3\", \"MessageGroupId\": \"g1\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "f123529e-ce30-580d-a8c7-31d7eb8557c3"],
+          ["Date", "Wed, 14 Oct 2026 06:38:45 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "206"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"MD5OfMessageAttributes\":\"cfd3bfb043f86340e7dbc235456abbb0\",\"MD5OfMessageBody\":\"5525786dab1a6e4b36a0b49fe1090875\",\"MessageId\":\"930e65c6-e33b-43d3-8b76-989fe4c8e44d\",\"SequenceNumber\":\"18905485814526447616\"}"
+      }
+    }
+  ]
+}

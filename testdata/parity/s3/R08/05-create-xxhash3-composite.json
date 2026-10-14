@@ -1,0 +1,34 @@
+{
+  "step": "05-create-xxhash3-composite",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/mp-xxhash3?uploads",
+        "headers": [
+          ["x-amz-checksum-algorithm", "XXHASH3"],
+          ["x-amz-checksum-type", "COMPOSITE"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064658Z"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "VtUfSIMZ8+Qg087g7AiFbGfzs0J1FMVCz3gTfaVudwXpewkNNzc/mDgUehWjXLT1lvciynMdFamSrU9l/kyRkj4zpod3pnJV"],
+          ["x-amz-request-id", "D1AHFHCP5P01ZZW2"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:46:59 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["x-amz-checksum-algorithm", "XXHASH3"],
+          ["x-amz-checksum-type", "COMPOSITE"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<InitiateMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>usr-rec-20261014-cks</Bucket><Key>mp-xxhash3</Key><UploadId>FIS0urkcELrfuxCxpTknsmmWG.TEAiI7bPMWibR8.edxEchDBJ75YSQYyVRzzfLm8UDq1tIjLi9prQ3sXzWDLHEqwj8ktJODjyO5LWUKN68hNBlEirKB6Q5apAp.VkX8qV86rufomCRLh_6e1WjNH5HQp.YvTu3GcIW.o2OeXDNNg2PViGtfMIiB.3Y4J2b9</UploadId></InitiateMultipartUploadResult>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "step": "02-cli-put-xxhash64",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-cks.s3.us-east-2.amazonaws.com/cli-xxhash64",
+        "headers": [
+          ["x-amz-sdk-checksum-algorithm", "XXHASH64"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,E,b,AD,AH,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-xxhash64"],
+          ["X-Amz-Decoded-Content-Length", "5"],
+          ["X-Amz-Date", "20261014T064710Z"],
+          ["X-Amz-Content-SHA256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "c9561886-ed4b-4c73-b67e-131d9feaad06"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "LaXjfze8j6QdisjSDhXCqL2bnqXhZzDeFfCfvHK08obIEYJigiMK4pZx7/q0GqzqGChc9BRjEZHRN3jI0oyR70/4KVY1rwcb"],
+          ["x-amz-request-id", "CJNK9PT804Y2XMAM"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:47:12 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["ETag", "\"5d41402abc4b2a76b9719d911017c592\""],
+          ["x-amz-checksum-xxhash64", "JseCfYifbaM="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

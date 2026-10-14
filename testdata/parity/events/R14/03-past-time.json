@@ -1,0 +1,33 @@
+{
+  "step": "03-past-time",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AC,E,AN,Z,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-events"],
+          ["X-Amz-Date", "20261014T071413Z"],
+          ["amz-sdk-invocation-id", "253d3bd9-74f8-47e9-ba11-769bd747b743"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "86"]
+        ],
+        "body": "{\"Entries\": [{\"Source\": \"rec\", \"DetailType\": \"x\", \"Detail\": \"{}\", \"Time\": 946684800}]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "647555fd-1951-482f-996b-817b2f12fcf8"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "85"],
+          ["Date", "Wed, 14 Oct 2026 07:14:14 GMT"]
+        ],
+        "body": "{\"Entries\":[{\"EventId\":\"9e81ea9e-4cc7-2e23-951e-7dc162eb0fc0\"}],\"FailedEntryCount\":0}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "step": "05-head-part1-xxhash128",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "/mp-xxhash128?partNumber=1",
+        "headers": [
+          ["x-amz-checksum-mode", "ENABLED"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064702Z"]
+        ]
+      },
+      "response": {
+        "status": 206,
+        "reason": "Partial Content",
+        "headers": [
+          ["x-amz-id-2", "dy0zFxDY1ATScvPxeTmbMjzOj72j0y4V/YJ07c9gKT/FZ4pMEWwOAuk4MKqC8AWloVZwvHWWg9th+hUAVz7CtZbIYYfP1uE6"],
+          ["x-amz-request-id", "D3HEVYQE69D46WBQ"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:47:03 GMT"],
+          ["Last-Modified", "Wed, 14 Oct 2026 06:47:02 GMT"],
+          ["ETag", "\"4dc300d586106dc6c7452e1dba7eba2c-2\""],
+          ["x-amz-mp-parts-count", "2"],
+          ["x-amz-checksum-xxhash128", "N+DwsSPHJSV/uUzpZwMN4A=="],
+          ["x-amz-checksum-type", "COMPOSITE"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Accept-Ranges", "bytes"],
+          ["Content-Range", "bytes 0-5242879/6291456"],
+          ["Content-Length", "5242880"],
+          ["Content-Type", "binary/octet-stream"]
+        ]
+      }
+    }
+  ]
+}

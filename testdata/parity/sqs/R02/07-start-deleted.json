@@ -1,0 +1,37 @@
+{
+  "step": "07-start-deleted",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the StartMessageMoveTask operation: The resource that you specified for the SourceArn parameter doesn't exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.StartMessageMoveTask"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AC,AD,AN,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.start-message-move-task"],
+          ["X-Amz-Date", "20261014T063602Z"],
+          ["amz-sdk-invocation-id", "9cf5f063-8b85-429e-aff2-ad580c1af226"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "73"]
+        ],
+        "body": "{\"SourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-gone\"}"
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["x-amzn-RequestId", "6ecd5a20-d73f-5055-9005-3969f22d75fb"],
+          ["x-amzn-query-error", "ResourceNotFoundException;Sender"],
+          ["Date", "Wed, 14 Oct 2026 06:36:02 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "143"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.sqs#ResourceNotFoundException\",\"message\":\"The resource that you specified for the SourceArn parameter doesn't exist.\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+03-filter-01	ERROR
+03-filter-02	"ERROR"
+03-filter-03	?ERROR ?INFO
+03-filter-04	ERROR -an
+03-filter-05	ERROR occurred
+03-filter-06	"an ERROR"
+03-filter-07	{ $.level = "ERROR" }
+03-filter-08	{ $.n > 3 }
+03-filter-09	{ $.level = "ERROR" && $.n >= 5 }
+03-filter-10	{ $.missing NOT EXISTS }
+03-filter-11	[a, b, c]
+03-filter-12	ERR*
+03-filter-13	*ROR
+03-filter-14	{ $.n = }

@@ -1,0 +1,33 @@
+{
+  "step": "05-create-topic",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,E,AC,AN,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.create-topic"],
+          ["X-Amz-Date", "20261014T063357Z"],
+          ["amz-sdk-invocation-id", "30d8c282-3deb-48ac-9f69-2b7f70e27eac"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "61"]
+        ],
+        "body": "Action=CreateTopic&Version=2010-03-31&Name=usr-rec-20261014-t"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "76864b51-db21-5ae2-af7e-2818ffb489f2"],
+          ["Date", "Wed, 14 Oct 2026 06:33:57 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "325"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<CreateTopicResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <CreateTopicResult>\n    <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-t</TopicArn>\n  </CreateTopicResult>\n  <ResponseMetadata>\n    <RequestId>76864b51-db21-5ae2-af7e-2818ffb489f2</RequestId>\n  </ResponseMetadata>\n</CreateTopicResponse>\n"
+      }
+    }
+  ]
+}

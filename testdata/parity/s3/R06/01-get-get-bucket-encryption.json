@@ -1,0 +1,31 @@
+{
+  "step": "01-get-get-bucket-encryption",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?encryption",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AN,AC,b,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-bucket-encryption"],
+          ["X-Amz-Date", "20261014T063458Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "c3071ebf-3790-461e-b047-49ccd0f453d6"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "mBW5mZ5JjgwSUkgE0O246Ej0gs2bpT+yEJAFF5REH+1g7jswow5Ia3EEErBQKGWEdjfE7R3qYc69t3O922FO7mRbvvOEiu1/"],
+          ["x-amz-request-id", "MGS4PVB8458FXFPP"],
+          ["Date", "Wed, 14 Oct 2026 06:34:59 GMT"],
+          ["Transfer-Encoding", "chunked"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ServerSideEncryptionConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Rule><BucketKeyEnabled>false</BucketKeyEnabled><ApplyServerSideEncryptionByDefault><SSEAlgorithm>AES256</SSEAlgorithm></ApplyServerSideEncryptionByDefault><BlockedEncryptionTypes><EncryptionType>SSE-C</EncryptionType></BlockedEncryptionTypes></Rule></ServerSideEncryptionConfiguration>"
+      }
+    }
+  ]
+}

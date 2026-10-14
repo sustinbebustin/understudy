@@ -1,0 +1,33 @@
+{
+  "step": "06-complete-crc32-header-no-create-alg",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/nf1?uploadId=vNItq5M1istmLbdihj.9g3mCIUjjOG6ZpMV1EtxzyQa287DDdkAC83iNMstUAfz3o.ym4mf7G76vsVCVG5YhqHYbqDUZoGqLoY2Me522QIFzNaKHvm5RrGqqlMMCw0TBeEsXlPdBpxp5Zyb0ZduvZbiG3YbA897ACbOBDi66oWiz7TEKBW9L.yln_rKw8Pul",
+        "headers": [
+          ["x-amz-checksum-crc32", "NhCmhg=="],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064707Z"],
+          ["Content-Length", "137"]
+        ],
+        "body": "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"5d41402abc4b2a76b9719d911017c592\"</ETag></Part></CompleteMultipartUpload>"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "KynWVm2Nx9mlOPBZQ+QIF4CTarO95mZ7Mx/VhsiXRBSnJfpzwztEfjSwzZMGon8AlePtSHpScx/JtnELuZCfJyxm3EaYjSO0"],
+          ["x-amz-request-id", "FQ4GJMNX74DFDSE6"],
+          ["Date", "Wed, 14 Oct 2026 06:47:09 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://usr-rec-20261014-cks.s3.us-east-2.amazonaws.com/nf1</Location><Bucket>usr-rec-20261014-cks</Bucket><Key>nf1</Key><ETag>\"62109206880d38a4010a98e11243924a-1\"</ETag><ChecksumCRC64NVME>M3eFcAZSQlc=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CompleteMultipartUploadResult>"
+      }
+    }
+  ]
+}

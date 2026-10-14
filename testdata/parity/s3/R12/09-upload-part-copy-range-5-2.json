@@ -1,0 +1,37 @@
+{
+  "step": "09-upload-part-copy-range-5-2",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the UploadPartCopy operation: The x-amz-copy-source-range value must be of the form bytes=first-last where first and last are the zero-based offsets of the first and last bytes to copy",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/upc?partNumber=1&uploadId=80Nh_gDuzbHGZ6OdeIW9l85YsoKLbTdzAEBdDhBy4o3PlBMgNbycOeINkKyKDkCtgxF8qs6C6gL32fWNFLlP6QJx1VTdp27nyB2_xmYS5b0qo2qrVxhtQ91dmGHDCw.hqzTiT6dz1vFaZLh1SVhlrXp.zlnvCDvTOANU5T7piGU6HJ9WRI_KIuVBHdedRTpa",
+        "headers": [
+          ["x-amz-copy-source", "usr-rec-20261014-edge/r"],
+          ["x-amz-copy-source-range", "bytes=5-2"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,E,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.upload-part-copy"],
+          ["X-Amz-Date", "20261014T070427Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "9975d18d-a9a3-4caf-8d49-bec8ee968d51"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "0DSARDN4Q35C77F0"],
+          ["x-amz-id-2", "2y8GOlSWtK2LJ0lo6x6Sa3YDmQqlTsh6FRiICvb9izrHlTlYwL34zLUQr0kysBwcwwj+RPBar1p6F7jbOb0g8PyCTDl+8z5d"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:04:27 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<Error><Code>InvalidArgument</Code><Message>The x-amz-copy-source-range value must be of the form bytes=first-last where first and last are the zero-based offsets of the first and last bytes to copy</Message><ArgumentName>x-amz-copy-source-range</ArgumentName><ArgumentValue>bytes=5-2</ArgumentValue><RequestId>0DSARDN4Q35C77F0</RequestId><HostId>2y8GOlSWtK2LJ0lo6x6Sa3YDmQqlTsh6FRiICvb9izrHlTlYwL34zLUQr0kysBwcwwj+RPBar1p6F7jbOb0g8PyCTDl+8z5d</HostId></Error>"
+      }
+    }
+  ]
+}

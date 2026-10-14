@@ -1,0 +1,33 @@
+{
+  "step": "04-wrong-value-sha512",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/e4-sha512",
+        "headers": [
+          ["x-amz-checksum-sha512", "4lrDhF+MvhKAGi36WonUxV3EeQDztu3Jqe5ZDzwrkxL2ZdADnJOCi3tY8zlQvIF6CVWpxQAKjT4oBWnwh0XKaA=="],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064655Z"],
+          ["Content-Length", "5"]
+        ],
+        "body": "hello"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "DWRCDEC17N25H1SW"],
+          ["x-amz-id-2", "daBEbJ1PsQl6RirwYbt/9v/LtY+3zKn9yTtL4uX8V4Wy3oMSVXDS6rUN+wHrh3XU2SFijmNHp+HaXnnIO0ahIGn/GXM0/dYO"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:46:54 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>BadDigest</Code><Message>The SHA512 you specified did not match the calculated checksum.</Message><RequestId>DWRCDEC17N25H1SW</RequestId><HostId>daBEbJ1PsQl6RirwYbt/9v/LtY+3zKn9yTtL4uX8V4Wy3oMSVXDS6rUN+wHrh3XU2SFijmNHp+HaXnnIO0ahIGn/GXM0/dYO</HostId></Error>"
+      }
+    }
+  ]
+}

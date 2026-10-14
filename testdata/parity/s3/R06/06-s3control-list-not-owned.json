@@ -1,0 +1,34 @@
+{
+  "step": "06-s3control-list-not-owned",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NoSuchResource) when calling the ListTagsForResource operation: The specified resource doesn't exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://123456789012.s3-control.us-east-2.amazonaws.com/v20180820/tags/arn%3Aaws%3As3%3A%3A%3Aaws-cloudtrail-logs-public",
+        "headers": [
+          ["x-amz-account-id", "123456789012"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AC,T,AD,AN,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3control.list-tags-for-resource"],
+          ["X-Amz-Date", "20261014T063521Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "0b3c9aee-db94-4557-b2d5-ca2dc3ced6cb"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "G2JEXJW1VA6NFPYY"],
+          ["x-amz-id-2", "R5nSP5MkOR4mGBC/MpqlLfMxFmlRQrdc0dEXKsamd5iDVKks0S2SGza0/Kz8w0T+QBSR2d80c8s="],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:35:21 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ErrorResponse><Error><Code>NoSuchResource</Code><Message>The specified resource doesn't exist.</Message></Error><RequestId>G2JEXJW1VA6NFPYY</RequestId><HostId>R5nSP5MkOR4mGBC/MpqlLfMxFmlRQrdc0dEXKsamd5iDVKks0S2SGza0/Kz8w0T+QBSR2d80c8s=</HostId></ErrorResponse>"
+      }
+    }
+  ]
+}

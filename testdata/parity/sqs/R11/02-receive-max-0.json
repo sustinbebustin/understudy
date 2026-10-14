@@ -1,0 +1,35 @@
+{
+  "step": "02-receive-max-0",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070302Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Length", "108"]
+        ],
+        "body_unrecorded": {"bytes": 108}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "2e83361d-c849-5300-80be-5554e32f05f0"],
+          ["x-amzn-query-error", "InvalidParameterValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 07:03:02 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "181"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Value 0 for parameter MaxNumberOfMessages is invalid. Reason: Must be between 1 and 10, if provided.\"}"
+      }
+    }
+  ]
+}

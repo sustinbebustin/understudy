@@ -1,0 +1,35 @@
+{
+  "step": "H5-09-body-receive-0",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T071144Z"],
+          ["amz-sdk-invocation-id", "3290656a-699c-4732-a584-34d21a1e486e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "168"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-f47\", \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 5, \"MessageAttributeNames\": [\"All\"]}"
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "d6bd8b92-90b1-5876-b3a4-e8dbbdc13cd8"],
+          ["Date", "Wed, 14 Oct 2026 07:11:44 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "576"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Body\":\"{\\\"n\\\":1000000000000}\",\"MD5OfBody\":\"d4e6f5c87881f30f81dd8c058e93b450\",\"MessageId\":\"d5f7cdbb-50f0-4b45-a827-bc3079ea1b23\",\"ReceiptHandle\":\"AQEBYiwa2Ef2pLAGECFvU1Iwn3NnOe24POfM1NFmjAZu65xs6pumjvtSuBezx4wC3I/PYE/1kmTdKZV/1eSqyN+Zr++HlSA4w6WEjdWEzZIYTusSYjRBDvXXJCdKycIhCpZNF8OMlf8gYycm6Xf3zoogv2fQWdcLO7+NcGzZTg3z9UB+x6e4/D75+e2JwVH04Pm26HEkrmbhrWv9AaCenpOQtopMnNhjsPxOGJBClxMKDjVDZ1ciuYYgLEASECJLtu6HkBpyUSLXnd81M8SuUOt3wCD93ORZqZHwr4Fp0ItGp5VK7DUozUttUjdHMhb8MCCisqxlwzaBa5kJZxwk2BNUnVPkVQvYkcqqsz2emmfQRbici6xj0WdM7pSSY/tKQyKrDuJZ9A/dzXUoBljLxCGAsA==\"}]}"
+      }
+    }
+  ]
+}

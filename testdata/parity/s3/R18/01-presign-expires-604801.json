@@ -1,0 +1,27 @@
+{
+  "step": "01-presign-expires-604801",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/r?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ASIAREDACTED%2F20261014%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20261014T070653Z&X-Amz-Expires=604801&X-Amz-SignedHeaders=host&X-Amz-Security-Token=REDACTED&X-Amz-Signature=REDACTED",
+        "headers": []
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amz-request-id", "53YHWMVV172TGSJW"],
+          ["x-amz-id-2", "cqphuxh958zEkgvwF6+CFUVIEXnWL1C+DLXwnKX3RBfH8bahcVMZkpkejm3Ex84WC0XEMHQjKS4="],
+          ["Date", "Wed, 14 Oct 2026 07:06:53 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Server", "AmazonS3"],
+          ["Transfer-Encoding", "chunked"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AuthorizationQueryParametersError</Code><Message>X-Amz-Expires must be less than a week (in seconds); that is, the given X-Amz-Expires must be less than 604800 seconds</Message><RequestId>53YHWMVV172TGSJW</RequestId><HostId>cqphuxh958zEkgvwF6+CFUVIEXnWL1C+DLXwnKX3RBfH8bahcVMZkpkejm3Ex84WC0XEMHQjKS4=</HostId></Error>"
+      }
+    }
+  ]
+}

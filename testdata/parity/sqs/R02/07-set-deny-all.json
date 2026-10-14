@@ -1,0 +1,35 @@
+{
+  "step": "07-set-deny-all",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.SetQueueAttributes"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AD,b,AN,AC,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.set-queue-attributes"],
+          ["X-Amz-Date", "20261014T063612Z"],
+          ["amz-sdk-invocation-id", "d396e77a-846a-4866-9b0e-0f2324cb80f7"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "163"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-dlq2\", \"Attributes\": {\"RedriveAllowPolicy\": \"{\\\"redrivePermission\\\":\\\"denyAll\\\"}\"}}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "7e09635d-bf86-5daa-9a97-00149a9aeab8"],
+          ["Date", "Wed, 14 Oct 2026 06:36:12 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "0"],
+          ["connection", "keep-alive"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

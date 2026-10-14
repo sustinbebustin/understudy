@@ -1,0 +1,35 @@
+{
+  "step": "01-head-xxhash64",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "/h-xxhash64",
+        "headers": [
+          ["x-amz-checksum-mode", "ENABLED"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064645Z"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "+p6JCouvNY9lS/6ZJ8DtU+tQW7APPr2Xxu8i73k+vUnmXb4TY6D07d7Uzx62MJnW+P0cW/6/telozPFqyd3OTgYvEOIpU+IH"],
+          ["x-amz-request-id", "3KD2WJQ8BSFQ29Q9"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:46:46 GMT"],
+          ["Last-Modified", "Wed, 14 Oct 2026 06:46:46 GMT"],
+          ["ETag", "\"5d41402abc4b2a76b9719d911017c592\""],
+          ["x-amz-checksum-xxhash64", "JseCfYifbaM="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Accept-Ranges", "bytes"],
+          ["Content-Length", "5"],
+          ["Content-Type", "binary/octet-stream"]
+        ]
+      }
+    }
+  ]
+}

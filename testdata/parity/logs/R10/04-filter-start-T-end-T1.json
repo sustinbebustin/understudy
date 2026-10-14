@@ -1,0 +1,33 @@
+{
+  "step": "04-filter-start-T-end-T1",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,Z,b,AN,AD,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261014T064917Z"],
+          ["amz-sdk-invocation-id", "2f3e2c2d-ac42-440a-9439-f0cab6caba16"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "121"]
+        ],
+        "body": "{\"logGroupName\": \"/usr/usr-rec-20261014\", \"logStreamNames\": [\"s2\"], \"startTime\": 1791960228000, \"endTime\": 1791960228001}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "c5842294-5b59-4d87-be08-04581b2152e0"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "803"],
+          ["Date", "Wed, 14 Oct 2026 06:49:17 GMT"]
+        ],
+        "body": "{\"events\":[{\"eventId\":\"39962048450528840711854769359355932744832486636624478208\",\"ingestionTime\":1791960547296,\"logStreamName\":\"s2\",\"message\":\"b0\",\"timestamp\":1791960228000},{\"eventId\":\"39962048450551141457053299982497468463105134998130458625\",\"ingestionTime\":1791960547296,\"logStreamName\":\"s2\",\"message\":\"b1\",\"timestamp\":1791960228001}],\"nextToken\":\"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCqe7qBWo2ejfTLUmAI8a5ylAMlfaJht8n9j3BD_Cke4tvebFfvZYpbFMRiqiVqU-45dzZ1MuhQw4zW_tzxjcZ9_w2FXjDc4g1ou80ethoRCazC44_bhddwKhUKP-gse-VvnQ_OT3cDsItKVavI580QVa6z2nSYdRGNR-CGxEHJxnrthcwAAKgrXgpfWvKQ0Gk9aqV3fG3F7yX4JTe6IDu6e_RnOSqqxkP-En43T6NLDvk-VLIdYNuAdrK8aqbelnQhzaNOlF_f_3Iu8R7GXV3fbOZrFCUH2EEGD2NN1VlbWKA\",\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    }
+  ]
+}

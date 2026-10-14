@@ -1,0 +1,35 @@
+{
+  "step": "H6-attr-receive-0",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T071154Z"],
+          ["amz-sdk-invocation-id", "a99e5f01-f60c-43ab-ae81-99251773ffab"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "168"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-f48\", \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 5, \"MessageAttributeNames\": [\"All\"]}"
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "a5264f1f-2b36-5a25-9e80-2c56064c6e8b"],
+          ["Date", "Wed, 14 Oct 2026 07:11:54 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1356"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Body\":\"m1\",\"MD5OfBody\":\"ae7be26cdaa742ca148068d5ac90eaca\",\"MD5OfMessageAttributes\":\"ba3da8ee405d4d75900fcf59fc52f8b1\",\"MessageAttributes\":{\"p\":{\"DataType\":\"Number\",\"StringValue\":\"100\"}},\"MessageId\":\"b99bff45-0a63-43e3-8585-1bbd07b00c0f\",\"ReceiptHandle\":\"AQEBC8qV8P/K3ys23/e3gnJt90Qpr4g4cEH5Hg1naAGhPETDHP/6e26y1nNJTPamN4teJN2DTSZnAggWcc/X2Gcb+yG6wIS2NSi1LAVudYU8b2SpeupZDdkHQ6/TNzURw/0sjzJV0qL2ZtrsorJlzsnIevdNI5gG5P/5W/XDWSL8ai2Kgi7Jnra+R3GMBQK7Ddx4AHXb6cqMTc2X5tioz1cm2aMv83lRzM5FVNqW8D3mYp4d442aXs49LElij3BfU6Db+ZZjaDMmPgsPxo2BX+fEGel3gBlzmyvOeO8J6TeuMdCarqO8htG5Awm3kimA8JyyDnUgJgqxG5ummV0pKUjUXSBhZCkeInYg4P38YySjNXoslJtTMs8J7jNtHiCxtplsZRqZiMNpd6LoSSQMxNemVw==\"},{\"Body\":\"m3\",\"MD5OfBody\":\"9678f7a7939f457fa0d9353761e189c7\",\"MD5OfMessageAttributes\":\"ba3da8ee405d4d75900fcf59fc52f8b1\",\"MessageAttributes\":{\"p\":{\"DataType\":\"Number\",\"StringValue\":\"100\"}},\"MessageId\":\"d59e761a-6a5c-42d3-80c3-79f33b51ffe0\",\"ReceiptHandle\":\"AQEBSU7g0urNTUkXiSruZ8h1IdC/su48er09NAC6o5KQvGEl+FSAxYMERO3Q1+shJyTuodMYzDcBymZPR3aMM0ofiUDpUY6/cQVzhI7bpbKUVFgD7N+7beDsFZzZp8jDx8eRhlXjHjQq8ELk62jF3yjDW2PPs2mw6enovx7iZNgJzStyXWDzF0gGclc7xOM8hB4bWpj049yzjXeXefE0itLTxrNeewc5uoOtcuh3G4wyQx5pq525ie+IEPX1qlyUeT0xLXaHcl7PVeDOtsms1b2TpcRIFGY3ROt1MWcP47vZ+Z9ug7cb9TQrPaljvsv/lLs2e7YUgAWepwfKPFCgg0uVQaDyvmT/0P/MKEaJIuBe+OWAHitq4V4oo2m4Y877wL7lwkYj8+hxPF72Ki0sVk9Gbw==\"}]}"
+      }
+    }
+  ]
+}

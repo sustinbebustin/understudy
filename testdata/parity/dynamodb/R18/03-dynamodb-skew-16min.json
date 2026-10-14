@@ -1,0 +1,33 @@
+{
+  "step": "03-dynamodb-skew-16min",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/",
+        "headers": [
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "DynamoDB_20120810.ListTables"],
+          ["X-Amz-Date", "20261014T065055Z"],
+          ["Content-Length", "2"]
+        ],
+        "body": "{}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 07:06:55 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "177"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "U837MQL9VPG6K73FGQGD23TP47VV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "1524702311"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidSignatureException\",\"message\":\"Signature expired: 20261014T065055Z is now earlier than 20261014T065155Z (20261014T070655Z - 15 min.)\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "step": "07-redrive-denied",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValue) when calling the SetQueueAttributes operation: Value RedrivePolicy(maxReceiveCount=2, deadLetterTargetArn=arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq2) for parameter RedrivePolicy is invalid. Reason: The value for the dead-letter queue's RedriveAllowPolicy attribute prevents you from completing this request.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.SetQueueAttributes"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,Z,E,AN,b,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.set-queue-attributes"],
+          ["X-Amz-Date", "20261014T063613Z"],
+          ["amz-sdk-invocation-id", "9f6edaa3-2cda-4ae9-b8fc-b97cab337e30"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "236"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-plain\", \"Attributes\": {\"RedrivePolicy\": \"{\\\"deadLetterTargetArn\\\":\\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq2\\\",\\\"maxReceiveCount\\\":\\\"2\\\"}\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "1507588f-739c-5a05-827f-3bc65681526b"],
+          ["x-amzn-query-error", "InvalidParameterValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 06:36:13 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "355"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Value RedrivePolicy(maxReceiveCount=2, deadLetterTargetArn=arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq2) for parameter RedrivePolicy is invalid. Reason: The value for the dead-letter queue's RedriveAllowPolicy attribute prevents you from completing this request.\"}"
+      }
+    }
+  ]
+}

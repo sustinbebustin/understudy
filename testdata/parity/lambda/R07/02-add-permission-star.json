@@ -1,0 +1,33 @@
+{
+  "step": "02-add-permission-star",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-r07/policy",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,AD,Z,b,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.add-permission"],
+          ["X-Amz-Date", "20261014T064452Z"],
+          ["amz-sdk-invocation-id", "89e4d1e1-e1c7-4077-8710-5d963bcaa32c"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "73"]
+        ],
+        "body": "{\"StatementId\": \"b\", \"Action\": \"lambda:InvokeFunction\", \"Principal\": \"*\"}"
+      },
+      "response": {
+        "status": 201,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:44:52 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "194"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "4993cfc0-823c-4e46-a212-093e3c1c0a29"]
+        ],
+        "body": "{\"Statement\":\"{\\\"Sid\\\":\\\"b\\\",\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":\\\"*\\\",\\\"Action\\\":\\\"lambda:InvokeFunction\\\",\\\"Resource\\\":\\\"arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-r07\\\"}\"}"
+      }
+    }
+  ]
+}

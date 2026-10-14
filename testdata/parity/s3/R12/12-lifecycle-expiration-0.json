@@ -1,0 +1,38 @@
+{
+  "step": "12-lifecycle-expiration-0",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutBucketLifecycleConfiguration operation: 'Days' for Expiration action must be a positive integer",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/?lifecycle",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,W,b,g,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-lifecycle-configuration"],
+          ["x-amz-checksum-crc64nvme", "08m4vNWBFAw="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261014T070438Z"],
+          ["X-Amz-Content-SHA256", "6f3aba5ff2376826b75432e3bd32faf0cb7a68d27a4d35d65e09d6fcc0383ede"],
+          ["amz-sdk-invocation-id", "708659ec-8a2b-48b2-9d32-0f466c63e72c"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "210"]
+        ],
+        "body": "<LifecycleConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Rule><ID>r</ID><Status>Enabled</Status><Filter><Prefix /></Filter><Expiration><Days>0</Days></Expiration></Rule></LifecycleConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amz-id-2", "mZVLs84wj8hHBVxsHbxkSdnNsgCURuphoGvSyRldo3+c/wUUN412cJcT4AQM6Jx4t5p/I1zOkyvQHt6JVD1R2pzUfw6mAKru"],
+          ["x-amz-request-id", "1FEDGR3NY023610E"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 07:04:39 GMT"],
+          ["Connection", "close"],
+          ["Content-Type", "application/xml"],
+          ["Content-Length", "334"]
+        ],
+        "body": "<Error><Code>InvalidArgument</Code><Message>'Days' for Expiration action must be a positive integer</Message><ArgumentName>Days</ArgumentName><ArgumentValue>0</ArgumentValue><RequestId>1FEDGR3NY023610E</RequestId><HostId>mZVLs84wj8hHBVxsHbxkSdnNsgCURuphoGvSyRldo3+c/wUUN412cJcT4AQM6Jx4t5p/I1zOkyvQHt6JVD1R2pzUfw6mAKru</HostId></Error>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "step": "02-cancel",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "TrentService.CancelKeyDeletion"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,Z,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#kms.cancel-key-deletion"],
+          ["X-Amz-Date", "20261014T070530Z"],
+          ["amz-sdk-invocation-id", "0ac9286b-b419-4f00-ae5b-172a0ea2c1ce"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "49"]
+        ],
+        "body": "{\"KeyId\": \"a1090e85-82e2-4517-8b2b-51faf8a60a8b\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "a72c5776-9df4-4a5b-a658-eb7eaf02f518"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Wed, 14 Oct 2026 07:05:31 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "87"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"KeyId\":\"arn:aws:kms:us-east-2:123456789012:key/a1090e85-82e2-4517-8b2b-51faf8a60a8b\"}"
+      }
+    }
+  ]
+}

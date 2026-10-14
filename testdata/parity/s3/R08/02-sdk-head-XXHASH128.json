@@ -1,0 +1,39 @@
+{
+  "step": "02-sdk-head-XXHASH128",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "https://usr-rec-20261014-cks.s3.us-east-2.amazonaws.com/t-XXHASH128-hello",
+        "headers": [
+          ["x-amz-checksum-mode", "ENABLED"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/D,AD,AC,b,Z cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "usr-rec-20261014-cks.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T064649Z"],
+          ["x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "98fe735e-841d-463e-842f-1dacd4e6019f"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "headers": [
+          ["x-amz-id-2", "17Tx1S1ty0PUmuatTCTex7R2IIgO5+LNtDaHfUxdcZ91aPTK9vF+b8ulZ9GTP409+7Cv+XbMpPPbP5pmw3Dh80g61xmgORMb"],
+          ["x-amz-request-id", "G7HVN2XXSGAX8H0H"],
+          ["Date", "Wed, 14 Oct 2026 06:46:50 GMT"],
+          ["Last-Modified", "Wed, 14 Oct 2026 06:46:50 GMT"],
+          ["ETag", "\"5d41402abc4b2a76b9719d911017c592\""],
+          ["x-amz-checksum-xxhash128", "tenBrQcbPn/Hec+qXlI4GA=="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Accept-Ranges", "bytes"],
+          ["Content-Type", "binary/octet-stream"],
+          ["Content-Length", "5"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

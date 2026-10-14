@@ -1,0 +1,33 @@
+{
+  "step": "04-wrong-value-xxhash64",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/e4-xxhash64",
+        "headers": [
+          ["x-amz-checksum-xxhash64", "MCcs6qbmYlo="],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064655Z"],
+          ["Content-Length", "5"]
+        ],
+        "body": "hello"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "DWR6FSRNJ45XSJHJ"],
+          ["x-amz-id-2", "H05BE5H2WqfwuKVcSWyrTld0YFKpNxxWUZ2avbEpNiMnLSu5HI9ZENjgrJpo8QwRWL4OjrU/4YM3cWWyb3Be+K2dr2MAzCcf"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:46:54 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>BadDigest</Code><Message>The XXHASH64 you specified did not match the calculated checksum.</Message><RequestId>DWR6FSRNJ45XSJHJ</RequestId><HostId>H05BE5H2WqfwuKVcSWyrTld0YFKpNxxWUZ2avbEpNiMnLSu5HI9ZENjgrJpo8QwRWL4OjrU/4YM3cWWyb3Be+K2dr2MAzCcf</HostId></Error>"
+      }
+    }
+  ]
+}

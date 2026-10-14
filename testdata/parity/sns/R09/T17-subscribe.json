@@ -1,0 +1,33 @@
+{
+  "step": "T17-subscribe",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sns.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070307Z"],
+          ["amz-sdk-invocation-id", "52aef508-a58f-49a5-967e-60a80f08776f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "474"]
+        ],
+        "body": "Action=Subscribe&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-c17&Protocol=sqs&Endpoint=arn%3Aaws%3Asqs%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-f17&ReturnSubscriptionArn=true&Attributes.entry.1.key=RawMessageDelivery&Attributes.entry.1.value=true&Attributes.entry.2.key=FilterPolicy&Attributes.entry.2.value=%7B%22a.b%22%3A%5B%22x%22%5D%7D&Attributes.entry.3.key=FilterPolicyScope&Attributes.entry.3.value=MessageAttributes"
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "34b76e22-82ad-5539-afa2-0d6ba9c1345f"],
+          ["Date", "Wed, 14 Oct 2026 07:03:08 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "370"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<SubscribeResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <SubscribeResult>\n    <SubscriptionArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c17:05547613-be88-4b77-ae00-189eb0fed232</SubscriptionArn>\n  </SubscribeResult>\n  <ResponseMetadata>\n    <RequestId>34b76e22-82ad-5539-afa2-0d6ba9c1345f</RequestId>\n  </ResponseMetadata>\n</SubscribeResponse>\n"
+      }
+    }
+  ]
+}

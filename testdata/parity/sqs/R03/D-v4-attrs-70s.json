@@ -1,0 +1,35 @@
+{
+  "step": "D-v4-attrs-70s",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.GetQueueAttributes"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AN,E,AC,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.get-queue-attributes"],
+          ["X-Amz-Date", "20261014T072039Z"],
+          ["amz-sdk-invocation-id", "12c9e0d8-ff50-43b2-a3f8-f6627fc8c887"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "175"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-q\", \"AttributeNames\": [\"ApproximateNumberOfMessages\", \"ApproximateNumberOfMessagesNotVisible\"]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "c7cfa31e-a419-5f7a-8326-c0578b9ecd55"],
+          ["Date", "Wed, 14 Oct 2026 07:20:39 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "94"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Attributes\":{\"ApproximateNumberOfMessages\":\"0\",\"ApproximateNumberOfMessagesNotVisible\":\"5\"}}"
+      }
+    }
+  ]
+}

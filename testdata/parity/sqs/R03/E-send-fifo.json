@@ -1,0 +1,35 @@
+{
+  "step": "E-send-fifo",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.SendMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AD,AC,Z,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.send-message"],
+          ["X-Amz-Date", "20261014T073129Z"],
+          ["amz-sdk-invocation-id", "a311bdab-6487-4e82-9784-02f35922d9ac"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "151"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-q.fifo\", \"MessageBody\": \"{\\\"mode\\\":\\\"okfifo\\\"}\", \"MessageGroupId\": \"g\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "938d48ea-453a-558c-8b85-2ba3772b889e"],
+          ["Date", "Wed, 14 Oct 2026 07:31:29 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "146"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"MD5OfMessageBody\":\"7b39ffa9fbce296bd7f5fa1a15d86c59\",\"MessageId\":\"c6bdc3e1-aa91-4fbc-8b4c-f6edb00449e2\",\"SequenceNumber\":\"18905486624599791616\"}"
+      }
+    }
+  ]
+}

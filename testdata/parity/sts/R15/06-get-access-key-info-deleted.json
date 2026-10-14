@@ -1,0 +1,33 @@
+{
+  "step": "06-get-access-key-info-deleted",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sts.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,b,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sts.get-access-key-info"],
+          ["X-Amz-Date", "20261014T070652Z"],
+          ["amz-sdk-invocation-id", "c934245b-03be-4ce3-a249-da451405362c"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "75"]
+        ],
+        "body": "Action=GetAccessKeyInfo&Version=2011-06-15&AccessKeyId=AKIAREDACTED"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "cecf8b72-e7c1-49c7-8904-65773a03fad9"],
+          ["X-Amz-Sts-Extended-Request-Id", "MTp1cy1lYXN0LTI6UzoxNzkxOTYxNjEyNjI1OlI6N3pTaWdZYVA="],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "303"],
+          ["Date", "Wed, 14 Oct 2026 07:06:52 GMT"]
+        ],
+        "body": "<GetAccessKeyInfoResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">\n  <GetAccessKeyInfoResult>\n    <Account>123456789012</Account>\n  </GetAccessKeyInfoResult>\n  <ResponseMetadata>\n    <RequestId>cecf8b72-e7c1-49c7-8904-65773a03fad9</RequestId>\n  </ResponseMetadata>\n</GetAccessKeyInfoResponse>\n"
+      }
+    }
+  ]
+}

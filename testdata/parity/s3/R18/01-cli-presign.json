@@ -1,0 +1,7 @@
+{
+  "step": "01-cli-presign",
+  "client": "aws-cli",
+  "exit": 0,
+  "stdout": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/r?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ASIAREDACTED%2F20261014%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20261014T070656Z&X-Amz-Expires=60&X-Amz-SignedHeaders=host&X-Amz-Security-Token=REDACTED&X-Amz-Signature=REDACTED",
+  "exchanges": []
+}

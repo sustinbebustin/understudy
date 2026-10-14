@@ -1,0 +1,35 @@
+{
+  "step": "08-recv3",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,Z,AD,b,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261014T063133Z"],
+          ["amz-sdk-invocation-id", "0e047b7e-ed08-4169-b180-c6cdd2b9fed4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "158"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-std\", \"AttributeNames\": [\"All\"], \"VisibilityTimeout\": 5, \"WaitTimeSeconds\": 2}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "105ea54e-831c-59ae-8afd-c607a71911a2"],
+          ["Date", "Wed, 14 Oct 2026 06:31:33 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "757"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\",\"ApproximateFirstReceiveTimestamp\":\"1791959480244\",\"ApproximateReceiveCount\":\"3\",\"SentTimestamp\":\"1791959479700\"},\"Body\":\"m8\",\"MD5OfBody\":\"980b79c2a71b9bcc117e08a990b5b332\",\"MessageId\":\"093aa856-31ea-4fe4-80cd-9c6d6c6dfee1\",\"ReceiptHandle\":\"AQEB2vOLS3n7hBNnPnvG/zMFcFXPb16uZsLRa3F6wQEgMprSdvvBXtYGdRH3xNj7axFsUw30nVMvOiNFpk8n1Of5PHvsuV7m8GwjpeWtXc/aw2MdlLOVbWz9/LXKk2Wj9CvU0J5RHSXahRhKlhTXIzFkoopb7LkFJeUDjj2EaEn8PZE632yzd7yOf+j0MYiNpweNnQvp/Bji2OZQc8AkB/nehJl+rco5oKekVama/4C313jq/jyE7tb+6vanyyrw2wzztZTqCX4kms3GSkick+i6KF1AY9ziCh6AmeS3DLeOeLswWV34Lol9Qi0fmBh38mOx/8f5IYczm8x9N+zxHtkXPvlm75w/9xm46Ry3RqbEC3VDOGUK5XED7xdGl/AORoChzYOa6hgiBy0WKZCT/T0CnA==\"}]}"
+      }
+    }
+  ]
+}

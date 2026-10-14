@@ -1,0 +1,36 @@
+{
+  "step": "04-invoke-oom",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-oom/invocations",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AD,Z,b,AN,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.invoke"],
+          ["X-Amz-Date", "20261014T070428Z"],
+          ["amz-sdk-invocation-id", "5a4065a3-6ace-4094-aeb9-423206739259"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "2"]
+        ],
+        "body": "{}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:04:30 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "149"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "f0af72e5-26ce-46b2-89cb-cf3c3e01c7ba"],
+          ["X-Amz-Function-Error", "Unhandled"],
+          ["x-amzn-Remapped-Content-Length", "0"],
+          ["X-Amz-Executed-Version", "$LATEST"],
+          ["X-Amzn-Trace-Id", "Root=1-6acf297c-22afc4812d4cdc384fa2a552;Parent=6f8701ca58e69579;Sampled=0;Lineage=1:ff6b2a6c:0"]
+        ],
+        "body": "{\"errorType\":\"Runtime.OutOfMemory\",\"errorMessage\":\"RequestId: f0af72e5-26ce-46b2-89cb-cf3c3e01c7ba Error: Runtime exited with error: signal: killed\"}"
+      }
+    }
+  ]
+}

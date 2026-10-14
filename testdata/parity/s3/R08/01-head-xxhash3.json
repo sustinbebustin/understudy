@@ -1,0 +1,35 @@
+{
+  "step": "01-head-xxhash3",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "/h-xxhash3",
+        "headers": [
+          ["x-amz-checksum-mode", "ENABLED"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064646Z"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "l+KW6uALz7nWOYhAbcqtWAK2FzC4P5B+IVwL7CNP8UQgWwDMWqem4l6jYHBz/pVuZPQIv3qfrhM="],
+          ["x-amz-request-id", "TRGCKWNKC1RZ3068"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:46:47 GMT"],
+          ["Last-Modified", "Wed, 14 Oct 2026 06:46:47 GMT"],
+          ["ETag", "\"5d41402abc4b2a76b9719d911017c592\""],
+          ["x-amz-checksum-xxhash3", "lVXoVVxi3P0="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Accept-Ranges", "bytes"],
+          ["Content-Length", "5"],
+          ["Content-Type", "binary/octet-stream"]
+        ]
+      }
+    }
+  ]
+}

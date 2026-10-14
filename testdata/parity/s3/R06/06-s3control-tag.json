@@ -1,0 +1,33 @@
+{
+  "step": "06-s3control-tag",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.s3-control.us-east-2.amazonaws.com/v20180820/tags/arn%3Aaws%3As3%3A%3A%3Ausr-rec-20261014-s3",
+        "headers": [
+          ["x-amz-account-id", "123456789012"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,Z,T,AN,AD,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3control.tag-resource"],
+          ["X-Amz-Date", "20261014T063519Z"],
+          ["X-Amz-Content-SHA256", "460ad5045c9d9c65f2d5edfa7a57869061350491883c22cd3cb0e111a55ef022"],
+          ["amz-sdk-invocation-id", "ca044bbc-c157-4f80-b58b-142af349f0aa"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "151"]
+        ],
+        "body": "<TagResourceRequest xmlns=\"http://awss3control.amazonaws.com/doc/2018-08-20/\"><Tags><Tag><Key>k</Key><Value>v</Value></Tag></Tags></TagResourceRequest>"
+      },
+      "response": {
+        "status": 204,
+        "headers": [
+          ["x-amz-id-2", "1D5Luf5/C45z+AIQYKyVJqsjf/p7vjTmB6NXCcZ3guxzXmZ06IKNdL/itXE19f8HL7BjHSU8c4W1JFBlMs6VK3QcXeIdOZyb"],
+          ["x-amz-request-id", "4NB5JZ74BNDY8BKY"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:35:20 GMT"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

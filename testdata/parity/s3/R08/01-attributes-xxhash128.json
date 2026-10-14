@@ -1,0 +1,30 @@
+{
+  "step": "01-attributes-xxhash128",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/h-xxhash128?attributes",
+        "headers": [
+          ["x-amz-object-attributes", "Checksum"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064646Z"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "8nma3HXMB6MRWYdQYY6kKQ147oYdswHX8fvQ/+3aDHvOVQ83+YKudCE1CBNUoFnEXmPXcNVP82c="],
+          ["x-amz-request-id", "4PBTDS7CCH72WR22"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:46:48 GMT"],
+          ["Last-Modified", "Wed, 14 Oct 2026 06:46:47 GMT"],
+          ["Content-Length", "270"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<GetObjectAttributesResponse xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Checksum><ChecksumXXHASH128>tenBrQcbPn/Hec+qXlI4GA==</ChecksumXXHASH128><ChecksumType>FULL_OBJECT</ChecksumType></Checksum></GetObjectAttributesResponse>"
+      }
+    }
+  ]
+}

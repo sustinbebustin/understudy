@@ -1,0 +1,35 @@
+{
+  "step": "03-complete-again",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/mp?uploadId=74SFl5mkDArs5iPeQadKju4ebgjvN0j3Qbnx5nopXlnaW4Yx8sdHP6Be3.JTSVVgqVFuil2UKTFFZc4iWEQeowdFhoe21Te2Mq.SAfl0x4.ZmAWrc7e4ulHBByHIF2go8NGnlk6K1yaKQIlqcVzEBomW4kwcmNh.rh7WE4nO7qumJchHNSlggZOAnvUQ1f3v",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,b,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.complete-multipart-upload"],
+          ["X-Amz-Date", "20261014T070310Z"],
+          ["X-Amz-Content-SHA256", "2531b040b8513ae98e5197dcf429b5585f5e496cbb5eeecf393057997e53b5fe"],
+          ["amz-sdk-invocation-id", "40758424-c2f4-4bc5-ac13-be40042b8d4e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "271"]
+        ],
+        "body": "<CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><PartNumber>1</PartNumber><ETag>\"5f363e0e58a95f06cbe9bbc662c5dfb6\"</ETag></Part><Part><PartNumber>2</PartNumber><ETag>\"7aea2552dfe7eb84b9443b6fc9ba6e01\"</ETag></Part></CompleteMultipartUpload>"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "dl3D9FmbWiRsaqkHj7xNFpII5eJDhaa0tFfSYewa2tS+WeUFW9P7hsR4MTmBS9UIwP+jhSsURhY="],
+          ["x-amz-request-id", "C3WM97HPPYX3K981"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 07:03:11 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/mp</Location><Bucket>usr-rec-20261014-edge</Bucket><Key>mp</Key><ETag>\"47693b6aafc99e607a33f321da4dc903-2\"</ETag></CompleteMultipartUploadResult>"
+      }
+    }
+  ]
+}

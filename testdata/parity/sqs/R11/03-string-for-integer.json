@@ -1,0 +1,35 @@
+{
+  "step": "03-string-for-integer",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070304Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Length", "110"]
+        ],
+        "body_unrecorded": {"bytes": 110}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "d2b86746-f531-5d35-8b74-040fde59f71e"],
+          ["x-amzn-query-error", "MalformedInput;Sender"],
+          ["Date", "Wed, 14 Oct 2026 07:03:04 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "116"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#SerializationException\",\"Message\":\"STRING_VALUE cannot be converted to Integer\"}"
+      }
+    }
+  ]
+}

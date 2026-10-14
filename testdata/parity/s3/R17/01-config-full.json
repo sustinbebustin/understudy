@@ -1,0 +1,36 @@
+{
+  "step": "01-config-full",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutBucketNotificationConfiguration operation: Configurations overlap. Configurations on the same bucket cannot share a common event type.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-ev.s3.us-east-2.amazonaws.com/?notification",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AC,AD,Z,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-notification-configuration"],
+          ["X-Amz-Date", "20261014T070732Z"],
+          ["X-Amz-Content-SHA256", "a7cae739336eb3b775f0bc8116c48dd21fd0f8576f658b6d19142d3079bfbb22"],
+          ["amz-sdk-invocation-id", "19fb231d-c88c-439d-ab75-edd3697c3772"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "631"]
+        ],
+        "body": "<NotificationConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><QueueConfiguration><Queue>arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-ev</Queue><Event>s3:ObjectCreated:*</Event><Event>s3:ObjectRemoved:*</Event></QueueConfiguration><TopicConfiguration><Id>t</Id><Topic>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-ev</Topic><Event>s3:ObjectRemoved:*</Event></TopicConfiguration><CloudFunctionConfiguration><Id>l</Id><CloudFunction>arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-ev</CloudFunction><Event>s3:ObjectCreated:Put</Event></CloudFunctionConfiguration></NotificationConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "4WFCVQ39JJK5K5RB"],
+          ["x-amz-id-2", "AGDTGXkNBNy5ba6v9Kp4T0wzV/h1zaNrDME8vbTZIIzlvUti/oJGp9NVPQPyV8fcyyHM7MHroAdq4pE/BcafsR8A8oItDanV"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:07:32 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Configurations overlap. Configurations on the same bucket cannot share a common event type.</Message><ArgumentName>Event</ArgumentName><ArgumentValue>s3:ObjectCreated:*, s3:ObjectCreated:Put</ArgumentValue><RequestId>4WFCVQ39JJK5K5RB</RequestId><HostId>AGDTGXkNBNy5ba6v9Kp4T0wzV/h1zaNrDME8vbTZIIzlvUti/oJGp9NVPQPyV8fcyyHM7MHroAdq4pE/BcafsR8A8oItDanV</HostId></Error>"
+      }
+    }
+  ]
+}

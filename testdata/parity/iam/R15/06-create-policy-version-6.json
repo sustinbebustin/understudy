@@ -1,0 +1,33 @@
+{
+  "step": "06-create-policy-version-6",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (LimitExceeded) when calling the CreatePolicyVersion operation: A managed policy can have up to 5 versions. Before you create a new version, you must delete an existing version.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,g,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#iam.create-policy-version"],
+          ["X-Amz-Date", "20261014T070656Z"],
+          ["amz-sdk-invocation-id", "c5e1361b-9b4d-4916-baa0-f55a7c09fee9"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "301"]
+        ],
+        "body": "Action=CreatePolicyVersion&Version=2010-05-08&PolicyArn=arn%3Aaws%3Aiam%3A%3A123456789012%3Apolicy%2Fusr-rec-20261014-pol&PolicyDocument=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22s3%3AGetObject%22%2C%22Resource%22%3A%22%2A%22%7D%5D%7D"
+      },
+      "response": {
+        "status": 409,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:06:56 GMT"],
+          ["x-amzn-RequestId", "67ceb143-c30e-4b81-ab8e-221af5197615"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "358"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>LimitExceeded</Code>\n    <Message>A managed policy can have up to 5 versions. Before you create a new version, you must delete an existing version.</Message>\n  </Error>\n  <RequestId>67ceb143-c30e-4b81-ab8e-221af5197615</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

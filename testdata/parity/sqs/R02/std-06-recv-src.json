@@ -1,0 +1,35 @@
+{
+  "step": "std-06-recv-src",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,AD,AC,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261014T063838Z"],
+          ["amz-sdk-invocation-id", "b7c158c7-ec97-47fa-b54c-6317c107f9d9"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "200"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-src-b\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"VisibilityTimeout\": 30}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "045c53b5-d99e-5a7b-a17c-30fcfc301451"],
+          ["Date", "Wed, 14 Oct 2026 06:38:38 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "933"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\",\"ApproximateFirstReceiveTimestamp\":\"1791959918697\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1791959887152\"},\"Body\":\"body2\",\"MD5OfBody\":\"76af63c5bd77b2a3a2cfcbd52645fa38\",\"MD5OfMessageAttributes\":\"cfd3bfb043f86340e7dbc235456abbb0\",\"MessageAttributes\":{\"b\":{\"BinaryValue\":\"AAEC\",\"DataType\":\"Binary\"},\"s\":{\"DataType\":\"String\",\"StringValue\":\"v\"}},\"MessageId\":\"91bbf90a-75c7-4701-add8-64ce7dcf0d50\",\"ReceiptHandle\":\"AQEBHO9DziZ6j5k84G/5vk38X6m41H57bMJTXkZUKamuLgy/jPHMGHQLM5qc/xs5DhaXKR1Qa46oE7BHstoFCHiRgqGZYe86e7KnQ1+nrts9+IPvpUXgTkD09uF355mbzZuG6pyoZP6+hMzyONNxhuU8yuNwqcjVcpQ3zqqGxNVRiyziqU7QZSbjMIQ6LOdT5lcnyXFFpXG2qS70rEPzDPz2ll2jImIvP7UsAXG+wKX0Ua5zSaL3jX4dc4KWa6Zh+0wUC94+BaXpzxdMscqKypWoaDfD9TRVizbhnAwEpCFU/GV5w+k1GgkqcUfPILOCvVsnLVwH9sMoElPo+vrvIm7JapuYLWootYIJXYgPblAMbssX4TwR1xed8H+5JaEF4KJgwTelceMV3iJ2od9+VVgMGQ==\"}]}"
+      }
+    }
+  ]
+}

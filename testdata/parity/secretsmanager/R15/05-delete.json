@@ -1,0 +1,33 @@
+{
+  "step": "05-delete",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://secretsmanager.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "secretsmanager.DeleteSecret"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,g,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#secretsmanager.delete-secret"],
+          ["X-Amz-Date", "20261014T070606Z"],
+          ["amz-sdk-invocation-id", "36cc8e25-892a-4551-8776-ddc94f1c4189"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "61"]
+        ],
+        "body": "{\"SecretId\": \"usr-rec-20261014-s\", \"RecoveryWindowInDays\": 7}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:06:06 GMT"],
+          ["x-amzn-RequestId", "9d4d9c39-639e-479f-b6db-f6bef6ea3d32"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "148"]
+        ],
+        "body": "{\"ARN\":\"arn:aws:secretsmanager:us-east-2:123456789012:secret:usr-rec-20261014-s-XFyhEs\",\"DeletionDate\":1.792566366695E9,\"Name\":\"usr-rec-20261014-s\"}"
+      }
+    }
+  ]
+}

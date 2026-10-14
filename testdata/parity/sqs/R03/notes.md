@@ -1,0 +1,81 @@
+# R03
+
+- Date: 2026-10-14T07:02Z
+- Region: us-east-2 (free-plan project account)
+- aws-cli/2.37.13 Python/3.15.0 Linux/6.8.0-142-generic source/x86_64.ubuntu.24
+- curl 8.22.0
+
+## Expected
+
+Understudy column from a local run (scripts/sealed, --docker disabled) for control-plane steps, from code for runtime steps. Account written as 123456789012.
+
+- A create response (202, BatchSize 1, MaximumBatchingWindowInSeconds 0, FunctionResponseTypes [], StateTransitionReason USER_INITIATED, ARN event-source-mapping:<uuid>, LastModified epoch float): matches, except State: differs: AWS "Creating"; understudy "Enabled" under the default lambda.stateTransitions=final (internal/service/lambda/esm_runtime.go:130-133; clock mode gives Creating)
+- A/B/E/F response wire nulls: differs (wire-only): AWS sends every unset member as JSON null (StartingPosition, FilterCriteria, ScalingConfig, LastProcessingResult, KMSKeyArn, ... and NextMarker null in List); understudy omits them (internal/service/lambda/esm_config.go:516-561). SDKs and Terraform read both as absent
+- A ChangeMessageVisibility use / retry timing: matches (no CMV: redeliveries at +59.8, +60.0, +60.0, +60.0, +60.0 s = queue VisibilityTimeout 60; ApproximateReceiveCount 1..6; understudy releases failed batches to their visibility timeout, esm_runtime.go:41-46)
+- A first invocation latency: n/a (AWS 0.15 s after SendMessage; understudy clock-driven)
+- B Creating -> Enabled: matches in clock mode (AWS ~9.7 s, B-states-after-create.txt; understudy settleDelay 10 ms, service.go:37)
+- B update --no-enabled: matches in clock mode (AWS 202 "Disabling", Disabled after ~9.6 s; understudy toggle -> Disabling, esm_config.go:433-443)
+- B update --enabled: matches in clock mode (AWS 202 "Enabling", Enabled after ~11 s)
+- B LastModified: matches (changes on each update call, not on settle; esm_config.go:472, esm_runtime.go:139-151)
+- B LastProcessingResult: matches (always null/absent on AWS, also after 6 failed invocations and after function delete; understudy never renders it)
+- B StateTransitionReason: matches (USER_INITIATED throughout)
+- C FIFO --batch-size 11 (no window): matches (400 InvalidParameterValueException "Maximum batch window in seconds must be greater than 0 if maximum batch size is greater than 10")
+- C FIFO --batch-size 10 --maximum-batching-window-in-seconds 5: differs: AWS 400 InvalidParameterValueException {"Type":"User","message":"Batching window is not supported for FIFO queues"} (C-fifo-window-5.http); understudy 202, mapping created with window 5 (esm_config.go:194-204)
+- C standard --batch-size 11, no window (missing queue and real queue): matches (same window text; checked before the queue lookup on both)
+- C --batch-size 10001: matches (400 ValidationException "1 validation error detected: Value '10001' at 'batchSize' failed to satisfy constraint: Member must have value less than or equal to 10000", no Type)
+- C --maximum-batching-window-in-seconds 301: matches (ValidationException ... at 'maximumBatchingWindowInSeconds' ... less than or equal to 300)
+- C MaximumConcurrency 1: n/a (CLI ParamValidation, exit 252, never sent)
+- C MaximumConcurrency 1001: matches (ValidationException ... at 'scalingConfig.maximumConcurrency' ... less than or equal to 1000)
+- C --scaling-config with --provisioned-poller-config MinimumPollers=1: differs: AWS 400 InvalidParameterValueException "MinimumPollers should be between [2, 200] and MaximumPollers should be between [MinimumPollers, 10000]" (C-scaling-and-provisioned.http); understudy 400 "ScalingConfig and ProvisionedPollerConfig cannot both be set on an event source mapping." (esm_config.go:210-211, errors.go:381-383) and has no poller range check. AWS's text for the mutual-exclusion case alone stays unrecorded
+- C 6 filters: differs: AWS 400 InvalidParameterValueException "Too many filter patterns, maximum allowed 5 patterns, provided 6 patterns." (C-six-filters.http, H13-14-create.http); understudy "FilterCriteria has 6 filters, above the quota of 5 per event source mapping. Combine patterns or remove filters." (errors.go:387-390)
+- C malformed filter: matches ("Invalid filter pattern definition.")
+- C duplicate mapping: matches (409 ResourceConflictException, spaced quotes, function name not ARN)
+- C missing queue: matches ("Error occurred while ReceiveMessage. SQS Error Code: AWS.SimpleQueueService.NonExistentQueue. SQS Error Message: The specified queue does not exist.")
+- C missing function: matches (400 InvalidParameterValueException "Function does not exist")
+- C ReportBatchItemFailures twice: matches (ValidationException "Value '[ReportBatchItemFailures, ReportBatchItemFailures]' at 'functionResponseTypes' ... length less than or equal to 1")
+- D v1 batchItemFailures/itemIdentifier: matches (listed id returned, rest deleted; unknown id "none" in 1-record batches failed the whole batch; 4 not visible at 70 s)
+- D v2 "BatchItemFailures" key: matches (wrong-case outer key ignored = full success, 0 left; esm/response.go:52-55)
+- D v3 "ItemIdentifier" key: matches (whole batch failed, 5 left; esm/response.go:85-88)
+- D v4 unknown itemIdentifier: matches (whole batch failed, 5 left)
+- D v5 batchItemFailures null: matches (success, 0 left)
+- D v6 response "not json" (a JSON string): matches (whole batch failed, 5 left; not an object)
+- D v7 {}: matches (success, 0 left)
+- D v1 without ReportBatchItemFailures: matches (body ignored, all 5 deleted)
+- D batch assembly: differs (no change proposed): AWS split each 5-message SendMessageBatch into 2-4 invocations of 1-3 records, several within 0.1 s, despite BatchSize 5 and window 5; understudy keeps one batch in flight per mapping and fills to BatchSize or window end (esm_runtime.go:28-34, 81-83)
+- E standard record keys and order (messageId, receiptHandle, body, attributes, messageAttributes, md5OfBody, md5OfMessageAttributes, eventSource, eventSourceARN, awsRegion): matches
+- E md5OfMessageAttributes with no attributes: differs: AWS omits the key (E-payloads.out, bodies {"mode":"ok2"} and {"mode":"okfifo"}); understudy emits "md5OfMessageAttributes": null (internal/service/lambda/esm/record.go:22-24)
+- E md5OfMessageAttributes with attributes: matches (hex, equals SendMessage's MD5OfMessageAttributes 4bb22e2214e406c2cfe9e44dca8ab8f4)
+- E messageAttributes shape: matches (String/Number: stringValue + [] lists + dataType; Binary: binaryValue base64 "AAEC", no stringValue)
+- E standard attributes: matches (ApproximateReceiveCount, SentTimestamp, SenderId, ApproximateFirstReceiveTimestamp)
+- E AWSTraceHeader: n/a (absent; the CLI sent no trace header)
+- E DeadLetterQueueSourceArn: n/a (no redrive in this run)
+- E FIFO attributes: matches (adds SequenceNumber, MessageGroupId, MessageDeduplicationId = SHA-256 hex for content-based dedup; 7 keys)
+- F delete-function: matches (204, empty body)
+- F mapping after function delete: matches (still present, State Enabled, same FunctionArn, listed by ListEventSourceMappings)
+- F message sent after function delete: differs: AWS keeps receiving: at 90 s ApproximateNumberOfMessagesNotVisible 1, ApproximateNumberOfMessages 0 (F-queue-attrs-90s.out); understudy resolves the function before receiving and polls nothing while it is missing, so the message stays visible (esm_runtime.go:88-91, 503-506)
+- H13-01 cidr 10.0.0.0/24: differs: AWS accepted, 10.0.0.7 invoked, 10.0.1.7 not; understudy 400 "Invalid filter pattern definition." (internal/ruler/profile.go:240-242)
+- H13-02 wildcard *.png: differs: AWS accepted, neither a.png nor a.jpg invoked within 90 s; understudy 400 (profile.go:240-242)
+- H13-03 anything-but prefix a: differs: AWS accepted, abc not invoked, xyz invoked; understudy 400
+- H13-04 anything-but suffix .png: differs: AWS accepted, a.png not invoked, a.jpg invoked; understudy 400
+- H13-05 equals-ignore-case A: matches (accepted, a invoked, b not)
+- H13-06 prefix equals-ignore-case A: differs: AWS accepted, abc invoked, xbc not; understudy 400
+- H13-07 messageAttributes.k.stringValue ["v"]: matches (accepted; k=v invoked, k=w not)
+- H13-08 attributes.MessageGroupId ["g"]: matches (accepted; nothing sent)
+- H13-09 messageId ["x"]: matches (accepted; {"a":1} not invoked)
+- H13-10 eventSource ["aws:sqs"]: differs: AWS accepted but {"a":1} was not invoked (H13-10-01.out); understudy matches eventSource in the filter view (esm/record.go:75-92) and would invoke
+- H13-11 exactly a: differs: AWS accepted, {"x":"a"} invoked, {"x":"b"} not; understudy 400 (lambda.esm-filter.exactly-operator=rejected)
+- H13-12 {"body":["plain"]}: matches (plain and "plain" (JSON string) invoked; {"a":1}, 123, [1], true not)
+- H13-13 {"body":"plain"}: matches (400 "Invalid filter pattern definition.")
+- H13-14 6 filters: differs (same text difference as C 6 filters)
+- H13-15 4097-character pattern: matches (400 ValidationException "... at 'filterCriteria.filters.1.member.pattern' failed to satisfy constraint: Member must have length less than or equal to 4096", Content-Length 4280 on both)
+- H2-01 exists:true: matches for null (invoked), "" (invoked), [] (not), {} (not), false (invoked); differs for {"store":0}: AWS not invoked (H2-01-05.out, single observation); understudy any-value matches 0
+- H7a-01 bare [300]: matches (300, 300.0, 3.0e2 invoked; "300" not; Ruler numeric equality, not the Lambda doc's text equality)
+- H7a-02 numeric ["=",300]: matches (300, 300.0, 3.0e2 invoked; "300" not)
+- H8-01 numeric [">",5] vs "10": matches (not invoked)
+- H8-02 ["10"] vs 10: differs: AWS invoked (H8-02-01.out); understudy (Ruler) does not match a string rule against a JSON number
+- H8-03 [10] vs "10": matches (not invoked)
+- H9-01 cidr 10.0.0.1/32: differs: AWS 500 InternalFailure {"message":null} on all 3 CLI attempts (H9-01-create.http); understudy 400 "Invalid filter pattern definition." (cidr not allowed; Ruler also rejects /32, ipaddr.go:83-86)
+- H9-02 cidr 2001:db8::1/128: differs: same as H9-01 (H9-02-create.http)
+- H9-03 cidr 0.0.0.0/0: differs: AWS accepted, 10.0.0.1 and 2001:db8::1 both invoked; understudy 400, and its matcher would not put an IPv6 address in an IPv4 prefix (internal/ruler/matcher.go:254-260)
+- H10-01..06 malformed $or ({"$or":{...}}, ["x","y"], single member, numeric/prefix members, {} member, string member): matches (all 400 "Invalid filter pattern definition.")
+

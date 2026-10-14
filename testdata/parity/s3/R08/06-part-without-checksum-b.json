@@ -1,0 +1,32 @@
+{
+  "step": "06-part-without-checksum-b",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/nf3?partNumber=1&uploadId=T3sVeJwMVnkuMPR5_bi08lcDSNI_OKUKFRCPWEHIaOwf8In5js8CMpZwlu546ygXWGkRBiMuSqe62BiPd4LyHvflFa_b0kSmyoGB5bOfL8R9mBibzMai6lONPuH7G21131_1i2jG2KcQQZraWYzcopOTViEMycgW5ABu63XdH_fVhX_2vv8C8bcvSV9C4Zve",
+        "headers": [
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064709Z"],
+          ["Content-Length", "5"]
+        ],
+        "body": "hello"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amz-request-id", "3MTVAG5TAF8N2DV4"],
+          ["x-amz-id-2", "7o03yoQ7o5cy6VxVF2sXFrkVFLpZGvS14z3Mkn0c48x7T7OjfmlTb0uMXkChn0vfnP2ntrk62XKSB3FylHrVz+xydXw1qsTQ"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:47:08 GMT"],
+          ["Connection", "close"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>Checksum Type mismatch occurred, expected checksum Type: xxhash64, actual checksum Type: null</Message><RequestId>3MTVAG5TAF8N2DV4</RequestId><HostId>7o03yoQ7o5cy6VxVF2sXFrkVFLpZGvS14z3Mkn0c48x7T7OjfmlTb0uMXkChn0vfnP2ntrk62XKSB3FylHrVz+xydXw1qsTQ</HostId></Error>"
+      }
+    }
+  ]
+}

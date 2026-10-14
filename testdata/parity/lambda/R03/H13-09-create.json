@@ -1,0 +1,33 @@
+{
+  "step": "H13-09-create",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,AN,AD,Z,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-event-source-mapping"],
+          ["X-Amz-Date", "20261014T071125Z"],
+          ["amz-sdk-invocation-id", "1a812d2f-47bd-44e8-844a-dfe302713831"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "208"]
+        ],
+        "body": "{\"EventSourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-fq\", \"FunctionName\": \"usr-rec-20261014-filter\", \"BatchSize\": 1, \"FilterCriteria\": {\"Filters\": [{\"Pattern\": \"{\\\"messageId\\\":[\\\"x\\\"]}\"}]}}"
+      },
+      "response": {
+        "status": 202,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:11:25 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "1179"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "9da19c06-f42a-48cf-a4dc-fc9d356612e3"]
+        ],
+        "body": "{\"StartingPosition\":null,\"SelfManagedEventSource\":null,\"ParallelizationFactor\":null,\"FilterCriteria\":{\"Filters\":[{\"Pattern\":\"{\\\"messageId\\\":[\\\"x\\\"]}\"}]},\"FilterCriteriaError\":null,\"ProvisionedPollerConfig\":null,\"MetricsConfig\":null,\"LastModified\":1791961885.737,\"LastProcessingResult\":null,\"DestinationConfig\":null,\"AmazonManagedKafkaEventSourceConfig\":null,\"SourceAccessConfigurations\":null,\"UUID\":\"c909546b-fd0b-4140-bcc8-2967fe2735fb\",\"MaximumBatchingWindowInSeconds\":0,\"BatchSize\":1,\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-filter\",\"KMSKeyArn\":null,\"MaximumRetryAttempts\":null,\"ScalingConfig\":null,\"Topics\":null,\"EventSourceArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-fq\",\"SelfManagedKafkaEventSourceConfig\":null,\"DocumentDBEventSourceConfig\":null,\"TumblingWindowInSeconds\":null,\"BisectBatchOnFunctionError\":null,\"EventSourceMappingArn\":\"arn:aws:lambda:us-east-2:123456789012:event-source-mapping:c909546b-fd0b-4140-bcc8-2967fe2735fb\",\"State\":\"Creating\",\"LoggingConfig\":null,\"MaximumRecordAgeInSeconds\":null,\"StartingPositionTimestamp\":null,\"Queues\":null,\"StateTransitionReason\":\"USER_INITIATED\",\"FunctionResponseTypes\":[]}"
+      }
+    }
+  ]
+}

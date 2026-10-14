@@ -1,0 +1,35 @@
+{
+  "step": "03-unknown-operation",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070304Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "AmazonSQS.NoSuchOperation"],
+          ["Content-Length", "2"]
+        ],
+        "body_unrecorded": {"bytes": 2}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "a2be1081-3b1c-544b-9b15-73c810743cf8"],
+          ["x-amzn-query-error", "InvalidAction;Sender"],
+          ["Date", "Wed, 14 Oct 2026 07:03:04 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "63"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#UnknownOperationException\"}"
+      }
+    }
+  ]
+}

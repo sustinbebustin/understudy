@@ -1,0 +1,32 @@
+{
+  "step": "08-create-alg-foo",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/foo?uploads",
+        "headers": [
+          ["x-amz-checksum-algorithm", "FOO"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064710Z"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "9F1TP5J127KTV83F"],
+          ["x-amz-id-2", "igBVxNk6XOlW5a+Ewy19RbvtyOHyy0xsxsH7949krVaJGhemIcuXTOmN29IEPnOdqwofow4k1i0="],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:47:10 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>Checksum algorithm provided is unsupported. Please try again with any of the valid types: [CRC32, CRC32C, CRC64NVME, MD5, SHA1, SHA256, SHA512, XXHASH128, XXHASH3, XXHASH64]</Message><RequestId>9F1TP5J127KTV83F</RequestId><HostId>igBVxNk6XOlW5a+Ewy19RbvtyOHyy0xsxsH7949krVaJGhemIcuXTOmN29IEPnOdqwofow4k1i0=</HostId></Error>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "step": "09-unsigned-response-content-type",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amz-request-id", "4S5SKWF8SASW1RVF"],
+          ["x-amz-id-2", "RjzsRa2rb0fiYVNdIv0FweL1Rs3c0+bjsv7KWgEb9iiNruYp+pqU6YPQ4PWK1Zvo1BsvrJ4uEzQ8j/R+dyylcmlyQ2Lqs2i8"],
+          ["Date", "Wed, 14 Oct 2026 07:04:26 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Server", "AmazonS3"],
+          ["Transfer-Encoding", "chunked"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>Request specific response headers cannot be used for anonymous GET requests.</Message><RequestId>4S5SKWF8SASW1RVF</RequestId><HostId>RjzsRa2rb0fiYVNdIv0FweL1Rs3c0+bjsv7KWgEb9iiNruYp+pqU6YPQ4PWK1Zvo1BsvrJ4uEzQ8j/R+dyylcmlyQ2Lqs2i8</HostId></Error>"
+      }
+    }
+  ]
+}

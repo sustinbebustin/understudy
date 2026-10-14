@@ -1,0 +1,33 @@
+{
+  "step": "05-get-page-4",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.GetLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AN,E,b,AC,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.get-log-events"],
+          ["X-Amz-Date", "20261014T064934Z"],
+          ["amz-sdk-invocation-id", "83e91fe6-51e4-4194-8af5-1f36cc06c801"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "153"]
+        ],
+        "body": "{\"logGroupName\": \"/usr/usr-rec-20261014\", \"logStreamName\": \"s3\", \"nextToken\": \"f/39962050814407831756100822377682690260974268168589541382/s\", \"limit\": 3}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "36a5e111-165a-4353-8001-cf4ca7f0fa32"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "178"],
+          ["Date", "Wed, 14 Oct 2026 06:49:34 GMT"]
+        ],
+        "body": "{\"events\":[],\"nextBackwardToken\":\"b/39962050814407831756100822377682690260974268168589541382/s\",\"nextForwardToken\":\"f/39962050814418982126533740300355024345035926118984548351/s\"}"
+      }
+    }
+  ]
+}

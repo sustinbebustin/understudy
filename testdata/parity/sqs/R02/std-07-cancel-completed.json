@@ -1,0 +1,37 @@
+{
+  "step": "std-07-cancel-completed",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValue) when calling the CancelMessageMoveTask operation: Only active tasks can be cancelled.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.CancelMessageMoveTask"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,AN,AD,Z,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.cancel-message-move-task"],
+          ["X-Amz-Date", "20261014T063839Z"],
+          ["amz-sdk-invocation-id", "c72763d1-d893-47a9-8ae3-6342ae238dc7"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "182"]
+        ],
+        "body": "{\"TaskHandle\": \"eyJ0YXNrSWQiOiJiYTM5MGJhNy1mODRlLTRhZDctOTZmZC0wMjM5NzZmZDlhZjgiLCJzb3VyY2VBcm4iOiJhcm46YXdzOnNxczp1cy1lYXN0LTI6MTIzNDU2Nzg5MDEyOnVzci1yZWMtMjAyNjEwMTQtZGxxLWIifQ==\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "f5a67dc5-ce47-5c16-8669-1e8cebe81205"],
+          ["x-amzn-query-error", "InvalidParameterValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 06:38:39 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "116"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Only active tasks can be cancelled.\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "06-complete-xxhash64-header-no-create-alg",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/nf1?uploadId=vNItq5M1istmLbdihj.9g3mCIUjjOG6ZpMV1EtxzyQa287DDdkAC83iNMstUAfz3o.ym4mf7G76vsVCVG5YhqHYbqDUZoGqLoY2Me522QIFzNaKHvm5RrGqqlMMCw0TBeEsXlPdBpxp5Zyb0ZduvZbiG3YbA897ACbOBDi66oWiz7TEKBW9L.yln_rKw8Pul",
+        "headers": [
+          ["x-amz-checksum-xxhash64", "JseCfYifbaM="],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064707Z"],
+          ["Content-Length", "137"]
+        ],
+        "body": "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"5d41402abc4b2a76b9719d911017c592\"</ETag></Part></CompleteMultipartUpload>"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "SFHX702ZBFX2CYC3"],
+          ["x-amz-id-2", "5QPsXl+HW1i/vODq0yuGjUJzIlPZTxxgI7rcQa8Sx2l/APvzmyf0joycGNXBzUj+S9LYt0J73TpmAKglHsxBGv1k4teWKWAC"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:47:07 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<Error><Code>InvalidRequest</Code><Message>Checksum Type mismatch occurred, expected checksum Type: null, actual checksum Type: xxhash64</Message><RequestId>SFHX702ZBFX2CYC3</RequestId><HostId>5QPsXl+HW1i/vODq0yuGjUJzIlPZTxxgI7rcQa8Sx2l/APvzmyf0joycGNXBzUj+S9LYt0J73TpmAKglHsxBGv1k4teWKWAC</HostId></Error>"
+      }
+    }
+  ]
+}

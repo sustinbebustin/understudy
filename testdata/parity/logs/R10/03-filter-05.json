@@ -1,0 +1,33 @@
+{
+  "step": "03-filter-05",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,AN,AD,Z,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261014T064901Z"],
+          ["amz-sdk-invocation-id", "ac5046d1-8673-4953-8d41-83c2d1ea6ee0"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "130"]
+        ],
+        "body": "{\"logGroupName\": \"/usr/usr-rec-20261014\", \"logStreamNames\": [\"s1\"], \"startTime\": 1791959928000, \"filterPattern\": \"ERROR occurred\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "7f71f4dd-a678-41a8-b566-990c16486b5f"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "655"],
+          ["Date", "Wed, 14 Oct 2026 06:49:01 GMT"]
+        ],
+        "body": "{\"events\":[{\"eventId\":\"39962041894109752343851565725527368610702608960414875654\",\"ingestionTime\":1791960528827,\"logStreamName\":\"s1\",\"message\":\"an ERROR occurred\",\"timestamp\":1791959934000}],\"nextToken\":\"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCpdIw1YBYNjdODBhz-uVmBOerVvjd4FYrcx3lFi9VI42XFb_yHwjD0WXAvg-vlqVa_IThgae4ryqXueDFZGaP2iLUd2FCG_d2SsQg3z91Zi9d7owM879L6MoGijGVhmX8JuMBahrmdzVTyXO8GpkgOodLaW_kvtC_KG01okHvbdO9_ECPGnP4LGSYF7UUFUFT-Mn67QQHuVF1tztAB-yzL_KVIDuHErKbaoESuzL42YtAaggtOqeLRMhe-C4xpdXnCMAGLQ8g2xayeadSRRRLeSVCX_G8bBOitv1GXrpaJy5w\",\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    }
+  ]
+}

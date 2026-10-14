@@ -1,0 +1,37 @@
+{
+  "step": "04-delete-missing-and-duplicate",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/?delete",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,W,g,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.delete-objects"],
+          ["x-amz-checksum-crc64nvme", "ULYPmx3HAQw="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261014T070314Z"],
+          ["X-Amz-Content-SHA256", "b424a2e001f32519d568222b2199e5a267db82ccebf680b42831fbcef77c4556"],
+          ["amz-sdk-invocation-id", "5783911e-50cc-4bcf-86f2-2d4fff3f9a99"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "160"]
+        ],
+        "body": "<Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Object><Key>d2</Key></Object><Object><Key>d2</Key></Object><Object><Key>missing</Key></Object></Delete>"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "ma4gWv1RnkEuBTqrOig6YgGtPjFm3pG8ilxfUwJ3PWWrtWcNTwsB+GFS3XcxN/LYuOdZpNqUhNUvMHUGk8kUnMRTOMOWVGB3"],
+          ["x-amz-request-id", "3E152N2394EG352H"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 07:03:15 GMT"],
+          ["Connection", "close"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Deleted><Key>d2</Key></Deleted><Deleted><Key>missing</Key></Deleted></DeleteResult>"
+      }
+    }
+  ]
+}

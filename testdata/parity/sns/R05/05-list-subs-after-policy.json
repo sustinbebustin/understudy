@@ -1,0 +1,33 @@
+{
+  "step": "05-list-subs-after-policy",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,C,AD,AC,b,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.list-subscriptions-by-topic"],
+          ["X-Amz-Date", "20261014T063401Z"],
+          ["amz-sdk-invocation-id", "f2ec7ecd-1cd1-44da-b0ed-60ee79bc8210"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "123"]
+        ],
+        "body": "Action=ListSubscriptionsByTopic&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-t"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "842a25e4-8b91-5d4d-a5dd-46adaf08be3d"],
+          ["Date", "Wed, 14 Oct 2026 06:34:01 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "741"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<ListSubscriptionsByTopicResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <ListSubscriptionsByTopicResult>\n    <Subscriptions>\n      <member>\n        <Owner>123456789012</Owner>\n        <Protocol>sqs</Protocol>\n        <Endpoint>arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-sub</Endpoint>\n        <SubscriptionArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-t:25858906-cd41-4568-809e-c50cc5ac53cd</SubscriptionArn>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-t</TopicArn>\n      </member>\n    </Subscriptions>\n  </ListSubscriptionsByTopicResult>\n  <ResponseMetadata>\n    <RequestId>842a25e4-8b91-5d4d-a5dd-46adaf08be3d</RequestId>\n  </ResponseMetadata>\n</ListSubscriptionsByTopicResponse>\n"
+      }
+    }
+  ]
+}

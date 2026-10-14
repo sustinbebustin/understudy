@@ -1,0 +1,33 @@
+{
+  "step": "05-create-sha512-full-object",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/mp-sha512-fo?uploads",
+        "headers": [
+          ["x-amz-checksum-algorithm", "SHA512"],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064703Z"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "Z0HJHGZWRK7ZFEM3"],
+          ["x-amz-id-2", "5oJtXKx6aqPWRq6IhiWK0o3NUsOHzLz+cqRA8wOcOTh4rh/JfBN5k6W18vootJ6/SH+pqW42Lo9+juNoGB4UggMraGnBVdO0"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:47:03 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>The FULL_OBJECT checksum type cannot be used with the sha512 checksum algorithm.</Message><RequestId>Z0HJHGZWRK7ZFEM3</RequestId><HostId>5oJtXKx6aqPWRq6IhiWK0o3NUsOHzLz+cqRA8wOcOTh4rh/JfBN5k6W18vootJ6/SH+pqW42Lo9+juNoGB4UggMraGnBVdO0</HostId></Error>"
+      }
+    }
+  ]
+}

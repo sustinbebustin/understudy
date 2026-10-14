@@ -1,0 +1,31 @@
+{
+  "step": "01-get-get-bucket-versioning",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?versioning",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,Z,AN,E,AD,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-bucket-versioning"],
+          ["X-Amz-Date", "20261014T063457Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "b98b2ae2-ea82-4414-9763-023bd568518e"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "HaAQEX2rqUKO28Ck6HW8REMAghjEDnDouE+C9+83b3LIgj6UxrSln8SFmLsbSBddBVg1mQASdZD4p6cPBVPDgqOPIUhPxZ/L"],
+          ["x-amz-request-id", "VJ5MYS3R3C39MZJF"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:34:58 GMT"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<VersioningConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"/>"
+      }
+    }
+  ]
+}

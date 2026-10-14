@@ -1,0 +1,37 @@
+{
+  "step": "x-tag-aws-prefix",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the TagResource operation: Tag Key cannot be prefixed with aws:, Key: aws:x",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.TagResource"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,E,P,b,AC,AN,T,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.tag-resource"],
+          ["X-Amz-Date", "20261014T063603Z"],
+          ["amz-sdk-invocation-id", "6a9299aa-1ad4-4b48-96b7-91efe8e384e8"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "128"]
+        ],
+        "body": "{\"ResourceArn\": \"arn:aws:dynamodb:us-east-2:123456789012:table/usr-rec-20261014-lock\", \"Tags\": [{\"Key\": \"aws:x\", \"Value\": \"v\"}]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:36:03 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "119"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "J60LPFHPDUF0KAT2A8G9VP2P8VVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "3951169706"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"Tag Key cannot be prefixed with aws:, Key: aws:x\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "01-create-src-fifo",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.CreateQueue"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,AC,AD,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.create-queue"],
+          ["X-Amz-Date", "20261014T063257Z"],
+          ["amz-sdk-invocation-id", "ac07fc65-d742-4db9-b17c-26dcff796923"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "242"]
+        ],
+        "body": "{\"QueueName\": \"usr-rec-20261014-src.fifo\", \"Attributes\": {\"RedrivePolicy\": \"{\\\"deadLetterTargetArn\\\":\\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq.fifo\\\",\\\"maxReceiveCount\\\":\\\"2\\\"}\", \"VisibilityTimeout\": \"1\", \"FifoQueue\": \"true\"}}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "d31bf6e2-2414-55de-9449-95ab004d77cb"],
+          ["Date", "Wed, 14 Oct 2026 06:32:57 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "89"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"QueueUrl\":\"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-src.fifo\"}"
+      }
+    }
+  ]
+}

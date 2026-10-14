@@ -1,0 +1,37 @@
+{
+  "step": "03-ttl-long-name",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the UpdateTimeToLive operation: 1 validation error detected: Value 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' at 'timeToLiveSpecification.attributeName' failed to satisfy constraint: Member must have length less than or equal to 255",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.UpdateTimeToLive"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AC,AN,P,E,b,Z,T cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.update-time-to-live"],
+          ["X-Amz-Date", "20261014T063550Z"],
+          ["amz-sdk-invocation-id", "8436a424-c556-4d4f-ba86-9f82cdfeb983"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "361"]
+        ],
+        "body": "{\"TableName\": \"usr-rec-20261014-lock\", \"TimeToLiveSpecification\": {\"Enabled\": true, \"AttributeName\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:35:51 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "487"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "ESHQ363PDA0BO85LC0CSV46ODFVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "3340139390"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"1 validation error detected: Value 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' at 'timeToLiveSpecification.attributeName' failed to satisfy constraint: Member must have length less than or equal to 255\"}"
+      }
+    }
+  ]
+}

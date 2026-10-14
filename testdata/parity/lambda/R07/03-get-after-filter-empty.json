@@ -1,0 +1,30 @@
+{
+  "step": "03-get-after-filter-empty",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings/bf14c1fd-dec8-4221-a5f7-2f45b17201e1",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,AN,Z,AC,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.get-event-source-mapping"],
+          ["X-Amz-Date", "20261014T064527Z"],
+          ["amz-sdk-invocation-id", "cb3d5d2f-81a6-4b59-8c69-e0ee6d0d8dc5"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:45:27 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "1151"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "b36a010c-3aaf-44d6-ad76-693f8ad9b598"]
+        ],
+        "body": "{\"StartingPosition\":null,\"SelfManagedEventSource\":null,\"ParallelizationFactor\":null,\"FilterCriteria\":null,\"FilterCriteriaError\":null,\"ProvisionedPollerConfig\":null,\"MetricsConfig\":null,\"LastModified\":1791960315.361,\"LastProcessingResult\":null,\"DestinationConfig\":null,\"AmazonManagedKafkaEventSourceConfig\":null,\"SourceAccessConfigurations\":null,\"UUID\":\"bf14c1fd-dec8-4221-a5f7-2f45b17201e1\",\"MaximumBatchingWindowInSeconds\":0,\"BatchSize\":10,\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-r07\",\"KMSKeyArn\":null,\"MaximumRetryAttempts\":null,\"ScalingConfig\":{\"MaximumConcurrency\":5},\"Topics\":null,\"EventSourceArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-r07q\",\"SelfManagedKafkaEventSourceConfig\":null,\"DocumentDBEventSourceConfig\":null,\"TumblingWindowInSeconds\":null,\"BisectBatchOnFunctionError\":null,\"EventSourceMappingArn\":\"arn:aws:lambda:us-east-2:123456789012:event-source-mapping:bf14c1fd-dec8-4221-a5f7-2f45b17201e1\",\"State\":\"Enabled\",\"LoggingConfig\":null,\"MaximumRecordAgeInSeconds\":null,\"StartingPositionTimestamp\":null,\"Queues\":null,\"StateTransitionReason\":\"USER_INITIATED\",\"FunctionResponseTypes\":[]}"
+      }
+    }
+  ]
+}

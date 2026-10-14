@@ -1,0 +1,33 @@
+{
+  "step": "06-assume-ok",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sts.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AC,AN,E,Z,b cfg/retry-mode#standard md/installer#source sid/000000000005 md/distrib#ubuntu.24 md/prompt#off md/command#sts.assume-role"],
+          ["X-Amz-Date", "20261014T142112Z"],
+          ["amz-sdk-invocation-id", "0f69d35c-93b9-48d1-8adb-2e06c1707c35"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "130"]
+        ],
+        "body": "Action=AssumeRole&Version=2011-06-15&RoleArn=arn%3Aaws%3Aiam%3A%3A123456789012%3Arole%2Fusr-rec-20261014-trust&RoleSessionName=rec"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "eb14de1e-89b2-447d-8836-9ac7a692f6e9"],
+          ["X-Amz-Sts-Extended-Request-Id", "MTp1cy1lYXN0LTI6UzoxNzkxOTg3NjcyMTkyOlI6RXVhUHV4Q3E="],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "1730"],
+          ["Date", "Wed, 14 Oct 2026 14:21:12 GMT"]
+        ],
+        "body": "<AssumeRoleResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">\n  <AssumeRoleResult>\n    <AssumedRoleUser>\n      <AssumedRoleId>AROARZPUZDIKAAAAAAAHA:rec</AssumedRoleId>\n      <Arn>arn:aws:sts::123456789012:assumed-role/usr-rec-20261014-trust/rec</Arn>\n    </AssumedRoleUser>\n    <Credentials>\n      <AccessKeyId>ASIAREDACTED</AccessKeyId>\n      <SecretAccessKey>REDACTED</SecretAccessKey>\n      <SessionToken>REDACTED</SessionToken>\n      <Expiration>2026-10-14T15:21:12Z</Expiration>\n    </Credentials>\n    <PackedPolicySize>21</PackedPolicySize>\n    <SessionTokenSize>888</SessionTokenSize>\n    <SessionTokenUtilization>21</SessionTokenUtilization>\n  </AssumeRoleResult>\n  <ResponseMetadata>\n    <RequestId>eb14de1e-89b2-447d-8836-9ac7a692f6e9</RequestId>\n  </ResponseMetadata>\n</AssumeRoleResponse>\n"
+      }
+    }
+  ]
+}

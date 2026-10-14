@@ -1,0 +1,36 @@
+{
+  "step": "01-create-table",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.CreateTable"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,T,E,AC,AD,P,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.create-table"],
+          ["X-Amz-Date", "20261014T063321Z"],
+          ["amz-sdk-invocation-id", "ba95cb8e-6730-4f69-ba4c-6c66b4914a1a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "212"]
+        ],
+        "body": "{\"AttributeDefinitions\": [{\"AttributeName\": \"LockID\", \"AttributeType\": \"S\"}], \"TableName\": \"usr-rec-20261014-lock\", \"KeySchema\": [{\"AttributeName\": \"LockID\", \"KeyType\": \"HASH\"}], \"BillingMode\": \"PAY_PER_REQUEST\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:33:21 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "670"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "3LO502I8MNVKMME6MCIE2GCH07VV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2505060909"]
+        ],
+        "body": "{\"TableDescription\":{\"AttributeDefinitions\":[{\"AttributeName\":\"LockID\",\"AttributeType\":\"S\"}],\"BillingModeSummary\":{\"BillingMode\":\"PAY_PER_REQUEST\"},\"CreationDateTime\":1.791959601263E9,\"DeletionProtectionEnabled\":false,\"ItemCount\":0,\"KeySchema\":[{\"AttributeName\":\"LockID\",\"KeyType\":\"HASH\"}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":0,\"WriteCapacityUnits\":0},\"TableArn\":\"arn:aws:dynamodb:us-east-2:123456789012:table/usr-rec-20261014-lock\",\"TableId\":\"f82bbec5-0500-4711-8e77-7dde78929f9d\",\"TableName\":\"usr-rec-20261014-lock\",\"TableSizeBytes\":0,\"TableStatus\":\"CREATING\",\"TableThroughputModeSummary\":{\"TableThroughputMode\":\"PAY_PER_REQUEST\"}}}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "step": "07-redrive-missing-dlq",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValue) when calling the SetQueueAttributes operation: Value {\"deadLetterTargetArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-missing\",\"maxReceiveCount\":\"2\"} for parameter RedrivePolicy is invalid. Reason: Dead letter target does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.SetQueueAttributes"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,Z,AC,AD,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.set-queue-attributes"],
+          ["X-Amz-Date", "20261014T063609Z"],
+          ["amz-sdk-invocation-id", "a735d6f6-2aa9-419f-8293-270aedcfee2b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "239"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-plain\", \"Attributes\": {\"RedrivePolicy\": \"{\\\"deadLetterTargetArn\\\":\\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-missing\\\",\\\"maxReceiveCount\\\":\\\"2\\\"}\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "833b4b40-291d-50dc-b063-28090c04c235"],
+          ["x-amzn-query-error", "InvalidParameterValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 06:36:09 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "285"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Value {\\\"deadLetterTargetArn\\\":\\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-missing\\\",\\\"maxReceiveCount\\\":\\\"2\\\"} for parameter RedrivePolicy is invalid. Reason: Dead letter target does not exist.\"}"
+      }
+    }
+  ]
+}

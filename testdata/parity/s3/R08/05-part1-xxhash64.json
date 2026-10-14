@@ -1,0 +1,35 @@
+{
+  "step": "05-part1-xxhash64",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/mp-xxhash64?partNumber=1&uploadId=lt.MvfMh.RY_I8u0KMpwJ5C3rM3IaOBUl2F3DWZTdlk8lm7tXwn53h08yIcQ1z13OmDfhFhYd6gKBl.OLYdAxDWPgEGHmXZYFDP4Xwk0p7MgB53ZdbfimVidbdFiKMotq62zBQ8L3_fn_S0Yxr4FxoyIQIO4zKjxs9EF8DsP8tA3JKLSbs1PreUYONSTFZeY",
+        "headers": [
+          ["x-amz-checksum-xxhash64", "nt7qU/z8nB4="],
+          ["x-amz-sdk-checksum-algorithm", "XXHASH64"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064656Z"],
+          ["Content-Length", "5242880"]
+        ],
+        "body_unrecorded": {"bytes": 5242880}
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "Wsv2fcJiSEWmujCNiJ3Yr8JnVHq2lZeFYTzSxTRNVdqM5EwLk5X6fuYiHNbVLn3jKpmFN9C7KJLSA2eaKm+nAMa9J6BCVK3P"],
+          ["x-amz-request-id", "KYSDXR5GPQW4A46P"],
+          ["Date", "Wed, 14 Oct 2026 06:46:58 GMT"],
+          ["ETag", "\"4c28640dc8df1933aaea192100d50ae0\""],
+          ["x-amz-checksum-xxhash64", "nt7qU/z8nB4="],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Content-Length", "0"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

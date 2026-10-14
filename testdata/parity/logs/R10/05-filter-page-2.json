@@ -1,0 +1,33 @@
+{
+  "step": "05-filter-page-2",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AC,E,AD,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261014T064931Z"],
+          ["amz-sdk-invocation-id", "bd4077d7-126c-4df4-bd4c-eb50bfc267af"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "438"]
+        ],
+        "body": "{\"logGroupName\": \"/usr/usr-rec-20261014\", \"logStreamNames\": [\"s3\"], \"nextToken\": \"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCrGtWwpFAlgBY2ISDiF4x6ouvQAMyBSv9nqvNWxkwcBtrgIUhKFhad84okarctZcqw6lp3DYHDCcJnmKfInIc83J0ZUQo7bQK4lb5rOTfa9YXnF6QiasDXnalvMG7bRrvmlCtHM7vUxwhfnhcCW2VBBu4x64oOczFXOrC2lu6xyyzsLy8ykXFZKvretwupwOdhptJrNYkCDZzVxQ4ozCOyhDR8MobUXGXnajsRlo7bUfx7GaHHzkKzO6cjLcqvfni6XpxGAj0xL6vekghgJ6tEtJ2IX9gwGzXWdLZLyXr4WHw\", \"limit\": 3}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "3af505ab-05ed-417e-bdca-934ea68c990d"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "966"],
+          ["Date", "Wed, 14 Oct 2026 06:49:31 GMT"]
+        ],
+        "body": "{\"events\":[{\"eventId\":\"39962050747505596160508952953075535443029183650648293379\",\"ingestionTime\":1791960560151,\"logStreamName\":\"s3\",\"message\":\"p4\",\"timestamp\":1791960331000},{\"eventId\":\"39962050769806341359039576094611253715677545156628709380\",\"ingestionTime\":1791960560151,\"logStreamName\":\"s3\",\"message\":\"p5\",\"timestamp\":1791960332000},{\"eventId\":\"39962050792107086557570199236146971988325906662609125381\",\"ingestionTime\":1791960560151,\"logStreamName\":\"s3\",\"message\":\"p6\",\"timestamp\":1791960333000}],\"nextToken\":\"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCp8P3mXdXHNOgm4hAi_2A9BLlC10tAMNkvdWG3Nsy1e0OON_zOFuRXpzybslnJgqVwx2nfqVUBfq5wQ9dn71DlF9qhMkexvgy4JhPSD-FylHyHe7w1bwyXFhuFisI5ZdNngIPTj--BTGZrMefG4rOB6caJNoAV6wY7uSihdd7EbJioD-ZGUIuW4BoKe_JcWHacJZhQjp_PiH8W-CvaWf_a2khn7iVlutcpiq-k6hcUEGC_-wk3t8Y6tDETbO2zW8vqEb-WSXbtXIfMv6bOaY6X1scZrpvY2mktiTjiYTuxYWw\",\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    }
+  ]
+}

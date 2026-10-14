@@ -1,0 +1,7 @@
+{
+  "step": "C-max-concurrency-1",
+  "client": "aws-cli",
+  "exit": 252,
+  "error": "aws: [ERROR]: An error occurred (ParamValidation): Parameter validation failed:\nInvalid value for parameter ScalingConfig.MaximumConcurrency, value: 1, valid min value: 2",
+  "exchanges": []
+}

@@ -1,0 +1,31 @@
+{
+  "step": "01-get-list-bucket-intelligent-tiering-configurations",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?intelligent-tiering",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AD,E,AN,AC,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.list-bucket-intelligent-tiering-configurations"],
+          ["X-Amz-Date", "20261014T063503Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "822c156d-7b2c-4d06-9132-9b52e805be04"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "IHYIRtpKgxvSNijxd0Yib+cBMP44IrGo0JRcKtgFNsAEmzDJdt68E0MWhGaiX+vbMq6bpBenYqyybLAw9EqVUKHKsLKTjzCd"],
+          ["x-amz-request-id", "KVK9691NARG1XDP7"],
+          ["Date", "Wed, 14 Oct 2026 06:35:04 GMT"],
+          ["Content-Length", "169"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<ListIntelligentTieringConfigurationsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><IsTruncated>false</IsTruncated></ListIntelligentTieringConfigurationsResult>"
+      }
+    }
+  ]
+}

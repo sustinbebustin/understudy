@@ -1,0 +1,32 @@
+{
+  "step": "03-sqs-json-skew-16min",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/",
+        "headers": [
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "AmazonSQS.ListQueues"],
+          ["X-Amz-Date", "20261014T065054Z"],
+          ["Content-Length", "2"]
+        ],
+        "body": "{}"
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["x-amzn-RequestId", "83a064a8-c964-57ae-9f43-07e1e52a2540"],
+          ["x-amzn-query-error", "SignatureDoesNotMatch;Sender"],
+          ["Connection", "close"],
+          ["Date", "Wed, 14 Oct 2026 07:06:54 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "177"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidSignatureException\",\"message\":\"Signature expired: 20261014T065054Z is now earlier than 20261014T065154Z (20261014T070654Z - 15 min.)\"}"
+      }
+    }
+  ]
+}

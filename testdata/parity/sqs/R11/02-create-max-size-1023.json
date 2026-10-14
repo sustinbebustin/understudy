@@ -1,0 +1,35 @@
+{
+  "step": "02-create-max-size-1023",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070303Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "AmazonSQS.CreateQueue"],
+          ["Content-Length", "80"]
+        ],
+        "body_unrecorded": {"bytes": 80}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "ecdcc013-abeb-54f5-b082-a35a808c9e07"],
+          ["x-amzn-query-error", "InvalidAttributeValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 07:03:03 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "116"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.sqs#InvalidAttributeValue\",\"message\":\"Invalid value for the parameter MaximumMessageSize.\"}"
+      }
+    }
+  ]
+}

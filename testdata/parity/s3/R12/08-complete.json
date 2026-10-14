@@ -1,0 +1,35 @@
+{
+  "step": "08-complete",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/lm?uploadId=zMzrd3KI5A1vSdT.q3rvJtlg6wvKSSI_PUlBmDPk6NAthyv3uTfe3nvxDFTovOjfDHr00UQbflzZ1WxmzCocaMMpusB0MOif05Q4APWs7E56egDAwG96RECBzzAhdXsM3WowcrTT_dR1.SwB9RDLf4I4cFAH6Nl.BywPQiCsv0m7u0yTkkfoOPY_LIR2RDc5",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,g,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.complete-multipart-upload"],
+          ["X-Amz-Date", "20261014T070424Z"],
+          ["X-Amz-Content-SHA256", "d17cc7c71ae6439ea62bf0174c885ca204b2edf9e39bbe9b31e1a9af0775d8a5"],
+          ["amz-sdk-invocation-id", "4ab8b2e3-9396-4e7d-9ab4-1c3e3aa6ba17"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "185"]
+        ],
+        "body": "<CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><PartNumber>1</PartNumber><ETag>\"7aea2552dfe7eb84b9443b6fc9ba6e01\"</ETag></Part></CompleteMultipartUpload>"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "6MVuCNq5x+ybHcV7M6DdTJCEw4G9pxzYOKU9sm650oVMUGwHwrsoh2/OXc46bVOZnAYlAIj/S41xlY8ZaKHFesAHXfgVZpJp"],
+          ["x-amz-request-id", "QJM4JFVFPEAN0TNJ"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 07:04:25 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/lm</Location><Bucket>usr-rec-20261014-edge</Bucket><Key>lm</Key><ETag>\"3852e84091b5460a137b271a5e8a9b57-1\"</ETag><ChecksumCRC64NVME>sAra2CkCEgw=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CompleteMultipartUploadResult>"
+      }
+    }
+  ]
+}

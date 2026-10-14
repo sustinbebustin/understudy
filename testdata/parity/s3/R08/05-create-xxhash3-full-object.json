@@ -1,0 +1,33 @@
+{
+  "step": "05-create-xxhash3-full-object",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/mp-xxhash3-fo?uploads",
+        "headers": [
+          ["x-amz-checksum-algorithm", "XXHASH3"],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064658Z"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "D1AGNGWFRTMV2K8M"],
+          ["x-amz-id-2", "7/izPL3IYPjPOPx9Pz3B1Zf9kqS4muURs94Ix8c2XSy3xKCnnOJFhy2piQaIEbyZI9NNqHeiMUgsQk1oJ62l40NNCPPolh0L"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:46:58 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>The FULL_OBJECT checksum type cannot be used with the xxhash3 checksum algorithm.</Message><RequestId>D1AGNGWFRTMV2K8M</RequestId><HostId>7/izPL3IYPjPOPx9Pz3B1Zf9kqS4muURs94Ix8c2XSy3xKCnnOJFhy2piQaIEbyZI9NNqHeiMUgsQk1oJ62l40NNCPPolh0L</HostId></Error>"
+      }
+    }
+  ]
+}

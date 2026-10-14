@@ -1,0 +1,35 @@
+{
+  "step": "01-23-put",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the PutRule operation: Parameter ScheduleExpression is not valid.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutRule"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,Z,AN,E,b,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-rule"],
+          ["X-Amz-Date", "20261014T070413Z"],
+          ["amz-sdk-invocation-id", "17ded5f7-31b3-4cb0-9d52-2ca3d9871369"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "96"]
+        ],
+        "body": "{\"Name\": \"usr-rec-20261014-r\", \"ScheduleExpression\": \"cron(0 12 * 13 ? *)\", \"State\": \"DISABLED\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "4433d5d7-e14f-4d53-921b-55e38d804853"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "87"],
+          ["Date", "Wed, 14 Oct 2026 07:04:13 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"Parameter ScheduleExpression is not valid.\"}"
+      }
+    }
+  ]
+}

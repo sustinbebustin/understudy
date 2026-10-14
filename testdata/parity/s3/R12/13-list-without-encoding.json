@@ -1,0 +1,33 @@
+{
+  "step": "13-list-without-encoding",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/?list-type=2",
+        "headers": [
+          ["Host", "usr-rec-20261014-edge.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T140120Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "9aqfNk4qvDglzdPA0JUOA1yJW8G168LMYtvMKwSXt96ASAgJA2IFAs7FE3X1vZk8OpBUmKslf0eld/cerPvyoKKkaPszYCQv"],
+          ["x-amz-request-id", "4R563BF8S47MV504"],
+          ["Date", "Wed, 14 Oct 2026 14:01:21 GMT"],
+          ["x-amz-bucket-region", "us-east-2"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>usr-rec-20261014-edge</Name><Prefix></Prefix><KeyCount>2</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>ctl&#x1;key</Key><LastModified>2026-10-14T14:01:20.000Z</LastModified><ETag>&quot;d41d8cd98f00b204e9800998ecf8427e&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>0</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>nonchar￾key</Key><LastModified>2026-10-14T14:01:20.000Z</LastModified><ETag>&quot;d41d8cd98f00b204e9800998ecf8427e&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>0</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>"
+      }
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 What only the owner can do before the first public tag, as of 2026-10-14 (local `main` with DynamoDB Local on by default). Each item needs credentials, a machine the agents do not have, or an externally visible act that agents never perform. Engineering follow-ups, including the ones DEFERRED.md marks "needs a decision", are not here: an agent can take those from [DEFERRED.md](DEFERRED.md).
 
-Suggested order: items 1 and 2 can run in any order. Decide 3 before 4, and do 4 before 5 and 6.
+Suggested order: item 1 first; item 2 is optional and can wait. Decide 3 before 4, and do 4 before 5 and 6.
 
 ## 1. The macOS run (ARCHITECTURE.md 25.1)
 
@@ -11,12 +11,15 @@ Suggested order: items 1 and 2 can run in any order. Decide 3 before 4, and do 4
 - **Next step.** Follow [docs/human/macos-run.md](../human/macos-run.md), which takes about an hour, and send back `~/understudy-macos-run.tgz` with your decision. Pre-tag wave 3 added one check that the page does not cover yet: DEFERRED.md's "Docker Desktop listening beyond loopback". Listen beyond loopback with `UNDERSTUDY_ADMIN_TOKEN` and `--allow-unauthenticated-aws-api`, and confirm that function code gets `401` from the admin API. Ask an agent to add that as a step to the page before you run it.
 - **Unblocks.** Closing 25.1. It also lets an agent replace "untested" in README.md, SECURITY.md and ADR 0011 with what you observed, and update `docs/guide/lambda.md`. Finally, it answers the open "Mounts denied" question (DEFERRED.md, wave 4) and whether `*.localhost` resolves on macOS (record backlog 2.5).
 
-## 2. Recordings against real AWS (ARCHITECTURE.md 25.3)
+## 2. The recordings the free-plan account could not make (optional)
 
-- **What.** Capture R01 to R07, the core workload and Terraform plan stability, against a throwaway AWS account. Tiers 2 and 3 can follow later.
-- **Why the owner.** It needs real AWS credentials, and agents never call real AWS. Until it is done, the coverage page has no `aws-recorded` evidence (115 `inferred` overlay entries and 52 inferred fidelity switches at the release review), and the README's fidelity wording stays hedged.
-- **Next step.** Follow [docs/human/recording-kit.md](../human/recording-kit.md): set up the `understudy-rec` free-plan project and a USD 20 budget (section 1), then run Tier 1. Tier 1 is about four hours and can span sessions with the same `$P`. Section 6 says how the captures land. Before the Tier 3 session for R13, ask an agent to add DEFERRED.md's "Function URL refusal status" captures to that row. Those are a wrong-secret, an unknown-key and a malformed-header request to an `AWS_IAM` function URL, and the kit does not list them yet.
-- **Unblocks.** Closing 25.3, which the first tag waits on (ARCHITECTURE.md 19). An agent then settles each item ("settle R0x from `testdata/parity/*/R0x`") and firms up the README's Status and Limitations wording.
+- **What.** R01 to R18 and the KMS duplicate-alias item were recorded on 2026-10-14 in the `understudy-rec` project (us-east-2) and filed under `testdata/parity/` (25.3 is closed). Still unrecorded:
+  - R06's us-east-1 and us-west-2 buckets and step 5 (`LocationConstraint=EU`, `x-amz-bucket-region`), and R15's key in another Region: free-plan projects open only their own Region.
+  - The kit's optional steps: R04 step 8 (48 h TTL sweep), R03's CloudTrail check, R05 step 6 (cross-account), and R14 step 4's EventBridge Scheduler payload.
+  - The kit's "Open items with no script yet" (section 3) and DEFERRED.md's "Function URL refusal status" captures (`AWS_IAM` function URL with a wrong secret, an unknown key and a malformed header).
+- **Why the owner.** They need a paid account with more than one Region, or a script an agent has not written yet.
+- **Next step.** None is needed for the first tag. To record the Region-bound ones, repeat the R06 and R15 steps from the [recording kit](../human/recording-kit.md) in an account that allows us-east-1 and us-west-2.
+- **Unblocks.** The remaining `s3.md` 4.1 region rows and the cross-region KMS text.
 
 ## 3. Decide on squashing the published history
 
@@ -46,5 +49,5 @@ Suggested order: items 1 and 2 can run in any order. Decide 3 before 4, and do 4
 
 - **What.** Tag `v0.1.0` (or whatever version you choose) and publish its artifacts. [ROADMAP](../ROADMAP.md) item 4 lists them: linux and darwin binaries, the multi-arch image on GHCR, and a Homebrew tap.
 - **Why the owner.** Publishing is externally visible, and agents never publish. Today `release.yml` is a dry run: on a `v*` tag it builds a snapshot and publishes nothing.
-- **Next step.** Once items 1 and 2 have closed 25.1 and 25.3, ask an agent to switch `release.yml` and `.goreleaser.yaml` from snapshot to publish. Create the Homebrew tap repository and the token it needs. Then push the tag.
+- **Next step.** Once item 1 has closed 25.1 (25.3 is closed), ask an agent to switch `release.yml` and `.goreleaser.yaml` from snapshot to publish. Create the Homebrew tap repository and the token it needs. Then push the tag.
 - **Unblocks.** Users installing without building from source, and the README's image size and multi-arch claims, which nothing has measured yet (phase 1 report finding 4).

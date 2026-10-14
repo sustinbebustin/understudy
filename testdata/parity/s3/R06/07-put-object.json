@@ -1,0 +1,42 @@
+{
+  "step": "07-put-object",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/o",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,W,AC,AD,AN,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-crc64nvme"],
+          ["X-Amz-Decoded-Content-Length", "6"],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261014T063522Z"],
+          ["X-Amz-Content-SHA256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "150fbbaa-02fa-4796-8cdc-2c163b8203c3"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "tqUWpxUVIStLtYfCf2VOKiWyi9SB1ZrcVLqU89MMXmtb4fHRsa1j/AgH4lG6nrRT/YbjCedVGfMp1IeF5kpKtKuFvKH5PTej"],
+          ["x-amz-request-id", "JC8PYYSJXZ2KSJH5"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:35:23 GMT"],
+          ["x-amz-server-side-encryption", "aws:kms"],
+          ["x-amz-server-side-encryption-aws-kms-key-id", "arn:aws:kms:us-east-2:123456789012:key/486dd3b9-54ea-4a01-9638-05d932fb0678"],
+          ["ETag", "\"1d8ad2027419229bec1a6f9685cd8de3\""],
+          ["x-amz-checksum-crc64nvme", "akP7S61aVgc="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

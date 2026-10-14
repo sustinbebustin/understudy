@@ -1,0 +1,36 @@
+{
+  "step": "01-config-overlapping-prefixes",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutBucketNotificationConfiguration operation: Configuration is ambiguously defined. Cannot have overlapping suffixes in two rules if the prefixes are overlapping for the same event type.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-ev.s3.us-east-2.amazonaws.com/?notification",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,AC,b,Z,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-notification-configuration"],
+          ["X-Amz-Date", "20261014T070629Z"],
+          ["X-Amz-Content-SHA256", "2b5c5cfa2d9495a389c2ee071cc43317f2275dcfa04dc5e47e466719d2abc71a"],
+          ["amz-sdk-invocation-id", "0c0ddc55-0e9b-4d74-aa33-f11f91f9f807"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "594"]
+        ],
+        "body": "<NotificationConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><QueueConfiguration><Id>a</Id><Queue>arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-ev</Queue><Event>s3:ObjectCreated:*</Event><Filter><S3Key><FilterRule><Name>prefix</Name><Value>x</Value></FilterRule></S3Key></Filter></QueueConfiguration><QueueConfiguration><Id>b</Id><Queue>arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-ev</Queue><Event>s3:ObjectCreated:*</Event><Filter><S3Key><FilterRule><Name>prefix</Name><Value>xy</Value></FilterRule></S3Key></Filter></QueueConfiguration></NotificationConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "NW3Q1F1Z4GDT91WQ"],
+          ["x-amz-id-2", "QhG2oneWOKjZZyJ6KviXx5vpdIYoTaxwea0mYloxFvoKwcTPhVjvqY9ofY/Ey8ogvqpQK2kjunbhuH5iqZkFjbuqMGS86B3I"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:06:29 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Configuration is ambiguously defined. Cannot have overlapping suffixes in two rules if the prefixes are overlapping for the same event type.</Message><ArgumentName>FilterRule</ArgumentName><RequestId>NW3Q1F1Z4GDT91WQ</RequestId><HostId>QhG2oneWOKjZZyJ6KviXx5vpdIYoTaxwea0mYloxFvoKwcTPhVjvqY9ofY/Ey8ogvqpQK2kjunbhuH5iqZkFjbuqMGS86B3I</HostId></Error>"
+      }
+    }
+  ]
+}

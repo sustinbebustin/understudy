@@ -1,0 +1,34 @@
+{
+  "step": "05-create-sha512-composite",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/mp-sha512?uploads",
+        "headers": [
+          ["x-amz-checksum-algorithm", "SHA512"],
+          ["x-amz-checksum-type", "COMPOSITE"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064703Z"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "Q8FR/1prbRtr1dXnQum8ENAv4XqZcAKe6Sk0FdlSwjp7/nkEu8GPJ7sg7sycLLWUt8l/d4XiDzAWyRf3kCDPlsC2F73viELC"],
+          ["x-amz-request-id", "Z0HPA1TXKXAN7412"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:47:04 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["x-amz-checksum-algorithm", "SHA512"],
+          ["x-amz-checksum-type", "COMPOSITE"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<InitiateMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>usr-rec-20261014-cks</Bucket><Key>mp-sha512</Key><UploadId>Dl2CgNqAeaSICLtJoK3z9VHY9sW5EL2RXeTfYniMH28aKyorbhcag7HPwXZ4ORU4HLnz2YOGhiQauqQAveYr3weP7UFqO3aIb2Blbysv90Rt62MAA2KZ_IRIwFT5cUVPuWixSH4NKy_ojnqgnc2CEziVyGCzRiPEbX66.sdF2dkLeJRdL2oTuRFlQYfLzujf</UploadId></InitiateMultipartUploadResult>"
+      }
+    }
+  ]
+}

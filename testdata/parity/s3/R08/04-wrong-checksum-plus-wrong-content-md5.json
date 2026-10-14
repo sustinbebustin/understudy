@@ -1,0 +1,34 @@
+{
+  "step": "04-wrong-checksum-plus-wrong-content-md5",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/e5",
+        "headers": [
+          ["x-amz-checksum-xxhash64", "MCcs6qbmYlo="],
+          ["Content-MD5", "eV8yArF8trw9S3cdjGyerw=="],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064655Z"],
+          ["Content-Length", "5"]
+        ],
+        "body": "hello"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "J5BWXN7SW0HRDDV6"],
+          ["x-amz-id-2", "X5eQBp3PzWliYMcRw2sxvGAlkaVeK/N01hwbNqLdVRsJXgmTqd9JisXtCsz19vq+QdSToxe40rAVPyJeh5fR/cZVfOhm6QTa"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:46:55 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>BadDigest</Code><Message>The Content-MD5 you specified did not match what we received.</Message><CalculatedDigest>XUFAKrxLKna5cZ2REBfFkg==</CalculatedDigest><ExpectedDigest>795f3202b17cb6bc3d4b771d8c6c9eaf</ExpectedDigest><RequestId>J5BWXN7SW0HRDDV6</RequestId><HostId>X5eQBp3PzWliYMcRw2sxvGAlkaVeK/N01hwbNqLdVRsJXgmTqd9JisXtCsz19vq+QdSToxe40rAVPyJeh5fR/cZVfOhm6QTa</HostId></Error>"
+      }
+    }
+  ]
+}

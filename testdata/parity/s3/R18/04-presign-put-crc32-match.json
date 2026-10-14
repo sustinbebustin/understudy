@@ -1,0 +1,30 @@
+{
+  "step": "04-presign-put-crc32-match",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/r18-put-sdk?x-amz-checksum-crc32=NhCmhg%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ASIAREDACTED%2F20261014%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20261014T070655Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Security-Token=REDACTED&X-Amz-Signature=REDACTED",
+        "headers": [],
+        "body": "hello"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "omCz/tPVzdfLlJCwgvOnn2aeTWeV0/sjs9cTCKdpTok5kVK8LeJu/uN4GKrPTkkbjoIfUS3N9a7vY/6SJM+cet2XRD7wncmF"],
+          ["x-amz-request-id", "A3P1DC13ANW2NTWX"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 07:06:56 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["ETag", "\"5d41402abc4b2a76b9719d911017c592\""],
+          ["x-amz-checksum-crc64nvme", "M3eFcAZSQlc="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

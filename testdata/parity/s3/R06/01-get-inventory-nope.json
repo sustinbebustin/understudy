@@ -1,0 +1,33 @@
+{
+  "step": "01-get-inventory-nope",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NoSuchConfiguration) when calling the GetBucketInventoryConfiguration operation: The specified configuration does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?inventory&id=nope",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,E,Z,AN,AD,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-bucket-inventory-configuration"],
+          ["X-Amz-Date", "20261014T063504Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "e28b2533-732e-4645-bb9d-2fecb4982191"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["x-amz-id-2", "keKE5VP65Y7wlTVItGcy+Y/fHHHp8erKFxF6fTUsHhxSb69eD6XJ0RkdPcTPECeQJFuVg6NMq3YGcN0qYXAoqYvdbyvRKsu0"],
+          ["x-amz-request-id", "8QKCCFHYTRAGFHM9"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:35:05 GMT"],
+          ["Content-Length", "261"],
+          ["Content-Type", "application/xml"]
+        ],
+        "body": "<Error><Code>NoSuchConfiguration</Code><Message>The specified configuration does not exist.</Message><RequestId>8QKCCFHYTRAGFHM9</RequestId><HostId>keKE5VP65Y7wlTVItGcy+Y/fHHHp8erKFxF6fTUsHhxSb69eD6XJ0RkdPcTPECeQJFuVg6NMq3YGcN0qYXAoqYvdbyvRKsu0</HostId></Error>"
+      }
+    }
+  ]
+}

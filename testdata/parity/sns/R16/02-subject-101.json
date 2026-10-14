@@ -1,0 +1,33 @@
+{
+  "step": "02-subject-101",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,AN,AD,b,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.publish-batch"],
+          ["X-Amz-Date", "20261014T070632Z"],
+          ["amz-sdk-invocation-id", "49e54f24-fc08-421c-bea6-de03f8fc9627"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "436"]
+        ],
+        "body": "Action=PublishBatch&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-r16&PublishBatchRequestEntries.member.1.Id=ok&PublishBatchRequestEntries.member.1.Message=x&PublishBatchRequestEntries.member.2.Id=bad&PublishBatchRequestEntries.member.2.Message=x&PublishBatchRequestEntries.member.2.Subject=sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "6f3372ba-562f-533a-b5f0-11f37a17e84a"],
+          ["Date", "Wed, 14 Oct 2026 07:06:32 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "615"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<PublishBatchResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <PublishBatchResult>\n    <Failed>\n      <member>\n        <Code>InvalidParameter</Code>\n        <SenderFault>true</SenderFault>\n        <Id>bad</Id>\n        <Message>Invalid parameter: Subject</Message>\n      </member>\n    </Failed>\n    <Successful>\n      <member>\n        <MessageId>c031272b-956b-5f55-9a57-4462b9531425</MessageId>\n        <Id>ok</Id>\n      </member>\n    </Successful>\n  </PublishBatchResult>\n  <ResponseMetadata>\n    <RequestId>6f3372ba-562f-533a-b5f0-11f37a17e84a</RequestId>\n  </ResponseMetadata>\n</PublishBatchResponse>\n"
+      }
+    }
+  ]
+}

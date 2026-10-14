@@ -1,0 +1,37 @@
+{
+  "step": "07-start-never-dlq",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValue) when calling the StartMessageMoveTask operation: Source queue must be configured as a Dead Letter Queue.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.StartMessageMoveTask"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,E,Z,AN,AD,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.start-message-move-task"],
+          ["X-Amz-Date", "20261014T063601Z"],
+          ["amz-sdk-invocation-id", "b5a24b35-a7ae-4cd5-8b4e-5f2984e19f27"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "74"]
+        ],
+        "body": "{\"SourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-plain\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "6c8f3580-1b88-5a81-866e-56c93e9a5c6e"],
+          ["x-amzn-query-error", "InvalidParameterValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 06:36:02 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "136"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Source queue must be configured as a Dead Letter Queue.\"}"
+      }
+    }
+  ]
+}

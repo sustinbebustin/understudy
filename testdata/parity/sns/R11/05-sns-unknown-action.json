@@ -1,0 +1,33 @@
+{
+  "step": "05-sns-unknown-action",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "sns.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070309Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "38"]
+        ],
+        "body_unrecorded": {"bytes": 38}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "1fc17156-7005-5b40-8406-121f5b6841c9"],
+          ["Date", "Wed, 14 Oct 2026 07:03:09 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "313"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://webservices.amazon.com/AWSFault/2005-15-09\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>InvalidAction</Code>\n    <Message>Could not find operation NoSuchAction for version 2010-03-31</Message>\n  </Error>\n  <RequestId>1fc17156-7005-5b40-8406-121f5b6841c9</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

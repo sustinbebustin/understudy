@@ -1,0 +1,34 @@
+{
+  "step": "H11-11-single-subscribe",
+  "client": "boto3",
+  "exit": 1,
+  "error": "InvalidParameterException: An error occurred (InvalidParameter) when calling the Subscribe operation: Invalid parameter: Attributes Reason: Wildcard complexity too high",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sns.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070333Z"],
+          ["amz-sdk-invocation-id", "e4061080-a166-4d2f-a59e-b9c9a971974f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "892"]
+        ],
+        "body": "Action=Subscribe&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-c75&Protocol=sqs&Endpoint=arn%3Aaws%3Asqs%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-f75&ReturnSubscriptionArn=true&Attributes.entry.1.key=RawMessageDelivery&Attributes.entry.1.value=true&Attributes.entry.2.key=FilterPolicy&Attributes.entry.2.value=%7B%22x%22%3A+%5B%7B%22wildcard%22%3A+%22a0%2A%22%7D%2C+%7B%22wildcard%22%3A+%22a1%2A%22%7D%2C+%7B%22wildcard%22%3A+%22a2%2A%22%7D%2C+%7B%22wildcard%22%3A+%22a3%2A%22%7D%2C+%7B%22wildcard%22%3A+%22a4%2A%22%7D%2C+%7B%22wildcard%22%3A+%22a5%2A%22%7D%2C+%7B%22wildcard%22%3A+%22a6%2A%22%7D%2C+%7B%22wildcard%22%3A+%22a7%2A%22%7D%2C+%7B%22wildcard%22%3A+%22a8%2A%22%7D%2C+%7B%22wildcard%22%3A+%22a9%2A%22%7D%2C+%7B%22wildcard%22%3A+%22a10%2A%22%7D%5D%7D&Attributes.entry.3.key=FilterPolicyScope&Attributes.entry.3.value=MessageAttributes"
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "13cb1568-4c8e-52e2-a1f0-7621670b9c85"],
+          ["Date", "Wed, 14 Oct 2026 07:03:33 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "313"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>InvalidParameter</Code>\n    <Message>Invalid parameter: Attributes Reason: Wildcard complexity too high</Message>\n  </Error>\n  <RequestId>13cb1568-4c8e-52e2-a1f0-7621670b9c85</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

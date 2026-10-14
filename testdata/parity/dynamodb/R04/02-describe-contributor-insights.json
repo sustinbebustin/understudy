@@ -1,0 +1,36 @@
+{
+  "step": "02-describe-contributor-insights",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.DescribeContributorInsights"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,E,Z,T,AN,AC,P,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.describe-contributor-insights"],
+          ["X-Amz-Date", "20261014T063345Z"],
+          ["amz-sdk-invocation-id", "7f51697b-eff8-4111-b892-3311ad1bfdf2"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "38"]
+        ],
+        "body": "{\"TableName\": \"usr-rec-20261014-lock\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:33:45 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "76"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "KD9FIEENVTOASVI771G2RJ96HJVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "671082527"]
+        ],
+        "body": "{\"ContributorInsightsStatus\":\"DISABLED\",\"TableName\":\"usr-rec-20261014-lock\"}"
+      }
+    }
+  ]
+}

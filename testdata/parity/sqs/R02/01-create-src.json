@@ -1,0 +1,35 @@
+{
+  "step": "01-create-src",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.CreateQueue"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,AC,b,AD,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.create-queue"],
+          ["X-Amz-Date", "20261014T063256Z"],
+          ["amz-sdk-invocation-id", "9f3bd27a-d455-4af5-bfc8-c7280c23bf8b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "211"]
+        ],
+        "body": "{\"QueueName\": \"usr-rec-20261014-src\", \"Attributes\": {\"RedrivePolicy\": \"{\\\"deadLetterTargetArn\\\":\\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq\\\",\\\"maxReceiveCount\\\":\\\"2\\\"}\", \"VisibilityTimeout\": \"1\"}}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "1b18925c-769b-5f1c-bc70-f11552c28a52"],
+          ["Date", "Wed, 14 Oct 2026 06:32:57 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "84"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"QueueUrl\":\"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-src\"}"
+      }
+    }
+  ]
+}

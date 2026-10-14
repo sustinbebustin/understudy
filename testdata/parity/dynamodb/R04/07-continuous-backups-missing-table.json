@@ -1,0 +1,37 @@
+{
+  "step": "07-continuous-backups-missing-table",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (TableNotFoundException) when calling the DescribeContinuousBackups operation: Table not found: does-not-exist",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.DescribeContinuousBackups"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,T,AD,AN,P,AC,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.describe-continuous-backups"],
+          ["X-Amz-Date", "20261014T063600Z"],
+          ["amz-sdk-invocation-id", "1f28bb7d-4445-4359-bc71-2354a1f2c920"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "31"]
+        ],
+        "body": "{\"TableName\": \"does-not-exist\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:36:00 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "112"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "BOC9Q0RRTFJTL0MUOKN5E01O9JVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "3668985520"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.dynamodb.v20120810#TableNotFoundException\",\"message\":\"Table not found: does-not-exist\"}"
+      }
+    }
+  ]
+}

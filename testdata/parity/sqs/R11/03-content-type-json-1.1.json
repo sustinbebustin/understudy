@@ -1,0 +1,33 @@
+{
+  "step": "03-content-type-json-1.1",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070304Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "AmazonSQS.GetQueueAttributes"],
+          ["Content-Length", "84"]
+        ],
+        "body_unrecorded": {"bytes": 84}
+      },
+      "response": {
+        "status": 404,
+        "reason": "Not Found",
+        "headers": [
+          ["x-amzn-RequestId", "a3560a42-4ebd-56b9-b722-690b65d5e334"],
+          ["Date", "Wed, 14 Oct 2026 07:03:04 GMT"],
+          ["Content-Length", "29"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<UnknownOperationException/>\n"
+      }
+    }
+  ]
+}

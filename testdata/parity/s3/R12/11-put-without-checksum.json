@@ -1,0 +1,36 @@
+{
+  "step": "11-put-without-checksum",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-olock.s3.us-east-2.amazonaws.com/o",
+        "headers": [
+          ["Host", "usr-rec-20261014-olock.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070433Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["Content-Length", "10"],
+          ["Content-Type", "application/x-www-form-urlencoded"]
+        ],
+        "body_unrecorded": {"bytes": 10}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amz-request-id", "4YA1B56TC1DVDJ3E"],
+          ["x-amz-id-2", "U7A+aainoZYbWhf/aaNMEUK/2TMPdKVNeC5La0a8gVo8ES3hBHWLiyXYBviLMvPUJdAzjpT4wL0="],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:04:33 GMT"],
+          ["Connection", "close"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters</Message><RequestId>4YA1B56TC1DVDJ3E</RequestId><HostId>U7A+aainoZYbWhf/aaNMEUK/2TMPdKVNeC5La0a8gVo8ES3hBHWLiyXYBviLMvPUJdAzjpT4wL0=</HostId></Error>"
+      }
+    }
+  ]
+}

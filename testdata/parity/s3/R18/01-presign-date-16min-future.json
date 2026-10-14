@@ -1,0 +1,26 @@
+{
+  "step": "01-presign-date-16min-future",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/r?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ASIAREDACTED%2F20261014%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20261014T072253Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Security-Token=REDACTED&X-Amz-Signature=REDACTED",
+        "headers": []
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["x-amz-request-id", "53YVKFJAV8A3VPKJ"],
+          ["x-amz-id-2", "YswuyNJNWHCZgZdARiJagfDGgHVvVjXioGkziuM4kNqkHF1RPgAGHus09C7HOqfXoDPyeMkDMsa4xZTknUrhPCuK3IIBzlzl"],
+          ["Date", "Wed, 14 Oct 2026 07:06:53 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Server", "AmazonS3"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AccessDenied</Code><Message>Request is not yet valid</Message><X-Amz-Date>1791962573000</X-Amz-Date><Expires>2026-10-14T08:22:53Z</Expires><ServerTime>2026-10-14T07:06:53Z</ServerTime><RequestId>53YVKFJAV8A3VPKJ</RequestId><HostId>YswuyNJNWHCZgZdARiJagfDGgHVvVjXioGkziuM4kNqkHF1RPgAGHus09C7HOqfXoDPyeMkDMsa4xZTknUrhPCuK3IIBzlzl</HostId></Error>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "step": "H13-05-01",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,C,AC,E,b,Z,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261014T070650Z"],
+          ["amz-sdk-invocation-id", "a55718a4-cbf3-410d-b907-a4bed171876a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "144"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/lambda/usr-rec-20261014-filter\", \"startTime\": 1791961518000, \"filterPattern\": \"\\\"ad123b39-7661-4fb3-ae64-2aba28da40d7\\\"\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "262a5602-7591-49af-a53b-9e6f687a3646"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "1685"],
+          ["Date", "Wed, 14 Oct 2026 07:06:50 GMT"]
+        ],
+        "body": "{\"events\":[{\"eventId\":\"39962077250781625863830965427238589419346721494015082509\",\"ingestionTime\":1791961521601,\"logStreamName\":\"2026/10/14/[$LATEST]15507ee7af6b4f42b1d49a171ee846bf\",\"message\":\"{\\\"Records\\\": [{\\\"messageId\\\": \\\"ad123b39-7661-4fb3-ae64-2aba28da40d7\\\", \\\"receiptHandle\\\": \\\"AQEBim1ys19pQw7AVHaOf2FbAkPEW+67AHtq37AoJDfVQPAmMaU9owVwaa/85wKhAmLLvVZJ82rIDxtJ/5Ll9G/mAZxLlFE+Xbl8Pvy2/H1ImhtiZzNeDDwUAF3q5VQKmW1D75WzsKD2AVwuAiPqvWcmWRMNZ6x3YlC2EgiRjzmHs78/jACVODV7U00lHXPyE6Kzngp2zeR9gpxbz/vUpoX2Lbw1vt+coGDcbMbmPJgleR1TuUdHY1w/NpXz8m8L9abJzavL+yFh3xuUySt2yAjRdOo7CFebiJWXfEh8dxsCJerT6AggP1SY6I6fFJ2u4ufr8635J56h+NoeZ9E+VRZOoQ/QLWEwsW15pdA7Mom+GLY/a1wsbD3YnIDOFI8oxM/aFCRs4+k2BPJTph0arXGbgQ==\\\", \\\"body\\\": \\\"{\\\\\\\"f\\\\\\\":\\\\\\\"a\\\\\\\"}\\\", \\\"attributes\\\": {\\\"ApproximateReceiveCount\\\": \\\"1\\\", \\\"SentTimestamp\\\": \\\"1791961519386\\\", \\\"SenderId\\\": \\\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\\\", \\\"ApproximateFirstReceiveTimestamp\\\": \\\"1791961519388\\\"}, \\\"messageAttributes\\\": {}, \\\"md5OfBody\\\": \\\"9b2e448c2c3be8c19bf492c43362209b\\\", \\\"eventSource\\\": \\\"aws:sqs\\\", \\\"eventSourceARN\\\": \\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-fq\\\", \\\"awsRegion\\\": \\\"us-east-2\\\"}]}\\n\",\"timestamp\":1791961519448}],\"nextToken\":\"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCoe3dN9Hf9-fM0JdnJGAPTlkeLveuuxuDBM50MTw-HrCRBCww7tKySjc8vsjSnGSZZYZ9pB1RJ1-9gIYIJ7u5rAFF5wPq51IDaeNkISFrQjr7aw-OTDdyZcpBRL1H3v54MHSSH1YZbZM6nMjZbybPO2HAdYDfkeTNmORHP3kqpptgOh7_OpJlcWG4smD4bJUw1s6q2iWTAeHanZIx945brwZjJpPpWJuQfW_vM_H4PBOpczTRPhHtcgKssym8dtXC_UFrK5wdm8PnseDnwlvAGMLA0QR5bGtW2sb3Xy9qAIZA\",\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,C,AC,E,b,Z,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261014T070650Z"],
+          ["amz-sdk-invocation-id", "0566f453-dfec-401b-ba29-e2aa0024b798"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "503"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/lambda/usr-rec-20261014-filter\", \"startTime\": 1791961518000, \"filterPattern\": \"\\\"ad123b39-7661-4fb3-ae64-2aba28da40d7\\\"\", \"nextToken\": \"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCoe3dN9Hf9-fM0JdnJGAPTlkeLveuuxuDBM50MTw-HrCRBCww7tKySjc8vsjSnGSZZYZ9pB1RJ1-9gIYIJ7u5rAFF5wPq51IDaeNkISFrQjr7aw-OTDdyZcpBRL1H3v54MHSSH1YZbZM6nMjZbybPO2HAdYDfkeTNmORHP3kqpptgOh7_OpJlcWG4smD4bJUw1s6q2iWTAeHanZIx945brwZjJpPpWJuQfW_vM_H4PBOpczTRPhHtcgKssym8dtXC_UFrK5wdm8PnseDnwlvAGMLA0QR5bGtW2sb3Xy9qAIZA\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "1c14c33d-d6e3-4b79-87fd-7975af8de99e"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "121"],
+          ["Date", "Wed, 14 Oct 2026 07:06:50 GMT"]
+        ],
+        "body": "{\"events\":[],\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    }
+  ]
+}

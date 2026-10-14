@@ -1,0 +1,34 @@
+{
+  "step": "cw-DeleteDashboards",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://monitoring.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "monitoring.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T064553Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "GraniteServiceVersion20100801.DeleteDashboards"],
+          ["x-amzn-query-mode", "true"],
+          ["Content-Length", "47"]
+        ],
+        "body_unrecorded": {"bytes": 47}
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amzn-RequestId", "68b0165e-0308-442f-86f1-cb9c3d59f58d"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "2"],
+          ["Date", "Wed, 14 Oct 2026 06:45:53 GMT"]
+        ],
+        "body": "{}"
+      }
+    }
+  ]
+}

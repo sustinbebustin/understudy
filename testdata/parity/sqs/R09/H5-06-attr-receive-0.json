@@ -1,0 +1,35 @@
+{
+  "step": "H5-06-attr-receive-0",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T071113Z"],
+          ["amz-sdk-invocation-id", "9d1be2cd-86bb-41aa-96f4-dc74e8ca98e4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "168"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-f40\", \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 5, \"MessageAttributeNames\": [\"All\"]}"
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "cd81caa6-7643-55f9-94f4-a9ef5b120157"],
+          ["Date", "Wed, 14 Oct 2026 07:11:13 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "691"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Body\":\"m2\",\"MD5OfBody\":\"aaf2f89992379705dac844c0a2a1d45f\",\"MD5OfMessageAttributes\":\"056a139579c4982d57311e2cc69f62ef\",\"MessageAttributes\":{\"n\":{\"DataType\":\"Number\",\"StringValue\":\"0.1234567\"}},\"MessageId\":\"74245dc7-f33c-4fe2-b479-3ef38bec93ff\",\"ReceiptHandle\":\"AQEBpFkLAUgs1x84AZO+Dm9zZ8kIK455DNaHLM7igZvWZZ5slTWwrnpstDfpFCoI//7U0uAl9Xv/HJ8tS919JWcqW5HZc3WjHnzQPviC+KemUcSArxl4aPKmKQpCn2u0V8ZxBsjwTcTSvbnGI4yWZ8OtdSJwiq+Mil7YgCNS5MplXDK3+/sA6aIRDPtupodhgvLtet051DNhZijX6W742vIpuvohF9zyh2w/pfa+22tgIl04tsN3fPIjQRn0u58Myl/6RkVLcVSyiAVWNdM7T12ZkmgY3bnGBjJuPeoY3SZnwZCJRihkQYpunmMNNs1D0WLbW6l4KOsnBJzus5CMoPlDIwHDImnC2RFPnVqxMuEkneizSaOXVztO6fTdapsVnFTweJwfkm39sd4b0mUgmu3o5w==\"}]}"
+      }
+    }
+  ]
+}

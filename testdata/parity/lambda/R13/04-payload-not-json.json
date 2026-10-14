@@ -1,0 +1,34 @@
+{
+  "step": "04-payload-not-json",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequestContentException) when calling the Invoke operation: Could not parse request body into json: Could not parse payload into json: Unrecognized token 'not': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false')\n at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 1]\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-url/invocations",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AD,AC,E,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.invoke"],
+          ["X-Amz-Date", "20261014T070411Z"],
+          ["amz-sdk-invocation-id", "9018ecf6-42de-48d7-a50b-3e97e32df050"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "8"]
+        ],
+        "body": "not json"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:04:11 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "316"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "f7bde6d6-bbc6-414e-9a18-db4658d3e43d"],
+          ["x-amzn-ErrorType", "InvalidRequestContentException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"Could not parse request body into json: Could not parse payload into json: Unrecognized token 'not': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false')\\n at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 1]\"}"
+      }
+    }
+  ]
+}

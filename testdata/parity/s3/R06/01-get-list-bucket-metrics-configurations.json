@@ -1,0 +1,31 @@
+{
+  "step": "01-get-list-bucket-metrics-configurations",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?metrics",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AN,E,AC,Z,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.list-bucket-metrics-configurations"],
+          ["X-Amz-Date", "20261014T063502Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "ead02572-a074-41b4-b988-706cb22c0f85"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "QlBRr2BDqXQ82gpGp4mq6qgrvhpCpDurqKc+IjFAuNrt6RMWfrpxJNUbds0loSLavFst9QBauAWy1K90znLHEOIYmgkeJGlx"],
+          ["x-amz-request-id", "V7YHXJX3T6357Z07"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:35:03 GMT"],
+          ["Content-Length", "185"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><ListMetricsConfigurationsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><IsTruncated>false</IsTruncated></ListMetricsConfigurationsResult>"
+      }
+    }
+  ]
+}

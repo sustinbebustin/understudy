@@ -1,0 +1,35 @@
+{
+  "step": "H13-14-create",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the CreateEventSourceMapping operation: Too many filter patterns, maximum allowed 5 patterns, provided 6 patterns.\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,b,E,AC,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-event-source-mapping"],
+          ["X-Amz-Date", "20261014T070303Z"],
+          ["amz-sdk-invocation-id", "8457070b-58ff-4929-b33d-3e13840f75a5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "427"]
+        ],
+        "body": "{\"EventSourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-fq2\", \"FunctionName\": \"usr-rec-20261014-filter\", \"BatchSize\": 1, \"FilterCriteria\": {\"Filters\": [{\"Pattern\": \"{\\\"body\\\":{\\\"a\\\":[\\\"1\\\"]}}\"}, {\"Pattern\": \"{\\\"body\\\":{\\\"a\\\":[\\\"2\\\"]}}\"}, {\"Pattern\": \"{\\\"body\\\":{\\\"a\\\":[\\\"3\\\"]}}\"}, {\"Pattern\": \"{\\\"body\\\":{\\\"a\\\":[\\\"4\\\"]}}\"}, {\"Pattern\": \"{\\\"body\\\":{\\\"a\\\":[\\\"5\\\"]}}\"}, {\"Pattern\": \"{\\\"body\\\":{\\\"a\\\":[\\\"6\\\"]}}\"}]}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:03:03 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "102"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "52e7e1ef-3a43-42a4-9050-cc6fe483814d"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"Too many filter patterns, maximum allowed 5 patterns, provided 6 patterns.\"}"
+      }
+    }
+  ]
+}

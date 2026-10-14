@@ -1,0 +1,35 @@
+{
+  "step": "H9-01-b",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidEventPatternException) when calling the TestEventPattern operation: Event pattern is not valid. Reason: IPv4 mask bits must be < 32",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.TestEventPattern"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,b,AD,AN,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.test-event-pattern"],
+          ["X-Amz-Date", "20261014T071420Z"],
+          ["amz-sdk-invocation-id", "2b109dac-f364-4a75-a820-e2d4dd30fd52"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "281"]
+        ],
+        "body": "{\"EventPattern\": \"{\\\"detail\\\":{\\\"ip\\\":[{\\\"cidr\\\":\\\"10.0.0.1/32\\\"}]}}\", \"Event\": \"{\\\"id\\\":\\\"1\\\",\\\"account\\\":\\\"123456789012\\\",\\\"source\\\":\\\"rec\\\",\\\"time\\\":\\\"2026-01-01T00:00:00Z\\\",\\\"region\\\":\\\"us-east-2\\\",\\\"resources\\\":[],\\\"detail-type\\\":\\\"rec\\\",\\\"detail\\\":{\\\"ip\\\":\\\"2001:db8::1\\\"}}\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "9b932b4c-6b63-4d9a-945a-18f7f7782779"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "117"],
+          ["Date", "Wed, 14 Oct 2026 07:14:20 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"InvalidEventPatternException\",\"message\":\"Event pattern is not valid. Reason: IPv4 mask bits must be < 32\"}"
+      }
+    }
+  ]
+}

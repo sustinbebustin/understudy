@@ -1,0 +1,35 @@
+{
+  "step": "03-sqs-raw-2",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,b,AD,Z,AN,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261014T070627Z"],
+          ["amz-sdk-invocation-id", "b1c38e65-73bb-4386-bd4e-a196f3fe9d5e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "171"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-r16raw\", \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 5}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "c2b71b03-433d-5326-995c-784a6f0efc32"],
+          ["Date", "Wed, 14 Oct 2026 07:06:27 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "576"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Body\":\"b\",\"MD5OfBody\":\"92eb5ffee6ae2fec3ad71c777531578f\",\"MessageId\":\"68f02f2d-14b7-4b79-a233-8f498e8cbe53\",\"ReceiptHandle\":\"AQEBQGBdezz9AgFrI3OminURJGnpqViDZdTUrS8V6Ueqjm7cWTyIJzxmis1dkyBuHmJ3N545NFBQTDYxHs/hgkt66oosyaXMzGv3uBoyL9QVof9LkSoFIrSQDqi823UychKLL1u2Fd+1zO4iiLrZulPRk3IFPQ2MdZfrFcbCG3TwaCiWf/dukXGtB5DPUkZD7ngwcqzxXIwoK3jEmPmtNuI3Yxafv508Im9uMPfLebn11A/4dEde2tCkE2ALJ86LsfJ4FU81Qo5OPy4GSu3Ho4f/cNp+Z0L39fsi9sRalTsTQeXrPcTf1p0kcA8zCuE92d9HM4jsri+35xwo29GGMkaxPyAUocJVpmnM9Y0UeW4u83aOtyVZ5sylQrwsWyDoPTxZBkqd/l7a9kjHNwZ8eJB1yihNqHxA7yZZUpLGJDZ7fIo=\"}]}"
+      }
+    }
+  ]
+}

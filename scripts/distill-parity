@@ -1,0 +1,642 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
+"""Distill raw AWS recordings into the parity fixtures under testdata/parity.
+
+    scripts/distill-parity ~/understudy-recordings/usr-rec-20261014
+    scripts/distill-parity --replace --out testdata/parity REC
+
+REC is a recordings directory made with docs/human/recording-kit.md: one
+directory per item (R01 to R18, KMS-alias) holding AWS CLI --debug logs
+(<step>.http plus <step>.out), curl captures (<step>.http plus
+<step>.trace), raw http.client and socket captures (<step>.http), Lambda
+invoke payloads (<step>.payload), side observations (.time, .tsv, .txt,
+.jsonl) and notes.md. Directories starting with "_" and "<step>-done"
+markers are skipped. REC is only read.
+
+Every step becomes one <svc>/<item>/<step>.json whose format testdata/README.md
+documents; side observations and notes.md are copied. The service directory
+is the one the step's request host names (recording-kit.md section 6), and
+the item's notes.md goes into every service directory the item touches.
+
+Owner identifiers are masked in everything written: the account id (read
+from --account-file) becomes 123456789012, IAM unique ids that encode the
+account become ids that encode 123456789012, and role session ids, S3
+canonical user ids, S3 owner principal ids, caller IP addresses and the
+botocore user-agent session hash become stable same-length placeholders, also inside base64-encoded JSON such as SQS
+move-task handles. Credentials are redacted with the recording kit's
+patterns, and the run fails if its credential check still finds one.
+
+--replace deletes the output directory first; without it the output
+directory must not exist yet.
+"""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import base64
+import hashlib
+import json
+import os
+import re
+import shutil
+import sys
+import urllib.parse
+import uuid
+from dataclasses import dataclass, field
+from pathlib import Path
+
+FAKE_ACCOUNT = "123456789012"
+BODY_LIMIT = 64 * 1024
+EXCHANGE_EXTS = {".http", ".out", ".trace", ".payload"}
+DROPPED_REQUEST_HEADERS = {"authorization", "x-amz-security-token"}
+
+HOSTS = [
+    (r"streams\.dynamodb\.", "dynamodb"), (r"dynamodb\.", "dynamodb"), (r"s3-control\.", "s3"),
+    (r"\.s3\.|s3\.[a-z0-9-]+\.amazonaws", "s3"), (r"lambda-url\.", "lambda"), (r"lambda\.", "lambda"),
+    (r"logs\.", "logs"), (r"secretsmanager\.", "secretsmanager"), (r"kms\.", "kms"), (r"iam\.amazonaws", "iam"),
+    (r"sts\.", "sts"), (r"events\.", "events"), (r"monitoring\.", "cloudwatch"), (r"sqs\.", "sqs"), (r"sns\.", "sns"),
+]
+PRIMARY = {
+    "R01": "sqs", "R02": "sqs", "R03": "lambda", "R04": "dynamodb", "R05": "sqs", "R06": "s3", "R07": "lambda",
+    "R08": "s3", "R09": "sns", "R10": "logs", "R11": "sqs", "R12": "s3", "R13": "lambda", "R14": "events",
+    "R15": "kms", "R16": "sns", "R17": "s3", "R18": "s3", "KMS-alias": "kms",
+}
+
+
+class DistillError(Exception):
+    """A capture this script cannot turn into a fixture."""
+
+
+# --- masking -------------------------------------------------------------
+
+UNIQUE_ID = re.compile(r"\bA(?:IDA|ROA|IPA|NPA|NVA|GPA|PKA|SCA|CCA)[A-Z2-7]{16,17}\b")
+UUID_RE = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+SESSION_UUIDS = [
+    re.compile(r"assumed-role/[\w+=,.@-]+/(" + UUID_RE + ")"),
+    re.compile(r"\bAROA[A-Z2-7]{16,17}:(" + UUID_RE + ")"),
+]
+Q = r'\\*"'  # a JSON quote at any escaping depth
+CANONICAL_IDS = [
+    re.compile(r"<ID>([0-9a-f]{64})</ID>"),
+    re.compile(Q + r"ID" + Q + r"\s*:\s*" + Q + r"([0-9a-f]{64})" + Q),
+    re.compile(r"\bid=\"?([0-9a-f]{64})\b"),
+]
+OWNER_PRINCIPAL = re.compile(Q + r"principalId" + Q + r"\s*:\s*" + Q + r"(A[0-9A-Z]{9,20})" + Q)
+CALLER_IP = re.compile(
+    r"(?:sourceIPAddress|sourceIp|SourceIp|[Xx]-[Ff]orwarded-[Ff]or)" + r'(?:\\*"\s*:\s*\\*"|\'?\s*:\s*b?\'|:\s*)'
+    + r"(\d{1,3}(?:\.\d{1,3}){3})\b"
+)
+CLIENT_SESSION = re.compile(r"\bsid/([0-9a-f]{8,})\b")  # botocore's user-agent session hash
+EMBEDDED_JSON_B64 =re.compile(r"\beyJ[A-Za-z0-9+/]{12,}={0,2}")
+
+# The recording kit's redaction (section 2), applied again so a fixture never
+# depends on the recordings having been redacted in place.
+REDACT = [
+    (re.compile(r"((?:SecretAccessKey|SessionToken|Security-Token)['\"]?\s*[:=>]?\s*b?['\"]?)[A-Za-z0-9+/=%]{20,}", re.I), r"\1REDACTED"),
+    (re.compile(r"\b(AKIA|ASIA)[A-Z0-9]{16}\b"), r"\1REDACTED"),
+    (re.compile(r"(Signature=)[0-9a-f]{64}"), r"\1REDACTED"),
+]
+# The kit's check, plus the login tokens a credential refresh carries.
+CREDENTIAL_CHECK = re.compile(
+    r"ASIA[A-Z0-9]{16}|AKIA[A-Z0-9]{16}|IQoJb3JpZ2lu|(SecretAccessKey|SessionToken|Security-Token)[^A-Za-z0-9]{0,6}[A-Za-z0-9+/%]{20}"
+    r"|(refreshToken|accessToken|idToken)[^A-Za-z0-9]{0,6}[A-Za-z0-9]",
+    re.I,
+)
+
+
+def decode_account(unique_id: str) -> str | None:
+    """The account an IAM unique id or access key id encodes (ids.DecodeAccount)."""
+    try:
+        body = base64.b32decode(unique_id[4:20])
+    except ValueError:
+        return None
+    window = int.from_bytes(body[:6], "big")
+    return f"{(window & 0x7FFFFFFFFF80) >> 7:012d}"
+
+
+def mint_unique_id(prefix: str, n: int, length: int) -> str:
+    """An id with prefix that decodes to FAKE_ACCOUNT, numbered n, of length characters."""
+    window = (1 << 47) | (int(FAKE_ACCOUNT) << 7)
+    text = prefix + base64.b32encode(window.to_bytes(6, "big") + n.to_bytes(4, "big")).decode()
+    return (text + "A" * length)[:length]
+
+
+def same_length_ip(original: str, n: int) -> str:
+    """A documentation-range address (RFC 5737) as long as original, so lengths stay put."""
+    for net in ("198.51.100.", "203.0.113.", "192.0.2."):
+        width = len(original) - len(net)
+        for octet in range(n, 255):
+            if len(str(octet)) == width:
+                return net + str(octet)
+    raise DistillError(f"no RFC 5737 placeholder has the length of the address {original!r}")
+
+
+@dataclass
+class Masker:
+    """Replaces owner identifiers with stable placeholders, built from every text first."""
+
+    account: str
+    table: dict[str, str] = field(default_factory=dict)
+
+    def collect(self, text: str) -> None:
+        text = text.replace(self.account, FAKE_ACCOUNT)
+        for m in EMBEDDED_JSON_B64.finditer(text):
+            if (decoded := _b64_text(m.group(0))) is not None:
+                self.collect(decoded)
+        for m in UNIQUE_ID.finditer(text):
+            uid = m.group(0)
+            if uid not in self.table and decode_account(uid) == self.account:
+                self.table[uid] = mint_unique_id(uid[:4], len(self.table) + 1, len(uid))
+        for pattern in SESSION_UUIDS:
+            for m in pattern.finditer(text):
+                self._add(m.group(1), lambda n: str(uuid.UUID(int=n)))
+        for pattern in CANONICAL_IDS:
+            for m in pattern.finditer(text):
+                self._add(m.group(1), lambda n: hashlib.sha256(f"understudy canonical user {n}".encode()).hexdigest())
+        for m in OWNER_PRINCIPAL.finditer(text):
+            original = m.group(1)
+            self._add(original, lambda n, w=len(original): "AEXAMPLE" + str(n).rjust(w - len("AEXAMPLE"), "0"))
+        for m in CLIENT_SESSION.finditer(text):
+            original = m.group(1)
+            self._add(original, lambda n, w=len(original): str(n).rjust(w, "0"))
+        for m in CALLER_IP.finditer(text):
+            original = m.group(1)
+            self._add(original, lambda n, o=original: same_length_ip(o, n))
+
+    def _add(self, original: str, make) -> None:
+        if original not in self.table:
+            self.table[original] = make(len(self.table) + 1)
+
+    def apply(self, text: str) -> str:
+        text = text.replace(self.account, FAKE_ACCOUNT)
+        text = EMBEDDED_JSON_B64.sub(self._apply_b64, text)
+        for original, placeholder in self.table.items():
+            text = text.replace(original, placeholder)
+        for pattern, repl in REDACT:
+            text = pattern.sub(repl, text)
+        return text
+
+    def _apply_b64(self, m: re.Match[str]) -> str:
+        raw = m.group(0)
+        decoded = _b64_text(raw)
+        if decoded is None:
+            return raw
+        masked = self.apply(decoded)
+        if masked == decoded:
+            return raw
+        encoded = base64.b64encode(masked.encode()).decode()
+        return encoded if raw.endswith("=") else encoded.rstrip("=")
+
+
+def _b64_text(raw: str) -> str | None:
+    try:
+        decoded = base64.b64decode(raw + "=" * (-len(raw) % 4), validate=True).decode()
+    except ValueError:
+        return None
+    return decoded if decoded.startswith("{") else None
+
+
+# --- bodies --------------------------------------------------------------
+
+
+def body_fields(data: bytes | None, prefix: str = "body") -> dict:
+    """The fixture body keys for data; None means the capture did not keep the bytes."""
+    if data is None:
+        return {}
+    if len(data) > BODY_LIMIT:
+        return {f"{prefix}_omitted": {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}}
+    try:
+        return {prefix: data.decode("utf-8")}
+    except UnicodeDecodeError:
+        return {f"{prefix}_base64": base64.b64encode(data).decode()}
+
+
+def unrecorded(length: str | int | None) -> dict:
+    return {"body_unrecorded": {"bytes": int(length) if length is not None else None}}
+
+
+def header_value(headers: list[list[str]], name: str) -> str | None:
+    for k, v in headers:
+        if k.lower() == name:
+            return v
+    return None
+
+
+def request_headers(pairs) -> list[list[str]]:
+    return [[k, v] for k, v in pairs if k.lower() not in DROPPED_REQUEST_HEADERS]
+
+
+# --- Python literals in botocore debug logs --------------------------------
+
+
+def read_literal(s: str, i: int) -> tuple[str, int]:
+    """The source text of the Python literal starting at s[i], and the index after it."""
+    start = i
+    depth = 0
+    while i < len(s):
+        c = s[i]
+        if c in "bB" and i + 1 < len(s) and s[i + 1] in "'\"":
+            i += 1
+            continue
+        if c in "'\"":
+            quote = c
+            i += 1
+            while s[i] != quote:
+                i += 2 if s[i] == "\\" else 1
+            i += 1
+        elif c in "{[(":
+            depth += 1
+            i += 1
+        elif c in "}])":
+            depth -= 1
+            i += 1
+        elif c in ",>" and depth == 0:
+            break
+        else:
+            i += 1
+        if depth == 0 and s[i - 1] in "'\"}])":
+            break
+    return s[start:i], i
+
+
+def literal_after(s: str, marker: str):
+    at = s.find(marker)
+    if at < 0:
+        raise DistillError(f"no {marker!r} in {s[:120]!r}")
+    i = at + len(marker)
+    if s[i] == "<":  # a stream object: the log does not hold the bytes
+        return None
+    text, _ = read_literal(s, i)
+    return ast.literal_eval(text)
+
+
+def as_text(v) -> str:
+    return v.decode("utf-8") if isinstance(v, bytes) else str(v)
+
+
+# --- AWS CLI and boto3 debug logs ------------------------------------------
+
+RECORD = re.compile(
+    r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d,\d{3} - (?:[\w-]+ - )?([\w.]+) - (?:DEBUG|INFO|WARNING|ERROR|CRITICAL) - ", re.M
+)
+STATUS = re.compile(r'"(\w+) (\S+) HTTP/1\.1" (\d{3}) ')
+CREDENTIAL_HOST = re.compile(r"https://(?:[\w-]+\.)*(?:signin\.aws\.amazon\.com|oidc\.[\w-]+\.amazonaws\.com|portal\.sso\.)")
+
+
+def records(text: str):
+    starts = list(RECORD.finditer(text))
+    for n, m in enumerate(starts):
+        end = starts[n + 1].start() if n + 1 < len(starts) else len(text)
+        yield m.group(1), text[m.end():end]
+
+
+def debug_log_exchanges(text: str) -> list[dict]:
+    """The exchanges of a botocore debug log, minus credential refreshes.
+
+    A credential refresh (aws login's token call to signin) can run between
+    an operation's "Making request" record and its "Sending http request"
+    record, so request bodies pair with requests last in, first out; a retry
+    reuses the body of the request it repeats.
+    """
+    exchanges: list[dict] = []
+    pending: list = []
+    body = None
+    refreshing = False
+    for logger, msg in records(text):
+        if logger == "botocore.endpoint" and msg.startswith("Making request for OperationModel"):
+            pending.append(literal_after(msg, "'body': "))
+        elif logger == "botocore.endpoint" and msg.startswith("Sending http request:"):
+            m = re.match(r"Sending http request: <AWSPreparedRequest stream_output=\w+, method=(\w+), url=(\S+), headers=", msg)
+            if not m:
+                raise DistillError(f"unparsed request line {msg[:160]!r}")
+            if pending:
+                body = pending.pop()
+            refreshing = CREDENTIAL_HOST.match(m.group(2)) is not None
+            if refreshing:
+                continue
+            headers = request_headers((k, as_text(v)) for k, v in literal_after(msg, "headers=").items())
+            request = {"method": m.group(1), "url": m.group(2), "headers": headers}
+            request.update(_request_body(body, headers))
+            exchanges.append({"request": request})
+        elif refreshing:
+            continue
+        elif logger == "urllib3.connectionpool" and (m := STATUS.search(msg)):
+            _open(exchanges)["response"] = {"status": int(m.group(3))}
+        elif logger == "botocore.parsers" and msg.startswith("Response headers:"):
+            resp = _open(exchanges).setdefault("response", {})
+            resp["headers"] = [[k, as_text(v)] for k, v in literal_after(msg, "Response headers: ").items()]
+        elif logger == "botocore.parsers" and msg.startswith("Response body:"):
+            resp = _open(exchanges).setdefault("response", {})
+            value = literal_after(msg.replace("\n", " ", 1), "Response body: ")
+            if value is None:
+                resp.update(unrecorded(header_value(resp.get("headers", []), "content-length")))
+            else:
+                resp.update(body_fields(value))
+    return exchanges
+
+
+def _open(exchanges: list[dict]) -> dict:
+    if not exchanges:
+        raise DistillError("a response record precedes every request record")
+    return exchanges[-1]
+
+
+def _request_body(body, headers: list[list[str]]) -> dict:
+    length = header_value(headers, "content-length")
+    if body is None:
+        return unrecorded(length) if length not in (None, "0") else {}
+    if isinstance(body, dict):  # query protocol: botocore form-encodes the dict
+        body = urllib.parse.urlencode([(k, v) for k, v in body.items()], doseq=True).encode()
+    if isinstance(body, str):
+        body = body.encode()
+    if length is not None and int(length) != len(body) and b"REDACTED" not in body:
+        raise DistillError(f"logged body is {len(body)} bytes, Content-Length says {length}")
+    return body_fields(body) if body else {}
+
+
+def cli_error(text: str) -> str | None:
+    """The AWS CLI's user-facing error: from its last "aws: " line to the end of stderr."""
+    lines = text.rstrip("\n").split("\n")
+    for n in range(len(lines) - 1, -1, -1):
+        if lines[n].startswith(("aws: [ERROR]", "aws: error", "usage: aws")) or lines[n].startswith("\nAn error occurred"):
+            return "\n".join(lines[n:]).strip()
+        if RECORD.match(lines[n]):
+            return None
+    return None
+
+
+# --- curl, http.client and socket captures ---------------------------------
+
+
+def split_head(data: bytes) -> tuple[list[str], bytes]:
+    for sep in (b"\r\n\r\n", b"\n\n"):
+        if sep in data:
+            head, rest = data.split(sep, 1)
+            return head.decode("utf-8").replace("\r\n", "\n").split("\n"), rest
+    return data.decode("utf-8").replace("\r\n", "\n").rstrip("\n").split("\n"), b""
+
+
+def parse_status(line: str) -> dict:
+    m = re.match(r"HTTP/\d(?:\.\d)? (\d{3})(?: (.*))?$", line)
+    if not m:
+        raise DistillError(f"not a status line: {line!r}")
+    out: dict = {"status": int(m.group(1))}
+    if m.group(2):
+        out["reason"] = m.group(2)
+    return out
+
+
+def parse_headers(lines: list[str]) -> list[list[str]]:
+    return [[k.strip(), v.strip()] for k, v in (line.split(":", 1) for line in lines if line)]
+
+
+def curl_exchange(http: bytes, trace: str) -> dict:
+    """A curl -i response, with the request from the curl -v trace when there is one."""
+    exchange: dict = {}
+    sent = [line[2:] for line in trace.replace("\r\n", "\n").split("\n") if line.startswith("> ")]
+    method = None
+    if sent:
+        method, target, _ = sent[0].split(" ", 2)
+        headers = request_headers(parse_headers(sent[1:]))
+        host = header_value(headers, "host")
+        request: dict = {"method": method, "url": f"https://{host}{target}" if host else target, "headers": headers}
+        uploaded = re.search(r"upload completely sent off: (\d+) bytes", trace)
+        length = uploaded.group(1) if uploaded else header_value(headers, "content-length")
+        if length not in (None, "0"):
+            request.update(unrecorded(length))
+        exchange["request"] = request
+    rest = http
+    interim = []
+    while True:
+        head, rest = split_head(rest)
+        response = parse_status(head[0])
+        response["headers"] = parse_headers(head[1:])
+        if response["status"] != 100:
+            break
+        interim.append(response)
+    if method != "HEAD" or rest:
+        response.update(body_fields(rest))
+    exchange["response"] = response
+    if interim:
+        exchange["interim_responses"] = interim
+    return exchange
+
+
+def http_client_exchange(text: str) -> dict:
+    """A capture written by the R08 and R18 scripts: request, repr(body), response."""
+    head, rest = text.split("\n\n", 1)
+    lines = head.split("\n")
+    method, target, _ = lines[0].split(" ", 2)
+    headers = request_headers(parse_headers(lines[1:]))
+    host = header_value(headers, "host")
+    request: dict = {"method": method, "url": f"https://{host}{target}" if host else target, "headers": headers}
+    shown, rest = rest.split("\n\n", 1)
+    m = re.fullmatch(r"(b'.*'|b\".*\")(?: \.\.\. \((\d+) bytes\))?", shown, re.S)
+    if not m:
+        raise DistillError(f"unparsed request body line {shown[:80]!r}")
+    body = ast.literal_eval(m.group(1))
+    length = header_value(headers, "content-length")
+    if m.group(2):
+        request.update(unrecorded(m.group(2)))
+    elif length is not None and int(length) != len(body):  # R18's script cuts at 200 bytes without a marker
+        request.update(unrecorded(length))
+    elif body:
+        request.update(body_fields(body))
+    status_head, body = rest.split("\n\n", 1) if "\n\n" in rest else (rest.rstrip("\n"), "")
+    status_lines = status_head.split("\n")
+    response = parse_status(status_lines[0])
+    response["headers"] = parse_headers(status_lines[1:])
+    body = body[:-1] if body.endswith("\n") else body  # the script appends one newline
+    if method != "HEAD" or body:
+        response.update(body_fields(body.encode()))
+    return {"request": request, "response": response}
+
+
+def socket_exchange(text: str) -> tuple[dict, str]:
+    """R18's Expect: 100-continue capture: headers sent, answers read before and after the body."""
+    head, rest = text.split("\n\n", 1)
+    lines = head.split("\n")
+    method, target, _ = lines[0].split(" ", 2)
+    headers = request_headers(parse_headers(lines[1:]))
+    host = header_value(headers, "host")
+    request = {"method": method, "url": f"https://{host}{target}", "headers": headers}
+    m = re.match(r"# answer before the body \(after ([\d.]+) s\):\n(.*)# answer after the body:\n(.*)\Z", rest, re.S)
+    if not m:
+        raise DistillError("unparsed socket capture")
+    before, after = m.group(2).strip("\n"), m.group(3).strip("\n")
+    if not before or before.startswith("HTTP/1.1 100") or after:
+        raise DistillError("socket capture with a body sent: extend socket_exchange")
+    head_lines, body = split_head((before + "\n").encode())
+    response = parse_status(head_lines[0])
+    response["headers"] = parse_headers(head_lines[1:])
+    if body.strip():
+        response.update(body_fields(body))
+    note = f"S3 answered {m.group(1)} s after the request headers, before the body; the body was never sent"
+    return {"request": request, "response": response}, note
+
+
+# --- steps ------------------------------------------------------------------
+
+
+def distill_step(step: str, files: dict[str, bytes]) -> dict:
+    http = files.get(".http", b"")
+    text = http.decode("utf-8", "surrogateescape")
+    fixture: dict = {"step": step}
+    out = files.get(".out")
+    exit_code = None
+    stdout = ""
+    if out is not None:
+        out_text = out.decode("utf-8").rstrip("\n")
+        m = re.search(r"(?:^|\n)exit=(\d+)$", out_text)
+        if not m:
+            raise DistillError("the .out file does not end with exit=N")
+        exit_code = int(m.group(1))
+        stdout = out_text[: m.start()]
+    error = None
+    note = None
+    if RECORD.search(text):
+        fixture["client"] = "aws-cli" if "awscli." in text else "boto3"
+        exchanges = debug_log_exchanges(text)
+        if exit_code:
+            error = cli_error(text) if fixture["client"] == "aws-cli" else stdout
+    elif ".trace" in files or text.startswith("HTTP/"):
+        fixture["client"] = "curl"
+        exchanges = [curl_exchange(http, files.get(".trace", b"").decode("utf-8", "replace"))]
+    elif "\n# answer before the body" in text:
+        fixture["client"] = "socket"
+        exchange, note = socket_exchange(text)
+        exchanges = [exchange]
+    elif re.match(r"[A-Z]+ \S+ HTTP/1\.1\n", text):
+        fixture["client"] = "http.client"
+        exchanges = [http_client_exchange(text)]
+    else:
+        raise DistillError("unrecognised capture format")
+    # A .payload is the streamed response body the CLI wrote to a file. When
+    # the call failed the response body is in the log and the .payload is a
+    # leftover of an earlier step, so it is not kept.
+    if ".payload" in files and exchanges and "body_unrecorded" in exchanges[-1].get("response", {}):
+        response = exchanges[-1]["response"]
+        del response["body_unrecorded"]
+        response.update(body_fields(files[".payload"]))
+    if exit_code is not None:
+        fixture["exit"] = exit_code
+    if error:
+        fixture["error"] = error
+    if stdout and not any("response" in e for e in exchanges):  # else stdout restates a response
+        fixture["stdout"] = stdout
+    if note:
+        fixture["note"] = note
+    fixture["exchanges"] = exchanges
+    return fixture
+
+
+def service_of(text: str, step: str, item: str) -> str:
+    m = (re.search(r"Sending http request: <AWSPreparedRequest stream_output=\w+, method=\w+, url=https://([^/ ,]+)", text)
+         or re.search(r"Connected to ([^ ]+) ", text) or re.search(r"(?mi)^> Host: (\S+)", text)
+         or re.search(r"(?mi)^Host: (\S+)", text))
+    host = m.group(1) if m else ""
+    if not host:  # R18's raw captures name the service in the step
+        for svc in ("sqs", "sns", "sts", "dynamodb"):
+            if f"-{svc}-" in step:
+                return svc
+    for pattern, svc in HOSTS:
+        if re.search(pattern, host):
+            return svc
+    return PRIMARY[item]
+
+
+def to_json(fixture: dict) -> str:
+    """Two-space JSON with each header pair and each body marker on one line."""
+    text = json.dumps(fixture, indent=2, ensure_ascii=False)
+    pair = re.compile(r'\[\n\s+("(?:[^"\\]|\\.)*"),\n\s+("(?:[^"\\]|\\.)*")\n\s+\]')
+    marker = re.compile(r'\{\n\s+("bytes": (?:\d+|null))(?:,\n\s+("sha256": "[0-9a-f]{64}"))?\n\s+\}')
+    text = pair.sub(r"[\1, \2]", text)
+    return marker.sub(lambda m: "{" + ", ".join(g for g in m.groups() if g) + "}", text) + "\n"
+
+
+def items_of(rec: Path) -> list[str]:
+    return sorted(d.name for d in rec.iterdir() if d.is_dir() and d.name in PRIMARY)
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("rec", type=Path, help="the recordings directory, e.g. ~/understudy-recordings/usr-rec-20261014")
+    parser.add_argument("--out", type=Path, default=Path(__file__).resolve().parent.parent / "testdata" / "parity")
+    parser.add_argument("--account-file", type=Path, help="file holding the recorded account id (default REC/_scripts/acct)")
+    parser.add_argument("--replace", action="store_true", help="delete the output directory first")
+    args = parser.parse_args(argv)
+
+    account_file = args.account_file or args.rec / "_scripts" / "acct"
+    account = account_file.read_text().strip()
+    if not re.fullmatch(r"\d{12}", account):
+        print(f"distill-parity: {account_file} does not hold a 12-digit account id", file=sys.stderr)
+        return 2
+    if args.out.exists():
+        if not args.replace:
+            print(f"distill-parity: {args.out} exists; pass --replace to rebuild it", file=sys.stderr)
+            return 2
+        shutil.rmtree(args.out)
+
+    items = items_of(args.rec)
+    masker = Masker(account)
+    sources: dict[str, dict[str, dict[str, bytes]]] = {}
+    for item in items:
+        steps: dict[str, dict[str, bytes]] = {}
+        for f in sorted((args.rec / item).iterdir()):
+            if f.name.endswith("-done") or not f.is_file():
+                continue
+            data = f.read_bytes()
+            masker.collect(data.decode("utf-8", "surrogateescape"))
+            stem, ext = (f.name, "") if f.name == "notes.md" else os.path.splitext(f.name)
+            steps.setdefault(stem, {})[ext if ext in EXCHANGE_EXTS else f.name] = data
+        sources[item] = steps
+
+    def write(path: Path, text: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8", errors="surrogateescape")
+
+    failures = []
+    for item, steps in sources.items():
+        notes = steps.pop("notes.md", {}).get("notes.md")
+        used = {PRIMARY[item]}
+        for step, files in steps.items():
+            masked = {k: masker.apply(v.decode("utf-8", "surrogateescape")).encode("utf-8", "surrogateescape")
+                      for k, v in files.items()}
+            wire = masked.get(".trace", b"") + masked.get(".http", b"")
+            svc = service_of(wire.decode("utf-8", "replace"), step, item) if wire else PRIMARY[item]
+            used.add(svc)
+            exchange_files = {k: v for k, v in masked.items() if k in EXCHANGE_EXTS}
+            if exchange_files:
+                try:
+                    fixture = distill_step(step, exchange_files)
+                except (DistillError, ValueError, SyntaxError, IndexError, KeyError) as e:
+                    failures.append(f"{item}/{step}: {type(e).__name__}: {e}")
+                    continue
+                write(args.out / svc / item / f"{step}.json", to_json(fixture))
+            for name, data in masked.items():
+                if name not in EXCHANGE_EXTS:
+                    write(args.out / svc / item / name, data.decode("utf-8", "surrogateescape"))
+        if notes is not None:
+            for svc in sorted(used):
+                write(args.out / svc / item / "notes.md", masker.apply(notes.decode("utf-8")))
+    if failures:
+        print("distill-parity: these steps were not written; the rest of the output is complete:", file=sys.stderr)
+        print("\n".join(failures), file=sys.stderr)
+        return 1
+
+    leaks = [str(p) for p in sorted(args.out.rglob("*")) if p.is_file()
+             and (CREDENTIAL_CHECK.search(p.read_text(errors="replace")) or account in p.read_text(errors="replace"))]
+    if leaks:
+        print("distill-parity: credentials or the account id remain in:\n" + "\n".join(leaks), file=sys.stderr)
+        return 1
+    print(f"distill-parity: wrote {sum(1 for p in args.out.rglob('*') if p.is_file())} files to {args.out}; "
+          f"masked {len(masker.table)} owner identifiers")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

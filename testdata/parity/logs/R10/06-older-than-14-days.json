@@ -1,0 +1,33 @@
+{
+  "step": "06-older-than-14-days",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.PutLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AN,b,AC,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.put-log-events"],
+          ["X-Amz-Date", "20261014T064936Z"],
+          ["amz-sdk-invocation-id", "2ca73ac0-190a-475c-be1c-cc169af79997"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "127"]
+        ],
+        "body": "{\"logGroupName\": \"/usr/usr-rec-20261014\", \"logStreamName\": \"s6\", \"logEvents\": [{\"timestamp\": 1790664575000, \"message\": \"old\"}]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "95c72691-eab4-4d64-b733-b56446f106e0"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "133"],
+          ["Date", "Wed, 14 Oct 2026 06:49:36 GMT"]
+        ],
+        "body": "{\"nextSequenceToken\":\"49039859689632608971855549835939711009000615589745067231\",\"rejectedLogEventsInfo\":{\"tooOldLogEventEndIndex\":1}}"
+      }
+    }
+  ]
+}

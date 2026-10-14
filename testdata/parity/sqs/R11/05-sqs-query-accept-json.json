@@ -1,0 +1,33 @@
+{
+  "step": "05-sqs-query-accept-json",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070309Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Accept", "application/json"],
+          ["Content-Length", "68"]
+        ],
+        "body_unrecorded": {"bytes": 68}
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amzn-RequestId", "1485a1fd-d403-522a-b9d9-c2b4ff6eaac6"],
+          ["Date", "Wed, 14 Oct 2026 07:03:09 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "202"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"GetQueueUrlResponse\":{\"GetQueueUrlResult\":{\"QueueUrl\":\"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-q11\"},\"ResponseMetadata\":{\"RequestId\":\"1485a1fd-d403-522a-b9d9-c2b4ff6eaac6\"}}}"
+      }
+    }
+  ]
+}

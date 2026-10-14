@@ -1,0 +1,30 @@
+{
+  "step": "01-list-objects-v2",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/?list-type=2",
+        "headers": [
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064648Z"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "u9Qj8N0aQdoCooElvXhahTj64OvFjrXZlEgozK2PXzo1+AkCON4PhyzSPWY6kLV9n8uTEdmk4/S2SvETE0m+rMymn+zuzsfn"],
+          ["x-amz-request-id", "8EX53Q9AMFBCWSP0"],
+          ["Date", "Wed, 14 Oct 2026 06:46:49 GMT"],
+          ["x-amz-bucket-region", "us-east-2"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>usr-rec-20261014-cks</Name><Prefix></Prefix><KeyCount>5</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>h-md5</Key><LastModified>2026-10-14T06:46:48.000Z</LastModified><ETag>&quot;5d41402abc4b2a76b9719d911017c592&quot;</ETag><ChecksumAlgorithm>MD5</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>5</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>h-sha512</Key><LastModified>2026-10-14T06:46:48.000Z</LastModified><ETag>&quot;5d41402abc4b2a76b9719d911017c592&quot;</ETag><ChecksumAlgorithm>SHA512</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>5</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>h-xxhash128</Key><LastModified>2026-10-14T06:46:47.000Z</LastModified><ETag>&quot;5d41402abc4b2a76b9719d911017c592&quot;</ETag><ChecksumAlgorithm>XXHASH128</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>5</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>h-xxhash3</Key><LastModified>2026-10-14T06:46:47.000Z</LastModified><ETag>&quot;5d41402abc4b2a76b9719d911017c592&quot;</ETag><ChecksumAlgorithm>XXHASH3</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>5</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>h-xxhash64</Key><LastModified>2026-10-14T06:46:46.000Z</LastModified><ETag>&quot;5d41402abc4b2a76b9719d911017c592&quot;</ETag><ChecksumAlgorithm>XXHASH64</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>5</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>"
+      }
+    }
+  ]
+}

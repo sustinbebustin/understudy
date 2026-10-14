@@ -1,0 +1,37 @@
+{
+  "step": "03-ttl-disable-again",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the UpdateTimeToLive operation: Time to live has been modified multiple times within a fixed interval",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.UpdateTimeToLive"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,b,P,AN,E,AD,Z,T cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.update-time-to-live"],
+          ["X-Amz-Date", "20261014T063549Z"],
+          ["amz-sdk-invocation-id", "dbc36b4c-a0dc-484e-9248-0ec02d977d5f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "115"]
+        ],
+        "body": "{\"TableName\": \"usr-rec-20261014-lock\", \"TimeToLiveSpecification\": {\"Enabled\": false, \"AttributeName\": \"ExpiresAt\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:35:49 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "140"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "M4DUDINHELDT1IBIGV0FK11C1FVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "1489567198"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"Time to live has been modified multiple times within a fixed interval\"}"
+      }
+    }
+  ]
+}

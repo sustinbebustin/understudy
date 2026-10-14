@@ -1,0 +1,35 @@
+{
+  "step": "06a-recv1",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,E,b,Z,AN,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261014T063059Z"],
+          ["amz-sdk-invocation-id", "4722b573-135d-4d63-b9be-49a7166078ee"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "158"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-std\", \"AttributeNames\": [\"All\"], \"VisibilityTimeout\": 5, \"WaitTimeSeconds\": 2}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "df8dcea5-6483-5a5c-b2c9-adec47601985"],
+          ["Date", "Wed, 14 Oct 2026 06:30:59 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "757"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\",\"ApproximateFirstReceiveTimestamp\":\"1791959459996\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1791959459511\"},\"Body\":\"m1\",\"MD5OfBody\":\"ae7be26cdaa742ca148068d5ac90eaca\",\"MessageId\":\"09cf532b-31e8-4a79-8f41-d6408a0773e9\",\"ReceiptHandle\":\"AQEBqCYaj2Fp63g9TWqOJD/TUotE0ZMjpZjSlMflGetvsdSFgaySqO+pKyL4b3/O6n9DW82StuGg2dQqQ7pRyY3IwVyolVIHS9uDv2O66kPGip5tMirL5BEx1+nIYHAMdEv562RPsQURzf5g8m8h6KiasQElkZtLShDXJuk3NkWaGBgS0Cp9OX3jfOlH+FZvL4bf3xIMUHaq48cNHEw3+HzoAVrQ1AT9bCWOr9IXXE8Gqy8MkeRzDjaKkhLBi/+EhmIkdvQ2Lbji921nqOum8vnOtz0BB92qYW3TW+AeaQg5hDqMeE/eo3SHQp1HKMP13zxREpqtqLlIKI+HWmD7esg+qJupELDVz1jfBdMtM55Q8U6j0kfmHb7ztnUOz00jPL/8lysMAHf/zeSX9KcJDjmUkw==\"}]}"
+      }
+    }
+  ]
+}

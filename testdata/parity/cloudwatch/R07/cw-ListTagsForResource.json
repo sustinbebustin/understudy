@@ -1,0 +1,35 @@
+{
+  "step": "cw-ListTagsForResource",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://monitoring.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "monitoring.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T064553Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "GraniteServiceVersion20100801.ListTagsForResource"],
+          ["x-amzn-query-mode", "true"],
+          ["Content-Length", "90"]
+        ],
+        "body_unrecorded": {"bytes": 90}
+      },
+      "response": {
+        "status": 404,
+        "reason": "Not Found",
+        "headers": [
+          ["x-amzn-RequestId", "40236ab2-812c-449e-a93d-4894ac69aeb6"],
+          ["x-amzn-query-error", "ResourceNotFoundException;Sender"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "75"],
+          ["Date", "Wed, 14 Oct 2026 06:45:53 GMT"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.cloudwatch.v2010_08_01#ResourceNotFoundException\"}"
+      }
+    }
+  ]
+}

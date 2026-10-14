@@ -1,0 +1,35 @@
+{
+  "step": "02-put-encryption-pending-deletion-key",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?encryption",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,W,E,b,AC,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-encryption"],
+          ["x-amz-checksum-crc64nvme", "AnDQg2DjJxg="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261014T063511Z"],
+          ["X-Amz-Content-SHA256", "6f296ccd0c8e0666a545c2d34e35b1e8649eea65ec3e12f42fc2249aa41d046b"],
+          ["amz-sdk-invocation-id", "963783bd-f554-44df-b42a-e4283607bd8b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "310"]
+        ],
+        "body": "<ServerSideEncryptionConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Rule><ApplyServerSideEncryptionByDefault><SSEAlgorithm>aws:kms</SSEAlgorithm><KMSMasterKeyID>f2c00559-1af8-4227-82a8-eb79cd04edb4</KMSMasterKeyID></ApplyServerSideEncryptionByDefault></Rule></ServerSideEncryptionConfiguration>"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "oo7Z89aTbfsiU3II2ysp7QJgiGDcFzEmeQGOwRXVK7WATJk6clS1jbp2ReeSWPoTDa7S+LsISXvWSGknKxFjrxV+57+sVu2o"],
+          ["x-amz-request-id", "FJ022E1RXSC1Y53S"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:35:12 GMT"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

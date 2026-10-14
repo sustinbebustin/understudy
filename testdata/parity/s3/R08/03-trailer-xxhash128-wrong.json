@@ -1,0 +1,35 @@
+{
+  "step": "03-trailer-xxhash128-wrong",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/tr-03-trailer-xxhash128-wrong",
+        "headers": [
+          ["Content-Encoding", "aws-chunked"],
+          ["x-amz-decoded-content-length", "5"],
+          ["x-amz-trailer", "x-amz-checksum-xxhash128"],
+          ["x-amz-content-sha256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["X-Amz-Date", "20261014T064653Z"],
+          ["Content-Length", "66"]
+        ],
+        "body": "5\r\nhello\r\n0\r\nx-amz-checksum-xxhash128:XUFAKrxLKna5cZ2REBfFkg==\r\n\r\n"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "KDYYR2KKG5P990D6"],
+          ["x-amz-id-2", "ldUnON+10tqt6Y+mKrHzkDZT5QDhCcXZEklyVnZTuLALN3Its5dUJGwfK1Bdrv2DyZoG/Ub83fnyXGAUESytdZY52nVye9vR"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:46:53 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>BadDigest</Code><Message>The XXHASH128 you specified did not match the calculated checksum.</Message><RequestId>KDYYR2KKG5P990D6</RequestId><HostId>ldUnON+10tqt6Y+mKrHzkDZT5QDhCcXZEklyVnZTuLALN3Its5dUJGwfK1Bdrv2DyZoG/Ub83fnyXGAUESytdZY52nVye9vR</HostId></Error>"
+      }
+    }
+  ]
+}

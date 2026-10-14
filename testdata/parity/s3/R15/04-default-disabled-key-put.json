@@ -1,0 +1,40 @@
+{
+  "step": "04-default-disabled-key-put",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (KMS.DisabledException) when calling the PutObject operation: arn:aws:kms:us-east-2:123456789012:key/6d38c8ab-924c-412c-8cc0-dbaf5a2629c3 is disabled.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-sse.s3.us-east-2.amazonaws.com/k3",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/W,b,g,AN,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-crc64nvme"],
+          ["X-Amz-Decoded-Content-Length", "1"],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261014T070557Z"],
+          ["X-Amz-Content-SHA256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "f208a03a-1211-491b-96e5-a28da796a1b0"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "HM54MM9Q3HBKTPNZ"],
+          ["x-amz-id-2", "6x5cClN5Pu8zKhwtA2PC/oN1FMqXViL+MZT3Um6eNUj67njlv4b+3F0bhsT4ylT2LoekicopsfwRJBmOpzIIWm4X1UxzcUEW"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:05:56 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>KMS.DisabledException</Code><Message>arn:aws:kms:us-east-2:123456789012:key/6d38c8ab-924c-412c-8cc0-dbaf5a2629c3 is disabled.</Message><RequestId>HM54MM9Q3HBKTPNZ</RequestId><HostId>6x5cClN5Pu8zKhwtA2PC/oN1FMqXViL+MZT3Um6eNUj67njlv4b+3F0bhsT4ylT2LoekicopsfwRJBmOpzIIWm4X1UxzcUEW</HostId></Error>"
+      }
+    }
+  ]
+}

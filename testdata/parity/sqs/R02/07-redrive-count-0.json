@@ -1,0 +1,37 @@
+{
+  "step": "07-redrive-count-0",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValue) when calling the SetQueueAttributes operation: Value {\"deadLetterTargetArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq\",\"maxReceiveCount\":\"0\"} for parameter RedrivePolicy is invalid. Reason: Invalid value for maxReceiveCount: 0, valid values are from 1 to 1000 both inclusive.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.SetQueueAttributes"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,b,E,AD,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.set-queue-attributes"],
+          ["X-Amz-Date", "20261014T063610Z"],
+          ["amz-sdk-invocation-id", "93afdbab-cbfc-4cee-8a77-12c18c8f76bd"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "235"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-plain\", \"Attributes\": {\"RedrivePolicy\": \"{\\\"deadLetterTargetArn\\\":\\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq\\\",\\\"maxReceiveCount\\\":\\\"0\\\"}\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "915e6a07-bb60-5dbf-87cb-094e9e7b6417"],
+          ["x-amzn-query-error", "InvalidParameterValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 06:36:11 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "332"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Value {\\\"deadLetterTargetArn\\\":\\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq\\\",\\\"maxReceiveCount\\\":\\\"0\\\"} for parameter RedrivePolicy is invalid. Reason: Invalid value for maxReceiveCount: 0, valid values are from 1 to 1000 both inclusive.\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "05-get-page-2",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.GetLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,E,AC,Z,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.get-log-events"],
+          ["X-Amz-Date", "20261014T064933Z"],
+          ["amz-sdk-invocation-id", "be258ebf-7182-4cf6-a5e6-2f8dba4766d8"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "153"]
+        ],
+        "body": "{\"logGroupName\": \"/usr/usr-rec-20261014\", \"logStreamName\": \"s3\", \"nextToken\": \"f/39962050725204850961978329811539817170380822144667877378/s\", \"limit\": 3}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "9b4a5271-4ccb-4a4a-852b-0c2511527078"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "603"],
+          ["Date", "Wed, 14 Oct 2026 06:49:33 GMT"]
+        ],
+        "body": "{\"events\":[{\"eventId\":\"39962050747505596160508952953075535443029183650648293379\",\"ingestionTime\":1791960560151,\"message\":\"p4\",\"timestamp\":1791960331000},{\"eventId\":\"39962050769806341359039576094611253715677545156628709380\",\"ingestionTime\":1791960560151,\"message\":\"p5\",\"timestamp\":1791960332000},{\"eventId\":\"39962050792107086557570199236146971988325906662609125381\",\"ingestionTime\":1791960560151,\"message\":\"p6\",\"timestamp\":1791960333000}],\"nextBackwardToken\":\"b/39962050747505596160508952953075535443029183650648293379/s\",\"nextForwardToken\":\"f/39962050792107086557570199236146971988325906662609125381/s\"}"
+      }
+    }
+  ]
+}

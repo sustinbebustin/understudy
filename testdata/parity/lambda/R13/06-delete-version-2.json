@@ -1,0 +1,30 @@
+{
+  "step": "06-delete-version-2",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-url?Qualifier=2",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,Z,b,AC,AN,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.delete-function"],
+          ["X-Amz-Date", "20261014T070435Z"],
+          ["amz-sdk-invocation-id", "0d0b4375-4d45-4db7-8aee-5695c157e719"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 204,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:04:36 GMT"],
+          ["Content-Type", "application/json"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "e5b134ea-ef43-4337-9e1e-9c83d1b1b4d0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

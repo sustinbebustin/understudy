@@ -1,0 +1,20 @@
+{
+  "step": "02-resp-sc99",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 502,
+        "reason": "Bad Gateway",
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:03:48 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "21"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "10b3ce5d-c6cc-4e83-91ed-07fe281164ac"]
+        ],
+        "body": "Internal Server Error"
+      }
+    }
+  ]
+}

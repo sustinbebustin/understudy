@@ -1,0 +1,30 @@
+{
+  "step": "03-sns-query-skew-16min",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["X-Amz-Date", "20261014T065055Z"],
+          ["Content-Length", "36"]
+        ],
+        "body": "Action=ListTopics&Version=2010-03-31"
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["x-amzn-RequestId", "4b299ded-d979-57e7-bfdf-fea4f536e040"],
+          ["Date", "Wed, 14 Oct 2026 07:06:55 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "353"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>SignatureDoesNotMatch</Code>\n    <Message>Signature expired: 20261014T065055Z is now earlier than 20261014T065155Z (20261014T070655Z - 15 min.)</Message>\n  </Error>\n  <RequestId>4b299ded-d979-57e7-bfdf-fea4f536e040</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

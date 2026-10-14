@@ -1,0 +1,29 @@
+{
+  "step": "02-s3-skew-16min",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/r",
+        "headers": [
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T065054Z"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["x-amz-request-id", "NNFSK9KBZ1P148PQ"],
+          ["x-amz-id-2", "Qn8WCPu9CWBHEiArP7EkgHO0oMWYkuLTuKi6MGF7vHjM9B10v06KH2NWTo+oNOUQUpVsOQpBT0ZyY4epmFxJtpdSqFBm+k7C"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:06:53 GMT"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>RequestTimeTooSkewed</Code><Message>The difference between the request time and the current time is too large.</Message><RequestTime>20261014T065054Z</RequestTime><ServerTime>2026-10-14T07:06:55Z</ServerTime><MaxAllowedSkewMilliseconds>900000</MaxAllowedSkewMilliseconds><RequestId>NNFSK9KBZ1P148PQ</RequestId><HostId>Qn8WCPu9CWBHEiArP7EkgHO0oMWYkuLTuKi6MGF7vHjM9B10v06KH2NWTo+oNOUQUpVsOQpBT0ZyY4epmFxJtpdSqFBm+k7C</HostId></Error>"
+      }
+    }
+  ]
+}

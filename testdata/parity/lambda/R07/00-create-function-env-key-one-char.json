@@ -1,0 +1,35 @@
+{
+  "step": "00-create-function-env-key-one-char",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateFunction operation: 1 validation error detected: Value at 'environment.variables' failed to satisfy constraint: Map keys must satisfy constraint: [Member must satisfy regular expression pattern: [a-zA-Z]([a-zA-Z0-9_])+]",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,b,Z,AD,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-function"],
+          ["X-Amz-Date", "20261014T064318Z"],
+          ["amz-sdk-invocation-id", "e205ac36-b869-4ec2-91ba-980f76349d61"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "426"]
+        ],
+        "body": "{\"FunctionName\": \"usr-rec-20261014-r07\", \"Runtime\": \"python3.13\", \"Role\": \"arn:aws:iam::123456789012:role/usr-rec-20261014-role\", \"Handler\": \"r07.handler\", \"Environment\": {\"Variables\": {\"A\": \"1\"}}, \"Code\": {\"ZipFile\": \"UEsDBBQAAAAAAGk1Tl23g1YTKwAAACsAAAAGAAAAcjA3LnB5ZGVmIGhhbmRsZXIoZXZlbnQsIGNvbnRleHQpOgogICAgcmV0dXJuIHt9ClBLAQIUAxQAAAAAAGk1Tl23g1YTKwAAACsAAAAGAAAAAAAAAAAAAAC0gQAAAAByMDcucHlQSwUGAAAAAAEAAQA0AAAATwAAAAAA\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:43:18 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "213"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "a5aec711-be1e-4c72-b3f8-32777a66dc05"],
+          ["x-amzn-ErrorType", "ValidationException"]
+        ],
+        "body": "{\"message\":\"1 validation error detected: Value at 'environment.variables' failed to satisfy constraint: Map keys must satisfy constraint: [Member must satisfy regular expression pattern: [a-zA-Z]([a-zA-Z0-9_])+]\"}"
+      }
+    }
+  ]
+}

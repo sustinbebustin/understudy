@@ -1,0 +1,33 @@
+{
+  "step": "01-get-analytics-nope",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NoSuchConfiguration) when calling the GetBucketAnalyticsConfiguration operation: The specified configuration does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?analytics&id=nope",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,b,AD,AC,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-bucket-analytics-configuration"],
+          ["X-Amz-Date", "20261014T063503Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "01436f67-c9ec-4f37-a3ff-ec07d20ada45"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "KVK7PVR2M2HF0CAK"],
+          ["x-amz-id-2", "dklIgGO6l1HraJ6GFEC80J1P4fEVVm1h0JTvgXLiz2s8D8aO/uWGsRx6tQckGj0+4O4EQgC0DSQCEjcJ6E+6hsFYS/TRXjUw"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:35:03 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchConfiguration</Code><Message>The specified configuration does not exist.</Message><RequestId>KVK7PVR2M2HF0CAK</RequestId><HostId>dklIgGO6l1HraJ6GFEC80J1P4fEVVm1h0JTvgXLiz2s8D8aO/uWGsRx6tQckGj0+4O4EQgC0DSQCEjcJ6E+6hsFYS/TRXjUw</HostId></Error>"
+      }
+    }
+  ]
+}

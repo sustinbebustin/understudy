@@ -1,0 +1,34 @@
+{
+  "step": "04-setqueueattributes-json",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070307Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "AmazonSQS.SetQueueAttributes"],
+          ["Content-Length", "118"]
+        ],
+        "body_unrecorded": {"bytes": 118}
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amzn-RequestId", "0cdf8e49-9507-5b40-a131-ed00be6c938c"],
+          ["Date", "Wed, 14 Oct 2026 07:03:07 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "0"],
+          ["connection", "keep-alive"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

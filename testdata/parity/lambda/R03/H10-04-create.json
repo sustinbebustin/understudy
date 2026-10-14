@@ -1,0 +1,35 @@
+{
+  "step": "H10-04-create",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the CreateEventSourceMapping operation: Invalid filter pattern definition.\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AD,E,Z,AC,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-event-source-mapping"],
+          ["X-Amz-Date", "20261014T070457Z"],
+          ["amz-sdk-invocation-id", "453e1539-2a2c-4a0a-9b4a-5eb1775b4b9e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "261"]
+        ],
+        "body": "{\"EventSourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-fq3\", \"FunctionName\": \"usr-rec-20261014-filter\", \"BatchSize\": 1, \"FilterCriteria\": {\"Filters\": [{\"Pattern\": \"{\\\"body\\\":{\\\"s\\\":[\\\"a\\\"],\\\"$or\\\":[{\\\"numeric\\\":123},{\\\"prefix\\\":\\\"abc\\\"}]}}\"}]}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:04:57 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "62"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "e8939f82-7538-4f1a-b25c-bf022a554ff6"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"Invalid filter pattern definition.\"}"
+      }
+    }
+  ]
+}

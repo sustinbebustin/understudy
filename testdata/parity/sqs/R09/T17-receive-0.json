@@ -1,0 +1,35 @@
+{
+  "step": "T17-receive-0",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070733Z"],
+          ["amz-sdk-invocation-id", "c96d106e-19f1-4237-8251-8a3564d3dfd8"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "168"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-f17\", \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 5, \"MessageAttributeNames\": [\"All\"]}"
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "710b6ae6-c368-58d1-83c6-09afef1dbce6"],
+          ["Date", "Wed, 14 Oct 2026 07:07:33 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "685"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Body\":\"m1\",\"MD5OfBody\":\"ae7be26cdaa742ca148068d5ac90eaca\",\"MD5OfMessageAttributes\":\"406559c19347927c97f4e25c09faa26a\",\"MessageAttributes\":{\"a.b\":{\"DataType\":\"String\",\"StringValue\":\"x\"}},\"MessageId\":\"906dd59f-9516-4cf2-9fc6-117b4a62a363\",\"ReceiptHandle\":\"AQEBJJ7N0poulEQvlp5I74qtKw3bqV5pwfz6FViyLsrcwrZkeCdc3s0G/BA8PbGY4pCGyWwGjQndW1E+DrNBkBaRNzp+NKKfT+5USlJzXx8Z22/Q1ZOF5POnNDO28le6kK5V9MUtOlf4Uy4BVH/Pctm1+b7QjZds4ZGtAQ8eB45wRq0QniUmil5tdrS5ZAGMHZphzIX7MyccOp0njB/sDo+dZk2M59N/llRY1eCo676mu7lRjsqLbhJbI8zQExEdwkMG6KUBgcPxOps0OZl27Y5V7rQmxGfOK5orKFxIX/E1VipYKwB18mWUr+yuna4iLOSWr2yKVZYJtT4yw/sdzf3bZPXZf47EOnY35jFKlce0Kzsj4qBpAWMiJJSQD8xjo6TBBUe0yJi80Kd21IqDFPX8eA==\"}]}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "step": "03-delete-pab",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?publicAccessBlock",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AC,E,AN,Z,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.delete-public-access-block"],
+          ["X-Amz-Date", "20261014T063516Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "9c5a2253-403b-4747-930c-d1dc5e082faf"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 204,
+        "headers": [
+          ["x-amz-id-2", "xpf4cV3jpOmGKygYPaRn4DroUXPFB3WMLgRmZGZ95fL5Jgq+InZPzzZJHkVlb/ggZXdg+tTjYdy3hNuGF/NHRIJ5Ge1S18JC"],
+          ["x-amz-request-id", "NE8K526GHE8QF04F"],
+          ["Date", "Wed, 14 Oct 2026 06:35:17 GMT"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

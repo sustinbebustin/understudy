@@ -1,0 +1,36 @@
+{
+  "step": "04-pitr-enable-again",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.UpdateContinuousBackups"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,AC,Z,AD,T,b,P cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.update-continuous-backups"],
+          ["X-Amz-Date", "20261014T063554Z"],
+          ["amz-sdk-invocation-id", "ec8b36bf-cd94-43a5-b6b3-b685db2a6c4b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "112"]
+        ],
+        "body": "{\"TableName\": \"usr-rec-20261014-lock\", \"PointInTimeRecoverySpecification\": {\"PointInTimeRecoveryEnabled\": true}}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:35:54 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "286"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "A71RJMLE2KBJHRNE19P6LNMP1FVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2140241563"]
+        ],
+        "body": "{\"ContinuousBackupsDescription\":{\"ContinuousBackupsStatus\":\"ENABLED\",\"PointInTimeRecoveryDescription\":{\"EarliestRestorableDateTime\":1.791959752E9,\"LatestRestorableDateTime\":1.791959752E9,\"PointInTimeRecoveryStatus\":\"ENABLED\",\"PointInTimeRecoveryWindowDays\":1,\"RecoveryPeriodInDays\":1}}}"
+      }
+    }
+  ]
+}

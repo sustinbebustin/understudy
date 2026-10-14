@@ -1,0 +1,33 @@
+{
+  "step": "01-get-get-bucket-policy-status",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NoSuchBucketPolicy) when calling the GetBucketPolicyStatus operation: The bucket policy does not exist",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?policyStatus",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,AC,Z,AN,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-bucket-policy-status"],
+          ["X-Amz-Date", "20261014T063452Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "bf2b60ee-dce5-4162-ac4c-db8d9bd74370"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "9YP7NNX4C2YQH3ZF"],
+          ["x-amz-id-2", "Dmw2bVkj0iyweHE6ZpdaqitD70wej44VALr/uVG5sgBDw4ojuHRS5vh6c3Prmb2bS+LObWyyb1ntwXGEFaqe/931h52O+LZh"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:34:52 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchBucketPolicy</Code><Message>The bucket policy does not exist</Message><BucketName>usr-rec-20261014-s3</BucketName><RequestId>9YP7NNX4C2YQH3ZF</RequestId><HostId>Dmw2bVkj0iyweHE6ZpdaqitD70wej44VALr/uVG5sgBDw4ojuHRS5vh6c3Prmb2bS+LObWyyb1ntwXGEFaqe/931h52O+LZh</HostId></Error>"
+      }
+    }
+  ]
+}

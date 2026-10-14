@@ -1,0 +1,30 @@
+{
+  "step": "01-attributes-sha512",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/h-sha512?attributes",
+        "headers": [
+          ["x-amz-object-attributes", "Checksum"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064647Z"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "atdS4kEm3iFwcBGVjlGOCyiIWRRmdFaiV1XBjhcZrl732RFDHJ79up89O+MwxUNbbYEdZlSdKlhIB/Y6wJ1MnxpXy9YfcWBa"],
+          ["x-amz-request-id", "4PBTSWXH69112GS6"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:46:48 GMT"],
+          ["Last-Modified", "Wed, 14 Oct 2026 06:46:48 GMT"],
+          ["Content-Length", "328"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<GetObjectAttributesResponse xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Checksum><ChecksumSHA512>m3HSJL1i83hdltRq0+o9czGb+8KJDKra4t/3JRlnPKcjI8PZm6XBHXx6zG4UuMXaDEZjR1wuXDre9G9zvN7AQw==</ChecksumSHA512><ChecksumType>FULL_OBJECT</ChecksumType></Checksum></GetObjectAttributesResponse>"
+      }
+    }
+  ]
+}

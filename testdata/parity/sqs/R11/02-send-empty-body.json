@@ -1,0 +1,35 @@
+{
+  "step": "02-send-empty-body",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070303Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "AmazonSQS.SendMessage"],
+          ["Content-Length", "101"]
+        ],
+        "body_unrecorded": {"bytes": 101}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "692bba29-1a8c-5a6d-a224-d96031ebf862"],
+          ["x-amzn-query-error", "MissingParameter;Sender"],
+          ["Date", "Wed, 14 Oct 2026 07:03:03 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "135"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#MissingRequiredParameterException\",\"message\":\"The request must contain the parameter MessageBody.\"}"
+      }
+    }
+  ]
+}

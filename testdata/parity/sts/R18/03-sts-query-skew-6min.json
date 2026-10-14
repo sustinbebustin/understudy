@@ -1,0 +1,30 @@
+{
+  "step": "03-sts-query-skew-6min",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["X-Amz-Date", "20261014T070054Z"],
+          ["Content-Length", "43"]
+        ],
+        "body": "Action=GetCallerIdentity&Version=2011-06-15"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amzn-RequestId", "d822bd79-4187-47f4-81d6-cd55d1902c94"],
+          ["X-Amz-Sts-Extended-Request-Id", "MTp1cy1lYXN0LTI6UzoxNzkxOTYxNjE0NjI1OlI6Y01rZWVQT3U="],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "500"],
+          ["Date", "Wed, 14 Oct 2026 07:06:54 GMT"]
+        ],
+        "body": "<GetCallerIdentityResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">\n  <GetCallerIdentityResult>\n    <Arn>arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000003</Arn>\n    <UserId>AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003</UserId>\n    <Account>123456789012</Account>\n  </GetCallerIdentityResult>\n  <ResponseMetadata>\n    <RequestId>d822bd79-4187-47f4-81d6-cd55d1902c94</RequestId>\n  </ResponseMetadata>\n</GetCallerIdentityResponse>\n"
+      }
+    }
+  ]
+}

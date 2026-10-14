@@ -1,0 +1,37 @@
+{
+  "step": "07-head-object",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/o",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,AD,b,AC,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.head-object"],
+          ["X-Amz-Date", "20261014T063523Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "947fb995-568d-452b-90ed-c5604bf732c0"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "ThAlBRO2CCm689FBP7Th4yQmOAXscAjEB8hBjcq6D8YDUN9y7suIznwt0L+umeGDCnq6j2anN03Di6XtrQk6P1+WsARDD1ZG"],
+          ["x-amz-request-id", "T93E76XW75E66S90"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:35:24 GMT"],
+          ["Last-Modified", "Wed, 14 Oct 2026 06:35:23 GMT"],
+          ["ETag", "\"1d8ad2027419229bec1a6f9685cd8de3\""],
+          ["x-amz-server-side-encryption", "aws:kms"],
+          ["x-amz-server-side-encryption-aws-kms-key-id", "arn:aws:kms:us-east-2:123456789012:key/486dd3b9-54ea-4a01-9638-05d932fb0678"],
+          ["Accept-Ranges", "bytes"],
+          ["Content-Length", "6"],
+          ["Content-Type", "binary/octet-stream"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

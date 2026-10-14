@@ -1,0 +1,35 @@
+{
+  "step": "T15-receive-0",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070723Z"],
+          ["amz-sdk-invocation-id", "55a16aa3-7b49-4f9f-8810-95d08b559793"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "168"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-f15\", \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 5, \"MessageAttributeNames\": [\"All\"]}"
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "b17ea7bf-5ef7-520c-b19e-c4f6729ce63b"],
+          ["Date", "Wed, 14 Oct 2026 07:07:23 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "566"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Body\":\"{\\\"p\\\":2e9}\",\"MD5OfBody\":\"d3f68b345304a4b55a4f703ba523f8c0\",\"MessageId\":\"c7e8c52c-4761-48bf-90de-131600c554c3\",\"ReceiptHandle\":\"AQEB0k4TYpZ7f/5WSexUL/rBJzDYjbqpBXgPMzHH6VJ/fCRzUxi54sFh+LjlmA1Q3chyGRx7ixqdvt3baEuNwWui2mT/u4hwvBzw/Bql/k5nUM8D3iKppdAuhTfJgOkWBCV/visXBBJ/MFalq0dbOUmqGa8ENuxdXFfD0HO1+1O+eFiXsccP60vzqiuCHcZS4XJ3iPS9AGlq9bhw42zdShcPNnbQ+2VE71o6Wza9jTkw2hla2/k/H0ewB9UfC767874APJprsyX6CdUpf2vqwiaSqP77eaBGAGNEhl2Ceko5WJR3gHBxDRJ2/YCXYDEssxtmyVQeXveevIcxlExRXDQPU45BbuuNPGap/TTaU9sZfhs12K14mv3+Cf6z+6m+klxXcxMgOo6LW9JZt8ODmSKT4w==\"}]}"
+      }
+    }
+  ]
+}

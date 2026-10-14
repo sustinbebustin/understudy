@@ -1,0 +1,33 @@
+{
+  "step": "05-sqs-query-nonexistent-queue",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070309Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "72"]
+        ],
+        "body_unrecorded": {"bytes": 72}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "3460c2a3-7a2f-5942-89ac-a1ea51429828"],
+          ["Date", "Wed, 14 Oct 2026 07:03:09 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "333"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<?xml version=\"1.0\"?><ErrorResponse xmlns=\"http://queue.amazonaws.com/doc/2012-11-05/\"><Error><Type>Sender</Type><Code>AWS.SimpleQueueService.NonExistentQueue</Code><Message>The specified queue does not exist for this wsdl version.</Message><Detail/></Error><RequestId>3460c2a3-7a2f-5942-89ac-a1ea51429828</RequestId></ErrorResponse>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "05-delete-window-6",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterException) when calling the DeleteSecret operation: The RecoveryWindowInDays value must be between 7 and 30 days (inclusive).",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://secretsmanager.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "secretsmanager.DeleteSecret"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,AN,g,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#secretsmanager.delete-secret"],
+          ["X-Amz-Date", "20261014T070603Z"],
+          ["amz-sdk-invocation-id", "63cd05ff-8980-470e-9c88-bcdfa3370ddc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "61"]
+        ],
+        "body": "{\"SecretId\": \"usr-rec-20261014-s\", \"RecoveryWindowInDays\": 6}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:06:03 GMT"],
+          ["x-amzn-RequestId", "6d09fee7-311e-43a4-920d-ac7a96d627a2"],
+          ["Connection", "close"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "124"]
+        ],
+        "body": "{\"__type\":\"InvalidParameterException\",\"Message\":\"The RecoveryWindowInDays value must be between 7 and 30 days (inclusive).\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "step": "03-trailer-small-nonfinal-chunk",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/tr-03-trailer-small-nonfinal-chunk",
+        "headers": [
+          ["Content-Encoding", "aws-chunked"],
+          ["x-amz-decoded-content-length", "5"],
+          ["x-amz-trailer", "x-amz-checksum-crc32"],
+          ["x-amz-content-sha256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["X-Amz-Date", "20261014T064653Z"],
+          ["Content-Length", "51"]
+        ],
+        "body": "3\r\nhel\r\n2\r\nlo\r\n0\r\nx-amz-checksum-crc32:NhCmhg==\r\n\r\n"
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "198HZDC662AA5XZ1"],
+          ["x-amz-id-2", "pfTzc0G4DzoTFKqT1vwt48pymRuL3av0XzmfwukRvw/ekQACqcSEyCB96WMTuZd6JpUNwaZoFgsmW6V3SA30IMW7ad+DvQ9P"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:46:53 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidChunkSizeError</Code><Message>Only the last chunk is allowed to have a size less than 8192 bytes</Message><Chunk>2</Chunk><BadChunkSize>3</BadChunkSize><RequestId>198HZDC662AA5XZ1</RequestId><HostId>pfTzc0G4DzoTFKqT1vwt48pymRuL3av0XzmfwukRvw/ekQACqcSEyCB96WMTuZd6JpUNwaZoFgsmW6V3SA30IMW7ad+DvQ9P</HostId></Error>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "01-get-get-bucket-replication",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ReplicationConfigurationNotFoundError) when calling the GetBucketReplication operation: The replication configuration was not found",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?replication",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AC,AD,b,AN,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-bucket-replication"],
+          ["X-Amz-Date", "20261014T063454Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "f959c71e-31e7-4a3e-91f7-b681f0b7f89f"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "SG6P0VNDSNBRG7D6"],
+          ["x-amz-id-2", "pDAySL3L5rgDWMxV+wJOTKcW+dBbzN29571AVyHcO6BtcfyIzY7VmeNvROK0TdNmKB7B9UQRK9R3i00mXvz76w3ciDSoqmcv"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:34:54 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>ReplicationConfigurationNotFoundError</Code><Message>The replication configuration was not found</Message><BucketName>usr-rec-20261014-s3</BucketName><RequestId>SG6P0VNDSNBRG7D6</RequestId><HostId>pDAySL3L5rgDWMxV+wJOTKcW+dBbzN29571AVyHcO6BtcfyIzY7VmeNvROK0TdNmKB7B9UQRK9R3i00mXvz76w3ciDSoqmcv</HostId></Error>"
+      }
+    }
+  ]
+}

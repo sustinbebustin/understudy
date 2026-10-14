@@ -1,0 +1,35 @@
+{
+  "step": "01-put-header-xxhash3",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/h-xxhash3",
+        "headers": [
+          ["x-amz-checksum-xxhash3", "lVXoVVxi3P0="],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064645Z"],
+          ["Content-Length", "5"]
+        ],
+        "body": "hello"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "G5xyAh6bR32V1iJxu5W9XgA3x6iTcGCAO/RMBUBrVkS5dWsPKyKaVW7XWn15Jo8LmJOZl9P9EtM="],
+          ["x-amz-request-id", "TRG0GWQZ97R20WPQ"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:46:47 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["ETag", "\"5d41402abc4b2a76b9719d911017c592\""],
+          ["x-amz-checksum-xxhash3", "lVXoVVxi3P0="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "05-subscribe",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,E,AN,b,AC,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.subscribe"],
+          ["X-Amz-Date", "20261014T063359Z"],
+          ["amz-sdk-invocation-id", "8a2d87fe-b389-4703-bcd7-d6da082fa322"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "560"]
+        ],
+        "body": "Action=Subscribe&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-t&Protocol=sqs&Attributes.entry.1.key=FilterPolicy&Attributes.entry.1.value=%7B+%22a%22%3A+%5B%22x%22%5D+%7D&Attributes.entry.2.key=RawMessageDelivery&Attributes.entry.2.value=true&Attributes.entry.3.key=RedrivePolicy&Attributes.entry.3.value=%7B%22deadLetterTargetArn%22%3A+%22arn%3Aaws%3Asqs%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-r5dlq%22%7D&ReturnSubscriptionArn=true&Endpoint=arn%3Aaws%3Asqs%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-sub"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "e2257c15-aadb-5599-885c-1f5c8e4c775e"],
+          ["Date", "Wed, 14 Oct 2026 06:33:59 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "368"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<SubscribeResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <SubscribeResult>\n    <SubscriptionArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-t:25858906-cd41-4568-809e-c50cc5ac53cd</SubscriptionArn>\n  </SubscribeResult>\n  <ResponseMetadata>\n    <RequestId>e2257c15-aadb-5599-885c-1f5c8e4c775e</RequestId>\n  </ResponseMetadata>\n</SubscribeResponse>\n"
+      }
+    }
+  ]
+}

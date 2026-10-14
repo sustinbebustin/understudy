@@ -1,0 +1,33 @@
+{
+  "step": "05-sqs-unknown-action",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070309Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "38"]
+        ],
+        "body_unrecorded": {"bytes": 38}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "e47f9ec4-27f5-57a6-b1d2-fd8d0c9877aa"],
+          ["Date", "Wed, 14 Oct 2026 07:03:09 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "305"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<?xml version=\"1.0\"?><ErrorResponse xmlns=\"http://queue.amazonaws.com/doc/2012-11-05/\"><Error><Type>Sender</Type><Code>InvalidAction</Code><Message>The action NoSuchAction is not valid for this endpoint.</Message><Detail/></Error><RequestId>e47f9ec4-27f5-57a6-b1d2-fd8d0c9877aa</RequestId></ErrorResponse>"
+      }
+    }
+  ]
+}

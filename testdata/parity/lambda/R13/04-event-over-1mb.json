@@ -1,0 +1,35 @@
+{
+  "step": "04-event-over-1mb",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (RequestEntityTooLargeException) when calling the Invoke operation: 1048688 byte payload is too large for the Event invocation type (limit 1048576 bytes)",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-url/invocations",
+        "headers": [
+          ["X-Amz-Invocation-Type", "Event"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,E,AD,Z,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.invoke"],
+          ["X-Amz-Date", "20261014T070413Z"],
+          ["amz-sdk-invocation-id", "68708d15-a30d-464a-b1ec-4c64c75b738c"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "1048688"]
+        ],
+        "body_omitted": {"bytes": 1048688, "sha256": "979b6597254002620fc600b1849b6aa059ad47616008dba3875371fd12cd337c"}
+      },
+      "response": {
+        "status": 413,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:04:13 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "99"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "3ca48aa6-e4ef-4d94-8ec1-69425d240a8c"],
+          ["x-amzn-ErrorType", "RequestEntityTooLargeException"]
+        ],
+        "body": "{\"Message\":\"1048688 byte payload is too large for the Event invocation type (limit 1048576 bytes)\"}"
+      }
+    }
+  ]
+}

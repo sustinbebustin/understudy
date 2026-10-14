@@ -1,0 +1,34 @@
+{
+  "step": "05-create-md5-composite",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/mp-md5?uploads",
+        "headers": [
+          ["x-amz-checksum-algorithm", "MD5"],
+          ["x-amz-checksum-type", "COMPOSITE"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064705Z"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "iFL4CJ0/2xVbyw+rkckcetxYVu4Cj6LrXI/j16BU8Jtr7XFH14Yy96mAyRx+0jgB9InVZ4f+YM4="],
+          ["x-amz-request-id", "B8AT53XCM3MJP972"],
+          ["Date", "Wed, 14 Oct 2026 06:47:06 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["x-amz-checksum-algorithm", "MD5"],
+          ["x-amz-checksum-type", "COMPOSITE"],
+          ["Transfer-Encoding", "chunked"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<InitiateMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>usr-rec-20261014-cks</Bucket><Key>mp-md5</Key><UploadId>2vigOYyWiwLdISepXtOBxueyDntvJFOHKPYVk5foAl_lKv4salKYz6n7OLPJ_d4zJNjvIQ6nAJ3enf41T5tr1fLLlRDnj5.IPYgiguNKfOCcrYrZ8_XM4emqqnVzgFH3E3.Pxj1b9LPP9TekET3Huv.gEQr_kZaQKUJwrnKG_a0cQGa8X74kLvaY4cZmKQA8</UploadId></InitiateMultipartUploadResult>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "step": "H9-01-create",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InternalFailure) when calling the CreateEventSourceMapping operation (reached max retries: 2): None",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,E,b,AN,AD,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-event-source-mapping"],
+          ["X-Amz-Date", "20261014T065029Z"],
+          ["amz-sdk-invocation-id", "3a06329f-475a-48b6-b6c8-39bb59e43f15"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "234"]
+        ],
+        "body": "{\"EventSourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-fq3\", \"FunctionName\": \"usr-rec-20261014-filter\", \"BatchSize\": 1, \"FilterCriteria\": {\"Filters\": [{\"Pattern\": \"{\\\"body\\\":{\\\"ip\\\":[{\\\"cidr\\\":\\\"10.0.0.1/32\\\"}]}}\"}]}}"
+      },
+      "response": {
+        "status": 500,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:50:29 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "16"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "63e9afbc-014d-4b2d-b466-17bbadc783b8"],
+          ["x-amzn-ErrorType", "InternalFailure"]
+        ],
+        "body": "{\"message\":null}"
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,E,b,AN,AD,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-event-source-mapping"],
+          ["X-Amz-Date", "20261014T065030Z"],
+          ["amz-sdk-invocation-id", "3a06329f-475a-48b6-b6c8-39bb59e43f15"],
+          ["amz-sdk-request", "ttl=20261014T065129Z; attempt=2; max=3"],
+          ["Content-Length", "234"]
+        ],
+        "body": "{\"EventSourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-fq3\", \"FunctionName\": \"usr-rec-20261014-filter\", \"BatchSize\": 1, \"FilterCriteria\": {\"Filters\": [{\"Pattern\": \"{\\\"body\\\":{\\\"ip\\\":[{\\\"cidr\\\":\\\"10.0.0.1/32\\\"}]}}\"}]}}"
+      },
+      "response": {
+        "status": 500,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:50:30 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "16"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "31922fb0-0d25-4ba9-b234-c0099b0ac675"],
+          ["x-amzn-ErrorType", "InternalFailure"]
+        ],
+        "body": "{\"message\":null}"
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,E,b,AN,AD,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-event-source-mapping"],
+          ["X-Amz-Date", "20261014T065031Z"],
+          ["amz-sdk-invocation-id", "3a06329f-475a-48b6-b6c8-39bb59e43f15"],
+          ["amz-sdk-request", "ttl=20261014T065130Z; attempt=3; max=3"],
+          ["Content-Length", "234"]
+        ],
+        "body": "{\"EventSourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-fq3\", \"FunctionName\": \"usr-rec-20261014-filter\", \"BatchSize\": 1, \"FilterCriteria\": {\"Filters\": [{\"Pattern\": \"{\\\"body\\\":{\\\"ip\\\":[{\\\"cidr\\\":\\\"10.0.0.1/32\\\"}]}}\"}]}}"
+      },
+      "response": {
+        "status": 500,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:50:31 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "16"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "b4f00402-2438-4dd4-993c-b9271b6940c1"],
+          ["x-amzn-ErrorType", "InternalFailure"]
+        ],
+        "body": "{\"message\":null}"
+      }
+    }
+  ]
+}

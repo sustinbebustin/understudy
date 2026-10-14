@@ -1,0 +1,35 @@
+{
+  "step": "03-trailer-declared-crc32-sent-sha1",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/tr-03-trailer-declared-crc32-sent-sha1",
+        "headers": [
+          ["Content-Encoding", "aws-chunked"],
+          ["x-amz-decoded-content-length", "5"],
+          ["x-amz-trailer", "x-amz-checksum-crc32"],
+          ["x-amz-content-sha256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["X-Amz-Date", "20261014T064653Z"],
+          ["Content-Length", "65"]
+        ],
+        "body": "5\r\nhello\r\n0\r\nx-amz-checksum-sha1:qvTGHdzF6KLavt4PO0gs2a6pQ00=\r\n\r\n"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "KDYW8B804CDAZZ8Q"],
+          ["x-amz-id-2", "939RvlGK0Dxdns2t0E9/VfUNOM1ECKUTz2Np39pQsbRVDFslJ0Si8Lu3ck/349VVoJpNCkGohZ2OtMKOETqIxIWfQt/ZGkXE"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:46:53 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>MalformedTrailerError</Code><Message>The request contained trailing data that was not well-formed or did not conform to our published schema.</Message><RequestId>KDYW8B804CDAZZ8Q</RequestId><HostId>939RvlGK0Dxdns2t0E9/VfUNOM1ECKUTz2Np39pQsbRVDFslJ0Si8Lu3ck/349VVoJpNCkGohZ2OtMKOETqIxIWfQt/ZGkXE</HostId></Error>"
+      }
+    }
+  ]
+}

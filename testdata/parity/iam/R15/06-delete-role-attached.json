@@ -1,0 +1,33 @@
+{
+  "step": "06-delete-role-attached",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (DeleteConflict) when calling the DeleteRole operation: Cannot delete entity, must detach all policies first.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,E,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#iam.delete-role"],
+          ["X-Amz-Date", "20261014T070644Z"],
+          ["amz-sdk-invocation-id", "a14ef61c-a814-4c6c-98f7-6e0341ebc029"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "66"]
+        ],
+        "body": "Action=DeleteRole&Version=2010-05-08&RoleName=usr-rec-20261014-r15"
+      },
+      "response": {
+        "status": 409,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:06:44 GMT"],
+          ["x-amzn-RequestId", "ca35e2f6-8d27-41d2-9724-157a9c0d6c85"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "299"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>DeleteConflict</Code>\n    <Message>Cannot delete entity, must detach all policies first.</Message>\n  </Error>\n  <RequestId>ca35e2f6-8d27-41d2-9724-157a9c0d6c85</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

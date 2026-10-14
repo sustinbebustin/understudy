@@ -1,0 +1,30 @@
+{
+  "step": "F-delete-function",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-fn",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,E,AC,AD,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.delete-function"],
+          ["X-Amz-Date", "20261014T073300Z"],
+          ["amz-sdk-invocation-id", "d62f3ccc-6f25-409f-b8ba-8c4901679990"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 204,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:33:00 GMT"],
+          ["Content-Type", "application/json"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "b0b267c7-3e53-4c4b-8cc8-48a7255d14a3"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

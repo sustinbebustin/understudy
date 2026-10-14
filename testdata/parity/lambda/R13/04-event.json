@@ -1,0 +1,34 @@
+{
+  "step": "04-event",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-url/invocations",
+        "headers": [
+          ["X-Amz-Invocation-Type", "Event"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,b,Z,E,AN,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.invoke"],
+          ["X-Amz-Date", "20261014T070411Z"],
+          ["amz-sdk-invocation-id", "2594e232-9d40-4db9-bf6c-c08812a79455"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "2"]
+        ],
+        "body": "{}"
+      },
+      "response": {
+        "status": 202,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:04:12 GMT"],
+          ["Content-Length", "0"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "d3f379c1-0b19-49a3-8cca-a718bb0fe00b"],
+          ["x-amzn-Remapped-Content-Length", "0"],
+          ["X-Amzn-Trace-Id", "root=1-6acf296b-1a0ab34e4f9af6cf32a16d9d;parent=28b9e49e6e6f8e3d;sampled=0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

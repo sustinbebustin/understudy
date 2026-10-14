@@ -1,0 +1,35 @@
+{
+  "step": "07-put-crc64nvme-source",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/copy-src",
+        "headers": [
+          ["x-amz-checksum-crc64nvme", "M3eFcAZSQlc="],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064709Z"],
+          ["Content-Length", "5"]
+        ],
+        "body": "hello"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "Krf0YdYlkZllo8fYOEfGd4r60ZX4fMqhCNeTxDlL2C5wl+sJ0Zx0cGE07K0mgxWle7RxvrQE+eNqmZPOtHRT2WMu/QqEt4aJ"],
+          ["x-amz-request-id", "9F1YEB711ZVQWKSN"],
+          ["Date", "Wed, 14 Oct 2026 06:47:11 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["ETag", "\"5d41402abc4b2a76b9719d911017c592\""],
+          ["x-amz-checksum-crc64nvme", "M3eFcAZSQlc="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["Content-Length", "0"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

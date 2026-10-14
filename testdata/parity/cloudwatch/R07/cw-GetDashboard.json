@@ -1,0 +1,35 @@
+{
+  "step": "cw-GetDashboard",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://monitoring.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "monitoring.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T064629Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "GraniteServiceVersion20100801.GetDashboard"],
+          ["x-amzn-query-mode", "true"],
+          ["Content-Length", "44"]
+        ],
+        "body_unrecorded": {"bytes": 44}
+      },
+      "response": {
+        "status": 404,
+        "reason": "Not Found",
+        "headers": [
+          ["x-amzn-RequestId", "de3b3dcf-9020-40bb-8ba8-237805ed50a4"],
+          ["x-amzn-query-error", "ResourceNotFound;Sender"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "134"],
+          ["Date", "Wed, 14 Oct 2026 06:46:29 GMT"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.cloudwatch.v2010_08_01#DashboardNotFoundError\",\"message\":\"Dashboard usr-rec-20261014-missing does not exist\"}"
+      }
+    }
+  ]
+}

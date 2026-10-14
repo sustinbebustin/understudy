@@ -1,0 +1,30 @@
+{
+  "step": "03-sts-query-skew-16min",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["X-Amz-Date", "20261014T065055Z"],
+          ["Content-Length", "43"]
+        ],
+        "body": "Action=GetCallerIdentity&Version=2011-06-15"
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["x-amzn-RequestId", "d1be48e6-43c2-46a1-aee5-037415e17f5b"],
+          ["X-Amz-Sts-Extended-Request-Id", "MTp1cy1lYXN0LTI6UzoxNzkxOTYxNjE1Mjc5OlI6bTBseGVhTHo="],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "354"],
+          ["Date", "Wed, 14 Oct 2026 07:06:55 GMT"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>SignatureDoesNotMatch</Code>\n    <Message>Signature expired: 20261014T065055Z is now earlier than 20261014T065155Z (20261014T070655Z - 15 min.)</Message>\n  </Error>\n  <RequestId>d1be48e6-43c2-46a1-aee5-037415e17f5b</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "05-get-page-1",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.GetLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,AC,Z,AN,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.get-log-events"],
+          ["X-Amz-Date", "20261014T064932Z"],
+          ["amz-sdk-invocation-id", "0e7ad00b-4177-40db-8214-dc131c94bbe8"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "99"]
+        ],
+        "body": "{\"logGroupName\": \"/usr/usr-rec-20261014\", \"logStreamName\": \"s3\", \"limit\": 3, \"startFromHead\": true}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "ab0a2a49-6a57-4e2a-bc25-0515535aff12"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "603"],
+          ["Date", "Wed, 14 Oct 2026 06:49:33 GMT"]
+        ],
+        "body": "{\"events\":[{\"eventId\":\"39962050680603360564917083528468380625084099132707045376\",\"ingestionTime\":1791960560151,\"message\":\"p1\",\"timestamp\":1791960328000},{\"eventId\":\"39962050702904105763447706670004098897732460638687461377\",\"ingestionTime\":1791960560151,\"message\":\"p2\",\"timestamp\":1791960329000},{\"eventId\":\"39962050725204850961978329811539817170380822144667877378\",\"ingestionTime\":1791960560151,\"message\":\"p3\",\"timestamp\":1791960330000}],\"nextBackwardToken\":\"b/39962050680603360564917083528468380625084099132707045376/s\",\"nextForwardToken\":\"f/39962050725204850961978329811539817170380822144667877378/s\"}"
+      }
+    }
+  ]
+}

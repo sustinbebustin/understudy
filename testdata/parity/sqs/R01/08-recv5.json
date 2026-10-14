@@ -1,0 +1,35 @@
+{
+  "step": "08-recv5",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,E,AN,AD,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261014T063146Z"],
+          ["amz-sdk-invocation-id", "e6aeee5f-62f2-4f27-89e6-cec190142b10"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "158"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-std\", \"AttributeNames\": [\"All\"], \"VisibilityTimeout\": 5, \"WaitTimeSeconds\": 2}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "34d4ab7a-9379-5886-a9c3-c833b76bdd6c"],
+          ["Date", "Wed, 14 Oct 2026 06:31:46 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "757"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\",\"ApproximateFirstReceiveTimestamp\":\"1791959480244\",\"ApproximateReceiveCount\":\"5\",\"SentTimestamp\":\"1791959479700\"},\"Body\":\"m8\",\"MD5OfBody\":\"980b79c2a71b9bcc117e08a990b5b332\",\"MessageId\":\"093aa856-31ea-4fe4-80cd-9c6d6c6dfee1\",\"ReceiptHandle\":\"AQEBl5JoyHYyX9yexkld3seWZuv2WFi/AuOwdKYIzMiu0LLLtfa9EbT5GQlQ//h8kxn9/04lsGsq7z+4vVdbl5XhLaf72kdcroyPmPQlE84F4+GZRdkyMLa2HRoR7+3bj5qKcP0wo8UwjHSJWWsXmJMSNXg5cL2AKZXQZUiSTeQkQUcfluReZF8Npp+E5W7Rws/RuR/RY0Wy1OscBVy0MoY663RNpsy1SLZMka8vtW0u2cuiN2Wro6heTUljjCx9k+MdButLrxOBO3ZywngkPdSpQSXpGD3WIHD3qW5P1S2dmmQL6i7FYfisjnQ2vJ5S5/YAZcDp9YDODQecFrcggnKd834XfNOPtVJAMbALzSsiu+rBP4baGSi6sPAEQcU1xz4a9uk1hhGQG4Tp7LahGwTKdA==\"}]}"
+      }
+    }
+  ]
+}

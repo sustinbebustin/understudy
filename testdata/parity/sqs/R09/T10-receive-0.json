@@ -1,0 +1,35 @@
+{
+  "step": "T10-receive-0",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070658Z"],
+          ["amz-sdk-invocation-id", "ae695835-3d08-48fa-8116-c898a4342a20"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "168"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-f10\", \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 5, \"MessageAttributeNames\": [\"All\"]}"
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "910e66d7-d50d-59ed-bd9f-059ef95fadda"],
+          ["Date", "Wed, 14 Oct 2026 07:06:58 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "588"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Body\":\"{\\\"a\\\":{\\\"b\\\":\\\"x\\\"},\\\"c\\\":\\\"y\\\"}\",\"MD5OfBody\":\"94f4554e3bbabc238df3ec3e0266297c\",\"MessageId\":\"366af3f9-0f6d-4e46-b227-d18463a310e5\",\"ReceiptHandle\":\"AQEBcg4BBsqAXkUHKe/hlWKhBH69pUXadrXjfiYpv+vSC9GTioo+/bQeCPUXrTO5F9c9Z8yrEcLsshJeumHmijEsWzOJVRwNNKictdUNLRPACiKZdggZhatA2FCa0DFbzyqEGuMpTBaLH+dxuIMFj3WB3RKT1vbsFMOwF+Hsl6Ra1leqf94zTfXpm0TbstjnkvuLltPrA9f79KGUBJ63/xrjmBvLaUMN/C8+UK2slOQQe58Q4IdC65DgXcMWRksggX6gsSl+4lbvkN0sE82i5HKbDpkMSvCoTfZmLB0jfpouyKXXTG2eVzHvCtvWa5Rzm7MTSGu19a+CR0QKIa1D3g1Dx429bJzeDoMs/u0/NI8v26+eoGi6JUKe58CcPShkM+1HbiiM1rSgAzVuKhedTtlEiA==\"}]}"
+      }
+    }
+  ]
+}

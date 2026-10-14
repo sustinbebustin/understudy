@@ -1,0 +1,33 @@
+{
+  "step": "H4-attr-subscribe",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sns.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070313Z"],
+          ["amz-sdk-invocation-id", "7bfff5cd-23ac-4306-b881-31232682fdbe"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "524"]
+        ],
+        "body": "Action=Subscribe&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-c28&Protocol=sqs&Endpoint=arn%3Aaws%3Asqs%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-f28&ReturnSubscriptionArn=true&Attributes.entry.1.key=RawMessageDelivery&Attributes.entry.1.value=true&Attributes.entry.2.key=FilterPolicy&Attributes.entry.2.value=%7B%22x%22%3A%5B%7B%22anything-but%22%3A%5B%22rugby%22%2C%22tennis%22%5D%7D%5D%7D&Attributes.entry.3.key=FilterPolicyScope&Attributes.entry.3.value=MessageAttributes"
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "f2afd80f-bfab-58c5-a12f-bb4694da59a3"],
+          ["Date", "Wed, 14 Oct 2026 07:03:13 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "370"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<SubscribeResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <SubscribeResult>\n    <SubscriptionArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c28:a6a10a56-d705-4b26-b4cc-6a99a3978188</SubscriptionArn>\n  </SubscribeResult>\n  <ResponseMetadata>\n    <RequestId>f2afd80f-bfab-58c5-a12f-bb4694da59a3</RequestId>\n  </ResponseMetadata>\n</SubscribeResponse>\n"
+      }
+    }
+  ]
+}

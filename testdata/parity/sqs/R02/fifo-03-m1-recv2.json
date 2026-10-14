@@ -1,0 +1,35 @@
+{
+  "step": "fifo-03-m1-recv2",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AD,AN,AC,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261014T063421Z"],
+          ["amz-sdk-invocation-id", "4c61530c-6ecb-4be7-b21e-d7ccc2ee1e0b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "201"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-src.fifo\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 1, \"VisibilityTimeout\": 1}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "d15ce5b4-d181-5c06-b79a-86fdf52cfc95"],
+          ["Date", "Wed, 14 Oct 2026 06:34:21 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "917"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\",\"ApproximateFirstReceiveTimestamp\":\"1791959658687\",\"ApproximateReceiveCount\":\"2\",\"SentTimestamp\":\"1791959657114\",\"SequenceNumber\":\"18905485745930735616\",\"MessageDeduplicationId\":\"d1\",\"MessageGroupId\":\"g1\"},\"Body\":\"body1\",\"MD5OfBody\":\"d6ed8ba2adae5a938c5a3757bcccf4dd\",\"MD5OfMessageAttributes\":\"cfd3bfb043f86340e7dbc235456abbb0\",\"MessageAttributes\":{\"b\":{\"BinaryValue\":\"AAEC\",\"DataType\":\"Binary\"},\"s\":{\"DataType\":\"String\",\"StringValue\":\"v\"}},\"MessageId\":\"58a9d858-5ddc-4c6d-b05b-a2484c411c2e\",\"ReceiptHandle\":\"AQEBeV/ELDc4htmklwxNZ1AwhArIa4F7jeXSsGZB4v/e/RsBQLROaE73l9MqIfcfSL1b8AovNP/sNu/ZOHj+jU1P9YBZ1N/1GmvuOawBLDBiCkKLcstuZuA7A0I4HzqQy55TCh7dpoee/qugXqarCmc6TnsKogDGsuFX1bQhXblXMIe6350ObUoZ8HCSpwjfsOltAk39aXHfTi0XxBspafOvJh525TDFg+PTmmuJnMxkFkP/fG68oWkLSpIK7jcjc+fWl+8j8DFkC3zeuEZTdHJRKMEVWL9B2oLF/RSYpWXUlQU=\"}]}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "step": "03-ttl-describe-0s",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.DescribeTimeToLive"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,E,T,AD,P,AC,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.describe-time-to-live"],
+          ["X-Amz-Date", "20261014T063346Z"],
+          ["amz-sdk-invocation-id", "1f534094-5114-498b-8b68-d36d7160f640"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "38"]
+        ],
+        "body": "{\"TableName\": \"usr-rec-20261014-lock\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:33:46 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "84"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "0AMUKHR0LK1RJD8MSRKM7FP7LFVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "3461384945"]
+        ],
+        "body": "{\"TimeToLiveDescription\":{\"AttributeName\":\"ExpiresAt\",\"TimeToLiveStatus\":\"ENABLED\"}}"
+      }
+    }
+  ]
+}

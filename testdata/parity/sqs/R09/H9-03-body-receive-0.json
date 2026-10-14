@@ -1,0 +1,35 @@
+{
+  "step": "H9-03-body-receive-0",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T071311Z"],
+          ["amz-sdk-invocation-id", "12201049-2146-4cd3-82f3-65a43ca2c91e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "168"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-f67\", \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 5, \"MessageAttributeNames\": [\"All\"]}"
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "81eab9aa-e4a3-5216-b945-dae3c9645f3e"],
+          ["Date", "Wed, 14 Oct 2026 07:13:11 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1141"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Body\":\"{\\\"ip\\\":\\\"10.0.0.1\\\"}\",\"MD5OfBody\":\"38e6a4a554b117bff0bfeab233931f5c\",\"MessageId\":\"0c2ae3e8-9574-47f8-86c3-2cc2b765f29b\",\"ReceiptHandle\":\"AQEBSTjC9bdMEDHegguAn31a4kPD3WcNPHMqT+vGIuDllW0TnkX5zh2qoPYx/zLeB1elfQC3fRAi0+c+rlhvp1cu24de2pceuoktIf/owhb0rNPU/xz3SWYaZnEKeTgA7ySdugcvmbVPsfMQkYHeKufpJTEkA4/2x0KIaklygv7ODno2XXjNzjSG3mERp8xi55LCGMcSNG2UrGiXaQEYhnl+iOaS8Sp/V+Ii7yO5AfamKkEbqgXre0TdE1ZzeG5y5N/F88u6QnpL3f8zM1ebjbkME4NFEKiJYU/Zy5tlq36AoXmqG6iAGiQtLuhCrQH948eQy5Hrg1zsOmEXUn+6nc//FpqD/8TOWgWm8fuuefHZKrtltAxEmyom0WVKj3k80XW9vuavayCEvwanU3BomLHg5A==\"},{\"Body\":\"{\\\"ip\\\":\\\"2001:db8::1\\\"}\",\"MD5OfBody\":\"ce49a00431f6f74149ac25bb5224c828\",\"MessageId\":\"0d9fd119-ea53-453e-8c69-ff4d9889c355\",\"ReceiptHandle\":\"AQEBbg6f33sdu5WstFrep2ywmaKaU8VXNbUqfP287dHmuljCVH0fpZe3WHyw4ODFULCjzNZjVIivBI7T3v5vdYYn6/7BqMYruRmfAWF67xS4y9A4iWpY85m+wwif6Mv12aeBAoSw8roMKa0YyZbEHq33Ppw1LjgoKwwky4QT6SVqDXR7df9rEiLVEhr/YvtsgRN74+sxX8Cj1PkC62wMKcBNKQnVHkI/T+F3RaZI2PCateVF142nSFxFMkqHrkM+F3ecu6r62RzLouKn8KfjzvP8vQIJ0yESyAiE6nswUuHgvhyDYSE2xUbAQUzZL/2xK52BpQ2lcYnEFrmXROdKOEU1f+H5KdAGrBQceguaYAWR4d+lSIAsbHHc06idLDqR6fUYtPnvzKvZ4apMoK2NT/ZJ1g==\"}]}"
+      }
+    }
+  ]
+}

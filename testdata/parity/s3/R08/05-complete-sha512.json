@@ -1,0 +1,32 @@
+{
+  "step": "05-complete-sha512",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/mp-sha512?uploadId=Dl2CgNqAeaSICLtJoK3z9VHY9sW5EL2RXeTfYniMH28aKyorbhcag7HPwXZ4ORU4HLnz2YOGhiQauqQAveYr3weP7UFqO3aIb2Blbysv90Rt62MAA2KZ_IRIwFT5cUVPuWixSH4NKy_ojnqgnc2CEziVyGCzRiPEbX66.sdF2dkLeJRdL2oTuRFlQYfLzujf",
+        "headers": [
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064704Z"],
+          ["Content-Length", "465"]
+        ],
+        "body_unrecorded": {"bytes": 465}
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "9QjmdHby5AzM1xO6oYgvQP4E51irlw/wl+YvHgqLybtqR2JeP3JxZOLYr8ww+zv9MHV7bgkSSJAZ4AM/K8Ffk6Bb/jVOHNpD"],
+          ["x-amz-request-id", "NE65P5SZJRY87VV1"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:47:05 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://usr-rec-20261014-cks.s3.us-east-2.amazonaws.com/mp-sha512</Location><Bucket>usr-rec-20261014-cks</Bucket><Key>mp-sha512</Key><ETag>\"4dc300d586106dc6c7452e1dba7eba2c-2\"</ETag><ChecksumSHA512>hbWfVq2dROxQPWBMcw1EZgLLOpNmP/zfonMOFFvvC1LaQbYma4kY9a3JmG7oMa9BgHj2grxxoS0u7FKeSlg7vQ==-2</ChecksumSHA512><ChecksumType>COMPOSITE</ChecksumType></CompleteMultipartUploadResult>"
+      }
+    }
+  ]
+}

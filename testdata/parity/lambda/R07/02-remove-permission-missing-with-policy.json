@@ -1,0 +1,33 @@
+{
+  "step": "02-remove-permission-missing-with-policy",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the RemovePermission operation: Statement nope is not found in resource policy.\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-r07/policy/nope",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,AN,AC,AD,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.remove-permission"],
+          ["X-Amz-Date", "20261014T064454Z"],
+          ["amz-sdk-invocation-id", "48dcdb27-c5ca-412a-9318-93cdf1d1b864"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:44:54 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "75"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "642baf0c-8dbd-4bb7-b13e-15d3ebcb9ea6"],
+          ["x-amzn-ErrorType", "ResourceNotFoundException"]
+        ],
+        "body": "{\"Message\":\"Statement nope is not found in resource policy.\",\"Type\":\"User\"}"
+      }
+    }
+  ]
+}

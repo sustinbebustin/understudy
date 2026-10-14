@@ -1,0 +1,38 @@
+{
+  "step": "x-ssec-on-non-ssec-read",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the GetObject operation: The encryption parameters are not applicable to this object.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-sse.s3.us-east-2.amazonaws.com/plain",
+        "headers": [
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="],
+          ["x-amz-server-side-encryption-customer-key-MD5", "hRasmdxgYDKV3nvbahU1MA=="],
+          ["x-amz-checksum-mode", "ENABLED"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,AN,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-object"],
+          ["X-Amz-Date", "20261014T070554Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "c7549cc3-3ff8-4cb6-966d-37999dc198f9"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amz-request-id", "MDTNWDD3J94B98ZW"],
+          ["x-amz-id-2", "qDX15VqeshyWyix21GMfUZRg+dgo51bKwuA5feytbq6z5lmCfRhMPmWEQlXcAN+CG1Wjxho222v46WJsbxfgo1nBiDZ6tzI7"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:05:54 GMT"],
+          ["Connection", "close"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>The encryption parameters are not applicable to this object.</Message><RequestId>MDTNWDD3J94B98ZW</RequestId><HostId>qDX15VqeshyWyix21GMfUZRg+dgo51bKwuA5feytbq6z5lmCfRhMPmWEQlXcAN+CG1Wjxho222v46WJsbxfgo1nBiDZ6tzI7</HostId></Error>"
+      }
+    }
+  ]
+}

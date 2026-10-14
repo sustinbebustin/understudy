@@ -1,0 +1,35 @@
+{
+  "step": "04-default-disabled-key-multipart",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (KMS.DisabledException) when calling the CreateMultipartUpload operation: arn:aws:kms:us-east-2:123456789012:key/6d38c8ab-924c-412c-8cc0-dbaf5a2629c3 is disabled.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://usr-rec-20261014-sse.s3.us-east-2.amazonaws.com/mp?uploads",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,g,E,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.create-multipart-upload"],
+          ["X-Amz-Date", "20261014T070558Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "44a4f8d2-1c50-4e68-863b-275ebf5a8811"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "40SFN4475QQGQ0R1"],
+          ["x-amz-id-2", "TXk1InL/7V61nnShIDywhzJMRiteVGyENvfmsHXiWV3ldBC5+8/DsweVNdv+W6vL4WDhtCN3KQIsLeXe19l0B3GtAUJjeStm"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:05:57 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>KMS.DisabledException</Code><Message>arn:aws:kms:us-east-2:123456789012:key/6d38c8ab-924c-412c-8cc0-dbaf5a2629c3 is disabled.</Message><RequestId>40SFN4475QQGQ0R1</RequestId><HostId>TXk1InL/7V61nnShIDywhzJMRiteVGyENvfmsHXiWV3ldBC5+8/DsweVNdv+W6vL4WDhtCN3KQIsLeXe19l0B3GtAUJjeStm</HostId></Error>"
+      }
+    }
+  ]
+}

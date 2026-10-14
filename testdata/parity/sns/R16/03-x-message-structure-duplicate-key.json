@@ -1,0 +1,33 @@
+{
+  "step": "03-x-message-structure-duplicate-key",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AC,E,AN,AD,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.publish"],
+          ["X-Amz-Date", "20261014T070605Z"],
+          ["amz-sdk-invocation-id", "4d75bf49-f17e-46cd-91c6-048ae4e4b85c"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "194"]
+        ],
+        "body": "Action=Publish&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-r16&Message=%7B%22default%22%3A%22a%22%2C%22default%22%3A%22b%22%7D&MessageStructure=json"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "982585f5-9dea-53fb-bbd6-e6bcb1f7782b"],
+          ["Date", "Wed, 14 Oct 2026 07:06:05 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "294"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<PublishResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <PublishResult>\n    <MessageId>77205bc8-15ec-588d-9b7f-388139f1a35d</MessageId>\n  </PublishResult>\n  <ResponseMetadata>\n    <RequestId>982585f5-9dea-53fb-bbd6-e6bcb1f7782b</RequestId>\n  </ResponseMetadata>\n</PublishResponse>\n"
+      }
+    }
+  ]
+}

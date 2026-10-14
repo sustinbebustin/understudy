@@ -1,0 +1,33 @@
+{
+  "step": "03-source-aws-foo",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,AC,Z,AD,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-events"],
+          ["X-Amz-Date", "20261014T071411Z"],
+          ["amz-sdk-invocation-id", "ec6d3148-97c6-407b-83db-69b5ed8207e2"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "71"]
+        ],
+        "body": "{\"Entries\": [{\"Source\": \"aws.foo\", \"DetailType\": \"x\", \"Detail\": \"{}\"}]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "4d16b1aa-3a5e-43e5-9abc-77675d64693c"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "130"],
+          ["Date", "Wed, 14 Oct 2026 07:14:11 GMT"]
+        ],
+        "body": "{\"Entries\":[{\"ErrorCode\":\"NotAuthorizedForSourceException\",\"ErrorMessage\":\"Not authorized for the source.\"}],\"FailedEntryCount\":1}"
+      }
+    }
+  ]
+}

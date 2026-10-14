@@ -1,0 +1,41 @@
+{
+  "step": "02-sdk-trailer-XXHASH64-hello",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-cks.s3.us-east-2.amazonaws.com/t-XXHASH64-hello",
+        "headers": [
+          ["x-amz-sdk-checksum-algorithm", "XXHASH64"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/AH,D,AD,AC,b,Z cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-xxhash64"],
+          ["X-Amz-Decoded-Content-Length", "5"],
+          ["host", "usr-rec-20261014-cks.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T064648Z"],
+          ["x-amz-content-sha256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "a8c60a22-0478-4798-aaf5-69db59c68d12"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "headers": [
+          ["x-amz-id-2", "/xNsR+kCvrXzyAccQAFXWK0oHELKqy3o6v44k/xlThiDUHkWfvNnpboALXzcvkHWwbGhGG5zKaxQA4+qQ/FWQVZUcS5kPdw8"],
+          ["x-amz-request-id", "8EXDA0YV23P3B6CB"],
+          ["Date", "Wed, 14 Oct 2026 06:46:49 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["ETag", "\"5d41402abc4b2a76b9719d911017c592\""],
+          ["x-amz-checksum-xxhash64", "JseCfYifbaM="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["Content-Length", "0"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

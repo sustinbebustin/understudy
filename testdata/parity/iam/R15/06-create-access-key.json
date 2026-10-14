@@ -1,0 +1,32 @@
+{
+  "step": "06-create-access-key",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,E,Z,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#iam.create-access-key"],
+          ["X-Amz-Date", "20261014T070650Z"],
+          ["amz-sdk-invocation-id", "9f19727b-7d4e-4ce3-8184-c4e49030b6e5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "72"]
+        ],
+        "body": "Action=CreateAccessKey&Version=2010-05-08&UserName=usr-rec-20261014-user"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:06:50 GMT"],
+          ["x-amzn-RequestId", "7ac6d955-4c65-4b31-aa74-0d28b0fe9c15"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "563"]
+        ],
+        "body": "<CreateAccessKeyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <CreateAccessKeyResult>\n    <AccessKey>\n      <AccessKeyId>AKIAREDACTED</AccessKeyId>\n      <SecretAccessKey>REDACTED</SecretAccessKey>\n      <UserName>usr-rec-20261014-user</UserName>\n      <Status>Active</Status>\n      <CreateDate>2026-10-14T07:06:50Z</CreateDate>\n    </AccessKey>\n  </CreateAccessKeyResult>\n  <ResponseMetadata>\n    <RequestId>7ac6d955-4c65-4b31-aa74-0d28b0fe9c15</RequestId>\n  </ResponseMetadata>\n</CreateAccessKeyResponse>\n"
+      }
+    }
+  ]
+}

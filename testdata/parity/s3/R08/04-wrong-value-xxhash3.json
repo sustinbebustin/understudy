@@ -1,0 +1,33 @@
+{
+  "step": "04-wrong-value-xxhash3",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/e4-xxhash3",
+        "headers": [
+          ["x-amz-checksum-xxhash3", "doHjiy3nxYI="],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064655Z"],
+          ["Content-Length", "5"]
+        ],
+        "body": "hello"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "DWR7PR8K03F8EPZT"],
+          ["x-amz-id-2", "kvnFdOxIZg12caqBf9wwDkF4G69E1uBTb2qsLkYW9633kiPSzJwqSWEL6ybGZw7zN0kcO6UennyGJC2dGVWhs4QvElQ1yX2O"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:46:54 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>BadDigest</Code><Message>The XXHASH3 you specified did not match the calculated checksum.</Message><RequestId>DWR7PR8K03F8EPZT</RequestId><HostId>kvnFdOxIZg12caqBf9wwDkF4G69E1uBTb2qsLkYW9633kiPSzJwqSWEL6ybGZw7zN0kcO6UennyGJC2dGVWhs4QvElQ1yX2O</HostId></Error>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "06-describe-s-awsalias",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://secretsmanager.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "secretsmanager.DescribeSecret"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,b,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#secretsmanager.describe-secret"],
+          ["X-Amz-Date", "20261014T064601Z"],
+          ["amz-sdk-invocation-id", "71bbe1c1-d92b-449f-a81d-4d5e1e640506"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "43"]
+        ],
+        "body": "{\"SecretId\": \"usr-rec-20261014-s-awsalias\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:46:01 GMT"],
+          ["x-amzn-RequestId", "17269ee5-e9e3-4c34-b3c2-0b2aad1b475d"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "313"]
+        ],
+        "body": "{\"ARN\":\"arn:aws:secretsmanager:us-east-2:123456789012:secret:usr-rec-20261014-s-awsalias-291sey\",\"CreatedDate\":1.791960360737E9,\"KmsKeyId\":\"alias/aws/secretsmanager\",\"LastChangedDate\":1.7919603608E9,\"Name\":\"usr-rec-20261014-s-awsalias\",\"VersionIdsToStages\":{\"6f7e04d3-4734-4406-9b87-69b709ce9e4a\":[\"AWSCURRENT\"]}}"
+      }
+    }
+  ]
+}

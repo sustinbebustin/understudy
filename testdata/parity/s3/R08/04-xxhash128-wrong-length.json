@@ -1,0 +1,33 @@
+{
+  "step": "04-xxhash128-wrong-length",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/e3",
+        "headers": [
+          ["x-amz-checksum-xxhash128", "AAAA"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064654Z"],
+          ["Content-Length", "5"]
+        ],
+        "body": "hello"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amz-request-id", "198WCMMW3XTVDV1X"],
+          ["x-amz-id-2", "O0MMIa26oui/Gt0tE/bgW4dXGSbxDj2TiWVxXZt63/52ow1W+/txQYs0192IruqrLbW/z9S9GhjZsf/eoooDdXvCk2aBvaQ1"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:46:54 GMT"],
+          ["Connection", "close"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>Value for x-amz-checksum-xxhash128 header is invalid.</Message><RequestId>198WCMMW3XTVDV1X</RequestId><HostId>O0MMIa26oui/Gt0tE/bgW4dXGSbxDj2TiWVxXZt63/52ow1W+/txQYs0192IruqrLbW/z9S9GhjZsf/eoooDdXvCk2aBvaQ1</HostId></Error>"
+      }
+    }
+  ]
+}

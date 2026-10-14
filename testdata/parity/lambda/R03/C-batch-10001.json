@@ -1,0 +1,35 @@
+{
+  "step": "C-batch-10001",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateEventSourceMapping operation: 1 validation error detected: Value '10001' at 'batchSize' failed to satisfy constraint: Member must have value less than or equal to 10000",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AC,E,Z,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-event-source-mapping"],
+          ["X-Amz-Date", "20261014T071110Z"],
+          ["amz-sdk-invocation-id", "a5b5bdac-1ced-46be-acc9-913d362ea814"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "172"]
+        ],
+        "body": "{\"EventSourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-q2\", \"FunctionName\": \"usr-rec-20261014-fn\", \"BatchSize\": 10001, \"MaximumBatchingWindowInSeconds\": 1}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:11:10 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "152"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "2f358288-8a29-402c-8ad3-85cbc9385398"],
+          ["x-amzn-ErrorType", "ValidationException"]
+        ],
+        "body": "{\"message\":\"1 validation error detected: Value '10001' at 'batchSize' failed to satisfy constraint: Member must have value less than or equal to 10000\"}"
+      }
+    }
+  ]
+}

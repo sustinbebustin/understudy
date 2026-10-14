@@ -1,0 +1,35 @@
+{
+  "step": "01-put-header-md5",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/h-md5",
+        "headers": [
+          ["x-amz-checksum-md5", "XUFAKrxLKna5cZ2REBfFkg=="],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064647Z"],
+          ["Content-Length", "5"]
+        ],
+        "body": "hello"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "XoUh7lINCjuq049Y/C/bLp09Y4atrgpIao4lB3/v2D7TEfPW1Es/6B41ngF+RW4/JYxPc09HW9zPUW03i1YXe4oUtc7xPJh/"],
+          ["x-amz-request-id", "4PBQMH2HE9QK5XJ8"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:46:48 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["ETag", "\"5d41402abc4b2a76b9719d911017c592\""],
+          ["x-amz-checksum-md5", "XUFAKrxLKna5cZ2REBfFkg=="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

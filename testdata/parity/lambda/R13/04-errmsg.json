@@ -1,0 +1,35 @@
+{
+  "step": "04-errmsg",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-url/invocations",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AC,AD,AN,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.invoke"],
+          ["X-Amz-Date", "20261014T070412Z"],
+          ["amz-sdk-invocation-id", "d2349f0a-59da-4684-9648-c6cc3dce8c27"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "21"]
+        ],
+        "body": "{\"rawPath\":\"/errmsg\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:04:13 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "49"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "33e3598c-26de-488b-bcb8-c16b00502ef2"],
+          ["x-amzn-Remapped-Content-Length", "0"],
+          ["X-Amz-Executed-Version", "$LATEST"],
+          ["X-Amzn-Trace-Id", "Root=1-6acf296d-5637cba05f77538c1633e38f;Parent=5e6bd0d422f35a5b;Sampled=0;Lineage=1:d7b206da:0"]
+        ],
+        "body": "{\"errorMessage\": \"custom\", \"errorType\": \"Custom\"}"
+      }
+    }
+  ]
+}

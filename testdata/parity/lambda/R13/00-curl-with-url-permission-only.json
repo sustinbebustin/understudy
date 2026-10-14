@@ -1,0 +1,21 @@
+{
+  "step": "00-curl-with-url-permission-only",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:03:30 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "144"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "fe3a635d-0da7-470d-8fc8-84bbb69f6822"],
+          ["x-amzn-ErrorType", "AccessDeniedException"]
+        ],
+        "body": "{\"Message\":\"Forbidden. For troubleshooting Function URL authorization issues, see: https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html\"}"
+      }
+    }
+  ]
+}

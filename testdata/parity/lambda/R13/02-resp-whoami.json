@@ -1,0 +1,21 @@
+{
+  "step": "02-resp-whoami",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 502,
+        "reason": "Bad Gateway",
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:03:58 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "21"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "016ced67-fd46-4798-9934-79e1274db7f5"],
+          ["X-Amzn-Trace-Id", "Root=1-6acf295b-22010764566832f268f6b75e;Parent=354f791bf6f852ce;Sampled=0;Lineage=1:d7b206da:0"]
+        ],
+        "body": "Internal Server Error"
+      }
+    }
+  ]
+}

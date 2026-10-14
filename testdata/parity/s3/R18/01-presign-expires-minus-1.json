@@ -1,0 +1,27 @@
+{
+  "step": "01-presign-expires-minus-1",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/r?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ASIAREDACTED%2F20261014%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20261014T070653Z&X-Amz-Expires=-1&X-Amz-SignedHeaders=host&X-Amz-Security-Token=REDACTED&X-Amz-Signature=REDACTED",
+        "headers": []
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amz-request-id", "53YN0Z0GCJHPATZD"],
+          ["x-amz-id-2", "4lgmA1GuAZdDcaRNDU7aZYRJ3KM1nvnOQL/i77BIOjMoZnW4hm95V8iFwoGstynxWFYzazC1TDDb7mXqSQo4Vt5CBy4F4Bpm"],
+          ["Date", "Wed, 14 Oct 2026 07:06:53 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Server", "AmazonS3"],
+          ["Transfer-Encoding", "chunked"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AuthorizationQueryParametersError</Code><Message>X-Amz-Expires must be non-negative</Message><RequestId>53YN0Z0GCJHPATZD</RequestId><HostId>4lgmA1GuAZdDcaRNDU7aZYRJ3KM1nvnOQL/i77BIOjMoZnW4hm95V8iFwoGstynxWFYzazC1TDDb7mXqSQo4Vt5CBy4F4Bpm</HostId></Error>"
+      }
+    }
+  ]
+}

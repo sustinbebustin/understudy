@@ -1,0 +1,33 @@
+{
+  "step": "00-create-url-6",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2021-10-31/functions/usr-rec-20261014-url/url",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,AC,E,b,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-function-url-config"],
+          ["X-Amz-Date", "20261014T070308Z"],
+          ["amz-sdk-invocation-id", "84630b18-c27e-4010-bfc8-c3906a04a045"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "20"]
+        ],
+        "body": "{\"AuthType\": \"NONE\"}"
+      },
+      "response": {
+        "status": 201,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:03:08 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "267"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "110ac1ab-c627-4b7b-81d1-2f94fd8e4756"]
+        ],
+        "body": "{\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-url\",\"FunctionUrl\":\"https://sz2dbqdcsspv3lnmbxg6pkk7ru0wcusi.lambda-url.us-east-2.on.aws/\",\"CreationTime\":\"2026-10-14T07:03:08.941122705Z\",\"InvokeMode\":null,\"AuthType\":\"NONE\",\"Cors\":null}"
+      }
+    }
+  ]
+}

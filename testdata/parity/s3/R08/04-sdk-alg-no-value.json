@@ -1,0 +1,33 @@
+{
+  "step": "04-sdk-alg-no-value",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/e2",
+        "headers": [
+          ["x-amz-sdk-checksum-algorithm", "XXHASH64"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064654Z"],
+          ["Content-Length", "5"]
+        ],
+        "body": "hello"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "198PF9YWQZ4GZDT1"],
+          ["x-amz-id-2", "2KQ+tI5PNZ6P89aFCWsB9+ccBrDwWCzLUcuzw6Xd7PL3Y64L7z2ur4Cth6Vh4ALKlIs9iwWdzxVRjf8HcRMT32Vcm1Df3XZ3"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:46:53 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>x-amz-sdk-checksum-algorithm specified, but no corresponding x-amz-checksum-* or x-amz-trailer headers were found.</Message><RequestId>198PF9YWQZ4GZDT1</RequestId><HostId>2KQ+tI5PNZ6P89aFCWsB9+ccBrDwWCzLUcuzw6Xd7PL3Y64L7z2ur4Cth6Vh4ALKlIs9iwWdzxVRjf8HcRMT32Vcm1Df3XZ3</HostId></Error>"
+      }
+    }
+  ]
+}

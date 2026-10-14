@@ -1,0 +1,21 @@
+{
+  "step": "01-post-gzip",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:03:47 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "4"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "129427d0-859e-46e8-a846-757bd90d3cd4"],
+          ["X-Amzn-Trace-Id", "Root=1-6acf2953-5742d0e1275e7db36711cdfd;Parent=5619caa47152684d;Sampled=0;Lineage=1:d7b206da:0"]
+        ],
+        "body": "echo"
+      }
+    }
+  ]
+}

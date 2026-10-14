@@ -1,0 +1,33 @@
+{
+  "step": "02-targets-rate",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutTargets"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,AD,AC,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-targets"],
+          ["X-Amz-Date", "20261014T070433Z"],
+          ["amz-sdk-invocation-id", "af21389f-26e4-4d9f-a4cf-3d98ca1baf04"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "236"]
+        ],
+        "body": "{\"Rule\": \"usr-rec-20261014-rate\", \"Targets\": [{\"Id\": \"plain\", \"Arn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-r14q\"}, {\"Id\": \"const\", \"Arn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-r14q\", \"Input\": \"{\\\"c\\\":1}\"}]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "533746e4-4016-48a8-871a-d64af733b2d8"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "41"],
+          ["Date", "Wed, 14 Oct 2026 07:04:33 GMT"]
+        ],
+        "body": "{\"FailedEntries\":[],\"FailedEntryCount\":0}"
+      }
+    }
+  ]
+}

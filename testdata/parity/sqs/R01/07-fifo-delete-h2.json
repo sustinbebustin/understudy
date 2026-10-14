@@ -1,0 +1,35 @@
+{
+  "step": "07-fifo-delete-h2",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.DeleteMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AC,Z,AD,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.delete-message"],
+          ["X-Amz-Date", "20261014T063116Z"],
+          ["amz-sdk-invocation-id", "0f5da80d-51c9-4235-a95c-1212262ed51a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "413"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-f.fifo\", \"ReceiptHandle\": \"AQEBumf60a7Kr2gx3+n0SyX8NF8NT9NEa6yK6Uh7tzoCUEUBVttBN1OqDI58071P7X7BjlfF5TVR0dXpzGe4nXaLdTnNKVgpunELTkY7lJUOjx9WiKVkcvMdt9KXSQE8ZFr+NSx+5sIhIJJxi1zWWPqD+AeXtIZaaeZJtNOK8rXuMEqsBiJSgyjrAneXFVRLWFYDuuALM7H8icSbdYJU2zhgiHW4/Ur2McWKCuHsIG43vuNzeHbGwpdAz1K3q8ReyEWyNNQd9XxsJFMVX/d36pTA8UWeTYKV7e4/5UPG6VmXke4=\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "8b4079f3-3cdb-5b4f-ada8-1aba1f2fa9f9"],
+          ["Date", "Wed, 14 Oct 2026 06:31:16 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "0"],
+          ["connection", "keep-alive"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

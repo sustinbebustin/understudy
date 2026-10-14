@@ -1,0 +1,30 @@
+{
+  "step": "05-attributes-md5",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/mp-md5?attributes",
+        "headers": [
+          ["x-amz-object-attributes", "Checksum,ObjectParts"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064706Z"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "PFXVAeL2tUFgKzRLWqEte8TjjQANOFLRsGgGdv2K7jCalNKAM0yl67ZIZqgISlNWl5TCdGGppv0Ey4U0+tmecsfNQD//GjcC"],
+          ["x-amz-request-id", "SFHP4JWNHSQ2C4MW"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:47:08 GMT"],
+          ["Last-Modified", "Wed, 14 Oct 2026 06:47:06 GMT"],
+          ["Content-Length", "670"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<GetObjectAttributesResponse xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Checksum><ChecksumMD5>TcMA1YYQbcbHRS4dun66LA==</ChecksumMD5><ChecksumType>COMPOSITE</ChecksumType></Checksum><ObjectParts><PartsCount>2</PartsCount><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>2</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><Size>5242880</Size><ChecksumMD5>TChkDcjfGTOq6hkhANUK4A==</ChecksumMD5></Part><Part><PartNumber>2</PartNumber><Size>1048576</Size><ChecksumMD5>jyk6L2wZs0UVL3pJu0xkPA==</ChecksumMD5></Part></ObjectParts></GetObjectAttributesResponse>"
+      }
+    }
+  ]
+}

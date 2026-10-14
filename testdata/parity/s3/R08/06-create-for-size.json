@@ -1,0 +1,30 @@
+{
+  "step": "06-create-for-size",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/nf4?uploads",
+        "headers": [
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064709Z"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "i83pLVn+nZe68ccqVKptbJdKolIO31XQcX/SqfsuDymaHJlzTJHlqNXJEAjtb16bPQ/gkSVSX6PgUABPyYyGU3rAJE+6gbJu"],
+          ["x-amz-request-id", "3MTGBZGT4FJQT4N9"],
+          ["Date", "Wed, 14 Oct 2026 06:47:10 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Transfer-Encoding", "chunked"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<InitiateMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>usr-rec-20261014-cks</Bucket><Key>nf4</Key><UploadId>a7L8CHugjWmc99tY0Rja.tNN1.iKFZlljJCXnE7mzy9PtnDCyx5RimukIvYKcKJh8SxAQ6CW1kpzV3llQ_IYhK_m..hoG93HpUNsdiJriW_3OBcN1i6V_ssLSrsfNqksyRlEjUa2yDeJoU9MwNIDTDInGESpJu_Blfalq3waknwx34ERVvV6k6eQJ.kDFZxJ</UploadId></InitiateMultipartUploadResult>"
+      }
+    }
+  ]
+}

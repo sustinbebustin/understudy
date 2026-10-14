@@ -1,0 +1,42 @@
+{
+  "step": "04-nonexistent-alias",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (KMS.NotFoundException) when calling the PutObject operation: Alias arn:aws:kms:us-east-2:123456789012:alias/usr-rec-20261014-missing is not found.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-sse.s3.us-east-2.amazonaws.com/k",
+        "headers": [
+          ["x-amz-server-side-encryption", "aws:kms"],
+          ["x-amz-server-side-encryption-aws-kms-key-id", "alias/usr-rec-20261014-missing"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/W,g,E,b,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-crc64nvme"],
+          ["X-Amz-Decoded-Content-Length", "1"],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261014T070553Z"],
+          ["X-Amz-Content-SHA256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "39e2fe5b-0327-4681-abc4-9ca8f8a00f64"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "3GVTT98G36B5TK2V"],
+          ["x-amz-id-2", "mKn1pHdkenufMwi4tGS33Vw2lxL6+Rsr3Ms0+x4Fa+INPL8o+2CupmS9s9n0tUP12oG8/85nMf8MQ9h08mroAJ5j28oW5Ddc"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:05:52 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>KMS.NotFoundException</Code><Message>Alias arn:aws:kms:us-east-2:123456789012:alias/usr-rec-20261014-missing is not found.</Message><RequestId>3GVTT98G36B5TK2V</RequestId><HostId>mKn1pHdkenufMwi4tGS33Vw2lxL6+Rsr3Ms0+x4Fa+INPL8o+2CupmS9s9n0tUP12oG8/85nMf8MQ9h08mroAJ5j28oW5Ddc</HostId></Error>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "step": "01-disabled-put-key-policy",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "TrentService.PutKeyPolicy"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,g,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#kms.put-key-policy"],
+          ["X-Amz-Date", "20261014T070521Z"],
+          ["amz-sdk-invocation-id", "97ff9672-6d25-4a5a-a60d-67a95b8bb61b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "401"]
+        ],
+        "body": "{\"KeyId\": \"a1090e85-82e2-4517-8b2b-51faf8a60a8b\", \"PolicyName\": \"default\", \"Policy\": \"{\\n  \\\"Version\\\" : \\\"2012-10-17\\\",\\n  \\\"Id\\\" : \\\"key-default-1\\\",\\n  \\\"Statement\\\" : [ {\\n    \\\"Sid\\\" : \\\"Enable IAM User Permissions\\\",\\n    \\\"Effect\\\" : \\\"Allow\\\",\\n    \\\"Principal\\\" : {\\n      \\\"AWS\\\" : \\\"arn:aws:iam::123456789012:root\\\"\\n    },\\n    \\\"Action\\\" : \\\"kms:*\\\",\\n    \\\"Resource\\\" : \\\"*\\\"\\n  } ]\\n}\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "37643c47-3da4-42fa-838e-2d62695f34f3"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Wed, 14 Oct 2026 07:05:21 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "0"],
+          ["connection", "keep-alive"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

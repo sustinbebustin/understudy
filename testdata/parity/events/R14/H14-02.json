@@ -1,0 +1,33 @@
+{
+  "step": "H14-02",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.TestEventPattern"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AN,E,AC,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.test-event-pattern"],
+          ["X-Amz-Date", "20261014T071423Z"],
+          ["amz-sdk-invocation-id", "e01274d0-7c14-4aed-9883-5c2a86df5bf4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "282"]
+        ],
+        "body": "{\"EventPattern\": \"{\\\"detail\\\":{\\\"$or\\\":[{\\\"x\\\":[\\\"q\\\"]},{\\\"x\\\":[\\\"q\\\",\\\"y\\\"]}]}}\", \"Event\": \"{\\\"id\\\":\\\"1\\\",\\\"account\\\":\\\"123456789012\\\",\\\"source\\\":\\\"rec\\\",\\\"time\\\":\\\"2026-01-01T00:00:00Z\\\",\\\"region\\\":\\\"us-east-2\\\",\\\"resources\\\":[],\\\"detail-type\\\":\\\"rec\\\",\\\"detail\\\":{\\\"x\\\":\\\"y\\\"}}\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "134ae164-a028-4314-87ea-2cec5ad69e49"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "16"],
+          ["Date", "Wed, 14 Oct 2026 07:14:23 GMT"]
+        ],
+        "body": "{\"Result\":false}"
+      }
+    }
+  ]
+}

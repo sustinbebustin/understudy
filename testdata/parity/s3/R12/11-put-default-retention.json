@@ -1,0 +1,35 @@
+{
+  "step": "11-put-default-retention",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-olock.s3.us-east-2.amazonaws.com/?object-lock",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,g,AN,Z,W,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object-lock-configuration"],
+          ["x-amz-checksum-crc64nvme", "71iM9yjJxzo="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261014T070433Z"],
+          ["X-Amz-Content-SHA256", "5704e39d448968ac0cde311795eb61dc2a9e93627823324764a73e9d36521887"],
+          ["amz-sdk-invocation-id", "0056dd39-20a6-4ee7-9d8a-f3702e38c630"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "232"]
+        ],
+        "body": "<ObjectLockConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><ObjectLockEnabled>Enabled</ObjectLockEnabled><Rule><DefaultRetention><Mode>GOVERNANCE</Mode><Days>1</Days></DefaultRetention></Rule></ObjectLockConfiguration>"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "Rx1evQ0phCTZ3ap/KzPnQw2UCor6QOBeXchj7xEVoDCTBE/+6dEPbVo+kwYAeEucLmMCtsQ8yzA="],
+          ["x-amz-request-id", "4YADFAJ3AKFZDZEF"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 07:04:34 GMT"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

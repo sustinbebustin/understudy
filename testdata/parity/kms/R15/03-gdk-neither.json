@@ -1,0 +1,38 @@
+{
+  "step": "03-gdk-neither",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the GenerateDataKey operation: Please specify either number of bytes or key spec.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "TrentService.GenerateDataKey"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,E,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#kms.generate-data-key"],
+          ["X-Amz-Date", "20261014T070538Z"],
+          ["amz-sdk-invocation-id", "4bff2846-236f-423b-a40d-a5ee22c8b42d"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "49"]
+        ],
+        "body": "{\"KeyId\": \"a1090e85-82e2-4517-8b2b-51faf8a60a8b\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "edc344fd-869b-49d2-87f9-e78f54460781"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Wed, 14 Oct 2026 07:05:38 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "95"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"Please specify either number of bytes or key spec.\"}"
+      }
+    }
+  ]
+}

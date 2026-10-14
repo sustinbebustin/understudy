@@ -1,0 +1,35 @@
+{
+  "step": "C-max-concurrency-1001",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateEventSourceMapping operation: 1 validation error detected: Value '1001' at 'scalingConfig.maximumConcurrency' failed to satisfy constraint: Member must have value less than or equal to 1000",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,AD,E,Z,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-event-source-mapping"],
+          ["X-Amz-Date", "20261014T071111Z"],
+          ["amz-sdk-invocation-id", "3e9b8134-5031-440d-96c8-b24850dc1223"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "162"]
+        ],
+        "body": "{\"EventSourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-q2\", \"FunctionName\": \"usr-rec-20261014-fn\", \"ScalingConfig\": {\"MaximumConcurrency\": 1001}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:11:11 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "173"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "b14edf44-0d4f-486a-b49c-5f42e99c6392"],
+          ["x-amzn-ErrorType", "ValidationException"]
+        ],
+        "body": "{\"message\":\"1 validation error detected: Value '1001' at 'scalingConfig.maximumConcurrency' failed to satisfy constraint: Member must have value less than or equal to 1000\"}"
+      }
+    }
+  ]
+}

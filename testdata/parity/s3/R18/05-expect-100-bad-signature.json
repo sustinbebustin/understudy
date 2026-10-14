@@ -1,0 +1,36 @@
+{
+  "step": "05-expect-100-bad-signature",
+  "client": "socket",
+  "note": "S3 answered 0.09 s after the request headers, before the body; the body was never sent",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/r18-expect",
+        "headers": [
+          ["Host", "usr-rec-20261014-edge.s3.us-east-2.amazonaws.com"],
+          ["Content-Encoding", "aws-chunked"],
+          ["x-amz-decoded-content-length", "5"],
+          ["x-amz-trailer", "x-amz-checksum-crc32"],
+          ["Expect", "100-continue"],
+          ["x-amz-content-sha256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["X-Amz-Date", "20261014T140120Z"],
+          ["Content-Length", "46"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "4R5BQ6FRK95WB6DK"],
+          ["x-amz-id-2", "68zvHF2Fqucy8p2xKPE/2+uhzvarIWLXRyI5QIR8u+DLUJKyo0Hs5dynJkQnPwaswkqvi/p/rjHtDRTja4MZPLJi25LoIDi/"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 14:01:20 GMT"],
+          ["Connection", "close"]
+        ]
+      }
+    }
+  ]
+}

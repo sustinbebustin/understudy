@@ -1,0 +1,33 @@
+{
+  "step": "04-sns-listtopics",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "sns.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070308Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "36"]
+        ],
+        "body_unrecorded": {"bytes": 36}
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amzn-RequestId", "ecb845fa-8cb2-5328-b048-26b3a7deaf44"],
+          ["Date", "Wed, 14 Oct 2026 07:03:08 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "2464"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<ListTopicsResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <ListTopicsResult>\n    <Topics>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c1</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c10</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c11</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c12</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c13</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c14</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c15</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c16</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c17</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c18</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c19</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c2</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c3</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c4</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c5</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c6</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c7</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c8</TopicArn>\n      </member>\n      <member>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-c9</TopicArn>\n      </member>\n    </Topics>\n  </ListTopicsResult>\n  <ResponseMetadata>\n    <RequestId>ecb845fa-8cb2-5328-b048-26b3a7deaf44</RequestId>\n  </ResponseMetadata>\n</ListTopicsResponse>\n"
+      }
+    }
+  ]
+}

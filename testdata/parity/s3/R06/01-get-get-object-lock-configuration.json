@@ -1,0 +1,33 @@
+{
+  "step": "01-get-get-object-lock-configuration",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ObjectLockConfigurationNotFoundError) when calling the GetObjectLockConfiguration operation: Object Lock configuration does not exist for this bucket",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?object-lock",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,b,AD,E,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-object-lock-configuration"],
+          ["X-Amz-Date", "20261014T063455Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "1fb7682e-6941-447a-9277-bb7e90aa2748"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "K6V5N2W0KFA6M2RW"],
+          ["x-amz-id-2", "Ilr2hjI/aSsnPaHEdHmYAmXp/nC/adbijWPX/QHR12SVKuQyb1V1asA4M0k/7Qxgze2+pit0a0B/VdNtqL9rhDCVplkCms67"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:34:55 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>ObjectLockConfigurationNotFoundError</Code><Message>Object Lock configuration does not exist for this bucket</Message><BucketName>usr-rec-20261014-s3</BucketName><RequestId>K6V5N2W0KFA6M2RW</RequestId><HostId>Ilr2hjI/aSsnPaHEdHmYAmXp/nC/adbijWPX/QHR12SVKuQyb1V1asA4M0k/7Qxgze2+pit0a0B/VdNtqL9rhDCVplkCms67</HostId></Error>"
+      }
+    }
+  ]
+}

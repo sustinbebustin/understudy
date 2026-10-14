@@ -1,0 +1,35 @@
+{
+  "step": "01-head-sha512",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "HEAD",
+        "url": "/h-sha512",
+        "headers": [
+          ["x-amz-checksum-mode", "ENABLED"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064647Z"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "D67uzkVomuwZxrWepToTesRZve994Xq9cPbgkpLaFbWW3ubOxte9Kk7RtdfC4gNlXhsnUnGKvb08HAhkuSTUhQSdHG1xNuhY"],
+          ["x-amz-request-id", "4PBKXQ3H7J0CTENT"],
+          ["Date", "Wed, 14 Oct 2026 06:46:48 GMT"],
+          ["Last-Modified", "Wed, 14 Oct 2026 06:46:48 GMT"],
+          ["ETag", "\"5d41402abc4b2a76b9719d911017c592\""],
+          ["x-amz-checksum-sha512", "m3HSJL1i83hdltRq0+o9czGb+8KJDKra4t/3JRlnPKcjI8PZm6XBHXx6zG4UuMXaDEZjR1wuXDre9G9zvN7AQw=="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Accept-Ranges", "bytes"],
+          ["Content-Type", "binary/octet-stream"],
+          ["Content-Length", "5"],
+          ["Server", "AmazonS3"]
+        ]
+      }
+    }
+  ]
+}

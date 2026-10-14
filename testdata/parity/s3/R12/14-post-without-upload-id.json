@@ -1,0 +1,37 @@
+{
+  "step": "14-post-without-upload-id",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/r",
+        "headers": [
+          ["Host", "usr-rec-20261014-edge.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070440Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/xml"],
+          ["x-amz-content-sha256", "98504977eb92a465c97bdbbd6c6184e3c5d6d25f5321c21cdee0267896c49af6"],
+          ["Content-Length", "154"]
+        ],
+        "body_unrecorded": {"bytes": 154}
+      },
+      "response": {
+        "status": 405,
+        "reason": "Method Not Allowed",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "BYCH85RE2NRBH7CA"],
+          ["x-amz-id-2", "7Q4LV8OoWUaKs1cTifuza+v5eomhmiPbMxeN5w0aYc4kSymqf2W9x9Ebas+EakR4SYbkYqSY0Vc="],
+          ["Allow", "HEAD, DELETE, GET, PUT"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:04:39 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>MethodNotAllowed</Code><Message>The specified method is not allowed against this resource.</Message><Method>POST</Method><ResourceType>OBJECT</ResourceType><RequestId>BYCH85RE2NRBH7CA</RequestId><HostId>7Q4LV8OoWUaKs1cTifuza+v5eomhmiPbMxeN5w0aYc4kSymqf2W9x9Ebas+EakR4SYbkYqSY0Vc=</HostId></Error>"
+      }
+    }
+  ]
+}

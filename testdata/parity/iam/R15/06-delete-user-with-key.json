@@ -1,0 +1,33 @@
+{
+  "step": "06-delete-user-with-key",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (DeleteConflict) when calling the DeleteUser operation: Cannot delete entity, must delete access keys first.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,g,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#iam.delete-user"],
+          ["X-Amz-Date", "20261014T070651Z"],
+          ["amz-sdk-invocation-id", "d554b55b-ad86-489a-b83f-4d9defe53d8b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "67"]
+        ],
+        "body": "Action=DeleteUser&Version=2010-05-08&UserName=usr-rec-20261014-user"
+      },
+      "response": {
+        "status": 409,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:06:51 GMT"],
+          ["x-amzn-RequestId", "c3a16b00-e85a-459f-81bf-0ebb8d67302c"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "298"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>DeleteConflict</Code>\n    <Message>Cannot delete entity, must delete access keys first.</Message>\n  </Error>\n  <RequestId>c3a16b00-e85a-459f-81bf-0ebb8d67302c</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

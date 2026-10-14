@@ -1,0 +1,37 @@
+{
+  "step": "09-upload-part-copy-range-beyond",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the UploadPartCopy operation: Range specified is not valid for source object of size: 10",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/upc?partNumber=1&uploadId=80Nh_gDuzbHGZ6OdeIW9l85YsoKLbTdzAEBdDhBy4o3PlBMgNbycOeINkKyKDkCtgxF8qs6C6gL32fWNFLlP6QJx1VTdp27nyB2_xmYS5b0qo2qrVxhtQ91dmGHDCw.hqzTiT6dz1vFaZLh1SVhlrXp.zlnvCDvTOANU5T7piGU6HJ9WRI_KIuVBHdedRTpa",
+        "headers": [
+          ["x-amz-copy-source", "usr-rec-20261014-edge/r"],
+          ["x-amz-copy-source-range", "bytes=0-99999999"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,Z,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.upload-part-copy"],
+          ["X-Amz-Date", "20261014T070428Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "8062da17-8641-4414-9352-3d337261b81b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amz-request-id", "7A4SB2V05N1D4C2Z"],
+          ["x-amz-id-2", "IAwL/5cp1MwHCI2Ubr4wqLlnQCNgwUu/py9ejf1O3+SYZKBLXm4hjUBbUjEMCAG/lOTGRLQ6WZ9lcr0No7lsrJkYOvZl8OWq"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:04:27 GMT"],
+          ["Connection", "close"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<Error><Code>InvalidArgument</Code><Message>Range specified is not valid for source object of size: 10</Message><ArgumentName>x-amz-copy-source-range</ArgumentName><ArgumentValue>bytes=0-99999999</ArgumentValue><RequestId>7A4SB2V05N1D4C2Z</RequestId><HostId>IAwL/5cp1MwHCI2Ubr4wqLlnQCNgwUu/py9ejf1O3+SYZKBLXm4hjUBbUjEMCAG/lOTGRLQ6WZ9lcr0No7lsrJkYOvZl8OWq</HostId></Error>"
+      }
+    }
+  ]
+}

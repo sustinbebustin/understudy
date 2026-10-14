@@ -1,0 +1,35 @@
+{
+  "step": "x-assume-11-policy-arns",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationError) when calling the AssumeRole operation: The limit of ARNs for the PolicyArns parameter was exceeded. 10 ARNs can be requested at most in an API request.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sts.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,AD,Z,b,E,AN cfg/retry-mode#standard md/installer#source sid/000000000005 md/distrib#ubuntu.24 md/prompt#off md/command#sts.assume-role"],
+          ["X-Amz-Date", "20261014T142113Z"],
+          ["amz-sdk-invocation-id", "72477ac6-5e7f-4ca1-b31c-60f2e396ca6f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "1122"]
+        ],
+        "body": "Action=AssumeRole&Version=2011-06-15&RoleArn=arn%3Aaws%3Aiam%3A%3A123456789012%3Arole%2Fusr-rec-20261014-trust&RoleSessionName=rec&PolicyArns.member.1.arn=arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2Fjob-function%2FViewOnlyAccess&PolicyArns.member.2.arn=arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2Fjob-function%2FViewOnlyAccess&PolicyArns.member.3.arn=arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2Fjob-function%2FViewOnlyAccess&PolicyArns.member.4.arn=arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2Fjob-function%2FViewOnlyAccess&PolicyArns.member.5.arn=arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2Fjob-function%2FViewOnlyAccess&PolicyArns.member.6.arn=arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2Fjob-function%2FViewOnlyAccess&PolicyArns.member.7.arn=arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2Fjob-function%2FViewOnlyAccess&PolicyArns.member.8.arn=arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2Fjob-function%2FViewOnlyAccess&PolicyArns.member.9.arn=arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2Fjob-function%2FViewOnlyAccess&PolicyArns.member.10.arn=arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2Fjob-function%2FViewOnlyAccess&PolicyArns.member.11.arn=arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2Fjob-function%2FViewOnlyAccess"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "71b853e0-74d5-460d-8c60-f747b98615d9"],
+          ["X-Amz-Sts-Extended-Request-Id", "MTp1cy1lYXN0LTI6UzoxNzkxOTg3NjczMjI0OlI6ck91RmtaRGg="],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "359"],
+          ["Date", "Wed, 14 Oct 2026 14:21:13 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>ValidationError</Code>\n    <Message>The limit of ARNs for the PolicyArns parameter was exceeded. 10 ARNs can be requested at most in an API request.</Message>\n  </Error>\n  <RequestId>71b853e0-74d5-460d-8c60-f747b98615d9</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

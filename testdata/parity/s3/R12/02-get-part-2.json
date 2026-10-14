@@ -1,0 +1,34 @@
+{
+  "step": "02-get-part-2",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidPartNumber) when calling the GetObject operation: The requested partnumber is not satisfiable",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/r?partNumber=2",
+        "headers": [
+          ["x-amz-checksum-mode", "ENABLED"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,g,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-object"],
+          ["X-Amz-Date", "20261014T070306Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "8fb802e4-46c9-4761-a63d-4076ed7b4c96"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 416,
+        "headers": [
+          ["x-amz-request-id", "VQ9A0NA10CQ3J7FT"],
+          ["x-amz-id-2", "Q/AUe6JyPxNIwDN7QLu6cqigB7J/ZLvwty8r128buCMaB/juk6F6J3YlSTRuJzO2doYBtJSqAmCuL+FqTfuuZMDf2pSJzqUx"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:03:05 GMT"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidPartNumber</Code><Message>The requested partnumber is not satisfiable</Message><PartNumberRequested>2</PartNumberRequested><ActualPartCount>1</ActualPartCount><RequestId>VQ9A0NA10CQ3J7FT</RequestId><HostId>Q/AUe6JyPxNIwDN7QLu6cqigB7J/ZLvwty8r128buCMaB/juk6F6J3YlSTRuJzO2doYBtJSqAmCuL+FqTfuuZMDf2pSJzqUx</HostId></Error>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "step": "12-lifecycle-transition-7-standard-ia",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/?lifecycle",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,b,AN,W,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-lifecycle-configuration"],
+          ["x-amz-checksum-crc64nvme", "XAzakm5vivo="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261014T070435Z"],
+          ["X-Amz-Content-SHA256", "eaf74d25f678bacedd0d53a7ec40ce93c6b757f73674967720439570e828eea4"],
+          ["amz-sdk-invocation-id", "ddb7351f-9e39-48a8-b4af-5077c07d97bd"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "250"]
+        ],
+        "body": "<LifecycleConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Rule><ID>r</ID><Status>Enabled</Status><Filter><Prefix /></Filter><Transition><Days>7</Days><StorageClass>STANDARD_IA</StorageClass></Transition></Rule></LifecycleConfiguration>"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "r9S6G/0tlbiz3rq+FxjsyYDtG5fRFBm/9szSUJO1KkPHz5WyhBhUXjNRJ5sA6yDfiXX7lYF8xNg="],
+          ["x-amz-request-id", "2BTDKS6S4XYD76A7"],
+          ["Date", "Wed, 14 Oct 2026 07:04:36 GMT"],
+          ["x-amz-transition-default-minimum-object-size", "all_storage_classes_128K"],
+          ["Content-Length", "0"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

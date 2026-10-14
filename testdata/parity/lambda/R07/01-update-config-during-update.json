@@ -1,0 +1,35 @@
+{
+  "step": "01-update-config-during-update",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceConflictException) when calling the UpdateFunctionConfiguration operation: The operation cannot be performed at this time. An update is in progress for resource: arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-r07\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-r07/configuration",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AD,AN,b,AC,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.update-function-configuration"],
+          ["X-Amz-Date", "20261014T064446Z"],
+          ["amz-sdk-invocation-id", "808cb9c0-6adc-4cf6-a3aa-1c4d1ea158e0"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "20"]
+        ],
+        "body": "{\"Description\": \"x\"}"
+      },
+      "response": {
+        "status": 409,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:44:47 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "182"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "184a5c0c-1d08-498b-8f3b-06b642ab3a5d"],
+          ["x-amzn-ErrorType", "ResourceConflictException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"The operation cannot be performed at this time. An update is in progress for resource: arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-r07\"}"
+      }
+    }
+  ]
+}

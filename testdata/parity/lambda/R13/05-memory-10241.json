@@ -1,0 +1,35 @@
+{
+  "step": "05-memory-10241",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateFunction operation: 'MemorySize' value failed to satisfy constraint: Member must have value less than or equal to 3008",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AD,b,AN,E,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-function"],
+          ["X-Amz-Date", "20261014T070433Z"],
+          ["amz-sdk-invocation-id", "716d8437-720d-4c52-bb06-0a459ae83d49"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "1944"]
+        ],
+        "body": "{\"FunctionName\": \"usr-rec-20261014-v-memory-10241\", \"Runtime\": \"python3.13\", \"Role\": \"arn:aws:iam::123456789012:role/usr-rec-20261014-role\", \"Handler\": \"url.handler\", \"MemorySize\": 10241, \"Code\": {\"ZipFile\": \"UEsDBBQAAAAAAF04Tl26cbo/pQQAAKUEAAAGAAAAdXJsLnB5aW1wb3J0IGpzb24sIHRpbWUKZGVmIGhhbmRsZXIoZXZlbnQsIGNvbnRleHQpOgogICAgcHJpbnQoanNvbi5kdW1wcyhldmVudCkpCiAgICBpZiBub3QgaXNpbnN0YW5jZShldmVudCwgZGljdCk6CiAgICAgICAgcmV0dXJuIGV2ZW50CiAgICBwID0gZXZlbnQuZ2V0KCJyYXdQYXRoIiwgIiIpCiAgICBpZiBwID09ICIvb2JqIjogcmV0dXJuIHsiYSI6IDF9CiAgICBpZiBwID09ICIvc3RyIjogcmV0dXJuICJoZWxsbyIKICAgIGlmIHAgPT0gIi9udW0iOiByZXR1cm4gMTIzCiAgICBpZiBwID09ICIvbnVsbCI6IHJldHVybiBOb25lCiAgICBpZiBwID09ICIvc2M5OSI6IHJldHVybiB7InN0YXR1c0NvZGUiOiA5OX0KICAgIGlmIHAgPT0gIi9ib2R5MTIzIjogcmV0dXJuIHsic3RhdHVzQ29kZSI6IDIwMCwgImJvZHkiOiAxMjN9CiAgICBpZiBwID09ICIvY29va2llcyI6IHJldHVybiB7InN0YXR1c0NvZGUiOiAyMDAsICJjb29raWVzIjogWyJhPTEiLCAiYj0yOyBQYXRoPS8iXSwgImJvZHkiOiAiYyJ9CiAgICBpZiBwID09ICIvbXZoIjogcmV0dXJuIHsic3RhdHVzQ29kZSI6IDIwMCwgIm11bHRpVmFsdWVIZWFkZXJzIjogeyJ4LW0iOiBbIjEiLCAiMiJdfSwgImhlYWRlcnMiOiB7IngtaCI6ICJ2In0sICJib2R5IjogIm0ifQogICAgaWYgcCA9PSAiL2JhZGI2NCI6IHJldHVybiB7InN0YXR1c0NvZGUiOiAyMDAsICJpc0Jhc2U2NEVuY29kZWQiOiBUcnVlLCAiYm9keSI6ICJub3QgYmFzZTY0ISEifQogICAgaWYgcCA9PSAiL3JhaXNlIjogcmFpc2UgRXhjZXB0aW9uKCJib29tIikKICAgIGlmIHAgPT0gIi90aW1lb3V0IjogdGltZS5zbGVlcCgxMCkKICAgIGlmIHAgPT0gIi9iaWciOiByZXR1cm4geyJzdGF0dXNDb2RlIjogMjAwLCAiYm9keSI6ICJ4IiAqICg2ICogMTAyNCAqIDEwMjQgKyAxMCl9CiAgICBpZiBwID09ICIvZXJybXNnIjogcmV0dXJuIHsiZXJyb3JNZXNzYWdlIjogImN1c3RvbSIsICJlcnJvclR5cGUiOiAiQ3VzdG9tIn0KICAgIGlmIHAgPT0gIi93aG9hbWkiOgogICAgICAgIGltcG9ydCBib3RvMwogICAgICAgIHIgPSBib3RvMy5jbGllbnQoInN0cyIpLmdldF9jYWxsZXJfaWRlbnRpdHkoKQogICAgICAgIHIucG9wKCJSZXNwb25zZU1ldGFkYXRhIiwgTm9uZSkKICAgICAgICByZXR1cm4gcgogICAgcmV0dXJuIHsic3RhdHVzQ29kZSI6IDIwMCwgImJvZHkiOiAiZWNobyJ9ClBLAQIUAxQAAAAAAF04Tl26cbo/pQQAAKUEAAAGAAAAAAAAAAAAAAC0gQAAAAB1cmwucHlQSwUGAAAAAAEAAQA0AAAAyQQAAAAA\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:04:33 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "112"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "ea4a2bbc-e7b4-40e4-8063-b74b91cb1235"],
+          ["x-amzn-ErrorType", "ValidationException"]
+        ],
+        "body": "{\"message\":\"'MemorySize' value failed to satisfy constraint: Member must have value less than or equal to 3008\"}"
+      }
+    }
+  ]
+}

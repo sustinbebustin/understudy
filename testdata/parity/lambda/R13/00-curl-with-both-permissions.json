@@ -1,0 +1,21 @@
+{
+  "step": "00-curl-with-both-permissions",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:03:46 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "4"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "8975deaf-9f67-4958-9934-937ff3dc3835"],
+          ["X-Amzn-Trace-Id", "Root=1-6acf2951-45ed3f7566d55d6558d72e42;Parent=6a2b79911d337363;Sampled=0;Lineage=1:d7b206da:0"]
+        ],
+        "body": "echo"
+      }
+    }
+  ]
+}

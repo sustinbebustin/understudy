@@ -1,0 +1,35 @@
+{
+  "step": "01-create-a",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.CreateQueue"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,AD,AC,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.create-queue"],
+          ["X-Amz-Date", "20261014T063345Z"],
+          ["amz-sdk-invocation-id", "3e323386-8c39-4008-97d0-4b42fb697147"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "452"]
+        ],
+        "body": "{\"QueueName\": \"usr-rec-20261014-a\", \"Attributes\": {\"RedrivePolicy\": \"{\\\"maxReceiveCount\\\": 3, \\\"deadLetterTargetArn\\\": \\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-r5dlq\\\"}\", \"Policy\": \"{ \\\"Version\\\": \\\"2012-10-17\\\", \\\"Statement\\\": [ { \\\"Sid\\\": \\\"a\\\", \\\"Effect\\\": \\\"Allow\\\", \\\"Principal\\\": { \\\"Service\\\": \\\"sns.amazonaws.com\\\" }, \\\"Action\\\": \\\"sqs:SendMessage\\\", \\\"Resource\\\": \\\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-a\\\" } ] }\"}}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "3f42b205-0795-58a1-aa4f-d14c231cb689"],
+          ["Date", "Wed, 14 Oct 2026 06:33:45 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "82"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"QueueUrl\":\"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-a\"}"
+      }
+    }
+  ]
+}

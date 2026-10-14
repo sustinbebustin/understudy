@@ -1,0 +1,30 @@
+{
+  "step": "06-list-versions-before",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-url/versions",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,AN,AC,Z,AD,C cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.list-versions-by-function"],
+          ["X-Amz-Date", "20261014T070435Z"],
+          ["amz-sdk-invocation-id", "536e969e-b723-4c2e-8aca-779ff44745dd"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:04:35 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "3734"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "493d81e8-db2d-4598-8ce2-47e98321f66a"]
+        ],
+        "body": "{\"Versions\":[{\"Description\":\"v2\",\"TracingConfig\":{\"Mode\":\"PassThrough\"},\"VpcConfig\":null,\"DurableConfig\":null,\"SigningJobArn\":null,\"SnapStart\":{\"OptimizationStatus\":\"Off\",\"ApplyOn\":\"None\"},\"RevisionId\":\"ba7e1c4d-2e4b-4c77-a58a-5394e4edbbdb\",\"LastModified\":\"2026-10-14T07:04:17.000+0000\",\"FunctionName\":\"usr-rec-20261014-url\",\"Runtime\":\"python3.13\",\"Version\":\"$LATEST\",\"PackageType\":\"Zip\",\"LastUpdateStatus\":null,\"Layers\":null,\"TenancyConfig\":null,\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-url:$LATEST\",\"KMSKeyArn\":null,\"MemorySize\":128,\"ImageConfigResponse\":null,\"LastUpdateStatusReason\":null,\"CapacityProviderConfig\":null,\"DeadLetterConfig\":null,\"Timeout\":3,\"ConfigSha256\":null,\"Handler\":\"url.handler\",\"CodeSha256\":\"EFCjG3r8UzYtsvGo+xmeYlF86XzgF1M+XCT1EKeUBWg=\",\"Role\":\"arn:aws:iam::123456789012:role/usr-rec-20261014-role\",\"SigningProfileVersionArn\":null,\"MasterArn\":null,\"RuntimeVersionConfig\":null,\"CodeSize\":1299,\"State\":null,\"StateReason\":null,\"LoggingConfig\":{\"LogFormat\":\"Text\",\"ApplicationLogLevel\":null,\"LogGroup\":\"/aws/lambda/usr-rec-20261014-url\",\"SystemLogLevel\":null},\"Environment\":null,\"EphemeralStorage\":{\"Size\":512},\"StateReasonCode\":null,\"LastUpdateStatusReasonCode\":null,\"Architectures\":[\"x86_64\"]},{\"Description\":\"v1\",\"TracingConfig\":{\"Mode\":\"PassThrough\"},\"VpcConfig\":null,\"DurableConfig\":null,\"SigningJobArn\":null,\"SnapStart\":{\"OptimizationStatus\":\"Off\",\"ApplyOn\":\"None\"},\"RevisionId\":\"bc593329-1af1-43ec-9e21-ddcecb268bc2\",\"LastModified\":\"2026-10-14T07:04:14.000+0000\",\"FunctionName\":\"usr-rec-20261014-url\",\"Runtime\":\"python3.13\",\"Version\":\"1\",\"PackageType\":\"Zip\",\"LastUpdateStatus\":null,\"Layers\":null,\"TenancyConfig\":null,\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-url:1\",\"KMSKeyArn\":null,\"MemorySize\":128,\"ImageConfigResponse\":null,\"LastUpdateStatusReason\":null,\"CapacityProviderConfig\":null,\"DeadLetterConfig\":null,\"Timeout\":3,\"ConfigSha256\":null,\"Handler\":\"url.handler\",\"CodeSha256\":\"EFCjG3r8UzYtsvGo+xmeYlF86XzgF1M+XCT1EKeUBWg=\",\"Role\":\"arn:aws:iam::123456789012:role/usr-rec-20261014-role\",\"SigningProfileVersionArn\":null,\"MasterArn\":null,\"RuntimeVersionConfig\":null,\"CodeSize\":1299,\"State\":null,\"StateReason\":null,\"LoggingConfig\":{\"LogFormat\":\"Text\",\"ApplicationLogLevel\":null,\"LogGroup\":\"/aws/lambda/usr-rec-20261014-url\",\"SystemLogLevel\":null},\"Environment\":null,\"EphemeralStorage\":{\"Size\":512},\"StateReasonCode\":null,\"LastUpdateStatusReasonCode\":null,\"Architectures\":[\"x86_64\"]},{\"Description\":\"v2\",\"TracingConfig\":{\"Mode\":\"PassThrough\"},\"VpcConfig\":null,\"DurableConfig\":null,\"SigningJobArn\":null,\"SnapStart\":{\"OptimizationStatus\":\"Off\",\"ApplyOn\":\"None\"},\"RevisionId\":\"6c4d1a5d-22e1-456a-b8cb-90152ed335b4\",\"LastModified\":\"2026-10-14T07:04:17.000+0000\",\"FunctionName\":\"usr-rec-20261014-url\",\"Runtime\":\"python3.13\",\"Version\":\"2\",\"PackageType\":\"Zip\",\"LastUpdateStatus\":null,\"Layers\":null,\"TenancyConfig\":null,\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-url:2\",\"KMSKeyArn\":null,\"MemorySize\":128,\"ImageConfigResponse\":null,\"LastUpdateStatusReason\":null,\"CapacityProviderConfig\":null,\"DeadLetterConfig\":null,\"Timeout\":3,\"ConfigSha256\":null,\"Handler\":\"url.handler\",\"CodeSha256\":\"EFCjG3r8UzYtsvGo+xmeYlF86XzgF1M+XCT1EKeUBWg=\",\"Role\":\"arn:aws:iam::123456789012:role/usr-rec-20261014-role\",\"SigningProfileVersionArn\":null,\"MasterArn\":null,\"RuntimeVersionConfig\":null,\"CodeSize\":1299,\"State\":null,\"StateReason\":null,\"LoggingConfig\":{\"LogFormat\":\"Text\",\"ApplicationLogLevel\":null,\"LogGroup\":\"/aws/lambda/usr-rec-20261014-url\",\"SystemLogLevel\":null},\"Environment\":null,\"EphemeralStorage\":{\"Size\":512},\"StateReasonCode\":null,\"LastUpdateStatusReasonCode\":null,\"Architectures\":[\"x86_64\"]}],\"NextMarker\":null}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "step": "x-describe-pre-billing",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.DescribeTable"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,AD,E,AC,T,P,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.describe-table"],
+          ["X-Amz-Date", "20261014T063605Z"],
+          ["amz-sdk-invocation-id", "7ff48013-e5be-4bf7-bb2f-475c55d3a1c2"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "38"]
+        ],
+        "body": "{\"TableName\": \"usr-rec-20261014-lock\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:36:05 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "854"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "O0N3GS6H6VKB9LVJTG1MCDENHRVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2062783739"]
+        ],
+        "body": "{\"Table\":{\"AttributeDefinitions\":[{\"AttributeName\":\"LockID\",\"AttributeType\":\"S\"}],\"BillingModeSummary\":{\"BillingMode\":\"PAY_PER_REQUEST\",\"LastUpdateToPayPerRequestDateTime\":1.791959601263E9},\"CreationDateTime\":1.791959601263E9,\"DeletionProtectionEnabled\":false,\"ItemCount\":0,\"KeySchema\":[{\"AttributeName\":\"LockID\",\"KeyType\":\"HASH\"}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":0,\"WriteCapacityUnits\":0},\"TableArn\":\"arn:aws:dynamodb:us-east-2:123456789012:table/usr-rec-20261014-lock\",\"TableId\":\"f82bbec5-0500-4711-8e77-7dde78929f9d\",\"TableName\":\"usr-rec-20261014-lock\",\"TableSizeBytes\":0,\"TableStatus\":\"ACTIVE\",\"TableThroughputModeSummary\":{\"LastUpdateToPayPerRequestDateTime\":1.791959601263E9,\"TableThroughputMode\":\"PAY_PER_REQUEST\"},\"WarmThroughput\":{\"ReadUnitsPerSecond\":12000,\"Status\":\"ACTIVE\",\"WriteUnitsPerSecond\":4000}}}"
+      }
+    }
+  ]
+}

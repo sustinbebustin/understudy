@@ -1,0 +1,33 @@
+{
+  "step": "01-create-function",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,b,AD,Z,AN,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-function"],
+          ["X-Amz-Date", "20261014T064438Z"],
+          ["amz-sdk-invocation-id", "2e63752e-f0c9-4616-b5a1-c375e2c3b73e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "427"]
+        ],
+        "body": "{\"FunctionName\": \"usr-rec-20261014-r07\", \"Runtime\": \"python3.13\", \"Role\": \"arn:aws:iam::123456789012:role/usr-rec-20261014-role\", \"Handler\": \"r07.handler\", \"Environment\": {\"Variables\": {\"AB\": \"1\"}}, \"Code\": {\"ZipFile\": \"UEsDBBQAAAAAAJI1Tl23g1YTKwAAACsAAAAGAAAAcjA3LnB5ZGVmIGhhbmRsZXIoZXZlbnQsIGNvbnRleHQpOgogICAgcmV0dXJuIHt9ClBLAQIUAxQAAAAAAJI1Tl23g1YTKwAAACsAAAAGAAAAAAAAAAAAAAC0gQAAAAByMDcucHlQSwUGAAAAAAEAAQA0AAAATwAAAAAA\"}}"
+      },
+      "response": {
+        "status": 201,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:44:39 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "1433"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "1a436e9e-7319-49b7-8ac9-a830873e1cff"]
+        ],
+        "body": "{\"Description\":\"\",\"TracingConfig\":{\"Mode\":\"PassThrough\"},\"VpcConfig\":null,\"DurableConfig\":null,\"SigningJobArn\":null,\"SnapStart\":{\"OptimizationStatus\":\"Off\",\"ApplyOn\":\"None\"},\"RevisionId\":\"c9615c53-58ba-473b-b80a-c22350b1d43a\",\"LastModified\":\"2026-10-14T06:44:38.585+0000\",\"FunctionName\":\"usr-rec-20261014-r07\",\"Runtime\":\"python3.13\",\"Version\":\"$LATEST\",\"PackageType\":\"Zip\",\"LastUpdateStatus\":null,\"Layers\":null,\"TenancyConfig\":null,\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-r07\",\"KMSKeyArn\":null,\"MemorySize\":128,\"ImageConfigResponse\":null,\"LastUpdateStatusReason\":null,\"CapacityProviderConfig\":null,\"DeadLetterConfig\":null,\"Timeout\":3,\"ConfigSha256\":null,\"Handler\":\"r07.handler\",\"CodeSha256\":\"OSC394+SnkSdb1OnrKFteefYh2cqx7zOJOE9fZAdy6w=\",\"Role\":\"arn:aws:iam::123456789012:role/usr-rec-20261014-role\",\"SigningProfileVersionArn\":null,\"MasterArn\":null,\"RuntimeVersionConfig\":{\"Error\":null,\"RuntimeVersionArn\":\"arn:aws:lambda:us-east-2::runtime:a0627e8616c4eaf447133f427c7419e5ce3a39ea2bc648ccb6d03d5b7f4d96e7\"},\"CodeSize\":153,\"State\":\"Pending\",\"StateReason\":\"The function is being created.\",\"LoggingConfig\":{\"LogFormat\":\"Text\",\"ApplicationLogLevel\":null,\"LogGroup\":\"/aws/lambda/usr-rec-20261014-r07\",\"SystemLogLevel\":null},\"Environment\":{\"Variables\":{\"AB\":\"1\"},\"Error\":null},\"EphemeralStorage\":{\"Size\":512},\"StateReasonCode\":\"Creating\",\"LastUpdateStatusReasonCode\":null,\"Architectures\":[\"x86_64\"]}"
+      }
+    }
+  ]
+}

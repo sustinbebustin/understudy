@@ -1,0 +1,35 @@
+{
+  "step": "07-list-after-cancel",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ListMessageMoveTasks"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AN,E,Z,b,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.list-message-move-tasks"],
+          ["X-Amz-Date", "20261014T063609Z"],
+          ["amz-sdk-invocation-id", "c12eadbb-9e6f-4803-8c8e-39e700cecea5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "73"]
+        ],
+        "body": "{\"SourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq2\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "52de01ed-4413-5ccb-9a34-62a4610ac284"],
+          ["Date", "Wed, 14 Oct 2026 06:36:09 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "250"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Results\":[{\"ApproximateNumberOfMessagesMoved\":4,\"ApproximateNumberOfMessagesToMove\":30,\"MaxNumberOfMessagesPerSecond\":1,\"SourceArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq2\",\"StartedTimestamp\":1791959764261,\"Status\":\"CANCELLING\"}]}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "02-s3-skew-14min",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/r",
+        "headers": [
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T065253Z"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-request-id", "53YYQWFRNJ996E4G"],
+          ["x-amz-id-2", "liu+pUKcaAsMZr8FkAeT15cPac9FrJSGazCQ2J0S85fDhUG6RhrGoBGOueYUugwmb+xWefn3TvVD3US0J4tQawNVEJPswoIj"],
+          ["Content-Length", "10"],
+          ["Accept-Ranges", "bytes"],
+          ["Date", "Wed, 14 Oct 2026 07:06:53 GMT"],
+          ["Server", "AmazonS3"],
+          ["Last-Modified", "Wed, 14 Oct 2026 07:03:04 GMT"],
+          ["ETag", "\"781e5e245d69b566979b86e28d23f2c7\""],
+          ["Content-Type", "binary/octet-stream"],
+          ["x-amz-server-side-encryption", "AES256"]
+        ],
+        "body": "0123456789"
+      }
+    }
+  ]
+}

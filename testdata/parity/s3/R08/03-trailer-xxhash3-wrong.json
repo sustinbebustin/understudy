@@ -1,0 +1,35 @@
+{
+  "step": "03-trailer-xxhash3-wrong",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/tr-03-trailer-xxhash3-wrong",
+        "headers": [
+          ["Content-Encoding", "aws-chunked"],
+          ["x-amz-decoded-content-length", "5"],
+          ["x-amz-trailer", "x-amz-checksum-xxhash3"],
+          ["x-amz-content-sha256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["X-Amz-Date", "20261014T064653Z"],
+          ["Content-Length", "48"]
+        ],
+        "body": "5\r\nhello\r\n0\r\nx-amz-checksum-xxhash3:NhCmhg==\r\n\r\n"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amz-request-id", "KDYNTA25AGQG2T3T"],
+          ["x-amz-id-2", "iVpLJI8mkVPcJy6ecee1Ei5mdzOtDzTZVR1VOvaXiytyJzbc1RjsifBQ0TMKtgopOdEMCe7u4wHEj6epi67i4cE9JsCz9pRS"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:46:52 GMT"],
+          ["Connection", "close"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>Value for x-amz-checksum-xxhash3 trailing header is invalid.</Message><RequestId>KDYNTA25AGQG2T3T</RequestId><HostId>iVpLJI8mkVPcJy6ecee1Ei5mdzOtDzTZVR1VOvaXiytyJzbc1RjsifBQ0TMKtgopOdEMCe7u4wHEj6epi67i4cE9JsCz9pRS</HostId></Error>"
+      }
+    }
+  ]
+}

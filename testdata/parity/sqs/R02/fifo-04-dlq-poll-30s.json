@@ -1,0 +1,35 @@
+{
+  "step": "fifo-04-dlq-poll-30s",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AN,b,E,Z,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261014T063510Z"],
+          ["amz-sdk-invocation-id", "dda151b5-1ca5-4cee-a136-ec6a22d4735d"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "202"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-dlq.fifo\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"VisibilityTimeout\": 0}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "0aa252f9-cb6f-590f-94a2-31b0efb14c99"],
+          ["Date", "Wed, 14 Oct 2026 06:35:10 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "3095"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\",\"ApproximateFirstReceiveTimestamp\":\"1791959658687\",\"ApproximateReceiveCount\":\"6\",\"SentTimestamp\":\"1791959657114\",\"SequenceNumber\":\"18905485747680495616\",\"MessageDeduplicationId\":\"58a9d858-5ddc-4c6d-b05b-a2484c411c2e\",\"MessageGroupId\":\"g1\",\"DeadLetterQueueSourceArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-src.fifo\"},\"Body\":\"body1\",\"MD5OfBody\":\"d6ed8ba2adae5a938c5a3757bcccf4dd\",\"MD5OfMessageAttributes\":\"cfd3bfb043f86340e7dbc235456abbb0\",\"MessageAttributes\":{\"b\":{\"BinaryValue\":\"AAEC\",\"DataType\":\"Binary\"},\"s\":{\"DataType\":\"String\",\"StringValue\":\"v\"}},\"MessageId\":\"58a9d858-5ddc-4c6d-b05b-a2484c411c2e\",\"ReceiptHandle\":\"AQEBCvZlql39T4CbGWbSy8qHbNx6ej+iVdKRaWLQ1zQPin11JWax/h5LxX2rHkqIrgp8vICzsKgKE4Zfe1o6EVgkfgF1uBom8TJ+B4jgv/37s8rIxC4YbjrnE2bNBWff5RBDwUInMyjfCwpLAU/K8jxy6uXoZA7yCm5NFkyiV1wbl9DZF6pX61xiiZaMa+tGoBGI6BekHGmvoYlz8Og+rD7KhkIU9nwDjH/cRnfC0xpdrABV+Jk4kRdUN4bbETMGFUlkEmBOCOt7Gu5OBEyDv1kPMCabCpxdFkm880iX+5z+bLo=\"},{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\",\"ApproximateFirstReceiveTimestamp\":\"1791959663713\",\"ApproximateReceiveCount\":\"6\",\"SentTimestamp\":\"1791959657642\",\"SequenceNumber\":\"18905485749101551616\",\"MessageDeduplicationId\":\"dcf4028b-c68b-4c5f-b8d5-3373ed0ae6d7\",\"MessageGroupId\":\"g1\",\"DeadLetterQueueSourceArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-src.fifo\"},\"Body\":\"body2\",\"MD5OfBody\":\"76af63c5bd77b2a3a2cfcbd52645fa38\",\"MD5OfMessageAttributes\":\"cfd3bfb043f86340e7dbc235456abbb0\",\"MessageAttributes\":{\"b\":{\"BinaryValue\":\"AAEC\",\"DataType\":\"Binary\"},\"s\":{\"DataType\":\"String\",\"StringValue\":\"v\"}},\"MessageId\":\"dcf4028b-c68b-4c5f-b8d5-3373ed0ae6d7\",\"ReceiptHandle\":\"AQEB/XvsGVIkRh3sSDZESQTj5xy0Bakn4t1SpxYg3YvulniycJl37+u1LDD3m3Bza5k+GPj164Cf9pqyiPTD1d2285XiCeow9TMRYeKzXrk1lP2C5vvcdxIZE9qiYP9wlJCiSehjJxbgyEqXIFFI4vigDfSrFGDXfvKYVlSPLfLQdJAGFZKX0XPXrlk4+SQfY0zloI29NiqeImgX/7Tk9ivv4KTWi+HpTWnyH0EG4/L9h0yaHtC97m9mq38Lads8CB7er0dF2eO6D02pv7mbH0BOZaU87+2Ceh+CuOHT3eFRYqo=\"},{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\",\"ApproximateFirstReceiveTimestamp\":\"1791959669275\",\"ApproximateReceiveCount\":\"6\",\"SentTimestamp\":\"1791959658172\",\"SequenceNumber\":\"18905485750489071616\",\"MessageDeduplicationId\":\"bd4aab59-7a96-466c-a84f-408925f37808\",\"MessageGroupId\":\"g1\",\"DeadLetterQueueSourceArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-src.fifo\"},\"Body\":\"body3\",\"MD5OfBody\":\"5525786dab1a6e4b36a0b49fe1090875\",\"MD5OfMessageAttributes\":\"cfd3bfb043f86340e7dbc235456abbb0\",\"MessageAttributes\":{\"b\":{\"BinaryValue\":\"AAEC\",\"DataType\":\"Binary\"},\"s\":{\"DataType\":\"String\",\"StringValue\":\"v\"}},\"MessageId\":\"bd4aab59-7a96-466c-a84f-408925f37808\",\"ReceiptHandle\":\"AQEBiq/YGOh95dpXSG2UOpyPpsJ1XW05LcReYaof7dgSF3wVmRGUQvu0he3Xsl14QJsgF6ug/o8U3+w/Gligm18go7D5MYxADey9ZCz0jl1+xcL9fOPIVIXlHIwTIc34R53JyPVzWmsLRU8QhdlnAEvsJB26qiRrkGyZ2S1cUPUjvjKTxqcCvP1CjwsJnogEdlGjiQMZYD8qUxKH3yJK2tFFEcOVibJYWvEGdBSjhUpnW52C7vBRIcq7ip3ev+PLGZj1n3NzP/hWY9gVTMzZfvOYKocQk1BqTnHpgWYwYHo4u9A=\"}]}"
+      }
+    }
+  ]
+}

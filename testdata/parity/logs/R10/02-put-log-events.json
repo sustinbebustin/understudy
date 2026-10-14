@@ -1,0 +1,33 @@
+{
+  "step": "02-put-log-events",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.PutLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AD,E,AN,AC,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.put-log-events"],
+          ["X-Amz-Date", "20261014T064848Z"],
+          ["amz-sdk-invocation-id", "6f412874-647f-4830-b351-ba28c1d9438e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "863"]
+        ],
+        "body": "{\"logGroupName\": \"/usr/usr-rec-20261014\", \"logStreamName\": \"s1\", \"logEvents\": [{\"timestamp\": 1791959928000, \"message\": \"ERROR\"}, {\"timestamp\": 1791959929000, \"message\": \"ERRORS\"}, {\"timestamp\": 1791959930000, \"message\": \"ERROR:\"}, {\"timestamp\": 1791959931000, \"message\": \"[ERROR]\"}, {\"timestamp\": 1791959932000, \"message\": \"MY_ERROR\"}, {\"timestamp\": 1791959933000, \"message\": \"error\"}, {\"timestamp\": 1791959934000, \"message\": \"an ERROR occurred\"}, {\"timestamp\": 1791959935000, \"message\": \"ERROR-1\"}, {\"timestamp\": 1791959936000, \"message\": \"ERROR.x\"}, {\"timestamp\": 1791959937000, \"message\": \"ERRORx\"}, {\"timestamp\": 1791959938000, \"message\": \"status=ERROR\"}, {\"timestamp\": 1791959939000, \"message\": \"{\\\"level\\\":\\\"ERROR\\\",\\\"n\\\":5}\"}, {\"timestamp\": 1791959940000, \"message\": \"{\\\"level\\\":\\\"INFO\\\",\\\"n\\\":2}\"}, {\"timestamp\": 1791959941000, \"message\": \"a b ERROR c\"}]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "68088197-626c-4746-b5a9-f1df8f947d73"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "80"],
+          ["Date", "Wed, 14 Oct 2026 06:48:48 GMT"]
+        ],
+        "body": "{\"nextSequenceToken\":\"49678494949600777399107273031392165412309419800209131186\"}"
+      }
+    }
+  ]
+}

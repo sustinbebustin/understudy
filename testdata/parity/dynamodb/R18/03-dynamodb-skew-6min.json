@@ -1,0 +1,33 @@
+{
+  "step": "03-dynamodb-skew-6min",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/",
+        "headers": [
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "DynamoDB_20120810.ListTables"],
+          ["X-Amz-Date", "20261014T070054Z"],
+          ["Content-Length", "2"]
+        ],
+        "body": "{}"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 07:06:54 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "17"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "A1GT7DADODF5C1LBV5A39K3POVVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "1315925753"]
+        ],
+        "body": "{\"TableNames\":[]}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "step": "03-ttl-empty-name",
+  "client": "aws-cli",
+  "exit": 252,
+  "error": "aws: [ERROR]: An error occurred (ParamValidation): Parameter validation failed:\nInvalid length for parameter TimeToLiveSpecification.AttributeName, value: 0, valid min length: 1",
+  "exchanges": []
+}

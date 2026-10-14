@@ -1,0 +1,38 @@
+{
+  "step": "03-describe-key-missing",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NotFoundException) when calling the DescribeKey operation: Key 'arn:aws:kms:us-east-2:123456789012:key/00000000-0000-0000-0000-000000000000' does not exist",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "TrentService.DescribeKey"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,AN,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#kms.describe-key"],
+          ["X-Amz-Date", "20261014T070545Z"],
+          ["amz-sdk-invocation-id", "9635bc85-30f8-472a-82cd-5df9733e4a5d"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "49"]
+        ],
+        "body": "{\"KeyId\": \"00000000-0000-0000-0000-000000000000\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "c51f623c-bf8b-4fb6-ae0a-30b2a9b69e8a"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Wed, 14 Oct 2026 07:05:45 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "139"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"NotFoundException\",\"message\":\"Key 'arn:aws:kms:us-east-2:123456789012:key/00000000-0000-0000-0000-000000000000' does not exist\"}"
+      }
+    }
+  ]
+}

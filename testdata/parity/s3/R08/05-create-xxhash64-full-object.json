@@ -1,0 +1,33 @@
+{
+  "step": "05-create-xxhash64-full-object",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/mp-xxhash64-fo?uploads",
+        "headers": [
+          ["x-amz-checksum-algorithm", "XXHASH64"],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064656Z"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "J5BKQ964G6CMPVYB"],
+          ["x-amz-id-2", "tTlV6OzQ2tFKP436ceYgj8mJ38eNiYWmt2c3c6kkEoLreL5bAvH0Pg1DXHYtJV284rnwsFaokoD783phDEeGs6tAK2BwgLWE"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:46:55 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>The FULL_OBJECT checksum type cannot be used with the xxhash64 checksum algorithm.</Message><RequestId>J5BKQ964G6CMPVYB</RequestId><HostId>tTlV6OzQ2tFKP436ceYgj8mJ38eNiYWmt2c3c6kkEoLreL5bAvH0Pg1DXHYtJV284rnwsFaokoD783phDEeGs6tAK2BwgLWE</HostId></Error>"
+      }
+    }
+  ]
+}

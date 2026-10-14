@@ -1,0 +1,33 @@
+{
+  "step": "06-create-xxhash64-b",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/nf3?uploads",
+        "headers": [
+          ["x-amz-checksum-algorithm", "XXHASH64"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064708Z"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "GPzO20UnKXbgBQLPOSDkLJ56MLQnvb2qEf0qm35T083RlP5k/TI4WGktgd5XtK/rU+ESvB6UZ1sXNR+hXP9wPqZJBPa6H/ln"],
+          ["x-amz-request-id", "FQ4ZJF9SEKRYGZY3"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:47:09 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["x-amz-checksum-algorithm", "XXHASH64"],
+          ["x-amz-checksum-type", "COMPOSITE"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<InitiateMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>usr-rec-20261014-cks</Bucket><Key>nf3</Key><UploadId>T3sVeJwMVnkuMPR5_bi08lcDSNI_OKUKFRCPWEHIaOwf8In5js8CMpZwlu546ygXWGkRBiMuSqe62BiPd4LyHvflFa_b0kSmyoGB5bOfL8R9mBibzMai6lONPuH7G21131_1i2jG2KcQQZraWYzcopOTViEMycgW5ABu63XdH_fVhX_2vv8C8bcvSV9C4Zve</UploadId></InitiateMultipartUploadResult>"
+      }
+    }
+  ]
+}

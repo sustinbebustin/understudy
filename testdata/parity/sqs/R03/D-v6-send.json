@@ -1,0 +1,35 @@
+{
+  "step": "D-v6-send",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.SendMessageBatch"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,Z,AC,b,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.send-message-batch"],
+          ["X-Amz-Date", "20261014T072357Z"],
+          ["amz-sdk-invocation-id", "c10d1fb0-fa7b-49f7-b400-df1c54a276eb"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "386"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-q\", \"Entries\": [{\"Id\": \"m1\", \"MessageBody\": \"{\\\"mode\\\":\\\"v6\\\",\\\"n\\\":1}\"}, {\"Id\": \"m2\", \"MessageBody\": \"{\\\"mode\\\":\\\"v6\\\",\\\"n\\\":2}\"}, {\"Id\": \"m3\", \"MessageBody\": \"{\\\"mode\\\":\\\"v6\\\",\\\"n\\\":3}\"}, {\"Id\": \"m4\", \"MessageBody\": \"{\\\"mode\\\":\\\"v6\\\",\\\"n\\\":4}\"}, {\"Id\": \"m5\", \"MessageBody\": \"{\\\"mode\\\":\\\"v6\\\",\\\"n\\\":5}\"}]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "b4d3f727-ed05-5c2e-8d79-946edd488616"],
+          ["Date", "Wed, 14 Oct 2026 07:23:57 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "601"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Successful\":[{\"Id\":\"m1\",\"MD5OfMessageBody\":\"8c105ceb0af68b8e9c4084ee374fb19c\",\"MessageId\":\"f8082286-bfbc-44d5-94db-f15cab4eab58\"},{\"Id\":\"m2\",\"MD5OfMessageBody\":\"eba24b9c10246a5002c6e774c6359a79\",\"MessageId\":\"62a61266-e31d-4ec2-bd4d-d627d617f61a\"},{\"Id\":\"m3\",\"MD5OfMessageBody\":\"d1ee75b0ca772369136f203801f4f9cb\",\"MessageId\":\"cff8a1aa-1706-44a4-9f7a-b51e827c57c4\"},{\"Id\":\"m4\",\"MD5OfMessageBody\":\"ef83aca84c42e6037073a3cbd370d7b6\",\"MessageId\":\"00ea32bc-2dd8-4eaf-a817-2d66676bfa60\"},{\"Id\":\"m5\",\"MD5OfMessageBody\":\"020d3c790d771f6aef3cb4316a66b441\",\"MessageId\":\"3b56e217-b9ce-4e2c-b582-464b11177607\"}]}"
+      }
+    }
+  ]
+}

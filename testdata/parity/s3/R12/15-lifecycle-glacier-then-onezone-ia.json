@@ -1,0 +1,38 @@
+{
+  "step": "15-lifecycle-glacier-then-onezone-ia",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutBucketLifecycleConfiguration operation: 'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be greater than 'Days' in the 'Transition' action for StorageClass 'ONEZONE_IA' for filter '(prefix=)'",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/?lifecycle",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,W,g,b,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-lifecycle-configuration"],
+          ["x-amz-checksum-crc64nvme", "O0Z5eGv1HUo="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261014T070440Z"],
+          ["X-Amz-Content-SHA256", "cdc153c54363e0de64eb2f8b5a2d80285ba23203e8416834462071a3c7e14f4e"],
+          ["amz-sdk-invocation-id", "254d6b84-9481-4fa1-972e-c52600c509f0"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "329"]
+        ],
+        "body": "<LifecycleConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Rule><ID>path</ID><Status>Enabled</Status><Filter><Prefix /></Filter><Transition><Days>30</Days><StorageClass>GLACIER</StorageClass></Transition><Transition><Days>60</Days><StorageClass>ONEZONE_IA</StorageClass></Transition></Rule></LifecycleConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amz-id-2", "nUVL2G1ccwxF3+8io+gW7dDKoPDNkgb4wZba1Cr4dr5SKAu5BVRS7oStowRcaBTczbLE2GNABZw="],
+          ["x-amz-request-id", "BYCTGH90HZW0W0TJ"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 07:04:41 GMT"],
+          ["Connection", "close"],
+          ["Content-Type", "application/xml"],
+          ["Content-Length", "451"]
+        ],
+        "body": "<Error><Code>InvalidArgument</Code><Message>'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be greater than 'Days' in the 'Transition' action for StorageClass 'ONEZONE_IA' for filter '(prefix=)'</Message><ArgumentName>Days</ArgumentName><ArgumentValue>60</ArgumentValue><RequestId>BYCTGH90HZW0W0TJ</RequestId><HostId>nUVL2G1ccwxF3+8io+gW7dDKoPDNkgb4wZba1Cr4dr5SKAu5BVRS7oStowRcaBTczbLE2GNABZw=</HostId></Error>"
+      }
+    }
+  ]
+}

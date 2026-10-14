@@ -1,0 +1,35 @@
+{
+  "step": "03-filter-12",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterException) when calling the FilterLogEvents operation: Invalid character(s) in term '*'",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,E,AC,Z,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261014T064905Z"],
+          ["amz-sdk-invocation-id", "9a77417a-ceed-4894-b9fe-401ce688b50f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "120"]
+        ],
+        "body": "{\"logGroupName\": \"/usr/usr-rec-20261014\", \"logStreamNames\": [\"s1\"], \"startTime\": 1791959928000, \"filterPattern\": \"ERR*\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "44d39f36-d0e0-47de-ba06-ded9264577ae"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "83"],
+          ["Date", "Wed, 14 Oct 2026 06:49:05 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"InvalidParameterException\",\"message\":\"Invalid character(s) in term '*'\"}"
+      }
+    }
+  ]
+}

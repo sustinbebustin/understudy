@@ -1,0 +1,31 @@
+{
+  "step": "05-attributes-max-parts-1-xxhash3",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/mp-xxhash3?attributes",
+        "headers": [
+          ["x-amz-object-attributes", "Checksum,ObjectParts"],
+          ["x-amz-max-parts", "1"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064700Z"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "M9DY/ieExhOTmONfQKR3hR5i9b1nZYIYj5R9sA8HH1u+iOWnS28iMO/kT8BP9vmO0gS30t1OKWbvF6FTCyNHISrIZAPEw4k8"],
+          ["x-amz-request-id", "MX965VW6P4WK1WZQ"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:47:01 GMT"],
+          ["Last-Modified", "Wed, 14 Oct 2026 06:46:59 GMT"],
+          ["Content-Length", "548"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<GetObjectAttributesResponse xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Checksum><ChecksumXXHASH3>f6EQWtiO3o8=</ChecksumXXHASH3><ChecksumType>COMPOSITE</ChecksumType></Checksum><ObjectParts><PartsCount>2</PartsCount><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>1</NextPartNumberMarker><MaxParts>1</MaxParts><IsTruncated>true</IsTruncated><Part><PartNumber>1</PartNumber><Size>5242880</Size><ChecksumXXHASH3>f7lM6WcDDeA=</ChecksumXXHASH3></Part></ObjectParts></GetObjectAttributesResponse>"
+      }
+    }
+  ]
+}

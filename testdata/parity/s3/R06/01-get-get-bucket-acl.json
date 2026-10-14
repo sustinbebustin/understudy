@@ -1,0 +1,32 @@
+{
+  "step": "01-get-get-bucket-acl",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://usr-rec-20261014-s3.s3.us-east-2.amazonaws.com/?acl",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,b,AC,E,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-bucket-acl"],
+          ["X-Amz-Date", "20261014T063451Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "f2e738e5-7ea3-4882-ac2c-58b74ef00333"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "49LNTqrPD5MMM8gKXHo085SjWlU9qEGZPaLqtNl7a68VDYuIVXNTfTUemXW5622ROww+y1O0M2U+qk2LPeUFX6KaluzI8avK"],
+          ["x-amz-request-id", "N6ENPBFZXE8XZ105"],
+          ["Date", "Wed, 14 Oct 2026 06:34:52 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<AccessControlPolicy xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Owner><ID>2e746a1d43b12440ef4add11f747902e05c9343d80e24e4bc1435f7637cc4ebf</ID></Owner><AccessControlList><Grant><Grantee xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"CanonicalUser\"><ID>2e746a1d43b12440ef4add11f747902e05c9343d80e24e4bc1435f7637cc4ebf</ID></Grantee><Permission>FULL_CONTROL</Permission></Grant></AccessControlList></AccessControlPolicy>"
+      }
+    }
+  ]
+}

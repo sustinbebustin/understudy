@@ -1,0 +1,38 @@
+{
+  "step": "01-disabled-re-encrypt",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (DisabledException) when calling the ReEncrypt operation: arn:aws:kms:us-east-2:123456789012:key/a1090e85-82e2-4517-8b2b-51faf8a60a8b is disabled.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "TrentService.ReEncrypt"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,Z,b,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#kms.re-encrypt"],
+          ["X-Amz-Date", "20261014T070517Z"],
+          ["amz-sdk-invocation-id", "5dd1383d-8a40-4481-98be-768e611ec231"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "294"]
+        ],
+        "body": "{\"CiphertextBlob\": \"AQICAHhUVgs2s20NcVk8GMPcmub+w3HpApdsMDI2bYh8HjNvDAG31so2VDvVGY+AUEaLAimRAAAAZDBiBgkqhkiG9w0BBwagVTBTAgEAME4GCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQM48nTKEJqnVQLKvJUAgEQgCEZhP2PGNDdyWYsHO1/0QRzra/KNa7uaJjW1UbnLEZq/Pk=\", \"DestinationKeyId\": \"d192340e-bc50-42f6-9977-9c9287e2e4fa\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "6b8516c1-b923-46df-b7ef-e6adc50e979c"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Wed, 14 Oct 2026 07:05:17 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "131"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"DisabledException\",\"message\":\"arn:aws:kms:us-east-2:123456789012:key/a1090e85-82e2-4517-8b2b-51faf8a60a8b is disabled.\"}"
+      }
+    }
+  ]
+}

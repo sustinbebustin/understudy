@@ -1,0 +1,36 @@
+{
+  "step": "99-delete-table",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.DeleteTable"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/P,b,AN,Z,AD,E,T,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.delete-table"],
+          ["X-Amz-Date", "20261014T063713Z"],
+          ["amz-sdk-invocation-id", "76f1d58c-9534-4b3c-9c40-8068d6d3bd57"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "38"]
+        ],
+        "body": "{\"TableName\": \"usr-rec-20261014-lock\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:37:14 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "602"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "GDSGD032DANUI2UP4T105FICT7VV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2905403544"]
+        ],
+        "body": "{\"TableDescription\":{\"BillingModeSummary\":{\"BillingMode\":\"PROVISIONED\",\"LastUpdateToPayPerRequestDateTime\":1.791959601263E9},\"DeletionProtectionEnabled\":false,\"ItemCount\":0,\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":1,\"WriteCapacityUnits\":1},\"TableArn\":\"arn:aws:dynamodb:us-east-2:123456789012:table/usr-rec-20261014-lock\",\"TableId\":\"f82bbec5-0500-4711-8e77-7dde78929f9d\",\"TableName\":\"usr-rec-20261014-lock\",\"TableSizeBytes\":0,\"TableStatus\":\"DELETING\",\"TableThroughputModeSummary\":{\"LastUpdateToPayPerRequestDateTime\":1.791959601263E9,\"TableThroughputMode\":\"PROVISIONED\"}}}"
+      }
+    }
+  ]
+}

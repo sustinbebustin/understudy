@@ -1,0 +1,38 @@
+{
+  "step": "10-wrong-md5-and-crc32",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/w",
+        "headers": [
+          ["Host", "usr-rec-20261014-edge.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070428Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["Content-MD5", "AAAAAAAAAAAAAAAAAAAAAA=="],
+          ["x-amz-checksum-crc32", "AAAAAA=="],
+          ["Content-Length", "10"],
+          ["Content-Type", "application/x-www-form-urlencoded"]
+        ],
+        "body_unrecorded": {"bytes": 10}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "7A4XMEG80X8BZJHG"],
+          ["x-amz-id-2", "B6LZ3xXrodkRj3xoSwvjOZal6J/slHWxMh3PT61xkiJOKjvx6PxftYstkm3vYMM0qyPF9c0mikLebH4rA4wMjWuXN1K88bUS"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:04:28 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>BadDigest</Code><Message>The Content-MD5 you specified did not match what we received.</Message><CalculatedDigest>eB5eJF1ptWaXm4bijSPyxw==</CalculatedDigest><ExpectedDigest>00000000000000000000000000000000</ExpectedDigest><RequestId>7A4XMEG80X8BZJHG</RequestId><HostId>B6LZ3xXrodkRj3xoSwvjOZal6J/slHWxMh3PT61xkiJOKjvx6PxftYstkm3vYMM0qyPF9c0mikLebH4rA4wMjWuXN1K88bUS</HostId></Error>"
+      }
+    }
+  ]
+}

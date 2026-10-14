@@ -1,0 +1,33 @@
+{
+  "step": "03-attr-11-to-raw-sqs",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AN,AC,E,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.publish"],
+          ["X-Amz-Date", "20261014T070604Z"],
+          ["amz-sdk-invocation-id", "65c01523-1675-4166-b05d-7a038404eb89"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "1542"]
+        ],
+        "body": "Action=Publish&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-r16&Message=m-11-attrs&MessageAttributes.entry.1.Name=a0&MessageAttributes.entry.1.Value.DataType=String&MessageAttributes.entry.1.Value.StringValue=v&MessageAttributes.entry.2.Name=a1&MessageAttributes.entry.2.Value.DataType=String&MessageAttributes.entry.2.Value.StringValue=v&MessageAttributes.entry.3.Name=a2&MessageAttributes.entry.3.Value.DataType=String&MessageAttributes.entry.3.Value.StringValue=v&MessageAttributes.entry.4.Name=a3&MessageAttributes.entry.4.Value.DataType=String&MessageAttributes.entry.4.Value.StringValue=v&MessageAttributes.entry.5.Name=a4&MessageAttributes.entry.5.Value.DataType=String&MessageAttributes.entry.5.Value.StringValue=v&MessageAttributes.entry.6.Name=a5&MessageAttributes.entry.6.Value.DataType=String&MessageAttributes.entry.6.Value.StringValue=v&MessageAttributes.entry.7.Name=a6&MessageAttributes.entry.7.Value.DataType=String&MessageAttributes.entry.7.Value.StringValue=v&MessageAttributes.entry.8.Name=a7&MessageAttributes.entry.8.Value.DataType=String&MessageAttributes.entry.8.Value.StringValue=v&MessageAttributes.entry.9.Name=a8&MessageAttributes.entry.9.Value.DataType=String&MessageAttributes.entry.9.Value.StringValue=v&MessageAttributes.entry.10.Name=a9&MessageAttributes.entry.10.Value.DataType=String&MessageAttributes.entry.10.Value.StringValue=v&MessageAttributes.entry.11.Name=a10&MessageAttributes.entry.11.Value.DataType=String&MessageAttributes.entry.11.Value.StringValue=v"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "451944aa-e85a-59e9-b193-27e3c447dedb"],
+          ["Date", "Wed, 14 Oct 2026 07:06:05 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "294"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<PublishResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <PublishResult>\n    <MessageId>201bac5f-8fe5-5fce-9ef0-cf16a3f818fc</MessageId>\n  </PublishResult>\n  <ResponseMetadata>\n    <RequestId>451944aa-e85a-59e9-b193-27e3c447dedb</RequestId>\n  </ResponseMetadata>\n</PublishResponse>\n"
+      }
+    }
+  ]
+}

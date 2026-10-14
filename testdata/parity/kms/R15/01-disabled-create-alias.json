@@ -1,0 +1,37 @@
+{
+  "step": "01-disabled-create-alias",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "TrentService.CreateAlias"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,g,Z,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#kms.create-alias"],
+          ["X-Amz-Date", "20261014T070519Z"],
+          ["amz-sdk-invocation-id", "7ce9addc-a22a-422f-900a-396598ddced1"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "106"]
+        ],
+        "body": "{\"AliasName\": \"alias/usr-rec-20261014-01-disabled\", \"TargetKeyId\": \"a1090e85-82e2-4517-8b2b-51faf8a60a8b\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "a727f733-4bff-4427-be3f-a394665a616c"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Wed, 14 Oct 2026 07:05:19 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "0"],
+          ["connection", "keep-alive"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "step": "x-send-11-attributes",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValue) when calling the SendMessage operation: Number of message attributes [11] exceeds the allowed maximum [10].",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.SendMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,g,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.send-message"],
+          ["X-Amz-Date", "20261014T070311Z"],
+          ["amz-sdk-invocation-id", "3d6322d5-d799-4470-bfa0-1d8ec44298b2"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "679"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-q11\", \"MessageBody\": \"x\", \"MessageAttributes\": {\"a0\": {\"DataType\": \"String\", \"StringValue\": \"v\"}, \"a1\": {\"DataType\": \"String\", \"StringValue\": \"v\"}, \"a2\": {\"DataType\": \"String\", \"StringValue\": \"v\"}, \"a3\": {\"DataType\": \"String\", \"StringValue\": \"v\"}, \"a4\": {\"DataType\": \"String\", \"StringValue\": \"v\"}, \"a5\": {\"DataType\": \"String\", \"StringValue\": \"v\"}, \"a6\": {\"DataType\": \"String\", \"StringValue\": \"v\"}, \"a7\": {\"DataType\": \"String\", \"StringValue\": \"v\"}, \"a8\": {\"DataType\": \"String\", \"StringValue\": \"v\"}, \"a9\": {\"DataType\": \"String\", \"StringValue\": \"v\"}, \"a10\": {\"DataType\": \"String\", \"StringValue\": \"v\"}}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "bbb05f43-0da1-5131-9a5e-3c0a26cef9a4"],
+          ["x-amzn-query-error", "InvalidParameterValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 07:03:11 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "148"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Number of message attributes [11] exceeds the allowed maximum [10].\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "07-copy-xxhash3",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/copy-dst",
+        "headers": [
+          ["x-amz-copy-source", "/usr-rec-20261014-cks/copy-src"],
+          ["x-amz-checksum-algorithm", "XXHASH3"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064710Z"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "mgPiR85u1cIM6PdMp+W2Dz+SM7dM+Pni2zyuVcQdIYI1qqbjwA3vL6Ki7cK9nOlC7nDo6jooS1U="],
+          ["x-amz-request-id", "9F1NX8QJAKVKAJ63"],
+          ["Date", "Wed, 14 Oct 2026 06:47:11 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Content-Type", "application/xml"],
+          ["Content-Length", "311"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CopyObjectResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><LastModified>2026-10-14T06:47:11.000Z</LastModified><ETag>\"5d41402abc4b2a76b9719d911017c592\"</ETag><ChecksumXXHASH3>lVXoVVxi3P0=</ChecksumXXHASH3><ChecksumType>FULL_OBJECT</ChecksumType></CopyObjectResult>"
+      }
+    }
+  ]
+}

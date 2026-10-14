@@ -1,0 +1,35 @@
+{
+  "step": "03-trailer-nope",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "/tr-03-trailer-nope",
+        "headers": [
+          ["Content-Encoding", "aws-chunked"],
+          ["x-amz-decoded-content-length", "5"],
+          ["x-amz-trailer", "x-amz-checksum-nope"],
+          ["x-amz-content-sha256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["X-Amz-Date", "20261014T064653Z"],
+          ["Content-Length", "45"]
+        ],
+        "body": "5\r\nhello\r\n0\r\nx-amz-checksum-nope:NhCmhg==\r\n\r\n"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "KDYW3PGRNR1NC10K"],
+          ["x-amz-id-2", "ZcNMkPEO0Fi75l7AfcQWH8D0Jt7Vi3uKHZNr/3VDa/SiIA1wPCdCJl/M38lxz82QPABoIkop/2vMQI0TE24uWeh/jklZQlbi"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:46:53 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>The value specified in the x-amz-trailer header is not supported</Message><RequestId>KDYW3PGRNR1NC10K</RequestId><HostId>ZcNMkPEO0Fi75l7AfcQWH8D0Jt7Vi3uKHZNr/3VDa/SiIA1wPCdCJl/M38lxz82QPABoIkop/2vMQI0TE24uWeh/jklZQlbi</HostId></Error>"
+      }
+    }
+  ]
+}

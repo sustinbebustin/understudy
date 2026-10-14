@@ -1,0 +1,37 @@
+{
+  "step": "07-start-dest-missing",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the StartMessageMoveTask operation: The resource that you specified for the DestinationArn parameter doesn't exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.StartMessageMoveTask"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,AC,AN,AD,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.start-message-move-task"],
+          ["X-Amz-Date", "20261014T063603Z"],
+          ["amz-sdk-invocation-id", "a862991e-3a0c-49fa-a366-109e2f642beb"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "154"]
+        ],
+        "body": "{\"SourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq2\", \"DestinationArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-missing\"}"
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["x-amzn-RequestId", "cfecf5ad-b6db-5bce-bb1f-96e493c8f0a7"],
+          ["x-amzn-query-error", "ResourceNotFoundException;Sender"],
+          ["Date", "Wed, 14 Oct 2026 06:36:03 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "148"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.sqs#ResourceNotFoundException\",\"message\":\"The resource that you specified for the DestinationArn parameter doesn't exist.\"}"
+      }
+    }
+  ]
+}

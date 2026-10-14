@@ -1,0 +1,33 @@
+{
+  "step": "01-config-versioned",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-ev-v.s3.us-east-2.amazonaws.com/?notification",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AD,AC,E,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-notification-configuration"],
+          ["X-Amz-Date", "20261014T070732Z"],
+          ["X-Amz-Content-SHA256", "f6b4e1358b2258ab7a13e0040bb9235f2071e789f3ae7a8a719933a428f73b71"],
+          ["amz-sdk-invocation-id", "9c699b30-0add-4e11-ba77-a3cd9f0567ff"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "289"]
+        ],
+        "body": "<NotificationConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><QueueConfiguration><Id>q</Id><Queue>arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-ev</Queue><Event>s3:ObjectCreated:*</Event><Event>s3:ObjectRemoved:*</Event></QueueConfiguration></NotificationConfiguration>"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "9jHNsuElNzFKDWGuASp+PQETg2c5KzH5248w2L+si93+lKUv0qAVviwF2TWDcciCXPwqY9gJS+RThR5uNPQmpPFyQrXAvgag"],
+          ["x-amz-request-id", "ZHDNBWYE1JTXAQHV"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 07:07:34 GMT"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

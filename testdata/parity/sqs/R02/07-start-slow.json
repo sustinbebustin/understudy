@@ -1,0 +1,35 @@
+{
+  "step": "07-start-slow",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.StartMessageMoveTask"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AN,E,Z,AC,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.start-message-move-task"],
+          ["X-Amz-Date", "20261014T063604Z"],
+          ["amz-sdk-invocation-id", "c9299931-dbf6-4ee2-bdae-b28820f5576a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "108"]
+        ],
+        "body": "{\"SourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-dlq2\", \"MaxNumberOfMessagesPerSecond\": 1}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "505cda17-1028-5d0e-ae3e-b95e353cff04"],
+          ["Date", "Wed, 14 Oct 2026 06:36:04 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "177"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"TaskHandle\":\"eyJ0YXNrSWQiOiI1Y2Y1N2FiMy1jNTBjLTQ0YjAtYTc2NS1iN2QyODJjMjhiYTEiLCJzb3VyY2VBcm4iOiJhcm46YXdzOnNxczp1cy1lYXN0LTI6MTIzNDU2Nzg5MDEyOnVzci1yZWMtMjAyNjEwMTQtZGxxMiJ9\"}"
+      }
+    }
+  ]
+}

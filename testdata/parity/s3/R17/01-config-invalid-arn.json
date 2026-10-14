@@ -1,0 +1,36 @@
+{
+  "step": "01-config-invalid-arn",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutBucketNotificationConfiguration operation: The ARN could not be parsed",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-ev.s3.us-east-2.amazonaws.com/?notification",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AN,AC,AD,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-notification-configuration"],
+          ["X-Amz-Date", "20261014T070622Z"],
+          ["X-Amz-Content-SHA256", "6b1d4a8abf355b99265def3a0ae49f2eca422de7426505c1b15aecf76da0a285"],
+          ["amz-sdk-invocation-id", "82f2fa87-f6c8-4359-a3f8-5b604d7b46fb"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "245"]
+        ],
+        "body": "<NotificationConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><QueueConfiguration><Id>q</Id><Queue>not-an-arn</Queue><Event>s3:ObjectCreated:*</Event><Event>s3:ObjectRemoved:*</Event></QueueConfiguration></NotificationConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amz-request-id", "B8J1JMPDCGK05866"],
+          ["x-amz-id-2", "qVxVEzXIgbI+ujLzCc87FUJflMMDbnFUREIB8ehXHFfFIeJWZAU3X0jfkAMUh2RtILsnUssl0bBtKlHLBUNcfADt+BKhu5uZ"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:06:22 GMT"],
+          ["Connection", "close"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>The ARN could not be parsed</Message><ArgumentName>Queue</ArgumentName><ArgumentValue>not-an-arn</ArgumentValue><RequestId>B8J1JMPDCGK05866</RequestId><HostId>qVxVEzXIgbI+ujLzCc87FUJflMMDbnFUREIB8ehXHFfFIeJWZAU3X0jfkAMUh2RtILsnUssl0bBtKlHLBUNcfADt+BKhu5uZ</HostId></Error>"
+      }
+    }
+  ]
+}

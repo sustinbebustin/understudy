@@ -1,0 +1,38 @@
+{
+  "step": "12-lifecycle-standard-ia-30-glacier-40",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutBucketLifecycleConfiguration operation: 'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be 30 days more than 'filter '(prefix=)'' in the 'Transition' action for StorageClass 'STANDARD_IA'",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-edge.s3.us-east-2.amazonaws.com/?lifecycle",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,W,b,E,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-lifecycle-configuration"],
+          ["x-amz-checksum-crc64nvme", "jh1GTJA4DfI="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261014T070437Z"],
+          ["X-Amz-Content-SHA256", "b063c2bb0d374ad9fdcd6c91b31e20532b8113c1246588a890df5a70f653a35b"],
+          ["amz-sdk-invocation-id", "39b19535-6b07-4899-8c86-b31cd718302b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "327"]
+        ],
+        "body": "<LifecycleConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Rule><ID>r</ID><Status>Enabled</Status><Filter><Prefix /></Filter><Transition><Days>30</Days><StorageClass>STANDARD_IA</StorageClass></Transition><Transition><Days>40</Days><StorageClass>GLACIER</StorageClass></Transition></Rule></LifecycleConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amz-id-2", "WO6h1sWuazTB6qnyv23UAIbpQjWs7jSOK58YjdsAMQmZuq6wytmbxkLEh7NQqpMB3vy7eRUwmJWIJogdQxhoUrQ/4ZwvxK44"],
+          ["x-amz-request-id", "TP3J1KF5TDNB2RAK"],
+          ["Date", "Wed, 14 Oct 2026 07:04:38 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Content-Length", "468"],
+          ["Connection", "close"],
+          ["Server", "AmazonS3"]
+        ],
+        "body": "<Error><Code>InvalidArgument</Code><Message>'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be 30 days more than 'filter '(prefix=)'' in the 'Transition' action for StorageClass 'STANDARD_IA'</Message><ArgumentName>Days</ArgumentName><ArgumentValue>40</ArgumentValue><RequestId>TP3J1KF5TDNB2RAK</RequestId><HostId>WO6h1sWuazTB6qnyv23UAIbpQjWs7jSOK58YjdsAMQmZuq6wytmbxkLEh7NQqpMB3vy7eRUwmJWIJogdQxhoUrQ/4ZwvxK44</HostId></Error>"
+      }
+    }
+  ]
+}

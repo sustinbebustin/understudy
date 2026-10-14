@@ -1,0 +1,35 @@
+{
+  "step": "02-events-3",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AD,E,AN,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261014T070835Z"],
+          ["amz-sdk-invocation-id", "3f4ac776-91db-43da-a72f-b25b6931a376"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "160"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-ev\", \"AttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 5}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "aa674432-69ab-5090-8aa7-277b45188e79"],
+          ["Date", "Wed, 14 Oct 2026 07:08:35 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "4965"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROASH5U5TZXDEGJDLSUI:S3-PROD-END\",\"ApproximateFirstReceiveTimestamp\":\"1791961715426\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1791961674518\"},\"Body\":\"{\\\"Records\\\":[{\\\"eventVersion\\\":\\\"2.6\\\",\\\"eventSource\\\":\\\"aws:s3\\\",\\\"awsRegion\\\":\\\"us-east-2\\\",\\\"eventTime\\\":\\\"2026-10-14T07:07:53.577Z\\\",\\\"eventName\\\":\\\"ObjectCreated:Put\\\",\\\"userIdentity\\\":{\\\"principalId\\\":\\\"AWS:AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\\\"},\\\"requestParameters\\\":{\\\"sourceIPAddress\\\":\\\"198.51.100.100\\\"},\\\"responseElements\\\":{\\\"x-amz-request-id\\\":\\\"DWPRAY7QJ8RQNCFY\\\",\\\"x-amz-id-2\\\":\\\"goz3aOW17wp+S+ait+H2G2z/dJzLuVhPKs8XybQyM5zT3b4NGbG5hL7mSMQsR86zybFv+7whhVdk3a1cAJ/RTLEJTTzh2Up8GRZFIDAwbLo=\\\"},\\\"s3\\\":{\\\"s3SchemaVersion\\\":\\\"1.0\\\",\\\"configurationId\\\":\\\"q\\\",\\\"bucket\\\":{\\\"name\\\":\\\"usr-rec-20261014-ev-v\\\",\\\"ownerIdentity\\\":{\\\"principalId\\\":\\\"AEXAMPLE000009\\\"},\\\"arn\\\":\\\"arn:aws:s3:::usr-rec-20261014-ev-v\\\"},\\\"object\\\":{\\\"key\\\":\\\"twice\\\",\\\"size\\\":5,\\\"eTag\\\":\\\"5d41402abc4b2a76b9719d911017c592\\\",\\\"versionId\\\":\\\"4KPSH5aiA53prmGh7Tz16PJjD5LuDUTT\\\",\\\"sequencer\\\":\\\"006ACF2A4980F51B42\\\"}}}]}\",\"MD5OfBody\":\"cbed342f8cd08850dbfeaae39131c499\",\"MessageId\":\"d057294f-157c-4b81-ad11-eab8733739cc\",\"ReceiptHandle\":\"AQEB/2+PVNJlIqqFJeXGJdc6IYS1+tqH0FBbvcyPupfwY/HYWz64a6PBnX6WFsWbnSQMX/jSNSeBrxVicJokFJlViJWYA4S1FyR+4YKEqsUtYe4n0Kxw5eWR63Be/GaIDol6N3TfybDH/TTRktYGhkPbAJPwtzhyO4azibsEbM9TFitX2/2D0XG/A2Q3wiZTxaAhpBETOqvvEmbKhiKWOh6lDxxaHa8gIqPc5v4AkyogpGRlf0Sts5My9ATia4vFVasT3F1RBBzpYPe+01tDP02MvxEniyouUUrDmd+84N0BI/ORzAADM0vf0c4G0I+cfQjbDxcvIma6BrI7LSL/zfYwH7PMmEfbYJk3k+QXqIZseZ8+kxCW0jZnQ8fby/cdNX1o505g6aBqmtf0b74k+9YMwg==\"},{\"Attributes\":{\"SenderId\":\"AROASH5U5TZXDEGJDLSUI:S3-PROD-END\",\"ApproximateFirstReceiveTimestamp\":\"1791961715428\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1791961677945\"},\"Body\":\"{\\\"Records\\\":[{\\\"eventVersion\\\":\\\"2.6\\\",\\\"eventSource\\\":\\\"aws:s3\\\",\\\"awsRegion\\\":\\\"us-east-2\\\",\\\"eventTime\\\":\\\"2026-10-14T07:07:56.858Z\\\",\\\"eventName\\\":\\\"ObjectCreated:Copy\\\",\\\"userIdentity\\\":{\\\"principalId\\\":\\\"AWS:AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\\\"},\\\"requestParameters\\\":{\\\"sourceIPAddress\\\":\\\"198.51.100.100\\\"},\\\"responseElements\\\":{\\\"x-amz-request-id\\\":\\\"NQTFJJ3RKSBR3PPT\\\",\\\"x-amz-id-2\\\":\\\"VBClJ8X2J99UyorXSHSDm8jjMg9RR9BAu66RT3CPnCAXHk/LRhUJ0Jtk7lYLeX4mI3ZFgIouGCfe8hNj5XwooB3nR33jlFQHMZooLBYW6mo=\\\"},\\\"s3\\\":{\\\"s3SchemaVersion\\\":\\\"1.0\\\",\\\"configurationId\\\":\\\"q\\\",\\\"bucket\\\":{\\\"name\\\":\\\"usr-rec-20261014-ev-v\\\",\\\"ownerIdentity\\\":{\\\"principalId\\\":\\\"AEXAMPLE000009\\\"},\\\"arn\\\":\\\"arn:aws:s3:::usr-rec-20261014-ev-v\\\"},\\\"object\\\":{\\\"key\\\":\\\"copy\\\",\\\"size\\\":5,\\\"eTag\\\":\\\"5d41402abc4b2a76b9719d911017c592\\\",\\\"versionId\\\":\\\"5ZmtzXDLMSf5lrLkWAN7zJ3Z1MzEQ79s\\\",\\\"sequencer\\\":\\\"006ACF2A4CCFF09D11\\\",\\\"hasObjectAnnotation\\\":false}}}]}\",\"MD5OfBody\":\"3e8ab68393f205469f443ecdffed1716\",\"MessageId\":\"f58e348d-6be0-454b-8b2b-ad8e0b66800a\",\"ReceiptHandle\":\"AQEBwxq2otrNeNPmjYGJNlIvr8wC1XjmytyCAP7iqWliBVlU1Ecliomr0rI0cJECXbembj6+1lxQrhUzLImCtsviI9dpGK3wVqp+dkda3SJ3FR5wTrBicv/7eq837ZvK2c000JakiO1bzIyHzWZqyDhlDVnPG26If8RBP+f+sPmwtrz3pEgf2cyUHooLN5JNoqS7a17aZRFvPMGku9kCdF/bmaIwCs2WIBdpMZnQqx2Y+x7oUMN3PV99OF8Uee3sdLTBdqPNnpKlaMfeKoi26IszE5FRyWatNmU28KPP1VXQ0C/cjqqt93Y1geIVUZScYGAeRibZf7TDoiLArN1OUx4C8NXX7qKzJCA9bPb7FtPFnVZTfLhF0bFTZYEhATGS6PNjinYcxctXahkFYPEpREfpXg==\"},{\"Attributes\":{\"SenderId\":\"AROASH5U5TZXDEGJDLSUI:S3-PROD-END\",\"ApproximateFirstReceiveTimestamp\":\"1791961715428\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1791961678119\"},\"Body\":\"{\\\"Records\\\":[{\\\"eventVersion\\\":\\\"2.6\\\",\\\"eventSource\\\":\\\"aws:s3\\\",\\\"awsRegion\\\":\\\"us-east-2\\\",\\\"eventTime\\\":\\\"2026-10-14T07:07:57.391Z\\\",\\\"eventName\\\":\\\"ObjectRemoved:DeleteMarkerCreated\\\",\\\"userIdentity\\\":{\\\"principalId\\\":\\\"AWS:AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\\\"},\\\"requestParameters\\\":{\\\"sourceIPAddress\\\":\\\"198.51.100.100\\\"},\\\"responseElements\\\":{\\\"x-amz-request-id\\\":\\\"5QZV64NQNKKCDGVX\\\",\\\"x-amz-id-2\\\":\\\"TO5Ss3/kljinSct+oUewHQ86912W88/3uma0QtoAiXciqM9wkoQYsv2j773HkA2rw70SAEwC4cfmRZB5U9hVpF0niI3syqMixnl9O6MdVdc=\\\"},\\\"s3\\\":{\\\"s3SchemaVersion\\\":\\\"1.0\\\",\\\"configurationId\\\":\\\"q\\\",\\\"bucket\\\":{\\\"name\\\":\\\"usr-rec-20261014-ev-v\\\",\\\"ownerIdentity\\\":{\\\"principalId\\\":\\\"AEXAMPLE000009\\\"},\\\"arn\\\":\\\"arn:aws:s3:::usr-rec-20261014-ev-v\\\"},\\\"object\\\":{\\\"key\\\":\\\"copy\\\",\\\"eTag\\\":\\\"d41d8cd98f00b204e9800998ecf8427e\\\",\\\"versionId\\\":\\\"EIiZAaoYz54toU9OHck_cS_0ZtGyH_vb\\\",\\\"sequencer\\\":\\\"006ACF2A4D5FB93929\\\"}}}]}\",\"MD5OfBody\":\"e86e9391496b784336752148d49ba767\",\"MessageId\":\"994781fa-4d0c-4930-ae4b-2cf77bd8fceb\",\"ReceiptHandle\":\"AQEBf0+Wn8TsdHIQmJ1UtnLs+K505SfuFbQ5D4/LCmowcOAjaw/PfRL2g9MVcRNWJwFVYLZM7Rze8XhT13EPbSD+w1TxihPrGP76TmAXZ/6y4sH7nTTo7KLobsM7b1F1B16C41e8mY/IrzIDn7EaClqEBJ8+EKeXbC+9piD+mwEIaDrDtgf7n0OS63MUqzuJpA3LABFnVEjxaWWF9++0ceGDhbi54p4chMGHh6sJED3sUq5UI1cz1NuMkZJdJxghjdCvDC2mcXNs/gYICZK9Pa9fG7FgfGkMPb4K0yurA7F7l7nlJsijMizlR0pbbMaS8Dd7+qfvV946+zCiZar7XkU03KbmJmL6yneY7KikjaljtfFrUQl0w4MrjgqJ/ZH5Ee0Yn3/UpCM3oUe+MnuvuGXf4g==\"}]}"
+      }
+    }
+  ]
+}

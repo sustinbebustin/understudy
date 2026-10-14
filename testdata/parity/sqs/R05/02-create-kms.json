@@ -1,0 +1,35 @@
+{
+  "step": "02-create-kms",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.CreateQueue"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AN,AC,Z,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.create-queue"],
+          ["X-Amz-Date", "20261014T063350Z"],
+          ["amz-sdk-invocation-id", "200ee476-6ba2-493b-9fda-aaf9ab862313"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "89"]
+        ],
+        "body": "{\"QueueName\": \"usr-rec-20261014-kmsq\", \"Attributes\": {\"KmsMasterKeyId\": \"alias/aws/sqs\"}}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "bddeddb9-197c-5dc8-b052-bef03df2da7e"],
+          ["Date", "Wed, 14 Oct 2026 06:33:50 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "85"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"QueueUrl\":\"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-kmsq\"}"
+      }
+    }
+  ]
+}

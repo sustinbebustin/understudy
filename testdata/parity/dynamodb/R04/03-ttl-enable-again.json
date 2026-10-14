@@ -1,0 +1,37 @@
+{
+  "step": "03-ttl-enable-again",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the UpdateTimeToLive operation: TimeToLive is already enabled",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.UpdateTimeToLive"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AN,T,P,E,AC,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.update-time-to-live"],
+          ["X-Amz-Date", "20261014T063548Z"],
+          ["amz-sdk-invocation-id", "beff4c47-0a13-4965-a5b8-856155f04083"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "114"]
+        ],
+        "body": "{\"TableName\": \"usr-rec-20261014-lock\", \"TimeToLiveSpecification\": {\"Enabled\": true, \"AttributeName\": \"ExpiresAt\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:35:48 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "100"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "NK1FI1L3THAOJV23S88F94T9G7VV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "3726031260"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"TimeToLive is already enabled\"}"
+      }
+    }
+  ]
+}

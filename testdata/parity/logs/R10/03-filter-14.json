@@ -1,0 +1,35 @@
+{
+  "step": "03-filter-14",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterException) when calling the FilterLogEvents operation: Invalid filter pattern",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AD,AC,E,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261014T064906Z"],
+          ["amz-sdk-invocation-id", "f7646481-7948-4480-98d4-c68ac8362c2f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "125"]
+        ],
+        "body": "{\"logGroupName\": \"/usr/usr-rec-20261014\", \"logStreamNames\": [\"s1\"], \"startTime\": 1791959928000, \"filterPattern\": \"{ $.n = }\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "0b077d46-7bf1-46bb-98b1-5b4f51692de9"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "73"],
+          ["Date", "Wed, 14 Oct 2026 06:49:06 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"InvalidParameterException\",\"message\":\"Invalid filter pattern\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "x-assume-refused-session-policy",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (MalformedPolicyDocument) when calling the AssumeRole operation: Missing required field Action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sts.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,AC,b,AD,E cfg/retry-mode#standard md/installer#source sid/000000000005 md/distrib#ubuntu.24 md/prompt#off md/command#sts.assume-role"],
+          ["X-Amz-Date", "20261014T142113Z"],
+          ["amz-sdk-invocation-id", "eb83d77f-3fc4-494f-8462-df1711227f4e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "235"]
+        ],
+        "body": "Action=AssumeRole&Version=2011-06-15&RoleArn=arn%3Aaws%3Aiam%3A%3A123456789012%3Arole%2Fusr-rec-20261014-trust&RoleSessionName=rec&Policy=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%7D%5D%7D"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "e442430a-0feb-4a34-9d04-e72c8e5f4b3e"],
+          ["X-Amz-Sts-Extended-Request-Id", "MTp1cy1lYXN0LTI6UzoxNzkxOTg3NjczNzM4OlI6ZnFIbXgzZnY="],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "284"],
+          ["Date", "Wed, 14 Oct 2026 14:21:13 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>MalformedPolicyDocument</Code>\n    <Message>Missing required field Action</Message>\n  </Error>\n  <RequestId>e442430a-0feb-4a34-9d04-e72c8e5f4b3e</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "06-get-caller-identity-assumed",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sts.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AN,g,E cfg/retry-mode#standard md/installer#source sid/000000000005 md/distrib#ubuntu.24 md/prompt#off md/command#sts.get-caller-identity"],
+          ["X-Amz-Date", "20261014T142112Z"],
+          ["amz-sdk-invocation-id", "f5c5198e-1b11-4fbc-b5f5-18bdebeeff86"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "43"]
+        ],
+        "body": "Action=GetCallerIdentity&Version=2011-06-15"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "31bfd9bf-9a1a-4b9b-80b1-b35bc9c9e429"],
+          ["X-Amz-Sts-Extended-Request-Id", "MTp1cy1lYXN0LTI6UzoxNzkxOTg3NjcyNzI2OlI6M1YxUTBwQnE="],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "435"],
+          ["Date", "Wed, 14 Oct 2026 14:21:12 GMT"]
+        ],
+        "body": "<GetCallerIdentityResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">\n  <GetCallerIdentityResult>\n    <Arn>arn:aws:sts::123456789012:assumed-role/usr-rec-20261014-trust/rec</Arn>\n    <UserId>AROARZPUZDIKAAAAAAAHA:rec</UserId>\n    <Account>123456789012</Account>\n  </GetCallerIdentityResult>\n  <ResponseMetadata>\n    <RequestId>31bfd9bf-9a1a-4b9b-80b1-b35bc9c9e429</RequestId>\n  </ResponseMetadata>\n</GetCallerIdentityResponse>\n"
+      }
+    }
+  ]
+}

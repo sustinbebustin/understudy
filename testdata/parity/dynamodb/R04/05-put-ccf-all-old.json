@@ -1,0 +1,37 @@
+{
+  "step": "05-put-ccf-all-old",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ConditionalCheckFailedException) when calling the PutItem operation: The conditional request failed\n\nAdditional error details:\nItem: <complex value>\nUse \"--cli-error-format json\" or another error format to see the full details.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.PutItem"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,E,T,P,Z,AD,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.put-item"],
+          ["X-Amz-Date", "20261014T063558Z"],
+          ["amz-sdk-invocation-id", "c956ff9e-d326-4c85-b379-c5a52f650ea7"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "274"]
+        ],
+        "body": "{\"TableName\": \"usr-rec-20261014-lock\", \"Item\": {\"LockID\": {\"S\": \"a\"}, \"ExpiresAt\": {\"N\": \"100\"}}, \"ConditionExpression\": \"attribute_not_exists(LockID) OR ExpiresAt < :now\", \"ExpressionAttributeValues\": {\":now\": {\"N\": \"50\"}}, \"ReturnValuesOnConditionCheckFailure\": \"ALL_OLD\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:35:58 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "172"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "PTAKDP48INP81FSTP7PNSMRVIJVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2583403551"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException\",\"Item\":{\"LockID\":{\"S\":\"a\"},\"ExpiresAt\":{\"N\":\"100\"}},\"Message\":\"The conditional request failed\"}"
+      }
+    }
+  ]
+}

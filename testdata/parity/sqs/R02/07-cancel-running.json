@@ -1,0 +1,35 @@
+{
+  "step": "07-cancel-running",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.CancelMessageMoveTask"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AN,AC,E,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.cancel-message-move-task"],
+          ["X-Amz-Date", "20261014T063605Z"],
+          ["amz-sdk-invocation-id", "6b6c5259-1057-4789-8e6d-69d1625ad3b1"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "178"]
+        ],
+        "body": "{\"TaskHandle\": \"eyJ0YXNrSWQiOiI1Y2Y1N2FiMy1jNTBjLTQ0YjAtYTc2NS1iN2QyODJjMjhiYTEiLCJzb3VyY2VBcm4iOiJhcm46YXdzOnNxczp1cy1lYXN0LTI6MTIzNDU2Nzg5MDEyOnVzci1yZWMtMjAyNjEwMTQtZGxxMiJ9\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "204858e0-8e50-5a1d-80c1-3ba9ab45af77"],
+          ["Date", "Wed, 14 Oct 2026 06:36:05 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "38"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"ApproximateNumberOfMessagesMoved\":0}"
+      }
+    }
+  ]
+}

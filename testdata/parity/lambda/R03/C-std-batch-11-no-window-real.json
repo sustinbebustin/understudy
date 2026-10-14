@@ -1,0 +1,35 @@
+{
+  "step": "C-std-batch-11-no-window-real",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the CreateEventSourceMapping operation: Maximum batch window in seconds must be greater than 0 if maximum batch size is greater than 10\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,E,b,AN,Z,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-event-source-mapping"],
+          ["X-Amz-Date", "20261014T071109Z"],
+          ["amz-sdk-invocation-id", "1d4f604e-2c32-4ef0-9d41-3595c775c045"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "132"]
+        ],
+        "body": "{\"EventSourceArn\": \"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-q2\", \"FunctionName\": \"usr-rec-20261014-fn\", \"BatchSize\": 11}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:11:09 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "123"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "97bd4e9f-dcf6-40d6-8182-e8978c463174"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"Maximum batch window in seconds must be greater than 0 if maximum batch size is greater than 10\"}"
+      }
+    }
+  ]
+}

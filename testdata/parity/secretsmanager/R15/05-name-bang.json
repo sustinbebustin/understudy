@@ -1,0 +1,35 @@
+{
+  "step": "05-name-bang",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterException) when calling the CreateSecret operation: You provided an invalid name for the secret.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://secretsmanager.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "secretsmanager.CreateSecret"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,g,Z,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#secretsmanager.create-secret"],
+          ["X-Amz-Date", "20261014T070611Z"],
+          ["amz-sdk-invocation-id", "eefa3b33-3f69-4c31-b3ea-a5f2b7c88b5a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "115"]
+        ],
+        "body": "{\"Name\": \"usr-rec-20261014-a!b\", \"SecretString\": \"x\", \"ClientRequestToken\": \"88541162-e87e-4f05-a417-03cac1721828\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:06:11 GMT"],
+          ["x-amzn-RequestId", "252b09bf-4011-4274-810e-cd1a62a81c4c"],
+          ["Connection", "close"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "95"]
+        ],
+        "body": "{\"__type\":\"InvalidParameterException\",\"Message\":\"You provided an invalid name for the secret.\"}"
+      }
+    }
+  ]
+}

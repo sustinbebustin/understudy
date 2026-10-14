@@ -1,0 +1,37 @@
+{
+  "step": "04-pitr-period-36",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the UpdateContinuousBackups operation: 1 validation error detected: Value '36' at 'pointInTimeRecoverySpecification.recoveryPeriodInDays' failed to satisfy constraint: Member must have value less than or equal to 35",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.UpdateContinuousBackups"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,E,P,T,AC,AN,Z,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.update-continuous-backups"],
+          ["X-Amz-Date", "20261014T063554Z"],
+          ["amz-sdk-invocation-id", "ca7c05b0-fbb5-4bf8-99c7-37832e359b0a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "140"]
+        ],
+        "body": "{\"TableName\": \"usr-rec-20261014-lock\", \"PointInTimeRecoverySpecification\": {\"PointInTimeRecoveryEnabled\": true, \"RecoveryPeriodInDays\": 36}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:35:54 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "247"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "M5PC70286JL522BQ1C42C7OKVJVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2378969388"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"1 validation error detected: Value '36' at 'pointInTimeRecoverySpecification.recoveryPeriodInDays' failed to satisfy constraint: Member must have value less than or equal to 35\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "H5-09-attr-publish-m2",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sns.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070450Z"],
+          ["amz-sdk-invocation-id", "e1638165-466a-4857-ab94-ea113b8e942a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "254"]
+        ],
+        "body": "Action=Publish&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-c46&Message=m2&MessageAttributes.entry.1.Name=n&MessageAttributes.entry.1.Value.DataType=Number&MessageAttributes.entry.1.Value.StringValue=0.1234567"
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "e3698c3b-884a-5d1a-8eb1-ef72a39879f0"],
+          ["Date", "Wed, 14 Oct 2026 07:04:50 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "294"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<PublishResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <PublishResult>\n    <MessageId>d9371f42-579e-5209-8ed7-7c0b7c4c76e3</MessageId>\n  </PublishResult>\n  <ResponseMetadata>\n    <RequestId>e3698c3b-884a-5d1a-8eb1-ef72a39879f0</RequestId>\n  </ResponseMetadata>\n</PublishResponse>\n"
+      }
+    }
+  ]
+}

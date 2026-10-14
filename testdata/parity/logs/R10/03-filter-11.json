@@ -1,0 +1,33 @@
+{
+  "step": "03-filter-11",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AN,b,E,AC,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261014T064904Z"],
+          ["amz-sdk-invocation-id", "47939a38-9f77-479b-aeb5-0cc696a0e082"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "125"]
+        ],
+        "body": "{\"logGroupName\": \"/usr/usr-rec-20261014\", \"logStreamNames\": [\"s1\"], \"startTime\": 1791959928000, \"filterPattern\": \"[a, b, c]\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "42813c4f-74c0-410d-91fc-0950d6fdf652"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "827"],
+          ["Date", "Wed, 14 Oct 2026 06:49:05 GMT"]
+        ],
+        "body": "{\"events\":[{\"eventId\":\"39962041894109752343851565725527368610702608960414875654\",\"ingestionTime\":1791960528827,\"logStreamName\":\"s1\",\"message\":\"an ERROR occurred\",\"timestamp\":1791959934000},{\"eventId\":\"39962042050214968733565927716277396519241139502277787661\",\"ingestionTime\":1791960528827,\"logStreamName\":\"s1\",\"message\":\"a b ERROR c\",\"timestamp\":1791959941000}],\"nextToken\":\"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCopHkBCA2Mj1i731a_MMmvvyPPVzoHZ3JUrMgYn7LigklLLuRz6HyOzIQd5_jHHarPIo4U_-3ad_DiFTyWRRapnDTRPRruT6z-gpdwAEVn_oCkoLaHItyDfqNMHX3ILgixLGJ0oFBJXS7W8TzhSA27kCkjJwbCYkC2T42qK41V8eZ-krcXIKdBtgWNhg07Cn7lV8dn3woEvLHnaGRcg4c_T8R-vquwUIUAis5wI2YmxP-GN07EYsIne9oDHUfeeYeez8U8-RzJseGhWFHCoOgFChWSXnGSmkVVLgy3Vhu1Ewg\",\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "06-delete-role-in-instance-profile",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (DeleteConflict) when calling the DeleteRole operation: Cannot delete entity, must remove roles from instance profile first.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,E,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#iam.delete-role"],
+          ["X-Amz-Date", "20261014T070647Z"],
+          ["amz-sdk-invocation-id", "9528d4e7-c4cf-4df9-bac7-02a5ff8982eb"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "66"]
+        ],
+        "body": "Action=DeleteRole&Version=2010-05-08&RoleName=usr-rec-20261014-r15"
+      },
+      "response": {
+        "status": 409,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:06:47 GMT"],
+          ["x-amzn-RequestId", "f4e005b2-4a5e-44bf-b2b6-c08a356063f6"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "314"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>DeleteConflict</Code>\n    <Message>Cannot delete entity, must remove roles from instance profile first.</Message>\n  </Error>\n  <RequestId>f4e005b2-4a5e-44bf-b2b6-c08a356063f6</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

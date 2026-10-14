@@ -1,0 +1,33 @@
+{
+  "step": "04-deletemessage-query",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-q11",
+        "headers": [
+          ["Host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070307Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "496"]
+        ],
+        "body_unrecorded": {"bytes": 496}
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amzn-RequestId", "9f75e268-d252-5e44-a23c-8121f939fffc"],
+          ["Date", "Wed, 14 Oct 2026 07:03:07 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "215"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<?xml version=\"1.0\"?><DeleteMessageResponse xmlns=\"http://queue.amazonaws.com/doc/2012-11-05/\"><ResponseMetadata><RequestId>9f75e268-d252-5e44-a23c-8121f939fffc</RequestId></ResponseMetadata></DeleteMessageResponse>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "std-03-m1-recv1",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,AD,AC,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261014T063301Z"],
+          ["amz-sdk-invocation-id", "c21f3b51-3750-434c-92eb-87fc354c04a1"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "196"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-src\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 1, \"VisibilityTimeout\": 1}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "12095545-f1cc-577a-9a60-360cd591e78a"],
+          ["Date", "Wed, 14 Oct 2026 06:33:01 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "933"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003\",\"ApproximateFirstReceiveTimestamp\":\"1791959581749\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1791959580703\"},\"Body\":\"body2\",\"MD5OfBody\":\"76af63c5bd77b2a3a2cfcbd52645fa38\",\"MD5OfMessageAttributes\":\"cfd3bfb043f86340e7dbc235456abbb0\",\"MessageAttributes\":{\"b\":{\"BinaryValue\":\"AAEC\",\"DataType\":\"Binary\"},\"s\":{\"DataType\":\"String\",\"StringValue\":\"v\"}},\"MessageId\":\"7af2ccdc-d3ef-4bf8-bf57-525d22b3b031\",\"ReceiptHandle\":\"AQEBwHLMWO9TUZKZ7RI/Bw7RM2bKppooXVlFqUY2gLnxUV/zAaNLcVBSd7qZjk6zZCjuuQBfxwNSYwQyTrZ9aRh0npbQT/OM5YK1PQGrCROZ0lhULGKPKp/g9Ts0CbMWFCY4aqDtmJztLYeBM0rynA+sFjaiXYyDdkl6AkQ9kXi0cqdqkGfWMFX7PY6OIRVn/mAYc8SpyuyADm5I0MeB6zN06TP2U6GP5lDdYNGbnxy11/bmTTsT+gacOx+hkoce6a7if0EA/Y3EdTPeG8/4gQd4EgYLwKhY0kploWlsWW/4zhPZFJK5rSQWpclfJwN9m8dYYJieEb9E9MC823VI+eVWKFOFnqnspz5RDY1XsCW4o8gLHhbXp5r9xn4NaVwDqurzW78atn9KHvGC4n+RmCv7TA==\"}]}"
+      }
+    }
+  ]
+}

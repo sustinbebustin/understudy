@@ -1,0 +1,32 @@
+{
+  "step": "06-s3control-list",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://123456789012.s3-control.us-east-2.amazonaws.com/v20180820/tags/arn%3Aaws%3As3%3A%3A%3Ausr-rec-20261014-s3",
+        "headers": [
+          ["x-amz-account-id", "123456789012"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/T,E,b,Z,AD,AC,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3control.list-tags-for-resource"],
+          ["X-Amz-Date", "20261014T063519Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "8ff06d83-5b45-4c76-827c-b1ae45c134e2"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "Qzx8Z/qVIDngcv8apeQM0lJxjVR7Z/AGRbRi0sY5rCnT5O5GQYXb0TPLQ9Zqxc5nLOO3yZZUPUjDt1M5+e1yuLIhKjJUjrol"],
+          ["x-amz-request-id", "2KY2CHE01F5S6XE5"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:35:21 GMT"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListTagsForResourceResult xmlns=\"http://awss3control.amazonaws.com/doc/2018-08-20/\"><Tags><Tag><Key>k</Key><Value>v</Value></Tag></Tags></ListTagsForResourceResult>"
+      }
+    }
+  ]
+}

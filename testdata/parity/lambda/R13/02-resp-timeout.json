@@ -1,0 +1,21 @@
+{
+  "step": "02-resp-timeout",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 502,
+        "reason": "Bad Gateway",
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 07:03:52 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "21"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "6abcc882-c1e9-4722-8238-ac061e4225cd"],
+          ["X-Amzn-Trace-Id", "Root=1-6acf2955-481edbfe2a34d2ab5cd55a7a;Parent=2d31eb37159fd7aa;Sampled=0;Lineage=1:d7b206da:0"]
+        ],
+        "body": "Internal Server Error"
+      }
+    }
+  ]
+}

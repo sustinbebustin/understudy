@@ -1,0 +1,33 @@
+{
+  "step": "03-update-filter-empty",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/event-source-mappings/bf14c1fd-dec8-4221-a5f7-2f45b17201e1",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,Z,AD,AN,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.update-event-source-mapping"],
+          ["X-Amz-Date", "20261014T064515Z"],
+          ["amz-sdk-invocation-id", "c84bd67b-5024-4b4c-96e6-8d77a48cd979"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "22"]
+        ],
+        "body": "{\"FilterCriteria\": {}}"
+      },
+      "response": {
+        "status": 202,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:45:15 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "1152"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "5772604b-952a-437d-b0b6-8d76d0cd6edb"]
+        ],
+        "body": "{\"StartingPosition\":null,\"SelfManagedEventSource\":null,\"ParallelizationFactor\":null,\"FilterCriteria\":null,\"FilterCriteriaError\":null,\"ProvisionedPollerConfig\":null,\"MetricsConfig\":null,\"LastModified\":1791960315.361,\"LastProcessingResult\":null,\"DestinationConfig\":null,\"AmazonManagedKafkaEventSourceConfig\":null,\"SourceAccessConfigurations\":null,\"UUID\":\"bf14c1fd-dec8-4221-a5f7-2f45b17201e1\",\"MaximumBatchingWindowInSeconds\":0,\"BatchSize\":10,\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-r07\",\"KMSKeyArn\":null,\"MaximumRetryAttempts\":null,\"ScalingConfig\":{\"MaximumConcurrency\":5},\"Topics\":null,\"EventSourceArn\":\"arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-r07q\",\"SelfManagedKafkaEventSourceConfig\":null,\"DocumentDBEventSourceConfig\":null,\"TumblingWindowInSeconds\":null,\"BisectBatchOnFunctionError\":null,\"EventSourceMappingArn\":\"arn:aws:lambda:us-east-2:123456789012:event-source-mapping:bf14c1fd-dec8-4221-a5f7-2f45b17201e1\",\"State\":\"Updating\",\"LoggingConfig\":null,\"MaximumRecordAgeInSeconds\":null,\"StartingPositionTimestamp\":null,\"Queues\":null,\"StateTransitionReason\":\"USER_INITIATED\",\"FunctionResponseTypes\":[]}"
+      }
+    }
+  ]
+}

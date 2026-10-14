@@ -1,0 +1,33 @@
+{
+  "step": "02-remove-permission-missing",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the RemovePermission operation: No policy is associated with the given resource.\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/usr-rec-20261014-r07/policy/nope",
+        "headers": [
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,E,AD,AC,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.remove-permission"],
+          ["X-Amz-Date", "20261014T064451Z"],
+          ["amz-sdk-invocation-id", "9c337fe5-a32d-4544-9941-ecb9aca45351"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Date", "Wed, 14 Oct 2026 06:44:51 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "76"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "5dfc41d9-8518-4f03-8442-114c9d815cf4"],
+          ["x-amzn-ErrorType", "ResourceNotFoundException"]
+        ],
+        "body": "{\"Message\":\"No policy is associated with the given resource.\",\"Type\":\"User\"}"
+      }
+    }
+  ]
+}

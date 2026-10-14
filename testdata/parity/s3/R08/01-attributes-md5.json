@@ -1,0 +1,30 @@
+{
+  "step": "01-attributes-md5",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/h-md5?attributes",
+        "headers": [
+          ["x-amz-object-attributes", "Checksum"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064648Z"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-id-2", "nUeiV8YoVkdl1vMnZo9vVudriUYzKWvUkHsLU/lBFHMQdM6Di9QYG6MzyDUa9azofIF1nbtZdkXWGfPrfC9PRlcIgGHL5cyS"],
+          ["x-amz-request-id", "8EXD6TN3ZKWATSBF"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:46:49 GMT"],
+          ["Last-Modified", "Wed, 14 Oct 2026 06:46:48 GMT"],
+          ["Content-Length", "258"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<GetObjectAttributesResponse xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Checksum><ChecksumMD5>XUFAKrxLKna5cZ2REBfFkg==</ChecksumMD5><ChecksumType>FULL_OBJECT</ChecksumType></Checksum></GetObjectAttributesResponse>"
+      }
+    }
+  ]
+}

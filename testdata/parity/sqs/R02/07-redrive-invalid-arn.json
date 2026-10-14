@@ -1,0 +1,37 @@
+{
+  "step": "07-redrive-invalid-arn",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValue) when calling the SetQueueAttributes operation: Value {\"deadLetterTargetArn\":\"not-an-arn\",\"maxReceiveCount\":\"2\"} for parameter RedrivePolicy is invalid. Reason: Invalid value for deadLetterTargetArn.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.SetQueueAttributes"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,AD,E,Z,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.set-queue-attributes"],
+          ["X-Amz-Date", "20261014T063610Z"],
+          ["amz-sdk-invocation-id", "04096e29-04b7-4fc2-b6cd-a69c159324ad"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "190"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-plain\", \"Attributes\": {\"RedrivePolicy\": \"{\\\"deadLetterTargetArn\\\":\\\"not-an-arn\\\",\\\"maxReceiveCount\\\":\\\"2\\\"}\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "0449c5b8-c5bc-5422-8557-a6f1e0a66309"],
+          ["x-amzn-query-error", "InvalidParameterValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 06:36:10 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "240"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Value {\\\"deadLetterTargetArn\\\":\\\"not-an-arn\\\",\\\"maxReceiveCount\\\":\\\"2\\\"} for parameter RedrivePolicy is invalid. Reason: Invalid value for deadLetterTargetArn.\"}"
+      }
+    }
+  ]
+}

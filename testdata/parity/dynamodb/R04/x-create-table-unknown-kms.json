@@ -1,0 +1,37 @@
+{
+  "step": "x-create-table-unknown-kms",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateTable operation: KMS validation error: com.amazonaws.services.kms.model.NotFoundException: Key 'arn:aws:kms:us-east-2:123456789012:key/00000000-0000-0000-0000-000000000000' does not exist (Service: AWSKMS; Status Code: 400; Error Code: NotFoundException; Request ID: e709ff2b-1334-4e8e-bad3-44e42875e5f2; Proxy: null)",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.CreateTable"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,AD,E,T,P,AN,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.create-table"],
+          ["X-Amz-Date", "20261014T063601Z"],
+          ["amz-sdk-invocation-id", "6c05f0a3-00f7-4ebf-a238-01e06fc2a369"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "355"]
+        ],
+        "body": "{\"AttributeDefinitions\": [{\"AttributeName\": \"k\", \"AttributeType\": \"S\"}], \"TableName\": \"usr-rec-20261014-kms\", \"KeySchema\": [{\"AttributeName\": \"k\", \"KeyType\": \"HASH\"}], \"BillingMode\": \"PAY_PER_REQUEST\", \"SSESpecification\": {\"Enabled\": true, \"SSEType\": \"KMS\", \"KMSMasterKeyId\": \"arn:aws:kms:us-east-2:123456789012:key/00000000-0000-0000-0000-000000000000\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:36:01 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "371"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "4RUM12OFIDNTIL0TTJRS54BOUBVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "357962890"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"KMS validation error: com.amazonaws.services.kms.model.NotFoundException: Key 'arn:aws:kms:us-east-2:123456789012:key/00000000-0000-0000-0000-000000000000' does not exist (Service: AWSKMS; Status Code: 400; Error Code: NotFoundException; Request ID: e709ff2b-1334-4e8e-bad3-44e42875e5f2; Proxy: null)\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "05-get-sub-attrs",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,Z,AN,AD,AC cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.get-subscription-attributes"],
+          ["X-Amz-Date", "20261014T063400Z"],
+          ["amz-sdk-invocation-id", "e612d6f2-6396-4ffe-9883-eeffe4a3ea41"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "170"]
+        ],
+        "body": "Action=GetSubscriptionAttributes&Version=2010-03-31&SubscriptionArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Ausr-rec-20261014-t%3A25858906-cd41-4568-809e-c50cc5ac53cd"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "fe63417d-44c4-54ca-bd6c-2234605cf2e3"],
+          ["Date", "Wed, 14 Oct 2026 06:34:00 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "1823"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<GetSubscriptionAttributesResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <GetSubscriptionAttributesResult>\n    <Attributes>\n      <entry>\n        <key>SubscriptionPrincipal</key>\n        <value>arn:aws:iam::123456789012:role/managed/AccountFullAccessRole</value>\n      </entry>\n      <entry>\n        <key>Owner</key>\n        <value>123456789012</value>\n      </entry>\n      <entry>\n        <key>RawMessageDelivery</key>\n        <value>true</value>\n      </entry>\n      <entry>\n        <key>FilterPolicy</key>\n        <value>{&quot;a&quot;:[&quot;x&quot;]}</value>\n      </entry>\n      <entry>\n        <key>TopicArn</key>\n        <value>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-t</value>\n      </entry>\n      <entry>\n        <key>Endpoint</key>\n        <value>arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-sub</value>\n      </entry>\n      <entry>\n        <key>RedrivePolicy</key>\n        <value>{&quot;deadLetterTargetArn&quot;: &quot;arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-r5dlq&quot;}</value>\n      </entry>\n      <entry>\n        <key>FilterPolicyScope</key>\n        <value>MessageAttributes</value>\n      </entry>\n      <entry>\n        <key>Protocol</key>\n        <value>sqs</value>\n      </entry>\n      <entry>\n        <key>PendingConfirmation</key>\n        <value>false</value>\n      </entry>\n      <entry>\n        <key>ConfirmationWasAuthenticated</key>\n        <value>true</value>\n      </entry>\n      <entry>\n        <key>SubscriptionArn</key>\n        <value>arn:aws:sns:us-east-2:123456789012:usr-rec-20261014-t:25858906-cd41-4568-809e-c50cc5ac53cd</value>\n      </entry>\n    </Attributes>\n  </GetSubscriptionAttributesResult>\n  <ResponseMetadata>\n    <RequestId>fe63417d-44c4-54ca-bd6c-2234605cf2e3</RequestId>\n  </ResponseMetadata>\n</GetSubscriptionAttributesResponse>\n"
+      }
+    }
+  ]
+}

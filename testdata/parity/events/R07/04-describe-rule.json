@@ -1,0 +1,33 @@
+{
+  "step": "04-describe-rule",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.DescribeRule"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,b,E,AD,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.describe-rule"],
+          ["X-Amz-Date", "20261014T064547Z"],
+          ["amz-sdk-invocation-id", "c4fca0cd-b53e-4624-ae26-fd27611c4742"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "30"]
+        ],
+        "body": "{\"Name\": \"usr-rec-20261014-r\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "9f1976df-696a-4102-bc69-454e2e967d35"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "240"],
+          ["Date", "Wed, 14 Oct 2026 06:45:47 GMT"]
+        ],
+        "body": "{\"Arn\":\"arn:aws:events:us-east-2:123456789012:rule/usr-rec-20261014-r\",\"CreatedBy\":\"123456789012\",\"EventBusName\":\"default\",\"EventPattern\":\"{ \\\"source\\\": [\\\"a.b\\\"],   \\\"detail-type\\\": [\\\"x\\\"] }\",\"Name\":\"usr-rec-20261014-r\",\"State\":\"ENABLED\"}"
+      }
+    }
+  ]
+}

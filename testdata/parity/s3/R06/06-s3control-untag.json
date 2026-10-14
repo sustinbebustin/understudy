@@ -1,0 +1,32 @@
+{
+  "step": "06-s3control-untag",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://123456789012.s3-control.us-east-2.amazonaws.com/v20180820/tags/arn%3Aaws%3As3%3A%3A%3Ausr-rec-20261014-s3?tagKeys=k",
+        "headers": [
+          ["x-amz-account-id", "123456789012"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,T,b,AD,E,AC,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3control.untag-resource"],
+          ["X-Amz-Date", "20261014T063520Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "db795e15-d1f1-4c50-a083-b47b3ec1e8cf"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 204,
+        "headers": [
+          ["x-amz-id-2", "9pcKZyeq6UdgdHTDYexgXDh/ZgI/sWY7+Rw+/7Y5RctCgjms8swPBj0n1fIt7tPe21zH39AFHd8tCJuHpWtDUKoWHeb3PCrp"],
+          ["x-amz-request-id", "2KY5HXA2E1Q9H2R9"],
+          ["Server", "AmazonS3"],
+          ["Date", "Wed, 14 Oct 2026 06:35:21 GMT"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

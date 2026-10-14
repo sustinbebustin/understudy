@@ -1,0 +1,33 @@
+{
+  "step": "05-create-md5-full-object",
+  "client": "http.client",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/mp-md5-fo?uploads",
+        "headers": [
+          ["x-amz-checksum-algorithm", "MD5"],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["X-Amz-Date", "20261014T064705Z"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "B8AWZRPKG274KYZ8"],
+          ["x-amz-id-2", "PHK7RmRxfmMdhgi2J+jdpsR/8Zb2c6Fy8A3OYrPmor+ugmBfFnnbuvUxeV1XOHKvUMgQ+69+Qa3Q5QRSqsCZMnnq4x3xWga7"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 06:47:05 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>The FULL_OBJECT checksum type cannot be used with the md5 checksum algorithm.</Message><RequestId>B8AWZRPKG274KYZ8</RequestId><HostId>PHK7RmRxfmMdhgi2J+jdpsR/8Zb2c6Fy8A3OYrPmor+ugmBfFnnbuvUxeV1XOHKvUMgQ+69+Qa3Q5QRSqsCZMnnq4x3xWga7</HostId></Error>"
+      }
+    }
+  ]
+}

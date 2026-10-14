@@ -1,0 +1,7 @@
+{"arrived":"2026-10-14T07:12:05.992Z","sent":"1791961925891","body":"{\"version\":\"0\",\"id\":\"924ebc48-89cb-ba8f-1809-53e627b31ccc\",\"detail-type\":\"Scheduled Event\",\"source\":\"aws.events\",\"account\":\"123456789012\",\"time\":\"2026-10-14T07:11:22Z\",\"region\":\"us-east-2\",\"resources\":[\"arn:aws:events:us-east-2:123456789012:rule/usr-rec-20261014-rate\"],\"detail\":{}}"}
+{"arrived":"2026-10-14T07:12:05.992Z","sent":"1791961925891","body":"{\"c\":1}"}
+{"arrived":"2026-10-14T07:12:39.250Z","sent":"1791961959154","body":"{\"time\":\"2026-10-14T07:12:00Z\",\"id\":\"50a3c5a4-9361-b39c-d3d0-563a4c17c88d\"}"}
+{"arrived":"2026-10-14T07:13:06.072Z","sent":"1791961985965","body":"{\"c\":1}"}
+{"arrived":"2026-10-14T07:13:06.072Z","sent":"1791961985961","body":"{\"version\":\"0\",\"id\":\"c7ded015-0b8f-7544-0b71-33ec7dba26fe\",\"detail-type\":\"Scheduled Event\",\"source\":\"aws.events\",\"account\":\"123456789012\",\"time\":\"2026-10-14T07:12:22Z\",\"region\":\"us-east-2\",\"resources\":[\"arn:aws:events:us-east-2:123456789012:rule/usr-rec-20261014-rate\"],\"detail\":{}}"}
+{"arrived":"2026-10-14T07:14:05.948Z","sent":"1791962045836","body":"{\"version\":\"0\",\"id\":\"ec68e3f5-3c2e-3d1e-54dc-3b53a467e3fd\",\"detail-type\":\"Scheduled Event\",\"source\":\"aws.events\",\"account\":\"123456789012\",\"time\":\"2026-10-14T07:13:22Z\",\"region\":\"us-east-2\",\"resources\":[\"arn:aws:events:us-east-2:123456789012:rule/usr-rec-20261014-rate\"],\"detail\":{}}"}
+{"arrived":"2026-10-14T07:14:05.948Z","sent":"1791962045836","body":"{\"c\":1}"}

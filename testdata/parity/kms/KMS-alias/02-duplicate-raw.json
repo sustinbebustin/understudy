@@ -1,0 +1,37 @@
+{
+  "step": "02-duplicate-raw",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "kms.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T064028Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "TrentService.CreateAlias"],
+          ["Content-Length", "95"]
+        ],
+        "body_unrecorded": {"bytes": 95}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "2cd40fd0-05e4-4d22-98e4-50b56fefdddd"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Wed, 14 Oct 2026 06:40:28 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "147"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"AlreadyExistsException\",\"message\":\"An alias with the name arn:aws:kms:us-east-2:123456789012:alias/usr-rec-20261014-dup already exists\"}"
+      }
+    }
+  ]
+}

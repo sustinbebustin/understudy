@@ -1,0 +1,37 @@
+{
+  "step": "03-encrypt-empty",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "kms.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070535Z"],
+          ["User-Agent", "curl/8.22.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "TrentService.Encrypt"],
+          ["Content-Length", "63"]
+        ],
+        "body_unrecorded": {"bytes": 63}
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "5ef15682-9b77-4f8d-832b-975f7dab2830"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Wed, 14 Oct 2026 07:05:35 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "175"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"1 validation error detected: Value at 'plaintext' failed to satisfy constraint: Member must have length greater than or equal to 1\"}"
+      }
+    }
+  ]
+}

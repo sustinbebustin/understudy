@@ -1,0 +1,36 @@
+{
+  "step": "x-list-tags-after",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://123456789012.ddb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.ListTagsOfResource"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,C,AD,b,AC,AN,E,P,T cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.list-tags-of-resource"],
+          ["X-Amz-Date", "20261014T063604Z"],
+          ["amz-sdk-invocation-id", "4f169851-2652-4ce3-b8d4-020186bc1d7b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "86"]
+        ],
+        "body": "{\"ResourceArn\": \"arn:aws:dynamodb:us-east-2:123456789012:table/usr-rec-20261014-lock\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Wed, 14 Oct 2026 06:36:04 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "11"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "79HE68EED7JEIM2SHFBJ2B8H2VVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "1756070277"]
+        ],
+        "body": "{\"Tags\":[]}"
+      }
+    }
+  ]
+}

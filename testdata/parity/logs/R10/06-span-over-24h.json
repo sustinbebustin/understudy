@@ -1,0 +1,35 @@
+{
+  "step": "06-span-over-24h",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterException) when calling the PutLogEvents operation: The batch of log events in a single PutLogEvents request cannot span more than 24 hours.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.PutLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,AN,AC,E,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.put-log-events"],
+          ["X-Amz-Date", "20261014T064935Z"],
+          ["amz-sdk-invocation-id", "1f0481e9-20d1-4486-8d08-ac2c048749ed"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "171"]
+        ],
+        "body": "{\"logGroupName\": \"/usr/usr-rec-20261014\", \"logStreamName\": \"s6\", \"logEvents\": [{\"timestamp\": 1791870575000, \"message\": \"a\"}, {\"timestamp\": 1791960574000, \"message\": \"b\"}]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "e9c76f9e-7843-4b5c-ac84-f90dec57d3fe"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "139"],
+          ["Date", "Wed, 14 Oct 2026 06:49:35 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"InvalidParameterException\",\"message\":\"The batch of log events in a single PutLogEvents request cannot span more than 24 hours.\"}"
+      }
+    }
+  ]
+}

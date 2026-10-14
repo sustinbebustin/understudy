@@ -1,0 +1,35 @@
+{
+  "step": "H4-body-receive-0",
+  "client": "boto3",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "Boto3/1.43.113 md/Botocore#1.43.113 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.14.3 md/pyimpl#CPython m/Z,AD,D,b,AC cfg/retry-mode#legacy Botocore/1.43.113"],
+          ["host", "sqs.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261014T070901Z"],
+          ["amz-sdk-invocation-id", "94c5f386-7deb-405e-ae5d-98c76c382bba"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "168"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-f29\", \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 5, \"MessageAttributeNames\": [\"All\"]}"
+      },
+      "response": {
+        "headers": [
+          ["x-amzn-RequestId", "d6bacf15-d5cb-5a75-a908-ac5cf906bedb"],
+          ["Date", "Wed, 14 Oct 2026 07:09:01 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "587"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Body\":\"{\\\"x\\\":[\\\"rugby\\\",\\\"baseball\\\"]}\",\"MD5OfBody\":\"723d859df1cea798e8fa2fba644a9e2d\",\"MessageId\":\"02a43da6-0086-4641-b1ee-74bc491697fc\",\"ReceiptHandle\":\"AQEBs8AlM+wemLRI56nSxtUeVmGM+wFVpOEH8ufGMVvdCNi3DbtyPmCO3U0wKAShx6dO8d/Es0mKUdTI2sa5v57496pWO/HexAwFIAX4rbCWTq46qOnqvvjKTkNP1nZ2SxgOJZSH70aTuBwnycnwUHJScSOxV0UD76iywzdwoDMGZKh9WooIwW5VLrfgGyy4HdJwymdB68yeoPJ9SfaaSXag8bgQwsIUaW6mr5MBV34oJByDUUZEeJXXxUYatsFSLy6WXsR+uJZRwrL7V0AlBhqfUOFKwLv1j40kdr7pkS4nPA2ZDfSXUYCqM2FG7iU2uZ78M80KaZZxrNunmnL3Oak7EZN4VpSyf51vpIcFhe1S0GMEGKy2+0VLAd479gWWjUm49E6ma7BQVU7pnR7PjfyF0w==\"}]}"
+      }
+    }
+  ]
+}

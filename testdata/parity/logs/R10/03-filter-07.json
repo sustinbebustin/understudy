@@ -1,0 +1,33 @@
+{
+  "step": "03-filter-07",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,E,AD,Z,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261014T064902Z"],
+          ["amz-sdk-invocation-id", "8da883ed-b4fd-46ef-95df-cb114b3b62e6"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "139"]
+        ],
+        "body": "{\"logGroupName\": \"/usr/usr-rec-20261014\", \"logStreamNames\": [\"s1\"], \"startTime\": 1791959928000, \"filterPattern\": \"{ $.level = \\\"ERROR\\\" }\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "73e6893f-3d0b-47a8-96fb-aab5d52db11c"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "667"],
+          ["Date", "Wed, 14 Oct 2026 06:49:02 GMT"]
+        ],
+        "body": "{\"events\":[{\"eventId\":\"39962042005613478336504681433205959973944416490316955659\",\"ingestionTime\":1791960528827,\"logStreamName\":\"s1\",\"message\":\"{\\\"level\\\":\\\"ERROR\\\",\\\"n\\\":5}\",\"timestamp\":1791959939000}],\"nextToken\":\"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCq9JTMgUvdUtJ205g_zG8pvP8DyqTQukVzKzLP485b82jf5rPGylaiTxAitn_UlHRoYe9j7xBjDYyi1HNwEsBEabm7liRxnZNUJzbwR_mGrJRFZSswlG-mLFpfIo7dkWSSaRxo2JwqrNkVAfkT8KBlCX5q-LpylaM03bmSm7fYiODABkp1xFMH-mQIy9EL_eNugDV2uPWdFy-b-giHchx9RO3bINgEEpLYvqlT4HTHwM4kcftNDQERf7-Xor9UnjOhvYrM9ZdBgYMCcwM7PXeeDXSxnIuxRhD9dGnsz0596CQ\",\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    }
+  ]
+}

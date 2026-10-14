@@ -1,0 +1,42 @@
+{
+  "step": "04-disabled-key",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (KMS.DisabledException) when calling the PutObject operation: arn:aws:kms:us-east-2:123456789012:key/6d38c8ab-924c-412c-8cc0-dbaf5a2629c3 is disabled.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://usr-rec-20261014-sse.s3.us-east-2.amazonaws.com/k",
+        "headers": [
+          ["x-amz-server-side-encryption", "aws:kms"],
+          ["x-amz-server-side-encryption-aws-kms-key-id", "6d38c8ab-924c-412c-8cc0-dbaf5a2629c3"],
+          ["User-Agent", "aws-cli/2.37.13 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-142-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,g,W,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-crc64nvme"],
+          ["X-Amz-Decoded-Content-Length", "1"],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261014T070551Z"],
+          ["X-Amz-Content-SHA256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "390f33f4-eb11-4f11-897f-919d945acbb8"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "28ZK8ZHPCYHNFEB3"],
+          ["x-amz-id-2", "NVns46JUCZ86hzhHMBUnzMOAeh0a9UFSRKB6P5+S/9j/zJfuxKCXvZcQjhl4EI6bJ08xu8Q6sdLucWrJdJ+ePSkJhWdA2FEt"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Wed, 14 Oct 2026 07:05:51 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>KMS.DisabledException</Code><Message>arn:aws:kms:us-east-2:123456789012:key/6d38c8ab-924c-412c-8cc0-dbaf5a2629c3 is disabled.</Message><RequestId>28ZK8ZHPCYHNFEB3</RequestId><HostId>NVns46JUCZ86hzhHMBUnzMOAeh0a9UFSRKB6P5+S/9j/zJfuxKCXvZcQjhl4EI6bJ08xu8Q6sdLucWrJdJ+ePSkJhWdA2FEt</HostId></Error>"
+      }
+    }
+  ]
+}
