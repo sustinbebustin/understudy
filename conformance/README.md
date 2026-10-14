@@ -22,6 +22,20 @@ understudy serves DynamoDB through Amazon DynamoDB Local, pulled on first use an
 
 With any other value, `run.sh` exits 2 and runs nothing. `run.sh` clears serve's environment of every `UNDERSTUDY_*` and `AWS_*` setting. In the e2e-pipeline suite every worker takes a DynamoDB lock for each SQS record, so under `CONFORMANCE_DYNAMODB=0` the tests that publish to the topic, and so make a worker take a lock, or that read the lock table skip; the rest still run.
 
+## Signature checking
+
+`SIGV4` sets serve's `--sigv4` mode for a run. `python-boto3/run.sh` defaults to `verify`; every other `run.sh` defaults to `parse`, which reads each request's credentials and checks no signature, so a suite proves understudy's signature verification only when it runs under `verify`.
+
+| Suite | CI runs it under | Why |
+|---|---|---|
+| `python-boto3/` | `verify` (its default) | boto3's signer on every request, plus the tests that take the `sigv4_verify` fixture and skip without it. |
+| `aws-cli/` | `parse`, and again under `verify` | The most S3 request shapes of any suite: `aws s3 cp` single-part, multipart and from stdin, `s3 presign`, `s3 sync`, virtual-hosted addressing and the `s3api` calls. The CLI signs with its own copy of botocore (the classic transfer client, not CRT), so this run adds request shapes rather than a new signer. |
+| `terraform/` | `parse`, and again under `verify` | The Terraform AWS provider signs with aws-sdk-go-v2, a signer written apart from botocore, across every service the suite applies. |
+| `js-sdk-v3/` | `parse`, and again under `verify` | The JavaScript SDK signs with `@smithy/signature-v4`, a third signer. Two STS tests need `parse` and skip under `verify`, so both runs are needed. |
+| `go-sdk/`, `e2e-pipeline/` | `parse` (the default) | Both sign with aws-sdk-go-v2, whose verify run is terraform's; either takes `SIGV4=verify` when run by hand. |
+
+A suite's `parse` run stays beside its `verify` run because `parse` is serve's default, the mode most users run.
+
 ## Summary
 
 Every `run.sh` ends with a summary on stderr: `run.sh: passed=N failed=N skipped=N`, then one `run.sh: SKIP <test>: <reason>` line per skipped test. When the suite fails but no test does (a build error, a timeout or a crash before any result), a last line says so and names where the output is. A skip never changes the exit status. Suites that drive the AWS CLI or Terraform first run its version command through `scripts/sealed` and exit 2, naming the binary, when it cannot run. Lambda execution and DynamoDB need a Docker daemon.

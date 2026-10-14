@@ -163,12 +163,28 @@ jobs:
   # from this commit, one matrix entry per suite (ARCHITECTURE.md 19), and
   # lets every suite finish when another fails. Every suite runs DynamoDB's
   # tests on DynamoDB Local, licensed as for test-docker above.
+  #
+  # Each suite runs under its run.sh's default --sigv4 mode (an empty SIGV4).
+  # aws-cli, terraform and js-sdk-v3 run a second time under verify, so
+  # signature verification is checked against every signer the suites use,
+  # not only boto3's (conformance/README.md, Signature checking). sigv4 is a
+  # matrix axis so that each include adds a job instead of changing the
+  # suite's existing one.
   conformance:
+    name: conformance (${{ matrix.suite }}${{ matrix.sigv4 && format(', SIGV4={0}', matrix.sigv4) || '' }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         suite: [go-sdk, python-boto3, js-sdk-v3, aws-cli, terraform, e2e-pipeline]
+        sigv4: [""]
+        include:
+          - suite: aws-cli
+            sigv4: verify
+          - suite: terraform
+            sigv4: verify
+          - suite: js-sdk-v3
+            sigv4: verify
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -184,3 +200,5 @@ jobs:
           terraform_version: "1.16.0"
           terraform_wrapper: false
       - run: conformance/${{ matrix.suite }}/run.sh
+        env:
+          SIGV4: ${{ matrix.sigv4 }}
