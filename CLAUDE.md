@@ -36,7 +36,7 @@ Do not weaken them. The linter or a test enforces most.
 
 ### Issue tracker
 
-Local markdown under `.scratch/<feature>/`, gitignored and never committed. See `docs/agents/issue-tracker.md`.
+Local markdown under `.scratch/<feature>/`, gitignored and never committed. When work comes from a ticket, tick each acceptance checkbox as it passes and set `Status: resolved` at the end. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
