@@ -20,7 +20,7 @@ Do not weaken them. The linter or a test enforces most.
 1. Never reach real AWS. Run the AWS CLI, Terraform, SDK scripts and conformance suites through `scripts/sealed` (`just aws`, `just tf`, each suite's `run.sh`).
 2. AWS is the arbiter. Tests assert what AWS does as `docs/research/` records it, never what understudy happens to do. A failing conformance test is a finding: fix understudy or the research, not the test. When AWS's behavior is unknown, say so in the code and the coverage note.
 3. Nothing silently faked. An unimplemented operation stays unbound and answers 501; a setting stored without effect is `registry.StoredOnly`; a deviation from AWS is a `fidelity.Switch` or a coverage note.
-4. Standard library only in the main module, plus `pgregory.net/rapid` in tests. A new dependency needs an ADR.
+4. Dependencies are the allow-list in ADR 0016 (amendment 2026-10-14), mirrored by `depguard`: no runtime dependency; `rapid`, `go-cmp`, `cespare/xxhash/v2` and `zeebo/xxh3` in tests. AWS behaviour is never delegated to a library. A new dependency meets the ADR's criteria and adds a table row.
 5. One clock. Outside `internal/clock` and `cmd/`, no `time.Now`, `time.Sleep` or timers; anything AWS times runs on the emulator clock, and tests use `testing/synctest` or the emulator clock. No `fmt.Print*`, `os.Exit` or `panic` there either.
 6. Generated files (`// Code generated ... DO NOT EDIT.`) change only through the generator or its inputs (`codegen/`), then `just generate`.
 

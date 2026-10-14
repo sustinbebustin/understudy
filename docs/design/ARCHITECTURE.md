@@ -60,7 +60,7 @@ Every conflict and its resolution:
 
 ## 2. Package layout
 
-One module, `github.com/sustinbebustin/understudy`, Go 1.27, standard library only (`pgregory.net/rapid` in tests). `depguard` and `forbidigo` enforce it with the configuration in `go-toolchain.md 13`.
+One module, `github.com/sustinbebustin/understudy`, Go 1.27. Dependencies are the allow-list in ADR 0016 (amendment 2026-10-14): no runtime dependency, and the test tier `pgregory.net/rapid`, `github.com/google/go-cmp`, `github.com/cespare/xxhash/v2` and `github.com/zeebo/xxh3`. `depguard` and `forbidigo` enforce it with the configuration in `go-toolchain.md 13`.
 
 ```
 cmd/understudy/                 main: builds the CLI tree, nothing else

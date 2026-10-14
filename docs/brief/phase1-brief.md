@@ -94,7 +94,7 @@ Out of scope for phase 1 (roadmap): ECS, RDS, EC2/VPC, Step Functions, API Gatew
 ## Engineering constraints
 
 - **Go 1.27** (installed: go1.27.1).
-- The main module depends on the **standard library only**. The one pre-approved exception is test-only `pgregory.net/rapid`. Any other dependency needs an ADR that justifies it.
+- The main module's dependencies are an **allow-list**: the table in ADR 0016 (amendment 2026-10-14). Behaviour that is AWS's behaviour is written in-repo; a library may only be its test oracle. Today the runtime tier is empty and the test tier is `pgregory.net/rapid`, `github.com/google/go-cmp`, `github.com/cespare/xxhash/v2` and `github.com/zeebo/xxh3`. A new dependency meets the ADR's criteria and adds a row to its table.
 - Docker is reached through the Engine HTTP API over its unix socket with `net/http`; no Docker SDK. Podman's compatible socket should work.
 - **Generated code is checked in**, carries the `// Code generated ... DO NOT EDIT.` header, and is reproducible with one command. Smithy models for the phase 1 services are vendored at a pinned commit, recorded in the repo.
 - Conformance suites (Go SDK, Python, JS, CLI, Terraform, end-to-end) live outside the main module, with their own dependency manifests.

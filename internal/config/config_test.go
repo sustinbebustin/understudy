@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"pgregory.net/rapid"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -617,8 +618,8 @@ func TestLoadHostIgnoresListenerRules(t *testing.T) {
 		t.Fatalf("LoadHost = %v", err)
 	}
 	want := config.Host{Persistence: config.Dir{Path: "/data", SaveEvery: config.DefaultSaveEvery}, Docker: config.DockerDisabled{}, DynamoDB: config.DynamoDBEnabled{}}
-	if !reflect.DeepEqual(host, want) {
-		t.Errorf("LoadHost = %#v, want %#v", host, want)
+	if diff := cmp.Diff(want, host); diff != "" {
+		t.Errorf("LoadHost mismatch (-want +got):\n%s", diff)
 	}
 	if _, err := config.LoadHost(nil, []string{"UNDERSTUDY_PERSIST_EVERY=1m"}, files{}.read); err == nil || err.Where != "UNDERSTUDY_PERSIST_EVERY" {
 		t.Errorf("LoadHost with an interval and no directory = %v, want it refused", err)

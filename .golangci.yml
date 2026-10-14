@@ -110,6 +110,8 @@ linters:
         - name: useless-break
         - name: unreachable-code
         - name: redefines-builtin-id
+    # The two tiers mirror the dependency table in ADR 0016 (amendment
+    # 2026-10-14); a module joins a list only with a row in that table.
     depguard:
       rules:
         main:
@@ -119,7 +121,13 @@ linters:
         tests:
           list-mode: strict
           files: ["$test"]
-          allow: [$gostd, github.com/sustinbebustin/understudy, pgregory.net/rapid]
+          allow:
+            - $gostd
+            - github.com/sustinbebustin/understudy
+            - pgregory.net/rapid
+            - github.com/google/go-cmp
+            - github.com/cespare/xxhash/v2
+            - github.com/zeebo/xxh3
     forbidigo:
       analyze-types: true
       forbid:
