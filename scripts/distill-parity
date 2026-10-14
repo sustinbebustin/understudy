@@ -5,10 +5,10 @@
 # ///
 """Distill raw AWS recordings into the parity fixtures under testdata/parity.
 
-    scripts/distill-parity ~/understudy-recordings/usr-rec-20261014
+    scripts/distill-parity ~/understudy-recordings/<prefix>
     scripts/distill-parity --replace --out testdata/parity REC
 
-REC is a recordings directory made with docs/human/recording-kit.md: one
+REC is a recordings directory made with docs/recording-kit.md: one
 directory per item (R01 to R18, KMS-alias) holding AWS CLI --debug logs
 (<step>.http plus <step>.out), curl captures (<step>.http plus
 <step>.trace), raw http.client and socket captures (<step>.http), Lambda
@@ -564,7 +564,7 @@ def items_of(rec: Path) -> list[str]:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("rec", type=Path, help="the recordings directory, e.g. ~/understudy-recordings/usr-rec-20261014")
+    parser.add_argument("rec", type=Path, help="the recordings directory, e.g. ~/understudy-recordings/<prefix>")
     parser.add_argument("--out", type=Path, default=Path(__file__).resolve().parent.parent / "testdata" / "parity")
     parser.add_argument("--account-file", type=Path, help="file holding the recorded account id (default REC/_scripts/acct)")
     parser.add_argument("--replace", action="store_true", help="delete the output directory first")

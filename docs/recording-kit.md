@@ -1,41 +1,44 @@
 # Recording kit: real AWS captures
 
-For the repository owner. This is ARCHITECTURE.md open decision 25.3: record R01 to R07 against real AWS before the first public tag, so the coverage page gains `aws-recorded` evidence. Agents never run any of this. Run it yourself, in your own terminal, with credentials for a throwaway account.
+How a maintainer records real AWS exchanges for the R items, so the coverage page gains `aws-recorded` evidence. Agents never run any of this. Run it yourself, in your own terminal, with credentials for a throwaway account.
+
+The placeholders below are yours to fill: `<profile>` is the AWS CLI profile for the recording account, `<region>` is that account's Region, and `<prefix>` is the resource prefix you fix in the first session (section 1).
 
 ## The record mode does not exist yet
 
-There is no record mode to run. `internal/parity` holds only its package doc (the replayer, not built), and `conformance/parity-record` (where ARCHITECTURE.md 19 puts the record mode) does not exist. Until they do, capture the raw wire exchange with the AWS CLI's `--debug` output and `curl -i`, and distill it into `testdata/parity/` (section 6). This is the interim method in [the record backlog, 2.2](../research/phase1/s3-checksum-residuals-and-record-backlog.md#22-common-conventions-for-every-script). The captures are the input a future replayer will read, so nothing recorded now is wasted.
+There is no record mode to run. `internal/parity` holds only its package doc (the replayer, not built), and `conformance/parity-record` (where ARCHITECTURE.md 19 puts the record mode) does not exist. Until they do, capture the raw wire exchange with the AWS CLI's `--debug` output and `curl -i`, and distill it into `testdata/parity/` (section 6). This is the interim method in [the record backlog, 2.2](research/s3-checksum-residuals-and-record-backlog.md#22-common-conventions-for-every-script). The captures are the input a future replayer will read, so nothing recorded now is wasted.
 
-The step-by-step scripts for R01 to R18 are in [the backlog, 2.4](../research/phase1/s3-checksum-residuals-and-record-backlog.md#24-scripts). This kit adds the account setup, the capture commands, the priority order, the items that came up after the backlog was written, the costs, the cleanup, and how the results get into the repository.
+The step-by-step scripts for R01 to R18 are in [the backlog, 2.4](research/s3-checksum-residuals-and-record-backlog.md#24-scripts). This kit adds the account setup, the capture commands, the priority order, the items that came up after the backlog was written, the costs, the cleanup, and how the results get into the repository.
 
 ## 1. Account and shell
 
-Record in the `understudy-rec` project of an AWS free-plan account ("Sign up for AWS (new)"). Each project in AWS Settings is a separate AWS account, so this one holds nothing but the recordings.
+Record in a throwaway AWS account that holds nothing but the recordings. With an AWS free-plan account ("Sign up for AWS (new)"), each project in AWS Settings is a separate AWS account, so a project of its own serves.
 
-AWS-managed service control policies (SCPs) on free-plan projects shape what can be recorded:
+If the recording account is a free-plan project, AWS-managed service control policies (SCPs) shape what can be recorded:
 
-- Regional calls work only in the project's Region, `us-east-2` (AWS Settings, Projects, Overview, Additional Info shows it). Every other Region is closed to the services this kit uses. So R06's us-east-1 and us-west-2 buckets and its step 5, and R15's key in another Region, cannot be recorded. Record R06's other steps against one bucket in `us-east-2`, and note in `notes.md` that `?location` and the region headers come from `us-east-2`, not us-east-1.
+- Regional calls work only in the project's Region (AWS Settings, Projects, Overview, Additional Info shows it). Every other Region is closed to the services this kit uses. So R06's us-east-1 and us-west-2 buckets and its step 5, and R15's key in another Region, cannot be recorded. Record R06's other steps against one bucket in `<region>`, and note in `notes.md` which Region `?location` and the region headers come from.
 - `s3:PutObject` with storage class `GLACIER` or `DEEP_ARCHIVE` is denied.
 - A denied call returns `AccessDenied` with "explicit deny in a service control policy". That is the guardrail answering, not the service: discard the capture and note the step as `n/a (free-plan SCP)`.
+- Usage draws on the free plan's credits.
 
-1. Usage draws on the free plan's credits. For email alerts, add a monthly cost budget of USD 20 that emails you at 50% and 100% (Billing and Cost Management, Budgets).
-2. Sign in with AWS CLI 2.32 or later. `--remote` prints a URL and asks for the code the browser shows, so it also works from a VM without a forwarded port. In the browser, pick the `understudy-rec` project:
+1. For email alerts, add a monthly cost budget of USD 20 that emails you at 50% and 100% (Billing and Cost Management, Budgets).
+2. Sign in with AWS CLI 2.32 or later. `--remote` prints a URL and asks for the code the browser shows, so it also works from a VM without a forwarded port. In the browser, pick the recording account (or project):
 
 ```sh
-aws login --profile understudy-rec --remote
+aws login --profile <profile> --remote
 ```
 
-   The profile's Region must be `us-east-2` (`aws configure set region us-east-2 --profile understudy-rec`). Check that `aws sts get-caller-identity --profile understudy-rec` shows the project's account id.
+   The profile's Region must be your recording account's Region, `<region>` (`aws configure set region <region> --profile <profile>`). Check that `aws sts get-caller-identity --profile <profile>` shows the recording account's id.
 
 ### Shell
 
 Open a new terminal that no agent uses and start `bash` in it (the commands here are bash; macOS opens zsh). Do not run these commands through `scripts/sealed`, which refuses non-loopback endpoints on purpose. Set up the shell:
 
 ```sh
-export R=us-east-2
-export AWS_PROFILE=understudy-rec AWS_REGION=$R AWS_PAGER="" AWS_DEFAULT_OUTPUT=json
+export R=<region>
+export AWS_PROFILE=<profile> AWS_REGION=$R AWS_PAGER="" AWS_DEFAULT_OUTPUT=json
 unset AWS_ENDPOINT_URL                       # a leftover local endpoint would capture understudy, not AWS
-export P=usr-rec-$(date +%Y%m%d)             # first session only; later sessions set the same literal value
+export P=<prefix>                            # short, lower case, unique to you; every session sets the same value
 export A=$(aws sts get-caller-identity --query Account --output text)
 echo "recording in account $A"               # stop here if this is not the throwaway account
 export Q=https://sqs.$R.amazonaws.com/$A
@@ -44,9 +47,9 @@ mkdir -p "$REC"
 eval "$(aws configure export-credentials --format env)"   # exports the session keys for the curl items (R11, R18, KMS alias)
 ```
 
-`P` prefixes every resource name and names the recordings directory. Fix it in the first session. In every later session, export that same value literally instead of the `date` line, for example `export P=usr-rec-20261013` (`ls ~/understudy-recordings` shows it). A new value would leave R03's role and R12's bucket under the old prefix, where R13, R18 and the section 5 cleanup and sweep cannot find them.
+`P` prefixes every resource name and names the recordings directory, so it must be valid in S3 bucket names (lower-case letters, digits and hyphens), for example a short tag plus the date of the first session. Fix it in the first session and export that same value in every later one (`ls ~/understudy-recordings` shows it). A new value would leave R03's role and R12's bucket under the old prefix, where R13, R18 and the section 5 cleanup and sweep cannot find them.
 
-The session credentials expire. When a call fails with `ExpiredToken`, run `aws login --profile understudy-rec --remote` and the `eval` line again. A session lasts at most 12 hours.
+The session credentials expire. When a call fails with `ExpiredToken`, run `aws login --profile <profile> --remote` and the `eval` line again. A session lasts at most 12 hours.
 
 ## 2. Capturing
 
@@ -95,7 +98,7 @@ grep -rliE 'ASIA[A-Z0-9]{16}|AKIA[A-Z0-9]{16}|IQoJb3JpZ2lu|(SecretAccessKey|Sess
 
 The first pattern covers the XML element (`<SessionToken>...`), JSON key (`"SecretAccessKey": "..."`), Python repr (`'X-Amz-Security-Token': b'...'`), header and URL query forms. The snippet was tried on synthetic captures of an `assume-role` (debug log and `.out`), a `create-access-key`, a presigned URL and a curl trace, all with fake keys: it redacted every key, token and signature, and the check then reported nothing. If the check still lists a file, open it, find the credential the patterns missed, and redact it by hand before sharing.
 
-The patterns miss one credential: when the `aws login` session refreshes in the middle of a step, the debug log holds the token call to `signin.aws.amazon.com`, with its `refreshToken` and the new `accessToken`. Two of the 2026-10-14 captures had one. Your private copy may keep it; `scripts/distill-parity` (section 6) drops those exchanges and refuses to finish while either token name is left in its output.
+The patterns miss one credential: when the `aws login` session refreshes in the middle of a step, the debug log holds the token call to `signin.aws.amazon.com`, with its `refreshToken` and the new `accessToken`. A long session usually leaves one or two such captures. Your private copy may keep it; `scripts/distill-parity` (section 6) drops those exchanges and refuses to finish while either token name is left in its output.
 
 The account id and the other owner identifiers may stay in your private copy. The committed copies mask them (section 6).
 
@@ -103,7 +106,7 @@ The account id and the other owner identifiers may stay in your private copy. Th
 
 Resource names all start with `$P`, so the sweep in section 5 finds anything a teardown missed. Most backlog items end with their own teardown. Section 5 gives the teardowns the backlog lacks (R11, R13, R16, R17, R18) and the teardowns for this kit's additions. The times are estimates and include the waits the scripts require.
 
-### Tier 1: before the first tag (25.3)
+### Tier 1: first
 
 | ID | What it settles | Script | Time | Lands in |
 |---|---|---|---|---|
@@ -112,12 +115,12 @@ Resource names all start with `$P`, so the sweep in section 5 finds anything a t
 | R03 | Lambda SQS mapping runtime: visibility use, FIFO with a batching window, validation texts, partial-batch edges, states | backlog R03, but in its teardown skip deleting `$P-role`: R13, R16 and R17 reuse it, and section 5 removes it | 60 min | `internal/service/lambda`; `lambda-events.md` 11, 28 |
 | R04 | DynamoDB lock table: TTL and PITR describe and update shapes, error JSON, `x-amz-crc32` | backlog R04 (skip the optional 48 h step 8) | 20 min | `internal/service/dynamodb` shims; `dynamodb-local.md` |
 | R05 | Terraform plan stability, messaging: SQS and SNS attribute bytes and defaults | backlog R05 | 20 min | `internal/service/sqs`, `internal/service/sns`; `tf-messaging.md` 8 |
-| R06 | Terraform plan stability, S3: new-bucket subresource states and statuses, S3 Control tags | backlog R06, one bucket in `us-east-2`; skip step 5 (section 1) | 40 min | `internal/service/s3`, `codegen/overlays/s3.json`; `s3.md` 4.1, `wire-rest.md` 3.6 |
+| R06 | Terraform plan stability, S3: new-bucket subresource states and statuses, S3 Control tags | backlog R06; on a free-plan project, one bucket in `<region>` and skip step 5 (section 1) | 40 min | `internal/service/s3`, `codegen/overlays/s3.json`; `s3.md` 4.1, `wire-rest.md` 3.6 |
 | R07 | Terraform plan stability, compute and ops: Lambda, EventBridge, CloudWatch alarm and Secrets Manager read shapes | backlog R07 | 40 min | `internal/service/{lambda,events,cloudwatch,secretsmanager}`; `tf-compute.md` 11 |
 
-While R04 has its table up, also record these DynamoDB texts (DEFERRED.md, "Recordings for wave 7 texts"): `create-table` and `update-table` with an unknown KMS key id, `tag-resource` with 51 tags and with an `aws:` key prefix, `describe-continuous-backups` on a missing table (`TableNotFoundException`), `list-tags-of-resource` on a missing table, and whether switching the billing mode from `PAY_PER_REQUEST` to `PROVISIONED` sets `ProvisionedThroughput.LastIncreaseDateTime`.
+While R04 has its table up, also record these DynamoDB texts: `create-table` and `update-table` with an unknown KMS key id, `tag-resource` with 51 tags and with an `aws:` key prefix, `describe-continuous-backups` on a missing table (`TableNotFoundException`), `list-tags-of-resource` on a missing table, and whether switching the billing mode from `PAY_PER_REQUEST` to `PROVISIONED` sets `ProvisionedThroughput.LastIncreaseDateTime`.
 
-While R07 runs step 5, also record two CloudWatch errors over the JSON protocol with `x-amzn-query-mode: true`. They decide whether `DashboardNotFoundError` and `ResourceNotFoundException` need a status override (DEFERRED.md, "CloudWatch query-mode statuses"):
+While R07 runs step 5, also record two CloudWatch errors over the JSON protocol with `x-amzn-query-mode: true`. They decide whether `DashboardNotFoundError` and `ResourceNotFoundException` need a status override:
 
 ```sh
 cw() {  # cw <operation> <json body>
@@ -149,7 +152,7 @@ Decision: if AWS sends 400, keep the override and relabel its evidence `aws-reco
 
 ### Tier 3: everything else
 
-Run in this order, ranked as in the backlog by how badly a wrong answer hurts the phase 1 workload. The extra items in the right-hand column come from `docs/plan/DEFERRED.md` and `docs/research/phase1/matching-engines.md` 8, and ride along with the backlog item that already builds the resources they need.
+Run in this order, ranked as in the backlog by how badly a wrong answer hurts the event-driven workloads understudy targets. The extra items in the right-hand column come from open questions in the code and research, including [matching-engines.md 8](research/matching-engines.md#8-cases-only-a-human-run-aws-recording-can-settle), and ride along with the backlog item that already builds the resources they need.
 
 | ID | Backlog item | Also record during it |
 |---|---|---|
@@ -206,7 +209,7 @@ aws sqs delete-queue --queue-url "$Q/$P-fq"
 rm filter.py filter.zip
 ```
 
-The R09 additions (DEFERRED.md, "Recordings for wave 7 texts"): a RedrivePolicy naming a queue in another Region, one naming a queue in another account (`sns/subscription_attrs.go` infers the text for both), and the filter policy one past the 200-per-topic quota. The quota test takes about ten minutes of CLI calls; SQS queues cost nothing while empty.
+The R09 additions: a RedrivePolicy naming a queue in another Region, one naming a queue in another account (`sns/subscription_attrs.go` infers the text for both), and the filter policy one past the 200-per-topic quota. The quota test takes about ten minutes of CLI calls; SQS queues cost nothing while empty.
 
 ```sh
 T=$(aws sns create-topic --name "$P-limit" --query TopicArn --output text)
@@ -225,7 +228,7 @@ aws sns delete-topic --topic-arn "$T"
 for i in $(seq 1 201); do aws sqs delete-queue --queue-url "$Q/$P-lim-$i"; done
 ```
 
-The R12 additions, run while `$P-edge` exists. The CLI always asks for `encoding-type=url` on listings and needs an `uploadId` for a multipart POST, so the first two are raw requests. The POST carries a minimal `CompleteMultipartUpload` body, so the missing `uploadId` is its only difference from a real client's request. Without a body curl would send no `Content-Length`, and S3 could answer 411 before it routes the request. The lifecycle rule moves objects to `GLACIER` and then to `ONEZONE_IA`, a path AWS refuses (DEFERRED.md, "S3 lifecycle transition paths"):
+The R12 additions, run while `$P-edge` exists. The CLI always asks for `encoding-type=url` on listings and needs an `uploadId` for a multipart POST, so the first two are raw requests. The POST carries a minimal `CompleteMultipartUpload` body, so the missing `uploadId` is its only difference from a real client's request. Without a body curl would send no `Content-Length`, and S3 could answer 411 before it routes the request. The lifecycle rule moves objects to `GLACIER` and then to `ONEZONE_IA`, a path AWS refuses:
 
 ```sh
 aws s3api put-object --bucket "$P-edge" --key $'ctl\x01key' --body /dev/null
@@ -240,7 +243,7 @@ rec R12/15-lifecycle-glacier-then-onezone-ia aws s3api put-bucket-lifecycle-conf
   --lifecycle-configuration '{"Rules":[{"ID":"path","Status":"Enabled","Filter":{"Prefix":""},"Transitions":[{"Days":30,"StorageClass":"GLACIER"},{"Days":60,"StorageClass":"ONEZONE_IA"}]}]}'
 ```
 
-The control-character steps, also on `$P-edge`, after step 13 (DEFERRED.md, "xmlw control characters"). Step 13 showed U+0001 as `&#x1;` and U+FFFE as raw bytes in one listing. These add the other characters `internal/protocol/xmlw` writes as numeric references (tab, LF, CR, U+001F, DEL, NEL U+0085 and U+FFFF), the same listing with `encoding-type=url`, and an error body that names such a key, where no encoding option exists:
+The control-character steps, also on `$P-edge`, after step 13. Step 13 showed U+0001 as `&#x1;` and U+FFFE as raw bytes in one listing. These add the other characters `internal/protocol/xmlw` writes as numeric references (tab, LF, CR, U+001F, DEL, NEL U+0085 and U+FFFF), the same listing with `encoding-type=url`, and an error body that names such a key, where no encoding option exists:
 
 ```sh
 for k in $'tab\tkey' $'lf\nkey' $'cr\rkey' $'us\x1fkey' $'del\x7fkey' $'nel\xc2\x85key' $'nonchar\xef\xbf\xbfkey'; do
@@ -274,9 +277,9 @@ Use `ebmatch` for H1, H8, H9 and H14, and `ebrule` for H10, H11 and H12 (then `e
 
 These are recorded only once someone writes the request. Ask an agent to draft them from the cited research before a session; the agent writes the script and never runs it.
 
-- The S3 error for an XML request body over the size limit (DEFERRED.md, "restXml codec").
+- The S3 error for an XML request body over the size limit.
 - The S3 `copy-object` error for a source over 5 GiB. It needs a 5 GiB upload first.
-- Coral texts for an unsigned `x-amz-*` header (`HeadersNotSigned`), for an `Authorization` header plus `X-Amz-Algorithm` (on SQS over Query, and on S3), and for a presigned non-S3 request with no `X-Amz-Expires` or with `X-Amz-Expires=0` (`error-matrix.md` 5.5). Also S3's texts for an unknown `Authorization` scheme, for a credential-scope date that differs from `X-Amz-Date`, and for a presigned URL dated in the future, and whether `awsJson` errors echo `Content-Type: application/json` (DEFERRED.md, "Recordings that would settle auth and awsJson texts"). `curl --aws-sigv4` signs every header it sends, so these need a hand-built signer like the one in R08 step 3.
+- Coral texts for an unsigned `x-amz-*` header (`HeadersNotSigned`), for an `Authorization` header plus `X-Amz-Algorithm` (on SQS over Query, and on S3), and for a presigned non-S3 request with no `X-Amz-Expires` or with `X-Amz-Expires=0` (`error-matrix.md` 5.5). Also S3's texts for an unknown `Authorization` scheme, for a credential-scope date that differs from `X-Amz-Date`, and for a presigned URL dated in the future, and whether `awsJson` errors echo `Content-Type: application/json`. `curl --aws-sigv4` signs every header it sends, so these need a hand-built signer like the one in R08 step 3.
 
 ## 4. Costs
 
@@ -362,7 +365,7 @@ done | awk '$2 == "CUSTOMER" && $3 != "PendingDeletion" {print $1}' |
   while read -r k; do aws kms schedule-key-deletion --key-id "$k" --pending-window-in-days 7; done
 ```
 
-The project's account cannot be closed from inside it (an SCP denies `account:CloseAccount`). Once the sweep is empty and the keys have finished their deletion window, it holds nothing that costs money.
+A free-plan project's account cannot be closed from inside it (an SCP denies `account:CloseAccount`). Once the sweep is empty and the keys have finished their deletion window, it holds nothing that costs money.
 
 ## 6. How the results land in the repository
 
