@@ -10,7 +10,7 @@ import (
 
 // Options are the DynamoDB settings wire.go fills from the configuration.
 // The zero value has no DynamoDB Local: every forwarded operation answers
-// 501 with the licence notice, as an unaccepted licence does.
+// 501, as a server with DynamoDB turned off does.
 type Options struct {
 	// Local is the DynamoDB Local container the service forwards to; a
 	// *ddblocal.Manager in production, a fake in tests.
@@ -20,8 +20,7 @@ type Options struct {
 // Local is a DynamoDB Local the proxy reaches over HTTP.
 type Local interface {
 	// Start makes Local ready, starting it when it is not running. A
-	// *ddblocal.LicenceError means the licence does not let understudy run
-	// it.
+	// *DisabledError means Local cannot run here and nothing was pulled.
 	Start(ctx context.Context) error
 	// Endpoint is the base URL of the running Local; false when it stopped.
 	Endpoint() (*url.URL, bool)
@@ -36,16 +35,23 @@ type Local interface {
 // The manager is the production Local.
 var _ Local = (*ddblocal.Manager)(nil)
 
-// unlicensed is the Local of a service built without one: nobody accepted
-// the licence, so nothing may be pulled.
-type unlicensed struct{}
+// DisabledError is a Start refused because DynamoDB Local cannot run here:
+// the configuration turns DynamoDB off, or Docker is unavailable. Reason
+// says which and how to change it; a DynamoDB call answers 501 with it
+// while every other service keeps working.
+type DisabledError struct{ Reason string }
 
-func (unlicensed) Start(context.Context) error {
-	return &ddblocal.LicenceError{Licence: ddblocal.AwaitingLicence{}}
+func (e *DisabledError) Error() string { return e.Reason }
+
+// noLocal is the Local of a service built without one.
+type noLocal struct{}
+
+func (noLocal) Start(context.Context) error {
+	return &DisabledError{Reason: "The DynamoDB service has no DynamoDB Local to forward to in this understudy, so it serves no DynamoDB operation."}
 }
 
-func (unlicensed) Endpoint() (*url.URL, bool) { return nil, false }
+func (noLocal) Endpoint() (*url.URL, bool) { return nil, false }
 
-func (unlicensed) Transport() http.RoundTripper { return http.DefaultTransport }
+func (noLocal) Transport() http.RoundTripper { return http.DefaultTransport }
 
-func (unlicensed) Lost(context.Context, *url.URL) error { return nil }
+func (noLocal) Lost(context.Context, *url.URL) error { return nil }

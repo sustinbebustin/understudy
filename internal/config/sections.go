@@ -308,7 +308,7 @@ func (d *draft) applyDynamoDB(s *fileDynamoDB, where string) *Error {
 		return nil
 	}
 	if s.Enabled != nil && !*s.Enabled {
-		d.dynamoOff, d.dynamoAt = true, where+".enabled"
+		d.dynamoOff = true
 	}
 	if s.Registry != nil {
 		if err := choose(*s.Registry, where+".registry", map[string]Registry{"docker-hub": RegistryDockerHub, "ecr-public": RegistryECRPublic}, &d.cfg.DynamoDB.Registry); err != nil {

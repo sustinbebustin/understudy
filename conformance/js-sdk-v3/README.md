@@ -7,13 +7,13 @@ Tests assert AWS's documented behavior (`docs/research/phase1/`), never understu
 ## Run
 
 ```sh
-CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh                    # everything but DynamoDB
-CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh tests/sqs.test.ts  # one service
-CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh -t "FIFO"          # by test name
-UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/js-sdk-v3/run.sh     # everything
+conformance/js-sdk-v3/run.sh                               # everything
+CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh        # everything but DynamoDB
+conformance/js-sdk-v3/run.sh tests/sqs.test.ts             # one service
+conformance/js-sdk-v3/run.sh -t "FIFO"                     # by test name
 ```
 
-`run.sh` exits 2 before building unless exactly one of the two DynamoDB variables below is set. It builds understudy into `.build/conformance/js-sdk-v3/understudy`, starts it on `127.0.0.1:45663` with a fresh data directory, waits for the health endpoint, runs the suite through `scripts/sealed`, then stops the server and removes its containers. It keeps bun's output in the work directory's `test.log` and its JUnit report in `junit.xml`, and ends with a summary on stderr: `run.sh: passed=N failed=N skipped=N` from bun's counts, then a `run.sh: SKIP <file> > <describe> > <test>: <reason>` line per skipped test. bun records no skip reason, so `run.sh` names it from the setting that skips each file. It exits non-zero on failure and keeps the server log in the printed work directory.
+`run.sh` exits 2 before building when `CONFORMANCE_DYNAMODB` is set to anything but `0`. It builds understudy into `.build/conformance/js-sdk-v3/understudy`, starts it on `127.0.0.1:45663` with a fresh data directory, waits for the health endpoint, runs the suite through `scripts/sealed`, then stops the server and removes its containers. It keeps bun's output in the work directory's `test.log` and its JUnit report in `junit.xml`, and ends with a summary on stderr: `run.sh: passed=N failed=N skipped=N` from bun's counts, then a `run.sh: SKIP <file> > <describe> > <test>: <reason>` line per skipped test. bun records no skip reason, so `run.sh` names it from the setting that skips each file. It exits non-zero on failure and keeps the server log in the printed work directory.
 
 Against a server you already run, from this directory:
 
@@ -27,8 +27,7 @@ Type-check with `bun run typecheck`.
 
 | Variable | Effect |
 |---|---|
-| `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` | Accepts the Amazon DynamoDB Local License Agreement for the run and runs `dynamodb.test.ts`; serve reads it from its environment, and `run.sh` exits 1 unless the health document then reports DynamoDB as `enabled`. The suite never accepts the licence for you. |
-| `CONFORMANCE_DYNAMODB=0` | Skips `dynamodb.test.ts`, each test with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`. Exactly one of these two must be set. |
+| `CONFORMANCE_DYNAMODB=0` | Skips `dynamodb.test.ts`, each test with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`. Unset, the file runs on DynamoDB Local, pulled on first use, and `run.sh` exits 1 unless the health document reports DynamoDB as `enabled`. |
 | `CONFORMANCE_LAMBDA_EXECUTION=0` | Skips `lambda.test.ts`, which runs functions in AWS's Python base image and needs Docker and a first-use image pull. |
 
 The suite refuses any endpoint that is not loopback http.

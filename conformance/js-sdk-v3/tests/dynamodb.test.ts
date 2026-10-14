@@ -2,11 +2,8 @@
 // @aws-sdk/lib-dynamodb. Expected behavior: real DynamoDB as documented in
 // docs/research/phase1/dynamodb-local.md and error-matrix.md section 5.5.
 //
-// understudy serves DynamoDB through a DynamoDB Local container, which is only
-// pulled after the caller accepts the DynamoDB Local licence. run.sh makes the
-// caller choose: UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 runs this file, and
-// CONFORMANCE_DYNAMODB=0 skips it. Skipped, it says why; it never accepts the
-// licence itself.
+// understudy serves DynamoDB through a DynamoDB Local container, pulled on
+// first use. CONFORMANCE_DYNAMODB=0 skips this file, and says why.
 
 import { describe, expect, test } from "bun:test";
 import {
@@ -38,15 +35,11 @@ import {
   type CreateTableCommandInput,
 } from "@aws-sdk/client-dynamodb";
 import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand as DocQueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
-import { clientConfig, defaultAccount, dynamoDbEnabled, dynamoDbOptedOut, region } from "../support/env";
+import { clientConfig, defaultAccount, dynamoDbOptedOut, region } from "../support/env";
 import { awsFailure, expectFailure, uniq } from "../support/helpers";
 
 if (dynamoDbOptedOut) {
   console.warn("dynamodb.test.ts: skipped. DynamoDB opted out (CONFORMANCE_DYNAMODB=0).");
-} else if (!dynamoDbEnabled) {
-  console.warn(
-    "dynamodb.test.ts: skipped. DynamoDB needs the DynamoDB Local licence accepted; set UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 to run it.",
-  );
 }
 
 const ddb = new DynamoDBClient(clientConfig());
@@ -85,7 +78,7 @@ async function makeRangeTable(): Promise<string> {
   });
 }
 
-describe.skipIf(!dynamoDbEnabled)("DynamoDB tables", () => {
+describe.skipIf(dynamoDbOptedOut)("DynamoDB tables", () => {
   test("CreateTable returns the table description and DescribeTable agrees", async () => {
     const name = uniq("tbl");
     const created = await ddb.send(
@@ -277,7 +270,7 @@ describe.skipIf(!dynamoDbEnabled)("DynamoDB tables", () => {
   });
 });
 
-describe.skipIf(!dynamoDbEnabled)("DynamoDB items", () => {
+describe.skipIf(dynamoDbOptedOut)("DynamoDB items", () => {
   test("PutItem then GetItem round trips every attribute type", async () => {
     const table = await makeTable();
     const item: Record<string, AttributeValue> = {
@@ -377,7 +370,7 @@ describe.skipIf(!dynamoDbEnabled)("DynamoDB items", () => {
   });
 });
 
-describe.skipIf(!dynamoDbEnabled)("DynamoDB conditional writes: the lock table pattern", () => {
+describe.skipIf(dynamoDbOptedOut)("DynamoDB conditional writes: the lock table pattern", () => {
   const lockCondition = "attribute_not_exists(LockID) OR ExpiresAt < :now";
 
   async function lockTable() {
@@ -491,7 +484,7 @@ describe.skipIf(!dynamoDbEnabled)("DynamoDB conditional writes: the lock table p
   });
 });
 
-describe.skipIf(!dynamoDbEnabled)("DynamoDB UpdateItem", () => {
+describe.skipIf(dynamoDbOptedOut)("DynamoDB UpdateItem", () => {
   test("SET, ADD, REMOVE and if_not_exists apply and UPDATED_NEW returns the changed attributes", async () => {
     const table = await makeTable();
     await ddb.send(new PutItemCommand({ TableName: table, Item: { pk: S("k"), count: N(1), gone: S("x"), tags: { SS: ["a"] } } }));
@@ -591,7 +584,7 @@ describe.skipIf(!dynamoDbEnabled)("DynamoDB UpdateItem", () => {
   });
 });
 
-describe.skipIf(!dynamoDbEnabled)("DynamoDB Query and Scan", () => {
+describe.skipIf(dynamoDbOptedOut)("DynamoDB Query and Scan", () => {
   async function seeded() {
     const table = await makeRangeTable();
     const rows = [];
@@ -735,7 +728,7 @@ describe.skipIf(!dynamoDbEnabled)("DynamoDB Query and Scan", () => {
   });
 });
 
-describe.skipIf(!dynamoDbEnabled)("DynamoDB batch and transactions", () => {
+describe.skipIf(dynamoDbOptedOut)("DynamoDB batch and transactions", () => {
   test("BatchWriteItem puts and deletes, and BatchGetItem reads back", async () => {
     const table = await makeTable();
     await ddb.send(
@@ -817,7 +810,7 @@ describe.skipIf(!dynamoDbEnabled)("DynamoDB batch and transactions", () => {
   });
 });
 
-describe.skipIf(!dynamoDbEnabled)("DynamoDB document client", () => {
+describe.skipIf(dynamoDbOptedOut)("DynamoDB document client", () => {
   test("native JavaScript values round trip through the marshaller", async () => {
     const table = await makeTable();
     const item = { pk: "doc", n: 42, f: 1.5, s: "text", b: true, nil: null, list: [1, "two", { three: 3 }], map: { a: { b: "c" } }, set: new Set(["x", "y"]) };
@@ -847,7 +840,7 @@ describe.skipIf(!dynamoDbEnabled)("DynamoDB document client", () => {
   });
 });
 
-describe.skipIf(!dynamoDbEnabled)("DynamoDB protocol errors", () => {
+describe.skipIf(dynamoDbOptedOut)("DynamoDB protocol errors", () => {
   test("an unknown table in a Query fails ResourceNotFoundException before any validation of the expression", async () => {
     const failure = await awsFailure(
       ddb.send(new QueryCommand({ TableName: uniq("missing"), KeyConditionExpression: "pk = :p", ExpressionAttributeValues: { ":p": S("a") } })),

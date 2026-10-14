@@ -90,7 +90,7 @@ func TestWriteHealthNamesAClockThatIsNotRunning(t *testing.T) {
 func TestWriteHealthNamesTheCause(t *testing.T) {
 	const noDocker = "Docker is disabled (--docker disabled)"
 	const controlPlane = "control plane only: functions can be created, read and changed, but Invoke cannot run them: Docker is disabled"
-	const licence = "disabled until you accept the DynamoDB Local licence"
+	const turnedOff = "disabled by configuration"
 	cases := []struct {
 		name string
 		h    *admin.Health
@@ -115,18 +115,18 @@ func TestWriteHealthNamesTheCause(t *testing.T) {
 				"dynamodb-local  disabled  needs docker, which is disabled\n",
 		},
 		{
-			name: "licence awaited",
+			name: "dynamodb turned off",
 			h: &admin.Health{
 				Services: map[string]admin.ServiceStatus{
-					"dynamodb": {Status: admin.Disabled, Reason: licence},
+					"dynamodb": {Status: admin.Disabled, Reason: turnedOff},
 				},
 				Docker:        admin.ServiceStatus{Status: admin.Enabled},
-				DynamoDBLocal: admin.ServiceStatus{Status: admin.Disabled, Reason: licence},
+				DynamoDBLocal: admin.ServiceStatus{Status: admin.Disabled, Reason: turnedOff},
 			},
 			rows: "COMPONENT       STATUS    REASON\n" +
 				"dynamodb        disabled  needs dynamodb-local, which is disabled\n" +
 				"docker          enabled\n" +
-				"dynamodb-local  disabled  " + licence + "\n",
+				"dynamodb-local  disabled  " + turnedOff + "\n",
 		},
 	}
 	for _, c := range cases {

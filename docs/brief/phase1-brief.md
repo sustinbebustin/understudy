@@ -130,7 +130,7 @@ Out of scope for phase 1 (roadmap): ECS, RDS, EC2/VPC, Step Functions, API Gatew
   - Never run `go mod tidy` unless you own `go.mod`.
   - Tests bind ephemeral ports (`127.0.0.1:0`), never fixed ports.
   - Docker containers you start carry the label `understudy.dev/test=1` and a unique name, and you remove them before you finish.
-- Agents never accept the DynamoDB Local licence. Run conformance suites with `CONFORMANCE_DYNAMODB=0`; DynamoDB conformance runs are human runs.
+- DynamoDB Local runs by default, and agents may run it in tests and conformance suites. The repository owner is the licensee (ADR 0014 amendment of 2026-10-14, `docs/research/phase1/licensing-precedent.md`). Never bundle, mirror, re-tag, `docker save`, push or patch its image.
 - **Run every AWS-facing command through `scripts/sealed`**: the AWS CLI, Terraform, SDK probe scripts, conformance runs (`scripts/sealed aws sqs list-queues`, `scripts/sealed --endpoint http://127.0.0.1:45661 terraform apply`). It strips every inherited `AWS_*` setting, uses dummy credentials, never reads `~/.aws`, and refuses any endpoint that is not loopback. Never invoke `aws` or `terraform` bare. The scaffold justfile exposes it as `just aws ...` and `just tf ...`. Its tests run with `uv run --with pytest pytest scripts/tests`.
 - Shell hygiene that avoids blocked or prompted commands:
   - Delete only explicit, literal paths: no `rm` with variables or globs.

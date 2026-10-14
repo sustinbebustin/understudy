@@ -39,7 +39,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel: d.Kernel,
 	}
 	if s.local == nil {
-		s.local = unlicensed{}
+		s.local = noLocal{}
 	}
 	timers := d.Kernel.Timers()
 	s.sweeps = newSweeper(timers.Scheduler(), timers.Handle(ttlTimer, s.onSweep))

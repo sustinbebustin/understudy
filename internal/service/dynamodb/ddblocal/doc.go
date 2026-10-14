@@ -1,11 +1,9 @@
 // Package ddblocal manages the DynamoDB Local container (ADR 0014,
-// ARCHITECTURE.md 15): the licence state, the pull of the pinned image by
-// digest with the ECR Public mirror as fallback, start with both telemetry
-// opt-outs, the readiness probe and removal. The image is pulled at
-// runtime and never bundled, re-tagged or saved, and nothing is pulled
-// until the licence is accepted for the pinned digest. Acceptance is
-// recorded as one file per accepted digest under the data directory,
-// holding the pinned reference, so a bumped pin asks again.
+// ARCHITECTURE.md 15): the pull of the pinned image by digest with the ECR
+// Public mirror as fallback, start with both telemetry opt-outs, the
+// readiness probe and removal. The image is pulled at runtime, unmodified,
+// and never bundled, mirrored, re-tagged, saved, pushed or patched; it runs
+// under Amazon's licence terms, which Notice names when it first starts.
 //
 // Known deviation, blocked on internal/docker: ADR 0014 publishes the
 // container on 127.0.0.1:0 and reads the host port back from the daemon,

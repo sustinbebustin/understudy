@@ -17,7 +17,7 @@ import (
 )
 
 // dockerTests is true under the docker tag: the workload invokes the zip
-// function, DynamoDB lists tables when its licence is accepted, and the
+// function, DynamoDB lists tables through DynamoDB Local, and the
 // workload also runs against the Docker image.
 const dockerTests = true
 
@@ -85,17 +85,12 @@ func TestSmokeInContainer(t *testing.T) {
 	t.Cleanup(func() { docker(t, "image", "rm", "--force", tag) })
 
 	name := "understudy-smoke-" + id
-	args := []string{
+	w := &workload{invoke: true, dynamoDB: true}
+	docker(t,
 		"run", "--detach", "--name", name, "--label", "understudy.dev/test=1",
 		"--publish", "127.0.0.1::4566",
-		"--volume", socket + ":" + socket, "--group-add", strconv.FormatUint(uint64(st.Gid), 10),
-	}
-	accepted := os.Getenv(acceptEnv) == "1"
-	if accepted {
-		args = append(args, "--env", acceptEnv+"=1")
-	}
-	w := &workload{invoke: true, ddbAccepted: accepted}
-	docker(t, append(args, tag, "serve", "--clock", "frozen", "--seed", "1")...)
+		"--volume", socket+":"+socket, "--group-add", strconv.FormatUint(uint64(st.Gid), 10),
+		tag, "serve", "--clock", "frozen", "--seed", "1")
 	t.Cleanup(func() {
 		// SIGTERM drains the function environments and DynamoDB Local; the
 		// logs help when a step failed.

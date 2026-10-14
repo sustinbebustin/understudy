@@ -84,7 +84,6 @@ type wiring struct {
 	persist *persister
 	host    *containerHost
 	local   *lazyLocal
-	licence ddblocal.Licence
 	// runs is this process's identity, nil where there is no procfs.
 	runs *runs
 	// temp is the run's temporary directory without persistence, holding
@@ -343,8 +342,8 @@ func (w *wiring) storage(cfg Config, instance string) error {
 	return err
 }
 
-// containers builds the Docker host, the DynamoDB Local behind its
-// licence, the code store and, when Docker is there, the Lambda pool.
+// containers builds the Docker host, DynamoDB Local, the code store and,
+// when Docker is there, the Lambda pool.
 // Nothing is dialed: the host detects the topology at first use. The
 // containers' owner is the data directory's with persistence, else the
 // run's identity, which a later run sweeps once this process is gone.
@@ -372,10 +371,7 @@ func (w *wiring) containers(cfg Config, instance string, clk *clock.Clock, log *
 	if w.host, err = newContainerHost(cfg.Docker, cfg.LambdaNetwork, ownership, clk, log); err != nil {
 		return err
 	}
-	if w.licence, err = licence(cfg.DynamoDB, w.data); err != nil {
-		return err
-	}
-	w.local = &lazyLocal{host: w.host, licence: w.licence, storage: storage, memory: cfg.DynamoDBMemory, log: log}
+	w.local = &lazyLocal{host: w.host, mode: cfg.DynamoDB, storage: storage, memory: cfg.DynamoDBMemory, log: log}
 	if w.code, err = codestore.Open(codeDir); err != nil {
 		return err
 	}
@@ -392,23 +388,6 @@ func (w *wiring) containers(cfg Config, instance string, clk *clock.Clock, log *
 		Logger:           log,
 	})
 	return err
-}
-
-// licence reads the DynamoDB Local licence state, recording an acceptance
-// in the data directory.
-func licence(setting DynamoDB, data *dataDir) (ddblocal.Licence, error) {
-	var root *os.Root
-	if data != nil {
-		root = data.root
-	}
-	switch setting.(type) {
-	case DynamoDBDisabled:
-		return ddblocal.Disabled{}, nil
-	case DynamoDBAccepted:
-		return ddblocal.LoadLicence(root, true)
-	case DynamoDBAwaiting, nil:
-	}
-	return ddblocal.LoadLicence(root, false)
 }
 
 // execution builds the Lambda data plane: Invoke, the asynchronous queue,

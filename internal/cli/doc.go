@@ -68,7 +68,7 @@
 //     and Terraform; how the key selects the account and the S3 path-style
 //     settings that have no variable are comment notes (stderr for the
 //     github format, which holds assignments only), with why DynamoDB Local
-//     is disabled when it is: Docker, or the server's licence line.
+//     is disabled when it is: Docker, or the server's reason.
 //     env --tls (ADR 0013) points AWS_ENDPOINT_URL at the TLS listener, by
 //     default the endpoint's host at port 4567 as serve --tls binds it, reads
 //     the certificate the listener presents, accepts it only when it is
@@ -84,9 +84,9 @@
 //     (socket and permissions, through internal/docker), the topology
 //     (internal/topology, with its remedy when unsupported), *.localhost
 //     resolution, binfmt on Linux, the configured hot-reload directories
-//     against Docker Desktop's default shared paths, and the DynamoDB Local
-//     licence with its exact flag and variable; when the server reports
-//     DynamoDB Local down because Docker is, the fix is Docker's. It exits 1
+//     against Docker Desktop's default shared paths, and whether DynamoDB
+//     Local can run; when the server reports DynamoDB Local down because
+//     Docker is, the fix is Docker's. It exits 1
 //     when a check fails; warnings do not fail it.
 //   - cleanup removes the containers and empty networks labeled
 //     understudy.dev/managed of one deployment, through docker.Client.Sweep:

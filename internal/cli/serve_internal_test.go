@@ -109,7 +109,7 @@ func TestServeHelpExampleFileLoads(t *testing.T) {
 		"sqs.queueDeletedRecently":  {cfg.SQS.DeletedRecently, def.SQS.DeletedRecently},
 		"iam.assumeRole":            {cfg.IAM.AssumeRole, def.IAM.AssumeRole},
 		"dynamodb.memoryLimit":      {cfg.DynamoDB.MemoryLimit, def.DynamoDB.MemoryLimit},
-		"dynamodb.enabled":          {cfg.DynamoDB.Licence, def.DynamoDB.Licence},
+		"dynamodb.enabled":          {cfg.DynamoDB.Mode, def.DynamoDB.Mode},
 		"journal.capacity":          {cfg.Journal.Capacity, def.Journal.Capacity},
 		"journal.maxBytes":          {cfg.Journal.MaxBytes, def.Journal.MaxBytes},
 		"regions (count)":           {len(cfg.Regions), 1},

@@ -7,17 +7,17 @@ The tests assert AWS behavior as documented in [`docs/research/phase1/`](../../d
 ## Running it
 
 ```sh
-CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh                 # everything but DynamoDB
-CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh -run TestS3     # extra arguments go to go test
-UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/go-sdk/run.sh  # everything (see DynamoDB below)
+conformance/go-sdk/run.sh                                  # everything (see DynamoDB below)
+CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh           # everything but DynamoDB
+conformance/go-sdk/run.sh -run TestS3                      # extra arguments go to go test
 ```
 
 `run.sh` does the following:
 
-1. Refuses to start (exit 2) unless exactly one of `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` and `CONFORMANCE_DYNAMODB=0` is set.
+1. Refuses to start (exit 2) when `CONFORMANCE_DYNAMODB` is set to anything but `0`.
 2. Builds understudy from this repository into `.build/conformance/go-sdk/understudy`.
 3. Starts it on `127.0.0.1:45661`, plus a TLS listener on a free port, with a fresh data directory under `.build/conformance/go-sdk/run.*`.
-4. Waits for the health endpoint; with the licence accepted, exits 1 unless DynamoDB is `enabled`.
+4. Waits for the health endpoint; unless DynamoDB is opted out, exits 1 unless it is `enabled`.
 5. Runs `go test -v` through `scripts/sealed`, which strips every inherited `AWS_*` setting, uses dummy credentials and refuses any endpoint that is not loopback. The output is kept in the run directory's `test.log`.
 6. Prints a summary on stderr: `run.sh: passed=N failed=N skipped=N`, then a `run.sh: SKIP <test>: <reason>` line per skipped test or subtest, the reason being the first line the test logged after it last started or resumed.
 7. Always stops understudy and removes the containers it labelled for this run, including after a failure or an interrupt.
@@ -28,10 +28,10 @@ Requirements: Go, `uv` (for `scripts/sealed`) and a Docker Engine. Lambda tests 
 
 ### DynamoDB
 
-understudy serves DynamoDB through DynamoDB Local. AWS publishes DynamoDB Local under its own licence agreement, and understudy pulls it only after you accept that licence, so `run.sh` makes you choose. To run the DynamoDB tests, accept the licence:
+understudy serves DynamoDB through Amazon DynamoDB Local, pulled on first use and run under [Amazon's licence terms](https://aws.amazon.com/dynamodb/dynamodblocallicense/). The DynamoDB tests run by default:
 
 ```sh
-UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/go-sdk/run.sh -run TestDynamoDB
+conformance/go-sdk/run.sh -run TestDynamoDB
 ```
 
 `CONFORMANCE_DYNAMODB=0` skips them instead, and the summary lists each one.

@@ -2,11 +2,11 @@
 # Shared by every conformance run.sh, which sources it after
 # `set -euo pipefail`:
 #
-#   conformance_ddb_mode                   the caller's DynamoDB choice; call it before the build
+#   conformance_ddb_mode                   DynamoDB on, or opted out; call it before the build
 #   conformance_require_tool NAME ARGS...  probe a client tool through scripts/sealed; before the build
 #   conformance_isolate_serve_env          the `env -u` options that keep this shell's settings from serve
 #   conformance_require_ddb_enabled ADMIN_URL LOG
-#                                          after health: DynamoDB must be enabled when the licence is accepted
+#                                          after health: DynamoDB must be enabled unless opted out
 #   conformance_summary PASSED FAILED SKIPPED SKIPS [STATUS OUTPUT]
 #   conformance_go_summary LOG STATUS      the summary of a `go test -v` log
 #
@@ -19,30 +19,20 @@ conformance_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC2034 # read by the run.sh scripts that source this file
 conformance_ddb_opt_out_reason='DynamoDB opted out (CONFORMANCE_DYNAMODB=0)'
 
-# conformance_ddb_mode sets conformance_ddb to `accepted` or `opted-out`
-# from the caller's choice, or exits 2. A run never decides on the caller's
-# behalf: accepting the DynamoDB Local licence is theirs to do
-# (UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1, which serve reads from its
-# environment), and so is leaving DynamoDB out (CONFORMANCE_DYNAMODB=0).
-# An empty variable counts as unset.
+# conformance_ddb_mode sets conformance_ddb to `on`, the default, or to
+# `opted-out` under CONFORMANCE_DYNAMODB=0, which skips DynamoDB's tests so
+# DynamoDB Local never starts; any other value exits 2. An empty variable
+# counts as unset.
 conformance_ddb_mode() {
-	local licence="${UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE-}" opt_out="${CONFORMANCE_DYNAMODB-}"
-	if [[ -n "$licence" && "$licence" != 1 ]]; then
-		echo "run.sh: UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE='$licence' is not a choice: set it to 1 to accept the Amazon DynamoDB Local License Agreement and run DynamoDB's tests, or unset it. No test ran." >&2
+	local opt_out="${CONFORMANCE_DYNAMODB-}"
+	case "$opt_out" in
+	'') conformance_ddb=on ;;
+	0) conformance_ddb=opted-out ;;
+	*)
+		echo "run.sh: CONFORMANCE_DYNAMODB='$opt_out' is not a choice: set it to 0 to skip DynamoDB's tests, or unset it to run them. No test ran." >&2
 		exit 2
-	fi
-	if [[ -n "$opt_out" && "$opt_out" != 0 ]]; then
-		echo "run.sh: CONFORMANCE_DYNAMODB='$opt_out' is not a choice: set it to 0 to skip DynamoDB's tests, or unset it. No test ran." >&2
-		exit 2
-	fi
-	if [[ -n "$licence" && -z "$opt_out" ]]; then
-		conformance_ddb=accepted
-	elif [[ -z "$licence" && -n "$opt_out" ]]; then
-		conformance_ddb=opted-out
-	else
-		echo "run.sh: choose DynamoDB's mode: UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 accepts the Amazon DynamoDB Local License Agreement and runs it; CONFORMANCE_DYNAMODB=0 skips its tests. No test ran." >&2
-		exit 2
-	fi
+		;;
+	esac
 }
 
 # conformance_require_tool NAME ARGS... runs `NAME ARGS...` (a version
@@ -66,27 +56,25 @@ conformance_require_tool() {
 
 # conformance_isolate_serve_env sets the array conformance_serve_env to the
 # `env -u` options that remove every UNDERSTUDY_* and AWS_* variable of this
-# shell, so nothing on this machine changes what serve does. The DynamoDB
-# Local licence acceptance stays: it is the caller's to give.
+# shell, so nothing on this machine changes what serve does.
 conformance_isolate_serve_env() {
 	local key
 	# shellcheck disable=SC2034 # read by the run.sh scripts that source this file
 	conformance_serve_env=()
 	while IFS= read -r key; do
 		case "$key" in
-		UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE) ;;
 		UNDERSTUDY_* | AWS_*) conformance_serve_env+=(-u "$key") ;;
 		esac
 	done < <(compgen -e)
 }
 
-# conformance_require_ddb_enabled ADMIN_URL LOG exits 1 when the caller
-# accepted the DynamoDB Local licence but the health document at ADMIN_URL
-# does not report DynamoDB as enabled, since every DynamoDB test would then
-# fail for the same reason. LOG is the server log, named in the message.
+# conformance_require_ddb_enabled ADMIN_URL LOG exits 1 when DynamoDB is
+# not opted out but the health document at ADMIN_URL does not report it as
+# enabled, since every DynamoDB test would then fail for the same reason.
+# LOG is the server log, named in the message.
 conformance_require_ddb_enabled() {
 	local admin=$1 log=$2 doc status reason
-	[[ "$conformance_ddb" == accepted ]] || return 0
+	[[ "$conformance_ddb" == on ]] || return 0
 	if ! doc="$(curl -fsS "$admin/health")"; then
 		echo "run.sh: could not read $admin/health to check DynamoDB; the server log is $log. No test ran." >&2
 		exit 1
@@ -106,7 +94,7 @@ print(" ".join(str(ddb.get("reason", "no reason given")).split()))
 ' <<<"$doc")
 	fi
 	if [[ "$status" != enabled ]]; then
-		echo "run.sh: UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 is set, but understudy reports DynamoDB as $status, not enabled: $reason. The server log is $log. No test ran." >&2
+		echo "run.sh: understudy reports DynamoDB as $status, not enabled: $reason. Set CONFORMANCE_DYNAMODB=0 to skip DynamoDB's tests, or fix the cause; the server log is $log. No test ran." >&2
 		exit 1
 	fi
 }

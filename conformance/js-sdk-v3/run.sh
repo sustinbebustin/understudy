@@ -3,21 +3,18 @@
 # fresh data directory, run the AWS SDK for JavaScript v3 conformance suite
 # against it through scripts/sealed, then stop it and remove its containers.
 #
-#   UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/js-sdk-v3/run.sh
-#                                                      # accept the DynamoDB Local licence and run everything
+#   conformance/js-sdk-v3/run.sh                       # everything
 #   CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh
 #                                                      # skip DynamoDB's tests, run the rest
-#   CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh tests/sqs.test.ts
-#                                                      # extra arguments go to bun test
-#   CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh -t "FIFO"
-#                                                      # filter by test name
+#   conformance/js-sdk-v3/run.sh tests/sqs.test.ts     # extra arguments go to bun test
+#   conformance/js-sdk-v3/run.sh -t "FIFO"             # filter by test name
 #   CONFORMANCE_LAMBDA_EXECUTION=0 CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh
 #                                                      # skip the Lambda tests that run functions in Docker
-#   SIGV4=verify CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh
-#                                                      # serve with --sigv4 verify (default parse)
+#   SIGV4=verify conformance/js-sdk-v3/run.sh          # serve with --sigv4 verify (default parse)
 #
-# Exactly one of the two DynamoDB variables must be set; without either, or
-# with both, run.sh exits 2 before building. bun's output is kept in the
+# DynamoDB runs on DynamoDB Local, pulled on first use; CONFORMANCE_DYNAMODB
+# is unset or 0, and run.sh exits 2 before building on any other value.
+# bun's output is kept in the
 # work directory's test.log and its JUnit report in junit.xml; the run ends
 # with a summary on stderr: the totals, then each skipped test and its
 # reason.

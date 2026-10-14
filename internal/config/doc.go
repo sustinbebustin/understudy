@@ -40,11 +40,8 @@
 //   - --tls enables the self-signed listener at the main address on port
 //     4567, or port 0 when the main port is 0, so parallel instances never
 //     collide; --tls-listen sets the address and implies --tls.
-//   - The DynamoDB licence is Disabled, AwaitingLicence or LicenceAccepted.
-//     Accepted carries no digest: only internal/service/dynamodb/ddblocal
-//     knows the pinned digest, and it records an acceptance per digest in the
-//     data directory. UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE accepts only the
-//     value 1 and refuses anything but 1 and 0.
+//   - DynamoDB is DynamoDBEnabled unless the file's dynamodb.enabled is
+//     false, which is DynamoDBDisabled.
 //   - Docker is DockerSocket{Path} or DockerDisabled, from --docker
 //     (unix://<socket> or disabled), else DOCKER_HOST, else the default
 //     socket. An explicit setting that is not a unix socket is refused, since
@@ -53,7 +50,7 @@
 //     understudy's, so it turns containers off and adds an entry to
 //     Config.Warnings, which serve logs and doctor reports.
 //   - LoadHost resolves only the machine settings (persistence, Docker,
-//     hot-reload mappings, the licence) for the client commands doctor and
+//     hot-reload mappings, DynamoDB) for the client commands doctor and
 //     cleanup: UNDERSTUDY_ADMIN_TOKEN is also the CLI's own credential, and
 //     serve's rule that a loopback listener takes no token must not refuse
 //     them.

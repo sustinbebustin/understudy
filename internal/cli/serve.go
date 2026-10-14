@@ -19,7 +19,7 @@ func serveCmd() *command {
 			"understudy serve",
 			"understudy serve --listen 127.0.0.1:0 --ready-file /tmp/understudy.json",
 			"understudy serve --clock frozen@2026-01-01T00:00:00Z --seed 42 --log-format json",
-			"understudy serve --persist ./.understudy --accept-dynamodb-local-license",
+			"understudy serve --persist ./.understudy",
 			"UNDERSTUDY_ADMIN_TOKEN=$(openssl rand -hex 32) understudy serve --listen 0.0.0.0:4566 --allow-unauthenticated-aws-api",
 		},
 		runServe, serveFlags)
@@ -95,6 +95,9 @@ const sectionChoices = `
                              region may be left out
   sqs.queueDeletedRecently   ignore or enforce
   iam.assumeRole             strict or lenient
+  dynamodb.enabled           true, or false to turn DynamoDB off so DynamoDB Local is never
+                             pulled; on, it is pulled on first use and runs under Amazon's
+                             licence terms
   journal.file               NDJSON file every event is appended to (default none)
   faults                     rules as 'understudy faults list --output json' prints each "rule"
 `
@@ -290,7 +293,7 @@ func serverConfig(cfg config.Config, version string) (server.Config, error) {
 		s.SigV4 = server.SigV4Verify
 	}
 	s.StaticKeys = mapStaticKeys(cfg.Accounts.Keys)
-	s.TLS, s.Persist, s.ClockStart, s.Docker, s.DynamoDB = mapTLS(cfg.TLS), mapPersistence(cfg.Persistence), mapClock(cfg.Clock), mapDocker(cfg.Docker), mapLicence(cfg.DynamoDB.Licence)
+	s.TLS, s.Persist, s.ClockStart, s.Docker, s.DynamoDB = mapTLS(cfg.TLS), mapPersistence(cfg.Persistence), mapClock(cfg.Clock), mapDocker(cfg.Docker), mapDynamoDB(cfg.DynamoDB.Mode)
 	return s, nil
 }
 
@@ -366,15 +369,13 @@ func mapDocker(d config.Docker) server.Docker {
 	return server.DockerSocket{}
 }
 
-func mapLicence(l config.Licence) server.DynamoDB {
-	switch l.(type) {
+func mapDynamoDB(m config.DynamoDBMode) server.DynamoDB {
+	switch m.(type) {
 	case config.DynamoDBDisabled:
 		return server.DynamoDBDisabled{}
-	case config.LicenceAccepted:
-		return server.DynamoDBAccepted{}
-	case config.AwaitingLicence:
+	case config.DynamoDBEnabled:
 	}
-	return server.DynamoDBAwaiting{}
+	return server.DynamoDBEnabled{}
 }
 
 // unappliedSetting is a setting this build's server does not apply yet.

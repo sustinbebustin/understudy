@@ -21,7 +21,7 @@ The steps that matter:
 
 On failure, `understudy journal --errors` prints every call understudy answered with an error, and the server log is kept as an artifact.
 
-`ubuntu-latest` has Docker, so Lambda functions run with no extra setup. DynamoDB also needs the DynamoDB Local licence accepted: add `--accept-dynamodb-local-license` to `serve`.
+`ubuntu-latest` has Docker, so Lambda functions and DynamoDB run with no extra setup. DynamoDB runs on Amazon DynamoDB Local, pulled on first use under [Amazon's licence terms](https://aws.amazon.com/dynamodb/dynamodblocallicense/).
 
 ## Before copying
 

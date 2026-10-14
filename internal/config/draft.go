@@ -11,7 +11,7 @@ import (
 
 // draft is a configuration being loaded: the defaults with each setting
 // applied, plus the settings that only resolve together (the listener and
-// its auth, TLS, persistence, the licence, Docker and the clock), kept with
+// its auth, TLS, persistence, DynamoDB, Docker and the clock), kept with
 // where they came from until finish.
 type draft struct {
 	placement  Placement
@@ -33,11 +33,8 @@ type draft struct {
 	persist     string
 	every       *time.Duration
 	everyAt     string
-	accept      bool
-	acceptAt    string
 	docker      Docker
 	dynamoOff   bool
-	dynamoAt    string
 	// frozen is an explicit --clock frozen setting, which no scale may
 	// join.
 	frozen   *Frozen
@@ -76,7 +73,6 @@ func setters() map[string]func(*draft, value) *Error {
 		keyClockScale:   (*draft).setScale,
 		keySigV4:        (*draft).setSigV4,
 		keyDocker:       (*draft).setDocker,
-		keyAccept:       (*draft).setAccept,
 		keyReadyFile:    func(d *draft, v value) *Error { return nonEmpty(v, &d.cfg.ReadyFile) },
 		keyLogFormat:    (*draft).setLogFormat,
 		keyLogLevel:     (*draft).setLogLevel,
@@ -273,27 +269,6 @@ func parseDocker(text string) (docker Docker, reason string) {
 	return DockerSocket{Path: path}, ""
 }
 
-func (d *draft) setAccept(v value) *Error {
-	if v.source == fromEnv {
-		switch v.text {
-		case "1":
-			d.accept = true
-		case "0":
-			d.accept = false
-		default:
-			return bad(v, "is not 1 or 0; only the value 1 accepts the licence", "set "+AcceptLicenceEnv+"=1 to accept it")
-		}
-		d.acceptAt = v.where
-		return nil
-	}
-	b, err := strconv.ParseBool(v.text)
-	if err != nil {
-		return bad(v, "is not true or false", "")
-	}
-	d.accept, d.acceptAt = b, v.where
-	return nil
-}
-
 func (d *draft) setLogFormat(v value) *Error {
 	switch v.text {
 	case "text":
@@ -334,20 +309,15 @@ func (d *draft) finish() (Config, *Error) {
 	return d.cfg, nil
 }
 
-// resolveHost resolves the machine settings: persistence, Docker and the
-// DynamoDB Local licence.
+// resolveHost resolves the machine settings: persistence, Docker and
+// whether DynamoDB runs.
 func (d *draft) resolveHost() *Error {
 	if err := d.resolvePersistence(); err != nil {
 		return err
 	}
 	d.resolveDocker()
-	switch {
-	case d.dynamoOff && d.accept:
-		return &Error{Where: d.acceptAt, Reason: "accepts the DynamoDB Local licence while " + d.dynamoAt + " turns DynamoDB off", Hint: "remove one of the two"}
-	case d.dynamoOff:
-		d.cfg.DynamoDB.Licence = DynamoDBDisabled{}
-	case d.accept:
-		d.cfg.DynamoDB.Licence = LicenceAccepted{}
+	if d.dynamoOff {
+		d.cfg.DynamoDB.Mode = DynamoDBDisabled{}
 	}
 	return nil
 }

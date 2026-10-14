@@ -13,14 +13,14 @@ Suites that check understudy from the outside, each a separate module or project
 
 ## DynamoDB
 
-understudy serves DynamoDB through DynamoDB Local, whose licence agreement is yours to accept, so every `run.sh` makes you choose, explicitly, before it builds anything:
+understudy serves DynamoDB through Amazon DynamoDB Local, pulled on first use and run under [Amazon's licence terms](https://aws.amazon.com/dynamodb/dynamodblocallicense/). Every `run.sh` runs DynamoDB's tests by default:
 
 | Setting | Effect |
 |---|---|
-| `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` | Accepts the Amazon DynamoDB Local License Agreement for the run and runs DynamoDB's tests. After startup, `run.sh` exits 1 unless the health document reports DynamoDB as `enabled`. |
-| `CONFORMANCE_DYNAMODB=0` | Skips DynamoDB's tests, each with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`; DynamoDB Local never starts. CI runs this way until the licence is accepted for it (ARCHITECTURE.md 25.6). |
+| unset | Runs DynamoDB's tests. After startup, `run.sh` exits 1 unless the health document reports DynamoDB as `enabled`. |
+| `CONFORMANCE_DYNAMODB=0` | Skips DynamoDB's tests, each with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`; DynamoDB Local never starts. |
 
-With neither, with both, or with any other value, `run.sh` exits 2 and runs nothing. No script passes `--accept-dynamodb-local-license` itself: serve reads the variable from its environment, which `run.sh` otherwise clears of every `UNDERSTUDY_*` and `AWS_*` setting. In the e2e-pipeline suite every worker takes a DynamoDB lock for each SQS record, so under `CONFORMANCE_DYNAMODB=0` the tests that publish to the topic, and so make a worker take a lock, or that read the lock table skip; the rest still run.
+With any other value, `run.sh` exits 2 and runs nothing. `run.sh` clears serve's environment of every `UNDERSTUDY_*` and `AWS_*` setting. In the e2e-pipeline suite every worker takes a DynamoDB lock for each SQS record, so under `CONFORMANCE_DYNAMODB=0` the tests that publish to the topic, and so make a worker take a lock, or that read the lock table skip; the rest still run.
 
 ## Summary
 

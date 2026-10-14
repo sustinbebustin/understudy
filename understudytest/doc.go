@@ -18,7 +18,7 @@
 //
 // Options are this package's own types, never internal ones (ADR 0017), so
 // code outside the module can set every one: the
-// seed, the clock, Docker, the DynamoDB Local licence and extra regions.
+// seed, the clock, Docker, whether DynamoDB runs and extra regions.
 // The listener is always loopback, where the admin API needs no token.
 // Fault rules are added after Start with Admin().PutFault, the same
 // admin.FaultRule a test would use mid-run.

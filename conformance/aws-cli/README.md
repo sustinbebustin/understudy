@@ -5,17 +5,17 @@ Smoke tests that drive understudy with the AWS CLI v2 and assert what AWS docume
 ## Run it
 
 ```sh
-CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh                          # every service but DynamoDB
-CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh sqs sns                  # only these services (test file names)
-UE_ONLY='dlq|redrive' CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh sqs   # only tests whose name matches
-UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/aws-cli/run.sh dynamodb
+conformance/aws-cli/run.sh                                 # every service
+CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh          # every service but DynamoDB
+conformance/aws-cli/run.sh sqs sns                         # only these services (test file names)
+UE_ONLY='dlq|redrive' conformance/aws-cli/run.sh sqs       # only tests whose name matches
 ```
 
 `run.sh` builds understudy into `.build/conformance/aws-cli/understudy`, starts it on `127.0.0.1:45664` with a fresh data directory, waits for `/_understudy/v1/health`, runs the suite through `scripts/sealed`, then stops the server and removes the containers it labelled. It ends with a summary on stderr, `run.sh: passed=N failed=N skipped=N` and a `run.sh: SKIP <service>/<test>: <reason>` line per skip, read from `results.tsv`. It exits non-zero when any test fails, or when the build or the server start fails. On failure it keeps the work directory (server log, data, one log per test) and prints its path.
 
 Needs `aws`, `jq`, `curl`, `python3` and Go on `PATH`. Before building, `run.sh` runs `aws --version` through `scripts/sealed` and exits 2, naming the binary and its exit status, when the first `aws` on `PATH` cannot run. Tests that run Lambda code also need Docker and the `public.ecr.aws/lambda/python:3.13` image; they skip when the emulator reports Docker as not enabled.
 
-DynamoDB runs on DynamoDB Local, whose licence is the caller's to accept, so `run.sh` exits 2 before building unless exactly one of these is set: `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` accepts the Amazon DynamoDB Local License Agreement for the run (serve reads it from its environment, and `run.sh` exits 1 unless DynamoDB then reports `enabled`); `CONFORMANCE_DYNAMODB=0` skips every DynamoDB test with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`.
+DynamoDB runs on DynamoDB Local, pulled on first use, and `run.sh` exits 1 unless DynamoDB reports `enabled` after startup. `CONFORMANCE_DYNAMODB=0` skips every DynamoDB test with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`; any other value exits 2 before building.
 
 ## Layout
 

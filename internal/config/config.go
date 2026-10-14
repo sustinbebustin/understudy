@@ -62,13 +62,13 @@ type Host struct {
 	Persistence Persistence
 	Docker      Docker
 	HotReload   []HotReload
-	Licence     Licence
+	DynamoDB    DynamoDBMode
 	Warnings    []Warning
 }
 
 // Host returns the machine settings of c.
 func (c Config) Host() Host {
-	return Host{Persistence: c.Persistence, Docker: c.Docker, HotReload: c.Lambda.HotReload, Licence: c.DynamoDB.Licence, Warnings: c.Warnings}
+	return Host{Persistence: c.Persistence, Docker: c.Docker, HotReload: c.Lambda.HotReload, DynamoDB: c.DynamoDB.Mode, Warnings: c.Warnings}
 }
 
 // Listen is the main listener: on loopback, or beyond it with what makes
@@ -334,31 +334,28 @@ const (
 
 // DynamoDB holds the DynamoDB Local settings.
 type DynamoDB struct {
-	Licence  Licence
+	Mode     DynamoDBMode
 	Registry Registry
 	// MemoryLimit is the container's memory limit in bytes.
 	MemoryLimit int64
 }
 
-// Licence is the DynamoDB Local licence setting (ADR 0014).
+// DynamoDBMode is whether the DynamoDB service runs (ADR 0014): the
+// dynamodb.enabled file key.
 //
 //sumtype:decl
-type Licence interface{ isLicence() }
+type DynamoDBMode interface{ isDynamoDBMode() }
 
-// DynamoDBDisabled turns the DynamoDB service off.
+// DynamoDBEnabled serves DynamoDB through DynamoDB Local, pulled and
+// started on first use.
+type DynamoDBEnabled struct{}
+
+// DynamoDBDisabled turns the DynamoDB service off; DynamoDB Local is never
+// pulled.
 type DynamoDBDisabled struct{}
 
-// AwaitingLicence runs DynamoDB Local only once an acceptance is recorded
-// in the data directory.
-type AwaitingLicence struct{}
-
-// LicenceAccepted is the licence accepted now, for the digest this build
-// pins; the DynamoDB Local manager records it per digest.
-type LicenceAccepted struct{}
-
-func (DynamoDBDisabled) isLicence() {}
-func (AwaitingLicence) isLicence()  {}
-func (LicenceAccepted) isLicence()  {}
+func (DynamoDBEnabled) isDynamoDBMode()  {}
+func (DynamoDBDisabled) isDynamoDBMode() {}
 
 // Registry is where DynamoDB Local is pulled from first.
 type Registry uint8

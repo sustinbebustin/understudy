@@ -4,23 +4,20 @@
 # fresh data directory, run the AWS CLI conformance suite against it through
 # scripts/sealed, then stop it and remove its containers.
 #
-#   UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/aws-cli/run.sh
-#                                                 # accept the DynamoDB Local licence; every service
+#   conformance/aws-cli/run.sh                    # every service
 #   CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh
 #                                                 # skip DynamoDB's tests, run the rest
-#   CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh sqs sns
-#                                                 # only these services (test file names)
-#   UE_ONLY='dlq|redrive' CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh sqs
+#   conformance/aws-cli/run.sh sqs sns            # only these services (test file names)
+#   UE_ONLY='dlq|redrive' conformance/aws-cli/run.sh sqs
 #                                                 # only tests whose name matches
-#   SIGV4=verify CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh
-#                                                 # serve with --sigv4 verify (default parse)
-#   CONFORMANCE_PORT=45674 CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh
+#   SIGV4=verify conformance/aws-cli/run.sh       # serve with --sigv4 verify (default parse)
+#   CONFORMANCE_PORT=45674 conformance/aws-cli/run.sh
 #                                                 # serve on another port (default 45664)
 #
-# Exactly one of the two DynamoDB variables must be set; without either, or
-# with both, run.sh exits 2 before building, as it does when the first `aws`
-# on PATH cannot run. The run ends with a summary on stderr: the totals,
-# then each skipped test and its reason.
+# DynamoDB runs on DynamoDB Local, pulled on first use; CONFORMANCE_DYNAMODB
+# is unset or 0, and run.sh exits 2 before building on any other value, as it
+# does when the first `aws` on PATH cannot run. The run ends with a summary on
+# stderr: the totals, then each skipped test and its reason.
 #
 # Exits non-zero when any test fails, or when understudy cannot be built or
 # started. The work directory (data, server log, per-test logs) is removed on

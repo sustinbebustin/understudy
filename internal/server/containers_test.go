@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/docker/dockertest"
+	"github.com/sustinbebustin/understudy/internal/service/dynamodb"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb/ddblocal"
 	"github.com/sustinbebustin/understudy/internal/topology"
 )
@@ -82,7 +83,7 @@ func TestDisabledNetworkRefusesFunctionContainers(t *testing.T) {
 func TestDynamoDBLocalReportsAFailedStart(t *testing.T) {
 	host := testHost(t, NetworkAuto{})
 	host.socket = filepath.Join(t.TempDir(), "gone.sock")
-	l := &lazyLocal{host: host, licence: ddblocal.Accepted{Digest: ddblocal.Digest}, storage: ddblocal.InMemory{}, log: slog.New(slog.DiscardHandler)}
+	l := &lazyLocal{host: host, mode: DynamoDBEnabled{}, storage: ddblocal.InMemory{}, log: slog.New(slog.DiscardHandler)}
 	if s := l.status(); s.Status != admin.Enabled {
 		t.Fatalf("status before any start = %+v, want enabled", s)
 	}
@@ -107,7 +108,7 @@ func TestDynamoDBLocalReportsAFailedStart(t *testing.T) {
 // Once stopped, DynamoDB Local refuses to start, so nothing launches after
 // shutdown removed the container.
 func TestDynamoDBLocalRefusesStartsAfterStop(t *testing.T) {
-	l := &lazyLocal{host: testHost(t, NetworkAuto{}), licence: ddblocal.Accepted{Digest: ddblocal.Digest}, storage: ddblocal.InMemory{}, log: slog.New(slog.DiscardHandler)}
+	l := &lazyLocal{host: testHost(t, NetworkAuto{}), mode: DynamoDBEnabled{}, storage: ddblocal.InMemory{}, log: slog.New(slog.DiscardHandler)}
 	if err := l.stop(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -116,5 +117,23 @@ func TestDynamoDBLocalRefusesStartsAfterStop(t *testing.T) {
 	}
 	if s := l.status(); s.Status != admin.Enabled {
 		t.Fatalf("status after a refused start = %+v; shutdown is not a failure of DynamoDB Local", s)
+	}
+}
+
+// DynamoDB turned off by configuration refuses every start with the
+// setting to change, never touches Docker, and reports itself disabled.
+func TestDynamoDBLocalDisabledByConfiguration(t *testing.T) {
+	host := testHost(t, NetworkAuto{})
+	host.socket = filepath.Join(t.TempDir(), "gone.sock")
+	l := &lazyLocal{host: host, mode: DynamoDBDisabled{}, storage: ddblocal.InMemory{}, log: slog.New(slog.DiscardHandler)}
+	de, ok := errors.AsType[*dynamodb.DisabledError](l.Start(t.Context()))
+	if !ok || !strings.Contains(de.Reason, "dynamodb.enabled is false") {
+		t.Fatalf("Start = %v, want a *dynamodb.DisabledError naming dynamodb.enabled", de)
+	}
+	if s := l.status(); s.Status != admin.Disabled || s.Reason != "disabled by configuration" {
+		t.Fatalf("status = %+v, want disabled by configuration", s)
+	}
+	if _, ok := l.current(); ok {
+		t.Error("a disabled DynamoDB built a DynamoDB Local manager")
 	}
 }

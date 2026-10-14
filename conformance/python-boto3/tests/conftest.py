@@ -25,11 +25,7 @@ DYNAMODB_OPTED_OUT = "DynamoDB opted out (CONFORMANCE_DYNAMODB=0)"
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Skip the tests marked dynamodb when the caller opted DynamoDB out.
-
-    run.sh refuses to start until the caller chooses: UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1
-    accepts the DynamoDB Local licence and runs these tests, CONFORMANCE_DYNAMODB=0 skips them.
-    """
+    """Skip the tests marked dynamodb when the caller opted DynamoDB out (CONFORMANCE_DYNAMODB=0)."""
     if os.environ.get("CONFORMANCE_DYNAMODB") != "0":
         return
     # skipif rather than skip: pytest's short summary folds skip marks by file,

@@ -11,7 +11,6 @@ import (
 	"hash/crc32"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -23,24 +22,20 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/cbor"
 )
 
-// acceptEnv accepts the DynamoDB Local licence; the smoke test passes it
-// through only under the docker tag, where Docker may run Local.
-const acceptEnv = "UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE"
-
 // TestSmoke starts the binary with the TLS listener and drives one raw
 // HTTP request per service, over HTTP and, for the S3 write path, over
-// TLS.
+// TLS. Without the docker tag the emulator runs with Docker disabled, so
+// it starts no container.
 func TestSmoke(t *testing.T) {
-	var extra []string
-	accepted := dockerTests && os.Getenv(acceptEnv) == "1"
-	if accepted {
-		extra = append(extra, acceptEnv+"=1")
+	args := []string{"--tls"}
+	if !dockerTests {
+		args = append(args, "--docker", "disabled")
 	}
-	w := &workload{invoke: dockerTests, ddbAccepted: accepted}
+	w := &workload{invoke: dockerTests, dynamoDB: dockerTests}
 	// Registered before serve's cleanup, this runs once the interrupt has
 	// stopped the emulator.
 	t.Cleanup(func() { assertDrained(t, w.instance) })
-	w.emu = serve(t, childEnv(extra...), "--tls")
+	w.emu = serve(t, childEnv(), args...)
 	if w.emu.tls == "" {
 		t.Fatal("the ready file names no tlsEndpoint although serve ran with --tls")
 	}
@@ -50,9 +45,10 @@ func TestSmoke(t *testing.T) {
 // workload is the smoke workload against one emulator; each step keeps
 // what later steps need.
 type workload struct {
-	emu         *emulator
-	invoke      bool
-	ddbAccepted bool
+	emu    *emulator
+	invoke bool
+	// dynamoDB is whether DynamoDB Local can run, which takes Docker.
+	dynamoDB bool
 
 	queueURL string
 	topicARN string
@@ -312,12 +308,12 @@ func (w *workload) getChecksummed(t *testing.T, key string, want []byte) {
 	}
 }
 
-// dynamodb lists tables: the result when DynamoDB Local may run, else the
-// 501 that names the flag accepting its licence.
+// dynamodb lists tables: the result when DynamoDB Local can run, else the
+// 501 saying it needs Docker.
 func (w *workload) dynamodb(t *testing.T) {
 	t.Helper()
 	resp := awsJSON(t, w.emu, "1.0", "dynamodb", "DynamoDB_20120810.ListTables", `{}`)
-	if w.ddbAccepted {
+	if w.dynamoDB {
 		must(t, "ListTables", resp, http.StatusOK)
 		if !strings.Contains(resp.body, "TableNames") {
 			t.Fatalf("ListTables = %s", resp.body)
@@ -325,8 +321,8 @@ func (w *workload) dynamodb(t *testing.T) {
 		return
 	}
 	must(t, "ListTables", resp, http.StatusNotImplemented)
-	if !strings.Contains(resp.body, "--accept-dynamodb-local-license") {
-		t.Fatalf("ListTables without the licence = %s, want the notice naming the flag", resp.body)
+	if !strings.Contains(resp.body, "which needs Docker") {
+		t.Fatalf("ListTables with Docker disabled = %s, want the 501 saying DynamoDB Local needs Docker", resp.body)
 	}
 }
 

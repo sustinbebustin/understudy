@@ -207,8 +207,8 @@ ue_health() {
 
 # require_service NAME: skip the test when the caller opted DynamoDB out of
 # the run (CONFORMANCE_DYNAMODB=0), or when the emulator reports the service
-# as disabled by configuration (for example DynamoDB before its licence is
-# accepted). A service that is degraded is broken, not absent: that fails.
+# as disabled by configuration (for example DynamoDB turned off, or without
+# Docker). A service that is degraded is broken, not absent: that fails.
 require_service() {
   local status reason
   if [ "$1" = dynamodb ] && [ "${CONFORMANCE_DYNAMODB:-}" = 0 ]; then

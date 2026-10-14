@@ -34,13 +34,6 @@ const (
 	DockerHostEnv     = "DOCKER_HOST"
 )
 
-// The DynamoDB Local licence acceptance, as dynamodb-local-terms.md 5.1 and
-// ADR 0014 name it. Only the literal value "1" of AcceptLicenceEnv accepts.
-const (
-	AcceptLicenceFlag = "accept-dynamodb-local-license"
-	AcceptLicenceEnv  = "UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE"
-)
-
 // AWSAPIFlag accepts serving the AWS API beyond loopback behind the admin
 // token, which guards only the admin API.
 const AWSAPIFlag = "allow-unauthenticated-aws-api"
@@ -62,7 +55,6 @@ const (
 	keyClockScale   = "clockScale"
 	keySigV4        = "sigv4"
 	keyDocker       = "docker"
-	keyAccept       = "acceptDynamodbLocalLicense"
 	keyReadyFile    = "readyFile"
 	keyLogFormat    = "logFormat"
 	keyLogLevel     = "logLevel"
@@ -86,7 +78,6 @@ func Settings() []Setting {
 		{Key: keyClockScale, Flag: "clock-scale", Env: "UNDERSTUDY_CLOCK_SCALE", Value: "FACTOR", Usage: "run the clock this many emulator seconds per wall second from start, above 0 and at most 10000; not with a frozen --clock (default 1)"},
 		{Key: keySigV4, Flag: "sigv4", Env: "UNDERSTUDY_SIGV4", Value: "MODE", Usage: "signature checking: parse (default) reads credentials only; verify refuses a bad signature, an unknown key, a missing or expired session token, and expires presigned URLs on the emulator clock"},
 		{Key: keyDocker, Flag: "docker", Env: "UNDERSTUDY_DOCKER", Value: "URL", Usage: "Docker Engine for Lambda and DynamoDB Local: unix://<socket> or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)"},
-		{Key: keyAccept, Flag: AcceptLicenceFlag, Env: AcceptLicenceEnv, Usage: "accept the Amazon DynamoDB Local License Agreement so DynamoDB Local is pulled and run; the variable accepts only the value 1"},
 		{Key: keyReadyFile, Flag: "ready-file", Env: "UNDERSTUDY_READY_FILE", Value: "FILE", Usage: "file to write {\"endpoint\", \"pid\"} to once listening"},
 		{Key: keyLogFormat, Flag: "log-format", Env: "UNDERSTUDY_LOG_FORMAT", Value: "FORMAT", Usage: "log format: text or json (default text)"},
 		{Key: keyLogLevel, Flag: "log-level", Env: "UNDERSTUDY_LOG_LEVEL", Value: "LEVEL", Usage: "log level: debug, info, warn or error (default info)"},

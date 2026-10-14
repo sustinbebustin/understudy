@@ -13,8 +13,8 @@ import (
 )
 
 // Options configure an Instance. The zero value runs a running clock with
-// random ids, Docker at its default socket, DynamoDB Local awaiting its
-// licence and AWS's own regions.
+// random ids, Docker at its default socket, DynamoDB enabled and AWS's own
+// regions.
 type Options struct {
 	// Seed makes every generated id reproducible; nil draws from
 	// crypto/rand.
@@ -24,7 +24,8 @@ type Options struct {
 	// Docker is where Lambda functions and DynamoDB Local run; nil is
 	// DockerSocket at /var/run/docker.sock.
 	Docker Docker
-	// DynamoDB is the DynamoDB Local licence; nil is DynamoDBAwaiting.
+	// DynamoDB is whether the DynamoDB service runs; nil is
+	// DynamoDBEnabled.
 	DynamoDB DynamoDB
 	// Regions are region names accepted beyond AWS's own, such as local-1.
 	Regions []string
@@ -62,23 +63,20 @@ type DockerDisabled struct{}
 func (DockerSocket) isDocker()   {}
 func (DockerDisabled) isDocker() {}
 
-// DynamoDB is an Instance's DynamoDB Local licence setting.
+// DynamoDB is whether an Instance runs the DynamoDB service.
 //
 //sumtype:decl
 type DynamoDB interface{ isDynamoDB() }
 
-// DynamoDBAwaiting leaves DynamoDB answering 501 with the licence notice.
-type DynamoDBAwaiting struct{}
+// DynamoDBEnabled serves DynamoDB through Amazon DynamoDB Local, pulled
+// and run in Docker on first use under Amazon's licence terms.
+type DynamoDBEnabled struct{}
 
-// DynamoDBAccepted accepts the Amazon DynamoDB Local License Agreement on
-// the test's behalf, so DynamoDB Local is pulled and run in Docker.
-type DynamoDBAccepted struct{}
-
-// DynamoDBDisabled turns the DynamoDB service off.
+// DynamoDBDisabled turns the DynamoDB service off: DynamoDB calls answer
+// 501 and DynamoDB Local is never pulled.
 type DynamoDBDisabled struct{}
 
-func (DynamoDBAwaiting) isDynamoDB() {}
-func (DynamoDBAccepted) isDynamoDB() {}
+func (DynamoDBEnabled) isDynamoDB()  {}
 func (DynamoDBDisabled) isDynamoDB() {}
 
 // Instance is one in-process understudy serving on an ephemeral loopback
@@ -175,12 +173,10 @@ func serverConfig(o Options) server.Config {
 		cfg.Docker = server.DockerSocket{}
 	}
 	switch o.DynamoDB.(type) {
-	case DynamoDBAccepted:
-		cfg.DynamoDB = server.DynamoDBAccepted{}
 	case DynamoDBDisabled:
 		cfg.DynamoDB = server.DynamoDBDisabled{}
-	case DynamoDBAwaiting, nil:
-		cfg.DynamoDB = server.DynamoDBAwaiting{}
+	case DynamoDBEnabled, nil:
+		cfg.DynamoDB = server.DynamoDBEnabled{}
 	}
 	return cfg
 }

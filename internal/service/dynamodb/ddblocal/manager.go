@@ -73,8 +73,6 @@ const dataPath = "/data"
 type Config struct {
 	// Docker is the daemon; required.
 	Docker *docker.Client
-	// Licence must cover the pinned digest before anything is pulled.
-	Licence Licence
 	// Storage is nil for InMemory.
 	Storage Storage
 	// Network is nil for DefaultBridge.
@@ -181,9 +179,6 @@ func New(cfg Config) (*Manager, error) {
 	}, nil
 }
 
-// Licence returns the licence state the Manager was built with.
-func (m *Manager) Licence() Licence { return m.cfg.Licence }
-
 // Transport reaches the running container. Stop closes its idle
 // connections.
 func (m *Manager) Transport() http.RoundTripper { return m.transport }
@@ -200,14 +195,10 @@ func (m *Manager) Endpoint() (*url.URL, bool) {
 }
 
 // Start makes DynamoDB Local ready: it returns at once when it is running,
-// waits for a start in progress, and otherwise starts it. A licence that
-// does not cover the pinned digest is a *LicenceError and nothing is
-// pulled. ctx bounds the caller's wait only; the start goes on for the
-// other callers, and Stop ends it.
+// waits for a start in progress, and otherwise starts it. ctx bounds the
+// caller's wait only; the start goes on for the other callers, and Stop
+// ends it.
 func (m *Manager) Start(ctx context.Context) error {
-	if !covers(m.cfg.Licence) {
-		return &LicenceError{Licence: m.cfg.Licence}
-	}
 	m.mu.Lock()
 	var st *starting
 	switch s := m.state.(type) {

@@ -5,20 +5,17 @@ boto3 and pytest tests that check understudy from the outside. Each test asserts
 ## Run
 
 ```sh
-CONFORMANCE_DYNAMODB=0 conformance/python-boto3/run.sh               # both environments, DynamoDB skipped
-CONFORMANCE_DYNAMODB=0 conformance/python-boto3/run.sh -k sqs -x     # extra arguments go to pytest
-SUITE_GROUPS=modern CONFORMANCE_DYNAMODB=0 conformance/python-boto3/run.sh
-UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/python-boto3/run.sh  # DynamoDB too
+conformance/python-boto3/run.sh                            # both environments, DynamoDB included
+CONFORMANCE_DYNAMODB=0 conformance/python-boto3/run.sh     # both environments, DynamoDB skipped
+conformance/python-boto3/run.sh -k sqs -x                  # extra arguments go to pytest
+SUITE_GROUPS=modern conformance/python-boto3/run.sh
 ```
 
 `run.sh` serves with `--sigv4 verify` by default (`SIGV4=verify`), so every request's signature is checked and the signature tests run. `SIGV4=parse` serves without verification and skips them.
 
 `run.sh` builds understudy into `.build/conformance/python-boto3/understudy`, serves it on `127.0.0.1:45662` with a fresh data directory, waits for the health endpoint, runs pytest through `scripts/sealed`, then stops the server and runs `understudy cleanup` on its data directory. It keeps each environment's pytest output in the work directory as `test-<group>.log` and ends with a summary on stderr, from pytest's short summary: `run.sh: passed=N failed=N skipped=N` over both environments, then a `run.sh: SKIP <group> <file>:<line>: <reason>` line per skipped test. It exits non-zero when any environment fails. On failure it keeps the work directory (server log, data and test output) and prints its path.
 
-The DynamoDB tests need the DynamoDB Local container, whose licence is yours to accept, so `run.sh` exits 2 before building unless exactly one of these is set:
-
-- `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` accepts the Amazon DynamoDB Local License Agreement for the run; serve reads it from its environment. `run.sh` exits 1 unless the health document then reports DynamoDB as `enabled`.
-- `CONFORMANCE_DYNAMODB=0` skips the tests marked `dynamodb` (`tests/conftest.py`) with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`, and DynamoDB Local never starts.
+The DynamoDB tests run on the DynamoDB Local container, pulled on first use; `run.sh` exits 1 unless the health document reports DynamoDB as `enabled` after startup. `CONFORMANCE_DYNAMODB=0` skips the tests marked `dynamodb` (`tests/conftest.py`) with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`, and DynamoDB Local never starts; any other value exits 2 before building.
 
 Docker is required for the DynamoDB and Lambda tests.
 

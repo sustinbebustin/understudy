@@ -20,8 +20,9 @@ import (
 // topology says which network the container joins: understudy's own
 // network when it runs in a container, the default bridge otherwise.
 type lazyLocal struct {
-	host    *containerHost
-	licence ddblocal.Licence
+	host *containerHost
+	// mode is whether the configuration runs DynamoDB at all.
+	mode    DynamoDB
 	storage ddblocal.Storage
 	// memory is the container's memory limit; 0 is the manager's default.
 	memory int64
@@ -43,14 +44,12 @@ type lazyLocal struct {
 
 var _ dynamodb.Local = (*lazyLocal)(nil)
 
-// Start starts DynamoDB Local, building its manager first. An unaccepted
-// licence is a *ddblocal.LicenceError, before Docker is touched, that also
-// names why Docker is unavailable when it is, so accepting the licence is
-// not the caller's last surprise; a start
-// after shutdown began is errShuttingDown.
+// Start starts DynamoDB Local, building its manager first. DynamoDB or
+// Docker turned off by configuration is a *dynamodb.DisabledError before
+// Docker is touched; a start after shutdown began is errShuttingDown.
 func (l *lazyLocal) Start(ctx context.Context) error {
-	if !l.accepted() {
-		return &ddblocal.LicenceError{Licence: l.licence, NoDocker: l.host.missing()}
+	if reason := l.unavailable(); reason != "" {
+		return &dynamodb.DisabledError{Reason: reason}
 	}
 	m, err := l.manager(ctx)
 	if err == nil {
@@ -107,11 +106,30 @@ func (l *lazyLocal) isClosed() bool {
 	return l.closed
 }
 
-// accepted reports whether the licence lets understudy pull and run the
-// pinned image.
-func (l *lazyLocal) accepted() bool {
-	a, ok := l.licence.(ddblocal.Accepted)
-	return ok && a.Digest == ddblocal.Digest
+// disabledByConfig is the answer to a DynamoDB call while the
+// configuration turns DynamoDB off.
+const disabledByConfig = "The DynamoDB service is disabled by the understudy configuration (dynamodb.enabled is false in understudy.json, or in the file --config names); " +
+	"remove that setting and restart understudy to use DynamoDB."
+
+// off reports whether the configuration turns DynamoDB off.
+func (l *lazyLocal) off() bool {
+	_, off := l.mode.(DynamoDBDisabled)
+	return off
+}
+
+// unavailable is why DynamoDB Local can never run in this process, or
+// empty when it may: DynamoDB turned off, or Docker disabled by
+// configuration. A Docker socket that is missing now may appear later, so
+// it is a failed start instead, which health reports and the next call
+// retries.
+func (l *lazyLocal) unavailable() string {
+	if l.off() {
+		return disabledByConfig
+	}
+	if l.host.client == nil {
+		return "DynamoDB runs on DynamoDB Local, which needs Docker: " + l.host.missing() + "."
+	}
+	return ""
 }
 
 func (l *lazyLocal) manager(ctx context.Context) (*ddblocal.Manager, error) {
@@ -133,7 +151,6 @@ func (l *lazyLocal) manager(ctx context.Context) (*ddblocal.Manager, error) {
 	}
 	m, err := ddblocal.New(ddblocal.Config{
 		Docker:  l.host.client,
-		Licence: l.licence,
 		Storage: l.storage,
 		Network: network,
 		Labels:  docker.Labels{Ownership: l.host.ownership},
@@ -143,6 +160,10 @@ func (l *lazyLocal) manager(ctx context.Context) (*ddblocal.Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The manager is built once, at the first start: say what DynamoDB
+	// runs on, and under whose terms, before anything is pulled.
+	const notice = ddblocal.Notice
+	l.log.LogAttrs(ctx, slog.LevelInfo, notice, slog.String("image", ddblocal.Reference()))
 	l.m = m
 	return m, nil
 }
@@ -153,11 +174,11 @@ func (l *lazyLocal) current() (*ddblocal.Manager, bool) {
 	return l.m, l.m != nil
 }
 
-// startInBackground starts DynamoDB Local at serve when the licence is
-// accepted and the pinned image is already present (ARCHITECTURE.md 15);
-// otherwise the first DynamoDB call starts it.
+// startInBackground starts DynamoDB Local at serve when it can run here
+// and the pinned image is already present (ARCHITECTURE.md 15); otherwise
+// the first DynamoDB call starts it.
 func (l *lazyLocal) startInBackground(ctx context.Context) {
-	if !l.accepted() || l.host.missing() != "" {
+	if l.unavailable() != "" || l.host.missing() != "" {
 		return
 	}
 	if _, err := l.host.client.ImageInspect(ctx, ddblocal.Reference()); err != nil {
@@ -183,8 +204,8 @@ func (l *lazyLocal) stop(ctx context.Context) error {
 // status is DynamoDB Local's health while Docker is up: degraded with the
 // last start's error until a start succeeds.
 func (l *lazyLocal) status() admin.ServiceStatus {
-	if !l.accepted() {
-		return admin.ServiceStatus{Status: admin.Disabled, Reason: ddblocal.LicenceState(l.licence)}
+	if l.off() {
+		return admin.ServiceStatus{Status: admin.Disabled, Reason: "disabled by configuration"}
 	}
 	l.outcome.Lock()
 	failed := l.failed

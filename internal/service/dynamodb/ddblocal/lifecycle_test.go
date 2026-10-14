@@ -461,13 +461,17 @@ func TestOOMKilledNamesTheLimit(t *testing.T) {
 	}
 }
 
-// TestDisabledNamesTheSetting: a refused start of a disabled service says
-// where it was disabled.
-func TestDisabledNamesTheSetting(t *testing.T) {
-	err := (&ddblocal.LicenceError{Licence: ddblocal.Disabled{}}).Error()
-	for _, want := range []string{"DynamoDB setting", "understudy.json", "--config"} {
-		if !strings.Contains(err, want) {
-			t.Errorf("error %q lacks %q", err, want)
+// TestNoticeNamesTheLicence: the line logged when DynamoDB Local first
+// starts says whose terms it runs under and where Amazon publishes them,
+// on one line.
+func TestNoticeNamesTheLicence(t *testing.T) {
+	notice := ddblocal.Notice
+	for _, want := range []string{"Amazon DynamoDB Local", "Amazon's licence terms", "https://aws.amazon.com/dynamodb/dynamodblocallicense/"} {
+		if !strings.Contains(notice, want) {
+			t.Errorf("Notice = %q, lacks %q", notice, want)
 		}
+	}
+	if strings.Contains(notice, "\n") {
+		t.Errorf("Notice = %q, want one line", notice)
 	}
 }

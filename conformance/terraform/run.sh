@@ -7,20 +7,17 @@
 # plan, destroy, and a check that nothing is left. The server is always
 # stopped and its containers removed. Exits non-zero when any test fails.
 #
-#   UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/terraform/run.sh
-#                                                # accept the DynamoDB Local licence; every service
+#   conformance/terraform/run.sh                 # every service
 #   CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh
 #                                                # skip DynamoDB, run the rest
-#   CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh sqs sns
-#                                                # only these
-#   CONFORMANCE_JOBS=1 CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh
-#   SIGV4=verify CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh
-#                                                # serve with --sigv4 verify (default parse)
+#   conformance/terraform/run.sh sqs sns         # only these
+#   CONFORMANCE_JOBS=1 conformance/terraform/run.sh
+#   SIGV4=verify conformance/terraform/run.sh    # serve with --sigv4 verify (default parse)
 #
-# Exactly one of the two DynamoDB variables must be set; without either, or
-# with both, run.sh exits 2 before building, as it does when the first
-# `terraform` on PATH cannot run. The run ends with a summary on stderr: the
-# totals, then each skipped test and its reason.
+# DynamoDB runs on DynamoDB Local, pulled on first use; CONFORMANCE_DYNAMODB
+# is unset or 0, and run.sh exits 2 before building on any other value, as
+# it does when the first `terraform` on PATH cannot run. The run ends with a
+# summary on stderr: the totals, then each skipped test and its reason.
 #
 # Every Terraform and AWS CLI call goes through scripts/sealed, so no real AWS
 # setting or credential is ever used.

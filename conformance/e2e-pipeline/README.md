@@ -5,16 +5,15 @@ The phase 1 event-driven pipeline, end to end, as a Go test module that talks to
 ## Run
 
 ```sh
-UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/e2e-pipeline/run.sh  # the whole suite
-CONFORMANCE_DYNAMODB=0 conformance/e2e-pipeline/run.sh                 # the tests that need no DynamoDB
-CONFORMANCE_DYNAMODB=0 conformance/e2e-pipeline/run.sh -run TestSQS    # extra arguments go to go test
+conformance/e2e-pipeline/run.sh                            # the whole suite
+CONFORMANCE_DYNAMODB=0 conformance/e2e-pipeline/run.sh     # the tests that need no DynamoDB
+conformance/e2e-pipeline/run.sh -run TestSQS               # extra arguments go to go test
 ```
 
-`run.sh` builds understudy from this repository into `.build/conformance/e2e-pipeline/understudy`, serves it on `127.0.0.1:45666` with a fresh data directory under `.build/conformance/e2e-pipeline/run.*` (`--persist`), a frozen clock, seed 1 and no `UNDERSTUDY_*` or `AWS_*` setting from your shell but the licence variable, waits for `/_understudy/v1/health`, and runs `go test -v` through `scripts/sealed`, so no real AWS setting or credential is used. The output is kept in the run directory's `test.log`, and the run ends with a summary on stderr: `run.sh: passed=N failed=N skipped=N`, then a `run.sh: SKIP <test>: <reason>` line per skipped test. On exit it always stops the server, runs `understudy cleanup` on the data directory, removes the containers and images labeled with the run's `understudy.dev/e2e-run` label, and exits with the suite's status. It removes the run directory on success and keeps it, printing its path, on failure.
+`run.sh` builds understudy from this repository into `.build/conformance/e2e-pipeline/understudy`, serves it on `127.0.0.1:45666` with a fresh data directory under `.build/conformance/e2e-pipeline/run.*` (`--persist`), a frozen clock, seed 1 and no `UNDERSTUDY_*` or `AWS_*` setting from your shell, waits for `/_understudy/v1/health`, and runs `go test -v` through `scripts/sealed`, so no real AWS setting or credential is used. The output is kept in the run directory's `test.log`, and the run ends with a summary on stderr: `run.sh: passed=N failed=N skipped=N`, then a `run.sh: SKIP <test>: <reason>` line per skipped test. On exit it always stops the server, runs `understudy cleanup` on the data directory, removes the containers and images labeled with the run's `understudy.dev/e2e-run` label, and exits with the suite's status. It removes the run directory on success and keeps it, printing its path, on failure.
 
-Requirements: Go, Docker, and network access on first use to pull `public.ecr.aws/lambda/provided:al2023`, `public.ecr.aws/lambda/python:3.13` and `amazon/dynamodb-local`. Every worker takes a DynamoDB lock for each SQS record, and DynamoDB Local's licence is yours to accept, so `run.sh` exits 2 before building unless exactly one of these is set:
+Requirements: Go, Docker, and network access on first use to pull `public.ecr.aws/lambda/provided:al2023`, `public.ecr.aws/lambda/python:3.13` and `amazon/dynamodb-local`. Every worker takes a DynamoDB lock for each SQS record, so DynamoDB runs by default and `run.sh` exits 1 unless DynamoDB reports `enabled` after startup. `CONFORMANCE_DYNAMODB` set to anything but `0` exits 2 before building.
 
-- `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` accepts the Amazon DynamoDB Local License Agreement for the run; serve reads it from its environment, and `run.sh` exits 1 unless DynamoDB then reports `enabled`.
 - `CONFORMANCE_DYNAMODB=0` provisions the pipeline without its lock table. Every test that publishes to the topic, and so makes a worker take a lock, or that reads the lock table skips (`requireDynamoDB`) with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`; the rest run, and DynamoDB Local never starts.
 
 The suite also runs against any fresh understudy on a loopback endpoint: `scripts/sealed --endpoint http://127.0.0.1:<port> go test ./...` from this directory. It refuses an endpoint that is not loopback, and expects an empty emulator with a frozen clock.

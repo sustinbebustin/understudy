@@ -59,7 +59,7 @@ Copy `compose.yaml`. Then:
 
 - Replace the `app` service with your own, keeping its `AWS_*` environment and `depends_on`.
 - Once you have built understudy's image, delete the `build:` section under `understudy`.
-- To run Lambda functions or DynamoDB from compose, understudy needs the Docker socket. Add this to the `understudy` service. For DynamoDB, also set `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE: "1"` to accept the DynamoDB Local licence.
+- To run Lambda functions or DynamoDB from compose, understudy needs the Docker socket. Add this to the `understudy` service. DynamoDB then runs on Amazon DynamoDB Local, pulled on first use under [Amazon's licence terms](https://aws.amazon.com/dynamodb/dynamodblocallicense/).
 
   ```yaml
       volumes:

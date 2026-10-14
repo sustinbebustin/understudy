@@ -18,7 +18,7 @@ import (
 // Config is what serve needs: the CLI maps config.Config onto it. The zero
 // Config listens on an ephemeral loopback port with a running clock, random
 // ids, text logs at info level, no persistence, no TLS listener, Docker at
-// its default socket and DynamoDB Local awaiting its licence.
+// its default socket and DynamoDB enabled.
 type Config struct {
 	// Listen is the address to bind; port 0 picks a free one. An address
 	// beyond loopback needs the ContainerPublished exposure, or AdminToken
@@ -70,8 +70,8 @@ type Config struct {
 	// Docker is where the Docker Engine is; nil is DockerSocket at the
 	// default socket.
 	Docker Docker
-	// DynamoDB is the DynamoDB Local licence setting; nil is
-	// DynamoDBAwaiting.
+	// DynamoDB is whether the DynamoDB service runs; nil is
+	// DynamoDBEnabled.
 	DynamoDB DynamoDB
 	// HotReload binds directories as functions' code from the start.
 	HotReload []HotReload
@@ -315,26 +315,20 @@ type DockerDisabled struct{}
 func (DockerSocket) isDocker()   {}
 func (DockerDisabled) isDocker() {}
 
-// DynamoDB is the DynamoDB Local licence setting (ADR 0014).
+// DynamoDB is whether the DynamoDB service runs (ADR 0014).
 //
 //sumtype:decl
 type DynamoDB interface{ isDynamoDB() }
 
-// DynamoDBAwaiting runs DynamoDB Local only when an acceptance is recorded
-// in the data directory; otherwise DynamoDB calls answer 501 with the
-// notice.
-type DynamoDBAwaiting struct{}
+// DynamoDBEnabled serves DynamoDB through DynamoDB Local, pulled and
+// started on first use.
+type DynamoDBEnabled struct{}
 
-// DynamoDBAccepted is the licence accepted now, with
-// --accept-dynamodb-local-license or UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1;
-// with persistence the acceptance is recorded for later runs.
-type DynamoDBAccepted struct{}
-
-// DynamoDBDisabled turns the DynamoDB service off by configuration.
+// DynamoDBDisabled turns the DynamoDB service off by configuration:
+// DynamoDB calls answer 501 and DynamoDB Local is never pulled.
 type DynamoDBDisabled struct{}
 
-func (DynamoDBAwaiting) isDynamoDB() {}
-func (DynamoDBAccepted) isDynamoDB() {}
+func (DynamoDBEnabled) isDynamoDB()  {}
 func (DynamoDBDisabled) isDynamoDB() {}
 
 // HotReload binds Dir as Function's code (lambda.hotReload). Account and

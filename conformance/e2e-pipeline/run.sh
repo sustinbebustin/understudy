@@ -4,21 +4,18 @@
 # against it through scripts/sealed, then stop the server and remove every
 # container and image the run left behind. Exits with the suite's status.
 #
-#   UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/e2e-pipeline/run.sh
-#                                                   # accept the DynamoDB Local licence; the whole suite
+#   conformance/e2e-pipeline/run.sh                 # the whole suite
 #   CONFORMANCE_DYNAMODB=0 conformance/e2e-pipeline/run.sh
 #                                                   # skip the tests that need DynamoDB, run the rest
-#   CONFORMANCE_DYNAMODB=0 conformance/e2e-pipeline/run.sh -run TestSQS
-#                                                   # extra arguments go to go test
-#   SIGV4=verify CONFORMANCE_DYNAMODB=0 conformance/e2e-pipeline/run.sh
-#                                                   # serve with --sigv4 verify (default parse)
+#   conformance/e2e-pipeline/run.sh -run TestSQS    # extra arguments go to go test
+#   SIGV4=verify conformance/e2e-pipeline/run.sh    # serve with --sigv4 verify (default parse)
 #
-# Every worker takes a lock in DynamoDB for each record it handles. Exactly
-# one of the two DynamoDB variables must be set; without either, or with
-# both, run.sh exits 2 before building. Serve reads the licence variable
-# from its environment. Under CONFORMANCE_DYNAMODB=0 the pipeline is built
-# without its lock table and every test that makes a worker take a lock
-# skips; DynamoDB Local never starts.
+# Every worker takes a lock in DynamoDB for each record it handles; DynamoDB
+# runs on DynamoDB Local, pulled on first use. CONFORMANCE_DYNAMODB is unset
+# or 0, and run.sh exits 2 before building on any other value. Under
+# CONFORMANCE_DYNAMODB=0 the pipeline is built without its lock table and
+# every test that makes a worker take a lock skips; DynamoDB Local never
+# starts.
 #
 # The work directory (.build/conformance/e2e-pipeline/run.*: data, server
 # log, the go test -v output in test.log) is removed on success and kept on

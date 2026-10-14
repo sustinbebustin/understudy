@@ -107,7 +107,7 @@ A new wire protocol needs an ADR; the protocol compliance corpus already carries
 |---|---|---|
 | Unit and service tests | `just test` | Service semantics on the emulator clock through `kernel.Invoke`; property tests for engines and codecs; generator golden tests; the 260 model examples |
 | Protocol compliance | `go test -race -run TestCorpus ./internal/protocoltest` | Codecs and error writers against Smithy's official compliance corpus, as a ratchet over `internal/protocoltest/baseline.json` |
-| Docker integration | `just test-docker` | Lambda execution, DynamoDB Local (only with `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1`), container networking, the image |
+| Docker integration | `just test-docker` | Lambda execution, DynamoDB Local, container networking, the image |
 | Smoke | `just smoke` | The built binary serves one request per service, over HTTP and TLS |
 | Budgets | `just budgets` | Binary size, startup time, idle memory, build and lint time stay under their ceilings |
 | Generated code | `go run ./internal/cmd/gen -all -check` | Regenerating from the vendored inputs reproduces what is committed; CI runs `just generate-check`, which also fails on any uncommitted change |
@@ -118,13 +118,13 @@ When a fix makes a protocol compliance case pass, record it with `just protocolt
 
 ## Conformance suites
 
-Each suite in `conformance/` is its own module or project, builds understudy from the repository, starts it on its own loopback port with a fresh data directory, runs through `scripts/sealed`, and cleans up its containers. Each takes arguments to run a subset, and each needs DynamoDB's mode chosen ([conformance/README.md](conformance/README.md#dynamodb)):
+Each suite in `conformance/` is its own module or project, builds understudy from the repository, starts it on its own loopback port with a fresh data directory, runs through `scripts/sealed`, and cleans up its containers. Each takes arguments to run a subset, and each runs DynamoDB's tests unless `CONFORMANCE_DYNAMODB=0` ([conformance/README.md](conformance/README.md#dynamodb)):
 
 ```sh
-CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh -run TestSTS
-CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh tests/sts.test.ts
-CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh sts
-CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh iam
+conformance/go-sdk/run.sh -run TestSTS
+conformance/js-sdk-v3/run.sh tests/sts.test.ts
+conformance/aws-cli/run.sh sts
+conformance/terraform/run.sh iam
 ```
 
 | Suite | Client |
@@ -136,7 +136,7 @@ CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh iam
 | `terraform/` | Terraform: apply, an empty second plan, an update, destroy, nothing left behind |
 | `e2e-pipeline/` | The phase 1 event-driven pipeline end to end, including Lambda workers |
 
-Every suite has one file per service so a fix can own one service. Each suite's README lists its requirements and options. Every `run.sh` needs exactly one of `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1`, which accepts the DynamoDB Local licence for the run and runs DynamoDB's tests, and `CONFORMANCE_DYNAMODB=0`, which skips them; with both or neither it exits 2. Under the opt-out the end-to-end suite skips only the tests that make a worker take a DynamoDB lock or read the lock table.
+Every suite has one file per service so a fix can own one service. Each suite's README lists its requirements and options. Every `run.sh` runs DynamoDB's tests on DynamoDB Local, pulled on first use; `CONFORMANCE_DYNAMODB=0` skips them, and any other value exits 2. Under the opt-out the end-to-end suite skips only the tests that make a worker take a DynamoDB lock or read the lock table.
 
 A conformance failure is a finding about understudy, or about the research: fix whichever is wrong, never the test to match understudy.
 

@@ -3,17 +3,15 @@
 # fresh data directory, run the aws-sdk-go-v2 conformance suite against it
 # through scripts/sealed, then stop it and remove its containers.
 #
-#   UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/go-sdk/run.sh
-#                                                  # accept the DynamoDB Local licence and run everything
+#   conformance/go-sdk/run.sh                      # everything
 #   CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh
 #                                                  # skip DynamoDB's tests, run the rest
-#   CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh -run TestSQS
-#                                                  # extra arguments go to go test
-#   SIGV4=verify CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh
-#                                                  # serve with --sigv4 verify (default parse)
+#   conformance/go-sdk/run.sh -run TestSQS         # extra arguments go to go test
+#   SIGV4=verify conformance/go-sdk/run.sh         # serve with --sigv4 verify (default parse)
 #
-# Exactly one of the two DynamoDB variables must be set; without either, or
-# with both, run.sh exits 2 before building. It runs go test -v, keeps its
+# DynamoDB runs on DynamoDB Local, pulled on first use; CONFORMANCE_DYNAMODB
+# is unset or 0, and run.sh exits 2 before building on any other value. It
+# runs go test -v, keeps its
 # output in the work directory's test.log, and ends with a summary on stderr:
 # the totals, then each skipped test and its reason.
 #

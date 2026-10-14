@@ -273,7 +273,7 @@ func (e *egress) checkHarness() {
 // where it answers.
 func (e *egress) runLocal(name string, adjust func(*docker.Config)) (*Manager, string, *url.URL) {
 	t := e.t
-	m, err := New(Config{Docker: e.d, Licence: Accepted{Digest: Digest}, Labels: e.labels})
+	m, err := New(Config{Docker: e.d, Labels: e.labels})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +334,6 @@ func cycle(t *testing.T, m *Manager, endpoint *url.URL) {
 // control run, without the two telemetry opt-outs, shows it sees Local's
 // telemetry, so the silence is Local's and not the harness's.
 func TestDynamoDBLocalMakesNoNetworkAttempts(t *testing.T) {
-	configtest.DynamoDBLicence(t)
 	e := newEgress(t)
 	e.checkHarness()
 	before := len(e.recorded())

@@ -57,7 +57,7 @@
 //     SerializationException the edge gives it instead.
 //   - Local's own error answers are raw responses like its successes, so
 //     the journal and the access recorder count them as completed calls;
-//     only understudy's errors (validation, faults, the licence gate) are
+//     only understudy's errors (validation, faults, a disabled Local) are
 //     recorded as failures.
 //   - Every answer carries understudy's request id, the one the journal
 //     records, instead of Local's, and an x-amz-crc32 header, which Local
@@ -66,9 +66,10 @@
 //     DeleteTable and UpdateTable only, as real DynamoDB does per
 //     dynalite's recorded suite; the item operations answer "Requested
 //     resource not found".
-//   - Until the licence is accepted the answer is the 501 NotImplemented
-//     identity unbound operations use, carrying the licence notice. A
-//     Local that cannot start is InternalServerError naming the cause; a
+//   - While DynamoDB is turned off or Docker is unavailable the answer is
+//     the 501 NotImplemented identity unbound operations use, carrying the
+//     reason (DisabledError). A Local that cannot start is
+//     InternalServerError naming the cause; a
 //     start still running after the call's bounded wait (startWait) is a
 //     retryable InternalServerError saying so, and goes on in the
 //     background.

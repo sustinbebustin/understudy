@@ -108,9 +108,6 @@ This is what `understudy serve --help` prints under Flags. A test keeps it in st
   --docker URL
       Docker Engine for Lambda and DynamoDB Local: unix://<socket> or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)
       variable UNDERSTUDY_DOCKER, file key "docker"
-  --accept-dynamodb-local-license
-      accept the Amazon DynamoDB Local License Agreement so DynamoDB Local is pulled and run; the variable accepts only the value 1
-      variable UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE, file key "acceptDynamodbLocalLicense"
   --ready-file FILE
       file to write {"endpoint", "pid"} to once listening
       variable UNDERSTUDY_READY_FILE, file key "readyFile"
@@ -156,6 +153,9 @@ setting has one; any key may be left out:
                              region may be left out
   sqs.queueDeletedRecently   ignore or enforce
   iam.assumeRole             strict or lenient
+  dynamodb.enabled           true, or false to turn DynamoDB off so DynamoDB Local is never
+                             pulled; on, it is pulled on first use and runs under Amazon's
+                             licence terms
   journal.file               NDJSON file every event is appended to (default none)
   faults                     rules as 'understudy faults list --output json' prints each "rule"
 

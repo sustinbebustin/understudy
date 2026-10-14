@@ -357,7 +357,10 @@ func TestRefusedValues(t *testing.T) {
 		{args: []string{"--docker", "tcp://1.2.3.4:2375"}, where: "--docker"},
 		{args: []string{"--listen", "127.0.0.1:0"}, env: []string{"UNDERSTUDY_ADMIN_TOKEN=x"}, where: "UNDERSTUDY_ADMIN_TOKEN"},
 		{args: []string{"extra"}, where: "arguments"},
-		{env: []string{"UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=yes"}, where: "UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE"},
+		// The DynamoDB Local licence acceptance was removed before any
+		// release; like any unknown setting, it is refused, not ignored.
+		{env: []string{"UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1"}, where: "UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE"},
+		{args: []string{"--accept-dynamodb-local-license"}, where: "--accept-dynamodb-local-license"},
 		{file: `{"s3": {"baseDomains": ["example.com"]}}`, where: "understudy.json: s3.baseDomains[0]"},
 		{file: `{"s3": {"maxObjectBytes": "big"}}`, where: "understudy.json: s3.maxObjectBytes"},
 		{file: `{"lambda": {"network": "bridge"}}`, where: "understudy.json: lambda.bridgeGateway"},
@@ -366,7 +369,7 @@ func TestRefusedValues(t *testing.T) {
 		{file: `{"lambda": {"hotReload": [{"function": "f", "dir": "/src", "account": "12"}]}}`, where: "understudy.json: lambda.hotReload[0].account"},
 		{file: `{"lambda": {"hotReload": [{"function": "f", "dir": "/src", "region": "Nope"}]}}`, where: "understudy.json: lambda.hotReload[0].region"},
 		{file: `{"lambda": {"hotReload": [{"function": "f", "dir": "/src", "region": "local-2"}]}, "regions": ["local-1"]}`, where: "understudy.json: lambda.hotReload[0].region"},
-		{file: `{"dynamodb": {"enabled": false}, "acceptDynamodbLocalLicense": true}`, where: "understudy.json: acceptDynamodbLocalLicense"},
+		{file: `{"acceptDynamodbLocalLicense": true}`, where: "understudy.json: acceptDynamodbLocalLicense"},
 		{file: `{"faults": [{"phase": "request", "action": {"kind": "explode"}, "trigger": {"kind": "always"}}]}`, where: "understudy.json: faults[0]"},
 		{file: `{"accounts": {"default": "12"}}`, where: "understudy.json: accounts.default"},
 		{file: `{"seed": {"n": 1}}`, where: "understudy.json: seed"},
@@ -463,7 +466,7 @@ func TestFileSections(t *testing.T) {
 		"journal": {"capacity": 10, "file": "/tmp/j.ndjson"},
 		"faults": [{"id": "slow", "phase": "request", "match": {"operations": ["sqs.SendMessage"]}, "action": {"kind": "throttle"}, "trigger": {"kind": "always"}}]
 	}`
-	cfg := load(t, nil, []string{"UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1"}, files{config.DefaultConfigFile: file})
+	cfg := load(t, nil, nil, files{config.DefaultConfigFile: file})
 	checks := []struct {
 		name      string
 		got, want any
@@ -485,7 +488,7 @@ func TestFileSections(t *testing.T) {
 		}},
 		{"sqs", cfg.SQS.DeletedRecently, config.DeletedRecentlyEnforce},
 		{"iam", cfg.IAM.AssumeRole, config.AssumeRoleLenient},
-		{"licence", cfg.DynamoDB.Licence, config.LicenceAccepted{}},
+		{"dynamodb", cfg.DynamoDB.Mode, config.DynamoDBEnabled{}},
 		{"registry", cfg.DynamoDB.Registry, config.RegistryECRPublic},
 		{"memory", cfg.DynamoDB.MemoryLimit, int64(512 << 20)},
 		{"journal", cfg.Journal, config.Journal{Capacity: 10, MaxBytes: config.DefaultJournalMaxBytes, File: "/tmp/j.ndjson"}},
@@ -533,6 +536,27 @@ func TestDocker(t *testing.T) {
 	}
 	if cfg := load(t, []string{"--docker", "disabled"}, []string{"DOCKER_HOST=tcp://x:1"}, files{}); cfg.Docker != (config.DockerDisabled{}) || len(cfg.Warnings) != 0 {
 		t.Errorf("--docker disabled = %#v, warnings %q", cfg.Docker, cfg.Warnings)
+	}
+}
+
+// DynamoDB runs by default; dynamodb.enabled false in the file turns it
+// off.
+func TestDynamoDBMode(t *testing.T) {
+	for _, tc := range []struct {
+		file string
+		want config.DynamoDBMode
+	}{
+		{"", config.DynamoDBEnabled{}},
+		{`{"dynamodb": {"enabled": true}}`, config.DynamoDBEnabled{}},
+		{`{"dynamodb": {"enabled": false}}`, config.DynamoDBDisabled{}},
+	} {
+		f := files{}
+		if tc.file != "" {
+			f[config.DefaultConfigFile] = tc.file
+		}
+		if got := load(t, nil, nil, f).DynamoDB.Mode; got != tc.want {
+			t.Errorf("DynamoDB mode with file %q = %#v, want %#v", tc.file, got, tc.want)
+		}
 	}
 }
 
@@ -592,7 +616,7 @@ func TestLoadHostIgnoresListenerRules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadHost = %v", err)
 	}
-	want := config.Host{Persistence: config.Dir{Path: "/data", SaveEvery: config.DefaultSaveEvery}, Docker: config.DockerDisabled{}, Licence: config.AwaitingLicence{}}
+	want := config.Host{Persistence: config.Dir{Path: "/data", SaveEvery: config.DefaultSaveEvery}, Docker: config.DockerDisabled{}, DynamoDB: config.DynamoDBEnabled{}}
 	if !reflect.DeepEqual(host, want) {
 		t.Errorf("LoadHost = %#v, want %#v", host, want)
 	}

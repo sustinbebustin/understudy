@@ -330,7 +330,7 @@ const noSocket = "no Docker socket"
 
 // wantNoSocket fails unless s is disabled because no Docker socket is
 // mounted. Matching the cause keeps a status disabled for another reason,
-// such as DynamoDB Local's licence gate, from passing.
+// such as DynamoDB turned off by configuration, from passing.
 func wantNoSocket(t *testing.T, what string, s admin.ServiceStatus) {
 	t.Helper()
 	if s.Status != admin.Disabled || !strings.Contains(s.Reason, noSocket) {

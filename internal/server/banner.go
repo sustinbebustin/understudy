@@ -12,7 +12,6 @@ import (
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	serveradmin "github.com/sustinbebustin/understudy/internal/server/admin"
-	"github.com/sustinbebustin/understudy/internal/service/dynamodb/ddblocal"
 )
 
 // resolveTimeout bounds the *.localhost resolution check of the banner.
@@ -85,8 +84,7 @@ func (s *Server) banner(ctx context.Context, eps Endpoints, bound net.Addr) {
 
 // warnings are the banner's notes: what a listener beyond loopback exposes,
 // what does not work on this host, Docker when it is not there or does not
-// answer, Lambda when lambda.network is disabled, and DynamoDB Local's
-// licence line, which the banner always shows.
+// answer, and Lambda when lambda.network is disabled.
 func (s *Server) warnings(ctx context.Context, status serveradmin.ComponentStatus, bound net.Addr) []string {
 	var out []string
 	if !s.cfg.Listen.Addr().IsLoopback() {
@@ -105,7 +103,7 @@ func (s *Server) warnings(ctx context.Context, status serveradmin.ComponentStatu
 	if reason := s.wired.host.lambdaOff(); reason != "" {
 		out = append(out, "warning: "+reason)
 	}
-	return append(out, ddblocal.BannerLine(s.wired.licence))
+	return out
 }
 
 // exposureWarning is the banner's note for a listener beyond loopback,

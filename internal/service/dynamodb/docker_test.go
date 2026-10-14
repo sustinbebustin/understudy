@@ -136,13 +136,9 @@ func scopeOf(t *testing.T, account, region string) aws.Scope {
 // from the others, ARNs name the caller's scope, and the container carries
 // understudy's labels until Stop removes it (ADR 0014).
 func TestLocalIsolatesAccountsAndRegions(t *testing.T) {
-	configtest.DynamoDBLicence(t)
 	d := engine(t)
 	own := ownership(t)
-	m, err := ddblocal.New(ddblocal.Config{
-		Docker: d, Licence: ddblocal.Accepted{Digest: ddblocal.Digest},
-		Labels: docker.Labels{Ownership: own, Test: true},
-	})
+	m, err := ddblocal.New(ddblocal.Config{Docker: d, Labels: docker.Labels{Ownership: own, Test: true}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,27 +210,5 @@ func TestLocalIsolatesAccountsAndRegions(t *testing.T) {
 	if aerr != nil || resp.Status != http.StatusBadRequest ||
 		string(resp.Body) != `{"__type":"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException","message":"Requested resource not found: Table: Missing not found"}` {
 		t.Errorf("DescribeTable of a missing table = %d %s %v", resp.Status, resp.Body, aerr)
-	}
-}
-
-// TestLicenceGateBeforeAnyPull: without acceptance the proxy answers 501
-// with the notice naming the flag, and the daemon is never asked to pull
-// or run anything.
-func TestLicenceGateBeforeAnyPull(t *testing.T) {
-	d := engine(t)
-	own := ownership(t)
-	m, err := ddblocal.New(ddblocal.Config{Docker: d, Licence: ddblocal.AwaitingLicence{}, Labels: docker.Labels{Ownership: own, Test: true}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	rk, _ := newRealKernel(t, m)
-	_, aerr := send(t, rk, scopeOf(t, "111111111111", "us-east-1"), dynamodbapi.OpListTablesRaw, `{}`)
-	if aerr == nil || aerr.ID.Status != http.StatusNotImplemented || aerr.Message != ddblocal.Notice() ||
-		!strings.Contains(aerr.Message, "start understudy with --accept-dynamodb-local-license or set UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1") {
-		t.Fatalf("ListTables = %+v, want 501 with the notice", aerr)
-	}
-	left, err := d.ContainerList(t.Context(), map[string]string{docker.LabelManaged: "true", docker.LabelOwner: own.Owner})
-	if err != nil || len(left) != 0 {
-		t.Errorf("containers = %v, %v; want none", left, err)
 	}
 }

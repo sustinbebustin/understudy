@@ -208,9 +208,9 @@ func (b *syncBuffer) String() string {
 }
 
 // The banner names the endpoint, the admin URL, the environment for an
-// SDK, the services with those that cannot serve marked, the DynamoDB
-// Local licence line, and warns when Docker is not there or does not
-// answer and when lambda.network keeps functions from running.
+// SDK, the services with those that cannot serve marked, and warns when
+// Docker is not there or does not answer and when lambda.network keeps
+// functions from running.
 func TestBannerAnnouncesTheEndpoint(t *testing.T) {
 	// A regular file where the socket should be is there, but answers
 	// nothing.
@@ -250,7 +250,6 @@ func TestBannerAnnouncesTheEndpoint(t *testing.T) {
 				"endpoint  " + r.endpoint,
 				"admin     " + r.endpoint + "/_understudy/v1/",
 				"export AWS_ENDPOINT_URL=" + r.endpoint,
-				"--accept-dynamodb-local-license",
 			}, tc.want...) {
 				if !strings.Contains(banner, want) {
 					t.Errorf("banner lacks %q:\n%s", want, banner)

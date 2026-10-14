@@ -72,7 +72,7 @@ func Defaults(p Placement) Config {
 		},
 		SQS:      SQS{DeletedRecently: DeletedRecentlyIgnore},
 		IAM:      IAM{AssumeRole: AssumeRoleStrict},
-		DynamoDB: DynamoDB{Licence: AwaitingLicence{}, Registry: RegistryDockerHub, MemoryLimit: DefaultDynamoDBMemory},
+		DynamoDB: DynamoDB{Mode: DynamoDBEnabled{}, Registry: RegistryDockerHub, MemoryLimit: DefaultDynamoDBMemory},
 		Journal:  Journal{Capacity: DefaultJournalCapacity, MaxBytes: DefaultJournalMaxBytes},
 		Log:      Log{Level: slog.LevelInfo, Format: LogText},
 	}

@@ -48,9 +48,6 @@ func manager(t *testing.T, d *dockertest.Daemon, cfg ddblocal.Config) *ddblocal.
 		cfg.Docker = d.Client(t)
 	}
 	cfg.Labels = docker.Labels{Ownership: docker.Ownership{Instance: "inst1", Owner: "owner1"}, Test: true}
-	if cfg.Licence == nil {
-		cfg.Licence = ddblocal.Accepted{Digest: ddblocal.Digest}
-	}
 	m, err := ddblocal.New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -61,29 +58,6 @@ func manager(t *testing.T, d *dockertest.Daemon, cfg ddblocal.Config) *ddblocal.
 		}
 	})
 	return m
-}
-
-// TestStartWithoutLicencePullsNothing: until the licence is accepted for
-// the pinned digest, the daemon is never asked for anything (ADR 0014).
-func TestStartWithoutLicencePullsNothing(t *testing.T) {
-	for _, l := range []ddblocal.Licence{ddblocal.AwaitingLicence{}, ddblocal.Disabled{}, ddblocal.Accepted{Digest: "sha256:0000"}} {
-		d := daemon(t)
-		m := manager(t, d, ddblocal.Config{Licence: l})
-		err := m.Start(t.Context())
-		le, ok := errors.AsType[*ddblocal.LicenceError](err)
-		if !ok {
-			t.Fatalf("Start with %#v = %v, want *LicenceError", l, err)
-		}
-		if le.Licence != l {
-			t.Errorf("LicenceError.Licence = %#v, want %#v", le.Licence, l)
-		}
-		if reqs := d.Requests(); len(reqs) != 0 {
-			t.Errorf("Start with %#v sent %d daemon requests, want none: %v", l, len(reqs), reqs)
-		}
-		if _, ok := m.Endpoint(); ok {
-			t.Errorf("Endpoint after a refused Start reports a running container")
-		}
-	}
 }
 
 // TestStartFallsBackToECRAndRemovesAContainerThatExits: Docker Hub fails,

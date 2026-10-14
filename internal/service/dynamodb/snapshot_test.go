@@ -188,7 +188,7 @@ func TestImportLateRefusesUnreadableSectionsFirst(t *testing.T) {
 
 // TestResetWithoutTablesNeverStartsLocal: a reset of a scope the shim
 // recorded no table in sends Local nothing, so a server whose DynamoDB
-// licence is not accepted resets cleanly.
+// Local cannot run resets cleanly.
 func TestResetWithoutTablesNeverStartsLocal(t *testing.T) {
 	runWith(t, nil, func(h *harness) {
 		if err := h.svc.ResetLate(h.Context(), kernel.ResetScope{}); err != nil {

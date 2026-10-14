@@ -3,19 +3,17 @@
 # fresh data directory, run the boto3 conformance suite against it through
 # scripts/sealed, then stop it and remove the containers it started.
 #
-#   UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/python-boto3/run.sh
-#                                                      # accept the DynamoDB Local licence; both environments
+#   conformance/python-boto3/run.sh                    # both environments
 #   CONFORMANCE_DYNAMODB=0 conformance/python-boto3/run.sh
 #                                                      # skip DynamoDB's tests, run the rest
-#   CONFORMANCE_DYNAMODB=0 conformance/python-boto3/run.sh -k sqs -x
-#                                                      # extra arguments go to pytest
-#   SUITE_GROUPS=modern CONFORMANCE_DYNAMODB=0 conformance/python-boto3/run.sh
+#   conformance/python-boto3/run.sh -k sqs -x          # extra arguments go to pytest
+#   SUITE_GROUPS=modern conformance/python-boto3/run.sh
 #                                                      # modern | legacy-query | "modern legacy-query"
 #
-# Exactly one of the two DynamoDB variables must be set; without either, or
-# with both, run.sh exits 2 before building. Serve reads the licence variable
-# from its environment; CONFORMANCE_DYNAMODB=0 reaches the tests, which skip
-# DynamoDB, and DynamoDB Local never starts.
+# DynamoDB runs on DynamoDB Local, pulled on first use; CONFORMANCE_DYNAMODB
+# is unset or 0, and run.sh exits 2 before building on any other value.
+# CONFORMANCE_DYNAMODB=0 reaches the tests, which skip DynamoDB, and
+# DynamoDB Local never starts.
 #
 # SIGV4 (default verify) is passed to serve --sigv4 and to the tests. The
 # signature tests run only under verify; SIGV4=parse runs the rest of the

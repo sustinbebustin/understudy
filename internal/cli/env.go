@@ -316,9 +316,9 @@ func sdkEnv(endpoint, sdk, region, accessKey string) envResult {
 }
 
 // dynamoDBNote says why the server has DynamoDB Local disabled: Docker,
-// or else its licence, whose line the server gives already naming
-// DynamoDB. It is empty when no server answers quickly or DynamoDB Local
-// is not disabled.
+// or else the server's own reason, such as its configuration turning
+// DynamoDB off. It is empty when no server answers quickly or DynamoDB
+// Local is not disabled.
 func (r *runner) dynamoDBNote(ctx context.Context) string {
 	c, err := r.client()
 	if err != nil {

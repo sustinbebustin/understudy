@@ -76,8 +76,8 @@ type suite struct {
 var env *suite
 
 // dynamoDBOptedOut reports whether the caller left DynamoDB out of the run
-// (run.sh's CONFORMANCE_DYNAMODB=0). understudy then runs without the
-// DynamoDB Local licence, so a DynamoDB call would answer 501.
+// (run.sh's CONFORMANCE_DYNAMODB=0): the pipeline then has no lock table,
+// and DynamoDB Local is never started.
 func dynamoDBOptedOut() bool { return os.Getenv("CONFORMANCE_DYNAMODB") == "0" }
 
 // requireDynamoDB skips a test that touches DynamoDB, directly or through a

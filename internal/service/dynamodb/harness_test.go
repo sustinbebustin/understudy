@@ -155,7 +155,7 @@ type neighbour struct {
 var withKMS = neighbour{api: kmsapi.Service, build: func(k *kerneltest.K) { kms.New(k.Deps(kmsapi.Service()), kms.Options{}) }}
 
 // runWith runs fn against the service over local; a nil local builds the
-// service without one, as a server that never accepted the licence does.
+// service without one, as a server with DynamoDB turned off answers.
 func runWith(t *testing.T, local *fakeLocal, fn func(h *harness), others ...neighbour) {
 	t.Helper()
 	services := make([]*registry.Service, 0, 1+len(others))

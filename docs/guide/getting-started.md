@@ -18,7 +18,7 @@ Lambda functions and DynamoDB need a Docker Engine (`DOCKER_HOST`, else `/var/ru
 understudy serve
 ```
 
-The banner names the endpoint (`http://127.0.0.1:4566`), the admin API, the services and anything that needs attention, such as DynamoDB waiting for its licence. State lives in memory until the process ends; see [snapshots and persistence](snapshots.md) to keep it. Stop it with Ctrl-C: it removes every container it started.
+The banner names the endpoint (`http://127.0.0.1:4566`), the admin API, the services and anything that needs attention, such as Docker not answering. State lives in memory until the process ends; see [snapshots and persistence](snapshots.md) to keep it. Stop it with Ctrl-C: it removes every container it started.
 
 ## Point a client at it
 
@@ -85,7 +85,7 @@ A reset keeps the clock and fault rules unless `--clock` or `--faults` says othe
 understudy doctor
 ```
 
-`doctor` checks the server, the configuration, Docker and its socket, the container networking Lambda will use, whether `*.localhost` names resolve (for virtual-hosted S3 and function URLs), binfmt support for the other CPU architecture, hot-reload directories and the DynamoDB Local licence, and prints a fix for each problem.
+`doctor` checks the server, the configuration, Docker and its socket, the container networking Lambda will use, whether `*.localhost` names resolve (for virtual-hosted S3 and function URLs), binfmt support for the other CPU architecture, hot-reload directories and whether DynamoDB Local can run, and prints a fix for each problem.
 
 ## Exit codes
 

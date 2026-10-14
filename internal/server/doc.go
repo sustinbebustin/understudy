@@ -64,8 +64,9 @@
 //     on any interface, so a LAN peer routing the bridge subnet through
 //     this host would otherwise reach the AWS API (peers.go).
 //   - DynamoDB Local's manager is built at its first start, when the
-//     topology says which network it joins (lazyLocal). With an accepted
-//     licence and the pinned image already present it starts in the
+//     topology says which network it joins (lazyLocal), and that first
+//     start logs ddblocal.Notice, the licence it runs under. With DynamoDB
+//     enabled and the pinned image already present it starts in the
 //     background at serve; otherwise the first DynamoDB call starts it.
 //     Under persistence it stores items under <dir>/dynamodb.
 //   - Containers are owned per data directory: the owner label is a hash

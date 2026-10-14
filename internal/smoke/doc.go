@@ -21,9 +21,10 @@
 //     default account's root, the principal whose policy is asked for.
 //   - The emulator runs with the test's environment minus UNDERSTUDY_* and
 //     AWS_* variables, in an empty working directory, so no configuration
-//     of the machine changes what it does. Only under the docker tag is
-//     UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE passed through: DynamoDB then
-//     lists tables, and answers 501 naming the flag otherwise.
+//     of the machine changes what it does. Without the docker tag it runs
+//     with --docker disabled, so it starts no container and DynamoDB
+//     answers 501 saying it needs Docker; under the docker tag DynamoDB
+//     lists tables through DynamoDB Local.
 //   - The test trusts the TLS listener's self-signed certificate by
 //     reading it from a first handshake, then verifies every request
 //     against it.

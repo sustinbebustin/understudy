@@ -77,7 +77,9 @@ Inside the container understudy listens on `0.0.0.0:4566` without an admin token
 
 ### DynamoDB
 
-DynamoDB is served by AWS's DynamoDB Local, run in Docker and pulled on first use. It is under the Amazon DynamoDB Local License Agreement, not Apache-2.0, and that licence requires an AWS account in good standing. understudy never accepts it for you: until you start it with `--accept-dynamodb-local-license` (or `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1`), DynamoDB calls answer 501 with the licence terms. Every other service works without an AWS account.
+DynamoDB is served by Amazon DynamoDB Local, run in Docker and pulled on first use. understudy logs a one-line notice when it first starts. It runs under the [Amazon DynamoDB Local License Agreement](https://aws.amazon.com/dynamodb/dynamodblocallicense/), not Apache-2.0. That licence requires an AWS account in good standing, which makes DynamoDB the one service that needs an AWS account. To turn DynamoDB off, set `"dynamodb": {"enabled": false}` in the configuration file; its calls then answer 501 and DynamoDB Local is never pulled.
+
+understudy never bundles, mirrors, re-tags, saves, pushes or patches the DynamoDB Local image. It is a local tool for one user, not a hosted service: do not run understudy as a multi-user service with DynamoDB Local behind it.
 
 ## Service coverage
 

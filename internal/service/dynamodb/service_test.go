@@ -16,6 +16,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/service/dynamodb"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb/ddblocal"
 )
 
@@ -34,27 +35,25 @@ func parseError(h *harness, body string) errorBody {
 	return e
 }
 
-// TestLicenceGateAnswers501WithTheNotice: until the licence is accepted,
-// a DynamoDB call answers 501 with the notice, which names the exact flag
-// and environment variable, and nothing reaches Local (ADR 0014). A
-// service built without a Local behaves the same.
-func TestLicenceGateAnswers501WithTheNotice(t *testing.T) {
-	for name, local := range map[string]*fakeLocal{
-		"awaiting":    {startErr: &ddblocal.LicenceError{Licence: ddblocal.AwaitingLicence{}}},
-		"no Local":    nil,
-		"other image": {startErr: &ddblocal.LicenceError{Licence: ddblocal.Accepted{Digest: "sha256:0000"}}},
+// TestDisabledLocalAnswers501WithTheReason: a Local that cannot run here
+// (DynamoDB turned off, or no Docker) answers every DynamoDB call 501 with
+// its reason, and nothing reaches Local. A service built without a Local
+// behaves the same.
+func TestDisabledLocalAnswers501WithTheReason(t *testing.T) {
+	const reason = "The DynamoDB service is disabled by the understudy configuration."
+	for name, tc := range map[string]struct {
+		local *fakeLocal
+		want  string
+	}{
+		"disabled": {local: &fakeLocal{startErr: &dynamodb.DisabledError{Reason: reason}}, want: reason},
+		"no Local": {want: "no DynamoDB Local"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			runWith(t, local, func(h *harness) {
+			runWith(t, tc.local, func(h *harness) {
 				got := h.call("ListTables", `{}`)
 				e := parseError(h, got.Body)
-				if got.Status != http.StatusNotImplemented || e.Type != "NotImplemented" || e.Message != ddblocal.Notice() {
-					h.Fatalf("ListTables = %d %s, want 501 with the notice", got.Status, got.Body)
-				}
-				for _, want := range []string{"--accept-dynamodb-local-license", "UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1"} {
-					if !strings.Contains(e.Message, want) {
-						h.Errorf("the 501 does not name %s", want)
-					}
+				if got.Status != http.StatusNotImplemented || e.Type != "NotImplemented" || !strings.Contains(e.Message, tc.want) {
+					h.Fatalf("ListTables = %d %s, want 501 saying %q", got.Status, got.Body, tc.want)
 				}
 				if seen := h.local.requests(); len(seen) != 0 {
 					h.Errorf("Local received %d requests", len(seen))

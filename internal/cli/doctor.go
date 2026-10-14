@@ -53,7 +53,7 @@ func desktopSharedPaths() []string {
 }
 
 func doctorCmd() *command {
-	return leaf("doctor", "Check what understudy needs from this machine: Docker, networking, *.localhost, binfmt, hot-reload paths, the DynamoDB Local licence",
+	return leaf("doctor", "Check what understudy needs from this machine: Docker, networking, *.localhost, binfmt, hot-reload paths, DynamoDB",
 		"doctor [--config FILE]",
 		[]string{"understudy doctor", "understudy doctor --output json"},
 		func(fs *flag.FlagSet) action {
@@ -108,7 +108,7 @@ func (r *runner) doctor(ctx context.Context, configArgs []string) doctorReport {
 	for _, c := range hotReloadChecks(host.HotReload, topo) {
 		add(c)
 	}
-	add(licenceCheck(host.Licence, health))
+	add(dynamoDBCheck(host.DynamoDB, health))
 	return report
 }
 
@@ -261,56 +261,30 @@ func underAny(dir string, roots []string) bool {
 	return false
 }
 
-// licenceCheck reports the DynamoDB Local licence: the server's state when
-// one answers, else the configuration's. With Docker up, the server
-// disables DynamoDB Local only for its licence setting, awaiting or
-// disabled, so the configuration's licence tells the two apart; a degraded
-// DynamoDB Local is a start failure, not a licence matter.
-func licenceCheck(l config.Licence, h *admin.Health) check {
-	accept := "start with --" + config.AcceptLicenceFlag + " or set " + config.AcceptLicenceEnv + "=1, after reading the Amazon DynamoDB Local License Agreement"
+// dynamoDBCheck reports whether DynamoDB Local can run: the server's state
+// when one answers, else the configuration's. With Docker up, the server
+// disables DynamoDB Local only when its configuration turns DynamoDB off; a
+// degraded DynamoDB Local is a start failure the server log explains.
+func dynamoDBCheck(m config.DynamoDBMode, h *admin.Health) check {
 	if h != nil && h.DynamoDBLocal.Status != "" {
-		c := check{Name: "dynamodb licence", Status: checkOK, Detail: "server reports DynamoDB Local " + string(h.DynamoDBLocal.Status)}
+		c := check{Name: "dynamodb", Status: checkOK, Detail: "server reports DynamoDB Local " + string(h.DynamoDBLocal.Status)}
 		if h.DynamoDBLocal.Reason != "" {
 			c.Detail += ": " + h.DynamoDBLocal.Reason
 		}
 		switch {
 		case h.DynamoDBLocal.Status == admin.Enabled:
 		case h.Docker.Status != admin.Enabled:
-			// DynamoDB Local is down because Docker is, whatever the licence.
+			// DynamoDB Local is down because Docker is.
 			c.Status, c.Fix = checkWarn, "start Docker, or set UNDERSTUDY_DOCKER to its unix:// socket, and restart understudy"
-		case h.DynamoDBLocal.Status != admin.Disabled:
-			c.Status = checkSkip
 		default:
-			c.Status, c.Fix = serverLicence(l, accept)
+			c.Status = checkSkip
 		}
 		return c
 	}
-	switch l.(type) {
-	case config.DynamoDBDisabled:
-		return check{Name: "dynamodb licence", Status: checkSkip, Detail: "DynamoDB is disabled by configuration"}
-	case config.LicenceAccepted:
-		return check{Name: "dynamodb licence", Status: checkOK, Detail: "accepted by this configuration"}
-	case config.AwaitingLicence:
+	if _, off := m.(config.DynamoDBDisabled); off {
+		return check{Name: "dynamodb", Status: checkSkip, Detail: "DynamoDB is disabled by configuration"}
 	}
-	return check{
-		Name: "dynamodb licence", Status: checkWarn,
-		Detail: "DynamoDB stays disabled until the DynamoDB Local licence is accepted (a recorded acceptance under --persist also counts)",
-		Fix:    accept,
-	}
-}
-
-// serverLicence is the verdict on a server that disabled DynamoDB Local
-// with Docker up: skipped when this configuration disables DynamoDB too,
-// else a warning, since the server waits for an acceptance it lacks.
-func serverLicence(l config.Licence, accept string) (status checkStatus, fix string) {
-	switch l.(type) {
-	case config.DynamoDBDisabled:
-		return checkSkip, ""
-	case config.LicenceAccepted:
-		return checkWarn, "the server runs without the acceptance this configuration gives; restart it with this configuration, or " + accept
-	case config.AwaitingLicence:
-	}
-	return checkWarn, accept
+	return check{Name: "dynamodb", Status: checkOK, Detail: "DynamoDB Local is pulled and started on first use"}
 }
 
 func writeChecks(w io.Writer, checks []check) error {

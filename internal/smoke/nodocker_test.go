@@ -4,8 +4,9 @@ package smoke_test
 
 import "testing"
 
-// dockerTests is false without the docker tag: the workload creates the
-// function but does not invoke it, and DynamoDB answers 501.
+// dockerTests is false without the docker tag: the emulator runs with
+// Docker disabled, the workload creates the function but does not invoke
+// it, and DynamoDB answers 501.
 const dockerTests = false
 
 // containerInstance is never reached without the docker tag, where the

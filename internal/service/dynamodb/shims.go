@@ -197,7 +197,7 @@ func (s *Service) alter(c *kernel.Call, name string, missing *awserr.Error, fn f
 }
 
 // answered is the handler of an operation the shims answer from their own
-// state: after the checks a forwarded call gets and the licence gate, the
+// state: after the checks a forwarded call gets and Local's start, the
 // output of fn is the answer, with the x-amz-crc32 header every DynamoDB
 // answer carries. Local never sees the call.
 func answered[In any](s *Service, fn func(ctx context.Context, c *kernel.Call, in *In) (smithy.Serializable, *awserr.Error)) kernel.RawHandler[In] {

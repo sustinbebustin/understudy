@@ -6,11 +6,10 @@ Nothing here touches AWS. Allow about an hour; the first run pulls the Lambda ba
 
 ## Expected failures
 
-Three outcomes are known before you start. Any failure not listed here is a finding.
+Two outcomes are known before you start. Any failure not listed here is a finding.
 
-- **DynamoDB.** Until `internal/docker` has port bindings, understudy reaches DynamoDB Local at its default-bridge address, and Docker Desktop does not route to that address (ADR 0014, wave 6 amendment). Tests in which understudy on the host reaches a real DynamoDB Local container (for example `TestLocalIsolatesAccountsAndRegions`) should fail. Check whether the fix has landed: `grep -rq PortBindings internal/docker && echo "port bindings present" || echo "DynamoDB expected to fail"`.
+- **DynamoDB.** Until `internal/docker` has port bindings, understudy reaches DynamoDB Local at its default-bridge address, and Docker Desktop does not route to that address (ADR 0014, wave 6 amendment). Tests in which understudy on the host reaches a real DynamoDB Local container (for example `TestLocalIsolatesAccountsAndRegions`, and the DynamoDB step of the smoke test's host run) should fail. Check whether the fix has landed: `grep -rq PortBindings internal/docker && echo "port bindings present" || echo "DynamoDB expected to fail"`.
 - **`TestDetectOnThisHost`** (`internal/topology`) asserts a Linux CI host and fails on Docker Desktop by design. Its `detected ...` log line is the result this run needs.
-- **The DynamoDB Local licence.** The docker-tagged DynamoDB tests pull and run DynamoDB Local only with `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1`, which accepts its licence (see `dynamodb-local-licence.md`); without it they skip (step 5).
 
 ## 1. Set up the Mac
 
@@ -71,7 +70,7 @@ go test -race -count=1 -timeout 30m -tags docker ./... 2>&1 | tee "$OUT/docker-s
 go test -count=1 -v -tags docker -run TestDetectOnThisHost ./internal/topology 2>&1 | tee "$OUT/topology.log"
 ```
 
-The tests that pull DynamoDB Local (`TestLocalIsolatesAccountsAndRegions`, `TestLateExportResetImportOnTheRealImage`, `TestDynamoDBLocalMakesNoNetworkAttempts`, `TestShutdownDuringTheBackgroundStartLeavesNoContainer`) skip unless you accept its licence: put `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` in front of the first command only if you do.
+The tests that pull DynamoDB Local (`TestLocalIsolatesAccountsAndRegions`, `TestLateExportResetImportOnTheRealImage`, `TestDynamoDBLocalMakesNoNetworkAttempts`, `TestShutdownDuringTheBackgroundStartLeavesNoContainer`) run by default. The ones that reach Local from the host are expected to fail until port bindings land (Expected failures).
 
 The Lambda tests (`internal/service/lambda`, `internal/service/lambda/pool`) are the core of this run. They start function containers through Docker Desktop, hand them the probed `host.docker.internal` address, and need the functions' SDK calls to reach understudy on the host's loopback.
 
@@ -82,9 +81,7 @@ just smoke 2>&1 | tee "$OUT/smoke.log"
 go test -race -count=1 -timeout 30m -tags 'smoke docker' ./internal/smoke 2>&1 | tee "$OUT/smoke-docker.log"
 ```
 
-The second command invokes a `provided.al2023` function from the host. It then builds the image and repeats the workload against understudy inside a container with the socket mounted (the in-container topology). Without `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1`, DynamoDB answers 501 and the test expects that.
-
-Optional, only if you accept the licence: rerun the second command with `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` in front, and save the log as `smoke-docker-ddb.log`. Expect the host run's DynamoDB step to fail (bridge address). The in-container run should pass, because there DynamoDB Local joins understudy's network and is addressed by container IP.
+The second command invokes a `provided.al2023` function from the host. It then builds the image and repeats the workload against understudy inside a container with the socket mounted (the in-container topology). Both runs list DynamoDB tables through DynamoDB Local. Expect the host run's DynamoDB step to fail (bridge address). The in-container run should pass, because there DynamoDB Local joins understudy's network and is addressed by container IP.
 
 ## 7. Examples
 
@@ -116,10 +113,10 @@ If the create call already fails, the start call answers "No such container"; th
 
 ## 9. Optional: the end-to-end pipeline
 
-Run this only if the `grep` under "Expected failures" found port bindings. Every worker in the pipeline takes a DynamoDB lock, so this run needs DynamoDB Local. Setting `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` means you, the person running it, accept the Amazon DynamoDB Local License Agreement for the run; `run.sh` never accepts it for you:
+Run this only if the `grep` under "Expected failures" found port bindings. Every worker in the pipeline takes a DynamoDB lock, so this run needs DynamoDB Local, which it starts by default:
 
 ```sh
-UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/e2e-pipeline/run.sh 2>&1 | tee "$OUT/e2e.log"
+conformance/e2e-pipeline/run.sh 2>&1 | tee "$OUT/e2e.log"
 ```
 
 ## 10. Clean up
