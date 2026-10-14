@@ -449,9 +449,13 @@ func TestESMFunctionErrorFailsWholeBatch(t *testing.T) {
 		if visible, inFlight := h.depth(url); visible != 0 || inFlight != 0 {
 			h.Fatalf("an ignored failure response left %d visible and %d in flight, want none", visible, inFlight)
 		}
-		h.send(url, "boom", "fine")
+		// A second queue, filled before it is mapped, so one batch holds both
+		// messages: sent to a polled queue, "boom" could be received alone.
+		failURL, failARN := h.queue("payments", nil)
+		h.send(failURL, "boom", "fine")
+		call(h.harness, lambdaapi.OpCreateEventSourceMapping, &lambdaapi.CreateEventSourceMappingInput{FunctionName: "worker", EventSourceArn: new(failARN)})
 		h.quiesce()
-		if visible, inFlight := h.depth(url); visible != 0 || inFlight != 2 {
+		if visible, inFlight := h.depth(failURL); visible != 0 || inFlight != 2 {
 			h.Fatalf("a function error left %d visible and %d in flight, want both in flight", visible, inFlight)
 		}
 	})
