@@ -2,7 +2,7 @@
 
 What only the owner can do before the first public tag, as of 2026-10-14 (local `main` with DynamoDB Local on by default). Each item needs credentials, a machine the agents do not have, or an externally visible act that agents never perform. Engineering follow-ups, including the ones DEFERRED.md marks "needs a decision", are not here: an agent can take those from [DEFERRED.md](DEFERRED.md).
 
-Suggested order: item 1 first; item 2 is optional and can wait. Decide 3 before 4, and do 4 before 5 and 6.
+Suggested order: 4, then 5; item 1 before 6; item 2 is optional and can wait. Item 3 is decided.
 
 ## 1. The macOS run (ARCHITECTURE.md 25.1)
 
@@ -26,14 +26,13 @@ Suggested order: item 1 first; item 2 is optional and can wait. Decide 3 before 
 
 - **What.** `origin/main` already holds 14 commits, up to `6593abc` (2026-10-10). Several of them redo the same work under similar titles: four "generator slice" commits and three "leaf packages review fixes". The repository is private today. Choose one: keep the history, squash the published commits into one, or curate them into a few commits.
 - **Why the owner.** Any rewrite needs a force push to a shared remote. It is cheap while the repository is private and you are its only author. After it goes public, it breaks every clone and fork.
-- **Next step.** Decide the shape. While doing so, check two things that a public history fixes for good: the author identity on all 34 commits (`sustinbebustin <999@sustinbebustin.com>`), and whether the agent-facing documents (`docs/brief/`, `docs/plan/`) should appear from the first commit. An agent can then build the rewritten branch locally for you to review. It never pushes.
-- **Unblocks.** Item 4, and with it item 5.
+- **Decided 2026-10-14: keep the history, no rewrite.** A scan of every commit found no credential: the one leaked `aws login` token was removed locally before any push, and the only access key IDs left are documented test vectors. All 73 commits carry the one identity `sustinbebustin <999@sustinbebustin.com>`. `docs/brief/` and `docs/plan/` stay public, because they record why the design is what it is. A rewrite would cost a force push and lose that record for no gain beyond tidier titles.
 
 ## 4. Push
 
-- **What.** Push local `main`, which is 20 commits ahead of `origin/main`, or the rewritten branch from item 3.
+- **What.** Push local `main`, which is about 60 commits ahead of `origin/main`. It is a fast-forward; no force push is needed.
 - **Why the owner.** Agents never push. On 2026-10-14 this machine's SSH key was also refused by GitHub (`git ls-remote origin`: `Permission denied (publickey)`), so push from a session where your credentials work.
-- **Next step.** Without a rewrite, run `git push origin main`. With one, run `git push --force-with-lease origin main` from the reviewed branch. Then watch the first `ci` workflow run (`gh run watch`). It is the first CI run of DynamoDB Local, with you as the licensee (ADR 0014 amendment of 2026-10-14).
+- **Next step.** Run `git push origin main`, then watch the first `ci` workflow run (`gh run watch`). It is the first CI run of DynamoDB Local, with you as the licensee (ADR 0014 amendment of 2026-10-14).
 - **Unblocks.** The first CI run on GitHub. DEFERRED.md wave 1 ("CI not run on GitHub") records that the workflow has only been checked locally, so expect fixes from that first run.
 
 ## 5. Make the repository public
