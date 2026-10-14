@@ -14,7 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 )
 
-// Research: docs/research/phase1/secrets-logs-events-alarms.md section 2,
+// Research: docs/research/secrets-logs-events-alarms.md section 2,
 // error-matrix.md 5.8.
 
 // createSecret creates a secret holding value and force-deletes it when

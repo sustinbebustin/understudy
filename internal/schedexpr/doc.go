@@ -1,5 +1,5 @@
 // Package schedexpr parses EventBridge rate and cron schedule expressions and
-// computes the next fire time (docs/research/phase1/secrets-logs-events-alarms.md
+// computes the next fire time (docs/research/secrets-logs-events-alarms.md
 // section 4.2).
 //
 // Parse returns a Rate or a Cron; every invalid expression returns an Error

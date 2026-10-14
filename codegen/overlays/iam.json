@@ -30,7 +30,7 @@
         },
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^[a-z0-9]([a-z0-9]|-(?!-)){1,61}[a-z0-9]$ is 3 to 63 lowercase letters, digits and hyphens, alphanumeric at both ends, with no two hyphens in a row"
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^[a-z0-9]([a-z0-9]|-(?!-)){1,61}[a-z0-9]$ is 3 to 63 lowercase letters, digits and hyphens, alphanumeric at both ends, with no two hyphens in a row"
         }
       }
     },
@@ -58,7 +58,7 @@
         "smithy.api#input": {},
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/iam-sts-kms.md#42-assumerole: AssumeRole names the role by ARN"
+          "source": "docs/research/iam-sts-kms.md#42-assumerole: AssumeRole names the role by ARN"
         }
       }
     },
@@ -71,7 +71,7 @@
         "smithy.api#output": {},
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/iam-sts-kms.md#42-assumerole: the session needs the role's id for AssumedRoleId and its MaxSessionDuration for the DurationSeconds check"
+          "source": "docs/research/iam-sts-kms.md#42-assumerole: the session needs the role's id for AssumedRoleId and its MaxSessionDuration for the DurationSeconds check"
         }
       }
     }

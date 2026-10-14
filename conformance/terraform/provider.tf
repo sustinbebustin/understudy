@@ -20,7 +20,7 @@ terraform {
 # The endpoint comes from AWS_ENDPOINT_URL, which scripts/sealed sets to the
 # loopback understudy listener, and the credentials from the dummy
 # AWS_ACCESS_KEY_ID it sets. The skip flags are the ones the provider documents
-# for custom endpoints (docs/research/phase1/tf-messaging.md 1.2); path-style S3
+# for custom endpoints (docs/research/tf-messaging.md 1.2); path-style S3
 # is needed because the endpoint is an IP literal.
 provider "aws" {
   region = var.region

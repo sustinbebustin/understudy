@@ -3,7 +3,7 @@
 // The suite drives a running understudy through the real AWS SDK for Go v2
 // clients with their default settings, and asserts the behavior AWS
 // documents and that recordings against real AWS show, as collected in
-// docs/research/phase1. It never asserts an understudy-specific quirk.
+// docs/research. It never asserts an understudy-specific quirk.
 //
 // The tests live in one file per service so that a fixer can own one
 // service at a time. Run them through run.sh, which builds understudy,

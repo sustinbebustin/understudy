@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # EventBridge (default bus): rules, schedule expressions, event patterns,
 # targets, input shaping, PutEvents and delivery to SQS and Lambda targets.
-# Arbiter: docs/research/phase1/secrets-logs-events-alarms.md section 4 and
-# docs/research/phase1/lambda-events.md section 5.
+# Arbiter: docs/research/secrets-logs-events-alarms.md section 4 and
+# docs/research/lambda-events.md section 5.
 
 # shellcheck source=../lambda-helpers.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lambda-helpers.sh"

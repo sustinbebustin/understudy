@@ -41,7 +41,7 @@ func timestampWindow() fidelity.Switch[string] {
 		Name:  "cloudwatch.put-metric-data.timestamp-window",
 		Value: "wall-or-emulator",
 		Label: evidence.Inferred,
-		Ref:   "docs/research/phase1/secrets-logs-events-alarms.md#52-putmetricdata",
+		Ref:   "docs/research/secrets-logs-events-alarms.md#52-putmetricdata",
 	}
 }
 
@@ -54,7 +54,7 @@ func startRounding() fidelity.Switch[string] {
 		Name:  "cloudwatch.get-metric-data.start-rounding",
 		Value: "by-age",
 		Label: evidence.AWSDoc,
-		Ref:   "docs/research/phase1/secrets-logs-events-alarms.md#53-getmetricdata",
+		Ref:   "docs/research/secrets-logs-events-alarms.md#53-getmetricdata",
 	}
 }
 

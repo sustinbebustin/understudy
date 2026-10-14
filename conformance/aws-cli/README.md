@@ -1,6 +1,6 @@
 # AWS CLI conformance suite
 
-Smoke tests that drive understudy with the AWS CLI v2 and assert what AWS documents. The arbiter is `docs/research/phase1/`, never understudy's behavior: a failing test is either an understudy gap or a wrong reading of the research, and either is worth a look.
+Smoke tests that drive understudy with the AWS CLI v2 and assert what AWS documents. The arbiter is `docs/research/`, never understudy's behavior: a failing test is either an understudy gap or a wrong reading of the research, and either is worth a look.
 
 ## Run it
 

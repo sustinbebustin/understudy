@@ -1,4 +1,4 @@
-"""CloudWatch Logs (docs/research/phase1/secrets-logs-events-alarms.md section 3 and
+"""CloudWatch Logs (docs/research/secrets-logs-events-alarms.md section 3 and
 logs-filter-patterns.md): groups, streams, PutLogEvents, GetLogEvents, FilterLogEvents with the
 real pattern syntax, retention on the emulator clock and tags."""
 

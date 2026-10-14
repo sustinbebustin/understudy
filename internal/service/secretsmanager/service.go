@@ -118,7 +118,7 @@ func (*Service) Switches() []fidelity.Entry {
 			Name:  "secretsmanager.list-secrets.filter-combination",
 			Value: "and-across-filters,or-across-values",
 			Label: evidence.Inferred,
-			Ref:   "docs/research/phase1/secrets-logs-events-alarms.md#24-operations-request-and-response-facts",
+			Ref:   "docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts",
 		}.Entry(),
 		fidelity.Switch[string]{
 			Name:  "secretsmanager.list-secrets.all-filter-match",
@@ -130,13 +130,13 @@ func (*Service) Switches() []fidelity.Entry {
 			Name:  "secretsmanager.last-accessed-date.granularity",
 			Value: "day",
 			Label: evidence.AWSDoc,
-			Ref:   "docs/research/phase1/secrets-logs-events-alarms.md#24-operations-request-and-response-facts",
+			Ref:   "docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts",
 		}.Entry(),
 		fidelity.Switch[string]{
 			Name:  "secretsmanager.restore.not-scheduled",
 			Value: "no-op",
 			Label: evidence.Inferred,
-			Ref:   "docs/research/phase1/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven",
+			Ref:   "docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven",
 		}.Entry(),
 	}
 }

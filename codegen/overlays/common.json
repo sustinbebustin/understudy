@@ -368,7 +368,7 @@
           },
           {
             "label": "inferred",
-            "source": "docs/research/phase1/error-matrix.md 3: the Query template lists no such code; the Query code drops the Exception suffix, as the Query codes of the auth family do",
+            "source": "docs/research/error-matrix.md 3: the Query template lists no such code; the Query code drops the Exception suffix, as the Query codes of the auth family do",
             "covers": ["aws.protocols#awsQueryError"]
           }
         ]

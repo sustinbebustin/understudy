@@ -1,4 +1,4 @@
-"""SNS (docs/research/phase1/sns.md): topics, subscriptions, Publish and PublishBatch, filter
+"""SNS (docs/research/sns.md): topics, subscriptions, Publish and PublishBatch, filter
 policies in both scopes, raw and enveloped delivery to SQS, FIFO topics and subscription DLQs."""
 
 from __future__ import annotations

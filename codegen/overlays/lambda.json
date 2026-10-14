@@ -95,7 +95,7 @@
         "dev.understudy#validationError": {"enumPolicy": "handler"},
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/lambda-api.md#42-runtime-enum-and-deprecation: the deprecation text covers creating or updating functions, so the update answers like the create"
+          "source": "docs/research/lambda-api.md#42-runtime-enum-and-deprecation: the deprecation text covers creating or updating functions, so the update answers like the create"
         }
       }
     },
@@ -127,7 +127,7 @@
         "dev.understudy#patternValidator": {"allOf": ["^[0-9]*[a-zA-Z\\-_][a-zA-Z0-9\\-_]*$"]},
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!^[0-9]+$)([a-zA-Z0-9-_]+)$ is one or more of the class with at least one non-digit"
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!^[0-9]+$)([a-zA-Z0-9-_]+)$ is one or more of the class with at least one non-digit"
         }
       }
     },
@@ -137,7 +137,7 @@
         "dev.understudy#patternValidator": {"allOf": ["^[_a-zA-Z0-9][^$]*$"], "noneOf": ["^system\\."]},
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(^(?!(system\\x2e)))(^[_a-zA-Z0-9])([^$]*)$ is a word character, then anything but $, not starting with system."
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(^(?!(system\\x2e)))(^[_a-zA-Z0-9])([^$]*)$ is a word character, then anything but $, not starting with system."
         }
       }
     },
@@ -149,7 +149,7 @@
         },
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: the qualifier (?!\\d+$)[0-9a-zA-Z-_]+ is one or more of the class with at least one non-digit"
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: the qualifier (?!\\d+$)[0-9a-zA-Z-_]+ is one or more of the class with at least one non-digit"
         }
       }
     },
@@ -159,7 +159,7 @@
         "dev.understudy#patternValidator": {"allOf": ["^[0-9]*[a-zA-Z\\-_][0-9a-zA-Z\\-_]*$"]},
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^((?!^\\d+$)^[0-9a-zA-Z-_]+$)$ is one or more of the class with at least one non-digit"
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^((?!^\\d+$)^[0-9a-zA-Z-_]+$)$ is one or more of the class with at least one non-digit"
         }
       }
     },
@@ -182,7 +182,7 @@
         "dev.understudy#patternValidator": {"allOf": ["^([0-9A-Za-z.\\-_]*[0-9A-Za-z\\-_])?$"]},
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^[0-9A-Za-z\\.\\-_]*(?<!\\.)$ is the class repeated, not ending in a dot"
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^[0-9A-Za-z\\.\\-_]*(?<!\\.)$ is the class repeated, not ending in a dot"
         }
       }
     }

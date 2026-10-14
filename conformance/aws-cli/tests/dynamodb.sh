@@ -2,7 +2,7 @@
 # DynamoDB: table lifecycle, items, conditional writes (the lock-table
 # workload), queries, transactions, TTL, tags, continuous backups and
 # account/region isolation.
-# Arbiter: docs/research/phase1/dynamodb-local.md (sections 3 to 7) for the
+# Arbiter: docs/research/dynamodb-local.md (sections 3 to 7) for the
 # shimmed surface, and the DynamoDB API reference it cites for the rest.
 #
 # DynamoDB runs on DynamoDB Local, pulled on first use; every test skips

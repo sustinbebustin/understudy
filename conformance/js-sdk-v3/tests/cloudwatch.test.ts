@@ -1,6 +1,6 @@
 // CloudWatch metrics and alarms, through @aws-sdk/client-cloudwatch (the JS
 // SDK speaks awsJson1_0 with awsQueryCompatible errors).
-// Expected behavior: docs/research/phase1/secrets-logs-events-alarms.md section 5.
+// Expected behavior: docs/research/secrets-logs-events-alarms.md section 5.
 
 import { describe, expect, test } from "bun:test";
 import {

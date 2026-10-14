@@ -15,7 +15,7 @@ import (
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
-// Research: docs/research/phase1/secrets-logs-events-alarms.md section 4,
+// Research: docs/research/secrets-logs-events-alarms.md section 4,
 // matching-engines.md, error-matrix.md 5.12.
 
 // putRule creates or replaces a rule on the default bus and, when the test

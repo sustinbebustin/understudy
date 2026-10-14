@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # KMS: keys, aliases, key policies, rotation, tags, key states and scheduled
 # deletion, Encrypt/Decrypt/GenerateDataKey/ReEncrypt/GenerateRandom.
-# Arbiter: docs/research/phase1/iam-sts-kms.md section 5.
+# Arbiter: docs/research/iam-sts-kms.md section 5.
 
 # mkkey [create-key args...]: sets KEY_ID and KEY_ARN.
 mkkey() {

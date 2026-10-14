@@ -56,7 +56,7 @@ func pendingInListings() fidelity.Switch[string] {
 		Name:  "sns.listing.pending-arn",
 		Value: "PendingConfirmation",
 		Label: evidence.Inferred,
-		Ref:   "docs/research/phase1/sns.md#34-listing",
+		Ref:   "docs/research/sns.md#34-listing",
 	}
 }
 
@@ -68,7 +68,7 @@ func fifoSequence() fidelity.Switch[string] {
 		Name:  "sns.fifo.sequence-number",
 		Value: "20-digit-decimal-per-topic",
 		Label: evidence.Inferred,
-		Ref:   "docs/research/phase1/sns.md#43-fifo-publish",
+		Ref:   "docs/research/sns.md#43-fifo-publish",
 	}
 }
 
@@ -80,7 +80,7 @@ func lambdaAttributeTypes() fidelity.Switch[string] {
 		Name:  "sns.lambda.attribute-type",
 		Value: "as-published",
 		Label: evidence.Inferred,
-		Ref:   "docs/research/phase1/sns.md#9-conflicts-between-sources",
+		Ref:   "docs/research/sns.md#9-conflicts-between-sources",
 	}
 }
 
@@ -93,7 +93,7 @@ func fifoDuplicate() fidelity.Switch[string] {
 		Name:  "sns.fifo.duplicate",
 		Value: "fresh-message-id-no-delivery",
 		Label: evidence.Inferred,
-		Ref:   "docs/research/phase1/sns.md#43-fifo-publish",
+		Ref:   "docs/research/sns.md#43-fifo-publish",
 	}
 }
 
@@ -107,7 +107,7 @@ func detachedRetention() fidelity.Switch[time.Duration] {
 		Name:  "sns.delete-topic.detached-retention",
 		Value: 48 * time.Hour,
 		Label: evidence.Inferred,
-		Ref:   "docs/research/phase1/sns.md#22-topic-attributes",
+		Ref:   "docs/research/sns.md#22-topic-attributes",
 	}
 }
 

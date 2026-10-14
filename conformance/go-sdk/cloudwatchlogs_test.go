@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 )
 
-// Research: docs/research/phase1/secrets-logs-events-alarms.md section 3,
+// Research: docs/research/secrets-logs-events-alarms.md section 3,
 // logs-filter-patterns.md, error-matrix.md 5.7.
 
 // createLogGroup creates a log group and deletes it when the test ends.

@@ -1,6 +1,6 @@
 # DynamoDB Local: licence, telemetry and offline behaviour
 
-Closes gap G5 (see [gap-G5.md](gap-G5.md)). Date of research: 2026-10-08. Facts only. Nothing here is legal advice; every legal reading is marked INTERPRETATION and needs a lawyer before the first public release.
+Research item G5: closed for telemetry and offline behaviour; the licence reading still needs counsel. Date of research: 2026-10-08. Facts only. Nothing here is legal advice; every legal reading is marked INTERPRETATION and needs a lawyer before the first public release.
 
 ## Evidence labels
 
@@ -23,7 +23,9 @@ Closes gap G5 (see [gap-G5.md](gap-G5.md)). Date of research: 2026-10-08. Facts 
 | Does it start and serve fully offline with the image already local? | Yes, with `--network none`. One harmless log4j error about the container hostname. | OBSERVED |
 | Does AWS say anything about third-party emulators wrapping Local? | Not in the Customer Agreement, Service Terms, IP License, Site Terms, data privacy FAQ, the DynamoDB Local docs, or either registry page. | SOURCE (absence) |
 | Is use without an AWS account permitted? | The licence text says it is not. | SOURCE |
-| Does that collide with the brief? | Yes, for "no account". See section 5.2. | INTERPRETATION |
+| Does that collide with understudy's product claims? | Yes, for "no account". See section 5.2. | INTERPRETATION |
+
+Claims corrected in place in [dynamodb-local.md](dynamodb-local.md): sections 1.1, 1.4, 2, "Implications" items 1 and 11, and the open-questions list (ECR mirror digest confirmed, environment variable and flag verified, "`false` does not work" caveat added).
 
 ---
 
@@ -255,25 +257,25 @@ Accept and pull? [y/N]    (non-interactive: --accept-dynamodb-local-license)
 
 Product decisions for the notice, not facts: gate versus print-only; where acceptance is stored; wording reviewed by counsel. The licence binds "if you install or use", and understudy performs the pull on the user's behalf, so a gate lets the user decide before that happens (INTERPRETATION).
 
-### 5.2 Brief statements that need an exception or a caveat
+### 5.2 Product statements that need an exception or a caveat
 
-Source: [phase1-brief.md](../../brief/phase1-brief.md). Quotes are the brief's.
+Quotes are understudy's phase 1 product claims.
 
-| Brief statement | Problem | Suggested handling |
+| Product statement | Problem | Suggested handling |
 |---|---|---|
-| Item 9: "no account" | The DynamoDB path requires, per the Local licence, "an AWS account in good standing" (SOURCE). All other services have no such requirement. | Exception, stated plainly: "No account, except that the DynamoDB service runs on AWS's DynamoDB Local, whose licence requires one." |
-| Item 9: "no token" | True for understudy. Docker Hub pulls are anonymous but rate-limited (section 3.5); ECR Public needs no account. | Keep. Mention the ECR Public fallback. |
-| Item 9: "no telemetry" | True for understudy only if it passes the opt-out. Default Local sends startup telemetry to two `amazonaws.com` hosts. `false` does not disable it; only `0` or the flag does (OBSERVED). | Keep with a requirement: always pass both `-disableTelemetry` and `DDB_LOCAL_TELEMETRY=0`, and test egress (5.3). |
-| Item 9: "no network access needed at runtime" | True once images are local (OBSERVED, `--network none`). The brief already carves out first pulls. | Keep; the carve-out must also say the licence notice happens at that moment. |
-| Item 9: "Instant, tiny, offline" | Same as above. | Keep, same caveat. |
-| Item 9: "The one exception is pulling Docker images for Lambda and DynamoDB Local on first use." | Incomplete: the DynamoDB Local pull also brings a licence with account terms. The Lambda base images carry their own terms, not examined here (UNVERIFIED). | Add the licence consequence for DynamoDB Local; open a separate check for the Lambda images. |
-| Services table, DynamoDB: "AWS's own emulator, pulled at runtime and never bundled" | Accurate. "understudy-managed" automation is the part with no precedent in section 4. | Keep; mention in the legal review brief. |
+| "no account" | The DynamoDB path requires, per the Local licence, "an AWS account in good standing" (SOURCE). All other services have no such requirement. | Exception, stated plainly: "No account, except that the DynamoDB service runs on AWS's DynamoDB Local, whose licence requires one." |
+| "no token" | True for understudy. Docker Hub pulls are anonymous but rate-limited (section 3.5); ECR Public needs no account. | Keep. Mention the ECR Public fallback. |
+| "no telemetry" | True for understudy only if it passes the opt-out. Default Local sends startup telemetry to two `amazonaws.com` hosts. `false` does not disable it; only `0` or the flag does (OBSERVED). | Keep with a requirement: always pass both `-disableTelemetry` and `DDB_LOCAL_TELEMETRY=0`, and test egress (5.3). |
+| "no network access needed at runtime" | True once images are local (OBSERVED, `--network none`). The claim already carves out first pulls. | Keep; the carve-out must also say the licence notice happens at that moment. |
+| "Instant, tiny, offline" | Same as above. | Keep, same caveat. |
+| "The one exception is pulling Docker images for Lambda and DynamoDB Local on first use." | Incomplete: the DynamoDB Local pull also brings a licence with account terms. The Lambda base images carry their own terms, not examined here (UNVERIFIED). | Add the licence consequence for DynamoDB Local; open a separate check for the Lambda images. |
+| Services table, DynamoDB: "AWS's own emulator, pulled at runtime and never bundled" | Accurate. "understudy-managed" automation is the part with no precedent in section 4. | Keep; raise it in the legal review (5.4). |
 | "License: Apache-2.0" and any README "fully open source" wording | A runtime dependency is proprietary. | README: "understudy is Apache-2.0. The DynamoDB service uses AWS's DynamoDB Local, a proprietary component with its own licence, pulled at runtime." |
 | Any README or site copy implying anyone can run every phase 1 service with no account | Same as the account row. | Do not describe the DynamoDB service as account-free. |
 
 ### 5.3 Engineering consequences
 
-- Pass both opt-outs and treat only the literal `0` as valid for the environment variable (OBSERVED). `docs/research/phase1/dynamodb-local.md` already recommends passing both; this adds the reason.
+- Pass both opt-outs and treat only the literal `0` as valid for the environment variable (OBSERVED). [dynamodb-local.md](dynamodb-local.md) already recommends passing both; this adds the reason.
 - Add a permanent egress test: run the pinned Local with understudy's exact arguments on a `--internal` network with the recording sink and assert zero DNS and zero connections after startup and over a cycle. It catches an image bump that changes telemetry behaviour.
 - Consider running the Local container on a Docker network with no external route (OBSERVED working for Local on an `--internal` network; whether the host-side proxy can still reach it, and how that interacts with published ports, was not tested).
 - Pin by digest (the ECR Public digest is identical, so either registry satisfies the pin). Do not re-tag, `docker save`, or push a derived image.
@@ -297,8 +299,8 @@ Source: [phase1-brief.md](../../brief/phase1-brief.md). Quotes are the brief's.
 - Behaviour of telemetry on arm64, macOS, Windows, and the non-Docker distributions.
 - `HTTP(S)_PROXY` handling by the telemetry client.
 - Whether AWS documents the ECR Public mirror as an official channel.
-- Terms of the Lambda base images pulled from `public.ecr.aws/lambda/*`. Closed 2026-10-14: no restriction found; pull and run them freely, never re-host them ([licensing-precedent.md](licensing-precedent.md) section 4).
+- Terms of the Lambda base images pulled from `public.ecr.aws/lambda/*`. Closed 2026-10-14: no restriction found; pull and run them freely, never re-host them.
 
 ## 7. Reproducing the egress test
 
-No scripts are checked in (the harness lived in a scratch directory). To rebuild: (1) `docker network create --internal --label understudy.dev/test=1 <net>`; (2) start a probe container with `--cap-add NET_ADMIN --cap-add NET_RAW` that runs `ip route add local 0.0.0.0/0 dev lo table local`, a DNS (UDP and TCP 53) plus TCP 80 and 443 sink that logs every query and SNI, and `tcpdump -i any -nn -tt 'not (tcp port 8000)'`; (3) bind-mount a `resolv.conf` with a placeholder nameserver into both containers; (4) start Local with `--network container:<probe>` and drive it with curl from the probe over `127.0.0.1:8000` using the `X-Amz-Target: DynamoDB_20120810.<Operation>` header and any `Authorization` credential string. A conformance suite version of this belongs outside the main module, with its own dependencies (brief, engineering constraints).
+No scripts are checked in (the harness lived in a scratch directory). To rebuild: (1) `docker network create --internal --label understudy.dev/test=1 <net>`; (2) start a probe container with `--cap-add NET_ADMIN --cap-add NET_RAW` that runs `ip route add local 0.0.0.0/0 dev lo table local`, a DNS (UDP and TCP 53) plus TCP 80 and 443 sink that logs every query and SNI, and `tcpdump -i any -nn -tt 'not (tcp port 8000)'`; (3) bind-mount a `resolv.conf` with a placeholder nameserver into both containers; (4) start Local with `--network container:<probe>` and drive it with curl from the probe over `127.0.0.1:8000` using the `X-Amz-Target: DynamoDB_20120810.<Operation>` header and any `Authorization` credential string. A conformance suite version of this belongs outside the main module, with its own dependencies (the main module is standard library only).

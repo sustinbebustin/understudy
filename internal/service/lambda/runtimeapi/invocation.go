@@ -9,7 +9,8 @@ import (
 
 // Invocation is one event handed to a runtime. The wall-clock deadline is
 // not part of it: the runtime API computes Lambda-Runtime-Deadline-Ms at
-// dispatch, after any cold start, as wall time plus Timeout (gap-G4.md).
+// dispatch, after any cold start, as wall time plus Timeout
+// (lambda-runtime-contract.md 1).
 type Invocation struct {
 	// RequestID is Lambda-Runtime-Aws-Request-Id, the X-Amzn-RequestId of
 	// the Invoke call; retries of one async event share it.

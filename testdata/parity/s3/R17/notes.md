@@ -33,5 +33,5 @@ NOTE: AWS refused 01-config-full (queue ObjectCreated:* overlaps lambda ObjectCr
 - SQS SenderId of an S3 delivery: differs: AWS "<AROA id>:S3-PROD-END"; understudy "s3.amazonaws.com" (internal/service/sqs/messages.go:576-577)
 - Event key order: matches
 - 02-lambda-events: n/a (no log group in either run)
-- Latency (03-put-times.tsv): n/a for the lat-* puts (filtered out). From the 13 delivered events, AWS eventTime to SQS SentTimestamp was 556-1157 ms (median 813); understudy 0-1 ms (prompt delivery by design, docs/research/phase1/s3.md:665)
+- Latency (03-put-times.tsv): n/a for the lat-* puts (filtered out). From the 13 delivered events, AWS eventTime to SQS SentTimestamp was 556-1157 ms (median 813); understudy 0-1 ms (prompt delivery by design, docs/research/s3.md:665)
 

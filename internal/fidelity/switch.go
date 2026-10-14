@@ -12,7 +12,7 @@ type Switch[T comparable] struct {
 	Name   string         // "logs.filter.term-boundary"
 	Value  T              // the behavior in effect
 	Label  evidence.Label // what backs Value
-	Ref    string         // "docs/research/phase1/logs-filter-patterns.md#5"
+	Ref    string         // "docs/research/logs-filter-patterns.md#5"
 	Record string         // the record-backlog item that settles it, "R10/C1"
 }
 

@@ -11,7 +11,7 @@ import (
 )
 
 // corpusDoc holds the filter-pattern vector corpus, section 8.
-const corpusDoc = "../../../docs/research/phase1/logs-filter-patterns.md"
+const corpusDoc = "../../../docs/research/logs-filter-patterns.md"
 
 // corpusRows is the number of rows section 8 holds; a parse that finds
 // fewer has stopped reading the table.

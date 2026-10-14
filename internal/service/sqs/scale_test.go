@@ -23,7 +23,7 @@ func allocatedPerCall(n uint64, fn func()) uint64 {
 
 // A send copies none of the messages already queued, so a send to a queue
 // holding a backlog costs what a send to an empty queue costs and filling
-// a queue is linear: the brief promises backlog tests run instantly. A
+// a queue is linear, so backlog tests run instantly. A
 // copy of the backlog per send costs about 2 MB here.
 func TestSendCostDoesNotGrowWithTheBacklog(t *testing.T) {
 	const backlog, sample = 10_000, 200

@@ -1,6 +1,6 @@
 // Package envelope renders the event envelope EventBridge delivers to targets
 // and shapes a target's input from it: the InputPath selection and the
-// InputTransformer template (docs/research/phase1/secrets-logs-events-alarms.md
+// InputTransformer template (docs/research/secrets-logs-events-alarms.md
 // sections 4.3, 4.5 to 4.7; lambda-events.md section 5). Everything here is a
 // pure function of its arguments.
 //

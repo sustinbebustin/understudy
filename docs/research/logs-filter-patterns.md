@@ -1,6 +1,6 @@
 # CloudWatch Logs filter patterns: grammar, vectors and boundary rules
 
-Gap G3 deliverable, 2026-10-08. No AWS call was made. Every AWS fact below comes from AWS documentation, AWS-owned code, or a third-party test that recorded real AWS behavior.
+Research item G3 (CloudWatch Logs filter pattern semantics), 2026-10-08. Corrections it made elsewhere say "Corrected by gap G3" or "Narrowed by gap G3" (listed at the end of section 1). No AWS call was made. Every AWS fact below comes from AWS documentation, AWS-owned code, or a third-party test that recorded real AWS behavior.
 
 Tags:
 - **DOC**: stated or demonstrated by AWS documentation, an AWS API reference or Smithy model, or AWS-owned sample code or tests. re:Post answers are not DOC: the pages do not identify their authors as AWS staff, so they count as non-primary corroboration.
@@ -18,7 +18,16 @@ Tags:
 - **Q11 `endTime`.** FilterLogEvents documents `endTime` as "later than this time are not returned", unlike GetLogEvents ("equal to or later ... not included"). Rule N8: inclusive on both ends for FilterLogEvents. MEDIUM, no recording (section 6).
 - **`limit` and pages.** `limit` only caps a page; pages may be short or empty; absence of `nextToken` is the only end signal. One REC point: 25 events with `limit` 20 gave a full first page of 20 plus a token. Rule N9 (section 6).
 - **Human recording.** Ten cases, one script, 199 queries (section 9).
-- **Side finding, not edited.** The quota page lists 5 subscription filters per log group but a LocalStack-recorded run on 2026-02-06 refused the third (section 2.2). Subscription filters are outside phase 1.
+- **Side finding, not edited.** The quota page lists 5 subscription filters per log group but a LocalStack-recorded run on 2026-02-06 refused the third (section 2.2). Subscription filters are outside phase 1, so `secrets-logs-events-alarms.md` section 3.8, which repeats the quota page, was left alone.
+
+Corrections made in place in other research files:
+
+| File | Change | Source |
+|---|---|---|
+| `secrets-logs-events-alarms.md` 3.6 (token boundary bullet) | "Whole-token" suggestion withdrawn; substring working rule with confidence | [TestMetricFilter](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_TestMetricFilter.html) |
+| `secrets-logs-events-alarms.md` 3.6 (regex bullet) | A literal space is also used in a DOC regex example | [syntax page](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html) |
+| `secrets-logs-events-alarms.md` 3.6 (field-count bullet) | "More fields match only with `...`" replaced by the last-field-absorbs working rule | same |
+| `secrets-logs-events-alarms.md` 3.6 (closing paragraph), 7 item 13, 8 (Q1 and Q11 rows) | "No AWS-REC test exists" qualified; corpus and grammar pointer; Q1 and Q11 narrowed | [LocalStack validation dates](https://github.com/localstack/localstack/blob/main/tests/aws/services/logs/test_logs_filter_events.validation.json) |
 
 ## 2. Sources
 
@@ -622,4 +631,4 @@ Usage: `AWS_PROFILE=sandbox python3 record_g3.py > g3-results.jsonl`, then attac
 - Go `regexp` (RE2) after validating the N4 character set is the nearest available engine. Translate `$` to end-of-text. Do not expose flags.
 - Property tests that need no oracle: blank pattern matches everything; `-t` is the complement of `t` for a lone term; adding `?` terms to a pattern that has a plain term never changes the result; `A && B` equals `B && A`; `A || B && C` equals `A || (B && C)`; printing a parsed pattern and re-parsing it is the identity; swapping the order of plain terms never changes the result; a JSON pattern never matches a non-JSON message.
 - TestMetricFilter is cheap once the matcher exists: same grammar, 50 messages, `eventNumber`, and `extractedValues` keyed `$name` or `$<position>` (see the TestMetricFilter page). It is not in the phase 1 service list, so it stays optional.
-- The brief requires terms and JSON patterns for FilterLogEvents. Space-delimited and regex are in the same grammar and are the sources of most DOC vectors; implementing all four costs little more than two.
+- Phase 1 requires terms and JSON patterns for FilterLogEvents. Space-delimited and regex are in the same grammar and are the sources of most DOC vectors; implementing all four costs little more than two.

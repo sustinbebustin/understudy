@@ -453,18 +453,19 @@ func encryptionAfterDelete() fidelity.Switch[string] {
 		Name:  "s3.encryption.after-delete",
 		Value: "default-sse-s3",
 		Label: evidence.AWSDoc,
-		Ref:   "docs/research/phase1/s3.md#41-state-of-a-freshly-created-bucket-and-what-unset-means",
+		Ref:   "docs/research/s3.md#41-state-of-a-freshly-created-bucket-and-what-unset-means",
 	}
 }
 
 // crossAccountAccess is a bucket request from an account that does not own
-// the bucket: phase 1 evaluates no bucket policy or ACL, so it is served.
+// the bucket: understudy evaluates no bucket policy or ACL, so it is served.
+// What AWS answers is UNVERIFIED: no research note or recording covers it.
 func crossAccountAccess() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:  "s3.bucket.cross-account",
 		Value: "served",
 		Label: evidence.Inferred,
-		Ref:   "docs/brief/phase1-brief.md#services-and-depth",
+		Ref:   "UNVERIFIED: no research note or recording shows AWS's answer to a bucket request from an account that does not own the bucket",
 	}
 }
 
@@ -476,7 +477,7 @@ func publicACLAtCreate() fidelity.Switch[string] {
 		Name:  "s3.create-bucket.public-acl",
 		Value: "InvalidBucketAclWithObjectOwnership",
 		Label: evidence.AWSDoc,
-		Ref:   "docs/research/phase1/s3.md#32-createbucket",
+		Ref:   "docs/research/s3.md#32-createbucket",
 	}
 }
 
@@ -488,7 +489,7 @@ func tagLimits() fidelity.Switch[string] {
 		Name:  "s3.tagging.limits",
 		Value: "InvalidTag",
 		Label: evidence.AWSDoc,
-		Ref:   "docs/research/phase1/s3.md#429-bucket-tagging",
+		Ref:   "docs/research/s3.md#429-bucket-tagging",
 	}
 }
 

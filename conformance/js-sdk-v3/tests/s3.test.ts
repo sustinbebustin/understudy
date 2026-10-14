@@ -1,5 +1,5 @@
 // S3 over restXml, through @aws-sdk/client-s3, @aws-sdk/lib-storage and
-// @aws-sdk/s3-request-presigner. Expected behavior: docs/research/phase1/s3.md
+// @aws-sdk/s3-request-presigner. Expected behavior: docs/research/s3.md
 // and sigv4-checksums-endpoints.md.
 
 import { describe, expect, test } from "bun:test";

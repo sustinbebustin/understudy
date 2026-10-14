@@ -21,7 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
-// Research: docs/research/phase1/sqs.md, error-matrix.md 5.1,
+// Research: docs/research/sqs.md, error-matrix.md 5.1,
 // sigv4-checksums-endpoints.md 4.7.
 
 // createQueue creates a queue and deletes it when the test ends.

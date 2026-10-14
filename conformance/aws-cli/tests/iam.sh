@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # IAM: roles, inline and managed policies, attachments, tags, instance profiles, users.
-# Arbiter: docs/research/phase1/iam-sts-kms.md sections 2 and 3.
+# Arbiter: docs/research/iam-sts-kms.md sections 2 and 3.
 
 POLICY_DOC='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject","Resource":"*"}]}'
 POLICY_DOC_V2='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject"],"Resource":"*"}]}'

@@ -14,7 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 )
 
-// Research: docs/research/phase1/iam-sts-kms.md section 5, error-matrix.md 5.9.
+// Research: docs/research/iam-sts-kms.md section 5, error-matrix.md 5.9.
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 

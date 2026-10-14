@@ -1,6 +1,6 @@
 # Matching engines: EventBridge patterns, SNS filter policies, Lambda ESM filters
 
-As of 2026-10-08. Gap G2: pattern-matching semantics from the AWS-owned Event Ruler source, not from LocalStack/moto behavior or doc prose.
+As of 2026-10-08. Research item G2: pattern-matching semantics from the AWS-owned Event Ruler source, not from LocalStack/moto behavior or doc prose.
 
 ## 0. Summary
 
@@ -190,10 +190,10 @@ Sources: [EB operators](https://docs.aws.amazon.com/eventbridge/latest/userguide
 
 ## 7. Corrections applied to other files
 
-Each was edited in place with a "G2 note" and the source.
+Each was edited in place with a "G2 note" or "G2 correction" marker and the source.
 
 - [secrets-logs-events-alarms.md](secrets-logs-events-alarms.md) 4.4: (a) the EventBridge docs do not cite Event Ruler; AWS cites it in the 2024-02-01 announcement and the open-source blog. (b) The 1000 `$or` combination cap is an EventBridge API limit, not a Ruler rule; Ruler has none (2187 combinations compile). (c) `{"wildcard":""}` matches the empty string; the fixture only shows it does not match a non-empty value. (d) `$or` is an ordinary key only for an object value or an array of plain values; other malformed shapes are errors.
-- [sns.md](sns.md): Ruler/SNS relationship (6.2) now evidenced; `anything-but` array, `exists:false`, key counting, numeric range, `anything-but` suffix rows in section 9 annotated with Ruler results; `$or` ordinary-key sentence (6.1) qualified.
+- [sns.md](sns.md): Ruler/SNS relationship (6.2) now evidenced; `anything-but` array, `exists:false`, key counting, numeric range, `anything-but` suffix rows in section 9 annotated with Ruler results; `$or` ordinary-key sentence (6.1) qualified; bare-number rules annotated.
 - [lambda-events.md](lambda-events.md): the numeric-string note conflicts with Ruler; the plain-string pattern form is derived; "shared EventBridge engine" in implication 15 is not documented.
 
 ## 8. Cases only a human-run AWS recording can settle

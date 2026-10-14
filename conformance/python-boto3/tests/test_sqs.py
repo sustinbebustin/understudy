@@ -1,4 +1,4 @@
-"""SQS data plane and control plane (docs/research/phase1/sqs.md).
+"""SQS data plane and control plane (docs/research/sqs.md).
 
 This module also runs under the pinned botocore that still speaks the Query
 protocol to SQS (see README.md). Keep every assertion protocol-neutral.

@@ -1,6 +1,6 @@
 # Go 1.27 toolchain and library research for understudy
 
-Scope: what the installed toolchain (go1.27.1, `$GOROOT/VERSION` time 2026-08-28) and the libraries named in the phase 1 brief actually provide, verified by running code on this machine where possible. Sources: Go release notes, `go doc`/`go help`, `$GOROOT/src`, pkg.go.dev, upstream repos read with `gh api`. Items marked UNVERIFIED were not confirmed against a primary source or by execution.
+Scope: what the installed toolchain (go1.27.1, `$GOROOT/VERSION` time 2026-08-28) and the libraries named for phase 1 actually provide, verified by running code on this machine where possible. Sources: Go release notes, `go doc`/`go help`, `$GOROOT/src`, pkg.go.dev, upstream repos read with `gh api`. Items marked UNVERIFIED were not confirmed against a primary source or by execution.
 
 Scratch programs used for verification lived outside the repo (session scratchpad) and are not part of any deliverable.
 
@@ -41,7 +41,7 @@ API in 1.27: `synctest.Test(t, func(t *testing.T))`, `synctest.Wait()`, `synctes
 - Verified on go1.27.1: `httptest.NewTestServer(t, handler)` inside a bubble gives an in-memory network. A handler that `time.Sleep(30*time.Second)` (an SQS long poll stand-in) returned to a `srv.Client().Get` with `time.Since(start) == 30s` and ~0 real time. A loopback `httptest.NewServer` is not usable in a bubble because blocked socket I/O is not durable blocking. https://pkg.go.dev/testing/synctest (docs say this explicitly: "We cannot use a loopback network connection for this test").
 - Timers, tickers and channels are bubble-scoped; touching a bubbled channel/timer from outside panics. `runtime.AddCleanup` and finalizers run outside the bubble. https://pkg.go.dev/testing/synctest
 - `time.Now()` inside a bubble is the fake clock, so an emulator clock that wraps `time.Now()` plus an offset/scale is automatically virtualized under synctest; a clock that stores its own `time.Time` must be fed from the bubble clock in tests.
-- The brief's rule "use `testing/synctest` or the emulator clock for time" is satisfiable: use synctest for goroutine/timer scheduling tests of the engine; use the emulator clock (injected interface) where the API itself (admin `clock` freeze/advance/scale) is what is under test.
+- The rule "use `testing/synctest` or the emulator clock for time" is satisfiable: use synctest for goroutine/timer scheduling tests of the engine; use the emulator clock (injected interface) where the API itself (admin `clock` freeze/advance/scale) is what is under test.
 - Docker unix-socket I/O and `os/exec` are outside the bubble. Anything that touches Lambda containers cannot be bubble-tested.
 - pgregory.net/rapid v1.3.0 has `rapid.SyncTest(t *rapid.T, prop func(*rapid.T))` which runs a property inside a bubble and still shrinks (section 12). Verified with `go test -race` on go1.27.1.
 
@@ -131,7 +131,7 @@ Consequences for the generator and codecs:
 ### Server behaviours verified on go1.27.1 (raw TCP client)
 
 - `Expect: 100-continue`: Go sends `HTTP/1.1 100 Continue` only when the handler first reads `r.Body`. A handler that writes 403 without reading the body gets `403 ... Connection: close` and no 100. That is the behaviour S3 clients rely on for early rejection.
-- Limits: `Server.MaxHeaderBytes` (default `DefaultMaxHeaderBytes`), `Server.MaxHeaderValueCount` (new in 1.27), `http.MaxBytesReader(w, r.Body, n)` returns `*http.MaxBytesError`. `go doc net/http.Server`, `go doc net/http.MaxBytesReader`. Brief requires a body cap; wrap `r.Body` per-service with limits taken from each service's quota page (see the per-service research files), not a single global number.
+- Limits: `Server.MaxHeaderBytes` (default `DefaultMaxHeaderBytes`), `Server.MaxHeaderValueCount` (new in 1.27), `http.MaxBytesReader(w, r.Body, n)` returns `*http.MaxBytesError`. `go doc net/http.Server`, `go doc net/http.MaxBytesReader`. understudy requires a body cap; wrap `r.Body` per-service with limits taken from each service's quota page (see the per-service research files), not a single global number.
 - `http.NewResponseController(w)` gives `Flush`, `SetReadDeadline`, `SetWriteDeadline`, `EnableFullDuplex`, `Hijack`; needed for streaming responses (Lambda response streaming, S3 GetObject large bodies) and to disable the server write deadline on long polls. `go doc net/http.ResponseController`
 - `Server.Protocols` can enable unencrypted HTTP/2 (h2c prior knowledge) alongside HTTP/1 on one port (1.24). https://go.dev/doc/go1.24
 - `Request.Trailer` and `Transfer-Encoding: chunked` are handled by the server transparently. `aws-chunked` is an application-level body encoding (Content-Encoding) layered inside the HTTP body and is not handled by net/http; the stream must be decoded by our code (the SDK's encoder is a reference: https://github.com/aws/aws-sdk-go-v2/blob/main/service/internal/checksum/aws_chunked_encoding.go).
@@ -284,7 +284,7 @@ Composite checksum (for SHA*, MD5, XXH*, and optionally CRC) is a hash over the 
   - `root.Symlink("/etc","lnk")` and `root.Symlink("../..","lnk2")` both SUCCEED (creation is not validated); `root.Open("lnk2/passwd")` then fails with `path escapes from parent`. The escape is blocked at use, not at creation.
   - `WriteFile("a//b")`, `"a/./b"`, `"a/../b"`: accepted syntactically (fail only because `a/` did not exist), so these keys alias `a/b`. `WriteFile("..")` fails; `WriteFile(".")` fails with "is a directory"; empty path fails; NUL byte fails with `invalid argument`; a 300-byte component fails with `file name too long`; a name with a backslash (`a\b`) is a legal single file name on Linux.
 - `filepath.IsLocal(p)` is lexical only; `filepath.Localize` converts slash paths. `go doc path/filepath.IsLocal`
-- The brief's requirement "Mapping S3 keys to disk must be path-traversal safe" is therefore not satisfied by `os.Root` alone: S3 keys can contain `..`, `.`, `//`, trailing `/`, NUL-adjacent bytes, up to 1024 bytes with components over 255, and differ only by case on case-insensitive filesystems. Never use the key as a filename. Store object data under content-derived or opaque generated names (for example a hex object ID under `os.Root`) and keep key-to-ID in the metadata index; `os.Root` is then defense in depth.
+- The requirement "Mapping S3 keys to disk must be path-traversal safe" is therefore not satisfied by `os.Root` alone: S3 keys can contain `..`, `.`, `//`, trailing `/`, NUL-adjacent bytes, up to 1024 bytes with components over 255, and differ only by case on case-insensitive filesystems. Never use the key as a filename. Store object data under content-derived or opaque generated names (for example a hex object ID under `os.Root`) and keep key-to-ID in the metadata index; `os.Root` is then defense in depth.
 - Zip extraction pattern that was verified: iterate `Reader.File`; reject symlink entries; for each regular entry `root.MkdirAll(path.Dir(name))` then `root.OpenFile(name, O_CREATE|O_WRONLY|O_TRUNC, 0o644)` and `io.Copy` from `io.LimitReader(rc, UncompressedSize64)`. Every escaping name (`../evil.txt`, `/abs.txt`, `a/../../evil2.txt`) was refused by `os.Root` with `path escapes from parent` and nothing was written outside the root. Combine with an upfront `filepath.IsLocal` reject so the failure is a clear typed error rather than an OS error.
 
 ## 9. unique, weak, runtime.AddCleanup
@@ -292,7 +292,7 @@ Composite checksum (for SHA*, MD5, XXH*, and optionally CRC) is a hash over the 
 - `unique.Make[T comparable](v) Handle[T]`: canonicalizes values; handles compare by pointer, so equality is O(1). 1.25 reclaims unused entries more eagerly. https://pkg.go.dev/unique , https://go.dev/doc/go1.25 . Candidate uses: account IDs, region names, operation names, ARNs repeated across millions of journal events.
 - `weak.Make(ptr) weak.Pointer[T]`, `.Value()` returns nil after the object is collected. https://pkg.go.dev/weak , https://go.dev/doc/go1.24
 - `runtime.AddCleanup(ptr, fn, arg)`: multiple cleanups per object, may attach to interior pointers, panics if `arg == ptr`, not guaranteed to run before exit, not run for zero-size types; preferred over `SetFinalizer`. `go doc runtime.AddCleanup`, https://go.dev/doc/go1.24
-- None of these may be used for correctness of resource lifetimes (Docker containers, temp dirs): cleanup is best-effort. The brief's label-based Docker cleanup remains required. Cleanups also run outside synctest bubbles. https://pkg.go.dev/testing/synctest
+- None of these may be used for correctness of resource lifetimes (Docker containers, temp dirs): cleanup is best-effort. Label-based Docker cleanup remains required. Cleanups also run outside synctest bubbles. https://pkg.go.dev/testing/synctest
 
 ### 9.1 uuid (new in 1.27)
 
@@ -300,7 +300,7 @@ Composite checksum (for SHA*, MD5, XXH*, and optionally CRC) is a hash over the 
 - Randomness comes from `crypto/rand` (`rand.Read` at `uuid.go:191` and `:260`), so `testing/cryptotest.SetGlobalRandom(t, seed)` makes `uuid.New()` deterministic: verified two calls after the same seed returned the identical `6ae6783f-4fbd-491b-aeb8-8b73a48ed247`. `SetGlobalRandom` cannot be used in parallel tests. `go doc testing/cryptotest.SetGlobalRandom`
 - `NewV7` takes its timestamp from the `time` package, so inside a `synctest` bubble it follows the fake clock: verified two V7 values drawn one bubble-hour apart sorted in increasing order, with the bubble clock at `2000-01-01 01:00:00 UTC`.
 - `Parse` accepts the braced form `{123e4567-e89b-12d3-a456-426614174000}` and the 32-hex form without dashes, and returns `invalid uuid` otherwise (verified). Do not use it to validate fields that require the canonical dashed form; check with `String()` round-trip.
-- `uuid` passes `depguard`'s `$gostd` allow-list (verified with golangci-lint 2.13.2), so the stdlib-only rule needs no exception. Under the brief's "seed makes fault-injection runs deterministic" requirement, note that `uuid.New()` is not seedable at runtime (only via the test hook above); IDs that must be reproducible across emulator runs (snapshots, journal replay) need an injected generator.
+- `uuid` passes `depguard`'s `$gostd` allow-list (verified with golangci-lint 2.13.2), so the stdlib-only rule needs no exception. Under the "seed makes fault-injection runs deterministic" requirement, note that `uuid.New()` is not seedable at runtime (only via the test hook above); IDs that must be reproducible across emulator runs (snapshots, journal replay) need an injected generator.
 
 ## 10. encoding/xml: limitations that matter
 
@@ -334,7 +334,7 @@ For deterministic crypto tests, `testing/cryptotest.SetGlobalRandom` (1.26) repl
 - Flags: `-rapid.checks` (default 100), `-rapid.steps` (default 30, average Repeat actions), `-rapid.seed`, `-rapid.v`, `-rapid.shrinktime` (default 30s), `-rapid.failfile`, `-rapid.nofailfile`, `-rapid.log`, `-rapid.debug`. Failures write `testdata/rapid/<TestName>/*.fail`, which should be committed as regression seeds. `engine.go:66-82`, `persist.go:58`.
 - Verified on go1.27.1 with `go test -race`: (a) incremental CRC64NVME equals one-shot for random splits; (b) `rapid.SyncTest` inside `rapid.Check` ran `time.Sleep(d)` and observed exactly `d` elapsed for random `d` up to an hour; (c) a state-machine test via `StateMachineActions`. All passed.
 - `rapid.T` does not expose `t.Parallel()`; wrap properties in ordinary subtests if parallelism is wanted. UNVERIFIED beyond reading the exported method list.
-- The brief's "fast-check" preference in the global instructions is for TypeScript; for Go the pre-approved library is rapid.
+- The "fast-check" preference in the global instructions is for TypeScript; for Go the pre-approved library is rapid.
 
 ## 13. golangci-lint v2 configuration
 
@@ -507,7 +507,7 @@ issues:
 
 Notes on the set:
 
-- `depguard` with `$gostd` turns the brief's "main module depends on the standard library only; test-only rapid" rule into a lint failure. Verified: importing `example.com/fake` from non-test code yields `import 'example.com/fake' is not allowed from list 'main' (depguard)`. The conformance suites are separate modules and get their own config. (`$test` and `$gostd` are depguard variables.) https://golangci-lint.run/docs/linters/configuration/
+- `depguard` with `$gostd` turns the "main module depends on the standard library only; test-only rapid" rule into a lint failure. Verified: importing `example.com/fake` from non-test code yields `import 'example.com/fake' is not allowed from list 'main' (depguard)`. The conformance suites are separate modules and get their own config. (`$test` and `$gostd` are depguard variables.) https://golangci-lint.run/docs/linters/configuration/
 - `forbidigo` with `analyze-types: true` bans direct `time.Now`/`Sleep`/timers outside `internal/clock`, which is the lint-level enforcement of the controllable-clock feature. Verified: `time.Now` in a non-clock package was reported with the custom message. Under synctest, tests may need `time.Sleep`; the `_test.go` exclusion covers that. The ban on `panic` and `os.Exit` outside `cmd/` supports errors-as-values; `panic` for impossible states then needs `//nolint:forbidigo // reason`, which `nolintlint` forces to be specific and explained.
 - `gochecksumtype` and `exhaustive` support the "illegal states unrepresentable / ADTs" rule: `exhaustive` handles enum-style `iota` types (verified: missing case flagged), `gochecksumtype` handles sealed interfaces annotated `//sumtype:decl`. https://github.com/alecthomas/go-check-sumtype
 - `godox` keeps stray TODOs out; `godot` enforces sentence-final periods on top-level comments; `revive` `exported` plus `package-comments` enforce doc comments on exported API (verified: eight findings on an undocumented sample).
@@ -558,7 +558,7 @@ Takeaways for the understudy generator are in section 17.
 - Stdlib pattern for generators: a `package main` file with `//go:build ignore`, referenced from the package that owns the output with `//go:generate go run gen.go` (for example `//go:generate go run mkconsts.go` in `$GOROOT/src/internal/goexperiment/flags.go:45`; `//go:generate go run gen_const_ppc64le.go` in `$GOROOT/src/hash/crc32/gen.go:5`). For a stdlib-only module a generator at `internal/cmd/gen` run with `go run ./internal/cmd/gen` needs no `tool` directive and no extra dependency. (`go.mod` `tool` directives exist since 1.24 for third-party tools: https://go.dev/doc/go1.24 .)
 - Reproducibility rules for checked-in output (all idioms available in the stdlib): iterate maps via `slices.Sorted(maps.Keys(m))`; no timestamps, hostnames or absolute paths in the header; embed the pinned input identity (Smithy models commit) in the header or a lock file; format with `go/format.Source` so output is gofmt-clean; write through a temp file + rename so partial output never replaces a good file; make the generator fail (non-zero) on any model construct it does not understand rather than skipping it.
 - CI drift check: `go generate ./... && git diff --exit-code` (and `git status --porcelain` for new files). golangci-lint ignores generated files by default, so the check is the only quality gate for them; add generated-code unit tests at the schema/codec level instead. https://golangci-lint.run/docs/configuration/file/
-- The brief wants "reproducible with one command": expose it as a single `just generate` that runs `go generate ./...`; keep `//go:generate` directives next to the packages they feed so `go generate ./...` is the whole truth.
+- Generation must be "reproducible with one command": expose it as a single `just generate` that runs `go generate ./...`; keep `//go:generate` directives next to the packages they feed so `go generate ./...` is the whole truth.
 
 ## 16. Verified-facts quick reference
 
@@ -588,7 +588,7 @@ Takeaways for the understudy generator are in section 17.
 
 ## 18. Open questions
 
-- Does AWS accept or reject JSON bodies with duplicate member names, invalid UTF-8 and `1.0` for integer members? v2 defaults reject all three; the Smithy protocol compliance tests are the place to check. Related files: `docs/research/phase1/smithy-protocol-tests.md`.
+- Does AWS accept or reject JSON bodies with duplicate member names, invalid UTF-8 and `1.0` for integer members? v2 defaults reject all three; the Smithy protocol compliance tests are the place to check. Related files: [smithy-protocol-tests.md](smithy-protocol-tests.md).
 - RESOLVED: XXHASH* digest wire format (see 7.1; the SDKs that send them are botocore, Java v2 and C++, all via the CRT). Still open: S3's behaviour when an unknown algorithm header arrives (record-backlog item R08).
 - Is `encoding/json/v2` covered by the Go 1 compatibility promise in 1.27, and when is `GOEXPERIMENT=nojsonv2` removed?
 - Whether `GODEBUG=fips140=only` affects MD5/SHA-1 (relevant only if users run understudy under FIPS mode).

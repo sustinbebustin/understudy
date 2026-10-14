@@ -98,7 +98,7 @@ func staleReceipt() fidelity.Switch[string] {
 		Name:  "sqs.receipt.stale-handle",
 		Value: "succeed-without-delete",
 		Label: evidence.AWSDoc,
-		Ref:   "docs/research/phase1/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility",
+		Ref:   "docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility",
 	}
 }
 
@@ -111,17 +111,17 @@ func movedIdentity() fidelity.Switch[string] {
 		Name:  "sqs.move-task.message-identity",
 		Value: "new-message",
 		Label: evidence.AWSDoc,
-		Ref:   "docs/research/phase1/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask",
+		Ref:   "docs/research/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask",
 	}
 }
 
 // The sqs.md sections the switches below cite.
 const (
-	refAttributes = "docs/research/phase1/sqs.md#4-queue-attributes"
-	refBatches    = "docs/research/phase1/sqs.md#62-sendmessagebatch-and-the-other-batch-apis"
-	refReceipts   = "docs/research/phase1/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility"
-	refDedup      = "docs/research/phase1/sqs.md#82-deduplication"
-	refFormats    = "docs/research/phase1/sqs.md#3-identifiers-and-formats"
+	refAttributes = "docs/research/sqs.md#4-queue-attributes"
+	refBatches    = "docs/research/sqs.md#62-sendmessagebatch-and-the-other-batch-apis"
+	refReceipts   = "docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility"
+	refDedup      = "docs/research/sqs.md#82-deduplication"
+	refFormats    = "docs/research/sqs.md#3-identifiers-and-formats"
 )
 
 // visibilityCeiling is where the 12-hour ChangeMessageVisibility ceiling

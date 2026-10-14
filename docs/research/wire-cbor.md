@@ -1,6 +1,6 @@
 # Smithy RPC v2 CBOR on the wire: the CloudWatch contract for understudy
 
-Closes gap G1. Researched 2026-10-08. Nothing here touched real AWS: every client run below talked to a stub on `127.0.0.1` with example credentials.
+Research item G1: the rpcv2Cbor wire format and the contradiction between notes over which protocol each client sends to CloudWatch. Corrections it made elsewhere carry the marker `CORRECTED (G1)` (section 10). Researched 2026-10-08. Nothing here touched real AWS: every client run below talked to a stub on `127.0.0.1` with example credentials.
 
 Versions measured:
 
@@ -10,7 +10,7 @@ Versions measured:
 | aws-sdk-go-v2 `service/cloudwatch` | v1.73.0 (core v1.47.1, config v1.33.6) | pinned by terraform-provider-aws v6.68.0: [go.mod L14, L68, L296](https://github.com/hashicorp/terraform-provider-aws/blob/v6.68.0/go.mod#L68) |
 | smithy-go | v1.28.2 | same go.mod, [L296](https://github.com/hashicorp/terraform-provider-aws/blob/v6.68.0/go.mod#L296) |
 | boto3 / botocore | 1.43.109 | latest on PyPI at run time, installed with uv |
-| AWS CLI | 2.36.38 | the installed binary (brief says 2.36) |
+| AWS CLI | 2.36.38 | the installed binary |
 | `@aws-sdk/client-cloudwatch` | 3.1146.0 | latest on npm at run time, installed with pnpm |
 | CloudWatch model | api-models-aws `1cfdfb4bb9ea` | [model](https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/cloudwatch/service/2010-08-01/cloudwatch-2010-08-01.json) |
 
@@ -65,13 +65,13 @@ CloudWatch is the only CBOR client among the phase 1 services. The switch landed
 
 | Claim | Where | Verdict |
 |---|---|---|
-| botocore, therefore boto3 and the CLI, default to rpcv2Cbor | smithy-models.md section 1 item 2, 3.3 table, Implication 2; tf-compute.md section 1.1 and 10; smithy-protocol-tests.md section 3 and open items; s3-checksum-residuals-and-record-backlog.md; gap-G8.md | **Wrong.** `resolved_protocol` is `json` and the wire is awsJson1_0 (2.1). Fixed in place (section 10). |
+| botocore, therefore boto3 and the CLI, default to rpcv2Cbor | smithy-models.md section 1 item 2, 3.3 table, Implication 2; tf-compute.md section 1.1 and 10; smithy-protocol-tests.md section 3 and open items; s3-checksum-residuals-and-record-backlog.md 1.8 and its corrections table | **Wrong.** `resolved_protocol` is `json` and the wire is awsJson1_0 (2.1). Fixed in place (section 10). |
 | Go v2 speaks CBOR to CloudWatch; Terraform needs it | sigv4 5.3, tf-compute 1.1, secrets-logs 1.1 | **Right** (2.1, 2.2). |
 | JS v3 uses awsJson1_0 | all | **Right**. |
 | boto3 resolves to JSON 1.0 | secrets-logs 1.1, sigv4 5.3, wire-json-query 1 | **Right**; wire-confirmed here. |
 | "`rpcv2Cbor` is out of phase 1" / "which protocol each SDK picks is UNVERIFIED" | smithy-protocol-tests.md (original text) | **Wrong.** A later edit fixed the scope but wrote that botocore is CBOR. |
 | "no body and no `Content-Type` for empty input" | tf-compute.md section 1.1 | **Wrong for CloudWatch.** The rule is for operations whose input is `smithy.api#Unit`; no CloudWatch operation has `Unit` input, so the Go client sends `bfff` with `Content-Type: application/cbor` (G02, OBS). |
-| "45 server-applicable cases" (the figure in the gap list) and "add the 47 CBOR server cases" | smithy-protocol-tests.md section 3 table and Implication 4 | **Misread.** The table's 45 and 47 are the request and response totals (45 + 47 = 92). The server-runnable slice is 39 requests + 29 responses = 68 (section 6). |
+| "45 server-applicable cases" (the figure in the original G1 question) and "add the 47 CBOR server cases" | smithy-protocol-tests.md section 3 table and Implication 4 | **Misread.** The table's 45 and 47 are the request and response totals (45 + 47 = 92). The server-runnable slice is 39 requests + 29 responses = 68 (section 6). |
 
 ## 3. Server contract
 
@@ -316,7 +316,7 @@ What the 68 server cases demand beyond a basic codec (each is a vector in sectio
 
 ## 7. Minimum stdlib-only CBOR subset
 
-Packages: `encoding/binary`, `math`, `bytes`, `io`, `compress/gzip` (request bodies), `unicode/utf8`. No third-party dependency, as the brief requires.
+Packages: `encoding/binary`, `math`, `bytes`, `io`, `compress/gzip` (request bodies), `unicode/utf8`. No third-party dependency: the main module is standard library only.
 
 **Decoder** (must):
 
@@ -328,7 +328,7 @@ Packages: `encoding/binary`, `math`, `bytes`, `io`, `compress/gzip` (request bod
 6. Major 6: tag 1 where a timestamp is expected (content uint, negint, or float 16/32/64). Elsewhere a tag is a type mismatch; when skipping unknown members, skip the tag number and its item.
 7. Major 7: 20 false, 21 true, 22 null, 23 undefined (treated as null), 25 half, 26 single, 27 double; everything else (0-19, 24, 28-30, a stray `ff`) is an error.
 8. A `skip` that walks any item without allocating, for unknown members.
-9. Limits: nesting depth 128; every declared length must fit in the remaining bytes (check before allocating or looping; smithy-go's definite-list loop uses `int(alen)` and accepts a huge declared count as empty, which the prototype rejects); cap the request body per the brief.
+9. Limits: nesting depth 128; every declared length must fit in the remaining bytes (check before allocating or looping; smithy-go's definite-list loop uses `int(alen)` and accepts a huge declared count as empty, which the prototype rejects); cap the request body.
 10. Half to float: sign bit; exponent 0 with fraction 0 is +-0; exponent 0 with fraction != 0 is subnormal `frac * 2^-24`; exponent 31 is Inf or NaN (keep the fraction bits shifted left 13); otherwise rebias the exponent by 112 and shift the fraction left 13. Verified against all 65536 patterns.
 
 **Encoder** (must): definite-length maps and arrays; text strings; unsigned and negative integers in the smallest width; booleans; single and double floats; tag 1 + double for timestamps (or tag 1 + integer for whole seconds); byte strings if a blob ever appears. Omit unset members.
@@ -526,7 +526,16 @@ Nothing in this sequence needs a feature outside section 7. The full `terraform 
 
 ## 10. Corrections made to other research files
 
-Each edit is in place, marked `CORRECTED (G1)`, and cites this file. See [gap-G1.md](gap-G1.md) for the list with line numbers.
+Each edit is in place, marked `CORRECTED (G1)`, and cites this file; search for the marker to find them.
+
+| File | Claim fixed |
+|---|---|
+| [smithy-models.md](smithy-models.md) | boto3 and the CLI do not default to rpcv2Cbor; legacy `protocol` field versus `resolved_protocol`; "no-input operations have no body" applies to `Unit` input only |
+| [tf-compute.md](tf-compute.md) | boto3 "does the same" (no); empty input sends `bfff` for CloudWatch; the CLI/botocore question settled; smithy-go version checked |
+| [smithy-protocol-tests.md](smithy-protocol-tests.md) | botocore "confirmed CBOR" (no); "add the 47 CBOR server cases" (68); the 45 and 47 are request and response totals |
+| [secrets-logs-events-alarms.md](secrets-logs-events-alarms.md) | CLI no longer "assumed"; Terraform delete treats `ResourceNotFoundException`, not `ResourceNotFound`, as success; Q9 answered for the Go client |
+| [s3-checksum-residuals-and-record-backlog.md](s3-checksum-residuals-and-record-backlog.md) 1.8 and its corrections table | "botocore: rpcv2Cbor" and "botocore uses CBOR" |
+| [wire-json-query.md](wire-json-query.md) | stale "CBOR researcher" pointers now link to this file |
 
 ## 11. UNVERIFIED register
 

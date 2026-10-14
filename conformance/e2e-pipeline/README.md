@@ -1,6 +1,6 @@
 # e2e-pipeline
 
-The phase 1 event-driven pipeline, end to end, as a Go test module that talks to a running understudy through aws-sdk-go-v2 and the `admin` client. Tests assert AWS behavior as documented in `docs/research/phase1/`; where the research leaves a value unverified, the test does not assert it.
+The phase 1 event-driven pipeline, end to end, as a Go test module that talks to a running understudy through aws-sdk-go-v2 and the `admin` client. Tests assert AWS behavior as documented in `docs/research/`; where the research leaves a value unverified, the test does not assert it.
 
 ## Run
 

@@ -358,7 +358,7 @@ Verbatim from [event-reference](https://docs.aws.amazon.com/eventbridge/latest/u
 - AWS-recorded delivery to SQS has exactly these keys; `resources` has the rule ARN; `detail` is `{}`; no `replay-name` ([EventBridge snapshots `tests_schedule_rate_target_sqs`, `test_schedule_cron_target_sqs`](https://github.com/localstack/localstack/blob/main/tests/aws/services/events/test_events_schedule.snapshot.json)).
 - With a constant `Input` on the target the payload is exactly that JSON and nothing else (AWS-recorded: `{"custom-value":"somecustominput"}`, same file `tests_schedule_rate_custom_input_target_sqs`).
 - `time` format `YYYY-MM-DDTHH:MM:SSZ` (second precision, no fraction) in all documented examples.
-- EventBridge **Scheduler** (the newer service) delivers only the schedule's configured `Input` to its target, not this envelope: UNVERIFIED in this research (the Scheduler API was not read). Phase 1 brief scopes EventBridge rules, so rules are the target.
+- EventBridge **Scheduler** (the newer service) delivers only the schedule's configured `Input` to its target, not this envelope: UNVERIFIED in this research (the Scheduler API was not read). Phase 1 scopes EventBridge rules, so rules are the target.
 - Schedule expression rules ([scheduled rule pattern](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-scheduled-rule-pattern.html)):
   - `rate(value unit)`, value positive number; unit singular for 1 and plural otherwise: `rate(1 minute)` valid, `rate(1 minutes)` and `rate(5 minute)` invalid; units `minute|minutes|hour|hours|day|days`.
   - `cron(minutes hours day-of-month month day-of-week year)`: six required fields; ranges: minutes 0-59, hours 0-23, day-of-month 1-31, month 1-12 or JAN-DEC, day-of-week 1-7 or SUN-SAT, year 1970-2199; wildcards `, - * /`, plus `?` `L` `W` (day-of-month) and `?` `L` `#` (day-of-week). Day-of-month and day-of-week cannot both be specified; one must be `?`. Anything faster than 1 minute is rejected. All times UTC.
@@ -496,7 +496,7 @@ Smithy ([lambda model](https://github.com/aws/api-models-aws/blob/main/models/la
 - AWS-recorded `AddPermission` response for the URL statement (Sid `urlPermission`): `{"Statement": {"Sid","Effect":"Allow","Principal":"*","Action":"lambda:InvokeFunctionUrl","Resource":"<function arn>","Condition":{"StringEquals":{"lambda:FunctionUrlAuthType":"NONE"}}}}` as a **string-encoded** JSON `Statement`, 201 ([LS-URL](https://github.com/localstack/localstack/blob/main/tests/aws/services/lambda_/test_lambda.snapshot.json)). This fixture predates the Oct 2025 two-statement rule.
 - Without a matching policy statement the URL returns **403** with JSON body `{"Message":"Forbidden. For troubleshooting Function URL authorization issues, see: https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html"}` (AWS-recorded, [LS-URL `test_lambda_permission_url_invocation`](https://github.com/localstack/localstack/blob/main/tests/aws/services/lambda_/test_lambda.snapshot.json)); docs: "users get a 403 Forbidden error ... even if the function URL uses the NONE auth type" ([urls-auth](https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html)).
 - Unknown URL id: 403, `Content-Type: application/json`, header `x-amzn-ErrorType: AccessDeniedException`, body `{"Message":null}` (AWS-recorded assertions in [LS test `test_lambda_url_non_existing_url`](https://github.com/localstack/localstack/blob/main/tests/aws/services/lambda_/test_lambda.py)).
-- `AWS_IAM`: request must carry a valid SigV4 signature; then `requestContext.authorizer.iam` is populated ([invocation](https://docs.aws.amazon.com/lambda/latest/dg/urls-invocation.html)). Phase 1 brief: SigV4 validation is opt-in, IAM not enforced.
+- `AWS_IAM`: request must carry a valid SigV4 signature; then `requestContext.authorizer.iam` is populated ([invocation](https://docs.aws.amazon.com/lambda/latest/dg/urls-invocation.html)). Phase 1: SigV4 validation is opt-in, IAM not enforced.
 - Throttle: exceeding reserved concurrency returns 429; reserved concurrency 0 turns all requests into 429; max rate is 10 x reserved concurrency per second ([configuration](https://docs.aws.amazon.com/lambda/latest/dg/urls-configuration.html)).
 
 ### 7.3 Request event (payload format 2.0)
@@ -671,7 +671,7 @@ Grouped by component. "Must" is derived from a cited, AWS-recorded or Smithy fac
 
 ### Types and generated code
 
-1. **Generate ESM shapes from the Smithy model** (the brief already requires it) and encode the SQS-relevant refinements as a hand-written validated domain type, not as optional-field soup: a sum type over event-source kind (`Sqs{Standard|Fifo}`, `DynamoDBStream`, later others) with parsed, range-checked parameters (`BatchSize` 1..10000 with FIFO max 10, window 0..300, `MaxConcurrency` 2..1000, `FunctionResponseTypes` max 1). Make "scaling config and provisioned poller config both set" unrepresentable.
+1. **Generate ESM shapes from the Smithy model** (already required) and encode the SQS-relevant refinements as a hand-written validated domain type, not as optional-field soup: a sum type over event-source kind (`Sqs{Standard|Fifo}`, `DynamoDBStream`, later others) with parsed, range-checked parameters (`BatchSize` 1..10000 with FIFO max 10, window 0..300, `MaxConcurrency` 2..1000, `FunctionResponseTypes` max 1). Make "scaling config and provisioned poller config both set" unrepresentable.
 2. Model `State` as a closed enum internally (`Creating, Enabling, Enabled, Disabling, Disabled, Updating, Deleting`) and render to string at the edge, since Smithy has it as a plain string.
 3. Keep `StateTransitionReason` per source kind: `USER_INITIATED` for SQS, `User action` for streams.
 
@@ -683,7 +683,7 @@ Grouped by component. "Must" is derived from a cited, AWS-recorded or Smithy fac
 7. Keep List lenient: it must not validate filters. Honour `MaxItems`/`Marker` with a 100 item page cap.
 8. Do not delete mappings when their function is deleted; stop invoking (record why in the journal) and let the mapping be deleted explicitly. SQS-specific behaviour is UNVERIFIED, so mark the choice in code.
 9. Response objects must omit `ScalingConfig`, `FilterCriteria`, `LastProcessingResult` (SQS) when unset, and always include `FunctionResponseTypes: []` and `MaximumBatchingWindowInSeconds: 0` so Terraform's second `plan` is empty. `FunctionArn` must be the unqualified ARN when the caller passed a name.
-10. IAM is recorded-not-enforced in phase 1 (brief), so skip the role-permission errors; do accept and store `KMSKeyArn` and `Tags`.
+10. IAM is recorded-not-enforced in phase 1, so skip the role-permission errors; do accept and store `KMSKeyArn` and `Tags`.
 
 ### SQS poller (runtime)
 

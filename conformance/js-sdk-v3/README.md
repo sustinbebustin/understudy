@@ -2,7 +2,7 @@
 
 Checks understudy from the outside with the AWS SDK for JavaScript v3 (`@aws-sdk/client-*`, `@aws-sdk/lib-dynamodb`, `@aws-sdk/lib-storage`, `@aws-sdk/s3-request-presigner`), run with `bun test`.
 
-Tests assert AWS's documented behavior (`docs/research/phase1/`), never understudy quirks. A failing test is a finding about understudy.
+Tests assert AWS's documented behavior (`docs/research/`), never understudy quirks. A failing test is a finding about understudy.
 
 ## Run
 

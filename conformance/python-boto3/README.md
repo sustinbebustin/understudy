@@ -1,6 +1,6 @@
 # python-boto3 conformance suite
 
-boto3 and pytest tests that check understudy from the outside. Each test asserts AWS behavior as documented in `docs/research/phase1/`, not understudy's current output. A failure means understudy differs from AWS, or the research is silent and the test needs a decision.
+boto3 and pytest tests that check understudy from the outside. Each test asserts AWS behavior as documented in `docs/research/`, not understudy's current output. A failure means understudy differs from AWS, or the research is silent and the test needs a decision.
 
 ## Run
 

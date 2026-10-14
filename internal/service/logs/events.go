@@ -57,7 +57,8 @@ type admission interface{ isAdmission() }
 
 // clientWindows is a client's PutLogEvents: an event is stored when it is
 // inside the 2-hour and 14-day windows of the wall clock or of the
-// emulator clock, since containers stamp lines with wall time (gap-G4.md), and
+// emulator clock, since containers stamp lines with wall time
+// (lambda-runtime-contract.md 3), and
 // not older than the group's retention on the emulator clock.
 type clientWindows struct{ wall clock.Instant }
 

@@ -16,7 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
-// Research: docs/research/phase1/iam-sts-kms.md sections 2 and 3,
+// Research: docs/research/iam-sts-kms.md sections 2 and 3,
 // error-matrix.md 5.10.
 
 const (

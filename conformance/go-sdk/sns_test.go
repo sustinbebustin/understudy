@@ -17,7 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
-// Research: docs/research/phase1/sns.md, error-matrix.md 5.3.
+// Research: docs/research/sns.md, error-matrix.md 5.3.
 
 // createTopic creates a topic and deletes it when the test ends.
 func createTopic(t *testing.T, topicName string, attrs map[string]string) string {

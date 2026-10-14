@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Secrets Manager: secrets, versions and staging labels, idempotency tokens,
 # deletion window and restore, resource policies, tags, KMS keys.
-# Arbiter: docs/research/phase1/secrets-logs-events-alarms.md section 2.
+# Arbiter: docs/research/secrets-logs-events-alarms.md section 2.
 
 # mksecret NAME VALUE [create-secret args...]: sets SECRET_NAME, SECRET_ARN, V1.
 mksecret() {

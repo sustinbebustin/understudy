@@ -9,7 +9,7 @@
         "dev.understudy#evidence": [
           {
             "label": "inferred",
-            "source": "docs/research/phase1/error-matrix.md#53-sns-query",
+            "source": "docs/research/error-matrix.md#53-sns-query",
             "covers": ["dev.understudy#throttleError"]
           },
           {

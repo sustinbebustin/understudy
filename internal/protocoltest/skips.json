@@ -149,31 +149,31 @@
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonBodyMalformedListNullItem",
       "category": "aws-differs", "label": "inferred",
-      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "source": "docs/research/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
       "reason": "The Smithy server framework rejects a null in a dense list; understudy's codecs are lenient on input and drop it, as AWS's Coral services are inferred to."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonBodyMalformedMapNullValue",
       "category": "aws-differs", "label": "inferred",
-      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "source": "docs/research/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
       "reason": "The Smithy server framework rejects a null in a dense map; understudy's codecs are lenient on input and drop it."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonBodyTimestampDateTimeRejectsUTCOffsets_case0",
       "category": "aws-differs", "label": "inferred",
-      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "source": "docs/research/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
       "reason": "The Smithy server framework rejects a date-time with a UTC offset; understudy's codecs accept any RFC 3339 offset on input and write UTC."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonPathTimestampDefaultRejectsUTCOffsets",
       "category": "aws-differs", "label": "inferred",
-      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "source": "docs/research/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
       "reason": "The Smithy server framework rejects a date-time label with a UTC offset; understudy's codecs accept any RFC 3339 offset on input."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUnionKnownAndUnknownFieldsSet",
       "category": "aws-differs", "label": "inferred",
-      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "source": "docs/research/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
       "reason": "The Smithy server framework rejects a union with a known and an unknown member set; understudy's codecs skip unknown members, as forward-compatible clients and servers do."
     },
     {
@@ -264,73 +264,73 @@
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonStringPayloadNoContentType",
       "category": "aws-differs", "label": "sdk-source",
-      "source": "docs/research/phase1/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
+      "source": "docs/research/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
       "reason": "The Smithy server framework answers 415 for a payload without Content-Type; the restJson1 codec serves Lambda, whose clients send inconsistent Content-Type values, so it accepts any."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonStringPayloadWrongContentType",
       "category": "aws-differs", "label": "sdk-source",
-      "source": "docs/research/phase1/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
+      "source": "docs/research/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
       "reason": "The Smithy server framework answers 415 for a payload with another Content-Type; the restJson1 codec serves Lambda, whose clients send inconsistent Content-Type values, so it accepts any."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonStringPayloadUnsatisfiableAccept",
       "category": "aws-differs", "label": "inferred",
-      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "source": "docs/research/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
       "reason": "The Smithy server framework answers 406 for an Accept it cannot satisfy; understudy ignores Accept, as no Lambda client relies on 406."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithBodyExpectsApplicationJsonAccept",
       "category": "aws-differs", "label": "inferred",
-      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "source": "docs/research/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
       "reason": "The Smithy server framework answers 406 for an Accept other than application/json; understudy ignores Accept."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithBodyExpectsApplicationJsonContentType",
       "category": "aws-differs", "label": "sdk-source",
-      "source": "docs/research/phase1/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
+      "source": "docs/research/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
       "reason": "The Smithy server framework answers 415 for a JSON body sent with another Content-Type; the restJson1 codec serves Lambda, whose clients send inconsistent Content-Type values, so it accepts any."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithBodyExpectsApplicationJsonContentTypeNoHeaders",
       "category": "aws-differs", "label": "sdk-source",
-      "source": "docs/research/phase1/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
+      "source": "docs/research/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
       "reason": "The Smithy server framework answers 415 for a JSON body without Content-Type; botocore sends none for some Lambda bodies, so the codec accepts it."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithPayloadExpectsImpliedAccept",
       "category": "aws-differs", "label": "inferred",
-      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "source": "docs/research/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
       "reason": "The Smithy server framework answers 406 for an Accept other than the payload's media type; understudy ignores Accept."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithPayloadExpectsImpliedContentType",
       "category": "aws-differs", "label": "sdk-source",
-      "source": "docs/research/phase1/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
+      "source": "docs/research/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
       "reason": "The Smithy server framework answers 415 for a blob payload with a Content-Type other than application/octet-stream; Lambda's Invoke takes any, so the codec does."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithPayloadExpectsModeledAccept",
       "category": "aws-differs", "label": "inferred",
-      "source": "docs/research/phase1/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
+      "source": "docs/research/wire-rest.md#implications-for-understudy (9: lenient in parsing, strict in output)",
       "reason": "The Smithy server framework answers 406 for an Accept other than the payload's modeled media type; understudy ignores Accept."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithPayloadExpectsModeledContentType",
       "category": "aws-differs", "label": "sdk-source",
-      "source": "docs/research/phase1/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
+      "source": "docs/research/wire-rest.md#4-lambda-on-the-wire (4.4 Invoke: Go sends application/octet-stream, botocore none)",
       "reason": "The Smithy server framework answers 415 for a payload with a Content-Type other than its modeled media type; Lambda's Invoke takes any, so the codec does."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithoutBodyEmptyInputExpectsEmptyContentType",
       "category": "aws-differs", "label": "sdk-source",
-      "source": "docs/research/phase1/wire-rest.md#1-protocol-rules-shared-by-restjson1-and-restxml (boto3 sends {} and a Content-Type for restJson1 inputs)",
+      "source": "docs/research/wire-rest.md#1-protocol-rules-shared-by-restjson1-and-restxml (boto3 sends {} and a Content-Type for restJson1 inputs)",
       "reason": "The Smithy server framework answers 415 for a Content-Type on an operation with no body; clients send one on bodiless Lambda requests, so the codec ignores it."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonWithoutBodyExpectsEmptyContentType",
       "category": "aws-differs", "label": "sdk-source",
-      "source": "docs/research/phase1/wire-rest.md#1-protocol-rules-shared-by-restjson1-and-restxml (boto3 sends {} and a Content-Type for restJson1 inputs)",
+      "source": "docs/research/wire-rest.md#1-protocol-rules-shared-by-restjson1-and-restxml (boto3 sends {} and a Content-Type for restJson1 inputs)",
       "reason": "The Smithy server framework answers 415 for a Content-Type on an operation with no body; clients send one on bodiless Lambda requests, so the codec ignores it."
     },
     {

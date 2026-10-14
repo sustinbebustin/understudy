@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
-// Research: docs/research/phase1/iam-sts-kms.md section 4, error-matrix.md 5.11.
+// Research: docs/research/iam-sts-kms.md section 4, error-matrix.md 5.11.
 
 func TestSTSGetCallerIdentity(t *testing.T) {
 	t.Parallel()

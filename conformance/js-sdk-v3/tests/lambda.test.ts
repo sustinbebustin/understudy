@@ -2,7 +2,7 @@
 // SDKs and Terraform use, Invoke in its three modes, real execution in the
 // official Python base image, logs delivered to CloudWatch Logs, SQS event
 // source mappings and function URLs.
-// Expected behavior: docs/research/phase1/lambda-api.md, lambda-events.md,
+// Expected behavior: docs/research/lambda-api.md, lambda-events.md,
 // lambda-runtime-contract.md and error-matrix.md section 5.6.
 //
 // Execution needs a Docker daemon: functions run in AWS's Lambda base images,

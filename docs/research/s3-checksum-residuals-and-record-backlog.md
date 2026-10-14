@@ -1,6 +1,6 @@
 # S3 checksum residuals and the record-mode backlog
 
-Scope: gap G8. Part 1 settles the S3 xxHash digest encoding (and the SHA512/MD5 questions) from the AWS-owned CRT and SDK sources. Part 2 is one de-duplicated, ranked list of every UNVERIFIED item in `docs/research/phase1/*.md` that only a human recording against real AWS can settle, each with an exact request script. No agent ran record mode; every real-AWS statement below is either quoted from a cited page or marked UNVERIFIED.
+Scope: research item G8. Part 1 settles the S3 xxHash digest encoding (and the SHA512/MD5 questions) from the AWS-owned CRT and SDK sources; the corrections it made to other notes are listed at the end of 1.8. Part 2 is one de-duplicated, ranked list of every UNVERIFIED item in `docs/research/*.md` that only a human recording against real AWS can settle, each with an exact request script. No agent ran record mode; every real-AWS statement below is either quoted from a cited page or marked UNVERIFIED.
 
 Evidence tags: SRC = AWS-owned open source read at a pinned commit; DOC = AWS documentation fetched 2026-10-08; CALC = computed locally and cross-checked (never in the repo); UNVERIFIED = no primary source observed.
 
@@ -159,6 +159,18 @@ All quotes from [checking-object-integrity-upload](https://docs.aws.amazon.com/A
 | Which SDKs name the trailer for non-CRC algorithms ([sigv4-checksums-endpoints.md 9](sigv4-checksums-endpoints.md)) | botocore, Java and C++ all derive the trailer or header name as `x-amz-checksum-<lowercase algorithm>` with no allow-list | 1.3 |
 | Default seed in Java and C++ | 0 | [aws-crt-java XXHash.java L46-L48](https://github.com/awslabs/aws-crt-java/blob/4ccd83c24dad2229772d6ac5121ba4906ba8ce93/src/main/java/software/amazon/awssdk/crt/checksums/XXHash.java#L46-L48), [aws-crt-cpp XXHash.h L60-L70](https://github.com/awslabs/aws-crt-cpp/blob/f4b8dfd95b593a92de469151544bccc4d39dc58c/include/aws/crt/checksum/XXHash.h#L60-L70) |
 
+Corrections made in place in other research files:
+
+| File | Change | Source |
+|---|---|---|
+| `s3.md` 6.1, 9 (item 9), open questions | XXHash digest and seed marked settled; MD5 row corrected (no SDK computes it as a flexible checksum; was "enum only in Go"); SHA512 and XXHASH SDK-support columns corrected (Java and C++ also compute them; Rust does not); the "return unimplemented" advice replaced | 1.2, 1.3 |
+| `go-toolchain.md` 7.1, 17.7, open questions | UNVERIFIED XXHASH digest text replaced with the settled form; ADR option (a) favoured | same |
+| `sigv4-checksums-endpoints.md` 4.2, 9, 12 item 7 | digest form added; trailer-name gap narrowed to live-S3 acceptance | same |
+| `smithy-protocol-tests.md` 3, 7, open items | `rpcv2Cbor` is required in phase 1 (Go v2 speaks it to CloudWatch; JS v3 and botocore use awsJson1_0; the botocore half was later fixed under `CORRECTED (G1)`, see [wire-cbor.md](wire-cbor.md)); previously "UNVERIFIED" and "out of phase 1" | first row of the 1.8 table |
+| `tf-compute.md` 11 | JS v3 CloudWatch protocol filled in | same |
+
+The repository that holds the CRT xxHash code is `awslabs/aws-checksums`, not `aws/aws-c-checksums` as the original G8 question named it.
+
 Still open and needing no real AWS (capture the SDK's bytes against a local listener): which client sends the `\n\r\n` trailer terminator versus `\r\n\r\n` (Java and Rust not captured here), and Java v2 / PHP default S3 addressing with a custom endpoint. See 2.5.
 
 ---
@@ -167,7 +179,7 @@ Still open and needing no real AWS (capture the SDK's bytes against a local list
 
 ## 2.1 How this list was built
 
-All 19 files were scanned for `UNVERIFIED`, "open question", "Gaps", "not recorded" and "unconfirmed"; each file's own register was read in full ([sqs.md 12](sqs.md), [lambda-events.md 11](lambda-events.md), [lambda-api.md](lambda-api.md), [secrets-logs-events-alarms.md 8](secrets-logs-events-alarms.md), [tf-messaging.md 8](tf-messaging.md), [tf-compute.md 11](tf-compute.md), [tf-storage.md](tf-storage.md), [wire-rest.md](wire-rest.md), [wire-json-query.md](wire-json-query.md), [smithy-models.md](smithy-models.md), [smithy-protocol-tests.md](smithy-protocol-tests.md), [sigv4-checksums-endpoints.md 9](sigv4-checksums-endpoints.md), [landscape.md](landscape.md), [go-toolchain.md 18](go-toolchain.md), [containers.md 14.4](containers.md), [dynamodb-local.md](dynamodb-local.md), plus every inline UNVERIFIED in [s3.md](s3.md), [sns.md](sns.md), [iam-sts-kms.md](iam-sts-kms.md)). 473 lines across the 19 files match those scan terms (`rg -c -i` over the terms, summed; many restate the same item or are already resolved); they collapse into the 18 backlog items below. Items that are decisions, licence questions or container/OS facts are not record work; they are listed in 2.5.
+All 19 research files of the time (one, a landscape survey, has since been archived) were scanned for `UNVERIFIED`, "open question", "Gaps", "not recorded" and "unconfirmed"; each file's own register was read in full ([sqs.md 12](sqs.md), [lambda-events.md 11](lambda-events.md), [lambda-api.md](lambda-api.md), [secrets-logs-events-alarms.md 8](secrets-logs-events-alarms.md), [tf-messaging.md 8](tf-messaging.md), [tf-compute.md 11](tf-compute.md), [tf-storage.md](tf-storage.md), [wire-rest.md](wire-rest.md), [wire-json-query.md](wire-json-query.md), [smithy-models.md](smithy-models.md), [smithy-protocol-tests.md](smithy-protocol-tests.md), [sigv4-checksums-endpoints.md 9](sigv4-checksums-endpoints.md), [go-toolchain.md 18](go-toolchain.md), [containers.md 14.4](containers.md), [dynamodb-local.md](dynamodb-local.md), plus every inline UNVERIFIED in [s3.md](s3.md), [sns.md](sns.md), [iam-sts-kms.md](iam-sts-kms.md)). 473 lines across the 19 files match those scan terms (`rg -c -i` over the terms, summed; many restate the same item or are already resolved); they collapse into the 18 backlog items below. Items that are decisions, licence questions or container/OS facts are not record work; they are listed in 2.5.
 
 Ranking is by blast radius on the phase 1 workload, highest first:
 1. Wrong answer breaks the SNS to SQS to Lambda pipeline (message loss, duplicate processing, stuck mappings).
@@ -192,7 +204,7 @@ Ranking is by blast radius on the phase 1 workload, highest first:
 | R03 | Lambda SQS mapping runtime: ChangeMessageVisibility use, FIFO plus batching window, validation texts, partial-batch edge cases, states | Pipeline: the consumer itself | lambda-events.md 11 (1-6, 11) |
 | R04 | DynamoDB lock-table surface: TTL and PITR describe/update shapes, error JSON, `x-amz-crc32` | Lock table and every Terraform refresh of the table | dynamodb-local.md, wire-json-query.md, sigv4 9 |
 | R05 | Terraform plan stability, messaging: SQS/SNS attribute bytes and defaults | Terraform second plan | tf-messaging.md 8, sqs.md, sns.md |
-| R06 | Terraform plan stability, S3: new-bucket subresource states, not-configured statuses, S3 Control tags | Terraform second plan; every S3 bucket | s3.md 4.1, wire-rest.md 3.6, tf-storage.md, landscape.md |
+| R06 | Terraform plan stability, S3: new-bucket subresource states, not-configured statuses, S3 Control tags | Terraform second plan; every S3 bucket | s3.md 4.1, wire-rest.md 3.6, tf-storage.md |
 | R07 | Terraform plan stability, compute and ops: Lambda, EventBridge, CloudWatch alarms, Secrets read shapes | Terraform second plan | tf-compute.md 11, tf-storage.md, secrets-logs-events-alarms.md |
 | R08 | S3 SHA512/MD5/XXHASH acceptance: header, trailer, multipart composite | S3 uploads using non-default algorithms (CRT clients) | this file, sigv4 9, s3.md 6 |
 | R09 | SNS filter-policy semantics battery | Pipeline routing | sns.md 6, 9 |
@@ -387,7 +399,7 @@ Teardown: delete subscriptions, topic, queues.
 
 ### R10. CloudWatch Logs filter patterns and paging
 
-Why: the brief requires real FilterLogEvents pattern syntax; unquoted-term boundaries have no AWS-recorded test ([secrets-logs-events-alarms.md Q1, Q2, Q11](secrets-logs-events-alarms.md)).
+Why: phase 1 requires real FilterLogEvents pattern syntax; unquoted-term boundaries have no AWS-recorded test ([secrets-logs-events-alarms.md Q1, Q2, Q11](secrets-logs-events-alarms.md)).
 
 Script:
 1. `create-log-group --log-group-name /usr/$P`, `create-log-stream --log-stream-name s1`.
@@ -417,7 +429,7 @@ Script (record status, all headers, raw body for each):
 6. DynamoDB unknown `X-Amz-Target`, and a `DynamoDB_20120810.DescribeTable` with a body that has a duplicate member name.
 7. DynamoDB Streams SigV4 service name: sign `streams.dynamodb.$R.amazonaws.com` as `dynamodb`; if rejected, retry as `streams.dynamodb`.
 
-Expected / decision: whichever is recorded becomes a protocol-layer golden test; where AWS is lenient (unknown members, `5.0`) keep the emulator strict only if the brief's strict-validation promise requires it and document the divergence.
+Expected / decision: whichever is recorded becomes a protocol-layer golden test; where AWS is lenient (unknown members, `5.0`) keep the emulator strict only if understudy's strict-validation promise requires it and document the divergence.
 
 ### R12. S3 object and multipart edges
 
@@ -526,8 +538,8 @@ These flagged items are settled with a decision, a licence reading, or a local c
 
 | Item | Where | How to settle |
 |---|---|---|
-| Which client sends the `\n\r\n` trailer terminator; exact HTTP form of Java v2, JS v3, CLI streaming uploads | sigv4 9, landscape.md | Point each SDK at a local TCP listener and dump the bytes |
-| Java v2 and PHP default S3 addressing with a custom endpoint; `*.localhost` on macOS, Windows, musl, scratch images | landscape.md, wire-rest.md | Run the SDKs against a local server; test resolver per platform |
+| Which client sends the `\n\r\n` trailer terminator; exact HTTP form of Java v2, JS v3, CLI streaming uploads | sigv4 9 | Point each SDK at a local TCP listener and dump the bytes |
+| Java v2 and PHP default S3 addressing with a custom endpoint; `*.localhost` on macOS, Windows, musl, scratch images | wire-rest.md | Run the SDKs against a local server; test resolver per platform |
 | DynamoDB Local telemetry flag, TTL sweep period, `-dbPath` odd regions, SQLite copy safety, JS `x-amz-crc32` handling | dynamodb-local.md | Run the `amazon/dynamodb-local` image and SDK probes locally |
 | Legal reading of "in connection with the Services" for DynamoDB Local; LocalStack snapshot licence; Service Reference JSON licence; Maven publication of the models | dynamodb-local.md, secrets-logs-events-alarms.md Q10, smithy-models.md | Human/legal decision |
 | Listener exposure, hosted API vs RIE fallback, clock semantics for idle reaping, virtual-host DNS inside functions, ECR URIs, CPU/memory enforcement, non-root uid, arch mismatch | containers.md 14.4 | ADR decisions; the uid is readable from the public base image |

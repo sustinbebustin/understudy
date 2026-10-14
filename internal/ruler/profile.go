@@ -123,10 +123,10 @@ func (LambdaESM) switchRecords() switchRecords {
 }
 
 const (
-	humanRecordsRef = "docs/research/phase1/matching-engines.md#8"
+	humanRecordsRef = "docs/research/matching-engines.md#8"
 	// operatorsRef is the documented operator table, which lists "exactly"
 	// for no service although Ruler accepts it.
-	operatorsRef = "docs/research/phase1/matching-engines.md#5.1"
+	operatorsRef = "docs/research/matching-engines.md#5.1"
 )
 
 // exactlyRejected is the switch for Ruler's "exactly" operator, which every
@@ -184,25 +184,25 @@ func (p SNS) fixedSwitches() []Switch {
 		},
 		{
 			Name: "sns.filter-policy.limit-order", Value: "nesting-keys-combinations-wildcards",
-			Ref: "docs/research/phase1/sns.md#6", Record: "R09/13",
+			Ref: "docs/research/sns.md#6", Record: "R09/13",
 		},
 		{
 			Name: "sns.filter-policy.number-attribute-type", Value: "json-number",
-			Ref: "docs/research/phase1/matching-engines.md#5.4", Record: "R09/19 (matching-engines.md H6)",
+			Ref: "docs/research/matching-engines.md#5.4", Record: "R09/19 (matching-engines.md H6)",
 		},
 		{
 			// The SNS documentation says -1e9..1e9 with 5 decimals; Ruler's
 			// binary64 model is used until a recording settles it.
 			Name: "sns.filter-policy.numeric-range", Value: "binary64",
-			Ref: "docs/research/phase1/matching-engines.md#5.2", Record: "R09/15 (matching-engines.md H5)",
+			Ref: "docs/research/matching-engines.md#5.2", Record: "R09/15 (matching-engines.md H5)",
 		},
 		{
 			Name: "sns.filter-policy.anything-but-arrays", Value: "any-element",
-			Ref: "docs/research/phase1/matching-engines.md#4.3", Record: "R09/8 (matching-engines.md H4)",
+			Ref: "docs/research/matching-engines.md#4.3", Record: "R09/8 (matching-engines.md H4)",
 		},
 		{
 			Name: "sns.filter-policy.array-consistency", Value: "enforced",
-			Ref: "docs/research/phase1/matching-engines.md#4.3", Record: "R09/14",
+			Ref: "docs/research/matching-engines.md#4.3", Record: "R09/14",
 		},
 	}
 }

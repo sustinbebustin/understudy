@@ -243,7 +243,7 @@ func echoQueries(qs []cloudwatchapi.MetricDataQuery) []cloudwatchapi.MetricDataQ
 
 // deleteAlarms deletes the named alarms with their tags. Names that match
 // no alarm are skipped, as AWS documents, so deleting a missing alarm
-// succeeds (gap-G1.md 4).
+// succeeds (wire-cbor.md 3.5).
 func (s *Service) deleteAlarms(_ context.Context, c *kernel.Call, in *cloudwatchapi.DeleteAlarmsInput) (*cloudwatchapi.DeleteAlarmsOutput, *awserr.Error) {
 	err := s.eachAlarm(c, in.AlarmNames, func(st *State, name string, _ Alarm) {
 		delete(st.Alarms, name)

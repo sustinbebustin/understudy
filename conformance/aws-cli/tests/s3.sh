@@ -2,7 +2,7 @@
 # S3: the aws s3 commands (mb, cp, sync, ls, mv, rm, rb, presign) and s3api calls
 # for buckets, subresources, objects, listings, versioning, multipart, tagging,
 # checksums, conditional requests, SSE-KMS, addressing styles and notifications.
-# Arbiter: docs/research/phase1/s3.md.
+# Arbiter: docs/research/s3.md.
 
 # mkbucket [create-bucket args...]: create a bucket and set BUCKET.
 mkbucket() {

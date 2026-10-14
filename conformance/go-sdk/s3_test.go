@@ -29,7 +29,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Research: docs/research/phase1/s3.md, wire-rest.md,
+// Research: docs/research/s3.md, wire-rest.md,
 // sigv4-checksums-endpoints.md, s3-checksum-residuals-and-record-backlog.md,
 // error-matrix.md 5.4.
 

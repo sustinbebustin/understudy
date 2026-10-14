@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 )
 
-// Research: docs/research/phase1/secrets-logs-events-alarms.md section 5,
+// Research: docs/research/secrets-logs-events-alarms.md section 5,
 // wire-cbor.md (the Go client speaks rpcv2Cbor to CloudWatch),
 // error-matrix.md 5.13.
 

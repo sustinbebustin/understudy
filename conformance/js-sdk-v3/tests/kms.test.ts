@@ -1,5 +1,5 @@
 // KMS over awsJson1_1, through @aws-sdk/client-kms.
-// Expected behavior: docs/research/phase1/iam-sts-kms.md section 5.
+// Expected behavior: docs/research/iam-sts-kms.md section 5.
 
 import { describe, expect, test } from "bun:test";
 import {

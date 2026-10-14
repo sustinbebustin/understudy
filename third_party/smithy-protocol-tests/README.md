@@ -15,4 +15,4 @@ Do not edit `model.json` by hand. To produce it again, for example when bumping 
    The trait jars must be passed alongside the test jars, or validation fails with `Model.UnresolvedTrait`. `--flatten` removes mixins, which the generator does not resolve. The output is deterministic: two runs give the same bytes.
 4. Copy `model.json` here, update `PIN.json` (version, URLs, sizes and hashes), update the version constants in `internal/cmd/vendor/corpus.go` and `internal/codegen/corpus.go`, and run `just generate`.
 
-Background and the measured result are in `docs/research/phase1/smithy-protocol-tests.md` section 5.
+Background and the measured result are in `docs/research/smithy-protocol-tests.md` section 5.

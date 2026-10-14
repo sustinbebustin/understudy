@@ -1,4 +1,4 @@
-"""Secrets Manager (docs/research/phase1/secrets-logs-events-alarms.md section 2)."""
+"""Secrets Manager (docs/research/secrets-logs-events-alarms.md section 2)."""
 
 from __future__ import annotations
 

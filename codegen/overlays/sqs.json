@@ -35,7 +35,7 @@
           },
           {
             "label": "inferred",
-            "source": "docs/research/phase1/error-matrix.md#51-sqs-json-10",
+            "source": "docs/research/error-matrix.md#51-sqs-json-10",
             "covers": ["dev.understudy#throttleError", "dev.understudy#unknownOperationError", "dev.understudy#validationError"]
           }
         ]
@@ -104,7 +104,7 @@
           },
           {
             "label": "inferred",
-            "source": "Reason text from LocalStack https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/localstack-core/localstack/services/sqs/provider.py#L124-L138 and moto https://github.com/getmoto/moto/blob/636f64616f5efa7ec53a7bbf76cfb2f4bde5eda2/moto/sqs/models.py#L303-L311 (no recording shows AWS's text; docs/research/phase1/sqs.md#24-error-catalog); the Value/Reason frame is the one the recorded MessageGroupId and MaxNumberOfMessages texts use. Preferred over the developer guide example 'Must be an alphanumeric String of 1 to 80 in length.', whose frame no recording shows and which contradicts the quotas page that allows hyphens and underscores.",
+            "source": "Reason text from LocalStack https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/localstack-core/localstack/services/sqs/provider.py#L124-L138 and moto https://github.com/getmoto/moto/blob/636f64616f5efa7ec53a7bbf76cfb2f4bde5eda2/moto/sqs/models.py#L303-L311 (no recording shows AWS's text; docs/research/sqs.md#24-error-catalog); the Value/Reason frame is the one the recorded MessageGroupId and MaxNumberOfMessages texts use. Preferred over the developer guide example 'Must be an alphanumeric String of 1 to 80 in length.', whose frame no recording shows and which contradicts the quotas page that allows hyphens and underscores.",
             "covers": ["dev.understudy#validationError"]
           }
         ]
@@ -227,7 +227,7 @@
         "dev.understudy#queryKeyAlias": {"key": "AttributeName", "decode": "ignore"},
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/sqs.md#23-legacy-query-protocol"
+          "source": "docs/research/sqs.md#23-legacy-query-protocol"
         }
       }
     },
@@ -237,7 +237,7 @@
         "dev.understudy#queryKeyAlias": {"key": "AttributeName", "decode": "receive"},
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/sqs.md#23-legacy-query-protocol"
+          "source": "docs/research/sqs.md#23-legacy-query-protocol"
         }
       }
     },
@@ -247,7 +247,7 @@
         "dev.understudy#maxRequestBytes": 8388608,
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/sqs.md#13-implications-for-understudy"
+          "source": "docs/research/sqs.md#13-implications-for-understudy"
         }
       }
     },
@@ -257,7 +257,7 @@
         "dev.understudy#maxRequestBytes": 8388608,
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/sqs.md#13-implications-for-understudy"
+          "source": "docs/research/sqs.md#13-implications-for-understudy"
         }
       }
     },

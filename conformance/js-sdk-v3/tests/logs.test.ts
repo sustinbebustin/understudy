@@ -1,5 +1,5 @@
 // CloudWatch Logs over awsJson1_1, through @aws-sdk/client-cloudwatch-logs.
-// Expected behavior: docs/research/phase1/secrets-logs-events-alarms.md section 3
+// Expected behavior: docs/research/secrets-logs-events-alarms.md section 3
 // and logs-filter-patterns.md.
 
 import { describe, expect, test } from "bun:test";

@@ -9,7 +9,7 @@ Checks that the Terraform AWS provider can manage every phase 1 resource type ag
 5. `destroy`;
 6. a check that the Terraform state is empty and that understudy holds nothing in the service's account. The only exceptions are the ones AWS also keeps after a delete: customer managed KMS keys in `PendingDeletion`, and AWS managed keys.
 
-Expected behavior comes from the research in `docs/research/phase1/` (`tf-messaging.md`, `tf-storage.md`, `tf-compute.md`, `tf-remaining.md`), which documents what provider 6.68.0 sends and what it needs back. The suite asserts AWS behavior, never an understudy quirk.
+Expected behavior comes from the research in `docs/research/` (`tf-messaging.md`, `tf-storage.md`, `tf-compute.md`, `tf-remaining.md`), which documents what provider 6.68.0 sends and what it needs back. The suite asserts AWS behavior, never an understudy quirk.
 
 ## Running
 

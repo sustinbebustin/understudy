@@ -5,28 +5,28 @@
       "type": "apply",
       "traits": {
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsJson corpus has no server-side validation case, so the Coral code AWS JSON services send stands in"}
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsJson corpus has no server-side validation case, so the Coral code AWS JSON services send stands in"}
       }
     },
     "aws.protocoltests.json10#QueryCompatibleJsonRpc10": {
       "type": "apply",
       "traits": {
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsJson corpus has no server-side validation case, so the Coral code AWS JSON services send stands in"}
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsJson corpus has no server-side validation case, so the Coral code AWS JSON services send stands in"}
       }
     },
     "aws.protocoltests.json#JsonProtocol": {
       "type": "apply",
       "traits": {
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsJson corpus has no server-side validation case, so the Coral code AWS JSON services send stands in"}
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsJson corpus has no server-side validation case, so the Coral code AWS JSON services send stands in"}
       }
     },
     "aws.protocoltests.query#AwsQuery": {
       "type": "apply",
       "traits": {
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsQuery corpus has no server-side validation case, so the Coral code AWS Query services send stands in"}
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsQuery corpus has no server-side validation case, so the Coral code AWS Query services send stands in"}
       }
     },
     "aws.protocoltests.restjson#RestJson": {
@@ -35,7 +35,7 @@
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#malformedRequestError": "com.amazon.coral.service#SerializationException",
         "dev.understudy#evidence": [
-          {"label": "inferred", "source": "docs/research/phase1/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: RestJson's own cases assert no validation code", "covers": ["dev.understudy#validationError"]},
+          {"label": "inferred", "source": "docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: RestJson's own cases assert no validation code", "covers": ["dev.understudy#validationError"]},
           {"label": "aws-doc", "source": "https://github.com/smithy-lang/smithy/blob/1.74.0/smithy-aws-protocol-tests/model/restJson1/malformedRequests/malformed-request-body.smithy", "covers": ["dev.understudy#malformedRequestError"]}
         ]
       }
@@ -55,42 +55,42 @@
       "type": "apply",
       "traits": {
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the restXml corpus has no server-side validation case"}
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the restXml corpus has no server-side validation case"}
       }
     },
     "aws.protocoltests.restxml.xmlns#RestXmlWithNamespace": {
       "type": "apply",
       "traits": {
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the restXml corpus has no server-side validation case"}
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the restXml corpus has no server-side validation case"}
       }
     },
     "com.amazonaws.s3#AmazonS3": {
       "type": "apply",
       "traits": {
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/smithy-protocol-tests.md#71-s3-comamazonawss3amazons3-tag-aws-service-test: the S3 slice has no validation case"}
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/smithy-protocol-tests.md#71-s3-comamazonawss3amazons3-tag-aws-service-test: the S3 slice has no validation case"}
       }
     },
     "smithy.protocoltests.rpcv2Cbor#RpcV2Protocol": {
       "type": "apply",
       "traits": {
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/wire-cbor.md#6-the-smithy-test-corpus-at-1740: the rpcv2Cbor corpus has no server-side validation case"}
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/wire-cbor.md#6-the-smithy-test-corpus-at-1740: the rpcv2Cbor corpus has no server-side validation case"}
       }
     },
     "aws.protocoltests.rpcv2cbor#QueryCompatibleRpcV2Protocol": {
       "type": "apply",
       "traits": {
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/wire-cbor.md#6-the-smithy-test-corpus-at-1740: the rpcv2Cbor corpus has no server-side validation case"}
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/wire-cbor.md#6-the-smithy-test-corpus-at-1740: the rpcv2Cbor corpus has no server-side validation case"}
       }
     },
     "aws.protocoltests.rpcv2cbor#NonQueryCompatibleRpcV2Protocol": {
       "type": "apply",
       "traits": {
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/wire-cbor.md#6-the-smithy-test-corpus-at-1740: the rpcv2Cbor corpus has no server-side validation case"}
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/wire-cbor.md#6-the-smithy-test-corpus-at-1740: the rpcv2Cbor corpus has no server-side validation case"}
       }
     }
   }

@@ -7,7 +7,7 @@
 // Resource or NotResource, Condition) into a typed Document;
 // ValidateIdentity and ValidateTrust add the rules IAM applies to identity
 // and trust policies, with the
-// MalformedPolicyDocument texts of docs/research/phase1/iam-sts-kms.md 3.3.
+// MalformedPolicyDocument texts of docs/research/iam-sts-kms.md 3.3.
 // Encode writes a canonical form and Allows evaluates a request against one
 // document. Phase 1 stores policies and does not enforce them; Allows serves
 // resource-policy advisories and tests.

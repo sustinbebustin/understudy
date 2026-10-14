@@ -46,7 +46,7 @@ Conventions:
 | `aws_kms_key` description change | 5 consecutive, `MinTimeout` 2 s | about 8 s | [key.go L622-L645](https://github.com/hashicorp/terraform-provider-aws/blob/972faab3f6e4e37aff0453fe05366f3bd3fc2b97/internal/service/kms/key.go#L622-L645) |
 | `aws_secretsmanager_*`, `aws_kms_alias`, other S3 resources | `RetryWhenNotFound`: returns on the first hit | 0 | sections 2 to 6 |
 
-The brief's controllable clock does not help here: these sleeps happen in the provider process. The emulator can only make sure the first poll already shows the final state.
+understudy's controllable clock does not help here: these sleeps happen in the provider process. The emulator can only make sure the first poll already shows the final state.
 
 ### 1.4 Transparent tagging
 
@@ -341,7 +341,7 @@ Requirements, each traceable to a section above.
 8. **Secrets Manager contract.** `CreateSecret` always receives `Description:""`; `DescribeSecret` must return `Tags` and `KmsKeyId` as stored and `DeletedDate` after `DeleteSecret`; with `ForceDeleteWithoutRecovery` the secret must read as `ResourceNotFoundException` at once; `GetResourcePolicy` on a secret with no policy returns `{ARN, Name}`; `PutSecretValue` must return `VersionStages` and the version must be readable with labels by `GetSecretValue(VersionId)` immediately (empty labels on a new version stall the apply for 2 minutes) (section 5).
 9. **Account derivation for the bootstrap.** (CORRECTED (G6): with default provider flags the bootstrap is one `sts:GetCallerIdentity`, so STS is required; `GetUser` is first only with `skip_credentials_validation = true`, see section 1.1.) Provider configure uses IAM `GetUser` first and takes the account from its `Arn`; an emulator that answers `GetUser` with a user ARN in the access key's account (or with one of the error codes the provider ignores) avoids any STS dependency; see [iam-sts-kms.md](iam-sts-kms.md). The S3 tag path depends on this succeeding (section 1.1).
 10. **Test plan.** A conformance suite under the Terraform harness should apply the section 7 configurations unchanged, assert `plan -detailed-exitcode` is 0 on the second run and `destroy` is clean, and record per-resource wall time against the floors in section 1.3 (lifecycle about 55 s, table about 6 s). Add a negative test: tags on `CreateBucket` must appear in `ListTagsForResource` (the diff in section 2.6.1 is a one-line regression).
-11. **Decision (per brief working rules).** Where the AWS error table (400) and the pattern of the other not-configured codes (404) disagree for `ServerSideEncryptionConfigurationNotFoundError`, follow the AWS table; the code is unreachable on default buckets.
+11. **Decision (AWS is the arbiter).** Where the AWS error table (400) and the pattern of the other not-configured codes (404) disagree for `ServerSideEncryptionConfigurationNotFoundError`, follow the AWS table; the code is unreachable on default buckets.
 
 ## Open questions and UNVERIFIED
 

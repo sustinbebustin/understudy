@@ -137,7 +137,7 @@ type switchRecords struct {
 	existsTrue, emptyInput, bareNumber, malformedOr string
 }
 
-const switchRef = "docs/research/phase1/matching-engines.md#10"
+const switchRef = "docs/research/matching-engines.md#10"
 
 // Switches returns the metadata of every unverified choice p makes: the four
 // Options fields as p sets them, then the fixed allow-list and limit choices

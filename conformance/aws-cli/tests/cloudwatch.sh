@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # CloudWatch metrics: metric alarms (CRUD, state, tags, actions) and
 # PutMetricData / GetMetricData / ListMetrics.
-# Arbiter: docs/research/phase1/secrets-logs-events-alarms.md section 5.
+# Arbiter: docs/research/secrets-logs-events-alarms.md section 5.
 
 # new_alarm [PUT-METRIC-ALARM ARGS...]: create a minimal static-threshold alarm
 # named in ALARM (ARN in ALARM_ARN). Extra arguments are appended.

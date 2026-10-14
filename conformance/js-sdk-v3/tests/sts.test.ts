@@ -1,5 +1,5 @@
 // STS over awsQuery, through @aws-sdk/client-sts.
-// Expected behavior: docs/research/phase1/iam-sts-kms.md section 4 and
+// Expected behavior: docs/research/iam-sts-kms.md section 4 and
 // docs/adr/0012-identity-and-defaults.md (account derived from the access key).
 
 import { describe, expect, test } from "bun:test";

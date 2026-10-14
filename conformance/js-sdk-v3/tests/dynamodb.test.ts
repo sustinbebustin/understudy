@@ -1,6 +1,6 @@
 // DynamoDB over awsJson1_0, through @aws-sdk/client-dynamodb and
 // @aws-sdk/lib-dynamodb. Expected behavior: real DynamoDB as documented in
-// docs/research/phase1/dynamodb-local.md and error-matrix.md section 5.5.
+// docs/research/dynamodb-local.md and error-matrix.md section 5.5.
 //
 // understudy serves DynamoDB through a DynamoDB Local container, pulled on
 // first use. CONFORMANCE_DYNAMODB=0 skips this file, and says why.

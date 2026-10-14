@@ -1,5 +1,5 @@
 // SNS over awsQuery, through @aws-sdk/client-sns, with SQS endpoints read back
-// through @aws-sdk/client-sqs. Expected behavior: docs/research/phase1/sns.md.
+// through @aws-sdk/client-sqs. Expected behavior: docs/research/sns.md.
 
 import { describe, expect, test } from "bun:test";
 import {

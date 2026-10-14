@@ -14,14 +14,14 @@ func TestEntryCarriesProvenanceAndFormattedValue(t *testing.T) {
 		Name:   "logs.filter.term-boundary",
 		Value:  "token",
 		Label:  evidence.AWSDoc,
-		Ref:    "docs/research/phase1/logs-filter-patterns.md#5",
+		Ref:    "docs/research/logs-filter-patterns.md#5",
 		Record: "R10/C1",
 	}
 	want := fidelity.Entry{
 		Name:   "logs.filter.term-boundary",
 		Value:  "token",
 		Label:  evidence.AWSDoc,
-		Ref:    "docs/research/phase1/logs-filter-patterns.md#5",
+		Ref:    "docs/research/logs-filter-patterns.md#5",
 		Record: "R10/C1",
 	}
 	if got := s.Entry(); got != want {

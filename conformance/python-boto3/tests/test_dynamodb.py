@@ -1,4 +1,4 @@
-"""DynamoDB (docs/research/phase1/dynamodb-local.md): the data plane through understudy's
+"""DynamoDB (docs/research/dynamodb-local.md): the data plane through understudy's
 DynamoDB Local proxy, conditional writes (the lock-table pattern), the TTL shim on the emulator
 clock, tags, continuous backups and per account and region isolation."""
 

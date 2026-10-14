@@ -9,7 +9,7 @@
         "dev.understudy#evidence": [
           {
             "label": "inferred",
-            "source": "docs/research/phase1/error-matrix.md#57-cloudwatch-logs-json-11",
+            "source": "docs/research/error-matrix.md#57-cloudwatch-logs-json-11",
             "covers": ["dev.understudy#throttleError"]
           },
           {

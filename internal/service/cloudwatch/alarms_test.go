@@ -152,7 +152,7 @@ func TestTerraformAlarmSequenceReadsBackItsConfiguration(t *testing.T) {
 		if out := h.describe("tf-alarm"); len(out.MetricAlarms) != 0 || out.MetricAlarms == nil {
 			h.Errorf("after delete MetricAlarms = %v, want an empty list", out.MetricAlarms)
 		}
-		// Terraform's destroy accepts only success here (gap-G1.md 4).
+		// Terraform's destroy accepts only success here (wire-cbor.md 3.5).
 		must(h, cloudwatchapi.OpDeleteAlarms, &cloudwatchapi.DeleteAlarmsInput{AlarmNames: []string{"tf-alarm"}})
 		if got := h.tags(arn); got == nil || len(got) != 0 {
 			h.Errorf("tags of a deleted alarm = %v, want an empty list", got)

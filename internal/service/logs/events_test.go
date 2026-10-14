@@ -164,7 +164,8 @@ func TestInfrequentAccessGroupsRefuseEventReads(t *testing.T) {
 }
 
 // The 2-hour and 14-day windows judge a timestamp that containers stamp with
-// wall time, so an event inside them by either clock is stored (gap-G4.md).
+// wall time, so an event inside them by either clock is stored
+// (lambda-runtime-contract.md 3).
 func TestWindowsAcceptAnEventValidByEitherClock(t *testing.T) {
 	run(t, func(h *harness) {
 		h.group("g")

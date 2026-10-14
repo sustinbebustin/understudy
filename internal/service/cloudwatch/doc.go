@@ -30,7 +30,7 @@
 //     and a name does not start with a colon (the Dimension
 //     documentation; the text is inferred).
 //   - DeleteAlarms, EnableAlarmActions and DisableAlarmActions skip names that
-//     match no alarm, so deleting a missing alarm succeeds (gap-G1.md 4).
+//     match no alarm, so deleting a missing alarm succeeds (wire-cbor.md 3.5).
 //     ListTagsForResource of an ARN that names no alarm is an empty list, as
 //     AWS records for a deleted one; TagResource and UntagResource of such an
 //     ARN are ResourceNotFoundException.

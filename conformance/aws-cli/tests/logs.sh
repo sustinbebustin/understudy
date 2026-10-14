@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # CloudWatch Logs: groups, streams, retention, PutLogEvents, GetLogEvents,
 # FilterLogEvents (terms, JSON patterns, space-delimited patterns), tail, tags.
-# Arbiter: docs/research/phase1/secrets-logs-events-alarms.md section 3 and
-# docs/research/phase1/logs-filter-patterns.md.
+# Arbiter: docs/research/secrets-logs-events-alarms.md section 3 and
+# docs/research/logs-filter-patterns.md.
 
 # mkgroup [stream]: sets GROUP and optionally STREAM.
 mkgroup() {

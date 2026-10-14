@@ -17,7 +17,7 @@ import (
 )
 
 // bindPermissions binds AddPermission and RemovePermission, which edit the
-// topic's stored Policy; IAM is not enforced in phase 1 (brief).
+// topic's stored Policy; IAM is not enforced.
 func (s *Service) bindPermissions(b snsapi.Binder) {
 	const note = "statements are stored in the topic Policy; not enforced"
 	b.AddPermission(s.addPermission, registry.StoredOnly{Note: note},

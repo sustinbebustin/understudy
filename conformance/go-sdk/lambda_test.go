@@ -24,7 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
-// Research: docs/research/phase1/lambda-api.md, lambda-events.md,
+// Research: docs/research/lambda-api.md, lambda-events.md,
 // lambda-runtime-contract.md, error-matrix.md 5.6.
 
 // handlerSource is the Python module every test function runs. Each

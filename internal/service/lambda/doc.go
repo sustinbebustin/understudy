@@ -5,7 +5,7 @@
 // configuration, versions, aliases, resource policies, reserved
 // concurrency, tags, function URL configurations, asynchronous invocation
 // configurations and SQS event source mappings, with the validation texts
-// of docs/research/phase1/lambda-api.md and lambda-events.md. The data
+// of docs/research/lambda-api.md and lambda-events.md. The data
 // plane is an Execution built beside the Service (NewExecution): Invoke
 // in its three modes, the asynchronous queue with its retries, function
 // logs delivered to CloudWatch Logs, reset draining and hot reload; the

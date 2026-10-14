@@ -1,6 +1,6 @@
 // Package events implements Amazon EventBridge: the default bus, rules with
 // schedule expressions and event patterns, PutEvents and the Lambda, SQS and
-// SNS targets (docs/research/phase1/secrets-logs-events-alarms.md 4;
+// SNS targets (docs/research/secrets-logs-events-alarms.md 4;
 // ARCHITECTURE.md 16).
 //
 // A rule's schedule is a timer on the emulator clock (TimerSchedule, keyed by

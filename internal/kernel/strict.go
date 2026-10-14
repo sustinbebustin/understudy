@@ -10,7 +10,7 @@ import (
 
 // ZeroTimestampError is an output whose required timestamp members were
 // left at the zero time, which clients would read as year 1 (the Terraform
-// provider crashes on some; gap-G6.md finding 1).
+// provider crashes on some; tf-remaining.md 11).
 type ZeroTimestampError struct {
 	Op      string
 	Members []string

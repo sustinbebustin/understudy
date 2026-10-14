@@ -104,7 +104,7 @@ func rateRestart() fidelity.Switch[string] {
 		Name:  "events.schedule.restart",
 		Value: "on-schedule-change-or-enable",
 		Label: evidence.Inferred,
-		Ref:   "docs/research/phase1/secrets-logs-events-alarms.md#42-schedule-expressions-rate-and-cron",
+		Ref:   "docs/research/secrets-logs-events-alarms.md#42-schedule-expressions-rate-and-cron",
 	}
 }
 
@@ -115,7 +115,7 @@ func unmatchedInputPath() fidelity.Switch[string] {
 		Name:  "events.input-path.unmatched",
 		Value: "not-delivered",
 		Label: evidence.Inferred,
-		Ref:   "docs/research/phase1/secrets-logs-events-alarms.md#45-targets",
+		Ref:   "docs/research/secrets-logs-events-alarms.md#45-targets",
 	}
 }
 

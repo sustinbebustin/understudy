@@ -35,8 +35,8 @@ const (
 // Switches returns the metadata of the two Options fields as o sets them.
 func (o Options) Switches() []Switch {
 	return []Switch{
-		{Name: termBoundarySwitch, Value: o.TermBoundary.String(), Ref: "docs/research/phase1/logs-filter-patterns.md#5", Record: "R10/C1"},
-		{Name: fieldCountSwitch, Value: o.FieldCount.String(), Ref: "docs/research/phase1/logs-filter-patterns.md#3", Record: "R10/C6"},
+		{Name: termBoundarySwitch, Value: o.TermBoundary.String(), Ref: "docs/research/logs-filter-patterns.md#5", Record: "R10/C1"},
+		{Name: fieldCountSwitch, Value: o.FieldCount.String(), Ref: "docs/research/logs-filter-patterns.md#3", Record: "R10/C6"},
 	}
 }
 

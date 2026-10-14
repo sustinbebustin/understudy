@@ -300,8 +300,7 @@ func (e *egress) runLocal(name string, adjust func(*docker.Config)) (*Manager, s
 	return m, id, endpoint
 }
 
-// cycle drives Local through a table's life, as the brief's lock table
-// does: CreateTable, PutItem, Scan.
+// cycle drives Local through a table's life: CreateTable, PutItem, Scan.
 func cycle(t *testing.T, m *Manager, endpoint *url.URL) {
 	t.Helper()
 	for _, call := range []struct{ op, body string }{

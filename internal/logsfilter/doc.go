@@ -1,7 +1,7 @@
 // Package logsfilter compiles and matches CloudWatch Logs filter patterns:
 // unstructured terms, JSON patterns, space-delimited patterns and %regex%
 // terms, the one grammar FilterLogEvents, metric filters and subscription
-// filters share (docs/research/phase1/logs-filter-patterns.md).
+// filters share (docs/research/logs-filter-patterns.md).
 //
 // Compile a pattern once with Compile or Options.Compile where it enters the
 // API, then call Match per event. A pattern AWS would reject returns an

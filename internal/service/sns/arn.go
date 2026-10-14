@@ -58,7 +58,7 @@ func parseARN(member, s string) (aws.ARN, *awserr.Error) {
 // another region answers "Invalid parameter: <member>" through
 // kernel.ResolveScope (sns.md 1, AWS-recorded for topics); one in another
 // account of the caller's region resolves there, since IAM and topic
-// policies are not enforced (brief).
+// policies are not enforced.
 func resolve(c *kernel.Call, member string, a aws.ARN) (aws.Scope, *awserr.Error) {
 	account, err := aws.ParseAccountID(a.Account)
 	if err != nil {

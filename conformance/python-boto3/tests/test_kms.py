@@ -1,4 +1,4 @@
-"""KMS (docs/research/phase1/iam-sts-kms.md section 5): keys, aliases, crypto, rotation and
+"""KMS (docs/research/iam-sts-kms.md section 5): keys, aliases, crypto, rotation and
 scheduled deletion on the emulator clock."""
 
 from __future__ import annotations

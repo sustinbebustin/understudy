@@ -50,27 +50,27 @@ func TestCommentCitationsResolve(t *testing.T) {
 func TestCitationGuardReportsSyntheticViolations(t *testing.T) {
 	root := t.TempDir()
 	files := map[string]string{
-		"README.md":                            "",
-		"docs/design/ARCHITECTURE.md":          "",
-		"docs/research/phase1/sns.md":          "",
-		"docs/research/phase1/s3-checksum.md":  "",
-		"docs/research/phase1/sqs.md":          "",
-		"docs/guide/sqs.md":                    "",
-		"docs/configuration.md":                "",
-		"docs/guide/configuration.md":          "",
-		"docs/research/phase1/testdata/sns.md": "",
-		"internal/x/node_modules/y/broken.go":  "package y\n\n// nosuch.md\n",
-		"internal/x/testdata/broken.go":        "package x\n\n// nosuch.md\n",
-		"conformance/go-sdk/broken_test.go":    "package gosdk\n\n// The DLQ follows lost.md 6.1.\n",
-		"internal/x/.build/broken.go":          "package x\n\n// nosuch.md\n",
-		"third_party/models/broken.go":         "package models\n\n// nosuch.md\n",
-		"internal/x/.venv/broken.go":           "package x\n\n// nosuch.md\n",
-		".git/broken.go":                       "package git\n\n// nosuch.md\n",
-		"internal/x/README.md":                 "",
+		"README.md":                           "",
+		"docs/design/ARCHITECTURE.md":         "",
+		"docs/research/sns.md":                "",
+		"docs/research/s3-checksum.md":        "",
+		"docs/research/sqs.md":                "",
+		"docs/guide/sqs.md":                   "",
+		"docs/configuration.md":               "",
+		"docs/guide/configuration.md":         "",
+		"docs/research/testdata/sns.md":       "",
+		"internal/x/node_modules/y/broken.go": "package y\n\n// nosuch.md\n",
+		"internal/x/testdata/broken.go":       "package x\n\n// nosuch.md\n",
+		"conformance/go-sdk/broken_test.go":   "package gosdk\n\n// The DLQ follows lost.md 6.1.\n",
+		"internal/x/.build/broken.go":         "package x\n\n// nosuch.md\n",
+		"third_party/models/broken.go":        "package models\n\n// nosuch.md\n",
+		"internal/x/.venv/broken.go":          "package x\n\n// nosuch.md\n",
+		".git/broken.go":                      "package git\n\n// nosuch.md\n",
+		"internal/x/README.md":                "",
 		"internal/x/x.go": `// Package x follows sns.md 3, ARCHITECTURE.md 2 and README.md.
 package x
 
-// See docs/research/phase1/sns.md 4, docs/research/sns.md and s3-checksum.md 2.
+// See docs/research/sns.md 4, docs/design/sns.md and s3-checksum.md 2.
 // A longer hyphenated name is one citation, never its tail: x-nosuch.md.
 // Paths outside docs are not citations: internal/x/README.md, https://example.com/a/gone.md.
 // A path directly under docs counts: docs/configuration.md resolves, (docs/nosuch.md) does not.
@@ -98,7 +98,7 @@ var v = s
 	}
 
 	wantClashes := []string{
-		"docs/guide/sqs.md and docs/research/phase1/sqs.md share the file name sqs.md; comments cite a research note by file name alone, so rename one of them",
+		"docs/guide/sqs.md and docs/research/sqs.md share the file name sqs.md; comments cite a research note by file name alone, so rename one of them",
 	}
 	if got := noteNameClashes(tr); !slices.Equal(got, wantClashes) {
 		t.Errorf("noteNameClashes =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(wantClashes, "\n"))
@@ -107,7 +107,7 @@ var v = s
 	const why = "no such document under docs/ or the repository root; cite a note as <note>.md <section>"
 	wantBroken := []string{
 		"conformance/go-sdk/broken_test.go:3: lost.md: " + why,
-		"internal/x/x.go:4: docs/research/sns.md: " + why,
+		"internal/x/x.go:4: docs/design/sns.md: " + why,
 		"internal/x/x.go:5: x-nosuch.md: " + why,
 		"internal/x/x.go:7: docs/nosuch.md: " + why,
 		"internal/x/x.go:12: missing.md: " + why,

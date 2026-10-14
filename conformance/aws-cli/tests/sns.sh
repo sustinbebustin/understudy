@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SNS: topics, attributes, subscriptions, publish, publish-batch, delivery to SQS
 # (enveloped and raw), filter policies, FIFO topics, tags.
-# Arbiter: docs/research/phase1/sns.md.
+# Arbiter: docs/research/sns.md.
 
 # mktopic NAME [create-topic args...]: sets TOPIC_ARN.
 mktopic() {

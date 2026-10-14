@@ -2,7 +2,7 @@
 
 This suite checks understudy through the real AWS SDK for Go v2 clients, with their default settings. It is a separate Go module (`github.com/sustinbebustin/understudy/conformance/go-sdk`), so the SDK never becomes a dependency of understudy itself.
 
-The tests assert AWS behavior as documented in [`docs/research/phase1/`](../../docs/research/phase1/). That research is the arbiter. A test never encodes an understudy quirk: when understudy and the research disagree, the test fails and understudy gets fixed. Each test file names the research sections it relies on.
+The tests assert AWS behavior as documented in [`docs/research/`](../../docs/research/). That research is the arbiter. A test never encodes an understudy quirk: when understudy and the research disagree, the test fails and understudy gets fixed. Each test file names the research sections it relies on.
 
 ## Running it
 
@@ -75,7 +75,7 @@ Each test creates uniquely named resources and deletes them when it ends, so tes
 
 ## What the suite covers
 
-- Every phase 1 operation that understudy binds, for every service in the brief, with the error codes of the common failure paths.
+- Every phase 1 operation that understudy binds, for every service understudy emulates, with the error codes of the common failure paths.
 - S3:
   - virtual-hosted (`<bucket>.localhost`) and path-style addressing;
   - the default CRC32 request checksums, as headers over HTTP and as `aws-chunked` trailers over HTTPS;

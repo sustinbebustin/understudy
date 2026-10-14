@@ -247,12 +247,12 @@ func TestSwitchesReportTheCurrentSettings(t *testing.T) {
 		want []Switch
 	}{
 		{Options{}, []Switch{
-			{Name: "logs.filter.term-boundary", Value: "substring", Ref: "docs/research/phase1/logs-filter-patterns.md#5", Record: "R10/C1"},
-			{Name: "logs.filter.delimited-field-count", Value: "last-absorbs", Ref: "docs/research/phase1/logs-filter-patterns.md#3", Record: "R10/C6"},
+			{Name: "logs.filter.term-boundary", Value: "substring", Ref: "docs/research/logs-filter-patterns.md#5", Record: "R10/C1"},
+			{Name: "logs.filter.delimited-field-count", Value: "last-absorbs", Ref: "docs/research/logs-filter-patterns.md#3", Record: "R10/C6"},
 		}},
 		{Options{TermBoundary: TermToken, FieldCount: FieldCountExact}, []Switch{
-			{Name: "logs.filter.term-boundary", Value: "token", Ref: "docs/research/phase1/logs-filter-patterns.md#5", Record: "R10/C1"},
-			{Name: "logs.filter.delimited-field-count", Value: "exact", Ref: "docs/research/phase1/logs-filter-patterns.md#3", Record: "R10/C6"},
+			{Name: "logs.filter.term-boundary", Value: "token", Ref: "docs/research/logs-filter-patterns.md#5", Record: "R10/C1"},
+			{Name: "logs.filter.delimited-field-count", Value: "exact", Ref: "docs/research/logs-filter-patterns.md#3", Record: "R10/C6"},
 		}},
 	} {
 		if got := c.o.Switches(); !slices.Equal(got, c.want) {

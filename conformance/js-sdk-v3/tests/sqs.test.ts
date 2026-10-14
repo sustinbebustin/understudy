@@ -1,5 +1,5 @@
 // SQS over awsJson1_0 with awsQueryCompatible errors, through @aws-sdk/client-sqs.
-// Expected behavior: docs/research/phase1/sqs.md.
+// Expected behavior: docs/research/sqs.md.
 
 import { describe, expect, test } from "bun:test";
 import {

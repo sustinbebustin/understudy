@@ -1,6 +1,6 @@
 // Package ruler is the Event Ruler core shared by EventBridge event
 // patterns, SNS filter policies and Lambda event source mapping filters
-// (docs/research/phase1/matching-engines.md). Compile turns a pattern into a
+// (docs/research/matching-engines.md). Compile turns a pattern into a
 // typed Pattern for a Profile; Match evaluates it against a JSON event and
 // MatchAttributes against SNS message attributes. Both are pure functions.
 //

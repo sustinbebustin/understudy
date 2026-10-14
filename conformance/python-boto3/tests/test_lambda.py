@@ -1,4 +1,4 @@
-"""Lambda (docs/research/phase1/lambda-api.md, lambda-events.md): the control plane the SDKs and
+"""Lambda (docs/research/lambda-api.md, lambda-events.md): the control plane the SDKs and
 Terraform use, Invoke in its three modes, real execution in the official Python base image,
 logs delivered to CloudWatch Logs, SQS event source mappings and function URLs.
 

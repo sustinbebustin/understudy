@@ -14,7 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-// Research: docs/research/phase1/dynamodb-local.md, error-matrix.md 5.5.
+// Research: docs/research/dynamodb-local.md, error-matrix.md 5.5.
 
 // ddbOptOutEnv=0 is how the caller leaves DynamoDB out of the run, so
 // DynamoDB Local is never pulled and these tests skip.

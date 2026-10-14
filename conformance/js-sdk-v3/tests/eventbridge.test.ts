@@ -1,6 +1,6 @@
 // EventBridge over awsJson1_1, through @aws-sdk/client-eventbridge, with SQS
 // targets read back through @aws-sdk/client-sqs.
-// Expected behavior: docs/research/phase1/secrets-logs-events-alarms.md section 4.
+// Expected behavior: docs/research/secrets-logs-events-alarms.md section 4.
 
 import { describe, expect, test } from "bun:test";
 import {

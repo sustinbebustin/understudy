@@ -9,7 +9,7 @@
         "dev.understudy#evidence": [
           {
             "label": "inferred",
-            "source": "docs/research/phase1/error-matrix.md#512-eventbridge-json-11",
+            "source": "docs/research/error-matrix.md#512-eventbridge-json-11",
             "covers": ["dev.understudy#throttleError"]
           },
           {
@@ -30,7 +30,7 @@
         },
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/research/phase1/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
         }
       }
     }

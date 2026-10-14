@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SQS: queues, attributes, send/receive/delete, visibility, delay, long polling,
 # batches, purge, dead-letter queues, FIFO, tags, policies.
-# Arbiter: docs/research/phase1/sqs.md.
+# Arbiter: docs/research/sqs.md.
 
 # Create a standard queue and set QUEUE_URL.
 mkq() { # NAME [create-queue args...]

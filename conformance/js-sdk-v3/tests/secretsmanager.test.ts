@@ -1,5 +1,5 @@
 // Secrets Manager over awsJson1_1, through @aws-sdk/client-secrets-manager.
-// Expected behavior: docs/research/phase1/secrets-logs-events-alarms.md section 2.
+// Expected behavior: docs/research/secrets-logs-events-alarms.md section 2.
 
 import { describe, expect, test } from "bun:test";
 import {

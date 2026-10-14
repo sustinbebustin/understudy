@@ -71,6 +71,6 @@ func pendingCryptoError() fidelity.Switch[string] {
 		Name:  "kms.pending-deletion.crypto-error",
 		Value: "KMSInvalidStateException",
 		Label: evidence.AWSDoc,
-		Ref:   "docs/research/phase1/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix",
+		Ref:   "docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix",
 	}
 }

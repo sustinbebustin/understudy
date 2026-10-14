@@ -92,7 +92,7 @@ func expiryRule() fidelity.Switch[string] {
 		Name:  "logs.retention.expiry",
 		Value: "at-expiry",
 		Label: evidence.AWSDoc,
-		Ref:   "docs/research/phase1/secrets-logs-events-alarms.md#32-retention",
+		Ref:   "docs/research/secrets-logs-events-alarms.md#32-retention",
 	}
 }
 

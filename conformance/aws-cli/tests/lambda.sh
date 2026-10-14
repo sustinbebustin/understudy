@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Lambda: function control plane, versions, aliases, permissions, tags,
 # concurrency, function URLs, event source mappings, Invoke and function logs.
-# Arbiter: docs/research/phase1/lambda-api.md (sections 2 to 10) and
-# docs/research/phase1/lambda-events.md (sections 1 and 7).
+# Arbiter: docs/research/lambda-api.md (sections 2 to 10) and
+# docs/research/lambda-events.md (sections 1 and 7).
 #
 # Tests that execute code need Docker and the Python 3.13 Lambda base image;
 # they skip when the emulator reports Docker as not enabled.

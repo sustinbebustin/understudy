@@ -1,4 +1,4 @@
-"""S3 (docs/research/phase1/s3.md): managed transfers, multipart, listing, presigned URLs,
+"""S3 (docs/research/s3.md): managed transfers, multipart, listing, presigned URLs,
 addressing, checksums, conditional requests, SSE-KMS, subresources and notifications."""
 
 from __future__ import annotations

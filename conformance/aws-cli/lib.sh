@@ -8,7 +8,7 @@
 #     ends that test and the rest of the suite carries on;
 #   - create resources under names from `new_name`, so a run never collides
 #     with an earlier one on a long-lived server;
-#   - assert what AWS documents (docs/research/phase1/), never an emulator quirk.
+#   - assert what AWS documents (docs/research/), never an emulator quirk.
 
 # Refuse to run unless the AWS CLI is sealed to a loopback endpoint. The runner
 # is started through scripts/sealed, which sets all of this.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # STS: GetCallerIdentity and AssumeRole.
-# Arbiter: docs/research/phase1/iam-sts-kms.md sections 4 and 7.
+# Arbiter: docs/research/iam-sts-kms.md sections 4 and 7.
 
 test_get_caller_identity_shape() {
   aws_ok sts get-caller-identity

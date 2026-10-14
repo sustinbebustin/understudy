@@ -18,7 +18,7 @@
 // Time: Lambda-Runtime-Deadline-Ms is wall time at dispatch plus what is
 // left of the timeout (all of it unless the init retry used some), and the
 // timeout runs on a monotonic timer, so the emulator clock never reaches a
-// function (gap-G4.md, lambda-runtime-contract.md 3 and 4).
+// function (lambda-runtime-contract.md 3 and 4).
 //
 // Decisions the architecture leaves open:
 //

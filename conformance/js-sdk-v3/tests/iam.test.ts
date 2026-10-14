@@ -1,5 +1,5 @@
 // IAM over awsQuery, through @aws-sdk/client-iam.
-// Expected behavior: docs/research/phase1/iam-sts-kms.md section 3.
+// Expected behavior: docs/research/iam-sts-kms.md section 3.
 
 import { describe, expect, test } from "bun:test";
 import {

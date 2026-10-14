@@ -220,7 +220,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 404,
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/wire-rest.md#36-errors-and-not-configured-responses: AWS docs say 400, every other S3 not-configured error is 404; 404 is UNVERIFIED"}
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/wire-rest.md#36-errors-and-not-configured-responses: AWS docs say 400, every other S3 not-configured error is 404; 404 is UNVERIFIED"}
       }
     },
     "com.amazonaws.s3#SignatureDoesNotMatch": {
@@ -339,7 +339,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 400,
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/s3.md#32-createbucket: a public ACL on a BucketOwnerEnforced bucket fails; the code is AWS's documented ACL-ownership conflict, UNVERIFIED by recording"}
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3.md#32-createbucket: a public ACL on a BucketOwnerEnforced bucket fails; the code is AWS's documented ACL-ownership conflict, UNVERIFIED by recording"}
       }
     },
     "com.amazonaws.s3#InvalidBucketName": {
@@ -446,7 +446,7 @@
       "type": "apply",
       "traits": {
         "dev.understudy#validationError": {"patternPolicy": "handler"},
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/s3.md#7-copyobject-and-uploadpartcopy: UploadPartCopy takes the same x-amz-copy-source as CopyObject"}
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3.md#7-copyobject-and-uploadpartcopy: UploadPartCopy takes the same x-amz-copy-source as CopyObject"}
       }
     },
     "com.amazonaws.s3#ListObjectsRequest$EncodingType": {
@@ -838,7 +838,7 @@
       "replace": true,
       "traits": {
         "smithy.api#pattern": "^\\/?.+(\\/|%2[Ff]).+$",
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "docs/research/phase1/tf-remaining.md#8-aws_s3_object-family: terraform-provider-aws 6.68.0 aws_s3_object_copy sends x-amz-copy-source as url.QueryEscape(bucket/key), so the slash between bucket and key arrives as %2F; the model's pattern would refuse every Terraform copy"}
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "docs/research/tf-remaining.md#8-aws_s3_object-family: terraform-provider-aws 6.68.0 aws_s3_object_copy sends x-amz-copy-source as url.QueryEscape(bucket/key), so the slash between bucket and key arrives as %2F; the model's pattern would refuse every Terraform copy"}
       }
     },
     "com.amazonaws.s3#NotFound": {
