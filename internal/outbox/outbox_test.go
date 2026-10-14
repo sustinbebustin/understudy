@@ -1000,6 +1000,105 @@ func TestSnapshotLoadDuringAnAttemptJournalsNothing(t *testing.T) {
 	})
 }
 
+// stopWithQueuedAttempts enqueues deliveries to the queues first, second and
+// third, whose stored policies would deny SNS, so each attempt that runs
+// journals an Advisory. The attempt to first holds the sequencer until the
+// kernel stops, and its target call then fails, so nothing is committed for
+// it; the other two wait behind it. Any of them that reached its target
+// would commit, which committed records. Once the kernel has stopped,
+// afterStop sees the stopped kernel and the target calls made, and the
+// outbox's state is exported.
+func stopWithQueuedAttempts(t *testing.T, committed *recorder[string], afterStop func(k *kerneltest.K, calls []sent)) []store.Section {
+	t.Helper()
+	names := []string{"first", "second", "third"}
+	locked := policies{}
+	for _, n := range names {
+		locked[arn("sqs", n)] = nil
+	}
+	var sections []store.Section
+	runWith(t, outbox.Options{Policies: locked}, func(k *kerneltest.K, o *outbox.Outbox) {
+		q := &queues{}
+		k.Stub(sqsapi.OpSendMessage, func(ctx context.Context, c *kernel.Call, in *sqsapi.SendMessageInput) (*sqsapi.SendMessageOutput, *awserr.Error) {
+			queue := in.QueueUrl[strings.LastIndexByte(in.QueueUrl, '/')+1:]
+			q.calls.add(sent{at: c.Admitted(), queue: queue, in: *in})
+			if queue == "first" {
+				<-ctx.Done()
+				return nil, throttled("")
+			}
+			committed.add(queue)
+			id := "m"
+			return &sqsapi.SendMessageOutput{MessageId: &id}, nil
+		})
+		cause := source(k)
+		for _, n := range names {
+			enqueue(k, o, toQueue(n, delivery.SNSManaged{}), cause)
+		}
+		synctest.Wait()
+		if got := q.sent(); len(got) != 1 || got[0].queue != "first" {
+			k.Fatalf("sent %+v before the stop, want only the first attempt in progress", got)
+		}
+		// Cleanup runs once kerneltest.Run has stopped the kernel.
+		k.Cleanup(func() {
+			afterStop(k, q.sent())
+			var err error
+			if sections, err = o.Export(); err != nil {
+				k.Fatal(err)
+			}
+		})
+	})
+	return sections
+}
+
+// Stopping the kernel while attempts wait behind one in progress leaves the
+// waiting ones unattempted: none advises, calls its target or journals an
+// outcome.
+func TestStopSkipsQueuedAttempts(t *testing.T) {
+	var committed recorder[string]
+	stopWithQueuedAttempts(t, &committed, func(k *kerneltest.K, calls []sent) {
+		if len(calls) != 1 {
+			k.Errorf("target calls = %+v, want only the attempt in progress at the stop", calls)
+		}
+		if a := k.Journal.Query(journal.Filter{Kind: journal.KindAdvisory}).Events; len(a) != 1 {
+			k.Errorf("advisories = %+v, want only the first attempt's", a)
+		}
+		if c := k.Journal.Query(journal.Filter{Kind: journal.KindAPICall}).Events; len(c) != 2 {
+			k.Errorf("API calls = %+v, want the source call and the first attempt's", c)
+		}
+		if d := deliveries(k); len(d) != 0 {
+			k.Errorf("delivery events = %+v, want none after the stop", d)
+		}
+	})
+}
+
+// The deliveries a stop left unattempted stay pending, so a Rearm after a
+// snapshot load delivers each exactly once.
+func TestRearmAfterStopDeliversQueuedAttemptsOnce(t *testing.T) {
+	// committed records the sends each queue accepted, in both kernels.
+	var committed recorder[string]
+	sections := stopWithQueuedAttempts(t, &committed, func(*kerneltest.K, []sent) {})
+	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
+		stubQueues(k, func(_ int, in *sqsapi.SendMessageInput) *awserr.Error {
+			committed.add(in.QueueUrl[strings.LastIndexByte(in.QueueUrl, '/')+1:])
+			return nil
+		})
+		if err := o.Import(sections); err != nil {
+			k.Fatal(err)
+		}
+		o.Rearm(k.Clock.Now())
+		advance(k, time.Hour)
+		got := map[string]int{}
+		for _, queue := range committed.all() {
+			got[queue]++
+		}
+		if want := map[string]int{"first": 1, "second": 1, "third": 1}; !maps.Equal(got, want) {
+			k.Errorf("committed sends per queue across the stop and Rearm = %v, want %v", got, want)
+		}
+		if r := o.Resources(k.Scope); len(r) != 0 {
+			k.Errorf("Resources = %v, want nothing pending once delivered", r)
+		}
+	})
+}
+
 // policies is a PolicySource over a fixed table.
 type policies map[aws.ARN]*policydoc.Document
 

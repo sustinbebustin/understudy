@@ -58,8 +58,9 @@ func (e *engine) sequence(a *attempt) {
 }
 
 // drain runs queued attempts until the queue is empty. Once the kernel
-// stopped, ctx is done and each remaining attempt records no outcome and
-// releases its claim, leaving its delivery pending for the next Rearm.
+// stopped, ctx is done and each remaining attempt neither advises nor calls
+// its target: it records no outcome and releases its claim, leaving its
+// delivery pending for the next Rearm.
 func (e *engine) drain(ctx context.Context) {
 	for {
 		a, ok := e.ready.pop()

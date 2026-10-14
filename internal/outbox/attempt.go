@@ -140,7 +140,17 @@ func (a *attempt) release() {
 
 // run makes the attempt and returns how it ended; false when the kernel
 // stopped first, which leaves the delivery pending for the next Rearm.
+//
+// An attempt the stop finds still queued neither advises nor calls its
+// target: kernel.Invoke does not refuse a done context, so the call would
+// commit while its outcome is discarded, and the Rearm would deliver it
+// again. It journals only the fault hits onAttempt decided for it, whose
+// budgets are spent.
 func (a *attempt) run(ctx context.Context) (journal.DeliveryOutcome, bool) {
+	if ctx.Err() != nil {
+		a.journalSpent(ctx, a.decision)
+		return nil, false
+	}
 	if outcome, decided, ok := a.faults(ctx); !ok || decided {
 		return outcome, ok
 	}
