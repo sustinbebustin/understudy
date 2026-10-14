@@ -1,6 +1,6 @@
 # ADR 0014: DynamoDB Local as a raw proxy behind the pipeline
 
-Status: accepted, 2026-10-08. The licence reading needs counsel before the first public release.
+Status: accepted, 2026-10-08. The licence reading is settled by the amendment of 2026-10-14, which removes the licence gate.
 
 ## Context
 
@@ -45,3 +45,17 @@ The brief proxies DynamoDB to an understudy-managed DynamoDB Local container, pu
 
 - Until `internal/docker` carries port bindings (`Config.ExposedPorts`, `HostConfig.PortBindings`, `NetworkSettings.Ports`), the Manager reaches DynamoDB Local at its default-bridge address instead of a port published on `127.0.0.1:0`. That address is routable from a Linux host only, so DynamoDB is unsupported under Docker Desktop until then; `ddblocal.NotReadyError` says so, and `docs/plan/DEFERRED.md` (wave 6) tracks the fix.
 - The edge buffers a client's body for every operation bound with `kernel.BindRaw` and passes it as the `FromClient` wire, so the passthrough is byte-exact through the front door as the amendment above requires.
+
+## Amendment (licence, 2026-10-14)
+
+The owner settled the licence questions without counsel on the precedent and reading in [licensing-precedent.md](../research/phase1/licensing-precedent.md), sections 1 and 2. That closes ARCHITECTURE.md 25.2 and 25.6.
+
+- **25.2, closed.** understudy keeps pulling and proxying DynamoDB Local. AWS's own DynamoDB MCP server, testcontainers and AWS Powertools start the same image for their users with no licence gate. No AWS objection to tools that fetch AWS software for a user was found. The account and use conditions bind the user, who is the licensee. understudy is an HTTP client of an unmodified program on the user's own Docker daemon.
+- **The licence gate is removed.** This supersedes the "Licence gate" decision and the `Disabled | AwaitingLicence | Accepted{Digest}` state of the review amendment. DynamoDB runs by default and starts on first use. When DynamoDB Local first starts, understudy logs one line: DynamoDB is served by Amazon DynamoDB Local under Amazon's licence terms, with the licence URL (`ddblocal.Notice`). The configuration state is `Enabled | Disabled`. The existing `dynamodb.enabled: false` file key is the off switch, and its 501 names that setting. `--accept-dynamodb-local-license`, `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE` and the file key `acceptDynamodbLocalLicense` are removed, not deprecated. No release ever shipped them, and understudy refuses any unknown flag, variable or key, so a stale one fails loudly and names itself. Acceptance records written under `<data>/dynamodb-local/licence-accepted/` are no longer read.
+- **25.6, closed.** The project's CI runs DynamoDB Local in `test-docker` and in every conformance suite, including on fork PRs. The trigger stays `pull_request`, never `pull_request_target`, so fork runs get no secrets and a read-only token. The repository owner, who holds an AWS account in good standing, is the licensee for the workflow. If that account lapses, CI sets `CONFORMANCE_DYNAMODB=0` again until it is restored.
+- **Constraints that keep this reading.**
+  - Never bundle, mirror, re-tag, `docker save`, push or patch the image, and never touch Local's files or classes. Pull it by the pinned digest only.
+  - Never put the image in `actions/cache` or any registry, and never upload Local's files as CI artifacts.
+  - Never offer understudy as a hosted multi-user service with Local behind it.
+  - Keep both telemetry opt-outs and the egress test.
+- **If AWS objects.** On any request from AWS, a patch release turns DynamoDB off by default and the native lock-table fallback gets built.

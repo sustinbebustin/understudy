@@ -42,7 +42,7 @@ Every conflict and its resolution:
 | S3 cross-region access | AWS behavior, `lenient` switch | lenient | lenient | AWS behavior by default, `s3.crossRegion: lenient` switch | [0013](../adr/0013-s3-addressing-and-urls.md) |
 | DNS | none; `doctor` + `env` | none | none | none in phase 1 | [0013](../adr/0013-s3-addressing-and-urls.md) |
 | DynamoDB passthrough | decode, forward original bytes | `HandleRaw` | typed rewrite | raw binding behind the standard pipeline | [0014](../adr/0014-dynamodb-local-proxy.md) |
-| DynamoDB licence gate | notice on pull | flag only, never prompt | prompt or flag | flag or env only; never prompt | [0014](../adr/0014-dynamodb-local-proxy.md) |
+| DynamoDB licence gate | notice on pull | flag only, never prompt | prompt or flag | no gate since 2026-10-14: on by default, a one-line notice at first start, `dynamodb.enabled: false` turns it off; never prompt | [0014](../adr/0014-dynamodb-local-proxy.md) |
 | SNS HTTP/S delivery | off by default | implemented | implemented | subscribe and confirm flow in scope; outbound delivery behind an allow-list, empty by default | [0015](../adr/0015-cross-service-delivery.md) |
 | Config file | JSON, flags > env > file | flags and env only | JSON, flags > env > file | flags > env > optional JSON file, strict | [0017](../adr/0017-admin-api-cli-config.md) |
 | IDs | seedable `ids.Source` | seedable `ids` | ChaCha8 streams per kind | ChaCha8 streams per kind; KMS material never seeded | [0018](../adr/0018-ids-and-determinism.md) |
@@ -1214,8 +1214,8 @@ One poller per enabled mapping, tracked work (`Kernel.Go(InvocationRunning)`) th
 
 DynamoDB is the one service that proxies rather than implements. It still uses the generated `dynamodbapi` package: every request is decoded and validated so the journal, faults, access recorder and Coral-grammar validation run, then the original bytes are forwarded through a `RawHandler`.
 
-- Container: one `amazon/dynamodb-local` pinned by digest (`sha256:ff89bd48ff32cd8d9be5fee8873b65b8854dc408f1afe881be6eb00247bc0dab`, 3.3.1; ECR Public mirror as fallback, same digest), pulled at first use, never bundled, re-tagged or patched. Args `-jar DynamoDBLocal.jar -port 8000 -disableTelemetry` plus `-inMemory` (default) or `-dbPath /data` (persistence); env `DDB_LOCAL_TELEMETRY=0` (only the literal `0` works). Published on `127.0.0.1:0`, or attached to understudy's network and addressed by container IP when the topology is `InContainer` (product C2); labeled, memory-bounded. Started in the background at `serve` when accepted and the image is present, otherwise on first call with a bounded wait.
-- Licence gate: the image is pulled only after `--accept-dynamodb-local-license` or `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1`. Without it, DynamoDB calls answer 501 with the notice text from `dynamodb-local-terms.md 5.1` and the exact flag and environment variable; the startup banner and `understudy env` print the same line (product M4). The CLI never prompts. The config state is one sum type: `Disabled | AwaitingLicence | Accepted{Digest}`; acceptance is persisted per image digest in the data dir and read back into `Accepted`.
+- Container: one `amazon/dynamodb-local` pinned by digest (`sha256:ff89bd48ff32cd8d9be5fee8873b65b8854dc408f1afe881be6eb00247bc0dab`, 3.3.1; ECR Public mirror as fallback, same digest), pulled at first use, never bundled, re-tagged or patched. Args `-jar DynamoDBLocal.jar -port 8000 -disableTelemetry` plus `-inMemory` (default) or `-dbPath /data` (persistence); env `DDB_LOCAL_TELEMETRY=0` (only the literal `0` works). Published on `127.0.0.1:0`, or attached to understudy's network and addressed by container IP when the topology is `InContainer` (product C2); labeled, memory-bounded. Started in the background at `serve` when the image is present, otherwise on first call with a bounded wait.
+- Licence (ADR 0014 amendment of 2026-10-14, `licensing-precedent.md`): no acceptance gate. DynamoDB runs by default; the first start of DynamoDB Local logs one line saying DynamoDB is served by Amazon DynamoDB Local under Amazon's licence terms, with the licence URL. The config state is one sum type, `Enabled | Disabled`; `dynamodb.enabled: false` turns the service off, and its calls then answer 501 naming that setting, as they do while Docker is disabled. The CLI never prompts. The image is never bundled, mirrored, re-tagged, saved, pushed or patched, and understudy is never offered as a hosted multi-user service with Local behind it.
 - Isolation: the forwarded `Credential=` is rewritten to `<account>/<date>/<region>/dynamodb/aws4_request` so Local partitions by `(account, region)` natively; only regions from understudy's validated table are forwarded (they become file names under `-dbPath`).
 - Before forwarding, understudy answers what Local gets wrong (`error-matrix.md` finding 6): malformed JSON (`com.amazon.coral.service#SerializationException` 400), missing or bad target (`UnknownOperationException` 400), wrong Content-Type (404 XML), missing auth, request too large, generated validation. Unsupported operations are `NotImplemented` before Local sees them. Empty bodies are forwarded as `{}`; `Accept-Encoding` is forced to `identity`.
 - Shims (typed state per `(account, region, table)` in `service/dynamodb`): tags (seeded from `CreateTable.Tags`), TTL spec (never forwarded, so Local's wall-clock sweeper stays off), PITR describe and update (`TableNotFoundException` for missing tables), `WarmThroughput {12000, 4000, ACTIVE}`, `TableClassSummary`, `SSEDescription`, `TableId` injected on table descriptions (without `WarmThroughput` Terraform hangs about 2.5 minutes), `DeleteTable` reporting `DELETING`, `UpdateTable` with only shim-owned fields answered locally.
@@ -1317,7 +1317,7 @@ The CLI is a thin client of `admin.Client`. Non-interactive always; `--output te
 ```
 understudy serve [--config FILE] [--listen 127.0.0.1:4566] [--persist DIR] [--load-snapshot FILE] [--seed N]
                  [--clock running|frozen|frozen@RFC3339] [--clock-scale F] [--sigv4 parse|verify]
-                 [--accept-dynamodb-local-license] [--ready-file PATH] [--log-format json|text] [--log-level L]
+                 [--ready-file PATH] [--log-format json|text] [--log-level L]
 understudy health [--wait 30s]
 understudy settle [--timeout 30s]
 understudy reset [--service S] [--account A] [--region R]
@@ -1339,7 +1339,7 @@ understudy cleanup
 understudy version
 ```
 
-`--ready-file PATH` writes `{"endpoint", "pid"}` once listening; with `--listen 127.0.0.1:0` parallel CI jobs are trivial. The startup banner prints the endpoint, the `env` block, the admin URL, enabled services and warnings (`*.localhost` does not resolve here; Docker not reachable; DynamoDB disabled pending licence acceptance).
+`--ready-file PATH` writes `{"endpoint", "pid"}` once listening; with `--listen 127.0.0.1:0` parallel CI jobs are trivial. The startup banner prints the endpoint, the `env` block, the admin URL, enabled services and warnings (`*.localhost` does not resolve here; Docker not reachable).
 
 ## 18. Configuration
 
@@ -1360,7 +1360,7 @@ type Config struct {
 	Regions     []aws.Region   // additions to the real-name table
 	S3          S3             // BaseDomains (localhost.localstack.cloud may be added; product m10); CrossRegion: AWS | Lenient; MaxObjectBytes
 	Lambda      Lambda         // Network: Auto | Bridge{Gateway} | Disabled; StartConcurrency; IdleTimeout; MaxEnvironments; HotReload []Mapping
-	DynamoDB    DynamoDB       // Disabled | AwaitingLicence | Accepted{Digest}; Registry: DockerHub | ECRPublic; MemoryLimit
+	DynamoDB    DynamoDB       // Mode: Enabled | Disabled; Registry: DockerHub | ECRPublic; MemoryLimit
 	Journal     Journal        // Capacity; Bodies; File
 	Faults      []fault.Rule   // preloaded
 	Log         Log            // slog level; JSON or text
@@ -1447,7 +1447,7 @@ The wave plan is [../plan/PHASE1-PLAN.md](../plan/PHASE1-PLAN.md): leaves first,
 | Lambda execution on Linux bridge and in a container | wave 4 (runtime spike with `provided.al2023`), wave 8 (image with the `InContainer` smoke) |
 | Docker Desktop and Apple Silicon | open decision 25.1; the topology variant is specified, not tested by agents |
 | The S3 read path Terraform needs (14 subresource calls, S3 Control tags) | wave 6 (buckets and subresources) |
-| DynamoDB Local licence and persistence | wave 6 (proxy, licence gate) and wave 7 (shims, export and import); open decision 25.2 |
+| DynamoDB Local licence and persistence | wave 6 (proxy) and wave 7 (shims, export and import); licence reading closed by 25.2 |
 | Generated least-privilege policies miss AWS-required actions | wave 3 (principal modes) and wave 9 (policy assertions in the smoke test) |
 | Frozen clock hangs provisioning | wave 2 (clock contract) and wave 6 (Lambda API transitions final by default) |
 | Protocol corpus blocks delivery | wave 6 baseline ratchet |
@@ -1463,11 +1463,11 @@ The wave plan is [../plan/PHASE1-PLAN.md](../plan/PHASE1-PLAN.md): leaves first,
 | # | Decision | Owner | Due |
 |---|---|---|---|
 | 25.1 | Run the Docker suite and the smoke test on macOS (Docker Desktop, Apple Silicon) and record whether Docker Desktop becomes a tested topology; agents only have Linux | repository owner | before the first public tag |
-| 25.2 | DynamoDB Local licence reading (ADR 0014); if the answer is no, the minimal native fallback is the lock-table subset (`CreateTable`, `PutItem`, `GetItem`, `DeleteItem`, `UpdateItem`, `Query` with condition expressions, TTL) behind the same generated API and `RawHandler` seam; it is not built in phase 1 | repository owner with counsel | before the first public tag |
+| 25.2 | Decided 2026-10-14: understudy pulls and proxies DynamoDB Local, on by default with no acceptance gate (ADR 0014 amendment, [licensing-precedent.md](../research/phase1/licensing-precedent.md) section 1). The lock-table fallback stays designed, unbuilt, for an AWS request to stop | repository owner | closed |
 | 25.3 | Record R01 to R07 (core workload and Terraform plan stability) with real credentials; until then most behavior is `aws-doc`, `sdk-source` or `third-party-recorded` in the coverage report and the README wording derives from those numbers | repository owner | before the first public tag |
 | 25.4 | Decided 2026-10-13: ADR 0010 signed off; brief item 7 amended | pre-tag review | closed |
-| 25.5 | Whether the AWS managed policy documents in the AWS Managed Policy Reference Guide may be fetched automatically and shipped in the binary (AWS Site Terms: CC BY-SA 4.0 documentation, MIT-0 code, no robots); blocks the IAM managed policy catalogue | repository owner (counsel) | before IAM enforcement (ROADMAP item 5) |
-| 25.6 | Accept the DynamoDB Local licence for the project's CI, so the conformance job runs DynamoDB for every suite instead of `CONFORMANCE_DYNAMODB=0`; depends on 25.2 | repository owner (counsel) | before the first public tag |
+| 25.5 | Decided 2026-10-14: yes. Ship the AWS managed policy documents, sourced from the AWS Managed Policy Reference Guide through its `llms.txt` and `.md` pages by a maintainer-run generator, in a separately licensed `third_party/aws-managed-policies/` (MIT-0, CC BY-SA 4.0 attribution kept); never the IAM API or third-party datasets ([licensing-precedent.md](../research/phase1/licensing-precedent.md) section 3). Building the catalogue stays with IAM enforcement (ROADMAP item 5) | repository owner | closed |
+| 25.6 | Decided 2026-10-14: the project's CI runs DynamoDB Local in `test-docker` and every conformance suite, fork PRs included, under the `pull_request` trigger; the repository owner is the licensee. The image is pulled by digest only, never cached, uploaded or pushed (ADR 0014 amendment, [licensing-precedent.md](../research/phase1/licensing-precedent.md) section 2) | repository owner | closed |
 
 ## 26. Review decisions
 
@@ -1559,7 +1559,7 @@ Each finding from [reviews/engineering.md](reviews/engineering.md) (E), [reviews
 | [0011](../adr/0011-container-networking.md) | Container listener on the bridge gateway, per-environment listeners, IPv4-literal endpoints |
 | [0012](../adr/0012-identity-and-defaults.md) | Account from access key policy, default account, port, region table |
 | [0013](../adr/0013-s3-addressing-and-urls.md) | No DNS server, base-domain addressing, AWS cross-region behavior by default, queue URLs echo the Host |
-| [0014](../adr/0014-dynamodb-local-proxy.md) | DynamoDB Local as a raw proxy behind the pipeline, licence gate, TTL in the shim |
+| [0014](../adr/0014-dynamodb-local-proxy.md) | DynamoDB Local as a raw proxy behind the pipeline, on by default under Amazon's licence terms, TTL in the shim |
 | [0015](../adr/0015-cross-service-delivery.md) | Delivery engine on the clock; SNS HTTP delivery behind an allow-list |
 | [0016](../adr/0016-third-party-inputs-and-dependencies.md) | Pinned models and corpus, derived IAM table, rapid, in-repo xxHash |
 | [0017](../adr/0017-admin-api-cli-config.md) | Admin API, non-interactive CLI, configuration precedence, public Go packages |

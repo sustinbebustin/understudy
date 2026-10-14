@@ -297,7 +297,7 @@ Source: [phase1-brief.md](../../brief/phase1-brief.md). Quotes are the brief's.
 - Behaviour of telemetry on arm64, macOS, Windows, and the non-Docker distributions.
 - `HTTP(S)_PROXY` handling by the telemetry client.
 - Whether AWS documents the ECR Public mirror as an official channel.
-- Terms of the Lambda base images pulled from `public.ecr.aws/lambda/*`.
+- Terms of the Lambda base images pulled from `public.ecr.aws/lambda/*`. Closed 2026-10-14: no restriction found; pull and run them freely, never re-host them ([licensing-precedent.md](licensing-precedent.md) section 4).
 
 ## 7. Reproducing the egress test
 

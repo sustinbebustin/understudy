@@ -144,11 +144,18 @@ Ranked by what a user would hit first. None changes the verdict; the first two s
 
 ## Open decisions before a first public tag
 
-From `ARCHITECTURE.md` section 25, all still open and all owned by a human:
+Updated 2026-10-14, after the pre-tag push (2026-10-13 to 2026-10-14); the rest of this report is the review as found. From [ARCHITECTURE.md section 25](../design/ARCHITECTURE.md#25-open-decisions), owned by a human unless marked decided. [HUMAN-ACTIONS.md](HUMAN-ACTIONS.md) gives the next step for each open one.
 
-- 25.1 Run the Docker suite and the smoke test on macOS (Docker Desktop, Apple Silicon).
-- 25.2 Counsel's reading of the DynamoDB Local licence; the fallback (a native lock-table subset) is designed, not built.
-- 25.3 Record the core workload and Terraform plan stability against real AWS (R01 to R07) so the coverage page gains `aws-recorded` entries and the README wording can firm up.
-- 25.4 Sign off ADR 0010's deviation from "with the Runtime Interface Emulator".
+- 25.1 Run the Docker suite and the smoke test on macOS (Docker Desktop, Apple Silicon). Open; the run is scripted in [docs/human/macos-run.md](../human/macos-run.md).
+- 25.2 Counsel's reading of the DynamoDB Local licence; the fallback (a native lock-table subset) is designed, not built. Open; the brief for counsel is [docs/human/dynamodb-local-licence.md](../human/dynamodb-local-licence.md).
+- 25.3 Record the core workload and Terraform plan stability against real AWS (R01 to R07) so the coverage page gains `aws-recorded` entries and the README wording can firm up. Open; the capture steps are [docs/human/recording-kit.md](../human/recording-kit.md).
+- 25.4 Sign off ADR 0010's deviation from "with the Runtime Interface Emulator". Decided 2026-10-13: signed off, and brief item 7 amended to promise the official base images and runtime interface clients against understudy's Runtime API ([ADR 0010 amendment](../adr/0010-lambda-hosted-runtime-api.md#amendments-pre-tag-review-2026-10-13)).
+- 25.5 (new) Whether AWS managed policy documents may be fetched and shipped in the binary. Open, for counsel; due before IAM enforcement, not before the tag.
+- 25.6 (new) Whether the project may accept the DynamoDB Local licence for its CI, so every conformance suite runs DynamoDB there. Open, for counsel with 25.2; until then CI runs with `CONFORMANCE_DYNAMODB=0`.
 
-Plus, from this review: wire `--sigv4 verify` or remove the opt-in from the brief's promise, and fix the presign claim.
+From this review:
+
+- `--sigv4 verify`: decided 2026-10-13 to build it before the tag, and built. It verifies every credential form, session tokens and expiry, and signed `aws-chunked` uploads; the default stays `parse` ([ADR 0012 amendment](../adr/0012-identity-and-defaults.md#amendments-pre-tag-review-2026-10-13), [ROADMAP](../ROADMAP.md) item 2).
+- The presign claim (finding 1): now true for SigV4 URLs under `--sigv4 verify`, which expire on the emulator clock; [docs/guide/clock.md](../guide/clock.md) says so. SigV2 URLs expire only while the clock tracks wall time ([DEFERRED.md](DEFERRED.md), pre-tag wave 1).
+
+Other pre-tag decisions needed no owner and are recorded as amendments to ADRs [0003](../adr/0003-operation-binding-and-coverage.md), [0004](../adr/0004-one-kernel-pipeline.md), [0007](../adr/0007-causal-journal.md), [0011](../adr/0011-container-networking.md), [0013](../adr/0013-s3-addressing-and-urls.md), [0017](../adr/0017-admin-api-cli-config.md) and [0018](../adr/0018-ids-and-determinism.md).
