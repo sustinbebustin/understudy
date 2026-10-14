@@ -23,7 +23,7 @@ just verify
 - **Nothing is silently faked.** An operation that is not implemented stays unbound and answers 501. An operation that stores a setting without acting on it is marked stored-only. A deviation from AWS is a named fidelity switch or a coverage note.
 - **Generated code is checked in** and carries a `// Code generated ... DO NOT EDIT.` header. Change the generator or its inputs, then run `just generate`; never edit generated files.
 - **Design.** Read `docs/design/ARCHITECTURE.md` and `docs/adr/` before a change that crosses packages. Prefer sum types over boolean flags, return typed errors as values, parse at boundaries, and keep packages small around one domain type. `internal/ref/deps_test.go` enforces which packages may import which.
-- **Time.** Code outside `internal/clock` never calls `time.Now`, `time.Sleep` or timers; the linter refuses them. Anything AWS times runs on the emulator clock. Tests use `testing/synctest` or the emulator clock, never wall-clock sleeps.
+- **Time.** Code outside `internal/clock` and the build tools under `cmd/` and `internal/cmd/` never calls `time.Now`, `time.Sleep` or timers; the linter refuses them. Anything AWS times runs on the emulator clock. Tests use `testing/synctest` or the emulator clock, never wall-clock sleeps.
 - **Commits** follow the conventional form already in the history: `feat: ...`, `fix: ...`, `docs: ...`.
 
 ## Adding an operation
@@ -58,7 +58,7 @@ Every operation of the twelve services already has generated types, serializatio
 
    The note is what `understudy coverage` and `docs/coverage.md` show users. Bind options add a typed validator (`kernel.WithValidator`), a check (`kernel.WithCheck`) or the ARNs the call touches (`kernel.WithResources`), which fault rules, the journal and the access recorder use.
 4. **Constraints the model lacks.** If AWS enforces a limit or an error the Smithy model does not declare, add an entry to `codegen/overlays/<service>.json` with its `dev.understudy#evidence` (label and source), then `just generate`. Limits that depend on state belong in the handler.
-5. **Unsettled behavior.** Where the research leaves a choice open, make it a `fidelity.Switch` with its evidence label and research reference, and list it in the service's `Switches`.
+5. **Unsettled behavior.** Where the research leaves a choice open, make it a `fidelity.Switch` with its evidence label and research reference, and return its `Entry()` from the service's `Switches` method.
 6. **Test it** through the kernel, in a `kerneltest` bubble, so timers and long polls run on the emulator clock with no sleeps:
 
    ```go
@@ -105,7 +105,7 @@ A new wire protocol needs an ADR; the protocol compliance corpus already carries
 
 | Layer | Command | What it proves |
 |---|---|---|
-| Unit and service tests | `just test` | Service semantics on the emulator clock through `kernel.Invoke`; property tests for engines and codecs; generator golden tests; the 260 model examples |
+| Unit and service tests | `just test` | Service semantics on the emulator clock through `kernel.Invoke`; property tests for engines and codecs; generator golden tests; the examples in AWS's models |
 | Protocol compliance | `go test -race -run TestCorpus ./internal/protocoltest` | Codecs and error writers against Smithy's official compliance corpus, as a ratchet over `internal/protocoltest/baseline.json` |
 | Docker integration | `just test-docker` | Lambda execution, DynamoDB Local, container networking, the image |
 | Smoke | `just smoke` | The built binary serves one request per service, over HTTP and TLS |
@@ -136,7 +136,7 @@ conformance/terraform/run.sh iam
 | `terraform/` | Terraform: apply, an empty second plan, an update, destroy, nothing left behind |
 | `e2e-pipeline/` | The phase 1 event-driven pipeline end to end, including Lambda workers |
 
-Every suite has one file per service so a fix can own one service. Each suite's README lists its requirements and options. Every `run.sh` runs DynamoDB's tests on DynamoDB Local, pulled on first use; `CONFORMANCE_DYNAMODB=0` skips them, and any other value exits 2. Under the opt-out the end-to-end suite skips only the tests that make a worker take a DynamoDB lock or read the lock table.
+Every suite has one file per service so a fix can own one service. Each suite's README lists its requirements and options. `CONFORMANCE_DYNAMODB` accepts only `0`; any other value exits 2. Under the opt-out the end-to-end suite skips only the tests that make a worker take a DynamoDB lock or read the lock table.
 
 A conformance failure is a finding about understudy, or about the research: fix whichever is wrong, never the test to match understudy.
 
