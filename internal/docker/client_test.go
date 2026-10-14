@@ -164,7 +164,7 @@ func TestUnreachableDaemonIsUnavailableWithTheReason(t *testing.T) {
 		}{socket: forbidden, reason: docker.PermissionDenied})
 	}
 	for _, tc := range cases {
-		c, err := docker.New(docker.Options{Socket: tc.socket})
+		c, err := docker.New(docker.Options{Endpoint: docker.Unix{Path: tc.socket}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -173,7 +173,7 @@ func TestUnreachableDaemonIsUnavailableWithTheReason(t *testing.T) {
 		if !docker.IsUnavailable(err) || !errors.As(err, &uerr) {
 			t.Fatalf("Ping(%s) error = %v, want unavailable", tc.socket, err)
 		}
-		if uerr.Reason != tc.reason || !strings.Contains(err.Error(), tc.socket) || c.Socket() != tc.socket {
+		if uerr.Reason != tc.reason || !strings.Contains(err.Error(), tc.socket) || c.Endpoint() != (docker.Unix{Path: tc.socket}) {
 			t.Errorf("Ping(%s) = reason %v, message %q; want reason %v naming the socket", tc.socket, uerr.Reason, err, tc.reason)
 		}
 	}

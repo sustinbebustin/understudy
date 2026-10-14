@@ -14,9 +14,9 @@ import (
 // its auth, TLS, persistence, DynamoDB, Docker and the clock), kept with
 // where they came from until finish.
 type draft struct {
-	placement  Placement
-	cfg        Config
-	dockerHost string
+	placement Placement
+	cfg       Config
+	dockerEnv dockerEnv
 
 	listen      *netip.AddrPort
 	listenAt    string
@@ -51,8 +51,8 @@ const (
 	authContainerPublished
 )
 
-func newDraft(p Placement, dockerHost string) *draft {
-	return &draft{placement: p, cfg: Defaults(p), dockerHost: dockerHost}
+func newDraft(p Placement, env dockerEnv) *draft {
+	return &draft{placement: p, cfg: Defaults(p), dockerEnv: env}
 }
 
 // setters apply each scalar setting's text to a draft.
@@ -245,28 +245,12 @@ func (d *draft) setSigV4(v value) *Error {
 }
 
 func (d *draft) setDocker(v value) *Error {
-	docker, err := parseDocker(v.text)
+	docker, err := parseDocker(v.text, d.dockerEnv)
 	if err != "" {
-		return bad(v, err, "write unix:///var/run/docker.sock, or disabled to run no container")
+		return bad(v, err, "write unix:///var/run/docker.sock, tcp://<host>:<port>, or disabled to run no container")
 	}
 	d.docker = docker
 	return nil
-}
-
-// parseDocker reads disabled or a unix:// socket URL; the reason is empty
-// when it is valid.
-func parseDocker(text string) (docker Docker, reason string) {
-	if text == "disabled" {
-		return DockerDisabled{}, ""
-	}
-	path, ok := strings.CutPrefix(text, "unix://")
-	if !ok {
-		return nil, "is not disabled or a unix:// socket; understudy speaks to Docker over a unix socket only"
-	}
-	if !strings.HasPrefix(path, "/") {
-		return nil, "does not name an absolute socket path"
-	}
-	return DockerSocket{Path: path}, ""
 }
 
 func (d *draft) setLogFormat(v value) *Error {
@@ -475,21 +459,24 @@ func (d *draft) resolvePersistence() *Error {
 
 // resolveDocker uses an explicit docker setting, else DOCKER_HOST, else the
 // default socket. DOCKER_HOST is Docker's setting, not understudy's: one
-// understudy cannot use, such as tcp:// in GitLab's docker-in-docker or
-// ssh://, turns containers off with a warning rather than refusing to
-// serve, as an unreachable Docker does.
+// understudy cannot use, such as ssh://, turns containers off with a
+// warning rather than refusing to serve, as an unreachable Docker does.
 func (d *draft) resolveDocker() {
+	host := d.dockerEnv.host
 	switch {
 	case d.docker != nil:
 		d.cfg.Docker = d.docker
-	case d.dockerHost != "":
-		docker, reason := parseDocker(d.dockerHost)
-		if _, off := docker.(DockerDisabled); reason != "" || off {
+	case host != "":
+		docker, reason := parseDocker(host, d.dockerEnv)
+		if _, off := docker.(DockerDisabled); off {
+			reason = "turns Docker off, which only UNDERSTUDY_DOCKER can"
+		}
+		if reason != "" {
 			d.cfg.Docker = DockerDisabled{}
 			d.cfg.Warnings = append(d.cfg.Warnings, Warning{
 				Setting: DockerHostEnv,
-				Message: DockerHostEnv + " " + quote(d.dockerHost) + " is not a unix:// socket with an absolute path, the only kind understudy speaks to, so Lambda execution and DynamoDB are off",
-				Fix:     "set UNDERSTUDY_DOCKER to a unix:// socket to use one, or to disabled to silence this warning",
+				Message: DockerHostEnv + " " + quote(host) + " " + reason + ", so Lambda execution and DynamoDB are off",
+				Fix:     "set UNDERSTUDY_DOCKER to a unix:// socket or a tcp:// address to use one, or to disabled to silence this warning",
 			})
 			return
 		}

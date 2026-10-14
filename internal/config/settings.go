@@ -22,16 +22,20 @@ type Setting struct {
 func (s Setting) Switch() bool { return s.Value == "" }
 
 // Names of the settings outside the table: the config file's flag and
-// variable, the CLI's endpoint variable, and the Docker variable whose
-// unix socket is the default Docker setting. ListenEnv is the listen
-// setting's variable, which the CLI also reads to find a server beside it.
+// variable, the CLI's endpoint variable, and the Docker CLI's variables:
+// DOCKER_HOST is the default Docker setting, and the TLS ones say how to
+// reach a tcp:// daemon. ListenEnv is the listen setting's variable, which
+// the CLI also reads to find a server beside it.
 const (
-	ConfigFlag        = "config"
-	ConfigEnv         = "UNDERSTUDY_CONFIG"
-	DefaultConfigFile = "understudy.json"
-	EndpointEnv       = "UNDERSTUDY_ENDPOINT"
-	ListenEnv         = "UNDERSTUDY_LISTEN"
-	DockerHostEnv     = "DOCKER_HOST"
+	ConfigFlag         = "config"
+	ConfigEnv          = "UNDERSTUDY_CONFIG"
+	DefaultConfigFile  = "understudy.json"
+	EndpointEnv        = "UNDERSTUDY_ENDPOINT"
+	ListenEnv          = "UNDERSTUDY_LISTEN"
+	DockerHostEnv      = "DOCKER_HOST"
+	DockerTLSVerifyEnv = "DOCKER_TLS_VERIFY"
+	DockerCertPathEnv  = "DOCKER_CERT_PATH"
+	DockerConfigEnv    = "DOCKER_CONFIG"
 )
 
 // AWSAPIFlag accepts serving the AWS API beyond loopback behind the admin
@@ -77,7 +81,7 @@ func Settings() []Setting {
 		{Key: keyClock, Flag: "clock", Env: "UNDERSTUDY_CLOCK", Value: "MODE", Usage: "how the emulator clock starts: running, frozen, or frozen@<RFC 3339 time> (default running)"},
 		{Key: keyClockScale, Flag: "clock-scale", Env: "UNDERSTUDY_CLOCK_SCALE", Value: "FACTOR", Usage: "run the clock this many emulator seconds per wall second from start, above 0 and at most 10000; not with a frozen --clock (default 1)"},
 		{Key: keySigV4, Flag: "sigv4", Env: "UNDERSTUDY_SIGV4", Value: "MODE", Usage: "signature checking: parse (default) reads credentials only; verify refuses a bad signature, an unknown key, a missing or expired session token, and expires presigned URLs on the emulator clock"},
-		{Key: keyDocker, Flag: "docker", Env: "UNDERSTUDY_DOCKER", Value: "URL", Usage: "Docker Engine for Lambda and DynamoDB Local: unix://<socket> or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)"},
+		{Key: keyDocker, Flag: "docker", Env: "UNDERSTUDY_DOCKER", Value: "URL", Usage: "Docker Engine for Lambda and DynamoDB Local: unix://<socket>, tcp://<host>:<port> (TLS when DOCKER_TLS_VERIFY is set, with ca.pem, cert.pem and key.pem from DOCKER_CERT_PATH), or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)"},
 		{Key: keyReadyFile, Flag: "ready-file", Env: "UNDERSTUDY_READY_FILE", Value: "FILE", Usage: "file to write {\"endpoint\", \"pid\"} to once listening"},
 		{Key: keyLogFormat, Flag: "log-format", Env: "UNDERSTUDY_LOG_FORMAT", Value: "FORMAT", Usage: "log format: text or json (default text)"},
 		{Key: keyLogLevel, Flag: "log-level", Env: "UNDERSTUDY_LOG_LEVEL", Value: "LEVEL", Usage: "log level: debug, info, warn or error (default info)"},

@@ -31,6 +31,13 @@
 //     markers with no matching container on the daemon mean the daemon runs
 //     inside understudy's own container (Docker-in-Docker), so detection
 //     continues as on a host.
+//   - A tcp:// daemon is Remote when a connection to it shows it on another
+//     host: its address is neither loopback nor the one the connection
+//     leaves from. Function containers then leave the daemon's host through
+//     its network, so they reach understudy at that leaving address (Self).
+//     A daemon reached on loopback, such as a port published from a
+//     docker:dind container on this host, is taken to be this host's.
+//     Understudy's own container on the daemon still wins (InContainer).
 //   - Addresses carries FunctionNetwork so launchers need not switch on
 //     the topology to place function containers.
 //   - InContainer opens no container listener, because the main listener

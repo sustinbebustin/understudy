@@ -308,11 +308,24 @@ type Docker interface{ isDocker() }
 // it.
 type DockerSocket struct{ Path string }
 
+// DockerTCP reaches the Engine over plain TCP at Addr (host:port).
+type DockerTCP struct{ Addr string }
+
+// DockerTLS reaches the Engine over TCP at Addr with TLS, using ca.pem,
+// cert.pem and key.pem in CertDir; they are read when Docker is first
+// needed.
+type DockerTLS struct {
+	Addr    string
+	CertDir string
+}
+
 // DockerDisabled runs no container: Invoke and DynamoDB answer 501
 // NotImplemented, while every control plane keeps working.
 type DockerDisabled struct{}
 
 func (DockerSocket) isDocker()   {}
+func (DockerTCP) isDocker()      {}
+func (DockerTLS) isDocker()      {}
 func (DockerDisabled) isDocker() {}
 
 // DynamoDB is whether the DynamoDB service runs (ADR 0014).

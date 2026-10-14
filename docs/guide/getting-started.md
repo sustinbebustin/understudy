@@ -10,7 +10,7 @@ go install ./cmd/understudy
 
 This puts `understudy` in `$(go env GOPATH)/bin`. For the Docker image, run `just image`; the [README](../../README.md#docker) shows how to run it.
 
-Lambda functions and DynamoDB need a Docker Engine (`DOCKER_HOST`, else `/var/run/docker.sock`). Everything else runs without one.
+Lambda functions and DynamoDB need a Docker Engine (`DOCKER_HOST`, a unix socket or a `tcp://` daemon, else `/var/run/docker.sock`). Everything else runs without one.
 
 ## Start it
 

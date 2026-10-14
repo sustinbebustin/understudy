@@ -81,7 +81,7 @@ func load(args, env []string, readFile func(path string) ([]byte, error)) (*draf
 	if err != nil {
 		return nil, err
 	}
-	d := newDraft(DetectPlacement(readFile, env), envs.dockerHost)
+	d := newDraft(DetectPlacement(readFile, env), envs.docker)
 	setters := setters()
 	for _, s := range Settings() {
 		v, ok := flags[s.Key]
@@ -194,16 +194,17 @@ func checkFlags(args []string, set *flag.FlagSet) *Error {
 }
 
 // envValues are the UNDERSTUDY_* settings of the environment, with the
-// Docker variable that changes the default Docker setting.
-// KUBERNETES_SERVICE_HOST is read by DetectPlacement.
+// Docker CLI's variables that change the default Docker setting and say how
+// to reach a tcp:// daemon. KUBERNETES_SERVICE_HOST is read by
+// DetectPlacement.
 type envValues struct {
 	values     map[string]value
 	configPath *value
-	dockerHost string
+	docker     dockerEnv
 }
 
-// envPrefix starts every variable understudy reads, bar DockerHostEnv and
-// KubernetesEnv.
+// envPrefix starts every variable understudy reads, bar the Docker CLI's,
+// HOME and KubernetesEnv.
 const envPrefix = "UNDERSTUDY_"
 
 // parseEnv reads the UNDERSTUDY_* variables of env; an empty value is
@@ -222,8 +223,7 @@ func parseEnv(env []string) (envValues, *Error) {
 	for _, kv := range env {
 		name, text, _ := strings.Cut(kv, "=")
 		switch {
-		case name == DockerHostEnv:
-			out.dockerHost = text
+		case out.docker.read(name, text):
 		case !strings.HasPrefix(name, envPrefix), text == "", name == EndpointEnv:
 		case name == ConfigEnv:
 			out.configPath = &value{text: text, where: ConfigEnv, source: fromEnv}

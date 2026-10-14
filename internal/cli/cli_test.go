@@ -612,7 +612,7 @@ func TestClientCommandsAcceptTheAdminToken(t *testing.T) {
 	if r.code != admin.ExitOK || !strings.Contains(r.stdout, `"name": "configuration"`) || !strings.Contains(r.stdout, `"status": "ok"`) {
 		t.Errorf("doctor with a token = %d\n%s%s", r.code, r.stdout, r.stderr)
 	}
-	r = runCLI(t.Context(), closedEndpoint(t), []string{"DOCKER_HOST=tcp://docker:2375"}, "doctor", "--output", "json")
+	r = runCLI(t.Context(), closedEndpoint(t), []string{"DOCKER_HOST=ssh://user@docker"}, "doctor", "--output", "json")
 	var report struct {
 		Checks []struct{ Name, Status, Detail string } `json:"checks"`
 	}
@@ -621,9 +621,9 @@ func TestClientCommandsAcceptTheAdminToken(t *testing.T) {
 	}
 	warned := false
 	for _, c := range report.Checks {
-		warned = warned || (c.Name == "configuration" && c.Status == "warn" && strings.Contains(c.Detail, "tcp://docker:2375"))
+		warned = warned || (c.Name == "configuration" && c.Status == "warn" && strings.Contains(c.Detail, "ssh://user@docker"))
 	}
 	if !warned {
-		t.Errorf("doctor with DOCKER_HOST=tcp://docker:2375 reports %+v, want a configuration warning", report.Checks)
+		t.Errorf("doctor with DOCKER_HOST=ssh://user@docker reports %+v, want a configuration warning", report.Checks)
 	}
 }

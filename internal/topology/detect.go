@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"maps"
+	"net"
 	"net/netip"
 	"os"
 	"slices"
@@ -31,7 +32,14 @@ type Options struct {
 	// Root is the filesystem the in-container markers are read from; nil
 	// means the host's root. Tests substitute an fstest.MapFS.
 	Root fs.FS
+	// Dial opens the connection that shows the route to a tcp:// daemon;
+	// nil means a net.Dialer. Tests substitute one whose connection runs
+	// between addresses of their choosing.
+	Dial func(ctx context.Context, network, address string) (net.Conn, error)
 }
+
+// routeTimeout bounds the connection that shows the route to the daemon.
+const routeTimeout = 5 * time.Second
 
 // DesktopDefaultHostAddr is the address host.docker.internal resolves to in
 // Docker Desktop's VM unless configured otherwise; it is used when the probe
@@ -76,6 +84,9 @@ func (d *Detector) Detect(ctx context.Context, c *docker.Client, opts Options) (
 			return t, err
 		}
 	}
+	if remote, ok, err := detectRemote(ctx, c.Endpoint(), opts.Dial); err != nil || ok {
+		return remote, err
+	}
 	switch ping.Engine.(type) {
 	case docker.Podman:
 		gw, err := podmanGateway(ctx, c)
@@ -96,6 +107,50 @@ func (d *Detector) Detect(ctx context.Context, c *docker.Client, opts Options) (
 		return RootlessDocker{HostAddr: gw}, nil
 	}
 	return LinuxBridge{Gateway: gw}, nil
+}
+
+// detectRemote finds a tcp:// daemon on another host by the ends of a
+// connection to it: a daemon at a loopback address, or at the address the
+// connection leaves from, is on this host. ok is false for a daemon on
+// this host and for a unix socket.
+func detectRemote(ctx context.Context, endpoint docker.Endpoint, dial func(context.Context, string, string) (net.Conn, error)) (t Topology, ok bool, err error) {
+	var addr string
+	switch e := endpoint.(type) {
+	case docker.TCP:
+		addr = e.Addr
+	case docker.TLS:
+		addr = e.Addr
+	case docker.Unix:
+		return nil, false, nil
+	}
+	if dial == nil {
+		dial = (&net.Dialer{Timeout: routeTimeout}).DialContext
+	}
+	conn, err := dial(ctx, "tcp", addr)
+	if err != nil {
+		return nil, false, fmt.Errorf("detect container topology: connect to the daemon at %s to find the route to it: %w", addr, err)
+	}
+	local, daemon := hostOf(conn.LocalAddr()), hostOf(conn.RemoteAddr())
+	if err := conn.Close(); err != nil {
+		return nil, false, fmt.Errorf("detect container topology: close the connection to the daemon at %s: %w", addr, err)
+	}
+	if !local.IsValid() || !daemon.IsValid() {
+		return nil, false, fmt.Errorf("detect container topology: the connection to the daemon at %s runs from %v to %v, not between IP addresses", addr, conn.LocalAddr(), conn.RemoteAddr())
+	}
+	if daemon.IsLoopback() || daemon == local {
+		return nil, false, nil
+	}
+	return Remote{Daemon: daemon, Self: local}, true, nil
+}
+
+// hostOf is the IP address of a TCP address, IPv4-mapped addresses
+// unmapped; invalid for any other address.
+func hostOf(a net.Addr) netip.Addr {
+	tcp, ok := a.(*net.TCPAddr)
+	if !ok {
+		return netip.Addr{}
+	}
+	return tcp.AddrPort().Addr().Unmap()
 }
 
 // RunsInContainer reports whether the filesystem root (os.DirFS("/") for

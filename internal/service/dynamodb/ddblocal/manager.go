@@ -44,10 +44,19 @@ type Network interface{ isNetwork() }
 type DefaultBridge struct{}
 
 // Published joins the daemon's default bridge and publishes the container's
-// port on 127.0.0.1 with an ephemeral host port, which understudy reaches
-// on loopback (ADR 0014). It serves topologies whose host cannot route to
-// container addresses, such as Docker Desktop and rootless engines.
-type Published struct{}
+// port on HostIP with an ephemeral host port, which understudy reaches
+// there (ADR 0014). It serves topologies whose host cannot route to
+// container addresses: Docker Desktop and rootless engines on loopback,
+// the zero HostIP, and a remote daemon on its own address.
+type Published struct{ HostIP netip.Addr }
+
+// hostIP is HostIP, or 127.0.0.1 when it is zero.
+func (p Published) hostIP() netip.Addr {
+	if !p.HostIP.IsValid() {
+		return netip.AddrFrom4([4]byte{127, 0, 0, 1})
+	}
+	return p.HostIP
+}
 
 // Attached joins understudy's own network when understudy runs in a
 // container (topology InContainer); understudy reaches it by container IP.
@@ -395,7 +404,7 @@ func (m *Manager) networkName() string {
 }
 
 // address reads where understudy reaches the started container: the host
-// port published on loopback for Published, else the container's IPv4
+// port published for Published, else the container's IPv4
 // address on its network at port.
 func (m *Manager) address(ctx context.Context, id string) (netip.AddrPort, error) {
 	c, err := m.cfg.Docker.ContainerInspect(ctx, id)
@@ -553,10 +562,10 @@ func (m *Manager) spec(ref string) (docker.Config, docker.HostConfig, docker.Net
 	case Attached:
 		netCfg.EndpointsConfig = map[string]docker.EndpointSettings{n.Network: {}}
 	case Published:
-		// Loopback only, and an ephemeral port so two serve processes
-		// never collide (ADR 0014).
+		// One address only, loopback unless the daemon is remote, and an
+		// ephemeral port so two serve processes never collide (ADR 0014).
 		cfg.ExposedPorts = docker.PortSet{portKey: {}}
-		host.PortBindings = docker.PortMap{portKey: {{HostIP: "127.0.0.1", HostPort: "0"}}}
+		host.PortBindings = docker.PortMap{portKey: {{HostIP: n.hostIP().String(), HostPort: "0"}}}
 	case DefaultBridge:
 	}
 	return cfg, host, netCfg, nil

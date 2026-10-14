@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -124,13 +125,21 @@ func TestStartReachesRunning(t *testing.T) {
 	}
 }
 
-// TestPublishedIsReachedOnLoopback: on a topology whose host cannot route
-// to container addresses, port 8000 is published on 127.0.0.1 with an
-// ephemeral host port, and the endpoint is that loopback port, not the
-// bridge address (ADR 0014).
-func TestPublishedIsReachedOnLoopback(t *testing.T) {
+// TestPublishedIsReachedAtTheHostPort: on a topology whose host cannot
+// route to container addresses, port 8000 is published with an ephemeral
+// host port on the given address, loopback for a local daemon (ADR 0014)
+// and the daemon's own address for a remote one, and the endpoint is that
+// host port, not the bridge address.
+func TestPublishedIsReachedAtTheHostPort(t *testing.T) {
+	for _, hostIP := range []string{"127.0.0.1", "172.30.0.3"} {
+		t.Run(hostIP, func(t *testing.T) { testPublished(t, netip.MustParseAddr(hostIP)) })
+	}
+}
+
+func testPublished(t *testing.T, hostIP netip.Addr) {
+	t.Helper()
 	d := presentDaemon(t)
-	m := manager(t, d, ddblocal.Config{Network: ddblocal.Published{}})
+	m := manager(t, d, ddblocal.Config{Network: ddblocal.Published{HostIP: hostIP}})
 	answering(t, m, true)
 	if err := m.Start(t.Context()); err != nil {
 		t.Fatalf("Start = %v", err)
@@ -143,7 +152,7 @@ func TestPublishedIsReachedOnLoopback(t *testing.T) {
 	if _, ok := c.Config.ExposedPorts["8000/tcp"]; !ok {
 		t.Errorf("ExposedPorts = %v, want 8000/tcp", c.Config.ExposedPorts)
 	}
-	want := []docker.PortBinding{{HostIP: "127.0.0.1", HostPort: "0"}}
+	want := []docker.PortBinding{{HostIP: hostIP.String(), HostPort: "0"}}
 	if got := c.HostConfig.PortBindings["8000/tcp"]; !slices.Equal(got, want) {
 		t.Errorf("PortBindings[8000/tcp] = %v, want %v", got, want)
 	}
@@ -159,7 +168,7 @@ func TestPublishedIsReachedOnLoopback(t *testing.T) {
 		t.Fatalf("the daemon reports no host port: %v", live.NetworkSettings.Ports)
 	}
 	endpoint, ok := m.Endpoint()
-	if want := "http://" + hostPort.String(); !ok || endpoint.String() != want {
+	if want := "http://" + hostPort.String(); !ok || endpoint.String() != want || hostPort.Addr() != hostIP {
 		t.Errorf("Endpoint = %v, %t; want %s", endpoint, ok, want)
 	}
 }
@@ -476,7 +485,7 @@ func (g *deleteGate) client(t *testing.T, d *dockertest.Daemon) *docker.Client {
 	})}
 	go func() { _ = srv.Serve(ln) }() //nolint:errcheck // Serve returns ErrServerClosed at cleanup
 	t.Cleanup(func() { _ = srv.Close() })
-	client, err := docker.New(docker.Options{Socket: socket})
+	client, err := docker.New(docker.Options{Endpoint: docker.Unix{Path: socket}})
 	if err != nil {
 		t.Fatal(err)
 	}

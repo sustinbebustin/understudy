@@ -21,14 +21,18 @@ func EngineClient(t *testing.T) *docker.Client {
 	if cerr != nil {
 		t.Fatalf("resolve the Docker socket as serve does: %v", cerr)
 	}
-	var socket string
+	var endpoint docker.Endpoint
 	switch d := host.Docker.(type) {
 	case config.DockerSocket:
-		socket = d.Path
+		endpoint = docker.Unix{Path: d.Path}
+	case config.DockerTCP:
+		endpoint = docker.TCP{Addr: d.Addr}
+	case config.DockerTLS:
+		endpoint = docker.TLS{Addr: d.Addr, CertDir: d.CertDir}
 	case config.DockerDisabled:
-		t.Fatalf("docker-tagged tests need a Docker Engine, but the configuration turns Docker off (warnings: %v); point UNDERSTUDY_DOCKER or DOCKER_HOST at a unix:// socket with an absolute path", host.Warnings)
+		t.Fatalf("docker-tagged tests need a Docker Engine, but the configuration turns Docker off (warnings: %v); point UNDERSTUDY_DOCKER or DOCKER_HOST at a unix:// socket with an absolute path or a tcp:// address", host.Warnings)
 	}
-	c, err := docker.New(docker.Options{Socket: socket})
+	c, err := docker.New(docker.Options{Endpoint: endpoint})
 	if err != nil {
 		t.Fatal(err)
 	}

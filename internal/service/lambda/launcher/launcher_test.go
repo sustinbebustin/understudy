@@ -277,6 +277,25 @@ func TestStartInsideAContainerCopiesTheCodeAndJoinsUnderstudysNetwork(t *testing
 	}
 }
 
+// A remote daemon cannot see this host's paths, so the code is copied in,
+// and functions join the default bridge with no extra hosts: host-gateway
+// would name the daemon's host.
+func TestStartOnARemoteDaemonCopiesTheCode(t *testing.T) {
+	d := newDaemon(t)
+	l := newLauncher(t, d, topology.Remote{Daemon: netip.MustParseAddr("172.30.0.3"), Self: netip.MustParseAddr("172.30.0.2")})
+	c, err := l.Start(t.Context(), spec(t), slot())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := d.Container(c.ID)
+	if !slices.Equal(got.HostConfig.Mounts, []docker.Mount{tmpVolume}) || len(got.HostConfig.ExtraHosts) != 0 {
+		t.Errorf("Mounts = %+v, ExtraHosts = %v; want no code mount and no extra hosts", got.HostConfig.Mounts, got.HostConfig.ExtraHosts)
+	}
+	if uploads := d.Uploads(c.ID); len(uploads) != 1 || uploads[0].Path != "/var/task" {
+		t.Errorf("uploads = %+v, want one archive at /var/task", uploads)
+	}
+}
+
 func TestStartAppliesImageConfigOverrides(t *testing.T) {
 	d := newDaemon(t)
 	l := newLauncher(t, d, bridge())
@@ -591,7 +610,7 @@ func proxyBeforeStart(t *testing.T, d *dockertest.Daemon, hook func()) *docker.C
 	})}
 	go func() { _ = srv.Serve(ln) }() //nolint:errcheck // Serve returns ErrServerClosed at cleanup
 	t.Cleanup(func() { _ = srv.Close() })
-	client, err := docker.New(docker.Options{Socket: socket})
+	client, err := docker.New(docker.Options{Endpoint: docker.Unix{Path: socket}})
 	if err != nil {
 		t.Fatal(err)
 	}

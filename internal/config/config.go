@@ -226,10 +226,24 @@ type Docker interface{ isDocker() }
 // DockerSocket reaches the Engine over the unix socket at Path.
 type DockerSocket struct{ Path string }
 
+// DockerTCP reaches the Engine over plain TCP at Addr (host:port), as
+// docker-in-docker serves on port 2375.
+type DockerTCP struct{ Addr string }
+
+// DockerTLS reaches the Engine over TCP at Addr with TLS, verifying the
+// daemon against CertDir/ca.pem and presenting CertDir/cert.pem and
+// CertDir/key.pem (DOCKER_TLS_VERIFY and DOCKER_CERT_PATH).
+type DockerTLS struct {
+	Addr    string
+	CertDir string
+}
+
 // DockerDisabled runs no container; the control planes keep working.
 type DockerDisabled struct{}
 
 func (DockerSocket) isDocker()   {}
+func (DockerTCP) isDocker()      {}
+func (DockerTLS) isDocker()      {}
 func (DockerDisabled) isDocker() {}
 
 // S3 holds the S3 settings.

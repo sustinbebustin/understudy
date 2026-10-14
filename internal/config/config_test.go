@@ -355,7 +355,7 @@ func TestRefusedValues(t *testing.T) {
 		{args: []string{"--log-format", "xml"}, where: "--log-format"},
 		{args: []string{"--log-format", "text", "--output", "json"}, where: "--output"},
 		{args: []string{"--persist-every", "1m"}, where: "--persist-every"},
-		{args: []string{"--docker", "tcp://1.2.3.4:2375"}, where: "--docker"},
+		{args: []string{"--docker", "ssh://user@1.2.3.4"}, where: "--docker"},
 		{args: []string{"--listen", "127.0.0.1:0"}, env: []string{"UNDERSTUDY_ADMIN_TOKEN=x"}, where: "UNDERSTUDY_ADMIN_TOKEN"},
 		{args: []string{"extra"}, where: "arguments"},
 		// The DynamoDB Local licence acceptance was removed before any
@@ -561,11 +561,66 @@ func TestDynamoDBMode(t *testing.T) {
 	}
 }
 
-// A DOCKER_HOST understudy cannot speak to, such as docker-in-docker's
-// tcp://, turns containers off with a warning naming UNDERSTUDY_DOCKER
-// instead of refusing to serve.
+// A tcp:// daemon follows the Docker CLI (containers.md 2.1): port 2375
+// when none is given, localhost when no host is, and TLS with DOCKER_CERT_PATH's
+// certificates (default $DOCKER_CONFIG, else ~/.docker) only when
+// DOCKER_TLS_VERIFY is non-empty. The TLS variables apply to --docker too
+// and mean nothing to a unix socket.
+func TestDockerTCP(t *testing.T) {
+	cases := []struct {
+		args []string
+		env  []string
+		want config.Docker
+	}{
+		{env: []string{"DOCKER_HOST=tcp://docker:2375"}, want: config.DockerTCP{Addr: "docker:2375"}},
+		{env: []string{"DOCKER_HOST=tcp://docker"}, want: config.DockerTCP{Addr: "docker:2375"}},
+		{env: []string{"DOCKER_HOST=tcp://:2375"}, want: config.DockerTCP{Addr: "localhost:2375"}},
+		{env: []string{"DOCKER_HOST=tcp://[::1]:2375"}, want: config.DockerTCP{Addr: "[::1]:2375"}},
+		{env: []string{"DOCKER_HOST=tcp://docker:2375", "DOCKER_CERT_PATH=/certs/client"}, want: config.DockerTCP{Addr: "docker:2375"}},
+		{
+			env:  []string{"DOCKER_HOST=tcp://docker:2376", "DOCKER_TLS_VERIFY=1", "DOCKER_CERT_PATH=/certs/client"},
+			want: config.DockerTLS{Addr: "docker:2376", CertDir: "/certs/client"},
+		},
+		{env: []string{"DOCKER_HOST=tcp://docker:2376", "DOCKER_TLS_VERIFY=0", "HOME=/home/u"}, want: config.DockerTLS{Addr: "docker:2376", CertDir: "/home/u/.docker"}},
+		{env: []string{"DOCKER_HOST=tcp://docker:2376", "DOCKER_TLS_VERIFY=1", "DOCKER_CONFIG=/cfg", "HOME=/home/u"}, want: config.DockerTLS{Addr: "docker:2376", CertDir: "/cfg"}},
+		{env: []string{"DOCKER_HOST=unix:///var/run/docker.sock", "DOCKER_TLS_VERIFY=1"}, want: config.DockerSocket{Path: "/var/run/docker.sock"}},
+		{args: []string{"--docker", "tcp://10.0.0.5:2375"}, env: []string{"DOCKER_HOST=unix:///x.sock"}, want: config.DockerTCP{Addr: "10.0.0.5:2375"}},
+		{
+			args: []string{"--docker", "tcp://10.0.0.5:2376"}, env: []string{"DOCKER_TLS_VERIFY=1", "DOCKER_CERT_PATH=/c"},
+			want: config.DockerTLS{Addr: "10.0.0.5:2376", CertDir: "/c"},
+		},
+	}
+	for _, tc := range cases {
+		cfg := load(t, tc.args, tc.env, files{})
+		if cfg.Docker != tc.want || len(cfg.Warnings) != 0 {
+			t.Errorf("Load(%q, %q) docker = %#v, warnings %+v; want %#v", tc.args, tc.env, cfg.Docker, cfg.Warnings, tc.want)
+		}
+	}
+}
+
+// --docker with a tcp:// URL understudy cannot use is refused naming the
+// setting.
+func TestDockerTCPRefusals(t *testing.T) {
+	for _, tc := range []struct {
+		args []string
+		env  []string
+	}{
+		{args: []string{"--docker", "tcp://docker:2375/base"}},
+		{args: []string{"--docker", "tcp://docker:port"}},
+		{args: []string{"--docker", "tcp://user@docker:2375"}},
+		{args: []string{"--docker", "tcp://docker:2376"}, env: []string{"DOCKER_TLS_VERIFY=1"}},
+	} {
+		if err := loadErr(t, tc.args, tc.env, files{}); err.Where != "--docker" {
+			t.Errorf("Load(%q, %q) refused %q, want --docker", tc.args, tc.env, err.Where)
+		}
+	}
+}
+
+// A DOCKER_HOST understudy cannot speak to, such as ssh://, turns
+// containers off with a warning naming UNDERSTUDY_DOCKER instead of
+// refusing to serve.
 func TestUnusableDockerHostWarns(t *testing.T) {
-	for _, host := range []string{"tcp://docker:2375", "ssh://user@remote", "unix://relative.sock"} {
+	for _, host := range []string{"ssh://user@remote", "unix://relative.sock", "tcp://docker:2375/base"} {
 		cfg := load(t, nil, []string{"DOCKER_HOST=" + host}, files{})
 		if cfg.Docker != (config.DockerDisabled{}) || len(cfg.Warnings) != 1 || cfg.Warnings[0].Setting != config.DockerHostEnv ||
 			!strings.Contains(cfg.Warnings[0].Message, host) || !strings.Contains(cfg.Warnings[0].Fix, "UNDERSTUDY_DOCKER") {

@@ -200,18 +200,22 @@ type delivery interface{ isDelivery() }
 type bindMount struct{}
 
 // tarCopy copies the tree into the container before it starts, for when
-// understudy runs in a container and its paths are not the daemon's. The
-// copy needs a writable root file system (containers.md finding 6).
+// understudy's paths are not the daemon's: understudy runs in a container,
+// or the daemon on another host. The copy needs a writable root file
+// system (containers.md finding 6).
 type tarCopy struct{}
 
 func (bindMount) isDelivery() {}
 func (tarCopy) isDelivery()   {}
 
-// deliveryFor picks tar copy when understudy runs inside a container and
-// bind mounts otherwise (containers.md 5.1).
+// deliveryFor picks tar copy when understudy runs inside a container or
+// the daemon on another host, and bind mounts otherwise (containers.md
+// 5.1).
 func deliveryFor(t topology.Topology) delivery {
-	if _, ok := t.(topology.InContainer); ok {
+	switch t.(type) {
+	case topology.InContainer, topology.Remote:
 		return tarCopy{}
+	case topology.LinuxBridge, topology.DockerDesktop, topology.RootlessDocker, topology.Podman:
 	}
 	return bindMount{}
 }

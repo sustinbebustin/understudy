@@ -159,25 +159,65 @@ func TestCleanupMatchesServeAndRefusesWhileItRuns(t *testing.T) {
 	}
 }
 
-// doctor reports a reachable Docker and its topology, and fails naming the
-// socket when none answers there.
-func TestDoctorChecksDocker(t *testing.T) {
-	d := dockertest.New(t, dockertest.Options{})
-	r := runCLI(t.Context(), closedEndpoint(t), []string{"UNDERSTUDY_DOCKER=unix://" + d.Socket()}, "doctor", "--output", "json")
+// doctorCheck is one check of doctor's JSON report.
+type doctorCheck struct {
+	Name, Status, Detail, Fix string
+}
+
+// doctorChecks runs doctor in JSON with env and returns its checks by name.
+func doctorChecks(t *testing.T, env []string) map[string]doctorCheck {
+	t.Helper()
+	r := runCLI(t.Context(), closedEndpoint(t), env, "doctor", "--output", "json")
 	var report struct {
-		Checks []struct {
-			Name, Status, Detail, Fix string
-		} `json:"checks"`
+		Checks []doctorCheck `json:"checks"`
 	}
 	if err := json.Unmarshal([]byte(r.stdout), &report); err != nil {
 		t.Fatalf("doctor = %d %q: %v", r.code, r.stdout, err)
 	}
-	status := map[string]string{}
+	out := map[string]doctorCheck{}
 	for _, c := range report.Checks {
-		status[c.Name] = c.Status
+		out[c.Name] = c
 	}
-	if status["docker"] != "ok" || status["topology"] != "ok" || status["server"] != "warn" {
-		t.Errorf("doctor checks %+v, want docker and topology ok and the server warned", report.Checks)
+	return out
+}
+
+// doctor names the daemon a tcp:// DOCKER_HOST reaches and its transport,
+// and for a misconfigured TLS daemon fails with what to fix.
+func TestDoctorReportsTheDockerTransport(t *testing.T) {
+	plain := dockertest.New(t, dockertest.Options{Transport: dockertest.PlainTCP{}}).Endpoint()
+	secure, ok := dockertest.New(t, dockertest.Options{Transport: dockertest.MutualTLS{}}).Endpoint().(docker.TLS)
+	if !ok {
+		t.Fatal("a MutualTLS daemon has no TLS endpoint")
+	}
+	tlsEnv := []string{"DOCKER_HOST=" + secure.String(), "DOCKER_TLS_VERIFY=1", "DOCKER_CERT_PATH=" + secure.CertDir}
+	for _, tc := range []struct {
+		env       []string
+		transport string
+	}{
+		{env: []string{"DOCKER_HOST=" + plain.String()}, transport: "TCP without TLS"},
+		{env: tlsEnv, transport: "TCP with TLS, certificates from " + secure.CertDir},
+	} {
+		checks := doctorChecks(t, tc.env)
+		if c := checks["docker"]; c.Status != "ok" || !strings.Contains(c.Detail, tc.transport) || !strings.Contains(c.Detail, strings.TrimPrefix(tc.env[0], "DOCKER_HOST=")) {
+			t.Errorf("doctor with %q: docker check %+v, want ok naming the endpoint and %q", tc.env, c, tc.transport)
+		}
+		if c := checks["topology"]; c.Status != "ok" {
+			t.Errorf("doctor with %q: topology check %+v, want ok", tc.env, c)
+		}
+	}
+	noCerts := []string{"DOCKER_HOST=" + secure.String(), "DOCKER_TLS_VERIFY=1", "DOCKER_CERT_PATH=" + t.TempDir()}
+	if c := doctorChecks(t, noCerts)["docker"]; c.Status != "fail" || !strings.Contains(c.Detail, "DOCKER_CERT_PATH") {
+		t.Errorf("doctor without certificates: docker check %+v, want a failure naming DOCKER_CERT_PATH", c)
+	}
+}
+
+// doctor reports a reachable Docker and its topology, and fails naming the
+// socket when none answers there.
+func TestDoctorChecksDocker(t *testing.T) {
+	d := dockertest.New(t, dockertest.Options{})
+	checks := doctorChecks(t, []string{"UNDERSTUDY_DOCKER=unix://" + d.Socket()})
+	if checks["docker"].Status != "ok" || checks["topology"].Status != "ok" || checks["server"].Status != "warn" {
+		t.Errorf("doctor checks %+v, want docker and topology ok and the server warned", checks)
 	}
 	missing := runCLI(t.Context(), closedEndpoint(t), []string{"UNDERSTUDY_DOCKER=unix://" + t.TempDir() + "/none.sock"}, "doctor")
 	if missing.code != admin.ExitFailed || !strings.Contains(missing.stdout, "none.sock") || !strings.Contains(missing.stderr, "docker check failed") {

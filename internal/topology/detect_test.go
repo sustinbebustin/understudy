@@ -1,8 +1,11 @@
 package topology_test
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"io/fs"
+	"net"
 	"net/netip"
 	"slices"
 	"strings"
@@ -386,8 +389,72 @@ func TestDetectDesktopRefusesToProbeWithoutOwnershipLabels(t *testing.T) {
 	}
 }
 
+// routedConn is a connection whose ends are the given addresses, as a TCP
+// connection to a daemon on another host has.
+type routedConn struct {
+	net.Conn
+	local, remote netip.AddrPort
+}
+
+func (c routedConn) LocalAddr() net.Addr  { return net.TCPAddrFromAddrPort(c.local) }
+func (c routedConn) RemoteAddr() net.Addr { return net.TCPAddrFromAddrPort(c.remote) }
+
+// routedTo dials connections that appear to run from local to remote.
+func routedTo(local, remote string) func(context.Context, string, string) (net.Conn, error) {
+	return func(context.Context, string, string) (net.Conn, error) {
+		a, b := net.Pipe()
+		if err := b.Close(); err != nil {
+			return nil, err
+		}
+		return routedConn{Conn: a, local: netip.MustParseAddrPort(local), remote: netip.MustParseAddrPort(remote)}, nil
+	}
+}
+
+// A tcp:// daemon on another host is Remote: functions reach understudy at
+// the address its route to the daemon leaves from, whatever the daemon's
+// engine, and even from a container the daemon does not run (a CI job
+// beside a docker:dind service). A daemon reached on loopback, or on an
+// address of this host, is detected as on a unix socket.
+func TestDetectRemoteDaemons(t *testing.T) {
+	dind := fstest.MapFS{".dockerenv": {}, "etc/hostname": {Data: []byte("0123456789ab\n")}}
+	cases := []struct {
+		name string
+		opts dockertest.Options
+		dial func(context.Context, string, string) (net.Conn, error)
+		root fs.FS
+		want topology.Topology
+	}{
+		{name: "loopback", root: onHost(), want: topology.LinuxBridge{Gateway: netip.MustParseAddr("172.17.0.1")}},
+		{name: "this host's own address", dial: routedTo("10.1.0.5:40000", "10.1.0.5:2375"), root: onHost(), want: topology.LinuxBridge{Gateway: netip.MustParseAddr("172.17.0.1")}},
+		{
+			name: "docker-in-docker service beside a CI job", dial: routedTo("172.30.0.2:40000", "172.30.0.3:2375"), root: dind,
+			want: topology.Remote{Daemon: netip.MustParseAddr("172.30.0.3"), Self: netip.MustParseAddr("172.30.0.2")},
+		},
+		{
+			name: "remote Docker Desktop", opts: dockertest.Options{Info: docker.Info{OperatingSystem: "Docker Desktop"}}, dial: routedTo("10.1.0.5:40000", "10.1.0.9:2376"), root: onHost(),
+			want: topology.Remote{Daemon: netip.MustParseAddr("10.1.0.9"), Self: netip.MustParseAddr("10.1.0.5")},
+		},
+	}
+	for _, transport := range []dockertest.Transport{dockertest.PlainTCP{}, dockertest.MutualTLS{}} {
+		for _, tc := range cases {
+			t.Run(fmt.Sprintf("%T/%s", transport, tc.name), func(t *testing.T) {
+				opts := tc.opts
+				opts.Transport = transport
+				c := dockertest.New(t, opts).Client(t)
+				got, err := new(topology.Detector).Detect(t.Context(), c, topology.Options{Root: tc.root, Dial: tc.dial})
+				if err != nil {
+					t.Fatalf("Detect: %v", err)
+				}
+				if got != tc.want {
+					t.Errorf("Detect = %v, want %v", got, tc.want)
+				}
+			})
+		}
+	}
+}
+
 func TestDetectPropagatesAnUnreachableDaemon(t *testing.T) {
-	c, err := docker.New(docker.Options{Socket: "/nonexistent/understudy/docker.sock"})
+	c, err := docker.New(docker.Options{Endpoint: docker.Unix{Path: "/nonexistent/understudy/docker.sock"}})
 	if err != nil {
 		t.Fatal(err)
 	}

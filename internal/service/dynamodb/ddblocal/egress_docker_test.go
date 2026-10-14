@@ -151,10 +151,14 @@ func (e *egress) createSink(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	socket, ok := e.d.Endpoint().(docker.Unix)
+	if !ok {
+		return "", fmt.Errorf("the egress test sends its create request over a unix socket, and the daemon is at %s; point UNDERSTUDY_DOCKER or DOCKER_HOST at a unix:// socket", e.d.Endpoint())
+	}
 	client := &http.Client{Transport: &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			var d net.Dialer
-			return d.DialContext(ctx, "unix", e.d.Socket())
+			return d.DialContext(ctx, "unix", socket.Path)
 		},
 	}}
 	defer client.CloseIdleConnections()

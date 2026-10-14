@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/sustinbebustin/understudy/internal/topology"
 )
 
 // The container listener serves a peer inside the network of the
@@ -89,5 +91,26 @@ func TestContainerListenerNeedsTheBridgeInterface(t *testing.T) {
 	_, err := containerListen(t.Context(), netip.MustParseAddrPort("172.18.0.1:0"), func() ([]net.Addr, error) { return addrs, nil }, slog.New(slog.DiscardHandler))
 	if ne, ok := errors.AsType[*NoBridgeInterfaceError](err); !ok || ne.Addr != netip.MustParseAddr("172.18.0.1") {
 		t.Errorf("containerListen on an address no interface holds = %v, want a NoBridgeInterfaceError", err)
+	}
+}
+
+// Function containers of a remote daemon reach understudy from the
+// daemon's address, so the container network is the network of the
+// interface holding understudy's address toward the daemon, and a daemon
+// outside it, routed to rather than beside understudy, is refused with
+// what to change.
+func TestRemoteDaemonPeers(t *testing.T) {
+	self := netip.MustParseAddr("172.30.0.2")
+	interfaces := func() ([]net.Addr, error) {
+		return []net.Addr{&net.IPNet{IP: net.IPv4(172, 30, 0, 2), Mask: net.CIDRMask(24, 32)}}, nil
+	}
+	beside := topology.Remote{Daemon: netip.MustParseAddr("172.30.0.3"), Self: self}
+	if got, err := containerPeers(beside, self, interfaces); err != nil || got != netip.MustParsePrefix("172.30.0.0/24") {
+		t.Errorf("containerPeers(%s) = %v, %v; want 172.30.0.0/24", beside, got, err)
+	}
+	routed := topology.Remote{Daemon: netip.MustParseAddr("10.9.0.7"), Self: self}
+	_, err := containerPeers(routed, self, interfaces)
+	if re, ok := errors.AsType[*RemoteRouteError](err); !ok || re.Daemon != routed.Daemon || !strings.Contains(err.Error(), "docker:dind") {
+		t.Errorf("containerPeers(%s) = %v, want a RemoteRouteError with the remedy", routed, err)
 	}
 }

@@ -165,10 +165,11 @@ func (l *lazyLocal) manager(ctx context.Context) (*ddblocal.Manager, error) {
 
 // localNetwork is how understudy reaches DynamoDB Local on top: at its
 // default-bridge address where the host routes to container addresses, on
-// understudy's own network in a container, and otherwise on a port
-// published on loopback (ADR 0014). Docker Desktop keeps containers in a
-// VM, and rootless engines keep them in a network namespace, so neither
-// host can route to a container address.
+// understudy's own network in a container, on a port published on a remote
+// daemon's own address, and otherwise on a port published on loopback (ADR
+// 0014). Docker Desktop keeps containers in a VM, rootless engines keep
+// them in a network namespace, and a remote daemon keeps them on another
+// host, so none can be reached at a container address.
 func localNetwork(top topology.Topology) ddblocal.Network {
 	switch t := top.(type) {
 	case topology.LinuxBridge:
@@ -180,6 +181,8 @@ func localNetwork(top topology.Topology) ddblocal.Network {
 		return ddblocal.DefaultBridge{}
 	case topology.InContainer:
 		return ddblocal.Attached{Network: t.Network}
+	case topology.Remote:
+		return ddblocal.Published{HostIP: t.Daemon}
 	case topology.DockerDesktop, topology.RootlessDocker:
 		return ddblocal.Published{}
 	}

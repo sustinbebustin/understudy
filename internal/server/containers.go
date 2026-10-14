@@ -39,7 +39,9 @@ const pingTimeout = 2 * time.Second
 type containerHost struct {
 	// client is nil under DockerDisabled.
 	client *docker.Client
-	socket string
+	// endpoint is where client reaches the daemon; nil under
+	// DockerDisabled.
+	endpoint docker.Endpoint
 	// network is how function containers reach understudy; never nil.
 	network   LambdaNetwork
 	ownership docker.Ownership
@@ -131,17 +133,20 @@ func newContainerHost(setting Docker, network LambdaNetwork, ownership docker.Ow
 	case DockerDisabled:
 		return h, nil
 	case DockerSocket:
-		h.socket = d.Path
+		h.endpoint = docker.Unix{Path: d.Path}
+	case DockerTCP:
+		h.endpoint = docker.TCP{Addr: d.Addr}
+	case DockerTLS:
+		h.endpoint = docker.TLS{Addr: d.Addr, CertDir: d.CertDir}
 	case nil:
+		h.endpoint = docker.Unix{}
 	}
-	if h.socket == "" {
-		h.socket = docker.DefaultSocket
-	}
-	client, err := docker.New(docker.Options{Socket: h.socket})
+	client, err := docker.New(docker.Options{Endpoint: h.endpoint})
 	if err != nil {
-		return nil, fmt.Errorf("server: Docker client for %s: %w", h.socket, err)
+		return nil, fmt.Errorf("server: Docker client for %s: %w", h.endpoint, err)
 	}
 	h.client = client
+	h.endpoint = client.Endpoint()
 	return h, nil
 }
 
@@ -244,16 +249,19 @@ func (h *containerHost) serving(port uint16, open func(netip.AddrPort) error) {
 }
 
 // missing says why no container can run: Docker is disabled or its socket
-// is not there. Empty when Docker is configured and its socket exists; a
-// socket that does not answer surfaces on the first call instead.
+// is not there. Empty when Docker is configured and its socket exists, or
+// is on TCP; a daemon that does not answer surfaces on the first call
+// instead.
 func (h *containerHost) missing() string {
 	if h.client == nil {
-		return "Docker is disabled by configuration (--docker disabled, or a DOCKER_HOST that is not a unix:// socket), so Lambda functions cannot run and DynamoDB Local cannot start; " +
-			"set --docker (UNDERSTUDY_DOCKER) to a Docker socket such as unix:///var/run/docker.sock to run them"
+		return "Docker is disabled by configuration (--docker disabled, or a DOCKER_HOST understudy cannot use), so Lambda functions cannot run and DynamoDB Local cannot start; " +
+			"set --docker (UNDERSTUDY_DOCKER) to a Docker socket such as unix:///var/run/docker.sock, or a tcp:// address, to run them"
 	}
-	if _, err := os.Stat(h.socket); errors.Is(err, fs.ErrNotExist) {
-		return "no Docker socket at " + h.socket + ": start Docker (in a container, mount its socket), or point --docker (UNDERSTUDY_DOCKER, which wins over DOCKER_HOST) at its unix:// socket, " +
-			"to run Lambda functions and DynamoDB Local"
+	if socket, ok := h.endpoint.(docker.Unix); ok {
+		if _, err := os.Stat(socket.Path); errors.Is(err, fs.ErrNotExist) {
+			return "no Docker socket at " + socket.Path + ": start Docker (in a container, mount its socket), or point --docker (UNDERSTUDY_DOCKER, which wins over DOCKER_HOST) at its unix:// socket, " +
+				"to run Lambda functions and DynamoDB Local"
+		}
 	}
 	return ""
 }
@@ -337,6 +345,8 @@ func (h *containerHost) topologyName() admin.Topology {
 		return admin.TopologyPodman
 	case topology.InContainer:
 		return admin.TopologyInContainer
+	case topology.Remote:
+		return admin.TopologyRemoteDaemon
 	case nil:
 	}
 	if topology.RunsInContainer(os.DirFS("/")) {
@@ -387,7 +397,7 @@ func (h *containerHost) lambda(ctx context.Context) (*lambdaHost, error) {
 	// listener, so they serve the same container network only.
 	var peers netip.Prefix
 	if addrs.NeedsContainerListener {
-		if peers, err = bridgeSubnet(addrs.ListenerBind, net.InterfaceAddrs); err != nil {
+		if peers, err = containerPeers(top, addrs.ListenerBind, net.InterfaceAddrs); err != nil {
 			return nil, err
 		}
 	}
@@ -474,7 +484,7 @@ func (h *containerHost) dockerStatus(ctx context.Context) admin.ServiceStatus {
 	ping, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 	if _, err := h.client.Ping(ping); err != nil {
-		return admin.ServiceStatus{Status: admin.Degraded, Reason: "Docker at " + h.socket + " does not answer, so Lambda functions cannot run and DynamoDB Local cannot start: " + err.Error()}
+		return admin.ServiceStatus{Status: admin.Degraded, Reason: "Docker at " + h.endpoint.String() + " does not answer, so Lambda functions cannot run and DynamoDB Local cannot start: " + err.Error()}
 	}
 	return admin.ServiceStatus{Status: admin.Enabled}
 }

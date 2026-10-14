@@ -14,12 +14,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net"
+	"io"
+	"log"
 	"net/http"
 	"net/netip"
 	"net/url"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -50,6 +50,8 @@ type Options struct {
 	// "bridge". Podman's compatibility layer may serve it only as "podman".
 	// Network mode "bridge" always joins it.
 	DefaultNetwork string
+	// Transport is how the daemon listens; nil means a unix socket.
+	Transport Transport
 }
 
 // Request is one request the daemon received.
@@ -72,8 +74,9 @@ type fault struct {
 
 // Daemon is a running fake Engine. All methods are safe for concurrent use.
 type Daemon struct {
-	opts   Options
-	socket string
+	opts     Options
+	socket   string
+	endpoint docker.Endpoint
 
 	mu      sync.Mutex
 	changed chan struct{}
@@ -96,8 +99,8 @@ type Daemon struct {
 // epoch is where the fake's logical clock starts.
 func epoch() time.Time { return time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC) }
 
-// New starts a fake daemon on a unix socket in a fresh temporary directory
-// and stops it when the test ends.
+// New starts a fake daemon, on a unix socket in a fresh temporary directory
+// unless Options.Transport says otherwise, and stops it when the test ends.
 func New(tb testing.TB, opts Options) *Daemon {
 	tb.Helper()
 	d := newDaemon(opts)
@@ -107,13 +110,10 @@ func New(tb testing.TB, opts Options) *Daemon {
 	if err != nil {
 		tb.Fatalf("dockertest: create socket directory: %v", err)
 	}
-	d.socket = filepath.Join(dir, "docker.sock")
-	var lc net.ListenConfig
-	l, err := lc.Listen(tb.Context(), "unix", d.socket)
-	if err != nil {
-		tb.Fatalf("dockertest: listen on %s: %v", d.socket, err)
-	}
-	srv := &http.Server{Handler: d.routes(), ReadHeaderTimeout: 10 * time.Second}
+	l := d.listen(tb, dir)
+	// Handshakes the tests make fail on purpose would otherwise log to
+	// stderr.
+	srv := &http.Server{Handler: d.routes(), ReadHeaderTimeout: 10 * time.Second, ErrorLog: log.New(io.Discard, "", 0)}
 	served := make(chan struct{})
 	go func() {
 		defer close(served)
@@ -180,13 +180,16 @@ func withInfoDefaults(info docker.Info) docker.Info {
 	return info
 }
 
-// Socket returns the daemon's socket path.
+// Socket returns the daemon's unix socket path; empty for a daemon on TCP.
 func (d *Daemon) Socket() string { return d.socket }
+
+// Endpoint returns where the daemon listens.
+func (d *Daemon) Endpoint() docker.Endpoint { return d.endpoint }
 
 // Client returns a client for the daemon, closed when the test ends.
 func (d *Daemon) Client(tb testing.TB) *docker.Client {
 	tb.Helper()
-	c, err := docker.New(docker.Options{Socket: d.socket})
+	c, err := docker.New(docker.Options{Endpoint: d.endpoint})
 	if err != nil {
 		tb.Fatalf("dockertest: new client: %v", err)
 	}

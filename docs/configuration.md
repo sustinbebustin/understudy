@@ -42,6 +42,12 @@ A function URL refuses in the JSON services' words with status 403, as its front
 
 The AWS API checks no signature by default, and every client may sign with `test`/`test` even under `--sigv4 verify`, so understudy answers a call made from a web page only when the page is on a loopback origin (`localhost`, a name under it, or a loopback address) and on a port other than understudy's own. A page understudy served itself, such as an S3 object or a function URL response, is refused. So is a call a dev server proxies to understudy without rewriting the `Host` header, since the request then names the page's own port; let the proxy set `Host` to understudy's address (in Vite, `changeOrigin: true`). Serve the app from its own port, or make the call from an SDK outside the browser. Calls from the CLI and SDKs carry no `Origin` and are not affected.
 
+## Docker
+
+Lambda and DynamoDB Local run on the Docker Engine `--docker` names, else `DOCKER_HOST`, else `unix:///var/run/docker.sock`. Besides a unix socket, a `tcp://<host>:<port>` daemon is read as the Docker CLI reads it: no port means 2375 and no host means `localhost`. With `DOCKER_TLS_VERIFY` set to anything non-empty, understudy speaks TLS, verifies the daemon against `ca.pem` and presents `cert.pem` and `key.pem`, all from `DOCKER_CERT_PATH`, else `DOCKER_CONFIG`, else `~/.docker`. A missing or unreadable file, a refused connection, or TLS on one side only fails the first container call, and `understudy doctor`, with what to change. A `DOCKER_HOST` understudy cannot use, such as `ssh://` or a `tcp://` address with a path, turns containers off with a warning; the same value in `--docker` is refused.
+
+A daemon on another host, such as a docker:dind CI service, is detected when the first container is needed: functions reach understudy at its own address on the daemon's network, so understudy must run on that network ([CI guide](guide/ci.md#docker-in-docker)). `understudy doctor` reports the daemon, its transport and the topology.
+
 ## Exit codes
 
 `serve` exits 2 when it refuses a flag, variable or file setting, and 1 when it fails after loading them, such as a port already in use. Every CLI command shares one table, which `understudy --help` prints:
@@ -106,7 +112,7 @@ This is what `understudy serve --help` prints under Flags. A test keeps it in st
       signature checking: parse (default) reads credentials only; verify refuses a bad signature, an unknown key, a missing or expired session token, and expires presigned URLs on the emulator clock
       variable UNDERSTUDY_SIGV4, file key "sigv4"
   --docker URL
-      Docker Engine for Lambda and DynamoDB Local: unix://<socket> or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)
+      Docker Engine for Lambda and DynamoDB Local: unix://<socket>, tcp://<host>:<port> (TLS when DOCKER_TLS_VERIFY is set, with ca.pem, cert.pem and key.pem from DOCKER_CERT_PATH), or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)
       variable UNDERSTUDY_DOCKER, file key "docker"
   --ready-file FILE
       file to write {"endpoint", "pid"} to once listening

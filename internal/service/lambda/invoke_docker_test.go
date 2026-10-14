@@ -159,7 +159,7 @@ func newDockerStack(t *testing.T) *dockerStack {
 	deps := kernel.ServiceDeps{Kernel: k, Binder: k.Binder(lambdaapi.Service()), Clock: clk, IDs: src, Blob: blobs, Identity: idStore, Docker: client, Log: k.Log()}
 	svc := lambda.New(deps, lambda.Options{Images: l})
 	x, err := lambda.NewExecution(svc, deps, lambda.ExecutionOptions{
-		Pool: p, Docker: "unix://" + client.Socket(), Images: l, Code: code, Logs: lambda.ContainerLogs(l),
+		Pool: p, Docker: client.Endpoint().String(), Images: l, Code: code, Logs: lambda.ContainerLogs(l),
 	})
 	if err != nil {
 		t.Fatal(err)

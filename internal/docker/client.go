@@ -15,7 +15,8 @@ import (
 	"time"
 )
 
-// DefaultSocket is the Engine socket used when Options.Socket is empty.
+// DefaultSocket is the Engine socket used when Options.Endpoint is nil or a
+// Unix endpoint with an empty path.
 const DefaultSocket = "/var/run/docker.sock"
 
 // requestHost is the Host header sent over the unix socket; the daemon
@@ -25,34 +26,49 @@ const requestHost = "api.moby.localhost"
 // maxErrorBody caps how much of an error response body is read.
 const maxErrorBody = 64 << 10
 
+// dialTimeout bounds opening a connection, TLS handshake included.
+const dialTimeout = 5 * time.Second
+
 // Options configures a Client.
 type Options struct {
-	// Socket is the path of the Engine's unix socket; empty means
+	// Endpoint is where the daemon listens; nil means Unix at
 	// DefaultSocket.
-	Socket string
+	Endpoint Endpoint
 	// APIVersionMin is the lowest API version accepted from the daemon; the
 	// zero value means DefaultMinAPIVersion.
 	APIVersionMin APIVersion
 }
 
 // Client talks to a Docker Engine (or Podman's compatible service) over its
-// unix socket. It is safe for concurrent use. The API version is negotiated
-// on the first call and renegotiated by every Ping.
+// unix socket or over TCP, plain or with TLS. It is safe for concurrent
+// use. The API version is negotiated on the first call and renegotiated by
+// every Ping.
 type Client struct {
-	socket string
-	min    APIVersion
-	http   *http.Client
+	endpoint Endpoint
+	// host is the Host header: the daemon's address over TCP.
+	host string
+	min  APIVersion
+	http *http.Client
 
 	mu         sync.Mutex
 	negotiated *Ping
 }
 
-// New builds a Client. It does no I/O; an unreachable daemon surfaces as an
+// New builds a Client. It does no I/O, not even reading TLS certificates;
+// an unreachable daemon or an unreadable certificate surfaces as an
 // UnavailableError on the first call.
 func New(opts Options) (*Client, error) {
-	socket := opts.Socket
-	if socket == "" {
-		socket = DefaultSocket
+	endpoint := opts.Endpoint
+	host := requestHost
+	switch e := endpoint.(type) {
+	case nil:
+		endpoint = Unix{Path: DefaultSocket}
+	case Unix:
+		endpoint = Unix{Path: e.path()}
+	case TCP:
+		host = e.Addr
+	case TLS:
+		host = e.Addr
 	}
 	minimum := opts.APIVersionMin
 	if minimum == (APIVersion{}) {
@@ -61,28 +77,31 @@ func New(opts Options) (*Client, error) {
 	if minimum.Compare(MaxAPIVersion()) > 0 {
 		return nil, fmt.Errorf("docker client: minimum API version %s is above the highest version this client speaks (%s)", minimum, MaxAPIVersion())
 	}
-	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	dialer := &net.Dialer{Timeout: dialTimeout}
+	// TLS is the dialer's job, so the transport speaks HTTP/1.1 over
+	// whatever connection the endpoint opens.
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return dialer.DialContext(ctx, "unix", socket)
+			return endpoint.dial(ctx, dialer)
 		},
 		DisableCompression:  true,
 		MaxIdleConnsPerHost: 8,
 	}
 	return &Client{
-		socket: socket,
-		min:    minimum,
-		http:   &http.Client{Transport: transport},
+		endpoint: endpoint,
+		host:     host,
+		min:      minimum,
+		http:     &http.Client{Transport: transport},
 	}, nil
 }
 
-// Socket returns the socket path the client dials.
-func (c *Client) Socket() string { return c.socket }
+// Endpoint returns where the client reaches the daemon.
+func (c *Client) Endpoint() Endpoint { return c.endpoint }
 
 // Close releases idle connections.
 func (c *Client) Close() { c.http.CloseIdleConnections() }
 
-// Engine identifies the daemon behind the socket.
+// Engine identifies the daemon behind the endpoint.
 //
 //sumtype:decl
 type Engine interface{ isEngine() }
@@ -133,7 +152,7 @@ func (c *Client) parsePing(h http.Header) (Ping, error) {
 	if raw := h.Get("Api-Version"); raw != "" {
 		v, err := ParseAPIVersion(raw)
 		if err != nil {
-			return Ping{}, fmt.Errorf("docker Ping: daemon at %s sent an unreadable Api-Version header: %w", c.socket, err)
+			return Ping{}, fmt.Errorf("docker Ping: daemon at %s sent an unreadable Api-Version header: %w", c.endpoint, err)
 		}
 		server = v
 	}
@@ -170,7 +189,7 @@ func (c *Client) call(ctx context.Context, op, method, path string, query url.Va
 }
 
 func (c *Client) send(ctx context.Context, op, method, path string, query url.Values, body io.Reader, contentType string) (*http.Response, error) {
-	u := url.URL{Scheme: "http", Host: requestHost, Path: path, RawQuery: query.Encode()}
+	u := url.URL{Scheme: "http", Host: c.host, Path: path, RawQuery: query.Encode()}
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), body)
 	if err != nil {
 		return nil, fmt.Errorf("docker %s: build request: %w", op, err)
@@ -180,15 +199,18 @@ func (c *Client) send(ctx context.Context, op, method, path string, query url.Va
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		var opErr *net.OpError
-		if errors.As(err, &opErr) && opErr.Op == "dial" {
-			return nil, unavailable(c.socket, err)
+		if uerr, ok := errors.AsType[*UnavailableError](err); ok {
+			return nil, uerr
 		}
 		return nil, fmt.Errorf("docker %s %s %s: %w", op, method, path, err)
 	}
 	if resp.StatusCode >= http.StatusBadRequest {
 		defer drain(resp)
-		return nil, &Error{Op: op, Status: resp.StatusCode, Message: errorMessage(resp)}
+		msg := errorMessage(resp)
+		if _, plain := c.endpoint.(TCP); plain && resp.StatusCode == http.StatusBadRequest && strings.Contains(msg, plainToTLS) {
+			return nil, &UnavailableError{Endpoint: c.endpoint, Reason: TLSRequired, Err: errors.New(msg)}
+		}
+		return nil, &Error{Op: op, Status: resp.StatusCode, Message: msg}
 	}
 	return resp, nil
 }

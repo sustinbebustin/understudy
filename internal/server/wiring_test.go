@@ -229,7 +229,7 @@ func TestBannerAnnouncesTheEndpoint(t *testing.T) {
 			"dynamodb (disabled)",
 		}},
 		{"Docker does not answer", server.Config{Docker: server.DockerSocket{Path: mute}}, []string{
-			"warning: Docker at " + mute + " does not answer",
+			"warning: Docker at unix://" + mute + " does not answer",
 			"lambda (degraded: control plane only)",
 		}},
 		{"lambda.network disabled", server.Config{LambdaNetwork: server.NetworkDisabled{}}, []string{

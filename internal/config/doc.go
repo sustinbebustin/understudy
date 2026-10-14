@@ -42,11 +42,15 @@
 //     collide; --tls-listen sets the address and implies --tls.
 //   - DynamoDB is DynamoDBEnabled unless the file's dynamodb.enabled is
 //     false, which is DynamoDBDisabled.
-//   - Docker is DockerSocket{Path} or DockerDisabled, from --docker
-//     (unix://<socket> or disabled), else DOCKER_HOST, else the default
-//     socket. An explicit setting that is not a unix socket is refused, since
-//     the Docker client speaks only to one; a DOCKER_HOST that is not one
-//     (tcp:// in docker-in-docker CI, ssh://) is Docker's setting rather than
+//   - Docker is DockerSocket{Path}, DockerTCP{Addr}, DockerTLS{Addr,
+//     CertDir} or DockerDisabled, from --docker (unix://<socket>,
+//     tcp://<host>:<port> or disabled), else DOCKER_HOST, else the default
+//     socket. A tcp:// address is read as the Docker CLI reads it
+//     (containers.md 2.1): no port is 2375, no host is localhost, and a
+//     non-empty DOCKER_TLS_VERIFY makes it DockerTLS with DOCKER_CERT_PATH,
+//     else DOCKER_CONFIG, else ~/.docker; a base path, which the CLI keeps,
+//     is refused. An explicit setting understudy cannot use is refused; a
+//     DOCKER_HOST it cannot use (ssh://) is Docker's setting rather than
 //     understudy's, so it turns containers off and adds an entry to
 //     Config.Warnings, which serve logs and doctor reports.
 //   - LoadHost resolves only the machine settings (persistence, Docker,

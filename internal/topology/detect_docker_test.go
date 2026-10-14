@@ -22,8 +22,11 @@ func TestDetectOnThisHost(t *testing.T) {
 		addr = tp.Gateway.IsValid() && !tp.Gateway.IsUnspecified()
 	case topology.InContainer:
 		addr = tp.Self.IsValid() && !tp.Self.IsUnspecified()
+	case topology.Remote:
+		// DOCKER_HOST names a docker:dind service beside the test.
+		addr = tp.Self.IsValid() && !tp.Self.IsUnspecified()
 	case topology.DockerDesktop, topology.RootlessDocker, topology.Podman:
-		t.Fatalf("Detect = %v, want Linux bridge or in-container on the CI host", got)
+		t.Fatalf("Detect = %v, want Linux bridge, in-container or a remote daemon on the CI host", got)
 	}
 	if !addr {
 		t.Errorf("Detect = %v, want a non-zero address", got)

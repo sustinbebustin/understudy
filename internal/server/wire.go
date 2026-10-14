@@ -399,9 +399,9 @@ func (w *wiring) execution(cfg Config, account aws.AccountID, regions aws.Region
 	}
 	o := lambda.ExecutionOptions{HotReload: bindings}
 	if w.host.client != nil {
-		// Named even without a pool, so Invoke's error names the socket
+		// Named even without a pool, so Invoke's error names the daemon
 		// that is missing.
-		o.Docker = "unix://" + w.host.socket
+		o.Docker = w.host.endpoint.String()
 	}
 	if w.pool != nil {
 		o.Pool, o.Images, o.Code, o.Logs = w.pool, images, w.code, w.host

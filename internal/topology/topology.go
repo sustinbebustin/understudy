@@ -213,6 +213,39 @@ func (t InContainer) String() string {
 
 func (InContainer) isTopology() {}
 
+// Remote is a daemon on another host, reached over TCP. Function containers
+// leave the daemon's host through its own network, so they reach
+// understudy at Self, the address this host's route to Daemon leaves from,
+// where understudy opens the container listener.
+type Remote struct {
+	Daemon netip.Addr
+	Self   netip.Addr
+}
+
+// Addresses binds Self and hands it to functions, on the daemon's default
+// bridge. No extra hosts: host-gateway names the daemon's host, not
+// understudy's.
+func (t Remote) Addresses() (Addresses, error) {
+	if !t.Self.Is4() {
+		return Addresses{}, &UnsupportedError{
+			Topology: t,
+			Reason:   "understudy reaches the daemon over IPv6, and function containers are handed an IPv4 address for understudy",
+			Remedy:   "name the daemon by an IPv4 address or a host name that resolves to one in DOCKER_HOST",
+		}
+	}
+	return Addresses{
+		ListenerBind:           t.Self,
+		FunctionEndpointHost:   t.Self,
+		NeedsContainerListener: true,
+	}, nil
+}
+
+func (t Remote) String() string {
+	return "remote daemon at " + t.Daemon.String() + " (understudy at " + t.Self.String() + ")"
+}
+
+func (Remote) isTopology() {}
+
 // UnsupportedError reports a topology on which phase 1 cannot run Lambda
 // functions.
 type UnsupportedError struct {

@@ -119,12 +119,27 @@ func sweepDataDir(ctx context.Context, d config.Docker, dir string) (swept, erro
 
 // dockerClient is the client for d; ok is false with Docker disabled.
 func dockerClient(d config.Docker) (c *docker.Client, ok bool, err error) {
-	sock, ok := d.(config.DockerSocket)
+	endpoint, ok := dockerEndpoint(d)
 	if !ok {
 		return nil, false, nil
 	}
-	c, err = docker.New(docker.Options{Socket: sock.Path})
+	c, err = docker.New(docker.Options{Endpoint: endpoint})
 	return c, err == nil, err
+}
+
+// dockerEndpoint is where d reaches the daemon; ok is false with Docker
+// disabled.
+func dockerEndpoint(d config.Docker) (endpoint docker.Endpoint, ok bool) {
+	switch d := d.(type) {
+	case config.DockerSocket:
+		return docker.Unix{Path: d.Path}, true
+	case config.DockerTCP:
+		return docker.TCP{Addr: d.Addr}, true
+	case config.DockerTLS:
+		return docker.TLS{Addr: d.Addr, CertDir: d.CertDir}, true
+	case config.DockerDisabled:
+	}
+	return nil, false
 }
 
 // sweepAll removes the containers and empty networks labeled

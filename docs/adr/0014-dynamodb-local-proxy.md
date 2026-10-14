@@ -66,4 +66,5 @@ This closes the wave 6 amendment's deviation. `internal/docker` carries `Config.
 
 - Where the host cannot route to container addresses (Docker Desktop, rootless Docker, rootless Podman), the Manager publishes `8000/tcp` on `127.0.0.1` with host port `0` and reaches Local at the host port the daemon reports. DynamoDB works under Docker Desktop.
 - On a Linux bridge and rootful Podman the Manager keeps reaching Local at its default-bridge address and publishes no port. In the `InContainer` topology Local still attaches to understudy's network and is addressed by container IP.
-- `ddblocal.Network` is `DefaultBridge | Published | Attached`; the server picks one from the detected topology.
+- `ddblocal.Network` is `DefaultBridge | Published{HostIP} | Attached`; the server picks one from the detected topology.
+- On a remote daemon reached over `tcp://` (topology `Remote`, ADR 0011 dependency policy amendment) Local is published on the daemon's own address rather than loopback, which is the daemon host's loopback there, and reached at that address and the read-back host port. The port is open to the daemon's network; for docker:dind that is the CI job's network.

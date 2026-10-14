@@ -80,7 +80,8 @@ func TestDisabledNetworkRefusesFunctionContainers(t *testing.T) {
 
 // DynamoDB Local is reached at its container address where the host routes
 // to it (a Linux bridge, rootful Podman), on understudy's own network in a
-// container, and on a port published on loopback everywhere else (ADR 0014).
+// container, on a port published on a remote daemon's own address, and on a
+// port published on loopback everywhere else (ADR 0014).
 func TestDynamoDBLocalNetworkFollowsTheTopology(t *testing.T) {
 	gw := netip.MustParseAddr("172.17.0.1")
 	cases := []struct {
@@ -93,6 +94,7 @@ func TestDynamoDBLocalNetworkFollowsTheTopology(t *testing.T) {
 		{topology.RootlessDocker{HostAddr: gw}, ddblocal.Published{}},
 		{topology.DockerDesktop{}, ddblocal.Published{}},
 		{topology.InContainer{Network: "understudy", Self: netip.MustParseAddr("172.22.0.2")}, ddblocal.Attached{Network: "understudy"}},
+		{topology.Remote{Daemon: netip.MustParseAddr("172.30.0.3"), Self: netip.MustParseAddr("172.30.0.2")}, ddblocal.Published{HostIP: netip.MustParseAddr("172.30.0.3")}},
 	}
 	for _, tc := range cases {
 		if got := localNetwork(tc.topo); got != tc.want {
@@ -105,7 +107,7 @@ func TestDynamoDBLocalNetworkFollowsTheTopology(t *testing.T) {
 // succeeds; a start its caller abandoned changes nothing.
 func TestDynamoDBLocalReportsAFailedStart(t *testing.T) {
 	host := testHost(t, NetworkAuto{})
-	host.socket = filepath.Join(t.TempDir(), "gone.sock")
+	host.endpoint = docker.Unix{Path: filepath.Join(t.TempDir(), "gone.sock")}
 	l := &lazyLocal{host: host, mode: DynamoDBEnabled{}, storage: ddblocal.InMemory{}, log: slog.New(slog.DiscardHandler)}
 	if s := l.status(); s.Status != admin.Enabled {
 		t.Fatalf("status before any start = %+v, want enabled", s)
@@ -147,7 +149,7 @@ func TestDynamoDBLocalRefusesStartsAfterStop(t *testing.T) {
 // setting to change, never touches Docker, and reports itself disabled.
 func TestDynamoDBLocalDisabledByConfiguration(t *testing.T) {
 	host := testHost(t, NetworkAuto{})
-	host.socket = filepath.Join(t.TempDir(), "gone.sock")
+	host.endpoint = docker.Unix{Path: filepath.Join(t.TempDir(), "gone.sock")}
 	l := &lazyLocal{host: host, mode: DynamoDBDisabled{}, storage: ddblocal.InMemory{}, log: slog.New(slog.DiscardHandler)}
 	de, ok := errors.AsType[*dynamodb.DisabledError](l.Start(t.Context()))
 	if !ok || !strings.Contains(de.Reason, "dynamodb.enabled is false") {

@@ -144,32 +144,31 @@ func serverCheck(h *admin.Health, endpoint string) check {
 // dockerReachable pings the configured Docker Engine; the client is nil
 // unless it answered.
 func dockerReachable(ctx context.Context, d config.Docker) (*docker.Client, check) {
-	socket := ""
-	switch d := d.(type) {
-	case config.DockerDisabled:
+	endpoint, ok := dockerEndpoint(d)
+	if !ok {
 		return nil, check{Name: "docker", Status: checkSkip, Detail: "disabled by configuration; Lambda execution and DynamoDB are off"}
-	case config.DockerSocket:
-		socket = d.Path
 	}
-	c, err := docker.New(docker.Options{Socket: socket})
+	c, err := docker.New(docker.Options{Endpoint: endpoint})
 	if err != nil {
-		return nil, check{Name: "docker", Status: checkFail, Detail: err.Error(), Fix: "set UNDERSTUDY_DOCKER to unix://<socket>"}
+		return nil, check{Name: "docker", Status: checkFail, Detail: err.Error(), Fix: "set UNDERSTUDY_DOCKER to unix://<socket> or tcp://<host>:<port>"}
 	}
 	quick, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	if _, err := c.Ping(quick); err != nil {
 		c.Close()
-		return nil, check{
-			Name: "docker", Status: checkFail, Detail: err.Error(),
-			Fix: "start Docker, or give this user access to " + socket + " (access to the socket is root-equivalent on this host), or set UNDERSTUDY_DOCKER=disabled to run without Lambda execution and DynamoDB",
+		fix := "start Docker, or give this user access to " + endpoint.String() + " (access to the socket is root-equivalent on this host), or set UNDERSTUDY_DOCKER=disabled to run without Lambda execution and DynamoDB"
+		if _, unix := endpoint.(docker.Unix); !unix {
+			fix = "act on the error above, or set UNDERSTUDY_DOCKER=disabled to run without Lambda execution and DynamoDB"
 		}
+		return nil, check{Name: "docker", Status: checkFail, Detail: err.Error(), Fix: fix}
 	}
 	info, err := c.Info(quick)
 	if err != nil {
 		c.Close()
 		return nil, check{Name: "docker", Status: checkFail, Detail: err.Error(), Fix: "check the daemon's logs"}
 	}
-	return c, check{Name: "docker", Status: checkOK, Detail: fmt.Sprintf("Docker %s (%s) at %s; access to the socket is root-equivalent on this host", info.ServerVersion, info.OperatingSystem, socket)}
+	return c, check{Name: "docker", Status: checkOK, Detail: fmt.Sprintf("Docker %s (%s) at %s over %s; access to the daemon is root-equivalent on its host",
+		info.ServerVersion, info.OperatingSystem, endpoint, endpoint.Transport())}
 }
 
 func detectTopology(ctx context.Context, c *docker.Client) (topology.Topology, check) {

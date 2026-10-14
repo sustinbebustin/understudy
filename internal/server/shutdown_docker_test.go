@@ -18,7 +18,7 @@ import (
 // no container of its instance behind: neither when cancelled as soon as
 // it is ready, nor once the container has been created.
 func TestShutdownDuringTheBackgroundStartLeavesNoContainer(t *testing.T) {
-	client, err := docker.New(docker.Options{Socket: docker.DefaultSocket})
+	client, err := docker.New(docker.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

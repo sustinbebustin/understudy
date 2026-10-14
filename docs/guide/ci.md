@@ -64,6 +64,34 @@ Go test suites can skip the server process entirely with [`understudytest`](sdks
 
 Run the image as a service next to the application, with the port published on loopback and the Docker socket mounted for Lambda; the [README](../../README.md#docker) shows the `docker run` form, and [examples/docker-compose](../../examples/docker-compose/) a compose file. The image's healthcheck runs `understudy health`, so `depends_on: condition: service_healthy` waits for it.
 
+## Docker-in-Docker
+
+Where the job's Docker is a `docker:dind` service, point `DOCKER_HOST` at it as for the Docker CLI. Without TLS (`DOCKER_TLS_CERTDIR` empty on the service) that is `tcp://docker:2375`; with dind's default TLS, set `DOCKER_HOST=tcp://docker:2376`, `DOCKER_TLS_VERIFY=1` and `DOCKER_CERT_PATH` to the client certificates the service writes to `/certs/client`, which the runner shares with the job (GitLab's `volumes = ["/certs/client"]` runner setting). In GitLab CI, with an image that has `understudy` on its `PATH`:
+
+```yaml
+test:
+  image: registry.example.com/team/ci-with-understudy
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_TLS_CERTDIR: /certs
+    DOCKER_CERT_PATH: /certs/client
+  script:
+    - understudy serve --seed 1 > understudy.log 2>&1 &
+    - understudy health --wait 30s
+```
+
+Function containers run inside the dind service and reach understudy at the job container's address on the job's network, so understudy runs in the job itself, not on another host. `understudy doctor` shows the transport and the detected topology; against a dind service with TLS, from a job container:
+
+```text
+[OK]    docker         Docker 29.9.0 (Alpine Linux v3.24 (containerized)) at tcp://docker:2376 over TCP with TLS, certificates from /certs/client; access to the daemon is root-equivalent on its host
+[OK]    topology       remote daemon at 172.22.0.2 (understudy at 172.22.0.3)
+```
+
+Code is copied into function containers rather than mounted, since the daemon cannot see the job's files, and DynamoDB Local's port is published on the dind service's address. A daemon reached on `127.0.0.1`, such as a dind port published on the runner, is taken to be the runner's own, and functions on it cannot reach understudy; run the job in a container on the service's network instead.
+
 ## Self-hosted runners
 
 understudy removes its containers when it stops. If a run crashes, the next `understudy serve` on the machine sweeps the containers of runs whose process is gone, and `understudy cleanup --persist DIR` removes those of a crashed run that used `--persist DIR`. `cleanup --all` removes every understudy container on the Docker daemon, including those of servers still running, so keep it for between jobs.

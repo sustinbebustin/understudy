@@ -72,7 +72,10 @@ const (
 	TopologyPodman         Topology = "podman"
 	TopologyRootlessPodman Topology = "rootless-podman"
 	TopologyInContainer    Topology = "in-container"
-	TopologyHost           Topology = "host"
+	// TopologyRemoteDaemon is a daemon on another host reached over TCP,
+	// such as a docker:dind CI service.
+	TopologyRemoteDaemon Topology = "remote-daemon"
+	TopologyHost         Topology = "host"
 )
 
 // ServiceState is whether a wired service, or a component one runs on,

@@ -1,21 +1,32 @@
-// Package docker is a client for the Docker Engine API over its unix socket,
-// built on net/http. It provides typed errors, stdcopy demultiplexing, pull
-// progress and the events stream. Podman's compatible socket works too.
+// Package docker is a client for the Docker Engine API over its unix socket
+// or TCP, built on net/http. It provides typed errors, stdcopy
+// demultiplexing, pull progress and the events stream. Podman's compatible
+// socket works too.
 //
 // The client knows no Lambda concepts; launching, pooling and logs live in
 // the Lambda runtime packages. The behavior follows containers.md 2, 9 and
 // 10:
 //
+//   - Transport: an Endpoint is a Unix socket, plain TCP, or TLS, which
+//     verifies the daemon against ca.pem and presents cert.pem and key.pem
+//     from one directory, the files the Docker CLI reads from
+//     DOCKER_CERT_PATH (containers.md 2.1). The endpoint dials, TLS
+//     handshake included, so every call, streams too, runs over HTTP/1.1
+//     on whatever connection it opens. The certificates are read at each
+//     new connection, not by New.
 //   - Version: every call is prefixed with the negotiated version, the lower
 //     of MaxAPIVersion (1.44) and the daemon's Api-Version from /_ping, and a
 //     daemon below Options.APIVersionMin (default 1.41) is refused with a
 //     *VersionError. Podman accepts any prefix, so the clamp never relies on
 //     a 400 from the daemon. Responses are decoded leniently.
 //   - Errors: a status of 400 or more is an *Error carrying the daemon's
-//     message; 304 from start and stop is success; a failed dial is an
-//     *UnavailableError whose reason (missing socket, refused, permission)
-//     selects the remediation; a failure inside a started stream is a
-//     *StreamError.
+//     message; 304 from start and stop is success; a failed connection is
+//     an *UnavailableError whose reason (missing socket, refused,
+//     permission, unknown host, unreadable certificates, a failed
+//     handshake, or TLS on one side only) selects the remediation; a
+//     failure inside a started stream is a *StreamError. A plain request
+//     to a TLS daemon is answered 400 by Go's HTTP server, which dockerd
+//     runs, so that answer is an *UnavailableError too.
 //   - Streams: logs, events and waits hold a connection. ContainerWait
 //     returns once the daemon has registered the waiter, so a WaitNextExit
 //     taken before ContainerStart cannot miss the exit; logs and events are
@@ -55,4 +66,9 @@
 //     unread response field needs nothing. Teach dockertest the field, with
 //     the status and message the daemon gives for a bad value, and test
 //     through it.
+//   - Changing how an Endpoint connects: dockertest serves every transport
+//     (Options.Transport), so run the change against each, and follow the
+//     Docker CLI's reading of DOCKER_HOST, DOCKER_TLS_VERIFY and
+//     DOCKER_CERT_PATH as containers.md 2.1 records it, noting a deviation
+//     there.
 package docker

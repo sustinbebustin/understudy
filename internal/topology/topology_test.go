@@ -48,6 +48,11 @@ func TestAddresses(t *testing.T) {
 			topo: topology.InContainer{Network: "understudy", Self: self},
 			want: topology.Addresses{ListenerBind: self, FunctionEndpointHost: self, FunctionNetwork: "understudy"},
 		},
+		{
+			name: "a remote daemon's functions reach understudy at its address toward the daemon",
+			topo: topology.Remote{Daemon: netip.MustParseAddr("172.30.0.3"), Self: netip.MustParseAddr("172.30.0.2")},
+			want: topology.Addresses{ListenerBind: netip.MustParseAddr("172.30.0.2"), FunctionEndpointHost: netip.MustParseAddr("172.30.0.2"), NeedsContainerListener: true},
+		},
 	}
 	for _, tc := range cases {
 		got, err := tc.topo.Addresses()
@@ -63,6 +68,16 @@ func TestAddresses(t *testing.T) {
 		if got.ListenerBind.IsUnspecified() {
 			t.Errorf("%s: listener binds %s; container listeners never bind every interface", tc.name, got.ListenerBind)
 		}
+	}
+}
+
+// Functions get an IPv4 literal (Addresses.FunctionEndpointHost), so a
+// daemon reached over IPv6 is refused with the remedy.
+func TestRemoteDaemonOverIPv6IsUnsupported(t *testing.T) {
+	topo := topology.Remote{Daemon: netip.MustParseAddr("fd00::3"), Self: netip.MustParseAddr("fd00::2")}
+	_, err := topo.Addresses()
+	if uerr, ok := errors.AsType[*topology.UnsupportedError](err); !ok || !strings.Contains(uerr.Remedy, "IPv4") {
+		t.Errorf("Addresses error = %v, want *UnsupportedError naming IPv4", err)
 	}
 }
 

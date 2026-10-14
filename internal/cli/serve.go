@@ -365,6 +365,10 @@ func mapDocker(d config.Docker) server.Docker {
 		return server.DockerDisabled{}
 	case config.DockerSocket:
 		return server.DockerSocket{Path: d.Path}
+	case config.DockerTCP:
+		return server.DockerTCP{Addr: d.Addr}
+	case config.DockerTLS:
+		return server.DockerTLS{Addr: d.Addr, CertDir: d.CertDir}
 	}
 	return server.DockerSocket{}
 }

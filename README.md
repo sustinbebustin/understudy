@@ -75,6 +75,8 @@ docker run --rm -p 127.0.0.1:4566:4566 \
 
 Mounting the socket grants root on the host to whoever controls understudy; see [SECURITY.md](SECURITY.md).
 
+understudy finds Docker the way the Docker CLI does: `DOCKER_HOST`, else `/var/run/docker.sock`; `--docker` (`UNDERSTUDY_DOCKER`) overrides both. A `tcp://` daemon works too, such as a docker:dind service in CI: plain TCP by default, and TLS with the client certificates `ca.pem`, `cert.pem` and `key.pem` from `DOCKER_CERT_PATH` when `DOCKER_TLS_VERIFY` is set. On a daemon on another host, functions reach understudy at its address on the daemon's network, so understudy must run on that network; the [CI guide](docs/guide/ci.md#docker-in-docker) shows the setup. `understudy doctor` names the daemon, the transport and the detected topology.
+
 ## Quick start
 
 1. Start the emulator. State is kept in memory until it stops.
