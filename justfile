@@ -39,6 +39,11 @@ test:
 test-docker:
     go test -race -tags docker ./...
 
+# Compare internal/ruler with AWS's Java Event Ruler, pinned in
+# internal/ruler/testdata/rulerdiff/pom.xml. Needs Docker, or a JDK 21 with Maven.
+ruler-diff:
+    go test -tags rulerdiff -count=1 -run TestJavaRulerDifferential ./internal/ruler
+
 # Verify the vendored models, then run every go:generate directive.
 generate:
     go run ./internal/cmd/vendor -verify && go generate ./...

@@ -120,6 +120,131 @@ func cidrAddress(s string) (addr netip.Addr, detail string) {
 	return a, ""
 }
 
+// ipRange is an address range as Ruler matches it (a Range with isCIDR):
+// bottom and top are hex digit strings of one length, 8 for IPv4 and 32 for
+// IPv6, and ByteMachine.addRangePattern builds a byte machine that matches
+// at the first digit that places a value inside them. It never checks the
+// value's length, so the IPv4 form of an address can satisfy an IPv6 range
+// and the other way round, and so can the source text of a number.
+type ipRange struct {
+	bottom, top         string
+	openBottom, openTop bool
+}
+
+// cidrRange is the closed range of a prefix's addresses (CIDR.cidr).
+func cidrRange(p netip.Prefix) ipRange {
+	first := p.Masked().Addr()
+	last := first.AsSlice()
+	for i := range last {
+		if network := p.Bits() - 8*i; network < 8 {
+			last[i] |= byte(0xff >> max(network, 0))
+		}
+	}
+	return ipRange{bottom: hexDigits(first.AsSlice()), top: hexDigits(last)}
+}
+
+// addressRange is the range a string rule that is an IP literal compiles to
+// (CIDR.ipToRangeIfPossible): the address, with its last digit's successor
+// as an open top, or its predecessor as an open bottom when the last digit
+// is F.
+func addressRange(a netip.Addr) ipRange {
+	d := []byte(hexDigits(a.AsSlice()))
+	r := ipRange{bottom: string(d), top: string(d)}
+	switch last := len(d) - 1; d[last] {
+	case 'F':
+		d[last] = 'E'
+		r.bottom, r.openBottom = string(d), true
+	case '9':
+		d[last] = 'A'
+		r.top, r.openTop = string(d), true
+	default:
+		d[last]++
+		r.top, r.openTop = string(d), true
+	}
+	return r
+}
+
+// accepts reports whether Ruler's range machine matches v. A string is
+// walked in its address form when it is one; its quoted source text never
+// starts with a digit. Any other value is walked in its source text, except
+// that a comparable number is read as a number, never walked, when a numeric
+// rule sits at the same path (numericBeside; ByteMachine.transitionOn).
+func (r ipRange) accepts(v value, numericBeside bool) bool {
+	if v.kind == kindString {
+		a, ok := parseIP(v.text)
+		return ok && r.walk(hexDigits(a.AsSlice()))
+	}
+	if v.kind == kindNumber && v.numOK && numericBeside {
+		return false
+	}
+	return r.walk(v.text)
+}
+
+// walk runs s through the machine addRangePattern builds: past the digits
+// bottom and top share, a digit strictly between theirs matches; one equal
+// to bottom's (top's) leads to states where a digit above bottom's (below
+// top's) matches and an equal one goes on; at the last digit an equal one
+// matches when that end is closed. Anything else, or the end of s, fails.
+func (r ipRange) walk(s string) bool {
+	last := len(r.bottom) - 1
+	fork := 0
+	for fork < last && r.bottom[fork] == r.top[fork] {
+		if fork >= len(s) || s[fork] != r.bottom[fork] {
+			return false
+		}
+		fork++
+	}
+	if fork >= len(s) || !isHexDigit(s[fork]) {
+		return false
+	}
+	switch c := s[fork]; {
+	case c > r.bottom[fork] && c < r.top[fork]:
+		return true
+	case fork == last:
+		return (c == r.bottom[fork] && !r.openBottom) || (c == r.top[fork] && !r.openTop)
+	case c == r.bottom[fork]:
+		return walkSide(s, r.bottom, fork+1, r.openBottom, func(c, b byte) bool { return c > b })
+	case c == r.top[fork]:
+		return walkSide(s, r.top, fork+1, r.openTop, func(c, b byte) bool { return c < b })
+	}
+	return false
+}
+
+// walkSide follows one bound from offset from: a digit beyond it in the
+// direction that stays inside the range matches, an equal one goes on.
+func walkSide(s, bound string, from int, open bool, inside func(c, b byte) bool) bool {
+	last := len(bound) - 1
+	for o := from; o <= last; o++ {
+		if o >= len(s) || !isHexDigit(s[o]) {
+			return false
+		}
+		switch c := s[o]; {
+		case inside(c, bound[o]):
+			return true
+		case c != bound[o]:
+			return false
+		case o == last:
+			return !open
+		}
+	}
+	return false
+}
+
+// isHexDigit is a digit of Ruler's HEX_DIGITS, which are upper case.
+func isHexDigit(c byte) bool {
+	return isDigit(c) || (c >= 'A' && c <= 'F')
+}
+
+// hexDigits is CIDR.toHexDigits: two upper-case hex digits per byte.
+func hexDigits(b []byte) string {
+	const digits = "0123456789ABCDEF"
+	out := make([]byte, 0, 2*len(b))
+	for _, x := range b {
+		out = append(out, digits[x>>4], digits[x&0x0f])
+	}
+	return string(out)
+}
+
 // splitLikeJava splits as Java's String.split does with a one-character
 // pattern: trailing empty strings are dropped.
 func splitLikeJava(s string, sep byte) []string {

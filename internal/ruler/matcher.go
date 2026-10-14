@@ -1,7 +1,6 @@
 package ruler
 
 import (
-	"net/netip"
 	"slices"
 	"strings"
 )
@@ -20,8 +19,13 @@ type matchEquals struct{ text string }
 
 // matchEqualsIP is a string rule that is an IP literal, ["10.0.0.1"]: Ruler
 // compiles it to an address range, so any string spelling of the same
-// address matches ("2001:db8::1" matches "2001:0db8:0:0:0:0:0:1").
-type matchEqualsIP struct{ addr netip.Addr }
+// address matches ("2001:db8::1" matches "2001:0db8:0:0:0:0:0:1"), and so
+// does what else the range machine takes (ipRange). numericBeside is set
+// when a numeric rule shares the path.
+type matchEqualsIP struct {
+	addr          ipRange
+	numericBeside bool
+}
 
 // matchEqualsNumber is a bare number rule Ruler can compare, [300]: numerically
 // equal numbers match (300.0, 3.0e2), and so does identical text.
@@ -99,8 +103,14 @@ type matchExists struct{}
 // value; Match treats it as the leaf's absence alternative.
 type matchNotExists struct{}
 
-// matchCIDR is {"cidr": "10.0.0.0/24"}: a string that is an address in the prefix.
-type matchCIDR struct{ prefix netip.Prefix }
+// matchCIDR is {"cidr": "10.0.0.0/24"}: a string that is an address in the
+// prefix, and what else Ruler's range machine takes (ipRange), such as an
+// IPv6 address for "0.0.0.0/0". numericBeside is set when a numeric rule
+// shares the path.
+type matchCIDR struct {
+	prefix        ipRange
+	numericBeside bool
+}
 
 // valueKind is the JSON type of an event value. Ruler keeps strings quoted
 // and everything else as its source text, so the types never compare equal.
@@ -144,11 +154,7 @@ func (m matchEquals) accepts(v value, _ Options) bool {
 }
 
 func (m matchEqualsIP) accepts(v value, _ Options) bool {
-	if v.kind != kindString {
-		return false
-	}
-	a, ok := parseIP(v.text)
-	return ok && a == m.addr
+	return m.addr.accepts(v, m.numericBeside)
 }
 
 func (m matchEqualsNumber) accepts(v value, o Options) bool {
@@ -252,9 +258,5 @@ func (matchExists) accepts(v value, o Options) bool {
 func (matchNotExists) accepts(value, Options) bool { return false }
 
 func (m matchCIDR) accepts(v value, _ Options) bool {
-	if v.kind != kindString {
-		return false
-	}
-	a, ok := parseIP(v.text)
-	return ok && m.prefix.Contains(a)
+	return m.prefix.accepts(v, m.numericBeside)
 }

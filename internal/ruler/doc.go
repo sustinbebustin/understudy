@@ -13,6 +13,24 @@
 // default to Ruler; Switches describes them, and the profiles' unverified
 // allow-list and limit choices, for the fidelity ledger.
 //
+// Executed Ruler is the oracle, kept as a differential harness behind the
+// rulerdiff build tag, outside the default test run. rulerdiff_test.go gives
+// every case of the corpus in rulerdiff_corpus_test.go (the seed vectors,
+// the IP range vectors, the Ruler defects below, and pattern groups for
+// every operator, nested keys, "$or", arrays of arrays and malformed input,
+// each crossed with its events) to Compile and Match under the EventBridge
+// profile and to the Java Event Ruler that testdata/rulerdiff/pom.xml pins:
+// the 2.2.0 release on Maven Central, two commits before ced786201c1f, which
+// change only how Ruler deletes rules. It fails on every case where the
+// match result, or the acceptance or rejection text of the pattern, differs
+// and the difference is not a known one, and on a known one that no longer
+// occurs. Run it with "just ruler-diff", which needs Docker or a JDK 21 with
+// Maven (testdata/rulerdiff/run.sh picks one; RULERDIFF_RUNTIME forces it).
+// A new difference is fixed here with a regression test, or, where Ruler and
+// AWS are known to differ, AWS's answer is kept and the case is listed as
+// known with its evidence. The corpus is the place to add a case; a test in
+// the default run checks that it still uses every operator.
+//
 // Two Ruler behaviors are easy to miss. An {"exists": false} is checked when
 // Ruler's traversal of the sorted keys reaches it, against the array elements
 // the keys sorted before it pinned (ACFinder.tryMustNotExistMatch calls
@@ -84,10 +102,12 @@
 //     ReaderBasedJsonParser, the parser Ruler uses (jackson.go): its order of
 //     reading (a scalar value with its field name, a string value only when
 //     its text is needed), its start-marker locations and its limits of 1000
-//     nested containers, 1000 number digits and 50000 name characters. A
-//     one-off differential run in October 2026 of 30000 mutated patterns
-//     against executed Ruler v2.2.0 (commit ced786201c1f), whose harness is
-//     not kept in the repository, found no other difference. Known ones:
+//     nested containers, 1000 number digits and 50000 name characters. An
+//     event's messages name its source as REDACTED, as Jackson's defaults,
+//     with which Ruler reads events, do. A one-off differential run in
+//     October 2026 of 30000 mutated patterns against executed Ruler v2.2.0
+//     (commit ced786201c1f) found no other difference; the kept harness
+//     above runs a fixed corpus instead. Known ones:
 //     Ruler appends Jackson's location ("\n at [Source: ...]") to every
 //     message, which EventBridge's recorded reasons leave out and so does
 //     this package; for a name over the limit Jackson reports the length it
@@ -101,19 +121,30 @@
 //   - With EmptyInputNeverMatches, "an empty set of attributes" counts
 //     attributes, Binary ones included, or the members of an event, not the
 //     values they flatten to: {"x":[]} and a String.Array "[]" are not empty.
+//   - A cidr, and a string rule that is an IP literal, match as Ruler's
+//     range byte machine does (ipRange), length-blind: "0.0.0.0/0" takes
+//     IPv6 addresses, which AWS's recordings show, and numbers by their
+//     text, which follows from the same machine but is not recorded. A
+//     numeric rule anywhere at the same path stops a number's text being
+//     walked, where Ruler stops it only for rules reached through the same
+//     earlier keys of a "$or" branch.
+//   - Content after an event's closing brace makes it malformed, as it does
+//     a pattern; Ruler's rulesForJSONEvent reads the first value and ignores
+//     the rest. AWS's answer is not recorded.
 //
 // Where executed Ruler v2.2.0 contradicts its own documented semantics, this
 // package keeps the documented outcome (TestRulerDefectsNotCopied):
 // Machine.rulesForJSONEvent and rulesForEvent both lose the values of a later
 // "$or" member's array when an earlier member has the same key and shares a
 // value, so {"$or":[{"x":["q"]},{"x":["q","y"]}]} misses {"x":"y"} and
-// matches it with the members swapped (rulesForEvent is order-independent
-// only for the variant where one member holds {"exists": false}; the fixed
-// switch events.pattern.or-shared-values records the choice, H14); an
-// anything-but wildcard next to an anything-but equals-ignore-case on one
-// field misses values neither excludes; a cidr with mask 0 matches the other
-// address family; a numeric bound of 1.7976931348623157e308 throws while
-// the rule is added; and a pattern key under an empty key, as in
+// matches it with the members swapped (the fixed switch
+// events.pattern.or-shared-values records the choice, H14); for the variant
+// with the shared value in the middle, and for the one where a member holds
+// {"exists": false}, Ruler's answer changes between Machine instances in one
+// JVM; an anything-but wildcard next to an anything-but equals-ignore-case
+// on one field misses values neither excludes; a numeric bound of
+// 1.7976931348623157e308 throws while the rule is added; and a pattern key
+// under an empty key, as in
 // {"":{"a":["x"]}}, compiles to the path "a" while the event {"":{"a":"x"}}
 // flattens to ".a", so Ruler matches {"a":"x"} instead. Here both sides join
 // every step with ".", as Ruler's Event does.

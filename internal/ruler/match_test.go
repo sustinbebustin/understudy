@@ -72,7 +72,7 @@ func TestSemantics(t *testing.T) {
 		{"equals-ignore-case needs equal length", `{"f":[{"equals-ignore-case":"ab"}]}`, `{"f":"abc"}`, false},
 		{"literal star in event", `{"f":[{"wildcard":"a*"}]}`, `{"f":"a*"}`, true},
 		{"cidr ipv6", `{"ip":[{"cidr":"2001:db8::/32"}]}`, `{"ip":"2001:db8:1::5"}`, true},
-		{"cidr not on numbers", `{"ip":[{"cidr":"10.0.0.0/8"}]}`, `{"ip":10}`, false},
+		{"cidr misses a number whose text is outside its hex range", `{"ip":[{"cidr":"10.0.0.0/8"}]}`, `{"ip":10}`, false},
 		{"numeric negative zero", `{"x":[{"numeric":["=",0]}]}`, `{"x":-0}`, true},
 		{"numeric upper bound only", `{"x":[{"numeric":["<",0]}]}`, `{"x":-1e-300}`, true},
 		{"keys are case-sensitive", `{"Key":["a"]}`, `{"key":"a"}`, false},
@@ -404,6 +404,10 @@ func TestEventErrors(t *testing.T) {
 		{``, notObject},
 		{`{"x":`, "Unexpected end-of-input within/between Object entries"},
 		{`{"x":tru}`, "Unrecognized token 'tru': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false')"},
+		// Ruler parses events with Jackson's defaults, which leave the
+		// source out of a location; it parses patterns with it.
+		{`{"x":"a"`, "Unexpected end-of-input: expected close marker for Object (start marker at " +
+			"[Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 1])"},
 		{`{"x":"a"} trailing`, "Event must be a single JSON object; found content after it"},
 		{`{"x":"a"}{}`, "Event must be a single JSON object; found content after it"},
 	}

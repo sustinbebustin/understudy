@@ -550,7 +550,7 @@ func (c *compiler) rule(t token) (matcher, *CompileError) {
 			return nil, e
 		}
 		if a, ok := parseIP(s); ok {
-			return matchEqualsIP{addr: a}, nil
+			return matchEqualsIP{addr: addressRange(a)}, nil
 		}
 		return matchEquals{text: s}, nil
 	case tokNumber:
@@ -749,7 +749,7 @@ func (c *compiler) cidr() (matcher, *CompileError) {
 	if e := c.end(OperatorCIDR, onlyOneKey); e != nil {
 		return nil, e
 	}
-	return matchCIDR{prefix: prefix}, nil
+	return matchCIDR{prefix: cidrRange(prefix)}, nil
 }
 
 func (c *compiler) equalsIgnoreCase() (matcher, *CompileError) {
@@ -793,7 +793,64 @@ func (c *compiler) wildcard() (matcher, *CompileError) {
 }
 
 func (c *compiler) pattern(p Profile) *Pattern {
+	markNumericBeside(c.branches, p.options())
 	return &Pattern{profile: p, branches: c.branches}
+}
+
+// markNumericBeside tells the IP range matchers at each path where a
+// numeric rule also sits: Ruler's byte machine for the field then reads a
+// comparable number as a number and never walks its text through the
+// ranges. Ruler keeps one byte machine per field and per state of its walk
+// through the sorted keys, so in a "$or" a numeric rule reached through
+// other earlier keys has a machine of its own; here every rule at the path
+// counts, in every branch.
+func markNumericBeside(branches [][]*condition, o Options) {
+	numeric := map[string]bool{}
+	for _, branch := range branches {
+		for _, cond := range branch {
+			numeric[cond.path] = numeric[cond.path] || slices.ContainsFunc(cond.matchers, func(m matcher) bool {
+				return isNumericRule(m, o)
+			})
+		}
+	}
+	for _, branch := range branches {
+		for _, cond := range branch {
+			if !numeric[cond.path] {
+				continue
+			}
+			for i, m := range cond.matchers {
+				switch m := m.(type) {
+				case matchCIDR:
+					m.numericBeside = true
+					cond.matchers[i] = m
+				case matchEqualsIP:
+					m.numericBeside = true
+					cond.matchers[i] = m
+				case matchEquals, matchEqualsNumber, matchEqualsNumberText, matchLiteral, matchPrefix, matchSuffix,
+					matchPrefixIgnoreCase, matchSuffixIgnoreCase, matchEqualsIgnoreCase, matchWildcard, matchAnythingBut,
+					matchAnythingButNumbers, matchAnythingButPrefix, matchAnythingButSuffix, matchAnythingButEqualsIgnoreCase,
+					matchAnythingButWildcard, matchNumeric, matchExists, matchNotExists:
+				}
+			}
+		}
+	}
+}
+
+// isNumericRule reports whether Ruler counts m as a numeric pattern of its
+// field (ByteMachine.hasNumeric): a numeric range, a numeric anything-but,
+// or a bare number it compares by value.
+func isNumericRule(m matcher, o Options) bool {
+	switch m.(type) {
+	case matchNumeric, matchAnythingButNumbers:
+		return true
+	case matchEqualsNumber:
+		return o.BareNumber == BareNumberNumericOrText
+	case matchEquals, matchEqualsIP, matchEqualsNumberText, matchLiteral, matchPrefix, matchSuffix,
+		matchPrefixIgnoreCase, matchSuffixIgnoreCase, matchEqualsIgnoreCase, matchWildcard, matchAnythingBut,
+		matchAnythingButPrefix, matchAnythingButSuffix, matchAnythingButEqualsIgnoreCase, matchAnythingButWildcard,
+		matchExists, matchNotExists, matchCIDR:
+	}
+	return false
 }
 
 // compareUTF16 orders strings by their UTF-16 code units, as Java does. It

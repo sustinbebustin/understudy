@@ -283,6 +283,14 @@ Follow-ups from the 2026-10-14 dependency review (ADR 0016, dependency policy am
 
 - **xmlw control characters** (S3, `xmlw`; needs a recording). `internal/protocol/xmlw/doc.go` marks UNVERIFIED how S3 writes the characters `xmlw` turns into numeric references. R12 step 13 settled U+0001 (`&#x1;`, as `xmlw` writes it) and U+FFFE (raw bytes, under "Recorded differences from AWS"). Still open: tab, LF, CR, the other C0 and C1 controls, DEL and U+FFFF; the `encoding-type=url` form of such keys; and error bodies that name such a key, where no encoding option exists. The recording kit's control-character steps (R12 steps 16 to 18) capture them. The answer may be numeric references, raw bytes, U+FFFD, a refusal of such keys, or correct output only under `encoding-type=url`; `xmlw`'s escape table follows it, and its doc drops the UNVERIFIED mark.
 
+## Ruler differential harness
+
+Follow-ups from `just ruler-diff` (`internal/ruler/rulerdiff_test.go`) that need AWS's answer (human runs).
+
+- **Content after an event** (needs a recording). Ruler's `rulesForJSONEvent` reads the first JSON value and ignores the rest, so `{"a":["x"]}` matches `{"a":"x"} {}`; understudy refuses the event (`ruler/event.go`). Record an SNS MessageBody-scope publish, an EventBridge TestEventPattern and an SQS body behind a Lambda ESM filter with that body.
+- **Numbers inside a cidr** (needs a recording). Ruler walks a number's text through its cidr byte machine, so `{"ip":[{"cidr":"0.0.0.0/0"}]}` matches `{"ip":5}`; understudy follows Ruler (`ruler/ipaddr.go`), but only the IPv6 half of that machine is recorded (H9-03). Add `{"ip":5}` and `{"ip":2050}` against `32.0.0.0/8` to the H9 item.
+- **`$or` members sharing values vary in Ruler** (affects the recorded difference on `events/R14/H14-*.json`). Ruler v2.2.0's answer for `{"$or":[{"x":["q"]},{"x":["a","q","y"]}]}` against `{"x":"a"}`, and for `{"$or":[{"a":["x"]},{"a":[{"exists":false},"x"]}]}` against `{"b":1}`, changes between Machine instances in one JVM; only `{"$or":[{"x":["q"]},{"x":["q","y"]}]}` against `{"x":"y"}` is a stable miss. Repeat those captures before copying Ruler's order dependence.
+
 ## Recorded differences from AWS
 
 The 2026-10-14 recordings (`testdata/parity/<service>/<item>/`, each item's `notes.md` has the full field list) differ from understudy where listed below, and each needs a code change the recording commit did not make. One line each, with the capture that shows AWS's answer. Paths are relative to `testdata/parity/`.
@@ -314,7 +322,6 @@ SNS:
 - Oversize policy text "FilterPolicy: must be at most 262144 bytes long in UTF-8 encoding"; quota text "Could not complete request: filter policy quota exceeded" (`sns/R09/T16-subscribe.json`, `sns/R09/limit-201.json`).
 - `["=",1e309]` is "Value of equals must be numeric" (`sns/R09/H5-08-attr-subscribe.json`).
 - equals-ignore-case under anything-but, prefix and suffix, and `exactly`, are accepted; `{"anything-but":{"prefix":false}}` is "Value of anything-but must be an array or single string/number value." (`sns/R09/H7b-*-subscribe.json`).
-- cidr `0.0.0.0/0` matches an IPv6 address (Ruler's byte-range compare), in SNS, EventBridge and Lambda (`sns/R09/summary.tsv` H9-03, `events/R14/H9-03-b.json`, `logs/R03/H9-03-02.json`).
 - Parse errors append Jackson's `\n at [Source: (String)"..."; line: 1, column: N]` (`sns/R09/H10-01-subscribe.json`, `events/R14/H10-01.json`).
 - Lambda deliveries type Number and String.Array attributes as `String`, put Subject after SigningCertUrl, and order MessageAttributes as a Java HashMap does (`logs/R16/01-lambda-events.json`).
 - PublishBatch with a 101-character Subject reports that entry in Failed and sends the rest (`sns/R16/02-subject-101.json`).

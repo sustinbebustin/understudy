@@ -152,6 +152,58 @@ func TestIPv4LeadingZeros(t *testing.T) {
 	}
 }
 
+// ipRangeVectors: Ruler matches a cidr, and a string rule that is an IP
+// literal, as a range of hex digit strings walked byte by byte, matching at
+// the first digit that settles it, whatever the value's length. It walks the
+// hex form of a string value that is an address, and the source text of any
+// other value unless a numeric rule at the same path reads a comparable
+// number as a number. So "0.0.0.0/0" takes IPv6 addresses and many numbers,
+// as AWS does in SNS, EventBridge and Lambda (sns/R09/summary.tsv H9-03,
+// events/R14/H9-03-b.json, logs/R03/H9-03-02.json under testdata/parity).
+// The differential harness (rulerdiff_test.go) executes every row against
+// Ruler v2.2.0.
+var ipRangeVectors = []struct {
+	pattern, event string
+	want           outcome
+}{
+	{`{"a":[{"cidr":"0.0.0.0/0"}]}`, `{"a":"2001:db8::1"}`, matches},
+	{`{"a":[{"cidr":"0.0.0.0/0"}]}`, `{"a":"::"}`, matches},
+	{`{"a":[{"cidr":"0.0.0.0/0"}]}`, `{"a":5}`, matches},
+	{`{"a":[{"cidr":"0.0.0.0/0"}]}`, `{"a":"x"}`, noMatch},
+	{`{"a":[{"cidr":"0.0.0.0/0"}]}`, `{"a":"0A5"}`, noMatch},
+	{`{"a":[{"cidr":"0.0.0.0/0"}]}`, `{"a":-5}`, noMatch},
+	{`{"a":[{"cidr":"0.0.0.0/0"}]}`, `{"a":true}`, noMatch},
+	{`{"a":[{"cidr":"::/0"}]}`, `{"a":"10.0.0.1"}`, matches},
+	{`{"a":[{"cidr":"::/0"}]}`, `{"a":7.5}`, matches},
+	{`{"a":[{"cidr":"::/1"}]}`, `{"a":"10.0.0.1"}`, matches},
+	{`{"a":[{"cidr":"0.0.0.0/1"}]}`, `{"a":"::1"}`, matches},
+	{`{"a":[{"cidr":"0.0.0.0/1"}]}`, `{"a":7.5}`, noMatch},
+	{`{"a":[{"cidr":"0.0.0.0/1"}]}`, `{"a":1E5}`, matches},
+	{`{"a":[{"cidr":"32.0.0.0/8"}]}`, `{"a":2050}`, matches},
+	{`{"a":[{"cidr":"32.0.0.0/8"}]}`, `{"a":20}`, noMatch},
+	{`{"a":[{"cidr":"32.0.0.0/8"}]}`, `{"a":"2001:db8::1"}`, matches},
+	{`{"a":[{"cidr":"10.0.0.0/24"}]}`, `{"a":"10.0.1.0"}`, noMatch},
+	{`{"a":["16.0.0.1"]}`, `{"a":10000001}`, matches},
+	{`{"a":["16.0.0.1"]}`, `{"a":"16.0.0.1"}`, matches},
+	{`{"a":["255.255.255.255"]}`, `{"a":"255.255.255.255"}`, matches},
+	// A numeric rule at the path reads a comparable number as a number.
+	{`{"a":[{"cidr":"0.0.0.0/1"},{"numeric":[">",100]}]}`, `{"a":5}`, noMatch},
+	{`{"a":[{"cidr":"0.0.0.0/1"},7]}`, `{"a":5}`, noMatch},
+	{`{"$or":[{"a":[{"cidr":"0.0.0.0/1"}]},{"a":[7]}]}`, `{"a":5}`, noMatch},
+	{`{"a":[{"cidr":"0.0.0.0/1"},{"numeric":[">",100]}]}`, `{"a":1e400}`, matches},
+	{`{"a":[{"cidr":"0.0.0.0/1"},12345678901234567890]}`, `{"a":5}`, matches},
+}
+
+func TestIPRangesAsRulerWalksThem(t *testing.T) {
+	t.Parallel()
+	for _, tc := range ipRangeVectors {
+		t.Run(tc.pattern+" "+tc.event, func(t *testing.T) {
+			t.Parallel()
+			checkVector(t, tc.pattern, tc.event, tc.want)
+		})
+	}
+}
+
 // TestJavaDoubleToString: Ruler compares a rule number only when it equals
 // Java's Double.toString of its double, which writes the smallest
 // subnormals with two digits. Outcomes executed against Ruler v2.2.0.
@@ -181,42 +233,62 @@ func TestJavaDoubleToString(t *testing.T) {
 	}
 }
 
+// rulerAnswer is how executed Ruler v2.2.0 answers a rulerDefects case,
+// next to the outcome this package keeps. The differential harness
+// (rulerdiff_test.go) checks it.
+type rulerAnswer uint8
+
+const (
+	// rulerDiffers: Ruler gives the other outcome every time.
+	rulerDiffers rulerAnswer = iota + 1
+	// rulerAgrees: a control beside a defect; Ruler gives this outcome too.
+	rulerAgrees
+	// rulerVaries: Ruler's answer changes between Machine instances in one
+	// JVM, with the same rule and event.
+	rulerVaries
+)
+
+// rulerDefects are the cases where executed Ruler v2.2.0 contradicts its
+// own documented semantics and this package keeps the documented outcome
+// (doc.go lists them), with controls beside them.
+var rulerDefects = []struct {
+	name, pattern, event string
+	want                 outcome
+	ruler                rulerAnswer
+}{
+	// Machine.rulesForJSONEvent gives NO or MATCH for the first order,
+	// depending on the Machine instance, and MATCH for the swapped one.
+	{"or member order", `{"$or":[{"a":["x"]},{"a":[{"exists":false},"x"]}]}`, `{"b":1}`, matches, rulerVaries},
+	{"or member order swapped", `{"$or":[{"a":[{"exists":false},"x"]},{"a":["x"]}]}`, `{"b":1}`, matches, rulerAgrees},
+	// Both entry points give NO for the first order and MATCH for the
+	// swapped one: Ruler loses the values of a later member's array
+	// when an earlier member has the same key and shares a value ("q").
+	// With the shared value in the middle, the answer depends on the
+	// Machine instance.
+	{"or members sharing a value", `{"$or":[{"x":["q"]},{"x":["q","y"]}]}`, `{"x":"y"}`, matches, rulerDiffers},
+	{"or members sharing a value swapped", `{"$or":[{"x":["q","y"]},{"x":["q"]}]}`, `{"x":"y"}`, matches, rulerAgrees},
+	{"or members sharing a middle value", `{"$or":[{"x":["q"]},{"x":["a","q","y"]}]}`, `{"x":"a"}`, matches, rulerVaries},
+	// Ruler: NO, although "xy" is not "q" in any case.
+	{
+		"anything-but wildcard with anything-but ignore-case",
+		`{"a":[{"anything-but":{"wildcard":"*y"}},{"anything-but":{"equals-ignore-case":"Q"}}]}`, `{"a":"xy"}`, matches,
+		rulerDiffers,
+	},
+	// Ruler throws ArrayIndexOutOfBoundsException adding the rule.
+	{"numeric bound at the largest double", `{"a":[{"numeric":[">",1.7976931348623157e308]}]}`, `{"a":1}`, noMatch, rulerDiffers},
+	// Ruler: NO and MATCH. Its compiler leaves out the separator after an
+	// empty key (Path.extendedName) while its Event joins every step
+	// (Path.name()), so the pattern reads the field "a" and no event
+	// nested like the pattern can match it.
+	{"pattern under an empty key matches the same nesting", `{"":{"a":["x"]}}`, `{"":{"a":"x"}}`, matches, rulerDiffers},
+	{"pattern under an empty key misses the top level", `{"":{"a":["x"]}}`, `{"a":"x"}`, noMatch, rulerDiffers},
+}
+
 // TestRulerDefectsNotCopied pins the logical outcome where executed Ruler
-// v2.2.0 gives another (doc.go lists them).
+// v2.2.0 gives another.
 func TestRulerDefectsNotCopied(t *testing.T) {
 	t.Parallel()
-	tests := []struct {
-		name, pattern, event string
-		want                 outcome
-	}{
-		// Ruler's Machine.rulesForJSONEvent gives NO here and MATCH with the
-		// members swapped; rulesForEvent gives MATCH both ways, but only for
-		// this exists:false variant.
-		{"or member order", `{"$or":[{"a":["x"]},{"a":[{"exists":false},"x"]}]}`, `{"b":1}`, matches},
-		{"or member order swapped", `{"$or":[{"a":[{"exists":false},"x"]},{"a":["x"]}]}`, `{"b":1}`, matches},
-		// Both entry points give NO for the first order and MATCH for the
-		// swapped one: Ruler loses the values of a later member's array
-		// when an earlier member has the same key and shares a value ("q").
-		{"or members sharing a value", `{"$or":[{"x":["q"]},{"x":["q","y"]}]}`, `{"x":"y"}`, matches},
-		{"or members sharing a value swapped", `{"$or":[{"x":["q","y"]},{"x":["q"]}]}`, `{"x":"y"}`, matches},
-		{"or members sharing a middle value", `{"$or":[{"x":["q"]},{"x":["a","q","y"]}]}`, `{"x":"a"}`, matches},
-		// Ruler: NO, although "xy" is not "q" in any case.
-		{
-			"anything-but wildcard with anything-but ignore-case",
-			`{"a":[{"anything-but":{"wildcard":"*y"}},{"anything-but":{"equals-ignore-case":"Q"}}]}`, `{"a":"xy"}`, matches,
-		},
-		// Ruler: MATCH, comparing hex strings of different lengths.
-		{"cidr /0 across families", `{"a":[{"cidr":"0.0.0.0/0"}]}`, `{"a":"::1"}`, noMatch},
-		// Ruler throws ArrayIndexOutOfBoundsException adding the rule.
-		{"numeric bound at the largest double", `{"a":[{"numeric":[">",1.7976931348623157e308]}]}`, `{"a":1}`, noMatch},
-		// Ruler: NO and MATCH. Its compiler leaves out the separator after an
-		// empty key (Path.extendedName) while its Event joins every step
-		// (Path.name()), so the pattern reads the field "a" and no event
-		// nested like the pattern can match it.
-		{"pattern under an empty key matches the same nesting", `{"":{"a":["x"]}}`, `{"":{"a":"x"}}`, matches},
-		{"pattern under an empty key misses the top level", `{"":{"a":["x"]}}`, `{"a":"x"}`, noMatch},
-	}
-	for _, tc := range tests {
+	for _, tc := range rulerDefects {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			checkVector(t, tc.pattern, tc.event, tc.want)

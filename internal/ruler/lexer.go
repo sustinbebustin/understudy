@@ -123,10 +123,22 @@ type lexer struct {
 	// malformed is the error of a string value returned as a token, which
 	// every later call reports, as Jackson does when it skips the string.
 	malformed *syntaxError
+	// source is how locations in error messages name the source.
+	source locationSource
 }
 
+// locationSource is how a Jackson location names its source: Ruler's
+// pattern parser includes it, while the parser Ruler reads events with
+// keeps Jackson's default, which redacts it.
+type locationSource uint8
+
+const (
+	sourceIncluded locationSource = iota
+	sourceRedacted
+)
+
 func newLexer(src []byte) *lexer {
-	return &lexer{src: src, line: 1}
+	return &lexer{src: src, line: 1, source: sourceIncluded}
 }
 
 func (l *lexer) top() *frame {

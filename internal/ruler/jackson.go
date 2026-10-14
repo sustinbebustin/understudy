@@ -79,12 +79,14 @@ func charDesc(r rune) string {
 
 // location renders p as Jackson's JsonLocation.toString does for a String
 // source, as Ruler parses one: the source, quoted up to maxSourceSnippet code
-// units with its controls other than CR and LF escaped, and the 1-based line
-// and column, counted in UTF-16 code units.
+// units with its controls other than CR and LF escaped, or the redaction
+// notice, and the 1-based line and column, counted in UTF-16 code units.
 func (l *lexer) location(p sourcePos) string {
 	var b strings.Builder
 	b.WriteString("[Source: ")
-	if units := utf16Len(l.src); units > maxCharArraySource {
+	if units := utf16Len(l.src); l.source == sourceRedacted {
+		b.WriteString("REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled)")
+	} else if units > maxCharArraySource {
 		b.WriteString("(StringReader)")
 	} else {
 		b.WriteString(`(String)"`)

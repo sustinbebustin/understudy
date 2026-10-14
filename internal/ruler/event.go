@@ -59,6 +59,7 @@ func newFlattener(src []byte) *flattener {
 // pattern.
 func flattenEvent(src []byte) (*fields, *EventError) {
 	f := newFlattener(src)
+	f.lx.source = sourceRedacted
 	t, err := f.lx.next()
 	if err != nil {
 		return nil, &EventError{Detail: err.message}
