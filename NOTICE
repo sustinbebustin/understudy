@@ -41,14 +41,6 @@ AWS Service Authorization Reference (derived)
            under third_party/aws-service-reference, with the provenance of
            each service file recorded beside it (see docs/adr/0016).
 
-pgregory.net/rapid
-  Source:  https://github.com/flyingmutant/rapid
-  Version: v1.3.0
-  License: MPL-2.0
-  Use:     property-based testing. Test code only: it is not part of the
-           understudy binary or the Docker image and is not distributed with
-           them.
-
 xxHash
   Source:  the public xxHash specification (https://github.com/Cyan4973/xxHash)
   License: not applicable; no xxHash source code is included.
