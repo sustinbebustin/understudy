@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // understudyNamespace holds the overlay traits of ARCHITECTURE.md 5.2. The
@@ -41,6 +42,7 @@ const (
 	utMalformedRequest    = understudyNamespace + "malformedRequestError"
 	utStatusOverride      = understudyNamespace + "statusOverride"
 	utUnknownOperation    = understudyNamespace + "unknownOperationError"
+	utQueryErrorEnvelope  = understudyNamespace + "queryErrorEnvelope"
 )
 
 // site is where a trait sits once overlays are merged.
@@ -69,35 +71,57 @@ func (s site) String() string {
 	return strings.Join(out, " or ")
 }
 
-// understudyTrait says where a trait may sit and how its value parses.
+// understudyTrait says what a trait does, where it may sit and how its
+// value parses.
 type understudyTrait struct {
+	class Class
 	sites site
 	parse func(json.RawMessage) error
 }
 
+// understudyTraits is the closed set with each trait's class: evidence only
+// labels an overlay entry, and every other trait changes the wire, the
+// validation or the operations the generator emits (ARCHITECTURE.md 5.2).
 func understudyTraits() map[string]understudyTrait {
 	shapeRef := func(raw json.RawMessage) error { _, err := parseShapeRef(raw); return err }
 	return map[string]understudyTrait{
-		utEvidence:            {siteAnyShape | siteMember, func(r json.RawMessage) error { _, err := parseEvidence(r); return err }},
-		utErrorNamespace:      {siteService, func(r json.RawMessage) error { _, err := parseErrorNamespace(r); return err }},
-		utJSONType:            {siteErrorShape, func(r json.RawMessage) error { _, err := parseNonEmptyString(r); return err }},
-		utMessageByProtocol:   {siteErrorShape, func(r json.RawMessage) error { _, err := parseMessageByProtocol(r); return err }},
-		utValidationError:     {siteService | siteOperation | siteMember, func(r json.RawMessage) error { _, err := parseValidationRules(r); return err }},
-		utValidationPathStyle: {siteService, func(r json.RawMessage) error { _, err := parsePathStyle(r); return err }},
-		utSuccessCode:         {siteOperation, func(r json.RawMessage) error { _, err := parseStatus(r); return err }},
-		utQueryKeyAlias:       {siteMember, func(r json.RawMessage) error { _, err := parseQueryKeyAlias(r); return err }},
-		utEmptyCollection:     {siteService | siteMember, func(r json.RawMessage) error { _, err := parseEmptyCollection(r); return err }},
-		utInternalOperation:   {siteOperation, parseAnnotation},
-		utPatternEcho:         {siteStringShape, func(r json.RawMessage) error { _, err := parseNonEmptyString(r); return err }},
-		utPatternValidator:    {siteStringShape, func(r json.RawMessage) error { _, err := parsePatternValidator(r); return err }},
-		utAlwaysEmit:          {siteMember, parseAnnotation},
-		utMaxRequestBytes:     {siteOperation, func(r json.RawMessage) error { _, err := parseMaxRequestBytes(r); return err }},
-		utThrottleError:       {siteService, shapeRef},
-		utNotConfigured:       {siteOperation, func(r json.RawMessage) error { _, err := parseNotConfigured(r); return err }},
-		utMalformedRequest:    {siteService, shapeRef},
-		utStatusOverride:      {siteErrorShape, func(r json.RawMessage) error { _, err := parseStatus(r); return err }},
-		utUnknownOperation:    {siteService, func(r json.RawMessage) error { _, err := parseUnknownOperation(r); return err }},
+		utEvidence:            {GenerationOnly, siteAnyShape | siteMember, func(r json.RawMessage) error { _, err := parseEvidence(r); return err }},
+		utErrorNamespace:      {Honor, siteService, func(r json.RawMessage) error { _, err := parseErrorNamespace(r); return err }},
+		utJSONType:            {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseNonEmptyString(r); return err }},
+		utMessageByProtocol:   {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseMessageByProtocol(r); return err }},
+		utValidationError:     {Honor, siteService | siteOperation | siteMember, func(r json.RawMessage) error { _, err := parseValidationRules(r); return err }},
+		utValidationPathStyle: {Honor, siteService, func(r json.RawMessage) error { _, err := parsePathStyle(r); return err }},
+		utSuccessCode:         {Honor, siteOperation, func(r json.RawMessage) error { _, err := parseStatus(r); return err }},
+		utQueryKeyAlias:       {Honor, siteMember, func(r json.RawMessage) error { _, err := parseQueryKeyAlias(r); return err }},
+		utEmptyCollection:     {Honor, siteService | siteMember, func(r json.RawMessage) error { _, err := parseEmptyCollection(r); return err }},
+		utInternalOperation:   {Honor, siteOperation, parseAnnotation},
+		utPatternEcho:         {Honor, siteStringShape, func(r json.RawMessage) error { _, err := parseNonEmptyString(r); return err }},
+		utPatternValidator:    {Honor, siteStringShape, func(r json.RawMessage) error { _, err := parsePatternValidator(r); return err }},
+		utAlwaysEmit:          {Honor, siteMember, parseAnnotation},
+		utMaxRequestBytes:     {Honor, siteOperation, func(r json.RawMessage) error { _, err := parseMaxRequestBytes(r); return err }},
+		utThrottleError:       {Honor, siteService, shapeRef},
+		utNotConfigured:       {Honor, siteOperation, func(r json.RawMessage) error { _, err := parseNotConfigured(r); return err }},
+		utMalformedRequest:    {Honor, siteService, shapeRef},
+		utStatusOverride:      {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseStatus(r); return err }},
+		utUnknownOperation:    {Honor, siteService, func(r json.RawMessage) error { _, err := parseUnknownOperation(r); return err }},
+		utQueryErrorEnvelope:  {Honor, siteService, func(r json.RawMessage) error { _, err := parseQueryErrorEnvelope(r); return err }},
 	}
+}
+
+// parseQueryErrorEnvelope reads {namespace?, detail?}. A value with neither
+// set says what the absence of the trait already says, so it is refused.
+func parseQueryErrorEnvelope(raw json.RawMessage) (registry.QueryErrorEnvelope, error) {
+	var v struct {
+		Namespace bool `json:"namespace"`
+		Detail    bool `json:"detail"`
+	}
+	if err := decodeTrait(raw, &v); err != nil {
+		return registry.QueryErrorEnvelope{}, err
+	}
+	if !v.Namespace && !v.Detail {
+		return registry.QueryErrorEnvelope{}, errors.New(`set "namespace" or "detail" to true; an envelope that follows Smithy's example needs no trait`)
+	}
+	return registry.QueryErrorEnvelope{Namespace: v.Namespace, Detail: v.Detail}, nil
 }
 
 // Evidence is one item of dev.understudy#evidence: what backs an overlay

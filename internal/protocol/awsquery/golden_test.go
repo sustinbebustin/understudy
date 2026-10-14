@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
+	"github.com/sustinbebustin/understudy/internal/api/iamapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/protocol/awsquery"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
@@ -192,10 +194,11 @@ func TestGoldenSNSErrorHasNoNamespace(t *testing.T) {
 	})
 }
 
-// iam-sts-kms.md 1.2: the recorded IAM error declares the IAM namespace.
+// iam-sts-kms.md 1.2: the recorded IAM error declares the IAM namespace,
+// which the generated descriptor carries from the overlay.
 func TestGoldenIAMNoSuchEntity(t *testing.T) {
 	t.Parallel()
-	svc := newService("iam", "2010-05-08", iamNamespace, opSpec{name: "GetUser"})
+	svc := iamapi.Service()
 	e := &awserr.Error{
 		ID:      awserr.Identity{Shape: "com.amazonaws.iam#NoSuchEntityException", QueryCode: "NoSuchEntity", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageLower},
 		Message: "The user with name foobar cannot be found.",
@@ -215,7 +218,7 @@ func TestGoldenIAMNoSuchEntity(t *testing.T) {
 // awsQueryError's 404 rather than httpError's 400.
 func TestGoldenCloudWatchResourceNotFound(t *testing.T) {
 	t.Parallel()
-	svc := newService("cloudwatch", "2010-08-01", cwNamespace, opSpec{name: "DescribeAlarms"})
+	svc := cloudwatchapi.Service()
 	e := &awserr.Error{
 		ID: awserr.Identity{
 			Shape: "com.amazonaws.cloudwatch#ResourceNotFound", QueryCode: "ResourceNotFound", Status: 400, QueryModeStatus: 404,
@@ -226,6 +229,23 @@ func TestGoldenCloudWatchResourceNotFound(t *testing.T) {
 	checkResponse(t, awsquery.Codec{}.EncodeError(svc, requestID, e), golden{
 		status: 404,
 		body: `<ErrorResponse xmlns="http://monitoring.amazonaws.com/doc/2010-08-01/"><Error><Type>Sender</Type><Code>ResourceNotFound</Code></Error>` +
+			`<RequestId>01234567-89ab-cdef-0123-456789abcdef</RequestId></ErrorResponse>`,
+	})
+}
+
+// The envelope follows the service's QueryErrorEnvelope, not its id.
+func TestEncodeErrorFollowsQueryErrorEnvelope(t *testing.T) {
+	t.Parallel()
+	svc := newService("example", "2026-10-14", "https://example.com/doc/", opSpec{name: "Ping"})
+	svc.QueryErrorEnvelope = registry.QueryErrorEnvelope{Namespace: true, Detail: true}
+	e := &awserr.Error{
+		ID:      awserr.Identity{Shape: "com.example#Gone", QueryCode: "Gone", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageLower},
+		Message: "gone",
+		Origin:  awserr.Modeled{},
+	}
+	checkResponse(t, awsquery.Codec{}.EncodeError(svc, requestID, e), golden{
+		status: 404,
+		body: `<ErrorResponse xmlns="https://example.com/doc/"><Error><Type>Sender</Type><Code>Gone</Code><Message>gone</Message><Detail/></Error>` +
 			`<RequestId>01234567-89ab-cdef-0123-456789abcdef</RequestId></ErrorResponse>`,
 	})
 }

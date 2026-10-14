@@ -22,6 +22,7 @@ var service = registry.Service{
 	JSONTargetPrefix:      "Golden",
 	QueryVersion:          "2026-10-09",
 	QueryCompatible:       true,
+	QueryErrorEnvelope:    registry.QueryErrorEnvelope{Namespace: false, Detail: true},
 	MalformedRequestError: IdentitySerializationException(),
 }
 

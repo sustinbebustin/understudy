@@ -7,6 +7,7 @@
         "smithy.api#xmlNamespace": {"uri": "http://queue.amazonaws.com/doc/2012-11-05/"},
         "dev.understudy#errorNamespace": "com.amazonaws.sqs",
         "dev.understudy#emptyCollection": "omit",
+        "dev.understudy#queryErrorEnvelope": {"detail": true},
         "dev.understudy#throttleError": "com.amazonaws.sqs#RequestThrottled",
         "dev.understudy#unknownOperationError": {
           "json": "com.amazon.coral.service#UnknownOperationException",
@@ -32,6 +33,12 @@
             "label": "third-party-recorded",
             "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json",
             "covers": ["dev.understudy#emptyCollection"]
+          },
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3759",
+            "validated": "2025-09-22",
+            "covers": ["dev.understudy#queryErrorEnvelope"]
           },
           {
             "label": "inferred",

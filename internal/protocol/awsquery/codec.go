@@ -155,8 +155,9 @@ func (Codec) Encode(op *registry.Operation, requestID string, out smithy.Seriali
 // over the default text) and omitted when empty, then the error's extra
 // fields. The status is awsQueryError's httpResponseCode, which the
 // identity carries as QueryModeStatus when it differs from httpError, else
-// Status. Where a service's envelope differs from Smithy's, errorEnvelopeOf
-// says how. svc may be nil for a request no service claimed.
+// Status. Where a service's envelope differs from Smithy's, its
+// QueryErrorEnvelope says how. svc may be nil for a request no service
+// claimed.
 func (Codec) EncodeError(svc *registry.Service, requestID string, e *awserr.Error) Response {
 	body, err := errorBody(svc, requestID, e, e.Fields)
 	if err != nil {
@@ -215,23 +216,18 @@ type errorEnvelope struct {
 	detail bool
 }
 
-// errorEnvelopeOf returns svc's error envelope. CloudWatch declares its
-// namespace on ErrorResponse and SNS does not (error-matrix.md 3, both
-// recorded); IAM's recorded fixture declares it too (iam-sts-kms.md 1.2).
-// SQS sends an empty Detail (error-matrix.md 3, recorded through boto3).
-// Every other service follows Smithy's example: no namespace, no Detail.
+// errorEnvelopeOf returns svc's error envelope from its QueryErrorEnvelope,
+// the overlay's dev.understudy#queryErrorEnvelope. A request no service
+// claimed follows Smithy's example: no namespace, no Detail.
 func errorEnvelopeOf(svc *registry.Service) errorEnvelope {
 	if svc == nil {
 		return errorEnvelope{}
 	}
-	switch svc.ID {
-	case "cloudwatch", "iam":
-		return errorEnvelope{namespace: svc.XMLNamespace}
-	case sqsService:
-		return errorEnvelope{detail: true}
-	default:
-		return errorEnvelope{}
+	env := errorEnvelope{detail: svc.QueryErrorEnvelope.Detail}
+	if svc.QueryErrorEnvelope.Namespace {
+		env.namespace = svc.XMLNamespace
 	}
+	return env
 }
 
 func header(requestID string, n int) http.Header {

@@ -169,6 +169,27 @@ func (b *builder) serviceProtocols(svc *Shape) error {
 		}
 		ir.XMLNamespace = ns.URI
 	}
+	return b.queryErrorEnvelope(svc)
+}
+
+// queryErrorEnvelope reads dev.understudy#queryErrorEnvelope, which only an
+// awsQuery service can carry and which declares the service's own xmlns.
+func (b *builder) queryErrorEnvelope(svc *Shape) error {
+	raw, ok := svc.Traits[utQueryErrorEnvelope]
+	if !ok {
+		return nil
+	}
+	env, err := parseQueryErrorEnvelope(raw)
+	if err != nil {
+		return failf(StageIR, string(svc.ID), "%s: %w", utQueryErrorEnvelope, err)
+	}
+	if !slices.Contains(b.ir.Protocols, ref.AWSQuery) {
+		return failf(StageIR, string(svc.ID), "%s shapes the awsQuery ErrorResponse, but the service does not speak awsQuery", utQueryErrorEnvelope)
+	}
+	if env.Namespace && b.ir.XMLNamespace == "" {
+		return failf(StageIR, string(svc.ID), "%s declares the namespace on ErrorResponse, but the service has no %s to declare", utQueryErrorEnvelope, traitXMLNamespace)
+	}
+	b.ir.QueryErrorEnvelope = env
 	return nil
 }
 

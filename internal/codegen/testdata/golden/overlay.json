@@ -9,6 +9,7 @@
         "dev.understudy#malformedRequestError": "com.amazon.coral.service#SerializationException",
         "dev.understudy#unknownOperationError": {"json": "com.amazon.coral.service#UnknownOperationException"},
         "dev.understudy#validationError": {"code": "com.example.golden#InvalidInput"},
+        "dev.understudy#queryErrorEnvelope": {"detail": true},
         "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
       }
     },

@@ -7,7 +7,14 @@
         "dev.understudy#errorNamespace": "com.amazonaws.cloudwatch.v2010_08_01",
         "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#queryErrorEnvelope": {"namespace": true},
         "dev.understudy#evidence": [
+          {
+            "label": "third-party-recorded",
+            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L186",
+            "validated": "2025-09-22",
+            "covers": ["dev.understudy#queryErrorEnvelope"]
+          },
           {
             "label": "aws-recorded",
             "source": "testdata/parity/cloudwatch/R07/cw-GetDashboard.json",

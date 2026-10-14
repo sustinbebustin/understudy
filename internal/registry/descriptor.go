@@ -28,6 +28,10 @@ type Service struct {
 	QueryVersion    string
 	XMLNamespace    string
 	QueryCompatible bool // awsQueryCompatible: JSON errors carry x-amzn-query-error
+	// QueryErrorEnvelope is the overlay's dev.understudy#queryErrorEnvelope:
+	// how the awsQuery ErrorResponse differs from Smithy's example. The zero
+	// value is Smithy's example.
+	QueryErrorEnvelope QueryErrorEnvelope
 	// MalformedRequestError is the overlay's dev.understudy#malformedRequestError,
 	// the identity for a body that does not decode (Lambda
 	// InvalidRequestContentException). It is the zero Identity when the
@@ -38,6 +42,16 @@ type Service struct {
 	Operations []*Operation
 	// Routes is the REST dispatch table, nil for RPC services.
 	Routes *RouteTable
+}
+
+// QueryErrorEnvelope is how a service's awsQuery ErrorResponse differs from
+// Smithy's example, which declares no namespace and sends no Detail
+// (error-matrix.md 3). The two differences are independent.
+type QueryErrorEnvelope struct {
+	// Namespace declares the service's XMLNamespace on ErrorResponse.
+	Namespace bool
+	// Detail adds an empty <Detail/> after the message.
+	Detail bool
 }
 
 // Operation finds the operation of s named name.

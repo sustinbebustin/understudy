@@ -6,11 +6,17 @@
       "traits": {
         "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#queryErrorEnvelope": {"namespace": true},
         "dev.understudy#evidence": [
           {
             "label": "aws-doc",
             "source": "https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html",
             "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "sdk-source",
+            "source": "https://github.com/aws/aws-cli/blob/develop/tests/unit/botocore/response_parsing/xml/errors/iam-get-user.xml",
+            "covers": ["dev.understudy#queryErrorEnvelope"]
           },
           {
             "label": "third-party-recorded",

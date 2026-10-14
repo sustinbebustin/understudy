@@ -91,11 +91,11 @@
 //   - The ErrorResponse envelope is per service, from recordings
 //     (error-matrix.md 3): CloudWatch declares its namespace and SNS does
 //     not; IAM declares it in the recorded fixture iam-sts-kms.md 1.2
-//     cites; SQS sends an empty <Detail/>. The architecture places these
-//     among the overlay facts, but no dev.understudy trait carries them
-//     and registry.Service has no field for them, so errorEnvelopeOf
-//     holds them by service id. STS and every other service follow
-//     Smithy's example: no namespace, no Detail.
+//     cites; SQS sends an empty <Detail/>. These are overlay facts: the
+//     dev.understudy#queryErrorEnvelope trait, generated into
+//     registry.Service.QueryErrorEnvelope, which the codec reads. STS and
+//     every other service carry none and follow Smithy's example: no
+//     namespace, no Detail.
 //
 //   - Policy documents are recognized by their shape,
 //     com.amazonaws.iam#policyDocumentType, the shape botocore decodes;

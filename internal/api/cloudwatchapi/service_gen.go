@@ -23,6 +23,7 @@ var service = registry.Service{
 	QueryVersion:          "2010-08-01",
 	XMLNamespace:          "http://monitoring.amazonaws.com/doc/2010-08-01/",
 	QueryCompatible:       true,
+	QueryErrorEnvelope:    registry.QueryErrorEnvelope{Namespace: true, Detail: false},
 	MalformedRequestError: IdentitySerializationException(),
 }
 

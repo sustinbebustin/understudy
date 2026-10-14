@@ -111,6 +111,9 @@ func TestService(t *testing.T) {
 	if want := []ref.ProtocolID{ref.AWSJSON10, ref.AWSQuery}; !slices.Equal(svc.Protocols, want) {
 		t.Fatalf("protocols = %v, want %v (the model's, then extraProtocols)", svc.Protocols, want)
 	}
+	if want := (registry.QueryErrorEnvelope{Detail: true}); svc.QueryErrorEnvelope != want {
+		t.Fatalf("QueryErrorEnvelope = %+v, want %+v (dev.understudy#queryErrorEnvelope)", svc.QueryErrorEnvelope, want)
+	}
 }
 
 // TestIdentities: __type is namespaced by errorNamespace for awsJson1_0,

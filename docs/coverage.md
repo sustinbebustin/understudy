@@ -1153,7 +1153,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item, strongest evidence first.
 
-232 evidence items: 45 aws-recorded, 87 third-party-recorded, 51 aws-doc, 1 sdk-source, 48 inferred.
+235 evidence items: 45 aws-recorded, 89 third-party-recorded, 51 aws-doc, 2 sdk-source, 48 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1202,6 +1202,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | s3.json | `com.amazonaws.s3#ReplicationConfigurationNotFoundError` |  | testdata/parity/s3/R06/01-get-get-bucket-replication.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#RequestTimeTooSkewed` |  | testdata/parity/s3/R18/02-s3-skew-16min.json (validated 2026-10-14) |
 | aws-recorded | sqs.json | `com.amazonaws.sqs#SendMessageRequest$DelaySeconds` | dev.understudy#validationError | testdata/parity/sqs/R11/02-send-delay-901.json (validated 2026-10-14) |
+| third-party-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#queryErrorEnvelope | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L186 (validated 2025-09-22) |
 | third-party-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (validated 2025-09-22) |
 | third-party-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#ResourceNotFound` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (validated 2025-09-22) |
 | third-party-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#SetAlarmStateInput$StateValue` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L6194 (validated 2025-09-22) |
@@ -1280,6 +1281,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | secretsmanager.json | `com.amazonaws.secretsmanager#secretsmanager` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/secretsmanager/test_secretsmanager.snapshot.json#L891 (validated 2024-03-15) |
 | third-party-recorded | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sns/test_sns.snapshot.json#L1823 (validated 2024-11-15) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#emptyCollection | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json |
+| third-party-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#queryErrorEnvelope | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3759 (validated 2025-09-22) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#InvalidParameterValue` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L2 (validated 2024-04-30) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#MissingParameter` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3759 (validated 2025-09-22) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#QueueDoesNotExist` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json |
@@ -1340,6 +1342,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-doc | sqs.json | `com.amazonaws.sqs#CreateQueueRequest$QueueName` | smithy.api#length, smithy.api#pattern | https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-queues.html |
 | aws-doc | sqs.json | `com.amazonaws.sqs#SendMessageRequest$DelaySeconds` | smithy.api#range | https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html |
 | aws-doc | sts.json | `com.amazonaws.sts#AWSSecurityTokenServiceV20110615` | dev.understudy#throttleError | https://docs.aws.amazon.com/STS/latest/APIReference/CommonErrors.html |
+| sdk-source | iam.json | `com.amazonaws.iam#AWSIdentityManagementV20100508` | dev.understudy#queryErrorEnvelope | https://github.com/aws/aws-cli/blob/develop/tests/unit/botocore/response_parsing/xml/errors/iam-get-user.xml |
 | sdk-source | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#errorNamespace | https://github.com/boto/botocore/blob/develop/tests/functional/test_sqs.py |
 | inferred | common.json | `com.amazon.coral.service#RequestEntityTooLargeException` | aws.protocols#awsQueryError | docs/research/error-matrix.md 3: the Query template lists no such code; the Query code drops the Exception suffix, as the Query codes of the auth family do |
 | inferred | common.json | `dev.understudy#NotImplemented` |  | docs/adr/0003-operation-binding-and-coverage.md: understudy's own code for a modeled operation no handler is bound to; 501 is outside every SDK's retry set |

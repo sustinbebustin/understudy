@@ -131,6 +131,22 @@ func TestStageFailures(t *testing.T) {
 				`replaces one already present; drop "replace"`,
 		},
 		{
+			name: "queryErrorEnvelope declaring a namespace the service lacks",
+			extra: overlay(`"com.example.golden#Golden": {"type": "apply", "replace": true, "traits": {
+				"dev.understudy#queryErrorEnvelope": {"namespace": true}, ` + evidence + `}}`),
+			stage: codegen.StageIR,
+			want: "understudy-gen ir: com.example.golden#Golden: dev.understudy#queryErrorEnvelope declares the namespace on " +
+				"ErrorResponse, but the service has no smithy.api#xmlNamespace to declare",
+		},
+		{
+			name: "queryErrorEnvelope that changes nothing",
+			extra: overlay(`"com.example.golden#Golden": {"type": "apply", "replace": true, "traits": {
+				"dev.understudy#queryErrorEnvelope": {"detail": false}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#Golden: dev.understudy#queryErrorEnvelope: " +
+				`set "namespace" or "detail" to true; an envelope that follows Smithy's example needs no trait`,
+		},
+		{
 			name: "unknown dev.understudy trait",
 			extra: overlay(`"com.example.golden#Golden": {"type": "apply", "traits": {
 				"dev.understudy#flavor": "vanilla", ` + evidence + `}}`),
@@ -139,7 +155,8 @@ func TestStageFailures(t *testing.T) {
 				"the closed set is [dev.understudy#alwaysEmit dev.understudy#emptyCollection dev.understudy#errorNamespace " +
 				"dev.understudy#evidence dev.understudy#internalOperation dev.understudy#jsonType dev.understudy#malformedRequestError " +
 				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#notConfigured dev.understudy#patternEcho " +
-				"dev.understudy#patternValidator dev.understudy#queryKeyAlias dev.understudy#statusOverride dev.understudy#successCode " +
+				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryKeyAlias " +
+				"dev.understudy#statusOverride dev.understudy#successCode " +
 				"dev.understudy#throttleError dev.understudy#unknownOperationError dev.understudy#validationError " +
 				"dev.understudy#validationPathStyle]",
 		},
@@ -637,7 +654,6 @@ func TestClassify(t *testing.T) {
 		{"smithy.api#required", codegen.Honor, true},
 		{"aws.protocols#awsQueryError", codegen.Honor, true},
 		{"smithy.api#documentation", codegen.GenerationOnly, true},
-		{"dev.understudy#evidence", codegen.GenerationOnly, true},
 		{"smithy.rules#endpointTests", codegen.Ignore, true},
 		{"smithy.api#clientOptional", codegen.Ignore, true},
 		{"dev.understudy#flavor", 0, false},
@@ -647,6 +663,39 @@ func TestClassify(t *testing.T) {
 		c, ok := codegen.Classify(tt.id)
 		if c != tt.class || ok != tt.known {
 			t.Errorf("Classify(%s) = %v, %v; want %v, %v", tt.id, c, ok, tt.class, tt.known)
+		}
+	}
+}
+
+// TestClassifyOverlayTraits pins the class of every dev.understudy trait by
+// its effect (smithy-models.md 4.3): evidence only labels overlay entries,
+// and every other overlay trait changes what the server puts on the wire.
+func TestClassifyOverlayTraits(t *testing.T) {
+	want := map[string]codegen.Class{
+		"dev.understudy#evidence":              codegen.GenerationOnly,
+		"dev.understudy#errorNamespace":        codegen.Honor,
+		"dev.understudy#jsonType":              codegen.Honor,
+		"dev.understudy#messageByProtocol":     codegen.Honor,
+		"dev.understudy#validationError":       codegen.Honor,
+		"dev.understudy#validationPathStyle":   codegen.Honor,
+		"dev.understudy#successCode":           codegen.Honor,
+		"dev.understudy#queryKeyAlias":         codegen.Honor,
+		"dev.understudy#emptyCollection":       codegen.Honor,
+		"dev.understudy#internalOperation":     codegen.Honor,
+		"dev.understudy#patternEcho":           codegen.Honor,
+		"dev.understudy#patternValidator":      codegen.Honor,
+		"dev.understudy#alwaysEmit":            codegen.Honor,
+		"dev.understudy#maxRequestBytes":       codegen.Honor,
+		"dev.understudy#throttleError":         codegen.Honor,
+		"dev.understudy#notConfigured":         codegen.Honor,
+		"dev.understudy#malformedRequestError": codegen.Honor,
+		"dev.understudy#statusOverride":        codegen.Honor,
+		"dev.understudy#unknownOperationError": codegen.Honor,
+		"dev.understudy#queryErrorEnvelope":    codegen.Honor,
+	}
+	for id, class := range want {
+		if c, ok := codegen.Classify(id); c != class || !ok {
+			t.Errorf("Classify(%s) = %v, %v; want %v, true", id, c, ok, class)
 		}
 	}
 }

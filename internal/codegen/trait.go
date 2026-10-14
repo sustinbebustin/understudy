@@ -82,10 +82,8 @@ func Classify(id string) (Class, bool) {
 			return Ignore, true
 		}
 	}
-	if strings.HasPrefix(id, understudyNamespace) {
-		if _, ok := understudyTraits()[id]; ok {
-			return GenerationOnly, true
-		}
+	if t, ok := understudyTraits()[id]; ok {
+		return t.class, true
 	}
 	return 0, false
 }

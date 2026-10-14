@@ -45,6 +45,9 @@ func emitService(ir *ServiceIR) ([]byte, error) {
 	if ir.QueryCompatible {
 		f.p("\tQueryCompatible: true,")
 	}
+	if env := ir.QueryErrorEnvelope; env != (registry.QueryErrorEnvelope{}) {
+		f.p("\tQueryErrorEnvelope: registry.QueryErrorEnvelope{Namespace: %t, Detail: %t},", env.Namespace, env.Detail)
+	}
 	if e := ir.MalformedRequest; e != nil {
 		f.p("\tMalformedRequestError: Identity%s(),", e.Shape.GoName)
 	}
