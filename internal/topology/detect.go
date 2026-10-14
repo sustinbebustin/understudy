@@ -114,13 +114,8 @@ func (d *Detector) Detect(ctx context.Context, c *docker.Client, opts Options) (
 // connection leaves from, is on this host. ok is false for a daemon on
 // this host and for a unix socket.
 func detectRemote(ctx context.Context, endpoint docker.Endpoint, dial func(context.Context, string, string) (net.Conn, error)) (t Topology, ok bool, err error) {
-	var addr string
-	switch e := endpoint.(type) {
-	case docker.TCP:
-		addr = e.Addr
-	case docker.TLS:
-		addr = e.Addr
-	case docker.Unix:
+	addr, onTCP := endpoint.TCPAddr()
+	if !onTCP {
 		return nil, false, nil
 	}
 	if dial == nil {

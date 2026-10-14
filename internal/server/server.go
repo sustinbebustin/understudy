@@ -316,11 +316,13 @@ func (s *Server) start(ctx context.Context, main, secure net.Listener) (*session
 	// as the kernel runs, and the pollers register their timer kind, so
 	// both come first.
 	w.host.serving(bound.Port(), func(addr netip.AddrPort) error {
-		if bound.Addr().IsUnspecified() {
-			// The main listener already holds the port on every
-			// interface, as in a container reaching a remote daemon, so
-			// a second listener would collide and functions call it.
-			s.log.LogAttrs(bg, slog.LevelInfo, "function containers reach the main listener, which binds every interface", slog.String("addr", addr.String()))
+		if bound.Addr().IsUnspecified() || bound.Addr().Unmap() == addr.Addr().Unmap() {
+			// The main listener already holds the port on the address
+			// functions reach, on every interface (as in a container
+			// reaching a remote daemon) or on exactly that address, so a
+			// second listener would collide and functions call the main
+			// one (ADR 0011).
+			s.log.LogAttrs(bg, slog.LevelInfo, "function containers reach the main listener, which binds their address", slog.String("addr", addr.String()), slog.String("main", bound.String()))
 			return nil
 		}
 		ln, err := containerListen(bg, addr, net.InterfaceAddrs, s.log)

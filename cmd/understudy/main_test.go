@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -171,8 +172,27 @@ type served struct {
 	cmd      *exec.Cmd
 	ready    string
 	endpoint string
-	logs     *bytes.Buffer
+	logs     *syncBuffer
 	started  time.Time
+}
+
+// syncBuffer is serve's stderr, which a test may read while exec's copier
+// still writes it, as when a second signal does not end the process.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
 }
 
 // startServe builds the binary, starts it on an ephemeral port with a
@@ -186,7 +206,7 @@ func startServe(t *testing.T) served {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
 	ready := filepath.Join(dir, "ready.json")
-	logs := new(bytes.Buffer)
+	logs := new(syncBuffer)
 	cmd := exec.CommandContext(t.Context(), bin, "serve", "--listen", "127.0.0.1:0", "--ready-file", ready)
 	cmd.Stderr = logs
 	started := time.Now()
@@ -203,7 +223,7 @@ const readyTimeout = 10 * time.Second
 // waitReady polls the ready file, then health, and returns the endpoint.
 // When readyTimeout passes it kills cmd and fails the test with its stderr,
 // read once Wait has finished copying it.
-func waitReady(t *testing.T, cmd *exec.Cmd, ready string, stderr *bytes.Buffer) string {
+func waitReady(t *testing.T, cmd *exec.Cmd, ready string, stderr *syncBuffer) string {
 	t.Helper()
 	client := &http.Client{Timeout: time.Second}
 	deadline := time.After(readyTimeout)

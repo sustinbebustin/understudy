@@ -18,6 +18,9 @@ type Endpoint interface {
 	String() string
 	// Transport names how the client talks to the daemon, for doctor.
 	Transport() string
+	// TCPAddr is the host:port a daemon on TCP listens at, plain or TLS;
+	// ok is false for a unix socket.
+	TCPAddr() (addr string, ok bool)
 	dial(ctx context.Context, d *net.Dialer) (net.Conn, error)
 }
 
@@ -41,7 +44,19 @@ type TLS struct {
 
 func (u Unix) String() string { return "unix://" + u.path() }
 func (t TCP) String() string  { return "tcp://" + t.Addr }
-func (t TLS) String() string  { return "tcp://" + t.Addr }
+
+// String is tcp://, as DOCKER_HOST spells a TLS daemon too; DOCKER_TLS_VERIFY
+// is what asks for TLS.
+func (t TLS) String() string { return TCP{Addr: t.Addr}.String() }
+
+// TCPAddr is not ok: a unix socket has no TCP address.
+func (Unix) TCPAddr() (string, bool) { return "", false }
+
+// TCPAddr is Addr.
+func (t TCP) TCPAddr() (string, bool) { return t.Addr, true }
+
+// TCPAddr is Addr.
+func (t TLS) TCPAddr() (string, bool) { return t.Addr, true }
 
 // Transport names the unix socket.
 func (Unix) Transport() string { return "unix socket" }
@@ -66,22 +81,24 @@ const (
 	keyFile  = "key.pem"
 )
 
-// dial opens a connection to the socket; a failure is an *UnavailableError.
-func (u Unix) dial(ctx context.Context, d *net.Dialer) (net.Conn, error) {
-	conn, err := d.DialContext(ctx, "unix", u.path())
+// connect dials address on network for e; a failure is an
+// *UnavailableError.
+func connect(ctx context.Context, d *net.Dialer, e Endpoint, network, address string) (net.Conn, error) {
+	conn, err := d.DialContext(ctx, network, address)
 	if err != nil {
-		return nil, unavailable(u, err)
+		return nil, unavailable(e, err)
 	}
 	return conn, nil
 }
 
-// dial opens a TCP connection; a failure is an *UnavailableError.
+// dial opens a connection to the socket.
+func (u Unix) dial(ctx context.Context, d *net.Dialer) (net.Conn, error) {
+	return connect(ctx, d, u, "unix", u.path())
+}
+
+// dial opens a TCP connection.
 func (t TCP) dial(ctx context.Context, d *net.Dialer) (net.Conn, error) {
-	conn, err := d.DialContext(ctx, "tcp", t.Addr)
-	if err != nil {
-		return nil, unavailable(t, err)
-	}
-	return conn, nil
+	return connect(ctx, d, t, "tcp", t.Addr)
 }
 
 // dial reads the certificates, opens a TCP connection and completes the
@@ -91,9 +108,9 @@ func (t TLS) dial(ctx context.Context, d *net.Dialer) (net.Conn, error) {
 	if err != nil {
 		return nil, &UnavailableError{Endpoint: t, Reason: CertificatesUnreadable, Err: err}
 	}
-	conn, err := d.DialContext(ctx, "tcp", t.Addr)
+	conn, err := connect(ctx, d, t, "tcp", t.Addr)
 	if err != nil {
-		return nil, unavailable(t, err)
+		return nil, err
 	}
 	tc := tls.Client(conn, cfg)
 	if err := tc.HandshakeContext(ctx); err != nil {
