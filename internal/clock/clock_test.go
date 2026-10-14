@@ -486,8 +486,8 @@ func TestDriverFiresTimersArmedOutOfOrder(t *testing.T) {
 }
 
 func TestNewWithoutStartBeginsAtWallTime(t *testing.T) {
-	// A mode built without instants, as a --clock-scale or --clock-frozen
-	// flag would build it, starts from wall time instead of the zero time.
+	// A mode built without instants, as --clock frozen or --clock-scale
+	// would build it, starts from wall time instead of the zero time.
 	t.Run("frozen", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			c, err := New(Options{Mode: Frozen{}})

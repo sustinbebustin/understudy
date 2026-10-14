@@ -48,8 +48,8 @@ func (q queueRef) arn() aws.ARN {
 func (q queueRef) waitKey() store.WaitKey { return store.WaitKey("sqs:" + q.arn().String()) }
 
 // queueURL is <scheme>://<host as received>/<account>/<name> (ADR 0013):
-// the path is the queue's identity, and Terraform requires exactly those two
-// segments (sqs.md finding 6).
+// the path is the queue's identity, and Terraform requires exactly those
+// two segments (sqs.md 1.6).
 func queueURL(c *kernel.Call, q queueRef) string {
 	return formatQueueURL(c.Endpoint(), q.scope.Account, q.name)
 }
@@ -87,7 +87,7 @@ func isQueueName(s string) bool {
 
 // resolveURL locates the queue a URL names: the account in its path wins
 // over the caller's (cross-account by path) and the region is the call's,
-// whatever region the URL's host names (sqs.md Implications 6). A bare
+// whatever region the URL's host names (sqs.md 13.6). A bare
 // queue name names that queue in the caller's account, as AWS accepts one
 // in QueueUrl (sqs.md 3). Anything else is InvalidAddress, as AWS answers
 // an address that is no queue's; a well-formed URL or name whose queue is

@@ -14,9 +14,8 @@ import (
 )
 
 // The operations' services, the action prefixes their lists may hold
-// (s3-object-lambda and iam have no resource of their own here unless a
-// call touches a role) and the resources calls touch, objects of two
-// buckets among them.
+// (s3-object-lambda has no resource of its own here, and iam only the role)
+// and the resources calls touch, objects of two buckets among them.
 var (
 	propServices  = []string{"s3", "sqs", "lambda", "sts"}
 	propPrefixes  = []string{"s3", "sqs", "lambda", "sts", "iam", "s3-object-lambda"}

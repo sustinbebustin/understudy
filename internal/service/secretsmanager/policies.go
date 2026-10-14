@@ -11,7 +11,7 @@ import (
 
 // putResourcePolicy stores the policy verbatim once it parses: Terraform
 // compares what GetResourcePolicy returns with what it sent
-// (tf-remaining.md 5). Phase 1 does not enforce it.
+// (tf-remaining.md 5). understudy does not enforce it.
 func (s *Service) putResourcePolicy(_ context.Context, c *kernel.Call, in *secretsmanagerapi.PutResourcePolicyInput) (*secretsmanagerapi.PutResourcePolicyOutput, *awserr.Error) {
 	if _, perr := policydoc.Parse([]byte(in.ResourcePolicy)); perr != nil {
 		return nil, secretsmanagerapi.ErrMalformedPolicyDocumentException(perr.Message())

@@ -242,8 +242,8 @@ func (e Encryption) headers() sseHeaders {
 	return h
 }
 
-// customerKeyed reports SSE-C headers on a read or a copy source: any of
-// the algorithm, the key or its MD5.
+// customerKeyed reports whether a read or a copy source sent SSE-C
+// headers: any of the algorithm, the key or its MD5.
 func customerKeyed(algorithm, key, keyMD5 *string) bool {
 	return algorithm != nil || key != nil || keyMD5 != nil
 }

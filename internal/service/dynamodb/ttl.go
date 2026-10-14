@@ -29,10 +29,10 @@ import (
 // Each table with TTL enabled has one sweep timer, armed for the earliest
 // expiry the shim knows of. A sweep due at T scans for items whose TTL
 // attribute lies in T's window, from five years before T up to T
-// (expiryFloor), following LastEvaluatedKey,
-// deletes each with DeleteItem conditioned on the attribute still lying
-// there, so a refresh that lands first wins, then scans for the earliest
-// expiry after T and arms the timer for it. A write that can set an
+// (expiryFloor), following LastEvaluatedKey, deletes each with DeleteItem
+// conditioned on the attribute still lying there, so a refresh that lands
+// first wins, then scans for the earliest expiry after T and arms the timer
+// for it. A write that can set an
 // earlier expiry lowers the timer to that expiry, or to its admission
 // instant when the expiry has passed: PutItem and the puts of
 // BatchWriteItem and TransactWriteItems by the item they put, UpdateItem
@@ -353,8 +353,8 @@ func gone(err error) error {
 }
 
 // expiryFloor is the oldest TTL value that still expires at at: "To be
-// considered for expiry and deletion, the TTL can't be more
-// than five years in the past" (docs.aws.amazon.com/amazondynamodb/latest/
+// considered for expiry and deletion, the TTL can't be more than five
+// years in the past" (docs.aws.amazon.com/amazondynamodb/latest/
 // developerguide/time-to-live-ttl-before-you-start.html). The five years
 // are calendar years back from the instant (AddDate), so a leap day never
 // moves the bound; an item older than that is kept, such as a lock

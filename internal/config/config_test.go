@@ -275,7 +275,8 @@ func TestExposedTokenNeedsSixteenCharacters(t *testing.T) {
 }
 
 // ContainerPublished is accepted only where the container markers say
-// understudy runs in a container, and is the default listener there.
+// understudy runs in a container with its own network namespace, and is the
+// default listener there.
 func TestContainerPublishedOnlyInAContainer(t *testing.T) {
 	args := []string{"--listen", "0.0.0.0:4566", "--listen-auth", "container-published"}
 	err := loadErr(t, args, nil, files{})
@@ -358,8 +359,8 @@ func TestRefusedValues(t *testing.T) {
 		{args: []string{"--docker", "ssh://user@1.2.3.4"}, where: "--docker"},
 		{args: []string{"--listen", "127.0.0.1:0"}, env: []string{"UNDERSTUDY_ADMIN_TOKEN=x"}, where: "UNDERSTUDY_ADMIN_TOKEN"},
 		{args: []string{"extra"}, where: "arguments"},
-		// The DynamoDB Local licence acceptance was removed before any
-		// release; like any unknown setting, it is refused, not ignored.
+		// Settings understudy does not define, such as a licence-acceptance
+		// flag, variable or key, are refused, not ignored.
 		{env: []string{"UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1"}, where: "UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE"},
 		{args: []string{"--accept-dynamodb-local-license"}, where: "--accept-dynamodb-local-license"},
 		{file: `{"s3": {"baseDomains": ["example.com"]}}`, where: "understudy.json: s3.baseDomains[0]"},

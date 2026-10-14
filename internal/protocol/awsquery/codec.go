@@ -96,8 +96,9 @@ func readFailure(err error) *awserr.Error {
 	return awserr.RequestAborted()
 }
 
-// malformedRequest is svc's answer to a form value that does not fit its
-// member: its malformedRequestError, else SerializationException.
+// malformedRequest is svc's answer to a body it cannot decode, a form Parse
+// refuses or a value that does not fit its member: its
+// malformedRequestError, else SerializationException.
 func malformedRequest(svc *registry.Service, message string) *awserr.Error {
 	id := svc.MalformedRequestError
 	if id.Shape == "" {

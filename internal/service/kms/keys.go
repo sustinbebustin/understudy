@@ -27,7 +27,7 @@ const defaultWindowDays = 30
 const day = 24 * time.Hour
 
 // bindKeys binds the key lifecycle: create, describe, list, enable,
-// disable, describe text and scheduled deletion.
+// disable, update description, schedule and cancel deletion.
 func (s *Service) bindKeys(b kmsapi.Binder) {
 	b.CreateKey(s.createKey,
 		registry.Partial{Note: "symmetric encryption keys with AWS_KMS origin only: other key specs, key usages, origins, custom key stores and multi-Region keys answer UnsupportedOperationException; the key policy is parsed and stored, the lockout safety check is not run"},
@@ -109,7 +109,7 @@ const maxPolicyChars = 32768
 
 // checkPolicy checks a key policy against the size quota, parses it and
 // requires a Principal or NotPrincipal in every statement, as CreateKey and
-// PutKeyPolicy document; KMS stores it and phase 1 does not enforce it. A
+// PutKeyPolicy document; KMS stores it and understudy does not enforce it. A
 // statement without Action or Resource is accepted, as AWS accepts it (it
 // has no effect).
 func checkPolicy(policy string) *awserr.Error {

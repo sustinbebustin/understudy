@@ -81,8 +81,9 @@ func errMaxReceiveCount(policy, count string) *awserr.Error {
 }
 
 // errRedriveTarget refuses a redrive policy whose target the state does
-// not admit. The frame is recorded (testdata/parity/sqs/R02/07-redrive-fifo-to-std.json);
-// each caller says whether its reason is.
+// not admit. The frame is recorded
+// (testdata/parity/sqs/R02/07-redrive-fifo-to-std.json); each caller says
+// whether its reason is.
 func errRedriveTarget(policy, reason string) *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Value " + policy + " for parameter RedrivePolicy is invalid. Reason: " + reason)
 }
@@ -174,7 +175,8 @@ func errSystemAttributeName(name string) *awserr.Error {
 }
 
 // errReceiveVisibilityTimeout refuses a ReceiveMessage VisibilityTimeout
-// out of range (recorded, testdata/parity/sqs/R11/02-receive-visibility-43201.json).
+// out of range (recorded,
+// testdata/parity/sqs/R11/02-receive-visibility-43201.json).
 func errReceiveVisibilityTimeout(v int32) *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Value " + strconv.Itoa(int(v)) + " for parameter VisibilityTimeout is invalid. Reason: Must be between 0 and " + strconv.Itoa(maxVisibility) + ", if provided.")
 }

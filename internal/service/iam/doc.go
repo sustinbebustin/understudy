@@ -9,8 +9,8 @@
 // url.QueryUnescape reads back exactly what it wrote. Access keys are
 // minted by the identity store, so a request signed with one runs as its
 // user; DeleteAccessKey revokes the key there, and a reset revokes the keys
-// of the users of every account it drops. STS reads roles through
-// the internal operation ResolveRole.
+// of the users of every account it drops. STS reads roles through the
+// internal operation ResolveRole.
 //
 // Decisions where neither the architecture nor an AWS recording settles
 // the behavior:
@@ -33,8 +33,8 @@
 //   - A policy's UpdateDate is when its newest version was created, or its
 //     CreateDate while it has one version, as the Policy shape documents;
 //     SetDefaultPolicyVersion leaves it alone.
-//   - Instance profile ids are AIPA and 17 characters drawn from the role
-//     id stream, since the id source has no instance profile kind.
+//   - Instance profile ids are AIPA and 17 characters drawn from the one
+//     IAM id stream that role, user and policy ids share.
 //   - Listings page in name order regardless of case (attachments by
 //     ARN, access keys by id, tags by key, policy versions newest first).
 //     A Marker is internal/paging's listing-scoped "v1|<listing>|<key>",
@@ -69,7 +69,7 @@
 //     rename keep resolving to the old name and path, since the identity
 //     store cannot rename a principal (coverage lists UpdateUser as Partial).
 //   - UpdateAccessKey stores Inactive, and the key still authenticates,
-//     since phase 1 does not enforce IAM.
+//     since understudy does not enforce IAM.
 //   - GetRole answers an empty RoleLastUsed: role use is not tracked.
 //   - Error texts follow iam-sts-kms.md 3.4 (the role texts are the ones
 //     Terraform matches); errors.go marks each text no source records.

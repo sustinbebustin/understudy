@@ -15,10 +15,10 @@
 // itself is spooled to disk only up to Options.MaxZipped, and an archive
 // with more central directory headers than Options.MaxEntries is refused
 // before archive/zip parses them, since empty entries pass every size
-// limit yet cost memory and an inode each. Extraction
-// writes to tmp/ and renames the finished tree into place, so a tree under
-// trees/ is always complete. `//go:debug zipinsecurepath=0` in main is a
-// second layer; this package does not rely on it.
+// limit yet cost memory and an inode each. Extraction writes to tmp/ and
+// renames the finished tree into place, so a tree under trees/ is always
+// complete. `//go:debug zipinsecurepath=0` in main is a second layer; this
+// package does not rely on it.
 //
 // Decisions the architecture leaves open:
 //

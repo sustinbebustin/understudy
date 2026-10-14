@@ -176,10 +176,10 @@ const backAfterReceives = 3
 // and the ones it moves to the dead-letter queue on the way. A standard
 // queue offers its receivable messages oldest first; when its
 // maxReceiveCount is above backAfterReceives, the messages received that
-// many times come after all the others. A FIFO queue offers
-// group by group, in the order the groups first appear, each group's
-// messages in send order until the first that is not receivable: a group
-// with a message in flight ahead of the rest is closed (sqs.md 8.1).
+// many times come after all the others. A FIFO queue offers group by
+// group, in the order the groups first appear, each group's messages in
+// send order until the first that is not receivable: a group with a
+// message in flight ahead of the rest is closed (sqs.md 8.1).
 func plan(st *State, q queueRef, queue *Queue, limit int, now clock.Instant) (take, move []int) {
 	p := planner{queue: queue, limit: limit, redrive: redriveLimit(st, q, queue), now: now}
 	if queue.FIFO == nil {
@@ -322,8 +322,10 @@ func (s *Service) deadLetter(c *kernel.Call, st *State, q queueRef, queue *Queue
 // messages and receipt handles that attempt received, while each still
 // holds the handle the attempt gave it, and restarts their visibility
 // timeout (sqs.md 8.3); again is nil when there is nothing to retry. It
-// forgets an attempt whose messages changed, reporting forgot, so the
-// receive goes on as a new attempt.
+// forgets an attempt whose messages changed, so the receive goes on as a
+// new attempt. forgot reports whether the queue changed: it is true when
+// the attempt is forgotten and also when visibility restarts, though the
+// caller reads it only when again is nil.
 func (s *Service) retryAttempt(tx *kernel.Tx, q queueRef, queue *Queue, id string, vt int32, now clock.Instant) (again []Message, forgot bool) {
 	a, ok := queue.FIFO.Attempts[id]
 	if !ok {

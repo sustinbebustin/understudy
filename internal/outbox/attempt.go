@@ -372,9 +372,9 @@ func retryable(id awserr.Identity) bool {
 	return id.Retryable || id.Fault == awserr.Receiver || id.Status >= 500 || id.Status == 429
 }
 
-// unimplemented reports an error that says understudy does not implement
-// the target operation; retrying cannot help, so the delivery is dropped
-// with that message.
+// unimplemented reports whether err says understudy does not implement the
+// target operation; retrying cannot help, so the delivery is dropped with
+// that message.
 func unimplemented(err *awserr.Error) bool {
 	_, ok := err.Origin.(awserr.Unimplemented)
 	return ok

@@ -83,8 +83,7 @@ func TestNestedWriteIsInternalNamingTheOperation(t *testing.T) {
 }
 
 // A write that changed state advances the cell's revision; one that says
-// Unchanged leaves it, so persistence sees no dirty cell, and its wakes
-// still run.
+// Unchanged leaves it, and its wakes still run.
 func TestUnchangedWritesKeepTheCellRevision(t *testing.T) {
 	run(t, func(k *kerneltest.K) {
 		t := k.T

@@ -15,10 +15,10 @@ import (
 
 // Identity values come from generated constructors; a hand-written
 // awserr.Identity{...} would let a handler invent an error AWS never sends.
-// Only generated code and internal/awserr (the
-// generic catalogue) may build one. ADR 0003 names internal/api as the
-// generated home; internal/protocoltest/gen is the same generator's output
-// for the synthetic test services (ARCHITECTURE.md 5.6), so it is exempt too.
+// Only generated code and internal/awserr (the generic catalogue) may build
+// one. ADR 0003 names internal/api as the generated home;
+// internal/protocoltest/gen is the same generator's output for the synthetic
+// test services (ARCHITECTURE.md 5.6), so it is exempt too.
 func TestNoIdentityLiteralsOutsideAPIAndAwserr(t *testing.T) {
 	root, module := moduleRoot(t)
 	found, err := identityLiterals(root, module)

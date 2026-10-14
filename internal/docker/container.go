@@ -51,11 +51,11 @@ type PortBinding struct {
 }
 
 // HostConfig is the host-side configuration of a container. It has no
-// Binds and no AutoRemove: ARCHITECTURE 14.3 mounts code through Mounts
+// Binds and no AutoRemove: ARCHITECTURE.md 14.3 mounts code through Mounts
 // only and rules out AutoRemove. Function containers publish no port (the
-// Runtime API is hosted by understudy, 14.1); PortBindings exists for
-// DynamoDB Local, published on 127.0.0.1:0 (ARCHITECTURE.md 15). Add a
-// field only with the section that allows it.
+// Runtime API is hosted by understudy, ARCHITECTURE.md 14.1); PortBindings
+// exists for DynamoDB Local, published on 127.0.0.1:0 (ARCHITECTURE.md 15).
+// Add a field only with the section that allows it.
 type HostConfig struct {
 	// Mounts, not Binds, for code: a missing bind source fails instead of
 	// being created as root (containers.md finding 5).

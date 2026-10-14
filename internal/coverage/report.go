@@ -54,9 +54,9 @@ type Suite struct {
 	Kind     protocoltest.Kind `json:"kind"`
 	Cases    int               `json:"cases"`
 	Passed   int               `json:"passed"`
-	// Failed are the cases neither passing nor skipped. The corpus test
-	// fails on any of them a checked-in baseline does not record as a
-	// known failure.
+	// Failed are the cases neither passing nor skipped, KnownFailures
+	// included. The corpus test fails on any of them skips.json does not
+	// record as a known failure.
 	Failed  int           `json:"failed"`
 	Skipped []SkippedCase `json:"skipped"`
 	// KnownFailures are the failed cases skips.json records as gaps in

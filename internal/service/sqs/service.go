@@ -50,8 +50,8 @@ func (d DeletedRecently) String() string {
 	return "ignore"
 }
 
-// Options are the SQS settings wire.go fills from the configuration. The
-// zero value is the default behavior.
+// Options are the SQS settings the composition root takes from the
+// configuration. The zero value is the default behavior.
 type Options struct {
 	DeletedRecently DeletedRecently
 }

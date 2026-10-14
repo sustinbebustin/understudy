@@ -182,7 +182,7 @@ func TestResolveTwelveDigitKeyIsThatAccountsRoot(t *testing.T) {
 }
 
 // The quickstart pair test/test is the default account's root, and its
-// secret is the dummy one, so it verifies under sigv4 verify.
+// secret is the dummy one, so it verifies under SigV4 verification.
 func TestResolveDummyKeyIsTheDefaultAccountsRoot(t *testing.T) {
 	def := account(t, "111122223333")
 	s := identity.New(ids.NewSeeded(1), def)
@@ -318,8 +318,8 @@ func TestStaticKeysStayOutOfExportAndSurviveImport(t *testing.T) {
 	}
 }
 
-// Minting never hands out a configured key: the static key would shadow
-// nothing, and the minted principal would be unreachable.
+// Minting never hands out a configured key: Resolve checks minted keys
+// first, so the minted entry would shadow the configured secret.
 func TestMintRefusesAConfiguredKey(t *testing.T) {
 	acct := account(t, "123456789012")
 	probe := identity.New(ids.NewSeeded(9), aws.DefaultAccount())

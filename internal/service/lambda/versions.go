@@ -134,7 +134,7 @@ func pendingImage(v *Version) (ImageCode, bool) {
 	return ImageCode{}, false
 }
 
-// unchanged reports that $LATEST, with config and code, is what it was
+// unchanged reports whether $LATEST, with config and code, is what it was
 // when published was published. Its Description counts as configuration:
 // AWS publishes a new version after an update that changed only the
 // Description (LocalStack's AWS-validated provider compares $LATEST's
@@ -147,8 +147,8 @@ func unchanged(published *Version, config Config, code Code) bool {
 	return reflect.DeepEqual(was, config) && codeSha256(published.Code) == codeSha256(code) && sameImage(published.Code, code)
 }
 
-// sameImage reports image code naming the same URI; zip code compares by
-// digest alone.
+// sameImage reports whether a and b are both image code naming the same
+// URI, or both zip code, which unchanged compares by digest alone.
 func sameImage(a, b Code) bool {
 	x, okA := a.(ImageCode)
 	y, okB := b.(ImageCode)

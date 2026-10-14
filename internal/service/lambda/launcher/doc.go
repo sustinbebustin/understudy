@@ -50,10 +50,10 @@
 //     this instance's label, so an exit that happens before the
 //     subscription opens is not lost; a reconnect resumes from the last
 //     event's time and drops the replayed duplicates, after a backoff of
-//     100 ms doubling to 5 s. When the stream cannot be reopened, or five
-//     streams in a row end without an event, every container is waited
-//     on instead; one created but not yet started only once it starts,
-//     since the daemon reports it as not running.
+//     100 ms doubling to 5 s. When the stream cannot be reopened, or the
+//     sixth stream in a row ends without an event, every container is
+//     waited on instead; one created but not yet started only once it
+//     starts, since the daemon reports it as not running.
 //   - An OOM kill is the oom event, State.OOMKilled, or exit 137 with no
 //     kill event: cgroup v2 hosts often report neither positive signal,
 //     and every other SIGKILL of a tracked container goes through the

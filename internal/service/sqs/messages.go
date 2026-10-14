@@ -34,8 +34,8 @@ func (s *Service) bindSends(b sqsapi.Binder) {
 
 // checkSendMessage runs SendMessage's stateless checks before fault rules
 // in AWS's order: the body's characters, then the message and system
-// attributes. Their codes or texts are not the generated policy's, so they are checks,
-// not validators.
+// attributes. Their codes or texts are not the generated policy's, so they
+// are checks, not validators.
 func checkSendMessage(in *sqsapi.SendMessageInput) *awserr.Error {
 	if !validText(in.MessageBody) {
 		return errInvalidMessageContents()
@@ -108,9 +108,8 @@ const maxAttributeBytes = 256
 // checkMessageAttributes checks a send's message attributes (sqs.md 6.1):
 // at most 10; each name at most 256 bytes and valid; each data type at
 // most 256 bytes and String, Number or Binary with an optional custom
-// label; each value
-// non-empty and of its type. The first offending name in name order is
-// reported.
+// label; each value non-empty and of its type. The first offending name in
+// name order is reported.
 func checkMessageAttributes(in map[string]sqsapi.MessageAttributeValue) *awserr.Error {
 	if len(in) > 10 {
 		return errTooManyAttributes(len(in))
@@ -565,7 +564,8 @@ func attributesSize(attrs map[string]Attribute) int {
 }
 
 // senderID is the SenderId system attribute: the account of a root caller,
-// the unique id of a user, role-id:session for a role session.
+// the unique id of a user, role-id:session for a role session, the name of
+// a service principal, and empty for an anonymous caller.
 func senderID(p identity.Principal) string {
 	switch p := p.(type) {
 	case identity.Root:

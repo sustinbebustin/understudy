@@ -129,9 +129,9 @@ func termOccurs(t term, message string, b TermBoundary) bool {
 }
 
 // termMatches is the one place the token-boundary question (section 5) is
-// decided. A term that is blank after trimming matches every event (N2).
-// Blank means the pattern grammar's whitespace (isSpace), not Unicode's: a
-// phrase of no-break spaces is searched for like any other text.
+// decided. A blank term matches every event (N2). Blank means made only of
+// the pattern grammar's whitespace (isSpace), not Unicode's: a phrase of
+// no-break spaces is searched for like any other text.
 func termMatches(term, message string, b TermBoundary) bool {
 	if isBlank(term) {
 		return true

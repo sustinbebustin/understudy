@@ -71,13 +71,12 @@ import (
 //     unless a snapshot of another engine version was loaded, stops the
 //     mapping: it gives back what it holds, receives nothing and logs why
 //     once, until an update changes its patterns.
-//   - The Invocation's parent is the step's TimerFired event, which also
-//     roots the trace of the step's ReceiveMessage and DeleteMessageBatch,
-//     so the trace does not reach the SendMessage of the batch's messages.
-//     This falls short of ARCHITECTURE.md 10, which makes the earliest
-//     message's enqueue event the parent and the rest Links: SQS keeps
-//     each message's enqueue event but does not yet return it to an
-//     internal receive.
+//   - The Invocation's parent is the earliest message's enqueue event and
+//     the other messages' enqueue events are its links (ADR 0007,
+//     ARCHITECTURE.md 10); the batch's DeleteMessageBatch hangs from the
+//     same event, while the step's ReceiveMessage hangs from the step's
+//     TimerFired event in the poll's trace. When the queue cannot report
+//     the enqueue events, the Invocation hangs from the poll.
 //   - One batch is in flight per mapping, so a FIFO queue's message groups
 //     are processed one batch at a time: stricter than AWS's one batch per
 //     group, and never out of order.
@@ -135,7 +134,8 @@ func (s *Service) transition(tx *kernel.Tx, scope aws.Scope, m *Mapping, state M
 }
 
 // settleMapping ends a mapping's transition that was due by due: it
-// settles in Enabled or Disabled, or is gone once Deleting ends.
+// settles in Enabled or Disabled, or is gone once Deleting ends. It
+// reports whether the mapping changed.
 func (st *State) settleMapping(uuid string, due clock.Instant) bool {
 	m, ok := st.Mappings[uuid]
 	if !ok || m.Transition == nil || due.Before(m.Transition.Settles) {
@@ -630,7 +630,7 @@ func functionMissing(err *awserr.Error) bool {
 	return err != nil && err.ID.Status == 404
 }
 
-// record journals pl's poller state change from to on the
+// record journals pl's change from state from to state to, on the
 // mapping's ARN.
 func (p *pollers) record(ctx context.Context, c *kernel.Call, pl *poller, from, to journal.ResourceState) {
 	c.Record(ctx, pl.scope, journal.StateChange{Resource: pl.arn, From: from, To: to})

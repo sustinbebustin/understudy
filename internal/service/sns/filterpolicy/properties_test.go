@@ -171,7 +171,8 @@ func ruleGen() *rapid.Generator[rule] {
 			w := rapid.SampledFrom(words).Draw(t, "ignore-case")
 			return rule{json: `{"equals-ignore-case":` + strconv.Quote(w) + `}`, accepts: func(v value) bool { return isString(v) && strings.EqualFold(v.text, w) }}
 		case 5:
-			// anything-but excludes only values of its own type (V39, V40).
+			// anything-but excludes only values of its own type
+			// (matching-engines.md V39, V40).
 			ws := rapid.SliceOfNDistinct(rapid.SampledFrom(words), 1, 3, rapid.ID).Draw(t, "anything-but")
 			quoted := make([]string, len(ws))
 			for i, w := range ws {

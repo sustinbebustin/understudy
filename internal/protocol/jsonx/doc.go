@@ -27,6 +27,7 @@
 // U+2028, U+2029, <, > and & are written raw, as encoding/json/v2 does.
 // AppendString writes one string literal the same way, for codecs that
 // build a small fixed document by hand.
+//
 // Document values (smithy/document) are the tree for rewriting a body, as
 // the DynamoDB proxy does: Decoder.ReadValue reads one and Encoder.Value
 // writes one.

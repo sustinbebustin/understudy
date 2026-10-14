@@ -22,8 +22,9 @@ type writeFrame struct {
 
 // serializer implements smithy.Serializer for awsJson bodies: members in
 // model order under their model names, integers as plain digits,
-// timestamps as epoch seconds with millisecond precision, blobs as padded
-// base64, non-finite floats as the strings NaN, Infinity and -Infinity.
+// timestamps as epoch seconds with at most millisecond precision (or the
+// string a timestampFormat trait asks for), blobs as padded base64,
+// non-finite floats as the strings NaN, Infinity and -Infinity.
 type serializer struct {
 	enc  *jsonx.Encoder
 	open []writeFrame

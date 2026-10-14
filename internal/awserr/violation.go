@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-// Violation is one failed constraint on one input member. Constraint is never
-// nil: a nil one is a validator bug, and Coral renders it as understudy text
-// rather than AWS text.
+// Violation is one failed constraint on one input member. Constraint must not
+// be nil: a nil one is a validator bug, which Coral renders in understudy's
+// words rather than AWS's.
 type Violation struct {
 	Path       Path
 	Value      Rendered

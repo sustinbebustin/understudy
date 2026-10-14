@@ -12,8 +12,8 @@ type Sequencer uint64
 // Next is the sequencer of a change at the given time after one whose
 // sequencer was last: the time in Unix nanoseconds, or last+1 when that is
 // not later, so sequencers strictly increase when the clock stands still
-// (frozen) or steps back (a snapshot load). After math.MaxUint64 it stays
-// there, which no emulator time reaches.
+// (frozen) or steps back (a snapshot load). Once last is math.MaxUint64 it
+// stays there, a value no emulator time reaches.
 func Next(last Sequencer, at time.Time) Sequencer {
 	if last == ^Sequencer(0) {
 		return last

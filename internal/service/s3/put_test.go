@@ -875,7 +875,7 @@ func TestSSEKMSKeyForms(t *testing.T) {
 	})
 }
 
-// TestKMSKeyIDNeedsKMSOnAKMSDefaultBucket:a write naming a KMS key
+// TestKMSKeyIDNeedsKMSOnAKMSDefaultBucket: a write naming a KMS key
 // without asking for aws:kms is refused before its body is read even on a
 // bucket whose default is aws:kms, rather than encrypted under the
 // bucket's key; PutObject and CopyObject alike.

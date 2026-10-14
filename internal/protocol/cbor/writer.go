@@ -150,10 +150,11 @@ func (w *Writer) Float64(v float64) {
 }
 
 // Timestamp writes tag 1 wrapping t's epoch seconds as a double, at
-// millisecond resolution. When the double nearest the instant is just
-// below it, so that smithy-go's int64(f*1e3) would read it back one
-// millisecond early (wire-cbor.md 5.1), the next double up is written
-// instead; ReadTimestamp reads either back as the same instant.
+// millisecond resolution. When the double nearest the instant lies just on
+// the zero side of it, so that smithy-go's int64(f*1e3), which truncates
+// toward zero, would read it back one millisecond off (wire-cbor.md 5.1),
+// the next double away from zero is written instead; ReadTimestamp reads
+// either back as the same instant.
 func (w *Writer) Timestamp(t time.Time) {
 	if w.item("Timestamp") {
 		w.buf = appendFloat64(appendHead(w.buf, majorTag, 1), epochSeconds(t))
@@ -333,9 +334,9 @@ func appendFloat64(b []byte, v float64) []byte {
 	return binary.BigEndian.AppendUint64(append(b, majorSimple<<5|floatDouble), math.Float64bits(v))
 }
 
-// epochSeconds is t's epoch seconds at millisecond resolution, nudged up
-// one ulp when smithy-go's truncating read would otherwise lose a
-// millisecond.
+// epochSeconds is t's epoch seconds at millisecond resolution, nudged one
+// ulp away from zero when smithy-go's truncating read would otherwise be a
+// millisecond off.
 func epochSeconds(t time.Time) float64 {
 	ms := t.UnixMilli()
 	f := float64(ms) / 1000

@@ -44,9 +44,9 @@ func (s Scope) String() string {
 	return "unknown"
 }
 
-// profile is the Ruler profile of a scope. Options keep Ruler's behavior
-// for the four conflicts with the SNS documentation (ADR 0015); Switches
-// lists them.
+// profile is the Ruler profile of a scope. Its zero Options keep Ruler's
+// behavior for the four conflicts with the SNS documentation (ADR 0015);
+// Switches lists them.
 func (s Scope) profile() ruler.SNS {
 	if s == MessageBody {
 		return ruler.SNS{Scope: ruler.MessageBody}

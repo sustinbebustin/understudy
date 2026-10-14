@@ -150,7 +150,7 @@ func putACL(in *s3api.PutBucketAclInput, b *Bucket) *awserr.Error {
 	return nil
 }
 
-// aclsDisabled reports a bucket whose ownership controls disable ACLs.
+// aclsDisabled reports whether b's ownership controls disable ACLs.
 func aclsDisabled(b *Bucket) bool {
 	return b.Ownership != nil && slices.ContainsFunc(b.Ownership.Rules, func(r s3api.OwnershipControlsRule) bool {
 		return r.ObjectOwnership == s3api.ObjectOwnershipBucketOwnerEnforced
@@ -242,7 +242,7 @@ func (s *Service) bindPolicy(b s3api.Binder) {
 }
 
 // checkPolicy checks a bucket policy's form only: a JSON object with a
-// Statement. Phase 1 stores policies and evaluates none.
+// Statement. understudy stores policies and evaluates none.
 func checkPolicy(doc string) *awserr.Error {
 	trimmed := bytes.TrimSpace([]byte(doc))
 	if len(trimmed) == 0 || trimmed[0] != '{' || !json.Valid(trimmed) {

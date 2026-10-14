@@ -23,8 +23,8 @@ func (e *FormatError) Error() string {
 
 // SchemaError reports a section whose state schema version differs from the
 // running binary's, or that belongs to a service the binary does not have.
-// Until the first tagged release there are no migrations, so the archive is
-// refused and nothing is loaded.
+// Until the first tagged release there are no migrations (ADR 0009), so the
+// archive is refused and nothing is loaded.
 type SchemaError struct {
 	Path    string
 	Service ref.ServiceID

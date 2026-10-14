@@ -6,10 +6,11 @@
 // under Amazon's licence terms, which Notice names when it first starts.
 //
 // Network says how understudy reaches the container. Published publishes
-// its port on 127.0.0.1 with an ephemeral host port read back from the
-// daemon, for hosts that cannot route to container addresses (Docker
-// Desktop, rootless engines). DefaultBridge reaches it at its default
-// bridge address, which a Linux host routes to; it needs no host port.
+// its port on HostIP (127.0.0.1 when zero) with an ephemeral host port
+// read back from the daemon, for hosts that cannot route to container
+// addresses (Docker Desktop, rootless engines). DefaultBridge reaches it at
+// its default bridge address, which a Linux host routes to; it needs no
+// host port.
 // Attached, addressed by container IP on understudy's own network, is the
 // path for the InContainer topology.
 //

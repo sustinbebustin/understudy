@@ -27,8 +27,9 @@ type matchEqualsIP struct {
 	numericBeside bool
 }
 
-// matchEqualsNumber is a bare number rule Ruler can compare, [300]: numerically
-// equal numbers match (300.0, 3.0e2), and so does identical text.
+// matchEqualsNumber is a bare number rule Ruler can compare, [300]:
+// numerically equal numbers match (300.0, 3.0e2) unless Options.BareNumber is
+// BareNumberTextOnly, and identical text always does.
 type matchEqualsNumber struct {
 	text  string
 	value float64
@@ -68,16 +69,17 @@ type matchEqualsIgnoreCase struct{ fold caseless }
 // matchWildcard is {"wildcard": "a*b"}.
 type matchWildcard struct{ pattern glob }
 
-// matchAnythingBut is {"anything-but": "s"} or a list of strings: any value except
-// those strings, including every non-string value.
+// matchAnythingBut is {"anything-but": "s"} or a list of strings: any value
+// except those strings, including every non-string value.
 type matchAnythingBut struct{ texts []string }
 
-// matchAnythingButNumbers is {"anything-but": 5} or a list of numbers: any value
-// except numbers equal to those, including every non-number value.
+// matchAnythingButNumbers is {"anything-but": 5} or a list of numbers: any
+// value except comparable numbers equal to those, including every non-number
+// value.
 type matchAnythingButNumbers struct{ values []float64 }
 
-// matchAnythingButPrefix is {"anything-but": {"prefix": ...}}: any value except
-// strings with one of the prefixes.
+// matchAnythingButPrefix is {"anything-but": {"prefix": ...}}: any value
+// except strings with one of the prefixes.
 type matchAnythingButPrefix struct{ prefixes []string }
 
 // matchAnythingButSuffix is {"anything-but": {"suffix": ...}}.
@@ -99,8 +101,8 @@ type matchNumeric struct {
 // matchExists is {"exists": true}: the path has a value.
 type matchExists struct{}
 
-// matchNotExists is {"exists": false}: the path has no value. It never accepts a
-// value; Match treats it as the leaf's absence alternative.
+// matchNotExists is {"exists": false}: the path has no value. It never
+// accepts a value; Match treats it as the leaf's absence alternative.
 type matchNotExists struct{}
 
 // matchCIDR is {"cidr": "10.0.0.0/24"}: a string that is an address in the

@@ -496,8 +496,8 @@ func (sub *Subscription) clone() Subscription {
 }
 
 // codec is the State codec: jsonx with the TopicKind, Confirmation and
-// ConfirmedBy unions. The tables are static, so an error building one is a bug in it;
-// the codec then fails every section with it.
+// ConfirmedBy unions. The tables are static, so an error building one is a
+// bug in it; the codec then fails every section with it.
 func codec() store.Codec {
 	failing := func(err error) store.Codec {
 		return store.Codec{

@@ -22,7 +22,7 @@ const noSwitch = ""
 
 // residuals covers C1 to C7. C8 to C10 (backlog R10/C8-C10: FilterLogEvents
 // time bounds, paging and tie order) are request semantics, not pattern
-// semantics, so they are tested in internal/service/logs (T31).
+// semantics, so they are tested in internal/service/logs.
 var residuals = []residual{
 	// C1: token boundary.
 	{"C1", termBoundarySwitch, `ERROR`, "ERRORS", match, noMatch},

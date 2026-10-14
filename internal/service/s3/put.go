@@ -34,7 +34,7 @@ const (
 )
 
 // The request headers a body-carrying write reads beyond its input
-// (kernel.CallHeaders).
+// (kernel.CallHeaders), and S3's texts for a body that fails.
 const (
 	headerContentSHA256  = "X-Amz-Content-Sha256"
 	headerTrailer        = "X-Amz-Trailer"
@@ -595,8 +595,8 @@ func bodyError(ctx context.Context, err error) *awserr.Error {
 	return awserr.Internalf(err)
 }
 
-// trailerFault reports an aws-chunked trailer that is missing, misnamed or
-// malformed.
+// trailerFault reports whether err is an aws-chunked trailer that is
+// missing, misnamed or malformed.
 func trailerFault(err error) bool {
 	if isA[*awschunked.MissingTrailerError](err) || isA[*awschunked.TrailerMismatchError](err) {
 		return true
@@ -605,9 +605,9 @@ func trailerFault(err error) bool {
 	return ok && (m.Defect == awschunked.BadTrailerLine || m.Defect == awschunked.ExtraTrailer || m.Defect == awschunked.MissingTrailerSignature)
 }
 
-// chunkFault reports an aws-chunked body that ended short of its declared
-// length or whose chunk framing is broken, which S3 answers as an
-// incomplete body.
+// chunkFault reports whether err is an aws-chunked body that ended short
+// of its declared length or whose chunk framing is broken, which S3
+// answers as an incomplete body.
 func chunkFault(err error) bool {
 	return isA[*awschunked.IncompleteBodyError](err) || isA[*awschunked.DecodedLengthExceededError](err) || isA[*awschunked.MalformedChunkError](err)
 }

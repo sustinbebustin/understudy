@@ -280,10 +280,10 @@ func (ContainerPublished) isExposure() {}
 // AWSAPIExposure is whether a main listener beyond loopback on the host may
 // serve the AWS API. The admin token guards only /_understudy/, and every
 // client may sign with the public dummy key test/test, which verifies even
-// under SigV4Verify, so such a listener lets every peer
-// that reaches it read every secret and object and run any container image
-// as a Lambda function. Inside a container, ContainerPublished needs no
-// AWSAPIExposure: the published port guards both APIs.
+// under SigV4Verify, so such a listener lets every peer that reaches it read
+// every secret and object and run any container image as a Lambda function.
+// Inside a container, ContainerPublished needs no AWSAPIExposure: the
+// published port guards both APIs.
 //
 //sumtype:decl
 type AWSAPIExposure interface{ isAWSAPIExposure() }

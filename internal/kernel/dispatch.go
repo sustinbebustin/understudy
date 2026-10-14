@@ -36,8 +36,7 @@ type Ok struct {
 }
 
 // Rejected is a request the edge refused before the handler: a body that
-// does not decode, credentials that cannot be read, an operation the
-// service does not model.
+// does not decode, an operation the service does not model.
 type Rejected struct{ Err *awserr.Error }
 
 // Unauthenticated is a request the edge refused at authentication:
@@ -369,10 +368,10 @@ func (k *Kernel) journalFault(ctx context.Context, c *Call, inj fault.Injection)
 
 // recordAccess records the IAM actions the call used (step 11), as
 // recordedActions selects them from the operation's list and what its
-// binding declared: never for an injected fault, an anonymous caller, a
-// service acting on its own behalf (AsPlatform), which no policy grants,
-// or an internal operation that declares no action. Dispatch skips it for
-// an Unauthenticated request.
+// binding declared. It records nothing for an anonymous caller, a service
+// acting on its own behalf (AsPlatform), which no policy grants, or an
+// internal operation that declares no action. Dispatch skips it for an
+// injected fault and for an Unauthenticated request.
 func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used secondaries) {
 	if _, platform := c.mode.(AsPlatform); k.access == nil || c.op == nil || platform {
 		return

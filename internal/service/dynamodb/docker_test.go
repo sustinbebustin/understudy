@@ -38,7 +38,7 @@ func engine(t *testing.T) *docker.Client {
 }
 
 // ownership is unique per run, so names and owner labels never collide
-// with other agents' containers on the same daemon.
+// with other runs' containers on the same daemon.
 func ownership(t *testing.T) docker.Ownership {
 	t.Helper()
 	b := make([]byte, 6)

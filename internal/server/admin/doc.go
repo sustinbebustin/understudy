@@ -50,8 +50,8 @@
 //     lock, held from the drain or cut through the late steps, so a reset's
 //     late reset cannot land between a save's cut and its late exports, or
 //     inside a load. The coordinator already serializes save against load;
-//     the periodic --persist checkpoint, which runs outside this handler,
-//     must take the same lock once it exists.
+//     the periodic --persist checkpoint runs outside this handler and
+//     writes without late data, so it does not take the lock.
 //   - Every route lists the query parameters it reads, and any other is
 //     refused with invalid_request before the endpoint runs; a route that
 //     reads none, such as POST /reset, refuses every parameter, so a filter
@@ -80,10 +80,9 @@
 //     run is conflict, since the file is at fault rather than the request
 //     (the CLI exits 1, not with a usage error); one over the size limit is
 //     invalid_request; every other failure is internal and says whether the
-//     state changed. The path form needs a
-//     data directory, takes a local path under it, and writes atomically
-//     through a temporary file of its own, so concurrent saves to one path
-//     leave a whole archive.
+//     state changed. The path form needs a data directory, takes a local
+//     path under it, and writes atomically through a temporary file of its
+//     own, so concurrent saves to one path leave a whole archive.
 //   - A reset whose clock restore fails still clears the fault rules and
 //     the access record it was asked to, which do not depend on the clock,
 //     and its error names what was reset and that the clock was not.

@@ -23,8 +23,8 @@
 //   - Long-term and temporary keys are minted by separate functions,
 //     MintLongTerm and MintTemporary(expiry), and the session token lives in
 //     the Temporary lifetime, so long-term credentials with an expiry or a
-//     token, and temporary ones without, cannot be expressed. Assumed roles take
-//     only temporary credentials.
+//     token, and temporary ones without, cannot be expressed. Assumed roles
+//     take only temporary credentials.
 //   - Static keys come from configuration at every start: Export never
 //     writes them, and Import and a reset, which replace the minted keys,
 //     keep them. SetStaticKeys refuses a key the store minted, and minting

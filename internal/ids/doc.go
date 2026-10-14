@@ -11,7 +11,8 @@
 //
 //   - The package imports nothing in the repository (ARCHITECTURE.md 2), so
 //     access key minting takes the account as its 12-digit string and
-//     DecodeAccount returns one; package identity converts to aws.AccountID.
+//     DecodeAccount returns one; package identity converts between it and
+//     aws.AccountID.
 //   - Stream positions count 64-bit words; a draw of n bytes consumes
 //     ceil(n/8) words, and Seek replays the stream from its start. Seek
 //     refuses positions above MaxPosition so a corrupt manifest cannot stall

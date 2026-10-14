@@ -42,7 +42,7 @@ type UnknownOperation struct {
 // identity the edge answers an unroutable request with, carrying a message
 // that names the rule. Whether a later claim rule may still take the
 // request, and whether Err is what the client receives, is the edge's
-// routing decision; see the package doc for what it does today.
+// routing decision; see the package doc for how the composition root maps it.
 type Rejected struct {
 	Err *awserr.Error
 }
@@ -70,11 +70,13 @@ const (
 // path whose last four segments are service/{Service}/operation/{Op},
 // any prefix before them ignored. {Service} is the service shape's name
 // (GraniteServiceVersion20100801) or its absolute id with dots for #
-// (com.amazonaws.cloudwatch.GraniteServiceVersion20100801), naming a
-// service in reg that speaks rpcv2Cbor; {Op} is an operation name, case
+// (com.amazonaws.cloudwatch.GraniteServiceVersion20100801) of a service in
+// reg that speaks rpcv2Cbor; {Op} is an operation name, case
 // sensitive, never an absolute id. Such a request is Rejected when it
 // also carries X-Amz-Target or X-Amzn-Target, which the protocol forbids,
-// is not a POST, or sends a Content-Type other than application/cbor.
+// is not a POST, or sends a Content-Type other than application/cbor,
+// whatever {Service} names. Only a request that passes those checks is
+// Declined for a {Service} that names no rpcv2Cbor service.
 // Accept is not checked: servers must not require it. Cross-checking the
 // service against the SigV4 signing name is the edge's job.
 func (Codec) Claim(r *http.Request, reg *registry.Registry) Claim {

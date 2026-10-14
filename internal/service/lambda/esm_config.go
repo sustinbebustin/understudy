@@ -20,9 +20,10 @@ import (
 // The SQS defaults and limits of an event source mapping
 // (lambda-events.md 1.2).
 const (
-	defaultBatchSize  = 10
-	maxFIFOBatchSize  = 10
-	maxMappingsPage   = 100
+	defaultBatchSize = 10
+	maxFIFOBatchSize = 10
+	maxMappingsPage  = 100
+	// userInitiated is the StateTransitionReason every mapping reports.
 	userInitiated     = "USER_INITIATED"
 	sqsBatchWindowCap = 10
 	// maxFilters is the default quota of filters per mapping; AWS raises
@@ -170,8 +171,8 @@ func (u mappingSettings) apply(m *Mapping) *awserr.Error {
 }
 
 // filterPatterns checks the filter count against the default quota and
-// each filter pattern with Lambda's rules; nil patterns clear the filters,
-// as an empty FilterCriteria does.
+// each filter pattern with Lambda's rules. An empty FilterCriteria yields
+// no patterns, which clears the mapping's filters.
 func filterPatterns(fc *lambdaapi.FilterCriteria) ([]string, *awserr.Error) {
 	if len(fc.Filters) > maxFilters {
 		return nil, errTooManyFilters(len(fc.Filters))

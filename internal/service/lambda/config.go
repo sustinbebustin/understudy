@@ -503,8 +503,8 @@ func (s *Service) storeEventInvoke(c *kernel.Call, name string, qualifier *strin
 	return &out, nil
 }
 
-// with returns cfg with the settings in sets; with replace, the settings
-// in leaves out are removed.
+// with returns cfg updated with the settings that in carries; with
+// replace, a setting that in leaves out is removed.
 func (cfg EventInvokeConfig) with(in eventInvokeInput, replace bool) EventInvokeConfig {
 	if in.retries != nil || replace {
 		cfg.MaximumRetryAttempts = in.retries

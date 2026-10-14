@@ -60,9 +60,11 @@ func (e *DescriptorError) Error() string {
 }
 
 // New indexes services. It fails on a nil or duplicate service, a JSON target
-// prefix or signing name two services share, an operation whose Ordinal is
-// not its index, operations out of name order, an operation of another
-// service, an invalid route, and two routes no request can tell apart.
+// prefix or signing name two services share, an awsQuery service with no
+// QueryVersion or with an Action and Version another service holds, a nil
+// operation, an operation whose Ordinal is not its index, operations out of
+// name order, an operation of another service or of an unknown kind, an
+// invalid route, and two routes no request can tell apart.
 func New(services ...*Service) (*Registry, error) {
 	r := &Registry{
 		byID:      make(map[ref.ServiceID]*Service, len(services)),

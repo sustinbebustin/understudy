@@ -144,12 +144,11 @@ var terraformProbes = []terraformProbe{
 // TestTerraformTableLifecycleReadsWithoutDiff replays the calls
 // aws_dynamodb_table makes (tf-storage.md 3) against a fake Local, for
 // each PROBE table: the CreateTable answer says CREATING for the table and
-// its indexes and the UpdateTable answer UPDATING, as AWS's do,
-// every member the provider reads is present, two reads in a row agree,
-// tags, TTL and point-in-time recovery round-trip, an update of only the
-// table class is answered without Local's "Nothing to update", and the
-// delete reports DELETING then not found in the words the provider
-// matches.
+// its indexes and the UpdateTable answer UPDATING, as AWS's do, every
+// member the provider reads is present, two reads in a row agree, tags, TTL
+// and point-in-time recovery round-trip, an update of only the table class
+// is answered without Local's "Nothing to update", and the delete reports
+// DELETING then not found in the words the provider matches.
 func TestTerraformTableLifecycleReadsWithoutDiff(t *testing.T) {
 	for _, p := range terraformProbes {
 		t.Run(p.name, func(t *testing.T) { runStore(t, func(h *harness, _ *tableStore) { replayTerraform(h, p) }, withKMS) })
@@ -265,7 +264,7 @@ func replayTerraform(h *harness, p terraformProbe) {
 		h.Errorf("ListTagsOfResource = %v", got)
 	}
 
-	// Update: tags through the interceptor, then the table class alone.
+	// Update: tags through the shim, then the table class alone.
 	h.mustCall("UntagResource", `{"ResourceArn":"`+arn+`","TagKeys":["env"]}`)
 	h.mustCall("TagResource", `{"ResourceArn":"`+arn+`","Tags":[{"Key":"team","Value":"core"},{"Key":"Name","Value":"locks"}]}`)
 	if got := path(h.mustCall("ListTagsOfResource", `{"ResourceArn":"`+arn+`"}`), "Tags"); !equalJSON(got,

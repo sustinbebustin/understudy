@@ -56,8 +56,8 @@ const (
 // Problem says why Parse refused the credentials of one mechanism.
 type Problem uint8
 
-// Problem values. The comment names the Vocabulary identity AWSError
-// renders each with, after the Coral services' answers (error-matrix.md 5.5,
+// Problem values. Each value's comment names the Vocabulary identity
+// AWSError renders it with, after the Coral services' answers (error-matrix.md 5.5,
 // DynamoDB T8).
 const (
 	// Malformed: a required element is missing or unreadable. Incomplete.
@@ -122,12 +122,12 @@ func (c Carrier) name() string {
 }
 
 // ParseError is a request whose credentials cannot be read: Conflict,
-// UnknownScheme, MissingQueryParameters, UnknownRegion or Invalid. Parse runs before the
-// request is claimed, when the protocol family, and with it the error
-// identity and text, is not yet known: the caller renders the error with
-// AWSError once it is, or switches on the variants for identities a
-// Vocabulary does not hold (S3). It does not implement error, so it cannot
-// be mistaken for a Go failure.
+// UnknownScheme, MissingQueryParameters, UnknownRegion or Invalid. Parse
+// runs before the request is claimed, when the protocol family, and with it
+// the error identity and text, is not yet known: the caller renders the
+// error with AWSError once it is, or switches on the variants for
+// identities a Vocabulary does not hold (S3). It does not implement error,
+// so it cannot be mistaken for a Go failure.
 //
 //sumtype:decl
 type ParseError interface {

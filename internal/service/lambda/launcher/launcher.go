@@ -64,7 +64,7 @@ type tracked struct {
 	waiter *watcher
 }
 
-// New validates opts. A topology phase 1 cannot serve returns its
+// New validates opts. A topology the launcher cannot serve returns its
 // *topology.UnsupportedError; an incomplete ownership its
 // *docker.OwnershipError.
 func New(client *docker.Client, opts Options) (*Launcher, error) {

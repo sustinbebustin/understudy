@@ -116,8 +116,9 @@ func TestAdminHealthReportsReadinessAndServices(t *testing.T) {
 	}
 	if len(h.Services) != 12 {
 		t.Fatalf("health lists %d services, want the twelve of phase 1: %+v", len(h.Services), h.Services)
-	} // Every wired service holds its state under its registry id, so a
-	// reset can name each one.
+	}
+	// Every wired service holds its state under its registry id, so a reset
+	// can name each one.
 	names := make([]string, 0, len(h.Services))
 	for name := range h.Services {
 		names = append(names, name)

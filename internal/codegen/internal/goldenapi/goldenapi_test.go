@@ -4,6 +4,7 @@
 // internal operations, a lookaround pattern with its hand validator and
 // patternEcho, and the Op handles and Binder of bind_gen.go, compiled
 // against internal/kernel.
+//
 // TestGoldenPackage in internal/codegen fails when generation drifts from
 // them; go test ./internal/codegen -run TestGoldenPackage -update rewrites
 // them. The tests in this file show the emitted code behaves. The package

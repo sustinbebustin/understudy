@@ -11,7 +11,7 @@ import (
 // Resource, Condition), principal types and condition operators and keys in
 // sort order, Statement always a list, and every one-element list of
 // actions, resources, principals or condition values written as its single
-// string, as Lambda and KMS write their policies. Parse of the output returns
+// value, as Lambda and KMS write their policies. Parse of the output returns
 // doc unchanged for any doc Parse returned.
 func Encode(doc Document) []byte {
 	w := encoder{b: []byte{'{'}}

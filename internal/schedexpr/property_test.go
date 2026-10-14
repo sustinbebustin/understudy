@@ -141,7 +141,8 @@ func midnight(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 }
 
-// nearestWeekdayOracle is the weekday of t's month closest to day n.
+// nearestWeekdayOracle reports whether t falls on the weekday of its month
+// closest to day n.
 func nearestWeekdayOracle(t time.Time, n int) bool {
 	if n > daysIn(t.Year(), t.Month()) {
 		return false

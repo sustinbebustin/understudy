@@ -18,11 +18,12 @@ const (
 // Chunks are never copied while reading and the last chunk is cut to the
 // limit, so a body that turns out to be large costs at most limit+1 bytes.
 //
-// A non-negative hint sizes the first chunk as hint+1, capped at limit+1, so an honest body is
-// read into one chunk that join returns without copying; a dishonest hint
-// costs no more than the limit+1 bound above. With no hint, chunks start at
-// firstChunk and grow geometrically up to maxChunk, and join copies them into
-// one slice, so a body of unknown length briefly holds up to twice its size.
+// A non-negative hint sizes the first chunk as hint+1, capped at limit+1, so
+// an honest body is read into one chunk that join returns without copying; a
+// dishonest hint costs no more than the limit+1 bound above. With no hint,
+// chunks start at firstChunk and grow geometrically up to maxChunk, and join
+// copies them into one slice, so a body of unknown length briefly holds up to
+// twice its size.
 func spool(r io.Reader, limit, hint int64) (chunks [][]byte, n int64, complete bool, err error) {
 	size := int64(firstChunk)
 	if hint >= 0 {

@@ -29,11 +29,11 @@
 //     GetMetricData hold only printable ASCII with a non-space character,
 //     and a name does not start with a colon (the Dimension
 //     documentation; the text is inferred).
-//   - DeleteAlarms, EnableAlarmActions and DisableAlarmActions skip names that
-//     match no alarm, so deleting a missing alarm succeeds (wire-cbor.md 3.5).
-//     ListTagsForResource of an ARN that names no alarm is an empty list, as
-//     AWS records for a deleted one; TagResource and UntagResource of such an
-//     ARN are ResourceNotFoundException.
+//   - DeleteAlarms, EnableAlarmActions and DisableAlarmActions skip names
+//     that match no alarm, so deleting a missing alarm succeeds
+//     (wire-cbor.md 3.5). ListTagsForResource of an ARN that names no alarm
+//     is an empty list, as AWS records for a deleted one; TagResource and
+//     UntagResource of such an ARN are ResourceNotFoundException.
 //   - A metric series is a namespace, a name and a dimension set, whatever
 //     order a request lists the dimensions in. Its points are kept until
 //     reset at the resolution they were put at, a regular metric's
@@ -41,9 +41,8 @@
 //     the second (AWS-documented); they are not aged out to coarser
 //     resolutions as AWS's retention does, but ListMetrics leaves out a
 //     series that has not reported data for two weeks of emulator time, as
-//     AWS documents. PutMetricData's
-//     two-week and two-hour windows accept a timestamp valid by the wall
-//     clock or the emulator clock, as Logs does.
+//     AWS documents. PutMetricData's two-week and two-hour windows accept a
+//     timestamp valid by the wall clock or the emulator clock, as Logs does.
 //   - A datum with both Values and StatisticValues is accepted, as AWS
 //     accepts it (AWS-recorded), and stores its StatisticValues alone
 //     (inferred: no recording shows which form AWS keeps).

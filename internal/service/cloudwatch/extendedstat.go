@@ -80,7 +80,7 @@ func decimal(s string) (float64, bool) {
 	return v, err == nil
 }
 
-// digits reports a non-empty run of ASCII digits.
+// digits reports whether s is a non-empty run of ASCII digits.
 func digits(s string) bool {
 	if s == "" {
 		return false

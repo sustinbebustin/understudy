@@ -222,7 +222,7 @@ func (h *harness) usedAsCaller(action string) bool {
 	return false
 }
 
-// TestCopyKeepsSharedBytesCounted:a copy shares its source's blob and
+// TestCopyKeepsSharedBytesCounted: a copy shares its source's blob and
 // holds its own reference on it, so deleting the source keeps the copy's
 // bytes, and deleting the copy too leaves nothing stored.
 func TestCopyKeepsSharedBytesCounted(t *testing.T) {

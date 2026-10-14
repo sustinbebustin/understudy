@@ -212,8 +212,8 @@ func expansionDetail() string {
 		strconv.Itoa(maxExpansion) + " steps"
 }
 
-// bound records the first limit that branches built so far, one of which
-// holds keys keys, make certain.
+// bound records the first limit made certain by the branches built so far,
+// counted as branches, of which one holds keys distinct paths.
 func (c *compiler) bound(branches, keys int) {
 	if c.overrun == nil {
 		c.overrun = c.profile.overrun(expansion{branches: branches, keys: keys, orProduct: c.orProduct})

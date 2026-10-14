@@ -171,8 +171,9 @@ func TestMarkerRoundTrips(t *testing.T) {
 	})
 }
 
-// The marker is base64url, unpadded, of "v1|<listing>|<key>": KMS clients
-// that hold a marker from an earlier build can still send it back.
+// The marker is base64url, unpadded, of "v1|<listing>|<key>": the format is
+// pinned, so a client holding a marker from an earlier build can still send
+// it back.
 func TestMarkerFormat(t *testing.T) {
 	got := markerFor(t, "aliases", "alias/b")
 	if want := base64.RawURLEncoding.EncodeToString([]byte("v1|aliases|alias/b")); got != want {

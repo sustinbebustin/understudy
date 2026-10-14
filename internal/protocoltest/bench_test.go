@@ -137,7 +137,7 @@ func newBench(t *testing.T, cs corpusService, svc *registry.Service) *bench {
 	return &bench{echo: e, url: srv.URL, client: &http.Client{Transport: transport}}
 }
 
-// routedByEdge reports whether the front door claims svc's requests: every
+// routedByEdge reports whether the edge claims svc's requests: every
 // RPC protocol is claimed by its codec, but the edge's REST rules know
 // only the lambda and s3 route tables (ARCHITECTURE.md 4.1 rule 8), so the
 // synthetic RestJson and RestXml services are served by routeFront.
@@ -282,7 +282,8 @@ func (e *echo) handler(ht reflect.Type) reflect.Value {
 
 // routeFront serves a synthetic REST service the edge cannot claim: it
 // matches the request against the service's route table, then decodes,
-// dispatches and encodes as the edge does (pipeline steps 4, 5 and 13).
+// dispatches and encodes as the edge does (steps 4, 5 and 13 of
+// ARCHITECTURE.md 4).
 type routeFront struct {
 	k     *kernel.Kernel
 	svc   *registry.Service

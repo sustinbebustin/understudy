@@ -15,8 +15,7 @@ import (
 // never "absent": the trailer arrives after the last byte.
 //
 // Deferred tells pending from absent, but handlers see only smithy.Body,
-// whose Trailer answers both the same way; the pending state reaches them
-// once smithy.Body carries it.
+// whose Trailer answers both the same way, so they cannot tell them apart.
 type Body struct {
 	inner smithy.Body
 	eof   atomic.Bool

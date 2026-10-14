@@ -115,8 +115,8 @@ type Deserializable interface {
 	Deserialize(d Deserializer) error
 }
 
-// Body is an input @streaming blob: the handler pulls
-// it after its pre-checks, never as []byte.
+// Body is an input @streaming blob: the handler pulls it after its
+// pre-checks, never as []byte.
 type Body interface {
 	// Open returns the body; net/http sends 100 Continue on the first read.
 	Open() (io.ReadCloser, error)

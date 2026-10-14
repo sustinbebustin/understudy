@@ -144,7 +144,7 @@ func validSubject(s string) bool {
 }
 
 // validFIFOID reports a MessageGroupId or MessageDeduplicationId: up to 128
-// letters, digits and ASCII punctuation (sns.md 4.3).
+// ASCII letters, digits, punctuation and symbols (sns.md 4.3).
 func validFIFOID(s string) bool {
 	if s == "" || len(s) > maxFIFOIDLength {
 		return false
@@ -477,7 +477,7 @@ func (e functionEndpoint) route() (delivery.Mechanism, aws.ARN) {
 }
 
 // endpointOf is the endpoint sub delivers to, false for an endpoint type
-// phase 1 does not deliver to (ADR 0015) or a lambda endpoint that names
+// understudy does not deliver to (ADR 0015) or a lambda endpoint that names
 // no function.
 func endpointOf(sub *Subscription) (endpoint, bool, *awserr.Error) {
 	switch sub.Protocol {
@@ -499,7 +499,7 @@ func endpointOf(sub *Subscription) (endpoint, bool, *awserr.Error) {
 }
 
 // deliver hands m to sub's endpoint through the outbox. A pending
-// subscription, or one whose endpoint type phase 1 does not deliver to,
+// subscription, or one whose endpoint type understudy does not deliver to,
 // receives nothing. A filter policy is evaluated before any outbox entry
 // exists, so a message it keeps out never reaches the subscription's
 // dead-letter queue (sns.md 6.3).

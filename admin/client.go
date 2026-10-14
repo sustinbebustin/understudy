@@ -418,9 +418,11 @@ func (c *Client) call(ctx context.Context, method, path string, v url.Values, in
 	return c.decode(resp, out)
 }
 
-// send makes one request. An answer outside 2xx is returned as the *Error
-// its envelope holds, with the response (body unread) for the caller that
-// reads past it; otherwise the caller closes the body.
+// send makes one request. No answer is an *UnreachableError. An answer
+// outside 2xx is the *Error its envelope holds, or an Unavailable *Error
+// when it has none, returned with the response, whose body is buffered so
+// a caller that reads past the error can read it again. On a 2xx answer
+// the caller closes the body.
 func (c *Client) send(ctx context.Context, method, path string, v url.Values, body io.Reader, contentType string) (*http.Response, error) {
 	u := c.base
 	u.Path = Prefix + path

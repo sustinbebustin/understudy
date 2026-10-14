@@ -22,9 +22,8 @@ const stateVersion = 4
 // (ARCHITECTURE.md 3.5): a write changes a working copy of a queue
 // (Queue.clone), which copies what it changes on first change, and stores
 // it back; what a handler takes out of a cell is a clone, so it never
-// aliases the cell. A dead-letter queue
-// lives in the same account and region as its sources, so a redrive or a
-// move task changes one cell.
+// aliases the cell. A dead-letter queue lives in the same account and
+// region as its sources, so a redrive or a move task changes one cell.
 type State struct {
 	Queues map[string]Queue `json:"queues"`
 	// Deleted holds when each recently deleted queue name was deleted,
@@ -233,7 +232,8 @@ type Message struct {
 	SenderID string `json:"senderId"`
 	// Enqueued is the journal event of the call that sent the message, the
 	// cause of what its delivery leads to, and EnqueuedTrace that event's
-	// trace; zero in a state saved before the trace was kept.
+	// trace. A saved state without enqueuedTrace loads it as zero, and
+	// MessageCauses then reports Enqueued as the trace.
 	Enqueued      ref.EventID   `json:"enqueuedEventId"`
 	EnqueuedTrace ref.EventID   `json:"enqueuedTrace,omitzero"`
 	Sent          clock.Instant `json:"sent"`

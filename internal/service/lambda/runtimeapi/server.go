@@ -65,7 +65,7 @@ type Server struct {
 }
 
 // NewServer validates opts and derives the listener addresses from the
-// topology. A topology phase 1 cannot serve returns its
+// topology. A topology the Runtime API cannot serve returns its
 // *topology.UnsupportedError.
 func NewServer(opts Options) (*Server, error) {
 	if opts.Clock == nil {

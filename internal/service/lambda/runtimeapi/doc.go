@@ -6,12 +6,12 @@
 // listener per execution environment on the topology's bind address and an
 // ephemeral port, and the container is told Environment.Addr as
 // AWS_LAMBDA_RUNTIME_API. On a bridge gateway each listener serves only
-// peers in the container network (Options.Peers, ADR 0011). An Environment runs one invocation at a time:
-// Invoke queues it, GET /next hands it over with Content-Type
-// application/json (the Python runtime crashes without it) and the
-// Lambda-Runtime-* headers, and /response or /error completes it with 202.
-// Bodies may be chunked; trailers are read from r.Trailer once the body is
-// consumed. Every outcome but Success is an Unhandled function error with
+// peers in the container network (Options.Peers, ADR 0011). An Environment
+// runs one invocation at a time: Invoke queues it, GET /next hands it over
+// with Content-Type application/json (the Python runtime crashes without it)
+// and the Lambda-Runtime-* headers, and /response or /error completes it with
+// 202. Bodies may be chunked; trailers are read from r.Trailer once the body
+// is consumed. Every outcome but Success is an Unhandled function error with
 // the AWS payload texts of containers.md 4.6 and lambda-api.md 8.3. A reply
 // for any invocation but the running one gets 400 InvalidInvocationId.
 //

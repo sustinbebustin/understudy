@@ -92,7 +92,8 @@ func TestParseDetailAcceptsOnlyAnObject(t *testing.T) {
 }
 
 // InputPath selects a subtree and delivers its JSON: an object, a nested
-// object, or a string with its quotes (the recorded test_put_events_with_input_path*).
+// object, or a string with its quotes (the recorded
+// test_put_events_with_input_path*).
 func TestInputPathGoldens(t *testing.T) {
 	tests := []struct {
 		detail, path, want string

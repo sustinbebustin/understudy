@@ -11,8 +11,8 @@ type Ungenerated struct {
 }
 
 // UngeneratedCases returns the server-runnable cases the generator leaves
-// out, sorted by key: customizations of services phase 1 does not generate,
-// and an operation no service of the corpus binds.
+// out, sorted by key: customizations of services understudy does not
+// generate, and an operation no service of the corpus binds.
 func UngeneratedCases() []Ungenerated {
 	const misc = "Its operation, aws.protocoltests.misc#AcceptHeaderStarService, belongs to no service of the corpus, so no synthetic service carries it."
 	return []Ungenerated{

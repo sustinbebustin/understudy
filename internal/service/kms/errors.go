@@ -147,7 +147,7 @@ func errPolicyName() *awserr.Error {
 }
 
 // errAWSManagedKey and errAWSManagedAlias are unrecorded. AWS refuses these
-// changes through the fixed key policy of an AWS managed key, which phase 1
+// changes through the fixed key policy of an AWS managed key, which understudy
 // does not evaluate, so understudy answers with its own explicit refusal
 // rather than an imitation of a policy denial. UpdateAlias and DeleteAlias
 // model no error for a managed alias, so errAWSManagedAlias answers only

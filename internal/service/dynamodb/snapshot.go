@@ -24,11 +24,10 @@ import (
 // Items live in Local, not in the cells, so an explicit snapshot save
 // exports them after the cut and a load imports them first (kernel.Late,
 // ARCHITECTURE.md 13). Each table Local holds in a scope the shim records
-// is one section,
-// <account>/<region>/<table>.ndjson: its first line is the CreateTable
-// request that rebuilds the table from Local's DescribeTable, every other
-// line one item in DynamoDB JSON, members sorted, the lines ordered by the
-// item's key in the same encoding. The shim's own state (tags, TTL, PITR,
+// is one section, <account>/<region>/<table>.ndjson: its first line is the
+// CreateTable request that rebuilds the table from Local's DescribeTable,
+// every other line one item in DynamoDB JSON, members sorted, the lines
+// ordered by the item's key in the same encoding. The shim's own state (tags, TTL, PITR,
 // table ids) travels in the cell sections. Local's SQLite files are never
 // copied, and its stream labels change across a load.
 

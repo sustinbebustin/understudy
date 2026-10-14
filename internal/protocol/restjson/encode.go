@@ -188,8 +188,9 @@ func (w *writer) Bytes() ([]byte, error) {
 	return w.enc.Bytes()
 }
 
-// member prepares for a value held by m: inside a structure or union it
-// writes m's wire name.
+// member prepares for a value held by m, writing m's wire name inside a
+// structure or union, and reports whether the value is to be written: false
+// once the writer has failed.
 func (w *writer) member(m *smithy.Member) bool {
 	if w.err != nil {
 		return false

@@ -4,8 +4,8 @@
 //
 // Every command takes --output text|json and --endpoint (else
 // UNDERSTUDY_ENDPOINT, else the port of UNDERSTUDY_LISTEN on loopback, else
-// http://127.0.0.1:4566), never prompts, and has
-// examples in its --help; 'understudy help CMD' is 'understudy CMD --help'.
+// http://127.0.0.1:4566), never prompts, and has examples in its --help;
+// 'understudy help CMD' is 'understudy CMD --help'.
 // Exit codes come from admin.ExitCode, and the root help lists them: 0
 // success, 1 an operation that failed, 2 usage, 3 understudy unreachable
 // or not answering, 4 a condition not met, 5 the admin token missing or
@@ -45,10 +45,10 @@
 //   - serve parses its own flags through internal/config and maps the result
 //     onto server.Config with serverConfig. A setting this build's server
 //     does not apply yet (s3.maxObjectBytes, dynamodb.registry) is refused
-//     by name with exit 2 rather than ignored.
-//     serve takes --output as another name for --log-format, its logs go to
-//     stderr, and with JSON asked for, by flag or UNDERSTUDY_LOG_FORMAT, a
-//     configuration error is the JSON envelope too. The configuration's
+//     by name with exit 2 rather than ignored. serve takes --output as
+//     another name for --log-format, its logs go to stderr, and with JSON
+//     asked for, by flag or UNDERSTUDY_LOG_FORMAT, a configuration error is
+//     the JSON envelope too. The configuration's
 //     warnings are logged before the server starts, each with its setting
 //     and fix. An address another process holds fails serve with exit 1,
 //     naming the address and serve --listen 127.0.0.1:0.
@@ -76,15 +76,15 @@
 //     and Terraform; how the key selects the account and the S3 path-style
 //     settings that have no variable are comment notes (stderr for the
 //     github format, which holds assignments only), with why DynamoDB Local
-//     is disabled when it is: Docker, or the server's reason.
-//     env --tls (ADR 0013) points AWS_ENDPOINT_URL at the TLS listener, by
-//     default the endpoint's host at port 4567 as serve --tls binds it, reads
-//     the certificate the listener presents, accepts it only when it is
-//     self-signed and valid for that host, writes it as PEM (--ca-file,
-//     default understudy/ca-<port>.pem in the user cache directory, not the
-//     shared temporary one) and
-//     prints AWS_CA_BUNDLE, plus NODE_EXTRA_CA_CERTS for JS, whose SDK does
-//     not read AWS_CA_BUNDLE. The health endpoint does not name the TLS
+//     is disabled when it is: Docker, or the server's reason. env --tls
+//     (ADR 0013) points AWS_ENDPOINT_URL at the TLS listener, by default the
+//     endpoint's host at port 4567 as serve --tls binds it, reads the
+//     certificate the listener presents, accepts it only when it is
+//     self-signed, valid for that host and name-constrained to localhost and
+//     loopback addresses, writes it as PEM (--ca-file, default
+//     understudy/ca-<port>.pem in the user cache directory, not the shared
+//     temporary one) and prints AWS_CA_BUNDLE, plus NODE_EXTRA_CA_CERTS for
+//     JS, whose SDK does not read AWS_CA_BUNDLE. The health endpoint does not name the TLS
 //     listener, so a non-default one is passed with --tls-endpoint.
 //   - doctor and cleanup read the machine settings with config.LoadHost, so
 //     UNDERSTUDY_ADMIN_TOKEN, the CLI's own credential, does not fail them.
@@ -94,8 +94,8 @@
 //     resolution, binfmt on Linux, the configured hot-reload directories
 //     against Docker Desktop's default shared paths, and whether DynamoDB
 //     Local can run; when the server reports DynamoDB Local down because
-//     Docker is, the fix is Docker's. It exits 1
-//     when a check fails; warnings do not fail it.
+//     Docker is, the fix is Docker's. It exits 1 when a check fails;
+//     warnings do not fail it.
 //   - cleanup removes the containers and empty networks labeled
 //     understudy.dev/managed of one deployment, through docker.Client.Sweep:
 //     the owner serve derives from the --persist directory (configured, or

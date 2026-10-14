@@ -28,7 +28,7 @@ type ServiceIR struct {
 	QueryCompatible  bool
 
 	Operations []*OperationIR  // sorted by name; Ordinal is the index
-	Shapes     []*ShapeIR      // every data shape, sorted by id; synthetic unit IO shapes last
+	Shapes     []*ShapeIR      // every data shape, sorted by id; synthetic unit IO shapes and per-use streaming IO copies last
 	Errors     []*ErrorIR      // sorted by Go name
 	Patterns   []*PatternVarIR // the distinct patterns input members check, by rendering
 	// Routes is the REST dispatch table, ordered as Match ranks it; empty for
@@ -56,8 +56,9 @@ type ServiceIR struct {
 	// the service speaks (overlays/common.json), JSON first.
 	Vocabularies []VocabularyIR
 
-	// Validation are the service-level validationError rules; the last
-	// rule with no constraint filter is the catch-all.
+	// Validation are the service-level validationError rules, tried in
+	// order. A rule with no constraint filter matches every violation, so
+	// it is the catch-all and belongs last.
 	Validation []RuleIR
 }
 
@@ -69,7 +70,7 @@ type OperationIR struct {
 	Kind        registry.OperationKind
 	Input       *ShapeIR
 	Output      *ShapeIR
-	Errors      []*ErrorIR // modeled errors in model order, then validation identities
+	Errors      []*ErrorIR // the operation's then the service's modeled errors in model order, then validation identities
 	SuccessCode int
 	// MaxRequestBytes is the overlay's dev.understudy#maxRequestBytes, or 0
 	// when the overlay sets none and the edge applies the protocol default

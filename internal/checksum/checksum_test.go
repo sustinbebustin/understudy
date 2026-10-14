@@ -17,7 +17,8 @@ import (
 var _ hash.Hash = (*checksum.Hash)(nil)
 
 // The S3 model's ChecksumAlgorithm enum values and the header names botocore,
-// Java v2 and C++ derive from them (s3-checksum-residuals-and-record-backlog.md 1.1, 1.3).
+// Java v2 and C++ derive from them
+// (s3-checksum-residuals-and-record-backlog.md 1.1, 1.3).
 func TestAlgorithmNames(t *testing.T) {
 	t.Parallel()
 	want := map[checksum.Algorithm][2]string{

@@ -54,20 +54,20 @@ func Build(m *Model, cfg ServiceConfig, iam *iamTable, h Header) (*ServiceIR, er
 	// roles, roles and error identities before the validation rules that
 	// resolve against them, and rules before the patterns they may drop.
 	for _, step := range []func() error{
-		b.classify,        // ir_build.go
-		b.service,         // ir_build.go
-		b.dataShapes,      // ir_shapes.go
-		b.operations,      // ir_operations.go
-		b.members,         // ir_members.go
-		b.checksums,       // optraits.go
-		b.roles,           // ir_shapes.go
-		b.errorIdentities, // ir_errors.go
-		b.policies,        // ir_rules.go
-		b.patterns,        // ir_members.go
-		b.iamActions,      // ir_operations.go
-		b.routes,          // routes.go
-		b.notConfigured,   // optraits.go
-		b.cases,           // cases.go
+		b.classify,
+		b.service,
+		b.dataShapes,
+		b.operations,
+		b.members,
+		b.checksums,
+		b.roles,
+		b.errorIdentities,
+		b.policies,
+		b.patterns,
+		b.iamActions,
+		b.routes,
+		b.notConfigured,
+		b.cases,
 	} {
 		if err := step(); err != nil {
 			return nil, err

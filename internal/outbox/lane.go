@@ -30,7 +30,7 @@ func laneOf(e *Entry) (lane, bool) {
 	return lane{queue: q.ARN, group: q.GroupID}, true
 }
 
-// laneBusy reports whether st holds a pending delivery of l.
+// laneBusy reports whether s holds a pending delivery of l.
 func (s *State) laneBusy(l lane) bool {
 	for id := range s.Entries {
 		en := s.Entries[id]

@@ -60,9 +60,9 @@ func TestUnsignedTrailerFromGoSDK(t *testing.T) {
 	}
 }
 
-// botocore sends 1 MiB chunks over HTTP chunked transfer; the S3 user guide
-// shows the trailer value followed by "\n\r\n" and says the extra linefeed
-// varies by client (sigv4-checksums-endpoints.md 3.2).
+// The SDKs end a trailer line with "\r\n"; the S3 user guide shows the value
+// followed by "\n\r\n" and says the extra linefeed varies by client
+// (sigv4-checksums-endpoints.md 3.2).
 func TestTrailerLineEndings(t *testing.T) {
 	t.Parallel()
 	for _, ending := range []string{"\r\n", "\n\r\n"} {

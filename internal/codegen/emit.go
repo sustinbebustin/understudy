@@ -12,8 +12,10 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
-// importPaths are the packages generated code may import (ARCHITECTURE.md 2:
-// smithy, awserr, registry, kernel, aws and ref, plus the standard library).
+// importPaths are the packages generated code may import: the module
+// packages ARCHITECTURE.md 2 allows (smithy and its document package,
+// awserr, registry, kernel, ref), gen for the corpus packages, and the
+// listed standard library packages.
 func importPaths() map[string]string {
 	const mod = "github.com/sustinbebustin/understudy/internal/"
 	return map[string]string{

@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// Trait ids the generator reads. Everything else is classified below and
-// either ignored or used only for documentation.
+// Trait ids the generator reads by name. traitClasses classifies these and
+// every other trait the models use.
 const (
 	traitRequired        = "smithy.api#required"
 	traitDefault         = "smithy.api#default"
@@ -92,13 +92,14 @@ func Classify(id string) (Class, bool) {
 
 // traitClasses is the closed table of every trait id the twelve vendored
 // models and the protocol compliance corpus use. Some honored traits have
-// no runtime descriptor field yet and are honored by hand where they act:
+// no runtime descriptor field and are honored by hand where they act:
 // idempotencyToken by the services (they deduplicate), eventPayload by the
-// handler that frames an event stream, requestCompression by the awsjson
-// codec (gzip accepted on every operation, a superset of PutMetricData's),
-// s3UnwrappedXmlOutput by the restxml codec (GetBucketLocation), and
-// httpChecksum by the S3 service, while the generator marks the checksum
-// headers it names as trailer-capable (HTTPHeader.Trailer).
+// handler that frames an event stream, requestCompression by the awsjson,
+// awsquery and rpcv2cbor codecs (gzip accepted on every operation, a
+// superset of PutMetricData's), s3UnwrappedXmlOutput by the restxml codec
+// (GetBucketLocation), and httpChecksum by the S3 service, while the
+// generator marks the checksum headers it names as trailer-capable
+// (HTTPHeader.Trailer).
 func traitClasses() map[string]Class {
 	return map[string]Class{
 		traitRequired:                   Honor,

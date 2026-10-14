@@ -162,7 +162,7 @@ func checkOverlayTraits(subject string, e overlayEntry) error {
 	return nil
 }
 
-// Merge applies o to m. A new shape may not exist yet; an apply entry's
+// Merge applies o to m. A new shape must not exist yet; an apply entry's
 // target must. A trait the target already has fails as a duplicate, or as a
 // conflict when the values differ, unless the entry says "replace": true,
 // so a model bump that fixes a gap surfaces as a failing generate. A member

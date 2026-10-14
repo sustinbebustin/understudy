@@ -124,8 +124,8 @@ func (f *flattener) addStringArray(name, src string) *EventError {
 // 16x more work per nesting level at 16 elements per array. This bound turns
 // that into a *SearchBudgetError: the TestSearchBudgetCoversChosenFields
 // shapes, patterns under 4096 bytes with up to a hundred keys per level,
-// stop within 0.2 s and 50 MB on a 2026 desktop, where they once ran for 9 s
-// and allocated 3.6 GB.
+// stop within about 0.2 s and 50 MB on a desktop machine; without this
+// bound they take seconds and gigabytes.
 const maxSearchSteps = 1 << 22
 
 // budget is the work one Match call may still do, shared by every search it
@@ -143,7 +143,7 @@ func (b *budget) charge(n int) { b.used += n }
 
 func (b *budget) exceeded() bool { return b.used > b.limit }
 
-// matches is true when any branch is satisfied. It gives up with a
+// matches reports whether any branch is satisfied. It gives up with a
 // *SearchBudgetError once the call has done limit steps.
 func (p *Pattern) matches(fs *fields, limit int) (bool, error) {
 	o := p.profile.options()
@@ -194,15 +194,14 @@ func branchSatisfied(conds []*condition, ln *links, o Options, work *budget) boo
 
 // search looks for an array-consistent assignment for one connected
 // component of a branch, taking the conditions in the order Ruler's
-// traversal does: sorted by path. Every
-// condition takes a field at its path that one of its matchers accepts, or,
-// when it holds {"exists": false}, takes no field. No two chosen fields may
-// come from different elements of one array (matching-engines.md 4.3). An
-// absence is checked when the search reaches its condition, against the
-// fields chosen for the paths before it: Ruler checks it against the array
-// positions those paths pinned (ACFinder.tryMustNotExistMatch with
-// NameState.getNameTransitions), so a field the later paths rule out still
-// breaks it.
+// traversal does: sorted by path. Every condition takes a field at its path
+// that one of its matchers accepts, or, when it holds {"exists": false},
+// takes no field. No two chosen fields may come from different elements of
+// one array (matching-engines.md 4.3). An absence is checked when the search
+// reaches its condition, against the fields chosen for the paths before it:
+// Ruler checks it against the array positions those paths pinned
+// (ACFinder.tryMustNotExistMatch with NameState.getNameTransitions), so a
+// field the later paths rule out still breaks it.
 //
 // The search backtracks, and remembers every state it has seen fail. What
 // assign(i) can still depend on is i and, for each chosen element, its

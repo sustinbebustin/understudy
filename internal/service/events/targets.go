@@ -32,8 +32,8 @@ func (s *Service) bindTargets(b eventbridgeapi.Binder) {
 }
 
 // putTargets adds targets to a rule or replaces those with the same Id. A
-// request-level problem (inputs, placeholders, the target limit) fails the
-// whole request; a target understudy cannot deliver to, or with a member it
+// request-level problem (inputs, placeholders, a FIFO queue's message group,
+// the dead-letter queue, the target limit) fails the whole request; a target understudy cannot deliver to, or with a member it
 // does not model, fails its entry.
 func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgeapi.PutTargetsInput) (*eventbridgeapi.PutTargetsOutput, *awserr.Error) {
 	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {

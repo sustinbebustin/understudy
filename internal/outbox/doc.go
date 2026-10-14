@@ -40,7 +40,7 @@
 // Construction is two-phase, New then Bind, because the kernel takes its
 // DeliverSink in kernel.New and the outbox needs that kernel for timers,
 // tracked work and Invoke. Bind also takes the fault stage, which the
-// kernel does not expose, and the PolicySource, which wire.go builds from
+// kernel does not expose, and the PolicySource, which is built from
 // services constructed after the kernel.
 //
 // The retry policy is persisted beside the request as a policyRecord,
@@ -94,10 +94,10 @@
 // sequencer for wall time and run on their own goroutine instead, outside
 // that order: one a Delivery-phase latency rule delays, whose order
 // against the others depends on wall time anyway, and a RequestResponse
-// invoke, which waits for the function (no producer delivers one yet).
+// invoke, which waits for the function (no producer enqueues one).
 // A delivery has at most one attempt in flight: the attempt claims its
 // entry (Entry.Running) until it records its outcome, so a timer that fires
-// again meanwhile, as one Rearm arms for every pending entry does, starts
+// again meanwhile, as a Rearm does for every armable entry, starts
 // no second attempt. The claim is never saved; an entry a snapshot load
 // brings back is attempted afresh.
 //

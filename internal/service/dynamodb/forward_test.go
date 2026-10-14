@@ -22,7 +22,7 @@ import (
 // client signs with, Local is sent the caller's account and region as the
 // credential scope, so its native partitioning isolates (account, region)
 // (ADR 0014, dynamodb-local.md 3), and Accept-Encoding: identity so its
-// checksum is over the bytes the client reads (9.1).
+// checksum is over the bytes the client reads (dynamodb-local.md 9.1).
 func TestCredentialPartitionsLocalByAccountAndRegion(t *testing.T) {
 	run(t, func(h *harness) {
 		callers := []caller{

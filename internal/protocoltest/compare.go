@@ -22,8 +22,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 )
 
-// MismatchError is a response that differs from what a case expects: where, and
-// the expected and actual values there.
+// MismatchError is a response that differs from what a case expects:
+// where, and the expected and actual values there.
 type MismatchError struct {
 	// Where names the part of the response: "status", "header X-Foo",
 	// "body $.a[2]".
@@ -41,13 +41,13 @@ const maxCompareBytes = 16 << 20
 // CompareBody compares a response body with a case's expected body as the
 // case's media type says (smithy-protocol-tests.md 4.2): JSON as values,
 // with object member order ignored and numbers compared by value; XML on
-// names resolved to namespace URI and local name as equalElement says,
-// prefixes ignored, shape telling a map's entries, which
-// have no order, from a list's members, which do; a form as its set of
-// keys and their values; CBOR structurally, the expected body being base64
-// as the corpus writes binary bodies; anything else byte for byte. shape
-// is the schema of the body's shape, or nil when the body holds no map.
-// Every difference is a *MismatchError.
+// names resolved to namespace URI and local name, so prefixes are ignored,
+// with shape telling a map's entries, which have no order, from a list's
+// members, which do; a form as its set of keys and their values; CBOR
+// structurally, the expected body being base64 as the corpus writes binary
+// bodies; anything else byte for byte. shape is the schema of the body's
+// shape, or nil when the body holds no map. Every difference is a
+// *MismatchError.
 func CompareBody(mediaType string, shape *smithy.Schema, want, got []byte) error {
 	switch essence(mediaType) {
 	case "application/json", "application/x-amz-json-1.0", "application/x-amz-json-1.1":

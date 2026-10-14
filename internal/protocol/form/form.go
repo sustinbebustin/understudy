@@ -10,9 +10,9 @@ import (
 )
 
 // MaxKeySegments is the most '.'-separated segments Parse accepts in one
-// key. The deepest phase 1 Query key,
-// SendMessageBatchRequestEntry.N.MessageAttribute.M.Value.StringListValue.K,
-// has 7.
+// key. Modeled awsQuery keys stay far below it: CloudWatch's
+// MetricDataQueries.member.N.MetricStat.Metric.Dimensions.member.M.Value,
+// among the deepest, has 9.
 const MaxKeySegments = 32
 
 // MaxNodes is the most distinct keys and key prefixes Parse accepts in one

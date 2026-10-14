@@ -24,8 +24,9 @@ import (
 // per bucket (ARCHITECTURE.md 8 rule 3).
 type Service struct {
 	k *kernel.Kernel
-	// blobs holds object bodies; nil until wire.go hands the service a
-	// store, and object writes then answer InternalError.
+	// blobs holds object bodies; nil when New got no kernel.ServiceDeps.Blob,
+	// and every object operation then answers InternalError
+	// (NoBlobStoreError).
 	blobs   *blob.Store
 	log     *slog.Logger
 	opts    Options
@@ -315,7 +316,9 @@ func splitSections(ss []store.Section) (idx, bkts []store.Section) {
 // names. It runs under the gate's exclusive side, where no cell can be
 // read, so it reads the index through its own section and writes the kept
 // entries back through Import. A codec failure there is a bug in this
-// package; Reset then logs it and leaves the S3 state as it was.
+// package, which Reset logs; one before the index is cleared leaves the S3
+// state as it was, while a failed Import after it leaves the index empty
+// and every bucket cell in place.
 func (s *Service) Reset(rs kernel.ResetScope) {
 	if err := s.reset(rs); err != nil {
 		s.log.LogAttrs(context.Background(), slog.LevelError, "s3 reset could not read or rewrite the bucket index; no bucket was dropped",

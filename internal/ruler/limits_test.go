@@ -256,8 +256,9 @@ func TestExpansionBudget(t *testing.T) {
 }
 
 // TestExpansionStopsAfterOverrun: once a pattern overruns a limit, later
-// "$or" arrays no longer multiply the branches, in every profile. Thirty
-// arrays of three members (under 1.7 KB) once allocated without bound.
+// "$or" arrays no longer multiply the branches, in every profile. Without
+// that stop, thirty arrays of three members (under 1.7 KB) allocate without
+// bound.
 func TestExpansionStopsAfterOverrun(t *testing.T) {
 	sizes := make([]int, 30)
 	for i := range sizes {

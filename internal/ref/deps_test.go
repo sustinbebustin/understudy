@@ -82,6 +82,7 @@ func importRules() []importRule {
 		{"internal/schedexpr", nil},
 		{"internal/policydoc", nil},
 		{"internal/docker", nil},
+		// The Smithy document type, below protocol/smithy.
 		{"internal/protocol/smithy/document", nil},
 		{"internal/ids", nil},
 		{"internal/ruler", nil},
@@ -125,6 +126,9 @@ func importRules() []importRule {
 		}},
 		// The manifest records JournalNext as a ref.EventID.
 		{"internal/snapshot", []string{"internal/store", "internal/blob", "internal/protocol/jsonx", "internal/clock", "internal/ids", "internal/ref"}},
+		// The report keys suites and services by ref.ProtocolID and
+		// ref.ServiceID, writes its sums in the jsonx tagged-union
+		// convention and reads overlay files with the jsonx decoder.
 		{"internal/coverage", []string{"internal/kernel", "internal/registry", "internal/fidelity", "internal/evidence", "internal/protocoltest", "internal/ref", "internal/protocol/jsonx"}},
 
 		// Wire protocols: never a service or a generated package. A codec
@@ -206,6 +210,7 @@ func importRules() []importRule {
 		{"internal/protocoltest/gen/...", []string{"internal/protocoltest/gen", "internal/protocol/smithy/...", "internal/awserr", "internal/registry", "internal/kernel", "internal/aws", "internal/ref"}},
 		{"internal/smoke", nil},
 		{"internal/parity", []string{"internal/snapshot", "internal/evidence", "internal/protocol/jsonx"}},
+		// Docker-tagged checks of the release image; no runtime code.
 		{"internal/distribution", nil},
 	}
 }

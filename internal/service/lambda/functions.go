@@ -402,11 +402,11 @@ func (s *Service) updateFunctionCode(ctx context.Context, c *kernel.Call, in *la
 	return &res.out, nil
 }
 
-// applyCode is UpdateFunctionCode's change to $LATEST v, which was was:
-// code, or the image update v then waits for, on the architecture archs
-// names. It returns the package reference v no longer holds; an update in
-// progress keeps the replaced package for the invocations it serves until
-// it completes (settleVersion).
+// applyCode is UpdateFunctionCode's change to $LATEST v, whose state
+// before the update is was: v takes code, or for an image waits for it,
+// on the architecture archs names. It returns the package reference v no
+// longer holds; an update in progress keeps the replaced package for the
+// invocations it serves until it completes (settleVersion).
 func (s *Service) applyCode(v *Version, was Serving, code Code, archs []lambdaapi.Architecture, now clock.Instant) ([]blob.Ref, *awserr.Error) {
 	if err := samePackageType(v.Code, code); err != nil {
 		return nil, err
@@ -570,8 +570,8 @@ func (s *Service) getAccountSettings(_ context.Context, c *kernel.Call, _ *lambd
 	})
 }
 
-// unreserved is the account's concurrency left after every function's
-// reservation but except's.
+// unreserved is the account's concurrency left after the reservation of
+// every function other than the one named except.
 func (st *State) unreserved(except string) int32 {
 	n := int32(accountConcurrency)
 	for name := range st.Functions {
@@ -595,7 +595,8 @@ func (s *Service) initialStatus(code Code, now clock.Instant) Status {
 	return Active{Update: Successful{}}
 }
 
-// isImageAwaited reports image code whose image is not present yet.
+// isImageAwaited reports whether code is image code whose image is not
+// present yet.
 func isImageAwaited(code Code) bool {
 	img, ok := code.(ImageCode)
 	return ok && img.Digest == ""

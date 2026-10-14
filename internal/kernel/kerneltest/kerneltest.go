@@ -69,8 +69,8 @@ func Seed(n uint64) Option {
 }
 
 // JournalFile makes the journal also append to the NDJSON file at path.
-// Run closes the journal when fn returns and fails the test on a file
-// failure, except a write after a close fn made itself.
+// Run closes the journal when fn returns and fails the test on any file
+// failure other than an event recorded after fn closed the journal itself.
 func JournalFile(path string) Option {
 	return func(c *config) { c.journalFile = path }
 }

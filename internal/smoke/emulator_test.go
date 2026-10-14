@@ -67,7 +67,7 @@ func (b *lockedBuffer) String() string {
 }
 
 // emulator is an understudy the workload drives: its endpoints and an
-// HTTPS client that trusts its TLS certificate.
+// HTTP client that, when there is a TLS listener, trusts its certificate.
 type emulator struct {
 	endpoint string
 	// tls is the TLS listener's URL, empty without one.

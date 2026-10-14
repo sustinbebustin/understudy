@@ -29,14 +29,13 @@
 //     queue gets it with the subscription id as message group and its
 //     MessageId as deduplication id, which no recording shows. Other
 //     pending endpoints get their token through the admin API. http,
-//     https, email and email-json subscriptions receive nothing in phase
-//     1, confirmed or not, and Subscribe and Publish say so in their
-//     coverage notes.
+//     https, email and email-json subscriptions receive nothing, confirmed
+//     or not, and Subscribe and Publish say so in their coverage notes.
 //   - Filter policy quota. A Subscribe whose FilterPolicy would pass the
 //     topic's 200 still creates the subscription, without the policy, and
 //     answers FilterPolicyLimitExceeded, as AWS documents (sns.md 3.1).
 //     The 10,000 per account is not enforced: state is per account and
-//     Region, so no topic write sees the account's count.
+//     region, so no topic write sees the account's count.
 //   - Unsubscribing. A subscription confirmed with
 //     AuthenticateOnUnsubscribe=true, or an sqs subscription its queue's
 //     owner made, which AWS documents as setting it automatically, refuses

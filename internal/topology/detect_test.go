@@ -265,9 +265,9 @@ func TestDetectDesktopProbeRunsALabeledContainerAndRemovesIt(t *testing.T) {
 	if created != 1 || destroyed != 1 {
 		t.Errorf("probe containers created %d, destroyed %d; want one of each", created, destroyed)
 	}
-	// ARCHITECTURE 14.5, ADR 0011: getent replaces the entrypoint, since the
-	// base images' entrypoint rejects more than one argument, and its output
-	// is read back from a readable log driver.
+	// ARCHITECTURE.md 14.5, ADR 0011: getent replaces the entrypoint, since
+	// the base images' entrypoint rejects more than one argument, and its
+	// output is read back from a readable log driver.
 	probes := d.Created()
 	if len(probes) != 1 {
 		t.Fatalf("daemon recorded %d created containers, want the one probe", len(probes))

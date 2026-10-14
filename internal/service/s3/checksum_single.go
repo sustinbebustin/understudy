@@ -137,7 +137,8 @@ func verifyDeclared(d declaredChecksum, computed checksum.Sum, trailerValue stri
 	return nil
 }
 
-// contentMD5 is a parsed Content-MD5 header: the 16 digest bytes.
+// contentMD5 is a parsed Content-MD5 header: the value sent and its 16
+// digest bytes.
 type contentMD5 struct {
 	sent   string
 	digest []byte

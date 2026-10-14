@@ -1,7 +1,7 @@
 // Package access records which IAM actions each principal used, renders
 // least-privilege policies from that record, and advises whether a stored
 // resource policy would let AWS make a delivery (ARCHITECTURE.md 16, 17
-// and 19). Phase 1 records access but never enforces it.
+// and 19). understudy records access but never enforces it.
 //
 // The kernel calls Recorder.Record once per call with the Principal the
 // call's principal mode resolved to, the IAM prefix of the operation's
@@ -30,10 +30,9 @@
 //     exactly when the mode is AsService.
 //   - Record refuses an Entry without a Principal, Mode, Outcome, Service or
 //     admission instant (a zero At) rather than defaulting it, and one whose
-//     Principal ParsePrincipal would not
-//     read back, so a kernel bug shows as an error instead of wrong
-//     attribution or failure counts. An anonymous caller has no
-//     Principal: no identity policy can grant it anything.
+//     Principal ParsePrincipal would not read back, so a kernel bug shows as
+//     an error instead of wrong attribution or failure counts. An anonymous
+//     caller has no Principal: no identity policy can grant it anything.
 //   - Entry.At is a time.Time, because clock is not among this package's
 //     imports; the kernel passes the call's admission instant.
 //   - The recorder keeps one Use per (principal, mode, action, resource)

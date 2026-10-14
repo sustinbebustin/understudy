@@ -1111,8 +1111,6 @@ func TestNextTokenBelongsToItsListing(t *testing.T) {
 	})
 }
 
-// A snapshot of the state imported back over later changes serves the
-// secret values it held, sealed data keys and all.
 // The resource inventory lists every secret, scheduled for deletion or
 // not, under the ARN CreateSecret answered, and a snapshot round trip keeps
 // that ARN.
@@ -1142,6 +1140,8 @@ func TestResourcesListSecretARNs(t *testing.T) {
 	})
 }
 
+// A snapshot of the state imported back over later changes serves the
+// secret values it held, sealed data keys and all.
 func TestSnapshotRoundTrip(t *testing.T) {
 	sections := map[string][]byte{}
 	run(t, func(h *harness) {

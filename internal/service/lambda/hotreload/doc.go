@@ -11,9 +11,10 @@
 //
 // Decisions the architecture leaves open:
 //
-//   - Polling with os.Lstat is the whole mechanism: the standard library
-//     has no file notification API, and polling also works across the
-//     Docker Desktop and Colima file sharing that drops inotify events.
+//   - Polling with filepath.WalkDir, which does not follow symbolic links,
+//     is the whole mechanism: the standard library has no file
+//     notification API, and polling also works across the Docker Desktop
+//     and Colima file sharing that drops inotify events.
 //   - The quiet period is measured in consecutive unchanged polls, so the
 //     watcher reads no clock: Quiet must be at least Interval, and is
 //     rounded up to whole polls.

@@ -404,8 +404,8 @@ func (m *Manager) networkName() string {
 }
 
 // address reads where understudy reaches the started container: the host
-// port published for Published, else the container's IPv4
-// address on its network at port.
+// port published for Published, else the container's IPv4 address on its
+// network at port.
 func (m *Manager) address(ctx context.Context, id string) (netip.AddrPort, error) {
 	c, err := m.cfg.Docker.ContainerInspect(ctx, id)
 	if err != nil {

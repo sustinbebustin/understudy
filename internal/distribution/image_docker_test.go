@@ -95,7 +95,7 @@ func removeOnCleanup(t *testing.T, name string) {
 	})
 }
 
-// uniqueName is a name no other agent's containers or images share. It is
+// uniqueName is a name no other run's containers or images share. It is
 // lowercase because image repository names must be.
 func uniqueName() string {
 	return "understudy-test-" + strings.ToLower(rand.Text())

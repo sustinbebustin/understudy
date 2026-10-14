@@ -32,7 +32,7 @@ type (
 	// KMSKeyID is a KMS key id: a lowercase UUID.
 	KMSKeyID string
 	// IAMID is an IAM unique id: a four-letter prefix (AROA role, ANPA
-	// managed policy, AIDA user) and 17 base32 characters.
+	// managed policy, AIDA user, AIPA instance profile) and 17 base32 characters.
 	IAMID string
 	// AccessKeyID is an access key id: AKIA (long-term) or ASIA (temporary)
 	// and 16 base32 characters that encode the owning account.

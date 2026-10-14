@@ -103,9 +103,9 @@ type PagePolicy interface{ isPagePolicy() }
 // own app runs, and never from a page on the port the call was sent to or
 // on any other port an understudy listener serves (ServedPorts). Such a
 // page is one understudy served itself, an S3 object or a function URL
-// response, whose content users or functions control; since the AWS APIs
-// check no signature, it could otherwise read every secret and object with
-// same-origin requests, or drive the AWS APIs from the TLS listener's port
+// response, whose content users or functions control; since an unsigned
+// request passes even under sigv4 verify, it could otherwise read every
+// secret and object with same-origin requests, or drive the AWS APIs from the TLS listener's port
 // to the plain one. The page is the one the call's Origin names, else the
 // one its Referer names, unless Sec-Fetch-Site is "none" (a navigation the
 // user started); a same-origin or cross-site call that names no page is

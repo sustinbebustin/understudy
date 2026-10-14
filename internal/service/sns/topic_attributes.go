@@ -266,7 +266,7 @@ func (t *Topic) signatureVersion() envelope.Version {
 	return t.SignatureVersion
 }
 
-// maxMessageBytes is the topic's MaximumMessageSize.
+// maxMessageBytes is the topic's MaximumMessageSize, 262144 unless set.
 func (t *Topic) maxMessageBytes() int {
 	if t.MaximumMessageSize == 0 {
 		return defaultMaxMessageBytes

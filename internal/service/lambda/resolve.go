@@ -135,8 +135,7 @@ func mappingARN(scope aws.Scope, uuid string) string {
 }
 
 // lookup finds the function a reference names and the version its
-// qualifier selects, following an alias to its version. The alias name is
-// returned when the qualifier is one.
+// qualifier selects, following an alias to its version.
 func (st *State) lookup(r functionRef) (Function, Version, *awserr.Error) {
 	f, ok := st.Functions[r.name]
 	if !ok {

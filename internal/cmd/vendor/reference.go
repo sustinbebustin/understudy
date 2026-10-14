@@ -192,8 +192,8 @@ var (
 )
 
 // verifyActions checks actions.json offline: one entry per pinned prefix with
-// its provenance, sorted unique operations and actions, well-formed action
-// names, and an entry for every operation shape of every pinned model in
+// its provenance, operations and actions sorted by name, no operation listed
+// twice, well-formed action names, and an entry for every operation shape of every pinned model in
 // models (the api-models-aws tree), so a model bump that adds an operation
 // fails here before the generator does.
 func verifyActions(root, models fs.FS, dir string) error {

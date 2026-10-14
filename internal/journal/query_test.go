@@ -536,7 +536,7 @@ func TestQueryByResourceGlobWithQuestionMark(t *testing.T) {
 		want []ref.EventID
 	}{
 		{"arn:aws:sqs:us-east-1:*:orders-?", []ref.EventID{one, two}},
-		// Without a *, the glob still is one: not an exact ARN lookup.
+		// A ? without a * still makes a glob, not an exact ARN lookup.
 		{"arn:aws:sqs:us-east-1:000000000000:orders-?", []ref.EventID{one, two}},
 		{"arn:aws:sqs:us-east-1:000000000000:orders-1?", []ref.EventID{twelve}},
 		{"arn:aws:sqs:us-east-1:000000000000:orders-??", []ref.EventID{twelve}},

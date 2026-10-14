@@ -391,8 +391,8 @@ func TestParseRefusesExactlyOverlappingRules(t *testing.T) {
 		prefix, suffix string // "" when absent
 	}
 	// witness is the raw key that starts with the longer prefix and ends
-	// with the longer suffix of a and b: the one key a pair that some key
-	// satisfies both of surely selects.
+	// with the longer suffix of a and b: when any key satisfies both
+	// filters, this one does.
 	witness := func(a, b drawn) string {
 		return strings.ReplaceAll(longer(a.prefix, b.prefix)+longer(a.suffix, b.suffix), "+", " ")
 	}

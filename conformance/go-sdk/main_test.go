@@ -247,8 +247,8 @@ func eventually(t *testing.T, timeout, interval time.Duration, what string, chec
 	}
 }
 
-// recordingClient wraps the SDK's default HTTP client and keeps the last
-// request it sent, so a test can assert what went on the wire (Host,
+// recordingClient wraps the SDK's default HTTP client and records every
+// request it sends, so a test can assert what went on the wire (Host,
 // checksum headers) without changing what the SDK sends.
 type recordingClient struct {
 	next aws.HTTPClient

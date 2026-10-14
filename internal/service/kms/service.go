@@ -11,7 +11,7 @@ import (
 )
 
 // TimerKeyDeletion fires when a key's waiting period ends; the key and its
-// aliases are then deleted. The key's ID is the key ARN.
+// aliases are then deleted. Its timer key ID is the key ARN.
 const TimerKeyDeletion kernel.TimerKind = "kms.key-deletion"
 
 // Service is AWS KMS: one state cell per account and region.

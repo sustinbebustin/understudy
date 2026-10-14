@@ -281,8 +281,8 @@ func checkEvaluation(in *cloudwatchapi.PutMetricAlarmInput) *awserr.Error {
 	return nil
 }
 
-// anomalyOperator reports the three operators AWS uses only for alarms on
-// an anomaly detection band.
+// anomalyOperator reports whether op is one of the three operators AWS uses
+// only for alarms on an anomaly detection band.
 func anomalyOperator(op cloudwatchapi.ComparisonOperator) bool {
 	switch op {
 	case cloudwatchapi.ComparisonOperatorLessThanLowerOrGreaterThanUpperThreshold,
@@ -393,19 +393,19 @@ func checkQueryForm(q *cloudwatchapi.MetricDataQuery, path string) *awserr.Error
 	return nil
 }
 
-// validStat reports a statistic name AWS accepts: one of the basic five
-// or an extended statistic.
+// validStat reports whether name is a statistic AWS accepts: one of the
+// basic five or an extended statistic.
 func validStat(name string) bool {
 	_, basic := statOf(name)
 	return basic || validExtendedStat(name)
 }
 
-// validPeriod reports a period AWS accepts for a metric alarm: 10, 20, 30
-// or a multiple of 60 seconds.
+// validPeriod reports whether p is a period AWS accepts for a metric alarm:
+// 10, 20, 30 or a multiple of 60 seconds.
 func validPeriod(p int32) bool { return p == 10 || p == 20 || p == 30 || p > 0 && p%60 == 0 }
 
-// validQueryPeriod reports a period AWS accepts for a GetMetricData query:
-// 1, 5, 10, 20, 30 or a multiple of 60 seconds.
+// validQueryPeriod reports whether p is a period AWS accepts for a
+// GetMetricData query: 1, 5, 10, 20, 30 or a multiple of 60 seconds.
 func validQueryPeriod(p int32) bool { return p == 1 || p == 5 || validPeriod(p) }
 
 // checkEvaluationRange bounds the time an alarm evaluates over. It compares
@@ -493,11 +493,12 @@ func datums(in *cloudwatchapi.PutMetricDataInput) []datum {
 	return out
 }
 
-// asciiControl reports an ASCII control character: below space, or DEL.
+// asciiControl reports whether r is an ASCII control character: below
+// space, or DEL.
 func asciiControl(r rune) bool { return r < ' ' || r == 0x7f }
 
-// unprintable reports a rune outside printable ASCII: past ASCII, or an
-// ASCII control character. An invalid UTF-8 byte reads as U+FFFD, so it
+// unprintable reports whether r is outside printable ASCII: past ASCII, or
+// an ASCII control character. An invalid UTF-8 byte reads as U+FFFD, so it
 // counts too.
 func unprintable(r rune) bool { return r > unicode.MaxASCII || asciiControl(r) }
 
@@ -518,8 +519,8 @@ func checkDimensions(list string, dims []cloudwatchapi.Dimension) *awserr.Error 
 	return nil
 }
 
-// dimensionText reports text a dimension name or value may hold: printable
-// ASCII with at least one character that is not a space.
+// dimensionText reports whether s is text a dimension name or value may
+// hold: printable ASCII with at least one character that is not a space.
 func dimensionText(s string) bool {
 	return !strings.ContainsFunc(s, unprintable) && strings.ContainsFunc(s, func(r rune) bool { return r != ' ' })
 }

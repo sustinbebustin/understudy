@@ -249,11 +249,11 @@ func (s *Service) confirmation(st *State, ref topicRef, t *Topic, sub *Subscript
 	return delivery.Request{Source: ref.arn(), Mechanism: delivery.SNSToSQS, Target: target, Policy: delivery.SNSManaged{}}, nil
 }
 
-// subscribeProtocol parses Subscribe's Protocol: an endpoint type
-// understudy does not deliver to is NotImplemented (ADR 0015), anything
-// else unknown is AWS's recorded text (sns.md 3.1). An sms endpoint is
-// checked first, so a number AWS refuses gets AWS's answer rather than
-// NotImplemented.
+// subscribeProtocol parses Subscribe's Protocol: sms, application and
+// firehose, which understudy does not accept, are NotImplemented (ADR
+// 0015); anything else unknown is AWS's recorded text (sns.md 3.1). An sms
+// endpoint is checked first, so a number AWS refuses gets AWS's answer
+// rather than NotImplemented.
 func subscribeProtocol(name, endpoint string) (Protocol, *awserr.Error) {
 	if p, ok := parseProtocol(name); ok {
 		return p, nil
@@ -323,6 +323,7 @@ func queueOwner(endpoint string, topic topicRef) (string, *awserr.Error) {
 		return "", errInvalidParameter("SQS endpoint ARN")
 	}
 	if !topic.fifo() && isFIFOQueue(a.Resource) {
+		// The doubled "Invalid parameter: " prefix is AWS's (sns.md 3.1).
 		return "", errInvalidParameter("Invalid parameter: Endpoint Reason: FIFO SQS Queues can not be subscribed to standard SNS topics")
 	}
 	return a.Account, nil
@@ -403,8 +404,8 @@ func (s *Service) confirm(c *kernel.Call, scope aws.Scope, by tokenConfirmation)
 // holder finds the subscription token confirms: the pending one waiting
 // for it, unless expired by now, or the one already confirmed with it. It
 // returns the topic's name and the subscription's index in it; topics are
-// searched by name, though a token drawn from 144 random bytes is in at
-// most one of them.
+// searched in name order, though a token drawn from 144 random bytes is in
+// at most one of them.
 func (s *State) holder(token string, now clock.Instant) (topic string, index int, ok bool) {
 	for _, name := range slices.Sorted(maps.Keys(s.Topics)) {
 		subs := s.Topics[name].Subscriptions
@@ -424,7 +425,7 @@ func (s *State) holder(token string, now clock.Instant) (topic string, index int
 	return "", 0, false
 }
 
-// hexText reports a string of hex digits only.
+// hexText reports whether s holds hex digits only.
 func hexText(s string) bool {
 	return !strings.ContainsFunc(s, func(r rune) bool {
 		return (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F')

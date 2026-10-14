@@ -18,10 +18,10 @@
 //     5.5 in the layout of SQS, signed.
 //
 // StringToSign and ConfirmationStringToSign are the canonical strings of
-// 5.6; a Signer signs them with
-// SHA1withRSA for version 1 and SHA256withRSA for version 2. NewKey makes an
-// RSA key from crypto/rand and a self-signed certificate for it, which the
-// SNS service persists per account and region and serves at SigningCertURL.
+// 5.6; a Signer signs them with SHA1withRSA for version 1 and SHA256withRSA
+// for version 2. NewKey makes an RSA key from crypto/rand and a self-signed
+// certificate for it, which the SNS service persists per account and region
+// and serves at SigningCertURL.
 //
 // Decisions the research leaves open:
 //
@@ -29,9 +29,9 @@
 //     attribute per line, its value compact) is inferred from AWS samples;
 //     the recordings store the parsed body, not its bytes. The
 //     SubscriptionConfirmation body takes the notification's layout, also
-//     inferred: no recording shows its bytes. Attributes are
-//     written in the order given; the SNS service sorts them by name, since
-//     AWS's own order is not stable.
+//     inferred: no recording shows its bytes. Attributes are written in the
+//     order given; the SNS service sorts them by name, since AWS's own order
+//     is not stable.
 //   - Strings are escaped as jsonx.AppendString escapes them: the quote, the
 //     backslash and control characters. AWS's Jackson writer may spell a
 //     control character's escape with upper-case hex.

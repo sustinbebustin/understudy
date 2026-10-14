@@ -68,8 +68,8 @@ func (r *copyRange) span(size int64) (first, n int64, err *awserr.Error) {
 // uploadPartCopy stores part n of an upload from a range of an existing
 // object (s3.md 7): the copy-source conditions apply as for CopyObject,
 // and the part's ETag is the MD5 of the bytes copied, or random for an
-// SSE-KMS upload (partETag). The range streams
-// through the blob store once, hashed on the way.
+// SSE-KMS upload (partETag). The range streams through the blob store
+// once, hashed on the way.
 func (s *Service) uploadPartCopy(ctx context.Context, c *kernel.Call, in *s3api.UploadPartCopyInput) (*s3api.UploadPartCopyOutput, *awserr.Error) {
 	blobs, err := s.blobStore()
 	if err != nil {

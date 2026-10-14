@@ -209,8 +209,8 @@ func TestParseRejectsSyntaxErrors(t *testing.T) {
 	}
 }
 
-// IAM matches the effect case-insensitively for syntax and exactly in its
-// legacy parser (iam-sts-kms.md 3.3).
+// IAM's syntax stage matches the effect case-insensitively and its legacy
+// parser exactly, as moto's validator (iam-sts-kms.md 3.3) models it.
 func TestParseRejectsEffectCaseAsLegacy(t *testing.T) {
 	_, err := policydoc.Parse([]byte(`{"Version":"2012-10-17","Statement":{"Effect":"allow","Action":"s3:*","Resource":"*"}}`))
 	if err == nil {

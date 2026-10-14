@@ -15,7 +15,7 @@ import (
 const byteOrderMark = "\xEF\xBB\xBF"
 
 // MaxDepth is the deepest element nesting Decode accepts. S3 configuration
-// bodies, the deepest XML requests in phase 1, nest about six levels
+// bodies, the deepest XML requests understudy reads, nest about six levels
 // (LifecycleConfiguration/Rule/Filter/And/Tag/Key).
 const MaxDepth = 32
 

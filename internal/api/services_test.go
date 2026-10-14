@@ -102,11 +102,11 @@ func TestEveryModeledOperationNamesItsIAMActions(t *testing.T) {
 	}
 }
 
-// TestEveryRouteRowRoundTrips: the generator orders and checks route rows
-// with its own copy of the registry's specificity rules (internal/codegen
-// routes.go), so each row's minimal request (labels filled, its query
-// conditions and required headers present, nothing else) must route back
-// to that row's operation through registry.RouteTable.Match.
+// TestEveryRouteRowRoundTrips: the generator orders route rows by
+// registry.CompareSpecificity and checks them with registry.New
+// (internal/codegen routes.go); each row's minimal request (labels filled,
+// its query conditions and required headers present, nothing else) must
+// also route back to that row's operation through registry.RouteTable.Match.
 func TestEveryRouteRowRoundTrips(t *testing.T) {
 	for _, svc := range services() {
 		if svc.Routes == nil {

@@ -23,8 +23,8 @@ func allocatedPerCall(n uint64, fn func()) uint64 {
 
 // A send copies none of the messages already queued, so a send to a queue
 // holding a backlog costs what a send to an empty queue costs and filling
-// a queue is linear, so backlog tests run instantly. A
-// copy of the backlog per send costs about 2 MB here.
+// a queue is linear, so backlog tests run instantly. A copy of the backlog
+// per send would cost about 2 MB here, far past the 4x margin.
 func TestSendCostDoesNotGrowWithTheBacklog(t *testing.T) {
 	const backlog, sample = 10_000, 200
 	for _, tt := range []struct {
@@ -68,8 +68,8 @@ func TestSendCostDoesNotGrowWithTheBacklog(t *testing.T) {
 
 // sqs.md 9.3: a task without a rate moves the whole dead-letter queue in
 // one step. The step takes the moved messages out of the source in one
-// pass, so moving a backlog is linear; removing them one at a time made
-// this test take tens of seconds.
+// pass, so moving a backlog is linear; removing them one at a time is
+// quadratic.
 func TestMoveTaskMovesABacklogInOnePass(t *testing.T) {
 	const backlog = 20_000
 	start := time.Now()

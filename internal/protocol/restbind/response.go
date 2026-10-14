@@ -131,7 +131,8 @@ type DocumentEncoder func() DocumentWriter
 // restJson1 sends {}. A top-level httpHeader member wins over a
 // prefix-header entry for the same header, whichever is written first.
 // status is the status the pipeline chose; a non-zero httpResponseCode
-// value replaces it. A misuse by generated code is a *UsageError.
+// value replaces it. A misuse by generated code is a *UsageError; a
+// document doc fails to write returns the writer's error.
 func Encode(op *registry.Operation, out smithy.Serializable, status int, hasDocument func(*smithy.Schema) bool, doc DocumentEncoder) (Encoded, error) {
 	s := &serializer{doc: doc, hasDocument: hasDocument, header: http.Header{}, bound: map[string]bool{}, status: status, body: NoBody{}}
 	if op.Output != nil && op.Output.Type == smithy.TypeStructure {

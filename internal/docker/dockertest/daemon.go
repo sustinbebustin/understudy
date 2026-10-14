@@ -5,9 +5,9 @@
 // messages the real daemon sends (containers.md 2.3): image presence and
 // scripted pulls, containers whose behavior on start is a scripted Program,
 // framed logs, waits, the events stream, networks with address allocation,
-// and archive uploads. Time inside the fake is logical: every event and log
-// line advances a counter by one millisecond from a fixed epoch, so outputs
-// are deterministic.
+// and archive uploads. Time inside the fake is logical: every event, log
+// line, container start and container exit advances a counter by one
+// millisecond from a fixed epoch, so outputs are deterministic.
 package dockertest
 
 import (
@@ -233,7 +233,8 @@ func (d *Daemon) notify() {
 	d.changed = make(chan struct{})
 }
 
-// waitChange blocks until the state changes after ch was read or ctx ends.
+// waitChange blocks until ch, a d.changed read under d.mu, closes or ctx
+// ends, and reports whether the state changed.
 func waitChange(ctx context.Context, ch <-chan struct{}) bool {
 	select {
 	case <-ch:
@@ -373,8 +374,9 @@ func writeError(w http.ResponseWriter, status int, message string) {
 	writeBody(w, append(raw, '\n'))
 }
 
-// writeBody writes to a client; a failed write means the client went away,
-// which ends the request either way.
+// writeBody writes and flushes b to a client and reports whether both
+// succeeded; a failure means the client went away, which ends the request
+// either way.
 func writeBody(w http.ResponseWriter, b []byte) bool {
 	if _, err := w.Write(b); err != nil {
 		return false

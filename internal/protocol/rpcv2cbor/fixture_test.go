@@ -263,8 +263,8 @@ func readValue(d smithy.Deserializer, m *smithy.Member) (any, error) {
 	return nil, fmt.Errorf("test fixture: no read for %s", m.Target.Type)
 }
 
-// The CloudWatch shapes of the phase 1 operations. Output members are in
-// the order of the response vectors, which the serializer follows.
+// The CloudWatch shapes of the operations these tests use. Output members
+// are in the order of the response vectors, which the serializer follows.
 var (
 	dimension  = structure("com.amazonaws.cloudwatch#Dimension", member("Name", str), member("Value", str))
 	dimensions = listOf("com.amazonaws.cloudwatch#Dimensions", dimension)

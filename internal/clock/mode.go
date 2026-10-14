@@ -49,7 +49,7 @@ func validScale(f float64) bool { return f > 0 && f <= MaxScale }
 // parseMode accepts a Running, Frozen or Scaled value with a valid factor.
 // Pointers to modes satisfy the interface through the value receivers of
 // isMode, so they and nil are refused with a *ModeError here rather than
-// reaching the default branches below.
+// reaching the fall-through returns of the mode switches below.
 func parseMode(m Mode) (Mode, error) {
 	switch m := m.(type) {
 	case Running, Frozen:

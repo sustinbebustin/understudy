@@ -235,7 +235,7 @@ func TestRequestsSignedForAServiceAreAnsweredByIt(t *testing.T) {
 		body, signedFor    string
 	}{
 		// sqs.md 2.3: GET on a queue URL with no Action is 404 with an
-		// <UnknownOperationException body.
+		// <UnknownOperationException/> body.
 		{"signed-sqs-get-without-action", http.MethodGet, "/000000000000/q", nil, "", "sqs"},
 		// error-matrix.md finding 6: DynamoDB without X-Amz-Target is 400
 		// UnknownOperationException.
@@ -423,7 +423,8 @@ func kernelOf(t *testing.T) *kernel.Kernel {
 	return k
 }
 
-// pathCodec records the path the claim sees and declines everything.
+// pathCodec records the path the claim sees, then claims as the embedded
+// codec does.
 type pathCodec struct {
 	edge.Codec
 	mu        sync.Mutex

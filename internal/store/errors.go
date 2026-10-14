@@ -4,7 +4,7 @@ import "fmt"
 
 // VersionMismatchError reports a snapshot section written by a state schema
 // version other than the running binary's. Until the first tagged release
-// there are no migrations, so the section is refused.
+// there are no migrations (ADR 0009), so the section is refused.
 type VersionMismatchError struct {
 	Path    string
 	Section int

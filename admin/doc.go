@@ -8,7 +8,8 @@
 // ErrorCode. Sums (ClockOp, FaultAction, FaultTrigger, TraceKey) are sealed
 // interfaces with their JSON forms written by hand, since the package imports
 // nothing from the repository. JournalEvent carries each event's
-// kind-specific payload as the raw JSON the server wrote, under Kind.
+// kind-specific payload in Detail as the raw JSON the server wrote, with
+// Kind naming its variant.
 //
 // The package is public and experimental: its surface may change before the
 // first release.

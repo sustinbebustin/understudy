@@ -6,8 +6,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
-// emitTypes writes types_gen.go: structures (required members as values,
-// optional ones as pointers), enums with Known, unions as sealed
+// emitTypes writes types_gen.go: structures (members as plain values or
+// pointers, as valueField decides), enums with Known, unions as sealed
 // interfaces, and error structures.
 func emitTypes(ir *ServiceIR) ([]byte, error) {
 	f := newFile(ir, "types_gen.go")

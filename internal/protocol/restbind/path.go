@@ -70,7 +70,8 @@ func pathLabels(pattern []registry.Segment, path string) (map[string]string, err
 	return out, nil
 }
 
-// bindEach decodes the label segments of a pattern without a greedy label.
+// bindEach decodes into out the label segments of pattern, which holds no
+// greedy label, from the segs at the same indices.
 func bindEach(out map[string]string, pattern []registry.Segment, segs []string) error {
 	for i, s := range pattern {
 		l, ok := s.(registry.Label)

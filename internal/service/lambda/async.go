@@ -34,7 +34,8 @@ import (
 // the function's unqualified ARN, a slash and the invocation's request id.
 const TimerAsync kernel.TimerKind = "lambda.async"
 
-// The retry schedule.
+// The retry schedule, and the limits a function without an asynchronous
+// invocation configuration gets.
 const (
 	firstRetryDelay  = time.Minute
 	secondRetryDelay = 2 * time.Minute

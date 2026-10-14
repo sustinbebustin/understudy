@@ -40,7 +40,7 @@
 //     AWS managed keys; an alias/aws/ name that names nothing is
 //     NotFoundException, as UpdateAlias and DeleteAlias model. AWS
 //     refuses them through the managed key's fixed key policy, which
-//     phase 1 does not evaluate; the text is understudy's own.
+//     understudy does not evaluate; the text is understudy's own.
 //   - The key management operations, which AWS documents as not usable
 //     across accounts, refuse another account's key ARN with
 //     NotFoundException (the fidelity switch

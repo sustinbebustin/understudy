@@ -5,7 +5,7 @@
 // documents and that recordings against real AWS show, as collected in
 // docs/research. It never asserts an understudy-specific quirk.
 //
-// The tests live in one file per service so that a fixer can own one
-// service at a time. Run them through run.sh, which builds understudy,
-// starts it and points the SDK at it through scripts/sealed; see README.md.
+// The tests live in one file per service, named <service>_test.go. Run
+// them through run.sh, which builds understudy, starts it and points the
+// SDK at it through scripts/sealed; see README.md.
 package gosdk

@@ -65,7 +65,8 @@ type redactor struct {
 	queue   []*ShapeIR
 	seen    map[*ShapeIR]bool
 	// usesMark and usesMarkPtr record whether a redacted string was
-	// emitted, plain or behind a pointer, so the helpers are.
+	// emitted, plain or behind a pointer, so each helper is emitted only
+	// when used.
 	usesMark, usesMarkPtr bool
 }
 
@@ -182,8 +183,9 @@ func masked(m *MemberIR) bool {
 }
 
 // behindPointer reports whether the Go type of m, a structure member, list
-// element, map value or union member, points to its target's (fieldType,
-// elemType): an optional structure member or a sparse collection's element.
+// element, map value or union member, is a pointer to its target's type, as
+// fieldType and elemType decide: an optional structure member or a sparse
+// collection's element.
 func behindPointer(m *MemberIR) bool {
 	if !pointerable(m.Target) {
 		return false

@@ -10,9 +10,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/paging/pagingtest"
 )
 
-// A NextMarker is the unpadded base64url of "v1|<listing>|<next key>", the
-// format earlier builds issued, so a marker a client holds across an
-// upgrade still resumes its listing.
+// A NextMarker is the unpadded base64url of "v1|<listing>|<next key>". The
+// format is fixed so a marker a client holds across an upgrade still
+// resumes its listing.
 func TestMarkerFormatIsStable(t *testing.T) {
 	run(t, func(h *harness) {
 		ids := []string{h.key(), h.key()}

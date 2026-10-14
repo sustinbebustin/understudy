@@ -47,8 +47,9 @@ const (
 	// sigkillExit is the exit code of a process killed by SIGKILL.
 	sigkillExit = 128 + 9
 	// Reconnects of the events stream back off from minReconnect, doubling
-	// up to maxReconnect; after maxBareStreams streams in a row end without
-	// delivering an event, the watch falls back to per-container waits.
+	// up to maxReconnect; once more than maxBareStreams streams in a row end
+	// without delivering an event, the watch falls back to per-container
+	// waits.
 	minReconnect   = 100 * time.Millisecond
 	maxReconnect   = 5 * time.Second
 	maxBareStreams = 5
@@ -406,8 +407,9 @@ func (l *Launcher) hostArchitecture(ctx context.Context) (arch Architecture, kno
 	return machineArchitecture(info.Architecture)
 }
 
-// outputSays reports whether the container's output contains text, case
-// insensitively.
+// outputSays reports whether the container's output, lowered, contains
+// text; text must therefore be lower case. It reads at most
+// maxDiagnosisLog bytes.
 func (l *Launcher) outputSays(ctx context.Context, id, text string) bool {
 	stream, err := l.client.ContainerLogs(ctx, id, docker.LogsOptions{})
 	if err != nil {

@@ -40,8 +40,8 @@
 //     Its logs carry no Content-Type, so ContainerLogs reads the container's
 //     Tty setting to tell framed output from raw, as below API 1.42.
 //
-// Registry authentication is not sent: phase 1 pulls public images
-// anonymously.
+// Registry authentication is not sent: images are pulled anonymously, so
+// private registries are unsupported.
 //
 // The client stays in-repo rather than on the Moby client (ADR 0016,
 // dependency policy amendment), so keeping it current is this package's job:

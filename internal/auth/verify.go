@@ -294,8 +294,8 @@ func checkScopeDate(c Credential, t time.Time, v Vocabulary) *awserr.Error {
 	return nil
 }
 
-// checkSkew refuses a request time t, sent as the string sent, more than 15
-// minutes from wallNow either way.
+// checkSkew refuses a request time t more than 15 minutes from wallNow
+// either way. sent is t as the request carried it, which S3 echoes.
 func checkSkew(t time.Time, sent string, wallNow time.Time, v Vocabulary) *awserr.Error {
 	if earliest := wallNow.Add(-skewWindow); t.Before(earliest) {
 		if v.Dialect == S3Dialect {

@@ -12,8 +12,9 @@ import (
 
 // Stateful is implemented by every service with state, and by the outbox.
 // Export does no I/O: it serializes to in-memory sections and pins blob
-// references, under the gate's exclusive side. store.Partitioned implements
-// Export, Import and Reset; services add Rearm and Resources.
+// references, under the gate's exclusive side. A service's Export, Import
+// and Reset delegate to its store.Partitioned; Rearm and Resources are its
+// own.
 type Stateful interface {
 	Name() ref.ServiceID
 	SchemaVersion() int

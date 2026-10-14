@@ -129,8 +129,9 @@ func invokeDeploy(k *kerneltest.K, op kernel.Op[deployInput, deployOutput], in d
 }
 
 // A binding that declares nothing about its actions records every action
-// of the generated list, an over-grant rather than an under-grant; the
-// other service's actions still only on a touched resource of theirs.
+// of the generated list, an over-grant rather than an under-grant; an
+// action of another service is still recorded only on a touched resource
+// of that service.
 func TestAccessRecordsTheWholeListForAnUndeclaredBinding(t *testing.T) {
 	runDeploy(t, func(k *kerneltest.K, deploy, _ kernel.Op[deployInput, deployOutput]) {
 		kernel.Bind(k.Kernel.Binder(deploy.Descriptor().Service), deploy, deployed, registry.Full{}, kernel.WithResources(passedRole))

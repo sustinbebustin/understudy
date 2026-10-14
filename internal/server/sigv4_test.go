@@ -887,8 +887,8 @@ func TestHoistedChunkFramingIsDecoded(t *testing.T) {
 	}
 }
 
-// Under sigv4 parse nothing is checked, as before: a URL past its expiry
-// and a request with a wrong secret are both served.
+// Under sigv4 parse nothing is checked: a URL past its expiry and a request
+// with a wrong secret are both served.
 func TestSigV4ParseChecksNothing(t *testing.T) {
 	c, endpoint, _ := sigv4Server(t, server.Config{})
 	wrong := signer{key: "AKIAIOSFODNN7EXAMPLE", secret: "anything"} //nolint:gosec // G101: AWS's published example key, not a credential

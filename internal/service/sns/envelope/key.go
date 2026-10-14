@@ -18,7 +18,7 @@ import (
 // Version is a topic's SignatureVersion.
 type Version uint8
 
-// Version values.
+// V1 and V2 are the two SignatureVersion values (sns.md 5.6).
 const (
 	V1 Version = iota + 1 // SHA1withRSA, the default
 	V2                    // SHA256withRSA
@@ -90,7 +90,8 @@ type Key struct {
 	Certificate []byte
 }
 
-// keyBits is the RSA modulus size AWS's SNS certificates use.
+// keyBits is the RSA modulus size of the signing key. sns.md does not record
+// the size of AWS's SNS signing keys; 2048 is UNVERIFIED.
 const keyBits = 2048
 
 // NewKey makes a key from crypto/rand and a certificate for it naming
@@ -130,7 +131,8 @@ func (k Key) CertificatePEM() []byte {
 }
 
 // CertificateName is the file name of the certificate in SigningCertURL:
-// SimpleNotificationService-<hex>.pem, the hex naming the certificate.
+// SimpleNotificationService-<hex>.pem, the hex the first 16 bytes of the
+// certificate's SHA-256, as long as the recorded names (sns.md 5.1).
 func (k Key) CertificateName() string {
 	sum := sha256.Sum256(k.Certificate)
 	return "SimpleNotificationService-" + hex.EncodeToString(sum[:16]) + ".pem"

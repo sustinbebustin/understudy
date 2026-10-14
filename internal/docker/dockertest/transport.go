@@ -75,8 +75,9 @@ func listenLoopback(tb testing.TB, lc *net.ListenConfig) net.Listener {
 	return l
 }
 
-// Certificates are valid over a fixed window: the fake has no clock of its
-// own, and the window spans any date a test runs on.
+// validity returns the fixed window every certificate is valid over: the
+// fake has no clock of its own, and the window spans any date a test runs
+// on.
 func validity() (notBefore, notAfter time.Time) {
 	return time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC), time.Date(2100, time.January, 1, 0, 0, 0, 0, time.UTC)
 }

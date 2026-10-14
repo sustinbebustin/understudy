@@ -115,9 +115,9 @@
 //     an id or a fault decision from the loaded head.
 //   - A Cut holds the Coordinator until WriteAfterCut or Release, so a load
 //     never lands between a cut and its late exports; a Cut or Load waiting
-//     behind it gives up when its context ends. WriteAfterCut refuses
-//     a cut that is released or belongs to another Coordinator. Only Head,
-//     the Exports and the Pin run under the gate; the duplicate-path check
+//     behind it gives up when its context ends. WriteAfterCut refuses a cut
+//     that is released or belongs to another Coordinator. Only Head, the
+//     Exports and the Pin run under the gate; the duplicate-path check
 //     follows the release and hashing waits for Write.
 //   - A committed write hands its deliveries to the outbox after releasing
 //     the gate, so Cut first waits, gate released, up to EffectsWait of wall

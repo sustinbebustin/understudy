@@ -35,12 +35,12 @@ func (s *Service) creation(ctx context.Context, c *kernel.Call, in *dynamodbapi.
 
 // recorded returns the shim's record of the table name in c's scope. A
 // table Local holds that the shim never saw created (one Local kept under
-// --persist without the archive, written in the last 30 s before a crash)
-// is adopted: its record is built from Local's description, with Local's
-// CreationDateTime and a TableId derived from the table's path, so the
-// shim operations answer for it as for any table. missing is the answer
-// when neither holds it, and when the scope holds only a case twin, which
-// Local would describe in its place.
+// --persist without the archive, created after the last checkpoint before
+// a crash) is adopted: its record is built from Local's description, with
+// Local's CreationDateTime and a TableId derived from the table's path, so
+// the shim operations answer for it as for any table. missing is the
+// answer when neither holds it, and when the scope holds only a case twin,
+// which Local would describe in its place.
 func (s *Service) recorded(ctx context.Context, c *kernel.Call, name string, missing *awserr.Error) (Table, *awserr.Error) {
 	if t, ok := s.lookup(c.Scope(), name); ok {
 		return t, nil

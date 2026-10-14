@@ -164,8 +164,8 @@ func TestDecodeGoldenVectors(t *testing.T) {
 	}
 }
 
-// The encoder's canonical form is exactly what AWS's response vectors
-// hold, byte for byte.
+// The encoder's canonical form is exactly what the canonical response
+// vectors hold, byte for byte.
 func TestEncodeReproducesCanonicalResponses(t *testing.T) {
 	for _, v := range canonicalResponses {
 		t.Run(v.name, func(t *testing.T) {

@@ -31,7 +31,7 @@ const (
 	KindFaultStream
 	KindJitter
 	// KindEventID is EventBridge's: PutEvents entry ids and the ids of
-	// scheduled events. Declared last, so existing kinds keep their values.
+	// scheduled events. It stays last: kindCount counts up to it.
 	KindEventID
 )
 

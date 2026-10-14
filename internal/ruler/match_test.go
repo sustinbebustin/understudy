@@ -216,8 +216,8 @@ func TestSearchBudget(t *testing.T) {
 		t.Fatalf(`3 levels: Match = %t, %v; want no match, since no element has "z":2`, matched, err)
 	}
 
-	// 6 levels (a 133-byte pattern, a 2.5 KB event) took 20 s before the
-	// budget existed.
+	// 6 levels (a 133-byte pattern, a 2.5 KB event) take about 20 s
+	// without the budget.
 	pattern, event = joinedArrays(6)
 	p := mustCompile(t, pattern, LambdaESM{})
 	_, err := Match(p, []byte(event))
@@ -241,8 +241,8 @@ func TestSearchBudget(t *testing.T) {
 // the fields chosen so far (the failure memo's key, the consistency check of
 // each field examined, the pin scan), and the budget counts it. joinedArrays
 // with extra exact-match keys at every level, a pattern under the 4096-byte
-// Lambda and EventBridge limit, once ran for 9 s and allocated 3.6 GB before
-// the budget stopped it.
+// Lambda and EventBridge limit, takes seconds and gigabytes without the
+// budget.
 func TestSearchBudgetCoversChosenFields(t *testing.T) {
 	for _, tc := range []struct{ levels, extra int }{{4, 100}, {6, 40}, {6, 10}} {
 		pattern, event := joinedArrays(tc.levels)
@@ -272,11 +272,11 @@ func TestSearchBudgetCoversChosenFields(t *testing.T) {
 
 // TestSearchBudgetCoversBranchSetup: splitting each branch into components
 // counts toward the budget and costs work in proportion to the branch, not
-// to the arrays at its paths. 16384 Lambda branches (a 579-byte pattern)
-// against a 234 KB event with a thousand arrays under each key they name
-// once took 18 s and gigabytes of allocations that the budget never saw.
-// The event has no "k0", so every branch fails at once and the event is
-// decided.
+// to the arrays at its paths. Left uncounted, that setup for 16384 Lambda
+// branches (a 579-byte pattern) against a 234 KB event with a thousand
+// arrays under each key they name costs seconds and gigabytes of
+// allocations. The event has no "k0", so every branch fails at once and the
+// event is decided.
 func TestSearchBudgetCoversBranchSetup(t *testing.T) {
 	sizes := make([]int, 14)
 	for i := range sizes {

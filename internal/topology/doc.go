@@ -10,7 +10,7 @@
 //     host's external address, which understudy does not bind. Addresses
 //     returns an *UnsupportedError naming the remedy instead of an address
 //     that would time out.
-//   - The Docker Desktop probe follows ARCHITECTURE 14.5 and ADR 0011: it
+//   - The Docker Desktop probe follows ARCHITECTURE.md 14.5 and ADR 0011: it
 //     overrides the image's entrypoint with `getent ahostsv4
 //     host.docker.internal`, because the Lambda base images' entrypoint
 //     rejects more than one argument and `getent hosts` prints only the
@@ -26,8 +26,8 @@
 //     /etc/resolv.conf mount, under Docker's containers/<id>/ or Podman's
 //     overlay-containers/<id>/), then by hostname, each checked against
 //     the inspected container's ID or Config.Hostname. A user-defined
-//     network is preferred over the default bridge; a
-//     container on the host network is detected as the host. Container
+//     network is preferred over the default bridge; a container on the host
+//     network is detected as the host. Container
 //     markers with no matching container on the daemon mean the daemon runs
 //     inside understudy's own container (Docker-in-Docker), so detection
 //     continues as on a host.

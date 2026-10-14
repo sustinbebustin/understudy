@@ -1,6 +1,6 @@
-// Package smithy holds the runtime schema descriptors generated from Smithy
-// models, including the streaming kind, the Serializer and Deserializer
-// interfaces and ShapeID.
+// Package smithy defines the runtime schema types that generated packages
+// describe Smithy shapes with, the Serializer and Deserializer interfaces
+// the codecs implement, the streaming Body and BodySource, and ShapeID.
 //
 // The interfaces extend ARCHITECTURE.md 6.1 where a codec cannot work without
 // more: WriteStruct names the member that holds a nested structure (nil at

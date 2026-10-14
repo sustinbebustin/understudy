@@ -21,7 +21,7 @@ type RuntimeImage struct {
 // Ref is the pinned reference pulled and run: repository@digest.
 func (r RuntimeImage) Ref() string { return r.Repository + "@" + r.Digest }
 
-// RuntimeImages is the pinned table for the phase 1 runtimes
+// RuntimeImages is the pinned table of the runtimes understudy supports
 // (lambda-api.md 4.2): each tag's multi-architecture index digest as
 // public.ecr.aws served it on 2026-10-14.
 func RuntimeImages() []RuntimeImage {

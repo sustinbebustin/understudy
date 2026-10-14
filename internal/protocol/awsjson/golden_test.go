@@ -121,8 +121,8 @@ func TestGoldenLogsErrors(t *testing.T) {
 	})
 }
 
-// wire-json-query.md 5.3 (gap G7): Secrets Manager's recorded error, bare
-// name and capital Message.
+// wire-json-query.md 5.3: Secrets Manager's recorded error, bare name and
+// capital Message.
 func TestGoldenSecretsManagerCapitalMessage(t *testing.T) {
 	sm := &registry.Service{ID: "secretsmanager", JSONTargetPrefix: "secretsmanager"}
 	e := &awserr.Error{

@@ -206,8 +206,8 @@ func TestMatchS3Rows(t *testing.T) {
 // word draws a path segment that needs no escaping.
 func word() *rapid.Generator[string] { return rapid.StringMatching(`[a-z][a-z0-9-]{0,6}`) }
 
-// routesOf builds a table over bindings in a random order and returns it with
-// the operation name of each binding's row.
+// routesOf builds a table over bindings in a random order, naming each row's
+// operation after its binding's key.
 func routesOf(t *rapid.T, bindings map[string]registry.HTTPBinding) *registry.RouteTable {
 	s := &registry.Service{ID: "svc"}
 	names := rapid.Permutation(slices.Sorted(maps.Keys(bindings))).Draw(t, "order")

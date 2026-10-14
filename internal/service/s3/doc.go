@@ -1,9 +1,8 @@
 // Package s3 implements Amazon S3: buckets and their subresources, objects,
 // multipart uploads, flexible checksums, conditional requests and presigned
-// URLs, with virtual-hosted and path-style addressing. What exists today is
-// below.
+// URLs, with virtual-hosted and path-style addressing.
 //
-// Bound so far: CreateBucket, HeadBucket, GetBucketLocation, ListBuckets
+// Bound operations: CreateBucket, HeadBucket, GetBucketLocation, ListBuckets
 // and DeleteBucket; the Get, Put and Delete operations of every bucket
 // subresource Terraform reads (versioning, ACL, CORS, website, policy,
 // logging, lifecycle, replication, encryption, Object Lock, request
@@ -51,7 +50,7 @@
 //     where the operation's output models it (HeadBucket), since a
 //     handler cannot add a header to a modeled success response.
 //   - A request from an account that does not own the bucket is served:
-//     phase 1 evaluates no bucket policy or ACL (s3.bucket.cross-account).
+//     understudy evaluates no bucket policy or ACL (s3.bucket.cross-account).
 //     x-amz-expected-bucket-owner naming another account is AccessDenied.
 //   - Reset runs under the gate's exclusive side, where no cell can be
 //     read, so it reads the index through its own snapshot section, drops
@@ -124,7 +123,7 @@
 //     response-* overrides need a signed or presigned request, as AWS
 //     documents; an unsigned one is InvalidRequest (text unrecorded).
 //   - CopyObject reads its source without the cross-region and owner
-//     admission, since copies may cross regions and phase 1 enforces no
+//     admission, since copies may cross regions and understudy enforces no
 //     access. The source read's blob reference becomes the copy's. A copy
 //     source decodes valid %XX sequences, %2F included, as Terraform
 //     escapes the separator, and keeps a literal '+' (UNVERIFIED for

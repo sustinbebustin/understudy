@@ -90,10 +90,10 @@ func xmlShape() *smithy.Schema {
 }
 
 // XML compares on names resolved to namespace URI and local name, whatever
-// prefixes bind them: differently named children in any order,
-// a list's members in order, a map's entries, wrapped or flattened, in any
-// order; a server's RequestId and ResponseMetadata are not held to a
-// client fixture's.
+// prefixes bind them: differently named children in any order, a list's
+// members in order, a map's entries, wrapped or flattened, in any order; a
+// server's RequestId and ResponseMetadata are not held to a client
+// fixture's.
 func TestCompareXML(t *testing.T) {
 	const mt = "application/xml"
 	shape := xmlShape()

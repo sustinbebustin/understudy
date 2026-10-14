@@ -11,8 +11,9 @@ const (
 	// LabelInstance is random per serve process; it tells concurrent
 	// emulators on one daemon apart.
 	LabelInstance = "understudy.dev/instance"
-	// LabelOwner is the stable identity of a deployment (data directory and
-	// port); a restart sweeps its own previous instance's leftovers by it.
+	// LabelOwner is the identity that outlives a serve process (its data
+	// directory, or its run without one); a later process sweeps an earlier
+	// instance's leftovers by it.
 	LabelOwner = "understudy.dev/owner"
 	// LabelFunction, LabelAccount, LabelRegion and LabelGeneration identify
 	// the function environment a container serves.

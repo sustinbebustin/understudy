@@ -8,6 +8,5 @@
 // would: an External call in K.Scope, as that account's root.
 //
 // The test body receives only *K, which embeds the bubble's *testing.T, so
-// thelper does not mistake every test body for a helper; ARCHITECTURE.md
-// writes the callback as func(t, k).
+// thelper does not mistake every test body for a helper.
 package kerneltest

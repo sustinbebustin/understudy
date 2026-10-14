@@ -278,7 +278,7 @@ func TestCanonicalIgnoresIDsWallAndLatency(t *testing.T) {
 
 func TestCanonicalIgnoresIDsAmongIdenticalSiblings(t *testing.T) {
 	// Ties between identical siblings are where an id order would show, and
-	// the generator above rarely draws them. rapid runs 100 checks per Check,
+	// genTreeSpec rarely draws them. rapid runs 100 checks per Check,
 	// so this runs it 100 times (10 under -short).
 	rounds := 100
 	if testing.Short() {
@@ -436,7 +436,9 @@ func TestCanonicalOfADeepChainAllocatesLinearly(t *testing.T) {
 	runtime.ReadMemStats(&before)
 	tree.Canonical()
 	runtime.ReadMemStats(&after)
-	// Hashing every descendant's JSON at every ancestor took over 1 GiB here.
+	// Canonical hashes each event once, so allocation grows linearly with chain
+	// length; hashing every descendant's JSON at every ancestor would be
+	// quadratic.
 	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 64<<20 {
 		t.Fatalf("Canonical of a 2001-event chain allocated %d MiB, want under 64 MiB", allocated>>20)
 	}

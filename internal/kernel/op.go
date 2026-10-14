@@ -9,9 +9,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
-// Handler implements one AWS operation. Dispatch maps (nil, nil) and
-// (out, err) to Internal, naming the operation; unit outputs are the empty
-// struct, so nil is never legitimate.
+// Handler implements one AWS operation. Bind answers (nil, nil) and
+// (out, err) with an Internal error naming the operation; unit outputs are
+// the empty struct, so nil is never legitimate.
 type Handler[In, Out any] func(ctx context.Context, c *Call, in *In) (*Out, *awserr.Error)
 
 // RawHandler is the passthrough form (DynamoDB proxy only, ADR 0014): the
@@ -20,8 +20,9 @@ type Handler[In, Out any] func(ctx context.Context, c *Call, in *In) (*Out, *aws
 type RawHandler[In any] func(ctx context.Context, c *Call, in *In, w Wire) (RawResponse, *awserr.Error)
 
 // RawHTTPHandler serves a raw operation (codegen/services/<svc>.json
-// "rawOperations"): the function URL data plane and the SNS links. It runs
-// the full pipeline and owns the HTTP body in both directions.
+// "rawOperations"), such as the Lambda function URL data plane, the SNS
+// links and S3's resource tagging operations. It runs the full pipeline and
+// owns the HTTP body in both directions.
 type RawHTTPHandler func(ctx context.Context, c *Call, r *http.Request, w http.ResponseWriter) *awserr.Error
 
 // Wire says whether a client request exists to forward.

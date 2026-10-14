@@ -93,7 +93,8 @@ func unhex(c byte) (byte, bool) {
 }
 
 // source is the copy source a CopyObject read: its version, its bucket's
-// home and the version id the response reports.
+// home, the version id the response reports, and whether the version is
+// the key's current one.
 type source struct {
 	version  Version
 	home     Home
@@ -105,7 +106,7 @@ type source struct {
 const sourceOwnerHeader ownerHeader = "x-amz-source-expected-bucket-owner"
 
 // readSource reads the copy source without admitting the request against
-// the source bucket: a copy may cross regions, and phase 1 checks no
+// the source bucket: a copy may cross regions, and understudy checks no
 // access. x-amz-source-expected-bucket-owner naming another account is
 // AccessDenied; source conditions fail with 412 (s3.md 5.10, 7). A source
 // read holds a reference on the source's blob, taken under the source

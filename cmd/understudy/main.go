@@ -8,6 +8,7 @@
 // The command tree lives in internal/cli; main hands it the process's
 // streams, environment and files, and cancels it on SIGINT and SIGTERM; a
 // second signal during the graceful shutdown kills the process.
+//
 // The version is stamped at link time:
 //
 //	go build -ldflags "-X main.version=v0.1.0" ./cmd/understudy

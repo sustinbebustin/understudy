@@ -148,8 +148,9 @@ func TestDueOrFiringCountsATimerUntilItsDispatchReturns(t *testing.T) {
 	})
 }
 
-// TestDueOrFiringSignalsDisarmAndClear checks that removing a due timer
-// wakes a waiter, which would otherwise wait on a count that only fell.
+// TestDueOrFiringSignalsDisarmAndClear checks that Disarm, Clear and a re-Arm
+// that moves a due timer later each close dropped; a waiter would otherwise
+// keep waiting on a count that has already fallen.
 func TestDueOrFiringSignalsDisarmAndClear(t *testing.T) {
 	timers := NewScheduler(func(TimerKey, Instant) {})
 	k := TimerKey{Kind: "k", ID: "a"}

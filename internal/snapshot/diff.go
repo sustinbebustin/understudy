@@ -49,10 +49,10 @@ type Difference struct {
 	Entry string
 	// Pointer locates the value in the entry's document (RFC 6901). It is
 	// empty when the whole entry was added or removed, or when the whole
-	// document differs. A section's document
-	// is {"version", "blobs", "data"}, data holding the section's JSON (an
-	// NDJSON section as an array of its lines); manifest.json's is the
-	// manifest without its section list, which the sections stand for.
+	// document differs. A section's document is {"version", "blobs",
+	// "data"}, data holding the section's JSON (an NDJSON section as an
+	// array of its lines); manifest.json's is the manifest without its
+	// section list, which the sections stand for.
 	Pointer string
 	Change  Change
 	// Before and After are the values as compact JSON, empty on the side

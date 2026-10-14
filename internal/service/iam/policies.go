@@ -56,9 +56,8 @@ const unknownAWSManaged = "any well-formed arn:aws:iam::aws:policy ARN is accept
 
 // attachable resolves a policy ARN a role or user attaches: any AWS managed
 // policy, existing or not (unknownAWSManaged), or a customer managed policy
-// of the account. Text that is no ARN
-// is ValidationError; an ARN that names no attachable policy, of whatever
-// shape, NoSuchEntity.
+// of the account. Text that is no ARN is ValidationError; an ARN that names
+// no attachable policy, of whatever shape, NoSuchEntity.
 func (st *State) attachable(account aws.AccountID, arn string) (policyRef, *awserr.Error) {
 	if _, err := aws.ParseARN(arn); err != nil {
 		return policyRef{}, errUnparsableARN()

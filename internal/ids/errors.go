@@ -26,8 +26,8 @@ func (e *PositionError) Error() string {
 }
 
 // PositionLimitError reports a stream drawn past MaxPosition when its
-// position is read for a snapshot. Seek would refuse the position, so it is
-// not reported. The source keeps drawing normally.
+// position is read for a snapshot. Positions refuses rather than report a
+// position Seek would refuse. The source keeps drawing normally.
 type PositionLimitError struct {
 	Kind Kind
 	Pos  uint64

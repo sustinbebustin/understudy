@@ -57,8 +57,8 @@ func (s Signer) String() string {
 // GoString is String, so %#v redacts too.
 func (s Signer) GoString() string { return "auth.Signer" + s.String() }
 
-// unsignable are the headers a signer leaves out: aws-sdk-go-v2's ignored
-// set (sigv4-checksums-endpoints.md 1.3).
+// unsignable reports whether name, a lowercase header name, is one a signer
+// leaves out: aws-sdk-go-v2's ignored set (sigv4-checksums-endpoints.md 1.3).
 func unsignable(name string) bool {
 	switch name {
 	case "authorization", "user-agent", "x-amzn-trace-id", "expect", "transfer-encoding":

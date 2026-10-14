@@ -12,10 +12,10 @@ import (
 
 const redacted = "[REDACTED]"
 
-// redactedView is the one form Credentials, Minted and Temporary take outside
-// the store: in slog output, through LogValue at the top level and
-// MarshalJSON when slog's JSONHandler encodes a struct or slice that holds
-// one, and in fmt formatting. It never holds a secret or a token, only the
+// redactedView is the one form Credentials, Minted, Temporary, StaticKey,
+// Static and AccountKey take outside the store: in slog output, through
+// LogValue at the top level and MarshalJSON when slog's JSONHandler encodes
+// a struct or slice that holds one, and in fmt formatting. It never holds a secret or a token, only the
 // marker that one exists; empty fields are left out.
 type redactedView struct {
 	AccessKeyID     ids.AccessKeyID `json:"access_key_id,omitempty"`
@@ -24,7 +24,9 @@ type redactedView struct {
 	Expiry          *time.Time      `json:"expiry,omitempty"`
 }
 
-// viewOf redacts key, a secret when hasSecret, and life's token.
+// viewOf builds the redacted view of a key id: the id as is, the marker for
+// a secret when hasSecret, and for a Temporary life the marker for its
+// session token plus its expiry, which is not secret.
 func viewOf(key ids.AccessKeyID, hasSecret bool, life Lifetime) redactedView {
 	v := redactedView{AccessKeyID: key}
 	if hasSecret {
@@ -85,7 +87,7 @@ func (c Credentials) MarshalJSON() ([]byte, error) { return json.Marshal(c.view(
 // struct holding Credentials prints safely with %v.
 func (c Credentials) String() string { return c.view().String() }
 
-// GoString is String, so %#v redacts too.
+// GoString is String prefixed with the type name, so %#v redacts too.
 func (c Credentials) GoString() string { return "identity.Credentials" + c.String() }
 
 func (m Minted) view() redactedView { return viewOf("", true, m.Lifetime) }
@@ -100,7 +102,7 @@ func (m Minted) MarshalJSON() ([]byte, error) { return json.Marshal(m.view()) }
 // String formats the resolution with the secret and token redacted.
 func (m Minted) String() string { return m.view().String() }
 
-// GoString is String, so %#v redacts too.
+// GoString is String prefixed with the type name, so %#v redacts too.
 func (m Minted) GoString() string { return "identity.Minted" + m.String() }
 
 func (k StaticKey) view() redactedView { return viewOf(k.AccessKeyID, true, nil) }
@@ -114,7 +116,7 @@ func (k StaticKey) MarshalJSON() ([]byte, error) { return json.Marshal(k.view())
 // String formats the key with the secret redacted.
 func (k StaticKey) String() string { return k.view().String() }
 
-// GoString is String, so %#v redacts too.
+// GoString is String prefixed with the type name, so %#v redacts too.
 func (k StaticKey) GoString() string { return "identity.StaticKey" + k.String() }
 
 func (Static) view() redactedView { return viewOf("", true, nil) }
@@ -128,7 +130,7 @@ func (s Static) MarshalJSON() ([]byte, error) { return json.Marshal(s.view()) }
 // String formats the resolution with the secret redacted.
 func (s Static) String() string { return s.view().String() }
 
-// GoString is String, so %#v redacts too.
+// GoString is String prefixed with the type name, so %#v redacts too.
 func (s Static) GoString() string { return "identity.Static" + s.String() }
 
 func (AccountKey) view() redactedView { return viewOf("", true, nil) }
@@ -142,7 +144,7 @@ func (a AccountKey) MarshalJSON() ([]byte, error) { return json.Marshal(a.view()
 // String formats the resolution with the secret redacted.
 func (a AccountKey) String() string { return a.view().String() }
 
-// GoString is String, so %#v redacts too.
+// GoString is String prefixed with the type name, so %#v redacts too.
 func (a AccountKey) GoString() string { return "identity.AccountKey" + a.String() }
 
 func (t Temporary) view() redactedView { return viewOf("", false, t) }
@@ -156,7 +158,7 @@ func (t Temporary) MarshalJSON() ([]byte, error) { return json.Marshal(t.view())
 // String formats the lifetime with the session token redacted.
 func (t Temporary) String() string { return t.view().String() }
 
-// GoString is String, so %#v redacts too.
+// GoString is String prefixed with the type name, so %#v redacts too.
 func (t Temporary) GoString() string { return "identity.Temporary" + t.String() }
 
 // storeView is the one form a Store takes in logs and formatting: fmt reads
@@ -190,5 +192,6 @@ func (s *Store) String() string {
 	return "{DefaultAccount:" + v.DefaultAccount + " MintedKeys:" + strconv.Itoa(v.MintedKeys) + "}"
 }
 
-// GoString is String, so %#v reveals no credentials either.
+// GoString is String prefixed with the type name, so %#v reveals no
+// credentials either.
 func (s *Store) GoString() string { return "identity.Store" + s.String() }

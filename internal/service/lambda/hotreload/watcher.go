@@ -10,7 +10,8 @@ import (
 	"time"
 )
 
-// Defaults (ARCHITECTURE.md 14.4).
+// DefaultInterval and DefaultQuiet are the Options a zero value takes
+// (ARCHITECTURE.md 14.4).
 const (
 	DefaultInterval = 300 * time.Millisecond
 	DefaultQuiet    = 300 * time.Millisecond
@@ -118,8 +119,8 @@ type entry struct {
 	unreadable bool
 }
 
-// snapshot is the tree by slash-separated path relative to its root; the
-// root itself is "." when it cannot be read.
+// snapshot is the tree by slash-separated path relative to its root. The
+// root itself is "."; a walk that fails marks it unreadable.
 type snapshot map[string]entry
 
 // take walks dir without following symbolic links.

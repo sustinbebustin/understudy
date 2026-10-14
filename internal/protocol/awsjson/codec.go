@@ -104,8 +104,8 @@ func (c Codec) Decode(r *http.Request, op *registry.Operation, in smithy.Deseria
 }
 
 // readBody returns the request body, decompressed when the client gzipped
-// it (the requestCompression trait; CloudWatch PutMetricData is the one
-// phase 1 operation that has it, wire-json-query.md 3.2).
+// it (the requestCompression trait, which wire-json-query.md 3.2 finds
+// only on CloudWatch PutMetricData).
 func readBody(r *http.Request, op *registry.Operation) ([]byte, *awserr.Error) {
 	if r.Body == nil {
 		return nil, nil

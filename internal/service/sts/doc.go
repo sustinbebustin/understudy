@@ -21,7 +21,7 @@
 //     (Options.AssumeRole) set to lenient mints a session anyway, with a role
 //     id derived from the ARN and a MaxSessionDuration of 12 hours.
 //   - The role's trust policy, session policies, tags, MFA and external id
-//     are not evaluated: phase 1 does not enforce IAM. Session policies and
+//     are not evaluated: understudy does not enforce IAM. Session policies and
 //     tags are still validated as AWS documents: at most 10 managed policy
 //     ARNs, an inline policy IAM would accept as an identity policy, at most
 //     2,048 characters of policy plaintext, no "aws:" prefix on a source

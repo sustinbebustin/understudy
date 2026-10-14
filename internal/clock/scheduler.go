@@ -37,7 +37,7 @@ type Scheduler struct {
 	heap  []*timer
 	byKey map[TimerKey]*timer
 	seq   uint64
-	armed chan struct{} // closed and replaced by an Arm that makes a new earliest timer, to wake the driver
+	armed chan struct{} // closed and replaced by an Arm that makes a new earliest timer, and by Clear, to wake the driver
 	// firing counts timers popDue has taken off the heap whose dispatch has
 	// not returned, so DueOrFiring never loses a timer between the two.
 	firing int
@@ -74,7 +74,7 @@ func (s *Scheduler) Arm(k TimerKey, due Instant) {
 	if ok {
 		t.due, t.seq = due, s.seq
 		s.fix(t.index)
-		// Moving a due timer later lowers DueOrFiring.
+		// Re-arming can move a due timer later, which lowers DueOrFiring.
 		s.signalDroppedLocked()
 	} else {
 		t = &timer{key: k, due: due, seq: s.seq, index: len(s.heap)}
@@ -209,7 +209,8 @@ func (s *Scheduler) signalDroppedLocked() {
 	}
 }
 
-// armSignal returns a channel that the next Arm closes.
+// armSignal returns a channel closed by the next Arm that makes a new
+// earliest timer, or by Clear.
 func (s *Scheduler) armSignal() <-chan struct{} {
 	s.mu.Lock()
 	defer s.mu.Unlock()

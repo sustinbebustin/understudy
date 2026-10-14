@@ -246,9 +246,10 @@ type FakeEndpoint struct {
 // Addr is the endpoint's address.
 func (e *FakeEndpoint) Addr() netip.AddrPort { return e.addr }
 
-// Invoke runs the runtime's handler, unless the endpoint is closed or
-// terminated; a Terminate or Close during the handler wins with its
-// outcome. The handler's context ends when Invoke returns, so a handler
+// Invoke runs the runtime's handler, unless the endpoint is closed,
+// terminated or already busy with an invocation (a *runtimeapi.BusyError);
+// a Terminate or Close during the handler wins with its outcome. The
+// handler's context ends when Invoke returns, so a handler
 // that blocks until ctx is done never outlives its invocation.
 func (e *FakeEndpoint) Invoke(ctx context.Context, inv runtimeapi.Invocation) (runtimeapi.Outcome, error) {
 	e.mu.Lock()

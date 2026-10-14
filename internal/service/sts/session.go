@@ -30,7 +30,7 @@ const reservedPrefix = "aws:"
 // request asks of its session and the model cannot express: the managed
 // policy count, the reserved prefix, the session tags, the inline policy's
 // grammar and the plaintext size of the session policies, in that order.
-// Phase 1 validates session policies and tags but never evaluates them.
+// Session policies and tags are validated but never evaluated.
 func checkSession(in *stsapi.AssumeRoleInput) *awserr.Error {
 	if len(in.PolicyArns) > maxPolicyARNs {
 		return errTooManyPolicyARNs()

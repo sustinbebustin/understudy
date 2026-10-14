@@ -91,9 +91,10 @@ func TestTextAndAttrRoundTrip(t *testing.T) {
 	})
 }
 
-// Characters XML 1.0 forbids are still written as numeric references (S3's own
-// output for them is UNVERIFIED), and a conforming parser rejects the
-// document; everything else decodes.
+// Characters XML 1.0 forbids are still written as numeric references (S3's
+// own output differs for U+FFFE and is UNVERIFIED for most others,
+// differences.md "Control characters in S3 listings"), and a conforming parser
+// rejects the document; everything else decodes.
 func TestOnlyXMLCharactersDecode(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {

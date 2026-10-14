@@ -197,7 +197,8 @@ func customerOnly(k Key, arn string) *awserr.Error {
 	return nil
 }
 
-// RefError is a key reference of no known form, a bug in keyref.go.
+// RefError is a key reference of no known form, which only a bug in this
+// package's key reference handling can produce.
 type RefError struct{}
 
 func (*RefError) Error() string { return "kms: a key reference of no known form reached resolve" }

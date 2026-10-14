@@ -182,10 +182,10 @@ func (e *StoredRuleError) Error() string {
 // a rule under a key that is not a rule name or not its own name, with no
 // trigger, a schedule the decoder left unset, an unknown state, a next fire
 // on a rule that has no schedule or is disabled, or more targets or tags
-// than a rule may have; a target with no input form, an id another target of its
-// rule has, or a creation sequence number that is zero, past TargetSeq or
-// shared with another target. A missing or null rules object is a scope
-// without rules.
+// than a rule may have; a target with no input form, an id another target
+// of its rule has, or a creation sequence number that is zero, past
+// TargetSeq or shared with another target. A missing or null rules object
+// is a scope without rules.
 func (s *State) check() error {
 	if s.Rules == nil {
 		s.Rules = map[string]Rule{}
@@ -325,8 +325,8 @@ func (PathInput) isInput()        {}
 func (TransformedInput) isInput() {}
 
 // codec returns the state codec, with the Input and Trigger unions in the
-// tagged-union convention. Decoding refuses state PutRule could not have
-// stored (State.check). The tables are static, so an error is a bug in
+// tagged-union convention. Decoding refuses state PutRule and PutTargets
+// could not have stored (State.check). The tables are static, so an error is a bug in
 // them.
 func codec() (store.Codec, error) {
 	inputs, err := jsonx.NewUnion("events.Input",

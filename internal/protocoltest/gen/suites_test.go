@@ -32,11 +32,11 @@ type counts struct{ requests, responses, malformed int }
 
 // TestSuitesHoldEveryServerRunnableCase: the tables hold the server-runnable
 // cases smithy-protocol-tests.md 3 counts for 1.74.0 (ARCHITECTURE.md 6.4),
-// less the cases phase 1 does not generate: one Machine Learning awsJson1_1
-// request, and four restJson1 requests: two Glacier and API Gateway
-// customizations and two cases of aws.protocoltests.misc#AcceptHeaderStarService,
-// which no corpus service binds. restJson1 malformed entries are expanded
-// by their testParameters.
+// less the cases the generator leaves out (protocoltest.UngeneratedCases):
+// one Machine Learning awsJson1_1 request, and four restJson1 requests, the
+// Glacier and API Gateway customizations and two cases of
+// aws.protocoltests.misc#AcceptHeaderStarService, which no corpus service
+// binds. restJson1 malformed entries are expanded by their testParameters.
 func TestSuitesHoldEveryServerRunnableCase(t *testing.T) {
 	got := map[ref.ProtocolID]counts{}
 	for _, s := range suites() {

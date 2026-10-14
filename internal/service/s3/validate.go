@@ -61,8 +61,8 @@ func validBucketName(name string, namespace *s3api.BucketNamespace) bool {
 
 func isLowerAlnum(c byte) bool { return c >= 'a' && c <= 'z' || c >= '0' && c <= '9' }
 
-// ipv4Shaped reports four dot-separated decimal numbers, such as
-// 192.168.5.4.
+// ipv4Shaped reports whether name is four dot-separated decimal numbers,
+// such as 192.168.5.4.
 func ipv4Shaped(name string) bool {
 	parts := strings.Split(name, ".")
 	if len(parts) != 4 {
@@ -95,13 +95,13 @@ const (
 	logDeliveryURI        = "http://acs.amazonaws.com/groups/s3/LogDelivery"
 )
 
-// knownGroup reports a grantee group URI S3 knows.
+// knownGroup reports whether uri is a grantee group URI S3 knows.
 func knownGroup(uri string) bool {
 	return uri == allUsersURI || uri == authenticatedUsersURI || uri == logDeliveryURI
 }
 
-// canonicalUserID reports an id of the canonical user form: 64 lowercase
-// hexadecimal digits.
+// canonicalUserID reports whether id has the canonical user form: 64
+// lowercase hexadecimal digits.
 func canonicalUserID(id string) bool {
 	if len(id) != 64 {
 		return false
@@ -195,11 +195,12 @@ func (r aclRequest) hasHeaderGrants() bool {
 	return false
 }
 
-// empty reports a request that asks for no access control at all.
+// empty reports whether the request asks for no access control at all.
 func (r aclRequest) empty() bool { return r.canned == nil && !r.hasHeaderGrants() }
 
-// private reports a request whose access control is the owner's alone: no
-// ACL, or the canned private ACL, which BucketOwnerEnforced accepts.
+// private reports whether the request's access control is the owner's
+// alone: no ACL, or the canned private ACL, which BucketOwnerEnforced
+// accepts.
 func (r aclRequest) private() bool {
 	return !r.hasHeaderGrants() && (r.canned == nil || *r.canned == s3api.BucketCannedACLPrivate)
 }

@@ -2,7 +2,7 @@ package aws
 
 import "fmt"
 
-// Partition is an AWS partition. Phase 1 has one, aws.
+// Partition is an AWS partition. understudy serves only aws.
 type Partition struct{ name string }
 
 // PartitionAWS is the commercial partition, aws.
@@ -57,8 +57,7 @@ const (
 	ScopePartition
 )
 
-// String returns "account", "region" or "partition", the name a caller
-// gave the part.
+// String returns the part's name: "account", "region" or "partition".
 func (p ScopePart) String() string {
 	switch p {
 	case ScopeRegion:

@@ -6,9 +6,9 @@ import (
 )
 
 // PathPrefix is the path fallback's prefix, which ARCHITECTURE.md 4.1
-// rule 1 reserves on the main listener: /_understudy/lambda-url/<url-id>/<path>
-// names the function URL <url-id> with <path>, for clients that cannot
-// resolve *.localhost.
+// rule 1 reserves on the main listener:
+// /_understudy/lambda-url/<url-id>/<path> names the function URL <url-id>
+// with <path>, for clients that cannot resolve *.localhost.
 const PathPrefix = "/_understudy/lambda-url/"
 
 // Address is the function URL a request names and the path the function
@@ -30,7 +30,7 @@ type Address struct {
 // Resolve reads the function URL a request names from its Host header and
 // its escaped path: the path fallback when the path starts with
 // PathPrefix, otherwise the host form <url-id>.lambda-url.<region>.<base>.
-// false when it names neither.
+// It reports false when the request names neither.
 func Resolve(host, rawPath string) (Address, bool) {
 	if rest, ok := strings.CutPrefix(rawPath, PathPrefix); ok {
 		id, tail, _ := strings.Cut(rest, "/")

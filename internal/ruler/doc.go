@@ -104,20 +104,19 @@
 //     its text is needed), its start-marker locations and its limits of 1000
 //     nested containers, 1000 number digits and 50000 name characters. An
 //     event's messages name its source as REDACTED, as Jackson's defaults,
-//     with which Ruler reads events, do. A one-off differential run in
-//     October 2026 of 30000 mutated patterns against executed Ruler v2.2.0
-//     (commit ced786201c1f) found no other difference; the kept harness
-//     above runs a fixed corpus instead. Known ones:
-//     Ruler appends Jackson's location ("\n at [Source: ...]") to every
-//     message, which EventBridge's recorded reasons leave out and so does
-//     this package; for a name over the limit Jackson reports the length it
-//     had buffered, which depends on its buffers, where this package reports
-//     the full length; a pattern over 32768 characters is read through a
-//     buffer, and a number that crosses a buffer boundary is counted on
-//     Jackson's secondary path, which can differ by one digit; Java's
-//     identifier character classes follow its own Unicode version; and an
-//     invalid UTF-8 byte, which Ruler never sees in its decoded String, gets
-//     Jackson's byte parser message.
+//     with which Ruler reads events, do. A one-off run of 30000 mutated
+//     patterns against executed Ruler v2.2.0 (commit ced786201c1f), beyond
+//     the harness's fixed corpus, found no differences besides these known
+//     ones: Ruler appends Jackson's location ("\n at [Source: ...]") to
+//     every message, which EventBridge's recorded reasons leave out and so
+//     does this package; for a name over the limit Jackson reports the
+//     length it had buffered, which depends on its buffers, where this
+//     package reports the full length; a pattern over 32768 characters is
+//     read through a buffer, and a number that crosses a buffer boundary is
+//     counted on Jackson's secondary path, which can differ by one digit;
+//     Java's identifier character classes follow its own Unicode version;
+//     and an invalid UTF-8 byte, which Ruler never sees in its decoded
+//     String, gets Jackson's byte parser message.
 //   - With EmptyInputNeverMatches, "an empty set of attributes" counts
 //     attributes, Binary ones included, or the members of an event, not the
 //     values they flatten to: {"x":[]} and a String.Array "[]" are not empty.
@@ -144,8 +143,8 @@
 // JVM; an anything-but wildcard next to an anything-but equals-ignore-case
 // on one field misses values neither excludes; a numeric bound of
 // 1.7976931348623157e308 throws while the rule is added; and a pattern key
-// under an empty key, as in
-// {"":{"a":["x"]}}, compiles to the path "a" while the event {"":{"a":"x"}}
-// flattens to ".a", so Ruler matches {"a":"x"} instead. Here both sides join
-// every step with ".", as Ruler's Event does.
+// under an empty key, as in {"":{"a":["x"]}}, compiles to the path "a"
+// while the event {"":{"a":"x"}} flattens to ".a", so Ruler matches
+// {"a":"x"} instead. Here both sides join every step with ".", as Ruler's
+// Event does.
 package ruler

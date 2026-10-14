@@ -16,8 +16,9 @@ func errUnsigned() *awserr.Error {
 	return stsapi.ErrMissingAuthenticationToken("The request must contain either a valid (registered) AWS access key ID or X.509 certificate.")
 }
 
-// errSessionCredentials answers GetSessionToken signed with a role
-// session's credentials (inferred).
+// errSessionCredentials answers GetSessionToken signed with temporary
+// credentials: a role session's, or an earlier GetSessionToken's under
+// sigv4 verify (inferred).
 func errSessionCredentials() *awserr.Error {
 	return stsapi.ErrAccessDenied("Cannot call GetSessionToken with session credentials")
 }

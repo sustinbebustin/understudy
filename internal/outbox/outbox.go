@@ -23,7 +23,6 @@ const TimerAttempt kernel.TimerKind = "outbox.attempt"
 
 // PolicySource reads the stored resource policy of a delivery target: an
 // SQS queue's Policy attribute, a function's permissions, a topic's Policy.
-// wire.go backs it with the SQS, Lambda and SNS services.
 type PolicySource interface {
 	// ResourcePolicy returns target's stored policy, nil when it has none.
 	// ok is false when target does not exist, which skips the advisory: the
@@ -33,8 +32,7 @@ type PolicySource interface {
 
 // Options configures Bind. A nil field disables its stage.
 type Options struct {
-	// Faults evaluates the Delivery-phase fault rules before each attempt;
-	// wire.go passes the kernel's *fault.Store.
+	// Faults evaluates the Delivery-phase fault rules before each attempt.
 	Faults kernel.FaultStage
 	// Policies supplies target policies for the access advisory.
 	Policies PolicySource
@@ -121,9 +119,8 @@ func (o *Outbox) Deliver(d kernel.Delivery) error {
 // Enqueue makes req pending, caused by cause and accepted at accepted, and
 // arms its first attempt at accepted, unless a delivery the outbox took
 // earlier into its FIFO lane is still pending: it is then armed when that
-// one ends. The
-// outbox takes ownership of req's slices. A request the outbox cannot
-// attempt is refused with a *RequestError and nothing is queued.
+// one ends. The outbox takes ownership of req's slices. A request the outbox
+// cannot attempt is refused with a *RequestError and nothing is queued.
 func (o *Outbox) Enqueue(req delivery.Request, cause ref.Cause, accepted clock.Instant) (ids.DeliveryID, error) {
 	e := o.e.Load()
 	if e == nil {

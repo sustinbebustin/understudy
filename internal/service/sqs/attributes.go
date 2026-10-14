@@ -16,9 +16,9 @@ import (
 )
 
 // Attributes are the settable attributes every queue has. Policy is
-// checked for form and size, KmsDataKeyReusePeriodSeconds for range, and
-// KmsMasterKeyId not at all; all three are stored and echoed and have no
-// runtime effect (the package doc says why).
+// checked for form, size and statement count, KmsDataKeyReusePeriodSeconds
+// for range, and KmsMasterKeyId not at all; all three are stored and
+// echoed and have no runtime effect.
 type Attributes struct {
 	DelaySeconds                  int32  `json:"delaySeconds"`
 	MaximumMessageSize            int32  `json:"maximumMessageSize"`

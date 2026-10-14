@@ -133,8 +133,7 @@ func TestJournalLinksAMessageFromPublishToDownstreamCalls(t *testing.T) {
 	// The function's calls hang from the event the invocation hangs from,
 	// beside it: an Invocation event carries the duration, so understudy
 	// appends it when the invocation ends, after the calls it caused, and
-	// a journal parent always precedes its children (internal/journal
-	// trace.go; internal/service/lambda/invoke.go).
+	// a journal parent always precedes its children.
 	invTrace, err := env.admin.Trace(t.Context(), admin.ByEvent{ID: inv.Event.ID})
 	if err != nil {
 		t.Fatalf("journal trace of invocation %d: %v", inv.Event.ID, err)

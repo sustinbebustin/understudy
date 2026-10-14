@@ -128,7 +128,7 @@ func checkResourceFormats(statements []Statement) (legacy, format *ValidationErr
 	return nil, format
 }
 
-// listFormatError returns the format problem moto keeps for one list: it
+// listFormatError returns the format problem moto keeps for one list. moto
 // checks the values in descending order and keeps the last problem, which
 // is the problem of the least value in sort order.
 func listFormatError(values []string) *ValidationError {

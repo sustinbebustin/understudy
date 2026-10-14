@@ -226,7 +226,8 @@ func crossRegion(mode CrossRegion, src aws.RegionSource, host, name string, h Ho
 	return aws.Region{}, nil
 }
 
-// checkOwner answers an owner header naming another account.
+// checkOwner refuses an owner header that is not an account id or names
+// another account than the bucket's owner.
 func checkOwner(o *ownerClaim, h Home) *awserr.Error {
 	if o == nil {
 		return nil
@@ -342,9 +343,9 @@ func read[R any](ctx context.Context, s *Service, c *kernel.Call, a access, fn f
 // change runs fn on a copy of the bucket a names, once the request is
 // admitted, and stores the copy when fn succeeds. fn replaces the copy's
 // documents, slices and maps; it never changes one in place, since readers
-// share them (with and without copy a map). Only writeObjects changes
-// maps in place, Objects.Keys, Uploads.ByID and each Upload.Parts, for the
-// reason Objects gives.
+// share them (with and without build a changed copy of a map). Only
+// writeObjects changes maps in place, Objects.Keys, Uploads.ByID and each
+// Upload.Parts, for the reason Objects gives.
 func (s *Service) change(ctx context.Context, c *kernel.Call, a access, fn func(b *Bucket, now clock.Instant) *awserr.Error) *awserr.Error {
 	if _, ok := s.buckets.Lookup(a.name); !ok {
 		return errNoSuchBucket(a.name)

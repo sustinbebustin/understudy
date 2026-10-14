@@ -36,8 +36,8 @@
 //     payload binds to: Body.Deferred returns *PendingError until the
 //     handler has read the body to EOF, then the trailer. smithy.Body has
 //     no "pending" answer of its own, so the deferred form lives here, out
-//     of handlers' reach until smithy.Body carries it; the body's own
-//     Trailer, which an aws-chunked decoder supplies, resolves the value.
+//     of handlers' reach; the body's own Trailer, which an aws-chunked
+//     decoder supplies, resolves the value.
 //   - Whether an output whose members are all bound still sends a
 //     document is the codec's rule, passed to Encode: restJson1 servers
 //     send {} (RestJsonGreetingWithErrors, RestJsonHttpResponseCode),

@@ -43,7 +43,7 @@ func (s *Service) bindVisibility(b sqsapi.Binder) {
 // enqueued each message a receipt handle names, and its trace, so an event
 // source mapping's invocation continues the messages' causal chains
 // (ADR 0007). A handle of a message that is gone is left out. A message
-// saved before its trace was kept reports its event as the trace.
+// whose saved state carries no trace reports its event as the trace.
 func (s *Service) messageCauses(_ context.Context, c *kernel.Call, in *sqsapi.MessageCausesInput) (*sqsapi.MessageCausesOutput, *awserr.Error) {
 	q, err := s.existingQueue(c, in.QueueUrl)
 	if err != nil {

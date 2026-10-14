@@ -29,7 +29,8 @@ type State struct {
 
 func newState(aws.Scope) State { return State{Entries: map[ids.DeliveryID]Entry{}} }
 
-// IsZero reports a scope with nothing pending, which snapshots skip.
+// IsZero reports whether the scope has nothing pending; snapshots skip it
+// then.
 func (s *State) IsZero() bool { return len(s.Entries) == 0 }
 
 // Partitioned finds IsZero by a type assertion; this keeps a rename from
@@ -69,7 +70,7 @@ type Entry struct {
 	// not depend on how concurrent attempts interleave.
 	Jitter uint64
 	// Running is set while an attempt of the entry is in flight, so its
-	// timer firing again (Rearm arms every pending entry, a running one
+	// timer firing again (Rearm arms every armable entry, a running one
 	// included) starts no second attempt. It is this process's claim and is
 	// never saved: a loaded entry is attempted afresh.
 	Running bool

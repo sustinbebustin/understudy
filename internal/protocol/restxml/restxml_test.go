@@ -67,7 +67,8 @@ func TestNoSuchBucketGolden(t *testing.T) {
 		t.Errorf("status %d, headers %v", resp.Status, resp.Header)
 	}
 
-	// HEAD errors are the status alone (wire-rest.md 2.4).
+	// A HEAD error is the status and headers, with no body or Content-Type
+	// (wire-rest.md 2.4).
 	resp = codec.EncodeError(newRequest(http.MethodHead, "/mybucket", "", nil), s3(), requestID, e)
 	if resp.Status != http.StatusNotFound || readAll(t, resp.Body) != "" || resp.Header.Get("Content-Type") != "" || resp.Header.Get("X-Amz-Request-Id") != requestID {
 		t.Errorf("HEAD error = %d %v", resp.Status, resp.Header)

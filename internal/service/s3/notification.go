@@ -148,8 +148,8 @@ type unvalidated struct {
 // checkDestinations looks up every destination as S3 would before it
 // accepts the configuration, and refuses it naming each one that does not
 // exist or is a FIFO queue or topic, which S3 does not deliver to (s3.md
-// 13.1). Phase 1 enforces no IAM, so the permission half of AWS's check is
-// not made.
+// 13.1). understudy enforces no IAM, so the permission half of AWS's check
+// is not made.
 func (s *Service) checkDestinations(ctx context.Context, c *kernel.Call, bucket string, cfg *notify.Config) *awserr.Error {
 	var failed []unvalidated
 	for i := range cfg.Rules {

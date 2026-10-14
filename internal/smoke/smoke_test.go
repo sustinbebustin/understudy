@@ -22,8 +22,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/cbor"
 )
 
-// TestSmoke starts the binary with the TLS listener and drives one raw
-// HTTP request per service, over HTTP and, for the S3 write path, over
+// TestSmoke starts the binary with the TLS listener and drives raw HTTP
+// requests at every service, over HTTP and, for the S3 write path, over
 // TLS. Without the docker tag the emulator runs with Docker disabled, so
 // it starts no container.
 func TestSmoke(t *testing.T) {
@@ -512,8 +512,9 @@ func (w *workload) cloudwatch(t *testing.T) {
 // policy asks the CLI for the smoke principal's least-privilege policy,
 // which carries the KMS action S3 called on its behalf for the SSE-KMS
 // put, grants s3:PutObject on the bucket's objects and iam:PassRole on the
-// role CreateFunction passed, and nothing on Object Lambda access points;
-// with Docker, the execution role's policy carries the log actions.
+// role CreateFunction passed, sqs:SendMessage for the SNS-to-SQS delivery,
+// and nothing on Object Lambda access points; with Docker, the execution
+// role's policy carries the log actions.
 func (w *workload) policy(t *testing.T) {
 	t.Helper()
 	out := cli(t, w.emu, "iam", "policy", "--principal", principal)

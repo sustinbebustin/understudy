@@ -422,9 +422,9 @@ func TestDockerHotReloadEditColdStartsWithTheNewCode(t *testing.T) {
 	}
 }
 
-// G4 through the whole path: the deadline a function sees is wall time, so
-// a frozen and advanced emulator clock leaves get_remaining_time_in_millis()
-// at the function's timeout.
+// The deadline a function sees is wall time (lambda-runtime-contract.md 3),
+// so a frozen and advanced emulator clock leaves
+// get_remaining_time_in_millis() at the function's timeout.
 func TestDockerDeadlineIgnoresTheEmulatorClock(t *testing.T) {
 	s := newDockerStack(t)
 	s.create(t, "py", "python3.13", "handler.handler", 3, map[string]string{"handler.py": pythonFunction})

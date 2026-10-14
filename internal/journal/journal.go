@@ -187,7 +187,7 @@ const (
 	// NoWireForm: the event cannot be encoded, or would not decode back to
 	// itself, so no stream or file could carry it: for example a nil Detail,
 	// a nil nested outcome or clock mode, an ARN with an empty partition or a
-	// colon in its account, or an instant past year 9999.
+	// colon in its account, or an instant outside years 0 to 9999.
 	NoWireForm
 	// UnissuedID: Cause.Parent, Cause.Trace or a link names an id this
 	// journal has not issued yet, or a link is 0, which names no event.

@@ -30,7 +30,7 @@ type Tree struct {
 // evicted, the tree is rooted at id's topmost retained ancestor and holds
 // the events that descend from it through retained parents, since where an
 // event with an evicted parent belongs is then unknown. It reports false only
-// when id is no longer retained.
+// when id is not retained: evicted, or never issued.
 func (j *Journal) Trace(id ref.EventID) (*Tree, bool) {
 	j.mu.Lock()
 	defer j.mu.Unlock()

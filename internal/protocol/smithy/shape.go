@@ -19,9 +19,9 @@ func (e *ShapeIDError) Error() string {
 	return fmt.Sprintf("%q is not an absolute shape id: the form is namespace#Name, such as com.amazonaws.sqs#QueueDoesNotExist", e.Text)
 }
 
-// Parse accepts namespace#Name where the namespace is dot-separated
-// identifiers and each identifier is a letter or underscore followed by
-// letters, digits and underscores.
+// Parse returns s as a ShapeID when it is namespace#Name, the namespace
+// being dot-separated Smithy identifiers and Name one identifier; otherwise
+// it returns a *ShapeIDError.
 func Parse(s string) (ShapeID, error) {
 	ns, name, ok := strings.Cut(s, "#")
 	if !ok || !identifier(name) {

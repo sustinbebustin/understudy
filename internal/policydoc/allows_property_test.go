@@ -362,7 +362,9 @@ var refVersions = map[string]policydoc.Version{
 	"2012-10-17": policydoc.Version20121017,
 }
 
-// rapid runs each property 100 times by default; -rapid.checks raises it.
+// TestAllowsAgreesWithBruteForce checks Allows against refDecide on random
+// documents and queries. rapid runs it 100 times by default; -rapid.checks
+// raises that.
 func TestAllowsAgreesWithBruteForce(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		statements := rapid.SliceOfN(rapid.Custom(genRefStatement), 1, 3).Draw(t, "statements")

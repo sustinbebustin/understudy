@@ -15,8 +15,8 @@ func mustParse(t *testing.T, in string) policydoc.Document {
 	return doc
 }
 
-// The MalformedPolicyDocument texts of iam-sts-kms.md 3.3, in the order IAM
-// checks them.
+// The MalformedPolicyDocument texts of iam-sts-kms.md 3.3, and which one IAM
+// reports when a document breaks several rules.
 func TestValidateReportsIAMMessages(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -112,7 +112,6 @@ func TestValidateReportsIAMMessages(t *testing.T) {
 			want:     "Has prohibited field Resource.",
 		},
 		{
-			// Actions are checked before resources.
 			name:     "actions outrank resources",
 			validate: policydoc.ValidateIdentity,
 			in:       `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"sqs:*"},{"Effect":"Allow","Resource":"*"}]}`,

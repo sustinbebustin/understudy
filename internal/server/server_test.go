@@ -385,10 +385,9 @@ func golden(t *testing.T, name, got string) {
 	}
 }
 
-// TestSQSOverTheWire drives the tracer bullet: the four SQS operations as
-// raw awsJson1_0 requests through the real listener, compared byte for byte
-// with goldens in the shape of sqs.md 2.1 and 2.2, and traced in the
-// journal.
+// TestSQSOverTheWire sends the four SQS operations as raw awsJson1_0
+// requests through the real listener, compared byte for byte with goldens
+// in the shape of sqs.md 2.1 and 2.2, and traced in the journal.
 func TestSQSOverTheWire(t *testing.T) {
 	srv, endpoint := start(t)
 	queueURL := endpoint + "/000000000000/MyQueue"

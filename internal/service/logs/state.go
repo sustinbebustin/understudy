@@ -52,8 +52,8 @@ type Stream struct {
 	Created clock.Instant `json:"created"`
 	// Events are ordered by position: timestamp, then ingestion.
 	Events []Event `json:"events,omitempty"`
-	// LastIngestion is when the latest PutLogEvents stored an event; zero
-	// before the first.
+	// LastIngestion is when an event was last stored in the stream, by
+	// PutLogEvents or PutLogEventsInternal; zero before the first.
 	LastIngestion clock.Instant `json:"lastIngestion"`
 	// LastSeq is the sequence number of the latest event stored in the
 	// stream, which its sequence token carries.

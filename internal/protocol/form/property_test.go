@@ -124,7 +124,7 @@ func expectedDump(items []item) string {
 	return b.String()
 }
 
-// wire-json-query.md Implication 10: a form decodes to the same tree in
+// wire-json-query.md Implications 10: a form decodes to the same tree in
 // any pair order, Go's string-sorted indexes included, and that tree
 // holds the items in numeric index order.
 func TestPropertyIndexPermutationsDecodeAlike(t *testing.T) {

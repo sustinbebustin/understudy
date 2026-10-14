@@ -16,9 +16,10 @@
 //     sent without an Authorization header, reports the topology
 //     "in-container" and the listener "0.0.0.0:4566". The published port, not
 //     a token, is what keeps the admin API local, as
-//     Exposed{ContainerPublished} defines. Without the Docker socket, Docker,
-//     Lambda and DynamoDB are disabled with a reason naming "no Docker
-//     socket"; with it mounted, Docker is enabled.
+//     Exposed{ContainerPublished} defines. Without the Docker socket, Docker
+//     and DynamoDB are disabled with a reason naming "no Docker socket" and
+//     Lambda is degraded to its control plane; with it mounted, Docker is
+//     enabled.
 //
 // Where the architecture leaves a choice open, this package decides:
 //
@@ -37,9 +38,8 @@
 //   - The image is not built with GoReleaser's dockers and
 //     docker_manifests, which GoReleaser v2 deprecates in favor of
 //     dockers_v2. That has no skip_push, so .goreleaser.yaml uses one
-//     dockers_v2 entry for
-//     both platforms and disables it outside snapshot runs. Nothing is
-//     pushed either way.
+//     dockers_v2 entry for both platforms and disables it outside snapshot
+//     runs. Nothing is pushed either way.
 //   - Tests build the image under a unique tag with the label
 //     understudy.dev/test=1 and remove containers and the image on cleanup.
 package distribution

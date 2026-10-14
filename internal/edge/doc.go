@@ -3,7 +3,7 @@
 // codec dispatch and diagnostics for requests no service claims.
 //
 // Handler runs pipeline steps 1 to 5 and 13 of ARCHITECTURE.md 4 around
-// kernel.Dispatch, claiming in the order of ARCHITECTURE.md 4.1. Dispatch
+// kernel.Dispatch, claiming in the order of ARCHITECTURE.md 4.1. Claiming
 // reads the request target exactly as sent (RequestURI, else EscapedPath):
 // no ServeMux, so %2F, "." and ".." reach the codecs and the admin handler
 // unchanged. A rule whose codec or route table is not registered declines
@@ -14,9 +14,9 @@
 // Decisions the architecture leaves open:
 //
 //   - Codecs encode into a Response the edge writes, errors included
-//     (EncodeError), instead of writing themselves, so the one
-//     Date header, the S3 request id headers and a failed write are handled
-//     in one place. Response bodies are readers, so streaming outputs never
+//     (EncodeError), instead of writing themselves, so the one Date header,
+//     the S3 request id headers and a failed write are handled in one
+//     place. Response bodies are readers, so streaming outputs never
 //     sit in memory whole.
 //   - A request signed for a registered service that no protocol rule
 //     claimed is answered as that service's Coral front end does, never by
@@ -63,13 +63,13 @@
 //     the /_understudy/ prefix (Admin). The container listener passes only
 //     GET health and clock to it.
 //   - Credentials are always parsed and, with Options.Verify (sigv4
-//     verify), verified after the claim and before decode (step 4a, verify
-//     .go): for a claimed operation and for raw routes and links that carry
-//     credentials, but not for an operation the service does not model,
-//     which is rejected as unknown first, in Coral's check order. A refusal
-//     is dispatched as kernel.Unauthenticated through the claimed codec, so
-//     it is journaled as a failed call but records no IAM action for the
-//     principal it claims; a request that verifies carries its
+//     verify), verified after the claim and before decode (step 4a,
+//     verify.go): for a claimed operation and for raw routes and links that
+//     carry credentials, but not for an operation the service does not
+//     model, which is rejected as unknown first, in Coral's check order. A
+//     refusal is dispatched as kernel.Unauthenticated through the claimed
+//     codec, so it is journaled as a failed call but records no IAM action
+//     for the principal it claims; a request that verifies carries its
 //     credentials on the call (kernel.Call.VerifiedAuth). Credentials that
 //     cannot be read reject a claimed request the same way, in either mode,
 //     raw routes and links included, so their handlers never run; only an
@@ -81,12 +81,13 @@
 //     (a function URL's 403), else Options.ServiceAuth for S3, whose
 //     identities no protocol family holds, else the protocol family's.
 //     A presigned SigV4 request's x-amz-* query parameters reach the
-//     call's headers as if sent (auth.HoistedHeader). Rule 8 routes by signing name, which unreadable
-//     credentials do not yield, so it sends the failures only S3 can
-//     raise to S3 to answer: a presigned or SigV2 credential, a conflict
-//     (which always involves a query credential), and a header scoped to
-//     s3 that lacks x-amz-content-sha256 or names an unknown region. An
-//     Authorization header in no AWS scheme is routed as unsigned.
+//     call's headers as if sent (auth.HoistedHeader). Rule 8 routes by
+//     signing name, which unreadable credentials do not yield, so it sends
+//     the failures only S3 can raise to S3 to answer: a presigned or SigV2
+//     credential, a conflict (which always involves a query credential),
+//     and a header scoped to s3 that lacks x-amz-content-sha256 or names an
+//     unknown region. An Authorization header in no AWS scheme is routed as
+//     unsigned.
 //   - A key verifies only when it has a secret: one understudy minted, a
 //     static key from accounts.keys, the dummy key test or a 12-digit key,
 //     whose secret is test (ADR 0012 pre-tag review amendment). Temporary
@@ -97,12 +98,12 @@
 //     of every clock mode it saw (before each request, and as it answers
 //     each admin call). Each era begins at the next whole wall second
 //     after the edge first saw it, and every admin answer is held until
-//     the latest era has begun, since X-Amz-Date has whole-second precision,
-//     so a URL signed after `clock advance` lives its full lifetime and an
-//     advance past it expires the URL, frozen or not. A SigV2 URL
-//     carries only its Expires, which is read as an emulator instant, so it
-//     expires as intended only while emulator time read wall time when it
-//     was signed. A body is read whole within the operation's cap to hash
+//     the latest era has begun, since X-Amz-Date has whole-second
+//     precision, so a URL signed after `clock advance` lives its full
+//     lifetime and an advance past it expires the URL, frozen or not. A
+//     SigV2 URL carries only its Expires, which is read as an emulator
+//     instant, so it expires as intended only while emulator time read wall
+//     time when it was signed. A body is read whole within the operation's cap to hash
 //     it, then handed to the codec again, unless the operation streams its
 //     input and its service's ServiceAuth says it checks the sent payload
 //     hash itself (ServiceChecksPayload: S3 PutObject and UploadPart),
@@ -123,9 +124,9 @@
 //     localhost and names under it, and the S3 base domains, which defeats
 //     DNS rebinding, since a rebound page still sends its own name; under
 //     NetworkHosts, for an exposed listener, any Host from a client that
-//     is not a browser and the LocalHosts names from one. An IP
-//     literal is safe because no page can make a browser send another
-//     site's address as Host. The admin API proper (not the SNS, function
+//     is not a browser and the LocalHosts names from one. An IP literal is
+//     safe because no page can make a browser send another site's address
+//     as Host. The admin API proper (not the SNS, function
 //     URL and Lambda code links under the same prefix, which browsers open
 //     cross-site by design) also refuses a call marked Sec-Fetch-Site:
 //     cross-site or carrying an Origin that is not loopback, which defeats

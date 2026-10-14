@@ -76,7 +76,7 @@ type Version struct {
 	Object   *Object       `json:"object,omitempty"`
 }
 
-// marker reports a delete marker.
+// marker reports whether v is a delete marker.
 func (v Version) marker() bool { return v.Object == nil }
 
 // Object is the stored state of one object version (s3.md Implications
@@ -125,8 +125,8 @@ func (v Version) validator() validator {
 	return validator{etag: v.Object.ETag, lastModified: v.Modified.Wire()}
 }
 
-// empty reports a bucket without objects, versions or delete markers,
-// which DeleteBucket requires.
+// empty reports whether the bucket holds no objects, versions or delete
+// markers, which DeleteBucket requires.
 func (o *Objects) empty() bool { return len(o.Keys) == 0 }
 
 // blobRefs lists one entry per reference the versions hold on a body: one
@@ -463,9 +463,10 @@ func writeObjects[R any](ctx context.Context, s *Service, c *kernel.Call, a acce
 	return committed.r, true, nil
 }
 
-// release drops the references removed object versions held. A failure is
-// a bug in the reference counting; the versions are gone either way, so it
-// is logged and the request still succeeds.
+// release drops blob references a request no longer needs: those removed
+// object versions or upload parts held, and those a read or copy took. A
+// failure is a bug in the reference counting; the state change stands
+// either way, so it is logged and the request still succeeds.
 func (s *Service) release(ctx context.Context, refs ...blob.Ref) {
 	for _, ref := range refs {
 		if err := s.blobs.Release(ref); err != nil {

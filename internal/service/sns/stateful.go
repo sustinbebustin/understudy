@@ -119,8 +119,8 @@ func read[R any](s *Service, scope aws.Scope, fn func(st *State) R) (R, bool) {
 	return store.Read(cell, fn), true
 }
 
-// readTopic returns a copy of the topic named without the pending
-// subscriptions expired by now.
+// readTopic returns a copy of the topic named, without the pending
+// subscriptions expired by now and without creating a cell.
 func (s *Service) readTopic(named topicRef) (Topic, bool) {
 	type found struct {
 		t  Topic
@@ -134,7 +134,7 @@ func (s *Service) readTopic(named topicRef) (Topic, bool) {
 	return r.t, r.ok
 }
 
-// readSubscription returns a copy of the subscription ref names, without
+// readSubscription returns a copy of the subscription named, without
 // creating a cell; an expired pending subscription is gone.
 func (s *Service) readSubscription(named subscriptionRef) (Subscription, bool) {
 	type found struct {

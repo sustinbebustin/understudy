@@ -344,7 +344,7 @@ const (
 	// EnumOpen: any value is accepted.
 	EnumOpen
 	// EnumHandler: the service checks the value, so a business error such as
-	// SQS InvalidAttributeName is not pre-empted by step 7.
+	// SQS InvalidAttributeName is not pre-empted by the generated validator.
 	EnumHandler
 )
 
@@ -361,7 +361,7 @@ type PatternPolicy uint8
 const (
 	// PatternHandler: the service checks the value, so its own error, such
 	// as S3's InvalidArgument "Invalid copy source object key", is not
-	// pre-empted by step 7's Coral text.
+	// pre-empted by the generated validator's Coral text.
 	PatternHandler PatternPolicy = iota + 1
 )
 

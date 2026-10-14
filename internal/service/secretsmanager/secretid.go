@@ -10,8 +10,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
-// suffixLen is the length of the random part a secret ARN ends with,
-// after a hyphen (secrets-logs-events-alarms.md 2.1).
+// suffixLen is the length of the suffix a secret ARN ends with, after a
+// hyphen (secrets-logs-events-alarms.md 2.1).
 const suffixLen = 6
 
 // suffixAlphabet is the alphabet of ARN suffixes: AWS's documented examples

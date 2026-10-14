@@ -519,8 +519,9 @@ func TestDockerCrashRecoverySweepsLeftovers(t *testing.T) {
 	}
 }
 
-// G4: the deadline a function sees is wall time, so freezing and advancing
-// the emulator clock does not change get_remaining_time_in_millis().
+// The deadline a function sees is wall time, so freezing and advancing the
+// emulator clock does not change get_remaining_time_in_millis()
+// (lambda-runtime-contract.md 4).
 func TestDockerDeadlineIgnoresTheEmulatorClock(t *testing.T) {
 	s := newStack(t, dockerClient(t), "t18-owner-"+runID(t))
 	spec := s.pythonFunction(t)

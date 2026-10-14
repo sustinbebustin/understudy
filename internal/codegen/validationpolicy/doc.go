@@ -16,7 +16,7 @@
 //
 // registry.Operation has no policy field, so the kernel reaches the policy
 // through the ValidationError method each generated input type carries.
-// Moving this logic into awserr and onto the operation descriptor, so each
-// validate_gen.go carries data only, is deferred: it reshapes awserr's
+// Moving this logic into awserr and onto the operation descriptor would let
+// each validate_gen.go carry data only, at the cost of reshaping awserr's
 // public API around the kernel's call site.
 package validationpolicy

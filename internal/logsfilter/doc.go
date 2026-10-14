@@ -15,10 +15,11 @@
 //
 // Smaller choices made here without a recording, each pinned by a case in
 // residual_test.go:
-//   - Error text: only the over-long pattern text is recorded. An unquoted
-//     term with an illegal character uses the console wording "Invalid
-//     character(s) in term <term>". Every other syntax error reads "Invalid
-//     filter pattern: <problem> at offset <n>."
+//   - Error text: only the over-long pattern text and "Invalid character(s)
+//     in term '<chars>'" for a term with one illegal character are recorded;
+//     a term with several lists each once in order of first appearance.
+//     Every other syntax error reads "Invalid filter pattern: <problem> at
+//     offset <n>."
 //   - Whitespace is ASCII space, tab, CR and LF everywhere in the grammar. A
 //     blank term or pattern (rule N2) is made only of those, so a phrase of
 //     no-break or other Unicode spaces is searched for as text.

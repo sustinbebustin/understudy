@@ -181,7 +181,7 @@ func TestSubscribeErrors(t *testing.T) {
 			{topic, "sqs", "https://sqs.us-east-1.amazonaws.com/000000000000/orders", nil, "InvalidParameter", "Invalid parameter: SQS endpoint ARN"},
 			{topic, "sqs", fifoQueueARN, nil, "InvalidParameter", "Invalid parameter: Invalid parameter: Endpoint Reason: FIFO SQS Queues can not be subscribed to standard SNS topics"},
 			// Queues and functions the outbox cannot deliver to: another
-			// partition, no Region, no 12-digit account.
+			// partition, no region, no 12-digit account.
 			{topic, "sqs", "arn:aws-cn:sqs:cn-north-1:000000000000:q", nil, "InvalidParameter", "Invalid parameter: SQS endpoint ARN"},
 			{topic, "sqs", "arn:aws:sqs:::q", nil, "InvalidParameter", "Invalid parameter: SQS endpoint ARN"},
 			{topic, "sqs", "arn:aws:sqs:us-east-1:12345:q", nil, "InvalidParameter", "Invalid parameter: SQS endpoint ARN"},
@@ -394,8 +394,8 @@ func TestConfirmSubscriptionTokenErrorsAsRecorded(t *testing.T) {
 }
 
 // TestConfirmLinkChecksTheTokensScope: the SubscribeURL with the topic's
-// ARN in another Region is "Invalid parameter: Topic", as AWS-recorded,
-// even where that Region has topics of its own; under a topic name of the
+// ARN in another region is "Invalid parameter: Topic", as AWS-recorded,
+// even where that region has topics of its own; under a topic name of the
 // right scope that names no topic it confirms; a token of the wrong
 // length is "Invalid parameter: Token".
 func TestConfirmLinkChecksTheTokensScope(t *testing.T) {

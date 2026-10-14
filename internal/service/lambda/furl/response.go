@@ -157,8 +157,8 @@ func UnknownURL() Response {
 }
 
 // Forbidden is the answer to a request the URL's auth type refuses: an
-// AuthType NONE URL whose resource policy does not allow public
-// lambda:InvokeFunctionUrl, or an unsigned request to an AWS_IAM URL.
+// AuthType NONE URL whose resource policy does not allow a public invoke
+// through the URL, or an unsigned request to an AWS_IAM URL.
 func Forbidden() Response {
 	return Denied("AccessDeniedException", forbiddenHelp)
 }

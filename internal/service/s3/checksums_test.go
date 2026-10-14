@@ -406,11 +406,11 @@ func TestMultipartMatchesSinglePart(t *testing.T) {
 
 // TestCompositeChecksumVectors pins the COMPOSITE values of
 // s3-checksum-residuals-and-record-backlog.md 1.4.3 (part 1 is pat5242880,
-// part 2 pat1048576): the hypothesis the research records until
-// record-backlog item R08 runs. The CRC32 example of
-// sigv4-checksums-endpoints.md 4.4 is a checksum.Composite unit vector
-// (internal/checksum TestCompositeVectors): its first part is under the
-// 5 MiB a Complete requires.
+// part 2 pat1048576), the hypothesis there that record-backlog item R08
+// confirmed against AWS (testdata/parity/s3/R08/05-complete-*.json). The
+// CRC32 example of sigv4-checksums-endpoints.md 4.4 is a
+// checksum.Composite unit vector (internal/checksum TestCompositeVectors):
+// its first part is under the 5 MiB a Complete requires.
 func TestCompositeChecksumVectors(t *testing.T) {
 	pattern := func(n int) []byte {
 		b := make([]byte, n)

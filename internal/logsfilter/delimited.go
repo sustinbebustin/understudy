@@ -190,7 +190,8 @@ func groupCloser(c byte) (byte, bool) {
 }
 
 // match applies rule N6 through fieldCountAllows; under the default the
-// last pattern field takes the raw text from its first field to the end.
+// last pattern field takes the raw text from its own start to the end of
+// the event.
 func (p fixedFields) match(message string, o Options) bool {
 	ev := splitFields(message)
 	n := len(p.fields)

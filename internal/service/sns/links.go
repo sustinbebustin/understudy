@@ -103,7 +103,7 @@ func (s *Service) unsubscribeLink(_ context.Context, c *kernel.Call, r *http.Req
 // ConfirmSubscription without credentials, from the TopicArn and Token
 // query members, so ConfirmationWasAuthenticated reads false. As with the
 // call, only the ARN's scope matters, not its topic name; a token held in
-// another scope, such as the same topic in another Region, is "Invalid
+// another scope, such as the same topic in another region, is "Invalid
 // parameter: Topic" (LocalStack test_subscribe_external_http_endpoint,
 // AWS-recorded).
 func (s *Service) confirmLink(_ context.Context, c *kernel.Call, r *http.Request, w http.ResponseWriter) *awserr.Error {

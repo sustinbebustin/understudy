@@ -28,8 +28,8 @@ func (e *UnionError) Error() string {
 	return fmt.Sprintf("jsonx: union %s: %s", e.Sum, e.Reason)
 }
 
-// Case is one variant of the sum T: the struct type V and the kind that
-// names it on the wire.
+// Case is one variant of the sum T, built by Variant: a struct type and the
+// kind that names it in a document.
 type Case[T any] struct {
 	kind string
 	typ  reflect.Type

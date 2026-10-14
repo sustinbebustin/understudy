@@ -36,9 +36,10 @@ var _ store.Zeroer = (*State)(nil)
 // each staging label.
 type Secret struct {
 	Name string `json:"name"`
-	// Suffix is the six random characters the secret's ARN ends with after
-	// its name and a hyphen, so a secret recreated with the same name has
-	// another ARN. The ARN itself is derived (arn), never stored.
+	// Suffix is the six characters the secret's ARN ends with after its
+	// name and a hyphen, derived from the creating request's id, so a
+	// secret recreated with the same name has another ARN. The ARN itself
+	// is derived (arn), never stored.
 	Suffix string `json:"suffix"`
 	// CreateToken is the ClientRequestToken CreateSecret was given, which a
 	// retried CreateSecret repeats.
@@ -91,7 +92,7 @@ func (s *Secret) arn(scope aws.Scope) aws.ARN {
 }
 
 // labels returns the staging labels on version id, sorted, as AWS lists
-// them; nil when the version has none (deprecated).
+// them; nil when the version has none, which AWS calls deprecated.
 func (s *Secret) labels(id string) []string {
 	var out []string
 	for _, label := range slices.Sorted(maps.Keys(s.Stages)) {

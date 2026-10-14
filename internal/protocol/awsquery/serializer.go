@@ -235,8 +235,8 @@ func (s *serializer) WriteDocument(m *smithy.Member, _ document.Value) {
 	s.fail("WriteDocument for " + memberName(m) + ": awsQuery has no document encoding")
 }
 
-// WriteNull writes nothing: XML has no null, and an absent element reads as
-// an absent value.
+// WriteNull writes no element: XML has no null, and an absent element reads
+// as an absent value. In a map it still closes the entry its key opened.
 func (s *serializer) WriteNull(m *smithy.Member) {
 	if _, _, ok := s.begin(m); ok {
 		s.finish()

@@ -22,7 +22,7 @@ type LongTerm struct{}
 
 // Temporary is an ASIA key with a session token, as STS issues. Expiry is
 // wall time, because SDKs compare it with their own clocks
-// (iam-sts-kms.md implication 8); the store holds it in UTC, so a snapshot
+// (iam-sts-kms.md Implications 8); the store holds it in UTC, so a snapshot
 // does not depend on the host's zone. Temporary redacts the token in slog
 // output, JSON and fmt formatting.
 type Temporary struct {

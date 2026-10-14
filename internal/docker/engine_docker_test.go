@@ -22,7 +22,7 @@ func engineClient(t *testing.T) *docker.Client {
 }
 
 // runID is unique per test run, so names and owner labels never collide
-// with other agents' containers on the same daemon.
+// with containers of other runs or processes on the same daemon.
 func runID(t *testing.T) string {
 	t.Helper()
 	b := make([]byte, 6)

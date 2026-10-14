@@ -40,7 +40,7 @@ func newState(aws.Scope) State {
 	return State{Functions: map[string]Function{}, Mappings: map[string]Mapping{}}
 }
 
-// IsZero reports a scope with nothing in it, which snapshots skip. A scope
+// IsZero reports whether the scope holds nothing, which snapshots skip. A scope
 // that minted identifiers is not empty even once its functions are gone:
 // its serial and retired URL ids keep later ids from repeating them.
 func (s *State) IsZero() bool {
@@ -440,7 +440,8 @@ type Cors struct {
 	MaxAge           *int32   `json:"maxAge,omitempty"`
 }
 
-// EventInvokeConfig is an asynchronous invocation configuration, stored.
+// EventInvokeConfig is an asynchronous invocation configuration. The
+// asynchronous queue applies its limits; its destinations are stored only.
 type EventInvokeConfig struct {
 	MaximumRetryAttempts     *int32        `json:"maximumRetryAttempts,omitempty"`
 	MaximumEventAgeInSeconds *int32        `json:"maximumEventAgeInSeconds,omitempty"`

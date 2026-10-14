@@ -14,7 +14,7 @@ import (
 const policyName = "default"
 
 // bindPolicies binds the key policy operations. Policies are stored and
-// returned as sent; phase 1 does not enforce them.
+// returned as sent; understudy does not enforce them.
 func (s *Service) bindPolicies(b kmsapi.Binder) {
 	b.GetKeyPolicy(s.getKeyPolicy, registry.Full{})
 	b.PutKeyPolicy(s.putKeyPolicy, registry.StoredOnly{Note: "the policy is parsed and stored verbatim, not enforced; the lockout safety check is not run"})

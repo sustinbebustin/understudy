@@ -402,10 +402,10 @@ func (r *runner) fail(err error) int {
 	return code
 }
 
-// unauthorized is refused, the server's refusal of an admin call for its
-// token, with the step a CLI user takes in place of the server's hint,
-// which is written for HTTP clients. Whether the CLI sent a token tells a
-// missing token from a rejected one.
+// unauthorized returns a copy of refused, the server's refusal of an admin
+// call for its token, with the step a CLI user takes in place of the
+// server's hint, which is written for HTTP clients. Whether the CLI sent a
+// token tells a missing token from a rejected one.
 func (r *runner) unauthorized(refused *admin.Error) *admin.Error {
 	out := *refused
 	if r.env(adminTokenEnv) == "" {

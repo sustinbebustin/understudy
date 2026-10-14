@@ -238,7 +238,7 @@ func (c *countingWriter) Write(p []byte) (int, error) {
 }
 
 // snapshotLoad replaces the state with an archive: the request body, or
-// with a JSON {"path"} body the archive at that path under the data
+// with a JSON {"path"} body the archive at that path under the snapshots
 // directory. The archive is read and checked first; only then are the
 // environments drained and the scheduler cleared, as Load requires. A load
 // that arrives while another runs is refused before it reads anything.

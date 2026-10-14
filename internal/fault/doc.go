@@ -51,9 +51,9 @@
 //     resource glob whose text before its first * cannot begin "arn:".
 //   - RetryableWarning is a method on *Store, not a free function, because
 //     it resolves the rule's error identities through the store's
-//     Catalogue, the same way Add does. It names the
-//     first retryable identity in a stable order: operations by service and
-//     name, then services.
+//     Catalogue, the same way Add does. It names the first retryable
+//     identity in a stable order: operations by service and name, then
+//     services.
 //   - RetryableWarning warns for every StatusOKError rule, whatever its
 //     shape, because aws-sdk-go-v2 and botocore read an S3 200 response with
 //     an <Error> body as HTTP 500 and retry it (wire-rest.md 3.7). It never

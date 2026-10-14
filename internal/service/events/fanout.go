@@ -76,9 +76,9 @@ func (t topicTarget) receiver(body []byte, _ *Target, _ envelope.Event) (deliver
 // from the target's shaped input (eb-targets.html#dynamic-path-parameters);
 // any other id is the group as sent.
 //
-// An inferred fidelity switch: AWS's behavior when the path selects no
-// value, null, an object or an array is unrecorded, so understudy delivers
-// nothing and the error says why, rather than guess a group.
+// AWS's behavior when the path selects no value, null, an object or an
+// array is unrecorded (doc.go), so understudy delivers nothing and the
+// error says why, rather than guess a group.
 func messageGroup(id string, ev envelope.Event) (string, error) {
 	if p, err := envelope.ParsePath(id); err == nil {
 		return dynamicGroup(id, p, ev)
@@ -184,8 +184,8 @@ func retryPolicy(p *RetryPolicy) delivery.EventBridgeTarget {
 	return out
 }
 
-// fanOut collects what events send while the state lock is held: the
-// deliveries to make, the matched targets that receive nothing, the stored
+// fanOut collects, while the state lock is held, what a scheduled fire or a
+// PutEvents call sends: the deliveries to make, the matched targets that receive nothing, the stored
 // targets understudy cannot deliver to and the stored dead-letter queues it
 // cannot use.
 type fanOut struct {
@@ -211,8 +211,8 @@ type stray struct {
 	target string
 }
 
-// strayDLQ is a stored DeadLetterConfig Arn that is not a standard SQS queue
-// in the rule's region. PutTargets refuses such an Arn, so one comes
+// strayDLQ is a stored DeadLetterConfig Arn that is not a standard SQS
+// queue in the rule's region. PutTargets refuses such an Arn, so one comes
 // from an edited snapshot. Its target is delivered to with no dead-letter
 // queue, and it is logged.
 type strayDLQ struct {
@@ -362,9 +362,10 @@ func (f *fanOut) fail(r ruleRef, dt deliveryTarget, err error) {
 }
 
 // matches reports whether event, an envelope's JSON, matches a stored
-// pattern. An error is a pattern this build no longer compiles (from a
-// snapshot) or an event past the matcher's work bound (*ruler.SearchBudgetError):
-// the event neither matched nor failed to match.
+// pattern. An error is a pattern this build does not compile (from a
+// snapshot) or an event past the matcher's work bound
+// (*ruler.SearchBudgetError): the event neither matched nor failed to
+// match.
 func (s *Service) matches(pattern string, event []byte) (bool, error) {
 	p, err := s.patterns.compile(pattern)
 	if err != nil {

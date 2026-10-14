@@ -11,22 +11,26 @@
 //
 // Decisions the architecture leaves open:
 //
-//   - Scalar settings have a flag, a variable and a file key, the flag name in
-//     camelCase (Settings lists them); the structured settings (accounts,
-//     regions, s3, lambda, sqs, iam, dynamodb, journal, faults) are file
-//     sections only. The fidelity switches are keyed by their switch names
+//   - Scalar settings have a variable, a file key and, but for the admin
+//     token, a flag, the file key being the flag name in camelCase
+//     (Settings lists them); the structured settings (accounts, regions,
+//     s3, lambda, sqs, iam, dynamodb, journal, faults) are file sections
+//     only. The fidelity switches are keyed by their switch names
 //     (s3.crossRegion, lambda.stateTransitions, sqs.queueDeletedRecently,
 //     iam.assumeRole).
 //   - An UNDERSTUDY_* variable no setting reads is refused, so a typo is not
 //     ignored; UNDERSTUDY_ENDPOINT, the CLI's, is allowed. An empty variable is
 //     unset.
-//   - Where understudy runs decides the default listener: Load reads the
-//     container markers internal/topology reads (/.dockerenv,
-//     /run/.containerenv, /proc/1/cgroup) through its readFile, which tests
-//     replace. Inside a container the default is Exposed{0.0.0.0:4566,
+//   - Where understudy runs decides the default listener: DetectPlacement
+//     reads the container markers internal/topology reads (/.dockerenv,
+//     /run/.containerenv, /proc/1/cgroup) and the network sysctls under
+//     /proc/sys/net through Load's readFile, which tests replace, and
+//     KUBERNETES_SERVICE_HOST from its env. Inside a container with its own network
+//     namespace, outside Kubernetes, the default is Exposed{0.0.0.0:4566,
 //     ContainerPublished}, as the image needs; ContainerPublished
-//     (listenAuth container-published) is refused outside one. The server
-//     checks the container again at boot.
+//     (listenAuth container-published) is refused anywhere else, and a
+//     host-network container or a pod defaults to loopback with a Warning.
+//     The server checks the placement again at boot.
 //   - The admin token has no flag, which would show in the process list. A
 //     token with a loopback listener is refused rather than ignored; beyond
 //     loopback a token wins over container-published and must be at least

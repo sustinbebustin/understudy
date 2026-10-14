@@ -65,9 +65,9 @@ func quoted(line string, i int) (elem string, next int) {
 
 // joinHeaderList writes a list header line: elements joined by ", ", a
 // string element quoted (with its quotes and backslashes escaped) when it
-// holds a comma, a double quote or leading or trailing space, so
-// splitHeaderList reads it back. Pass quote false for elements that must
-// stay bare, such as http-date timestamps.
+// is empty, holds a comma or a double quote, or has leading or trailing
+// space, so splitHeaderList reads it back. Pass quote false for elements
+// that must stay bare, such as http-date timestamps.
 func joinHeaderList(elems []string, quote bool) string {
 	parts := make([]string, len(elems))
 	for i, e := range elems {

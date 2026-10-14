@@ -11,7 +11,7 @@ import (
 //sumtype:decl
 type Topology interface {
 	// Addresses derives the listener and function addresses, or an
-	// *UnsupportedError for a topology phase 1 cannot serve.
+	// *UnsupportedError for a topology understudy cannot serve.
 	Addresses() (Addresses, error)
 	// String names the topology in diagnostics.
 	String() string
@@ -135,7 +135,7 @@ func (FallbackHost) isDesktopHost() {}
 
 // RootlessDocker blocks containers from reaching the host's loopback, and
 // host-gateway resolves inside rootlesskit's namespace. HostAddr is that
-// in-namespace gateway. Lambda execution is unsupported here in phase 1.
+// in-namespace gateway. Lambda execution is unsupported here.
 type RootlessDocker struct {
 	HostAddr netip.Addr
 }
@@ -156,7 +156,7 @@ func (t RootlessDocker) String() string {
 func (RootlessDocker) isTopology() {}
 
 // Podman is Podman's Docker-compatible service. Rootful Podman behaves
-// like a Linux bridge at Gateway; rootless Podman is unsupported in phase 1.
+// like a Linux bridge at Gateway; rootless Podman is unsupported.
 type Podman struct {
 	Rootless bool
 	Gateway  netip.Addr
@@ -246,7 +246,7 @@ func (t Remote) String() string {
 
 func (Remote) isTopology() {}
 
-// UnsupportedError reports a topology on which phase 1 cannot run Lambda
+// UnsupportedError reports a topology on which understudy cannot run Lambda
 // functions.
 type UnsupportedError struct {
 	Topology Topology

@@ -108,7 +108,10 @@ type Pool struct {
 	closed      bool
 }
 
-// New validates opts.
+// New validates opts and returns a Pool over them, with the defaults for
+// zero limits and a zero IdleTimeout. It fails when Launcher, Runtime or
+// Clock is nil, when a nonzero IdleTimeout is below MinIdleTimeout, or when
+// a limit is negative.
 func New(opts Options) (*Pool, error) {
 	switch {
 	case opts.Launcher == nil:

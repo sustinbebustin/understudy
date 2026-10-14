@@ -64,9 +64,6 @@ func TestNoAnswerIsNotCalledUnreachable(t *testing.T) {
 	}
 }
 
-// The health table gives a reason once, on the row of the component that
-// causes it: a row down for want of Docker or DynamoDB Local names that
-// component. No row ends with padding.
 // health names a frozen clock's instant and a scaled clock's factor, which
 // a test may have left that way; a running clock gets no line.
 func TestWriteHealthNamesAClockThatIsNotRunning(t *testing.T) {
@@ -87,6 +84,9 @@ func TestWriteHealthNamesAClockThatIsNotRunning(t *testing.T) {
 	}
 }
 
+// The health table gives a reason once, on the row of the component that
+// causes it: a row down for want of Docker or DynamoDB Local names that
+// component. No row ends with padding.
 func TestWriteHealthNamesTheCause(t *testing.T) {
 	const noDocker = "Docker is disabled (--docker disabled)"
 	const controlPlane = "control plane only: functions can be created, read and changed, but Invoke cannot run them: Docker is disabled"

@@ -2,7 +2,7 @@ package s3
 
 import "github.com/sustinbebustin/understudy/internal/aws"
 
-// Options are the S3 settings wire.go fills from the configuration. The
+// Options are the S3 settings the server fills from the configuration. The
 // zero value is AWS's behavior over the real AWS region names.
 type Options struct {
 	// CrossRegion is how a request that asserts a region other than the
@@ -23,7 +23,8 @@ const (
 	// one addressed to another region's host.
 	CrossRegionAWS CrossRegion = iota
 	// CrossRegionLenient serves the bucket whatever region the request
-	// asserts, and logs a warning naming both regions.
+	// asserts, and records a cross-region-served Advisory on the call's
+	// journal event naming both regions.
 	CrossRegionLenient
 )
 

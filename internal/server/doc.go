@@ -18,26 +18,26 @@
 //   - A non-loopback listen address needs the ContainerPublished exposure,
 //     which New accepts only inside a container with its own network
 //     namespace, outside Kubernetes (config.DetectPlacement), or, on the
-//     host, an admin token and
-//     AWSAPIUnauthenticated: the token guards only the admin API, and every
-//     client may sign the AWS API with the public dummy pair test/test,
-//     which verifies even under SigV4Verify, so serving it beyond loopback
-//     is an explicit choice. Otherwise New refuses with a
-//     *ListenError that explains the options, and the banner warns about
-//     what an accepted one exposes.
-//     An IPv4 address listens on IPv4 only, and a wildcard listener is
-//     advertised (ready file, banner) at loopback.
+//     host, an admin token and AWSAPIUnauthenticated: the token guards only
+//     the admin API, and every client may sign the AWS API with the public
+//     dummy pair test/test, which verifies even under SigV4Verify, so
+//     serving it beyond loopback is an explicit choice. Otherwise New
+//     refuses with a *ListenError that explains the options, and the banner
+//     warns about what an accepted one exposes. An IPv4 address listens on
+//     IPv4 only, and a wildcard listener is advertised (ready file, banner)
+//     at loopback.
 //   - The admin API (internal/server/admin) serves the /_understudy/v1/
 //     prefix; its health endpoint answers 503 {"ready": false, "waiting":
 //     ["listener"]} until Serve's listeners accept. Health also reports
 //     Docker (disabled without a socket, degraded when it does not answer a
 //     ping) and DynamoDB Local (degraded with the last start's error until
-//     a start succeeds); Lambda and DynamoDB take Docker's state and reason
-//     while Docker is not enabled, and Lambda is disabled while
-//     lambda.network is. Health names the main listener's bound address
-//     under "listener" and the topology under "topology": the detected one
-//     once a container needed it, before that in-container inside a
-//     container and host otherwise (admin.Topology).
+//     a start succeeds); DynamoDB takes Docker's state and reason while
+//     Docker is not enabled, and Lambda is degraded to its control plane,
+//     with the reason, while Docker is not enabled or lambda.network is
+//     disabled. Health names the main listener's bound address under
+//     "listener" and the topology under "topology": the detected one once a
+//     container needed it, before that in-container inside a container and
+//     host otherwise (admin.Topology).
 //   - lambda.network bridge skips detection with the configured gateway as
 //     a Linux bridge; disabled keeps the pool but refuses every function
 //     container with a *LambdaNetworkDisabledError, which Invoke reports
@@ -101,8 +101,8 @@
 //   - The TLS listener's certificate is generated at every start
 //     (ECDSA P-256, its own CA, SANs localhost, *.localhost, 127.0.0.1,
 //     with critical name constraints to localhost, names under it and
-//     loopback addresses, so as a trust root it vouches for nothing else), and
-//     its URL is the ready file's tlsEndpoint. The certificate is not
+//     loopback addresses, so as a trust root it vouches for nothing else),
+//     and its URL is the ready file's tlsEndpoint. The certificate is not
 //     written to disk; a client trusts it by reading it from the handshake.
 //   - The admin hooks (draining, pollers, hot reload, image pulls, the TTL
 //     sweep, subscription tokens) are assigned by type, so the compiler
@@ -137,8 +137,8 @@
 //     record with JSON logs, so a log pipeline never sees an unparsable
 //     line. It reads the components as health does: it lists every
 //     service, marking those that cannot serve with their state, such as
-//     "lambda (disabled)", and warns when Docker is missing or does not
-//     answer and when lambda.network is disabled.
+//     "lambda (degraded: control plane only)", and warns when Docker is
+//     missing or does not answer and when lambda.network is disabled.
 //   - Codecs are adapted to edge.Codec here (codecs.go), since the edge may
 //     not import a protocol package.
 //   - Boot fails with an *UnhandledTimerError when the loaded state armed a

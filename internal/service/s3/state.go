@@ -27,7 +27,7 @@ type Index struct {
 
 func newIndex(indexKey) Index { return Index{Buckets: map[string]Home{}} }
 
-// IsZero reports an index without buckets, which snapshots skip.
+// IsZero reports whether the index holds no buckets, which snapshots skip.
 func (x *Index) IsZero() bool { return len(x.Buckets) == 0 }
 
 // Home is where a bucket lives and who owns it.
@@ -91,7 +91,7 @@ type BucketCell struct {
 
 func newBucketCell(string) BucketCell { return BucketCell{} }
 
-// IsZero reports a cell that holds no bucket, which snapshots skip.
+// IsZero reports whether the cell holds no bucket, which snapshots skip.
 func (c *BucketCell) IsZero() bool { return c.Bucket == nil }
 
 // Partitioned finds IsZero and BlobRefs by type assertions; these keep a
@@ -105,8 +105,9 @@ var (
 // Bucket is one bucket and its subresources. Records are values replaced on
 // change: a write builds a new Bucket and never mutates a document a reader
 // may hold, so the configuration pointers, slices and maps below are shared
-// and read-only. A nil document is a subresource never configured, or
-// deleted since.
+// and read-only. Objects and Uploads are the exception: their maps change
+// in place inside the bucket's write, and no read returns them (Objects).
+// A nil document is a subresource never configured, or deleted since.
 type Bucket struct {
 	Name string `json:"name"`
 	Home Home   `json:"home"`

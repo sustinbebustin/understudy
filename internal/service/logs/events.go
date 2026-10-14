@@ -58,8 +58,8 @@ type admission interface{ isAdmission() }
 // clientWindows is a client's PutLogEvents: an event is stored when it is
 // inside the 2-hour and 14-day windows of the wall clock or of the
 // emulator clock, since containers stamp lines with wall time
-// (lambda-runtime-contract.md 3), and
-// not older than the group's retention on the emulator clock.
+// (lambda-runtime-contract.md 3), and not older than the group's retention
+// on the emulator clock.
 type clientWindows struct{ wall clock.Instant }
 
 // internalFeed is PutLogEventsInternal: the emulator's own lines, stamped
@@ -306,12 +306,12 @@ type window struct{ lo, hi int64 }
 // streamPage cuts one GetLogEvents page from events in position order. A
 // page ends at limit events or maxPageBytes of messages. Its forward token
 // names the gap after its newest event and its backward token the gap
-// before its oldest, both tokens of l issued at now. An empty page hands back the token
-// it was read from, issue time included, which is how a client knows it
-// reached the end; an empty backward page instead points its forward token
-// at the window's start, since nothing in the window lies before the
-// cursor, so following it (the default read of an empty stream, say)
-// returns the events that arrive later.
+// before its oldest, both tokens of l issued at now. An empty page hands
+// back the token it was read from, issue time included, which is how a
+// client knows it reached the end; an empty backward page instead points
+// its forward token at the window's start, since nothing in the window lies
+// before the cursor, so following it (the default read of an empty stream,
+// say) returns the events that arrive later.
 func streamPage(events []Event, w window, l listing, from issuedCursor, now clock.Instant, limit int) *logsapi.GetLogEventsOutput {
 	cur := from.cursor
 	a := firstAt(events, position{ts: w.lo})

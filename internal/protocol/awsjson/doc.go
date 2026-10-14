@@ -57,9 +57,9 @@
 //
 //   - A body that does not decode is answered with the service's
 //     malformedRequestError (registry.Service.MalformedRequestError) when
-//     its overlay sets one, else SerializationException, which is what
-//     every awsJson service in phase 1 sends; Lambda's
-//     InvalidRequestContentException belongs to restJson1.
+//     its overlay sets one, else SerializationException, the awsJson
+//     default Coral sends; Lambda's InvalidRequestContentException belongs
+//     to restJson1.
 //
 //   - registry.Operation does not carry the requestCompression trait, so
 //     gzip is accepted on every operation, not only CloudWatch
@@ -77,9 +77,9 @@
 //     not only on shapes with awsQueryError: modeled shapes without the
 //     trait carry their shape name as the code (Identity.QueryCode), and
 //     generic errors the catalogue's Query spelling. This follows
-//     error-matrix.md 3, which records the header on
-//     SQS's unmodeled errors (boto3 derives Code from it), as
-//     ARCHITECTURE.md 6.2 and wire-json-query.md Implication 12 state.
+//     error-matrix.md 3, which records the header on SQS's unmodeled
+//     errors (boto3 derives Code from it), as ARCHITECTURE.md 6.2 and
+//     wire-json-query.md Implication 12 state.
 //     Smithy's QueryCompatibleAwsJson10NoCustomCodeError response test
 //     sets no forbidHeaders, so the header stays corpus-compliant.
 //

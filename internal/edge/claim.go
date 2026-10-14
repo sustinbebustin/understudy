@@ -307,8 +307,8 @@ func (c *claimer) rpcv2cbor() (route, bool) {
 	return c.codecClaim(ref.RPCv2CBOR, 5)
 }
 
-// awsJSON is rule 6: X-Amz-Target names the service and operation, cross-
-// checked against the signing name.
+// awsJSON is rule 6: X-Amz-Target names the service and operation,
+// cross-checked against the signing name.
 func (c *claimer) awsJSON() (route, bool) {
 	if c.r.Header.Get("X-Amz-Target") == "" {
 		c.decline(6, "no X-Amz-Target header")
@@ -424,9 +424,9 @@ func refusedForS3(e auth.ParseError) bool {
 	return false
 }
 
-// unknownScheme reports an Authorization header in no AWS scheme: the
-// request carries no AWS credentials, so it is routed as unsigned, and the
-// service it reaches answers the header in its own words.
+// unknownScheme reports whether e is an Authorization header in no AWS
+// scheme: the request carries no AWS credentials, so it is routed as
+// unsigned, and the service it reaches answers the header in its own words.
 func unknownScheme(e auth.ParseError) bool {
 	_, ok := e.(auth.UnknownScheme)
 	return ok

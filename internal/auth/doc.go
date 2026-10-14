@@ -73,7 +73,8 @@
 //     security token included in the request is invalid." (dynalite
 //     index.js L296-L372); S3 has an identity and text for each and names an
 //     unknown key in its AWSAccessKeyId element. The token is never echoed.
-//     SessionToken reads it from the header or, in any case, the query.
+//     SessionToken reads it from the header, else from the query parameter
+//     of that name in any letter case.
 //   - Checks run in Coral's order (dynalite index.js L296-L372) with one
 //     deviation: Parse has no wall clock, so the skew check, which Coral runs
 //     right after the date format, comes after every parse check, and a

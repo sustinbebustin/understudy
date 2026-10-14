@@ -131,9 +131,10 @@ func (p *Partitioned[K, S]) Reset(keep func(K) bool) {
 
 // Export serializes every cell to one section, sorted by path, stamped with
 // version. When *S is a Zeroer, a cell whose IsZero reports true is skipped.
-// When *S is a BlobHolder, its BlobRefs are sorted into Section.Blobs. A key whose encoding is empty or not a local
-// path, or two keys encoding to one path, fail with *SectionError, so every
-// export Import accepts.
+// When *S is a BlobHolder, its BlobRefs are sorted into Section.Blobs. A key
+// whose encoding is empty or not a local path, or two keys encoding to one
+// path, fail with *SectionError, so every export that succeeds is one Import
+// accepts.
 //
 // Export does no I/O; the caller holds Gate.Exclusive for a consistent cut.
 func (p *Partitioned[K, S]) Export(kc KeyCodec[K], version int) ([]Section, error) {
@@ -170,11 +171,11 @@ func (p *Partitioned[K, S]) Export(kc KeyCodec[K], version int) ([]Section, erro
 // fields absent from the data keep their initial values and maps init made
 // stay non-nil. Decoding merges into those maps, so init must leave empty
 // every map, and at its zero value every omitempty field, that the state can
-// later clear (see NewPartitioned). It validates every section
-// before changing anything: a section with a different version
-// (*VersionMismatchError), a path that is not a local, canonical encoding of
-// a key, undecodable data or two sections for one key (*SectionError) leave
-// the Partitioned unchanged.
+// later clear (see NewPartitioned). It validates every section before
+// changing anything: a section with a different version
+// (*VersionMismatchError), a path that is not a local, canonical encoding
+// of a key, undecodable data or two sections for one key (*SectionError)
+// leave the Partitioned unchanged.
 //
 // The caller holds Gate.Exclusive, normally after Reset.
 func (p *Partitioned[K, S]) Import(kc KeyCodec[K], version int, sections []Section) error {

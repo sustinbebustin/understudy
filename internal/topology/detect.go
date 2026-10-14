@@ -59,7 +59,8 @@ type Detector struct {
 
 // Detect works out the topology at first Lambda use, following
 // containers.md 8.1 to 8.3: understudy in a container (markers plus a self
-// inspect), then Podman (the Libpod-Api-Version header), Docker Desktop
+// inspect), then a tcp:// daemon on another host (Remote, by the route to
+// it), then Podman (the Libpod-Api-Version header), Docker Desktop
 // (Info.OperatingSystem), rootless Docker (Info.SecurityOptions), and
 // otherwise a Linux bridge at the default bridge network's gateway. Markers
 // without a matching container on the daemon (Docker-in-Docker, where the

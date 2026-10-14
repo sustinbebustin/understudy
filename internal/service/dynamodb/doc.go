@@ -69,10 +69,9 @@
 //   - While DynamoDB is turned off or Docker is unavailable the answer is
 //     the 501 NotImplemented identity unbound operations use, carrying the
 //     reason (DisabledError). A Local that cannot start is
-//     InternalServerError naming the cause; a
-//     start still running after the call's bounded wait (startWait) is a
-//     retryable InternalServerError saying so, and goes on in the
-//     background.
+//     InternalServerError naming the cause; a start still running after the
+//     call's bounded wait (startWait) is a retryable InternalServerError
+//     saying so, and goes on in the background.
 //   - A TTL sweep is armed for the earliest expiry the shim knows, so an
 //     item is deleted at the instant its TTL attribute names; AWS deletes
 //     within days. An expiry more than five calendar years before the
@@ -90,12 +89,10 @@
 //     match fault rules, as the architecture requires. The admin sweep
 //     (SweepTTL) instead arms the tables' sweep timers now and waits for
 //     their sweeps, which run through the pipeline.
-//   - NOT IMPLEMENTED: the summary journal event per export, import and
-//     reset that ARCHITECTURE.md 13 and the ADR 0014 amendment ask for.
-//     The journal's Detail kinds are a closed set without one, and
-//     kernel.Invoke refuses a nil parent, so this package writes none.
-//     Once the journal has such a kind, ExportLate, ImportLate and
-//     ResetLate should each emit one.
+//   - Export, import and reset write no journal events of their own: the
+//     admin action that triggers them is journaled once by the admin
+//     handler (ADR 0014 amendment, ARCHITECTURE.md 13), not by this
+//     package.
 //   - A TableId is derived from the request id of the CreateTable, so
 //     seeded runs mint the same ids without a stream of their own.
 //   - A KMS key is resolved with a DescribeKey forwarded to KMS as the
@@ -107,8 +104,9 @@
 //     --persist without the archive) is adopted by the first tag, TTL,
 //     continuous-backup or UpdateTable operation naming it, with Local's
 //     CreationDateTime and last switch to PAY_PER_REQUEST and a TableId
-//     derived from its path; DescribeTable alone adopts nothing. Snapshot save exports it by Local's own table list, so the
-//     load, which deletes every table of the scope, brings it back.
+//     derived from its path; DescribeTable alone adopts nothing. Snapshot
+//     save exports it by Local's own table list, so the load, which
+//     deletes every table of the scope, brings it back.
 //   - Tags follow AWS's limits: at most 50 per table, and no key starting
 //     with aws: in any letter case.
 //   - Enabling point-in-time recovery without RecoveryPeriodInDays sets 35
@@ -123,9 +121,9 @@
 //     aws: key prefix texts are recorded
 //     (testdata/parity/dynamodb/R04/07-list-tags-missing-table.json,
 //     x-tag-51.json, x-tag-aws-prefix.json). The texts of
-//     TableNotFoundException ("Table not found: <name>"), of the tag
-//     size and character limits and of an unknown KMS key are UNVERIFIED
-//     against AWS, as are Local's TTL refusals reused here, except enabling a
+//     TableNotFoundException ("Table not found: <name>"), of the tag size
+//     and character limits and of an unknown KMS key are UNVERIFIED against
+//     AWS, as are Local's TTL refusals reused here, except enabling a
 //     different attribute: "TimeToLive is active on a different
 //     AttributeName: current AttributeName is <attr>" is AWS's text, as
 //     celery records it from the service (t/unit/backends/test_dynamodb.py

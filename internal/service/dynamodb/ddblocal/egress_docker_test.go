@@ -273,8 +273,8 @@ func (e *egress) checkHarness() {
 
 // runLocal runs the pinned image in the sink's namespace with understudy's
 // exact container spec (Manager.spec), the sink as its resolver, and
-// adjust applied, waits until it answers and returns the container and
-// where it answers.
+// adjust applied, waits until it answers and returns the Manager whose spec
+// it ran, the container id and where it answers.
 func (e *egress) runLocal(name string, adjust func(*docker.Config)) (*Manager, string, *url.URL) {
 	t := e.t
 	m, err := New(Config{Docker: e.d, Labels: e.labels})

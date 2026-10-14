@@ -27,7 +27,7 @@ type Error struct {
 
 // Identity is everything a codec needs to render an error on any protocol.
 // For modeled and overlay-added shapes it is a generated value; composite
-// literals outside internal/api and internal/awserr are forbidden
+// literals outside generated code and internal/awserr are forbidden
 // (literals_test.go), so handler code names errors through generated
 // constructors.
 type Identity struct {
@@ -77,8 +77,8 @@ type MessageKey uint8
 
 // MessageKey values.
 const (
-	MessageLower MessageKey = iota + 1 // "message" (KMS, Lambda's 19 shapes)
-	MessageUpper                       // "Message" (Secrets Manager)
+	MessageLower MessageKey = iota + 1 // "message" (KMS, some Lambda shapes)
+	MessageUpper                       // "Message" (Secrets Manager, most Lambda shapes)
 	NoMessage                          // the shape has no message member
 )
 

@@ -83,7 +83,7 @@ func topicActionPattern(p string) bool {
 	})
 }
 
-// addPermission appends a statement named Label that allows the accounts
+// addPermission appends a statement named Label that grants the accounts
 // the actions (sns.md 2.3): one principal or action is a string, several
 // an array. An AWSAccountId that is not a 12-digit account ID is refused
 // with the text AWS-recorded in ballerina permission-tests.bal.

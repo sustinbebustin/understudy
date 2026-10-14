@@ -16,8 +16,8 @@ import (
 
 // Research: docs/research/dynamodb-local.md, error-matrix.md 5.5.
 
-// ddbOptOutEnv=0 is how the caller leaves DynamoDB out of the run, so
-// DynamoDB Local is never pulled and these tests skip.
+// ddbOptOutEnv names the variable whose value "0" leaves DynamoDB out of the
+// run, so DynamoDB Local is never pulled and these tests skip.
 const ddbOptOutEnv = "CONFORMANCE_DYNAMODB"
 
 func requireDynamoDB(t *testing.T) {

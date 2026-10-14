@@ -109,7 +109,7 @@ type wiring struct {
 // access recorder, identity store and outbox, the services, the snapshot
 // coordinator, the admin API and the front door, then loads the persisted
 // state. Each service constructor gets kernel.ServiceDeps and its Options;
-// this file is the only place that names every service and codec.
+// this file is the only place that names every service.
 func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	w = &wiring{clockFrom: clockSetting{}}
 	defer func() {
@@ -343,10 +343,10 @@ func (w *wiring) storage(cfg Config, instance string) error {
 }
 
 // containers builds the Docker host, DynamoDB Local, the code store and,
-// when Docker is there, the Lambda pool.
-// Nothing is dialed: the host detects the topology at first use. The
-// containers' owner is the data directory's with persistence, else the
-// run's identity, which a later run sweeps once this process is gone.
+// when Docker is there, the Lambda pool. Nothing is dialed: the host
+// detects the topology at first use. The containers' owner is the data
+// directory's with persistence, else the run's identity, which a later run
+// sweeps once this process is gone.
 func (w *wiring) containers(cfg Config, instance string, clk *clock.Clock, log *slog.Logger) error {
 	ownership := docker.Ownership{Instance: instance}
 	var storage ddblocal.Storage
@@ -771,8 +771,8 @@ func (w *wiring) stopContainers(ctx context.Context) error {
 
 // close releases what wire opened, after a failed wiring or at shutdown:
 // the containers, the Runtime API listeners, the code store, the blob
-// store, the data directory and, last, so it records the rest closing, the
-// journal with its file.
+// store, the run's temporary directory, the data directory and, last, so it
+// records the rest closing, the journal with its file.
 func (w *wiring) close(ctx context.Context) error {
 	errs := []error{w.stopContainers(ctx)}
 	if w.host != nil {

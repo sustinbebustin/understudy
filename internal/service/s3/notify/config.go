@@ -21,7 +21,7 @@ import (
 type Config struct {
 	Rules []Rule
 	// EventBridge is an EventBridgeConfiguration element: stored and read
-	// back, but phase 1 sends no event to EventBridge.
+	// back, but no event is sent to EventBridge.
 	EventBridge bool
 }
 
@@ -274,8 +274,8 @@ type Overlap uint8
 
 // Overlap values.
 const (
-	// SameFilter is two rules with the same prefix and the same suffix,
-	// both unfiltered among them.
+	// SameFilter is two rules with the same prefix and the same suffix, two
+	// unfiltered rules included.
 	SameFilter Overlap = iota + 1
 	// OverlappingFilter is two rules with different filters that some key
 	// still satisfies both of.

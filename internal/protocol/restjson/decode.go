@@ -49,8 +49,8 @@ type readFrame struct {
 	chosen *smithy.Member
 }
 
-// jsonDoc reads one restJson1 body document (aws-restjson1-protocol
-// 4.1): members under their jsonName, unknown and null members absent,
+// jsonDoc reads one restJson1 body document (wire-rest.md 4.1): members
+// under their jsonName, unknown and null members absent,
 // epoch-seconds timestamps by default, base64 blobs, NaN and the
 // infinities as strings. Types are strict: a string is never coerced to a
 // number or boolean, a fraction is never an integer.

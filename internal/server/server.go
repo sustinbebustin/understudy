@@ -118,6 +118,7 @@ func (e *BindError) Unwrap() error { return e.Err }
 // AWSAPIUnauthenticated, and an unwritable ReadyFile is a *ReadyFileError.
 // A setting refused as it is applied, such as a fault rule or a hot-reload
 // directory, is a *SettingError.
+//
 // What New opens (the journal, the blob store, the data directory, the
 // code store) is released when Serve shuts down, or by Close when the
 // Server is never served; a New that fails releases it before returning.
@@ -213,6 +214,7 @@ type session struct {
 // environments and DynamoDB Local are removed, the kernel stops, the state
 // is saved with persistence and the ready file goes. The returned error is
 // nil after a graceful shutdown.
+//
 // A Server serves once: Serve while serving, or after shutdown or Close,
 // is a *StateError. When listening fails the Server stays built, for Close.
 func (s *Server) Serve(ctx context.Context) error {
@@ -401,8 +403,8 @@ func (s *Server) logStopping(ctx context.Context) {
 // shutdown ends requests in flight, stops the background work, removes the
 // Lambda environments and DynamoDB Local, stops the kernel, saves the
 // state with persistence and removes the ready file. The background work
-// stops first, so a DynamoDB Local start it began is stopped with the
-// container rather than launching after it.
+// stops before the containers are removed, so a DynamoDB Local start it
+// began is stopped with the container rather than launching after it.
 func (s *Server) shutdown(ctx context.Context, sess *session) error {
 	w := s.wired
 	w.admin.SetNotReady()

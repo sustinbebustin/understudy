@@ -20,9 +20,8 @@
 // written with, timestamps as tag 1 wrapping a double, null as 0xf6. Its
 // typed methods never write half floats or undefined; Writer.Value writes
 // an Undefined it is given, so a decoded tree re-encodes. Value is the
-// whole-item tree
-// (ReadValue, Writer.Value, Decode, Encode) for callers that want a
-// document rather than a stream.
+// whole-item tree (ReadValue, Writer.Value, Decode, Encode) for callers
+// that want a document rather than a stream.
 //
 // Decisions the architecture leaves open:
 //
@@ -35,11 +34,12 @@
 //     nearest double lies just below the instant, reads as ...123 ms.
 //     Timestamps outside the years 0001 to 9999 are a RangeError.
 //
-//   - Writer.Timestamp writes the double one ulp above the instant when
-//     the nearest double lies below it far enough that smithy-go's
-//     truncating int64(f*1e3) would read one millisecond early
-//     (wire-cbor.md 5.1, U12). Any other instant is written as the plain
-//     nearest double, so the response vectors stay byte for byte.
+//   - Writer.Timestamp writes the double one ulp further from zero when
+//     the nearest double lies on the zero side of the instant far enough
+//     that smithy-go's truncating int64(f*1e3) would read it one
+//     millisecond off (wire-cbor.md 5.1, U12). Any other instant is
+//     written as the plain nearest double, so the response vectors stay
+//     byte for byte.
 //
 //   - Writer.Text replaces invalid UTF-8 with U+FFFD, as jsonx does for
 //     JSON, so output is always well-formed and reads back.

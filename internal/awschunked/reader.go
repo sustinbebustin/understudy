@@ -24,7 +24,8 @@ const (
 	// signatureHexLen is the length of a hex SigV4 signature.
 	signatureHexLen = 2 * sha256.Size
 	// minChunk is the smallest data chunk, other than the last, that a body
-	// may carry in any mode (sigv4-checksums-endpoints.md 3.2, 3.3, 12 item 5).
+	// may carry in any mode (sigv4-checksums-endpoints.md 3.2, 3.3,
+	// implication 5).
 	minChunk = 8192
 )
 
@@ -116,11 +117,12 @@ func NewReader(r io.Reader, mode Mode, opts Options) *Reader {
 }
 
 // Read reads decoded object bytes. Framing faults surface as
-// MalformedChunkError, ChunkTooSmallError, IncompleteBodyError, DecodedLengthExceededError,
-// MissingTrailerError and TrailerMismatchError, and signature faults as the
-// OnChunkSignature error. The underlying reader ending early, with io.EOF or
-// with io.ErrUnexpectedEOF as a net/http body cut short does, is a framing
-// fault; its other errors pass through unchanged. The first error is final.
+// MalformedChunkError, ChunkTooSmallError, IncompleteBodyError,
+// DecodedLengthExceededError, MissingTrailerError and TrailerMismatchError,
+// and signature faults as the OnChunkSignature error. The underlying reader
+// ending early, with io.EOF or with io.ErrUnexpectedEOF as a net/http body
+// cut short does, is a framing fault; its other errors pass through
+// unchanged. The first error is final.
 func (r *Reader) Read(p []byte) (int, error) {
 	for {
 		switch r.state {

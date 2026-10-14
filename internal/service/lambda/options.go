@@ -8,7 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
 )
 
-// Options are the Lambda settings wire.go fills from the configuration. The
+// Options are the Lambda settings the server fills from the configuration. The
 // zero value is AWS's behavior with every provisioning state settled before
 // the call that starts it returns, and no Docker daemon to pull images from.
 type Options struct {

@@ -225,7 +225,7 @@ func messageKey(svc *registry.Service, id awserr.Identity) (string, bool) {
 }
 
 // header is the header set of every response: Smithy-Protocol, which
-// clients may check (SPEC L292-L294), the request id and the length.
+// clients may check (wire-cbor.md 3.3), the request id and the length.
 func header(requestID string, n int) http.Header {
 	return http.Header{
 		"Smithy-Protocol":  {protocolName},

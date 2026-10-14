@@ -885,7 +885,7 @@ func armed(h *harness) map[string]string {
 
 // The URL echoes the host the client used, and the queue it names is
 // reached through any host and from another region's caller only in the
-// URL's own region (the region comes from the call, sqs.md finding 6).
+// URL's own region (the region comes from the call, sqs.md 1.6).
 func TestQueueURLsEchoTheHostAndKeepTheRegion(t *testing.T) {
 	run(t, func(h *harness) {
 		h.Endpoint.Host = "sqs.us-east-1.localhost:4566"

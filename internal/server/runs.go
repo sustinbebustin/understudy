@@ -157,9 +157,9 @@ type runs struct {
 	signal func(pid int) error
 }
 
-// currentRuns identifies this process; false where there is no procfs to
-// read, such as macOS, where a run's leftovers are removed only by its own
-// shutdown or understudy cleanup.
+// currentRuns identifies this process from fsys, or returns an error where
+// there is no procfs to read, such as macOS, where a run's leftovers are
+// removed only by its own shutdown or understudy cleanup.
 func currentRuns(fsys fs.FS) (runs, error) {
 	p := procFS{fsys: fsys}
 	self, err := p.identify(os.Getpid())

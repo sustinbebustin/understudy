@@ -55,9 +55,10 @@ type Service struct {
 // The service is the snapshot and reset view of its state.
 var _ kernel.Stateful = (*Service)(nil)
 
-// New binds the Lambda control plane and registers its timers. Invoke,
-// the function URL data plane and every operation outside phase 1 stay
-// unbound and answer 501.
+// New binds the Lambda control plane and registers its timers. Invoke and
+// the function URL data plane stay unbound, answering 501, until
+// NewExecution and Execution.BindFunctionURLs bind them; every operation
+// this package does not implement stays unbound.
 func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{
 		k:     d.Kernel,

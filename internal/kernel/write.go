@@ -157,10 +157,10 @@ func (e *DeliverError) Unwrap() error { return e.Err }
 // (validate first, mutate last) and no effect runs.
 //
 // The call is marked as holding while fn runs: a nested Write, or an Invoke
-// made from fn, returns Internal naming both operations. Timer arms and
-// disarms apply inside the critical section in commit order; wakes and
-// deliveries run after unlock, stamped with the call's cause and counted by
-// the work tracker.
+// made from fn, returns Internal naming the attempt and the holding call
+// (HoldingError). Journal records and timer arms and disarms apply inside
+// the critical section in commit order; wakes and deliveries run after
+// unlock, stamped with the call's cause and counted by the work tracker.
 func Write[K comparable, S, R any](c *Call, p *store.Partitioned[K, S], key K, fn func(s *S, now clock.Instant, tx *Tx) (R, *awserr.Error)) (R, *awserr.Error) {
 	var zero R
 	if !c.holding.CompareAndSwap(false, true) {

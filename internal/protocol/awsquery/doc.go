@@ -35,10 +35,10 @@
 // structure member's; a namespace on a member's target shape is not
 // written, as the corpus asserts), an empty element as <Name/>, lowercase
 // booleans, date-time timestamps with millisecond precision, padded base64
-// blobs, NaN,
-// Infinity and -Infinity for the non-finite floats, flattened collections
-// as contiguous repeated elements, and IAM policy documents percent-encoded
-// as RFC 3986 asks, '+' as %2B and a space as %20 (iam-sts-kms.md 3.3).
+// blobs, NaN, Infinity and -Infinity for the non-finite floats, flattened
+// collections as contiguous repeated elements, and IAM policy documents
+// percent-encoded as RFC 3986 asks, '+' as %2B and a space as %20
+// (iam-sts-kms.md 3.3).
 // Whether an empty collection is written at all (SQS omits, IAM emits
 // <Roles/>) is the dev.understudy#emptyCollection trait, which the
 // generated Serialize methods apply; the codec writes what they hand it.

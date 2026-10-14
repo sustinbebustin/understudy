@@ -130,8 +130,8 @@ type BlobStore interface {
 	Prune() error
 }
 
-// Config configures a Coordinator. Every field but Late and ModelPin is
-// required.
+// Config configures a Coordinator. Gate, Blobs, Runtime, Effects and Writer
+// are required.
 type Config struct {
 	Gate     *store.Gate
 	Blobs    BlobStore
@@ -340,11 +340,11 @@ func (c *Coordinator) WriteAfterCut(ctx context.Context, w io.Writer, cut *Cut, 
 // LoadWith's LoadOptions.BeforeRearm.
 //
 // A failure after the blob import still releases what the load holds and
-// prunes. A failure after the first Late import is a *LoadError: the state
-// is partially loaded. A *BlobReleaseError means the load succeeded and
-// rearmed every service, but freeing the replaced state's blobs failed.
-// While a cut is outstanding or another load runs, Load
-// waits, and returns ctx's error with the state unchanged if ctx ends first.
+// prunes. A failure from the first Late import on is a *LoadError: the
+// state is partially loaded. A *BlobReleaseError means the load succeeded
+// and rearmed every service, but freeing the replaced state's blobs failed.
+// While a cut is outstanding or another load runs, Load waits, and returns
+// ctx's error with the state unchanged if ctx ends first.
 //
 // Load is LoadWith with no options: for a load nothing was drained for, such
 // as the --persist startup.
@@ -570,8 +570,8 @@ func (c *Coordinator) settle(ctx context.Context) (release func(), pending int, 
 
 // importCut, under the gate, exports every Stateful service to collect the
 // blob references its current state holds, restores head through
-// RestoreUnderGate, resets every service, imports its sections and retains each blob
-// reference. Once the services are reset it returns the collected
+// RestoreUnderGate, resets every service, imports its sections and retains
+// each blob reference. Once the services are reset it returns the collected
 // references, also with an error, for the caller to release.
 func (c *Coordinator) importCut(head Head, cut map[ref.ServiceID][]store.Section, loaded []ref.ServiceID) (replaced []string, le *LoadError) {
 	release := c.cfg.Gate.Exclusive()

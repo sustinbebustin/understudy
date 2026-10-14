@@ -60,6 +60,6 @@
 //     sequencer, as recorded. A delete marker's event carries no size or
 //     eTag, like every removal.
 //   - Fan-out order is document order: topics, then queues, then functions.
-//     An EventBridgeConfiguration is stored and read back; phase 1 sends
-//     nothing to EventBridge.
+//     An EventBridgeConfiguration is stored and read back; nothing is sent to
+//     EventBridge.
 package notify

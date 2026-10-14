@@ -9,7 +9,7 @@ import (
 
 // Invocation is one event handed to a runtime. The wall-clock deadline is
 // not part of it: the runtime API computes Lambda-Runtime-Deadline-Ms at
-// dispatch, after any cold start, as wall time plus Timeout
+// dispatch, after any cold start, as wall time plus what is left of Timeout
 // (lambda-runtime-contract.md 1).
 type Invocation struct {
 	// RequestID is Lambda-Runtime-Aws-Request-Id, the X-Amzn-RequestId of
@@ -26,8 +26,9 @@ type Invocation struct {
 	// Root=1-5bef4de7-ad49b0e87f6ef6c87fc2e700;Parent=9a9197af755a6419;Sampled=0.
 	TraceID string
 	// ClientContext and CognitoIdentity are JSON documents; each header is
-	// sent only when its value is set, as Lambda and every runtime client
-	// treat an absent header as "none".
+	// sent only when its value is set, as the RIE does, and aws-lambda-go
+	// and the Python RIC treat an absent header as "none" (lambda-api.md
+	// 9.1).
 	ClientContext   string
 	CognitoIdentity string
 	// Payload is the event, sent as the /next body.

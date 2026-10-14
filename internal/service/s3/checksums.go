@@ -17,7 +17,7 @@ import (
 // s3-checksum-residuals-and-record-backlog.md 1.6 and 1.7.
 const (
 	typeWithoutAlgorithmMessage = "The x-amz-checksum-type header can only be used with the x-amz-checksum-algorithm header."
-	// unsupportedAlgorithmMessage lists today's ten algorithms in S3's order
+	// unsupportedAlgorithmMessage lists the ten algorithms in S3's order
 	// (testdata/parity/s3/R08/08-create-alg-foo.json).
 	unsupportedAlgorithmMessage = "Checksum algorithm provided is unsupported. Please try again with any of the valid types: [CRC32, CRC32C, CRC64NVME, MD5, SHA1, SHA256, SHA512, XXHASH128, XXHASH3, XXHASH64]"
 )

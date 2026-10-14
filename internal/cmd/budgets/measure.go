@@ -165,7 +165,8 @@ func healthy(ctx context.Context, client *http.Client, ready string) bool {
 }
 
 // stop interrupts the emulator and kills it when it has not exited after
-// five seconds. A process that already exited is stopped.
+// five seconds. Stopping a process that has already exited is not an
+// error.
 func (s *served) stop() error {
 	if err := s.cmd.Process.Signal(os.Interrupt); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return fmt.Errorf("interrupt the emulator: %w", err)

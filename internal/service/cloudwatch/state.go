@@ -82,8 +82,9 @@ type Dimension struct {
 }
 
 // Point is one stored datum: its timestamp at its storage resolution, its
-// unit and the statistic set it carries. A Value is the set {1, v, v}; Values and Counts fold
-// into one set.
+// unit and the statistic set it carries. A Value v is the set with
+// SampleCount 1 and v as its Sum, Minimum and Maximum; Values and Counts
+// fold into one set.
 type Point struct {
 	At    clock.Instant `json:"at"`
 	Unit  string        `json:"unit"`

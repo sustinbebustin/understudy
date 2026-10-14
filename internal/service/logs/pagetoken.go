@@ -83,11 +83,10 @@ func (l listing) fingerprint() string {
 	return fmt.Sprintf("%0*d", fingerprintDigits, binary.BigEndian.Uint64(sum[:8]))
 }
 
-// A listing token of DescribeLogGroups and DescribeLogStreams is the
-// listing's fingerprint and the sort key of the last item a page returned,
-// so a page stays correct when items are created or deleted between calls,
-// stamped with its issue time.
-
+// keyToken is the listing token of DescribeLogGroups and DescribeLogStreams:
+// l's fingerprint and the sort key of the last item a page returned, stamped
+// with its issue time, base64-encoded. Keying on the last item keeps a page
+// correct when items are created or deleted between calls.
 func keyToken(l listing, key string, issued clock.Instant) string {
 	return base64.RawURLEncoding.EncodeToString([]byte(stamp(l.fingerprint()+key, issued)))
 }

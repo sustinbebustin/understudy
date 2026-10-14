@@ -98,8 +98,8 @@ func numbers(n int) string {
 // the nested body-scope $or policy computing 160 fails.
 func TestComplexityBoundaries(t *testing.T) {
 	t.Parallel()
-	// (2 + 1) * 50 combinations: source[2] x (metric[50] or namespace[1]) is
-	// 2*50 + 2*1 = 102; scale the branches to hit the boundaries exactly.
+	// source[2] with the $or branches metricName[a] and namespace[b] computes
+	// 2*a + 2*b combinations: 150 for (50, 25) and 152 for (50, 26).
 	or := func(a, b int) string {
 		return `{"source":["s1","s2"],"$or":[{"metricName":[` + numbers(a) + `]},{"namespace":[` + numbers(b) + `]}]}`
 	}

@@ -49,10 +49,10 @@ func TestFilterPolicyValidationTexts(t *testing.T) {
 }
 
 // TestRedrivePolicyQueueMustBeDeliverable: a deadLetterTargetArn outside
-// the aws partition, without a Region, or without a 12-digit account is
+// the aws partition, without a region, or without a 12-digit account is
 // refused with the recorded invalid-arn text on SetSubscriptionAttributes
-// and Subscribe, and SetSubscriptionAttributes refuses a queue in another
-// account or Region with an inferred text on both calls (sns.md 3.3, 7.4).
+// and Subscribe, and both calls refuse a queue in another account or region
+// with the texts recorded in testdata/parity/sns/R09 (sns.md 3.3, 7.4).
 // Nothing refused is stored, so a later Publish to the topic is still
 // delivered.
 func TestRedrivePolicyQueueMustBeDeliverable(t *testing.T) {
@@ -360,7 +360,7 @@ func TestFilterPolicySwitchesAreReported(t *testing.T) {
 	})
 }
 
-// TestFilterPolicyQuotaOnSubscribe:Subscribe counts toward the same
+// TestFilterPolicyQuotaOnSubscribe: Subscribe counts toward the same
 // per-topic quota. The 201st Subscribe with a FilterPolicy answers
 // FilterPolicyLimitExceeded (403), yet the subscription is created without
 // the policy, as AWS creates it (sns.md 3.1).

@@ -48,7 +48,7 @@ type subscriber struct {
 	protocol  Protocol
 	endpoint  string
 	topicFIFO bool
-	// home is the topic's scope, the subscription's account and Region,
+	// home is the topic's scope, the subscription's account and region,
 	// where a RedrivePolicy queue must live (sns.md 7.4).
 	home aws.Scope
 	// scope and policy are the FilterPolicyScope and FilterPolicy in
@@ -189,11 +189,12 @@ func (s *Service) checkFilterPolicyScope(sub subscriber, v string) string {
 
 // checkRedrivePolicy checks a RedrivePolicy (sns.md 3.3, 7.4): a JSON
 // object, malformed JSON answered with Jackson's recorded syntax message
-// without its location line, whose deadLetterTargetArn is an SQS queue in the subscription's
-// account and Region, a FIFO queue for a FIFO queue subscribed to a FIFO
-// topic. A queue ARN without the aws partition, a Region or a 12-digit
-// account is the recorded invalid-arn text; a queue in another Region or
-// account gets the texts recorded in testdata/parity/sns/R09.
+// without its location line, whose deadLetterTargetArn is an SQS queue in
+// the subscription's account and region, a FIFO queue for a FIFO queue
+// subscribed to a FIFO topic. A queue ARN without the aws partition, a
+// region or a 12-digit account is the recorded invalid-arn text; a queue in
+// another region or account gets the texts recorded in
+// testdata/parity/sns/R09.
 func checkRedrivePolicy(sub subscriber, v string) string {
 	m, ok := parseObject(v)
 	if !ok {
@@ -236,7 +237,8 @@ func deadLetterTarget(policy document.Map) (aws.ARN, aws.Scope, bool) {
 	return dlq, scope, true
 }
 
-// isFIFOQueue reports an SQS queue ARN or URL naming a FIFO queue.
+// isFIFOQueue reports whether queue, an SQS queue ARN or URL, names a FIFO
+// queue.
 func isFIFOQueue(queue string) bool { return strings.HasSuffix(queue, fifoSuffix) }
 
 // subscriptionSettings checks Subscribe's Attributes in name order; a

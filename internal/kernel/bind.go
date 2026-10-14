@@ -56,7 +56,8 @@ func (cfg *bindConfig[In]) validate(in *In) *awserr.Error {
 	return nil
 }
 
-// resolve returns the resources in names, from every WithResources option.
+// resolve returns the resources the input in addresses, from every
+// WithResources option.
 func (cfg *bindConfig[In]) resolve(c *Call, in *In) []aws.ARN {
 	arns := make([]aws.ARN, 0, len(cfg.resources))
 	for _, r := range cfg.resources {
@@ -96,9 +97,9 @@ func (o resourcesOption[In]) apply(cfg any) bool {
 }
 
 // WithValidator adds a stateless, typed validator that runs at pipeline
-// step 7, after the generated validator and before fault rules, so hand-owned
-// limit texts keep the Coral check order. Its violations are rendered
-// by the operation's generated policy.
+// step 7, after the generated validator and before fault rules, so
+// hand-owned limit texts keep the Coral check order. Its violations are
+// rendered by the operation's generated policy.
 func WithValidator[In any](v func(*In) []awserr.Violation) BindOption {
 	return validatorOption[In](v)
 }

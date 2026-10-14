@@ -118,7 +118,9 @@ func TestDescribeRuleEchoesThePattern(t *testing.T) {
 }
 
 // PutTargets refuses the whole request for a sixth target, two input forms,
-// an undefined placeholder and a FIFO queue without a message group.
+// an undefined placeholder, an Input or InputPath that does not parse, a
+// FIFO queue without a message group, a dead-letter queue that is not a
+// standard queue in the rule's region, and a missing rule.
 func TestPutTargetsRequestErrors(t *testing.T) {
 	run(t, func(h *harness) {
 		h.patternRule("r", `{"source": ["s"]}`)

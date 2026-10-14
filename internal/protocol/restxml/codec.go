@@ -46,9 +46,9 @@ type Dialect struct {
 	// OmitEmptyDocumentType sends an output whose members all bind
 	// outside the body with no Content-Type. Smithy's restXml sends
 	// application/xml there, for the empty document it still serializes
-	// (RestXmlHttpResponseCode). S3 records it only on HeadBucket (s3.md),
-	// so S3 keeps the bare head until its other bodiless answers are
-	// recorded.
+	// (RestXmlHttpResponseCode). The research records S3's bare head only
+	// on HeadBucket (s3.md); S3Dialect applies it to every bodiless answer
+	// until the others are recorded.
 	OmitEmptyDocumentType bool
 	// PartialContent answers 206 Partial Content, in place of the
 	// operation's 200, for an output that sets a Content-Range header, as

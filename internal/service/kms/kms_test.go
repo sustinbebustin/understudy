@@ -107,7 +107,7 @@ func TestSeededRunsAgreeOnMaterialID(t *testing.T) {
 
 // CreateKey checks KeyUsage against KeySpec before refusing a spec
 // understudy does not back: the pair AWS recorded refusing is a
-// ValidationException (iam-sts-kms.md 5.2, gap G7), and a compatible pair
+// ValidationException (iam-sts-kms.md 5.2), and a compatible pair
 // of an asymmetric spec is the loud UnsupportedOperationException.
 func TestCreateKeyUsageSpecMismatch(t *testing.T) {
 	run(t, func(h *harness) {
@@ -347,8 +347,8 @@ func TestReadOfUnknownScopeLeavesNoTrace(t *testing.T) {
 	})
 }
 
-// keyState puts a fresh key in one of the three states that matter for a
-// single-Region symmetric key.
+// keyState is one of the three states that matter for a single-Region
+// symmetric key; keyIn puts a fresh key in one.
 type keyState string
 
 const (
@@ -1195,8 +1195,8 @@ func mustAccount(h *harness, id string) aws.AccountID {
 	return a
 }
 
-// Keys of another account or Region are invisible: ListKeys and ListAliases
-// list only the caller's.
+// Keys of another Region are invisible: ListKeys lists only the caller's
+// Region. TestOtherAccountARN covers another account.
 func TestKeysAreScoped(t *testing.T) {
 	run(t, func(h *harness) {
 		h.key()

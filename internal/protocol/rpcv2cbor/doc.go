@@ -1,7 +1,7 @@
 // Package rpcv2cbor is the codec for the Smithy RPC v2 CBOR protocol
-// (ARCHITECTURE.md 6.2, wire-cbor.md): in phase 1, CloudWatch as
-// aws-sdk-go-v2, and so the Terraform provider, speaks it. It is built on
-// the cbor package only.
+// (ARCHITECTURE.md 6.2, wire-cbor.md): CloudWatch is the one service that
+// speaks it, because aws-sdk-go-v2, and so the Terraform provider, calls
+// CloudWatch over it. It is built on the cbor package only.
 //
 // A Codec serves the edge in four steps, as the awsjson codec does. Claim
 // decides from the Smithy-Protocol header and the
@@ -38,8 +38,8 @@
 //
 //   - The edge may not import a codec, so this package has its own Claim
 //     and Response types, as awsjson has; the composition root adapts
-//     them to edge.Codec. EncodeError takes no request: nothing on this
-//     protocol depends on it.
+//     them to edge.Codec. EncodeError reads the request only for
+//     x-amzn-query-mode.
 //
 //   - Claim has a fourth answer, Rejected, for a request the
 //     Smithy-Protocol header and path make rpcv2Cbor but that breaks the
@@ -50,20 +50,21 @@
 //     identity the edge answers an unroutable request with (ARCHITECTURE.md
 //     4.1 rules 5 and 9), with a message naming the rule, rather than
 //     smithy-rs's empty 404 or 405, since the Go client cannot read an
-//     empty error body (wire-cbor.md 3.9). The edge does not yet answer
-//     with it: edge.Codec has no rejecting claim, so the composition root
-//     maps Rejected to Declined with Err's message as the reason, and the
+//     empty error body (wire-cbor.md 3.9). The edge cannot answer with
+//     it: edge.Codec has no rejecting claim, so the composition root maps
+//     Rejected to Declined with Err's message as the reason, and the
 //     later claim rules, then rule 9's unclaimed answer, take the request
 //     (edge rule 5 answers one with X-Amz-Target as unclaimed before
-//     asking the codec).
-//     A request without Content-Type is accepted, an empty body being
-//     legal; Accept is never checked.
+//     asking the codec). A request without Content-Type is accepted, an
+//     empty body being legal; Accept is never checked.
 //
 //   - Claim honors any path prefix before /service/ and both service
 //     forms (the shape name and the dotted absolute id), as the
 //     specification requires; a Smithy-Protocol value other than
-//     rpc-v2-cbor, or a service segment that names no rpcv2Cbor service,
-//     is Declined, so the later claim rules and rule 9 answer it.
+//     rpc-v2-cbor is Declined, and so is a service segment that names no
+//     rpcv2Cbor service, provided the request passes the protocol checks
+//     above (a violation is Rejected whatever the segment names); the later
+//     claim rules and rule 9 answer a Declined request.
 //
 //   - The status is the identity's Status, except that a query-compatible
 //     service answering a request that sent x-amzn-query-mode: true uses

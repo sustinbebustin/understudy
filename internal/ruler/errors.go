@@ -199,10 +199,10 @@ func (e *EventError) Error() string { return e.Detail }
 // deciding: it needed more than Steps units of work (maxSearchSteps), because
 // the event joins enough arrays that an array-consistent search grows
 // exponentially, or because a pattern with many "$or" branches looks at many
-// fields of the event in each of them. It is an understudy
-// engine bound with no AWS counterpart. The event neither matched nor failed
-// to match; the pattern and the event are unchanged. Callers record it (for
-// example in the journal, naming the pattern's owner) and do not deliver.
+// fields of the event in each of them. It is an understudy engine bound with
+// no AWS counterpart. The event neither matched nor failed to match; the
+// pattern and the event are unchanged. Callers record it (for example in the
+// journal, naming the pattern's owner) and do not deliver.
 type SearchBudgetError struct {
 	Steps int
 }

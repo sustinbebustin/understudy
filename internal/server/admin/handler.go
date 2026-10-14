@@ -101,7 +101,7 @@ const DefaultMaxSnapshotBytes int64 = 1 << 30
 // maxJSONBytes caps a JSON request body.
 const maxJSONBytes = 1 << 20
 
-// OptionsError reports Options New cannot use.
+// OptionsError reports a required Options field New was given unset.
 type OptionsError struct {
 	Field string
 }
@@ -436,8 +436,8 @@ func readJSON(w http.ResponseWriter, r *http.Request, v any, empty bool) *admin.
 	return nil
 }
 
-// checkMembers refuses a member of the JSON object data that the struct v
-// points to has no field for, naming the members it has, so a near miss
+// checkMembers refuses a member of the JSON object data that has no field
+// in the struct v points to, naming the members it has, so a near miss
 // such as "service" for "services" says what to send. Names match without
 // regard to case, as encoding/json matches them. A body that is not an
 // object is left for the decoder to refuse.

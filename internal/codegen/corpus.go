@@ -28,11 +28,11 @@ func (CorpusPackage) isDestination() {}
 const corpusOrigin = "smithy-protocol-tests@1.74.0"
 
 // CorpusServices lists the synthetic services of the corpus the protocol
-// layer is proven against (ARCHITECTURE.md 5.6): one per protocol phase 1
-// speaks, the validation and namespace variants, the S3 slice and the
-// rpcv2Cbor query-compatible pair (wire-cbor.md 6). ec2Query, rpcv2Json and
-// the API Gateway, Glacier and Machine Learning slices serve no phase 1
-// service.
+// layer is proven against (ARCHITECTURE.md 5.6): one per protocol the
+// emulated services speak, the awsJson1_0 query-compatible variant, the
+// validation and namespace variants, the S3 slice and the rpcv2Cbor
+// query-compatible pair (wire-cbor.md 6). ec2Query, rpcv2Json and the API
+// Gateway, Glacier and Machine Learning slices serve no emulated service.
 func CorpusServices() []ServiceConfig {
 	svc := func(id smithy.ShapeID, pkg string) ServiceConfig {
 		return ServiceConfig{ID: ref.ServiceID(pkg), Service: id, Package: pkg, Destination: CorpusPackage{}}

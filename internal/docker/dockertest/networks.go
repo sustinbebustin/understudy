@@ -39,7 +39,8 @@ func (d *Daemon) addNetwork(name string, subnet netip.Prefix, labels map[string]
 	return n
 }
 
-// allocate hands out the next free address. Callers hold d.mu.
+// allocate hands out the address after the last one handed out; addresses
+// are never reused. Callers hold d.mu.
 func (n *network) allocate() netip.Addr {
 	n.last = n.last.Next()
 	return n.last

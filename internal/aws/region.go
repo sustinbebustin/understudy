@@ -96,9 +96,10 @@ func validRegionSyntax(name string) bool {
 	return true
 }
 
-// isAWSRegion lists the regions of the aws partition, the only partition in
-// phase 1. Terraform's aws_region data source rejects names it does not know
-// (tf-remaining.md 10), so understudy accepts the same set by default.
+// isAWSRegion lists the regions of the aws partition, the only partition
+// understudy serves. Terraform's aws_region data source rejects names it
+// does not know (tf-remaining.md 10), so understudy accepts the same set by
+// default.
 func isAWSRegion(name string) bool {
 	switch name {
 	case "af-south-1",

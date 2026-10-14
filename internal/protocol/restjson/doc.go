@@ -38,9 +38,10 @@
 //     InvalidRequestContentException, "The request body could not be
 //     parsed as JSON, or a request header is invalid"), else
 //     SerializationException, which the synthetic RestJson service's
-//     overlay names. Messages start "Could not parse request body into
-//     json: " as Lambda's do; the rest is understudy's own text, since
-//     Lambda's is a Jackson parser message.
+//     overlay names. A body's message starts "Could not parse request body
+//     into json: " as Lambda's does; the rest is understudy's own text,
+//     since Lambda's is a Jackson parser message. A header or query value's
+//     message names its location instead.
 //   - The 415 and 406 identities are in neither the descriptors nor the
 //     generic catalogue, so Codec.MediaTypeErrors supplies them per
 //     service; a service without them is not checked. When checked, a

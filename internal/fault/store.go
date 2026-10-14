@@ -56,9 +56,10 @@ const ruleIDBytes = 6
 const maxRuleIDLen = 64
 
 // New returns an empty store. With a seed, Probability streams are keyed by
-// hash(seed, rule id), so the same rules and call order give the same hits;
-// without one they are keyed from crypto/rand. source mints the ids of rules
-// added without one and must not be nil; rules are validated against cat.
+// hash(seed, fault-stream kind, rule id), so the same rules and call order
+// give the same hits; without one they are keyed from crypto/rand. source
+// mints the ids of rules added without one and must not be nil; rules are
+// validated against cat.
 func New(seed *uint64, source *ids.Source, cat Catalogue) *Store {
 	s := &Store{ids: source, cat: cat}
 	if seed != nil {

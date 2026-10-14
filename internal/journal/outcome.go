@@ -106,7 +106,8 @@ func (Throttled) isInvocationOutcome()     {}
 
 // ResourceState is one state of a resource's state machine. Each service
 // declares its closed set of values as constants next to the state machine,
-// such as lambda's Pending, Active, Inactive and Failed.
+// such as the Lambda event source mapping poller's Polling and
+// FunctionMissing.
 type ResourceState string
 
 // AdvisoryKind is the closed set of advisories.

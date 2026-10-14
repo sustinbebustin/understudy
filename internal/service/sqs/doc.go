@@ -3,21 +3,21 @@
 // queues and message move tasks, every operation of the model plus the
 // internal HoldVisibility and MessageCauses. State is one cell per account
 // and region; a dead-letter queue lives in its sources' cell, so a redrive
-// or a move changes one cell under one lock. Queues are value records: a write
-// changes a working copy and stores it back (ARCHITECTURE.md 3.5). The
-// copy shares the stored messages and caches until the write first
+// or a move changes one cell under one lock. Queues are value records: a
+// write changes a working copy and stores it back (ARCHITECTURE.md 3.5).
+// The copy shares the stored messages and caches until the write first
 // changes them, so a send copies no queued message and filling a queue
-// stays linear (Queue.clone, DedupCache). A
-// message keeps the journal event of the call that enqueued it.
-// ReceiveMessage is the long-poll reference of ARCHITECTURE.md 8.
+// stays linear (Queue.clone, DedupCache). A message keeps the journal
+// event of the call that enqueued it. ReceiveMessage is the long-poll
+// reference of ARCHITECTURE.md 8.
 //
 // Timers, all on the emulator clock and re-armed by Rearm from the state:
 // sqs.delay fires when a message's delay ends and sqs.visibility when a
 // received message's visibility timeout ends, and each wakes the queue's
-// receivers once the message is receivable; sqs.retention
-// deletes a message at the end of the queue's MessageRetentionPeriod, in
-// flight or not, and is re-armed for every message when SetQueueAttributes
-// changes the period; sqs.move-task moves a running task's next messages.
+// receivers once the message is receivable; sqs.retention deletes a
+// message at the end of the queue's MessageRetentionPeriod, in flight or
+// not, and is re-armed for every message when SetQueueAttributes changes
+// the period; sqs.move-task moves a running task's next messages.
 //
 // Decisions the architecture leaves open (Service.Switches lists those
 // without recorded evidence):

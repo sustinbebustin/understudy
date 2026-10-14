@@ -56,8 +56,8 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 	}
 }
 
-// accessKeys lists the access keys of the users of every account covered
-// selects. The caller holds the gate's exclusive side.
+// accessKeys lists the access keys of the users of every account for which
+// covered reports true. The caller holds the gate's exclusive side.
 func (s *Service) accessKeys(covered func(aws.AccountID) bool) ([]ids.AccessKeyID, error) {
 	sections, err := s.cells.Export(store.AccountKeys(), stateVersion)
 	if err != nil {

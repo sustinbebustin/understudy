@@ -442,7 +442,7 @@ func TestHoldVisibilityPinsAndReleases(t *testing.T) {
 	})
 }
 
-// sqs.md Implications 6: a URL's path names the account, so a URL of
+// sqs.md 13.6: a URL's path names the account, so a URL of
 // another account reaches that account's queue; the host is ignored, so a
 // URL naming another region's host reaches the caller's region.
 func TestQueueURLIdentifierForms(t *testing.T) {

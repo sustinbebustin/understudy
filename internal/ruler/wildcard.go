@@ -90,16 +90,17 @@ const maxComplexitySubsets = 1 << 14
 // can still match through it. Each pattern is a chain of states, one per
 // literal byte and one self-looping state per "*"; the start state is not
 // counted. Ruler's machine holds a value with its JSON quotes, so each
-// pattern starts and ends with a '"', and holds a repeated pattern once.
+// pattern starts and ends with a '"', and holds a repeated pattern once. The
+// evaluation stops and returns limit once the measure reaches limit or the
+// exploration reaches maxComplexitySubsets.
 //
 // It reproduces Ruler v2.2.0's values for the research cases
 // (matching-engines.md 4.8): /Users/*/doc.txt 2, an ARN with two wildcards 3,
-// *a*a*a*a* 9, *:*:*:*:*:event-bus/* 11. In a one-off run in October 2026
-// against executed Ruler v2.2.0 (commit ced786201c1f), whose harness is not
-// kept in the repository, it agreed on 3000 random sets of up to three short
-// patterns except on 3 sets that repeat a pattern starting with "*" and a
-// literal, which Ruler scores one higher.
-// Evaluation stops at limit.
+// *a*a*a*a* 9, *:*:*:*:*:event-bus/* 11. A one-off run against executed
+// Ruler v2.2.0 (commit ced786201c1f), whose harness is not kept in the
+// repository, agreed on 3000 random sets of up to three short patterns except
+// on 3 sets that repeat a pattern starting with "*" and a literal, which Ruler
+// scores one higher.
 func wildcardComplexity(globs []glob, limit int) int {
 	if len(globs) == 0 {
 		return 0

@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-// conns follows the main listener's connections through http.Server's
+// conns follows one listener's connections through http.Server's
 // ConnState hook, so shutdown can close the ones that never sent a request.
 // http.Server.Shutdown counts such a connection as idle only once it is 5 s
 // old, so a client's spare keep-alive dial would otherwise hold shutdown for

@@ -21,9 +21,8 @@
 // MaxKeySegments segments, or a form of more than MaxNodes keys and key
 // prefixes, is refused with a *ParseError, as is a bad escape. The error
 // names the pair by its offset and raw key, never by its value, which may
-// be a secret. Lookup
-// reads one key's value without building the tree, for a codec that only
-// needs to route the request.
+// be a secret. Lookup reads one key's value without building the tree, for
+// a codec that only needs to route the request.
 //
 // Escape and Encode write RFC 3986 percent-encoding (a space as %20, '+'
 // as %2B), the form IAM returns policy documents in (iam-sts-kms.md 3.3).

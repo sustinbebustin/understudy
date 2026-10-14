@@ -32,9 +32,8 @@ type modelMessage struct {
 // now and never received, the armed sqs.visibility timers exactly the
 // received ones hidden at now, each due when it becomes visible, every
 // message has its retention timer, and the queue holds exactly the
-// model's messages; every receive
-// returns the model's messages, so none is lost, duplicated or brought
-// back after a delete or a purge.
+// model's messages; every receive returns the model's messages, so none is
+// lost, duplicated or brought back after a delete or a purge.
 type visibilityMachine struct {
 	h   *harness
 	url string

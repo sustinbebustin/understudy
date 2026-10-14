@@ -45,8 +45,8 @@ func (r Report) writeProtocols(b *strings.Builder) {
 	r.writeSkipped(b)
 }
 
-// writeKnownFailures lists the failed cases the baseline accepts until
-// the part of understudy each names can express them.
+// writeKnownFailures lists the failed cases skips.json accepts until the
+// part of understudy each names can express them.
 func (r Report) writeKnownFailures(b *strings.Builder) {
 	var failed []string
 	for _, s := range r.Protocols {

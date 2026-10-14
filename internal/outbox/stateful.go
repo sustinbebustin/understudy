@@ -61,8 +61,8 @@ func (o *Outbox) Reset(rs kernel.ResetScope) {
 }
 
 // Rearm arms the next attempt of every pending delivery outside a FIFO lane
-// and of the head of each lane, in acceptance order; an
-// attempt due before now fires at once, stamped with its own due instant.
+// and of the head of each lane, in acceptance order; an attempt already due
+// on the emulator clock fires at once, stamped with its own due instant.
 func (o *Outbox) Rearm(clock.Instant) {
 	e := o.e.Load()
 	if e == nil {

@@ -297,7 +297,7 @@ func TestVerifyRefusesARawRouteWithoutACodec(t *testing.T) {
 }
 
 // Under sigv4 parse nothing is verified: a wrong secret and an unknown key
-// are served, as before verification existed.
+// are served.
 func TestParseOnlyServesBadSignatures(t *testing.T) {
 	f := newFront(t, nil)
 	for name, r := range map[string]*http.Request{

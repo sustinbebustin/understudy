@@ -58,7 +58,7 @@ func (h systemHeaders) metadata() SystemMetadata {
 	return m
 }
 
-// chunked reports a Content-Encoding that frames the body as aws-chunked.
+// chunked reports whether contentEncoding frames the body as aws-chunked.
 func chunked(contentEncoding *string) bool {
 	if contentEncoding == nil {
 		return false
@@ -114,7 +114,8 @@ func storageClass(v *s3api.StorageClass) (s3api.StorageClass, *awserr.Error) {
 	return "", withField(s3api.ErrInvalidStorageClass("The storage class you specified is not valid"), "StorageClassRequested", string(*v))
 }
 
-// archived reports a class GetObject cannot read without a restore.
+// archived reports whether c is a class GetObject cannot read without a
+// restore.
 func archived(c s3api.StorageClass) bool {
 	return c == s3api.StorageClassGlacier || c == s3api.StorageClassDeepArchive
 }
