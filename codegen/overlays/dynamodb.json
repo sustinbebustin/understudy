@@ -9,13 +9,20 @@
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#evidence": [
           {
-            "label": "aws-doc",
-            "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html",
-            "covers": ["dev.understudy#errorNamespace", "dev.understudy#throttleError"]
+            "label": "aws-recorded",
+            "source": "testdata/parity/dynamodb/R04/07-ttl-missing-table.json",
+            "validated": "2026-10-14",
+            "covers": ["dev.understudy#errorNamespace"]
           },
           {
-            "label": "third-party-recorded",
-            "source": "https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/db/index.js#L866-L874",
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/dynamodb/R04/03-ttl-long-name.json",
+            "validated": "2026-10-14",
             "covers": ["dev.understudy#validationError"]
           }
         ]

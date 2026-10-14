@@ -17,9 +17,9 @@ import (
 // s3-checksum-residuals-and-record-backlog.md 1.6 and 1.7.
 const (
 	typeWithoutAlgorithmMessage = "The x-amz-checksum-type header can only be used with the x-amz-checksum-algorithm header."
-	// unsupportedAlgorithmMessage lists today's ten algorithms; the recorded
-	// text predates the 2026 additions, so its wording is UNVERIFIED.
-	unsupportedAlgorithmMessage = "Checksum algorithm provided is unsupported. Please try again with any of the valid types: [CRC32, CRC32C, CRC64NVME, SHA1, SHA256, SHA512, MD5, XXHASH64, XXHASH3, XXHASH128]"
+	// unsupportedAlgorithmMessage lists today's ten algorithms in S3's order
+	// (testdata/parity/s3/R08/08-create-alg-foo.json).
+	unsupportedAlgorithmMessage = "Checksum algorithm provided is unsupported. Please try again with any of the valid types: [CRC32, CRC32C, CRC64NVME, MD5, SHA1, SHA256, SHA512, XXHASH128, XXHASH3, XXHASH64]"
 )
 
 // UploadChecksum is how a multipart upload's object checksum is computed,
@@ -210,7 +210,8 @@ type listedPart struct {
 // wire-rest.md 3.6). Both spaces after the first sentence are S3's.
 func errInvalidPart(uploadID string, p *listedPart) *awserr.Error {
 	e := s3api.ErrInvalidPart("One or more of the specified parts could not be found.  The part may not have been uploaded, or the specified entity tag may not match the part's entity tag.")
-	return withField(withField(withField(e, "ETag", p.etag), "PartNumber", strconv.Itoa(int(p.number))), "UploadId", uploadID)
+	// S3's element order (testdata/parity/s3/R08/06-complete-with-part-checksums.json).
+	return withField(withField(withField(e, "UploadId", uploadID), "PartNumber", strconv.Itoa(int(p.number))), "ETag", p.etag)
 }
 
 // objectChecksum checks the part checksums a Complete restated against m
@@ -365,10 +366,9 @@ func checkCompleteHeader(m checksumMode, sent *sentChecksum, typ *s3api.Checksum
 		switch {
 		case sent.alg == checksum.CRC64NVME:
 		case slices.Contains(newerAlgorithms(), sent.alg):
-			// The text is UNVERIFIED:
-			// s3-checksum-residuals-and-record-backlog.md 1.6 records only
-			// the code.
-			return errInvalidRequest("The upload was created without a checksum algorithm, so the complete request cannot include the " + sent.alg.HeaderName() + " header.")
+			// S3 names the undeclared upload's type "null"
+			// (testdata/parity/s3/R08/06-complete-xxhash64-header-no-create-alg.json).
+			return errInvalidRequest("Checksum Type mismatch occurred, expected checksum Type: null, actual checksum Type: " + lower(sent.alg))
 		default:
 			return nil
 		}

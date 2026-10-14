@@ -81,9 +81,18 @@ func errMaxReceiveCount(policy, count string) *awserr.Error {
 }
 
 // errRedriveTarget refuses a redrive policy whose target the state does
-// not admit (inferred).
+// not admit. The frame is recorded (testdata/parity/sqs/R02/07-redrive-fifo-to-std.json);
+// each caller says whether its reason is.
 func errRedriveTarget(policy, reason string) *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Value " + policy + " for parameter RedrivePolicy is invalid. Reason: " + reason)
+}
+
+// errRedriveDenied refuses a redrive policy whose target's
+// RedriveAllowPolicy does not admit the source. AWS renders the policy
+// here in its own RedrivePolicy(...) form, not as the request's JSON
+// (recorded, testdata/parity/sqs/R02/07-redrive-denied.json).
+func errRedriveDenied(maxReceiveCount int, target string) *awserr.Error {
+	return sqsapi.ErrInvalidParameterValue("Value RedrivePolicy(maxReceiveCount=" + strconv.Itoa(maxReceiveCount) + ", deadLetterTargetArn=" + target + ") for parameter RedrivePolicy is invalid. Reason: The value for the dead-letter queue's RedriveAllowPolicy attribute prevents you from completing this request.")
 }
 
 func errTwoEncryptionTypes() *awserr.Error {
@@ -106,6 +115,18 @@ func errInvalidMessageContents() *awserr.Error {
 
 func errEmptyAttributeValue(name, dataType string) *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Message (user) attribute '" + name + "' must contain a non-empty value of type '" + dataType + "'.")
+}
+
+// errAttributeNameTooLong and errAttributeTypeTooLong refuse a message
+// attribute name or data type over 256 bytes (recorded,
+// testdata/parity/sqs/R11/x-send-attribute-name-257.json and
+// testdata/parity/sqs/R11/x-send-datatype-257.json).
+func errAttributeNameTooLong() *awserr.Error {
+	return sqsapi.ErrInvalidParameterValue("Message (user) attribute name must be shorter than 256 bytes.")
+}
+
+func errAttributeTypeTooLong() *awserr.Error {
+	return sqsapi.ErrInvalidParameterValue("Message (user) attribute type must be shorter than 256 bytes.")
 }
 
 // The message and system attribute texts below are unrecorded: only the
@@ -152,8 +173,16 @@ func errSystemAttributeName(name string) *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Value " + name + " for parameter MessageSystemAttributeName is invalid. Reason: AWSTraceHeader is the only system attribute a message can be sent with.")
 }
 
-// errVisibilityTimeout frames the documented range in the recorded
-// "Value X for parameter P is invalid" form; the exact text is unrecorded.
+// errReceiveVisibilityTimeout refuses a ReceiveMessage VisibilityTimeout
+// out of range (recorded, testdata/parity/sqs/R11/02-receive-visibility-43201.json).
+func errReceiveVisibilityTimeout(v int32) *awserr.Error {
+	return sqsapi.ErrInvalidParameterValue("Value " + strconv.Itoa(int(v)) + " for parameter VisibilityTimeout is invalid. Reason: Must be between 0 and " + strconv.Itoa(maxVisibility) + ", if provided.")
+}
+
+// errVisibilityTimeout refuses a ChangeMessageVisibility timeout out of
+// range. It frames the documented range in the recorded "Value X for
+// parameter P is invalid" form; the exact text is unrecorded, and the
+// ReceiveMessage one differs.
 func errVisibilityTimeout(v int32) *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Value " + strconv.Itoa(int(v)) + " for parameter VisibilityTimeout is invalid. Reason: Must be >= 0 and <= 43200, if provided.")
 }
@@ -163,8 +192,12 @@ func errVisibilityCeiling(v int32) *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Value " + strconv.Itoa(int(v)) + " for parameter VisibilityTimeout is invalid. Reason: Total VisibilityTimeout for the message is beyond the limit [43200 seconds]")
 }
 
+// errDelaySeconds refuses a SendMessageBatch entry's DelaySeconds out of
+// range with SendMessage's text (recorded,
+// testdata/parity/sqs/R11/02-send-delay-901.json), which the
+// codegen/overlays/sqs.json template renders for the single call.
 func errDelaySeconds(v int32) *awserr.Error {
-	return sqsapi.ErrInvalidParameterValue("Value " + strconv.Itoa(int(v)) + " for parameter DelaySeconds is invalid. Reason: Must be >= 0 and <= 900, if provided.")
+	return sqsapi.ErrInvalidParameterValue("Value " + strconv.Itoa(int(v)) + " for parameter DelaySeconds is invalid. Reason: DelaySeconds must be >= 0 and <= 900.")
 }
 
 // errInvalidAttemptID applies the MessageGroupId text to
@@ -174,14 +207,17 @@ func errInvalidAttemptID(id string) *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Value " + id + " for parameter ReceiveRequestAttemptId is invalid. Reason: ReceiveRequestAttemptId can only include alphanumeric and punctuation characters. 1 to 128 in length.")
 }
 
-// errMaxResults and errMoveRate frame the documented ranges as the
-// recorded MaxNumberOfMessages text does (inferred).
+// errMaxResults frames the documented range as the recorded
+// MaxNumberOfMessages text does (inferred).
 func errMaxResults(n int32, maxResults int) *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Value " + strconv.Itoa(int(n)) + " for parameter MaxResults is invalid. Reason: Must be between 1 and " + strconv.Itoa(maxResults) + ", if provided.")
 }
 
-func errMoveRate(n int32) *awserr.Error {
-	return sqsapi.ErrInvalidParameterValue("Value " + strconv.Itoa(int(n)) + " for parameter MaxNumberOfMessagesPerSecond is invalid. Reason: Must be between 1 and 500, if provided.")
+// errMoveRate refuses a MaxNumberOfMessagesPerSecond out of range; AWS
+// does not echo the value (recorded,
+// testdata/parity/sqs/R02/07-start-rate-501.json).
+func errMoveRate() *awserr.Error {
+	return sqsapi.ErrInvalidParameterValue("Value for parameter MaxNumberOfMessagesPerSecond is invalid. Reason: You must enter a number that's between 1 and 500.")
 }
 
 // errInvalidLabel reuses the queue-name reason, the same character rule

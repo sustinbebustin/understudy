@@ -66,10 +66,13 @@ func checkLength(pattern string) *Error {
 	return nil
 }
 
-// invalidTerm is the console wording for an unquoted term with a character
-// outside the bare-term set; the API text is unverified (section 7).
-func invalidTerm(term string) *Error {
-	return &Error{cause: CauseInvalidTerm, message: "Invalid character(s) in term " + term}
+// invalidTerm refuses an unquoted term with characters outside the
+// bare-term set, quoting only those characters, each once in order of
+// first appearance. The single-character form is recorded
+// (testdata/parity/logs/R10/03-filter-12.json, 03-filter-13.json); how
+// AWS lists several is inferred.
+func invalidTerm(offending string) *Error {
+	return &Error{cause: CauseInvalidTerm, message: "Invalid character(s) in term '" + offending + "'"}
 }
 
 // invalidPattern reports every other syntax error. AWS's texts for these are

@@ -134,7 +134,7 @@
           "code": "com.amazonaws.sqs#InvalidParameterValue",
           "style": "parameter",
           "constraints": ["range"],
-          "reason": "Must be >= 0 and <= 900, if provided."
+          "reason": "DelaySeconds must be >= 0 and <= 900."
         },
         "dev.understudy#evidence": [
           {
@@ -143,8 +143,9 @@
             "covers": ["smithy.api#range"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/phase1/sqs.md#24-error-catalog",
+            "label": "aws-recorded",
+            "source": "testdata/parity/sqs/R11/02-send-delay-901.json",
+            "validated": "2026-10-14",
             "covers": ["dev.understudy#validationError"]
           }
         ]

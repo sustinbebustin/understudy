@@ -120,10 +120,11 @@ func initialStateValue(in *cloudwatchapi.PutMetricAlarmInput) cloudwatchapi.Stat
 }
 
 // describeAlarms lists the scope's metric alarms by name, one page at a
-// time. Both lists are always present, empty when nothing matches, as AWS
-// records; a name that matches no alarm is not an error.
+// time. All three lists are always present, empty when nothing matches, as
+// AWS records (testdata/parity/cloudwatch/R07/05-describe-alarms.json); a
+// name that matches no alarm is not an error.
 func (s *Service) describeAlarms(_ context.Context, c *kernel.Call, in *cloudwatchapi.DescribeAlarmsInput) (*cloudwatchapi.DescribeAlarmsOutput, *awserr.Error) {
-	out := &cloudwatchapi.DescribeAlarmsOutput{MetricAlarms: []cloudwatchapi.MetricAlarm{}, CompositeAlarms: []cloudwatchapi.CompositeAlarm{}}
+	out := &cloudwatchapi.DescribeAlarmsOutput{MetricAlarms: []cloudwatchapi.MetricAlarm{}, CompositeAlarms: []cloudwatchapi.CompositeAlarm{}, LogAlarms: []cloudwatchapi.LogAlarm{}}
 	metric := len(in.AlarmTypes) == 0 || slices.Contains(in.AlarmTypes, cloudwatchapi.AlarmTypeMetricAlarm)
 	if !metric || in.ChildrenOfAlarmName != nil || in.ParentsOfAlarmName != nil {
 		return out, nil

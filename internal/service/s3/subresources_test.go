@@ -144,6 +144,8 @@ func fresh() map[string]struct {
 			Rules: []s3api.ServerSideEncryptionRule{{
 				ApplyServerSideEncryptionByDefault: &s3api.ServerSideEncryptionByDefault{SSEAlgorithm: s3api.ServerSideEncryptionAes256},
 				BucketKeyEnabled:                   new(false),
+				// testdata/parity/s3/R06/01-get-get-bucket-encryption.json
+				BlockedEncryptionTypes: &s3api.BlockedEncryptionTypes{EncryptionType: []s3api.EncryptionType{s3api.EncryptionTypeSseC}},
 			}},
 		}}}},
 		"object lock": {getObjectLock, unset{code: "ObjectLockConfigurationNotFoundError", message: "Object Lock configuration does not exist for this bucket"}},
@@ -802,6 +804,9 @@ func TestLifecycleDayLimits(t *testing.T) {
 		rule s3api.LifecycleRule
 		// refusal is the InvalidArgument message, "" when the Put succeeds.
 		refusal string
+		// fields, when set, are the refusal's ArgumentName and
+		// ArgumentValue.
+		fields map[string]string
 	}{
 		"0-day transition to Glacier": {rule: s3api.LifecycleRule{Transitions: []s3api.Transition{transition(0, s3api.TransitionStorageClassGlacier)}}},
 		"waterfall keeping each minimum": {rule: s3api.LifecycleRule{Transitions: []s3api.Transition{
@@ -832,13 +837,17 @@ func TestLifecycleDayLimits(t *testing.T) {
 			}},
 			refusal: "'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'GLACIER' must be at least 30 days more than 'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'STANDARD_IA'",
 		},
+		// testdata/parity/s3/R12/12-lifecycle-expiration-0.json
 		"0-day expiration": {
 			rule:    s3api.LifecycleRule{Expiration: &s3api.LifecycleExpiration{Days: new(int32(0))}},
 			refusal: "'Days' for Expiration action must be a positive integer",
+			fields:  map[string]string{"ArgumentName": "Days", "ArgumentValue": "0"},
 		},
+		// testdata/parity/s3/R12/12-lifecycle-noncurrent-expiration-0.json
 		"0-day noncurrent expiration": {
 			rule:    s3api.LifecycleRule{NoncurrentVersionExpiration: &s3api.NoncurrentVersionExpiration{NoncurrentDays: new(int32(0))}},
 			refusal: "'NoncurrentDays' for NoncurrentVersionExpiration action must be a positive integer",
+			fields:  map[string]string{"ArgumentName": "NoncurrentDays", "ArgumentValue": "0"},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -858,6 +867,10 @@ func TestLifecycleDayLimits(t *testing.T) {
 				wantCode(h.T, err, "InvalidArgument", http.StatusBadRequest)
 				if err.Message != tc.refusal {
 					h.Fatalf("message = %q, want %q", err.Message, tc.refusal)
+				}
+				if tc.fields != nil {
+					wantFieldOrder(h.T, err, "ArgumentName", "ArgumentValue")
+					wantFields(h.T, err, tc.fields)
 				}
 			})
 		})

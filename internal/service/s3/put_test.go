@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -182,32 +183,53 @@ func TestPutObjectHeaderChecksum(t *testing.T) {
 		if out.ChecksumCRC32 == nil || *out.ChecksumCRC32 != "NhCmhg==" || out.ChecksumCRC64NVME != nil {
 			t.Fatalf("PutObject with CRC32 reports %v / %v, want CRC32 NhCmhg== only", out.ChecksumCRC32, out.ChecksumCRC64NVME)
 		}
+		// The Content-MD5 BadDigest's elements, calculated first, for a
+		// Content-MD5 other than "hello"'s
+		// (testdata/parity/s3/R08/04-checksum-plus-wrong-content-md5.json).
+		wrongMD5 := "eV8yArF8trw9S3cdjGyerw=="
+		md5Fields := []awserr.Field{{Name: "CalculatedDigest", Value: "XUFAKrxLKna5cZ2REBfFkg=="}, {Name: "ExpectedDigest", Value: "795f3202b17cb6bc3d4b771d8c6c9eaf"}}
 		for _, tc := range []struct {
-			name string
-			in   s3api.PutObjectInput
-			code string
-			msg  string
+			name   string
+			in     s3api.PutObjectInput
+			code   string
+			msg    string
+			fields []awserr.Field
 		}{
-			{"wrong CRC32", s3api.PutObjectInput{ChecksumCRC32: new("AAAAAA==")}, "BadDigest", "The CRC32 you specified did not match the calculated checksum."},
-			{"malformed CRC32", s3api.PutObjectInput{ChecksumCRC32: new("nope")}, "InvalidRequest", "Value for x-amz-checksum-crc32 header is invalid."},
+			{"wrong CRC32", s3api.PutObjectInput{ChecksumCRC32: new("AAAAAA==")}, "BadDigest", "The CRC32 you specified did not match the calculated checksum.", nil},
+			{"malformed CRC32", s3api.PutObjectInput{ChecksumCRC32: new("nope")}, "InvalidRequest", "Value for x-amz-checksum-crc32 header is invalid.", nil},
 			{
 				"two checksums",
 				s3api.PutObjectInput{ChecksumCRC32: new("NhCmhg=="), ChecksumSHA1: new("qvTGHdzF6KLavt4PO0gs2a6pQ00=")},
 				"InvalidRequest",
 				"Expecting a single x-amz-checksum- header. Multiple checksum Types are not allowed.",
+				nil,
 			},
 			{
 				"algorithm without a value",
 				s3api.PutObjectInput{ChecksumAlgorithm: new(s3api.ChecksumAlgorithmSha256)},
 				"InvalidRequest",
 				"x-amz-sdk-checksum-algorithm specified, but no corresponding x-amz-checksum-* or x-amz-trailer headers were found.",
+				nil,
 			},
-			{"Content-MD5 not base64", s3api.PutObjectInput{ContentMD5: new("__invalid__")}, "InvalidDigest", "The Content-MD5 you specified was invalid."},
+			{"Content-MD5 not base64", s3api.PutObjectInput{ContentMD5: new("__invalid__")}, "InvalidDigest", "The Content-MD5 you specified was invalid.", nil},
 			{
 				"Content-MD5 differs",
 				s3api.PutObjectInput{ContentMD5: new(base64.StdEncoding.EncodeToString(make([]byte, 16)))},
 				"BadDigest",
 				"The Content-MD5 you specified did not match what we received.",
+				nil,
+			},
+			{
+				"right checksum, Content-MD5 differs",
+				s3api.PutObjectInput{ChecksumXXHASH64: new("JseCfYifbaM="), ContentMD5: new(wrongMD5)},
+				"BadDigest", "The Content-MD5 you specified did not match what we received.", md5Fields,
+			},
+			{
+				// Content-MD5 wins
+				// (testdata/parity/s3/R08/04-wrong-checksum-plus-wrong-content-md5.json).
+				"checksum and Content-MD5 both differ",
+				s3api.PutObjectInput{ChecksumXXHASH64: new("MCcs6qbmYlo="), ContentMD5: new(wrongMD5)},
+				"BadDigest", "The Content-MD5 you specified did not match what we received.", md5Fields,
 			},
 		} {
 			in := tc.in
@@ -215,6 +237,10 @@ func TestPutObjectHeaderChecksum(t *testing.T) {
 			_, err := as(h, who{}, s3api.OpPutObject, &in)
 			if err == nil || err.ID.QueryCode != tc.code || err.Message != tc.msg {
 				t.Errorf("%s: got %v, want %s %q", tc.name, err, tc.code, tc.msg)
+				continue
+			}
+			if tc.fields != nil && !slices.Equal(err.Fields, tc.fields) {
+				t.Errorf("%s: elements %v, want %v", tc.name, err.Fields, tc.fields)
 			}
 		}
 		if _, err := as(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "sums", Key: "bad"}); err == nil {
@@ -470,7 +496,7 @@ func TestAWSChunkedUploads(t *testing.T) {
 			{
 				"small chunk before the last", chunkedHeader(13), in("small-chunk", chunkedWith(t, awschunked.Trailer{Name: "x-amz-checksum-crc32", Value: "Nyb53Q=="}, "streamed", "-body")),
 				"InvalidChunkSizeError", "Only the last chunk is allowed to have a size less than 8192 bytes",
-				map[string]string{"BadChunkSize": "8"},
+				map[string]string{"Chunk": "2", "BadChunkSize": "8"},
 			},
 			{"body shorter than declared", chunkedHeader(20), in("short", chunked(t, "streamed-body", "Nyb53Q==")), "IncompleteBody", incompleteBody, nil},
 			{"sdk algorithm differs from the trailer's", chunkedHeader(13), sha256Algorithm, "BadDigest", "The SHA256 you specified did not match the calculated checksum.", nil},
@@ -712,6 +738,10 @@ func TestPutObjectRefusals(t *testing.T) {
 			code   string
 			status int
 			fields map[string]string
+			// message and order, when set, are the recorded text and
+			// element order.
+			message string
+			order   []string
 		}{
 			{
 				name: "x-amz-content-sha256 differs", header: http.Header{"X-Amz-Content-Sha256": {hex.EncodeToString(sum[:])}}, body: "hello",
@@ -732,10 +762,14 @@ func TestPutObjectRefusals(t *testing.T) {
 			{
 				name: "key over 1,024 bytes", in: s3api.PutObjectInput{Key: strings.Repeat("k", 1025)},
 				code: "KeyTooLongError", status: http.StatusBadRequest, fields: map[string]string{"MaxSizeAllowed": "1024", "Size": "1025"},
+				// testdata/parity/s3/R12/09-key-1025.json
+				message: "Your key is too long", order: []string{"Size", "MaxSizeAllowed"},
 			},
 			{
-				name: "user metadata over 2 KB", in: s3api.PutObjectInput{Metadata: map[string]string{"m": strings.Repeat("v", 2048)}},
-				code: "MetadataTooLarge", status: http.StatusBadRequest,
+				name: "user metadata over 2 KB", in: s3api.PutObjectInput{Metadata: map[string]string{"big": strings.Repeat("m", 2100)}},
+				code: "MetadataTooLarge", status: http.StatusBadRequest, fields: map[string]string{"MaxSizeAllowed": "2048", "Size": "2103"},
+				// testdata/parity/s3/R12/09-metadata-over-2k.json
+				message: "Your metadata headers exceed the maximum allowed metadata size", order: []string{"MaxSizeAllowed", "Size"},
 			},
 			{
 				name: "storage class of another bucket type", in: s3api.PutObjectInput{StorageClass: new(s3api.StorageClassOutposts)},
@@ -771,6 +805,12 @@ func TestPutObjectRefusals(t *testing.T) {
 				continue
 			}
 			wantFields(t, err, tc.fields)
+			if tc.message != "" && err.Message != tc.message {
+				t.Errorf("%s: message %q, want %q", tc.name, err.Message, tc.message)
+			}
+			if tc.order != nil {
+				wantFieldOrder(t, err, tc.order...)
+			}
 		}
 		if _, err := as(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "refusals", Key: "refused"}); err == nil {
 			t.Fatal("a refused PutObject left an object behind")

@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 // allTerms is an unstructured pattern (rule N3) with a plain or - term:
@@ -85,12 +86,26 @@ func (s *scanner) term() (term, *Error) {
 	if word == "" {
 		return nil, s.fail("term expected after - or ?")
 	}
-	for i := range len(word) {
-		if !isBareTermChar(word[i]) {
-			return nil, invalidTerm(word)
-		}
+	if offending := offendingTermChars(word); offending != "" {
+		return nil, invalidTerm(offending)
 	}
 	return literalTerm{text: word}, nil
+}
+
+// offendingTermChars returns the characters of word outside the bare-term
+// set, each once in order of first appearance, or "" when there are none.
+// It walks runes so a multi-byte character is reported whole.
+func offendingTermChars(word string) string {
+	var out []rune
+	for i, r := range word {
+		if r < utf8.RuneSelf && isBareTermChar(word[i]) {
+			continue
+		}
+		if !slices.Contains(out, r) {
+			out = append(out, r)
+		}
+	}
+	return string(out)
 }
 
 func (p allTerms) match(message string, o Options) bool {

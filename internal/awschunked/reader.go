@@ -170,7 +170,7 @@ func (r *Reader) readHeader() error {
 		return r.finish()
 	}
 	if r.chunks > 0 && r.lastChunk < minChunk {
-		return &ChunkTooSmallError{Chunk: r.chunks, Size: r.lastChunk}
+		return &ChunkTooSmallError{Chunk: r.chunks + 1, Size: r.lastChunk}
 	}
 	r.chunks++
 	r.lastChunk = size

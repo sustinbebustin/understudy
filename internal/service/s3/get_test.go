@@ -122,10 +122,18 @@ func TestRangeReads(t *testing.T) {
 				t.Errorf("%s %s: %s with RangeRequested %q", key, spec, err.Message, fieldValue(err, "RangeRequested"))
 			}
 		}
-		_, err := as(h, who{}, s3api.OpGetObject, &s3api.GetObjectInput{Bucket: "ranges", Key: "k", Range: new("bytes=0-1"), PartNumber: new(int32(1))})
+		// testdata/parity/s3/R12/01-range-suffix-0.json
+		_, err := as(h, who{}, s3api.OpGetObject, &s3api.GetObjectInput{Bucket: "ranges", Key: "k", Range: new("bytes=-0")})
+		wantCode(t, err, "InvalidRange", http.StatusRequestedRangeNotSatisfiable)
+		wantFieldOrder(t, err, "RangeRequested", "ActualObjectSize")
+		wantFields(t, err, map[string]string{"RangeRequested": "bytes=-0", "ActualObjectSize": "10"})
+		_, err = as(h, who{}, s3api.OpGetObject, &s3api.GetObjectInput{Bucket: "ranges", Key: "k", Range: new("bytes=0-1"), PartNumber: new(int32(1))})
 		wantCode(t, err, "InvalidRequest", http.StatusBadRequest)
+		// testdata/parity/s3/R12/02-get-part-2.json
 		_, err = as(h, who{}, s3api.OpGetObject, &s3api.GetObjectInput{Bucket: "ranges", Key: "k", PartNumber: new(int32(2))})
 		wantCode(t, err, "InvalidPartNumber", http.StatusRequestedRangeNotSatisfiable)
+		wantFieldOrder(t, err, "PartNumberRequested", "ActualPartCount")
+		wantFields(t, err, map[string]string{"PartNumberRequested": "2", "ActualPartCount": "1"})
 		got, out := h.read(&s3api.GetObjectInput{Bucket: "ranges", Key: "k", PartNumber: new(int32(1))})
 		if got != "0123456789" || out.ContentRange == nil || *out.ContentRange != "bytes 0-9/10" || out.PartsCount != nil {
 			t.Errorf("partNumber=1 of a single-part object = %q, Content-Range %v, PartsCount %v; want the whole object, bytes 0-9/10, none",

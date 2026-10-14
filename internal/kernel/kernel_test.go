@@ -370,7 +370,7 @@ func TestValidationRunsGeneratedThenTypedValidatorsBeforeFaults(t *testing.T) {
 				return nil
 			}))
 		_, err := k.Invoke(t.Context(), sqsapi.OpSendMessage, &sqsapi.SendMessageInput{QueueUrl: "u", MessageBody: "b", DelaySeconds: new(int32(901))})
-		if err == nil || err.Message != "Value 901 for parameter DelaySeconds is invalid. Reason: Must be >= 0 and <= 900, if provided." {
+		if err == nil || err.Message != "Value 901 for parameter DelaySeconds is invalid. Reason: DelaySeconds must be >= 0 and <= 900." {
 			t.Fatalf("generated validation: err = %+v", err)
 		}
 		_, err = k.Invoke(t.Context(), sqsapi.OpSendMessage, &sqsapi.SendMessageInput{QueueUrl: "u", MessageBody: "typed"})

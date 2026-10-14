@@ -182,7 +182,8 @@ func scoped(arn string, scope aws.Scope) (string, bool) {
 }
 
 // fixError puts an error body's message under the member spelling of its
-// __type's shape and translates Local's texts for a missing and a
+// __type's shape (Message for a ConditionalCheckFailedException carrying
+// its item) and translates Local's texts for a missing and a
 // preexisting table, reporting whether it changed anything. A __type the
 // operation does not send stays as Local wrote it.
 func fixError(m document.Map, op *registry.Operation, a answer) bool {
@@ -205,7 +206,14 @@ func fixError(m document.Map, op *registry.Operation, a answer) bool {
 		m[at].Value = document.String(awsPreexisting(a.table))
 		changed = true
 	}
-	switch id.MessageKey {
+	key := id.MessageKey
+	if id.Shape == dynamodbapi.IdentityConditionalCheckFailedException().Shape && slices.ContainsFunc(m, func(e document.Entry) bool { return e.Key == "Item" }) {
+		// AWS spells it Message when the error carries the item
+		// (testdata/parity/dynamodb/R04/05-put-ccf-all-old.json) and message
+		// otherwise (testdata/parity/dynamodb/R04/05-put-ccf.json).
+		key = awserr.MessageUpper
+	}
+	switch key {
 	case awserr.MessageLower:
 		changed = changed || m[at].Key != "message"
 		m[at].Key = "message"

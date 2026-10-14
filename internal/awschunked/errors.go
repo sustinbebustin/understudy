@@ -40,17 +40,20 @@ func (e *DecodedLengthExceededError) Error() string {
 // S3 answers this case with its own code, InvalidChunkSizeError, message
 // "Only the last chunk is allowed to have a size less than 8192 bytes" (the
 // AWS JS SDK's e2e test against real S3, middleware-flexible-checksums
-// .e2e.spec.ts). The status is UNVERIFIED: Swift's s3api answers 403 and
-// versitygw 400, and versitygw renders Chunk and Size as the <Chunk> and
-// <BadChunkSize> elements. The S3 layer must not fold this case into the
-// generic framing error.
+// .e2e.spec.ts). The status is 403, and S3 renders Chunk and Size as the
+// <Chunk> and <BadChunkSize> elements: chunks of 3 then 2 bytes answer
+// <Chunk>2</Chunk><BadChunkSize>3</BadChunkSize>
+// (testdata/parity/s3/R08/03-trailer-small-nonfinal-chunk.json). The S3
+// layer must not fold this case into the generic framing error.
 type ChunkTooSmallError struct {
-	Chunk int64 // 1-based index of the short chunk
-	Size  int64 // its size in bytes
+	// Chunk is the 1-based index of the chunk being read when the short one
+	// was detected, the one after it, as S3 counts it.
+	Chunk int64
+	Size  int64 // the short chunk's size in bytes
 }
 
 func (e *ChunkTooSmallError) Error() string {
-	return "awschunked: chunk " + strconv.FormatInt(e.Chunk, 10) + " holds " + strconv.FormatInt(e.Size, 10) +
+	return "awschunked: chunk " + strconv.FormatInt(e.Chunk-1, 10) + " holds " + strconv.FormatInt(e.Size, 10) +
 		" bytes; only the last chunk may hold fewer than 8192"
 }
 

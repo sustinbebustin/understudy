@@ -33,7 +33,7 @@ func (s *Service) bindMoveTasks(b sqsapi.Binder) {
 	b.StartMessageMoveTask(s.startMessageMoveTask, registry.Full{},
 		kernel.WithCheck(func(in *sqsapi.StartMessageMoveTaskInput) *awserr.Error {
 			if r := in.MaxNumberOfMessagesPerSecond; r != nil && (*r < 1 || *r > maxMoveRate) {
-				return errMoveRate(*r)
+				return errMoveRate()
 			}
 			return nil
 		}),

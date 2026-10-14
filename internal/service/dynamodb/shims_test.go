@@ -297,7 +297,8 @@ func replayTerraform(h *harness, p terraformProbe) {
 		{"DescribeTable", named, "ResourceNotFoundException", "Requested resource not found: Table: " + p.table + " not found"},
 		{"DescribeContinuousBackups", named, "TableNotFoundException", "Table not found: " + p.table},
 		{"DescribeTimeToLive", named, "ResourceNotFoundException", "Requested resource not found: Table: " + p.table + " not found"},
-		{"ListTagsOfResource", `{"ResourceArn":"` + arn + `"}`, "ResourceNotFoundException", "Requested resource not found: ResourcArn: " + arn + " not found"},
+		// testdata/parity/dynamodb/R04/07-list-tags-missing-table.json
+		{"ListTagsOfResource", `{"ResourceArn":"` + arn + `"}`, "ResourceNotFoundException", "Requested resource not found: ResourceArn: " + arn + " not found"},
 	} {
 		got := h.call(c.op, c.body)
 		if e := parseError(h, got.Body); got.Status != http.StatusBadRequest || e.Type != "com.amazonaws.dynamodb.v20120810#"+c.typ || e.Message != c.message {
@@ -436,17 +437,22 @@ func TestTagLimits(t *testing.T) {
 		return "[" + strings.Join(out, ",") + "]"
 	}
 	const arn = "arn:aws:dynamodb:us-east-1:111111111111:table/Jobs"
+	// The recorded texts: testdata/parity/dynamodb/R04/x-tag-51.json and
+	// testdata/parity/dynamodb/R04/x-tag-aws-prefix.json.
+	const tooMany = "Number of Tags exceed the current limit for the provided ResourceArn"
 	for _, c := range []struct {
 		name          string
 		created, more string
 		refused       bool
+		// message, when set, is the refusal's recorded text.
+		message string
 	}{
 		{name: "50 at creation", created: tags("k", 50), more: "[]"},
 		{name: "51 at creation", created: tags("k", 51), refused: true},
 		{name: "reserved at creation", created: `[{"Key":"AWS:owner","Value":"v"}]`, refused: true},
-		{name: "51 by tagging", created: tags("k", 49), more: tags("n", 2), refused: true},
+		{name: "51 by tagging", created: tags("k", 49), more: tags("n", 2), refused: true, message: tooMany},
 		{name: "overwriting at 50", created: tags("k", 50), more: tags("k", 3)},
-		{name: "reserved by tagging", created: "[]", more: `[{"Key":"aws:owner","Value":"v"}]`, refused: true},
+		{name: "reserved by tagging", created: "[]", more: `[{"Key":"aws:x","Value":"v"}]`, refused: true, message: "Tag Key cannot be prefixed with aws:, Key: aws:x"},
 		{name: "every allowed character", created: `[{"Key":"Été 1 +-=._:/","Value":"日本 ok"}]`, more: `[{"Key":"k","Value":""}]`},
 		{name: "a key outside the characters at creation", created: `[{"Key":"cost#center","Value":"v"}]`, refused: true},
 		{name: "a value outside the characters by tagging", created: "[]", more: `[{"Key":"k","Value":"a*b"}]`, refused: true},
@@ -471,6 +477,11 @@ func TestTagLimits(t *testing.T) {
 				got := h.call("TagResource", `{"ResourceArn":"`+arn+`","Tags":`+c.more+`}`)
 				if refused := got.Status == http.StatusBadRequest; refused != c.refused {
 					h.Errorf("TagResource = %d %s, want refused %v", got.Status, got.Body, c.refused)
+				}
+				if c.message != "" {
+					if e := parseError(h, got.Body); e.Type != "com.amazon.coral.validate#ValidationException" || e.Message != c.message {
+						h.Errorf("TagResource refusal = %s, want ValidationException %q", got.Body, c.message)
+					}
 				}
 				if after := h.mustCall("ListTagsOfResource", `{"ResourceArn":"`+arn+`"}`); c.refused && !equalJSON(after, before) {
 					h.Errorf("tags after a refused TagResource = %v, want %v", after, before)

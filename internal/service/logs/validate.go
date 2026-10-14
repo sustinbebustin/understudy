@@ -3,7 +3,6 @@ package logs
 import (
 	"cmp"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -18,24 +17,14 @@ const (
 	eventOverhead = 26
 )
 
-// validatePutRetentionPolicy checks retentionInDays against the values AWS
+// checkPutRetentionPolicy checks retentionInDays against the values AWS
 // accepts; the model has no constraint, so the generated validator cannot.
-// The violation renders as the Coral enum text under
-// InvalidParameterException.
-func validatePutRetentionPolicy(in *logsapi.PutRetentionPolicyInput) []awserr.Violation {
+func checkPutRetentionPolicy(in *logsapi.PutRetentionPolicyInput) *awserr.Error {
 	days := retentionDays()
 	if slices.Contains(days, in.RetentionInDays) {
 		return nil
 	}
-	values := make([]string, len(days))
-	for i, d := range days {
-		values[i] = strconv.Itoa(int(d))
-	}
-	return []awserr.Violation{{
-		Path:       awserr.Path{"retentionInDays"},
-		Value:      awserr.RenderedText{Text: strconv.Itoa(int(in.RetentionInDays))},
-		Constraint: awserr.Enum{Values: values},
-	}}
+	return errRetentionValue(days)
 }
 
 // checkCreateLogGroup refuses a name under the reserved "aws/" prefix,

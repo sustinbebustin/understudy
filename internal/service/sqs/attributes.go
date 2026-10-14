@@ -455,7 +455,8 @@ func sets(ss []setting, name sqsapi.QueueAttributeName) bool {
 // checkRedrive checks source's redrive policy against the state when the
 // request set one (sqs.md 9.1): the target is a queue of the same account,
 // region and type whose redrive allow policy admits source. AWS rejects
-// the other cases; its texts are unrecorded.
+// the other cases; the type and allow-policy texts are recorded, the
+// account and existence ones are not.
 func checkRedrive(st *State, scope aws.Scope, source *Queue) *awserr.Error {
 	p := source.Attributes.RedrivePolicy
 	if p == nil {
@@ -470,11 +471,12 @@ func checkRedrive(st *State, scope aws.Scope, source *Queue) *awserr.Error {
 		return errRedriveTarget(policy, "Dead letter target does not exist.")
 	}
 	if (dlq.FIFO == nil) != (source.FIFO == nil) {
-		return errRedriveTarget(policy, "Dead-letter queue must be the same type of queue as the source queue.")
+		// The doubled period is AWS's (testdata/parity/sqs/R02/07-redrive-fifo-to-std.json).
+		return errRedriveTarget(policy, "Dead-letter queue must be same type of queue as the source..")
 	}
 	sourceARN := queueRef{scope: scope, name: source.Name}.arn().String()
 	if !dlq.Attributes.RedriveAllowPolicy.allows(sourceARN) {
-		return errRedriveTarget(policy, "Queue "+p.DeadLetterTarget.arn().String()+" does not allow "+sourceARN+" to use it as a dead-letter queue.")
+		return errRedriveDenied(p.MaxReceiveCount, p.DeadLetterTarget.arn().String())
 	}
 	return nil
 }

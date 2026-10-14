@@ -192,8 +192,8 @@ func (s *Service) checkFilterPolicyScope(sub subscriber, v string) string {
 // without its location line, whose deadLetterTargetArn is an SQS queue in the subscription's
 // account and Region, a FIFO queue for a FIFO queue subscribed to a FIFO
 // topic. A queue ARN without the aws partition, a Region or a 12-digit
-// account is the recorded invalid-arn text; the text for a queue in
-// another account or Region is inferred, as no recording shows AWS's.
+// account is the recorded invalid-arn text; a queue in another Region or
+// account gets the texts recorded in testdata/parity/sns/R09.
 func checkRedrivePolicy(sub subscriber, v string) string {
 	m, ok := parseObject(v)
 	if !ok {
@@ -206,9 +206,14 @@ func checkRedrivePolicy(sub subscriber, v string) string {
 	if !ok {
 		return attrRedrivePolicy + ": deadLetterTargetArn is an invalid arn"
 	}
+	// testdata/parity/sns/R09/redrive-other-region.json and
+	// redrive-other-account.json; which text wins when both differ is not
+	// recorded.
+	if scope.Region != sub.home.Region {
+		return attrRedrivePolicy + ": deadLetterTargetArn must be in the same region as the subscription"
+	}
 	if scope != sub.home {
-		return attrRedrivePolicy + ": deadLetterTargetArn must be an Amazon SQS queue in the account and Region of the subscription (" +
-			sub.home.Account.String() + ", " + sub.home.Region.String() + ")"
+		return attrRedrivePolicy + ": deadLetterTargetArn must belong to the same account as the subscription"
 	}
 	if sub.topicFIFO && isFIFOQueue(sub.endpoint) && !isFIFOQueue(dlq.Resource) {
 		return attrRedrivePolicy + ": must use a FIFO queue as DLQ for a FIFO Subscription to a FIFO Topic."

@@ -2,6 +2,7 @@ package logs
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -158,4 +159,14 @@ func tooManyTagsText(arn string) string {
 
 func errFilterPattern(message string) *awserr.Error {
 	return logsapi.ErrInvalidParameterException(message)
+}
+
+// errRetentionValue refuses a retentionInDays outside days, which it lists
+// (recorded, testdata/parity/logs/R10/06-retention-6.json).
+func errRetentionValue(days []int32) *awserr.Error {
+	values := make([]string, len(days))
+	for i, d := range days {
+		values[i] = strconv.Itoa(int(d))
+	}
+	return logsapi.ErrInvalidParameterException("Invalid retention value. Valid values are: [" + strings.Join(values, ", ") + "]")
 }

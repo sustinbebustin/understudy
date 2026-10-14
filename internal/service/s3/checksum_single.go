@@ -158,13 +158,14 @@ func parseContentMD5(v *string) (*contentMD5, *awserr.Error) {
 
 // verify compares the Content-MD5 sent with the MD5 of the bytes
 // received: BadDigest with the expected digest in hex and the calculated
-// one in base64, as the PutObject recording shows (s3.md 5.11).
+// one in base64, calculated first, as the PutObject recordings show
+// (s3.md 5.11; testdata/parity/s3/R08/04-checksum-plus-wrong-content-md5.json).
 func (c *contentMD5) verify(computed []byte) *awserr.Error {
 	if c == nil || bytes.Equal(c.digest, computed) {
 		return nil
 	}
 	e := s3api.ErrBadDigest(badMD5Message)
-	return withField(withField(e, "ExpectedDigest", hex.EncodeToString(c.digest)), "CalculatedDigest", base64.StdEncoding.EncodeToString(computed))
+	return withField(withField(e, "CalculatedDigest", base64.StdEncoding.EncodeToString(computed)), "ExpectedDigest", hex.EncodeToString(c.digest))
 }
 
 // errBadChecksum answers a declared checksum that does not match the bytes

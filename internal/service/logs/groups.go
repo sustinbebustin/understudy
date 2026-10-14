@@ -41,7 +41,7 @@ func (s *Service) bindGroups(b logsapi.Binder) {
 		kernel.WithCheck(checkDescribeLogGroups))
 	b.PutRetentionPolicy(s.putRetentionPolicy,
 		registry.Partial{Note: "events expire exactly at timestamp plus retention on the emulator clock, not lazily within 72 hours"},
-		kernel.WithValidator(validatePutRetentionPolicy),
+		kernel.WithCheck(checkPutRetentionPolicy),
 		groupNamed(func(in *logsapi.PutRetentionPolicyInput) string { return in.LogGroupName }))
 	b.DeleteRetentionPolicy(s.deleteRetentionPolicy, registry.Full{},
 		groupNamed(func(in *logsapi.DeleteRetentionPolicyInput) string { return in.LogGroupName }))

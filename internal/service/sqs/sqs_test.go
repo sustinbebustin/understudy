@@ -269,8 +269,9 @@ func TestLimitChecksPrecedeInjectedFaults(t *testing.T) {
 	run(t, func(h *harness) {
 		url := h.queue("limits", nil)
 		h.throttleAll("")
+		// testdata/parity/sqs/R11/02-receive-visibility-43201.json
 		_, err := h.receive(&sqsapi.ReceiveMessageInput{QueueUrl: url, VisibilityTimeout: new(int32(43201))})
-		wantError(h.T, err, "InvalidParameterValue", "Value 43201 for parameter VisibilityTimeout is invalid. Reason: Must be >= 0 and <= 43200, if provided.")
+		wantError(h.T, err, "InvalidParameterValue", "Value 43201 for parameter VisibilityTimeout is invalid. Reason: Must be between 0 and 43200, if provided.")
 		_, err = h.send(&sqsapi.SendMessageInput{QueueUrl: url, MessageBody: "a\x01b"})
 		if err == nil || err.ID.QueryCode != "InvalidMessageContents" {
 			h.Errorf("a control character under a throttle = %v, want InvalidMessageContents", err)
@@ -279,6 +280,12 @@ func TestLimitChecksPrecedeInjectedFaults(t *testing.T) {
 		wantError(h.T, err, "InvalidParameterValue", "Message (user) attribute 'k' must contain a non-empty value of type 'String'.")
 		_, err = h.send(&sqsapi.SendMessageInput{QueueUrl: url, MessageBody: "b", MessageAttributes: map[string]sqsapi.MessageAttributeValue{"k": {DataType: "Date", StringValue: new("x")}}})
 		wantError(h.T, err, "InvalidParameterValue", "The message attribute 'k' has an invalid message attribute type, the set of supported type prefixes is Binary, Number, and String.")
+		// testdata/parity/sqs/R11/x-send-attribute-name-257.json
+		_, err = h.send(&sqsapi.SendMessageInput{QueueUrl: url, MessageBody: "b", MessageAttributes: map[string]sqsapi.MessageAttributeValue{strings.Repeat("a", 257): {DataType: "String", StringValue: new("v")}}})
+		wantError(h.T, err, "InvalidParameterValue", "Message (user) attribute name must be shorter than 256 bytes.")
+		// testdata/parity/sqs/R11/x-send-datatype-257.json
+		_, err = h.send(&sqsapi.SendMessageInput{QueueUrl: url, MessageBody: "b", MessageAttributes: map[string]sqsapi.MessageAttributeValue{"k": {DataType: "String." + strings.Repeat("a", 250), StringValue: new("v")}}})
+		wantError(h.T, err, "InvalidParameterValue", "Message (user) attribute type must be shorter than 256 bytes.")
 		if _, err := h.send(&sqsapi.SendMessageInput{QueueUrl: url, MessageBody: "b"}); !injected(err) {
 			h.Errorf("a valid send under a throttle = %v, want the injected throttle", err)
 		}

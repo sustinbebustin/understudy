@@ -8,7 +8,7 @@ It covers twelve services (SQS, SNS, S3, DynamoDB, Lambda, CloudWatch Logs, Secr
 
 Pre-release. Nothing is published yet: no release, package or image. You build it from a clone.
 
-Coverage is partial and listed operation by operation in [docs/coverage.md](docs/coverage.md). No behavior has been recorded against real AWS yet: the evidence behind it is AWS's documentation, recordings published by other projects, SDK source, and inference, and the coverage page labels each item.
+Coverage is partial and listed operation by operation in [docs/coverage.md](docs/coverage.md). Real AWS was recorded once, on 2026-10-14, for the record backlog R01 to R18 (`testdata/parity/`); 45 of the 232 evidence items behind the overlays are now `aws-recorded`. The rest rests on AWS's documentation, recordings published by other projects, SDK source, and inference, and the coverage page labels each item. Recorded differences that still need code are listed in [DEFERRED.md](docs/plan/DEFERRED.md#recorded-differences-from-aws).
 
 ## What sets it apart
 
@@ -124,7 +124,7 @@ Choose by what you need:
 ## Limitations
 
 - Twelve services, with many operations unbound; see the coverage table.
-- No behavior is recorded against real AWS yet; see [Status](#status).
+- Most behavior is not recorded against real AWS, and recorded differences remain open; see [Status](#status).
 - IAM policies, resource policies and key policies are stored, not enforced: nothing denies a call, and a delivery AWS would deny goes through with an `advisory` event in the journal. `iam policy` grants more than a principal needs in places; review it as the [policy guide](docs/guide/policy.md#review-before-use) describes.
 - Request signatures are parsed, not verified, unless you start with `--sigv4 verify`; without it a presigned URL is accepted whatever its signature or expiry. Even under `--sigv4 verify` every client may sign with the public dummy pair `test`/`test`, so a signature is not access control.
 - When understudy runs in a container or on Docker Desktop, Lambda function code can reach the whole admin API: it can reset state, change the clock and read the journal. In a container, `UNDERSTUDY_ADMIN_TOKEN` with `--allow-unauthenticated-aws-api` closes that. On Docker Desktop, `serve` refuses a token on the default loopback listener, so the exposure stays there. Listening beyond loopback with the token and `--allow-unauthenticated-aws-api` should close the admin API to functions, but opens the AWS API to every peer on your network, and is untested on Docker Desktop; see [SECURITY.md](SECURITY.md).

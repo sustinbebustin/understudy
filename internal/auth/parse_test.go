@@ -242,6 +242,30 @@ func TestParseReportsEveryWrongScopePiece(t *testing.T) {
 	}
 }
 
+// A presigned URL's unknown algorithm and over-a-week X-Amz-Expires carry
+// S3's texts (testdata/parity/s3/R18/01-presign-unknown-algorithm.json,
+// testdata/parity/s3/R18/01-presign-expires-604801.json).
+func TestParsePresignTexts(t *testing.T) {
+	for _, tc := range []struct {
+		params map[string]string
+		want   auth.Invalid
+	}{
+		{
+			map[string]string{"X-Amz-Algorithm": "AWS4-HMAC-SHA512"},
+			auth.Invalid{Mechanism: auth.QueryV4, Problem: auth.UnsupportedAlgorithm, Message: `X-Amz-Algorithm only supports "AWS4-HMAC-SHA256 and AWS4-ECDSA-P256-SHA256"`},
+		},
+		{
+			map[string]string{"X-Amz-Expires": "604801"},
+			auth.Invalid{Mechanism: auth.QueryV4, Problem: auth.Malformed, Message: "X-Amz-Expires must be less than a week (in seconds); that is, the given X-Amz-Expires must be less than 604800 seconds"},
+		},
+	} {
+		r := serverRequest(t, http.MethodGet, "/b/k?"+docPresignQuery(tc.params), "localhost:4566", nil)
+		if _, perr := auth.Parse(r, aws.KnownRegions()); !reflect.DeepEqual(perr, tc.want) {
+			t.Errorf("Parse with %v = %#v, want %#v", tc.params, perr, tc.want)
+		}
+	}
+}
+
 func TestParseExpiresBounds(t *testing.T) {
 	for _, tc := range []struct {
 		value string

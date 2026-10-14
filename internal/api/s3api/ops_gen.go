@@ -1629,7 +1629,7 @@ func NotConfiguredGetBucketCors(message string) *awserr.Error {
 // NotConfiguredGetBucketEncryption is GetBucketEncryption's answer while its subresource is unset: the
 // default configuration (dev.understudy#notConfigured).
 func NotConfiguredGetBucketEncryption() *GetBucketEncryptionOutput {
-	return &GetBucketEncryptionOutput{ServerSideEncryptionConfiguration: new(ServerSideEncryptionConfiguration{Rules: []ServerSideEncryptionRule{ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: new(ServerSideEncryptionByDefault{SSEAlgorithm: ServerSideEncryption("AES256")}), BucketKeyEnabled: new(false)}}})}
+	return &GetBucketEncryptionOutput{ServerSideEncryptionConfiguration: new(ServerSideEncryptionConfiguration{Rules: []ServerSideEncryptionRule{ServerSideEncryptionRule{ApplyServerSideEncryptionByDefault: new(ServerSideEncryptionByDefault{SSEAlgorithm: ServerSideEncryption("AES256")}), BucketKeyEnabled: new(false), BlockedEncryptionTypes: new(BlockedEncryptionTypes{EncryptionType: []EncryptionType{EncryptionType("SSE-C")}})}}})}
 }
 
 // NotConfiguredGetBucketIntelligentTieringConfiguration is GetBucketIntelligentTieringConfiguration's answer while its subresource is unset:

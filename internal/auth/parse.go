@@ -242,7 +242,8 @@ func checkAlgorithm(alg string, m Mechanism) ParseError {
 	case alg == algorithmV4A:
 		return Invalid{Mechanism: m, Problem: UnsupportedAlgorithm, Message: "SigV4A (" + algorithmV4A + ") is not supported; sign with " + algorithm}
 	case m == QueryV4:
-		return Invalid{Mechanism: m, Problem: UnsupportedAlgorithm, Message: "X-Amz-Algorithm only supports \"" + algorithm + "\", not \"" + alg + "\""}
+		// S3's text (testdata/parity/s3/R18/01-presign-unknown-algorithm.json).
+		return Invalid{Mechanism: m, Problem: UnsupportedAlgorithm, Message: "X-Amz-Algorithm only supports \"" + algorithm + " and " + algorithmV4A + "\""}
 	}
 	return Invalid{Mechanism: m, Problem: UnsupportedAlgorithm, Message: "Unsupported AWS 'algorithm': '" + alg + "' (only " + algorithm + " for now). "}
 }
@@ -481,7 +482,8 @@ func parseExpires(s string) (time.Duration, ParseError) {
 	case secs == 0:
 		return 0, malformed(QueryV4, "X-Amz-Expires must be at least 1 second; got 0")
 	case secs > maxSecs:
-		return 0, malformed(QueryV4, fmt.Sprintf("X-Amz-Expires must be less than a week (in seconds) that is %d", maxSecs))
+		// S3's text (testdata/parity/s3/R18/01-presign-expires-604801.json).
+		return 0, malformed(QueryV4, fmt.Sprintf("X-Amz-Expires must be less than a week (in seconds); that is, the given X-Amz-Expires must be less than %d seconds", maxSecs))
 	}
 	return time.Duration(secs) * time.Second, nil
 }

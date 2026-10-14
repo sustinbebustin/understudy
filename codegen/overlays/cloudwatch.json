@@ -9,10 +9,16 @@
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#evidence": [
           {
+            "label": "aws-recorded",
+            "source": "testdata/parity/cloudwatch/R07/cw-GetDashboard.json",
+            "validated": "2026-10-14",
+            "covers": ["dev.understudy#errorNamespace"]
+          },
+          {
             "label": "third-party-recorded",
             "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156",
             "validated": "2025-09-22",
-            "covers": ["dev.understudy#errorNamespace", "dev.understudy#validationError"]
+            "covers": ["dev.understudy#validationError"]
           },
           {
             "label": "aws-doc",

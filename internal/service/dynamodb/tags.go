@@ -42,7 +42,10 @@ const tagCharacters = "+-=._:/"
 // checkTags refuses adding tags to a table holding have when the table
 // would hold more than maxTags or more than maxTagBytes of them, a key is
 // reserved, or a key or value holds a character DynamoDB does not allow.
-// The texts are UNVERIFIED against AWS.
+// The reserved-key and tag-count texts are recorded
+// (testdata/parity/dynamodb/R04/x-tag-aws-prefix.json,
+// testdata/parity/dynamodb/R04/x-tag-51.json); the character and size
+// texts are UNVERIFIED against AWS.
 func checkTags(have map[string]string, adding []dynamodbapi.Tag) *awserr.Error {
 	keys := maps.Clone(have)
 	if keys == nil {
@@ -50,7 +53,7 @@ func checkTags(have map[string]string, adding []dynamodbapi.Tag) *awserr.Error {
 	}
 	for _, tag := range adding {
 		if strings.HasPrefix(strings.ToLower(tag.Key), reservedTagPrefix) {
-			return dynamodbapi.ErrValidationException("Invalid tag key " + tag.Key + ": tag keys starting with " + reservedTagPrefix + " are reserved for AWS use")
+			return dynamodbapi.ErrValidationException("Tag Key cannot be prefixed with " + reservedTagPrefix + ", Key: " + tag.Key)
 		}
 		if !validTagText(tag.Key) {
 			return errTagCharacters("key", tag.Key)
@@ -61,7 +64,7 @@ func checkTags(have map[string]string, adding []dynamodbapi.Tag) *awserr.Error {
 		keys[tag.Key] = tag.Value
 	}
 	if len(keys) > maxTags {
-		return dynamodbapi.ErrValidationException(fmt.Sprintf("Too many tags: the table would have %d tags; a table can have at most %d", len(keys), maxTags))
+		return dynamodbapi.ErrValidationException("Number of Tags exceed the current limit for the provided ResourceArn")
 	}
 	size := 0
 	for k, v := range keys {
@@ -171,10 +174,10 @@ func taggedName(scope aws.Scope, resource string) (string, *awserr.Error) {
 	return name, nil
 }
 
-// errTaggedNotFound answers a tag operation on a table the scope lacks.
-// The text, with AWS's "ResourcArn", is UNVERIFIED against AWS.
+// errTaggedNotFound answers a tag operation on a table the scope lacks
+// (recorded, testdata/parity/dynamodb/R04/07-list-tags-missing-table.json).
 func errTaggedNotFound(resource string) *awserr.Error {
-	return dynamodbapi.ErrResourceNotFoundException("Requested resource not found: ResourcArn: " + resource + " not found")
+	return dynamodbapi.ErrResourceNotFoundException("Requested resource not found: ResourceArn: " + resource + " not found")
 }
 
 // taggedTable names the table a tag operation addresses, so fault rules

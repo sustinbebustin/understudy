@@ -473,6 +473,8 @@ func TestCompleteMultipartUploadPartErrors(t *testing.T) {
 			t.Errorf("wrong ETag: message %q", err.Message)
 		}
 		wantFields(t, err, map[string]string{"ETag": "0123456789abcdef0123456789abcdef", "PartNumber": "1", "UploadId": id})
+		// S3's element order (testdata/parity/s3/R08/06-complete-with-part-checksums.json).
+		wantFieldOrder(t, err, "UploadId", "PartNumber", "ETag")
 
 		_, err = complete(h, "parts", "k", id, []s3api.CompletedPart{part(1, *p1.ETag), part(9, *p1.ETag)}, s3api.CompleteMultipartUploadInput{})
 		wantCode(t, err, "InvalidPart", http.StatusBadRequest)

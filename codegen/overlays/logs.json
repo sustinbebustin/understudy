@@ -13,9 +13,9 @@
             "covers": ["dev.understudy#throttleError"]
           },
           {
-            "label": "third-party-recorded",
-            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/logs/test_logs_events.snapshot.json#L77",
-            "validated": "2026-02-03",
+            "label": "aws-recorded",
+            "source": "testdata/parity/logs/R10/06-10001-events.json",
+            "validated": "2026-10-14",
             "covers": ["dev.understudy#validationError"]
           }
         ]

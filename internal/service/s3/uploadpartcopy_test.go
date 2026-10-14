@@ -121,8 +121,8 @@ func TestUploadPartCopyOverHTTP(t *testing.T) {
 }
 
 // TestUploadPartCopyErrors: an x-amz-copy-source-range that is not
-// bytes=first-last is InvalidArgument naming it; one past the source's end
-// InvalidRange; the copy-source conditions fail with 412; a missing source
+// bytes=first-last is InvalidArgument naming it, as is one past the
+// source's end; the copy-source conditions fail with 412; a missing source
 // or upload is answered as such, and a part number outside 1 to 10,000 is
 // InvalidArgument (s3.md 5.10, 7, 10).
 func TestUploadPartCopyErrors(t *testing.T) {
@@ -154,10 +154,16 @@ func TestUploadPartCopyErrors(t *testing.T) {
 			}
 			wantFields(t, err, map[string]string{"ArgumentName": "x-amz-copy-source-range", "ArgumentValue": bad})
 		}
+		// testdata/parity/s3/R12/09-upload-part-copy-range-beyond.json
 		_, err := as(h, who{}, s3api.OpUploadPartCopy, &s3api.UploadPartCopyInput{
-			Bucket: "copies", Key: "dst", UploadId: id, PartNumber: 1, CopySource: "copies/src", CopySourceRange: new("bytes=5-10"),
+			Bucket: "copies", Key: "dst", UploadId: id, PartNumber: 1, CopySource: "copies/src", CopySourceRange: new("bytes=0-99999999"),
 		})
-		wantCode(t, err, "InvalidRange", http.StatusRequestedRangeNotSatisfiable)
+		wantCode(t, err, "InvalidArgument", http.StatusBadRequest)
+		if err.Message != "Range specified is not valid for source object of size: 10" {
+			t.Errorf("range past the end: message %q", err.Message)
+		}
+		wantFieldOrder(t, err, "ArgumentName", "ArgumentValue")
+		wantFields(t, err, map[string]string{"ArgumentName": "x-amz-copy-source-range", "ArgumentValue": "bytes=0-99999999"})
 
 		_, err = as(h, who{}, s3api.OpUploadPartCopy, &s3api.UploadPartCopyInput{
 			Bucket: "copies", Key: "dst", UploadId: id, PartNumber: 1, CopySource: "copies/src", CopySourceIfMatch: new(`"not-the-etag"`),

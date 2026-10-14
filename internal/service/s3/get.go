@@ -115,8 +115,9 @@ func readSpan(o *Object, rangeSpec *string, partNumber *int32) (span, *awserr.Er
 	case rangeIgnored:
 		return whole, nil
 	case rangeUnsatisfiable:
-		e := withField(s3api.ErrInvalidRange("The requested range is not satisfiable"), "ActualObjectSize", strconv.FormatInt(o.Size, 10))
-		return span{}, withField(e, "RangeRequested", *rangeSpec)
+		// S3's element order (testdata/parity/s3/R12/01-range-suffix-0.json).
+		e := withField(s3api.ErrInvalidRange("The requested range is not satisfiable"), "RangeRequested", *rangeSpec)
+		return span{}, withField(e, "ActualObjectSize", strconv.FormatInt(o.Size, 10))
 	case rangeBytes:
 		return span{partial: true, first: rg.first, n: rg.last - rg.first + 1, size: o.Size}, nil
 	}
@@ -135,8 +136,9 @@ func partSpan(o *Object, n int32) (span, *awserr.Error) {
 		parts = []ObjectPart{{Size: o.Size}}
 	}
 	if n < 1 || int(n) > len(parts) {
-		e := withField(s3api.ErrInvalidPartNumber("The requested partnumber is not satisfiable"), "ActualPartCount", strconv.Itoa(len(parts)))
-		return span{}, withField(e, "PartNumberRequested", strconv.Itoa(int(n)))
+		// S3's element order (testdata/parity/s3/R12/02-get-part-2.json).
+		e := withField(s3api.ErrInvalidPartNumber("The requested partnumber is not satisfiable"), "PartNumberRequested", strconv.Itoa(int(n)))
+		return span{}, withField(e, "ActualPartCount", strconv.Itoa(len(parts)))
 	}
 	if len(o.Parts) == 0 {
 		return span{partial: o.Size > 0, n: o.Size, size: o.Size}, nil

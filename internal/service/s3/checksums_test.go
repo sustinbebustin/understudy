@@ -296,9 +296,10 @@ func TestCompleteMultipartUploadChecksumRules(t *testing.T) {
 				code: "InvalidRequest", message: nullMode,
 			},
 			{
+				// testdata/parity/s3/R08/06-complete-xxhash64-header-no-create-alg.json
 				name: "a newer algorithm's object header", parts: []s3api.CompletedPart{plainBare},
-				in:   s3api.CompleteMultipartUploadInput{ChecksumSHA512: new(sumOf(t, checksum.SHA512, body))},
-				code: "InvalidRequest", message: "The upload was created without a checksum algorithm, so the complete request cannot include the x-amz-checksum-sha512 header.",
+				in:   s3api.CompleteMultipartUploadInput{ChecksumXXHASH64: new(sumOf(t, checksum.XXHASH64, body))},
+				code: "InvalidRequest", message: "Checksum Type mismatch occurred, expected checksum Type: null, actual checksum Type: xxhash64",
 			},
 		})
 		done, err = complete(h, "rules", "plain", plain, []s3api.CompletedPart{plainBare}, s3api.CompleteMultipartUploadInput{ChecksumCRC32C: new("AAAAAA==-2")})

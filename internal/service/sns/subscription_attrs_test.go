@@ -74,8 +74,12 @@ func TestRedrivePolicyQueueMustBeDeliverable(t *testing.T) {
 			_, err = call(h, snsapi.OpSubscribe, &snsapi.SubscribeInput{TopicArn: topic, Protocol: "sqs", Endpoint: new(queueARN + "-new"), Attributes: map[string]string{"RedrivePolicy": redrive(dlq)}})
 			wantError(h, err, "InvalidParameter", "Invalid parameter: Attributes Reason: "+invalid)
 		}
-		const elsewhere = "RedrivePolicy: deadLetterTargetArn must be an Amazon SQS queue in the account and Region of the subscription (000000000000, us-east-1)"
-		for _, dlq := range []string{"arn:aws:sqs:eu-west-1:000000000000:orders-dlq", "arn:aws:sqs:us-east-1:111111111111:orders-dlq"} {
+		// testdata/parity/sns/R09/redrive-other-region.json and
+		// redrive-other-account.json.
+		for dlq, elsewhere := range map[string]string{
+			"arn:aws:sqs:eu-west-1:000000000000:orders-dlq": "RedrivePolicy: deadLetterTargetArn must be in the same region as the subscription",
+			"arn:aws:sqs:us-east-1:111111111111:orders-dlq": "RedrivePolicy: deadLetterTargetArn must belong to the same account as the subscription",
+		} {
 			_, err := call(h, snsapi.OpSetSubscriptionAttributes, &snsapi.SetSubscriptionAttributesInput{SubscriptionArn: arn, AttributeName: "RedrivePolicy", AttributeValue: new(redrive(dlq))})
 			wantError(h, err, "InvalidParameter", "Invalid parameter: "+elsewhere)
 			_, err = call(h, snsapi.OpSubscribe, &snsapi.SubscribeInput{TopicArn: topic, Protocol: "sqs", Endpoint: new(queueARN + "-new"), Attributes: map[string]string{"RedrivePolicy": redrive(dlq)}})

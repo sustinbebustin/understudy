@@ -201,6 +201,19 @@ func wantFields(t *testing.T, e *awserr.Error, want map[string]string) {
 	}
 }
 
+// wantFieldOrder fails the test unless e's context elements are names, in
+// that order, as S3 renders them.
+func wantFieldOrder(t *testing.T, e *awserr.Error, names ...string) {
+	t.Helper()
+	got := make([]string, len(e.Fields))
+	for i, f := range e.Fields {
+		got[i] = f.Name
+	}
+	if !slices.Equal(got, names) {
+		t.Fatalf("%s: elements %v, want %v", e.ID.QueryCode, got, names)
+	}
+}
+
 // header returns the value of e's response header name.
 func header(e *awserr.Error, name string) string {
 	for _, x := range e.Headers {

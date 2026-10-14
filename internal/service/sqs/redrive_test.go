@@ -159,14 +159,18 @@ func TestRedrivePolicyTargets(t *testing.T) {
 		h.queue("closed", map[sqsapi.QueueAttributeName]string{"RedriveAllowPolicy": `{"redrivePermission":"denyAll"}`})
 		h.queue("chosen", map[sqsapi.QueueAttributeName]string{"RedriveAllowPolicy": `{"redrivePermission":"byQueue","sourceQueueArns":["` + arnPrefix + `picked"]}`})
 		h.fifoQueue("other.fifo", nil)
-		for _, tt := range []struct{ source, target, reason string }{
-			{"denied", "closed", "Queue " + arnPrefix + "closed does not allow " + arnPrefix + "denied to use it as a dead-letter queue."},
-			{"unlisted", "chosen", "Queue " + arnPrefix + "chosen does not allow " + arnPrefix + "unlisted to use it as a dead-letter queue."},
-			{"mixed", "other.fifo", "Dead-letter queue must be the same type of queue as the source queue."},
+		// testdata/parity/sqs/R02/07-redrive-denied.json
+		denied := func(target string) string {
+			return "Value RedrivePolicy(maxReceiveCount=3, deadLetterTargetArn=" + arnPrefix + target + ") for parameter RedrivePolicy is invalid. Reason: The value for the dead-letter queue's RedriveAllowPolicy attribute prevents you from completing this request."
+		}
+		for _, tt := range []struct{ source, target, want string }{
+			{"denied", "closed", denied("closed")},
+			{"unlisted", "chosen", denied("chosen")},
+			// testdata/parity/sqs/R02/07-redrive-fifo-to-std.json
+			{"mixed", "other.fifo", "Value " + redrivePolicy("other.fifo", 3) + " for parameter RedrivePolicy is invalid. Reason: Dead-letter queue must be same type of queue as the source.."},
 		} {
-			policy := redrivePolicy(tt.target, 3)
-			_, err := h.create(&sqsapi.CreateQueueInput{QueueName: tt.source, Attributes: map[sqsapi.QueueAttributeName]string{"RedrivePolicy": policy}})
-			wantError(h.T, err, "InvalidParameterValue", "Value "+policy+" for parameter RedrivePolicy is invalid. Reason: "+tt.reason)
+			_, err := h.create(&sqsapi.CreateQueueInput{QueueName: tt.source, Attributes: map[sqsapi.QueueAttributeName]string{"RedrivePolicy": redrivePolicy(tt.target, 3)}})
+			wantError(h.T, err, "InvalidParameterValue", tt.want)
 		}
 		h.queue("picked", map[sqsapi.QueueAttributeName]string{"RedrivePolicy": redrivePolicy("chosen", 3)})
 	})
@@ -365,8 +369,9 @@ func TestMoveTaskErrors(t *testing.T) {
 		wantError(h.T, err, "InvalidParameterValue", "The destination queue must be different from the source queue.")
 		_, err = h.startTask(&sqsapi.StartMessageMoveTaskInput{SourceArn: "arn:aws:sqs:eu-west-1:000000000000:dlq"})
 		wantError(h.T, err, "ResourceNotFoundException", "The resource that you specified for the SourceArn parameter doesn't exist.")
+		// testdata/parity/sqs/R02/07-start-rate-501.json
 		_, err = h.startTask(&sqsapi.StartMessageMoveTaskInput{SourceArn: arnPrefix + "dlq", MaxNumberOfMessagesPerSecond: new(int32(501))})
-		wantError(h.T, err, "InvalidParameterValue", "Value 501 for parameter MaxNumberOfMessagesPerSecond is invalid. Reason: Must be between 1 and 500, if provided.")
+		wantError(h.T, err, "InvalidParameterValue", "Value for parameter MaxNumberOfMessagesPerSecond is invalid. Reason: You must enter a number that's between 1 and 500.")
 		cancel := func(handle string) *awserr.Error {
 			_, err := h.Invoke(h.Context(), sqsapi.OpCancelMessageMoveTask, &sqsapi.CancelMessageMoveTaskInput{TaskHandle: handle})
 			return err

@@ -384,7 +384,10 @@ func signedTrailerWire(chunkSig, trailerSig string) string {
 }
 
 // S3 refuses a chunk under 8,192 bytes before the last in signed and unsigned
-// bodies alike, naming the short chunk and its size.
+// bodies alike, naming the index of the chunk after the short one and the
+// short one's size: chunks of 3 then 2 bytes answer <Chunk>2</Chunk>
+// <BadChunkSize>3</BadChunkSize>
+// (testdata/parity/s3/R08/03-trailer-small-nonfinal-chunk.json).
 func TestChunkTooSmall(t *testing.T) {
 	t.Parallel()
 	sig := ";chunk-signature=" + strings.Repeat("0", 64)
@@ -395,9 +398,10 @@ func TestChunkTooSmall(t *testing.T) {
 		wire string
 		want awschunked.ChunkTooSmallError
 	}{
-		{"signed", awschunked.Signed, "3" + sig + "\r\nabc\r\n3" + sig + "\r\nabc\r\n0" + sig + "\r\n\r\n", awschunked.ChunkTooSmallError{Chunk: 1, Size: 3}},
-		{"unsigned trailer", awschunked.UnsignedTrailer, "8\r\nabcdefgh\r\n8\r\nabcdefgh\r\n0\r\nx-amz-checksum-crc32:AAAAAA==\r\n\r\n", awschunked.ChunkTooSmallError{Chunk: 1, Size: 8}},
-		{"plain chunked, second chunk", awschunked.PlainChunked, "2000\r\n" + full + "\r\n1\r\na\r\n1\r\nb\r\n0\r\n\r\n", awschunked.ChunkTooSmallError{Chunk: 2, Size: 1}},
+		{"recorded", awschunked.UnsignedTrailer, "3\r\nhel\r\n2\r\nlo\r\n0\r\nx-amz-checksum-crc32:NhCmhg==\r\n\r\n", awschunked.ChunkTooSmallError{Chunk: 2, Size: 3}},
+		{"signed", awschunked.Signed, "3" + sig + "\r\nabc\r\n3" + sig + "\r\nabc\r\n0" + sig + "\r\n\r\n", awschunked.ChunkTooSmallError{Chunk: 2, Size: 3}},
+		{"unsigned trailer", awschunked.UnsignedTrailer, "8\r\nabcdefgh\r\n8\r\nabcdefgh\r\n0\r\nx-amz-checksum-crc32:AAAAAA==\r\n\r\n", awschunked.ChunkTooSmallError{Chunk: 2, Size: 8}},
+		{"plain chunked, second chunk", awschunked.PlainChunked, "2000\r\n" + full + "\r\n1\r\na\r\n1\r\nb\r\n0\r\n\r\n", awschunked.ChunkTooSmallError{Chunk: 3, Size: 1}},
 	}
 	for _, c := range cases {
 		opts := awschunked.Options{}

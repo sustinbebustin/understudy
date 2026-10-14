@@ -85,6 +85,10 @@ func TestDescribeMinimalAlarmMatchesTheRecording(t *testing.T) {
 		if out.CompositeAlarms == nil || len(out.CompositeAlarms) != 0 {
 			h.Errorf("CompositeAlarms = %v, want an empty list", out.CompositeAlarms)
 		}
+		// testdata/parity/cloudwatch/R07/05-describe-alarms.json
+		if out.LogAlarms == nil || len(out.LogAlarms) != 0 {
+			h.Errorf("LogAlarms = %v, want an empty list", out.LogAlarms)
+		}
 	})
 }
 

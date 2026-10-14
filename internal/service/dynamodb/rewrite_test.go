@@ -173,9 +173,16 @@ func TestLocalErrorsTakeAWSWordsAndSpelling(t *testing.T) {
 			`{"__type":"com.amazonaws.dynamodb.v20120810#ResourceInUseException","message":"Table already exists: Locks"}`,
 		},
 		{
-			"conditional check keeps its text and item", "PutItem", `{"TableName":"Locks","Item":{"LockID":{"S":"a"}}}`,
+			// testdata/parity/dynamodb/R04/05-put-ccf-all-old.json
+			"conditional check with its item keeps Message", "PutItem", `{"TableName":"Locks","Item":{"LockID":{"S":"a"}}}`,
 			`{"__type":"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException","Message":"The conditional request failed","Item":{"LockID":{"S":"a"}}}`,
-			`{"__type":"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException","message":"The conditional request failed","Item":{"LockID":{"S":"a"}}}`,
+			`{"__type":"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException","Message":"The conditional request failed","Item":{"LockID":{"S":"a"}}}`,
+		},
+		{
+			// testdata/parity/dynamodb/R04/05-put-ccf.json
+			"conditional check without an item says message", "PutItem", `{"TableName":"Locks","Item":{"LockID":{"S":"a"}}}`,
+			`{"__type":"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException","Message":"The conditional request failed"}`,
+			`{"__type":"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException","message":"The conditional request failed"}`,
 		},
 		{
 			"validation", "PutItem", `{"TableName":"Locks","Item":{"LockID":{"S":"a"}}}`,

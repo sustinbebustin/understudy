@@ -64,6 +64,7 @@ func TestSendMessageBatchFailsEntriesAlone(t *testing.T) {
 			sqsapi.SendMessageBatchRequestEntry{Id: "ok", MessageBody: "message", MessageAttributes: map[string]sqsapi.MessageAttributeValue{"k": {DataType: "String", StringValue: &x}}},
 			entry("big", strings.Repeat("b", 1025)),
 			entry("ctrl", "a\x01b"),
+			sqsapi.SendMessageBatchRequestEntry{Id: "delay", MessageBody: "m", DelaySeconds: new(int32(901))},
 			entry("late", "later"),
 		)
 		if err != nil {
@@ -78,6 +79,8 @@ func TestSendMessageBatchFailsEntriesAlone(t *testing.T) {
 		want := []string{
 			"big true InvalidParameterValue One or more parameters cannot be validated. Reason: Message must be shorter than 1024 bytes.",
 			"ctrl true InvalidMessageContents Invalid characters found. Valid unicode characters are #x9 | #xA | #xD | #x20 to #xD7FF | #xE000 to #xFFFD | #x10000 to #x10FFFF",
+			// SendMessage's text, testdata/parity/sqs/R11/02-send-delay-901.json
+			"delay true InvalidParameterValue Value 901 for parameter DelaySeconds is invalid. Reason: DelaySeconds must be >= 0 and <= 900.",
 		}
 		if len(out.Failed) != len(want) {
 			h.Fatalf("Failed = %+v", out.Failed)

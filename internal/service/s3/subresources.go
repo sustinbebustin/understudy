@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
@@ -374,10 +375,10 @@ func checkLifecycleRule(r s3api.LifecycleRule) *awserr.Error {
 // limits below.
 func checkLifecycleDays(r s3api.LifecycleRule) *awserr.Error {
 	if e := r.Expiration; e != nil && e.Days != nil && *e.Days < 1 {
-		return s3api.ErrInvalidArgument(lifecycleExpirationDaysMessage)
+		return errInvalidArgument(lifecycleExpirationDaysMessage, "Days", strconv.Itoa(int(*e.Days)))
 	}
 	if e := r.NoncurrentVersionExpiration; e != nil && e.NoncurrentDays != nil && *e.NoncurrentDays < 1 {
-		return s3api.ErrInvalidArgument(lifecycleNoncurrentExpirationDaysMessage)
+		return errInvalidArgument(lifecycleNoncurrentExpirationDaysMessage, "NoncurrentDays", strconv.Itoa(int(*e.NoncurrentDays)))
 	}
 	current := make([]transitionStep, 0, len(r.Transitions))
 	for _, t := range r.Transitions {
@@ -404,10 +405,12 @@ func checkLifecycleDays(r s3api.LifecycleRule) *awserr.Error {
 // (lifecycle-transition-general-considerations). Transition Days may be 0
 // (API_Transition), save to the Infrequent Access classes, which take 30
 // days at least. The IA text is an AWS answer quoted in a Terraform
-// write-up (zenn.dev/thaim 2024-04-s3-lifecycle-configuration-min-duration);
-// the expiration texts are those of S3-compatible servers (rustfs) and the
-// storage-duration text is composed, so all are UNVERIFIED
-// (lifecycleRuleLimits).
+// write-up (zenn.dev/thaim 2024-04-s3-lifecycle-configuration-min-duration)
+// and the storage-duration text is composed, so both are UNVERIFIED
+// (lifecycleRuleLimits). The expiration texts, with the ArgumentName and
+// ArgumentValue S3 adds, are recorded
+// (testdata/parity/s3/R12/12-lifecycle-expiration-0.json,
+// testdata/parity/s3/R12/12-lifecycle-noncurrent-expiration-0.json).
 const (
 	lifecycleExpirationDaysMessage           = "'Days' for Expiration action must be a positive integer"
 	lifecycleNoncurrentExpirationDaysMessage = "'NoncurrentDays' for NoncurrentVersionExpiration action must be a positive integer"

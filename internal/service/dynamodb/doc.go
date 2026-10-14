@@ -118,11 +118,14 @@
 //     them; a re-created table gets a new one (ADR 0014 amendment), which
 //     the coverage notes of CreateTable, DescribeTable and UpdateTable
 //     list.
-//   - The texts of TableNotFoundException ("Table not found: <name>") and of
-//     a tag operation's ResourceNotFoundException ("Requested resource not
-//     found: ResourcArn: <arn> not found", AWS's spelling as remembered),
-//     of the tag limits and of an unknown KMS key are UNVERIFIED against
-//     AWS, as are Local's TTL refusals reused here, except enabling a
+//   - A tag operation's ResourceNotFoundException ("Requested resource not
+//     found: ResourceArn: <arn> not found"), the tag-count limit and the
+//     aws: key prefix texts are recorded
+//     (testdata/parity/dynamodb/R04/07-list-tags-missing-table.json,
+//     x-tag-51.json, x-tag-aws-prefix.json). The texts of
+//     TableNotFoundException ("Table not found: <name>"), of the tag
+//     size and character limits and of an unknown KMS key are UNVERIFIED
+//     against AWS, as are Local's TTL refusals reused here, except enabling a
 //     different attribute: "TimeToLive is active on a different
 //     AttributeName: current AttributeName is <attr>" is AWS's text, as
 //     celery records it from the service (t/unit/backends/test_dynamodb.py

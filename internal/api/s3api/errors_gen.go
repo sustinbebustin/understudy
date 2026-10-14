@@ -268,7 +268,7 @@ func ErrInvalidBucketState(message string) *awserr.Error {
 
 // IdentityInvalidChunkSizeError returns the identity of com.amazonaws.s3#InvalidChunkSizeError.
 func IdentityInvalidChunkSizeError() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidChunkSizeError", JSONType: "InvalidChunkSizeError", QueryCode: "InvalidChunkSizeError", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidChunkSizeError", JSONType: "InvalidChunkSizeError", QueryCode: "InvalidChunkSizeError", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
 }
 
 // ErrInvalidChunkSizeError returns an InvalidChunkSizeError error with message.

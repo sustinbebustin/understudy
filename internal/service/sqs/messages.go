@@ -101,9 +101,14 @@ func validFIFOID(id string) bool {
 	return true
 }
 
+// maxAttributeBytes caps a message attribute's name and data type
+// (testdata/parity/sqs/R11/x-send-attribute-name-257.json).
+const maxAttributeBytes = 256
+
 // checkMessageAttributes checks a send's message attributes (sqs.md 6.1):
-// at most 10; each name valid; each data type String, Number or Binary
-// with an optional custom label, at most 256 characters; each value
+// at most 10; each name at most 256 bytes and valid; each data type at
+// most 256 bytes and String, Number or Binary with an optional custom
+// label; each value
 // non-empty and of its type. The first offending name in name order is
 // reported.
 func checkMessageAttributes(in map[string]sqsapi.MessageAttributeValue) *awserr.Error {
@@ -119,13 +124,18 @@ func checkMessageAttributes(in map[string]sqsapi.MessageAttributeValue) *awserr.
 }
 
 // checkMessageAttribute checks one message attribute's name, data type
-// and value.
+// and value. The length checks come before the character rules.
 func checkMessageAttribute(name string, v sqsapi.MessageAttributeValue) *awserr.Error {
-	if !validAttributeName(name) {
+	switch {
+	case len(name) > maxAttributeBytes:
+		return errAttributeNameTooLong()
+	case len(v.DataType) > maxAttributeBytes:
+		return errAttributeTypeTooLong()
+	case !validAttributeName(name):
 		return errAttributeName(name)
 	}
 	base, label, labelled := strings.Cut(v.DataType, ".")
-	if utf8.RuneCountInString(v.DataType) > 256 || (labelled && label == "") {
+	if labelled && label == "" {
 		return errAttributeDataType(name)
 	}
 	switch base {
@@ -149,15 +159,14 @@ func checkMessageAttribute(name string, v sqsapi.MessageAttributeValue) *awserr.
 	return nil
 }
 
-// validAttributeName reports a message attribute name of at most 256
+// validAttributeName reports a non-empty message attribute name of
 // letters, digits, underscores, hyphens and periods, which does not start
 // or end with a period, has no two periods in a row and does not start
 // with AWS. or Amazon. in any case (sqs.md 6.1; AWS accepted non-ASCII
-// letters).
+// letters). checkMessageAttribute caps its length first.
 func validAttributeName(name string) bool {
-	n := utf8.RuneCountInString(name)
 	lower := strings.ToLower(name)
-	if n < 1 || n > 256 || strings.HasPrefix(name, ".") || strings.HasSuffix(name, ".") ||
+	if name == "" || strings.HasPrefix(name, ".") || strings.HasSuffix(name, ".") ||
 		strings.Contains(name, "..") || strings.HasPrefix(lower, "aws.") || strings.HasPrefix(lower, "amazon.") {
 		return false
 	}

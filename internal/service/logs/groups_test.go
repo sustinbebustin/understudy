@@ -198,9 +198,9 @@ func TestGroupErrors(t *testing.T) {
 		_, err = call(h, logsapi.OpDescribeLogGroups, &logsapi.DescribeLogGroupsInput{LogGroupNamePrefix: new("g"), LogGroupNamePattern: new("g")})
 		wantError(h.T, err, "InvalidParameterException", "LogGroup name prefix and LogGroup name pattern are mutually exclusive parameters.")
 		_, err = call(h, logsapi.OpPutRetentionPolicy, &logsapi.PutRetentionPolicyInput{LogGroupName: "g", RetentionInDays: 2})
+		// testdata/parity/logs/R10/06-retention-6.json
 		wantError(h.T, err, "InvalidParameterException",
-			"1 validation error detected: Value '2' at 'retentionInDays' failed to satisfy constraint: Member must satisfy enum value set: "+
-				"[1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653]")
+			"Invalid retention value. Valid values are: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653]")
 		_, err = call(h, logsapi.OpPutRetentionPolicy, &logsapi.PutRetentionPolicyInput{LogGroupName: "missing", RetentionInDays: 1})
 		wantError(h.T, err, "ResourceNotFoundException", "The specified log group does not exist.")
 

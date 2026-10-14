@@ -21,8 +21,12 @@ import (
 const copyRangeMessage = "The x-amz-copy-source-range value must be of the form bytes=first-last where first and last are the zero-based offsets of the first and last bytes to copy"
 
 // copyRange is a parsed x-amz-copy-source-range: the inclusive byte
-// offsets first to last.
-type copyRange struct{ first, last int64 }
+// offsets first to last, and the header as sent, which S3 echoes when the
+// range does not fit the source.
+type copyRange struct {
+	first, last int64
+	sent        string
+}
 
 // parseCopyRange reads x-amz-copy-source-range, which only the form
 // bytes=first-last with first <= last takes (s3.md 7); nil is the whole
@@ -45,18 +49,18 @@ func parseCopyRange(v *string) (*copyRange, *awserr.Error) {
 	if ferr != nil || lerr != nil || first > last {
 		return nil, bad
 	}
-	return &copyRange{first: int64(first), last: int64(last)}, nil
+	return &copyRange{first: int64(first), last: int64(last), sent: *v}, nil
 }
 
 // span is the offset and length r copies from a source of size bytes. A
-// range that ends at or past the end is InvalidRange; S3's text for it is
-// UNVERIFIED (s3.md 7 records only the code).
+// range that ends at or past the end is InvalidArgument naming the header
+// as sent (testdata/parity/s3/R12/09-upload-part-copy-range-beyond.json).
 func (r *copyRange) span(size int64) (first, n int64, err *awserr.Error) {
 	if r == nil {
 		return 0, size, nil
 	}
 	if r.last >= size {
-		return 0, 0, s3api.ErrInvalidRange("Range specified is not valid for source object of size: " + strconv.FormatInt(size, 10))
+		return 0, 0, errInvalidArgument("Range specified is not valid for source object of size: "+strconv.FormatInt(size, 10), "x-amz-copy-source-range", r.sent)
 	}
 	return r.first, r.last - r.first + 1, nil
 }

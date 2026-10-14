@@ -20,7 +20,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 400,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R08/04-checksum-plus-wrong-content-md5.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#BucketNotEmpty": {
@@ -74,7 +74,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 400,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R08/06-complete-with-part-checksums.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#InvalidPartOrder": {
@@ -94,7 +94,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 416,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R12/01-range-100-open.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#MalformedXML": {
@@ -112,7 +112,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 404,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-policy.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#NoSuchCORSConfiguration": {
@@ -121,7 +121,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 404,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-cors.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#NoSuchLifecycleConfiguration": {
@@ -130,7 +130,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 404,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-lifecycle-configuration.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#NoSuchPublicAccessBlockConfiguration": {
@@ -139,7 +139,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 404,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/03-get-pab-after-delete.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#NoSuchTagSet": {
@@ -148,7 +148,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 404,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-tagging.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#NoSuchVersion": {
@@ -166,7 +166,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 404,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-website.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#NotModified": {
@@ -184,7 +184,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 404,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-object-lock-configuration.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#OwnershipControlsNotFoundError": {
@@ -193,7 +193,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 404,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/03-get-ownership-after-delete.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#PreconditionFailed": {
@@ -211,7 +211,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 404,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-replication.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#ServerSideEncryptionConfigurationNotFoundError": {
@@ -276,7 +276,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 403,
-        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R18/02-s3-skew-16min.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#AuthorizationQueryParametersError": {
@@ -285,7 +285,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 400,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L3661", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R18/01-presign-expires-minus-1.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#SlowDown": {
@@ -402,7 +402,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 404,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-metrics-nope.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#PermanentRedirect": {
@@ -488,133 +488,133 @@
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"error": "com.amazonaws.s3#NoSuchBucketPolicy"},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-policy.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketCors": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"error": "com.amazonaws.s3#NoSuchCORSConfiguration"},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_cors.snapshot.json"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-cors.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketWebsite": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"error": "com.amazonaws.s3#NoSuchWebsiteConfiguration"},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-website.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketLifecycleConfiguration": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"error": "com.amazonaws.s3#NoSuchLifecycleConfiguration"},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-lifecycle-configuration.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketReplication": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"error": "com.amazonaws.s3#ReplicationConfigurationNotFoundError"},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-replication.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetObjectLockConfiguration": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"error": "com.amazonaws.s3#ObjectLockConfigurationNotFoundError"},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-object-lock-configuration.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetPublicAccessBlock": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"error": "com.amazonaws.s3#NoSuchPublicAccessBlockConfiguration"},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/03-get-pab-after-delete.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketOwnershipControls": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"error": "com.amazonaws.s3#OwnershipControlsNotFoundError"},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/03-get-ownership-after-delete.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketTagging": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"error": "com.amazonaws.s3#NoSuchTagSet"},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-tagging.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketMetricsConfiguration": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"error": "com.amazonaws.s3#NoSuchConfiguration"},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-metrics-nope.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketAnalyticsConfiguration": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"error": "com.amazonaws.s3#NoSuchConfiguration"},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-analytics-nope.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketInventoryConfiguration": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"error": "com.amazonaws.s3#NoSuchConfiguration"},
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/s3.md#41-state-of-a-freshly-created-bucket-and-what-unset-means: the Terraform provider checks NoSuchConfiguration; the real inventory code is UNVERIFIED"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-inventory-nope.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketIntelligentTieringConfiguration": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"error": "com.amazonaws.s3#NoSuchConfiguration"},
-        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/phase1/s3.md#41-state-of-a-freshly-created-bucket-and-what-unset-means: the metrics family's recorded code, which the Terraform provider checks for every configuration family"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-intelligent-tiering-nope.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketEncryption": {
       "type": "apply",
       "traits": {
-        "dev.understudy#notConfigured": {"default": {"ServerSideEncryptionConfiguration": {"Rules": [{"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}, "BucketKeyEnabled": false}]}}},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#notConfigured": {"default": {"ServerSideEncryptionConfiguration": {"Rules": [{"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}, "BucketKeyEnabled": false, "BlockedEncryptionTypes": {"EncryptionType": ["SSE-C"]}}]}}},
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-encryption.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketVersioning": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"default": {}},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-versioning.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketAccelerateConfiguration": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"default": {}},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-accelerate-configuration.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketLogging": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"default": {}},
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-logging.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketRequestPayment": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"default": {"Payer": "BucketOwner"}},
-        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketRequestPayment.html"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-request-payment.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#GetBucketNotificationConfiguration": {
       "type": "apply",
       "traits": {
         "dev.understudy#notConfigured": {"default": {}},
-        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketNotificationConfiguration.html"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-get-bucket-notification-configuration.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#PutBucketPolicy": {
@@ -710,7 +710,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 400,
-        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: MetadataTooLarge, 400, Your metadata headers exceed the maximum allowed metadata size."}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R12/09-metadata-over-2k.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#InvalidDigest": {
@@ -737,7 +737,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 400,
-        "dev.understudy#evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: KeyTooLongError, 400, Your key is too long."}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R12/09-key-1025.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#NotImplemented": {
@@ -781,8 +781,8 @@
       "members": {},
       "traits": {
         "smithy.api#error": "client",
-        "smithy.api#httpError": 400,
-        "dev.understudy#evidence": {"label": "sdk-source", "source": "https://github.com/aws/aws-sdk-js-v3 middleware-flexible-checksums.e2e.spec.ts: S3 answers 8-byte unsigned chunks with InvalidChunkSizeError; the status is UNVERIFIED"}
+        "smithy.api#httpError": 403,
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R08/03-trailer-small-nonfinal-chunk.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#MalformedTrailerError": {
@@ -791,7 +791,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 400,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/openstack/swift/blob/7d523586e18623f825d57dbf29b361f57da8c200/swift/common/middleware/s3api/s3response.py: MalformedTrailerError, written against S3"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R08/03-trailer-declared-crc32-sent-sha1.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#InvalidPartNumber": {
@@ -800,7 +800,7 @@
       "traits": {
         "smithy.api#error": "client",
         "smithy.api#httpError": 416,
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_get_object_part", "validated": "2026-02-21"}
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R12/02-get-part-2.json", "validated": "2026-10-14"}
       }
     },
     "com.amazonaws.s3#KMSNotFoundException": {

@@ -71,17 +71,19 @@ func chunked(contentEncoding *string) bool {
 	return false
 }
 
-// checkKey refuses a key longer than 1,024 bytes. The context elements are
-// UNVERIFIED (s3.md 5.1).
+// checkKey refuses a key longer than 1,024 bytes (s3.md 5.1), with S3's
+// context elements in its order (testdata/parity/s3/R12/09-key-1025.json).
 func checkKey(key string) *awserr.Error {
 	if len(key) <= maxKeyBytes {
 		return nil
 	}
-	e := withField(s3api.ErrKeyTooLongError("Your key is too long"), "MaxSizeAllowed", strconv.Itoa(maxKeyBytes))
-	return withField(e, "Size", strconv.Itoa(len(key)))
+	e := withField(s3api.ErrKeyTooLongError("Your key is too long"), "Size", strconv.Itoa(len(key)))
+	return withField(e, "MaxSizeAllowed", strconv.Itoa(maxKeyBytes))
 }
 
-// checkUserMetadata enforces the 2 KB user metadata budget (s3.md 5.4).
+// checkUserMetadata enforces the 2 KB user metadata budget (s3.md 5.4),
+// counting key and value bytes without the x-amz-meta- prefix, with S3's
+// text and context elements (testdata/parity/s3/R12/09-metadata-over-2k.json).
 // The restbind decoder has already lower-cased the keys.
 func checkUserMetadata(m map[string]string) *awserr.Error {
 	n := 0
@@ -89,7 +91,8 @@ func checkUserMetadata(m map[string]string) *awserr.Error {
 		n += len(k) + len(v)
 	}
 	if n > maxUserMetadata {
-		return s3api.ErrMetadataTooLarge("Your metadata headers exceed the maximum allowed metadata size.")
+		e := withField(s3api.ErrMetadataTooLarge("Your metadata headers exceed the maximum allowed metadata size"), "MaxSizeAllowed", strconv.Itoa(maxUserMetadata))
+		return withField(e, "Size", strconv.Itoa(n))
 	}
 	return nil
 }

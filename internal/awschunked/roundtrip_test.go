@@ -277,7 +277,7 @@ func TestChunkMinimum(t *testing.T) {
 			}
 			return
 		}
-		want := awschunked.ChunkTooSmallError{Chunk: 1, Size: int64(first)}
+		want := awschunked.ChunkTooSmallError{Chunk: 2, Size: int64(first)}
 		var small *awschunked.ChunkTooSmallError
 		if !errors.As(err, &small) || *small != want {
 			t.Fatalf("%v chunks %d, %d: error %v, want %+v", mode, first, second, err, want)

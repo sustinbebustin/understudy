@@ -26,8 +26,9 @@
       "traits": {
         "dev.understudy#statusOverride": 400,
         "dev.understudy#evidence": {
-          "label": "aws-doc",
-          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_CreateAlias.html"
+          "label": "aws-recorded",
+          "source": "testdata/parity/kms/KMS-alias/02-duplicate-raw.json",
+          "validated": "2026-10-14"
         }
       }
     },

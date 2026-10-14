@@ -28,7 +28,7 @@ Contracts the leaf packages set that later tasks must honour. The code they need
 
 Deliberately not done:
 
-- **Recordings that would settle inferred defaults** (human runs; agents never record against AWS). `ruler`: H1, H2, H3, H7, H9, H10, H11, H12 (`matching-engines.md 8`) decide the `Options` defaults, the SNS allow-list and limit texts, the EventBridge complexity cap and `$or` counting; H13 (the Lambda ESM operator allow-list) has no backlog entry yet. R09 rows 8, 13 to 15 and 19 settle the SNS fixed switches. `xmlw`: what S3 sends for keys with control characters or U+FFFE/U+FFFF without `encoding-type=url` (`go-toolchain.md 10`; the claim in `xmlw/doc.go` is marked UNVERIFIED).
+- **Recordings that would settle inferred defaults** (human runs; agents never record against AWS). `ruler`: H1, H2, H3, H7, H9, H10, H11, H12 (`matching-engines.md 8`) decide the `Options` defaults, the SNS allow-list and limit texts, the EventBridge complexity cap and `$or` counting; H13 (the Lambda ESM operator allow-list) has no backlog entry yet. R09 rows 8, 13 to 15 and 19 settle the SNS fixed switches. `xmlw`: what S3 sends for keys with control characters or U+FFFE/U+FFFF without `encoding-type=url` (`go-toolchain.md 10`; the claim in `xmlw/doc.go` is marked UNVERIFIED). Recorded 2026-10-14: R09, H1 to H14 and the xmlw listing are under `testdata/parity/`; the differences still open are under "Recorded differences from AWS".
 - **`docker.Sweep` does not remove standalone volumes.** It removes each container with `v=1`, which takes the container's anonymous volumes (a function's `/tmp`) with it; phase 1 creates no named volumes.
 
 ## Wave 3: tracer bullet, first half
@@ -88,8 +88,8 @@ Contracts T19 to T24 set for later tasks, and follow-ups whose design belongs to
 - **Docker and DynamoDB Local health** (T33, T38). `admin.Health.Docker` and `DynamoDBLocal` stay absent: `serveradmin.Options` has no source for them, so the first service that runs on each adds the hook.
 - **Periodic `--persist` checkpoint** (T44). It takes the lock `serveradmin.Handler` holds over reset, snapshot save and load (through a method the handler exposes), or a checkpoint can cut between a reset's gate and its late data.
 - **Admin token and container exposure for `serve`** (T44). `server.Config.AdminToken` lets a non-loopback listener serve the admin API behind a bearer token, but `understudy serve` has no setting for it, so the CLI still listens only on loopback; read it from the environment or the config file rather than a flag, which process listings show. `Exposed{ContainerPublished}` (ARCHITECTURE.md 20) arrives with the topology wiring; `server.ListenError` names both options.
-- **CloudWatch query-mode statuses** (T31). Only `ResourceNotFound` carries `statusOverride` 400 (LocalStack snapshot evidence). `DashboardNotFoundError` and `ResourceNotFoundException` may need the same once their JSON status is recorded.
-- **S3 POST on an object without `uploadId`** (S3; T39 left it). Route rows require query and header presence only where needed to tell rows apart, so such a POST reaches `CompleteMultipartUpload` and fails validation rather than finding no route. A recording decides; a `routeOverrides` entry in `codegen/services/s3.json` can require `uploadId`.
+- **CloudWatch query-mode statuses** (T31). Only `ResourceNotFound` carries `statusOverride` 400 (LocalStack snapshot evidence). `DashboardNotFoundError` and `ResourceNotFoundException` may need the same once their JSON status is recorded. Closed 2026-10-14: in query mode AWS answers 404 for both (`x-amzn-query-error` `ResourceNotFound;Sender` and `ResourceNotFoundException;Sender`), which the generated identities already give; no override is needed (`testdata/parity/cloudwatch/R07/cw-GetDashboard.json`, `cw-ListTagsForResource.json`).
+- **S3 POST on an object without `uploadId`** (S3; T39 left it). Route rows require query and header presence only where needed to tell rows apart, so such a POST reaches `CompleteMultipartUpload` and fails validation rather than finding no route. A recording decides; a `routeOverrides` entry in `codegen/services/s3.json` can require `uploadId`. Recorded 2026-10-14: AWS answers 405 `MethodNotAllowed` with `<Method>POST</Method><ResourceType>OBJECT</ResourceType>` and `Allow: HEAD, DELETE, GET, PUT` (`testdata/parity/s3/R12/14-post-without-upload-id.json`); the route change is still to do.
 
 ## Wave 6: protocol corpus, coverage and the first service wave
 
@@ -125,7 +125,7 @@ Follow-ups the wave 7 integrator did not close. Each needs a seam, a design deci
 - **CopyObject 200-with-error** (kernel owner). A handler cannot produce `kernel.StatusOKFailure`, so a CopyObject error is a plain 4xx before the response starts. Every error the implementation can raise happens before then; a seam is needed only once a copy streams before it can fail.
 - **SNS filter policies per account** (SNS). The 10,000-per-account quota is not enforced: state is per account and Region, so no topic write sees the account's count. The Subscribe and SetSubscriptionAttributes coverage notes say so.
 - **DynamoDB snapshot journal events.** Decided 2026-10-13: dropped from ADR 0014; superseded by the `AdminAction` journal kind written by the admin handler for reset, snapshot save and snapshot load (ADR 0007 pre-tag review amendment), post-tag journal round. `ExportLate`, `ImportLate` and `ResetLate` keep writing no events.
-- **Recordings for wave 7 texts** (human runs). SNS: R09 items 1, 6, 7, 8 and H1 to H7 settle the `sns.filter-policy.*` switches; the FilterPolicyLimitExceeded text and the same-scope RedrivePolicy text are inferred. S3: XXHASH and SHA512 trailers (R08); SSE-C headers on a read of a non-SSE-C object; a KMS key id without `aws:kms` on an `aws:kms` default bucket; the over-5-GiB copy source text. DynamoDB: the unknown KMS key text on CreateTable and UpdateTable, more than 50 tags, the `aws:` tag-key prefix, `TableNotFoundException`, the tag `ResourceNotFoundException` text, TTL repeat-change refusals, and whether a switch from PAY_PER_REQUEST to PROVISIONED stamps `LastIncreaseDateTime`. Lambda: the Event-mode (1 MB) oversized-request text.
+- **Recordings for wave 7 texts** (human runs). SNS: R09 items 1, 6, 7, 8 and H1 to H7 settle the `sns.filter-policy.*` switches; the FilterPolicyLimitExceeded text and the same-scope RedrivePolicy text are inferred. S3: XXHASH and SHA512 trailers (R08); SSE-C headers on a read of a non-SSE-C object; a KMS key id without `aws:kms` on an `aws:kms` default bucket; the over-5-GiB copy source text. DynamoDB: the unknown KMS key text on CreateTable and UpdateTable, more than 50 tags, the `aws:` tag-key prefix, `TableNotFoundException`, the tag `ResourceNotFoundException` text, TTL repeat-change refusals, and whether a switch from PAY_PER_REQUEST to PROVISIONED stamps `LastIncreaseDateTime`. Lambda: the Event-mode (1 MB) oversized-request text. Recorded 2026-10-14 (R04, R08, R09, R13, R15 under `testdata/parity/`); the differences still open are under "Recorded differences from AWS".
 
 ## Wave 8: third service wave and the image
 
@@ -181,7 +181,7 @@ Follow-ups the hardening round 1 integrator did not close.
 - **STS trust policy action forms** (policydoc). Whether AWS accepts case variants (`sts:assumerole`) or `sts:*` in trust policies is unrecorded; policydoc refuses both.
 - **Conformance cases for new rules** (conformance). CloudWatch (a PromQL alarm starting in OK, Metrics ReturnData counting, MetricDataQuery Id form, Values with StatisticValues) and EventBridge (DeleteRule of an unknown rule, an `aws.*` source, a FIFO or cross-region dead-letter queue, an empty ListRules) have unit tests only.
 - **Python suite line length** (conformance). Ruff's default rules leave E501 off, and `conformance/python-boto3/pyproject.toml` sets no ruff configuration; a `[tool.ruff]` line length would settle the 1,085 long lines a stricter run reports.
-- **Recordings: KMS CreateAlias with a duplicate alias name** (human run). The vendored model binds `AlreadyExistsException` to HTTP 409; `codegen/overlays/kms.json` overrides it to 400 on the API reference's `API_CreateAlias` page (label `aws-doc`, unrecorded), and this round changed `conformance/aws-cli/tests/kms.sh` and `conformance/js-sdk-v3/tests/kms.test.ts` to expect 400. A recording settles which status AWS sends; if it is 409, drop the override and restore the suites' expectation.
+- **Recordings: KMS CreateAlias with a duplicate alias name** (human run). The vendored model binds `AlreadyExistsException` to HTTP 409; `codegen/overlays/kms.json` overrides it to 400 on the API reference's `API_CreateAlias` page (label `aws-doc`, unrecorded), and this round changed `conformance/aws-cli/tests/kms.sh` and `conformance/js-sdk-v3/tests/kms.test.ts` to expect 400. A recording settles which status AWS sends; if it is 409, drop the override and restore the suites' expectation. Closed 2026-10-14: AWS sends 400 (`testdata/parity/kms/KMS-alias/02-duplicate-raw.json`); the override stays, labelled `aws-recorded`.
 
 ## Hardening round 2
 
@@ -222,7 +222,7 @@ Follow-ups the hardening round 3 integrator did not close.
 - **Byte-preserving policy statements** (policydoc, SQS, SNS). SQS (`queuePolicy`, `permission`, `principal`, `oneOrMany`) and SNS (`policyStatements`, `storeStatements`, `sidOf`, `oneOrMany`) each edit stored policy statements; one editor on `document.Map` in `internal/policydoc` (stored text with `Sids`, `Append`, `RemoveSid`) would serve both.
 - **Streaming snapshot loads** (snapshot; optional). `snapshot.Read` holds an archive, embedded blobs included, in memory, which is why `snapshotMaxBytes` (decided 2026-10-13, ARCHITECTURE.md 13) stops at 4 GiB. Streaming embedded blobs into the blob store during the load would lift that ceiling.
 - **Hot-reload roots** (config, server; optional). A binding made through the admin API must name a directory owned by the user running understudy; allowed roots in the configuration (such as `lambda.hotReloadRoots`) would also stop another local user binding a directory of that user's, such as their home.
-- **S3 lifecycle transition paths** (S3; needs a recording). Transitions that break the storage-class paths (GLACIER then ONEZONE_IA) are refused only by the storage-duration check, with understudy's text. AWS's answer, as a Terraform write-up quotes it (zenn.dev/thaim, 2024-04), is "'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be greater than 'Days' in the 'Transition' action for StorageClass 'ONEZONE_IA' for filter '(prefix=)'". The parity backlog (R12 step 12) lists the captures that settle the lifecycle texts first.
+- **S3 lifecycle transition paths** (S3; needs a recording). Transitions that break the storage-class paths (GLACIER then ONEZONE_IA) are refused only by the storage-duration check, with understudy's text. AWS's answer, as a Terraform write-up quotes it (zenn.dev/thaim, 2024-04), is "'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be greater than 'Days' in the 'Transition' action for StorageClass 'ONEZONE_IA' for filter '(prefix=)'". The parity backlog (R12 step 12) lists the captures that settle the lifecycle texts first. Recorded 2026-10-14: the quoted text is AWS's word for word, with `ArgumentName` Days and `ArgumentValue` 60 (`testdata/parity/s3/R12/15-lifecycle-glacier-then-onezone-ia.json`); the order check is still to do (see "Recorded differences from AWS").
 - **No-answer timeouts for other admin clients** (admin; only if needed). The CLI tells a listener that took a call but sent no answer from one that is unreachable; `admin.UnreachableError` still says to start a server. If other `admin.Client` users hit `ResponseHeaderTimeout`, that distinction belongs in the `admin` package.
 
 Decisions this round took instead of changing code:
@@ -276,3 +276,106 @@ Follow-ups the pre-tag hardening integrator did not close.
 
 - **Function URL refusal status** (Lambda; needs a recording). Under `--sigv4 verify` a function URL refuses credentials in the JSON family's words with 403 (`lambda.FunctionURLAuth`, `edge.Options.OperationAuth`), as its front end answers its other refusals (lambda-events.md 7.2, AWS-recorded). That a refused signature is 403 with `{"message": ...}` rests on user reports, not a recording; the parity backlog should capture a wrong-secret, an unknown-key and a malformed-header request to an `AWS_IAM` URL. The Lambda API's own auth statuses (error-matrix.md T8, L08) stay the JSON family's 400 until recorded.
 - **Licensed DynamoDB conformance runs** (human run). Closed 2026-10-14: see "DynamoDB conformance runs" (pre-tag wave 1).
+
+## Recorded differences from AWS
+
+The 2026-10-14 recordings (`testdata/parity/<service>/<item>/`, each item's `notes.md` has the full field list) differ from understudy where listed below, and each needs a code change the recording commit did not make. One line each, with the capture that shows AWS's answer. Paths are relative to `testdata/parity/`.
+
+SQS:
+- Unmodeled validation errors carry `com.amazon.coral.service#InvalidParameterValueException` and `#MissingRequiredParameterException`, not `com.amazonaws.sqs#...`; re-keying the overlay shapes renames generated identities (`sqs/R11/02-receive-max-0.json`, `sqs/R11/02-send-empty-body.json`).
+- A stale receipt handle on a standard queue still deletes the message and still changes its visibility; understudy matches only the latest handle (`sqs/R01/03-delete-stale.json`, `sqs/R01/05-cmv-stale.json`, `sqs/R01/06-cmv-batch.json`).
+- A handle from another queue is ReceiptHandleIsInvalid "The receipt handle \"<H>\" is not valid for this queue." in both batch calls (`sqs/R01/06-delete-batch.json`).
+- An older handle of a re-received FIFO message is still "The receipt handle has expired."; understudy accepts it (`sqs/R01/07-fifo-delete-h1-after-rereceive.json`).
+- Receipt handles are 412 characters; understudy's are 36, and changing the length changes the seeded id stream (snapshot format) (`sqs/R01/08-handles.txt`).
+- A message moved to a FIFO DLQ keeps its SentTimestamp; understudy resets it (`sqs/R02/fifo-04-dlq-poll-0s.json`).
+- A FIFO message redriven by a move task keeps the DLQ copy's MessageDeduplicationId (the original MessageId) (`sqs/R02/fifo-06-recv-src.json`).
+- CancelMessageMoveTask on a completed task is 400 InvalidParameterValue "Only active tasks can be cancelled."; understudy answers 404 (`sqs/R02/std-07-cancel-completed.json`).
+- A cancelled task reads CANCELLING before CANCELLED (`sqs/R02/07-list-after-cancel.json`).
+- RedrivePolicy errors echo the policy as sent (`"maxReceiveCount":"2"`), not normalized (`sqs/R02/07-redrive-missing-dlq.json`, `sqs/R02/07-redrive-fifo-to-std.json`).
+- The queue `Policy` attribute is stored compacted (whitespace removed, key order kept) (`sqs/R05/01-get-a.json`).
+- `x-amzn-query-error` is `MalformedInput;Sender` for a string sent as an integer and `InvalidAction;Sender` for an unknown target, and absent for a wrong target prefix; the shared shapes in `codegen/overlays/common.json` give other codes (`sqs/R11/03-string-for-integer.json`, `sqs/R11/03-unknown-operation.json`, `sqs/R11/03-wrong-target-prefix.json`).
+- SQS Query error bodies use `xmlns="http://queue.amazonaws.com/doc/2012-11-05/"`, every SQS Query body starts with `<?xml version="1.0"?>`, and `Accept: application/json` gets a JSON rendering of the Query envelope (`sqs/R11/05-sqs-unknown-action.json`, `sqs/R11/05-sqs-query-accept-json.json`).
+- A Query SendMessage without `Version` is accepted; understudy cannot claim it (`sqs/R11/x-query-sendmessage-no-version.json`).
+- DynamoDB rejects a duplicate JSON member: 400 SerializationException "Duplicate key found in payload" (`dynamodb/R11/06-dynamodb-duplicate-member.json`).
+
+SNS:
+- Error responses carry `xmlns="http://sns.amazonaws.com/doc/2010-03-31/"`; unknown Action is "Could not find operation NoSuchAction for version 2010-03-31" under the AWSFault namespace (`sns/R11/05-sns-unknown-action.json`, `sns/R16/03-subject-101.json`).
+- FilterPolicy is stored compacted (`sns/R05/05-get-sub-attrs.json`).
+- `exists:false` never matches a message without attributes in MessageAttributes scope (body scope `{}` matches) (`sns/R09/summary.tsv` T06, H1).
+- `exists:true` fails on `null` and passes on `""` in body scope (`sns/R09/summary.tsv` H2-body).
+- Leaf keys are counted across the whole policy including `$or` branches: "Filter policy can not have more than 5 keys" (`sns/R09/T12-subscribe.json`, `H3-c-subscribe.json`).
+- Wildcard limit texts: "Wildcard complexity too high: pattern exceeds maximum allowed wildcards" and "Wildcard complexity too high", without the `FilterPolicy: ` prefix (`sns/R09/H11-4-wildcards-subscribe.json`, `sns/R09/H11-11-single-subscribe.json`).
+- Oversize policy text "FilterPolicy: must be at most 262144 bytes long in UTF-8 encoding"; quota text "Could not complete request: filter policy quota exceeded" (`sns/R09/T16-subscribe.json`, `sns/R09/limit-201.json`).
+- `["=",1e309]` is "Value of equals must be numeric" (`sns/R09/H5-08-attr-subscribe.json`).
+- equals-ignore-case under anything-but, prefix and suffix, and `exactly`, are accepted; `{"anything-but":{"prefix":false}}` is "Value of anything-but must be an array or single string/number value." (`sns/R09/H7b-*-subscribe.json`).
+- cidr `0.0.0.0/0` matches an IPv6 address (Ruler's byte-range compare), in SNS, EventBridge and Lambda (`sns/R09/summary.tsv` H9-03, `events/R14/H9-03-b.json`, `logs/R03/H9-03-02.json`).
+- Parse errors append Jackson's `\n at [Source: (String)"..."; line: 1, column: N]` (`sns/R09/H10-01-subscribe.json`, `events/R14/H10-01.json`).
+- Lambda deliveries type Number and String.Array attributes as `String`, put Subject after SigningCertUrl, and order MessageAttributes as a Java HashMap does (`logs/R16/01-lambda-events.json`).
+- PublishBatch with a 101-character Subject reports that entry in Failed and sends the rest (`sns/R16/02-subject-101.json`).
+- Texts: "Could not cast message attribute 'n' value to number.", "Message attribute names starting with 'AWS.' or 'Amazon.' are reserved for use by Amazon.", "Invalid parameter: Invalid protocol type: lambda" on a FIFO topic (`sns/R16/03-attr-number-abc.json`, `sns/R16/03-attr-aws-prefix.json`, `sns/R16/04-subscribe-fifo-lambda.json`).
+- MessageStructure json with a duplicate `default` key is accepted, last value wins (`sns/R16/03-x-message-structure-duplicate-key.json`).
+- An application endpoint that is not an ARN is 400 "Invalid parameter: Application endpoint arn invalid:not-an-arn"; understudy answers 501 (`sns/R16/05-application-non-arn.json`).
+- DeliveryPolicy: malformed JSON gets Jackson's message with location, and an unknown member is "Unexpected JSON member: http.nope" (`sns/R16/x-delivery-policy-malformed.json`, `sns/R16/x-delivery-policy-unknown-key.json`).
+- Subscriptions of a deleted topic still list (`sns/R16/06-list-subscriptions-after-delete.json`).
+- SQS deliveries from SNS carry SenderId `<role id>:AWS-CLOUDCAST`; MessageIds are UUID version 5 (`sqs/R16/01-sqs-enveloped.json`).
+
+S3:
+- An unknown `x-amz-checksum-algorithm` is caught by the generated enum check (InvalidArgument) before the handler's InvalidRequest text, which now matches AWS (`s3/R08/08-create-alg-foo.json`).
+- UploadPart without a checksum on an XXHASH64 upload is 400 "Checksum Type mismatch occurred, expected checksum Type: xxhash64, actual checksum Type: null" (`s3/R08/06-part-without-checksum.json`).
+- CompleteMultipartUpload error bodies and several other errors carry no XML declaration; AWS writes a literal `"` in Complete's ETag and `\n\n` after its declaration (`s3/R08/06-complete-without-part-checksums.json`, `s3/R12/03-complete.json`).
+- PutBucketEncryption stores `BucketKeyEnabled` false and `BlockedEncryptionTypes` SSE-C when the request leaves them out (`s3/R06/02-get-encryption-bare-id.json`).
+- Not-configured 404s carry no `x-amz-bucket-region`; ListObjectsV2 200s do; a non-STANDARD PutObject answers `x-amz-storage-class` (`s3/R06/01-get-get-bucket-policy.json`, `s3/R06/07-list-objects-v2.json`, `s3/R06/07-put-object-ia.json`).
+- S3 Control on a missing bucket is 404 `NoSuchResource` "The specified resource doesn't exist." (`s3/R06/06-s3control-list-missing.json`).
+- GetBucketPolicyStatus is unbound; AWS answers NoSuchBucketPolicy (`s3/R06/01-get-get-bucket-policy-status.json`).
+- An identical CompleteMultipartUpload retried after success answers 200 again (`s3/R12/03-complete-again.json`).
+- DeleteObjects reports a duplicate key once (`s3/R12/04-delete-missing-and-duplicate.json`).
+- `max-keys=1001` is echoed as 1001; `max-keys=abc` is "Provided max-keys not an integer or within integer range" (`s3/R12/05-list-max-keys-1001.json`, `s3/R12/05-list-max-keys-abc.json`).
+- An Object Lock bucket with default retention refuses a PutObject without Content-MD5 or a checksum: "Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters" (`s3/R12/11-put-without-checksum.json`).
+- Lifecycle: no 30-day minimum before STANDARD_IA; the gap text names the filter; storage classes out of order are refused with the DEFERRED "S3 lifecycle transition paths" text; PUT answers `x-amz-transition-default-minimum-object-size` (`s3/R12/12-lifecycle-*.json`, `s3/R12/15-lifecycle-glacier-then-onezone-ia.json`).
+- POST on an object without `uploadId` is 405 MethodNotAllowed (`s3/R12/14-post-without-upload-id.json`).
+- A key with U+FFFE is listed as its raw UTF-8 bytes, not `&#xFFFE;` (`s3/R12/13-list-without-encoding.json`).
+- `X-Amz-Expires=0` is 403 AccessDenied "Request has expired"; a presigned URL dated in the future is 403 AccessDenied "Request is not yet valid" (`s3/R18/01-presign-expires-0.json`, `s3/R18/01-presign-date-16min-future.json`).
+- SQS answers a signature outside the time window with 403 (DynamoDB 400), and DynamoDB errors, auth errors included, carry `x-amz-crc32` (`sqs/R18/03-sqs-json-skew-16min.json`, `dynamodb/R18/03-dynamodb-skew-16min.json`).
+- Event notifications: eventVersion 2.6, DeleteMarkerCreated carries the empty-object eTag, Copy events end with `hasObjectAnnotation`, `ownerIdentity.principalId` is a 14-character id, overlap errors name `Event`/`FilterRule`, a destination without a queue policy is refused, SenderId is `<role id>:S3-PROD-END` (`sqs/R17/02-events-*.json`, `s3/R17/01-config-*.json`).
+
+DynamoDB:
+- TTL changed again within the interval is "Time to live has been modified multiple times within a fixed interval" (`dynamodb/R04/03-ttl-disable.json`).
+- Errors raised by understudy itself (shims, not-found, validation) carry no `x-amz-crc32` (`dynamodb/R04/07-ttl-missing-table.json`).
+- UpdateTable to PROVISIONED stamps `ProvisionedThroughput.LastIncreaseDateTime` in its answer; CreateTable and DeleteTable answers omit `WarmThroughput` and DeleteTable omits the schema (`dynamodb/R04/x-billing-to-provisioned.json`, `dynamodb/R04/01-create-table.json`, `dynamodb/R04/99-delete-table.json`).
+- DescribeContributorInsights answers DISABLED; understudy answers 501 (`dynamodb/R04/02-describe-contributor-insights.json`).
+- An unknown KMS key is "KMS validation error: com.amazonaws.services.kms.model.NotFoundException: Key '<arn>' does not exist (...)" (`dynamodb/R04/x-create-table-unknown-kms.json`).
+
+CloudWatch Logs and CloudWatch:
+- A list of structures over its length limit is reported without a rendered value (Logs PutLogEvents, IAM TagRole) (`logs/R10/06-10001-events.json`, `iam/R15/06-tag-role-51.json`).
+- FilterLogEvents returns `nextToken` on every page with events and ends with an empty page; GetLogEvents' first empty page gets a new forward token (`logs/R10/05-filter-page-*.json`, `logs/R10/05-get-page-*.json`).
+- `{ $.n = }` is only "Invalid filter pattern" (`logs/R10/03-filter-14.json`).
+- ListTagsForResource on a never-created alarm is 404 ResourceNotFoundException with no message; dashboards are unbound (`cloudwatch/R07/cw-ListTagsForResource.json`, `cloudwatch/R07/cw-GetDashboard.json`, `cloudwatch/R07/cw-DeleteDashboards.json`).
+
+Lambda:
+- GetFunctionCodeSigningConfig with none set returns null for both members (`lambda/R07/01-get-code-signing-config.json`).
+- AddPermission with a foreign account principal can be refused "The provided principal was invalid." (`lambda/R07/02-add-permission-account.json`).
+- ESM: a batching window on a FIFO queue is "Batching window is not supported for FIFO queues"; provisioned pollers are range-checked first; six filters are "Too many filter patterns, maximum allowed 5 patterns, provided 6 patterns." (`lambda/R03/C-fifo-window-5.json`, `lambda/R03/C-scaling-and-provisioned.json`, `lambda/R03/C-six-filters.json`).
+- ESM records omit `md5OfMessageAttributes` without attributes (`logs/R03/E-payloads.json`).
+- A mapping keeps receiving after its function is deleted (`sqs/R03/F-queue-attrs-90s.json`).
+- ESM filters accept cidr, wildcard, anything-but prefix and suffix, prefix equals-ignore-case and exactly; `eventSource` is not matchable; a string rule matches a number with the same text; cidr /32 and /128 give HTTP 500 (`lambda/R03/H13-*-create.json`, `logs/R03/H13-10-01.json`, `logs/R03/H8-02-01.json`, `lambda/R03/H9-01-create.json`).
+- Function URLs: the 502 body is `application/json`; `cookie` stays in `headers`; the trace header is `Root=` only; statusCode 200 with a numeric body and invalid base64 are delivered; HEAD answers `Content-Length: 0`; large bodies are not chunked (`lambda/R13/02-resp-*.json`, `logs/R13/01-logged-events.json`, `lambda/R13/01-head.json`).
+- Event invocation over 1 MB is 413 `{"Message":"<n> byte payload is too large for the Event invocation type (limit 1048576 bytes)"}` (`lambda/R13/04-event-over-1mb.json`).
+- Invoke success answers `application/json`; url-ids have a fixed `0` at index 26 and CreationTime has 9 fractional digits; Timeout 901 has no "1 validation error detected" prefix; version numbers continue across delete and recreate of a function (`lambda/R13/04-*.json`, `lambda/R13/00-create-url-*.json`, `lambda/R13/05-timeout-901.json`).
+
+EventBridge:
+- `cron(0 12 L-3 * ? *)`, years 1969 and 2200, and `cron(5/0 ...)` are accepted; double spaces and tabs are "Parameter ScheduleExpression is not valid." (`events/R14/01-07-put.json`, `events/R14/01-18-put.json`, `events/R14/01-26-put.json`, `events/R14/01-29-put.json`).
+- A rate rule fires first at creation and again at enable, not one interval later (`events/R14/02-arrivals.jsonl`).
+- `exactly` is accepted; `$or` members sharing values follow Ruler's order-dependent result; malformed `$or` reasons are the legacy compiler's; over 1000 combinations is "Event pattern is not valid. Reason: Or operator is producing over 1000 rule combinations" (`events/R14/H14-*.json`, `events/R14/H10-*.json`, `events/R14/H12-02-7x11x13.json`).
+
+KMS, Secrets Manager, IAM, STS:
+- KMS texts: pending deletion has no "(or pending replica deletion)"; PendingWindowInDays out of range is "PendingWindowInDays must be between 7 and 30"; `alias/aws/` is NotAuthorizedException; an oversize policy counts non-whitespace characters; a non-default policy name is "Invalid policy name"; a bad ListKeys marker has no message (`kms/R15/02-pending-*.json`, `kms/R15/02-window-6.json`, `kms/R15/03-*.json`, `kms/R15/x-listkeys-garbage-marker.json`).
+- S3 with a KMS key id but no `aws:kms` sends no ArgumentValue (`s3/R15/x-kms-key-id-without-aws-kms.json`).
+- Secrets Manager: a disabled KMS key is InvalidParameterException "The operation failed because the specified KMS key is disabled."; `!` and 513-character names have their own texts; a second DeleteSecret reschedules; DeletedDate is the request time; Delete and Restore advance LastChangedDate; an explicit `alias/aws/secretsmanager` is echoed as KmsKeyId (`secretsmanager/R15/05-*.json`, `secretsmanager/R07/06-describe-s-awsalias.json`).
+- IAM: a trust policy without Principal is "Missing required field Principal"; a non-AssumeRole action is "AssumeRole policy may only specify STS AssumeRole actions."; CreateDate is whole seconds (`iam/R15/06-create-role-invalid-trust.json`, `iam/R15/06-trust-star.json`, `iam/R15/06-create-user.json`).
+- STS: GetAccessKeyInfo is unbound (AWS answers the account even for a deleted key); 11 PolicyArns is ValidationError "The limit of ARNs for the PolicyArns parameter was exceeded. 10 ARNs can be requested at most in an API request."; an inline policy without Action is MalformedPolicyDocument "Missing required field Action" (`sts/R15/06-get-access-key-info-deleted.json`, `sts/R15/x-assume-11-policy-arns.json`, `sts/R15/x-assume-refused-session-policy.json`).
+
+The UNVERIFIED lines in `docs/research/phase1/` that these captures settle are not yet marked as recorded (recording kit section 6, step 2); match each file's UNVERIFIED lines against the item's `notes.md` and captures.
+
+Fidelity switches the recordings settle (ADR 0003: a recorded answer replaces the switch with fixed behaviour and a test citing the fixture). Not converted yet:
+- Confirmed at their current value: `sns.filter-policy.{anything-but-arrays,anything-but-list-forms,anything-but-suffix,array-consistency,bare-number,malformed-or,number-attribute-type,numeric-range,wildcard-points}` (`sns/R09/summary.tsv`), `lambda.esm-filter.{bare-number,malformed-or,exists-true-empty-value}` (`logs/R03/H7a-*`, `lambda/R03/H10-*`, `logs/R03/H2-01-*`), `events.pattern.{empty-input,malformed-or}` (`events/R14/H1-*`, `events/R14/H10-*`), `kms.pending-deletion.crypto-error` (`kms/R15/02-pending-encrypt.json`), `secretsmanager.restore.not-scheduled` (`secretsmanager/R15/05-restore-live.json`), `logs.filter.term-boundary` (`logs/R10/03-filter-01.json`), `s3.encryption.after-delete` (`s3/R06/02-get-encryption-after-delete.json`).
+- Settled to a different value (code change listed above): `sns.filter-policy.{empty-input,exists-true-empty-value,ignore-case-forms,exactly-operator,key-counting}`, `sns.lambda.attribute-type`, `lambda.esm-filter.{exactly-operator,operator-allow-list}`, `events.pattern.{exactly-operator,or-shared-values}`, and `s3.lifecycle.rule-limits` in part (no 30-day IA minimum).

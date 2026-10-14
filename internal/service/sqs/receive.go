@@ -32,7 +32,7 @@ func (s *Service) bindReceives(b sqsapi.Binder) {
 // overlay template renders.
 func checkReceiveMessage(in *sqsapi.ReceiveMessageInput) *awserr.Error {
 	if v := in.VisibilityTimeout; v != nil && (*v < 0 || *v > maxVisibility) {
-		return errVisibilityTimeout(*v)
+		return errReceiveVisibilityTimeout(*v)
 	}
 	if id := in.ReceiveRequestAttemptId; id != nil && !validFIFOID(*id) {
 		return errInvalidAttemptID(*id)

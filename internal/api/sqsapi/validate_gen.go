@@ -1052,7 +1052,7 @@ var policySendMessage = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"queueUrl"}, param: "QueueUrl"},
 		{segments: []string{"messageBody"}, param: "MessageBody", rules: []validationRule{{kinds: kindLength, id: IdentityMissingParameter, style: styleMissingParameter}}},
-		{segments: []string{"delaySeconds"}, param: "DelaySeconds", rules: []validationRule{{kinds: kindRange, id: IdentityInvalidParameterValue, style: styleParameter, reason: "Must be >= 0 and <= 900, if provided."}}},
+		{segments: []string{"delaySeconds"}, param: "DelaySeconds", rules: []validationRule{{kinds: kindRange, id: IdentityInvalidParameterValue, style: styleParameter, reason: "DelaySeconds must be >= 0 and <= 900."}}},
 		{segments: []string{"messageAttributes"}, param: "MessageAttributes"},
 		{segments: []string{"messageAttributes", "*"}, param: "MessageAttributes"},
 		{segments: []string{"messageAttributes", "*", "member"}, param: "MessageAttributes"},

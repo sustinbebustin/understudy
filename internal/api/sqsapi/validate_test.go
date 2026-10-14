@@ -55,7 +55,8 @@ func TestSendMessageRejectsADelayAbove900(t *testing.T) {
 	if err.ID.QueryCode != "InvalidParameterValue" || err.ID.JSONType != "com.amazonaws.sqs#InvalidParameterValueException" {
 		t.Fatalf("identity = %+v", err.ID)
 	}
-	if err.Message != "Value 901 for parameter DelaySeconds is invalid. Reason: Must be >= 0 and <= 900, if provided." {
+	// testdata/parity/sqs/R11/02-send-delay-901.json
+	if err.Message != "Value 901 for parameter DelaySeconds is invalid. Reason: DelaySeconds must be >= 0 and <= 900." {
 		t.Fatalf("message = %q", err.Message)
 	}
 	if _, ok := err.Origin.(awserr.Validation); !ok {

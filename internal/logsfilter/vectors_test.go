@@ -382,14 +382,25 @@ func TestFilterPatternLengthErrorText(t *testing.T) {
 	}
 }
 
+// The message quotes only the offending characters: ERR* and *ROR are
+// recorded (testdata/parity/logs/R10/03-filter-12.json, 03-filter-13.json);
+// the several-character form is inferred.
 func TestInvalidTermCharacterErrorText(t *testing.T) {
 	t.Parallel()
-	_, err := Compile("<INFO>")
-	if err == nil {
-		t.Fatal("Compile accepted an unquoted <INFO>")
-	}
-	if want := "Invalid character(s) in term <INFO>"; err.Message() != want {
-		t.Errorf("message = %q, want %q", err.Message(), want)
+	for _, c := range []struct{ pattern, want string }{
+		{"ERR*", "Invalid character(s) in term '*'"},
+		{"*ROR", "Invalid character(s) in term '*'"},
+		{"<IN>FO<", "Invalid character(s) in term '<>'"},
+		{"é*é", "Invalid character(s) in term 'é*'"},
+	} {
+		_, err := Compile(c.pattern)
+		if err == nil {
+			t.Errorf("Compile accepted an unquoted %s", c.pattern)
+			continue
+		}
+		if err.Cause() != CauseInvalidTerm || err.Message() != c.want {
+			t.Errorf("Compile(%q) = %v %q, want %v %q", c.pattern, err.Cause(), err.Message(), CauseInvalidTerm, c.want)
+		}
 	}
 }
 

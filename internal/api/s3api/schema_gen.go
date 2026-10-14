@@ -2287,7 +2287,7 @@ var memberInvalidBucketName_BucketName = smithy.Member{Name: "BucketName", Index
 
 var schemaInvalidBucketState = smithy.Schema{ID: "com.amazonaws.s3#InvalidBucketState", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 409}}
 
-var schemaInvalidChunkSizeError = smithy.Schema{ID: "com.amazonaws.s3#InvalidChunkSizeError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidChunkSizeError = smithy.Schema{ID: "com.amazonaws.s3#InvalidChunkSizeError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
 var schemaInvalidDigest = smithy.Schema{ID: "com.amazonaws.s3#InvalidDigest", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 

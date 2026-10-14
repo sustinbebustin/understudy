@@ -520,16 +520,20 @@ func (u upload) verify(got received, decoder *awschunked.Reader, payload hash.Ha
 	if payload != nil && hex.EncodeToString(payload.Sum(nil)) != u.payloadSHA256 {
 		return s3api.ErrXAmzContentSHA256Mismatch("The provided 'x-amz-content-sha256' header does not match what was computed.")
 	}
+	// Content-MD5 is judged before the declared checksum: S3 answers its
+	// BadDigest when both are wrong
+	// (testdata/parity/s3/R08/04-wrong-checksum-plus-wrong-content-md5.json,
+	// testdata/parity/s3/R12/10-wrong-md5-and-crc32.json).
+	if err := u.md5.verify(got.md5); err != nil {
+		return err
+	}
 	var trailerValue string
 	if t, ok := u.checksum.(trailerChecksum); ok && decoder != nil {
 		if fields, done := decoder.Trailers(); done {
 			trailerValue = fields.Get(t.alg.HeaderName())
 		}
 	}
-	if err := verifyDeclared(u.checksum, got.sum, trailerValue); err != nil {
-		return err
-	}
-	return u.md5.verify(got.md5)
+	return verifyDeclared(u.checksum, got.sum, trailerValue)
 }
 
 // openBody opens a write's body; an input built without one has none.
