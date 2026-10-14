@@ -7,29 +7,34 @@ The tests assert AWS behavior as documented in [`docs/research/phase1/`](../../d
 ## Running it
 
 ```sh
-conformance/go-sdk/run.sh                    # the whole suite
-conformance/go-sdk/run.sh -run TestS3 -v     # extra arguments go to go test
+CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh                 # everything but DynamoDB
+CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh -run TestS3     # extra arguments go to go test
+UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/go-sdk/run.sh  # everything (see DynamoDB below)
 ```
 
 `run.sh` does the following:
 
-1. Builds understudy from this repository into `.build/conformance/go-sdk/understudy`.
-2. Starts it on `127.0.0.1:45661`, plus a TLS listener on a free port, with a fresh data directory under `.build/conformance/go-sdk/run.*`.
-3. Waits for the health endpoint.
-4. Runs `go test` through `scripts/sealed`, which strips every inherited `AWS_*` setting, uses dummy credentials and refuses any endpoint that is not loopback.
-5. Always stops understudy and removes the containers it labelled for this run, including after a failure or an interrupt.
+1. Refuses to start (exit 2) unless exactly one of `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` and `CONFORMANCE_DYNAMODB=0` is set.
+2. Builds understudy from this repository into `.build/conformance/go-sdk/understudy`.
+3. Starts it on `127.0.0.1:45661`, plus a TLS listener on a free port, with a fresh data directory under `.build/conformance/go-sdk/run.*`.
+4. Waits for the health endpoint; with the licence accepted, exits 1 unless DynamoDB is `enabled`.
+5. Runs `go test -v` through `scripts/sealed`, which strips every inherited `AWS_*` setting, uses dummy credentials and refuses any endpoint that is not loopback. The output is kept in the run directory's `test.log`.
+6. Prints a summary on stderr: `run.sh: passed=N failed=N skipped=N`, then a `run.sh: SKIP <test>: <reason>` line per skipped test or subtest, the reason being the first line the test logged after it last started or resumed.
+7. Always stops understudy and removes the containers it labelled for this run, including after a failure or an interrupt.
 
-It exits with `go test`'s status, or non-zero when understudy cannot be built or started. On success it deletes the run directory. On failure it keeps the directory and prints its path, so understudy's log and data are there to inspect.
+It exits with `go test`'s status, or non-zero when understudy cannot be built or started. On success it deletes the run directory. On failure it keeps the directory and prints its path, so understudy's log, data and test output are there to inspect.
 
 Requirements: Go, `uv` (for `scripts/sealed`) and a Docker Engine. Lambda tests run functions in AWS's Lambda base images, which are pulled on first use.
 
 ### DynamoDB
 
-understudy serves DynamoDB through DynamoDB Local. AWS publishes DynamoDB Local under its own licence agreement, and understudy pulls it only after you accept that licence. By default the DynamoDB tests skip. To run them, accept the licence:
+understudy serves DynamoDB through DynamoDB Local. AWS publishes DynamoDB Local under its own licence agreement, and understudy pulls it only after you accept that licence, so `run.sh` makes you choose. To run the DynamoDB tests, accept the licence:
 
 ```sh
 UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/go-sdk/run.sh -run TestDynamoDB
 ```
+
+`CONFORMANCE_DYNAMODB=0` skips them instead, and the summary lists each one.
 
 ### Against an understudy you started yourself
 

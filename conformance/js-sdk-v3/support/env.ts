@@ -59,8 +59,16 @@ export function clientConfig(
   };
 }
 
-/** Whether the caller accepted the DynamoDB Local licence for this run. */
-export const dynamoDbLicenceAccepted = process.env.UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE === "1";
+/** Whether the caller opted DynamoDB out of this run (CONFORMANCE_DYNAMODB=0). */
+export const dynamoDbOptedOut = process.env.CONFORMANCE_DYNAMODB === "0";
+
+/**
+ * Whether DynamoDB runs: the caller accepted the DynamoDB Local licence for this run and did not
+ * opt DynamoDB out. run.sh refuses to start until exactly one of UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1
+ * and CONFORMANCE_DYNAMODB=0 is set; under CONFORMANCE_DYNAMODB=0 run.sh's summary gives each
+ * skipped DynamoDB test the reason "DynamoDB opted out (CONFORMANCE_DYNAMODB=0)".
+ */
+export const dynamoDbEnabled = process.env.UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE === "1" && !dynamoDbOptedOut;
 
 /** Whether understudy verifies signatures (run.sh's SIGV4=verify): a key it holds no secret for is refused. */
 export const sigv4Verify = process.env.CONFORMANCE_SIGV4 === "verify";

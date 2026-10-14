@@ -70,6 +70,7 @@ func setters() map[string]func(*draft, value) *Error {
 		keyPersist:      (*draft).setPersist,
 		keyPersistEvery: (*draft).setEvery,
 		keyLoadSnapshot: func(d *draft, v value) *Error { return nonEmpty(v, &d.cfg.LoadSnapshot) },
+		keySnapshotMax:  (*draft).setSnapshotMax,
 		keySeed:         (*draft).setSeed,
 		keyClock:        (*draft).setClock,
 		keyClockScale:   (*draft).setScale,
@@ -168,6 +169,15 @@ func (d *draft) setEvery(v value) *Error {
 		return bad(v, "is not a duration of at least 1s", "write it as a Go duration, such as 30s or 5m")
 	}
 	d.every, d.everyAt = &every, v.where
+	return nil
+}
+
+func (d *draft) setSnapshotMax(v value) *Error {
+	n, err := strconv.ParseInt(v.text, 10, 64)
+	if err != nil || n < snapshotMaxBytesFloor || n > SnapshotMaxBytesCeiling {
+		return bad(v, "is not a whole number of bytes from 1048576 (1 MiB) to 4294967296 (4 GiB)", "write it as 2147483648 for 2 GiB")
+	}
+	d.cfg.Snapshot.MaxBytes = n
 	return nil
 }
 

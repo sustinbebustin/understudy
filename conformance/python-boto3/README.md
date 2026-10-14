@@ -5,16 +5,22 @@ boto3 and pytest tests that check understudy from the outside. Each test asserts
 ## Run
 
 ```sh
-conformance/python-boto3/run.sh                 # build, serve, run both environments, stop
-conformance/python-boto3/run.sh -k lock -x      # extra arguments go to pytest
-SUITE_GROUPS=modern conformance/python-boto3/run.sh
+CONFORMANCE_DYNAMODB=0 conformance/python-boto3/run.sh               # both environments, DynamoDB skipped
+CONFORMANCE_DYNAMODB=0 conformance/python-boto3/run.sh -k sqs -x     # extra arguments go to pytest
+SUITE_GROUPS=modern CONFORMANCE_DYNAMODB=0 conformance/python-boto3/run.sh
+UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/python-boto3/run.sh  # DynamoDB too
 ```
 
 `run.sh` serves with `--sigv4 verify` by default (`SIGV4=verify`), so every request's signature is checked and the signature tests run. `SIGV4=parse` serves without verification and skips them.
 
-`run.sh` builds understudy into `.build/conformance/python-boto3/understudy`, serves it on `127.0.0.1:45662` with a fresh data directory, waits for the health endpoint, runs pytest through `scripts/sealed`, then stops the server and runs `understudy cleanup` on its data directory. It exits non-zero when any environment fails. On failure it keeps the work directory (server log and data) and prints its path.
+`run.sh` builds understudy into `.build/conformance/python-boto3/understudy`, serves it on `127.0.0.1:45662` with a fresh data directory, waits for the health endpoint, runs pytest through `scripts/sealed`, then stops the server and runs `understudy cleanup` on its data directory. It keeps each environment's pytest output in the work directory as `test-<group>.log` and ends with a summary on stderr, from pytest's short summary: `run.sh: passed=N failed=N skipped=N` over both environments, then a `run.sh: SKIP <group> <file>:<line>: <reason>` line per skipped test. It exits non-zero when any environment fails. On failure it keeps the work directory (server log, data and test output) and prints its path.
 
-The DynamoDB tests need the DynamoDB Local container, whose licence is yours to accept: `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/python-boto3/run.sh` accepts the Amazon DynamoDB Local License Agreement for the run (`serve --accept-dynamodb-local-license`). Without it, or with `CONFORMANCE_DYNAMODB=0`, the DynamoDB tests skip and pytest's summary lists them. Docker is required for the DynamoDB and Lambda tests.
+The DynamoDB tests need the DynamoDB Local container, whose licence is yours to accept, so `run.sh` exits 2 before building unless exactly one of these is set:
+
+- `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` accepts the Amazon DynamoDB Local License Agreement for the run; serve reads it from its environment. `run.sh` exits 1 unless the health document then reports DynamoDB as `enabled`.
+- `CONFORMANCE_DYNAMODB=0` skips the tests marked `dynamodb` (`tests/conftest.py`) with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`, and DynamoDB Local never starts.
+
+Docker is required for the DynamoDB and Lambda tests.
 
 To run against a server you started yourself:
 
@@ -51,6 +57,6 @@ One file per service, so a fixer can own one service at a time.
 | `tests/test_lambda.py` | invoke, log tail, SQS event source mappings, function URLs |
 | `tests/test_sts.py` | `get_caller_identity`, `assume_role` |
 
-`tests/conftest.py` holds the clients and cleanup fixtures; `tests/support.py` holds the admin API client (clock, settle, reset) and shared helpers. Tests that need time to pass move the emulator clock through the admin API rather than sleeping.
+`tests/conftest.py` holds the clients and cleanup fixtures and the `dynamodb` marker; `tests/support.py` holds the admin API client (clock, settle, reset) and shared helpers. Tests that need time to pass move the emulator clock through the admin API rather than sleeping.
 
 Tests marked `docker` need the Docker daemon.

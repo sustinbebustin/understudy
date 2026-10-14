@@ -205,11 +205,15 @@ ue_health() {
   curl -fsS "${UE_ADMIN_URL:?UE_ADMIN_URL unset}/health"
 }
 
-# require_service NAME: skip the test when the emulator reports the service
+# require_service NAME: skip the test when the caller opted DynamoDB out of
+# the run (CONFORMANCE_DYNAMODB=0), or when the emulator reports the service
 # as disabled by configuration (for example DynamoDB before its licence is
 # accepted). A service that is degraded is broken, not absent: that fails.
 require_service() {
   local status reason
+  if [ "$1" = dynamodb ] && [ "${CONFORMANCE_DYNAMODB:-}" = 0 ]; then
+    skip "DynamoDB opted out (CONFORMANCE_DYNAMODB=0)"
+  fi
   status=$(ue_health | jq -r --arg s "$1" '.services[$s].status // "missing"')
   reason=$(ue_health | jq -r --arg s "$1" '.services[$s].reason // "no reason given"')
   case "$status" in

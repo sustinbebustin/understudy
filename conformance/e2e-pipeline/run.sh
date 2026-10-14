@@ -4,31 +4,36 @@
 # against it through scripts/sealed, then stop the server and remove every
 # container and image the run left behind. Exits with the suite's status.
 #
-#   conformance/e2e-pipeline/run.sh                 # the whole suite
-#   conformance/e2e-pipeline/run.sh -run TestSQS    # extra arguments go to go test
-#   SIGV4=verify conformance/e2e-pipeline/run.sh    # serve with --sigv4 verify (default parse)
+#   UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/e2e-pipeline/run.sh
+#                                                   # accept the DynamoDB Local licence; the whole suite
+#   CONFORMANCE_DYNAMODB=0 conformance/e2e-pipeline/run.sh
+#                                                   # skip the tests that need DynamoDB, run the rest
+#   CONFORMANCE_DYNAMODB=0 conformance/e2e-pipeline/run.sh -run TestSQS
+#                                                   # extra arguments go to go test
+#   SIGV4=verify CONFORMANCE_DYNAMODB=0 conformance/e2e-pipeline/run.sh
+#                                                   # serve with --sigv4 verify (default parse)
 #
-# Every worker takes its lock in DynamoDB, so the suite needs DynamoDB Local,
-# whose licence is the caller's to accept: UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1
-# accepts the Amazon DynamoDB Local License Agreement for the run (serve
-# --accept-dynamodb-local-license). CONFORMANCE_DYNAMODB=0 skips the whole
-# suite and exits 0; without either, run.sh refuses to start and exits 2.
+# Every worker takes a lock in DynamoDB for each record it handles. Exactly
+# one of the two DynamoDB variables must be set; without either, or with
+# both, run.sh exits 2 before building. Serve reads the licence variable
+# from its environment. Under CONFORMANCE_DYNAMODB=0 the pipeline is built
+# without its lock table and every test that makes a worker take a lock
+# skips; DynamoDB Local never starts.
+#
+# The work directory (.build/conformance/e2e-pipeline/run.*: data, server
+# log, the go test -v output in test.log) is removed on success and kept on
+# failure, and its path is printed. The run ends with a summary on stderr:
+# the totals, then each skipped test and its reason.
 set -euo pipefail
-
-if [[ "${CONFORMANCE_DYNAMODB:-}" == "0" ]]; then
-    echo "run.sh: skipped the whole e2e-pipeline suite: CONFORMANCE_DYNAMODB=0, and every worker takes its lock in DynamoDB" >&2
-    exit 0
-fi
-if [[ "${UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE:-}" != "1" ]]; then
-    echo "run.sh: the e2e-pipeline workers take their locks in DynamoDB Local, whose licence is yours to accept." >&2
-    echo "run.sh: set UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 to accept the Amazon DynamoDB Local License Agreement for this run, or CONFORMANCE_DYNAMODB=0 to skip the suite. Nothing was run." >&2
-    exit 2
-fi
 
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 root=$(cd -- "$here/../.." && pwd)
-bin_dir="$root/.build/conformance/e2e-pipeline"
-bin="$bin_dir/understudy"
+# shellcheck source-path=SCRIPTDIR source=../common.sh
+source "$here/../common.sh"
+conformance_ddb_mode
+
+build="$root/.build/conformance/e2e-pipeline"
+bin="$build/understudy"
 listen="127.0.0.1:45666"
 endpoint="http://$listen"
 run_id="e2e-$(date +%s)-$$"
@@ -39,19 +44,19 @@ if curl -fsS -o /dev/null "$endpoint/_understudy/v1/health" 2>/dev/null; then
 fi
 
 echo "run.sh: building understudy into $bin" >&2
-mkdir -p -- "$bin_dir"
+mkdir -p -- "$build"
 (cd -- "$root" && go build -o "$bin" ./cmd/understudy)
 
-data=$(mktemp -d "${TMPDIR:-/tmp}/understudy-e2e-pipeline.XXXXXX")
-log="$data/serve.log"
-echo "run.sh: serving on $listen with data directory $data (log: $log)" >&2
-"$bin" serve --listen "$listen" --persist "$data/state" --clock frozen --seed 1 \
-    --sigv4 "${SIGV4:-parse}" --accept-dynamodb-local-license >"$log" 2>&1 &
-server=$!
+work=$(mktemp -d "$build/run.XXXXXX")
+data="$work/data"
+log="$work/understudy.log"
+server=""
 
+# shellcheck disable=SC2329 # invoked by the EXIT trap below
 cleanup() {
-    status=$?
-    if kill -0 "$server" 2>/dev/null; then
+    local status=$?
+    trap - EXIT
+    if [ -n "$server" ] && kill -0 "$server" 2>/dev/null; then
         kill -INT "$server" 2>/dev/null || true
         for _ in $(seq 1 120); do
             kill -0 "$server" 2>/dev/null || break
@@ -61,11 +66,13 @@ cleanup() {
             echo "run.sh: understudy did not stop within 60s of SIGINT; killing it" >&2
             kill -KILL "$server" 2>/dev/null || true
         fi
+        wait "$server" 2>/dev/null || true
     fi
-    wait "$server" 2>/dev/null || true
     # A graceful stop removes understudy's own containers; cleanup sweeps
     # what a crash left under this data directory's owner label.
-    "$bin" cleanup --persist "$data/state" >&2 || echo "run.sh: understudy cleanup failed; check 'docker ps -a --filter label=understudy.dev/managed'" >&2
+    if [ -d "$data" ]; then
+        "$bin" cleanup --persist "$data" >&2 || echo "run.sh: understudy cleanup failed; check 'docker ps -a --filter label=understudy.dev/managed'" >&2
+    fi
     containers=$(docker ps -aq --filter "label=understudy.dev/e2e-run=$run_id" || true)
     if [ -n "$containers" ]; then
         # shellcheck disable=SC2086 # one id per word
@@ -76,11 +83,22 @@ cleanup() {
         # shellcheck disable=SC2086 # one id per word
         docker image rm --force $images >/dev/null || true
     fi
-    echo "run.sh: server log kept at $log" >&2
+    if [ "$status" -eq 0 ]; then
+        rm -rf -- "$work" || echo "run.sh: could not remove $work; delete it by hand" >&2
+    else
+        echo "run.sh: failed with status $status; the server log, data and test log are kept in $work" >&2
+    fi
     exit "$status"
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
+
+conformance_isolate_serve_env
+
+echo "run.sh: serving on $listen with data directory $data (log: $log)" >&2
+env "${conformance_serve_env[@]}" "$bin" serve --listen "$listen" --persist "$data" --clock frozen --seed 1 \
+    --sigv4 "${SIGV4:-parse}" >"$log" 2>&1 &
+server=$!
 
 ready=0
 for _ in $(seq 1 120); do
@@ -99,7 +117,12 @@ if [ "$ready" -ne 1 ]; then
     echo "run.sh: understudy did not report healthy at $endpoint/_understudy/v1/health within 30s" >&2
     exit 1
 fi
+conformance_require_ddb_enabled "$endpoint/_understudy/v1" "$log"
 
-cd -- "$here"
-E2E_RUN_ID="$run_id" "$root/scripts/sealed" --endpoint "$endpoint" \
-    go test -count=1 -v -timeout 45m "$@" ./...
+set +e
+(cd -- "$here" && E2E_RUN_ID="$run_id" "$root/scripts/sealed" --endpoint "$endpoint" \
+    go test -count=1 -v -timeout 45m "$@" ./...) 2>&1 | tee "$work/test.log"
+status=$?
+set -e
+conformance_go_summary "$work/test.log" "$status"
+exit "$status"

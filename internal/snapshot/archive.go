@@ -82,6 +82,10 @@ type WriteOptions struct {
 	// Blobs places the pinned blobs in the archive or leaves them in the
 	// blob store. It is required.
 	Blobs BlobPlacement
+	// MaxBytes caps the tar Write produces, counted before gzip as
+	// ReadOptions.MaxBytes counts it, so Write never produces an archive a
+	// Read with the same cap refuses. It must be positive.
+	MaxBytes int64
 }
 
 // Write writes a as the deterministic archive of ARCHITECTURE.md 13: a POSIX
@@ -89,36 +93,55 @@ type WriteOptions struct {
 // mode 0644, optionally gzipped. The same Archive gives the same bytes.
 // Manifest.Sections is derived from Sections and Late, Manifest.Format is
 // always Format and Manifest.Blobs is opts.Blobs, whatever the values given.
-// Write refuses, before writing anything, a missing blob placement
-// (*ConfigError), a section path that is not "services/<svc>/<path>", two
-// sections with one path, an invalid manifest (including a late section of a
-// service Manifest.LateServices does not list, or one that pins blobs) and,
-// with EmbedBlobs, a pinned blob the source cannot supply; a blob whose bytes
-// change while it is copied fails the write part-way.
+// Write refuses, before writing anything, a missing blob placement or a
+// MaxBytes that is not positive (*ConfigError), a section path that is not
+// "services/<svc>/<path>", two sections with one path, an invalid manifest
+// (including a late section of a service Manifest.LateServices does not
+// list, or one that pins blobs) and, with EmbedBlobs, a pinned blob the
+// source cannot supply. A tar that would pass MaxBytes (*WriteLimitError) and
+// a blob whose bytes change while it is copied fail the write part-way.
 func Write(w io.Writer, a Archive, opts WriteOptions) error {
 	switch opts.Blobs {
 	case EmbedBlobs, ExternalBlobs:
 	default:
 		return &ConfigError{Reason: fmt.Sprintf("WriteOptions.Blobs is %v; it must be EmbedBlobs or ExternalBlobs; nothing was written", opts.Blobs)}
 	}
+	if opts.MaxBytes <= 0 {
+		return &ConfigError{Reason: fmt.Sprintf("WriteOptions.MaxBytes is %d; it must be a positive byte limit; nothing was written", opts.MaxBytes)}
+	}
 	entries, err := plan(a, opts.Blobs)
 	if err != nil {
 		return err
 	}
 	if !opts.Gzip {
-		return writeTar(w, entries)
+		return writeTar(&limitWriter{w: w, left: opts.MaxBytes, max: opts.MaxBytes}, entries)
 	}
 	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
 	if err != nil {
 		return fmt.Errorf("start snapshot gzip stream: %w", err)
 	}
-	if err := writeTar(zw, entries); err != nil {
+	if err := writeTar(&limitWriter{w: zw, left: opts.MaxBytes, max: opts.MaxBytes}, entries); err != nil {
 		return err
 	}
 	if err := zw.Close(); err != nil {
 		return fmt.Errorf("finish snapshot gzip stream: %w", err)
 	}
 	return nil
+}
+
+// limitWriter fails with *WriteLimitError, writing nothing of p, once more
+// than max bytes would have been written.
+type limitWriter struct {
+	w         io.Writer
+	left, max int64
+}
+
+func (l *limitWriter) Write(p []byte) (int, error) {
+	if int64(len(p)) > l.left {
+		return 0, &WriteLimitError{Max: l.max}
+	}
+	l.left -= int64(len(p))
+	return l.w.Write(p)
 }
 
 // entry is one tar entry to write.
@@ -288,12 +311,33 @@ func writeBody(w io.Writer, e entry) (err error) {
 			err = errors.Join(err, &EntryError{Name: e.name, Defect: UnreadableBlob, Err: cerr})
 		}
 	}()
-	n, err := io.Copy(w, io.LimitReader(rc, e.size+1))
-	if err != nil {
-		return &EntryError{Name: e.name, Defect: UnreadableBlob, Err: err}
+	src := &sourceReader{r: io.LimitReader(rc, e.size+1)}
+	n, err := io.Copy(w, src)
+	switch {
+	case src.err != nil:
+		return &EntryError{Name: e.name, Defect: UnreadableBlob, Err: src.err}
+	case errors.Is(err, tar.ErrWriteTooLong):
+		return &EntryError{Name: e.name, Defect: UnreadableBlob, Err: fmt.Errorf("read more than the %d bytes it reported", e.size)}
+	case err != nil:
+		return fmt.Errorf("write snapshot entry %q: %w", e.name, err)
 	}
 	if n != e.size {
 		return &EntryError{Name: e.name, Defect: UnreadableBlob, Err: fmt.Errorf("read %d bytes, expected %d", n, e.size)}
 	}
 	return nil
+}
+
+// sourceReader keeps the error its reader failed with, so a copy tells a
+// blob it cannot read from an archive it cannot write.
+type sourceReader struct {
+	r   io.Reader
+	err error
+}
+
+func (s *sourceReader) Read(p []byte) (int, error) {
+	n, err := s.r.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		s.err = err
+	}
+	return n, err
 }

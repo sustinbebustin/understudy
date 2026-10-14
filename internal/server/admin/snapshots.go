@@ -2,7 +2,6 @@ package admin
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -61,7 +60,7 @@ func (h *Handler) snapshotSave(w http.ResponseWriter, r *http.Request, _ []strin
 			return
 		}
 	}
-	opts := snapshot.WriteOptions{Gzip: gz, Blobs: snapshot.EmbedBlobs}
+	opts := snapshot.WriteOptions{Gzip: gz, Blobs: snapshot.EmbedBlobs, MaxBytes: h.o.MaxSnapshotBytes}
 	if target == "" {
 		h.saveToResponse(w, r, journalBytes, opts)
 		return
@@ -136,7 +135,12 @@ func (h *Handler) saveToPath(r *http.Request, target string, journalBytes []byte
 		werr = f.Sync()
 	}
 	if err := errors.Join(werr, f.Close()); err != nil {
-		return nil, saveError("writing "+target, errors.Join(err, root.Remove(tmpName)))
+		// saveError tells the caller the archive was discarded, which holds
+		// only once the temporary file is gone.
+		if rerr := root.Remove(tmpName); rerr != nil {
+			return nil, internal("writing "+target+"; the incomplete archive "+tmpName+" was left under the snapshots directory, delete it by hand; the emulator state is unchanged", errors.Join(err, rerr))
+		}
+		return nil, saveError("writing "+target, err)
 	}
 	if err := root.Rename(tmpName, target); err != nil {
 		return nil, internal("moving the archive into place at "+target, errors.Join(err, root.Remove(tmpName)))
@@ -179,24 +183,10 @@ func createTemp(root *os.Root, target string) (*os.File, string, error) {
 // dst, returning the cut's manifest and how many effects of committed
 // writes it was cut without, which it also logs (ADR 0009: a save names
 // what it did not capture). It holds the state lock from the cut through
-// the late exports, so no reset or load runs between them.
-//
-// An archive that would pass Options.MaxSnapshotBytes fails with
-// *archiveSizeError part way, since no load could read it back. Read counts
-// the tar decompressed, so the tar is counted before it is compressed: the
-// gzip stream is written here rather than by snapshot.Write, with the same
-// settings, so the bytes are the same.
+// the late exports, so no reset or load runs between them. An archive that
+// would pass opts.MaxBytes fails part-way with *snapshot.WriteLimitError,
+// and the caller discards what was written.
 func (h *Handler) writeArchive(ctx context.Context, dst io.Writer, journalBytes []byte, opts snapshot.WriteOptions) (snapshot.Manifest, int, error) {
-	var zw *gzip.Writer
-	tarDst := dst
-	if opts.Gzip {
-		var err error
-		if zw, err = gzip.NewWriterLevel(dst, gzip.BestCompression); err != nil {
-			return snapshot.Manifest{}, 0, fmt.Errorf("starting the archive's gzip stream: %w", err)
-		}
-		tarDst, opts.Gzip = zw, false
-	}
-	capped := &capWriter{w: tarDst, left: h.o.MaxSnapshotBytes, max: h.o.MaxSnapshotBytes}
 	h.stateOps.Lock()
 	defer h.stateOps.Unlock()
 	cut, err := h.o.Snapshots.Cut(ctx)
@@ -204,13 +194,8 @@ func (h *Handler) writeArchive(ctx context.Context, dst io.Writer, journalBytes 
 		return snapshot.Manifest{}, 0, fmt.Errorf("cutting the state: %w", err)
 	}
 	head, pending := cut.Archive().Manifest, cut.PendingEffects()
-	if err := h.o.Snapshots.WriteAfterCut(ctx, capped, cut, snapshot.WithLateData, journalBytes, opts); err != nil {
+	if err := h.o.Snapshots.WriteAfterCut(ctx, dst, cut, snapshot.WithLateData, journalBytes, opts); err != nil {
 		return snapshot.Manifest{}, 0, fmt.Errorf("writing the archive: %w", err)
-	}
-	if zw != nil {
-		if err := zw.Close(); err != nil {
-			return snapshot.Manifest{}, 0, fmt.Errorf("finishing the archive's gzip stream: %w", err)
-		}
 	}
 	if pending > 0 {
 		h.log.LogAttrs(ctx, slog.LevelWarn, "the snapshot holds writes whose effects, such as deliveries, had not run; loading it does not run them",
@@ -223,38 +208,23 @@ func (h *Handler) writeArchive(ctx context.Context, dst io.Writer, journalBytes 
 // state's, a conflict the caller can act on; anything else is internal,
 // failing op.
 func saveError(op string, err error) *admin.Error {
-	if big, ok := errors.AsType[*archiveSizeError](err); ok {
+	if big, ok := errors.AsType[*snapshot.WriteLimitError](err); ok {
 		return &admin.Error{
 			Code:    admin.Conflict,
-			Message: big.Error(),
-			Hint:    "reset or delete state the snapshot does not need, such as large S3 objects, and save again",
+			Message: big.Error() + "; it was discarded, so nothing was saved and the emulator state is unchanged",
+			Hint:    "reset or delete state the snapshot does not need, or raise " + SnapshotMaxBytesSetting,
 		}
 	}
 	return internal(op, err)
 }
 
-// archiveSizeError reports a save whose archive would pass the size cap
-// loads read with. Nothing was saved.
-type archiveSizeError struct{ max int64 }
+// SnapshotMaxBytesSetting names the serve setting MaxSnapshotBytes comes
+// from, as hints and errors spell it here and in internal/server.
+const SnapshotMaxBytesSetting = "snapshotMaxBytes (--snapshot-max-bytes)"
 
-func (e *archiveSizeError) Error() string {
-	return fmt.Sprintf("the snapshot archive would be larger than the %d byte limit a snapshot load reads, counted decompressed, so it could not be loaded back; nothing was saved and the emulator state is unchanged", e.max)
-}
-
-// capWriter fails with *archiveSizeError, writing nothing of p, once more
-// than max bytes would have been written.
-type capWriter struct {
-	w         io.Writer
-	left, max int64
-}
-
-func (c *capWriter) Write(p []byte) (int, error) {
-	if int64(len(p)) > c.left {
-		return 0, &archiveSizeError{max: c.max}
-	}
-	c.left -= int64(len(p))
-	return c.w.Write(p)
-}
+// raiseCapHint is the next step for an archive over the cap a load reads
+// with.
+const raiseCapHint = "if this is the archive you meant to load, restart serve with a larger " + SnapshotMaxBytesSetting + " and load it again"
 
 type countingWriter struct {
 	w io.Writer
@@ -477,9 +447,9 @@ func archiveError(err error) (*admin.Error, bool) {
 	case errors.As(err, &format), errors.As(err, &schema):
 		return &admin.Error{Code: admin.Conflict, Message: err.Error(), Hint: "load the archive with the understudy build that wrote it"}, true
 	case errors.As(err, &tooBig):
-		return &admin.Error{Code: admin.InvalidRequest, Message: fmt.Sprintf("the archive is larger than %d bytes; nothing was loaded", tooBig.Limit)}, true
+		return &admin.Error{Code: admin.InvalidRequest, Message: fmt.Sprintf("the archive is larger than %d bytes; nothing was loaded", tooBig.Limit), Hint: raiseCapHint}, true
 	case errors.As(err, &size):
-		return &admin.Error{Code: admin.InvalidRequest, Message: err.Error()}, true
+		return &admin.Error{Code: admin.InvalidRequest, Message: err.Error(), Hint: raiseCapHint}, true
 	case errors.As(err, &manifest):
 		// The one archive error whose text does not say nothing was loaded.
 		return &admin.Error{Code: admin.Conflict, Message: err.Error() + "; nothing was loaded", Hint: inspectHint}, true

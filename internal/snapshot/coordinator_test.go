@@ -307,7 +307,7 @@ func (e *emulator) saveWith(t *testing.T, ld snapshot.LateData, placement snapsh
 		t.Fatalf("Cut: %v", err)
 	}
 	var buf bytes.Buffer
-	if err := e.coord.WriteAfterCut(context.Background(), &buf, cut, ld, nil, snapshot.WriteOptions{Blobs: placement}); err != nil {
+	if err := e.coord.WriteAfterCut(context.Background(), &buf, cut, ld, nil, snapshot.WriteOptions{Blobs: placement, MaxBytes: limit}); err != nil {
 		t.Fatalf("WriteAfterCut: %v", err)
 	}
 	return buf.Bytes()
@@ -388,7 +388,7 @@ func TestCutHoldsTheGateOnlyWhileExporting(t *testing.T) {
 		<-done
 	}
 	var buf bytes.Buffer
-	if err := e.coord.WriteAfterCut(context.Background(), &buf, r.cut, snapshot.WithLateData, nil, snapshot.WriteOptions{Blobs: snapshot.EmbedBlobs}); err != nil {
+	if err := e.coord.WriteAfterCut(context.Background(), &buf, r.cut, snapshot.WithLateData, nil, snapshot.WriteOptions{Blobs: snapshot.EmbedBlobs, MaxBytes: limit}); err != nil {
 		t.Fatalf("WriteAfterCut: %v", err)
 	}
 	// The archive holds the state of the cut, before either write.
@@ -750,7 +750,7 @@ func TestWriteAfterCutRefusesLateSectionsThatPinBlobs(t *testing.T) {
 		t.Fatal(err)
 	}
 	var buf bytes.Buffer
-	err = e.coord.WriteAfterCut(context.Background(), &buf, cut, snapshot.WithLateData, nil, snapshot.WriteOptions{Blobs: snapshot.EmbedBlobs})
+	err = e.coord.WriteAfterCut(context.Background(), &buf, cut, snapshot.WithLateData, nil, snapshot.WriteOptions{Blobs: snapshot.EmbedBlobs, MaxBytes: limit})
 	if err == nil || !strings.Contains(err.Error(), "late data holds no blobs") || buf.Len() != 0 {
 		t.Errorf("error %v after %d bytes; want a refusal naming the rule before writing", err, buf.Len())
 	}
@@ -838,7 +838,7 @@ func TestWriteAfterCutRefusesAReleasedOrForeignCut(t *testing.T) {
 	e, other := newEmulator(t), newEmulator(t)
 	var buf bytes.Buffer
 	write := func(c *snapshot.Coordinator, cut *snapshot.Cut, ld snapshot.LateData) error {
-		return c.WriteAfterCut(context.Background(), &buf, cut, ld, nil, snapshot.WriteOptions{Blobs: snapshot.EmbedBlobs})
+		return c.WriteAfterCut(context.Background(), &buf, cut, ld, nil, snapshot.WriteOptions{Blobs: snapshot.EmbedBlobs, MaxBytes: limit})
 	}
 	wantCutError := func(what string, err error, d snapshot.CutDefect) {
 		t.Helper()

@@ -21,6 +21,24 @@ from botocore.exceptions import ClientError
 
 from support import REGION, Admin, uniq
 
+DYNAMODB_OPTED_OUT = "DynamoDB opted out (CONFORMANCE_DYNAMODB=0)"
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Skip the tests marked dynamodb when the caller opted DynamoDB out.
+
+    run.sh refuses to start until the caller chooses: UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1
+    accepts the DynamoDB Local licence and runs these tests, CONFORMANCE_DYNAMODB=0 skips them.
+    """
+    if os.environ.get("CONFORMANCE_DYNAMODB") != "0":
+        return
+    # skipif rather than skip: pytest's short summary folds skip marks by file,
+    # and run.sh lists each skipped test from it.
+    opted_out = pytest.mark.skipif(True, reason=DYNAMODB_OPTED_OUT)
+    for item in items:
+        if item.get_closest_marker("dynamodb") is not None:
+            item.add_marker(opted_out)
+
 
 def _require_loopback_endpoint() -> str:
     endpoint = os.environ.get("AWS_ENDPOINT_URL", "")
@@ -177,6 +195,18 @@ def clock(admin: Admin) -> Iterator[Admin]:
         yield admin
     finally:
         admin.restore_clock()
+
+
+@pytest.fixture
+def frozen_clock(clock: Admin) -> Admin:
+    """The clock fixture with emulator time frozen for the test.
+
+    For tests that check one second either side of a deadline: on a running
+    clock, wall time spent between calls on a loaded machine can carry the
+    emulator past the deadline before the "not yet" check.
+    """
+    clock.freeze()
+    return clock
 
 
 @pytest.fixture

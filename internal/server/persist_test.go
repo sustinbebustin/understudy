@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"io/fs"
@@ -15,6 +16,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/snapshot"
 )
 
 // A checkpoint writes the state only when it changed since the last save:
@@ -183,6 +185,80 @@ func TestRestartResumesTheClock(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A checkpoint whose archive would pass snapshotMaxBytes fails naming the
+// setting and keeps the previous state file, which the next start loads;
+// a start whose cap the state file passes is refused naming the setting.
+func TestCheckpointOverTheCapKeepsThePreviousState(t *testing.T) {
+	dir := t.TempDir()
+	cfg := Config{Persist: PersistDir{Path: dir}, SnapshotMaxBytes: 128 << 10, Docker: DockerDisabled{}, LogOutput: io.Discard}
+	first, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqsCall(t, first, "CreateQueue", `{"QueueName":"kept"}`)
+	if err := first.wired.persist.checkpoint(t.Context(), false); err != nil {
+		t.Fatal(err)
+	}
+	state := filepath.Join(dir, stateFile)
+	saved, err := os.ReadFile(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The message body is part of the queue's state, so it takes the
+	// archive past the 128 KiB cap.
+	sqsCall(t, first, "SendMessage", `{"QueueUrl":"http://localhost:4566/000000000000/kept","MessageBody":"`+strings.Repeat("x", 200<<10)+`"}`)
+	err = first.wired.persist.checkpoint(t.Context(), false)
+	if !errors.As(err, new(*snapshot.WriteLimitError)) || !strings.Contains(err.Error(), "--snapshot-max-bytes") || !strings.Contains(err.Error(), "previous state file is kept") {
+		t.Fatalf("checkpoint over the cap = %v; want *snapshot.WriteLimitError naming --snapshot-max-bytes and keeping the previous state file", err)
+	}
+	if now, err := os.ReadFile(state); err != nil || !bytes.Equal(now, saved) {
+		t.Fatalf("state file after the refused checkpoint changed (%v); want the previous one kept", err)
+	}
+	if tmps, err := filepath.Glob(filepath.Join(dir, stateFile+".*.tmp")); err != nil || len(tmps) != 0 {
+		t.Fatalf("the refused checkpoint left %v (%v)", tmps, err)
+	}
+	// Close releases what New opened without the shutdown checkpoint.
+	if err := first.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	tight := cfg
+	tight.SnapshotMaxBytes = int64(len(saved)) - 1
+	_, err = New(tight)
+	if !errors.As(err, new(*snapshot.SizeError)) || !strings.Contains(err.Error(), "--snapshot-max-bytes") {
+		t.Fatalf("New with a cap below the state file = %v; want *snapshot.SizeError naming --snapshot-max-bytes", err)
+	}
+
+	second, err := New(cfg)
+	if err != nil {
+		t.Fatalf("New after the refused checkpoint = %v, want the previous state loaded", err)
+	}
+	t.Cleanup(func() {
+		if err := second.Close(); err != nil {
+			t.Errorf("Close = %v", err)
+		}
+	})
+	sqsCall(t, second, "GetQueueUrl", `{"QueueName":"kept"}`)
+	if body := sqsCall(t, second, "ReceiveMessage", `{"QueueUrl":"http://localhost:4566/000000000000/kept"}`); strings.Contains(body, "xxxx") {
+		t.Errorf("ReceiveMessage after the restart = %.200s; want the state of the last checkpoint that fit, without the message", body)
+	}
+}
+
+// sqsCall sends an SQS JSON request to srv's handler and returns the
+// response body, failing unless it answers 200.
+func sqsCall(t *testing.T, srv *Server, operation, body string) string {
+	t.Helper()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://localhost:4566/", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-amz-json-1.0")
+	req.Header.Set("X-Amz-Target", "AmazonSQS."+operation)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("%s = %d %.300s", operation, rec.Code, rec.Body)
+	}
+	return rec.Body.String()
 }
 
 // s3Call sends a signed path-style S3 request to srv's handler and returns

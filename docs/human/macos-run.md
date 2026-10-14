@@ -116,10 +116,10 @@ If the create call already fails, the start call answers "No such container"; th
 
 ## 9. Optional: the end-to-end pipeline
 
-Run this only if the `grep` under "Expected failures" found port bindings. Every worker in the pipeline takes a DynamoDB lock, and `run.sh` accepts the DynamoDB Local licence for its run:
+Run this only if the `grep` under "Expected failures" found port bindings. Every worker in the pipeline takes a DynamoDB lock, so this run needs DynamoDB Local. Setting `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` means you, the person running it, accept the Amazon DynamoDB Local License Agreement for the run; `run.sh` never accepts it for you:
 
 ```sh
-conformance/e2e-pipeline/run.sh 2>&1 | tee "$OUT/e2e.log"
+UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/e2e-pipeline/run.sh 2>&1 | tee "$OUT/e2e.log"
 ```
 
 ## 10. Clean up

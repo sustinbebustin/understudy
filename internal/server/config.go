@@ -57,6 +57,11 @@ type Config struct {
 	// LoadSnapshot, when set, is an archive loaded at start, over the
 	// persisted state.
 	LoadSnapshot string
+	// SnapshotMaxBytes caps every snapshot archive, counted as the
+	// uncompressed tar (snapshotMaxBytes): admin saves and uploads,
+	// LoadSnapshot, and the PersistDir load and checkpoint. 0 or less means
+	// admin.DefaultMaxSnapshotBytes (internal/server/admin).
+	SnapshotMaxBytes int64
 	// Regions are region names accepted beyond AWS's own (the top-level
 	// regions array of the configuration file).
 	Regions []string

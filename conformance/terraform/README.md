@@ -14,17 +14,19 @@ Expected behavior comes from the research in `docs/research/phase1/` (`tf-messag
 ## Running
 
 ```sh
-conformance/terraform/run.sh                # every service
-conformance/terraform/run.sh sqs lambda     # only these services
+CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh                # every service but DynamoDB
+CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh sqs lambda     # only these services
+UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/terraform/run.sh # every service
 ```
 
 `run.sh`:
 
+- exits 2 before building unless exactly one of `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` and `CONFORMANCE_DYNAMODB=0` is set, and when `terraform version`, run through `scripts/sealed`, fails (naming the binary and its exit status);
 - builds understudy from the repository into `.build/conformance/terraform/understudy`;
-- starts it on `127.0.0.1:45665` with a fresh temporary data directory (`--persist`), and waits for the health endpoint;
+- starts it on `127.0.0.1:45665` with a fresh temporary data directory (`--persist`) and no `UNDERSTUDY_*` or `AWS_*` setting from your shell but the licence variable, and waits for the health endpoint; with the licence accepted, it exits 1 unless DynamoDB reports `enabled`;
 - runs each service through the lifecycle above in its own working directory, its own state and its own account, with up to 11 services in parallel;
 - always stops the server, sweeps the containers labeled with its owner, and deletes the data directory;
-- prints one line per test and exits non-zero when any test fails.
+- prints one line per test, then a summary on stderr (`run.sh: passed=N failed=N skipped=N` and a `run.sh: SKIP <service>/<phase>: <reason>` line per skip), and exits non-zero when any test fails.
 
 Every Terraform and AWS CLI call goes through `scripts/sealed`, so no real AWS setting or credential is used.
 
@@ -32,7 +34,8 @@ Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scrip
 
 | Variable | Effect |
 |---|---|
-| `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` | Accepts the DynamoDB Local licence for this run. Without it the `dynamodb` tests are skipped, since understudy serves DynamoDB through DynamoDB Local. |
+| `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` | Accepts the Amazon DynamoDB Local License Agreement for this run and runs the `dynamodb` tests; understudy serves DynamoDB through DynamoDB Local. |
+| `CONFORMANCE_DYNAMODB=0` | Skips the `dynamodb` tests with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`. Exactly one of these two must be set. |
 | `CONFORMANCE_JOBS` | Services run in parallel (default 11). |
 | `CONFORMANCE_PHASE_TIMEOUT` | Seconds before one Terraform command is interrupted (default 900). |
 | `CONFORMANCE_PORT` | Port understudy listens on (default 45665). |

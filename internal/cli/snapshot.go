@@ -13,12 +13,9 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/admin"
+	"github.com/sustinbebustin/understudy/internal/config"
 	"github.com/sustinbebustin/understudy/internal/snapshot"
 )
-
-// maxArchiveBytes caps an archive inspect and diff read; Read holds the
-// whole archive in memory.
-const maxArchiveBytes = 4 << 30
 
 func snapshotCmd() *command {
 	return group("snapshot", "Save, load, inspect and compare snapshot archives of the emulator's state",
@@ -176,13 +173,14 @@ func writePendingEffects(w io.Writer, n int) error {
 }
 
 // readArchive reads a local archive for inspect and diff, accepting any
-// section version; snapshot.Read stops at maxArchiveBytes as it streams.
+// section version; snapshot.Read stops at config.SnapshotMaxBytesCeiling as
+// it streams, the largest archive any server writes.
 func readArchive(path, verb string) (*snapshot.Archive, error) {
 	f, err := openArchive(path, verb)
 	if err != nil {
 		return nil, err
 	}
-	a, err := snapshot.Read(f, snapshot.ReadOptions{MaxBytes: maxArchiveBytes})
+	a, err := snapshot.Read(f, snapshot.ReadOptions{MaxBytes: config.SnapshotMaxBytesCeiling})
 	if cerr := f.Close(); err == nil && cerr != nil {
 		err = &localError{op: "closing the archive " + path, err: cerr, next: "run 'understudy snapshot " + verb + "' again"}
 	}

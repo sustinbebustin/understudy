@@ -233,7 +233,7 @@ func TestReadRefusesInvalidManifests(t *testing.T) {
 func TestReadRefusesABlobEntryInAnExternalBlobArchive(t *testing.T) {
 	t.Parallel()
 	a := sample(t)
-	external := tarEntries(t, writeWith(t, a, snapshot.WriteOptions{Blobs: snapshot.ExternalBlobs}))
+	external := tarEntries(t, writeWith(t, a, snapshot.WriteOptions{Blobs: snapshot.ExternalBlobs, MaxBytes: limit}))
 	name := "blobs/sha256/" + a.Sections[1].Blobs[0]
 	err := readErr(t, rawTar(t, append([]rawEntry{{name: name, data: "hello"}}, external...)...), snapshot.ReadOptions{})
 	if ee, ok := errors.AsType[*snapshot.EntryError](err); !ok || ee.Defect != snapshot.ExternalBlobEmbedded || ee.Name != name {

@@ -3,28 +3,36 @@
 # fresh data directory, run the AWS SDK for JavaScript v3 conformance suite
 # against it through scripts/sealed, then stop it and remove its containers.
 #
-#   conformance/js-sdk-v3/run.sh                       # the whole suite
-#   conformance/js-sdk-v3/run.sh tests/sqs.test.ts     # extra arguments go to bun test
-#   conformance/js-sdk-v3/run.sh -t "FIFO"             # filter by test name
 #   UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/js-sdk-v3/run.sh
-#                                                      # also run DynamoDB (accepts the DynamoDB Local licence)
-#   CONFORMANCE_LAMBDA_EXECUTION=0 conformance/js-sdk-v3/run.sh
-#                                                      # skip the Lambda tests that run functions in Docker
-#   SIGV4=verify conformance/js-sdk-v3/run.sh          # serve with --sigv4 verify (default parse)
+#                                                      # accept the DynamoDB Local licence and run everything
 #   CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh
-#                                                      # skip DynamoDB even with the licence variable set
+#                                                      # skip DynamoDB's tests, run the rest
+#   CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh tests/sqs.test.ts
+#                                                      # extra arguments go to bun test
+#   CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh -t "FIFO"
+#                                                      # filter by test name
+#   CONFORMANCE_LAMBDA_EXECUTION=0 CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh
+#                                                      # skip the Lambda tests that run functions in Docker
+#   SIGV4=verify CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh
+#                                                      # serve with --sigv4 verify (default parse)
+#
+# Exactly one of the two DynamoDB variables must be set; without either, or
+# with both, run.sh exits 2 before building. bun's output is kept in the
+# work directory's test.log and its JUnit report in junit.xml; the run ends
+# with a summary on stderr: the totals, then each skipped test and its
+# reason.
 #
 # Exits with bun test's status, or non-zero when understudy cannot be built
 # or started. The work directory (data, log) is removed on success and kept
 # on failure, and its path is printed.
 set -euo pipefail
 
-if [[ "${CONFORMANCE_DYNAMODB:-}" == "0" ]]; then
-	unset UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE
-fi
-
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd -- "$here/../.." && pwd)"
+# shellcheck source-path=SCRIPTDIR source=../common.sh
+source "$here/../common.sh"
+conformance_ddb_mode
+
 build="$repo/.build/conformance/js-sdk-v3"
 bin="$build/understudy"
 listen="127.0.0.1:45663"
@@ -77,16 +85,7 @@ if [ ! -d "$here/node_modules/@aws-sdk/client-s3" ]; then
 	(cd -- "$here" && bun install --frozen-lockfile)
 fi
 
-# understudy runs with no UNDERSTUDY_* or AWS_* setting from this shell, so
-# nothing on this machine changes what it does. The one exception is the
-# DynamoDB Local licence acceptance, which is the caller's to give.
-serve_env=()
-while IFS='=' read -r key _; do
-	case "$key" in
-	UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE) ;;
-	UNDERSTUDY_* | AWS_*) serve_env+=(-u "$key") ;;
-	esac
-done < <(env)
+conformance_isolate_serve_env
 
 # A server left running on the port would answer the health check and the suite
 # would silently test it instead of the binary built above.
@@ -101,7 +100,7 @@ fi
 printf '%s\n' '{"lambda": {"stateTransitions": "clock"}, "sqs": {"queueDeletedRecently": "enforce"}}' >"$work/understudy.json"
 
 echo "run.sh: starting understudy on $endpoint, data in $data" >&2
-(cd -- "$work" && exec env "${serve_env[@]}" "$bin" serve \
+(cd -- "$work" && exec env "${conformance_serve_env[@]}" "$bin" serve \
 	--listen "$listen" --persist "$data" --sigv4 "$sigv4" --ready-file "$work/ready.json" --config "$work/understudy.json") >"$log" 2>&1 &
 pid=$!
 
@@ -115,11 +114,76 @@ if ! kill -0 "$pid" 2>/dev/null; then
 	cat -- "$log" >&2
 	exit 1
 fi
+conformance_require_ddb_enabled "$endpoint/_understudy/v1" "$log"
 echo "run.sh: understudy is ready" >&2
+
+# skip_reason FILE names why FILE's tests skip in this run. bun records no
+# reason for a skipIf, so this mirrors the conditions in support/env.ts that
+# this script's settings control.
+skip_reason() {
+	case "$1" in
+	tests/dynamodb.test.ts)
+		if [[ "$conformance_ddb" == opted-out ]]; then
+			echo "$conformance_ddb_opt_out_reason"
+			return
+		fi
+		;;
+	tests/lambda.test.ts)
+		if [[ "${CONFORMANCE_LAMBDA_EXECUTION:-}" == 0 ]]; then
+			echo "Lambda execution opted out (CONFORMANCE_LAMBDA_EXECUTION=0)"
+			return
+		fi
+		;;
+	tests/sts.test.ts)
+		if [[ "$sigv4" == verify ]]; then
+			echo "runs only without signature verification (SIGV4=parse)"
+		else
+			echo "needs signature verification (SIGV4=verify)"
+		fi
+		return
+		;;
+	esac
+	echo "bun records no reason; see the skipIf condition in $1"
+}
+
+# junit_skips JUNIT prints `FILE<tab>DESCRIBE > ... > TEST` for each skipped
+# test of bun's JUnit report. bun prints its per-test lines only to a
+# terminal that is not an agent's, so the report, not the console, lists them.
+junit_skips() {
+	python3 -I - "$1" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+
+def walk(suite, path):
+    for child in suite:
+        if child.tag == "testsuite":
+            walk(child, [*path, child.get("name", "")])
+        elif child.tag == "testcase" and child.find("skipped") is not None:
+            print(child.get("file", "") + "\t" + " > ".join([*path, child.get("name", "")]))
+
+
+for file_suite in ET.parse(sys.argv[1]).getroot():
+    walk(file_suite, [])
+PY
+}
 
 echo "run.sh: running the suite" >&2
 set +e
-(cd -- "$here" && CONFORMANCE_SIGV4="$sigv4" "$repo/scripts/sealed" --endpoint "$endpoint" bun test --timeout 60000 "$@")
+(cd -- "$here" && CONFORMANCE_SIGV4="$sigv4" "$repo/scripts/sealed" --endpoint "$endpoint" \
+	bun test --timeout 60000 --reporter=junit --reporter-outfile="$work/junit.xml" "$@") 2>&1 | tee "$work/test.log"
 status=$?
 set -e
+
+skips="$work/skips"
+: >"$skips"
+if [ -s "$work/junit.xml" ]; then
+	while IFS=$'\t' read -r file test; do
+		printf '%s > %s\t%s\n' "$file" "$test" "$(skip_reason "$file")"
+	done < <(junit_skips "$work/junit.xml") >"$skips"
+fi
+# bun prints a ` N skip` total only when something skipped, and no totals
+# at all when it crashes; conformance_summary counts a missing total as 0.
+count() { sed -n "s/^ *\([0-9][0-9]*\) $1\$/\1/p" "$work/test.log" | tail -n 1; }
+conformance_summary "$(count pass)" "$(count fail)" "$(count skip)" "$skips" "$status" "$work/test.log"
 exit "$status"

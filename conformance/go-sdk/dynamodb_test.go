@@ -17,13 +17,21 @@ import (
 // Research: docs/research/phase1/dynamodb-local.md, error-matrix.md 5.5.
 
 // ddbLicenceEnv is how the caller accepts the Amazon DynamoDB Local
-// License Agreement. understudy runs DynamoDB on DynamoDB Local, which it
-// pulls only after that acceptance, so without it these tests skip rather
-// than accept the licence on the caller's behalf.
-const ddbLicenceEnv = "UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE"
+// License Agreement, and ddbOptOutEnv=0 how the caller leaves DynamoDB
+// out. run.sh refuses to start until exactly one is set. understudy runs
+// DynamoDB on DynamoDB Local, which it pulls only after that acceptance,
+// so under the opt-out, or in a direct `go test` run with neither set,
+// these tests skip rather than accept the licence on the caller's behalf.
+const (
+	ddbLicenceEnv = "UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE"
+	ddbOptOutEnv  = "CONFORMANCE_DYNAMODB"
+)
 
 func requireDynamoDB(t *testing.T) {
 	t.Helper()
+	if os.Getenv(ddbOptOutEnv) == "0" {
+		t.Skip("DynamoDB opted out (" + ddbOptOutEnv + "=0)")
+	}
 	if os.Getenv(ddbLicenceEnv) != "1" {
 		t.Skip(ddbLicenceEnv + "=1 is not set: DynamoDB runs on DynamoDB Local, whose licence the caller must accept (see README.md)")
 	}

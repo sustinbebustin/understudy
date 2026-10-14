@@ -58,6 +58,8 @@ func TestServerConfigMapsAppliedSettings(t *testing.T) {
 	}{
 		{"default account", nil, file, func(s server.Config) any { return s.DefaultAccount.String() }, "111111111111"},
 		{"load snapshot", nil, file, func(s server.Config) any { return s.LoadSnapshot }, "/fixtures/a.tar"},
+		{"snapshot max bytes", []string{"--snapshot-max-bytes", "2097152"}, `{}`, func(s server.Config) any { return s.SnapshotMaxBytes }, int64(2 << 20)},
+		{"default snapshot max bytes", nil, `{}`, func(s server.Config) any { return s.SnapshotMaxBytes }, int64(1 << 30)},
 		{"journal", nil, file, func(s server.Config) any { return s.Journal }, server.Journal{Capacity: 10, MaxBytes: 2048, File: "/tmp/j.ndjson"}},
 		{"lambda limits", nil, file, func(s server.Config) any { return s.Lambda }, server.LambdaLimits{StartConcurrency: 4, IdleTimeout: time.Minute, MaxEnvironments: 8}},
 		{"dynamodb memory", nil, file, func(s server.Config) any { return s.DynamoDBMemory }, int64(512 << 20)},

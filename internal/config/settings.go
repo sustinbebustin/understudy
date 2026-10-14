@@ -56,6 +56,7 @@ const (
 	keyPersist      = "persist"
 	keyPersistEvery = "persistEvery"
 	keyLoadSnapshot = "loadSnapshot"
+	keySnapshotMax  = "snapshotMaxBytes"
 	keySeed         = "seed"
 	keyClock        = "clock"
 	keyClockScale   = "clockScale"
@@ -79,6 +80,7 @@ func Settings() []Setting {
 		{Key: keyPersist, Flag: "persist", Env: "UNDERSTUDY_PERSIST", Value: "DIR", Usage: "directory state persists in across restarts (default none: state is in memory only). A running clock resumes at wall time, or at its saved instant when that is later; a frozen or scaled one resumes from its saved instant"},
 		{Key: keyPersistEvery, Flag: "persist-every", Env: "UNDERSTUDY_PERSIST_EVERY", Value: "DURATION", Usage: "wall time between checkpoints while state changed, with --persist (default 30s)"},
 		{Key: keyLoadSnapshot, Flag: "load-snapshot", Env: "UNDERSTUDY_LOAD_SNAPSHOT", Value: "FILE", Usage: "snapshot archive to load at start, over any state --persist restored"},
+		{Key: keySnapshotMax, Flag: "snapshot-max-bytes", Env: "UNDERSTUDY_SNAPSHOT_MAX_BYTES", Value: "BYTES", Usage: "largest snapshot archive, counted decompressed, that save, load, upload and --persist accept, from 1048576 (1 MiB) to 4294967296 (4 GiB) (default 1073741824)"},
 		{Key: keySeed, Flag: "seed", Env: "UNDERSTUDY_SEED", Value: "N", Usage: "seed for reproducible ids, an unsigned integer (default random)"},
 		{Key: keyClock, Flag: "clock", Env: "UNDERSTUDY_CLOCK", Value: "MODE", Usage: "how the emulator clock starts: running, frozen, or frozen@<RFC 3339 time> (default running)"},
 		{Key: keyClockScale, Flag: "clock-scale", Env: "UNDERSTUDY_CLOCK_SCALE", Value: "FACTOR", Usage: "run the clock this many emulator seconds per wall second from start, above 0 and at most 10000; not with a frozen --clock (default 1)"},

@@ -7,14 +7,20 @@
 # plan, destroy, and a check that nothing is left. The server is always
 # stopped and its containers removed. Exits non-zero when any test fails.
 #
-#   conformance/terraform/run.sh                 # every service
-#   conformance/terraform/run.sh sqs sns         # only these
-#   CONFORMANCE_JOBS=1 conformance/terraform/run.sh
-#   SIGV4=verify conformance/terraform/run.sh    # serve with --sigv4 verify (default parse)
 #   UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/terraform/run.sh
-#                                                # also run DynamoDB (accepts the DynamoDB Local licence)
+#                                                # accept the DynamoDB Local licence; every service
 #   CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh
-#                                                # skip DynamoDB even with the licence variable set
+#                                                # skip DynamoDB, run the rest
+#   CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh sqs sns
+#                                                # only these
+#   CONFORMANCE_JOBS=1 CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh
+#   SIGV4=verify CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh
+#                                                # serve with --sigv4 verify (default parse)
+#
+# Exactly one of the two DynamoDB variables must be set; without either, or
+# with both, run.sh exits 2 before building, as it does when the first
+# `terraform` on PATH cannot run. The run ends with a summary on stderr: the
+# totals, then each skipped test and its reason.
 #
 # Every Terraform and AWS CLI call goes through scripts/sealed, so no real AWS
 # setting or credential is ever used.
@@ -23,6 +29,9 @@ set -euo pipefail
 
 suite_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repo_root=$(cd -- "$suite_dir/../.." && pwd)
+# shellcheck source-path=SCRIPTDIR source=../common.sh
+source "$suite_dir/../common.sh"
+conformance_ddb_mode
 build_dir="$repo_root/.build/conformance/terraform"
 binary="$build_dir/understudy"
 run_dir="$build_dir/run"
@@ -60,9 +69,10 @@ die() {
   exit 2
 }
 
-for tool in go terraform jq docker curl uv timeout; do
+for tool in go jq docker curl uv timeout; do
   command -v "$tool" >/dev/null || die "$tool is not on PATH; install it and run again"
 done
+conformance_require_tool terraform version
 
 services=()
 if (($# == 0)); then
@@ -134,20 +144,17 @@ trap stop_server EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-serve_args=(serve --listen "127.0.0.1:$port" --persist "$data_dir" --sigv4 "${SIGV4:-parse}" --log-format json)
-ddb_accepted=false
-if [[ "${UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE:-}" == "1" && "${CONFORMANCE_DYNAMODB:-}" != "0" ]]; then
-  ddb_accepted=true
-  serve_args+=(--accept-dynamodb-local-license)
-fi
+conformance_isolate_serve_env
 
 echo "==> starting understudy on $endpoint (data in $data_dir)"
-"$binary" "${serve_args[@]}" >"$logs_dir/server.log" 2>&1 &
+env "${conformance_serve_env[@]}" "$binary" serve --listen "127.0.0.1:$port" --persist "$data_dir" \
+  --sigv4 "${SIGV4:-parse}" --log-format json >"$logs_dir/server.log" 2>&1 &
 server_pid=$!
 if ! "$binary" health --endpoint "$endpoint" --wait 60s >"$logs_dir/health.txt" 2>&1; then
   cat "$logs_dir/health.txt" >&2
   die "understudy did not become ready on $endpoint; see $logs_dir/server.log"
 fi
+conformance_require_ddb_enabled "$endpoint/_understudy/v1" "$logs_dir/server.log"
 
 # sealed points Terraform at this cache, creates it and disables the
 # version check.
@@ -326,8 +333,8 @@ prepare() {
 # concurrent installs. The lifecycles then run in parallel.
 ready=()
 for svc in "${services[@]}"; do
-  if [[ "$svc" == dynamodb && "$ddb_accepted" == false ]]; then
-    skip_rest "$svc" "${phases[0]}" "DynamoDB Local licence not accepted, or CONFORMANCE_DYNAMODB=0; set UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 to run it"
+  if [[ "$svc" == dynamodb && "$conformance_ddb" == opted-out ]]; then
+    skip_rest "$svc" "${phases[0]}" "$conformance_ddb_opt_out_reason"
     continue
   fi
   echo "==> init $svc"
@@ -373,6 +380,7 @@ done
 passed=$(grep -c $'\tPASS\t' "$results" || true)
 failed=$(grep -c $'\tFAIL\t' "$results" || true)
 skipped=$(grep -c $'\tSKIP\t' "$results" || true)
+order | awk -F'\t' '$2 == "SKIP" { printf "%s\t%s\n", $1, $3 }' >"$run_dir/skips"
 echo
-echo "passed $passed, failed $failed, skipped $skipped"
+conformance_summary "$passed" "$failed" "$skipped" "$run_dir/skips"
 ((failed == 0))

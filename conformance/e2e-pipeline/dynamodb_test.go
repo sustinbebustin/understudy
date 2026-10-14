@@ -41,6 +41,7 @@ func stringAttr(item map[string]ddbtypes.AttributeValue, name string) string {
 // ConditionalCheckFailedException, so a duplicate message is skipped and
 // the first record stays.
 func TestDynamoDBWorkersTakeAConditionalLock(t *testing.T) {
+	requireDynamoDB(t)
 	pipe(t)
 	id := newID(t)
 	publish(t, message{ID: id, Note: "first"}, map[string]string{"kind": "order"})
@@ -85,6 +86,7 @@ func TestDynamoDBWorkersTakeAConditionalLock(t *testing.T) {
 // never deletes an unexpired item. One second after expiry the sweep
 // deletes it (dynamodb-local.md 5.1).
 func TestDynamoDBTTLExpiresLocksOnTheEmulatorClock(t *testing.T) {
+	requireDynamoDB(t)
 	pipe(t)
 	ttl, err := env.ddb.DescribeTimeToLive(t.Context(), &dynamodb.DescribeTimeToLiveInput{TableName: aws.String(lockTable)})
 	if err != nil {

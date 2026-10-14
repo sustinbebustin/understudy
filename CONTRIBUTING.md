@@ -118,13 +118,13 @@ When a fix makes a protocol compliance case pass, record it with `just protocolt
 
 ## Conformance suites
 
-Each suite in `conformance/` is its own module or project, builds understudy from the repository, starts it on its own loopback port with a fresh data directory, runs through `scripts/sealed`, and cleans up its containers. Each takes arguments to run a subset:
+Each suite in `conformance/` is its own module or project, builds understudy from the repository, starts it on its own loopback port with a fresh data directory, runs through `scripts/sealed`, and cleans up its containers. Each takes arguments to run a subset, and each needs DynamoDB's mode chosen ([conformance/README.md](conformance/README.md#dynamodb)):
 
 ```sh
-conformance/go-sdk/run.sh -run TestSTS
-conformance/js-sdk-v3/run.sh tests/sts.test.ts
-conformance/aws-cli/run.sh sts
-conformance/terraform/run.sh iam
+CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh -run TestSTS
+CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh tests/sts.test.ts
+CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh sts
+CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh iam
 ```
 
 | Suite | Client |
@@ -136,7 +136,7 @@ conformance/terraform/run.sh iam
 | `terraform/` | Terraform: apply, an empty second plan, an update, destroy, nothing left behind |
 | `e2e-pipeline/` | The phase 1 event-driven pipeline end to end, including Lambda workers |
 
-Every suite has one file per service so a fix can own one service. Each suite's README lists its requirements and options. Every suite runs DynamoDB only with `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1`, which accepts the DynamoDB Local licence for the run, and `CONFORMANCE_DYNAMODB=0` skips it even then; the end-to-end suite's workers lock in DynamoDB, so it needs one of the two to start.
+Every suite has one file per service so a fix can own one service. Each suite's README lists its requirements and options. Every `run.sh` needs exactly one of `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1`, which accepts the DynamoDB Local licence for the run and runs DynamoDB's tests, and `CONFORMANCE_DYNAMODB=0`, which skips them; with both or neither it exits 2. Under the opt-out the end-to-end suite skips only the tests that make a worker take a DynamoDB lock or read the lock table.
 
 A conformance failure is a finding about understudy, or about the research: fix whichever is wrong, never the test to match understudy.
 

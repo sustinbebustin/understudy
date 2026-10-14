@@ -114,6 +114,10 @@ class Admin:
     def clock(self) -> dict[str, Any]:
         return self._call("GET", "/clock")
 
+    def freeze(self) -> dict[str, Any]:
+        """Stop emulator time, so only advance moves it."""
+        return self._call("POST", "/clock", {"op": "freeze"})
+
     def advance(self, seconds: float) -> dict[str, Any]:
         """Move emulator time forward, firing the timers due on the way, then settle."""
         result = self._call("POST", "/clock", {"op": "advance", "by": f"{seconds}s"})

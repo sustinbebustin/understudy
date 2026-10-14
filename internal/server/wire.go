@@ -211,22 +211,23 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		return w, err
 	}
 	opts := serveradmin.Options{
-		Kernel:         k,
-		Faults:         w.faults,
-		Access:         recorder,
-		Snapshots:      snapshots,
-		Blobs:          w.blobs,
-		Services:       stateful,
-		Late:           late,
-		Regions:        regions,
-		ClockStart:     clockStart(cfg.ClockStart, clk),
-		DefaultAccount: account,
-		Token:          cfg.AdminToken,
-		Version:        cfg.Version,
-		ModelPin:       modelPin,
-		Uptime:         clk.Stopwatch(),
-		Components:     components{host: w.host, local: w.local},
-		Log:            log,
+		Kernel:           k,
+		Faults:           w.faults,
+		Access:           recorder,
+		Snapshots:        snapshots,
+		Blobs:            w.blobs,
+		Services:         stateful,
+		Late:             late,
+		Regions:          regions,
+		ClockStart:       clockStart(cfg.ClockStart, clk),
+		DefaultAccount:   account,
+		MaxSnapshotBytes: snapshotMaxBytes(cfg),
+		Token:            cfg.AdminToken,
+		Version:          cfg.Version,
+		ModelPin:         modelPin,
+		Uptime:           clk.Stopwatch(),
+		Components:       components{host: w.host, local: w.local},
+		Log:              log,
 
 		Drainer:       w.lambda,
 		Pollers:       w.lambda,
@@ -535,7 +536,7 @@ func (w *wiring) load(cfg Config, snapshots *snapshot.Coordinator, log *slog.Log
 		if every <= 0 {
 			every = DefaultSaveEvery
 		}
-		w.persist = &persister{dir: w.data, coord: snapshots, blobs: w.blobs, clock: w.kernel.Clock(), log: log, every: every}
+		w.persist = &persister{dir: w.data, coord: snapshots, blobs: w.blobs, clock: w.kernel.Clock(), log: log, every: every, maxBytes: snapshotMaxBytes(cfg)}
 		restored, err := w.persist.load(context.Background())
 		if err != nil {
 			return err
@@ -545,7 +546,7 @@ func (w *wiring) load(cfg Config, snapshots *snapshot.Coordinator, log *slog.Log
 		}
 	}
 	if cfg.LoadSnapshot != "" {
-		if err := loadSnapshot(cfg.LoadSnapshot, w.kernel, snapshots, log); err != nil {
+		if err := loadSnapshot(cfg.LoadSnapshot, snapshotMaxBytes(cfg), w.kernel, snapshots, log); err != nil {
 			return err
 		}
 		w.clockFrom = clockLoaded{path: cfg.LoadSnapshot}
@@ -585,6 +586,15 @@ func defaultAccount(cfg Config) aws.AccountID {
 		return aws.DefaultAccount()
 	}
 	return cfg.DefaultAccount
+}
+
+// snapshotMaxBytes is the configured snapshot archive cap, or the admin
+// API's default.
+func snapshotMaxBytes(cfg Config) int64 {
+	if cfg.SnapshotMaxBytes <= 0 {
+		return serveradmin.DefaultMaxSnapshotBytes
+	}
+	return cfg.SnapshotMaxBytes
 }
 
 // preload activates the configured fault rules. A rule the fault store

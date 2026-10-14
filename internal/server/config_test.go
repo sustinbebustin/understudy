@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/server"
+	"github.com/sustinbebustin/understudy/internal/snapshot"
 )
 
 // The journal setting bounds the events kept in memory and appends every
@@ -107,6 +108,27 @@ func TestLoadSnapshotAtStart(t *testing.T) {
 	_, err = server.New(server.Config{LoadSnapshot: missing, Docker: server.DockerDisabled{}, LogOutput: io.Discard})
 	if le, ok := errors.AsType[*server.SnapshotLoadError](err); !ok || le.Path != missing || !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("New with a missing snapshot = %v, want a SnapshotLoadError for %s", err, missing)
+	}
+
+	info, err := os.Stat(archive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = server.New(server.Config{LoadSnapshot: archive, SnapshotMaxBytes: info.Size() - 1, Docker: server.DockerDisabled{}, LogOutput: io.Discard})
+	if !errors.As(err, new(*snapshot.SizeError)) || !strings.Contains(err.Error(), "--snapshot-max-bytes") {
+		t.Fatalf("New with a snapshot over SnapshotMaxBytes = %v, want a SizeError naming --snapshot-max-bytes", err)
+	}
+	atCap := launch(t, server.Config{LoadSnapshot: archive, SnapshotMaxBytes: info.Size()})
+	atCap.stopOnCleanup(t)
+}
+
+// SnapshotMaxBytes caps the admin API's saves: one over it is a conflict
+// that names the setting.
+func TestSnapshotMaxBytesCapsAdminSaves(t *testing.T) {
+	c, _ := adminServer(t, server.Config{SnapshotMaxBytes: 1024})
+	_, err := c.SaveSnapshot(t.Context(), io.Discard, admin.SaveOptions{})
+	if e := adminErr(t, err, admin.Conflict); !strings.Contains(e.Hint, "--snapshot-max-bytes") {
+		t.Errorf("save over SnapshotMaxBytes hints %q; want it to name --snapshot-max-bytes", e.Hint)
 	}
 }
 

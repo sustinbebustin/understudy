@@ -131,6 +131,10 @@
 //     are refused as not regular, unread, since archive/tar expands their
 //     holes without reading them from the stream. A blob present in the
 //     archive that no section pins is refused rather than ignored.
+//   - Write requires a positive MaxBytes too and counts the tar before
+//     gzip, as Read counts it, so an archive written at a cap reads back
+//     with that cap. A write over it stops part-way with *WriteLimitError,
+//     and the caller discards what was written.
 //   - Diff wraps each section as {"version", "blobs", "data"}, parses
 //     .ndjson sections as an array of their lines, compares bytes by digest
 //     when they are not JSON, and does not compare journals, which compare

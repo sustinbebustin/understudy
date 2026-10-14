@@ -7,7 +7,8 @@
 #
 # DynamoDB runs on DynamoDB Local and is disabled until the licence is
 # accepted (UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 for run.sh); every test
-# skips while the emulator reports the service as not enabled.
+# skips under CONFORMANCE_DYNAMODB=0, and while the emulator reports the
+# service as not enabled.
 
 # new_table [CREATE-TABLE ARGS...]: create a PAY_PER_REQUEST table keyed by the
 # string LockID (name in TABLE) and wait for it to be ACTIVE. The create

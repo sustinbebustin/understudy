@@ -162,10 +162,12 @@ jobs:
   # lets every suite finish when another fails.
   #
   # DynamoDB is opted out until the DynamoDB Local licence is accepted for CI
-  # (ARCHITECTURE.md 25.6): every run.sh accepts it only with
-  # UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1, which is not set here, and
-  # CONFORMANCE_DYNAMODB=0 skips the DynamoDB tests, listing each skip. The
-  # e2e-pipeline workers lock in DynamoDB, so that suite is skipped whole.
+  # (ARCHITECTURE.md 25.6). Every run.sh needs exactly one of
+  # UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 and CONFORMANCE_DYNAMODB=0, and
+  # exits 2 with both or neither; CONFORMANCE_DYNAMODB=0 skips the DynamoDB
+  # tests, each listed in the run's summary. e2e-pipeline still runs, with
+  # its Lambda workers in Docker: the tests that publish to the topic (so a
+  # worker takes a DynamoDB lock) or read the lock table skip, the rest run.
   conformance:
     runs-on: ubuntu-latest
     env:

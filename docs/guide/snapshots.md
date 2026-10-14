@@ -43,6 +43,8 @@ sections      6
 
 Loading replaces all state, stops running Lambda environments, and sets the clock to the snapshot's time, even if that is earlier. DynamoDB tables are exported through DynamoDB Local when the snapshot is saved and re-created from the archive when it is loaded.
 
+Every archive is capped at 1 GiB counted decompressed, so a save that would pass the cap is refused with nothing saved and a larger archive is refused on load, at start or under `--persist`; raise the cap up to 4 GiB with `serve --snapshot-max-bytes` (`UNDERSTUDY_SNAPSHOT_MAX_BYTES`, file key `snapshotMaxBytes`).
+
 ## Snapshots as fixtures
 
 Build an expensive state once (a Terraform apply, a seeded dataset), save it, and start every test run from it:

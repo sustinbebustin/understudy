@@ -384,6 +384,43 @@ func TestRefusedValues(t *testing.T) {
 	}
 }
 
+// snapshotMaxBytes caps every snapshot archive at 1 GiB by default; the
+// flag, the variable and the file each set it, from 1 MiB to 4 GiB
+// inclusive, as a base-10 count of bytes. Anything else is refused naming
+// the setting, the value and the range.
+func TestSnapshotMaxBytes(t *testing.T) {
+	if got := load(t, nil, nil, files{}).Snapshot.MaxBytes; got != 1<<30 {
+		t.Errorf("default snapshotMaxBytes = %d, want 1073741824", got)
+	}
+	sources := map[string]func(text string) ([]string, []string, files){
+		"--snapshot-max-bytes": func(text string) ([]string, []string, files) {
+			return []string{"--snapshot-max-bytes", text}, nil, files{}
+		},
+		"UNDERSTUDY_SNAPSHOT_MAX_BYTES": func(text string) ([]string, []string, files) {
+			return nil, []string{"UNDERSTUDY_SNAPSHOT_MAX_BYTES=" + text}, files{}
+		},
+		"understudy.json: snapshotMaxBytes": func(text string) ([]string, []string, files) {
+			return nil, nil, files{config.DefaultConfigFile: `{"snapshotMaxBytes": ` + text + `}`}
+		},
+	}
+	for where, source := range sources {
+		for _, accepted := range []int64{1 << 20, 64 << 20, config.SnapshotMaxBytesCeiling} {
+			args, env, f := source(strconv.FormatInt(accepted, 10))
+			if got := load(t, args, env, f).Snapshot.MaxBytes; got != accepted {
+				t.Errorf("%s %d: snapshotMaxBytes = %d", where, accepted, got)
+			}
+		}
+		for _, refused := range []string{"1048575", "4294967297", "0", "-1", "1e9", `"1GiB"`} {
+			args, env, f := source(refused)
+			err := loadErr(t, args, env, f)
+			if err.Where != where || !strings.Contains(err.Reason, strings.Trim(refused, `"`)) ||
+				!strings.Contains(err.Reason, "1048576 (1 MiB)") || !strings.Contains(err.Reason, "4294967296 (4 GiB)") {
+				t.Errorf("%s %s = %v; want it refused at %s naming the value and the range", where, refused, err, where)
+			}
+		}
+	}
+}
+
 // The container listener binds lambda.bridgeGateway and serves the AWS API
 // unchecked, so only a private IPv4 address, where Docker puts its bridges,
 // is accepted: never every interface, loopback or a routable address.

@@ -1,6 +1,6 @@
 # conformance
 
-Suites that check understudy from the outside, each a separate module or project with its own dependency manifest. Each `run.sh` builds understudy from this repository, serves it on its own loopback port with a fresh data directory, runs the suite through `scripts/sealed` (so no real AWS setting or credential is used), then stops the server and removes its containers. Every script exits non-zero when a test fails; its header lists the arguments it takes, and each suite's README says more.
+Suites that check understudy from the outside, each a separate module or project with its own dependency manifest. Each `run.sh` sources `common.sh`, builds understudy from this repository, serves it on its own loopback port with a fresh data directory, runs the suite through `scripts/sealed` (so no real AWS setting or credential is used), then stops the server and removes its containers. Every script exits non-zero when a test fails; its header lists the arguments it takes, and each suite's README says more.
 
 | Suite | Client | Entry point |
 |---|---|---|
@@ -11,4 +11,17 @@ Suites that check understudy from the outside, each a separate module or project
 | `terraform/` | Terraform: apply, a no-change plan, an update, destroy | `conformance/terraform/run.sh` |
 | `e2e-pipeline/` | the event-driven pipeline end to end | `conformance/e2e-pipeline/run.sh` |
 
-No script accepts the Amazon DynamoDB Local License Agreement for you: every suite runs DynamoDB only when `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` is set, and skips it, listing each skip in its summary, otherwise or when `CONFORMANCE_DYNAMODB=0` is set. The e2e-pipeline workers lock in DynamoDB, so that suite needs the licence: `CONFORMANCE_DYNAMODB=0` skips it whole, and without either variable it refuses to start. Lambda execution and DynamoDB need a Docker daemon.
+## DynamoDB
+
+understudy serves DynamoDB through DynamoDB Local, whose licence agreement is yours to accept, so every `run.sh` makes you choose, explicitly, before it builds anything:
+
+| Setting | Effect |
+|---|---|
+| `UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1` | Accepts the Amazon DynamoDB Local License Agreement for the run and runs DynamoDB's tests. After startup, `run.sh` exits 1 unless the health document reports DynamoDB as `enabled`. |
+| `CONFORMANCE_DYNAMODB=0` | Skips DynamoDB's tests, each with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`; DynamoDB Local never starts. CI runs this way until the licence is accepted for it (ARCHITECTURE.md 25.6). |
+
+With neither, with both, or with any other value, `run.sh` exits 2 and runs nothing. No script passes `--accept-dynamodb-local-license` itself: serve reads the variable from its environment, which `run.sh` otherwise clears of every `UNDERSTUDY_*` and `AWS_*` setting. In the e2e-pipeline suite every worker takes a DynamoDB lock for each SQS record, so under `CONFORMANCE_DYNAMODB=0` the tests that publish to the topic, and so make a worker take a lock, or that read the lock table skip; the rest still run.
+
+## Summary
+
+Every `run.sh` ends with a summary on stderr: `run.sh: passed=N failed=N skipped=N`, then one `run.sh: SKIP <test>: <reason>` line per skipped test. When the suite fails but no test does (a build error, a timeout or a crash before any result), a last line says so and names where the output is. A skip never changes the exit status. Suites that drive the AWS CLI or Terraform first run its version command through `scripts/sealed` and exit 2, naming the binary, when it cannot run. Lambda execution and DynamoDB need a Docker daemon.

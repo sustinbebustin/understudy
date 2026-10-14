@@ -466,15 +466,17 @@ def test_change_message_visibility_batch(sqs: Any, make_queue: Callable[..., str
     assert [m["MessageId"] for m in visible] == [msgs[0]["MessageId"]], "the extended message became visible too early"
 
 
-def test_visibility_timeout_expires_on_the_emulator_clock(sqs: Any, make_queue: Callable[..., str], clock: Admin) -> None:
+def test_visibility_timeout_expires_on_the_emulator_clock(
+    sqs: Any, make_queue: Callable[..., str], frozen_clock: Admin
+) -> None:
     url = make_queue("conf-vis")
     sqs.send_message(QueueUrl=url, MessageBody="b")
     [first] = receive(sqs, url, VisibilityTimeout=30)
     assert receive(sqs, url) == [], "a message in flight must not be delivered again"
 
-    clock.advance(29)
+    frozen_clock.advance(29)
     assert receive(sqs, url) == [], "message became visible before its timeout elapsed"
-    clock.advance(2)
+    frozen_clock.advance(2)
     [second] = receive(sqs, url, VisibilityTimeout=30)
     assert second["MessageId"] == first["MessageId"]
     assert second["Attributes"]["ApproximateReceiveCount"] == "2"
@@ -499,13 +501,13 @@ def test_visibility_timeout_on_receive_does_not_change_the_queue_default(sqs: An
     assert attrs["VisibilityTimeout"] == "30"
 
 
-def test_queue_default_visibility_timeout_applies(sqs: Any, make_queue: Callable[..., str], clock: Admin) -> None:
+def test_queue_default_visibility_timeout_applies(sqs: Any, make_queue: Callable[..., str], frozen_clock: Admin) -> None:
     url = make_queue("conf-visq", attributes={"VisibilityTimeout": "100"})
     sqs.send_message(QueueUrl=url, MessageBody="b")
     receive(sqs, url)
-    clock.advance(99)
+    frozen_clock.advance(99)
     assert receive(sqs, url) == []
-    clock.advance(2)
+    frozen_clock.advance(2)
     assert len(receive(sqs, url)) == 1
 
 
@@ -525,7 +527,9 @@ def test_change_message_visibility_extends_and_resets(sqs: Any, make_queue: Call
     assert third["MessageId"] == msg["MessageId"]
 
 
-def test_delayed_message_is_hidden_until_the_delay_passes(sqs: Any, make_queue: Callable[..., str], clock: Admin) -> None:
+def test_delayed_message_is_hidden_until_the_delay_passes(
+    sqs: Any, make_queue: Callable[..., str], frozen_clock: Admin
+) -> None:
     url = make_queue("conf-delay")
     sqs.send_message(QueueUrl=url, MessageBody="later", DelaySeconds=60)
     counts = sqs.get_queue_attributes(QueueUrl=url, AttributeNames=["All"])["Attributes"]
@@ -533,9 +537,9 @@ def test_delayed_message_is_hidden_until_the_delay_passes(sqs: Any, make_queue: 
     assert counts["ApproximateNumberOfMessages"] == "0"
     assert receive(sqs, url) == []
 
-    clock.advance(59)
+    frozen_clock.advance(59)
     assert receive(sqs, url) == []
-    clock.advance(2)
+    frozen_clock.advance(2)
     [msg] = receive(sqs, url)
     assert msg["Body"] == "later"
 
@@ -548,12 +552,14 @@ def test_queue_delay_applies_to_every_message(sqs: Any, make_queue: Callable[...
     assert len(receive(sqs, url)) == 1
 
 
-def test_messages_expire_after_the_retention_period(sqs: Any, make_queue: Callable[..., str], clock: Admin) -> None:
+def test_messages_expire_after_the_retention_period(
+    sqs: Any, make_queue: Callable[..., str], frozen_clock: Admin
+) -> None:
     url = make_queue("conf-retention", attributes={"MessageRetentionPeriod": "60"})
     sqs.send_message(QueueUrl=url, MessageBody="b")
-    clock.advance(59)
+    frozen_clock.advance(59)
     assert len(receive(sqs, url, VisibilityTimeout=0)) == 1
-    clock.advance(2)
+    frozen_clock.advance(2)
     assert receive(sqs, url) == []
     counts = sqs.get_queue_attributes(QueueUrl=url, AttributeNames=["ApproximateNumberOfMessages"])["Attributes"]
     assert counts["ApproximateNumberOfMessages"] == "0"

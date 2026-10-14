@@ -331,7 +331,7 @@ func expiredSession(t *testing.T, c *admin.Client) signer {
 		t.Fatal("the snapshot has no services/identity/keys.json section to replace")
 	}
 	var edited bytes.Buffer
-	if err := snapshot.Write(&edited, *archive, snapshot.WriteOptions{Blobs: archive.Manifest.Blobs}); err != nil {
+	if err := snapshot.Write(&edited, *archive, snapshot.WriteOptions{Blobs: archive.Manifest.Blobs, MaxBytes: 64 << 20}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := c.LoadSnapshot(t.Context(), &edited); err != nil {

@@ -218,6 +218,10 @@ type persister struct {
 	log   *slog.Logger
 	// every is the checkpoint interval.
 	every time.Duration
+	// maxBytes caps the archive the load reads and a checkpoint writes
+	// (snapshotMaxBytes), so a checkpoint never writes one the next start
+	// refuses.
+	maxBytes int64
 	// last is the digest of the state last loaded or saved; a checkpoint
 	// of the same state writes nothing.
 	last [sha256.Size]byte
@@ -277,9 +281,13 @@ func (p *persister) load(ctx context.Context) (restored bool, err error) {
 		return false, fmt.Errorf("server: opening the saved state %s: %w", filepath.Join(p.dir.path, stateFile), err)
 	}
 	defer f.Close()
-	a, err := snapshot.Read(f, snapshot.ReadOptions{MaxBytes: serveradmin.DefaultMaxSnapshotBytes, Schemas: p.coord.Schemas()})
+	a, err := snapshot.Read(f, snapshot.ReadOptions{MaxBytes: p.maxBytes, Schemas: p.coord.Schemas()})
 	if err != nil {
-		return false, fmt.Errorf("server: reading the saved state %s; move it aside to start empty: %w", filepath.Join(p.dir.path, stateFile), err)
+		next := "move it aside to start empty"
+		if errors.As(err, new(*snapshot.SizeError)) {
+			next = "start with a larger " + serveradmin.SnapshotMaxBytesSetting + " to load it, or move it aside to start empty"
+		}
+		return false, fmt.Errorf("server: reading the saved state %s; %s: %w", filepath.Join(p.dir.path, stateFile), next, err)
 	}
 	a.Manifest.Clock = resumed(a.Manifest.Clock, clock.FromWire(p.clock.Wall()))
 	if err := p.coord.Load(ctx, a); err != nil {
@@ -392,12 +400,23 @@ func (p *persister) write(ctx context.Context, cut *snapshot.Cut) error {
 	if err != nil {
 		return errors.Join(fmt.Errorf("server: checkpoint: creating %s: %w", tmp, err), cut.Release())
 	}
-	werr := p.coord.WriteAfterCut(ctx, f, cut, snapshot.WithoutLateData, nil, snapshot.WriteOptions{Blobs: snapshot.ExternalBlobs})
+	werr := p.coord.WriteAfterCut(ctx, f, cut, snapshot.WithoutLateData, nil, snapshot.WriteOptions{Blobs: snapshot.ExternalBlobs, MaxBytes: p.maxBytes})
 	if werr == nil {
 		werr = f.Sync()
 	}
 	if err := errors.Join(werr, f.Close()); err != nil {
-		return fmt.Errorf("server: checkpoint: writing %s; the previous state file is kept: %w", tmp, errors.Join(err, p.dir.root.Remove(tmp)))
+		rerr := p.dir.root.Remove(tmp)
+		kept := "the previous state file is kept"
+		if rerr != nil {
+			kept += " and the incomplete " + tmp + " was left in the persist directory"
+		}
+		if errors.As(err, new(*snapshot.WriteLimitError)) {
+			if rerr == nil {
+				kept += " and the new one discarded"
+			}
+			kept += "; reset or delete state the emulator does not need, or restart with a larger " + serveradmin.SnapshotMaxBytesSetting
+		}
+		return fmt.Errorf("server: checkpoint: writing %s; %s: %w", tmp, kept, errors.Join(err, rerr))
 	}
 	if err := p.dir.root.Rename(tmp, stateFile); err != nil {
 		return fmt.Errorf("server: checkpoint: moving %s into place; the previous state file is kept: %w", tmp, errors.Join(err, p.dir.root.Remove(tmp)))
@@ -413,16 +432,19 @@ type SnapshotLoadError struct {
 }
 
 func (e *SnapshotLoadError) Error() string {
-	return "server: loading the snapshot " + e.Path + " at start: " + e.Err.Error() +
-		"; check the path, or start without it and load one later with 'understudy snapshot load FILE'"
+	next := "check the path, or start without it and load one later with 'understudy snapshot load FILE'"
+	if errors.As(e.Err, new(*snapshot.SizeError)) {
+		next = "start with a larger " + serveradmin.SnapshotMaxBytesSetting + " to load it, or check that it is the snapshot you meant"
+	}
+	return "server: loading the snapshot " + e.Path + " at start: " + e.Err.Error() + "; " + next
 }
 
 func (e *SnapshotLoadError) Unwrap() error { return e.Err }
 
 // loadSnapshot replaces the state with the archive at path, when set, as
 // PUT /snapshots does: the timers are cleared and Load rearms them from the
-// loaded state.
-func loadSnapshot(path string, k *kernel.Kernel, coord *snapshot.Coordinator, log *slog.Logger) error {
+// loaded state. maxBytes caps the archive.
+func loadSnapshot(path string, maxBytes int64, k *kernel.Kernel, coord *snapshot.Coordinator, log *slog.Logger) error {
 	if path == "" {
 		return nil
 	}
@@ -431,7 +453,7 @@ func loadSnapshot(path string, k *kernel.Kernel, coord *snapshot.Coordinator, lo
 		return &SnapshotLoadError{Path: path, Err: err}
 	}
 	defer f.Close()
-	a, err := snapshot.Read(f, snapshot.ReadOptions{MaxBytes: serveradmin.DefaultMaxSnapshotBytes, Schemas: coord.Schemas()})
+	a, err := snapshot.Read(f, snapshot.ReadOptions{MaxBytes: maxBytes, Schemas: coord.Schemas()})
 	if err != nil {
 		return &SnapshotLoadError{Path: path, Err: err}
 	}

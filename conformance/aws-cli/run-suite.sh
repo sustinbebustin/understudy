@@ -5,13 +5,15 @@
 #
 # Start it through scripts/sealed (run.sh does). Environment:
 #   UE_ADMIN_URL      understudy's admin API base, for health probes (required)
-#   UE_RESULTS_DIR    where per-test logs and results.tsv go (default: a new temp dir)
+#   UE_RESULTS_DIR    where per-test logs and results.tsv go (default: a new temp dir);
+#                     results.tsv holds STATUS, SERVICE, TEST and SECONDS, plus
+#                     the reason on a SKIP line
 #   UE_TEST_TIMEOUT   seconds allowed per test (default 180)
 #   UE_ONLY           extended regex; run only tests whose name matches
 set -uo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-# shellcheck source=lib.sh
+# shellcheck source-path=SCRIPTDIR source=lib.sh disable=SC1091 # followed under shellcheck -x
 source "$here/lib.sh"
 
 : "${UE_ADMIN_URL:?UE_ADMIN_URL must be set (run through run.sh)}"
@@ -49,6 +51,7 @@ for file in "${files[@]}"; do
     fi
     log="$UE_RESULTS_DIR/$svc.$t.log"
     start=$SECONDS
+    # shellcheck disable=SC2016 # the inner shell expands its own arguments and variables
     timeout --kill-after=5 "$UE_TEST_TIMEOUT" bash -c '
       set -eEuo pipefail
       source "$1/lib.sh"
@@ -66,8 +69,9 @@ for file in "${files[@]}"; do
         ;;
       77)
         skipped=$((skipped + 1))
-        printf 'SKIP\t%s\t%s\t%ss\n' "$svc" "$t" "$secs" >>"$results"
-        printf '  SKIP  %s: %s\n' "$t" "$(sed -n 's/^SKIP: //p' "$log" | head -n 1)"
+        reason=$(sed -n 's/^SKIP: //p' "$log" | head -n 1 | tr '\t' ' ')
+        printf 'SKIP\t%s\t%s\t%ss\t%s\n' "$svc" "$t" "$secs" "$reason" >>"$results"
+        printf '  SKIP  %s: %s\n' "$t" "$reason"
         ;;
       124 | 137)
         fail=$((fail + 1))

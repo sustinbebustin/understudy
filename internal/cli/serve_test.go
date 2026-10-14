@@ -121,6 +121,26 @@ func TestServeRefusesAnUnappliableFileSettingByName(t *testing.T) {
 	}
 }
 
+// A snapshot cap outside 1 MiB to 4 GiB is a usage error (exit 2) naming
+// the setting and the range, from the flag, the variable or the file.
+func TestServeRefusesASnapshotCapOutsideItsRange(t *testing.T) {
+	for _, value := range []string{"1048575", "4294967297"} {
+		for where, c := range map[string]struct{ args, env []string }{
+			"--snapshot-max-bytes":          {args: []string{"--snapshot-max-bytes", value}},
+			"UNDERSTUDY_SNAPSHOT_MAX_BYTES": {env: []string{"UNDERSTUDY_SNAPSHOT_MAX_BYTES=" + value}},
+			"snapshotMaxBytes":              {args: []string{"--config", writeConfig(t, `{"snapshotMaxBytes": `+value+`}`)}},
+		} {
+			var out, errOut syncBuffer
+			args := append([]string{"serve", "--listen", "127.0.0.1:0", "--docker", "disabled"}, c.args...)
+			code := cli.Run(t.Context(), args, cli.Options{Stdout: &out, Stderr: &errOut, Env: c.env, ReadFile: os.ReadFile})
+			msg := errOut.String()
+			if code != admin.ExitUsage || !strings.Contains(msg, where) || !strings.Contains(msg, value) || !strings.Contains(msg, "from 1048576 (1 MiB) to 4294967296 (4 GiB)") {
+				t.Errorf("serve with %s %s = %d, stderr %q; want 2 naming the setting, the value and the range", where, value, code, msg)
+			}
+		}
+	}
+}
+
 // A configuration serve refuses is the JSON error envelope when JSON is
 // asked for, by --output, --log-format or UNDERSTUDY_LOG_FORMAT.
 func TestServeErrorsFollowTheOutputFormat(t *testing.T) {

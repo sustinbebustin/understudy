@@ -16,6 +16,7 @@ type Config struct {
 	Listen      Listen
 	TLS         TLS
 	Persistence Persistence
+	Snapshot    Snapshot
 	SigV4       SigV4Mode
 	// Seed makes every generated id reproducible; nil draws from
 	// crypto/rand.
@@ -162,6 +163,14 @@ type Dir struct {
 
 func (Ephemeral) isPersistence() {}
 func (Dir) isPersistence()       {}
+
+// Snapshot bounds snapshot archives (snapshotMaxBytes).
+type Snapshot struct {
+	// MaxBytes caps every archive, counted as the uncompressed tar: save,
+	// upload, --load-snapshot, and the --persist load and checkpoint. It is
+	// from 1 MiB to SnapshotMaxBytesCeiling.
+	MaxBytes int64
+}
 
 // SigV4Mode is how request signatures are checked.
 type SigV4Mode uint8

@@ -75,6 +75,20 @@ type suite struct {
 
 var env *suite
 
+// dynamoDBOptedOut reports whether the caller left DynamoDB out of the run
+// (run.sh's CONFORMANCE_DYNAMODB=0). understudy then runs without the
+// DynamoDB Local licence, so a DynamoDB call would answer 501.
+func dynamoDBOptedOut() bool { return os.Getenv("CONFORMANCE_DYNAMODB") == "0" }
+
+// requireDynamoDB skips a test that touches DynamoDB, directly or through a
+// worker taking its lock, when the caller opted DynamoDB out.
+func requireDynamoDB(t *testing.T) {
+	t.Helper()
+	if dynamoDBOptedOut() {
+		t.Skip("DynamoDB opted out (CONFORMANCE_DYNAMODB=0)")
+	}
+}
+
 func TestMain(m *testing.M) { os.Exit(runSuite(m)) }
 
 // runSuite connects, builds the function artifacts and provisions the
@@ -308,9 +322,11 @@ type published struct {
 }
 
 // publish sends m to the topic with string attributes and Number
-// attributes for numeric values.
+// attributes for numeric values. Every worker its queues feed takes a
+// DynamoDB lock for each record, so publish needs DynamoDB.
 func publish(t *testing.T, m message, attrs map[string]string) published {
 	t.Helper()
+	requireDynamoDB(t)
 	body, err := json.Marshal(m)
 	if err != nil {
 		t.Fatal(err)

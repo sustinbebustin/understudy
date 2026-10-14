@@ -101,10 +101,14 @@ func sample(t tb) snapshot.Archive {
 	}
 }
 
+// limit caps the archives the helpers write and read, far above any of
+// them.
+const limit = 1 << 24
+
 // write writes a with its blobs embedded.
 func write(t tb, a snapshot.Archive, gz bool) []byte {
 	t.Helper()
-	return writeWith(t, a, snapshot.WriteOptions{Gzip: gz, Blobs: snapshot.EmbedBlobs})
+	return writeWith(t, a, snapshot.WriteOptions{Gzip: gz, Blobs: snapshot.EmbedBlobs, MaxBytes: limit})
 }
 
 func writeWith(t tb, a snapshot.Archive, opts snapshot.WriteOptions) []byte {
@@ -118,7 +122,7 @@ func writeWith(t tb, a snapshot.Archive, opts snapshot.WriteOptions) []byte {
 
 func read(t tb, b []byte) *snapshot.Archive {
 	t.Helper()
-	a, err := snapshot.Read(bytes.NewReader(b), snapshot.ReadOptions{MaxBytes: 1 << 24})
+	a, err := snapshot.Read(bytes.NewReader(b), snapshot.ReadOptions{MaxBytes: limit})
 	if err != nil {
 		t.Fatalf("Read: %v", err)
 	}
@@ -263,15 +267,103 @@ func TestWriteRefusesInvalidArchives(t *testing.T) {
 		a := sample(t)
 		mutate(&a)
 		var buf bytes.Buffer
-		if err := snapshot.Write(&buf, a, snapshot.WriteOptions{Blobs: snapshot.EmbedBlobs}); err == nil {
+		if err := snapshot.Write(&buf, a, snapshot.WriteOptions{Blobs: snapshot.EmbedBlobs, MaxBytes: limit}); err == nil {
 			t.Errorf("%s: Write succeeded", name)
 		} else if buf.Len() != 0 {
 			t.Errorf("%s: Write failed with %v after writing %d bytes", name, err, buf.Len())
 		}
 	}
+	for name, opts := range map[string]snapshot.WriteOptions{
+		"no blob placement": {MaxBytes: limit},
+		"no byte limit":     {Blobs: snapshot.EmbedBlobs, Gzip: true},
+		"negative limit":    {Blobs: snapshot.EmbedBlobs, MaxBytes: -1},
+	} {
+		var buf bytes.Buffer
+		if err := snapshot.Write(&buf, sample(t), opts); !errors.As(err, new(*snapshot.ConfigError)) || buf.Len() != 0 {
+			t.Errorf("%s: error %v after %d bytes; want *ConfigError before writing", name, err, buf.Len())
+		}
+	}
+}
+
+// Write caps the tar at MaxBytes, counted before gzip as Read counts it: an
+// archive exactly at the cap is written and reads back with that cap, and
+// one byte less fails with *WriteLimitError, gzipped or not, so no write
+// produces an archive a load with the same cap refuses.
+func TestWriteCapsTheTarAtMaxBytes(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(t *rapid.T) {
+		a := drawArchive(t)
+		placement := rapid.SampledFrom([]snapshot.BlobPlacement{snapshot.EmbedBlobs, snapshot.ExternalBlobs}).Draw(t, "placement")
+		size := int64(len(writeWith(t, a, snapshot.WriteOptions{Blobs: placement, MaxBytes: limit})))
+		gz := rapid.Bool().Draw(t, "gzip")
+		atCap := writeWith(t, a, snapshot.WriteOptions{Gzip: gz, Blobs: placement, MaxBytes: size})
+		if _, err := snapshot.Read(bytes.NewReader(atCap), snapshot.ReadOptions{MaxBytes: size}); err != nil {
+			t.Fatalf("Read with the cap the archive was written at (%d bytes, gzip %v): %v", size, gz, err)
+		}
+		// A cap below that stops the write inside any entry, a blob's
+		// contents included.
+		for _, under := range []int64{size - 1, rapid.Int64Range(1, size-1).Draw(t, "lower cap")} {
+			var buf bytes.Buffer
+			err := snapshot.Write(&buf, a, snapshot.WriteOptions{Gzip: gz, Blobs: placement, MaxBytes: under})
+			over, ok := errors.AsType[*snapshot.WriteLimitError](err)
+			if !ok || over.Max != under || errors.As(err, new(*snapshot.EntryError)) {
+				t.Fatalf("Write of a %d byte tar with MaxBytes %d (gzip %v) = %v; want *WriteLimitError{Max: %d}, not blamed on an entry", size, under, gz, err, under)
+			}
+		}
+	})
+}
+
+// A cap reached while a blob is copied is the limit, not a blob the store
+// cannot read: sample's first entry is its blob, whose 5 bytes follow the
+// 512-byte header.
+func TestWriteLimitInsideABlobIsNotAnUnreadableBlob(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
-	if err := snapshot.Write(&buf, sample(t), snapshot.WriteOptions{}); !errors.As(err, new(*snapshot.ConfigError)) || buf.Len() != 0 {
-		t.Errorf("no blob placement: error %v after %d bytes; want *ConfigError before writing", err, buf.Len())
+	err := snapshot.Write(&buf, sample(t), snapshot.WriteOptions{Blobs: snapshot.EmbedBlobs, MaxBytes: 512 + 2})
+	if !errors.As(err, new(*snapshot.WriteLimitError)) || errors.As(err, new(*snapshot.EntryError)) {
+		t.Errorf("Write stopped inside a blob = %v; want *WriteLimitError, not *EntryError", err)
+	}
+}
+
+// resized reports each blob's size off by delta bytes from what it serves,
+// as a blob that changes between being sized and copied.
+type resized struct {
+	blobs
+	delta int64
+}
+
+func (r resized) Size(b blob.Ref) (int64, error) {
+	n, err := r.blobs.Size(b)
+	return n + r.delta, err
+}
+
+// A blob that serves more bytes than it reported, or fewer, fails the
+// write as unreadable, not as a write error.
+func TestWriteRefusesABlobWhoseSizeChanges(t *testing.T) {
+	t.Parallel()
+	for name, delta := range map[string]int64{"grew": -1, "shrank": 1} {
+		a := sample(t)
+		bs, ok := a.Blobs.(blobs)
+		if !ok {
+			t.Fatalf("sample blobs are %T", a.Blobs)
+		}
+		a.Blobs = resized{blobs: bs, delta: delta}
+		var buf bytes.Buffer
+		err := snapshot.Write(&buf, a, snapshot.WriteOptions{Blobs: snapshot.EmbedBlobs, MaxBytes: limit})
+		if entry, ok := errors.AsType[*snapshot.EntryError](err); !ok || entry.Defect != snapshot.UnreadableBlob {
+			t.Errorf("%s: Write = %v; want *EntryError with UnreadableBlob", name, err)
+		}
+	}
+}
+
+// The refusal says what a caller must do with what was written so far.
+func TestWriteLimitErrorSaysTheArchiveIsIncomplete(t *testing.T) {
+	t.Parallel()
+	msg := (&snapshot.WriteLimitError{Max: 2048}).Error()
+	for _, want := range []string{"2048 byte limit", "decompressed", "could not read it back", "incomplete", "discard"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("WriteLimitError text %q lacks %q", msg, want)
+		}
 	}
 }
 
@@ -281,14 +373,14 @@ func TestWriteWithExternalBlobsWritesNone(t *testing.T) {
 	t.Parallel()
 	a := sample(t)
 	a.Blobs = nil
-	got := read(t, writeWith(t, a, snapshot.WriteOptions{Blobs: snapshot.ExternalBlobs}))
+	got := read(t, writeWith(t, a, snapshot.WriteOptions{Blobs: snapshot.ExternalBlobs, MaxBytes: limit}))
 	if got.Manifest.Blobs != snapshot.ExternalBlobs || got.Blobs != nil {
 		t.Errorf("read placement %v, blob source %v; want ExternalBlobs and none", got.Manifest.Blobs, got.Blobs)
 	}
 	if !slices.EqualFunc(got.Sections, sortedSections(a.Sections), sectionEqual) {
 		t.Errorf("sections %+v; want %+v with their blob references", got.Sections, a.Sections)
 	}
-	for _, e := range tarEntries(t, writeWith(t, a, snapshot.WriteOptions{Blobs: snapshot.ExternalBlobs})) {
+	for _, e := range tarEntries(t, writeWith(t, a, snapshot.WriteOptions{Blobs: snapshot.ExternalBlobs, MaxBytes: limit})) {
 		if strings.HasPrefix(e.name, "blobs/") {
 			t.Errorf("an external-blob archive holds blob entry %q", e.name)
 		}
@@ -393,8 +485,9 @@ func TestWriteReadWriteIsByteIdentical(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		a := drawArchive(t)
 		opts := snapshot.WriteOptions{
-			Gzip:  rapid.Bool().Draw(t, "gzip"),
-			Blobs: rapid.SampledFrom([]snapshot.BlobPlacement{snapshot.EmbedBlobs, snapshot.ExternalBlobs}).Draw(t, "placement"),
+			Gzip:     rapid.Bool().Draw(t, "gzip"),
+			Blobs:    rapid.SampledFrom([]snapshot.BlobPlacement{snapshot.EmbedBlobs, snapshot.ExternalBlobs}).Draw(t, "placement"),
+			MaxBytes: limit,
 		}
 		first := writeWith(t, a, opts)
 		got := read(t, first)

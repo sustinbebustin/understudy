@@ -3,25 +3,31 @@
 # fresh data directory, run the aws-sdk-go-v2 conformance suite against it
 # through scripts/sealed, then stop it and remove its containers.
 #
-#   conformance/go-sdk/run.sh                      # the whole suite
-#   conformance/go-sdk/run.sh -run TestSQS -v      # extra arguments go to go test
 #   UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1 conformance/go-sdk/run.sh
-#                                                  # also run DynamoDB (accepts the DynamoDB Local licence)
-#   SIGV4=verify conformance/go-sdk/run.sh         # serve with --sigv4 verify (default parse)
+#                                                  # accept the DynamoDB Local licence and run everything
 #   CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh
-#                                                  # skip DynamoDB even with the licence variable set
+#                                                  # skip DynamoDB's tests, run the rest
+#   CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh -run TestSQS
+#                                                  # extra arguments go to go test
+#   SIGV4=verify CONFORMANCE_DYNAMODB=0 conformance/go-sdk/run.sh
+#                                                  # serve with --sigv4 verify (default parse)
+#
+# Exactly one of the two DynamoDB variables must be set; without either, or
+# with both, run.sh exits 2 before building. It runs go test -v, keeps its
+# output in the work directory's test.log, and ends with a summary on stderr:
+# the totals, then each skipped test and its reason.
 #
 # Exits with go test's status, or non-zero when understudy cannot be built
 # or started. The work directory (data, log, TLS certificate) is removed on
 # success and kept on failure, and its path is printed.
 set -euo pipefail
 
-if [[ "${CONFORMANCE_DYNAMODB:-}" == "0" ]]; then
-	unset UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE
-fi
-
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd -- "$here/../.." && pwd)"
+# shellcheck source-path=SCRIPTDIR source=../common.sh
+source "$here/../common.sh"
+conformance_ddb_mode
+
 build="$repo/.build/conformance/go-sdk"
 bin="$build/understudy"
 listen="127.0.0.1:45661"
@@ -69,16 +75,7 @@ trap stop EXIT INT TERM
 echo "run.sh: building understudy into $bin" >&2
 (cd -- "$repo" && CGO_ENABLED=0 go build -o "$bin" ./cmd/understudy)
 
-# understudy runs with no UNDERSTUDY_* or AWS_* setting from this shell, so
-# nothing on this machine changes what it does. The one exception is the
-# DynamoDB Local licence acceptance, which is the caller's to give.
-serve_env=()
-while IFS='=' read -r key _; do
-	case "$key" in
-	UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE) ;;
-	UNDERSTUDY_* | AWS_*) serve_env+=(-u "$key") ;;
-	esac
-done < <(env)
+conformance_isolate_serve_env
 
 # The TLS listener takes a free port (other suites own the ports next to
 # 45661); the ready file names it.
@@ -88,7 +85,7 @@ done < <(env)
 printf '%s\n' '{"lambda": {"stateTransitions": "clock"}, "sqs": {"queueDeletedRecently": "enforce"}}' >"$work/understudy.json"
 
 echo "run.sh: starting understudy on $endpoint, data in $data" >&2
-(cd -- "$work" && exec env "${serve_env[@]}" "$bin" serve \
+(cd -- "$work" && exec env "${conformance_serve_env[@]}" "$bin" serve \
 	--listen "$listen" --tls --tls-listen 127.0.0.1:0 --sigv4 "$sigv4" \
 	--persist "$data" --ready-file "$work/ready.json" --config "$work/understudy.json") >"$log" 2>&1 &
 pid=$!
@@ -116,6 +113,7 @@ if ! "$bin" health --endpoint "$endpoint" --wait 60s >/dev/null; then
 	cat -- "$log" >&2
 	exit 1
 fi
+conformance_require_ddb_enabled "$endpoint/_understudy/v1" "$log"
 echo "run.sh: understudy is ready (TLS listener $tls_endpoint)" >&2
 
 # Write the TLS listener's self-signed certificate where AWS_CA_BUNDLE can
@@ -125,7 +123,8 @@ echo "run.sh: understudy is ready (TLS listener $tls_endpoint)" >&2
 echo "run.sh: running the suite" >&2
 set +e
 (cd -- "$here" && AWS_CA_BUNDLE="$work/tls-ca" UNDERSTUDY_TLS_ENDPOINT="$tls_endpoint" \
-	"$repo/scripts/sealed" --endpoint "$endpoint" go test -count=1 -timeout 30m "$@" ./...)
+	"$repo/scripts/sealed" --endpoint "$endpoint" go test -count=1 -v -timeout 30m "$@" ./...) 2>&1 | tee "$work/test.log"
 status=$?
 set -e
+conformance_go_summary "$work/test.log" "$status"
 exit "$status"

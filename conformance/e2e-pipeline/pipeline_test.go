@@ -204,7 +204,9 @@ func zipFiles(files map[string]string) ([]byte, error) {
 }
 
 // provision creates the whole pipeline in dependency order and waits until
-// every function is Active and every mapping Enabled.
+// every function is Active and every mapping Enabled. When the caller opted
+// DynamoDB out it leaves the lock table out; the tests that make a worker
+// take a lock skip (requireDynamoDB), the rest run against the pipeline.
 func provision(ctx context.Context, s *suite, arts artifacts) (*pipeline, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
@@ -217,7 +219,12 @@ func provision(ctx context.Context, s *suite, arts artifacts) (*pipeline, error)
 		{"create the KMS key", func() error { return p.createKey(ctx, s) }},
 		{"create the SSE-KMS bucket", func() error { return p.createBucket(ctx, s) }},
 		{"create the secret", func() error { return p.createSecret(ctx, s) }},
-		{"create the lock table", func() error { return createLockTable(ctx, s) }},
+		{"create the lock table", func() error {
+			if dynamoDBOptedOut() {
+				return nil
+			}
+			return createLockTable(ctx, s)
+		}},
 		{"create the trace log group", func() error {
 			_, err := s.logs.CreateLogGroup(ctx, &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String(traceLogGroup)})
 			return err

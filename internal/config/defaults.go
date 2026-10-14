@@ -26,6 +26,16 @@ const (
 	DefaultDockerSocket     = "/var/run/docker.sock"
 	// MaxClockScale bounds Scaled.Factor, as the admin clock op does.
 	MaxClockScale = 10000
+	// DefaultSnapshotMaxBytes caps every snapshot archive, counted
+	// decompressed (ARCHITECTURE.md 13).
+	DefaultSnapshotMaxBytes = 1 << 30
+	// SnapshotMaxBytesCeiling is the largest snapshotMaxBytes accepted, and
+	// the cap snapshot inspect and diff read with, so they read every
+	// archive a server writes. snapshot.Read holds a whole archive in
+	// memory, which is what bounds it.
+	SnapshotMaxBytesCeiling = 4 << 30
+	// snapshotMaxBytesFloor is the smallest snapshotMaxBytes accepted.
+	snapshotMaxBytesFloor = 1 << 20
 )
 
 // DefaultBaseDomains are the S3 base domains every configuration has.
@@ -43,6 +53,7 @@ func Defaults(p Placement) Config {
 		Listen:      listen,
 		TLS:         TLSOff{},
 		Persistence: Ephemeral{},
+		Snapshot:    Snapshot{MaxBytes: DefaultSnapshotMaxBytes},
 		SigV4:       ParseOnly,
 		Clock:       Running{},
 		Accounts:    Accounts{Default: aws.DefaultAccount()},

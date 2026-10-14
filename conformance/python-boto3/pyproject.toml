@@ -35,6 +35,7 @@ addopts = "-ra --strict-markers"
 timeout = 180
 markers = [
     "docker: needs the Docker daemon (DynamoDB Local, Lambda containers)",
+    "dynamodb: talks to DynamoDB; skips under CONFORMANCE_DYNAMODB=0",
 ]
 filterwarnings = [
     "error::pytest.PytestUnraisableExceptionWarning",

@@ -157,6 +157,16 @@ func (e *SizeError) Error() string {
 	return fmt.Sprintf("snapshot archive is larger than the %d byte limit once decompressed; nothing was loaded. The limit guards against an archive that expands without bound, so check that this file is the snapshot you meant to load", e.Max)
 }
 
+// WriteLimitError reports a Write whose tar would pass WriteOptions.MaxBytes.
+// What Write wrote before it stopped is an incomplete archive.
+type WriteLimitError struct {
+	Max int64
+}
+
+func (e *WriteLimitError) Error() string {
+	return fmt.Sprintf("snapshot archive would be larger than the %d byte limit, counted decompressed, so a load with that limit could not read it back; the archive written so far is incomplete and must be discarded", e.Max)
+}
+
 // StreamError reports an archive stream that is damaged outside its
 // entries' contents: it is not a readable tar, its gzip header, checksum or
 // length trailer is bad, or bytes other than zero padding follow the end of

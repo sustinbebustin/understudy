@@ -239,16 +239,17 @@ func serverConfig(cfg config.Config, version string) (server.Config, error) {
 		return server.Config{}, err
 	}
 	s := server.Config{
-		Listen:         cfg.Listen.AddrPort(),
-		Seed:           cfg.Seed,
-		DefaultAccount: cfg.Accounts.Default,
-		Journal:        server.Journal{Capacity: cfg.Journal.Capacity, MaxBytes: cfg.Journal.MaxBytes, File: cfg.Journal.File},
-		LoadSnapshot:   cfg.LoadSnapshot,
-		Faults:         cfg.Faults,
-		S3BaseDomains:  cfg.S3.BaseDomains,
-		LogLevel:       cfg.Log.Level,
-		ReadyFile:      cfg.ReadyFile,
-		Version:        version,
+		Listen:           cfg.Listen.AddrPort(),
+		Seed:             cfg.Seed,
+		DefaultAccount:   cfg.Accounts.Default,
+		Journal:          server.Journal{Capacity: cfg.Journal.Capacity, MaxBytes: cfg.Journal.MaxBytes, File: cfg.Journal.File},
+		LoadSnapshot:     cfg.LoadSnapshot,
+		SnapshotMaxBytes: cfg.Snapshot.MaxBytes,
+		Faults:           cfg.Faults,
+		S3BaseDomains:    cfg.S3.BaseDomains,
+		LogLevel:         cfg.Log.Level,
+		ReadyFile:        cfg.ReadyFile,
+		Version:          version,
 		Lambda: server.LambdaLimits{
 			StartConcurrency: cfg.Lambda.StartConcurrency,
 			IdleTimeout:      cfg.Lambda.IdleTimeout,

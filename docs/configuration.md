@@ -90,6 +90,9 @@ This is what `understudy serve --help` prints under Flags. A test keeps it in st
   --load-snapshot FILE
       snapshot archive to load at start, over any state --persist restored
       variable UNDERSTUDY_LOAD_SNAPSHOT, file key "loadSnapshot"
+  --snapshot-max-bytes BYTES
+      largest snapshot archive, counted decompressed, that save, load, upload and --persist accept, from 1048576 (1 MiB) to 4294967296 (4 GiB) (default 1073741824)
+      variable UNDERSTUDY_SNAPSHOT_MAX_BYTES, file key "snapshotMaxBytes"
   --seed N
       seed for reproducible ids, an unsigned integer (default random)
       variable UNDERSTUDY_SEED, file key "seed"
