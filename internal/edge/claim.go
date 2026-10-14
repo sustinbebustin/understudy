@@ -405,7 +405,7 @@ func (c *claimer) rest() (route, bool) {
 }
 
 // refusedForS3 reports whether e is a parse failure of credentials only S3
-// takes, which S3 answers in its own words (DEFERRED.md "S3 auth"), so the
+// takes, which S3 answers in its own words (differences.md "S3 auth"), so the
 // request reaches S3 although no signing name could be read: a
 // header-signed request scoped to s3 without x-amz-content-sha256 or with
 // an unknown region, and every presigned or SigV2 credential, as rule 8

@@ -9,7 +9,7 @@ import (
 
 // AuthDialect is S3's auth vocabulary and its answer to credentials Parse
 // cannot read, which the edge uses for every request it claims for S3, in
-// both sigv4 modes (DEFERRED.md "S3 auth"). S3's identities come from its
+// both sigv4 modes (differences.md "S3 auth"). S3's identities come from its
 // overlay; the texts and extra elements are auth's S3Dialect.
 func AuthDialect() (v auth.Vocabulary, refuse func(auth.ParseError) *awserr.Error) {
 	v = authVocabulary()
@@ -48,7 +48,7 @@ const (
 )
 
 // parseError is S3's answer to credentials Parse refused, by variant
-// (DEFERRED.md "S3 auth"). A missing x-amz-content-sha256 is matched before
+// (differences.md "S3 auth"). A missing x-amz-content-sha256 is matched before
 // the other header failures: it is a HeaderV4 failure, but S3 answers
 // InvalidRequest, not AuthorizationHeaderMalformed. The status of
 // AccessDenied for an unreadable SigV2 request time is unrecorded

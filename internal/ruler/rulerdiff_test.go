@@ -61,12 +61,12 @@ func knownDiffs() map[diffCase]knownDiff {
 		{
 			`{"a":["x"]}`, `{"a":"x"} {}`,
 			"rulesForJSONEvent reads the first JSON value and ignores the rest; understudy refuses content after the " +
-				"event (event.go); AWS's answer is not recorded (DEFERRED.md, Ruler differential harness)",
+				"event (event.go); AWS's answer is not recorded (differences.md, Event patterns and filter policies)",
 		},
 		{
 			`{"a":[{"exactly":"x"}]}`, `{"a":"x"}`,
-			"the EventBridge profile refuses \"exactly\" (doc.go); AWS accepts it (DEFERRED.md, Recorded differences from " +
-				"AWS, events/R14/H14-*.json)",
+			"the EventBridge profile refuses \"exactly\" (doc.go); AWS accepts it (differences.md, Event patterns and " +
+				"filter policies, events/R14/H14-*.json)",
 		},
 	} {
 		known[diffCase{d.pattern, d.event}] = knownDiff{d.reason, rulerDiffers}

@@ -74,14 +74,14 @@ Step 12, lifecycle (switch `s3.lifecycle.rule-limits`):
 - duplicate rule ID and over-1000-rules texts: n/a (not in the script; stay UNVERIFIED)
 
 Step 13, list-objects-v2 without encoding-type (kit):
-- control-character / U+FFFE keys (re-run 2026-10-14 with an empty regular file as the body; bucket recreated for the step): differs in part. AWS writes U+0001 as `&#x1;` (understudy matches: xmlw escapes it as `&#x1;`) but writes U+FFFE as its raw UTF-8 bytes EF BF BE, which XML 1.0 forbids; understudy writes `&#xFFFE;` (internal/protocol/xmlw/escape.go isXMLChar). Settles DEFERRED.md:31 (xmlw).
+- control-character / U+FFFE keys (re-run 2026-10-14 with an empty regular file as the body; bucket recreated for the step): differs in part. AWS writes U+0001 as `&#x1;` (understudy matches: xmlw escapes it as `&#x1;`) but writes U+FFFE as its raw UTF-8 bytes EF BF BE, which XML 1.0 forbids; understudy writes `&#xFFFE;` (internal/protocol/xmlw/escape.go isXMLChar). Settles U+0001 and U+FFFE of the xmlw UNVERIFIED claim (go-toolchain.md 10); see differences.md "Control characters in S3 listings".
 - plain listing without encoding-type: matches (no `<EncodingType>`, ETag as `&quot;`, ChecksumAlgorithm/ChecksumType/StorageClass STANDARD per entry)
 
 Step 14, POST on an object without uploadId (kit):
-- differs: AWS 405 MethodNotAllowed "The specified method is not allowed against this resource." with `<Method>POST</Method><ResourceType>OBJECT</ResourceType>` and header `Allow: HEAD, DELETE, GET, PUT`; understudy routes it to CompleteMultipartUpload and fails its input validation (DEFERRED.md:92; codegen/services/s3.json:11 has no uploadId override)
+- differs: AWS 405 MethodNotAllowed "The specified method is not allowed against this resource." with `<Method>POST</Method><ResourceType>OBJECT</ResourceType>` and header `Allow: HEAD, DELETE, GET, PUT`; understudy routes it to CompleteMultipartUpload and fails its input validation (codegen/services/s3.json:11 has no uploadId override)
 
 Step 15, GLACIER at 30 then ONEZONE_IA at 60 (kit):
-- differs: AWS 400 InvalidArgument "'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be greater than 'Days' in the 'Transition' action for StorageClass 'ONEZONE_IA' for filter '(prefix=)'" with ArgumentName Days, ArgumentValue 60 (a storage-class order check, which the DEFERRED.md:225 quote matches word for word); understudy has no order check and refuses with its gap text "... for StorageClass 'ONEZONE_IA' must be at least 90 days more than 'Days' in the 'Transition' action for StorageClass 'GLACIER'" (subresources.go:444-447)
+- differs: AWS 400 InvalidArgument "'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be greater than 'Days' in the 'Transition' action for StorageClass 'ONEZONE_IA' for filter '(prefix=)'" with ArgumentName Days, ArgumentValue 60 (a storage-class order check, matching word for word the text a Terraform write-up quotes, zenn.dev/thaim, 2024-04); understudy has no order check and refuses with its gap text "... for StorageClass 'ONEZONE_IA' must be at least 90 days more than 'Days' in the 'Transition' action for StorageClass 'GLACIER'" (subresources.go:444-447)
 
 Byte-level XML (all steps):
 - Some AWS error bodies have no XML declaration (03-complete-changed-parts, 04-delete-1001, 09-upload-part-copy-*, 12-*, 15-*); others start with `<?xml ...?>\n`. Understudy always writes the declaration (internal/protocol/restxml/codec.go:231). Clients parse both.

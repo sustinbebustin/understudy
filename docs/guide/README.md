@@ -15,5 +15,6 @@ Task-oriented pages. Each command shown was run against a build of this reposito
 | [Snapshots and persistence](snapshots.md) | Save, load, diff, `--persist`, reset |
 | [Policy generation](policy.md) | Least-privilege policies from recorded access |
 | [CI](ci.md) | Running understudy in a pipeline |
+| [Differences from AWS](differences.md) | Recorded behavior that still differs from AWS, by service, with workarounds |
 
 The full setting reference is [../configuration.md](../configuration.md), and the operation-by-operation coverage is [../coverage.md](../coverage.md).

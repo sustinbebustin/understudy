@@ -42,8 +42,8 @@ func functionURL(e kernel.Endpoint, scope aws.Scope, id string) string {
 // family's identities and texts, with 403. Lambda's function URL front end
 // answers its refusals 403 (lambda-events.md 7.2, AWS-recorded); for a
 // signature it refuses, reports show 403 and AWS's mismatch text, but no
-// recording does, so the status is inferred (DEFERRED.md, pre-tag
-// hardening).
+// recording does, so the status is inferred (differences.md "Function URL
+// refusals").
 func FunctionURLAuth() auth.Vocabulary {
 	v, _ := auth.VocabularyFor(awserr.JSONFamily)
 	return v.WithStatus(http.StatusForbidden)

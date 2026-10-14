@@ -13,7 +13,7 @@ import (
 )
 
 // S3 answers credentials it cannot read with its own identities, never
-// Coral's (DEFERRED.md "S3 auth", error-matrix.md 5.4 T8).
+// Coral's (differences.md "S3 auth", error-matrix.md 5.4 T8).
 func TestS3ParseFailuresCarryS3Identities(t *testing.T) {
 	const (
 		date  = "20261013T120000Z"

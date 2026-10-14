@@ -2,7 +2,7 @@
 
 Fixtures shared across packages.
 
-- `parity/<svc>/<item>/`: real AWS exchanges for the record backlog items (R01 to R18, KMS-alias), recorded with the interim method of [the recording kit](../docs/human/recording-kit.md) and distilled by `scripts/distill-parity` into one `<step>.json` per step (format below). Each item directory holds the `notes.md` that marks every expected field `matches`, `differs` or `n/a` against understudy as it stood when the captures were compared; the follow-up fix commit closed some of the `differs` lines, and DEFERRED.md ("Recorded differences from AWS") lists the rest. Files with other extensions (`.time`, `.tsv`, `.txt`, `.jsonl`) are side observations the recording scripts wrote, such as timestamps and tallies, kept as written.
+- `parity/<svc>/<item>/`: real AWS exchanges for the record backlog items (R01 to R18, KMS-alias), recorded with the interim method of [the recording kit](../docs/recording-kit.md) and distilled by `scripts/distill-parity` into one `<step>.json` per step (format below). Each item directory holds the `notes.md` that marks every expected field `matches`, `differs` or `n/a` against understudy as it stood when the captures were compared; the follow-up fix commit closed some of the `differs` lines, and [Differences from AWS](../docs/guide/differences.md) lists the rest. Files with other extensions (`.time`, `.tsv`, `.txt`, `.jsonl`) are side observations the recording scripts wrote, such as timestamps and tallies, kept as written.
 
 `pgregory.net/rapid` failure files do not live here. rapid writes a failing case to `testdata/rapid/<TestName>/*.fail` inside the failing test's own package directory; commit it there as a regression seed and rapid replays it automatically.
 
