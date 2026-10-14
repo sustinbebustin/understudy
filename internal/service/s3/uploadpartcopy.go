@@ -127,9 +127,7 @@ func (s *Service) uploadPartCopy(ctx context.Context, c *kernel.Call, in *s3api.
 		return nil, err
 	}
 	result := &s3api.CopyPartResult{ETag: new(quote(p.ETag)), LastModified: new(p.Modified.Wire())}
-	m := reportedPartChecksum(t.mode, p)
-	result.ChecksumCRC32, result.ChecksumCRC32C, result.ChecksumCRC64NVME, result.ChecksumSHA1, result.ChecksumSHA256 = m[checksum.CRC32], m[checksum.CRC32C], m[checksum.CRC64NVME], m[checksum.SHA1], m[checksum.SHA256]
-	result.ChecksumSHA512, result.ChecksumMD5, result.ChecksumXXHASH64, result.ChecksumXXHASH3, result.ChecksumXXHASH128 = m[checksum.SHA512], m[checksum.MD5], m[checksum.XXHASH64], m[checksum.XXHASH3], m[checksum.XXHASH128]
+	copyPartResultFields(result).set(reportedPartChecksum(t.mode, p))
 	out := &s3api.UploadPartCopyOutput{CopyPartResult: result, CopySourceVersionId: src.reported}
 	h := t.enc.headers()
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey

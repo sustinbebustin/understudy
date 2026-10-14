@@ -555,11 +555,11 @@ func (e *BodyRangeError) Error() string {
 	return fmt.Sprintf("s3: the GetObject body serves its %d bytes whole; %d bytes at offset %d were asked for", e.Size, e.Length, e.Offset)
 }
 
-// commitObject is the one place an object change lands in its bucket: the
-// object operations call it inside the bucket's kernel.Write, after every
-// check and after changing b.Objects, and it raises the change's event
-// notifications in the same commit, so a notification never reports a
-// change that did not happen.
+// commitObject is the one place an object change raises its event
+// notifications: the object operations call it inside the bucket's
+// kernel.Write, after every check and after changing b.Objects, so the
+// notifications go out in the same commit as the change and never report
+// one that did not happen.
 func (s *Service) commitObject(w objectTx, b *Bucket, ev event) {
 	s.notify(w, b, ev)
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
-	"github.com/sustinbebustin/understudy/internal/checksum"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
@@ -248,10 +247,8 @@ func (s *Service) getObject(ctx context.Context, c *kernel.Call, in *s3api.GetOb
 		ContentLanguage: h.ContentLanguage, ContentType: h.ContentType, Expires: h.Expires, WebsiteRedirectLocation: h.WebsiteRedirectLocation,
 		ServerSideEncryption: h.ServerSideEncryption, SSEKMSKeyId: h.SSEKMSKeyId, BucketKeyEnabled: h.BucketKeyEnabled,
 		StorageClass: h.StorageClass, TagCount: h.TagCount, ChecksumType: h.ChecksumType,
-		ChecksumCRC32: h.ChecksumCRC32, ChecksumCRC32C: h.ChecksumCRC32C, ChecksumCRC64NVME: h.ChecksumCRC64NVME,
-		ChecksumSHA1: h.ChecksumSHA1, ChecksumSHA256: h.ChecksumSHA256, ChecksumSHA512: h.ChecksumSHA512, ChecksumMD5: h.ChecksumMD5,
-		ChecksumXXHASH64: h.ChecksumXXHASH64, ChecksumXXHASH3: h.ChecksumXXHASH3, ChecksumXXHASH128: h.ChecksumXXHASH128,
 	}
+	getObjectOutputFields(out).set(headObjectOutputFields(h).members())
 	override(&out.CacheControl, in.ResponseCacheControl)
 	override(&out.ContentDisposition, in.ResponseContentDisposition)
 	override(&out.ContentEncoding, in.ResponseContentEncoding)
@@ -306,9 +303,7 @@ func headOf(got served, mode *s3api.ChecksumMode) *s3api.HeadObjectOutput {
 	sse := o.Encryption.headers()
 	h.ServerSideEncryption, h.SSEKMSKeyId, h.BucketKeyEnabled = sse.algorithm, sse.keyID, sse.bucketKey
 	if sum, ok := reportedChecksum(o, got.span); ok && mode != nil && *mode == s3api.ChecksumModeEnabled {
-		m := membersOf(sum)
-		h.ChecksumCRC32, h.ChecksumCRC32C, h.ChecksumCRC64NVME, h.ChecksumSHA1, h.ChecksumSHA256 = m[checksum.CRC32], m[checksum.CRC32C], m[checksum.CRC64NVME], m[checksum.SHA1], m[checksum.SHA256]
-		h.ChecksumSHA512, h.ChecksumMD5, h.ChecksumXXHASH64, h.ChecksumXXHASH3, h.ChecksumXXHASH128 = m[checksum.SHA512], m[checksum.MD5], m[checksum.XXHASH64], m[checksum.XXHASH3], m[checksum.XXHASH128]
+		headObjectOutputFields(h).set(membersOf(sum))
 		h.ChecksumType = new(sum.Type)
 	}
 	return h

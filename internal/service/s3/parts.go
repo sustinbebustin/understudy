@@ -10,7 +10,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
-	"github.com/sustinbebustin/understudy/internal/checksum"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
@@ -111,11 +110,7 @@ func (s *Service) uploadPart(ctx context.Context, c *kernel.Call, in *s3api.Uplo
 	if v, ok := c.Header(headerContentEncoding); ok {
 		encoding = &v
 	}
-	u, err := readUpload(c, s.k.Identity(), encoding, bodyLength(in.ContentLength, in.Body), checksumMembers{
-		checksum.CRC32: in.ChecksumCRC32, checksum.CRC32C: in.ChecksumCRC32C, checksum.CRC64NVME: in.ChecksumCRC64NVME,
-		checksum.SHA1: in.ChecksumSHA1, checksum.SHA256: in.ChecksumSHA256, checksum.SHA512: in.ChecksumSHA512, checksum.MD5: in.ChecksumMD5,
-		checksum.XXHASH64: in.ChecksumXXHASH64, checksum.XXHASH3: in.ChecksumXXHASH3, checksum.XXHASH128: in.ChecksumXXHASH128,
-	}, in.ChecksumAlgorithm, in.ContentMD5)
+	u, err := readUpload(c, s.k.Identity(), encoding, bodyLength(in.ContentLength, in.Body), uploadPartInputFields(in).members(), in.ChecksumAlgorithm, in.ContentMD5)
 	if err != nil {
 		return nil, err
 	}
@@ -139,9 +134,7 @@ func (s *Service) uploadPart(ctx context.Context, c *kernel.Call, in *s3api.Uplo
 		return nil, err
 	}
 	out := &s3api.UploadPartOutput{ETag: new(quote(p.ETag))}
-	m := uploadedPartChecksum(t.mode, u.checksum, got.sum, p)
-	out.ChecksumCRC32, out.ChecksumCRC32C, out.ChecksumCRC64NVME, out.ChecksumSHA1, out.ChecksumSHA256 = m[checksum.CRC32], m[checksum.CRC32C], m[checksum.CRC64NVME], m[checksum.SHA1], m[checksum.SHA256]
-	out.ChecksumSHA512, out.ChecksumMD5, out.ChecksumXXHASH64, out.ChecksumXXHASH3, out.ChecksumXXHASH128 = m[checksum.SHA512], m[checksum.MD5], m[checksum.XXHASH64], m[checksum.XXHASH3], m[checksum.XXHASH128]
+	uploadPartOutputFields(out).set(uploadedPartChecksum(t.mode, u.checksum, got.sum, p))
 	h := t.enc.headers()
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
 	return out, nil
@@ -217,9 +210,7 @@ func listParts(in *s3api.ListPartsInput, b *Bucket) (*s3api.ListPartsOutput, *aw
 	for _, n := range numbers {
 		p := u.Parts[n]
 		entry := s3api.Part{PartNumber: new(n), LastModified: new(p.Modified.Wire()), ETag: new(quote(p.ETag)), Size: new(p.Size)}
-		sum := reportedPartChecksum(m, p)
-		entry.ChecksumCRC32, entry.ChecksumCRC32C, entry.ChecksumCRC64NVME, entry.ChecksumSHA1, entry.ChecksumSHA256 = sum[checksum.CRC32], sum[checksum.CRC32C], sum[checksum.CRC64NVME], sum[checksum.SHA1], sum[checksum.SHA256]
-		entry.ChecksumSHA512, entry.ChecksumMD5, entry.ChecksumXXHASH64, entry.ChecksumXXHASH3, entry.ChecksumXXHASH128 = sum[checksum.SHA512], sum[checksum.MD5], sum[checksum.XXHASH64], sum[checksum.XXHASH3], sum[checksum.XXHASH128]
+		partFields(&entry).set(reportedPartChecksum(m, p))
 		parts = append(parts, entry)
 		next = n
 	}

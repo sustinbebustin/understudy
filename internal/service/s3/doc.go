@@ -16,9 +16,9 @@
 // ListObjectVersions and the object tagging operations are bound, as are
 // the multipart operations CreateMultipartUpload, UploadPart,
 // UploadPartCopy, CompleteMultipartUpload, AbortMultipartUpload, ListParts
-// and ListMultipartUploads; every object change lands through
-// commitObject, which raises the bucket's event notifications as Deliver
-// effects in the same write (notify).
+// and ListMultipartUploads; every object change raises the bucket's event
+// notifications through commitObject, as Deliver effects in the same write
+// (notify).
 //
 // State is a partition-wide name index (bucket names are global across
 // accounts) and one cell per bucket (ARCHITECTURE.md 8 rule 3).

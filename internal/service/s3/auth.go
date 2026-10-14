@@ -40,8 +40,7 @@ func authVocabulary() auth.Vocabulary {
 
 // The texts S3 gives parse failures no Vocabulary slot holds. The conflict
 // and unknown-scheme texts are UNVERIFIED against AWS (s3rver and minio
-// send them); the missing-payload-hash text is REC from S3-compatible
-// servers, UNVERIFIED against AWS (auth.MissingPayloadHash).
+// send them).
 const (
 	conflictMessage      = "Only one auth mechanism allowed; only the X-Amz-Algorithm query parameter, Signature query string parameter or the Authorization header should be specified"
 	unknownSchemeMessage = "Unsupported Authorization Type"
@@ -58,6 +57,8 @@ func parseError(e auth.ParseError, v auth.Vocabulary) *awserr.Error {
 	case auth.Invalid:
 		switch {
 		case e.Problem == auth.MissingPayloadHash:
+			// The text is auth's, REC from S3-compatible servers,
+			// UNVERIFIED against AWS.
 			return s3api.ErrInvalidRequest(e.Message)
 		case e.Mechanism == auth.QueryV4:
 			return s3api.ErrAuthorizationQueryParametersError(e.Message)

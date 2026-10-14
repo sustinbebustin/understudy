@@ -8,7 +8,6 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
-	"github.com/sustinbebustin/understudy/internal/checksum"
 )
 
 // getObjectAttributes answers the attributes the request names of the
@@ -34,13 +33,8 @@ func getObjectAttributes(in *s3api.GetObjectAttributesInput, b *Bucket) (*s3api.
 		out.ETag = new(o.ETag)
 	}
 	if wants(s3api.ObjectAttributesChecksum) && o.Checksum.Value != "" {
-		m := membersOf(attributeChecksum(o.Checksum))
-		out.Checksum = &s3api.Checksum{
-			ChecksumCRC32: m[checksum.CRC32], ChecksumCRC32C: m[checksum.CRC32C], ChecksumCRC64NVME: m[checksum.CRC64NVME],
-			ChecksumSHA1: m[checksum.SHA1], ChecksumSHA256: m[checksum.SHA256], ChecksumSHA512: m[checksum.SHA512], ChecksumMD5: m[checksum.MD5],
-			ChecksumXXHASH64: m[checksum.XXHASH64], ChecksumXXHASH3: m[checksum.XXHASH3], ChecksumXXHASH128: m[checksum.XXHASH128],
-			ChecksumType: new(o.Checksum.Type),
-		}
+		out.Checksum = &s3api.Checksum{ChecksumType: new(o.Checksum.Type)}
+		checksumShapeFields(out.Checksum).set(membersOf(attributeChecksum(o.Checksum)))
 	}
 	if wants(s3api.ObjectAttributesObjectParts) && len(o.Parts) > 0 {
 		parts, err := objectPartsOf(o, in.MaxParts, in.PartNumberMarker)
@@ -81,9 +75,7 @@ func objectPartsOf(o *Object, maxParts *int32, markerText *string) (*s3api.GetOb
 		n++
 		entry := s3api.ObjectPart{PartNumber: new(n), Size: new(p.Size)}
 		if p.Checksum != "" {
-			m := membersOf(StoredChecksum{Algorithm: o.Checksum.Algorithm, Value: p.Checksum})
-			entry.ChecksumCRC32, entry.ChecksumCRC32C, entry.ChecksumCRC64NVME, entry.ChecksumSHA1, entry.ChecksumSHA256 = m[checksum.CRC32], m[checksum.CRC32C], m[checksum.CRC64NVME], m[checksum.SHA1], m[checksum.SHA256]
-			entry.ChecksumSHA512, entry.ChecksumMD5, entry.ChecksumXXHASH64, entry.ChecksumXXHASH3, entry.ChecksumXXHASH128 = m[checksum.SHA512], m[checksum.MD5], m[checksum.XXHASH64], m[checksum.XXHASH3], m[checksum.XXHASH128]
+			objectPartFields(&entry).set(membersOf(StoredChecksum{Algorithm: o.Checksum.Algorithm, Value: p.Checksum}))
 		}
 		parts = append(parts, entry)
 		next = n

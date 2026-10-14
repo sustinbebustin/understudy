@@ -93,9 +93,7 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 		return nil, err
 	}
 	out := &s3api.PutObjectOutput{ETag: new(quote(etag)), ChecksumType: new(s3api.ChecksumTypeFullObject), VersionId: committed.reported}
-	m := membersOf(obj.Checksum)
-	out.ChecksumCRC32, out.ChecksumCRC32C, out.ChecksumCRC64NVME, out.ChecksumSHA1, out.ChecksumSHA256 = m[checksum.CRC32], m[checksum.CRC32C], m[checksum.CRC64NVME], m[checksum.SHA1], m[checksum.SHA256]
-	out.ChecksumSHA512, out.ChecksumMD5, out.ChecksumXXHASH64, out.ChecksumXXHASH3, out.ChecksumXXHASH128 = m[checksum.SHA512], m[checksum.MD5], m[checksum.XXHASH64], m[checksum.XXHASH3], m[checksum.XXHASH128]
+	putObjectOutputFields(out).set(membersOf(obj.Checksum))
 	h := enc.headers()
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
 	if enc.KMS != nil && in.SSEKMSEncryptionContext != nil {
@@ -162,22 +160,7 @@ func readPut(c *kernel.Call, secrets *identity.Store, in *s3api.PutObjectInput) 
 	if err != nil {
 		return putRequest{}, err
 	}
-	length := in.ContentLength
-	switch {
-	case length != nil:
-	case in.Body == nil:
-		// An input built without a body writes an empty object.
-		length = new(int64(0))
-	default:
-		if n, ok := in.Body.Len(); ok {
-			length = &n
-		}
-	}
-	body, err := readUpload(c, secrets, in.ContentEncoding, length, checksumMembers{
-		checksum.CRC32: in.ChecksumCRC32, checksum.CRC32C: in.ChecksumCRC32C, checksum.CRC64NVME: in.ChecksumCRC64NVME,
-		checksum.SHA1: in.ChecksumSHA1, checksum.SHA256: in.ChecksumSHA256, checksum.SHA512: in.ChecksumSHA512, checksum.MD5: in.ChecksumMD5,
-		checksum.XXHASH64: in.ChecksumXXHASH64, checksum.XXHASH3: in.ChecksumXXHASH3, checksum.XXHASH128: in.ChecksumXXHASH128,
-	}, in.ChecksumAlgorithm, in.ContentMD5)
+	body, err := readUpload(c, secrets, in.ContentEncoding, bodyLength(in.ContentLength, in.Body), putObjectInputFields(in).members(), in.ChecksumAlgorithm, in.ContentMD5)
 	if err != nil {
 		return putRequest{}, err
 	}

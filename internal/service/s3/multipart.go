@@ -14,7 +14,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
-	"github.com/sustinbebustin/understudy/internal/checksum"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -273,11 +272,7 @@ func readComplete(in *s3api.CompleteMultipartUploadInput) (completeRequest, *aws
 	if err != nil {
 		return completeRequest{}, err
 	}
-	sums := checksumMembers{
-		checksum.CRC32: in.ChecksumCRC32, checksum.CRC32C: in.ChecksumCRC32C, checksum.CRC64NVME: in.ChecksumCRC64NVME,
-		checksum.SHA1: in.ChecksumSHA1, checksum.SHA256: in.ChecksumSHA256, checksum.SHA512: in.ChecksumSHA512, checksum.MD5: in.ChecksumMD5,
-		checksum.XXHASH64: in.ChecksumXXHASH64, checksum.XXHASH3: in.ChecksumXXHASH3, checksum.XXHASH128: in.ChecksumXXHASH128,
-	}.sent()
+	sums := completeMultipartUploadInputFields(in).members().sent()
 	r := completeRequest{id: in.UploadId, key: in.Key, parts: parts, typ: in.ChecksumType, size: in.MpuObjectSize, cond: cond}
 	switch len(sums) {
 	case 0:
@@ -358,9 +353,7 @@ func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, i
 	// upload, UNVERIFIED for a declared one).
 	if obj.Encryption.KMS == nil {
 		out.ChecksumType = new(obj.Checksum.Type)
-		m := membersOf(obj.Checksum)
-		out.ChecksumCRC32, out.ChecksumCRC32C, out.ChecksumCRC64NVME, out.ChecksumSHA1, out.ChecksumSHA256 = m[checksum.CRC32], m[checksum.CRC32C], m[checksum.CRC64NVME], m[checksum.SHA1], m[checksum.SHA256]
-		out.ChecksumSHA512, out.ChecksumMD5, out.ChecksumXXHASH64, out.ChecksumXXHASH3, out.ChecksumXXHASH128 = m[checksum.SHA512], m[checksum.MD5], m[checksum.XXHASH64], m[checksum.XXHASH3], m[checksum.XXHASH128]
+		completeMultipartUploadOutputFields(out).set(membersOf(obj.Checksum))
 	}
 	h := obj.Encryption.headers()
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
@@ -458,11 +451,7 @@ func orderedParts(id string, sent []s3api.CompletedPart) ([]listedPart, *awserr.
 		}
 		parts[i] = listedPart{
 			number: *cp.PartNumber, etag: unquote(deref(cp.ETag)),
-			restated: checksumMembers{
-				checksum.CRC32: cp.ChecksumCRC32, checksum.CRC32C: cp.ChecksumCRC32C, checksum.CRC64NVME: cp.ChecksumCRC64NVME,
-				checksum.SHA1: cp.ChecksumSHA1, checksum.SHA256: cp.ChecksumSHA256, checksum.SHA512: cp.ChecksumSHA512, checksum.MD5: cp.ChecksumMD5,
-				checksum.XXHASH64: cp.ChecksumXXHASH64, checksum.XXHASH3: cp.ChecksumXXHASH3, checksum.XXHASH128: cp.ChecksumXXHASH128,
-			},
+			restated: completedPartFields(cp).members(),
 		}
 	}
 	return parts, nil

@@ -260,9 +260,7 @@ func (s *Service) copyObject(ctx context.Context, c *kernel.Call, in *s3api.Copy
 		return nil, err
 	}
 	result := &s3api.CopyObjectResult{ETag: new(quote(obj.ETag)), LastModified: new(done.version.Modified.Wire()), ChecksumType: new(obj.Checksum.Type)}
-	m := membersOf(obj.Checksum)
-	result.ChecksumCRC32, result.ChecksumCRC32C, result.ChecksumCRC64NVME, result.ChecksumSHA1, result.ChecksumSHA256 = m[checksum.CRC32], m[checksum.CRC32C], m[checksum.CRC64NVME], m[checksum.SHA1], m[checksum.SHA256]
-	result.ChecksumSHA512, result.ChecksumMD5, result.ChecksumXXHASH64, result.ChecksumXXHASH3, result.ChecksumXXHASH128 = m[checksum.SHA512], m[checksum.MD5], m[checksum.XXHASH64], m[checksum.XXHASH3], m[checksum.XXHASH128]
+	copyObjectResultFields(result).set(membersOf(obj.Checksum))
 	out := &s3api.CopyObjectOutput{CopyObjectResult: result, VersionId: done.reported, CopySourceVersionId: src.reported}
 	h := enc.headers()
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
