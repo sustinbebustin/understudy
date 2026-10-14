@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -439,6 +440,39 @@ func TestContainerArchiveUploadDeliversTheTar(t *testing.T) {
 	}
 	if ct := lastRequest(d, http.MethodPut); ct.Path != "/v1.44/containers/"+id+"/archive" {
 		t.Errorf("upload path = %s", ct.Path)
+	}
+}
+
+// TestContainerPublishesAPortOnLoopback: a port exposed and bound to
+// 127.0.0.1 with host port 0 gets an ephemeral host port when the container
+// starts, which inspect reports (containers.md 3.2, ExposedPorts +
+// PortBindings).
+func TestContainerPublishesAPortOnLoopback(t *testing.T) {
+	_, c := daemonWithImage(t, dockertest.Options{})
+	ctx := t.Context()
+	id := create(t, c, "published",
+		docker.Config{ExposedPorts: docker.PortSet{"8000/tcp": {}}},
+		docker.HostConfig{PortBindings: docker.PortMap{"8000/tcp": {{HostIP: "127.0.0.1", HostPort: "0"}}}})
+	created, err := c.ContainerInspect(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := created.NetworkSettings.HostPort("8000/tcp"); ok {
+		t.Errorf("HostPort before start = %v, want none: the daemon binds on start", got)
+	}
+	if err := c.ContainerStart(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	running, err := c.ContainerInspect(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, ok := running.NetworkSettings.HostPort("8000/tcp")
+	if !ok || got.Addr() != netip.MustParseAddr("127.0.0.1") || got.Port() == 0 {
+		t.Errorf("HostPort = %v, %t; want 127.0.0.1 and an ephemeral port", got, ok)
+	}
+	if _, ok := running.NetworkSettings.HostPort("9000/tcp"); ok {
+		t.Error("HostPort reports a port that was never published")
 	}
 }
 

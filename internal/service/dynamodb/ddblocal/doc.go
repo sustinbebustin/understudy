@@ -5,13 +5,13 @@
 // and never bundled, mirrored, re-tagged, saved, pushed or patched; it runs
 // under Amazon's licence terms, which Notice names when it first starts.
 //
-// Known deviation, blocked on internal/docker: ADR 0014 publishes the
-// container on 127.0.0.1:0 and reads the host port back from the daemon,
-// but docker.HostConfig carries no port bindings yet. Until it does, the
-// container joins the default bridge and is reached at its bridge address
-// (DefaultBridge), which a Linux host routes to and Docker Desktop does
-// not; NotReadyError says so. Attached, addressed by container IP, is the
-// architecture's own path for the InContainer topology.
+// Network says how understudy reaches the container. Published publishes
+// its port on 127.0.0.1 with an ephemeral host port read back from the
+// daemon, for hosts that cannot route to container addresses (Docker
+// Desktop, rootless engines). DefaultBridge reaches it at its default
+// bridge address, which a Linux host routes to; it needs no host port.
+// Attached, addressed by container IP on understudy's own network, is the
+// path for the InContainer topology.
 //
 // The egress test (egress_docker_test.go, -tags docker) runs the pinned
 // image with the exact container spec in the network namespace of a

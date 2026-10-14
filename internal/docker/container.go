@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"slices"
 	"strconv"
@@ -28,13 +29,33 @@ type Config struct {
 	WorkingDir string            `json:"WorkingDir,omitempty"`
 	Labels     map[string]string `json:"Labels,omitempty"`
 	Tty        bool              `json:"Tty,omitempty"`
+	// ExposedPorts must name every port PortBindings publishes: images
+	// such as the Lambda bases declare none (containers.md 3.2).
+	ExposedPorts PortSet `json:"ExposedPorts,omitempty"`
+}
+
+// PortSet is a set of container ports, each "<port>/<protocol>" such as
+// "8000/tcp".
+type PortSet map[string]struct{}
+
+// PortMap maps a container port, "<port>/<protocol>", to its host
+// bindings.
+type PortMap map[string][]PortBinding
+
+// PortBinding is one host address and port a container port is published
+// on. HostPort "0" asks the daemon for an ephemeral port, which inspect
+// reports once the container starts.
+type PortBinding struct {
+	HostIP   string `json:"HostIp"`
+	HostPort string `json:"HostPort"`
 }
 
 // HostConfig is the host-side configuration of a container. It has no
 // Binds and no AutoRemove: ARCHITECTURE 14.3 mounts code through Mounts
-// only and rules out AutoRemove, and no port is published (the Runtime API
-// is hosted by understudy, 14.1). Add a field only with the section that
-// allows it.
+// only and rules out AutoRemove. Function containers publish no port (the
+// Runtime API is hosted by understudy, 14.1); PortBindings exists for
+// DynamoDB Local, published on 127.0.0.1:0 (ARCHITECTURE.md 15). Add a
+// field only with the section that allows it.
 type HostConfig struct {
 	// Mounts, not Binds, for code: a missing bind source fails instead of
 	// being created as root (containers.md finding 5).
@@ -51,6 +72,7 @@ type HostConfig struct {
 	ReadonlyRootfs bool              `json:"ReadonlyRootfs,omitempty"`
 	CapDrop        []string          `json:"CapDrop,omitempty"`
 	SecurityOpt    []string          `json:"SecurityOpt,omitempty"`
+	PortBindings   PortMap           `json:"PortBindings,omitempty"`
 }
 
 // Mount is one entry of HostConfig.Mounts.
@@ -254,11 +276,32 @@ type ContainerState struct {
 	FinishedAt string `json:"FinishedAt"`
 }
 
-// NetworkSettings carries a container's endpoints, keyed by network name.
-// Since API 1.52 the top-level address fields are gone, so only Networks is
-// read (containers.md 2.5).
+// NetworkSettings carries a container's endpoints, keyed by network name,
+// and its published ports. Since API 1.52 the top-level address fields are
+// gone, so only Networks and Ports are read (containers.md 2.5).
 type NetworkSettings struct {
 	Networks map[string]EndpointSettings `json:"Networks"`
+	// Ports is empty until the container starts; a port exposed but not
+	// published maps to no bindings.
+	Ports PortMap `json:"Ports"`
+}
+
+// HostPort is the first IPv4 host address and port that port
+// ("<port>/<protocol>") is published on; false when it is not published,
+// or not yet, because the container has not started.
+func (n NetworkSettings) HostPort(port string) (netip.AddrPort, bool) {
+	for _, b := range n.Ports[port] {
+		addr, err := netip.ParseAddr(b.HostIP)
+		if err != nil || !addr.Is4() {
+			continue
+		}
+		p, err := strconv.ParseUint(b.HostPort, 10, 16)
+		if err != nil || p == 0 {
+			continue
+		}
+		return netip.AddrPortFrom(addr, uint16(p)), true
+	}
+	return netip.AddrPort{}, false
 }
 
 // MountPoint is a mount as inspect reports it; Source is the host-side path.

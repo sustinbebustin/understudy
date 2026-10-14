@@ -75,11 +75,13 @@ type Daemon struct {
 	opts   Options
 	socket string
 
-	mu         sync.Mutex
-	changed    chan struct{}
-	ticks      int64
-	created    int
-	subnets    int
+	mu      sync.Mutex
+	changed chan struct{}
+	ticks   int64
+	created int
+	subnets int
+	// ephemeral counts the host ports handed out for port bindings.
+	ephemeral  int
 	images     map[string]docker.Image
 	remote     map[string]Remote
 	programs   map[string]Program

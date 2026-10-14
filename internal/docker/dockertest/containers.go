@@ -59,12 +59,14 @@ type logEntry struct {
 }
 
 type container struct {
-	id         string
-	name       string
-	image      docker.Image
-	config     docker.Config
-	host       docker.HostConfig
-	networks   map[string]docker.EndpointSettings
+	id       string
+	name     string
+	image    docker.Image
+	config   docker.Config
+	host     docker.HostConfig
+	networks map[string]docker.EndpointSettings
+	// ports are the bindings resolved at the first start; nil before it.
+	ports      docker.PortMap
 	status     status
 	exitCode   int
 	oomKilled  bool
@@ -326,6 +328,34 @@ func (c *container) assignAddresses(d *Daemon) {
 	}
 }
 
+// firstEphemeralPort is the first host port the fake hands out for host
+// port "0", the bottom of Linux's default ephemeral range.
+const firstEphemeralPort = 32768
+
+// bindPorts resolves the container's port bindings as the daemon does on
+// start: an empty host address is 0.0.0.0 and host port "0" or "" takes the
+// next ephemeral port. The fake listens on nothing. Callers hold d.mu.
+func (c *container) bindPorts(d *Daemon) {
+	if c.ports != nil {
+		return
+	}
+	c.ports = docker.PortMap{}
+	for _, port := range slices.Sorted(maps.Keys(c.host.PortBindings)) {
+		var bound []docker.PortBinding
+		for _, b := range c.host.PortBindings[port] {
+			if b.HostIP == "" {
+				b.HostIP = "0.0.0.0"
+			}
+			if b.HostPort == "" || b.HostPort == "0" {
+				b.HostPort = strconv.Itoa(firstEphemeralPort + d.ephemeral)
+				d.ephemeral++
+			}
+			bound = append(bound, b)
+		}
+		c.ports[port] = bound
+	}
+}
+
 func (d *Daemon) withContainer(w http.ResponseWriter, r *http.Request, f func(c *container)) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -347,6 +377,7 @@ func (d *Daemon) containerStart(w http.ResponseWriter, r *http.Request) {
 		c.startedAt = d.now()
 		c.oomKilled = false
 		c.assignAddresses(d)
+		c.bindPorts(d)
 		d.emitContainer(c, "start", nil)
 		program, ok := d.programs[normalizeRef(c.config.Image)]
 		if !ok {
@@ -456,9 +487,22 @@ func (d *Daemon) inspect(c *container) docker.Container {
 			StartedAt:  formatTime(c.startedAt),
 			FinishedAt: formatTime(c.finishedAt),
 		},
-		NetworkSettings: docker.NetworkSettings{Networks: maps.Clone(c.networks)},
+		NetworkSettings: docker.NetworkSettings{Networks: maps.Clone(c.networks), Ports: c.publishedPorts()},
 		Mounts:          mounts,
 	}
+}
+
+// publishedPorts is NetworkSettings.Ports: the bindings while the container
+// runs and none otherwise, as the daemon releases host ports on exit.
+func (c *container) publishedPorts() docker.PortMap {
+	out := docker.PortMap{}
+	if c.status != statusRunning {
+		return out
+	}
+	for port, bound := range c.ports {
+		out[port] = slices.Clone(bound)
+	}
+	return out
 }
 
 func (d *Daemon) containerList(w http.ResponseWriter, r *http.Request) {

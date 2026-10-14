@@ -212,3 +212,32 @@ func TestLocalIsolatesAccountsAndRegions(t *testing.T) {
 		t.Errorf("DescribeTable of a missing table = %d %s %v", resp.Status, resp.Body, aerr)
 	}
 }
+
+// TestLocalOnAPublishedPort forces the Docker Desktop path on a Linux host:
+// the pinned image published on 127.0.0.1 with an ephemeral host port,
+// reached on loopback rather than at its bridge address, serves a call
+// through the proxy (ADR 0014).
+func TestLocalOnAPublishedPort(t *testing.T) {
+	d := engine(t)
+	m, err := ddblocal.New(ddblocal.Config{Docker: d, Network: ddblocal.Published{}, Labels: docker.Labels{Ownership: ownership(t), Test: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := m.Stop(context.WithoutCancel(t.Context())); err != nil {
+			t.Errorf("Stop: %v", err)
+		}
+	})
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	endpoint, ok := m.Endpoint()
+	if !ok || endpoint.Hostname() != "127.0.0.1" || endpoint.Port() == "8000" {
+		t.Errorf("Endpoint = %v, %t; want 127.0.0.1 at an ephemeral host port", endpoint, ok)
+	}
+	rk, _ := newRealKernel(t, m)
+	resp, aerr := send(t, rk, scopeOf(t, "111111111111", "us-east-1"), dynamodbapi.OpListTablesRaw, `{}`)
+	if aerr != nil || resp.Status != http.StatusOK || string(resp.Body) != `{"TableNames":[]}` {
+		t.Errorf("ListTables = %d %s %v, want no tables", resp.Status, resp.Body, aerr)
+	}
+}

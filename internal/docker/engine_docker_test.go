@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"net/netip"
 	"slices"
 	"strings"
 	"testing"
@@ -133,6 +134,36 @@ func TestEngineSweepRemovesALeftoverContainer(t *testing.T) {
 	}
 	if _, err := c.ContainerInspect(ctx, created.ID); !docker.IsNotFound(err) {
 		t.Errorf("leftover still present after Sweep: %v", err)
+	}
+}
+
+// TestEnginePublishesAPortOnLoopback: the Lambda base images declare no
+// ExposedPorts, so publishing needs both entries; the ephemeral host port
+// is read back from inspect (containers.md 3.2).
+func TestEnginePublishesAPortOnLoopback(t *testing.T) {
+	c := engineClient(t)
+	ctx := t.Context()
+	ensureImage(t, c, providedImage)
+	run := runID(t)
+	labels := labelMap(t, docker.Labels{Ownership: docker.Ownership{Instance: run, Owner: "understudy-test-" + run}, Test: true})
+	created, err := c.ContainerCreate(ctx, "understudy-test-"+run+"-published",
+		docker.Config{Image: providedImage, Entrypoint: []string{"/bin/sh", "-c", "sleep 300"}, Labels: labels, ExposedPorts: docker.PortSet{"8000/tcp": {}}},
+		docker.HostConfig{PortBindings: docker.PortMap{"8000/tcp": {{HostIP: "127.0.0.1", HostPort: "0"}}}},
+		docker.NetworkingConfig{})
+	if err != nil {
+		t.Fatalf("ContainerCreate: %v", err)
+	}
+	removeOnCleanup(t, c, created.ID)
+	if err := c.ContainerStart(ctx, created.ID); err != nil {
+		t.Fatalf("ContainerStart: %v", err)
+	}
+	inspected, err := c.ContainerInspect(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("ContainerInspect: %v", err)
+	}
+	got, ok := inspected.NetworkSettings.HostPort("8000/tcp")
+	if !ok || got.Addr() != netip.MustParseAddr("127.0.0.1") || got.Port() == 0 {
+		t.Errorf("HostPort = %v, %t; want 127.0.0.1 and an ephemeral port (Ports = %v)", got, ok, inspected.NetworkSettings.Ports)
 	}
 }
 

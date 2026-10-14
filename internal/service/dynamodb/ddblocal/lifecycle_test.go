@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -120,6 +121,46 @@ func TestStartReachesRunning(t *testing.T) {
 	}
 	if _, ok := m.Endpoint(); ok {
 		t.Error("Endpoint after Stop reports a running container")
+	}
+}
+
+// TestPublishedIsReachedOnLoopback: on a topology whose host cannot route
+// to container addresses, port 8000 is published on 127.0.0.1 with an
+// ephemeral host port, and the endpoint is that loopback port, not the
+// bridge address (ADR 0014).
+func TestPublishedIsReachedOnLoopback(t *testing.T) {
+	d := presentDaemon(t)
+	m := manager(t, d, ddblocal.Config{Network: ddblocal.Published{}})
+	answering(t, m, true)
+	if err := m.Start(t.Context()); err != nil {
+		t.Fatalf("Start = %v", err)
+	}
+	created := d.Created()
+	if len(created) != 1 {
+		t.Fatalf("created %d containers, want 1", len(created))
+	}
+	c := created[0]
+	if _, ok := c.Config.ExposedPorts["8000/tcp"]; !ok {
+		t.Errorf("ExposedPorts = %v, want 8000/tcp", c.Config.ExposedPorts)
+	}
+	want := []docker.PortBinding{{HostIP: "127.0.0.1", HostPort: "0"}}
+	if got := c.HostConfig.PortBindings["8000/tcp"]; !slices.Equal(got, want) {
+		t.Errorf("PortBindings[8000/tcp] = %v, want %v", got, want)
+	}
+	if c.HostConfig.NetworkMode != "bridge" {
+		t.Errorf("NetworkMode = %q, want the default bridge", c.HostConfig.NetworkMode)
+	}
+	live, ok := d.Container(c.ID)
+	if !ok {
+		t.Fatal("the container is gone")
+	}
+	hostPort, ok := live.NetworkSettings.HostPort("8000/tcp")
+	if !ok {
+		t.Fatalf("the daemon reports no host port: %v", live.NetworkSettings.Ports)
+	}
+	endpoint, ok := m.Endpoint()
+	if want := "http://" + hostPort.String(); !ok || endpoint.String() != want {
+		t.Errorf("Endpoint = %v, %t; want %s", endpoint, ok, want)
 	}
 }
 

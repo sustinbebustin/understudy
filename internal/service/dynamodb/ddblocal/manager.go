@@ -40,16 +40,21 @@ func (DBPath) isStorage()   {}
 type Network interface{ isNetwork() }
 
 // DefaultBridge joins the daemon's default bridge; understudy reaches the
-// container at its bridge address, which the host routes to on Linux only.
-// ADR 0014 publishes it on 127.0.0.1:0 instead; that waits on port bindings
-// in internal/docker (see the package doc).
+// container at its bridge address, which a Linux host routes to.
 type DefaultBridge struct{}
+
+// Published joins the daemon's default bridge and publishes the container's
+// port on 127.0.0.1 with an ephemeral host port, which understudy reaches
+// on loopback (ADR 0014). It serves topologies whose host cannot route to
+// container addresses, such as Docker Desktop and rootless engines.
+type Published struct{}
 
 // Attached joins understudy's own network when understudy runs in a
 // container (topology InContainer); understudy reaches it by container IP.
 type Attached struct{ Network string }
 
 func (DefaultBridge) isNetwork() {}
+func (Published) isNetwork()     {}
 func (Attached) isNetwork()      {}
 
 // Defaults for Config.
@@ -65,6 +70,9 @@ const (
 
 // port is the port DynamoDB Local listens on inside the container.
 const port = 8000
+
+// portKey is port as the Engine API keys exposed and published ports.
+const portKey = "8000/tcp"
 
 // dataPath is where DBPath's directory is mounted inside the container.
 const dataPath = "/data"
@@ -371,7 +379,7 @@ func (m *Manager) boot(ctx context.Context, id string) (running, error) {
 	if err != nil {
 		return running{}, err
 	}
-	endpoint := &url.URL{Scheme: "http", Host: netip.AddrPortFrom(addr, port).String()}
+	endpoint := &url.URL{Scheme: "http", Host: addr.String()}
 	if err := m.waitReady(ctx, id, endpoint); err != nil {
 		return running{}, err
 	}
@@ -386,21 +394,30 @@ func (m *Manager) networkName() string {
 	return "bridge"
 }
 
-// address reads the container's IPv4 address on its network.
-func (m *Manager) address(ctx context.Context, id string) (netip.Addr, error) {
+// address reads where understudy reaches the started container: the host
+// port published on loopback for Published, else the container's IPv4
+// address on its network at port.
+func (m *Manager) address(ctx context.Context, id string) (netip.AddrPort, error) {
 	c, err := m.cfg.Docker.ContainerInspect(ctx, id)
 	if err != nil {
-		return netip.Addr{}, &StartError{Step: "inspect the container", Err: err}
+		return netip.AddrPort{}, &StartError{Step: "inspect the container", Err: err}
+	}
+	if _, ok := m.cfg.Network.(Published); ok {
+		hostPort, ok := c.NetworkSettings.HostPort(portKey)
+		if !ok {
+			return netip.AddrPort{}, &StartError{Step: "find the container's published port", Err: fmt.Errorf("the daemon reports no IPv4 host binding for %s (Ports = %v)", portKey, c.NetworkSettings.Ports)}
+		}
+		return hostPort, nil
 	}
 	ep, ok := c.NetworkSettings.Networks[m.networkName()]
 	if !ok {
-		return netip.Addr{}, &StartError{Step: "find the container's address", Err: fmt.Errorf("it is not attached to network %q", m.networkName())}
+		return netip.AddrPort{}, &StartError{Step: "find the container's address", Err: fmt.Errorf("it is not attached to network %q", m.networkName())}
 	}
 	addr, err := netip.ParseAddr(ep.IPAddress)
 	if err != nil || !addr.Is4() {
-		return netip.Addr{}, &StartError{Step: "find the container's address", Err: fmt.Errorf("network %q reports address %q, not an IPv4 address", m.networkName(), ep.IPAddress)}
+		return netip.AddrPort{}, &StartError{Step: "find the container's address", Err: fmt.Errorf("network %q reports address %q, not an IPv4 address", m.networkName(), ep.IPAddress)}
 	}
-	return addr, nil
+	return netip.AddrPortFrom(addr, port), nil
 }
 
 // probeInterval is the wait between readiness probes.
@@ -525,15 +542,22 @@ func (m *Manager) spec(ref string) (docker.Config, docker.HostConfig, docker.Net
 	case InMemory:
 		args = append(args, "-inMemory")
 	}
-	var netCfg docker.NetworkingConfig
-	if a, ok := m.cfg.Network.(Attached); ok {
-		netCfg.EndpointsConfig = map[string]docker.EndpointSettings{a.Network: {}}
-	}
 	cfg := docker.Config{
 		Image:  ref,
 		Cmd:    args,
 		Env:    []string{"DDB_LOCAL_TELEMETRY=0"},
 		Labels: labels,
+	}
+	var netCfg docker.NetworkingConfig
+	switch n := m.cfg.Network.(type) {
+	case Attached:
+		netCfg.EndpointsConfig = map[string]docker.EndpointSettings{n.Network: {}}
+	case Published:
+		// Loopback only, and an ephemeral port so two serve processes
+		// never collide (ADR 0014).
+		cfg.ExposedPorts = docker.PortSet{portKey: {}}
+		host.PortBindings = docker.PortMap{portKey: {{HostIP: "127.0.0.1", HostPort: "0"}}}
+	case DefaultBridge:
 	}
 	return cfg, host, netCfg, nil
 }
@@ -585,7 +609,7 @@ type NotReadyError struct {
 }
 
 func (e *NotReadyError) Error() string {
-	return fmt.Sprintf("ddblocal: DynamoDB Local container %s did not answer at %s within %s; the next DynamoDB call starts it again. "+
-		"understudy reaches the container at its bridge address, which only a Linux Docker host routes to, so DynamoDB does not work on Docker Desktop yet",
+	return fmt.Sprintf("ddblocal: DynamoDB Local container %s did not answer at %s within %s and was removed; the next DynamoDB call starts it again. "+
+		"Run `understudy doctor` to check Docker and the detected topology",
 		e.Container, e.Endpoint, e.Timeout)
 }

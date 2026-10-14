@@ -59,3 +59,11 @@ The owner settled the licence questions without counsel on the precedent and rea
   - Never offer understudy as a hosted multi-user service with Local behind it.
   - Keep both telemetry opt-outs and the egress test.
 - **If AWS objects.** On any request from AWS, a patch release turns DynamoDB off by default and the native lock-table fallback gets built.
+
+## Amendment (dependency policy, 2026-10-14)
+
+This closes the wave 6 amendment's deviation. `internal/docker` carries `Config.ExposedPorts`, `HostConfig.PortBindings` and `NetworkSettings.Ports`, written in-repo under the dependency review that kept the Docker client.
+
+- Where the host cannot route to container addresses (Docker Desktop, rootless Docker, rootless Podman), the Manager publishes `8000/tcp` on `127.0.0.1` with host port `0` and reaches Local at the host port the daemon reports. DynamoDB works under Docker Desktop.
+- On a Linux bridge and rootful Podman the Manager keeps reaching Local at its default-bridge address and publishes no port. In the `InContainer` topology Local still attaches to understudy's network and is addressed by container IP.
+- `ddblocal.Network` is `DefaultBridge | Published | Attached`; the server picks one from the detected topology.

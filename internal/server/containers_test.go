@@ -78,6 +78,29 @@ func TestDisabledNetworkRefusesFunctionContainers(t *testing.T) {
 	}
 }
 
+// DynamoDB Local is reached at its container address where the host routes
+// to it (a Linux bridge, rootful Podman), on understudy's own network in a
+// container, and on a port published on loopback everywhere else (ADR 0014).
+func TestDynamoDBLocalNetworkFollowsTheTopology(t *testing.T) {
+	gw := netip.MustParseAddr("172.17.0.1")
+	cases := []struct {
+		topo topology.Topology
+		want ddblocal.Network
+	}{
+		{topology.LinuxBridge{Gateway: gw}, ddblocal.DefaultBridge{}},
+		{topology.Podman{Gateway: gw}, ddblocal.DefaultBridge{}},
+		{topology.Podman{Rootless: true, Gateway: gw}, ddblocal.Published{}},
+		{topology.RootlessDocker{HostAddr: gw}, ddblocal.Published{}},
+		{topology.DockerDesktop{}, ddblocal.Published{}},
+		{topology.InContainer{Network: "understudy", Self: netip.MustParseAddr("172.22.0.2")}, ddblocal.Attached{Network: "understudy"}},
+	}
+	for _, tc := range cases {
+		if got := localNetwork(tc.topo); got != tc.want {
+			t.Errorf("localNetwork(%s) = %#v, want %#v", tc.topo, got, tc.want)
+		}
+	}
+}
+
 // DynamoDB Local is degraded with a failed start's error until a start
 // succeeds; a start its caller abandoned changes nothing.
 func TestDynamoDBLocalReportsAFailedStart(t *testing.T) {

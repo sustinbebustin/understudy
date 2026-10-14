@@ -17,8 +17,7 @@ import (
 
 // lazyLocal is the DynamoDB Local the DynamoDB service forwards to. The
 // ddblocal.Manager behind it is built at the first start, once the
-// topology says which network the container joins: understudy's own
-// network when it runs in a container, the default bridge otherwise.
+// topology says how understudy reaches the container (localNetwork).
 type lazyLocal struct {
 	host *containerHost
 	// mode is whether the configuration runs DynamoDB at all.
@@ -145,14 +144,10 @@ func (l *lazyLocal) manager(ctx context.Context) (*ddblocal.Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	var network ddblocal.Network
-	if in, ok := top.(topology.InContainer); ok {
-		network = ddblocal.Attached{Network: in.Network}
-	}
 	m, err := ddblocal.New(ddblocal.Config{
 		Docker:  l.host.client,
 		Storage: l.storage,
-		Network: network,
+		Network: localNetwork(top),
 		Labels:  docker.Labels{Ownership: l.host.ownership},
 		Memory:  l.memory,
 		Log:     l.log,
@@ -166,6 +161,29 @@ func (l *lazyLocal) manager(ctx context.Context) (*ddblocal.Manager, error) {
 	l.log.LogAttrs(ctx, slog.LevelInfo, notice, slog.String("image", ddblocal.Reference()))
 	l.m = m
 	return m, nil
+}
+
+// localNetwork is how understudy reaches DynamoDB Local on top: at its
+// default-bridge address where the host routes to container addresses, on
+// understudy's own network in a container, and otherwise on a port
+// published on loopback (ADR 0014). Docker Desktop keeps containers in a
+// VM, and rootless engines keep them in a network namespace, so neither
+// host can route to a container address.
+func localNetwork(top topology.Topology) ddblocal.Network {
+	switch t := top.(type) {
+	case topology.LinuxBridge:
+		return ddblocal.DefaultBridge{}
+	case topology.Podman:
+		if t.Rootless {
+			return ddblocal.Published{}
+		}
+		return ddblocal.DefaultBridge{}
+	case topology.InContainer:
+		return ddblocal.Attached{Network: t.Network}
+	case topology.DockerDesktop, topology.RootlessDocker:
+		return ddblocal.Published{}
+	}
+	return ddblocal.Published{}
 }
 
 func (l *lazyLocal) current() (*ddblocal.Manager, bool) {

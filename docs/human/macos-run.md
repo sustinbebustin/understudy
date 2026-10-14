@@ -6,9 +6,8 @@ Nothing here touches AWS. Allow about an hour; the first run pulls the Lambda ba
 
 ## Expected failures
 
-Two outcomes are known before you start. Any failure not listed here is a finding.
+One outcome is known before you start. Any failure not listed here is a finding.
 
-- **DynamoDB.** Until `internal/docker` has port bindings, understudy reaches DynamoDB Local at its default-bridge address, and Docker Desktop does not route to that address (ADR 0014, wave 6 amendment). Tests in which understudy on the host reaches a real DynamoDB Local container (for example `TestLocalIsolatesAccountsAndRegions`, and the DynamoDB step of the smoke test's host run) should fail. Check whether the fix has landed: `grep -rq PortBindings internal/docker && echo "port bindings present" || echo "DynamoDB expected to fail"`.
 - **`TestDetectOnThisHost`** (`internal/topology`) asserts a Linux CI host and fails on Docker Desktop by design. Its `detected ...` log line is the result this run needs.
 
 ## 1. Set up the Mac
@@ -50,10 +49,14 @@ go build -o .build/understudy ./cmd/understudy
 .build/understudy health --wait 30s
 .build/understudy doctor >"$OUT/doctor.txt" 2>&1
 .build/understudy doctor --output json >"$OUT/doctor.json" 2>&1
+scripts/sealed --endpoint http://127.0.0.1:4566 aws dynamodb list-tables >"$OUT/dynamodb.txt" 2>&1
+grep 'DynamoDB Local is ready' "$OUT/serve.log" >>"$OUT/dynamodb.txt"
 kill %1
 ```
 
 `doctor` reports the Docker socket, the detected topology (`DockerDesktop` with a probed or a fallback host address), whether `*.localhost` resolves, the hot-reload paths against Desktop's shared paths, and the licence state.
+
+The DynamoDB check needs DynamoDB Local reachable from the host. On Docker Desktop understudy publishes its port on `127.0.0.1` with an ephemeral host port instead of using its bridge address, which Desktop does not route (ADR 0014). `dynamodb.txt` should hold `"TableNames": []` and a `DynamoDB Local is ready` line whose endpoint is `http://127.0.0.1:<port>` with a port other than 8000. The first call pulls the image, so it can take a minute.
 
 ## 4. Unit tests
 
@@ -70,7 +73,7 @@ go test -race -count=1 -timeout 30m -tags docker ./... 2>&1 | tee "$OUT/docker-s
 go test -count=1 -v -tags docker -run TestDetectOnThisHost ./internal/topology 2>&1 | tee "$OUT/topology.log"
 ```
 
-The tests that pull DynamoDB Local (`TestLocalIsolatesAccountsAndRegions`, `TestLateExportResetImportOnTheRealImage`, `TestDynamoDBLocalMakesNoNetworkAttempts`, `TestShutdownDuringTheBackgroundStartLeavesNoContainer`) run by default. The ones that reach Local from the host are expected to fail until port bindings land (Expected failures).
+The tests that pull DynamoDB Local (`TestLocalIsolatesAccountsAndRegions`, `TestLateExportResetImportOnTheRealImage`, `TestDynamoDBLocalMakesNoNetworkAttempts`, `TestShutdownDuringTheBackgroundStartLeavesNoContainer`) run by default and should pass: on Docker Desktop understudy reaches Local on a published loopback port. `TestLocalOnAPublishedPort` runs that path on any host.
 
 The Lambda tests (`internal/service/lambda`, `internal/service/lambda/pool`) are the core of this run. They start function containers through Docker Desktop, hand them the probed `host.docker.internal` address, and need the functions' SDK calls to reach understudy on the host's loopback.
 
@@ -81,7 +84,7 @@ just smoke 2>&1 | tee "$OUT/smoke.log"
 go test -race -count=1 -timeout 30m -tags 'smoke docker' ./internal/smoke 2>&1 | tee "$OUT/smoke-docker.log"
 ```
 
-The second command invokes a `provided.al2023` function from the host. It then builds the image and repeats the workload against understudy inside a container with the socket mounted (the in-container topology). Both runs list DynamoDB tables through DynamoDB Local. Expect the host run's DynamoDB step to fail (bridge address). The in-container run should pass, because there DynamoDB Local joins understudy's network and is addressed by container IP.
+The second command invokes a `provided.al2023` function from the host. It then builds the image and repeats the workload against understudy inside a container with the socket mounted (the in-container topology). Both runs list DynamoDB tables through DynamoDB Local, and both should pass: the host run reaches Local on a published loopback port, the in-container run on understudy's network by container IP.
 
 ## 7. Examples
 
@@ -113,7 +116,7 @@ If the create call already fails, the start call answers "No such container"; th
 
 ## 9. Optional: the end-to-end pipeline
 
-Run this only if the `grep` under "Expected failures" found port bindings. Every worker in the pipeline takes a DynamoDB lock, so this run needs DynamoDB Local, which it starts by default:
+Every worker in the pipeline takes a DynamoDB lock, so this run needs DynamoDB Local, which it starts by default:
 
 ```sh
 conformance/e2e-pipeline/run.sh 2>&1 | tee "$OUT/e2e.log"
@@ -137,8 +140,9 @@ Write `$OUT/results.md` with one line per step: pass, fail or skipped, and for e
 2. Whether `*.localhost` resolved (the `doctor` localhost check).
 3. Whether Lambda functions ran from the host (step 5 Lambda packages, step 6 host run) and in the in-container topology (step 6 image run).
 4. Which call answered "Mounts denied" (`mounts-create.txt` or `mounts-start.txt`), with its status and message.
-5. Every failure that is not in "Expected failures".
-6. Your decision for 25.1: is Docker Desktop a tested topology, with DynamoDB excluded until port bindings land?
+5. Whether DynamoDB answered from the host (`dynamodb.txt`), and the endpoint its `DynamoDB Local is ready` line names.
+6. Every failure that is not in "Expected failures".
+7. Your decision for 25.1: is Docker Desktop a tested topology?
 
 Send the directory as one archive. It holds no credentials; it does hold local paths and your user name.
 
