@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-SNS fan-out, S3 notifications, EventBridge targets and Lambda async retries all deliver to SQS, Lambda or SNS with retry policies on the emulator clock and DLQ routing (`sns.md 7.2`, `lambda-events.md`, `secrets-logs-events-alarms.md 4`). SNS also supports `http`/`https`, `email`, `sms`, `application` and `firehose` endpoints. An emulator that makes outbound HTTP requests to arbitrary hosts is an SSRF vector and breaks the brief's "no network access at runtime". The phase 1 SNS depth row names SQS and Lambda delivery only.
+SNS fan-out, S3 notifications, EventBridge targets and Lambda async retries all deliver to SQS, Lambda or SNS with retry policies on the emulator clock and DLQ routing (`sns.md 7.2`, `lambda-events.md`, `secrets-logs-events-alarms.md 4`). SNS also supports `http`/`https`, `email`, `sms`, `application` and `firehose` endpoints. An emulator that makes outbound HTTP requests to arbitrary hosts is an SSRF vector and breaks the rule of no network access at runtime. The phase 1 SNS depth row names SQS and Lambda delivery only.
 
 ## Decision
 
@@ -28,9 +28,9 @@ SNS fan-out, S3 notifications, EventBridge targets and Lambda async retries all 
 
 ## Amendments (review, 2026-10-08)
 
-- `internal/delivery` is a leaf of types and the engine is `internal/outbox`, a `kernel.Stateful` service with an outbox cell of `{id, request, attempt, nextAt, cause, accepted}` (engineering C1, fidelity F4). A `Deliver` effect is an outbox insert the kernel performs before the source call returns, so an accepted delivery is state the moment SNS returns a `MessageId`; the insert arms the attempt timer and `Rearm` restores pending attempts after a load. The insert is a separate cell write after the source cell unlocks, never a nested lock.
-- Payloads live in the target variant (engineering m17): `SQSQueue{ARN, Body, Attributes, GroupID, DedupID}`, `LambdaFunction{ARN, Qualifier, Event, Invocation}`, `SNSTopic{ARN, Message, Attributes, Subject}`. `Mechanism` is a closed enum.
-- A due attempt is tracked work stamped with the due instant (ADR 0006) that invokes the target as `AsService{name}`; ESM polling and Lambda logs run `AsExecutionRole`; forward-access KMS calls run `AsCaller` (ADR 0004). Before an attempt the access recorder checks the target's stored resource policy and journals an `Advisory` when AWS would deny the delivery; the delivery is still attempted (product C3).
-- SNS outbound HTTP/S delivery and its allow-list are phase 2 (product m2). Phase 1 keeps `Subscribe` pending with a readable token, `ConfirmSubscription`, and the unsubscribe and certificate links as raw operations.
-- Lambda async throttles and 5xx requeue with 1 s to 5 min backoff for up to 6 h (fidelity F18).
-- The work tracker counts a closed `WorkKind` set (`EffectPending`, `DeliveryAttempt`, `AsyncInvokeQueued`, `InvocationRunning`, `TimerDue`); parked waiters never count; on timeout `settle` names what is pending by kind (engineering M5).
+- `internal/delivery` is a leaf of types and the engine is `internal/outbox`, a `kernel.Stateful` service with an outbox cell of `{id, request, attempt, nextAt, cause, accepted}`. A `Deliver` effect is an outbox insert the kernel performs before the source call returns, so an accepted delivery is state the moment SNS returns a `MessageId`; the insert arms the attempt timer and `Rearm` restores pending attempts after a load. The insert is a separate cell write after the source cell unlocks, never a nested lock.
+- Payloads live in the target variant: `SQSQueue{ARN, Body, Attributes, GroupID, DedupID}`, `LambdaFunction{ARN, Qualifier, Event, Invocation}`, `SNSTopic{ARN, Message, Attributes, Subject}`. `Mechanism` is a closed enum.
+- A due attempt is tracked work stamped with the due instant (ADR 0006) that invokes the target as `AsService{name}`; ESM polling and Lambda logs run `AsExecutionRole`; forward-access KMS calls run `AsCaller` (ADR 0004). Before an attempt the access recorder checks the target's stored resource policy and journals an `Advisory` when AWS would deny the delivery; the delivery is still attempted.
+- SNS outbound HTTP/S delivery and its allow-list are phase 2. Phase 1 keeps `Subscribe` pending with a readable token, `ConfirmSubscription`, and the unsubscribe and certificate links as raw operations.
+- Lambda async throttles and 5xx requeue with 1 s to 5 min backoff for up to 6 h.
+- The work tracker counts a closed `WorkKind` set (`EffectPending`, `DeliveryAttempt`, `AsyncInvokeQueued`, `InvocationRunning`, `TimerDue`); parked waiters never count; on timeout `settle` names what is pending by kind.

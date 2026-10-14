@@ -142,7 +142,7 @@ From [docs/coverage.md](docs/coverage.md), which `understudy coverage` regenerat
 
 The implemented operations are the ones an event-driven pipeline uses: SNS fan-out with filter policies to SQS, SQS with dead-letter queues feeding Lambda, S3 with SSE-KMS, a DynamoDB lock table with TTL, Secrets Manager, CloudWatch Logs, EventBridge schedules, and the IAM, KMS and CloudWatch resources Terraform declares around them.
 
-Behavior the models do not fix rests on evidence that the coverage page labels item by item. Real AWS was recorded for the backlog R01 to R18 (`testdata/parity/`), so 45 of the 232 evidence items are `aws-recorded`; the rest come from AWS's documentation, recordings published by other projects, SDK source, and inference. Recorded differences that still need code are listed in [DEFERRED.md](docs/plan/DEFERRED.md#recorded-differences-from-aws).
+Behavior the models do not fix rests on evidence that the coverage page labels item by item. Real AWS was recorded for the backlog R01 to R18 (`testdata/parity/`), so 45 of the 232 evidence items are `aws-recorded`; the rest come from AWS's documentation, recordings published by other projects, SDK source, and inference. Known differences from AWS are listed in [the differences page](docs/guide/differences.md).
 
 ## Commands
 
@@ -177,22 +177,14 @@ understudy never bundles, mirrors, re-tags, saves, pushes or patches the DynamoD
 
 ## Choosing an emulator
 
-The landscape as of October 2026, from [docs/research/localstack-vs-aws-tooling.md](docs/research/localstack-vs-aws-tooling.md), which cites its sources.
-
-| | understudy | LocalStack for AWS | moto | AWS's own tooling |
-|---|---|---|---|---|
-| Licence and cost | Apache-2.0, free | Commercial use needs a paid plan (from $39 per user per month); the open-source repository was archived in March 2026 | Apache-2.0, free | Free |
-| Form | One binary or image; no account or token | Docker image; auth token required | Python library with in-process mocks, plus a standalone server | SAM CLI, the Lambda Runtime Interface Emulator, DynamoDB Local and other single-purpose tools |
-| Services | 12 | About 100, depth varying | Many | No multi-service emulator |
-| Clock, journal, faults, snapshots, policy generation | All included | Spread across paid tiers | State-transition delays, a request recorder, opt-in basic IAM checks | Fault Injection Service on real resources only |
-| IAM enforcement | No; access is recorded, not enforced | Yes, paid plans | Basic, opt-in | Real AWS only |
-
-- **LocalStack** when you need breadth (ECS, RDS, Step Functions, API Gateway, Cognito, CloudFormation and CDK deploys) or IAM enforcement, and its licence fits.
-- **moto** for Python unit tests that should not leave the process, or for services understudy lacks.
+- **LocalStack** when you need services understudy does not emulate, such as ECS, RDS, Step Functions, API Gateway, Cognito or CloudFormation deploys, or enforced IAM policies.
+- **moto** for Python unit tests that should not leave the process.
 - **Real AWS** for final validation. Emulators can pass where the cloud fails, and that applies to understudy too.
 - **understudy** when your system lives in the twelve services above and you want fast, deterministic, free tests of how they interact, including time, failures and permissions.
 
 ## Limitations
+
+Behavior that differs from AWS in ways a test can observe is listed in [docs/guide/differences.md](docs/guide/differences.md). The broad limits:
 
 - **Access control is recorded, not enforced.** IAM, resource and key policies are stored; nothing denies a call, and a delivery AWS would deny goes through with an `advisory` journal event. `understudy iam policy` grants more than needed in places; review it as the [policy guide](docs/guide/policy.md#review-before-use) describes.
 - **Signatures are parsed, not verified**, unless you start with `--sigv4 verify`. Even then every client may sign with the public dummy pair `test`/`test`, so a signature is not access control.

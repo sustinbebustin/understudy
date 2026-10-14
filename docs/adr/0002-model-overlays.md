@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-The vendored models are the authority for wire shapes but not for everything AWS does: SQS has no constraints at all, DynamoDB targets loose shapes, 33 patterns do not compile under RE2, `__type` namespaces are not derivable, the constraint-violation error code is per operation, S3 models 21 of about 80 error codes and its error structures declare no members, KMS statuses disagree with observed behavior (`smithy-models.md 6 to 7`, `error-matrix.md 1`). Vendored models must stay verbatim so their hashes verify against upstream. Something must carry the corrections, and the brief demands that nothing deviates silently.
+The vendored models are the authority for wire shapes but not for everything AWS does: SQS has no constraints at all, DynamoDB targets loose shapes, 33 patterns do not compile under RE2, `__type` namespaces are not derivable, the constraint-violation error code is per operation, S3 models 21 of about 80 error codes and its error structures declare no members, KMS statuses disagree with observed behavior (`smithy-models.md 6 to 7`, `error-matrix.md 1`). Vendored models must stay verbatim so their hashes verify against upstream. Something must carry the corrections, and nothing may deviate silently.
 
 ## Decision
 
@@ -25,7 +25,7 @@ Corrections live in `codegen/overlays/<svc>.json` and `overlays/common.json` as 
 
 ## Amendments (review, 2026-10-08)
 
-The closed trait set grows by five, each with a generator golden test (fidelity F5, F6; engineering M6):
+The closed trait set grows by five, each with a generator golden test:
 
 - `validationError` applies at member level too, with an optional constraint-kind filter, a reason template and `enumPolicy: closed | open | handler`; `handler` defers a member's checks to the service so a business error (SQS `InvalidAttributeName`, Lambda's creatable runtime subset) is never pre-empted. When a violation set spans two codes the first violation in member order is reported, as AWS reports one.
 - `successCode` on an operation (S3 `PutBucketPolicy` 204, Lambda `DeleteFunction` 204).
@@ -34,4 +34,4 @@ The closed trait set grows by five, each with a generator golden test (fidelity 
 - `emptyCollection: omit | emit` on a service or member (SQS omits, IAM emits `<Roles/>`).
 - `internalOperation` on an operation shape the overlay adds: typed, validated, journaled, never claimed by the edge, skipped by the access recorder, listed separately in coverage (`sqs.HoldVisibility`, `logs.PutLogEventsInternal`).
 
-Evidence labels are the one `evidence.Label` type shared with fidelity switches, skip-list entries and parity fixtures (engineering m4). Synthetic raw HTTP operations (function URL data plane, SNS links) are not overlays; they are declared in `codegen/services/<svc>.json` under `rawOperations` (ADR 0003).
+Evidence labels are the one `evidence.Label` type shared with fidelity switches, skip-list entries and parity fixtures. Synthetic raw HTTP operations (function URL data plane, SNS links) are not overlays; they are declared in `codegen/services/<svc>.json` under `rawOperations` (ADR 0003).

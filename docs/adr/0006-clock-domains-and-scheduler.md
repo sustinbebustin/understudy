@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-The brief promises one controllable clock for every time-based behavior. The G4 research showed that containers, SDK signers and runtime interface clients read the host wall clock and cannot be virtualized; a stale `Lambda-Runtime-Deadline-Ms` hands aws-lambda-go a dead context and Python a remaining time of 0; SDKs correct skew from the response `Date` header; STS expirations are compared against the client's wall clock (`lambda-runtime-contract.md 3 to 4`). Proposals differed on the time type (`time.Time` vs a distinct type), on whether `Set` may move backwards, and on per-waiter goroutines vs a central scheduler.
+understudy promises one controllable clock for every time-based behavior. Containers, SDK signers and runtime interface clients read the host wall clock and cannot be virtualized; a stale `Lambda-Runtime-Deadline-Ms` hands aws-lambda-go a dead context and Python a remaining time of 0; SDKs correct skew from the response `Date` header; STS expirations are compared against the client's wall clock (`lambda-runtime-contract.md 3 to 4`). The designs considered differed on the time type (`time.Time` vs a distinct type), on whether `Set` may move backwards, and on per-waiter goroutines vs a central scheduler.
 
 ## Decision
 
@@ -30,14 +30,14 @@ The brief promises one controllable clock for every time-based behavior. The G4 
 
 ## Amendments (review, 2026-10-08)
 
-- Timer callbacks never block (engineering C2, fidelity F2). A callback may `kernel.Write` and start tracked work; anything that calls `kernel.Invoke`, waits on a container or long-polls runs as tracked work (`Kernel.Go`) stamped with the due instant (`Target.At`). `Advance` therefore never waits on container work, and the twelve `rate(5 minutes)` events are stamped 5, 10, ... 60 minutes because the work they start carries the due instant. A synctest test schedules a task that blocks forever and asserts a later timer still fires on `Advance`.
-- In every mode a timer with `due <= Now()` fires at once; Frozen only stops `Now()` from moving (fidelity F3, product C1).
+- Timer callbacks never block. A callback may `kernel.Write` and start tracked work; anything that calls `kernel.Invoke`, waits on a container or long-polls runs as tracked work (`Kernel.Go`) stamped with the due instant (`Target.At`). `Advance` therefore never waits on container work, and the twelve `rate(5 minutes)` events are stamped 5, 10, ... 60 minutes because the work they start carries the due instant. A synctest test schedules a task that blocks forever and asserts a later timer still fires on `Advance`.
+- In every mode a timer with `due <= Now()` fires at once; Frozen only stops `Now()` from moving.
 - Two timer classes: AWS semantics (visibility, delay, retention, schedules, retries, deletion windows, TTL) follow the emulator clock; provisioning settle (Lambda `State` and `LastUpdateStatus`, ESM transients, SQS `QueueDeletedRecently`) is final before the mutating call returns, in every mode, by default. The fidelity switches `lambda.stateTransitions: clock` and `sqs.queueDeletedRecently: enforce` restore clock-driven intermediates for waiter tests. A frozen clock therefore never hangs `terraform apply`.
-- Timers carry no closure (engineering M11): `TimerKey{Kind TimerKind; ID string}`, the scheduler dispatches by `Kind` to the handler the service registered with `Kernel.Timers().Handle`, and arming an unregistered kind fails at bind time.
-- `Until(ctx, d)` and `Waiters.Wait(ctx, key)` end with their context (engineering m8).
+- Timers carry no closure: `TimerKey{Kind TimerKind; ID string}`, the scheduler dispatches by `Kind` to the handler the service registered with `Kernel.Timers().Handle`, and arming an unregistered kind fails at bind time.
+- `Until(ctx, d)` and `Waiters.Wait(ctx, key)` end with their context.
 - The ESM pin is the overlay-declared internal operation `sqs.HoldVisibility` (ADR 0002).
 
-## Amendments (implementation, wave 2)
+## Amendments (implementation)
 
 - Mode changes return what changed: `Freeze() ModeChange[Frozen]`, `Resume() (ModeChange[Running], error)` and `Scale(f) (ModeChange[Scaled], error)`, so the admin endpoints journal `ClockChanged{From, To}` without reading `Mode()` twice. `Restore(at, Mode)` is the only way back in time and serves `reset` and `snapshot load`: the caller runs `Scheduler.Clear()`, then `Restore`, then each service's `Rearm`.
 - Every settable instant must lie within `MaxSkew` (100 years) of wall time, so a `Running` offset and the `Scaled` arithmetic never saturate. `New`, `Advance`, `AdvanceTo`, `Resume` and `Restore` refuse anything further with `*RangeError` and change nothing; the admin API and CLI report it as a client error.

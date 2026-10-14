@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-Go v2 and JS v3 send `Host: <bucket>.localhost:<port>` against `http://localhost:<port>`; boto3 and the AWS CLI send path style; IP literals force path style everywhere (`landscape.md 4.1`, `sigv4-checksums-endpoints.md 6.1`). `*.localhost` resolves on glibc hosts with systemd-resolved, not inside containers, and is unverified on macOS and Windows. Terraform's S3 Control tag read prefixes the account id to the authority, so `127.0.0.1` endpoints break it (`s3.md` finding 1). LocalStack and Floci run DNS servers; the brief requires an offline static binary. Bucket names are global across accounts; a bucket has a home region, and AWS answers region-mismatched requests with redirects or `AuthorizationHeaderMalformed` that only boto3 follows automatically (`wire-rest.md` Implications 11). SQS queue URLs embed the host the creator used; only JS v3 posts to it (`lambda-runtime-contract.md 5.1`).
+Go v2 and JS v3 send `Host: <bucket>.localhost:<port>` against `http://localhost:<port>`; boto3 and the AWS CLI send path style; IP literals force path style everywhere (`sigv4-checksums-endpoints.md 6.1`). `*.localhost` resolves on glibc hosts with systemd-resolved, not inside containers, and is unverified on macOS and Windows. Terraform's S3 Control tag read prefixes the account id to the authority, so `127.0.0.1` endpoints break it (`s3.md` finding 1). LocalStack and Floci run DNS servers; understudy must be an offline static binary. Bucket names are global across accounts; a bucket has a home region, and AWS answers region-mismatched requests with redirects or `AuthorizationHeaderMalformed` that only boto3 follows automatically (`wire-rest.md` Implications 11). SQS queue URLs embed the host the creator used; only JS v3 posts to it (`lambda-runtime-contract.md 5.1`).
 
 ## Decision
 
@@ -18,7 +18,7 @@ Go v2 and JS v3 send `Host: <bucket>.localhost:<port>` against `http://localhost
 ## Alternatives considered
 
 - A stdlib DNS responder for hosts and containers: a second network service that needs privileges or configuration; deferred to phase 2 behind an ADR with evidence from macOS and Docker Desktop users.
-- Lenient cross-region access by default (two proposals and `wire-rest.md` 11): friendlier, but a test that passes locally and fails in a real account on a region mismatch is the failure this project exists to prevent; leniency is one switch away.
+- Lenient cross-region access by default (`wire-rest.md` 11): friendlier, but a test that passes locally and fails in a real account on a region mismatch is the failure this project exists to prevent; leniency is one switch away.
 - Canonical IP-literal queue URLs: wrong on Docker Desktop and changes `aws_sqs_queue.url` by topology; echoing the Host plus the `localhost:host-gateway` alias (ADR 0011) covers the cross-boundary case.
 - Canonical `https://sqs.<region>.<host>` queue URLs for `terraform import`: would mint URLs no client can reach; import is documented as unsupported instead.
 
@@ -30,9 +30,9 @@ Go v2 and JS v3 send `Host: <bucket>.localhost:<port>` against `http://localhost
 
 ## Amendments (review, 2026-10-08)
 
-- Requests with no asserted region (SigV2 presigned URLs from boto3's legacy regions, Go's unsigned `GetBucketRegion` HEAD, anonymous GETs) are served from the bucket's home region with `x-amz-bucket-region` set; `AuthorizationHeaderMalformed` and `PermanentRedirect` apply only when the request asserts a region that differs (fidelity F9).
-- The S3 fallthrough in the front door applies only to unsigned, SigV2 or `s3`-scoped requests; a request signed for another service that no rule claimed is answered by that service's unknown-operation identity (fidelity F7).
-- `localhost.localstack.cloud` may be added to the base domains through configuration for LocalStack migrations (product m10).
+- Requests with no asserted region (SigV2 presigned URLs from boto3's legacy regions, Go's unsigned `GetBucketRegion` HEAD, anonymous GETs) are served from the bucket's home region with `x-amz-bucket-region` set; `AuthorizationHeaderMalformed` and `PermanentRedirect` apply only when the request asserts a region that differs.
+- The S3 fallthrough in the front door applies only to unsigned, SigV2 or `s3`-scoped requests; a request signed for another service that no rule claimed is answered by that service's unknown-operation identity.
+- `localhost.localstack.cloud` may be added to the base domains through configuration for LocalStack migrations.
 - The S3 bodies are streamed (ADR 0001 amendments); bucket subresource dispatch rows are generated from `routeOverrides` so the edge has no S3-specific code.
 
 ## Amendments (pre-tag review, 2026-10-13)

@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-The brief's platform features (journal with causal links, fault injection, access recording, clock) must cover cross-service traffic: SNS to SQS, ESM polling, S3 notifications, EventBridge targets, Lambda logs. LocalStack's ESM poller calls SQS through its own HTTP gateway with private override headers and pins a gateway thread per long poll (`landscape.md 7`, Implications 6). moto fires ESM synchronously inside `SendMessage`. All three proposals converged on an in-process invoker through the same stages.
+understudy's platform features (journal with causal links, fault injection, access recording, clock) must cover cross-service traffic: SNS to SQS, ESM polling, S3 notifications, EventBridge targets, Lambda logs. LocalStack's ESM poller calls SQS through its own HTTP gateway with private override headers and pins a gateway thread per long poll. moto fires ESM synchronously inside `SendMessage`. Every design considered converged on an in-process invoker through the same stages.
 
 ## Decision
 
@@ -12,7 +12,7 @@ The brief's platform features (journal with causal links, fault injection, acces
 
 ## Alternatives considered
 
-- HTTP loopback for internal calls: fully uniform wire behavior, but needs private headers to exceed SQS's 10-message and 20-second limits, blocks a server goroutine per poll, and adds codec cost to every delivery. Rejected (`landscape.md` Implications 6).
+- HTTP loopback for internal calls: fully uniform wire behavior, but needs private headers to exceed SQS's 10-message and 20-second limits, blocks a server goroutine per poll, and adds codec cost to every delivery. Rejected.
 - Direct Go interface calls between services: no journal, no faults, no access record, and wiring interfaces or import cycles between services. Rejected.
 - Faults before validation: both orderings have no side effects; validate-first matches the observed Coral check order (unknown operation, auth, deserialization, validation, business rules; `error-matrix.md 4`).
 
@@ -25,12 +25,12 @@ The brief's platform features (journal with causal links, fault injection, acces
 
 ## Amendments (review, 2026-10-08)
 
-- The kernel has one entry point (engineering M8): the edge hands `Dispatch` a `Decoded` value (`Ok{In}` or `Rejected{*awserr.Error}`); the binding lookup, the 501 decision and the rejected-decode outcome are journaled and access-recorded inside the kernel. `Unclaimed` stays the one journal event the edge writes.
-- `Target.As` is a `PrincipalMode` (fidelity F12, product C3): `AsCaller` for forward-access calls AWS charges to the original principal (S3, Secrets Manager and SQS to KMS), `AsExecutionRole` for ESM polling and Lambda logs, `AsService{name}` for resource-policy-gated deliveries. The access recorder attributes each call accordingly and journals an `Advisory` when a stored resource policy would not allow a delivery.
-- `Target.At` carries the admission instant of deferred work (engineering C2): a delivery or poll started by a timer is stamped with the timer's due instant, never with `Now()`.
-- `Invoke` returns `Internal` (never panics) when the parent call holds a cell lock (engineering M1, m18).
-- `RawHandler` receives `Wire = FromClient{RawRequest} | Synthesized`; `Call` no longer carries a raw request, and the DynamoDB service encodes `Synthesized` inputs itself so the kernel never imports a codec (engineering m9).
-- Cross-scope references resolve through `kernel.ResolveScope(c, ref)` with per-service mismatch identities (fidelity F8).
+- The kernel has one entry point: the edge hands `Dispatch` a `Decoded` value (`Ok{In}` or `Rejected{*awserr.Error}`); the binding lookup, the 501 decision and the rejected-decode outcome are journaled and access-recorded inside the kernel. `Unclaimed` stays the one journal event the edge writes.
+- `Target.As` is a `PrincipalMode`: `AsCaller` for forward-access calls AWS charges to the original principal (S3, Secrets Manager and SQS to KMS), `AsExecutionRole` for ESM polling and Lambda logs, `AsService{name}` for resource-policy-gated deliveries. The access recorder attributes each call accordingly and journals an `Advisory` when a stored resource policy would not allow a delivery.
+- `Target.At` carries the admission instant of deferred work: a delivery or poll started by a timer is stamped with the timer's due instant, never with `Now()`.
+- `Invoke` returns `Internal` (never panics) when the parent call holds a cell lock.
+- `RawHandler` receives `Wire = FromClient{RawRequest} | Synthesized`; `Call` no longer carries a raw request, and the DynamoDB service encodes `Synthesized` inputs itself so the kernel never imports a codec.
+- Cross-scope references resolve through `kernel.ResolveScope(c, ref)` with per-service mismatch identities.
 
 ## Amendments (pre-tag review, 2026-10-13)
 
@@ -39,4 +39,4 @@ Decided at the pre-tag review: access recording.
 - `kernel.WithActions[In](func(*Call, *In) []registry.IAMAction)` declares, per input, the secondary IAM actions a call used, evaluated like `WithResources`. The kernel records the primary action (the first in the operation's generated IAM list) always, the declared ones (refusing, and logging as a bug, any outside the generated list) and, for other service prefixes, only actions paired with a touched resource of that service, never on `*` (`iam:PassRole` lands on the passed role, which the handler touches).
 - S3 object operations touch object ARNs (`arn:aws:s3:::<bucket>/<key>`); the generated policy renders object-level resources as `arn:aws:s3:::<bucket>/*`.
 - Internal operations record only declared actions (`logs.PutLogEventsInternal` declares `logs:PutLogEvents`, so the execution role's policy carries it).
-- As built in the pre-tag push: a binding with neither `WithActions` nor `kernel.WithoutSecondaryActions()` is undeclared and records its operation's whole generated list, which over-grants rather than under-grants. SQS, SNS, IAM, KMS, Secrets Manager, CloudWatch and DynamoDB are undeclared until each has an actions audit (`docs/plan/DEFERRED.md`). `WithoutSecondaryActions` records the decision that no call needs a same-prefix secondary, so the primary is recorded alone. `kernel.Declare(b, op, opts...)` adds `WithResources` and action options to a binding after its bind site; declaring an unbound operation is `BindError` `DeclaredUnbound`, and a raw one `DeclaredRaw`. `iam:PassRole` lands on the passed role because the binding's `WithResources` resolver returns it, not because the handler touches it.
+- As built in the pre-tag push: a binding with neither `WithActions` nor `kernel.WithoutSecondaryActions()` is undeclared and records its operation's whole generated list, which over-grants rather than under-grants. SQS, SNS, IAM, KMS, Secrets Manager, CloudWatch and DynamoDB are undeclared until each has an actions audit. `WithoutSecondaryActions` records the decision that no call needs a same-prefix secondary, so the primary is recorded alone. `kernel.Declare(b, op, opts...)` adds `WithResources` and action options to a binding after its bind site; declaring an unbound operation is `BindError` `DeclaredUnbound`, and a raw one `DeclaredRaw`. `iam:PassRole` lands on the passed role because the binding's `WithResources` resolver returns it, not because the handler touches it.

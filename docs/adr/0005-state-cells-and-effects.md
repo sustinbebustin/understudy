@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-Handlers mutate state, wake waiters, arm timers and start deliveries. `testing/synctest` advances only when every goroutine is durably blocked, and a mutex hand-off is not durable blocking (`go-toolchain.md 1`), so waits must be channel-based. Snapshots need a consistent cut. S3 conditional writes must be evaluated under the same lock as the commit (`s3.md` Implications 8). Proposals offered a global lock, one mutex per service with a `lockcheck` build tag, and per-partition cells with effects run after unlock.
+Handlers mutate state, wake waiters, arm timers and start deliveries. `testing/synctest` advances only when every goroutine is durably blocked, and a mutex hand-off is not durable blocking (`go-toolchain.md 1`), so waits must be channel-based. Snapshots need a consistent cut. S3 conditional writes must be evaluated under the same lock as the commit (`s3.md` Implications 8). The designs considered were a global lock, one mutex per service with a `lockcheck` build tag, and per-partition cells with effects run after unlock.
 
 ## Decision
 
@@ -27,10 +27,10 @@ Rules: a handler holds at most one cell lock; it never calls `kernel.Invoke` whi
 
 ## Amendments (review, 2026-10-08)
 
-- `store` is a leaf that knows no effects: `Cell.Update` and `Read`, `Partitioned` (with `Lookup`, `Delete`, `Export`, `Import`, `Reset`), `Waiters` and `Section`. `kernel.Write(c *Call, cell, fn)` is the only write entry point for handlers and timer callbacks (engineering C1, M1): it marks the `Call` as holding (a nested `Write` or `Invoke` returns `Internal`; the check is always on and the `lockcheck` build tag is gone), passes the commit instant read under the lock (fidelity F17), stamps the call's `Cause` on effects and counts them in the work tracker.
-- `Arm` and `Disarm` are applied inside the critical section in commit order (engineering M2); only `Wake` and `Deliver` run after unlock. Timer callbacks and `Rearm` re-read state and do nothing when their condition no longer holds. A rapid state machine interleaves receive, delete and change-visibility against timer state.
-- Lock hierarchy (engineering M3): gate, then one cell, then leaf locks (clock mode, scheduler heap, waiters, journal ring, ids streams, fault budgets, outbox). Leaf locks never call out; the scheduler releases its mutex before dispatching a timer.
-- `R` never aliases `S` (engineering M10): writes return values or clones; persisted records are immutable values replaced on change.
-- IAM and STS cells are `Partitioned[aws.AccountID, S]`; reads use `Lookup`, which never creates a cell; `Export` skips zero-valued cells (engineering m6).
-- `Waiters.Wait(ctx, key)` and `Clock.Until(ctx, d)` end with their context, so long-poll loops leak nothing (engineering m8).
+- `store` is a leaf that knows no effects: `Cell.Update` and `Read`, `Partitioned` (with `Lookup`, `Delete`, `Export`, `Import`, `Reset`), `Waiters` and `Section`. `kernel.Write(c *Call, cell, fn)` is the only write entry point for handlers and timer callbacks: it marks the `Call` as holding (a nested `Write` or `Invoke` returns `Internal`; the check is always on and the `lockcheck` build tag is gone), passes the commit instant read under the lock, stamps the call's `Cause` on effects and counts them in the work tracker.
+- `Arm` and `Disarm` are applied inside the critical section in commit order; only `Wake` and `Deliver` run after unlock. Timer callbacks and `Rearm` re-read state and do nothing when their condition no longer holds. A rapid state machine interleaves receive, delete and change-visibility against timer state.
+- Lock hierarchy: gate, then one cell, then leaf locks (clock mode, scheduler heap, waiters, journal ring, ids streams, fault budgets, outbox). Leaf locks never call out; the scheduler releases its mutex before dispatching a timer.
+- `R` never aliases `S`: writes return values or clones; persisted records are immutable values replaced on change.
+- IAM and STS cells are `Partitioned[aws.AccountID, S]`; reads use `Lookup`, which never creates a cell; `Export` skips zero-valued cells.
+- `Waiters.Wait(ctx, key)` and `Clock.Until(ctx, d)` end with their context, so long-poll loops leak nothing.
 - The snapshot cut takes the gate's write side for microseconds and does no I/O (ADR 0009).

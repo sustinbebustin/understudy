@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-The brief derives the account from the access key and supports multi-account and multi-region. Real `AKIA`/`ASIA` keys encode the account with a documented bit layout, and `AKIAIOSFODNN7EXAMPLE` decodes to a real-looking `581039954779`; LocalStack refuses to decode real-looking keys to avoid mapping a developer's production key to a foreign account (`iam-sts-kms.md 2.2 to 2.3`, `sigv4-checksums-endpoints.md 7`). DynamoDB Local accepts only alphanumeric keys. Terraform's `aws_region` data source rejects region names it does not know (`gap-G6.md 6`). Existing user configurations use port 4566 and account `000000000000`.
+understudy derives the account from the access key and supports multi-account and multi-region. Real `AKIA`/`ASIA` keys encode the account with a documented bit layout, and `AKIAIOSFODNN7EXAMPLE` decodes to a real-looking `581039954779`; LocalStack refuses to decode real-looking keys to avoid mapping a developer's production key to a foreign account (`iam-sts-kms.md 2.2 to 2.3`, `sigv4-checksums-endpoints.md 7`). DynamoDB Local accepts only alphanumeric keys. Terraform's `aws_region` data source rejects region names it does not know (`tf-remaining.md 10`). Existing user configurations use port 4566 and account `000000000000`.
 
 ## Decision
 
@@ -28,8 +28,8 @@ The brief derives the account from the access key and supports multi-account and
 
 ## Amendments (review, 2026-10-08)
 
-- The region source is a sum type (fidelity F9): `CredentialScope{Region}` from SigV4, `HostRegion{Region}` from a `<svc>.<region>.<base>` host, `None` for SigV2, presigned-SigV2, unsigned and anonymous requests. Under `None` S3 serves the bucket's home region and sets `x-amz-bucket-region`; non-S3 calls use `us-east-1`. The cross-region rules of ADR 0013 apply only when a region is asserted.
-- IAM and STS cells are keyed by `aws.AccountID`, not by a scope with a zeroed region (engineering m6).
+- The region source is a sum type: `CredentialScope{Region}` from SigV4, `HostRegion{Region}` from a `<svc>.<region>.<base>` host, `None` for SigV2, presigned-SigV2, unsigned and anonymous requests. Under `None` S3 serves the bucket's home region and sets `x-amz-bucket-region`; non-S3 calls use `us-east-1`. The cross-region rules of ADR 0013 apply only when a region is asserted.
+- IAM and STS cells are keyed by `aws.AccountID`, not by a scope with a zeroed region.
 - Internal calls run under an explicit `PrincipalMode` (ADR 0004), so the access recorder attributes forward-access KMS calls to the caller and Lambda log writes to the execution role.
 
 ## Amendments (pre-tag review, 2026-10-13)

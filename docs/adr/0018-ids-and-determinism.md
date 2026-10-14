@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-The brief wants fault injection runs to be deterministic under a seed and snapshots to be deterministic files. Message ids, receipt handles, request ids, upload ids, version ids, key ids and minted access keys all appear in journals, snapshots and client-visible responses. The stdlib `uuid` package draws from `crypto/rand` and cannot be seeded at runtime, and `uuid.NewV7` follows the `synctest` bubble clock, not the emulator clock (`go-toolchain.md 9.1`). KMS key material must never be predictable.
+Fault injection runs must be deterministic under a seed, and snapshots must be deterministic files. Message ids, receipt handles, request ids, upload ids, version ids, key ids and minted access keys all appear in journals, snapshots and client-visible responses. The stdlib `uuid` package draws from `crypto/rand` and cannot be seeded at runtime, and `uuid.NewV7` follows the `synctest` bubble clock, not the emulator clock (`go-toolchain.md 9.1`). KMS key material must never be predictable.
 
 ## Decision
 
@@ -27,15 +27,15 @@ The brief wants fault injection runs to be deterministic under a seed and snapsh
 
 ## Amendments (review, 2026-10-08)
 
-The contract is narrowed (engineering M12, fidelity F14, product m7). A single client still fans out into concurrent internal work, Lambda runs on wall time and DynamoDB Local stamps its own timestamps, so "byte-identical journals and snapshots" was overstated. What holds, and what the e2e suite and `understudytest` assert:
+The contract is narrowed. A single client still fans out into concurrent internal work, Lambda runs on wall time and DynamoDB Local stamps its own timestamps, so "byte-identical journals and snapshots" was overstated. What holds, and what the e2e suite and `understudytest` assert:
 
 - Same seed, same rule set and same call order give the same fault hits.
 - Snapshot state sections are byte-identical except a named, closed set of wall-domain fields (STS `Expiration`, Lambda REPORT durations, DynamoDB Local timestamps and stream labels); `snapshot diff --normalize` masks them.
 - Journals are equal as canonical trace trees: children sorted by kind, operation and resource, ids replaced by tree positions, `Wall` and `Latency` ignored. Golden fixtures never contain raw event ids.
 - SSE-KMS ETags and every other emulator-minted identifier come from the seeded source; only KMS key material and SNS signing keys do not.
-- A `--deterministic` single-worker mode is not built in phase 1; option (a) of the engineering review was taken.
+- A `--deterministic` single-worker mode is not built in phase 1; narrowing the contract was chosen instead.
 
-## Amendments (implementation, wave 4)
+## Amendments (implementation)
 
 The closed normalizer set of `snapshot diff --normalize` (`internal/snapshot` package doc, ARCHITECTURE.md 12 and 13) gained these entries:
 
@@ -48,7 +48,7 @@ The closed normalizer set of `snapshot diff --normalize` (`internal/snapshot` pa
 
 - Internal delivery calls follow clock firing order: the outbox runs delivery attempts one at a time, in the order their timers fire, so the request-phase fault rules and seeded ids of their target calls (SQS `SendMessage`, SNS `Publish`, Lambda `Invoke` with `Event`) follow that order however goroutines are scheduled (`internal/outbox` package doc).
 - Two kinds of attempt run outside that order, on their own goroutine: an attempt a Delivery-phase latency rule delays, whose order against the others already depends on wall time, and a `RequestResponse` Lambda invoke, which waits for the function. Their target calls draw ids and fault hits in wall-time order.
-- A request-phase latency rule matching an attempt's target call still holds the whole sequencer for its wall time, because `kernel.Invoke` evaluates it and waits before returning. Closing that needs the kernel to report the request-phase decision before it waits (`docs/plan/DEFERRED.md`, hardening round 3).
+- A request-phase latency rule matching an attempt's target call still holds the whole sequencer for its wall time, because `kernel.Invoke` evaluates it and waits before returning. Closing that needs the kernel to report the request-phase decision before it waits (`internal/outbox` package doc).
 
 ## Amendments (pre-tag review, 2026-10-13)
 

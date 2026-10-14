@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-The brief asks for declarative rules by service, operation, resource, account or region that inject AWS-shaped errors, throttling or latency, with probability or next-N budgets and a seed for determinism. Research shows that a throttle is retried by SDKs (Terraform's up to 25 attempts, `tf-compute.md 14`), that each service has its own throttling identity (`sqs.md 13.18`, `error-matrix.md 8.4`), that S3 fails some operations after a 200 status (`wire-rest.md 3.7`), and that DynamoDB Local never raises `TransactionConflictException` (`dynamodb-local.md 4.1`).
+understudy needs declarative rules by service, operation, resource, account or region that inject AWS-shaped errors, throttling or latency, with probability or next-N budgets and a seed for determinism. Research shows that a throttle is retried by SDKs (Terraform's up to 25 attempts, `tf-compute.md 14`), that each service has its own throttling identity (`sqs.md 13.18`, `error-matrix.md 8.4`), that S3 fails some operations after a 200 status (`wire-rest.md 3.7`), and that DynamoDB Local never raises `TransactionConflictException` (`dynamodb-local.md 4.1`).
 
 ## Decision
 
@@ -32,12 +32,12 @@ The brief asks for declarative rules by service, operation, resource, account or
 
 ## Amendments (review, 2026-10-08)
 
-- `Match.Operations` is `[]ref.OperationID` and delivery mechanisms are a closed `delivery.Mechanism` enum (engineering m3). Rule validation reads a `fault.Catalogue` interface the kernel implements over the registry, so `fault` is a leaf that imports no descriptors (engineering C1).
-- Typed per-operation validators (`kernel.WithValidator`) run before faults, so the validate-first argument holds for hand-owned checks too (engineering M7).
-- Calls with `Origin Internal{Via: Snapshot}` (the DynamoDB export and import) never match a rule (product M3).
-- The CLI exposes every match dimension and action: `--resource`, `--account`, `--region`, `--origin`, `--phase delivery`, `--after-commit`, `--status-ok`, `--drop` (product m4).
+- `Match.Operations` is `[]ref.OperationID` and delivery mechanisms are a closed `delivery.Mechanism` enum. Rule validation reads a `fault.Catalogue` interface the kernel implements over the registry, so `fault` is a leaf that imports no descriptors.
+- Typed per-operation validators (`kernel.WithValidator`) run before faults, so the validate-first argument holds for hand-owned checks too.
+- Calls with `Origin Internal{Via: Snapshot}` (the DynamoDB export and import) never match a rule.
+- The CLI exposes every match dimension and action: `--resource`, `--account`, `--region`, `--origin`, `--phase delivery`, `--after-commit`, `--status-ok`, `--drop`.
 
-## Amendments (implementation, wave 3)
+## Amendments (implementation)
 
 - `Store.Evaluate` takes a `Hook`, not a `Phase`: the `Request` phase has two hook points. `BeforeHandler` (step 8, and the DynamoDB proxy before forwarding) runs `Error`, `Throttle` and `Latency` rules; `AfterHandler` (step 10, called only when the handler succeeded) runs `AfterCommit` and `StatusOKError` rules, so their budgets are spent only on a committed result; `DeliveryAttempt` runs the `Delivery` phase.
 - The `Decision` sum is `None | Fail | Delay{Wall, Then} | FailAfterCommit | FailStatusOK | Drop`, each hit carrying `Injection{Rule, Hit, Of}`. Go cannot reuse the `Action` type names in the same package, hence `Delay`, `FailAfterCommit` and `FailStatusOK` for `Latency`, `AfterCommit` and `StatusOKError`.

@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-The main module depends on the standard library only, with `pgregory.net/rapid` pre-approved for tests; any other dependency needs an ADR. The generator needs the AWS Smithy models, the protocol compliance corpus (published only as IDL inside jars, convertible with the Smithy CLI, `smithy-protocol-tests.md 5`), and an operation-to-IAM-action mapping (the AWS Service Reference JSON, whose licence is unstated, `smithy-models.md 8`). S3's ten checksum algorithms include XXHASH64, XXHASH3 and XXHASH128, which the standard library lacks; their wire form is settled (`gap-G8.md`).
+The main module depends on the standard library only, with `pgregory.net/rapid` pre-approved for tests; any other dependency needs an ADR. The generator needs the AWS Smithy models, the protocol compliance corpus (published only as IDL inside jars, convertible with the Smithy CLI, `smithy-protocol-tests.md 5`), and an operation-to-IAM-action mapping (the AWS Service Reference JSON, whose licence is unstated, `smithy-models.md 8`). S3's ten checksum algorithms include XXHASH64, XXHASH3 and XXHASH128, which the standard library lacks; their wire form is settled (`s3-checksum-residuals-and-record-backlog.md 1`).
 
 ## Decision
 
@@ -18,7 +18,7 @@ The main module depends on the standard library only, with `pgregory.net/rapid` 
 
 ## Alternatives considered
 
-- A CBOR, XML or Docker SDK dependency: each would need this ADR and would pull transitive code into a static binary the brief wants tiny; the needed subsets are small.
+- A CBOR, XML or Docker SDK dependency: each would need this ADR and would pull transitive code into a static binary meant to stay small; the needed subsets are small.
 - Returning "unsupported" for the xxHash algorithms: botocore, Java and C++ clients that ask for them would break; the digest form is settled, so the port is the right cost.
 - Vendoring the raw Service Reference JSON: licence unverified; the derived facts are what the generator needs.
 - A Smithy IDL parser in Go: no maintained 2.0 parser exists; the CLI conversion is deterministic and byte-identical across runs.
@@ -31,8 +31,8 @@ The main module depends on the standard library only, with `pgregory.net/rapid` 
 
 ## Amendments (review, 2026-10-08)
 
-- Overlay entries and parity fixtures labelled `third-party-recorded` are derived from LocalStack's snapshot files (Apache-2.0, archived repository). They are a third-party input like the others: `NOTICE` carries the attribution and the pinned commit, and every such overlay entry cites the file and line in its `evidence.source` (product m11).
-- `evidence.Label` is one Go type shared by the generator, the fidelity ledger, the protocol-test skip list and the parity replayer (engineering m4).
+- Overlay entries and parity fixtures labelled `third-party-recorded` are derived from LocalStack's snapshot files (Apache-2.0, archived repository). They are a third-party input like the others: `NOTICE` carries the attribution and the pinned commit, and every such overlay entry cites the file and line in its `evidence.source`.
+- `evidence.Label` is one Go type shared by the generator, the fidelity ledger, the protocol-test skip list and the parity replayer.
 
 ## Amendments (dependency policy, 2026-10-14)
 
@@ -77,3 +77,15 @@ Refused:
 - The Lambda Runtime Interface Emulator for `lambda/runtimeapi`: binary-only, and the defects ADR 0010 records are still in its source.
 - testify for tests: brings objx and yaml for assertion sugar and has shipped semantic regressions.
 - No standalone aws-chunked decoder or CloudWatch Logs filter library exists to consider.
+
+## Amendment (managed policies, 2026-10-14)
+
+Evaluating attached AWS managed policies needs their documents, and IAM enforcement ([ROADMAP](../ROADMAP.md) item 5) needs them shipped. The owner decided to ship them as a separate third-party input.
+
+- **Source.** The AWS Managed Policy Reference Guide on docs.aws.amazon.com, read through its `llms.txt` and the `.md` page it lists for each policy. AWS licenses docs.aws.amazon.com documentation under CC BY-SA 4.0 and the code in it under MIT-0, and each policy document is a code block on its page. AWS publishes the `llms.txt` for machine access, and the site's robots.txt does not disallow the path.
+- **Not used.** The IAM API (`ListPolicies`, `GetPolicyVersion`), whose output is AWS Content under the Customer Agreement and needs an account, and third-party datasets (iam-dataset, MAMIP), whose compilation licences do not change the terms of each document. A third-party dataset may at most be an offline cross-check in tests, never shipped.
+- **Generator.** Maintainer-run, under `internal/cmd`: it reads only the guide's `llms.txt` and the pages it lists, obeys robots.txt and its crawl delay, sends a descriptive User-Agent with the repository URL, and refetches on a release cadence. understudy binaries never fetch anything.
+- **Layout.** `third_party/aws-managed-policies/`, licensed separately from the Apache-2.0 code: its own `LICENSE` (MIT-0 for the documents, a CC BY-SA 4.0 notice for the documentation-derived fields such as name, ARN, version and times), a `NOTICE` keeping the CC BY-SA 4.0 attribution (source URL, copyright Amazon Web Services, Inc. or its affiliates, reformatted to JSON with no other changes), and a per-policy source URL and sha256. The binary embeds the directory; the root `NOTICE` and the README licence section list it. Reformatting is a change of format, not an adaptation, so ShareAlike does not reach the code beside it.
+- **Precedent.** moto (Apache-2.0) has embedded every AWS managed policy document since 2017, fetched from the IAM API, with no objection found.
+- **If AWS objects.** Stop the generator and keep the shipped data, whose CC BY-SA 4.0 grant is irrevocable. If AWS publishes the documents in a separately licensed bundle, switch to it.
+- Building the catalogue is part of IAM enforcement (ROADMAP item 5), not a separate item.

@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-The brief requires an admin API under a reserved prefix plus CLI subcommands for health, reset, clock, faults, journal, snapshots, resources, coverage and IAM policy generation. Agents and CI drive the CLI, so it must be scriptable. Fault rules and hot-reload mappings are structured data that a CI job wants to declare up front. Proposals differed on a config file (flags and env only vs an optional JSON file), on prompting, and on whether to expose Go packages.
+understudy needs an admin API under a reserved prefix plus CLI subcommands for health, reset, clock, faults, journal, snapshots, resources, coverage and IAM policy generation. Agents and CI drive the CLI, so it must be scriptable. Fault rules and hot-reload mappings are structured data that a CI job wants to declare up front. The designs considered differed on a config file (flags and env only vs an optional JSON file), on prompting, and on whether to expose Go packages.
 
 ## Decision
 
@@ -29,12 +29,12 @@ The brief requires an admin API under a reserved prefix plus CLI subcommands for
 
 ## Amendments (review, 2026-10-08)
 
-- Admin errors carry a closed `admin.ErrorCode` (`invalid_request`, `not_found`, `conflict`, `condition_not_met`, `unavailable`, `internal`) mapped to CLI exit codes in one table in the public package; the CLI never matches on strings (engineering m14).
-- `understudytest` returns an `admin.Client` bound to the in-process server and uses only `admin` wire types; it never exposes `internal` types (engineering m13). Parallel instances rely on per-kernel bindings (ADR 0003).
-- Configuration models its modes as sum types (engineering m15): `Listen: Loopback{AddrPort} | Exposed{AddrPort, Auth: Token{Secret} | ContainerPublished}` and `DynamoDB: Disabled | AwaitingLicence | Accepted{Digest}`. `ContainerPublished` is accepted by boot validation only inside a container (ADR 0011), so `docker run -p 4566:4566 understudy` works without a token while a non-loopback listener on a host still requires one.
+- Admin errors carry a closed `admin.ErrorCode` (`invalid_request`, `not_found`, `conflict`, `condition_not_met`, `unavailable`, `internal`) mapped to CLI exit codes in one table in the public package; the CLI never matches on strings.
+- `understudytest` returns an `admin.Client` bound to the in-process server and uses only `admin` wire types; it never exposes `internal` types. Parallel instances rely on per-kernel bindings (ADR 0003).
+- Configuration models its modes as sum types: `Listen: Loopback{AddrPort} | Exposed{AddrPort, Auth: Token{Secret} | ContainerPublished}` and `DynamoDB: Disabled | AwaitingLicence | Accepted{Digest}`. `ContainerPublished` is accepted by boot validation only inside a container (ADR 0011), so `docker run -p 4566:4566 understudy` works without a token while a non-loopback listener on a host still requires one.
 - `GET /health` is a readiness probe: `503` with the list of components still starting, then `200`; `--ready-file`, `understudy health --wait` and container health checks key on it. `/settle` reports pending work by `WorkKind`.
-- CLI additions: `journal --request-id`, `journal trace --request-id`, `--canonical`, `snapshot diff --normalize`, every fault match dimension and action as a flag, `images pull` (product m3, m4, m5).
-- A short distribution section in the architecture defines the static binary matrix, the `scratch` image with a non-root user and the release configuration; nothing is published in phase 1 (product C2).
+- CLI additions: `journal --request-id`, `journal trace --request-id`, `--canonical`, `snapshot diff --normalize`, every fault match dimension and action as a flag, `images pull`.
+- A short distribution section in the architecture (ARCHITECTURE.md 24) defines the static binary matrix, the `scratch` image with a non-root user and the release configuration; nothing is published in phase 1.
 
 ## Amendments (hardening round 1)
 

@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-The brief wants every API call and every cross-service delivery recorded with causal links, queryable and streamable, as a free equivalent of a paid inspector. Causality must survive asynchronous hops (a message enqueued now, invoked later) and calls made from inside function code, where no SDK forwards a trace header reliably (`lambda-runtime-contract.md`, `landscape.md` Implications 5). Proposals differed on the event model (flat strings vs typed detail), on causes across time, and on the stream encoding (SSE vs NDJSON).
+understudy records every API call and every cross-service delivery with causal links, queryable and streamable, as a free equivalent of a paid inspector. Causality must survive asynchronous hops (a message enqueued now, invoked later) and calls made from inside function code, where no SDK forwards a trace header reliably (`lambda-runtime-contract.md`). The designs considered differed on the event model (flat strings vs typed detail), on causes across time, and on the stream encoding (SSE vs NDJSON).
 
 ## Decision
 
@@ -30,14 +30,14 @@ The brief wants every API call and every cross-service delivery recorded with ca
 
 ## Amendments (review, 2026-10-08)
 
-- `journal` owns its record types and imports only `ref`, `aws`, `clock`, `ids` and `delivery`; `EventID` and `Cause` live in the leaf `ref` package and `APICall.Origin` is a `ref.Origin` (engineering C1). The principal is stored rendered, so `journal` never imports `identity`.
-- The default ring is 100,000 events or 128 MiB, sized to the RSS budget (product M6); eviction uses the per-event estimate (engineering m19).
-- `Detail` gains `Advisory` (a stored resource policy would deny a delivery; unminted credentials from a function container; a code update shadowed by a hot-reload overlay). `StateChange` carries closed `ResourceState` values, `Delivery` a `delivery.Mechanism`, `FaultInjected` a `ref.RuleID` (engineering m3).
-- Queries filter by request id and traces are reachable by request id, since that is the key users hold (product m3). On Linux bridge the request's `RemoteAddr` is a second linking signal for in-function calls; init-phase calls link to the cold-start `Invocation` event (fidelity F18).
+- `journal` owns its record types and imports only `ref`, `aws`, `clock`, `ids` and `delivery`; `EventID` and `Cause` live in the leaf `ref` package and `APICall.Origin` is a `ref.Origin`. The principal is stored rendered, so `journal` never imports `identity`.
+- The default ring is 100,000 events or 128 MiB, sized to the RSS budget; eviction uses the per-event estimate.
+- `Detail` gains `Advisory` (a stored resource policy would deny a delivery; unminted credentials from a function container; a code update shadowed by a hot-reload overlay). `StateChange` carries closed `ResourceState` values, `Delivery` a `delivery.Mechanism`, `FaultInjected` a `ref.RuleID`.
+- Queries filter by request id and traces are reachable by request id, since that is the key users hold. On Linux bridge the request's `RemoteAddr` is a second linking signal for in-function calls; init-phase calls link to the cold-start `Invocation` event.
 - Golden fixtures compare canonical trace trees (children sorted by kind, operation and resource; ids replaced by tree positions; `Wall` and `Latency` ignored), never raw event ids (ADR 0018).
-- The kernel is the only writer of `APICall` events; the edge writes `Unclaimed` only (engineering M8).
+- The kernel is the only writer of `APICall` events; the edge writes `Unclaimed` only.
 
-## Amendments (wave 3, 2026-10-10)
+## Amendments (implementation, 2026-10-10)
 
 - The NDJSON file is written by a background writer, never under the journal's lock, so a slow disk never backpressures the emulator. Its queue holds at most `MaxBytes` estimated bytes; when the disk falls that far behind, the file stops at the last event queued before the overflow and `FileErr` reports a `*journal.QueueFullError`. Every file failure stops the file, so it is always a prefix of recording order. `Close` waits for the queue to drain and has no deadline of its own.
 
@@ -45,6 +45,6 @@ The brief wants every API call and every cross-service delivery recorded with ca
 
 Decided at the pre-tag review.
 
-- `Detail` gains `Redrive{From, To, Messages, Reason}` (wire kind `redrive`), `Reason` a sealed `MaxReceiveCount{Count}` | `MoveTask{TaskHandle}`, recorded with `Tx.Record` from the SQS receive that exceeds `maxReceiveCount` and from each move-task step, so its parent is that receive or task event; it is the "journal edge source-receive to DLQ-send" of ARCHITECTURE.md 16. `delivery.Mechanism` stays the closed set of outbox paths; an in-service move is never a `Delivery`. Implementation is deferred to the first journal round after the tag (`docs/plan/DEFERRED.md`).
+- `Detail` gains `Redrive{From, To, Messages, Reason}` (wire kind `redrive`), `Reason` a sealed `MaxReceiveCount{Count}` | `MoveTask{TaskHandle}`, recorded with `Tx.Record` from the SQS receive that exceeds `maxReceiveCount` and from each move-task step, so its parent is that receive or task event; it is the "journal edge source-receive to DLQ-send" of ARCHITECTURE.md 16. `delivery.Mechanism` stays the closed set of outbox paths; an in-service move is never a `Delivery`. Implementation is deferred to the first journal round after the tag.
 - In-function calls, init phase included, are children of the `Invoke` call (the `Invocation` event's own parent), not of the `Invocation` event, which is written when the invocation ends; calls between invocations root their own trace. This supersedes the review amendment's "init-phase calls link to the cold-start `Invocation` event"; ARCHITECTURE.md 10 and 14.7 are amended to the implemented behavior.
 - `Detail` gains `AdminAction{Op: Reset | SnapshotSave | SnapshotLoad; Scope}` (wire kind `admin-action`), written by the admin handler like `ClockChanged`, one per action. It replaces the per-service DynamoDB summary event of ADR 0014; deferred to the post-tag journal round with `Redrive`.

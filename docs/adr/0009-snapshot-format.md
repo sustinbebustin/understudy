@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-The brief requires a versioned, deterministic file for the whole emulator state and opt-in persistence across restarts. LocalStack pickled object graphs and broke compatibility across releases; MiniStack restored event source mappings that were listed enabled but never polled, and added a downgrade guard that refuses files from newer binaries (`landscape.md 8`). DynamoDB Local's SQLite files cannot be copied safely while running (`dynamodb-local.md` Implications 11).
+understudy needs a versioned, deterministic file for the whole emulator state and opt-in persistence across restarts. LocalStack pickled object graphs and broke compatibility across releases; MiniStack restored event source mappings that were listed enabled but never polled, and added a downgrade guard that refuses files from newer binaries. DynamoDB Local's SQLite files cannot be copied safely while running (`dynamodb-local.md` Implications 11).
 
 ## Decision
 
@@ -32,11 +32,11 @@ The brief requires a versioned, deterministic file for the whole emulator state 
 
 ## Amendments (review, 2026-10-08)
 
-- Save is two-phase (engineering M4): under the gate's write side every `kernel.Stateful` exports to in-memory `store.Section` values and pins its blobs (the consistent cut); the gate is released; `kernel.Late` exporters (DynamoDB items, through the proxy with `Origin Internal{Via: Snapshot}`) run; then the tar is written. Load mirrors it: `Late` imports first, then reset-then-import under the gate, then `Rearm`. Nothing does I/O or runs the pipeline under the gate. `Stateful.Export` takes no writer.
-- Until the first tagged release the archive `format` is `0` and a section whose version differs from the running binary's is refused with a message naming both versions and the writing binary; migrations with golden fixtures become mandatory from the first release (engineering M9, product M7). The newer-format refusal stays.
+- Save is two-phase: under the gate's write side every `kernel.Stateful` exports to in-memory `store.Section` values and pins its blobs (the consistent cut); the gate is released; `kernel.Late` exporters (DynamoDB items, through the proxy with `Origin Internal{Via: Snapshot}`) run; then the tar is written. Load mirrors it: `Late` imports first, then reset-then-import under the gate, then `Rearm`. Nothing does I/O or runs the pipeline under the gate. `Stateful.Export` takes no writer.
+- Until the first tagged release the archive `format` is `0` and a section whose version differs from the running binary's is refused with a message naming both versions and the writing binary; migrations with golden fixtures become mandatory from the first release. The newer-format refusal stays.
 - Sealed sums in state serialize through one tagged-union convention in `jsonx` (`{"kind": "<variant>", ...}`) with a per-sum table and a rapid round-trip property per sum.
 - Accepted deliveries are outbox state (ADR 0015), so a save never names deliveries as not captured; the 5 s settle wait is gone.
-- DynamoDB persistence has one source of truth per mode (fidelity F11, product M3): under `--persist` Local runs with `-dbPath <dir>/dynamodb` and owns item data while the periodic archive carries shim state only; an explicit `snapshot save` exports items as `Late` sections; `snapshot load` and `reset` delete the tables in the running container and recreate them from the sections. A fresh `-inMemory` container is never started for a load. Local-minted stream labels change across a load and are listed as `aws-differs: dynamodb-local`.
+- DynamoDB persistence has one source of truth per mode: under `--persist` Local runs with `-dbPath <dir>/dynamodb` and owns item data while the periodic archive carries shim state only; an explicit `snapshot save` exports items as `Late` sections; `snapshot load` and `reset` delete the tables in the running container and recreate them from the sections. A fresh `-inMemory` container is never started for a load. Local-minted stream labels change across a load and are listed as `aws-differs: dynamodb-local`.
 - `snapshot diff --normalize` applies the closed normalizer set of ADR 0018.
 
 ## Amendments (hardening round 1)

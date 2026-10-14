@@ -29,6 +29,9 @@ coverage.txt
 *.tfstate
 *.tfstate.backup
 
+# Local tickets, specs and archived documents (docs/agents/issue-tracker.md)
+/.scratch/
+
 # Editor files
 .idea/
 .vscode/

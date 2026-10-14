@@ -4,7 +4,7 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-The brief wants build-as-you-go extensibility, unimplemented operations that fail loudly in AWS's own format, and a coverage report against the Smithy models. Three binding designs were proposed: a generated `Handlers` interface that is exactly the set listed in `codegen/services/<svc>.json` (compile-time enforcement, but a generator run per operation and a large interface per service), `api.Handle(r, op, fn)` with per-operation `Op[In,Out]` descriptors (simplicity), and a generated `Binder` with one method per operation taking a handler and a `Coverage` value (platform-dx).
+understudy needs build-as-you-go extensibility, unimplemented operations that fail loudly in AWS's own format, and a coverage report against the Smithy models. Three binding designs were considered: a generated `Handlers` interface that is exactly the set listed in `codegen/services/<svc>.json` (compile-time enforcement, but a generator run per operation and a large interface per service), `api.Handle(r, op, fn)` with per-operation `Op[In,Out]` descriptors, and a generated `Binder` with one method per operation taking a handler and a `Coverage` value.
 
 ## Decision
 
@@ -19,23 +19,23 @@ The brief wants build-as-you-go extensibility, unimplemented operations that fai
 
 - Generated `Handlers` interface from an `implemented` list: strongest compile-time guarantee, but every added operation is a config edit plus a generator run plus a checked-in diff, and a service interface with dozens of methods is hostile to incremental work. The guarantee this design keeps is the typed signature: a wrong input or output type is a compile error.
 - `error` return type constrained by review: rejected; "every failure is AWS-shaped" must be a property of the types.
-- Returning 400 `UnknownOperationException` or 500 for unimplemented operations: retried by some SDKs, indistinguishable from a bug, and not what the brief asks for.
+- Returning 400 `UnknownOperationException` or 500 for unimplemented operations: retried by some SDKs, indistinguishable from a bug, and not a loud failure.
 
 ## Consequences
 
-- Compile time and binary size scale with the whole model, not the implemented subset (ADR 0001 records the measurement and the pruning escape hatch).
+- Compile time and binary size scale with the whole model, not the implemented subset (ADR 0001 records the budgets and the pruning escape hatch).
 - The boot-time `registry.New` check catches a binding to a nonexistent operation and a descriptor without a builder.
 - Fault rules validate error shapes against the per-operation generated error list, which exists for unbound operations too.
 - The exact `NotImplemented` code string is a product choice; AWS documents none.
 
 ## Amendments (review, 2026-10-08)
 
-- Generated descriptors are immutable (engineering C3). Bindings live in a per-kernel `kernel.Bindings` table indexed by `Operation.Ordinal`; `Op[In, Out]` stays a static handle and `Invoke` resolves the handler through the kernel. Several kernels coexist in one process without a data race, which parallel tests and `understudytest` require.
-- Bind sites state a `registry.BindCoverage` (`Full`, `StoredOnly{Note}`, `Partial{Note}`); the kernel reports a `Status` (`Bound{Coverage}` or `Unbound`). `Unbound` cannot be bound. `kernel.New` fails on a duplicate bind or a bind outside the binder's service; the "operation absent from its model" check was impossible and is gone (engineering m2).
-- A bind may carry `kernel.WithValidator(func(*In) []awserr.Violation)`: a stateless, typed validator that runs at pipeline step 7 after the generated validator and before faults, so hand-owned limit texts keep the Coral check order (engineering M7).
-- Two kinds of operation exist outside the model (engineering M6, fidelity F13): `dev.understudy#internalOperation` (typed, non-routable, ADR 0002) and `rawOperations` in `codegen/services/<svc>.json` (a `registry.Operation` of kind `Raw` with an IAM action and a `BindRawHTTP` binder method, claimed by a prefix or host rule: Lambda `InvokeFunctionUrl`, SNS `ConfirmSubscriptionLink`, `UnsubscribeLink`, `SigningCert`). Both are journaled, faultable and listed separately in coverage.
-- `*awserr.Error` does not implement `error`; `Dispatch` maps `(nil, nil)` and `(out, err)` to `Internal` (engineering m1). `awserr.Identity` composite literals are forbidden outside `internal/api` and `internal/awserr` (engineering m11).
-- Services expose `Switches() []fidelity.Entry`; `wire.go` collects them for coverage (engineering m5).
+- Generated descriptors are immutable. Bindings live in a per-kernel `kernel.Bindings` table indexed by `Operation.Ordinal`; `Op[In, Out]` stays a static handle and `Invoke` resolves the handler through the kernel. Several kernels coexist in one process without a data race, which parallel tests and `understudytest` require.
+- Bind sites state a `registry.BindCoverage` (`Full`, `StoredOnly{Note}`, `Partial{Note}`); the kernel reports a `Status` (`Bound{Coverage}` or `Unbound`). `Unbound` cannot be bound. `kernel.New` fails on a duplicate bind or a bind outside the binder's service; the "operation absent from its model" check was impossible and is gone.
+- A bind may carry `kernel.WithValidator(func(*In) []awserr.Violation)`: a stateless, typed validator that runs at pipeline step 7 after the generated validator and before faults, so hand-owned limit texts keep the Coral check order.
+- Two kinds of operation exist outside the model: `dev.understudy#internalOperation` (typed, non-routable, ADR 0002) and `rawOperations` in `codegen/services/<svc>.json` (a `registry.Operation` of kind `Raw` with an IAM action and a `BindRawHTTP` binder method, claimed by a prefix or host rule: Lambda `InvokeFunctionUrl`, SNS `ConfirmSubscriptionLink`, `UnsubscribeLink`, `SigningCert`). Both are journaled, faultable and listed separately in coverage.
+- `*awserr.Error` does not implement `error`; `Dispatch` maps `(nil, nil)` and `(out, err)` to `Internal`. `awserr.Identity` composite literals are forbidden outside `internal/api` and `internal/awserr`.
+- Services expose `Switches() []fidelity.Entry`; `wire.go` collects them for coverage.
 
 ## Amendments (pre-tag review, 2026-10-13)
 

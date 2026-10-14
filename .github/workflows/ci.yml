@@ -108,9 +108,8 @@ jobs:
   # listens at /var/run/docker.sock.
   #
   # DynamoDB Local runs here and in conformance. The repository owner is its
-  # licensee for this workflow (docs/research/phase1/licensing-precedent.md,
-  # ADR 0014). The image is pulled by digest only: never cache, upload or
-  # push it.
+  # licensee for this workflow (ADR 0014, amendment of 2026-10-14). The
+  # image is pulled by digest only: never cache, upload or push it.
   test-docker:
     runs-on: ubuntu-latest
     steps:
