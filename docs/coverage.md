@@ -1083,9 +1083,9 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
 | `cloudwatch.get-metric-data.start-rounding` | `by-age` | aws-doc | docs/research/secrets-logs-events-alarms.md#53-getmetricdata |  |
-| `iam.assumeRole` | `strict` | aws-doc | docs/design/ARCHITECTURE.md#7-identity-auth-accounts-and-regions |  |
+| `iam.assumeRole` | `strict` | aws-doc | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions |  |
 | `kms.pending-deletion.crypto-error` | `KMSInvalidStateException` | aws-doc | docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix |  |
-| `lambda.stateTransitions` | `final` | aws-doc | docs/design/ARCHITECTURE.md#9-the-clock |  |
+| `lambda.stateTransitions` | `final` | aws-doc | docs/ARCHITECTURE.md#9-the-clock |  |
 | `logs.delivery.retention-days` | `2` | aws-doc | https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html |  |
 | `logs.retention.expiry` | `at-expiry` | aws-doc | docs/research/secrets-logs-events-alarms.md#32-retention |  |
 | `s3.create-bucket.public-acl` | `InvalidBucketAclWithObjectOwnership` | aws-doc | docs/research/s3.md#32-createbucket |  |
@@ -1146,7 +1146,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sqs.fifo.duplicate` | `original-message-id-and-sequence` | inferred | docs/research/sqs.md#82-deduplication |  |
 | `sqs.fifo.receipt-expiry` | `delete-and-change-visibility` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility |  |
 | `sqs.fifo.sequence-number` | `20-digit-decimal-per-queue` | inferred | docs/research/sqs.md#3-identifiers-and-formats |  |
-| `sqs.queueDeletedRecently` | `ignore` | inferred | docs/design/ARCHITECTURE.md#9-the-clock |  |
+| `sqs.queueDeletedRecently` | `ignore` | inferred | docs/ARCHITECTURE.md#9-the-clock |  |
 | `sqs.visibility.ceiling-from` | `latest-receive` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility |  |
 
 ### Overlay entries
@@ -1345,7 +1345,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | common.json | `dev.understudy#NotImplemented` |  | docs/adr/0003-operation-binding-and-coverage.md: understudy's own code for a modeled operation no handler is bound to; 501 is outside every SDK's retry set |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#AWSEvents` | dev.understudy#throttleError | docs/research/error-matrix.md#512-eventbridge-json-11 |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#PathParameter` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace |
-| inferred | iam.json | `com.amazonaws.iam#ResolveRole` |  | docs/design/ARCHITECTURE.md#7-identity-auth-accounts-and-regions: STS AssumeRole succeeds only if the role exists, and the same path mints Lambda execution-role credentials; STS reads the role from IAM through this operation |
+| inferred | iam.json | `com.amazonaws.iam#ResolveRole` |  | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions: STS AssumeRole succeeds only if the role exists, and the same path mints Lambda execution-role credentials; STS reads the role from IAM through this operation |
 | inferred | iam.json | `com.amazonaws.iam#ResolveRoleRequest` |  | docs/research/iam-sts-kms.md#42-assumerole: AssumeRole names the role by ARN |
 | inferred | iam.json | `com.amazonaws.iam#ResolveRoleResponse` |  | docs/research/iam-sts-kms.md#42-assumerole: the session needs the role's id for AssumedRoleId and its MaxSessionDuration for the DurationSeconds check |
 | inferred | iam.json | `com.amazonaws.iam#accountAliasType` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^[a-z0-9]([a-z0-9]\|-(?!-)){1,61}[a-z0-9]$ is 3 to 63 lowercase letters, digits and hyphens, alphanumeric at both ends, with no two hyphens in a row |
@@ -1356,8 +1356,8 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | lambda.json | `com.amazonaws.lambda#S3Bucket` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^[0-9A-Za-z\.\-_]*(?<!\.)$ is the class repeated, not ending in a dot |
 | inferred | lambda.json | `com.amazonaws.lambda#UpdateFunctionConfigurationRequest$Runtime` |  | docs/research/lambda-api.md#42-runtime-enum-and-deprecation: the deprecation text covers creating or updating functions, so the update answers like the create |
 | inferred | logs.json | `com.amazonaws.cloudwatchlogs#Logs_20140328` | dev.understudy#throttleError | docs/research/error-matrix.md#57-cloudwatch-logs-json-11 |
-| inferred | logs.json | `com.amazonaws.cloudwatchlogs#PutLogEventsInternal` |  | docs/design/ARCHITECTURE.md#146-logs |
-| inferred | logs.json | `com.amazonaws.cloudwatchlogs#PutLogEventsInternalRequest` |  | docs/design/ARCHITECTURE.md#146-logs |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#PutLogEventsInternal` |  | docs/ARCHITECTURE.md#146-logs |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#PutLogEventsInternalRequest` |  | docs/ARCHITECTURE.md#146-logs |
 | inferred | protocoltests.json | `aws.protocoltests.json#JsonProtocol` |  | docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsJson corpus has no server-side validation case, so the Coral code AWS JSON services send stands in |
 | inferred | protocoltests.json | `aws.protocoltests.json10#JsonRpc10` |  | docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsJson corpus has no server-side validation case, so the Coral code AWS JSON services send stands in |
 | inferred | protocoltests.json | `aws.protocoltests.json10#QueryCompatibleJsonRpc10` |  | docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsJson corpus has no server-side validation case, so the Coral code AWS JSON services send stands in |

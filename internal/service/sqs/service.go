@@ -193,6 +193,6 @@ func (s *Service) deletedRecently() fidelity.Switch[string] {
 		Name:  "sqs.queueDeletedRecently",
 		Value: s.opts.DeletedRecently.String(),
 		Label: evidence.Inferred,
-		Ref:   "docs/design/ARCHITECTURE.md#9-the-clock",
+		Ref:   "docs/ARCHITECTURE.md#9-the-clock",
 	}
 }

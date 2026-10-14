@@ -11,7 +11,7 @@ just test-docker     # Lambda, DynamoDB Local, container networking
 just aws ...         # AWS CLI against a loopback endpoint; `just tf ...` for Terraform
 ```
 
-`CONTRIBUTING.md` is the source of truth for the rules below in full, the recipes for adding an operation or a service, and the test layer that proves each kind of change. Design is in `docs/design/ARCHITECTURE.md` and `docs/adr/`; read both before a change that crosses packages. AWS behavior is researched in `docs/research/`.
+`CONTRIBUTING.md` is the source of truth for the rules below in full, the recipes for adding an operation or a service, and the test layer that proves each kind of change. Design is in `docs/ARCHITECTURE.md` and `docs/adr/`; read both before a change that crosses packages. AWS behavior is researched in `docs/research/`.
 
 ## Invariants
 

@@ -45,7 +45,7 @@
         "dev.understudy#internalOperation": {},
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/design/ARCHITECTURE.md#7-identity-auth-accounts-and-regions: STS AssumeRole succeeds only if the role exists, and the same path mints Lambda execution-role credentials; STS reads the role from IAM through this operation"
+          "source": "docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions: STS AssumeRole succeeds only if the role exists, and the same path mints Lambda execution-role credentials; STS reads the role from IAM through this operation"
         }
       }
     },

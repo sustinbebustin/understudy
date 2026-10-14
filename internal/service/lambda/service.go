@@ -163,7 +163,7 @@ func (s *Service) Switches() []fidelity.Entry {
 		Name:  "lambda.stateTransitions",
 		Value: s.opts.StateTransitions.String(),
 		Label: evidence.AWSDoc,
-		Ref:   "docs/design/ARCHITECTURE.md#9-the-clock",
+		Ref:   "docs/ARCHITECTURE.md#9-the-clock",
 	}.Entry()}, esm.Switches()...)
 }
 

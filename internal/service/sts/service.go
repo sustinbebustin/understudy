@@ -119,6 +119,6 @@ func (s *Service) roleCheck() fidelity.Switch[string] {
 		Name:  "iam.assumeRole",
 		Value: s.opts.AssumeRole.String(),
 		Label: s.opts.AssumeRole.label(),
-		Ref:   "docs/design/ARCHITECTURE.md#7-identity-auth-accounts-and-regions",
+		Ref:   "docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions",
 	}
 }

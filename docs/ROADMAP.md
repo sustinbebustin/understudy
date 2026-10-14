@@ -1,6 +1,6 @@
 # Roadmap
 
-Where understudy goes after phase 1, ordered by value to the people it is for: teams testing event-driven systems on AWS who want fast, deterministic, free tests of how services interact, including time, failures and permissions. The ordering follows from three facts: the product's bet is fidelity (so trust comes before breadth), the phase 1 workload is a webhook-to-worker pipeline (so the services that sit at its edges come next), and the platform seams listed in [ARCHITECTURE.md section 21](design/ARCHITECTURE.md#21-phase-2-extension-points) make some items much cheaper than others.
+Where understudy goes after phase 1, ordered by value to the people it is for: teams testing event-driven systems on AWS who want fast, deterministic, free tests of how services interact, including time, failures and permissions. The ordering follows from three facts: the product's bet is fidelity (so trust comes before breadth), the phase 1 workload is a webhook-to-worker pipeline (so the services that sit at its edges come next), and the platform seams listed in [ARCHITECTURE.md section 21](ARCHITECTURE.md#21-phase-2-extension-points) make some items much cheaper than others.
 
 Phase 1, the twelve services and platform features the README describes, is the baseline. Nothing here is scheduled; the order is the priority.
 

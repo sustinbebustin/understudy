@@ -202,7 +202,7 @@ Behavior that differs from AWS in ways a test can observe is listed in [docs/gui
 - [Guide](docs/guide/README.md) -- getting started, configuration, SDKs and the CLI, Terraform, Lambda, the clock, fault injection, the journal, snapshots, policy generation and CI.
 - [Configuration reference](docs/configuration.md) -- every flag, variable and file key.
 - [Coverage](docs/coverage.md) -- every operation, fidelity switch and evidence item.
-- [Architecture](docs/design/ARCHITECTURE.md) and [ADRs](docs/adr/) -- the design and its decisions.
+- [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/adr/) -- the design and its decisions.
 - [Examples](examples/) -- runnable projects: a boto3 worker, SNS -> SQS -> Lambda with Terraform, Docker Compose, GitHub Actions.
 
 ## Contributing and security

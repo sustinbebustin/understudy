@@ -51,7 +51,7 @@ func TestCitationGuardReportsSyntheticViolations(t *testing.T) {
 	root := t.TempDir()
 	files := map[string]string{
 		"README.md":                           "",
-		"docs/design/ARCHITECTURE.md":         "",
+		"docs/ARCHITECTURE.md":                "",
 		"docs/research/sns.md":                "",
 		"docs/research/s3-checksum.md":        "",
 		"docs/research/sqs.md":                "",

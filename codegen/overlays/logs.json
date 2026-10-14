@@ -33,7 +33,7 @@
         "dev.understudy#internalOperation": {},
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/design/ARCHITECTURE.md#146-logs"
+          "source": "docs/ARCHITECTURE.md#146-logs"
         }
       }
     },
@@ -48,7 +48,7 @@
         "smithy.api#input": {},
         "dev.understudy#evidence": {
           "label": "inferred",
-          "source": "docs/design/ARCHITECTURE.md#146-logs"
+          "source": "docs/ARCHITECTURE.md#146-logs"
         }
       }
     }
