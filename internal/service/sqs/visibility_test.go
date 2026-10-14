@@ -28,9 +28,11 @@ type modelMessage struct {
 // visibilityMachine drives one queue through random sends with delays,
 // receives, deletes, visibility changes, purges and clock advances against
 // a model of each message's visibility (ADR 0005). After every step the
-// armed sqs.visibility timers of the queue are exactly the messages hidden
-// at now, due when they become visible, every message has its retention
-// timer, and the queue holds exactly the model's messages; every receive
+// armed sqs.delay timers of the queue are exactly the messages hidden at
+// now and never received, the armed sqs.visibility timers exactly the
+// received ones hidden at now, each due when it becomes visible, every
+// message has its retention timer, and the queue holds exactly the
+// model's messages; every receive
 // returns the model's messages, so none is lost, duplicated or brought
 // back after a delete or a purge.
 type visibilityMachine struct {
@@ -232,17 +234,23 @@ func (m *visibilityMachine) advance(t *rapid.T) {
 
 func (m *visibilityMachine) check(t *rapid.T) {
 	now := m.h.Clock.Now()
-	want := map[string]clock.Instant{}
+	delayed, hidden := map[string]clock.Instant{}, map[string]clock.Instant{}
 	for _, msg := range m.messages {
-		if msg.visibleAt.Compare(now) > 0 {
-			want[m.arn+"/"+msg.id] = msg.visibleAt
+		if msg.visibleAt.Compare(now) <= 0 {
+			continue
+		}
+		if msg.handle == "" {
+			delayed[m.arn+"/"+msg.id] = msg.visibleAt
+		} else {
+			hidden[m.arn+"/"+msg.id] = msg.visibleAt
 		}
 	}
 	retention := map[string]clock.Instant{}
 	for _, msg := range m.messages {
 		retention[m.arn+"/"+msg.id] = msg.sent.Add(4 * 24 * time.Hour)
 	}
-	m.checkTimers(t, sqs.TimerVisibility, want)
+	m.checkTimers(t, sqs.TimerDelay, delayed)
+	m.checkTimers(t, sqs.TimerVisibility, hidden)
 	m.checkTimers(t, sqs.TimerRetention, retention)
 	summary := fmt.Sprintf("%d messages", len(m.messages))
 	res := m.h.svc.Resources(m.h.Scope)

@@ -13,8 +13,11 @@ import (
 // The timer kinds SQS registers. Each key's ID names the queue by ARN, so
 // the handler finds its cell.
 const (
-	// TimerVisibility fires when a message becomes receivable: its delay
-	// or its visibility timeout ends. ID "<queue-arn>/<message-id>".
+	// TimerDelay fires when a message's delay ends, before its first
+	// receive. ID "<queue-arn>/<message-id>".
+	TimerDelay kernel.TimerKind = "sqs.delay"
+	// TimerVisibility fires when a received message's visibility timeout
+	// ends. ID "<queue-arn>/<message-id>".
 	TimerVisibility kernel.TimerKind = "sqs.visibility"
 	// TimerRetention fires when a message reaches the queue's
 	// MessageRetentionPeriod. ID "<queue-arn>/<message-id>".
@@ -60,7 +63,7 @@ type Service struct {
 	opts  Options
 	cells *store.Partitioned[aws.Scope, State]
 	// The timer kinds as registered with the kernel.
-	visibility, retention, moveTask kernel.HandledKind
+	delay, visibility, retention, moveTask kernel.HandledKind
 }
 
 // New binds every SQS operation and the internal HoldVisibility and
@@ -72,6 +75,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		opts:  o,
 		cells: store.NewPartitioned(d.Kernel.Gate(), codec(), newState),
 	}
+	s.delay = d.Kernel.Timers().Handle(TimerDelay, s.onVisibility)
 	s.visibility = d.Kernel.Timers().Handle(TimerVisibility, s.onVisibility)
 	s.retention = d.Kernel.Timers().Handle(TimerRetention, s.onRetention)
 	s.moveTask = d.Kernel.Timers().Handle(TimerMoveTask, s.onMoveTask)

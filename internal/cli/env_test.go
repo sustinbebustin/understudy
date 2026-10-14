@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,19 +51,54 @@ func TestEnvTLS(t *testing.T) {
 	if !strings.Contains(js.stdout, "NODE_EXTRA_CA_CERTS="+ca+"\n") || strings.Contains(js.stdout, "AWS_CA_BUNDLE") {
 		t.Errorf("env --tls --sdk js:\n%s", js.stdout)
 	}
+	// The S3 notes follow the endpoint env prints, the TLS listener's, not
+	// the main endpoint's host form.
+	const ipNote, hostNote = "at an IP-literal endpoint without o.UsePathStyle", "o.UsePathStyle = true"
+	if !strings.Contains(r.stdout, ipNote) || strings.Contains(r.stdout, hostNote) {
+		t.Errorf("env --sdk go --tls-endpoint %s prints no IP-literal note:\n%s", s.tlsEndpoint, r.stdout)
+	}
+	tlsURL, err := url.Parse(s.tlsEndpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := "https://localhost:" + tlsURL.Port()
+	named := runCLI(t.Context(), s.endpoint, nil, "env", "--sdk", "go", "--format", "dotenv", "--tls-endpoint", byName, "--ca-file", ca)
+	if named.code != admin.ExitOK || !strings.Contains(named.stdout, "AWS_ENDPOINT_URL="+byName+"\n") ||
+		!strings.Contains(named.stdout, hostNote) || strings.Contains(named.stdout, ipNote) {
+		t.Errorf("env --sdk go --tls-endpoint %s at main endpoint %s = %d, want the host-name S3 note:\n%s%s", byName, s.endpoint, named.code, named.stdout, named.stderr)
+	}
 	plain := runCLI(t.Context(), s.endpoint, nil, "env", "--tls-endpoint", s.endpoint)
 	if plain.code != admin.ExitUsage {
 		t.Errorf("env --tls-endpoint http://... = %d, want 2", plain.code)
 	}
 }
 
+// env prints AWS_ENDPOINT_URL as serve's banner announces it, so the two
+// blocks a user copies from agree.
+func TestEnvMatchesBanner(t *testing.T) {
+	s := serve(t)
+	r := runCLI(t.Context(), s.endpoint, nil, "env")
+	if code := s.stop(); code != admin.ExitOK || r.code != admin.ExitOK {
+		t.Fatalf("serve = %d, env = %d %s; stderr:\n%s", code, r.code, r.stderr, s.stderr)
+	}
+	var banner string
+	for line := range strings.Lines(s.stderr.String()) {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "export AWS_ENDPOINT_URL="); ok {
+			banner = v
+		}
+	}
+	if banner == "" {
+		t.Fatalf("the banner exports no AWS_ENDPOINT_URL:\n%s", s.stderr)
+	}
+	if want := "export AWS_ENDPOINT_URL='" + banner + "'\n"; !strings.Contains(r.stdout, want) {
+		t.Errorf("env prints\n%s\nwant the banner's endpoint %s", r.stdout, banner)
+	}
+}
+
 // env prints the exact variables an SDK reads, in each format.
 func TestEnvFormats(t *testing.T) {
 	endpoint := closedEndpoint(t)
-	// The loopback IP literal becomes localhost, the endpoint ADR 0013
-	// documents, so clients can address <bucket>.localhost and
-	// <account>.localhost.
-	sdk := "http://localhost:" + endpoint[strings.LastIndexByte(endpoint, ':')+1:]
+	sdk := endpoint
 	cases := map[string]string{
 		"sh":     "export AWS_ENDPOINT_URL='" + sdk + "'\nexport AWS_ACCESS_KEY_ID='test'\nexport AWS_SECRET_ACCESS_KEY='test'\nexport AWS_REGION='eu-west-1'\n",
 		"fish":   "set -gx AWS_ENDPOINT_URL '" + sdk + "'\nset -gx AWS_ACCESS_KEY_ID 'test'\nset -gx AWS_SECRET_ACCESS_KEY 'test'\nset -gx AWS_REGION 'eu-west-1'\n",
@@ -78,8 +114,10 @@ func TestEnvFormats(t *testing.T) {
 		if r.code != admin.ExitOK || got != want {
 			t.Errorf("env --format %s = %d\n%s\nwant\n%s", format, r.code, got, want)
 		}
-		if !strings.Contains(r.stdout+r.stderr, "UsePathStyle") {
-			t.Errorf("env --sdk go --format %s does not name UsePathStyle", format)
+		// At an IP-literal endpoint the Go SDK's S3 endpoint rules choose
+		// path style whatever UsePathStyle says.
+		if !strings.Contains(r.stdout+r.stderr, "Go: the SDK addresses S3 path style at an IP-literal endpoint") {
+			t.Errorf("env --sdk go --format %s does not say the IP-literal endpoint means path style:\n%s%s", format, r.stdout, r.stderr)
 		}
 	}
 	r := runCLI(t.Context(), endpoint, nil, "env", "--sdk", "python", "--format", "dotenv")
@@ -87,16 +125,27 @@ func TestEnvFormats(t *testing.T) {
 		t.Errorf("env --sdk python lacks AWS_DEFAULT_REGION:\n%s", r.stdout)
 	}
 	// Terraform 6.x reads bucket tags through S3 Control at
-	// <account>.<endpoint host>, so it needs skip_requesting_account_id
-	// where *.localhost does not resolve.
+	// <account>.<endpoint host>. At an IP-literal endpoint that host never
+	// resolves, so skip_requesting_account_id is required whether or not
+	// *.localhost resolves.
 	tf := runCLI(t.Context(), endpoint, nil, "env", "--sdk", "terraform")
-	if !strings.Contains(tf.stdout, "skip_requesting_account_id = true") || !strings.Contains(tf.stdout, "s3_use_path_style = true") {
-		t.Errorf("env --sdk terraform names neither skip_requesting_account_id nor s3_use_path_style:\n%s", tf.stdout)
+	tfNote := noteLine(tf.stdout, "# Terraform: ")
+	if tf.code != admin.ExitOK || !strings.Contains(tfNote, "skip_requesting_account_id = true is required") || strings.Contains(tfNote, "unless *.localhost resolves") {
+		t.Errorf("env --sdk terraform at an IP-literal endpoint = %d, Terraform note %q; want skip_requesting_account_id required unconditionally:\n%s", tf.code, tfNote, tf.stdout)
 	}
-	// A hostname endpoint is kept as given.
+	// At a host name both settings are needed unless *.localhost resolves.
+	tfNamed := runCLI(t.Context(), "http://understudy:4566", nil, "env", "--sdk", "terraform")
+	if !strings.Contains(tfNamed.stdout, "skip_requesting_account_id = true") || !strings.Contains(tfNamed.stdout, "s3_use_path_style = true") {
+		t.Errorf("env --sdk terraform at a host name names neither skip_requesting_account_id nor s3_use_path_style:\n%s", tfNamed.stdout)
+	}
+	// A hostname endpoint is kept as given, and at a host name the Go and
+	// JS SDKs address S3 virtual-hosted unless told otherwise.
 	named := runCLI(t.Context(), "http://understudy:4566", nil, "env", "--format", "dotenv")
 	if !strings.Contains(named.stdout, "AWS_ENDPOINT_URL=http://understudy:4566\n") {
 		t.Errorf("env with a hostname endpoint rewrote it:\n%s", named.stdout)
+	}
+	if !strings.Contains(named.stdout, "o.UsePathStyle = true") || !strings.Contains(named.stdout, "forcePathStyle: true") {
+		t.Errorf("env with a hostname endpoint names neither UsePathStyle nor forcePathStyle:\n%s", named.stdout)
 	}
 }
 
@@ -156,4 +205,15 @@ func stripComments(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// noteLine is the first line of s that starts with prefix, or "" when none
+// does.
+func noteLine(s, prefix string) string {
+	for line := range strings.Lines(s) {
+		if strings.HasPrefix(line, prefix) {
+			return line
+		}
+	}
+	return ""
 }

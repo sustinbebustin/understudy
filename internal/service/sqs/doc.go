@@ -12,8 +12,9 @@
 // ReceiveMessage is the long-poll reference of ARCHITECTURE.md 8.
 //
 // Timers, all on the emulator clock and re-armed by Rearm from the state:
-// sqs.visibility fires when a message becomes receivable (its delay or its
-// visibility timeout ends) and wakes the queue's receivers; sqs.retention
+// sqs.delay fires when a message's delay ends and sqs.visibility when a
+// received message's visibility timeout ends, and each wakes the queue's
+// receivers once the message is receivable; sqs.retention
 // deletes a message at the end of the queue's MessageRetentionPeriod, in
 // flight or not, and is re-armed for every message when SetQueueAttributes
 // changes the period; sqs.move-task moves a running task's next messages.

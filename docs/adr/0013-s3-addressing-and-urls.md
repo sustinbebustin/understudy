@@ -40,3 +40,7 @@ Go v2 and JS v3 send `Host: <bucket>.localhost:<port>` against `http://localhost
 Decided at the pre-tag review.
 
 - `s3.amazonaws.com` and `s3.<region>.amazonaws.com` are not base domains in phase 1. Every supported client takes `AWS_ENDPOINT_URL`, serving the AWS names over TLS would need a certificate for `*.amazonaws.com`, and the loopback host policy (DNS rebinding) answers only names the operator chose under `localhost`, IP literals and `localhost.localstack.cloud`. The configuration and the host policy are unchanged. Capturing the AWS names is a phase 2 option behind the DNS ADR.
+
+## Amendments (pre-tag fixes, 2026-10-14)
+
+- The decision's "the documented endpoint is `http://localhost:4566`" no longer holds. `understudy env` prints the endpoint as the banner and the ready file give it, an IP literal (`http://127.0.0.1:4566`) by default, so the two blocks a user copies agree; with `--tls` it prints the TLS listener's URL. Its S3 notes follow the host form of the endpoint it prints. At an IP literal the Go and JS SDKs and the Terraform provider address S3 path style by themselves, and Terraform needs `skip_requesting_account_id = true`, since its S3 Control bucket tag reads go to `<account>.<IP>`, which cannot resolve. Virtual-hosted S3 in Go and JS, and Terraform bucket tag reads with no skip setting, need a localhost endpoint the user chooses (`AWS_ENDPOINT_URL=http://localhost:4566`) and `*.localhost` resolving, which `understudy doctor` checks. At a host name `env` keeps the path-style notes of the decision.

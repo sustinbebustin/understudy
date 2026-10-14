@@ -30,21 +30,33 @@ func parseTimerID(key string) (queueRef, string, bool) {
 	return q, after, ok
 }
 
-// armVisibility makes the visibility timer of m agree with it at now: armed
-// for when a hidden message becomes receivable, disarmed for a pinned one,
-// which only HoldVisibility releases, and for a receivable one, whose
-// queue's receivers are woken.
+// armVisibility makes the timers that end m's hidden time agree with it at
+// now: the one for its phase (wakeTimer) armed for when a hidden message
+// becomes receivable, both disarmed for a pinned one, which only
+// HoldVisibility releases, and for a receivable one, whose queue's
+// receivers are woken.
 func (s *Service) armVisibility(tx *kernel.Tx, q queueRef, m *Message, now clock.Instant) {
 	id := timerID(q, string(m.ID))
+	wake, other := s.wakeTimer(m)
+	tx.Disarm(other, id)
 	switch {
 	case m.pinned():
-		tx.Disarm(s.visibility, id)
+		tx.Disarm(wake, id)
 	case m.visible(now):
-		tx.Disarm(s.visibility, id)
+		tx.Disarm(wake, id)
 		tx.Wake(q.waitKey())
 	default:
-		tx.Arm(s.visibility, id, m.VisibleAt)
+		tx.Arm(wake, id, m.VisibleAt)
 	}
+}
+
+// wakeTimer is the timer kind that ends m's hidden time, sqs.delay before
+// its first receive and sqs.visibility after, and the other of the two.
+func (s *Service) wakeTimer(m *Message) (wake, other kernel.HandledKind) {
+	if m.Receives == nil {
+		return s.delay, s.visibility
+	}
+	return s.visibility, s.delay
 }
 
 // armRetention arms the retention timer of m for the end of queue's
@@ -53,8 +65,9 @@ func (s *Service) armRetention(tx *kernel.Tx, q queueRef, queue *Queue, m *Messa
 	tx.Arm(s.retention, timerID(q, string(m.ID)), m.Sent.Add(seconds(queue.Attributes.MessageRetentionPeriod)))
 }
 
-// disarmMessage disarms both timers of a message leaving the queue.
+// disarmMessage disarms every timer of a message leaving the queue.
 func (s *Service) disarmMessage(tx *kernel.Tx, q queueRef, id ids.MessageID) {
+	tx.Disarm(s.delay, timerID(q, string(id)))
 	tx.Disarm(s.visibility, timerID(q, string(id)))
 	tx.Disarm(s.retention, timerID(q, string(id)))
 }
@@ -78,8 +91,9 @@ func (s *Service) removeMessages(tx *kernel.Tx, q queueRef, queue *Queue, at []i
 	tx.Wake(q.waitKey())
 }
 
-// onVisibility wakes the queue's receivers when the timer's message is
-// still there and receivable; a deleted message's timer does nothing.
+// onVisibility, the handler of both sqs.delay and sqs.visibility, wakes the
+// queue's receivers when the timer's message is still there and
+// receivable; a deleted message's timer does nothing.
 func (s *Service) onVisibility(_ *kernel.Call, key clock.TimerKey, due clock.Instant) {
 	q, id, ok := parseTimerID(key.ID)
 	if !ok {

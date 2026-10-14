@@ -2,7 +2,7 @@
 
 Every current AWS SDK and the AWS CLI v2 read `AWS_ENDPOINT_URL`, so `eval "$(understudy env)"` is the whole setup for code that builds its clients from the default configuration. The snippets below were run that way; none of them names understudy.
 
-The one setting no variable carries is S3 path-style addressing in the Go and JS SDKs. You need it unless `*.localhost` names resolve on your machine, which `understudy doctor` checks; when they do, virtual-hosted requests such as `http://my-bucket.s3.localhost:4566/` work as well.
+The one setting no variable carries is S3 path-style addressing in the Go and JS SDKs. At the `http://127.0.0.1:4566` endpoint `understudy env` prints, both SDKs already address S3 path style, since a bucket cannot go in front of an IP address; the setting in the snippets below changes nothing there. It matters at a host-name endpoint: at `http://localhost:4566` the SDKs address S3 virtual-hosted, which works only where `*.localhost` names resolve (`understudy doctor` checks), and need the path-style setting everywhere else. Virtual-hosted requests such as `http://my-bucket.s3.localhost:4566/` need that localhost endpoint.
 
 ## Go (aws-sdk-go-v2)
 

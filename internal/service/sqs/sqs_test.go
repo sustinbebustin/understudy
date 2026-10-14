@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/journal"
@@ -563,10 +564,43 @@ func TestDelayedMessagesBecomeVisibleOnTheClock(t *testing.T) {
 	})
 }
 
+// A message waits out its delay on an sqs.delay timer, which is what
+// `clock advance` names when the delay ends, and a received message waits
+// out its visibility timeout on an sqs.visibility timer.
+func TestDelayedMessageWaitsOnItsOwnTimer(t *testing.T) {
+	run(t, func(h *harness) {
+		url := h.queue("delayed", nil)
+		if _, err := h.send(&sqsapi.SendMessageInput{QueueUrl: url, MessageBody: "later", DelaySeconds: new(int32(10))}); err != nil {
+			h.Fatal(err.Message)
+		}
+		if d, v := armedTimers(h, sqs.TimerDelay), visibilityTimers(h); d != 1 || v != 0 {
+			h.Fatalf("timers of a delayed message: %d delay, %d visibility; want 1 delay", d, v)
+		}
+		adv, err := h.Clock.Advance(10 * time.Second)
+		if err != nil {
+			h.Fatal(err)
+		}
+		if len(adv.Fired) != 1 || adv.Fired[0].Kind != sqs.TimerDelay {
+			h.Fatalf("advance past the delay fired %+v, want one %s timer", adv.Fired, sqs.TimerDelay)
+		}
+		if msgs := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url, VisibilityTimeout: new(int32(30))}); len(msgs) != 1 {
+			h.Fatalf("after the delay: %+v", msgs)
+		}
+		if d, v := armedTimers(h, sqs.TimerDelay), visibilityTimers(h); d != 0 || v != 1 {
+			h.Fatalf("timers of a received message: %d delay, %d visibility; want 1 visibility", d, v)
+		}
+	})
+}
+
 func visibilityTimers(h *harness) int {
+	return armedTimers(h, sqs.TimerVisibility)
+}
+
+// armedTimers counts the armed timers of kind.
+func armedTimers(h *harness, kind clock.TimerKind) int {
 	n := 0
 	for _, a := range h.Kernel.Timers().Scheduler().Snapshot() {
-		if a.Key.Kind == sqs.TimerVisibility {
+		if a.Key.Kind == kind {
 			n++
 		}
 	}

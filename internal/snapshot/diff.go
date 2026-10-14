@@ -60,6 +60,39 @@ type Difference struct {
 	Before, After string
 }
 
+// Counter names a manifest value that moves whenever the server works
+// between two saves, as opposed to resource state.
+type Counter uint8
+
+// The Counter values.
+const (
+	// NoCounter: the difference is not a manifest counter.
+	NoCounter Counter = iota
+	// JournalCounter: the manifest's journalNext, the id the journal
+	// assigns next. Normalizing masks it.
+	JournalCounter
+	// PositionCounter: a seeded id stream's position, or the whole
+	// positions object. Normalizing keeps it, since one seed and one
+	// workload reproduce it, apart from the positions of the request-id
+	// and lambda-request-id streams, whose names the request id rule
+	// matches.
+	PositionCounter
+)
+
+// Counter reports which manifest counter d is a difference of, if any.
+func (d Difference) Counter() Counter {
+	if d.Entry != manifestName {
+		return NoCounter
+	}
+	switch {
+	case d.Pointer == "/journalNext":
+		return JournalCounter
+	case d.Pointer == "/positions" || strings.HasPrefix(d.Pointer, "/positions/"):
+		return PositionCounter
+	}
+	return NoCounter
+}
+
 // String renders the difference on one line: "+ entry pointer: after",
 // "- entry pointer: before" or "~ entry pointer: before -> after".
 func (d Difference) String() string {

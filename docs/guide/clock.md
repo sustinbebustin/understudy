@@ -1,6 +1,6 @@
 # The clock
 
-Every time-based behavior in understudy runs on one emulator clock: SQS visibility timeouts, delays and retention, SNS and EventBridge delivery retries, Lambda batching windows and asynchronous retries, EventBridge schedules, DynamoDB TTL, Secrets Manager and KMS deletion windows, log retention, S3 presigned URL expiry (under `--sigv4 verify`; without it a presigned URL never expires), and the timestamps the APIs return. You can stop it, move it forward, or speed it up. A test keeps AWS's real settings (a 30-second visibility timeout, a 15-minute delay, a 7-day deletion window) and still finishes in milliseconds.
+Every time-based behavior in understudy runs on one emulator clock: SQS visibility timeouts, delays and retention, SNS and EventBridge delivery retries, Lambda batching windows and asynchronous retries, EventBridge schedules, DynamoDB TTL, Secrets Manager and KMS deletion windows, log retention, S3 presigned URL expiry (under `--sigv4 verify`, SigV4 URLs only, see [Signature verification](../configuration.md#signature-verification); without `verify` a presigned URL never expires), and the timestamps the APIs return. You can stop it, move it forward, or speed it up. A test keeps AWS's real settings (a 30-second visibility timeout, a 15-minute delay, a 7-day deletion window) and still finishes in milliseconds.
 
 ## Commands
 
@@ -73,7 +73,7 @@ curl -s -X POST http://127.0.0.1:4566/_understudy/v1/clock -H 'Content-Type: app
 - Work that is due now still happens. SNS fan-out, S3 notifications, `PutEvents` deliveries, the first attempt of an asynchronous invoke and SQS-to-Lambda polling with no batching window all run on a frozen clock. Only work scheduled for later waits.
 - Resources are final before the call that creates them returns, in every mode, so a frozen clock never leaves Terraform waiting for `Active`.
 - Wall time still governs what the emulator cannot control: a running function's timeout and its `REPORT` durations, idle container reaping, injected latency, STS credential expiry and the SigV4 clock-skew check. Long polls end after their wait time in wall time too, so a client is never stuck on a frozen clock.
-- Code inside a function that reads the system time sees wall time. A function that needs emulator time can read it from `GET /_understudy/v1/clock`, which function containers may call.
+- Code inside a function that reads the system time sees wall time. A function that needs emulator time can read it from `GET /_understudy/v1/clock`, which function containers may call without a token. When an admin token guards the listener functions call (understudy in a container, or on Docker Desktop listening beyond loopback), the clock needs the token too (see [SECURITY.md](../../SECURITY.md)).
 - While the clock is frozen or scaled, messages an SQS event source mapping is processing stay invisible until the invocation returns, so a scaled clock cannot make AWS's visibility timeout expire mid-invocation. With a running clock, visibility behaves as on AWS.
 
 ## Going back

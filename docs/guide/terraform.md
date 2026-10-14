@@ -1,6 +1,6 @@
 # Terraform
 
-The Terraform AWS provider reads `AWS_ENDPOINT_URL`, so a configuration written for AWS applies to understudy with one provider setting. The goal for every resource type understudy supports: `apply` succeeds, a second `plan` shows no changes, and `destroy` leaves nothing behind. [conformance/terraform](../../conformance/terraform/) checks exactly that for each service with provider 6.68.0.
+The Terraform AWS provider reads `AWS_ENDPOINT_URL`, so a configuration written for AWS applies to understudy with two provider settings. The goal for every resource type understudy supports: `apply` succeeds, a second `plan` shows no changes, and `destroy` leaves nothing behind. [conformance/terraform](../../conformance/terraform/) checks exactly that for each service with provider 6.68.0.
 
 ## Provider
 
@@ -16,11 +16,12 @@ terraform {
 
 # The endpoint and credentials come from 'understudy env'.
 provider "aws" {
-  s3_use_path_style = true
+  s3_use_path_style          = true
+  skip_requesting_account_id = true
 }
 ```
 
-No `skip_*` flag is needed: understudy answers the provider's startup `sts:GetCallerIdentity` with the account the access key selects. If `*.localhost` names do not resolve on your machine (`understudy doctor` says), also set `skip_requesting_account_id = true`: the provider reads S3 bucket tags from an `<account>.<endpoint host>` address otherwise.
+`skip_requesting_account_id = true` is required at the `http://127.0.0.1:4566` endpoint `understudy env` prints: with an account id, the provider reads S3 bucket tags through S3 Control at `<account>.<endpoint host>`, which cannot resolve for an IP address, and the refresh fails. `s3_use_path_style` is optional there, since the provider addresses S3 path style at an IP address anyway. The provider's startup `sts:GetCallerIdentity` needs no skip setting: understudy answers it with the account the access key selects. If `*.localhost` names resolve on your machine (`understudy doctor` says) and you set `AWS_ENDPOINT_URL=http://localhost:4566` yourself, neither setting is needed.
 
 ## Apply, plan, destroy
 

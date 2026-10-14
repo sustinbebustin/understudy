@@ -148,6 +148,8 @@ understudy detects how containers reach it the first time a function runs, and `
 | In a container (the image) | understudy's own container network; functions join it |
 | Rootless Docker, rootless Podman | Not supported; understudy says so when a function would start |
 
+On a Linux host functions reach only the AWS API and the read-only health and clock endpoints. On Docker Desktop and in a container they call the main listener, so function code can reach the whole admin API; [SECURITY.md](../../SECURITY.md) says when an admin token closes that.
+
 `lambda.network` in the configuration file overrides detection: `bridge` with a `bridgeGateway` address, or `disabled` for the control plane only. Each execution environment gets its own Runtime API listener on the same address. Containers are labeled, removed when understudy stops, and swept on the next start or by `understudy cleanup` if understudy crashed.
 
 ## Limitations

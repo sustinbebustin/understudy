@@ -447,14 +447,21 @@ describe.skipIf(!dynamoDbEnabled)("DynamoDB conditional writes: the lock table p
         new DeleteItemCommand({
           TableName: table,
           Key: { LockID: S("job-1") },
-          ConditionExpression: "Owner = :me",
+          ConditionExpression: "#owner = :me",
+          ExpressionAttributeNames: { "#owner": "Owner" },
           ExpressionAttributeValues: { ":me": S("b") },
         }),
       ),
       { name: "ConditionalCheckFailedException", status: 400 },
     );
     await ddb.send(
-      new DeleteItemCommand({ TableName: table, Key: { LockID: S("job-1") }, ConditionExpression: "Owner = :me", ExpressionAttributeValues: { ":me": S("a") } }),
+      new DeleteItemCommand({
+        TableName: table,
+        Key: { LockID: S("job-1") },
+        ConditionExpression: "#owner = :me",
+        ExpressionAttributeNames: { "#owner": "Owner" },
+        ExpressionAttributeValues: { ":me": S("a") },
+      }),
     );
     expect((await ddb.send(new GetItemCommand({ TableName: table, Key: { LockID: S("job-1") } }))).Item).toBeUndefined();
   });
@@ -513,12 +520,25 @@ describe.skipIf(!dynamoDbEnabled)("DynamoDB UpdateItem", () => {
   test("list_append and list index updates", async () => {
     const table = await makeTable();
     await ddb.send(new PutItemCommand({ TableName: table, Item: { pk: S("k"), items: { L: [S("a")] } } }));
+    // ITEMS is a DynamoDB reserved word, and one UpdateExpression may not
+    // name both a list and one of its elements (overlapping document paths),
+    // so the append and the index update are two calls.
     await ddb.send(
       new UpdateItemCommand({
         TableName: table,
         Key: { pk: S("k") },
-        UpdateExpression: "SET items = list_append(items, :more), items[0] = :first",
-        ExpressionAttributeValues: { ":more": { L: [S("b"), S("c")] }, ":first": S("A") },
+        UpdateExpression: "SET #items = list_append(#items, :more)",
+        ExpressionAttributeNames: { "#items": "items" },
+        ExpressionAttributeValues: { ":more": { L: [S("b"), S("c")] } },
+      }),
+    );
+    await ddb.send(
+      new UpdateItemCommand({
+        TableName: table,
+        Key: { pk: S("k") },
+        UpdateExpression: "SET #items[0] = :first",
+        ExpressionAttributeNames: { "#items": "items" },
+        ExpressionAttributeValues: { ":first": S("A") },
       }),
     );
     expect((await ddb.send(new GetItemCommand({ TableName: table, Key: { pk: S("k") } }))).Item?.items).toEqual({ L: [S("A"), S("b"), S("c")] });

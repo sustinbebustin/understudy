@@ -20,7 +20,7 @@ Coverage is partial and listed operation by operation in [docs/coverage.md](docs
 - **Snapshots and persistence.** The whole state saves to a deterministic archive you can commit, diff and load. Persistence across restarts is opt-in.
 - **Real Lambda execution.** Functions run in AWS's Lambda base images through Docker: zip and container-image functions, warm reuse, hot reload from a directory, SDK calls inside functions routed back to understudy, logs in CloudWatch Logs.
 - **Least-privilege policies.** understudy records which IAM actions each principal used, on which resources, and prints a policy built from that record, plus the resource-policy statements its deliveries would need on AWS.
-- **Small, fast, offline.** No account, token or telemetry (DynamoDB is the exception; see below). The binary is 36 MB, ready in about 15 ms and idles at about 32 MiB (`just budgets` on Linux). The only network access is pulling Docker images for Lambda and DynamoDB Local on first use.
+- **Small, fast, offline.** No account, token or telemetry (DynamoDB is the exception; see below). The binary is 39 MiB, ready in about 20 ms and idles at about 34 MiB (`just budgets` on Linux). The only network access is pulling Docker images for Lambda and DynamoDB Local on first use.
 
 ## Quick start
 
@@ -41,7 +41,7 @@ aws sqs send-message --queue-url http://localhost:4566/000000000000/demo --messa
 aws sqs receive-message --queue-url http://localhost:4566/000000000000/demo
 ```
 
-`understudy env` prints `AWS_ENDPOINT_URL`, dummy credentials and a region, plus a comment for each client that needs a setting no variable carries (path-style S3 in the Go and JS SDKs). Now move time and look at what happened:
+`understudy env` prints `AWS_ENDPOINT_URL`, dummy credentials and a region, plus a comment for each client on S3 addressing, which no variable carries: at the `127.0.0.1` endpoint it prints, the Go and JS SDKs use path style by themselves, and Terraform needs `skip_requesting_account_id`. Now move time and look at what happened:
 
 ```sh
 understudy clock freeze
@@ -61,6 +61,8 @@ Build the image and publish its port on loopback only:
 just image
 docker run --rm -p 127.0.0.1:4566:4566 understudy:dev
 ```
+
+The image is about 11 MB compressed, measured on linux/amd64 with `docker save understudy:dev | gzip | wc -c`. The release workflow, which runs on a version tag, builds the same image for linux/amd64 and linux/arm64 from the release binaries and publishes nothing; it does not measure the image.
 
 To run Lambda functions from the container, mount the Docker socket and give the container user the socket's group (Linux):
 
@@ -121,13 +123,16 @@ Choose by what you need:
 
 - Twelve services, with many operations unbound; see the coverage table.
 - No behavior is recorded against real AWS yet; see [Status](#status).
-- IAM policies, resource policies and key policies are stored, not enforced. `iam policy` reports what a principal needs; nothing denies a call.
-- Request signatures are parsed, not verified, unless you start with `--sigv4 verify`. Even then every client may sign with the public dummy pair `test`/`test`, so a signature is not access control.
-- When understudy runs in a container or on Docker Desktop, Lambda function code can reach the admin API unless `UNDERSTUDY_ADMIN_TOKEN` is set; see [SECURITY.md](SECURITY.md).
-- SNS stores HTTP/S subscriptions and their confirmation flow, but sends nothing to HTTP endpoints. Lambda destinations are stored and not delivered.
-- DynamoDB runs on DynamoDB Local and inherits its documented differences from the service, such as no throughput limits and no parallel scan.
-- Lambda needs a Docker Engine. It is tested on Linux. Docker Desktop on macOS is supported by design but not yet tested; rootless Docker and rootless Podman are not supported; Windows works through WSL2 only.
-- The snapshot format is version 0: archives from one build may be refused by another until the first release.
+- IAM policies, resource policies and key policies are stored, not enforced: nothing denies a call, and a delivery AWS would deny goes through with an `advisory` event in the journal. `iam policy` grants more than a principal needs in places; review it as the [policy guide](docs/guide/policy.md#review-before-use) describes.
+- Request signatures are parsed, not verified, unless you start with `--sigv4 verify`; without it a presigned URL is accepted whatever its signature or expiry. Even under `--sigv4 verify` every client may sign with the public dummy pair `test`/`test`, so a signature is not access control.
+- When understudy runs in a container or on Docker Desktop, Lambda function code can reach the whole admin API: it can reset state, change the clock and read the journal. In a container, `UNDERSTUDY_ADMIN_TOKEN` with `--allow-unauthenticated-aws-api` closes that. On Docker Desktop, `serve` refuses a token on the default loopback listener, so the exposure stays there. Listening beyond loopback with the token and `--allow-unauthenticated-aws-api` should close the admin API to functions, but opens the AWS API to every peer on your network, and is untested on Docker Desktop; see [SECURITY.md](SECURITY.md).
+- SNS stores HTTP/S and email subscriptions and their confirmation flow, but sends them nothing; SMS, mobile push and Firehose subscriptions answer 501. Lambda destinations are stored and not delivered, and layers are refused. S3 has no SSE-C, Object Lock retention or MFA delete.
+- DynamoDB runs on DynamoDB Local and inherits its documented differences from the service, such as no throughput limits and no parallel scan. understudy deletes an expired item as soon as the clock passes its TTL, where AWS takes up to a few days.
+- DynamoDB does not work when understudy runs on the host under Docker Desktop yet: understudy reaches DynamoDB Local at its bridge network address, which only a Linux host can route.
+- Lambda needs a Docker Engine. It is tested on Linux. Docker Desktop on macOS is supported by design but not yet tested; rootless Docker and rootless Podman are not supported; Windows works through WSL2 only. On Linux, functions of the other architecture need a binfmt handler, which `understudy doctor` checks for. Functions run against a Lambda Runtime API that understudy serves itself, not AWS's Runtime Interface Emulator ([ADR 0010](docs/adr/0010-lambda-hosted-runtime-api.md)).
+- CloudWatch alarms are stored and never evaluated. `GetMetricStatistics` answers 501, and `GetMetricData` has no metric math.
+- `terraform import` of an SQS queue fails on the queue URL form, and EventBridge has only the default bus (`CreateEventBus` answers 501).
+- The snapshot format is version 0: archives from one build may be refused by another until the first release. The TLS listener's certificate is new at every start.
 
 ## Documentation
 

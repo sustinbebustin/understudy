@@ -109,23 +109,32 @@ func (r *runner) envCommand(ctx context.Context, f envFlags) error {
 		}
 		accessKey, accountNote = f.account, ""
 	}
-	res := sdkEnv(sdkEndpoint(r.endpointURL()), f.sdk, f.region, accessKey)
-	for _, note := range []string{accountNote, regionNote} {
-		if note != "" {
-			res.Notes = append(res.Notes, note)
-		}
-	}
+	// The S3 notes depend on the endpoint's host form, so they are chosen
+	// for the endpoint env prints: the TLS listener's when one is asked for.
 	if f.tls || f.tlsEndpoint != "" || f.caFile != "" {
 		trust, err := r.trustTLS(ctx, f)
 		if err != nil {
 			return err
 		}
-		res.withTLS(trust, f.sdk)
+		res := sdkEnv(trust.endpoint, f.sdk, f.region, accessKey)
+		res.trust(trust.caFile, f.sdk)
+		return r.emitEnv(ctx, res, f.format, accountNote, regionNote)
+	}
+	return r.emitEnv(ctx, sdkEnv(r.endpointURL(), f.sdk, f.region, accessKey), f.format, accountNote, regionNote)
+}
+
+// emitEnv appends the account, region and DynamoDB notes to res and
+// prints it.
+func (r *runner) emitEnv(ctx context.Context, res envResult, format string, notes ...string) error {
+	for _, note := range notes {
+		if note != "" {
+			res.Notes = append(res.Notes, note)
+		}
 	}
 	if note := r.dynamoDBNote(ctx); note != "" {
 		res.Notes = append(res.Notes, note)
 	}
-	return r.emit(res, func(w io.Writer) error { return r.writeEnv(w, res, f.format) })
+	return r.emit(res, func(w io.Writer) error { return r.writeEnv(w, res, format) })
 }
 
 // tlsTrust is a TLS listener and the file holding the certificate that
@@ -135,21 +144,16 @@ type tlsTrust struct {
 	caFile   string
 }
 
-// withTLS points the environment at the TLS listener and adds the
-// variables that trust its certificate: AWS_CA_BUNDLE, which the Go and
-// Python SDKs, the AWS CLI and Terraform read, and NODE_EXTRA_CA_CERTS for
-// JS, whose SDK does not read AWS_CA_BUNDLE.
-func (res *envResult) withTLS(t tlsTrust, sdk string) {
-	for i := range res.Variables {
-		if res.Variables[i].Name == "AWS_ENDPOINT_URL" {
-			res.Variables[i].Value = t.endpoint
-		}
-	}
+// trust adds the variables that trust the TLS listener's certificate in
+// caFile: AWS_CA_BUNDLE, which the Go and Python SDKs, the AWS CLI and
+// Terraform read, and NODE_EXTRA_CA_CERTS for JS, whose SDK does not read
+// AWS_CA_BUNDLE.
+func (res *envResult) trust(caFile, sdk string) {
 	if sdk != sdkJS {
-		res.Variables = append(res.Variables, envVar{"AWS_CA_BUNDLE", t.caFile})
+		res.Variables = append(res.Variables, envVar{"AWS_CA_BUNDLE", caFile})
 	}
 	if sdk == "" || sdk == sdkJS {
-		res.Variables = append(res.Variables, envVar{"NODE_EXTRA_CA_CERTS", t.caFile})
+		res.Variables = append(res.Variables, envVar{"NODE_EXTRA_CA_CERTS", caFile})
 	}
 }
 
@@ -159,7 +163,7 @@ func (res *envResult) withTLS(t tlsTrust, sdk string) {
 func (r *runner) trustTLS(ctx context.Context, f envFlags) (tlsTrust, error) {
 	endpoint := f.tlsEndpoint
 	if endpoint == "" {
-		u, err := url.Parse(sdkEndpoint(r.endpointURL()))
+		u, err := url.Parse(r.endpointURL())
 		if err != nil {
 			return tlsTrust{}, &usageError{msg: fmt.Sprintf("the endpoint %q is not a URL: %v", r.endpointURL(), err)}
 		}
@@ -251,34 +255,23 @@ func constrainedToLoopback(cert *x509.Certificate) bool {
 	return slices.Equal(ranges, []string{"127.0.0.0/8", "::1/128"})
 }
 
-// sdkEndpoint is endpoint as clients should dial it (ADR 0013): a loopback
-// IP literal (127.0.0.1, [::1]) becomes localhost, keeping the scheme and
-// port. Clients build hosts under the endpoint's host, such as
-// <bucket>.localhost and, for Terraform's S3 Control reads,
-// <account>.localhost, which an IP literal cannot carry; an IP literal
-// also silently forces path-style S3 in the Go and JS SDKs. Any other
-// host, and anything that is not a URL, is kept as given.
-func sdkEndpoint(endpoint string) string {
+// isIPLiteral reports whether endpoint is a URL whose host is an IP
+// address, such as http://127.0.0.1:4566.
+func isIPLiteral(endpoint string) bool {
 	u, err := url.Parse(endpoint)
 	if err != nil {
-		return endpoint
+		return false
 	}
-	ip, err := netip.ParseAddr(u.Hostname())
-	if err != nil || !ip.IsLoopback() {
-		return endpoint
-	}
-	host := "localhost"
-	if port := u.Port(); port != "" {
-		host = net.JoinHostPort(host, port)
-	}
-	u.Host = host
-	return u.String()
+	_, err = netip.ParseAddr(u.Hostname())
+	return err == nil
 }
 
 // sdkEnv is the environment for sdk (every SDK when empty), as
 // sigv4-checksums-endpoints.md 5 and ADR 0013 give it: AWS_ENDPOINT_URL
 // routes every service, accessKey selects the account, and the S3
-// addressing knobs that have no variable become notes.
+// addressing knobs that have no variable become notes, chosen for
+// endpoint's host form. endpoint is printed as given: the form serve's
+// banner announces, or the TLS listener's URL.
 func sdkEnv(endpoint, sdk, region, accessKey string) envResult {
 	res := envResult{Variables: []envVar{
 		{"AWS_ENDPOINT_URL", endpoint},
@@ -290,12 +283,29 @@ func sdkEnv(endpoint, sdk, region, accessKey string) envResult {
 		res.Variables = append(res.Variables, envVar{"AWS_DEFAULT_REGION", region})
 	}
 	pathStyle := "unless *.localhost resolves here ('understudy doctor' checks)"
+	goNote := "Go: S3 path-style addressing has no variable; set o.UsePathStyle = true in s3.NewFromConfig " + pathStyle
+	jsNote := "JS: S3 path-style addressing has no variable; pass forcePathStyle: true to S3Client " + pathStyle
+	tfNote := "Terraform: set s3_use_path_style = true and skip_requesting_account_id = true in the aws provider " + pathStyle
+	if isIPLiteral(endpoint) {
+		// The S3 endpoint rules of the SDKs address an IP-literal endpoint
+		// path style, since <bucket>.<IP> is no host name. Terraform's S3
+		// Control bucket tag reads go to <account>.<IP>, which never
+		// resolves (s3.md finding 1), so only skipping the account id
+		// lookup avoids them.
+		virtualHosted := "virtual-hosted <bucket>.localhost addressing needs a localhost endpoint and *.localhost resolving here ('understudy doctor' checks)"
+		goNote = "Go: the SDK addresses S3 path style at an IP-literal endpoint without o.UsePathStyle; " + virtualHosted
+		jsNote = "JS: the SDK addresses S3 path style at an IP-literal endpoint without forcePathStyle; " + virtualHosted
+		tfNote = "Terraform: skip_requesting_account_id = true is required in the aws provider at an IP-literal endpoint: " +
+			"it reads S3 bucket tags through S3 Control at <account>.<endpoint host>, which cannot resolve for an IP address; " +
+			"a host-name endpoint such as localhost, where *.localhost resolves, does not need it; " +
+			"s3_use_path_style = true is optional here, since the provider addresses S3 path style at an IP-literal endpoint"
+	}
 	notes := map[string]string{
-		sdkGo:        "Go: S3 path-style addressing has no variable; set o.UsePathStyle = true in s3.NewFromConfig " + pathStyle,
-		sdkJS:        "JS: S3 path-style addressing has no variable; pass forcePathStyle: true to S3Client " + pathStyle,
+		sdkGo:        goNote,
+		sdkJS:        jsNote,
 		sdkPython:    "boto3 uses path-style S3 addressing with a custom endpoint by default",
 		sdkCLI:       "the AWS CLI uses path-style S3 addressing with a custom endpoint by default",
-		sdkTerraform: "Terraform: set s3_use_path_style = true and skip_requesting_account_id = true in the aws provider " + pathStyle,
+		sdkTerraform: tfNote,
 	}
 	for _, s := range []string{sdkGo, sdkJS, sdkPython, sdkCLI, sdkTerraform} {
 		if sdk == "" || sdk == s {

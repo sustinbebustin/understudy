@@ -39,6 +39,29 @@ func TestSnapshotDiff(t *testing.T) {
 	if diff.Identical || !strings.Contains(r.stdout, "added") {
 		t.Errorf("diff before after = %s, want the added queue", r.stdout)
 	}
+	if strings.Contains(r.stdout, "journalNext") {
+		t.Errorf("diff --normalize mentions journalNext, which it masks:\n%s", r.stdout)
+	}
+	// Without --normalize the manifest's journalNext differs, since the
+	// CreateQueue between the saves was journaled, and so do the seeded id
+	// streams' positions, since it minted ids; diff says why, once each.
+	raw := runCLI(t.Context(), inst.Endpoint(), nil, "snapshot", "diff", before, after)
+	const why = "manifest.json /journalNext is the id the journal assigns next"
+	const whyPositions = "manifest.json /positions are the seeded id streams' positions"
+	if raw.code != admin.ExitOK || !strings.Contains(raw.stdout, "~ manifest.json /journalNext: ") || !strings.Contains(raw.stdout, "note: "+why) || !strings.Contains(raw.stdout, "--normalize") {
+		t.Errorf("diff before after = %d:\n%s\nwant the journalNext difference and %q", raw.code, raw.stdout, "note: "+why)
+	}
+	if !strings.Contains(raw.stdout, "~ manifest.json /positions/") || strings.Count(raw.stdout, "note: "+whyPositions) != 1 {
+		t.Errorf("diff before after under a seed:\n%s\nwant a position difference and one %q", raw.stdout, "note: "+whyPositions)
+	}
+	rawJSON := runCLI(t.Context(), inst.Endpoint(), nil, "snapshot", "diff", before, after, "--output", "json")
+	var notes struct {
+		Notes []string `json:"notes"`
+	}
+	if err := json.Unmarshal([]byte(rawJSON.stdout), &notes); rawJSON.code != admin.ExitOK || err != nil || len(notes.Notes) != 2 ||
+		!strings.HasPrefix(notes.Notes[0], why) || !strings.HasPrefix(notes.Notes[1], whyPositions) {
+		t.Errorf("diff before after --output json = %d %q (%v), want a note on journalNext, then one on the positions", rawJSON.code, rawJSON.stdout, err)
+	}
 	text := runCLI(t.Context(), inst.Endpoint(), nil, "snapshot", "diff", after, after)
 	if text.code != admin.ExitOK || text.stdout != "the archives are identical\n" {
 		t.Errorf("diff after = %d %q", text.code, text.stdout)

@@ -101,9 +101,10 @@ func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 	})
 }
 
-// timersOf lists the timers the state of scope implies at now: the
-// visibility timer of every message hidden and not pinned, the retention
-// timer of every message and the timer of every running move task.
+// timersOf lists the timers the state of scope implies at now: the delay
+// or visibility timer of every message hidden and not pinned, the
+// retention timer of every message and the timer of every running move
+// task.
 func (s *Service) timersOf(scope aws.Scope, st *State, now clock.Instant) []clock.Armed {
 	var out []clock.Armed
 	for _, name := range slices.Sorted(maps.Keys(st.Queues)) {
@@ -113,7 +114,8 @@ func (s *Service) timersOf(scope aws.Scope, st *State, now clock.Instant) []cloc
 			m := &queue.Messages[i]
 			id := timerID(q, string(m.ID))
 			if !m.pinned() && !m.visible(now) {
-				out = append(out, clock.Armed{Key: s.visibility.Key(id), Due: m.VisibleAt})
+				wake, _ := s.wakeTimer(m)
+				out = append(out, clock.Armed{Key: wake.Key(id), Due: m.VisibleAt})
 			}
 			out = append(out, clock.Armed{Key: s.retention.Key(id), Due: m.Sent.Add(seconds(queue.Attributes.MessageRetentionPeriod))})
 		}

@@ -39,7 +39,9 @@ sections      6
 + services/sqs/000000000000/us-east-1.json /data/queues/extra: {"attributes":{...},"name":"extra"}
 ```
 
-`diff --normalize` masks what differs between two runs of one workload (request ids, receipt handles, wall times, hosts, accounts, event ids), so two runs of a seeded test should show no differences.
+Two saves with calls between them also differ in the manifest's counters, which are not resource state: `manifest.json /journalNext`, the id the journal assigns next, and under `serve --seed` the `manifest.json /positions/<stream>` of each identifier stream the calls drew from. `diff` adds a `note:` line explaining each.
+
+`diff --normalize` masks what differs between two runs of one workload (request ids, receipt handles, wall times, hosts, accounts, event ids, `journalNext`), so two runs of a seeded test should show no differences. It keeps the stream positions, which one seed and one workload reproduce.
 
 Loading replaces all state, stops running Lambda environments, and sets the clock to the snapshot's time, even if that is earlier. DynamoDB tables are exported through DynamoDB Local when the snapshot is saved and re-created from the archive when it is loaded.
 

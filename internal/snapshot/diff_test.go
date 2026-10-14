@@ -281,6 +281,51 @@ func TestDiffWithoutNormalizeShowsEveryRunSpecificValue(t *testing.T) {
 	assertDiff(t, diff(t, a, b, true))
 }
 
+// The manifest's journal counter and seeded id stream positions move with
+// every call between two saves; Counter tells them from resource state.
+// Normalizing masks the journal counter and keeps the positions, which
+// one seed and one workload reproduce.
+func TestDiffClassifiesManifestCounters(t *testing.T) {
+	t.Parallel()
+	const path = "services/sqs/000000000000/us-east-1.json"
+	seed := uint64(7)
+	a := archive(t, t0, 17, map[string]string{path: `{"queues":1}`})
+	b := archive(t, t0, 18, map[string]string{path: `{"queues":2}`})
+	a.Manifest.Seed, b.Manifest.Seed = &seed, &seed
+	a.Manifest.Positions = map[ids.Kind]uint64{ids.KindMessageID: 1}
+	b.Manifest.Positions = map[ids.Kind]uint64{ids.KindMessageID: 3, ids.KindUploadID: 2}
+	assertCounters(t, diff(t, a, b, false), map[string]snapshot.Counter{
+		`~ manifest.json /journalNext: 17 -> 18`:                          snapshot.JournalCounter,
+		`+ manifest.json /positions/s3-upload-id: 2`:                      snapshot.PositionCounter,
+		`~ manifest.json /positions/sqs-message-id: 1 -> 3`:               snapshot.PositionCounter,
+		`~ services/sqs/000000000000/us-east-1.json /data/queues: 1 -> 2`: snapshot.NoCounter,
+	})
+	assertDiff(t, diff(t, a, b, true),
+		`+ manifest.json /positions/s3-upload-id: 2`,
+		`~ manifest.json /positions/sqs-message-id: 1 -> 3`,
+		`~ services/sqs/<account>/us-east-1.json#1 /data/queues: 1 -> 2`)
+	// The first positions appear as the whole positions object.
+	a.Manifest.Positions = nil
+	assertCounters(t, diff(t, a, b, false), map[string]snapshot.Counter{
+		`~ manifest.json /journalNext: 17 -> 18`:                            snapshot.JournalCounter,
+		`+ manifest.json /positions: {"s3-upload-id":2,"sqs-message-id":3}`: snapshot.PositionCounter,
+		`~ services/sqs/000000000000/us-east-1.json /data/queues: 1 -> 2`:   snapshot.NoCounter,
+	})
+}
+
+// assertCounters fails unless got is exactly the differences in want, by
+// their String, each classified as want says.
+func assertCounters(t *testing.T, got []snapshot.Difference, want map[string]snapshot.Counter) {
+	t.Helper()
+	counters := map[string]snapshot.Counter{}
+	for _, d := range got {
+		counters[d.String()] = d.Counter()
+	}
+	if !maps.Equal(counters, want) {
+		t.Errorf("counters\n got %v\nwant %v", counters, want)
+	}
+}
+
 // A frozen clock's time is emulator state, not a wall reading, so it is
 // compared even under normalization.
 func TestDiffNormalizeKeepsAFrozenClock(t *testing.T) {

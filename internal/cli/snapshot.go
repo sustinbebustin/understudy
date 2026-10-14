@@ -275,6 +275,37 @@ func savedOrNot(saved bool) string {
 type diffView struct {
 	Identical   bool             `json:"identical"`
 	Differences []differenceView `json:"differences"`
+	// Notes explain differences that are no change of resource state.
+	Notes []string `json:"notes,omitempty"`
+}
+
+// counterNotes explain the manifest counters among diffs, which every raw
+// diff of two saves with calls between them shows: one note for
+// journalNext and one for the seeded id streams' positions, each only
+// when diffs report such a difference, so a note never describes one the
+// diff does not report.
+func counterNotes(diffs []snapshot.Difference) []string {
+	var journal, positions bool
+	for _, d := range diffs {
+		switch d.Counter() {
+		case snapshot.JournalCounter:
+			journal = true
+		case snapshot.PositionCounter:
+			positions = true
+		case snapshot.NoCounter:
+		}
+	}
+	var notes []string
+	if journal {
+		notes = append(notes, "manifest.json /journalNext is the id the journal assigns next, not resource state: "+
+			"it differs whenever the server journaled calls between the two saves, and --normalize masks it")
+	}
+	if positions {
+		notes = append(notes, "manifest.json /positions are the seeded id streams' positions, not resource state: "+
+			"a stream's position moves whenever the server minted ids of its kind between the two saves; "+
+			"--normalize compares them, apart from the request id streams', since one seed and one workload reproduce them")
+	}
+	return notes
 }
 
 type differenceView struct {
@@ -303,21 +334,27 @@ func snapshotDiff(fs *flag.FlagSet) action {
 		if err != nil {
 			return err
 		}
-		v := diffView{Identical: len(diffs) == 0, Differences: []differenceView{}}
+		v := diffView{Identical: len(diffs) == 0, Differences: []differenceView{}, Notes: counterNotes(diffs)}
 		for _, d := range diffs {
 			v.Differences = append(v.Differences, differenceView{Entry: d.Entry, Pointer: d.Pointer, Change: d.Change.String(), Before: d.Before, After: d.After})
 		}
-		return r.emit(v, func(w io.Writer) error {
-			if len(diffs) == 0 {
-				_, err := fmt.Fprintln(w, "the archives are identical")
-				return err
-			}
-			var sb strings.Builder
-			for _, d := range diffs {
-				sb.WriteString(d.String() + "\n")
-			}
-			_, err := io.WriteString(w, sb.String())
-			return err
-		})
+		return r.emit(v, func(w io.Writer) error { return writeDiff(w, diffs, v.Notes) })
 	}
+}
+
+// writeDiff writes one line per difference, then the notes.
+func writeDiff(w io.Writer, diffs []snapshot.Difference, notes []string) error {
+	if len(diffs) == 0 {
+		_, err := fmt.Fprintln(w, "the archives are identical")
+		return err
+	}
+	var sb strings.Builder
+	for _, d := range diffs {
+		sb.WriteString(d.String() + "\n")
+	}
+	for _, n := range notes {
+		sb.WriteString("note: " + n + "\n")
+	}
+	_, err := io.WriteString(w, sb.String())
+	return err
 }
