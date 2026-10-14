@@ -23,6 +23,14 @@
 //     A negative number such as -5s is a positional argument, never a flag.
 //     An unknown flag is named as --name with the closest valid name, by
 //     the rule internal/config uses for serve's. -v is --version.
+//   - The command framework (command.go) is written over the standard
+//     library's flag package. ADR 0016 (dependency policy amendment)
+//     pre-qualifies cobra with pflag for the day shell completion is wanted,
+//     and re-runs its gate against the then-current versions before
+//     adoption. pflag reads -5s as a cluster of shorthand flags, so adopting
+//     it needs a pre-scan that keeps a negative number positional, as
+//     parseInterspersed does, and must keep the unknown-flag suggestions
+//     and exit codes above.
 //   - Admin calls connect within 10s and give up after a minute without an
 //     answer's headers, so a wedged process on the port fails a command
 //     with exit 3 instead of hanging it, saying the server took the call

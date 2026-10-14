@@ -1423,7 +1423,7 @@ Gates: `go vet`, `golangci-lint` (the strict configuration in `go-toolchain.md 1
 | Named-volume code delivery, Ryuk-style reaper, private registries | `lambda/launcher` and `docker` own those decisions; nothing else knows about mounts or auth |
 | SigV4A, signed streaming for non-Go SDKs | `auth` payload-hash sum type already names the variants |
 | Scaled-clock ramp semantics for ESM, provisioned concurrency | state-derived scheduler tasks per mapping |
-| Write-ahead log for persistence | `Cell.rev` and the section writers; the archive format is versioned |
+| Write-ahead log for persistence | `Cell.rev` and the section writers; the archive format is versioned; bbolt is pre-qualified for the log, beside the archive (ADR 0016, dependency policy amendment) |
 
 ## 22. Brief statements this architecture caveats
 

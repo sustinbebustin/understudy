@@ -92,7 +92,10 @@
 //     only the changes since the last checkpoint. At start a Running clock
 //     resumes at the later of the saved instant and wall time, since wall
 //     time passed while no serve ran; a Frozen or Scaled one resumes from
-//     the saved instant.
+//     the saved instant. There is no write-ahead log (ADR 0009). When one
+//     is scheduled, ADR 0016 (dependency policy amendment) pre-qualifies
+//     bbolt for it, beside the archive and not instead of it, with its gate
+//     re-run against the then-current version.
 //     Extracted function code lives in <dir>/code, or in the run's
 //     temporary directory without persistence.
 //   - The TLS listener's certificate is generated at every start

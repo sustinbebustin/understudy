@@ -277,6 +277,12 @@ Follow-ups the pre-tag hardening integrator did not close.
 - **Function URL refusal status** (Lambda; needs a recording). Under `--sigv4 verify` a function URL refuses credentials in the JSON family's words with 403 (`lambda.FunctionURLAuth`, `edge.Options.OperationAuth`), as its front end answers its other refusals (lambda-events.md 7.2, AWS-recorded). That a refused signature is 403 with `{"message": ...}` rests on user reports, not a recording; the parity backlog should capture a wrong-secret, an unknown-key and a malformed-header request to an `AWS_IAM` URL. The Lambda API's own auth statuses (error-matrix.md T8, L08) stay the JSON family's 400 until recorded.
 - **Licensed DynamoDB conformance runs** (human run). Closed 2026-10-14: see "DynamoDB conformance runs" (pre-tag wave 1).
 
+## Dependency policy
+
+Follow-ups from the 2026-10-14 dependency review (ADR 0016, dependency policy amendment).
+
+- **xmlw control characters** (S3, `xmlw`; needs a recording). `internal/protocol/xmlw/doc.go` marks UNVERIFIED how S3 writes the characters `xmlw` turns into numeric references. R12 step 13 settled U+0001 (`&#x1;`, as `xmlw` writes it) and U+FFFE (raw bytes, under "Recorded differences from AWS"). Still open: tab, LF, CR, the other C0 and C1 controls, DEL and U+FFFF; the `encoding-type=url` form of such keys; and error bodies that name such a key, where no encoding option exists. The recording kit's control-character steps (R12 steps 16 to 18) capture them. The answer may be numeric references, raw bytes, U+FFFD, a refusal of such keys, or correct output only under `encoding-type=url`; `xmlw`'s escape table follows it, and its doc drops the UNVERIFIED mark.
+
 ## Recorded differences from AWS
 
 The 2026-10-14 recordings (`testdata/parity/<service>/<item>/`, each item's `notes.md` has the full field list) differ from understudy where listed below, and each needs a code change the recording commit did not make. One line each, with the capture that shows AWS's answer. Paths are relative to `testdata/parity/`.

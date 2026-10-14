@@ -14,8 +14,12 @@
 // numeric references. Where the SDK replaces characters outside the XML 1.0
 // Char production with U+FFFD, this writer emits a numeric reference for every
 // control character, and does the same for U+FFFE and U+FFFF, so the code
-// point is not lost silently. Whether S3 writes
-// such characters the same way is UNVERIFIED. Strict XML 1.0 parsers, Decode
+// point is not lost silently. In a listing without encoding-type=url, S3
+// writes U+0001 the same way but U+FFFE as its raw bytes (DEFERRED.md
+// "Recorded differences from AWS"). The other control characters, U+FFFF,
+// error bodies that name such a key and the encoding-type=url form are
+// UNVERIFIED; recording-kit.md's control-character steps capture them
+// (DEFERRED.md "xmlw control characters"). Strict XML 1.0 parsers, Decode
 // among them, reject those references; a listing that may carry such keys
 // should use encoding-type=url. Bytes that are not valid UTF-8 are each
 // replaced with U+FFFD. The output carries no indentation.

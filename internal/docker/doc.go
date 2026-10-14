@@ -31,4 +31,28 @@
 //
 // Registry authentication is not sent: phase 1 pulls public images
 // anonymously.
+//
+// The client stays in-repo rather than on the Moby client (ADR 0016,
+// dependency policy amendment), so keeping it current is this package's job:
+//
+//   - Raising MaxAPIVersion: read the Engine API changelog for every version
+//     between the current maximum and the new one, and record in
+//     containers.md 2.2 each change to an endpoint, field or status this
+//     package sends or reads. The negotiated version can still be anything
+//     from Options.APIVersionMin up, so a field whose meaning changes at the
+//     new version (1.45 changes inspect's Aliases) is read by the negotiated
+//     version, as ContainerLogs reads its Content-Type, or the raise waits.
+//     Podman accepts any prefix and answers with the semantics of its own
+//     compatibility version, so check that too. Then change MaxAPIVersion
+//     and the version named above, run the package tests against dockertest
+//     at both ends of the window, and run `just test-docker` against a
+//     current Docker Engine and Podman.
+//   - Adding a field: add only what a caller sets or reads, spelled as the
+//     Engine API spells it, with omitempty or omitzero so an unset field is
+//     not sent. A request field newer than Options.APIVersionMin is refused
+//     or left out when the negotiated version is older, with the version
+//     that introduced it noted beside it. Responses decode leniently, so an
+//     unread response field needs nothing. Teach dockertest the field, with
+//     the status and message the daemon gives for a bad value, and test
+//     through it.
 package docker

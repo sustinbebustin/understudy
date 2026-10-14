@@ -240,6 +240,22 @@ rec R12/15-lifecycle-glacier-then-onezone-ia aws s3api put-bucket-lifecycle-conf
   --lifecycle-configuration '{"Rules":[{"ID":"path","Status":"Enabled","Filter":{"Prefix":""},"Transitions":[{"Days":30,"StorageClass":"GLACIER"},{"Days":60,"StorageClass":"ONEZONE_IA"}]}]}'
 ```
 
+The control-character steps, also on `$P-edge`, after step 13 (DEFERRED.md, "xmlw control characters"). Step 13 showed U+0001 as `&#x1;` and U+FFFE as raw bytes in one listing. These add the other characters `internal/protocol/xmlw` writes as numeric references (tab, LF, CR, U+001F, DEL, NEL U+0085 and U+FFFF), the same listing with `encoding-type=url`, and an error body that names such a key, where no encoding option exists:
+
+```sh
+for k in $'tab\tkey' $'lf\nkey' $'cr\rkey' $'us\x1fkey' $'del\x7fkey' $'nel\xc2\x85key' $'nonchar\xef\xbf\xbfkey'; do
+  aws s3api put-object --bucket "$P-edge" --key "$k" --body /dev/null
+done
+SVC=s3 recurl R12/16-list-control-without-encoding -H "x-amz-content-sha256: $E" \
+  "https://$P-edge.s3.$R.amazonaws.com/?list-type=2"
+SVC=s3 recurl R12/17-list-control-encoding-url -H "x-amz-content-sha256: $E" \
+  "https://$P-edge.s3.$R.amazonaws.com/?list-type=2&encoding-type=url"
+SVC=s3 recurl R12/18-get-missing-control-key -H "x-amz-content-sha256: $E" \
+  "https://$P-edge.s3.$R.amazonaws.com/missing%01key"
+```
+
+In `notes.md`, for each key in steps 16 and 18, write how the character arrives: a numeric reference (and its form, `&#x9;` or `&#9;`), the raw byte, U+FFFD, dropped, or the request refused. For step 17, write each key's percent-encoded form. R12's backlog teardown removes these keys with the bucket.
+
 The R14 additions. `test-event-pattern` needs no resources and settles matching. `PutRule` may enforce the complexity and combination caps that `test-event-pattern` skips, so the validation cases go through `put-rule` on one throwaway rule, which each call overwrites:
 
 ```sh

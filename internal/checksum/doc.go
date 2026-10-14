@@ -17,4 +17,15 @@
 // The package states what each algorithm can do (Combinable is the
 // FULL_OBJECT side of the S3 multipart matrix); enforcing which multipart
 // checksum type a request may use is the S3 service's job.
+//
+// The vector corpus is the contract. TestPublishedVectors and
+// TestXXHashLengthClasses pin every algorithm's wire value to vectors from the
+// research notes they cite, the xxHash ones on both sides of every branch of
+// the length dispatch, and a change to an algorithm is correct when they
+// pass. A vector is never edited to match the code: a failure is a bug in the
+// port or a wrong vector, settled against the published specification. A new
+// algorithm or length class gets a vector with its source before its code.
+// ADR 0016 admits cespare/xxhash and zeebo/xxh3 as test-only differential
+// oracles, whose output the xxHash specification freezes; they never become
+// the implementation.
 package checksum

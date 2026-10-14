@@ -17,6 +17,7 @@ Suggested order: item 1 first; item 2 is optional and can wait. Decide 3 before 
   - R06's us-east-1 and us-west-2 buckets and step 5 (`LocationConstraint=EU`, `x-amz-bucket-region`), and R15's key in another Region: free-plan projects open only their own Region.
   - The kit's optional steps: R04 step 8 (48 h TTL sweep), R03's CloudTrail check, R05 step 6 (cross-account), and R14 step 4's EventBridge Scheduler payload.
   - The kit's "Open items with no script yet" (section 3) and DEFERRED.md's "Function URL refusal status" captures (`AWS_IAM` function URL with a wrong secret, an unknown key and a malformed header).
+  - R12 steps 16 to 18, the S3 control-character keys (DEFERRED.md, "xmlw control characters"). They need the recording account but no second Region: run them on `$P-edge` after step 13.
 - **Why the owner.** They need a paid account with more than one Region, or a script an agent has not written yet.
 - **Next step.** None is needed for the first tag. To record the Region-bound ones, repeat the R06 and R15 steps from the [recording kit](../human/recording-kit.md) in an account that allows us-east-1 and us-west-2.
 - **Unblocks.** The remaining `s3.md` 4.1 region rows and the cross-region KMS text.
