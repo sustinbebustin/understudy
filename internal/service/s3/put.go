@@ -304,7 +304,7 @@ type chunkFraming struct {
 // Content-Encoding, Content-Length, Content-MD5 and the checksum members.
 // A declared size over 5 GiB is refused before the body is read.
 func readUpload(c *kernel.Call, secrets *identity.Store, contentEncoding *string, contentLength *int64, sums checksumMembers, sdk *s3api.ChecksumAlgorithm, contentMD5 *string) (upload, *awserr.Error) {
-	sha, _ := c.Header(headerContentSHA256)
+	sha := contentSHA256(c)
 	trailer, _ := c.Header(headerTrailer)
 	u := upload{declared: -1}
 	if contentLength != nil {
@@ -340,12 +340,41 @@ func readUpload(c *kernel.Call, secrets *identity.Store, contentEncoding *string
 	return u, nil
 }
 
+// contentSHA256 is the x-amz-content-sha256 value the request was signed
+// with. When the edge verified a SigV4 signature it is the value that
+// signature covers, which a presigned URL may carry in its query
+// (X-Amz-Content-Sha256) rather than the header: the edge leaves the body
+// to S3 (ServiceChecksPayload), so S3 must check the body against the
+// signed value wherever it was sent. Otherwise it is the header, which
+// holds a presigned URL's hoisted value too (kernel.Call.Header).
+func contentSHA256(c *kernel.Call) string {
+	var signed auth.PayloadHash
+	if a, ok := c.VerifiedAuth(); ok {
+		switch a := a.(type) {
+		case auth.SigV4Header:
+			signed = a.PayloadHash
+		case auth.SigV4Query:
+			signed = a.PayloadHash
+		case auth.SigV2Header, auth.SigV2Query, auth.Anonymous:
+		}
+	}
+	if signed != nil {
+		if v, ok := auth.PayloadHashValue(signed); ok {
+			return v
+		}
+	}
+	sha, _ := c.Header(headerContentSHA256)
+	return sha
+}
+
 // readChunkFraming reads an aws-chunked body's mode from
 // x-amz-content-sha256 and its declared decoded length. A trailer mode
 // without x-amz-trailer is refused before any byte is read. In a signed
 // mode, when the edge verified the request's header signature (sigv4
 // verify), each chunk and trailer signature is verified against the
-// secret secrets holds for the key (sigv4-checksums-endpoints.md 3.3).
+// secret secrets holds for the key (sigv4-checksums-endpoints.md 3.3); a
+// signed mode on a request verified any other way (a presigned URL) is
+// refused, since its chunk signatures cannot be checked.
 func readChunkFraming(c *kernel.Call, secrets *identity.Store, sha, trailer string) (chunkFraming, int64, *awserr.Error) {
 	mode := awschunked.PlainChunked
 	switch sha {
@@ -374,13 +403,18 @@ func readChunkFraming(c *kernel.Call, secrets *identity.Store, sha, trailer stri
 	}
 	opts := awschunked.Options{DecodedLength: length, Trailer: trailer}
 	if a, ok := c.VerifiedAuth(); ok && (mode == awschunked.Signed || mode == awschunked.SignedTrailer) {
-		if header, ok := a.(auth.SigV4Header); ok {
-			check, err := chunkSignatures(header, secrets)
-			if err != nil {
-				return chunkFraming{}, 0, err
-			}
-			opts.Seed, opts.OnChunkSignature = header.Signature, check
+		header, ok := a.(auth.SigV4Header)
+		if !ok {
+			// Chunk signatures chain from a header signature; storing the
+			// chunks unchecked would drop the signature's hold on them.
+			return chunkFraming{}, 0, s3api.ErrNotImplemented("understudy verifies the chunk signatures of x-amz-content-sha256 " + sha +
+				" only on a request signed in the Authorization header. Sign the upload in the Authorization header, or presign it with UNSIGNED-PAYLOAD.")
 		}
+		check, err := chunkSignatures(header, secrets)
+		if err != nil {
+			return chunkFraming{}, 0, err
+		}
+		opts.Seed, opts.OnChunkSignature = header.Signature, check
 	}
 	return chunkFraming{mode: mode, opts: opts}, declared, nil
 }

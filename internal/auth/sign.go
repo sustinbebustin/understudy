@@ -96,7 +96,9 @@ func Sign(r *http.Request, body []byte, s Signer, now time.Time) {
 
 // Presign appends the SigV4 query parameters to r.URL as the SDK presigners
 // do, signing host and any headers present but the unsignable ones. S3 URLs
-// sign UNSIGNED-PAYLOAD; other services sign the hash of an empty body.
+// sign UNSIGNED-PAYLOAD; other services sign the hash of an empty body. An
+// X-Amz-Content-Sha256 already in r.URL's query, as JS v3 hoists it, is
+// signed as the payload line instead.
 func Presign(r *http.Request, s Signer, expires time.Duration, now time.Time) {
 	now = now.UTC()
 	cred := s.credential(now)
@@ -124,6 +126,9 @@ func Presign(r *http.Request, s Signer, expires time.Duration, now time.Time) {
 	payload := hex.EncodeToString(empty[:])
 	if s.Service == serviceS3 {
 		payload = unsignedPayload
+	}
+	if hoisted := r.URL.Query().Get(qContentSHA256); hoisted != "" {
+		payload = hoisted
 	}
 	canonical := canonicalRequest(Normalize(r, Hashed{SHA256: empty}), s.Service, signed, qSignature, payload)
 	sig := hex.EncodeToString(hmacSHA256(signingKey(s.SecretAccessKey, cred), stringToSign(iso(now), cred.scope(), canonical)))

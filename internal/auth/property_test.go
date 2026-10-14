@@ -183,8 +183,8 @@ func TestPresignThenVerifySucceedsAndMutationFails(t *testing.T) {
 		v := jsonVocabulary(t)
 		emu := clock.FromWire(c.now.Add(expires - time.Second))
 		body := auth.Hashed{SHA256: sha256.Sum256(nil)}
-		if err := auth.VerifyPresigned(q, auth.Normalize(r, body), c.signer.SecretAccessKey, c.now, emu, v); err != nil {
-			rt.Fatalf("VerifyPresigned of a presigned request: %s", err.Message)
+		if err := auth.VerifyPresignedSince(q, auth.Normalize(r, body), c.signer.SecretAccessKey, c.now, clock.FromWire(q.Time), emu, v); err != nil {
+			rt.Fatalf("VerifyPresignedSince of a presigned request: %s", err.Message)
 		}
 
 		target := rapid.SampledFrom(append([]string{"signature"}, q.SignedHeaders...)).Draw(rt, "target")
@@ -206,8 +206,8 @@ func TestPresignThenVerifySucceedsAndMutationFails(t *testing.T) {
 		default:
 			r.Header.Set(target, mutateByte(rt, r.Header.Get(target), "header"))
 		}
-		if err := auth.VerifyPresigned(q, auth.Normalize(r, body), c.signer.SecretAccessKey, c.now, emu, v); err == nil {
-			rt.Fatalf("VerifyPresigned accepted a presigned request whose %s was mutated", target)
+		if err := auth.VerifyPresignedSince(q, auth.Normalize(r, body), c.signer.SecretAccessKey, c.now, clock.FromWire(q.Time), emu, v); err == nil {
+			rt.Fatalf("VerifyPresignedSince accepted a presigned request whose %s was mutated", target)
 		}
 	})
 }

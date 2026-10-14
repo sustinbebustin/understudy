@@ -111,6 +111,19 @@ func VocabularyFor(f awserr.Family) (Vocabulary, bool) {
 	return Vocabulary{}, false
 }
 
+// WithStatus is v with every identity answering status, for a front end
+// that refuses all credential failures with one status, as Lambda's
+// function URLs answer 403.
+func (v Vocabulary) WithStatus(status int) Vocabulary {
+	for _, id := range []*awserr.Identity{
+		&v.Missing, &v.Incomplete, &v.Mismatch, &v.Skewed, &v.Expired, &v.HeadersNotSigned,
+		&v.Conflicting, &v.UnknownKey, &v.InvalidToken, &v.ExpiredToken, &v.PayloadMismatch,
+	} {
+		id.Status = status
+	}
+	return v
+}
+
 // The Coral and S3 texts of the credential failures. Coral's are DynamoDB's
 // (dynalite index.js L296-L372) and AWS's documented expired-token text;
 // S3's are its error list's (ErrorResponses.html).
@@ -237,15 +250,6 @@ func Verify(a SigV4Header, req Normalized, secret string, wallNow time.Time, v V
 		return err
 	}
 	return checkSignature(a.Credential, a.Time, req, a.SignedHeaders, "", payload, a.Signature, secret, v)
-}
-
-// VerifyPresigned is VerifyPresignedSince with the URL taken as signed at
-// the emulator instant its X-Amz-Date names, which is right only while
-// emulator time read wall time when the URL was signed. A caller that can
-// place the signing on the emulator timeline (the edge) calls
-// VerifyPresignedSince.
-func VerifyPresigned(a SigV4Query, req Normalized, secret string, wallNow time.Time, emuNow clock.Instant, v Vocabulary) *awserr.Error {
-	return VerifyPresignedSince(a, req, secret, wallNow, clock.FromWire(a.Time), emuNow, v)
 }
 
 // VerifyPresignedSince checks a SigV4 presigned URL against secret. Expiry
@@ -404,7 +408,7 @@ func payloadLine(h PayloadHash, body Body, v Vocabulary) (string, *awserr.Error)
 	if sent, ok := h.(Hex); ok && isHashed && sent.SHA256 != hashed.SHA256 {
 		return "", failure(v.PayloadMismatch, "The provided 'x-amz-content-sha256' header does not match what was computed.")
 	}
-	if line, ok := wire(h); ok {
+	if line, ok := PayloadHashValue(h); ok {
 		return line, nil
 	}
 	if !isHashed {

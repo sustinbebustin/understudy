@@ -132,9 +132,9 @@ func TestS3DialectExpiredPresignedURL(t *testing.T) {
 	t.Run("SigV4", func(t *testing.T) {
 		q, req := docPresigned(t, nil)
 		emu := docTime.Add(25 * time.Hour)
-		err := auth.VerifyPresigned(q, req, docSecret, docTime, clock.FromWire(emu), v)
+		err := auth.VerifyPresignedSince(q, req, docSecret, docTime, clock.FromWire(q.Time), clock.FromWire(emu), v)
 		if err == nil || err.ID != v.Expired || err.Message != "Request has expired" {
-			t.Fatalf("VerifyPresigned = %#v; want Expired", err)
+			t.Fatalf("VerifyPresignedSince =%#v; want Expired", err)
 		}
 		want := []awserr.Field{
 			{Name: "X-Amz-Expires", Value: "86400"},
@@ -203,14 +203,14 @@ func TestVerifyPresignedRefusesUnsignedAmzHeaders(t *testing.T) {
 	unsignedRequest := func(t *testing.T, v auth.Vocabulary) *awserr.Error {
 		t.Helper()
 		q, req := docPresigned(t, map[string]string{"X-Amz-Meta-Wrong": "1", "X-Amz-Date": "20130524T000000Z", "Range": "bytes=0-9"})
-		return auth.VerifyPresigned(q, req, docSecret, docTime, clock.FromWire(docTime), v)
+		return auth.VerifyPresignedSince(q, req, docSecret, docTime, clock.FromWire(q.Time), clock.FromWire(docTime), v)
 	}
 
 	t.Run("S3", func(t *testing.T) {
 		v := s3Vocabulary(t)
 		err := unsignedRequest(t, v)
 		if err == nil || err.ID != v.HeadersNotSigned || err.Message != msg {
-			t.Fatalf("VerifyPresigned = %#v; want HeadersNotSigned %q", err, msg)
+			t.Fatalf("VerifyPresignedSince =%#v; want HeadersNotSigned %q", err, msg)
 		}
 		want := []awserr.Field{{Name: "HeadersNotSigned", Value: "x-amz-date, x-amz-meta-wrong"}}
 		if !reflect.DeepEqual(err.Fields, want) {
@@ -222,7 +222,7 @@ func TestVerifyPresignedRefusesUnsignedAmzHeaders(t *testing.T) {
 		err := unsignedRequest(t, v)
 		wantMsg := msg + ": x-amz-date, x-amz-meta-wrong"
 		if err == nil || err.ID != v.HeadersNotSigned || err.Message != wantMsg {
-			t.Fatalf("VerifyPresigned = %#v; want HeadersNotSigned %q", err, wantMsg)
+			t.Fatalf("VerifyPresignedSince =%#v; want HeadersNotSigned %q", err, wantMsg)
 		}
 		if err.Fields != nil {
 			t.Errorf("elements %#v, want none: Coral has no HeadersNotSigned member", err.Fields)
@@ -230,7 +230,7 @@ func TestVerifyPresignedRefusesUnsignedAmzHeaders(t *testing.T) {
 	})
 	t.Run("non-amz header need not be signed", func(t *testing.T) {
 		q, req := docPresigned(t, map[string]string{"Range": "bytes=0-9"})
-		mustVerify(t, auth.VerifyPresigned(q, req, docSecret, docTime, clock.FromWire(docTime), s3Vocabulary(t)))
+		mustVerify(t, auth.VerifyPresignedSince(q, req, docSecret, docTime, clock.FromWire(q.Time), clock.FromWire(docTime), s3Vocabulary(t)))
 	})
 }
 
@@ -258,12 +258,12 @@ func TestVerifyPresignedRefusesHeaderConflictingWithQuery(t *testing.T) {
 		if !slices.Contains(q.SignedHeaders, "x-amz-meta-a") {
 			t.Fatalf("signed headers %v lack x-amz-meta-a", q.SignedHeaders)
 		}
-		return auth.VerifyPresigned(q, auth.Normalize(r, auth.Unread{}), docSecret, docTime, clock.FromWire(docTime), v)
+		return auth.VerifyPresignedSince(q, auth.Normalize(r, auth.Unread{}), docSecret, docTime, clock.FromWire(q.Time), clock.FromWire(docTime), v)
 	}
 
 	for _, query := range []string{"x-amz-meta-a=two", "X-Amz-Meta-A=two", "x-amz-meta-a=one&x-amz-meta-a=two"} {
 		if err := presignedPut(t, query, "one"); err == nil || err.ID != v.Conflicting || !strings.Contains(err.Message, "x-amz-meta-a") {
-			t.Errorf("query %s with header x-amz-meta-a: one: VerifyPresigned = %#v; want Conflicting naming x-amz-meta-a", query, err)
+			t.Errorf("query %s with header x-amz-meta-a: one: VerifyPresignedSince =%#v; want Conflicting naming x-amz-meta-a", query, err)
 		}
 	}
 	// Equal values do not conflict, compared as the canonical request holds
@@ -293,9 +293,9 @@ func TestVerifyPresignedRefusesHeaderConflictingWithQuery(t *testing.T) {
 		if !slices.Contains(q.SignedHeaders, "x-amz-request-payer") {
 			t.Fatalf("signed headers %v lack x-amz-request-payer", q.SignedHeaders)
 		}
-		err := auth.VerifyPresigned(q, auth.Normalize(r, auth.Unread{}), docSecret, docTime, clock.FromWire(docTime), v)
+		err := auth.VerifyPresignedSince(q, auth.Normalize(r, auth.Unread{}), docSecret, docTime, clock.FromWire(q.Time), clock.FromWire(docTime), v)
 		if err == nil || err.ID != v.Mismatch {
-			t.Fatalf("VerifyPresigned = %#v; want Mismatch", err)
+			t.Fatalf("VerifyPresignedSince =%#v; want Mismatch", err)
 		}
 		if got, want := fieldNames(err.Fields), []string{"AWSAccessKeyId", "StringToSign", "SignatureProvided", "StringToSignBytes", "CanonicalRequest", "CanonicalRequestBytes"}; !reflect.DeepEqual(got, want) {
 			t.Errorf("elements %v, want %v", got, want)

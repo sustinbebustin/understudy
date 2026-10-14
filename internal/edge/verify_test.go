@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/access"
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/edge"
@@ -86,7 +87,9 @@ func TestVerifyAcceptsEveryKeyWithASecret(t *testing.T) {
 }
 
 // Credentials that do not verify are refused in the family's words and
-// journaled as a failed call (ARCHITECTURE.md 4 step 4a).
+// journaled as a failed call (ARCHITECTURE.md 4 step 4a), but record no
+// IAM action for the principal they claim: on AWS such a call never
+// reaches authorization.
 func TestVerifyRefusals(t *testing.T) {
 	f, store := verifyingFront(t)
 	acct, err := aws.ParseAccountID("123456789012")
@@ -145,6 +148,9 @@ func TestVerifyRefusals(t *testing.T) {
 		if _, failed := call.Outcome.(journal.Failed); !failed {
 			t.Errorf("%s was journaled as %#v, want Failed", call.Op, call.Outcome)
 		}
+	}
+	if uses := f.access.Usage(access.Filter{}); len(uses) != 0 {
+		t.Errorf("recorded %+v for calls refused at authentication, want nothing", uses)
 	}
 }
 

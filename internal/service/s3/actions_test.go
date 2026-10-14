@@ -26,8 +26,12 @@ func (h *harness) rootUses(service string) []string {
 	out := make([]string, 0, len(uses))
 	for i := range uses {
 		on := "*"
-		if r, ok := uses[i].Resource.(access.OnResource); ok {
+		switch r := uses[i].Resource.(type) {
+		case access.OnResource:
 			on = r.ARN.String()
+		case access.BucketObjects:
+			on = r.Bucket.String() + "/*"
+		case access.AnyResource:
 		}
 		out = append(out, uses[i].Action.String()+" on "+on)
 	}
@@ -46,13 +50,14 @@ func (h *harness) rootPolicy() string {
 
 // A plain PutObject needs s3:PutObject on the object and nothing else: no
 // ACL, tagging or lock action, and no s3-object-lambda action, since no
-// Object Lambda access point was touched. The policy grants it on every
-// object of the bucket; the usage keeps the object's ARN.
+// Object Lambda access point was touched. The usage and the policy name it
+// on every object of the bucket, so they grow with buckets, not keys.
 func TestPutObjectRecordsPutObjectOnTheObject(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		h.createBucket("bkt")
 		h.put("bkt", "dir/k", "x")
-		if got, want := h.rootUses("s3"), []string{"s3:CreateBucket on arn:aws:s3:::bkt", "s3:PutObject on arn:aws:s3:::bkt/dir/k"}; !slices.Equal(got, want) {
+		h.put("bkt", "dir/j", "x")
+		if got, want := h.rootUses("s3"), []string{"s3:CreateBucket on arn:aws:s3:::bkt", "s3:PutObject on arn:aws:s3:::bkt/*"}; !slices.Equal(got, want) {
 			t.Errorf("s3 uses = %v, want %v", got, want)
 		}
 		if got := h.rootUses("s3-object-lambda"); len(got) != 0 {
@@ -73,7 +78,7 @@ func TestPutObjectWithTagsRecordsPutObjectTagging(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		h.createBucket("bkt")
 		ok(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{Bucket: "bkt", Key: "k", Body: bytesBody("x"), Tagging: new("team=a")})
-		want := []string{"s3:CreateBucket on arn:aws:s3:::bkt", "s3:PutObject on arn:aws:s3:::bkt/k", "s3:PutObjectTagging on arn:aws:s3:::bkt/k"}
+		want := []string{"s3:CreateBucket on arn:aws:s3:::bkt", "s3:PutObject on arn:aws:s3:::bkt/*", "s3:PutObjectTagging on arn:aws:s3:::bkt/*"}
 		if got := h.rootUses("s3"); !slices.Equal(got, want) {
 			t.Errorf("s3 uses = %v, want %v", got, want)
 		}
@@ -91,15 +96,15 @@ func TestCopyObjectTouchesBothObjects(t *testing.T) {
 		h.Access.Reset()
 		ok(h, who{}, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "outbox", Key: "b", CopySource: "inbox/a"})
 		want := []string{
-			"s3:GetObject on arn:aws:s3:::inbox/a", "s3:GetObject on arn:aws:s3:::outbox/b",
-			"s3:PutObject on arn:aws:s3:::inbox/a", "s3:PutObject on arn:aws:s3:::outbox/b",
+			"s3:GetObject on arn:aws:s3:::inbox/*", "s3:GetObject on arn:aws:s3:::outbox/*",
+			"s3:PutObject on arn:aws:s3:::inbox/*", "s3:PutObject on arn:aws:s3:::outbox/*",
 		}
 		if got := h.rootUses("s3"); !slices.Equal(got, want) {
 			t.Errorf("s3 uses = %v, want %v", got, want)
 		}
 		h.Access.Reset()
 		_, _ = as(h, who{}, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "outbox", Key: "b", CopySource: "inbox/a?versionId=null"})
-		if got := h.rootUses("s3"); !slices.Contains(got, "s3:GetObjectVersion on arn:aws:s3:::inbox/a") || slices.Contains(got, "s3:GetObject on arn:aws:s3:::inbox/a") {
+		if got := h.rootUses("s3"); !slices.Contains(got, "s3:GetObjectVersion on arn:aws:s3:::inbox/*") || slices.Contains(got, "s3:GetObject on arn:aws:s3:::inbox/*") {
 			t.Errorf("s3 uses of a versioned copy = %v, want s3:GetObjectVersion and no s3:GetObject on the source", got)
 		}
 	})
@@ -113,15 +118,12 @@ func TestDeleteObjectRecordsDeleteObjectVersionForAVersion(t *testing.T) {
 		h.put("bkt", "k", "x")
 		h.Access.Reset()
 		ok(h, who{}, s3api.OpDeleteObject, &s3api.DeleteObjectInput{Bucket: "bkt", Key: "k"})
-		if got, want := h.rootUses("s3"), []string{"s3:DeleteObject on arn:aws:s3:::bkt/k"}; !slices.Equal(got, want) {
+		if got, want := h.rootUses("s3"), []string{"s3:DeleteObject on arn:aws:s3:::bkt/*"}; !slices.Equal(got, want) {
 			t.Errorf("s3 uses = %v, want %v", got, want)
 		}
 		h.Access.Reset()
 		ok(h, who{}, s3api.OpDeleteObjects, &s3api.DeleteObjectsInput{Bucket: "bkt", Delete: s3api.Delete{Objects: []s3api.ObjectIdentifier{{Key: "k", VersionId: new("null")}, {Key: "j"}}}})
-		want := []string{
-			"s3:DeleteObject on arn:aws:s3:::bkt/j", "s3:DeleteObject on arn:aws:s3:::bkt/k",
-			"s3:DeleteObjectVersion on arn:aws:s3:::bkt/j", "s3:DeleteObjectVersion on arn:aws:s3:::bkt/k",
-		}
+		want := []string{"s3:DeleteObject on arn:aws:s3:::bkt/*", "s3:DeleteObjectVersion on arn:aws:s3:::bkt/*"}
 		if got := h.rootUses("s3"); !slices.Equal(got, want) {
 			t.Errorf("DeleteObjects s3 uses = %v, want %v", got, want)
 		}
@@ -149,13 +151,13 @@ func TestGetObjectAttributesRecordsTheReadOfItsVersion(t *testing.T) {
 		h.Access.Reset()
 		attrs := []s3api.ObjectAttributes{s3api.ObjectAttributesEtag}
 		ok(h, who{}, s3api.OpGetObjectAttributes, &s3api.GetObjectAttributesInput{Bucket: "bkt", Key: "k", ObjectAttributes: attrs})
-		want := []string{"s3:GetObject on arn:aws:s3:::bkt/k", "s3:GetObjectAttributes on arn:aws:s3:::bkt/k"}
+		want := []string{"s3:GetObject on arn:aws:s3:::bkt/*", "s3:GetObjectAttributes on arn:aws:s3:::bkt/*"}
 		if got := h.rootUses("s3"); !slices.Equal(got, want) {
 			t.Errorf("unversioned s3 uses = %v, want %v", got, want)
 		}
 		h.Access.Reset()
 		ok(h, who{}, s3api.OpGetObjectAttributes, &s3api.GetObjectAttributesInput{Bucket: "bkt", Key: "k", VersionId: new("null"), ObjectAttributes: attrs})
-		want = []string{"s3:GetObjectAttributes on arn:aws:s3:::bkt/k", "s3:GetObjectVersion on arn:aws:s3:::bkt/k"}
+		want = []string{"s3:GetObjectAttributes on arn:aws:s3:::bkt/*", "s3:GetObjectVersion on arn:aws:s3:::bkt/*"}
 		if got := h.rootUses("s3"); !slices.Equal(got, want) {
 			t.Errorf("versioned s3 uses = %v, want %v", got, want)
 		}

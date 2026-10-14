@@ -2,7 +2,6 @@ package lambda
 
 import (
 	"context"
-	"crypto/sha256"
 	"io"
 	"log/slog"
 	"net"
@@ -15,7 +14,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
-	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -39,31 +37,23 @@ func functionURL(e kernel.Endpoint, scope aws.Scope, id string) string {
 	return "http://" + host + "/"
 }
 
-// SigV4Mode is the sigv4 switch as it applies to function URLs with
-// AuthType AWS_IAM.
-type SigV4Mode uint8
-
-// SigV4Mode values. The zero value is SigV4Parse.
-const (
-	// SigV4Parse requires a SigV4 signature but does not check it, as
-	// understudy parses every request's credentials without verifying
-	// them by default.
-	SigV4Parse SigV4Mode = iota
-	// SigV4Verify also checks the signature against its key's secret; a
-	// key with none is refused. A call the edge already verified (sigv4
-	// verify in the server, kernel.Call.VerifiedAuth) is not checked
-	// again, so this mode matters only to a Lambda served behind an edge
-	// that does not verify. Its presigned check reads X-Amz-Date as an
-	// emulator instant (auth.VerifyPresigned), right only while the
-	// emulator clock has not moved away from wall time; the edge places
-	// the signing on the emulator timeline instead.
-	SigV4Verify
-)
+// FunctionURLAuth is the auth vocabulary a function URL refuses
+// credentials in under sigv4 verify (edge.Options.OperationAuth): the JSON
+// family's identities and texts, with 403. Lambda's function URL front end
+// answers its refusals 403 (lambda-events.md 7.2, AWS-recorded); for a
+// signature it refuses, reports show 403 and AWS's mismatch text, but no
+// recording does, so the status is inferred (DEFERRED.md, pre-tag
+// hardening).
+func FunctionURLAuth() auth.Vocabulary {
+	v, _ := auth.VocabularyFor(awserr.JSONFamily)
+	return v.WithStatus(http.StatusForbidden)
+}
 
 // FunctionURLOptions configure the function URL data plane. The zero value
-// parses signatures without verifying them, against AWS's region table.
+// reads credential scopes against AWS's region table. Signatures are the
+// edge's to verify (sigv4 verify, kernel.Call.VerifiedAuth); the data
+// plane only checks a verified credential's scope against the URL.
 type FunctionURLOptions struct {
-	SigV4 SigV4Mode
 	// Regions is the credential-scope region table, as the edge's.
 	Regions aws.Regions
 }
@@ -74,15 +64,14 @@ type FunctionURLOptions struct {
 // lambda:InvokeFunctionUrl. d is the Lambda service's dependencies, as
 // NewExecution took them.
 func (x *Execution) BindFunctionURLs(d kernel.ServiceDeps, o FunctionURLOptions) {
-	u := &urlServer{x: x, identity: d.Identity, opts: o}
+	u := &urlServer{x: x, opts: o}
 	lambdaapi.NewBinder(d.Binder).InvokeFunctionUrl(u.serve, partial(urlNote))
 }
 
 // urlServer serves function URLs for an Execution.
 type urlServer struct {
-	x        *Execution
-	identity *identity.Store
-	opts     FunctionURLOptions
+	x    *Execution
+	opts FunctionURLOptions
 }
 
 // served is a function URL configuration as serving it needs it, copied
@@ -135,7 +124,7 @@ func (u *urlServer) serve(ctx context.Context, c *kernel.Call, r *http.Request, 
 	if err != nil {
 		return err
 	}
-	verdict, err := u.authorize(c, r, s, addr, body)
+	verdict, err := u.authorize(c, r, s, addr)
 	if err != nil {
 		return err
 	}
@@ -221,15 +210,15 @@ func (refused) isAuthorization()    {}
 
 // authorize applies the URL's auth type (lambda-events.md 7.2). NONE
 // evaluates the resource policy (public); AWS_IAM requires a SigV4
-// signature, checked under SigV4Verify. The error is a URL configuration
-// understudy stored but cannot apply: an unknown auth type or a resource
-// policy it cannot parse.
-func (u *urlServer) authorize(c *kernel.Call, r *http.Request, s served, addr furl.Address, body []byte) (authorization, *awserr.Error) {
+// signature (signed). The error is a URL configuration understudy stored
+// but cannot apply: an unknown auth type or a resource policy it cannot
+// parse.
+func (u *urlServer) authorize(c *kernel.Call, r *http.Request, s served, addr furl.Address) (authorization, *awserr.Error) {
 	switch s.authType {
 	case lambdaapi.FunctionUrlAuthTypeNone:
 		return public(s)
 	case lambdaapi.FunctionUrlAuthTypeAwsIam:
-		return u.signed(c, r, addr, body), nil
+		return u.signed(c, r, addr), nil
 	}
 	return nil, errService("Lambda cannot apply the function URL of " + s.ref.qualifiedARN() + ": its stored AuthType " + strconv.Quote(string(s.authType)) +
 		" is neither NONE nor AWS_IAM. This is an understudy bug; the function did not run. UpdateFunctionUrlConfig with a valid AuthType rewrites it.")
@@ -267,78 +256,31 @@ func public(s served) (authorization, *awserr.Error) {
 	return authorized{furl.Public{}}, nil
 }
 
-// sigV4 is the SigV4 signature an AWS_IAM request carries, in its
-// Authorization header or presigned in its query: its credential, and
-// check, which verifies the signature as its form requires.
-type sigV4 struct {
-	cred  auth.Credential
-	check func(req auth.Normalized, secret string, clk *clock.Clock, v auth.Vocabulary) *awserr.Error
-}
-
 // signed authorizes a request to an AuthType AWS_IAM URL: it must carry a
-// SigV4 signature, which is verified under SigV4Verify.
-func (u *urlServer) signed(c *kernel.Call, r *http.Request, addr furl.Address, body []byte) authorization {
+// SigV4 signature. Under sigv4 verify the edge has verified the signature,
+// the session token and a presigned URL's expiry on the emulator timeline
+// (kernel.Call.VerifiedAuth), and only the credential's scope is the URL's
+// to check; under sigv4 parse nothing is checked, as for any request.
+func (u *urlServer) signed(c *kernel.Call, r *http.Request, addr furl.Address) authorization {
 	a, perr := auth.Parse(r, u.opts.Regions)
 	if perr != nil {
 		return refused{furl.Forbidden()}
 	}
-	var sig sigV4
+	var cred auth.Credential
 	switch a := a.(type) {
 	case auth.SigV4Header:
-		sig = sigV4{cred: a.Credential, check: func(req auth.Normalized, secret string, clk *clock.Clock, v auth.Vocabulary) *awserr.Error {
-			return auth.Verify(a, req, secret, clk.Wall(), v)
-		}}
+		cred = a.Credential
 	case auth.SigV4Query:
-		sig = sigV4{cred: a.Credential, check: func(req auth.Normalized, secret string, clk *clock.Clock, v auth.Vocabulary) *awserr.Error {
-			return auth.VerifyPresigned(a, req, secret, clk.Wall(), clk.Now(), v)
-		}}
+		cred = a.Credential
 	case auth.SigV2Header, auth.SigV2Query, auth.Anonymous:
 		return refused{furl.Forbidden()}
 	}
 	if _, verified := c.VerifiedAuth(); verified {
-		// The edge verified the signature, the session token and a
-		// presigned URL's expiry on the emulator timeline (sigv4 verify);
-		// only the scope's service and region are the URL's to check.
-		if refusal := scoped(sig.cred, addr); refusal != nil {
-			return refused{*refusal}
-		}
-	} else if u.opts.SigV4 == SigV4Verify {
-		if refusal := u.verify(r, sig, addr, body); refusal != nil {
+		if refusal := scoped(cred, addr); refusal != nil {
 			return refused{*refusal}
 		}
 	}
-	return authorized{iamCaller(c.Principal(), sig.cred.Key)}
-}
-
-// verify checks a SigV4 request's credential scope against the URL, then
-// its signature against the secret of its key, and a temporary key's
-// session token. A key with no secret (identity.SecretOf) is refused, as
-// the edge refuses it.
-func (u *urlServer) verify(r *http.Request, sig sigV4, addr furl.Address, body []byte) *furl.Response {
-	if refusal := scoped(sig.cred, addr); refusal != nil {
-		return refusal
-	}
-	_, res := u.identity.Resolve(sig.cred.Key)
-	secret, ok := identity.SecretOf(res)
-	if !ok {
-		return new(furl.Denied("UnrecognizedClientException", "The security token included in the request is invalid."))
-	}
-	if minted, ok := res.(identity.Minted); ok {
-		if t, ok := minted.Lifetime.(identity.Temporary); ok && sessionToken(r) != string(t.SessionToken) {
-			return new(furl.Denied("UnrecognizedClientException", "The security token included in the request is invalid."))
-		}
-	}
-	v, ok := auth.VocabularyFor(awserr.JSONFamily)
-	if !ok {
-		// auth defines a vocabulary for every family; refuse rather than
-		// verify with empty error identities.
-		return new(furl.Denied("AccessDeniedException", "understudy could not verify this signature: auth has no JSON family vocabulary. This is an understudy bug; the function did not run. Serving with sigv4 parse skips verification."))
-	}
-	req := auth.Normalize(r, auth.Hashed{SHA256: sha256.Sum256(body)})
-	if err := sig.check(req, string(secret), u.x.k.Clock(), v); err != nil {
-		return new(furl.Denied(err.ID.Shape.Name(), err.Message))
-	}
-	return nil
+	return authorized{iamCaller(c.Principal(), cred.Key)}
 }
 
 // scoped refuses a SigV4 credential not scoped to lambda or, for the host
@@ -353,15 +295,6 @@ func scoped(cred auth.Credential, addr furl.Address) *furl.Response {
 		return new(furl.Denied("InvalidSignatureException", "Credential should be scoped to a valid region, not '"+cred.Region.String()+"'. "))
 	}
 	return nil
-}
-
-// sessionToken is the X-Amz-Security-Token a request carries, in its
-// header or, presigned, its query.
-func sessionToken(r *http.Request) string {
-	if t := r.Header.Get("X-Amz-Security-Token"); t != "" {
-		return t
-	}
-	return r.URL.Query().Get("X-Amz-Security-Token")
 }
 
 // iamCaller is the signer of an AWS_IAM request, as the event reports it

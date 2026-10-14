@@ -86,8 +86,12 @@ func modeText(m access.Mode) string {
 }
 
 func resourceText(s access.Scope) string {
-	if on, ok := s.(access.OnResource); ok {
-		return on.ARN.String()
+	switch s := s.(type) {
+	case access.OnResource:
+		return s.ARN.String()
+	case access.BucketObjects:
+		return s.Bucket.String() + "/*"
+	case access.AnyResource:
 	}
 	return "*"
 }

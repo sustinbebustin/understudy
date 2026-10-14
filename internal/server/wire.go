@@ -27,6 +27,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
+	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
@@ -517,6 +518,7 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 	}
 	vocabulary, refuse := s3.AuthDialect()
 	o.ServiceAuth = map[ref.ServiceID]edge.ServiceAuth{s3api.Service().ID: {Vocabulary: vocabulary, ParseError: refuse, Payload: edge.ServiceChecksPayload}}
+	o.OperationAuth = map[ref.OperationID]auth.Vocabulary{{Service: lambdaapi.Service().ID, Name: "InvokeFunctionUrl"}: lambda.FunctionURLAuth()}
 	o.Verify = cfg.SigV4 == SigV4Verify
 	var err error
 	if w.edge, err = edge.New(o); err != nil {

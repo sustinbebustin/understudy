@@ -1,7 +1,10 @@
 package edge
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -53,6 +56,7 @@ func TestClockTimelinePlacesWallInstantsInTheirEra(t *testing.T) {
 	}{
 		{"before any change", running, clock.FromWire(running)},
 		{"before the first observation", start.Add(-time.Hour), clock.FromWire(start.Add(-time.Hour))},
+		{"in the wall second of the advance", start.Add(2*time.Minute + 999*time.Millisecond), clock.FromWire(start.Add(2*time.Minute + 999*time.Millisecond))},
 		{"after the advance", advanced, clock.FromWire(advanced.Add(time.Hour))},
 		{"while frozen", frozen, frozenAt},
 		{"while scaled", scaled, frozenAt.Add(60 * time.Minute)},
@@ -91,6 +95,7 @@ func TestClockTimelineForgetsErasNoURLCanNeed(t *testing.T) {
 		t.Errorf("an instant before the kept era: %s, want it read in that era, %s", got, want)
 	}
 	for range maxEras + 10 {
+		wall.now = wall.now.Add(time.Second)
 		if _, err := clk.Advance(time.Second); err != nil {
 			t.Fatal(err)
 		}
@@ -98,5 +103,66 @@ func TestClockTimelineForgetsErasNoURLCanNeed(t *testing.T) {
 	}
 	if len(tl.eras) != maxEras {
 		t.Errorf("kept %d eras, want at most %d", len(tl.eras), maxEras)
+	}
+}
+
+// Another request can see a clock change before its admin answer is
+// written; the answer is still held until the new era begins, so a URL
+// the client signs on the answer is placed after the change.
+func TestAdminAnswerWaitsForAnEraAnotherRequestRecorded(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		clk, err := clock.New(clock.Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var tl ClockTimeline
+		tl.observe(clk)
+		time.Sleep(200 * time.Millisecond)
+		changed := time.Now()
+		if _, err := clk.Advance(time.Hour); err != nil {
+			t.Fatal(err)
+		}
+		tl.observe(clk) // a concurrent request, before the admin answer
+
+		w := &settledWriter{ResponseWriter: httptest.NewRecorder(), r: httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/_understudy/v1/clock", http.NoBody), clock: clk, timeline: &tl}
+		w.WriteHeader(http.StatusOK)
+		answered := time.Now()
+		if want := changed.Truncate(time.Second).Add(time.Second); answered.Before(want) {
+			t.Fatalf("answered at %s, want held until the era begins at %s", answered, want)
+		}
+		signed := answered.Truncate(time.Second)
+		if got, want := tl.at(clk, signed), clock.FromWire(signed.Add(time.Hour)); got != want {
+			t.Errorf("a URL signed on the answer: %s, want it placed after the advance, %s", got, want)
+		}
+		if got, want := tl.at(clk, changed.Truncate(time.Second)), clock.FromWire(changed.Truncate(time.Second)); got != want {
+			t.Errorf("a URL signed in the second of the change: %s, want it placed before the advance, %s", got, want)
+		}
+	})
+}
+
+// Two modes seen within one wall second share one era, the later mode's,
+// so eras stay in strictly increasing wall order.
+func TestClockTimelineKeepsTheLaterOfTwoChangesInOneSecond(t *testing.T) {
+	start := time.Date(2026, 10, 13, 12, 0, 0, 0, time.UTC)
+	wall := &manualWall{now: start}
+	clk, err := clock.New(clock.Options{Wall: wall.read})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var tl ClockTimeline
+	tl.observe(clk)
+	wall.now = start.Add(100 * time.Millisecond)
+	for range 2 {
+		if _, err := clk.Advance(time.Hour); err != nil {
+			t.Fatal(err)
+		}
+		tl.observe(clk)
+	}
+	if len(tl.eras) != 2 {
+		t.Fatalf("kept %d eras, want the first and one for the second's changes", len(tl.eras))
+	}
+	after := start.Add(time.Second)
+	if got, want := tl.at(clk, after), clock.FromWire(after.Add(2*time.Hour)); got != want {
+		t.Errorf("after both changes: %s, want the later mode, %s", got, want)
 	}
 }

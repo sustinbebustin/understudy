@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -96,6 +97,42 @@ func SessionToken(r *http.Request) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// presignParameter reports whether name is a query parameter a SigV4
+// presign adds for its own signature, which HoistedHeader never reads as a
+// header.
+func presignParameter(name string) bool {
+	for _, p := range []string{qAlgorithm, qKeyAndScope, qDate, qExpires, qSignedHeaders, qSignature, qSecurityToken} {
+		if strings.EqualFold(name, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// HoistedHeader is the header a presigned SigV4 request stands for: r's
+// header plus each x-amz-* parameter its query carries that the header
+// does not, since a presign moves the request's x-amz-* headers into the
+// query (JS v3 hoists x-amz-content-sha256, x-amz-trailer and
+// x-amz-decoded-content-length), apart from the presign's own parameters.
+// Names compare case-insensitively, as header names do; of two query
+// spellings of one name, the first in byte order wins. r's header is not
+// changed.
+func HoistedHeader(r *http.Request) http.Header {
+	h := r.Header.Clone()
+	if h == nil {
+		h = http.Header{}
+	}
+	q := r.URL.Query()
+	for _, name := range slices.Sorted(maps.Keys(q)) {
+		key := http.CanonicalHeaderKey(name)
+		if !strings.HasPrefix(key, "X-Amz-") || presignParameter(key) || len(h.Values(key)) > 0 {
+			continue
+		}
+		h[key] = slices.Clone(q[name])
+	}
+	return h
 }
 
 // canonicalRequest is sigv4-checksums-endpoints.md 1.2. omit, when not

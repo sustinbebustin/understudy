@@ -156,35 +156,44 @@ type Scope interface{ isScope() }
 // OnResource is an action called on one resource of its own service.
 type OnResource struct{ ARN aws.ARN }
 
+// BucketObjects is an action called on objects of one S3 bucket, whose
+// ARN is Bucket: every object a call touched (arn:aws:s3:::<bucket>/<key>)
+// is recorded under its bucket, so the record grows with the buckets a run
+// used rather than its keys, and a policy grants it as
+// arn:aws:s3:::<bucket>/*. The journal keeps each call's exact objects.
+type BucketObjects struct{ Bucket aws.ARN }
+
 // AnyResource is an action of the operation's own service whose call
 // touched no resource of that service, such as sqs:ListQueues; a policy
 // grants it on "*".
 type AnyResource struct{}
 
-func (OnResource) isScope()  {}
-func (AnyResource) isScope() {}
+func (OnResource) isScope()    {}
+func (BucketObjects) isScope() {}
+func (AnyResource) isScope()   {}
 
-// scopeText is the exact text of s, as Usage reports it. An ARN is
-// escaped, because a * or ? in a resource name (an S3 key may hold both)
-// would otherwise widen the grant to other resources.
+// scopeText is the policy Resource text of s, which Usage sorts by. An
+// ARN is escaped, because a * or ? in a resource name (an S3 key or a log
+// stream may hold them) would otherwise widen the grant to other
+// resources; BucketObjects is its escaped bucket ARN followed by /*.
 func scopeText(s Scope) string {
-	if r, ok := s.(OnResource); ok {
-		return policydoc.Literal(r.ARN.String())
+	switch s := s.(type) {
+	case OnResource:
+		return policydoc.Literal(s.ARN.String())
+	case BucketObjects:
+		return policydoc.Literal(s.Bucket.String()) + "/*"
+	case AnyResource:
 	}
 	return "*"
 }
 
-// policyResource is the Resource a policy grants s on: its scopeText,
-// except that an S3 object is granted as every object of its bucket,
-// arn:aws:s3:::<bucket>/*, so a policy names each bucket once rather than
-// every key a run happened to use.
-func policyResource(s Scope) string {
-	if r, ok := s.(OnResource); ok {
-		if bucket, object := s3ObjectBucket(r.ARN); object {
-			return policydoc.Literal(aws.ARN{Partition: r.ARN.Partition, Service: "s3", Resource: bucket}.String()) + "/*"
-		}
+// scopeOf is the scope a touched resource is recorded under: its bucket's
+// objects for an S3 object, the resource itself otherwise.
+func scopeOf(a aws.ARN) Scope {
+	if bucket, object := s3ObjectBucket(a); object {
+		return BucketObjects{Bucket: aws.ARN{Partition: a.Partition, Service: "s3", Resource: bucket}}
 	}
-	return scopeText(s)
+	return OnResource{ARN: a}
 }
 
 // s3ObjectBucket returns the bucket of an S3 object ARN,
@@ -200,7 +209,8 @@ func s3ObjectBucket(a aws.ARN) (string, bool) {
 
 // scopesFor pairs action with the touched resources of its own service,
 // because IAM authorizes an action only against its service's resource
-// types; STS actions act on IAM roles. An action with no such resource is
+// types; STS actions act on IAM roles. An S3 object is paired as its
+// bucket's objects (scopeOf). An action with no such resource is
 // granted on "*" when it is of the operation's service (sqs:ListQueues),
 // and not at all when it is of another (iam:PassRole on a CreateFunction
 // that passed no role): the call did not use it.
@@ -212,7 +222,7 @@ func scopesFor(action registry.IAMAction, operation string, resources []aws.ARN)
 	var out []Scope
 	for _, r := range resources {
 		if r.Service == service {
-			out = append(out, OnResource{ARN: r})
+			out = append(out, scopeOf(r))
 		}
 	}
 	if len(out) == 0 && action.Prefix == operation {
@@ -244,8 +254,9 @@ type Requirement struct {
 
 // Recorder records which IAM actions each principal used. The zero value is
 // ready to use, and a Recorder is safe for concurrent use. It keeps one Use
-// per distinct (principal, mode, action, resource), so memory grows with the
-// variety of calls, not their number.
+// per distinct (principal, mode, action, resource), S3 objects counted per
+// bucket (BucketObjects), so memory grows with the variety of calls, not
+// their number.
 type Recorder struct {
 	mu   sync.Mutex
 	uses map[useKey]*Use
@@ -394,7 +405,7 @@ func (r *Recorder) Policy(principal Identity) (doc policydoc.Document, ok bool) 
 	uses := r.Usage(Filter{Principal: principal})
 	for i := range uses {
 		u := &uses[i]
-		g := group{service: u.Action.Prefix, resource: policyResource(u.Resource)}
+		g := group{service: u.Action.Prefix, resource: scopeText(u.Resource)}
 		actions[g] = append(actions[g], u.Action.String())
 	}
 	grants := make([]policydoc.Grant, 0, len(actions))

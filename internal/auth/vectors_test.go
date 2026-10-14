@@ -104,11 +104,11 @@ func TestDocVectorPresignedGetObject(t *testing.T) {
 	}
 	v := jsonVocabulary(t)
 	req := auth.Normalize(r, auth.Unread{})
-	mustVerify(t, auth.VerifyPresigned(q, req, docSecret, docTime, clock.FromWire(docTime.Add(time.Hour)), v))
+	mustVerify(t, auth.VerifyPresignedSince(q, req, docSecret, docTime, clock.FromWire(q.Time), clock.FromWire(docTime.Add(time.Hour)), v))
 
 	// Expiry is on the emulator clock: the same wall time with the emulator
 	// clock at the expiry instant is expired.
-	err := auth.VerifyPresigned(q, req, docSecret, docTime, clock.FromWire(docTime.Add(24*time.Hour)), v)
+	err := auth.VerifyPresignedSince(q, req, docSecret, docTime, clock.FromWire(q.Time), clock.FromWire(docTime.Add(24*time.Hour)), v)
 	if err == nil || err.ID != v.Expired || err.Message != "Request has expired" {
 		t.Errorf("at expiry: %#v, want Expired \"Request has expired\"", err)
 	}

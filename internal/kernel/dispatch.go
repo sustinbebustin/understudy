@@ -40,8 +40,16 @@ type Ok struct {
 // service does not model.
 type Rejected struct{ Err *awserr.Error }
 
-func (Ok) isDecoded()       {}
-func (Rejected) isDecoded() {}
+// Unauthenticated is a request the edge refused at authentication:
+// credentials that cannot be read or do not verify, or a body the
+// signature could not be checked against. It is journaled like
+// Rejected, but no IAM action is recorded for it, since on AWS such a call
+// never reaches authorization.
+type Unauthenticated struct{ Err *awserr.Error }
+
+func (Ok) isDecoded()              {}
+func (Rejected) isDecoded()        {}
+func (Unauthenticated) isDecoded() {}
 
 // Result is what the pipeline returns to the edge or to Invoke.
 //
@@ -96,13 +104,14 @@ func (e *PanicError) Error() string {
 // validators, request-phase faults, the handler, after-commit faults; the
 // access record; journal end. An unknown operation, an unbound one (501)
 // and a rejected decode end after step 6, journaled and access-recorded
-// like any other call.
+// like any other call; an unauthenticated request ends there too,
+// journaled but not access-recorded.
 func (k *Kernel) Dispatch(ctx context.Context, c *Call, d Decoded) Result {
 	bnd, _ := k.bindings.lookup(c.op)
 	k.begin(ctx, c, d, bnd)
 	used := secondariesBefore(bnd)
 	res, inj := k.pipeline(ctx, c, d, bnd, &used)
-	if inj == nil {
+	if _, unauthenticated := d.(Unauthenticated); inj == nil && !unauthenticated {
 		k.recordAccess(ctx, c, res, used)
 	}
 	k.end(ctx, c, res, inj)
@@ -123,6 +132,8 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	var in Ok
 	switch d := d.(type) {
 	case Rejected:
+		return Failure(d), nil
+	case Unauthenticated:
 		return Failure(d), nil
 	case Ok:
 		in = d
@@ -360,7 +371,8 @@ func (k *Kernel) journalFault(ctx context.Context, c *Call, inj fault.Injection)
 // recordedActions selects them from the operation's list and what its
 // binding declared: never for an injected fault, an anonymous caller, a
 // service acting on its own behalf (AsPlatform), which no policy grants,
-// or an internal operation that declares no action.
+// or an internal operation that declares no action. Dispatch skips it for
+// an Unauthenticated request.
 func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used secondaries) {
 	if _, platform := c.mode.(AsPlatform); k.access == nil || c.op == nil || platform {
 		return

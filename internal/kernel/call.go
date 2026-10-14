@@ -93,7 +93,9 @@ func (c *Call) Principal() identity.Principal { return c.principal }
 // VerifiedAuth returns the credentials the edge verified the request's
 // signature with, and false when it verified none: under sigv4 parse, for
 // an anonymous request and for every internal and timer call. S3 reads it
-// to verify aws-chunked chunk signatures (ARCHITECTURE.md 7).
+// for the payload hash the signature covers, which a presigned URL may
+// carry in its query, and to verify aws-chunked chunk signatures
+// (ARCHITECTURE.md 7).
 func (c *Call) VerifiedAuth() (auth.Auth, bool) { return c.verified, c.verified != nil }
 
 // Origin returns where the call came from.
@@ -134,7 +136,8 @@ func (c *Call) Trace() string { return c.trace }
 
 // Header returns one of the unmodeled request headers the kernel keeps for
 // handlers (CallHeaders), and false when the request did not send it or the
-// header is not kept.
+// header is not kept. For a presigned SigV4 request the edge passes the
+// x-amz-* query parameters as sent headers (auth.HoistedHeader).
 func (c *Call) Header(name string) (string, bool) {
 	v := c.headers.Values(name)
 	if len(v) == 0 {

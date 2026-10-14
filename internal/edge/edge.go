@@ -43,6 +43,11 @@ type Options struct {
 	// modes; a service without an entry answers in its protocol family's
 	// words.
 	ServiceAuth map[ref.ServiceID]ServiceAuth
+	// OperationAuth is the auth vocabulary of each operation that refuses
+	// credentials in other words than its service's, used in both modes
+	// ahead of ServiceAuth: Lambda's InvokeFunctionUrl, whose function URL
+	// front end refuses with 403.
+	OperationAuth map[ref.OperationID]auth.Vocabulary
 	// Regions is the table credential-scope regions are validated against.
 	Regions aws.Regions
 	// Codecs are the wire protocols, by the id each registers under.
@@ -239,13 +244,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var verified auth.Auth
 		var refused *awserr.Error
 		if parseErr != nil {
-			refused = h.authError(parseErr, rt.op.Service.ID, rt.codec.Protocol())
+			refused = h.authError(parseErr, rt.op, rt.codec.Protocol())
 		} else {
 			verified, refused = h.verify(verifyTarget{signed: r, claimed: rt.req, op: rt.op, p: rt.codec.Protocol(), codec: rt.codec}, a, who.res)
 		}
 		h.dispatch(ctx, x, rt.codec, rt.op.ID, a, who.principal, verified, func() kernel.Decoded {
 			if refused != nil {
-				return kernel.Rejected{Err: refused}
+				return kernel.Unauthenticated{Err: refused}
 			}
 			return h.decode(x, rt.codec, rt.op)
 		})
@@ -438,8 +443,8 @@ func clientRequest(r *http.Request, limit int64, op ref.OperationID) (kernel.Fro
 // dispatchRaw runs a raw operation, whose handler writes the response; the
 // route's codec, or else its service's, renders an error it returns, and
 // credentials that cannot be read (in either mode) or do not verify, which
-// are dispatched as a rejection so the call is journaled and the handler
-// never runs.
+// are dispatched as kernel.Unauthenticated so the call is journaled and
+// the handler never runs.
 func (h *Handler) dispatchRaw(ctx context.Context, x *exchange, rt toRaw, a auth.Auth, parseErr auth.ParseError) {
 	op := rt.op
 	codec, hasCodec := h.rawCodec(rt)
@@ -450,7 +455,7 @@ func (h *Handler) dispatchRaw(ctx context.Context, x *exchange, rt toRaw, a auth
 	_, signed := auth.AccessKey(a)
 	switch {
 	case parseErr != nil:
-		refused = h.authError(parseErr, op.Service.ID, ref.Raw)
+		refused = h.authError(parseErr, op, ref.Raw)
 	case !signed || !h.opts.Verify:
 	case hasCodec:
 		verified, refused = h.verify(verifyTarget{signed: x.r, claimed: x.r, op: op, p: ref.Raw, codec: codec}, a, who.res)
@@ -458,7 +463,7 @@ func (h *Handler) dispatchRaw(ctx context.Context, x *exchange, rt toRaw, a auth
 		refused = awserr.Internalf(&RawCodecError{Op: op.ID})
 	}
 	if refused != nil {
-		d = kernel.Rejected{Err: refused}
+		d = kernel.Unauthenticated{Err: refused}
 	}
 	c := h.call(x, op.ID, ref.Raw, a, who.principal, verified)
 	var err *awserr.Error
@@ -517,6 +522,12 @@ func (h *Handler) call(x *exchange, op ref.OperationID, p ref.ProtocolID, a auth
 			region = cs.Region
 		}
 	}
+	header := x.r.Header
+	if _, presigned := a.(auth.SigV4Query); presigned {
+		// The handler reads hoisted x-amz-* headers, such as S3's
+		// aws-chunked framing, as if sent in the header, in both modes.
+		header = auth.HoistedHeader(x.r)
+	}
 	remote, _ := netip.ParseAddrPort(x.r.RemoteAddr) //nolint:errcheck // a malformed remote address is journaled as the zero address
 	scheme := "http"
 	if x.r.TLS != nil {
@@ -532,7 +543,7 @@ func (h *Handler) call(x *exchange, op ref.OperationID, p ref.ProtocolID, a auth
 		Origin:       ref.External{Protocol: p, Listener: h.opts.Listener, RemoteAddr: remote, UserAgent: x.r.UserAgent()},
 		Admitted:     x.admitted,
 		Endpoint:     kernel.Endpoint{Scheme: scheme, Host: x.r.Host},
-		Header:       x.r.Header,
+		Header:       header,
 	})
 }
 

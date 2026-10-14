@@ -67,17 +67,21 @@
 //     .go): for a claimed operation and for raw routes and links that carry
 //     credentials, but not for an operation the service does not model,
 //     which is rejected as unknown first, in Coral's check order. A refusal
-//     is dispatched as kernel.Rejected through the claimed codec, so it is
-//     journaled as a failed call; a request that verifies carries its
+//     is dispatched as kernel.Unauthenticated through the claimed codec, so
+//     it is journaled as a failed call but records no IAM action for the
+//     principal it claims; a request that verifies carries its
 //     credentials on the call (kernel.Call.VerifiedAuth). Credentials that
 //     cannot be read reject a claimed request the same way, in either mode,
 //     raw routes and links included, so their handlers never run; only an
 //     Authorization header in no AWS scheme (Bearer) reaches a link, as
 //     unsigned, since a function URL's app may read one of its own, as AWS
 //     passes it to an AuthType NONE function.
-//     Both answer in the claimed service's words: Options.ServiceAuth for
-//     S3, whose identities no protocol family holds, else the protocol
-//     family's. Rule 8 routes by signing name, which unreadable
+//     Both answer in the claimed operation's words: Options.OperationAuth
+//     for an operation whose front end refuses otherwise than its service
+//     (a function URL's 403), else Options.ServiceAuth for S3, whose
+//     identities no protocol family holds, else the protocol family's.
+//     A presigned SigV4 request's x-amz-* query parameters reach the
+//     call's headers as if sent (auth.HoistedHeader). Rule 8 routes by signing name, which unreadable
 //     credentials do not yield, so it sends the failures only S3 can
 //     raise to S3 to answer: a presigned or SigV2 credential, a conflict
 //     (which always involves a query credential), and a header scoped to
@@ -91,8 +95,9 @@
 //     emulator clock. A SigV4 URL's lifetime counts from its X-Amz-Date
 //     placed on the emulator timeline by the ClockTimeline the edge keeps
 //     of every clock mode it saw (before each request, and as it answers
-//     each admin call, holding an answer that changed the clock until the
-//     next whole wall second, since X-Amz-Date has whole-second precision),
+//     each admin call). Each era begins at the next whole wall second
+//     after the edge first saw it, and every admin answer is held until
+//     the latest era has begun, since X-Amz-Date has whole-second precision,
 //     so a URL signed after `clock advance` lives its full lifetime and an
 //     advance past it expires the URL, frozen or not. A SigV2 URL
 //     carries only its Expires, which is read as an emulator instant, so it

@@ -219,9 +219,9 @@ func TestPolicyCarriesForwardAccessKMSActions(t *testing.T) {
 	}
 }
 
-// A policy grants S3 objects as arn:aws:s3:::<bucket>/*, one statement per
-// bucket however many keys the calls used, while Usage keeps each object's
-// exact ARN; the bucket itself stays exact.
+// S3 objects are recorded and granted as arn:aws:s3:::<bucket>/*: one use
+// and one statement per bucket however many keys the calls used, so the
+// record grows with buckets, not keys; the bucket itself stays exact.
 func TestPolicyGrantsObjectsPerBucket(t *testing.T) {
 	var r access.Recorder
 	a, b, other := arn(t, "arn:aws:s3:::uploads/a.csv"), arn(t, "arn:aws:s3:::uploads/dir/*b?.csv"), arn(t, "arn:aws:s3:::archive/a.csv")
@@ -239,14 +239,18 @@ func TestPolicyGrantsObjectsPerBucket(t *testing.T) {
 	if got := userPolicy(t, &r); got != want {
 		t.Errorf("Policy =\n%s\nwant\n%s", got, want)
 	}
-	var objects []aws.ARN
+	type objectUse struct {
+		bucket aws.ARN
+		calls  int
+	}
+	var objects []objectUse
 	for _, u := range r.Usage(access.Filter{Principal: app}) {
-		if on, ok := u.Resource.(access.OnResource); ok && u.Action == act("s3", "PutObject") {
-			objects = append(objects, on.ARN)
+		if on, ok := u.Resource.(access.BucketObjects); ok && u.Action == act("s3", "PutObject") {
+			objects = append(objects, objectUse{bucket: on.Bucket, calls: u.Calls})
 		}
 	}
-	if want := []aws.ARN{other, a, b}; !reflect.DeepEqual(objects, want) {
-		t.Errorf("Usage lists PutObject on %v, want the exact objects %v", objects, want)
+	if want := []objectUse{{arn(t, "arn:aws:s3:::archive"), 1}, {bucket, 2}}; !reflect.DeepEqual(objects, want) {
+		t.Errorf("Usage lists PutObject on %v, want one use per bucket %v", objects, want)
 	}
 }
 

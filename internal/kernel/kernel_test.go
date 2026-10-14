@@ -14,6 +14,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/access"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -316,6 +317,31 @@ func TestRejectedDecodeIsJournaledLikeAnyCall(t *testing.T) {
 		want := journal.Failed{Identity: journal.ErrorIdentity{Shape: string(awserr.SerializationException().Shape)}, Status: 400}
 		if !ok || call.Outcome != want {
 			t.Errorf("event = %+v, want outcome %+v", tree.Event.Detail, want)
+		}
+	})
+}
+
+// A call the edge refused at authentication never reached IAM
+// authorization, so it is journaled but records no action for the
+// principal it claims; a rejected decode still records its use.
+func TestUnauthenticatedCallIsJournaledButNotAccessRecorded(t *testing.T) {
+	run(t, func(k *kerneltest.K) {
+		t := k.T
+		refused := &awserr.Error{ID: awserr.IncompleteSignature(), Origin: awserr.Generic{}}
+		c := k.Call(sqsapi.OpSendMessage.Descriptor())
+		if res, ok := k.Kernel.Dispatch(t.Context(), c, kernel.Unauthenticated{Err: refused}).(kernel.Failure); !ok || res.Err != refused {
+			t.Fatalf("Dispatch = %#v, want the refusal", res)
+		}
+		if _, ok := k.Journal.Trace(c.Event()); !ok {
+			t.Fatal("the refused call is not journaled")
+		}
+		if uses := k.Access.Usage(access.Filter{}); len(uses) != 0 {
+			t.Errorf("recorded %+v for an unauthenticated call, want nothing", uses)
+		}
+
+		k.Kernel.Dispatch(t.Context(), k.Call(sqsapi.OpSendMessage.Descriptor()), kernel.Rejected{Err: refused})
+		if uses := k.Access.Usage(access.Filter{}); len(uses) == 0 {
+			t.Error("recorded nothing for a rejected decode, want its failed use")
 		}
 	})
 }

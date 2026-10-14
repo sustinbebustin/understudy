@@ -102,8 +102,8 @@ func TestVerifyPresignedNotYetCurrent(t *testing.T) {
 	v := jsonVocabulary(t)
 	req := auth.Normalize(r, auth.Unread{})
 	emu := clock.FromWire(docTime)
-	mustVerify(t, auth.VerifyPresigned(q, req, docSecret, docTime.Add(-15*time.Minute), emu, v))
-	err := auth.VerifyPresigned(q, req, docSecret, docTime.Add(-16*time.Minute), emu, v)
+	mustVerify(t, auth.VerifyPresignedSince(q, req, docSecret, docTime.Add(-15*time.Minute), clock.FromWire(q.Time), emu, v))
+	err := auth.VerifyPresignedSince(q, req, docSecret, docTime.Add(-16*time.Minute), clock.FromWire(q.Time), emu, v)
 	if err == nil || err.ID != v.Skewed || !strings.HasPrefix(err.Message, "Signature not yet current: 20130524T000000Z") {
 		t.Errorf("16 minutes early: %#v; want Skewed \"Signature not yet current\"", err)
 	}
@@ -151,7 +151,7 @@ func TestSignatureMismatchRedactsTheSessionToken(t *testing.T) {
 				if perr != nil || !ok {
 					t.Fatalf("Parse = %#v, %#v; want SigV4Query", a, perr)
 				}
-				checkRedacted(t, auth.VerifyPresigned(q, auth.Normalize(r, body), "wrong", docTime, clock.FromWire(docTime), v), v)
+				checkRedacted(t, auth.VerifyPresignedSince(q, auth.Normalize(r, body), "wrong", docTime, clock.FromWire(q.Time), clock.FromWire(docTime), v), v)
 			})
 		})
 	}

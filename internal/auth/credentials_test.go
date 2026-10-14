@@ -99,3 +99,30 @@ func TestSessionTokenFromHeaderOrQuery(t *testing.T) {
 		}
 	}
 }
+
+// A presigned request's hoisted x-amz-* parameters read as headers, a
+// header sent wins, and the presign's own parameters never do.
+func TestHoistedHeader(t *testing.T) {
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPut,
+		"/k?X-Amz-Content-Sha256=STREAMING-UNSIGNED-PAYLOAD-TRAILER&x-amz-trailer=x-amz-checksum-crc32&X-Amz-Meta-Sent=query&partNumber=1"+
+			"&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=test&X-Amz-Date=20260101T000000Z&X-Amz-Expires=60&X-Amz-SignedHeaders=host&X-Amz-Signature=00&X-Amz-Security-Token=t", nil)
+	r.Header.Set("X-Amz-Meta-Sent", "header")
+	got := auth.HoistedHeader(r)
+	for name, want := range map[string]string{
+		"X-Amz-Content-Sha256": "STREAMING-UNSIGNED-PAYLOAD-TRAILER",
+		"X-Amz-Trailer":        "x-amz-checksum-crc32",
+		"X-Amz-Meta-Sent":      "header",
+	} {
+		if v := got.Values(name); len(v) != 1 || v[0] != want {
+			t.Errorf("HoistedHeader %s = %q, want [%q]", name, v, want)
+		}
+	}
+	for _, name := range []string{"Partnumber", "X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Date", "X-Amz-Expires", "X-Amz-Signedheaders", "X-Amz-Signature", "X-Amz-Security-Token"} {
+		if v := got.Values(name); len(v) != 0 {
+			t.Errorf("HoistedHeader %s = %q, want it left out", name, v)
+		}
+	}
+	if len(r.Header) != 1 {
+		t.Errorf("r.Header = %v, want it unchanged", r.Header)
+	}
+}

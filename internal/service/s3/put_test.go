@@ -369,6 +369,10 @@ func TestSignedAWSChunkedUploadsVerifyEachSignature(t *testing.T) {
 		in := func(key, wire string) *s3api.PutObjectInput {
 			return &s3api.PutObjectInput{Bucket: "signed", Key: key, ContentEncoding: new("aws-chunked"), Body: bytesBody(wire)}
 		}
+		// The edge verifies the payload hash the request sent, so the
+		// trailer requests' verified credentials name the trailer mode.
+		trailerAuth := header
+		trailerAuth.PayloadHash = auth.StreamingSignedTrailer{}
 		good := frame(awschunked.Signed, "test")
 		goodTrailer := frame(awschunked.SignedTrailer, "test", crc)
 		for _, tc := range []struct {
@@ -379,10 +383,10 @@ func TestSignedAWSChunkedUploadsVerifyEachSignature(t *testing.T) {
 			wantErr  bool
 		}{
 			{"signed chunks", signedHeader, header, good, false},
-			{"signed chunks and trailer", trailerHeader, header, goodTrailer, false},
+			{"signed chunks and trailer", trailerHeader, trailerAuth, goodTrailer, false},
 			{"a tampered chunk", signedHeader, header, strings.Replace(good, "streamed-body", "streamed-bodY", 1), true},
 			{"chunks signed with another secret", signedHeader, header, frame(awschunked.Signed, "other"), true},
-			{"a tampered trailer", trailerHeader, header, strings.Replace(goodTrailer, "Nyb53Q==", "AAAAAA==", 1), true},
+			{"a tampered trailer", trailerHeader, trailerAuth, strings.Replace(goodTrailer, "Nyb53Q==", "AAAAAA==", 1), true},
 			{"another secret under parse", signedHeader, nil, frame(awschunked.Signed, "other"), false},
 		} {
 			key := strings.ReplaceAll(tc.name, " ", "-")

@@ -48,9 +48,11 @@
 //     on "*"; one of another service with none, such as iam:PassRole on a
 //     CreateFunction that passed no role, is dropped, since the call did
 //     not use it.
-//   - Policy grants an S3 object (arn:aws:s3:::<bucket>/<key>) as
-//     arn:aws:s3:::<bucket>/*, so a policy names each bucket's objects once
-//     rather than every key a run used; Usage keeps the exact ARNs.
+//   - An S3 object (arn:aws:s3:::<bucket>/<key>) is recorded as its
+//     bucket's objects (BucketObjects), which Usage reports and Policy
+//     grants as arn:aws:s3:::<bucket>/*: a run that writes a key per
+//     message would otherwise grow the record, and the policy, with every
+//     key. The journal keeps each call's exact object ARNs.
 //   - ResourceRequirements and Usage take the same Filter; a zero Filter
 //     selects every recorded delivery.
 //   - Advise is a function of its arguments, not a Recorder method: it reads

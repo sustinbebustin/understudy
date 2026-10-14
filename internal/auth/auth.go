@@ -165,8 +165,11 @@ const (
 	streamingSignedTrailer   = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER"
 )
 
-// wire returns the header value for h, and false for NotSent.
-func wire(h PayloadHash) (string, bool) {
+// PayloadHashValue returns the x-amz-content-sha256 value h stands for,
+// and false for NotSent. A presigned URL may carry it in its query rather
+// than the header, so a service that checks the payload reads it from the
+// verified credentials.
+func PayloadHashValue(h PayloadHash) (string, bool) {
 	switch h := h.(type) {
 	case Hex:
 		return hex.EncodeToString(h.SHA256[:]), true

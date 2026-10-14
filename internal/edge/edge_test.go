@@ -18,6 +18,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/access"
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/auth"
@@ -58,6 +59,7 @@ func dynamodb() *registry.Service {
 type front struct {
 	handler *edge.Handler
 	journal *journal.Journal
+	access  *access.Recorder
 	admin   *recorder
 }
 
@@ -106,7 +108,8 @@ func newFrontWith(t *testing.T, codecs map[ref.ProtocolID]edge.Codec, adjust fun
 		t.Fatal(err)
 	}
 	src := ids.NewSeeded(3)
-	k, err := kernel.New(kernel.Options{Registry: reg, Clock: clk, Timers: timers, IDs: src, Journal: j})
+	rec := &access.Recorder{}
+	k, err := kernel.New(kernel.Options{Registry: reg, Clock: clk, Timers: timers, IDs: src, Journal: j, Access: rec})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +137,7 @@ func newFrontWith(t *testing.T, codecs map[ref.ProtocolID]edge.Codec, adjust fun
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &front{handler: h, journal: j, admin: admin}
+	return &front{handler: h, journal: j, access: rec, admin: admin}
 }
 
 // request builds a request, signed for service when it is not empty.

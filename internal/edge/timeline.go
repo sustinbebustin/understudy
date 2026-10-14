@@ -10,23 +10,28 @@ import (
 )
 
 // ClockTimeline is the emulator clock's history as the edge saw it: each
-// mode in force and the wall time the edge first saw it. A SigV4 presigned
-// URL names the wall time it was signed at (X-Amz-Date); the timeline
-// places that instant on the emulator timeline, so a URL signed after
+// mode in force and the wall time it took effect. A SigV4 presigned URL
+// names the wall time it was signed at (X-Amz-Date); the timeline places
+// that instant on the emulator timeline, so a URL signed after
 // `clock advance 1h` lives its full lifetime, and one signed before an
 // advance expires once the clock passes its lifetime, frozen or not.
 //
 // The clock changes only through the admin API, which the edge serves, so
 // the edge reads the mode before every request and as it answers every
-// admin call (Options.Verify only). An answer that changed the clock is
-// held until the next whole wall second, where the new era begins
-// (settle); only a URL signed while that call was in flight can be placed
-// on the wrong side of it. Handlers of one server share one timeline
+// admin call (Options.Verify only). Whichever request sees a new mode
+// first, its era begins at the next whole wall second, and every admin
+// answer is held until the latest era has begun (settledWriter):
+// X-Amz-Date has whole-second precision, so a URL signed before the change
+// was asked for names an earlier second, and one signed after the answer
+// that second or a later one, and each is placed on its own side of the
+// change. Only a URL signed while the call was in flight can be placed on
+// the wrong side of it. Handlers of one server share one timeline
 // (Options.Timeline), since the admin API is served on the main listener
 // and presigned URLs arrive on either.
 type ClockTimeline struct {
 	mu sync.Mutex
-	// eras are in wall order; the first covers every earlier wall time.
+	// eras are in strictly increasing wall order; the first covers every
+	// earlier wall time.
 	eras []era
 }
 
@@ -46,46 +51,39 @@ const (
 	maxEras = 1024
 )
 
-// observe records c's mode, from now on, when it differs from the latest
-// era.
-func (t *ClockTimeline) observe(c *clock.Clock) {
-	t.record(c, func(wall time.Time) time.Time { return wall })
-}
-
-// settle records c's mode when it differs from the latest era, as an era
-// from the next whole wall second, and returns that second, which the
-// answer to the change must wait for. X-Amz-Date has whole-second
-// precision: a URL signed before the change was asked for then names an
-// earlier second, and one signed after the answer that second or a later
-// one, so each is placed on its own side of the change. It reports false
-// when the mode is unchanged.
-func (t *ClockTimeline) settle(c *clock.Clock) (time.Time, bool) {
-	return t.record(c, func(wall time.Time) time.Time { return wall.Truncate(time.Second).Add(time.Second) })
-}
-
-// record records c's mode, from the wall time start gives, when it
-// differs from the latest era, and returns that time.
-func (t *ClockTimeline) record(c *clock.Clock, start func(wall time.Time) time.Time) (time.Time, bool) {
-	m, wall := c.Mode(), c.Wall()
+// observe records c's mode when it differs from the latest era, as an era
+// from the next whole wall second, and returns the wall time the latest
+// era begins, which may still be ahead of now. The mode and wall time are
+// read under t.mu, so eras follow the clock's own order of changes: a
+// request that read a mode before a change cannot append it after the
+// change's era. An era seen within the second the latest one begins at
+// replaces it, so eras stay in strictly increasing wall order.
+func (t *ClockTimeline) observe(c *clock.Clock) time.Time {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if n := len(t.eras); n > 0 && t.eras[n-1].mode == m {
-		return time.Time{}, false
+	m, wall := c.Mode(), c.Wall()
+	n := len(t.eras)
+	switch from := wall.Truncate(time.Second).Add(time.Second); {
+	case n > 0 && t.eras[n-1].mode == m:
+		return t.eras[n-1].from
+	case n > 0 && !from.After(t.eras[n-1].from):
+		t.eras[n-1].mode = m
+		return t.eras[n-1].from
+	default:
+		t.eras = append(t.eras, era{from: from, mode: m})
 	}
-	from := start(wall)
-	t.eras = append(t.eras, era{from: from, mode: m})
 	drop := 0
 	for drop < len(t.eras)-1 && (len(t.eras)-drop > maxEras || t.eras[drop+1].from.Before(wall.Add(-timelineSpan))) {
 		drop++
 	}
 	t.eras = t.eras[drop:]
 	t.eras[0].from = time.Time{}
-	return from, true
+	return t.eras[len(t.eras)-1].from
 }
 
-// settledWriter holds an admin answer that changed the clock until the
-// era the change began has started (ClockTimeline.settle), so the client
-// cannot sign a URL in the wall second the change is placed before.
+// settledWriter holds an admin answer until the latest era has begun
+// (ClockTimeline.observe), whichever request recorded it, so the client
+// cannot sign a URL in the wall second a change is placed before.
 type settledWriter struct {
 	http.ResponseWriter
 	// r is the admin request, whose end stops the wait.
@@ -102,7 +100,7 @@ const noEmulatorDeadline = 100 * 365 * 24 * time.Hour
 func (s *settledWriter) WriteHeader(status int) {
 	if !s.settled && status >= http.StatusOK {
 		s.settled = true
-		if from, changed := s.timeline.settle(s.clock); changed {
+		if from := s.timeline.observe(s.clock); from.After(s.clock.Wall()) {
 			<-s.clock.Until(s.r.Context(), clock.Deadline{Emu: s.clock.Now().Add(noEmulatorDeadline), WallCap: from})
 		}
 	}

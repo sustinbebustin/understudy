@@ -5,8 +5,12 @@ import (
 	"crypto/hmac"
 	"crypto/md5"  //nolint:gosec // Content-MD5 is MD5 by definition; the test sends one.
 	"crypto/sha1" //nolint:gosec // SigV2 is HMAC-SHA1 by definition; the test presigns as boto3 does.
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
+	"hash/crc32"
 	"io"
 	"maps"
 	"net/http"
@@ -21,6 +25,7 @@ import (
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awschunked"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/server"
@@ -409,7 +414,9 @@ func TestSigV4VerifyCoversRawRoutesAndLinks(t *testing.T) {
 	// URL that names no function: the request passed verification.
 	wantAnswer(t, "a function URL with test/test", functionURL(dummy), 403, `{"Message":null}`)
 	wantAnswer(t, "S3 Control ListTagsForResource with a wrong secret", listTags(wrong), 403, "<ErrorResponse><Error><Type>Sender</Type><Code>SignatureDoesNotMatch</Code>")
-	wantAnswer(t, "a function URL with a wrong secret", functionURL(wrong), 400, "The request signature we calculated does not match")
+	// A function URL refuses credentials 403, as its front end refuses
+	// everything (lambda.FunctionURLAuth), where the Lambda API answers 400.
+	wantAnswer(t, "a function URL with a wrong secret", functionURL(wrong), 403, "The request signature we calculated does not match")
 
 	page, err := c.JournalEvents(t.Context(), admin.JournalQuery{Kind: "api-call", Outcome: "error"})
 	if err != nil {
@@ -684,7 +691,7 @@ func TestUnreadableCredentialsRefuseRawRoutesAndLinks(t *testing.T) {
 		wantAnswer(t, mode+": ListTagsForResource with a Bearer header", control(http.MethodGet, "Bearer x", ""), 400, "<Code>InvalidArgument</Code>")
 		functionURL := newRequest(t, http.MethodGet, endpoint+"/_understudy/lambda-url/abcdefghijklmnopqrstuvwxyz012345/", "")
 		functionURL.Header.Set("Authorization", garbage)
-		wantAnswer(t, mode+": a function URL with unreadable credentials", sigv4Do(t, functionURL), 400, "Authorization header requires existence of either a 'X-Amz-Date' or a 'Date' header")
+		wantAnswer(t, mode+": a function URL with unreadable credentials", sigv4Do(t, functionURL), 403, "Authorization header requires existence of either a 'X-Amz-Date' or a 'Date' header")
 
 		if got := control(http.MethodGet, "", ""); got.status != http.StatusOK || strings.Contains(got.body, "planted") {
 			t.Errorf("%s: the tags after the refused TagResource = %d %s, want none written", mode, got.status, got.body)
@@ -763,6 +770,120 @@ func TestSigV4VerifyBindsS3BodiesToTheSignature(t *testing.T) {
 	auth.Sign(listTags, nil, dummy.scoped("s3"), time.Now())
 	if got := sigv4Do(t, listTags); got.status != http.StatusOK || strings.Contains(got.body, "owner") {
 		t.Errorf("the tags after the refused TagResource = %d %s, want none written", got.status, got.body)
+	}
+}
+
+// presignedPut is target presigned for a PUT whose payload hash is hoisted
+// into the query as X-Amz-Content-Sha256, as JS v3 does, with header
+// signed.
+func presignedPut(t *testing.T, target, payloadHash string, header http.Header) string {
+	t.Helper()
+	sep := "?"
+	if strings.Contains(target, "?") {
+		sep = "&"
+	}
+	req := newRequest(t, http.MethodPut, target+sep+"X-Amz-Content-Sha256="+url.QueryEscape(payloadHash), "")
+	maps.Copy(req.Header, header)
+	auth.Presign(req, dummy.scoped("s3"), time.Minute, time.Now())
+	return req.URL.String()
+}
+
+// putTo sends body to a presigned PUT target with header.
+func putTo(t *testing.T, target, body string, header http.Header) reply {
+	t.Helper()
+	req := newRequest(t, http.MethodPut, target, body)
+	maps.Copy(req.Header, header)
+	return sigv4Do(t, req)
+}
+
+// A presigned PutObject or UploadPart whose payload hash is hoisted into
+// the query is bound to that hash: another body is
+// XAmzContentSHA256Mismatch and nothing is stored, the signed body is
+// stored. A hoisted signed-streaming hash, whose chunk signatures a
+// presigned URL cannot carry, is refused rather than stored unchecked.
+func TestSigV4VerifyBindsHoistedPayloadHashesToTheBody(t *testing.T) {
+	_, endpoint, _ := sigv4Server(t, server.Config{SigV4: server.SigV4Verify})
+	if got := s3Call(t, dummy, http.MethodPut, endpoint+"/hoisted", ""); got.status != http.StatusOK {
+		t.Fatalf("CreateBucket = %d %s", got.status, got.body)
+	}
+	intended := "the signed body"
+	sum := sha256.Sum256([]byte(intended))
+	hash := hex.EncodeToString(sum[:])
+
+	put := presignedPut(t, endpoint+"/hoisted/key", hash, nil)
+	wantAnswer(t, "a presigned PutObject with another body", putTo(t, put, "another body", nil), 400, "<Code>XAmzContentSHA256Mismatch</Code>")
+	wantAnswer(t, "GetObject after the refusal", s3Call(t, dummy, http.MethodGet, endpoint+"/hoisted/key", ""), 404, "<Code>NoSuchKey</Code>")
+	if got := putTo(t, put, intended, nil); got.status != http.StatusOK {
+		t.Fatalf("a presigned PutObject with the signed body = %d %s", got.status, got.body)
+	}
+	if got := s3Call(t, dummy, http.MethodGet, endpoint+"/hoisted/key", ""); got.status != http.StatusOK || got.body != intended {
+		t.Errorf("GetObject = %d %s, want the signed body", got.status, got.body)
+	}
+
+	created := s3Call(t, dummy, http.MethodPost, endpoint+"/hoisted/parts?uploads", "")
+	if created.status != http.StatusOK {
+		t.Fatalf("CreateMultipartUpload = %d %s", created.status, created.body)
+	}
+	part := presignedPut(t, endpoint+"/hoisted/parts?partNumber=1&uploadId="+url.QueryEscape(xmlElement(t, created.body, "UploadId")), hash, nil)
+	wantAnswer(t, "a presigned UploadPart with another body", putTo(t, part, "another body", nil), 400, "<Code>XAmzContentSHA256Mismatch</Code>")
+	if got := putTo(t, part, intended, nil); got.status != http.StatusOK {
+		t.Errorf("a presigned UploadPart with the signed body = %d %s", got.status, got.body)
+	}
+
+	streamed := http.Header{"X-Amz-Decoded-Content-Length": {strconv.Itoa(len(intended))}}
+	streaming := presignedPut(t, endpoint+"/hoisted/streamed", "STREAMING-AWS4-HMAC-SHA256-PAYLOAD", streamed)
+	wantAnswer(t, "a presigned PutObject with a hoisted signed-streaming hash", putTo(t, streaming, intended, streamed), 501, "<Code>NotImplemented</Code>")
+	wantAnswer(t, "GetObject after the streaming refusal", s3Call(t, dummy, http.MethodGet, endpoint+"/hoisted/streamed", ""), 404, "<Code>NoSuchKey</Code>")
+}
+
+// chunked is body framed as aws-chunked in mode, with trailers, one chunk.
+func chunked(t *testing.T, mode awschunked.Mode, body string, trailers ...awschunked.Trailer) string {
+	t.Helper()
+	var b strings.Builder
+	w := awschunked.NewWriter(&b, mode, awschunked.WriterOptions{})
+	if _, err := w.Write([]byte(body)); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Finish(trailers...); err != nil {
+		t.Fatal(err)
+	}
+	return b.String()
+}
+
+// A presigned PutObject whose aws-chunked framing is hoisted into the
+// query (x-amz-content-sha256, x-amz-trailer and
+// x-amz-decoded-content-length, as JS v3 hoists x-amz-* headers) is
+// decoded in both modes: the object holds the decoded bytes, never the
+// framing. Under parse a hoisted signed-streaming hash is decoded too,
+// since parse checks no signature.
+func TestHoistedChunkFramingIsDecoded(t *testing.T) {
+	const content = "decoded body"
+	crc := base64.StdEncoding.EncodeToString(binary.BigEndian.AppendUint32(nil, crc32.ChecksumIEEE([]byte(content))))
+	encoding := http.Header{"Content-Encoding": {"aws-chunked"}}
+	length := "X-Amz-Decoded-Content-Length=" + strconv.Itoa(len(content))
+	for mode, sigv4 := range map[string]server.SigV4Mode{"parse": server.SigV4ParseOnly, "verify": server.SigV4Verify} {
+		_, endpoint, _ := sigv4Server(t, server.Config{SigV4: sigv4})
+		if got := s3Call(t, dummy, http.MethodPut, endpoint+"/hoisted", ""); got.status != http.StatusOK {
+			t.Fatalf("%s: CreateBucket = %d %s", mode, got.status, got.body)
+		}
+		trailed := presignedPut(t, endpoint+"/hoisted/trailed?X-Amz-Trailer=x-amz-checksum-crc32&"+length, "STREAMING-UNSIGNED-PAYLOAD-TRAILER", encoding)
+		body := chunked(t, awschunked.UnsignedTrailer, content, awschunked.Trailer{Name: "x-amz-checksum-crc32", Value: crc})
+		if got := putTo(t, trailed, body, encoding); got.status != http.StatusOK {
+			t.Fatalf("%s: a presigned PutObject with hoisted unsigned-trailer framing = %d %s", mode, got.status, got.body)
+		}
+		if got := s3Call(t, dummy, http.MethodGet, endpoint+"/hoisted/trailed", ""); got.status != http.StatusOK || got.body != content {
+			t.Errorf("%s: GetObject = %d %q, want %q", mode, got.status, got.body, content)
+		}
+		if mode != "parse" {
+			continue
+		}
+		signed := presignedPut(t, endpoint+"/hoisted/signed?"+length, "STREAMING-AWS4-HMAC-SHA256-PAYLOAD", encoding)
+		if got := putTo(t, signed, chunked(t, awschunked.Signed, content), encoding); got.status != http.StatusOK {
+			t.Fatalf("parse: a presigned PutObject with a hoisted signed-streaming hash = %d %s", got.status, got.body)
+		}
+		if got := s3Call(t, dummy, http.MethodGet, endpoint+"/hoisted/signed", ""); got.status != http.StatusOK || got.body != content {
+			t.Errorf("parse: GetObject = %d %q, want %q", got.status, got.body, content)
+		}
 	}
 }
 

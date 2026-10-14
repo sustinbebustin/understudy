@@ -22,6 +22,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/server"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/furl"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/pool/pooltest"
@@ -35,18 +36,38 @@ type urlHarness struct {
 	edge *edge.Handler
 }
 
-func runURLs(t *testing.T, handler pooltest.Handler, o lambda.FunctionURLOptions, fn func(h *urlHarness)) {
+// runURLs runs fn against function URLs behind an edge that parses
+// signatures without verifying them (sigv4 parse).
+func runURLs(t *testing.T, handler pooltest.Handler, fn func(h *urlHarness)) {
+	t.Helper()
+	runURLsBehind(t, handler, func(*edge.Options) {}, fn)
+}
+
+// runVerifiedURLs is runURLs behind an edge that verifies signatures with
+// the server's codecs, as serve --sigv4 verify does.
+func runVerifiedURLs(t *testing.T, handler pooltest.Handler, fn func(h *urlHarness)) {
+	t.Helper()
+	runURLsBehind(t, handler, func(o *edge.Options) {
+		o.Verify, o.Codecs = true, server.Codecs()
+	}, fn)
+}
+
+// runURLsBehind runs fn against function URLs behind an edge whose
+// options adjust sets.
+func runURLsBehind(t *testing.T, handler pooltest.Handler, adjust func(*edge.Options), fn func(h *urlHarness)) {
 	t.Helper()
 	runExec(t, handler, func(h *execHarness) {
-		h.x.BindFunctionURLs(h.Deps(lambdaapi.Service()), o)
+		h.x.BindFunctionURLs(h.Deps(lambdaapi.Service()), lambda.FunctionURLOptions{})
 		// The admin API shares the /_understudy/ prefix with the path
 		// fallback, which must never reach it.
 		admin := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 			t.Errorf("the admin API received %s %s", r.Method, r.URL)
 		})
-		e, err := edge.New(edge.Options{
+		opts := edge.Options{
 			Kernel: h.Kernel, Registry: h.Kernel.Registry(), Identity: h.Identity, Regions: aws.KnownRegions(), Listener: ref.ListenerMain, Admin: admin,
-		})
+		}
+		adjust(&opts)
+		e, err := edge.New(opts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -135,7 +156,7 @@ func TestFunctionURLRequestEventGolden(t *testing.T) {
 		mu.Unlock()
 		return pooltest.Echo(ctx, inv)
 	}
-	runURLs(t, echo, lambda.FunctionURLOptions{}, func(h *urlHarness) {
+	runURLs(t, echo, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
 		h.allowPublic()
 		r := h.request(http.MethodPost, "http://"+host+"/my/path?parameter1=value1&parameter1=value2&parameter2=value", "Hello from client!")
@@ -188,7 +209,7 @@ func TestFunctionURLRunsUnderTheClientsTrace(t *testing.T) {
 		mu.Unlock()
 		return pooltest.Echo(ctx, inv)
 	}
-	runURLs(t, echo, lambda.FunctionURLOptions{}, func(h *urlHarness) {
+	runURLs(t, echo, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
 		h.allowPublic()
 		r := h.request(http.MethodGet, "http://"+host+"/", "")
@@ -209,7 +230,7 @@ func TestFunctionURLRunsUnderTheClientsTrace(t *testing.T) {
 }
 
 func TestFunctionURLWithAuthTypeNoneNeedsAPublicPolicyStatement(t *testing.T) {
-	runURLs(t, pooltest.Echo, lambda.FunctionURLOptions{}, func(h *urlHarness) {
+	runURLs(t, pooltest.Echo, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
 		rec := h.send(h.request(http.MethodGet, "http://"+host+"/", ""))
 		expect(t, rec, http.StatusForbidden, forbidden)
@@ -235,7 +256,7 @@ func TestFunctionURLWithAuthTypeNoneNeedsAPublicPolicyStatement(t *testing.T) {
 }
 
 func TestFunctionURLOfAnUnknownIDIsForbiddenWithANullMessage(t *testing.T) {
-	runURLs(t, pooltest.Echo, lambda.FunctionURLOptions{}, func(h *urlHarness) {
+	runURLs(t, pooltest.Echo, func(h *urlHarness) {
 		rec := h.send(h.request(http.MethodGet, "http://nosuchurl.lambda-url.us-east-1.localhost:4566/", ""))
 		expect(t, rec, http.StatusForbidden, `{"Message":null}`)
 		if rec.Header().Get("X-Amzn-Errortype") != "AccessDeniedException" || rec.Header().Get("Content-Type") != "application/json" {
@@ -252,7 +273,7 @@ func TestFunctionURLOfAnUnknownIDIsForbiddenWithANullMessage(t *testing.T) {
 // the Forbidden help message, unlike an id never minted
 // (test_lambda_url_persists_after_alias_delete).
 func TestFunctionURLOfADeletedConfigurationIsForbidden(t *testing.T) {
-	runURLs(t, pooltest.Echo, lambda.FunctionURLOptions{}, func(h *urlHarness) {
+	runURLs(t, pooltest.Echo, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
 		h.allowPublic()
 		call(h.harness, lambdaapi.OpPublishVersion, &lambdaapi.PublishVersionInput{FunctionName: urlFunction})
@@ -276,7 +297,7 @@ func TestFunctionURLOfADeletedConfigurationIsForbidden(t *testing.T) {
 // The path fallback and the host form reach the same function through the
 // edge, with the same URL and path (ARCHITECTURE.md 4.1 rules 1 and 2).
 func TestFunctionURLPathFallbackAndHostFormReachTheSameFunction(t *testing.T) {
-	runURLs(t, pooltest.Echo, lambda.FunctionURLOptions{}, func(h *urlHarness) {
+	runURLs(t, pooltest.Echo, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
 		h.allowPublic()
 		id, _, _ := strings.Cut(host, ".")
@@ -326,7 +347,7 @@ func failing(_ context.Context, inv runtimeapi.Invocation) (runtimeapi.Outcome, 
 }
 
 func TestFunctionURLAnswersFunctionErrorsAndMalformedResponsesWith502(t *testing.T) {
-	runURLs(t, failing, lambda.FunctionURLOptions{}, func(h *urlHarness) {
+	runURLs(t, failing, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
 		h.allowPublic()
 		for _, path := range []string{"/error", "/timeout", "/malformed"} {
@@ -344,7 +365,7 @@ func TestFunctionURLSendsTheFunctionsStructuredResponse(t *testing.T) {
 	answer := func(context.Context, runtimeapi.Invocation) (runtimeapi.Outcome, error) {
 		return runtimeapi.Success{Payload: []byte(`{"statusCode":418,"headers":{"X-Tea":"pot"},"cookies":["a=1"],"body":"i'm a teapot"}`)}, nil
 	}
-	runURLs(t, answer, lambda.FunctionURLOptions{}, func(h *urlHarness) {
+	runURLs(t, answer, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
 		h.allowPublic()
 		rec := h.send(h.request(http.MethodGet, "http://"+host+"/", ""))
@@ -356,7 +377,7 @@ func TestFunctionURLSendsTheFunctionsStructuredResponse(t *testing.T) {
 }
 
 func TestFunctionURLAnswersCORSPreflightsWithoutRunningTheFunction(t *testing.T) {
-	runURLs(t, pooltest.Echo, lambda.FunctionURLOptions{}, func(h *urlHarness) {
+	runURLs(t, pooltest.Echo, func(h *urlHarness) {
 		h.createFunction("fn")
 		out := call(h.harness, lambdaapi.OpCreateFunctionUrlConfig, &lambdaapi.CreateFunctionUrlConfigInput{
 			FunctionName: "fn", AuthType: lambdaapi.FunctionUrlAuthTypeNone,
@@ -386,7 +407,7 @@ func TestFunctionURLAnswersCORSPreflightsWithoutRunningTheFunction(t *testing.T)
 // Browsers never sign preflights, so an AWS_IAM URL answers an unsigned
 // one; the request it precedes still needs a signature.
 func TestFunctionURLWithAuthTypeAWSIAMAnswersUnsignedCORSPreflights(t *testing.T) {
-	runURLs(t, pooltest.Echo, lambda.FunctionURLOptions{}, func(h *urlHarness) {
+	runURLs(t, pooltest.Echo, func(h *urlHarness) {
 		h.createFunction(urlFunction)
 		out := call(h.harness, lambdaapi.OpCreateFunctionUrlConfig, &lambdaapi.CreateFunctionUrlConfigInput{
 			FunctionName: urlFunction, AuthType: lambdaapi.FunctionUrlAuthTypeAwsIam,
@@ -440,7 +461,7 @@ func (h *urlHarness) presignedURL(url string, creds identity.Credentials, expire
 }
 
 func TestFunctionURLWithAuthTypeAWSIAMNeedsASignature(t *testing.T) {
-	runURLs(t, pooltest.Echo, lambda.FunctionURLOptions{}, func(h *urlHarness) {
+	runURLs(t, pooltest.Echo, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeAwsIam)
 		expect(t, h.send(h.request(http.MethodGet, "http://"+host+"/", "")), http.StatusForbidden, forbidden)
 		creds, err := h.Identity.MintLongTerm(identity.Root{Account: aws.DefaultAccount()})
@@ -477,8 +498,10 @@ func TestFunctionURLWithAuthTypeAWSIAMNeedsASignature(t *testing.T) {
 	})
 }
 
+// Under sigv4 verify the edge verifies a function URL's signature, and the
+// URL refuses a verified credential scoped to another service or region.
 func TestFunctionURLVerifiesSignaturesUnderSigV4Verify(t *testing.T) {
-	runURLs(t, pooltest.Echo, lambda.FunctionURLOptions{SigV4: lambda.SigV4Verify}, func(h *urlHarness) {
+	runVerifiedURLs(t, pooltest.Echo, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeAwsIam)
 		creds, err := h.Identity.MintLongTerm(identity.Root{Account: aws.DefaultAccount()})
 		if err != nil {
@@ -490,8 +513,8 @@ func TestFunctionURLVerifiesSignaturesUnderSigV4Verify(t *testing.T) {
 		forged := creds
 		forged.SecretAccessKey = "wrong" + forged.SecretAccessKey[5:]
 		rec := h.send(h.signedRequest("http://"+host+"/", forged))
-		if rec.Code != http.StatusForbidden || rec.Header().Get("X-Amzn-Errortype") != "InvalidSignatureException" {
-			t.Errorf("a forged signature: %d %v %s, want 403 InvalidSignatureException", rec.Code, rec.Header(), rec.Body)
+		if rec.Code != http.StatusBadRequest || rec.Header().Get("X-Amzn-Errortype") != "InvalidSignatureException" {
+			t.Errorf("a forged signature: %d %v %s, want the edge's 400 InvalidSignatureException", rec.Code, rec.Header(), rec.Body)
 		}
 		euWest1, err := aws.KnownRegions().Parse("eu-west-1")
 		if err != nil {
@@ -516,11 +539,11 @@ func TestFunctionURLVerifiesSignaturesUnderSigV4Verify(t *testing.T) {
 	})
 }
 
-// Every key with a secret verifies, as at the edge: the dummy pair
-// test/test and a 12-digit account key with the secret test, while an
-// unknown key with no secret is refused.
+// Every key with a secret verifies: the dummy pair test/test and a
+// 12-digit account key with the secret test, while an unknown key with no
+// secret is refused.
 func TestFunctionURLVerifiesEveryKeyWithASecret(t *testing.T) {
-	runURLs(t, pooltest.Echo, lambda.FunctionURLOptions{SigV4: lambda.SigV4Verify}, func(h *urlHarness) {
+	runVerifiedURLs(t, pooltest.Echo, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeAwsIam)
 		for _, key := range []ids.AccessKeyID{identity.DummyAccessKeyID, "111111111111"} {
 			creds := identity.Credentials{AccessKeyID: key, SecretAccessKey: identity.DummySecret}
@@ -530,16 +553,16 @@ func TestFunctionURLVerifiesEveryKeyWithASecret(t *testing.T) {
 		}
 		unknown := identity.Credentials{AccessKeyID: "AKIAIOSFODNN7EXAMPLE", SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"} //nolint:gosec // G101: AWS's published example key, not a credential
 		rec := h.send(h.signedRequest("http://"+host+"/", unknown))
-		if rec.Code != http.StatusForbidden || rec.Header().Get("X-Amzn-Errortype") != "UnrecognizedClientException" {
-			t.Errorf("an unknown key: %d %v %s, want 403 UnrecognizedClientException", rec.Code, rec.Header(), rec.Body)
+		if rec.Code != http.StatusBadRequest || rec.Header().Get("X-Amzn-Errortype") != "UnrecognizedClientException" {
+			t.Errorf("an unknown key: %d %v %s, want the edge's 400 UnrecognizedClientException", rec.Code, rec.Header(), rec.Body)
 		}
 	})
 }
 
 // A presigned URL runs the function until it expires on the emulator
-// clock.
+// clock, placed on the edge's emulator timeline.
 func TestFunctionURLVerifiesPresignedURLsUnderSigV4Verify(t *testing.T) {
-	runURLs(t, pooltest.Echo, lambda.FunctionURLOptions{SigV4: lambda.SigV4Verify}, func(h *urlHarness) {
+	runVerifiedURLs(t, pooltest.Echo, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeAwsIam)
 		creds, err := h.Identity.MintLongTerm(identity.Root{Account: aws.DefaultAccount()})
 		if err != nil {
@@ -552,8 +575,8 @@ func TestFunctionURLVerifiesPresignedURLsUnderSigV4Verify(t *testing.T) {
 		if _, err := h.Clock.Advance(2 * time.Minute); err != nil {
 			t.Fatal(err)
 		}
-		if rec := h.send(h.request(http.MethodGet, url, "")); rec.Code != http.StatusForbidden {
-			t.Errorf("an expired presigned URL: %d %s, want 403", rec.Code, rec.Body)
+		if rec := h.send(h.request(http.MethodGet, url, "")); rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "Request has expired") {
+			t.Errorf("an expired presigned URL: %d %s, want the edge's 400 Request has expired", rec.Code, rec.Body)
 		}
 		if n := len(h.invocations()); n != 1 {
 			t.Errorf("invocations = %d, want only the unexpired URL's", n)
@@ -562,7 +585,7 @@ func TestFunctionURLVerifiesPresignedURLsUnderSigV4Verify(t *testing.T) {
 }
 
 func TestFunctionURLRefusesBodiesOverTheSynchronousLimit(t *testing.T) {
-	runURLs(t, pooltest.Echo, lambda.FunctionURLOptions{}, func(h *urlHarness) {
+	runURLs(t, pooltest.Echo, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
 		h.allowPublic()
 		r := httptest.NewRequestWithContext(h.Context(), http.MethodPost, "http://"+host+"/", io.LimitReader(zeros{}, 6_291_457))

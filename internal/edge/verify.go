@@ -69,11 +69,15 @@ func streamsInput(op *registry.Operation) bool {
 	return false
 }
 
-// vocabulary is the auth vocabulary of svc spoken over protocol p: the
-// service's own when Options.ServiceAuth has one, else p's family's, else
-// the JSON family's.
-func (h *Handler) vocabulary(svc ref.ServiceID, p ref.ProtocolID) auth.Vocabulary {
-	if sa, ok := h.opts.ServiceAuth[svc]; ok {
+// vocabulary is the auth vocabulary of op spoken over protocol p: the
+// operation's own when Options.OperationAuth has one, else its service's
+// when Options.ServiceAuth has one, else p's family's, else the JSON
+// family's.
+func (h *Handler) vocabulary(op *registry.Operation, p ref.ProtocolID) auth.Vocabulary {
+	if v, ok := h.opts.OperationAuth[op.ID]; ok {
+		return v
+	}
+	if sa, ok := h.opts.ServiceAuth[op.Service.ID]; ok {
 		return sa.Vocabulary
 	}
 	family, ok := awserr.FamilyOf(p)
@@ -84,12 +88,14 @@ func (h *Handler) vocabulary(svc ref.ServiceID, p ref.ProtocolID) auth.Vocabular
 	return v
 }
 
-// authError renders credentials that cannot be read in svc's words over p.
-func (h *Handler) authError(e auth.ParseError, svc ref.ServiceID, p ref.ProtocolID) *awserr.Error {
-	if sa, ok := h.opts.ServiceAuth[svc]; ok && sa.ParseError != nil {
-		return sa.ParseError(e)
+// authError renders credentials that cannot be read in op's words over p.
+func (h *Handler) authError(e auth.ParseError, op *registry.Operation, p ref.ProtocolID) *awserr.Error {
+	if _, own := h.opts.OperationAuth[op.ID]; !own {
+		if sa, ok := h.opts.ServiceAuth[op.Service.ID]; ok && sa.ParseError != nil {
+			return sa.ParseError(e)
+		}
 	}
-	return e.AWSError(h.vocabulary(svc, p))
+	return e.AWSError(h.vocabulary(op, p))
 }
 
 // verifyTarget is what verification needs of a claimed request: the
@@ -158,7 +164,7 @@ func (h *Handler) verify(t verifyTarget, a auth.Auth, res identity.Resolution) (
 	if !h.opts.Verify || !signed {
 		return nil, nil
 	}
-	v := h.vocabulary(t.op.Service.ID, t.p)
+	v := h.vocabulary(t.op, t.p)
 	clk := h.opts.Kernel.Clock()
 	if err := sessionRefusal(t.signed, res, v, clk.Wall()); err != nil {
 		return nil, err
