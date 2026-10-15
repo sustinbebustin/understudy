@@ -365,6 +365,23 @@ func TestCorpusUnderExactFieldCount(t *testing.T) {
 	runVectors(t, Options{FieldCount: FieldCountExact}, rows)
 }
 
+// recorded holds the logs-filter-patterns.md section 9 cases that recording
+// R10 settles: FilterLogEvents over the events of
+// testdata/parity/logs/R10/02-put-log-events.json, with each pattern of
+// R10/03-patterns.tsv. id names the recorded step. AWS answered under its
+// own rules, so the expectations hold for the default Options.
+var recorded = []vector{
+	{"R10/03-filter-01/ERRORS", `ERROR`, "ERRORS", match},
+	{"R10/03-filter-01/MY_ERROR", `ERROR`, "MY_ERROR", match},
+	{"R10/03-filter-01/ERROR.x", `ERROR`, "ERROR.x", match},
+	{"R10/03-filter-13", `*ROR`, "ERROR", badTerm},
+}
+
+func TestRecordedVectors(t *testing.T) {
+	t.Parallel()
+	runVectors(t, Options{}, recorded)
+}
+
 func TestFilterPatternLengthErrorText(t *testing.T) {
 	t.Parallel()
 	pattern := strings.Repeat("X", 1025)

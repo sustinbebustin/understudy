@@ -21,7 +21,7 @@ Compared against understudy at the working tree of 2026-10-14 (replayed locally 
 - 03 filter-09 `{ $.level = "ERROR" && $.n >= 5 }`: matches (1)
 - 03 filter-10 `{ $.missing NOT EXISTS }`: matches (both JSON lines; non-JSON lines excluded)
 - 03 filter-11 `[a, b, c]`: matches ("an ERROR occurred" and the 4-word "a b ERROR c"; fewer than 3 fields never match)
-- 03 filter-12/13 `ERR*`, `*ROR`: differs: AWS 400 InvalidParameterException "Invalid character(s) in term '*'"; understudy "Invalid character(s) in term ERR*" / "... *ROR" (internal/logsfilter/error.go:71-73, text.go:88-91)
+- 03 filter-12/13 `ERR*`, `*ROR`: differed: AWS 400 InvalidParameterException "Invalid character(s) in term '*'"; understudy "Invalid character(s) in term ERR*" / "... *ROR". Matches since commit 0aa0b14, which quotes only the offending characters (internal/logsfilter/error.go).
 - 03 filter-14 `{ $.n = }`: differs: AWS 400 InvalidParameterException "Invalid filter pattern"; understudy "Invalid filter pattern: comparison value expected at offset 8." (internal/logsfilter/error.go:77-79, scanner.go:143)
 - 03 response shape: differs: AWS sends nextToken even when every match is on the page, and an unmodeled searchStatistics; understudy omits nextToken when nothing remains (internal/service/logs/filter.go:82-84); searchedLogStreams [] matches
 - 04 filter-log-events start T, end T+1: matches (b0, b1: both bounds inclusive)

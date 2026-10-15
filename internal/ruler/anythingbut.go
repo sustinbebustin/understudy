@@ -3,7 +3,12 @@ package ruler
 // anythingBut compiles {"anything-but": ...} in all its forms: a string, a
 // number, a list of strings or of numbers, or an object naming prefix,
 // suffix, equals-ignore-case or wildcard with a string or a list of strings.
-// The messages are Ruler's (JsonRuleCompiler.processMatchExpression).
+// The messages are Ruler's (JsonRuleCompiler.processMatchExpression). That
+// includes the numeric wording of tooManyElements: Ruler's anything-but
+// branch calls the same tooManyElements helper as its numeric branch
+// (https://github.com/aws/event-ruler/blob/main/src/main/software/amazon/event/ruler/JsonRuleCompiler.java).
+// No AWS recording of the anything-but case exists; sns.md records the text
+// only for numeric.
 func (c *compiler) anythingBut() (matcher, *CompileError) {
 	v, e := c.next()
 	if e != nil {

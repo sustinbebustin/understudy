@@ -23,7 +23,7 @@ just verify
 - **Nothing is silently faked.** An operation that is not implemented stays unbound and answers 501. An operation that stores a setting without acting on it is marked stored-only. A deviation from AWS is a named fidelity switch or a coverage note.
 - **Generated code is checked in** and carries a `// Code generated ... DO NOT EDIT.` header. Change the generator or its inputs, then run `just generate`; never edit generated files.
 - **Design.** Read `docs/ARCHITECTURE.md` and `docs/adr/` before a change that crosses packages. Prefer sum types over boolean flags, return typed errors as values, parse at boundaries, and keep packages small around one domain type. `internal/ref/deps_test.go` enforces which packages may import which.
-- **Time.** Code outside `internal/clock` and the build tools under `cmd/` and `internal/cmd/` never calls `time.Now`, `time.Sleep` or timers; the linter refuses them. Anything AWS times runs on the emulator clock. Tests use `testing/synctest` or the emulator clock, never wall-clock sleeps.
+- **Time.** Code outside `internal/clock` and the build tools under `cmd/` and `internal/cmd/` never calls `time.Now`, `time.Sleep` or timers; the linter refuses them. Anything AWS times runs on the emulator clock. Tests use `testing/synctest` or the emulator clock. Wall-clock waits are for what a bubble cannot hold: a deadline on an external process (`internal/smoke` drives the built binary) and a check that a goroutine is blocked on a mutex, which synctest does not count as durably blocked (`internal/blob/sync_internal_test.go`, ADR 0005).
 - **Commits** follow the conventional form already in the history: `feat: ...`, `fix: ...`, `docs: ...`.
 
 ## Adding an operation

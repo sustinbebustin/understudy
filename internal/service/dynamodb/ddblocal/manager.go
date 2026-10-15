@@ -73,7 +73,8 @@ const (
 	// quarter of the limit.
 	DefaultMemory int64 = 1 << 30
 	// DefaultReadyTimeout bounds the wait for the first HTTP answer after
-	// the container starts; a cold start takes about 1.2 to 2.3 s.
+	// the container starts; a cold start takes about 1.2 to 2.3 s
+	// (dynamodb-local.md 1.3, dynamodb-local-terms.md 2.4).
 	DefaultReadyTimeout = 60 * time.Second
 )
 

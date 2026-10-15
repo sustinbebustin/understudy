@@ -7,7 +7,8 @@ import (
 )
 
 // residual is a case from logs-filter-patterns.md section 9 that no AWS
-// recording settles yet. want is the package default; when a fidelity switch
+// recording settles yet; the cases recording R10 settles are in recorded
+// (vectors_test.go). want is the package default; when a fidelity switch
 // governs the case, sw is its name and alt is the outcome under the switch's
 // other value. A recording that disagrees changes the default here and in
 // the code.
@@ -25,12 +26,9 @@ const noSwitch = ""
 // semantics, so they are tested in internal/service/logs.
 var residuals = []residual{
 	// C1: token boundary.
-	{"C1", termBoundarySwitch, `ERROR`, "ERRORS", match, noMatch},
 	{"C1", termBoundarySwitch, `ERROR`, "xERROR", match, noMatch},
-	{"C1", termBoundarySwitch, `ERROR`, "MY_ERROR", match, noMatch},
 	{"C1", termBoundarySwitch, `ERROR`, "ERROR_CODE=5", match, noMatch},
 	{"C1", termBoundarySwitch, `ERROR`, "a,ERROR,b", match, match},
-	{"C1", termBoundarySwitch, `ERROR`, "ERROR.x", match, match},
 	{"C1", termBoundarySwitch, `ERROR`, "ERROR\tTAB", match, match},
 	{"C1", termBoundarySwitch, `ERROR`, "ERROR\nNEXT", match, match},
 	{"C1", termBoundarySwitch, `ROR`, "ERROR", match, noMatch},
@@ -41,8 +39,8 @@ var residuals = []residual{
 	// [ERROR] is a one-field space-delimited pattern, not a term, so the
 	// field-count rule decides it.
 	{"C1", fieldCountSwitch, `[ERROR]`, "Exception in thread main", match, noMatch},
+	// R10 records ERR*, not ERROR*; the same rule is inferred to reject it.
 	{"C1", noSwitch, `ERROR*`, "ERRORS", badTerm, badTerm},
-	{"C1", noSwitch, `*ROR`, "ERROR", badTerm, badTerm},
 	{"C1", noSwitch, `ERROR-1`, "ERROR-1", badTerm, badTerm},
 	{"C1", noSwitch, `(ERROR)`, "(ERROR)", badTerm, badTerm},
 
