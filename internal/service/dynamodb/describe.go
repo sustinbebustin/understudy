@@ -146,10 +146,8 @@ func warmDescription(w Warm, status document.String) document.Map {
 // switch back to PROVISIONED. A table the shim never saw become
 // PAY_PER_REQUEST reports none: Local's instant is its own wall clock.
 func lastOnDemandPatched(billing document.Map, b Billing) document.Map {
-	if b != nil {
-		if last, ok := b.lastOnDemand(); ok {
-			return setMember(billing, "LastUpdateToPayPerRequestDateTime", epochSeconds(last))
-		}
+	if last, ok := b.lastOnDemand(); ok {
+		return setMember(billing, "LastUpdateToPayPerRequestDateTime", epochSeconds(last))
 	}
 	return removeMember(billing, "LastUpdateToPayPerRequestDateTime")
 }

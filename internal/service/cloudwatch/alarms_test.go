@@ -12,6 +12,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/service/cloudwatch"
 )
 
 // describe reads alarms as Terraform does: by name, metric alarms only.
@@ -435,6 +436,22 @@ func TestPutMetricAlarmValidation(t *testing.T) {
 	})
 }
 
+// A static or Metrics alarm without EvaluationPeriods or ComparisonOperator
+// is refused as missing the member, before any check reads it.
+func TestPutMetricAlarmNeedsTheEvaluationMembers(t *testing.T) {
+	run(t, func(h *harness) {
+		noPeriods := func(in *cloudwatchapi.PutMetricAlarmInput) { in.EvaluationPeriods = nil }
+		noOperator := func(in *cloudwatchapi.PutMetricAlarmInput) { in.ComparisonOperator = nil }
+		periods, operator := "The parameter EvaluationPeriods is required.", "The parameter ComparisonOperator is required."
+		checkPutAlarm(h, []putAlarmCase{
+			{"static, no periods", with(minimalAlarm("v"), noPeriods), "MissingParameter", periods},
+			{"static, no operator", with(minimalAlarm("v"), noOperator), "MissingParameter", operator},
+			{"metrics, no periods", with(anomalyAlarm("v"), noPeriods), "MissingParameter", periods},
+			{"metrics, no operator", with(anomalyAlarm("v"), noOperator), "MissingParameter", operator},
+		})
+	})
+}
+
 // putAlarmCase is one PutMetricAlarm request a validation test sends and
 // the error it wants, or none.
 type putAlarmCase struct {
@@ -793,6 +810,15 @@ func TestPutMetricAlarmExtendedStatistic(t *testing.T) {
 			}
 		})
 	})
+}
+
+// A merge that leaves no tags is nil, even over an empty, non-nil map.
+func TestTagMapIsNilWhenEmpty(t *testing.T) {
+	for name, existing := range map[string]map[string]string{"nil": nil, "empty": {}} {
+		if got := cloudwatch.TagMap(existing, nil); got != nil {
+			t.Errorf("%s: TagMap = %#v, want nil", name, got)
+		}
+	}
 }
 
 func TestTagResourceNamesOnlyAlarmsOfTheCallersScope(t *testing.T) {

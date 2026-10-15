@@ -9,7 +9,16 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/service/events"
 )
+
+// The bus check fails closed: a nil bus reference is an internal failure,
+// not an admitted call.
+func TestBusCheckRefusesANilBus(t *testing.T) {
+	if err := events.AdmitNilBus(); err == nil || err.ID != awserr.InternalFailure() {
+		t.Fatalf("AdmitNilBus = %v, want an InternalFailure", err)
+	}
+}
 
 // PutRule needs a pattern or a schedule, and refuses an invalid one with
 // the recorded texts.

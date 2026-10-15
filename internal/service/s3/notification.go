@@ -86,7 +86,10 @@ func (s *Service) putNotification(ctx context.Context, c *kernel.Call, in *s3api
 			b.Notification = nil
 			return struct{}{}, nil, nil
 		}
-		wire := cfg.Wire()
+		wire, werr := cfg.Wire()
+		if werr != nil {
+			return struct{}{}, nil, awserr.Internalf(werr)
+		}
 		b.Notification = &wire
 		if !validate {
 			return struct{}{}, nil, nil

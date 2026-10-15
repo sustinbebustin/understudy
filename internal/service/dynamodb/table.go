@@ -96,9 +96,7 @@ func billed(was Billing, mode dynamodbapi.BillingMode, now clock.Instant) Billin
 		return OnDemand{Since: now}
 	case dynamodbapi.BillingModeProvisioned:
 		last := Provisioned{}
-		if was != nil {
-			last.LastOnDemand, _ = was.lastOnDemand()
-		}
+		last.LastOnDemand, _ = was.lastOnDemand()
 		return last
 	}
 	return was

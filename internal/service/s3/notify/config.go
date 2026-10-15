@@ -424,8 +424,9 @@ func generatedID(bucket string, index int, kind Kind, arn string) string {
 // <NotificationConfiguration/> sends to turn notifications off.
 func (c Config) Empty() bool { return len(c.Rules) == 0 && !c.EventBridge }
 
-// Wire is the configuration as S3 stores and returns it.
-func (c Config) Wire() s3api.NotificationConfiguration {
+// Wire is the configuration as S3 stores and returns it. A rule whose Kind
+// is outside the declared values is a *KindError, not a dropped rule.
+func (c Config) Wire() (s3api.NotificationConfiguration, error) {
 	var out s3api.NotificationConfiguration
 	if c.EventBridge {
 		out.EventBridgeConfiguration = &s3api.EventBridgeConfiguration{}
@@ -440,9 +441,11 @@ func (c Config) Wire() s3api.NotificationConfiguration {
 			out.QueueConfigurations = append(out.QueueConfigurations, s3api.QueueConfiguration{Id: id, QueueArn: arn, Events: r.Events, Filter: f})
 		case Function:
 			out.LambdaFunctionConfigurations = append(out.LambdaFunctionConfigurations, s3api.LambdaFunctionConfiguration{Id: id, LambdaFunctionArn: arn, Events: r.Events, Filter: f})
+		default:
+			return s3api.NotificationConfiguration{}, &KindError{Kind: r.Kind}
 		}
 	}
-	return out
+	return out, nil
 }
 
 // InRegion refuses the first rule, in document order, whose destination is

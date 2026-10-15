@@ -1,6 +1,7 @@
 package dynamodb
 
 import (
+	"fmt"
 	"maps"
 	"slices"
 	"strings"
@@ -20,7 +21,9 @@ const stateVersion = 3
 
 // stateCodec is the snapshot codec of State, with the Billing sum in the
 // tagged-union form. A table jsonx refuses is a bug in this file; the codec
-// then fails every Export and Import with that error.
+// then fails every Export and Import with that error. Unmarshal refuses a
+// table without billing (*MissingBillingError), so Table.Billing is never
+// nil after an Import either.
 func stateCodec() store.Codec {
 	u, err := jsonx.NewUnion("dynamodb.Billing",
 		jsonx.Variant[Billing, Provisioned]("provisioned"),
@@ -33,7 +36,26 @@ func stateCodec() store.Codec {
 		}
 	}
 	c := jsonx.NewCodec(u)
-	return store.Codec{Marshal: c.Marshal, Unmarshal: c.Unmarshal}
+	return store.Codec{Marshal: c.Marshal, Unmarshal: func(b []byte, v any) error {
+		st, ok := v.(*State)
+		if !ok {
+			return fmt.Errorf("dynamodb state codec: asked to decode into %T; it decodes only *State", v)
+		}
+		if err := c.Unmarshal(b, st); err != nil {
+			return err
+		}
+		return st.checkBilling()
+	}}
+}
+
+// MissingBillingError is a snapshot table that carries no billing, which
+// every recorded table has; the snapshot was not written by Export.
+type MissingBillingError struct {
+	Table string
+}
+
+func (e *MissingBillingError) Error() string {
+	return fmt.Sprintf("dynamodb snapshot: table %s has no billing mode; every exported table records one, so the snapshot was edited or written by another tool", e.Table)
 }
 
 // State is the shim's view of one account and region: the tables Local
@@ -45,6 +67,16 @@ type State struct {
 }
 
 func newState(aws.Scope) State { return State{Tables: map[string]Table{}} }
+
+// checkBilling refuses the first table, by name, that has no billing.
+func (s *State) checkBilling() error {
+	for _, name := range slices.Sorted(maps.Keys(s.Tables)) {
+		if s.Tables[name].Billing == nil {
+			return &MissingBillingError{Table: name}
+		}
+	}
+	return nil
+}
 
 // caseTwins returns the tables whose names equal name in every letter but
 // case, which Local would take for the same table (dynamodb-local.md 4.1).

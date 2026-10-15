@@ -9,6 +9,7 @@ import (
 	"testing"
 	"testing/iotest"
 
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/codegen"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
@@ -419,6 +420,20 @@ func TestErrorKeepsItsCause(t *testing.T) {
 	}
 	if want := "understudy-gen overlay: denied.json: read: permission denied"; err.Error() != want {
 		t.Errorf("message = %q, want %q", err.Error(), want)
+	}
+}
+
+// TestEmitRefusesTheZeroMessageKey: an error whose MessageKey was never set
+// stops generation at the emit stage rather than rendering a valid-looking
+// constant.
+func TestEmitRefusesTheZeroMessageKey(t *testing.T) {
+	ir := &codegen.ServiceIR{Package: "p", Errors: []*codegen.ErrorIR{{
+		Shape: &codegen.ShapeIR{ID: "com.example#Unset", GoName: "Unset"}, Status: 400, Fault: awserr.Sender,
+	}}}
+	out, err := codegen.EmitErrors(ir)
+	var ce *codegen.Error
+	if !errors.As(err, &ce) || ce.Stage != codegen.StageEmit || out != nil {
+		t.Fatalf("EmitErrors = %d bytes, %v; want an emit-stage *codegen.Error", len(out), err)
 	}
 }
 

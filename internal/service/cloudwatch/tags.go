@@ -68,6 +68,9 @@ func tagMap(existing map[string]string, tags []cloudwatchapi.Tag) map[string]str
 		}
 		out[t.Key] = t.Value
 	}
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
 

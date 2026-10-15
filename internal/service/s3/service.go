@@ -316,9 +316,7 @@ func splitSections(ss []store.Section) (idx, bkts []store.Section) {
 // names. It runs under the gate's exclusive side, where no cell can be
 // read, so it reads the index through its own section and writes the kept
 // entries back through Import. A codec failure there is a bug in this
-// package, which Reset logs; one before the index is cleared leaves the S3
-// state as it was, while a failed Import after it leaves the index empty
-// and every bucket cell in place.
+// package, which Reset logs; it leaves the S3 state as it was.
 func (s *Service) Reset(rs kernel.ResetScope) {
 	if err := s.reset(rs); err != nil {
 		s.log.LogAttrs(context.Background(), slog.LevelError, "s3 reset could not read or rewrite the bucket index; no bucket was dropped",
@@ -388,8 +386,12 @@ func (s *Service) reset(rs kernel.ResetScope) error {
 	if err != nil {
 		return err
 	}
-	s.index.Reset(func(indexKey) bool { return false })
-	if err := s.index.Import(indexKeys(), stateVersion, section); err != nil {
+	// Import validates the section before it replaces the index cell, so a
+	// failure leaves the index as it was. An empty index has no section to
+	// import, and is cleared instead.
+	if len(section) == 0 {
+		s.index.Reset(func(indexKey) bool { return false })
+	} else if err := s.index.Import(indexKeys(), stateVersion, section); err != nil {
 		return err
 	}
 	s.buckets.Reset(func(name string) bool { return !dropped[name] })

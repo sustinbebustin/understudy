@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
@@ -16,7 +17,9 @@ func emitErrors(ir *ServiceIR) ([]byte, error) {
 	f := newFile(ir, "errors_gen.go")
 	f.use("awserr")
 	for _, e := range ir.Errors {
-		f.errorFuncs(e)
+		if err := f.errorFuncs(e); err != nil {
+			return nil, err
+		}
 	}
 	if e := ir.Throttle; e != nil {
 		f.p("// ThrottleError returns the identity a throttling fault rule injects for")
@@ -50,30 +53,39 @@ func emitErrors(ir *ServiceIR) ([]byte, error) {
 		f.p("func MalformedRequestError() awserr.Identity { return Identity%s() }\n", e.Shape.GoName)
 	}
 	if len(ir.Vocabularies) > 0 {
-		f.p("// GenericErrors returns the generic, protocol-level identities this")
-		f.p("// service sends over protocol family f (overlays/common.json), the codes a")
-		f.p("// fault rule may name beside each operation's own; nil for a family it")
-		f.p("// does not speak.")
-		f.p("func GenericErrors(f awserr.Family) []awserr.Identity {")
-		f.p("\tswitch f {")
-		for _, v := range ir.Vocabularies {
-			calls := make([]string, 0, len(v.Errors))
-			for _, e := range v.Errors {
-				calls = append(calls, "Identity"+e.Shape.GoName+"()")
-			}
-			fam, err := familyConst(v.Family)
-			if err != nil {
-				return nil, err
-			}
-			f.p("\tcase awserr.%s:", fam)
-			f.p("\t\treturn []awserr.Identity{%s}", strings.Join(calls, ", "))
+		if err := f.genericErrors(ir.Vocabularies); err != nil {
+			return nil, err
 		}
-		f.p("\tdefault:")
-		f.p("\t\treturn nil")
-		f.p("\t}")
-		f.p("}\n")
 	}
 	return f.bytes()
+}
+
+// genericErrors emits GenericErrors, the identities of each family's
+// generic vocabulary.
+func (f *file) genericErrors(vocabularies []VocabularyIR) error {
+	f.p("// GenericErrors returns the generic, protocol-level identities this")
+	f.p("// service sends over protocol family f (overlays/common.json), the codes a")
+	f.p("// fault rule may name beside each operation's own; nil for a family it")
+	f.p("// does not speak.")
+	f.p("func GenericErrors(f awserr.Family) []awserr.Identity {")
+	f.p("\tswitch f {")
+	for _, v := range vocabularies {
+		calls := make([]string, 0, len(v.Errors))
+		for _, e := range v.Errors {
+			calls = append(calls, "Identity"+e.Shape.GoName+"()")
+		}
+		fam, err := familyConst(v.Family)
+		if err != nil {
+			return err
+		}
+		f.p("\tcase awserr.%s:", fam)
+		f.p("\t\treturn []awserr.Identity{%s}", strings.Join(calls, ", "))
+	}
+	f.p("\tdefault:")
+	f.p("\t\treturn nil")
+	f.p("\t}")
+	f.p("}\n")
+	return nil
 }
 
 // familyConst names family f's awserr constant.
@@ -90,11 +102,15 @@ func familyConst(f awserr.Family) (string, error) {
 
 // errorFuncs emits the Identity function and the Err constructor of one
 // error shape.
-func (f *file) errorFuncs(e *ErrorIR) {
+func (f *file) errorFuncs(e *ErrorIR) error {
+	fields, err := identityFields(e)
+	if err != nil {
+		return err
+	}
 	name := e.Shape.GoName
 	f.p("// Identity%s returns the identity of %s.", name, e.Shape.ID)
 	f.p("func Identity%s() awserr.Identity {", name)
-	f.p("\treturn awserr.Identity{%s}", identityFields(e))
+	f.p("\treturn awserr.Identity{%s}", fields)
 	f.p("}\n")
 	origin := "awserr.Modeled{}"
 	if e.Generic {
@@ -124,6 +140,7 @@ func (f *file) errorFuncs(e *ErrorIR) {
 		f.p("\treturn &awserr.Error{ID: Identity%s(), Message: message%s, Origin: %s}", name, msgs, origin)
 	}
 	f.p("}\n")
+	return nil
 }
 
 // withArticle prefixes a or an by the name's first letter.
@@ -134,7 +151,11 @@ func withArticle(name string) string {
 	return "a " + name
 }
 
-func identityFields(e *ErrorIR) string {
+func identityFields(e *ErrorIR) (string, error) {
+	key, err := messageKeyConst(e.Shape.ID, e.MessageKey)
+	if err != nil {
+		return "", err
+	}
 	parts := []string{
 		"Shape: " + goString(string(e.Shape.ID)),
 		"JSONType: " + goString(e.JSONType),
@@ -144,23 +165,26 @@ func identityFields(e *ErrorIR) string {
 	if e.QueryModeStatus != 0 {
 		parts = append(parts, fmt.Sprintf("QueryModeStatus: %d", e.QueryModeStatus))
 	}
-	parts = append(parts, "Fault: awserr."+e.Fault.String(), "MessageKey: awserr."+messageKeyConst(e.MessageKey))
+	parts = append(parts, "Fault: awserr."+e.Fault.String(), "MessageKey: awserr."+key)
 	if e.Retryable {
 		parts = append(parts, "Retryable: true")
 	}
-	return strings.Join(parts, ", ")
+	return strings.Join(parts, ", "), nil
 }
 
-func messageKeyConst(k awserr.MessageKey) string {
+// messageKeyConst names key k's awserr constant. The zero MessageKey is
+// invalid: the IR builder sets every error's key, so an unset one is a
+// builder bug, not a shape without a message.
+func messageKeyConst(shape smithy.ShapeID, k awserr.MessageKey) (string, error) {
 	switch k {
 	case awserr.MessageLower:
-		return "MessageLower"
+		return "MessageLower", nil
 	case awserr.MessageUpper:
-		return "MessageUpper"
+		return "MessageUpper", nil
 	case awserr.NoMessage:
-		return "NoMessage"
+		return "NoMessage", nil
 	default:
-		return "NoMessage"
+		return "", failf(StageEmit, string(shape), "awserr.MessageKey(%d) has no constant; the IR builder sets every error's MessageKey (ir_errors.go)", k)
 	}
 }
 

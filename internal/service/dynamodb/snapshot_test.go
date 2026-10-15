@@ -145,6 +145,33 @@ func TestUnrecordedTablesSurviveSaveAndLoad(t *testing.T) {
 	})
 }
 
+// TestImportRefusesATableWithoutBilling: a table's Billing is never nil, so
+// a snapshot section whose table carries no billing, or a null one, is
+// refused and the tables already recorded stay as they were.
+func TestImportRefusesATableWithoutBilling(t *testing.T) {
+	runStore(t, func(h *harness, _ *tableStore) {
+		seedTables(h)
+		cells, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		before := h.mustCall("DescribeTable", `{"TableName":"Jobs"}`)
+		for name, data := range map[string]string{
+			"missing": `{"tables":{"Jobs":{"id":"x"}}}`,
+			"null":    `{"tables":{"Jobs":{"id":"x","billing":null}}}`,
+		} {
+			err := h.svc.Import([]store.Section{{Path: cells[0].Path, Version: cells[0].Version, Data: []byte(data)}})
+			var missing *dynamodb.MissingBillingError
+			if !errors.As(err, &missing) || missing.Table != "Jobs" {
+				h.Errorf("%s: Import = %v, want a *dynamodb.MissingBillingError naming Jobs", name, err)
+			}
+		}
+		if after := h.mustCall("DescribeTable", `{"TableName":"Jobs"}`); fmt.Sprint(after) != fmt.Sprint(before) {
+			h.Errorf("DescribeTable after the refused imports = %v, want %v", after, before)
+		}
+	})
+}
+
 // TestImportLateRefusesUnreadableSectionsFirst: a section of another
 // schema version, a path that names no table, an item that is not one,
 // a first line that is no valid CreateTable request, or one creating

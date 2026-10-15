@@ -46,6 +46,15 @@ func parse(t fataler, in s3api.NotificationConfiguration) notify.Config {
 	return c
 }
 
+func wire(t fataler, c notify.Config) s3api.NotificationConfiguration {
+	t.Helper()
+	w, err := c.Wire()
+	if err != nil {
+		t.Fatalf("Wire: %v", err)
+	}
+	return w
+}
+
 // Rule names are case-insensitive on input and returned capitalized; an
 // empty value is accepted (AWS-recorded test_filter_rules_case_insensitive
 // and test_filter_rules_empty_value).
@@ -54,7 +63,7 @@ func TestFilterRuleNamesAreReturnedCapitalized(t *testing.T) {
 		Id: new("q1"), QueueArn: queueARN, Events: []s3api.Event{s3api.EventS3Objectcreated},
 		Filter: filter(rule("PREFIX", "notif-"), rule("suffix", "")),
 	}}})
-	got := c.Wire().QueueConfigurations[0].Filter.Key.FilterRules
+	got := wire(t, c).QueueConfigurations[0].Filter.Key.FilterRules
 	want := []string{"Prefix=notif-", "Suffix="}
 	if len(got) != len(want) {
 		t.Fatalf("rules = %d, want %d", len(got), len(want))
@@ -76,15 +85,15 @@ func TestMissingIDIsGeneratedAndKept(t *testing.T) {
 		},
 		TopicConfigurations: []s3api.TopicConfiguration{{Id: new("mine"), TopicArn: topicARN, Events: []s3api.Event{s3api.EventS3Objecttagging}}},
 	}
-	wire := parse(t, in).Wire()
-	a, b := wire.QueueConfigurations[0].Id, wire.QueueConfigurations[1].Id
+	stored := wire(t, parse(t, in))
+	a, b := stored.QueueConfigurations[0].Id, stored.QueueConfigurations[1].Id
 	if a == nil || b == nil || *a == "" || *a == *b {
 		t.Fatalf("generated ids = %v, %v; want two distinct ids", a, b)
 	}
-	if got := *wire.TopicConfigurations[0].Id; got != "mine" {
+	if got := *stored.TopicConfigurations[0].Id; got != "mine" {
 		t.Fatalf("given id = %q, want mine", got)
 	}
-	again := parse(t, wire).Wire()
+	again := wire(t, parse(t, stored))
 	if *again.QueueConfigurations[0].Id != *a {
 		t.Fatalf("stored id changed on a second parse: %q, want %q", *again.QueueConfigurations[0].Id, *a)
 	}
@@ -216,6 +225,21 @@ func TestUnknownKindRaisesNoDelivery(t *testing.T) {
 	var e *notify.KindError
 	if !errors.As(err, &e) || e.Kind != 0 {
 		t.Fatalf("Requests = %v, want a KindError naming Kind(0)", err)
+	}
+}
+
+// Wire refuses the same hand-built rule rather than dropping it from the
+// configuration it reports.
+func TestUnknownKindRefusesWire(t *testing.T) {
+	arn, err := aws.ParseARN(queueARN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := notify.Config{Rules: []notify.Rule{{ID: "r", ARN: arn, Events: []s3api.Event{s3api.EventS3Objectcreated}}}}
+	_, err = c.Wire()
+	var e *notify.KindError
+	if !errors.As(err, &e) || e.Kind != 0 {
+		t.Fatalf("Wire = %v, want a KindError naming Kind(0)", err)
 	}
 }
 
@@ -416,7 +440,7 @@ func TestParseRefusesExactlyOverlappingRules(t *testing.T) {
 		c, err := notify.Parse("b", in)
 		if err == nil {
 			// The stored form reads back to the configuration Parse accepted.
-			if stored, err := notify.ParseStored("b", c.Wire()); err != nil || !reflect.DeepEqual(stored, c) {
+			if stored, err := notify.ParseStored("b", wire(t, c)); err != nil || !reflect.DeepEqual(stored, c) {
 				t.Fatalf("ParseStored(Wire) = %+v, %v; want %+v", stored, err, c)
 			}
 			for _, key := range keys {
@@ -522,7 +546,7 @@ func longer(a, b string) string {
 // A stored configuration with only EventBridge enabled is not empty.
 func TestEventBridgeIsKept(t *testing.T) {
 	c := parse(t, s3api.NotificationConfiguration{EventBridgeConfiguration: &s3api.EventBridgeConfiguration{}})
-	if c.Empty() || c.Wire().EventBridgeConfiguration == nil {
+	if c.Empty() || wire(t, c).EventBridgeConfiguration == nil {
 		t.Fatalf("EventBridge configuration was dropped: %+v", c)
 	}
 	if !parse(t, s3api.NotificationConfiguration{}).Empty() {

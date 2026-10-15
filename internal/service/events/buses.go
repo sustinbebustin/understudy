@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 
@@ -85,7 +86,14 @@ func parseBus(scope aws.Scope, name *string) busRef {
 // call: another served account's or region's default bus is NotImplemented,
 // and any other bus does not exist.
 func requireDefaultBus(scope aws.Scope, name *string) *awserr.Error {
-	switch b := parseBus(scope, name).(type) {
+	return admitDefaultBus(parseBus(scope, name))
+}
+
+// admitDefaultBus is requireDefaultBus on a parsed bus. A nil bus, which
+// parseBus never returns, is refused as an internal failure rather than
+// admitted.
+func admitDefaultBus(bus busRef) *awserr.Error {
+	switch b := bus.(type) {
 	case ownBus:
 		return nil
 	case foreignBus:
@@ -93,8 +101,12 @@ func requireDefaultBus(scope aws.Scope, name *string) *awserr.Error {
 	case missingBus:
 		return errBusNotFound(b.name)
 	}
-	return nil
+	return awserr.Internalf(errNilBus)
 }
+
+// errNilBus is the cause of admitting a busRef that is nil, a bug in
+// whatever built it.
+var errNilBus = errors.New("events: the event bus reference is nil, so no bus was checked; parseBus builds every busRef")
 
 // ruleRef locates a rule of a default bus: its scope and name.
 type ruleRef struct {

@@ -151,10 +151,11 @@ func checkStaticAlarm(in *cloudwatchapi.PutMetricAlarmInput) *awserr.Error {
 	if op := in.ComparisonOperator; op != nil && anomalyOperator(*op) {
 		return errAnomalyOperator(*op)
 	}
-	if err := checkEvaluation(in); err != nil {
+	ev, err := checkEvaluation(in)
+	if err != nil {
 		return err
 	}
-	return checkEvaluationRange(*in.Period, *in.EvaluationPeriods)
+	return checkEvaluationRange(*in.Period, ev.periods)
 }
 
 // checkMetricsAlarm refuses the single-metric members, which the Metrics
@@ -173,17 +174,18 @@ func checkMetricsAlarm(in *cloudwatchapi.PutMetricAlarmInput) *awserr.Error {
 	}); err != nil {
 		return err
 	}
-	if err := checkEvaluation(in); err != nil {
+	ev, err := checkEvaluation(in)
+	if err != nil {
 		return err
 	}
-	if err := checkAlarmQueries(in.Metrics, anomalyOperator(*in.ComparisonOperator)); err != nil {
+	if err := checkAlarmQueries(in.Metrics, anomalyOperator(ev.operator)); err != nil {
 		return err
 	}
 	if id := in.ThresholdMetricId; id != nil && !slices.ContainsFunc(in.Metrics, func(q cloudwatchapi.MetricDataQuery) bool { return q.Id == *id }) {
 		return errInvalidValue(*id, "ThresholdMetricId") // inferred
 	}
 	if period, ok := evaluatedPeriod(in.Metrics); ok {
-		return checkEvaluationRange(period, *in.EvaluationPeriods)
+		return checkEvaluationRange(period, ev.periods)
 	}
 	return nil
 }
@@ -259,26 +261,35 @@ func refuseSet(owner string, members []member) *awserr.Error {
 // within the last N; and ties the threshold to the operator: an anomaly
 // detection operator compares with the band ThresholdMetricId names and
 // takes no Threshold, and every other operator needs a Threshold
-// (AWS-documented; the texts are inferred).
-func checkEvaluation(in *cloudwatchapi.PutMetricAlarmInput) *awserr.Error {
+// (AWS-documented; the texts are inferred). It returns the members it
+// checked, so callers read them from here rather than from in.
+func checkEvaluation(in *cloudwatchapi.PutMetricAlarmInput) (evaluation, *awserr.Error) {
 	switch {
 	case in.EvaluationPeriods == nil:
-		return errMissing("EvaluationPeriods")
+		return evaluation{}, errMissing("EvaluationPeriods")
 	case in.ComparisonOperator == nil:
-		return errMissing("ComparisonOperator")
-	case in.DatapointsToAlarm != nil && *in.DatapointsToAlarm > *in.EvaluationPeriods:
-		return cloudwatchapi.ErrInvalidParameterCombinationException("DatapointsToAlarm must be less than or equal to EvaluationPeriods.")
+		return evaluation{}, errMissing("ComparisonOperator")
 	}
-	anomaly := anomalyOperator(*in.ComparisonOperator)
+	ev := evaluation{periods: *in.EvaluationPeriods, operator: *in.ComparisonOperator}
+	if in.DatapointsToAlarm != nil && *in.DatapointsToAlarm > ev.periods {
+		return evaluation{}, cloudwatchapi.ErrInvalidParameterCombinationException("DatapointsToAlarm must be less than or equal to EvaluationPeriods.")
+	}
+	anomaly := anomalyOperator(ev.operator)
 	switch {
 	case !anomaly && in.Threshold == nil:
-		return errMissing("Threshold")
+		return evaluation{}, errMissing("Threshold")
 	case anomaly && in.ThresholdMetricId == nil:
-		return errMissing("ThresholdMetricId")
+		return evaluation{}, errMissing("ThresholdMetricId")
 	case anomaly && in.Threshold != nil:
-		return errExclusive("ThresholdMetricId", "Threshold")
+		return evaluation{}, errExclusive("ThresholdMetricId", "Threshold")
 	}
-	return nil
+	return ev, nil
+}
+
+// evaluation is the evaluation members checkEvaluation found set.
+type evaluation struct {
+	periods  int32
+	operator cloudwatchapi.ComparisonOperator
 }
 
 // anomalyOperator reports whether op is one of the three operators AWS uses
