@@ -93,15 +93,11 @@ type settledWriter struct {
 	settled  bool
 }
 
-// noEmulatorDeadline stands for "no emulator deadline" in a wall-time
-// wait.
-const noEmulatorDeadline = 100 * 365 * 24 * time.Hour
-
 func (s *settledWriter) WriteHeader(status int) {
 	if !s.settled && status >= http.StatusOK {
 		s.settled = true
 		if from := s.timeline.observe(s.clock); from.After(s.clock.Wall()) {
-			<-s.clock.Until(s.r.Context(), clock.Deadline{Emu: s.clock.Now().Add(noEmulatorDeadline), WallCap: from})
+			<-s.clock.Until(s.r.Context(), s.clock.WallDeadline(from))
 		}
 	}
 	s.ResponseWriter.WriteHeader(status)

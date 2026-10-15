@@ -431,9 +431,7 @@ func segmentRank(s Segment) int {
 		return 2
 	case Label:
 		return 1
-	case Greedy:
-		return 0
-	default:
-		return 0
+	case Greedy, nil:
 	}
+	return 0
 }

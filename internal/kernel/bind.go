@@ -389,12 +389,22 @@ type BindProblem uint8
 
 // BindProblem values.
 const (
+	// BoundTwice is a bind of an operation already bound.
 	BoundTwice BindProblem = iota + 1
+	// ForeignOperation is a bind of another service's operation than the
+	// binder's.
 	ForeignOperation
+	// NotInRegistry is a bind of an operation whose service is not in the
+	// kernel's registry.
 	NotInRegistry
+	// NilOperation is a bind of a nil operation descriptor.
 	NilOperation
+	// NoCoverage is a bind site that states no coverage.
 	NoCoverage
+	// NotRaw is a BindRawHTTP of an operation not of kind raw.
 	NotRaw
+	// OptionType is a WithValidator, WithCheck, WithResources or
+	// WithActions option for another input type than the operation's.
 	OptionType
 	// DeclaredUnbound is a Declare for an operation not bound yet, so no
 	// binding takes its options.

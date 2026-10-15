@@ -21,45 +21,11 @@ type Swept struct {
 // they are joined into the returned error. An invalid Ownership is refused
 // with an *OwnershipError before anything is listed.
 func (c *Client) Sweep(ctx context.Context, o Ownership) (Swept, error) {
-	var swept Swept
 	if err := o.Validate(); err != nil {
-		return swept, fmt.Errorf("sweep refused: %w", err)
+		return Swept{}, fmt.Errorf("sweep refused: %w", err)
 	}
-	var errs []error
-	containers, err := c.ContainerList(ctx, ownerSelector(o.Owner))
-	if err != nil {
-		return swept, fmt.Errorf("sweep owner %q: list containers: %w", o.Owner, err)
-	}
-	for _, ct := range containers {
-		if ct.Labels[LabelInstance] == o.Instance {
-			continue
-		}
-		err := c.ContainerRemove(ctx, ct.ID, RemoveOptions{Force: true, Volumes: true})
-		switch {
-		case err == nil:
-			swept.Containers = append(swept.Containers, ct.ID)
-		case !IsNotFound(err):
-			errs = append(errs, fmt.Errorf("sweep owner %q: remove container %s: %w", o.Owner, ct.ID, err))
-		}
-	}
-	networks, err := c.NetworkList(ctx, ownerSelector(o.Owner))
-	if err != nil {
-		errs = append(errs, fmt.Errorf("sweep owner %q: list networks: %w", o.Owner, err))
-		return swept, errors.Join(errs...)
-	}
-	for _, n := range networks {
-		if n.Labels[LabelInstance] == o.Instance {
-			continue
-		}
-		removed, err := c.removeIfEmpty(ctx, n.ID)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("sweep owner %q: network %s: %w", o.Owner, n.Name, err))
-		}
-		if removed {
-			swept.Networks = append(swept.Networks, n.ID)
-		}
-	}
-	return swept, errors.Join(errs...)
+	ownInstance := func(labels map[string]string) bool { return labels[LabelInstance] == o.Instance }
+	return c.RemoveManaged(ctx, ownerSelector(o.Owner), ownInstance, fmt.Sprintf("sweep owner %q", o.Owner))
 }
 
 // RemoveInstance removes every managed container of o's own instance
@@ -68,35 +34,52 @@ func (c *Client) Sweep(ctx context.Context, o Ownership) (Swept, error) {
 // shares Sweep's error handling and refuses an invalid Ownership the same
 // way.
 func (c *Client) RemoveInstance(ctx context.Context, o Ownership) (Swept, error) {
-	var swept Swept
 	if err := o.Validate(); err != nil {
-		return swept, fmt.Errorf("instance removal refused: %w", err)
+		return Swept{}, fmt.Errorf("instance removal refused: %w", err)
 	}
 	selector := ownerSelector(o.Owner)
 	selector[LabelInstance] = o.Instance
-	var errs []error
+	return c.RemoveManaged(ctx, selector, nil, fmt.Sprintf("remove instance %q", o.Instance))
+}
+
+// RemoveManaged removes every container matching selector (force, with
+// volumes), then every network matching it that is left without
+// containers. Objects whose labels keep reports true are left alone; a nil
+// keep keeps none. Failures on single objects do not stop the removal; they
+// are joined into the returned error, each prefixed with prefix. A failure
+// to list the containers stops it before anything is removed.
+func (c *Client) RemoveManaged(ctx context.Context, selector map[string]string, keep func(labels map[string]string) bool, prefix string) (Swept, error) {
+	var swept Swept
+	kept := func(labels map[string]string) bool { return keep != nil && keep(labels) }
 	containers, err := c.ContainerList(ctx, selector)
 	if err != nil {
-		return swept, fmt.Errorf("remove instance %q: list containers: %w", o.Instance, err)
+		return swept, fmt.Errorf("%s: list containers: %w", prefix, err)
 	}
+	var errs []error
 	for _, ct := range containers {
+		if kept(ct.Labels) {
+			continue
+		}
 		err := c.ContainerRemove(ctx, ct.ID, RemoveOptions{Force: true, Volumes: true})
 		switch {
 		case err == nil:
 			swept.Containers = append(swept.Containers, ct.ID)
 		case !IsNotFound(err):
-			errs = append(errs, fmt.Errorf("remove instance %q: remove container %s: %w", o.Instance, ct.ID, err))
+			errs = append(errs, fmt.Errorf("%s: remove container %s: %w", prefix, ct.ID, err))
 		}
 	}
 	networks, err := c.NetworkList(ctx, selector)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("remove instance %q: list networks: %w", o.Instance, err))
+		errs = append(errs, fmt.Errorf("%s: list networks: %w", prefix, err))
 		return swept, errors.Join(errs...)
 	}
 	for _, n := range networks {
+		if kept(n.Labels) {
+			continue
+		}
 		removed, err := c.removeIfEmpty(ctx, n.ID)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("remove instance %q: network %s: %w", o.Instance, n.Name, err))
+			errs = append(errs, fmt.Errorf("%s: network %s: %w", prefix, n.Name, err))
 		}
 		if removed {
 			swept.Networks = append(swept.Networks, n.ID)
@@ -105,15 +88,16 @@ func (c *Client) RemoveInstance(ctx context.Context, o Ownership) (Swept, error)
 	return swept, errors.Join(errs...)
 }
 
+// removeIfEmpty removes network id unless containers are still attached to
+// it, reporting whether it did. A network already gone is not an error.
 func (c *Client) removeIfEmpty(ctx context.Context, id string) (bool, error) {
 	n, err := c.NetworkInspect(ctx, id)
-	if err != nil {
-		if IsNotFound(err) {
-			return false, nil
-		}
+	switch {
+	case IsNotFound(err):
+		return false, nil
+	case err != nil:
 		return false, err
-	}
-	if len(n.Containers) > 0 {
+	case len(n.Containers) > 0:
 		return false, nil
 	}
 	err = c.NetworkRemove(ctx, id)

@@ -215,14 +215,11 @@ func (a *attempt) journalSpent(ctx context.Context, decision fault.Decision) {
 	}
 }
 
-// noEmulatorDeadline stands for "no emulator deadline" in a wall-time wait.
-const noEmulatorDeadline = 100 * 365 * 24 * time.Hour
-
 // wait holds the attempt for d of wall time, which a frozen clock cannot
 // stretch; false when the kernel stopped first.
 func (a *attempt) wait(ctx context.Context, d time.Duration) bool {
 	clk := a.e.k.Clock()
-	<-clk.Until(ctx, clock.Deadline{Emu: clk.Now().Add(noEmulatorDeadline), WallCap: clk.Wall().Add(d)})
+	<-clk.Until(ctx, clk.WallDeadline(clk.Wall().Add(d)))
 	return ctx.Err() == nil
 }
 

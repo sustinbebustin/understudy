@@ -37,7 +37,7 @@ func (h *Handler) reset(w http.ResponseWriter, r *http.Request, _ []string) {
 		h.fail(w, r, err)
 		return
 	}
-	scope, err := h.resetScope(in.Accounts, in.Regions, fields)
+	scope, err := h.parseScope(in.Accounts, in.Regions, fields)
 	if err != nil {
 		h.fail(w, r, err)
 		return
@@ -276,9 +276,9 @@ func (h *Handler) unknownService(name string, fields scopeFields, known []ref.Se
 	return e
 }
 
-// resetScope parses the accounts and regions a selection names; fields
-// names them in errors.
-func (h *Handler) resetScope(accounts, regions []string, fields scopeFields) (kernel.ResetScope, *admin.Error) {
+// parseScope parses the accounts and regions a reset or resource listing
+// selects; fields names them in errors.
+func (h *Handler) parseScope(accounts, regions []string, fields scopeFields) (kernel.ResetScope, *admin.Error) {
 	var rs kernel.ResetScope
 	for _, a := range accounts {
 		id, err := aws.ParseAccountID(a)

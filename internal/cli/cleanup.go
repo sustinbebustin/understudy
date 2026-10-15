@@ -154,56 +154,9 @@ func sweepAll(ctx context.Context, d config.Docker) (swept, error) {
 		return res, err
 	}
 	defer c.Close()
-	selector := map[string]string{docker.LabelManaged: "true"}
-	containers, err := c.ContainerList(ctx, selector)
-	if err != nil {
-		return res, fmt.Errorf("listing understudy's containers: %w", err)
-	}
-	var errs []error
-	for _, ct := range containers {
-		if ct.Labels[docker.LabelTest] == "1" {
-			continue
-		}
-		err := c.ContainerRemove(ctx, ct.ID, docker.RemoveOptions{Force: true, Volumes: true})
-		switch {
-		case err == nil:
-			res.Containers = append(res.Containers, ct.ID)
-		case !docker.IsNotFound(err):
-			errs = append(errs, fmt.Errorf("removing container %s: %w", ct.ID, err))
-		}
-	}
-	networks, err := c.NetworkList(ctx, selector)
-	if err != nil {
-		return res, errors.Join(append(errs, fmt.Errorf("listing understudy's networks: %w", err))...)
-	}
-	for _, n := range networks {
-		if n.Labels[docker.LabelTest] == "1" {
-			continue
-		}
-		removed, err := removeIfEmpty(ctx, c, n.ID)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("removing network %s: %w", n.Name, err))
-		}
-		if removed {
-			res.Networks = append(res.Networks, n.ID)
-		}
-	}
-	return res, errors.Join(errs...)
-}
-
-func removeIfEmpty(ctx context.Context, c *docker.Client, id string) (bool, error) {
-	n, err := c.NetworkInspect(ctx, id)
-	switch {
-	case docker.IsNotFound(err):
-		return false, nil
-	case err != nil:
-		return false, err
-	case len(n.Containers) > 0:
-		return false, nil
-	}
-	err = c.NetworkRemove(ctx, id)
-	if docker.IsNotFound(err) {
-		return false, nil
-	}
-	return err == nil, err
+	harnessed := func(labels map[string]string) bool { return labels[docker.LabelTest] == "1" }
+	s, err := c.RemoveManaged(ctx, map[string]string{docker.LabelManaged: "true"}, harnessed, "cleanup --all")
+	res.Containers = append(res.Containers, s.Containers...)
+	res.Networks = append(res.Networks, s.Networks...)
+	return res, err
 }

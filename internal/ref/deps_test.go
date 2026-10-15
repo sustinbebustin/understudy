@@ -172,7 +172,9 @@ func importRules() []importRule {
 			"internal/access", "internal/registry", "internal/coverage", "internal/aws", "internal/ref", "internal/awserr",
 			"internal/ids", "internal/store", "internal/blob", "internal/policydoc", "internal/identity", "internal/protocol/jsonx",
 		}},
-		{"internal/config", []string{"internal/aws", "internal/ref", "internal/clock", "internal/fault", "internal/protocol/jsonx"}},
+		// Config parses and validates the default account and the regions
+		// through aws, and carries the fault rules to preload as fault.Rule.
+		{"internal/config", []string{"internal/aws", "internal/fault"}},
 		// Docker-tagged tests reach the daemon serve would use, resolved by
 		// config; only test files import it.
 		{"internal/config/configtest", []string{"internal/config", "internal/docker"}},
@@ -209,7 +211,9 @@ func importRules() []importRule {
 		// from the case vocabulary in internal/protocoltest/gen (case.go).
 		{"internal/protocoltest/gen/...", []string{"internal/protocoltest/gen", "internal/protocol/smithy/...", "internal/awserr", "internal/registry", "internal/kernel", "internal/aws", "internal/ref"}},
 		{"internal/smoke", nil},
-		{"internal/parity", []string{"internal/snapshot", "internal/evidence", "internal/protocol/jsonx"}},
+		// The replayer, not built yet, shares snapshot's normalizer set and
+		// reports fixtures by evidence label (ARCHITECTURE.md 2, 19).
+		{"internal/parity", []string{"internal/snapshot", "internal/evidence"}},
 		// Docker-tagged checks of the release image; no runtime code.
 		{"internal/distribution", nil},
 	}

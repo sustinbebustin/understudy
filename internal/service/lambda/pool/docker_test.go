@@ -118,7 +118,7 @@ func newStack(t *testing.T, client *docker.Client, owner string) *stack {
 		t.Fatal(err)
 	}
 	l, err := launcher.New(client, launcher.Options{
-		Ownership:    docker.Ownership{Instance: "t18" + runID(t), Owner: owner},
+		Ownership:    docker.Ownership{Instance: "pooltest-" + runID(t), Owner: owner},
 		Test:         true,
 		Topology:     top,
 		EndpointPort: 4566,
@@ -300,7 +300,7 @@ func containerGone(t *testing.T, client *docker.Client, id string) bool {
 }
 
 func TestDockerProvidedShellBootstrapReturnsAPayloadAndStaysWarm(t *testing.T) {
-	s := newStack(t, dockerClient(t), "t18-owner-"+runID(t))
+	s := newStack(t, dockerClient(t), "pooltest-owner-"+runID(t))
 	spec := s.shellFunction(t)
 	first, o := s.invoke(t, spec, `{"n":1}`, 10*time.Second)
 	got := decode(t, o)
@@ -317,7 +317,7 @@ func TestDockerProvidedShellBootstrapReturnsAPayloadAndStaysWarm(t *testing.T) {
 }
 
 func TestDockerPythonHandlerRunsWarm(t *testing.T) {
-	s := newStack(t, dockerClient(t), "t18-owner-"+runID(t))
+	s := newStack(t, dockerClient(t), "pooltest-owner-"+runID(t))
 	spec := s.pythonFunction(t)
 	first, o := s.invoke(t, spec, `{}`, 10*time.Second)
 	got := decode(t, o)
@@ -334,7 +334,7 @@ func TestDockerPythonHandlerRunsWarm(t *testing.T) {
 }
 
 func TestDockerUnhandledFunctionError(t *testing.T) {
-	s := newStack(t, dockerClient(t), "t18-owner-"+runID(t))
+	s := newStack(t, dockerClient(t), "pooltest-owner-"+runID(t))
 	spec := s.pythonFunction(t)
 	env, o := s.invoke(t, spec, `{"action":"raise"}`, 10*time.Second)
 	fe, ok := o.(runtimeapi.FunctionError)
@@ -352,7 +352,7 @@ func TestDockerUnhandledFunctionError(t *testing.T) {
 // A custom runtime's /error keeps its Lambda-Runtime-Function-Error-Type
 // and its body as posted, and the environment stays warm.
 func TestDockerProvidedRuntimeErrorKeepsItsType(t *testing.T) {
-	s := newStack(t, dockerClient(t), "t18-owner-"+runID(t))
+	s := newStack(t, dockerClient(t), "pooltest-owner-"+runID(t))
 	spec := s.shellFunction(t)
 	env, o := s.invoke(t, spec, `"fail"`, 10*time.Second)
 	want := runtimeapi.FunctionError{Type: "Function.Boom", Payload: []byte(`{"errorMessage":"boom","errorType":"Boom"}`)}
@@ -369,7 +369,7 @@ func TestDockerProvidedRuntimeErrorKeepsItsType(t *testing.T) {
 }
 
 func TestDockerRuntimeExitError(t *testing.T) {
-	s := newStack(t, dockerClient(t), "t18-owner-"+runID(t))
+	s := newStack(t, dockerClient(t), "pooltest-owner-"+runID(t))
 	spec := s.shellFunction(t)
 	env, o := s.invoke(t, spec, `"exit"`, 10*time.Second)
 	if o != (runtimeapi.ExitError{Code: 3}) {
@@ -388,7 +388,7 @@ func TestDockerRuntimeExitError(t *testing.T) {
 }
 
 func TestDockerTimeoutKillsTheContainerAndTheNextInvokeIsCold(t *testing.T) {
-	s := newStack(t, dockerClient(t), "t18-owner-"+runID(t))
+	s := newStack(t, dockerClient(t), "pooltest-owner-"+runID(t))
 	spec := s.pythonFunction(t)
 	s.invoke(t, spec, `{}`, 10*time.Second) // warm up, so the timeout covers only the handler
 	env, o := s.invoke(t, spec, `{"action":"sleep","seconds":30}`, time.Second)
@@ -408,7 +408,7 @@ func TestDockerTimeoutKillsTheContainerAndTheNextInvokeIsCold(t *testing.T) {
 }
 
 func TestDockerOutOfMemoryAt128MB(t *testing.T) {
-	s := newStack(t, dockerClient(t), "t18-owner-"+runID(t))
+	s := newStack(t, dockerClient(t), "pooltest-owner-"+runID(t))
 	spec := s.pythonFunction(t)
 	env, o := s.invoke(t, spec, `{"action":"oom"}`, 30*time.Second)
 	if o != (runtimeapi.OOM{}) {
@@ -425,7 +425,7 @@ func TestDockerOutOfMemoryAt128MB(t *testing.T) {
 // /tmp is disk, as on Lambda: a 128 MB function can write 200 MB there
 // without its pages counting against the memory limit.
 func TestDockerTmpIsNotChargedToMemory(t *testing.T) {
-	s := newStack(t, dockerClient(t), "t18-owner-"+runID(t))
+	s := newStack(t, dockerClient(t), "pooltest-owner-"+runID(t))
 	spec := s.function(t, "tmp", "python3.13", "handler.handler", map[string]string{"handler.py": `
 import os
 
@@ -444,7 +444,7 @@ def handler(event, context):
 }
 
 func TestDockerConcurrentInvocationsUseTwoEnvironments(t *testing.T) {
-	s := newStack(t, dockerClient(t), "t18-owner-"+runID(t))
+	s := newStack(t, dockerClient(t), "pooltest-owner-"+runID(t))
 	spec := s.pythonFunction(t)
 	var wg sync.WaitGroup
 	envs := make(chan *pool.Env, 2)
@@ -486,7 +486,7 @@ func TestDockerConcurrentInvocationsUseTwoEnvironments(t *testing.T) {
 // the next instance of the same owner sweeps the leftover.
 func TestDockerCrashRecoverySweepsLeftovers(t *testing.T) {
 	client := dockerClient(t)
-	owner := "t18-owner-" + runID(t)
+	owner := "pooltest-owner-" + runID(t)
 	crashed := newStack(t, client, owner)
 	spec := crashed.shellFunction(t)
 	env, _ := crashed.invoke(t, spec, `{}`, 10*time.Second)
@@ -501,7 +501,7 @@ func TestDockerCrashRecoverySweepsLeftovers(t *testing.T) {
 		t.Fatal("a killed container should linger until swept")
 	}
 	next, err := launcher.New(client, launcher.Options{
-		Ownership: docker.Ownership{Instance: "t18" + runID(t), Owner: owner}, Test: true, Topology: crashed.topology, EndpointPort: 4566,
+		Ownership: docker.Ownership{Instance: "pooltest-" + runID(t), Owner: owner}, Test: true, Topology: crashed.topology, EndpointPort: 4566,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -523,7 +523,7 @@ func TestDockerCrashRecoverySweepsLeftovers(t *testing.T) {
 // emulator clock does not change get_remaining_time_in_millis()
 // (lambda-runtime-contract.md 4).
 func TestDockerDeadlineIgnoresTheEmulatorClock(t *testing.T) {
-	s := newStack(t, dockerClient(t), "t18-owner-"+runID(t))
+	s := newStack(t, dockerClient(t), "pooltest-owner-"+runID(t))
 	spec := s.pythonFunction(t)
 	s.clock.Freeze()
 	if _, err := s.clock.Advance(time.Hour); err != nil {
@@ -544,7 +544,7 @@ func TestDockerDeadlineIgnoresTheEmulatorClock(t *testing.T) {
 
 // The code tree is mounted read-only: a function cannot change its code.
 func TestDockerCodeIsReadOnly(t *testing.T) {
-	s := newStack(t, dockerClient(t), "t18-owner-"+runID(t))
+	s := newStack(t, dockerClient(t), "pooltest-owner-"+runID(t))
 	spec := s.function(t, "ro", "python3.13", "handler.handler", map[string]string{"handler.py": `
 def handler(event, context):
     try:

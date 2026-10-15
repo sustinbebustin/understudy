@@ -11,7 +11,6 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/access"
 	"github.com/sustinbebustin/understudy/internal/awserr"
-	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/journal"
@@ -245,13 +244,10 @@ func (k *Kernel) handle(ctx context.Context, c *Call, bnd *binding, in Ok) (any,
 	return bnd.run(ctx, c, in.In, w)
 }
 
-// maxWait stands for "no emulator deadline" in a wall-time wait.
-const maxWait = 100 * 365 * 24 * time.Hour
-
 // wallDelay holds the call for d of wall time, which a frozen clock cannot
 // stretch; it answers RequestAborted when the client leaves first.
 func (k *Kernel) wallDelay(ctx context.Context, d time.Duration) *awserr.Error {
-	<-k.clock.Until(ctx, clock.Deadline{Emu: k.clock.Now().Add(maxWait), WallCap: k.clock.Wall().Add(d)})
+	<-k.clock.Until(ctx, k.clock.WallDeadline(k.clock.Wall().Add(d)))
 	if ctx.Err() != nil {
 		return awserr.RequestAborted()
 	}

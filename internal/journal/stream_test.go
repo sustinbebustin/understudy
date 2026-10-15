@@ -174,14 +174,6 @@ func bigCall(t *testing.T, n int) Event {
 	return e
 }
 
-func estimates(es []Event) int {
-	n := 0
-	for i := range es {
-		n += Estimate(es[i])
-	}
-	return n
-}
-
 func TestStreamBoundsWhatAStalledConsumerHoldsInBytes(t *testing.T) {
 	// Inputs just under the MaxBytes/16 cap: the event-count buffer alone
 	// would let a stalled consumer hold StreamBuffer of them.
@@ -213,7 +205,7 @@ func TestStreamBoundsWhatAStalledConsumerHoldsInBytes(t *testing.T) {
 			t.Fatalf("first event = %s; want the call with its whole input", KindOf(before[0].Detail))
 		}
 		// The first event was already handed over; the rest were buffered.
-		if held := estimates(before[1:]); held > maxBytes/8 {
+		if held := sumEstimates(before[1:]); held > maxBytes/8 {
 			t.Fatalf("the stream buffered %d events of %d bytes for a stalled consumer; want at most MaxBytes/8 = %d", len(before)-1, held, maxBytes/8)
 		}
 		assertIdle(t, ch)
@@ -275,7 +267,7 @@ func TestStreamReplayBatchesStayUnderTheByteBound(t *testing.T) {
 			if len(batch) == 0 {
 				break
 			}
-			if held := estimates(batch); held > maxBytes/8 {
+			if held := sumEstimates(batch); held > maxBytes/8 {
 				t.Fatalf("a replay batch held %d events of %d bytes; want at most MaxBytes/8 = %d", len(batch), held, maxBytes/8)
 			}
 			got = append(got, eventIDs(batch)...)

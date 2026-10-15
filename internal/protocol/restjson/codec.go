@@ -207,7 +207,8 @@ func (Codec) Encode(_ *http.Request, op *registry.Operation, requestID string, o
 // JSON body with no __type, holding the error's fields (Lambda's Type and
 // Reason) and then the message under the shape's own spelling (message or
 // Message), {} when it has neither; the error's headers (Retry-After); and
-// x-amzn-RequestId. svc may be nil for a request no service claimed.
+// x-amzn-RequestId. It reads neither the request nor the service, which
+// it takes to keep the signature the other REST codec's.
 func (Codec) EncodeError(_ *http.Request, _ *registry.Service, requestID string, e *awserr.Error) Response {
 	body := []byte{'{'}
 	member := func(name, value string) {

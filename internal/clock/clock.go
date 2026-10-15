@@ -274,6 +274,16 @@ func (c *Clock) Until(ctx context.Context, d Deadline) <-chan struct{} {
 	return done
 }
 
+// noEmulatorDeadline stands for "no emulator deadline" in a wall-only
+// Deadline: a century, which even MaxScale takes days of wall time to cover.
+const noEmulatorDeadline = 100 * 365 * 24 * time.Hour
+
+// WallDeadline is a Deadline bounded by wall time alone: a wait on it lasts
+// until at, which a frozen clock cannot stretch.
+func (c *Clock) WallDeadline(at time.Time) Deadline {
+	return Deadline{Emu: c.Now().Add(noEmulatorDeadline), WallCap: at}
+}
+
 // Wall returns wall time. Use it for values clients compare with their own
 // wall clock: the Date header, SigV4 skew, STS expirations and
 // Lambda-Runtime-Deadline-Ms.

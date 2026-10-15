@@ -57,7 +57,7 @@ func newEgress(t *testing.T) *egress {
 		t.Fatal(err)
 	}
 	id := hex.EncodeToString(b)
-	e := &egress{t: t, d: d, id: id, labels: docker.Labels{Ownership: docker.Ownership{Instance: "t33-egress-" + id, Owner: "t33-egress-" + id}, Test: true}}
+	e := &egress{t: t, d: d, id: id, labels: docker.Labels{Ownership: docker.Ownership{Instance: "ddbtest-egress-" + id, Owner: "ddbtest-egress-" + id}, Test: true}}
 	labels, err := e.labels.Map()
 	if err != nil {
 		t.Fatal(err)

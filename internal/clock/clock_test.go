@@ -584,6 +584,21 @@ func TestUntil(t *testing.T) {
 			}
 		})
 	})
+	t.Run("a wall deadline ends at wall time however fast emulator time runs", func(t *testing.T) {
+		// Injected latency holds a call for wall time: emulator time running
+		// at MaxScale meanwhile does not cut it short.
+		synctest.Test(t, func(t *testing.T) {
+			h := newHarness(t, Options{Start: epoch})
+			if _, err := h.clock.Scale(MaxScale); err != nil {
+				t.Fatalf("Scale: %v", err)
+			}
+			start := time.Now()
+			<-h.clock.Until(t.Context(), h.clock.WallDeadline(h.clock.Wall().Add(20*time.Second)))
+			if waited := time.Since(start); waited != 20*time.Second {
+				t.Errorf("waited %v of wall time, want 20s", waited)
+			}
+		})
+	})
 	t.Run("cancelled waits leave no goroutine", func(t *testing.T) {
 		// The waits are never drained: synctest.Test waits for every goroutine
 		// in the bubble to exit and fails the test when they deadlock, so a

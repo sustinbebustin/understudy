@@ -20,16 +20,20 @@ import (
 // The SQS defaults and limits of an event source mapping
 // (lambda-events.md 1.2).
 const (
-	defaultBatchSize = 10
-	maxFIFOBatchSize = 10
-	maxMappingsPage  = 100
-	// userInitiated is the StateTransitionReason every mapping reports.
-	userInitiated     = "USER_INITIATED"
+	defaultBatchSize  = 10
+	maxFIFOBatchSize  = 10
 	sqsBatchWindowCap = 10
 	// maxFilters is the default quota of filters per mapping; AWS raises
 	// it to 10 on request, which understudy does not model.
 	maxFilters = 5
 )
+
+// maxMappingsPage is the most mappings one ListEventSourceMappings page
+// holds.
+const maxMappingsPage = 100
+
+// userInitiated is the StateTransitionReason every mapping reports.
+const userInitiated = "USER_INITIATED"
 
 // Mapping is an SQS event source mapping.
 type Mapping struct {

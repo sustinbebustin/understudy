@@ -236,10 +236,6 @@ func (r restJSONCodec) EncodeError(req *http.Request, svc *registry.Service, req
 	return edge.Response{Status: resp.Status, Header: resp.Header, Body: resp.Body}
 }
 
-// restXMLCodec adapts the restXml codec (S3). The edge routes REST requests
-// through the service's route table, so Claim is never asked.
-type restXMLCodec struct{ c restxml.Codec }
-
 // clientFaultFields are the fields a restJson1 service puts on the client
 // errors the codec raises itself: Lambda's Type User (error-matrix.md 5.6
 // T6), none elsewhere.
@@ -250,26 +246,9 @@ func clientFaultFields(svc ref.ServiceID) []awserr.Field {
 	return nil
 }
 
-// S3ControlCodec renders the errors of the S3 Control tag operations,
-// which S3 serves as raw operations: S3's dialect with wrapped errors.
-func S3ControlCodec() edge.Codec {
-	return restXMLCodec{c: restxml.Codec{Dialect: func(ref.ServiceID) restxml.Dialect {
-		d := restxml.S3ControlDialect(s3api.IdentityInvalidArgument())
-		d.Internal = s3api.IdentityInternalError()
-		return d
-	}}}
-}
-
-// dialect is S3's restXml dialect, which renders internal failures as S3's
-// own InternalError; other services speak Smithy's.
-func dialect(svc ref.ServiceID) restxml.Dialect {
-	if svc == s3api.Service().ID {
-		d := restxml.S3Dialect(s3api.IdentityInvalidArgument())
-		d.Internal = s3api.IdentityInternalError()
-		return d
-	}
-	return restxml.Dialect{}
-}
+// restXMLCodec adapts the restXml codec (S3). The edge routes REST requests
+// through the service's route table, so Claim is never asked.
+type restXMLCodec struct{ c restxml.Codec }
 
 func (r restXMLCodec) Protocol() ref.ProtocolID { return r.c.Protocol() }
 
@@ -299,4 +278,25 @@ func (r restXMLCodec) Encode(req *http.Request, op *registry.Operation, requestI
 func (r restXMLCodec) EncodeError(req *http.Request, svc *registry.Service, requestID string, e *awserr.Error) edge.Response {
 	resp := r.c.EncodeError(req, svc, requestID, e)
 	return edge.Response{Status: resp.Status, Header: resp.Header, Body: resp.Body}
+}
+
+// S3ControlCodec renders the errors of the S3 Control tag operations,
+// which S3 serves as raw operations: S3's dialect with wrapped errors.
+func S3ControlCodec() edge.Codec {
+	return restXMLCodec{c: restxml.Codec{Dialect: func(ref.ServiceID) restxml.Dialect {
+		d := restxml.S3ControlDialect(s3api.IdentityInvalidArgument())
+		d.Internal = s3api.IdentityInternalError()
+		return d
+	}}}
+}
+
+// dialect is S3's restXml dialect, which renders internal failures as S3's
+// own InternalError; other services speak Smithy's.
+func dialect(svc ref.ServiceID) restxml.Dialect {
+	if svc == s3api.Service().ID {
+		d := restxml.S3Dialect(s3api.IdentityInvalidArgument())
+		d.Internal = s3api.IdentityInternalError()
+		return d
+	}
+	return restxml.Dialect{}
 }

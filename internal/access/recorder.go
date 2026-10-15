@@ -211,10 +211,10 @@ func s3ObjectBucket(a aws.ARN) (string, bool) {
 // because IAM authorizes an action only against its service's resource
 // types; STS actions act on IAM roles. An S3 object is paired as its
 // bucket's objects (scopeOf). An action with no such resource is
-// granted on "*" when it is of the operation's service (sqs:ListQueues),
-// and not at all when it is of another (iam:PassRole on a CreateFunction
-// that passed no role): the call did not use it.
-func scopesFor(action registry.IAMAction, operation string, resources []aws.ARN) []Scope {
+// granted on "*" when it is of the operation's service, opService
+// (sqs:ListQueues), and not at all when it is of another (iam:PassRole on
+// a CreateFunction that passed no role): the call did not use it.
+func scopesFor(action registry.IAMAction, opService string, resources []aws.ARN) []Scope {
 	service := action.Prefix
 	if service == "sts" {
 		service = "iam"
@@ -225,7 +225,7 @@ func scopesFor(action registry.IAMAction, operation string, resources []aws.ARN)
 			out = append(out, scopeOf(r))
 		}
 	}
-	if len(out) == 0 && action.Prefix == operation {
+	if len(out) == 0 && action.Prefix == opService {
 		out = append(out, AnyResource{})
 	}
 	return out

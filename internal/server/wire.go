@@ -251,8 +251,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	return w, preload(w.faults, cfg.Faults)
 }
 
-// idSource draws ids from seed when one is set, else from crypto/rand. It
-// is apart from wire to keep wire within the gocognit limit.
+// idSource draws ids from seed when one is set, else from crypto/rand.
 func idSource(seed *uint64) *ids.Source {
 	if seed != nil {
 		return ids.NewSeeded(*seed)

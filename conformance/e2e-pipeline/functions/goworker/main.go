@@ -97,8 +97,12 @@ func newWorker(ctx context.Context) (*worker, error) {
 func (w *worker) handle(ctx context.Context, ev events.SQSEvent) (events.SQSEventResponse, error) {
 	var resp events.SQSEventResponse
 	for _, rec := range ev.Records {
-		if err := w.process(ctx, rec); err != nil {
-			logLine(map[string]string{"event": "failed", "id": idOf(rec), "messageId": rec.MessageId, "function": w.name, "receiveCount": rec.Attributes["ApproximateReceiveCount"], "error": err.Error()})
+		p, err := parsePayload(rec)
+		if err == nil {
+			err = w.process(ctx, rec, p)
+		}
+		if err != nil {
+			logLine(map[string]string{"event": "failed", "id": p.ID, "messageId": rec.MessageId, "function": w.name, "receiveCount": rec.Attributes["ApproximateReceiveCount"], "error": err.Error()})
 			resp.BatchItemFailures = append(resp.BatchItemFailures, events.SQSBatchItemFailure{ItemIdentifier: rec.MessageId})
 		}
 	}
@@ -107,11 +111,16 @@ func (w *worker) handle(ctx context.Context, ev events.SQSEvent) (events.SQSEven
 
 var errAsked = errors.New("the payload asked for a failure")
 
-func (w *worker) process(ctx context.Context, rec events.SQSMessage) error {
+// parsePayload reads rec's body; the zero payload when it is not one.
+func parsePayload(rec events.SQSMessage) (payload, error) {
 	var p payload
 	if err := json.Unmarshal([]byte(rec.Body), &p); err != nil {
-		return fmt.Errorf("the body is not a JSON payload: %w", err)
+		return payload{}, fmt.Errorf("the body is not a JSON payload: %w", err)
 	}
+	return p, nil
+}
+
+func (w *worker) process(ctx context.Context, rec events.SQSMessage, p payload) error {
 	if p.Fail {
 		return errAsked
 	}
@@ -178,14 +187,6 @@ func (w *worker) trace(ctx context.Context, id, messageID string) error {
 		return fmt.Errorf("writing to log stream %s: %w", stream, err)
 	}
 	return nil
-}
-
-func idOf(rec events.SQSMessage) string {
-	var p payload
-	if json.Unmarshal([]byte(rec.Body), &p) != nil {
-		return ""
-	}
-	return p.ID
 }
 
 func logLine(fields map[string]string) {

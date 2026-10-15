@@ -20,7 +20,7 @@ func (h *Handler) resources(w http.ResponseWriter, r *http.Request, _ []string) 
 		h.fail(w, r, aerr)
 		return
 	}
-	filter, aerr := h.resetScope(v[fields.accounts], v[fields.regions], fields)
+	filter, aerr := h.parseScope(v[fields.accounts], v[fields.regions], fields)
 	if aerr != nil {
 		h.fail(w, r, aerr)
 		return

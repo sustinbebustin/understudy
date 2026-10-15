@@ -46,7 +46,7 @@ func ownership(t *testing.T) docker.Ownership {
 		t.Fatal(err)
 	}
 	id := hex.EncodeToString(b)
-	return docker.Ownership{Instance: "t33-" + id, Owner: "t33-" + id}
+	return docker.Ownership{Instance: "ddbtest-" + id, Owner: "ddbtest-" + id}
 }
 
 // newRealKernel is a kernel on a frozen clock with the DynamoDB service

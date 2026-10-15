@@ -48,21 +48,12 @@ func (s *Service) recorded(ctx context.Context, c *kernel.Call, name string, mis
 	if cell, ok := s.cells.Lookup(c.Scope()); ok && store.Read(cell, func(st *State) bool { return st.onlyTwinOf(name) }) {
 		return Table{}, missing
 	}
-	describe := dynamodbapi.OpDescribeTableRaw.Descriptor()
-	body, err := encodeInput(describe, &dynamodbapi.DescribeTableInput{TableName: name})
-	if err != nil {
-		return Table{}, err
-	}
-	endpoint, err := s.ready(ctx)
-	if err != nil {
-		return Table{}, err
-	}
-	resp, err := s.send(ctx, endpoint, exchange{scope: c.Scope(), op: describe.ID, at: c.Admitted()}, body)
+	resp, err := s.describeRaw(ctx, c, name)
 	if err != nil {
 		return Table{}, err
 	}
 	var out dynamodbapi.DescribeTableOutput
-	if derr := decodeAnswer(describe, resp, &out); derr != nil {
+	if derr := decodeAnswer(dynamodbapi.OpDescribeTableRaw.Descriptor(), resp, &out); derr != nil {
 		if le, ok := errors.AsType[*LocalError](derr); ok {
 			switch {
 			case le.is("ResourceNotFoundException"):
@@ -162,6 +153,16 @@ func (s *Service) updateTable(ctx context.Context, c *kernel.Call, in *dynamodba
 // and rewritten as a says. The caller has run the checks a forwarded call
 // gets.
 func (s *Service) describeLocally(ctx context.Context, c *kernel.Call, table string, a answer) (kernel.RawResponse, *awserr.Error) {
+	local, err := s.describeRaw(ctx, c, table)
+	if err != nil {
+		return kernel.RawResponse{}, err
+	}
+	return rewrite(c, a, local)
+}
+
+// describeRaw sends Local a DescribeTable of table in c's scope and returns
+// its answer undecoded.
+func (s *Service) describeRaw(ctx context.Context, c *kernel.Call, table string) (kernel.RawResponse, *awserr.Error) {
 	describe := dynamodbapi.OpDescribeTableRaw.Descriptor()
 	body, err := encodeInput(describe, &dynamodbapi.DescribeTableInput{TableName: table})
 	if err != nil {
@@ -171,11 +172,7 @@ func (s *Service) describeLocally(ctx context.Context, c *kernel.Call, table str
 	if err != nil {
 		return kernel.RawResponse{}, err
 	}
-	local, err := s.send(ctx, endpoint, exchange{scope: c.Scope(), op: describe.ID, at: c.Admitted()}, body)
-	if err != nil {
-		return kernel.RawResponse{}, err
-	}
-	return rewrite(c, a, local)
+	return s.send(ctx, endpoint, exchange{scope: c.Scope(), op: describe.ID, at: c.Admitted()}, body)
 }
 
 // alter changes the record of the table name in c's scope with fn, under

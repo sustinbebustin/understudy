@@ -71,16 +71,22 @@ func (a *attempt) publishSNS(ctx context.Context, t delivery.SNSTopic) *awserr.E
 
 // snsAttribute is a message attribute as SNS takes it.
 func snsAttribute(v delivery.AttributeValue) snsapi.MessageAttributeValue {
-	out := snsapi.MessageAttributeValue{DataType: v.DataType()}
+	str, bin := attributeValues(v)
+	return snsapi.MessageAttributeValue{DataType: v.DataType(), StringValue: str, BinaryValue: bin}
+}
+
+// attributeValues splits v into the StringValue and BinaryValue members
+// that SNS and SQS message attributes share; the one v does not use is nil.
+func attributeValues(v delivery.AttributeValue) (str *string, bin []byte) {
 	switch v := v.(type) {
 	case delivery.StringAttribute:
-		out.StringValue = &v.Value
+		return &v.Value, nil
 	case delivery.NumberAttribute:
-		out.StringValue = &v.Value
+		return &v.Value, nil
 	case delivery.BinaryAttribute:
-		out.BinaryValue = v.Value
+		return nil, v.Value
 	}
-	return out
+	return nil, nil
 }
 
 // sqsMessage is a SendMessage of a delivery or of its dead letter.
@@ -119,14 +125,6 @@ func queueURL(queue aws.ARN) string {
 
 // sqsAttribute is an SNS or S3 message attribute as SQS takes it.
 func sqsAttribute(v delivery.AttributeValue) sqsapi.MessageAttributeValue {
-	out := sqsapi.MessageAttributeValue{DataType: v.DataType()}
-	switch v := v.(type) {
-	case delivery.StringAttribute:
-		out.StringValue = &v.Value
-	case delivery.NumberAttribute:
-		out.StringValue = &v.Value
-	case delivery.BinaryAttribute:
-		out.BinaryValue = v.Value
-	}
-	return out
+	str, bin := attributeValues(v)
+	return sqsapi.MessageAttributeValue{DataType: v.DataType(), StringValue: str, BinaryValue: bin}
 }
