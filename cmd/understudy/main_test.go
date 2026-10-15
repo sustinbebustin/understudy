@@ -128,6 +128,10 @@ func TestSecondSignalForcesExit(t *testing.T) {
 	if err := s.cmd.Process.Signal(syscall.SIGINT); err != nil {
 		t.Fatalf("second SIGINT: %v (the process exited before it; did the stalled request hold shutdown open?)\n%s", err, s.logs.String())
 	}
+	// The wait is generous so that a loaded machine does not fail it. It
+	// outlasts the server's 5 s shutdown grace, which is safe: if the
+	// second signal were swallowed, the process would exit on its own once
+	// the grace ran out, and the death-by-SIGINT check below would fail.
 	select {
 	case err := <-exited:
 		exit, ok := errors.AsType[*exec.ExitError](err)
@@ -137,8 +141,8 @@ func TestSecondSignalForcesExit(t *testing.T) {
 		if ws, ok := exit.Sys().(syscall.WaitStatus); !ok || !ws.Signaled() || ws.Signal() != syscall.SIGINT {
 			t.Errorf("serve after a second SIGINT = %v, want death by SIGINT\n%s", err, s.logs.String())
 		}
-	case <-time.After(2 * time.Second):
-		t.Fatalf("serve was still running 2 s after a second SIGINT, so the signal was swallowed\n%s", s.logs.String())
+	case <-time.After(readyTimeout):
+		t.Fatalf("serve was still running %s after a second SIGINT, so the signal was swallowed\n%s", readyTimeout, s.logs.String())
 	}
 }
 
