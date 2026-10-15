@@ -33,8 +33,15 @@ func TestAlgorithmNames(t *testing.T) {
 		checksum.XXHASH3:   {"XXHASH3", "x-amz-checksum-xxhash3"},
 		checksum.XXHASH128: {"XXHASH128", "x-amz-checksum-xxhash128"},
 	}
-	if got := len(checksum.Algorithms()); got != len(want) {
-		t.Fatalf("Algorithms() has %d entries, want %d", got, len(want))
+	if got := len(checksum.Algorithms()); got != len(want) || checksum.Count != len(want) {
+		t.Fatalf("Algorithms() has %d entries and Count is %d, want %d", got, checksum.Count, len(want))
+	}
+	// Arrays sized Count+1 index by Algorithm, so the algorithms must run
+	// 1..Count in declaration order.
+	for i, a := range checksum.Algorithms() {
+		if int(a) != i+1 {
+			t.Errorf("Algorithms()[%d] = %v (%d), want value %d", i, a, a, i+1)
+		}
 	}
 	for _, a := range checksum.Algorithms() {
 		name, header := want[a][0], want[a][1]

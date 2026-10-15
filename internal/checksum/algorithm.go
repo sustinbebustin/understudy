@@ -8,6 +8,7 @@ import (
 	"hash"
 	"hash/crc32"
 	"hash/crc64"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -30,12 +31,22 @@ const (
 	XXHASH128
 )
 
+// all is every algorithm in declaration order. Algorithms hands out copies,
+// so it is never written.
+var all = [...]Algorithm{ //nolint:gochecknoglobals // a constant table; Count is its length, and Go has no constant arrays.
+	CRC32, CRC32C, CRC64NVME, SHA1, SHA256, SHA512, MD5, XXHASH64, XXHASH3, XXHASH128,
+}
+
+// Count is the number of algorithms. An array indexed by Algorithm has
+// length Count+1, as the zero value is not an algorithm.
+const Count = len(all)
+
 // headerPrefix starts every x-amz-checksum-<algorithm> header and trailer name.
 const headerPrefix = "x-amz-checksum-"
 
 // Algorithms returns every algorithm in declaration order.
 func Algorithms() []Algorithm {
-	return []Algorithm{CRC32, CRC32C, CRC64NVME, SHA1, SHA256, SHA512, MD5, XXHASH64, XXHASH3, XXHASH128}
+	return slices.Clone(all[:])
 }
 
 // ParseAlgorithm returns the algorithm named by its exact S3 enum value, as

@@ -9,7 +9,16 @@ import (
 // output, indexed by algorithm as checksumMembers is. The constructors
 // below are the only place the service names those fields, one per shape,
 // so an algorithm added to checksum is mapped here and nowhere else.
-type checksumFields [checksum.XXHASH128 + 1]**string
+//
+// Each shape needs its own constructor naming all ten fields. The s3api
+// shapes are generated, separate struct types, and Go has no shared
+// constructor for them: a type parameter cannot constrain on struct fields,
+// methods on them would have to come from the generator, and reflection
+// would trade the compiler's check that each field exists for a lookup on
+// every request. The literals are keyed by algorithm so their order cannot
+// misassign a field, and checksum_fields_test.go fails when a constructor
+// leaves a slot unset or points it at another algorithm's field.
+type checksumFields [checksum.Count + 1]**string
 
 // members reads the fields.
 func (f checksumFields) members() checksumMembers {

@@ -35,7 +35,7 @@ type StoredChecksum struct {
 // indexed by their checksum.Algorithm, so every literal and every read
 // names the algorithm of the member it fills (m[checksum.SHA256]). Index
 // 0, the zero Algorithm, is never set.
-type checksumMembers [checksum.XXHASH128 + 1]*string
+type checksumMembers [checksum.Count + 1]*string
 
 // sent returns the members a request set, each with its algorithm.
 func (m checksumMembers) sent() []sentChecksum {
