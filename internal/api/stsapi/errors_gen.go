@@ -136,6 +136,16 @@ func ErrInvalidIdentityTokenException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidIdentityTokenException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// IdentityInvalidParameterValue returns the identity of com.amazonaws.sts#InvalidParameterValue.
+func IdentityInvalidParameterValue() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.sts#InvalidParameterValue", JSONType: "InvalidParameterValue", QueryCode: "InvalidParameterValue", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrInvalidParameterValue returns an InvalidParameterValue error with message.
+func ErrInvalidParameterValue(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityInvalidParameterValue(), Message: message, Origin: awserr.Modeled{}}
+}
+
 // IdentityJWTPayloadSizeExceededException returns the identity of com.amazonaws.sts#JWTPayloadSizeExceededException.
 func IdentityJWTPayloadSizeExceededException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sts#JWTPayloadSizeExceededException", JSONType: "JWTPayloadSizeExceededException", QueryCode: "JWTPayloadSizeExceededException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}

@@ -37,7 +37,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{k: d.Kernel, clock: d.Clock, identity: d.Identity, opts: o}
 	b := stsapi.NewBinder(d.Binder)
 	b.GetCallerIdentity(s.getCallerIdentity, registry.Full{})
-	b.AssumeRole(s.assumeRole, registry.Partial{Note: "the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; session tag errors answer ValidationError, not InvalidParameterValue; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012)"},
+	b.AssumeRole(s.assumeRole, registry.Partial{Note: "the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012)"},
 		kernel.WithActions(assumeRoleActions))
 	b.GetSessionToken(s.getSessionToken, registry.Partial{Note: "MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused only under sigv4 verify"})
 	return s

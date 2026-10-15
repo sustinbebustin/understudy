@@ -28,8 +28,8 @@
 //     identity or a session tag key or value, no two session tag keys that
 //     differ only in case, and no transitive tag key that names no session
 //     tag. The last two answer AWS's recorded texts; the others' texts are
-//     inferred. Session tag errors answer ValidationError where AWS answers
-//     InvalidParameterValue, which the STS model does not declare.
+//     inferred. Session tag errors answer InvalidParameterValue, as AWS
+//     does; the STS overlay declares the shape the model lacks.
 //   - The account root user may assume a role, though AWS lets only IAM
 //     users and role sessions call AssumeRole and refuses the root: an
 //     unminted key resolves to the default account's root (ADR 0012), so

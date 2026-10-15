@@ -985,6 +985,17 @@ func (v *InvalidIdentityTokenException) serialize(s smithy.Serializer, m *smithy
 }
 
 // Serialize writes v through s.
+func (v *InvalidParameterValue) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InvalidParameterValue) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInvalidParameterValue)
+	if v.Message != nil {
+		s.WriteString(&memberInvalidParameterValue_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *JWTPayloadSizeExceededException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *JWTPayloadSizeExceededException) serialize(s smithy.Serializer, m *smithy.Member) {

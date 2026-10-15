@@ -358,6 +358,10 @@ var memberInvalidIdentityTokenException_message = smithy.Member{Name: "message",
 
 var schemaInvalidIdentityTokenMessage = smithy.Schema{ID: "com.amazonaws.sts#invalidIdentityTokenMessage", Type: smithy.TypeString}
 
+var schemaInvalidParameterValue = smithy.Schema{ID: "com.amazonaws.sts#InvalidParameterValue", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberInvalidParameterValue_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaIssuer = smithy.Schema{ID: "com.amazonaws.sts#Issuer", Type: smithy.TypeString}
 
 var schemaJWTPayloadSizeExceededException = smithy.Schema{ID: "com.amazonaws.sts#JWTPayloadSizeExceededException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
@@ -672,6 +676,8 @@ func init() {
 	schemaInvalidClientTokenId.Members = []*smithy.Member{&memberInvalidClientTokenId_message}
 	memberInvalidIdentityTokenException_message.Target = &schemaInvalidIdentityTokenMessage
 	schemaInvalidIdentityTokenException.Members = []*smithy.Member{&memberInvalidIdentityTokenException_message}
+	memberInvalidParameterValue_message.Target = &schemaSmithyString
+	schemaInvalidParameterValue.Members = []*smithy.Member{&memberInvalidParameterValue_message}
 	memberJWTPayloadSizeExceededException_message.Target = &schemaJWTPayloadSizeExceededException2
 	schemaJWTPayloadSizeExceededException.Members = []*smithy.Member{&memberJWTPayloadSizeExceededException_message}
 	memberMalformedPolicyDocumentException_message.Target = &schemaMalformedPolicyDocumentMessage

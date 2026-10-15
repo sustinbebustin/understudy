@@ -60,11 +60,10 @@ func errReservedSourceIdentity(value string) *awserr.Error {
 // errSessionTag answers a request that breaks a session tag rule. AWS
 // answers every such rule it is recorded breaking with InvalidParameterValue,
 // 400, Sender (localstack test_sts.snapshot.json@8b9a79f, L104-L208,
-// recorded 2025-04-10). The STS model declares no such shape, so stsapi has
-// no constructor for it until the STS overlay adds one; until then these
-// answer ValidationError, which differs from AWS in the code alone.
+// recorded 2025-04-10); the STS model declares no such shape, so the STS
+// overlay adds it.
 func errSessionTag(message string) *awserr.Error {
-	return stsapi.ErrValidationException(message)
+	return stsapi.ErrInvalidParameterValue(message)
 }
 
 // errReservedTag answers a session tag whose key or value has the reserved

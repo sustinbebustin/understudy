@@ -1061,7 +1061,7 @@ Internal operations:
 | Operation | Status | Note |
 |---|---|---|
 | GetCallerIdentity | full |  |
-| AssumeRole | partial | the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; session tag errors answer ValidationError, not InvalidParameterValue; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012) |
+| AssumeRole | partial | the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012) |
 | GetSessionToken | partial | MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused only under sigv4 verify |
 | AssumeRoleWithSAML | unbound |  |
 | AssumeRoleWithWebIdentity | unbound |  |
@@ -1153,7 +1153,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item, strongest evidence first.
 
-235 evidence items: 45 aws-recorded, 89 third-party-recorded, 51 aws-doc, 2 sdk-source, 48 inferred.
+236 evidence items: 45 aws-recorded, 90 third-party-recorded, 51 aws-doc, 2 sdk-source, 48 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1291,6 +1291,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#SendMessageRequest$MessageDeduplicationId` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L4033 (validated 2025-07-30) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#SendMessageRequest$MessageGroupId` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L4033 (validated 2025-07-30) |
 | third-party-recorded | sts.json | `com.amazonaws.sts#AWSSecurityTokenServiceV20110615` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sts/test_sts.snapshot.json#L211 (validated 2025-07-21) |
+| third-party-recorded | sts.json | `com.amazonaws.sts#InvalidParameterValue` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sts/test_sts.snapshot.json#L104-L208 (validated 2025-04-10) |
 | aws-doc | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#throttleError | https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/CommonErrors.html |
 | aws-doc | cloudwatch.json | `com.amazonaws.cloudwatch#PutMetricAlarm` |  | https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricAlarm.html |
 | aws-doc | cloudwatch.json | `com.amazonaws.cloudwatch#PutMetricData` |  | https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html |

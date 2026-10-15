@@ -320,6 +320,11 @@ type InvalidIdentityTokenException struct {
 	Message *string
 }
 
+// InvalidParameterValue is the error com.amazonaws.sts#InvalidParameterValue.
+type InvalidParameterValue struct {
+	Message *string
+}
+
 // JWTPayloadSizeExceededException is the error com.amazonaws.sts#JWTPayloadSizeExceededException.
 type JWTPayloadSizeExceededException struct {
 	Message *string

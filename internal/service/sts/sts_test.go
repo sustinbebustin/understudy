@@ -337,8 +337,8 @@ func TestAssumeRoleReservedPrefix(t *testing.T) {
 		role := h.role("r", "/", 3600)
 		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", SourceIdentity: new("aws:alice")}, "ValidationError", "aws:alice")
 		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", SourceIdentity: new("AWS:alice")}, "ValidationError", "AWS:alice")
-		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Tags: []stsapi.Tag{{Key: "Aws:team", Value: "a"}}}, sessionTagCode, "Aws:team")
-		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Tags: []stsapi.Tag{{Key: "team", Value: "aws:a"}}}, sessionTagCode, "team")
+		failsSessionTag(h, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Tags: []stsapi.Tag{{Key: "Aws:team", Value: "a"}}}, "Aws:team")
+		failsSessionTag(h, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Tags: []stsapi.Tag{{Key: "team", Value: "aws:a"}}}, "team")
 		out := must(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", SourceIdentity: new("alice-aws"), Tags: []stsapi.Tag{{Key: "team", Value: "a-aws:"}}})
 		if out.SourceIdentity == nil || *out.SourceIdentity != "alice-aws" {
 			t.Errorf("SourceIdentity = %v, want alice-aws echoed", out.SourceIdentity)
@@ -346,10 +346,20 @@ func TestAssumeRoleReservedPrefix(t *testing.T) {
 	})
 }
 
-// sessionTagCode is the code of a session tag rule failure. AWS answers
-// InvalidParameterValue, which the STS model does not declare; the package
-// doc records the divergence.
-const sessionTagCode = "ValidationError"
+// failsSessionTag asserts that a request breaking a session tag rule fails
+// as AWS answers every such rule it is recorded breaking: InvalidParameterValue,
+// 400, Sender (localstack test_sts.snapshot.json@8b9a79f, L104-L208), with a
+// message containing text.
+func failsSessionTag(h *harness, in *stsapi.AssumeRoleInput, text string) {
+	h.Helper()
+	_, err := call(h, stsapi.OpAssumeRole, in)
+	switch {
+	case err == nil:
+		h.Fatalf("AssumeRole succeeded, want InvalidParameterValue")
+	case err.ID.QueryCode != "InvalidParameterValue" || err.ID.Status != 400 || err.ID.Fault != awserr.Sender || !strings.Contains(err.Message, text):
+		h.Fatalf("AssumeRole = %s %d %v %q, want InvalidParameterValue 400 Sender containing %q", err.ID.QueryCode, err.ID.Status, err.ID.Fault, err.Message, text)
+	}
+}
 
 // Session tag keys are not case sensitive: AssumeRole refuses two keys that
 // differ only in case, and a transitive tag key that names no tag, with
@@ -360,12 +370,12 @@ func TestAssumeRoleSessionTagKeys(t *testing.T) {
 		assume := func(tags []stsapi.Tag, transitive ...string) *stsapi.AssumeRoleInput {
 			return &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Tags: tags, TransitiveTagKeys: transitive}
 		}
-		fails(h, stsapi.OpAssumeRole, assume([]stsapi.Tag{{Key: "Dept", Value: "a"}, {Key: "Team", Value: "b"}, {Key: "dept", Value: "c"}}),
-			sessionTagCode, "Duplicate tag keys found. Please note that Tag keys are case insensitive.")
-		fails(h, stsapi.OpAssumeRole, assume([]stsapi.Tag{{Key: "Dept", Value: "a"}}, "Other"),
-			sessionTagCode, "The specified transitive tag key must be included in the requested tags.")
-		fails(h, stsapi.OpAssumeRole, assume(nil, "Dept"),
-			sessionTagCode, "The specified transitive tag key must be included in the requested tags.")
+		failsSessionTag(h, assume([]stsapi.Tag{{Key: "Dept", Value: "a"}, {Key: "Team", Value: "b"}, {Key: "dept", Value: "c"}}),
+			"Duplicate tag keys found. Please note that Tag keys are case insensitive.")
+		failsSessionTag(h, assume([]stsapi.Tag{{Key: "Dept", Value: "a"}}, "Other"),
+			"The specified transitive tag key must be included in the requested tags.")
+		failsSessionTag(h, assume(nil, "Dept"),
+			"The specified transitive tag key must be included in the requested tags.")
 		must(h, stsapi.OpAssumeRole, assume([]stsapi.Tag{{Key: "Dept", Value: "a"}, {Key: "Team", Value: "a"}}, "dept", "Team"))
 	})
 }
