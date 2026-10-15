@@ -198,7 +198,7 @@ func TestSubscribeErrors(t *testing.T) {
 			{topic, "sms", "NAA+15551234567", nil, "InvalidParameter", "Invalid SMS endpoint: NAA+15551234567"},
 			{topic, "sms", "+15551234567.", nil, "InvalidParameter", "Invalid SMS endpoint: +15551234567."},
 			{topic, "sms", "/+15551234567", nil, "InvalidParameter", "Invalid SMS endpoint: /+15551234567"},
-			{topic, "sms", "+15551234567", nil, "NotImplemented", "understudy does not implement SNS delivery to sms endpoints; subscribe an sqs, lambda, http, https, email or email-json endpoint instead. Run 'understudy coverage --service sns' for what is supported."},
+			{topic, "sms", "+15551234567", nil, "NotImplemented", "understudy does not implement SNS delivery to sms endpoints; subscribe an sqs or lambda endpoint instead (http, https, email and email-json subscriptions are accepted but receive nothing). Run 'understudy coverage --service sns' for what is supported."},
 			{"arn:aws:sns:us-east-1:000000000000:missing", "sqs", queueARN, nil, "NotFound", "Topic does not exist"},
 		}
 		for _, tc := range cases {

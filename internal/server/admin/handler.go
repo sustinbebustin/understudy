@@ -107,7 +107,7 @@ type OptionsError struct {
 }
 
 func (e *OptionsError) Error() string {
-	return "admin: Options." + e.Field + " is required; internal/server/wire.go shows how it is built"
+	return "admin: Options." + e.Field + " is required; the server's wiring builds it before admin.New"
 }
 
 // BlobReleaser drops one reference to a stored blob, deleting it with the

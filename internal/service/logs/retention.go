@@ -98,7 +98,7 @@ func (s *Service) onRetention(c *kernel.Call, key clock.TimerKey, _ clock.Instan
 		return struct{}{}, nil
 	})
 	if err != nil {
-		s.k.Log().LogAttrs(context.Background(), slog.LevelError, "log retention sweep failed; the group's events stop expiring until the next PutLogEvents, PutRetentionPolicy or DeleteLogStream on the group, or a snapshot load, re-arms its retention timer",
+		s.k.Log().LogAttrs(context.Background(), slog.LevelError, "log retention sweep failed; the group's events stop expiring until the next write to the group or a snapshot load re-arms its retention timer",
 			slog.String("log_group", ref.arn().String()), slog.String("error", err.Message))
 	}
 }

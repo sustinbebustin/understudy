@@ -255,6 +255,6 @@ type UnsupportedError struct {
 }
 
 func (e *UnsupportedError) Error() string {
-	return fmt.Sprintf("Lambda execution is not supported on %s in phase 1: %s. The Lambda control plane keeps working, but Invoke fails until you %s; run `understudy doctor` for details",
+	return fmt.Sprintf("Lambda execution is not supported on %s: %s. The Lambda control plane keeps working, but Invoke fails until you %s; run `understudy doctor` for details",
 		e.Topology, e.Reason, e.Remedy)
 }

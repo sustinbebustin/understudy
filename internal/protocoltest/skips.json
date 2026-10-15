@@ -179,87 +179,87 @@
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsBlobList",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsBooleanList_case0",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsBooleanList_case1",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsByteList",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsDateTimeList",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsEnumList",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsHttpDateList_case0",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsIntEnumList",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsIntegerList",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsListList",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsLongList",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsShortList",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsStringList",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsStructureList",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsTimestampList",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsUnionList_case0",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonMalformedUniqueItemsUnionList_case1",
       "category": "corpus-bug",
-      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no phase 1 model uses (smithy-models.md, internal/codegen/trait.go)."
+      "reason": "The research files the uniqueItems cases among the corpus's ambiguities (smithy-protocol-tests.md 8; smithy issue 1683) and smithy-rs expects them to fail (4.2). understudy does not enforce uniqueItems, which no model understudy serves uses (smithy-models.md, internal/codegen/trait.go)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonStringPayloadNoContentType",

@@ -18,17 +18,17 @@ func UngeneratedCases() []Ungenerated {
 	return []Ungenerated{
 		{
 			Key:    Key{Protocol: ref.AWSJSON11, Kind: Request, ID: "MachinelearningPredictEndpoint"},
-			Reason: "A customization of Amazon Machine Learning (com.amazonaws.machinelearning), which phase 1 does not generate: a client sends Predict to the host the request names.",
+			Reason: "A customization of Amazon Machine Learning (com.amazonaws.machinelearning), which understudy does not generate: a client sends Predict to the host the request names.",
 		},
 		{Key: Key{Protocol: ref.RESTJSON1, Kind: Request, ID: "AcceptHeaderStarRequestTest"}, Reason: misc},
 		{Key: Key{Protocol: ref.RESTJSON1, Kind: Request, ID: "AcceptHeaderStarStarRequestTest"}, Reason: misc},
 		{
 			Key:    Key{Protocol: ref.RESTJSON1, Kind: Request, ID: "ApiGatewayAccept"},
-			Reason: "A customization of API Gateway (com.amazonaws.apigateway), which phase 1 does not generate: the Accept header API Gateway requires on every request.",
+			Reason: "A customization of API Gateway (com.amazonaws.apigateway), which understudy does not generate: the Accept header API Gateway requires on every request.",
 		},
 		{
 			Key:    Key{Protocol: ref.RESTJSON1, Kind: Request, ID: "GlacierVersionHeader"},
-			Reason: "A customization of Glacier (com.amazonaws.glacier), which phase 1 does not generate: the X-Amz-Glacier-Version header Glacier requires on every request.",
+			Reason: "A customization of Glacier (com.amazonaws.glacier), which understudy does not generate: the X-Amz-Glacier-Version header Glacier requires on every request.",
 		},
 	}
 }

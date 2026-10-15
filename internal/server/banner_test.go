@@ -77,3 +77,20 @@ func TestExposureWarningNamesTheBoundPort(t *testing.T) {
 		t.Errorf("exposureWarning = %q, want it to name 0.0.0.0:45123", got)
 	}
 }
+
+// With a token, the exposure warning names what exposes the AWS API in
+// both SigV4 modes: the public dummy pair test/test verifies even under
+// --sigv4 verify, so the warning must not claim that signatures go
+// unchecked.
+func TestExposureWarningNamesTheDummyKey(t *testing.T) {
+	for _, mode := range []SigV4Mode{SigV4ParseOnly, SigV4Verify} {
+		cfg := Config{Listen: netip.MustParseAddrPort("0.0.0.0:4566"), AdminToken: "token", SigV4: mode}
+		got := exposureWarning(cfg, &net.TCPAddr{IP: net.IPv4zero, Port: 4566})
+		if !strings.Contains(got, "public dummy pair test/test, which verifies even under --sigv4 verify") {
+			t.Errorf("exposureWarning under %v = %q, want it to name the test/test pair", mode, got)
+		}
+		if strings.Contains(got, "without checking signatures") {
+			t.Errorf("exposureWarning under %v = %q, which claims signatures go unchecked", mode, got)
+		}
+	}
+}

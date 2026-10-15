@@ -201,7 +201,7 @@ func customerOnly(k Key, arn string) *awserr.Error {
 // package's key reference handling can produce.
 type RefError struct{}
 
-func (*RefError) Error() string { return "kms: a key reference of no known form reached resolve" }
+func (*RefError) Error() string { return "kms: a key reference of no known form" }
 
 // managedKey is the AWS managed key a predefined alias/aws/ alias names:
 // the alias, the service's name as its key policy's statement ids give it,

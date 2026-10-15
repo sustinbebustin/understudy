@@ -298,7 +298,7 @@ func TestValidateAcceptsRecordedPolicies(t *testing.T) {
 			in:       `{"Version":"2012-10-17","Statement":[{"Sid":"","Effect":"Allow","Action":"*","Resource":"*"},{"Sid":"","Effect":"Deny","NotAction":"iam:*","NotResource":"arn:aws:s3:::b"}]}`,
 		},
 		{
-			name:     "resource ARNs of every phase 1 shape",
+			name:     "resource ARNs of every supported service's shape",
 			validate: policydoc.ValidateIdentity,
 			in: `{"Version":"2012-10-17","Statement":{"Effect":"Allow","Action":"*","Resource":[
  "arn:aws:s3:::uploads/report.csv","arn:aws:s3:us-east-1:111111111111:accesspoint/ap","arn:aws:iam::111111111111:role/worker",

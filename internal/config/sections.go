@@ -274,8 +274,9 @@ func (d *draft) applyNetwork(l *fileLambda, where string) *Error {
 }
 
 // parseBridgeGateway reads a bridge gateway; the reason is empty when it is
-// valid. The container listener binds the gateway and serves the AWS API
-// without checking signatures, and no listener rule guards it, so only a
+// valid. The container listener binds the gateway and serves the AWS API to
+// any client signing with the public dummy pair test/test, which verifies
+// even under --sigv4 verify, and no listener rule guards it, so only a
 // private (RFC 1918) IPv4 address, where Docker puts its bridges, passes.
 func parseBridgeGateway(text string) (gw netip.Addr, reason string) {
 	gw, err := netip.ParseAddr(text)

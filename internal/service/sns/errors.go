@@ -96,7 +96,7 @@ func errSMSEndpoint(endpoint string) *awserr.Error {
 // does not accept (ADR 0015): 501 in SNS's error format.
 func errProtocolNotImplemented(protocol string) *awserr.Error {
 	return snsapi.ErrNotImplemented("understudy does not implement SNS delivery to " + protocol +
-		" endpoints; subscribe an sqs, lambda, http, https, email or email-json endpoint instead. Run 'understudy coverage --service sns' for what is supported.")
+		" endpoints; subscribe an sqs or lambda endpoint instead (http, https, email and email-json subscriptions are accepted but receive nothing). Run 'understudy coverage --service sns' for what is supported.")
 }
 
 // errTargetNotImplemented answers a publish to a phone number or a mobile

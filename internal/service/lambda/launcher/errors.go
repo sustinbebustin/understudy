@@ -45,10 +45,10 @@ type ECRImageError struct {
 
 func (e *ECRImageError) Error() string {
 	if e.LocalArchitecture != "" {
-		return fmt.Sprintf("image %s is present locally only for %s, not the function's architecture, and ECR is not emulated in phase 1; build the image for the function's architecture and tag it as %s, or change the function's Architectures",
+		return fmt.Sprintf("image %s is present locally only for %s, not the function's architecture, and ECR is not emulated; build the image for the function's architecture and tag it as %s, or change the function's Architectures",
 			e.Ref, e.LocalArchitecture, e.Ref)
 	}
-	return fmt.Sprintf("image %s is not present locally and ECR is not emulated in phase 1; build or tag your local image as %s", e.Ref, e.Ref)
+	return fmt.Sprintf("image %s is not present locally and ECR is not emulated; build or tag your local image as %s", e.Ref, e.Ref)
 }
 
 // ImageArchitectureError reports an image built locally, with no registry

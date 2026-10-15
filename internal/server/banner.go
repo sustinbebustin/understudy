@@ -114,7 +114,7 @@ func exposureWarning(cfg Config, bound net.Addr) string {
 	if cfg.AdminToken == "" {
 		return "warning: the AWS API and the admin API answer anyone who reaches the published port; publish it on loopback only, such as -p 127.0.0.1:4566:4566"
 	}
-	return fmt.Sprintf("warning: the admin token guards only the admin API under /_understudy/; the AWS API on %s answers anyone who reaches it without checking signatures, "+
+	return fmt.Sprintf("warning: the admin token guards only the admin API under /_understudy/; the AWS API on %s answers anyone who reaches it: any client may sign with the public dummy pair test/test, which verifies even under --sigv4 verify, "+
 		"including reads of every secret and object and Lambda functions that run any container image", bound)
 }
 

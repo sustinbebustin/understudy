@@ -39,7 +39,7 @@ const (
 func (s *Service) bindSubscriptionAttributes(b snsapi.Binder) {
 	b.GetSubscriptionAttributes(s.getSubscriptionAttributes, registry.Full{},
 		arnResource(func(in *snsapi.GetSubscriptionAttributesInput) string { return in.SubscriptionArn }))
-	b.SetSubscriptionAttributes(s.setSubscriptionAttributes, registry.Partial{Note: "DeliveryPolicy is stored and echoed but not applied: http and https endpoints receive nothing in phase 1; the quota of 10,000 filter policies per account is not enforced"},
+	b.SetSubscriptionAttributes(s.setSubscriptionAttributes, registry.Partial{Note: "DeliveryPolicy is stored and echoed but not applied: http and https endpoints receive nothing; the quota of 10,000 filter policies per account is not enforced"},
 		arnResource(func(in *snsapi.SetSubscriptionAttributesInput) string { return in.SubscriptionArn }))
 }
 

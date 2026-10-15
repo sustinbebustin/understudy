@@ -315,7 +315,7 @@ func socketGroup(t *testing.T) string {
 	t.Helper()
 	info, err := os.Stat(socketPath)
 	if err != nil {
-		t.Fatalf("the socket check mounts the Docker daemon's socket from %s, which is not there (%v); run the docker-tagged tests against a daemon listening at %s (rootless and remote daemons are unsupported in phase 1)", socketPath, err, socketPath)
+		t.Fatalf("the socket check mounts the Docker daemon's socket from %s, which is not there (%v); run the docker-tagged tests against a daemon listening at %s (rootless and remote daemons are not supported)", socketPath, err, socketPath)
 	}
 	st, ok := info.Sys().(*syscall.Stat_t)
 	if !ok {
