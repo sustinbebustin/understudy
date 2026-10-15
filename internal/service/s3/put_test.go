@@ -272,6 +272,47 @@ func TestPutObjectWithoutLengthIsRefused(t *testing.T) {
 	})
 }
 
+// TestPutObjectDeclaredLength: a write's length is its Content-Length when
+// set, even over a body of unknown length; else the body's own length; an
+// input built without a body, as an SDK client can send, writes an empty
+// object.
+func TestPutObjectDeclaredLength(t *testing.T) {
+	cases := []struct {
+		name   string
+		length *int64
+		body   func() *body
+		want   string
+	}{
+		{name: "no body, no Content-Length", want: ""},
+		{name: "no body, Content-Length 0", length: new(int64(0)), want: ""},
+		{name: "empty body, Content-Length 0", length: new(int64(0)), body: func() *body { return bytesBody("") }, want: ""},
+		{name: "body of known length, no Content-Length", body: func() *body { return bytesBody("abc") }, want: "abc"},
+		{
+			name: "body of unknown length, Content-Length set", length: new(int64(3)),
+			body: func() *body { return &body{r: strings.NewReader("abc"), n: -1} }, want: "abc",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			runObjects(t, func(h *harness) {
+				h.createBucket("lengths")
+				in := &s3api.PutObjectInput{Bucket: "lengths", Key: "k", ContentLength: tc.length}
+				if tc.body != nil {
+					in.Body = tc.body()
+				}
+				out := ok(h, who{}, s3api.OpPutObject, in)
+				if *out.ETag != `"`+md5hex(tc.want)+`"` {
+					t.Fatalf("PutObject ETag = %s, want the quoted MD5 of %q", *out.ETag, tc.want)
+				}
+				got, get := h.read(&s3api.GetObjectInput{Bucket: "lengths", Key: "k"})
+				if got != tc.want || *get.ContentLength != int64(len(tc.want)) {
+					t.Fatalf("GetObject = %q, Content-Length %d; want %q", got, *get.ContentLength, tc.want)
+				}
+			})
+		})
+	}
+}
+
 // TestObjectACLsOnOwnerEnforcedBuckets: while ownership is
 // BucketOwnerEnforced, the default, PutObject and CopyObject refuse a
 // canned ACL other than bucket-owner-full-control and any grant header with
