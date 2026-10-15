@@ -45,15 +45,17 @@ func (c *Client) RemoveInstance(ctx context.Context, o Ownership) (Swept, error)
 // RemoveManaged removes every container matching selector (force, with
 // volumes), then every network matching it that is left without
 // containers. Objects whose labels keep reports true are left alone; a nil
-// keep keeps none. Failures on single objects do not stop the removal; they
-// are joined into the returned error, each prefixed with prefix. A failure
-// to list the containers stops it before anything is removed.
-func (c *Client) RemoveManaged(ctx context.Context, selector map[string]string, keep func(labels map[string]string) bool, prefix string) (Swept, error) {
+// keep keeps none. operation names the removal for error text only
+// ("sweep owner \"x\""). Failures on single objects do not stop the
+// removal; they are joined into the returned error, each prefixed with
+// operation. A failure to list the containers stops it before anything is
+// removed.
+func (c *Client) RemoveManaged(ctx context.Context, selector map[string]string, keep func(labels map[string]string) bool, operation string) (Swept, error) {
 	var swept Swept
 	kept := func(labels map[string]string) bool { return keep != nil && keep(labels) }
 	containers, err := c.ContainerList(ctx, selector)
 	if err != nil {
-		return swept, fmt.Errorf("%s: list containers: %w", prefix, err)
+		return swept, fmt.Errorf("%s: list containers: %w", operation, err)
 	}
 	var errs []error
 	for _, ct := range containers {
@@ -65,12 +67,12 @@ func (c *Client) RemoveManaged(ctx context.Context, selector map[string]string, 
 		case err == nil:
 			swept.Containers = append(swept.Containers, ct.ID)
 		case !IsNotFound(err):
-			errs = append(errs, fmt.Errorf("%s: remove container %s: %w", prefix, ct.ID, err))
+			errs = append(errs, fmt.Errorf("%s: remove container %s: %w", operation, ct.ID, err))
 		}
 	}
 	networks, err := c.NetworkList(ctx, selector)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("%s: list networks: %w", prefix, err))
+		errs = append(errs, fmt.Errorf("%s: list networks: %w", operation, err))
 		return swept, errors.Join(errs...)
 	}
 	for _, n := range networks {
@@ -79,7 +81,7 @@ func (c *Client) RemoveManaged(ctx context.Context, selector map[string]string, 
 		}
 		removed, err := c.removeIfEmpty(ctx, n.ID)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("%s: network %s: %w", prefix, n.Name, err))
+			errs = append(errs, fmt.Errorf("%s: network %s: %w", operation, n.Name, err))
 		}
 		if removed {
 			swept.Networks = append(swept.Networks, n.ID)
