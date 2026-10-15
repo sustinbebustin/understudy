@@ -57,8 +57,8 @@ func parseError(e auth.ParseError, v auth.Vocabulary) *awserr.Error {
 	case auth.Invalid:
 		switch {
 		case e.Problem == auth.MissingPayloadHash:
-			// The text is auth's, REC from S3-compatible servers,
-			// UNVERIFIED against AWS.
+			// The text is auth's, as recorded from S3-compatible servers
+			// (versitygw, Swift's s3api); UNVERIFIED against AWS.
 			return s3api.ErrInvalidRequest(e.Message)
 		case e.Mechanism == auth.QueryV4:
 			return s3api.ErrAuthorizationQueryParametersError(e.Message)

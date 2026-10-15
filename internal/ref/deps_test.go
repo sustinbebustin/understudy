@@ -211,8 +211,9 @@ func importRules() []importRule {
 		// from the case vocabulary in internal/protocoltest/gen (case.go).
 		{"internal/protocoltest/gen/...", []string{"internal/protocoltest/gen", "internal/protocol/smithy/...", "internal/awserr", "internal/registry", "internal/kernel", "internal/aws", "internal/ref"}},
 		{"internal/smoke", nil},
-		// The replayer, not built yet, shares snapshot's normalizer set and
-		// reports fixtures by evidence label (ARCHITECTURE.md 2, 19).
+		// The parity replayer shares snapshot's normalizer set and reports
+		// fixtures by evidence label, so it may import only those two
+		// (ARCHITECTURE.md 2, 19).
 		{"internal/parity", []string{"internal/snapshot", "internal/evidence"}},
 		// Docker-tagged checks of the release image; no runtime code.
 		{"internal/distribution", nil},

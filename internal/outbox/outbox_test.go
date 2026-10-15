@@ -1004,10 +1004,10 @@ func TestSnapshotLoadDuringAnAttemptJournalsNothing(t *testing.T) {
 // third, whose stored policies would deny SNS, so each attempt that runs
 // journals an Advisory. The attempt to first holds the sequencer until the
 // kernel stops, and its target call then fails, so nothing is committed for
-// it; the other two wait behind it. Any of them that reached its target
-// would commit, which committed records. Once the kernel has stopped,
-// afterStop sees the stopped kernel and the target calls made, and the
-// outbox's state is exported.
+// it; the other two wait behind it. Any attempt that reached its target
+// would commit, and the committed recorder would hold that commit. Once the
+// kernel has stopped, afterStop sees the stopped kernel and the target calls
+// made, and the outbox's state is exported.
 func stopWithQueuedAttempts(t *testing.T, committed *recorder[string], afterStop func(k *kerneltest.K, calls []sent)) []store.Section {
 	t.Helper()
 	names := []string{"first", "second", "third"}
