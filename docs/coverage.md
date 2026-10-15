@@ -8,21 +8,21 @@ understudy states three separate measures and never adds them together: protocol
 
 Server-runnable cases of the Smithy protocol compliance corpus, run against the synthetic services by `internal/protocoltest`. The RPC protocols and the S3 cases go through the edge; the synthetic restJson1 and restXml services go through their codecs and the kernel behind a test router, so those cases skip the edge's body caps, framing and auth parsing. The counts come from the checked-in `internal/protocoltest/baseline.json` and `skips.json`, which the corpus test holds every run to.
 
-| Protocol | Kind | Cases | Passed | Skipped | Failed |
-|---|---|---|---|---|---|
-| awsjson1_0 | request | 26 | 20 | 6 | 0 |
-| awsjson1_0 | response | 23 | 19 | 1 | 3 |
-| awsjson1_1 | request | 57 | 55 | 2 | 0 |
-| awsjson1_1 | response | 45 | 43 | 1 | 1 |
-| awsquery | request | 35 | 32 | 3 | 0 |
-| awsquery | response | 31 | 29 | 1 | 1 |
-| restjson1 | request | 133 | 127 | 5 | 1 |
-| restjson1 | response | 92 | 88 | 0 | 4 |
-| restjson1 | malformed | 655 | 621 | 34 | 0 |
-| restxml | request | 101 | 93 | 8 | 0 |
-| restxml | response | 77 | 71 | 5 | 1 |
-| rpcv2cbor | request | 39 | 38 | 0 | 1 |
-| rpcv2cbor | response | 29 | 25 | 1 | 3 |
+| Protocol | Kind | Cases | Passed | Skipped | Failed | Known |
+|---|---|---|---|---|---|---|
+| awsjson1_0 | request | 26 | 20 | 6 | 0 | 0 |
+| awsjson1_0 | response | 23 | 19 | 1 | 3 | 3 |
+| awsjson1_1 | request | 57 | 55 | 2 | 0 | 0 |
+| awsjson1_1 | response | 45 | 43 | 1 | 1 | 1 |
+| awsquery | request | 35 | 32 | 3 | 0 | 0 |
+| awsquery | response | 31 | 29 | 1 | 1 | 1 |
+| restjson1 | request | 133 | 127 | 5 | 1 | 1 |
+| restjson1 | response | 92 | 88 | 0 | 4 | 4 |
+| restjson1 | malformed | 655 | 621 | 34 | 0 | 0 |
+| restxml | request | 101 | 93 | 8 | 0 | 0 |
+| restxml | response | 77 | 71 | 5 | 1 | 1 |
+| rpcv2cbor | request | 39 | 38 | 0 | 1 | 1 |
+| rpcv2cbor | response | 29 | 25 | 1 | 3 | 3 |
 
 5 server-runnable cases are not generated, so the counts above leave them out (ARCHITECTURE.md 6.4 counts them):
 
@@ -36,7 +36,7 @@ Server-runnable cases of the Smithy protocol compliance corpus, run against the 
 
 ### Known failures
 
-Cases understudy fails because a part it builds on cannot yet express what they assert. They count as failed above; each reason names, in parentheses, the package to fix.
+Cases understudy fails because a part it builds on cannot yet express what they assert. They count as failed above, and Known counts them apart; each reason names, in parentheses, the package to fix.
 
 | Protocol | Kind | Case | Reason |
 |---|---|---|---|

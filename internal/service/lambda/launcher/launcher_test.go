@@ -441,6 +441,7 @@ func TestExitsReportWhyAContainerStopped(t *testing.T) {
 		{"126 on another architecture", "", dockertest.Exit{Code: 126}, launcher.ARM64, launcher.ArchMismatch{Declared: launcher.ARM64, Host: launcher.X86}},
 		{"126 on the host architecture", "", dockertest.Exit{Code: 126}, launcher.X86, launcher.Exited{Code: 126}},
 		{"exec format error", "", dockertest.Exit{Code: 255, Output: execFormat}, launcher.ARM64, launcher.ArchMismatch{Declared: launcher.ARM64, Host: launcher.X86}},
+		{"exec format error in another case", "", dockertest.Exit{Code: 255, Output: []docker.Frame{{Stream: docker.Stderr, Payload: []byte("Exec Format Error\n")}}}, launcher.ARM64, launcher.ArchMismatch{Declared: launcher.ARM64, Host: launcher.X86}},
 		{"126 on a host Lambda does not run", "s390x", dockertest.Exit{Code: 126}, launcher.ARM64, launcher.Exited{Code: 126}},
 		{"exec format error on a host Lambda does not run", "s390x", dockertest.Exit{Code: 255, Output: execFormat}, launcher.ARM64, launcher.Exited{Code: 255}},
 	}

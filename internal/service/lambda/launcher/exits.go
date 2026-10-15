@@ -407,16 +407,15 @@ func (l *Launcher) hostArchitecture(ctx context.Context) (arch Architecture, kno
 	return machineArchitecture(info.Architecture)
 }
 
-// outputSays reports whether the container's output, lowered, contains
-// text; text must therefore be lower case. It reads at most
-// maxDiagnosisLog bytes.
+// outputSays reports whether the container's output contains text,
+// ignoring case. It reads at most maxDiagnosisLog bytes.
 func (l *Launcher) outputSays(ctx context.Context, id, text string) bool {
 	stream, err := l.client.ContainerLogs(ctx, id, docker.LogsOptions{})
 	if err != nil {
 		return false
 	}
 	defer stream.Close()
-	needle := []byte(text)
+	needle := bytes.ToLower([]byte(text))
 	read := 0
 	for read < maxDiagnosisLog {
 		f, err := stream.Next()

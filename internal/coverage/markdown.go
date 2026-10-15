@@ -36,9 +36,9 @@ func (r Report) writeProtocols(b *strings.Builder) {
 		b.WriteString("No baseline is recorded.\n")
 		return
 	}
-	table(b, []string{"Protocol", "Kind", "Cases", "Passed", "Skipped", "Failed"}, len(r.Protocols), func(i int) []string {
+	table(b, []string{"Protocol", "Kind", "Cases", "Passed", "Skipped", "Failed", "Known"}, len(r.Protocols), func(i int) []string {
 		s := r.Protocols[i]
-		return []string{string(s.Protocol), string(s.Kind), num(s.Cases), num(s.Passed), num(len(s.Skipped)), num(s.Failed)}
+		return []string{string(s.Protocol), string(s.Kind), num(s.Cases), num(s.Passed), num(len(s.Skipped)), num(s.Failed), num(len(s.KnownFailures))}
 	})
 	r.writeUngenerated(b)
 	r.writeKnownFailures(b)
@@ -59,7 +59,7 @@ func (r Report) writeKnownFailures(b *strings.Builder) {
 	}
 	b.WriteString("\n### Known failures\n\n")
 	b.WriteString("Cases understudy fails because a part it builds on cannot yet express what they assert. " +
-		"They count as failed above; each reason names, in parentheses, the package to fix.\n\n")
+		"They count as failed above, and Known counts them apart; each reason names, in parentheses, the package to fix.\n\n")
 	b.WriteString(row("Protocol", "Kind", "Case", "Reason"))
 	b.WriteString("|---|---|---|---|\n")
 	for _, f := range failed {

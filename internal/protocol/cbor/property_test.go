@@ -173,9 +173,9 @@ func TestDecodeNeverPanics(t *testing.T) {
 	})
 }
 
-// Every millisecond instant in the years 0001 to 9999 reads back exactly,
-// and from 1970 on, smithy-go's truncating int64(f*1e3) reads the same
-// millisecond (wire-cbor.md 5.1).
+// Every millisecond instant in the years 0001 to 9999, before 1970 as well
+// as after, reads back exactly, and smithy-go's truncating int64(f*1e3)
+// reads the same millisecond (wire-cbor.md 5.1).
 func TestTimestampsRoundTripToTheMillisecond(t *testing.T) {
 	const (
 		minMs = -62135596800000
@@ -196,22 +196,20 @@ func TestTimestampsRoundTripToTheMillisecond(t *testing.T) {
 		if got.UnixMilli() != ms {
 			t.Fatalf("instant %d ms read back as %d ms", ms, got.UnixMilli())
 		}
-		if ms >= 0 {
-			v, err := cbor.Decode(body)
-			if err != nil {
-				t.Fatalf("Decode: %v", err)
-			}
-			tag, ok := v.(cbor.Tag)
-			if !ok {
-				t.Fatalf("Timestamp wrote %T, want a Tag", v)
-			}
-			f, ok := tag.Content.(cbor.Float64)
-			if !ok {
-				t.Fatalf("Timestamp content is %T, want Float64", tag.Content)
-			}
-			if trunc := int64(float64(f) * 1e3); trunc != ms {
-				t.Fatalf("instant %d ms: smithy-go would read %d ms", ms, trunc)
-			}
+		v, err := cbor.Decode(body)
+		if err != nil {
+			t.Fatalf("Decode: %v", err)
+		}
+		tag, ok := v.(cbor.Tag)
+		if !ok {
+			t.Fatalf("Timestamp wrote %T, want a Tag", v)
+		}
+		f, ok := tag.Content.(cbor.Float64)
+		if !ok {
+			t.Fatalf("Timestamp content is %T, want Float64", tag.Content)
+		}
+		if trunc := int64(float64(f) * 1e3); trunc != ms {
+			t.Fatalf("instant %d ms: smithy-go would read %d ms", ms, trunc)
 		}
 	})
 }

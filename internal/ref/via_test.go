@@ -3,15 +3,28 @@ package ref_test
 import (
 	"encoding/json"
 	"errors"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
+// Every named Via round-trips through its wire name. The values are walked
+// from the first until String falls back to "Via(n)", so a value added to
+// the const block is covered without editing this test, and the first
+// unnamed value must not marshal.
 func TestViaWireNamesRoundTrip(t *testing.T) {
-	all := []ref.Via{
-		ref.SNSDelivery, ref.LambdaESM, ref.EventsTarget, ref.S3Notification, ref.LambdaLogs,
-		ref.DynamoDBTTL, ref.Timer, ref.Snapshot, ref.Admin, ref.KMSForward, ref.STSAssumeRole,
+	var all []ref.Via
+	v := ref.SNSDelivery
+	for ; !strings.HasPrefix(v.String(), "Via("); v++ {
+		all = append(all, v)
+	}
+	if !slices.Contains(all, ref.LambdaCode) {
+		t.Fatalf("named values %v stop before LambdaCode", all)
+	}
+	if _, err := v.MarshalText(); err == nil {
+		t.Errorf("MarshalText(%v) succeeded, want an error for the first unnamed value", v)
 	}
 	seen := map[string]bool{}
 	for _, v := range all {

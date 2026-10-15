@@ -45,7 +45,7 @@ var _ pool.Launcher = (*FakeLauncher)(nil)
 
 // NewFakeLauncher returns a launcher with no containers.
 func NewFakeLauncher() *FakeLauncher {
-	return &FakeLauncher{live: map[string]bool{}, exits: make(chan launcher.Exit, 1024)}
+	return &FakeLauncher{live: map[string]bool{}, exits: make(chan launcher.Exit, exitQueue)}
 }
 
 // Start records the call and returns a new container, or the error queued
@@ -141,9 +141,13 @@ func (f *FakeLauncher) Exits(ctx context.Context) (<-chan launcher.Exit, error) 
 	return out, nil
 }
 
+// exitQueue is how many crashes the fake holds for Exits to forward.
+const exitQueue = 1024
+
 // Crash makes a live container stop with cause, as if its process died.
 // It reports whether the container was live. The exit is sent without
 // f.mu held: the consumer may call Remove before it receives the next one.
+// Crash blocks once exitQueue exits wait with nobody receiving from Exits.
 func (f *FakeLauncher) Crash(id string, cause launcher.ExitCause) bool {
 	f.mu.Lock()
 	live := f.live[id]

@@ -114,7 +114,8 @@ func TestMarkdownStatesTheThreeMeasuresApart(t *testing.T) {
 	md := string(built(t).Markdown())
 	for _, want := range []string{
 		"## Protocol compliance",
-		"| awsjson1_0 | request | 4 | 2 | 1 | 1 |",
+		"| Protocol | Kind | Cases | Passed | Skipped | Failed | Known |",
+		"| awsjson1_0 | request | 4 | 2 | 1 | 1 | 1 |",
 		"| awsjson1_0 | request | `C` | client-only | host prefix |",
 		"### Known failures",
 		"| awsjson1_0 | request | `D` | nested error member (internal/awserr) |",
