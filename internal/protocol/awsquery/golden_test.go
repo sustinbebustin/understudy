@@ -12,6 +12,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
+	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/protocol/awsquery"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
@@ -176,20 +177,15 @@ func TestGoldenErrorResponse(t *testing.T) {
 	}
 }
 
-// sns.md 1 and error-matrix.md 3 (recorded): SNS's ErrorResponse carries no
-// xmlns although its success responses do, and Code is the awsQueryError
-// code, not the shape name.
-func TestGoldenSNSErrorHasNoNamespace(t *testing.T) {
+// error-matrix.md 3 (recorded): SNS's ErrorResponse declares its namespace
+// (testdata/parity/sns/R16/02-invalid-id.json), and Code is the
+// awsQueryError code, not the shape name.
+func TestGoldenSNSNotFound(t *testing.T) {
 	t.Parallel()
-	svc := newService("sns", "2010-03-31", snsNamespace, opSpec{name: "GetTopicAttributes"})
-	e := &awserr.Error{
-		ID:      awserr.Identity{Shape: "com.amazonaws.sns#NotFoundException", QueryCode: "NotFound", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageLower},
-		Message: "Topic does not exist",
-		Origin:  awserr.Modeled{},
-	}
-	checkResponse(t, awsquery.Codec{}.EncodeError(svc, requestID, e), golden{
+	e := snsapi.ErrNotFoundException("Topic does not exist")
+	checkResponse(t, awsquery.Codec{}.EncodeError(snsapi.Service(), requestID, e), golden{
 		status: 404,
-		body: `<ErrorResponse><Error><Type>Sender</Type><Code>NotFound</Code><Message>Topic does not exist</Message></Error>` +
+		body: `<ErrorResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/"><Error><Type>Sender</Type><Code>NotFound</Code><Message>Topic does not exist</Message></Error>` +
 			`<RequestId>01234567-89ab-cdef-0123-456789abcdef</RequestId></ErrorResponse>`,
 	})
 }

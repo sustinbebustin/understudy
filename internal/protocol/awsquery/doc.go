@@ -89,13 +89,11 @@
 //     else Status (CloudWatch's ResourceNotFound is 404 over Query).
 //
 //   - The ErrorResponse envelope is per service, from recordings
-//     (error-matrix.md 3): CloudWatch declares its namespace and SNS does
-//     not; IAM declares it in the recorded fixture iam-sts-kms.md 1.2
-//     cites; SQS sends an empty <Detail/>. These are overlay facts: the
-//     dev.understudy#queryErrorEnvelope trait, generated into
-//     registry.Service.QueryErrorEnvelope, which the codec reads. STS and
-//     every other service carry none and follow Smithy's example: no
-//     namespace, no Detail.
+//     (error-matrix.md 3): CloudWatch, IAM, STS, SNS and SQS declare their
+//     namespace, and SQS also sends an empty <Detail/>. These are overlay
+//     facts: the dev.understudy#queryErrorEnvelope trait, generated into
+//     registry.Service.QueryErrorEnvelope, which the codec reads. A service
+//     without the trait follows Smithy's example: no namespace, no Detail.
 //
 //   - Policy documents are recognized by their shape,
 //     com.amazonaws.iam#policyDocumentType, the shape botocore decodes;

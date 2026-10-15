@@ -13,14 +13,15 @@ import (
 )
 
 var service = registry.Service{
-	ID:           "sts",
-	Shape:        "com.amazonaws.sts#AWSSecurityTokenServiceV20110615",
-	SigningName:  "sts",
-	IAMPrefix:    "sts",
-	ARNNamespace: "sts",
-	Protocols:    []ref.ProtocolID{ref.AWSQuery},
-	QueryVersion: "2011-06-15",
-	XMLNamespace: "https://sts.amazonaws.com/doc/2011-06-15/",
+	ID:                 "sts",
+	Shape:              "com.amazonaws.sts#AWSSecurityTokenServiceV20110615",
+	SigningName:        "sts",
+	IAMPrefix:          "sts",
+	ARNNamespace:       "sts",
+	Protocols:          []ref.ProtocolID{ref.AWSQuery},
+	QueryVersion:       "2011-06-15",
+	XMLNamespace:       "https://sts.amazonaws.com/doc/2011-06-15/",
+	QueryErrorEnvelope: registry.QueryErrorEnvelope{Namespace: true, Detail: false},
 }
 
 // The operations point back at the service, so the list is linked once

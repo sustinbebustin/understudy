@@ -214,14 +214,15 @@ func TestSQSSharedAttributeNameKey(t *testing.T) {
 }
 
 // sqs.md 2.3 and error-matrix.md 3: over Query, QueueDoesNotExist says
-// "for this wsdl version" (messageByProtocol), and SQS sends an empty
-// Detail.
+// "for this wsdl version" (messageByProtocol), and SQS declares its
+// namespace and sends an empty Detail
+// (testdata/parity/sqs/R11/05-sqs-query-nonexistent-queue.json).
 func TestSQSQueueDoesNotExistOverQuery(t *testing.T) {
 	t.Parallel()
 	e := sqsapi.ErrQueueDoesNotExist("The specified queue does not exist.")
 	checkResponse(t, awsquery.Codec{}.EncodeError(sqsapi.Service(), requestID, e), golden{
 		status: 400,
-		body: `<ErrorResponse><Error><Type>Sender</Type><Code>AWS.SimpleQueueService.NonExistentQueue</Code>` +
+		body: `<ErrorResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><Error><Type>Sender</Type><Code>AWS.SimpleQueueService.NonExistentQueue</Code>` +
 			`<Message>The specified queue does not exist for this wsdl version.</Message><Detail/></Error>` +
 			`<RequestId>01234567-89ab-cdef-0123-456789abcdef</RequestId></ErrorResponse>`,
 	})

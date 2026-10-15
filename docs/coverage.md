@@ -1153,7 +1153,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item, strongest evidence first.
 
-236 evidence items: 45 aws-recorded, 90 third-party-recorded, 51 aws-doc, 2 sdk-source, 48 inferred.
+238 evidence items: 48 aws-recorded, 89 third-party-recorded, 51 aws-doc, 2 sdk-source, 48 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1201,7 +1201,10 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | s3.json | `com.amazonaws.s3#OwnershipControlsNotFoundError` |  | testdata/parity/s3/R06/03-get-ownership-after-delete.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#ReplicationConfigurationNotFoundError` |  | testdata/parity/s3/R06/01-get-get-bucket-replication.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#RequestTimeTooSkewed` |  | testdata/parity/s3/R18/02-s3-skew-16min.json (validated 2026-10-14) |
+| aws-recorded | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#queryErrorEnvelope | testdata/parity/sns/R16/02-invalid-id.json (validated 2026-10-14) |
+| aws-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#queryErrorEnvelope | testdata/parity/sqs/R11/05-sqs-query-nonexistent-queue.json (validated 2026-10-14) |
 | aws-recorded | sqs.json | `com.amazonaws.sqs#SendMessageRequest$DelaySeconds` | dev.understudy#validationError | testdata/parity/sqs/R11/02-send-delay-901.json (validated 2026-10-14) |
+| aws-recorded | sts.json | `com.amazonaws.sts#AWSSecurityTokenServiceV20110615` | dev.understudy#queryErrorEnvelope | testdata/parity/sts/R15/06-assume-denied.json (validated 2026-10-14) |
 | third-party-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#queryErrorEnvelope | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L186 (validated 2025-09-22) |
 | third-party-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (validated 2025-09-22) |
 | third-party-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#ResourceNotFound` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (validated 2025-09-22) |
@@ -1281,7 +1284,6 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | secretsmanager.json | `com.amazonaws.secretsmanager#secretsmanager` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/secretsmanager/test_secretsmanager.snapshot.json#L891 (validated 2024-03-15) |
 | third-party-recorded | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sns/test_sns.snapshot.json#L1823 (validated 2024-11-15) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#emptyCollection | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json |
-| third-party-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#queryErrorEnvelope | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3759 (validated 2025-09-22) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#InvalidParameterValue` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L2 (validated 2024-04-30) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#MissingParameter` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3759 (validated 2025-09-22) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#QueueDoesNotExist` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json |

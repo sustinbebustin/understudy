@@ -17,13 +17,13 @@ Most differences are in error texts, codes and response details, not in the happ
 - The queue `Policy` attribute reads back compacted (whitespace removed, key order kept) on AWS; understudy returns it as sent (`sqs/R05/01-get-a.json`).
 - Unmodeled validation errors carry `com.amazon.coral.service#InvalidParameterValueException` and `#MissingRequiredParameterException` on AWS, not `com.amazonaws.sqs#...` (`sqs/R11/02-receive-max-0.json`).
 - `x-amzn-query-error` is `MalformedInput;Sender` for a string sent as an integer and `InvalidAction;Sender` for an unknown target, and absent for a wrong target prefix; understudy gives other codes (`sqs/R11/03-*.json`).
-- Query-protocol responses: AWS's error bodies declare `xmlns="http://queue.amazonaws.com/doc/2012-11-05/"`, every body starts with `<?xml version="1.0"?>`, and `Accept: application/json` gets a JSON rendering. understudy sends neither the namespace nor the declaration, and always XML (`sqs/R11/05-*.json`). Current SDKs use the JSON protocol and are unaffected.
+- Query-protocol responses: on AWS every body starts with `<?xml version="1.0"?>`, and `Accept: application/json` gets a JSON rendering. understudy sends no declaration, and always XML (`sqs/R11/05-*.json`). Current SDKs use the JSON protocol and are unaffected.
 - A Query `SendMessage` without `Version` is accepted by AWS; understudy cannot tell which service it is for and declines it. Send `Version=2012-11-05` (`sqs/R11/x-query-sendmessage-no-version.json`).
 - Messages SNS delivers carry `SenderId` `<role id>:AWS-CLOUDCAST` and version 5 UUID message ids on AWS; understudy's differ (`sqs/R16/01-sqs-enveloped.json`).
 
 ## SNS
 
-- Error bodies carry `xmlns="http://sns.amazonaws.com/doc/2010-03-31/"` on AWS, and an unknown `Action` is "Could not find operation NoSuchAction for version 2010-03-31" under the AWSFault namespace (`sns/R11/05-sns-unknown-action.json`).
+- An unknown `Action` is "Could not find operation NoSuchAction for version 2010-03-31" under the `http://webservices.amazon.com/AWSFault/2005-15-09` namespace on AWS; understudy answers "The action NoSuchAction is not valid for this endpoint." under the SNS namespace (`sns/R11/05-sns-unknown-action.json`).
 - `FilterPolicy` reads back compacted on AWS; understudy returns it as sent (`sns/R05/05-get-sub-attrs.json`).
 - `PublishBatch` with a 101-character `Subject` reports that entry in `Failed` and sends the rest on AWS; understudy fails the whole call (`sns/R16/02-subject-101.json`).
 - `MessageStructure=json` with a duplicate `default` key is accepted on AWS, last value winning; understudy refuses it as unparseable (`sns/R16/03-x-message-structure-duplicate-key.json`).
