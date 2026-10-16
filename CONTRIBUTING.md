@@ -4,7 +4,7 @@ Thanks for helping. This file covers the setup, the rules every change follows, 
 
 ## Setup
 
-- Go 1.27, [golangci-lint](https://golangci-lint.run) 2.13 and [just](https://just.systems) for the core gate.
+- Go 1.27, [golangci-lint](https://golangci-lint.run) 2.14 and [just](https://just.systems) for the core gate.
 - [uv](https://docs.astral.sh/uv/), which runs `scripts/sealed`.
 - Docker, for Lambda, DynamoDB Local and the `-tags docker` tests.
 - For the conformance suites: the AWS CLI v2, Terraform 1.16 or later, Python 3.14 (through uv), [Bun](https://bun.sh), `jq` and `curl`.
