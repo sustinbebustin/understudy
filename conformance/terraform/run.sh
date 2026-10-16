@@ -176,13 +176,15 @@ tf() {
 }
 
 # error_summary LOG prints the Terraform error lines of a log, for evidence.
+# sed -n, unlike head, reads its whole input, so no grep dies of SIGPIPE
+# and fails the pipeline under pipefail.
 error_summary() {
-  grep -E -A4 '^(Error|│ Error): ' "$1" | grep -v -E '^(--|│ *)$' | head -n 30
+  grep -E -A4 '^(Error|│ Error): ' "$1" | grep -v -E '^(--|│ *)$' | sed -n '1,30p'
 }
 
 # drift_summary LOG prints the planned changes of a plan log, for evidence.
 drift_summary() {
-  grep -E '^ *(# .* (will|must) be|[-+~] [a-z_"]+.*(=|->|\{)|Plan: )' "$1" | head -n 40
+  grep -E '^ *(# .* (will|must) be|[-+~] [a-z_"]+.*(=|->|\{)|Plan: )' "$1" | sed -n '1,40p'
 }
 
 # run_phase SERVICE PHASE ARGS... runs one terraform command with a timeout,

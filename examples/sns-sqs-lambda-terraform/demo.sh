@@ -92,8 +92,10 @@ aws logs filter-log-events --log-group-name /aws/lambda/order-worker \
   --filter-pattern '{ $.msg = "order failed" }' --query 'events[].message' --output text
 
 # The journal records every API call and delivery with what caused it. The
-# first of the three publishes above is the oldest of the last three.
-first_publish=$(understudy journal --operation sns.Publish --limit 3 --output json | head -n 1 | jq -r .id)
+# first of the three publishes above is the oldest of the last three. jq
+# reads every line, so understudy never writes to a closed pipe, which
+# pipefail would turn into a failure.
+first_publish=$(understudy journal --operation sns.Publish --limit 3 --output json | jq -rs '.[0].id')
 echo "==> what publishing order 1001 caused, from the journal"
 understudy journal trace "$first_publish"
 
