@@ -27,12 +27,20 @@ import (
 var version = "dev"
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	// The first signal starts a graceful shutdown; restoring the default
-	// handling then lets a second one end a slow or hung shutdown at once.
-	context.AfterFunc(ctx, stop)
+	ctx, cancel := context.WithCancel(context.Background())
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	// The first signal starts a graceful shutdown; a second one must end a
+	// slow or hung shutdown at once. Default handling is restored before
+	// the cancel, so no part of the shutdown can begin while a second
+	// signal would still be relayed to sigs and dropped.
+	go func() {
+		<-sigs
+		signal.Stop(sigs)
+		cancel()
+	}()
 	code := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
-	stop()
+	cancel()
 	os.Exit(code)
 }
 
