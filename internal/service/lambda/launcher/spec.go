@@ -285,8 +285,8 @@ func containerSpec(s Spec, slot Slot, labels map[string]string, addrs topology.A
 		MemorySwap:  memory,
 		PidsLimit:   pidsLimit,
 		Ulimits:     []docker.Ulimit{{Name: "nofile", Soft: nofileLimit, Hard: nofileLimit}},
-		// /tmp is an anonymous volume: disk, as on Lambda, so writes to it
-		// are not charged to the memory limit the way tmpfs pages are.
+		// /tmp is an anonymous volume: disk, as on Lambda, so its pages
+		// leave the memory limit once written back, unlike tmpfs pages.
 		// Remove's v=1 deletes it with the container.
 		Mounts:      []docker.Mount{{Type: "volume", Target: "/tmp"}},
 		CapDrop:     []string{"ALL"},

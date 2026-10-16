@@ -112,6 +112,7 @@ understudy forwards DynamoDB to DynamoDB Local, so its answers carry Local's beh
 - Asynchronous invocation: `DestinationConfig` is stored but nothing is delivered to a destination; a discarded event is only logged.
 - A runtime's base image is pulled on a zip function's first invoke, not at `CreateFunction`; `understudy images pull` pulls them ahead.
 - `EphemeralStorage` is not enforced: `/tmp` is an unsized volume.
+- Data written to `/tmp` counts against the function's memory until the host writes it to disk. On a host with a slow disk, such as a GitHub-hosted runner, a function that writes a file close to or larger than its memory size without syncing can end in `Runtime.OutOfMemory` where Lambda succeeds. Syncing as it writes (`fsync`), or a larger `MemorySize`, avoids it.
 - `Runtime.OutOfMemory` payload text is unrecorded; understudy sends `Runtime exited with error: signal: killed`.
 - A resource-scoped fault rule matches only `Invoke`, `CreateFunction` and `UpdateFunctionConfiguration`; scope rules for other Lambda operations by operation, account or Region.
 

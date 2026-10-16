@@ -422,9 +422,12 @@ func TestDockerOutOfMemoryAt128MB(t *testing.T) {
 	}
 }
 
-// /tmp is disk, as on Lambda: a 128 MB function can write 200 MB there
-// without its pages counting against the memory limit.
-func TestDockerTmpIsNotChargedToMemory(t *testing.T) {
+// /tmp is disk, as on Lambda, not tmpfs: a 128 MB function can write
+// 200 MB there. Each chunk is synced, because unwritten page cache does
+// count against the memory limit, and on a slow disk (a GitHub runner)
+// unsynced writes are OOM-killed before writeback frees them; tmpfs pages
+// would stay charged however often they were synced.
+func TestDockerTmpIsDiskNotTmpfs(t *testing.T) {
 	s := newStack(t, dockerClient(t), "pooltest-owner-"+runID(t))
 	spec := s.function(t, "tmp", "python3.13", "handler.handler", map[string]string{"handler.py": `
 import os
@@ -435,6 +438,8 @@ def handler(event, context):
     with open("/tmp/big", "wb") as f:
         for _ in range(200):
             f.write(chunk)
+            f.flush()
+            os.fsync(f.fileno())
     return {"size": os.path.getsize("/tmp/big")}
 `})
 	_, o := s.invoke(t, spec, `{}`, 60*time.Second)

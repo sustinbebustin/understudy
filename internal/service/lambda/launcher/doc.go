@@ -28,9 +28,12 @@
 //     an empty directory (containers.md 5.1), so the runtime finds no
 //     bootstrap or handler. doctor is where that check belongs.
 //   - /tmp is an anonymous volume, the one writable place under a read-only
-//     root. It is disk, like Lambda's /tmp: a tmpfs would charge its pages
-//     to the memory limit, and with no swap a 128 MB function writing 100 MB
-//     there would be OOM-killed where Lambda succeeds. The volume starts as
+//     root. It is disk, like Lambda's /tmp: a tmpfs would keep its pages
+//     charged to the memory limit, and with no swap a 128 MB function
+//     writing 100 MB there would be OOM-killed where Lambda succeeds. Page
+//     cache is still charged until writeback frees it, so on a slow disk a
+//     large unsynced write can be OOM-killed too (docs/guide/differences.md
+//     "Lambda"). The volume starts as
 //     a copy of the image's /tmp (mode 1777 in the base images) and Remove
 //     deletes it with the container. Its size is not enforced: the
 //     ephemeral storage size is only validated, because StorageOpt limits
