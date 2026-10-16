@@ -1,5 +1,5 @@
 # The example application: a static Go binary on an empty base image.
-FROM golang:1.27.1 AS build
+FROM golang:1.27.2 AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download

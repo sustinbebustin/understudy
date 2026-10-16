@@ -15,7 +15,7 @@
 #
 # Both golang stages pin the multi-arch index by digest: the shipped CA
 # bundle comes from it, so a re-pushed tag must not change the image.
-FROM --platform=$BUILDPLATFORM golang:1.27.1@sha256:162be5298a40ed317005c8339c6de4d10d3eef336d66dc8e9259b03ab9d3a6d2 AS rootfs
+FROM --platform=$BUILDPLATFORM golang:1.27.2@sha256:820153096fda4de6ac1b7194d12e416b7dd8f4e9a33d17e0345b111b945162d8 AS rootfs
 COPY LICENSE NOTICE /stage/usr/share/doc/understudy/
 RUN mkdir -p /stage/etc/ssl/certs /stage/data /stage/tmp \
     && cp /etc/ssl/certs/ca-certificates.crt /stage/etc/ssl/certs/ \
@@ -25,7 +25,7 @@ RUN mkdir -p /stage/etc/ssl/certs /stage/data /stage/tmp \
 
 # The builder runs on the build machine and cross-compiles for the target, so
 # a multi-arch build never emulates the Go toolchain.
-FROM --platform=$BUILDPLATFORM golang:1.27.1@sha256:162be5298a40ed317005c8339c6de4d10d3eef336d66dc8e9259b03ab9d3a6d2 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.2@sha256:820153096fda4de6ac1b7194d12e416b7dd8f4e9a33d17e0345b111b945162d8 AS builder
 
 ARG VERSION=dev
 ARG TARGETOS
