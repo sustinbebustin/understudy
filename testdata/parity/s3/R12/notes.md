@@ -7,7 +7,7 @@
 
 ## Expected
 
-Understudy paths are relative to /home/austin/dev/local-aws-stack. Byte-level XML notes are listed last.
+Understudy paths are repo-relative. Byte-level XML notes are listed last.
 
 Step 1, ranges on `0123456789`:
 - multi `bytes=0-1,4-5`: matches (AWS 200, whole body; get.go:173 ignores a range with a comma)

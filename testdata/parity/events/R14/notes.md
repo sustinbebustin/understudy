@@ -7,7 +7,7 @@
 
 ## Expected
 
-Compared against understudy built from /home/austin/dev/local-aws-stack (same corpus replayed on a local instance, account 000000000000; AWS account written as 123456789012).
+Compared against understudy built locally (same corpus replayed on a local instance, account 000000000000; AWS account written as 123456789012).
 
 - 01 invalid-expression error (status, __type, message): matches (400 ValidationException "Parameter ScheduleExpression is not valid.", internal/schedexpr/schedule.go:12)
 - 01 stored ScheduleExpression (describe-rule): matches (stored verbatim, no normalisation, 01-NN-describe.out)

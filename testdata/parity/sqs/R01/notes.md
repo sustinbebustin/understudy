@@ -7,7 +7,7 @@
 
 ## Expected
 
-Understudy paths are under /home/austin/dev/local-aws-stack.
+Understudy paths are repo-relative.
 
 - step 2 re-receive (ApproximateReceiveCount 2, same MessageId, new handle; 02-recv1/02-recv2): matches.
 - step 3 stale delete H1 while H2 current (03-delete-stale): differs: AWS 200 empty body AND the message is deleted (03-recv-after-stale-delete and 03-recv-after-6s both `{}`, 6 s after a 5 s timeout); understudy matches only the latest handle, so H1 is a silent no-op and the message reappears (internal/service/sqs/visibility.go:140, state.go:321).
