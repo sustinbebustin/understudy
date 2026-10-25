@@ -392,36 +392,12 @@ func (s *Service) getPolicyVersion(_ context.Context, c *kernel.Call, in *iamapi
 // awsManagedVersion.
 func (s *Service) listPolicyVersions(_ context.Context, c *kernel.Call, in *iamapi.ListPolicyVersionsInput) (*iamapi.ListPolicyVersionsOutput, *awserr.Error) {
 	account := c.Scope().Account
-	type listed struct {
-		key     string
-		version iamapi.PolicyVersion
-	}
-	p, err := view(s, account, func(st *State) (paging.Page[listed], *awserr.Error) {
-		var all []listed
-		add := func(v PolicyVersion, shown iamapi.PolicyVersion) *awserr.Error {
-			k, err := v.sortKey()
-			if err != nil {
-				return err
-			}
-			all = append(all, listed{key: k, version: shown})
-			return nil
+	p, err := view(s, account, func(st *State) (paging.Page[listedVersion], *awserr.Error) {
+		all, err := st.listedVersions(account, in.PolicyArn)
+		if err != nil {
+			return paging.Page[listedVersion]{}, err
 		}
-		if ref, ok := parsePolicyARN(in.PolicyArn); ok && ref.awsManaged() {
-			if err := add(PolicyVersion{ID: awsManagedVersion}, apiAWSManagedVersion(false)); err != nil {
-				return paging.Page[listed]{}, err
-			}
-		} else {
-			pol, _, err := st.localPolicy(account, in.PolicyArn)
-			if err != nil {
-				return paging.Page[listed]{}, err
-			}
-			for _, v := range slices.Backward(pol.Versions) {
-				if err := add(v, apiVersion(pol, v, false)); err != nil {
-					return paging.Page[listed]{}, err
-				}
-			}
-		}
-		return paginate("policy-versions", all, func(l listed) string { return l.key }, in.Marker, in.MaxItems)
+		return paginate("policy-versions", all, func(l listedVersion) string { return l.key }, in.Marker, in.MaxItems)
 	})
 	if err != nil {
 		return nil, err
@@ -432,6 +408,44 @@ func (s *Service) listPolicyVersions(_ context.Context, c *kernel.Call, in *iama
 		out.Versions[i] = l.version
 	}
 	return out, nil
+}
+
+// listedVersion is one ListPolicyVersions entry with its sort key.
+type listedVersion struct {
+	key     string
+	version iamapi.PolicyVersion
+}
+
+// listedVersions are the versions of the policy at arn, newest first.
+func (st *State) listedVersions(account aws.AccountID, arn string) ([]listedVersion, *awserr.Error) {
+	if ref, ok := parsePolicyARN(arn); ok && ref.awsManaged() {
+		v, err := listVersion(PolicyVersion{ID: awsManagedVersion}, apiAWSManagedVersion(false))
+		if err != nil {
+			return nil, err
+		}
+		return []listedVersion{v}, nil
+	}
+	pol, _, err := st.localPolicy(account, arn)
+	if err != nil {
+		return nil, err
+	}
+	all := make([]listedVersion, 0, len(pol.Versions))
+	for _, v := range slices.Backward(pol.Versions) {
+		l, err := listVersion(v, apiVersion(pol, v, false))
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, l)
+	}
+	return all, nil
+}
+
+func listVersion(v PolicyVersion, shown iamapi.PolicyVersion) (listedVersion, *awserr.Error) {
+	k, err := v.sortKey()
+	if err != nil {
+		return listedVersion{}, err
+	}
+	return listedVersion{key: k, version: shown}, nil
 }
 
 func (s *Service) deletePolicyVersion(_ context.Context, c *kernel.Call, in *iamapi.DeletePolicyVersionInput) (*iamapi.DeletePolicyVersionOutput, *awserr.Error) {
