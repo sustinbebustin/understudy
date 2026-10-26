@@ -1,0 +1,529 @@
+{
+  "version": 1,
+  "item": "R01",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "sqs",
+      "operation": "CreateQueue",
+      "input": {
+        "QueueName": "usr-rec-20261014-std",
+        "Attributes": {
+          "VisibilityTimeout": "5"
+        }
+      },
+      "bind": [
+        {
+          "path": "body/QueueUrl",
+          "shape": {
+            "kind": "url",
+            "path": "/{account}/{name}"
+          },
+          "aws": "https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-std"
+        }
+      ]
+    },
+    {
+      "service": "sqs",
+      "operation": "CreateQueue",
+      "input": {
+        "QueueName": "usr-rec-20261014-f.fifo",
+        "Attributes": {
+          "FifoQueue": "true",
+          "ContentBasedDeduplication": "true",
+          "VisibilityTimeout": "5"
+        }
+      },
+      "bind": [
+        {
+          "path": "body/QueueUrl",
+          "shape": {
+            "kind": "url",
+            "path": "/{account}/{name}"
+          },
+          "aws": "https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-f.fifo"
+        }
+      ]
+    },
+    {
+      "service": "sqs",
+      "operation": "CreateQueue",
+      "input": {
+        "QueueName": "usr-rec-20261014-other"
+      },
+      "bind": [
+        {
+          "path": "body/QueueUrl",
+          "shape": {
+            "kind": "url",
+            "path": "/{account}/{name}"
+          },
+          "aws": "https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-other"
+        }
+      ],
+      "before": "06-cmv-batch"
+    },
+    {
+      "service": "sqs",
+      "operation": "SendMessage",
+      "input": {
+        "QueueUrl": "https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-other",
+        "MessageBody": "other"
+      },
+      "before": "06-cmv-batch"
+    },
+    {
+      "service": "sqs",
+      "operation": "ReceiveMessage",
+      "input": {
+        "QueueUrl": "https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-other"
+      },
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          },
+          "aws": "AQEBFsoveYoJsTzVY1YqU8qjVdC3Ofe/FzjcyZCUibZJH9an6whoXx9AQR+FxLFJh1mGzG4vLmJIr9eLNdm2ea2xFXv9fbKeMLE1rktIQOswP3e1GocxgklkyJ9tLMK9fQF8w1o8vwdkTazN6NbwCP03Qlv8GiHlkWsN71UZxsDKm1juPjr9LrWwWFdYs9TyIPj4xTwNhmqMIbgtTO/cYhsj2SPYGk3ITptBVWolCwwtUBiGjmxmLfzK6VSYQn95j+Y9DCWWCt5tfQCaiQQN/dYggT3GDIA7zBIWOobmRaK/YS4rcH1nQ6bplmbW8evpTHd+BYNgFjgTySHSWRk+nXY6abTRZ/cqDfTnYix6A9EEWYJqw0x5Bog2EUMFCzGzevm40RHMlOmolRCvSsbVRTb9ew=="
+        }
+      ],
+      "before": "06-cmv-batch"
+    },
+    {
+      "service": "sqs",
+      "operation": "SendMessage",
+      "input": {
+        "QueueUrl": "https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-std",
+        "MessageBody": "m8"
+      },
+      "bind": [
+        {
+          "path": "body/MessageId",
+          "shape": {
+            "kind": "uuid"
+          },
+          "aws": "093aa856-31ea-4fe4-80cd-9c6d6c6dfee1"
+        }
+      ],
+      "before": "08-recv1"
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "sqs/R01/02-send.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/MessageId",
+          "shape": {
+            "kind": "uuid"
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "sqs/R01/02-recv1.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "sqs/R01/02-recv2.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ],
+      "advance": "6s"
+    },
+    {
+      "fixture": "sqs/R01/03-delete-stale.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/03-recv-after-stale-delete.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/03-recv-after-6s.json",
+      "compare": "all",
+      "advance": "8s"
+    },
+    {
+      "fixture": "sqs/R01/03-delete-h2.json",
+      "compare": "all",
+      "advance": "3s"
+    },
+    {
+      "fixture": "sqs/R01/03-drain.json",
+      "compare": "all",
+      "advance": "7s"
+    },
+    {
+      "fixture": "sqs/R01/04-send.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/MessageId",
+          "shape": {
+            "kind": "uuid"
+          }
+        }
+      ],
+      "advance": "2s"
+    },
+    {
+      "fixture": "sqs/R01/04-recv1.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "sqs/R01/04-recv2.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ],
+      "advance": "6s"
+    },
+    {
+      "fixture": "sqs/R01/04-delete-current.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/04-delete-stale-gone.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/05-send.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/MessageId",
+          "shape": {
+            "kind": "uuid"
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "sqs/R01/05-recv1.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "sqs/R01/05-recv2.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ],
+      "advance": "6s"
+    },
+    {
+      "fixture": "sqs/R01/05-cmv-stale.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/05-cmv-current.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/05-delete.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/05-cmv-deleted.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/05-cmv-stale-deleted.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/06a-send.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/MessageId",
+          "shape": {
+            "kind": "uuid"
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "sqs/R01/06a-recv1.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "sqs/R01/06a-recv2.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ],
+      "advance": "6s"
+    },
+    {
+      "fixture": "sqs/R01/06-cmv-batch.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/06-delete-batch.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/07-fifo-send.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/MessageId",
+          "shape": {
+            "kind": "uuid"
+          }
+        },
+        {
+          "path": "body/SequenceNumber",
+          "shape": {
+            "kind": "id",
+            "alphabet": "digits",
+            "min": 20,
+            "max": 20
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "sqs/R01/07-fifo-recv1.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "sqs/R01/07-fifo-delete-expired.json",
+      "compare": "all",
+      "advance": "6s"
+    },
+    {
+      "fixture": "sqs/R01/07-fifo-recv2.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "sqs/R01/07-fifo-delete-h1-after-rereceive.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/07-fifo-delete-h2.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/07-fifo-recv3.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sqs/R01/08-recv1.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ],
+      "advance": "2s"
+    },
+    {
+      "fixture": "sqs/R01/08-recv2.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ],
+      "advance": "6s"
+    },
+    {
+      "fixture": "sqs/R01/08-recv3.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ],
+      "advance": "6s"
+    },
+    {
+      "fixture": "sqs/R01/08-recv4.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ],
+      "advance": "6s"
+    },
+    {
+      "fixture": "sqs/R01/08-recv5.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/Messages/0/ReceiptHandle",
+          "shape": {
+            "kind": "id",
+            "alphabet": "base64",
+            "min": 36,
+            "max": 1024,
+            "prefix": "AQEB"
+          }
+        }
+      ],
+      "advance": "6s"
+    }
+  ],
+  "settles": [
+    {
+      "switch": "sqs.receipt.stale-handle",
+      "step": "03-recv-after-6s",
+      "field": "body/Messages"
+    },
+    {
+      "overlay": "com.amazonaws.sqs#AmazonSQS",
+      "covers": [
+        "dev.understudy#errorNamespace"
+      ],
+      "step": "05-cmv-deleted",
+      "field": "body/__type"
+    }
+  ]
+}
