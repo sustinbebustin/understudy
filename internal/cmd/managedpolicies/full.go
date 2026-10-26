@@ -247,13 +247,16 @@ func (r *pageReader) once(s span, prefix, field string) (rest string, line int, 
 }
 
 // description is the page's Description text, before its first "### "
-// heading.
+// heading, with markdown's backslash escapes removed: the guide writes some
+// descriptions' underscores as \_ and once an asterisk as \*
+// (iam-evaluation.md 10.4), characters the text itself holds. Other markdown
+// is kept as published.
 func (r *pageReader) description(s span) string {
 	rest, _, ok := r.once(s, descriptionPrefix, fieldDescription)
 	if !ok {
 		return ""
 	}
-	return strings.TrimPrefix(rest, " ")
+	return unescapeMarkdown(strings.TrimPrefix(rest, " "))
 }
 
 // guideTime reads a Creation or Edited time, in UTC.
