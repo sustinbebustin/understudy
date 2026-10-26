@@ -107,7 +107,7 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 	plainHTTPOps := []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy", "s3.CompleteMultipartUpload", "s3.GetObject", "s3.HeadObject", "s3.GetObjectAttributes"}
 	inferred := evidence.Inferred
 	want := []wantSwitch{
-		{"s3.sse-c.plain-http", "refused", evidence.AWSDoc, "39-https", "S3SOL-02", plainHTTPOps},
+		{"s3.sse-c.plain-http", "refused", evidence.AWSDoc, "39-https", "S3SOL-02", append(slices.Clone(plainHTTPOps), "s3.ListParts")},
 		{"s3.sse-c.blocked-write", "AccessDenied", inferred, "43-what-the-block-refuses", "S3SOL-01", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy"}},
 		{"s3.sse-c.missing-key-md5", "InvalidArgument", inferred, "32-write-side-validation-third-party-recorded", "S3SOL-03", plainHTTPOps},
 		{"s3.sse-c.key-encoding", "write-side-texts", inferred, "32-write-side-validation-third-party-recorded", "S3SOL-04", plainHTTPOps},
@@ -117,7 +117,7 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 		{"s3.sse-c.complete-headers", "checked-when-sent", inferred, "36-multipart-uploads", "S3SOL-08", []string{"s3.CompleteMultipartUpload", "s3.ListParts"}},
 		{"s3.encryption.unblocked-read", "NONE-element", inferred, "42-blocking-and-unblocking", "S3SOL-10", []string{"s3.PutBucketEncryption", "s3.GetBucketEncryption"}},
 		{"s3.encryption.blocked-types-omitted", "kept", inferred, "42-blocking-and-unblocking", "S3SOL-11", []string{"s3.PutBucketEncryption", "s3.DeleteBucketEncryption"}},
-		{"s3.object-lock.retain-until-format", "milliseconds", inferred, "67-response-headers-on-get-and-head", "S3SOL-12", []string{"s3.GetObject", "s3.HeadObject", "s3.GetObjectRetention", "s3.DeleteObject", "s3.DeleteObjects"}},
+		{"s3.object-lock.retain-until-format", "milliseconds", inferred, "67-response-headers-on-get-and-head", "S3SOL-12", []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.PutObjectRetention", "s3.GetObject", "s3.HeadObject", "s3.GetObjectRetention", "s3.DeleteObject", "s3.DeleteObjects"}},
 		{"s3.object-lock.default-years", "365-day", inferred, "53-default-retention-dating", "S3SOL-13", []string{"s3.PutObjectLockConfiguration", "s3.PutObject", "s3.CopyObject", "s3.CompleteMultipartUpload"}},
 		{"s3.object-lock.checksum-scope", "PutObject-retention", inferred, "63-the-content-md5-or-checksum-requirement", "S3SOL-14, S3SOL-15", []string{"s3.PutObject", "s3.UploadPart"}},
 		{"s3.object-lock.copy-default", "default-applied", inferred, "68-copyobject-does-not-carry-lock-state", "S3SOL-16", []string{"s3.CopyObject"}},

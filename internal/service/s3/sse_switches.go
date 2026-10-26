@@ -1,6 +1,8 @@
 package s3
 
 import (
+	"slices"
+
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 )
@@ -18,7 +20,9 @@ func ssecSwitches() []fidelity.Entry {
 		"s3.CompleteMultipartUpload", "s3.GetObject", "s3.HeadObject", "s3.GetObjectAttributes",
 	}
 	return []fidelity.Entry{
-		researchSwitch("s3.sse-c.plain-http", "refused", evidence.AWSDoc, "39-https", "S3SOL-02", ssecPlainHTTPOps),
+		// ListParts checks the trio when sent, so it is refused over plain
+		// HTTP the same way (switch s3.sse-c.complete-headers; 3.9).
+		researchSwitch("s3.sse-c.plain-http", "refused", evidence.AWSDoc, "39-https", "S3SOL-02", append(slices.Clone(ssecPlainHTTPOps), "s3.ListParts")),
 		researchSwitch("s3.sse-c.blocked-write", "AccessDenied", evidence.Inferred, "43-what-the-block-refuses", "S3SOL-01",
 			[]string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy"}),
 		researchSwitch("s3.sse-c.missing-key-md5", "InvalidArgument", evidence.Inferred, "32-write-side-validation-third-party-recorded", "S3SOL-03", ssecPlainHTTPOps),

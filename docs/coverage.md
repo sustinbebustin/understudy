@@ -815,7 +815,7 @@ Internal operations:
 | GetObjectTagging | full | inferred, 1 of 2 claims |  |
 | HeadBucket | full | inferred, 1 of 3 claims |  |
 | ListMultipartUploads | full | inferred, 1 of 3 claims |  |
-| ListParts | full | inferred, 2 of 3 claims |  |
+| ListParts | full | inferred, 2 of 4 claims |  |
 | PutBucketEncryption | full | inferred, 3 of 5 claims |  |
 | PutBucketTagging | full | inferred, 1 of 4 claims |  |
 | PutObjectLegalHold | full | inferred, 2 of 3 claims |  |
@@ -864,8 +864,8 @@ Internal operations:
 | PutPublicAccessBlock | stored-only | inferred, 1 of 2 claims | the public access block is stored and echoed; not applied |
 | AbortMultipartUpload | partial | inferred, 1 of 2 claims | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
 | CompleteMultipartUpload | partial | inferred, 5 of 7 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
-| CopyObject | partial | inferred, 13 of 16 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
-| CreateMultipartUpload | partial | inferred, 8 of 11 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
+| CopyObject | partial | inferred, 14 of 17 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
+| CreateMultipartUpload | partial | inferred, 9 of 12 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
 | DeleteBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | DeleteObject | partial | inferred, 2 of 4 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
 | DeleteObjects | partial | inferred, 2 of 4 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
@@ -879,9 +879,9 @@ Internal operations:
 | PutBucketNotificationConfiguration | partial | inferred, 1 of 2 claims | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions; s3:ObjectRetention:Put is stored but sends nothing |
 | PutBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | PutBucketVersioning | partial | inferred, 1 of 2 claims | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
-| PutObject | partial | inferred, 10 of 13 claims | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
+| PutObject | partial | inferred, 11 of 14 claims | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
 | PutObjectLockConfiguration | partial | inferred, 2 of 3 claims | DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored |
-| PutObjectRetention | partial | inferred, 5 of 6 claims | event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent |
+| PutObjectRetention | partial | inferred, 6 of 7 claims | event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent |
 | UploadPart | partial | inferred, 5 of 7 claims | chunk signatures are verified under sigv4 verify |
 | UploadPartCopy | partial | inferred, 7 of 9 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
 | CreateBucketMetadataConfiguration | unbound | unassessed |  |
