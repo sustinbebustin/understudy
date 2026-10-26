@@ -37,8 +37,9 @@
 //     method let pointers to modes satisfy it, so New and Restore validate
 //     the mode at the boundary and refuse anything else with a *ModeError.
 //   - Freeze, Resume, Scale and Restore return a ModeChange with the
-//     replaced mode read under the same lock as the change, so the journal's
-//     ClockChanged{From, To} cannot interleave with a concurrent change.
+//     replaced mode read under the same lock as the change, and Advance and
+//     AdvanceTo one in Advanced.Modes, so the journal's ClockChanged{From,
+//     To} cannot interleave with a concurrent change.
 //   - The driver and Until wake at least once a second while they wait on
 //     wall time: their timers are monotonic, Running emulator time follows
 //     the wall clock, and a wall step or host suspend must not delay a timer

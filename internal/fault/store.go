@@ -135,9 +135,20 @@ func (s *Store) Clear() int {
 }
 
 // RemoveAll deactivates every rule and returns their ids in evaluation
-// order, nil when there were none. Not implemented yet: it changes nothing
-// and returns nil.
-func (*Store) RemoveAll() []ref.RuleID { return nil }
+// order, nil when there were none.
+func (s *Store) RemoveAll() []ref.RuleID {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.rules) == 0 {
+		return nil
+	}
+	removed := make([]ref.RuleID, 0, len(s.rules))
+	for _, e := range s.rules {
+		removed = append(removed, e.rule.ID)
+	}
+	s.rules = nil
+	return removed
+}
 
 // Evaluate applies the active rules that belong to hook h to the call in.
 // Rules are tried in order; the first one that matches and fires decides,
