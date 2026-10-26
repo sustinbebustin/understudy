@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -105,7 +106,10 @@ type wiring struct {
 	// clockFrom is what set the clock serve starts with, which the banner
 	// names.
 	clockFrom clockOrigin
-	stopped   sync.Once
+	// own are understudy's own addresses, which SNS HTTP delivery refuses;
+	// Serve records its listeners there.
+	own     *ownAddrs
+	stopped sync.Once
 }
 
 // wire builds the registry, the kernel with its clock, journal, faults,
@@ -172,10 +176,11 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	if err := w.containers(cfg, instance, clk, log); err != nil {
 		return w, err
 	}
+	w.own = &ownAddrs{runtime: w.host.runtimeAddrs, interfaces: net.InterfaceAddrs}
 	deps := func(desc *registry.Service) kernel.ServiceDeps {
 		return kernel.ServiceDeps{Kernel: k, Binder: k.Binder(desc), Clock: clk, IDs: src, Blob: w.blobs, Identity: idStore, Docker: w.host.client, Log: log}
 	}
-	c := &construction{switches: cfg.Switches, regions: regions, local: w.local, images: w.images()}
+	c := &construction{switches: cfg.Switches, regions: regions, local: w.local, images: w.images(), tlsPort: w.own.TLSPort}
 	built, err := c.build(deps)
 	if err != nil {
 		return w, err
@@ -187,7 +192,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	if err := k.BindErr(); err != nil {
 		return w, err
 	}
-	if err := bindOutbox(box, k, w.faults, built); err != nil {
+	if err := bindOutbox(box, k, w.faults, cfg.SNSHTTPDelivery, w.own, built); err != nil {
 		return w, err
 	}
 	stateful, late := collect(box, built, w.lambda)
@@ -293,13 +298,19 @@ func (w *wiring) images() lambda.ImageSource {
 }
 
 // bindOutbox binds the outbox to the kernel, with the access advisory
-// asking the built services that store resource policies.
-func bindOutbox(box *outbox.Outbox, k *kernel.Kernel, faults *fault.Store, built []wiredBuilt) error {
+// asking the built services that store resource policies, and HTTP
+// deliveries going out through egress under SNS HTTP delivery's settings,
+// never to own's addresses.
+func bindOutbox(box *outbox.Outbox, k *kernel.Kernel, faults *fault.Store, delivery SNSHTTPDelivery, own *ownAddrs, built []wiredBuilt) error {
 	policies, err := policyProviders(built)
 	if err != nil {
 		return err
 	}
-	return box.Bind(k, outbox.Options{Faults: faults, Policies: policies})
+	out, err := snsEgress(delivery, k.Clock(), own)
+	if err != nil {
+		return err
+	}
+	return box.Bind(k, outbox.Options{Faults: faults, Policies: policies, Egress: out})
 }
 
 // policySources routes a resource-policy read to the service that stores
@@ -792,7 +803,7 @@ func wiredServices() []wiredService {
 			return sqs.New(d, sqs.Options{DeletedRecently: c.switches.SQSDeletedRecently})
 		}},
 		{api{snsapi.Service(), snsapi.ThrottleError(), snsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
-			c.sns = sns.New(d, sns.Options{})
+			c.sns = sns.New(d, sns.Options{TLSPort: c.tlsPort})
 			return c.sns
 		}},
 		{api{s3api.Service(), s3api.ThrottleError(), nil}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
@@ -858,6 +869,8 @@ type construction struct {
 	regions  aws.Regions
 	local    *lazyLocal
 	images   lambda.ImageSource
+	// tlsPort reports the TLS listener's port once Serve binds it.
+	tlsPort func() (uint16, bool)
 
 	s3         *s3.Service
 	dynamodb   *dynamodb.Service

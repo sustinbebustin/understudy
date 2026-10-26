@@ -255,6 +255,7 @@ func serverConfig(cfg config.Config, version string) (server.Config, error) {
 		SnapshotMaxBytes: cfg.Snapshot.MaxBytes,
 		Faults:           cfg.Faults,
 		S3BaseDomains:    cfg.S3.BaseDomains,
+		SNSHTTPDelivery:  server.SNSHTTPDelivery{Allow: cfg.SNS.HTTPDelivery.Allow, CABundle: cfg.SNS.HTTPDelivery.CABundle},
 		LogLevel:         cfg.Log.Level,
 		ReadyFile:        cfg.ReadyFile,
 		Version:          version,

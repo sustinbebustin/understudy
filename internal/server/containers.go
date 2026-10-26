@@ -426,6 +426,19 @@ func (h *containerHost) current() (*lambdaHost, bool) {
 	return h.run, h.run != nil
 }
 
+// runtimeAddrs returns the address of each open Runtime API listener, none
+// before the runtime is built. It never waits on a build in progress, which
+// holds mu while it talks to the daemon: egress asks on every delivery.
+func (h *containerHost) runtimeAddrs() []netip.AddrPort {
+	select {
+	case <-h.built:
+		// run is set before built closes and never changes after.
+		return h.run.api.ListenerAddrs()
+	default:
+		return nil
+	}
+}
+
 // sweep removes the containers and networks this owner's earlier
 // instances left behind. The caller holds the data directory's lock.
 func (h *containerHost) sweep(ctx context.Context) {

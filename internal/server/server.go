@@ -317,11 +317,11 @@ func (s *Server) start(ctx context.Context, main, secure net.Listener) (*session
 		kernelDone:     make(chan error, 1),
 		stopBackground: stopBackground,
 	}
-	bound, err := netip.ParseAddrPort(main.Addr().String())
+	bound, err := w.recordOwn(bg, main, secure, s.log)
 	if err != nil {
 		stopKernel()
 		sess.kernelDone <- nil
-		return sess, errors.Join(fmt.Errorf("server: reading the listener's address %s: %w", main.Addr(), err), closeListeners(main, secure))
+		return sess, errors.Join(err, closeListeners(main, secure))
 	}
 	// Timers a loaded state armed may need a function container as soon
 	// as the kernel runs, and the pollers register their timer kind, so
@@ -339,6 +339,9 @@ func (s *Server) start(ctx context.Context, main, secure net.Listener) (*session
 		ln, err := containerListen(bg, addr, net.InterfaceAddrs, s.log)
 		if err != nil {
 			return err
+		}
+		if err := w.own.addListener(ln); err != nil {
+			return errors.Join(err, ln.Close())
 		}
 		return sess.ls.serve("container listener", w.containerEdge, ln)
 	})
@@ -381,6 +384,25 @@ func (s *Server) start(ctx context.Context, main, secure net.Listener) (*session
 	sess.background.Go(func() { w.sweepGone(bg, s.log) })
 	w.admin.SetReady(bound)
 	return sess, nil
+}
+
+// recordOwn returns the main listener's bound address and records it, the
+// TLS listener's when there is one and a tcp:// Docker Engine's as
+// understudy's own, which SNS HTTP delivery refuses, before the kernel
+// runs a delivery.
+func (w *wiring) recordOwn(ctx context.Context, main, secure net.Listener, log *slog.Logger) (netip.AddrPort, error) {
+	bound, err := netip.ParseAddrPort(main.Addr().String())
+	if err != nil {
+		return netip.AddrPort{}, fmt.Errorf("server: reading the listener's address %s: %w", main.Addr(), err)
+	}
+	w.own.add(bound)
+	if secure != nil {
+		if err := w.own.addTLS(secure); err != nil {
+			return netip.AddrPort{}, err
+		}
+	}
+	w.own.addDocker(ctx, w.host.endpoint, log)
+	return bound, nil
 }
 
 // closeListeners closes the listeners start did not hand to the session;

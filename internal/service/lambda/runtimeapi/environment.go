@@ -88,8 +88,11 @@ func (closed) isPhase()   {}
 // Environment is the Runtime API of one execution environment: one
 // listener, one runtime, at most one invocation in flight.
 type Environment struct {
-	srv    *Server
-	addr   netip.AddrPort
+	srv  *Server
+	addr netip.AddrPort
+	// bound is the address the listener accepts on, which can differ from
+	// addr, the one the container dials, behind Docker Desktop's forwarding.
+	bound  netip.AddrPort
 	http   *http.Server
 	served chan struct{}
 
@@ -99,8 +102,8 @@ type Environment struct {
 	changed chan struct{} // closed and replaced on every change
 }
 
-func newEnvironment(s *Server, addr netip.AddrPort) *Environment {
-	return &Environment{srv: s, addr: addr, served: make(chan struct{}), phase: starting{}, changed: make(chan struct{})}
+func newEnvironment(s *Server, addr, bound netip.AddrPort) *Environment {
+	return &Environment{srv: s, addr: addr, bound: bound, served: make(chan struct{}), phase: starting{}, changed: make(chan struct{})}
 }
 
 // Addr is the address the container must dial: AWS_LAMBDA_RUNTIME_API.

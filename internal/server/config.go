@@ -122,7 +122,9 @@ type Config struct {
 }
 
 // SNSHTTPDelivery is where SNS may deliver http and https subscriptions
-// (sns-http-delivery.md 7). Not implemented yet: New reads neither field.
+// (sns-http-delivery.md 7). Whatever Allow lists, egress refuses AWS hosts,
+// link-local and metadata addresses, understudy's own listeners and a
+// tcp:// Docker Engine.
 type SNSHTTPDelivery struct {
 	// Allow is sns.httpDelivery.allow; the zero AllowList allows nothing.
 	Allow egress.AllowList

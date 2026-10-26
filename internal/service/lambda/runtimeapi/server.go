@@ -116,7 +116,8 @@ func (s *Server) Open(ctx context.Context) (*Environment, error) {
 	if s.peers.IsValid() {
 		ln = topology.ScopePeers(ln, s.peers, "Lambda Runtime API listener", s.log)
 	}
-	e := newEnvironment(s, netip.AddrPortFrom(s.advertise, uint16(tcp.Port))) //nolint:gosec // a TCP port fits in 16 bits
+	bound := tcp.AddrPort()
+	e := newEnvironment(s, netip.AddrPortFrom(s.advertise, bound.Port()), netip.AddrPortFrom(bound.Addr().Unmap(), bound.Port()))
 	e.http = &http.Server{
 		Handler:           e.routes(),
 		ReadHeaderTimeout: readHeaderTimeout,
@@ -132,6 +133,19 @@ func (s *Server) Open(ctx context.Context) (*Environment, error) {
 	s.envs[e] = struct{}{}
 	go e.serve(ln)
 	return e, nil
+}
+
+// ListenerAddrs returns the address each open environment's listener
+// accepts on, which the server hands to egress so no delivery reaches a
+// Runtime API (sns-http-delivery.md 7.3).
+func (s *Server) ListenerAddrs() []netip.AddrPort {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]netip.AddrPort, 0, len(s.envs))
+	for e := range s.envs {
+		out = append(out, e.bound)
+	}
+	return out
 }
 
 // Close closes every open environment and refuses new ones.
