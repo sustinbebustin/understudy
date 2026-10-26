@@ -203,6 +203,7 @@ func genDeliveryOutcome(text *rapid.Generator[string]) *rapid.Generator[Delivery
 		rapid.Custom(func(t *rapid.T) DeliveryOutcome { return Retrying{Next: genInstant().Draw(t, "next")} }),
 		rapid.Custom(func(t *rapid.T) DeliveryOutcome { return DeadLettered{DLQ: genARN().Draw(t, "dlq")} }),
 		rapid.Custom(func(t *rapid.T) DeliveryOutcome { return Dropped{Reason: text.Draw(t, "reason")} }),
+		rapid.Custom(func(t *rapid.T) DeliveryOutcome { return Refused{Reason: text.Draw(t, "reason")} }),
 	)
 }
 
@@ -285,8 +286,9 @@ func genDetailOf(text *rapid.Generator[string]) *rapid.Generator[Detail] {
 		rapid.Custom(func(t *rapid.T) Detail { return genAPICall(text, genOutcomeOf(text)).Draw(t, "call") }),
 		rapid.Custom(func(t *rapid.T) Detail {
 			return Delivery{
-				From: genARN().Draw(t, "from"),
-				To:   genARN().Draw(t, "to"),
+				From:     genARN().Draw(t, "from"),
+				To:       genARN().Draw(t, "to"),
+				Endpoint: rapid.OneOf(rapid.Just(""), text).Draw(t, "endpoint"),
 				Mechanism: rapid.SampledFrom([]delivery.Mechanism{
 					delivery.SNSToSQS, delivery.SNSToLambda, delivery.S3ToSQS, delivery.S3ToSNS,
 					delivery.S3ToLambda, delivery.EventsToLambda, delivery.EventsToSQS, delivery.EventsToSNS,
