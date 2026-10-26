@@ -21,14 +21,15 @@ func faultsCmd() *command {
 			[]string{"understudy faults list", "understudy faults list --output json"},
 			func(*flag.FlagSet) action { return runFaultsList }),
 		leaf("add", "Add a rule, or replace the rule with its id",
-			"faults add [--id ID] [--service S] [--operation O] [--resource GLOB] [--account A] [--region R] [--origin any|external|internal] [--phase request|delivery] "+
-				"(--error SHAPE [--message TEXT] [--members JSON] | --throttle | --latency D | --after-commit SHAPE | --status-ok SHAPE | --drop) [--next N | --probability P]",
+			"faults add [--id ID] [--service S] [--operation O] [--resource GLOB] [--account A] [--region R] [--origin any|external|internal] [--phase request|delivery] [--mechanism M] "+
+				"(--error SHAPE [--message TEXT] [--members JSON] | --throttle | --latency D | --after-commit SHAPE | --status-ok SHAPE | --drop | --http-status CODE | --http-timeout) [--next N | --probability P]",
 			[]string{
 				"understudy faults add --operation sqs.SendMessage --throttle --next 3",
 				"understudy faults add --id slow-s3 --service s3 --latency 2s",
 				"understudy faults add --operation sqs.ReceiveMessage --error QueueDoesNotExist --probability 0.1",
 				`understudy faults add --operation dynamodb.TransactWriteItems --error TransactionCanceledException --members '{"CancellationReasons":[{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item."}]}' --next 1`,
 				"understudy faults add --phase delivery --mechanism sns-to-sqs --drop --next 1",
+				"understudy faults add --phase delivery --mechanism sns-to-http --http-status 503 --next 1",
 			},
 			faultsAdd),
 		leaf("remove", "Remove the rule with an id", "faults remove ID",
