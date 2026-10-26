@@ -182,7 +182,7 @@ func (c *comparison) xmlChildren(p Path, e, a []xmlNode) {
 		cp := p.child(xmlToken(ec.name, k))
 		j := nthNamed(a, ec.name, k)
 		if j < 0 {
-			c.add(cp, Missing, ec.render(), "")
+			c.add(cp, Missing, ec.display(), "")
 			continue
 		}
 		used[j] = true
@@ -190,7 +190,7 @@ func (c *comparison) xmlChildren(p Path, e, a []xmlNode) {
 	}
 	for j, ac := range a {
 		if !used[j] {
-			c.add(p.child(xmlToken(ac.name, occurrence(a, j))), Extra, "", ac.render())
+			c.add(p.child(xmlToken(ac.name, occurrence(a, j))), Extra, "", ac.display())
 		}
 	}
 	en, an := childNames(e), childNames(a)
@@ -241,6 +241,39 @@ func childNames(ns []xmlNode) []string {
 		names[i] = n.name
 	}
 	return names
+}
+
+// display is a leaf's text, as a JSON string displays as its text, or any
+// other element as compact XML.
+func (n xmlNode) display() string {
+	if len(n.attrs) == 0 && len(n.children) == 0 {
+		return n.text
+	}
+	return n.render()
+}
+
+// encode writes n as a document parseXML reads back as n: its text and
+// attribute values escaped, its text before its children. Element names
+// are local names, so a prefixed element loses its prefix, which the
+// comparison does not read.
+func (n xmlNode) encode() string {
+	text := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\r", "&#xD;")
+	attr := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;", "\r", "&#xD;", "\n", "&#xA;", "\t", "&#x9;")
+	var b strings.Builder
+	var write func(xmlNode)
+	write = func(n xmlNode) {
+		b.WriteString("<" + n.name)
+		for _, a := range n.attrs {
+			b.WriteString(" " + a.name + `="` + attr.Replace(a.value) + `"`)
+		}
+		b.WriteString(">" + text.Replace(n.text))
+		for _, c := range n.children {
+			write(c)
+		}
+		b.WriteString("</" + n.name + ">")
+	}
+	write(n)
+	return b.String()
 }
 
 // render writes n compactly for a difference's value.
