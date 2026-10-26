@@ -40,7 +40,7 @@ func (s *Service) bindSubscriptions(b snsapi.Binder) {
 	b.Subscribe(s.subscribe, registry.Partial{Note: "sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; " +
 		"http and https endpoints get a signed SubscriptionConfirmation when their host and port are in sns.httpDelivery.allow, " +
 		"and otherwise stay subscribed with a readable token but receive nothing; email and email-json stay subscribed with a readable token but receive nothing; " +
-		"sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced; " + httpPolicyGap},
+		"sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced"},
 		arnResource(func(in *snsapi.SubscribeInput) string { return in.TopicArn }))
 	b.ConfirmSubscription(s.confirmSubscription, registry.Full{},
 		arnResource(func(in *snsapi.ConfirmSubscriptionInput) string { return in.TopicArn }))

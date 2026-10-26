@@ -43,7 +43,8 @@ const (
 // bindPublish binds Publish and PublishBatch.
 func (s *Service) bindPublish(b snsapi.Binder) {
 	const note = "fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, " +
-		"with raw or enveloped delivery and the RedrivePolicy dead-letter queue; other http and https endpoints, email and email-json receive nothing; " + httpPolicyGap
+		"with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, " +
+		"without jitter; other http and https endpoints, email and email-json receive nothing"
 	b.Publish(s.publish, registry.Partial{Note: note},
 		kernel.WithResources(func(_ *kernel.Call, in *snsapi.PublishInput) []aws.ARN {
 			for _, target := range []*string{in.TopicArn, in.TargetArn} {

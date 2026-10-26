@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/ids"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
 )
 
@@ -61,20 +62,66 @@ func (e *EndpointError) Error() string {
 		", which is not an absolute " + e.Protocol.String() + " URL with a host, so nothing can be delivered to it; unsubscribe it and subscribe a valid URL"
 }
 
-// httpPolicyGap is what the coverage notes of Subscribe, Publish and
-// PublishBatch say of httpRetryPolicy while it is not implemented.
-const httpPolicyGap = "every http and https delivery retries 3 times 20 seconds apart, unthrottled: " +
-	"the healthyRetryPolicy and throttlePolicy of a DeliveryPolicy are stored, never applied"
-
 // httpRetryPolicy resolves the retry policy of an http or https
-// subscription from its stored DeliveryPolicy and its topic's, "" for none
-// (sns-http-delivery.md 6.2, 6.3). Not implemented yet: every http and
-// https delivery takes the system default policy, three backoff retries
-// 20 s apart without throttling, whatever either DeliveryPolicy says, as
-// httpPolicyGap and the SetSubscriptionAttributes and SetTopicAttributes
-// coverage notes say.
-func httpRetryPolicy(_, _ string) delivery.SNSHTTP {
-	return delivery.SNSHTTP{Backoff: 3, MinDelayTarget: 20 * time.Second, MaxDelayTarget: 20 * time.Second, BackoffFunction: delivery.BackoffLinear}
+// subscription from its stored DeliveryPolicy and its topic's, "" for none,
+// through subscriptionEffectiveDeliveryPolicy (sns-http-delivery.md 6.2,
+// third-party-recorded): the effective healthyRetryPolicy is the
+// subscription's members over the topic's http.defaultHealthyRetryPolicy
+// over the system default, and the effective throttlePolicy is the
+// subscription's, else the topic's http.defaultThrottlePolicy.
+// sicklyRetryPolicy, guaranteed and disableSubscriptionOverrides change
+// nothing, since no source says what they do (6.2).
+//
+// A member AWS would not accept (not an integer, outside the bounds of
+// sns.md 7.3, or not a backoffFunction name in any case) takes the system
+// default's value; understudy's write checks leave only a minDelayTarget
+// above 3600 set without a maxDelayTarget to reach this (inferred). The
+// phases take numRetries in the order numNoDelayRetries,
+// numMinDelayRetries, numMaxDelayRetries, each capped at what remains, and
+// the backoff phase gets the rest (6.3, aws-doc order; the capping is
+// inferred). A maxDelayTarget below minDelayTarget is raised to it
+// (inferred). maxReceivesPerSecond is 0, no throttling, when the effective
+// throttlePolicy has none (6.4).
+func httpRetryPolicy(subscriptionPolicy, topicPolicy string) delivery.SNSHTTP {
+	effective, _ := parseObject(subscriptionEffectiveDeliveryPolicy(subscriptionPolicy, topicPolicy))
+	retry, system := mapMember(effective, "healthyRetryPolicy"), defaultHealthyRetryPolicy()
+	member := func(name string, lowest, highest int64) int {
+		if n, ok := intMember(retry, name); ok && n >= lowest && n <= highest {
+			return int(n)
+		}
+		n, _ := intMember(system, name)
+		return int(n)
+	}
+	remaining := member("numRetries", 0, maxDeliveryRetries)
+	phase := func(name string) int {
+		n := min(member(name, 0, maxDeliveryRetries), remaining)
+		remaining -= n
+		return n
+	}
+	p := delivery.SNSHTTP{
+		NoDelay:         phase("numNoDelayRetries"),
+		MinDelay:        phase("numMinDelayRetries"),
+		MaxDelay:        phase("numMaxDelayRetries"),
+		MinDelayTarget:  time.Duration(member("minDelayTarget", 1, maxDelayTargetSecond)) * time.Second,
+		MaxDelayTarget:  time.Duration(member("maxDelayTarget", 1, maxDelayTargetSecond)) * time.Second,
+		BackoffFunction: backoffFunctionOf(retry),
+	}
+	p.Backoff = remaining
+	p.MaxDelayTarget = max(p.MaxDelayTarget, p.MinDelayTarget)
+	if n, ok := intMember(mapMember(effective, "throttlePolicy"), "maxReceivesPerSecond"); ok && n >= 1 {
+		p.MaxReceivesPerSecond = int(n)
+	}
+	return p
+}
+
+// backoffFunctionOf is the backoffFunction of a healthyRetryPolicy,
+// compared case-insensitively as the write checks compare it (sns.md 7.3);
+// linear, the system default's, when it names none.
+func backoffFunctionOf(retry document.Map) delivery.BackoffFunction {
+	if f, err := delivery.ParseBackoffFunction(strings.ToLower(stringMember(retry, "backoffFunction"))); err == nil {
+		return f
+	}
+	return delivery.BackoffLinear
 }
 
 // httpContentType is the effective requestPolicy.headerContentType of an

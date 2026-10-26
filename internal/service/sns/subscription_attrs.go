@@ -39,8 +39,8 @@ const (
 func (s *Service) bindSubscriptionAttributes(b snsapi.Binder) {
 	b.GetSubscriptionAttributes(s.getSubscriptionAttributes, registry.Full{},
 		arnResource(func(in *snsapi.GetSubscriptionAttributesInput) string { return in.SubscriptionArn }))
-	b.SetSubscriptionAttributes(s.setSubscriptionAttributes, registry.Partial{Note: "DeliveryPolicy requestPolicy applies to http and https deliveries; " +
-		"healthyRetryPolicy, throttlePolicy, sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced"},
+	b.SetSubscriptionAttributes(s.setSubscriptionAttributes, registry.Partial{Note: "DeliveryPolicy healthyRetryPolicy, throttlePolicy and requestPolicy apply to http and https deliveries; " +
+		"sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced"},
 		arnResource(func(in *snsapi.SetSubscriptionAttributesInput) string { return in.SubscriptionArn }))
 }
 
