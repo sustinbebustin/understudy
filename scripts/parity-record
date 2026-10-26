@@ -1,0 +1,32 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
+"""Print, or run, the recording commands of a queued parity scenario.
+
+    scripts/parity-record sqs/R01                 # print the commands in the kit's rec form
+    scripts/parity-record --record sqs/R01        # a maintainer's terminal only
+
+The default mode prints, for each scenario.json with record commands, the
+commands to paste into the recording shell of docs/recording-kit.md. --record
+runs them itself, only from an interactive terminal, after checking that
+UNDERSTUDY_RECORD_ACCOUNT matches `aws sts get-caller-identity` and after a
+typed confirmation, then runs scripts/distill-parity. Agents never use
+--record.
+
+Not implemented yet: every invocation exits 2 and runs nothing.
+"""
+
+from __future__ import annotations
+
+import sys
+
+
+def main() -> int:
+    print("parity-record: not implemented yet; nothing was printed or run", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

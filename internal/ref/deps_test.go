@@ -124,8 +124,13 @@ func importRules() []importRule {
 			// policydoc.Document and the registry.IAMAction of the attempt.
 			"internal/access", "internal/policydoc", "internal/registry",
 		}},
-		// The manifest records JournalNext as a ref.EventID.
-		{"internal/snapshot", []string{"internal/store", "internal/blob", "internal/protocol/jsonx", "internal/clock", "internal/ids", "internal/ref"}},
+		// The closed normalizer set snapshot and the parity replayer share
+		// (ARCHITECTURE.md 12, 19): minted access keys decode through ids,
+		// scope keys through store.
+		{"internal/normalize", []string{"internal/ids", "internal/store"}},
+		// The manifest records JournalNext as a ref.EventID; the scalar and
+		// text masks are the shared normalizer set.
+		{"internal/snapshot", []string{"internal/store", "internal/blob", "internal/protocol/jsonx", "internal/clock", "internal/ids", "internal/ref", "internal/normalize"}},
 		// The report keys suites and services by ref.ProtocolID and
 		// ref.ServiceID, writes its sums in the jsonx tagged-union
 		// convention and reads overlay files with the jsonx decoder.
@@ -211,10 +216,10 @@ func importRules() []importRule {
 		// from the case vocabulary in internal/protocoltest/gen (case.go).
 		{"internal/protocoltest/gen/...", []string{"internal/protocoltest/gen", "internal/protocol/smithy/...", "internal/awserr", "internal/registry", "internal/kernel", "internal/aws", "internal/ref"}},
 		{"internal/smoke", nil},
-		// The parity replayer shares snapshot's normalizer set and reports
-		// fixtures by evidence label, so it may import only those two
-		// (ARCHITECTURE.md 2, 19).
-		{"internal/parity", []string{"internal/snapshot", "internal/evidence"}},
+		// The parity replayer shares snapshot's normalizer set, now
+		// internal/normalize, and reports fixtures by evidence label, so it
+		// may import only those two (ARCHITECTURE.md 2, 19).
+		{"internal/parity", []string{"internal/normalize", "internal/evidence"}},
 		// Docker-tagged checks of the release image; no runtime code.
 		{"internal/distribution", nil},
 	}

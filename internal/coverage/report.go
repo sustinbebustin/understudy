@@ -24,6 +24,8 @@ type Input struct {
 	Ungenerated []protocoltest.Ungenerated
 	Switches    []fidelity.Entry
 	Overlays    Overlays
+	// Parity is the parity replay baseline, nil when not read.
+	Parity Parity
 }
 
 // Report is the coverage report: protocol compliance, operation coverage
@@ -37,6 +39,9 @@ type Report struct {
 	Services    []Service         `json:"services"`
 	Switches    []Switch          `json:"switches"`
 	Overlays    Overlays          `json:"overlays"`
+	// Parity is the parity replay evidence. Not wired yet: Build leaves it
+	// nil.
+	Parity Parity `json:"parity,omitzero"`
 }
 
 // UngeneratedCase is a server-runnable corpus case the harness cannot run
@@ -97,6 +102,10 @@ type Service struct {
 type Operation struct {
 	Name   string `json:"name"`
 	Status Status `json:"status"`
+	// Shapes are the shape ids overlay evidence attaches to the operation
+	// by: the operation, its input and output, and its errors. Not wired
+	// yet: Build leaves it empty.
+	Shapes []string `json:"shapes,omitempty"`
 }
 
 // Status is an operation's coverage: bound with the coverage its bind
@@ -137,6 +146,11 @@ type Switch struct {
 	Label  evidence.Label `json:"label"`
 	Ref    string         `json:"ref"`
 	Record string         `json:"record,omitempty"`
+	// Ops are the operations the switch governs ("sqs.DeleteMessage").
+	Ops []string `json:"ops,omitempty"`
+	// Settles is the parity scenario step that settles the switch, or why
+	// none exists; nil when the switch states neither.
+	Settles fidelity.Settles `json:"settles,omitzero"`
 }
 
 // Build assembles the report.
