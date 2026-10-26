@@ -126,17 +126,23 @@ func TestEnvFormats(t *testing.T) {
 	}
 	// Terraform 6.x reads bucket tags through S3 Control at
 	// <account>.<endpoint host>. At an IP-literal endpoint that host never
-	// resolves, so skip_requesting_account_id is required whether or not
-	// *.localhost resolves.
+	// resolves, so the provider must have no account id whether or not
+	// *.localhost resolves (s3.md finding 1). With credential validation on
+	// it takes the account from sts:GetCallerIdentity and never consults
+	// skip_requesting_account_id, so both skip settings are required
+	// (tf-messaging.md 1.1).
 	tf := runCLI(t.Context(), endpoint, nil, "env", "--sdk", "terraform")
 	tfNote := noteLine(tf.stdout, "# Terraform: ")
-	if tf.code != admin.ExitOK || !strings.Contains(tfNote, "skip_requesting_account_id = true is required") || strings.Contains(tfNote, "unless *.localhost resolves") {
-		t.Errorf("env --sdk terraform at an IP-literal endpoint = %d, Terraform note %q; want skip_requesting_account_id required unconditionally:\n%s", tf.code, tfNote, tf.stdout)
+	if tf.code != admin.ExitOK || !strings.Contains(tfNote, "skip_credentials_validation = true and skip_requesting_account_id = true are required") || strings.Contains(tfNote, "unless *.localhost resolves") {
+		t.Errorf("env --sdk terraform at an IP-literal endpoint = %d, Terraform note %q; want both skip settings required unconditionally:\n%s", tf.code, tfNote, tf.stdout)
 	}
-	// At a host name both settings are needed unless *.localhost resolves.
+	// At a host name all three settings are needed unless *.localhost
+	// resolves.
 	tfNamed := runCLI(t.Context(), "http://understudy:4566", nil, "env", "--sdk", "terraform")
-	if !strings.Contains(tfNamed.stdout, "skip_requesting_account_id = true") || !strings.Contains(tfNamed.stdout, "s3_use_path_style = true") {
-		t.Errorf("env --sdk terraform at a host name names neither skip_requesting_account_id nor s3_use_path_style:\n%s", tfNamed.stdout)
+	for _, setting := range []string{"skip_credentials_validation = true", "skip_requesting_account_id = true", "s3_use_path_style = true"} {
+		if !strings.Contains(tfNamed.stdout, setting) {
+			t.Errorf("env --sdk terraform at a host name does not name %s:\n%s", setting, tfNamed.stdout)
+		}
 	}
 	// A hostname endpoint is kept as given, and at a host name the Go and
 	// JS SDKs address S3 virtual-hosted unless told otherwise.
