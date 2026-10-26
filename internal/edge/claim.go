@@ -51,8 +51,13 @@ type toRaw struct {
 // toLink is a raw operation serving a link understudy hands out for a
 // browser to open from any page, as AWS serves its own: an SNS link or a
 // Lambda code link (rule 1), or a function URL by path (rule 1) or by host
-// (rule 2). The edge's browser defences never refuse one.
-type toLink struct{ op *registry.Operation }
+// (rule 2). The edge's browser defences never refuse one. policy is
+// cspSandbox for the function URL path fallback, a user's page on
+// understudy's origin (ADR 0020).
+type toLink struct {
+	op     *registry.Operation
+	policy csp
+}
 
 // toService is a request signed for a registered service that no rule
 // claimed (rule 8): that service answers it, never S3, as its own front end
@@ -88,8 +93,13 @@ type toLocalStack struct{ reasons []reason }
 // toExecuteAPI is API Gateway's execute-api data plane, by host (rule 2)
 // or by the path fallback (rule 1), which understudy does not implement:
 // it is claimed so S3 never answers it, and answered 501. reasons end with
-// the claiming rule's, for the Unclaimed journal event.
-type toExecuteAPI struct{ reasons []reason }
+// the claiming rule's, for the Unclaimed journal event. policy is
+// cspSandbox for the path fallback, which an integration controls on
+// understudy's origin (ADR 0020).
+type toExecuteAPI struct {
+	reasons []reason
+	policy  csp
+}
 
 func (toAdmin) isRoute()           {}
 func (toOperation) isRoute()       {}
@@ -222,8 +232,9 @@ const functionURLPathPrefix = adminPrefix + "lambda-url/"
 
 // functionURLPath is rule 1's function URL part: on the main listener, the
 // path fallback goes to Lambda's raw InvokeFunctionUrl operation, which
-// resolves the url id from the path as it does from the host (rule 2).
-// Any other request goes on to the admin part of rule 1.
+// resolves the url id from the path as it does from the host (rule 2),
+// sandboxed, since the function's page shares understudy's origin (ADR
+// 0020). Any other request goes on to the admin part of rule 1.
 func (c *claimer) functionURLPath() (route, bool) {
 	if !strings.HasPrefix(c.path, functionURLPathPrefix) || c.h.opts.Listener != ref.ListenerMain {
 		return nil, false
@@ -233,7 +244,7 @@ func (c *claimer) functionURLPath() (route, bool) {
 		c.decline(1, "%s is the function URL path fallback, but no raw lambda.InvokeFunctionUrl operation is registered", c.path)
 		return unclaimed{reasons: c.reasons}, true
 	}
-	return toLink{op: op}, true
+	return toLink{op: op, policy: cspSandbox}, true
 }
 
 // executeAPIPathPrefix is the execute-api path fallback,
@@ -243,14 +254,15 @@ const executeAPIPathPrefix = adminPrefix + "execute-api/"
 
 // executeAPIPath is rule 1's execute-api part: on the main listener, the
 // path fallback is API Gateway's data plane, whatever follows the prefix
-// and whatever the credentials. Any other request goes on to the admin part
-// of rule 1.
+// and whatever the credentials, sandboxed, since its pages share
+// understudy's origin (ADR 0020). Any other request goes on to the admin
+// part of rule 1.
 func (c *claimer) executeAPIPath() (route, bool) {
 	if !strings.HasPrefix(c.path, executeAPIPathPrefix) || c.h.opts.Listener != ref.ListenerMain {
 		return nil, false
 	}
 	c.decline(1, "%s is the API Gateway execute-api path fallback, and understudy does not implement API Gateway invoke", c.path)
-	return toExecuteAPI{reasons: c.reasons}, true
+	return toExecuteAPI{reasons: c.reasons, policy: cspSandbox}, true
 }
 
 // lambdaCodePrefix is where GetFunction's Code.Location links live.

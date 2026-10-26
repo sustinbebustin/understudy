@@ -135,7 +135,7 @@ aws lambda add-permission --function-name hello --statement-id url-invoke --acti
   --principal '*' --invoked-via-function-url
 ```
 
-As on AWS, a public URL needs both statements; without them it answers 403. The URL has the form `http://<url-id>.lambda-url.us-east-1.localhost:4566/`. Where `*.localhost` does not resolve, use the path form `http://127.0.0.1:4566/_understudy/lambda-url/<url-id>/`. Payloads use format 2.0; responses are buffered, not streamed.
+As on AWS, a public URL needs both statements; without them it answers 403. The URL has the form `http://<url-id>.lambda-url.us-east-1.localhost:4566/`. Where `*.localhost` does not resolve, use the path form `http://127.0.0.1:4566/_understudy/lambda-url/<url-id>/`. The path form shares understudy's own origin, so its answers carry `Content-Security-Policy: sandbox`, replacing any policy the function sets: a page served there runs without scripts or forms. HTTP clients and `fetch` calls are unaffected; open a browser app on the host form, its own origin, as on AWS. Payloads use format 2.0; responses are buffered, not streamed.
 
 ## Networking
 

@@ -53,6 +53,11 @@
 //     API Gateway invoke is implemented both answer 501 in API Gateway's
 //     {"message": ...} shape, journaled as Unclaimed, and the browser
 //     defences refuse neither, as any page may call one on AWS.
+//   - Every answer on the function URL and execute-api path fallbacks
+//     carries exactly one Content-Security-Policy: sandbox, over any the
+//     function or the edge set (sandbox.go), since those pages share the
+//     admin API's origin; the host forms are origins of their own, as on
+//     AWS, and their answers pass as written (ADR 0020).
 //   - Several services may share a signing name (ADR 0019). Rule 8 tries
 //     the route tables of the name's REST services in registration order,
 //     and a request none matches is the first one's unknown operation.
