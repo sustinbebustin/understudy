@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -404,28 +405,51 @@ func joinKey(prefix, key string) string {
 	return prefix + "." + key
 }
 
-// replayCorpus replays every scenario under testdata/parity, each against
-// its own in-process understudy under sigv4, with no Docker daemon.
-func replayCorpus(t *testing.T, sigv4 string) []Result {
+// replayCorpus replays every scenario under testdata/parity once per SigV4
+// mode of modes, each against its own in-process understudy, with no Docker
+// daemon, and returns one corpus of results per mode, in modes order. The
+// replays run concurrently: a clock advance answers only once the next wall
+// second begins (internal/edge/timeline.go, settledWriter), so a scenario
+// with many advances takes seconds of wall time on its own.
+func replayCorpus(t *testing.T, modes ...string) [][]Result {
 	t.Helper()
 	fsys := recordings()
 	ids, err := ListScenarios(fsys)
 	if err != nil {
 		t.Fatal(err)
 	}
-	results := make([]Result, 0, len(ids))
+	type replay struct {
+		id   string
+		mode int // index into modes
+		t    Transport
+		res  Result
+		err  error
+	}
+	replays := make([]*replay, 0, len(ids)*len(modes))
 	for _, id := range ids {
 		sc, err := ReadScenario(fsys, id)
 		if err != nil {
 			t.Fatalf("ReadScenario(%s): %v", id, err)
 		}
-		res, err := Run(fsys, id, ServerTransport(t, sc.Account, sigv4), Options{Docker: false})
-		if err != nil {
-			t.Fatalf("Run(%s): %v", id, err)
+		for m, mode := range modes {
+			// Built here, on the test goroutine, since ServerTransport may
+			// stop the test.
+			replays = append(replays, &replay{id: id, mode: m, t: ServerTransport(t, sc.Account, mode)})
 		}
-		results = append(results, res)
 	}
-	return results
+	var wg sync.WaitGroup
+	for _, r := range replays {
+		wg.Go(func() { r.res, r.err = Run(fsys, r.id, r.t, Options{Docker: false}) })
+	}
+	wg.Wait()
+	corpora := make([][]Result, len(modes))
+	for _, r := range replays {
+		if r.err != nil {
+			t.Fatalf("Run(%s) under sigv4 %s: %v", r.id, modes[r.mode], r.err)
+		}
+		corpora[r.mode] = append(corpora[r.mode], r.res)
+	}
+	return corpora
 }
 
 // The ratchet: every scenario replays as baseline.json records, step by
@@ -433,7 +457,7 @@ func replayCorpus(t *testing.T, sigv4 string) []Result {
 // the file instead.
 func TestReplay(t *testing.T) {
 	t.Parallel()
-	results := replayCorpus(t, "verify")
+	results := replayCorpus(t, "verify")[0]
 	got := BaselineOf(results)
 	if *updateBaseline {
 		enc, err := got.Encode()
@@ -479,7 +503,8 @@ func stepDifferences(results []Result, key string) string {
 // replay signs correctly, so both modes replay alike.
 func TestReplaySigV4Parse(t *testing.T) {
 	t.Parallel()
-	verify, parse := BaselineOf(replayCorpus(t, "verify")), BaselineOf(replayCorpus(t, "parse"))
+	corpora := replayCorpus(t, "verify", "parse")
+	verify, parse := BaselineOf(corpora[0]), BaselineOf(corpora[1])
 	for _, d := range Ratchet(verify, parse) {
 		t.Errorf("under sigv4 parse, %s", d)
 	}
