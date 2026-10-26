@@ -123,12 +123,26 @@ func importRules() []importRule {
 		{"internal/access", []string{"internal/ref", "internal/aws", "internal/policydoc", "internal/registry"}},
 		// The authorization vocabulary: providers return policydoc documents
 		// for aws.ARN targets, and a resource request names a
-		// registry.IAMAction.
-		{"internal/authz", []string{"internal/aws", "internal/policydoc", "internal/registry"}},
+		// registry.IAMAction. The multi-policy decision takes an
+		// identity.Principal, the request context reads the emulator clock,
+		// and Switches registers the evaluation switches
+		// (iam-evaluation.md 12.1, 12.3).
+		{"internal/authz", []string{
+			"internal/aws", "internal/policydoc", "internal/registry", "internal/identity", "internal/clock",
+			"internal/fidelity", "internal/evidence",
+		}},
 		{"internal/identity", []string{"internal/aws", "internal/ids", "internal/clock"}},
 		{"internal/auth", []string{"internal/aws", "internal/awserr", "internal/clock", "internal/ref"}},
 		{"internal/kernel", kernel},
 		{"internal/kernel/kerneltest", append(slices.Clone(kernel), "internal/kernel")},
+		// The kernel.Authorizer of iam.enforce advise and enforce: it reads a
+		// call, decides each pair with authz, journals advisories through
+		// kernel.Call.Record and renders denials as awserr errors
+		// (iam-enforcement-surfaces.md 12.1).
+		{"internal/enforce", []string{
+			"internal/kernel", "internal/authz", "internal/policydoc", "internal/identity", "internal/journal",
+			"internal/registry", "internal/aws", "internal/awserr", "internal/clock", "internal/ref",
+		}},
 		{"internal/outbox", []string{
 			"internal/kernel", "internal/delivery", "internal/journal", "internal/store", "internal/clock",
 			"internal/api/...", // attempts call the generated SendMessage, Invoke, Publish, PutEvents and PutObject ops
@@ -211,6 +225,9 @@ func importRules() []importRule {
 			"admin", "internal/kernel", "internal/journal", "internal/snapshot", "internal/fault", "internal/clock",
 			"internal/access", "internal/registry", "internal/coverage", "internal/aws", "internal/ref", "internal/awserr",
 			"internal/ids", "internal/store", "internal/blob", "internal/policydoc", "internal/identity", "internal/protocol/jsonx",
+			// POST /iam/evaluate asks the enforce.Authorizer and renders its
+			// authz outcomes.
+			"internal/enforce", "internal/authz",
 		}},
 		// Config parses and validates the default account and the regions
 		// through aws, carries the fault rules to preload as fault.Rule, and

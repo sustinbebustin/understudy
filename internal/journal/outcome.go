@@ -226,6 +226,19 @@ const (
 	// qualifier was deleted while it waited (lambda-destinations-layers.md
 	// 11.3.4).
 	AdvisoryAsyncEventAbandoned
+	// AdvisoryAccessDenied: under iam.enforce=enforce, a call denied by IAM
+	// evaluation, with the policy that decided it.
+	AdvisoryAccessDenied
+	// AdvisoryAccessWouldDeny: under iam.enforce=advise, a call AWS would
+	// deny that understudy served anyway.
+	AdvisoryAccessWouldDeny
+	// AdvisoryAccessUnevaluated: under iam.enforce=advise, a call understudy
+	// could not evaluate, such as against a stored policy it cannot read,
+	// served anyway.
+	AdvisoryAccessUnevaluated
+	// AdvisoryConditionKeyUnsupplied: a condition key AWS would send with a
+	// call that understudy cannot compute, evaluated as absent.
+	AdvisoryConditionKeyUnsupplied
 
 	// endAdvisoryKind follows the last value and is no advisory kind:
 	// ParseAdvisoryKind, MarshalText and the AdvisoryKindError text count
@@ -252,6 +265,14 @@ func (k AdvisoryKind) String() string {
 		return "record-response-omitted"
 	case AdvisoryAsyncEventAbandoned:
 		return "async-event-abandoned"
+	case AdvisoryAccessDenied:
+		return "access-denied"
+	case AdvisoryAccessWouldDeny:
+		return "access-would-deny"
+	case AdvisoryAccessUnevaluated:
+		return "access-unevaluated"
+	case AdvisoryConditionKeyUnsupplied:
+		return "condition-key-unsupplied"
 	default:
 		return fmt.Sprintf("AdvisoryKind(%d)", uint8(k))
 	}

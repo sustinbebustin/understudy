@@ -54,6 +54,9 @@ type Config struct {
 	// SigV4 is how request signatures are checked (sigv4); the zero value
 	// is SigV4ParseOnly.
 	SigV4 SigV4Mode
+	// IAMEnforce is iam.enforce; the zero value is IAMEnforceOff. Nothing
+	// reads it yet.
+	IAMEnforce IAMEnforce
 	// StaticKeys are access keys from configuration (accounts.keys), each
 	// its account's root, with the secret it signs with. New refuses a key
 	// listed twice or with an empty secret.
@@ -174,6 +177,21 @@ const (
 	// signature does not verify, and expires presigned URLs on the
 	// emulator clock (ADR 0012 pre-tag review amendment).
 	SigV4Verify
+)
+
+// IAMEnforce is the iam.enforce mode (iam-enforcement-surfaces.md 12.1).
+type IAMEnforce uint8
+
+// IAMEnforce values; the zero value is IAMEnforceOff.
+const (
+	// IAMEnforceOff records which actions each principal uses and enforces
+	// nothing.
+	IAMEnforceOff IAMEnforce = iota
+	// IAMEnforceAdvise evaluates every call and journals an advisory for
+	// each denial AWS would issue, answering as IAMEnforceOff does.
+	IAMEnforceAdvise
+	// IAMEnforceEnforce answers those denials.
+	IAMEnforceEnforce
 )
 
 // StaticKey is an access key from configuration: the root of Account,

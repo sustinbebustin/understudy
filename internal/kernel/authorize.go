@@ -54,7 +54,8 @@ func (ResourceARN) isResourceRef() {}
 func (AnyResource) isResourceRef() {}
 
 // ConditionKeys are request condition keys by name as AWS spells them, each
-// with its values in order.
+// with its values in order. A key with no values is one the request does not
+// carry.
 type ConditionKeys map[string][]string
 
 // Verdict is an Authorizer's answer.
@@ -75,8 +76,14 @@ type Denied struct {
 	Messages []awserr.ProtocolMessage
 }
 
-func (Allowed) isVerdict() {}
-func (Denied) isVerdict()  {}
+// Unevaluable is an Authorizer that could not decide, such as for a stored
+// policy it cannot read: the call ends Internal with Cause in the journal,
+// never as if no policy existed (iam-enforcement-surfaces.md 12.10).
+type Unevaluable struct{ Cause error }
+
+func (Allowed) isVerdict()     {}
+func (Denied) isVerdict()      {}
+func (Unevaluable) isVerdict() {}
 
 // DenialIdentityError is a denial of a call whose service descriptor names
 // no denial identity, so the kernel cannot render it as AWS would.
@@ -184,6 +191,8 @@ func verdictError(c *Call, v Verdict) *awserr.Error {
 		return nil
 	case Denied:
 		return denial(c, v)
+	case Unevaluable:
+		return awserr.Internalf(v.Cause)
 	case nil:
 	}
 	return awserr.Internalf(&VerdictError{Op: c.opID})

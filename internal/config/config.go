@@ -368,8 +368,14 @@ type Enforcement uint8
 // Enforcement values.
 const (
 	// EnforceOff records which actions each principal uses and enforces
-	// nothing. It is the only mode this build runs.
+	// nothing. It is the only mode Load accepts until enforcement is built.
 	EnforceOff Enforcement = iota
+	// EnforceAdvise evaluates every call and journals an advisory for each
+	// denial AWS would issue, answering as EnforceOff does. Load does not
+	// accept it yet.
+	EnforceAdvise
+	// EnforceEnforce answers those denials. Load does not accept it yet.
+	EnforceEnforce
 )
 
 // AssumeRole is the iam.assumeRole switch.

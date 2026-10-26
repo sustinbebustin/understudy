@@ -63,6 +63,15 @@ func Advise(stored *policydoc.Document, servicePrincipal ServicePrincipal, actio
 	return Allowed{}
 }
 
+// AdviseWith is Advise with the aws:SourceAccount the delivery sends, zero
+// for none, instead of the source ARN's account: EventBridge sends none to
+// Lambda (iam-enforcement-surfaces.md 8.1, 12.4).
+//
+// Not implemented yet: it returns a nil Advice.
+func AdviseWith(_ *policydoc.Document, _ ServicePrincipal, _ registry.IAMAction, _ aws.ARN, _ aws.AccountID, _ aws.ARN) Advice {
+	return nil
+}
+
 // implicitDeny is the advice for a delivery no statement allows; what says
 // whose policy does not allow it.
 func implicitDeny(what string, servicePrincipal ServicePrincipal, action registry.IAMAction, source, target aws.ARN) WouldDeny {

@@ -55,6 +55,9 @@ type AsExecutionRole struct{ Role aws.ARN }
 type AsService struct {
 	Name   string // "sns.amazonaws.com"
 	Source aws.ARN
+	// SourceAccount is the aws:SourceAccount the delivery sends; zero when
+	// it sends none (iam-enforcement-surfaces.md 8.1, 12.4).
+	SourceAccount aws.AccountID
 }
 
 // AsPlatform is a call a service makes on its own behalf, which AWS

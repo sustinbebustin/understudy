@@ -1,13 +1,21 @@
 package admin
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/access"
+	"github.com/sustinbebustin/understudy/internal/enforce"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
 )
+
+// IAMEvaluator decides (action, resource) pairs for a principal as
+// iam.enforce would: the enforce.Authorizer, which answers under every mode.
+type IAMEvaluator interface {
+	Evaluate(ctx context.Context, r enforce.EvaluateRequest) ([]enforce.Evaluation, error)
+}
 
 // iamUsage lists the recorded uses, by principal and IAM action prefix.
 func (h *Handler) iamUsage(w http.ResponseWriter, r *http.Request, _ []string) {

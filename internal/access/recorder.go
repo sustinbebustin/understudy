@@ -31,8 +31,12 @@ type AsCaller struct{}
 type AsExecutionRole struct{}
 
 // AsService is a delivery a service principal makes from Source, gated by
-// the target's resource policy.
-type AsService struct{ Source aws.ARN }
+// the target's resource policy. SourceAccount is the aws:SourceAccount the
+// delivery sends, zero when it sends none (iam-enforcement-surfaces.md 8.1).
+type AsService struct {
+	Source        aws.ARN
+	SourceAccount aws.AccountID
+}
 
 func (Direct) isMode()          {}
 func (AsCaller) isMode()        {}
@@ -69,9 +73,19 @@ type Entry struct {
 	Service   string
 	Actions   []registry.IAMAction
 	Resources []aws.ARN
-	Outcome   Outcome
+	// Pairs, when non-nil, are the (action, resource) pairs the call needed
+	// and replace the pairing of Actions with Resources; an S3 object is
+	// folded into its BucketObjects as for Resources. Not read yet.
+	Pairs   []Pair
+	Outcome Outcome
 	// At is the call's admission instant in emulator time.
 	At time.Time
+}
+
+// Pair is one action on one scope; Resource is OnResource or AnyResource.
+type Pair struct {
+	Action   registry.IAMAction
+	Resource Scope
 }
 
 // EntryProblem is why Record refused an Entry.
@@ -250,6 +264,9 @@ type Requirement struct {
 	Principal ServicePrincipal
 	Action    registry.IAMAction
 	Source    aws.ARN
+	// SourceAccount is the aws:SourceAccount the delivery sends, zero when
+	// it sends none (iam-enforcement-surfaces.md 12.6). Not set yet.
+	SourceAccount aws.AccountID
 }
 
 // Recorder records which IAM actions each principal used. The zero value is

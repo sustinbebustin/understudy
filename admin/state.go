@@ -125,6 +125,54 @@ type ResourcePolicy struct {
 	Principal string `json:"principal"`
 	Action    string `json:"action"`
 	Source    string `json:"source"`
+	// SourceAccount is the aws:SourceAccount the delivery sends, so a
+	// statement carries exactly the keys AWS sends; omitted when it sends
+	// none. Not set yet.
+	SourceAccount string `json:"sourceAccount,omitempty"`
+}
+
+// EvaluateRequest is the body of POST /iam/evaluate.
+type EvaluateRequest struct {
+	// Principal is an IAM ARN: an account root, a user, or a role, evaluated
+	// as a session of the role with no session policy.
+	Principal string `json:"principal"`
+	// IdentityPolicies, when present, replace the principal's identity-based
+	// policies for this evaluation; an empty list is none. The permissions
+	// boundary and the resource policies are read as stored.
+	IdentityPolicies *[]json.RawMessage `json:"identityPolicies,omitempty"`
+	Requests         []EvaluateItem     `json:"requests"`
+}
+
+// EvaluateItem is one (action, resource) pair to evaluate.
+type EvaluateItem struct {
+	Action string `json:"action"`
+	// Resource is an ARN, or "*" for a request on no resource.
+	Resource string `json:"resource"`
+}
+
+// Evaluation is POST /iam/evaluate's answer, one result per request in
+// order.
+type Evaluation struct {
+	Results []EvaluationResult `json:"results"`
+}
+
+// EvaluationResult is one pair's decision.
+type EvaluationResult struct {
+	Action   string `json:"action"`
+	Resource string `json:"resource"`
+	// Decision is allowed, implicitDeny or explicitDeny, the IAM simulator's
+	// EvalDecision spellings.
+	Decision string `json:"decision"`
+	// PolicyType names the policy type a denial names, such as
+	// "identity-based policy".
+	PolicyType string `json:"policyType,omitempty"`
+	// PolicyARN is the denying managed policy's ARN.
+	PolicyARN string `json:"policyArn,omitempty"`
+	// Message is the denial message.
+	Message string `json:"message,omitempty"`
+	// UnsuppliedKeys are condition keys a policy tested that understudy
+	// could not supply and evaluated as absent.
+	UnsuppliedKeys []string `json:"unsuppliedKeys,omitempty"`
 }
 
 // Settle is GET /settle once no tracked work is pending.

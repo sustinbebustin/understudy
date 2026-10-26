@@ -91,6 +91,8 @@ type Options struct {
 	ImagePuller   ImagePuller
 	TTLSweeper    TTLSweeper
 	Subscriptions SubscriptionTokens
+	// IAM answers POST /iam/evaluate. Not routed yet.
+	IAM IAMEvaluator
 	// Components reports Docker and DynamoDB Local for health; nil leaves
 	// them out.
 	Components Components
