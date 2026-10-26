@@ -67,6 +67,7 @@ internal/
   schedexpr/                    EventBridge rate and cron parser, next-fire
   httpevent/                    Lambda payload format 2.0 request event and response inference, shared by function URLs and HTTP APIs
   policydoc/                    IAM policy document parse and validate; least-privilege rendering
+  policycatalogue/              the AWS managed policy catalogue: validated model, canonical JSON codec, lazy embedded load
   docker/                       Engine API client over the unix socket: typed errors, stdcopy, progress, events
   topology/                     detect Linux bridge, Docker Desktop, rootless, Podman, in-container; derive addresses
   api/<svc>api/                 GENERATED per service: types, schema, serde, validators, errors, ops, binder, routes, iam, redact
@@ -78,6 +79,7 @@ internal/
   codegen/                      generator library: loader, overlay merge, closure, trait classifier, role analysis, IR, emitters
   cmd/gen/                      go run ./internal/cmd/gen
   cmd/vendor/                   vendoring tool (network only when a human runs it; -verify offline)
+  cmd/managedpolicies/          AWS managed policy catalogue generator (-fetch reads docs.aws.amazon.com when a human runs it; -verify offline)
   protocoltest/                 compliance harness, comparators, skip list, checked-in baseline (ratchet)
   protocoltest/gen/             GENERATED synthetic test services and case tables
   smoke/                        in-repo smoke test: builds and starts the binary, one raw HTTP request per service
@@ -91,6 +93,7 @@ third_party/
   api-models-aws/               21 model files verbatim at 1cfdfb4bb9ea858e65623e66d73af04bec353201, UPSTREAM.json, LICENSE, NOTICE
   smithy-protocol-tests/        flattened AST from Smithy 1.74.0 jars, PIN.json
   aws-service-reference/        derived operation -> IAM action table with provenance
+  aws-managed-policies/         AWS managed policies from the AWS Managed Policy Reference Guide, SOURCE.json, LICENSE, NOTICE; embedded by its Go package
 testdata/parity/<svc>/<item>/   parity recordings, one file per step, and where one exists the item's replay scenario (scenario.json)
 scripts/                        sealed (AWS clients against loopback endpoints only), distill-parity, parity-record (record mode, section 19)
 conformance/                    separate modules, own manifests, each with a run.sh that goes through scripts/sealed:
@@ -105,7 +108,8 @@ Dependency direction, checked by a test in `internal/ref` that walks imports wit
 - `awserr` imports `ref`, `evidence` and `protocol/smithy`; it holds plain values (`Unimplemented{Op ref.OperationID}`, `Injected{Rule ref.RuleID}`) and never a descriptor. `registry` imports `awserr`, `smithy`, `ref`, `aws`. `journal` imports `ref`, `aws`, `clock`, `ids` and owns its record types; it never imports `kernel`. `fault` imports `ref`, `aws`, `awserr`, `smithy`, `ids`, `delivery` and `jsonx` (rules export through the tagged-union convention). `access` imports `ref`, `aws`, `policydoc` and `registry` (recorder entries carry `registry.IAMAction`).
 - `kernel` imports `registry`, `journal`, `fault`, `access`, `identity`, `clock`, `ids`, `store`, `delivery`, `awserr`, `ref`, `auth` (the verified credentials on a `Call`, section 7), and `blob` and `docker` for `ServiceDeps` (3.2). Services that need the container topology get it from the container host through the Lambda launcher and Runtime API options, not from `ServiceDeps`. It never imports a codec or `snapshot`.
 - `api/*` (generated) imports only `protocol/smithy`, `awserr`, `registry`, `kernel`, `aws`, `ref`.
-- `service/*` imports `api/*`, `kernel`, `store`, `clock`, `ids`, `blob`, `delivery`, `fidelity`, `paging` and the engines it needs. A service never imports another service; it calls it through `kernel.Invoke` with the other service's generated `Op`. Three exceptions: a service imports `journal` for `Detail` values only, which it records through `kernel.Call.Record` or `kernel.Tx.Record` (section 10); DynamoDB imports `protocol/awsjson` to encode a `Synthesized` call as a client would; S3 imports `protocol/xmlw` and `protocol/restxml` for the bodies and `x-amz-id-2` of its raw S3 Control tag operations.
+- `service/*` imports `api/*`, `kernel`, `store`, `clock`, `ids`, `blob`, `delivery`, `fidelity`, `paging` and the engines it needs. A service never imports another service; it calls it through `kernel.Invoke` with the other service's generated `Op`. Four exceptions: a service imports `journal` for `Detail` values only, which it records through `kernel.Call.Record` or `kernel.Tx.Record` (section 10); DynamoDB imports `protocol/awsjson` to encode a `Synthesized` call as a client would; S3 imports `protocol/xmlw` and `protocol/restxml` for the bodies and `x-amz-id-2` of its raw S3 Control tag operations; IAM imports `policycatalogue` for the AWS managed policies it serves.
+- `third_party/aws-managed-policies` (the embedded data files) imports nothing in the repo; `policycatalogue` imports it and `aws`. `cmd/managedpolicies` imports `policycatalogue`, `policydoc`, `aws` and `third_party/aws-managed-policies`.
 - `protocol/*` imports `protocol/smithy`, `awserr`, `ref` and the other protocol helpers it builds on; the codecs and `restbind` also import `registry` and `aws`, because a codec claims requests through the service descriptor and reads its identities. It never sees a service or a generated package.
 - `outbox` imports `kernel`, `delivery`, `journal`, `store`, `clock`, the generated `api/*` packages whose `SendMessage`, `Invoke`, `Publish`, `PutEvents` and `PutObject` ops its attempts call, and `egress`, which imports only `clock` and is the one package that dials outbound HTTP (ADR 0015 amendment of 2026-10-26). `edge` imports `kernel`, `registry`, `auth`, `identity` and the codec interface, plus the public `admin` package (standard library only) for the JSON error envelope it sends to LocalStack paths (4.1 rule 1); `server` is the only package that names every service, every codec and `outbox`.
 - `snapshot` imports `store`, `blob`, `jsonx`, `clock`, `ids`, `ref` and `normalize`; `kernel.Stateful` exports `store.Section` values and `snapshot` archives them, so neither imports the other. `normalize` imports `ids` (minted access keys decode to their account) and `store` (scope keys).
@@ -599,10 +603,11 @@ Media types match by essence (ignore `; charset=`); header names case-insensitiv
 | 12 service models, Smithy 2.0 JSON AST, verbatim | `third_party/api-models-aws/` | commit `1cfdfb4bb9ea858e65623e66d73af04bec353201`; `UPSTREAM.json` with git blob SHA-1 and sha256 per file; `cmd/vendor -verify` runs offline in CI (`smithy-models.md 10`) |
 | Protocol compliance corpus, flattened AST | `third_party/smithy-protocol-tests/model.json` | Smithy 1.74.0; `PIN.json` with the six jar sha256 values and the CLI sha256; regenerated by a human with `smithy ast --no-config --flatten` (`smithy-protocol-tests.md 5`) |
 | Operation to IAM action table, derived | `third_party/aws-service-reference/actions.json` | provenance per service (`Version`, `modified`, body sha256); raw JSON not vendored until its licence is settled (ADR 0016) |
+| AWS managed policy catalogue | `third_party/aws-managed-policies/` | from the AWS Managed Policy Reference Guide's `full.md` (ADR 0016, amendment "managed policies"); `SOURCE.json` with the retrieval date, the three requests' sha256 and the sha256 of each document; `cmd/managedpolicies -verify` checks it offline (`iam-evaluation.md 10`) |
 | Overlays | `codegen/overlays/*.json` | hand-owned, reviewed; every entry carries `dev.understudy#evidence` |
 | Service generation config | `codegen/services/*.json` | hand-owned |
 
-Network is used only by `cmd/vendor` when a human bumps a pin. `go generate` and every test are offline.
+Network is used only by `cmd/vendor` when a human bumps a pin and by `cmd/managedpolicies -fetch` when a human refreshes the catalogue. `go generate` and every test are offline.
 
 ### 5.2 Overlay format (ADR 0002)
 
