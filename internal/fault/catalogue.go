@@ -337,9 +337,26 @@ func resolveShape(cat Catalogue, r Rule, shape smithy.ShapeID) (resolved, *RuleE
 		if err != nil {
 			return resolved{}, err
 		}
+		if member, instead, ok := unsettable(id.Shape); ok {
+			return resolved{}, reject(r, "action.shape", "%s always carries %s on AWS, which a fault rule cannot set yet, so the error would not be AWS's; %s",
+				id.Shape, member, instead)
+		}
 		byOp[op] = id
 	}
 	return resolved{byOp: byOp}, nil
+}
+
+// unsettable reports an error shape AWS always sends with a member beyond
+// its message, which a rule cannot set until errors carry structured
+// members (ROADMAP.md item 3), so injecting it would send an error AWS
+// never sends. It returns the member and what to inject instead.
+func unsettable(shape smithy.ShapeID) (member, instead string, ok bool) {
+	if shape == "com.amazonaws.dynamodb#TransactionCanceledException" {
+		// One cancellation reason per item of the transaction
+		// (dynamodb-local.md 4.2).
+		return "CancellationReasons", "to simulate a conflict, inject TransactionConflictException or ConditionalCheckFailedException on PutItem, UpdateItem or DeleteItem", true
+	}
+	return "", "", false
 }
 
 // emulatorNamespace holds understudy's own shapes, such as the

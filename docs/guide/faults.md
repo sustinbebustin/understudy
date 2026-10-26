@@ -19,6 +19,16 @@ The error has AWS's wire form for the protocol the client speaks; here the JSON 
 understudy faults add: fault rule rejected, no rule was added or changed: action.shape: sqs.ReceiveMessage never sends "NoSuchKey" (known: InvalidAddress, InvalidSecurity, ..., QueueDoesNotExist, RequestThrottled, ...)
 ```
 
+An error AWS always sends with a member a rule cannot set yet is refused too, since the error would not be AWS's. DynamoDB's `TransactionCanceledException` is one: AWS always lists `CancellationReasons`.
+
+```sh
+understudy faults add --operation dynamodb.TransactWriteItems --error TransactionCanceledException
+```
+
+```text
+understudy faults add: fault rule rejected, no rule was added or changed: action.shape: com.amazonaws.dynamodb#TransactionCanceledException always carries CancellationReasons on AWS, which a fault rule cannot set yet, so the error would not be AWS's; to simulate a conflict, inject TransactionConflictException or ConditionalCheckFailedException on PutItem, UpdateItem or DeleteItem
+```
+
 A rule has a match, an action and a trigger.
 
 | Match | Flag |

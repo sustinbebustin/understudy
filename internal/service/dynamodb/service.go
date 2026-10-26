@@ -65,9 +65,11 @@ const (
 	noThrottling = "aws-differs: dynamodb-local: requests are never throttled; inject com.amazonaws.dynamodb#ThrottlingException with a fault rule"
 	noConflicts  = "aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule"
 	// noTxConflicts is how a conflict shows on the transaction operations,
-	// which do not send TransactionConflictException.
+	// which do not send TransactionConflictException. The fault store
+	// refuses a TransactionCanceledException rule (internal/fault,
+	// unsettable).
 	noTxConflicts = "aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException " +
-		"and the cancellation reason TransactionConflict, and a fault rule cannot set cancellation reasons yet"
+		"and the cancellation reason TransactionConflict, which a fault rule cannot set yet, so a rule injecting TransactionCanceledException is refused"
 	caseTwins      = "aws-differs: dynamodb-local: table names are case-insensitive, so a name that differs from an existing table's only in case is refused with ResourceInUseException"
 	statementTwins = "aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table"
 	parallelScan   = "aws-differs: dynamodb-local: Segment and TotalSegments are ignored, so a parallel scan reads sequentially"

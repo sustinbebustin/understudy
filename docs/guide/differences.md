@@ -100,7 +100,7 @@ understudy forwards DynamoDB to DynamoDB Local, so its answers carry Local's beh
 - `DescribeContributorInsights` is not implemented; AWS answers `DISABLED` (`dynamodb/R04/02-describe-contributor-insights.json`).
 - DynamoDB Streams is not implemented: a table takes `StreamSpecification` and answers `LatestStreamArn`, but `ListStreams`, `DescribeStream`, `GetShardIterator` and `GetRecords` answer 501 `NotImplemented`, signed for `dynamodb` as SDKs sign them or for `streams.dynamodb`. AWS serves them signed for `dynamodb` (`dynamodb/R11/07-streams-signed-dynamodb.json`).
 - An unknown KMS key is "KMS validation error: com.amazonaws.services.kms.model.NotFoundException: Key '<arn>' does not exist (...)" on AWS (`dynamodb/R04/x-create-table-unknown-kms.json`).
-- A fault rule cannot inject a `TransactionCanceledException` with `CancellationReasons`, so transaction conflicts cannot be simulated.
+- AWS always sends `TransactionCanceledException` with `CancellationReasons`, which a fault rule cannot set yet, so a rule injecting it is refused and transaction conflicts cannot be simulated. A conflict on a single-item write can: inject `TransactionConflictException` on `PutItem`, `UpdateItem` or `DeleteItem`.
 
 ## Lambda
 

@@ -18,7 +18,13 @@ import (
 // and returns the refusal it answers.
 func putErrorRule(k *kerneltest.K, op, shape string) *admin.Error {
 	k.Helper()
-	rule := `{"phase": "request", "match": {"operations": ["` + op + `"]}, "action": {"kind": "error", "shape": "` + shape + `"}, "trigger": {"kind": "always"}}`
+	return putShapeRule(k, "error", op, shape)
+}
+
+// putShapeRule is putErrorRule for any action kind that injects a shape.
+func putShapeRule(k *kerneltest.K, kind, op, shape string) *admin.Error {
+	k.Helper()
+	rule := `{"phase": "request", "match": {"operations": ["` + op + `"]}, "action": {"kind": "` + kind + `", "shape": "` + shape + `"}, "trigger": {"kind": "always"}}`
 	req := httptest.NewRequestWithContext(k.Context(), http.MethodPut, admin.Prefix+"/faults/f1", strings.NewReader(rule))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -58,6 +64,29 @@ func TestAmbiguousShapeListsFullIDs(t *testing.T) {
 		if e.Code != admin.InvalidRequest || e.Field != "action.shape" || !slices.Equal(e.Known, want) ||
 			e.Message != `fault rule rejected, no rule was added or changed: action.shape: "ThrottlingException" names 2 different errors dynamodb.GetItem sends; write the full shape id` {
 			k.Errorf("PUT a rule injecting ThrottlingException on GetItem = %+v; want invalid_request on action.shape with known %v", e, want)
+		}
+	}, kerneltest.Services(dynamodbapi.Service()))
+}
+
+// AWS sends TransactionCanceledException with CancellationReasons, one per
+// item (dynamodb-local.md 4.2; the model's
+// com.amazonaws.dynamodb#TransactionCanceledException), and a rule cannot
+// set them yet, so a rule injecting it is refused, by short name or full
+// id, in any action that injects a shape, saying what to inject instead.
+func TestTransactionCanceledRuleIsRefused(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		for _, c := range []struct{ kind, op, shape string }{
+			{"error", "dynamodb.TransactWriteItems", "TransactionCanceledException"},
+			{"error", "dynamodb.TransactGetItems", "com.amazonaws.dynamodb#TransactionCanceledException"},
+			{"after-commit", "dynamodb.ExecuteTransaction", "TransactionCanceledException"},
+		} {
+			e := putShapeRule(k, c.kind, c.op, c.shape)
+			want := "fault rule rejected, no rule was added or changed: action.shape: com.amazonaws.dynamodb#TransactionCanceledException always carries " +
+				"CancellationReasons on AWS, which a fault rule cannot set yet, so the error would not be AWS's; " +
+				"to simulate a conflict, inject TransactionConflictException or ConditionalCheckFailedException on PutItem, UpdateItem or DeleteItem"
+			if e.Code != admin.InvalidRequest || e.Field != "action.shape" || e.Message != want {
+				k.Errorf("PUT a %s rule injecting %s on %s = %+v; want invalid_request on action.shape: %q", c.kind, c.shape, c.op, e, want)
+			}
 		}
 	}, kerneltest.Services(dynamodbapi.Service()))
 }
