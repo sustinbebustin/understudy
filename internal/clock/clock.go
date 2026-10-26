@@ -43,6 +43,10 @@ type WaitersHook func(Advanced)
 type Advanced struct {
 	Fired    []TimerKey
 	From, To Instant
+	// Modes is the mode the advance's shift replaced and the shifted mode,
+	// read under the one lock that applies the shift. Not implemented yet:
+	// it is left zero.
+	Modes ModeChange[Mode]
 }
 
 // Deadline bounds a wait in two domains: it ends when emulator time reaches

@@ -351,7 +351,7 @@ func ResultOf(d Detail) (Result, bool) {
 		return 0, false
 	case Unclaimed:
 		return ResultError, true
-	case TimerFired, StateChange, FaultInjected, ClockChanged, Advisory, Gap:
+	case TimerFired, StateChange, FaultInjected, ClockChanged, Advisory, Gap, AdminAction:
 		return 0, false
 	}
 	return 0, false

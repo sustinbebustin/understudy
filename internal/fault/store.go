@@ -134,6 +134,11 @@ func (s *Store) Clear() int {
 	return n
 }
 
+// RemoveAll deactivates every rule and returns their ids in evaluation
+// order, nil when there were none. Not implemented yet: it changes nothing
+// and returns nil.
+func (*Store) RemoveAll() []ref.RuleID { return nil }
+
 // Evaluate applies the active rules that belong to hook h to the call in.
 // Rules are tried in order; the first one that matches and fires decides,
 // except that a Latency rule's Delay goes on to the rules after it. Every

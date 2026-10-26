@@ -113,6 +113,12 @@ func (j *Journal) Query(f Filter) Page {
 	return page
 }
 
+// Tail returns the newest n retained and open events matching f, f.Limit
+// and f.Cursor ignored, in ascending id order: the last n events of every
+// Query page of f together. It returns fewer when fewer match, and nil for
+// n <= 0. Not implemented yet: it returns nil.
+func (*Journal) Tail(Filter, int) []Event { return nil }
+
 // candidates returns the shortest id list that holds every event f can match.
 // Called with mu held.
 func (j *Journal) candidates(f Filter) idList {

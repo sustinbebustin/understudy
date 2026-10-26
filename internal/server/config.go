@@ -27,6 +27,10 @@ type Config struct {
 	// AdminToken, when set, is the bearer token every admin call on the
 	// main listener must carry. It guards the admin API only.
 	AdminToken string
+	// UISecret is the web UI session secret (ADR 0020); empty draws one
+	// with ui.NewSecret when New wires the server. Not implemented yet: it
+	// is stored and ignored.
+	UISecret string
 	// Exposure is what makes a non-loopback Listen safe without a token;
 	// nil is TokenRequired.
 	Exposure Exposure

@@ -166,6 +166,13 @@ func (c *Client) JournalEvents(ctx context.Context, q JournalQuery) (*JournalPag
 	return fetch[JournalPage](ctx, c, http.MethodGet, "/journal/events", q.Values(), nil)
 }
 
+// JournalTail returns the newest n events q selects, oldest first; q.Limit
+// and q.Cursor are not sent. Not implemented yet: it returns an *Error with
+// code unavailable.
+func (*Client) JournalTail(context.Context, JournalQuery, int) ([]JournalEvent, error) {
+	return nil, notImplemented("JournalTail")
+}
+
 // JournalStream follows the events q selects as they are recorded, starting
 // after the event with id after (0 starts live). The stream ends when ctx
 // does; a consumer too slow for the emulator receives a "gap" event for
@@ -296,6 +303,35 @@ func (c *Client) LoadSnapshot(ctx context.Context, r io.Reader) (*SnapshotInfo, 
 // directory, which needs serve --persist.
 func (c *Client) LoadSnapshotFrom(ctx context.Context, path string) (*SnapshotInfo, error) {
 	return fetch[SnapshotInfo](ctx, c, http.MethodPut, "/snapshots", nil, SnapshotRequest{Path: path})
+}
+
+// SnapshotList is GET /snapshots.
+type SnapshotList struct {
+	Snapshots []SnapshotFile `json:"snapshots"`
+}
+
+// Snapshots lists the archives under the server's snapshots directory,
+// which needs serve --persist. Not implemented yet: it returns an *Error
+// with code unavailable.
+func (*Client) Snapshots(context.Context) ([]SnapshotFile, error) {
+	return nil, notImplemented("Snapshots")
+}
+
+// UISession reports whether secret is this run's web UI session secret,
+// sending it in UISessionHeader ("" sends no header). Not implemented yet:
+// it returns an *Error with code unavailable.
+func (*Client) UISession(context.Context, string) (*UISession, error) {
+	return nil, notImplemented("UISession")
+}
+
+// notImplemented is the answer of a Client method this build declares but
+// does not implement yet.
+func notImplemented(method string) *Error {
+	return &Error{
+		Code:    Unavailable,
+		Message: "admin: Client." + method + " is not implemented yet; no request was sent",
+		Hint:    "use a build that implements it",
+	}
 }
 
 func (o SaveOptions) values() url.Values {

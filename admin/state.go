@@ -49,6 +49,16 @@ type SnapshotRequest struct {
 	Path string `json:"path"`
 }
 
+// SnapshotFile is one archive under the server's snapshots directory, as
+// GET /snapshots lists it.
+type SnapshotFile struct {
+	// Path is relative to the snapshots directory, slash-separated.
+	Path  string `json:"path"`
+	Bytes int64  `json:"bytes"`
+	// Modified is the file's modification time on the server, UTC.
+	Modified time.Time `json:"modified"`
+}
+
 // SaveOptions shapes an archive POST /snapshots writes.
 type SaveOptions struct {
 	Gzip bool

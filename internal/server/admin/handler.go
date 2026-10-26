@@ -73,6 +73,12 @@ type Options struct {
 	// Token, when set, is the bearer token every call on the main listener
 	// must carry.
 	Token string
+	// UISecret is this run's web UI session secret (ADR 0020). A call a web
+	// page makes is to pass refuseBrowser only when it carries this value in
+	// admin.UISessionHeader and is same-origin; empty means no session, so
+	// every such call is refused as before. Not implemented yet: it is
+	// stored and ignored, and every call a web page makes is refused.
+	UISecret string
 	// Version and ModelPin are reported by the health endpoint.
 	Version  string
 	ModelPin string

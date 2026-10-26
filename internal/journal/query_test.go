@@ -145,7 +145,7 @@ func oracle(f Filter, e Event) bool {
 		about = []aws.ARN{d.Resource}
 	case Unclaimed:
 		result = "error"
-	case TimerFired, FaultInjected, ClockChanged, Gap:
+	case TimerFired, FaultInjected, ClockChanged, Gap, AdminAction:
 	}
 	anyARN := func(pred func(aws.ARN) bool) bool {
 		// The zero ARN is no resource.

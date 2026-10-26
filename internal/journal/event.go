@@ -91,8 +91,13 @@ type FaultInjected struct {
 	Hit, Of int
 }
 
-// ClockChanged is the emulator clock changing mode.
-type ClockChanged struct{ From, To clock.Mode }
+// ClockChanged is the emulator clock changing mode or moving. From and To
+// are the modes before and after, read under the clock's lock; Op is what
+// changed it.
+type ClockChanged struct {
+	From, To clock.Mode
+	Op       ClockOp
+}
 
 // Advisory is something the emulator did that AWS would not have, or that a
 // user would want to know about, such as a delivery a stored resource policy
@@ -129,6 +134,7 @@ func (ClockChanged) isDetail()  {}
 func (Advisory) isDetail()      {}
 func (Unclaimed) isDetail()     {}
 func (Gap) isDetail()           {}
+func (AdminAction) isDetail()   {}
 
 // Kind names a Detail variant; queries filter on it.
 type Kind uint8
@@ -145,6 +151,7 @@ const (
 	KindAdvisory
 	KindUnclaimed
 	KindGap
+	KindAdminAction
 
 	// endKind follows the last kind and is no kind: ParseKind, MarshalText
 	// and the KindError text count up to it, so a new kind is one line
@@ -175,6 +182,8 @@ func KindOf(d Detail) Kind {
 		return KindUnclaimed
 	case Gap:
 		return KindGap
+	case AdminAction:
+		return KindAdminAction
 	}
 	return 0
 }
@@ -202,6 +211,8 @@ func (k Kind) String() string {
 		return "unclaimed"
 	case KindGap:
 		return "gap"
+	case KindAdminAction:
+		return "admin-action"
 	default:
 		return fmt.Sprintf("Kind(%d)", uint8(k))
 	}
@@ -274,7 +285,7 @@ func resourcesOf(d Detail) []aws.ARN {
 		all = []aws.ARN{d.Resource}
 	case Advisory:
 		all = []aws.ARN{d.Resource}
-	case TimerFired, FaultInjected, ClockChanged, Unclaimed, Gap:
+	case TimerFired, FaultInjected, ClockChanged, Unclaimed, Gap, AdminAction:
 	}
 	if !slices.Contains(all, aws.ARN{}) {
 		return all

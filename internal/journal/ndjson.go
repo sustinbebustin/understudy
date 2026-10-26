@@ -329,6 +329,8 @@ func encodeDetail(d Detail) (any, error) {
 		return wireUnclaimed(d), nil
 	case Gap:
 		return wireGap(d), nil
+	case AdminAction:
+		return nil, errNotImplemented
 	}
 	return nil, &missingError{What: "Detail"}
 }
@@ -559,6 +561,8 @@ func decodeDetail(k Kind, raw json.RawMessage) (Detail, error) {
 		var w wireGap
 		err := strict(raw, &w)
 		return Gap(w), err
+	case KindAdminAction:
+		return nil, errNotImplemented
 	}
 	return nil, &KindError{Text: k.String()}
 }

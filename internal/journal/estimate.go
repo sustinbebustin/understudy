@@ -61,6 +61,9 @@ func detailSize(d Detail) int {
 		return strs(d.Method, d.Host, d.Path) + strs(d.Reasons...)
 	case Gap:
 		return 0
+	case AdminAction:
+		// Not implemented yet: counted with the admin action's wire form.
+		return 0
 	}
 	return 0
 }

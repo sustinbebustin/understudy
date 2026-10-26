@@ -20,7 +20,7 @@ type JournalEvent struct {
 	Scope Scope     `json:"scope"`
 	// Kind names the variant of Detail: "api-call", "delivery",
 	// "invocation", "timer-fired", "state-change", "fault-injected",
-	// "clock-changed", "advisory", "unclaimed" or "gap".
+	// "clock-changed", "advisory", "unclaimed", "gap" or "admin-action".
 	Kind   string          `json:"kind"`
 	Detail json.RawMessage `json:"detail"`
 }
@@ -75,9 +75,9 @@ type JournalPage struct {
 }
 
 // Query parameter names of the journal endpoints, shared by the client and
-// the server's handlers. ParamAfter is the stream's resume point and
-// ParamCanonical asks a trace for its normalized form; the rest are
-// JournalQuery's members.
+// the server's handlers. ParamAfter is the stream's resume point,
+// ParamCanonical asks a trace for its normalized form and ParamTail asks a
+// query for its newest events; the rest are JournalQuery's members.
 const (
 	ParamTrace     = "trace"
 	ParamRequestID = "request_id"
@@ -95,6 +95,7 @@ const (
 	ParamCursor    = "cursor"
 	ParamAfter     = "after"
 	ParamCanonical = "canonical"
+	ParamTail      = "tail"
 )
 
 // Values encodes q as the query parameters the journal endpoints read.

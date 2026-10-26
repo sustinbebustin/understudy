@@ -204,6 +204,9 @@ func importRules() []importRule {
 			"admin",
 		}},
 		{"internal/server", []string{"internal/...", "admin"}},
+		// The web UI's static files and session secret: standard library
+		// only; the admin handler checks the secret (ADR 0020).
+		{"internal/server/ui", nil},
 		{"internal/server/admin", []string{
 			"admin", "internal/kernel", "internal/journal", "internal/snapshot", "internal/fault", "internal/clock",
 			"internal/access", "internal/registry", "internal/coverage", "internal/aws", "internal/ref", "internal/awserr",

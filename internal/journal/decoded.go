@@ -68,6 +68,10 @@ func asDecoded(d Detail) Detail {
 		return d
 	case Gap:
 		return d
+	case AdminAction:
+		// Not implemented yet: the decoded form of an admin action is
+		// decided with its wire form.
+		return d
 	}
 	return d
 }
