@@ -28,18 +28,17 @@ const timeSize = 14
 
 // bindEvents binds PutEvents and TestEventPattern.
 func (s *Service) bindEvents(b eventbridgeapi.Binder) {
-	b.PutEvents(s.putEvents, registry.Partial{Note: "default buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used"})
+	b.PutEvents(s.putEvents, registry.Partial{Note: "default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used"})
 	b.TestEventPattern(s.testEventPattern, registry.Full{})
 }
 
 // putEvents takes each entry onto its bus and sends each bus's events to
-// the targets of the rules that match them. An entry missing a member, with
-// a Source in the reserved aws. namespace, with a malformed Detail or for
-// another region's default bus fails alone. An entry for the default bus of
+// the targets of that bus's rules that match them. An entry missing a
+// member, with a Source in the reserved aws. namespace, with a malformed
+// Detail or for another region's bus fails alone. An entry for a bus of
 // another account in the caller's region reaches that account's rules,
-// stamped with the sender's account, as on AWS; one for any other bus gets
-// an EventId and is dropped, as AWS drops events to a bus that does not
-// exist.
+// stamped with the sender's account, as on AWS; one for a bus that does not
+// exist gets an EventId and is dropped, as on AWS.
 func (s *Service) putEvents(ctx context.Context, c *kernel.Call, in *eventbridgeapi.PutEventsInput) (*eventbridgeapi.PutEventsOutput, *awserr.Error) {
 	if entriesSize(in.Entries) >= maxEntriesSize {
 		return nil, errEntriesTooLarge()
@@ -52,7 +51,7 @@ func (s *Service) putEvents(ctx context.Context, c *kernel.Call, in *eventbridge
 		bus := parseBus(scope, e.EventBusName)
 		detail, failure := parseEntry(e)
 		if failure == nil {
-			failure = foreignRegion(scope, bus)
+			failure = foreignRegion(c, bus)
 		}
 		if failure != nil {
 			out.Entries[i] = *failure
@@ -73,49 +72,52 @@ func (s *Service) putEvents(ctx context.Context, c *kernel.Call, in *eventbridge
 		}
 		switch b := bus.(type) {
 		case ownBus:
-			buses.add(scope, ev)
+			buses.add(scope, b.name, ev)
 		case foreignBus:
-			buses.add(b.scope, ev)
+			buses.add(b.scope, b.name, ev)
 		case missingBus:
 			c.Touch(b.arn)
 		}
 	}
 	for _, g := range buses {
-		c.Touch(busARN(g.scope, defaultBus))
-		if err := s.publish(ctx, c, g.scope, g.events); err != nil {
+		c.Touch(busARN(g.scope, g.bus))
+		if err := s.publish(ctx, c, g.scope, g.bus, g.events); err != nil {
 			return nil, err
 		}
 	}
 	return out, nil
 }
 
-// foreignRegion is the failure of an entry for the default bus of another
-// region, which understudy does not send to, or nil.
-func foreignRegion(scope aws.Scope, bus busRef) *eventbridgeapi.PutEventsResultEntry {
-	if b, ok := bus.(foreignBus); ok && b.scope.Region != scope.Region {
-		return entryFailure(codeNotImplemented, msgForeignRegionBus(scope, b.arn()))
+// foreignRegion is the failure of an entry for a bus of another region,
+// which understudy does not send to, or nil. The call's journal entry
+// still names that bus, as it names a missing one.
+func foreignRegion(c *kernel.Call, bus busRef) *eventbridgeapi.PutEventsResultEntry {
+	if b, ok := bus.(foreignBus); ok && b.scope.Region != c.Scope().Region {
+		c.Touch(b.arn())
+		return entryFailure(codeNotImplemented, msgForeignRegionBus(c.Scope(), b.arn()))
 	}
 	return nil
 }
 
-// busBatch is the accepted events of a PutEvents call on the default bus
-// of one scope.
+// busBatch is the accepted events of a PutEvents call on one bus of one
+// scope.
 type busBatch struct {
 	scope  aws.Scope
+	bus    string
 	events []envelope.Event
 }
 
 // busEvents holds a call's batches in the order their buses first appear.
 type busEvents []busBatch
 
-func (b *busEvents) add(scope aws.Scope, ev envelope.Event) {
+func (b *busEvents) add(scope aws.Scope, bus string, ev envelope.Event) {
 	for i := range *b {
-		if (*b)[i].scope == scope {
+		if (*b)[i].scope == scope && (*b)[i].bus == bus {
 			(*b)[i].events = append((*b)[i].events, ev)
 			return
 		}
 	}
-	*b = append(*b, busBatch{scope: scope, events: []envelope.Event{ev}})
+	*b = append(*b, busBatch{scope: scope, bus: bus, events: []envelope.Event{ev}})
 }
 
 // entriesSize is a PutEvents request's size as AWS counts it: per entry,
@@ -201,9 +203,11 @@ func eventTime(e *eventbridgeapi.PutEventsRequestEntry, admitted clock.Instant) 
 	return admitted.Wire()
 }
 
-// publish sends events on scope's default bus to the targets of the rules
-// that match them, as Deliver effects of one write that changes nothing.
-func (s *Service) publish(ctx context.Context, c *kernel.Call, scope aws.Scope, events []envelope.Event) *awserr.Error {
+// publish sends events on scope's bus to the targets of the bus's rules
+// that match them, as Deliver effects of one write that changes nothing. A
+// bus the scope does not hold has no rules, so its events reach no target,
+// as AWS drops events to a missing bus (eventbridge-buses.md 10.3).
+func (s *Service) publish(ctx context.Context, c *kernel.Call, scope aws.Scope, bus string, events []envelope.Event) *awserr.Error {
 	if _, ok := s.cells.Lookup(scope); !ok {
 		return nil
 	}
@@ -212,7 +216,7 @@ func (s *Service) publish(ctx context.Context, c *kernel.Call, scope aws.Scope, 
 		tx.Unchanged()
 		f = fanOut{}
 		for i := range events {
-			s.matchEvent(&f, scope, st, defaultBus, events[i], c.Admitted())
+			s.matchEvent(&f, scope, st, bus, events[i], c.Admitted())
 		}
 		for i := range f.requests {
 			tx.Deliver(f.requests[i])

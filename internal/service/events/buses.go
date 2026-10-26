@@ -9,6 +9,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/evidence"
+	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
@@ -28,20 +31,25 @@ func busARN(scope aws.Scope, name string) aws.ARN {
 }
 
 // busRef is the bus an EventBusName names, read for a caller in a scope.
-// Every account and region has exactly one bus, its default bus.
+// It is syntactic: whether the bus exists is a question for the state.
 //
 //sumtype:decl
 type busRef interface{ isBusRef() }
 
-// ownBus is the caller's default bus: no name, the name default, or its ARN.
-type ownBus struct{}
+// ownBus is a bus of the caller's scope: the default bus for no name, the
+// empty name or the name default, else the bus a name or an ARN in the
+// caller's scope names.
+type ownBus struct{ name string }
 
-// foreignBus is, by ARN, the default bus of another served account or
-// region. It exists, but the caller does not own it.
-type foreignBus struct{ scope aws.Scope }
+// foreignBus is, by ARN, a bus of another served account or region.
+type foreignBus struct {
+	scope aws.Scope
+	name  string
+}
 
-// missingBus is any other bus, which does not exist. name is the bus name
-// AWS's not-found text quotes; arn is the bus the name or ARN denotes.
+// missingBus is an ARN no bus can have: another service's, one that is not
+// event-bus/, or one in a scope understudy does not serve. name is the bus
+// name AWS's not-found text quotes; arn is the ARN the caller sent.
 type missingBus struct {
 	name string
 	arn  aws.ARN
@@ -51,51 +59,69 @@ func (ownBus) isBusRef()     {}
 func (foreignBus) isBusRef() {}
 func (missingBus) isBusRef() {}
 
-// arn is the ARN of the default bus.
-func (f foreignBus) arn() aws.ARN { return busARN(f.scope, defaultBus) }
+// arn is the ARN of the foreign bus.
+func (f foreignBus) arn() aws.ARN { return busARN(f.scope, f.name) }
 
 // parseBus reads an EventBusName, a name or an ARN, for a caller in scope;
 // nil and empty name the caller's default bus. An ARN names its own account
 // and region, not the caller's.
 func parseBus(scope aws.Scope, name *string) busRef {
-	if name == nil || *name == "" || *name == defaultBus {
-		return ownBus{}
+	if name == nil || *name == "" {
+		return ownBus{name: defaultBus}
 	}
 	arn, err := aws.ParseARN(*name)
 	if err != nil {
-		return missingBus{name: *name, arn: busARN(scope, *name)}
+		return ownBus{name: *name}
 	}
 	bus, isBus := strings.CutPrefix(arn.Resource, "event-bus/")
-	switch {
-	case arn.Service != "events" || !isBus:
+	if arn.Service != "events" || !isBus {
 		return missingBus{name: *name, arn: arn}
-	case bus != defaultBus:
-		return missingBus{name: bus, arn: arn}
 	}
 	at, serr := aws.ScopeOf(arn)
 	switch {
 	case serr != nil:
 		return missingBus{name: bus, arn: arn}
 	case at == scope:
-		return ownBus{}
+		return ownBus{name: bus}
 	}
-	return foreignBus{scope: at}
+	return foreignBus{scope: at, name: bus}
 }
 
-// requireDefaultBus admits only the caller's default bus to a control-plane
-// call: another served account's or region's default bus is NotImplemented,
-// and any other bus does not exist.
-func requireDefaultBus(scope aws.Scope, name *string) *awserr.Error {
-	return admitDefaultBus(parseBus(scope, name))
+// namedBus names the bus a bus call addresses, so fault rules scoped by
+// resource match it before the handler runs. A missingBus names none.
+func namedBus[In any](name func(*In) *string) kernel.BindOption {
+	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
+		switch b := parseBus(c.Scope(), name(in)).(type) {
+		case ownBus:
+			return []aws.ARN{busARN(c.Scope(), b.name)}
+		case foreignBus:
+			return []aws.ARN{b.arn()}
+		case missingBus:
+		}
+		return nil
+	})
+}
+
+// requireDefaultBus admits only the caller's default bus to a rule or target
+// call: one of its custom buses is NotImplemented, as is another served
+// account's or region's bus, and any other bus does not exist.
+func (s *Service) requireDefaultBus(scope aws.Scope, name *string) *awserr.Error {
+	return s.admitDefaultBus(scope, parseBus(scope, name))
 }
 
 // admitDefaultBus is requireDefaultBus on a parsed bus. A nil bus, which
 // parseBus never returns, is refused as an internal failure rather than
 // admitted.
-func admitDefaultBus(bus busRef) *awserr.Error {
+func (s *Service) admitDefaultBus(scope aws.Scope, bus busRef) *awserr.Error {
 	switch b := bus.(type) {
 	case ownBus:
-		return nil
+		if b.name == defaultBus {
+			return nil
+		}
+		if _, ok := s.lookupBus(scope, b.name, clock.Instant{}); ok {
+			return errCustomBusRules(b.name)
+		}
+		return errBusNotFound(b.name)
 	case foreignBus:
 		return errForeignBus(b.arn())
 	case missingBus:
@@ -107,6 +133,15 @@ func admitDefaultBus(bus busRef) *awserr.Error {
 // errNilBus is the cause of admitting a busRef that is nil, a bug in
 // whatever built it.
 var errNilBus = errors.New("events: the event bus reference is nil, so no bus was checked; parseBus builds every busRef")
+
+// lookupBus returns the bus name of scope as State.bus does; a scope
+// without a state cell has only its default bus, created at at.
+func (s *Service) lookupBus(scope aws.Scope, name string, at clock.Instant) (Bus, bool) {
+	empty := newState(scope)
+	b, ok := empty.bus(name, at)
+	s.read(scope, func(st *State) { b, ok = st.bus(name, at) })
+	return b, ok
+}
 
 // ruleRef locates a rule: its scope, its bus's name and its name. Rule
 // names are unique per bus (eventbridge-buses.md 10.2.3).
@@ -159,31 +194,295 @@ func parseRuleARN(s string) (ruleRef, bool) {
 	return ruleRef{scope: scope, bus: bus, name: name}, true
 }
 
-// bindBuses binds the event bus operations: the default bus only.
+// bindBuses binds the event bus operations with the coverage notes of
+// eventbridge-buses.md 10.1.
 func (s *Service) bindBuses(b eventbridgeapi.Binder) {
-	b.DescribeEventBus(s.describeEventBus, registry.Partial{Note: "the default bus only, with its Name and Arn; custom buses are not implemented"})
-	b.ListEventBuses(s.listEventBuses, registry.Partial{Note: "the default bus only, with its Name and Arn; custom buses are not implemented"})
+	b.CreateEventBus(s.createEventBus,
+		registry.Partial{Note: "custom buses; EventSourceName (partner buses) answers NotImplemented; " +
+			"KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged"},
+		kernel.WithCheck(checkCreateEventBus),
+		namedBus(func(in *eventbridgeapi.CreateEventBusInput) *string { return &in.Name }))
+	b.DescribeEventBus(s.describeEventBus, registry.Full{},
+		namedBus(func(in *eventbridgeapi.DescribeEventBusInput) *string { return in.Name }))
+	b.ListEventBuses(s.listEventBuses, registry.Full{})
+	b.UpdateEventBus(s.updateEventBus,
+		registry.StoredOnly{Note: "Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged"},
+		namedBus(func(in *eventbridgeapi.UpdateEventBusInput) *string { return in.Name }))
+	b.DeleteEventBus(s.deleteEventBus, registry.Full{},
+		namedBus(func(in *eventbridgeapi.DeleteEventBusInput) *string { return &in.Name }))
 }
 
-func (*Service) describeEventBus(_ context.Context, c *kernel.Call, in *eventbridgeapi.DescribeEventBusInput) (*eventbridgeapi.DescribeEventBusOutput, *awserr.Error) {
-	if err := requireDefaultBus(c.Scope(), in.Name); err != nil {
+// maxBuses is how many buses an account holds per region, the default bus
+// among them (eventbridge-buses.md 7, Custom Event Bus - Classic).
+const maxBuses = 100
+
+// checkCreateEventBus runs CreateEventBus's stateless checks before fault
+// rules: a partner bus is not implemented (eventbridge-buses.md 10.7), and
+// a custom bus cannot be named default or hold a '/' (eventbridge-buses.md
+// 2.2).
+func checkCreateEventBus(in *eventbridgeapi.CreateEventBusInput) *awserr.Error {
+	switch {
+	case in.EventSourceName != nil:
+		return errPartnerBus()
+	case in.Name == defaultBus:
+		return errReservedBusName()
+	case strings.Contains(in.Name, "/"):
+		return errSlashInBusName()
+	}
+	return nil
+}
+
+// createEventBus creates a custom bus, storing its settings as sent and
+// applying none (events.bus.kms-key-check), and echoes each optional member
+// the request carried (eventbridge-buses.md 3.1).
+func (s *Service) createEventBus(_ context.Context, c *kernel.Call, in *eventbridgeapi.CreateEventBusInput) (*eventbridgeapi.CreateEventBusOutput, *awserr.Error) {
+	scope := c.Scope()
+	_, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+		if _, ok := st.Buses[in.Name]; ok {
+			return struct{}{}, errBusExists(in.Name)
+		}
+		if st.countsTowardQuota() >= maxBuses {
+			return struct{}{}, errTooManyBuses()
+		}
+		tags := tagMap(in.Tags)
+		if len(tags) > maxTags {
+			return struct{}{}, errTooManyTags(len(tags))
+		}
+		st.setBus(Bus{
+			Name:             in.Name,
+			Description:      nonEmpty(in.Description),
+			KMSKeyIdentifier: nonEmpty(in.KmsKeyIdentifier),
+			DeadLetter:       deadLetterOf(in.DeadLetterConfig),
+			Log:              logOf(in.LogConfig),
+			Tags:             tags,
+			Created:          c.Admitted(),
+			Modified:         c.Admitted(),
+		}, c.Admitted())
+		return struct{}{}, nil
+	})
+	if err != nil {
 		return nil, err
 	}
-	arn := busARN(c.Scope(), defaultBus)
-	c.Touch(arn)
-	return &eventbridgeapi.DescribeEventBusOutput{Name: new(defaultBus), Arn: new(arn.String())}, nil
+	return &eventbridgeapi.CreateEventBusOutput{
+		EventBusArn:      new(busARN(scope, in.Name).String()),
+		Description:      copyOf(in.Description),
+		KmsKeyIdentifier: copyOf(in.KmsKeyIdentifier),
+		DeadLetterConfig: deadLetterOf(in.DeadLetterConfig).api(),
+		LogConfig:        logOf(in.LogConfig).api(),
+	}, nil
 }
 
-func (*Service) listEventBuses(_ context.Context, c *kernel.Call, in *eventbridgeapi.ListEventBusesInput) (*eventbridgeapi.ListEventBusesOutput, *awserr.Error) {
-	var buses []eventbridgeapi.EventBus
-	if in.NamePrefix == nil || strings.HasPrefix(defaultBus, *in.NamePrefix) {
-		buses = append(buses, eventbridgeapi.EventBus{Name: new(defaultBus), Arn: new(busARN(c.Scope(), defaultBus).String())})
+// describeEventBus describes a bus of the caller's scope by name or ARN
+// (eventbridge-buses.md 3.2); another scope's bus is not one understudy
+// manages for the caller.
+func (s *Service) describeEventBus(_ context.Context, c *kernel.Call, in *eventbridgeapi.DescribeEventBusInput) (*eventbridgeapi.DescribeEventBusOutput, *awserr.Error) {
+	var name string
+	switch b := parseBus(c.Scope(), in.Name).(type) {
+	case ownBus:
+		name = b.name
+	case foreignBus:
+		return nil, errForeignBus(b.arn())
+	case missingBus:
+		return nil, errBusNotFound(b.name)
+	default:
+		return nil, awserr.Internalf(errNilBus)
 	}
-	out, next, err := page(buses, in.NextToken, in.Limit)
+	bus, ok := s.lookupBus(c.Scope(), name, c.Admitted())
+	if !ok {
+		return nil, errBusNotFound(name)
+	}
+	return &eventbridgeapi.DescribeEventBusOutput{
+		Name:             new(bus.Name),
+		Arn:              new(busARN(c.Scope(), bus.Name).String()),
+		Description:      copyOf(bus.Description),
+		KmsKeyIdentifier: copyOf(bus.KMSKeyIdentifier),
+		DeadLetterConfig: bus.DeadLetter.api(),
+		Policy:           bus.policyText(),
+		LogConfig:        bus.Log.api(),
+		CreationTime:     new(bus.Created.Wire()),
+		LastModifiedTime: new(bus.Modified.Wire()),
+	}, nil
+}
+
+// listEventBuses lists every bus of the caller's scope, the default bus
+// included, by name (eventbridge-buses.md 3.3, events.list-buses.order).
+func (s *Service) listEventBuses(_ context.Context, c *kernel.Call, in *eventbridgeapi.ListEventBusesInput) (*eventbridgeapi.ListEventBusesOutput, *awserr.Error) {
+	empty := newState(c.Scope())
+	all := empty.buses(c.Admitted())
+	s.read(c.Scope(), func(st *State) { all = st.buses(c.Admitted()) })
+	var listed []eventbridgeapi.EventBus
+	for i := range all {
+		b := &all[i]
+		if in.NamePrefix != nil && !strings.HasPrefix(b.Name, *in.NamePrefix) {
+			continue
+		}
+		listed = append(listed, eventbridgeapi.EventBus{
+			Name:             new(b.Name),
+			Arn:              new(busARN(c.Scope(), b.Name).String()),
+			Description:      copyOf(b.Description),
+			Policy:           b.policyText(),
+			CreationTime:     new(b.Created.Wire()),
+			LastModifiedTime: new(b.Modified.Wire()),
+		})
+	}
+	out, next, err := page(listed, in.NextToken, in.Limit)
 	if err != nil {
 		return nil, err
 	}
 	return &eventbridgeapi.ListEventBusesOutput{EventBuses: out, NextToken: next}, nil
+}
+
+// updateEventBus replaces each setting the request sends and keeps each it
+// omits (events.update-bus.omitted-members); an empty Description or
+// KmsKeyIdentifier clears it. No Name, or default, updates the default bus,
+// which this materializes (eventbridge-buses.md 3.4, 10.2.2).
+func (s *Service) updateEventBus(_ context.Context, c *kernel.Call, in *eventbridgeapi.UpdateEventBusInput) (*eventbridgeapi.UpdateEventBusOutput, *awserr.Error) {
+	name := defaultBus
+	if in.Name != nil && *in.Name != "" {
+		name = *in.Name
+	}
+	bus, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, _ *kernel.Tx) (Bus, *awserr.Error) {
+		bus, ok := st.bus(name, c.Admitted())
+		if !ok {
+			return Bus{}, errBusNotFound(name)
+		}
+		if in.Description != nil {
+			bus.Description = nonEmpty(in.Description)
+		}
+		if in.KmsKeyIdentifier != nil {
+			bus.KMSKeyIdentifier = nonEmpty(in.KmsKeyIdentifier)
+		}
+		if in.DeadLetterConfig != nil {
+			bus.DeadLetter = deadLetterOf(in.DeadLetterConfig)
+		}
+		if in.LogConfig != nil {
+			bus.Log = logOf(in.LogConfig)
+		}
+		bus.Modified = c.Admitted()
+		st.setBus(bus, c.Admitted())
+		return bus, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &eventbridgeapi.UpdateEventBusOutput{
+		Arn:              new(busARN(c.Scope(), bus.Name).String()),
+		Name:             new(bus.Name),
+		Description:      copyOf(bus.Description),
+		KmsKeyIdentifier: copyOf(bus.KMSKeyIdentifier),
+		DeadLetterConfig: bus.DeadLetter.api(),
+		LogConfig:        bus.Log.api(),
+	}, nil
+}
+
+// deleteEventBus deletes a custom bus with its tags and policy. The default
+// bus cannot be deleted, deleting a bus that does not exist succeeds, and a
+// bus with rules is refused (eventbridge-buses.md 3.5,
+// events.delete-bus.with-rules).
+func (s *Service) deleteEventBus(_ context.Context, c *kernel.Call, in *eventbridgeapi.DeleteEventBusInput) (*eventbridgeapi.DeleteEventBusOutput, *awserr.Error) {
+	if in.Name == defaultBus {
+		return nil, errDeleteDefaultBus()
+	}
+	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+		if _, ok := st.Buses[in.Name]; !ok {
+			tx.Unchanged()
+			return struct{}{}, nil
+		}
+		if len(st.Rules[in.Name]) > 0 {
+			return struct{}{}, errBusHasRules(in.Name)
+		}
+		delete(st.Buses, in.Name)
+		st.used(c.Admitted())
+		return struct{}{}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &eventbridgeapi.DeleteEventBusOutput{}, nil
+}
+
+// policyText is the bus's Policy member, nil when it has no policy.
+func (b *Bus) policyText() *string {
+	if b.Policy == nil {
+		return nil
+	}
+	return new(b.Policy.text())
+}
+
+// nonEmpty returns a copy of *p, or nil when p is nil or empty.
+func nonEmpty(p *string) *string {
+	if p == nil || *p == "" {
+		return nil
+	}
+	return new(*p)
+}
+
+// deadLetterOf is a request's DeadLetterConfig as stored, nil when absent.
+func deadLetterOf(d *eventbridgeapi.DeadLetterConfig) *DeadLetterConfig {
+	if d == nil {
+		return nil
+	}
+	return &DeadLetterConfig{ARN: copyOf(d.Arn)}
+}
+
+// api is the stored DeadLetterConfig as sent, nil when absent.
+func (d *DeadLetterConfig) api() *eventbridgeapi.DeadLetterConfig {
+	if d == nil {
+		return nil
+	}
+	return &eventbridgeapi.DeadLetterConfig{Arn: copyOf(d.ARN)}
+}
+
+// logOf is a request's LogConfig as stored, NONE and OFF included; nil when
+// absent.
+func logOf(l *eventbridgeapi.LogConfig) *LogConfig {
+	if l == nil {
+		return nil
+	}
+	return &LogConfig{IncludeDetail: copyOf(l.IncludeDetail), Level: copyOf(l.Level)}
+}
+
+// api is the stored LogConfig as sent, nil when absent.
+func (l *LogConfig) api() *eventbridgeapi.LogConfig {
+	if l == nil {
+		return nil
+	}
+	return &eventbridgeapi.LogConfig{IncludeDetail: copyOf(l.IncludeDetail), Level: copyOf(l.Level)}
+}
+
+// busSwitches are the bus behaviors chosen without AWS-recorded evidence
+// (eventbridge-buses.md 10.5). The handlers implement each Value; a value
+// is a constant, not an option.
+func busSwitches() []fidelity.Switch[string] {
+	sw := func(name, value string, label evidence.Label, anchor, record string, ops ...string) fidelity.Switch[string] {
+		return fidelity.Switch[string]{
+			Name:    name,
+			Value:   value,
+			Label:   label,
+			Ref:     "docs/research/eventbridge-buses.md#" + anchor,
+			Record:  record,
+			Ops:     ops,
+			Settles: fidelity.NoScenario{Reason: "unrecorded: " + record + " (eventbridge-buses.md 12) records it"},
+		}
+	}
+	return []fidelity.Switch[string]{
+		// DeleteEventBus refuses a bus that still has rules, which the API
+		// reference says "need to be deleted" (deleteEventBus).
+		sw("events.delete-bus.with-rules", "rejected", evidence.AWSDoc, "35-deleteeventbus", "EBB-01", "eventbridge.DeleteEventBus"),
+		// UpdateEventBus keeps a member it omits (updateEventBus).
+		sw("events.update-bus.omitted-members", "kept", evidence.Inferred, "34-updateeventbus", "EBB-04", "eventbridge.UpdateEventBus"),
+		// A KmsKeyIdentifier is stored without checking that the key
+		// exists or grants EventBridge (createEventBus, updateEventBus).
+		sw("events.bus.kms-key-check", "none", evidence.Inferred, "31-createeventbus", "EBB-05",
+			"eventbridge.CreateEventBus", "eventbridge.UpdateEventBus"),
+		// ListEventBuses sorts by name, the default bus among the rest
+		// (State.buses).
+		sw("events.list-buses.order", "by-name", evidence.Inferred, "33-listeventbuses", "EBB-07", "eventbridge.ListEventBuses"),
+		// Until a write stores it, the default bus was created and last
+		// modified at the scope's first use (State.bus).
+		sw("events.default-bus.creation-time", "first-use", evidence.Inferred, "36-the-default-bus", "EBB-07",
+			"eventbridge.DescribeEventBus", "eventbridge.ListEventBuses"),
+	}
 }
 
 // defaultPageSize is the page size of a List call without Limit; the

@@ -15,22 +15,76 @@ import (
 // overlay's validationError identity is the code clients key on
 // (tf-compute.md 4.3).
 
-func errRuleNotFound(name string) *awserr.Error {
-	return eventbridgeapi.ErrResourceNotFoundException("Rule " + name + " does not exist on EventBus " + defaultBus + ".")
+// errRuleNotFound quotes the rule's bus by name, the default bus included
+// (eventbridge-buses.md 5.4).
+func errRuleNotFound(rule, bus string) *awserr.Error {
+	return eventbridgeapi.ErrResourceNotFoundException("Rule " + rule + " does not exist on EventBus " + bus + ".")
 }
 
 func errBusNotFound(name string) *awserr.Error {
 	return eventbridgeapi.ErrResourceNotFoundException("Event bus " + name + " does not exist.")
 }
 
+// errBusExists is third-party-recorded (eventbridge-buses.md 3.1).
+func errBusExists(name string) *awserr.Error {
+	return eventbridgeapi.ErrResourceAlreadyExistsException("Event bus " + name + " already exists.")
+}
+
+// errDeleteDefaultBus is third-party-recorded (eventbridge-buses.md 3.5).
+func errDeleteDefaultBus() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Cannot delete event bus " + defaultBus + ".")
+}
+
+// errReservedBusName and errSlashInBusName are inferred: the CreateEventBus
+// page states both refusals, and AWS's texts are unrecorded
+// (eventbridge-buses.md 2.2, EBB-02). Each is that page's sentence.
+func errReservedBusName() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("You can't use the name " + defaultBus + " for a custom event bus.")
+}
+
+func errSlashInBusName() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Custom event bus names can't contain the / character.")
+}
+
+// errTooManyBuses is inferred: the model declares LimitExceededException for
+// CreateEventBus, and the recorded target-limit text is assumed to be shared
+// (eventbridge-buses.md 7, EBB-02).
+func errTooManyBuses() *awserr.Error {
+	return eventbridgeapi.ErrLimitExceededException("The requested resource exceeds the maximum number allowed.")
+}
+
+// errBusHasRules is inferred: DeleteEventBus requires that "All rules
+// associated with this event bus need to be deleted", and AWS's answer to a
+// bus that still has rules is unrecorded (eventbridge-buses.md 3.5, EBB-01;
+// the events.delete-bus.with-rules switch).
+func errBusHasRules(name string) *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Cannot delete event bus " + name + ". All rules associated with this event bus need to be deleted.")
+}
+
+// errPartnerBus is understudy's own answer to CreateEventBus with an
+// EventSourceName: partner buses are out of scope, and a plain custom bus in
+// its place would fake one (eventbridge-buses.md 10.7).
+func errPartnerBus() *awserr.Error {
+	return eventbridgeapi.ErrNotImplemented("understudy does not implement partner event buses, so CreateEventBus with EventSourceName created nothing. " +
+		"Create a custom bus without EventSourceName, or run 'understudy coverage --service eventbridge' for what is supported.")
+}
+
 // errForeignBus is understudy's own answer to a control-plane call on
-// another account's or region's default bus: that bus exists, so "does not
+// another account's or region's bus: that bus may exist, so "does not
 // exist" would mislead, and understudy does not manage it for this caller.
 func errForeignBus(bus aws.ARN) *awserr.Error {
-	return eventbridgeapi.ErrNotImplemented("understudy manages rules, targets and buses only on the caller's own default event bus, and " +
+	return eventbridgeapi.ErrNotImplemented("understudy manages rules, targets and buses only on the caller's own event buses, and " +
 		bus.String() + " belongs to account " + bus.Account + " in " + bus.Region +
-		". Call with that account's credentials in that region, or name the bus 'default'. " +
+		". Call with that account's credentials in that region. " +
 		"Run 'understudy coverage --service eventbridge' for what is supported.")
+}
+
+// errCustomBusRules is understudy's own answer to a rule or target call on
+// one of the caller's custom buses: understudy keeps rules on the default
+// bus only, and the bus exists, so "does not exist" would mislead.
+func errCustomBusRules(bus string) *awserr.Error {
+	return eventbridgeapi.ErrNotImplemented("understudy manages rules and targets only on the default event bus, and " + bus +
+		" is a custom bus; nothing was changed. Use the default bus, or run 'understudy coverage --service eventbridge' for what is supported.")
 }
 
 // errNoPatternOrSchedule carries moto's text; AWS's is unrecorded.
@@ -83,12 +137,6 @@ func errEntriesTooLarge() *awserr.Error {
 	return eventbridgeapi.ErrValidationException("Total size of the entries in the request is over the limit.")
 }
 
-// errBusTags is understudy's own answer: the default bus takes no tags here,
-// and accepting them without storing them would fail silently.
-func errBusTags() *awserr.Error {
-	return eventbridgeapi.ErrNotImplemented("understudy keeps tags on rules only, not on event buses. Run 'understudy coverage --service eventbridge' for what is supported.")
-}
-
 // The PutEvents per-entry failures (secrets-logs-events-alarms.md 4.7):
 // HTTP 200 with the code and message in the entry.
 const (
@@ -131,11 +179,12 @@ func errTooManyTags(n int) *awserr.Error {
 const codeNotImplemented = "NotImplemented"
 
 // msgForeignRegionBus is understudy's PutEvents per-entry failure for an
-// event sent, by ARN, to the default bus of another region: that bus
-// exists, so dropping the event as AWS drops one for a missing bus would
-// fail silently, and AWS's answer is unrecorded.
+// event sent, by ARN, to a bus of another region: that bus may exist, so
+// dropping the event as AWS drops one for a missing bus would fail
+// silently, and AWS's answer is unrecorded (eventbridge-buses.md 6.1,
+// EBB-10).
 func msgForeignRegionBus(scope aws.Scope, bus aws.ARN) string {
-	return "understudy sends PutEvents entries to default event buses in the caller's region (" + scope.Region.String() +
+	return "understudy sends PutEvents entries to event buses in the caller's region (" + scope.Region.String() +
 		"), and " + bus.String() + " is in " + bus.Region + "; the event was not sent. " +
 		"Call PutEvents in " + bus.Region + ", or run 'understudy coverage --service eventbridge' for what is supported."
 }

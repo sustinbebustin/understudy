@@ -198,7 +198,7 @@ Behavior that differs from AWS in ways a test can observe is listed in [docs/gui
 - **SNS** stores HTTP/S and email subscriptions and their confirmation flow but sends them nothing; SMS, mobile push and Firehose subscriptions answer 501.
 - **S3** has no MFA delete or Object Lock event holds, and `s3:BypassGovernanceRetention` is not evaluated. SSE-C works only over `--tls` and on a bucket whose encryption configuration unblocks it, as on AWS since April 2026.
 - **CloudWatch** alarms are stored and never evaluated. `GetMetricStatistics` answers 501, and `GetMetricData` has no metric math.
-- **EventBridge** has only the default bus (`CreateEventBus` answers 501). `terraform import` of an SQS queue fails on the queue URL form.
+- **EventBridge** keeps rules on the default bus only: a rule or target call on a custom bus answers `NotImplemented`. `terraform import` of an SQS queue fails on the queue URL form.
 - **Snapshots** use format version 0: archives from one build may be refused by another until the first release. The TLS listener's certificate is new at every start.
 
 ## Documentation

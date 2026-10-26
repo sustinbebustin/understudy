@@ -30,20 +30,20 @@ type Service struct {
 	patterns *patternCache
 }
 
-// declareAccess states what PutRule and PutTargets touch and use besides
-// their primary action: each IAM role the input passes (RoleArn), on which
-// the access record keeps iam:PassRole, and events:TagResource for a rule
-// created with tags (PutRule, Permissions). It runs after the bind sites,
-// whose bindings it extends.
+// declareAccess states what CreateEventBus, PutRule and PutTargets touch
+// and use besides their primary action: each IAM role the input passes
+// (RoleArn), on which the access record keeps iam:PassRole, and
+// events:TagResource for a bus or rule created with tags (CreateEventBus
+// and PutRule, Permissions). It runs after the bind sites, whose bindings
+// it extends.
 func declareAccess(b *kernel.Binder) {
+	kernel.Declare(b, eventbridgeapi.OpCreateEventBus,
+		kernel.WithActions(func(_ *kernel.Call, in *eventbridgeapi.CreateEventBusInput) []registry.IAMAction {
+			return tagActions(in.Tags)
+		}))
 	kernel.Declare(b, eventbridgeapi.OpPutRule,
 		kernel.WithResources(func(_ *kernel.Call, in *eventbridgeapi.PutRuleInput) []aws.ARN { return passedRoles(in.RoleArn) }),
-		kernel.WithActions(func(_ *kernel.Call, in *eventbridgeapi.PutRuleInput) []registry.IAMAction {
-			if len(in.Tags) == 0 {
-				return nil
-			}
-			return []registry.IAMAction{{Prefix: "events", Name: "TagResource"}}
-		}))
+		kernel.WithActions(func(_ *kernel.Call, in *eventbridgeapi.PutRuleInput) []registry.IAMAction { return tagActions(in.Tags) }))
 	kernel.Declare(b, eventbridgeapi.OpPutTargets,
 		kernel.WithResources(func(_ *kernel.Call, in *eventbridgeapi.PutTargetsInput) []aws.ARN {
 			roles := make([]*string, 0, len(in.Targets))
@@ -52,6 +52,15 @@ func declareAccess(b *kernel.Binder) {
 			}
 			return passedRoles(roles...)
 		}))
+}
+
+// tagActions is events:TagResource for a create call that tags what it
+// creates, and nothing for one without tags.
+func tagActions(tags []eventbridgeapi.Tag) []registry.IAMAction {
+	if len(tags) == 0 {
+		return nil
+	}
+	return []registry.IAMAction{{Prefix: "events", Name: "TagResource"}}
 }
 
 // passedRoles are the IAM roles among roles; a value that is not an IAM
@@ -146,8 +155,12 @@ func detailIntegerRange() fidelity.Switch[string] {
 func (s *Service) Switches() []fidelity.Entry {
 	profile := ruler.Switches(s.profile)
 	table := rulerSwitches()
-	out := make([]fidelity.Entry, 0, 3+len(profile))
+	buses := busSwitches()
+	out := make([]fidelity.Entry, 0, 3+len(buses)+len(profile))
 	out = append(out, rateRestart().Entry(), unmatchedInputPath().Entry(), detailIntegerRange().Entry())
+	for _, sw := range buses {
+		out = append(out, sw.Entry())
+	}
 	for _, sw := range profile {
 		m := table[sw.Name]
 		out = append(out, fidelity.Switch[string]{

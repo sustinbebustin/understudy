@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -95,6 +96,56 @@ func (s *State) deleteRule(bus, name string) {
 	}
 }
 
+// bus returns the bus name: its stored record, or for a default bus no
+// write has materialized, the record one would store, created and modified
+// at the scope's first use, or at when nothing has changed the scope
+// (eventbridge-buses.md 10.2.2, events.default-bus.creation-time). ok is
+// false for a custom bus the scope does not hold.
+func (s *State) bus(name string, at clock.Instant) (Bus, bool) {
+	if b, ok := s.Buses[name]; ok {
+		return b, true
+	}
+	if name != defaultBus {
+		return Bus{}, false
+	}
+	first := s.FirstUse
+	if first.IsZero() {
+		first = at
+	}
+	return Bus{Name: defaultBus, Created: first, Modified: first}, true
+}
+
+// setBus stores b, which materializes the default bus, as a write admitted
+// at at.
+func (s *State) setBus(b Bus, at clock.Instant) {
+	s.Buses[b.Name] = b
+	s.used(at)
+}
+
+// buses returns every bus of the scope, the default bus included whether or
+// not a write materialized it, sorted by name (events.list-buses.order).
+func (s *State) buses(at clock.Instant) []Bus {
+	out := make([]Bus, 0, len(s.Buses)+1)
+	if _, ok := s.Buses[defaultBus]; !ok {
+		def, _ := s.bus(defaultBus, at)
+		out = append(out, def)
+	}
+	for _, b := range s.Buses {
+		out = append(out, b)
+	}
+	slices.SortFunc(out, func(a, b Bus) int { return strings.Compare(a.Name, b.Name) })
+	return out
+}
+
+// countsTowardQuota is how many buses the scope holds against the bus
+// quota: every custom bus and the default bus (eventbridge-buses.md 7).
+func (s *State) countsTowardQuota() int {
+	if _, ok := s.Buses[defaultBus]; ok {
+		return len(s.Buses)
+	}
+	return len(s.Buses) + 1
+}
+
 // Bus is one event bus of a scope: a custom bus as CreateEventBus and
 // UpdateEventBus last set it, or the default bus once a write materializes
 // it (eventbridge-buses.md 10.2.1, 10.2.2). Its ARN derives from the scope
@@ -129,6 +180,29 @@ type Policy struct {
 	// Document is the text PutPermission's Policy member stored, returned
 	// verbatim until a statement call changes Statements; nil otherwise.
 	Document *string `json:"document,omitempty"`
+}
+
+// policyVersion is the Version of a policy document understudy writes.
+const policyVersion = "2012-10-17"
+
+// text is the policy as DescribeEventBus and ListEventBuses return it: the
+// document PutPermission's Policy member stored, verbatim, or else a
+// document of the statements in order, compact and without an Id
+// (eventbridge-buses.md 4.2).
+func (p *Policy) text() string {
+	if p.Document != nil {
+		return *p.Document
+	}
+	var b strings.Builder
+	b.WriteString(`{"Version":"` + policyVersion + `","Statement":[`)
+	for i, st := range p.Statements {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(st.JSON)
+	}
+	b.WriteString("]}")
+	return b.String()
 }
 
 // PolicyStatement is one statement of a bus policy, kept as its JSON text

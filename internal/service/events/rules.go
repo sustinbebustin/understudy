@@ -95,7 +95,7 @@ func (s *Service) wildcardRules(st *State, bus, name string) int {
 // putRule creates or replaces a rule: omitted members become empty, while
 // its tags and targets stay (secrets-logs-events-alarms.md 4.1).
 func (s *Service) putRule(_ context.Context, c *kernel.Call, in *eventbridgeapi.PutRuleInput) (*eventbridgeapi.PutRuleOutput, *awserr.Error) {
-	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
+	if err := s.requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
 		return nil, err
 	}
 	trigger, err := newTrigger(in.EventPattern, in.ScheduleExpression)
@@ -173,13 +173,13 @@ func (s *Service) armSchedule(tx *kernel.Tx, ref ruleRef, next clock.Instant) {
 }
 
 func (s *Service) describeRule(_ context.Context, c *kernel.Call, in *eventbridgeapi.DescribeRuleInput) (*eventbridgeapi.DescribeRuleOutput, *awserr.Error) {
-	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
+	if err := s.requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
 		return nil, err
 	}
 	r := ruleRef{scope: c.Scope(), bus: defaultBus, name: in.Name}
 	rule, ok := s.rule(r)
 	if !ok {
-		return nil, errRuleNotFound(in.Name)
+		return nil, errRuleNotFound(r.name, r.bus)
 	}
 	listed := listedRule(r, &rule)
 	return &eventbridgeapi.DescribeRuleOutput{
@@ -218,7 +218,7 @@ func listedRule(r ruleRef, rule *Rule) eventbridgeapi.Rule {
 // listRules lists the rules by name, those starting with NamePrefix when
 // it is set.
 func (s *Service) listRules(_ context.Context, c *kernel.Call, in *eventbridgeapi.ListRulesInput) (*eventbridgeapi.ListRulesOutput, *awserr.Error) {
-	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
+	if err := s.requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
 		return nil, err
 	}
 	var listed []eventbridgeapi.Rule
@@ -242,7 +242,7 @@ func (s *Service) listRules(_ context.Context, c *kernel.Call, in *eventbridgeap
 // another service manages, which understudy has none of). Deleting a rule
 // that does not exist succeeds and changes nothing, as on AWS.
 func (s *Service) deleteRule(_ context.Context, c *kernel.Call, in *eventbridgeapi.DeleteRuleInput) (*eventbridgeapi.DeleteRuleOutput, *awserr.Error) {
-	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
+	if err := s.requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
 		return nil, err
 	}
 	r := ruleRef{scope: c.Scope(), bus: defaultBus, name: in.Name}
@@ -283,14 +283,14 @@ func (s *Service) disableRule(_ context.Context, c *kernel.Call, in *eventbridge
 // setState enables or disables a rule. Disabling stops its schedule;
 // enabling a disabled rule restarts it.
 func (s *Service) setState(c *kernel.Call, bus *string, name string, state eventbridgeapi.RuleState) *awserr.Error {
-	if err := requireDefaultBus(c.Scope(), bus); err != nil {
+	if err := s.requireDefaultBus(c.Scope(), bus); err != nil {
 		return err
 	}
 	r := ruleRef{scope: c.Scope(), bus: defaultBus, name: name}
 	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		prev, ok := st.rule(r.bus, r.name)
 		if !ok {
-			return struct{}{}, errRuleNotFound(r.name)
+			return struct{}{}, errRuleNotFound(r.name, r.bus)
 		}
 		rule := prev
 		rule.State = state
@@ -305,7 +305,7 @@ func (s *Service) setState(c *kernel.Call, bus *string, name string, state event
 // listRuleNamesByTarget lists, by name, the rules with a target whose Arn
 // is TargetArn.
 func (s *Service) listRuleNamesByTarget(_ context.Context, c *kernel.Call, in *eventbridgeapi.ListRuleNamesByTargetInput) (*eventbridgeapi.ListRuleNamesByTargetOutput, *awserr.Error) {
-	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
+	if err := s.requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
 		return nil, err
 	}
 	var names []string

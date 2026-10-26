@@ -119,7 +119,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 |---|---|---|---|---|---|---|---|
 | cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
 | dynamodb | 58 | 6 | 2 | 18 | 32 | 0 | 0 |
-| eventbridge | 57 | 9 | 0 | 8 | 40 | 0 | 0 |
+| eventbridge | 57 | 15 | 1 | 4 | 37 | 0 | 0 |
 | iam | 180 | 42 | 6 | 16 | 116 | 1 | 0 |
 | kms | 54 | 19 | 3 | 5 | 27 | 0 | 0 |
 | lambda | 88 | 25 | 2 | 14 | 47 | 0 | 2 |
@@ -257,30 +257,32 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
+| DeleteEventBus | full | aws-doc, 1 of 3 claims |  |
 | DeleteRule | full | third-party-recorded, 2 of 2 claims |  |
+| DescribeEventBus | full | inferred, 1 of 3 claims |  |
 | DescribeRule | full | third-party-recorded, 2 of 2 claims |  |
 | DisableRule | full | third-party-recorded, 2 of 2 claims |  |
 | EnableRule | full | inferred, 1 of 3 claims |  |
+| ListEventBuses | full | inferred, 2 of 4 claims |  |
 | ListRuleNamesByTarget | full | third-party-recorded, 2 of 2 claims |  |
 | ListRules | full | third-party-recorded, 2 of 2 claims |  |
+| ListTagsForResource | full | third-party-recorded, 2 of 2 claims |  |
 | ListTargetsByRule | full | third-party-recorded, 2 of 2 claims |  |
 | RemoveTargets | full | third-party-recorded, 2 of 2 claims |  |
+| TagResource | full | third-party-recorded, 2 of 2 claims |  |
 | TestEventPattern | full | contradicted (events/R14/H14-01.json), 5 of 25 claims |  |
-| DescribeEventBus | partial | third-party-recorded, 2 of 2 claims | the default bus only, with its Name and Arn; custom buses are not implemented |
-| ListEventBuses | partial | third-party-recorded, 2 of 2 claims | the default bus only, with its Name and Arn; custom buses are not implemented |
-| ListTagsForResource | partial | third-party-recorded, 2 of 2 claims | rules only; the default bus takes no tags |
-| PutEvents | partial | contradicted (events/R14/H14-02.json), 1 of 8 claims | default buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
+| UntagResource | full | third-party-recorded, 2 of 2 claims |  |
+| UpdateEventBus | stored-only | inferred, 2 of 4 claims | Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged |
+| CreateEventBus | partial | inferred, 1 of 3 claims | custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged |
+| PutEvents | partial | contradicted (events/R14/H14-02.json), 1 of 8 claims | default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
 | PutRule | partial | contradicted (events/R14/H14-01.json), 1 of 7 claims | the default bus only; RoleArn is stored, not used |
 | PutTargets | partial | third-party-recorded, 2 of 2 claims | Lambda function, SQS queue and SNS topic targets in the rule's region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented |
-| TagResource | partial | third-party-recorded, 2 of 2 claims | rules only; the default bus takes no tags |
-| UntagResource | partial | third-party-recorded, 2 of 2 claims | rules only; the default bus takes no tags |
 | ActivateEventSource | unbound | unassessed |  |
 | CancelReplay | unbound | unassessed |  |
 | CreateApiDestination | unbound | unassessed |  |
 | CreateArchive | unbound | unassessed |  |
 | CreateConnection | unbound | unassessed |  |
 | CreateEndpoint | unbound | unassessed |  |
-| CreateEventBus | unbound | unassessed |  |
 | CreatePartnerEventSource | unbound | unassessed |  |
 | DeactivateEventSource | unbound | unassessed |  |
 | DeauthorizeConnection | unbound | unassessed |  |
@@ -288,7 +290,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | DeleteArchive | unbound | unassessed |  |
 | DeleteConnection | unbound | unassessed |  |
 | DeleteEndpoint | unbound | unassessed |  |
-| DeleteEventBus | unbound | unassessed |  |
 | DeletePartnerEventSource | unbound | unassessed |  |
 | DescribeApiDestination | unbound | unassessed |  |
 | DescribeArchive | unbound | unassessed |  |
@@ -313,7 +314,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | UpdateArchive | unbound | unassessed |  |
 | UpdateConnection | unbound | unassessed |  |
 | UpdateEndpoint | unbound | unassessed |  |
-| UpdateEventBus | unbound | unassessed |  |
 
 ### iam
 
@@ -1059,13 +1059,14 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-87 switches: 1 aws-recorded, 1 third-party-recorded, 14 aws-doc, 71 inferred.
+92 switches: 1 aws-recorded, 1 third-party-recorded, 15 aws-doc, 75 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
 | `s3.encryption.after-delete` | `default-sse-s3` | aws-recorded | docs/research/s3-ssec-object-lock.md#2-what-the-repos-recordings-already-settled | none: s3/R06/02-get-encryption-after-delete.json is recorded; the replayer skips S3's REST requests |
 | `s3.object-lock.bypass-without-lock` | `refused` | third-party-recorded | docs/research/s3-ssec-object-lock.md#73-the-bypass-header-on-a-bucket-without-object-lock | none: unrecorded: S3SOL-23 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `cloudwatch.get-metric-data.start-rounding` | `by-age` | aws-doc | docs/research/secrets-logs-events-alarms.md#53-getmetricdata | none: unrecorded: no recording shows GetMetricData's period boundaries |
+| `events.delete-bus.with-rules` | `rejected` | aws-doc | docs/research/eventbridge-buses.md#35-deleteeventbus | none: unrecorded: EBB-01 (eventbridge-buses.md 12) records it |
 | `iam.assumeRole` | `strict` | aws-doc | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions | none: the switch decides AssumeRole of a role IAM does not hold, which no recording asks; sts/R15#06-assume-denied names a role that exists, refused by its trust policy |
 | `kms.pending-deletion.crypto-error` | `KMSInvalidStateException` | aws-doc | docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix | none: kms/R15/02-pending-encrypt.json and the other 02-pending steps are recorded; no scenario replays kms/R15 yet |
 | `lambda.stateTransitions` | `final` | aws-doc | docs/ARCHITECTURE.md#9-the-clock | none: a deliberate default (ARCHITECTURE.md 9), which a recording of AWS's transient states does not change |
@@ -1080,7 +1081,10 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sqs.policy.limits` | `bytes-and-statements` | aws-doc | docs/research/sqs.md#4-queue-attributes | none: unrecorded: no recording exceeds a Policy limit |
 | `sqs.receipt.stale-handle` | `succeed-without-delete` | contradicted (sqs/R01/03-recv-after-6s.json) | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | sqs/R01#03-recv-after-6s |
 | `cloudwatch.put-metric-data.timestamp-window` | `wall-or-emulator` | inferred | docs/research/secrets-logs-events-alarms.md#52-putmetricdata | none: AWS has one clock: which of understudy's two the windows read is understudy's choice, which no recording settles |
+| `events.bus.kms-key-check` | `none` | inferred | docs/research/eventbridge-buses.md#31-createeventbus | none: unrecorded: EBB-05 (eventbridge-buses.md 12) records it |
+| `events.default-bus.creation-time` | `first-use` | inferred | docs/research/eventbridge-buses.md#36-the-default-bus | none: unrecorded: EBB-07 (eventbridge-buses.md 12) records it |
 | `events.input-path.unmatched` | `not-delivered` | inferred | docs/research/secrets-logs-events-alarms.md#45-targets | none: unrecorded: no recording delivers to a target whose InputPath selects nothing |
+| `events.list-buses.order` | `by-name` | inferred | docs/research/eventbridge-buses.md#33-listeventbuses | none: unrecorded: EBB-07 (eventbridge-buses.md 12) records it |
 | `events.pattern.bare-number` | `numeric-or-text` | inferred | docs/research/matching-engines.md#10 | none: events/R14's H8 steps do not decide it: both values answer false for a string |
 | `events.pattern.empty-input` | `matchable` | aws-recorded (events/R14/H1-01.json) | docs/research/matching-engines.md#10 | events/R14#H1-01 |
 | `events.pattern.exactly-operator` | `rejected` | contradicted (events/R14/H14-01.json) | docs/research/matching-engines.md#5.1 | events/R14#H14-01 |
@@ -1091,6 +1095,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `events.pattern.wildcard-complexity-cap` | `11` | inferred | docs/research/matching-engines.md#8 | none: recorded in events/R14 (H11-01 to H11-03); the events/R14 scenario does not replay those steps yet |
 | `events.put-events.detail-integer-range` | `MalformedDetail` | inferred | https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html | none: unrecorded: no recording sends a Detail integer outside the signed 64-bit range |
 | `events.schedule.restart` | `on-schedule-change-or-enable` | inferred | docs/research/secrets-logs-events-alarms.md#42-schedule-expressions-rate-and-cron | none: events/R14 records the EnableRule half only, as arrival times (02-enable.time, 02-arrivals-after-enable.jsonl) a scenario does not replay; a PutRule schedule change is unrecorded |
+| `events.update-bus.omitted-members` | `kept` | inferred | docs/research/eventbridge-buses.md#34-updateeventbus | none: unrecorded: EBB-04 (eventbridge-buses.md 12) records it |
 | `kms.cross-account.management-error` | `NotFoundException` | inferred | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyPolicy.html | none: unrecorded: no recording names another account's key |
 | `lambda.esm-filter.bare-number` | `numeric-or-text` | inferred | docs/research/matching-engines.md#10 | none: recorded in lambda/R03 (H7a-01-create, H7a-02-create); the replayer skips REST and Docker steps |
 | `lambda.esm-filter.empty-input` | `matchable` | inferred | docs/research/matching-engines.md#10 | none: unrecorded for Lambda: matching-engines.md H1 covers SNS and EventBridge only |
