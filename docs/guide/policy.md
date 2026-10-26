@@ -67,7 +67,36 @@ Resource policies the recorded deliveries need:
 
 The policy has one statement per resource, with exact ARNs, except that S3 objects are granted per bucket as `arn:aws:s3:::<bucket>/*`. `Resource: "*"` appears only for an action of the called service whose call touched no resource of that service, such as `sqs:ListQueues` or `sts:GetCallerIdentity`. Calls that failed are included, because handled failures need permissions too; injected faults are not, nor are calls `--sigv4 verify` refused at authentication (a bad signature, an unknown key, a missing or expired session token), which on AWS never reach IAM. Writing and reading an SSE-KMS object records `kms:GenerateDataKey` and `kms:Decrypt` on the key for the caller, as AWS requires.
 
-The second part lists the resource-policy statements that SNS, S3, EventBridge and Lambda deliveries would need on AWS: a queue policy allowing the topic, a function permission allowing the rule. understudy attempts those deliveries anyway, and also journals an `advisory` event for each.
+The second part lists the resource-policy statements that SNS, S3, EventBridge and Lambda deliveries would need on AWS: a queue policy allowing the topic, a function permission allowing the rule. understudy attempts those deliveries anyway, and journals an `advisory` event for each one the target's stored policy would refuse.
+
+Only deliveries are listed. Two kinds of call are the service acting on its own behalf, which no policy grants: S3 checking that each destination exists when you configure a bucket's notifications, and DynamoDB deleting expired TTL items. Neither `iam usage` nor the resource policies list them. So a bucket that notifies a queue needs only `sqs:SendMessage` from the bucket. With `queue-policy.json` holding the queue's policy as its `Policy` attribute and `notification.json` sending `s3:ObjectCreated:*` to the queue:
+
+```json
+{"Policy":"{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"s3.amazonaws.com\"},\"Action\":\"sqs:SendMessage\",\"Resource\":\"arn:aws:sqs:us-east-1:000000000000:uploads\",\"Condition\":{\"ArnLike\":{\"aws:SourceArn\":\"arn:aws:s3:::uploads\"}}}]}"}
+```
+
+```json
+{"QueueConfigurations":[{"QueueArn":"arn:aws:sqs:us-east-1:000000000000:uploads","Events":["s3:ObjectCreated:*"]}]}
+```
+
+```sh
+aws sqs create-queue --queue-name uploads
+aws sqs set-queue-attributes --queue-url http://localhost:4566/000000000000/uploads --attributes file://queue-policy.json
+aws s3api create-bucket --bucket uploads
+aws s3api put-bucket-notification-configuration --bucket uploads --notification-configuration file://notification.json
+aws s3 cp hello.txt s3://uploads/in/hello.txt
+understudy settle
+understudy iam policy --principal arn:aws:iam::000000000000:root
+```
+
+```text
+{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:CreateBucket","s3:PutBucketNotification"],"Resource":"arn:aws:s3:::uploads"},...]}
+
+Resource policies the recorded deliveries need:
+  arn:aws:sqs:us-east-1:000000000000:uploads must allow s3.amazonaws.com to call sqs:SendMessage from arn:aws:s3:::uploads
+```
+
+The destination check is still in the journal: `understudy journal --operation sqs.GetQueueUrl --output json` shows it with `"principal":"s3.amazonaws.com","mode":"platform:s3.amazonaws.com"`.
 
 ## Review before use
 
