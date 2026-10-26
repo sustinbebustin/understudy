@@ -254,6 +254,50 @@ func TestStopWhileStartingRemovesTheContainer(t *testing.T) {
 	}
 }
 
+// TestStopDuringACreateRemovesWhatTheCreateMakes: a create the daemon has
+// received may land after its client gave up, even after a removal by name
+// found nothing, so no container may be left once Stop has returned and
+// the daemon has finished the create. Seen against a real daemon: a
+// DynamoDB Local container left in state created when serve stopped during
+// its background start.
+func TestStopDuringACreateRemovesWhatTheCreateMakes(t *testing.T) {
+	d := presentDaemon(t)
+	held, release := d.HoldNext("POST /containers/create")
+	m := manager(t, d, ddblocal.Config{})
+	answering(t, m, true)
+	started := make(chan error, 1)
+	go func() { started <- m.Start(t.Context()) }()
+	<-held
+	stopped := make(chan error, 1)
+	go func() { stopped <- m.Stop(t.Context()) }()
+	// A Stop that gives up on the create returns while it is held; one that
+	// waits for its answer returns only after the release.
+	var stopErr error
+	returned := false
+	select {
+	case stopErr = <-stopped:
+		returned = true
+	case <-time.After(200 * time.Millisecond):
+	}
+	release()
+	if !returned {
+		stopErr = <-stopped
+	}
+	if stopErr != nil {
+		t.Fatalf("Stop = %v", stopErr)
+	}
+	if err := <-started; !errors.Is(err, ddblocal.ErrStopped) {
+		t.Errorf("Start = %v, want the stopped start's error", err)
+	}
+	created := d.Created()
+	if len(created) != 1 {
+		t.Fatalf("the daemon created %d containers, want the held create's one", len(created))
+	}
+	if c, ok := d.Container(created[0].ID); ok {
+		t.Errorf("container %s (%s, %s) outlived the Stop that met its create", c.ID, c.Name, c.State.Status)
+	}
+}
+
 // TestStartRetriesAfterAFailedStart: a failed start leaves the Manager
 // stopped, so the next Start tries again.
 func TestStartRetriesAfterAFailedStart(t *testing.T) {

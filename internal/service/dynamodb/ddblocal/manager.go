@@ -248,8 +248,8 @@ func (m *Manager) Start(ctx context.Context) error {
 }
 
 // Stop removes the container and closes idle connections to it. A start in
-// progress is cancelled and its container removed. Stopping a stopped
-// Manager does nothing.
+// progress is cancelled and its container removed, once a create in flight
+// has answered. Stopping a stopped Manager does nothing.
 func (m *Manager) Stop(ctx context.Context) error {
 	removed := make(chan struct{})
 	defer close(removed)
@@ -369,13 +369,26 @@ func (m *Manager) run(ctx context.Context) (running, error) {
 	if err := m.remove(ctx, m.name()); err != nil {
 		return running{}, &StartError{Step: "remove the leftover container " + m.name(), Err: err}
 	}
-	created, err := m.cfg.Docker.ContainerCreate(ctx, m.name(), cfg, host, netCfg)
+	if err := ctx.Err(); err != nil {
+		return running{}, err
+	}
+	// The create is not cancelled with ctx: a create the daemon has received
+	// may land after its client gives up, even after a removal by name found
+	// nothing, and would then outlive understudy. Its answer names what to
+	// remove.
+	createCtx, cancelCreate := context.WithTimeout(context.WithoutCancel(ctx), createTimeout)
+	created, err := m.cfg.Docker.ContainerCreate(createCtx, m.name(), cfg, host, netCfg)
+	unanswered := createCtx.Err() != nil
+	cancelCreate()
 	switch {
-	case err != nil && ctx.Err() != nil:
-		// The daemon may have created it before the cancel reached it.
-		return running{}, errors.Join(ctx.Err(), m.remove(ctx, m.name()))
+	case err != nil && unanswered:
+		// The daemon may still create it.
+		return running{}, errors.Join(&StartError{Step: "create the container", Err: err}, m.remove(ctx, m.name()))
 	case err != nil:
 		return running{}, &StartError{Step: "create the container", Err: err}
+	case ctx.Err() != nil:
+		// Stopped while the daemon created it.
+		return running{}, errors.Join(ctx.Err(), m.remove(ctx, created.ID))
 	}
 	r, err := m.boot(ctx, created.ID)
 	if err != nil {
@@ -514,6 +527,10 @@ func (m *Manager) answers(ctx context.Context, client *http.Client, endpoint *ur
 
 // removeTimeout bounds a removal that outlives a cancelled start.
 const removeTimeout = 30 * time.Second
+
+// createTimeout bounds a create, which runs until the daemon answers even
+// when the start is cancelled.
+const createTimeout = 30 * time.Second
 
 // remove force-removes a container with its anonymous volumes; one already
 // gone is not an error.
