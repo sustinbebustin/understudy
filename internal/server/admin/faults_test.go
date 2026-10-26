@@ -69,23 +69,27 @@ func TestAmbiguousShapeListsFullIDs(t *testing.T) {
 }
 
 // AWS sends TransactionCanceledException with CancellationReasons, one per
-// item (dynamodb-local.md 4.2; the model's
-// com.amazonaws.dynamodb#TransactionCanceledException), and a rule cannot
-// set them yet, so a rule injecting it is refused, by short name or full
-// id, in any action that injects a shape, saying what to inject instead.
+// item (smithy-protocol-tests.md 12.2; the model's
+// com.amazonaws.dynamodb#TransactionCanceledException), so an error rule
+// injecting it without them is refused, by short name or full id, saying
+// how to set them; and a cancelled transaction changed nothing, so an
+// after-commit rule injecting it is refused too (smithy-protocol-tests.md
+// 14.9).
 func TestTransactionCanceledRuleIsRefused(t *testing.T) {
 	kerneltest.Run(t, func(k *kerneltest.K) {
-		for _, c := range []struct{ kind, op, shape string }{
-			{"error", "dynamodb.TransactWriteItems", "TransactionCanceledException"},
-			{"error", "dynamodb.TransactGetItems", "com.amazonaws.dynamodb#TransactionCanceledException"},
-			{"after-commit", "dynamodb.ExecuteTransaction", "TransactionCanceledException"},
+		withoutReasons := `com.amazonaws.dynamodb#TransactionCanceledException always carries CancellationReasons on AWS, one per item of the transaction in item order; ` +
+			`set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item."}]}`
+		afterCommit := "com.amazonaws.dynamodb#TransactionCanceledException means the transaction changed nothing, so AWS never sends it after a commit; " +
+			"inject it with an error action whose members set CancellationReasons"
+		for _, c := range []struct{ kind, op, shape, field, reason string }{
+			{"error", "dynamodb.TransactWriteItems", "TransactionCanceledException", "action.members", withoutReasons},
+			{"error", "dynamodb.TransactGetItems", "com.amazonaws.dynamodb#TransactionCanceledException", "action.members", withoutReasons},
+			{"after-commit", "dynamodb.ExecuteTransaction", "TransactionCanceledException", "action.shape", afterCommit},
 		} {
 			e := putShapeRule(k, c.kind, c.op, c.shape)
-			want := "fault rule rejected, no rule was added or changed: action.shape: com.amazonaws.dynamodb#TransactionCanceledException always carries " +
-				"CancellationReasons on AWS, which a fault rule cannot set yet, so the error would not be AWS's; " +
-				"to simulate a conflict, inject TransactionConflictException or ConditionalCheckFailedException on PutItem, UpdateItem or DeleteItem"
-			if e.Code != admin.InvalidRequest || e.Field != "action.shape" || e.Message != want {
-				k.Errorf("PUT a %s rule injecting %s on %s = %+v; want invalid_request on action.shape: %q", c.kind, c.shape, c.op, e, want)
+			want := "fault rule rejected, no rule was added or changed: " + c.field + ": " + c.reason
+			if e.Code != admin.InvalidRequest || e.Field != c.field || e.Message != want {
+				k.Errorf("PUT a %s rule injecting %s on %s = %+v; want invalid_request on %s: %q", c.kind, c.shape, c.op, e, c.field, want)
 			}
 		}
 	}, kerneltest.Services(dynamodbapi.Service()))
