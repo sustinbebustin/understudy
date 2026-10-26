@@ -22,9 +22,9 @@ import (
 func (s *Service) bindPolicies(b iamapi.Binder) {
 	stored := registry.StoredOnly{Note: "the document is validated and stored, not enforced"}
 	b.CreatePolicy(s.createPolicy, stored)
-	b.GetPolicy(s.getPolicy, registry.Partial{Note: catalogueSource + "; Description is the guide's text, not recorded against IAM (iam-evaluation.md 10.5)"})
+	b.GetPolicy(s.getPolicy, registry.Partial{Note: catalogueSource + "; " + catalogueShown + "; Description is the guide's text, not recorded against IAM (iam-evaluation.md 10.5)"})
 	b.DeletePolicy(s.deletePolicy, registry.Full{})
-	b.ListPolicies(s.listPolicies, registry.Partial{Note: catalogueSource + "; with both kinds listed, policies are ordered by name regardless of case, then by ARN, an order no recording covers"})
+	b.ListPolicies(s.listPolicies, registry.Partial{Note: catalogueSource + "; " + catalogueShown + "; with both kinds listed, policies are ordered by name regardless of case, then by ARN, an order no recording covers"})
 	b.CreatePolicyVersion(s.createPolicyVersion, stored)
 	b.GetPolicyVersion(s.getPolicyVersion, registry.Partial{Note: catalogueSource + "; the document is the guide's text and the version's CreateDate is the policy's UpdateDate, neither recorded against IAM (iam-evaluation.md 10.5)"})
 	b.ListPolicyVersions(s.listPolicyVersions, registry.Partial{Note: catalogueSource + "; the version's CreateDate is the policy's UpdateDate, not recorded against IAM (iam-evaluation.md 10.5)"})

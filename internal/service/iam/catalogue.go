@@ -12,6 +12,11 @@ import (
 // managed policies, iam-evaluation.md 12.2 verbatim.
 const catalogueSource = "AWS managed policies come from the shipped catalogue (iam-evaluation.md 10): CreateDate and UpdateDate have minute precision, PolicyId is derived, AttachmentCount counts this emulator's attachments, and only the default version exists, so another VersionId answers NoSuchEntity"
 
+// catalogueShown is the coverage note of the operations that show an AWS
+// managed policy's IsAttachable and boundary count, neither of which the
+// guide publishes (iam-evaluation.md 10.5).
+const catalogueShown = "IsAttachable is true for every catalogued policy, service-linked role policies included, and PermissionsBoundaryUsageCount counts this emulator's boundaries; the guide publishes neither and AWS's values are not recorded (iam-evaluation.md 10.5)"
+
 // catalogueMembership is the coverage note of the operations that attach
 // an AWS managed policy or make one a permissions boundary.
 const catalogueMembership = "an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity"

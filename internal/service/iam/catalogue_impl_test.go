@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
+	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 func policyARNs(ps []iamapi.Policy) []string {
@@ -106,6 +108,29 @@ func TestCreateWithACataloguedBoundary(t *testing.T) {
 		p := must(h, iamapi.OpGetPolicy, &iamapi.GetPolicyInput{PolicyArn: dataScientist}).Policy
 		if p.PermissionsBoundaryUsageCount == nil || *p.PermissionsBoundaryUsageCount != 2 || p.AttachmentCount == nil || *p.AttachmentCount != 0 {
 			t.Errorf("GetPolicy(%s) counts = %v attachments, %v boundaries; want 0, 2", dataScientist, p.AttachmentCount, p.PermissionsBoundaryUsageCount)
+		}
+	})
+}
+
+// The guide publishes neither IsAttachable nor a boundary count
+// (iam-evaluation.md 10.5), and the IAM model documents PolicyNotAttachable
+// for service-linked role policies, so the operations that show both say
+// what understudy answers.
+func TestCoverageNotesStateIsAttachable(t *testing.T) {
+	const shown = "IsAttachable is true for every catalogued policy, service-linked role policies included, and PermissionsBoundaryUsageCount counts this emulator's boundaries"
+	runCatalogued(t, func(h *harness) {
+		for _, op := range []string{"GetPolicy", "ListPolicies"} {
+			i := slices.IndexFunc(iamapi.Service().Operations, func(o *registry.Operation) bool { return o.ID.Name == op })
+			if i < 0 {
+				t.Fatalf("no operation %s", op)
+			}
+			bound, ok := h.Kernel.Bindings().Status(iamapi.Service().Operations[i]).(kernel.Bound)
+			if !ok {
+				t.Fatalf("%s is not bound", op)
+			}
+			if c, ok := bound.Coverage.(registry.Partial); !ok || !strings.Contains(c.Note, shown) {
+				t.Errorf("%s coverage = %#v, want Partial containing %q", op, bound.Coverage, shown)
+			}
 		}
 	})
 }
