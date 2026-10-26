@@ -1,0 +1,1053 @@
+# API Gateway HTTP APIs (v2): primary-source research
+
+Scope: roadmap item 6, the API Gateway v2 control plane for HTTP APIs (APIs, routes, integrations, stages, deployments, tags, CORS, authorizers), the `execute-api` data plane (stage and route selection, Lambda proxy payload formats 1.0 and 2.0, the responses API Gateway writes itself), AWS service integrations (integration subtypes), HTTP proxy integrations, IAM, what Terraform AWS provider v6.68.0 sends and reads, and how a local emulator is addressed. Sources: the Smithy model `aws/api-models-aws` at `1cfdfb4bb9ea858e65623e66d73af04bec353201`, the API Gateway Developer Guide, the API Gateway v2 API Reference, the Lambda Developer Guide and the AWS CLI reference on docs.aws.amazon.com, AWS-published samples on GitHub, the Terraform provider source and acceptance tests, aws-lambda-go, and, as hints only, LocalStack and AWS's .NET Lambda test tool. All retrieved 2026-10-25. WebSocket APIs, REST APIs (v1), custom domain names, VPC links and the developer portal are out of scope except where they constrain HTTP APIs.
+
+## 0. How to read this
+
+| Tag | Meaning | Pin |
+|---|---|---|
+| [S] | Smithy model `com.amazonaws.apigatewayv2#ApiGatewayV2`, service version 2018-11-29 | [apigatewayv2-2018-11-29.json](https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/apigatewayv2/service/2018-11-29/apigatewayv2-2018-11-29.json); not yet vendored in `third_party/api-models-aws/` |
+| [D] | AWS documentation on docs.aws.amazon.com, fetched 2026-10-25 | URL on each claim |
+| [A] | AWS-published samples: the Lambda Developer Guide's sample apps (real captures with `xmpl` substituted into identifiers), the AWS CLI's example outputs | [awsdocs/aws-lambda-developer-guide @ 0d45f4a](https://github.com/awsdocs/aws-lambda-developer-guide/tree/0d45f4afd8eb5b7dc0484b1731dfb23d06afa050), [aws/aws-cli @ e9993cf](https://github.com/aws/aws-cli/tree/e9993cfc8bf6d85d9870c1ff3b86cd59c5bfdba6/awscli/examples/apigatewayv2) |
+| [TF] | hashicorp/terraform-provider-aws v6.68.0 (commit `c9b83d81`). A bare file name is under `internal/service/apigatewayv2/`; other paths are from the repository root. Acceptance tests (`*_test.go`) assert values read back from real AWS | [v6.68.0](https://github.com/hashicorp/terraform-provider-aws/tree/v6.68.0) |
+| [C] | Client source: aws-lambda-go, hashicorp/aws-sdk-go-base | [aws-lambda-go @ 4111853](https://github.com/aws/aws-lambda-go/tree/41118539f90fa1989458560031d82a16b3686722/events), [aws-sdk-go-base v2.0.0-beta.73](https://github.com/hashicorp/aws-sdk-go-base/tree/v2.0.0-beta.73) |
+| [R] | Third-party-recorded: LocalStack snapshots whose test has a `last_validated_date`. LocalStack's archived repository has **no HTTP API (v2) tests**, so every [R] item here is a REST API (v1) analogue | localstack@8b9a79f |
+| [E] | Another emulator, hints only: AWS's own `LambdaTestTool-v2` (an emulator written by AWS, not the service), LocalStack's provider code | [aws/aws-lambda-dotnet @ f43a9f0](https://github.com/aws/aws-lambda-dotnet/tree/f43a9f0d75435a513c3094875a7571d9543372fe/Tools/LambdaTestTool-v2) |
+
+Nothing here was recorded by this project. "UNVERIFIED:" marks a behavior no source above fixes; each one names the recording case in section 14 that settles it.
+
+## 1. Findings that change the design
+
+1. **There is no SNS integration subtype.** HTTP APIs support exactly ten subtypes: `EventBridge-PutEvents`, `SQS-SendMessage`, `SQS-ReceiveMessage`, `SQS-DeleteMessage`, `SQS-PurgeQueue`, `AppConfig-GetConfiguration`, `Kinesis-PutRecord`, `StepFunctions-StartExecution`, `StepFunctions-StartSyncExecution`, `StepFunctions-StopExecution` ([D subtype reference](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-aws-services-reference.html)). The roadmap's "SQS, SNS and EventBridge direct integrations" (`docs/ROADMAP.md` item 6) must drop SNS (section 6.1).
+2. **Integrations are synchronous request and response, with no retries.** API Gateway invokes Lambda "synchronously" and "does not retry any Lambda invocations" ([D services-apigateway](https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway.html), [D services-apigateway-errors](https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway-errors.html)); response parameters "transform the HTTP response from a backend integration before returning the response to clients", configured "for each status code that your integration returns" ([D parameter mapping](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-parameter-mapping.html)), so a service integration answers the client from the service's response. UNVERIFIED (APIGW2-14): whether API Gateway retries a failed service call before it answers; a retry would run while the client waits, so the conclusion here does not depend on it. They are `kernel.Invoke` calls made while the client waits, not outbox `delivery.Target` variants with retry policies (ARCHITECTURE.md 16). The roadmap's "new `delivery.Target` variants" does not fit (section 13.8).
+3. **The control plane signs as `apigateway`, the same signing name as REST APIs.** v2 is `aws.auth#sigv4` name `apigateway`, endpoint prefix `apigateway`, every URI under `/v2/` ([S] service shape); REST APIs (`com.amazonaws.apigateway#BackplaneControlService`, [model @ 1cfdfb4](https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/api-gateway/service/2015-07-09/api-gateway-2015-07-09.json)) also sign as `apigateway` on the same host, under `/restapis`, `/tags`, `/vpclinks` and others. understudy's registry refuses two services with one signing name (`DuplicateSigningName`, `internal/registry/registry.go`), so v1 and v2 must be one registry service with two route tables, or the registry must change. That needs an ADR before item 6 lands (section 13.1).
+4. **The model carries almost no constraints for HTTP API shapes.** Shapes named `StringWithLengthBetween1And128`, `UriWithLengthBetween1And2048` and the like have empty traits; the only `@range` traits that touch HTTP APIs are `IntegerWithLengthBetween50And30000` (TimeoutInMillis), `IntegerWithLengthBetweenMinus1And86400` (Cors MaxAge) and `IntegerWithLengthBetween0And3600` (authorizer TTL) ([S], jq scan of `smithy.api#length|range|pattern`). Stage names, stage variables, route keys and quotas come from the docs (sections 2.4, 3.9) and are hand-coded.
+5. **Terraform builds `invoke_url` itself, always on `amazonaws.com`.** `aws_apigatewayv2_stage.invoke_url` is `https://<api-id>.execute-api.<region>.amazonaws.com/<stage>` from the partition's DNS suffix, ignoring endpoint configuration ([TF] `internal/conns/awsclient.go:L313-L323`, `L362-L369`); `api_endpoint` is the server's `ApiEndpoint` ([TF] `api.go:L270`); `execution_arn` is built from the provider's account id ([TF] `api.go:L547-L549`). Tests against understudy must build URLs from `api_endpoint`, never `invoke_url` (section 9.7).
+6. **Terraform's default payload format is 1.0.** `payload_format_version` defaults to `"1.0"` ([TF] `integration.go:L131-L139`), so a Terraform user who does not set it gets 1.0 events. Both formats are needed in the first slice (sections 5.1, 5.2).
+7. **A deployment is a snapshot.** "You must deploy an API for changes to take effect. If you enable automatic deployments, changes to an API are automatically released for you" ([D stages](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-stages.html)). A stage without `autoDeploy` serves its deployment's configuration, not the live one. Terraform's deployment resource waits for `DeploymentStatus` `DEPLOYED` and fails on any other final value ([TF] `deployment.go:L226-L246`).
+8. **A named stage stays in the path the function sees.** In AWS's sample event the stage `default` appears in `rawPath` and `requestContext.http.path` (`/default/nodejs-apig-function-...`) while `routeKey` is `ANY /nodejs-apig-function-...` ([A event-v2.json:L3-L4, L34, L41](https://github.com/awsdocs/aws-lambda-developer-guide/blob/0d45f4afd8eb5b7dc0484b1731dfb23d06afa050/sample-apps/nodejs-apig/event-v2.json)). The `$default` stage serves from the URL root ([D stages](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-stages.html)).
+9. **A Lambda integration without permission fails with `{"message":"Internal Server Error"}`.** The troubleshooting guide names the missing `lambda:InvokeFunction` permission as a cause of that body ([D troubleshooting](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-troubleshooting-lambda.html)). understudy records access and never enforces it (`internal/access/doc.go`), but the function URL front end already evaluates resource policies because the refusal is observable (`internal/service/lambda/furl/doc.go`, ARCHITECTURE.md 14.7). The HTTP API data plane must do the same (section 13.3).
+10. **`HTTP_PROXY` is outbound network.** An HTTP proxy integration calls "a publicly routable HTTP endpoint" ([D HTTP proxy](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-http.html)); ADR 0015 already treats outbound HTTP from the emulator as an SSRF vector and gates SNS HTTP delivery behind an empty-by-default allow-list. The same gate applies (section 7.2).
+11. **understudy's IAM action table has no `apigateway` or `execute-api` entries.** `third_party/aws-service-reference/actions.json` covers 12 prefixes, and its source is an `amazonaws.com` host this research may not contact. A human bump adds both prefixes (section 8.1).
+12. **The gateway's own errors are small JSON documents with an `apigw-requestid` header**: `{"message":"Not Found"}` for no stage or route ([D routes](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-routes.html)), `{"message":"Internal Server Error"}` for Lambda integration failures ([D troubleshooting](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-troubleshooting-lambda.html)), `401 {"message":"Unauthorized"}` from a JWT authorizer with header `apigw-requestid: Mc7UVioPPHcEKPA=` ([D JWT troubleshooting](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-troubleshooting-jwt.html)). REST APIs answer differently (`{"message": "Internal server error"}`, section 12), so nothing can be borrowed from REST snapshots.
+
+## 2. Control plane wire contract
+
+### 2.1 Service shape, protocol and signing
+
+- Protocol `aws.protocols#restJson1`; auth `aws.auth#sigv4` with name `apigateway`; `aws.api#service` `{sdkId: "ApiGatewayV2", arnNamespace: "apigateway", endpointPrefix: "apigateway", cloudTrailEventSource: "apigatewayv2.amazonaws.com"}` ([S] `com.amazonaws.apigatewayv2#ApiGatewayV2`).
+- Endpoint rule tests: `https://apigateway.us-east-1.amazonaws.com`; FIPS `apigateway-fips.<region>.amazonaws.com`; dual-stack `apigateway.<region>.api.aws`; a custom endpoint is used as given ([S] `smithy.rules#endpointTests`). No `smithy.api#endpoint` or `hostLabel` traits: no operation prefixes the host.
+- Members carry `smithy.api#jsonName` in camelCase, so the wire body is `{"name":"x","protocolType":"HTTP"}` and responses are `{"apiId":...,"apiEndpoint":...}` ([S] e.g. `com.amazonaws.apigatewayv2#CreateApiRequest$Name` has `jsonName` `name`). The CLI prints PascalCase because botocore maps member names. understudy's restJson codec already honors `jsonName` (`internal/protocol/restjson/encode.go`, `internal/protocol/restjson/decode.go`).
+- Timestamps target `__timestampIso8601` with `timestampFormat: date-time` (RFC 3339 strings) ([S]). The CLI shows `"2020-04-06T23:38:08Z"` ([D create-deployment](https://docs.aws.amazon.com/cli/latest/reference/apigatewayv2/create-deployment.html)). Fractional seconds: UNVERIFIED (APIGW2-03).
+
+### 2.2 Operations and HTTP bindings
+
+The model has 103 operations ([S]). The HTTP-API-relevant ones (method, URI, success status, modeled errors; B = BadRequestException, C = ConflictException, N = NotFoundException, T = TooManyRequestsException):
+
+| Operation | Method and URI | Success | Errors |
+|---|---|---|---|
+| CreateApi | `POST /v2/apis` | 201 | B C N T |
+| GetApis | `GET /v2/apis?maxResults=&nextToken=` | 200 | B N T |
+| GetApi | `GET /v2/apis/{ApiId}` | 200 | N T |
+| UpdateApi | `PATCH /v2/apis/{ApiId}` | 200 | B C N T |
+| DeleteApi | `DELETE /v2/apis/{ApiId}` | 204 | N T |
+| DeleteCorsConfiguration | `DELETE /v2/apis/{ApiId}/cors` | 204 | N T |
+| CreateRoute / GetRoutes | `POST`, `GET /v2/apis/{ApiId}/routes` | 201 / 200 | B C N T / B N T |
+| GetRoute / UpdateRoute / DeleteRoute | `GET`, `PATCH`, `DELETE /v2/apis/{ApiId}/routes/{RouteId}` | 200 / 200 / 204 | N T / B C N T / N T |
+| CreateIntegration / GetIntegrations | `POST`, `GET /v2/apis/{ApiId}/integrations` | 201 / 200 | B C N T / B N T |
+| GetIntegration / UpdateIntegration / DeleteIntegration | `.../integrations/{IntegrationId}` | 200 / 200 / 204 | as routes |
+| CreateStage / GetStages | `POST`, `GET /v2/apis/{ApiId}/stages` | 201 / 200 | B C N T / B N T |
+| GetStage / UpdateStage / DeleteStage | `.../stages/{StageName}` | 200 / 200 / 204 | as routes |
+| DeleteAccessLogSettings | `DELETE .../stages/{StageName}/accesslogsettings` | 204 | N T |
+| DeleteRouteSettings | `DELETE .../stages/{StageName}/routesettings/{RouteKey}` | 204 | N T |
+| CreateDeployment / GetDeployments | `POST`, `GET /v2/apis/{ApiId}/deployments` | 201 / 200 | B C N T / B N T |
+| GetDeployment / UpdateDeployment / DeleteDeployment | `.../deployments/{DeploymentId}` | 200 / 200 / 204 | as routes |
+| CreateAuthorizer / GetAuthorizers | `POST`, `GET /v2/apis/{ApiId}/authorizers` | 201 / 200 | B C N T / B N T |
+| GetAuthorizer / UpdateAuthorizer / DeleteAuthorizer | `.../authorizers/{AuthorizerId}` | 200 / 200 / 204 | as routes |
+| ResetAuthorizersCache | `DELETE .../stages/{StageName}/cache/authorizers` | 204 | N T |
+| TagResource / GetTags / UntagResource | `POST`, `GET`, `DELETE /v2/tags/{ResourceArn}` (`tagKeys` query list on DELETE) | 201 / 200 / 204 | B C N T |
+| ImportApi / ReimportApi / ExportApi | `PUT /v2/apis`, `PUT /v2/apis/{ApiId}`, `GET .../exports/{Specification}` | 201 / 201 / 200 | B C N T / B C N T / B N T |
+| DeleteRouteRequestParameter | `DELETE .../routes/{RouteId}/requestparameters/{RequestParameterKey}` | 204 | N T |
+
+Source: [S] each operation's `smithy.api#http` and `errors`. The rest (domain names, API mappings, VPC links, models, route and integration responses, portals, routing rules) is outside HTTP API scope. `{ResourceArn}` is a plain label, so clients percent-encode the ARN's `/` as `%2F`; ARCHITECTURE.md 4.1 already requires dispatch on the escaped path. Only `ListRoutingRules` carries `@paginated` ([S]); the `Get*` lists page through `maxResults` (a `__string` query member) and `nextToken` without the trait.
+
+### 2.3 Errors
+
+| Shape | `httpError` | Members (wire names) |
+|---|---|---|
+| `com.amazonaws.apigatewayv2#BadRequestException` | 400 | `message` |
+| `com.amazonaws.apigatewayv2#ConflictException` | 409 | `message` |
+| `com.amazonaws.apigatewayv2#NotFoundException` | 404 | `message`, `resourceType` |
+| `com.amazonaws.apigatewayv2#TooManyRequestsException` | 429 | `message`, `limitType` |
+| `com.amazonaws.apigatewayv2#AccessDeniedException` | 403 | `message`; only on portal and domain-name operations |
+
+Source: [S]. The API Reference names the 429 response model `LimitExceededException` with the same members ([D apis-apiid](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid.html)); which name AWS sends in `x-amzn-ErrorType` is UNVERIFIED (APIGW2-02). Clients resolve the type from `x-amzn-ErrorType`, body `__type` or `code`, taking the text before the first `:` (`wire-rest.md 4.2`), so a coral-suffixed header such as REST's `...:http://internal.amazon.com/coral/com.amazonaws.backplane.controlplane/` parses either way. Whether v2 sends that suffix: UNVERIFIED (APIGW2-01).
+
+Messages:
+
+- REST APIs answer a missing API with `NotFoundException` `Invalid API identifier specified 111111111111:<upper-id>`, the id echoed as sent (the test upper-cases an existing id) ([R] localstack@8b9a79f tests/aws/services/apigateway/test_apigateway_api.snapshot.json:L136, `test_get_api_case_insensitive`, third-party-recorded, validated 2024-04-15 per test_apigateway_api.validation.json:L185-L186). UNVERIFIED for v2: the same text for GetApi, and the texts for missing routes, integrations, stages, deployments and authorizers (APIGW2-01).
+- Terraform retries a `ConflictException` whose message contains `try again later`, and any error containing `Unable to complete operation due to concurrent modification. Please try again later.` ([TF] `service_package.go:L24-L37`). The provider's comment says the text was observed; when AWS sends it is not documented, and understudy emits it only by fault injection.
+- `BadRequestException: Warnings found during import` appears in an import test ([TF] `api_test.go:L536`); import is out of scope.
+- UNVERIFIED: texts for a duplicate stage, a duplicate route key, an invalid route key, a greedy variable not at the end, an invalid stage name, a timeout out of range, a bad payload format version, a missing required subtype parameter, an unknown subtype, a route target naming a missing integration, and a bad stage variable value (APIGW2-01).
+
+### 2.4 Constraints: what the model carries and what it does not
+
+- Model `@range`: `TimeoutInMillis` 50..30000, `Cors.MaxAge` -1..86400, `AuthorizerResultTtlInSeconds` 0..3600 ([S]). The member docs agree: "between 50 and 30,000 milliseconds for HTTP APIs. The default timeout is ... 30 seconds for HTTP APIs" ([S] `CreateIntegrationRequest$TimeoutInMillis`).
+- Model `@required`: CreateApi `Name`, `ProtocolType`; CreateRoute `RouteKey`; CreateIntegration `IntegrationType`; CreateStage `StageName`; CreateAuthorizer `AuthorizerType`, `IdentitySource`, `Name`; path labels ([S]).
+- Enums ([S]): `ProtocolType` `WEBSOCKET|HTTP`; `IntegrationType` `AWS|HTTP|MOCK|HTTP_PROXY|AWS_PROXY` (HTTP APIs use `AWS_PROXY` and `HTTP_PROXY`; `AWS`, `HTTP`, `MOCK` are "Supported only for WebSocket APIs", [S] member doc); `ConnectionType` `INTERNET|VPC_LINK`; `AuthorizationType` `NONE|AWS_IAM|CUSTOM|JWT`; `AuthorizerType` `REQUEST|JWT`; `IpAddressType` `ipv4|dualstack`; `DeploymentStatus` `PENDING|FAILED|DEPLOYED`; `LoggingLevel` `ERROR|INFO|OFF`; `PassthroughBehavior` and `ContentHandlingStrategy` (WebSocket only).
+- From the docs, not the model: stage names "can contain only alphanumeric characters, hyphens, and underscores, or be `$default`. Maximum length is 128 characters"; stage variable "names can have alphanumeric and underscore characters, and the values must match `[A-Za-z0-9-._~:/?#&=,]+`"; an access log format "must include at least $context.requestId" ([D stage reference](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid-stages-stagename.html)); `routeSelectionExpression` "must be `${request.method} ${request.path}`" for HTTP APIs ([D apis-apiid](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid.html)); `payloadFormatVersion` is "Required for HTTP APIs", `1.0` or `2.0` for Lambda, `1.0` for everything else ([D](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid-integrations.html)); route keys are `$default` or "a combination of an HTTP method and resource path, for example, `GET /pets`" ([D routes reference](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid-routes.html)); a greedy variable "must be at the end of the resource path" ([D routes](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-routes.html)).
+- From Terraform's validators (client side, not AWS): name 1..128, description 0..1024, version 1..64, operation name 1..64, route target 1..128, subtype 1..128, integration methods `ANY DELETE GET HEAD OPTIONS PATCH POST PUT` ([TF] `api.go:L142-L146`, `L119-L123`, `L170-L174`, `route.go:L82-L86`, `L117-L121`, `integration.go:L102-L107`, `validate.go:L11-L22`).
+
+### 2.5 Identifiers, timestamps and ARNs
+
+- API id: 10 lower-case alphanumerics. AWS's redacted samples use `r3pmxmplak`, `ktyvxmpls1`, `mnh1xmpli7` ([A event-v2.json:L29](https://github.com/awsdocs/aws-lambda-developer-guide/blob/0d45f4afd8eb5b7dc0484b1731dfb23d06afa050/sample-apps/nodejs-apig/event-v2.json), [D services-apigateway](https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway.html)); aws-lambda-go's fixture uses `aaaaaaaaaa` ([C apigw-v2-request-no-authorizer.json:L18](https://github.com/aws/aws-lambda-go/blob/41118539f90fa1989458560031d82a16b3686722/events/testdata/apigw-v2-request-no-authorizer.json)). The CLI examples' `a1b2c3d4` is a placeholder.
+- Route id: 7 characters (`72jz1wk`, `go65gqi`) ([A get-routes](https://docs.aws.amazon.com/cli/latest/reference/apigatewayv2/get-routes.html)). Deployment id: 6 characters (`53lz9l`, `x1zwyv`, `dty748`, `shktxb`) ([A get-stages.rst:L19](https://github.com/aws/aws-cli/blob/e9993cfc8bf6d85d9870c1ff3b86cd59c5bfdba6/awscli/examples/apigatewayv2/get-stages.rst), [D create-deployment](https://docs.aws.amazon.com/cli/latest/reference/apigatewayv2/create-deployment.html)). Integration id: the CLI shows both `0abcdef` and `a1b2c3`, both placeholders; length UNVERIFIED (APIGW2-03). Authorizer id format: UNVERIFIED (APIGW2-03).
+- Request id (`apigw-requestid` header, `requestContext.requestId`): 16 characters ending in `=`, with `-` in the alphabet: `JKJaXmPLvHcESHA=`, `LV7fzho-PHcEJPw=`, `Mc7UVioPPHcEKPA=` ([A event-v2.json:L39](https://github.com/awsdocs/aws-lambda-developer-guide/blob/0d45f4afd8eb5b7dc0484b1731dfb23d06afa050/sample-apps/nodejs-apig/event-v2.json), [C fixture L40](https://github.com/aws/aws-lambda-go/blob/41118539f90fa1989458560031d82a16b3686722/events/testdata/apigw-v2-request-no-authorizer.json), [D JWT troubleshooting](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-troubleshooting-jwt.html)). Read as base64 of 11 bytes in a URL-safe alphabet; that reading is inferred. Whether the event's `requestId` equals the response header: UNVERIFIED (APIGW2-07).
+- `ApiEndpoint`: "The URI of the API, of the form {api-id}.execute-api.{region}.amazonaws.com" ([S] `Api$ApiEndpoint`); the CLI shows `https://a1b2c3d4.execute-api.us-west-2.amazonaws.com`, scheme and no trailing slash ([A get-api.rst:L11](https://github.com/aws/aws-cli/blob/e9993cfc8bf6d85d9870c1ff3b86cd59c5bfdba6/awscli/examples/apigatewayv2/get-api.rst)).
+- Resource ARNs have an empty account field: `arn:<partition>:apigateway:<region>::/apis/<api-id>`, `.../apis/<api-id>/stages/<stage-name>`, `.../routes/<id>`, `.../integrations/<integration-id>`, `.../deployments/<id>`, `.../authorizers/<id>` ([D ARN reference](https://docs.aws.amazon.com/apigateway/latest/developerguide/arn-format-reference.html)); Terraform builds `arn` the same way with `RegionalARNNoAccount` ([TF] `api.go:L543-L545`, `stage.go:L617-L619`).
+- Execute ARNs: `arn:<partition>:execute-api:<region>:<account-id>:<api-id>/<stage>/<http-method>/<resource-path>`; "The ARN for the `$default` route endpoint for HTTP APIs is `arn:...:<api-id>/*/$default`" ([D ARN reference](https://docs.aws.amazon.com/apigateway/latest/developerguide/arn-format-reference.html)).
+
+## 3. Control plane resources
+
+### 3.1 Api and quick create
+
+- Create defaults seen in AWS output: `ApiKeySelectionExpression` `$request.header.x-api-key`, `RouteSelectionExpression` `$request.method $request.path`, `ApiEndpoint`, `CreatedDate`, `Name`, `ProtocolType` ([A create-api.rst:L13-L19](https://github.com/aws/aws-cli/blob/e9993cfc8bf6d85d9870c1ff3b86cd59c5bfdba6/awscli/examples/apigatewayv2/create-api.rst)); `ip_address_type` reads back `ipv4` and `disable_execute_api_endpoint` `false` when unset ([TF] `api_test.go:L87-L92`, acceptance test against AWS). Whether `DisableExecuteApiEndpoint: false` and `IpAddressType: "ipv4"` are present in the JSON or only defaulted by the client: UNVERIFIED (APIGW2-03).
+- `GetApi` returns `Tags` ([A get-api.rst:L18](https://github.com/aws/aws-cli/blob/e9993cfc8bf6d85d9870c1ff3b86cd59c5bfdba6/awscli/examples/apigatewayv2/get-api.rst)).
+- Quick create: with `Target` (a Lambda ARN gives `AWS_PROXY`, a URL gives `HTTP_PROXY`), an optional `RouteKey` (default `$default`) and `CredentialsArn`, CreateApi "produces an API with an integration, a default catch-all route, and a default stage which is configured to automatically deploy changes" ([S] `CreateApiRequest$Target`, `$RouteKey`). The quick-created route, integration and `$default` stage carry `ApiGatewayManaged: true` ([A get-routes, get-integrations](https://docs.aws.amazon.com/cli/latest/reference/apigatewayv2/get-integrations.html), [A get-stages.rst:L13-L25](https://github.com/aws/aws-cli/blob/e9993cfc8bf6d85d9870c1ff3b86cd59c5bfdba6/awscli/examples/apigatewayv2/get-stages.rst)). "You can't modify the `$default` stage" ([D stage reference](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid-stages-stagename.html)), "You can't modify the `$default` route key" ([D routes reference](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid-routes.html)), "You can update a managed integration, but you can't delete it" ([D integrations reference](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid-integrations.html)). A quick-created Lambda integration is `PayloadFormatVersion` `2.0` ([A get-integrations](https://docs.aws.amazon.com/cli/latest/reference/apigatewayv2/get-integrations.html)); a quick-created HTTP one is `HTTP_PROXY` with the target URL as its URI ([TF] `api_test.go:L685`). The errors for modifying managed resources: UNVERIFIED (APIGW2-03).
+- UpdateApi's `Target` "updates the integration URI and integration type. You can update a quick-created target, but you can't remove it" ([D apis-apiid](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid.html)).
+- `DisableExecuteApiEndpoint` stops the default endpoint answering ([S] member doc); the response to a request on a disabled endpoint: UNVERIFIED (APIGW2-06).
+
+### 3.2 Routes
+
+- `RouteKey` is `$default` or `<METHOD> <path>`; `Target` is `integrations/<integration-id>` ([A get-routes](https://docs.aws.amazon.com/cli/latest/reference/apigatewayv2/get-routes.html), [D CloudFormation example](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-aws-services.html)). A route may exist without a target (`create-route` output has none, [D create-route](https://docs.aws.amazon.com/cli/latest/reference/apigatewayv2/create-route.html)); what a request matching it gets: UNVERIFIED (APIGW2-05).
+- Create echoes `ApiKeyRequired: false` and `AuthorizationType: "NONE"` when unset ([D create-route](https://docs.aws.amazon.com/cli/latest/reference/apigatewayv2/create-route.html)). `ApiKeyRequired`, `ModelSelectionExpression`, `RequestModels`, `RequestParameters`, `RouteResponseSelectionExpression` are WebSocket-only ([D routes reference](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid-routes.html)).
+- `AuthorizationType` for HTTP APIs: `NONE`, `JWT`, `AWS_IAM`, `CUSTOM`; `AuthorizationScopes` apply to JWT ([D routes reference](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid-routes.html)).
+- Path variables are `{name}` segments; greedy `{name+}` only at the end ([D routes](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-routes.html)). Whether `{param}` may share a segment with literal text (`/a{b}`): UNVERIFIED (APIGW2-01).
+
+### 3.3 Integrations
+
+- HTTP API integrations are Lambda proxy, AWS service and HTTP proxy, plus private integrations over VPC links ([D integrations](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations.html)).
+- Lambda: `IntegrationType` `AWS_PROXY`, `IntegrationUri` a function ARN (CLI example) or the invoke URI `arn:aws:apigateway:<region>:lambda:path/2015-03-31/functions/<function-arn>/invocations`, which AWS stores verbatim ([TF] `integration_test.go:L383` pairs `integration_uri` with `invoke_arn`; `internal/service/lambda/function.go:L1698-L1700` builds it). AWS fills `IntegrationMethod: "POST"`, `ConnectionType: "INTERNET"`, `TimeoutInMillis: 30000` ([A create-integration](https://docs.aws.amazon.com/cli/latest/reference/apigatewayv2/create-integration.html), [TF] `integration_test.go:L375-L390`).
+- Service integration: `AWS_PROXY` with `IntegrationSubtype`, `CredentialsArn`, `RequestParameters`, `PayloadFormatVersion` `1.0`; AWS returns no `IntegrationMethod` and no `IntegrationUri` ([TF] `integration_test.go:L550-L568`).
+- HTTP proxy: `HTTP_PROXY`, `IntegrationMethod` as sent (`GET`, `ANY`), `IntegrationUri` the URL, `PayloadFormatVersion` `1.0` ([TF] `integration_test.go:L83-L100`, `L161-L190`).
+- For HTTP APIs AWS returns no `PassthroughBehavior` and no `IntegrationResponseSelectionExpression` even though Terraform always sends `PassthroughBehavior: WHEN_NO_MATCH` ([TF] `integration.go:L118-L130`, `L240-L242`; `integration_test.go:L89`, `L93`). Whether AWS ignores the sent value or stores it hidden: UNVERIFIED (APIGW2-03).
+- `RequestParameters` values are returned exactly, including the two-character value `''` for a removal ([TF] `integration_test.go:L174-L175`). Removing a mapping on update is sending it with value `""`; removing a response mapping is sending its status key with `{}` ([D parameter mapping](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-parameter-mapping.html), [TF] `integration.go:L377-L421`).
+- `IntegrationUri` and `CredentialsArn` may reference stage variables, `${stageVariables.<name>}`; "you must configure the permissions on the Lambda function manually" for such URIs ([D stage variables](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-stages.stage-variables.html)).
+
+### 3.4 Stages
+
+- `$default` is "served from the base of your API's URL"; other stages are addressed as `/<stage>` ([D stages](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-stages.html), [D publish](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-publish.html)).
+- Create returns `DefaultRouteSettings: {"DetailedMetricsEnabled": false}`, `RouteSettings: {}`, `StageVariables: {}`, `Tags: {}`, `CreatedDate`, `LastUpdatedDate`, no `DeploymentId` until there is one ([D create-stage](https://docs.aws.amazon.com/cli/latest/reference/apigatewayv2/create-stage.html), [TF] `stage_test.go:L95-L101`). `AutoDeploy` appears only when true in the CLI examples ([A get-stages.rst:L14](https://github.com/aws/aws-cli/blob/e9993cfc8bf6d85d9870c1ff3b86cd59c5bfdba6/awscli/examples/apigatewayv2/get-stages.rst)); whether `false` is omitted: UNVERIFIED (APIGW2-03).
+- With `autoDeploy`, `DeploymentId` "Can't be updated" ([D stage reference](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid-stages-stagename.html)); `LastDeploymentStatusMessage` reads `Successfully deployed stage with deployment ID 'dty748'` ([A get-stages.rst:L20](https://github.com/aws/aws-cli/blob/e9993cfc8bf6d85d9870c1ff3b86cd59c5bfdba6/awscli/examples/apigatewayv2/get-stages.rst)).
+- `DataTraceEnabled`, `LoggingLevel` and `ClientCertificateId` are WebSocket-only ([D stage reference](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid-stages-stagename.html)); Terraform sends them only for WebSocket APIs ([TF] `stage.go:L537`, `L543`). Route settings are keyed by route key (`"GET /pets": {"ThrottlingBurstLimit": 100, "ThrottlingRateLimit": 2000.0}`, [A update-stage](https://docs.aws.amazon.com/cli/latest/reference/apigatewayv2/update-stage.html)).
+- Access logs: `AccessLogSettings{DestinationArn, Format}`, destination a CloudWatch Logs log group ARN `arn:aws:logs:<region>:<account-id>:log-group:<name>`; CLF, JSON, XML and CSV example formats; variables `$context.*` ([D logging](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-logging.html), [D logging variables](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-logging-variables.html)). Stage variable removal on update is the variable with value `""` ([TF] `stage.go:L374-L384`).
+
+### 3.5 Deployments and automatic deployment
+
+- `CreateDeployment{Description, StageName}` returns `{AutoDeployed: false, CreatedDate, DeploymentId, DeploymentStatus: "DEPLOYED"}` ([D create-deployment](https://docs.aws.amazon.com/cli/latest/reference/apigatewayv2/create-deployment.html)). Automatic deployments read `AutoDeployed: true`, `Description: "Automatic deployment triggered by changes to the Api configuration"` ([A get-deployments.rst:L13-L17](https://github.com/aws/aws-cli/blob/e9993cfc8bf6d85d9870c1ff3b86cd59c5bfdba6/awscli/examples/apigatewayv2/get-deployments.rst)).
+- How long an automatic deployment takes to serve, the error for deploying an API with no routes, for setting `DeploymentId` on an auto-deploy stage, and for deleting a deployment a stage uses: UNVERIFIED (APIGW2-04). A stage with no deployment: UNVERIFIED (APIGW2-04).
+
+### 3.6 Tags
+
+Tags ride on CreateApi and CreateStage and are read back from GetApi and GetStage; `TagResource`/`UntagResource`/`GetTags` take the resource ARN (section 2.5) in the path ([S], [TF] `tags_gen.go:L25-L37`, `L95-L112`). "Tags per stage: 50" ([D quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-quotas.html)); tag key and value lengths: UNVERIFIED (APIGW2-01).
+
+### 3.7 CORS configuration
+
+`Cors{AllowCredentials, AllowHeaders, AllowMethods, AllowOrigins, ExposeHeaders, MaxAge}`, HTTP APIs only ([S] `com.amazonaws.apigatewayv2#Cors`). Origins may be exact, `*`, `https://*` or `http://*` ([D CORS](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-cors.html)). `DeleteCorsConfiguration` removes it. Terraform compares every CORS list case-insensitively ([TF] `api.go:L83-L105`, `L535-L538`), which suggests AWS changes the case of some entries; which ones: UNVERIFIED (APIGW2-03). Whether `AllowOrigins: ["*"]` with `AllowCredentials: true` is refused: UNVERIFIED (APIGW2-13).
+
+### 3.8 Authorizers
+
+JWT authorizers (issuer, audiences; JWKS fetched with a 1500 ms timeout and a 150000-byte response limit) and Lambda `REQUEST` authorizers (10000 ms timeout) ([S] `CreateAuthorizerRequest`, [D quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-quotas.html)). A JWT authorizer needs outbound HTTPS to the issuer's JWKS endpoint, which an offline emulator cannot make; a Lambda authorizer is implementable but is its own payload contract. Both are out of the first slice (section 13.2).
+
+### 3.9 Quotas
+
+Per API or stage ([D HTTP API quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-quotas.html)): routes 300, integrations 300, stages 10, authorizers 10, scopes per route 10, audiences per authorizer 50, tags per stage 50, stage variables per stage 100, stage variable key 64 characters, value 512 characters, access log template 3 KB, maximum integration timeout 30 seconds, payload 10 MB, request line plus header values 10240 bytes. Account: 10,000 requests per second with a 5,000 burst across API types ([D quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html)). Control plane: `CreateDeployment` "1 request every 5 seconds per account", `CreateVpcLink` 1 per 15 s, `DeleteVpcLink` 1 per 30 s, "Total operations: 10 requests per second with a burst quota of 40" (same page). The stage variable value limit of 512 conflicts with the model's shape name `StringWithLengthBetween0And2048` (section 12).
+
+## 4. Data plane: from request to integration
+
+### 4.1 Endpoint and stage in the URL
+
+The default endpoint is `https://<api-id>.execute-api.<region>.amazonaws.com`; a named stage is `https://<api-id>.execute-api.<region>.amazonaws.com/<stage>` and `$default` is the root ([D publish](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-publish.html), [D services-apigateway](https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway.html): "For named stages, you must include the stage name at the beginning of the path"). The `execute-api.<region>.amazonaws.com` domain is on the Public Suffix List ([D publish](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-publish.html)). Clients connect over HTTPS; "API Gateway APIs can accept HTTP/2 requests, but API Gateway sends requests to backend integrations using HTTP/1.1" ([D logging variables](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-logging-variables.html), `$context.protocol`).
+
+### 4.2 Stage selection
+
+"API Gateway first determines which stage to route the request to. If the request explicitly matches a stage, API Gateway sends the request to that stage. If no stage fully matches the request, API Gateway sends the request to the `$default` stage. If there's no `$default` stage, then the API returns `{"message":"Not Found"}` and does not generate CloudWatch logs" ([D routes](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-routes.html)). Read: a first path segment equal to a stage name selects that stage and is consumed for routing; a route under `$default` whose path starts with a stage's name is shadowed. Inferred from the text; the parameter mapping source `$request.path` is "The request path, without the stage name" ([D parameter mapping](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-parameter-mapping.html)), which fits the consuming half. UNVERIFIED: the shadowing, the case sensitivity of the stage segment, and a request to the bare `/<stage>` path (APIGW2-06).
+
+### 4.3 Route selection
+
+"API Gateway selects the route with the most-specific match, using the following priorities: 1. Full match for a route and method. 2. Match for a route and method with a greedy path variable (`{proxy+}`). 3. The `$default` route. If no routes match a request, API Gateway returns `{"message":"Not Found"}`" ([D routes](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-routes.html)). The documented table, with routes `GET /pets/dog/1`, `GET /pets/dog/{id}`, `GET /pets/{proxy+}`, `ANY /{proxy+}`, `$default`:
+
+| Request | Selected route |
+|---|---|
+| `GET /pets/dog/1` | `GET /pets/dog/1` (static beats variable) |
+| `GET /pets/dog/2` | `GET /pets/dog/{id}` |
+| `GET /pets/cat/1` | `GET /pets/{proxy+}` |
+| `POST /test/5` | `ANY /{proxy+}` ("The `ANY` method matches all methods that you haven't defined for a route") |
+
+Consequences: a full match with path variables beats any greedy match; a specific method beats `ANY` on the same path; greedy beats `$default`. UNVERIFIED (APIGW2-05): whether a full match on `ANY` (`ANY /pets/bird/1`) beats a greedy match on the request's method (`GET /pets/{proxy+}`), that is path specificity against method specificity; the order between two greedy routes of different depth and the same method (the table's pair also differs in method); whether `/{proxy+}` matches `/` and whether `/pets/{proxy+}` matches `/pets/`. AWS's .NET tool orders by literal-segment count, then segments before the greedy variable, then fewer greedy variables ([E ApiGatewayRouteConfigService.cs](https://github.com/aws/aws-lambda-dotnet/blob/f43a9f0d75435a513c3094875a7571d9543372fe/Tools/LambdaTestTool-v2/src/Amazon.Lambda.TestTool/Services/ApiGatewayRouteConfigService.cs)); a hint, not AWS.
+
+### 4.4 Methods, HEAD, trailing slashes, case and decoding
+
+- Methods: `$context.httpMethod` takes `DELETE`, `GET`, `HEAD`, `OPTIONS`, `PATCH`, `POST`, `PUT` ([D logging variables](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-logging-variables.html)); route keys add `ANY` ([D routes](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-routes.html)). The route-key method set is not enumerated; the answer to another method is APIGW2-01.
+- UNVERIFIED (APIGW2-05): whether a `HEAD` request matches a `GET` route; whether `/slash` and `/slash/` are distinct routes; whether literal segments match case-insensitively (AWS's .NET tool compares them with `OrdinalIgnoreCase`, [E ApiGatewayRouteConfigService.cs:L420](https://github.com/aws/aws-lambda-dotnet/blob/f43a9f0d75435a513c3094875a7571d9543372fe/Tools/LambdaTestTool-v2/src/Amazon.Lambda.TestTool/Services/ApiGatewayRouteConfigService.cs); REST APIs process "Header names and query parameters ... in a case-sensitive way", [D important notes](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-known-issues.html)); how `//` and `%2F` in a path are matched.
+- "API Gateway decodes URL-encoded request parameters before passing them to your backend integration" ([D routes](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-routes.html)): path parameters and query values reach the function decoded. Function URLs, which share the 2.0 format, keep percent-encoding in `rawPath` and decode `queryStringParameters` (`lambda-events.md 7.3`, third-party-recorded). For HTTP APIs, UNVERIFIED (APIGW2-07).
+
+### 4.5 Responses API Gateway generates itself
+
+| Case | Status and body | Source |
+|---|---|---|
+| No stage matches and no `$default` stage | `{"message":"Not Found"}` | [D routes](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-routes.html); status 404 inferred |
+| No route matches | `{"message":"Not Found"}` | same |
+| Lambda integration failure (missing permission, malformed output) | `{"message":"Internal Server Error"}` | [D troubleshooting](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-troubleshooting-lambda.html); status 500 inferred |
+| JWT authorizer refuses | `401 {"message":"Unauthorized"}`, `www-authenticate: Bearer scope="" error="invalid_token" error_description="..."` | [D JWT troubleshooting](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-troubleshooting-jwt.html) |
+| Unknown API id, disabled default endpoint, unsigned request on an `AWS_IAM` route | UNVERIFIED (APIGW2-06, APIGW2-12); 403 `{"message":"Forbidden"}` is the plausible answer | |
+| Integration timeout, body over 10 MB, headers over 10240 bytes | UNVERIFIED (APIGW2-10) | |
+
+The JWT example's headers are `Date`, `Content-Length: 26`, `Connection: keep-alive`, `www-authenticate`, `apigw-requestid`, and **no** `Content-Type`; the printed body `{"message":"Unauthorized"}}` has one brace too many for its `Content-Length` (26 is `{"message":"Unauthorized"}`) ([D JWT troubleshooting](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-troubleshooting-jwt.html)). Whether gateway errors carry `Content-Type: application/json`: UNVERIFIED (APIGW2-06). Header names AWS sends: `apigw-requestid` (same page). Responses relayed from an integration: "API Gateway includes a Content-Type header for all integration responses. By default, the content type is application/json" is listed under REST APIs ([D important notes](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-known-issues.html)); AWS's .NET tool uses `text/plain; charset=utf-8` for HTTP API responses without a `Content-Type` ([E ApiGatewayResponseExtensions.cs:L176-L177](https://github.com/aws/aws-lambda-dotnet/blob/f43a9f0d75435a513c3094875a7571d9543372fe/Tools/LambdaTestTool-v2/src/Amazon.Lambda.TestTool/Extensions/ApiGatewayResponseExtensions.cs)). UNVERIFIED (APIGW2-09).
+
+### 4.6 CORS on the data plane
+
+- "If you configure CORS for an API, API Gateway automatically sends a response to preflight OPTIONS requests, even if there isn't an OPTIONS route configured for your API. For a CORS request, API Gateway adds the configured CORS headers to the response from an integration." "If you configure CORS for an API, API Gateway ignores CORS headers returned from your backend integration." "To return CORS headers, your request must contain an `origin` header. For the `OPTIONS` method, your request must contain an `origin` header and an `Access-Control-Request-Method` header" ([D CORS](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-cors.html)).
+- Header mapping: `allowOrigins` to `Access-Control-Allow-Origin`, `allowCredentials` to `Access-Control-Allow-Credentials`, `exposeHeaders` to `Access-Control-Expose-Headers`, `maxAge` to `Access-Control-Max-Age`, `allowMethods` to `Access-Control-Allow-Methods`, `allowHeaders` to `Access-Control-Allow-Headers` (same page).
+- The same page also says the `$default` route "catches requests for all methods ... including `OPTIONS` requests" and recommends an unauthenticated `OPTIONS /{proxy+}` route when `$default` has an authorizer. That reads as routing before the automatic preflight answer, against the first quote. UNVERIFIED (APIGW2-13): the order, the preflight status (204 or 200), which origin value is echoed, what a non-matching origin or method gets, and whether a preflight on an `AWS_IAM` route needs a signature.
+
+### 4.7 Limits on the data plane
+
+Payload 10 MB, request line plus headers 10240 bytes, integration timeout 30 s ([D quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-quotas.html)); Lambda's synchronous payload limit of 6 MB applies to the event the function receives (`lambda-api.md 8.2`, ARCHITECTURE.md 14.7). Whether 10 MB means 10,000,000 or 10,485,760 bytes, and what a request over each limit gets: UNVERIFIED (APIGW2-10).
+
+## 5. Lambda proxy integrations
+
+### 5.1 Payload format 2.0 request event
+
+The documented example is in [D lambda integrations](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-lambda.html); the best capture is AWS's sample from a real call on a named stage ([A event-v2.json](https://github.com/awsdocs/aws-lambda-developer-guide/blob/0d45f4afd8eb5b7dc0484b1731dfb23d06afa050/sample-apps/nodejs-apig/event-v2.json)). Field by field:
+
+| Field | Rule | Source |
+|---|---|---|
+| `version` | `"2.0"` | D |
+| `routeKey` | the matched route key, or `$default`; no stage segment | A L3, L40 |
+| `rawPath` | the request path including a named stage's segment (`/default/...`) | A L4 |
+| `rawQueryString` | query without `?`, `""` when none | A L5, D |
+| `cookies` | one element per cookie in AWS's sample (`s_fid=...`, `regStatus=pre-register`); `cookie` absent from `headers`; key omitted when there are no cookies. The sample does not show how many `Cookie` fields the browser sent, so whether one `Cookie: a=1; b=2` header becomes two elements: UNVERIFIED (APIGW2-07) | A L6-L9, C no-authorizer fixture. The doc's "combined with commas" wording disagrees (section 12) |
+| `headers` | always present; names lower-cased; duplicates joined with `,`; includes `host`, `content-length` (`"0"` on a bodyless GET), `x-amzn-trace-id`, `x-forwarded-for`, `x-forwarded-port: 443`, `x-forwarded-proto: https` | A L10-L26, C fixture L6-L15, D ("All headernames are lowercased") |
+| `queryStringParameters` | duplicates joined with `,`; omitted when there is no query | D, A |
+| `pathParameters` | route variables, decoded; a greedy `{proxy+}` reads as key `proxy`; omitted when the route has none | decoding: D routes note; key `proxy`: [D HTTP proxy](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-http.html) maps route `/parent/{proxy+}` to URI `.../{proxy}`; C apigw-v2-request-iam.json:L18-L20 (synthetic); omission: A (no key, route without variables) |
+| `requestContext.accountId` | the API owner's account | D logging variables (`$context.accountId`) |
+| `requestContext.apiId`, `domainName`, `domainPrefix` | `domainName` "should be the same as the incoming Host header"; `domainPrefix` its first label | D logging variables, A L29-L31 |
+| `requestContext.http` | `{method, path, protocol, sourceIp, userAgent}`; `path` equals `rawPath`; `sourceIp` is "the immediate TCP connection" | A L32-L38, D |
+| `requestContext.requestId` | 16-character id (section 2.5) | A L39 |
+| `requestContext.routeKey`, `stage` | as `routeKey`; stage name or `$default` | A L40-L41 |
+| `requestContext.time`, `timeEpoch` | `10/Mar/2020:05:16:23 +0000`; integer milliseconds | A L42-L43 |
+| `requestContext.authorizer` | omitted for `NONE`; `{iam: {accessKey, accountId, callerId, cognitoIdentity, principalOrgId, userArn, userId}}` for `AWS_IAM`; `{jwt: {claims, scopes}}`; `{lambda: {...}}` | A (absent), C apigw-v2-request-iam.json:L26-L40, C apigw.go:L150-L171 |
+| `requestContext.authentication` | only with mutual TLS on a custom domain; omit | D |
+| `body` | omitted when the request has none; base64 for binary content | A (absent), C fixtures |
+| `isBase64Encoded` | `false` for text | D |
+| `stageVariables` | the stage's variables; omitted when none | D, A |
+
+aws-lambda-go marks `cookies`, `queryStringParameters`, `pathParameters`, `stageVariables`, `body` and `requestContext.authorizer` `omitempty` and `headers` not ([C apigw.go:L118-L147](https://github.com/aws/aws-lambda-go/blob/41118539f90fa1989458560031d82a16b3686722/events/apigw.go)), so omission is safe for Go clients. UNVERIFIED (APIGW2-07): `isBase64Encoded` on a bodyless request (AWS's sample says `true`, A L45; aws-lambda-go's fixture says `false`, C L46), which content types arrive base64, whether `rawPath` keeps percent-encoding, query decoding, how a client's own `X-Forwarded-For` appears, `http.protocol` for an HTTP/2 client, and whether `requestId` equals `apigw-requestid`.
+
+### 5.2 Payload format 1.0 request event
+
+The documented example ([D lambda integrations](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-lambda.html)): `version: "1.0"`, `resource`, `path`, `httpMethod`, `headers`, `multiValueHeaders`, `queryStringParameters`, `multiValueQueryStringParameters`, `requestContext{accountId, apiId, authorizer{claims, scopes}, domainName, domainPrefix, extendedRequestId, httpMethod, identity{accessKey, accountId, caller, cognitoAuthenticationProvider, cognitoAuthenticationType, cognitoIdentityId, cognitoIdentityPoolId, principalOrgId, sourceIp, user, userAgent, userArn, clientCert}, path, protocol, requestId, requestTime, requestTimeEpoch, resourceId: null, resourcePath, stage}`, `pathParameters: null`, `stageVariables: null`, `body`, `isBase64Encoded`. "All headernames are lowercased" (same page). Unlike 2.0, absent maps are `null`, not omitted (same example). "Use format `1.0` and `path` to access the API mapping for your custom domain name" (same page): `path` is the full request path.
+
+The example keeps the **last** duplicate header in `headers` (`header2: value2` against `["value1","value2"]`) and the **first** duplicate query value in `queryStringParameters` (`parameter1: value1` against `["value1","value2"]`) (same page). UNVERIFIED (APIGW2-08): which value each single-value map keeps, whether `resource` is the route's path template, whether `path` includes the stage segment, and what `requestContext.authorizer` and `identity` hold on a `NONE` route.
+
+### 5.3 Interpreting a 2.0 response
+
+- "API Gateway makes the following assumptions if your Lambda function returns valid JSON and doesn't return a `statusCode`: `isBase64Encoded` is `false`. `statusCode` is `200`. `content-type` is `application/json`. `body` is the function's response." Examples: `"Hello from Lambda!"` becomes body `Hello from Lambda!`; `{ "message": "Hello from Lambda!" }` becomes body `{ "message": "Hello from Lambda!" }` ([D lambda integrations](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-lambda.html)). understudy's function URL front end returns the bare string, which its package doc says was recorded against AWS (`internal/service/lambda/furl/doc.go`); `lambda-events.md 7.4` reads the Lambda guide's example the other way, with the quotes kept.
+- A customized response is `{cookies, isBase64Encoded, statusCode, headers, body}`; "each cookie becomes a `set-cookie` header" (same page).
+- aws-lambda-go's response type serializes unset `headers`, `multiValueHeaders` and `cookies` as `null` ([C apigw.go:L190-L196](https://github.com/aws/aws-lambda-go/blob/41118539f90fa1989458560031d82a16b3686722/events/apigw.go)), so `null` in each of those must be accepted: every Go function that leaves them unset sends it.
+- UNVERIFIED (APIGW2-09): an object with `body` but no `statusCode` (by the rule, the whole object is the body); a non-string `body`; non-string header values; `multiValueHeaders` in a 2.0 response; a `statusCode` outside 100..599 or given as a string; the `Content-Type` sent when the function gives a `statusCode` and no `content-type` (section 4.5); a `set-cookie` in `headers` beside `cookies`.
+
+### 5.4 Interpreting a 1.0 response
+
+"With the `1.0` format version, Lambda integrations must return a response in the following JSON format: `{isBase64Encoded, statusCode, headers, multiValueHeaders, body}`" ([D lambda integrations](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-lambda.html)); there is no inference. UNVERIFIED (APIGW2-09): the answer to a 1.0 response without `statusCode`, and how `headers` and `multiValueHeaders` merge.
+
+### 5.5 Invocation, credentials and the resource policy
+
+- Invocation is synchronous; the function's response becomes the HTTP response ([D services-apigateway](https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway.html)).
+- Permission: without `CredentialsArn`, API Gateway needs a resource-policy statement `lambda:InvokeFunction` for principal `apigateway.amazonaws.com`, usually with `ArnLike` `aws:SourceArn` on the execute ARN and `StringEquals` `aws:SourceAccount` ([D services-apigateway](https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway.html)). Documented source ARNs: `<api-id>/$default/$default` for the `$default` stage and `$default` route; `<api-id>/prod/*/test` for the `prod` stage and the `test` route ([D troubleshooting](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-troubleshooting-lambda.html)); `<api-id>/*/*/*` and `<api-id>/*/GET/*` patterns ([D services-apigateway](https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway.html)). "If your function and API are in different AWS Regions, the Region identifier in the source ARN must match the Region of the function" (same page).
+- With `CredentialsArn` set, API Gateway assumes that role to invoke the function; `arn:aws:iam::*:user/*` passes the caller's identity through ([S] `CreateIntegrationRequest$CredentialsArn`).
+- UNVERIFIED (APIGW2-11): the exact source ARN API Gateway presents for a route with path variables (template or concrete path), for an `ANY` route (`ANY` or the request's method), for a greedy route, and for a named stage. `${execution_arn}/*/*` matches all of them, because `ArnLike`'s `*` crosses `/`.
+
+### 5.6 Failures: function errors, malformed output, timeouts
+
+- HTTP APIs: the troubleshooting entry for `{"message":"Internal Server Error"}` names a missing invoke permission as the cause in its example and, as the other cause, function code that does not return "a response in the required format" ([D troubleshooting](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-troubleshooting-lambda.html)).
+- The Lambda guide, for API Gateway in general: "If the Lambda API rejects the invocation request, API Gateway returns a 500 error code. If the Event Function runs but returns an error, or returns a response in the wrong format, API Gateway returns a 502. In both cases, the body of the response from API Gateway is `{"message": "Internal server error"}`" ([D services-apigateway-errors](https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway-errors.html)). That body is REST's spelling (section 12).
+- AWS's .NET tool answers HTTP API function errors and malformed responses with `500 {"message":"Internal Server Error"}` and REST with `502 {"message":"Internal server error"}` ([E ApiGatewayResponseExtensions.cs:L77-L91](https://github.com/aws/aws-lambda-dotnet/blob/f43a9f0d75435a513c3094875a7571d9543372fe/Tools/LambdaTestTool-v2/src/Amazon.Lambda.TestTool/Extensions/ApiGatewayResponseExtensions.cs)).
+- UNVERIFIED (APIGW2-10): the status for an unhandled function error and for malformed output (500 or 502), the response to an integration timeout (`TimeoutInMillis` exceeded; 503 `{"message":"Service Unavailable"}` and 504 are the plausible answers), and the response when the event exceeds Lambda's 6 MB limit.
+
+## 6. AWS service integrations (integration subtypes)
+
+### 6.1 The subtypes, and the absence of SNS
+
+All version `1.0` ([D subtype reference](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-aws-services-reference.html)):
+
+| Subtype | Required parameters | Optional parameters |
+|---|---|---|
+| `EventBridge-PutEvents` | `Detail`, `DetailType`, `Source` | `Time`, `EventBusName`, `Resources`, `Region`, `TraceHeader` |
+| `SQS-SendMessage` | `QueueUrl`, `MessageBody` | `DelaySeconds`, `MessageAttributes`, `MessageDeduplicationId`, `MessageGroupId`, `MessageSystemAttributes`, `Region` |
+| `SQS-ReceiveMessage` | `QueueUrl` | `AttributeNames`, `MaxNumberOfMessages`, `MessageAttributeNames`, `ReceiveRequestAttemptId`, `VisibilityTimeout`, `WaitTimeSeconds`, `Region` |
+| `SQS-DeleteMessage` | `ReceiptHandle`, `QueueUrl` | `Region` |
+| `SQS-PurgeQueue` | `QueueUrl` | `Region` |
+| `AppConfig-GetConfiguration` | `Application`, `Environment`, `Configuration`, `ClientId` | `ClientConfigurationVersion`, `Region` |
+| `Kinesis-PutRecord` | `StreamName`, `Data`, `PartitionKey` | `SequenceNumberForOrdering`, `ExplicitHashKey`, `Region` |
+| `StepFunctions-StartExecution` | `StateMachineArn` | `Name`, `Input`, `Region` |
+| `StepFunctions-StartSyncExecution` | `StateMachineArn` | `Name`, `Input`, `Region`, `TraceHeader` |
+| `StepFunctions-StopExecution` | `ExecutionArn` | `Cause`, `Error`, `Region` |
+
+No SNS subtype exists. The AWS CDK's enum lists the same ten ([aws-cdk enums.ts](https://github.com/aws/aws-cdk/blob/main/packages/aws-cdk-lib/core/lib/analytics-data-source/enums.ts), via code search, `HttpIntegrationSubtype`). Publishing to SNS from an HTTP API takes a Lambda function, or EventBridge with an SNS target. The error for `SNS-Publish` as a subtype: UNVERIFIED (APIGW2-01). Of the targets, understudy emulates SQS and EventBridge; Kinesis, Step Functions and AppConfig are not among its twelve services.
+
+### 6.2 Request parameters and their values
+
+"You must configure all required parameters to create an integration. You can use static values or map parameters that are dynamically evaluated at runtime" ([D service integrations](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-aws-services.html)). Values:
+
+| Source | Syntax | Notes |
+|---|---|---|
+| Header | `$request.header.<name>` | case-insensitive; multiple values joined with `,` |
+| Query string | `$request.querystring.<name>` | case-sensitive; joined with `,` |
+| Path parameter | `$request.path.<name>` | |
+| Body | `$request.body` | the whole body |
+| Body field | `$request.body.<json-path>` | no recursive descent, no filters; "API Gateway truncates the request body at 100 KB and then applies the selection expression" |
+| Context variable | `$context.<name>` | section 3.4's variables |
+| Stage variable | `$stageVariables.<name>` | |
+| Static | any string | |
+
+Same page. Several variables in one value use `${...}` braces ([D parameter mapping](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-parameter-mapping.html)). Terraform re-sends unchanged request parameters on every update "as for AWS service integrations some parameters are always required" ([TF] `integration.go:L387-L389`), so UpdateIntegration with a partial map is validated against the merged map or refused. Which: UNVERIFIED (APIGW2-01). How a mapped value is typed for a non-string target member (`DelaySeconds`, `MessageAttributes`, `Resources`): UNVERIFIED (APIGW2-14).
+
+### 6.3 Credentials
+
+"Before you create a first-class integration, you must create an IAM role that grants API Gateway permissions to invoke the AWS service action" and pass it as `CredentialsArn` ([D service integrations](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-aws-services.html)). The role's trust policy names `apigateway.amazonaws.com` ([TF] `integration_test.go`, `testAccIntegrationConfig_sqs`, L1070-L1083). The answer when the role is missing, untrusted or lacks the action: UNVERIFIED (APIGW2-14).
+
+### 6.4 What the client receives
+
+No source states the status, headers or body a client gets from a service integration. UNVERIFIED (APIGW2-14). Plausible: the target's own response (status, JSON body) relayed, or a wrapped Query-style JSON document; the SDKs switched SQS to the JSON protocol during 2023 (`sqs.md 2.2`), so a pre-2023 report of a `SendMessageResponse` wrapper may be stale. `responseParameters` with `overwrite:statuscode` can rewrite the status per returned code ([D parameter mapping](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-parameter-mapping.html)).
+
+## 7. HTTP_PROXY integrations
+
+### 7.1 What AWS does
+
+- "API Gateway passes the entire request and response between the frontend and the backend"; path variables can be referenced in the URI (`https://petstore-demo-endpoint.execute-api.com/petstore/{proxy}` for route `/parent/{proxy+}`); the `$default` route "sends the full request path to the integration" ([D HTTP proxy](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-http.html), [D routes](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-routes.html)).
+- "HTTP APIs translate incoming `X-Forwarded-*` headers into a standard `Forwarded` header and will append the egress IP, Host, and protocol"; "API Gateway adds the Content-type header to your request if there is no payload and the Content-Length is 0" ([D important notes](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-known-issues.html)).
+- Parameter mapping keys `append|overwrite|remove:header.<name>`, `append|overwrite|remove:querystring.<name>`, `overwrite:path`; response keys `append|overwrite|remove:header.<name>`, `overwrite:statuscode`; reserved headers that cannot be mapped: `access-control-*`, `apigw-*`, `Authorization`, `Connection`, `Content-Encoding`, `Content-Length`, `Content-Location`, `Forwarded`, `Keep-Alive`, `Origin`, `Proxy-Authenticate`, `Proxy-Authorization`, `TE`, `Trailers`, `Transfer-Encoding`, `Upgrade`, `x-amz-*`, `x-amzn-*`, `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `Via` ([D parameter mapping](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-parameter-mapping.html)).
+- Private integrations (`VPC_LINK`) target ALB or NLB listeners or Cloud Map services ([S] `IntegrationUri` doc).
+
+### 7.2 What an emulator must refuse
+
+Calling an arbitrary `IntegrationUri` is outbound network: ADR 0015 calls an emulator that "makes outbound HTTP requests to arbitrary hosts ... an SSRF vector" that "breaks the rule of no network access at runtime", and gates SNS HTTP delivery behind `sns.httpDelivery.allow`, empty by default. An `HTTP_PROXY` integration must be stored (Terraform applies it) and run only to hosts an operator allow-lists, loopback test servers included; any other request must be refused visibly, with a journal event, never answered as if the backend replied. `VPC_LINK` integrations name AWS networking understudy does not have and never run. Decision: section 13.3.
+
+## 8. IAM
+
+### 8.1 Control plane actions
+
+The control plane's IAM prefix is `apigateway` (the ARN namespace, [S]), and its resources are the ARNs of section 2.5 ([D ARN reference](https://docs.aws.amazon.com/apigateway/latest/developerguide/arn-format-reference.html)). The action names are not in this note: the Service Authorization Reference pages for both prefixes render only in a browser, and the machine-readable service reference is an `amazonaws.com` host this research may not contact. It lands through a human bump of `third_party/aws-service-reference/actions.json`, which has no `apigateway` or `execute-api` entry today; that bump, not a recording, settles it.
+
+### 8.2 execute-api:Invoke and the execute-api ARN
+
+Actions: `execute-api:Invoke`, `execute-api:InvalidateCache`, `execute-api:*`; resource `arn:aws:execute-api:<region>:<account-id>:<api-id>/<stage-name>/<HTTP-VERB>/<resource-path-specifier>`; "If you specify a wildcard (`*`), the `Resource` expression applies the wildcard to the rest of the expression" ([D control access](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-invoke-api.html)). "Resource policies aren't currently supported for HTTP APIs" ([D IAM authorization](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-access-control-iam.html)).
+
+### 8.3 AWS_IAM routes
+
+"When IAM authorization is enabled, clients must use Signature Version 4 (SigV4) to sign their requests with AWS credentials. API Gateway invokes your API route only if the client has `execute-api` permission for the route" ([D IAM authorization](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-access-control-iam.html)). The signing name is `execute-api`, the prefix the policy names; "Signature Version 4A is not officially supported ... for HTTP and WebSocket APIs" ([D important notes](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-known-issues.html)). The `Authorization` header "is dropped if it contains a Signature Version 4 signature or if `AWS_IAM` authorization is used" (same page, REST section); for HTTP APIs UNVERIFIED (APIGW2-12). The caller's identity fills `requestContext.authorizer.iam` (section 5.1) and `$context.identity.*` ([D logging variables](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-logging-variables.html)). UNVERIFIED (APIGW2-12): the status and body for an unsigned request, a request signed for another service or region, and an authenticated caller without `execute-api:Invoke`.
+
+### 8.4 lambda:InvokeFunction for Lambda integrations
+
+Section 5.5. A missing statement answers `{"message":"Internal Server Error"}` ([D troubleshooting](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-troubleshooting-lambda.html)); the console adds the permission itself, the CLI, CloudFormation and SDKs do not (same page).
+
+## 9. Terraform AWS provider v6.68.0
+
+### 9.1 aws_apigatewayv2_api
+
+- Create: `CreateApi` with `Name`, `ProtocolType`, `Tags`, and every set optional; `api_key_selection_expression` defaults to `$request.header.x-api-key` and `route_selection_expression` to `$request.method $request.path`, both sent on every create because they have defaults ([TF] `api.go:L53-L61`, `L158-L162`, `L185-L231`). Then `ReimportApi` if `body` is set ([TF] `api.go:L239`, `L385-L467`), then Read.
+- Read: `GetApi`; sets `api_endpoint` from `ApiEndpoint`, `arn` and `execution_arn` built locally, `cors_configuration` (nil gives an empty list), tags from `GetApi.Tags` ([TF] `api.go:L246-L288`, `L528-L541`). A 404 `NotFoundException` on refresh removes the resource from state ([TF] `api.go:L252-L256`).
+- Update: `DeleteCorsConfiguration` when the block is removed, `UpdateApi` with only changed fields, `ReimportApi` when `body` changes ([TF] `api.go:L290-L362`). Delete: `DeleteApi`, a `NotFoundException` is success ([TF] `api.go:L364-L383`).
+- `expandCORS` always sends `AllowCredentials` and `MaxAge` (0 when unset) ([TF] `api.go:L497-L526`).
+- Empty second plan needs: `ApiKeySelectionExpression` and `RouteSelectionExpression` echoed byte for byte; `IpAddressType` returned (Optional and Computed, [TF] `api.go:L136-L141`); `CorsConfiguration` absent when never set and after `DeleteCorsConfiguration`; tags returned by `GetApi`; `Description` and `Version` absent when unset.
+
+### 9.2 aws_apigatewayv2_route
+
+- Create: `CreateRoute` with `ApiKeyRequired` (default false), `AuthorizationType` (default `NONE`), `RouteKey`, and set optionals ([TF] `route.go:L58-L73`, `L127-L179`). Read: `GetRoute` ([TF] `route.go:L181-L202`, `L431-L447`). Update: `DeleteRouteRequestParameter` for removed parameters (WebSocket), then `UpdateRoute` ([TF] `route.go:L204-L303`). Delete: `DeleteRoute`, 404 is success ([TF] `route.go:L305-L325`). Import refuses a route with `ApiGatewayManaged` ([TF] `route.go:L348-L350`).
+- Empty plan needs `ApiKeyRequired: false`, `AuthorizationType: "NONE"` and `Target` echoed.
+
+### 9.3 aws_apigatewayv2_integration
+
+- Defaults sent on create: `connection_type` `INTERNET`, `passthrough_behavior` `WHEN_NO_MATCH`, `payload_format_version` `1.0` ([TF] `integration.go:L65-L70`, `L118-L139`, `L199-L281`).
+- Read: `GetIntegration` sets every field ([TF] `integration.go:L283-L323`). Diff suppression: `integration_method` `POST` read back against an empty config for `AWS` and `AWS_PROXY` ([TF] `integration.go:L85-L97`); `passthrough_behavior` empty read back against the default ([TF] `integration.go:L123-L129`). `timeout_milliseconds` is Optional and Computed ([TF] `integration.go:L175-L179`).
+- Update always sends `IntegrationType` and any `IntegrationSubtype`, and the merged request parameters ([TF] `integration.go:L325-L442`).
+- Empty plan needs: `ConnectionType: "INTERNET"`; `IntegrationMethod: "POST"` or absent for Lambda, absent for subtypes; `PassthroughBehavior` absent (or `WHEN_NO_MATCH`, which also compares equal); `PayloadFormatVersion` and `RequestParameters` echoed exactly; `TimeoutInMillis: 30000` when unset; `IntegrationUri` verbatim.
+
+### 9.4 aws_apigatewayv2_stage
+
+- Create: `GetApi` (for the protocol type), then `CreateStage` with `AutoDeploy` (default false), `StageName`, `Tags` and set optionals ([TF] `stage.go:L195-L252`).
+- Read: `GetStage`, then `GetApi` again for `invoke_url` ([TF] `stage.go:L254-L301`). Update: `GetApi`, `DeleteRouteSettings` for removed route settings, `UpdateStage` ([TF] `stage.go:L303-L394`). Import refuses a managed stage ([TF] `stage.go:L435-L437`).
+- `default_route_settings` suppresses a block AWS returns but the config lacks ([TF] `stage.go:L87-L93`); AWS returns it (`default_route_settings.# = 1` with all zero values, [TF] `stage_test.go:L95-L100`). `deployment_id` is Optional and Computed and reads `""` on a stage with no deployment ([TF] `stage.go:L122-L126`, `stage_test.go:L101`).
+- Empty plan needs: `AutoDeploy` echoed; `DefaultRouteSettings` present; `DeploymentId` stable across refreshes except through automatic deployment; `StageVariables` and `RouteSettings` maps echoed.
+
+### 9.5 aws_apigatewayv2_deployment
+
+Create: `CreateDeployment` with `Description` only (never `StageName`), then polls `GetDeployment` for up to 5 minutes, pending `PENDING`, target `DEPLOYED` ([TF] `deployment.go:L70-L96`, `L226-L246`). A missing or other status fails the apply. Read: `GetDeployment` sets `auto_deployed` and `description` ([TF] `deployment.go:L98-L118`). Update: `UpdateDeployment`, then the same wait. `triggers` is local and forces replacement ([TF] `deployment.go:L59-L64`). The usual pattern pairs it with `aws_apigatewayv2_stage.deployment_id`.
+
+### 9.6 aws_lambda_permission with execution_arn
+
+`source_arn` is any valid ARN, sent as `SourceArn` and read back from the policy's `AWS:SourceArn` condition ([TF] `internal/service/lambda/permission.go:L109-L114`, `L180-L182`, `L264`). The common value `"${aws_apigatewayv2_api.x.execution_arn}/*/*"` is `arn:aws:execute-api:<region>:<account>:<api-id>/*/*`. understudy's Lambda already stores and returns these statements (`internal/service/lambda/doc.go`).
+
+### 9.7 Values the provider builds itself
+
+| Attribute | Built from | Host |
+|---|---|---|
+| `aws_apigatewayv2_api.api_endpoint` | the server's `ApiEndpoint` ([TF] `api.go:L270`) | whatever the server says |
+| `aws_apigatewayv2_api.arn`, `aws_apigatewayv2_stage.arn` | `RegionalARNNoAccount("apigateway", "/apis/<id>[/stages/<name>]")` ([TF] `api.go:L543-L545`, `stage.go:L617-L619`) | none |
+| `aws_apigatewayv2_api.execution_arn` | `RegionalARN("execute-api", "<id>")` with the provider's region and account ([TF] `api.go:L547-L549`, `internal/conns/awsclient.go:L224-L226`) | none |
+| `aws_apigatewayv2_stage.execution_arn` | `RegionalARN("execute-api", "<id>/<stage>")` ([TF] `stage.go:L621-L623`) | none |
+| `aws_apigatewayv2_stage.invoke_url` | `https://<id>.execute-api.<region>.<dns-suffix>/<stage>`, or `.../` for `$default` ([TF] `internal/conns/awsclient.go:L313-L323`) | the partition's DNS suffix, `amazonaws.com` by default ([TF] `internal/conns/awsclient.go:L362-L369`), never the configured endpoint |
+| `aws_lambda_function.invoke_arn` | `arn:<partition>:apigateway:<region>:lambda:path/2015-03-31/functions/<arn>/invocations` ([TF] `internal/service/lambda/function.go:L1698-L1700`) | none |
+
+The account id is known whenever credentials are validated: aws-sdk-go-base returns the account from STS `GetCallerIdentity` unless `skip_credentials_validation` is set, whatever `skip_requesting_account_id` says ([C aws_config.go:L299-L338](https://github.com/hashicorp/aws-sdk-go-base/blob/v2.0.0-beta.73/aws_config.go), [TF] `internal/conns/config.go:L145-L148`, `L186-L189`). understudy's guide sets only `skip_requesting_account_id` (`docs/guide/terraform.md`), so by this reading `execution_arn` carries the account. The guide's reason for that setting (no account id, so no S3 Control host) assumes the opposite; the Terraform conformance case settles it locally, with no AWS call (13.6). With `skip_credentials_validation` as well, `execution_arn` would read `arn:aws:execute-api:<region>::<id>` and no permission would match.
+
+### 9.8 Calls per phase
+
+| Resource | Apply (create) | Refresh (plan) |
+|---|---|---|
+| api | CreateApi, [ReimportApi, GetApi, UpdateApi], GetApi | GetApi |
+| route | CreateRoute, GetRoute | GetRoute |
+| integration | CreateIntegration, GetIntegration | GetIntegration |
+| stage | GetApi, CreateStage, GetStage, GetApi | GetStage, GetApi |
+| deployment | CreateDeployment, GetDeployment until DEPLOYED, GetDeployment | GetDeployment |
+| tags change (api, stage) | TagResource/UntagResource, GetTags ([TF] `internal/provider/sdkv2/tags_interceptor.go:L170-L182`) | none: tags come from GetApi/GetStage ([TF] same file L88-L98) |
+
+## 10. SDKs and the CLI
+
+- Every SDK sends restJson1 with camelCase `jsonName` members and reads errors by the rules in `wire-rest.md 4.2`. The CLI's `--cors-configuration`, `--request-parameters` and `--stage-variables` take JSON or shorthand ([D CORS CLI example](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-cors.html), [D parameter mapping examples](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-parameter-mapping.html)).
+- Data-plane clients are plain HTTP clients (curl, fetch, `requests`), plus SigV4 signers with service `execute-api` for `AWS_IAM` routes. No SDK resolves an `execute-api` endpoint from `AWS_ENDPOINT_URL`; clients take the URL from `ApiEndpoint`, a Terraform output, or by building it.
+
+## 11. Addressing for an emulator
+
+### 11.1 What reaches the emulator
+
+A client reaches an HTTP API by the URL it holds: `ApiEndpoint` from GetApi or Terraform's `api_endpoint`, plus the stage segment. If understudy mints `ApiEndpoint` on a host it serves, every client that uses the returned value reaches it with no DNS server and no change to the client. Terraform's `invoke_url` cannot be steered (section 9.7). The data plane has no SigV4 scope to route on except on `AWS_IAM` routes, so it must be claimed by host or path before auth is parsed, as function URLs are (ARCHITECTURE.md 4.1 rules 1 and 2).
+
+### 11.2 LocalStack's forms (context only)
+
+LocalStack serves `<api-id>.execute-api.localhost.localstack.cloud:4566/<stage>/<path>`, a path form `/_aws/execute-api/<api-id>/<stage>/<path>`, and the legacy `/restapis/<api-id>/<stage>/_user_request_/<path>` (localstack@8b9a79f `localstack-core/localstack/services/apigateway/helpers.py`, `localstack_path_based_url` and `host_based_url`, and `.../next_gen/execute_api/router.py`, read through GitHub code search of the archived repository). Its path parser strips `/_aws/execute-api/<api-id>` case-insensitively and accepts `//` and `%2F` in the remainder (`.../next_gen/execute_api/handlers/parse.py`). Context for migrations, not authority.
+
+### 11.3 What ADR 0013 implies
+
+- No DNS server; virtual-host detection is configuration on base domains (default `localhost`; `localhost.localstack.cloud` may be added for migrations). Function URLs already follow it: `http://<url-id>.lambda-url.<region>.localhost:<port>/` minted on the port the client addressed, with the path fallback `/_understudy/lambda-url/<url-id>/...` (ADR 0013, `internal/service/lambda/urls_runtime.go`, `internal/edge/claim.go`).
+- The same shape fits: host `<api-id>.execute-api.<region>.<base>` and path fallback `/_understudy/execute-api/<api-id>/<stage-or-path>`. `*.localhost` resolution varies by resolver and does not work in containers (ADR 0013 Context and Consequences), so functions calling an API from inside Lambda containers use the fallback on the container-reachable endpoint (ADR 0011).
+- `amazonaws.com` names are not base domains (ADR 0013 amendment, 2026-10-13): understudy never answers `<id>.execute-api.<region>.amazonaws.com`, which is also why `invoke_url` cannot work.
+- `/_aws/` is a safe extra claim: S3 bucket names cannot start with `_`, the reason ARCHITECTURE.md 4.1 rule 1 gives for `/_understudy/`.
+
+## 12. Conflicts between sources
+
+1. **Gateway error body spelling and status.** HTTP API docs: `{"message":"Internal Server Error"}` ([D troubleshooting](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-troubleshooting-lambda.html)). Lambda guide: 502 or 500 with `{"message": "Internal server error"}` ([D](https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway-errors.html)), which is REST's body ([R] localstack@8b9a79f tests/aws/services/apigateway/test_apigateway_lambda.snapshot.json:L1520, a REST API, third-party-recorded, validated 2024-07-10 per test_apigateway_lambda.validation.json:L20-L21). Prefer the HTTP API page for the body; the status is APIGW2-10.
+2. **429 shape name.** Model `TooManyRequestsException`; API Reference `LimitExceededException` (section 2.3). APIGW2-02.
+3. **`isBase64Encoded` on a bodyless request.** `true` in AWS's sample ([A event-v2.json:L45](https://github.com/awsdocs/aws-lambda-developer-guide/blob/0d45f4afd8eb5b7dc0484b1731dfb23d06afa050/sample-apps/nodejs-apig/event-v2.json)), `false` in aws-lambda-go's fixture ([C L46](https://github.com/aws/aws-lambda-go/blob/41118539f90fa1989458560031d82a16b3686722/events/testdata/apigw-v2-request-no-authorizer.json)). APIGW2-07.
+4. **Cookies.** The doc says cookie headers "are combined with commas and added to the `cookies` field"; the doc's example and AWS's sample give one element per cookie. Neither shows the request's `Cookie` fields: the sample's browser may have used HTTP/2, which lets a client send each cookie as its own field (RFC 9113 8.2.3), and `http.protocol` reads `HTTP/1.1` either way (section 4.1). Split each `Cookie` field on `; ` (one element per cookie, which fits the sample under both readings) until APIGW2-07 records one field holding two cookies.
+5. **`routeSelectionExpression`.** The API Reference says it "must be `${request.method} ${request.path}`"; AWS returns `$request.method $request.path` ([A create-api.rst:L19](https://github.com/aws/aws-cli/blob/e9993cfc8bf6d85d9870c1ff3b86cd59c5bfdba6/awscli/examples/apigatewayv2/create-api.rst)) and Terraform sends that by default. Accept both on input; echo what was sent. Whether AWS normalizes the braced form: UNVERIFIED (APIGW2-03).
+6. **1.0 single-value maps.** The doc's example keeps the last header value and the first query value (section 5.2). APIGW2-08.
+7. **Stage names.** "Stage names can only contain alphanumeric characters, hyphens, and underscores. Maximum length is 128" sits under REST and WebSocket notes ([D important notes](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-known-issues.html)); the v2 reference states the same rule and adds `$default` (section 2.4). No conflict for HTTP APIs once `$default` is allowed.
+8. **Stage variable value length.** Quota 512 characters ([D quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-quotas.html)); the model's value shape is named `StringWithLengthBetween0And2048` with no trait ([S] `StageVariablesMap`). Enforce 512; the text is APIGW2-01.
+9. **Path case.** AWS's .NET tool matches literal segments case-insensitively ([E](https://github.com/aws/aws-lambda-dotnet/blob/f43a9f0d75435a513c3094875a7571d9543372fe/Tools/LambdaTestTool-v2/src/Amazon.Lambda.TestTool/Services/ApiGatewayRouteConfigService.cs)); no AWS source says either way. APIGW2-05.
+10. **Default response `Content-Type`.** REST notes: `application/json`; AWS's .NET tool for HTTP APIs: `text/plain; charset=utf-8` (section 4.5). APIGW2-09.
+
+## 13. Implications for understudy
+
+### 13.1 Service shape and claiming
+
+1. Vendor `models/apigatewayv2/service/2018-11-29/apigatewayv2-2018-11-29.json` at the pinned commit (a 13th model; ARCHITECTURE.md 5.1 says 12) and generate the restJson1 types and route table. Overlay only HTTP-API-relevant operations as bound.
+2. The signing name `apigateway` is shared with REST APIs and the registry refuses duplicates (finding 3). Decide in an ADR before binding: one registry service `apigateway` holding both models' route tables (v2 rows all start with `/v2/`, v1 rows never do), or a registry keyed by signing name plus path prefix. The first keeps `BySigningName` unchanged.
+3. Data-plane claim, a new rule beside ARCHITECTURE.md 4.1 rule 2: host `<api-id>.execute-api.<region>.<base>` (pattern `^[a-z0-9]+\.execute-api\.[a-z0-9-]+\.`) goes to a raw operation, say `apigatewayv2.InvokeApi` (IAM `execute-api:Invoke`), so it is journaled, faultable and covered as function URLs are. Path fallback `/_understudy/execute-api/<api-id>/...` on the main listener, region from the API's home, `domainName` reported in the host form under `localhost` (the function URL fallback's rule, `internal/service/lambda/furl/doc.go`). Optional migration alias `/_aws/execute-api/<api-id>/...` (section 11.3).
+4. `ApiEndpoint` is `http://<api-id>.execute-api.<region>.localhost:<port>` on the port the client addressed, no trailing slash, mirroring `functionURL` (`internal/service/lambda/urls_runtime.go`); `https://` only on the TLS listener. It is a deviation from AWS's `https://...amazonaws.com` and goes in the coverage note.
+5. Packages, one primary type each: `apigatewayv2` (control plane, state, snapshots), `apigatewayv2/route` (route-key parser to a typed key `Default | Keyed{Method, Segments}` with `Segment = Literal | Var | Greedy`, matcher with the precedence of 4.3, rapid properties: a request matches at most one route; adding a route never changes the match for requests it does not match; a full match always beats a greedy one), `apigatewayv2/selexpr` (the `$request.*`, `$context.*`, `$stageVariables.*` grammar of 6.2), and a 1.0/2.0 event and response package shared with function URLs: `furl` already builds 2.0 events and infers responses; extract the format into one package and keep the front ends' differences (function URL: no path parameters or stage, 502 plain-text `Internal Server Error` for function errors, `lambda-events.md 7.4`; HTTP API: route key, stage, path parameters, JSON gateway errors).
+6. Deployments are snapshots (finding 7): a stage serves the configuration captured by its deployment; `autoDeploy` captures a new one, with `AutoDeployed: true` and the documented description, before the mutating call returns (switch `apigatewayv2.deploy.auto-latency`). `CreateDeployment` answers `DEPLOYED` at once, which satisfies Terraform's waiter (section 9.5).
+
+### 13.2 Operation coverage
+
+| Operations | Mark | Coverage note text |
+|---|---|---|
+| CreateApi, UpdateApi | Partial | `HTTP APIs only: protocolType WEBSOCKET answers BadRequestException naming WebSocket APIs as not emulated; ipAddressType is stored without effect; ApiEndpoint names the emulator (http://<api-id>.execute-api.<region>.localhost:<port>), not amazonaws.com` |
+| GetApi, GetApis, DeleteApi, DeleteCorsConfiguration | Full | |
+| CreateRoute, UpdateRoute | Partial | `a route whose authorizationType is JWT or CUSTOM is stored, and a request it matches answers 501 instead of running its integration; AWS_IAM checks the SigV4 signature under sigv4 verify and does not evaluate execute-api:Invoke policies` |
+| GetRoute, GetRoutes, DeleteRoute | Full | |
+| CreateIntegration, UpdateIntegration | Partial | `Lambda AWS_PROXY (payload 1.0 and 2.0) and the SQS-SendMessage, SQS-ReceiveMessage, SQS-DeleteMessage, SQS-PurgeQueue and EventBridge-PutEvents subtypes run; Kinesis-PutRecord, StepFunctions-* and AppConfig-GetConfiguration are stored and answer 501 when a request reaches them; HTTP_PROXY runs only to allow-listed hosts and VPC_LINK never; responseParameters, tlsConfig and HTTP_PROXY requestParameters are stored without effect` |
+| GetIntegration, GetIntegrations, DeleteIntegration | Full | |
+| CreateStage, UpdateStage | Partial | `accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); an automatic deployment completes before the call returns` |
+| GetStage, GetStages, DeleteStage | Full | |
+| CreateDeployment, GetDeployment, GetDeployments, UpdateDeployment, DeleteDeployment | Full | |
+| TagResource, UntagResource, GetTags | Full | |
+| CreateAuthorizer, UpdateAuthorizer | StoredOnly | `stored and returned; authorizers never run, and routes that use them answer 501` |
+| GetAuthorizer, GetAuthorizers, DeleteAuthorizer | Full | |
+| DeleteAccessLogSettings, DeleteRouteSettings | StoredOnly | `the settings they remove are stored without effect` |
+| `InvokeApi` (raw data plane) | Partial | `payload 1.0 and 2.0 Lambda proxy and the SQS and EventBridge subtypes; stage selection, route selection and CORS as documented; parameter mapping, access logging and throttling are not applied; JWT and CUSTOM routes answer 501` |
+| ImportApi, ReimportApi, ExportApi, ResetAuthorizersCache, DeleteRouteRequestParameter, models, route and integration responses, domain names, API mappings, VPC links, portals, routing rules | unbound (501) | Terraform's `body` argument calls ReimportApi ([TF] `api.go:L239`), so an `aws_apigatewayv2_api` with `body` fails to apply; say so in `docs/guide/` |
+
+### 13.3 Data plane
+
+1. Lambda proxy: invoke `RequestResponse` through `kernel.Invoke` as the service principal `apigateway.amazonaws.com` (or as the `CredentialsArn` role), with the source ARN of 5.5. Evaluate the function's resource policy with `policydoc` first, as `furl` does for function URLs, and answer `500 {"message":"Internal Server Error"}` when it does not allow the call (finding 9, switch `apigatewayv2.lambda.missing-permission`); with `CredentialsArn`, require the role to exist and skip the resource policy. Journal the data-plane request and the invoke as parent and child.
+2. Docker unavailable: Lambda's Invoke answers 501 (ARCHITECTURE.md 14.7). Pass that through as a 501 naming Docker, not as AWS's 500: the failure is understudy's, and an AWS-shaped 500 would be a fake integration failure.
+3. Service integrations: map parameters (6.2), assume `CredentialsArn` (the role must exist and trust `apigateway.amazonaws.com`), call the target operation through `kernel.Invoke` as that role so the access recorder attributes the action to it, and relay the result in the shape APIGW2-14 records. Until then the shape is a switch (13.4). Not outbox deliveries (finding 2).
+4. `HTTP_PROXY`: a new allow-list on the ADR 0015 pattern (say `apigatewayv2.httpProxy.allow`, empty by default), needing an ADR 0015 amendment; a request to any other host answers 501 with a message naming the host and the setting, journaled.
+5. Authorizers: a route with `JWT` or `CUSTOM` answers 501 naming the authorizer type, before any integration runs. Never run the integration unauthorized.
+6. The integration timeout bounds real work in a container, like the function timeout, so it belongs in the wall-clock column of ARCHITECTURE.md 9 (that table puts "function timeout enforcement" there); add the row.
+7. Body handling: 10 MB request cap before anything else (exact boundary per APIGW2-10); lower-case header names; cookies split per `;`-separated pair until APIGW2-07 says otherwise (12 item 4); base64 for non-text content types with the function URL's text rule (`internal/service/lambda/furl/doc.go`) until APIGW2-07 says otherwise.
+8. Gateway errors carry `apigw-requestid` (a 16-character id from the seeded id source, 2.5) and `Content-Type: application/json` until APIGW2-06 says whether AWS sends it.
+
+### 13.4 Fidelity switches
+
+Each is a `fidelity.Switch` (`internal/fidelity/switch.go`), listed by the service's `Switches()`; `Ref` points at the section, `Record` at the case.
+
+| Name | Value | Label | Grounds | Record |
+|---|---|---|---|---|
+| `apigatewayv2.lambda.error-status` | `500` with `{"message":"Internal Server Error"}` for function errors and malformed output | inferred | 5.6, 12 item 1 | APIGW2-10 |
+| `apigatewayv2.lambda.missing-permission` | `500` with `{"message":"Internal Server Error"}`; the body is documented, the status inferred | inferred | 5.5, 8.4 | APIGW2-11 |
+| `apigatewayv2.lambda.source-arn` | `<api-id>/<stage>/<METHOD>/<route path without leading slash>` with the route's template, `ANY` literal for ANY routes, `<api-id>/<stage>/$default` for the `$default` route (the last form documented) | inferred | 5.5 | APIGW2-11 |
+| `apigatewayv2.integration.timeout-response` | `503` with `{"message":"Service Unavailable"}` | inferred | 5.6 | APIGW2-10 |
+| `apigatewayv2.request.too-large` | `413` with `{"message":"Request Entity Too Large"}` above 10,485,760 bytes | inferred | 4.7 | APIGW2-10 |
+| `apigatewayv2.response.default-content-type` | `text/plain; charset=utf-8` for a response with `statusCode` and no `content-type`, as AWS's .NET emulator answers | inferred | 4.5, 12 item 10 | APIGW2-09 |
+| `apigatewayv2.response.v2-multivalue-headers` | ignored | inferred | 5.3 | APIGW2-09 |
+| `apigatewayv2.event.empty-body-base64` | `false` | inferred | 5.1, 12 item 3 | APIGW2-07 |
+| `apigatewayv2.event.v1-single-value` | last value for headers, first value for query parameters, as the documented example shows | inferred | 5.2, 12 item 6 | APIGW2-08 |
+| `apigatewayv2.route.path-case` | case-sensitive | inferred | 4.4, 12 item 9 | APIGW2-05 |
+| `apigatewayv2.route.trailing-slash` | distinct paths | inferred | 4.4 | APIGW2-05 |
+| `apigatewayv2.route.head` | `HEAD` matches only `HEAD` and `ANY` routes | inferred | 4.4 | APIGW2-05 |
+| `apigatewayv2.route.no-target` | `404` with `{"message":"Not Found"}` | inferred | 3.2 | APIGW2-05 |
+| `apigatewayv2.stage.prefix-shadows-default` | a first segment equal to a stage name always selects that stage | inferred | 4.2 | APIGW2-06 |
+| `apigatewayv2.front.unknown-api` | `403` with `{"message":"Forbidden"}` | inferred | 4.5 | APIGW2-06 |
+| `apigatewayv2.front.disabled-endpoint` | `403` with `{"message":"Forbidden"}` | inferred | 3.1 | APIGW2-06 |
+| `apigatewayv2.iam.unsigned` | `403` with `{"message":"Forbidden"}` | inferred | 8.3 | APIGW2-12 |
+| `apigatewayv2.cors.preflight` | answered before route matching, status `204`, matching origin echoed, no CORS headers for a non-matching origin | inferred | 4.6 | APIGW2-13 |
+| `apigatewayv2.service-integration.response` | the target operation's JSON response relayed with its status and `Content-Type: application/json` | inferred | 6.4 | APIGW2-14 |
+| `apigatewayv2.deploy.auto-latency` | `0` (synchronous) | inferred | 3.5 | APIGW2-04 |
+| `apigatewayv2.ids.shape` | api 10, route 7, integration 7, authorizer 7, deployment 6 lower-case alphanumerics | inferred | 2.5 | APIGW2-03 |
+| `apigatewayv2.error.not-found-text` | `Invalid API identifier specified <account>:<api-id>` (recorded for REST APIs only) and the same pattern for the other resources (`Invalid Route identifier specified ...`) | inferred | 2.3 | APIGW2-01 |
+
+### 13.5 Limits and validation
+
+Hand-code, with `rapid` properties per limit (`sqs.md` 13 item 1 is the precedent): name 1..128; description 0..1024; version 1..64; route keys (method set of 4.4 plus `ANY`, path starting with `/`, `{var}` whole segments, one greedy at the end, `$default`); stage name `[A-Za-z0-9_-]{1,128}` or `$default`; stage variable names `[A-Za-z0-9_]+` up to 64, values `[A-Za-z0-9-._~:/?#&=,]+` up to 512, at most 100; `TimeoutInMillis` 50..30000; `MaxAge` -1..86400; payload versions `1.0` and `2.0` (2.0 only for Lambda); required subtype parameters (6.1); access log format containing `$context.requestId`, at most 3 KB; quotas of 3.9 (300 routes, 300 integrations, 10 stages, 10 authorizers, 50 tags per stage). Every error is `BadRequestException` (400), duplicates `ConflictException` (409), missing resources `NotFoundException` (404) with `resourceType`. The texts are APIGW2-01; until it lands, write texts that name the constraint, and list them in the coverage report as inferred. Never emit `TooManyRequestsException` except by fault injection: Terraform and the SDKs retry it, and the `CreateDeployment` quota of one per 5 s would slow every apply.
+
+### 13.6 Terraform: apply and an empty second plan
+
+The conformance suite applies an API with routes, a Lambda integration in each payload format, an SQS integration, a `$default` auto-deploy stage, a named stage with an explicit deployment and `triggers`, and an `aws_lambda_permission` with `execution_arn/*/*`; then plans again and expects no changes. The fields that must round-trip are in 9.1 to 9.5. Fixed points: `GetDeployment` returns `DEPLOYED`; `GetStage` returns `DefaultRouteSettings`; `GetApi` omits `CorsConfiguration` after `DeleteCorsConfiguration`; `IntegrationMethod` is `POST` for Lambda without one; `TimeoutInMillis` defaults to 30000; request parameters come back byte for byte. The suite takes URLs from `api_endpoint`, never `invoke_url` (9.7), asserts that `execution_arn` carries the account under the guide's provider block (9.7), and `docs/guide/` says so with commands run against a build.
+
+### 13.7 Never faked
+
+- No answer on `*.amazonaws.com` names and no `ApiEndpoint` minted on them.
+- No outbound request for `HTTP_PROXY` outside the allow-list, and none ever for `VPC_LINK`.
+- No integration run for a route whose authorizer understudy does not run.
+- No Lambda invocation the resource policy (or the credentials role) would not allow, by default.
+- No pretended success for Kinesis, Step Functions or AppConfig subtypes; no invented SNS subtype.
+- No undeployed change served on a stage without `autoDeploy`.
+- No WebSocket API accepted as if it worked.
+- No AWS-shaped 500 for a failure that is understudy's own (Docker missing, allow-list refusal): those answer 501 naming the cause.
+
+### 13.8 Roadmap corrections
+
+`docs/ROADMAP.md` item 6 says "add SQS, SNS and EventBridge direct integrations (new `delivery.Target` variants)". SNS has no subtype (6.1), and integrations are synchronous calls, not deliveries (finding 2). The item should read "SQS and EventBridge direct integrations as synchronous calls through `kernel.Invoke`". ARCHITECTURE.md 21 lists API Gateway in the row whose seam is "new `delivery.Target` variants" and needs the same correction. Lambda proxy integrations are "mostly routing, stages and `$default` handling" as the item says, plus the 1.0 format Terraform defaults to (finding 6) and deployment snapshots (finding 7).
+
+## 14. Recording queue
+
+For a human with credentials, in the recording-kit shell (`docs/recording-kit.md` sections 1 and 2: `$P`, `$R`, `$A`, `$Q`, `rec`, `recurl`, the redaction step). Agents never run these. Run the cases in order after 14.1; each builds on the shared API. Costs: HTTP API requests bill USD 1.00 per million in the first tier, metered in 512 KB increments, with one million free a month in the first 12 months ([API Gateway pricing](https://aws.amazon.com/api-gateway/pricing/)); the queue makes a few hundred requests, the large uploads of APIGW2-10 counting as about 20 each. Lambda, SQS, EventBridge and CloudWatch Logs stay in the free tier at these volumes. The queue costs under USD 0.01 in total and takes about 2 h 20 min. On a free-plan project, a call the guardrail denies is noted `n/a (free-plan SCP)` (kit section 1). Add `aws apigatewayv2 get-apis --query "Items[?starts_with(Name, '$P')].Name"` to the kit's section 5 sweep when this queue lands.
+
+### 14.1 Shared setup
+
+Ten minutes. Creates a function that echoes its event or returns a shape chosen by the `mode` query parameter (and a second copy, `$P-gw-perm`, with no permission for APIGW2-11), an API `$P-gw` with routes for every case, a `$default` auto-deploy stage, the queue `$P-gw-q`, the API Gateway roles `$P-gw-int` and `$P-gw-none`, and the helper `gw` for unsigned data-plane requests.
+
+```sh
+mkdir -p "$REC/APIGW2"
+cat >"$REC/APIGW2/gw.py" <<'EOF'
+import base64, json, time
+
+SHAPES = {
+    "string": "Hello",
+    "object": {"message": "hi"},
+    "body-no-status": {"body": "x", "headers": {"x-a": "b"}},
+    "object-body": {"statusCode": 200, "body": {"a": 1}},
+    "number-header": {"statusCode": 200, "headers": {"x-n": 1}, "body": "x"},
+    "nulls": {"statusCode": 201, "headers": None, "multiValueHeaders": None, "cookies": None, "body": "x"},
+    "mvh": {"statusCode": 200, "multiValueHeaders": {"x-m": ["a", "b"]}, "body": "x"},
+    "no-ctype": {"statusCode": 200, "body": "plain"},
+    "b64": {"statusCode": 200, "isBase64Encoded": True,
+            "headers": {"content-type": "application/octet-stream"},
+            "body": base64.b64encode(b"\x00\x01").decode()},
+    "cookies": {"statusCode": 200, "cookies": ["a=1; Path=/", "b=2"], "headers": {"set-cookie": "c=3"}, "body": "x"},
+    "status-999": {"statusCode": 999, "body": "x"},
+    "status-string": {"statusCode": "201", "body": "x"},
+    "cors": {"statusCode": 200, "headers": {"access-control-allow-origin": "https://fn.example"}, "body": "x"},
+}
+
+def handler(event, context):
+    mode = (event.get("queryStringParameters") or {}).get("mode", "echo")
+    if mode == "throw":
+        raise Exception("boom")
+    if mode == "sleep":
+        time.sleep(3)
+    if mode in SHAPES:
+        return SHAPES[mode]
+    return {"statusCode": 200, "headers": {"content-type": "application/json"}, "body": json.dumps(event)}
+EOF
+(cd "$REC/APIGW2" && zip -q gw.zip gw.py)
+aws iam create-role --role-name "$P-gw-fn" --assume-role-policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}' >/dev/null
+aws iam attach-role-policy --role-name "$P-gw-fn" \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+sleep 15                                   # the new role must propagate before Lambda accepts it
+for f in "$P-gw" "$P-gw-perm"; do
+  aws lambda create-function --function-name "$f" --runtime python3.13 --handler gw.handler --timeout 10 \
+    --role "arn:aws:iam::$A:role/$P-gw-fn" --zip-file "fileb://$REC/APIGW2/gw.zip" >/dev/null
+  aws lambda wait function-active-v2 --function-name "$f"
+done
+FN=arn:aws:lambda:$R:$A:function:$P-gw
+aws lambda add-permission --function-name "$P-gw" --statement-id gw --action lambda:InvokeFunction \
+  --principal apigateway.amazonaws.com --source-arn "arn:aws:execute-api:$R:$A:*" >/dev/null
+API=$(aws apigatewayv2 create-api --name "$P-gw" --protocol-type HTTP --query ApiId --output text)
+GW=https://$API.execute-api.$R.amazonaws.com
+I2=$(aws apigatewayv2 create-integration --api-id "$API" --integration-type AWS_PROXY \
+  --integration-uri "$FN" --payload-format-version 2.0 --query IntegrationId --output text)
+I1=$(aws apigatewayv2 create-integration --api-id "$API" --integration-type AWS_PROXY \
+  --integration-uri "$FN" --payload-format-version 1.0 --query IntegrationId --output text)
+route() {  # route <route key> [integration id]: create a route on $API, print its id
+  aws apigatewayv2 create-route --api-id "$API" --route-key "$1" ${2:+--target "integrations/$2"} \
+    --query RouteId --output text
+}
+for k in 'GET /pets/dog/1' 'GET /pets/dog/{id}' 'GET /pets/{proxy+}' 'ANY /pets/bird/1' 'ANY /{proxy+}' \
+         'GET /any' 'ANY /any' 'GET /Case' 'GET /slash/' 'GET /enc/{p}' 'GET /iam'; do
+  route "$k" "$I2" >/dev/null
+done
+route 'GET /noint' >/dev/null
+route 'ANY /v1/{proxy+}' "$I1" >/dev/null
+aws apigatewayv2 create-stage --api-id "$API" --stage-name '$default' --auto-deploy >/dev/null
+aws sqs create-queue --queue-name "$P-gw-q" >/dev/null          # for APIGW2-01 and APIGW2-14
+TRUST='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"apigateway.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+aws iam create-role --role-name "$P-gw-int" --assume-role-policy-document "$TRUST" >/dev/null
+aws iam create-role --role-name "$P-gw-none" --assume-role-policy-document "$TRUST" >/dev/null
+aws iam put-role-policy --role-name "$P-gw-int" --policy-name gw --policy-document \
+  "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"sqs:SendMessage\",\"sqs:ReceiveMessage\"],\"Resource\":\"arn:aws:sqs:$R:$A:$P-gw-q\"},{\"Effect\":\"Allow\",\"Action\":\"events:PutEvents\",\"Resource\":\"arn:aws:events:$R:$A:event-bus/default\"}]}"
+gw() {  # gw <item>/<step> <curl args...>: an unsigned data-plane request, kept as recurl keeps its exchange
+  local out="$REC/$1"; shift
+  mkdir -p "$(dirname "$out")"
+  curl -sS -i -v --http1.1 --path-as-is "$@" >"$out.http" 2>"$out.trace"
+}
+sleep 20                                   # the automatic deployment; APIGW2-04 measures it
+```
+
+### 14.2 APIGW2-01: control-plane error texts and validation
+
+Settles: section 2.3's texts and header form, the `x-amzn-ErrorType` suffix, `resourceType` values, the validation texts of 13.5, the SNS subtype error (6.1), partial-update validation for subtype parameters (6.2), literal text beside a path variable (3.2), tag limits (3.6); switch `apigatewayv2.error.not-found-text`. Ten minutes, USD 0.
+
+```sh
+c() { rec "APIGW2-01/$1" aws apigatewayv2 "${@:2}"; }
+c 01-get-missing-api get-api --api-id 0000000000
+c 02-delete-missing-api delete-api --api-id 0000000000
+c 03-get-missing-route get-route --api-id "$API" --route-id 0000000
+c 04-get-missing-integration get-integration --api-id "$API" --integration-id 0000000
+c 05-get-missing-stage get-stage --api-id "$API" --stage-name nope
+c 06-get-missing-deployment get-deployment --api-id "$API" --deployment-id 000000
+c 07-get-missing-authorizer get-authorizer --api-id "$API" --authorizer-id 0000000
+c 08-duplicate-stage create-stage --api-id "$API" --stage-name '$default'
+c 09-duplicate-route-key create-route --api-id "$API" --route-key 'GET /any'
+c 10-bad-method create-route --api-id "$API" --route-key 'FETCH /x'
+c 11-path-without-slash create-route --api-id "$API" --route-key 'GET x'
+c 12-greedy-not-last create-route --api-id "$API" --route-key 'GET /{proxy+}/x'
+c 13-var-inside-segment create-route --api-id "$API" --route-key 'GET /a{b}'
+c 14-target-missing-integration create-route --api-id "$API" --route-key 'GET /dangling' --target integrations/0000000
+c 15-bad-stage-name create-stage --api-id "$API" --stage-name 'bad.name'
+c 16-bad-stage-variable create-stage --api-id "$API" --stage-name badvar --stage-variables 'k=a b'
+c 17-timeout-over create-integration --api-id "$API" --integration-type AWS_PROXY --integration-uri "$FN" \
+  --payload-format-version 2.0 --timeout-in-millis 30001
+c 18-bad-payload-version create-integration --api-id "$API" --integration-type AWS_PROXY --integration-uri "$FN" \
+  --payload-format-version 3.0
+c 19-no-payload-version create-integration --api-id "$API" --integration-type AWS_PROXY --integration-uri "$FN"
+c 20-subtype-missing-body create-integration --api-id "$API" --integration-type AWS_PROXY \
+  --integration-subtype SQS-SendMessage --payload-format-version 1.0 --credentials-arn "arn:aws:iam::$A:role/$P-gw-int" \
+  --request-parameters "{\"QueueUrl\":\"$Q/$P-gw-q\"}"
+c 21-sns-subtype create-integration --api-id "$API" --integration-type AWS_PROXY --integration-subtype SNS-Publish \
+  --payload-format-version 1.0 --credentials-arn "arn:aws:iam::$A:role/$P-gw-int" --request-parameters '{"Message":"x"}'
+IS=$(aws apigatewayv2 create-integration --api-id "$API" --integration-type AWS_PROXY --integration-subtype SQS-SendMessage \
+  --payload-format-version 1.0 --credentials-arn "arn:aws:iam::$A:role/$P-gw-int" \
+  --request-parameters "{\"QueueUrl\":\"$Q/$P-gw-q\",\"MessageBody\":\"x\"}" --query IntegrationId --output text)
+c 22-subtype-partial-update update-integration --api-id "$API" --integration-id "$IS" \
+  --request-parameters '{"MessageBody":"$request.body"}'
+c 23-get-tags-missing get-tags --resource-arn "arn:aws:apigateway:$R::/apis/0000000000"
+c 24-tag-key-129 tag-resource --resource-arn "arn:aws:apigateway:$R::/apis/$API" \
+  --tags "$(printf 'k%.0s' $(seq 1 129))=v"
+c 25-tag-value-1601 tag-resource --resource-arn "arn:aws:apigateway:$R::/apis/$API" \
+  --tags "k=$(printf 'v%.0s' $(seq 1 1601))"
+c 26-websocket-type-on-http-api create-integration --api-id "$API" --integration-type MOCK
+```
+
+Teardown: none; anything created here goes with `$P-gw` in 14.16.
+
+### 14.3 APIGW2-02: the 429 shape
+
+Settles: `TooManyRequestsException` or `LimitExceededException` on the wire, its `limitType`, and the `CreateDeployment` quota (2.3, 3.9). Two minutes, USD 0.
+
+```sh
+for i in 1 2 3; do
+  rec "APIGW2-02/0$i-create-deployment" env AWS_MAX_ATTEMPTS=1 aws apigatewayv2 create-deployment --api-id "$API"
+done
+```
+
+`AWS_MAX_ATTEMPTS=1` keeps the CLI from retrying the throttle. Teardown: none.
+
+### 14.4 APIGW2-03: create and read defaults, quick create, CORS case
+
+Settles: field presence for unset values (3.1, 3.3, 3.4), integration and authorizer id formats and `apigatewayv2.ids.shape`, fractional seconds, the hidden `PassthroughBehavior`, CORS list case (3.7), the braced `routeSelectionExpression` (12 item 5), quick-create managed resources and their modification errors (3.1), `GetApis` paging. Ten minutes, USD 0.
+
+```sh
+rec APIGW2-03/01-create-api aws apigatewayv2 create-api --name "$P-gw-def" --protocol-type HTTP --tags k=v
+D=$(aws apigatewayv2 get-apis --query "Items[?Name=='$P-gw-def'].ApiId" --output text)
+rec APIGW2-03/02-get-api aws apigatewayv2 get-api --api-id "$D"
+rec APIGW2-03/03-get-tags aws apigatewayv2 get-tags --resource-arn "arn:aws:apigateway:$R::/apis/$D"
+rec APIGW2-03/04-route-without-target aws apigatewayv2 create-route --api-id "$D" --route-key 'GET /a'
+rec APIGW2-03/05-lambda-integration-as-terraform aws apigatewayv2 create-integration --api-id "$D" \
+  --integration-type AWS_PROXY --connection-type INTERNET --passthrough-behavior WHEN_NO_MATCH \
+  --integration-uri "arn:aws:apigateway:$R:lambda:path/2015-03-31/functions/$FN/invocations" --payload-format-version 2.0
+IL=$(sed -n 's/^ *"IntegrationId": "\([^"]*\)".*/\1/p' "$REC/APIGW2-03/05-lambda-integration-as-terraform.out")
+rec APIGW2-03/05b-get-lambda-integration aws apigatewayv2 get-integration --api-id "$D" --integration-id "$IL"
+rec APIGW2-03/05c-create-authorizer aws apigatewayv2 create-authorizer --api-id "$D" --name a --authorizer-type REQUEST \
+  --authorizer-uri "arn:aws:apigateway:$R:lambda:path/2015-03-31/functions/$FN/invocations" \
+  --identity-source '$request.header.Authorization' --authorizer-payload-format-version 2.0
+rec APIGW2-03/06-http-proxy-integration aws apigatewayv2 create-integration --api-id "$D" \
+  --integration-type HTTP_PROXY --integration-method ANY --integration-uri https://example.com --payload-format-version 1.0
+rec APIGW2-03/07-create-stage aws apigatewayv2 create-stage --api-id "$D" --stage-name dev
+rec APIGW2-03/08-get-stage aws apigatewayv2 get-stage --api-id "$D" --stage-name dev
+rec APIGW2-03/09-update-cors aws apigatewayv2 update-api --api-id "$D" --cors-configuration \
+  '{"AllowOrigins":["https://A.example"],"AllowMethods":["get","post"],"AllowHeaders":["Content-Type","X-Up"],"ExposeHeaders":["X-E"],"MaxAge":0,"AllowCredentials":false}'
+rec APIGW2-03/10-get-api-cors aws apigatewayv2 get-api --api-id "$D"
+rec APIGW2-03/11-delete-cors aws apigatewayv2 delete-cors-configuration --api-id "$D"
+rec APIGW2-03/12-get-api-no-cors aws apigatewayv2 get-api --api-id "$D"
+rec APIGW2-03/13-braced-selection aws apigatewayv2 update-api --api-id "$D" \
+  --route-selection-expression '${request.method} ${request.path}'
+rec APIGW2-03/14-get-apis-page aws apigatewayv2 get-apis --max-results 1 --no-paginate
+rec APIGW2-03/15-quick-create aws apigatewayv2 create-api --name "$P-gw-quick" --protocol-type HTTP --target "$FN"
+QK=$(aws apigatewayv2 get-apis --query "Items[?Name=='$P-gw-quick'].ApiId" --output text)
+rec APIGW2-03/16-quick-routes aws apigatewayv2 get-routes --api-id "$QK"
+rec APIGW2-03/17-quick-integrations aws apigatewayv2 get-integrations --api-id "$QK"
+rec APIGW2-03/18-quick-stages aws apigatewayv2 get-stages --api-id "$QK"
+rec APIGW2-03/19-delete-managed-route aws apigatewayv2 delete-route --api-id "$QK" \
+  --route-id "$(aws apigatewayv2 get-routes --api-id "$QK" --query 'Items[0].RouteId' --output text)"
+rec APIGW2-03/20-update-managed-stage aws apigatewayv2 update-stage --api-id "$QK" --stage-name '$default' --description x
+rec APIGW2-03/21-delete-managed-integration aws apigatewayv2 delete-integration --api-id "$QK" \
+  --integration-id "$(aws apigatewayv2 get-integrations --api-id "$QK" --query 'Items[0].IntegrationId' --output text)"
+```
+
+Teardown: `aws apigatewayv2 delete-api --api-id "$D"; aws apigatewayv2 delete-api --api-id "$QK"`.
+
+### 14.5 APIGW2-04: deployments and automatic deployment
+
+Settles: section 3.5's open items, a stage with no deployment, an undeployed route on a manual stage (finding 7), the automatic-deployment delay; switch `apigatewayv2.deploy.auto-latency`. Ten minutes, USD 0.
+
+```sh
+S=$(aws apigatewayv2 create-api --name "$P-gw-dep" --protocol-type HTTP --query ApiId --output text)
+SH=https://$S.execute-api.$R.amazonaws.com
+rec APIGW2-04/01-deploy-no-routes aws apigatewayv2 create-deployment --api-id "$S"
+IS=$(aws apigatewayv2 create-integration --api-id "$S" --integration-type AWS_PROXY --integration-uri "$FN" \
+  --payload-format-version 2.0 --query IntegrationId --output text)
+aws apigatewayv2 create-route --api-id "$S" --route-key 'GET /a' --target "integrations/$IS" >/dev/null
+aws apigatewayv2 create-stage --api-id "$S" --stage-name dev >/dev/null
+sleep 10
+gw APIGW2-04/02-stage-without-deployment "$SH/dev/a"
+rec APIGW2-04/03-deploy-to-dev aws apigatewayv2 create-deployment --api-id "$S" --stage-name dev
+rec APIGW2-04/04-get-stage-dev aws apigatewayv2 get-stage --api-id "$S" --stage-name dev
+sleep 10
+gw APIGW2-04/05-after-deploy "$SH/dev/a"
+aws apigatewayv2 create-route --api-id "$S" --route-key 'GET /b' --target "integrations/$IS" >/dev/null
+sleep 10
+gw APIGW2-04/06-undeployed-route "$SH/dev/b"
+t0=$(date +%s)
+aws apigatewayv2 create-stage --api-id "$S" --stage-name auto --auto-deploy >/dev/null
+for i in $(seq 1 120); do
+  aws apigatewayv2 get-stage --api-id "$S" --stage-name auto --query LastDeploymentStatusMessage --output text |
+    grep -q Successfully && break
+  sleep 1
+done
+echo "auto-deploy status after $(( $(date +%s) - t0 )) s" >>"$REC/APIGW2-04/notes.md"
+t0=$(date +%s)
+for i in $(seq 1 120); do
+  curl -s -o /dev/null -w '%{http_code}' "$SH/auto/a" | grep -q 200 && break
+  sleep 1
+done
+echo "auto stage served 200 after $(( $(date +%s) - t0 )) s (120 s means never)" >>"$REC/APIGW2-04/notes.md"
+rec APIGW2-04/07-get-stage-auto aws apigatewayv2 get-stage --api-id "$S" --stage-name auto
+DEV=$(aws apigatewayv2 get-stage --api-id "$S" --stage-name dev --query DeploymentId --output text)
+rec APIGW2-04/08-deployment-id-on-auto aws apigatewayv2 update-stage --api-id "$S" --stage-name auto --deployment-id "$DEV"
+rec APIGW2-04/09-delete-active-deployment aws apigatewayv2 delete-deployment --api-id "$S" --deployment-id "$DEV"
+rec APIGW2-04/10-get-deployments aws apigatewayv2 get-deployments --api-id "$S"
+```
+
+Teardown: `aws apigatewayv2 delete-api --api-id "$S"`.
+
+### 14.6 APIGW2-05: route selection
+
+Settles: section 4.3's and 4.4's open items, a route without a target (3.2); switches `apigatewayv2.route.path-case`, `apigatewayv2.route.trailing-slash`, `apigatewayv2.route.head`, `apigatewayv2.route.no-target`. In `notes.md`, write the `routeKey` each echoed body shows. Five minutes, USD 0.
+
+```sh
+for s in "01 GET /pets/dog/1" "02 GET /pets/dog/2" "03 GET /pets/cat/1" "04 POST /test/5" "05 GET /any" \
+         "06 POST /any" "07 HEAD /any" "08 GET /Case" "09 GET /case" "10 GET /slash/" "11 GET /slash" \
+         "12 GET /pets/dog/1/" "13 GET //pets/dog/1" "14 GET /enc/a%2Fb" "15 GET /enc/a%20b" "16 GET /pets/" \
+         "17 GET /noint" "18 GET /" "19 OPTIONS /any" "20 GET /pets/dog/%31" "21 GET /PETS/dog/1" \
+         "22 GET /pets/bird/1"; do
+  set -- $s
+  if [ "$2" = HEAD ]; then gw "APIGW2-05/$1" --head "$GW$3"; else gw "APIGW2-05/$1" -X "$2" "$GW$3"; fi
+done
+```
+
+Teardown: none.
+
+### 14.7 APIGW2-06: stage selection and the gateway's own answers
+
+Settles: section 4.2, the 404 headers (4.5), unknown API ids and disabled endpoints; switches `apigatewayv2.stage.prefix-shadows-default`, `apigatewayv2.front.unknown-api`, `apigatewayv2.front.disabled-endpoint`. Ten minutes including waits, USD 0.
+
+```sh
+G=$(aws apigatewayv2 create-api --name "$P-gw-stg" --protocol-type HTTP --query ApiId --output text)
+H=https://$G.execute-api.$R.amazonaws.com
+IG=$(aws apigatewayv2 create-integration --api-id "$G" --integration-type AWS_PROXY --integration-uri "$FN" \
+  --payload-format-version 2.0 --query IntegrationId --output text)
+for k in 'GET /prod/x' 'GET /x'; do
+  aws apigatewayv2 create-route --api-id "$G" --route-key "$k" --target "integrations/$IG" >/dev/null
+done
+for s in '$default' prod; do
+  aws apigatewayv2 create-stage --api-id "$G" --stage-name "$s" --auto-deploy --stage-variables sv=one >/dev/null
+done
+sleep 20
+gw APIGW2-06/01-prod-x "$H/prod/x"
+gw APIGW2-06/02-x "$H/x"
+gw APIGW2-06/03-prod-prod-x "$H/prod/prod/x"
+gw APIGW2-06/04-no-route "$H/nope"
+gw APIGW2-06/05-stage-root "$H/prod"
+gw APIGW2-06/06-stage-case "$H/PROD/x"
+aws apigatewayv2 delete-stage --api-id "$G" --stage-name '$default'
+sleep 15
+gw APIGW2-06/07-no-default-stage "$H/nostage/x"
+gw APIGW2-06/08-unknown-api "https://0000000000.execute-api.$R.amazonaws.com/x"
+aws apigatewayv2 update-api --api-id "$G" --disable-execute-api-endpoint >/dev/null
+sleep 60
+gw APIGW2-06/09-disabled-endpoint "$H/prod/x"
+```
+
+If step 08 fails to resolve, note curl's exit code and message: the absence of a wildcard record is the finding. Teardown: `aws apigatewayv2 delete-api --api-id "$G"`.
+
+### 14.8 APIGW2-07: the 2.0 request event
+
+Settles: section 5.1's open items; switch `apigatewayv2.event.empty-body-base64`. In `notes.md`, record per step: `body` present or absent, `isBase64Encoded`, header joining, `cookies`, query decoding, `rawPath` encoding, the stage in `rawPath`, `http.protocol`, and whether `requestContext.requestId` equals the `apigw-requestid` response header. Ten minutes, USD 0.
+
+```sh
+aws apigatewayv2 create-stage --api-id "$API" --stage-name prod --auto-deploy --stage-variables sv=one,sv2=two >/dev/null
+sleep 20
+head -c 16 /dev/urandom >"$REC/APIGW2/bin"
+gw APIGW2-07/01-get "$GW/pets/dog/abc"
+gw APIGW2-07/02-text -H 'Content-Type: text/plain' --data-binary 'hello' "$GW/e"
+gw APIGW2-07/03-json -H 'Content-Type: application/json' --data-binary '{"a":1}' "$GW/e"
+gw APIGW2-07/04-octet -H 'Content-Type: application/octet-stream' --data-binary @"$REC/APIGW2/bin" "$GW/e"
+gw APIGW2-07/05-multipart -F a=1 "$GW/e"
+gw APIGW2-07/06-urlencoded --data 'a=1&b=2' "$GW/e"
+gw APIGW2-07/07-no-content-type -H 'Content-Type:' --data-binary 'x' "$GW/e"
+gw APIGW2-07/08-dup-headers -H 'X-Dup: a' -H 'X-Dup: b' -H 'X-MiXeD: v' "$GW/e"
+gw APIGW2-07/09-cookies -H 'Cookie: a=1; b=2' -H 'Cookie: c=3' "$GW/e"
+gw APIGW2-07/10-query "$GW/e?a=1&a=2&b=%2Fx&c&d=&e=%20&f=a+b"
+gw APIGW2-07/11-path-param "$GW/pets/dog/a%20b"
+gw APIGW2-07/12-greedy "$GW/pets/cat/x/y%2Fz"
+gw APIGW2-07/13-named-stage "$GW/prod/pets/dog/abc"
+gw APIGW2-07/14-client-xff -H 'X-Forwarded-For: 203.0.113.9' "$GW/e"
+gw APIGW2-07/15-empty-post -X POST "$GW/e"
+gw APIGW2-07/16-http2 --http2 "$GW/e"
+```
+
+The later `--http2` overrides `gw`'s `--http1.1`. Teardown: none (the `prod` stage stays for APIGW2-08 and APIGW2-11).
+
+### 14.9 APIGW2-08: the 1.0 request event
+
+Settles: section 5.2's open items; switch `apigatewayv2.event.v1-single-value`. Five minutes, USD 0.
+
+```sh
+gw APIGW2-08/01-get "$GW/v1/a/b?x=1&x=2&y=%2F"
+gw APIGW2-08/02-dup-headers -H 'X-Dup: a' -H 'X-Dup: b' "$GW/v1/a"
+gw APIGW2-08/03-json -H 'Content-Type: application/json' --data-binary '{"a":1}' "$GW/v1/a"
+gw APIGW2-08/04-named-stage "$GW/prod/v1/a"
+gw APIGW2-08/05-octet -H 'Content-Type: application/octet-stream' --data-binary @"$REC/APIGW2/bin" "$GW/v1/a"
+gw APIGW2-08/06-cookies -H 'Cookie: a=1; b=2' "$GW/v1/a"
+```
+
+Teardown: none.
+
+### 14.10 APIGW2-09: interpreting responses
+
+Settles: sections 5.3 and 5.4; switches `apigatewayv2.response.default-content-type`, `apigatewayv2.response.v2-multivalue-headers`. Five minutes, USD 0.
+
+```sh
+for m in string object body-no-status object-body number-header nulls mvh no-ctype b64 cookies status-999 status-string; do
+  gw "APIGW2-09/2.0-$m" "$GW/r?mode=$m"
+done
+for m in string body-no-status mvh no-ctype; do
+  gw "APIGW2-09/1.0-$m" "$GW/v1/r?mode=$m"
+done
+```
+
+Teardown: none.
+
+### 14.11 APIGW2-10: failures and limits
+
+Settles: section 5.6 and 4.7; switches `apigatewayv2.lambda.error-status`, `apigatewayv2.integration.timeout-response`, `apigatewayv2.request.too-large`. Ten minutes, USD 0 (about 27 MB uploaded, which is free inbound).
+
+```sh
+gw APIGW2-10/01-throw-2.0 "$GW/r?mode=throw"
+gw APIGW2-10/02-throw-1.0 "$GW/v1/r?mode=throw"
+IT=$(aws apigatewayv2 create-integration --api-id "$API" --integration-type AWS_PROXY --integration-uri "$FN" \
+  --payload-format-version 2.0 --timeout-in-millis 1000 --query IntegrationId --output text)
+route 'GET /slow' "$IT" >/dev/null
+sleep 20
+gw APIGW2-10/03-timeout "$GW/slow?mode=sleep"
+head -c 10000001 /dev/zero >"$REC/APIGW2/big-dec"   # one byte over 10 MB decimal
+head -c 10485761 /dev/zero >"$REC/APIGW2/big-bin"   # one byte over 10 MiB
+gw APIGW2-10/04-over-10mb-decimal -H 'Content-Type: application/octet-stream' --data-binary @"$REC/APIGW2/big-dec" "$GW/e"
+gw APIGW2-10/05-over-10mib -H 'Content-Type: application/octet-stream' --data-binary @"$REC/APIGW2/big-bin" "$GW/e"
+head -c 7000000 /dev/zero | tr '\0' a >"$REC/APIGW2/seven"
+gw APIGW2-10/06-over-lambda-6mb -H 'Content-Type: text/plain' --data-binary @"$REC/APIGW2/seven" "$GW/e"
+gw APIGW2-10/07-headers-over-10kb -H "X-Big: $(head -c 11000 /dev/zero | tr '\0' a)" "$GW/e"
+rm "$REC/APIGW2/big-dec" "$REC/APIGW2/big-bin" "$REC/APIGW2/seven"
+```
+
+Teardown: none.
+
+### 14.12 APIGW2-11: the Lambda permission and the source ARN
+
+Settles: sections 5.5 and 8.4; switches `apigatewayv2.lambda.missing-permission`, `apigatewayv2.lambda.source-arn`. In `notes.md`, write which steps reached the function (a 200 echo) and which got the error. Fifteen minutes (each step waits for the policy change), USD 0.
+
+```sh
+FP=arn:aws:lambda:$R:$A:function:$P-gw-perm
+IP=$(aws apigatewayv2 create-integration --api-id "$API" --integration-type AWS_PROXY --integration-uri "$FP" \
+  --payload-format-version 2.0 --query IntegrationId --output text)
+for k in 'GET /perm/{id}' 'ANY /permany' 'GET /permg/{proxy+}'; do route "$k" "$IP" >/dev/null; done
+sleep 20
+gw APIGW2-11/01-no-permission "$GW/perm/1"
+try() {  # try <step> <source ARN after the api id> <path>: allow only that ARN, call once, remove it
+  aws lambda add-permission --function-name "$P-gw-perm" --statement-id narrow --action lambda:InvokeFunction \
+    --principal apigateway.amazonaws.com --source-arn "arn:aws:execute-api:$R:$A:$API/$2" >/dev/null
+  sleep 15
+  gw "APIGW2-11/$1" "$GW$3"
+  aws lambda remove-permission --function-name "$P-gw-perm" --statement-id narrow
+}
+try 02-template '$default/GET/perm/{id}' /perm/1
+try 03-concrete '$default/GET/perm/1' /perm/1
+try 04-any-literal '$default/ANY/permany' /permany
+try 05-any-as-method '$default/GET/permany' /permany
+try 06-greedy-template '$default/GET/permg/{proxy+}' /permg/a/b
+try 07-greedy-concrete '$default/GET/permg/a/b' /permg/a/b
+try 08-named-stage 'prod/GET/perm/{id}' /prod/perm/1
+```
+
+Teardown: none (`try` removes its statement; the function goes in 14.16).
+
+### 14.13 APIGW2-12: AWS_IAM routes
+
+Settles: section 8.3 (unsigned, wrong service, wrong region, malformed, and signed without `execute-api:Invoke`); switch `apigatewayv2.iam.unsigned`; whether the `Authorization` header reaches a `NONE` route's function. Eight minutes, USD 0. The `.trace` files hold the signature: redact as kit section 2 says.
+
+```sh
+RI=$(aws apigatewayv2 get-routes --api-id "$API" --query "Items[?RouteKey=='GET /iam'].RouteId" --output text)
+aws apigatewayv2 update-route --api-id "$API" --route-id "$RI" --authorization-type AWS_IAM >/dev/null
+sleep 20
+gw APIGW2-12/01-unsigned "$GW/iam"
+SVC=execute-api recurl APIGW2-12/02-signed "$GW/iam"
+SVC=lambda recurl APIGW2-12/03-wrong-service "$GW/iam"
+OTHER=us-west-2; [ "$R" = us-west-2 ] && OTHER=us-east-1
+R=$OTHER SVC=execute-api recurl APIGW2-12/04-wrong-region "$GW/iam"
+gw APIGW2-12/05-garbage-auth -H 'Authorization: AWS4-HMAC-SHA256 Credential=x' "$GW/iam"
+SVC=execute-api recurl APIGW2-12/06-signed-to-none-route "$GW/e"
+aws iam create-role --role-name "$P-gw-caller" --assume-role-policy-document \
+  "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::$A:root\"},\"Action\":\"sts:AssumeRole\"}]}" >/dev/null
+sleep 15
+read -r AK SK ST <<<"$(aws sts assume-role --role-arn "arn:aws:iam::$A:role/$P-gw-caller" --role-session-name gw \
+  --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text)"
+AWS_ACCESS_KEY_ID=$AK AWS_SECRET_ACCESS_KEY=$SK AWS_SESSION_TOKEN=$ST SVC=execute-api \
+  recurl APIGW2-12/07-signed-without-invoke-permission "$GW/iam"
+unset AK SK ST
+```
+
+The role `$P-gw-caller` has no policy, so its session lacks `execute-api:Invoke`. Teardown: in 14.16.
+
+### 14.14 APIGW2-13: CORS
+
+Settles: sections 3.7 and 4.6; switch `apigatewayv2.cors.preflight`. Ten minutes, USD 0.
+
+```sh
+aws apigatewayv2 update-api --api-id "$API" --cors-configuration \
+  '{"AllowOrigins":["https://a.example"],"AllowMethods":["GET","POST"],"AllowHeaders":["content-type"],"ExposeHeaders":["x-e"],"MaxAge":300,"AllowCredentials":true}' >/dev/null
+sleep 20
+O='Origin: https://a.example'
+gw APIGW2-13/01-preflight -X OPTIONS -H "$O" -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: content-type' "$GW/any"
+gw APIGW2-13/02-preflight-other-origin -X OPTIONS -H 'Origin: https://b.example' -H 'Access-Control-Request-Method: POST' "$GW/any"
+gw APIGW2-13/03-preflight-other-method -X OPTIONS -H "$O" -H 'Access-Control-Request-Method: DELETE' "$GW/any"
+gw APIGW2-13/04-options-without-acrm -X OPTIONS -H "$O" "$GW/any"
+gw APIGW2-13/05-get-with-origin -H "$O" "$GW/r?mode=cors"
+gw APIGW2-13/06-get-other-origin -H 'Origin: https://b.example' "$GW/r?mode=cors"
+gw APIGW2-13/07-get-without-origin "$GW/r?mode=cors"
+gw APIGW2-13/08-preflight-on-iam-route -X OPTIONS -H "$O" -H 'Access-Control-Request-Method: GET' "$GW/iam"
+route 'OPTIONS /any' "$I2" >/dev/null
+sleep 20
+gw APIGW2-13/09-preflight-with-options-route -X OPTIONS -H "$O" -H 'Access-Control-Request-Method: POST' "$GW/any"
+rec APIGW2-13/10-wildcard-with-credentials aws apigatewayv2 update-api --api-id "$API" \
+  --cors-configuration '{"AllowOrigins":["*"],"AllowCredentials":true}'
+rec APIGW2-13/11-max-age-over aws apigatewayv2 update-api --api-id "$API" \
+  --cors-configuration '{"AllowOrigins":["*"],"MaxAge":86401}'
+aws apigatewayv2 delete-cors-configuration --api-id "$API"
+```
+
+Teardown: the last line.
+
+### 14.15 APIGW2-14: service integrations
+
+Settles: sections 6.2 to 6.4 and finding 2's retry question; switch `apigatewayv2.service-integration.response`. In `notes.md`, write the time bash prints for steps 03 to 05: an answer much slower than step 01 suggests retries. Fifteen minutes, USD 0.
+
+The queue `$P-gw-q` and the roles `$P-gw-int` (allowed) and `$P-gw-none` (no policy) come from 14.1.
+
+```sh
+ROLE=arn:aws:iam::$A:role/$P-gw-int
+svc() {  # svc <route key> <subtype> <role arn> <request parameters JSON>: an integration and its route
+  local i
+  i=$(aws apigatewayv2 create-integration --api-id "$API" --integration-type AWS_PROXY --integration-subtype "$2" \
+    --payload-format-version 1.0 --credentials-arn "$3" --request-parameters "$4" --query IntegrationId --output text)
+  route "$1" "$i" >/dev/null
+}
+svc 'POST /sqs' SQS-SendMessage "$ROLE" "{\"QueueUrl\":\"$Q/$P-gw-q\",\"MessageBody\":\"\$request.body\"}"
+svc 'POST /sqs-delay' SQS-SendMessage "$ROLE" "{\"QueueUrl\":\"$Q/$P-gw-q\",\"MessageBody\":\"x\",\"DelaySeconds\":\"\$request.header.x-delay\"}"
+svc 'POST /sqs-missing' SQS-SendMessage "$ROLE" "{\"QueueUrl\":\"$Q/$P-gw-missing\",\"MessageBody\":\"\$request.body\"}"
+svc 'POST /sqs-denied' SQS-SendMessage "arn:aws:iam::$A:role/$P-gw-none" "{\"QueueUrl\":\"$Q/$P-gw-q\",\"MessageBody\":\"\$request.body\"}"
+svc 'POST /sqs-norole' SQS-SendMessage "arn:aws:iam::$A:role/$P-gw-absent" "{\"QueueUrl\":\"$Q/$P-gw-q\",\"MessageBody\":\"\$request.body\"}"
+svc 'GET /sqs-receive' SQS-ReceiveMessage "$ROLE" "{\"QueueUrl\":\"$Q/$P-gw-q\"}"
+svc 'POST /events' EventBridge-PutEvents "$ROLE" '{"Source":"$request.header.x-source","DetailType":"t","Detail":"$request.body"}'
+sleep 20
+time gw APIGW2-14/01-sqs-send -H 'Content-Type: application/json' --data-binary '{"a":1}' "$GW/sqs"
+gw APIGW2-14/02-sqs-delay -H 'x-delay: 1' --data-binary 'x' "$GW/sqs-delay"
+time gw APIGW2-14/03-sqs-missing-queue --data-binary 'x' "$GW/sqs-missing"
+time gw APIGW2-14/04-sqs-role-without-permission --data-binary 'x' "$GW/sqs-denied"
+time gw APIGW2-14/05-sqs-role-absent --data-binary 'x' "$GW/sqs-norole"
+gw APIGW2-14/06-sqs-receive "$GW/sqs-receive"
+gw APIGW2-14/07-events -H 'x-source: p.test' -H 'Content-Type: application/json' --data-binary '{"a":1}' "$GW/events"
+gw APIGW2-14/08-events-text-detail -H 'x-source: p.test' --data-binary 'not json' "$GW/events"
+gw APIGW2-14/09-events-without-source --data-binary '{"a":1}' "$GW/events"
+```
+
+Teardown: in 14.16.
+
+### 14.16 Teardown
+
+Five minutes.
+
+```sh
+for a in $(aws apigatewayv2 get-apis --query "Items[?starts_with(Name, '$P-gw')].ApiId" --output text); do
+  aws apigatewayv2 delete-api --api-id "$a"
+done
+for f in "$P-gw" "$P-gw-perm"; do
+  aws lambda delete-function --function-name "$f"
+  aws logs delete-log-group --log-group-name "/aws/lambda/$f"
+done
+aws sqs delete-queue --queue-url "$Q/$P-gw-q"
+aws iam detach-role-policy --role-name "$P-gw-fn" \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+aws iam delete-role-policy --role-name "$P-gw-int" --policy-name gw
+for r in "$P-gw-fn" "$P-gw-int" "$P-gw-none" "$P-gw-caller"; do aws iam delete-role --role-name "$r"; done
+rm -f "$REC/APIGW2/gw.zip" "$REC/APIGW2/bin"
+aws apigatewayv2 get-apis --query "Items[?starts_with(Name, '$P-gw')].Name"   # expect []
+```
+
+The filter is `$P-gw`, the prefix every API in this queue uses, so another queue's HTTP APIs under `$P` survive this teardown.

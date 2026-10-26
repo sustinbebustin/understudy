@@ -1,0 +1,1217 @@
+# SSM Parameter Store: primary-source research
+
+Scope: the Parameter Store subset of AWS Systems Manager (roadmap item 9): the thirteen operations `PutParameter`, `GetParameter`, `GetParameters`, `GetParametersByPath`, `DescribeParameters`, `GetParameterHistory`, `DeleteParameter`, `DeleteParameters`, `LabelParameterVersion`, `UnlabelParameterVersion`, `AddTagsToResource`, `RemoveTagsFromResource` and `ListTagsForResource`. It covers naming and identity, tiers, SecureString and KMS, versions, labels and selectors, the reserved `/aws/` namespaces, what Terraform needs for an apply and an empty second plan, and what a typical Lambda calls. Sources: the Smithy model `com.amazonaws.ssm` at the pinned `aws/api-models-aws` commit, the Systems Manager API reference and user guide, the KMS developer guide, the AWS General Reference quotas, LocalStack's AWS-validated snapshots, `hashicorp/terraform-provider-aws` v6.68.0, and AWS Lambda Powertools for Python v3.37.0. Retrieved 2026-10-25.
+
+## 0. How to read this
+
+Evidence tags, strongest first. Every claim carries its source inline.
+
+| Tag | Meaning |
+|---|---|
+| [M] | Smithy model at `aws/api-models-aws` commit `1cfdfb4bb9ea858e65623e66d73af04bec353201`, `models/ssm/service/2014-11-06/ssm-2014-11-06.json` (git blob `d28d01a47f69485b54397a9752e5e2a3b48f1fd2`, sha256 `5549e422a36d3330bc5fb3177fa2be6b0325376f05b85dfd1ae37d30cb9ba523`, 1 429 184 bytes). Not yet vendored in `third_party/api-models-aws`. Shapes are cited by Smithy id. |
+| [D] | AWS documentation, linked inline (API reference, user guide, KMS developer guide, General Reference). |
+| [R] | Recorded against real AWS by LocalStack: a `*.snapshot.json` whose test has a `last_validated_date` in the matching `*.validation.json`, cited as `localstack@8b9a79f <path>:L<n>` (third-party-recorded). |
+| [R-weak] | A LocalStack test marked `@markers.aws.validated` whose assertions ran against AWS but which has no snapshot or no validation date (the convention of [sqs.md 0](sqs.md)). |
+| [T] | `hashicorp/terraform-provider-aws` v6.68.0 (commit `c9b83d813022cdd05fc955480b07e269c6e18023`), cited as `<file>:L<n>`. Provider source fixes the request shapes; its acceptance tests run against real AWS, so an assertion that passes there is third-party evidence of AWS behavior. |
+| [C] | Client source: `aws-powertools/powertools-lambda-python` tag v3.37.0 (commit `67832d0ff2529ed29433b1f4861d79e22b2a496a`). |
+| [U] | AWS output pasted by users in a public GitHub issue (third-party, unrecorded). |
+| [E] | Another emulator's source, hints only: LocalStack's provider at `localstack@8b9a79f localstack-core/localstack/services/ssm/provider.py`, moto at commit `d42f04775dc900d01fb83f1390169bb52bab01f7` (`moto/ssm/models.py`). Never proof. |
+
+Anything resting only on [E] or inference is marked UNVERIFIED with the recording case that settles it (section 13).
+
+## 1. Findings that change the design
+
+1. **The model carries constraint traits**, unlike SQS's ([sqs.md 1](sqs.md)): `@length`, `@range` and `@pattern` on names, labels, filters, key ids and tags (section 12.4). The generator's Coral validation texts ([error-matrix.md 4](error-matrix.md)) apply as they do for KMS and Logs.
+2. **No error shape has `smithy.api#httpError`**; each has an `aws.protocols#awsQueryError` whose `httpResponseCode` says 404 for `ParameterNotFound` and 429 for `ParameterLimitExceeded` and `TooManyUpdates` [M], but the service carries no `awsQueryCompatible` trait, so those codes never reach the wire. The API reference says 400 for all three ([GetParameter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_GetParameter.html), [PutParameter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_PutParameter.html)), and `ParameterNotFound` is recorded at 400 [R] (section 2.2). understudy's generator already ignores `awsQueryError` status off the Query protocols (`internal/codegen/ir_errors.go`, the KMS rule).
+3. **`/foo` and `foo` are one parameter.** The user guide lists them as "aren't unique" ([name constraints](https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-a-parameter.html#sysman-parameter-name-constraints)). Both have the ARN `arn:aws:ssm:<region>:<account>:parameter/foo` [R][T]. `GetParameter` echoes whichever spelling was requested, while `DescribeParameters` reports `foo` [T PR #49339] (section 3.2). The identity key must be the canonical spelling, and the response must carry the request's spelling.
+4. **`ParameterNotFound` from `GetParameter` has an empty message** (`"Message": ""`, status 400), recorded twice [R] (section 2.2).
+5. **Empty lists are sent, not omitted**: `GetParameters` returns `"InvalidParameters": []` [R], and Powertools indexes `api_response["InvalidParameters"]` without a default [C], so omitting it raises `KeyError` in real Lambdas. The docs show `InvalidLabels: []`, `InvalidParameters: []` on `DeleteParameters`, and `Policies: []` on every metadata entry [D]. This is the opposite of SQS's rule and contradicts the model's `@length(min: 1)` on `ParameterNameList` and `ParameterLabelList`; `ParameterPolicyList` has no length constraint [M] (section 7.10).
+6. **Terraform reads tier, data type, key id, description and allowed pattern from `DescribeParameters`** with `Name Equals <name>` and requires exactly one match [T parameter.go:L490-L512]. The tier must be the resolved `Standard` or `Advanced`, never `Intelligent-Tiering` [T parameter_test.go:L399-L556]. `key_id` must read back `alias/aws/ssm` for the default key [T parameter_test.go:L1099] and the given alias verbatim otherwise [T parameter_test.go:L1308]. Fields Terraform leaves out of an overwrite must be preserved (section 10.1).
+7. **SecureString is KMS-backed with encryption context `PARAMETER_ARN=<parameter ARN>`.** Standard parameters use KMS `Encrypt`/`Decrypt` directly, and advanced ones use envelope encryption with `GenerateDataKey` ([KMS guide](https://docs.aws.amazon.com/kms/latest/developerguide/services-parameter-store.html)). Without `WithDecryption` the value is the ciphertext. The default key is the AWS managed `alias/aws/ssm` (section 5).
+8. **`Tags` together with `Overwrite: true` is rejected** with `ValidationException: Invalid request: tags and overwrite can't be used together. ...` [U][T parameter.go:L250-L256]. Terraform therefore tags with `AddTagsToResource` after an overwrite-create (section 7.1).
+9. **Two reserved namespaces are read-through:**
+   - `/aws/reference/secretsmanager/<secret>` returns a Secrets Manager secret through `GetParameter` and `GetParameters` only. The result has `Type: SecureString`, `Version: 0` and a JSON `SourceResult` [D].
+   - `/aws/service/...` holds AWS public parameters, whose ARNs have an empty account field [D] (section 8).
+10. **SSM also answers the legacy Query protocol** (`?Action=GetParameter`, XML namespace `http://ssm.amazonaws.com/doc/2014-11-06/`), recorded by a direct SigV4 `POST` in LocalStack's API Gateway SSM tests [R]. The model declares only `awsJson1_1` (section 2.3).
+11. **A Lambda's read path** is `GetParameter` with `WithDecryption` (boto3 examples, the Parameters and Secrets extension), `GetParametersByPath` with `Recursive` through the paginator, and `GetParameters` in batches of 10 (Powertools) (section 10.3).
+
+## 2. Wire protocol and service identity
+
+### 2.1 Protocol, target, signing, endpoints
+
+- Service shape `com.amazonaws.ssm#AmazonSSM`, version `2014-11-06`, traits `aws.protocols#awsJson1_1`, `aws.auth#sigv4` with `name: "ssm"`, `aws.api#service` `{sdkId: "SSM", arnNamespace: "ssm", endpointPrefix: "ssm", cloudTrailEventSource: "ssm.amazonaws.com"}`, and `smithy.api#xmlNamespace` `http://ssm.amazonaws.com/doc/2014-11-06/` [M]. No `awsQueryCompatible`, no `endpoint`/`hostPrefix` traits on the Parameter Store operations [M].
+- Requests: `POST /`, `Content-Type: application/x-amz-json-1.1`, `X-Amz-Target: AmazonSSM.<Operation>`, SigV4 scope `<date>/<region>/ssm/aws4_request` (verbatim example in [GetParameter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_GetParameter.html)).
+- Endpoints: `ssm.<region>.amazonaws.com`, dual-stack `ssm.<region>.api.aws`, FIPS `ssm-fips.<region>.amazonaws.com` in US and Canada regions ([General Reference](https://docs.aws.amazon.com/general/latest/gr/ssm.html)). With `sdkId` `SSM`, SDKs read `AWS_ENDPOINT_URL_SSM` ahead of `AWS_ENDPOINT_URL`, and `AWS_IGNORE_CONFIGURED_ENDPOINT_URLS=true` disables both ([sigv4-checksums-endpoints.md 5.1](sigv4-checksums-endpoints.md)).
+- Timestamps (`LastModifiedDate`) are epoch seconds with a fraction, for example `1582657288.8` and `1521160696.821` ([GetParameter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_GetParameter.html), [DescribeParameters](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_DescribeParameters.html) examples).
+- Operations with no output (`AddTagsToResource`, `RemoveTagsFromResource`, `DeleteParameter`) return 200. The `AddTagsToResource` example body is `{}` ([AddTagsToResource](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_AddTagsToResource.html)).
+
+### 2.2 Errors
+
+Shapes bound to the thirteen operations, all `smithy.api#error: client` except `InternalServerError` (server) [M]:
+
+| Shape | Message member | Operations | Doc status |
+|---|---|---|---|
+| `ParameterNotFound` | `message` | GetParameter, DeleteParameter, GetParameterHistory, LabelParameterVersion, UnlabelParameterVersion | 400 |
+| `ParameterVersionNotFound` | `message` | GetParameter, LabelParameterVersion, UnlabelParameterVersion | 400 |
+| `ParameterAlreadyExists` | `message` | PutParameter | 400 |
+| `ParameterLimitExceeded` | `message` | PutParameter | 400 |
+| `ParameterMaxVersionLimitExceeded` | `message` | PutParameter | 400 |
+| `ParameterPatternMismatchException` | `message` | PutParameter | 400 |
+| `HierarchyLevelLimitExceededException` | `message` | PutParameter | 400 |
+| `HierarchyTypeMismatchException` | `message` | PutParameter | 400 |
+| `InvalidAllowedPatternException` | `message` | PutParameter | 400 |
+| `UnsupportedParameterType` | `message` | PutParameter | 400 |
+| `IncompatiblePolicyException`, `InvalidPolicyAttributeException`, `InvalidPolicyTypeException`, `PoliciesLimitExceededException` | `message` | PutParameter | 400 |
+| `InvalidKeyId` | `message` | GetParameter, GetParameters, GetParametersByPath, GetParameterHistory, PutParameter | 400 |
+| `ParameterVersionLabelLimitExceeded` | `message` | LabelParameterVersion | 400 |
+| `TooManyUpdates` | `Message` | PutParameter, Label/Unlabel, AddTagsToResource, RemoveTagsFromResource | 400 |
+| `InvalidFilterKey` | none | GetParametersByPath, DescribeParameters | 400 |
+| `InvalidFilterOption` | `message` | GetParametersByPath, DescribeParameters | 400 |
+| `InvalidFilterValue`, `InvalidNextToken` | `Message` | list operations | 400 |
+| `InvalidResourceId`, `InvalidResourceType`, `TooManyTagsError` | none | tag operations | 400 |
+| `InternalServerError` | `Message` | all | 500 |
+
+Statuses are from the API reference pages of each operation. `ValidationException` (`com.amazonaws.ssm#ValidationException`, members `Message` and `ReasonCode` [M]) is bound to none of these operations in the model. Yet the docs say a name with inner spaces "fails with a `ValidationException` error" ([GetParameter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_GetParameter.html)). AWS returns it for bad names [R-weak, section 3.1] and for tag/overwrite and tier conflicts [U][T], so understudy must be able to raise it from these handlers. `ThrottlingException` (`Message`, `QuotaCode`, `ServiceCode`) is documented as `ThrottlingException: Rate exceeded` ([PutParameter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_PutParameter.html)); the common-errors page gives it 400 ([CommonErrors](https://docs.aws.amazon.com/systems-manager/latest/APIReference/CommonErrors.html)).
+
+Recorded: `GetParameter` on a deleted parameter answers `{"Error": {"Code": "ParameterNotFound", "Message": ""}}` with `HTTPStatusCode: 400` (localstack@8b9a79f tests/aws/services/cloudformation/resources/test_ssm.snapshot.json:L105-L114, validated 2024-07-03), and botocore prints `An error occurred (ParameterNotFound) when calling the GetParameter operation: ` with nothing after the colon (localstack@8b9a79f tests/aws/services/cloudformation/resource_providers/ssm/test_parameter.snapshot.json:L69, validated 2023-06-21).
+
+UNVERIFIED (SSM-01): the raw envelope. Open points are whether `__type` is the bare shape name (as understudy emits for awsJson1_1), whether the message key is spelled `message` or `Message` per shape as the model has it, and whether the member-less shapes (`InvalidResourceId`, `InvalidFilterKey`) carry any message. botocore normalizes all three, so the snapshots above do not settle them.
+
+UNVERIFIED (SSM-02): the `ParameterNotFound` message from `DeleteParameter`, `GetParameterHistory`, `LabelParameterVersion` and `UnlabelParameterVersion`, and from `GetParameter` on a missing `/aws/service/` name. Only `GetParameter` on an ordinary name is recorded (empty).
+
+### 2.3 The legacy Query protocol
+
+Recorded: `POST https://ssm.<region>.amazonaws.com/?Action=GetParameter&Name=<name>` (parameters in the query string, no `Version`, no body), SigV4-signed for `ssm`, answers XML with root `GetParameterResponse`, `@xmlns` `http://ssm.amazonaws.com/doc/2014-11-06/`, `GetParameterResult/Parameter` and `Version` as text. With `Accept: application/json` the same call answers `{"GetParameterResponse": {"GetParameterResult": {"Parameter": {..., "Selector": null, "SourceResult": null, ...}}, "ResponseMetadata": ...}}` (localstack@8b9a79f tests/aws/services/apigateway/test_apigateway_ssm.snapshot.json:L33-L71, validated 2024-07-12; request in tests/aws/services/apigateway/test_apigateway_ssm.py:L110-L158). The test's docstring, in LocalStack's API Gateway SSM tests: "It seems that by default, AWS will target the legacy Query protocol version of SSM." No current SDK speaks it; the model declares only JSON 1.1.
+
+### 2.4 Operation inventory
+
+The model's service lists 152 operations [M]. Parameter Store owns the thirteen in scope, plus `GetServiceSetting`, `UpdateServiceSetting` and `ResetServiceSetting` (the default tier `/ssm/parameter-store/default-parameter-tier` and throughput settings, [tiers](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-advanced-parameters.html)) and `PutResourcePolicy`, `GetResourcePolicies` and `DeleteResourcePolicy` (cross-account sharing of advanced parameters). Pagination traits: `GetParametersByPath`, `DescribeParameters` and `GetParameterHistory` are `@paginated(inputToken: NextToken, outputToken: NextToken, pageSize: MaxResults)` [M].
+
+## 3. Names, ARNs and identity
+
+### 3.1 Naming rules
+
+From [PutParameter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_PutParameter.html) and the [name constraints](https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-a-parameter.html#sysman-parameter-name-constraints) [D]:
+
+- "Parameter names are case sensitive."
+- "Parameter names can include only the following symbols and letters: `a-zA-Z0-9_.-`", plus `/` to delimit hierarchy levels.
+- "A parameter name can't be prefixed with "`aws`" or "`ssm`" (case-insensitive)". The documented failing examples are `awsTestParameter`, `SSM-testparameter` and `/aws/testparam1`. Read literally, the rule is a prefix test on the first level, so `awsome` would fail too; that is inference, and SSM-04 records it.
+- Spaces: "The service removes any spaces specified for the beginning or end of a parameter name. If the specified name for a parameter contains spaces between characters, the request fails with a `ValidationException` error." This text appears on every read operation as well.
+- Fully qualified: `MyParameter1`, `/MyParameter2` and `/Dev/Production/East/Project-ABC/MyParameter` are fully qualified; `MyParameter3/L1` is not. A name with a hierarchy must start with `/`.
+- `PutParameter`, `LabelParameterVersion`, `UnlabelParameterVersion` and `DeleteParameters` take names only, never ARNs. `GetParameter`, `GetParameters` and `GetParameterHistory` accept a name or an ARN [D].
+
+Asserted against AWS, not captured [R-weak]: `GetParameter` and `GetParameters` with `/<a>//b//c` (empty level) or `<a>/b/c` (slash without leading slash) fail with `ValidationException` whose message contains `sub-paths divided by slash symbol` (localstack@8b9a79f tests/aws/services/ssm/test_ssm.py:L47-L62). The full text in both emulators is `Parameter name: can't be prefixed with "ssm" (case-insensitive). If formed as a path, it can consist of sub-paths divided by slash symbol; each sub-path can be formed as a mix of letters, numbers and the following 3 symbols .-_` [E LocalStack provider.py:L97-L104; moto models.py:L2242-L2250]. For a non-path name moto uses `Parameter name: can't be prefixed with "aws" or "ssm" (case-insensitive).`, and for a `/aws/...` path it uses `AccessDeniedException: No access to reserved parameter name: <name>.` [E moto models.py:L2236-L2243].
+
+UNVERIFIED (SSM-04): the code and exact text that `PutParameter` returns for each name defect: an invalid character, an inner space, a slash without a leading slash, an empty level, a trailing slash, the `aws`/`ssm` prefixes (including `/aws/x`, `/ssm/x` and `awsome`). Also whether outer spaces are trimmed from the stored and echoed name. The candidate codes are `ValidationException` (emulators), `ParameterPatternMismatchException` (the model's "The parameter name isn't valid") and `AccessDeniedException` (moto for `/aws/`).
+
+### 3.2 Root parameters and the leading slash
+
+- "You can create parameters at level one. These are called *root* parameters. ... The systems treats both of the following parameters as root parameters. `/parameter-name` `parameter-name`" ([hierarchies](https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-hierarchies.html)). In the same Region, `/TestParam1` and `TestParam1` "aren't unique" ([name constraints](https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-a-parameter.html#sysman-parameter-name-constraints)) [D].
+- Asserted against AWS, not captured [R-weak]: create `param-x`, then `GetParameter("/param-x")` and `GetParameters(["/param-x"])` both succeed and return `Name: "/param-x"` (localstack@8b9a79f tests/aws/services/ssm/test_ssm.py:L14-L24, L34-L45).
+- Terraform: a resource named `/Name_xyz` reads back `name = "/Name_xyz"` from `GetParameter` against AWS, with ARN format `parameter{name}`, that is `.../parameter/Name_xyz` [T parameter_test.go:L973-L1002]. The fix in v6.59.0 states that for a single-level name with a leading slash, `DescribeParameters` (`types.ParameterMetadata`) drops the slash while `GetParameter` (`types.Parameter`) keeps it ([PR #49339](https://github.com/hashicorp/terraform-provider-aws/pull/49339), merged 2026-08-11; CHANGELOG.md:L480). Before the fix, v6.58.0 stored the slashless name [T parameter_test.go:L1004-L1076].
+- Hierarchical names keep their single leading slash everywhere (`/test/param-x` reads back as `/test/param-x` by name and by ARN) [R localstack@8b9a79f tests/aws/services/ssm/test_ssm.snapshot.json:L27-L56].
+
+Canonical identity therefore strips the leading slash of a single-level name and keeps a hierarchical name as written. UNVERIFIED (SSM-07): which spelling each of the other operations returns for a root parameter. The open cases are `GetParameters` with both spellings in one call (one entry or two; one spelling alone is [R-weak] above), `GetParametersByPath` with `Path: "/"` (and whether root parameters appear there at all), `GetParameterHistory` and `ListTagsForResource` with `ResourceId` `/foo`, `foo` or the ARN. The PR author describes the `DescribeParameters` behavior without quoting output.
+
+### 3.3 ARN
+
+`arn:<partition>:ssm:<region>:<account>:parameter/<name without its leading slash>`:
+
+- `param-x` -> `arn:aws:ssm:<region>:111111111111:parameter/param-x` [R localstack@8b9a79f tests/aws/services/ssm/test_ssm.snapshot.json:L6].
+- `/test/param-x` -> `arn:aws:ssm:<region>:111111111111:parameter/test/param-x` (the snapshot renders it `parameter<name:1>` with the name's own slash, L29) [R]; also the docs `arn:aws:ssm:us-east-2:123456789012:parameter/Dev/Web/Oncall/Week1` ([hierarchies](https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-hierarchies.html)).
+- Public parameters have an empty account: `arn:aws:ssm:us-east-2::parameter/aws/service/list/ami-al-latest` ([public parameters](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-finding-public-parameters.html)).
+- Terraform's ARN import takes the resource part `parameter/<name>`, strips `parameter`, and keeps the leading slash only when the rest contains another slash [T parameter.go:L53-L71].
+- `GetParameter` by ARN returns `Name` as the bare name, not the ARN [R test_ssm.snapshot.json:L2-L15, L42-L56].
+
+UNVERIFIED (SSM-29): the answer to `GetParameter` with an ARN that names another account (unshared) or another Region, and with an ARN of another SSM resource type (`document/...`). The plausible options are `ParameterNotFound`, `AccessDeniedException` and `ValidationException`.
+
+### 3.4 Length and depth
+
+- Model: `PSParameterName` `@length(1, 2048)` [M]. The docs: "The reported maximum length of 2048 characters for a parameter name includes 1037 characters that are reserved for internal use by Systems Manager. The maximum length for a parameter name that you specify is 1011 characters. This count of 1011 characters includes the characters in the ARN that precede the name you specify", with the 45-character `arn:aws:ssm:us-east-2:111122223333:parameter/` as the example ([PutParameter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_PutParameter.html)). So the whole ARN is at most 1011 characters.
+- Depth: "Parameter hierarchies are limited to a maximum depth of fifteen levels" [D]. `/Level-1/L2/L3/L4/L5/L6/L7/L8/L9/L10/L11/L12/L13/L14/parameter-name` (15 levels counting the name) is valid. `/Level-1/.../L15/L16/parameter-name` (17) "would fail with a `HierarchyLevelLimitExceededException` exception" ([name constraints](https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-a-parameter.html#sysman-parameter-name-constraints)). The model's documented message is "A hierarchy can have a maximum of 15 levels. For more information, see ..." [M].
+
+UNVERIFIED (SSM-05): whether 16 levels is accepted (the docs show only 15 and 17), and the exact wire message of `HierarchyLevelLimitExceededException`.
+
+UNVERIFIED (SSM-06): that the limit is the ARN length (1011 accepted, 1012 rejected), and the code and text of the rejection.
+
+## 4. Types, tiers and value rules
+
+### 4.1 Types
+
+- `ParameterType` enum `String | StringList | SecureString` [M]. "Items in a `StringList` must be separated by a comma (,). You can't use other punctuation or special character to escape items in the list." "Specifying a parameter type isn't required when updating a parameter. You must specify a parameter type when creating a parameter." ([PutParameter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_PutParameter.html)) [D].
+- The `Parameter.Value` doc: "If type is StringList, the system returns a comma-separated string with no spaces between commas in the Value field." [M]
+- "Parameters can't be referenced or nested in the values of other parameters. You can't include values wrapped in double brackets `{{}}` or `{{ssm:parameter-name}}` in a parameter value." [D]
+- Type changes: `HierarchyTypeMismatchException`: "Parameter Store doesn't support changing a parameter type in a hierarchy. For example, you can't change a parameter from a `String` type to a `SecureString` type. You must create a new, unique parameter." [D][M]. Against AWS, Terraform changes a root parameter from `SecureString` to `String` in place with an overwrite [T parameter_test.go:L872-L901].
+
+UNVERIFIED (SSM-09): whether a type change is rejected for a hierarchical name and accepted for a root name, and the message.
+
+UNVERIFIED (SSM-28): whether `StringList` values are normalized, for example `a, b` to `a,b` (the model doc's "no spaces between commas"), or stored verbatim.
+
+### 4.2 Tiers and sizes
+
+| | Standard | Advanced | Source |
+|---|---|---|---|
+| Max parameters per account and Region | 10,000 | 100,000 | [tiers](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-advanced-parameters.html), [quotas](https://docs.aws.amazon.com/general/latest/gr/ssm.html) |
+| Max value size | 4 KB | 8 KB | same; KMS guide: "Standard parameters, which cannot exceed 4096 bytes" ([KMS](https://docs.aws.amazon.com/kms/latest/developerguide/services-parameter-store.html)) |
+| Parameter policies | no | yes | [tiers](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-advanced-parameters.html) |
+| Downgrade | | "Not downgradeable" | same |
+
+- `ParameterTier` enum `Standard | Advanced | Intelligent-Tiering` [M]. When `Tier` is omitted, "Parameter Store assigns the tier based on the current Parameter Store default tier configuration. The default tier when you begin using Parameter Store is the standard-parameter tier." Under Intelligent-Tiering, a request goes Advanced when "The content size of the parameter is more than 4 KB", when "The parameter uses a parameter policy", or when "More than 10,000 parameters already exist in your AWS account in the current AWS Region" ([PutParameter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_PutParameter.html)).
+- Recorded: a plain create answers `{"Tier": "Standard", "Version": 1}` [R localstack@8b9a79f tests/aws/services/ssm/test_ssm.snapshot.json:L19-L26; tests/aws/services/apigateway/test_apigateway_ssm.snapshot.json:L5-L11].
+- Terraform against AWS: `Intelligent-Tiering` with a small value reads back `Standard`; with a 5000-character value it reads back `Advanced`, on create and on an update that grows the value [T parameter_test.go:L399-L556]. The same tests show an Advanced parameter still reading `Advanced` after its config switches to `Intelligent-Tiering` ("Intelligent-Tiering will not downgrade an existing parameter to Standard", L478-L482), but that step sends AWS no request: the tier's DiffSuppress hides `Intelligent-Tiering` once a tier is known [T parameter.go:L141-L146], so it is no evidence of AWS behavior. The no-downgrade rule rests on the docs alone: "you can't change an advanced parameter to a standard parameter" ([tiers](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-advanced-parameters.html)). Advanced to Standard is ForceNew in Terraform because AWS answers `ValidationException: This parameter uses the advanced-parameter tier. You can't downgrade a parameter from the advanced-parameter tier to the standard-parameter tier. If necessary, you can delete the advanced parameter and recreate it as a standard parameter.` [T parameter.go:L181-L185, quoted in a source comment]. The provider also retries a create without `Tier` when the message contains `Tier is not supported` [T parameter.go:L260-L264]; nothing documents when AWS sends that.
+
+UNVERIFIED (SSM-12): whether the 4096 and 8192 limits count bytes or characters, and the code and text past the limit. Plausible are `ValidationException` and `ParameterLimitExceeded`; the "4096 characters" wording in AWS samples is not primary.
+
+UNVERIFIED (SSM-13): the `Tier` in the `PutParameter` response to an `Intelligent-Tiering` request (resolved or echoed), the exact downgrade text on the wire, and what an overwrite that omits `Tier`, or that sends `Intelligent-Tiering` with a small value, does to an Advanced parameter (keeps it, or fails as a downgrade).
+
+### 4.3 DataType
+
+- `DataType` `@length(0, 128)`; documented values `text`, `aws:ec2:image` and `aws:ssm:integration`. With `aws:ec2:image`, Systems Manager "validates the parameter value is in the required format, such as `ami-12345abcdeEXAMPLE`, and that the specified AMI is available in your AWS account". That validation is asynchronous: "If you submit an invalid AMI value, the PutParameter operation will return success, but the asynchronous validation will fail and the parameter will not be created or updated." ([PutParameter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_PutParameter.html)) [D].
+- Reads return `"DataType": "text"` for ordinary parameters [R test_ssm.snapshot.json:L7]. Terraform asserts `data_type = "text"` by default [T parameter_test.go:L56] and makes `data_type` ForceNew [T parameter.go:L93-L103]. For a new `aws:ec2:image` resource it retries `ParameterNotFound` for up to 2 minutes [T parameter.go:L288-L303].
+- `aws:ssm:integration` is used with `SecureString` under `/d9d01087-4a3f-49e0-b0b4-d568d7826553/ssm/integrations/webhook/<name>` in the provider's acceptance test [T parameter_test.go:L1225-L1252].
+- moto rejects an unknown data type with `The following data type is not supported: <x> (Data type names are all lowercase.)` [E moto models.py:L2268-L2275].
+
+UNVERIFIED (SSM-34): what `PutParameter` answers for `aws:ec2:image` with a value that is not AMI-shaped (`notanami`): synchronous `ValidationException`, or the documented success followed by no parameter.
+
+### 4.4 AllowedPattern
+
+- `AllowedPattern` `@length(0, 1024)`: "A regular expression used to validate the parameter value" [M].
+- The user guide shows the value `10,000` against `\d{1,4}` failing with `An error occurred (ParameterPatternMismatchException) when calling the PutParameter operation: Parameter value, cannot be validated against allowedPattern: \d{1,4}` ([hierarchies](https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-hierarchies.html)). Because `10,000` contains a 1-to-4-digit run, the match must be a whole-value match.
+- `InvalidAllowedPatternException`: "The request doesn't meet the regular expression requirement." [M]
+- Terraform always sends `AllowedPattern` (`""` when unset) on create and update [T parameter.go:L227, L403]. `""` must mean no pattern.
+
+UNVERIFIED (SSM-15): the regex dialect (Java constructs such as lookahead or possessive quantifiers accepted), the text for an uncompilable pattern, and the mismatch text on the wire.
+
+### 4.5 Parameter policies
+
+- Advanced only, at most 10 per parameter, types `Expiration`, `ExpirationNotification` and `NoChangeNotification`. Each is a JSON object `{"Type", "Version": "1.0", "Attributes"}` inside a JSON array string (`Policies` `@length(1, 4096)` [M]). They are "enforce[d] ... by using asynchronous, periodic scans". "To remove all policies from an existing parameter ... apply an empty policy ... `[{}]`", and "If you add a new policy to a parameter that already has policies, then Systems Manager overwrites the policies" ([policies](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-policies.html)). "All existing policies are preserved until you send new policies or an empty policy." ([PutParameter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_PutParameter.html))
+- Metadata echoes `Policies: [{"PolicyStatus": "Pending", "PolicyText": "{\"Type\":\"Expiration\",...}", "PolicyType": "Expiration"}]`, and `Policies: []` when there are none ([DescribeParameters](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_DescribeParameters.html) example). The statuses are `Pending`, `Finished`, `Failed` and `InProgress` [M `ParameterInlinePolicy`].
+
+UNVERIFIED (SSM-14): the error for policies on a Standard parameter, the normalization of `PolicyText` (verbatim or re-serialized), the `[{}]` clear, and the texts of `InvalidPolicyTypeException` and `IncompatiblePolicyException`.
+
+## 5. SecureString and KMS
+
+### 5.1 Encryption flow
+
+From the [KMS developer guide](https://docs.aws.amazon.com/kms/latest/developerguide/services-parameter-store.html) [D]:
+
+- Standard: "When you create or change a standard `SecureString` parameter value, Parameter Store calls the AWS KMS Encrypt operation ... directly ... instead of using the KMS key to generate a data key." Reads with `WithDecryption` call KMS `Decrypt`. KMS `Encrypt` takes at most 4096 bytes of plaintext, the same as the Standard value limit.
+- Advanced: envelope encryption with the AWS Encryption SDK. `GenerateDataKey` creates a unique data key per value, the stored value is the Encryption SDK message, and a read calls KMS `Decrypt` on the data key.
+- Default key: "If you do not specify a KMS key, Parameter Store uses the AWS managed key that Systems Manager automatically creates in your account. This KMS key has the `aws/ssm` alias."
+- Only symmetric encryption keys are supported.
+- `KeyId` accepts a key ARN, an alias ARN, a key id or an alias name ([CLI guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/param-create-cli.html)); `@length(1, 256)`, `@pattern("^([a-zA-Z0-9:/_-]+)$")` [M].
+
+### 5.2 Encryption context
+
+"Key: `PARAMETER_ARN`. Value: The Amazon Resource Name (ARN) of the parameter that is being encrypted." Examples: `"PARAMETER_ARN":"arn:aws:ssm:us-east-2:111122223333:parameter/MyParameter"` and, for a hierarchy, `"PARAMETER_ARN":"arn:aws:ssm:us-east-2:111122223333:parameter/ReadableParameters/MyParameter"`. "You can decrypt an encrypted `SecureString` parameter value by calling the AWS KMS `Decrypt` operation with the correct encryption context and the encrypted parameter value that the Systems Manager `GetParameter` operation returns." ([KMS guide](https://docs.aws.amazon.com/kms/latest/developerguide/services-parameter-store.html)) [D]
+
+### 5.3 Reads without decryption
+
+`WithDecryption` defaults to false and "is ignored for `String` and `StringList` parameter types" [M]. A SecureString read without it returns the ciphertext: the KMS guide shows `"Value": "AQECAHgnOkMROh5LaLXkA4j0+vYi6tmM17Lg"` ([KMS guide](https://docs.aws.amazon.com/kms/latest/developerguide/services-parameter-store.html)), and the CLI guide says it "returns an encrypted GUID" ([CLI guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/param-create-cli.html)). For a standard parameter this is the base64 KMS ciphertext blob, by the flow in 5.1 and the decrypt statement in 5.2.
+
+### 5.4 KeyId in metadata
+
+`ParameterMetadata.KeyId` and `ParameterHistory.KeyId` are documented as "The alias of the Key Management Service (KMS) key used to encrypt the parameter. Applies to SecureString parameters only" [M]. Against AWS, Terraform reads back `alias/aws/ssm` when no key was given [T parameter_test.go:L1099] and `alias/<name>` when `key_id = "alias/<name>"` was given [T parameter_test.go:L1289-L1318]. `key_id` is Optional+Computed, and the provider sends `KeyId` only for SecureString and only on create or change [T parameter.go:L242-L244, L419-L421]. "If you change the KMS key alias for the KMS key used to encrypt a parameter, then you must also update the key alias the parameter uses to reference KMS. Otherwise, `DescribeParameters` retrieves whatever the original key alias was referencing." ([DescribeParameters](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_DescribeParameters.html)) That is, the stored key reference is the string given.
+
+### 5.5 KMS failures
+
+"The KMS key is not enabled. When this occurs, Parameter Store returns an InvalidKeyId exception with a detailed error message from AWS KMS." The guide also names missing permission and "The KMS key is not found" as causes, without codes ([KMS guide](https://docs.aws.amazon.com/kms/latest/developerguide/services-parameter-store.html)).
+
+UNVERIFIED (SSM-22): the cases this guide leaves open:
+- `KeyId` as metadata reports it when the key was given as a key id, a key ARN or an alias ARN.
+- That KMS `Decrypt` of a standard parameter's ciphertext with `PARAMETER_ARN` works as documented.
+- The `InvalidKeyId` texts for a missing and for a disabled key.
+
+## 6. Versions, labels and selectors
+
+### 6.1 Versions
+
+- "When you initially create a parameter, Parameter Store assigns version `1` ... When you change the value of the parameter, Parameter Store automatically increments the version number by one." ([versions](https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-versions.html)) Against AWS a description-only overwrite also creates version 2 [T parameter_test.go:L160-L206], and every Terraform-driven overwrite increments [T parameter_test.go:L589-L648]. `Version` is a `long` [M].
+- 100 versions are retained. "After you have created 100 versions of a parameter, each time you create a new version, the oldest version of the parameter is removed from history". If the oldest version has a label, "that version isn't removed from history, and the request to create a new parameter version fails" ([versions](https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-versions.html)). The error is `ParameterMaxVersionLimitExceeded`, whose CLI-formatted text is `You attempted to create a new version of parameter-name by calling the PutParameter API with the overwrite flag. Version version-number, the oldest version, can't be deleted because it has a label associated with it. Move the label to another version of the parameter, and try again.` [M][D].
+- "If you specify the number for a version that doesn't exist, the system returns an error rather than falling back to the latest or default version" [D].
+
+UNVERIFIED (SSM-08): whether an overwrite with identical value, type and description still creates a new version, and whether `LabelParameterVersion` changes `LastModifiedDate`.
+
+UNVERIFIED (SSM-30): the wire text of `ParameterMaxVersionLimitExceeded`, that numbering continues at 101 after the oldest version is dropped, and the default page size of `GetParameterHistory` (shown by its 100 entries).
+
+### 6.2 Labels
+
+From [LabelParameterVersion](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_LabelParameterVersion.html) and the [labels guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-labels.html) [D]:
+
+- At most 10 labels per version. One label names at most one version of a parameter, and "You can move a label from one version of a parameter to another" by labeling the other version.
+- Labels cannot be set at creation. A label is 1 to 100 characters (`ParameterLabel` `@length(1, 100)` [M]) of "letters (case sensitive), numbers, periods (.), hyphens (-), or underscores (_)".
+- "Labels can't begin with a number, "`aws`" or "`ssm`" (not case sensitive). If a label fails to meet these requirements, then the label isn't associated with a parameter and the system displays it in the list of InvalidLabels." That is a 200 response, not an error.
+- `ParameterVersion` is optional on `LabelParameterVersion` (latest when absent) and required on `UnlabelParameterVersion` ("If it isn't present, the call will fail") [D][M].
+- Responses: `{"InvalidLabels": [], "ParameterVersion": 3}` for a label call and `{"InvalidLabels": [], "RemovedLabels": ["label"]}` for an unlabel, where unlabel's `InvalidLabels` are "The labels that aren't attached to the given parameter version". Past 10 labels the call fails with `ParameterVersionLabelLimitExceeded` ("A parameter version can have a maximum of ten labels.") [M].
+
+UNVERIFIED (SSM-16): a 101-character label (`ValidationException` from the model's `@length`, or an `InvalidLabels` entry), labels with `:` or `/`, the exact `ParameterVersionLabelLimitExceeded` text (moto: `A parameter version can have maximum 10 labels.Move one or more labels to another version and try again.` [E moto models.py:L2146-L2150]), and the move behavior on the wire.
+
+### 6.3 Selectors
+
+- `Name` on `GetParameter` and `GetParameters` takes `name:version` or `name:label` [M]. The response's `Selector` is "Either the version number or the label used to retrieve the parameter value". The CLI example shows `"Name": "<parameter-name>"` with `"Selector": ":<label-name>"`, a leading colon and the bare name ([labels guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-labels.html)).
+- With no selector, `Selector` is absent: the recorded `GetParameter` responses carry `ARN, DataType, LastModifiedDate, Name, Type, Value, Version` only [R test_ssm.snapshot.json:L5-L13].
+- moto answers a missing version with `ParameterVersionNotFound: Systems Manager could not find version <v> of <name>. Verify the version and try again.` [E moto models.py:L2088-L2092].
+
+UNVERIFIED (SSM-17): the remaining selector cases:
+- Errors for a missing version, a missing label, version `0` and a double selector (`name:1:2`).
+- How `GetParameters` reports bad selectors (in `InvalidParameters` or as an error).
+- Whether an ARN takes a selector.
+- The `ParameterVersionNotFound` text.
+
+## 7. Operations
+
+### 7.1 PutParameter
+
+- Create vs overwrite: `Overwrite` defaults to false [M]. Overwriting an existing name without it answers `ParameterAlreadyExists: The parameter already exists. To overwrite this value, set the overwrite option in the request to true.` [U [#18550](https://github.com/hashicorp/terraform-provider-aws/issues/18550), 2021-04].
+- Tags with overwrite: `ValidationException: Invalid request: tags and overwrite can't be used together. To create a parameter with tags, please remove overwrite flag. To update tags for an existing parameter, please use AddTagsToResource or RemoveTagsFromResource.`, status 400 [U #18550; the same text in E moto models.py:L2228-L2232]. Terraform: "AWS SSM Service only supports PutParameter requests with Tags if Overwrite is not provided or is false" [T parameter.go:L250-L256], then `AddTagsToResource` [T parameter.go:L270-L277].
+- `Type` is required only on create (section 4.1). moto's text for a create without it is `A parameter type is required when you create a parameter.` [E moto models.py:L2251-L2258].
+- Fields left out of an overwrite: Terraform sends `Description` only when it changed, `DataType` only when it changed and `KeyId` only when it changed, while `AllowedPattern` (possibly `""`) and `Tier` from state are always sent [T parameter.go:L402-L426]. Its acceptance tests pass against AWS with a value-only update and import verification of the description [T parameter_test.go:L589-L648], so AWS keeps an omitted `Description`. The user guide's walkthrough overwrites `/MyService/Test/MaxConnections` with `--value 10,000 --overwrite` and no `--allowed-pattern`, and the error cites the stored `\d{1,4}` ([hierarchies](https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-hierarchies.html)), so an omitted `AllowedPattern` is kept and enforced [D]. moto keeps every omitted field [E moto models.py:L2294-L2300]. Policies are kept by the doc rule (section 4.5).
+- Response `{"Tier", "Version"}` [M][R].
+
+UNVERIFIED (SSM-03): the exact bytes of the `ParameterAlreadyExists` and tags-with-overwrite messages (the issue quotes the provider's formatted 2021 error strings, not the wire body), and whether tags with overwrite are rejected for a name that does not exist yet.
+
+UNVERIFIED (SSM-10): that `KeyId` and `DataType` survive an overwrite that omits them (`Description` rests on [T] and `AllowedPattern` on [D] above, and the case records both again), that an omitted `Type` keeps the type, and whether an overwrite with `AllowedPattern: ""` clears a stored pattern (Terraform sends `""` whenever `allowed_pattern` is unset).
+
+UNVERIFIED (SSM-11): the error for a create without `Type`, for `KeyId` on a `String` parameter, and for an empty `Value` (the model has no `@length` on `PSParameterValue`).
+
+### 7.2 GetParameter
+
+- Request `{Name, WithDecryption}`; `Name` `@length(1, 2048)` [M]. Response `{"Parameter": {ARN, DataType, LastModifiedDate, Name, Selector?, SourceResult?, Type, Value, Version}}` [M][D]. Recorded: `{"ARN": "arn:<partition>:ssm:<region>:111111111111:parameter/<name>", "DataType": "text", "LastModifiedDate": <datetime>, "Name": "<name>", "Type": "String", "Value": "test", "Version": 1}` [R test_ssm.snapshot.json:L5-L13].
+- Errors: `ParameterNotFound` (message `""`, 400, section 2.2), `ParameterVersionNotFound`, `InvalidKeyId` [M]. "For the `DeleteParameter` and `GetParameter` actions, if the specified parameter doesn't exist, the `ParameterNotFound` exception is *not* recorded in CloudTrail event logs." [M]
+- `LastModifiedUser`, `Description`, `KeyId`, `Tier`, `AllowedPattern` and `Policies` are not in `Parameter`; they come only from `DescribeParameters` and `GetParameterHistory` [M].
+
+### 7.3 GetParameters
+
+- `Names` is 1 to 10 names or ARNs, each with an optional selector. "The results for `GetParameters` requests are listed in alphabetical order in query responses." [M][D]
+- Missing names go to `InvalidParameters`; there is no `ParameterNotFound` in the operation's error list [M]. Doc example: `{"InvalidParameters": ["EC2DevServerTypo"], "Parameters": [...]}` ([GetParameters](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_GetParameters.html)). Recorded with every name found: `"InvalidParameters": []` [R test_ssm.snapshot.json:L57-L73]. [R-weak]: missing parameters and missing Secrets Manager references both land in `InvalidParameters` (localstack@8b9a79f tests/aws/services/ssm/test_ssm.py:L97-L132).
+- Powertools treats `InvalidParameters` as the failure channel ("GetParameters is non-atomic") and indexes it unconditionally [C ssm.py:L671-L685].
+
+UNVERIFIED (SSM-18): duplicate names in one request (deduplicated or repeated), the order of `Parameters` against request order, how a syntactically invalid name is reported (in `InvalidParameters` or as a `ValidationException` for the call), and the text for 11 names.
+
+### 7.4 GetParametersByPath
+
+- `Path` "Hierarchies start with a forward slash (/). The hierarchy is the parameter name except the last part of the parameter. For the API call to succeed, the last part of the parameter name can't be in the path." `Recursive` returns "all parameters within a hierarchy"; without it, one level. `MaxResults` `@range(1, 10)` [M][D].
+- `ParameterFilters` keys allowed: `Type`, `KeyId` and `Label`. Not allowed: `tag`, `DataType`, `Name`, `Path` and `Tier`. Options are `Equals` and `BeginsWith`, and `Label` takes `Equals` only ([GetParametersByPath](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_GetParametersByPath.html), [ParameterStringFilter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_ParameterStringFilter.html)). A `Label` filter returns the labeled version of each parameter, not the latest: the guide's example shows versions 3, 2 and 2 ([labels guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-labels.html)). [R-weak]: `Path=/<prefix>` with `Label Equals latest` finds the labeled parameter (localstack@8b9a79f tests/aws/services/ssm/test_ssm.py:L134-L151).
+- "Request results are returned on a best-effort basis ... The number of items returned, however, can be between zero and the value of `MaxResults`." [D]
+- A trailing slash is accepted (`/Branch312/Dev/` in the API example; Terraform's `path = "/x/"` with `recursive = true` [T parameters_by_path_data_source_test.go:L98-L115]). One level under `/x` returns the two direct children and not a sibling tree [T parameters_by_path_data_source_test.go:L20-L66].
+- IAM authorizes against the path, not each returned parameter [D name constraints]. understudy's IAM evaluation must check `ssm:GetParametersByPath` on the path ARN.
+- Errors: `InvalidFilterKey`, `InvalidFilterOption` ("Valid options are Equals and BeginsWith. For Path filter, valid options are Recursive and OneLevel."), `InvalidFilterValue`, `InvalidKeyId`, `InvalidNextToken` [M].
+
+UNVERIFIED (SSM-19): the open cases for this operation:
+- The default page size and the order of results.
+- Whether `Path: "/"` lists root parameters.
+- The error for a path without a leading slash, and for a disallowed filter key (`InvalidFilterKey` or `ValidationException`, and the text; moto's long path text is [E moto models.py:L1821-L1831]).
+- Whether an empty result sends `"Parameters": []`.
+- Whether a `Label` filter result carries `Selector`.
+
+### 7.5 DescribeParameters
+
+- Returns `ParameterMetadata` `{AllowedPattern, ARN, DataType, Description, KeyId, LastModifiedDate, LastModifiedUser, Name, Policies, Tier, Type, Version}` [M]; `MaxResults` `@range(1, 50)` [M].
+- `ParameterFilters` (`ParameterStringFilter`): `Key` matches `^(tag:.+|Name|Type|KeyId|Path|Label|Tier|DataType)$` (1 to 132 characters), `Option` is 1 to 10 characters, and `Values` holds 1 to 50 strings of 1 to 1024 [M]. For DescribeParameters every key is valid except `Label`. Options are `Equals` and `BeginsWith`, plus `Contains` for `Name`, and `Recursive`/`OneLevel` for `Path` ([ParameterStringFilter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_ParameterStringFilter.html)). "For `describe-parameters`, the default search type for `Name` is `Equals`" ([search](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-search.html)). `KeyId` values take `alias/aws/ssm` for the default key (same page). Filters combine by AND, as in the doc example of `Type=String` with a `Name` value. Values within one filter are presumably ORed; that is inference.
+- `Filters` (`ParametersFilter`, keys `Name | Type | KeyId`, `Values` required) is "deprecated. Instead, use `ParameterFilters`." [M]
+- `Shared: true` lists parameters shared through AWS RAM [M].
+- Public parameters are listed by `Key=Name, Option=BeginsWith, Values=/aws/service/ami-amazon-linux-latest` ([public parameters](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-finding-public-parameters.html)).
+- Terraform's exact request is `{"ParameterFilters": [{"Key": "Name", "Option": "Equals", "Values": [<name>]}]}`, paginated to the end, and it requires one result [T parameter.go:L490-L529]. With a root parameter created as `/foo`, it sends `/foo` (the `GetParameter` spelling) and AWS returns the entry named `foo` [T PR #49339]. So the Name filter compares canonical names.
+
+UNVERIFIED (SSM-20): the default `MaxResults`, the result order, whether `ARN` appears on each entry (the doc examples predate it), and the shape of an empty result.
+
+UNVERIFIED (SSM-21): the filter details:
+- The default option of the `Path` filter.
+- The default option of the `Name` filter on a value that is only a prefix: the search guide says `Equals`, but the DescribeParameters API example sends `Name` `/Branch312` with no option and lists `/Branch312/Dev/Engineer1` and its siblings (section 11).
+- The matching rule of the deprecated `Filters` `Name` (equality or prefix).
+- What sending `Filters` and `ParameterFilters` together does.
+- The answer to `Label` and to an option a key does not allow.
+- `tag:<key>` with no `Values`.
+- Case sensitivity of `BeginsWith` and `Contains`.
+
+### 7.6 GetParameterHistory
+
+- Request `{Name (name or ARN), WithDecryption, MaxResults @range(1, 50), NextToken}`. Each entry is a `ParameterHistory` `{AllowedPattern, DataType, Description, KeyId, Labels, LastModifiedDate, LastModifiedUser, Name, Policies, Tier, Type, Value, Version}` [M]. The examples list versions oldest first, with `"Policies": []` on each ([GetParameterHistory](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_GetParameterHistory.html), [labels guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-labels.html)).
+- `NextToken`: "If there are no additional items to return, the string is empty." [M]. understudy should omit the key, which every paginator treats the same.
+
+### 7.7 DeleteParameter and DeleteParameters
+
+- "After deleting a parameter, wait for at least 30 seconds to create a parameter with the same name." ([DeleteParameter](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_DeleteParameter.html), [DeleteParameters](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_DeleteParameters.html)) Neither page says what happens sooner.
+- `DeleteParameter` of a missing name answers `ParameterNotFound` [M]. Terraform tolerates it on destroy [T parameter.go:L444-L463].
+- `DeleteParameters`: names only, 1 to 10. Missing names go to `InvalidParameters`, and `InvalidParameters: []` is present when empty. The doc example lists `DeletedParameters` in alphabetical order for a request in another order ([DeleteParameters](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_DeleteParameters.html)).
+
+UNVERIFIED (SSM-26): an immediate re-create after delete. Open are whether it is accepted or answers an error within the 30 s, whether the new parameter starts again at version 1 with empty history, and whether the old tags are gone.
+
+UNVERIFIED (SSM-27): the order of `DeletedParameters`, and how a syntactically invalid name in `DeleteParameters` is reported.
+
+### 7.8 LabelParameterVersion and UnlabelParameterVersion
+
+See 6.2. Both take the name only, not an ARN [D]. Errors: `ParameterNotFound`, `ParameterVersionNotFound`, `TooManyUpdates`, and for label also `ParameterVersionLabelLimitExceeded` [M].
+
+### 7.9 Tags
+
+- `AddTagsToResource`, `RemoveTagsFromResource` and `ListTagsForResource` take `{ResourceType, ResourceId}`. `ResourceType` `Parameter` uses the parameter name as `ResourceId` ("For the `Document` and `Parameter` values, use the name of the resource") [D]. `AddTagsToResource` "Adds or overwrites" and returns `{}` [D].
+- Limits: `Tag.Key` `@length(1, 128)` and `Tag.Value` `@length(0, 256)`, both `@pattern("^([\p{L}\p{Z}\p{N}_.:/=+\-@]*)$")`. `TagList` `@length(0, 1000)` [M], but "Most resources can have a maximum of 50 tags" [D] (`TooManyTagsError`).
+- `ListTagsForResource` returns `{"TagList": [...]}` [M]. Terraform calls it with `ResourceType: Parameter, ResourceId: <name>` [T tags.go:L20-L38; parameter.go:L37] and updates with `RemoveTagsFromResource` then `AddTagsToResource` [T tags_gen.go:L83-L118].
+
+UNVERIFIED (SSM-25): the open tag cases:
+- The `ListTagsForResource` body for an untagged parameter (`TagList: []` or absent).
+- The 51st-tag error text.
+- Whether `aws:` keys are reserved.
+- The `InvalidResourceId` text for a missing parameter.
+- Whether an ARN works as `ResourceId`.
+- `RemoveTagsFromResource` of an absent key.
+
+### 7.10 Paging and empty collections
+
+- `NextToken` is opaque [M]. `InvalidNextToken` ("The specified token isn't valid.") [M].
+- Present-even-when-empty, from the sources above: `GetParameters.InvalidParameters` [R][C], `DeleteParameters.InvalidParameters` [D], `LabelParameterVersion.InvalidLabels` and `UnlabelParameterVersion.InvalidLabels` [D], and `Policies` on `ParameterMetadata` and `ParameterHistory` [D]. The model puts `@length(min: 1)` on `ParameterNameList` and `ParameterLabelList` [M]. Output must therefore not be validated against model constraints.
+
+UNVERIFIED (SSM-32): the `InvalidNextToken` text for a garbage token on each paginated operation.
+
+## 8. Reserved namespaces
+
+### 8.1 Public parameters
+
+- "A public parameter name begins with `aws/service/list`"; for example `/aws/service/list/ecs` maps to `/aws/service/ecs`. The same page's examples (`/aws/service/ami-amazon-linux-latest/...`, `/aws/service/global-infrastructure/...`) sit directly under `/aws/service/`, so `/aws/service/list/` is only the index (section 11). They are readable with `GetParametersByPath`, `GetParameter` and `DescribeParameters` (`Name BeginsWith`). Their ARNs have no account (`arn:aws:ssm:us-east-2::parameter/aws/service/...`), and "Not all public parameters are published to every AWS Region" ([public parameters](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-finding-public-parameters.html)).
+- The values (AMI ids, Region lists, the Parameters and Secrets extension's layer ARN at `/aws/service/aws-parameters-and-secrets-lambda-extension/x86/latest` ([Lambda extension](https://docs.aws.amazon.com/systems-manager/latest/userguide/ps-integration-lambda-extensions.html))) are AWS data that understudy cannot know.
+
+### 8.2 Secrets Manager references
+
+From [Secrets Manager references](https://docs.aws.amazon.com/systems-manager/latest/userguide/integration-ps-secretsmanager.html) [D]:
+
+- Only `GetParameter` and `GetParameters` work. "Modification operations and advance querying API operations, such as DescribeParameters and GetParametersByPath, aren't supported for Secrets Manager." The prefix is `/aws/reference/secretsmanager/`.
+- "Parameter Store functions as a pass-through service ... The reference is stateless." It honors the secret's IAM policies, has no versioning or history, and takes `name:<version id>` or `name:<stage>` selectors whose stage uses only letters, digits, `.`, `-` and `_`.
+- Doc output: `Name` is the reference path without the selector, `Type: SecureString`, `Value` is the secret string, `Version: 0`, `SourceResult` is a JSON string with `CreatedDate`, `Name`, `VersionId`, `SecretString`, `VersionStages` and `ARN`, `LastModifiedDate` is the version's creation time, `ARN` is the secret's ARN, and `Selector` is `:<version id>` or `:AWSCURRENT` when one is given. Every example passes `--with-decryption`.
+- [R-weak] (localstack@8b9a79f tests/aws/services/ssm/test_ssm.py:L64-L95):
+  - With `WithDecryption=True` the `Name` is the full reference path and the `Value` is the secret string.
+  - `json.loads(SourceResult)["name"]` equals the secret name, lower case `name`, and `":secretsmanager:" in SourceResult["ARN"]`.
+  - Reading the bare secret name (no prefix) fails.
+  - A missing secret answers `ParameterNotFound` matching `Secret .*aws/reference/secretsmanager/inexistent.* not found.` (moto: `An error occurred (ParameterNotFound) when referencing Secrets Manager: Secret <name> not found.` [E moto models.py:L190]).
+
+UNVERIFIED (SSM-23): the reference details neither source settles:
+- `SourceResult` key casing. The doc shows PascalCase; the AWS-validated test reads lower-case `name` with upper-case `ARN`.
+- `WithDecryption=false`: rejected, or served.
+- The exact not-found text, and the `ARN` and `LastModifiedDate` fields.
+- The answer to `GetParametersByPath` on the prefix, and to `PutParameter` under it.
+
+## 9. Metadata, events and quotas
+
+### 9.1 LastModifiedDate and LastModifiedUser
+
+`LastModifiedDate` is "Date the parameter was last changed or updated and the parameter version was created" [M]. `LastModifiedUser` is "Amazon Resource Name (ARN) of the Amazon Web Services user who last changed the parameter" [M], for example `arn:aws:iam::111122223333:user/Mateo.Jackson` ([DescribeParameters](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_DescribeParameters.html)). It appears in metadata and history, never in `Parameter`. `NoChangeNotification` reads "the `LastModifiedTime` attribute" ([policies](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-policies.html)).
+
+UNVERIFIED (SSM-24): `LastModifiedUser` for an assumed-role session (an `sts::...:assumed-role/...` ARN, the role ARN, or another form).
+
+### 9.2 EventBridge events
+
+"Events are emitted on a best effort basis." Patterns: `source: aws.ssm`, `detail-type: Parameter Store Change`, `detail.name`, `detail.operation` in `Create | Update | Delete | LabelParameterVersion`; and `detail-type: Parameter Store Policy Action` with `detail.parameter-name` and `detail.policy-type` ([events](https://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-cwe.html)). No full event is published there. LocalStack emits `{"name", "operation"}` only [E provider.py:L436-L452].
+
+UNVERIFIED (SSM-31): the full event: `resources`, the `detail` fields beyond `name` and `operation` (`type`, `description`, `labels`?), and the `operation` values for an overwrite and a label move.
+
+### 9.3 Quotas
+
+From the [General Reference](https://docs.aws.amazon.com/general/latest/gr/ssm.html):
+- 10,000 standard and 100,000 advanced parameters; 4 KB and 8 KB values; 10 policies per advanced parameter; 100 versions retained.
+- Default 40 TPS shared by `GetParameter`, `GetParameters` and `GetParametersByPath`.
+- 3 TPS for `DeleteParameter` and `DeleteParameters`.
+- 3 TPS for `DescribeParameters`, `GetParameterHistory`, `LabelParameterVersion`, `UnlabelParameterVersion` and `PutParameter`.
+
+`ParameterLimitExceeded`: "You have exceeded the number of parameters for this Amazon Web Services account." [M]
+
+UNVERIFIED (SSM-33): the text of `ParameterLimitExceeded` at the 10,001st standard parameter.
+
+## 10. Clients
+
+### 10.1 Terraform `aws_ssm_parameter`
+
+Calls, from the source [T parameter.go]:
+
+| Phase | Calls | Lines |
+|---|---|---|
+| Create | `PutParameter{AllowedPattern: "<config or empty>", Name, Overwrite: <config, else false>, Type, Value, DataType?, Description?, KeyId? (SecureString), Tier?, Tags? (only when not overwriting)}`; on a `ValidationException` containing `Tier is not supported`, one retry without `Tier`; `AddTagsToResource` when tags were held back; then Read | L205-L282 |
+| Read | `GetParameter{Name: id, WithDecryption: true}` (retried 2 min for new `aws:ec2:image`); `DescribeParameters` Name Equals `param.Name`, single result required; `ListTagsForResource{Parameter, name}` via transparent tagging | L284-L377, L465-L529 |
+| Update | if anything but `overwrite`/tags changed: `PutParameter{AllowedPattern, Name, Overwrite: <config, else true>, Tier: <config or state>, Type, Value, DataType? (on change), Description? (on change), KeyId? (on change, SecureString)}`; tags by Remove/Add | L379-L442 |
+| Delete | `DeleteParameter{Name: name}`; `ParameterNotFound` ignored | L444-L463 |
+
+What must round-trip for an empty second plan:
+- `name` is the `GetParameter` spelling (section 3.2), and `arn` and `version` come from `GetParameter`.
+- `type` and `value` come from `GetParameter`, decrypted. `insecure_value` is set instead of `value` when configured for a non-SecureString parameter [T L347-L361].
+- `tier` is resolved, and its DiffSuppress hides `Intelligent-Tiering` once a tier is known [T L136-L147].
+- `data_type` is `text` by default.
+- `description` and `allowed_pattern` come back absent or as given.
+- `key_id` is `alias/aws/ssm` or verbatim, and absent for non-SecureString.
+- `tags` must match.
+
+Behavior the provider relies on:
+- `version` is planned as unknown when `value` or `description` changes [T L186-L188], so it must increment on both (section 6.1).
+- An Advanced-to-Standard change is ForceNew (delete, then create) [T L183-L185].
+- Import by ARN (section 3.3).
+- The resource identity is `{account_id, region, name}`, with `name` slashless for a root parameter in the identity checks [T parameter_test.go:L1043-L1072].
+
+### 10.2 Terraform data sources
+
+- `aws_ssm_parameter`: `GetParameter{Name: <name>, WithDecryption: <with_decryption, default true>}`. It sets `id` and `name` from `param.Name` and `insecure_value` only for non-SecureString [T parameter_data_source.go:L52-L85]. An ephemeral variant calls the same with the ARN [T parameter_ephemeral.go:L75-L79].
+- `aws_ssm_parameters_by_path`: `GetParametersByPath{Path, Recursive: <default false>, WithDecryption: <default true>}`, paginated, flattened into ordered lists `arns`, `names`, `types` and `values` [T parameters_by_path_data_source.go:L43-L107]. List order is part of the state, so understudy's order must be stable.
+
+### 10.3 What a Lambda calls
+
+- boto3 per the user guide: `ssm.get_parameter(Name="/myapp/dev/vendor/merchant-id", WithDecryption=True)` ([parameter reference](https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-a-parameter.html)).
+- Powertools [C ssm.py]:
+  - `get_parameter` -> `GetParameter` with `WithDecryption` (L367-L385).
+  - `get_parameters(path)` -> the `get_parameters_by_path` paginator with `Path`, `WithDecryption` and `Recursive`, stripping the path prefix from each name (L387-L428).
+  - `get_parameters_by_name` -> `GetParameters` in chunks of `_MAX_GET_PARAMETERS_ITEM = 10` (L108, L572-L632), reading `InvalidParameters` (L677).
+- AWS Parameters and Secrets Lambda Extension: "uses read-only access to the **GetParameter** API action". It is a localhost proxy on port 2773 (`/systemsmanager/parameters/get?name=...&version=...&label=...&withDecryption=...`) that caches for `SSM_PARAMETER_STORE_TTL`, default 300 s, and accepts ARNs, public parameter names and Secrets Manager references ([Lambda extension](https://docs.aws.amazon.com/systems-manager/latest/userguide/ps-integration-lambda-extensions.html)). understudy does not run the extension, but a Lambda image that bundles it calls `GetParameter` through `AWS_ENDPOINT_URL`.
+
+## 11. Conflicts between sources
+
+| Topic | Sources | Resolution |
+|---|---|---|
+| Status of `ParameterNotFound`, `ParameterLimitExceeded`, `TooManyUpdates` | model `awsQueryError` 404/429/429; API reference 400; recorded 400 for `ParameterNotFound` | 400 (recorded; the query codes are inert without `awsQueryCompatible`) |
+| Empty lists | model `@length(min: 1)`; recorded `InvalidParameters: []`; doc examples `[]` | send `[]` |
+| Unlabel output key | user guide shows `DeletedLabels`; model and API reference `RemovedLabels` | `RemovedLabels` (model) |
+| `ParameterPatternMismatchException` meaning | model: "The parameter name isn't valid."; user guide: AllowedPattern value mismatch | use it for the value mismatch (the guide's quoted output); name defects per SSM-04 |
+| `ParameterMetadata.AllowedPattern` doc | model doc text describes name characters | doc error; the field echoes the pattern |
+| Name length | model 2048; doc 1011 including the ARN prefix | enforce the doc's 1011 (SSM-06) |
+| Tags per parameter | model `TagList` up to 1000; doc 50 per resource | 50 (doc) |
+| Type change | doc: not in a hierarchy; Terraform changes a root parameter's type against AWS | switch `ssm.put.type-change` (SSM-09) |
+| `SourceResult` keys | doc PascalCase; AWS-validated test lower-case `name` | switch (SSM-23) |
+| Leading slash in `DescribeParameters` names | `GetParameter` keeps it; `DescribeParameters` drops it (provider PR) | canonical vs request spelling (3.2) |
+| `KeyId` meaning | model: "the alias of the KMS key"; Terraform: verbatim alias | verbatim (SSM-22 for key ids and ARNs) |
+| Default `Name` option in `DescribeParameters` | [search](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-search.html): `Equals`; [DescribeParameters](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_DescribeParameters.html) example: `Name` `/Branch312` with no option returns `/Branch312/Dev/*` | `Equals`, the stated rule (SSM-21) |
+| Public parameter prefix | [public parameters](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-finding-public-parameters.html): names begin with `aws/service/list`; the same page's examples sit under `/aws/service/<service>/` | `/aws/service/` (the examples; `/aws/service/list/` is the index) |
+
+## 12. Implications for understudy
+
+### 12.1 Coverage per operation
+
+New service package `internal/service/ssm`. Vendor `models/ssm/service/2014-11-06/ssm-2014-11-06.json` at the pin into `third_party/api-models-aws` (with its `UPSTREAM.json` entry), add `codegen/services/ssm.json` (IAM prefix `ssm`), add a row to `internal/ref/deps_test.go` (ssm depends on kms and secretsmanager through `kernel.Invoke`, as `internal/service/secretsmanager/values.go` does for kms), write `docs/guide/ssm.md`, and regenerate `docs/coverage.md`.
+
+| Operation | Status | Coverage note (exact text) |
+|---|---|---|
+| PutParameter | partial | `parameter policies are stored and echoed with PolicyStatus Pending but never enforced; aws:ec2:image values are checked for the AMI ID format only, since understudy has no EC2; no Parameter Store Change events are sent; AllowedPattern is compiled as Go RE2 and a pattern RE2 cannot compile answers 501; the default tier is always Standard (the service setting is unbound)` |
+| GetParameter | partial | `no AWS public parameters: names under /aws/service/ answer 501; Secrets Manager references read understudy's Secrets Manager; an advanced SecureString read without decryption returns understudy's envelope, not an AWS Encryption SDK message` |
+| GetParameters | partial | `no AWS public parameters: a name under /aws/service/ makes the call answer 501; Secrets Manager references read understudy's Secrets Manager; an advanced SecureString read without decryption returns understudy's envelope, not an AWS Encryption SDK message` |
+| GetParametersByPath | partial | `no AWS public parameters: paths under /aws/service/ answer 501; an advanced SecureString read without decryption returns understudy's envelope, not an AWS Encryption SDK message` |
+| DescribeParameters | partial | `AWS public parameters are never listed; Shared lists nothing, since no parameter can be shared (resource policies are unbound)` |
+| GetParameterHistory | partial | `an advanced SecureString version read without decryption returns understudy's envelope, not an AWS Encryption SDK message` |
+| DeleteParameter | full | |
+| DeleteParameters | full | |
+| LabelParameterVersion | full | |
+| UnlabelParameterVersion | full | |
+| AddTagsToResource | partial | `ResourceType Parameter only: the other resource types name nothing understudy stores, so they answer InvalidResourceId` |
+| RemoveTagsFromResource | partial | same text |
+| ListTagsForResource | partial | same text |
+| GetServiceSetting, UpdateServiceSetting, ResetServiceSetting | unbound (501) | |
+| PutResourcePolicy, GetResourcePolicies, DeleteResourcePolicy | unbound (501) | |
+| the other 133 operations | unbound (501) | |
+
+`StoredOnly` fits none of the thirteen: each has a runtime effect. Policies are a field-level gap, so they go in PutParameter's partial note. The 501 answers follow CloudWatch's precedent in `GetMetricData` ("metric math ... answer 501", `docs/coverage.md`). The legacy Query protocol (2.3) stays unrouted; record it as a coverage note on the service if the edge reports a reason for SSM requests without `X-Amz-Target`.
+
+### 12.2 Fidelity switches
+
+| Name | Default | Label | Grounds | Record |
+|---|---|---|---|---|
+| `ssm.name.root-slash-echo` | `request-spelling` (GetParameter/GetParameters echo `/foo` or `foo` as asked; metadata and history report `foo`) | inferred ([R-weak] and [T]; history unrecorded) | 3.2 | SSM-07 |
+| `ssm.error.parameter-not-found-message` | `empty` | third-party-recorded (GetParameter), inferred (other operations) | 2.2 | SSM-02 |
+| `ssm.put.type-change` | `rejected-in-hierarchy` (root parameters may change type; hierarchical ones answer `HierarchyTypeMismatchException`) | aws-doc | 4.1 | SSM-09 |
+| `ssm.put.identical-overwrite` | `new-version` | inferred | 6.1 | SSM-08 |
+| `ssm.put.omitted-fields` | `preserved` | aws-doc (AllowedPattern), inferred (Description from [T] acceptance tests; KeyId, DataType, Type) | 7.1 | SSM-10 |
+| `ssm.put.tags-with-overwrite` | `rejected-always` (also for a new name) | inferred | 7.1 | SSM-03 |
+| `ssm.value.size-unit` | `bytes` | aws-doc | 4.2 | SSM-12 |
+| `ssm.tier.omitted-on-advanced` | `kept-advanced` | inferred | 4.2 | SSM-13 |
+| `ssm.data-type.ec2-image-invalid` | `accepted-not-stored` (200 with a version, no change) | aws-doc | 4.3 | SSM-34 |
+| `ssm.label.too-long` | `validation-exception` (model `@length`) | inferred | 6.2 | SSM-16 |
+| `ssm.kms.key-id-echo` | `verbatim` | inferred (alias names from [T] acceptance tests; ids and ARNs) | 5.4 | SSM-22 |
+| `ssm.list.order` | `name-ascending` for GetParametersByPath and DescribeParameters | inferred | 7.4, 7.5 | SSM-19, SSM-20 |
+| `ssm.paging.default-page-size` | the model maximum: 10 (by path), 50 (describe), 50 (history) | inferred | 7.4, 7.5, 7.6 | SSM-19, SSM-20, SSM-30 |
+| `ssm.delete.recreate-window` | `immediate` | inferred | 7.7 | SSM-26 |
+| `ssm.stringlist.value` | `verbatim` | inferred | 4.1 | SSM-28 |
+| `ssm.arn.foreign-scope` | `parameter-not-found` (other account or Region) | inferred | 3.3 | SSM-29 |
+| `ssm.secretsmanager-ref.source-result-keys` | `lower-except-arn` | inferred ([R-weak]; the doc shows PascalCase) | 8.2 | SSM-23 |
+| `ssm.secretsmanager-ref.without-decryption` | `rejected` (`ValidationException`) | inferred | 8.2 | SSM-23 |
+
+Each switch's `Ref` is `docs/research/ssm-parameters.md#<section>` and its `Record` the SSM id. `third-party-recorded` is used only where a LocalStack snapshot with a validation date backs the default ([R]), as `internal/evidence/label.go` defines the label. A LocalStack assertion without a snapshot ([R-weak]) and a Terraform acceptance test ([T]) ran against AWS but captured nothing, so the switches they support are labeled `inferred`.
+
+### 12.3 State model
+
+- Per `(account, region)`: parameters keyed by canonical name (3.2); each keeps the request spelling only for the response.
+- Each parameter holds:
+  - versions, up to 100 retained, with a monotonic counter: `{number, type, sealed value or plain value, keyRef (verbatim string), description, allowedPattern, dataType, tier, policies (raw JSON + parsed), labels, lastModifiedDate, lastModifiedUser}`;
+  - a label index (label -> version, unique per parameter);
+  - tags (at most 50);
+  - the current tier (monotonic Standard -> Advanced).
+- `LastModifiedDate` comes from the emulator clock (invariant 5), and `LastModifiedUser` from the caller's principal ARN as the SigV4 layer resolves it.
+- Delete drops the parameter, its versions, labels and tags (per switch `ssm.delete.recreate-window`).
+- SecureString:
+  - Standard: KMS `Encrypt`/`Decrypt` through `kernel.Invoke` with `EncryptionContext {"PARAMETER_ARN": <ARN>}`. The value returned without decryption is base64 of the understudy KMS `CiphertextBlob`, so KMS `Decrypt` with that context opens it (5.2).
+  - Advanced (up to 8 KB, past KMS `Encrypt`'s 4096-byte limit): `GenerateDataKey` plus a local AEAD, the same pattern as `seal`/`open` in `internal/service/secretsmanager/values.go`. This deviates from AWS: there the stored value is an AWS Encryption SDK message (5.1), so an advanced value read without decryption is understudy's own envelope, which neither the Encryption SDK nor KMS `Decrypt` alone opens. The coverage notes of the four reads that return values (GetParameter, GetParameters, GetParametersByPath, GetParameterHistory) must say so, unless understudy emits the Encryption SDK message format.
+  - With no `KeyId`, use `alias/aws/ssm`, which understudy's KMS creates on first use (`internal/service/kms/doc.go`), and store the string `alias/aws/ssm`.
+  - A KMS refusal maps to `InvalidKeyId` carrying KMS's message (5.5).
+- Secrets Manager references call understudy's Secrets Manager `GetSecretValue` (and `DescribeSecret` for `SourceResult`) as the caller, with selectors as `VersionId` or `VersionStage`. Nothing is stored.
+- Journal every call. Snapshots serialize parameters, versions, labels, tags and the version counters.
+- Do not throttle by default. `ThrottlingException`, `TooManyUpdates`, `InternalServerError` and latency are fault-injection targets.
+
+### 12.4 Limits and validation texts
+
+Model constraints the generator enforces with Coral texts (`1 validation error detected: Value '<v>' at '<path>' failed to satisfy constraint: ...`, [error-matrix.md 4](error-matrix.md)):
+
+| Member | Constraint [M] |
+|---|---|
+| `name`, `path` (`PSParameterName`) | length 1..2048 |
+| `names` (`GetParameters`, `DeleteParameters`) | list length 1..10 |
+| `description` | length 0..1024 |
+| `allowedPattern` | length 0..1024 |
+| `keyId` | length 1..256, pattern `([a-zA-Z0-9:/_-]+)` |
+| `policies` | length 1..4096 |
+| `dataType` | length 0..128 |
+| `tags` | list length 0..1000; `key` 1..128, `value` 0..256, pattern `([\p{L}\p{Z}\p{N}_.:/=+\-@]*)` |
+| `labels` | list length 1..10; each 1..100 |
+| `maxResults` | 1..10 (GetParametersByPath), 1..50 (DescribeParameters, GetParameterHistory) |
+| `parameterFilters.N.member.key` | length 1..132, pattern `(tag:.+\|Name\|Type\|KeyId\|Path\|Label\|Tier\|DataType)` |
+| `parameterFilters.N.member.option` | length 1..10 |
+| `parameterFilters.N.member.values` | list 1..50, each 1..1024 |
+| `type`, `tier`, `resourceType` | enum |
+
+No SSM capture shows these. That SSM answers a constraint violation with `ValidationException` and the Coral text is the cross-service rule of [error-matrix.md 4](error-matrix.md), and the code there is per operation ([error-matrix.md 1](error-matrix.md)). SSM-16 step 02 (a 101-character label) and SSM-18 step 03 (11 names) record two instances.
+
+Hand-coded rules and texts (exact where a source gives them):
+
+| Condition | Code (status) | Message | Source |
+|---|---|---|---|
+| GetParameter of a missing name | `ParameterNotFound` (400) | empty | [R] 2.2 |
+| create of an existing name without overwrite | `ParameterAlreadyExists` (400) | `The parameter already exists. To overwrite this value, set the overwrite option in the request to true.` | [U] 7.1 |
+| `Tags` with `Overwrite: true` | `ValidationException` (400) | `Invalid request: tags and overwrite can't be used together. To create a parameter with tags, please remove overwrite flag. To update tags for an existing parameter, please use AddTagsToResource or RemoveTagsFromResource.` | [U] 7.1 |
+| Advanced -> Standard | `ValidationException` (400) | `This parameter uses the advanced-parameter tier. You can't downgrade a parameter from the advanced-parameter tier to the standard-parameter tier. If necessary, you can delete the advanced parameter and recreate it as a standard parameter.` | [T] 4.2 |
+| value fails `AllowedPattern` (whole-value match) | `ParameterPatternMismatchException` (400) | `Parameter value, cannot be validated against allowedPattern: <pattern>` | [D] 4.4 |
+| 101st version, oldest labeled | `ParameterMaxVersionLimitExceeded` (400) | `You attempted to create a new version of <name> by calling the PutParameter API with the overwrite flag. Version <n>, the oldest version, can't be deleted because it has a label associated with it. Move the label to another version of the parameter, and try again.` | [M] 6.1 |
+| more than 15 levels | `HierarchyLevelLimitExceededException` (400) | `A hierarchy can have a maximum of 15 levels.` plus the doc's link sentence; exact wire text SSM-05 | [M] 3.4 |
+| more than 10 labels on a version | `ParameterVersionLabelLimitExceeded` (400) | understudy's own until SSM-16 | [M] 6.2 |
+| label rule broken | none (200, `InvalidLabels`) | | [D] 6.2 |
+| name defects, prefix rules, inner spaces | `ValidationException` (400) | the [E] text in 3.1 for path defects, understudy's own otherwise, until SSM-04 | 3.1 |
+| more than 50 tags | `TooManyTagsError` (400) | understudy's own until SSM-25 | [D] 7.9 |
+| 10,001st standard parameter (no Intelligent-Tiering) | `ParameterLimitExceeded` (400) | understudy's own until SSM-33 | [D] 9.3 |
+| value over 4096 bytes Standard / 8192 Advanced | `ValidationException` (400) | understudy's own until SSM-12 | [D] 4.2 |
+| policies on Standard; policy over 10 | `ValidationException` / `PoliciesLimitExceededException` (400) | understudy's own until SSM-14 | [D] 4.5 |
+| ARN past 1011 characters | `ValidationException` (400) | understudy's own until SSM-06 | [D] 3.4 |
+
+Every understudy-owned text names the limit and the value, per the repo's error-message rules, and is listed as such in the coverage notes.
+
+### 12.5 Terraform apply and an empty second plan
+
+1. Accept `AllowedPattern: ""` as no pattern, and `Overwrite: false` with `Tags` on create (7.1).
+2. `GetParameter` with `WithDecryption: true` returns the request's name spelling, the plaintext, `Version`, `ARN`, `Type` and `DataType: "text"` (3.2, 7.2).
+3. `DescribeParameters` with `Name Equals <that spelling>` returns exactly one entry with the resolved `Tier` and `DataType`. `KeyId` is present only for SecureString (`alias/aws/ssm` by default, verbatim otherwise). `Description` and `AllowedPattern` are absent when unset. The final page has no `NextToken` (7.5).
+4. `ListTagsForResource{Parameter, name}` returns exactly the tags (7.9).
+5. An overwrite keeps the omitted `Description`, `KeyId` and `DataType` (Terraform always sends `AllowedPattern`; whether `""` on an overwrite clears a stored pattern is SSM-10), and bumps `Version` on a value or description change (6.1, 7.1).
+6. `Intelligent-Tiering` resolves at write time, and later writes never downgrade (4.2).
+7. Destroy is `DeleteParameter` (7.7).
+8. Data sources: stable name-ascending order for `aws_ssm_parameters_by_path` (10.2).
+
+A conformance suite under `conformance/terraform` should apply String, StringList, SecureString (default key and a KMS alias), tagged, `overwrite = true`, Advanced and Intelligent-Tiering resources plus both data sources, then assert `plan -detailed-exitcode` is 0.
+
+### 12.6 Never fake
+
+- Never invent public parameter values. `/aws/service/` reads answer 501 until a seeding mechanism exists, never `ParameterNotFound` (8.1).
+- Never serve a Secrets Manager reference from anything but understudy's Secrets Manager (8.2).
+- Never return SecureString plaintext without `WithDecryption`, and never keep it outside KMS sealing. A standard parameter's ciphertext must open with KMS `Decrypt` and the documented context (5.2). An advanced one is an AWS Encryption SDK message in AWS (5.1), which KMS `Decrypt` alone does not open; understudy's differs and is disclosed (12.3).
+- Never claim to enforce policies, and never emit Parameter Store events, until SSM-31 records the shape (4.5, 9.2).
+- Never claim an AMI exists (4.3).
+- Never contact AWS for any of the above.
+
+## 13. Recording queue
+
+Agents never run these. A human runs them in the recording-kit shell ([recording-kit.md 1-2](../recording-kit.md)), which provides `$P`, `$R`, `$A`, `$Q`, `rec` and `recurl`, and needs `jq`. Costs assume standard parameters and standard throughput, which are free ([pricing](https://aws.amazon.com/systems-manager/pricing/)). Advanced parameters are USD 0.05 per parameter-month, prorated hourly, plus USD 0.05 per 10,000 interactions. Total for the queue is under USD 0.50, most of it the KMS key in SSM-22.
+
+### 13.1 Setup and sweep
+
+Run once per session, after the kit's section 1 shell:
+
+```sh
+case "$P" in [Aa][Ww][Ss]*|[Ss][Ss][Mm]*) echo "P must not start with aws or ssm: parameter names derive from it";; esac
+export AWS_IGNORE_CONFIGURED_ENDPOINT_URLS=true   # the kit unsets only AWS_ENDPOINT_URL; this also ignores AWS_ENDPOINT_URL_SSM and the like
+export N="/$P/ssm"     # hierarchical names; root names are "$P-..."
+ssmraw() {  # ssmraw <case>/<step> <Operation> <json body>: one raw awsJson 1.1 call
+  SVC=ssm recurl "$1" -H 'Content-Type: application/x-amz-json-1.1' \
+    -H "X-Amz-Target: AmazonSSM.$2" -d "$3" "https://ssm.$R.amazonaws.com/"
+}
+ssmsweep() {  # delete every parameter this queue created
+  local n
+  for n in $(aws ssm describe-parameters --parameter-filters "Key=Name,Option=BeginsWith,Values=/$P/" --query 'Parameters[].Name' --output text) \
+           $(aws ssm describe-parameters --parameter-filters "Key=Name,Option=BeginsWith,Values=$P-" --query 'Parameters[].Name' --output text); do
+    aws ssm delete-parameter --name "$n"
+  done
+}
+```
+
+Every case ends with its teardown; `ssmsweep` catches anything left.
+
+### 13.2 SSM-01: error envelope
+
+Settles 2.2 (the raw `__type`, message key casing, member-less shapes).
+
+```sh
+aws ssm put-parameter --name "$N/e1" --type String --value v >/dev/null
+ssmraw SSM-01/01-get-missing GetParameter "{\"Name\":\"$N/missing\"}"
+ssmraw SSM-01/02-put-exists PutParameter "{\"Name\":\"$N/e1\",\"Type\":\"String\",\"Value\":\"v\"}"
+ssmraw SSM-01/03-get-bad-name GetParameter "{\"Name\":\"$N//bad\"}"
+ssmraw SSM-01/04-tags-missing ListTagsForResource "{\"ResourceType\":\"Parameter\",\"ResourceId\":\"$N/missing\"}"
+ssmraw SSM-01/05-label-filter DescribeParameters '{"ParameterFilters":[{"Key":"Label","Values":["x"]}]}'
+aws ssm delete-parameter --name "$N/e1"
+```
+
+Cost USD 0, 3 min.
+
+### 13.3 SSM-02: ParameterNotFound messages
+
+Settles 2.2 and switch `ssm.error.parameter-not-found-message`.
+
+```sh
+rec SSM-02/01-delete aws ssm delete-parameter --name "$N/missing"
+rec SSM-02/02-history aws ssm get-parameter-history --name "$N/missing"
+rec SSM-02/03-label aws ssm label-parameter-version --name "$N/missing" --labels l1
+rec SSM-02/04-unlabel aws ssm unlabel-parameter-version --name "$N/missing" --parameter-version 1 --labels l1
+rec SSM-02/05-public aws ssm get-parameter --name /aws/service/nonexistent/x
+```
+
+Cost USD 0, 2 min. Teardown: none.
+
+### 13.4 SSM-03: already-exists and tags-with-overwrite texts
+
+Settles 7.1 and switch `ssm.put.tags-with-overwrite`.
+
+```sh
+aws ssm put-parameter --name "$N/e3" --type String --value v >/dev/null
+ssmraw SSM-03/01-exists PutParameter "{\"Name\":\"$N/e3\",\"Type\":\"String\",\"Value\":\"w\"}"
+ssmraw SSM-03/02-tags-overwrite-existing PutParameter "{\"Name\":\"$N/e3\",\"Type\":\"String\",\"Value\":\"w\",\"Overwrite\":true,\"Tags\":[{\"Key\":\"k\",\"Value\":\"v\"}]}"
+ssmraw SSM-03/03-tags-overwrite-new PutParameter "{\"Name\":\"$N/e3-new\",\"Type\":\"String\",\"Value\":\"w\",\"Overwrite\":true,\"Tags\":[{\"Key\":\"k\",\"Value\":\"v\"}]}"
+aws ssm delete-parameters --names "$N/e3" "$N/e3-new"
+```
+
+Cost USD 0, 2 min.
+
+### 13.5 SSM-04: name validation
+
+Settles 3.1.
+
+```sh
+for n in 'a b' 'a$b' "$P/x" "/$P//x" "/$P/x/" awsome SSMx /aws/x /ssm/x "/$P/aws/x"; do
+  ssmraw "SSM-04/put-$(printf %s "$n" | tr -c 'A-Za-z0-9' _)" PutParameter "{\"Name\":\"$n\",\"Type\":\"String\",\"Value\":\"v\"}"
+done
+ssmraw SSM-04/put-padded PutParameter "{\"Name\":\"  $N/padded  \",\"Type\":\"String\",\"Value\":\"v\"}"
+rec SSM-04/get-padded aws ssm get-parameter --name "$N/padded"
+```
+
+In `notes.md`, record per name: accepted or the code and message. Teardown: `ssmsweep; aws ssm delete-parameters --names awsome SSMx 'a$b' "$P/x" 2>/dev/null` (in case AWS accepted any of them; `ssmsweep` finds only `/$P/...` and `$P-...`). Cost USD 0, 5 min.
+
+### 13.6 SSM-05: hierarchy depth
+
+Settles 3.4.
+
+```sh
+lv() { printf '/%s' "$P"; seq 1 $(($1 - 2)) | sed 's|^|/l|' | tr -d '\n'; printf '/p'; }   # a name of $1 levels
+rec SSM-05/01-depth-15 aws ssm put-parameter --name "$(lv 15)" --type String --value v
+rec SSM-05/02-depth-16 aws ssm put-parameter --name "$(lv 16)" --type String --value v
+rec SSM-05/03-depth-17 aws ssm put-parameter --name "$(lv 17)" --type String --value v
+ssmsweep
+```
+
+Cost USD 0, 2 min.
+
+### 13.7 SSM-06: name length
+
+Settles 3.4 (the 1011-character ARN rule).
+
+```sh
+pre="arn:aws:ssm:$R:$A:parameter"
+n1011="/$P/$(head -c $((1011 - ${#pre} - ${#P} - 2)) /dev/zero | tr '\0' a)"   # ARN of exactly 1011 characters
+rec SSM-06/01-arn-1011 aws ssm put-parameter --name "$n1011" --type String --value v
+rec SSM-06/02-arn-1012 aws ssm put-parameter --name "${n1011}a" --type String --value v
+ssmsweep
+```
+
+Cost USD 0, 2 min.
+
+### 13.8 SSM-07: root-parameter spelling across operations
+
+Settles 3.2 and switch `ssm.name.root-slash-echo`.
+
+```sh
+aws ssm put-parameter --name "/$P-root" --type String --value v >/dev/null
+rec SSM-07/01-get-bare aws ssm get-parameter --name "$P-root"
+rec SSM-07/02-get-slash aws ssm get-parameter --name "/$P-root"
+rec SSM-07/03-get-parameters aws ssm get-parameters --names "$P-root" "/$P-root"
+rec SSM-07/04-describe-slash aws ssm describe-parameters --parameter-filters "Key=Name,Values=/$P-root"
+rec SSM-07/05-describe-bare aws ssm describe-parameters --parameter-filters "Key=Name,Values=$P-root"
+rec SSM-07/06-history aws ssm get-parameter-history --name "/$P-root"
+ssmraw SSM-07/07-by-path-root GetParametersByPath '{"Path":"/","MaxResults":10}'
+rec SSM-07/08-put-bare aws ssm put-parameter --name "$P-root" --type String --value w
+rec SSM-07/09-tags-slash aws ssm list-tags-for-resource --resource-type Parameter --resource-id "/$P-root"
+rec SSM-07/10-tags-arn aws ssm list-tags-for-resource --resource-type Parameter --resource-id "arn:aws:ssm:$R:$A:parameter/$P-root"
+aws ssm delete-parameter --name "$P-root"
+```
+
+Cost USD 0, 4 min.
+
+### 13.9 SSM-08: identical overwrite
+
+Settles 6.1 and switch `ssm.put.identical-overwrite`.
+
+```sh
+aws ssm put-parameter --name "$N/v8" --type String --value v --description d >/dev/null
+rec SSM-08/01-identical aws ssm put-parameter --name "$N/v8" --type String --value v --description d --overwrite
+rec SSM-08/02-describe-before aws ssm describe-parameters --parameter-filters "Key=Name,Values=$N/v8"
+sleep 2
+aws ssm label-parameter-version --name "$N/v8" --labels l8 >/dev/null
+rec SSM-08/03-describe-after-label aws ssm describe-parameters --parameter-filters "Key=Name,Values=$N/v8"
+rec SSM-08/04-history aws ssm get-parameter-history --name "$N/v8"
+aws ssm delete-parameter --name "$N/v8"
+```
+
+Cost USD 0, 2 min.
+
+### 13.10 SSM-09: type change
+
+Settles 4.1 and switch `ssm.put.type-change`.
+
+```sh
+aws ssm put-parameter --name "$N/t9" --type String --value v >/dev/null
+rec SSM-09/01-hier-to-secure aws ssm put-parameter --name "$N/t9" --type SecureString --value v --overwrite
+rec SSM-09/02-hier-to-list aws ssm put-parameter --name "$N/t9" --type StringList --value v --overwrite
+aws ssm put-parameter --name "$P-t9" --type String --value v >/dev/null
+rec SSM-09/03-root-to-secure aws ssm put-parameter --name "$P-t9" --type SecureString --value v --overwrite
+aws ssm delete-parameters --names "$N/t9" "$P-t9"
+```
+
+Cost USD 0, 2 min.
+
+### 13.11 SSM-10: omitted fields on overwrite
+
+Settles 7.1 and switch `ssm.put.omitted-fields`.
+
+```sh
+aws ssm put-parameter --name "$N/f10" --type SecureString --value v1 --description d \
+  --allowed-pattern '^v.*' --key-id alias/aws/ssm >/dev/null
+rec SSM-10/01-value-only aws ssm put-parameter --name "$N/f10" --value v2 --overwrite
+rec SSM-10/02-describe aws ssm describe-parameters --parameter-filters "Key=Name,Values=$N/f10"
+rec SSM-10/03-history aws ssm get-parameter-history --name "$N/f10"
+ssmraw SSM-10/04-empty-pattern PutParameter "{\"Name\":\"$N/f10\",\"Type\":\"SecureString\",\"Value\":\"x3\",\"AllowedPattern\":\"\",\"Overwrite\":true}"
+rec SSM-10/05-describe-after-empty aws ssm describe-parameters --parameter-filters "Key=Name,Values=$N/f10"
+aws ssm delete-parameter --name "$N/f10"
+```
+
+Step 04's value fails the stored `^v.*`: success means `""` cleared the pattern, `ParameterPatternMismatchException` means it was kept. Cost USD 0, 2 min.
+
+### 13.12 SSM-11: create-time validation
+
+Settles 7.1.
+
+```sh
+rec SSM-11/01-no-type aws ssm put-parameter --name "$N/c11a" --value v
+rec SSM-11/02-keyid-on-string aws ssm put-parameter --name "$N/c11b" --type String --value v --key-id alias/aws/ssm
+ssmraw SSM-11/03-empty-value PutParameter "{\"Name\":\"$N/c11c\",\"Type\":\"String\",\"Value\":\"\"}"
+rec SSM-11/04-describe aws ssm describe-parameters --parameter-filters "Key=Name,Option=BeginsWith,Values=$N/c11"
+ssmsweep
+```
+
+Cost USD 0, 2 min.
+
+### 13.13 SSM-12: value size
+
+Settles 4.2 and switch `ssm.value.size-unit`.
+
+```sh
+a4096=$(head -c 4096 /dev/zero | tr '\0' a)
+e2048=$(printf 'é%.0s' $(seq 1 2048))     # 2048 characters, 4096 bytes in UTF-8
+a8192=$(head -c 8192 /dev/zero | tr '\0' a)
+rec SSM-12/01-4096-ascii aws ssm put-parameter --name "$N/s12a" --type String --tier Standard --value "$a4096"
+rec SSM-12/02-4097-ascii aws ssm put-parameter --name "$N/s12b" --type String --tier Standard --value "${a4096}a"
+rec SSM-12/03-2048-chars aws ssm put-parameter --name "$N/s12c" --type String --tier Standard --value "$e2048"
+rec SSM-12/04-2049-chars aws ssm put-parameter --name "$N/s12d" --type String --tier Standard --value "${e2048}é"
+rec SSM-12/05-advanced-8192 aws ssm put-parameter --name "$N/s12e" --type String --tier Advanced --value "$a8192"
+rec SSM-12/06-advanced-8193 aws ssm put-parameter --name "$N/s12f" --type String --tier Advanced --value "${a8192}a"
+ssmsweep
+```
+
+Step 04 is 2049 characters but 4098 bytes: accepted means a character limit. Cost under USD 0.01 (one advanced parameter for minutes), 3 min.
+
+### 13.14 SSM-13: Intelligent-Tiering, downgrade, omitted tier
+
+Settles 4.2 and switch `ssm.tier.omitted-on-advanced`.
+
+```sh
+a4097=$(head -c 4097 /dev/zero | tr '\0' a)
+rec SSM-13/01-it-small aws ssm put-parameter --name "$N/i13a" --type String --value v --tier Intelligent-Tiering
+rec SSM-13/02-it-large aws ssm put-parameter --name "$N/i13b" --type String --value "$a4097" --tier Intelligent-Tiering
+rec SSM-13/03-describe aws ssm describe-parameters --parameter-filters "Key=Name,Option=BeginsWith,Values=$N/i13"
+ssmraw SSM-13/04-downgrade PutParameter "{\"Name\":\"$N/i13b\",\"Type\":\"String\",\"Value\":\"v\",\"Tier\":\"Standard\",\"Overwrite\":true}"
+rec SSM-13/05-overwrite-no-tier aws ssm put-parameter --name "$N/i13b" --type String --value w --overwrite
+rec SSM-13/06-it-small-on-advanced aws ssm put-parameter --name "$N/i13b" --type String --value x --tier Intelligent-Tiering --overwrite
+rec SSM-13/07-describe-after aws ssm describe-parameters --parameter-filters "Key=Name,Values=$N/i13b"
+ssmsweep
+```
+
+Cost under USD 0.01, 3 min.
+
+### 13.15 SSM-14: parameter policies
+
+Settles 4.5.
+
+```sh
+pol='[{"Type":"Expiration","Version":"1.0","Attributes":{"Timestamp":"2030-01-01T00:00:00.000Z"}}]'
+two='[{"Type":"Expiration","Version":"1.0","Attributes":{"Timestamp":"2030-01-01T00:00:00.000Z"}},{"Type":"Expiration","Version":"1.0","Attributes":{"Timestamp":"2031-01-01T00:00:00.000Z"}}]'
+rec SSM-14/01-standard aws ssm put-parameter --name "$N/p14a" --type String --value v --tier Standard --policies "$pol"
+rec SSM-14/02-advanced aws ssm put-parameter --name "$N/p14b" --type String --value v --tier Advanced --policies "$pol"
+rec SSM-14/03-describe aws ssm describe-parameters --parameter-filters "Key=Name,Values=$N/p14b"
+rec SSM-14/04-overwrite-kept aws ssm put-parameter --name "$N/p14b" --type String --value w --overwrite
+rec SSM-14/05-describe-kept aws ssm describe-parameters --parameter-filters "Key=Name,Values=$N/p14b"
+rec SSM-14/06-clear aws ssm put-parameter --name "$N/p14b" --type String --value x --overwrite --policies '[{}]'
+rec SSM-14/07-describe-cleared aws ssm describe-parameters --parameter-filters "Key=Name,Values=$N/p14b"
+rec SSM-14/08-bad-type aws ssm put-parameter --name "$N/p14b" --type String --value y --overwrite \
+  --policies '[{"Type":"Nope","Version":"1.0","Attributes":{}}]'
+rec SSM-14/09-two-expirations aws ssm put-parameter --name "$N/p14b" --type String --value z --overwrite --policies "$two"
+ssmsweep
+```
+
+Cost under USD 0.01, 4 min.
+
+### 13.16 SSM-15: AllowedPattern
+
+Settles 4.4.
+
+```sh
+rec SSM-15/01-partial-run aws ssm put-parameter --name "$N/a15a" --type String --value 10,000 --allowed-pattern '\d{1,4}'
+rec SSM-15/02-lookahead aws ssm put-parameter --name "$N/a15b" --type String --value abc --allowed-pattern '^(?=a).*$'
+rec SSM-15/03-possessive aws ssm put-parameter --name "$N/a15c" --type String --value aaa --allowed-pattern 'a*+'
+rec SSM-15/04-invalid aws ssm put-parameter --name "$N/a15d" --type String --value abc --allowed-pattern '('
+ssmsweep
+```
+
+Cost USD 0, 2 min.
+
+### 13.17 SSM-16: label rules
+
+Settles 6.2 and switch `ssm.label.too-long`. Keep `$N/l16` for SSM-17.
+
+```sh
+aws ssm put-parameter --name "$N/l16" --type String --value v1 >/dev/null
+aws ssm put-parameter --name "$N/l16" --type String --value v2 --overwrite >/dev/null
+rec SSM-16/01-forms aws ssm label-parameter-version --name "$N/l16" --parameter-version 1 \
+  --labels 1abc awsx SSMy 'a:b' 'a/b' ok-1
+rec SSM-16/02-101-chars aws ssm label-parameter-version --name "$N/l16" --parameter-version 1 \
+  --labels "$(head -c 101 /dev/zero | tr '\0' a)"
+rec SSM-16/03-move aws ssm label-parameter-version --name "$N/l16" --parameter-version 2 --labels ok-1
+rec SSM-16/04-history aws ssm get-parameter-history --name "$N/l16"
+rec SSM-16/05-to-ten aws ssm label-parameter-version --name "$N/l16" --parameter-version 2 --labels b1 b2 b3 b4 b5 b6 b7 b8 b9
+rec SSM-16/06-eleventh aws ssm label-parameter-version --name "$N/l16" --parameter-version 2 --labels b10
+rec SSM-16/07-unlabel aws ssm unlabel-parameter-version --name "$N/l16" --parameter-version 2 --labels b1 nope
+```
+
+Cost USD 0, 3 min. Teardown after SSM-17.
+
+### 13.18 SSM-17: selectors
+
+Settles 6.3. Runs on SSM-16's parameter (version 1 unlabeled, version 2 labeled `ok-1`).
+
+```sh
+rec SSM-17/01-version aws ssm get-parameter --name "$N/l16:1"
+rec SSM-17/02-label aws ssm get-parameter --name "$N/l16:ok-1"
+rec SSM-17/03-missing-version aws ssm get-parameter --name "$N/l16:99"
+rec SSM-17/04-missing-label aws ssm get-parameter --name "$N/l16:nolabel"
+rec SSM-17/05-version-zero aws ssm get-parameter --name "$N/l16:0"
+rec SSM-17/06-double aws ssm get-parameter --name "$N/l16:1:2"
+rec SSM-17/07-arn-version aws ssm get-parameter --name "arn:aws:ssm:$R:$A:parameter$N/l16:1"
+rec SSM-17/08-get-parameters aws ssm get-parameters --names "$N/l16:1" "$N/l16:99" "$N/l16:nolabel" "$N/missing"
+aws ssm delete-parameter --name "$N/l16"
+```
+
+Cost USD 0, 2 min.
+
+### 13.19 SSM-18: GetParameters edges
+
+Settles 7.3.
+
+```sh
+aws ssm put-parameter --name "$N/g18b" --type String --value b >/dev/null
+aws ssm put-parameter --name "$N/g18a" --type String --value a >/dev/null
+rec SSM-18/01-order-dupes aws ssm get-parameters --names "$N/g18b" "$N/g18a" "$N/g18b"
+rec SSM-18/02-invalid-name aws ssm get-parameters --names "$N/g18a" 'bad name' "$N//x"
+rec SSM-18/03-eleven aws ssm get-parameters --names $(for i in $(seq 1 11); do printf '%s ' "$N/g18-$i"; done)
+ssmsweep
+```
+
+Cost USD 0, 2 min.
+
+### 13.20 SSM-19: GetParametersByPath edges
+
+Settles 7.4 and switches `ssm.list.order` and `ssm.paging.default-page-size` (by path).
+
+```sh
+for i in 12 03 07 01 05 09 11 02 04 06 08 10; do aws ssm put-parameter --name "$N/p19/k$i" --type String --value "$i" >/dev/null; done
+aws ssm put-parameter --name "$N/p19/sub/d" --type String --value d >/dev/null
+aws ssm put-parameter --name "$N/p19/k01" --type String --value v2 --overwrite >/dev/null
+aws ssm label-parameter-version --name "$N/p19/k01" --parameter-version 1 --labels old >/dev/null
+ssmraw SSM-19/01-default-page GetParametersByPath "{\"Path\":\"$N/p19\"}"
+ssmraw SSM-19/02-no-leading-slash GetParametersByPath "{\"Path\":\"${N#/}/p19\"}"
+ssmraw SSM-19/03-name-filter GetParametersByPath "{\"Path\":\"$N/p19\",\"ParameterFilters\":[{\"Key\":\"Name\",\"Values\":[\"x\"]}]}"
+ssmraw SSM-19/04-label-beginswith GetParametersByPath "{\"Path\":\"$N/p19\",\"ParameterFilters\":[{\"Key\":\"Label\",\"Option\":\"BeginsWith\",\"Values\":[\"o\"]}]}"
+ssmraw SSM-19/05-empty GetParametersByPath "{\"Path\":\"$N/none\"}"
+ssmraw SSM-19/06-label-filter GetParametersByPath "{\"Path\":\"$N/p19\",\"ParameterFilters\":[{\"Key\":\"Label\",\"Values\":[\"old\"]}]}"
+ssmsweep
+```
+
+Step 01: count the entries and note whether a `NextToken` came back with 12 direct children. Step 06: the version and `Selector` returned. Cost USD 0, 4 min.
+
+### 13.21 SSM-20: DescribeParameters paging, order and fields
+
+Settles 7.5 and switches `ssm.list.order` and `ssm.paging.default-page-size` (describe).
+
+```sh
+for i in 12 03 07 01 05 09 11 02 04 06 08 10; do aws ssm put-parameter --name "$N/d20/k$i" --type String --value v >/dev/null; done
+ssmraw SSM-20/01-default-page DescribeParameters "{\"ParameterFilters\":[{\"Key\":\"Path\",\"Values\":[\"$N/d20\"]}]}"
+ssmraw SSM-20/02-empty DescribeParameters "{\"ParameterFilters\":[{\"Key\":\"Name\",\"Values\":[\"$N/none\"]}]}"
+ssmsweep
+```
+
+Cost USD 0, 3 min.
+
+### 13.22 SSM-21: DescribeParameters filter semantics
+
+Settles 7.5.
+
+```sh
+aws ssm put-parameter --name "$N/f21/x/deep" --type String --value v >/dev/null
+aws ssm put-parameter --name "$N/f21/Top" --type String --value v --tags Key=team,Value=blue >/dev/null
+rec SSM-21/01-path-default aws ssm describe-parameters --parameter-filters "Key=Path,Values=$N/f21"
+rec SSM-21/02-path-recursive aws ssm describe-parameters --parameter-filters "Key=Path,Option=Recursive,Values=$N/f21"
+rec SSM-21/03-deprecated-name aws ssm describe-parameters --filters "Key=Name,Values=$N/f21"
+rec SSM-21/04-both aws ssm describe-parameters --filters "Key=Name,Values=$N/f21/Top" --parameter-filters "Key=Type,Values=String"
+rec SSM-21/05-label aws ssm describe-parameters --parameter-filters "Key=Label,Values=x"
+ssmraw SSM-21/06-tag-no-values DescribeParameters '{"ParameterFilters":[{"Key":"tag:team"}]}'
+rec SSM-21/07-contains-case aws ssm describe-parameters --parameter-filters "Key=Name,Option=Contains,Values=top"
+rec SSM-21/08-beginswith-case aws ssm describe-parameters --parameter-filters "Key=Name,Option=BeginsWith,Values=$N/f21/t"
+rec SSM-21/09-bad-option aws ssm describe-parameters --parameter-filters "Key=Type,Option=Contains,Values=String"
+rec SSM-21/10-name-default-prefix aws ssm describe-parameters --parameter-filters "Key=Name,Values=$N/f21"
+ssmsweep
+```
+
+Cost USD 0, 4 min.
+
+### 13.23 SSM-22: KMS key references and failures
+
+Settles 5.4, 5.5 and switch `ssm.kms.key-id-echo`.
+
+```sh
+K=$(aws kms create-key --description "$P-ssm" --query KeyMetadata.KeyId --output text)
+aws kms create-alias --alias-name "alias/$P-ssm" --target-key-id "$K"
+KA=$(aws kms describe-key --key-id "$K" --query KeyMetadata.Arn --output text)
+aws ssm put-parameter --name "$N/k22/id" --type SecureString --value s --key-id "$K" >/dev/null
+aws ssm put-parameter --name "$N/k22/arn" --type SecureString --value s --key-id "$KA" >/dev/null
+aws ssm put-parameter --name "$N/k22/aliasarn" --type SecureString --value s --key-id "arn:aws:kms:$R:$A:alias/$P-ssm" >/dev/null
+aws ssm put-parameter --name "$N/k22/default" --type SecureString --value s >/dev/null
+rec SSM-22/01-describe aws ssm describe-parameters --parameter-filters "Key=Path,Values=$N/k22"
+rec SSM-22/02-history aws ssm get-parameter-history --name "$N/k22/id"
+C=$(aws ssm get-parameter --name "$N/k22/default" --query Parameter.Value --output text)
+rec SSM-22/03-kms-decrypt aws kms decrypt --ciphertext-blob "$C" \
+  --encryption-context "PARAMETER_ARN=arn:aws:ssm:$R:$A:parameter$N/k22/default"
+rec SSM-22/04-missing-key aws ssm put-parameter --name "$N/k22/missing" --type SecureString --value s --key-id "alias/$P-none"
+aws kms disable-key --key-id "$K"
+rec SSM-22/05-disabled-put aws ssm put-parameter --name "$N/k22/id" --type SecureString --value t --key-id "$K" --overwrite
+rec SSM-22/06-disabled-get aws ssm get-parameter --name "$N/k22/id" --with-decryption
+ssmsweep
+aws kms delete-alias --alias-name "alias/$P-ssm"
+aws kms schedule-key-deletion --key-id "$K" --pending-window-in-days 7
+```
+
+Step 03 expects `Plaintext` `cw==` (base64 of `s`). Cost at most USD 0.25 (one customer key at USD 1 per month, prorated, if the 7-day window is billed), 6 min.
+
+### 13.24 SSM-23: Secrets Manager references
+
+Settles 8.2 and switches `ssm.secretsmanager-ref.*`.
+
+```sh
+aws secretsmanager create-secret --name "$P-ref" --secret-string s1 >/dev/null
+rec SSM-23/01-decrypt aws ssm get-parameter --name "/aws/reference/secretsmanager/$P-ref" --with-decryption
+ssmraw SSM-23/02-raw GetParameter "{\"Name\":\"/aws/reference/secretsmanager/$P-ref\",\"WithDecryption\":true}"
+rec SSM-23/03-no-decrypt aws ssm get-parameter --name "/aws/reference/secretsmanager/$P-ref"
+rec SSM-23/04-stage aws ssm get-parameter --name "/aws/reference/secretsmanager/$P-ref:AWSCURRENT" --with-decryption
+rec SSM-23/05-missing aws ssm get-parameter --name "/aws/reference/secretsmanager/$P-none" --with-decryption
+rec SSM-23/06-get-parameters aws ssm get-parameters --with-decryption \
+  --names "/aws/reference/secretsmanager/$P-ref" "/aws/reference/secretsmanager/$P-none"
+rec SSM-23/07-by-path aws ssm get-parameters-by-path --path /aws/reference/secretsmanager --with-decryption
+rec SSM-23/08-put aws ssm put-parameter --name "/aws/reference/secretsmanager/$P-x" --type String --value v
+aws secretsmanager delete-secret --secret-id "$P-ref" --force-delete-without-recovery
+```
+
+Step 02 keeps the exact `SourceResult` bytes. Cost under USD 0.01, 3 min.
+
+### 13.25 SSM-24: LastModifiedUser for a role session
+
+Settles 9.1.
+
+```sh
+aws ssm put-parameter --name "$N/u24" --type String --value v >/dev/null
+rec SSM-24/01-describe aws ssm describe-parameters --parameter-filters "Key=Name,Values=$N/u24"
+rec SSM-24/02-caller aws sts get-caller-identity
+aws ssm delete-parameter --name "$N/u24"
+```
+
+The kit's `aws login` session is an assumed role, so step 01 shows that case. Cost USD 0, 1 min.
+
+### 13.26 SSM-25: tags
+
+Settles 7.9.
+
+```sh
+aws ssm put-parameter --name "$N/t25" --type String --value v >/dev/null
+ssmraw SSM-25/01-list-empty ListTagsForResource "{\"ResourceType\":\"Parameter\",\"ResourceId\":\"$N/t25\"}"
+rec SSM-25/02-aws-prefix aws ssm add-tags-to-resource --resource-type Parameter --resource-id "$N/t25" --tags Key=aws:x,Value=v
+aws ssm remove-tags-from-resource --resource-type Parameter --resource-id "$N/t25" --tag-keys aws:x 2>/dev/null
+rec SSM-25/03-fifty aws ssm add-tags-to-resource --resource-type Parameter --resource-id "$N/t25" \
+  --tags $(for i in $(seq 1 50); do printf 'Key=k%d,Value=v ' "$i"; done)
+rec SSM-25/04-fifty-first aws ssm add-tags-to-resource --resource-type Parameter --resource-id "$N/t25" --tags Key=k51,Value=v
+rec SSM-25/05-missing aws ssm add-tags-to-resource --resource-type Parameter --resource-id "$N/missing" --tags Key=k,Value=v
+rec SSM-25/06-arn aws ssm list-tags-for-resource --resource-type Parameter --resource-id "arn:aws:ssm:$R:$A:parameter$N/t25"
+rec SSM-25/07-remove-absent aws ssm remove-tags-from-resource --resource-type Parameter --resource-id "$N/t25" --tag-keys nope
+aws ssm delete-parameter --name "$N/t25"
+```
+
+Cost USD 0, 3 min.
+
+### 13.27 SSM-26: delete then re-create
+
+Settles 7.7 and switch `ssm.delete.recreate-window`.
+
+```sh
+aws ssm put-parameter --name "$N/r26" --type String --value v1 --tags Key=k,Value=v >/dev/null
+aws ssm put-parameter --name "$N/r26" --type String --value v2 --overwrite >/dev/null
+aws ssm delete-parameter --name "$N/r26"
+rec SSM-26/01-recreate-now aws ssm put-parameter --name "$N/r26" --type String --value v3
+rec SSM-26/02-history aws ssm get-parameter-history --name "$N/r26"
+rec SSM-26/03-tags aws ssm list-tags-for-resource --resource-type Parameter --resource-id "$N/r26"
+sleep 30
+rec SSM-26/04-recreate-after-30s aws ssm put-parameter --name "$N/r26" --type String --value v4
+aws ssm delete-parameter --name "$N/r26"
+```
+
+Step 04 matters only if step 01 failed. Cost USD 0, 2 min.
+
+### 13.28 SSM-27: DeleteParameters
+
+Settles 7.7.
+
+```sh
+for k in b a; do aws ssm put-parameter --name "$N/x27/$k" --type String --value v >/dev/null; done
+rec SSM-27/01-delete aws ssm delete-parameters --names "$N/x27/b" "$N/x27/missing" "$N/x27/a" 'bad name'
+ssmsweep
+```
+
+Cost USD 0, 1 min.
+
+### 13.29 SSM-28: StringList normalization
+
+Settles 4.1 and switch `ssm.stringlist.value`.
+
+```sh
+rec SSM-28/01-put aws ssm put-parameter --name "$N/sl28" --type StringList --value 'a, b,,c '
+rec SSM-28/02-get aws ssm get-parameter --name "$N/sl28"
+aws ssm delete-parameter --name "$N/sl28"
+```
+
+Cost USD 0, 1 min.
+
+### 13.30 SSM-29: foreign-scope ARNs
+
+Settles 3.3 and switch `ssm.arn.foreign-scope`.
+
+```sh
+OR=$([ "$R" = us-east-1 ] && echo us-west-2 || echo us-east-1)
+aws ssm put-parameter --name "$P-a29" --type String --value v >/dev/null
+rec SSM-29/01-other-account aws ssm get-parameter --name "arn:aws:ssm:$R:111111111111:parameter/$P-a29"
+rec SSM-29/02-other-region aws ssm get-parameter --name "arn:aws:ssm:$OR:$A:parameter/$P-a29"
+rec SSM-29/03-document-arn aws ssm get-parameter --name "arn:aws:ssm:$R:$A:document/$P-a29"
+aws ssm delete-parameter --name "$P-a29"
+```
+
+The request still goes to `$R`, so a free-plan SCP does not interfere. Cost USD 0, 1 min.
+
+### 13.31 SSM-30: the 100-version cap
+
+Settles 6.1, and the history default page size for `ssm.paging.default-page-size`.
+
+```sh
+aws ssm put-parameter --name "$N/c30" --type String --value v1 >/dev/null
+aws ssm label-parameter-version --name "$N/c30" --parameter-version 1 --labels keep >/dev/null
+for i in $(seq 2 100); do aws ssm put-parameter --name "$N/c30" --type String --value "v$i" --overwrite >/dev/null; done
+ssmraw SSM-30/01-blocked PutParameter "{\"Name\":\"$N/c30\",\"Type\":\"String\",\"Value\":\"v101\",\"Overwrite\":true}"
+aws ssm label-parameter-version --name "$N/c30" --parameter-version 2 --labels keep >/dev/null
+rec SSM-30/02-101st aws ssm put-parameter --name "$N/c30" --type String --value v101 --overwrite
+ssmraw SSM-30/03-history-default-page GetParameterHistory "{\"Name\":\"$N/c30\"}"
+rec SSM-30/04-version-1-gone aws ssm get-parameter --name "$N/c30:1"
+aws ssm delete-parameter --name "$N/c30"
+```
+
+The CLI retries throttling at the 3 TPS `PutParameter` quota. Cost USD 0, 5 min.
+
+### 13.32 SSM-31: Parameter Store Change events
+
+Settles 9.2.
+
+```sh
+QURL=$(aws sqs create-queue --queue-name "$P-ssm-ev" --query QueueUrl --output text)
+QARN="arn:aws:sqs:$R:$A:$P-ssm-ev"
+pol=$(jq -nc --arg q "$QARN" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Principal:{Service:"events.amazonaws.com"},Action:"sqs:SendMessage",Resource:$q}]}')
+aws sqs set-queue-attributes --queue-url "$QURL" --attributes "$(jq -nc --arg p "$pol" '{Policy:$p}')"
+aws events put-rule --name "$P-ssm-ev" --event-pattern '{"source":["aws.ssm"],"detail-type":["Parameter Store Change"]}' >/dev/null
+aws events put-targets --rule "$P-ssm-ev" --targets "Id=q,Arn=$QARN" >/dev/null
+sleep 30
+aws ssm put-parameter --name "$N/e31" --type String --value v --description d >/dev/null
+aws ssm put-parameter --name "$N/e31" --type String --value w --overwrite >/dev/null
+aws ssm label-parameter-version --name "$N/e31" --labels l1 >/dev/null
+aws ssm label-parameter-version --name "$N/e31" --parameter-version 1 --labels l1 >/dev/null
+aws ssm delete-parameter --name "$N/e31"
+sleep 60
+rec SSM-31/01-receive aws sqs receive-message --queue-url "$QURL" --max-number-of-messages 10 --wait-time-seconds 20
+rec SSM-31/02-receive-more aws sqs receive-message --queue-url "$QURL" --max-number-of-messages 10 --wait-time-seconds 20
+aws events remove-targets --rule "$P-ssm-ev" --ids q >/dev/null
+aws events delete-rule --name "$P-ssm-ev"
+aws sqs delete-queue --queue-url "$QURL"
+```
+
+Expect five events (create, update, label, label move, delete); repeat the receive until they are all in. Cost USD 0 (free tier), 4 min.
+
+### 13.33 SSM-32: InvalidNextToken
+
+Settles 7.10.
+
+```sh
+aws ssm put-parameter --name "$N/n32" --type String --value v >/dev/null
+ssmraw SSM-32/01-by-path GetParametersByPath "{\"Path\":\"$N\",\"NextToken\":\"garbage\"}"
+ssmraw SSM-32/02-describe DescribeParameters '{"NextToken":"garbage"}'
+ssmraw SSM-32/03-history GetParameterHistory "{\"Name\":\"$N/n32\",\"NextToken\":\"garbage\"}"
+aws ssm delete-parameter --name "$N/n32"
+```
+
+Cost USD 0, 1 min.
+
+### 13.34 SSM-33: ParameterLimitExceeded (optional, slow)
+
+Settles 9.3. Only in an account with no other parameters, and with the default tier `Standard`.
+
+```sh
+for i in $(seq -w 1 10000); do aws ssm put-parameter --name "/$P/lim/p$i" --type String --value v >/dev/null; done
+ssmraw SSM-33/01-10001st PutParameter "{\"Name\":\"/$P/lim/p10001\",\"Type\":\"String\",\"Value\":\"v\",\"Tier\":\"Standard\"}"
+aws ssm describe-parameters --parameter-filters "Key=Name,Option=BeginsWith,Values=/$P/lim/" \
+  --query 'Parameters[].Name' --output text | tr '\t' '\n' | xargs -n 10 aws ssm delete-parameters --names >/dev/null
+ssmsweep
+```
+
+The batched delete takes ten names per call, so the final `ssmsweep` finds little. Cost USD 0. Time: at least an hour; the 3 TPS `PutParameter` quota alone holds the 10,000 creates to about 56 min, and the batched deletes add about 6.
+
+### 13.35 SSM-34: aws:ec2:image with a malformed value
+
+Settles 4.3 and switch `ssm.data-type.ec2-image-invalid`.
+
+```sh
+rec SSM-34/01-put aws ssm put-parameter --name "$N/ami34" --type String --data-type aws:ec2:image --value notanami
+sleep 15
+rec SSM-34/02-get aws ssm get-parameter --name "$N/ami34"
+ssmsweep
+```
+
+Cost USD 0, 1 min.
