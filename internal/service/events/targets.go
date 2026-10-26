@@ -59,9 +59,9 @@ func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgea
 		}
 		accepted = append(accepted, parsed[i])
 	}
-	r := ruleRef{scope: scope, name: in.Rule}
+	r := ruleRef{scope: scope, bus: defaultBus, name: in.Rule}
 	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
-		rule, ok := st.Rules[r.name]
+		rule, ok := st.rule(r.bus, r.name)
 		if !ok {
 			return struct{}{}, errRuleNotFound(r.name)
 		}
@@ -81,8 +81,9 @@ func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgea
 			return struct{}{}, errTooManyTargets()
 		}
 		rule.Targets = targets
-		st.Rules[r.name] = rule
+		st.setRule(r.bus, rule)
 		st.TargetSeq = seq
+		st.used(c.Admitted())
 		return struct{}{}, nil
 	})
 	if err != nil {
@@ -197,9 +198,9 @@ func (s *Service) removeTargets(_ context.Context, c *kernel.Call, in *eventbrid
 	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
 		return nil, err
 	}
-	r := ruleRef{scope: c.Scope(), name: in.Rule}
+	r := ruleRef{scope: c.Scope(), bus: defaultBus, name: in.Rule}
 	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		rule, ok := st.Rules[r.name]
+		rule, ok := st.rule(r.bus, r.name)
 		if !ok {
 			return struct{}{}, errRuleNotFound(r.name)
 		}
@@ -209,7 +210,8 @@ func (s *Service) removeTargets(_ context.Context, c *kernel.Call, in *eventbrid
 			return struct{}{}, nil
 		}
 		rule.Targets = kept
-		st.Rules[r.name] = rule
+		st.setRule(r.bus, rule)
+		st.used(c.Admitted())
 		return struct{}{}, nil
 	})
 	if err != nil {
@@ -224,7 +226,7 @@ func (s *Service) listTargetsByRule(_ context.Context, c *kernel.Call, in *event
 	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
 		return nil, err
 	}
-	r := ruleRef{scope: c.Scope(), name: in.Rule}
+	r := ruleRef{scope: c.Scope(), bus: defaultBus, name: in.Rule}
 	rule, ok := s.rule(r)
 	if !ok {
 		return nil, errRuleNotFound(in.Rule)

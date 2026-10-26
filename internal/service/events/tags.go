@@ -54,7 +54,7 @@ func taggableRule(c *kernel.Call, resource string) (ruleRef, *awserr.Error) {
 	if !ok {
 		return ruleRef{}, errInvalidParameter("ResourceARN")
 	}
-	r := ruleRef{scope: c.Scope(), name: name}
+	r := ruleRef{scope: c.Scope(), bus: defaultBus, name: name}
 	if strings.Contains(name, "/") || arn != r.arn() {
 		return ruleRef{}, errRuleNotFound(name)
 	}
@@ -93,7 +93,7 @@ func (s *Service) updateTags(c *kernel.Call, resource string, change func(tags m
 		return err
 	}
 	_, err = kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
-		rule, ok := st.Rules[r.name]
+		rule, ok := st.rule(r.bus, r.name)
 		if !ok {
 			return struct{}{}, errRuleNotFound(r.name)
 		}
@@ -109,7 +109,8 @@ func (s *Service) updateTags(c *kernel.Call, resource string, change func(tags m
 		if len(tags) == 0 {
 			rule.Tags = nil
 		}
-		st.Rules[r.name] = rule
+		st.setRule(r.bus, rule)
+		st.used(c.Admitted())
 		return struct{}{}, nil
 	})
 	return err

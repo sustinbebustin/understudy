@@ -212,7 +212,7 @@ func (s *Service) publish(ctx context.Context, c *kernel.Call, scope aws.Scope, 
 		tx.Unchanged()
 		f = fanOut{}
 		for i := range events {
-			s.matchEvent(&f, scope, st, events[i], c.Admitted())
+			s.matchEvent(&f, scope, st, defaultBus, events[i], c.Admitted())
 		}
 		for i := range f.requests {
 			tx.Deliver(f.requests[i])

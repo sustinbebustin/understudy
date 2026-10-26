@@ -11,36 +11,94 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 	"github.com/sustinbebustin/understudy/internal/schedexpr"
+	"github.com/sustinbebustin/understudy/internal/service/events/envelope"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshots.
-const stateVersion = 1
+// stateVersion is the schema version of State in snapshots. Version 2 holds
+// buses and keys rules by bus; a version 1 section is refused, not migrated
+// (ADR 0009).
+const stateVersion = 2
 
-// State is the EventBridge state of one account and region: the rules of
-// its default bus, by name. Records are values, replaced on change and
-// never mutated in place, so a value read out of a cell never aliases it.
+// State is the EventBridge state of one account and region: its buses and
+// their rules. Records are values, replaced on change and never mutated in
+// place, so a value read out of a cell never aliases it.
 type State struct {
-	Rules map[string]Rule `json:"rules"`
-	// TargetSeq is the last Target.Seq handed out in the scope.
+	// Buses are the scope's buses by name: each custom bus, and the default
+	// bus once a write materializes it (eventbridge-buses.md 10.2.2).
+	Buses map[string]Bus `json:"buses,omitempty"`
+	// Rules are the scope's rules by bus name, then rule name. A bus without
+	// rules has no entry.
+	Rules map[string]map[string]Rule `json:"rules"`
+	// TargetSeq is the last Target.Seq handed out in the scope, across all
+	// its buses.
 	TargetSeq uint64 `json:"targetSeq,omitzero"`
+	// FirstUse is the admission instant of the first call that changed the
+	// scope's state (events.default-bus.creation-time); zero until then.
+	FirstUse clock.Instant `json:"firstUse,omitzero"`
 }
 
-func newState(aws.Scope) State { return State{Rules: map[string]Rule{}} }
+func newState(aws.Scope) State {
+	return State{Buses: map[string]Bus{}, Rules: map[string]map[string]Rule{}}
+}
 
-// IsZero reports a scope without rules, which snapshots skip.
-func (s *State) IsZero() bool { return len(s.Rules) == 0 }
+// IsZero reports a scope without buses or rules, which snapshots skip; a
+// lone FirstUse is not worth a section.
+func (s *State) IsZero() bool {
+	if len(s.Buses) > 0 {
+		return false
+	}
+	for _, rules := range s.Rules {
+		if len(rules) > 0 {
+			return false
+		}
+	}
+	return true
+}
 
 // Partitioned finds IsZero by a type assertion; this keeps a rename from
 // silently dropping the skip.
 var _ store.Zeroer = (*State)(nil)
 
+// used records at as the scope's first use unless an earlier call changed
+// the state. Every write that changes the state calls it.
+func (s *State) used(at clock.Instant) {
+	if s.FirstUse.IsZero() {
+		s.FirstUse = at
+	}
+}
+
+// rule returns the rule name of bus.
+func (s *State) rule(bus, name string) (Rule, bool) {
+	r, ok := s.Rules[bus][name]
+	return r, ok
+}
+
+// setRule stores r on bus under its name.
+func (s *State) setRule(bus string, r Rule) {
+	rules, ok := s.Rules[bus]
+	if !ok {
+		rules = map[string]Rule{}
+		s.Rules[bus] = rules
+	}
+	rules[r.Name] = r
+}
+
+// deleteRule removes the rule name of bus, and the bus's entry in Rules
+// with its last rule.
+func (s *State) deleteRule(bus, name string) {
+	delete(s.Rules[bus], name)
+	if len(s.Rules[bus]) == 0 {
+		delete(s.Rules, bus)
+	}
+}
+
 // Bus is one event bus of a scope: a custom bus as CreateEventBus and
 // UpdateEventBus last set it, or the default bus once a write materializes
 // it (eventbridge-buses.md 10.2.1, 10.2.2). Its ARN derives from the scope
-// and Name. State does not hold buses yet; custom buses are not
-// implemented yet.
+// and Name.
 type Bus struct {
 	Name string `json:"name"`
 	// Description is nil when absent or empty.
@@ -80,7 +138,7 @@ type PolicyStatement struct {
 	JSON string `json:"json"`
 }
 
-// Rule is one rule of the default bus, as PutRule last set it.
+// Rule is one rule of a bus, as PutRule last set it.
 type Rule struct {
 	Name        string                   `json:"name"`
 	Trigger     Trigger                  `json:"trigger"`
@@ -213,55 +271,151 @@ func (e *StoredScheduleError) Error() string {
 
 // StoredRuleError is a snapshot's rule that PutRule could not have stored.
 type StoredRuleError struct {
-	Rule   string
+	Rule string
+	// Bus is the name of the bus the rule is stored under.
+	Bus    string
 	Reason string
 }
 
 func (e *StoredRuleError) Error() string {
-	return "events: the stored rule " + strconv.Quote(e.Rule) + " " + e.Reason +
+	return "events: the stored rule " + strconv.Quote(e.Rule) + " on the event bus " + strconv.Quote(e.Bus) + " " + e.Reason +
 		"; the snapshot was not loaded. Fix or remove the rule in the snapshot, or recreate it with PutRule"
 }
 
-// check refuses decoded state PutRule and PutTargets could not have stored:
-// a rule under a key that is not a rule name or not its own name, with no
-// trigger, a schedule the decoder left unset, an unknown state, a next fire
-// on a rule that has no schedule or is disabled, or more targets or tags
-// than a rule may have; a target with no input form, an id another target
-// of its rule has, or a creation sequence number that is zero, past
-// TargetSeq or shared with another target. A missing or null rules object
-// is a scope without rules.
+// StoredBusError is a snapshot's event bus that CreateEventBus, TagResource
+// or PutPermission could not have stored.
+type StoredBusError struct {
+	Bus    string
+	Reason string
+}
+
+func (e *StoredBusError) Error() string {
+	return "events: the stored event bus " + strconv.Quote(e.Bus) + " " + e.Reason +
+		"; the snapshot was not loaded. Fix or remove the bus in the snapshot, or recreate it with CreateEventBus"
+}
+
+// check refuses decoded state CreateEventBus, PutPermission, PutRule and
+// PutTargets could not have stored: a bus under a key that is not a bus
+// name or not its own name, with more tags than a bus may have, or with a
+// policy statement that is not a JSON object or a Sid another statement
+// has; a rule under a bus the state does not hold, under a key that is not
+// a rule name or not its own name, with no trigger, a schedule the decoder
+// left unset, a schedule on a bus other than the default, an unknown state,
+// a next fire on a rule that has no schedule or is disabled, or more
+// targets or tags than a rule may have; a target with no input form, an id
+// another target of its rule has, or a creation sequence number that is
+// zero, past TargetSeq or shared with another target of the scope. A
+// missing or null rules object is a scope without rules.
 func (s *State) check() error {
-	if s.Rules == nil {
-		s.Rules = map[string]Rule{}
+	if s.Buses == nil {
+		s.Buses = map[string]Bus{}
 	}
-	// seqs maps each target sequence number seen to its rule's name.
-	seqs := map[uint64]string{}
-	for _, name := range slices.Sorted(maps.Keys(s.Rules)) {
-		rule := s.Rules[name]
-		if reason, ok := rule.problem(name); ok {
-			return &StoredRuleError{Rule: name, Reason: reason}
+	if s.Rules == nil {
+		s.Rules = map[string]map[string]Rule{}
+	}
+	for _, name := range slices.Sorted(maps.Keys(s.Buses)) {
+		bus := s.Buses[name]
+		if reason, ok := bus.problem(name); ok {
+			return &StoredBusError{Bus: name, Reason: reason}
 		}
-		ids := map[string]bool{}
-		for _, t := range rule.Targets {
-			if reason, ok := s.targetProblem(&t, seqs); ok {
-				return &StoredRuleError{Rule: name, Reason: "has the target " + strconv.Quote(t.ID) + " " + reason}
+	}
+	// seqs maps each target sequence number seen to its rule.
+	seqs := map[uint64]storedRule{}
+	for _, bus := range slices.Sorted(maps.Keys(s.Rules)) {
+		rules := s.Rules[bus]
+		if len(rules) == 0 {
+			delete(s.Rules, bus)
+			continue
+		}
+		_, held := s.Buses[bus]
+		for _, name := range slices.Sorted(maps.Keys(rules)) {
+			at := storedRule{bus: bus, name: name}
+			if bus != defaultBus && !held {
+				return at.error("is stored under a bus the snapshot does not hold")
 			}
-			if ids[t.ID] {
-				return &StoredRuleError{Rule: name, Reason: "has two targets with the id " + strconv.Quote(t.ID)}
+			if err := s.checkRule(at, rules[name], seqs); err != nil {
+				return err
 			}
-			ids[t.ID] = true
-			seqs[t.Seq] = name
 		}
 	}
 	return nil
 }
 
+// checkRule is check on the rule at, adding its targets' sequence numbers
+// to seqs.
+func (s *State) checkRule(at storedRule, rule Rule, seqs map[uint64]storedRule) *StoredRuleError {
+	if reason, ok := rule.problem(at.bus, at.name); ok {
+		return at.error(reason)
+	}
+	ids := map[string]bool{}
+	for _, t := range rule.Targets {
+		if reason, ok := s.targetProblem(&t, seqs); ok {
+			return at.error("has the target " + strconv.Quote(t.ID) + " " + reason)
+		}
+		if ids[t.ID] {
+			return at.error("has two targets with the id " + strconv.Quote(t.ID))
+		}
+		ids[t.ID] = true
+		seqs[t.Seq] = at
+	}
+	return nil
+}
+
+// storedRule is where check found a rule: its bus and name.
+type storedRule struct{ bus, name string }
+
+func (r storedRule) error(reason string) *StoredRuleError {
+	return &StoredRuleError{Rule: r.name, Bus: r.bus, Reason: reason}
+}
+
+// busName is the Name pattern and length CreateEventBus accepts, which
+// also admits the name default of a materialized default bus: the model's
+// EventBusName less the '/' AWS refuses (eventbridge-buses.md 2.2).
+var busName = regexp.MustCompile(`^[.\-_A-Za-z0-9]{1,256}$`)
+
+// problem is why no call could have stored the decoded bus b under the key
+// key, when none could.
+func (b *Bus) problem(key string) (string, bool) {
+	switch {
+	case !busName.MatchString(key):
+		return "is stored under a key that is not an event bus name (1 to 256 of letters, digits, '.', '-' and '_')", true
+	case b.Name != key:
+		return "is named " + strconv.Quote(b.Name) + " but stored under another name", true
+	case len(b.Tags) > maxTags:
+		return "has " + strconv.Itoa(len(b.Tags)) + " tags; a bus has at most " + strconv.Itoa(maxTags), true
+	case b.Policy != nil:
+		return b.Policy.problem()
+	}
+	return "", false
+}
+
+// problem is why PutPermission could not have stored the decoded policy p,
+// when it could not: a statement that is not a JSON object, or two
+// statements with one non-empty Sid (eventbridge-buses.md 10.2.5).
+func (p *Policy) problem() (string, bool) {
+	sids := map[string]bool{}
+	for i, st := range p.Statements {
+		v, ok := envelope.ParseJSON(st.JSON)
+		if _, object := v.(document.Map); !ok || !object {
+			return "has a policy statement (number " + strconv.Itoa(i+1) + ", Sid " + strconv.Quote(st.Sid) + ") that is not a JSON object", true
+		}
+		if st.Sid == "" {
+			continue
+		}
+		if sids[st.Sid] {
+			return "has two policy statements with the Sid " + strconv.Quote(st.Sid), true
+		}
+		sids[st.Sid] = true
+	}
+	return "", false
+}
+
 // ruleName is the RuleName pattern and length PutRule accepts.
 var ruleName = regexp.MustCompile(`^[.\-_A-Za-z0-9]{1,64}$`)
 
-// problem is why PutRule could not have stored the decoded rule r under the
-// key key, when it could not.
-func (r *Rule) problem(key string) (string, bool) {
+// problem is why PutRule could not have stored the decoded rule r on bus
+// under the key key, when it could not.
+func (r *Rule) problem(bus, key string) (string, bool) {
 	switch {
 	case !ruleName.MatchString(key):
 		return "is stored under a key that is not a rule name (1 to 64 of letters, digits, '.', '-' and '_')", true
@@ -278,6 +432,8 @@ func (r *Rule) problem(key string) (string, bool) {
 	switch {
 	case scheduled && sched.parsed == nil:
 		return "has a trigger with no schedule expression", true
+	case scheduled && bus != defaultBus:
+		return "has a schedule expression, which only a rule on the default event bus can have", true
 	case !r.State.Known():
 		return "has the state " + strconv.Quote(string(r.State)) + ", which is not ENABLED, DISABLED or ENABLED_WITH_ALL_CLOUDTRAIL_MANAGEMENT_EVENTS", true
 	case !r.NextFire.IsZero() && !scheduled:
@@ -290,8 +446,8 @@ func (r *Rule) problem(key string) (string, bool) {
 
 // targetProblem is why PutTargets could not have stored the decoded target
 // t, when it could not; seqs holds the sequence numbers of the targets
-// checked before it, by rule name.
-func (s *State) targetProblem(t *Target, seqs map[uint64]string) (string, bool) {
+// checked before it, by rule.
+func (s *State) targetProblem(t *Target, seqs map[uint64]storedRule) (string, bool) {
 	seq := strconv.FormatUint(t.Seq, 10)
 	if t.Input == nil {
 		return "with no input form", true
@@ -300,7 +456,8 @@ func (s *State) targetProblem(t *Target, seqs map[uint64]string) (string, bool) 
 		return "with the sequence number " + seq + ", which is not between 1 and the snapshot's targetSeq " + strconv.FormatUint(s.TargetSeq, 10), true
 	}
 	if other, dup := seqs[t.Seq]; dup {
-		return "with the sequence number " + seq + ", which a target of the rule " + strconv.Quote(other) + " also has", true
+		return "with the sequence number " + seq + ", which a target of the rule " + strconv.Quote(other.name) +
+			" on the event bus " + strconv.Quote(other.bus) + " also has", true
 	}
 	return "", false
 }

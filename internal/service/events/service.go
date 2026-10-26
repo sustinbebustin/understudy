@@ -17,7 +17,7 @@ import (
 const TimerSchedule kernel.TimerKind = "events.schedule"
 
 // Service is Amazon EventBridge: one state cell per account and region,
-// holding the rules and targets of its default bus.
+// holding its buses and their rules and targets.
 type Service struct {
 	k     *kernel.Kernel
 	ids   *ids.Source

@@ -27,7 +27,7 @@ func (s *Service) onSchedule(c *kernel.Call, key clock.TimerKey, due clock.Insta
 	var f fanOut
 	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		f = fanOut{}
-		rule, ok := st.Rules[r.name]
+		rule, ok := st.rule(r.bus, r.name)
 		if !ok || rule.NextFire.Compare(due) != 0 || !rule.enabled() {
 			tx.Unchanged()
 			return struct{}{}, nil
@@ -54,7 +54,7 @@ func (s *Service) onSchedule(c *kernel.Call, key clock.TimerKey, due clock.Insta
 		}
 		rule.NextFire = sched.next(due)
 		s.armSchedule(tx, r, rule.NextFire)
-		st.Rules[r.name] = rule
+		st.setRule(r.bus, rule)
 		return struct{}{}, nil
 	})
 	if err != nil {

@@ -37,7 +37,7 @@ func (s *Service) bindRules(b eventbridgeapi.Binder) {
 // resource match it before the handler runs.
 func namedRule[In any](name func(*In) string) kernel.BindOption {
 	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
-		return []aws.ARN{ruleRef{scope: c.Scope(), name: name(in)}.arn()}
+		return []aws.ARN{ruleRef{scope: c.Scope(), bus: defaultBus, name: name(in)}.arn()}
 	})
 }
 
@@ -80,11 +80,11 @@ func (s *Service) usesWildcard(t Trigger) bool {
 	return err == nil && p.UsesWildcard()
 }
 
-// wildcardRules counts the rules of st other than name whose event
+// wildcardRules counts the rules of bus in st other than name whose event
 // patterns hold a wildcard.
-func (s *Service) wildcardRules(st *State, name string) int {
+func (s *Service) wildcardRules(st *State, bus, name string) int {
 	n := 0
-	for other, rule := range st.Rules {
+	for other, rule := range st.Rules[bus] {
 		if other != name && s.usesWildcard(rule.Trigger) {
 			n++
 		}
@@ -102,7 +102,7 @@ func (s *Service) putRule(_ context.Context, c *kernel.Call, in *eventbridgeapi.
 	if err != nil {
 		return nil, err
 	}
-	r := ruleRef{scope: c.Scope(), name: in.Name}
+	r := ruleRef{scope: c.Scope(), bus: defaultBus, name: in.Name}
 	_, err = kernel.Write(c, s.cells, r.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		rule := Rule{
 			Name:        in.Name,
@@ -116,19 +116,20 @@ func (s *Service) putRule(_ context.Context, c *kernel.Call, in *eventbridgeapi.
 			rule.State = *in.State
 		}
 		var prev *Rule
-		if existing, ok := st.Rules[r.name]; ok {
+		if existing, ok := st.rule(r.bus, r.name); ok {
 			prev = &existing
 			rule.Tags, rule.Targets = existing.Tags, existing.Targets
-		} else if len(st.Rules) >= maxRules(r.scope.Region.String()) {
+		} else if len(st.Rules[r.bus]) >= maxRules(r.scope.Region.String()) {
 			return struct{}{}, errTooManyRules()
 		} else if len(rule.Tags) > maxTags {
 			return struct{}{}, errTooManyTags(len(rule.Tags))
 		}
-		if s.usesWildcard(rule.Trigger) && s.wildcardRules(st, r.name) >= maxWildcardRules {
+		if s.usesWildcard(rule.Trigger) && s.wildcardRules(st, r.bus, r.name) >= maxWildcardRules {
 			return struct{}{}, errTooManyRules()
 		}
 		s.setSchedule(tx, r, prev, &rule, now)
-		st.Rules[r.name] = rule
+		st.setRule(r.bus, rule)
+		st.used(c.Admitted())
 		return struct{}{}, nil
 	})
 	if err != nil {
@@ -175,7 +176,7 @@ func (s *Service) describeRule(_ context.Context, c *kernel.Call, in *eventbridg
 	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
 		return nil, err
 	}
-	r := ruleRef{scope: c.Scope(), name: in.Name}
+	r := ruleRef{scope: c.Scope(), bus: defaultBus, name: in.Name}
 	rule, ok := s.rule(r)
 	if !ok {
 		return nil, errRuleNotFound(in.Name)
@@ -222,10 +223,11 @@ func (s *Service) listRules(_ context.Context, c *kernel.Call, in *eventbridgeap
 	}
 	var listed []eventbridgeapi.Rule
 	s.read(c.Scope(), func(st *State) {
-		for _, name := range slices.Sorted(maps.Keys(st.Rules)) {
+		rules := st.Rules[defaultBus]
+		for _, name := range slices.Sorted(maps.Keys(rules)) {
 			if in.NamePrefix == nil || strings.HasPrefix(name, *in.NamePrefix) {
-				rule := st.Rules[name]
-				listed = append(listed, listedRule(ruleRef{scope: c.Scope(), name: name}, &rule))
+				rule := rules[name]
+				listed = append(listed, listedRule(ruleRef{scope: c.Scope(), bus: defaultBus, name: name}, &rule))
 			}
 		}
 	})
@@ -243,9 +245,9 @@ func (s *Service) deleteRule(_ context.Context, c *kernel.Call, in *eventbridgea
 	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
 		return nil, err
 	}
-	r := ruleRef{scope: c.Scope(), name: in.Name}
+	r := ruleRef{scope: c.Scope(), bus: defaultBus, name: in.Name}
 	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		rule, ok := st.Rules[r.name]
+		rule, ok := st.rule(r.bus, r.name)
 		if !ok {
 			tx.Unchanged()
 			return struct{}{}, nil
@@ -253,7 +255,8 @@ func (s *Service) deleteRule(_ context.Context, c *kernel.Call, in *eventbridgea
 		if len(rule.Targets) > 0 {
 			return struct{}{}, errRuleHasTargets()
 		}
-		delete(st.Rules, r.name)
+		st.deleteRule(r.bus, r.name)
+		st.used(c.Admitted())
 		tx.Disarm(s.schedule, r.arn().String())
 		return struct{}{}, nil
 	})
@@ -283,16 +286,17 @@ func (s *Service) setState(c *kernel.Call, bus *string, name string, state event
 	if err := requireDefaultBus(c.Scope(), bus); err != nil {
 		return err
 	}
-	r := ruleRef{scope: c.Scope(), name: name}
+	r := ruleRef{scope: c.Scope(), bus: defaultBus, name: name}
 	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		prev, ok := st.Rules[r.name]
+		prev, ok := st.rule(r.bus, r.name)
 		if !ok {
 			return struct{}{}, errRuleNotFound(r.name)
 		}
 		rule := prev
 		rule.State = state
 		s.setSchedule(tx, r, &prev, &rule, now)
-		st.Rules[r.name] = rule
+		st.setRule(r.bus, rule)
+		st.used(c.Admitted())
 		return struct{}{}, nil
 	})
 	return err
@@ -306,8 +310,9 @@ func (s *Service) listRuleNamesByTarget(_ context.Context, c *kernel.Call, in *e
 	}
 	var names []string
 	s.read(c.Scope(), func(st *State) {
-		for _, name := range slices.Sorted(maps.Keys(st.Rules)) {
-			if slices.ContainsFunc(st.Rules[name].Targets, func(t Target) bool { return t.ARN == in.TargetArn }) {
+		rules := st.Rules[defaultBus]
+		for _, name := range slices.Sorted(maps.Keys(rules)) {
+			if slices.ContainsFunc(rules[name].Targets, func(t Target) bool { return t.ARN == in.TargetArn }) {
 				names = append(names, name)
 			}
 		}
@@ -323,7 +328,7 @@ func (s *Service) listRuleNamesByTarget(_ context.Context, c *kernel.Call, in *e
 func (s *Service) rule(r ruleRef) (Rule, bool) {
 	var rule Rule
 	var ok bool
-	s.read(r.scope, func(st *State) { rule, ok = st.Rules[r.name] })
+	s.read(r.scope, func(st *State) { rule, ok = st.rule(r.bus, r.name) })
 	return rule, ok
 }
 

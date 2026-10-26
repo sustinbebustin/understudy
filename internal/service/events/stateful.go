@@ -75,24 +75,26 @@ func (s *Service) Rearm(now clock.Instant) {
 func (s *Service) rearmScope(st *State, scope aws.Scope, now clock.Instant) ([]journal.Advisory, bool) {
 	sched := s.k.Timers().Scheduler()
 	var skipped []journal.Advisory
-	for _, name := range slices.Sorted(maps.Keys(st.Rules)) {
-		r := st.Rules[name]
-		if r.NextFire.IsZero() {
-			continue
-		}
-		rule := ruleRef{scope: scope, name: name}
-		if r.NextFire.Before(now) {
-			missed := r.NextFire
-			r.NextFire = catchUp(r, now)
-			st.Rules[name] = r
-			skipped = append(skipped, journal.Advisory{
-				Kind: journal.AdvisoryScheduleFiresSkipped, Resource: rule.arn(),
-				Text: "skipped the fires due from " + missed.String() + " until " + now.String() +
-					", which came due while understudy was stopped or before the loaded state's time; the next fire is " + r.NextFire.String(),
-			})
-		}
-		if !r.NextFire.IsZero() {
-			sched.Arm(s.schedule.Key(rule.arn().String()), r.NextFire)
+	for _, bus := range slices.Sorted(maps.Keys(st.Rules)) {
+		for _, name := range slices.Sorted(maps.Keys(st.Rules[bus])) {
+			r := st.Rules[bus][name]
+			if r.NextFire.IsZero() {
+				continue
+			}
+			rule := ruleRef{scope: scope, bus: bus, name: name}
+			if r.NextFire.Before(now) {
+				missed := r.NextFire
+				r.NextFire = catchUp(r, now)
+				st.setRule(bus, r)
+				skipped = append(skipped, journal.Advisory{
+					Kind: journal.AdvisoryScheduleFiresSkipped, Resource: rule.arn(),
+					Text: "skipped the fires due from " + missed.String() + " until " + now.String() +
+						", which came due while understudy was stopped or before the loaded state's time; the next fire is " + r.NextFire.String(),
+				})
+			}
+			if !r.NextFire.IsZero() {
+				sched.Arm(s.schedule.Key(rule.arn().String()), r.NextFire)
+			}
 		}
 	}
 	return skipped, len(skipped) > 0
@@ -119,20 +121,30 @@ func catchUp(r Rule, now clock.Instant) clock.Instant {
 	return sched.next(now)
 }
 
-// Resources lists the rules of scope with their state and target count.
+// Resources lists the buses scope holds, by name, with their rule counts,
+// then its rules, by bus and name, with their state and target count. The
+// default bus is listed once a write has stored it.
 func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 	cell, ok := s.cells.Lookup(scope)
 	if !ok {
 		return nil
 	}
 	return store.Read(cell, func(st *State) []kernel.Resource {
-		out := make([]kernel.Resource, 0, len(st.Rules))
-		for _, name := range slices.Sorted(maps.Keys(st.Rules)) {
-			r := st.Rules[name]
+		out := make([]kernel.Resource, 0, len(st.Buses)+len(st.Rules))
+		for _, name := range slices.Sorted(maps.Keys(st.Buses)) {
 			out = append(out, kernel.Resource{
-				ARN:     ruleRef{scope: scope, name: name}.arn(),
-				Summary: string(r.State) + ", " + strconv.Itoa(len(r.Targets)) + " targets",
+				ARN:     busARN(scope, name),
+				Summary: strconv.Itoa(len(st.Rules[name])) + " rules",
 			})
+		}
+		for _, bus := range slices.Sorted(maps.Keys(st.Rules)) {
+			for _, name := range slices.Sorted(maps.Keys(st.Rules[bus])) {
+				r := st.Rules[bus][name]
+				out = append(out, kernel.Resource{
+					ARN:     ruleRef{scope: scope, bus: bus, name: name}.arn(),
+					Summary: string(r.State) + ", " + strconv.Itoa(len(r.Targets)) + " targets",
+				})
+			}
 		}
 		return out
 	})

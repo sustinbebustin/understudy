@@ -108,39 +108,55 @@ func admitDefaultBus(bus busRef) *awserr.Error {
 // whatever built it.
 var errNilBus = errors.New("events: the event bus reference is nil, so no bus was checked; parseBus builds every busRef")
 
-// ruleRef locates a rule of a default bus: its scope and name.
+// ruleRef locates a rule: its scope, its bus's name and its name. Rule
+// names are unique per bus (eventbridge-buses.md 10.2.3).
 type ruleRef struct {
 	scope aws.Scope
+	bus   string
 	name  string
 }
 
-// arn returns arn:aws:events:<region>:<account>:rule/<name>, the
-// default-bus form.
+// arn returns arn:aws:events:<region>:<account>:rule/<name> for a rule of
+// the default bus and rule/<bus>/<name> for a rule of a custom bus
+// (eventbridge-buses.md 5.2).
 func (r ruleRef) arn() aws.ARN {
+	resource := "rule/" + r.name
+	if r.bus != defaultBus {
+		resource = "rule/" + r.bus + "/" + r.name
+	}
 	return aws.ARN{
 		Partition: r.scope.Partition.String(),
 		Service:   "events",
 		Region:    r.scope.Region.String(),
 		Account:   r.scope.Account.String(),
-		Resource:  "rule/" + r.name,
+		Resource:  resource,
 	}
 }
 
-// parseRuleARN reads a default-bus rule ARN back into its scope and name.
+// parseRuleARN reads a rule ARN back into its ruleRef: rule/<name> on the
+// default bus, or rule/<bus>/<name> on a custom bus. arn never writes the
+// default bus's name into an ARN, so rule/default/<name> is no rule's.
 func parseRuleARN(s string) (ruleRef, bool) {
 	arn, err := aws.ParseARN(s)
 	if err != nil || arn.Service != "events" {
 		return ruleRef{}, false
 	}
-	name, ok := strings.CutPrefix(arn.Resource, "rule/")
-	if !ok || name == "" || strings.Contains(name, "/") {
+	rest, ok := strings.CutPrefix(arn.Resource, "rule/")
+	if !ok {
+		return ruleRef{}, false
+	}
+	bus, name, onCustom := strings.Cut(rest, "/")
+	if !onCustom {
+		bus, name = defaultBus, rest
+	}
+	if bus == "" || name == "" || strings.Contains(name, "/") || onCustom && bus == defaultBus {
 		return ruleRef{}, false
 	}
 	scope, err := aws.ScopeOf(arn)
 	if err != nil {
 		return ruleRef{}, false
 	}
-	return ruleRef{scope: scope, name: name}, true
+	return ruleRef{scope: scope, bus: bus, name: name}, true
 }
 
 // bindBuses binds the event bus operations: the default bus only.

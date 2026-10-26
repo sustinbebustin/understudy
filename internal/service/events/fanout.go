@@ -304,9 +304,9 @@ func unwritable(err error) string {
 	return "understudy could not write the event as JSON (" + err.Error() + "); this is a bug in understudy, please report it"
 }
 
-// matchEvent sends ev to the targets of every enabled rule of st whose
-// pattern matches it, in target creation order.
-func (s *Service) matchEvent(f *fanOut, scope aws.Scope, st *State, ev envelope.Event, ingested clock.Instant) {
+// matchEvent sends ev to the targets of every enabled rule of bus in st
+// whose pattern matches it, in target creation order.
+func (s *Service) matchEvent(f *fanOut, scope aws.Scope, st *State, bus string, ev envelope.Event, ingested clock.Instant) {
 	// hit is a target of a rule whose pattern matched ev, or, with
 	// failure set, of a rule whose pattern could not be evaluated against
 	// it.
@@ -320,8 +320,9 @@ func (s *Service) matchEvent(f *fanOut, scope aws.Scope, st *State, ev envelope.
 	if docErr != nil {
 		docErr = errors.New(unwritable(docErr))
 	}
-	for name := range st.Rules {
-		rule := st.Rules[name]
+	rules := st.Rules[bus]
+	for name := range rules {
+		rule := rules[name]
 		pattern, ok := rule.Trigger.pattern()
 		if !ok || !rule.enabled() || len(rule.Targets) == 0 {
 			continue
@@ -334,7 +335,7 @@ func (s *Service) matchEvent(f *fanOut, scope aws.Scope, st *State, ev envelope.
 			continue
 		}
 		for i := range rule.Targets {
-			hits = append(hits, hit{rule: ruleRef{scope: scope, name: name}, target: &rule.Targets[i], failure: err})
+			hits = append(hits, hit{rule: ruleRef{scope: scope, bus: bus, name: name}, target: &rule.Targets[i], failure: err})
 		}
 	}
 	slices.SortFunc(hits, func(a, b hit) int { return cmp.Compare(a.target.Seq, b.target.Seq) })
