@@ -61,6 +61,7 @@ There is one file per service, named after it, so that one person can own and fi
 | `iam_test.go` | IAM |
 | `sts_test.go` | STS |
 | `eventbridge_test.go` | EventBridge |
+| `eventbridge_accounts_test.go` | EventBridge between two accounts, the second selected by a 12-digit access key |
 | `cloudwatch_test.go` | CloudWatch metrics and alarms |
 
 `main_test.go` holds the shared setup and helpers:
@@ -86,4 +87,4 @@ Each test creates uniquely named resources and deletes them when it ends, so tes
   - event notifications to SQS.
 - SQS: MD5 validation of bodies and attributes, FIFO queues, long polling, visibility, and dead-letter queues and redrive.
 - Lambda: Invoke (RequestResponse, Event and DryRun), function URLs and SQS event source mappings, all in real containers.
-- EventBridge: scheduled rules on a running clock. `TestEventBridgeSchedule` waits about a minute for a `rate(1 minute)` rule to fire.
+- EventBridge: custom buses with their rules, policies and event bus targets, within one account and between two; scheduled rules on a running clock. `TestEventBridgeSchedule` waits about a minute for a `rate(1 minute)` rule to fire.
