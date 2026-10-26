@@ -124,13 +124,22 @@ func (s *Service) createRole(_ context.Context, c *kernel.Call, in *iamapi.Creat
 	return &iamapi.CreateRoleOutput{Role: out}, nil
 }
 
-func (s *Service) getRole(_ context.Context, c *kernel.Call, in *iamapi.GetRoleInput) (*iamapi.GetRoleOutput, *awserr.Error) {
+// getRole reads the role, then authorizes iam:GetRole on its ARN, which
+// only the read learns: the path is part of it. A missing role is
+// NoSuchEntity before any authorization, since there is no ARN to ask
+// about. Whether AWS answers an unauthorized caller the denial instead is
+// unverified (iam-enforcement-surfaces.md 5.3, IAM-ENF-14); switch
+// iam.enforce.missing-resource (iam-enforcement-surfaces.md 12.8) will
+// settle it when enforcement is built.
+func (s *Service) getRole(ctx context.Context, c *kernel.Call, in *iamapi.GetRoleInput) (*iamapi.GetRoleOutput, *awserr.Error) {
 	account := c.Scope().Account
 	r, err := view(s, account, func(st *State) (Role, *awserr.Error) { return st.role(in.RoleName) })
 	if err != nil {
 		return nil, err
 	}
-	c.Touch(roleARN(account, r.Path, r.Name))
+	if err := kernel.Authorize(ctx, c, registry.IAMAction{Prefix: "iam", Name: "GetRole"}, roleARN(account, r.Path, r.Name), nil); err != nil {
+		return nil, err
+	}
 	return &iamapi.GetRoleOutput{Role: apiRoleDetail(account, r)}, nil
 }
 
