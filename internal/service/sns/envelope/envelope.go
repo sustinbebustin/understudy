@@ -144,32 +144,70 @@ type Confirmation struct {
 	SubscribeURL string
 }
 
-// message is the Message of a SubscriptionConfirmation (sns.md 5.5).
-func (c Confirmation) message() string {
-	return "You have chosen to subscribe to the topic " + c.TopicARN +
-		".\nTo confirm the subscription, visit the SubscribeURL included in this message."
+// control returns c's members (sns.md 5.5): its Message is
+// "You have chosen to subscribe to the topic <arn>." and the confirm line.
+func (c Confirmation) control() control {
+	return control{
+		typ:       "SubscriptionConfirmation",
+		messageID: c.MessageID,
+		token:     c.Token,
+		topicARN:  c.TopicARN,
+		message: "You have chosen to subscribe to the topic " + c.TopicARN +
+			".\nTo confirm the subscription, visit the SubscribeURL included in this message.",
+		subscribeURL: c.SubscribeURL,
+		timestamp:    c.Timestamp,
+	}
 }
 
 // SQSConfirmation renders the SQS message body of a SubscriptionConfirmation:
 // the members of sns.md 5.5 in the documented order, in the layout of the
 // notification envelope, signed.
 func SQSConfirmation(c Confirmation, s Signing) ([]byte, error) {
-	sig, err := s.Signer.Sign(s.Version, ConfirmationStringToSign(c))
+	return c.control().render(s)
+}
+
+// control is a message carrying a Token and a SubscribeURL: a
+// SubscriptionConfirmation or an UnsubscribeConfirmation. Both have the
+// same members in the same order (sns-http-delivery.md 4.3, 4.4) and the
+// same field list to sign (5.1).
+type control struct {
+	typ, messageID, token, topicARN, message, subscribeURL string
+	timestamp                                              time.Time
+}
+
+// render writes the members in the documented order, in the layout of
+// the notification envelope, signed over stringToSign.
+func (c control) render(s Signing) ([]byte, error) {
+	sig, err := s.Signer.Sign(s.Version, c.stringToSign())
 	if err != nil {
 		return nil, err
 	}
 	w := prettyWriter{}
-	w.field("Type", "SubscriptionConfirmation")
-	w.field("MessageId", c.MessageID)
-	w.field("Token", c.Token)
-	w.field("TopicArn", c.TopicARN)
-	w.field("Message", c.message())
-	w.field("SubscribeURL", c.SubscribeURL)
-	w.field("Timestamp", Timestamp(c.Timestamp))
+	w.field("Type", c.typ)
+	w.field("MessageId", c.messageID)
+	w.field("Token", c.token)
+	w.field("TopicArn", c.topicARN)
+	w.field("Message", c.message)
+	w.field("SubscribeURL", c.subscribeURL)
+	w.field("Timestamp", Timestamp(c.timestamp))
 	w.field("SignatureVersion", s.Version.String())
 	w.field("Signature", base64.StdEncoding.EncodeToString(sig))
 	w.field("SigningCertURL", s.CertURL)
 	return w.close(), nil
+}
+
+// stringToSign is the confirmation field list, Token included, in byte
+// order of the names (sns.md 5.6, sns-http-delivery.md 5.1).
+func (c control) stringToSign() []byte {
+	var b canonical
+	b.line("Message", c.message)
+	b.line("MessageId", c.messageID)
+	b.line("SubscribeURL", c.subscribeURL)
+	b.line("Timestamp", Timestamp(c.timestamp))
+	b.line("Token", c.token)
+	b.line("TopicArn", c.topicARN)
+	b.line("Type", c.typ)
+	return b
 }
 
 // sign signs n's string to sign and returns the signature in base64.
@@ -210,15 +248,7 @@ func StringToSign(n Notification) []byte {
 // ConfirmationStringToSign is the canonical string of a
 // SubscriptionConfirmation (sns.md 5.6).
 func ConfirmationStringToSign(c Confirmation) []byte {
-	var b canonical
-	b.line("Message", c.message())
-	b.line("MessageId", c.MessageID)
-	b.line("SubscribeURL", c.SubscribeURL)
-	b.line("Timestamp", Timestamp(c.Timestamp))
-	b.line("Token", c.Token)
-	b.line("TopicArn", c.TopicARN)
-	b.line("Type", "SubscriptionConfirmation")
-	return b
+	return c.control().stringToSign()
 }
 
 // appendAttributeValue appends {"Type":...,"Value":...}.

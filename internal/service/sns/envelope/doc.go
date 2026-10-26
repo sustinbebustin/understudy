@@ -16,22 +16,32 @@
 //   - SQSConfirmation is the SubscriptionConfirmation an SQS endpoint gets
 //     when its subscription waits for ConfirmSubscription: the members of
 //     5.5 in the layout of SQS, signed.
+//   - HTTPNotification and HTTPConfirmation are the bodies an http or https
+//     endpoint is POSTed: the SQS bodies byte for byte
+//     (sns-http-delivery.md 4.1 to 4.3). HTTPUnsubscribeConfirmation is the
+//     message an unauthenticated unsubscribe sends: the confirmation's
+//     members and layout with its own Type and Message (4.4). HTTPHeaders
+//     writes each POST's headers (3.2, 3.3).
 //
-// StringToSign and ConfirmationStringToSign are the canonical strings of
-// 5.6; a Signer signs them with SHA1withRSA for version 1 and SHA256withRSA
-// for version 2. NewKey makes an RSA key from crypto/rand and a self-signed
-// certificate for it, which the SNS service persists per account and region
-// and serves at SigningCertURL.
+// StringToSign, ConfirmationStringToSign and
+// UnsubscribeConfirmationStringToSign are the canonical strings of sns.md
+// 5.6 and sns-http-delivery.md 5.1: an UnsubscribeConfirmation signs the
+// confirmation field list, Token included, though sns-validator expects it
+// without. A Signer signs them with SHA1withRSA for version 1 and
+// SHA256withRSA for version 2. NewKey makes an RSA key from crypto/rand and
+// a self-signed certificate for it, which the SNS service persists per
+// account and region and serves at SigningCertURL. The builders take every
+// URL from the caller; none is minted here.
 //
 // Decisions the research leaves open:
 //
-//   - The layout of the MessageAttributes object in the SQS body (one
-//     attribute per line, its value compact) is inferred from AWS samples;
-//     the recordings store the parsed body, not its bytes. The
-//     SubscriptionConfirmation body takes the notification's layout, also
-//     inferred: no recording shows its bytes. Attributes are written in the
-//     order given; the SNS service sorts them by name, since AWS's own order
-//     is not stable.
+//   - The SQS body's bytes, its MessageAttributes object (one attribute per
+//     line, its value compact) included, are aws-recorded
+//     (sns-http-delivery.md 4.1). The SubscriptionConfirmation and
+//     UnsubscribeConfirmation bodies take the notification's layout, which
+//     is inferred: no recording shows their bytes, nor those of any HTTP
+//     body (SNSH-01). Attributes are written in the order given; the SNS
+//     service sorts them by name, since AWS's own order is not stable.
 //   - Strings are escaped as jsonx.AppendString escapes them: the quote, the
 //     backslash and control characters. AWS's Jackson writer may spell a
 //     control character's escape with upper-case hex.

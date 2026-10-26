@@ -1,29 +1,27 @@
 package envelope
 
 import (
-	"errors"
+	"encoding/base64"
 	"net/url"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/delivery"
 )
 
-// errHTTPNotImplemented is what the HTTP builders answer until they are
-// implemented.
-var errHTTPNotImplemented = errors.New("envelope: the HTTP builders are not implemented yet")
-
 // HTTPNotification renders the body of a Notification POST
-// (sns-http-delivery.md 4.1, 4.2): byte-identical to SQS(n, s). Not
-// implemented yet: it returns an error.
-func HTTPNotification(_ Notification, _ Signing) ([]byte, error) {
-	return nil, errHTTPNotImplemented
+// (sns-http-delivery.md 4.1, 4.2): byte-identical to SQS(n, s). The doc
+// samples of the HTTP Notification have the SQS envelope's members, order
+// and layout; that the bytes match, the attribute block included, is
+// UNVERIFIED until SNSH-01 records an HTTP body (4.1).
+func HTTPNotification(n Notification, s Signing) ([]byte, error) {
+	return SQS(n, s)
 }
 
 // HTTPConfirmation renders the body of a SubscriptionConfirmation POST
-// (sns-http-delivery.md 4.3): byte-identical to SQSConfirmation(c, s). Not
-// implemented yet: it returns an error.
-func HTTPConfirmation(_ Confirmation, _ Signing) ([]byte, error) {
-	return nil, errHTTPNotImplemented
+// (sns-http-delivery.md 4.3): byte-identical to SQSConfirmation(c, s), with
+// the same layout caveat as HTTPNotification.
+func HTTPConfirmation(c Confirmation, s Signing) ([]byte, error) {
+	return SQSConfirmation(c, s)
 }
 
 // UnsubscribeConfirmation is the message an unauthenticated unsubscribe
@@ -40,26 +38,46 @@ type UnsubscribeConfirmation struct {
 	SubscribeURL string
 }
 
+// control returns u's members (sns-http-delivery.md 4.4): its Message
+// names the subscription removed and points at SubscribeURL.
+func (u UnsubscribeConfirmation) control() control {
+	return control{
+		typ:       "UnsubscribeConfirmation",
+		messageID: u.MessageID,
+		token:     u.Token,
+		topicARN:  u.TopicARN,
+		message: "You have chosen to deactivate subscription " + u.SubscriptionARN +
+			".\nTo cancel this operation and restore the subscription, visit the SubscribeURL included in this message.",
+		subscribeURL: u.SubscribeURL,
+		timestamp:    u.Timestamp,
+	}
+}
+
 // HTTPUnsubscribeConfirmation renders an UnsubscribeConfirmation POST's
 // body in the layout of sns-http-delivery.md 4.1, members in the order of
-// 4.3, signed over UnsubscribeConfirmationStringToSign. Not implemented
-// yet: it returns an error.
-func HTTPUnsubscribeConfirmation(_ UnsubscribeConfirmation, _ Signing) ([]byte, error) {
-	return nil, errHTTPNotImplemented
+// 4.3 (Type, MessageId, Token, TopicArn, Message, SubscribeURL, Timestamp,
+// SignatureVersion, Signature, SigningCertURL), signed over
+// UnsubscribeConfirmationStringToSign.
+func HTTPUnsubscribeConfirmation(u UnsubscribeConfirmation, s Signing) ([]byte, error) {
+	return u.control().render(s)
 }
 
 // UnsubscribeConfirmationStringToSign is the canonical string of an
 // UnsubscribeConfirmation: the confirmation field list of
-// sns-http-delivery.md 5.1, Token included (8.3.2, 8.8). Not implemented
-// yet: it returns nil.
-func UnsubscribeConfirmationStringToSign(_ UnsubscribeConfirmation) []byte {
-	return nil
+// sns-http-delivery.md 5.1, Token included, as AWS signs it. sns-validator
+// 0.3.5 checks it without Token and so rejects it, as it rejects AWS's own
+// (5.3); the list is never bent to suit a validator (8.3.2, 8.8).
+func UnsubscribeConfirmationStringToSign(u UnsubscribeConfirmation) []byte {
+	return u.control().stringToSign()
 }
 
 // Header values of every POST (sns-http-delivery.md 3.2).
 const (
 	DefaultContentType = "text/plain; charset=UTF-8"
 	UserAgent          = "Amazon Simple Notification Service Agent"
+	// acceptEncoding is in every third-party-recorded request and in no doc
+	// sample (3.2).
+	acceptEncoding = "gzip,deflate"
 )
 
 // HTTPPost is one POST whose headers HTTPHeaders writes.
@@ -91,10 +109,62 @@ func (NotificationPost) isHTTPPost()             {}
 func (SubscriptionConfirmationPost) isHTTPPost() {}
 func (UnsubscribeConfirmationPost) isHTTPPost()  {}
 
-// HTTPHeaders returns the headers of a POST, with the names as the
-// documentation prints them (sns-http-delivery.md 3.2, 3.3, 8.3.1), and
-// Basic credentials from user when it is non-nil (sns.http.basic-auth). Not
-// implemented yet: it returns none.
-func HTTPHeaders(_ HTTPPost, _ *url.Userinfo) []delivery.HTTPHeader {
-	return nil
+// HTTPHeaders returns the headers of a POST in this order, with the names
+// as the documentation prints them: the x-amz-sns-* names in lower case,
+// the standard ones capitalized (sns-http-delivery.md 3.2, 8.3.1):
+//
+//   - x-amz-sns-message-type: Notification, SubscriptionConfirmation or
+//     UnsubscribeConfirmation;
+//   - x-amz-sns-message-id and x-amz-sns-topic-arn;
+//   - x-amz-sns-subscription-arn, except on a SubscriptionConfirmation;
+//   - x-amz-sns-rawdelivery: true, on a raw notification only (4.5);
+//   - Content-Type: a notification's ContentType, sent verbatim, else
+//     DefaultContentType; both confirmations always send DefaultContentType
+//     (3.3, sns.http.control-content-type);
+//   - User-Agent and Accept-Encoding;
+//   - Authorization: Basic credentials from user when it is non-nil, on
+//     the first request (2.1, 3.1, sns.http.basic-auth); a user without a
+//     password sends "username:".
+//
+// The framing headers (Host, Content-Length, Connection) are the HTTP
+// client's to write. A nil p has no headers.
+func HTTPHeaders(p HTTPPost, user *url.Userinfo) []delivery.HTTPHeader {
+	var (
+		kind                                 delivery.HTTPKind
+		messageID, topicARN, subscriptionARN string
+		raw                                  bool
+		contentType                          = DefaultContentType
+	)
+	switch p := p.(type) {
+	case NotificationPost:
+		kind, messageID, topicARN, subscriptionARN, raw = delivery.HTTPNotification, p.MessageID, p.TopicARN, p.SubscriptionARN, p.Raw
+		if p.ContentType != "" {
+			contentType = p.ContentType
+		}
+	case SubscriptionConfirmationPost:
+		kind, messageID, topicARN = delivery.HTTPSubscriptionConfirmation, p.MessageID, p.TopicARN
+	case UnsubscribeConfirmationPost:
+		kind, messageID, topicARN, subscriptionARN = delivery.HTTPUnsubscribeConfirmation, p.MessageID, p.TopicARN, p.SubscriptionARN
+	case nil:
+		return nil
+	}
+	hs := make([]delivery.HTTPHeader, 0, 9)
+	add := func(name, value string) { hs = append(hs, delivery.HTTPHeader{Name: name, Value: value}) }
+	add("x-amz-sns-message-type", kind.String())
+	add("x-amz-sns-message-id", messageID)
+	add("x-amz-sns-topic-arn", topicARN)
+	if kind != delivery.HTTPSubscriptionConfirmation {
+		add("x-amz-sns-subscription-arn", subscriptionARN)
+	}
+	if raw {
+		add("x-amz-sns-rawdelivery", "true")
+	}
+	add("Content-Type", contentType)
+	add("User-Agent", UserAgent)
+	add("Accept-Encoding", acceptEncoding)
+	if user != nil {
+		password, _ := user.Password()
+		add("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(user.Username()+":"+password)))
+	}
+	return hs
 }

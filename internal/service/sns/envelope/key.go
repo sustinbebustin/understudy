@@ -90,8 +90,10 @@ type Key struct {
 	Certificate []byte
 }
 
-// keyBits is the RSA modulus size of the signing key. sns.md does not record
-// the size of AWS's SNS signing keys; 2048 is UNVERIFIED.
+// keyBits is the RSA modulus size of the signing key: AWS's real
+// signatures are 344 base64 characters, 256 bytes, so its keys are 2048-bit
+// (aws-recorded, sns-http-delivery.md 5.2,
+// testdata/parity/sqs/R16/01-sqs-enveloped.json).
 const keyBits = 2048
 
 // NewKey makes a key from crypto/rand and a certificate for it naming
