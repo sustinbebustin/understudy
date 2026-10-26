@@ -72,13 +72,13 @@ coverage-check:
     #!/usr/bin/env bash
     set -euo pipefail
     if ! git ls-files --error-unmatch docs/coverage.md >/dev/null 2>&1; then
-        echo "docs/coverage.md is not tracked; generate it with 'go run ./cmd/understudy coverage --format markdown > docs/coverage.md' and commit it" >&2
+        echo "docs/coverage.md is not tracked; generate it with 'go run ./cmd/understudy coverage --endpoint http://127.0.0.1:1 --format markdown --overlays codegen/overlays --parity internal/parity/baseline.json > docs/coverage.md' and commit it" >&2
         exit 1
     fi
     tmp=$(mktemp)
     trap 'rm -f -- "$tmp"' EXIT
     # Port 1 never answers, so the report is built offline in process.
-    go run ./cmd/understudy coverage --endpoint http://127.0.0.1:1 --format markdown --overlays codegen/overlays > "$tmp"
+    go run ./cmd/understudy coverage --endpoint http://127.0.0.1:1 --format markdown --overlays codegen/overlays --parity internal/parity/baseline.json > "$tmp"
     cat -- "$tmp" > docs/coverage.md
     git diff --exit-code -- docs/coverage.md
 

@@ -134,6 +134,8 @@ corpus-bug: the case's expectation is wrong; client-only: only a client can run 
 
 Every operation of each service's model, with what its handler states: full, stored-only (accepted, stored and echoed, with no runtime effect), partial (implemented with named gaps) or unbound (answers 501 NotImplemented). Internal and raw operations are not in the models and are listed apart.
 
+Evidence is the weakest claim attributed to the operation, and how many of its claims carry that label. A claim is an overlay evidence item whose shape is the operation, its input, its output or one of its errors; a fidelity switch whose Ops list the operation; or a recorded step that `internal/parity` replays against it. Labels, weakest first: contradicted (<fixture>), when the replay differs from AWS; inferred; sdk-source; aws-doc; third-party-recorded; aws-recorded, written aws-recorded (<fixture>) when the replay matches AWS and, for a switch or overlay entry it settles, fails once the settled field is changed. unassessed: no claim.
+
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
 | cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
@@ -151,1003 +153,1003 @@ Every operation of each service's model, with what its handler states: full, sto
 
 ### cloudwatch
 
-| Operation | Status | Note |
-|---|---|---|
-| DeleteAlarms | full |  |
-| DisableAlarmActions | stored-only | ActionsEnabled is stored and echoed; alarm actions never run |
-| EnableAlarmActions | stored-only | ActionsEnabled is stored and echoed; alarm actions never run |
-| DescribeAlarms | partial | metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing |
-| GetMetricData | partial | MetricStat queries with SampleCount, Average, Sum, Minimum or Maximum; metric math, Metrics Insights and percentiles answer 501; LabelOptions is ignored |
-| ListMetrics | partial | no linked accounts: IncludeLinkedAccounts and OwningAccount select nothing more |
-| ListTagsForResource | partial | alarms only: insight rules and metric streams are never stored |
-| PutMetricAlarm | partial | stored and echoed; alarms are never evaluated, so their state changes only through SetAlarmState, and their actions never run |
-| PutMetricData | partial | entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution |
-| SetAlarmState | partial | the state is set and echoed; no action runs and no evaluation follows |
-| TagResource | partial | alarms only: insight rules and metric streams are never stored |
-| UntagResource | partial | alarms only: insight rules and metric streams are never stored |
-| AssociateDatasetKmsKey | unbound |  |
-| CreateResourceMetricsConfiguration | unbound |  |
-| DeleteAlarmMuteRule | unbound |  |
-| DeleteAnomalyDetector | unbound |  |
-| DeleteDashboards | unbound |  |
-| DeleteInsightRules | unbound |  |
-| DeleteMetricStream | unbound |  |
-| DeleteResourceMetricsConfiguration | unbound |  |
-| DescribeAlarmContributors | unbound |  |
-| DescribeAlarmHistory | unbound |  |
-| DescribeAlarmsForMetric | unbound |  |
-| DescribeAnomalyDetectors | unbound |  |
-| DescribeInsightRules | unbound |  |
-| DisableInsightRules | unbound |  |
-| DisassociateDatasetKmsKey | unbound |  |
-| EnableInsightRules | unbound |  |
-| GetAlarmMuteRule | unbound |  |
-| GetDashboard | unbound |  |
-| GetDataset | unbound |  |
-| GetInsightRuleReport | unbound |  |
-| GetMetricStatistics | unbound |  |
-| GetMetricStream | unbound |  |
-| GetMetricWidgetImage | unbound |  |
-| GetOTelEnrichment | unbound |  |
-| GetResourceMetricsConfiguration | unbound |  |
-| ListAlarmMuteRules | unbound |  |
-| ListDashboards | unbound |  |
-| ListManagedInsightRules | unbound |  |
-| ListMetricStreams | unbound |  |
-| PutAlarmMuteRule | unbound |  |
-| PutAnomalyDetector | unbound |  |
-| PutCompositeAlarm | unbound |  |
-| PutDashboard | unbound |  |
-| PutInsightRule | unbound |  |
-| PutLogAlarm | unbound |  |
-| PutManagedInsightRules | unbound |  |
-| PutMetricStream | unbound |  |
-| StartMetricStreams | unbound |  |
-| StartOTelEnrichment | unbound |  |
-| StopMetricStreams | unbound |  |
-| StopOTelEnrichment | unbound |  |
-| UpdateOTelEnrichment | unbound |  |
-| UpdateResourceMetricsConfiguration | unbound |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| DeleteAlarms | full | third-party-recorded, 3 of 3 claims |  |
+| DisableAlarmActions | stored-only | third-party-recorded, 2 of 2 claims | ActionsEnabled is stored and echoed; alarm actions never run |
+| EnableAlarmActions | stored-only | third-party-recorded, 2 of 2 claims | ActionsEnabled is stored and echoed; alarm actions never run |
+| DescribeAlarms | partial | third-party-recorded, 2 of 2 claims | metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing |
+| GetMetricData | partial | aws-doc, 1 of 3 claims | MetricStat queries with SampleCount, Average, Sum, Minimum or Maximum; metric math, Metrics Insights and percentiles answer 501; LabelOptions is ignored |
+| ListMetrics | partial | third-party-recorded, 2 of 2 claims | no linked accounts: IncludeLinkedAccounts and OwningAccount select nothing more |
+| ListTagsForResource | partial | third-party-recorded, 2 of 2 claims | alarms only: insight rules and metric streams are never stored |
+| PutMetricAlarm | partial | aws-doc, 1 of 3 claims | stored and echoed; alarms are never evaluated, so their state changes only through SetAlarmState, and their actions never run |
+| PutMetricData | partial | inferred, 1 of 4 claims | entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution |
+| SetAlarmState | partial | third-party-recorded, 4 of 4 claims | the state is set and echoed; no action runs and no evaluation follows |
+| TagResource | partial | third-party-recorded, 2 of 2 claims | alarms only: insight rules and metric streams are never stored |
+| UntagResource | partial | third-party-recorded, 2 of 2 claims | alarms only: insight rules and metric streams are never stored |
+| AssociateDatasetKmsKey | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateResourceMetricsConfiguration | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteAlarmMuteRule | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteAnomalyDetector | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteDashboards | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteInsightRules | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteMetricStream | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteResourceMetricsConfiguration | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeAlarmContributors | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeAlarmHistory | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeAlarmsForMetric | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeAnomalyDetectors | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeInsightRules | unbound | third-party-recorded, 2 of 2 claims |  |
+| DisableInsightRules | unbound | third-party-recorded, 2 of 2 claims |  |
+| DisassociateDatasetKmsKey | unbound | third-party-recorded, 2 of 2 claims |  |
+| EnableInsightRules | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetAlarmMuteRule | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetDashboard | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetDataset | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetInsightRuleReport | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetMetricStatistics | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetMetricStream | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetMetricWidgetImage | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetOTelEnrichment | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetResourceMetricsConfiguration | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListAlarmMuteRules | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListDashboards | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListManagedInsightRules | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListMetricStreams | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutAlarmMuteRule | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutAnomalyDetector | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutCompositeAlarm | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutDashboard | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutInsightRule | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutLogAlarm | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutManagedInsightRules | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutMetricStream | unbound | third-party-recorded, 2 of 2 claims |  |
+| StartMetricStreams | unbound | third-party-recorded, 2 of 2 claims |  |
+| StartOTelEnrichment | unbound | third-party-recorded, 2 of 2 claims |  |
+| StopMetricStreams | unbound | third-party-recorded, 2 of 2 claims |  |
+| StopOTelEnrichment | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateOTelEnrichment | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateResourceMetricsConfiguration | unbound | third-party-recorded, 2 of 2 claims |  |
 
 ### dynamodb
 
-| Operation | Status | Note |
-|---|---|---|
-| DeleteTable | full |  |
-| DescribeLimits | full |  |
-| ListTables | full |  |
-| ListTagsOfResource | full |  |
-| TagResource | full |  |
-| UntagResource | full |  |
-| DescribeContinuousBackups | stored-only | point-in-time recovery is recorded and described; no backups are taken, and the restore operations are not implemented |
-| UpdateContinuousBackups | stored-only | point-in-time recovery is recorded and described; no backups are taken, and the restore operations are not implemented |
-| BatchExecuteStatement | partial | aws-differs: dynamodb-local: requests are never throttled; inject com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
-| BatchGetItem | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
-| BatchWriteItem | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
-| CreateTable | partial | aws-differs: dynamodb-local: table names are case-insensitive, so a name that differs from an existing table's only in case is refused with ResourceInUseException; aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one; StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501 |
-| DeleteItem | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
-| DescribeTable | partial | aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one; StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501 |
-| DescribeTimeToLive | partial | aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; the one change per hour AWS allows is not enforced |
-| ExecuteStatement | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule; aws-differs: dynamodb-local: Limit is ignored; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
-| ExecuteTransaction | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict, which a fault rule cannot set yet, so a rule injecting TransactionCanceledException is refused; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
-| GetItem | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
-| PutItem | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
-| Query | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
-| Scan | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: Segment and TotalSegments are ignored, so a parallel scan reads sequentially |
-| TransactGetItems | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict, which a fault rule cannot set yet, so a rule injecting TransactionCanceledException is refused |
-| TransactWriteItems | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict, which a fault rule cannot set yet, so a rule injecting TransactionCanceledException is refused |
-| UpdateItem | partial | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
-| UpdateTable | partial | aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one; StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501 |
-| UpdateTimeToLive | partial | aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; the one change per hour AWS allows is not enforced |
-| CreateBackup | unbound |  |
-| CreateGlobalTable | unbound |  |
-| DeleteBackup | unbound |  |
-| DeleteResourcePolicy | unbound |  |
-| DescribeBackup | unbound |  |
-| DescribeContributorInsights | unbound |  |
-| DescribeEndpoints | unbound |  |
-| DescribeExport | unbound |  |
-| DescribeGlobalTable | unbound |  |
-| DescribeGlobalTableSettings | unbound |  |
-| DescribeImport | unbound |  |
-| DescribeKinesisStreamingDestination | unbound |  |
-| DescribeTableReplicaAutoScaling | unbound |  |
-| DisableKinesisStreamingDestination | unbound |  |
-| EnableKinesisStreamingDestination | unbound |  |
-| ExportTableToPointInTime | unbound |  |
-| GetResourcePolicy | unbound |  |
-| ImportTable | unbound |  |
-| ListBackups | unbound |  |
-| ListContributorInsights | unbound |  |
-| ListExports | unbound |  |
-| ListGlobalTables | unbound |  |
-| ListImports | unbound |  |
-| PutResourcePolicy | unbound |  |
-| RestoreTableFromBackup | unbound |  |
-| RestoreTableToPointInTime | unbound |  |
-| SearchVectors | unbound |  |
-| UpdateContributorInsights | unbound |  |
-| UpdateGlobalTable | unbound |  |
-| UpdateGlobalTableSettings | unbound |  |
-| UpdateKinesisStreamingDestination | unbound |  |
-| UpdateTableReplicaAutoScaling | unbound |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| DeleteTable | full | third-party-recorded, 2 of 2 claims |  |
+| DescribeLimits | full | third-party-recorded, 2 of 2 claims |  |
+| ListTables | full | third-party-recorded, 2 of 2 claims |  |
+| ListTagsOfResource | full | third-party-recorded, 2 of 2 claims |  |
+| TagResource | full | third-party-recorded, 2 of 2 claims |  |
+| UntagResource | full | third-party-recorded, 2 of 2 claims |  |
+| DescribeContinuousBackups | stored-only | third-party-recorded, 2 of 2 claims | point-in-time recovery is recorded and described; no backups are taken, and the restore operations are not implemented |
+| UpdateContinuousBackups | stored-only | third-party-recorded, 2 of 2 claims | point-in-time recovery is recorded and described; no backups are taken, and the restore operations are not implemented |
+| BatchExecuteStatement | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: requests are never throttled; inject com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
+| BatchGetItem | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
+| BatchWriteItem | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
+| CreateTable | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: table names are case-insensitive, so a name that differs from an existing table's only in case is refused with ResourceInUseException; aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one; StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501 |
+| DeleteItem | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
+| DescribeTable | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one; StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501 |
+| DescribeTimeToLive | partial | third-party-recorded, 2 of 2 claims | aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; the one change per hour AWS allows is not enforced |
+| ExecuteStatement | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule; aws-differs: dynamodb-local: Limit is ignored; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
+| ExecuteTransaction | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict, which a fault rule cannot set yet, so a rule injecting TransactionCanceledException is refused; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
+| GetItem | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
+| PutItem | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
+| Query | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
+| Scan | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: Segment and TotalSegments are ignored, so a parallel scan reads sequentially |
+| TransactGetItems | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict, which a fault rule cannot set yet, so a rule injecting TransactionCanceledException is refused |
+| TransactWriteItems | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict, which a fault rule cannot set yet, so a rule injecting TransactionCanceledException is refused |
+| UpdateItem | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
+| UpdateTable | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one; StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501 |
+| UpdateTimeToLive | partial | third-party-recorded, 2 of 2 claims | aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; the one change per hour AWS allows is not enforced |
+| CreateBackup | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateGlobalTable | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteBackup | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeBackup | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeContributorInsights | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeEndpoints | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeExport | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeGlobalTable | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeGlobalTableSettings | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeImport | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeKinesisStreamingDestination | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeTableReplicaAutoScaling | unbound | third-party-recorded, 2 of 2 claims |  |
+| DisableKinesisStreamingDestination | unbound | third-party-recorded, 2 of 2 claims |  |
+| EnableKinesisStreamingDestination | unbound | third-party-recorded, 2 of 2 claims |  |
+| ExportTableToPointInTime | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| ImportTable | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListBackups | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListContributorInsights | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListExports | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListGlobalTables | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListImports | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| RestoreTableFromBackup | unbound | third-party-recorded, 2 of 2 claims |  |
+| RestoreTableToPointInTime | unbound | third-party-recorded, 2 of 2 claims |  |
+| SearchVectors | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateContributorInsights | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateGlobalTable | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateGlobalTableSettings | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateKinesisStreamingDestination | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateTableReplicaAutoScaling | unbound | third-party-recorded, 2 of 2 claims |  |
 
 ### eventbridge
 
-| Operation | Status | Note |
-|---|---|---|
-| DeleteRule | full |  |
-| DescribeRule | full |  |
-| DisableRule | full |  |
-| EnableRule | full |  |
-| ListRuleNamesByTarget | full |  |
-| ListRules | full |  |
-| ListTargetsByRule | full |  |
-| RemoveTargets | full |  |
-| TestEventPattern | full |  |
-| DescribeEventBus | partial | the default bus only, with its Name and Arn; custom buses are not implemented |
-| ListEventBuses | partial | the default bus only, with its Name and Arn; custom buses are not implemented |
-| ListTagsForResource | partial | rules only; the default bus takes no tags |
-| PutEvents | partial | default buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
-| PutRule | partial | the default bus only; RoleArn is stored, not used |
-| PutTargets | partial | Lambda function, SQS queue and SNS topic targets in the rule's region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented |
-| TagResource | partial | rules only; the default bus takes no tags |
-| UntagResource | partial | rules only; the default bus takes no tags |
-| ActivateEventSource | unbound |  |
-| CancelReplay | unbound |  |
-| CreateApiDestination | unbound |  |
-| CreateArchive | unbound |  |
-| CreateConnection | unbound |  |
-| CreateEndpoint | unbound |  |
-| CreateEventBus | unbound |  |
-| CreatePartnerEventSource | unbound |  |
-| DeactivateEventSource | unbound |  |
-| DeauthorizeConnection | unbound |  |
-| DeleteApiDestination | unbound |  |
-| DeleteArchive | unbound |  |
-| DeleteConnection | unbound |  |
-| DeleteEndpoint | unbound |  |
-| DeleteEventBus | unbound |  |
-| DeletePartnerEventSource | unbound |  |
-| DescribeApiDestination | unbound |  |
-| DescribeArchive | unbound |  |
-| DescribeConnection | unbound |  |
-| DescribeEndpoint | unbound |  |
-| DescribeEventSource | unbound |  |
-| DescribePartnerEventSource | unbound |  |
-| DescribeReplay | unbound |  |
-| ListApiDestinations | unbound |  |
-| ListArchives | unbound |  |
-| ListConnections | unbound |  |
-| ListEndpoints | unbound |  |
-| ListEventSources | unbound |  |
-| ListPartnerEventSourceAccounts | unbound |  |
-| ListPartnerEventSources | unbound |  |
-| ListReplays | unbound |  |
-| PutPartnerEvents | unbound |  |
-| PutPermission | unbound |  |
-| RemovePermission | unbound |  |
-| StartReplay | unbound |  |
-| UpdateApiDestination | unbound |  |
-| UpdateArchive | unbound |  |
-| UpdateConnection | unbound |  |
-| UpdateEndpoint | unbound |  |
-| UpdateEventBus | unbound |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| DeleteRule | full | third-party-recorded, 2 of 2 claims |  |
+| DescribeRule | full | third-party-recorded, 2 of 2 claims |  |
+| DisableRule | full | third-party-recorded, 2 of 2 claims |  |
+| EnableRule | full | inferred, 1 of 3 claims |  |
+| ListRuleNamesByTarget | full | third-party-recorded, 2 of 2 claims |  |
+| ListRules | full | third-party-recorded, 2 of 2 claims |  |
+| ListTargetsByRule | full | third-party-recorded, 2 of 2 claims |  |
+| RemoveTargets | full | third-party-recorded, 2 of 2 claims |  |
+| TestEventPattern | full | contradicted (events/R14/H14-01.json), 5 of 25 claims |  |
+| DescribeEventBus | partial | third-party-recorded, 2 of 2 claims | the default bus only, with its Name and Arn; custom buses are not implemented |
+| ListEventBuses | partial | third-party-recorded, 2 of 2 claims | the default bus only, with its Name and Arn; custom buses are not implemented |
+| ListTagsForResource | partial | third-party-recorded, 2 of 2 claims | rules only; the default bus takes no tags |
+| PutEvents | partial | contradicted (events/R14/H14-02.json), 1 of 8 claims | default buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
+| PutRule | partial | contradicted (events/R14/H14-01.json), 1 of 7 claims | the default bus only; RoleArn is stored, not used |
+| PutTargets | partial | third-party-recorded, 2 of 2 claims | Lambda function, SQS queue and SNS topic targets in the rule's region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented |
+| TagResource | partial | third-party-recorded, 2 of 2 claims | rules only; the default bus takes no tags |
+| UntagResource | partial | third-party-recorded, 2 of 2 claims | rules only; the default bus takes no tags |
+| ActivateEventSource | unbound | third-party-recorded, 2 of 2 claims |  |
+| CancelReplay | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateApiDestination | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateArchive | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateConnection | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateEndpoint | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateEventBus | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreatePartnerEventSource | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeactivateEventSource | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeauthorizeConnection | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteApiDestination | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteArchive | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteConnection | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteEndpoint | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteEventBus | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeletePartnerEventSource | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeApiDestination | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeArchive | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeConnection | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeEndpoint | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeEventSource | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribePartnerEventSource | unbound | third-party-recorded, 2 of 2 claims |  |
+| DescribeReplay | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListApiDestinations | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListArchives | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListConnections | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListEndpoints | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListEventSources | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListPartnerEventSourceAccounts | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListPartnerEventSources | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListReplays | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutPartnerEvents | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutPermission | unbound | third-party-recorded, 2 of 2 claims |  |
+| RemovePermission | unbound | third-party-recorded, 2 of 2 claims |  |
+| StartReplay | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateApiDestination | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateArchive | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateConnection | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateEndpoint | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateEventBus | unbound | third-party-recorded, 2 of 2 claims |  |
 
 ### iam
 
-| Operation | Status | Note |
-|---|---|---|
-| AddRoleToInstanceProfile | full |  |
-| CreateInstanceProfile | full |  |
-| DeleteAccessKey | full |  |
-| DeleteInstanceProfile | full |  |
-| DeletePolicy | full |  |
-| DeletePolicyVersion | full |  |
-| DeleteRole | full |  |
-| DeleteRolePermissionsBoundary | full |  |
-| DeleteRolePolicy | full |  |
-| DeleteUser | full |  |
-| DeleteUserPermissionsBoundary | full |  |
-| DeleteUserPolicy | full |  |
-| DetachRolePolicy | full |  |
-| DetachUserPolicy | full |  |
-| GetInstanceProfile | full |  |
-| GetRole | full |  |
-| GetRolePolicy | full |  |
-| GetUserPolicy | full |  |
-| ListAttachedRolePolicies | full |  |
-| ListAttachedUserPolicies | full |  |
-| ListInstanceProfileTags | full |  |
-| ListInstanceProfiles | full |  |
-| ListInstanceProfilesForRole | full |  |
-| ListPolicyTags | full |  |
-| ListRolePolicies | full |  |
-| ListRoleTags | full |  |
-| ListRoles | full |  |
-| ListUserPolicies | full |  |
-| ListUserTags | full |  |
-| ListUsers | full |  |
-| RemoveRoleFromInstanceProfile | full |  |
-| SetDefaultPolicyVersion | full |  |
-| TagInstanceProfile | full |  |
-| TagPolicy | full |  |
-| TagRole | full |  |
-| TagUser | full |  |
-| UntagInstanceProfile | full |  |
-| UntagPolicy | full |  |
-| UntagRole | full |  |
-| UntagUser | full |  |
-| UpdateRole | full |  |
-| UpdateRoleDescription | full |  |
-| CreatePolicy | stored-only | the document is validated and stored, not enforced |
-| CreatePolicyVersion | stored-only | the document is validated and stored, not enforced |
-| PutRolePolicy | stored-only | the document is validated and stored, not enforced |
-| PutUserPolicy | stored-only | the document is validated and stored, not enforced |
-| UpdateAccessKey | stored-only | an Inactive key still authenticates, since understudy does not enforce IAM |
-| UpdateAssumeRolePolicy | stored-only | the trust policy is validated and stored, not enforced |
-| AttachRolePolicy | partial | the attachment is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
-| AttachUserPolicy | partial | the attachment is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
-| CreateAccessKey | partial | only for IAM users: root user access keys are not managed, so a root caller must name a user |
-| CreateRole | partial | the trust policy is validated and stored, not enforced; as PermissionsBoundary, any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
-| CreateUser | partial | as PermissionsBoundary, any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
-| GetPolicy | partial | an AWS managed policy is any arn:aws:iam::aws:policy ARN, shown without dates; understudy carries no catalogue of them |
-| GetPolicyVersion | partial | an AWS managed policy shows a placeholder document that grants nothing, since understudy carries no copy of AWS's documents |
-| GetUser | partial | without UserName, a root caller gets its root identity with the Unix epoch as CreateDate, since account creation is not tracked |
-| ListAccessKeys | partial | root user access keys are not managed, so a root caller that names no user lists none |
-| ListEntitiesForPolicy | partial | groups are not implemented, so PolicyGroups is always empty |
-| ListGroupsForUser | partial | groups are not implemented, so a user belongs to none |
-| ListPolicies | partial | lists the account's customer managed policies; Scope AWS lists nothing, since understudy carries no catalogue of AWS managed policies |
-| ListPolicyVersions | partial | an AWS managed policy lists one version, v1, without a date, since understudy carries no copy of AWS's version history |
-| PutRolePermissionsBoundary | partial | the boundary is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
-| PutUserPermissionsBoundary | partial | the boundary is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
-| UpdateUser | partial | access keys minted before a rename or a path change still resolve to the user's old name and path |
-| AcceptDelegationRequest | unbound |  |
-| AcquireRole | unbound |  |
-| AddClientIDToOpenIDConnectProvider | unbound |  |
-| AddUserToGroup | unbound |  |
-| AssociateDelegationRequest | unbound |  |
-| AttachGroupPolicy | unbound |  |
-| ChangePassword | unbound |  |
-| CreateAccountAlias | unbound |  |
-| CreateDelegationRequest | unbound |  |
-| CreateGroup | unbound |  |
-| CreateLoginProfile | unbound |  |
-| CreateOpenIDConnectProvider | unbound |  |
-| CreateSAMLProvider | unbound |  |
-| CreateServiceLinkedRole | unbound |  |
-| CreateServiceSpecificCredential | unbound |  |
-| CreateVirtualMFADevice | unbound |  |
-| DeactivateMFADevice | unbound |  |
-| DeleteAccountAlias | unbound |  |
-| DeleteAccountPasswordPolicy | unbound |  |
-| DeleteGroup | unbound |  |
-| DeleteGroupPolicy | unbound |  |
-| DeleteLoginProfile | unbound |  |
-| DeleteOpenIDConnectProvider | unbound |  |
-| DeleteSAMLProvider | unbound |  |
-| DeleteSSHPublicKey | unbound |  |
-| DeleteServerCertificate | unbound |  |
-| DeleteServiceLinkedRole | unbound |  |
-| DeleteServiceSpecificCredential | unbound |  |
-| DeleteSigningCertificate | unbound |  |
-| DeleteVirtualMFADevice | unbound |  |
-| DetachGroupPolicy | unbound |  |
-| DisableOrganizationsRootCredentialsManagement | unbound |  |
-| DisableOrganizationsRootSessions | unbound |  |
-| DisableOutboundWebIdentityFederation | unbound |  |
-| EnableMFADevice | unbound |  |
-| EnableOrganizationsRootCredentialsManagement | unbound |  |
-| EnableOrganizationsRootSessions | unbound |  |
-| EnableOutboundWebIdentityFederation | unbound |  |
-| GenerateCredentialReport | unbound |  |
-| GenerateOrganizationsAccessReport | unbound |  |
-| GenerateServiceLastAccessedDetails | unbound |  |
-| GetAccessKeyLastUsed | unbound |  |
-| GetAccountAuthorizationDetails | unbound |  |
-| GetAccountPasswordPolicy | unbound |  |
-| GetAccountProperties | unbound |  |
-| GetAccountSummary | unbound |  |
-| GetContextKeysForCustomPolicy | unbound |  |
-| GetContextKeysForPrincipalPolicy | unbound |  |
-| GetCredentialReport | unbound |  |
-| GetDelegationRequest | unbound |  |
-| GetGroup | unbound |  |
-| GetGroupPolicy | unbound |  |
-| GetHumanReadableSummary | unbound |  |
-| GetLoginProfile | unbound |  |
-| GetMFADevice | unbound |  |
-| GetOpenIDConnectProvider | unbound |  |
-| GetOrganizationsAccessReport | unbound |  |
-| GetOutboundWebIdentityFederationInfo | unbound |  |
-| GetRoleTemplateVersion | unbound |  |
-| GetSAMLProvider | unbound |  |
-| GetSSHPublicKey | unbound |  |
-| GetServerCertificate | unbound |  |
-| GetServiceLastAccessedDetails | unbound |  |
-| GetServiceLastAccessedDetailsWithEntities | unbound |  |
-| GetServiceLinkedRoleDeletionStatus | unbound |  |
-| ListAccountAliases | unbound |  |
-| ListAttachedGroupPolicies | unbound |  |
-| ListDelegationRequests | unbound |  |
-| ListGroupPolicies | unbound |  |
-| ListGroups | unbound |  |
-| ListMFADeviceTags | unbound |  |
-| ListMFADevices | unbound |  |
-| ListOpenIDConnectProviderTags | unbound |  |
-| ListOpenIDConnectProviders | unbound |  |
-| ListOrganizationsFeatures | unbound |  |
-| ListPoliciesGrantingServiceAccess | unbound |  |
-| ListSAMLProviderTags | unbound |  |
-| ListSAMLProviders | unbound |  |
-| ListSSHPublicKeys | unbound |  |
-| ListServerCertificateTags | unbound |  |
-| ListServerCertificates | unbound |  |
-| ListServiceSpecificCredentials | unbound |  |
-| ListSigningCertificates | unbound |  |
-| ListVirtualMFADevices | unbound |  |
-| PutAccountProperties | unbound |  |
-| PutGroupPolicy | unbound |  |
-| RejectDelegationRequest | unbound |  |
-| RemoveClientIDFromOpenIDConnectProvider | unbound |  |
-| RemoveUserFromGroup | unbound |  |
-| ResetServiceSpecificCredential | unbound |  |
-| ResyncMFADevice | unbound |  |
-| SendDelegationToken | unbound |  |
-| SetSecurityTokenServicePreferences | unbound |  |
-| SimulateCustomPolicy | unbound |  |
-| SimulatePrincipalPolicy | unbound |  |
-| TagMFADevice | unbound |  |
-| TagOpenIDConnectProvider | unbound |  |
-| TagSAMLProvider | unbound |  |
-| TagServerCertificate | unbound |  |
-| UntagMFADevice | unbound |  |
-| UntagOpenIDConnectProvider | unbound |  |
-| UntagSAMLProvider | unbound |  |
-| UntagServerCertificate | unbound |  |
-| UpdateAccountPasswordPolicy | unbound |  |
-| UpdateDelegationRequest | unbound |  |
-| UpdateGroup | unbound |  |
-| UpdateLoginProfile | unbound |  |
-| UpdateOpenIDConnectProviderThumbprint | unbound |  |
-| UpdateSAMLProvider | unbound |  |
-| UpdateSSHPublicKey | unbound |  |
-| UpdateServerCertificate | unbound |  |
-| UpdateServiceSpecificCredential | unbound |  |
-| UpdateSigningCertificate | unbound |  |
-| UploadSSHPublicKey | unbound |  |
-| UploadServerCertificate | unbound |  |
-| UploadSigningCertificate | unbound |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| AddRoleToInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
+| CreateInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteAccessKey | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
+| DeletePolicy | full | third-party-recorded, 2 of 2 claims |  |
+| DeletePolicyVersion | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteRole | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteRolePermissionsBoundary | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteRolePolicy | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteUser | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteUserPermissionsBoundary | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteUserPolicy | full | third-party-recorded, 2 of 2 claims |  |
+| DetachRolePolicy | full | third-party-recorded, 2 of 2 claims |  |
+| DetachUserPolicy | full | third-party-recorded, 2 of 2 claims |  |
+| GetInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
+| GetRole | full | third-party-recorded, 2 of 2 claims |  |
+| GetRolePolicy | full | third-party-recorded, 2 of 2 claims |  |
+| GetUserPolicy | full | third-party-recorded, 2 of 2 claims |  |
+| ListAttachedRolePolicies | full | third-party-recorded, 2 of 2 claims |  |
+| ListAttachedUserPolicies | full | third-party-recorded, 2 of 2 claims |  |
+| ListInstanceProfileTags | full | third-party-recorded, 2 of 2 claims |  |
+| ListInstanceProfiles | full | third-party-recorded, 2 of 2 claims |  |
+| ListInstanceProfilesForRole | full | third-party-recorded, 2 of 2 claims |  |
+| ListPolicyTags | full | third-party-recorded, 2 of 2 claims |  |
+| ListRolePolicies | full | third-party-recorded, 2 of 2 claims |  |
+| ListRoleTags | full | third-party-recorded, 2 of 2 claims |  |
+| ListRoles | full | third-party-recorded, 2 of 2 claims |  |
+| ListUserPolicies | full | third-party-recorded, 2 of 2 claims |  |
+| ListUserTags | full | third-party-recorded, 2 of 2 claims |  |
+| ListUsers | full | third-party-recorded, 2 of 2 claims |  |
+| RemoveRoleFromInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
+| SetDefaultPolicyVersion | full | third-party-recorded, 2 of 2 claims |  |
+| TagInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
+| TagPolicy | full | third-party-recorded, 2 of 2 claims |  |
+| TagRole | full | third-party-recorded, 2 of 2 claims |  |
+| TagUser | full | third-party-recorded, 2 of 2 claims |  |
+| UntagInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
+| UntagPolicy | full | third-party-recorded, 2 of 2 claims |  |
+| UntagRole | full | third-party-recorded, 2 of 2 claims |  |
+| UntagUser | full | third-party-recorded, 2 of 2 claims |  |
+| UpdateRole | full | third-party-recorded, 2 of 2 claims |  |
+| UpdateRoleDescription | full | third-party-recorded, 2 of 2 claims |  |
+| CreatePolicy | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced |
+| CreatePolicyVersion | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced |
+| PutRolePolicy | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced |
+| PutUserPolicy | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced |
+| UpdateAccessKey | stored-only | third-party-recorded, 2 of 2 claims | an Inactive key still authenticates, since understudy does not enforce IAM |
+| UpdateAssumeRolePolicy | stored-only | third-party-recorded, 2 of 2 claims | the trust policy is validated and stored, not enforced |
+| AttachRolePolicy | partial | third-party-recorded, 2 of 2 claims | the attachment is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
+| AttachUserPolicy | partial | third-party-recorded, 2 of 2 claims | the attachment is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
+| CreateAccessKey | partial | third-party-recorded, 2 of 2 claims | only for IAM users: root user access keys are not managed, so a root caller must name a user |
+| CreateRole | partial | third-party-recorded, 2 of 2 claims | the trust policy is validated and stored, not enforced; as PermissionsBoundary, any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
+| CreateUser | partial | third-party-recorded, 2 of 2 claims | as PermissionsBoundary, any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
+| GetPolicy | partial | third-party-recorded, 2 of 2 claims | an AWS managed policy is any arn:aws:iam::aws:policy ARN, shown without dates; understudy carries no catalogue of them |
+| GetPolicyVersion | partial | third-party-recorded, 2 of 2 claims | an AWS managed policy shows a placeholder document that grants nothing, since understudy carries no copy of AWS's documents |
+| GetUser | partial | third-party-recorded, 2 of 2 claims | without UserName, a root caller gets its root identity with the Unix epoch as CreateDate, since account creation is not tracked |
+| ListAccessKeys | partial | third-party-recorded, 2 of 2 claims | root user access keys are not managed, so a root caller that names no user lists none |
+| ListEntitiesForPolicy | partial | third-party-recorded, 2 of 2 claims | groups are not implemented, so PolicyGroups is always empty |
+| ListGroupsForUser | partial | third-party-recorded, 2 of 2 claims | groups are not implemented, so a user belongs to none |
+| ListPolicies | partial | third-party-recorded, 2 of 2 claims | lists the account's customer managed policies; Scope AWS lists nothing, since understudy carries no catalogue of AWS managed policies |
+| ListPolicyVersions | partial | third-party-recorded, 2 of 2 claims | an AWS managed policy lists one version, v1, without a date, since understudy carries no copy of AWS's version history |
+| PutRolePermissionsBoundary | partial | third-party-recorded, 2 of 2 claims | the boundary is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
+| PutUserPermissionsBoundary | partial | third-party-recorded, 2 of 2 claims | the boundary is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
+| UpdateUser | partial | third-party-recorded, 2 of 2 claims | access keys minted before a rename or a path change still resolve to the user's old name and path |
+| AcceptDelegationRequest | unbound | third-party-recorded, 2 of 2 claims |  |
+| AcquireRole | unbound | third-party-recorded, 2 of 2 claims |  |
+| AddClientIDToOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| AddUserToGroup | unbound | third-party-recorded, 2 of 2 claims |  |
+| AssociateDelegationRequest | unbound | third-party-recorded, 2 of 2 claims |  |
+| AttachGroupPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| ChangePassword | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateAccountAlias | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateDelegationRequest | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateGroup | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateLoginProfile | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateSAMLProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateServiceLinkedRole | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateServiceSpecificCredential | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateVirtualMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeactivateMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteAccountAlias | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteAccountPasswordPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteGroup | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteGroupPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteLoginProfile | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteSAMLProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteSSHPublicKey | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteServerCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteServiceLinkedRole | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteServiceSpecificCredential | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteSigningCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteVirtualMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
+| DetachGroupPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| DisableOrganizationsRootCredentialsManagement | unbound | third-party-recorded, 2 of 2 claims |  |
+| DisableOrganizationsRootSessions | unbound | third-party-recorded, 2 of 2 claims |  |
+| DisableOutboundWebIdentityFederation | unbound | third-party-recorded, 2 of 2 claims |  |
+| EnableMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
+| EnableOrganizationsRootCredentialsManagement | unbound | third-party-recorded, 2 of 2 claims |  |
+| EnableOrganizationsRootSessions | unbound | third-party-recorded, 2 of 2 claims |  |
+| EnableOutboundWebIdentityFederation | unbound | third-party-recorded, 2 of 2 claims |  |
+| GenerateCredentialReport | unbound | third-party-recorded, 2 of 2 claims |  |
+| GenerateOrganizationsAccessReport | unbound | third-party-recorded, 2 of 2 claims |  |
+| GenerateServiceLastAccessedDetails | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetAccessKeyLastUsed | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetAccountAuthorizationDetails | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetAccountPasswordPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetAccountProperties | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetAccountSummary | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetContextKeysForCustomPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetContextKeysForPrincipalPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetCredentialReport | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetDelegationRequest | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetGroup | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetGroupPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetHumanReadableSummary | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetLoginProfile | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetOrganizationsAccessReport | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetOutboundWebIdentityFederationInfo | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetRoleTemplateVersion | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetSAMLProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetSSHPublicKey | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetServerCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetServiceLastAccessedDetails | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetServiceLastAccessedDetailsWithEntities | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetServiceLinkedRoleDeletionStatus | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListAccountAliases | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListAttachedGroupPolicies | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListDelegationRequests | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListGroupPolicies | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListGroups | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListMFADeviceTags | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListMFADevices | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListOpenIDConnectProviderTags | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListOpenIDConnectProviders | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListOrganizationsFeatures | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListPoliciesGrantingServiceAccess | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListSAMLProviderTags | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListSAMLProviders | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListSSHPublicKeys | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListServerCertificateTags | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListServerCertificates | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListServiceSpecificCredentials | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListSigningCertificates | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListVirtualMFADevices | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutAccountProperties | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutGroupPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| RejectDelegationRequest | unbound | third-party-recorded, 2 of 2 claims |  |
+| RemoveClientIDFromOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| RemoveUserFromGroup | unbound | third-party-recorded, 2 of 2 claims |  |
+| ResetServiceSpecificCredential | unbound | third-party-recorded, 2 of 2 claims |  |
+| ResyncMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
+| SendDelegationToken | unbound | third-party-recorded, 2 of 2 claims |  |
+| SetSecurityTokenServicePreferences | unbound | third-party-recorded, 2 of 2 claims |  |
+| SimulateCustomPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| SimulatePrincipalPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| TagMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
+| TagOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| TagSAMLProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| TagServerCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
+| UntagMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
+| UntagOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| UntagSAMLProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| UntagServerCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateAccountPasswordPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateDelegationRequest | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateGroup | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateLoginProfile | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateOpenIDConnectProviderThumbprint | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateSAMLProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateSSHPublicKey | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateServerCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateServiceSpecificCredential | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateSigningCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
+| UploadSSHPublicKey | unbound | third-party-recorded, 2 of 2 claims |  |
+| UploadServerCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
+| UploadSigningCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
 
 Internal operations:
 
-| Operation | Status | Note |
-|---|---|---|
-| ResolveRole | full |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| ResolveRole | full | inferred, 3 of 5 claims |  |
 
 ### kms
 
-| Operation | Status | Note |
-|---|---|---|
-| CancelKeyDeletion | full |  |
-| CreateAlias | full |  |
-| DeleteAlias | full |  |
-| DescribeKey | full |  |
-| DisableKey | full |  |
-| EnableKey | full |  |
-| Encrypt | full |  |
-| GenerateDataKeyWithoutPlaintext | full |  |
-| GetKeyPolicy | full |  |
-| GetKeyRotationStatus | full |  |
-| ListAliases | full |  |
-| ListKeyPolicies | full |  |
-| ListKeys | full |  |
-| ListResourceTags | full |  |
-| ScheduleKeyDeletion | full |  |
-| TagResource | full |  |
-| UntagResource | full |  |
-| UpdateAlias | full |  |
-| UpdateKeyDescription | full |  |
-| DisableKeyRotation | stored-only | the rotation status and period are stored and reported; key material is never rotated |
-| EnableKeyRotation | stored-only | the rotation status and period are stored and reported; key material is never rotated |
-| PutKeyPolicy | stored-only | the policy is parsed and stored verbatim, not enforced; the lockout safety check is not run |
-| CreateKey | partial | symmetric encryption keys with AWS_KMS origin only: other key specs, key usages, origins, custom key stores and multi-Region keys answer UnsupportedOperationException; the key policy is parsed and stored, the lockout safety check is not run |
-| Decrypt | partial | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException, as do DryRunModifiers |
-| GenerateDataKey | partial | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException |
-| GenerateRandom | partial | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException; custom key stores do not exist |
-| ReEncrypt | partial | DryRunModifiers answer UnsupportedOperationException |
-| ConnectCustomKeyStore | unbound |  |
-| CreateCustomKeyStore | unbound |  |
-| CreateGrant | unbound |  |
-| DeleteCustomKeyStore | unbound |  |
-| DeleteImportedKeyMaterial | unbound |  |
-| DeriveSharedSecret | unbound |  |
-| DescribeCustomKeyStores | unbound |  |
-| DisconnectCustomKeyStore | unbound |  |
-| GenerateDataKeyPair | unbound |  |
-| GenerateDataKeyPairWithoutPlaintext | unbound |  |
-| GenerateMac | unbound |  |
-| GetKeyLastUsage | unbound |  |
-| GetParametersForImport | unbound |  |
-| GetPublicKey | unbound |  |
-| ImportKeyMaterial | unbound |  |
-| ListGrants | unbound |  |
-| ListKeyRotations | unbound |  |
-| ListRetirableGrants | unbound |  |
-| ReplicateKey | unbound |  |
-| RetireGrant | unbound |  |
-| RevokeGrant | unbound |  |
-| RotateKeyOnDemand | unbound |  |
-| Sign | unbound |  |
-| UpdateCustomKeyStore | unbound |  |
-| UpdatePrimaryRegion | unbound |  |
-| Verify | unbound |  |
-| VerifyMac | unbound |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| CancelKeyDeletion | full | inferred, 1 of 6 claims |  |
+| CreateAlias | full | aws-doc, 3 of 7 claims |  |
+| DeleteAlias | full | aws-doc, 3 of 5 claims |  |
+| DescribeKey | full | aws-doc, 2 of 4 claims |  |
+| DisableKey | full | inferred, 1 of 6 claims |  |
+| EnableKey | full | inferred, 1 of 6 claims |  |
+| Encrypt | full | aws-doc, 5 of 8 claims |  |
+| GenerateDataKeyWithoutPlaintext | full | aws-doc, 5 of 8 claims |  |
+| GetKeyPolicy | full | inferred, 1 of 6 claims |  |
+| GetKeyRotationStatus | full | aws-doc, 3 of 5 claims |  |
+| ListAliases | full | inferred, 1 of 5 claims |  |
+| ListKeyPolicies | full | inferred, 1 of 6 claims |  |
+| ListKeys | full | aws-doc, 1 of 3 claims |  |
+| ListResourceTags | full | inferred, 1 of 4 claims |  |
+| ScheduleKeyDeletion | full | inferred, 1 of 7 claims |  |
+| TagResource | full | inferred, 1 of 5 claims |  |
+| UntagResource | full | inferred, 1 of 5 claims |  |
+| UpdateAlias | full | aws-doc, 3 of 5 claims |  |
+| UpdateKeyDescription | full | inferred, 1 of 6 claims |  |
+| DisableKeyRotation | stored-only | inferred, 1 of 7 claims | the rotation status and period are stored and reported; key material is never rotated |
+| EnableKeyRotation | stored-only | inferred, 1 of 7 claims | the rotation status and period are stored and reported; key material is never rotated |
+| PutKeyPolicy | stored-only | inferred, 1 of 6 claims | the policy is parsed and stored verbatim, not enforced; the lockout safety check is not run |
+| CreateKey | partial | aws-doc, 1 of 3 claims | symmetric encryption keys with AWS_KMS origin only: other key specs, key usages, origins, custom key stores and multi-Region keys answer UnsupportedOperationException; the key policy is parsed and stored, the lockout safety check is not run |
+| Decrypt | partial | aws-doc, 5 of 8 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException, as do DryRunModifiers |
+| GenerateDataKey | partial | aws-doc, 5 of 8 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException |
+| GenerateRandom | partial | aws-doc, 1 of 3 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException; custom key stores do not exist |
+| ReEncrypt | partial | aws-doc, 5 of 8 claims | DryRunModifiers answer UnsupportedOperationException |
+| ConnectCustomKeyStore | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateCustomKeyStore | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateGrant | unbound | aws-doc, 4 of 7 claims |  |
+| DeleteCustomKeyStore | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteImportedKeyMaterial | unbound | aws-doc, 3 of 5 claims |  |
+| DeriveSharedSecret | unbound | aws-doc, 4 of 7 claims |  |
+| DescribeCustomKeyStores | unbound | third-party-recorded, 2 of 2 claims |  |
+| DisconnectCustomKeyStore | unbound | third-party-recorded, 2 of 2 claims |  |
+| GenerateDataKeyPair | unbound | aws-doc, 4 of 7 claims |  |
+| GenerateDataKeyPairWithoutPlaintext | unbound | aws-doc, 4 of 7 claims |  |
+| GenerateMac | unbound | aws-doc, 3 of 6 claims |  |
+| GetKeyLastUsage | unbound | aws-doc, 2 of 4 claims |  |
+| GetParametersForImport | unbound | aws-doc, 3 of 5 claims |  |
+| GetPublicKey | unbound | aws-doc, 4 of 6 claims |  |
+| ImportKeyMaterial | unbound | aws-doc, 3 of 5 claims |  |
+| ListGrants | unbound | aws-doc, 3 of 5 claims |  |
+| ListKeyRotations | unbound | aws-doc, 2 of 4 claims |  |
+| ListRetirableGrants | unbound | aws-doc, 2 of 4 claims |  |
+| ReplicateKey | unbound | aws-doc, 3 of 6 claims |  |
+| RetireGrant | unbound | aws-doc, 3 of 6 claims |  |
+| RevokeGrant | unbound | aws-doc, 3 of 6 claims |  |
+| RotateKeyOnDemand | unbound | aws-doc, 4 of 6 claims |  |
+| Sign | unbound | aws-doc, 4 of 7 claims |  |
+| UpdateCustomKeyStore | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdatePrimaryRegion | unbound | aws-doc, 3 of 5 claims |  |
+| Verify | unbound | aws-doc, 4 of 7 claims |  |
+| VerifyMac | unbound | aws-doc, 3 of 6 claims |  |
 
 ### lambda
 
-| Operation | Status | Note |
-|---|---|---|
-| DeleteAlias | full |  |
-| DeleteEventSourceMapping | full |  |
-| DeleteFunction | full |  |
-| DeleteFunctionConcurrency | full |  |
-| DeleteFunctionEventInvokeConfig | full |  |
-| DeleteFunctionUrlConfig | full |  |
-| GetAccountSettings | full |  |
-| GetAlias | full |  |
-| GetEventSourceMapping | full |  |
-| GetFunctionConcurrency | full |  |
-| GetFunctionConfiguration | full |  |
-| GetFunctionEventInvokeConfig | full |  |
-| GetFunctionUrlConfig | full |  |
-| GetPolicy | full |  |
-| ListAliases | full |  |
-| ListEventSourceMappings | full |  |
-| ListFunctionEventInvokeConfigs | full |  |
-| ListFunctionUrlConfigs | full |  |
-| ListFunctions | full |  |
-| ListTags | full |  |
-| ListVersionsByFunction | full |  |
-| PutFunctionConcurrency | full |  |
-| RemovePermission | full |  |
-| TagResource | full |  |
-| UntagResource | full |  |
-| AddPermission | stored-only | statements are stored and returned by GetPolicy, not enforced |
-| GetFunctionCodeSigningConfig | stored-only | code signing is not enforced; no function has a configuration |
-| CreateAlias | partial | weighted routing is stored, not applied to invocations |
-| CreateEventSourceMapping | partial | SQS queues only; serve polls the queue and invokes the function with each batch |
-| CreateFunction | partial | layers, PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only |
-| CreateFunctionUrlConfig | partial | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
-| GetFunction | partial | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
-| Invoke | partial | an alias with weighted routing always runs its primary version; asynchronous invocations retry but do not deliver to destinations or dead-letter queues; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
-| PublishVersion | partial | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
-| PutFunctionEventInvokeConfig | partial | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
-| UpdateAlias | partial | weighted routing is stored, not applied to invocations |
-| UpdateEventSourceMapping | partial | SQS queues only; serve polls the queue and invokes the function with each batch |
-| UpdateFunctionCode | partial | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
-| UpdateFunctionConfiguration | partial | layers and DurableConfig are refused; code signing and VPC networking are stored only |
-| UpdateFunctionEventInvokeConfig | partial | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
-| UpdateFunctionUrlConfig | partial | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
-| AddLayerVersionPermission | unbound |  |
-| CheckpointDurableExecution | unbound |  |
-| CreateCapacityProvider | unbound |  |
-| CreateCodeSigningConfig | unbound |  |
-| DeleteCapacityProvider | unbound |  |
-| DeleteCodeSigningConfig | unbound |  |
-| DeleteFunctionCodeSigningConfig | unbound |  |
-| DeleteLayerVersion | unbound |  |
-| DeleteProvisionedConcurrencyConfig | unbound |  |
-| DeleteResourcePolicy | unbound |  |
-| GetCapacityProvider | unbound |  |
-| GetCodeSigningConfig | unbound |  |
-| GetDurableExecution | unbound |  |
-| GetDurableExecutionHistory | unbound |  |
-| GetDurableExecutionState | unbound |  |
-| GetFunctionRecursionConfig | unbound |  |
-| GetFunctionScalingConfig | unbound |  |
-| GetLayerVersion | unbound |  |
-| GetLayerVersionByArn | unbound |  |
-| GetLayerVersionPolicy | unbound |  |
-| GetProvisionedConcurrencyConfig | unbound |  |
-| GetResourcePolicy | unbound |  |
-| GetRuntimeManagementConfig | unbound |  |
-| InvokeAsync | unbound |  |
-| InvokeWithResponseStream | unbound |  |
-| ListCapacityProviders | unbound |  |
-| ListCodeSigningConfigs | unbound |  |
-| ListDurableExecutionsByFunction | unbound |  |
-| ListFunctionVersionsByCapacityProvider | unbound |  |
-| ListFunctionsByCodeSigningConfig | unbound |  |
-| ListLayerVersions | unbound |  |
-| ListLayers | unbound |  |
-| ListProvisionedConcurrencyConfigs | unbound |  |
-| PublishLayerVersion | unbound |  |
-| PutFunctionCodeSigningConfig | unbound |  |
-| PutFunctionRecursionConfig | unbound |  |
-| PutFunctionScalingConfig | unbound |  |
-| PutProvisionedConcurrencyConfig | unbound |  |
-| PutResourcePolicy | unbound |  |
-| PutRuntimeManagementConfig | unbound |  |
-| RemoveLayerVersionPermission | unbound |  |
-| SendDurableExecutionCallbackFailure | unbound |  |
-| SendDurableExecutionCallbackHeartbeat | unbound |  |
-| SendDurableExecutionCallbackSuccess | unbound |  |
-| StopDurableExecution | unbound |  |
-| UpdateCapacityProvider | unbound |  |
-| UpdateCodeSigningConfig | unbound |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| DeleteAlias | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteEventSourceMapping | full | aws-doc, 1 of 3 claims |  |
+| DeleteFunction | full | third-party-recorded, 3 of 3 claims |  |
+| DeleteFunctionConcurrency | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteFunctionEventInvokeConfig | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteFunctionUrlConfig | full | third-party-recorded, 2 of 2 claims |  |
+| GetAccountSettings | full | third-party-recorded, 2 of 2 claims |  |
+| GetAlias | full | third-party-recorded, 2 of 2 claims |  |
+| GetEventSourceMapping | full | aws-doc, 1 of 3 claims |  |
+| GetFunctionConcurrency | full | third-party-recorded, 2 of 2 claims |  |
+| GetFunctionConfiguration | full | aws-doc, 1 of 3 claims |  |
+| GetFunctionEventInvokeConfig | full | third-party-recorded, 2 of 2 claims |  |
+| GetFunctionUrlConfig | full | third-party-recorded, 2 of 2 claims |  |
+| GetPolicy | full | third-party-recorded, 2 of 2 claims |  |
+| ListAliases | full | third-party-recorded, 2 of 2 claims |  |
+| ListEventSourceMappings | full | third-party-recorded, 2 of 2 claims |  |
+| ListFunctionEventInvokeConfigs | full | third-party-recorded, 2 of 2 claims |  |
+| ListFunctionUrlConfigs | full | third-party-recorded, 2 of 2 claims |  |
+| ListFunctions | full | third-party-recorded, 2 of 2 claims |  |
+| ListTags | full | third-party-recorded, 2 of 2 claims |  |
+| ListVersionsByFunction | full | third-party-recorded, 2 of 2 claims |  |
+| PutFunctionConcurrency | full | third-party-recorded, 2 of 2 claims |  |
+| RemovePermission | full | third-party-recorded, 2 of 2 claims |  |
+| TagResource | full | third-party-recorded, 2 of 2 claims |  |
+| UntagResource | full | third-party-recorded, 2 of 2 claims |  |
+| AddPermission | stored-only | third-party-recorded, 2 of 2 claims | statements are stored and returned by GetPolicy, not enforced |
+| GetFunctionCodeSigningConfig | stored-only | third-party-recorded, 2 of 2 claims | code signing is not enforced; no function has a configuration |
+| CreateAlias | partial | third-party-recorded, 2 of 2 claims | weighted routing is stored, not applied to invocations |
+| CreateEventSourceMapping | partial | inferred, 6 of 10 claims | SQS queues only; serve polls the queue and invokes the function with each batch |
+| CreateFunction | partial | aws-doc, 1 of 5 claims | layers, PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only |
+| CreateFunctionUrlConfig | partial | third-party-recorded, 2 of 2 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
+| GetFunction | partial | aws-doc, 1 of 3 claims | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
+| Invoke | partial | third-party-recorded, 2 of 2 claims | an alias with weighted routing always runs its primary version; asynchronous invocations retry but do not deliver to destinations or dead-letter queues; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
+| PublishVersion | partial | aws-doc, 1 of 3 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
+| PutFunctionEventInvokeConfig | partial | third-party-recorded, 2 of 2 claims | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
+| UpdateAlias | partial | third-party-recorded, 2 of 2 claims | weighted routing is stored, not applied to invocations |
+| UpdateEventSourceMapping | partial | inferred, 6 of 9 claims | SQS queues only; serve polls the queue and invokes the function with each batch |
+| UpdateFunctionCode | partial | aws-doc, 1 of 3 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
+| UpdateFunctionConfiguration | partial | inferred, 1 of 4 claims | layers and DurableConfig are refused; code signing and VPC networking are stored only |
+| UpdateFunctionEventInvokeConfig | partial | third-party-recorded, 2 of 2 claims | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
+| UpdateFunctionUrlConfig | partial | third-party-recorded, 2 of 2 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
+| AddLayerVersionPermission | unbound | third-party-recorded, 2 of 2 claims |  |
+| CheckpointDurableExecution | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateCapacityProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteCapacityProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteFunctionCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteLayerVersion | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteProvisionedConcurrencyConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetCapacityProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetDurableExecution | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetDurableExecutionHistory | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetDurableExecutionState | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetFunctionRecursionConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetFunctionScalingConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetLayerVersion | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetLayerVersionByArn | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetLayerVersionPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetProvisionedConcurrencyConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetRuntimeManagementConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| InvokeAsync | unbound | third-party-recorded, 2 of 2 claims |  |
+| InvokeWithResponseStream | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListCapacityProviders | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListCodeSigningConfigs | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListDurableExecutionsByFunction | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListFunctionVersionsByCapacityProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListFunctionsByCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListLayerVersions | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListLayers | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListProvisionedConcurrencyConfigs | unbound | third-party-recorded, 2 of 2 claims |  |
+| PublishLayerVersion | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutFunctionCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutFunctionRecursionConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutFunctionScalingConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutProvisionedConcurrencyConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutRuntimeManagementConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| RemoveLayerVersionPermission | unbound | third-party-recorded, 2 of 2 claims |  |
+| SendDurableExecutionCallbackFailure | unbound | third-party-recorded, 2 of 2 claims |  |
+| SendDurableExecutionCallbackHeartbeat | unbound | third-party-recorded, 2 of 2 claims |  |
+| SendDurableExecutionCallbackSuccess | unbound | third-party-recorded, 2 of 2 claims |  |
+| StopDurableExecution | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateCapacityProvider | unbound | third-party-recorded, 2 of 2 claims |  |
+| UpdateCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
 
 Raw operations:
 
-| Operation | Status | Note |
-|---|---|---|
-| DownloadFunctionCode | full |  |
-| InvokeFunctionUrl | partial | BUFFERED only: a RESPONSE_STREAM URL answers buffered; AWS_IAM requires a SigV4 signature, verified under sigv4 verify, and IAM policies are not enforced |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| DownloadFunctionCode | full | unassessed |  |
+| InvokeFunctionUrl | partial | unassessed | BUFFERED only: a RESPONSE_STREAM URL answers buffered; AWS_IAM requires a SigV4 signature, verified under sigv4 verify, and IAM policies are not enforced |
 
 ### logs
 
-| Operation | Status | Note |
-|---|---|---|
-| CreateLogStream | full |  |
-| DeleteLogGroup | full |  |
-| DeleteLogStream | full |  |
-| DeleteRetentionPolicy | full |  |
-| DescribeLogStreams | full |  |
-| ListTagsLogGroup | full |  |
-| PutLogGroupDeletionProtection | full |  |
-| TagLogGroup | full |  |
-| UntagLogGroup | full |  |
-| CreateLogGroup | partial | kmsKeyId must name an enabled KMS key and is stored and echoed; events are not encrypted with it |
-| DescribeLogGroups | partial | no linked accounts: accountIdentifiers and includeLinkedAccounts select nothing more |
-| FilterLogEvents | partial | unmask is ignored: no data protection policies; logStreamNames that name no stream are skipped |
-| GetLogEvents | partial | unmask is ignored: no data protection policies |
-| ListTagsForResource | partial | log groups only; destination and delivery ARNs name no resource |
-| PutLogEvents | partial | entity is accepted and ignored; sequenceToken is ignored, as AWS documents |
-| PutRetentionPolicy | partial | events expire exactly at timestamp plus retention on the emulator clock, not lazily within 72 hours |
-| TagResource | partial | log groups only; destination and delivery ARNs name no resource |
-| UntagResource | partial | log groups only; destination and delivery ARNs name no resource |
-| AssociateKmsKey | unbound |  |
-| AssociateSourceToS3TableIntegration | unbound |  |
-| CancelExportTask | unbound |  |
-| CancelImportTask | unbound |  |
-| CreateDelivery | unbound |  |
-| CreateExportTask | unbound |  |
-| CreateImportTask | unbound |  |
-| CreateLogAnomalyDetector | unbound |  |
-| CreateLookupTable | unbound |  |
-| CreateScheduledQuery | unbound |  |
-| DeleteAccountPolicy | unbound |  |
-| DeleteDataProtectionPolicy | unbound |  |
-| DeleteDelivery | unbound |  |
-| DeleteDeliveryDestination | unbound |  |
-| DeleteDeliveryDestinationPolicy | unbound |  |
-| DeleteDeliverySource | unbound |  |
-| DeleteDestination | unbound |  |
-| DeleteIndexPolicy | unbound |  |
-| DeleteIntegration | unbound |  |
-| DeleteLogAnomalyDetector | unbound |  |
-| DeleteLookupTable | unbound |  |
-| DeleteMetricFilter | unbound |  |
-| DeleteQueryDefinition | unbound |  |
-| DeleteResourcePolicy | unbound |  |
-| DeleteScheduledQuery | unbound |  |
-| DeleteSubscriptionFilter | unbound |  |
-| DeleteSyslogConfiguration | unbound |  |
-| DeleteTransformer | unbound |  |
-| DescribeAccountPolicies | unbound |  |
-| DescribeConfigurationTemplates | unbound |  |
-| DescribeDeliveries | unbound |  |
-| DescribeDeliveryDestinations | unbound |  |
-| DescribeDeliverySources | unbound |  |
-| DescribeDestinations | unbound |  |
-| DescribeExportTasks | unbound |  |
-| DescribeFieldIndexes | unbound |  |
-| DescribeImportTaskBatches | unbound |  |
-| DescribeImportTasks | unbound |  |
-| DescribeIndexPolicies | unbound |  |
-| DescribeLookupTables | unbound |  |
-| DescribeMetricFilters | unbound |  |
-| DescribeQueries | unbound |  |
-| DescribeQueryDefinitions | unbound |  |
-| DescribeResourcePolicies | unbound |  |
-| DescribeSubscriptionFilters | unbound |  |
-| DisassociateKmsKey | unbound |  |
-| DisassociateSourceFromS3TableIntegration | unbound |  |
-| GetDataProtectionPolicy | unbound |  |
-| GetDelivery | unbound |  |
-| GetDeliveryDestination | unbound |  |
-| GetDeliveryDestinationPolicy | unbound |  |
-| GetDeliverySource | unbound |  |
-| GetIntegration | unbound |  |
-| GetLogAnomalyDetector | unbound |  |
-| GetLogFields | unbound |  |
-| GetLogGroupFields | unbound |  |
-| GetLogObject | unbound |  |
-| GetLogRecord | unbound |  |
-| GetLookupTable | unbound |  |
-| GetQueryResults | unbound |  |
-| GetScheduledQuery | unbound |  |
-| GetScheduledQueryHistory | unbound |  |
-| GetStorageTierPolicy | unbound |  |
-| GetTransformer | unbound |  |
-| ListAggregateLogGroupSummaries | unbound |  |
-| ListAnomalies | unbound |  |
-| ListIntegrations | unbound |  |
-| ListLogAnomalyDetectors | unbound |  |
-| ListLogGroups | unbound |  |
-| ListLogGroupsForQuery | unbound |  |
-| ListScheduledQueries | unbound |  |
-| ListSourcesForS3TableIntegration | unbound |  |
-| ListSyslogConfigurations | unbound |  |
-| PutAccountPolicy | unbound |  |
-| PutBearerTokenAuthentication | unbound |  |
-| PutDataProtectionPolicy | unbound |  |
-| PutDeliveryDestination | unbound |  |
-| PutDeliveryDestinationPolicy | unbound |  |
-| PutDeliverySource | unbound |  |
-| PutDestination | unbound |  |
-| PutDestinationPolicy | unbound |  |
-| PutIndexPolicy | unbound |  |
-| PutIntegration | unbound |  |
-| PutMetricFilter | unbound |  |
-| PutQueryDefinition | unbound |  |
-| PutResourcePolicy | unbound |  |
-| PutStorageTierPolicy | unbound |  |
-| PutSubscriptionFilter | unbound |  |
-| PutSyslogConfiguration | unbound |  |
-| PutTransformer | unbound |  |
-| StartLiveTail | unbound |  |
-| StartQuery | unbound |  |
-| StopQuery | unbound |  |
-| TestMetricFilter | unbound |  |
-| TestTransformer | unbound |  |
-| UpdateAnomaly | unbound |  |
-| UpdateDeliveryConfiguration | unbound |  |
-| UpdateLogAnomalyDetector | unbound |  |
-| UpdateLookupTable | unbound |  |
-| UpdateScheduledQuery | unbound |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| CreateLogStream | full | unassessed |  |
+| DeleteLogGroup | full | unassessed |  |
+| DeleteLogStream | full | unassessed |  |
+| DeleteRetentionPolicy | full | unassessed |  |
+| DescribeLogStreams | full | unassessed |  |
+| ListTagsLogGroup | full | unassessed |  |
+| PutLogGroupDeletionProtection | full | unassessed |  |
+| TagLogGroup | full | unassessed |  |
+| UntagLogGroup | full | unassessed |  |
+| CreateLogGroup | partial | aws-doc, 1 of 1 claim | kmsKeyId must name an enabled KMS key and is stored and echoed; events are not encrypted with it |
+| DescribeLogGroups | partial | aws-doc, 1 of 1 claim | no linked accounts: accountIdentifiers and includeLinkedAccounts select nothing more |
+| FilterLogEvents | partial | inferred, 2 of 3 claims | unmask is ignored: no data protection policies; logStreamNames that name no stream are skipped |
+| GetLogEvents | partial | aws-doc, 1 of 1 claim | unmask is ignored: no data protection policies |
+| ListTagsForResource | partial | unassessed | log groups only; destination and delivery ARNs name no resource |
+| PutLogEvents | partial | aws-doc, 1 of 1 claim | entity is accepted and ignored; sequenceToken is ignored, as AWS documents |
+| PutRetentionPolicy | partial | aws-doc, 1 of 1 claim | events expire exactly at timestamp plus retention on the emulator clock, not lazily within 72 hours |
+| TagResource | partial | unassessed | log groups only; destination and delivery ARNs name no resource |
+| UntagResource | partial | unassessed | log groups only; destination and delivery ARNs name no resource |
+| AssociateKmsKey | unbound | unassessed |  |
+| AssociateSourceToS3TableIntegration | unbound | unassessed |  |
+| CancelExportTask | unbound | unassessed |  |
+| CancelImportTask | unbound | unassessed |  |
+| CreateDelivery | unbound | unassessed |  |
+| CreateExportTask | unbound | unassessed |  |
+| CreateImportTask | unbound | unassessed |  |
+| CreateLogAnomalyDetector | unbound | unassessed |  |
+| CreateLookupTable | unbound | unassessed |  |
+| CreateScheduledQuery | unbound | unassessed |  |
+| DeleteAccountPolicy | unbound | unassessed |  |
+| DeleteDataProtectionPolicy | unbound | unassessed |  |
+| DeleteDelivery | unbound | unassessed |  |
+| DeleteDeliveryDestination | unbound | unassessed |  |
+| DeleteDeliveryDestinationPolicy | unbound | unassessed |  |
+| DeleteDeliverySource | unbound | unassessed |  |
+| DeleteDestination | unbound | unassessed |  |
+| DeleteIndexPolicy | unbound | unassessed |  |
+| DeleteIntegration | unbound | unassessed |  |
+| DeleteLogAnomalyDetector | unbound | unassessed |  |
+| DeleteLookupTable | unbound | unassessed |  |
+| DeleteMetricFilter | unbound | unassessed |  |
+| DeleteQueryDefinition | unbound | unassessed |  |
+| DeleteResourcePolicy | unbound | unassessed |  |
+| DeleteScheduledQuery | unbound | unassessed |  |
+| DeleteSubscriptionFilter | unbound | unassessed |  |
+| DeleteSyslogConfiguration | unbound | unassessed |  |
+| DeleteTransformer | unbound | unassessed |  |
+| DescribeAccountPolicies | unbound | unassessed |  |
+| DescribeConfigurationTemplates | unbound | unassessed |  |
+| DescribeDeliveries | unbound | unassessed |  |
+| DescribeDeliveryDestinations | unbound | unassessed |  |
+| DescribeDeliverySources | unbound | unassessed |  |
+| DescribeDestinations | unbound | unassessed |  |
+| DescribeExportTasks | unbound | unassessed |  |
+| DescribeFieldIndexes | unbound | unassessed |  |
+| DescribeImportTaskBatches | unbound | unassessed |  |
+| DescribeImportTasks | unbound | unassessed |  |
+| DescribeIndexPolicies | unbound | unassessed |  |
+| DescribeLookupTables | unbound | unassessed |  |
+| DescribeMetricFilters | unbound | unassessed |  |
+| DescribeQueries | unbound | unassessed |  |
+| DescribeQueryDefinitions | unbound | unassessed |  |
+| DescribeResourcePolicies | unbound | unassessed |  |
+| DescribeSubscriptionFilters | unbound | unassessed |  |
+| DisassociateKmsKey | unbound | unassessed |  |
+| DisassociateSourceFromS3TableIntegration | unbound | unassessed |  |
+| GetDataProtectionPolicy | unbound | unassessed |  |
+| GetDelivery | unbound | unassessed |  |
+| GetDeliveryDestination | unbound | unassessed |  |
+| GetDeliveryDestinationPolicy | unbound | unassessed |  |
+| GetDeliverySource | unbound | unassessed |  |
+| GetIntegration | unbound | unassessed |  |
+| GetLogAnomalyDetector | unbound | unassessed |  |
+| GetLogFields | unbound | unassessed |  |
+| GetLogGroupFields | unbound | unassessed |  |
+| GetLogObject | unbound | unassessed |  |
+| GetLogRecord | unbound | unassessed |  |
+| GetLookupTable | unbound | unassessed |  |
+| GetQueryResults | unbound | unassessed |  |
+| GetScheduledQuery | unbound | unassessed |  |
+| GetScheduledQueryHistory | unbound | unassessed |  |
+| GetStorageTierPolicy | unbound | unassessed |  |
+| GetTransformer | unbound | unassessed |  |
+| ListAggregateLogGroupSummaries | unbound | unassessed |  |
+| ListAnomalies | unbound | unassessed |  |
+| ListIntegrations | unbound | unassessed |  |
+| ListLogAnomalyDetectors | unbound | unassessed |  |
+| ListLogGroups | unbound | unassessed |  |
+| ListLogGroupsForQuery | unbound | unassessed |  |
+| ListScheduledQueries | unbound | unassessed |  |
+| ListSourcesForS3TableIntegration | unbound | unassessed |  |
+| ListSyslogConfigurations | unbound | unassessed |  |
+| PutAccountPolicy | unbound | unassessed |  |
+| PutBearerTokenAuthentication | unbound | unassessed |  |
+| PutDataProtectionPolicy | unbound | unassessed |  |
+| PutDeliveryDestination | unbound | unassessed |  |
+| PutDeliveryDestinationPolicy | unbound | unassessed |  |
+| PutDeliverySource | unbound | unassessed |  |
+| PutDestination | unbound | unassessed |  |
+| PutDestinationPolicy | unbound | unassessed |  |
+| PutIndexPolicy | unbound | unassessed |  |
+| PutIntegration | unbound | unassessed |  |
+| PutMetricFilter | unbound | unassessed |  |
+| PutQueryDefinition | unbound | unassessed |  |
+| PutResourcePolicy | unbound | unassessed |  |
+| PutStorageTierPolicy | unbound | unassessed |  |
+| PutSubscriptionFilter | unbound | unassessed |  |
+| PutSyslogConfiguration | unbound | unassessed |  |
+| PutTransformer | unbound | unassessed |  |
+| StartLiveTail | unbound | unassessed |  |
+| StartQuery | unbound | unassessed |  |
+| StopQuery | unbound | unassessed |  |
+| TestMetricFilter | unbound | unassessed |  |
+| TestTransformer | unbound | unassessed |  |
+| UpdateAnomaly | unbound | unassessed |  |
+| UpdateDeliveryConfiguration | unbound | unassessed |  |
+| UpdateLogAnomalyDetector | unbound | unassessed |  |
+| UpdateLookupTable | unbound | unassessed |  |
+| UpdateScheduledQuery | unbound | unassessed |  |
 
 Internal operations:
 
-| Operation | Status | Note |
-|---|---|---|
-| PutLogEventsInternal | full |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| PutLogEventsInternal | full | inferred, 2 of 2 claims |  |
 
 ### s3
 
-| Operation | Status | Note |
-|---|---|---|
-| CreateBucket | full |  |
-| DeleteBucket | full |  |
-| DeleteBucketTagging | full |  |
-| DeleteObjectTagging | full |  |
-| GetBucketLocation | full |  |
-| GetBucketNotificationConfiguration | full |  |
-| GetBucketTagging | full |  |
-| GetBucketVersioning | full |  |
-| GetObjectTagging | full |  |
-| HeadBucket | full |  |
-| ListMultipartUploads | full |  |
-| ListParts | full |  |
-| PutBucketTagging | full |  |
-| PutObjectTagging | full |  |
-| DeleteBucketAnalyticsConfiguration | stored-only | the analytics configuration is stored and echoed; not applied |
-| DeleteBucketCors | stored-only | the CORS configuration is stored and echoed; not applied |
-| DeleteBucketEncryption | stored-only | the default encryption rule is stored and echoed; not applied |
-| DeleteBucketIntelligentTieringConfiguration | stored-only | the Intelligent-Tiering configuration is stored and echoed; not applied |
-| DeleteBucketInventoryConfiguration | stored-only | the inventory configuration is stored and echoed; not applied |
-| DeleteBucketLifecycle | stored-only | the lifecycle rules are stored and echoed; not applied |
-| DeleteBucketMetricsConfiguration | stored-only | the metrics configuration is stored and echoed; not applied |
-| DeleteBucketPolicy | stored-only | the policy is stored and echoed; not applied |
-| DeleteBucketReplication | stored-only | the replication configuration is stored and echoed; not applied |
-| DeleteBucketWebsite | stored-only | the website configuration is stored and echoed; not applied |
-| DeletePublicAccessBlock | stored-only | the public access block is stored and echoed; not applied |
-| GetBucketAccelerateConfiguration | stored-only | the transfer acceleration status is stored and echoed; not applied |
-| GetBucketAcl | stored-only | the access control list is stored and echoed; not applied |
-| GetBucketAnalyticsConfiguration | stored-only | the analytics configuration is stored and echoed; not applied |
-| GetBucketCors | stored-only | the CORS configuration is stored and echoed; not applied |
-| GetBucketEncryption | stored-only | the default encryption rule is stored and echoed; not applied |
-| GetBucketIntelligentTieringConfiguration | stored-only | the Intelligent-Tiering configuration is stored and echoed; not applied |
-| GetBucketInventoryConfiguration | stored-only | the inventory configuration is stored and echoed; not applied |
-| GetBucketLifecycleConfiguration | stored-only | the lifecycle rules are stored and echoed; not applied |
-| GetBucketLogging | stored-only | the logging configuration is stored and echoed; not applied |
-| GetBucketMetricsConfiguration | stored-only | the metrics configuration is stored and echoed; not applied |
-| GetBucketPolicy | stored-only | the policy is stored and echoed; not applied |
-| GetBucketReplication | stored-only | the replication configuration is stored and echoed; not applied |
-| GetBucketRequestPayment | stored-only | the payer is stored and echoed; not applied |
-| GetBucketWebsite | stored-only | the website configuration is stored and echoed; not applied |
-| GetObjectLockConfiguration | stored-only | the Object Lock configuration is stored and echoed; not applied |
-| GetPublicAccessBlock | stored-only | the public access block is stored and echoed; not applied |
-| ListBucketAnalyticsConfigurations | stored-only | the analytics configuration is stored and echoed; not applied |
-| ListBucketIntelligentTieringConfigurations | stored-only | the Intelligent-Tiering configuration is stored and echoed; not applied |
-| ListBucketInventoryConfigurations | stored-only | the inventory configuration is stored and echoed; not applied |
-| ListBucketMetricsConfigurations | stored-only | the metrics configuration is stored and echoed; not applied |
-| PutBucketAccelerateConfiguration | stored-only | the transfer acceleration status is stored and echoed; not applied |
-| PutBucketAcl | stored-only | the access control list is stored and echoed; not applied |
-| PutBucketAnalyticsConfiguration | stored-only | the analytics configuration is stored and echoed; not applied |
-| PutBucketCors | stored-only | the CORS configuration is stored and echoed; not applied |
-| PutBucketEncryption | stored-only | the default encryption rule is stored and echoed; not applied |
-| PutBucketIntelligentTieringConfiguration | stored-only | the Intelligent-Tiering configuration is stored and echoed; not applied |
-| PutBucketInventoryConfiguration | stored-only | the inventory configuration is stored and echoed; not applied |
-| PutBucketLifecycleConfiguration | stored-only | the lifecycle rules are stored and echoed; not applied |
-| PutBucketLogging | stored-only | the logging configuration is stored and echoed; not applied |
-| PutBucketMetricsConfiguration | stored-only | the metrics configuration is stored and echoed; not applied |
-| PutBucketPolicy | stored-only | the policy is stored and echoed; not applied |
-| PutBucketReplication | stored-only | the replication configuration is stored and echoed; not applied |
-| PutBucketRequestPayment | stored-only | the payer is stored and echoed; not applied |
-| PutBucketWebsite | stored-only | the website configuration is stored and echoed; not applied |
-| PutObjectLockConfiguration | stored-only | the Object Lock configuration is stored and echoed; not applied |
-| PutPublicAccessBlock | stored-only | the public access block is stored and echoed; not applied |
-| AbortMultipartUpload | partial | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
-| CompleteMultipartUpload | partial | no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
-| CopyObject | partial | no SSE-C; Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error |
-| CreateMultipartUpload | partial | no SSE-C; Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; no lifecycle abort date |
-| DeleteBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| DeleteObject | partial | no MFA delete or Object Lock retention |
-| DeleteObjects | partial | no MFA delete or Object Lock retention |
-| GetBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| GetObject | partial | no SSE-C, so SSE-C headers are refused; presigned URLs are verified and expire on the emulator clock under sigv4 verify |
-| GetObjectAttributes | partial | no SSE-C, so SSE-C headers are refused |
-| HeadObject | partial | no SSE-C, so SSE-C headers are refused; presigned URLs are verified and expire on the emulator clock under sigv4 verify |
-| ListBuckets | partial | general purpose buckets only; no directory buckets |
-| ListObjectVersions | partial | no RestoreStatus |
-| ListObjects | partial | no RestoreStatus |
-| ListObjectsV2 | partial | no RestoreStatus |
-| PutBucketNotificationConfiguration | partial | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions |
-| PutBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| PutBucketVersioning | partial | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
-| PutObject | partial | no SSE-C; Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify |
-| UploadPart | partial | no SSE-C; chunk signatures are verified under sigv4 verify |
-| UploadPartCopy | partial | no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
-| CreateBucketMetadataConfiguration | unbound |  |
-| CreateBucketMetadataTableConfiguration | unbound |  |
-| CreateSession | unbound |  |
-| DeleteBucketMetadataConfiguration | unbound |  |
-| DeleteBucketMetadataTableConfiguration | unbound |  |
-| DeleteObjectAnnotation | unbound |  |
-| GetBucketAbac | unbound |  |
-| GetBucketMetadataConfiguration | unbound |  |
-| GetBucketMetadataTableConfiguration | unbound |  |
-| GetBucketPolicyStatus | unbound |  |
-| GetObjectAcl | unbound |  |
-| GetObjectAnnotation | unbound |  |
-| GetObjectLegalHold | unbound |  |
-| GetObjectRetention | unbound |  |
-| GetObjectTorrent | unbound |  |
-| ListDirectoryBuckets | unbound |  |
-| ListObjectAnnotations | unbound |  |
-| PutBucketAbac | unbound |  |
-| PutObjectAcl | unbound |  |
-| PutObjectAnnotation | unbound |  |
-| PutObjectLegalHold | unbound |  |
-| PutObjectRetention | unbound |  |
-| RenameObject | unbound |  |
-| RestoreObject | unbound |  |
-| SelectObjectContent | unbound |  |
-| UpdateBucketMetadataAnnotationTableConfiguration | unbound |  |
-| UpdateBucketMetadataInventoryTableConfiguration | unbound |  |
-| UpdateBucketMetadataJournalTableConfiguration | unbound |  |
-| UpdateObjectEncryption | unbound |  |
-| WriteGetObjectResponse | unbound |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| CreateBucket | full | aws-doc, 2 of 4 claims |  |
+| DeleteBucket | full | inferred, 1 of 2 claims |  |
+| DeleteBucketTagging | full | inferred, 1 of 2 claims |  |
+| DeleteObjectTagging | full | inferred, 1 of 2 claims |  |
+| GetBucketLocation | full | inferred, 1 of 2 claims |  |
+| GetBucketNotificationConfiguration | full | inferred, 1 of 3 claims |  |
+| GetBucketTagging | full | inferred, 1 of 3 claims |  |
+| GetBucketVersioning | full | inferred, 1 of 3 claims |  |
+| GetObjectTagging | full | inferred, 1 of 2 claims |  |
+| HeadBucket | full | inferred, 1 of 3 claims |  |
+| ListMultipartUploads | full | inferred, 1 of 3 claims |  |
+| ListParts | full | inferred, 1 of 2 claims |  |
+| PutBucketTagging | full | inferred, 1 of 4 claims |  |
+| PutObjectTagging | full | inferred, 1 of 2 claims |  |
+| DeleteBucketAnalyticsConfiguration | stored-only | inferred, 1 of 2 claims | the analytics configuration is stored and echoed; not applied |
+| DeleteBucketCors | stored-only | inferred, 1 of 2 claims | the CORS configuration is stored and echoed; not applied |
+| DeleteBucketEncryption | stored-only | inferred, 1 of 2 claims | the default encryption rule is stored and echoed; not applied |
+| DeleteBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 2 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
+| DeleteBucketInventoryConfiguration | stored-only | inferred, 1 of 2 claims | the inventory configuration is stored and echoed; not applied |
+| DeleteBucketLifecycle | stored-only | inferred, 1 of 2 claims | the lifecycle rules are stored and echoed; not applied |
+| DeleteBucketMetricsConfiguration | stored-only | inferred, 1 of 2 claims | the metrics configuration is stored and echoed; not applied |
+| DeleteBucketPolicy | stored-only | inferred, 1 of 2 claims | the policy is stored and echoed; not applied |
+| DeleteBucketReplication | stored-only | inferred, 1 of 2 claims | the replication configuration is stored and echoed; not applied |
+| DeleteBucketWebsite | stored-only | inferred, 1 of 2 claims | the website configuration is stored and echoed; not applied |
+| DeletePublicAccessBlock | stored-only | inferred, 1 of 2 claims | the public access block is stored and echoed; not applied |
+| GetBucketAccelerateConfiguration | stored-only | inferred, 1 of 3 claims | the transfer acceleration status is stored and echoed; not applied |
+| GetBucketAcl | stored-only | inferred, 1 of 2 claims | the access control list is stored and echoed; not applied |
+| GetBucketAnalyticsConfiguration | stored-only | inferred, 1 of 3 claims | the analytics configuration is stored and echoed; not applied |
+| GetBucketCors | stored-only | inferred, 1 of 3 claims | the CORS configuration is stored and echoed; not applied |
+| GetBucketEncryption | stored-only | inferred, 1 of 4 claims | the default encryption rule is stored and echoed; not applied |
+| GetBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 3 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
+| GetBucketInventoryConfiguration | stored-only | inferred, 1 of 3 claims | the inventory configuration is stored and echoed; not applied |
+| GetBucketLifecycleConfiguration | stored-only | inferred, 1 of 3 claims | the lifecycle rules are stored and echoed; not applied |
+| GetBucketLogging | stored-only | inferred, 1 of 3 claims | the logging configuration is stored and echoed; not applied |
+| GetBucketMetricsConfiguration | stored-only | inferred, 1 of 3 claims | the metrics configuration is stored and echoed; not applied |
+| GetBucketPolicy | stored-only | inferred, 1 of 3 claims | the policy is stored and echoed; not applied |
+| GetBucketReplication | stored-only | inferred, 1 of 3 claims | the replication configuration is stored and echoed; not applied |
+| GetBucketRequestPayment | stored-only | inferred, 1 of 3 claims | the payer is stored and echoed; not applied |
+| GetBucketWebsite | stored-only | inferred, 1 of 3 claims | the website configuration is stored and echoed; not applied |
+| GetObjectLockConfiguration | stored-only | inferred, 1 of 3 claims | the Object Lock configuration is stored and echoed; not applied |
+| GetPublicAccessBlock | stored-only | inferred, 1 of 3 claims | the public access block is stored and echoed; not applied |
+| ListBucketAnalyticsConfigurations | stored-only | inferred, 1 of 2 claims | the analytics configuration is stored and echoed; not applied |
+| ListBucketIntelligentTieringConfigurations | stored-only | inferred, 1 of 2 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
+| ListBucketInventoryConfigurations | stored-only | inferred, 1 of 2 claims | the inventory configuration is stored and echoed; not applied |
+| ListBucketMetricsConfigurations | stored-only | inferred, 1 of 2 claims | the metrics configuration is stored and echoed; not applied |
+| PutBucketAccelerateConfiguration | stored-only | inferred, 1 of 2 claims | the transfer acceleration status is stored and echoed; not applied |
+| PutBucketAcl | stored-only | inferred, 1 of 2 claims | the access control list is stored and echoed; not applied |
+| PutBucketAnalyticsConfiguration | stored-only | inferred, 1 of 3 claims | the analytics configuration is stored and echoed; not applied |
+| PutBucketCors | stored-only | inferred, 1 of 2 claims | the CORS configuration is stored and echoed; not applied |
+| PutBucketEncryption | stored-only | inferred, 1 of 2 claims | the default encryption rule is stored and echoed; not applied |
+| PutBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 3 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
+| PutBucketInventoryConfiguration | stored-only | inferred, 1 of 3 claims | the inventory configuration is stored and echoed; not applied |
+| PutBucketLifecycleConfiguration | stored-only | inferred, 1 of 4 claims | the lifecycle rules are stored and echoed; not applied |
+| PutBucketLogging | stored-only | inferred, 1 of 2 claims | the logging configuration is stored and echoed; not applied |
+| PutBucketMetricsConfiguration | stored-only | inferred, 1 of 3 claims | the metrics configuration is stored and echoed; not applied |
+| PutBucketPolicy | stored-only | inferred, 1 of 3 claims | the policy is stored and echoed; not applied |
+| PutBucketReplication | stored-only | inferred, 1 of 2 claims | the replication configuration is stored and echoed; not applied |
+| PutBucketRequestPayment | stored-only | inferred, 1 of 2 claims | the payer is stored and echoed; not applied |
+| PutBucketWebsite | stored-only | inferred, 1 of 2 claims | the website configuration is stored and echoed; not applied |
+| PutObjectLockConfiguration | stored-only | inferred, 1 of 2 claims | the Object Lock configuration is stored and echoed; not applied |
+| PutPublicAccessBlock | stored-only | inferred, 1 of 2 claims | the public access block is stored and echoed; not applied |
+| AbortMultipartUpload | partial | inferred, 1 of 2 claims | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
+| CompleteMultipartUpload | partial | inferred, 1 of 2 claims | no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
+| CopyObject | partial | inferred, 1 of 3 claims | no SSE-C; Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error |
+| CreateMultipartUpload | partial | inferred, 1 of 2 claims | no SSE-C; Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; no lifecycle abort date |
+| DeleteBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
+| DeleteObject | partial | inferred, 1 of 2 claims | no MFA delete or Object Lock retention |
+| DeleteObjects | partial | inferred, 1 of 2 claims | no MFA delete or Object Lock retention |
+| GetBucketOwnershipControls | partial | inferred, 1 of 3 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
+| GetObject | partial | inferred, 1 of 2 claims | no SSE-C, so SSE-C headers are refused; presigned URLs are verified and expire on the emulator clock under sigv4 verify |
+| GetObjectAttributes | partial | inferred, 1 of 2 claims | no SSE-C, so SSE-C headers are refused |
+| HeadObject | partial | inferred, 1 of 3 claims | no SSE-C, so SSE-C headers are refused; presigned URLs are verified and expire on the emulator clock under sigv4 verify |
+| ListBuckets | partial | third-party-recorded, 1 of 1 claim | general purpose buckets only; no directory buckets |
+| ListObjectVersions | partial | inferred, 1 of 3 claims | no RestoreStatus |
+| ListObjects | partial | inferred, 1 of 3 claims | no RestoreStatus |
+| ListObjectsV2 | partial | inferred, 1 of 3 claims | no RestoreStatus |
+| PutBucketNotificationConfiguration | partial | inferred, 1 of 2 claims | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions |
+| PutBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
+| PutBucketVersioning | partial | inferred, 1 of 2 claims | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
+| PutObject | partial | inferred, 1 of 2 claims | no SSE-C; Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify |
+| UploadPart | partial | inferred, 1 of 2 claims | no SSE-C; chunk signatures are verified under sigv4 verify |
+| UploadPartCopy | partial | inferred, 2 of 3 claims | no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
+| CreateBucketMetadataConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
+| CreateBucketMetadataTableConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
+| CreateSession | unbound | third-party-recorded, 1 of 1 claim |  |
+| DeleteBucketMetadataConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
+| DeleteBucketMetadataTableConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
+| DeleteObjectAnnotation | unbound | third-party-recorded, 1 of 1 claim |  |
+| GetBucketAbac | unbound | third-party-recorded, 1 of 1 claim |  |
+| GetBucketMetadataConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
+| GetBucketMetadataTableConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
+| GetBucketPolicyStatus | unbound | third-party-recorded, 1 of 1 claim |  |
+| GetObjectAcl | unbound | third-party-recorded, 1 of 1 claim |  |
+| GetObjectAnnotation | unbound | third-party-recorded, 1 of 1 claim |  |
+| GetObjectLegalHold | unbound | third-party-recorded, 1 of 1 claim |  |
+| GetObjectRetention | unbound | third-party-recorded, 1 of 1 claim |  |
+| GetObjectTorrent | unbound | third-party-recorded, 1 of 1 claim |  |
+| ListDirectoryBuckets | unbound | third-party-recorded, 1 of 1 claim |  |
+| ListObjectAnnotations | unbound | third-party-recorded, 1 of 1 claim |  |
+| PutBucketAbac | unbound | third-party-recorded, 1 of 1 claim |  |
+| PutObjectAcl | unbound | third-party-recorded, 1 of 1 claim |  |
+| PutObjectAnnotation | unbound | third-party-recorded, 1 of 1 claim |  |
+| PutObjectLegalHold | unbound | third-party-recorded, 1 of 1 claim |  |
+| PutObjectRetention | unbound | third-party-recorded, 1 of 1 claim |  |
+| RenameObject | unbound | third-party-recorded, 1 of 1 claim |  |
+| RestoreObject | unbound | third-party-recorded, 1 of 1 claim |  |
+| SelectObjectContent | unbound | third-party-recorded, 1 of 1 claim |  |
+| UpdateBucketMetadataAnnotationTableConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
+| UpdateBucketMetadataInventoryTableConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
+| UpdateBucketMetadataJournalTableConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
+| UpdateObjectEncryption | unbound | third-party-recorded, 1 of 1 claim |  |
+| WriteGetObjectResponse | unbound | third-party-recorded, 1 of 1 claim |  |
 
 Raw operations:
 
-| Operation | Status | Note |
-|---|---|---|
-| ListTagsForResource | full |  |
-| TagResource | full |  |
-| UntagResource | full |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| ListTagsForResource | full | inferred, 1 of 1 claim |  |
+| TagResource | full | inferred, 1 of 2 claims |  |
+| UntagResource | full | inferred, 1 of 1 claim |  |
 
 ### secretsmanager
 
-| Operation | Status | Note |
-|---|---|---|
-| DeleteResourcePolicy | full |  |
-| DeleteSecret | full |  |
-| DescribeSecret | full |  |
-| GetResourcePolicy | full |  |
-| GetSecretValue | full |  |
-| ListSecretVersionIds | full |  |
-| ListSecrets | full |  |
-| RestoreSecret | full |  |
-| TagResource | full |  |
-| UntagResource | full |  |
-| UpdateSecret | full |  |
-| UpdateSecretVersionStage | full |  |
-| PutResourcePolicy | stored-only | the policy is parsed and stored verbatim, not enforced; BlockPublicPolicy is not evaluated |
-| CreateSecret | partial | AddReplicaRegions (replication) answers NotImplemented |
-| PutSecretValue | partial | RotationToken is accepted and ignored: rotation is not implemented |
-| BatchGetSecretValue | unbound |  |
-| CancelRotateSecret | unbound |  |
-| GetRandomPassword | unbound |  |
-| RemoveRegionsFromReplication | unbound |  |
-| ReplicateSecretToRegions | unbound |  |
-| RotateSecret | unbound |  |
-| StopReplicationToReplica | unbound |  |
-| ValidateResourcePolicy | unbound |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| DeleteResourcePolicy | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteSecret | full | third-party-recorded, 2 of 2 claims |  |
+| DescribeSecret | full | aws-doc, 1 of 3 claims |  |
+| GetResourcePolicy | full | third-party-recorded, 2 of 2 claims |  |
+| GetSecretValue | full | aws-doc, 1 of 3 claims |  |
+| ListSecretVersionIds | full | aws-doc, 1 of 3 claims |  |
+| ListSecrets | full | inferred, 2 of 5 claims |  |
+| RestoreSecret | full | inferred, 1 of 3 claims |  |
+| TagResource | full | third-party-recorded, 2 of 2 claims |  |
+| UntagResource | full | third-party-recorded, 2 of 2 claims |  |
+| UpdateSecret | full | third-party-recorded, 2 of 2 claims |  |
+| UpdateSecretVersionStage | full | third-party-recorded, 2 of 2 claims |  |
+| PutResourcePolicy | stored-only | third-party-recorded, 2 of 2 claims | the policy is parsed and stored verbatim, not enforced; BlockPublicPolicy is not evaluated |
+| CreateSecret | partial | third-party-recorded, 2 of 2 claims | AddReplicaRegions (replication) answers NotImplemented |
+| PutSecretValue | partial | third-party-recorded, 2 of 2 claims | RotationToken is accepted and ignored: rotation is not implemented |
+| BatchGetSecretValue | unbound | third-party-recorded, 2 of 2 claims |  |
+| CancelRotateSecret | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetRandomPassword | unbound | third-party-recorded, 2 of 2 claims |  |
+| RemoveRegionsFromReplication | unbound | third-party-recorded, 2 of 2 claims |  |
+| ReplicateSecretToRegions | unbound | third-party-recorded, 2 of 2 claims |  |
+| RotateSecret | unbound | third-party-recorded, 2 of 2 claims |  |
+| StopReplicationToReplica | unbound | third-party-recorded, 2 of 2 claims |  |
+| ValidateResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
 
 ### sns
 
-| Operation | Status | Note |
-|---|---|---|
-| ConfirmSubscription | full |  |
-| CreateTopic | full |  |
-| DeleteTopic | full |  |
-| GetSubscriptionAttributes | full |  |
-| GetTopicAttributes | full |  |
-| ListSubscriptions | full |  |
-| ListSubscriptionsByTopic | full |  |
-| ListTagsForResource | full |  |
-| ListTopics | full |  |
-| TagResource | full |  |
-| Unsubscribe | full |  |
-| UntagResource | full |  |
-| AddPermission | stored-only | statements are stored in the topic Policy; not enforced |
-| RemovePermission | stored-only | statements are stored in the topic Policy; not enforced |
-| Publish | partial | fan-out to sqs and lambda subscriptions after their filter policies, with raw or enveloped delivery and the RedrivePolicy dead-letter queue; http, https, email and email-json subscriptions receive nothing |
-| PublishBatch | partial | fan-out to sqs and lambda subscriptions after their filter policies, with raw or enveloped delivery and the RedrivePolicy dead-letter queue; http, https, email and email-json subscriptions receive nothing |
-| SetSubscriptionAttributes | partial | DeliveryPolicy is stored and echoed but not applied: http and https endpoints receive nothing; the quota of 10,000 filter policies per account is not enforced |
-| SetTopicAttributes | partial | Policy, DeliveryPolicy, KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never enforced |
-| Subscribe | partial | sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; http, https, email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced |
-| CheckIfPhoneNumberIsOptedOut | unbound |  |
-| CreatePlatformApplication | unbound |  |
-| CreatePlatformEndpoint | unbound |  |
-| CreateSMSSandboxPhoneNumber | unbound |  |
-| DeleteEndpoint | unbound |  |
-| DeletePlatformApplication | unbound |  |
-| DeleteSMSSandboxPhoneNumber | unbound |  |
-| GetDataProtectionPolicy | unbound |  |
-| GetEndpointAttributes | unbound |  |
-| GetPlatformApplicationAttributes | unbound |  |
-| GetSMSAttributes | unbound |  |
-| GetSMSSandboxAccountStatus | unbound |  |
-| ListEndpointsByPlatformApplication | unbound |  |
-| ListOriginationNumbers | unbound |  |
-| ListPhoneNumbersOptedOut | unbound |  |
-| ListPlatformApplications | unbound |  |
-| ListSMSSandboxPhoneNumbers | unbound |  |
-| OptInPhoneNumber | unbound |  |
-| PutDataProtectionPolicy | unbound |  |
-| SetEndpointAttributes | unbound |  |
-| SetPlatformApplicationAttributes | unbound |  |
-| SetSMSAttributes | unbound |  |
-| VerifySMSSandboxPhoneNumber | unbound |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| ConfirmSubscription | full | third-party-recorded, 2 of 2 claims |  |
+| CreateTopic | full | third-party-recorded, 2 of 2 claims |  |
+| DeleteTopic | full | inferred, 1 of 3 claims |  |
+| GetSubscriptionAttributes | full | inferred, 1 of 3 claims |  |
+| GetTopicAttributes | full | third-party-recorded, 2 of 2 claims |  |
+| ListSubscriptions | full | inferred, 1 of 3 claims |  |
+| ListSubscriptionsByTopic | full | inferred, 1 of 3 claims |  |
+| ListTagsForResource | full | third-party-recorded, 2 of 2 claims |  |
+| ListTopics | full | third-party-recorded, 2 of 2 claims |  |
+| TagResource | full | third-party-recorded, 2 of 2 claims |  |
+| Unsubscribe | full | inferred, 1 of 3 claims |  |
+| UntagResource | full | third-party-recorded, 2 of 2 claims |  |
+| AddPermission | stored-only | third-party-recorded, 2 of 2 claims | statements are stored in the topic Policy; not enforced |
+| RemovePermission | stored-only | third-party-recorded, 2 of 2 claims | statements are stored in the topic Policy; not enforced |
+| Publish | partial | inferred, 10 of 12 claims | fan-out to sqs and lambda subscriptions after their filter policies, with raw or enveloped delivery and the RedrivePolicy dead-letter queue; http, https, email and email-json subscriptions receive nothing |
+| PublishBatch | partial | inferred, 10 of 12 claims | fan-out to sqs and lambda subscriptions after their filter policies, with raw or enveloped delivery and the RedrivePolicy dead-letter queue; http, https, email and email-json subscriptions receive nothing |
+| SetSubscriptionAttributes | partial | inferred, 9 of 11 claims | DeliveryPolicy is stored and echoed but not applied: http and https endpoints receive nothing; the quota of 10,000 filter policies per account is not enforced |
+| SetTopicAttributes | partial | third-party-recorded, 2 of 2 claims | Policy, DeliveryPolicy, KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never enforced |
+| Subscribe | partial | inferred, 9 of 11 claims | sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; http, https, email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced |
+| CheckIfPhoneNumberIsOptedOut | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreatePlatformApplication | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreatePlatformEndpoint | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateSMSSandboxPhoneNumber | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteEndpoint | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeletePlatformApplication | unbound | third-party-recorded, 2 of 2 claims |  |
+| DeleteSMSSandboxPhoneNumber | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetDataProtectionPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetEndpointAttributes | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetPlatformApplicationAttributes | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetSMSAttributes | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetSMSSandboxAccountStatus | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListEndpointsByPlatformApplication | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListOriginationNumbers | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListPhoneNumbersOptedOut | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListPlatformApplications | unbound | third-party-recorded, 2 of 2 claims |  |
+| ListSMSSandboxPhoneNumbers | unbound | third-party-recorded, 2 of 2 claims |  |
+| OptInPhoneNumber | unbound | third-party-recorded, 2 of 2 claims |  |
+| PutDataProtectionPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| SetEndpointAttributes | unbound | third-party-recorded, 2 of 2 claims |  |
+| SetPlatformApplicationAttributes | unbound | third-party-recorded, 2 of 2 claims |  |
+| SetSMSAttributes | unbound | third-party-recorded, 2 of 2 claims |  |
+| VerifySMSSandboxPhoneNumber | unbound | third-party-recorded, 2 of 2 claims |  |
 
 Raw operations:
 
-| Operation | Status | Note |
-|---|---|---|
-| ConfirmSubscriptionLink | full |  |
-| SigningCert | full |  |
-| UnsubscribeLink | full |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| ConfirmSubscriptionLink | full | unassessed |  |
+| SigningCert | full | unassessed |  |
+| UnsubscribeLink | full | unassessed |  |
 
 ### sqs
 
-| Operation | Status | Note |
-|---|---|---|
-| CancelMessageMoveTask | full |  |
-| ChangeMessageVisibility | full |  |
-| ChangeMessageVisibilityBatch | full |  |
-| CreateQueue | full |  |
-| DeleteMessage | full |  |
-| DeleteMessageBatch | full |  |
-| DeleteQueue | full |  |
-| GetQueueAttributes | full |  |
-| GetQueueUrl | full |  |
-| ListDeadLetterSourceQueues | full |  |
-| ListMessageMoveTasks | full |  |
-| ListQueueTags | full |  |
-| ListQueues | full |  |
-| PurgeQueue | full |  |
-| ReceiveMessage | full |  |
-| SendMessage | full |  |
-| SendMessageBatch | full |  |
-| SetQueueAttributes | full |  |
-| StartMessageMoveTask | full |  |
-| TagQueue | full |  |
-| UntagQueue | full |  |
-| AddPermission | stored-only | statements are stored in the queue's Policy attribute and not enforced |
-| RemovePermission | stored-only | statements are stored in the queue's Policy attribute and not enforced |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| CancelMessageMoveTask | full | third-party-recorded, 2 of 2 claims |  |
+| ChangeMessageVisibility | full | contradicted (sqs/R01/05-cmv-stale.json), 3 of 9 claims |  |
+| ChangeMessageVisibilityBatch | full | contradicted (sqs/R01/06-cmv-batch.json), 1 of 7 claims |  |
+| CreateQueue | full | inferred, 2 of 6 claims |  |
+| DeleteMessage | full | contradicted (sqs/R01/03-recv-after-6s.json), 3 of 13 claims |  |
+| DeleteMessageBatch | full | contradicted (sqs/R01/03-recv-after-6s.json), 2 of 6 claims |  |
+| DeleteQueue | full | third-party-recorded, 3 of 3 claims |  |
+| GetQueueAttributes | full | third-party-recorded, 3 of 3 claims |  |
+| GetQueueUrl | full | third-party-recorded, 3 of 3 claims |  |
+| ListDeadLetterSourceQueues | full | third-party-recorded, 3 of 3 claims |  |
+| ListMessageMoveTasks | full | third-party-recorded, 2 of 2 claims |  |
+| ListQueueTags | full | third-party-recorded, 3 of 3 claims |  |
+| ListQueues | full | third-party-recorded, 2 of 2 claims |  |
+| PurgeQueue | full | third-party-recorded, 3 of 3 claims |  |
+| ReceiveMessage | full | contradicted (sqs/R01/02-recv1.json), 17 of 28 claims |  |
+| SendMessage | full | inferred, 4 of 17 claims |  |
+| SendMessageBatch | full | inferred, 4 of 7 claims |  |
+| SetQueueAttributes | full | aws-doc, 1 of 4 claims |  |
+| StartMessageMoveTask | full | aws-doc, 1 of 3 claims |  |
+| TagQueue | full | third-party-recorded, 3 of 3 claims |  |
+| UntagQueue | full | third-party-recorded, 3 of 3 claims |  |
+| AddPermission | stored-only | aws-doc, 1 of 4 claims | statements are stored in the queue's Policy attribute and not enforced |
+| RemovePermission | stored-only | third-party-recorded, 3 of 3 claims | statements are stored in the queue's Policy attribute and not enforced |
 
 Internal operations:
 
-| Operation | Status | Note |
-|---|---|---|
-| HoldVisibility | full |  |
-| MessageCauses | full |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| HoldVisibility | full | inferred, 2 of 5 claims |  |
+| MessageCauses | full | inferred, 3 of 6 claims |  |
 
 ### sts
 
-| Operation | Status | Note |
-|---|---|---|
-| GetCallerIdentity | full |  |
-| AssumeRole | partial | the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012) |
-| GetSessionToken | partial | MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused only under sigv4 verify |
-| AssumeRoleWithSAML | unbound |  |
-| AssumeRoleWithWebIdentity | unbound |  |
-| AssumeRoot | unbound |  |
-| DecodeAuthorizationMessage | unbound |  |
-| GetAccessKeyInfo | unbound |  |
-| GetDelegatedAccessToken | unbound |  |
-| GetFederationToken | unbound |  |
-| GetWebIdentityToken | unbound |  |
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| GetCallerIdentity | full | third-party-recorded, 2 of 2 claims |  |
+| AssumeRole | partial | contradicted (sts/R15/06-assume-denied.json), 4 of 7 claims | the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012) |
+| GetSessionToken | partial | third-party-recorded, 2 of 2 claims | MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused only under sigv4 verify |
+| AssumeRoleWithSAML | unbound | third-party-recorded, 2 of 2 claims |  |
+| AssumeRoleWithWebIdentity | unbound | third-party-recorded, 2 of 2 claims |  |
+| AssumeRoot | unbound | third-party-recorded, 2 of 2 claims |  |
+| DecodeAuthorizationMessage | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetAccessKeyInfo | unbound | contradicted (sts/R15/06-get-access-key-info-deleted.json), 1 of 3 claims |  |
+| GetDelegatedAccessToken | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetFederationToken | unbound | third-party-recorded, 2 of 2 claims |  |
+| GetWebIdentityToken | unbound | third-party-recorded, 2 of 2 claims |  |
 
 ## Evidence
 
 ### Fidelity switches
 
-Behaviors chosen without AWS-recorded evidence, with the research they rest on and the record-backlog item that settles them.
+Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
 66 switches: 14 aws-doc, 52 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
-| `cloudwatch.get-metric-data.start-rounding` | `by-age` | aws-doc | docs/research/secrets-logs-events-alarms.md#53-getmetricdata |  |
-| `iam.assumeRole` | `strict` | aws-doc | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions |  |
-| `kms.pending-deletion.crypto-error` | `KMSInvalidStateException` | aws-doc | docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix |  |
-| `lambda.stateTransitions` | `final` | aws-doc | docs/ARCHITECTURE.md#9-the-clock |  |
-| `logs.delivery.retention-days` | `2` | aws-doc | https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html |  |
-| `logs.retention.expiry` | `at-expiry` | aws-doc | docs/research/secrets-logs-events-alarms.md#32-retention |  |
-| `s3.create-bucket.public-acl` | `InvalidBucketAclWithObjectOwnership` | aws-doc | docs/research/s3.md#32-createbucket |  |
-| `s3.encryption.after-delete` | `default-sse-s3` | aws-doc | docs/research/s3.md#41-state-of-a-freshly-created-bucket-and-what-unset-means |  |
-| `s3.lifecycle.rule-limits` | `InvalidArgument` | aws-doc | https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html |  |
-| `s3.tagging.limits` | `InvalidTag` | aws-doc | docs/research/s3.md#429-bucket-tagging |  |
-| `secretsmanager.last-accessed-date.granularity` | `day` | aws-doc | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts |  |
-| `sqs.move-task.message-identity` | `new-message` | aws-doc | docs/research/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask |  |
-| `sqs.policy.limits` | `bytes-and-statements` | aws-doc | docs/research/sqs.md#4-queue-attributes |  |
-| `sqs.receipt.stale-handle` | `succeed-without-delete` | aws-doc | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility |  |
-| `cloudwatch.put-metric-data.timestamp-window` | `wall-or-emulator` | inferred | docs/research/secrets-logs-events-alarms.md#52-putmetricdata |  |
-| `events.input-path.unmatched` | `not-delivered` | inferred | docs/research/secrets-logs-events-alarms.md#45-targets |  |
-| `events.pattern.bare-number` | `numeric-or-text` | inferred | docs/research/matching-engines.md#10 |  |
-| `events.pattern.empty-input` | `matchable` | inferred | docs/research/matching-engines.md#10 | matching-engines.md H1 |
-| `events.pattern.exactly-operator` | `rejected` | inferred | docs/research/matching-engines.md#5.1 | matching-engines.md H14 |
-| `events.pattern.exists-true-empty-value` | `any-value` | inferred | docs/research/matching-engines.md#10 |  |
-| `events.pattern.malformed-or` | `rejected` | inferred | docs/research/matching-engines.md#10 | matching-engines.md H10 |
-| `events.pattern.or-combination-counting` | `product-including-nested` | inferred | docs/research/matching-engines.md#8 | matching-engines.md H12 |
-| `events.pattern.or-shared-values` | `documented` | inferred | docs/research/matching-engines.md#8 | matching-engines.md H14 |
-| `events.pattern.wildcard-complexity-cap` | `11` | inferred | docs/research/matching-engines.md#8 | matching-engines.md H11 |
-| `events.put-events.detail-integer-range` | `MalformedDetail` | inferred | https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html |  |
-| `events.schedule.restart` | `on-schedule-change-or-enable` | inferred | docs/research/secrets-logs-events-alarms.md#42-schedule-expressions-rate-and-cron |  |
-| `kms.cross-account.management-error` | `NotFoundException` | inferred | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyPolicy.html |  |
-| `lambda.esm-filter.bare-number` | `numeric-or-text` | inferred | docs/research/matching-engines.md#10 | matching-engines.md H7 |
-| `lambda.esm-filter.empty-input` | `matchable` | inferred | docs/research/matching-engines.md#10 |  |
-| `lambda.esm-filter.exactly-operator` | `rejected` | inferred | docs/research/matching-engines.md#5.1 | matching-engines.md H13 |
-| `lambda.esm-filter.exists-true-empty-value` | `any-value` | inferred | docs/research/matching-engines.md#10 | matching-engines.md H2 |
-| `lambda.esm-filter.malformed-or` | `rejected` | inferred | docs/research/matching-engines.md#10 | matching-engines.md H10 |
-| `lambda.esm-filter.operator-allow-list` | `documented-table` | inferred | docs/research/matching-engines.md#8 | matching-engines.md H13 |
-| `logs.filter.delimited-field-count` | `last-absorbs` | inferred | docs/research/logs-filter-patterns.md#3 | R10/C6 |
-| `logs.filter.term-boundary` | `substring` | inferred | docs/research/logs-filter-patterns.md#5 | R10/C1 |
-| `s3.bucket.cross-account` | `served` | inferred | UNVERIFIED: no research note or recording shows AWS's answer to a bucket request from an account that does not own the bucket |  |
-| `secretsmanager.list-secrets.all-filter-match` | `any-word,word-prefix` | inferred | https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html |  |
-| `secretsmanager.list-secrets.filter-combination` | `and-across-filters,or-across-values` | inferred | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts |  |
-| `secretsmanager.restore.not-scheduled` | `no-op` | inferred | docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven |  |
-| `sns.delete-topic.detached-retention` | `48h0m0s` | inferred | docs/research/sns.md#22-topic-attributes |  |
-| `sns.fifo.duplicate` | `fresh-message-id-no-delivery` | inferred | docs/research/sns.md#43-fifo-publish |  |
-| `sns.fifo.sequence-number` | `20-digit-decimal-per-topic` | inferred | docs/research/sns.md#43-fifo-publish |  |
-| `sns.filter-policy.anything-but-arrays` | `any-element` | inferred | docs/research/matching-engines.md#4.3 | R09/8 (matching-engines.md H4) |
-| `sns.filter-policy.anything-but-list-forms` | `accepted` | inferred | docs/research/matching-engines.md#5.1 | matching-engines.md H7 |
-| `sns.filter-policy.anything-but-suffix` | `accepted` | inferred | docs/research/matching-engines.md#8 | R09/7 (matching-engines.md H7) |
-| `sns.filter-policy.array-consistency` | `enforced` | inferred | docs/research/matching-engines.md#4.3 | R09/14 |
-| `sns.filter-policy.bare-number` | `numeric-or-text` | inferred | docs/research/matching-engines.md#10 | R09/1 (matching-engines.md H6) |
-| `sns.filter-policy.empty-input` | `matchable` | inferred | docs/research/matching-engines.md#10 | R09/6 (matching-engines.md H1) |
-| `sns.filter-policy.exactly-operator` | `rejected` | inferred | docs/research/matching-engines.md#5.1 | matching-engines.md H7 |
-| `sns.filter-policy.exists-true-empty-value` | `any-value` | inferred | docs/research/matching-engines.md#10 | matching-engines.md H2 |
-| `sns.filter-policy.ignore-case-forms` | `rejected` | inferred | docs/research/matching-engines.md#8 | matching-engines.md H7 |
-| `sns.filter-policy.key-counting` | `leaf-keys-per-branch` | inferred | docs/research/matching-engines.md#8 | R09/11, R09/12 (matching-engines.md H3) |
-| `sns.filter-policy.limit-order` | `nesting-keys-combinations-wildcards` | inferred | docs/research/sns.md#6 | R09/13 |
-| `sns.filter-policy.malformed-or` | `rejected` | inferred | docs/research/matching-engines.md#10 | matching-engines.md H10 |
-| `sns.filter-policy.number-attribute-type` | `json-number` | inferred | docs/research/matching-engines.md#5.4 | R09/19 (matching-engines.md H6) |
-| `sns.filter-policy.numeric-range` | `binary64` | inferred | docs/research/matching-engines.md#5.2 | R09/15 (matching-engines.md H5) |
-| `sns.filter-policy.wildcard-points` | `3-per-star` | inferred | docs/research/matching-engines.md#8 | matching-engines.md H11 |
-| `sns.lambda.attribute-type` | `as-published` | inferred | docs/research/sns.md#9-conflicts-between-sources |  |
-| `sns.listing.pending-arn` | `PendingConfirmation` | inferred | docs/research/sns.md#34-listing |  |
-| `sqs.batch.unset-visibility-timeout` | `zero` | inferred | docs/research/sqs.md#62-sendmessagebatch-and-the-other-batch-apis |  |
-| `sqs.fifo.content-dedup-id` | `lowercase-hex-sha256` | inferred | docs/research/sqs.md#82-deduplication |  |
-| `sqs.fifo.duplicate` | `original-message-id-and-sequence` | inferred | docs/research/sqs.md#82-deduplication |  |
-| `sqs.fifo.receipt-expiry` | `delete-and-change-visibility` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility |  |
-| `sqs.fifo.sequence-number` | `20-digit-decimal-per-queue` | inferred | docs/research/sqs.md#3-identifiers-and-formats |  |
-| `sqs.queueDeletedRecently` | `ignore` | inferred | docs/ARCHITECTURE.md#9-the-clock |  |
-| `sqs.visibility.ceiling-from` | `latest-receive` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility |  |
+| `cloudwatch.get-metric-data.start-rounding` | `by-age` | aws-doc | docs/research/secrets-logs-events-alarms.md#53-getmetricdata | none: unrecorded: no recording shows GetMetricData's period boundaries |
+| `iam.assumeRole` | `strict` | aws-doc | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions | none: the switch decides AssumeRole of a role IAM does not hold, which no recording asks; sts/R15#06-assume-denied names a role that exists, refused by its trust policy |
+| `kms.pending-deletion.crypto-error` | `KMSInvalidStateException` | aws-doc | docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix | none: kms/R15/02-pending-encrypt.json and the other 02-pending steps are recorded; no scenario replays kms/R15 yet |
+| `lambda.stateTransitions` | `final` | aws-doc | docs/ARCHITECTURE.md#9-the-clock | none: a deliberate default (ARCHITECTURE.md 9), which a recording of AWS's transient states does not change |
+| `logs.delivery.retention-days` | `2` | aws-doc | https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html | none: unrecorded: no recording creates a DELIVERY-class log group |
+| `logs.retention.expiry` | `at-expiry` | aws-doc | docs/research/secrets-logs-events-alarms.md#32-retention | none: AWS deletes expired events lazily, typically within 72 hours, so no recording pins the instant |
+| `s3.create-bucket.public-acl` | `InvalidBucketAclWithObjectOwnership` | aws-doc | docs/research/s3.md#32-createbucket | none: unrecorded: no recording creates a bucket with a public canned ACL under BucketOwnerEnforced |
+| `s3.encryption.after-delete` | `default-sse-s3` | aws-doc | docs/research/s3.md#41-state-of-a-freshly-created-bucket-and-what-unset-means | none: s3/R06/02-get-encryption-after-delete.json is recorded; the replayer skips S3's REST requests |
+| `s3.lifecycle.rule-limits` | `InvalidArgument` | aws-doc | https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html | none: s3/R12/12-lifecycle-transition-7-standard-ia.json, the other 12-lifecycle steps and 15-lifecycle-glacier-then-onezone-ia.json are recorded; the replayer skips S3's REST requests |
+| `s3.tagging.limits` | `InvalidTag` | aws-doc | docs/research/s3.md#429-bucket-tagging | none: unrecorded: no recording exceeds a bucket tag limit |
+| `secretsmanager.last-accessed-date.granularity` | `day` | aws-doc | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording reads a LastAccessedDate |
+| `sqs.move-task.message-identity` | `new-message` | aws-doc | docs/research/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask | none: sqs/R02/std-06-recv-src.json and fifo-06-recv-src.json are recorded; no scenario replays sqs/R02 yet |
+| `sqs.policy.limits` | `bytes-and-statements` | aws-doc | docs/research/sqs.md#4-queue-attributes | none: unrecorded: no recording exceeds a Policy limit |
+| `sqs.receipt.stale-handle` | `succeed-without-delete` | contradicted (sqs/R01/03-recv-after-6s.json) | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | sqs/R01#03-recv-after-6s |
+| `cloudwatch.put-metric-data.timestamp-window` | `wall-or-emulator` | inferred | docs/research/secrets-logs-events-alarms.md#52-putmetricdata | none: AWS has one clock: which of understudy's two the windows read is understudy's choice, which no recording settles |
+| `events.input-path.unmatched` | `not-delivered` | inferred | docs/research/secrets-logs-events-alarms.md#45-targets | none: unrecorded: no recording delivers to a target whose InputPath selects nothing |
+| `events.pattern.bare-number` | `numeric-or-text` | inferred | docs/research/matching-engines.md#10 | none: events/R14's H8 steps do not decide it: both values answer false for a string |
+| `events.pattern.empty-input` | `matchable` | aws-recorded (events/R14/H1-01.json) | docs/research/matching-engines.md#10 | events/R14#H1-01 |
+| `events.pattern.exactly-operator` | `rejected` | contradicted (events/R14/H14-01.json) | docs/research/matching-engines.md#5.1 | events/R14#H14-01 |
+| `events.pattern.exists-true-empty-value` | `any-value` | inferred | docs/research/matching-engines.md#10 | none: unrecorded for EventBridge: matching-engines.md H2 was recorded for SNS and Lambda only |
+| `events.pattern.malformed-or` | `rejected` | inferred | docs/research/matching-engines.md#10 | none: recorded in events/R14 (H10-01 to H10-06); the events/R14 scenario does not replay those steps yet |
+| `events.pattern.or-combination-counting` | `product-including-nested` | inferred | docs/research/matching-engines.md#8 | none: recorded in events/R14 (H12-01-10x10x10, H12-02-7x11x13, H12-03-nested); the events/R14 scenario does not replay those steps yet |
+| `events.pattern.or-shared-values` | `documented` | contradicted (events/R14/H14-02.json) | docs/research/matching-engines.md#8 | events/R14#H14-02 |
+| `events.pattern.wildcard-complexity-cap` | `11` | inferred | docs/research/matching-engines.md#8 | none: recorded in events/R14 (H11-01 to H11-03); the events/R14 scenario does not replay those steps yet |
+| `events.put-events.detail-integer-range` | `MalformedDetail` | inferred | https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html | none: unrecorded: no recording sends a Detail integer outside the signed 64-bit range |
+| `events.schedule.restart` | `on-schedule-change-or-enable` | inferred | docs/research/secrets-logs-events-alarms.md#42-schedule-expressions-rate-and-cron | none: events/R14 records the EnableRule half only, as arrival times (02-enable.time, 02-arrivals-after-enable.jsonl) a scenario does not replay; a PutRule schedule change is unrecorded |
+| `kms.cross-account.management-error` | `NotFoundException` | inferred | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyPolicy.html | none: unrecorded: no recording names another account's key |
+| `lambda.esm-filter.bare-number` | `numeric-or-text` | inferred | docs/research/matching-engines.md#10 | none: recorded in lambda/R03 (H7a-01-create, H7a-02-create); the replayer skips REST and Docker steps |
+| `lambda.esm-filter.empty-input` | `matchable` | inferred | docs/research/matching-engines.md#10 | none: unrecorded for Lambda: matching-engines.md H1 covers SNS and EventBridge only |
+| `lambda.esm-filter.exactly-operator` | `rejected` | inferred | docs/research/matching-engines.md#5.1 | none: recorded in lambda/R03 (H13-11-create); the replayer skips REST and Docker steps |
+| `lambda.esm-filter.exists-true-empty-value` | `any-value` | inferred | docs/research/matching-engines.md#10 | none: recorded in lambda/R03 (H2-01-create); the replayer skips REST and Docker steps |
+| `lambda.esm-filter.malformed-or` | `rejected` | inferred | docs/research/matching-engines.md#10 | none: recorded in lambda/R03 (H10-01-create to H10-06-create); the replayer skips REST and Docker steps |
+| `lambda.esm-filter.operator-allow-list` | `documented-table` | inferred | docs/research/matching-engines.md#8 | none: recorded in lambda/R03 (H13-01-create to H13-15-create); the replayer skips REST and Docker steps |
+| `logs.filter.delimited-field-count` | `last-absorbs` | inferred | docs/research/logs-filter-patterns.md#3 | none: logs/R10/03-filter-11.json is recorded; no scenario replays logs/R10 yet |
+| `logs.filter.term-boundary` | `substring` | inferred | docs/research/logs-filter-patterns.md#5 | none: logs/R10/03-filter-01.json is recorded; no scenario replays logs/R10 yet |
+| `s3.bucket.cross-account` | `served` | inferred | UNVERIFIED: no research note or recording shows AWS's answer to a bucket request from an account that does not own the bucket | none: unrecorded: no recording sends a bucket request from an account that does not own the bucket |
+| `secretsmanager.list-secrets.all-filter-match` | `any-word,word-prefix` | inferred | https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html | none: unrecorded: no recording calls ListSecrets |
+| `secretsmanager.list-secrets.filter-combination` | `and-across-filters,or-across-values` | inferred | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording calls ListSecrets |
+| `secretsmanager.restore.not-scheduled` | `no-op` | inferred | docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven | none: secretsmanager/R15/05-restore-live.json is recorded; no scenario replays secretsmanager/R15 yet |
+| `sns.delete-topic.detached-retention` | `48h0m0s` | inferred | docs/research/sns.md#22-topic-attributes | none: sns/R16/06-list-subscriptions-after-delete.json shows the subscriptions 5 s after DeleteTopic; how long they stay is unrecorded |
+| `sns.fifo.duplicate` | `fresh-message-id-no-delivery` | inferred | docs/research/sns.md#43-fifo-publish | none: unrecorded: no recording shows what a FIFO publish inside the deduplication window answers |
+| `sns.fifo.sequence-number` | `20-digit-decimal-per-topic` | inferred | docs/research/sns.md#43-fifo-publish | none: sns/R16/04-publish-fifo.json holds one SequenceNumber, which does not show how the numbers count |
+| `sns.filter-policy.anything-but-arrays` | `any-element` | inferred | docs/research/matching-engines.md#4.3 | none: recorded in sns/R09 (T08, H4); no scenario replays sns/R09 yet |
+| `sns.filter-policy.anything-but-list-forms` | `accepted` | inferred | docs/research/matching-engines.md#5.1 | none: sns/R09/H7b-06-subscribe.json records the prefix list only; the suffix and wildcard lists are unrecorded |
+| `sns.filter-policy.anything-but-suffix` | `accepted` | inferred | docs/research/matching-engines.md#8 | none: recorded in sns/R09 (T07-subscribe, H7b-01-subscribe); no scenario replays sns/R09 yet |
+| `sns.filter-policy.array-consistency` | `enforced` | inferred | docs/research/matching-engines.md#4.3 | none: recorded in sns/R09 (T14); no scenario replays sns/R09 yet |
+| `sns.filter-policy.bare-number` | `numeric-or-text` | inferred | docs/research/matching-engines.md#10 | none: recorded in sns/R09 (T01 to T03, H6); no scenario replays sns/R09 yet |
+| `sns.filter-policy.empty-input` | `matchable` | inferred | docs/research/matching-engines.md#10 | none: recorded in sns/R09 (T06, H1-attr, H1-body); no scenario replays sns/R09 yet |
+| `sns.filter-policy.exactly-operator` | `rejected` | inferred | docs/research/matching-engines.md#5.1 | none: recorded in sns/R09 (H7b-07-subscribe); no scenario replays sns/R09 yet |
+| `sns.filter-policy.exists-true-empty-value` | `any-value` | inferred | docs/research/matching-engines.md#10 | none: recorded in sns/R09 (H2-body); no scenario replays sns/R09 yet |
+| `sns.filter-policy.ignore-case-forms` | `rejected` | inferred | docs/research/matching-engines.md#8 | none: recorded in sns/R09 (H7b-03-subscribe to H7b-05-subscribe); no scenario replays sns/R09 yet |
+| `sns.filter-policy.key-counting` | `leaf-keys-per-branch` | inferred | docs/research/matching-engines.md#8 | none: recorded in sns/R09 (T12-subscribe, H3-c-subscribe, H3-d-subscribe); no scenario replays sns/R09 yet |
+| `sns.filter-policy.limit-order` | `nesting-keys-combinations-wildcards` | inferred | docs/research/sns.md#6 | none: unrecorded: sns/R09/T13-subscribe.json breaks one limit only, so it shows no check order |
+| `sns.filter-policy.malformed-or` | `rejected` | inferred | docs/research/matching-engines.md#10 | none: recorded in sns/R09 (H10-01-subscribe to H10-06-subscribe); no scenario replays sns/R09 yet |
+| `sns.filter-policy.number-attribute-type` | `json-number` | inferred | docs/research/matching-engines.md#5.4 | none: recorded in sns/R09 (T19a, T19b); no scenario replays sns/R09 yet |
+| `sns.filter-policy.numeric-range` | `binary64` | inferred | docs/research/matching-engines.md#5.2 | none: recorded in sns/R09 (T15, H5); no scenario replays sns/R09 yet |
+| `sns.filter-policy.wildcard-points` | `3-per-star` | inferred | docs/research/matching-engines.md#8 | none: recorded in sns/R09 (H11-10-single-subscribe and the other H11 subscribes); no scenario replays sns/R09 yet |
+| `sns.lambda.attribute-type` | `as-published` | inferred | docs/research/sns.md#9-conflicts-between-sources | none: logs/R16/01-lambda-events.json is recorded; no scenario replays it, as the delivery runs a Lambda function under Docker |
+| `sns.listing.pending-arn` | `PendingConfirmation` | inferred | docs/research/sns.md#34-listing | none: unrecorded: no recording lists a pending subscription |
+| `sqs.batch.unset-visibility-timeout` | `zero` | inferred | docs/research/sqs.md#62-sendmessagebatch-and-the-other-batch-apis | none: unrecorded: sqs/R01#06-cmv-batch sets VisibilityTimeout on every entry |
+| `sqs.fifo.content-dedup-id` | `lowercase-hex-sha256` | inferred | docs/research/sqs.md#82-deduplication | none: sqs/R01#07-fifo-recv1 holds the value, but the step differs on JSON member order, so a claim there would read contradicted for another reason |
+| `sqs.fifo.duplicate` | `original-message-id-and-sequence` | inferred | docs/research/sqs.md#82-deduplication | none: unrecorded: no recording shows what a suppressed FIFO duplicate send answers |
+| `sqs.fifo.receipt-expiry` | `delete-and-change-visibility` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | none: sqs/R01#07-fifo-delete-expired records the DeleteMessage half only; ChangeMessageVisibility on an expired FIFO handle is unrecorded |
+| `sqs.fifo.sequence-number` | `20-digit-decimal-per-queue` | inferred | docs/research/sqs.md#3-identifiers-and-formats | none: sqs/R01#07-fifo-recv1 records the 20-digit form but not how the numbers count |
+| `sqs.queueDeletedRecently` | `ignore` | inferred | docs/ARCHITECTURE.md#9-the-clock | none: a deliberate departure from AWS (ARCHITECTURE.md 9), which a recording does not change |
+| `sqs.visibility.ceiling-from` | `latest-receive` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | none: unrecorded: no recording reaches the 12-hour ceiling |
 
 ### Overlay entries
 
@@ -1395,3 +1397,11 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | sqs.json | `com.amazonaws.sqs#SendMessage` |  | docs/research/sqs.md#13-implications-for-understudy |
 | inferred | sqs.json | `com.amazonaws.sqs#SendMessageBatch` |  | docs/research/sqs.md#13-implications-for-understudy |
 | inferred | sts.json | `com.amazonaws.sts#AccessDenied` |  | docs/research/iam-sts-kms.md#42-assumerole: AssumeRole trust failures use the common AccessDenied code (403, IAM CommonErrors) with text 'User: <caller arn> is not authorized to perform: sts:AssumeRole on resource: <role arn>' (AWS CDK pipelines README) |
+
+### Settled by recording, pending retirement
+
+Switches and overlay evidence items whose recorded step matches AWS and fails once the settled field is changed, while the code still labels them below aws-recorded. Each is ready to retire: fix its label or remove the switch, with a test that cites the fixture (docs/recording-kit.md 6).
+
+| Switch or shape | Code label | Fixture | Field |
+|---|---|---|---|
+| `events.pattern.empty-input` | inferred | events/R14/H1-01.json | body/Result |
