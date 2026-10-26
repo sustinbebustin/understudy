@@ -42,6 +42,26 @@ jobs:
           just-version: "1.58.0"
       - run: just generate-check
 
+  # Rebuilds the web UI with the pinned bun (just ui: the label table from
+  # the Go enumerations, the UI's bun tests, the minified build the binary
+  # embeds) and fails when internal/server/ui/dist or ui/src/labels.gen.ts
+  # differs from what is checked in.
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.2"
+      # The justfile's bun_version; TestBunPinMatchesCI keeps the two equal.
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: "1.4.3"
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: "1.58.0"
+      - run: just ui-check
+
   # Runs the Smithy protocol compliance corpus against the synthetic services
   # and fails when a case recorded in internal/protocoltest/baseline.json
   # regresses, when a passing case is missing from it, or when a failing
