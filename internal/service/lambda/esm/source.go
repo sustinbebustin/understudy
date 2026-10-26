@@ -15,9 +15,11 @@ type SQS struct{}
 func (SQS) isEventSourceKind() {}
 
 // SourceKindOf returns the kind of source an EventSourceArn names: SQS for
-// an sqs ARN, and false for any other service. It is not implemented yet
-// and reports false.
+// an sqs ARN, and false for any other service, whose poller understudy
+// does not have.
 func SourceKindOf(source aws.ARN) (EventSourceKind, bool) {
-	_ = source
+	if source.Service == "sqs" {
+		return SQS{}, true
+	}
 	return nil, false
 }

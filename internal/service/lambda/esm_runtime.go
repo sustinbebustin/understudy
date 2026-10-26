@@ -328,9 +328,22 @@ func (p *pollers) polledMappings() []*poller {
 	return out
 }
 
-// newPoller is the poller of mapping uuid; false when its source is not a
-// queue ARN this emulator can address.
+// newPoller is the poller of mapping uuid, by the kind of its source;
+// false when its source is not one this emulator can address.
 func newPoller(scope aws.Scope, uuid string, m Mapping) (*poller, bool) {
+	switch m.SourceKind.(type) {
+	case esm.SQS:
+		return newQueuePoller(scope, uuid, m)
+	case nil:
+		// createMapping and the state codec give every mapping a kind; one
+		// without has nothing to poll.
+	}
+	return nil, false
+}
+
+// newQueuePoller is the poller of mapping uuid, whose source is an SQS
+// queue; false when the queue ARN is not one this emulator can address.
+func newQueuePoller(scope aws.Scope, uuid string, m Mapping) (*poller, bool) {
 	queue, err := aws.ParseARN(m.Source)
 	if err != nil {
 		return nil, false

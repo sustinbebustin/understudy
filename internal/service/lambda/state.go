@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -450,9 +451,10 @@ type EventInvokeConfig struct {
 	Modified                 clock.Instant `json:"modified"`
 }
 
-// stateCodec is the codec of State: the tagged-union tables of its sums.
-// The tables are static, so an error building them is a bug in them; the
-// codec then fails every section with it.
+// stateCodec is the codec of State: the tagged-union tables of its sums,
+// and on decode the defaults of members an older section lacks. The tables
+// are static, so an error building them is a bug in them; the codec then
+// fails every section with it.
 func stateCodec() store.Codec {
 	c, err := unions()
 	if err != nil {
@@ -461,7 +463,15 @@ func stateCodec() store.Codec {
 			Unmarshal: func([]byte, any) error { return err },
 		}
 	}
-	return store.Codec{Marshal: c.Marshal, Unmarshal: c.Unmarshal}
+	return store.Codec{Marshal: c.Marshal, Unmarshal: func(data []byte, v any) error {
+		if err := c.Unmarshal(data, v); err != nil {
+			return err
+		}
+		if st, ok := v.(*State); ok {
+			st.defaultSourceKinds()
+		}
+		return nil
+	}}
 }
 
 func unions() (jsonx.Codec, error) {
@@ -498,5 +508,24 @@ func unions() (jsonx.Codec, error) {
 	if err != nil {
 		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
 	}
-	return jsonx.NewCodec(code, statuses, updates, scaling), nil
+	sources, err := jsonx.NewUnion("lambda.EventSourceKind",
+		jsonx.Variant[esm.EventSourceKind, esm.SQS]("sqs"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
+	}
+	return jsonx.NewCodec(code, statuses, updates, scaling, sources), nil
+}
+
+// defaultSourceKinds gives SQS to every mapping decoded without a
+// sourceKind: a version 1 section written before the member existed, when
+// SQS was the only kind a mapping could have. A decoded mapping then never
+// has a nil SourceKind.
+func (s *State) defaultSourceKinds() {
+	for uuid := range s.Mappings {
+		if m := s.Mappings[uuid]; m.SourceKind == nil {
+			m.SourceKind = esm.SQS{}
+			s.Mappings[uuid] = m
+		}
+	}
 }

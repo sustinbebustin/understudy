@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/ruler"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 )
 
 // The SQS defaults and limits of an event source mapping
@@ -35,11 +36,14 @@ const maxMappingsPage = 100
 // userInitiated is the StateTransitionReason every mapping reports.
 const userInitiated = "USER_INITIATED"
 
-// Mapping is an SQS event source mapping.
+// Mapping is an event source mapping.
 type Mapping struct {
 	UUID string `json:"uuid"`
-	// Source is the queue's ARN.
+	// Source is the source's ARN: the queue's for SQS.
 	Source string `json:"source"`
+	// SourceKind is the kind of source Source names, never nil; a mapping
+	// stored before it existed loads as SQS (State.defaultSourceKinds).
+	SourceKind esm.EventSourceKind `json:"sourceKind"`
 	// Function is the function's name; Qualifier its version or alias, ""
 	// when the mapping names the function unqualified.
 	Function  string `json:"function"`
@@ -301,28 +305,30 @@ func fromSQS(err *awserr.Error) *awserr.Error {
 	return errSQSFailure(code, err.Message)
 }
 
-// eventSource reads EventSourceArn: an SQS queue's ARN. Another service's
-// source is unimplemented; none is "Unrecognized event source.".
-func eventSource(arn *string) (aws.ARN, *awserr.Error) {
+// eventSource reads EventSourceArn and the kind of source it names: an
+// SQS queue's ARN. Another service's source is unimplemented; none is
+// "Unrecognized event source.".
+func eventSource(arn *string) (aws.ARN, esm.EventSourceKind, *awserr.Error) {
 	if arn == nil {
-		return aws.ARN{}, errUnrecognizedEventSource()
+		return aws.ARN{}, nil, errUnrecognizedEventSource()
 	}
 	a, err := aws.ParseARN(*arn)
 	if err != nil {
-		return aws.ARN{}, errUnrecognizedEventSource()
+		return aws.ARN{}, nil, errUnrecognizedEventSource()
 	}
-	if a.Service != "sqs" {
-		return aws.ARN{}, errEventSourceUnsupported(*arn)
+	kind, ok := esm.SourceKindOf(a)
+	if !ok {
+		return aws.ARN{}, nil, errEventSourceUnsupported(*arn)
 	}
-	return a, nil
+	return a, kind, nil
 }
 
 func (s *Service) createMapping(ctx context.Context, c *kernel.Call, in *lambdaapi.CreateEventSourceMappingInput) (*lambdaapi.EventSourceMappingConfiguration, *awserr.Error) {
-	queue, err := eventSource(in.EventSourceArn)
+	queue, kind, err := eventSource(in.EventSourceArn)
 	if err != nil {
 		return nil, err
 	}
-	m := Mapping{Source: queue.String(), BatchSize: defaultBatchSize, Scaling: Unbounded{}, Enabled: in.Enabled == nil || *in.Enabled, Tags: maps.Clone(in.Tags)}
+	m := Mapping{Source: queue.String(), SourceKind: kind, BatchSize: defaultBatchSize, Scaling: Unbounded{}, Enabled: in.Enabled == nil || *in.Enabled, Tags: maps.Clone(in.Tags)}
 	settings := mappingSettings{
 		batchSize: in.BatchSize, window: in.MaximumBatchingWindowInSeconds, filters: in.FilterCriteria, scaling: in.ScalingConfig,
 		pollers: in.ProvisionedPollerConfig, destinations: in.DestinationConfig, responseTypes: in.FunctionResponseTypes,

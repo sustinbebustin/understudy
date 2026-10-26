@@ -1,0 +1,161 @@
+package lambda
+
+import (
+	"bytes"
+	"encoding/json"
+	"testing"
+
+	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
+)
+
+const kindQueue = "arn:aws:sqs:us-east-1:000000000000:orders"
+
+func kindScope(t *testing.T) aws.Scope {
+	t.Helper()
+	a, err := aws.ParseARN(kindQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope, err := aws.ScopeOf(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return scope
+}
+
+// kindState is a State holding one SQS mapping, as CreateEventSourceMapping
+// stores it.
+func kindState(t *testing.T) State {
+	t.Helper()
+	st := newState(kindScope(t))
+	st.Mappings["u1"] = Mapping{
+		UUID: "u1", Source: kindQueue, SourceKind: esm.SQS{}, Function: "f",
+		BatchSize: defaultBatchSize, Scaling: Unbounded{}, Enabled: true,
+	}
+	return st
+}
+
+// withSourceKind re-encodes the section data with u1's sourceKind member
+// replaced by raw, or removed when raw is nil.
+func withSourceKind(t *testing.T, data []byte, raw json.RawMessage) []byte {
+	t.Helper()
+	var doc map[string]map[string]map[string]json.RawMessage
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("section %s: %v", data, err)
+	}
+	if raw == nil {
+		delete(doc["mappings"]["u1"], "sourceKind")
+	} else {
+		doc["mappings"]["u1"]["sourceKind"] = raw
+	}
+	out, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// A mapping's kind is persisted as the tagged lambda.EventSourceKind union
+// and read back as the same variant.
+func TestMappingSourceKindRoundTrips(t *testing.T) {
+	codec := stateCodec()
+	st := kindState(t)
+	data, err := codec.Marshal(&st)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if !bytes.Contains(data, []byte(`"sourceKind":{"kind":"sqs"}`)) {
+		t.Errorf("section %s does not hold sourceKind {\"kind\":\"sqs\"}", data)
+	}
+	got := newState(kindScope(t))
+	if err := codec.Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal %s: %v", data, err)
+	}
+	if _, ok := got.Mappings["u1"].SourceKind.(esm.SQS); !ok {
+		t.Errorf("SourceKind = %#v, want esm.SQS", got.Mappings["u1"].SourceKind)
+	}
+}
+
+// A section written before the member existed, or holding null, loads its
+// mappings as SQS, the only kind state version 1 stored then; the version
+// stays 1.
+func TestMappingWithoutSourceKindLoadsAsSQS(t *testing.T) {
+	codec := stateCodec()
+	st := kindState(t)
+	data, err := codec.Marshal(&st)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	for name, raw := range map[string]json.RawMessage{"absent": nil, "null": json.RawMessage(`null`)} {
+		t.Run(name, func(t *testing.T) {
+			old := withSourceKind(t, data, raw)
+			got := newState(kindScope(t))
+			if err := codec.Unmarshal(old, &got); err != nil {
+				t.Fatalf("Unmarshal %s: %v", old, err)
+			}
+			if _, ok := got.Mappings["u1"].SourceKind.(esm.SQS); !ok {
+				t.Errorf("SourceKind = %#v from %s, want esm.SQS", got.Mappings["u1"].SourceKind, old)
+			}
+		})
+	}
+	if stateVersion != 1 {
+		t.Errorf("stateVersion = %d, want 1: the member is additive", stateVersion)
+	}
+}
+
+// A section naming a kind this build does not know is refused rather than
+// loaded as a mapping that would never poll.
+func TestMappingUnknownSourceKindIsRefused(t *testing.T) {
+	codec := stateCodec()
+	st := kindState(t)
+	data, err := codec.Marshal(&st)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	future := withSourceKind(t, data, json.RawMessage(`{"kind":"kinesis"}`))
+	got := newState(kindScope(t))
+	if err := codec.Unmarshal(future, &got); err == nil {
+		t.Errorf("Unmarshal %s = nil error, want the unknown kind refused", future)
+	}
+}
+
+// CreateEventSourceMapping takes the kind from the source ARN; a source of
+// another service is still refused 501 in the words it had before kinds
+// existed (docs/coverage.md, CreateEventSourceMapping: "SQS queues only").
+func TestEventSourceTakesTheKindFromTheARN(t *testing.T) {
+	queue := kindQueue
+	a, kind, err := eventSource(&queue)
+	if err != nil {
+		t.Fatalf("eventSource(%s): %v", queue, err)
+	}
+	if _, ok := kind.(esm.SQS); !ok || a.String() != queue {
+		t.Errorf("eventSource(%s) = %s, %#v; want the queue and esm.SQS", queue, a, kind)
+	}
+
+	stream := "arn:aws:kinesis:us-east-1:000000000000:stream/orders"
+	_, kind, err = eventSource(&stream)
+	want := "understudy implements event source mappings for Amazon SQS queues only; " + stream +
+		" is not an SQS queue ARN. Run 'understudy coverage --service lambda' for what is supported."
+	if err == nil || err.Message != want || kind != nil {
+		t.Fatalf("eventSource(%s) = %#v, %v; want no kind and %q", stream, kind, err, want)
+	}
+	if err.ID != errEventSourceUnsupported(stream).ID {
+		t.Errorf("eventSource(%s) error id = %v, want NotImplemented's", stream, err.ID)
+	}
+}
+
+// The poller dispatches on the mapping's kind: an SQS mapping polls its
+// queue, and a mapping without a kind gets no poller.
+func TestNewPollerDispatchesOnSourceKind(t *testing.T) {
+	scope := kindScope(t)
+	m := kindState(t).Mappings["u1"]
+	pl, ok := newPoller(scope, "u1", m)
+	if !ok || pl.queue.String() != kindQueue {
+		t.Fatalf("newPoller(an SQS mapping) = %+v, %t; want a poller of %s", pl, ok, kindQueue)
+	}
+	m.SourceKind = nil
+	if pl, ok := newPoller(scope, "u1", m); ok {
+		t.Errorf("newPoller(a mapping without a kind) = %+v, want none", pl)
+	}
+}
