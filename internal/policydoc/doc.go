@@ -35,7 +35,12 @@
 //     that version, which Terraform must be able to apply. ValidateTrust
 //     therefore accepts 2008-10-17, and an absent Version too, which IAM
 //     reads as 2008-10-17.
-//   - Three resource checks depart from moto. The IAM resource path rule
+//   - Four resource checks depart from moto. The S3 region rule exempts
+//     every S3 resource type whose ARN format carries a region in the
+//     Service Authorization Reference (access grants, batch jobs, Storage
+//     Lens, multi-Region access point requests), where moto exempts access
+//     points alone; AWS's managed policies name access grants that way
+//     (iam-evaluation.md 10.6). The IAM resource path rule
 //     accepts a resource element of "*" (arn:aws:iam::111111111111:*), which
 //     moto rejects; IAM policies use that form, and the rule's own text
 //     allows "*". An empty string in a Resource list is checked like any

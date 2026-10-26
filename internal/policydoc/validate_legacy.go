@@ -179,7 +179,7 @@ func resourceFormatError(r string) *ValidationError {
 	switch {
 	case service == "iam" && hasRegion:
 		return &ValidationError{Rule: RuleIAMResourceRegion, Subject: r}
-	case service == "s3" && hasRegion && !strings.HasPrefix(resourceID, "accesspoint/"):
+	case service == "s3" && hasRegion && !slices.ContainsFunc(s3RegionalResources(), func(p string) bool { return strings.HasPrefix(resourceID, p) }):
 		return &ValidationError{Rule: RuleS3ResourceRegion, Subject: r}
 	case service == "iam" && resourceID != "*" && !slices.ContainsFunc(iamResourcePaths(), func(p string) bool { return strings.HasPrefix(resourceID, p) }):
 		return &ValidationError{Rule: RuleIAMResourcePath, Subject: r}
@@ -206,6 +206,20 @@ func knownPartition(p string) bool {
 	default:
 		return false
 	}
+}
+
+// s3RegionalResources are the leading literal parts of the resource element
+// of the S3 resource types whose ARN format carries a region, which the S3
+// region rule exempts. They are the resource types table of the Service
+// Authorization Reference for Amazon S3
+// (https://docs.aws.amazon.com/service-authorization/latest/reference/list_s3.html,
+// read 2026-10-26): accessgrantsinstance, accessgrant and
+// accessgrantslocation; accesspoint and accesspointobject; job;
+// multiregionaccesspointrequestarn, whose format fixes the region at
+// us-west-2; storagelensconfiguration and storagelensgroup. bucket and
+// object carry no region. moto exempts access points alone.
+func s3RegionalResources() []string {
+	return []string{"access-grants/", "accesspoint/", "async-request/mrap/", "job/", "storage-lens/", "storage-lens-group/"}
 }
 
 // iamResourcePaths are the resource types an IAM resource may start with.
