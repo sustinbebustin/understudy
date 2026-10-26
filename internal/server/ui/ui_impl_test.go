@@ -3,10 +3,36 @@ package ui_test
 import (
 	"io/fs"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"testing/fstest"
+
+	"github.com/sustinbebustin/understudy/internal/server/ui"
 )
+
+// The embedded page names its own icon. Without one a browser asks the
+// origin for /favicon.ico on every load, which the main listener answers as
+// an AWS call a web page made: a 403 and a warning in the server log.
+func TestEmbeddedBuildDeclaresItsIcon(t *testing.T) {
+	assets := ui.Assets()
+	if assets == nil {
+		t.Fatal("Assets() = nil, want the embedded build; run 'just ui'")
+	}
+	index, err := fs.ReadFile(assets, "index.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`<link rel="icon"[^>]* href="\./([^"]+)"`).FindSubmatch(index)
+	if m == nil {
+		t.Fatalf("the built index.html declares no <link rel=\"icon\"> asset, so a browser fetches /favicon.ico from the AWS listener; link one in ui/index.html and run 'just ui':\n%s", index)
+	}
+	rec := get(t, newHandler(t, assets), http.MethodGet, "/_understudy/ui/"+string(m[1]))
+	if rec.Code != http.StatusOK || !strings.HasPrefix(rec.Header().Get("Content-Type"), "image/") {
+		t.Errorf("GET of the icon %q = %d (%s), want 200 and an image type", m[1], rec.Code, rec.Header().Get("Content-Type"))
+	}
+}
 
 // A regular file below a directory of the build is an asset like any other.
 func TestHandlerServesANestedAsset(t *testing.T) {
