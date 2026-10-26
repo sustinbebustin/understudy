@@ -278,6 +278,15 @@ func roundTrips() map[string]roundTrip {
 		},
 		BucketKeyEnabled: new(true),
 	}}}
+	// GetBucketEncryption reads the rule back with the bucket's SSE-C block,
+	// which a rule put without BlockedEncryptionTypes keeps
+	// (testdata/parity/s3/R06/02-put-encryption-valid-arn.json, then
+	// 02-get-encryption-arn.json).
+	kmsRead := s3api.ServerSideEncryptionConfiguration{Rules: []s3api.ServerSideEncryptionRule{{
+		ApplyServerSideEncryptionByDefault: kms.Rules[0].ApplyServerSideEncryptionByDefault,
+		BucketKeyEnabled:                   new(true),
+		BlockedEncryptionTypes:             &s3api.BlockedEncryptionTypes{EncryptionType: []s3api.EncryptionType{s3api.EncryptionTypeSseC}},
+	}}}
 	open := s3api.PublicAccessBlockConfiguration{BlockPublicAcls: new(false), IgnorePublicAcls: new(false), BlockPublicPolicy: new(false), RestrictPublicBuckets: new(false)}
 	preferred := s3api.OwnershipControls{Rules: []s3api.OwnershipControlsRule{{ObjectOwnership: s3api.ObjectOwnershipBucketOwnerPreferred}}}
 	metrics := s3api.MetricsConfiguration{Id: "all", Filter: s3api.MetricsFilterMemberPrefix{Value: "logs/"}}
@@ -347,7 +356,7 @@ func roundTrips() map[string]roundTrip {
 				return errOnly(invoke(h, s3api.OpPutBucketEncryption, &s3api.PutBucketEncryptionInput{Bucket: b, ServerSideEncryptionConfiguration: kms}))
 			},
 			get:  getEncryption,
-			want: &s3api.GetBucketEncryptionOutput{ServerSideEncryptionConfiguration: &kms},
+			want: &s3api.GetBucketEncryptionOutput{ServerSideEncryptionConfiguration: &kmsRead},
 			del: func(h *harness, b string) *awserr.Error {
 				return errOnly(invoke(h, s3api.OpDeleteBucketEncryption, &s3api.DeleteBucketEncryptionInput{Bucket: b}))
 			},

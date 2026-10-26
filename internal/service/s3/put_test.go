@@ -770,6 +770,7 @@ func TestPutObjectRefusals(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		h.createBucket("refusals")
 		sum := sha256.Sum256([]byte("other"))
+		md5Code, md5Status := h.switchCode("s3.sse-c.missing-key-md5")
 		for _, tc := range []struct {
 			name   string
 			in     s3api.PutObjectInput
@@ -817,8 +818,12 @@ func TestPutObjectRefusals(t *testing.T) {
 				code: "InvalidStorageClass", status: http.StatusBadRequest, fields: map[string]string{"StorageClassRequested": "OUTPOSTS"},
 			},
 			{
-				name: "SSE-C", in: s3api.PutObjectInput{SSECustomerAlgorithm: new("AES256"), SSECustomerKey: new("a2V5")},
-				code: "AccessDenied", status: http.StatusForbidden,
+				// The SSE-C trio is validated before the bucket's SSE-C block
+				// (switch s3.sse-c.blocked-write), so a key without its MD5
+				// gets the refusal of switch s3.sse-c.missing-key-md5.
+				name: "SSE-C key without its MD5", in: s3api.PutObjectInput{SSECustomerAlgorithm: new("AES256"), SSECustomerKey: new("a2V5")},
+				code: md5Code, status: md5Status, fields: map[string]string{"ArgumentName": "x-amz-server-side-encryption"},
+				message: textNoMD5,
 			},
 			{
 				name: "KMS key id without aws:kms", in: s3api.PutObjectInput{SSEKMSKeyId: new("alias/x")},
@@ -935,29 +940,6 @@ func TestKMSKeyIDNeedsKMSOnAKMSDefaultBucket(t *testing.T) {
 		wantCode(t, err, "InvalidArgument", http.StatusBadRequest)
 		if _, err := as(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "kms-default", Key: "k"}); err == nil {
 			t.Fatal("a refused write left an object behind")
-		}
-	})
-}
-
-// TestSSECHeadersOnReadsAreRefused: no object is SSE-C encrypted, since
-// SSE-C writes are refused, so SSE-C headers on GetObject, HeadObject and
-// a copy source are 400 InvalidRequest rather than ignored (s3.md 5.7).
-func TestSSECHeadersOnReadsAreRefused(t *testing.T) {
-	runObjects(t, func(h *harness) {
-		h.createBucket("plain")
-		h.put("plain", "k", "bytes")
-		alg := new("AES256")
-		_, err := as(h, who{}, s3api.OpGetObject, &s3api.GetObjectInput{Bucket: "plain", Key: "k", SSECustomerAlgorithm: alg})
-		wantCode(t, err, "InvalidRequest", http.StatusBadRequest)
-		_, err = as(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "plain", Key: "k", SSECustomerKeyMD5: new("bWQ1")})
-		wantCode(t, err, "InvalidRequest", http.StatusBadRequest)
-		_, err = as(h, who{}, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "plain", Key: "copy", CopySource: "plain/k", CopySourceSSECustomerAlgorithm: alg})
-		wantCode(t, err, "InvalidRequest", http.StatusBadRequest)
-		if err.Message != "The encryption parameters are not applicable to this object." {
-			t.Errorf("message = %q", err.Message)
-		}
-		if _, err := as(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "plain", Key: "copy"}); err == nil {
-			t.Fatal("a refused copy left an object behind")
 		}
 	})
 }

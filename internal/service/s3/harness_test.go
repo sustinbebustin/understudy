@@ -50,6 +50,9 @@ type who struct {
 	// default region's.
 	sigV2 bool
 	host  string
+	// tls sends the request over HTTPS, which SSE-C requires
+	// (s3-ssec-object-lock.md 3.9); otherwise it is plain HTTP.
+	tls bool
 }
 
 // signed is the default account's root signing for region.
@@ -86,6 +89,10 @@ func (h *harness) call(op *registry.Operation, w who) *kernel.Call {
 	if host == "" {
 		host = "localhost:4566"
 	}
+	scheme := "http"
+	if w.tls {
+		scheme = "https"
+	}
 	return h.Kernel.NewCall(kernel.ExternalCall{
 		RequestID:    h.Kernel.IDs().RequestID(),
 		Operation:    op.ID,
@@ -94,7 +101,7 @@ func (h *harness) call(op *registry.Operation, w who) *kernel.Call {
 		Principal:    principal,
 		Origin:       ref.External{Protocol: ref.RESTXML, Listener: ref.ListenerMain},
 		Admitted:     h.Clock.Now(),
-		Endpoint:     kernel.Endpoint{Scheme: "http", Host: host},
+		Endpoint:     kernel.Endpoint{Scheme: scheme, Host: host},
 	})
 }
 
