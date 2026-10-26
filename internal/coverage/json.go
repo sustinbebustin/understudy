@@ -3,13 +3,15 @@ package coverage
 import (
 	"fmt"
 
+	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 )
 
 // codec writes and reads a report, its sums in the tagged-union
 // convention: a status is {"kind": "full"} or {"kind": "partial",
 // "note": ...}, the overlays {"kind": "read", "entries": [...]} or
-// {"kind": "not-carried"}.
+// {"kind": "not-carried"}, a switch's settles {"kind": "scenario", "step":
+// "sqs/R01#03-recv-after-6s"} or {"kind": "none", "reason": ...}.
 func codec() (jsonx.Codec, error) {
 	statuses, err := jsonx.NewUnion("coverage.Status",
 		jsonx.Variant[Status, Full]("full"),
@@ -27,7 +29,14 @@ func codec() (jsonx.Codec, error) {
 	if err != nil {
 		return jsonx.Codec{}, err
 	}
-	return jsonx.NewCodec(statuses, overlays), nil
+	settles, err := jsonx.NewUnion("fidelity.Settles",
+		jsonx.Variant[fidelity.Settles, fidelity.SettledBy]("scenario"),
+		jsonx.Variant[fidelity.Settles, fidelity.NoScenario]("none"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, err
+	}
+	return jsonx.NewCodec(statuses, overlays, settles), nil
 }
 
 // JSON returns the report as JSON, members sorted by name.
