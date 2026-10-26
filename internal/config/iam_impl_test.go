@@ -9,13 +9,14 @@ import (
 	"github.com/sustinbebustin/understudy/internal/config"
 )
 
-// Every text but off is refused from each source with the same reason, so
-// no spelling of a mode this build does not run is read as off.
+// Every text but off, advise and enforce is refused from each source with
+// the same reason, so no other spelling is read as a mode (contract 9.1;
+// the 5a version refused everything but off).
 func TestIAMEnforceRefusesEveryOtherText(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		// A variable set to the empty string is unset, so only non-empty
 		// text is drawn.
-		v := rapid.String().Filter(func(s string) bool { return s != "" && s != "off" }).Draw(t, "value")
+		v := rapid.String().Filter(func(s string) bool { return s != "" && s != "off" && s != "advise" && s != "enforce" }).Draw(t, "value")
 		text, err := json.Marshal(v)
 		if err != nil {
 			t.Fatal(err)
@@ -32,7 +33,7 @@ func TestIAMEnforceRefusesEveryOtherText(t *testing.T) {
 		}
 		for _, s := range sources {
 			_, lerr := config.Load(s.args, s.env, s.f.read)
-			reason := `"` + v + `" is not supported: IAM enforcement is not built yet, so this build accepts only off`
+			reason := `"` + v + `" is not off, advise or enforce`
 			if lerr == nil || lerr.Where != s.where || lerr.Reason != reason {
 				t.Fatalf("%s %q: Load = %v, want refused at %q: %q", s.where, v, lerr, s.where, reason)
 			}

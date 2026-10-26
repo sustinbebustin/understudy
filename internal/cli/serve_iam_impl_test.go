@@ -7,15 +7,16 @@ import (
 	"github.com/sustinbebustin/understudy/admin"
 )
 
-// serve refuses an iam.enforce mode this build does not run before it
-// listens, as a usage error naming the setting and what to do.
-func TestServeRefusesIAMEnforcement(t *testing.T) {
+// serve refuses an iam.enforce text that is not off, advise or enforce
+// before it listens, as a usage error naming the setting and what to do.
+// The 5a version refused enforce itself; 5b runs it (contract 9.1).
+func TestServeRefusesAnUnknownIAMEnforceMode(t *testing.T) {
 	cases := []struct {
 		args, env []string
 		want      string
 	}{
-		{[]string{"serve", "--iam-enforce", "enforce"}, nil, `--iam-enforce: "enforce" is not supported: IAM enforcement is not built yet, so this build accepts only off; remove the setting or set it to off`},
-		{[]string{"serve"}, []string{"UNDERSTUDY_IAM_ENFORCE=advise"}, `UNDERSTUDY_IAM_ENFORCE: "advise" is not supported: IAM enforcement is not built yet, so this build accepts only off; remove the setting or set it to off`},
+		{[]string{"serve", "--iam-enforce", "on"}, nil, `--iam-enforce: "on" is not off, advise or enforce; set iam.enforce to off, advise or enforce`},
+		{[]string{"serve"}, []string{"UNDERSTUDY_IAM_ENFORCE=Advise"}, `UNDERSTUDY_IAM_ENFORCE: "Advise" is not off, advise or enforce; set iam.enforce to off, advise or enforce`},
 	}
 	for _, c := range cases {
 		r := runCLI(t.Context(), closedEndpoint(t), c.env, c.args...)
