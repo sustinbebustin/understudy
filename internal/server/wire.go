@@ -39,6 +39,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/edge"
 	"github.com/sustinbebustin/understudy/internal/egress"
+	"github.com/sustinbebustin/understudy/internal/enforce"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
@@ -154,18 +155,20 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	recorder := &access.Recorder{}
 	box := outbox.New()
 	link := &deferredLinker{}
+	authorizer := enforce.New(enforce.Options{Mode: enforceMode(cfg.IAMEnforce)})
 	k, err := kernel.New(kernel.Options{
-		Registry: reg,
-		Clock:    clk,
-		Timers:   timers,
-		IDs:      src,
-		Journal:  w.journal,
-		Faults:   w.faults,
-		Access:   recorder,
-		Identity: idStore,
-		Deliver:  box,
-		Linker:   link,
-		Log:      log,
+		Registry:   reg,
+		Clock:      clk,
+		Timers:     timers,
+		IDs:        src,
+		Journal:    w.journal,
+		Faults:     w.faults,
+		Access:     recorder,
+		Identity:   idStore,
+		Deliver:    box,
+		Linker:     link,
+		Authorizer: kernelAuthorizer(authorizer),
+		Log:        log,
 	})
 	if err != nil {
 		return w, err
@@ -195,7 +198,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	if err := k.BindErr(); err != nil {
 		return w, err
 	}
-	if err := bindOutbox(box, k, w.faults, cfg.SNSHTTPDelivery, w.own, built); err != nil {
+	if err := bindPolicies(authorizer, box, k, w.faults, c.iam, cfg.SNSHTTPDelivery, w.own, built); err != nil {
 		return w, err
 	}
 	stateful, late := collect(box, built, w.lambda)
@@ -233,6 +236,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		ImagePuller:   w.lambda,
 		TTLSweeper:    c.dynamodb,
 		Subscriptions: c.sns,
+		IAM:           authorizer,
 	}
 	if err := w.snapshotDirs(&opts); err != nil {
 		return w, err
@@ -300,11 +304,16 @@ func (w *wiring) images() lambda.ImageSource {
 	return w.host
 }
 
-// bindOutbox binds the outbox to the kernel, with the access advisory
-// asking the built services that store resource policies, and HTTP
+// bindPolicies hands the built services' policies to their readers: the
+// authorizer reads IAM's identity-based policies and every service's
+// resource policies, and the outbox binds to the kernel, with HTTP
 // deliveries going out through egress under SNS HTTP delivery's settings,
-// never to own's addresses.
-func bindOutbox(box *outbox.Outbox, k *kernel.Kernel, faults *fault.Store, delivery SNSHTTPDelivery, own *ownAddrs, built []wiredBuilt) error {
+// never to own's addresses. Under iam.enforce off the outbox's access
+// advisory asks the services that store resource policies; under advise
+// and enforce step 8 decides each delivery call instead, so the advisory,
+// which assumes the clauses it cannot evaluate hold, is not journaled
+// beside it.
+func bindPolicies(a *enforce.Authorizer, box *outbox.Outbox, k *kernel.Kernel, faults *fault.Store, identities *iam.Service, delivery SNSHTTPDelivery, own *ownAddrs, built []wiredBuilt) error {
 	policies, err := policyProviders(built)
 	if err != nil {
 		return err
@@ -313,7 +322,36 @@ func bindOutbox(box *outbox.Outbox, k *kernel.Kernel, faults *fault.Store, deliv
 	if err != nil {
 		return err
 	}
-	return box.Bind(k, outbox.Options{Faults: faults, Policies: policies, Egress: out})
+	if err := a.Bind(enforce.Sources{Identities: identities, Resources: policies, Clock: k.Clock()}); err != nil {
+		return err
+	}
+	o := outbox.Options{Faults: faults, Egress: out}
+	if a.Mode() == enforce.Off {
+		o.Policies = policies
+	}
+	return box.Bind(k, o)
+}
+
+// enforceMode maps iam.enforce onto the authorizer's mode.
+func enforceMode(m IAMEnforce) enforce.Mode {
+	switch m {
+	case IAMEnforceAdvise:
+		return enforce.Advise
+	case IAMEnforceEnforce:
+		return enforce.Enforce
+	case IAMEnforceOff:
+	}
+	return enforce.Off
+}
+
+// kernelAuthorizer is the kernel's Authorizer: a, unless iam.enforce is
+// off, which leaves step 8 and kernel.Authorize asking nothing
+// (iam-enforcement-surfaces.md 12.1). a still answers POST /iam/evaluate.
+func kernelAuthorizer(a *enforce.Authorizer) kernel.Authorizer {
+	if a.Mode() == enforce.Off {
+		return nil
+	}
+	return a
 }
 
 // policySources routes a resource-policy read to the service that stores
@@ -857,8 +895,9 @@ func wiredServices() []wiredService {
 		{api{kmsapi.Service(), kmsapi.ThrottleError(), kmsapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return kms.New(d, kms.Options{})
 		}},
-		{api{iamapi.Service(), iamapi.ThrottleError(), iamapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
-			return iam.New(d, iam.Options{Catalogue: policycatalogue.Embedded})
+		{api{iamapi.Service(), iamapi.ThrottleError(), iamapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.iam = iam.New(d, iam.Options{Catalogue: policycatalogue.Embedded})
+			return c.iam
 		}},
 		{api{stsapi.Service(), stsapi.ThrottleError(), stsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			return sts.New(d, sts.Options{AssumeRole: c.switches.STSAssumeRole})
@@ -907,6 +946,8 @@ type construction struct {
 	sns        *sns.Service
 	lambda     *lambda.Service
 	lambdaDeps kernel.ServiceDeps
+	// iam is the identity-policy source of IAM evaluation.
+	iam *iam.Service
 }
 
 // build constructs every row of the wiring table in order. A table whose
@@ -927,6 +968,7 @@ func (c *construction) build(deps func(*registry.Service) kernel.ServiceDeps) ([
 		{c.dynamodb == nil, dynamodbapi.Service().ID},
 		{c.sns == nil, snsapi.Service().ID},
 		{c.lambda == nil, lambdaapi.Service().ID},
+		{c.iam == nil, iamapi.Service().ID},
 	} {
 		if m.unbuilt {
 			missing = append(missing, m.id)

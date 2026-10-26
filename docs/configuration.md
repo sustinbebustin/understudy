@@ -138,8 +138,11 @@ This is what `understudy serve --help` prints under Flags. A test keeps it in st
       signature checking: parse (default) reads credentials only; verify refuses a bad signature, an unknown key, a missing or expired session token, and expires presigned URLs on the emulator clock
       variable UNDERSTUDY_SIGV4, file key "sigv4"
   --iam-enforce MODE
-      IAM enforcement: off (default) records which actions each principal uses and enforces nothing; advise and enforce are not built yet, so this build refuses them
+      IAM enforcement: off (default) records which actions each principal uses and enforces nothing; advise evaluates every call and journals an advisory for each denial AWS would issue, answering as off does; enforce answers those denials
       variable UNDERSTUDY_IAM_ENFORCE, file key "enforce" in the "iam" section
+  --iam-assume-role MODE
+      AssumeRole of a role IAM does not hold: strict (default) refuses it with AccessDenied, as AWS does; lenient mints a session for any well-formed role ARN. Under iam.enforce enforce such a role is denied at authorization whatever this says
+      variable UNDERSTUDY_IAM_ASSUME_ROLE, file key "assumeRole" in the "iam" section
   --sns-http-delivery-allow HOST:PORT,...
       hosts SNS delivers http and https subscriptions to, as comma-separated host:port entries: the host localhost, an IP literal ([v6] for IPv6) or a DNS name, the port 1-65535 or * (default none: nothing is delivered). AWS hosts, link-local and metadata addresses and understudy's own listeners are refused whatever the list says
       variable UNDERSTUDY_SNS_HTTP_DELIVERY_ALLOW, file key "httpDelivery.allow" in the "sns" section
@@ -197,7 +200,6 @@ setting has one; any key may be left out:
   lambda.hotReload           functions whose code is read from a host directory; account and
                              region may be left out
   sqs.queueDeletedRecently   ignore or enforce
-  iam.assumeRole             strict or lenient
   dynamodb.enabled           true, or false to turn DynamoDB off so DynamoDB Local is never
                              pulled; on, it is pulled on first use and runs under Amazon's
                              licence terms

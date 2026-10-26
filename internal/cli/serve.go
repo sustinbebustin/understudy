@@ -99,7 +99,6 @@ const sectionChoices = `
   lambda.hotReload           functions whose code is read from a host directory; account and
                              region may be left out
   sqs.queueDeletedRecently   ignore or enforce
-  iam.assumeRole             strict or lenient
   dynamodb.enabled           true, or false to turn DynamoDB off so DynamoDB Local is never
                              pulled; on, it is pulled on first use and runs under Amazon's
                              licence terms
@@ -295,6 +294,14 @@ func serverConfig(cfg config.Config, version string) (server.Config, error) {
 	}
 	if cfg.IAM.AssumeRole == config.AssumeRoleLenient {
 		s.Switches.STSAssumeRole = server.STSAssumeRoleLenient
+	}
+	switch cfg.IAM.Enforce {
+	case config.EnforceOff:
+		s.IAMEnforce = server.IAMEnforceOff
+	case config.EnforceAdvise:
+		s.IAMEnforce = server.IAMEnforceAdvise
+	case config.EnforceEnforce:
+		s.IAMEnforce = server.IAMEnforceEnforce
 	}
 	if cfg.SigV4 == config.Verify {
 		s.SigV4 = server.SigV4Verify

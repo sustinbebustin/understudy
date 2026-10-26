@@ -32,12 +32,6 @@ func (d *draft) applySections(s fileSections, name string) *Error {
 				map[string]DeletedRecently{"ignore": DeletedRecentlyIgnore, "enforce": DeletedRecentlyEnforce}, &d.cfg.SQS.DeletedRecently)
 		})
 	}
-	if s.IAM != nil && s.IAM.AssumeRole != nil {
-		steps = append(steps, func() *Error {
-			return choose(*s.IAM.AssumeRole, name+": iam.assumeRole",
-				map[string]AssumeRole{"strict": AssumeRoleStrict, "lenient": AssumeRoleLenient}, &d.cfg.IAM.AssumeRole)
-		})
-	}
 	for _, step := range steps {
 		if err := step(); err != nil {
 			return err

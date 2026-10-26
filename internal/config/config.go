@@ -357,8 +357,7 @@ type SNSHTTPDelivery struct {
 // IAM holds the IAM and STS settings.
 type IAM struct {
 	AssumeRole AssumeRole
-	// Enforce is iam.enforce. Nothing reads it yet: EnforceOff is the only
-	// value Load accepts.
+	// Enforce is iam.enforce.
 	Enforce Enforcement
 }
 
@@ -368,13 +367,12 @@ type Enforcement uint8
 // Enforcement values.
 const (
 	// EnforceOff records which actions each principal uses and enforces
-	// nothing. It is the only mode Load accepts until enforcement is built.
+	// nothing.
 	EnforceOff Enforcement = iota
 	// EnforceAdvise evaluates every call and journals an advisory for each
-	// denial AWS would issue, answering as EnforceOff does. Load does not
-	// accept it yet.
+	// denial AWS would issue, answering as EnforceOff does.
 	EnforceAdvise
-	// EnforceEnforce answers those denials. Load does not accept it yet.
+	// EnforceEnforce answers those denials.
 	EnforceEnforce
 )
 

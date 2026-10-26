@@ -46,28 +46,29 @@ const AWSAPIFlag = "allow-unauthenticated-aws-api"
 
 // Setting keys.
 const (
-	keyListen       = "listen"
-	keyAdminToken   = "adminToken"
-	keyListenAuth   = "listenAuth"
-	keyAWSAPI       = "allowUnauthenticatedAwsApi"
-	keyTLS          = "tls"
-	keyTLSListen    = "tlsListen"
-	keyPersist      = "persist"
-	keyPersistEvery = "persistEvery"
-	keyLoadSnapshot = "loadSnapshot"
-	keySnapshotMax  = "snapshotMaxBytes"
-	keySeed         = "seed"
-	keyClock        = "clock"
-	keyClockScale   = "clockScale"
-	keySigV4        = "sigv4"
-	keyIAMEnforce   = "iam.enforce"
-	keySNSAllow     = "sns.httpDelivery.allow"
-	keySNSCABundle  = "sns.httpDelivery.caBundle"
-	keyDocker       = "docker"
-	keyDockerLabels = "dockerLabels"
-	keyReadyFile    = "readyFile"
-	keyLogFormat    = "logFormat"
-	keyLogLevel     = "logLevel"
+	keyListen        = "listen"
+	keyAdminToken    = "adminToken"
+	keyListenAuth    = "listenAuth"
+	keyAWSAPI        = "allowUnauthenticatedAwsApi"
+	keyTLS           = "tls"
+	keyTLSListen     = "tlsListen"
+	keyPersist       = "persist"
+	keyPersistEvery  = "persistEvery"
+	keyLoadSnapshot  = "loadSnapshot"
+	keySnapshotMax   = "snapshotMaxBytes"
+	keySeed          = "seed"
+	keyClock         = "clock"
+	keyClockScale    = "clockScale"
+	keySigV4         = "sigv4"
+	keyIAMEnforce    = "iam.enforce"
+	keyIAMAssumeRole = "iam.assumeRole"
+	keySNSAllow      = "sns.httpDelivery.allow"
+	keySNSCABundle   = "sns.httpDelivery.caBundle"
+	keyDocker        = "docker"
+	keyDockerLabels  = "dockerLabels"
+	keyReadyFile     = "readyFile"
+	keyLogFormat     = "logFormat"
+	keyLogLevel      = "logLevel"
 )
 
 // Settings lists every scalar setting in the order help shows them.
@@ -87,7 +88,8 @@ func Settings() []Setting {
 		{Key: keyClock, Flag: "clock", Env: "UNDERSTUDY_CLOCK", Value: "MODE", Usage: "how the emulator clock starts: running, frozen, or frozen@<RFC 3339 time> (default running)"},
 		{Key: keyClockScale, Flag: "clock-scale", Env: "UNDERSTUDY_CLOCK_SCALE", Value: "FACTOR", Usage: "run the clock this many emulator seconds per wall second from start, above 0 and at most 10000; not with a frozen --clock (default 1)"},
 		{Key: keySigV4, Flag: "sigv4", Env: "UNDERSTUDY_SIGV4", Value: "MODE", Usage: "signature checking: parse (default) reads credentials only; verify refuses a bad signature, an unknown key, a missing or expired session token, and expires presigned URLs on the emulator clock"},
-		{Key: keyIAMEnforce, Flag: "iam-enforce", Env: "UNDERSTUDY_IAM_ENFORCE", Value: "MODE", Usage: "IAM enforcement: off (default) records which actions each principal uses and enforces nothing; advise and enforce are not built yet, so this build refuses them"},
+		{Key: keyIAMEnforce, Flag: "iam-enforce", Env: "UNDERSTUDY_IAM_ENFORCE", Value: "MODE", Usage: "IAM enforcement: off (default) records which actions each principal uses and enforces nothing; advise evaluates every call and journals an advisory for each denial AWS would issue, answering as off does; enforce answers those denials"},
+		{Key: keyIAMAssumeRole, Flag: "iam-assume-role", Env: "UNDERSTUDY_IAM_ASSUME_ROLE", Value: "MODE", Usage: "AssumeRole of a role IAM does not hold: strict (default) refuses it with AccessDenied, as AWS does; lenient mints a session for any well-formed role ARN. Under iam.enforce enforce such a role is denied at authorization whatever this says"},
 		{
 			Key: keySNSAllow, Flag: "sns-http-delivery-allow", Env: "UNDERSTUDY_SNS_HTTP_DELIVERY_ALLOW", Value: "HOST:PORT,...",
 			Usage: "hosts SNS delivers http and https subscriptions to, as comma-separated host:port entries: the host localhost, an IP literal ([v6] for IPv6) or a DNS name, " +

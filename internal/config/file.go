@@ -82,10 +82,11 @@ type fileSNSHTTPDelivery struct {
 	CABundle *string  `json:"caBundle"`
 }
 
+// fileIAM holds the scalar settings iam.assumeRole and iam.enforce, each
+// read as its flag would be.
 type fileIAM struct {
 	AssumeRole *string `json:"assumeRole"`
-	// Enforce is the scalar setting iam.enforce, read as its flag would be.
-	Enforce *string `json:"enforce"`
+	Enforce    *string `json:"enforce"`
 }
 
 type fileDynamoDB struct {
@@ -203,8 +204,12 @@ func nestedOnly(key, where string) *Error {
 // precedence and checks of every scalar setting.
 func (doc *fileDoc) liftNested() {
 	at := func(key string) string { return doc.name + ": " + key }
-	if iam := doc.sections.IAM; iam != nil && iam.Enforce != nil {
-		doc.scalars[keyIAMEnforce] = value{text: *iam.Enforce, where: at(keyIAMEnforce), source: fromFile}
+	if iam := doc.sections.IAM; iam != nil {
+		for key, text := range map[string]*string{keyIAMEnforce: iam.Enforce, keyIAMAssumeRole: iam.AssumeRole} {
+			if text != nil {
+				doc.scalars[key] = value{text: *text, where: at(key), source: fromFile}
+			}
+		}
 	}
 	if sns := doc.sections.SNS; sns != nil && sns.HTTPDelivery != nil {
 		if allow := sns.HTTPDelivery.Allow; allow != nil {

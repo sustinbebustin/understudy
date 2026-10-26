@@ -54,8 +54,7 @@ type Config struct {
 	// SigV4 is how request signatures are checked (sigv4); the zero value
 	// is SigV4ParseOnly.
 	SigV4 SigV4Mode
-	// IAMEnforce is iam.enforce; the zero value is IAMEnforceOff. Nothing
-	// reads it yet.
+	// IAMEnforce is iam.enforce; the zero value is IAMEnforceOff.
 	IAMEnforce IAMEnforce
 	// StaticKeys are access keys from configuration (accounts.keys), each
 	// its account's root, with the secret it signs with. New refuses a key

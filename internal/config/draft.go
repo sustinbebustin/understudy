@@ -61,28 +61,29 @@ func newDraft(p Placement, env dockerEnv, readFile func(string) ([]byte, error))
 // setters apply each scalar setting's text to a draft.
 func setters() map[string]func(*draft, value) *Error {
 	return map[string]func(*draft, value) *Error{
-		keyListen:       (*draft).setListen,
-		keyAdminToken:   (*draft).setToken,
-		keyListenAuth:   (*draft).setAuth,
-		keyAWSAPI:       (*draft).setAWSAPI,
-		keyTLS:          (*draft).setTLS,
-		keyTLSListen:    (*draft).setTLSListen,
-		keyPersist:      (*draft).setPersist,
-		keyPersistEvery: (*draft).setEvery,
-		keyLoadSnapshot: func(d *draft, v value) *Error { return nonEmpty(v, &d.cfg.LoadSnapshot) },
-		keySnapshotMax:  (*draft).setSnapshotMax,
-		keySeed:         (*draft).setSeed,
-		keyClock:        (*draft).setClock,
-		keyClockScale:   (*draft).setScale,
-		keySigV4:        (*draft).setSigV4,
-		keyIAMEnforce:   (*draft).setIAMEnforce,
-		keySNSAllow:     (*draft).setSNSAllow,
-		keySNSCABundle:  (*draft).setSNSCABundle,
-		keyDocker:       (*draft).setDocker,
-		keyDockerLabels: (*draft).setDockerLabels,
-		keyReadyFile:    func(d *draft, v value) *Error { return nonEmpty(v, &d.cfg.ReadyFile) },
-		keyLogFormat:    (*draft).setLogFormat,
-		keyLogLevel:     (*draft).setLogLevel,
+		keyListen:        (*draft).setListen,
+		keyAdminToken:    (*draft).setToken,
+		keyListenAuth:    (*draft).setAuth,
+		keyAWSAPI:        (*draft).setAWSAPI,
+		keyTLS:           (*draft).setTLS,
+		keyTLSListen:     (*draft).setTLSListen,
+		keyPersist:       (*draft).setPersist,
+		keyPersistEvery:  (*draft).setEvery,
+		keyLoadSnapshot:  func(d *draft, v value) *Error { return nonEmpty(v, &d.cfg.LoadSnapshot) },
+		keySnapshotMax:   (*draft).setSnapshotMax,
+		keySeed:          (*draft).setSeed,
+		keyClock:         (*draft).setClock,
+		keyClockScale:    (*draft).setScale,
+		keySigV4:         (*draft).setSigV4,
+		keyIAMEnforce:    (*draft).setIAMEnforce,
+		keyIAMAssumeRole: (*draft).setIAMAssumeRole,
+		keySNSAllow:      (*draft).setSNSAllow,
+		keySNSCABundle:   (*draft).setSNSCABundle,
+		keyDocker:        (*draft).setDocker,
+		keyDockerLabels:  (*draft).setDockerLabels,
+		keyReadyFile:     func(d *draft, v value) *Error { return nonEmpty(v, &d.cfg.ReadyFile) },
+		keyLogFormat:     (*draft).setLogFormat,
+		keyLogLevel:      (*draft).setLogLevel,
 	}
 }
 
@@ -251,15 +252,25 @@ func (d *draft) setSigV4(v value) *Error {
 	return nil
 }
 
-// setIAMEnforce accepts only off: advise and enforce name modes this build
-// does not run, so they are refused rather than read as off (CLAUDE.md
+// setIAMEnforce accepts off, advise and enforce, case-sensitively: any
+// other text is refused rather than read as one of them (CLAUDE.md
 // invariant 3).
 func (d *draft) setIAMEnforce(v value) *Error {
-	if v.text != "off" {
-		return bad(v, "is not supported: IAM enforcement is not built yet, so this build accepts only off", "remove the setting or set it to off")
+	switch v.text {
+	case "off":
+		d.cfg.IAM.Enforce = EnforceOff
+	case "advise":
+		d.cfg.IAM.Enforce = EnforceAdvise
+	case "enforce":
+		d.cfg.IAM.Enforce = EnforceEnforce
+	default:
+		return bad(v, "is not off, advise or enforce", "set iam.enforce to off, advise or enforce")
 	}
-	d.cfg.IAM.Enforce = EnforceOff
 	return nil
+}
+
+func (d *draft) setIAMAssumeRole(v value) *Error {
+	return choose(v.text, v.where, map[string]AssumeRole{"strict": AssumeRoleStrict, "lenient": AssumeRoleLenient}, &d.cfg.IAM.AssumeRole)
 }
 
 func (d *draft) setDocker(v value) *Error {

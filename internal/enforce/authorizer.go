@@ -1,8 +1,7 @@
 package enforce
 
 import (
-	"context"
-	"errors"
+	"sync/atomic"
 
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -38,6 +37,8 @@ type Sources struct {
 // Authorizer is the kernel.Authorizer of iam.enforce advise and enforce.
 type Authorizer struct {
 	mode Mode
+	// sources is nil until Bind.
+	sources atomic.Pointer[Sources]
 }
 
 // The kernel asks it at pipeline step 8 and through kernel.Authorize.
@@ -49,38 +50,15 @@ func New(o Options) *Authorizer {
 }
 
 // Bind supplies the sources. Binding twice is a *BindError.
-//
-// Not implemented yet: it returns errNotImplemented.
-func (a *Authorizer) Bind(_ Sources) error {
-	return errNotImplemented
+func (a *Authorizer) Bind(s Sources) error {
+	if !a.sources.CompareAndSwap(nil, &s) {
+		return &BindError{}
+	}
+	return nil
 }
 
 // Mode is the mode New was given.
 func (a *Authorizer) Mode() Mode { return a.mode }
-
-// Authorize implements kernel.Authorizer: each pair of q is decided by
-// authz.Decide, unsupplied keys are journaled, and the first denying pair
-// ends the call under Enforce or is journaled under Advise. Unbound, it
-// answers a nil Verdict, which the kernel reports as VerdictError.
-//
-// Not implemented yet: it answers a nil Verdict.
-func (a *Authorizer) Authorize(_ context.Context, _ *kernel.Call, _ kernel.AuthzQuery) kernel.Verdict {
-	return nil
-}
-
-// Evaluate decides r's pairs as Authorize would, without a call: nothing is
-// journaled, the context has no request keys, and the clock is
-// Sources.Clock. It returns an *UnknownPrincipalError for a principal that
-// does not exist and an *UnevaluableError for a pair it cannot decide.
-//
-// Not implemented yet: it returns errNotImplemented.
-func (a *Authorizer) Evaluate(_ context.Context, _ EvaluateRequest) ([]Evaluation, error) {
-	return nil, errNotImplemented
-}
-
-// errNotImplemented is what the stubs of this package return until
-// enforcement is built.
-var errNotImplemented = errors.New("enforce: not implemented yet")
 
 // EvaluateRequest is one POST /iam/evaluate.
 type EvaluateRequest struct {
@@ -123,6 +101,14 @@ func (*BindError) Error() string {
 	return "enforce: Bind called twice; wire.go binds the authorizer once"
 }
 
+// UnboundError is an Evaluate before Bind: the policy sources do not exist
+// yet, so nothing can be decided.
+type UnboundError struct{}
+
+func (*UnboundError) Error() string {
+	return "enforce: Evaluate called before Bind; wire.go binds the authorizer once the services exist"
+}
+
 // UnknownPrincipalError is an Evaluate principal that does not exist.
 type UnknownPrincipalError struct{ ARN string }
 
@@ -137,8 +123,24 @@ type UnevaluableError struct {
 }
 
 func (e *UnevaluableError) Error() string {
-	return "enforce: cannot evaluate " + e.Pair.Action.String() + ": " + e.Cause.Error()
+	return "enforce: cannot evaluate " + e.Pair.Action.String() + " on " + resourceText(e.Pair) + ": " + e.Cause.Error()
 }
 
 // Unwrap returns Cause.
 func (e *UnevaluableError) Unwrap() error { return e.Cause }
+
+// UnreadablePolicyError is a resource's stored policy that does not parse.
+// SQS and S3 store any JSON object as a policy, so it is the caller's text,
+// and it is never read as no policy (iam-enforcement-surfaces.md 12.10).
+type UnreadablePolicyError struct {
+	Resource aws.ARN
+	Err      error
+}
+
+func (e *UnreadablePolicyError) Error() string {
+	return "the stored policy of " + e.Resource.String() + " does not parse (" + e.Err.Error() + "), so understudy cannot tell what AWS would decide; " +
+		"replace it with a valid policy document"
+}
+
+// Unwrap returns Err.
+func (e *UnreadablePolicyError) Unwrap() error { return e.Err }
