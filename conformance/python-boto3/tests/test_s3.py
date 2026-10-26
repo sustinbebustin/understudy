@@ -1224,7 +1224,9 @@ def test_bucket_encryption_round_trip(s3: Any, make_bucket: Callable[..., str], 
     rule = {"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "aws:kms", "KMSMasterKeyID": key["KeyId"]}, "BucketKeyEnabled": True}
     s3.put_bucket_encryption(Bucket=bucket, ServerSideEncryptionConfiguration={"Rules": [rule]})
     got = s3.get_bucket_encryption(Bucket=bucket)["ServerSideEncryptionConfiguration"]["Rules"]
-    assert got == [rule]
+    # The rule reads back as sent, plus the new bucket's SSE-C block, which a Put
+    # without BlockedEncryptionTypes keeps (testdata/parity/s3/R06/02-get-encryption-bare-id.json).
+    assert got == [{**rule, "BlockedEncryptionTypes": {"EncryptionType": ["SSE-C"]}}]
 
 
 def test_versioning_keeps_versions_and_delete_markers(s3: Any, make_bucket: Callable[..., str]) -> None:
