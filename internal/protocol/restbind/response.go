@@ -134,20 +134,24 @@ type DocumentEncoder func() DocumentWriter
 // value replaces it. A misuse by generated code is a *UsageError; a
 // document doc fails to write returns the writer's error.
 func Encode(op *registry.Operation, out smithy.Serializable, status int, hasDocument func(*smithy.Schema) bool, doc DocumentEncoder) (Encoded, error) {
-	s := &serializer{doc: doc, hasDocument: hasDocument, header: http.Header{}, bound: map[string]bool{}, status: status, body: NoBody{}}
+	s := newSerializer(status, hasDocument, doc)
 	if op.Output != nil && op.Output.Type == smithy.TypeStructure {
 		out.Serialize(s)
 	}
-	if s.err == nil && s.depth != 0 {
-		s.fail("Serialize", "a structure, list or map was left open")
-	}
-	if s.err != nil {
-		return Encoded{}, s.err
-	}
-	if s.status == 0 {
-		s.status = http.StatusOK
-	}
-	return Encoded{Status: s.status, Header: s.header, Body: s.body}, nil
+	return s.encoded()
+}
+
+// EncodeStructure is Encode for a structure that is not an operation's
+// output: the value an error carries, whose header members go out as
+// headers and the rest as the document (smithy-protocol-tests.md 11.2).
+func EncodeStructure(v smithy.Serializable, status int, hasDocument func(*smithy.Schema) bool, doc DocumentEncoder) (Encoded, error) {
+	s := newSerializer(status, hasDocument, doc)
+	v.Serialize(s)
+	return s.encoded()
+}
+
+func newSerializer(status int, hasDocument func(*smithy.Schema) bool, doc DocumentEncoder) *serializer {
+	return &serializer{doc: doc, hasDocument: hasDocument, header: http.Header{}, bound: map[string]bool{}, status: status, body: NoBody{}}
 }
 
 // route is where writes inside the current top-level member go.
@@ -358,6 +362,20 @@ func (s *serializer) WriteBody(m *smithy.Member, b smithy.BodySource) {
 		}
 	}
 	s.fail("WriteBody", "only a top-level @streaming payload member is written as a body")
+}
+
+// encoded is the split value, once Serialize has returned.
+func (s *serializer) encoded() (Encoded, error) {
+	if s.err == nil && s.depth != 0 {
+		s.fail("Serialize", "a structure, list or map was left open")
+	}
+	if s.err != nil {
+		return Encoded{}, s.err
+	}
+	if s.status == 0 {
+		s.status = http.StatusOK
+	}
+	return Encoded{Status: s.status, Header: s.header, Body: s.body}, nil
 }
 
 // payload reports whether m is the top-level payload member, written as

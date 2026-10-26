@@ -83,6 +83,26 @@ func (e *Encoder) Bytes() ([]byte, error) {
 	return e.buf, nil
 }
 
+// AppendMembers appends the members of obj, an object as an Encoder writes
+// it, to b, a hand-written document whose object is still open, after a
+// comma unless that object is empty so far (b ends with '{'). A codec uses
+// it to put a structure's members into an envelope it writes itself, such
+// as an error's __type and message. An obj that is not an object is a
+// *UsageError, and b is returned unchanged.
+func AppendMembers(b, obj []byte) ([]byte, error) {
+	if len(obj) < 2 || obj[0] != '{' || obj[len(obj)-1] != '}' {
+		return b, &UsageError{Call: "AppendMembers", Reason: "the value is not a JSON object"}
+	}
+	inner := obj[1 : len(obj)-1]
+	if len(inner) == 0 {
+		return b, nil
+	}
+	if len(b) > 0 && b[len(b)-1] != '{' {
+		b = append(b, ',')
+	}
+	return append(b, inner...), nil
+}
+
 // BeginObject opens an object.
 func (e *Encoder) BeginObject() {
 	if !e.value("BeginObject") {

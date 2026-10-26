@@ -215,13 +215,15 @@ func (c Codec) Encode(op *registry.Operation, requestID string, out smithy.Seria
 // (wire-json-query.md 5 and 6, error-matrix.md 7): status from the
 // identity; a body with __type (the identity's namespaced JSONType for
 // awsJson1_0, the bare shape name for awsJson1_1), the message under the
-// shape's own member spelling, and the error's extra fields; and for a
-// query-compatible service, x-amzn-query-error: <QueryCode>;<Sender or
-// Receiver> on every error, whether or not the request sent
-// x-amzn-query-mode. When it did send x-amzn-query-mode: true, the
-// identity's QueryModeStatus, if set, replaces the status (CloudWatch's
-// 404 for ResourceNotFound). svc may be nil for a request no service
-// claimed.
+// shape's own member spelling, the members of the value e carries as the
+// output serializer writes them (smithy-protocol-tests.md 11.2), and the
+// error's extra fields; and for a query-compatible service,
+// x-amzn-query-error: <QueryCode>;<Sender or Receiver> on every error,
+// whether or not the request sent x-amzn-query-mode. When it did send
+// x-amzn-query-mode: true, the identity's QueryModeStatus, if set,
+// replaces the status (CloudWatch's 404 for ResourceNotFound). A value
+// that does not serialize is answered as InternalFailure. svc may be nil
+// for a request no service claimed.
 func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID string, e *awserr.Error) Response {
 	body := []byte(`{"__type":`)
 	body = jsonx.AppendString(body, c.errorType(e.ID))
@@ -240,6 +242,10 @@ func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID str
 		case awserr.NoMessage:
 		}
 	}
+	body, err := appendMembers(body, e)
+	if err != nil {
+		return c.EncodeError(r, svc, requestID, awserr.Internalf(err))
+	}
 	for _, f := range e.Fields {
 		member(f.Name, f.Value)
 	}
@@ -257,6 +263,26 @@ func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID str
 		status = e.ID.QueryModeStatus
 	}
 	return Response{Status: status, Header: h, Body: body}
+}
+
+// appendMembers appends the members of the value e carries to body, an
+// error object still open: model names in model order, through the output
+// serializer. Without a value it returns body unchanged.
+func appendMembers(body []byte, e *awserr.Error) ([]byte, error) {
+	v, ok := e.WireMembers()
+	if !ok {
+		return body, nil
+	}
+	s := newSerializer()
+	v.Serialize(s)
+	obj, err := s.bytes()
+	if err == nil {
+		body, err = jsonx.AppendMembers(body, obj)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("encoding the members of the %s error: %w", e.ID.Shape, err)
+	}
+	return body, nil
 }
 
 // errorType is __type for the identity: verbatim for awsJson1_0, whose

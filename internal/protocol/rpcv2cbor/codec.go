@@ -168,27 +168,22 @@ func (Codec) Encode(op *registry.Operation, requestID string, out smithy.Seriali
 
 // EncodeError renders e for svc (wire-cbor.md 3.4): the identity's status;
 // a definite-length CBOR map that is never empty, holding __type, the
-// error's absolute shape id, then the message and the error's extra
-// fields; and for a query-compatible service, x-amzn-query-error:
-// <QueryCode>;<Sender or Receiver>. The message goes under the shape's own
-// spelling when the shape is in svc's namespace, which the client's error
-// registry knows; any other shape (the generic catalogue, understudy's
-// NotImplemented) reaches the client as an unknown type, whose message
-// smithy-go reads from message, so it goes there. When r sent
-// x-amzn-query-mode: true to a query-compatible service, the identity's
-// QueryModeStatus, if set, replaces the status (CloudWatch's 404 for
-// ResourceNotFound). svc is nil for a request no service claimed.
-func (Codec) EncodeError(r *http.Request, svc *registry.Service, requestID string, e *awserr.Error) Response {
-	members := []awserr.Field{{Name: "__type", Value: string(e.ID.Shape)}}
-	if msg := e.MessageFor(ref.RPCv2CBOR); msg != "" {
-		if key, ok := messageKey(svc, e.ID); ok {
-			members = append(members, awserr.Field{Name: key, Value: msg})
-		}
-	}
-	members = append(members, e.Fields...)
-	body := cbor.AppendMapHead(nil, len(members))
-	for _, m := range members {
-		body = cbor.AppendText(cbor.AppendText(body, m.Name), m.Value)
+// error's absolute shape id, then the message, the members of the value e
+// carries as the output serializer writes them (smithy-protocol-tests.md
+// 11.2) and the error's extra fields; and for a query-compatible service,
+// x-amzn-query-error: <QueryCode>;<Sender or Receiver>. The message goes
+// under the shape's own spelling when the shape is in svc's namespace,
+// which the client's error registry knows; any other shape (the generic
+// catalogue, understudy's NotImplemented) reaches the client as an unknown
+// type, whose message smithy-go reads from message, so it goes there. When
+// r sent x-amzn-query-mode: true to a query-compatible service, the
+// identity's QueryModeStatus, if set, replaces the status (CloudWatch's
+// 404 for ResourceNotFound). A value that does not serialize is answered
+// as InternalFailure. svc is nil for a request no service claimed.
+func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID string, e *awserr.Error) Response {
+	body, err := errorBody(svc, e)
+	if err != nil {
+		return c.EncodeError(r, svc, requestID, awserr.Internalf(fmt.Errorf("encoding the %s error: %w", e.ID.Shape, err)))
 	}
 	h := header(requestID, len(body))
 	h.Set("Content-Type", mediaType)
@@ -204,6 +199,57 @@ func (Codec) EncodeError(r *http.Request, svc *registry.Service, requestID strin
 		status = e.ID.QueryModeStatus
 	}
 	return Response{Status: status, Header: h, Body: body}
+}
+
+// errorBody is e's map: __type, the message, the members of the value e
+// carries, then e's fields. Every key and text goes through the writer as
+// cbor.AppendText writes it, and the map's head is definite.
+func errorBody(svc *registry.Service, e *awserr.Error) ([]byte, error) {
+	s := newSerializer()
+	s.w.BeginMap()
+	text := func(key, value string) {
+		s.w.Key(key)
+		s.w.Text(value)
+	}
+	text("__type", string(e.ID.Shape))
+	if msg := e.MessageFor(ref.RPCv2CBOR); msg != "" {
+		if key, ok := messageKey(svc, e.ID); ok {
+			text(key, msg)
+		}
+	}
+	if v, ok := e.WireMembers(); ok {
+		s.open = append(s.open, writeFrame{kind: structFrame})
+		v.Serialize(&inlined{serializer: s})
+		s.open = s.open[:len(s.open)-1]
+	}
+	for _, f := range e.Fields {
+		text(f.Name, f.Value)
+	}
+	s.w.EndMap()
+	return s.bytes()
+}
+
+// inlined writes a structure's members into the map s already has open:
+// it drops the structure's own WriteStruct and CloseStruct, so an error
+// value's members join the error map.
+type inlined struct {
+	*serializer
+	// structs counts the structures open in the value; 1 is the value.
+	structs int
+}
+
+func (i *inlined) WriteStruct(m *smithy.Member, sch *smithy.Schema) {
+	i.structs++
+	if i.structs > 1 {
+		i.serializer.WriteStruct(m, sch)
+	}
+}
+
+func (i *inlined) CloseStruct() {
+	if i.structs > 1 {
+		i.serializer.CloseStruct()
+	}
+	i.structs--
 }
 
 // messageKey is the member that carries the message of an error with

@@ -152,18 +152,23 @@ func (Codec) Encode(op *registry.Operation, requestID string, out smithy.Seriali
 // <ErrorResponse><Error><Type/><Code/><Message/></Error><RequestId/></ErrorResponse>,
 // Type Sender or Receiver, Code the identity's QueryCode (the awsQueryError
 // code, else the shape name), the message for awsQuery (messageByProtocol
-// over the default text) and omitted when empty, then the error's extra
-// fields. The status is awsQueryError's httpResponseCode, which the
-// identity carries as QueryModeStatus when it differs from httpError, else
-// Status. Where a service's envelope differs from Smithy's, its
-// QueryErrorEnvelope says how. svc may be nil for a request no service
-// claimed.
-func (Codec) EncodeError(svc *registry.Service, requestID string, e *awserr.Error) Response {
+// over the default text) and omitted when empty, the members of the value
+// e carries as the output serializer writes them (smithy-protocol-tests.md
+// 11.2), then the error's extra fields. The status is awsQueryError's
+// httpResponseCode, which the identity carries as QueryModeStatus when it
+// differs from httpError, else Status. Where a service's envelope differs
+// from Smithy's, its QueryErrorEnvelope says how. A value that does not
+// serialize is answered as InternalFailure. svc may be nil for a request
+// no service claimed.
+func (c Codec) EncodeError(svc *registry.Service, requestID string, e *awserr.Error) Response {
 	body, err := errorBody(svc, requestID, e, e.Fields)
+	if members, ok := errors.AsType[*membersError](err); ok {
+		return c.EncodeError(svc, requestID, awserr.Internalf(members))
+	}
 	if err != nil {
 		// A field whose name is not an XML name: the error is still sent,
 		// without its fields, rather than replaced.
-		body, _ = errorBody(svc, requestID, e, nil) //nolint:errcheck // the fixed elements and escaped text always form a document
+		body, _ = errorBody(svc, requestID, e, nil) //nolint:errcheck // the fixed elements, the members that just serialized and escaped text always form a document
 	}
 	h := header(requestID, len(body))
 	for _, x := range e.Headers {
@@ -172,6 +177,21 @@ func (Codec) EncodeError(svc *registry.Service, requestID string, e *awserr.Erro
 	return Response{Status: errorStatus(e.ID), Header: h, Body: body}
 }
 
+// membersError is a failure to serialize the value an error carries: a
+// codec or generator bug, unlike a field name xmlw refuses.
+type membersError struct {
+	shape smithy.ShapeID
+	err   error
+}
+
+func (e *membersError) Error() string {
+	return fmt.Sprintf("encoding the members of the %s error: %v", e.shape, e.err)
+}
+
+func (e *membersError) Unwrap() error { return e.err }
+
+// errorBody writes e's ErrorResponse with fields as its extra fields. A
+// value whose members do not serialize is a *membersError.
 func errorBody(svc *registry.Service, requestID string, e *awserr.Error, fields []awserr.Field) ([]byte, error) {
 	var buf bytes.Buffer
 	s := newSerializer(xmlw.New(&buf))
@@ -185,6 +205,14 @@ func errorBody(svc *registry.Service, requestID string, e *awserr.Error, fields 
 	}
 	if env.detail {
 		s.leaf("Detail", "")
+	}
+	if v, ok := e.WireMembers(); ok {
+		// The value's structure has no element of its own: its members
+		// are children of <Error>, as an output's are of <OpResult>.
+		v.Serialize(s)
+		if err := s.done(); err != nil {
+			return nil, &membersError{shape: e.ID.Shape, err: err}
+		}
 	}
 	for _, f := range fields {
 		s.leaf(f.Name, f.Value)

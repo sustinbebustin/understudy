@@ -204,13 +204,20 @@ func (Codec) Encode(_ *http.Request, op *registry.Operation, requestID string, o
 
 // EncodeError renders e as restJson1 errors are sent (wire-rest.md 4.2):
 // status from the identity; X-Amzn-Errortype with the bare shape name; a
-// JSON body with no __type, holding the error's fields (Lambda's Type and
-// Reason) and then the message under the shape's own spelling (message or
-// Message), {} when it has neither; the error's headers (Retry-After); and
-// x-amzn-RequestId. It reads neither the request nor the service, which
-// it takes to keep the signature the other REST codec's.
-func (Codec) EncodeError(_ *http.Request, _ *registry.Service, requestID string, e *awserr.Error) Response {
-	body := []byte{'{'}
+// JSON body with no __type, holding the members of the value e carries
+// that bind to no header (under their jsonName, as outputs write them),
+// the error's fields (Lambda's Type and Reason) and then the message under
+// the shape's own spelling (message or Message), {} when it has none of
+// them; the value's httpHeader members and the error's headers
+// (Retry-After); and x-amzn-RequestId (smithy-protocol-tests.md 11.2). A
+// value that does not serialize is answered as InternalFailure. It reads
+// neither the request nor the service, which it takes to keep the
+// signature the other REST codec's.
+func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID string, e *awserr.Error) Response {
+	h, body, err := errorMembers(e)
+	if err != nil {
+		return c.EncodeError(r, svc, requestID, awserr.Internalf(err))
+	}
 	member := func(name, value string) {
 		if len(body) > 1 {
 			body = append(body, ',')
@@ -232,16 +239,37 @@ func (Codec) EncodeError(_ *http.Request, _ *registry.Service, requestID string,
 		}
 	}
 	body = append(body, '}')
-	h := http.Header{
-		"Content-Type":     {mediaJSON},
-		"X-Amzn-Errortype": {e.ID.Shape.Name()},
-		"X-Amzn-Requestid": {requestID},
-		"Content-Length":   {strconv.Itoa(len(body))},
-	}
+	h.Set("Content-Type", mediaJSON)
+	h.Set("X-Amzn-Errortype", e.ID.Shape.Name())
+	h.Set("X-Amzn-Requestid", requestID)
+	h.Set("Content-Length", strconv.Itoa(len(body)))
 	for _, x := range e.Headers {
 		h.Add(x.Name, x.Value)
 	}
 	return Response{Status: e.ID.Status, Header: h, Body: bytes.NewReader(body)}
+}
+
+// errorMembers splits the value e carries by its HTTP bindings: the
+// headers its httpHeader members set, and the open body object holding
+// its other members. Without a value they are no headers and "{".
+func errorMembers(e *awserr.Error) (http.Header, []byte, error) {
+	body := []byte{'{'}
+	v, ok := e.WireMembers()
+	if !ok {
+		return http.Header{}, body, nil
+	}
+	enc, err := restbind.EncodeStructure(v, e.ID.Status, hasResponseDocument, newWriter)
+	if err == nil {
+		doc, isDoc := enc.Body.(restbind.DocumentBody)
+		if !isDoc {
+			return nil, nil, fmt.Errorf("encoding the members of the %s error: an httpPayload member has no place in an error body", e.ID.Shape)
+		}
+		body, err = jsonx.AppendMembers(body, doc.Bytes)
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("encoding the members of the %s error: %w", e.ID.Shape, err)
+	}
+	return enc.Header, body, nil
 }
 
 // checkMediaTypes answers a wrong Content-Type with 415 and a wrong Accept
