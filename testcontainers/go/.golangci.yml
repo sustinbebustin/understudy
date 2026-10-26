@@ -1,0 +1,164 @@
+version: "2"
+
+# The Testcontainers module is a library that runs inside its users' tests,
+# not the emulator, so the root's clock rules do not apply. Its imports are
+# its own allow-list, recorded in ADR 0016 (amendment 2026-10-26).
+run:
+  go: "1.27"
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - bodyclose
+    - noctx
+    - contextcheck
+    - durationcheck
+    - errorlint
+    - exhaustive
+    - gochecksumtype
+    - forcetypeassert
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - makezero
+    - reassign
+    - copyloopvar
+    - fatcontext
+    - recvcheck
+    - gosec
+    - errchkjson
+    - nosprintfhostport
+    - canonicalheader
+    - usestdlibvars
+    - gocheckcompilerdirectives
+    - bidichk
+    - errname
+    - revive
+    - gocritic
+    - unparam
+    - unconvert
+    - predeclared
+    - perfsprint
+    - prealloc
+    - intrange
+    - modernize
+    - misspell
+    - dupword
+    - godot
+    - godox
+    - nolintlint
+    - gochecknoinits
+    - gochecknoglobals
+    - iface
+    - funcorder
+    - containedctx
+    - thelper
+    - tparallel
+    - usetesting
+    - depguard
+    - forbidigo
+    - gomoddirectives
+    - gocognit
+    - nestif
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    govet:
+      enable-all: true
+      disable: [fieldalignment, shadow]
+    exhaustive: { default-signifies-exhaustive: false }
+    gochecksumtype: { default-signifies-exhaustive: false }
+    godox: { keywords: [TODO, FIXME, HACK, XXX] }
+    nolintlint: { require-explanation: true, require-specific: true }
+    godot: { scope: toplevel, capital: false }
+    gocognit: { min-complexity: 20 }
+    nestif: { min-complexity: 5 }
+    gocritic:
+      enabled-tags: [diagnostic, style, performance]
+      disabled-checks: [hugeParam, ptrToRefParam]
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: error-return
+        - name: error-naming
+        - name: error-strings
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: indent-error-flow
+        - name: unexported-return
+        - name: blank-imports
+        - name: receiver-naming
+        - name: var-naming
+        - name: unused-parameter
+        - name: useless-break
+        - name: unreachable-code
+        - name: redefines-builtin-id
+    # The module imports only understudy's public admin package from the
+    # root module, never internal/ (testcontainers.md 8.10). SDK clients
+    # stay in tests (testcontainers.md 4.1).
+    depguard:
+      rules:
+        main:
+          list-mode: strict
+          files: ["!$test"]
+          allow:
+            - $gostd
+            - github.com/testcontainers/testcontainers-go
+            - github.com/moby/moby/api
+            - github.com/sustinbebustin/understudy/admin
+        tests:
+          list-mode: strict
+          files: ["$test"]
+          allow:
+            - $gostd
+            - github.com/testcontainers/testcontainers-go
+            - github.com/moby/moby/api
+            - github.com/moby/moby/client
+            - github.com/aws/aws-sdk-go-v2
+            - github.com/sustinbebustin/understudy/admin
+            - github.com/sustinbebustin/understudy/testcontainers/go/understudy
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^fmt\.Print(f|ln)?$
+          msg: a library writes nothing to stdout; return the information
+        - pattern: ^os\.Exit$
+          msg: return an error to the caller
+        - pattern: ^panic$
+          msg: return an error value
+    # In-repo development builds against this checkout's admin package
+    # (testcontainers.md 8.8).
+    gomoddirectives: { replace-local: true, replace-allow-list: [github.com/sustinbebustin/understudy] }
+  exclusions:
+    generated: strict
+    presets: [std-error-handling, common-false-positives]
+    rules:
+      - path: _test\.go
+        linters: [gochecknoglobals, forbidigo, gocognit, nestif, forcetypeassert]
+      # understudy_test.go and validation_test.go are the module's
+      # specification, written before this config and changed only by their
+      # author: deliberate discards (a 401 body without "ready", a best-effort
+      # cleanup) and four style findings. Remove this rule once they are
+      # brought in line.
+      - path: understudy/(understudy|validation)_test\.go
+        linters: [errcheck, gocritic, godot, usestdlibvars]
+
+formatters:
+  enable: [gofumpt, goimports]
+  settings:
+    gofumpt: { extra: { group-params: true } }
+    goimports: { local-prefixes: [github.com/sustinbebustin/understudy] }
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false
