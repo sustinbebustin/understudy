@@ -1068,12 +1068,12 @@ Parser notes: the colon sits outside the bold for `Type`, `Creation time` and `A
 
 ### 10.4 full.md
 
-M-FULL: 8,326,656 bytes, `Content-Type: text/markdown; charset=utf-8`, `Last-Modified: Sun, 25 Oct 2026 17:54:17 GMT`; byte ranges are honored (`206` for `Range: bytes=0-12000`). It opens with `# AWS Managed Policy Reference Guide`, a copyright banner ("Copyright &copy; Amazon Web Services, Inc. and/or its affiliates. All rights reserved."), a trademark paragraph and a table of contents, then every page with headings demoted one level (`## <Name>`, `### Policy details`, `### JSON policy document`) and the same `<a name>` anchors. Counts on 2026-10-25: 1,608 `**Policy version:** v<N> (default)` lines, 1,608 `Creation time`, `Edited time` and `ARN` lines; highest version v190; Type and ARN path agree one for one: `AWS managed policy` 998 (no path), `Service-linked role policy` 365 (`aws-service-role/`), `Service role policy` 230 (`service-role/`), `Job function policy` 15 (`job-function/`). The about page in it has a "Deprecated AWS managed policies" section. Headings are markdown-escaped, which the three pages of 10.3 cannot show since their names hold no `_`: each of the 40 policy names holding `_` is headed with every `_` written `\_` (`## AmazonConnect\_FullAccess`, 43 escapes in all), while its anchors, its ARN line and its llms.txt line keep the plain name; 10 `**Description**:` lines carry the same escapes (`\_`, once `\*`). A generator run on 2026-10-26 found no unescaped heading for the same 40 names.
+M-FULL: 8,326,656 bytes, `Content-Type: text/markdown; charset=utf-8`, `Last-Modified: Sun, 25 Oct 2026 17:54:17 GMT`; byte ranges are honored (`206` for `Range: bytes=0-12000`). It opens with `# AWS Managed Policy Reference Guide`, a copyright banner ("Copyright &copy; Amazon Web Services, Inc. and/or its affiliates. All rights reserved."), a trademark paragraph and a table of contents, then every page with headings demoted one level (`## <Name>`, `### Policy details`, `### JSON policy document`) and the same `<a name>` anchors. Counts on 2026-10-25: 1,608 `**Policy version:** v<N> (default)` lines, 1,608 `Creation time`, `Edited time` and `ARN` lines; highest version v190; Type and ARN path agree one for one: `AWS managed policy` 998 (no path), `Service-linked role policy` 365 (`aws-service-role/`), `Service role policy` 230 (`service-role/`), `Job function policy` 15 (`job-function/`). The about page in it has a "Deprecated AWS managed policies" section. Headings are markdown-escaped, which the three pages of 10.3 cannot show since their names hold no `_`. Counted on 2026-10-26 in the same M-FULL body (8,326,656 bytes, sha256 `c976527cd05925ed951ba7fe185f073daf6a129fb021f1312b86aaf1133ca5f8`): each of the 40 policy names holding `_` is headed with every `_` written `\_` (`## AmazonConnect\_FullAccess`, 43 escapes in all), and none of the 40 is also headed with its plain name, while its anchors, its ARN line and its llms.txt line keep the plain name; 10 `**Description**:` lines carry the same escapes (`\_`, once `\*`) and no other backslash escape.
 
 ### 10.5 Mapping to IAM's policy fields
 
 - From the page: `PolicyName` (= `<Name>`), `Arn`, `Path` (from the ARN), `Description`, `DefaultVersionId` (`v<N>`), the default version's document, `CreateDate` and `UpdateDate` at minute precision.
-- Not on the page: `PolicyId` (`ANPA...`), `AttachmentCount`, `PermissionsBoundaryUsageCount`, `IsAttachable`, any non-default version. Whether the page's Description and Edited time equal IAM's `Description` and `UpdateDate`, and what seconds IAM reports, is UNVERIFIED (IAM-EVAL-32).
+- Not on the page: `PolicyId` (`ANPA...`), `AttachmentCount`, `PermissionsBoundaryUsageCount`, `IsAttachable`, any non-default version. Whether the page's Description and Edited time equal IAM's `Description` and `UpdateDate`, what seconds IAM reports, and what `IsAttachable` a service-linked role policy has, is UNVERIFIED (IAM-EVAL-32).
 - The ADR 0016 amendment names the guide's `llms.txt` "and the `.md` page it lists for each policy"; `full.md` is itself listed in `llms.txt`, so one `full.md` request (cross-checked against a sample of single pages) stays inside the amendment and inside the crawl delay. Whether the copyright banner of `full.md` affects the CC BY-SA 4.0 notice the amendment plans is a question for the maintainer, not settled here.
 
 ## 11. Conflicts between sources
@@ -1717,14 +1717,14 @@ If `create-queue` rejects the second key, record that and stop. Cost USD 0, 3 mi
 Settles 10.5. IAM output is used only to check the mapping, never shipped (ADR 0016 managed policies amendment).
 
 ```sh
-for a in AmazonSQSFullAccess service-role/AWSLambdaBasicExecutionRole AmazonS3FullAccess; do
+for a in AmazonSQSFullAccess service-role/AWSLambdaBasicExecutionRole AmazonS3FullAccess aws-service-role/AmazonSSMServiceRolePolicy; do
   rec "IAM-EVAL-32/${a##*/}" aws iam get-policy --policy-arn arn:aws:iam::aws:policy/$a
 done
 rec IAM-EVAL-32/s3full-v1 aws iam get-policy-version --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess --version-id v1
 rec IAM-EVAL-32/s3full-v2 aws iam get-policy-version --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess --version-id v2
 ```
 
-Compare `CreateDate`, `UpdateDate`, `Description`, `DefaultVersionId` and the document with 10.3. Cost USD 0, 2 minutes. Teardown: none.
+Compare `CreateDate`, `UpdateDate`, `Description`, `DefaultVersionId` and the document with 10.3, and record `IsAttachable` for the service-linked role policy, which the page does not publish and understudy answers `true`. Cost USD 0, 2 minutes. Teardown: none.
 
 ### 13.34 IAM-EVAL-33: service-principal context keys and wildcard principals
 
