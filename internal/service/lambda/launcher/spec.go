@@ -96,6 +96,11 @@ type ZipCode struct {
 	// Dir is the absolute host path of the extracted tree.
 	Dir     string
 	Handler string
+	// Opt is the absolute host path of the function's merged layer tree,
+	// which reaches /opt read-only (lambda-destinations-layers.md 8.1,
+	// 11.5); "" when the function has no layers, which leaves the image's
+	// /opt alone. Not read yet: environments get no /opt.
+	Opt string
 }
 
 // ImageCode is a container-image function; the overrides replace the

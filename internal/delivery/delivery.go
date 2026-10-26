@@ -21,6 +21,90 @@ type Request struct {
 	// DLQ is where a delivery goes when its retries are exhausted or the
 	// target is gone; nil drops it.
 	DLQ *aws.ARN
+	// Sender is set for the Lambda* mechanisms and nil for every other:
+	// Lambda delivers an asynchronous invocation's record or dead letter as
+	// the function's execution role (lambda-destinations-layers.md 2.5,
+	// 11.3).
+	Sender *LambdaSender
+}
+
+// LambdaSender is a Lambda* delivery's sender: the execution role it runs
+// as and what it carries.
+type LambdaSender struct {
+	// Role is the function's execution role,
+	// arn:<partition>:iam::<account>:role/<path><name>.
+	Role aws.ARN
+	// Carries is what the delivery is, which names the metric AWS counts
+	// when it fails.
+	Carries LambdaPayload
+}
+
+// LambdaPayload is what a Lambda* delivery carries.
+type LambdaPayload uint8
+
+// LambdaPayload values.
+const (
+	// DestinationRecord is an invocation record for an on-success or
+	// on-failure destination; a failure counts DestinationDeliveryFailures
+	// (lambda-destinations-layers.md 4.6).
+	DestinationRecord LambdaPayload = iota + 1
+	// DeadLetter is a failed event for the function's dead-letter queue or
+	// topic; a failure counts DeadLetterErrors
+	// (lambda-destinations-layers.md 5.4).
+	DeadLetter
+)
+
+// String returns the wire name, "destination-record" or "dead-letter".
+func (p LambdaPayload) String() string {
+	switch p {
+	case DestinationRecord:
+		return "destination-record"
+	case DeadLetter:
+		return "dead-letter"
+	default:
+		return fmt.Sprintf("LambdaPayload(%d)", uint8(p))
+	}
+}
+
+// Metric is the CloudWatch metric Lambda counts when a delivery carrying p
+// fails for good; "" for an undeclared p.
+func (p LambdaPayload) Metric() string {
+	switch p {
+	case DestinationRecord:
+		return "DestinationDeliveryFailures"
+	case DeadLetter:
+		return "DeadLetterErrors"
+	default:
+		return ""
+	}
+}
+
+// LambdaPayloadError reports text that names no Lambda delivery payload.
+type LambdaPayloadError struct {
+	Text string
+}
+
+func (e *LambdaPayloadError) Error() string {
+	return fmt.Sprintf("%q names no Lambda delivery payload; known names are destination-record and dead-letter", e.Text)
+}
+
+// MarshalText encodes the wire name.
+func (p LambdaPayload) MarshalText() ([]byte, error) {
+	if p != DestinationRecord && p != DeadLetter {
+		return nil, &LambdaPayloadError{Text: p.String()}
+	}
+	return []byte(p.String()), nil
+}
+
+// UnmarshalText decodes a wire name.
+func (p *LambdaPayload) UnmarshalText(text []byte) error {
+	for _, v := range []LambdaPayload{DestinationRecord, DeadLetter} {
+		if v.String() == string(text) {
+			*p = v
+			return nil
+		}
+	}
+	return &LambdaPayloadError{Text: string(text)}
 }
 
 // Target is where a delivery goes, carrying the payload for that target.
@@ -36,6 +120,9 @@ type SQSQueue struct {
 	Attributes []MessageAttribute
 	GroupID    string
 	DedupID    string
+	// TraceHeader is sent as the AWSTraceHeader message system attribute
+	// when not empty (lambda-destinations-layers.md 4.1, 11.3).
+	TraceHeader string
 }
 
 // LambdaFunction is an Invoke of a function. Event source mappings call
@@ -507,6 +594,15 @@ const (
 	EventsToSNS
 	EventsToEvents
 	SNSToHTTP
+	// The Lambda mechanisms deliver an asynchronous invocation's record to
+	// a destination, or its event to the function's dead-letter queue or
+	// topic (the first two), as the function's execution role
+	// (lambda-destinations-layers.md 11.3).
+	LambdaToSQS
+	LambdaToSNS
+	LambdaToLambda
+	LambdaToEvents
+	LambdaToS3
 
 	// endMechanism follows the last value and is no mechanism: Mechanisms,
 	// valid and the MechanismError text count up to it, so a new value is
@@ -546,6 +642,16 @@ func (m Mechanism) String() string {
 		return "events-to-events"
 	case SNSToHTTP:
 		return "sns-to-http"
+	case LambdaToSQS:
+		return "lambda-to-sqs"
+	case LambdaToSNS:
+		return "lambda-to-sns"
+	case LambdaToLambda:
+		return "lambda-to-lambda"
+	case LambdaToEvents:
+		return "lambda-to-events"
+	case LambdaToS3:
+		return "lambda-to-s3"
 	default:
 		return fmt.Sprintf("Mechanism(%d)", uint8(m))
 	}
@@ -563,6 +669,8 @@ func (m Mechanism) Via() ref.Via {
 		return ref.S3Notification
 	case EventsToLambda, EventsToSQS, EventsToSNS, EventsToEvents:
 		return ref.EventsTarget
+	case LambdaToSQS, LambdaToSNS, LambdaToLambda, LambdaToEvents, LambdaToS3:
+		return ref.LambdaDestination
 	default:
 		return 0
 	}
@@ -572,14 +680,16 @@ func (m Mechanism) Via() ref.Via {
 // Mechanism, as for Via; any other m yields "".
 func (m Mechanism) Target() ref.ServiceID {
 	switch m {
-	case SNSToSQS, S3ToSQS, EventsToSQS:
+	case SNSToSQS, S3ToSQS, EventsToSQS, LambdaToSQS:
 		return "sqs"
-	case SNSToLambda, S3ToLambda, EventsToLambda:
+	case SNSToLambda, S3ToLambda, EventsToLambda, LambdaToLambda:
 		return "lambda"
-	case S3ToSNS, EventsToSNS:
+	case S3ToSNS, EventsToSNS, LambdaToSNS:
 		return "sns"
-	case EventsToEvents:
+	case EventsToEvents, LambdaToEvents:
 		return "eventbridge"
+	case LambdaToS3:
+		return "s3"
 	case SNSToHTTP:
 		// An HTTP endpoint lands in no service.
 		return ""

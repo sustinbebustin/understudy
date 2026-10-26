@@ -10,18 +10,19 @@ type Via uint8
 
 // Via values.
 const (
-	SNSDelivery    Via = iota + 1 // SNS delivering to a subscription
-	LambdaESM                     // an event source mapping polling or invoking
-	EventsTarget                  // EventBridge invoking a rule target
-	S3Notification                // S3 delivering an event notification
-	LambdaLogs                    // function output written to CloudWatch Logs
-	DynamoDBTTL                   // the TTL shim deleting expired items
-	Timer                         // a scheduler timer callback
-	Snapshot                      // snapshot export and import
-	Admin                         // the admin API
-	KMSForward                    // S3, Secrets Manager, DynamoDB or CloudWatch Logs calling KMS for the caller, or on its own behalf for the caller's request
-	STSAssumeRole                 // STS reading the role AssumeRole names from IAM, for the caller
-	LambdaCode                    // Lambda reading a function's package from S3, for the caller
+	SNSDelivery       Via = iota + 1 // SNS delivering to a subscription
+	LambdaESM                        // an event source mapping polling or invoking
+	EventsTarget                     // EventBridge invoking a rule target
+	S3Notification                   // S3 delivering an event notification
+	LambdaLogs                       // function output written to CloudWatch Logs
+	DynamoDBTTL                      // the TTL shim deleting expired items
+	Timer                            // a scheduler timer callback
+	Snapshot                         // snapshot export and import
+	Admin                            // the admin API
+	KMSForward                       // S3, Secrets Manager, DynamoDB or CloudWatch Logs calling KMS for the caller, or on its own behalf for the caller's request
+	STSAssumeRole                    // STS reading the role AssumeRole names from IAM, for the caller
+	LambdaCode                       // Lambda reading a function's package from S3, for the caller
+	LambdaDestination                // Lambda delivering an asynchronous invocation's record or dead letter, or looking a destination up
 
 	// endVia follows the last value and is no Via: valid, ParseVia and the
 	// ViaError text count up to it, so a new value is one line above it
@@ -65,6 +66,8 @@ func (v Via) String() string {
 		return "sts-assume-role"
 	case LambdaCode:
 		return "lambda-code"
+	case LambdaDestination:
+		return "lambda-destination"
 	default:
 		return fmt.Sprintf("Via(%d)", uint8(v))
 	}

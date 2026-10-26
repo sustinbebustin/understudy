@@ -213,7 +213,9 @@ func genEntry() *rapid.Generator[Entry] {
 
 // genMechanismInto draws a mechanism that delivers to target's service. A
 // mechanism names its target by registry service ID, which for EventBridge
-// is not its ARN namespace (internal/ref/ref.go).
+// is not its ARN namespace (internal/ref/ref.go). The Lambda mechanisms are
+// left out: their requests carry a Sender and no forwarded event, which
+// genEntry does not draw.
 func genMechanismInto(target delivery.Target) *rapid.Generator[delivery.Mechanism] {
 	arn, _ := targetARN(target)
 	service := arn.Service
@@ -222,7 +224,7 @@ func genMechanismInto(target delivery.Target) *rapid.Generator[delivery.Mechanis
 	}
 	var into []delivery.Mechanism
 	for _, m := range delivery.Mechanisms() {
-		if string(m.Target()) == service {
+		if string(m.Target()) == service && m.Via() != ref.LambdaDestination {
 			into = append(into, m)
 		}
 	}

@@ -29,6 +29,7 @@ export const viaLabels: Readonly<Record<string, string>> = {
   "kms-forward": "KMS on the caller's behalf",
   "sts-assume-role": "STS AssumeRole",
   "lambda-code": "Lambda code fetch",
+  "lambda-destination": "Lambda destination",
 };
 
 export const mechanismLabels: Readonly<Record<string, string>> = {
@@ -42,6 +43,11 @@ export const mechanismLabels: Readonly<Record<string, string>> = {
   "events-to-sns": "EventBridge to SNS",
   "events-to-events": "EventBridge to EventBridge",
   "sns-to-http": "SNS to HTTP",
+  "lambda-to-sqs": "Lambda to SQS",
+  "lambda-to-sns": "Lambda to SNS",
+  "lambda-to-lambda": "Lambda to Lambda",
+  "lambda-to-events": "Lambda to EventBridge",
+  "lambda-to-s3": "Lambda to S3",
 };
 
 // ids.Kind: the generator streams (internal/ids/kind.go).
@@ -65,6 +71,7 @@ export const idKindLabels: Readonly<Record<string, string>> = {
   jitter: "Delivery jitter",
   "events-event-id": "EventBridge event ID",
   "s3-ssec-salt": "S3 SSE-C key salt",
+  "lambda-record-key": "Lambda record object key",
 };
 
 // label returns table's label for name, or name when it has none.

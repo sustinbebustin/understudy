@@ -28,6 +28,7 @@ export const vias = [
   "kms-forward",
   "sts-assume-role",
   "lambda-code",
+  "lambda-destination",
 ] as const;
 
 export const mechanisms = [
@@ -41,6 +42,11 @@ export const mechanisms = [
   "events-to-sns",
   "events-to-events",
   "sns-to-http",
+  "lambda-to-sqs",
+  "lambda-to-sns",
+  "lambda-to-lambda",
+  "lambda-to-events",
+  "lambda-to-s3",
 ] as const;
 
 export const idKinds = [
@@ -63,4 +69,5 @@ export const idKinds = [
   "jitter",
   "events-event-id",
   "s3-ssec-salt",
+  "lambda-record-key",
 ] as const;

@@ -36,6 +36,9 @@ const (
 	// KindSSECSalt salts the HMAC S3 keeps of an SSE-C customer key
 	// (s3-ssec-object-lock.md 3.11).
 	KindSSECSalt
+	// KindLambdaRecordKey is the UUID that ends the S3 object key of an
+	// asynchronous invocation record (lambda-destinations-layers.md 4.5).
+	KindLambdaRecordKey
 
 	// endKind follows the last kind and is no kind: kindCount counts up to
 	// it, so a new kind is one line above it plus its String case.
@@ -95,6 +98,8 @@ func (k Kind) String() string {
 		return "events-event-id"
 	case KindSSECSalt:
 		return "s3-ssec-salt"
+	case KindLambdaRecordKey:
+		return "lambda-record-key"
 	}
 	return fmt.Sprintf("kind(%d)", uint8(k))
 }

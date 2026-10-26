@@ -217,6 +217,10 @@ const (
 	// while understudy was not running, or before a loaded snapshot's
 	// time, were skipped rather than delivered in a burst.
 	AdvisoryScheduleFiresSkipped
+	// AdvisoryRecordResponseOmitted: an asynchronous invocation record left
+	// out a function response that is not JSON, whose rendering AWS has not
+	// been recorded (lambda-destinations-layers.md 11.4).
+	AdvisoryRecordResponseOmitted
 
 	// endAdvisoryKind follows the last value and is no advisory kind:
 	// ParseAdvisoryKind, MarshalText and the AdvisoryKindError text count
@@ -239,6 +243,8 @@ func (k AdvisoryKind) String() string {
 		return "filter-undecided"
 	case AdvisoryScheduleFiresSkipped:
 		return "schedule-fires-skipped"
+	case AdvisoryRecordResponseOmitted:
+		return "record-response-omitted"
 	default:
 		return fmt.Sprintf("AdvisoryKind(%d)", uint8(k))
 	}

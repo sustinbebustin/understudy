@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"log/slog"
 	"strings"
+	"uuid"
 )
 
 // Identifier types. Each is minted by the Source method of the same name in
@@ -116,6 +117,10 @@ func (s *Source) ETag() ETag { return ETag(hex.EncodeToString(s.Draw(KindETag, 1
 // SSECSalt draws the 16-byte salt of the HMAC S3 keeps of an SSE-C
 // customer key, one per object version or upload.
 func (s *Source) SSECSalt() []byte { return s.Draw(KindSSECSalt, 16) }
+
+// LambdaRecordKey mints the UUID that ends the S3 object key of an
+// asynchronous invocation record (lambda-destinations-layers.md 4.5).
+func (s *Source) LambdaRecordKey() uuid.UUID { return s.UUID(KindLambdaRecordKey) }
 
 // KMSKeyID mints a KMS key id.
 func (s *Source) KMSKeyID() KMSKeyID { return KMSKeyID(s.UUID(KindKMSKeyID).String()) }
