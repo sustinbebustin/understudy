@@ -41,6 +41,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/outbox"
+	"github.com/sustinbebustin/understudy/internal/policycatalogue"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -800,7 +801,7 @@ func wiredServices() []wiredService {
 			return kms.New(d, kms.Options{})
 		}},
 		{api{iamapi.Service(), iamapi.ThrottleError(), iamapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
-			return iam.New(d, iam.Options{})
+			return iam.New(d, iam.Options{Catalogue: policycatalogue.Embedded})
 		}},
 		{api{stsapi.Service(), stsapi.ThrottleError(), stsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			return sts.New(d, sts.Options{AssumeRole: c.switches.STSAssumeRole})
