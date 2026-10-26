@@ -303,3 +303,466 @@ Glacier (account id `-` default, checksum headers), API Gateway (`Accept` header
 - RESOLVED (CORRECTED (G1): botocore resolves to `json`, not `rpcv2Cbor`): Go v2 uses `rpcv2Cbor`; botocore (boto3, AWS CLI) and JS v3 use `awsJson1_0`, wire-captured in [wire-cbor.md](wire-cbor.md); a CBOR codec is needed in phase 1 (sources in the protocol table note above).
 - Provenance of the botocore protocol JSON corpus (UNVERIFIED).
 - Whether aws/smithy-go's `server` codegen runs `appliesTo: server` cases (UNVERIFIED).
+
+---
+
+## 9. The known failures (category `gap`): scope, sources, outcome
+
+Scope: the 15 cases `internal/protocoltest/skips.json` records under category `gap` (roadmap item 3, `docs/ROADMAP.md` L13): what each asserts, what a correct server must do, and what understudy must change to pass it. Retrieved 2026-10-25. Sources:
+
+- The Smithy 2.0 specification at tag `1.74.0`, the corpus version (section 1), read as source. A spec citation names the file under https://github.com/smithy-lang/smithy/tree/1.74.0/docs/source-2.0 and its lines, for example `spec/type-refinement-traits.rst L146-L160` (rendered at https://smithy.io/2.0/spec/type-refinement-traits.html#default-value-serialization).
+- The vendored corpus `third_party/smithy-protocol-tests/model.json` (cited by line), the generated cases under `internal/protocoltest/gen`, and the harness in `internal/protocoltest`.
+- Reference implementations: smithy-rs at `4b8147167eb2b170c26290d18a940b5d15b9d20d` (cited `smithy-rs@4b81471 <path>`), smithy-java at `be39984d32f02d8a9c5c24598f3115c6a120f853` (`smithy-java@be39984`), aws-sdk-go-v2 at `aae188a6fff551d7c038e895bd92262b43a251fb` (`aws-sdk-go-v2@aae188a`), aws-sdk-js-v3 at `163a566ffba89915cade6109031c5892ea3193c4`, botocore `1.43.109`.
+- DynamoDB: the vendored model (`third_party/api-models-aws`, api-models-aws `1cfdfb4bb9ea858e65623e66d73af04bec353201`), the API reference and developer guide, LocalStack's AWS-validated snapshots (`localstack@8b9a79f`, third-party-recorded), and understudy's own recording `testdata/parity/dynamodb/R04` (aws-recorded, 2026-10-14).
+
+"Computed" below means a scratch script over `model.json`, `skips.json` or the 12 pinned models; it is not checked in.
+
+### 9.1 The 15 cases and their outcome
+
+| # | Case (model.json line) | Protocol, kind | Theme | Outcome after section 14 |
+|---|---|---|---|---|
+| 1 | `AwsJson10ComplexError` (L6589) | awsJson1_0 response | structured error member | pass |
+| 2 | `AwsJson11ComplexError` (L3541) | awsJson1_1 response | structured error member | pass |
+| 3 | `QueryComplexError` (L9639) | awsQuery response | structured error member | pass |
+| 4 | `RestJsonComplexErrorWithNoMessage` (L12807) | restJson1 response | structured error member, header-bound member | pass |
+| 5 | `ComplexError` (L33284) | restXml response | structured error member, plus an unmodeled `<Message>` | skip as `corpus-bug` (11.3) |
+| 6 | `RpcV2CborComplexError` (L42960) | rpcv2Cbor response | structured error member | pass |
+| 7 | `AwsJson10ServerPopulatesDefaultsInResponseWhenMissingInParams` (L8272) | awsJson1_0 response, server | defaults | pass |
+| 8 | `AwsJson10ServerPopulatesNestedDefaultValuesWhenMissingInInResponseParams` (L8671) | awsJson1_0 response, server | nested defaults, and a bench request the server rejects (10.6) | pass |
+| 9 | `RestJsonServerPopulatesDefaultsInResponseWhenMissingInParams` (L25085) | restJson1 response, server | defaults | pass |
+| 10 | `RestJsonServerPopulatesNestedDefaultValuesWhenMissingInInResponseParams` (L25488) | restJson1 response, server | nested defaults | pass |
+| 11 | `RpcV2CborServerPopulatesDefaultsInResponseWhenMissingInParams` (L43883) | rpcv2Cbor response, server | defaults | pass |
+| 12 | `RestJsonSerializesSparseSetMapAndRetainsNull` (L28003) | restJson1 request | null in a sparse map of sets | pass |
+| 13 | `RestJsonDeserializesSparseSetMapAndRetainsNull` (L28112) | restJson1 response | null in a sparse map of sets | pass |
+| 14 | `RpcV2CborSerializesSparseSetMapAndRetainsNull` (L44882) | rpcv2Cbor request | null in a sparse map of sets | pass |
+| 15 | `RpcV2CborDeserializesSparseSetMapAndRetainsNull` (L45005) | rpcv2Cbor response | null in a sparse map of sets | pass |
+
+"Zero known failures" is therefore 14 passes and one reclassification. The roadmap's split (6 structured-error cases, 9 defaults and sparse cases) holds; one of the six cannot pass on any server.
+
+### 9.2 How the reference servers classify them
+
+- smithy-rs has a restXml server: `ServerProtocolLoader` maps `restJson1`, `restXml`, `awsJson1_0`, `awsJson1_1` and `rpcv2Cbor` to server factories (smithy-rs@4b81471 `codegen-server/src/main/kotlin/software/amazon/smithy/rust/codegen/server/smithy/protocols/ServerProtocolLoader.kt` L63-L101), as section 4.2 says. Its server test build generates `RestJson`, `RestJsonExtras`, `RestJsonValidation`, `JsonRpc10`, `JsonProtocol`, `RpcV2Protocol` and the S3 slice `com.amazonaws.s3#AmazonS3`, but not `aws.protocoltests.restxml#RestXml` (smithy-rs@4b81471 `codegen-server-test/build.gradle.kts` L36-L144). No smithy-rs server runs case 5.
+- smithy-rs `ExpectFail` lists cases 7 to 11: "For the following 4 tests, response defaults are not set when builders are not used", with https://github.com/smithy-lang/smithy-rs/issues/3339 (smithy-rs@4b81471 `codegen-server/src/main/kotlin/software/amazon/smithy/rust/codegen/server/smithy/generators/protocol/ServerProtocolTestGenerator.kt` L152-L167). The issue (open on 2026-10-25) says: "If server user code uses builders, default values are always set and are hence serialized in the response. However, user code might construct the struct directly, and omit values for shapes that have `@default`, in which case the default value is _not_ serialized." The same list marks the two awsJson1_0 request cases "broken because they are missing a target header" (L148-L150), which understudy already skips (`internal/protocoltest/skips.json` L19).
+- smithy-rs lists none of cases 1, 2, 4, 6 or 12 to 15 (`ExpectFail` L69-L174, `BrokenTests` L177, `DisabledTests` L195), and its test build runs their services, so its servers pass them. Case 3 (`QueryComplexError`) has no smithy-rs runner at all: smithy-rs has no awsQuery server (section 4.2).
+- smithy-java has servers for restJson1, rpcv2Cbor and rpcv2Json only (directories `aws/server` and `server` at smithy-java@be39984). It skips `RestJsonComplexErrorWithNoMessage` pending a fix in its `HttpBindingSerializer`, `RestJsonServerPopulatesDefaultsInResponseWhenMissingInParams`, and the nested variant ("this breaks because of Validation and errorCorrection doesn't handle that") (smithy-java@be39984 `aws/server/aws-server-restjson/src/it/java/software/amazon/smithy/java/aws/server/restjson/AwsRestJson1ProtocolTests.java` L60-L82). For rpcv2Cbor it skips `RpcV2CborComplexError` ("Error serialization doesn't include __type") and case 11 ("test is incorrect", with no reason) (`server/server-rpcv2-cbor/src/it/java/software/amazon/smithy/java/server/rpcv2/RpcV2CborProtocolTests.java` L39-L49). Case 11's body matches its output shape member for member (10.1), so understudy treats the case as valid; the smithy-java remark is an unexplained opinion, not evidence.
+- TypeScript: the protocol-test packages in aws-sdk-js-v3 `private/` describe themselves as clients (for example `private/aws-protocoltests-restxml/package.json`: "@aws-sdk/aws-protocoltests-restxml client"). No TypeScript server runner of the restXml corpus was found.
+
+---
+
+## 10. Modeled defaults on unset output members (cases 7 to 11)
+
+### 10.1 What the cases assert
+
+`OperationWithDefaults` (cases 7, 9, 11): `appliesTo: server`, tag `defaults`, `params: {}`, status 200. Cases 7 and 9 expect the same JSON body, with `Content-Type: application/x-amz-json-1.0` and `application/json`:
+
+```json
+{"defaultString":"hi","defaultBoolean":true,"defaultList":[],"defaultDocumentMap":{},
+ "defaultDocumentString":"hi","defaultDocumentBoolean":true,"defaultDocumentList":[],
+ "defaultTimestamp":0,"defaultBlob":"YWJj","defaultByte":1,"defaultShort":1,"defaultInteger":10,
+ "defaultLong":100,"defaultFloat":1.0,"defaultDouble":1.0,"defaultMap":{},"defaultEnum":"FOO",
+ "defaultIntEnum":1,"emptyString":"","falseBoolean":false,"emptyBlob":"","zeroByte":0,"zeroShort":0,
+ "zeroInteger":0,"zeroLong":0,"zeroFloat":0.0,"zeroDouble":0.0}
+```
+
+- The output also models `defaultNullDocument` with `@default(null)`, and the body leaves it out. A `null` default means the member "has no default value" (`spec/type-refinement-traits.rst` L74-L76); understudy's generator already drops it (`internal/codegen/ir_members.go` L52).
+- Case 11 (`smithy-protocol: rpc-v2-cbor`, `Content-Type: application/cbor`) carries the same members minus the four documents, since rpcv2Cbor does not support documents (`additional-specs/protocols/smithy-rpc-v2-cbor.rst` L383-L384). Decoded from the case's base64 (computed): an indefinite-length map; `defaultTimestamp` is tag 1 over float64 0.0 (`c1 fb 00 00 00 00 00 00 00 00`); `defaultBlob` is the byte string `abc`; `defaultFloat` is float32 1.0 (`fa 3f 80 00 00`); `defaultDouble` is float64 1.0; `emptyBlob` is an empty byte string; `zeroFloat` is float32 0.0. That is all 23 members of `smithy.protocoltests.rpcv2Cbor#OperationWithDefaultsOutput` with the right types.
+
+`OperationWithNestedStructure` (cases 8, 10). The output requires `dialog`, and defaults `dialogList` to `[]` and `dialogMap` to `{}`. `Dialog$greeting` defaults to `"hi"` and `Farewell$phrase` to `"bye"` (shapes `aws.protocoltests.json10#OperationWithNestedStructureOutput`, `#Dialog`, `#Farewell`; the restjson namespace is identical). Params, then expected body:
+
+```json
+{"dialog":{"language":"en"},
+ "dialogList":[{},{"farewell":{}},{"language":"it","greeting":"ciao","farewell":{"phrase":"arrivederci"}}],
+ "dialogMap":{"emptyDialog":{},"partialEmptyDialog":{"language":"en","farewell":{}},
+              "nonEmptyDialog":{"greeting":"konnichiwa","farewell":{"phrase":"sayonara"}}}}
+```
+
+```json
+{"dialog":{"language":"en","greeting":"hi"},
+ "dialogList":[{"greeting":"hi"},{"greeting":"hi","farewell":{"phrase":"bye"}},
+               {"language":"it","greeting":"ciao","farewell":{"phrase":"arrivederci"}}],
+ "dialogMap":{"emptyDialog":{"greeting":"hi"},
+              "partialEmptyDialog":{"language":"en","greeting":"hi","farewell":{"phrase":"bye"}},
+              "nonEmptyDialog":{"greeting":"konnichiwa","farewell":{"phrase":"sayonara"}}}}
+```
+
+So defaults apply at every depth: in list elements, in map values, and inside an optional structure that is present (`farewell: {}` becomes `{"phrase":"bye"}`). An absent optional structure stays absent, and explicit values win (`"ciao"`, `"arrivederci"`).
+
+A correct server serializes every member that has a modeled default and that the handler left unset as that default, recursively.
+
+### 10.2 What the specification requires of a server
+
+- "All effective default values SHOULD be serialized. This ensures that messages are unambiguous and do not change during deserialization if the default value for a member changes after the message was serialized." Also: "A member marked `@required` MUST be serialized, including members that have a default." (`spec/type-refinement-traits.rst` L146-L160.)
+- Servers are authoritative model consumers. They ignore `@clientOptional` and `@input`, and a member with `@default` is "Present" (`spec/aggregate-types.rst` L166-L198). Defaults are assigned during deserialization, so "it is impossible for a server to differentiate between whether a property was set to its default value or if a property was omitted" (`spec/type-refinement-traits.rst` L122-L128).
+- Each protocol's "Default value serialization" section adds only two things: serializers SHOULD omit defaults of `@internal` members, and clients SHOULD error-correct missing required members (`aws/protocols/aws-default-zero-value.rst.template` L1-L6, included by `aws-json.rst.template` L86-L90, `aws-restjson1-protocol.rst` L246-L249 and `aws-restxml-protocol.rst` L252; `additional-specs/protocols/smithy-rpc-v2-cbor.rst` L461-L470). No structure member of the 12 pinned models or of the corpus carries `@internal` (computed). The corpus's only `@internal` uses are the enum value `aws.protocoltests.restjson.validation#EnumString$GHI` and two `aws.auth` trait shapes, none of which has a default.
+- The compliance suite "SHALL be considered a normative reference" (`aws/protocols/aws-json.rst.template` L227, `aws-restjson1-protocol.rst` L369), and these cases make the SHOULD a server test.
+- Constraints on default values: a blob default is base64 (`"YWJj"` is the bytes `abc`), a list or map default can only be empty, and structures and unions take none (`spec/type-refinement-traits.rst` L100-L116). The spec's default-value text says nothing about timestamps; the corpus fixes `defaultTimestamp`'s `@default(0)` as epoch second 0, since cases 7 and 9 expect `"defaultTimestamp":0` and case 11 tag 1 over 0.0 (10.1). The spec's client error-correction zero timestamp agrees: "0 seconds since the Unix epoch" (`spec/aggregate-types.rst` L226).
+
+Answer: yes. A server writes the modeled default for every defaulted member the handler leaves unset.
+
+### 10.3 What the reference implementations do
+
+- smithy-rs server builders fall back to the modeled default when the user set no value: "If a `@default` value is modeled and the user did not set a value, fall back to using the default value." (smithy-rs@4b81471 `codegen-server/src/main/kotlin/software/amazon/smithy/rust/codegen/server/smithy/generators/ServerBuilderGenerator.kt` L562-L572). Its response tests build the struct directly, which is why cases 7 to 11 fail there (9.2).
+- aws-sdk-go-v2 is the Go precedent for the representation (client types), but its rule is not "pointer when the default differs from the Go zero value". In `OperationWithDefaultsOutput`, every defaulted string, the non-zero numbers and booleans, and the timestamp are pointers: `DefaultString *string`, `EmptyString *string` (default `""`), `DefaultBoolean *bool`, `DefaultInteger *int32`, `DefaultTimestamp *time.Time`. Numeric and boolean zero defaults are plain values: `FalseBoolean bool`, `ZeroInteger int32`. Enums stay plain values even with non-zero defaults: `DefaultEnum types.TestEnum` (default `"FOO"`) and `DefaultIntEnum types.TestIntEnum` (default `1`). Lists, maps, documents and blobs are nil-able (aws-sdk-go-v2@aae188a `internal/protocoltest/jsonrpc10/api_op_OperationWithDefaults.go` L69-L125).
+
+### 10.4 Representing "unset" in understudy
+
+Today a defaulted scalar or enum is a plain Go value, and a defaulted list, map, document or blob uses nil for absent (`internal/codegen/ir_shapes.go` L199-L216). The serializer always writes plain values and skips nil ones (`internal/codegen/emit_serde.go` L103-L141), as the generated `OperationWithDefaultsOutput.serialize` shows (`internal/protocoltest/gen/jsonrpc10/serde_gen.go` L1435-L1486). The generated output for `params: {}` is `&OperationWithDefaultsOutput{}` (`internal/protocoltest/gen/jsonrpc10/cases_gen.go` L326). For case 7 the codec therefore writes `"defaultString":""`, `"defaultInteger":0` and `"defaultTimestamp":-62135596800` (Go's zero `time.Time` is 0001-01-01, not the epoch). It writes no `defaultList`, `defaultMap`, document or blob keys at all.
+
+There are three kinds of defaulted member:
+
+| Kind | Members | "Unset" today | Required representation |
+|---|---|---|---|
+| Zero default | numeric `0`, `false`, `""`, intEnum `0` | plain value; unset = zero = default | unchanged: always written |
+| Non-zero default | every other scalar default; every enum default (an enum value is never `""`); every timestamp default (Go's zero time is not the epoch) | plain value; unset cannot be told from an explicit zero, so the zero goes out | pointer, nil = unset. The serializer writes the default for nil; the decoder stores a pointer to the default when the member is absent |
+| Nil-able default | list `[]`, map `{}`, document, non-streaming blob | nil = absent, member omitted | nil = unset; the serializer writes the default (`[]`, `{}`, the document, the base64-decoded bytes). Streaming members are excluded |
+
+Two alternatives were rejected:
+
+- Writing the default whenever the Go value is zero makes an explicit `0`, `""` or `false` impossible to send for a member with a non-zero default.
+- Filling defaults into the generated case literal would pass the test without exercising the codec, and handlers would still send zeros.
+
+### 10.5 Effect on the 12 pinned services
+
+Computed over the output and error closures of every operation in `third_party/api-models-aws`:
+
+- Non-zero defaults: one. `com.amazonaws.lambda#Event$EventId` has `@default(1)` (target `com.amazonaws.lambda#EventId`, an integer with `@range(min: 1)`). It is reachable only from `GetDurableExecutionHistoryResponse$Events`, and `GetDurableExecutionHistory` is unbound (`docs/coverage.md` L645).
+- Zero-valued scalar defaults: 157 members (logs 30, dynamodb 9, eventbridge 19, iam 62, kms 11, lambda 18, secrets manager 1, sns 3, sqs 4; cloudwatch and sts none). Their wire form does not change.
+- Nil-able defaults: none outside three streaming blobs with `@default("")`: S3 `GetObjectOutput$Body`, `GetObjectTorrentOutput$Body` and `GetObjectAnnotationOutput$AnnotationPayload`, all targeting the `@streaming` `com.amazonaws.s3#StreamingBlob`. They stay excluded.
+- `@default(null)`, meaning no default: Secrets Manager `DescribeSecretResponse$RotationEnabled` and `SecretListEntry$RotationEnabled`.
+
+The change is invisible on every bound real-service operation. It matters for the corpus, and for a future binding of `GetDurableExecutionHistory`.
+
+### 10.6 Case 8 needs a request the server accepts
+
+- The bench gives a response case "the operation's first request case that is not skipped ... else the smallest request the protocol's framing and the operation's binding allow" (`internal/protocoltest/doc.go`; `internal/protocoltest/run_test.go` L195-L241).
+- `OperationWithNestedStructure` has one awsJson1_0 server request case, `AwsJson10ServerPopulatesNestedDefaultsWhenMissingInRequestBody` (model.json L8552). It sends `Content-Type` but no `X-Amz-Target`, and is skipped as a corpus bug (`internal/protocoltest/skips.json` L19). So the bench sends `{}` with `X-Amz-Target: JsonRpc10.OperationWithNestedStructure` (`run_test.go` L214-L222).
+- The input requires `topLevel`, and `TopLevel` requires `dialog` (shapes `aws.protocoltests.json10#OperationWithNestedStructureInput` and `#TopLevel`). The generated validator reports `topLevel` missing (`internal/protocoltest/gen/jsonrpc10/validate_gen.go` L126-L131), and the kernel runs it before the handler (`internal/kernel/bind.go` L38-L57). The handler is never entered, so case 8 fails even with defaults fixed.
+- Case 10 is unaffected: its restJson1 twin request case, `RestJsonServerPopulatesNestedDefaultsWhenMissingInRequestBody`, is valid and passes (`internal/protocoltest/baseline.json`).
+- Computed over model.json and skips.json: this is the only server-runnable response case whose fallback request lacks a required input member. The other candidate, S3 `GetBucketLocation`'s `Bucket`, is a URI label the bench already fills (`run_test.go` L243-L269).
+- The request the bench should use: the smallest body that satisfies the required members, `{"topLevel":{"dialog":{}}}`, sent with `Content-Type: application/x-amz-json-1.0` and `X-Amz-Target: JsonRpc10.OperationWithNestedStructure`.
+- An equivalent alternative is the skipped corpus request with the missing header added, which is what smithy-rs's `BrokenTests` rewrite mechanism does for another case (`ServerProtocolTestGenerator.kt` L177-L193). That edits corpus data, so building the request from the input schema is preferred.
+
+---
+
+## 11. Structured error members (cases 1 to 6)
+
+### 11.1 The error shapes
+
+- Each test service defines `ComplexError` with `@error("client")`, members `TopLevel: String` and `Nested: ComplexNestedErrorData { Foo: String }`, and no message member.
+- The restJson1 and restXml versions add `@httpError(403)` and `Header: String` bound by `@httpHeader("X-Header")`.
+- `ComplexNestedErrorData$Foo` carries `@jsonName("Fooooo")` in the json10, json and restjson namespaces.
+- Shapes: `aws.protocoltests.json10#ComplexError`, `aws.protocoltests.json#ComplexError`, `aws.protocoltests.query#ComplexError`, `aws.protocoltests.restjson#ComplexError`, `aws.protocoltests.restxml#ComplexError` and `smithy.protocoltests.rpcv2Cbor#ComplexError`, each with its `ComplexNestedErrorData`.
+- Every case applies to both clients and servers. Params are `{"TopLevel":"Top level","Nested":{"Foo":"bar"}}`, plus `"Header":"Header"` in the two REST cases.
+
+### 11.2 Wire form per protocol
+
+Errors are "serialized identically to standard responses with one additional component to distinguish which error is contained" (`aws/protocols/aws-json.rst.template` L179-L185, `aws-restjson1-protocol.rst` L337-L344, `additional-specs/protocols/smithy-rpc-v2-cbor.rst` L494-L497). The XML protocols nest "the serialized error structure members" in `<Error>` (`aws-restxml-protocol.rst` L282-L285, `aws-query-protocol.rst` L394-L397).
+
+| Case | Status and headers | Expected body | Rule |
+|---|---|---|---|
+| 1 | 400; `Content-Type: application/x-amz-json-1.0` | `{"__type":"aws.protocoltests.json10#ComplexError","TopLevel":"Top level","Nested":{"Foo":"bar"}}` | `__type` is the full shape id (`aws-json.rst.template` L215-L216). `jsonName` is not an awsJson trait (supported traits, L1-L28), so `Foo`, not `Fooooo` |
+| 2 | 400; `application/x-amz-json-1.1` | `{"__type":"ComplexError","TopLevel":"Top level","Nested":{"Foo":"bar"}}` | `__type` is the shape name only (L217-L219) |
+| 3 | 400; `Content-Type: text/xml`; `vendorParams` code `ComplexError`, type `Sender` | `<ErrorResponse><Error><Type>Sender</Type><Code>ComplexError</Code><TopLevel>Top level</TopLevel><Nested><Foo>bar</Foo></Nested></Error><RequestId>foo-id</RequestId></ErrorResponse>` | `Code` is the `awsQueryError` code, else the shape name (`aws-query-protocol.rst` L452-L460). Status is `httpResponseCode`, else 400 for a client fault (L437-L448). The bench does not compare `RequestId` text (`internal/protocoltest/doc.go`) |
+| 4 | 403; `Content-Type: application/json`; `X-Header: Header`; `X-Amzn-Errortype: ComplexError` | `{"TopLevel":"Top level","Nested":{"Fooooo":"bar"}}` | Error type in `X-Amzn-Errortype` (`aws-restjson1-protocol.rst` L337-L344). `httpHeader` binds error members (L159). `jsonName` is honoured (L182-L186). `Header` is not in the body |
+| 5 | 403; `Content-Type: application/xml`; `X-Header: Header` | `<ErrorResponse><Error><Type>Sender</Type><Code>ComplexError</Code><Message>Hi</Message><TopLevel>Top level</TopLevel><Nested><Foo>bar</Foo></Nested></Error><RequestId>foo-id</RequestId></ErrorResponse>` | `Code` is the shape name (`aws-restxml-protocol.rst` L287-L290); see 11.3 |
+| 6 | 400; `smithy-protocol: rpc-v2-cbor`; `Content-Type: application/cbor` | indefinite map `{"__type":"smithy.protocoltests.rpcv2Cbor#ComplexError","TopLevel":"Top level","Nested":{"Foo":"bar"}}` (`bf 66 "__type" 78 2b ... ff`) | `__type` is the absolute shape id (`smithy-rpc-v2-cbor.rst` L494-L497) |
+
+The `*EmptyComplexError` siblings (params `{}`) already pass (`internal/protocoltest/baseline.json`), so the envelopes are right. Only the member payload is missing.
+
+### 11.3 restXml `ComplexError` cannot be produced by a server
+
+- The expected body carries `<Message>Hi</Message>`, but `aws.protocoltests.restxml#ComplexError` models no message and the params set none (model.json L33284). Source: `smithy-aws-protocol-tests/model/restXml/errors.smithy` L75-L119 at 1.74.0, unchanged on smithy `main` at `f9d0f0fde5d28b76aa99024bff0baeacaf40acaf`.
+- `<Error>` "contains the serialized error structure members" (`aws-restxml-protocol.rst` L282-L285). The only text a server could put in `<Message>` would be invented.
+- `InvalidGreetingError` in the same file (L52-L73) follows the same pattern: its body carries an unmodeled `<AnotherSetting>setting</AnotherSetting>`, and understudy skips it as `client-only` (`internal/protocoltest/skips.json` L382-L385).
+- The awsQuery twin `QueryComplexError` has no `<Message>` (model.json L9639), but the ec2Query twin `Ec2ComplexError` has the same unmodeled `<Message>Hi</Message>`, so the corpus does not show whether the element is a slip or a deliberate client test of unknown elements. The case carries no documentation either way. A server cannot produce it in either reading.
+- No reference server runs it (9.2).
+- Classification: `corpus-bug`. `client-only`, the category of `InvalidGreetingError`, fits the deliberate-test reading equally; either way the case leaves `gap`. After the structured-error fix, `<Message>` is the only thing this case still fails on.
+
+### 11.4 What understudy lacks
+
+- `awserr.Error` carries a message, per-protocol message overrides, `Fields []Field{Name, Value string}` and headers (`internal/awserr/error.go` L13-L26, L92-L96).
+- The case generator already emits the typed value. `gen.Error` is `{ID, Value smithy.Serializable, Code, Type}` (`internal/protocoltest/gen/case.go` L97-L102), for example `&ComplexError{TopLevel: new("Top level"), Nested: new(ComplexNestedErrorData{Foo: new("bar")})}` (`internal/protocoltest/gen/jsonrpc10/cases_gen.go` L368).
+- The bench flattens that value into an `awserr.Error` and stops with `UnrepresentableError` at the first structure, list, map, blob, timestamp or document member (`internal/protocoltest/outcome_test.go` L15-L39, L92-L103).
+- A fault rule can set only the shape and a message (`internal/fault/rule.go` L202-L209, `internal/fault/store.go` L291-L298).
+
+### 11.5 Real error shapes with non-string members
+
+Computed over the 12 pinned models:
+
+| Shape and member | Target | Reached today |
+|---|---|---|
+| `com.amazonaws.dynamodb#ConditionalCheckFailedException$Item` | `AttributeMap` | yes, passed through from DynamoDB Local (`internal/service/dynamodb/rewrite.go` L184-L226; aws-recorded `testdata/parity/dynamodb/R04/05-put-ccf-all-old.json`) |
+| `com.amazonaws.dynamodb#TransactionCanceledException$CancellationReasons` | `CancellationReasonList` | through Local only; a fault rule cannot set it (`docs/coverage.md` L232, L237, L238; `docs/guide/differences.md` L101) |
+| `com.amazonaws.dynamodb#ProvisionedThroughputExceededException$ThrottlingReasons`, `#RequestLimitExceeded$ThrottlingReasons`, `#ThrottlingException$throttlingReasons` | `ThrottlingReasonList` | fault rules inject these errors without reasons |
+| `com.amazonaws.cloudwatchlogs#MalformedQueryException$queryCompileError` | `QueryCompileError` | no: `StartQuery` and `GetQueryResults` are unbound (`docs/coverage.md` L800, L768) |
+| `com.amazonaws.cloudwatch#DashboardInvalidInputError$dashboardValidationMessages` | `DashboardValidationMessages` | no: `PutDashboard` is unbound (`docs/coverage.md` L200) |
+
+So the structured-error work has one real customer today: DynamoDB fault injection (section 12).
+
+---
+
+## 12. DynamoDB `TransactionCanceledException`
+
+### 12.1 Model facts
+
+- Service `com.amazonaws.dynamodb#DynamoDB_20120810`: `aws.protocols#awsJson1_0`, `aws.auth#sigv4` name `dynamodb`, `aws.api#service` endpointPrefix `dynamodb`, `aws.api#clientEndpointDiscovery` through `DescribeEndpoints`. Requests carry `X-Amz-Target: DynamoDB_20120810.TransactWriteItems`.
+- `com.amazonaws.dynamodb#TransactionCanceledException`: `@error("client")`, no `@httpError`, no `@retryable`. Members are `Message` (`com.amazonaws.dynamodb#ErrorMessage`, a string) and `CancellationReasons` (`com.amazonaws.dynamodb#CancellationReasonList`).
+- `CancellationReasonList` is a list of `com.amazonaws.dynamodb#CancellationReason` with `@length(min: 1, max: 100)`.
+- `CancellationReason` has members `Item` (`com.amazonaws.dynamodb#AttributeMap`, a map from `AttributeName` to the union `com.amazonaws.dynamodb#AttributeValue` with variants `S N B SS NS BS M L NULL BOOL`), `Code` (`com.amazonaws.dynamodb#Code`, a string) and `Message` (`ErrorMessage`).
+- Operations that raise it: `TransactWriteItems`, `TransactGetItems`, `ExecuteTransaction` (computed from operation `errors`).
+- On the wire, `__type` uses the namespace `com.amazonaws.dynamodb.v20120810`, not the model's. Recorded: `{"__type":"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException","message":"The conditional request failed"}` (`testdata/parity/dynamodb/R04/05-put-ccf.json`). understudy's identity already uses `com.amazonaws.dynamodb.v20120810#TransactionCanceledException` (`internal/api/dynamodbapi/errors_gen.go` L430-L432).
+
+### 12.2 Documented semantics (aws-doc)
+
+- TransactWriteItems Errors section (https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html): `TransactionCanceledException`, "HTTP Status Code: 400". The reasons are "ordered in the order of requested items, if an item has no error it will have `None` code and `Null` message. The `None` code is returned as the literal string `"None"`, not a null or absent value; the message field is omitted entirely for an item that has no error."
+- Codes and messages, from the same section:
+
+  | Code | Message |
+  |---|---|
+  | `None` | `null` |
+  | `ConditionalCheckFailed` | "The conditional request failed." |
+  | `ItemCollectionSizeLimitExceeded` | "Collection size exceeded." |
+  | `TransactionConflict` | "Transaction is ongoing for the item." |
+  | `ProvisionedThroughputExceeded` | two texts |
+  | `ThrottlingError` | two texts |
+  | `ValidationError` | ten texts |
+
+  The model's documentation of `com.amazonaws.dynamodb#TransactionCanceledException` carries the same text.
+- `CancellationReason` (https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_CancellationReason.html) says instead: "If no error occurred for the associated item an error with a Null code and Null message will be present." This conflicts with the note above on `Code`. The note above is newer and more specific, and the recorded message text lists `None` (12.3), so follow it. The bytes of a `None` entry stay UNVERIFIED (PROTO-02).
+- Developer guide, Transaction conflict handling (https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-conflict-handling): "The exception contains the list of CancellationReasons, ordered according to the list of items in the `TransactItems` request parameter. The exception's error message also includes a string representation of the cancellation reason codes." Also: "If that request fails, AWS SDKs do not retry the request."
+- `ReturnValuesOnConditionCheckFailure` (`ALL_OLD` or `NONE`) on `ConditionCheck`, `Put`, `Update` and `Delete` returns "the item attributes if the ... condition fails" (https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ConditionCheck.html). That is what fills `CancellationReason.Item`.
+- `TransactItems` holds 1 to 100 items (API_TransactWriteItems, Request Parameters), which matches the `@length` of `CancellationReasonList`.
+
+### 12.3 Recorded and observed evidence
+
+- third-party-recorded, validated against AWS on 2025-10-08 (localstack@8b9a79f `tests/aws/services/dynamodb/test_dynamodb.validation.json`:L311-L312): the test puts `Fred`, then sends `TransactWriteItems` with a `ConditionCheck` `attribute_not_exists(Username)` on `Fred` followed by a `Delete` of `Bert` (`tests/aws/services/dynamodb/test_dynamodb.py`:L1666-L1697). Recorded: "An error occurred (TransactionCanceledException) when calling the TransactWriteItems operation: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]" (`tests/aws/services/dynamodb/test_dynamodb.snapshot.json`:L210-L215).
+  - This is botocore's rendering of the error. It takes the message from `message` and falls back to `Message` (botocore 1.43.109 `botocore/parsers.py` L737-L741). So the recording fixes the message text and the code order, but neither the key's spelling nor the bytes of the reasons.
+- observed, DynamoDB Local 3.3.1 (not AWS): status 400, `com.amazonaws.dynamodb.v20120810#TransactionCanceledException`, `CancellationReasons:[{"Code":"None"},{"Code":"ConditionalCheckFailed","Message":"The conditional request failed."}]`, and the message "Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed]" ([dynamodb-local.md](dynamodb-local.md) 4.2). understudy passes that body through with the key `Message` (`internal/service/dynamodb/rewrite_test.go` L192-L197).
+- aws-recorded by understudy (2026-10-14, us-east-2): DynamoDB spells the message key per case.
+  - A bare `ConditionalCheckFailedException` uses `"message"`; one that carries `Item` uses `"Message"` (`testdata/parity/dynamodb/R04/05-put-ccf.json`, `05-put-ccf-all-old.json`).
+  - Error responses carry `x-amzn-RequestId` and `x-amz-crc32` (`05-put-ccf.json`).
+  - So the model's member spelling does not settle the `TransactionCanceledException` key.
+- Clients:
+  - aws-sdk-go-v2 types the error as `TransactionCanceledException{Message *string, ErrorCodeOverride *string, CancellationReasons []CancellationReason}` (aws-sdk-go-v2@aae188a `service/dynamodb/types/errors.go` L1754-L1762).
+  - The Go SDK drops a message filed under the wrong spelling (`internal/service/dynamodb/rewrite.go` L67-L70).
+  - The repo's Go conformance test asserts the codes `None` and `ConditionalCheckFailed` (`conformance/go-sdk/dynamodb_test.go` L270-L272).
+- Terraform: hashicorp/terraform-provider-aws v6.68.0 `internal/service/dynamodb` never references `TransactWriteItems`, `TransactGetItems` or `TransactionCanceledException` (searched), so plans are not affected.
+
+### 12.4 Expected wire form and open points
+
+For a `Put` followed by a failing `ConditionCheck`:
+
+```
+HTTP/1.1 400 Bad Request
+Content-Type: application/x-amz-json-1.0
+x-amzn-RequestId: <request id>
+x-amz-crc32: <CRC32 of the body>
+
+{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException",
+ "Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed]",
+ "CancellationReasons":[{"Code":"None"},{"Code":"ConditionalCheckFailed","Message":"The conditional request failed."}]}
+```
+
+- Message format: "Transaction cancelled, please refer cancellation reasons for specific reasons [" + the codes in request order joined by ", " + "]". Sources: third-party-recorded (12.3); DynamoDB Local agrees.
+- UNVERIFIED: the top-level message key, `Message` or `message`. The model spelling, Local and the precedent of a `ConditionalCheckFailedException` with `Item` say `Message`; the bare `ConditionalCheckFailedException` precedent says `message`. Default: `Message` (inferred). Settled by PROTO-01.
+- UNVERIFIED: a `None` entry, `{"Code":"None"}` or `{"Code":"None","Message":null}`. Default: `{"Code":"None"}` (aws-doc; Local agrees). Settled by PROTO-02.
+- UNVERIFIED: the `ConditionalCheckFailed` reason's text, with or without the final period. The recorded exception text has none (`05-put-ccf.json`); the docs' code list and Local have one. Default: "The conditional request failed." (aws-doc). Settled by PROTO-03.
+- UNVERIFIED: under `ALL_OLD`, whether the failing reason carries `"Item"` as an `AttributeValue` map, and which message key the top level uses when it does. Settled by PROTO-04.
+- UNVERIFIED: `ExecuteTransaction`'s message text and reasons for a failed PartiQL condition. Settled by PROTO-05.
+- UNVERIFIED: the wire bytes of a `TransactionConflict` reason ("Transaction is ongoing for the item." per aws-doc), which is the case fault injection exists for. Settled by PROTO-06.
+
+---
+
+## 13. Sparse maps of sets with null values (cases 12 to 15)
+
+### 13.1 Semantics
+
+- List members and map values are dense by default, "meaning they cannot contain `null` values". `@sparse` "indicates that lists and maps MAY contain `null` values", and map keys are never null (`spec/aggregate-types.rst` L31-L43, L79-L101; `spec/type-refinement-traits.rst` L484-L497). Null and empty are different values: the cases assert `"x": []` and `"z": null` side by side.
+- Dense collections: Smithy 1.68.0 "Removed protocol tests for skipping null values in dense collections. This behavior can silently drop data. SDKs that cannot preserve null values should raise an exception instead" (CHANGELOG.md at 1.74.0, 1.68.0 section, smithy pull 2972).
+- rpcv2Cbor: "Values that are `null` MUST be omitted from wire contents where not subject to default value serialization rules" (`additional-specs/protocols/smithy-rpc-v2-cbor.rst` L401-L402) concerns structure members; the sparse cases keep a null map value as CBOR null (`f6`). Servers "MUST NOT serialize to" CBOR `undefined` (`f7`) "and MUST deserialize this CBOR value to `null`" (L408-L413).
+- No protocol document says more about sparse collections; the cases are the reference.
+
+### 13.2 What the cases assert
+
+- Shapes `aws.protocoltests.restjson#SparseSetMap` and `smithy.protocoltests.rpcv2Cbor#SparseSetMap`: a `@sparse` map from `String` to `StringSet`, where `StringSet` is a `@uniqueItems` list of `String` (`aws.protocoltests.shared#StringSet`, `smithy.protocoltests.shared#StringSet`).
+- Case 12: `POST /SparseJsonMaps`, `Content-Type: application/json`, body `{"sparseSetMap":{"x":[],"y":["a","b"],"z":null}}`, params the same. The server decodes `z` as null, distinct from `x`'s empty list.
+- Case 13: status 200 with the same body; the server writes `"z":null`.
+- Case 14: `POST /service/RpcV2Protocol/operation/RpcV2CborSparseMaps`, headers `smithy-protocol: rpc-v2-cbor`, `Content-Type` and `Accept` `application/cbor`, `requireHeaders: ["Content-Length"]`. Body base64 `v2xzcGFyc2VTZXRNYXC/YXif/2F5n2FhYWL/YXr2//8=`, which is `bf 6c "sparseSetMap" bf 61 "x" 9f ff 61 "y" 9f 61 "a" 61 "b" ff 61 "z" f6 ff ff`: indefinite-length maps and arrays, with `f6` for null (computed).
+- Case 15: status 200 with the same bytes.
+- Wire form per protocol:
+  - JSON protocols (restJson1, awsJson1_0, awsJson1_1, rpcv2Json) write JSON `null`.
+  - CBOR writes simple value 22 (`f6`).
+  - awsJson1_1 has sparse string list and map cases (`AwsJson11SparseListsSerializeNull`, `AwsJson11SparseMapsSerializeNullValues`) but no set-map case.
+  - awsJson1_0, awsQuery, ec2Query and restXml have no sparse cases at all (computed), and the XML serialization text defines no null form (`aws/protocols/aws-xml-serialization.rst.template`).
+  - No pinned model uses `@sparse` (computed), so understudy needs no XML form.
+
+### 13.3 Where understudy loses the null
+
+- The type is `map[string][]string` (`internal/protocoltest/gen/restjson/types_gen.go` L1436).
+- The serializer always calls `serializeStringSet`, so nil goes out as `[]` (`internal/protocoltest/gen/restjson/serde_gen.go` L10241-L10249). The deserializer always calls `deserializeStringSet`, so a null fails to decode (L10251-L10270).
+- `SparseStringMap`, by contrast, checks `ReadNull` first and stores nil (L10368-L10391). `writeElem` writes null for nil only when the element's Go type is a pointer (`internal/codegen/emit_serde.go` L143-L158).
+- The case generator renders params `"z": null` as `[]string{}` (`internal/protocoltest/gen/restjson/cases_gen.go` L810, L1601; `internal/protocoltest/gen/rpcv2protocol/cases_gen.go` L198, L457). The expected value has lost the null before any codec runs.
+- Go precedent: aws-sdk-go-v2 types the same map as `map[string][]string`. It writes null for a nil value, reads null as nil, and reads `[]` into a non-nil empty slice (aws-sdk-go-v2@aae188a `internal/protocoltest/awsrestjson/common_serde.go` L1034-L1048, L1387-L1408).
+- smithy-rs lists none of the four cases as failing (9.2).
+
+---
+
+## 14. Implications for understudy: corpus to zero known failures
+
+1. Outcome: cases 1 to 4 and 6 to 15 pass. Case 5 moves from `gap` to `corpus-bug` with the reason: "The expected body carries <Message>Hi</Message>, which ComplexError does not model and the params do not set; a server sends only modeled members, as for InvalidGreetingError. No reference server runs the RestXml service (smithy-protocol-tests.md 9.2, 11.3)." Keep restXml nested error members tested with a restxml codec test that serializes the same `ComplexError` value and asserts the case's status (403), the `X-Header` header and its body without `<Message>`.
+2. Defaults, representation (10.4): a defaulted member whose default differs from the Go zero value of its field becomes a pointer. That covers non-zero numbers, `true`, non-empty strings, every enum and every timestamp. Zero defaults stay plain values. Defaulted lists, maps, documents and non-streaming blobs keep nil for unset. Grounded in `spec/type-refinement-traits.rst` L146-L160. aws-sdk-go-v2 uses pointers for non-zero scalars and timestamps but keeps enums as plain values (10.3), so pointer enums are understudy's own choice; a string enum could equally keep `""` as unset, since `""` is never an enum value.
+3. Defaults, serialization: for nil, the serializer writes the modeled default (blob defaults base64-decoded; timestamp `0` = `time.Unix(0, 0)`). Each structure's own serializer does this, so lists, maps and nested structures get it with no extra pass (10.1). Required members with a default are always written (L159-L160). Streaming members are excluded. No `@internal` handling is needed (10.2).
+4. Defaults, input: the decoder already fills defaults before reading members (`internal/codegen/emit_serde.go` L353-L369). For the new pointer fields it stores a pointer to the default, so handlers never see nil on a decoded input.
+5. Defaults, real services: no bound operation's bytes may change (10.5). Prove it with the existing golden and conformance suites unchanged. Leave `GetDurableExecutionHistory` unbound (501).
+6. Bench: `minimalRequest` builds the smallest input that passes required-member validation. Each required structure member is an empty structure, recursively, which gives `{"topLevel":{"dialog":{}}}` for case 8 (10.6). A required member of any other kind with no default fails the bench with an error naming the operation and member. None exists in the corpus today (computed), so the failure only guards future corpus bumps.
+7. Structured errors: a modeled `awserr.Error` carries the generated error value (a `smithy.Serializable`, as `gen.Error.Value` already is) instead of flattened `Fields`. Each codec writes its envelope, then the value's members through the same serializer that outputs use, with header-bound members routed by the REST binding writer (11.2).
+   - Keep one source of truth for the message: the value's message member, with `Messages` overrides still applied per protocol (`internal/awserr/error.go` L17-L19).
+   - Generated constructors take the value, so `internal/awserr/literals_test.go` still forbids hand-built literals.
+   - The bench passes `gen.Error.Value` through, and `UnrepresentableError` goes once it is unreachable (`internal/protocoltest/outcome_test.go` L15-L39).
+8. Sparse collections: a sparse list or map whose element is a list or map uses nil for null and a non-nil empty value for empty (13.3, the aws-sdk-go-v2 precedent).
+   - The generated serializer writes null for nil; the deserializer checks `ReadNull` before reading the element.
+   - The case generator renders a null element as `nil`.
+   - The CBOR reader maps `undefined` (`f7`) to null.
+   - A null in a dense collection stays a decode error, never a silent drop (13.1).
+9. DynamoDB fault injection (section 12): `fault.Error` gains optional `members`, decoded through the error shape's generated deserializer, so unknown members and wrong types are rejected when the rule is added.
+   - For `TransactionCanceledException`, each item the rule does not name gets `{"Code":"None"}`, so the list has one reason per request item (12.2). A rule naming an index past the request's last item does not match that call.
+   - When the rule gives reasons and no message, the message is AWS's format built from the codes (12.4), not the rule-naming text.
+   - Status 400, `__type` `com.amazonaws.dynamodb.v20120810#TransactionCanceledException`, message key `Message` (inferred; PROTO-01), not retryable (12.2).
+   - The same mechanism lets a rule set `ThrottlingReasons` (11.5).
+10. Coverage notes (`docs/coverage.md` L238 and L237; the same clause in L232, keeping its other clauses). Replace "transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict, and a fault rule cannot set cancellation reasons yet" with "transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons". Update the source constant (`internal/service/dynamodb/service.go` L69) and `docs/guide/differences.md` L101 with it. The operations stay Partial.
+11. Fidelity switches: none.
+    - Defaults, sparse nulls and structured error members are protocol rules that the spec and the normative corpus fix (10.2, 11.2, 13.1), with no AWS-visible variant in the pinned models.
+    - The DynamoDB open points (12.4) are unknowns, not known deviations. Hard-code the defaults with a comment citing this section and the PROTO id, as the `ConditionalCheckFailedException` key rule does (`internal/service/dynamodb/rewrite.go` L208-L214), and revise them when the recordings land.
+12. Limits and validation texts (understudy's own admin API, not AWS text):
+    - "fault rule <id>: members.CancellationReasons has 0 entries; com.amazonaws.dynamodb#CancellationReasonList holds 1 to 100. Give at least one reason, or omit the member."
+    - "fault rule <id>: com.amazonaws.dynamodb#TransactionCanceledException has no member \"<name>\"; its members are Message and CancellationReasons. The rule was not added."
+    - Item counts follow `TransactItems` (1 to 100, 12.2).
+13. Terraform: no resource touches these paths (12.3); `apply` and the empty second plan are unaffected, and the Terraform suite must stay green unchanged.
+14. Never fake:
+    - an invented `<Message>` to pass case 5;
+    - defaults filled into generated case literals instead of the codec;
+    - a dropped null in a dense collection;
+    - cancellation reasons that do not line up with the request's items;
+    - a retryable `TransactionCanceledException`.
+15. Order: sparse nulls (smallest, generator only), then defaults with the bench request, then structured errors with the DynamoDB fault rule. Rewrite `baseline.json` after each with `just protocoltest-baseline`.
+
+---
+
+## 15. Recording queue
+
+Agents never run these. A maintainer runs them in the recording shell of [recording-kit.md](../recording-kit.md) sections 1 and 2 (`$P`, `$R`, `$A`, `$REC`, `rec`, `recurl`), with `jq` installed. Record a `notes.md` per case as the kit describes, one line per expectation (`matches`, `differs: <what>`). In each `.http` file, read the `Response body:` and `Response headers:` lines (kit section 2). Cost: DynamoDB on-demand bills transactional writes at 2 write request units per 1 KB, and the pricing page's examples use USD 0.625 per million writes (https://aws.amazon.com/dynamodb/pricing/on-demand/). The whole queue makes under 100 requests, well under USD 0.01. A cancelled transaction still consumes capacity (developer guide, Capacity management for transactions).
+
+### 15.1 Shared setup
+
+```sh
+export T="$P-proto-tx"
+aws dynamodb create-table --table-name "$T" \
+  --attribute-definitions AttributeName=pk,AttributeType=S \
+  --key-schema AttributeName=pk,KeyType=HASH --billing-mode PAY_PER_REQUEST
+aws dynamodb wait table-exists --table-name "$T"
+aws dynamodb put-item --table-name "$T" --item '{"pk":{"S":"held"},"v":{"N":"1"}}'
+
+ccheck() {  # ccheck [ALL_OLD]: a ConditionCheck on "held" that always fails
+  jq -nc --arg t "$T" --arg rv "${1:-NONE}" \
+    '{ConditionCheck: {TableName: $t, Key: {pk: {S: "held"}},
+      ConditionExpression: "attribute_not_exists(pk)", ReturnValuesOnConditionCheckFailure: $rv}}'
+}
+put() {  # put <pk>: an unconditional Put of a new item
+  jq -nc --arg t "$T" --arg k "$1" '{Put: {TableName: $t, Item: {pk: {S: $k}}}}'
+}
+```
+
+The table lives a few minutes. Teardown is in 15.8.
+
+### 15.2 PROTO-01: top-level message key of `TransactionCanceledException`
+
+Settles 12.4's first point and the inferred `Message` key in 14 item 9.
+
+```sh
+rec PROTO-01/01-ccf-then-put aws dynamodb transact-write-items --transact-items "[$(ccheck),$(put free-1)]"
+rec PROTO-01/02-put-then-ccf aws dynamodb transact-write-items --transact-items "[$(put free-2),$(ccheck)]"
+```
+
+Expected:
+
+- status 400 with `x-amzn-RequestId` and `x-amz-crc32`;
+- `__type` `com.amazonaws.dynamodb.v20120810#TransactionCanceledException`;
+- the message under `Message` (UNVERIFIED; `message` is the alternative);
+- the text ends `[ConditionalCheckFailed, None]` for step 01 and `[None, ConditionalCheckFailed]` for step 02.
+
+About 3 minutes, under USD 0.01.
+
+### 15.3 PROTO-02: the bytes of a `None` reason
+
+Settles 12.4's second point.
+
+```sh
+rec PROTO-02/01-none-ccf-none aws dynamodb transact-write-items \
+  --transact-items "[$(put free-3),$(ccheck),$(put free-4)]"
+```
+
+Expected: `CancellationReasons` has three entries; the first and third are exactly `{"Code":"None"}`, with no `Message` key and no `"Message":null` (UNVERIFIED); the text ends `[None, ConditionalCheckFailed, None]`. About 2 minutes, under USD 0.01.
+
+### 15.4 PROTO-03: the `ConditionalCheckFailed` reason text
+
+Settles 12.4's third point.
+
+```sh
+rec PROTO-03/01-single-ccf aws dynamodb transact-write-items --transact-items "[$(ccheck)]"
+```
+
+Expected: one reason, `{"Code":"ConditionalCheckFailed","Message":"The conditional request failed."}`. Whether the text has a final period is UNVERIFIED; write the exact bytes into `notes.md`. The top-level text ends `[ConditionalCheckFailed]`. About 2 minutes, under USD 0.01.
+
+### 15.5 PROTO-04: `Item` in a reason under `ALL_OLD`
+
+Settles 12.4's fourth point.
+
+```sh
+rec PROTO-04/01-ccf-all-old aws dynamodb transact-write-items \
+  --transact-items "[$(ccheck ALL_OLD),$(put free-5)]"
+```
+
+Expected: the first reason carries `"Item":{"pk":{"S":"held"},"v":{"N":"1"}}` beside `Code` and `Message` (UNVERIFIED). Note whether the top-level message key differs from PROTO-01's, as the `ConditionalCheckFailedException` key does when an item is present (`testdata/parity/dynamodb/R04/05-put-ccf-all-old.json`). About 2 minutes, under USD 0.01.
+
+### 15.6 PROTO-05: `ExecuteTransaction` cancellation
+
+Settles 12.4's fifth point.
+
+```sh
+upd="UPDATE \"$T\" SET v = 2 WHERE pk = ? AND v = ?"
+ins="INSERT INTO \"$T\" VALUE {'pk': ?}"
+stmts=$(jq -nc --arg upd "$upd" --arg ins "$ins" '[
+  {Statement: $upd, Parameters: [{S: "held"}, {N: "5"}]},
+  {Statement: $ins, Parameters: [{S: "free-6"}]}]')
+rec PROTO-05/01-partiql-ccf aws dynamodb execute-transaction --transact-statements "$stmts"
+```
+
+The statements go in through `--arg` because a `'` inside the single-quoted jq program would end the shell string and drop the quotes around `pk`.
+
+Expected (UNVERIFIED throughout): status 400 `TransactionCanceledException`, reasons `[ConditionalCheckFailed, None]` in statement order, and the same message format as PROTO-01. If AWS answers with a different error (for example `ValidationException` for the statement form), record it as found. About 3 minutes, under USD 0.01.
+
+### 15.7 PROTO-06: a `TransactionConflict` reason
+
+Settles 12.4's sixth point. This is best effort: it needs two transactions on one item to overlap, so it fires 40 at once with curl.
+
+```sh
+export SVC=dynamodb
+body=$(jq -nc --arg t "$T" '{TransactItems: [{Update: {TableName: $t, Key: {pk: {S: "hot"}},
+  UpdateExpression: "ADD n :one", ExpressionAttributeValues: {":one": {N: "1"}}}}]}')
+for i in $(seq -w 1 40); do
+  recurl "PROTO-06/$i" -X POST "https://dynamodb.$R.amazonaws.com/" \
+    -H 'Content-Type: application/x-amz-json-1.0' \
+    -H 'X-Amz-Target: DynamoDB_20120810.TransactWriteItems' --data "$body" &
+done
+wait
+grep -l TransactionConflict "$REC"/PROTO-06/*.http
+```
+
+Expected: at least one 400 `TransactionCanceledException` whose single reason is `{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item."}` (aws-doc text; bytes UNVERIFIED), with the message ending `[TransactionConflict]`. If `grep` finds none, run the loop once more; if it still finds none, note "no conflict produced" and keep one 200 capture. About 5 minutes, under USD 0.01.
+
+### 15.8 Teardown
+
+```sh
+aws dynamodb delete-table --table-name "$T"
+aws dynamodb wait table-not-exists --table-name "$T"
+```
