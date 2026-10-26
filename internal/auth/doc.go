@@ -87,14 +87,16 @@
 //     other pair is understudy's own in Coral's form.
 //   - X-Amz-Expires is required in every family, although DynamoDB's
 //     missing-parameter list omits it: every SDK presigner sends it, and an
-//     expiry is needed to judge the URL. It must lie in 1..604800, the
-//     documented range; the text for 0 is understudy's own, as no recording
-//     shows AWS's.
+//     expiry is needed to judge the URL. It must lie in 0..604800: the
+//     documented minimum is 1, but S3 answers 0 as an expired URL, not a
+//     malformed one (testdata/parity/s3/R18/01-presign-expires-0.json).
 //   - x-amz-content-sha256 must be lowercase hex: the payload line is the
 //     lowercase hash, so an uppercase value could never verify.
-//   - The skew window is 15 minutes for every service.
+//   - The skew window is 15 minutes for every service, as recorded for S3,
+//     SQS, SNS, STS and DynamoDB (testdata/parity/sqs/R18/notes.md).
 //   - VerifyPresignedSince also takes the wall time: a URL whose X-Amz-Date
-//     is more than 15 minutes ahead of it is not yet valid, while expiry
+//     is more than 15 minutes ahead of it is not yet valid, which S3 answers
+//     with AccessDenied "Request is not yet valid", while expiry
 //     stays on the emulator clock, counted from the emulator instant the
 //     URL was signed at, which the caller places on the emulator timeline
 //     (the edge's ClockTimeline). A SigV2 URL carries no signing time, so

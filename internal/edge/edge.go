@@ -48,6 +48,11 @@ type Options struct {
 	// ahead of ServiceAuth: Lambda's InvokeFunctionUrl, whose function URL
 	// front end refuses with 403.
 	OperationAuth map[ref.OperationID]auth.Vocabulary
+	// ProtocolAuth is the auth vocabulary of a service over one protocol
+	// where it differs from the protocol family's, used in both modes after
+	// OperationAuth and ServiceAuth: SQS over awsJson1_0, which refuses a
+	// skewed request with 403 where DynamoDB answers 400.
+	ProtocolAuth map[ServiceProtocol]auth.Vocabulary
 	// Regions is the table credential-scope regions are validated against.
 	Regions aws.Regions
 	// Codecs are the wire protocols, by the id each registers under.

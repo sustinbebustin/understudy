@@ -83,7 +83,7 @@ S3 answers credentials it cannot read with its own error codes in both `--sigv4`
 - The status of `AccessDenied` for an unreadable SigV2 request time (S3-compatible servers send 400 or 403).
 - A credential-scope date that differs from `X-Amz-Date`, which uses the other services' text.
 
-Recorded differences under `--sigv4 verify`: `X-Amz-Expires=0` is 403 `AccessDenied` "Request has expired" on AWS, where understudy refuses it as malformed; a presigned URL dated in the future is 403 `AccessDenied` "Request is not yet valid" on AWS, where understudy's text differs (`s3/R18/01-presign-expires-0.json`, `s3/R18/01-presign-date-16min-future.json`). For presigned URLs and the emulator clock, see [Signatures](#signatures).
+For presigned URLs and the emulator clock, see [Signatures](#signatures).
 
 ### Control characters in S3 listings
 
@@ -158,7 +158,7 @@ Under `--sigv4 verify`, an `AWS_IAM` function URL refuses credentials with 403 a
 
 These apply to every service; S3's own refusals are under [S3 auth](#s3-auth).
 
-- Under `--sigv4 verify`, a request signed outside the 15-minute window is 403 on SQS's JSON protocol on AWS (DynamoDB answers 400); understudy answers 400 `InvalidSignatureException` for every JSON service (`sqs/R18/03-sqs-json-skew-16min.json`).
+- Under `--sigv4 verify`, SQS's JSON protocol refuses a request signed outside the 15-minute window with 403, as recorded (`sqs/R18/03-sqs-json-skew-16min.json`); its status for a wrong signature or an unknown key is not recorded, and understudy answers those 400, as DynamoDB does.
 - Header-signed requests are not refused for leaving an `x-amz-*` header unsigned, as AWS refuses them, until the SDK conformance runs confirm every SDK signs those headers. Presigned requests are checked.
 - A SigV2 presigned URL carries only its expiry instant, so it expires as intended only while the emulator clock stays at wall time; presign with SigV4 when a test moves the clock ([Signature verification](../configuration.md#signature-verification)).
 - Under `verify`, a clock change takes effect for presigned URLs from the next whole second, so an admin answer can wait up to one second.

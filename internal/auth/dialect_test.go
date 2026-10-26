@@ -124,6 +124,29 @@ func TestS3DialectRequestTimeTooSkewed(t *testing.T) {
 	}
 }
 
+// S3 answers a presigned URL dated more than 15 minutes ahead of its clock
+// with AccessDenied "Request is not yet valid", the request time in epoch
+// milliseconds, the URL's expiry from its X-Amz-Date and the server time,
+// in that order (testdata/parity/s3/R18/01-presign-date-16min-future.json).
+// A header-signed request ahead of the window stays RequestTimeTooSkewed.
+func TestS3DialectPresignedURLNotYetValid(t *testing.T) {
+	v := s3Vocabulary(t)
+	q, req := docPresigned(t, nil)
+	wall := docTime.Add(-16 * time.Minute)
+	err := auth.VerifyPresignedSince(q, req, docSecret, wall, clock.FromWire(q.Time), clock.FromWire(wall), v)
+	if err == nil || err.ID != v.Expired || err.Message != "Request is not yet valid" {
+		t.Fatalf("VerifyPresignedSince = %#v; want AccessDenied \"Request is not yet valid\"", err)
+	}
+	want := []awserr.Field{
+		{Name: "X-Amz-Date", Value: "1369353600000"},
+		{Name: "Expires", Value: "2013-05-25T00:00:00Z"},
+		{Name: "ServerTime", Value: "2013-05-23T23:44:00Z"},
+	}
+	if !reflect.DeepEqual(err.Fields, want) {
+		t.Errorf("elements %#v, want %#v", err.Fields, want)
+	}
+}
+
 // S3 answers an expired presigned URL with AccessDenied, the URL's lifetime
 // (SigV4 only), its expiry and the server time on the emulator clock (REC
 // test_s3_presigned_url_expired[s3v4] and [s3]).
@@ -140,6 +163,28 @@ func TestS3DialectExpiredPresignedURL(t *testing.T) {
 			{Name: "X-Amz-Expires", Value: "86400"},
 			{Name: "Expires", Value: "2013-05-25T00:00:00Z"},
 			{Name: "ServerTime", Value: "2013-05-25T01:00:00Z"},
+		}
+		if !reflect.DeepEqual(err.Fields, want) {
+			t.Errorf("elements %#v, want %#v", err.Fields, want)
+		}
+	})
+	// X-Amz-Expires=0 has expired by its own X-Amz-Date, which Expires
+	// repeats (testdata/parity/s3/R18/01-presign-expires-0.json).
+	t.Run("SigV4 X-Amz-Expires=0", func(t *testing.T) {
+		r := serverRequest(t, http.MethodGet, "/test.txt?"+docPresignQuery(map[string]string{"X-Amz-Expires": "0"}), "examplebucket.s3.amazonaws.com", nil)
+		a, perr := auth.Parse(r, aws.KnownRegions())
+		q, ok := a.(auth.SigV4Query)
+		if perr != nil || !ok {
+			t.Fatalf("Parse = %#v, %#v; want SigV4Query", a, perr)
+		}
+		err := auth.VerifyPresignedSince(q, auth.Normalize(r, auth.Unread{}), docSecret, docTime, clock.FromWire(q.Time), clock.FromWire(docTime), v)
+		if err == nil || err.ID != v.Expired || err.Message != "Request has expired" {
+			t.Fatalf("VerifyPresignedSince = %#v; want Expired", err)
+		}
+		want := []awserr.Field{
+			{Name: "X-Amz-Expires", Value: "0"},
+			{Name: "Expires", Value: "2013-05-24T00:00:00Z"},
+			{Name: "ServerTime", Value: "2013-05-24T00:00:00Z"},
 		}
 		if !reflect.DeepEqual(err.Fields, want) {
 			t.Errorf("elements %#v, want %#v", err.Fields, want)

@@ -84,7 +84,10 @@
 //     Both answer in the claimed operation's words: Options.OperationAuth
 //     for an operation whose front end refuses otherwise than its service
 //     (a function URL's 403), else Options.ServiceAuth for S3, whose
-//     identities no protocol family holds, else the protocol family's.
+//     identities no protocol family holds, else Options.ProtocolAuth for a
+//     service that answers one protocol otherwise than its family (SQS
+//     over JSON refuses a skewed request with 403), else the protocol
+//     family's.
 //     A presigned SigV4 request's x-amz-* query parameters reach the
 //     call's headers as if sent (auth.HoistedHeader). Rule 8 routes by
 //     signing name, which unreadable credentials do not yield, so it sends

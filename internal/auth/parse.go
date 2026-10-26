@@ -468,9 +468,11 @@ func parseHTTPDate(s string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-// parseExpires reads X-Amz-Expires, 1 to 604800 seconds
-// (sigv4-checksums-endpoints.md 2.1). The bound is checked on the seconds,
-// before the conversion to a Duration can overflow.
+// parseExpires reads X-Amz-Expires, 0 to 604800 seconds. The documentation
+// gives 1 as the minimum (sigv4-checksums-endpoints.md 2.1), but S3 takes 0
+// as a URL that has already expired, which verification answers
+// (testdata/parity/s3/R18/01-presign-expires-0.json). The bound is checked
+// on the seconds, before the conversion to a Duration can overflow.
 func parseExpires(s string) (time.Duration, ParseError) {
 	const maxSecs = int64(maxPresignLife / time.Second)
 	secs, err := strconv.ParseInt(s, 10, 64)
@@ -479,8 +481,6 @@ func parseExpires(s string) (time.Duration, ParseError) {
 		return 0, malformed(QueryV4, "X-Amz-Expires should be a number")
 	case secs < 0:
 		return 0, malformed(QueryV4, "X-Amz-Expires must be non-negative")
-	case secs == 0:
-		return 0, malformed(QueryV4, "X-Amz-Expires must be at least 1 second; got 0")
 	case secs > maxSecs:
 		// S3's text (testdata/parity/s3/R18/01-presign-expires-604801.json).
 		return 0, malformed(QueryV4, fmt.Sprintf("X-Amz-Expires must be less than a week (in seconds); that is, the given X-Amz-Expires must be less than %d seconds", maxSecs))

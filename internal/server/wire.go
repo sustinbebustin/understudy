@@ -497,6 +497,7 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 	vocabulary, refuse := s3.AuthDialect()
 	o.ServiceAuth = map[ref.ServiceID]edge.ServiceAuth{s3api.Service().ID: {Vocabulary: vocabulary, ParseError: refuse, Payload: edge.ServiceChecksPayload}}
 	o.OperationAuth = map[ref.OperationID]auth.Vocabulary{{Service: lambdaapi.Service().ID, Name: "InvokeFunctionUrl"}: lambda.FunctionURLAuth()}
+	o.ProtocolAuth = map[edge.ServiceProtocol]auth.Vocabulary{{Service: sqsapi.Service().ID, Protocol: ref.AWSJSON10}: sqs.JSONAuth()}
 	o.Verify = cfg.SigV4 == SigV4Verify
 	var err error
 	if w.edge, err = edge.New(o); err != nil {
