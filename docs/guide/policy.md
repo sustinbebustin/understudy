@@ -2,6 +2,16 @@
 
 understudy does not enforce IAM. It records, for every call, which principal made it, which IAM actions the operation needs and which resources it touched. From that record it prints the least-privilege identity policy each principal needs, and the resource-policy statements understudy's own deliveries would need on AWS. Run your tests, then read off the policy.
 
+`--iam-enforce` (`UNDERSTUDY_IAM_ENFORCE`, or `{"iam": {"enforce": "off"}}` in the file) takes only `off`, the default, in this build. `advise` and `enforce` are refused at start rather than accepted and ignored:
+
+```sh
+understudy serve --iam-enforce enforce
+```
+
+```text
+understudy serve: --iam-enforce: "enforce" is not supported: IAM enforcement is not built yet, so this build accepts only off; remove the setting or set it to off
+```
+
 ## Make calls as the principal
 
 Calls signed with understudy's dummy keys act as the account root. To record a role, call as the role: assume it, or run the code in a Lambda function whose execution role it is, since understudy mints credentials for each function's role.

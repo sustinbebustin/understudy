@@ -340,8 +340,8 @@ const (
 // IAM holds the IAM and STS settings.
 type IAM struct {
 	AssumeRole AssumeRole
-	// Enforce is iam.enforce. Not read yet: no setting sets it, so it is
-	// always EnforceOff.
+	// Enforce is iam.enforce. Nothing reads it yet: EnforceOff is the only
+	// value Load accepts.
 	Enforce Enforcement
 }
 

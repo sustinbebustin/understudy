@@ -113,6 +113,9 @@ This is what `understudy serve --help` prints under Flags. A test keeps it in st
   --sigv4 MODE
       signature checking: parse (default) reads credentials only; verify refuses a bad signature, an unknown key, a missing or expired session token, and expires presigned URLs on the emulator clock
       variable UNDERSTUDY_SIGV4, file key "sigv4"
+  --iam-enforce MODE
+      IAM enforcement: off (default) records which actions each principal uses and enforces nothing; advise and enforce are not built yet, so this build refuses them
+      variable UNDERSTUDY_IAM_ENFORCE, file key "iam.enforce"
   --docker URL
       Docker Engine for Lambda and DynamoDB Local: unix://<socket>, tcp://<host>:<port> (TLS when DOCKER_TLS_VERIFY is set, with ca.pem, cert.pem and key.pem from DOCKER_CERT_PATH), or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)
       variable UNDERSTUDY_DOCKER, file key "docker"
@@ -147,7 +150,7 @@ setting has one; any key may be left out:
       "hotReload": [{"function": "worker", "dir": "/abs/path/to/build", "account": "000000000000", "region": "us-east-1"}]
     },
     "sqs": {"queueDeletedRecently": "ignore"},
-    "iam": {"assumeRole": "strict"},
+    "iam": {"assumeRole": "strict", "enforce": "off"},
     "dynamodb": {"enabled": true, "memoryLimit": 1073741824},
     "journal": {"capacity": 100000, "maxBytes": 134217728, "file": "/abs/path/to/journal.ndjson"},
     "faults": [{"id": "orders-throttle", "phase": "request", "match": {"operations": ["sqs.SendMessage"]},

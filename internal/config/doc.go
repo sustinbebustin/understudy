@@ -13,8 +13,9 @@
 //
 //   - Scalar settings have a variable, a file key and, but for the admin
 //     token, a flag, the file key being the flag name in camelCase
-//     (Settings lists them); the structured settings (accounts, regions,
-//     s3, lambda, sqs, iam, dynamodb, journal, faults) are file sections
+//     (Settings lists them), except iam.enforce, which the file holds in
+//     its iam section; the structured settings (accounts, regions, s3,
+//     lambda, sqs, iam, dynamodb, journal, faults) are file sections
 //     only. The fidelity switches are keyed by their switch names
 //     (s3.crossRegion, lambda.stateTransitions, sqs.queueDeletedRecently,
 //     iam.assumeRole).

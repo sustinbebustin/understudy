@@ -72,6 +72,7 @@ func setters() map[string]func(*draft, value) *Error {
 		keyClock:        (*draft).setClock,
 		keyClockScale:   (*draft).setScale,
 		keySigV4:        (*draft).setSigV4,
+		keyIAMEnforce:   (*draft).setIAMEnforce,
 		keyDocker:       (*draft).setDocker,
 		keyDockerLabels: (*draft).setDockerLabels,
 		keyReadyFile:    func(d *draft, v value) *Error { return nonEmpty(v, &d.cfg.ReadyFile) },
@@ -242,6 +243,17 @@ func (d *draft) setSigV4(v value) *Error {
 	default:
 		return bad(v, "is not parse or verify", "")
 	}
+	return nil
+}
+
+// setIAMEnforce accepts only off: advise and enforce name modes this build
+// does not run, so they are refused rather than read as off (CLAUDE.md
+// invariant 3).
+func (d *draft) setIAMEnforce(v value) *Error {
+	if v.text != "off" {
+		return bad(v, "is not supported: IAM enforcement is not built yet, so this build accepts only off", "remove the setting or set it to off")
+	}
+	d.cfg.IAM.Enforce = EnforceOff
 	return nil
 }
 

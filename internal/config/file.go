@@ -73,6 +73,8 @@ type fileSQS struct {
 
 type fileIAM struct {
 	AssumeRole *string `json:"assumeRole"`
+	// Enforce is the scalar setting iam.enforce, read as its flag would be.
+	Enforce *string `json:"enforce"`
 }
 
 type fileDynamoDB struct {
@@ -109,6 +111,11 @@ func parseFile(name string, data []byte) (fileDoc, *Error) {
 			// The file takes the label object itself, or a string holding
 			// its text, as the flag does.
 			doc.scalars[key] = value{text: jsonText(top[key]), where: where, source: fromFile}
+		case slices.Contains(scalarKeys, key) && strings.Contains(key, "."):
+			// A section.member key is valid only inside its section; it is
+			// among the valid names so a typo of it is told the path.
+			section, member, _ := strings.Cut(key, ".")
+			return fileDoc{}, &Error{Where: where, Reason: "is not a top-level key; the setting is " + quote(member) + " in the " + quote(section) + " section", Hint: "write it as {" + quote(section) + ": {" + quote(member) + ": ...}}"}
 		case slices.Contains(scalarKeys, key):
 			text, err := scalarText(top[key])
 			if err != nil {
@@ -128,6 +135,9 @@ func parseFile(name string, data []byte) (fileDoc, *Error) {
 			return fileDoc{}, &Error{Where: name + ": " + typeErr.Field, Reason: "is a JSON " + typeErr.Value + "; expected " + typeName(typeErr.Type)}
 		}
 		return fileDoc{}, &Error{Where: name, Reason: err.Error()}
+	}
+	if iam := doc.sections.IAM; iam != nil && iam.Enforce != nil {
+		doc.scalars[keyIAMEnforce] = value{text: *iam.Enforce, where: name + ": " + keyIAMEnforce, source: fromFile}
 	}
 	return doc, nil
 }
