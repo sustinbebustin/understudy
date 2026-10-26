@@ -25,7 +25,7 @@ Step 1 (fresh-bucket subresources):
 - versioning: matches (200 empty VersioningConfiguration).
 - accelerate: matches (200 empty AccelerateConfiguration).
 - requestPayment: matches (200 `<Payer>BucketOwner</Payer>`; overlay s3.json:609).
-- encryption (fresh): differs: AWS rule = BucketKeyEnabled false + SSEAlgorithm AES256 + `<BlockedEncryptionTypes><EncryptionType>SSE-C</EncryptionType></BlockedEncryptionTypes>`; understudy default has no BlockedEncryptionTypes (codegen/overlays/s3.json:581).
+- encryption (fresh): matches in content (rule = BucketKeyEnabled false + SSEAlgorithm AES256 + `<BlockedEncryptionTypes><EncryptionType>SSE-C</EncryptionType></BlockedEncryptionTypes>`; sse.go:728-742 encryptionRead); differs: element order, AWS writes BucketKeyEnabled first (docs/guide/differences.md).
 - ownershipControls: matches (200 BucketOwnerEnforced; bucket.go:222-224).
 - publicAccessBlock: matches (200, all four true; bucket.go:225-227).
 - notification: matches (200 empty NotificationConfiguration).
@@ -35,11 +35,11 @@ Step 1 (fresh-bucket subresources):
 
 Step 2 (encryption):
 - delete-bucket-encryption: matches (204).
-- get after delete: status/shape matches the s3.encryption.after-delete switch (200, default AES256 rule again, no ServerSideEncryptionConfigurationNotFoundError); same BlockedEncryptionTypes difference as step 1 (overlay s3.json:581).
-- KMS key validation on put (nonexistent id, disabled, pending deletion, missing alias): matches (AWS 200 for all four; understudy checkEncryption does not resolve the key, subresources.go:543-555).
-- KMSMasterKeyID echo: matches (bare id, ARN and alias/aws/s3 each echoed exactly as sent; subresources.go:530 stores the input).
-- BucketKeyEnabled omitted on put: differs: AWS GET returns `<BucketKeyEnabled>false</BucketKeyEnabled>`; understudy stores the input verbatim and omits it (subresources.go:529-531).
-- BlockedEncryptionTypes after a put that omits it: differs: AWS GET still returns SSE-C blocked; understudy stores the input verbatim, so the element disappears (subresources.go:529-531).
+- get after delete: status/shape matches the s3.encryption.after-delete switch (200, default AES256 rule again, no ServerSideEncryptionConfigurationNotFoundError); BlockedEncryptionTypes SSE-C matches, since DeleteBucketEncryption keeps the block (subresources.go:546-552); element order as step 1.
+- KMS key validation on put (nonexistent id, disabled, pending deletion, missing alias): matches (AWS 200 for all four; understudy checkEncryption does not resolve the key, subresources.go:561-583).
+- KMSMasterKeyID echo: matches (bare id, ARN and alias/aws/s3 each echoed exactly as sent; subresources.go:542 stores the rule).
+- BucketKeyEnabled omitted on put: matches (GET returns `<BucketKeyEnabled>false</BucketKeyEnabled>`; sse.go:736-738 encryptionRead fills it in).
+- BlockedEncryptionTypes after a put that omits it: matches (GET still returns SSE-C blocked; the block is kept apart from the rule, subresources.go:534-541, switch s3.encryption.blocked-types-omitted).
 
 Step 3 (PAB / ownership delete):
 - delete-public-access-block: matches (204).
