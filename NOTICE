@@ -41,6 +41,20 @@ AWS Service Authorization Reference (derived)
            under third_party/aws-service-reference, with the provenance of
            each service file recorded beside it (see docs/adr/0016).
 
+AWS Managed Policy Reference Guide
+  Source:  https://docs.aws.amazon.com/aws-managed-policy/latest/reference/full.md
+  Version: the retrieval date recorded in
+           third_party/aws-managed-policies/SOURCE.json
+  License: MIT-0 for the policy documents; CC BY-SA 4.0 for every other
+           field (name, ARN, path, type, description, version and times),
+           which is AWS documentation. Copyright Amazon Web Services, Inc.
+           or its affiliates. The directory's own LICENSE and NOTICE carry
+           the terms and the attribution.
+  Use:     the AWS managed policies, reformatted to JSON with no other
+           changes, embedded in the binary from
+           third_party/aws-managed-policies and served by IAM (see
+           docs/adr/0016, amendment "managed policies").
+
 xxHash
   Source:  the public xxHash specification (https://github.com/Cyan4973/xxHash)
   License: not applicable; no xxHash source code is included.

@@ -211,4 +211,4 @@ Behavior that differs from AWS in ways a test can observe is listed in [docs/gui
 
 ## License
 
-Apache-2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE). DynamoDB Local and the Lambda base images are pulled at runtime under their own terms and are not part of understudy.
+Apache-2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE). The AWS managed policy catalogue embedded from [third_party/aws-managed-policies](third_party/aws-managed-policies) is AWS documentation under its own terms: MIT-0 for the policy documents and CC BY-SA 4.0 for the other fields. DynamoDB Local and the Lambda base images are pulled at runtime under their own terms and are not part of understudy.
