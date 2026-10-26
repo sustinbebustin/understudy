@@ -185,13 +185,13 @@ understudy's `policydoc.Allows` does not map an assumed-role session back to its
 - Root has full access unless explicitly denied (section 2, item 1).
 - KMS: "Unlike other AWS resource policies, an AWS KMS key policy does not automatically give permission to the account or any of its identities" ([iam-sts-kms.md](iam-sts-kms.md) 5.3, citing [default key policy](https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-default.html)); a key whose policy names neither the account nor the caller denies root too.
 - S3: "If you get locked out of a bucket because of an incorrect bucket policy, sign in to the AWS Management Console by using your AWS account root user credentials. To regain access to your bucket, make sure to delete the incorrect bucket policy by using your AWS account root user credentials." ([S3 403](https://docs.aws.amazon.com/AmazonS3/latest/userguide/troubleshoot-403-errors.html), aws-doc). So root's `DeleteBucketPolicy` survives a bucket-policy deny; whether `GetBucketPolicy` and `PutBucketPolicy` do too is UNVERIFIED (IAM-ENF-31).
-- STS: understudy lets root call `AssumeRole`, which AWS refuses (`docs/coverage.md`, sts AssumeRole note); enforcement should not widen that gap.
+- STS: understudy lets root call `AssumeRole`, which AWS refuses (`docs/coverage.md`, sts AssumeRole note; [iam-evaluation.md](iam-evaluation.md) 3.5). The gap stays under `iam.enforce` `off` and `advise` and closes under `enforce`, where root's `AssumeRole` is refused (12.2).
 
 ### 6.4 Missing context keys
 
 "If the key that you specify in a policy condition is not present in the request context, the values do not match and the condition is false. If the policy condition requires that the key is not matched, such as `StringNotLike` or `ArnNotLike`, and the right key is not present, the condition is true. This logic applies to all condition operators except `...IfExists` and `Null` check" ([condition operators](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_condition_operators.html), aws-doc). A `ForAllValues` qualifier "returns true if there are no context keys in the request". `aws:SourceArn` "is present in the request context only if a resource triggers a service to call another service on behalf of the resource owner. If an IAM user attempts to perform this operation directly, the condition returns false" (same page).
 
-`policydoc.Allows` treats a clause whose key the query lacks as unevaluated and assumed to hold (`internal/policydoc/allows.go` L80-L100). AWS treats an absent key as false. Enforcement has to separate "AWS would not send this key here" (absent, evaluate as AWS does) from "AWS would send it but understudy cannot compute it" (for example `aws:SourceIp` behind a NAT, `aws:SourceVpce`), which stays unsettled and is reported (section 12.5).
+`policydoc.Allows` treats a clause whose key the query lacks as unevaluated and assumed to hold (`internal/policydoc/allows.go` L80-L100). AWS treats an absent key as false. Enforcement has to separate "AWS would not send this key here" (absent, evaluate as AWS does) from "AWS would send it but understudy cannot compute it" (for example `aws:SourceIp` behind a NAT, `aws:SourceVpce`). Both evaluate as absent by the truth table of [iam-evaluation.md](iam-evaluation.md) 6.14; the second also journals an `Advisory` naming the key (12.2).
 
 ## 7. Resource-based policies per service
 
@@ -324,7 +324,7 @@ From [global condition keys](https://docs.aws.amazon.com/IAM/latest/UserGuide/re
 | `aws:SecureTransport` | "always included in the request context"; true for TLS | understudy listens on plain HTTP; see switch `iam.context.secure-transport` (12.8) |
 | `aws:ViaAWSService` | "always included"; true for forward access sessions | true on `AsCaller` internal calls |
 | `aws:CalledVia` (and `First`/`Last`) | only when a supporting service uses the principal's credentials; not with service roles or direct calls | the calling service principal on `AsCaller` |
-| `aws:SourceIp` | "included in the request context, except when the requester uses a VPC endpoint"; service-to-service calls redact network keys | the peer address is loopback or a Docker bridge address, never what AWS would see: unsettled |
+| `aws:SourceIp` | "included in the request context, except when the requester uses a VPC endpoint"; service-to-service calls redact network keys | the peer address is loopback or a Docker bridge address, never what AWS would see: not supplied, so absent with an `Advisory` (12.2) |
 | `aws:RequestedRegion`, `aws:CurrentTime`, `aws:EpochTime`, `aws:ResourceAccount`, `aws:ResourceTag/*`, `aws:RequestTag/*`, `aws:TagKeys` | per the page | region from the scope, time from the emulator clock, tags from the store |
 | `aws:TokenIssueTime`, `aws:MultiFactorAuthAge` | only with temporary credentials (TokenIssueTime) or MFA (MultiFactorAuthAge) ([condition operators](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_condition_operators.html); [S3 bucket policy examples](https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html)) | issue time of the minted session; MFA absent |
 
@@ -436,7 +436,7 @@ The operations table is a union. The S3 permissions page states the conditions: 
 
 ### 12.1 Mode and placement
 
-- One configuration setting, `iam.enforce`: `off` (default; today's behavior, advisories only), `advise` (evaluate every call and journal an `Advisory` for each denial AWS would issue, answer as today) and `enforce` (answer the denial). It is a mode, not a fidelity switch: `off` is a documented deviation and goes in the coverage notes (12.7).
+- One configuration setting, `iam.enforce` (flag `--iam-enforce`, variable `UNDERSTUDY_IAM_ENFORCE`, file key `iam.enforce`): `off` (default; today's behavior, advisories only), `advise` (evaluate every call and journal an `Advisory` for each denial AWS would issue, answer as today) and `enforce` (answer the denial). It is a mode, not a fidelity switch: `off` is a documented deviation and goes in the coverage notes (12.7). [iam-evaluation.md](iam-evaluation.md) 12.1 item 4 names the same three modes `off`, `report` and `on`; understudy uses this note's spelling, a naming choice that matches the journal's `Advisory` event kind, so `report` there is `advise` and `on` is `enforce`.
 - Placement: pipeline step 8, the slot ARCHITECTURE.md 21 reserves for an evaluator as a `fault`-like stage (step 8 is `fault.Before` in ARCHITECTURE.md 4), after validation, before the handler. That gives "validation first, then authorization, then existence", which is switch `iam.enforce.order` until IAM-ENF-13. Existence checks stay in handlers, so a missing resource is a denial for an unauthorized caller by construction, matching S3 `GetObject` (5.1).
 - S3 `GetObject`/`HeadObject`/`GetObjectAttributes` on a missing key ask the evaluator for `s3:ListBucket` on the bucket and answer 404 `NoSuchKey` only when it is allowed, else 403 `AccessDenied` (aws-doc, 5.1). This applies only under `enforce`.
 - `sts:GetCallerIdentity` is never evaluated (aws-doc, 5.1).
@@ -445,12 +445,13 @@ The operations table is a union. The S3 permissions page states the conditions: 
 ### 12.2 Principals and policy sources
 
 - Root: allow unless an explicit `Deny` in a resource policy applies, or the target is a KMS key whose policy does not allow the account or the caller (6.3). Root `DeleteBucketPolicy` is always allowed (aws-doc); Get/PutBucketPolicy under switch `s3.root.bucket-policy-lockout`.
+- Root and `AssumeRole`: AWS refuses root as an `AssumeRole` caller ([iam-evaluation.md](iam-evaluation.md) 3.5). Under `off` and `advise` root may still assume roles, the deviation ADR 0012 accepts because unminted keys resolve to root, documented in `docs/coverage.md` (sts AssumeRole); under `advise` the call also journals an `Advisory`, as every denial AWS would issue does (12.1). Under `enforce` the call is refused with STS's recorded denial identity (12.3: `AccessDenied`, `Sender`, 403, the STS namespace; `testdata/parity/sts/R15/06-assume-denied.json`, aws-recorded). Its message takes the recorded form with the root ARN, `User: arn:aws:iam::<acct>:root is not authorized to perform: sts:AssumeRole on resource: <role arn>` (inferred: what AWS sends to root is UNVERIFIED, [iam-evaluation.md](iam-evaluation.md) 13.23 IAM-EVAL-22). The mode decides, so the switch `iam.assume-role.root` proposed in [iam-evaluation.md](iam-evaluation.md) 12.3 is not added.
 - Role sessions: match `Principal` by the session ARN and by its role ARN; supply `aws:PrincipalArn` as the role ARN; name the session ARN in denial texts (4.4, 6.2). This changes `policydoc` (`internal/policydoc/doc.go` L64-L69).
 - Identity policies: user and role inline policies, attached customer managed policies, attached AWS managed policies from the catalogue the roadmap item builds (ROADMAP.md item 5). Groups are unbound in understudy, so no group policies.
 - Permissions boundaries (`PutRolePermissionsBoundary`, `PutUserPermissionsBoundary` are bound) and session policies (`AssumeRole` `Policy`/`PolicyArns` are validated today) are evaluated as in 6.1, including the "granted directly to the session or user" exception.
 - Resource policies: SQS `Policy`, SNS `Policy` (with the recorded default), S3 bucket policy, Lambda function policy, KMS key policy, Secrets Manager resource policy, IAM trust policy. Out of scope and listed in coverage notes: SCPs, RCPs, VPC endpoint policies, S3 ACL grants, S3 access points, EventBridge bus policies, Logs resource policies, DynamoDB resource policies, KMS grants.
 - S3 Block Public Access: under `enforce`, `PutBucketPolicy` with a public policy while `BlockPublicPolicy` is true answers 403 `AccessDenied` with the 4.2 text; ACL writes with a public ACL while `BlockPublicAcls` is true likewise (aws-doc). `IgnorePublicAcls` and `RestrictPublicBuckets` change nothing in one account and stay coverage notes.
-- Condition evaluation: absent key is false (6.4); keys understudy cannot compute (`aws:SourceIp`, `aws:SourceVpce`, `aws:SourceVpc`, `aws:MultiFactorAuthAge` with MFA claimed) are unsettled: an `Allow` that depends on one is treated as holding and an `Advisory` is journaled; a `Deny` that depends on one does not deny and is journaled (`policydoc` behavior today). That deviation is a coverage note, not a switch, since no AWS behavior is in question.
+- Condition evaluation: a key absent from the request context evaluates by the truth table of [iam-evaluation.md](iam-evaluation.md) 6.14 (6.4): positive operators false; negated operators and `...IfExists` true; `Null` true with `"true"` and false with `"false"`; `ForAllValues` true; `ForAnyValue` false. A key AWS would supply but understudy cannot compute (`aws:SourceIp`, `aws:SourceVpce`, `aws:SourceVpc`, `aws:MultiFactorAuthAge` with MFA claimed, and any service key understudy does not implement) is absent by the same table and never assumed to hold, and every evaluation that tests it journals an `Advisory` naming the key. This replaces `policydoc`'s behavior today (a clause on a missing key assumed to hold, 6.4) and agrees with [iam-evaluation.md](iam-evaluation.md) 8.2: of its switch `iam.condition.unsupplied-key`, only `absent` exists, under every mode. A decision that AWS, holding the real key, could make differently is a coverage note, not a switch, since no AWS behavior is in question.
 
 ### 12.3 Error identities to emit
 
@@ -494,7 +495,7 @@ Context per delivery: `aws:SourceArn` always; `aws:SourceAccount` per switches `
 
 ### 12.5 Context keys
 
-Supply the keys of 9.1 and 9.2 from the call, the identity store, the emulator clock and the stored resource; never from the transport for `aws:SourceIp` (unsettled, 12.2). `aws:SecureTransport` follows switch `iam.context.secure-transport` (default true). S3's `s3:x-amz-server-side-encryption*` keys come from the request headers only, per switch `s3.condition.sse-from-default` (default absent).
+Supply the keys of 9.1 and 9.2 from the call, the identity store, the emulator clock and the stored resource; never from the transport for `aws:SourceIp` (absent with an `Advisory`, 12.2). `aws:SecureTransport` follows switch `iam.context.secure-transport` (default true). S3's `s3:x-amz-server-side-encryption*` keys come from the request headers only, per switch `s3.condition.sse-from-default` (default absent).
 
 ### 12.6 Least-privilege loop
 
@@ -510,8 +511,8 @@ Under the `iam.enforce` mode these notes replace today's (`docs/coverage.md`); t
 
 | Operation | Status | Note |
 |---|---|---|
-| sqs AddPermission, RemovePermission | partial | statements are stored in the queue's Policy attribute and evaluated only when iam.enforce is enforce; conditions on keys understudy cannot compute are assumed to hold |
-| sns AddPermission, RemovePermission | partial | statements are stored in the topic Policy and evaluated only when iam.enforce is enforce; conditions on keys understudy cannot compute are assumed to hold |
+| sqs AddPermission, RemovePermission | partial | statements are stored in the queue's Policy attribute and evaluated only when iam.enforce is enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
+| sns AddPermission, RemovePermission | partial | statements are stored in the topic Policy and evaluated only when iam.enforce is enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
 | s3 PutBucketPolicy, GetBucketPolicy, DeleteBucketPolicy | partial | the policy is stored and echoed, and evaluated only when iam.enforce is enforce; access points and ACL grants are not evaluated |
 | s3 PutPublicAccessBlock | partial | stored and echoed; under iam.enforce enforce only BlockPublicPolicy and BlockPublicAcls are applied |
 | lambda AddPermission | partial | statements are stored and returned by GetPolicy, and evaluated for service deliveries and function URLs only when iam.enforce is enforce |
@@ -519,7 +520,7 @@ Under the `iam.enforce` mode these notes replace today's (`docs/coverage.md`); t
 | secretsmanager PutResourcePolicy | partial | the policy is parsed and stored verbatim and evaluated only when iam.enforce is enforce; BlockPublicPolicy is not evaluated |
 | iam CreatePolicy, PutRolePolicy, PutUserPolicy | partial | the document is validated and stored, and evaluated only when iam.enforce is enforce |
 | iam UpdateAssumeRolePolicy | partial | the trust policy is validated and stored, and evaluated by AssumeRole only when iam.enforce is enforce |
-| sts AssumeRole | partial | the trust policy, session policies and the caller's sts:AssumeRole permission are evaluated only when iam.enforce is enforce; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses |
+| sts AssumeRole | partial | the trust policy, session policies and the caller's sts:AssumeRole permission are evaluated only when iam.enforce is enforce; MFA is accepted and not checked; the account root user may assume roles when iam.enforce is off or advise, which AWS refuses (ADR 0012), and is refused when it is enforce |
 
 Leave unbound (501): EventBridge `PutPermission`/`RemovePermission`, Logs `PutResourcePolicy`/`DescribeResourcePolicies`, DynamoDB `PutResourcePolicy`/`GetResourcePolicy`/`DeleteResourcePolicy`, Lambda `PutResourcePolicy`/`GetResourcePolicy`/`DeleteResourcePolicy`, STS `DecodeAuthorizationMessage`, IAM `SimulatePrincipalPolicy`/`SimulateCustomPolicy`. Binding a policy-writing operation without evaluating it would be a StoredOnly that looks enforced.
 
@@ -576,7 +577,7 @@ Leave unbound (501): EventBridge `PutPermission`/`RemovePermission`, Logs `PutRe
 
 ### 12.10 What must never be faked
 
-- A success where AWS would deny, under `enforce`. Unsettled conditions are the only exception and are always journaled.
+- A success where AWS would deny, under `enforce`. Conditions on keys understudy cannot supply are the only exception: they evaluate as absent (12.2), which can differ from AWS's answer with the real key, and always journal an `Advisory`.
 - A denial text presented as AWS's when it is inferred: every text above carries its switch label and appears in the coverage evidence column.
 - Enforcement of a policy type understudy does not evaluate (SCP, RCP, VPC endpoint, ACL grants, grants, access points): those are coverage notes, never silent allows that look like evaluation.
 - A permission propagation delay: AWS is eventually consistent ([secrets troubleshooting](https://docs.aws.amazon.com/secretsmanager/latest/userguide/troubleshoot.html)), but Terraform already retries; emulating the delay would only slow every run.
