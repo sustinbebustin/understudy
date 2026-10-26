@@ -161,19 +161,22 @@ const (
 // scenario or fixture, a step with neither a fixture nor a rec command, a
 // settles field Mutate cannot flip, or a transport error.
 //
-// Steps run in the scenario's order. Per step, the first rule that applies
-// gives the outcome (the exchanges considered are all of them under
-// compare all, the final one under final):
+// Steps run in the scenario's order. Before each, the setup calls due run
+// and then the clock advances by the step's advance, whatever the step's
+// outcome: the advance is time the recording let pass, which every later
+// step depends on. Per step, the first rule that applies gives the outcome
+// (the exchanges considered are all of them under compare all, the final
+// one under final):
 //
 //  1. no fixture: Pending (a rec command names the step);
 //  2. no exchange: Skipped{no-exchange};
-//  3. the scenario needs Docker and opts has none: Skipped{docker}, and no
-//     setup call of the scenario runs;
+//  3. the scenario needs Docker and opts has none: Skipped{docker}; no
+//     setup call of the scenario runs and the clock does not advance;
 //  4. a considered request is missing, has no host or an unrecorded or
 //     omitted body: Reconstructed, not sent;
 //  5. a considered request is neither awsJson nor awsQuery:
 //     Skipped{rest-routing};
-//  6. the clock advances, then each considered request is sent;
+//  6. each considered request is sent;
 //  7. a considered response is missing, has no status or an unrecorded
 //     body: Reconstructed, sent but not compared;
 //  8. the binds are read, then each exchange compared: Match, or Differs
@@ -181,7 +184,7 @@ const (
 //
 // A setup call runs before the step its before names; one that answers
 // outside 2xx, or whose bind fails, makes every step from there on differ,
-// naming the call, and nothing later runs.
+// naming the call, and nothing later runs, the clock advances included.
 func Run(fsys fs.FS, id string, t Transport, opts Options) (Result, error) {
 	res := Result{Scenario: id}
 	sc, err := ReadScenario(fsys, id)

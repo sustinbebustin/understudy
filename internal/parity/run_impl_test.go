@@ -159,9 +159,10 @@ func TestRunRefusesASettlesFieldUnderAnAbsentParent(t *testing.T) {
 	}
 }
 
-// The clock advance and the sends of a step the replayer cannot send do not
-// happen: a reconstructed step does not advance the clock.
-func TestRunAdvancesOnlyBeforeASentStep(t *testing.T) {
+// A step the replayer cannot send still advances the clock: the advance is
+// the time the recording let pass before it, which the later steps depend
+// on. Only its sends do not happen.
+func TestRunAdvancesBeforeAStepItCannotSend(t *testing.T) {
 	t.Parallel()
 	scenario := `{
   "version": 1, "item": "KMS-alias", "account": "123456789012", "region": "us-east-2", "client": "aws-cli",
@@ -171,8 +172,30 @@ func TestRunAdvancesOnlyBeforeASentStep(t *testing.T) {
   ]
 }`
 	tr := &fakeTransport{answer: func(Outgoing) (Response, string) { return kmsJSON(400, kmsDuplicateBody), "kms.CreateAlias" }}
-	run(t, mapFS(t, "kms/KMS-alias", scenario, []string{kmsDuplicate, kmsDuplicateRaw}, nil), "kms/KMS-alias", tr, Options{})
-	if want := []string{"advance " + (6 * time.Second).String(), "send TrentService.CreateAlias"}; !slices.Equal(tr.log, want) {
+	got := run(t, mapFS(t, "kms/KMS-alias", scenario, []string{kmsDuplicate, kmsDuplicateRaw}, nil), "kms/KMS-alias", tr, Options{})
+	if diff := cmp.Diff([]Outcome{Reconstructed{}, Match{}}, outcomesOf(got.Steps)); diff != "" {
+		t.Errorf("outcomes (-want +got):\n%s", diff)
+	}
+	want := []string{"advance " + time.Minute.String(), "advance " + (6 * time.Second).String(), "send TrentService.CreateAlias"}
+	if !slices.Equal(tr.log, want) {
+		t.Errorf("log %v; want %v", tr.log, want)
+	}
+}
+
+// Once a setup call fails nothing later runs, the clock advances included.
+func TestRunDoesNotAdvanceAfterAFailedSetup(t *testing.T) {
+	t.Parallel()
+	scenario := `{
+  "version": 1, "item": "KMS-alias", "account": "123456789012", "region": "us-east-2", "client": "aws-cli",
+  "setup": [{"service": "kms", "operation": "CreateKey", "input": {}}],
+  "steps": [{"fixture": "kms/KMS-alias/01-duplicate.json", "compare": "all", "advance": "6s"}]
+}`
+	tr := &fakeTransport{
+		answer: func(Outgoing) (Response, string) { return kmsJSON(400, kmsDuplicateBody), "kms.CreateAlias" },
+		setup:  func(string, string, []byte) Response { return kmsJSON(500, `{}`) },
+	}
+	run(t, mapFS(t, "kms/KMS-alias", scenario, []string{kmsDuplicate}, nil), "kms/KMS-alias", tr, Options{})
+	if want := []string{"call kms.CreateKey"}; !slices.Equal(tr.log, want) {
 		t.Errorf("log %v; want %v", tr.log, want)
 	}
 }

@@ -116,11 +116,17 @@ type compared struct {
 	before runner
 }
 
-// step runs setup due before step i, then the step.
+// step runs setup due before step i, advances the clock, then runs the
+// step. The advance stands for the wall time the recording let pass before
+// the step, so it applies whether or not the step can be sent: dropping it
+// would replay every later step earlier than AWS saw it.
 func (r *runner) step(i int, ls loadedStep) (stepRun, error) {
 	res := StepResult{Step: ls.step.Name(), Fixture: ls.step.Fixture}
 	if r.docker {
 		if err := r.setup(i, res.Step); err != nil {
+			return stepRun{}, err
+		}
+		if err := r.advance(ls.step); err != nil {
 			return stepRun{}, err
 		}
 	}
@@ -138,6 +144,18 @@ func (r *runner) step(i int, ls loadedStep) (stepRun, error) {
 		return r.replay(ls.step, *f, res)
 	}
 	return stepRun{result: res}, nil
+}
+
+// advance moves the clock by s's advance, unless a setup call halted the
+// scenario, after which nothing runs.
+func (r *runner) advance(s Step) error {
+	if s.Advance <= 0 || r.halted != "" {
+		return nil
+	}
+	if err := r.t.Advance(s.Advance); err != nil {
+		return fmt.Errorf("replaying testdata/parity/%s: advancing the clock by %s before %s: %w", r.id, s.Advance, s.Name(), err)
+	}
+	return nil
 }
 
 // setup issues the setup calls due before step name, the i-th: those whose
@@ -181,7 +199,7 @@ func (r *runner) tryBind(sh Shape, aws, ours string) bool {
 }
 
 // replay sends a step's considered exchanges and compares them (Run rules
-// 4 to 8).
+// 4, 5, 7 and 8).
 func (r *runner) replay(s Step, f Fixture, res StepResult) (stepRun, error) {
 	first := 0
 	if s.Compare == CompareFinal {
@@ -195,11 +213,6 @@ func (r *runner) replay(s Step, f Fixture, res StepResult) (stepRun, error) {
 	case slices.ContainsFunc(xs, func(x Exchange) bool { return !routable(*x.Request) }):
 		res.Outcome = Skipped{Reason: SkipRESTRouting}
 		return stepRun{result: res}, nil
-	}
-	if s.Advance > 0 {
-		if err := r.t.Advance(s.Advance); err != nil {
-			return stepRun{}, fmt.Errorf("replaying testdata/parity/%s: advancing the clock by %s before %s: %w", r.id, s.Advance, res.Step, err)
-		}
 	}
 	ours := make([]Response, len(xs))
 	for i, x := range xs {
