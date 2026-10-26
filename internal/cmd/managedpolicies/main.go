@@ -8,8 +8,12 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/policycatalogue"
+	awsmanagedpolicies "github.com/sustinbebustin/understudy/third_party/aws-managed-policies"
 )
 
 func main() {
@@ -25,12 +29,8 @@ func main() {
 // errUsage reports a command line that names no mode or both.
 var errUsage = errors.New("give exactly one of -fetch or -verify; see -h")
 
-// notImplementedError is the answer of every step not built yet.
-type notImplementedError struct{ op string }
-
-func (e *notImplementedError) Error() string { return e.op + " is not implemented yet" }
-
-// run parses the command line and runs its one mode.
+// run parses the command line, runs its one mode and, when it succeeds,
+// prints the summary of the catalogue in the directory.
 func run(ctx context.Context, args []string, stderr io.Writer) error {
 	fs := flag.NewFlagSet("managedpolicies", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -40,16 +40,51 @@ func run(ctx context.Context, args []string, stderr io.Writer) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	var err error
 	switch {
 	case *doFetch == *doVerify || fs.NArg() > 0:
 		return errUsage
 	case *doFetch:
-		return docsFetcher().fetch(ctx, *dir)
+		err = docsFetcher().fetch(ctx, *dir)
 	default:
-		return verify(os.DirFS(*dir), *dir)
+		err = verify(os.DirFS(*dir), *dir)
 	}
+	if err != nil {
+		return err
+	}
+	data, err := os.ReadFile(filepath.Join(*dir, awsmanagedpolicies.PoliciesFile))
+	if err != nil {
+		return err
+	}
+	cat, err := policycatalogue.Parse(data)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(stderr, "managedpolicies:", summary(cat))
+	return nil
 }
 
 // summary is the review line each mode prints, which the maintainer
-// compares with iam-evaluation.md 10.4. Not implemented yet: it is empty.
-func summary(*policycatalogue.Catalogue) string { return "" }
+// compares with the counts of iam-evaluation.md 10.4: the total, one count
+// per Type and the highest default version by its number.
+func summary(cat *policycatalogue.Catalogue) string {
+	counts := map[policycatalogue.Type]int{}
+	highest := -1
+	for p := range cat.All() {
+		counts[p.Type]++
+		digits, _, _ := strings.Cut(strings.TrimPrefix(p.VersionID, "v"), ".")
+		if n, err := strconv.Atoi(digits); err == nil && n > highest {
+			highest = n
+		}
+	}
+	types := []policycatalogue.Type{policycatalogue.AWSManaged, policycatalogue.ServiceLinkedRole, policycatalogue.ServiceRole, policycatalogue.JobFunction}
+	perType := make([]string, len(types))
+	for i, t := range types {
+		perType[i] = fmt.Sprintf("%d %s", counts[t], t)
+	}
+	top := "none"
+	if highest >= 0 {
+		top = "v" + strconv.Itoa(highest)
+	}
+	return fmt.Sprintf("%d policies (%s), highest default version %s", cat.Len(), strings.Join(perType, ", "), top)
+}

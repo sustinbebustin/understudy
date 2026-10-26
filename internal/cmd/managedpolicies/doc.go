@@ -18,5 +18,9 @@
 // -verify checks, offline, that the data parses and is in canonical form,
 // that every document passes policydoc's identity policy rules, that
 // SOURCE.json matches the data and its hashes, and that LICENSE and NOTICE
-// are the ones the generator writes; just generate runs it.
+// are the ones the generator writes.
+//
+// On success each mode prints one line to stderr: the number of policies,
+// the count of each Type and the highest default version, for the
+// maintainer to compare with iam-evaluation.md 10.4.
 package main
