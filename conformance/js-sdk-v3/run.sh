@@ -14,6 +14,12 @@
 #
 # DynamoDB runs on DynamoDB Local, pulled on first use; CONFORMANCE_DYNAMODB
 # is unset or 0, and run.sh exits 2 before building on any other value.
+#
+# SNS HTTP delivery (tests/sns-http.test.ts): understudy also serves TLS on
+# 127.0.0.1:45664 and delivers only to the test's HTTPS receiver on
+# 127.0.0.1:45665, whose key and certificate openssl makes in the work
+# directory; bun trusts understudy's certificate through NODE_EXTRA_CA_CERTS.
+#
 # bun's output is kept in the
 # work directory's test.log and its JUnit report in junit.xml; the run ends
 # with a summary on stderr: the totals, then each skipped test and its
@@ -35,6 +41,16 @@ bin="$build/understudy"
 listen="127.0.0.1:45663"
 endpoint="http://$listen"
 sigv4="${SIGV4:-parse}"
+# The TLS listener SNS HTTP deliveries link to, and the HTTPS receiver
+# they go to (sns-http-delivery.md 8.3, 8.7).
+tls_listen="127.0.0.1:45664"
+tls_endpoint="https://localhost:45664"
+receiver="127.0.0.1:45665"
+
+if ! command -v openssl >/dev/null; then
+	echo "run.sh: openssl is not on PATH; the SNS HTTP tests need it for the receiver's certificate and to verify signatures. No test ran." >&2
+	exit 2
+fi
 
 mkdir -p -- "$build"
 work="$(mktemp -d "$build/run.XXXXXX")"
@@ -77,7 +93,7 @@ trap stop EXIT INT TERM
 echo "run.sh: building understudy into $bin" >&2
 (cd -- "$repo" && CGO_ENABLED=0 go build -o "$bin" ./cmd/understudy)
 
-if [ ! -d "$here/node_modules/@aws-sdk/client-s3" ]; then
+if [ ! -d "$here/node_modules/@aws-sdk/client-s3" ] || [ ! -d "$here/node_modules/sns-validator" ]; then
 	echo "run.sh: installing dependencies from bun.lock" >&2
 	(cd -- "$here" && bun install --frozen-lockfile)
 fi
@@ -96,9 +112,19 @@ fi
 # are off by default (ADR 0006).
 printf '%s\n' '{"lambda": {"stateTransitions": "clock"}, "sqs": {"queueDeletedRecently": "enforce"}}' >"$work/understudy.json"
 
+# The SNS HTTP receiver's key and certificate, for its IP address; understudy
+# trusts it through the CA bundle setting (sns-http-delivery.md 7.4).
+if ! openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=127.0.0.1" -addext "subjectAltName=IP:127.0.0.1" \
+	-keyout "$work/receiver.key" -out "$work/receiver.pem" >"$work/openssl.log" 2>&1; then
+	echo "run.sh: openssl could not make the SNS HTTP receiver's certificate; its output:" >&2
+	cat -- "$work/openssl.log" >&2
+	exit 1
+fi
+
 echo "run.sh: starting understudy on $endpoint, data in $data" >&2
 (cd -- "$work" && exec env "${conformance_serve_env[@]}" "$bin" serve \
-	--listen "$listen" --persist "$data" --sigv4 "$sigv4" --ready-file "$work/ready.json" --config "$work/understudy.json") >"$log" 2>&1 &
+	--listen "$listen" --persist "$data" --sigv4 "$sigv4" --ready-file "$work/ready.json" --config "$work/understudy.json" \
+	--tls --tls-listen "$tls_listen" --sns-http-delivery-allow "$receiver" --sns-http-delivery-ca-bundle "$work/receiver.pem") >"$log" 2>&1 &
 pid=$!
 
 if ! "$bin" health --endpoint "$endpoint" --wait 60s >/dev/null; then
@@ -112,6 +138,13 @@ if ! kill -0 "$pid" 2>/dev/null; then
 	exit 1
 fi
 conformance_require_ddb_enabled "$endpoint/_understudy/v1" "$log"
+# The TLS listener's certificate, which bun and sns-validator trust through
+# NODE_EXTRA_CA_CERTS.
+if ! "$bin" env --endpoint "$endpoint" --tls --tls-endpoint "$tls_endpoint" --ca-file "$work/understudy-ca.pem" >/dev/null; then
+	echo "run.sh: 'understudy env --tls' could not write the TLS listener's certificate; understudy's log:" >&2
+	cat -- "$log" >&2
+	exit 1
+fi
 echo "run.sh: understudy is ready" >&2
 
 # skip_reason FILE names why FILE's tests skip in this run. bun records no
@@ -167,7 +200,9 @@ PY
 
 echo "run.sh: running the suite" >&2
 set +e
-(cd -- "$here" && CONFORMANCE_SIGV4="$sigv4" "$repo/scripts/sealed" --endpoint "$endpoint" \
+(cd -- "$here" && CONFORMANCE_SIGV4="$sigv4" NODE_EXTRA_CA_CERTS="$work/understudy-ca.pem" CONFORMANCE_TLS_ENDPOINT="$tls_endpoint" \
+	CONFORMANCE_SNS_RECEIVER="$receiver" CONFORMANCE_SNS_RECEIVER_CERT="$work/receiver.pem" CONFORMANCE_SNS_RECEIVER_KEY="$work/receiver.key" \
+	"$repo/scripts/sealed" --endpoint "$endpoint" \
 	bun test --timeout 60000 --reporter=junit --reporter-outfile="$work/junit.xml" "$@") 2>&1 | tee "$work/test.log"
 status=$?
 set -e

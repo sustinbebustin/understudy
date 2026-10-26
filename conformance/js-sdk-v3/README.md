@@ -32,6 +32,8 @@ Type-check with `bun run typecheck`.
 
 The suite refuses any endpoint that is not loopback http.
 
+`tests/sns-http.test.ts` needs `openssl` on `PATH` and the settings `run.sh` gives it: understudy serves TLS on `127.0.0.1:45664` (`CONFORMANCE_TLS_ENDPOINT`, trusted through `NODE_EXTRA_CA_CERTS`) and delivers SNS http and https subscriptions only to the test's HTTPS receiver on `127.0.0.1:45665` (`CONFORMANCE_SNS_RECEIVER`, with the key and certificate `run.sh` makes, `CONFORMANCE_SNS_RECEIVER_KEY` and `CONFORMANCE_SNS_RECEIVER_CERT`). It checks the messages with AWS's `sns-validator` and with `openssl dgst -verify`.
+
 ## Layout
 
 One file per service, so each can be fixed on its own.
@@ -40,6 +42,7 @@ One file per service, so each can be fixed on its own.
 |---|---|
 | `tests/sqs.test.ts` | SQS |
 | `tests/sns.test.ts` | SNS |
+| `tests/sns-http.test.ts` | SNS https delivery, checked by `sns-validator` and `openssl` |
 | `tests/s3.test.ts` | S3, including `lib-storage` multipart uploads, default checksums, presigned URLs, virtual-hosted and path-style addressing |
 | `tests/dynamodb.test.ts` | DynamoDB, DynamoDB document client |
 | `tests/lambda.test.ts` | Lambda |
@@ -51,4 +54,4 @@ One file per service, so each can be fixed on its own.
 | `tests/eventbridge.test.ts` | EventBridge |
 | `tests/cloudwatch.test.ts` | CloudWatch metrics and alarms |
 
-`support/` holds the connection settings (`env.ts`), shared helpers (`helpers.ts`), independent checksum reference implementations (`checksums.ts`) and a zip writer for Lambda packages (`zip.ts`).
+`support/` holds the connection settings (`env.ts`), shared helpers (`helpers.ts`), independent checksum reference implementations (`checksums.ts`), a zip writer for Lambda packages (`zip.ts`) and the types of `sns-validator` (`sns-validator.d.ts`).
