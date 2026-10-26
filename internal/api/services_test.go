@@ -44,9 +44,7 @@ func services() []*registry.Service {
 }
 
 // generated is every generated package: the wired services and the
-// roadmap's services that are generated but not wired yet. Several of the
-// latter share a signing name with another service, so they register only
-// once the registry accepts shared signing names.
+// roadmap's services that are generated but not wired yet.
 func generated() []*registry.Service {
 	return append(services(),
 		apigatewayapi.Service(), apigatewayv2api.Service(), dynamodbstreamsapi.Service(), kinesisapi.Service(),
@@ -59,6 +57,16 @@ func generated() []*registry.Service {
 // tables without collisions, valid route tables.
 func TestTheServicesRegisterTogether(t *testing.T) {
 	if _, err := registry.New(services()...); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestTheGeneratedServicesRegisterTogether: the pairs that share a signing
+// name (dynamodb and dynamodbstreams, apigateway and apigatewayv2, ses and
+// sesv2) are told apart by a claim rule, so every generated service can be
+// wired beside the others (ADR 0019).
+func TestTheGeneratedServicesRegisterTogether(t *testing.T) {
+	if _, err := registry.New(generated()...); err != nil {
 		t.Fatal(err)
 	}
 }
