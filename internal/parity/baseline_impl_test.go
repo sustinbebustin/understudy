@@ -29,6 +29,37 @@ func TestRatchetNamesARoutingChange(t *testing.T) {
 	}
 }
 
+// An overlay claim whose covers change names other evidence items, and a
+// step whose fixture moves replays another recording: both drift, though
+// every outcome and result holds, so baseline.json cannot keep stale ones.
+func TestRatchetSeesCoversAndFixtureChanges(t *testing.T) {
+	t.Parallel()
+	covered := func(covers ...string) Baseline {
+		b := kmsAliasBaselineValue()
+		b.Scenarios[0].Claims[0].Target = OverlayTarget{Shape: "com.amazonaws.kms#AlreadyExistsException", Covers: covers}
+		return b
+	}
+	got := Ratchet(covered("dev.understudy#statusOverride"), covered("dev.understudy#errorNamespace"))
+	want := []Drift{
+		{Key: dupKey + " overlay:com.amazonaws.kms#AlreadyExistsException[dev.understudy#statusOverride] status", Was: `{"kind":"settled"}`, Now: "absent"},
+		{Key: dupKey + " overlay:com.amazonaws.kms#AlreadyExistsException[dev.understudy#errorNamespace] status", Was: "absent", Now: `{"kind":"settled"}`},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("Ratchet(covers changed) (-want +got):\n%s", diff)
+	}
+	if got := Ratchet(covered("b", "a"), covered("a", "b")); got != nil {
+		t.Errorf("Ratchet(covers reordered) = %v; want nil, since covers are a set", got)
+	}
+
+	moved := kmsAliasBaselineValue()
+	moved.Scenarios[0].Steps[0].Fixture = "sts/KMS-alias/01-duplicate.json"
+	got = Ratchet(kmsAliasBaselineValue(), moved)
+	want = []Drift{{Key: dupKey, Was: `{"kind":"match"} fixture kms/KMS-alias/01-duplicate.json`, Now: `{"kind":"match"} fixture sts/KMS-alias/01-duplicate.json`}}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("Ratchet(fixture moved) (-want +got):\n%s", diff)
+	}
+}
+
 // Two claims with one target, step and field keep distinct keys, so a drift
 // in the second is not hidden by the first.
 func TestRatchetKeepsRepeatedClaimKeysApart(t *testing.T) {

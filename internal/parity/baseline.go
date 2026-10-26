@@ -426,12 +426,13 @@ func BaselineOf(results []Result) Baseline {
 
 // Drift is one key whose outcome or result differs from the baseline.
 type Drift struct {
-	// Key is "<scenario>#<step>", or that followed by a claim's target and
-	// field.
+	// Key is "<scenario>#<step>", or that followed by a claim's target
+	// (with an overlay claim's covers) and field.
 	Key string
 	// Was and Now are the outcome or result in baseline.json's compact JSON
 	// form, "absent" when the key is missing on that side; a routed
-	// operation that changed follows as " operation <op>".
+	// operation that changed follows as " operation <op>", and a fixture
+	// that changed as " fixture <path>".
 	Was, Now string
 }
 
@@ -454,8 +455,8 @@ func goodText(s string) bool {
 	return kind == `{"kind":"match"}` || kind == `{"kind":"settled"}`
 }
 
-// Ratchet lists every key on which got differs from want: a step's outcome
-// or routed operation, a claim's result, or a key on one side only. Keys
+// Ratchet lists every key on which got differs from want: a step's outcome,
+// routed operation or fixture, a claim's result, or a key on one side only. Keys
 // follow want's order, then those only got has; nil when none differ.
 func Ratchet(want, got Baseline) []Drift {
 	have := map[string]ratchetEntry{}
@@ -473,6 +474,9 @@ func Ratchet(want, got Baseline) []Drift {
 			if w.operation != g.operation {
 				was, now = was+operationSuffix(w.operation), now+operationSuffix(g.operation)
 			}
+			if w.fixture != g.fixture {
+				was, now = was+" fixture "+w.fixture, now+" fixture "+g.fixture
+			}
 		}
 		if was != now {
 			drifts = append(drifts, Drift{Key: w.key, Was: was, Now: now})
@@ -486,9 +490,10 @@ func Ratchet(want, got Baseline) []Drift {
 	return drifts
 }
 
-// ratchetEntry is one key of a baseline with its compared value.
+// ratchetEntry is one key of a baseline with its compared values: a step's
+// outcome, routed operation and fixture, or a claim's result.
 type ratchetEntry struct {
-	key, value, operation string
+	key, value, operation, fixture string
 }
 
 // ratchetEntries lists b's keys in order; a key that repeats within b
@@ -496,30 +501,37 @@ type ratchetEntry struct {
 func ratchetEntries(b Baseline) []ratchetEntry {
 	var out []ratchetEntry
 	count := map[string]int{}
-	add := func(key, value, operation string) {
-		count[key]++
-		if n := count[key]; n > 1 {
-			key += " (" + strconv.Itoa(n) + ")"
+	add := func(e ratchetEntry) {
+		count[e.key]++
+		if n := count[e.key]; n > 1 {
+			e.key += " (" + strconv.Itoa(n) + ")"
 		}
-		out = append(out, ratchetEntry{key: key, value: value, operation: operation})
+		out = append(out, e)
 	}
 	for _, sc := range b.Scenarios {
 		for _, s := range sc.Steps {
-			add(sc.Scenario+"#"+s.Step, compactText(outcomeDocOf(s.Outcome)), s.Operation)
+			add(ratchetEntry{key: sc.Scenario + "#" + s.Step, value: compactText(outcomeDocOf(s.Outcome)), operation: s.Operation, fixture: s.Fixture})
 		}
 		for _, c := range sc.Claims {
-			add(sc.Scenario+"#"+c.Step+" "+targetKey(c.Target)+" "+string(c.Field), compactText(resultDocOf(c.Result)), "")
+			add(ratchetEntry{key: sc.Scenario + "#" + c.Step + " " + targetKey(c.Target) + " " + string(c.Field), value: compactText(resultDocOf(c.Result))})
 		}
 	}
 	return out
 }
 
+// targetKey names a claim's target in its ratchet key. An overlay claim's
+// covers, sorted, are part of it, since coverage attributes the result to
+// the evidence items they name: a claim whose covers change is another
+// claim.
 func targetKey(t Target) string {
 	switch t := t.(type) {
 	case SwitchTarget:
 		return "switch:" + t.Name
 	case OverlayTarget:
-		return "overlay:" + t.Shape
+		if len(t.Covers) == 0 {
+			return "overlay:" + t.Shape
+		}
+		return "overlay:" + t.Shape + "[" + strings.Join(slices.Sorted(slices.Values(t.Covers)), ",") + "]"
 	}
 	return "target:none"
 }
