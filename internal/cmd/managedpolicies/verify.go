@@ -62,8 +62,9 @@ func sha256Hex(b []byte) string {
 
 // verify checks the catalogue directory fsys, named dir in messages,
 // offline: policies.json parses and is canonical, every document parses as
-// an identity policy (see document), policies.json.gz decompresses to
-// policies.json, SOURCE.json is canonical and matches the catalogue and its
+// an identity policy (see document), policies.json.gz carries the
+// generator's gzip header and decompresses to policies.json (see gzipCopy),
+// SOURCE.json is canonical and matches the catalogue and its
 // hashes, and LICENSE and NOTICE are the generator's. It returns nil or a
 // *VerifyError holding every problem found.
 func verify(fsys fs.FS, dir string) error {
@@ -164,10 +165,14 @@ func (v *verifier) document(p policycatalogue.Policy) {
 	}
 }
 
-// gzipCopy checks that policies.json.gz is present and, when policiesOK,
-// decompresses to exactly policies, the bytes of policies.json. It compares
-// the decompressed text, not the compressed bytes, so a Go release whose
-// compress/flate writes other bytes for the same text does not fail it.
+// gzipCopy checks that policies.json.gz is present, is gzip data under the
+// header gzipPolicies writes, and decompresses to the end; and, when
+// policiesOK, that it decompresses to exactly policies, the bytes of
+// policies.json. It compares the decompressed text, not the compressed
+// bytes, so a Go release whose compress/flate writes other bytes for the
+// same text does not fail it; the header, which compress/flate does not
+// write, tells a copy made outside the generator (gzip -9 names the file
+// and stamps a time and an OS).
 func (v *verifier) gzipCopy(policies []byte, policiesOK bool) {
 	const name = awsmanagedpolicies.PoliciesGzipFile
 	const recovery = "it is policies.json compressed and is never edited by hand; re-run the generator's write step offline, 'go run ./internal/cmd/managedpolicies -pack', to rewrite it from policies.json"
@@ -176,26 +181,62 @@ func (v *verifier) gzipCopy(policies []byte, policiesOK bool) {
 		v.add(name, "", "cannot be read (%v); %s", err, recovery)
 		return
 	}
-	defer f.Close()
-	if !policiesOK {
-		return
-	}
 	zr, err := gzip.NewReader(f)
 	if err != nil {
-		v.add(name, "", "is not gzip data (%v); %s", err, recovery)
+		v.add(name, "", "is not gzip data (%v); %s", errors.Join(err, f.Close()), recovery)
 		return
 	}
-	// One byte past policies.json tells a longer text, and bounds what a
-	// corrupt file can make this read.
-	got, err := io.ReadAll(io.LimitReader(zr, int64(len(policies))+1))
-	switch {
-	case err != nil:
+	if d := foreignHeader(zr.Header); len(d) > 0 {
+		v.add(name, "", "has a gzip header the generator does not write (%s, where it writes no name, comment, extra field or time, and OS 255), so another tool made it; %s", strings.Join(d, ", "), recovery)
+	}
+	var got []byte
+	if policiesOK {
+		// One byte past policies.json tells a longer text, and bounds what
+		// a corrupt file can make this read.
+		got, err = io.ReadAll(io.LimitReader(zr, int64(len(policies))+1))
+	} else {
+		// Nothing to compare with, but reading to the end still checks the
+		// stream and its checksum on this run.
+		_, err = io.Copy(io.Discard, zr) //nolint:gosec // G110: io.Discard keeps nothing, so a large stream costs time, not memory
+	}
+	// zr.Close repeats a read error, so it is asked only after a clean read.
+	if err == nil {
+		err = zr.Close()
+	}
+	if err := errors.Join(err, f.Close()); err != nil {
 		v.add(name, "", "does not decompress (%v); %s", err, recovery)
+		return
+	}
+	switch {
+	case !policiesOK:
 	case len(got) > len(policies):
 		v.add(name, "", "decompresses to more than the %d bytes of policies.json; %s", len(policies), recovery)
 	case !bytes.Equal(got, policies):
 		v.add(name, "", "decompresses to text that first differs from policies.json on line %d; %s", firstDifferentLine(got, policies), recovery)
 	}
+}
+
+// foreignHeader lists how h differs from the header gzipPolicies writes,
+// compress/gzip's default: no name, comment, extra field or modification
+// time, and OS 255 (unknown). It is empty when they agree.
+func foreignHeader(h gzip.Header) []string {
+	var d []string
+	if h.Name != "" {
+		d = append(d, fmt.Sprintf("name %q", h.Name))
+	}
+	if h.Comment != "" {
+		d = append(d, fmt.Sprintf("comment %q", h.Comment))
+	}
+	if h.Extra != nil {
+		d = append(d, fmt.Sprintf("a %d-byte extra field", len(h.Extra)))
+	}
+	if !h.ModTime.IsZero() {
+		d = append(d, "modification time "+h.ModTime.UTC().Format(time.RFC3339))
+	}
+	if h.OS != gzipOSUnknown {
+		d = append(d, fmt.Sprintf("OS %d", h.OS))
+	}
+	return d
 }
 
 // arnsByIndex is the arn member of each policy of policies.json, read

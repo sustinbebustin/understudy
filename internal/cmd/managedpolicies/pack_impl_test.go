@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"pgregory.net/rapid"
 
@@ -221,8 +222,9 @@ func TestPackWithoutPoliciesWritesNothing(t *testing.T) {
 	wantNothingWritten(t, dir)
 }
 
-// A policies.json.gz that is missing, is not gzip, or does not decompress
-// to exactly policies.json is one problem of policies.json.gz alone, whose
+// A policies.json.gz that is missing, is not gzip, carries a header the
+// generator does not write, or does not decompress to exactly policies.json
+// is one problem of policies.json.gz alone, whose
 // detail says the file is never edited by hand and how to rewrite it.
 func TestVerifyRefusesAGzipCopyThatDiffers(t *testing.T) {
 	recompress := func(edit func(policies []byte) []byte) func(*testing.T, fstest.MapFS) {
@@ -235,11 +237,34 @@ func TestVerifyRefusesAGzipCopyThatDiffers(t *testing.T) {
 			fsys[awsmanagedpolicies.PoliciesGzipFile].Data = gz
 		}
 	}
+	// withHeader compresses policies.json as it is, under a header the
+	// generator does not write.
+	withHeader := func(h gzip.Header) func(*testing.T, fstest.MapFS) {
+		return func(t *testing.T, fsys fstest.MapFS) {
+			t.Helper()
+			var b bytes.Buffer
+			zw, err := gzip.NewWriterLevel(&b, gzip.BestCompression)
+			if err != nil {
+				t.Fatal(err)
+			}
+			zw.Header = h
+			_, werr := zw.Write(fsys[awsmanagedpolicies.PoliciesFile].Data)
+			if err := errors.Join(werr, zw.Close()); err != nil {
+				t.Fatal(err)
+			}
+			fsys[awsmanagedpolicies.PoliciesGzipFile].Data = b.Bytes()
+		}
+	}
 	for _, c := range []struct {
 		name   string
 		change func(*testing.T, fstest.MapFS)
 	}{
 		{"missing", func(_ *testing.T, f fstest.MapFS) { delete(f, awsmanagedpolicies.PoliciesGzipFile) }},
+		// gzip -9 names the file, stamps its time and its OS.
+		{"foreign header", withHeader(gzip.Header{Name: awsmanagedpolicies.PoliciesFile, ModTime: time.Unix(1792540800, 0), OS: 3})},
+		// gzip -9 -n still stamps its OS.
+		{"foreign OS", withHeader(gzip.Header{OS: 3})},
+		{"header comment and extra", withHeader(gzip.Header{Comment: "c", Extra: []byte{'u', 's', 0, 0}, OS: 255})},
 		{"not gzip", func(_ *testing.T, f fstest.MapFS) {
 			f[awsmanagedpolicies.PoliciesGzipFile].Data = f[awsmanagedpolicies.PoliciesFile].Data
 		}},
@@ -275,6 +300,39 @@ func TestVerifyRefusesAGzipCopyThatDiffers(t *testing.T) {
 			}
 			if msg := ve.Error(); !strings.Contains(msg, detail) {
 				t.Errorf("Error() = %q does not list the problem", msg)
+			}
+		})
+	}
+}
+
+// Without a policies.json to compare with, a policies.json.gz that is not
+// gzip data or does not decompress is still reported on the same run, and
+// one that decompresses is not.
+func TestVerifyChecksTheGzipCopyWithoutPoliciesJSON(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		change  func(fstest.MapFS)
+		problem bool
+	}{
+		{"not gzip", func(f fstest.MapFS) { f[awsmanagedpolicies.PoliciesGzipFile].Data = []byte("{}\n") }, true},
+		{"truncated gzip", func(f fstest.MapFS) {
+			gz := f[awsmanagedpolicies.PoliciesGzipFile].Data
+			f[awsmanagedpolicies.PoliciesGzipFile].Data = gz[:len(gz)-8]
+		}, true},
+		{"intact", func(fstest.MapFS) {}, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir, _, _ := written(t)
+			fsys := asMapFS(t, dir)
+			delete(fsys, awsmanagedpolicies.PoliciesFile)
+			c.change(fsys)
+			ve, ok := errors.AsType[*VerifyError](verify(fsys, dir))
+			if !ok {
+				t.Fatal("verify without policies.json = nil, want a *VerifyError")
+			}
+			got := slices.ContainsFunc(ve.Problems, func(p Problem) bool { return p.Path == awsmanagedpolicies.PoliciesGzipFile })
+			if got != c.problem {
+				t.Errorf("problems = %+v; a problem of %s: %v, want %v", ve.Problems, awsmanagedpolicies.PoliciesGzipFile, got, c.problem)
 			}
 		})
 	}

@@ -32,10 +32,15 @@ func derivedFiles(policies []byte) ([]dataFile, error) {
 	}, nil
 }
 
+// gzipOSUnknown is the OS byte compress/gzip writes by default, 255
+// (unknown, RFC 1952 2.3.1), and so the one policies.json.gz carries.
+const gzipOSUnknown = 255
+
 // gzipPolicies is policies.json compressed as the binary embeds it,
-// policies.json.gz: compress/gzip at BestCompression with the zero Header
-// (no name, comment or modification time), so one policies.json and Go
-// release always give the same bytes.
+// policies.json.gz: compress/gzip at BestCompression with its default
+// Header (no name, comment, extra field or modification time, and OS
+// gzipOSUnknown), so one policies.json and Go release always give the same
+// bytes.
 func gzipPolicies(policies []byte) ([]byte, error) {
 	var b bytes.Buffer
 	zw, err := gzip.NewWriterLevel(&b, gzip.BestCompression)

@@ -17,8 +17,9 @@
 // NOTICE, SOURCE.json last, then runs -verify.
 //
 // policies.json is the reviewable source of truth; policies.json.gz is its
-// exact bytes compressed with compress/gzip at BestCompression and an empty
-// header, so the output is deterministic, and is what the binary embeds.
+// exact bytes compressed with compress/gzip at BestCompression and its
+// default header (no name, comment, extra field or time, and OS 255), so
+// the output is deterministic, and is what the binary embeds.
 // -pack rewrites the two derived files without the network,
 // policies.json.gz from policies.json and LICENSE from the generator's
 // template, exactly as -fetch writes them, then runs -verify. A missing
@@ -28,8 +29,9 @@
 //
 // -verify checks, offline, that the data parses and is in canonical form,
 // that every document parses as a policy and is an identity policy
-// (Version 2012-10-17, no principal), that policies.json.gz decompresses to
-// exactly policies.json, that SOURCE.json matches the data and its hashes,
+// (Version 2012-10-17, no principal), that policies.json.gz carries that
+// header and decompresses to exactly policies.json, so a copy another tool
+// compressed fails, that SOURCE.json matches the data and its hashes,
 // and that LICENSE and NOTICE are the ones the generator writes. The
 // CreatePolicy rules policydoc applies to a customer's document are not
 // applied: AWS publishes its managed policies without that call, and some
