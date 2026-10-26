@@ -69,11 +69,14 @@ func (e ending) reason(f failure) string {
 // The body is the payload the target would have received. For SNS to SQS
 // that is what the subscription would have received: the envelope, or the
 // raw message with its attributes as SQS attributes (sns.md 7.4). A
-// function's event, a topic's message and an HTTP endpoint's body become
-// the body. The HTTP form is UNVERIFIED: sns-http-delivery.md 6.5 gives
-// SQS's as the likely one (SNSH-08). Group and deduplication ids carry
-// over to a FIFO dead-letter queue. An event bus target's body is the
-// forwarded event, which deadLetterOf writes, since writing it can fail. An
+// function's event and a topic's message become the body. An HTTP
+// endpoint's dead letter takes SQS's form too (sns.http.dlq-body as-sqs):
+// its body, with a raw notification's message attributes, which the POST
+// never carried, as SQS attributes; that form is UNVERIFIED, and
+// sns-http-delivery.md 6.5 gives it as the likely one (SNSH-08). No error
+// attributes are added (8.8). Group and deduplication ids carry over to a
+// FIFO dead-letter queue. An event bus target's body is the forwarded
+// event, which deadLetterOf writes, since writing it can fail. An
 // EventBridge dead letter also carries the failure as message attributes
 // (eventBridgeAttributes).
 func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage {
@@ -94,7 +97,7 @@ func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage 
 		// Enqueue refuses a dead-letter queue for this delivery (checkDLQ):
 		// the form of its dead letter is not researched.
 	case delivery.HTTPEndpoint:
-		m.body = string(t.Body)
+		m.body, m.attributes = string(t.Body), t.DeadLetterAttributes
 	}
 	if e.Request.Mechanism.Via() == ref.EventsTarget {
 		m.attributes = slices.Concat(m.attributes, eventBridgeAttributes(e, f, end))

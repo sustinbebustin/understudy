@@ -63,6 +63,8 @@ type engine struct {
 	seq atomic.Uint64
 	// ready runs the attempts onAttempt hands over in firing order.
 	ready sequencer
+	// pace spaces the attempts of throttled SNS HTTP subscriptions.
+	pace pacer
 }
 
 // The outbox is the kernel's delivery sink and is snapshotted like a
@@ -210,7 +212,7 @@ func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 	if err != nil {
 		return aws.Scope{}, err
 	}
-	if err := checkPolicy(req.Policy); err != nil {
+	if err := checkPolicy(req.Mechanism, req.Policy); err != nil {
 		return aws.Scope{}, err
 	}
 	if err := checkDLQ(req); err != nil {
@@ -229,19 +231,26 @@ func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 // any EventBridge target (eb-rule-dlq.html, iam-enforcement-surfaces.md
 // 8.4); no research gives the form of an S3Object dead letter or of an
 // EventBus one under another mechanism, so those refuse a queue until
-// their producer researches it.
+// their producer researches it. An HTTP control message, a
+// SubscriptionConfirmation or UnsubscribeConfirmation, never goes to one
+// (sns.http.control-dlq, sns-http-delivery.md 6.5, 8.2).
 func checkDLQ(req delivery.Request) *RequestError {
 	if req.DLQ == nil {
 		return nil
 	}
-	switch req.Target.(type) {
+	switch t := req.Target.(type) {
 	case delivery.EventBus:
 		if req.Mechanism != delivery.EventsToEvents {
 			return &RequestError{Field: "DLQ", Reason: "is set, but an EventBus delivery under " + req.Mechanism.String() + " has no dead-letter format yet; only " + delivery.EventsToEvents.String() + " has one"}
 		}
 	case delivery.S3Object:
 		return &RequestError{Field: "DLQ", Reason: "is set, but an S3Object delivery has no dead-letter format yet"}
-	case delivery.SQSQueue, delivery.LambdaFunction, delivery.SNSTopic, delivery.HTTPEndpoint:
+	case delivery.HTTPEndpoint:
+		// An undeclared kind is checkTarget's refusal.
+		if t.Kind == delivery.HTTPSubscriptionConfirmation || t.Kind == delivery.HTTPUnsubscribeConfirmation {
+			return &RequestError{Field: "DLQ", Reason: "control messages never go to a dead-letter queue (sns.http.control-dlq)"}
+		}
+	case delivery.SQSQueue, delivery.LambdaFunction, delivery.SNSTopic:
 	}
 	if req.DLQ.Service != "sqs" {
 		return &RequestError{Field: "DLQ", Reason: fmt.Sprintf("%s is not an SQS queue", req.DLQ)}
@@ -259,6 +268,11 @@ func checkDLQ(req delivery.Request) *RequestError {
 // endpoint).
 func checkTarget(req delivery.Request) (aws.ARN, string, *RequestError) {
 	m := req.Mechanism
+	if _, isHTTP := req.Target.(delivery.HTTPEndpoint); m.Target() == "" && !isHTTP && req.Target != nil {
+		// A mechanism that lands in no service delivers to an HTTP endpoint
+		// and nothing else.
+		return aws.ARN{}, "", &RequestError{Field: "Target", Reason: fmt.Sprintf("is a %T target, which %s does not deliver to; it delivers to a delivery.HTTPEndpoint only", req.Target, m)}
+	}
 	switch t := req.Target.(type) {
 	case delivery.SQSQueue:
 		return arnTarget(m, t.ARN)
@@ -289,8 +303,8 @@ func checkTarget(req delivery.Request) (aws.ARN, string, *RequestError) {
 		if err := deliversTo(m, "HTTPEndpoint", ""); err != nil {
 			return aws.ARN{}, "", err
 		}
-		if m == delivery.SNSToHTTP {
-			return aws.ARN{}, "", &RequestError{Field: "Target", Reason: "is an HTTPEndpoint target, which " + m.String() + " does not deliver to: not implemented yet"}
+		if !t.Kind.Valid() {
+			return aws.ARN{}, "", &RequestError{Field: "Target.Kind", Reason: fmt.Sprintf("is %v; an HTTP delivery carries a Notification, a SubscriptionConfirmation or an UnsubscribeConfirmation", t.Kind)}
 		}
 		return req.Source, "Source", checkHTTPEndpoint(t)
 	}
@@ -403,7 +417,19 @@ func deliversTo(m delivery.Mechanism, kind string, into ref.ServiceID) *RequestE
 // unservedScope is the RequestError reason of an ARN scopeOf refuses.
 const unservedScope = "names no account and region understudy serves"
 
-func checkPolicy(p delivery.RetryPolicy) *RequestError {
+// checkPolicy checks that p is a policy the outbox schedules, within its
+// bounds, and that an sns-to-http delivery, and only one, retries under
+// SNSHTTP.
+func checkPolicy(m delivery.Mechanism, p delivery.RetryPolicy) *RequestError {
+	if p == nil {
+		return &RequestError{Field: "Policy", Reason: "is nil"}
+	}
+	switch _, isHTTP := p.(delivery.SNSHTTP); {
+	case isHTTP && m != delivery.SNSToHTTP:
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is SNSHTTP, an SNS http or https subscription's delivery policy, which %s deliveries do not retry under", m)}
+	case !isHTTP && m == delivery.SNSToHTTP:
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is %T; %s deliveries retry under delivery.SNSHTTP, the subscription's resolved delivery policy", p, m)}
+	}
 	switch p := p.(type) {
 	case delivery.SNSManaged, delivery.S3Notification, delivery.None:
 		return nil
@@ -414,9 +440,31 @@ func checkPolicy(p delivery.RetryPolicy) *RequestError {
 		}
 		return nil
 	case delivery.SNSHTTP:
-		return &RequestError{Field: "Policy", Reason: "is SNSHTTP, which the outbox does not schedule: not implemented yet"}
+		return checkSNSHTTP(p)
 	}
-	return &RequestError{Field: "Policy", Reason: "is nil"}
+	return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is %T, a policy the outbox does not schedule", p)}
+}
+
+// checkSNSHTTP checks p against the documented bounds
+// (sns-http-delivery.md 6.7, aws-doc): every phase count at least 0 and
+// numRetries, their sum, at most 100; minDelayTarget from 1 s up to
+// maxDelayTarget, which is at most 3600 s; maxReceivesPerSecond not below
+// 0, 0 being no throttling; and a declared backoff function.
+func checkSNSHTTP(p delivery.SNSHTTP) *RequestError {
+	counts := []int{p.NoDelay, p.MinDelay, p.Backoff, p.MaxDelay}
+	switch {
+	case slices.ContainsFunc(counts, func(n int) bool { return n < 0 || n > maxHTTPRetries }) || p.Retries() > maxHTTPRetries:
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is SNSHTTP with the retry counts NoDelay %d, MinDelay %d, Backoff %d and MaxDelay %d; each is at least 0 and their sum, numRetries, at most %d",
+			p.NoDelay, p.MinDelay, p.Backoff, p.MaxDelay, maxHTTPRetries)}
+	case p.MinDelayTarget < minHTTPDelayTarget || p.MinDelayTarget > p.MaxDelayTarget || p.MaxDelayTarget > maxHTTPDelayTarget:
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is SNSHTTP with MinDelayTarget %v and MaxDelayTarget %v; minDelayTarget is %v up to maxDelayTarget, which is at most %v",
+			p.MinDelayTarget, p.MaxDelayTarget, minHTTPDelayTarget, maxHTTPDelayTarget)}
+	case p.MaxReceivesPerSecond < 0:
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is SNSHTTP with MaxReceivesPerSecond %d; it is at least 0, 0 being no throttling", p.MaxReceivesPerSecond)}
+	case !p.BackoffFunction.Valid():
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is SNSHTTP with BackoffFunction %v, which is not linear, arithmetic, geometric or exponential", p.BackoffFunction)}
+	}
+	return nil
 }
 
 // targetARN returns the ARN a target names; false for one that names none:

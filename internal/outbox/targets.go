@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
@@ -40,7 +41,10 @@ func (a *attempt) send(ctx context.Context, t delivery.Target) (journal.Delivery
 	case delivery.S3Object:
 		return a.end(ctx, putObject(ctx, a.e.k, a.c, a.as(a.scope), t))
 	case delivery.HTTPEndpoint:
-		return a.endHTTP(ctx, postHTTP(ctx, a.e.egress, t))
+		elapsed := a.e.k.Clock().Stopwatch()
+		r := postHTTP(ctx, a.e.egress, t)
+		a.took = elapsed()
+		return a.endHTTP(ctx, r)
 	}
 	return a.end(ctx, awserr.Internalf(&RequestError{Field: "Target", Reason: "is nil"}))
 }
@@ -148,13 +152,15 @@ func (b objectBody) Len() (int64, bool) { return int64(len(b)), true }
 func (objectBody) Trailer(string) (string, bool) { return "", false }
 
 // postHTTP POSTs t's body to its URL with its headers through client, the
-// one outbound dialer, and classifies the answer by the reading
-// sns-http-delivery.md 6.1 recommends: 2xx accepted; 429, 5xx and a
-// timed-out exchange retried; any other status permanent. Two of those
-// classes are UNVERIFIED there: a connection-level failure (refused,
-// reset, DNS or TLS) is retried under the server-side reading (SNSH-24),
-// and 3xx and 4xx other than 429 are permanent (SNSH-05). A request client
-// refuses, or any request when client is nil, is refused (7.3).
+// one outbound dialer, and classifies the answer under
+// sns.http.status-classes, the reading sns-http-delivery.md 6.1
+// recommends: 2xx accepted; 429, 5xx and a timed-out exchange retried; any
+// other status permanent (statusResult). Two of those classes are
+// UNVERIFIED there: a connection-level failure (refused, reset, DNS or
+// TLS) is retried under the server-side reading (SNSH-24), and 3xx and 4xx
+// other than 429 are permanent (SNSH-05). A redirect is not followed: its
+// 3xx is the answer (sns.http.redirects). A request client refuses, or any
+// request when client is nil, is refused (7.3).
 func postHTTP(ctx context.Context, client *egress.Client, t delivery.HTTPEndpoint) httpResult {
 	if client == nil {
 		return httpRefused{reason: "outbound HTTP delivery is off: no allow-list enables it, so nothing was sent to " + endpointOf(t)}
@@ -171,14 +177,37 @@ func postHTTP(ctx context.Context, client *egress.Client, t delivery.HTTPEndpoin
 	if err != nil {
 		return httpRetry{reason: err.Error()}
 	}
-	switch s := res.Status; {
+	return statusResult(res.Status)
+}
+
+// statusResult classes an answer of status s, the endpoint's or one a
+// fault rule injected, as postHTTP does.
+func statusResult(s int) httpResult {
+	switch {
 	case s >= 200 && s < 300:
 		return httpAccepted{status: s}
 	case s == http.StatusTooManyRequests || s >= 500:
-		return httpRetry{reason: statusText(s)}
+		return httpRetry{status: s, reason: statusText(s)}
 	default:
 		return httpPermanent{status: s}
 	}
+}
+
+// exchangeOf is the journal's account of an HTTP attempt that ended as r
+// after took of wall time.
+func exchangeOf(r httpResult, took time.Duration) *journal.HTTPExchange {
+	x := &journal.HTTPExchange{Duration: took}
+	switch r := r.(type) {
+	case httpAccepted:
+		x.Status, x.Class = r.status, journal.HTTPSuccess
+	case httpRetry:
+		x.Status, x.Class = r.status, journal.HTTPRetryable
+	case httpPermanent:
+		x.Status, x.Class = r.status, journal.HTTPPermanent
+	case httpRefused:
+		x.Class = journal.HTTPRefused
+	}
+	return x
 }
 
 // statusText names an HTTP status for a journal reason: "HTTP 503 Service
@@ -219,8 +248,11 @@ type httpResult interface{ isHTTPResult() }
 type httpAccepted struct{ status int }
 
 // httpRetry is a 429 or 5xx answer, or an exchange that failed or timed
-// out: retried under the delivery's policy.
-type httpRetry struct{ reason string }
+// out, whose status is 0: retried under the delivery's policy.
+type httpRetry struct {
+	status int
+	reason string
+}
 
 // httpPermanent is a 1xx, 3xx or other 4xx answer: not retried.
 type httpPermanent struct{ status int }

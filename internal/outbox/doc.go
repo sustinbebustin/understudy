@@ -13,12 +13,16 @@
 // which Settle counts:
 //
 //  1. Delivery-phase fault rules apply; a Drop ends the delivery with no
-//     attempt, a Delay holds it for wall time. They are evaluated when the
-//     timer fires, before the work starts, so attempts due together hit
-//     NextN budgets and seeded Probability draws in firing order. The
-//     attempt then joins the sequencer, which runs attempts one at a time
-//     in that order, so the request-phase rules and seeded ids of their
-//     target calls follow it too.
+//     attempt, a Delay holds it for wall time, and an http-status or
+//     http-timeout rule answers an HTTP attempt without its endpoint. They
+//     are evaluated when the timer fires, before the work starts, so
+//     attempts due together hit NextN budgets and seeded Probability draws
+//     in firing order. The attempt then joins the sequencer, which runs
+//     attempts one at a time in that order, so the request-phase rules and
+//     seeded ids of their target calls follow it too. Before any of that,
+//     an attempt of a throttled SNS HTTP subscription that comes too soon
+//     after the subscription's last one is re-armed for when the throttle
+//     allows it, spending no retry and no rule budget (pacer).
 //  2. When a PolicySource is set, access.Advise checks the target's stored
 //     resource policy and a would-deny becomes a journal Advisory; the
 //     attempt is made anyway. An events-to-events delivery is not checked:
@@ -42,7 +46,8 @@
 //     or any request with no egress client, ends Refused, never retried or
 //     dead-lettered (7.3).
 //  5. A journal.Delivery event records the attempt with the source call as
-//     its parent.
+//     its parent; an HTTP attempt's event carries its exchange: the status,
+//     the class and egress's wall time.
 //
 // # Decisions the architecture leaves open
 //
@@ -64,7 +69,10 @@
 //
 // Retry delays count from the failed attempt's due instant, never from when
 // its goroutine ran, so a retry storm lands on the same instants however an
-// Advance interleaves with the attempts. The schedules:
+// Advance interleaves with the attempts. An HTTP attempt's delay counts from
+// its end (sns-http-delivery.md 6.3, inferred): the due instant plus the
+// wall time its exchange took, scaled by the clock's mode, which on a
+// frozen clock is the due instant itself. The schedules:
 //
 //   - SNSManaged follows sns.md 7.2 without jitter: 3 retries at once, 2 at
 //     1 s, 10 at 1 s * 20^(k/9) for k = 0..9 truncated to the millisecond
@@ -76,6 +84,11 @@
 //     acceptance; EventBridge documents 185 attempts over 24 hours with
 //     exponential backoff and jitter, not the series.
 //   - S3Notification retries 3 times, 1 s, 2 s and 4 s apart, then drops.
+//   - SNSHTTP is an http or https subscription's resolved policy
+//     (SNSHTTP.Delay): its no-delay, minDelayTarget, backoff and
+//     maxDelayTarget phases in order, the backoff stepping linearly whatever
+//     its function and without jitter (sns.http.backoff-curves,
+//     sns.http.retry-jitter).
 //   - None makes one attempt.
 //
 // Jitter is a pure function of the retry number and a per-delivery seed
@@ -106,7 +119,10 @@
 // that order: one a Delivery-phase latency rule delays, whose order
 // against the others depends on wall time anyway, a RequestResponse
 // invoke, which waits for the function (no producer enqueues one), and a
-// POST to an HTTP endpoint, which waits on the network.
+// POST to an HTTP endpoint, which waits on the network. The attempts of a
+// throttled SNS HTTP subscription run on a sequencer of their own instead,
+// one at a time in the order they start, so one Advance that starts
+// several journals them in that order.
 // A delivery has at most one attempt in flight: the attempt claims its
 // entry (Entry.Running) until it records its outcome, so a timer that fires
 // again meanwhile, as a Rearm does for every armable entry, starts
@@ -117,13 +133,15 @@
 // body (the SNS envelope, or the raw message with its attributes as SQS
 // message attributes, sns.md 7.4) with group and deduplication ids kept for
 // a FIFO dead-letter queue; a function's event, a topic's message or an
-// HTTP endpoint's body otherwise, the HTTP form UNVERIFIED
-// (sns-http-delivery.md 6.5). An events-to-events delivery's dead letter
-// is the forwarded event as the destination bus would have received it
-// (delivery.EventEntry.Envelope), which is inferred, a cross-region id
-// included (EBB-08). An S3Object delivery, or an EventBus one
-// under any other mechanism, takes no dead-letter queue: its dead letter's
-// form is not researched. An
+// HTTP endpoint's body otherwise, with a raw HTTP notification's message
+// attributes as SQS message attributes, the HTTP form UNVERIFIED
+// (sns.http.dlq-body, sns-http-delivery.md 6.5). An HTTP control message
+// takes no dead-letter queue (sns.http.control-dlq). An events-to-events
+// delivery's dead letter is the forwarded event as the destination bus
+// would have received it (delivery.EventEntry.Envelope), which is
+// inferred, a cross-region id included (EBB-08). An S3Object delivery, or
+// an EventBus one under any other mechanism, takes no dead-letter queue:
+// its dead letter's form is not researched. An
 // EventBridge dead letter adds the String attributes RULE_ARN, TARGET_ARN,
 // ERROR_CODE, ERROR_MESSAGE, RETRY_ATTEMPTS and, when retries ran out,
 // EXHAUSTED_RETRY_CONDITION (eb-rule-dlq). A dead letter the queue refuses

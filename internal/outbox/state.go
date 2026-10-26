@@ -3,6 +3,7 @@ package outbox
 import (
 	"fmt"
 	"maps"
+	"math"
 	"net/url"
 	"slices"
 	"strings"
@@ -186,10 +187,15 @@ type s3ObjectRecord struct {
 	Body   []byte `json:"body"`
 }
 
+// httpEndpointRecord's HTTPKind is required: a record without it decodes
+// to the zero kind, which Enqueue's checks refuse. It cannot be named
+// "kind", the member that names the record's variant.
 type httpEndpointRecord struct {
-	URL     string             `json:"url"`
-	Headers []httpHeaderRecord `json:"headers,omitempty"`
-	Body    []byte             `json:"body"`
+	URL                  string             `json:"url"`
+	HTTPKind             delivery.HTTPKind  `json:"httpKind"`
+	Headers              []httpHeaderRecord `json:"headers,omitempty"`
+	Body                 []byte             `json:"body"`
+	DeadLetterAttributes []attributeRecord  `json:"deadLetterAttributes,omitempty"`
 }
 
 type httpHeaderRecord struct {
@@ -249,10 +255,48 @@ type s3NotificationRecord struct{}
 
 type noneRecord struct{}
 
+// snsHTTPRecord is an SNSHTTP policy, its delay targets in whole
+// milliseconds. Every member is required, so each is a pointer that a
+// decoded record must set; policyOf refuses a record that lacks one.
+type snsHTTPRecord struct {
+	NoDelay              *int                      `json:"noDelay"`
+	MinDelay             *int                      `json:"minDelay"`
+	Backoff              *int                      `json:"backoff"`
+	MaxDelay             *int                      `json:"maxDelay"`
+	MinDelayTargetMillis *int64                    `json:"minDelayTargetMillis"`
+	MaxDelayTargetMillis *int64                    `json:"maxDelayTargetMillis"`
+	BackoffFunction      *delivery.BackoffFunction `json:"backoffFunction"`
+	MaxReceivesPerSecond *int                      `json:"maxReceivesPerSecond"`
+}
+
+// missing names the first member r lacks, "" when it has every one.
+func (r snsHTTPRecord) missing() string {
+	members := []struct {
+		name string
+		set  bool
+	}{
+		{"noDelay", r.NoDelay != nil},
+		{"minDelay", r.MinDelay != nil},
+		{"backoff", r.Backoff != nil},
+		{"maxDelay", r.MaxDelay != nil},
+		{"minDelayTargetMillis", r.MinDelayTargetMillis != nil},
+		{"maxDelayTargetMillis", r.MaxDelayTargetMillis != nil},
+		{"backoffFunction", r.BackoffFunction != nil},
+		{"maxReceivesPerSecond", r.MaxReceivesPerSecond != nil},
+	}
+	for _, m := range members {
+		if !m.set {
+			return m.name
+		}
+	}
+	return ""
+}
+
 func (snsManagedRecord) isPolicyRecord()     {}
 func (eventBridgeRecord) isPolicyRecord()    {}
 func (s3NotificationRecord) isPolicyRecord() {}
 func (noneRecord) isPolicyRecord()           {}
+func (snsHTTPRecord) isPolicyRecord()        {}
 
 // recordOf returns the persisted form of e. A nil target or policy, which
 // Enqueue never accepts, is written as null and refused on load.
@@ -328,7 +372,11 @@ func requestOf(r *requestRecord) (delivery.Request, *RequestError) {
 	}
 	policy, ok := policyOf(r.Policy)
 	if !ok {
-		return delivery.Request{}, &RequestError{Field: "Policy", Reason: "is missing"}
+		reason := "is missing"
+		if h, isHTTP := r.Policy.(snsHTTPRecord); isHTTP {
+			reason = "is an sns-http policy without its required member " + h.missing()
+		}
+		return delivery.Request{}, &RequestError{Field: "Policy", Reason: reason}
 	}
 	req := delivery.Request{Source: source, Mechanism: r.Mechanism, Target: target, Policy: policy}
 	if r.DLQ != "" {
@@ -370,7 +418,10 @@ func targetRecordOf(t delivery.Target) targetRecord {
 		for _, h := range t.Headers {
 			headers = append(headers, httpHeaderRecord(h))
 		}
-		return httpEndpointRecord{URL: t.URL.String(), Headers: headers, Body: t.Body}
+		return httpEndpointRecord{
+			URL: t.URL.String(), HTTPKind: t.Kind, Headers: headers, Body: t.Body,
+			DeadLetterAttributes: attributeRecordsOf(t.DeadLetterAttributes),
+		}
 	}
 	return nil
 }
@@ -416,17 +467,25 @@ func targetOf(r targetRecord) (delivery.Target, *RequestError) {
 	case s3ObjectRecord:
 		return delivery.S3Object{Bucket: r.Bucket, Key: r.Key, Body: r.Body}, nil
 	case httpEndpointRecord:
-		u, err := url.Parse(r.URL)
-		if err != nil {
-			return nil, &RequestError{Field: "Target.URL", Reason: "is not a URL", Err: err}
-		}
-		var headers []delivery.HTTPHeader
-		for _, h := range r.Headers {
-			headers = append(headers, delivery.HTTPHeader(h))
-		}
-		return delivery.HTTPEndpoint{URL: *u, Headers: headers, Body: r.Body}, nil
+		return httpEndpointOf(r)
 	}
 	return nil, &RequestError{Field: "Target", Reason: "is missing"}
+}
+
+func httpEndpointOf(r httpEndpointRecord) (delivery.Target, *RequestError) {
+	u, err := url.Parse(r.URL)
+	if err != nil {
+		return nil, &RequestError{Field: "Target.URL", Reason: "is not a URL", Err: err}
+	}
+	var headers []delivery.HTTPHeader
+	for _, h := range r.Headers {
+		headers = append(headers, delivery.HTTPHeader(h))
+	}
+	attrs, rerr := attributesOf(r.DeadLetterAttributes)
+	if rerr != nil {
+		return nil, rerr
+	}
+	return delivery.HTTPEndpoint{URL: *u, Kind: r.HTTPKind, Headers: headers, Body: r.Body, DeadLetterAttributes: attrs}, nil
 }
 
 // attributeRecordsOf returns the persisted form of attrs; nil for none.
@@ -484,26 +543,53 @@ func policyRecordOf(p delivery.RetryPolicy) policyRecord {
 	case delivery.None:
 		return noneRecord{}
 	case delivery.SNSHTTP:
-		// Not implemented yet: Enqueue refuses this policy, so no entry
-		// holds it.
-		return nil
+		minMillis, maxMillis := p.MinDelayTarget.Milliseconds(), p.MaxDelayTarget.Milliseconds()
+		return snsHTTPRecord{
+			NoDelay: &p.NoDelay, MinDelay: &p.MinDelay, Backoff: &p.Backoff, MaxDelay: &p.MaxDelay,
+			MinDelayTargetMillis: &minMillis, MaxDelayTargetMillis: &maxMillis,
+			BackoffFunction: &p.BackoffFunction, MaxReceivesPerSecond: &p.MaxReceivesPerSecond,
+		}
 	}
 	return nil
 }
 
-// policyOf returns the retry policy r persists; false for a nil record.
+// policyOf returns the retry policy r persists; false for a nil record and
+// for an sns-http record that lacks a member.
 func policyOf(r policyRecord) (delivery.RetryPolicy, bool) {
 	switch r := r.(type) {
 	case snsManagedRecord:
 		return delivery.SNSManaged{}, true
 	case eventBridgeRecord:
-		return delivery.EventBridgeTarget{MaxAge: time.Duration(r.MaxAgeMillis) * time.Millisecond, MaxAttempts: r.MaxAttempts}, true
+		return delivery.EventBridgeTarget{MaxAge: millis(r.MaxAgeMillis), MaxAttempts: r.MaxAttempts}, true
 	case s3NotificationRecord:
 		return delivery.S3Notification{}, true
 	case noneRecord:
 		return delivery.None{}, true
+	case snsHTTPRecord:
+		if r.missing() != "" {
+			return nil, false
+		}
+		return delivery.SNSHTTP{
+			NoDelay: *r.NoDelay, MinDelay: *r.MinDelay, Backoff: *r.Backoff, MaxDelay: *r.MaxDelay,
+			MinDelayTarget: millis(*r.MinDelayTargetMillis), MaxDelayTarget: millis(*r.MaxDelayTargetMillis),
+			BackoffFunction: *r.BackoffFunction, MaxReceivesPerSecond: *r.MaxReceivesPerSecond,
+		}, true
 	}
 	return nil, false
+}
+
+// millis is ms milliseconds, saturated at the bounds of time.Duration, so
+// an edited record's out-of-range value stays out of range for the checks
+// rather than wrapping into it.
+func millis(ms int64) time.Duration {
+	const most = int64(math.MaxInt64 / time.Millisecond)
+	switch {
+	case ms > most:
+		return math.MaxInt64
+	case ms < -most:
+		return math.MinInt64
+	}
+	return time.Duration(ms) * time.Millisecond
 }
 
 // CodecError is a value the State codec was handed that is not a *State.
@@ -582,6 +668,7 @@ func unions() (jsonx.Codec, error) {
 		jsonx.Variant[policyRecord, eventBridgeRecord]("eventbridge-target"),
 		jsonx.Variant[policyRecord, s3NotificationRecord]("s3-notification"),
 		jsonx.Variant[policyRecord, noneRecord]("none"),
+		jsonx.Variant[policyRecord, snsHTTPRecord]("sns-http"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, err
