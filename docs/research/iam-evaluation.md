@@ -1076,6 +1076,22 @@ M-FULL: 8,326,656 bytes, `Content-Type: text/markdown; charset=utf-8`, `Last-Mod
 - Not on the page: `PolicyId` (`ANPA...`), `AttachmentCount`, `PermissionsBoundaryUsageCount`, `IsAttachable`, any non-default version. Whether the page's Description and Edited time equal IAM's `Description` and `UpdateDate`, what seconds IAM reports, and what `IsAttachable` a service-linked role policy has, is UNVERIFIED (IAM-EVAL-32).
 - The ADR 0016 amendment names the guide's `llms.txt` "and the `.md` page it lists for each policy"; `full.md` is itself listed in `llms.txt`, so one `full.md` request (cross-checked against a sample of single pages) stays inside the amendment and inside the crawl delay. Whether the copyright banner of `full.md` affects the CC BY-SA 4.0 notice the amendment plans is a question for the maintainer, not settled here.
 
+### 10.6 The 2026-10-26 run against policydoc
+
+The maintainer's `-fetch` of 2026-10-26 (`third_party/aws-managed-policies/SOURCE.json`) read the M-FULL body of 10.4 again (8,326,656 bytes, same sha256) and parsed 1,608 policies, 998 / 365 / 230 / 15 by Type, highest default version v190, the counts of 10.4. Every document is Version 2012-10-17 and none has a Principal or NotPrincipal. The post-write `-verify`, which then applied `policydoc.ValidateIdentity`, refused five documents, each for a rule policydoc ports from moto's CreatePolicy validator (`moto/iam/policy_validation.py@608bfa9`):
+
+| Policy (Type, default version) | Resources | Rule broken |
+|---|---|---|
+| AWSCloudWatchOmniServiceRolePolicy (Service-linked role policy, v2) | `arn:aws:iam::aws:role-template/cloudwatch.amazonaws.com/CloudWatchOmniAWSIntegrationForOrgRoleTemplate:1`, for `iam:GetRoleTemplateVersion` | IAM resource path: `role-template/` is not in moto's list |
+| AWSObservabilityAdminTelemetryEnablementServiceRolePolicy (Service-linked role policy, v16) | `arn:aws:iam::aws:role-template/telemetry-enablement.observabilityadmin.amazonaws.com/CloudWatchTelemetryRuleEKSAddonRoleTemplate:1`, for `iam:GetRoleTemplateVersion` | IAM resource path |
+| SageMakerStudioAdminIAMDefaultExecutionPolicy (AWS managed policy, v27) | `arn:aws:s3:*:*:access-grants/default`, `.../default/location/*`, `.../default/grant/*` | S3 region: moto exempts `accesspoint/` alone |
+| SageMakerStudioProjectRoleMachineLearningPolicy (AWS managed policy, v45) | the same, plus `arn:aws:s3:*:*:access-grants/default/*` | S3 region |
+| SageMakerStudioUserIAMDefaultExecutionPolicy (AWS managed policy, v31) | `arn:aws:s3:*:*:access-grants/default/location/*`, `.../default/grant/*` | S3 region |
+
+- `-verify` no longer applies those rules to the catalogue. They model what IAM checks on a customer's upload (CreatePolicy, Put*Policy; iam-sts-kms.md 3.3), and AWS publishes its managed policies without that call. AWS is the arbiter of what its own documents hold, so a published document that breaks one is a finding about the port, not the data. `-verify` requires each document to parse (`policydoc.Parse`) and to be an identity policy (`policydoc.ValidateIdentityForm`: Version 2012-10-17, no Principal or NotPrincipal), the form the evaluator reads (5.5); the rest of `ValidateIdentity` is not applied.
+- The S3 region rule was wrong for customer documents too. The resource types table of the Service Authorization Reference for Amazon S3 (https://docs.aws.amazon.com/service-authorization/latest/reference/list_s3.html, read 2026-10-26; the older name `list_amazons3.html` now redirects to the reference's index) gives a `${Region}` element to accessgrantsinstance (`access-grants/default`), accessgrant, accessgrantslocation, accesspoint, accesspointobject, job, storagelensconfiguration and storagelensgroup, and a fixed `us-west-2` to multiregionaccesspointrequestarn (`async-request/mrap/...`); bucket, object and multiregionaccesspoint carry no region. policydoc now exempts those types by the leading literal of the resource element (`access-grants/`, `accesspoint/`, `async-request/mrap/`, `job/`, `storage-lens/`, `storage-lens-group/`) and still refuses a bucket or object ARN with a region. Whether CreatePolicy accepts a regional access-grants ARN in a customer policy is UNVERIFIED (IAM-EVAL-36).
+- The IAM resource path list is unchanged. The Service Authorization Reference for IAM (https://docs.aws.amazon.com/service-authorization/latest/reference/list_iam.html, read 2026-10-26) lists `role-template` (`arn:${Partition}:iam::aws:role-template/${AWSServicePrincipal}/${RoleTemplateName}:${RoleTemplateMajorVersion}`), `assumed-role` and `delegation-request` beside moto's types, and does not list moto's `report/`; whether a customer CreatePolicy accepts any of them is UNVERIFIED (IAM-EVAL-35).
+
 ## 11. Conflicts between sources
 
 - **C1.** S-OPS `#Conditions_String-wildcard`: the Result column for the Deny `ForAllValues:StringNotLike` example reads Match, No match, No match for a value inside the allowed OUs, a value outside them, and an absent key. By the documented set semantics (6.12, 6.14) the condition is false, true, true. The column reads as "request stays within the boundary", the inverse of condition truth. Vectors J14 to J16 carry the derived condition.
@@ -1767,3 +1783,27 @@ via calledvia-absent '{"Null":{"aws:CalledVia":"true"}}'
 ```
 
 Each Deny fires only when its condition holds, so a failed `put-object` means: `via-true`, S3's KMS call carried `aws:ViaAWSService` true; `via-false`, it carried false; `calledvia-s3`, `aws:CalledVia` held `s3.amazonaws.com`; `calledvia-absent`, the key was absent. Cost USD 0 beyond IAM-EVAL-27, 4 minutes. Teardown: `aws s3api delete-object --bucket $B --key k`; `aws s3api delete-bucket --bucket $B`; `aws iam delete-role-policy --role-name $P-eval-via --policy-name p`; `aws iam delete-role --role-name $P-eval-via`; then IAM-EVAL-27's teardown.
+
+### 13.36 IAM-EVAL-35: a customer policy naming an IAM role template
+
+Settles 10.6 (the IAM resource path rule for `role-template/`).
+
+```sh
+rec IAM-EVAL-35/01-role-template aws iam create-policy --policy-name $P-eval-rtpl \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"iam:GetRoleTemplateVersion","Resource":"arn:aws:iam::aws:role-template/cloudwatch.amazonaws.com/CloudWatchOmniAWSIntegrationForOrgRoleTemplate:1"}]}'
+```
+
+Expected: either the policy is created, so a customer policy may name a role template and policydoc's IAM resource path list gains `role-template/` (and `assumed-role/` and `delegation-request/`, which the Service Authorization Reference lists too, are worth the same check), or `MalformedPolicyDocument` with `IAM resource path must either be "*" or start with ...`, whose list of types is recorded verbatim. Cost USD 0, 1 minute. Teardown, only if created: `aws iam delete-policy --policy-arn arn:aws:iam::$A:policy/$P-eval-rtpl`.
+
+### 13.37 IAM-EVAL-36: a customer policy naming regional access-grants ARNs
+
+Settles 10.6 (the S3 region rule).
+
+```sh
+rec IAM-EVAL-36/01-access-grants aws iam create-policy --policy-name $P-eval-s3ag \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:CreateAccessGrant","s3:DeleteAccessGrant"],"Resource":["arn:aws:s3:*:*:access-grants/default/grant/*","arn:aws:s3:'"$R"':'"$A"':access-grants/default"]}]}'
+rec IAM-EVAL-36/02-object-region aws iam create-policy --policy-name $P-eval-s3rg \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject","Resource":"arn:aws:s3:'"$R"':'"$A"':'"$P"'-eval/k"}]}'
+```
+
+Expected: 01 created, as policydoc accepts it since 10.6; 02 refused with `MalformedPolicyDocument` `Resource arn:aws:s3:<region>:<account>:<prefix>-eval/k can not contain region information.`, the rule policydoc keeps for bucket and object ARNs. If 01 is refused, record the text: policydoc's exemption for that resource type goes. Cost USD 0, 1 minute. Teardown, for each policy created: `aws iam delete-policy --policy-arn arn:aws:iam::$A:policy/$P-eval-s3ag`; `aws iam delete-policy --policy-arn arn:aws:iam::$A:policy/$P-eval-s3rg`.
