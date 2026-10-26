@@ -47,6 +47,14 @@ type Service struct {
 	// it to their package's NewErrorMembers; it is nil on a hand-built
 	// descriptor, whose errors then take no members.
 	NewErrorMembers func(smithy.ShapeID) (awserr.DecodableMembers, bool)
+	// GenericErrors returns the service's generic, protocol-level
+	// identities over protocol family f: overlays/common.json's vocabulary
+	// with the service overlay's corrections (DynamoDB's
+	// AccessDeniedException is 400), nil for a family it does not speak.
+	// Generated descriptors set it to their package's GenericErrors; it is
+	// nil on a hand-built descriptor, whose fault rules then read
+	// awserr.Catalogue.
+	GenericErrors func(awserr.Family) []awserr.Identity
 	// Operations are every operation, sorted by name; an operation's Ordinal
 	// is its index.
 	Operations []*Operation

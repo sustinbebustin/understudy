@@ -57,6 +57,9 @@ func emitService(ir *ServiceIR) ([]byte, error) {
 		f.p("\tDenial: registry.Denial{Identity: Identity%s(), Label: %s},", d.Error.Shape.GoName, goString(string(d.Label)))
 	}
 	f.p("\tNewErrorMembers: NewErrorMembers,")
+	if len(ir.Vocabularies) > 0 {
+		f.p("\tGenericErrors: GenericErrors,")
+	}
 	f.p("}\n")
 	vars := make([]string, len(ir.Operations))
 	for i, o := range ir.Operations {

@@ -25,8 +25,11 @@ func NewCatalogue(reg *registry.Registry, throttles map[ref.ServiceID]awserr.Ide
 	return Catalogue{reg: reg, throttles: throttles}
 }
 
-// Errors returns op's modeled and overlay errors plus the generic catalogue
-// of every protocol family its service speaks, without repeats.
+// Errors returns op's modeled and overlay errors plus the generic
+// vocabulary of every protocol family its service speaks, without repeats.
+// The vocabulary is the descriptor's GenericErrors, which carries the
+// service overlay's corrections (DynamoDB's AccessDeniedException is 400,
+// iam-enforcement-surfaces.md 3.2), else awserr.Catalogue.
 func (c Catalogue) Errors(op ref.OperationID) ([]awserr.Identity, bool) {
 	d, ok := c.reg.Operation(op)
 	if !ok {
@@ -40,7 +43,11 @@ func (c Catalogue) Errors(op ref.OperationID) ([]awserr.Identity, bool) {
 		}
 	}
 	for _, f := range families {
-		for _, id := range awserr.Catalogue(f) {
+		generic := awserr.Catalogue(f)
+		if d.Service.GenericErrors != nil {
+			generic = d.Service.GenericErrors(f)
+		}
+		for _, id := range generic {
 			if !slices.ContainsFunc(out, func(have awserr.Identity) bool { return have.Shape == id.Shape }) {
 				out = append(out, id)
 			}

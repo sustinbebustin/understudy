@@ -45,12 +45,14 @@
 //     the primary, since the Service Reference's mapping has gaps.
 //   - overlays/common.json lists each protocol family's generic vocabulary
 //     under its defaults shape's errors, and every real service speaking the
-//     family gets GenericErrors(f) in errors_gen.go. awserr.Catalogue stays
-//     the runtime copy the edge and the kernel use before a service is
-//     known; a test in internal/api checks the two agree for every
-//     generated service. The Query family sets no malformedRequestError: no
-//     recording shows what a Query service sends, so the awsquery codec's
-//     fallback applies.
+//     family gets GenericErrors(f) in errors_gen.go, which its descriptor
+//     carries for the fault catalogue. awserr.Catalogue stays the runtime
+//     copy used where no service vocabulary is at hand; a test in
+//     internal/api checks the two agree for every generated service except
+//     the status corrections a service overlay makes (DynamoDB's 400
+//     AccessDeniedException), which it lists. The Query family sets no
+//     malformedRequestError: no recording shows what a Query service sends,
+//     so the awsquery codec's fallback applies.
 //   - codegen/services/<svc>.json names its model's directory in
 //     third_party/api-models-aws/UPSTREAM.json ("model"). An overlay
 //     operation without internalOperation fails generation, since no

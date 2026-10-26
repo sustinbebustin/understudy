@@ -24,6 +24,7 @@ var service = registry.Service{
 	QueryErrorEnvelope: registry.QueryErrorEnvelope{Namespace: true, Detail: false},
 	Denial:             registry.Denial{Identity: IdentityAccessDenied(), Label: "aws-recorded"},
 	NewErrorMembers:    NewErrorMembers,
+	GenericErrors:      GenericErrors,
 }
 
 // The operations point back at the service, so the list is linked once

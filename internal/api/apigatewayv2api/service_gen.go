@@ -22,6 +22,7 @@ var service = registry.Service{
 	MalformedRequestError: IdentitySerializationException(),
 	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "inferred"},
 	NewErrorMembers:       NewErrorMembers,
+	GenericErrors:         GenericErrors,
 }
 
 // The operations point back at the service, so the list is linked once
