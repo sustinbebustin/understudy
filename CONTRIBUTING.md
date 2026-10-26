@@ -9,6 +9,7 @@ Thanks for helping. This file covers the setup, the rules every change follows, 
 - Docker, for Lambda, DynamoDB Local and the `-tags docker` tests.
 - For the conformance suites: the AWS CLI v2, Terraform 1.16 or later, Python 3.14 (through uv), [Bun](https://bun.sh), `jq` and `curl`.
 - For the Testcontainers modules (`just testcontainers`): Node 24 and Bun.
+- For the web UI in `ui/`: Bun 1.4.3 exactly, which `just ui` checks for.
 
 ```sh
 just verify
@@ -114,6 +115,7 @@ A new wire protocol needs an ADR; the protocol compliance corpus already carries
 | Budgets | `just budgets` | Binary size, startup time, idle memory, build and lint time stay under their ceilings |
 | Generated code | `go run ./internal/cmd/gen -all -check` | Regenerating from the vendored inputs reproduces what is committed; CI runs `just generate-check`, which also fails on any uncommitted change |
 | Coverage page | `just coverage-check` | `docs/coverage.md` matches the binary |
+| Web UI | `just ui-check` | The UI's `bun test` passes, and `ui/src/labels.gen.ts` and the embedded build in `internal/server/ui/dist` are what `just ui` produces from the Go enumerations and `ui/`; after changing either, run `just ui` and commit both |
 | Conformance | `conformance/<suite>/run.sh` | Real clients against a real server; see below |
 | Testcontainers modules | `just testcontainers` | The Go, Python and Node modules start the image from `just image`, pass their own lint, and drive it with real clients; each module's `testcontainers/<language>/run.sh` runs one |
 

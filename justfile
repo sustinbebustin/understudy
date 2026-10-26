@@ -60,6 +60,49 @@ generate-check: generate
         exit 1
     fi
 
+# The bun that builds and tests the web UI, as CI's ui job pins it. Another
+# version can build different bytes, which 'just ui-check' would report.
+bun_version := "1.4.3"
+
+# Build the web UI with the pinned bun: label table, bun tests, embedded build.
+ui:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Regenerates ui/src/labels.gen.ts from the Go enumerations, runs the UI's
+    # tests, then replaces internal/server/ui/dist, which the binary embeds,
+    # with a fresh minified build.
+    want={{ bun_version }}
+    install="curl -fsSL https://bun.sh/install | bash -s bun-v$want"
+    if ! found=$(bun --version 2>/dev/null); then
+        echo "just ui needs bun $want and found no bun on PATH; install it with: $install" >&2
+        exit 1
+    fi
+    if [ "$found" != "$want" ]; then
+        echo "just ui needs bun $want (CI's pin) and found bun $found; install $want with: $install" >&2
+        exit 1
+    fi
+    go test ./internal/server/ui -run TestLabelTable -count=1 -update-labels
+    (cd ui && bun test)
+    # Build beside the tree first, so a failed build leaves the embedded one in place.
+    out=$(mktemp -d)
+    trap 'rm -rf -- "$out"' EXIT
+    (cd ui && bun build ./index.html --outdir "$out" --minify)
+    rm -rf internal/server/ui/dist
+    mkdir internal/server/ui/dist
+    cp -R -- "$out"/. internal/server/ui/dist/
+
+# Rebuild the web UI, then fail when the result differs from what is checked in.
+ui-check: ui
+    #!/usr/bin/env bash
+    set -euo pipefail
+    built=(internal/server/ui/dist ui/src/labels.gen.ts)
+    changed=$(git status --porcelain -- "${built[@]}")
+    if [ -n "$changed" ]; then
+        echo "just ui changed the checked-in web UI build or label table; review and commit these files:" >&2
+        echo "$changed" >&2
+        exit 1
+    fi
+
 # Rewrite the protocol compliance baseline from the current results.
 protocoltest-baseline:
     go test ./internal/protocoltest -run TestCorpus -update-baseline
