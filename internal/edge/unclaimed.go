@@ -179,6 +179,30 @@ func (h *Handler) localStack(ctx context.Context, x *exchange, reasons []reason)
 	})
 }
 
+// executeAPIBody is the answer to an execute-api request until understudy
+// implements API Gateway invoke: API Gateway's own {"message": ...} shape
+// (apigateway-http.md 4.5), naming what is missing and where to ask for it.
+const executeAPIBody = `{"message":"understudy does not implement API Gateway invoke (the execute-api data plane); nothing was changed. To ask for it, see https://github.com/sustinbebustin/understudy/issues?q=execute-api"}`
+
+// executeAPI answers a request to API Gateway's execute-api data plane,
+// which understudy does not implement, with 501 NotImplemented (ADR 0003),
+// and journals it as Unclaimed. Whether AWS sends a Content-Type on the
+// gateway's own answers is unverified (apigateway-http.md 4.5, APIGW2-06);
+// application/json names the body.
+func (h *Handler) executeAPI(ctx context.Context, x *exchange, reasons []reason) {
+	h.journalUnclaimed(ctx, x, reasons)
+	if h.warned.first("execute-api") {
+		h.log.LogAttrs(ctx, slog.LevelWarn, "a client called API Gateway invoke (execute-api), which understudy does not implement",
+			slog.String("method", x.r.Method), slog.String("host", x.r.Host), slog.String("path", requestPath(x.r)),
+			slog.String("request_id", string(x.id)))
+	}
+	h.write(ctx, x, Response{
+		Status: http.StatusNotImplemented,
+		Header: http.Header{"Content-Type": {"application/json"}},
+		Body:   strings.NewReader(executeAPIBody),
+	})
+}
+
 // answerUnrouted renders e, the answer to a request no service claimed, in
 // the envelope its client parses: that of the protocol the request's shape
 // names (answerProtocol), else Options.Unclaimed's, else plain text.

@@ -85,6 +85,12 @@ type unclaimed struct{ reasons []reason }
 // passed over before it, for the Unclaimed journal event.
 type toLocalStack struct{ reasons []reason }
 
+// toExecuteAPI is API Gateway's execute-api data plane, by host (rule 2)
+// or by the path fallback (rule 1), which understudy does not implement:
+// it is claimed so S3 never answers it, and answered 501. reasons end with
+// the claiming rule's, for the Unclaimed journal event.
+type toExecuteAPI struct{ reasons []reason }
+
 func (toAdmin) isRoute()           {}
 func (toOperation) isRoute()       {}
 func (toUnknown) isRoute()         {}
@@ -95,6 +101,7 @@ func (notEmulated) isRoute()       {}
 func (notEmulatedTarget) isRoute() {}
 func (unclaimed) isRoute()         {}
 func (toLocalStack) isRoute()      {}
+func (toExecuteAPI) isRoute()      {}
 
 // reason is why one claim rule passed over a request: its number in
 // ARCHITECTURE.md 4.1, which the journal records, and the words a client
@@ -114,9 +121,9 @@ func journaled(reasons []reason) []string {
 	return out
 }
 
-// adminPrefix is reserved for understudy: the admin API, SNS links and the
-// function URL path fallback. Bucket names cannot start with "_", so it
-// never shadows S3.
+// adminPrefix is reserved for understudy: the admin API, SNS links, Lambda
+// code links and the function URL and execute-api path fallbacks. Bucket
+// names cannot start with "_", so it never shadows S3.
 const adminPrefix = "/_understudy/"
 
 // localStackSegment is the first path segment of LocalStack's reserved
@@ -149,6 +156,9 @@ func (h *Handler) claim(r *http.Request, a auth.Auth, parseErr auth.ParseError) 
 	if rt, ok := c.functionURLPath(); ok {
 		return rt
 	}
+	if rt, ok := c.executeAPIPath(); ok {
+		return rt
+	}
 	if rt, ok := c.lambdaCodeLink(); ok {
 		return rt
 	}
@@ -165,6 +175,9 @@ func (h *Handler) claim(r *http.Request, a auth.Auth, parseErr auth.ParseError) 
 		return toLocalStack{reasons: c.reasons}
 	}
 	if rt, ok := c.functionURL(); ok {
+		return rt
+	}
+	if rt, ok := c.executeAPI(); ok {
 		return rt
 	}
 	if rt, ok := c.s3Control(); ok {
@@ -223,6 +236,23 @@ func (c *claimer) functionURLPath() (route, bool) {
 	return toLink{op: op}, true
 }
 
+// executeAPIPathPrefix is the execute-api path fallback,
+// /_understudy/execute-api/<api-id>/<path>, for clients that cannot resolve
+// an execute-api host (apigateway-http.md 11.3).
+const executeAPIPathPrefix = adminPrefix + "execute-api/"
+
+// executeAPIPath is rule 1's execute-api part: on the main listener, the
+// path fallback is API Gateway's data plane, whatever follows the prefix
+// and whatever the credentials. Any other request goes on to the admin part
+// of rule 1.
+func (c *claimer) executeAPIPath() (route, bool) {
+	if !strings.HasPrefix(c.path, executeAPIPathPrefix) || c.h.opts.Listener != ref.ListenerMain {
+		return nil, false
+	}
+	c.decline(1, "%s is the API Gateway execute-api path fallback, and understudy does not implement API Gateway invoke", c.path)
+	return toExecuteAPI{reasons: c.reasons}, true
+}
+
 // lambdaCodePrefix is where GetFunction's Code.Location links live.
 const lambdaCodePrefix = adminPrefix + "lambda-code/"
 
@@ -258,6 +288,23 @@ func (c *claimer) functionURL() (route, bool) {
 		return nil, false
 	}
 	return toLink{op: op}, true
+}
+
+// executeAPIHost matches <api-id>.execute-api.<region>.<base> and
+// <api-id>.execute-api.<base>.
+var executeAPIHost = regexp.MustCompile(`^[a-z0-9]+\.execute-api\.[^.]+`)
+
+// executeAPI is rule 2's execute-api part: an execute-api host is API
+// Gateway's data plane whatever the credentials, never an S3
+// virtual-hosted bucket, as AWS serves those hosts apart from S3
+// (apigateway-http.md 4.1, ADR 0013). A bucket of that name stays
+// reachable path style.
+func (c *claimer) executeAPI() (route, bool) {
+	if !executeAPIHost.MatchString(c.host) {
+		return nil, false
+	}
+	c.decline(2, "host %q is an API Gateway execute-api host, and understudy does not implement API Gateway invoke", c.host)
+	return toExecuteAPI{reasons: c.reasons}, true
 }
 
 // accountHost matches <12 digits>.<base>, the S3 Control authority.
@@ -440,7 +487,8 @@ var datePath = regexp.MustCompile(`^/\d{4}-\d{2}-\d{2}/`)
 
 // rest is rule 8: Lambda's and S3's route tables, and the rule that a
 // request signed for another service is that service's to answer, never
-// S3's.
+// S3's: the route tables of the REST services that share its signing name,
+// else the first service of the name (ADR 0019).
 func (c *claimer) rest() (route, bool) {
 	signed, isSigned := signingName(c.auth)
 	_, presigned := c.auth.(auth.SigV4Query)
@@ -537,18 +585,70 @@ func (c *claimer) s3(what string) (route, bool) {
 	return c.restService("s3", ref.RESTXML, what+" (virtual-hosted bucket "+bucket+")", r, path)
 }
 
-// signedElsewhere answers a request signed for a service no rule claimed:
-// a registered service answers with its own error, never S3's (ADR 0013),
-// and any other signing name names a service understudy does not emulate.
+// signedElsewhere answers a request signed for a service no earlier rule
+// claimed. When REST services share the signing name, their route tables
+// are tried in registration order and the first match wins; a request none
+// matches is the first one's unknown operation, as a single REST service
+// answers it (ADR 0019). Otherwise the first registered service of the name
+// answers with its own error, never S3's (ADR 0013), and a name no service
+// holds names a service understudy does not emulate.
 func (c *claimer) signedElsewhere(signed string) (route, bool) {
 	candidates := c.h.opts.Registry.BySigningName(signed)
 	if len(candidates) == 0 {
 		c.decline(8, "the request is signed for %q, which names no registered service", signed)
 		return notEmulated{signingName: signed, reasons: c.reasons}, true
 	}
+	if rt, ok := c.restCandidates(candidates); ok {
+		return rt, true
+	}
 	svc := candidates[0]
 	c.decline(8, "the request is signed for %s, which no protocol rule claimed", svc.ID)
 	return toService{svc: svc, reasons: c.reasons}, true
+}
+
+// restCandidates matches the request against the route table of each REST
+// service among candidates, in order; false when none is a REST service
+// with a route table. A candidate whose codec is not registered is
+// skipped; with every one skipped the request is unclaimed (rule 9).
+func (c *claimer) restCandidates(candidates []*registry.Service) (route, bool) {
+	var unknown route
+	found := false
+	for _, svc := range candidates {
+		p, isREST := restProtocol(svc)
+		if !isREST || svc.Routes == nil {
+			continue
+		}
+		found = true
+		codec, ok := c.h.opts.Codecs[p]
+		if !ok {
+			c.decline(8, "%s: no %s codec is registered", svc.ID, p)
+			continue
+		}
+		if matched, ok := svc.Routes.Match(c.r.Method, c.path, c.r.URL.Query(), c.r.Header); ok {
+			return toOperation{codec: codec, op: matched.Operation, req: c.r}, true
+		}
+		if unknown == nil {
+			unknown = toUnknown{codec: codec, svc: svc, req: c.r}
+		}
+	}
+	switch {
+	case !found:
+		return nil, false
+	case unknown == nil:
+		return unclaimed{reasons: c.reasons}, true
+	}
+	return unknown, true
+}
+
+// restProtocol is the first of a service's protocols that is restJson1 or
+// restXml, the one its route table is decoded in.
+func restProtocol(svc *registry.Service) (ref.ProtocolID, bool) {
+	for _, p := range svc.Protocols {
+		if p == ref.RESTJSON1 || p == ref.RESTXML {
+			return p, true
+		}
+	}
+	return "", false
 }
 
 // restService matches r, whose escaped path is path, against a REST

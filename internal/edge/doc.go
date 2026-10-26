@@ -46,6 +46,17 @@
 //     health --wait, so a migrated health check says what to call instead.
 //     It is journaled as Unclaimed. A bare /health is a valid bucket path
 //     and stays S3's.
+//   - API Gateway's execute-api data plane is claimed before every rule
+//     that reads credentials, so S3 never answers it as a virtual-hosted
+//     bucket: its hosts under rule 2 on every listener, its path fallback
+//     /_understudy/execute-api/ under rule 1 on the main listener. Until
+//     API Gateway invoke is implemented both answer 501 in API Gateway's
+//     {"message": ...} shape, journaled as Unclaimed, and the browser
+//     defences refuse neither, as any page may call one on AWS.
+//   - Several services may share a signing name (ADR 0019). Rule 8 tries
+//     the route tables of the name's REST services in registration order,
+//     and a request none matches is the first one's unknown operation.
+//     Lambda keeps its own case, so its decline texts stay as they were.
 //   - Each request is logged at Debug (method, operation, status, latency,
 //     request id). A not-emulated service, an unclaimed request, a call to
 //     an unimplemented operation and a call to an operation the vendored

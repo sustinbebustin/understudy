@@ -290,16 +290,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.unclaimed(ctx, x, rt.reasons)
 	case toLocalStack:
 		h.localStack(ctx, x, rt.reasons)
+	case toExecuteAPI:
+		h.executeAPI(ctx, x, rt.reasons)
 	}
 }
 
 // refusedPage answers, and reports, a request routed to the AWS APIs that
 // the listener's PagePolicy refuses as a web page's on another site. The
 // admin API applies its own stricter rule, and links understudy hands out
-// are opened from any page by design.
+// and the execute-api data plane, which any page may call on AWS, are
+// opened from any page by design.
 func (h *Handler) refusedPage(ctx context.Context, x *exchange, rt route) bool {
 	switch rt.(type) {
-	case toAdmin, toLink:
+	case toAdmin, toLink, toExecuteAPI:
 		return false
 	case toOperation, toUnknown, toRaw, toService, notEmulated, notEmulatedTarget, unclaimed, toLocalStack:
 	}

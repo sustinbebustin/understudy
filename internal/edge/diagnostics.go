@@ -96,6 +96,8 @@ func routed(rt route) string {
 		return "unclaimed"
 	case toLocalStack:
 		return "unclaimed (LocalStack path)"
+	case toExecuteAPI:
+		return "execute-api (not implemented)"
 	}
 	return "unrouted"
 }
