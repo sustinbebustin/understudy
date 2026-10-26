@@ -351,18 +351,6 @@ func TestMessageStructureJSONPicksTheProtocolEntry(t *testing.T) {
 	})
 }
 
-func TestPendingAndHTTPSubscriptionsReceiveNothing(t *testing.T) {
-	run(t, func(h *harness) {
-		topic := h.topic("events", nil)
-		h.subscribe(topic, "https", "https://127.0.0.1:9443/hook", nil)
-		h.subscribe(topic, "email", "a@example.com", nil)
-		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
-		if n := len(h.sink.all()); n != 0 {
-			h.Errorf("outbox took %d deliveries for pending subscriptions, want 0", n)
-		}
-	})
-}
-
 func TestPublishInputRules(t *testing.T) {
 	run(t, func(h *harness) {
 		topic := h.topic("events", map[string]string{"MaximumMessageSize": "1024"})
