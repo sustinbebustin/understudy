@@ -92,6 +92,7 @@ func TestEventInvokeConfigRefusesADestinationThatDoesNotExist(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			runLookups(t, func(h *harness, seen *lookups) {
+				t := h.T
 				existenceChecked(h)
 				h.createFunction("fn")
 				err := fail(h, lambdaapi.OpPutFunctionEventInvokeConfig, c.in)
@@ -118,6 +119,7 @@ func TestEventInvokeConfigRefusesADestinationThatDoesNotExist(t *testing.T) {
 // at configuration (lambda-destinations-layers.md 2.2).
 func TestEventInvokeConfigTakesDestinationsThatExist(t *testing.T) {
 	runLookups(t, func(h *harness, seen *lookups) {
+		t := h.T
 		existenceChecked(h)
 		h.createFunction("fn")
 		for _, c := range []struct{ onSuccess, onFailure string }{
@@ -149,6 +151,7 @@ func deref(p *string) string {
 // destination is missing.
 func TestEventInvokeConfigLookupFailureStoresNothing(t *testing.T) {
 	runLookups(t, func(h *harness, _ *lookups) {
+		t := h.T
 		existenceChecked(h)
 		h.createFunction("fn")
 		err := fail(h, lambdaapi.OpPutFunctionEventInvokeConfig, putDestinations("arn:aws:sqs:us-east-1:000000000000:broken-queue", ""))
@@ -165,6 +168,7 @@ func TestEventInvokeConfigLookupFailureStoresNothing(t *testing.T) {
 // (lambda-destinations-layers.md 2.2: test_lambda_api.snapshot.json:L4342-L4353).
 func TestEventInvokeConfigChecksInOrder(t *testing.T) {
 	runLookups(t, func(h *harness, seen *lookups) {
+		t := h.T
 		existenceChecked(h)
 		h.createFunction("fn")
 		const missingQueue, missingTopic = "arn:aws:sqs:us-east-1:000000000000:missing-a", "arn:aws:sns:us-east-1:000000000000:missing-b"
@@ -183,6 +187,7 @@ func TestEventInvokeConfigChecksInOrder(t *testing.T) {
 // UpdateFunctionEventInvokeConfig checks its destinations as Put does.
 func TestUpdateEventInvokeConfigRefusesADestinationThatDoesNotExist(t *testing.T) {
 	runLookups(t, func(h *harness, _ *lookups) {
+		t := h.T
 		existenceChecked(h)
 		h.createFunction("fn")
 		call(h, lambdaapi.OpPutFunctionEventInvokeConfig, &lambdaapi.PutFunctionEventInvokeConfigInput{FunctionName: "fn", MaximumRetryAttempts: new(int32(1))})
@@ -200,6 +205,7 @@ func TestUpdateEventInvokeConfigRefusesADestinationThatDoesNotExist(t *testing.T
 // then reads back as none (9.2).
 func TestDeadLetterConfigWithoutATargetKeepsTheQueue(t *testing.T) {
 	runLookups(t, func(h *harness, _ *lookups) {
+		t := h.T
 		in := zipFunction(h, "fn")
 		in.DeadLetterConfig = &lambdaapi.DeadLetterConfig{TargetArn: new(dlqA)}
 		call(h, lambdaapi.OpCreateFunction, in)
@@ -306,6 +312,7 @@ func TestDestinationAndLayerSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 		"lambda.layers.cross-account-policy":             {"advise", evidence.Inferred, "LDL-15", []string{"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration"}},
 	}
 	runLookups(t, func(h *harness, _ *lookups) {
+		t := h.T
 		got := map[string]fidelity.Entry{}
 		for _, e := range h.svc.Switches() {
 			got[e.Name] = e

@@ -3,6 +3,7 @@ package lambda_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"regexp"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/pool/pooltest"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/runtimeapi"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // The function and destinations of the tests below, all in the test
@@ -304,6 +306,7 @@ func queueTarget(tb testing.TB, d kernel.Delivery, queue string) delivery.SQSQue
 func TestAsyncSuccessSendsARecordToOnSuccess(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		h.createFunction("fn")
 		h.configure("", 0, successQueue, failureQueue)
 		h.invoke(fnEvent(`{"n": 1}`))
@@ -342,6 +345,7 @@ func TestAsyncSuccessSendsARecordToOnSuccess(t *testing.T) {
 func TestAsyncFunctionErrorWithoutRetriesSendsRetriesExhausted(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		h.createFunction("fn")
 		h.configure("", 0, successQueue, failureQueue)
 		h.invoke(fnEvent(`{"action": "fail"}`))
@@ -373,6 +377,7 @@ func TestAsyncFunctionErrorWithoutRetriesSendsRetriesExhausted(t *testing.T) {
 func TestAsyncRetriesExhaustedCountsEveryAttempt(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		h.createFunction("fn")
 		call(h.harness, lambdaapi.OpPutFunctionEventInvokeConfig, &lambdaapi.PutFunctionEventInvokeConfigInput{
 			FunctionName: "fn", DestinationConfig: &lambdaapi.DestinationConfig{OnFailure: &lambdaapi.OnFailure{Destination: new(failureQueue)}},
@@ -409,6 +414,7 @@ func TestEventAgeIsDecidedBeforeTheNextAttempt(t *testing.T) {
 	}{{60, 1}, {90, 2}} {
 		s := newScript()
 		runDestinations(t, s.handle, func(h *destHarness) {
+			t := h.T
 			h.createFunction("fn")
 			call(h.harness, lambdaapi.OpPutFunctionEventInvokeConfig, &lambdaapi.PutFunctionEventInvokeConfigInput{
 				FunctionName: "fn", MaximumRetryAttempts: new(int32(2)), MaximumEventAgeInSeconds: new(c.age),
@@ -455,6 +461,7 @@ func (h *destHarness) invokeRequestID() string {
 func TestZeroReservedConcurrencySendsARecordThatNeverRan(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		h.createFunction("fn")
 		h.configure("", 2, "", failureQueue)
 		call(h.harness, lambdaapi.OpPutFunctionConcurrency, &lambdaapi.PutFunctionConcurrencyInput{FunctionName: "fn", ReservedConcurrentExecutions: 0})
@@ -515,6 +522,7 @@ func deadLetterAttributes(attrs []delivery.MessageAttribute) map[string]string {
 func TestDeadLetterQueueReceivesTheEventAsSent(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		h.createWithDLQ()
 		call(h.harness, lambdaapi.OpPutFunctionEventInvokeConfig, &lambdaapi.PutFunctionEventInvokeConfigInput{FunctionName: "fn", MaximumRetryAttempts: new(int32(0))})
 		const event = `{"action": "fail",  "raise_error": 1}`
@@ -550,6 +558,7 @@ func equalMaps(a, b map[string]string) bool {
 func TestFailedEventReachesBothTheDLQAndOnFailure(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		h.createWithDLQ()
 		h.configure("", 0, "", failureQueue)
 		h.invoke(fnEvent(`{"action":"fail"}`))
@@ -581,6 +590,7 @@ func TestFailedEventReachesBothTheDLQAndOnFailure(t *testing.T) {
 func TestPublishedVersionsUseTheFunctionsDeadLetterQueue(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		h.createWithDLQ()
 		call(h.harness, lambdaapi.OpPublishVersion, &lambdaapi.PublishVersionInput{FunctionName: "fn"})
 		call(h.harness, lambdaapi.OpUpdateFunctionConfiguration, &lambdaapi.UpdateFunctionConfigurationInput{
@@ -604,6 +614,7 @@ func TestPublishedVersionsUseTheFunctionsDeadLetterQueue(t *testing.T) {
 func TestAliasInvokesFollowTheQualifierSwitches(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		if v := h.switchValue("lambda.async.qualifier-config"); v != "invoked-qualifier-only" {
 			t.Fatalf("lambda.async.qualifier-config = %q, a value this test does not know", v)
 		}
@@ -642,6 +653,7 @@ func TestAliasInvokesFollowTheQualifierSwitches(t *testing.T) {
 func TestSynchronousInvokeSendsNoRecord(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		h.createWithDLQ()
 		h.configure("", 0, successQueue, failureQueue)
 		h.invoke(invokeInput("fn", `{"n":1}`))
@@ -661,6 +673,7 @@ func TestSynchronousInvokeSendsNoRecord(t *testing.T) {
 func TestOnlyTheConfiguredSideReceives(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		h.createFunction("fn")
 		h.configure("", 0, "", failureQueue)
 		h.invoke(fnEvent(`{"n":1}`))
@@ -691,6 +704,7 @@ var keyShape = regexp.MustCompile(`^aws/lambda/async/fn/(\d{4}/\d{2}/\d{2})/(\d{
 func TestRecordsReachEveryDestinationKind(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		invocation, err := delivery.ParseInvocationType(h.switchValue("lambda.destination.lambda-invocation-type"))
 		if err != nil {
 			t.Fatal(err)
@@ -774,6 +788,7 @@ func TestNonJSONResponseIsLeftOutAndAdvised(t *testing.T) {
 		return runtimeapi.Success{Payload: []byte("plain text, not JSON")}, nil
 	}
 	runDestinations(t, plain, func(h *destHarness) {
+		t := h.T
 		h.createFunction("fn")
 		h.configure("", 0, successQueue, "")
 		h.invoke(fnEvent(`{}`))
@@ -826,6 +841,7 @@ func TestTheInvokesTraceHeaderReachesTheRecord(t *testing.T) {
 	const trace = "Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8;Sampled=1"
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		h.createFunction("fn")
 		h.configure("", 1, "", failureQueue)
 		h.invokeWithTrace(fnEvent(`{"action":"fail"}`), trace)
@@ -843,6 +859,7 @@ func TestTheInvokesTraceHeaderReachesTheRecord(t *testing.T) {
 func TestFunctionDeletedWhileQueuedSendsNothing(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		h.createWithDLQ()
 		h.configure("", 2, successQueue, failureQueue)
 		h.invoke(fnEvent(`{"action":"fail"}`))
@@ -861,6 +878,7 @@ func TestFunctionDeletedWhileQueuedSendsNothing(t *testing.T) {
 func TestQueuedEventKeepsItsRecordAcrossASnapshot(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
 		h.createFunction("fn")
 		h.configure("", 1, "", failureQueue)
 		h.invoke(fnEvent(`{"action":"fail"}`))
@@ -889,6 +907,42 @@ func TestQueuedEventKeepsItsRecordAcrossASnapshot(t *testing.T) {
 		calls := s.invoked()
 		if len(calls) != 2 || r.RequestContext.Condition != "RetriesExhausted" || r.RequestContext.ApproximateInvokeCount != 2 || r.RequestContext.RequestID != string(calls[0].RequestID) {
 			t.Errorf("%d attempts, requestContext %+v; want 2 and RetriesExhausted, count 2, request %s", len(calls), r.RequestContext, calls[0].RequestID)
+		}
+	})
+}
+
+// The queued event gained its last response and trace header, so the
+// lambda-async section's version is 2: a version 1 section an older binary
+// wrote is refused naming both versions rather than migrated (ADR 0009).
+func TestAsyncQueueSnapshotRefusesAVersion1Section(t *testing.T) {
+	s := newScript()
+	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
+		h.createFunction("fn")
+		h.invoke(fnEvent(`{"action":"fail"}`))
+		h.settle()
+		q := h.x.AsyncQueue()
+		release := h.Kernel.Gate().Exclusive()
+		sections, err := q.Export()
+		release()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(sections) == 0 {
+			t.Fatal("Export of a queued event wrote no section")
+		}
+		for i := range sections {
+			sections[i].Version = 1
+		}
+		release = h.Kernel.Gate().Exclusive()
+		err = q.Import(sections)
+		release()
+		vm, ok := errors.AsType[*store.VersionMismatchError](err)
+		if !ok {
+			t.Fatalf("Import(a version 1 section) = %v, want a *store.VersionMismatchError", err)
+		}
+		if vm.Section != 1 || vm.Running != 2 || q.SchemaVersion() != 2 {
+			t.Errorf("mismatch %+v, schema version %d; want section 1 refused by running 2", vm, q.SchemaVersion())
 		}
 	})
 }

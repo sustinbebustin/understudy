@@ -195,33 +195,36 @@ func TestEventsToEventsAttemptCarriesTheEnvelope(t *testing.T) {
 	}, kerneltest.Services(eventbridgeapi.Service()))
 }
 
-// The snapshot record of an event bus entry gained its envelope, so the
-// outbox state version is 2: a version 1 section, written by an older
-// binary, is refused naming both versions rather than migrated (ADR 0009).
-func TestOutboxSnapshotRefusesAVersion1Section(t *testing.T) {
-	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
-		stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return throttled("") })
-		enqueue(k, o, toQueue("pending", delivery.SNSManaged{}), source(k))
-		settled(k)
-		sections, err := o.Export()
-		if err != nil {
-			k.Fatal(err)
-		}
-		if len(sections) == 0 {
-			k.Fatal("Export of a pending delivery wrote no section")
-		}
-		for i := range sections {
-			sections[i].Version = 1
-		}
-		err = o.Import(sections)
-		vm, ok := errors.AsType[*store.VersionMismatchError](err)
-		if !ok {
-			k.Fatalf("Import(a version 1 section) = %v, want a *store.VersionMismatchError", err)
-		}
-		if vm.Section != 1 || vm.Running != 2 || o.SchemaVersion() != 2 {
-			k.Errorf("mismatch %+v, schema version %d; want section 1 refused by running 2", vm, o.SchemaVersion())
-		}
-	})
+// The snapshot record of an event bus entry gained its envelope (version
+// 2), then a Lambda delivery's sender and a queue target's trace header
+// (version 3), so a section an older binary wrote is refused naming both
+// versions rather than migrated (ADR 0009).
+func TestOutboxSnapshotRefusesAnEarlierVersion(t *testing.T) {
+	for _, earlier := range []int{1, 2} {
+		run(t, func(k *kerneltest.K, o *outbox.Outbox) {
+			stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return throttled("") })
+			enqueue(k, o, toQueue("pending", delivery.SNSManaged{}), source(k))
+			settled(k)
+			sections, err := o.Export()
+			if err != nil {
+				k.Fatal(err)
+			}
+			if len(sections) == 0 {
+				k.Fatal("Export of a pending delivery wrote no section")
+			}
+			for i := range sections {
+				sections[i].Version = earlier
+			}
+			err = o.Import(sections)
+			vm, ok := errors.AsType[*store.VersionMismatchError](err)
+			if !ok {
+				k.Fatalf("Import(a version %d section) = %v, want a *store.VersionMismatchError", earlier, err)
+			}
+			if vm.Section != earlier || vm.Running != 3 || o.SchemaVersion() != 3 {
+				k.Errorf("mismatch %+v, schema version %d; want section %d refused by running 3", vm, o.SchemaVersion(), earlier)
+			}
+		})
+	}
 }
 
 // The access advisory models a service principal against the target's
