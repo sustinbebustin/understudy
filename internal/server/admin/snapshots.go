@@ -70,6 +70,7 @@ func (h *Handler) snapshotSave(w http.ResponseWriter, r *http.Request, _ []strin
 		h.fail(w, r, aerr)
 		return
 	}
+	h.journalAction(r.Context(), journal.SnapshotSave{Path: target})
 	h.ok(w, r, info)
 }
 
@@ -101,6 +102,9 @@ func (h *Handler) saveToResponse(w http.ResponseWriter, r *http.Request, journal
 		h.fail(w, r, internal("rewinding the archive", err))
 		return
 	}
+	// The archive is complete: the save happened, whether or not its bytes
+	// reach the client.
+	h.journalAction(ctx, journal.SnapshotSave{})
 	contentType := admin.Tar
 	if opts.Gzip {
 		contentType = admin.Gzip
@@ -276,6 +280,9 @@ func (h *Handler) snapshotLoad(w http.ResponseWriter, r *http.Request, _ []strin
 		h.fail(w, r, aerr)
 		return
 	}
+	// The admin action is the load's one signal: its clock restore journals
+	// no clock change of its own.
+	h.journalAction(r.Context(), journal.SnapshotLoad{Path: target})
 	info := describe(a.Manifest)
 	info.Path = target
 	h.ok(w, r, info)

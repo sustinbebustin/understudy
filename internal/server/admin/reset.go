@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"slices"
 	"strings"
@@ -12,7 +11,6 @@ import (
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/blob"
-	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
@@ -51,6 +49,9 @@ func (h *Handler) reset(w http.ResponseWriter, r *http.Request, _ []string) {
 		h.fail(w, r, aerr)
 		return
 	}
+	h.journalAction(r.Context(), journal.Reset{
+		Services: res.Services, Accounts: in.Accounts, Regions: in.Regions, Clock: in.Clock, Faults: res.Faults,
+	})
 	h.ok(w, r, res)
 }
 
@@ -383,7 +384,7 @@ func (h *Handler) restartClock(ctx context.Context) (admin.ClockMode, *admin.Err
 		h.rearm()
 		return "", internal("restoring the clock", err)
 	}
-	h.journalClock(ctx, change.From, change.To)
+	h.journalClock(ctx, journal.ClockRestore, change.From, change.To)
 	h.rearm()
 	return modeName(change.To), nil
 }
@@ -409,12 +410,5 @@ func (h *Handler) rearm() {
 func (h *Handler) rearmPollers() {
 	if h.o.Pollers != nil {
 		h.o.Pollers.RearmPollers()
-	}
-}
-
-// journalClock records a clock mode change.
-func (h *Handler) journalClock(ctx context.Context, from, to clock.Mode) {
-	if _, err := h.o.Kernel.Journal().Append(journal.Event{Detail: journal.ClockChanged{From: from, To: to}}); err != nil {
-		h.log.LogAttrs(ctx, slog.LevelWarn, "the journal refused a clock change", slog.String("error", err.Error()))
 	}
 }
