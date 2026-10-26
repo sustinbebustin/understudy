@@ -525,6 +525,13 @@ func (u upload) verify(got received, decoder *awschunked.Reader, payload hash.Ha
 	return verifyDeclared(u.checksum, got.sum, trailerValue)
 }
 
+// integrityDeclared reports whether the write states its bytes' integrity
+// the way an Object Lock retention needs (s3-ssec-object-lock.md 6.3):
+// Content-MD5, or an x-amz-checksum-* header or trailer. A signed payload
+// hash does not count (switch s3.object-lock.checksum-scope). Not
+// implemented yet: it reports false.
+func (u upload) integrityDeclared() bool { return false }
+
 // openBody opens a write's body; an input built without one has none.
 func openBody(body smithy.Body) (io.ReadCloser, error) {
 	if body == nil {

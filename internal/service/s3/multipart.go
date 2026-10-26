@@ -66,6 +66,10 @@ type Upload struct {
 	StorageClass s3api.StorageClass `json:"storageClass"`
 	Encryption   Encryption         `json:"encryption"`
 	Parts        map[int32]Part     `json:"parts,omitempty"`
+	// Lock is the retention and legal hold Create's headers asked for,
+	// which the completed object takes. Nothing sets it yet, so it is
+	// always zero and never written.
+	Lock ObjectLock `json:"lock,omitzero"`
 }
 
 // find returns the upload id names, which must be one in progress for key

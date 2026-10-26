@@ -132,12 +132,16 @@ type Bucket struct {
 	Replication *s3api.ReplicationConfiguration `json:"replication,omitempty"`
 	// Encryption is nil for the default rule every bucket has: SSE-S3 with
 	// no bucket key (s3.md 4.1).
-	Encryption        *s3api.ServerSideEncryptionConfiguration `json:"encryption,omitempty"`
-	ObjectLock        *s3api.ObjectLockConfiguration           `json:"objectLock,omitempty"`
-	RequestPayment    *s3api.RequestPaymentConfiguration       `json:"requestPayment,omitempty"`
-	Accelerate        *s3api.AccelerateConfiguration           `json:"accelerate,omitempty"`
-	PublicAccessBlock *s3api.PublicAccessBlockConfiguration    `json:"publicAccessBlock,omitempty"`
-	Ownership         *s3api.OwnershipControls                 `json:"ownership,omitempty"`
+	Encryption *s3api.ServerSideEncryptionConfiguration `json:"encryption,omitempty"`
+	// BlockedEncryption is the rule's BlockedEncryptionTypes, kept apart
+	// from Encryption so that a Put omitting it keeps it. Nothing reads or
+	// sets it yet: its zero value, SSE-C blocked, is never written.
+	BlockedEncryption BlockedEncryption                     `json:"blockedEncryption,omitzero"`
+	ObjectLock        *s3api.ObjectLockConfiguration        `json:"objectLock,omitempty"`
+	RequestPayment    *s3api.RequestPaymentConfiguration    `json:"requestPayment,omitempty"`
+	Accelerate        *s3api.AccelerateConfiguration        `json:"accelerate,omitempty"`
+	PublicAccessBlock *s3api.PublicAccessBlockConfiguration `json:"publicAccessBlock,omitempty"`
+	Ownership         *s3api.OwnershipControls              `json:"ownership,omitempty"`
 	// Tags is the bucket's tag set, which the S3 tagging operations and the
 	// S3 Control tag operations share; empty is no tag set.
 	Tags         map[string]string                `json:"tags,omitempty"`

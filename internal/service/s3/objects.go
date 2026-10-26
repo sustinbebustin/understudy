@@ -97,6 +97,9 @@ type Object struct {
 	// Parts are a multipart object's parts, in part order; empty for an
 	// object written in one request.
 	Parts []ObjectPart `json:"parts,omitempty"`
+	// Lock is the version's retention and legal hold. Nothing sets it
+	// yet, so it is always zero and never written.
+	Lock ObjectLock `json:"lock,omitzero"`
 }
 
 // ObjectPart is one part of a multipart object: its size and, for a
