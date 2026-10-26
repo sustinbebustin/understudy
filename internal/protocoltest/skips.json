@@ -112,11 +112,6 @@
       "reason": "Asserts a client sends no query parameter for an empty list; the server sees none and cannot tell an empty list from an absent one."
     },
     {
-      "protocol": "restjson1", "kind": "request", "id": "RestJsonSerializesSparseSetMapAndRetainsNull",
-      "category": "gap",
-      "reason": "A sparse map whose values are sets holds a null value. The generated serde reads a sparse map's list values as lists only, so the null fails to decode (internal/codegen)."
-    },
-    {
       "protocol": "restjson1", "kind": "request", "id": "SDKAppendedGzipAfterProvidedEncoding_restJson1",
       "category": "client-only",
       "reason": "requestCompression: asserts the SDK appends gzip to the modeled Content-Encoding and compresses the body; the request carries the appended header but an uncompressed body (smithy-protocol-tests.md 4.2)."
@@ -130,11 +125,6 @@
       "protocol": "restjson1", "kind": "response", "id": "RestJsonComplexErrorWithNoMessage",
       "category": "gap",
       "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
-    },
-    {
-      "protocol": "restjson1", "kind": "response", "id": "RestJsonDeserializesSparseSetMapAndRetainsNull",
-      "category": "gap",
-      "reason": "A sparse map whose values are sets holds a null value. The generated types hold it as a nil slice and the generated serde writes every list value as a list, so null goes out as [] (internal/codegen)."
     },
     {
       "protocol": "restjson1", "kind": "response", "id": "RestJsonServerPopulatesDefaultsInResponseWhenMissingInParams",
@@ -405,11 +395,6 @@
       "reason": "Tests that clients skip an XML preamble and CDATA text in a response; a server writes neither."
     },
     {
-      "protocol": "rpcv2cbor", "kind": "request", "id": "RpcV2CborSerializesSparseSetMapAndRetainsNull",
-      "category": "gap",
-      "reason": "A sparse map whose values are sets holds a null value. The generated serde reads a sparse map's list values as lists only, so the null fails to decode (internal/codegen)."
-    },
-    {
       "protocol": "rpcv2cbor", "kind": "response", "id": "QueryCompatibleRpcV2CborCustomCodeError",
       "category": "aws-differs", "label": "third-party-recorded",
       "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (error-matrix.md 5.13, CloudWatch not found)",
@@ -419,11 +404,6 @@
       "protocol": "rpcv2cbor", "kind": "response", "id": "RpcV2CborComplexError",
       "category": "gap",
       "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
-    },
-    {
-      "protocol": "rpcv2cbor", "kind": "response", "id": "RpcV2CborDeserializesSparseSetMapAndRetainsNull",
-      "category": "gap",
-      "reason": "A sparse map whose values are sets holds a null value; the generated serde writes every list value as a list, so null goes out as an empty array (internal/codegen)."
     },
     {
       "protocol": "rpcv2cbor", "kind": "response", "id": "RpcV2CborServerPopulatesDefaultsInResponseWhenMissingInParams",

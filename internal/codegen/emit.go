@@ -217,6 +217,29 @@ func (f *file) elemType(m *MemberIR) string {
 	return t
 }
 
+// nullElem reports whether m, a list element or map value, holds null as
+// nil: an element of a sparse collection that elemType puts behind a
+// pointer, or a list or map in a sparse collection, whose non-nil empty
+// value is a value apart from null (smithy-protocol-tests.md 13.1, 14.8).
+// Sparse blobs, unions, documents and big integers do not tell null apart:
+// no corpus case and no pinned model has one (13.2).
+func nullElem(m *MemberIR) bool {
+	if !m.Owner.Sparse {
+		return false
+	}
+	return pointerable(m.Target) || m.Target.Type == smithy.TypeList || m.Target.Type == smithy.TypeMap
+}
+
+// elemValue is the value that element e of member m holds once nullElem's
+// nil is ruled out: *e behind elemType's pointer, except that a structure
+// is used through its pointer; e itself otherwise.
+func elemValue(m *MemberIR, e string) string {
+	if m.Owner.Sparse && pointerable(m.Target) && !m.Target.IsStruct() {
+		return "*" + e
+	}
+	return e
+}
+
 // fieldType is the Go type of a structure member. A stream is a smithy.Body
 // in an input structure and a smithy.BodySource in an output one.
 func (f *file) fieldType(m *MemberIR) string {

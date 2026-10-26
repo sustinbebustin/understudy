@@ -10243,7 +10243,11 @@ func serializeSparseSetMap(s smithy.Serializer, m *smithy.Member, v map[string][
 	for _, k := range slices.Sorted(maps.Keys(v)) {
 		s.WriteMapKey(string(k))
 		e := v[k]
-		serializeStringSet(s, &memberSparseSetMap_value, e)
+		if e == nil {
+			s.WriteNull(&memberSparseSetMap_value)
+		} else {
+			serializeStringSet(s, &memberSparseSetMap_value, e)
+		}
 	}
 	s.CloseMap()
 }
@@ -10260,6 +10264,14 @@ func deserializeSparseSetMap(d smithy.Deserializer, m *smithy.Member) (map[strin
 		}
 		if !more {
 			return out, nil
+		}
+		null, err := d.ReadNull(&memberSparseSetMap_value)
+		if err != nil {
+			return nil, err
+		}
+		if null {
+			out[key] = nil
+			continue
 		}
 		x, err := deserializeStringSet(d, &memberSparseSetMap_value)
 		if err != nil {

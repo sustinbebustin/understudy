@@ -195,7 +195,7 @@ func Suite() gen.Suite {
 				RequireHeaders: []string{"Content-Length"},
 				Body:           "v2xzcGFyc2VTZXRNYXC/YXif/2F5n2FhYWL/YXr2//8=",
 				BodyMediaType:  "application/cbor",
-				Params:         &RpcV2CborSparseMapsInputOutput{SparseSetMap: map[string][]string{"x": []string{}, "y": []string{"a", "b"}, "z": []string{}}},
+				Params:         &RpcV2CborSparseMapsInputOutput{SparseSetMap: map[string][]string{"x": []string{}, "y": []string{"a", "b"}, "z": nil}},
 			},
 			{
 				ID: "RpcV2CborSerializesZeroValuesInSparseMaps", Protocol: ref.RPCv2CBOR, Operation: &descRpcV2CborSparseMaps, AppliesTo: gen.Both,
@@ -454,7 +454,7 @@ func Suite() gen.Suite {
 				Headers:       map[string]string{"Content-Type": "application/cbor", "smithy-protocol": "rpc-v2-cbor"},
 				Body:          "v2xzcGFyc2VTZXRNYXC/YXif/2F5n2FhYWL/YXr2//8=",
 				BodyMediaType: "application/cbor",
-				Outcome:       gen.Output{Value: &RpcV2CborSparseMapsInputOutput{SparseSetMap: map[string][]string{"x": []string{}, "y": []string{"a", "b"}, "z": []string{}}}},
+				Outcome:       gen.Output{Value: &RpcV2CborSparseMapsInputOutput{SparseSetMap: map[string][]string{"x": []string{}, "y": []string{"a", "b"}, "z": nil}}},
 			},
 			{
 				ID: "RpcV2CborDeserializesZeroValuesInSparseMaps", Protocol: ref.RPCv2CBOR, Operation: &descRpcV2CborSparseMaps, AppliesTo: gen.Both,

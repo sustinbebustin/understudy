@@ -145,18 +145,14 @@ func (f *file) serializeMember(m *MemberIR) {
 }
 
 // writeElem writes a list element or map value; sparse collections write
-// null for nil.
+// null for nil (nullElem).
 func (f *file) writeElem(m *MemberIR, expr string, depth int) {
 	ind := strings.Repeat("\t", depth)
-	if m.Owner.Sparse && pointerable(m.Target) {
+	if nullElem(m) {
 		f.p("%sif %s == nil {", ind, expr)
 		f.p("%s\ts.WriteNull(&%s)", ind, m.Var)
 		f.p("%s} else {", ind)
-		if m.Target.IsStruct() {
-			f.write(m, expr, depth+1)
-		} else {
-			f.write(m, "*"+expr, depth+1)
-		}
+		f.write(m, elemValue(m, expr), depth+1)
 		f.p("%s}", ind)
 		return
 	}
@@ -401,8 +397,11 @@ func (f *file) readMember(m *MemberIR) {
 
 // readElem reads a list element or map value inside the loop of a
 // collection deserializer; store is a format with one %s for the value.
+// Only a sparse collection's element reads null (nullElem); a null that
+// reaches any other element fails in its read (smithy-protocol-tests.md
+// 14.8).
 func (f *file) readElem(m *MemberIR, store string) {
-	if m.Owner.Sparse && pointerable(m.Target) {
+	if nullElem(m) {
 		f.p("\t\tnull, err := d.ReadNull(&%s)", m.Var)
 		f.p("\t\tif err != nil {")
 		f.p("\t\t\treturn nil, err")
@@ -412,7 +411,11 @@ func (f *file) readElem(m *MemberIR, store string) {
 		f.p("\t\t\tcontinue")
 		f.p("\t\t}")
 		f.read(m, 2, "return nil, err")
-		f.p("\t\t%s", fmt.Sprintf(store, "&x"))
+		x := "x"
+		if pointerable(m.Target) {
+			x = "&x"
+		}
+		f.p("\t\t%s", fmt.Sprintf(store, x))
 		return
 	}
 	f.read(m, 2, "return nil, err")

@@ -16,13 +16,13 @@ Server-runnable cases of the Smithy protocol compliance corpus, run against the 
 | awsjson1_1 | response | 45 | 43 | 1 | 1 | 1 |
 | awsquery | request | 35 | 32 | 3 | 0 | 0 |
 | awsquery | response | 31 | 29 | 1 | 1 | 1 |
-| restjson1 | request | 133 | 127 | 5 | 1 | 1 |
-| restjson1 | response | 92 | 88 | 0 | 4 | 4 |
+| restjson1 | request | 133 | 128 | 5 | 0 | 0 |
+| restjson1 | response | 92 | 89 | 0 | 3 | 3 |
 | restjson1 | malformed | 655 | 621 | 34 | 0 | 0 |
 | restxml | request | 101 | 93 | 8 | 0 | 0 |
 | restxml | response | 77 | 71 | 5 | 1 | 1 |
-| rpcv2cbor | request | 39 | 38 | 0 | 1 | 1 |
-| rpcv2cbor | response | 29 | 25 | 1 | 3 | 3 |
+| rpcv2cbor | request | 39 | 39 | 0 | 0 | 0 |
+| rpcv2cbor | response | 29 | 26 | 1 | 2 | 2 |
 
 5 server-runnable cases are not generated, so the counts above leave them out (ARCHITECTURE.md 6.4 counts them):
 
@@ -45,15 +45,11 @@ Cases understudy fails because a part it builds on cannot yet express what they 
 | awsjson1_0 | response | `AwsJson10ServerPopulatesNestedDefaultValuesWhenMissingInInResponseParams` | Asserts the server writes modeled defaults inside nested structures; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen). |
 | awsjson1_1 | response | `AwsJson11ComplexError` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
 | awsquery | response | `QueryComplexError` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
-| restjson1 | request | `RestJsonSerializesSparseSetMapAndRetainsNull` | A sparse map whose values are sets holds a null value. The generated serde reads a sparse map's list values as lists only, so the null fails to decode (internal/codegen). |
 | restjson1 | response | `RestJsonComplexErrorWithNoMessage` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
-| restjson1 | response | `RestJsonDeserializesSparseSetMapAndRetainsNull` | A sparse map whose values are sets holds a null value. The generated types hold it as a nil slice and the generated serde writes every list value as a list, so null goes out as [] (internal/codegen). |
 | restjson1 | response | `RestJsonServerPopulatesDefaultsInResponseWhenMissingInParams` | Asserts the server writes modeled defaults for members the output leaves unset; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen). |
 | restjson1 | response | `RestJsonServerPopulatesNestedDefaultValuesWhenMissingInInResponseParams` | Asserts the server writes modeled defaults inside nested structures; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen). |
 | restxml | response | `ComplexError` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
-| rpcv2cbor | request | `RpcV2CborSerializesSparseSetMapAndRetainsNull` | A sparse map whose values are sets holds a null value. The generated serde reads a sparse map's list values as lists only, so the null fails to decode (internal/codegen). |
 | rpcv2cbor | response | `RpcV2CborComplexError` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
-| rpcv2cbor | response | `RpcV2CborDeserializesSparseSetMapAndRetainsNull` | A sparse map whose values are sets holds a null value; the generated serde writes every list value as a list, so null goes out as an empty array (internal/codegen). |
 | rpcv2cbor | response | `RpcV2CborServerPopulatesDefaultsInResponseWhenMissingInParams` | Asserts the server writes modeled defaults for members the output leaves unset; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen). |
 
 ### Skipped cases

@@ -807,7 +807,7 @@ func Suite() gen.Suite {
 				Headers:       map[string]string{"Content-Type": "application/json"},
 				Body:          "{\n    \"sparseSetMap\": {\n        \"x\": [],\n        \"y\": [\"a\", \"b\"],\n        \"z\": null\n    }\n}",
 				BodyMediaType: "application/json",
-				Params:        &SparseJsonMapsInputOutput{SparseSetMap: map[string][]string{"x": []string{}, "y": []string{"a", "b"}, "z": []string{}}},
+				Params:        &SparseJsonMapsInputOutput{SparseSetMap: map[string][]string{"x": []string{}, "y": []string{"a", "b"}, "z": nil}},
 			},
 			{
 				ID: "RestJsonStreamingTraitsWithBlob", Protocol: ref.RESTJSON1, Operation: &descStreamingTraits, AppliesTo: gen.Both,
@@ -1598,7 +1598,7 @@ func Suite() gen.Suite {
 				Headers:       map[string]string{"Content-Type": "application/json"},
 				Body:          "{\n    \"sparseSetMap\": {\n        \"x\": [],\n        \"y\": [\"a\", \"b\"],\n        \"z\": null\n    }\n}",
 				BodyMediaType: "application/json",
-				Outcome:       gen.Output{Value: &SparseJsonMapsInputOutput{SparseSetMap: map[string][]string{"x": []string{}, "y": []string{"a", "b"}, "z": []string{}}}},
+				Outcome:       gen.Output{Value: &SparseJsonMapsInputOutput{SparseSetMap: map[string][]string{"x": []string{}, "y": []string{"a", "b"}, "z": nil}}},
 			},
 			{
 				ID: "RestJsonStreamingTraitsWithBlob", Protocol: ref.RESTJSON1, Operation: &descStreamingTraits, AppliesTo: gen.Both,
