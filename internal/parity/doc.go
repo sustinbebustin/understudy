@@ -16,6 +16,7 @@
 //
 // The replayer routes awsJson and awsQuery requests only; a REST step is
 // skipped (rest-routing), and so is every step of a scenario that needs
-// Docker when none serves the run, as under TestReplay. Not built yet: the coverage report does not read baseline.json
-// for its evidence column, and nothing outside this package imports it.
+// Docker when none serves the run, as under TestReplay. Not built yet: the
+// coverage report does not read baseline.json for its evidence column, and
+// nothing outside this package imports it.
 package parity
