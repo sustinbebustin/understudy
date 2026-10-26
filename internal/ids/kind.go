@@ -33,6 +33,9 @@ const (
 	// KindEventID is EventBridge's: PutEvents entry ids and the ids of
 	// scheduled events.
 	KindEventID
+	// KindSSECSalt salts the HMAC S3 keeps of an SSE-C customer key
+	// (s3-ssec-object-lock.md 3.11).
+	KindSSECSalt
 
 	// endKind follows the last kind and is no kind: kindCount counts up to
 	// it, so a new kind is one line above it plus its String case.
@@ -81,6 +84,8 @@ func (k Kind) String() string {
 		return "jitter"
 	case KindEventID:
 		return "events-event-id"
+	case KindSSECSalt:
+		return "s3-ssec-salt"
 	}
 	return fmt.Sprintf("kind(%d)", uint8(k))
 }

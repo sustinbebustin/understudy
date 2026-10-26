@@ -34,6 +34,7 @@ var kindNames = []struct {
 	{ids.KindFaultStream, "fault-stream"},
 	{ids.KindJitter, "jitter"},
 	{ids.KindEventID, "events-event-id"},
+	{ids.KindSSECSalt, "s3-ssec-salt"},
 }
 
 // declaredKinds walks the kinds from the first until String falls back to
@@ -88,7 +89,7 @@ func TestUnknownKindErrorListsTheKnownKinds(t *testing.T) {
 	if got := err.Error(); got != want {
 		t.Errorf("error = %q\nwant    %q", got, want)
 	}
-	const persisted = "request-id, sqs-message-id, sqs-receipt-handle, sns-message-id, lambda-request-id, lambda-esm-id, s3-upload-id, s3-version-id, s3-etag, kms-key-id, iam-id, access-key-id, secret-access-key, session-token, delivery-id, fault-stream, jitter, events-event-id"
+	const persisted = "request-id, sqs-message-id, sqs-receipt-handle, sns-message-id, lambda-request-id, lambda-esm-id, s3-upload-id, s3-version-id, s3-etag, kms-key-id, iam-id, access-key-id, secret-access-key, session-token, delivery-id, fault-stream, jitter, events-event-id, s3-ssec-salt"
 	if !strings.Contains(err.Error(), "known kinds are "+persisted) {
 		t.Errorf("error = %q, want it to list the persisted kinds in order", err)
 	}

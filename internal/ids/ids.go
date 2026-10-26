@@ -109,8 +109,13 @@ func (s *Source) VersionID() VersionID {
 	return VersionID(s.chars(KindVersionID, versionAlphabet, versionIDLen))
 }
 
-// ETag mints the entity tag of an SSE-KMS object.
+// ETag mints the entity tag of an SSE-KMS or SSE-C object or part, which
+// is not the MD5 of its bytes.
 func (s *Source) ETag() ETag { return ETag(hex.EncodeToString(s.Draw(KindETag, 16))) }
+
+// SSECSalt draws the 16-byte salt of the HMAC S3 keeps of an SSE-C
+// customer key, one per object version or upload.
+func (s *Source) SSECSalt() []byte { return s.Draw(KindSSECSalt, 16) }
 
 // KMSKeyID mints a KMS key id.
 func (s *Source) KMSKeyID() KMSKeyID { return KMSKeyID(s.UUID(KindKMSKeyID).String()) }
