@@ -12,11 +12,11 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
-// No mechanism delivers to an S3 object or an HTTP endpoint until its
-// producer adds one, and only events-to-events delivers to an event bus
-// (eventbridge-buses.md 10.4.12), so the outbox refuses each new target
-// under every other mechanism, naming the mechanism, rather than delivering
-// it as something the mechanism does not do (ADR 0015).
+// No mechanism delivers to an S3 object until its producer adds one, only
+// events-to-events delivers to an event bus (eventbridge-buses.md 10.4.12)
+// and only sns-to-http delivers to an HTTP endpoint, so the outbox refuses
+// each new target under every other mechanism, naming the mechanism, rather
+// than delivering it as something the mechanism does not do (ADR 0015).
 // TestEnqueueEventsToEventsChecks covers the bus under events-to-events.
 func TestEnqueueRefusesNewTargetsNoMechanismDeliversTo(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
@@ -31,7 +31,7 @@ func TestEnqueueRefusesNewTargetsNoMechanismDeliversTo(t *testing.T) {
 		}
 		for name, target := range targets {
 			for _, m := range delivery.Mechanisms() {
-				if name == "EventBus" && m == delivery.EventsToEvents {
+				if (name == "EventBus" && m == delivery.EventsToEvents) || (name == "HTTPEndpoint" && m == delivery.SNSToHTTP) {
 					continue
 				}
 				req := delivery.Request{Source: topic(), Mechanism: m, Target: target, Policy: delivery.None{}}

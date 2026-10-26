@@ -70,7 +70,17 @@ func genNewTarget() *rapid.Generator[delivery.Target] {
 					headers[i] = delivery.HTTPHeader{Name: rapid.StringMatching(`[A-Za-z-]{1,12}`).Draw(t, "name"), Value: text.Draw(t, "value")}
 				}
 			}
-			return delivery.HTTPEndpoint{URL: *u, Headers: headers, Body: rapid.SliceOfN(rapid.Byte(), 1, 16).Draw(t, "body")}
+			kind := rapid.SampledFrom([]delivery.HTTPKind{delivery.HTTPNotification, delivery.HTTPSubscriptionConfirmation, delivery.HTTPUnsubscribeConfirmation}).Draw(t, "kind")
+			// A raw notification's message attributes ride with the dead
+			// letter only; nil for every other delivery, as a record
+			// without them decodes.
+			var deadLetter []delivery.MessageAttribute
+			if kind == delivery.HTTPNotification {
+				if attrs := genAttributes().Draw(t, "deadLetterAttributes"); len(attrs) > 0 {
+					deadLetter = attrs
+				}
+			}
+			return delivery.HTTPEndpoint{URL: *u, Kind: kind, Headers: headers, Body: rapid.SliceOfN(rapid.Byte(), 1, 16).Draw(t, "body"), DeadLetterAttributes: deadLetter}
 		}),
 	)
 }
@@ -133,14 +143,6 @@ func TestNewTargetRecordsWireShape(t *testing.T) {
 			delivery.S3Object{Bucket: "audit", Key: "a/b.json", Body: []byte("hello")},
 			`{"body":"aGVsbG8=","bucket":"audit","key":"a/b.json","kind":"s3-object"}`,
 		},
-		{
-			delivery.HTTPEndpoint{URL: *hook, Headers: []delivery.HTTPHeader{{Name: "x-amz-sns-message-type", Value: "Notification"}}, Body: []byte("hello")},
-			`{"body":"aGVsbG8=","headers":[{"name":"x-amz-sns-message-type","value":"Notification"}],"kind":"http-endpoint","url":"https://hooks.example.test/orders?attempt=1"}`,
-		},
-		{
-			delivery.HTTPEndpoint{URL: *hook, Body: []byte("hello")},
-			`{"body":"aGVsbG8=","kind":"http-endpoint","url":"https://hooks.example.test/orders?attempt=1"}`,
-		},
 	}
 	for _, tc := range cases {
 		data, err := c.Marshal(&requestRecord{Mechanism: delivery.SNSToSQS, Target: targetRecordOf(tc.target)})
@@ -151,6 +153,103 @@ func TestNewTargetRecordsWireShape(t *testing.T) {
 			t.Errorf("record of %#v\n%s\ndoes not hold %s", tc.target, data, tc.want)
 		}
 	}
+	// An HTTP endpoint's record holds its URL, body, headers when there are
+	// any, the delivery kind by its name, and the dead letter's attributes
+	// only when there are any.
+	httpCases := []struct {
+		target        delivery.HTTPEndpoint
+		holds, lacks  []string
+		kindName      string
+		deadLetterSet bool
+	}{
+		{
+			target: delivery.HTTPEndpoint{URL: *hook, Kind: delivery.HTTPNotification, Headers: []delivery.HTTPHeader{{Name: "x-amz-sns-message-type", Value: "Notification"}}, Body: []byte("hello")},
+			holds:  []string{`"kind":"http-endpoint"`, `"body":"aGVsbG8="`, `"url":"https://hooks.example.test/orders?attempt=1"`, `"headers":[{"name":"x-amz-sns-message-type","value":"Notification"}]`},
+			lacks:  []string{`"deadLetterAttributes"`},
+		},
+		{
+			target: delivery.HTTPEndpoint{URL: *hook, Kind: delivery.HTTPSubscriptionConfirmation, Body: []byte("hello")},
+			holds:  []string{`"kind":"http-endpoint"`, `"body":"aGVsbG8="`, `"SubscriptionConfirmation"`},
+			lacks:  []string{`"headers"`, `"deadLetterAttributes"`},
+		},
+		{
+			target: delivery.HTTPEndpoint{URL: *hook, Kind: delivery.HTTPNotification, Body: []byte("hello"), DeadLetterAttributes: []delivery.MessageAttribute{{Name: "store", Value: delivery.StringAttribute{Value: "north"}}}},
+			holds:  []string{`"kind":"http-endpoint"`, `"deadLetterAttributes":[`, `"store"`, `"north"`, `"Notification"`},
+		},
+	}
+	for _, tc := range httpCases {
+		data, err := c.Marshal(&requestRecord{Mechanism: delivery.SNSToHTTP, Target: targetRecordOf(tc.target)})
+		if err != nil {
+			t.Fatalf("Marshal(%#v): %v", tc.target, err)
+		}
+		for _, want := range tc.holds {
+			if !strings.Contains(string(data), want) {
+				t.Errorf("record of %#v\n%s\ndoes not hold %s", tc.target, data, want)
+			}
+		}
+		for _, unwanted := range tc.lacks {
+			if strings.Contains(string(data), unwanted) {
+				t.Errorf("record of %#v\n%s\nholds %s", tc.target, data, unwanted)
+			}
+		}
+	}
+}
+
+// The sns-http policy record has every member, the delays in whole
+// milliseconds, and reads back as the policy it came from.
+func TestSNSHTTPPolicyRecord(t *testing.T) {
+	c, err := unions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	def := delivery.SNSHTTP{Backoff: 3, MinDelayTarget: 20 * time.Second, MaxDelayTarget: 20 * time.Second, BackoffFunction: delivery.BackoffLinear}
+	data, err := c.Marshal(&requestRecord{Mechanism: delivery.SNSToHTTP, Policy: policyRecordOf(def)})
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	const want = `"policy":{"backoff":3,"backoffFunction":"linear","kind":"sns-http","maxDelay":0,"maxDelayTargetMillis":20000,"maxReceivesPerSecond":0,"minDelay":0,"minDelayTargetMillis":20000,"noDelay":0}`
+	if !strings.Contains(string(data), want) {
+		t.Errorf("record\n%s\ndoes not hold %s", data, want)
+	}
+	// Every member is required.
+	missing := strings.Replace(string(data), `"noDelay":0`, `"noDelayX":0`, 1)
+	var back requestRecord
+	if err := c.Unmarshal([]byte(missing), &back); err == nil {
+		if _, ok := policyOf(back.Policy); ok {
+			t.Errorf("a record without noDelay decoded: %s", missing)
+		}
+	}
+}
+
+func TestSNSHTTPPolicyRecordRoundTrips(t *testing.T) {
+	c, err := unions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rapid.Check(t, func(t *rapid.T) {
+		minMs := rapid.IntRange(1000, 3_600_000).Draw(t, "minDelayTargetMillis")
+		p := delivery.SNSHTTP{
+			NoDelay:              rapid.IntRange(0, 25).Draw(t, "noDelay"),
+			MinDelay:             rapid.IntRange(0, 25).Draw(t, "minDelay"),
+			Backoff:              rapid.IntRange(0, 25).Draw(t, "backoff"),
+			MaxDelay:             rapid.IntRange(0, 25).Draw(t, "maxDelay"),
+			MinDelayTarget:       time.Duration(minMs) * time.Millisecond,
+			MaxDelayTarget:       time.Duration(rapid.IntRange(minMs, 3_600_000).Draw(t, "maxDelayTargetMillis")) * time.Millisecond,
+			BackoffFunction:      rapid.SampledFrom([]delivery.BackoffFunction{delivery.BackoffLinear, delivery.BackoffArithmetic, delivery.BackoffGeometric, delivery.BackoffExponential}).Draw(t, "function"),
+			MaxReceivesPerSecond: rapid.IntRange(0, 50).Draw(t, "maxReceivesPerSecond"),
+		}
+		data, err := c.Marshal(&requestRecord{Mechanism: delivery.SNSToHTTP, Policy: policyRecordOf(p)})
+		if err != nil {
+			t.Fatalf("Marshal: %v", err)
+		}
+		var back requestRecord
+		if err := c.Unmarshal(data, &back); err != nil {
+			t.Fatalf("Unmarshal(%s): %v", data, err)
+		}
+		if got, ok := policyOf(back.Policy); !ok || got != p {
+			t.Fatalf("round trip of %s = %#v, %t; want %#v", data, got, ok, p)
+		}
+	})
 }
 
 // A loaded record goes through Enqueue's checks, so a new target no
@@ -165,7 +264,7 @@ func TestLoadRefusesNewTargetsNoMechanismDeliversTo(t *testing.T) {
 	st := newState(aws.Scope{})
 	st.Entries["d-1"] = Entry{
 		ID:      "d-1",
-		Request: delivery.Request{Source: source, Mechanism: delivery.SNSToSQS, Target: delivery.HTTPEndpoint{URL: *hook, Body: []byte("b")}, Policy: delivery.None{}},
+		Request: delivery.Request{Source: source, Mechanism: delivery.SNSToSQS, Target: delivery.HTTPEndpoint{URL: *hook, Kind: delivery.HTTPNotification, Body: []byte("b")}, Policy: delivery.None{}},
 	}
 	data, err := c.Marshal(&st)
 	if err != nil {
