@@ -1,7 +1,8 @@
 package journal
 
 import (
-	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
@@ -53,10 +54,12 @@ func (FaultRuleAdded) isAdminOp()   {}
 func (FaultRuleRemoved) isAdminOp() {}
 
 // ClockOp is what changed the clock in a ClockChanged. The zero value means
-// not recorded: a file written by an earlier build carries no op.
+// not recorded: a file written by an earlier build carries no op, and NDJSON
+// omits it.
 type ClockOp uint8
 
-// ClockOp values.
+// ClockOp values, named on the wire as the admin clock endpoint names its
+// ops (ADR 0017).
 const (
 	ClockFreeze ClockOp = iota + 1
 	ClockResume
@@ -66,24 +69,63 @@ const (
 	// ClockRestore is a reset that returns the clock to how serve started
 	// it.
 	ClockRestore
+
+	// endClockOp follows the last value and is no ClockOp: MarshalText,
+	// UnmarshalText and the ClockOpError text count up to it, so a new op
+	// is one line above it plus its String case.
+	endClockOp
 )
 
-// errNotImplemented is what the parts of the admin-action and clock-op wire
-// forms not implemented yet answer.
-var errNotImplemented = errors.New("journal: the admin-action and clock-op wire forms are not implemented yet")
+// String returns the wire name, such as "advance".
+func (o ClockOp) String() string {
+	switch o {
+	case ClockFreeze:
+		return "freeze"
+	case ClockResume:
+		return "resume"
+	case ClockScale:
+		return "scale"
+	case ClockAdvance:
+		return "advance"
+	case ClockSet:
+		return "set"
+	case ClockRestore:
+		return "restore"
+	default:
+		return fmt.Sprintf("ClockOp(%d)", uint8(o))
+	}
+}
 
-// String returns the wire name, such as "advance". Not implemented yet: it
-// returns "".
-func (ClockOp) String() string { return "" }
+// ClockOpError reports text that names no clock op, or a ClockOp outside
+// its values.
+type ClockOpError struct {
+	Text string
+}
 
-// MarshalText encodes the wire name. Not implemented yet: it returns an
-// error.
-func (ClockOp) MarshalText() ([]byte, error) { return nil, errNotImplemented }
+func (e *ClockOpError) Error() string {
+	names := make([]string, 0, endClockOp-ClockFreeze)
+	for o := ClockFreeze; o < endClockOp; o++ {
+		names = append(names, o.String())
+	}
+	return fmt.Sprintf("%q names no clock op; known names are %s and %s", e.Text, strings.Join(names[:len(names)-1], ", "), names[len(names)-1])
+}
 
-// UnmarshalText decodes a wire name. Not implemented yet: it returns an
-// error.
-func (*ClockOp) UnmarshalText([]byte) error { return errNotImplemented }
+// MarshalText encodes the wire name. Op 0, not recorded, has none: NDJSON
+// omits it rather than encode it.
+func (o ClockOp) MarshalText() ([]byte, error) {
+	if o < ClockFreeze || o >= endClockOp {
+		return nil, &ClockOpError{Text: o.String()}
+	}
+	return []byte(o.String()), nil
+}
 
-// Kinds returns every declared Kind in value order. Not implemented yet: it
-// returns nil.
-func Kinds() []Kind { return nil }
+// UnmarshalText decodes a wire name.
+func (o *ClockOp) UnmarshalText(text []byte) error {
+	for op := ClockFreeze; op < endClockOp; op++ {
+		if op.String() == string(text) {
+			*o = op
+			return nil
+		}
+	}
+	return &ClockOpError{Text: string(text)}
+}

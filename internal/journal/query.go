@@ -116,8 +116,27 @@ func (j *Journal) Query(f Filter) Page {
 // Tail returns the newest n retained and open events matching f, f.Limit
 // and f.Cursor ignored, in ascending id order: the last n events of every
 // Query page of f together. It returns fewer when fewer match, and nil for
-// n <= 0. Not implemented yet: it returns nil.
-func (*Journal) Tail(Filter, int) []Event { return nil }
+// n <= 0.
+func (j *Journal) Tail(f Filter, n int) []Event {
+	if n <= 0 {
+		return nil
+	}
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	held := j.candidates(f).from(f.IDRange.From)
+	if f.IDRange.To != 0 {
+		end, _ := slices.BinarySearch(held, f.IDRange.To)
+		held = held[:end]
+	}
+	var newest []Event
+	for i := len(held) - 1; i >= 0 && len(newest) < n; i-- {
+		if e := j.byID[held[i]].ev; f.matches(e) {
+			newest = append(newest, e)
+		}
+	}
+	slices.Reverse(newest)
+	return newest
+}
 
 // candidates returns the shortest id list that holds every event f can match.
 // Called with mu held.

@@ -237,6 +237,15 @@ func knownKinds() string {
 	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }
 
+// Kinds returns every declared Kind in value order.
+func Kinds() []Kind {
+	all := make([]Kind, 0, endKind-KindAPICall)
+	for k := KindAPICall; k < endKind; k++ {
+		all = append(all, k)
+	}
+	return all
+}
+
 // ParseKind returns the Kind whose wire name is s.
 func ParseKind(s string) (Kind, error) {
 	for k := KindAPICall; k < endKind; k++ {

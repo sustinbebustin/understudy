@@ -62,8 +62,27 @@ func detailSize(d Detail) int {
 	case Gap:
 		return 0
 	case AdminAction:
-		// Not implemented yet: counted with the admin action's wire form.
-		return 0
+		return adminOpSize(d.Op)
+	}
+	return 0
+}
+
+func adminOpSize(op AdminOp) int {
+	switch op := op.(type) {
+	case Reset:
+		return strs(op.Services...) + strs(op.Accounts...) + strs(op.Regions...)
+	case SnapshotSave:
+		return strs(op.Path)
+	case SnapshotLoad:
+		return strs(op.Path)
+	case FaultRuleAdded:
+		return strs(string(op.Rule))
+	case FaultRuleRemoved:
+		n := 0
+		for _, r := range op.Rules {
+			n += strs(string(r))
+		}
+		return n
 	}
 	return 0
 }

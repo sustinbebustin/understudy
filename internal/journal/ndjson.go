@@ -191,9 +191,12 @@ type (
 		Hit  int        `json:"hit"`
 		Of   int        `json:"of,omitempty"`
 	}
+	// wireClockChanged's Op 0, not recorded, is omitted, and a line
+	// without op decodes to it.
 	wireClockChanged struct {
 		From wireMode `json:"from"`
 		To   wireMode `json:"to"`
+		Op   ClockOp  `json:"op,omitempty"`
 	}
 	wireMode struct {
 		Kind       string         `json:"kind"`
@@ -217,6 +220,42 @@ type (
 	wireGap struct {
 		Missed uint64 `json:"missed"`
 	}
+	// An admin action is one object per op: "op" names it, and only that
+	// op's members follow. Decoding reads "op", then the object strictly as
+	// that op's form, so a member another op owns is refused even when
+	// empty.
+	wireAdminOp struct {
+		Op string `json:"op"`
+	}
+	wireReset struct {
+		Op       string   `json:"op"`
+		Services []string `json:"services,omitempty"`
+		Accounts []string `json:"accounts,omitempty"`
+		Regions  []string `json:"regions,omitempty"`
+		Clock    bool     `json:"clock,omitempty"`
+		Faults   int      `json:"faults,omitempty"`
+	}
+	wireSnapshotOp struct {
+		Op   string `json:"op"`
+		Path string `json:"path,omitempty"`
+	}
+	wireFaultRuleAdded struct {
+		Op   string     `json:"op"`
+		Rule ref.RuleID `json:"rule,omitempty"`
+	}
+	wireFaultRuleRemoved struct {
+		Op    string       `json:"op"`
+		Rules []ref.RuleID `json:"rules,omitempty"`
+	}
+)
+
+// Wire names of the AdminOp variants: an admin action's "op".
+const (
+	opReset            = "reset"
+	opSnapshotSave     = "snapshot-save"
+	opSnapshotLoad     = "snapshot-load"
+	opFaultRuleAdded   = "fault-rule-added"
+	opFaultRuleRemoved = "fault-rule-removed"
 )
 
 // MarshalJSON encodes e in the journal's wire form, the form of every NDJSON
@@ -319,7 +358,15 @@ func encodeDetail(d Detail) (any, error) {
 			return nil, err
 		}
 		to, err := encodeMode(d.To)
-		return wireClockChanged{From: from, To: to}, err
+		if err != nil {
+			return nil, err
+		}
+		if d.Op != 0 {
+			if _, err := d.Op.MarshalText(); err != nil {
+				return nil, err
+			}
+		}
+		return wireClockChanged{From: from, To: to, Op: d.Op}, nil
 	case Advisory:
 		if _, err := d.Kind.MarshalText(); err != nil {
 			return nil, err
@@ -330,9 +377,25 @@ func encodeDetail(d Detail) (any, error) {
 	case Gap:
 		return wireGap(d), nil
 	case AdminAction:
-		return nil, errNotImplemented
+		return encodeAdminOp(d.Op)
 	}
 	return nil, &missingError{What: "Detail"}
+}
+
+func encodeAdminOp(op AdminOp) (any, error) {
+	switch op := op.(type) {
+	case Reset:
+		return wireReset{Op: opReset, Services: op.Services, Accounts: op.Accounts, Regions: op.Regions, Clock: op.Clock, Faults: op.Faults}, nil
+	case SnapshotSave:
+		return wireSnapshotOp{Op: opSnapshotSave, Path: op.Path}, nil
+	case SnapshotLoad:
+		return wireSnapshotOp{Op: opSnapshotLoad, Path: op.Path}, nil
+	case FaultRuleAdded:
+		return wireFaultRuleAdded{Op: opFaultRuleAdded, Rule: op.Rule}, nil
+	case FaultRuleRemoved:
+		return wireFaultRuleRemoved{Op: opFaultRuleRemoved, Rules: op.Rules}, nil
+	}
+	return nil, &missingError{What: "AdminAction.Op"}
 }
 
 func encodeAPICall(d APICall) (any, error) {
@@ -562,9 +625,56 @@ func decodeDetail(k Kind, raw json.RawMessage) (Detail, error) {
 		err := strict(raw, &w)
 		return Gap(w), err
 	case KindAdminAction:
-		return nil, errNotImplemented
+		return decodeAdminAction(raw)
 	}
 	return nil, &KindError{Text: k.String()}
+}
+
+// adminOpError reports an admin action whose op names no AdminOp.
+type adminOpError struct {
+	Op string
+}
+
+func (e *adminOpError) Error() string {
+	return fmt.Sprintf("admin action op %q is unknown; known ops are %s, %s, %s, %s and %s",
+		e.Op, opReset, opSnapshotSave, opSnapshotLoad, opFaultRuleAdded, opFaultRuleRemoved)
+}
+
+func decodeAdminAction(raw json.RawMessage) (Detail, error) {
+	var head wireAdminOp
+	if err := json.Unmarshal(raw, &head); err != nil {
+		return nil, err
+	}
+	switch head.Op {
+	case opReset:
+		var w wireReset
+		if err := strict(raw, &w); err != nil {
+			return nil, err
+		}
+		return AdminAction{Op: Reset{Services: w.Services, Accounts: w.Accounts, Regions: w.Regions, Clock: w.Clock, Faults: w.Faults}}, nil
+	case opSnapshotSave, opSnapshotLoad:
+		var w wireSnapshotOp
+		if err := strict(raw, &w); err != nil {
+			return nil, err
+		}
+		if head.Op == opSnapshotSave {
+			return AdminAction{Op: SnapshotSave{Path: w.Path}}, nil
+		}
+		return AdminAction{Op: SnapshotLoad{Path: w.Path}}, nil
+	case opFaultRuleAdded:
+		var w wireFaultRuleAdded
+		if err := strict(raw, &w); err != nil {
+			return nil, err
+		}
+		return AdminAction{Op: FaultRuleAdded{Rule: w.Rule}}, nil
+	case opFaultRuleRemoved:
+		var w wireFaultRuleRemoved
+		if err := strict(raw, &w); err != nil {
+			return nil, err
+		}
+		return AdminAction{Op: FaultRuleRemoved{Rules: w.Rules}}, nil
+	}
+	return nil, &adminOpError{Op: head.Op}
 }
 
 func decodeAPICall(w wireAPICall) (Detail, error) {
@@ -722,7 +832,7 @@ func decodeClockChanged(raw json.RawMessage) (Detail, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ClockChanged{From: from, To: to}, nil
+	return ClockChanged{From: from, To: to, Op: w.Op}, nil
 }
 
 func decodeMode(w wireMode) (clock.Mode, error) {
