@@ -63,6 +63,12 @@ Structured logs:
 understudy serve --log-format json --log-level debug
 ```
 
+SNS `http` and `https` subscriptions delivered to a receiver on this machine; nothing is delivered to a host the list leaves out ([SNS HTTP delivery](sns-http.md)):
+
+```sh
+understudy serve --sns-http-delivery-allow 127.0.0.1:8080
+```
+
 Any flag has a variable, which suits containers and CI:
 
 ```sh

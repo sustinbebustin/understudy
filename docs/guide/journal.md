@@ -30,7 +30,7 @@ Filters combine. `--since` counts back in emulator time. `--limit N` keeps the n
 | Kind | Recorded when |
 |---|---|
 | `api-call` | Any call, from a client or between services, with its outcome |
-| `delivery` | An SNS, S3 or EventBridge delivery attempt: delivered, filtered, retrying, dead-lettered or dropped |
+| `delivery` | An SNS, S3 or EventBridge delivery attempt: delivered, filtered, retrying, dead-lettered, dropped or refused |
 | `invocation` | A Lambda invocation ends: cold or warm, duration, outcome |
 | `timer-fired` | A timer on the emulator clock fires |
 | `state-change` | A resource changes state |
@@ -40,6 +40,16 @@ Filters combine. `--since` counts back in emulator time. `--limit N` keeps the n
 | `unclaimed` | A request no service claimed, with why each routing rule declined it |
 | `gap` | A stream consumer missed events: it fell behind, or resumed with `?after=` past events the journal has since dropped |
 | `admin-action` | An admin call changed state: a reset, a snapshot saved or loaded, a [fault rule](faults.md) added or removed; `op` in the detail says which |
+
+An [SNS HTTP delivery](sns-http.md) goes to an endpoint rather than a resource, so its line names the endpoint's host and port, never its path or credentials. Its JSON detail adds an `http` member: the answer's status (left out when none came), how it was classed (`success`, `retryable`, `permanent` or `refused`) and the wall time the exchange took, in nanoseconds (left out for an attempt a [fault rule](faults.md) answered):
+
+```text
+11     2026-10-26T23:44:17.764060058Z  delivery       000000000000/us-east-1 sns-to-http orders -> 127.0.0.1:9000 attempt 1 refused: egress: refused to send to 127.0.0.1:9000 (not-allowed): no entry of sns.httpDelivery.allow allows it; nothing was sent. To allow it, add "127.0.0.1:9000" or "127.0.0.1:*" to sns.httpDelivery.allow.
+```
+
+```json
+{"from":"arn:aws:sns:us-east-1:000000000000:orders","to":"","endpoint":"127.0.0.1:8080","mechanism":"sns-to-http","attempt":1,"outcome":{"kind":"delivered"},"http":{"status":200,"class":"success","duration":876453}}
+```
 
 ## From an error to its cause
 

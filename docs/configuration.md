@@ -52,7 +52,7 @@ A daemon on another host, such as a docker:dind CI service, is detected when the
 
 ## Outbound HTTP delivery
 
-understudy makes no outbound HTTP request unless a setting allows it. `--sns-http-delivery-allow` (`UNDERSTUDY_SNS_HTTP_DELIVERY_ALLOW`, file key `sns.httpDelivery.allow`) lists the hosts SNS delivers `http` and `https` subscriptions to. It is empty by default: such a subscription stays pending and receives nothing, and each delivery is journaled as `refused`, with the entry that would allow it.
+understudy makes no outbound HTTP request unless a setting allows it. `--sns-http-delivery-allow` (`UNDERSTUDY_SNS_HTTP_DELIVERY_ALLOW`, file key `sns.httpDelivery.allow`) lists the hosts SNS delivers `http` and `https` subscriptions to. It is empty by default: such a subscription stays pending and receives nothing, and each delivery is journaled as `refused`, with the entry that would allow it. [SNS HTTP delivery](guide/sns-http.md) walks through a receiver, retries and signature validation.
 
 Each entry is `host:port`. The host is `localhost`, an IPv4 literal, a bracketed IPv6 literal such as `[::1]`, or a DNS name; the port is 1 to 65535, or `*` for any port, meant for a test receiver on an ephemeral port. There are no host wildcards and no address ranges. The flag and the variable take the entries comma-separated, untrimmed; the file takes a JSON array, nested in its `sns` section:
 

@@ -41,6 +41,8 @@ S3 object calls (`GetObject`, `HeadObject`, `GetObjectAttributes`, `PutObject`, 
 | After commit | `--after-commit SHAPE` | The call takes effect, then the client gets the error |
 | Error in a 200 | `--status-ok SHAPE` | S3's `CopyObject`, `UploadPartCopy` and `CompleteMultipartUpload` only: a 200 response with an error body |
 | Drop | `--drop` | Delivery phase only: the target never receives the delivery |
+| HTTP status | `--http-status 503` | Delivery phase, `sns-to-http` only: the attempt gets this status (100 to 599) without contacting the endpoint |
+| HTTP timeout | `--http-timeout` | Delivery phase, `sns-to-http` only: the attempt ends as a timed-out exchange at once, without contacting the endpoint |
 
 | Trigger | Flag |
 |---|---|
@@ -106,7 +108,18 @@ A delivery-phase rule acts on understudy's own deliveries between services rathe
 understudy faults add --phase delivery --mechanism sns-to-sqs --drop --next 1
 ```
 
-The mechanisms are `sns-to-sqs`, `sns-to-lambda`, `s3-to-sqs`, `s3-to-sns`, `s3-to-lambda`, `events-to-lambda`, `events-to-sqs`, `events-to-sns` and `events-to-events` (an EventBridge rule's event bus target). A request-phase rule with `--origin internal` fails the internal call itself instead, which drives the source's own retry policy: SNS retries a failed SQS delivery on its AWS schedule (on the [emulator clock](clock.md)) and then sends it to the subscription's dead-letter queue.
+The mechanisms are `sns-to-sqs`, `sns-to-lambda`, `sns-to-http`, `s3-to-sqs`, `s3-to-sns`, `s3-to-lambda`, `events-to-lambda`, `events-to-sqs`, `events-to-sns` and `events-to-events` (an EventBridge rule's event bus target). A request-phase rule with `--origin internal` fails the internal call itself instead, which drives the source's own retry policy: SNS retries a failed SQS delivery on its AWS schedule (on the [emulator clock](clock.md)) and then sends it to the subscription's dead-letter queue.
+
+An HTTP endpoint is in no service, so a rule for `sns-to-http` sets no `--service`. `--http-status` and `--http-timeout` answer such an attempt without a receiver, which drives SNS's HTTP retry schedule ([SNS HTTP delivery](sns-http.md#retries-and-dead-letters)): a 429, a 5xx or a timeout is retried, and any other status is a permanent failure.
+
+```sh
+understudy faults add --id unavailable --phase delivery --mechanism sns-to-http --http-status 503 --next 1
+understudy faults add --phase delivery --mechanism sns-to-sqs --http-status 503
+```
+
+```text
+understudy faults add: fault rule rejected, no rule was added or changed: match.mechanisms: the http-status action applies to sns-to-http deliveries only, which match.mechanisms does not list
+```
 
 ## SDK retries
 
