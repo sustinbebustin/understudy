@@ -109,11 +109,15 @@ const sourceOwnerHeader ownerHeader = "x-amz-source-expected-bucket-owner"
 // readSource reads the copy source without admitting the request against
 // the source bucket: a copy may cross regions, and understudy checks no
 // access. x-amz-source-expected-bucket-owner naming another account is
-// AccessDenied; source conditions fail with 412 (s3.md 5.10, 7). A source
-// read holds a reference on the source's blob, taken under the source
-// bucket's lock so a concurrent delete cannot drop the bytes before the
-// copy commits; the caller hands it to the new version or releases it.
-func (s *Service) readSource(blobs *blob.Store, src copySource, owner *string, conds readConditions, now time.Time) (source, *awserr.Error) {
+// AccessDenied; source conditions fail with 412 (s3.md 5.10, 7). The
+// source's SSE-C trio key, sent over scheme, is judged before the
+// conditions, as a read's is (readObject), so no 412 reveals an SSE-C
+// version's ETag or Last-Modified to a caller without its key
+// (s3-ssec-object-lock.md 11.7; the order is inferred). A source read
+// holds a reference on the source's blob, taken under the source bucket's
+// lock so a concurrent delete cannot drop the bytes before the copy
+// commits; the caller hands it to the new version or releases it.
+func (s *Service) readSource(blobs *blob.Store, src copySource, owner *string, conds readConditions, key customerHeaders, scheme string, now time.Time) (source, *awserr.Error) {
 	var claim *ownerClaim
 	if owner != nil {
 		claim = &ownerClaim{header: sourceOwnerHeader, account: *owner}
@@ -124,6 +128,9 @@ func (s *Service) readSource(blobs *blob.Store, src copySource, owner *string, c
 		}
 		v, err := sourceVersion(b, src)
 		if err != nil {
+			return source{}, err
+		}
+		if _, err := checkCustomerRead(v.Object.Encryption, key, scheme); err != nil {
 			return source{}, err
 		}
 		if err := copySourceError(conds.evaluate(v.validator(), now), conds); err != nil {
@@ -211,7 +218,8 @@ func (s *Service) copyObject(ctx context.Context, c *kernel.Call, in *s3api.Copy
 	src, err := s.readSource(blobs, srcRef, in.ExpectedSourceBucketOwner, readConditions{
 		ifMatch: in.CopySourceIfMatch, ifNoneMatch: in.CopySourceIfNoneMatch,
 		ifModifiedSince: in.CopySourceIfModifiedSince, ifUnmodifiedSince: in.CopySourceIfUnmodifiedSince,
-	}, c.Admitted().Wire())
+	}, customerHeaders{algorithm: in.CopySourceSSECustomerAlgorithm, key: in.CopySourceSSECustomerKey, keyMD5: in.CopySourceSSECustomerKeyMD5},
+		c.Endpoint().Scheme, c.Admitted().Wire())
 	if err != nil {
 		return nil, err
 	}
@@ -224,10 +232,6 @@ func (s *Service) copyObject(ctx context.Context, c *kernel.Call, in *s3api.Copy
 			s.release(ctx, so.Blob)
 		}
 	}()
-	sourceKey := customerHeaders{algorithm: in.CopySourceSSECustomerAlgorithm, key: in.CopySourceSSECustomerKey, keyMD5: in.CopySourceSSECustomerKeyMD5}
-	if _, err := checkCustomerRead(so.Encryption, sourceKey, c.Endpoint().Scheme); err != nil {
-		return nil, err
-	}
 	if archived(so.StorageClass) {
 		return nil, s3api.ErrObjectNotInActiveTierError("The source object of the COPY action is not in the active tier and is only stored in Amazon S3 Glacier.")
 	}

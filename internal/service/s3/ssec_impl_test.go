@@ -30,6 +30,27 @@ func TestSSECReadWithoutKeyBeforeConditionsAndRange(t *testing.T) {
 	})
 }
 
+// TestSSECCopySourceKeyBeforeConditions: a copy source that is SSE-C is
+// refused for its missing key before the copy-source conditions are
+// judged, on CopyObject and UploadPartCopy, as a read is, so no 412
+// reveals its ETag (s3-ssec-object-lock.md 11.7; the order is inferred).
+func TestSSECCopySourceKeyBeforeConditions(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		t := h.T
+		h.createBucket("ssec")
+		h.allowSSEC("ssec")
+		out := h.mustPutSSEC("ssec", "enc", "test_data", key1)
+		needsKey := failure{status: 400, code: "InvalidRequest", message: textNeedsKey}
+		_, err := as(h, overTLS, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "ssec", Key: "copy", CopySource: "ssec/enc", CopySourceIfNoneMatch: out.ETag})
+		needsKey.is(t, "CopyObject with a matching x-amz-copy-source-if-none-match and no source key", err)
+		id := h.startUploadAs(overTLS, "ssec", "parts", s3api.CreateMultipartUploadInput{})
+		_, err = as(h, overTLS, s3api.OpUploadPartCopy, &s3api.UploadPartCopyInput{
+			Bucket: "ssec", Key: "parts", UploadId: id, PartNumber: 1, CopySource: "ssec/enc", CopySourceIfMatch: new(`"not-the-etag"`),
+		})
+		needsKey.is(t, "UploadPartCopy with a failing x-amz-copy-source-if-match and no source key", err)
+	})
+}
+
 // TestPlainReadsReportNoCustomerKey: a read of an object that is not
 // SSE-C reports x-amz-server-side-encryption and no SSE-C pair
 // (s3-ssec-object-lock.md 3.4).

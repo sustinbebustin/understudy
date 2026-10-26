@@ -95,16 +95,13 @@ func (s *Service) uploadPartCopy(ctx context.Context, c *kernel.Call, in *s3api.
 	src, err := s.readSource(blobs, srcRef, in.ExpectedSourceBucketOwner, readConditions{
 		ifMatch: in.CopySourceIfMatch, ifNoneMatch: in.CopySourceIfNoneMatch,
 		ifModifiedSince: in.CopySourceIfModifiedSince, ifUnmodifiedSince: in.CopySourceIfUnmodifiedSince,
-	}, c.Admitted().Wire())
+	}, customerHeaders{algorithm: in.CopySourceSSECustomerAlgorithm, key: in.CopySourceSSECustomerKey, keyMD5: in.CopySourceSSECustomerKeyMD5},
+		c.Endpoint().Scheme, c.Admitted().Wire())
 	if err != nil {
 		return nil, err
 	}
 	so := src.version.Object
 	defer s.release(ctx, so.Blob)
-	sourceKey := customerHeaders{algorithm: in.CopySourceSSECustomerAlgorithm, key: in.CopySourceSSECustomerKey, keyMD5: in.CopySourceSSECustomerKeyMD5}
-	if _, err := checkCustomerRead(so.Encryption, sourceKey, c.Endpoint().Scheme); err != nil {
-		return nil, err
-	}
 	if archived(so.StorageClass) {
 		return nil, s3api.ErrObjectNotInActiveTierError("The source object of the COPY action is not in the active tier and is only stored in Amazon S3 Glacier.")
 	}
