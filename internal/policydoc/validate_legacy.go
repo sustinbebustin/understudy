@@ -174,12 +174,12 @@ func resourceFormatError(r string) *ValidationError {
 	}
 	service, regionRest, _ := strings.Cut(rest, ":")
 	_, accountRest, _ := strings.Cut(regionRest, ":")
-	_, resourceID, _ := strings.Cut(accountRest, ":")
+	account, resourceID, _ := strings.Cut(accountRest, ":")
 	hasRegion := !strings.HasPrefix(regionRest, ":")
 	switch {
 	case service == "iam" && hasRegion:
 		return &ValidationError{Rule: RuleIAMResourceRegion, Subject: r}
-	case service == "s3" && hasRegion && !slices.ContainsFunc(s3RegionalResources(), func(p string) bool { return strings.HasPrefix(resourceID, p) }):
+	case service == "s3" && hasRegion && !s3RegionalResource(account, resourceID):
 		return &ValidationError{Rule: RuleS3ResourceRegion, Subject: r}
 	case service == "iam" && resourceID != "*" && !slices.ContainsFunc(iamResourcePaths(), func(p string) bool { return strings.HasPrefix(resourceID, p) }):
 		return &ValidationError{Rule: RuleIAMResourcePath, Subject: r}
@@ -208,6 +208,17 @@ func knownPartition(p string) bool {
 	}
 }
 
+// s3RegionalResource reports whether the S3 region rule exempts a resource
+// with a region, by its account and resource elements: the account is not
+// empty and the resource starts with one of s3RegionalResources. Every
+// exempted ARN format has an account element, and bucket and object ARNs
+// leave it empty, so an object in a bucket named like a resource type
+// (arn:aws:s3:us-east-1::job/k) keeps the rule. moto exempts accesspoint/
+// by its prefix alone, an empty account included.
+func s3RegionalResource(account, resourceID string) bool {
+	return account != "" && slices.ContainsFunc(s3RegionalResources(), func(p string) bool { return strings.HasPrefix(resourceID, p) })
+}
+
 // s3RegionalResources are the leading literal parts of the resource element
 // of the S3 resource types whose ARN format carries a region, which the S3
 // region rule exempts. They are the resource types table of the Service
@@ -215,9 +226,14 @@ func knownPartition(p string) bool {
 // (https://docs.aws.amazon.com/service-authorization/latest/reference/list_s3.html,
 // read 2026-10-26): accessgrantsinstance, accessgrant and
 // accessgrantslocation; accesspoint and accesspointobject; job;
-// multiregionaccesspointrequestarn, whose format fixes the region at
-// us-west-2; storagelensconfiguration and storagelensgroup. bucket and
-// object carry no region. moto exempts access points alone.
+// multiregionaccesspointrequestarn; storagelensconfiguration and
+// storagelensgroup. bucket and object carry no region. moto exempts access
+// points alone. The formats describe resources for authorization, not what
+// CreatePolicy accepts: whether CreatePolicy accepts any of these in a
+// customer policy is UNVERIFIED (iam-evaluation.md 10.6, IAM-EVAL-36).
+// multiregionaccesspointrequestarn's format fixes the region at us-west-2,
+// but no region's value is checked, so it is accepted in any region, also
+// UNVERIFIED.
 func s3RegionalResources() []string {
 	return []string{"access-grants/", "accesspoint/", "async-request/mrap/", "job/", "storage-lens/", "storage-lens-group/"}
 }

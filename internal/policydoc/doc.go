@@ -38,9 +38,11 @@
 //   - Four resource checks depart from moto. The S3 region rule exempts
 //     every S3 resource type whose ARN format carries a region in the
 //     Service Authorization Reference (access grants, batch jobs, Storage
-//     Lens, multi-Region access point requests), where moto exempts access
-//     points alone; AWS's managed policies name access grants that way
-//     (iam-evaluation.md 10.6). The IAM resource path rule
+//     Lens, multi-Region access point requests in any region), when the
+//     account element is not empty, where moto exempts access points alone
+//     and by prefix; AWS's managed policies name access grants that way.
+//     Whether CreatePolicy accepts them in a customer policy is UNVERIFIED
+//     (iam-evaluation.md 10.6, IAM-EVAL-36). The IAM resource path rule
 //     accepts a resource element of "*" (arn:aws:iam::111111111111:*), which
 //     moto rejects; IAM policies use that form, and the rule's own text
 //     allows "*". An empty string in a Resource list is checked like any

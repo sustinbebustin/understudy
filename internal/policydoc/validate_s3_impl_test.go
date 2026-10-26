@@ -11,7 +11,10 @@ import (
 // Reference for Amazon S3
 // (https://docs.aws.amazon.com/service-authorization/latest/reference/list_s3.html);
 // bucket and object ARNs carry none and keep the rule. The accepted ARNs are
-// the table's formats with values filled in.
+// the table's formats with values filled in. Every exempted format has an
+// account element and bucket and object ARNs leave it empty, so an object
+// in a bucket named like a resource type keeps the rule. Whether CreatePolicy
+// agrees is UNVERIFIED (iam-evaluation.md 10.6, IAM-EVAL-36).
 func TestS3RegionRuleFollowsTheServiceAuthorizationReference(t *testing.T) {
 	for name, tc := range map[string]struct {
 		resource string
@@ -28,10 +31,18 @@ func TestS3RegionRuleFollowsTheServiceAuthorizationReference(t *testing.T) {
 		"storagelensgroup":                  {resource: "arn:aws:s3:us-east-1:111111111111:storage-lens-group/g1"},
 		"accessgrant with wildcards":        {resource: "arn:aws:s3:*:*:access-grants/default/grant/*"},
 		"multiregionaccesspoint, no region": {resource: "arn:aws:s3::111111111111:accesspoint/example.mrap"},
-		"bucket with a region":              {resource: "arn:aws:s3:us-east-1:111111111111:reports", refused: true},
-		"object with a region":              {resource: "arn:aws:s3:us-east-1:111111111111:reports/q1.csv", refused: true},
-		"bucket named like a resource type": {resource: "arn:aws:s3:us-east-1:111111111111:jobs/j1", refused: true},
-		"storage lens without its slash":    {resource: "arn:aws:s3:us-east-1:111111111111:storage-lensx/c1", refused: true},
+		// The format fixes us-west-2, but policydoc checks no region's value.
+		"multiregionaccesspointrequestarn in another region": {resource: "arn:aws:s3:eu-west-1:111111111111:async-request/mrap/CreateMultiRegionAccessPoint/t1"},
+		"bucket with a region":                               {resource: "arn:aws:s3:us-east-1:111111111111:reports", refused: true},
+		"object with a region":                               {resource: "arn:aws:s3:us-east-1:111111111111:reports/q1.csv", refused: true},
+		"bucket named like a resource type":                  {resource: "arn:aws:s3:us-east-1:111111111111:jobs/j1", refused: true},
+		"storage lens without its slash":                     {resource: "arn:aws:s3:us-east-1:111111111111:storage-lensx/c1", refused: true},
+		"object in a bucket named access-grants":             {resource: "arn:aws:s3:us-east-1::access-grants/k", refused: true},
+		"object in a bucket named accesspoint":               {resource: "arn:aws:s3:us-east-1::accesspoint/k", refused: true},
+		"object in a bucket named async-request":             {resource: "arn:aws:s3:us-west-2::async-request/mrap/k", refused: true},
+		"object in a bucket named job":                       {resource: "arn:aws:s3:us-east-1::job/k", refused: true},
+		"object in a bucket named storage-lens":              {resource: "arn:aws:s3:us-east-1::storage-lens/k", refused: true},
+		"object in a bucket named storage-lens-group":        {resource: "arn:aws:s3:us-east-1::storage-lens-group/k", refused: true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			doc := mustParse(t, `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:*","Resource":"`+tc.resource+`"}]}`)
