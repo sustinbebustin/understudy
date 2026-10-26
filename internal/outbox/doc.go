@@ -113,12 +113,14 @@
 // A dead letter is the payload the target would have received: for SQS the
 // body (the SNS envelope, or the raw message with its attributes as SQS
 // message attributes, sns.md 7.4) with group and deduplication ids kept for
-// a FIFO dead-letter queue; a function's event, a topic's message, an
-// object's body or an HTTP endpoint's body otherwise. An EventBus delivery
-// takes no dead-letter queue: its dead letter's form is not researched. An EventBridge dead letter adds the String attributes
-// RULE_ARN, TARGET_ARN, ERROR_CODE, ERROR_MESSAGE, RETRY_ATTEMPTS and, when
-// retries ran out, EXHAUSTED_RETRY_CONDITION (eb-rule-dlq). A dead letter
-// the queue refuses is dropped, both reasons journaled.
+// a FIFO dead-letter queue; a function's event, a topic's message or an
+// HTTP endpoint's body otherwise, the HTTP form UNVERIFIED
+// (sns-http-delivery.md 6.5). An EventBus or S3Object delivery takes no
+// dead-letter queue: its dead letter's form is not researched. An
+// EventBridge dead letter adds the String attributes RULE_ARN, TARGET_ARN,
+// ERROR_CODE, ERROR_MESSAGE, RETRY_ATTEMPTS and, when retries ran out,
+// EXHAUSTED_RETRY_CONDITION (eb-rule-dlq). A dead letter the queue refuses
+// is dropped, both reasons journaled.
 //
 // # Known gaps
 //

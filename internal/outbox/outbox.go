@@ -216,22 +216,38 @@ func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 	if err := checkPolicy(req.Policy); err != nil {
 		return aws.Scope{}, err
 	}
-	if req.DLQ != nil {
-		if _, ok := req.Target.(delivery.EventBus); ok {
-			return aws.Scope{}, &RequestError{Field: "DLQ", Reason: "is set, but an EventBus delivery has no dead-letter format yet"}
-		}
-		if req.DLQ.Service != "sqs" {
-			return aws.Scope{}, &RequestError{Field: "DLQ", Reason: fmt.Sprintf("%s is not an SQS queue", req.DLQ)}
-		}
-		if _, err := scopeOf(*req.DLQ); err != nil {
-			return aws.Scope{}, &RequestError{Field: "DLQ", Reason: unservedScope, Err: err}
-		}
+	if err := checkDLQ(req); err != nil {
+		return aws.Scope{}, err
 	}
 	scope, serr := scopeOf(in)
 	if serr != nil {
 		return aws.Scope{}, &RequestError{Field: field, Reason: unservedScope, Err: serr}
 	}
 	return scope, nil
+}
+
+// checkDLQ checks req's dead-letter queue, if it has one: an SQS queue in
+// a scope understudy serves, for a target whose dead letter has a known
+// form. No research gives the form of an EventBus or S3Object dead letter,
+// so either refuses a queue until its producer researches it.
+func checkDLQ(req delivery.Request) *RequestError {
+	if req.DLQ == nil {
+		return nil
+	}
+	switch req.Target.(type) {
+	case delivery.EventBus:
+		return &RequestError{Field: "DLQ", Reason: "is set, but an EventBus delivery has no dead-letter format yet"}
+	case delivery.S3Object:
+		return &RequestError{Field: "DLQ", Reason: "is set, but an S3Object delivery has no dead-letter format yet"}
+	case delivery.SQSQueue, delivery.LambdaFunction, delivery.SNSTopic, delivery.HTTPEndpoint:
+	}
+	if req.DLQ.Service != "sqs" {
+		return &RequestError{Field: "DLQ", Reason: fmt.Sprintf("%s is not an SQS queue", req.DLQ)}
+	}
+	if _, err := scopeOf(*req.DLQ); err != nil {
+		return &RequestError{Field: "DLQ", Reason: unservedScope, Err: err}
+	}
+	return nil
 }
 
 // checkTarget checks req's target, and that req's mechanism delivers to
@@ -301,7 +317,8 @@ func checkS3Object(t delivery.S3Object) *RequestError {
 	return nil
 }
 
-// checkHTTPEndpoint checks that t's URL is http or https and names a host.
+// checkHTTPEndpoint checks that t's URL is http or https and names a host,
+// and that no header of t frames the message.
 func checkHTTPEndpoint(t delivery.HTTPEndpoint) *RequestError {
 	if t.URL.Scheme != "http" && t.URL.Scheme != "https" {
 		return &RequestError{Field: "Target.URL", Reason: fmt.Sprintf("has the scheme %q; an HTTP endpoint is http or https", t.URL.Scheme)}
@@ -309,7 +326,26 @@ func checkHTTPEndpoint(t delivery.HTTPEndpoint) *RequestError {
 	if t.URL.Hostname() == "" {
 		return &RequestError{Field: "Target.URL", Reason: "names no host"}
 	}
+	for i, h := range t.Headers {
+		if framingHeader(h.Name) {
+			return &RequestError{Field: fmt.Sprintf("Target.Headers[%d]", i), Reason: fmt.Sprintf("is %q, which frames the request; egress writes it", h.Name)}
+		}
+	}
 	return nil
+}
+
+// framingHeader reports whether name, in any case, is a header egress
+// writes to frame the request or its connection. Headers keep the case the
+// producer gives (sns-http-delivery.md 3.2), so net/http would send such a
+// header beside its own, and two Content-Length values, or Content-Length
+// with Transfer-Encoding, leave the receiver to guess where the body ends.
+func framingHeader(name string) bool {
+	for _, f := range []string{"Host", "Content-Length", "Transfer-Encoding", "Connection", "Trailer", "TE"} {
+		if strings.EqualFold(name, f) {
+			return true
+		}
+	}
+	return false
 }
 
 // arnTarget checks that m delivers to the service of target, an ARN a

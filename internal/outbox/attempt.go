@@ -187,10 +187,14 @@ func (a *attempt) end(ctx context.Context, err *awserr.Error) (journal.DeliveryO
 }
 
 // endHTTP is the outcome of an HTTPEndpoint attempt that ended as r; false
-// when the kernel stopped first. A 2xx delivers; 429, 5xx and a failed or
-// timed-out exchange are retried; any other answer is a permanent failure
-// (sns-http-delivery.md 6.1). A request egress refused, or one with no
-// client to send it, is Refused: never retried or dead-lettered (7.3).
+// when the kernel stopped first. By the reading sns-http-delivery.md 6.1
+// recommends, a 2xx delivers; 429, 5xx and a failed or timed-out exchange
+// are retried; any other answer is a permanent failure, dead-lettered when
+// the delivery has a queue. 6.1 leaves UNVERIFIED whether a
+// connection-level failure is retried (SNSH-24), and the class of 3xx and
+// other 4xx and whether a permanent failure goes to the DLQ (SNSH-05). A
+// request egress refused, or one with no client to send it, is Refused:
+// never retried or dead-lettered (7.3).
 func (a *attempt) endHTTP(ctx context.Context, r httpResult) (journal.DeliveryOutcome, bool) {
 	if ctx.Err() != nil {
 		return nil, false

@@ -135,10 +135,13 @@ func (b objectBody) Len() (int64, bool) { return int64(len(b)), true }
 func (objectBody) Trailer(string) (string, bool) { return "", false }
 
 // postHTTP POSTs t's body to its URL with its headers through client, the
-// one outbound dialer, and classifies the answer: 2xx accepted; 429, 5xx
-// and a failed or timed-out exchange retried; any other status permanent
-// (sns-http-delivery.md 6.1). A request client refuses, or any request when
-// client is nil, is refused (7.3).
+// one outbound dialer, and classifies the answer by the reading
+// sns-http-delivery.md 6.1 recommends: 2xx accepted; 429, 5xx and a
+// timed-out exchange retried; any other status permanent. Two of those
+// classes are UNVERIFIED there: a connection-level failure (refused,
+// reset, DNS or TLS) is retried under the server-side reading (SNSH-24),
+// and 3xx and 4xx other than 429 are permanent (SNSH-05). A request client
+// refuses, or any request when client is nil, is refused (7.3).
 func postHTTP(ctx context.Context, client *egress.Client, t delivery.HTTPEndpoint) httpResult {
 	if client == nil {
 		return httpRefused{reason: "outbound HTTP delivery is off: no allow-list enables it, so nothing was sent to " + endpointOf(t)}

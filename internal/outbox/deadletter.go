@@ -69,10 +69,11 @@ func (e ending) reason(f failure) string {
 // The body is the payload the target would have received. For SNS to SQS
 // that is what the subscription would have received: the envelope, or the
 // raw message with its attributes as SQS attributes (sns.md 7.4). A
-// function's event, a topic's message, an object's body and an HTTP
-// endpoint's body become the body. Group and deduplication ids carry over
-// to a FIFO dead-letter queue. An EventBridge dead letter also carries the
-// failure as message attributes (eventBridgeAttributes).
+// function's event, a topic's message and an HTTP endpoint's body become
+// the body. The HTTP form is UNVERIFIED: sns-http-delivery.md 6.5 gives
+// SQS's as the likely one (SNSH-08). Group and deduplication ids carry
+// over to a FIFO dead-letter queue. An EventBridge dead letter also
+// carries the failure as message attributes (eventBridgeAttributes).
 func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage {
 	m := sqsMessage{queue: dlq}
 	switch t := e.Request.Target.(type) {
@@ -85,11 +86,9 @@ func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage 
 		m.body = string(t.Event)
 	case delivery.SNSTopic:
 		m.body, m.attributes = t.Message, t.Attributes
-	case delivery.EventBus:
-		// Enqueue refuses a dead-letter queue for an EventBus delivery: the
-		// form of its dead letter is not researched.
-	case delivery.S3Object:
-		m.body = string(t.Body)
+	case delivery.EventBus, delivery.S3Object:
+		// Enqueue refuses a dead-letter queue for these deliveries
+		// (checkDLQ): the form of their dead letter is not researched.
 	case delivery.HTTPEndpoint:
 		m.body = string(t.Body)
 	}
@@ -107,8 +106,9 @@ func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage 
 // condition is absent: understudy sends every one as a String and leaves
 // the condition out when the target refused the delivery outright, since
 // then no retry limit was reached. No EventBridge mechanism delivers to an
-// HTTP endpoint yet; its failure is sent as ERROR_FROM_TARGET with its
-// reason as the message.
+// HTTP endpoint yet; its failure, a 429 included, is sent as
+// ERROR_FROM_TARGET with its reason as the message. That code choice is
+// UNVERIFIED: no research covers an EventBridge HTTP target's dead letter.
 func eventBridgeAttributes(e *Entry, f failure, end ending) []delivery.MessageAttribute {
 	code, message := "ERROR_FROM_TARGET", describeFailure(f)
 	if te, ok := f.(targetError); ok {

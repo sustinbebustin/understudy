@@ -196,6 +196,11 @@ func TestNewTargetChecks(t *testing.T) {
 		{"https", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("https://hooks.example.test/")}), ""},
 		{"ftp", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("ftp://hooks.example.test/")}), "Target.URL"},
 		{"no host", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("http:///hook")}), "Target.URL"},
+		{"a header", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("http://127.0.0.1:8080/"), Headers: []delivery.HTTPHeader{{Name: "x-amz-sns-message-type", Value: "Notification"}}}), ""},
+		{"a lower-case content-length", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("http://127.0.0.1:8080/"), Headers: []delivery.HTTPHeader{{Name: "x-amz-sns-message-type", Value: "Notification"}, {Name: "content-length", Value: "0"}}}), "Target.Headers[1]"},
+		{"a transfer-encoding", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("http://127.0.0.1:8080/"), Headers: []delivery.HTTPHeader{{Name: "Transfer-Encoding", Value: "chunked"}}}), "Target.Headers[0]"},
+		{"a host", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("http://127.0.0.1:8080/"), Headers: []delivery.HTTPHeader{{Name: "HOST", Value: "elsewhere.test"}}}), "Target.Headers[0]"},
+		{"a connection", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("http://127.0.0.1:8080/"), Headers: []delivery.HTTPHeader{{Name: "connection", Value: "keep-alive"}}}), "Target.Headers[0]"},
 	}
 	for _, c := range cases {
 		switch {
@@ -284,22 +289,43 @@ func TestPostHTTPClassifiesA404AsPermanent(t *testing.T) {
 	})
 }
 
-// A dead letter of an object or an HTTP delivery carries the body the
-// target would have received.
-func TestDeadLettersCarryTheBody(t *testing.T) {
+// A dead letter of an HTTP delivery carries the body the endpoint would
+// have received. understudy's choice: the form is UNVERIFIED, and
+// sns-http-delivery.md 6.5 gives SQS's as the likely one (SNSH-08).
+func TestHTTPDeadLetterCarriesTheBody(t *testing.T) {
 	dlq := aws.ARN{Partition: "aws", Service: "sqs", Region: "us-east-1", Account: "000000000000", Resource: "dlq"}
 	hook, err := url.Parse("http://127.0.0.1:8080/hook")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, target := range []delivery.Target{
-		delivery.S3Object{Bucket: "b", Key: "k", Body: []byte("object body")},
-		delivery.HTTPEndpoint{URL: *hook, Body: []byte("object body")},
-	} {
-		e := &Entry{Request: delivery.Request{Mechanism: delivery.SNSToSQS, Target: target}}
-		m := deadLetterMessage(e, dlq, endpointError{reason: "HTTP 404 Not Found"}, refused)
-		if m.body != "object body" || m.queue != dlq || len(m.attributes) != 0 {
-			t.Errorf("dead letter of %T = %+v, want the body alone in %s", target, m, dlq)
+	e := &Entry{Request: delivery.Request{Mechanism: delivery.SNSToSQS, Target: delivery.HTTPEndpoint{URL: *hook, Body: []byte("hook body")}}}
+	m := deadLetterMessage(e, dlq, endpointError{reason: "HTTP 404 Not Found"}, refused)
+	if m.body != "hook body" || m.queue != dlq || len(m.attributes) != 0 {
+		t.Errorf("dead letter = %+v, want the body alone in %s", m, dlq)
+	}
+}
+
+// A dead-letter queue is refused for a target whose dead letter has no
+// researched form, an event bus or an S3 object, and taken for an HTTP
+// endpoint.
+func TestCheckDLQ(t *testing.T) {
+	dlq := aws.ARN{Partition: "aws", Service: "sqs", Region: "us-east-1", Account: "000000000000", Resource: "dlq"}
+	hook, err := url.Parse("http://127.0.0.1:8080/hook")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		target  delivery.Target
+		refused bool
+	}{
+		{busCode(""), true},
+		{delivery.S3Object{Bucket: "b", Key: "k", Body: []byte("b")}, true},
+		{delivery.HTTPEndpoint{URL: *hook, Body: []byte("b")}, false},
+	}
+	for _, c := range cases {
+		err := checkDLQ(delivery.Request{Target: c.target, DLQ: &dlq})
+		if refused := err != nil && err.Field == "DLQ"; refused != c.refused {
+			t.Errorf("checkDLQ(%T with a queue) = %v, want refused %t", c.target, err, c.refused)
 		}
 	}
 }
