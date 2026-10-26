@@ -8,9 +8,13 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
-// exportVersion is the schema version of the Export document; Import refuses
-// any other.
-const exportVersion = 1
+// exportVersion is the schema version Export writes. Version 2 added an
+// error action's members; Import reads version 1 too, whose rules carry
+// none, with the same rule decoder, and refuses any other.
+const exportVersion = 2
+
+// readsVersion reports whether Import reads an Export document of version v.
+func readsVersion(v int) bool { return v == 1 || v == exportVersion }
 
 // exportJSON is the Export document: the active rules in evaluation order,
 // each with its hits and, for a Probability rule, its stream position.
@@ -128,8 +132,8 @@ func (s *Store) Import(data []byte) error {
 	if err := jsonx.Unmarshal(data, &doc); err != nil {
 		return &ImportError{Index: -1, Reason: "it is not a fault rules document", Cause: err}
 	}
-	if doc.Version != exportVersion {
-		return &ImportError{Index: -1, Reason: fmt.Sprintf("version %d is not the version %d this binary reads", doc.Version, exportVersion)}
+	if !readsVersion(doc.Version) {
+		return &ImportError{Index: -1, Reason: fmt.Sprintf("version %d is not one of the versions 1 and %d this binary reads", doc.Version, exportVersion)}
 	}
 	if err := checkReplay(doc.Rules); err != nil {
 		return err

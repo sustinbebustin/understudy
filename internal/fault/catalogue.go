@@ -95,10 +95,15 @@ func statusOKOperations() []ref.OperationID {
 
 // resolved holds the identities a valid rule's action injects: per matched
 // operation for the shape-carrying actions, per matched service for
-// Throttle, and neither for Latency and DropDelivery.
+// Throttle, and neither for Latency and DropDelivery. An error action with
+// members also has what a hit needs per operation, and minItems, the
+// fewest transaction items a call it matches has: its number of
+// cancellation reasons, 0 for any other rule.
 type resolved struct {
 	byOp      map[ref.OperationID]awserr.Identity
 	byService map[ref.ServiceID]awserr.Identity
+	members   map[ref.OperationID]memberPlan
+	minItems  int
 }
 
 // identity returns what the rule injects into the call in, or false when the
@@ -297,19 +302,9 @@ func checkTrigger(r Rule) *RuleError {
 func resolveAction(cat Catalogue, r Rule) (resolved, *RuleError) {
 	switch a := r.Action.(type) {
 	case Error:
-		res, err := resolveShape(cat, r, a.Shape)
-		if err != nil || a.Message == "" {
-			return res, err
-		}
-		for _, op := range slices.SortedFunc(maps.Keys(res.byOp), compareOps) {
-			if res.byOp[op].MessageKey == awserr.NoMessage {
-				return resolved{}, reject(r, "action.message", "%s has no message member, so %s never sends a message with it; leave action.message empty",
-					res.byOp[op].Shape, op)
-			}
-		}
-		return res, nil
+		return resolveError(cat, r, a)
 	case AfterCommit:
-		return resolveShape(cat, r, a.Shape)
+		return resolveAfterCommit(cat, r, a)
 	case StatusOKError:
 		for _, op := range r.Match.Operations {
 			if !slices.Contains(statusOKOperations(), op) {
@@ -324,6 +319,49 @@ func resolveAction(cat Catalogue, r Rule) (resolved, *RuleError) {
 	default:
 		return resolved{}, reject(r, "action", "is an action this version does not know")
 	}
+}
+
+// resolveError resolves an error action's shape, then checks its message
+// and members against each matched operation in order.
+func resolveError(cat Catalogue, r Rule, a Error) (resolved, *RuleError) {
+	res, err := resolveShape(cat, r, a.Shape)
+	if err != nil {
+		return res, err
+	}
+	ops := slices.SortedFunc(maps.Keys(res.byOp), compareOps)
+	for _, op := range ops {
+		if a.Message != "" && res.byOp[op].MessageKey == awserr.NoMessage {
+			return resolved{}, reject(r, "action.message", "%s has no message member, so %s never sends a message with it; leave action.message empty",
+				res.byOp[op].Shape, op)
+		}
+	}
+	res.members = make(map[ref.OperationID]memberPlan, len(ops))
+	for _, op := range ops {
+		plan, err := checkMembers(cat, r, a, op, res.byOp[op])
+		if err != nil {
+			return resolved{}, err
+		}
+		res.members[op] = plan
+	}
+	res.minItems = reasonCount(a)
+	return res, nil
+}
+
+// resolveAfterCommit resolves an after-commit action's shape. A cancelled
+// transaction changed nothing (smithy-protocol-tests.md 12.2), so
+// TransactionCanceledException never follows a commit.
+func resolveAfterCommit(cat Catalogue, r Rule, a AfterCommit) (resolved, *RuleError) {
+	res, err := resolveShape(cat, r, a.Shape)
+	if err != nil {
+		return res, err
+	}
+	for _, op := range slices.SortedFunc(maps.Keys(res.byOp), compareOps) {
+		if res.byOp[op].Shape == transactionCanceled {
+			return resolved{}, reject(r, "action.shape", "%s means the transaction changed nothing, so AWS never sends it after a commit; "+
+				"inject it with an error action whose members set CancellationReasons", transactionCanceled)
+		}
+	}
+	return res, nil
 }
 
 // resolveShape finds shape among the errors of every matched operation.
@@ -341,26 +379,9 @@ func resolveShape(cat Catalogue, r Rule, shape smithy.ShapeID) (resolved, *RuleE
 		if err != nil {
 			return resolved{}, err
 		}
-		if member, instead, ok := unsettable(id.Shape); ok {
-			return resolved{}, reject(r, "action.shape", "%s always carries %s on AWS, which a fault rule cannot set yet, so the error would not be AWS's; %s",
-				id.Shape, member, instead)
-		}
 		byOp[op] = id
 	}
 	return resolved{byOp: byOp}, nil
-}
-
-// unsettable reports an error shape AWS always sends with a member beyond
-// its message, which a rule cannot set until errors carry structured
-// members (ROADMAP.md item 3), so injecting it would send an error AWS
-// never sends. It returns the member and what to inject instead.
-func unsettable(shape smithy.ShapeID) (member, instead string, ok bool) {
-	if shape == "com.amazonaws.dynamodb#TransactionCanceledException" {
-		// One cancellation reason per item of the transaction
-		// (dynamodb-local.md 4.2).
-		return "CancellationReasons", "to simulate a conflict, inject TransactionConflictException or ConditionalCheckFailedException on PutItem, UpdateItem or DeleteItem", true
-	}
-	return "", "", false
 }
 
 // emulatorNamespace holds understudy's own shapes, such as the

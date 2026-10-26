@@ -77,6 +77,15 @@
 //     and names the rule, when its shape has a message member. A shape
 //     without one carries no message on the wire, so Add rejects an Error
 //     action that gives it a message the client would never receive.
+//   - An Error action's members set the error's other members, in the
+//     awsJson1_0 form whatever the protocol. Add decodes them strictly
+//     through the shape's generated deserializer, which the Catalogue hands
+//     it. Among the real services only DynamoDB generates deserializers
+//     for its error shapes, the one customer (smithy-protocol-tests.md
+//     11.5), so only its errors take members. A
+//     TransactionCanceledException rule must give CancellationReasons; it
+//     matches only a call of at least as many items, and each item past
+//     its reasons gets the reason None (smithy-protocol-tests.md 14.9).
 //   - Without a seed, streams are keyed from crypto/rand, and Import keeps
 //     the recorded positions as counts without replaying.
 //   - encoding/json/v2 has no representation for time.Duration, so Latency
