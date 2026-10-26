@@ -23,7 +23,7 @@ import (
 // bindObjects binds the object operations.
 func (s *Service) bindObjects(b s3api.Binder) {
 	put := func(in *s3api.PutObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutObject(s.putObject, registry.Partial{Note: "no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify"}, touches(put))
+	b.PutObject(s.putObject, registry.Partial{Note: "no SSE-C; " + objectLockNote + "; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify"}, touches(put))
 	get := func(in *s3api.GetObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetObject(s.getObject, registry.Partial{Note: "no SSE-C, so SSE-C headers are refused; presigned URLs are verified and expire on the emulator clock under sigv4 verify"}, touches(get))
 	head := func(in *s3api.HeadObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
@@ -35,7 +35,7 @@ func (s *Service) bindObjects(b s3api.Binder) {
 	dels := func(in *s3api.DeleteObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteObjects(s.deleteObjects, registry.Partial{Note: "no MFA delete or Object Lock retention"}, touches(dels))
 	cp := func(in *s3api.CopyObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.CopyObject(s.copyObject, registry.Partial{Note: "no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error"}, touches(cp))
+	b.CopyObject(s.copyObject, registry.Partial{Note: "no SSE-C; " + objectLockNote + "; an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error"}, touches(cp))
 	lv1 := func(in *s3api.ListObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListObjects(reader(s, lv1, listObjects), registry.Partial{Note: "no RestoreStatus"}, touches(lv1))
 	lv2 := func(in *s3api.ListObjectsV2Input) access { return at(in.Bucket, in.ExpectedBucketOwner) }

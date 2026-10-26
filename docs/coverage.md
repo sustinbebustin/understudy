@@ -880,8 +880,8 @@ Internal operations:
 | PutPublicAccessBlock | stored-only | the public access block is stored and echoed; not applied |
 | AbortMultipartUpload | partial | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
 | CompleteMultipartUpload | partial | no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
-| CopyObject | partial | no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error |
-| CreateMultipartUpload | partial | no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; no lifecycle abort date |
+| CopyObject | partial | no SSE-C; Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error |
+| CreateMultipartUpload | partial | no SSE-C; Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; no lifecycle abort date |
 | DeleteBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | DeleteObject | partial | no MFA delete or Object Lock retention |
 | DeleteObjects | partial | no MFA delete or Object Lock retention |
@@ -896,7 +896,7 @@ Internal operations:
 | PutBucketNotificationConfiguration | partial | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions |
 | PutBucketOwnershipControls | partial | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | PutBucketVersioning | partial | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
-| PutObject | partial | no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify |
+| PutObject | partial | no SSE-C; Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify |
 | UploadPart | partial | no SSE-C; chunk signatures are verified under sigv4 verify |
 | UploadPartCopy | partial | no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
 | CreateBucketMetadataConfiguration | unbound |  |

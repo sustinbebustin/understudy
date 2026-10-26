@@ -23,7 +23,7 @@ import (
 // bindMultipart binds the multipart upload operations.
 func (s *Service) bindMultipart(b s3api.Binder) {
 	create := func(in *s3api.CreateMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.CreateMultipartUpload(s.createMultipartUpload, registry.Partial{Note: "no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; no lifecycle abort date"}, touches(create))
+	b.CreateMultipartUpload(s.createMultipartUpload, registry.Partial{Note: "no SSE-C; " + objectLockNote + "; an object ACL a bucket accepts is not stored; no lifecycle abort date"}, touches(create))
 	part := func(in *s3api.UploadPartInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.UploadPart(s.uploadPart, registry.Partial{Note: "no SSE-C; chunk signatures are verified under sigv4 verify"}, touches(part))
 	partCopy := func(in *s3api.UploadPartCopyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
@@ -148,6 +148,12 @@ type createRequest struct {
 }
 
 func readCreate(in *s3api.CreateMultipartUploadInput) (createRequest, *awserr.Error) {
+	if err := (objectLockHeaders{
+		mode: in.ObjectLockMode, retainUntil: in.ObjectLockRetainUntilDate, legalHold: in.ObjectLockLegalHoldStatus,
+		eventHold: in.ObjectLockEventHold, eventHoldDays: in.ObjectLockEventHoldDurationDays, eventHoldYears: in.ObjectLockEventHoldDurationYears,
+	}).refuse(); err != nil {
+		return createRequest{}, err
+	}
 	if err := checkKey(in.Key); err != nil {
 		return createRequest{}, err
 	}

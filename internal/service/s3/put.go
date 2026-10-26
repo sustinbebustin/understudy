@@ -142,6 +142,12 @@ func (a objectACL) check(b *Bucket) *awserr.Error {
 // readPut runs the checks of a PutObject that need neither the bucket nor
 // the body.
 func readPut(c *kernel.Call, secrets *identity.Store, in *s3api.PutObjectInput) (putRequest, *awserr.Error) {
+	if err := (objectLockHeaders{
+		mode: in.ObjectLockMode, retainUntil: in.ObjectLockRetainUntilDate, legalHold: in.ObjectLockLegalHoldStatus,
+		eventHold: in.ObjectLockEventHold, eventHoldDays: in.ObjectLockEventHoldDurationDays, eventHoldYears: in.ObjectLockEventHoldDurationYears,
+	}).refuse(); err != nil {
+		return putRequest{}, err
+	}
 	if err := checkKey(in.Key); err != nil {
 		return putRequest{}, err
 	}

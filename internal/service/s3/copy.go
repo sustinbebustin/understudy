@@ -280,6 +280,12 @@ type copyRequest struct {
 }
 
 func readCopy(in *s3api.CopyObjectInput) (copyRequest, *awserr.Error) {
+	if err := (objectLockHeaders{
+		mode: in.ObjectLockMode, retainUntil: in.ObjectLockRetainUntilDate, legalHold: in.ObjectLockLegalHoldStatus,
+		eventHold: in.ObjectLockEventHold, eventHoldDays: in.ObjectLockEventHoldDurationDays, eventHoldYears: in.ObjectLockEventHoldDurationYears,
+	}).refuse(); err != nil {
+		return copyRequest{}, err
+	}
 	if err := checkKey(in.Key); err != nil {
 		return copyRequest{}, err
 	}
