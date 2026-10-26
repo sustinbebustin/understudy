@@ -225,18 +225,19 @@ class UnderstudyContainer(DockerContainer):
 
         A container that exits first raises ContainerStartException with its
         log. With the Docker socket, a socket understudy does not report
-        enabled stops and removes the container and raises
-        UnderstudyDockerError.
+        enabled raises UnderstudyDockerError. Whatever fails once the
+        container exists, start() stops and removes it before raising, so an
+        explicit start() outside a with block leaves nothing behind.
         """
         self._check_exposure()
         self._mount = self._resolve_socket()
-        super().start()
-        if self._mount is not None:
-            try:
+        try:
+            super().start()
+            if self._mount is not None:
                 self._check_docker()
-            except BaseException:
-                self.stop()
-                raise
+        except BaseException:
+            self.stop()
+            raise
         return self
 
     def stop(self, force: bool = True, delete_volume: bool = True) -> None:
@@ -417,7 +418,8 @@ class _ReadyWait(HttpWaitStrategy):
             if time.monotonic() >= deadline:
                 msg = (
                     f"understudy: not ready within {self._startup_timeout:g} s: GET {url or self._path} never "
-                    'answered 200 with "ready": true. The container is still running; get_logs() returns its log.'
+                    'answered 200 with "ready": true. start() removes the container; tc-py attaches its log to '
+                    "this error as a note (Python 3.11 and later)."
                 )
                 raise TimeoutError(msg)
             time.sleep(self._poll_interval)

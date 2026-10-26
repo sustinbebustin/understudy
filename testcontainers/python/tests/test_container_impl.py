@@ -2,8 +2,8 @@
 
 The socket refusal on a daemon that is not a local unix socket, the user's
 own mounts and groups beside the socket's, the binding of a 4566 the user
-exposed, the stop's grace, and a snapshot path naming a directory
-(testcontainers.md 8.4, 8.5, 8.6, 9.5).
+exposed, the stop's grace, the removal after a failed start, and a snapshot
+path naming a directory (testcontainers.md 8.4, 8.5, 8.6, 9.5).
 """
 
 from __future__ import annotations
@@ -13,8 +13,9 @@ from pathlib import Path
 
 import pytest
 from docker.types import Mount
+from testcontainers.core.exceptions import ContainerStartException
 
-from support import admin_call, attrs, docker_client, docker_socket_gid, image
+from support import admin_call, attrs, docker_client, docker_socket_gid, image, image_containers
 from testcontainers_understudy import UnderstudyConfigError, UnderstudyContainer
 
 
@@ -79,6 +80,18 @@ def test_stop_lets_understudy_shut_down() -> None:
     )
     codes = [e["Actor"]["Attributes"]["exitCode"] for e in events]
     assert codes == ["0"]
+
+
+def test_a_failed_start_removes_its_container() -> None:
+    # understudy refuses a clock scale of 0 and exits before ready. An explicit
+    # start(), outside a with block, then leaves nothing behind: tc-py stops Ryuk
+    # at interpreter exit, so nothing else would remove it (testcontainers.md 9.5,
+    # 9.7). Go returns the container for cleanup; Node removes it too.
+    before = {c.id for c in image_containers()}
+    u = UnderstudyContainer(image()).with_clock(scale=0)
+    with pytest.raises(ContainerStartException):
+        u.start()
+    assert [c.name for c in image_containers() if c.id not in before] == []
 
 
 def test_stop_twice_and_before_start_is_harmless() -> None:

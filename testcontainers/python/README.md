@@ -39,7 +39,7 @@ def test_orders_queue():
     assert [m["Body"] for m in sqs.receive_message(QueueUrl=url)["Messages"]] == ["order-1"]
 ```
 
-`start()` publishes port 4566 on `127.0.0.1` only and returns once `GET /_understudy/v1/health` answers 200 with `"ready": true`; if understudy exits first, it raises with understudy's log. `stop()`, and leaving the `with` block, stops understudy with a 10-second grace period, which lets it remove the Lambda and DynamoDB Local containers it started, and every such container carries the session's label, so Ryuk removes them too.
+`start()` publishes port 4566 on `127.0.0.1` only and returns once `GET /_understudy/v1/health` answers 200 with `"ready": true`; if understudy exits first, it raises with understudy's log. A `start()` that raises once the container exists has already stopped and removed it. `stop()`, and leaving the `with` block, stops understudy with a 10-second grace period, which lets it remove the Lambda and DynamoDB Local containers it started, and every such container carries the session's label, so Ryuk removes them too.
 
 ## Options
 
