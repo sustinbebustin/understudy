@@ -40,7 +40,6 @@ type Service struct {
 	MalformedRequestError awserr.Identity
 	// Denial is the overlay's dev.understudy#denialError, the error an
 	// authorization refusal answers with; zero when the overlay names none.
-	// Not generated yet: every descriptor holds the zero Denial.
 	Denial Denial
 	// NewErrorMembers returns a new, empty value of one of the service's
 	// error shapes, to decode a fault rule's members into, or false for a

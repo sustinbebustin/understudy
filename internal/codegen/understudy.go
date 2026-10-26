@@ -38,6 +38,7 @@ const (
 	utAlwaysEmit          = understudyNamespace + "alwaysEmit"
 	utMaxRequestBytes     = understudyNamespace + "maxRequestBytes"
 	utThrottleError       = understudyNamespace + "throttleError"
+	utDenialError         = understudyNamespace + "denialError"
 	utNotConfigured       = understudyNamespace + "notConfigured"
 	utMalformedRequest    = understudyNamespace + "malformedRequestError"
 	utStatusOverride      = understudyNamespace + "statusOverride"
@@ -100,6 +101,7 @@ func understudyTraits() map[string]understudyTrait {
 		utAlwaysEmit:          {Honor, siteMember, parseAnnotation},
 		utMaxRequestBytes:     {Honor, siteOperation, func(r json.RawMessage) error { _, err := parseMaxRequestBytes(r); return err }},
 		utThrottleError:       {Honor, siteService, shapeRef},
+		utDenialError:         {Honor, siteService, shapeRef},
 		utNotConfigured:       {Honor, siteOperation, func(r json.RawMessage) error { _, err := parseNotConfigured(r); return err }},
 		utMalformedRequest:    {Honor, siteService, shapeRef},
 		utStatusOverride:      {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseStatus(r); return err }},
@@ -191,6 +193,18 @@ func evidenceItems(raw json.RawMessage) (items []evidenceItem, list bool, err er
 		return nil, false, errors.New(`"covers" belongs to the list form`)
 	}
 	return []evidenceItem{one}, false, nil
+}
+
+// covering returns the items of ev that back trait: the single-object
+// form, which covers the whole entry, or the list items naming it.
+func covering(ev []Evidence, trait string) []Evidence {
+	var out []Evidence
+	for _, e := range ev {
+		if len(e.Covers) == 0 || slices.Contains(e.Covers, trait) {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // checkCoverage requires the list form of evidence to cover every other

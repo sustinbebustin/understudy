@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
@@ -59,7 +60,7 @@ func (b *builder) operationErrors() error {
 	return nil
 }
 
-// serviceErrors resolves throttleError, malformedRequestError,
+// serviceErrors resolves throttleError, denialError, malformedRequestError,
 // unknownOperationError and the families' generic vocabularies.
 func (b *builder) serviceErrors() error {
 	for _, v := range b.clo.vocabularies {
@@ -82,6 +83,9 @@ func (b *builder) serviceErrors() error {
 		// set, which awserr.Identity.Retryable covers with the trait.
 		b.ir.Throttle.Retryable = true
 	}
+	if b.ir.Denial, err = b.denial(); err != nil {
+		return err
+	}
 	if b.ir.MalformedRequest, err = b.serviceError(utMalformedRequest); err != nil {
 		return err
 	}
@@ -99,6 +103,26 @@ func (b *builder) serviceErrors() error {
 	}
 	b.ir.UnknownQuery, err = b.errorByID(utUnknownOperation, u.Query)
 	return err
+}
+
+// denial resolves denialError and labels it with the weakest overlay
+// evidence covering the trait, so a descriptor never claims more than the
+// research backs (iam-enforcement-surfaces.md 12.3).
+func (b *builder) denial() (*DenialIR, error) {
+	e, err := b.serviceError(utDenialError)
+	if err != nil || e == nil {
+		return nil, err
+	}
+	svc := b.clo.service.ID
+	var labels []evidence.Label
+	for _, ev := range b.model.evidenceOf(svc, utDenialError) {
+		labels = append(labels, ev.Label)
+	}
+	label, ok := evidence.Weakest(labels)
+	if !ok {
+		return nil, failf(StageIR, string(svc), "%s names %s, but no overlay evidence covers it; apply the trait from an overlay entry whose %s covers it", utDenialError, e.Shape.ID, utEvidence)
+	}
+	return &DenialIR{Error: e, Label: label}, nil
 }
 
 func (b *builder) serviceError(trait string) (*ErrorIR, error) {

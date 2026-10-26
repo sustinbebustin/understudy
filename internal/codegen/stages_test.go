@@ -153,7 +153,7 @@ func TestStageFailures(t *testing.T) {
 				"dev.understudy#flavor": "vanilla", ` + evidence + `}}`),
 			stage: codegen.StageOverlay,
 			want: "understudy-gen overlay: extra.json: com.example.golden#Golden: dev.understudy#flavor is not a dev.understudy trait; " +
-				"the closed set is [dev.understudy#alwaysEmit dev.understudy#emptyCollection dev.understudy#errorNamespace " +
+				"the closed set is [dev.understudy#alwaysEmit dev.understudy#denialError dev.understudy#emptyCollection dev.understudy#errorNamespace " +
 				"dev.understudy#evidence dev.understudy#internalOperation dev.understudy#jsonType dev.understudy#malformedRequestError " +
 				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#notConfigured dev.understudy#patternEcho " +
 				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryKeyAlias " +

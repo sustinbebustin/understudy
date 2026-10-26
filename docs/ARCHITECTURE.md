@@ -424,6 +424,7 @@ type Service struct {
 	XMLNamespace     string
 	QueryCompatible  bool
 	MalformedRequestError awserr.Identity // overlay malformedRequestError; zero means the codec's protocol default
+	Denial           Denial          // overlay denialError: the identity an authorization refusal answers with and its evidence label; zero is a 500 naming the missing trait
 	Operations       []*Operation    // every operation, sorted; Ordinal is the index
 	Routes           *RouteTable     // REST services: generated routes plus codegen/services route overrides, ordered by Smithy specificity
 }
@@ -659,6 +660,7 @@ The closed set of `dev.understudy#` traits; the generator fails on anything else
 | `alwaysEmit` | output member | promote to a plain value in the generated output type |
 | `maxRequestBytes` | operation | body cap (Lambda `CreateFunction` 70,167,211; SQS above the encoded 1 MiB batch) |
 | `throttleError` | service | the identity `fault.Throttle` resolves to |
+| `denialError` | service | the identity an authorization refusal answers with (pipeline step 8, `kernel.Authorize`), emitted as `DenialError()` and `registry.Service.Denial` with the weakest label of the evidence covering the trait; the shape joins the closure even when no operation lists it (`iam-enforcement-surfaces.md 12.3`) |
 | `notConfigured` | S3 Get* operation | error shape or default document when the subresource is unset |
 | `malformedRequestError` | service | identity for undecodable bodies (Lambda `InvalidRequestContentException`, DynamoDB `SerializationException`) |
 | `statusOverride` | error shape | KMS documented 400/400/500 where the model says 404/409/503 (`iam-sts-kms.md` Implications 3) |

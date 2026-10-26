@@ -1,6 +1,9 @@
 package evidence
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 // Label says what backs a behavior: the one vocabulary for overlay entries,
 // fidelity switches, protocol-test skip entries and parity fixtures.
@@ -18,6 +21,25 @@ const (
 // Labels returns every label, strongest evidence first.
 func Labels() []Label {
 	return []Label{AWSRecorded, ThirdPartyRecorded, AWSDoc, SDKSource, Inferred}
+}
+
+// Weakest returns the label of the weakest evidence among labels, in Labels
+// order, so a claim resting on several items is no stronger than its
+// weakest; false when labels is empty or holds a label outside Labels.
+func Weakest(labels []Label) (Label, bool) {
+	all := Labels()
+	weakest := -1
+	for _, l := range labels {
+		i := slices.Index(all, l)
+		if i < 0 {
+			return "", false
+		}
+		weakest = max(weakest, i)
+	}
+	if weakest < 0 {
+		return "", false
+	}
+	return all[weakest], true
 }
 
 // LabelError reports text that names no label.

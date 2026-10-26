@@ -215,7 +215,7 @@ func (b *builder) streams(id smithy.ShapeID) bool {
 
 // nameShapes gives every shape without a Go name one, and schema variables.
 func (b *builder) nameShapes() error {
-	reserved := []string{"Service", "Binder", "NewBinder", "ThrottleError", "UnknownOperationError", "MalformedRequestError", "GenericErrors"}
+	reserved := []string{"Service", "Binder", "NewBinder", "ThrottleError", "DenialError", "UnknownOperationError", "MalformedRequestError", "GenericErrors"}
 	for _, r := range reserved {
 		b.goNames[r] = "reserved"
 	}

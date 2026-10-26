@@ -13,7 +13,7 @@ import (
 // emitErrors writes errors_gen.go: an Identity function, an Err
 // constructor and an ErrorIdentity method per error shape, an ErrMembers
 // constructor per shape with members beyond its message, NewErrorMembers,
-// the service-level identities the overlay names (throttle, unknown
+// the service-level identities the overlay names (throttle, denial, unknown
 // operation, malformed request) and the families' generic vocabularies.
 func emitErrors(ir *ServiceIR) ([]byte, error) {
 	f := newFile(ir, "errors_gen.go")
@@ -28,6 +28,11 @@ func emitErrors(ir *ServiceIR) ([]byte, error) {
 		f.p("// ThrottleError returns the identity a throttling fault rule injects for")
 		f.p("// this service (dev.understudy#throttleError).")
 		f.p("func ThrottleError() awserr.Identity { return Identity%s() }\n", e.Shape.GoName)
+	}
+	if d := ir.Denial; d != nil {
+		f.p("// DenialError returns the identity this service answers an authorization")
+		f.p("// refusal with (dev.understudy#denialError), evidence %s.", d.Label)
+		f.p("func DenialError() awserr.Identity { return Identity%s() }\n", d.Error.Shape.GoName)
 	}
 	if ir.UnknownJSON != nil || ir.UnknownQuery != nil {
 		f.p("// UnknownOperationError returns the identity this service answers for an")

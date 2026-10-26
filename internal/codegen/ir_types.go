@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -55,6 +56,8 @@ type ServiceIR struct {
 	UnknownJSON      *ErrorIR
 	UnknownQuery     *ErrorIR
 	MalformedRequest *ErrorIR
+	// Denial is dev.understudy#denialError, nil when the overlay names none.
+	Denial *DenialIR
 	// Vocabularies are the generic vocabularies of the protocol families
 	// the service speaks (overlays/common.json), JSON first.
 	Vocabularies []VocabularyIR
@@ -63,6 +66,14 @@ type ServiceIR struct {
 	// order. A rule with no constraint filter matches every violation, so
 	// it is the catch-all and belongs last.
 	Validation []RuleIR
+}
+
+// DenialIR is the identity an authorization refusal answers with and the
+// weakest label of the overlay evidence covering it
+// (iam-enforcement-surfaces.md 12.3).
+type DenialIR struct {
+	Error *ErrorIR
+	Label evidence.Label
 }
 
 // OperationIR is one operation.
