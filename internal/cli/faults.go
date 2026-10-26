@@ -22,11 +22,12 @@ func faultsCmd() *command {
 			func(*flag.FlagSet) action { return runFaultsList }),
 		leaf("add", "Add a rule, or replace the rule with its id",
 			"faults add [--id ID] [--service S] [--operation O] [--resource GLOB] [--account A] [--region R] [--origin any|external|internal] [--phase request|delivery] "+
-				"(--error SHAPE | --throttle | --latency D | --after-commit SHAPE | --status-ok SHAPE | --drop) [--next N | --probability P]",
+				"(--error SHAPE [--message TEXT] [--members JSON] | --throttle | --latency D | --after-commit SHAPE | --status-ok SHAPE | --drop) [--next N | --probability P]",
 			[]string{
 				"understudy faults add --operation sqs.SendMessage --throttle --next 3",
 				"understudy faults add --id slow-s3 --service s3 --latency 2s",
 				"understudy faults add --operation sqs.ReceiveMessage --error QueueDoesNotExist --probability 0.1",
+				`understudy faults add --operation dynamodb.TransactWriteItems --error TransactionCanceledException --members '{"CancellationReasons":[{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item."}]}' --next 1`,
 				"understudy faults add --phase delivery --mechanism sns-to-sqs --drop --next 1",
 			},
 			faultsAdd),
@@ -248,7 +249,7 @@ func operationForm(ops []string) error {
 func (f *faultFlags) rule() (admin.FaultRule, error) {
 	var actions []admin.FaultAction
 	if f.errShape != "" {
-		actions = append(actions, admin.InjectError{Shape: f.errShape, Message: f.message})
+		actions = append(actions, admin.InjectError{Shape: f.errShape, Message: f.message, Members: json.RawMessage(f.members)})
 	}
 	if f.throttle {
 		actions = append(actions, admin.Throttle{})
@@ -271,11 +272,8 @@ func (f *faultFlags) rule() (admin.FaultRule, error) {
 	if len(actions) != 1 {
 		return admin.FaultRule{}, &usageError{msg: fmt.Sprintf("takes exactly one action of --error, --throttle, --latency, --after-commit, --status-ok and --drop; got %d", len(actions))}
 	}
-	if f.message != "" && f.errShape == "" {
-		return admin.FaultRule{}, &usageError{msg: "--message goes with --error"}
-	}
-	if f.members != "" {
-		return admin.FaultRule{}, &usageError{msg: "--members is not implemented yet; leave it out"}
+	if err := f.errorParts(); err != nil {
+		return admin.FaultRule{}, err
 	}
 	if err := operationForm(f.operations); err != nil {
 		return admin.FaultRule{}, err
@@ -308,6 +306,26 @@ func (f *faultFlags) rule() (admin.FaultRule, error) {
 		Action:  actions[0],
 		Trigger: trigger,
 	}, nil
+}
+
+// errorParts checks --message and --members, which go with --error only.
+func (f *faultFlags) errorParts() error {
+	switch {
+	case f.message != "" && f.errShape == "":
+		return &usageError{msg: "--message goes with --error"}
+	case f.members != "" && f.errShape == "":
+		return &usageError{msg: "--members goes with --error"}
+	case f.members != "" && !jsonObject(f.members):
+		return &usageError{msg: fmt.Sprintf(`--members %q is not a JSON object, such as '{"CancellationReasons": [{"Code": "TransactionConflict"}]}'`, f.members)}
+	}
+	return nil
+}
+
+// jsonObject reports whether s is one JSON object, as --members takes;
+// the server checks its members against the --error shape.
+func jsonObject(s string) bool {
+	var obj map[string]json.RawMessage
+	return json.Unmarshal([]byte(s), &obj) == nil && obj != nil
 }
 
 // shapeFlag is the flag of the action that names an error shape, which the
