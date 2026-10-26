@@ -47,16 +47,28 @@ func writtenWith(t *testing.T, i int, document string) (string, policycatalogue.
 
 // AWS publishes its managed policies without going through a customer's
 // CreatePolicy, so -verify does not apply the CreatePolicy rules policydoc
-// ports from moto (iam-evaluation.md 10.6): a document naming an IAM role
-// template, which the IAM resource path rule refuses, passes.
+// ports from moto (iam-evaluation.md 10.6): a statement with no Resource,
+// which the required-resources rule refuses, passes. That rule stands apart
+// from the resource format rules that IAM-EVAL-35 and IAM-EVAL-36 may
+// change, so a recording does not turn this test into one about them.
 func TestVerifyAcceptsADocumentOutsideTheCreatePolicyRules(t *testing.T) {
-	document := syntheticDocument("Allow", "iam:CreateRole", "arn:aws:iam::aws:role-template/example.amazonaws.com/ExampleRoleTemplate:1")
+	document := strings.Join([]string{
+		`{`,
+		`  "Version" : "2012-10-17",`,
+		`  "Statement" : [`,
+		`    {`,
+		`      "Effect" : "Allow",`,
+		`      "Action" : "iam:GetRole"`,
+		`    }`,
+		`  ]`,
+		`}`,
+	}, "\n")
 	doc, perr := policydoc.Parse([]byte(document))
 	if perr != nil {
 		t.Fatalf("policydoc.Parse = %v", perr)
 	}
-	if verr := policydoc.ValidateIdentity(doc); verr == nil || verr.Rule != policydoc.RuleIAMResourcePath {
-		t.Fatalf("policydoc.ValidateIdentity = %v, want the IAM resource path rule, which this test is about", verr)
+	if verr := policydoc.ValidateIdentity(doc); verr == nil || verr.Rule != policydoc.RuleResourcesRequired {
+		t.Fatalf("policydoc.ValidateIdentity = %v, want the required-resources rule, which this test is about", verr)
 	}
 	dir, _ := writtenWith(t, 2, document)
 	if err := verify(os.DirFS(dir), dir); err != nil {
