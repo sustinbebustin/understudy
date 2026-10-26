@@ -60,4 +60,4 @@ The raw captures stay outside the repository, in the recording directory the kit
 scripts/distill-parity --replace ~/understudy-recordings/usr-rec-20261014
 ```
 
-It reads the account id from `<recordings>/_scripts/acct` (or `--account-file`), never writes to the recordings, rebuilds `testdata/parity/` from scratch, and fails, naming the steps, when a capture does not parse or a credential or the account id survives. Its tests: `uv run --with pytest pytest scripts/tests`.
+It reads the account id from `<recordings>/_scripts/acct` (or `--account-file`), never writes to the recordings, rebuilds `testdata/parity/` from scratch except the replay scenarios (`<svc>/<item>/scenario.json`, written by hand), and fails, naming the steps, when a capture does not parse or a credential or the account id survives. Its tests: `uv run --with pytest pytest scripts/tests`.

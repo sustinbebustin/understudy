@@ -29,8 +29,9 @@ botocore user-agent session hash become stable same-length placeholders, also in
 move-task handles. Credentials are redacted with the recording kit's
 patterns, and the run fails if its credential check still finds one.
 
---replace deletes the output directory first; without it the output
-directory must not exist yet.
+--replace deletes the output directory first, except the replay scenarios
+in it (<svc>/<item>/scenario.json, written by hand, not distilled); without
+it the output directory must not exist yet.
 """
 
 from __future__ import annotations
@@ -567,11 +568,17 @@ def main(argv: list[str]) -> int:
     parser.add_argument("rec", type=Path, help="the recordings directory, e.g. ~/understudy-recordings/<prefix>")
     parser.add_argument("--out", type=Path, default=Path(__file__).resolve().parent.parent / "testdata" / "parity")
     parser.add_argument("--account-file", type=Path, help="file holding the recorded account id (default REC/_scripts/acct)")
-    parser.add_argument("--replace", action="store_true", help="delete the output directory first")
+    parser.add_argument("--replace", action="store_true",
+                        help="delete the output directory first, keeping its scenario.json files")
     args = parser.parse_args(argv)
 
     account_file = args.account_file or args.rec / "_scripts" / "acct"
-    account = account_file.read_text().strip()
+    try:
+        account = account_file.read_text().strip()
+    except OSError as e:
+        print(f"distill-parity: cannot read the recording account id from {account_file}: {e.strerror}; "
+              "write the account's 12-digit id there, or pass --account-file", file=sys.stderr)
+        return 2
     if not re.fullmatch(r"\d{12}", account):
         print(f"distill-parity: {account_file} does not hold a 12-digit account id", file=sys.stderr)
         return 2
@@ -579,7 +586,11 @@ def main(argv: list[str]) -> int:
         if not args.replace:
             print(f"distill-parity: {args.out} exists; pass --replace to rebuild it", file=sys.stderr)
             return 2
+        scenarios = {p.relative_to(args.out): p.read_bytes() for p in args.out.glob("*/*/scenario.json")}
         shutil.rmtree(args.out)
+        for rel, data in scenarios.items():
+            (args.out / rel).parent.mkdir(parents=True, exist_ok=True)
+            (args.out / rel).write_bytes(data)
 
     items = items_of(args.rec)
     masker = Masker(account)
