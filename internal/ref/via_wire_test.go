@@ -38,6 +38,7 @@ var viaNames = []struct {
 	{ref.KMSForward, "kms-forward"},
 	{ref.STSAssumeRole, "sts-assume-role"},
 	{ref.LambdaCode, "lambda-code"},
+	{ref.ViaAPIGateway, "apigateway-integration"},
 }
 
 // declaredVias walks the values from the first until String falls back to

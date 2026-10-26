@@ -46,6 +46,8 @@ var kindNames = []struct {
 	{ids.KindJitter, "jitter"},
 	{ids.KindEventID, "events-event-id"},
 	{ids.KindSSECSalt, "s3-ssec-salt"},
+	{ids.KindAPIGatewayAPIID, "apigateway-api-id"},
+	{ids.KindAPIGatewayChildID, "apigateway-child-id"},
 }
 
 // declaredKinds walks the kinds from the first until String falls back to
