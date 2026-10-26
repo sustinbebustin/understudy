@@ -28,7 +28,7 @@ func detailSize(d Detail) int {
 		return strs(string(d.Op.Service), d.Op.Name, string(d.RequestID), d.Principal, d.Mode, d.TraceHeader, d.Input.doc) +
 			originSize(d.Origin) + arns(d.Resources...) + outcomeSize(d.Outcome)
 	case Delivery:
-		n := arns(d.From, d.To)
+		n := arns(d.From, d.To) + strs(d.Endpoint)
 		switch o := d.Outcome.(type) {
 		case Filtered:
 			n += strs(o.Rule)

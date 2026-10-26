@@ -151,6 +151,7 @@ type (
 	wireDelivery struct {
 		From      string             `json:"from"`
 		To        string             `json:"to"`
+		Endpoint  string             `json:"endpoint,omitempty"`
 		Mechanism delivery.Mechanism `json:"mechanism"`
 		Attempt   int                `json:"attempt"`
 		Outcome   wireDeliveryResult `json:"outcome"`
@@ -299,7 +300,7 @@ func encodeDetail(d Detail) (any, error) {
 			return nil, err
 		}
 		out, err := encodeDeliveryResult(d.Outcome)
-		return wireDelivery{From: arnText(d.From), To: arnText(d.To), Mechanism: d.Mechanism, Attempt: d.Attempt, Outcome: out}, err
+		return wireDelivery{From: arnText(d.From), To: arnText(d.To), Endpoint: d.Endpoint, Mechanism: d.Mechanism, Attempt: d.Attempt, Outcome: out}, err
 	case Invocation:
 		out, err := encodeInvocationResult(d.Outcome)
 		return wireInvocation{
@@ -404,17 +405,9 @@ func encodeDeliveryResult(o DeliveryOutcome) (wireDeliveryResult, error) {
 	case Dropped:
 		return wireDeliveryResult{Kind: "dropped", Reason: o.Reason}, nil
 	case Refused:
-		return wireDeliveryResult{}, &notImplementedError{What: "a refused delivery outcome"}
+		return wireDeliveryResult{Kind: "refused", Reason: o.Reason}, nil
 	}
 	return wireDeliveryResult{}, &missingError{What: "Delivery.Outcome"}
-}
-
-// notImplementedError is a detail this build cannot encode yet; the event
-// is not written.
-type notImplementedError struct{ What string }
-
-func (e *notImplementedError) Error() string {
-	return "journal: encoding " + e.What + " is not implemented yet, so the event was not written"
 }
 
 func encodeInvocationResult(o InvocationOutcome) (wireInvocationResult, error) {
@@ -676,10 +669,12 @@ func decodeDelivery(w wireDelivery) (Detail, error) {
 		out = DeadLettered{DLQ: dlq}
 	case "dropped":
 		out = Dropped{Reason: w.Outcome.Reason}
+	case "refused":
+		out = Refused{Reason: w.Outcome.Reason}
 	default:
 		return nil, &tagError{Sum: "delivery outcome", Kind: w.Outcome.Kind}
 	}
-	return Delivery{From: from, To: to, Mechanism: w.Mechanism, Attempt: w.Attempt, Outcome: out}, nil
+	return Delivery{From: from, To: to, Endpoint: w.Endpoint, Mechanism: w.Mechanism, Attempt: w.Attempt, Outcome: out}, nil
 }
 
 func decodeInvocation(w wireInvocation) (Detail, error) {

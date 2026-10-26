@@ -58,7 +58,8 @@ type Delivery struct {
 	From, To aws.ARN
 	// Endpoint is an HTTP delivery's host:port, the port defaulted to 80 or
 	// 443, and "" for every other target; never the path, query or
-	// userinfo. The NDJSON encoding does not carry it yet.
+	// userinfo. NDJSON writes it as "endpoint", omitted when "", so the
+	// lines of other deliveries read as before.
 	Endpoint  string
 	Mechanism delivery.Mechanism
 	Attempt   int

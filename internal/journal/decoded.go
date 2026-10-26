@@ -24,6 +24,7 @@ func asDecoded(d Detail) Detail {
 		return callAsDecoded(d)
 	case Delivery:
 		d.From, d.To = arnAsDecoded(d.From), arnAsDecoded(d.To)
+		d.Endpoint = wireText(d.Endpoint)
 		switch o := d.Outcome.(type) {
 		case Filtered:
 			d.Outcome = Filtered{Rule: wireText(o.Rule)}
