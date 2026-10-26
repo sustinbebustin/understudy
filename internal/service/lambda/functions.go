@@ -30,12 +30,12 @@ const (
 const listPageCap = 50
 
 func (s *Service) bindFunctions(b lambdaapi.Binder) {
-	b.CreateFunction(s.createFunction, partial("layers and PublishTo are refused; code signing and VPC networking are stored only"),
+	b.CreateFunction(s.createFunction, partial("layers, PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only"),
 		kernel.WithValidator(validateCreateFunction), kernel.WithCheck(checkCreateFunction))
 	b.GetFunction(s.getFunction, partial("Code.Location is a link understudy serves the package at, not a presigned S3 URL"))
 	b.GetFunctionConfiguration(s.getFunctionConfiguration, full())
 	b.ListFunctions(s.listFunctions, full())
-	b.UpdateFunctionConfiguration(s.updateFunctionConfiguration, partial("layers are refused; code signing and VPC networking are stored only"),
+	b.UpdateFunctionConfiguration(s.updateFunctionConfiguration, partial("layers and DurableConfig are refused; code signing and VPC networking are stored only"),
 		kernel.WithValidator(validateUpdateConfiguration), kernel.WithCheck(checkUpdateConfiguration))
 	b.UpdateFunctionCode(s.updateFunctionCode, partial(publishToRefused), kernel.WithValidator(validateUpdateCode),
 		kernel.WithCheck(func(in *lambdaapi.UpdateFunctionCodeInput) *awserr.Error {

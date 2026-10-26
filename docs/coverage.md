@@ -617,7 +617,7 @@ Internal operations:
 | GetFunctionCodeSigningConfig | stored-only | code signing is not enforced; no function has a configuration |
 | CreateAlias | partial | weighted routing is stored, not applied to invocations |
 | CreateEventSourceMapping | partial | SQS queues only; serve polls the queue and invokes the function with each batch |
-| CreateFunction | partial | layers and PublishTo are refused; code signing and VPC networking are stored only |
+| CreateFunction | partial | layers, PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only |
 | CreateFunctionUrlConfig | partial | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
 | GetFunction | partial | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
 | Invoke | partial | an alias with weighted routing always runs its primary version; asynchronous invocations retry but do not deliver to destinations or dead-letter queues; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
@@ -626,7 +626,7 @@ Internal operations:
 | UpdateAlias | partial | weighted routing is stored, not applied to invocations |
 | UpdateEventSourceMapping | partial | SQS queues only; serve polls the queue and invokes the function with each batch |
 | UpdateFunctionCode | partial | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
-| UpdateFunctionConfiguration | partial | layers are refused; code signing and VPC networking are stored only |
+| UpdateFunctionConfiguration | partial | layers and DurableConfig are refused; code signing and VPC networking are stored only |
 | UpdateFunctionEventInvokeConfig | partial | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
 | UpdateFunctionUrlConfig | partial | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
 | AddLayerVersionPermission | unbound |  |

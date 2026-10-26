@@ -43,6 +43,44 @@ func TestPublishToLatestPublishedIsNotImplemented(t *testing.T) {
 	})
 }
 
+// TenancyConfig (tenant isolation) and DurableConfig (durable functions)
+// configure features understudy does not implement: CreateFunction and
+// UpdateFunctionConfiguration refuse them with 501 rather than drop them,
+// and change nothing.
+func TestTenancyAndDurableConfigAreNotImplemented(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		tenant := zipFunction(h, "tenant")
+		tenant.TenancyConfig = &lambdaapi.TenancyConfig{TenantIsolationMode: lambdaapi.TenantIsolationModePerTenant}
+		durable := zipFunction(h, "durable")
+		durable.DurableConfig = &lambdaapi.DurableConfig{ExecutionTimeout: new(int32(60))}
+		before := h.createFunction("fn")
+		update := &lambdaapi.UpdateFunctionConfigurationInput{FunctionName: "fn", Description: new("changed"), DurableConfig: &lambdaapi.DurableConfig{}}
+		for _, c := range []struct {
+			op, member string
+			err        *awserr.Error
+		}{
+			{"CreateFunction", "TenancyConfig", fail(h, lambdaapi.OpCreateFunction, tenant)},
+			{"CreateFunction", "DurableConfig", fail(h, lambdaapi.OpCreateFunction, durable)},
+			{"UpdateFunctionConfiguration", "DurableConfig", fail(h, lambdaapi.OpUpdateFunctionConfiguration, update)},
+		} {
+			if c.err.ID.Status != http.StatusNotImplemented || !strings.HasPrefix(c.err.Message, c.op+" with "+c.member+" ") ||
+				!strings.Contains(c.err.Message, "which understudy does not implement; nothing was changed.") {
+				t.Errorf("%s with %s = %d %q, want 501 naming the member", c.op, c.member, c.err.ID.Status, c.err.Message)
+			}
+		}
+		for _, name := range []string{"tenant", "durable"} {
+			if _, err := h.Invoke(h.Context(), lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: name}); err == nil {
+				t.Errorf("a refused CreateFunction created %s", name)
+			}
+		}
+		after := call(h, lambdaapi.OpGetFunctionConfiguration, &lambdaapi.GetFunctionConfigurationInput{FunctionName: "fn"})
+		if *after.RevisionId != *before.RevisionId || *after.Description != *before.Description {
+			t.Errorf("a refused UpdateFunctionConfiguration changed fn: revision %s -> %s, description %q -> %q",
+				*before.RevisionId, *after.RevisionId, *before.Description, *after.Description)
+		}
+	})
+}
+
 // A scope whose functions are all deleted still saves the identifiers it
 // minted, so a function created after a snapshot round trip gets no
 // RevisionId an earlier one had.

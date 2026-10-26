@@ -157,6 +157,9 @@ func checkCreateFunction(in *lambdaapi.CreateFunctionInput) *awserr.Error {
 	if err := checkPublishTo("CreateFunction", in.PublishTo); err != nil {
 		return err
 	}
+	if err := checkUnimplementedConfig("CreateFunction", in.TenancyConfig, in.DurableConfig); err != nil {
+		return err
+	}
 	if err := checkEnvironment(in.Environment); err != nil {
 		return err
 	}
@@ -171,6 +174,9 @@ func checkUpdateConfiguration(in *lambdaapi.UpdateFunctionConfigurationInput) *a
 		return err
 	}
 	if err := checkLayers(in.Layers); err != nil {
+		return err
+	}
+	if err := checkUnimplementedConfig("UpdateFunctionConfiguration", nil, in.DurableConfig); err != nil {
 		return err
 	}
 	return checkEnvironment(in.Environment)

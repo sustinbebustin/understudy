@@ -344,6 +344,24 @@ func errEventSourceUnsupported(arn string) *awserr.Error {
 	return lambdaapi.ErrNotImplemented("understudy implements event source mappings for Amazon SQS queues only; " + arn + " is not an SQS queue ARN. Run 'understudy coverage --service lambda' for what is supported.")
 }
 
+// checkUnimplementedConfig refuses a configuration member whose feature
+// understudy does not implement: TenancyConfig (tenant isolation) and
+// DurableConfig (durable functions). Storing either without effect would
+// fake a function that isolates tenants or checkpoints its executions.
+func checkUnimplementedConfig(op string, tenancy *lambdaapi.TenancyConfig, durable *lambdaapi.DurableConfig) *awserr.Error {
+	var member, feature string
+	switch {
+	case tenancy != nil:
+		member, feature = "TenancyConfig", "tenant isolation"
+	case durable != nil:
+		member, feature = "DurableConfig", "durable functions"
+	default:
+		return nil
+	}
+	return lambdaapi.ErrNotImplemented(op + " with " + member + " configures " + feature + ", which understudy does not implement; nothing was changed. " +
+		"Leave " + member + " out. Run 'understudy coverage --service lambda' for what is supported.")
+}
+
 // publishToRefused is the coverage note of an operation checkPublishTo
 // guards.
 const publishToRefused = "PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances"
