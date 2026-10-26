@@ -35,9 +35,17 @@ type ResourceRequest struct {
 
 // CheckResource answers whether r's caller may call r's action on r's
 // resource from doc, the resource's stored policy alone; a nil doc is a
-// resource with no policy, which allows nothing.
-//
-// It is not implemented yet: it returns no decision.
-func CheckResource(_ *policydoc.Document, _ ResourceRequest) policydoc.Decision {
-	return nil
+// resource with no policy, which allows nothing (iam-evaluation.md 2.9,
+// 2.10). It applies policydoc.Allows, IAM's single-policy logic, and does
+// not read iam.enforce: each caller decides when its refusal applies.
+func CheckResource(doc *policydoc.Document, r ResourceRequest) policydoc.Decision {
+	if doc == nil {
+		return policydoc.ImplicitDeny{}
+	}
+	return policydoc.Allows(*doc, policydoc.Query{
+		Principal: r.Caller,
+		Action:    r.Action.String(),
+		Resource:  r.Resource,
+		Context:   r.Keys,
+	})
 }
