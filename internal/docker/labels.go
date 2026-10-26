@@ -1,8 +1,10 @@
 package docker
 
 import (
-	"fmt"
+	"maps"
+	"slices"
 	"strconv"
+	"strings"
 )
 
 // The label keys on every object understudy creates (containers.md 9.1).
@@ -35,11 +37,16 @@ const (
 const ReservedPrefix = "understudy.dev/"
 
 // CheckExtra returns a *ReservedLabelError for the first key of extra, in
-// sorted order, that starts with ReservedPrefix, and nil otherwise.
-//
-// Not implemented yet: it refuses every map.
+// sorted order, that starts with ReservedPrefix, and nil otherwise. The
+// match is case-sensitive and needs the slash: understudy.dev alone is
+// the user's (testcontainers.md 9.3).
 func CheckExtra(extra map[string]string) error {
-	return fmt.Errorf("docker: CheckExtra of %d labels is not implemented yet", len(extra))
+	for _, k := range slices.Sorted(maps.Keys(extra)) {
+		if strings.HasPrefix(k, ReservedPrefix) {
+			return &ReservedLabelError{Key: k}
+		}
+	}
+	return nil
 }
 
 // Ownership is the serve process an object belongs to. Both fields must be
@@ -78,15 +85,19 @@ type Labels struct {
 	// Extra are labels the configuration adds to every object (the
 	// dockerLabels setting, testcontainers.md 9.3), such as a Testcontainers
 	// session's Ryuk filter labels. No key may start with ReservedPrefix.
-	// Not applied by Map yet.
 	Extra map[string]string
 }
 
-// Map renders the label set for a create call. It returns the
-// *OwnershipError from Ownership.Validate for an incomplete ownership, since
-// an object labeled so would escape its owner's sweep.
+// Map renders the label set for a create call: Extra plus understudy's own
+// labels. It returns the *OwnershipError from Ownership.Validate for an
+// incomplete ownership, since an object labeled so would escape its owner's
+// sweep, and then CheckExtra's *ReservedLabelError, since an extra key under
+// ReservedPrefix could change what a sweep selects.
 func (l Labels) Map() (map[string]string, error) {
 	if err := l.Ownership.Validate(); err != nil {
+		return nil, err
+	}
+	if err := CheckExtra(l.Extra); err != nil {
 		return nil, err
 	}
 	m := map[string]string{
@@ -94,6 +105,9 @@ func (l Labels) Map() (map[string]string, error) {
 		LabelInstance: l.Ownership.Instance,
 		LabelOwner:    l.Ownership.Owner,
 	}
+	// CheckExtra keeps every extra key outside ReservedPrefix, so none
+	// collides with an own label.
+	maps.Copy(m, l.Extra)
 	if f := l.Function; f != nil {
 		m[LabelFunction] = f.Function
 		m[LabelAccount] = f.Account
