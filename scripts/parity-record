@@ -5,28 +5,442 @@
 # ///
 """Print, or run, the recording commands of a queued parity scenario.
 
-    scripts/parity-record sqs/R01                 # print the commands in the kit's rec form
-    scripts/parity-record --record sqs/R01        # a maintainer's terminal only
+    scripts/parity-record sqs/R01                                  # print the commands
+    scripts/parity-record testdata/parity/sqs/R01/scenario.json    # the same, by path
+    scripts/parity-record --record sqs/R01                         # a maintainer's recording shell only
 
-The default mode prints, for each scenario.json with record commands, the
-commands to paste into the recording shell of docs/recording-kit.md. --record
-runs them itself, only from an interactive terminal, after checking that
-UNDERSTUDY_RECORD_ACCOUNT matches `aws sts get-caller-identity` and after a
-typed confirmation, then runs scripts/distill-parity. Agents never use
---record.
+A SCENARIO is a scenario id <svc>/<item>, read from
+<repo>/testdata/parity/<svc>/<item>/scenario.json, or a path to a
+scenario.json. Its "record" list holds the AWS CLI commands that record the
+steps it has no fixture for yet.
 
-Not implemented yet: every invocation exits 2 and runs nothing.
+The default mode prints them for the recording shell of
+docs/recording-kit.md, and runs nothing: a {step, argv} entry as
+`rec <item>/<step> <argv>` (the kit's rec helper, section 2), an
+{argv, capture} entry as `<CAPTURE>=$(<argv>)`, an {argv} entry as itself.
+Only $NAME and ${NAME} references are expanded, by that shell and by
+--record alike, such as the kit's $P, $R, $A and $Q (section 1).
+
+--record runs the commands itself. It refuses, running nothing, unless, in
+this order: stdin and stdout are a terminal; no AWS_ENDPOINT_URL or
+AWS_ENDPOINT_URL_* is set; UNDERSTUDY_RECORD_ACCOUNT holds 12 digits, REC is
+set, and $REC/_scripts/acct (the account distill-parity masks) holds the
+same id; every reference is set or captured by an earlier command of its
+scenario; `aws sts get-caller-identity` signs as UNDERSTUDY_RECORD_ACCOUNT;
+and that account id is typed at the prompt. A rec entry then writes
+$REC/<item>/<step>.out and .http as the kit's rec does, and
+scripts/distill-parity --replace $REC rebuilds testdata/parity at the end.
+Agents never use --record.
+
+Exit status: 0 for a printed plan; 2 for a refusal or a scenario that
+cannot be read; 1 when a capturing command fails, which stops the run
+before distill-parity; else distill-parity's.
 """
 
 from __future__ import annotations
 
+import argparse
+import json
+import os
+import re
+import subprocess
 import sys
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TextIO
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+SCENARIOS = SCRIPT_DIR.parent / "testdata" / "parity"
+
+SCENARIO_ID = re.compile(r"[a-z0-9]+/[A-Za-z0-9-]+")
+ITEM = re.compile(r"[A-Za-z0-9-]+")
+STEP = re.compile(r"[A-Za-z0-9._-]+")
+CAPTURE = re.compile(r"[A-Z_][A-Z0-9_]*")
+ACCOUNT = re.compile(r"[0-9]{12}")
+REFERENCE = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
+BARE = re.compile(r"[A-Za-z0-9_@%+=:,./-]+")
+DOUBLE_QUOTE_SPECIAL = re.compile(r'([\\"`])')
+
+FIX_SCENARIO = "fix it so that go test ./internal/parity loads it"
+CALLER_IDENTITY = ["aws", "sts", "get-caller-identity", "--query", "Account", "--output", "text"]
 
 
-def main() -> int:
-    print("parity-record: not implemented yet; nothing was printed or run", file=sys.stderr)
-    return 2
+class Refusal(Exception):
+    """Why parity-record will not go on; str() is the whole stderr line."""
+
+
+@dataclass(frozen=True)
+class RecCommand:
+    """A command the kit's rec helper runs to record one step."""
+
+    step: str
+    argv: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class RunCommand:
+    """A command run outside rec; capture names the variable its stdout sets."""
+
+    argv: tuple[str, ...]
+    capture: str | None
+
+
+Command = RecCommand | RunCommand
+
+
+@dataclass(frozen=True)
+class Scenario:
+    id: str
+    path: Path
+    item: str
+    record: tuple[Command, ...]
+
+
+# --- reading scenarios -------------------------------------------------------
+
+
+def locate(arg: str) -> tuple[str, Path]:
+    """The scenario id and the scenario.json path a SCENARIO argument names."""
+    if arg.endswith(".json"):
+        path = Path(arg)
+        directory = path.absolute().parent
+        return f"{directory.parent.name}/{directory.name}", path
+    if SCENARIO_ID.fullmatch(arg):
+        return arg, SCENARIOS / arg / "scenario.json"
+    raise Refusal(
+        f"parity-record: {arg!r} is neither a scenario id <svc>/<item> nor a path to a scenario.json; "
+        "pass one such as kms/KMS-alias or testdata/parity/kms/KMS-alias/scenario.json"
+    )
+
+
+def load(arg: str) -> Scenario:
+    """The scenario arg names, with the members parity-record uses checked.
+
+    The Go loader (internal/parity ParseScenario) checks the rest. Raises
+    Refusal naming the file and the member at fault.
+    """
+    scenario_id, path = locate(arg)
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        raise Refusal(
+            f"parity-record: cannot read {path}: {describe(e)}; check the path, "
+            "or pass a scenario id such as kms/KMS-alias"
+        ) from e
+    try:
+        doc = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise Refusal(f"parity-record: {path} is not valid JSON ({e}); {FIX_SCENARIO}") from e
+
+    def invalid(field: str, why: str) -> Refusal:
+        return Refusal(f"parity-record: {path}: {field} {why}; {FIX_SCENARIO}")
+
+    if not isinstance(doc, dict):
+        raise invalid("the document", "is not a JSON object")
+    version = doc.get("version")
+    if type(version) is not int or version != 1:
+        raise invalid("version", f"is {version!r}; parity-record reads version 1")
+    item = doc.get("item")
+    directory = path.absolute().parent.name
+    if not isinstance(item, str) or not ITEM.fullmatch(item):
+        raise invalid("item", f"{item!r} is not an item name of letters, digits and -")
+    if item != directory:
+        raise invalid("item", f"{item!r} is not the name of the directory holding the file, {directory!r}")
+    record = doc.get("record", [])
+    if not isinstance(record, list):
+        raise invalid("record", "is not a list")
+    if not record:
+        raise Refusal(f"parity-record: {path} has no record commands: every step is recorded already")
+    commands = tuple(command(f"record[{i}]", entry, invalid) for i, entry in enumerate(record))
+    return Scenario(scenario_id, path, item, commands)
+
+
+def command(field: str, entry: object, invalid: Callable[[str, str], Refusal]) -> Command:
+    """One record entry; invalid builds the refusal for a member at fault."""
+    if not isinstance(entry, dict):
+        raise invalid(field, "is not an object: a record entry is {step, argv} or {argv, capture}")
+    for name in entry:
+        if name not in ("step", "argv", "capture"):
+            raise invalid(f"{field}.{name}", "is not a record entry member: use step, argv or capture")
+    argv = entry.get("argv")
+    if not isinstance(argv, list) or not argv or not all(isinstance(a, str) for a in argv) or argv[0] != "aws":
+        raise invalid(f"{field}.argv", 'is not a list of strings starting with "aws": record runs AWS CLI commands')
+    for j, arg in enumerate(argv):
+        if "$" in REFERENCE.sub("", arg):
+            raise invalid(
+                f"{field}.argv[{j}]",
+                f"{arg!r} holds a $ that starts no $NAME or ${{NAME}} reference: only those are expanded, "
+                "alike by the recording shell and by --record",
+            )
+    if "step" in entry:
+        step = entry["step"]
+        if "capture" in entry:
+            raise invalid(f"{field}.capture",
+                          "belongs to a command run outside rec; a rec command's output is its step's recording")
+        if not isinstance(step, str) or not STEP.fullmatch(step) or step in (".", ".."):
+            raise invalid(f"{field}.step", f"{step!r} is not a step name of letters, digits, '.', '_' and '-'")
+        return RecCommand(step, tuple(argv))
+    capture = entry.get("capture")
+    if capture is not None and (not isinstance(capture, str) or not CAPTURE.fullmatch(capture)):
+        raise invalid(f"{field}.capture",
+                      f"{capture!r} is not a shell variable name of upper-case letters, digits and _")
+    return RunCommand(tuple(argv), capture)
+
+
+def describe(e: Exception) -> str:
+    return e.strerror if isinstance(e, OSError) and e.strerror else str(e)
+
+
+# --- plan mode -----------------------------------------------------------------
+
+
+def quote(arg: str) -> str:
+    """arg as one word of the recording shell, with its references left to expand there."""
+    if arg == "":
+        return "''"
+    if BARE.fullmatch(arg):
+        return arg
+    if "$" in arg:
+        return '"' + DOUBLE_QUOTE_SPECIAL.sub(r"\\\1", arg) + '"'
+    return "'" + arg.replace("'", "'\\''") + "'"
+
+
+def line(item: str, c: Command) -> str:
+    """The recording shell line for c, a command of item."""
+    words = " ".join(quote(a) for a in c.argv)
+    match c:
+        case RecCommand(step=step):
+            return f"rec {item}/{step} {words}"
+        case RunCommand(capture=None):
+            return words
+        case RunCommand(capture=name):
+            return f"{name}=$({words})"
+
+
+def plan(scenarios: Sequence[Scenario]) -> str:
+    """Every scenario's commands under a `# <id>` header, blocks separated by one blank line."""
+    return "\n".join(f"# {s.id}\n" + "".join(line(s.item, c) + "\n" for c in s.record) for s in scenarios)
+
+
+# --- record mode ---------------------------------------------------------------
+
+
+def references(argv: Sequence[str]) -> list[str]:
+    return [m.group(1) or m.group(2) for arg in argv for m in REFERENCE.finditer(arg)]
+
+
+def expand(arg: str, values: Mapping[str, str]) -> str:
+    return REFERENCE.sub(lambda m: values[m.group(1) or m.group(2)], arg)
+
+
+def is_terminal(stream: TextIO | None) -> bool:
+    return stream is not None and stream.isatty()
+
+
+def check_ready(scenarios: Sequence[Scenario], env: Mapping[str, str]) -> tuple[str, Path]:
+    """The recording account and REC, once every check before the prompt passes.
+
+    Raises Refusal at the first check that fails; only the last check runs
+    anything (aws sts get-caller-identity).
+    """
+    if not (is_terminal(sys.stdin) and is_terminal(sys.stdout)):
+        raise Refusal(
+            "parity-record: --record needs stdin and stdout to be a terminal, so that a person confirms the run; "
+            "run it yourself, unredirected, in the recording shell of docs/recording-kit.md 1"
+        )
+    endpoints = sorted(k for k in env if k == "AWS_ENDPOINT_URL" or k.startswith("AWS_ENDPOINT_URL_"))
+    if endpoints:
+        verb = "is" if len(endpoints) == 1 else "are"
+        raise Refusal(
+            f"parity-record: {', '.join(endpoints)} {verb} set, so the AWS CLI would send the commands there "
+            f"instead of to AWS; unset {' '.join(endpoints)} (docs/recording-kit.md 1) and run again"
+        )
+    account = env.get("UNDERSTUDY_RECORD_ACCOUNT")
+    if account is None or not ACCOUNT.fullmatch(account):
+        shown = "unset" if account is None else f"{account!r}, not 12 digits"
+        raise Refusal(
+            f"parity-record: UNDERSTUDY_RECORD_ACCOUNT is {shown}; export it as the id of the throwaway "
+            "recording account (docs/recording-kit.md 1) and run again"
+        )
+    rec_dir = env.get("REC", "")
+    if not rec_dir:
+        raise Refusal(
+            "parity-record: REC is not set, so there is no recordings directory to write to; "
+            "export REC as docs/recording-kit.md 1 does and run again"
+        )
+    check_account_file(Path(rec_dir) / "_scripts" / "acct", account)
+    check_references(scenarios, env)
+    check_caller(account)
+    return account, Path(rec_dir)
+
+
+def check_account_file(acct: Path, account: str) -> None:
+    """Refuses unless acct, which distill-parity masks by, names account."""
+    try:
+        held = acct.read_text(encoding="utf-8").strip()
+    except FileNotFoundError as e:
+        raise Refusal(
+            f"parity-record: {acct} does not exist, and distill-parity reads the account it masks from it "
+            f'after the run; create it with mkdir -p "$REC/_scripts" && echo {account} > "$REC/_scripts/acct" '
+            "and run again"
+        ) from e
+    except (OSError, UnicodeDecodeError) as e:
+        raise Refusal(
+            f"parity-record: cannot read {acct}: {describe(e)}; make it a readable file holding {account} "
+            "and run again"
+        ) from e
+    if held != account:
+        raise Refusal(
+            f"parity-record: {acct} holds {held!r}, but UNDERSTUDY_RECORD_ACCOUNT is {account}, and "
+            "distill-parity masks only the account in that file; record into a REC of this account's own, "
+            "or correct UNDERSTUDY_RECORD_ACCOUNT, and run again"
+        )
+
+
+def check_references(scenarios: Sequence[Scenario], env: Mapping[str, str]) -> None:
+    """Refuses unless every reference is set in env or captured by an earlier command of its scenario."""
+    missing = []
+    for s in scenarios:
+        captured: set[str] = set()
+        for i, c in enumerate(s.record):
+            missing += [f"${name} ({s.id} record[{i}])" for name in references(c.argv)
+                        if name not in env and name not in captured]
+            if isinstance(c, RunCommand) and c.capture is not None:
+                captured.add(c.capture)
+    if missing:
+        verb = "is" if len(missing) == 1 else "are"
+        raise Refusal(
+            f"parity-record: {', '.join(missing)} {verb} neither set in the environment nor captured by an "
+            "earlier command; export them in the recording shell (docs/recording-kit.md 1) and run again"
+        )
+
+
+def check_caller(account: str) -> None:
+    """Refuses unless the AWS CLI's credentials sign as account."""
+    try:
+        r = subprocess.run(CALLER_IDENTITY, capture_output=True, text=True)
+    except OSError as e:
+        raise Refusal(
+            f"parity-record: cannot run aws sts get-caller-identity: {describe(e)}; install AWS CLI 2.32 or "
+            "later (docs/recording-kit.md 1) and run again"
+        ) from e
+    if r.returncode != 0:
+        last = r.stderr.strip().splitlines()[-1:]
+        detail = f": {last[0]}" if last else ""
+        raise Refusal(
+            f"parity-record: aws sts get-caller-identity exited {r.returncode}{detail}; sign in to the "
+            "recording account (aws login --profile <profile> --remote, docs/recording-kit.md 1) and run again"
+        )
+    caller = r.stdout.strip()
+    if caller != account:
+        raise Refusal(
+            f"parity-record: the AWS credentials sign as account {caller or '(none printed)'}, but "
+            f"UNDERSTUDY_RECORD_ACCOUNT is {account}; switch AWS_PROFILE to the recording account, or correct "
+            "UNDERSTUDY_RECORD_ACCOUNT, and run again"
+        )
+
+
+def confirm(scenarios: Sequence[Scenario], account: str) -> None:
+    """Prints the plan and refuses unless the account id is typed back."""
+    sys.stdout.write(plan(scenarios))
+    sys.stdout.flush()
+    n = sum(len(s.record) for s in scenarios)
+    noun = "command" if n == 1 else "commands"
+    print(f"Record {n} {noun} in account {account}? Type the account id to continue: ",
+          end="", file=sys.stderr, flush=True)
+    typed = sys.stdin.readline()
+    if not typed.endswith("\n"):  # EOF: the terminal echoed no newline
+        print(file=sys.stderr)
+    answer = typed.strip()
+    if answer != account:
+        given = "no answer came" if answer == "" else f"{answer!r} is not the account id"
+        raise Refusal(f"parity-record: {given}, so nothing was run; run again and type {account} to record")
+
+
+def exit_status(code: int) -> int:
+    """A subprocess return code as the shell reports it: 128+N for a process killed by signal N."""
+    return 128 - code if code < 0 else code
+
+
+def rec(out: Path, argv: Sequence[str]) -> None:
+    """Runs argv as the kit's rec helper does: <out>.out, <out>.http, then exit=<code>."""
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(f"{out}.out", "wb") as stdout, open(f"{out}.http", "wb") as stderr:
+        code = subprocess.run([*argv, "--debug"], stdout=stdout, stderr=stderr).returncode
+    with open(f"{out}.out", "a", encoding="utf-8") as stdout:
+        stdout.write(f"exit={exit_status(code)}\n")
+
+
+def record(scenarios: Sequence[Scenario], env: Mapping[str, str], rec_dir: Path) -> int:
+    """Runs every command in order, then distill-parity; the exit status."""
+    total = sum(len(s.record) for s in scenarios)
+    done = 0
+    try:
+        for s in scenarios:
+            captures: dict[str, str] = {}
+            for i, c in enumerate(s.record):
+                done += 1
+                print(f"parity-record: [{done}/{total}] {line(s.item, c)}", file=sys.stderr, flush=True)
+                argv = [expand(a, {**env, **captures}) for a in c.argv]
+                match c:
+                    case RecCommand(step=step):
+                        rec(rec_dir / s.item / step, argv)
+                    case RunCommand(capture=None):
+                        subprocess.run(argv)
+                    case RunCommand(capture=name):
+                        r = subprocess.run(argv, stdout=subprocess.PIPE, text=True)
+                        if r.returncode != 0:
+                            print(
+                                f"parity-record: {s.id} record[{i}] exited {exit_status(r.returncode)}, and later "
+                                f"commands need its output in ${name}, so the run stopped after {done} of {total} "
+                                f"commands, before distill-parity; the recordings made so far are in {rec_dir}. "
+                                "Fix the cause, delete any resource it left, and run again",
+                                file=sys.stderr,
+                            )
+                            return 1
+                        captures[name] = r.stdout.rstrip("\n")  # as $(...) strips it
+        distill = [str(SCRIPT_DIR / "distill-parity"), "--replace", str(rec_dir)]
+        print(f"parity-record: {' '.join(distill)}", file=sys.stderr, flush=True)
+        return exit_status(subprocess.run(distill).returncode)
+    except OSError as e:
+        print(
+            f"parity-record: {describe(e)} (at command {done} of {total}): the run stopped; the recordings "
+            f"made so far are in {rec_dir}. Fix the cause and run again",
+            file=sys.stderr,
+        )
+        return 1
+    except KeyboardInterrupt:
+        print(f"\nparity-record: interrupted at command {done} of {total}; the recordings made so far are "
+              f"in {rec_dir}, and distill-parity did not run", file=sys.stderr)
+        return 130
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    p = argparse.ArgumentParser(prog="parity-record", description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--record", action="store_true",
+                   help="run the commands against AWS after the checks and a typed confirmation; "
+                        "a maintainer's recording shell only, never an agent")
+    p.add_argument("scenario", nargs="+", metavar="SCENARIO",
+                   help="a scenario id <svc>/<item>, or a path to its scenario.json")
+    return p.parse_args(argv)
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+    try:
+        scenarios = [load(a) for a in args.scenario]
+        if not args.record:
+            sys.stdout.write(plan(scenarios))
+            return 0
+        account, rec_dir = check_ready(scenarios, os.environ)
+        confirm(scenarios, account)
+    except Refusal as e:
+        print(e, file=sys.stderr)
+        return 2
+    return record(scenarios, os.environ, rec_dir)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))
