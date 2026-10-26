@@ -49,23 +49,101 @@ type DecodableMembers interface {
 	smithy.Deserializable
 }
 
-// errWithMembersNotImplemented is the cause WithMembers reports until
-// errors carry their members.
-var errWithMembersNotImplemented = errors.New("awserr: WithMembers is not implemented yet")
+// errNoMembers is the cause WithMembers reports for a nil value.
+var errNoMembers = errors.New("awserr: WithMembers was given a nil value, so the error has no shape; " +
+	"build it with the generated Err<X>Members constructor of the error shape")
 
 // WithMembers returns the error of v's shape carrying v, with message as
-// its text and origin as its origin. Codecs write the message under the
-// identity's MessageKey, never v's own message member.
-//
-// It is not implemented yet: it returns an Internal error.
-func WithMembers(_ Members, _ string, _ Origin) *Error {
-	return Internalf(errWithMembersNotImplemented)
+// its text and origin as its origin. Its ID is v's ErrorIdentity, so the
+// two cannot disagree. Codecs write the message under the identity's
+// MessageKey, never v's own message member (smithy-protocol-tests.md
+// 14.7). A nil v is a bug, answered as an Internal error.
+func WithMembers(v Members, message string, origin Origin) *Error {
+	if v == nil {
+		return Internalf(errNoMembers)
+	}
+	return &Error{ID: v.ErrorIdentity(), Message: message, Origin: origin, members: v}
 }
 
 // Members returns the generated value e carries, or nil when it carries
 // none.
 func (e *Error) Members() Members {
 	return e.members
+}
+
+// WireMembers returns the value e carries as a codec writes it after its
+// envelope: every member but the message member, which the codec writes
+// itself from MessageFor under ID.MessageKey, so the message has one
+// source (smithy-protocol-tests.md 14.7). It reports false when e carries
+// no value.
+func (e *Error) WireMembers() (smithy.Serializable, bool) {
+	if e.members == nil {
+		return nil, false
+	}
+	return withoutMessage{v: e.members}, true
+}
+
+// withoutMessage serializes an error value without its message member.
+type withoutMessage struct{ v Members }
+
+func (w withoutMessage) Serialize(s smithy.Serializer) {
+	w.v.Serialize(&messageFilter{Serializer: s})
+}
+
+// messageFilter forwards every write except the error structure's message
+// member: the string member named message or Message, the members the
+// generator derives MessageKey from (internal/codegen/ir_errors.go).
+type messageFilter struct {
+	smithy.Serializer
+	// depth counts the open containers; 1 is the error structure itself.
+	depth int
+}
+
+func (f *messageFilter) WriteStruct(m *smithy.Member, s *smithy.Schema) {
+	f.depth++
+	f.Serializer.WriteStruct(m, s)
+}
+
+func (f *messageFilter) CloseStruct() {
+	f.depth--
+	f.Serializer.CloseStruct()
+}
+
+func (f *messageFilter) WriteUnion(m *smithy.Member, s *smithy.Schema) {
+	f.depth++
+	f.Serializer.WriteUnion(m, s)
+}
+
+func (f *messageFilter) CloseUnion() {
+	f.depth--
+	f.Serializer.CloseUnion()
+}
+
+func (f *messageFilter) WriteList(m *smithy.Member, n int) {
+	f.depth++
+	f.Serializer.WriteList(m, n)
+}
+
+func (f *messageFilter) CloseList() {
+	f.depth--
+	f.Serializer.CloseList()
+}
+
+func (f *messageFilter) WriteMap(m *smithy.Member, n int) {
+	f.depth++
+	f.Serializer.WriteMap(m, n)
+}
+
+func (f *messageFilter) CloseMap() {
+	f.depth--
+	f.Serializer.CloseMap()
+}
+
+func (f *messageFilter) WriteString(m *smithy.Member, v string) {
+	if f.depth == 1 && m != nil && (m.Name == "message" || m.Name == "Message") {
+		return
+	}
+	f.Serializer.WriteString(m, v)
 }
 
 // Identity is everything a codec needs to render an error on any protocol.
