@@ -1,13 +1,16 @@
 package policycatalogue
 
 import (
+	"bytes"
 	"cmp"
 	"compress/gzip"
+	"encoding/binary"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"iter"
 	"regexp"
 	"slices"
@@ -417,6 +420,11 @@ var embedded = sync.OnceValues(func() (*Catalogue, error) {
 	return c, nil
 })
 
+// maxSizeHint caps the capacity gunzip reserves from a gzip trailer, which
+// a corrupt file could set to 4 GiB; the catalogue of 2026-10-26
+// decompresses to 6.2 MB.
+const maxSizeHint = 64 << 20
+
 // gunzipEmbedded is policies.json, decompressed from the embedded
 // awsmanagedpolicies.PoliciesGzipFile.
 func gunzipEmbedded() ([]byte, error) {
@@ -424,12 +432,53 @@ func gunzipEmbedded() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	data, err := gunzip(f)
+	if err := errors.Join(err, f.Close()); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+// gunzip decompresses f into one buffer reserved at the size its gzip
+// trailer records, up to maxSizeHint, so the text is allocated once rather
+// than regrown through a series of copies, each garbage once the next is
+// made: the first Embedded call stays near the catalogue's own size on the
+// RSS budgets (ARCHITECTURE.md 5.7). bytes.MinRead of spare room lets the
+// read that meets the end go without growing the buffer, and the buffer
+// starts from its own slice rather than Grow, whose append copies through a
+// temporary that a -race build allocates too.
+func gunzip(f fs.File) ([]byte, error) {
+	buf := bytes.NewBuffer(make([]byte, 0, min(trailerSize(f), maxSizeHint)+bytes.MinRead))
 	zr, err := gzip.NewReader(f)
 	if err != nil {
 		return nil, err
 	}
-	return io.ReadAll(zr)
+	_, err = buf.ReadFrom(zr)
+	// zr.Close repeats a read error, so it is asked only after a clean read.
+	if err == nil {
+		err = zr.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// trailerSize is the uncompressed size f's gzip trailer records (ISIZE, the
+// last four bytes, RFC 1952 2.3.1), or 0 when f cannot be read at an offset
+// or is too short to hold one. It only sizes a buffer: the gzip reader
+// checks it against the text.
+func trailerSize(f fs.File) int {
+	ra, ok := f.(io.ReaderAt)
+	info, err := f.Stat()
+	if !ok || err != nil || info.Size() < 4 {
+		return 0
+	}
+	var isize [4]byte
+	if _, err := ra.ReadAt(isize[:], info.Size()-4); err != nil {
+		return 0
+	}
+	return int(binary.LittleEndian.Uint32(isize[:]))
 }
 
 // Embedded is the Loader of the catalogue compiled into the binary as
