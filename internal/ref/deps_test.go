@@ -167,6 +167,15 @@ func importRules() []importRule {
 		// The raw S3 Control tag operations read and write their XML
 		// bodies with xmlw and stamp x-amz-id-2 as the restXml codec does.
 		{"internal/service/s3", append(slices.Clone(service), "internal/protocol/xmlw", "internal/protocol/restxml")},
+		// IAM serves AWS managed policies from the shipped catalogue (ADR
+		// 0016, amendment "managed policies").
+		{"internal/service/iam", append(slices.Clone(service), "internal/policycatalogue")},
+
+		// The AWS managed policy catalogue: the embedded data files import
+		// nothing, and the typed catalogue reads them and checks names and
+		// paths with the aws leaf (ADR 0016, amendment "managed policies").
+		{"third_party/aws-managed-policies", nil},
+		{"internal/policycatalogue", []string{"internal/aws", "third_party/aws-managed-policies"}},
 
 		// Front door, composition root and tools.
 		{"internal/edge", []string{
@@ -211,6 +220,10 @@ func importRules() []importRule {
 		// The -service flag is a ref.ServiceID, a leaf codegen imports too.
 		{"internal/cmd/gen", []string{"internal/codegen", "internal/ref"}},
 		{"internal/cmd/vendor", nil},
+		// The catalogue generator writes policycatalogue's format under the
+		// data package's file names, splits ARNs with the aws leaf and
+		// checks every document with policydoc.
+		{"internal/cmd/managedpolicies", []string{"internal/policycatalogue", "internal/policydoc", "internal/aws", "third_party/aws-managed-policies"}},
 		// The golden fixture is generated like internal/api/..., so it
 		// mirrors that row; serdetest holds the serde test doubles, and
 		// validationpolicy is the policy runtime codegen embeds and copies.
@@ -339,13 +352,13 @@ import _ "example.com/m/internal/journal"
 }
 
 // importViolations parses the import specs of every non-test Go file in the
-// packages under root's internal, admin, understudytest and cmd trees and
-// returns one message per disallowed edge, sorted. Packages are paths
-// relative to root; directories named testdata or starting with . or _ are
-// skipped, as the go tool does.
+// packages under root's internal, admin, understudytest, cmd and
+// third_party trees and returns one message per disallowed edge, sorted.
+// Packages are paths relative to root; directories named testdata or
+// starting with . or _ are skipped, as the go tool does.
 func importViolations(root, module string, rules []importRule) ([]string, error) {
 	imports := map[string]map[string]bool{}
-	for _, top := range []string{"internal", "admin", "understudytest", "cmd"} {
+	for _, top := range []string{"internal", "admin", "understudytest", "cmd", "third_party"} {
 		err := filepath.WalkDir(filepath.Join(root, top), func(path string, d fs.DirEntry, err error) error {
 			switch {
 			case os.IsNotExist(err):
