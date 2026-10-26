@@ -107,6 +107,7 @@ A new wire protocol needs an ADR; the protocol compliance corpus already carries
 |---|---|---|
 | Unit and service tests | `just test` | Service semantics on the emulator clock through `kernel.Invoke`; property tests for engines and codecs; generator golden tests; the examples in AWS's models |
 | Protocol compliance | `go test -race -run TestCorpus ./internal/protocoltest` | Codecs and error writers against Smithy's official compliance corpus, as a ratchet over `internal/protocoltest/baseline.json` |
+| Parity replay | `go test -race ./internal/parity` | Real AWS exchanges under `testdata/parity` replayed against an in-process server, as a ratchet over `internal/parity/baseline.json` ([testdata/README.md](testdata/README.md#replay-scenarios)) |
 | Docker integration | `just test-docker` | Lambda execution, DynamoDB Local, container networking, the image |
 | Smoke | `just smoke` | The built binary serves one request per service, over HTTP and TLS |
 | Budgets | `just budgets` | Binary size, startup time, idle memory, build and lint time stay under their ceilings |
@@ -115,6 +116,8 @@ A new wire protocol needs an ADR; the protocol compliance corpus already carries
 | Conformance | `conformance/<suite>/run.sh` | Real clients against a real server; see below |
 
 When a fix makes a protocol compliance case pass, record it with `just protocoltest-baseline`. A case understudy cannot pass yet goes in `internal/protocoltest/skips.json` with its reason; the ratchet fails if a passing case regresses or the baseline would shrink.
+
+The parity ratchet fails when a replayed step's outcome or a claim's result changes, naming the step. Once the change is intended, record it with `just parity-baseline` and regenerate the coverage page with `just coverage-check`. A step that newly differs from its recording is a finding: fix understudy or the research, never the scenario.
 
 ## Conformance suites
 

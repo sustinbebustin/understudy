@@ -46,8 +46,9 @@ internal/
   paging/                       LEAF: keyset pager with listing-scoped, versioned markers; MarkerError
   paging/pagingtest/            SurvivesChanges: page a service listing while items come and go between pages
   blob/                         content-addressed bytes under os.Root; memory and disk; refcounts
-  snapshot/                     archive format, manifest, section readers and writers, normalizers, diff
-  coverage/                     report (JSON, Markdown) from kernel bindings + protocol-test baseline + fidelity ledger
+  snapshot/                     archive format, manifest, section readers and writers, diff (masks from normalize)
+  normalize/                    the closed, named normalizer set snapshot diff and the parity replayer share (sections 12, 19)
+  coverage/                     report (JSON, Markdown) from kernel bindings + protocol-test baseline + fidelity ledger + overlay evidence and parity baseline (offline only)
   delivery/                     LEAF types: Target variants with their payloads, Request, RetryPolicy, Mechanism
   outbox/                       the delivery engine: a Stateful outbox cell, attempts on the clock, DLQ routing, kernel.Invoke per attempt
   protocol/
@@ -78,7 +79,7 @@ internal/
   protocoltest/                 compliance harness, comparators, skip list, checked-in baseline (ratchet)
   protocoltest/gen/             GENERATED synthetic test services and case tables
   smoke/                        in-repo smoke test: builds and starts the binary, one raw HTTP request per service
-  parity/                       parity recording replayer (built in the conformance phase; the normalizer set is shared with snapshot)
+  parity/                       parity replay: scenarios, comparison, the baseline.json ratchet; tests replay against internal/server (section 19)
 
 codegen/
   services/<svc>.json           per service: package, extra protocols, raw binding, raw operations, route overrides
@@ -88,7 +89,8 @@ third_party/
   api-models-aws/               12 model files verbatim at 1cfdfb4bb9ea858e65623e66d73af04bec353201, UPSTREAM.json, LICENSE, NOTICE
   smithy-protocol-tests/        flattened AST from Smithy 1.74.0 jars, PIN.json
   aws-service-reference/        derived operation -> IAM action table with provenance
-testdata/parity/<svc>/          parity recordings with evidence labels
+testdata/parity/<svc>/<item>/   parity recordings, one file per step, and where one exists the item's replay scenario (scenario.json)
+scripts/                        sealed (AWS clients against loopback endpoints only), distill-parity, parity-record (record mode, section 19)
 conformance/                    separate modules, own manifests, each with a run.sh that goes through scripts/sealed:
   go-sdk/ python-boto3/ js-sdk-v3/ aws-cli/ terraform/ e2e-pipeline/
 Dockerfile, .goreleaser.yaml    distribution (section 24)
@@ -104,8 +106,9 @@ Dependency direction, checked by a test in `internal/ref` that walks imports wit
 - `service/*` imports `api/*`, `kernel`, `store`, `clock`, `ids`, `blob`, `delivery`, `fidelity`, `paging` and the engines it needs. A service never imports another service; it calls it through `kernel.Invoke` with the other service's generated `Op`. Three exceptions: a service imports `journal` for `Detail` values only, which it records through `kernel.Call.Record` or `kernel.Tx.Record` (section 10); DynamoDB imports `protocol/awsjson` to encode a `Synthesized` call as a client would; S3 imports `protocol/xmlw` and `protocol/restxml` for the bodies and `x-amz-id-2` of its raw S3 Control tag operations.
 - `protocol/*` imports `protocol/smithy`, `awserr`, `ref` and the other protocol helpers it builds on; the codecs and `restbind` also import `registry` and `aws`, because a codec claims requests through the service descriptor and reads its identities. It never sees a service or a generated package.
 - `outbox` imports `kernel`, `delivery`, `journal`, `store`, `clock`, and the generated `api/*` packages whose `SendMessage`, `Invoke` and `Publish` ops its attempts call. `edge` imports `kernel`, `registry`, `auth`, `identity` and the codec interface, plus the public `admin` package (standard library only) for the JSON error envelope it sends to LocalStack paths (4.1 rule 1); `server` is the only package that names every service, every codec and `outbox`.
-- `snapshot` imports `store`, `blob`, `jsonx`, `clock`, `ids`; `kernel.Stateful` exports `store.Section` values and `snapshot` archives them, so neither imports the other.
-- `cli` depends on `admin`, `config` and `server`, plus the read-only non-service packages its offline subcommands need: `serve` maps `config.Config` onto `server.Config`; `coverage` runs offline in process and filters, renders and adds overlay evidence through `coverage`; `snapshot inspect` and `diff` read local archives through `snapshot`; `doctor` and `cleanup` reach the daemon through `docker` and detect the topology through `topology`; `env` checks `--region` against the region names in the `aws` leaf. It never imports a service.
+- `snapshot` imports `store`, `blob`, `jsonx`, `clock`, `ids`, `ref` and `normalize`; `kernel.Stateful` exports `store.Section` values and `snapshot` archives them, so neither imports the other. `normalize` imports `ids` (minted access keys decode to their account) and `store` (scope keys).
+- `parity` imports `normalize` and `evidence`; its test files drive `server` in process. `coverage` reads `internal/parity/baseline.json` with its own reader (`coverage.ParseParity`) and never imports `parity`.
+- `cli` depends on `admin`, `config` and `server`, plus the read-only non-service packages its offline subcommands need: `serve` maps `config.Config` onto `server.Config`; `coverage` runs offline in process and filters, renders and adds overlay evidence and the parity baseline (`--parity`) through `coverage`; `snapshot inspect` and `diff` read local archives through `snapshot`; `doctor` and `cleanup` reach the daemon through `docker` and detect the topology through `topology`; `env` checks `--region` against the region names in the `aws` leaf. It never imports a service.
 
 Every service package has the same files, so reading one teaches all: `service.go` (struct, `New(kernel.ServiceDeps, Options)`, lifecycle, one `bind<Family>` call per resource family), `state.go` (persisted types with `json` tags and `stateVersion`), one file per resource family, `validate.go` for typed per-operation validators bound with `kernel.WithValidator`, `errors.go` for message builders over the generated constructors (never an `awserr.Identity` literal), `*_test.go` through `kernel.Invoke` inside `kerneltest` bubbles.
 
@@ -449,19 +452,21 @@ package fidelity
 
 // Switch is a behavior chosen without AWS-recorded evidence. Not user-configurable in phase 1.
 type Switch[T comparable] struct {
-	Name   string         // "logs.filter.term-boundary"
-	Value  T
-	Label  evidence.Label
-	Ref    string         // "docs/research/logs-filter-patterns.md#5"
-	Record string         // backlog item that settles it, e.g. "R10/C1"
+	Name    string         // "logs.filter.term-boundary"
+	Value   T
+	Label   evidence.Label
+	Ref     string         // "docs/research/logs-filter-patterns.md#5"
+	Record  string         // backlog item that settles it, e.g. "R10/C1"
+	Ops     []string       // the operations it governs: "sqs.DeleteMessage"
+	Settles Settles        // SettledBy{Step: sqs/R01#03-recv-after-6s} or NoScenario{Reason}
 }
 
-type Entry struct{ Name, Value, Ref, Record string; Label evidence.Label } // type-erased view for coverage
+type Entry struct{ Name, Value, Ref, Record string; Label evidence.Label; Ops []string; Settles Settles } // type-erased view for coverage
 func (s Switch[T]) Entry() Entry
 // Every service exposes Switches() []fidelity.Entry; wire.go collects them.
 ```
 
-`understudy coverage` reports three separate numbers, never summed: protocol compliance (Smithy cases passed, skipped with reason, failed per protocol, from the checked-in baseline), operations (Full, StoredOnly, Partial, Unbound per service against the model; internal and raw operations listed separately), evidence (overlay entries and fidelity switches by label, parity fixtures by label).
+`understudy coverage` reports three separate numbers, never summed: protocol compliance (Smithy cases passed, skipped with reason, failed per protocol, from the checked-in baseline), operations (Full, StoredOnly, Partial, Unbound per service against the model; internal and raw operations listed separately), evidence (overlay entries and fidelity switches by label; per operation, the weakest label among the overlay items, switches and replayed steps it is claimed by, where the parity baseline turns a claim its recording settles into `aws-recorded (<fixture>)` and one it contradicts into `contradicted (<fixture>)`, section 19).
 
 ### 3.5 State store
 
@@ -1041,7 +1046,7 @@ type Probability struct{ P float64 } // ChaCha8 stream keyed by hash(global seed
 
 `internal/ids` owns every generated identifier: request ids, SQS message ids and receipt handles, SNS message ids, Lambda request ids, ESM UUIDs, upload ids, version ids, SSE-KMS ETags, KMS key ids, IAM `AROA`/`ANPA`/`AIDA` ids, minted access keys. Default source is `crypto/rand`. With `--seed N` each generator kind draws from its own ChaCha8 stream derived from `(seed, kind)`; stream positions are recorded in snapshots. The stdlib `uuid` package cannot be seeded, so UUIDs are formatted from the stream. KMS key material always comes from `crypto/rand`. Map iteration for output always sorts. Drawing from an undeclared kind panics on either source (ADR 0018, pre-tag review amendment).
 
-The determinism contract is narrower than "byte-identical", because one client still fans out into concurrent internal work and Lambda runs on wall time. What holds: with the same seed, rule set and call order, fault hits are identical; snapshot state sections are byte-identical except a named set of wall-domain fields (STS `Expiration`, persisted as `expiry` by identity's export; Lambda REPORT durations; DynamoDB Local timestamps) and, between runs under different accounts, account ids (ARN and URL accounts, `Account`/`AccountId` members, and minted access key ids, whose whole value is masked when `ids.DecodeAccount` finds an account in it); journals are equal as canonical trace trees (children sorted by kind, operation and resource; ids replaced by tree positions; `Wall` and `Latency` ignored). `snapshot diff --normalize` and the journal's `Canonical()` view apply the closed normalizer set the parity replayer will share; golden fixtures never contain raw event ids. A `--deterministic` single-worker mode is not built in phase 1.
+The determinism contract is narrower than "byte-identical", because one client still fans out into concurrent internal work and Lambda runs on wall time. What holds: with the same seed, rule set and call order, fault hits are identical; snapshot state sections are byte-identical except a named set of wall-domain fields (STS `Expiration`, persisted as `expiry` by identity's export; Lambda REPORT durations; DynamoDB Local timestamps) and, between runs under different accounts, account ids (ARN and URL accounts, `Account`/`AccountId` members, and minted access key ids, whose whole value is masked when `ids.DecodeAccount` finds an account in it); journals are equal as canonical trace trees (children sorted by kind, operation and resource; ids replaced by tree positions; `Wall` and `Latency` ignored). `snapshot diff --normalize` applies the closed normalizer set of `internal/normalize`, which the parity replayer shares (section 19), and the journal's `Canonical()` view gives the tree form above; golden fixtures never contain raw event ids. A `--deterministic` single-worker mode is not built in phase 1.
 
 ## 13. Snapshots and persistence
 
@@ -1259,7 +1264,7 @@ Mounted at `/_understudy/v1/` on the main listener; JSON both ways; errors `{"er
 | `GET /journal/traces/{id}` | causal tree by trace id or by `request_id=`; `?canonical=1` returns the normalized tree of section 12 |
 | `POST /snapshots` (archive out), `PUT /snapshots` (archive in) | save and load; with `--persist` also `{"path": ...}` under `<data dir>/snapshots`, apart from the lock, state file, blobs and DynamoDB files |
 | `GET /resources` | every resource ARN by service, account, region with a short state summary |
-| `GET /coverage?format=json|markdown` | registry coverage, protocol compliance results, fidelity switches; overlay evidence only in the offline report (`docs/coverage.md`, `understudy coverage`), since the binary does not carry the overlay files |
+| `GET /coverage?format=json|markdown` | registry coverage, protocol compliance results, fidelity switches; overlay evidence and parity results only in the offline report (`docs/coverage.md`, `understudy coverage`), since the binary does not carry the overlay files or `internal/parity/baseline.json` |
 | `GET /iam/usage`, `GET /iam/policy?principal=` | access record; least-privilege policy. Contract: one statement per `(service, resource ARN)` with exact ARNs (no wildcards unless the operation has no resource); policy rule (ADR 0004 amendment): the primary action always; same-prefix secondaries when the binding declares them used for the input (`kernel.WithActions`, or none with `kernel.WithoutSecondaryActions`, at the bind site or later through `kernel.Declare`), and the whole generated list for a binding that declares neither (an over-grant, until the service's actions are audited); other-prefix actions only on a touched resource of their service; S3 object operations touch object ARNs, which the access record keeps, and the usage and policy render, as `<bucket>/*`, so the record grows with buckets rather than keys; calls the edge refused at authentication (sigv4 verify) are not recorded, since on AWS they never reach authorization; failed calls that were not injected are recorded, because the application's handled failures need permissions too; a separate `resourcePolicies` section lists the resource-policy requirements deliveries would need (target ARN, service principal, action, source ARN) |
 | `GET /settle?timeout=` | wait for quiescence; `pending` grouped by `WorkKind` on timeout |
 | `POST /lambda/functions/{name}/hot-reload` | bind a host directory |
@@ -1340,7 +1345,7 @@ Shape conformance, behavioral tests and recorded parity are reported separately,
 | Policy generation | `internal/access` and the smoke test | `go test` | the generated policy for a function role contains `AWSLambdaSQSQueueExecutionRole` and `AWSLambdaBasicExecutionRole` actions after an ESM-driven invoke; the policy for an SSE-KMS workload contains `kms:GenerateDataKey` and `kms:Decrypt` |
 | Budgets | `just budgets` | CI | the ceilings in 5.7 |
 | Wire goldens | `internal/edge/testdata` | `go test` | exact request lines real SDKs send (Go snapshots, botocore forms, `?uploads` vs `?uploads=`, `x-id`) route to the same operation; `httptest.NewTestServer` inside bubbles |
-| Parity replay | `internal/parity` over `testdata/parity` | `go test` | not built (conformance phase): the recordings exist, the replayer does not. Planned: recorded exchanges replayed in-process; normalizers are a closed, named set (request ids, receipt handles, timestamps, hosts, account ids) |
+| Parity replay | `internal/parity` over the `scenario.json` files in `testdata/parity` | `go test` | real AWS exchanges replayed against an in-process server, re-signed as the masked account's root under both `--sigv4 parse` and `verify`, in recorded order with setup calls, clock advances and bound ids; status, error code and message, selected headers and the whole body compared, hidden only by a per-field waiver or the closed, named normalizer set of `internal/normalize` (request and host ids, timestamps, account and masked identities, credentials, receipt handles, bound values); each step's outcome and each settled claim a ratchet over `internal/parity/baseline.json`. awsJson and awsQuery only: REST (S3, Lambda) and Docker steps are skipped with the reason |
 | Snapshot round trip | per service | `go test` | random state, save, load, save, byte-identical; `Rearm` reproduces the scheduler |
 | Real-client conformance | `conformance/*` | each suite's `run.sh` via `scripts/sealed`; CI `conformance` job | Go v2, boto3, JS v3, AWS CLI; per-SDK wire-capture fixtures that fail when an SDK release changes its wire form; DynamoDB runs unless opted out explicitly (`CONFORMANCE_DYNAMODB=0`), and every skip is listed in the run's summary |
 | Terraform | `conformance/terraform` | `scripts/sealed` | per resource group at provider 6.68.0: apply, `plan -detailed-exitcode` is 0, mutate, apply, plan, destroy; journal call-sequence assertions; per-test account isolation; a non-blocking canary against the latest provider |
@@ -1350,9 +1355,9 @@ Shape conformance, behavioral tests and recorded parity are reported separately,
 
 Behavior tests do not go over HTTP with a hand-rolled client; wire correctness is the job of the compliance suite, the goldens and the real-SDK modules. Time-dependent tests use `synctest` with the emulator clock; no test sleeps on wall time except the Docker and Terraform suites, whose provider floors (55 s per lifecycle configuration, 5 s per Lambda waiter, 25 s and 42 s SQS waits) are documented and sized into their timeouts. Every test gets its own account or region namespace, or its own server on `127.0.0.1:0`. Docker tests carry `understudy.dev/test=1` plus a per-run label, unique names, and delete by name.
 
-Parity recordings carry evidence labels (`aws-recorded`, `third-party-recorded`, `aws-doc`, `sdk-source`, `inferred`); the replayer reports pass counts per label. Record mode lives only in `conformance/parity-record`, refuses to run without an explicit human-only flag and real credentials it reads itself, and is never run by agents. Its backlog is R01 to R18 in `s3-checksum-residuals-and-record-backlog.md`.
+A scenario's `settles` entries claim fidelity switches and overlay evidence items for one step's field (`testdata/README.md`, Replay scenarios). A claim is settled only when the step matches and the comparison fails once the recorded value at that field is changed, so a field a waiver or normalizer hides settles nothing; a step that differs contradicts the claim. `understudy coverage --parity internal/parity/baseline.json` (run by `just coverage-check`) attributes the overlay items, switches (by their `Ops`) and replayed steps to operations, shows each operation's weakest claim, labels a settled claim `aws-recorded (<fixture>)` and a contradicted one `contradicted (<fixture>)`, and lists a settled switch or overlay item still labelled lower in code as pending retirement. A drift from the baseline is a finding or an improvement: `just parity-baseline` records it once intended. Record mode is `scripts/parity-record`. By default it prints a scenario's queued `record` commands in the recording kit's `rec` form and runs nothing; `--record` runs them only at a terminal, with no `AWS_ENDPOINT_URL*` set, once `aws sts get-caller-identity` answers with `UNDERSTUDY_RECORD_ACCOUNT` and that account id is typed at its prompt, then rebuilds the fixtures with `scripts/distill-parity`. Agents never run `--record`. Its backlog is R01 to R18 in `s3-checksum-residuals-and-record-backlog.md`.
 
-Gates: `go vet`, `golangci-lint` (the strict configuration in `go-toolchain.md 13`), `go test -race ./...`, `just generate-check`, the protocol-test baseline ratchet, the coverage page drift check, the snapshot round trip across every registered service, `just budgets`, and `just test-docker` once the Lambda runtime exists. The real-SDK conformance suites, Terraform suites, the e2e workload and the scheduled SDK and provider canaries belong to the conformance phase. The human-run R01 to R18 recordings are filed under `testdata/parity/`, captured with the [recording kit](recording-kit.md). CI also runs `examples/check.sh` (the `examples` job) and every conformance suite's run.sh (the `conformance` job, one matrix entry per suite) on pushes to main and pull requests, DynamoDB Local included (ADR 0014 amendment of 2026-10-14).
+Gates: `go vet`, `golangci-lint` (the strict configuration in `go-toolchain.md 13`), `go test -race ./...`, `just generate-check`, the protocol-test and parity replay baseline ratchets, the coverage page drift check, the snapshot round trip across every registered service, `just budgets`, and `just test-docker` once the Lambda runtime exists. The real-SDK conformance suites, Terraform suites, the e2e workload and the scheduled SDK and provider canaries belong to the conformance phase. The human-run R01 to R18 recordings are filed under `testdata/parity/`, captured with the [recording kit](recording-kit.md). CI also runs `examples/check.sh` (the `examples` job) and every conformance suite's run.sh (the `conformance` job, one matrix entry per suite) on pushes to main and pull requests, DynamoDB Local included (ADR 0014 amendment of 2026-10-14).
 
 ## 20. Security model
 
