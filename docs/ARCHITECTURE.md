@@ -328,10 +328,24 @@ type Error struct {
 	ID       Identity
 	Message  string            // empty only where AWS sends none
 	Messages []ProtocolMessage // per-protocol override of Message (SQS NonExistentQueue over Query says "... for this wsdl version.")
-	Fields   []Field           // extra wire members: S3 BucketName, Key, UploadId, ArgumentName; Lambda Type, Reason
+	Fields   []Field           // extra string members in recorded wire order: S3 BucketName, Key, UploadId, ArgumentName; Lambda Type, Reason
 	Headers  []Header          // Retry-After, x-amz-bucket-region
 	Origin   Origin
+	members  Members           // the generated value of the shape, for members beyond the message; only WithMembers sets it
 }
+
+// Members is a generated error structure; every generated error type implements it on its pointer.
+type Members interface {
+	smithy.Serializable
+	ErrorIdentity() Identity // the generated Identity<X>()
+}
+
+// DecodableMembers also decodes, so a fault rule's members can be read into it (the generated NewErrorMembers).
+type DecodableMembers interface{ Members; smithy.Deserializable }
+
+func WithMembers(v Members, message string, origin Origin) *Error // ID is v.ErrorIdentity(), so the two cannot disagree
+func (e *Error) Members() Members                                  // nil when e carries no value
+func (e *Error) WireMembers() (smithy.Serializable, bool)           // the value without its message member, as codecs write it
 
 // Identity is everything a codec needs to render an error on any protocol.
 // For modeled and overlay-added shapes it is a generated constant. Composite literals outside
@@ -379,7 +393,7 @@ func Validate(op *registry.Operation, v []awserr.Violation) *awserr.Error // pic
 
 The current contract: `registry.Operation` has no validation-policy field, and generated packages may import only the vocabulary packages (section 2), so the policy runtime is written once in `internal/codegen/validationpolicy` and copied into each `validate_gen.go`. Every generated input type has the method `ValidationError([]awserr.Violation) *awserr.Error`, and `kernel.Validate` reaches the policy by type-asserting the decoded `*In` on that method inside `kernel.NewOp[In, Out]`. Moving the policy types into `awserr` and adding the descriptor field (so the generator emits data only) is not done yet.
 
-Generated constructors read like the SDK's: `sqsapi.ErrQueueDoesNotExist(msg)`, `s3api.ErrNoSuchBucketPolicy(bucket)`. No string codes in handler code. Rules the codecs share, taken from `error-matrix.md 7` (D1 to D10, H1 to H10):
+Generated constructors read like the SDK's: `sqsapi.ErrQueueDoesNotExist(msg)`, `s3api.ErrNoSuchBucketPolicy(bucket)`. No string codes in handler code. A shape with members besides its message also gets `Err<X>Members`, which takes the generated value and sets its message member, if it models one, from the message argument (a shape whose identity is `NoMessage` takes no message): `dynamodbapi.ErrTransactionCanceledExceptionMembers(msg, dynamodbapi.TransactionCanceledException{CancellationReasons: reasons})`. Each codec writes the value's members into its error body through the serializer it uses for outputs, sends `@httpHeader` members as headers on restJson1 and restXml, and writes `Fields` after the members. It never writes the value's message member, so the message has one source: `MessageFor` under `ID.MessageKey`. A value that does not serialize is answered as `InternalFailure` (`smithy-protocol-tests.md 14.7`). Real-service handlers still set their string members through `Fields`, in recorded wire order, and an error without a value renders byte for byte as it did before values existed. Each generated package's `NewErrorMembers`, reached as `registry.Service.NewErrorMembers`, returns an empty value of an error shape it generates a deserializer for, which is how a fault rule's `members` are checked (section 11). Rules the codecs share, taken from `error-matrix.md 7` (D1 to D10, H1 to H10):
 
 - Status comes from `httpError`; SQS `PurgeQueueInProgress` is 403 because the SQS model sets `httpError` equal to `awsQueryError.httpResponseCode` (`sqs.md` finding 4). CloudWatch's 404 under `x-amzn-query-mode: true` is `QueryModeStatus`.
 - Message member spelling is the shape's own (`Message` for Secrets Manager, `message` for KMS); Go v2 drops a differently cased message on modeled errors.
@@ -795,7 +809,7 @@ CloudWatch is served by three codecs and SQS by two; handlers are written once.
 | restXml | 101 + 77 (13 S3 cases) |
 | rpcv2Cbor | 39 + 29, plus the G01 to G24 Go vectors |
 
-The skip list (`internal/protocoltest/skips.json`) is seeded from smithy-rs's `ExpectFail`, `BrokenTests` and `DisabledTests` plus `host` and `resolvedHost` cases; every entry has a reason and a category (`corpus-bug`, `client-only`, `aws-differs` with an `evidence.Label`). The same file records known failures under the category `gap`: cases understudy itself fails because a part it builds on cannot yet express what they assert, each reason naming the owning package. A known failure is not a skip: the coverage report counts it as failed and lists it apart, and the ratchet accepts it only until the fix lands and the baseline is rewritten. Validation message text in the Smithy cases is asserted as expected-to-differ (`error-matrix.md` finding 2). The corpus is a ratchet, not a wall: `internal/protocoltest/baseline.json` records the passing case ids per protocol; a run fails when any baseline case fails or when the baseline would shrink, and `just protocoltest-baseline` rewrites it when cases are fixed. The 655 expanded restJson1 malformed cases join the baseline as Lambda needs them.
+The skip list (`internal/protocoltest/skips.json`) is seeded from smithy-rs's `ExpectFail`, `BrokenTests` and `DisabledTests` plus `host` and `resolvedHost` cases; every entry has a reason and a category (`corpus-bug`, `client-only`, `aws-differs` with an `evidence.Label`). The same file records known failures under the category `gap`: cases understudy itself fails because a part it builds on cannot yet express what they assert, each reason naming the owning package. A known failure is not a skip: the coverage report counts it as failed and lists it apart, and the ratchet accepts it only until the fix lands and the baseline is rewritten. None is recorded today: of the 15 the corpus pinned, 14 pass, and the restXml `ComplexError` response case is a `corpus-bug`, since its body expects a `<Message>` the shape does not model; a restxml codec test keeps its nested members tested (`smithy-protocol-tests.md 9.1, 14.1`). Validation message text in the Smithy cases is asserted as expected-to-differ (`error-matrix.md` finding 2). The corpus is a ratchet, not a wall: `internal/protocoltest/baseline.json` records the passing case ids per protocol; a run fails when any baseline case fails or when the baseline would shrink, and `just protocoltest-baseline` rewrites it when cases are fixed. The 655 expanded restJson1 malformed cases join the baseline as Lambda needs them.
 
 ## 7. Identity, auth, accounts and regions
 
@@ -1018,10 +1032,14 @@ type Match struct {
 }
 
 // Catalogue is what rule validation reads; the kernel implements it over the registry so fault never imports registry.
-type Catalogue interface{ Errors(op ref.OperationID) ([]awserr.Identity, bool); Throttle(svc ref.ServiceID) awserr.Identity }
+type Catalogue interface {
+	Errors(op ref.OperationID) ([]awserr.Identity, bool)
+	Throttle(svc ref.ServiceID) awserr.Identity
+	NewMembers(op ref.OperationID, shape smithy.ShapeID) (awserr.DecodableMembers, bool) // registry.Service.NewErrorMembers
+}
 
 type Action interface{ isAction() }
-type Error struct{ Shape smithy.ShapeID; Message string } // validated against the operation's generated error list plus the generic catalogue
+type Error struct{ Shape smithy.ShapeID; Message string; Members Members } // validated against the operation's generated error list plus the generic catalogue; Members is a JSON object, names as modeled
 type Throttle struct{}                                   // the service's own throttling identity (overlay throttleError)
 type Latency struct{ Wall time.Duration }                // before the handler; wall, so a frozen clock cannot hang it
 type AfterCommit struct{ Shape smithy.ShapeID }          // the side effect happens, the client sees the error
@@ -1035,6 +1053,7 @@ type Probability struct{ P float64 } // ChaCha8 stream keyed by hash(global seed
 ```
 
 - Rules are validated at creation: an error shape outside the operation's modeled plus overlay errors is rejected with the list of codes the service really sends; `Throttle{}` resolves to `RequestThrottled` 403 (SQS), `ProvisionedThroughputExceededException` (DynamoDB), `TooManyRequestsException` 429 (Lambda), `SlowDown` 503 (S3) and so on.
+- An `Error` rule's `members` set the shape's members beyond its message. They are decoded at creation into the value `Catalogue.NewMembers` returns, through the shape's generated deserializer, so an unknown member or a wrong type is refused; a shape whose service generates no deserializer for it takes none. A hit carries the decoded value (`awserr.WithMembers`). A DynamoDB `TransactionCanceledException` rule must set `CancellationReasons`; each hit pads them with `{"Code":"None"}` to one reason per item of the call, which the binding counts (`kernel.WithItemCount`), a call with fewer items than the rule's reasons does not match, and a rule without a message gets AWS's text listing the codes (`smithy-protocol-tests.md 12.4, 14.9`).
 - Hook points: pipeline steps 8 and 10 for every call, internal ones included (`{Service: sqs, Operation: SendMessage, Origin: InternalOnly}` makes SNS-to-SQS delivery fail and drives the SNS retry and DLQ path); the delivery engine for `Phase: Delivery`; the DynamoDB proxy before forwarding, so Local never sees the request. The DynamoDB export, import and reset run outside the pipeline, so they never match a rule (ADR 0014).
 - `Store.Evaluate(Hook, MatchInput) Decision` names the hook, not the phase: `BeforeHandler` (step 8 and the DynamoDB proxy: `Error`, `Throttle`, `Latency`), `AfterHandler` (step 10, only after the handler succeeded: `AfterCommit`, `StatusOKError`) and `DeliveryAttempt`. `Decision` is `None | Fail | Delay{Wall, Then} | FailAfterCommit | FailStatusOK | Drop`, each hit carrying `Injection{Rule, Hit, Of}`. `Delay.Then` is evaluated eagerly, so the caller journals its hits even when the client leaves during the hold. Shapes in the `dev.understudy` namespace are never injectable (ADR 0008).
 - Typed validators (3.2 `WithValidator`) run before faults, so the SQS limit texts and CloudWatch `InvalidParameterCombination` precede an injected error exactly as generated constraints do.
