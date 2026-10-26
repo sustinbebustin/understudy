@@ -11,7 +11,7 @@
         "dev.understudy#evidence": [
           {
             "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the developer guide lists AccessDeniedException under HTTP 400 for a signing failure (3.2); that an IAM denial answers it, at 400 with __type com.amazon.coral.service#AccessDeniedException, is inferred, switch dynamodb.denial.type, until recording IAM-ENF-04",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the developer guide lists AccessDeniedException under HTTP 400 for a signing failure (3.2); that an IAM denial answers it, at 400 with __type com.amazon.coral.service#AccessDeniedException, is inferred, proposed switch dynamodb.denial.type (12.8, added with enforcement), until recording IAM-ENF-04",
             "covers": ["dev.understudy#denialError"]
           },
           {

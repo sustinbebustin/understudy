@@ -9,7 +9,7 @@
         "dev.understudy#validationError": {"code": "com.amazonaws.s3#InvalidArgument"},
         "dev.understudy#malformedRequestError": "com.amazonaws.s3#MalformedXML",
         "dev.understudy#evidence": [
-          {"label": "aws-doc", "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDenied (403) and https://docs.aws.amazon.com/AmazonS3/latest/userguide/troubleshoot-403-errors.html (3.1, 3.2); the message text is switch s3.denial.text", "covers": ["dev.understudy#denialError"]},
+          {"label": "aws-doc", "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDenied (403) and https://docs.aws.amazon.com/AmazonS3/latest/userguide/troubleshoot-403-errors.html (3.1, 3.2); the message text falls under proposed switch s3.denial.text (12.8, added with enforcement)", "covers": ["dev.understudy#denialError"]},
           {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html", "covers": ["dev.understudy#throttleError"]},
           {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2880", "validated": "2026-02-21", "covers": ["dev.understudy#validationError"]},
           {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L1526", "validated": "2026-02-21", "covers": ["dev.understudy#malformedRequestError"]}

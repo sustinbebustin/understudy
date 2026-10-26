@@ -12,7 +12,7 @@
         "dev.understudy#evidence": [
           {
             "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: CloudWatch models no denial shape (3.1); Query code AccessDenied, 403, and over JSON and CBOR the __type com.amazon.coral.service#AccessDeniedException with x-amzn-query-error AccessDenied;Sender are inferred, switch cloudwatch.denial.identity, until recording IAM-ENF-09",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: CloudWatch models no denial shape (3.1); Query code AccessDenied, 403, and over JSON and CBOR the __type com.amazon.coral.service#AccessDeniedException with x-amzn-query-error AccessDenied;Sender are inferred, proposed switch cloudwatch.denial.identity (12.8, added with enforcement), until recording IAM-ENF-09",
             "covers": ["dev.understudy#denialError"]
           },
           {

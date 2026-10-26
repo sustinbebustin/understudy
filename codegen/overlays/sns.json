@@ -28,7 +28,7 @@
           },
           {
             "label": "aws-doc",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AuthorizationErrorException (awsQueryError AuthorizationError, 403, 'Indicates that the user has been denied access to the requested resource.') on 42 operations (3.1); the message text is switch sns.denial.text until recording IAM-ENF-03",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AuthorizationErrorException (awsQueryError AuthorizationError, 403, 'Indicates that the user has been denied access to the requested resource.') on 42 operations (3.1); the message text falls under proposed switch sns.denial.text (12.8, added with enforcement) until recording IAM-ENF-03",
             "covers": ["dev.understudy#denialError"]
           }
         ]
