@@ -33,7 +33,11 @@ func (s *Service) bindMultipart(b s3api.Binder) {
 	abort := func(in *s3api.AbortMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.AbortMultipartUpload(s.abortMultipartUpload, registry.Partial{Note: "x-amz-if-match-initiated-time, a directory bucket header, answers 501"}, touches(abort))
 	lp := func(in *s3api.ListPartsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.ListParts(reader(s, lp, listParts), registry.Full{}, touches(lp))
+	b.ListParts(func(ctx context.Context, c *kernel.Call, in *s3api.ListPartsInput) (*s3api.ListPartsOutput, *awserr.Error) {
+		return read(ctx, s, c, lp(in), func(b *Bucket) (*s3api.ListPartsOutput, *awserr.Error) {
+			return listParts(in, b, c.Endpoint().Scheme)
+		})
+	}, registry.Full{}, touches(lp))
 	lu := func(in *s3api.ListMultipartUploadsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListMultipartUploads(reader(s, lu, listMultipartUploads), registry.Full{}, touches(lu))
 }

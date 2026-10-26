@@ -168,7 +168,9 @@ func TestSelfCopyUnderABlockOnlyRule(t *testing.T) {
 // headers sent on CompleteMultipartUpload are judged as UploadPart's are:
 // over plain HTTP they are refused, and on an upload that is not SSE-C they
 // get the initiate text (LocalStack test_s3.snapshot.json L13133); the
-// upload is still there afterwards. ListParts ignores them.
+// upload is still there afterwards. ListParts, the switch's other
+// operation, judges them the same way when sent, another key getting the
+// mismatch text (L13164).
 func TestSSECCompleteHeaders(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
@@ -191,13 +193,21 @@ func TestSSECCompleteHeaders(t *testing.T) {
 			return err
 		}
 		failure{status: 400, code: "InvalidRequest", message: textInsecure}.is(t, "Complete with the key over HTTP", complete(who{}, "enc", ssecID, part.ETag, &key1))
-		listed := ok(h, overTLS, s3api.OpListParts, &s3api.ListPartsInput{Bucket: "mpu", Key: "enc", UploadId: ssecID, SSECustomerAlgorithm: key2.alg(), SSECustomerKey: key2.k(), SSECustomerKeyMD5: key2.m()})
-		if len(listed.Parts) != 1 {
-			t.Errorf("ListParts with another key lists %d parts, want 1", len(listed.Parts))
+		list := func(w who, key, id string, c customer) (*s3api.ListPartsOutput, *awserr.Error) {
+			return as(h, w, s3api.OpListParts, &s3api.ListPartsInput{Bucket: "mpu", Key: key, UploadId: id, SSECustomerAlgorithm: c.alg(), SSECustomerKey: c.k(), SSECustomerKeyMD5: c.m()})
+		}
+		_, err := list(overTLS, "enc", ssecID, key2)
+		failure{status: 400, code: "InvalidRequest", message: textMismatch}.is(t, "ListParts with another key", err)
+		_, err = list(who{}, "enc", ssecID, key1)
+		failure{status: 400, code: "InvalidRequest", message: textInsecure}.is(t, "ListParts with the key over HTTP", err)
+		if listed, err := list(overTLS, "enc", ssecID, key1); err != nil || len(listed.Parts) != 1 {
+			t.Errorf("ListParts with the upload's key = %v, %v; want its one part", listed, err)
 		}
 
 		plainID := h.startUpload("mpu", "plain", s3api.CreateMultipartUploadInput{})
 		plainPart := ok(h, who{}, s3api.OpUploadPart, &s3api.UploadPartInput{Bucket: "mpu", Key: "plain", UploadId: plainID, PartNumber: 1, Body: bytesBody("only")})
+		_, err = list(overTLS, "plain", plainID, key1)
+		failure{status: 400, code: "InvalidRequest", message: textInitiate}.is(t, "ListParts of a plain upload with SSE-C headers", err)
 		failure{status: 400, code: "InvalidRequest", message: textInitiate}.is(t, "Complete of a plain upload with SSE-C headers", complete(overTLS, "plain", plainID, plainPart.ETag, &key1))
 		if err := complete(overTLS, "plain", plainID, plainPart.ETag, nil); err != nil {
 			t.Errorf("Complete of the plain upload without headers after the refusal: %s %q", err.ID.QueryCode, err.Message)

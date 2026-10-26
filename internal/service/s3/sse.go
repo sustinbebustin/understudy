@@ -601,16 +601,26 @@ func checkCustomerPart(upload Encryption, h customerHeaders, b *Bucket, scheme s
 
 // checkCustomerComplete judges a CompleteMultipartUpload's SSE-C headers
 // against its upload (switch s3.sse-c.complete-headers): headers that are
-// sent are checked as UploadPart checks them, except that no bucket block
-// applies to Complete; none is needed unless the upload is SSE-C and
-// declared a checksum algorithm, as the model notes the key "is needed only
-// when the object was created using a checksum algorithm"
-// (s3-ssec-object-lock.md 3.6).
+// sent are checked as checkCustomerSent checks them; none is needed unless
+// the upload is SSE-C and declared a checksum algorithm, as the model notes
+// the key "is needed only when the object was created using a checksum
+// algorithm" (s3-ssec-object-lock.md 3.6).
 func checkCustomerComplete(u *Upload, h customerHeaders, scheme string) *awserr.Error {
+	if !h.sent() && isCustomer(u.Encryption) && u.Checksum.Algorithm != "" {
+		return errInvalidRequest(ssecInitiateText)
+	}
+	return checkCustomerSent(u.Encryption, h, scheme)
+}
+
+// checkCustomerSent judges the SSE-C headers a CompleteMultipartUpload or
+// a ListParts sent against the upload's encryption as UploadPart judges
+// them, without the bucket block: the header checks, plain HTTP, then the
+// match with the upload (switch s3.sse-c.complete-headers, whose
+// operations both are; plain HTTP as for any SSE-C request,
+// s3-ssec-object-lock.md 3.9). None sent passes: ListParts never needs
+// them (3.6), and checkCustomerComplete adds Complete's one exception.
+func checkCustomerSent(upload Encryption, h customerHeaders, scheme string) *awserr.Error {
 	if !h.sent() {
-		if isCustomer(u.Encryption) && u.Checksum.Algorithm != "" {
-			return errInvalidRequest(ssecInitiateText)
-		}
 		return nil
 	}
 	k, err := parseCustomerWrite(h, nil)
@@ -620,7 +630,7 @@ func checkCustomerComplete(u *Upload, h customerHeaders, scheme string) *awserr.
 	if err := checkCustomerScheme(scheme); err != nil {
 		return err
 	}
-	return matchUpload(u.Encryption, k)
+	return matchUpload(upload, k)
 }
 
 // matchUpload refuses a part's key k, nil when none was sent, that is not
