@@ -455,7 +455,7 @@ The operations table is a union. The S3 permissions page states the conditions: 
 
 ### 12.3 Error identities to emit
 
-Replace the shared `com.amazon.coral.service#AccessDeniedException` 403 with per-service overlay entries, each with its evidence label:
+Replace the shared `com.amazon.coral.service#AccessDeniedException` 403 with per-service overlay entries (`dev.understudy#denialError`), each with its evidence label. The rows after Secrets Manager are the services added after this note; no source names their denial, so each takes the model's own `AccessDeniedException` when it declares one, else the Query-protocol `AccessDenied` for an awsQuery service, else the generic identity (DynamoDB Streams follows DynamoDB), all inferred until the case named beside it (13.35):
 
 | Service | Code | Status | Message | Label |
 |---|---|---|---|---|
@@ -469,9 +469,18 @@ Replace the shared `com.amazon.coral.service#AccessDeniedException` 403 with per
 | CloudWatch | `AccessDenied` (Query); JSON/CBOR `__type` `com.amazon.coral.service#AccessDeniedException` with header `AccessDenied;Sender` | 403 | grammar | inferred (`cloudwatch.denial.identity`) |
 | Logs | `AccessDeniedException` | 400 | grammar | third-party-recorded status for a non-IAM denial (`logs.denial.status`) |
 | IAM | `AccessDenied`, `Sender`, `xmlns="https://iam.amazonaws.com/doc/2010-05-08/"` | 403 | grammar | inferred from STS (`iam.denial.identity`) |
-| STS | `AccessDenied`, `Sender` | 403 | `User: <arn> is not authorized to perform: sts:AssumeRole on resource: <role arn>` | aws-recorded: relabel the `com.amazonaws.sts#AccessDenied` overlay evidence (`codegen/overlays/sts.json` L31-L45) from inferred to aws-recorded |
+| STS | `AccessDenied`, `Sender` | 403 | `User: <arn> is not authorized to perform: sts:AssumeRole on resource: <role arn>` | aws-recorded: the `com.amazonaws.sts#AccessDenied` overlay evidence (`codegen/overlays/sts.json`), relabelled from inferred |
 | KMS | `AccessDeniedException` | 400 | grammar; Decrypt names `the resource associated with this ciphertext` | aws-doc text; status inferred (`kms.denial.status`) |
 | Secrets Manager | `AccessDeniedException`, key `Message` | 400 | grammar | third-party-recorded status for a non-IAM denial (`secretsmanager.denial.status`) |
+| API Gateway (REST) | `AccessDeniedException` (generic; the model declares none) | 403 | grammar | inferred (IAM-ENF-33) |
+| API Gateway v2 | `AccessDeniedException` (the model's), key `Message` | 403 | grammar | inferred (IAM-ENF-34) |
+| DynamoDB Streams | `__type` `com.amazon.coral.service#AccessDeniedException`, as DynamoDB | 400 | grammar | inferred (IAM-ENF-35) |
+| Kinesis | `AccessDeniedException` (the model's) | 400 | grammar | inferred (IAM-ENF-36) |
+| Scheduler | `AccessDeniedException` (generic; the model declares none) | 403 | grammar | inferred (IAM-ENF-37) |
+| SES v1 | `AccessDenied`, `Sender`, the SES namespace | 403 | grammar | inferred from STS and IAM (IAM-ENF-38) |
+| SES v2 | `AccessDeniedException` (generic; the model declares none) | 403 | grammar | inferred (IAM-ENF-39) |
+| Step Functions | `__type` `com.amazon.coral.service#AccessDeniedException` (generic; the model declares none) | 403 | grammar | inferred (IAM-ENF-40) |
+| SSM | `AccessDeniedException` (the model's), key `Message` | 400 | grammar | inferred (IAM-ENF-41) |
 
 Reason clause: emit `because no identity-based policy allows the <action> action`, `because no resource-based policy allows ...`, `because no permissions boundary allows ...`, `because no session policy allows ...`, `with an explicit deny in an identity-based policy[: <policy arn>]`, `... in a resource-based policy`, `... in a permissions boundary[: <arn>]`, `... in a session policy[: <arn>]`, `with an explicit deny in the role trust policy`, choosing one when several apply (aws-doc, 4.1), and write `on resource: <arn>` on explicit denials (inferred: the 4.1 examples are inconsistent and the STS recording has it on an implicit denial); all of it under switch `iam.denial.grammar` until IAM-ENF-15. STS keeps its recorded no-reason form. Policy ARNs exist only for managed policies; inline denials carry no ARN (inferred).
 
@@ -1225,3 +1234,30 @@ enf_assume "$P-enf-none"
 ```
 
 Cost: free, 5 minutes. Teardown: `aws iam delete-role-policy --role-name "$P-enf-goa" --policy-name goa; aws iam delete-role --role-name "$P-enf-goa"`.
+
+### 13.35 IAM-ENF-33 to IAM-ENF-41. Denial identity of the services added after this note
+
+Settles the nine inferred rows at the end of 12.3. One procedure: the `$P-enf-none` session, which holds no permissions, makes one read call per service that names no resource, through the AWS CLI and raw, recording status, headers (`x-amzn-ErrorType`, `x-amzn-query-error`) and body (`__type` or `<Code>`, `Type`, message key and text). One case id per service, in the 12.3 order:
+
+```sh
+rec IAM-ENF/33-apigateway as_role apigateway get-rest-apis
+SVC=apigateway enf_curl IAM-ENF/33-raw "https://apigateway.$R.amazonaws.com/restapis"
+rec IAM-ENF/34-apigatewayv2 as_role apigatewayv2 get-apis
+SVC=apigateway enf_curl IAM-ENF/34-raw "https://apigateway.$R.amazonaws.com/v2/apis"
+rec IAM-ENF/35-streams as_role dynamodbstreams list-streams
+SVC=dynamodb enf_curl IAM-ENF/35-raw -H "$J10" -H 'X-Amz-Target: DynamoDBStreams_20120810.ListStreams' -d '{}' "https://streams.dynamodb.$R.amazonaws.com/"
+rec IAM-ENF/36-kinesis as_role kinesis list-streams
+SVC=kinesis enf_curl IAM-ENF/36-raw -H "$J11" -H 'X-Amz-Target: Kinesis_20131202.ListStreams' -d '{}' "https://kinesis.$R.amazonaws.com/"
+rec IAM-ENF/37-scheduler as_role scheduler list-schedules
+SVC=scheduler enf_curl IAM-ENF/37-raw "https://scheduler.$R.amazonaws.com/schedules"
+rec IAM-ENF/38-ses as_role ses list-identities
+SVC=ses enf_curl IAM-ENF/38-raw -H "$FORM" -d 'Action=ListIdentities&Version=2010-12-01' "https://email.$R.amazonaws.com/"
+rec IAM-ENF/39-sesv2 as_role sesv2 list-email-identities
+SVC=ses enf_curl IAM-ENF/39-raw "https://email.$R.amazonaws.com/v2/email/identities"
+rec IAM-ENF/40-sfn as_role stepfunctions list-state-machines
+SVC=states enf_curl IAM-ENF/40-raw -H "$J10" -H 'X-Amz-Target: AWSStepFunctions.ListStateMachines' -d '{}' "https://states.$R.amazonaws.com/"
+rec IAM-ENF/41-ssm as_role ssm describe-parameters
+SVC=ssm enf_curl IAM-ENF/41-raw -H "$J11" -H 'X-Amz-Target: AmazonSSM.DescribeParameters' -d '{}' "https://ssm.$R.amazonaws.com/"
+```
+
+Cost: free, 10 minutes. Teardown: none.
