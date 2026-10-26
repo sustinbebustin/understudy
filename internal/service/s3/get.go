@@ -220,6 +220,10 @@ func parseRange(h string, size int64) byteRange {
 }
 
 func (s *Service) getObject(ctx context.Context, c *kernel.Call, in *s3api.GetObjectInput) (*s3api.GetObjectOutput, *awserr.Error) {
+	withChecksum, err := parseChecksumMode(in.ChecksumMode)
+	if err != nil {
+		return nil, err
+	}
 	blobs, err := s.blobStore()
 	if err != nil {
 		return nil, err
@@ -249,7 +253,7 @@ func (s *Service) getObject(ctx context.Context, c *kernel.Call, in *s3api.GetOb
 	if rerr != nil {
 		return nil, awserr.Internalf(fmt.Errorf("opening the body of %s version %s for GetObject: %w", in.Key, got.version.ID, rerr))
 	}
-	h := headOf(got, in.ChecksumMode)
+	h := headOf(got, withChecksum)
 	out := &s3api.GetObjectOutput{
 		Body:         &openedBody{rc: rc, n: got.span.n},
 		AcceptRanges: h.AcceptRanges, LastModified: h.LastModified, ContentLength: h.ContentLength, ETag: h.ETag,
@@ -287,14 +291,41 @@ func override(field **string, v *string) {
 	}
 }
 
+// readNote is the coverage note of GetObject and HeadObject; the checksum
+// mode half is parseChecksumMode's.
+const readNote = "presigned URLs are verified and expire on the emulator clock under sigv4 verify; " +
+	"x-amz-checksum-mode is accepted in any case, and a value other than ENABLED is refused with InvalidArgument, " +
+	"where AWS's answer is UNVERIFIED (s3.md 5.8, recording S3-01)"
+
+// parseChecksumMode reads x-amz-checksum-mode and reports whether the read
+// returns checksums. S3 takes enabled, which the CRT S3 client behind the
+// AWS CLI's s3 commands sends, as ENABLED (s3.md 5.8); other mixes of case
+// are inferred to count the same. Any other value is refused with the
+// InvalidArgument the model's enum yields; AWS's answer to it is
+// UNVERIFIED until recording S3-01 (s3.md 15.1).
+func parseChecksumMode(mode *s3api.ChecksumMode) (bool, *awserr.Error) {
+	switch {
+	case mode == nil:
+		return false, nil
+	case strings.EqualFold(string(*mode), string(s3api.ChecksumModeEnabled)):
+		return true, nil
+	}
+	return false, s3api.ErrInvalidArgument(awserr.CoralMessage([]awserr.Violation{{
+		Path:       awserr.Path{"checksumMode"},
+		Value:      awserr.RenderedText{Text: string(*mode)},
+		Constraint: awserr.Enum{Values: []string{string(s3api.ChecksumModeEnabled)}},
+	}}))
+}
+
 // headOf is the response head of a read: the headers GetObject and
-// HeadObject share (s3.md 5.8). A checksum is reported only with
-// x-amz-checksum-mode: ENABLED, and only when it describes the bytes sent,
-// so a ranged read never carries the whole object's checksum (boto3 would
-// fail it). The lock headers are always sent; AWS sends them only to a
-// caller allowed s3:GetObjectRetention and s3:GetObjectLegalHold, which
-// no permission check here evaluates (declareAccess).
-func headOf(got served, mode *s3api.ChecksumMode) *s3api.HeadObjectOutput {
+// HeadObject share (s3.md 5.8). A checksum is reported only with checksum
+// mode on (withChecksum), and only when it describes the bytes sent, so a
+// ranged read never carries the whole object's checksum (boto3 would fail
+// it).
+// The lock headers are always sent; AWS sends them only to a caller
+// allowed s3:GetObjectRetention and s3:GetObjectLegalHold, which no
+// permission check here evaluates (declareAccess).
+func headOf(got served, withChecksum bool) *s3api.HeadObjectOutput {
 	o := got.version.Object
 	h := &s3api.HeadObjectOutput{
 		AcceptRanges:            new("bytes"),
@@ -319,7 +350,7 @@ func headOf(got served, mode *s3api.ChecksumMode) *s3api.HeadObjectOutput {
 	h.ServerSideEncryption, h.SSEKMSKeyId, h.BucketKeyEnabled = sse.algorithm, sse.keyID, sse.bucketKey
 	h.SSECustomerAlgorithm, h.SSECustomerKeyMD5 = customerEcho(got.key)
 	h.ObjectLockMode, h.ObjectLockRetainUntilDate, h.ObjectLockLegalHoldStatus = lockHeaders(o.Lock)
-	if sum, ok := reportedChecksum(o, got.span); ok && mode != nil && *mode == s3api.ChecksumModeEnabled {
+	if sum, ok := reportedChecksum(o, got.span); ok && withChecksum {
 		headObjectOutputFields(h).set(membersOf(sum))
 		h.ChecksumType = new(sum.Type)
 	}

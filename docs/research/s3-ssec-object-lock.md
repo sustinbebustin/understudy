@@ -355,8 +355,8 @@ Note texts are the exact `registry.Partial{Note: ...}` strings proposed; parts o
 | Operation | Today | Target | Note |
 |---|---|---|---|
 | PutObject | partial | partial | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
-| GetObject | partial | partial | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
-| HeadObject | partial | partial | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
+| GetObject | partial | partial | presigned URLs are verified and expire on the emulator clock under sigv4 verify; x-amz-checksum-mode is accepted in any case, and a value other than ENABLED is refused with InvalidArgument, where AWS's answer is UNVERIFIED (s3.md 5.8, recording S3-01) |
+| HeadObject | partial | partial | presigned URLs are verified and expire on the emulator clock under sigv4 verify; x-amz-checksum-mode is accepted in any case, and a value other than ENABLED is refused with InvalidArgument, where AWS's answer is UNVERIFIED (s3.md 5.8, recording S3-01) |
 | GetObjectAttributes | partial | full | |
 | CopyObject | partial | partial | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
 | CreateMultipartUpload | partial | partial | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |

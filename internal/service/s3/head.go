@@ -13,6 +13,10 @@ import (
 // reads an archived object too, and the codec sends its errors without a
 // body.
 func (s *Service) headObject(ctx context.Context, c *kernel.Call, in *s3api.HeadObjectInput) (*s3api.HeadObjectOutput, *awserr.Error) {
+	withChecksum, err := parseChecksumMode(in.ChecksumMode)
+	if err != nil {
+		return nil, err
+	}
 	got, err := s.readObject(ctx, c, at(in.Bucket, in.ExpectedBucketOwner), readRequest{
 		key: in.Key, versionID: in.VersionId, method: http.MethodHead, rangeSpec: in.Range, partNumber: in.PartNumber,
 		conds:    readConditions{ifMatch: in.IfMatch, ifNoneMatch: in.IfNoneMatch, ifModifiedSince: in.IfModifiedSince, ifUnmodifiedSince: in.IfUnmodifiedSince},
@@ -22,5 +26,5 @@ func (s *Service) headObject(ctx context.Context, c *kernel.Call, in *s3api.Head
 	if err != nil {
 		return nil, err
 	}
-	return headOf(got, in.ChecksumMode), nil
+	return headOf(got, withChecksum), nil
 }

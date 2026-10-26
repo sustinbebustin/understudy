@@ -32,7 +32,7 @@ import (
 func TestSSECAndObjectLockCoverageMarks(t *testing.T) {
 	const (
 		putNote      = "an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented"
-		readNote     = "presigned URLs are verified and expire on the emulator clock under sigv4 verify"
+		readNote     = "presigned URLs are verified and expire on the emulator clock under sigv4 verify; x-amz-checksum-mode is accepted in any case, and a value other than ENABLED is refused with InvalidArgument, where AWS's answer is UNVERIFIED (s3.md 5.8, recording S3-01)"
 		copyNote     = "an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented"
 		createNote   = "an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented"
 		partNote     = "chunk signatures are verified under sigv4 verify"

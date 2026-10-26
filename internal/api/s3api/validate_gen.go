@@ -1310,11 +1310,6 @@ func (v *GetObjectAnnotationInput) validate(path awserr.Path, out *[]awserr.Viol
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
 		}
 	}
-	if v.ChecksumMode != nil {
-		if !(*v.ChecksumMode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "checksumMode"), Value: awserr.RenderedText{Text: string(*v.ChecksumMode)}, Constraint: awserr.Enum{Values: []string{"ENABLED"}}})
-		}
-	}
 }
 
 // Validate reports the constraint violations of v in AWS's order; nil
@@ -1375,11 +1370,6 @@ func (v *GetObjectInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.RequestPayer != nil {
 		if !(*v.RequestPayer).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
-		}
-	}
-	if v.ChecksumMode != nil {
-		if !(*v.ChecksumMode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "checksumMode"), Value: awserr.RenderedText{Text: string(*v.ChecksumMode)}, Constraint: awserr.Enum{Values: []string{"ENABLED"}}})
 		}
 	}
 }
@@ -1583,11 +1573,6 @@ func (v *HeadObjectInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.RequestPayer != nil {
 		if !(*v.RequestPayer).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
-		}
-	}
-	if v.ChecksumMode != nil {
-		if !(*v.ChecksumMode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "checksumMode"), Value: awserr.RenderedText{Text: string(*v.ChecksumMode)}, Constraint: awserr.Enum{Values: []string{"ENABLED"}}})
 		}
 	}
 }

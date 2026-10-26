@@ -25,9 +25,9 @@ func (s *Service) bindObjects(b s3api.Binder) {
 	put := func(in *s3api.PutObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutObject(s.putObject, registry.Partial{Note: "an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; " + eventHoldNote}, touches(put))
 	get := func(in *s3api.GetObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.GetObject(s.getObject, registry.Partial{Note: "presigned URLs are verified and expire on the emulator clock under sigv4 verify"}, touches(get))
+	b.GetObject(s.getObject, registry.Partial{Note: readNote}, touches(get))
 	head := func(in *s3api.HeadObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.HeadObject(s.headObject, registry.Partial{Note: "presigned URLs are verified and expire on the emulator clock under sigv4 verify"}, touches(head))
+	b.HeadObject(s.headObject, registry.Partial{Note: readNote}, touches(head))
 	attrs := func(in *s3api.GetObjectAttributesInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetObjectAttributes(func(ctx context.Context, c *kernel.Call, in *s3api.GetObjectAttributesInput) (*s3api.GetObjectAttributesOutput, *awserr.Error) {
 		return read(ctx, s, c, attrs(in), func(b *Bucket) (*s3api.GetObjectAttributesOutput, *awserr.Error) {
