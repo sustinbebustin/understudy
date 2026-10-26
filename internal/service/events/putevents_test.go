@@ -497,7 +497,7 @@ func TestPutEventsToAnotherAccountsDefaultBus(t *testing.T) {
 			t.Fatalf("PutEvents = %+v", out)
 		}
 		for i, bus := range []string{"arn:aws:events:eu-west-1:000000000000:event-bus/default", "arn:aws:events:eu-west-1:111111111111:event-bus/default"} {
-			want := "understudy sends PutEvents entries to default event buses in the caller's region (us-east-1), and " + bus +
+			want := "understudy sends PutEvents entries to event buses in the caller's region (us-east-1), and " + bus +
 				" is in eu-west-1; the event was not sent. Call PutEvents in eu-west-1, or run 'understudy coverage --service eventbridge' for what is supported."
 			if e := out.Entries[i+1]; e.EventId != nil || e.ErrorCode == nil || *e.ErrorCode != "NotImplemented" || *e.ErrorMessage != want {
 				t.Errorf("entry for %s = %+v, want NotImplemented %q", bus, e, want)
