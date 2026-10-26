@@ -83,7 +83,7 @@ test("getEnv mirrors understudytest.Env", async () => {
 test("port 4566 is published on loopback only", async () => {
   // 127.0.0.1 with an ephemeral port, since the image's admin API has no
   // token (testcontainers.md 8.4, finding 2), even after withExposedPorts;
-  // the module creates no network (testcontainers.md 10.2).
+  // the module creates no network (testcontainers.md 10, item 2).
   await withUnderstudy(new UnderstudyContainer(image()).withExposedPorts(4566), async (u) => {
     const doc = inspect(u);
     assert.deepEqual(doc.HostConfig.PortBindings, { "4566/tcp": [{ HostIp: "127.0.0.1", HostPort: "0" }] });

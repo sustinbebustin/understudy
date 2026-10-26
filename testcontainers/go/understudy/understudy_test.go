@@ -132,10 +132,11 @@ func dockerClient(t *testing.T) *testcontainers.DockerClient {
 // managedSessionContainers lists understudy's own containers that carry
 // this tc-go session's label: understudy labels what it creates
 // understudy.dev/managed=true (testcontainers.md 3.6), and tc-go's session
-// label is org.testcontainers.sessionId (testcontainers.md 4.5).
-func managedSessionContainers(t *testing.T, cli *testcontainers.DockerClient) []container.Summary {
+// label is org.testcontainers.sessionId (testcontainers.md 4.5). It takes
+// its context because a cleanup runs after t.Context is cancelled.
+func managedSessionContainers(ctx context.Context, t *testing.T, cli *testcontainers.DockerClient) []container.Summary {
 	t.Helper()
-	res, err := cli.ContainerList(t.Context(), client.ContainerListOptions{
+	res, err := cli.ContainerList(ctx, client.ContainerListOptions{
 		All: true,
 		Filters: make(client.Filters).
 			Add("label", "understudy.dev/managed=true").
@@ -245,7 +246,8 @@ func TestEnvMirrorsUnderstudytest(t *testing.T) {
 
 // Port 4566 is published on 127.0.0.1 with an ephemeral port and nothing
 // else, since the image's admin API has no token (testcontainers.md 8.4,
-// finding 2), and the module creates no network (testcontainers.md 10.2).
+// finding 2), and the module creates no network (testcontainers.md 10,
+// item 2).
 func TestPortIsPublishedOnLoopbackOnly(t *testing.T) {
 	c := run(t)
 	info := inspect(t, c)
@@ -654,12 +656,14 @@ func TestTerminateLeavesNoChildContainer(t *testing.T) {
 	t.Cleanup(func() {
 		// Remove what a failed run left, only this session's managed
 		// containers.
-		for _, kid := range managedSessionContainers(t, cli) {
-			_, _ = cli.ContainerRemove(context.Background(), kid.ID, client.ContainerRemoveOptions{Force: true, RemoveVolumes: true})
+		for _, kid := range managedSessionContainers(context.Background(), t, cli) {
+			if _, err := cli.ContainerRemove(context.Background(), kid.ID, client.ContainerRemoveOptions{Force: true, RemoveVolumes: true}); err != nil {
+				t.Errorf("removing leftover child %s: %v", kid.ID, err)
+			}
 		}
 	})
 	invokeEcho(t, c)
-	kids := managedSessionContainers(t, cli)
+	kids := managedSessionContainers(t.Context(), t, cli)
 	if len(kids) == 0 {
 		t.Fatal("no understudy child carries this session's label after an invoke: the child labels did not reach understudy's containers")
 	}
@@ -673,7 +677,7 @@ func TestTerminateLeavesNoChildContainer(t *testing.T) {
 	if err := c.Terminate(t.Context()); err != nil {
 		t.Fatalf("Terminate: %v", err)
 	}
-	if left := managedSessionContainers(t, cli); len(left) != 0 {
+	if left := managedSessionContainers(t.Context(), t, cli); len(left) != 0 {
 		ids := make([]string, 0, len(left))
 		for _, kid := range left {
 			ids = append(ids, kid.ID+" ("+string(kid.State)+")")
