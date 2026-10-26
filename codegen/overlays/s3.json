@@ -565,6 +565,34 @@
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json L9500: a bad PutObjectRetention Mode is MalformedXML (s3-ssec-object-lock.md 6.4)", "validated": "2026-02-21"}
       }
     },
+    "com.amazonaws.s3#ObjectLockRetention$EventHold": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#113-rules-to-implement: understudy refuses an EventHold element with its 501 NotImplemented whatever its value, since it does not implement event holds"}
+      }
+    },
+    "com.amazonaws.s3#PutObjectRequest$ObjectLockEventHold": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#113-rules-to-implement: understudy refuses x-amz-object-lock-event-hold with its 501 NotImplemented whatever its value, since it does not implement event holds"}
+      }
+    },
+    "com.amazonaws.s3#CopyObjectRequest$ObjectLockEventHold": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#113-rules-to-implement: understudy refuses x-amz-object-lock-event-hold with its 501 NotImplemented whatever its value, since it does not implement event holds"}
+      }
+    },
+    "com.amazonaws.s3#CreateMultipartUploadRequest$ObjectLockEventHold": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#113-rules-to-implement: understudy refuses x-amz-object-lock-event-hold with its 501 NotImplemented whatever its value, since it does not implement event holds"}
+      }
+    },
     "com.amazonaws.s3#ObjectLockLegalHold$Status": {
       "type": "apply",
       "traits": {

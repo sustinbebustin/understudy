@@ -27,6 +27,42 @@ func TestLockTargetBeforeTheChecksumRule(t *testing.T) {
 	})
 }
 
+// TestEventHoldRefusedBeforeOtherChecks: understudy's 501 for an event
+// hold comes before any check that would judge the rest of the request
+// (s3-ssec-object-lock.md 11.3, 11.7): a default retention of a mode and
+// DefaultEventHold alone, which variable retention may allow (6.9), is not
+// called MalformedXML, and an event-hold value other than ON or OFF is not
+// refused by the model's enum check. Nothing is changed.
+func TestEventHoldRefusedBeforeOtherChecks(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		t := h.T
+		h.createBucket("plain")
+		h.put("plain", "src", "source")
+		h.lockBucket("locked")
+		gov := s3api.ObjectLockRetentionModeGovernance
+		_, err := as(h, who{}, s3api.OpPutObjectLockConfiguration, &s3api.PutObjectLockConfigurationInput{Bucket: "locked", ObjectLockConfiguration: &s3api.ObjectLockConfiguration{
+			ObjectLockEnabled: new(s3api.ObjectLockEnabledEnabled),
+			Rule:              &s3api.ObjectLockRule{DefaultRetention: &s3api.DefaultRetention{Mode: &gov, DefaultEventHold: &s3api.EventHoldDuration{Days: new(int32(3))}}},
+		}})
+		errEventHold("DefaultEventHold").is(t, "PutObjectLockConfiguration of a mode and DefaultEventHold without a period", err)
+		cfg := ok(h, who{}, s3api.OpGetObjectLockConfiguration, &s3api.GetObjectLockConfigurationInput{Bucket: "locked"})
+		if cfg.ObjectLockConfiguration == nil || cfg.ObjectLockConfiguration.Rule != nil {
+			t.Errorf("the refused configuration left a rule: %+v", cfg.ObjectLockConfiguration)
+		}
+
+		bad := s3api.ObjectLockEventHold("BAD")
+		for op, err := range lockWrites(h, "locked", "bad-hold", s3api.PutObjectInput{ObjectLockEventHold: &bad}) {
+			errEventHold("x-amz-object-lock-event-hold").is(t, op+" with x-amz-object-lock-event-hold: BAD", err)
+		}
+		nothingWritten(t, h, "locked", "bad-hold")
+
+		v := h.mustPutLocked("locked", "k", "v", s3api.PutObjectInput{})
+		_, err = as(h, who{}, s3api.OpPutObjectRetention, &s3api.PutObjectRetentionInput{Bucket: "locked", Key: "k", VersionId: v, Retention: &s3api.ObjectLockRetention{EventHold: &bad}})
+		errEventHold("EventHold").is(t, "PutObjectRetention with EventHold BAD", err)
+		wantNoRetention(t, "after the refused retention", h.headLock("locked", "k", v))
+	})
+}
+
 // TestLegalHoldOffIsReported: a version written with the legal hold OFF has
 // had one applied, so GET and HEAD report OFF ("not returned if the
 // specified version of this object has never had a legal hold applied",

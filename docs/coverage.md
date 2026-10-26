@@ -864,8 +864,8 @@ Internal operations:
 | PutPublicAccessBlock | stored-only | inferred, 1 of 2 claims | the public access block is stored and echoed; not applied |
 | AbortMultipartUpload | partial | inferred, 1 of 2 claims | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
 | CompleteMultipartUpload | partial | inferred, 5 of 7 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
-| CopyObject | partial | inferred, 12 of 15 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
-| CreateMultipartUpload | partial | inferred, 7 of 10 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
+| CopyObject | partial | inferred, 13 of 16 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
+| CreateMultipartUpload | partial | inferred, 8 of 11 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
 | DeleteBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | DeleteObject | partial | inferred, 2 of 4 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
 | DeleteObjects | partial | inferred, 2 of 4 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
@@ -879,7 +879,7 @@ Internal operations:
 | PutBucketNotificationConfiguration | partial | inferred, 1 of 2 claims | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions; s3:ObjectRetention:Put is stored but sends nothing |
 | PutBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | PutBucketVersioning | partial | inferred, 1 of 2 claims | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
-| PutObject | partial | inferred, 9 of 12 claims | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
+| PutObject | partial | inferred, 10 of 13 claims | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
 | PutObjectLockConfiguration | partial | inferred, 2 of 3 claims | DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored |
 | PutObjectRetention | partial | inferred, 5 of 6 claims | event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent |
 | UploadPart | partial | inferred, 5 of 7 claims | chunk signatures are verified under sigv4 verify |
@@ -1155,7 +1155,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-291 evidence items: 48 aws-recorded, 98 third-party-recorded, 52 aws-doc, 2 sdk-source, 91 inferred.
+295 evidence items: 48 aws-recorded, 98 third-party-recorded, 52 aws-doc, 2 sdk-source, 95 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1394,11 +1394,15 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | protocoltests.json | `aws.protocoltests.rpcv2cbor#QueryCompatibleRpcV2Protocol` |  | docs/research/wire-cbor.md#6-the-smithy-test-corpus-at-1740: the rpcv2Cbor corpus has no server-side validation case |
 | inferred | protocoltests.json | `com.amazonaws.s3#AmazonS3` |  | docs/research/smithy-protocol-tests.md#71-s3-comamazonawss3amazons3-tag-aws-service-test: the S3 slice has no validation case |
 | inferred | protocoltests.json | `smithy.protocoltests.rpcv2Cbor#RpcV2Protocol` |  | docs/research/wire-cbor.md#6-the-smithy-test-corpus-at-1740: the rpcv2Cbor corpus has no server-side validation case |
+| inferred | s3.json | `com.amazonaws.s3#CopyObjectRequest$ObjectLockEventHold` |  | docs/research/s3-ssec-object-lock.md#113-rules-to-implement: understudy refuses x-amz-object-lock-event-hold with its 501 NotImplemented whatever its value, since it does not implement event holds |
 | inferred | s3.json | `com.amazonaws.s3#CopyObjectRequest$ObjectLockLegalHoldStatus` |  | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18) |
 | inferred | s3.json | `com.amazonaws.s3#CopyObjectRequest$ObjectLockMode` |  | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: CopyObject carries PutObject's lock headers, whose bad mode is InvalidArgument "Unknown wormMode directive." after the pairing check (recorded for PutObject and CreateMultipartUpload) |
+| inferred | s3.json | `com.amazonaws.s3#CreateMultipartUploadRequest$ObjectLockEventHold` |  | docs/research/s3-ssec-object-lock.md#113-rules-to-implement: understudy refuses x-amz-object-lock-event-hold with its 501 NotImplemented whatever its value, since it does not implement event holds |
 | inferred | s3.json | `com.amazonaws.s3#CreateMultipartUploadRequest$ObjectLockLegalHoldStatus` |  | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18) |
 | inferred | s3.json | `com.amazonaws.s3#InvalidBucketAclWithObjectOwnership` |  | docs/research/s3.md#32-createbucket: a public ACL on a BucketOwnerEnforced bucket fails; the code is AWS's documented ACL-ownership conflict, UNVERIFIED by recording |
 | inferred | s3.json | `com.amazonaws.s3#ObjectLockLegalHold$Status` |  | docs/research/s3-ssec-object-lock.md#65-putobjectlegalhold-and-getobjectlegalhold: a PutObjectLegalHold body without a valid Status is MalformedXML, as one without a body is (LocalStack test_s3.snapshot.json L10002); the bad-value text is UNVERIFIED |
+| inferred | s3.json | `com.amazonaws.s3#ObjectLockRetention$EventHold` |  | docs/research/s3-ssec-object-lock.md#113-rules-to-implement: understudy refuses an EventHold element with its 501 NotImplemented whatever its value, since it does not implement event holds |
+| inferred | s3.json | `com.amazonaws.s3#PutObjectRequest$ObjectLockEventHold` |  | docs/research/s3-ssec-object-lock.md#113-rules-to-implement: understudy refuses x-amz-object-lock-event-hold with its 501 NotImplemented whatever its value, since it does not implement event holds |
 | inferred | s3.json | `com.amazonaws.s3#PutObjectRequest$ObjectLockLegalHoldStatus` |  | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18) |
 | inferred | s3.json | `com.amazonaws.s3#ServerSideEncryptionConfigurationNotFoundError` |  | docs/research/wire-rest.md#36-errors-and-not-configured-responses: AWS docs say 400, every other S3 not-configured error is 404; 404 is UNVERIFIED |
 | inferred | s3.json | `com.amazonaws.s3#UploadPartCopyRequest$CopySource` |  | docs/research/s3.md#7-copyobject-and-uploadpartcopy: UploadPartCopy takes the same x-amz-copy-source as CopyObject |

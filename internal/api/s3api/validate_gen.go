@@ -333,11 +333,6 @@ func (v *CopyObjectInput) validate(path awserr.Path, out *[]awserr.Violation) {
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
 		}
 	}
-	if v.ObjectLockEventHold != nil {
-		if !(*v.ObjectLockEventHold).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockEventHold"), Value: awserr.RenderedText{Text: string(*v.ObjectLockEventHold)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
 }
 
 func (v *CreateBucketConfiguration) validate(path awserr.Path, out *[]awserr.Violation) {
@@ -467,11 +462,6 @@ func (v *CreateMultipartUploadInput) validate(path awserr.Path, out *[]awserr.Vi
 	if v.RequestPayer != nil {
 		if !(*v.RequestPayer).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
-		}
-	}
-	if v.ObjectLockEventHold != nil {
-		if !(*v.ObjectLockEventHold).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockEventHold"), Value: awserr.RenderedText{Text: string(*v.ObjectLockEventHold)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
 		}
 	}
 	if v.ChecksumAlgorithm != nil {
@@ -2282,14 +2272,6 @@ func (v *ObjectLockConfiguration) validate(path awserr.Path, out *[]awserr.Viola
 	}
 }
 
-func (v *ObjectLockRetention) validate(path awserr.Path, out *[]awserr.Violation) {
-	if v.EventHold != nil {
-		if !(*v.EventHold).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "eventHold"), Value: awserr.RenderedText{Text: string(*v.EventHold)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
-}
-
 func (v *OutputLocation) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.S3 != nil {
 		v.S3.validate(at(path, "s3"), out)
@@ -2889,11 +2871,6 @@ func (v *PutObjectInput) validate(path awserr.Path, out *[]awserr.Violation) {
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
 		}
 	}
-	if v.ObjectLockEventHold != nil {
-		if !(*v.ObjectLockEventHold).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockEventHold"), Value: awserr.RenderedText{Text: string(*v.ObjectLockEventHold)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
 }
 
 // Validate reports the constraint violations of v in AWS's order; nil
@@ -2972,9 +2949,6 @@ func (v *PutObjectRetentionInput) validate(path awserr.Path, out *[]awserr.Viola
 		if utf8.RuneCountInString(v.Key) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "key"), Value: awserr.RenderedText{Text: v.Key}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-	}
-	if v.Retention != nil {
-		v.Retention.validate(at(path, "retention"), out)
 	}
 	if v.RequestPayer != nil {
 		if !(*v.RequestPayer).Known() {

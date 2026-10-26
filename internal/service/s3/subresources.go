@@ -604,11 +604,13 @@ func (s *Service) bindObjectLock(b s3api.Binder) {
 }
 
 // checkObjectLock checks an Object Lock configuration (s3.md 4.2.10;
-// s3-ssec-object-lock.md 5.2): it is enabled, and a default retention
-// names a known mode and exactly one of Days and Years, else MalformedXML
-// (LocalStack test_s3_api.snapshot.json L2521-L2581). DefaultEventHold is
-// refused with understudy's 501 (11.7). Days must be 1 to 36,500 and Years
-// 1 to 100, else MalformedXML (switch s3.object-lock.default-years).
+// s3-ssec-object-lock.md 5.2): it is enabled; DefaultEventHold is refused
+// with understudy's 501 before the retention is judged, since under
+// variable retention a rule of a mode and DefaultEventHold alone may be
+// valid (6.9, 11.3, 11.7); a default retention names a known mode and
+// exactly one of Days and Years, else MalformedXML (LocalStack
+// test_s3_api.snapshot.json L2521-L2581). Days must be 1 to 36,500 and
+// Years 1 to 100, else MalformedXML (switch s3.object-lock.default-years).
 func checkObjectLock(in *s3api.PutObjectLockConfigurationInput) *awserr.Error {
 	cfg := in.ObjectLockConfiguration
 	if cfg == nil || cfg.ObjectLockEnabled == nil || *cfg.ObjectLockEnabled != s3api.ObjectLockEnabledEnabled {
@@ -618,14 +620,14 @@ func checkObjectLock(in *s3api.PutObjectLockConfigurationInput) *awserr.Error {
 		return nil
 	}
 	d := cfg.Rule.DefaultRetention
+	if d != nil && d.DefaultEventHold != nil {
+		return errEventHold("DefaultEventHold")
+	}
 	if d == nil || d.Mode == nil || (d.Days == nil) == (d.Years == nil) {
 		return errMalformedXML()
 	}
 	if _, ok := retentionModeTexts().value(string(*d.Mode)); !ok {
 		return errMalformedXML()
-	}
-	if d.DefaultEventHold != nil {
-		return errEventHold("DefaultEventHold")
 	}
 	if d.Days != nil && (*d.Days < 1 || *d.Days > 36500) || d.Years != nil && (*d.Years < 1 || *d.Years > 100) {
 		return errMalformedXML()
