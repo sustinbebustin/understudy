@@ -22,10 +22,13 @@
 // the output is deterministic, and is what the binary embeds.
 // -pack rewrites the two derived files without the network,
 // policies.json.gz from policies.json and LICENSE from the generator's
-// template, exactly as -fetch writes them, then runs -verify. A missing
-// policies.json.gz stops every package that embeds it from building, this
-// command included: restore it with git checkout, or create it empty and
-// run -pack.
+// template, exactly as -fetch writes them, then runs -verify.
+//
+// The binary embeds policies.json.gz, SOURCE.json, LICENSE and NOTICE, so
+// any one missing from third_party/aws-managed-policies stops every package
+// that embeds them from building, this command included. Restore SOURCE.json
+// or NOTICE with git checkout. Restore policies.json.gz or LICENSE with git
+// checkout, or create the file empty and run -pack.
 //
 // -verify checks, offline, that the data parses and is in canonical form,
 // that every document parses as a policy and is an identity policy

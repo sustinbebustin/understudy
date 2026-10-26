@@ -47,7 +47,7 @@ func (e *VerifyError) Error() string {
 			fmt.Fprintf(&b, "\n  %s: %s", p.Path, p.Detail)
 		}
 	}
-	b.WriteString("\nThe files are generator output and are never edited by hand; restore them with git checkout, or re-run 'go run ./internal/cmd/managedpolicies -fetch' to refresh them on purpose. 'go run ./internal/cmd/managedpolicies -pack' rewrites the two derived files offline: policies.json.gz from policies.json, and LICENSE.")
+	b.WriteString("\nThe files are generator output and are never edited by hand; restore them with git checkout, or re-run 'go run ./internal/cmd/managedpolicies -fetch' to refresh them on purpose. 'go run ./internal/cmd/managedpolicies -pack' rewrites the two derived files offline: policies.json.gz from policies.json, and LICENSE. The binary embeds both, so if one is missing from third_party/aws-managed-policies, create it empty before -pack, or the command does not build.")
 	return b.String()
 }
 
