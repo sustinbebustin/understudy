@@ -11,18 +11,18 @@ Server-runnable cases of the Smithy protocol compliance corpus, run against the 
 | Protocol | Kind | Cases | Passed | Skipped | Failed | Known |
 |---|---|---|---|---|---|---|
 | awsjson1_0 | request | 26 | 20 | 6 | 0 | 0 |
-| awsjson1_0 | response | 23 | 19 | 1 | 3 | 3 |
+| awsjson1_0 | response | 23 | 21 | 1 | 1 | 1 |
 | awsjson1_1 | request | 57 | 55 | 2 | 0 | 0 |
 | awsjson1_1 | response | 45 | 43 | 1 | 1 | 1 |
 | awsquery | request | 35 | 32 | 3 | 0 | 0 |
 | awsquery | response | 31 | 29 | 1 | 1 | 1 |
 | restjson1 | request | 133 | 128 | 5 | 0 | 0 |
-| restjson1 | response | 92 | 89 | 0 | 3 | 3 |
+| restjson1 | response | 92 | 91 | 0 | 1 | 1 |
 | restjson1 | malformed | 655 | 621 | 34 | 0 | 0 |
 | restxml | request | 101 | 93 | 8 | 0 | 0 |
 | restxml | response | 77 | 71 | 5 | 1 | 1 |
 | rpcv2cbor | request | 39 | 39 | 0 | 0 | 0 |
-| rpcv2cbor | response | 29 | 26 | 1 | 2 | 2 |
+| rpcv2cbor | response | 29 | 27 | 1 | 1 | 1 |
 
 5 server-runnable cases are not generated, so the counts above leave them out (ARCHITECTURE.md 6.4 counts them):
 
@@ -41,16 +41,11 @@ Cases understudy fails because a part it builds on cannot yet express what they 
 | Protocol | Kind | Case | Reason |
 |---|---|---|---|
 | awsjson1_0 | response | `AwsJson10ComplexError` | The error carries a nested structure member. A handler returns *awserr.Error, which holds a message, flat string fields and headers (internal/awserr), so the bench cannot express the value. |
-| awsjson1_0 | response | `AwsJson10ServerPopulatesDefaultsInResponseWhenMissingInParams` | Asserts the server writes modeled defaults for members the output leaves unset. Generated types hold defaulted members as plain values and the generated case output is the zero value, so the codec writes zeros (internal/codegen). |
-| awsjson1_0 | response | `AwsJson10ServerPopulatesNestedDefaultValuesWhenMissingInInResponseParams` | Asserts the server writes modeled defaults inside nested structures; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen). |
 | awsjson1_1 | response | `AwsJson11ComplexError` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
 | awsquery | response | `QueryComplexError` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
 | restjson1 | response | `RestJsonComplexErrorWithNoMessage` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
-| restjson1 | response | `RestJsonServerPopulatesDefaultsInResponseWhenMissingInParams` | Asserts the server writes modeled defaults for members the output leaves unset; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen). |
-| restjson1 | response | `RestJsonServerPopulatesNestedDefaultValuesWhenMissingInInResponseParams` | Asserts the server writes modeled defaults inside nested structures; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen). |
 | restxml | response | `ComplexError` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
 | rpcv2cbor | response | `RpcV2CborComplexError` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
-| rpcv2cbor | response | `RpcV2CborServerPopulatesDefaultsInResponseWhenMissingInParams` | Asserts the server writes modeled defaults for members the output leaves unset; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen). |
 
 ### Skipped cases
 

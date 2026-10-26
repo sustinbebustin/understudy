@@ -288,15 +288,16 @@ func TestGoBuiltInputsNeedTheirRequiredCollections(t *testing.T) {
 }
 
 // TestAbsentRequiredMembersAndDefaults: a decoded input that lacks its
-// required members reports them as null; defaults fill absent members.
+// required members reports them as null; defaults fill absent members,
+// Retries (default 3) through its pointer (smithy-protocol-tests.md 14.4).
 func TestAbsentRequiredMembersAndDefaults(t *testing.T) {
 	r := serdetest.NewReplayer([]serdetest.Event{{Op: serdetest.OpWriteStruct, Schema: &schemaPutKindsInput}, {Op: serdetest.OpCloseStruct}})
 	var in PutKindsInput
 	if err := in.Deserialize(r); err != nil {
 		t.Fatal(err)
 	}
-	if in.Retries != 3 || in.Total != 0 {
-		t.Fatalf("defaults: Retries %d, Total %d; want 3 and 0", in.Retries, in.Total)
+	if in.Retries == nil || *in.Retries != 3 || in.Total != 0 {
+		t.Fatalf("defaults: Retries %v, Total %d; want a pointer to 3, and 0", in.Retries, in.Total)
 	}
 	want := []awserr.Violation{
 		{Path: awserr.Path{"name"}, Value: awserr.RenderedNull{}, Constraint: awserr.Required{}},
@@ -359,7 +360,7 @@ func TestEveryMemberKindDeserializes(t *testing.T) {
 	}
 	want := PutKindsInput{
 		Name: "abc", Flag: new(true), Tiny: new(int8(-1)), Small: new(int16(300)), Count: new(int32(2)),
-		Total: 1 << 40, Retries: 3, Ratio: new(float32(0.5)), Score: new(2.5), Huge: big.NewInt(7),
+		Total: 1 << 40, Retries: new(int32(3)), Ratio: new(float32(0.5)), Score: new(2.5), Huge: big.NewInt(7),
 		Exact: new(smithy.BigDecimal("1.10")), At: &at, Data: []byte{1, 2}, Doc: document.Bool(true),
 		Color: new(ColorDarkBlue), Level: new(LevelHigh), Tags: []string{"t"}, Sparse: []*int32{nil, &one},
 		Labels: map[string]string{"k": "v"}, Nested: Nested{Code: "a-b"}, Choice: ChoiceMemberText{Value: "hi"},

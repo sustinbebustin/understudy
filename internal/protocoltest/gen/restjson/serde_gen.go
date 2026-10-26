@@ -752,45 +752,97 @@ func (v *DatetimeOffsetsOutput) deserialize(d smithy.Deserializer) error {
 
 func (v *Defaults) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaDefaults)
-	s.WriteString(&memberDefaults_defaultString, v.DefaultString)
-	s.WriteBool(&memberDefaults_defaultBoolean, v.DefaultBoolean)
-	if v.DefaultList != nil {
-		serializeTestStringList(s, &memberDefaults_defaultList, v.DefaultList)
+	if v.DefaultString != nil {
+		s.WriteString(&memberDefaults_defaultString, *v.DefaultString)
+	} else {
+		s.WriteString(&memberDefaults_defaultString, "hi")
 	}
+	if v.DefaultBoolean != nil {
+		s.WriteBool(&memberDefaults_defaultBoolean, *v.DefaultBoolean)
+	} else {
+		s.WriteBool(&memberDefaults_defaultBoolean, true)
+	}
+	serializeTestStringList(s, &memberDefaults_defaultList, v.DefaultList)
 	if v.DefaultDocumentMap != nil {
 		s.WriteDocument(&memberDefaults_defaultDocumentMap, v.DefaultDocumentMap)
+	} else {
+		s.WriteDocument(&memberDefaults_defaultDocumentMap, document.Map{})
 	}
 	if v.DefaultDocumentString != nil {
 		s.WriteDocument(&memberDefaults_defaultDocumentString, v.DefaultDocumentString)
+	} else {
+		s.WriteDocument(&memberDefaults_defaultDocumentString, document.String("hi"))
 	}
 	if v.DefaultDocumentBoolean != nil {
 		s.WriteDocument(&memberDefaults_defaultDocumentBoolean, v.DefaultDocumentBoolean)
+	} else {
+		s.WriteDocument(&memberDefaults_defaultDocumentBoolean, document.Bool(true))
 	}
 	if v.DefaultDocumentList != nil {
 		s.WriteDocument(&memberDefaults_defaultDocumentList, v.DefaultDocumentList)
+	} else {
+		s.WriteDocument(&memberDefaults_defaultDocumentList, document.List{})
 	}
 	if v.DefaultNullDocument != nil {
 		s.WriteDocument(&memberDefaults_defaultNullDocument, v.DefaultNullDocument)
 	}
-	s.WriteTimestamp(&memberDefaults_defaultTimestamp, v.DefaultTimestamp)
+	if v.DefaultTimestamp != nil {
+		s.WriteTimestamp(&memberDefaults_defaultTimestamp, *v.DefaultTimestamp)
+	} else {
+		s.WriteTimestamp(&memberDefaults_defaultTimestamp, time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC))
+	}
 	if v.DefaultBlob != nil {
 		s.WriteBlob(&memberDefaults_defaultBlob, v.DefaultBlob)
+	} else {
+		s.WriteBlob(&memberDefaults_defaultBlob, []byte("abc"))
 	}
-	s.WriteInt8(&memberDefaults_defaultByte, v.DefaultByte)
-	s.WriteInt16(&memberDefaults_defaultShort, v.DefaultShort)
-	s.WriteInt32(&memberDefaults_defaultInteger, v.DefaultInteger)
-	s.WriteInt64(&memberDefaults_defaultLong, v.DefaultLong)
-	s.WriteFloat32(&memberDefaults_defaultFloat, v.DefaultFloat)
-	s.WriteFloat64(&memberDefaults_defaultDouble, v.DefaultDouble)
-	if v.DefaultMap != nil {
-		serializeTestStringMap(s, &memberDefaults_defaultMap, v.DefaultMap)
+	if v.DefaultByte != nil {
+		s.WriteInt8(&memberDefaults_defaultByte, *v.DefaultByte)
+	} else {
+		s.WriteInt8(&memberDefaults_defaultByte, int8(1))
 	}
-	s.WriteString(&memberDefaults_defaultEnum, string(v.DefaultEnum))
-	s.WriteInt32(&memberDefaults_defaultIntEnum, int32(v.DefaultIntEnum))
+	if v.DefaultShort != nil {
+		s.WriteInt16(&memberDefaults_defaultShort, *v.DefaultShort)
+	} else {
+		s.WriteInt16(&memberDefaults_defaultShort, int16(1))
+	}
+	if v.DefaultInteger != nil {
+		s.WriteInt32(&memberDefaults_defaultInteger, *v.DefaultInteger)
+	} else {
+		s.WriteInt32(&memberDefaults_defaultInteger, int32(10))
+	}
+	if v.DefaultLong != nil {
+		s.WriteInt64(&memberDefaults_defaultLong, *v.DefaultLong)
+	} else {
+		s.WriteInt64(&memberDefaults_defaultLong, int64(100))
+	}
+	if v.DefaultFloat != nil {
+		s.WriteFloat32(&memberDefaults_defaultFloat, *v.DefaultFloat)
+	} else {
+		s.WriteFloat32(&memberDefaults_defaultFloat, float32(1.0))
+	}
+	if v.DefaultDouble != nil {
+		s.WriteFloat64(&memberDefaults_defaultDouble, *v.DefaultDouble)
+	} else {
+		s.WriteFloat64(&memberDefaults_defaultDouble, float64(1.0))
+	}
+	serializeTestStringMap(s, &memberDefaults_defaultMap, v.DefaultMap)
+	if v.DefaultEnum != nil {
+		s.WriteString(&memberDefaults_defaultEnum, string(*v.DefaultEnum))
+	} else {
+		s.WriteString(&memberDefaults_defaultEnum, string(TestEnum("FOO")))
+	}
+	if v.DefaultIntEnum != nil {
+		s.WriteInt32(&memberDefaults_defaultIntEnum, int32(*v.DefaultIntEnum))
+	} else {
+		s.WriteInt32(&memberDefaults_defaultIntEnum, int32(TestIntEnum(1)))
+	}
 	s.WriteString(&memberDefaults_emptyString, v.EmptyString)
 	s.WriteBool(&memberDefaults_falseBoolean, v.FalseBoolean)
 	if v.EmptyBlob != nil {
 		s.WriteBlob(&memberDefaults_emptyBlob, v.EmptyBlob)
+	} else {
+		s.WriteBlob(&memberDefaults_emptyBlob, []byte(""))
 	}
 	s.WriteInt8(&memberDefaults_zeroByte, v.ZeroByte)
 	s.WriteInt16(&memberDefaults_zeroShort, v.ZeroShort)
@@ -805,24 +857,24 @@ func (v *Defaults) deserialize(d smithy.Deserializer) error {
 	if err := d.ReadStruct(&schemaDefaults); err != nil {
 		return err
 	}
-	v.DefaultString = "hi"
-	v.DefaultBoolean = true
+	v.DefaultString = new("hi")
+	v.DefaultBoolean = new(true)
 	v.DefaultList = []string{}
 	v.DefaultDocumentMap = document.Map{}
 	v.DefaultDocumentString = document.String("hi")
 	v.DefaultDocumentBoolean = document.Bool(true)
 	v.DefaultDocumentList = document.List{}
-	v.DefaultTimestamp = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
+	v.DefaultTimestamp = new(time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC))
 	v.DefaultBlob = []byte("abc")
-	v.DefaultByte = 1
-	v.DefaultShort = 1
-	v.DefaultInteger = 10
-	v.DefaultLong = 100
-	v.DefaultFloat = 1.0
-	v.DefaultDouble = 1.0
+	v.DefaultByte = new(int8(1))
+	v.DefaultShort = new(int16(1))
+	v.DefaultInteger = new(int32(10))
+	v.DefaultLong = new(int64(100))
+	v.DefaultFloat = new(float32(1.0))
+	v.DefaultDouble = new(float64(1.0))
 	v.DefaultMap = map[string]string{}
-	v.DefaultEnum = TestEnum("FOO")
-	v.DefaultIntEnum = TestIntEnum(1)
+	v.DefaultEnum = new(TestEnum("FOO"))
+	v.DefaultIntEnum = new(TestIntEnum(1))
 	v.EmptyBlob = []byte("")
 	for {
 		m, ok, err := d.ReadStructMember()
@@ -838,13 +890,13 @@ func (v *Defaults) deserialize(d smithy.Deserializer) error {
 			if err != nil {
 				return err
 			}
-			v.DefaultString = x
+			v.DefaultString = &x
 		case &memberDefaults_defaultBoolean:
 			x, err := d.ReadBool(&memberDefaults_defaultBoolean)
 			if err != nil {
 				return err
 			}
-			v.DefaultBoolean = x
+			v.DefaultBoolean = &x
 		case &memberDefaults_defaultList:
 			x, err := deserializeTestStringList(d, &memberDefaults_defaultList)
 			if err != nil {
@@ -886,7 +938,7 @@ func (v *Defaults) deserialize(d smithy.Deserializer) error {
 			if err != nil {
 				return err
 			}
-			v.DefaultTimestamp = x
+			v.DefaultTimestamp = &x
 		case &memberDefaults_defaultBlob:
 			x, err := d.ReadBlob(&memberDefaults_defaultBlob)
 			if err != nil {
@@ -898,37 +950,37 @@ func (v *Defaults) deserialize(d smithy.Deserializer) error {
 			if err != nil {
 				return err
 			}
-			v.DefaultByte = x
+			v.DefaultByte = &x
 		case &memberDefaults_defaultShort:
 			x, err := d.ReadInt16(&memberDefaults_defaultShort)
 			if err != nil {
 				return err
 			}
-			v.DefaultShort = x
+			v.DefaultShort = &x
 		case &memberDefaults_defaultInteger:
 			x, err := d.ReadInt32(&memberDefaults_defaultInteger)
 			if err != nil {
 				return err
 			}
-			v.DefaultInteger = x
+			v.DefaultInteger = &x
 		case &memberDefaults_defaultLong:
 			x, err := d.ReadInt64(&memberDefaults_defaultLong)
 			if err != nil {
 				return err
 			}
-			v.DefaultLong = x
+			v.DefaultLong = &x
 		case &memberDefaults_defaultFloat:
 			x, err := d.ReadFloat32(&memberDefaults_defaultFloat)
 			if err != nil {
 				return err
 			}
-			v.DefaultFloat = x
+			v.DefaultFloat = &x
 		case &memberDefaults_defaultDouble:
 			x, err := d.ReadFloat64(&memberDefaults_defaultDouble)
 			if err != nil {
 				return err
 			}
-			v.DefaultDouble = x
+			v.DefaultDouble = &x
 		case &memberDefaults_defaultMap:
 			x, err := deserializeTestStringMap(d, &memberDefaults_defaultMap)
 			if err != nil {
@@ -941,14 +993,14 @@ func (v *Defaults) deserialize(d smithy.Deserializer) error {
 				return err
 			}
 			x := TestEnum(raw)
-			v.DefaultEnum = x
+			v.DefaultEnum = &x
 		case &memberDefaults_defaultIntEnum:
 			raw, err := d.ReadInt32(&memberDefaults_defaultIntEnum)
 			if err != nil {
 				return err
 			}
 			x := TestIntEnum(raw)
-			v.DefaultIntEnum = x
+			v.DefaultIntEnum = &x
 		case &memberDefaults_emptyString:
 			x, err := d.ReadString(&memberDefaults_emptyString)
 			if err != nil {
@@ -1169,7 +1221,11 @@ func (v *Dialog) serialize(s smithy.Serializer, m *smithy.Member) {
 	if v.Language != nil {
 		s.WriteString(&memberDialog_language, *v.Language)
 	}
-	s.WriteString(&memberDialog_greeting, v.Greeting)
+	if v.Greeting != nil {
+		s.WriteString(&memberDialog_greeting, *v.Greeting)
+	} else {
+		s.WriteString(&memberDialog_greeting, "hi")
+	}
 	if v.Farewell != nil {
 		v.Farewell.serialize(s, &memberDialog_farewell)
 	}
@@ -1180,7 +1236,7 @@ func (v *Dialog) deserialize(d smithy.Deserializer) error {
 	if err := d.ReadStruct(&schemaDialog); err != nil {
 		return err
 	}
-	v.Greeting = "hi"
+	v.Greeting = new("hi")
 	for {
 		m, ok, err := d.ReadStructMember()
 		if err != nil {
@@ -1201,7 +1257,7 @@ func (v *Dialog) deserialize(d smithy.Deserializer) error {
 			if err != nil {
 				return err
 			}
-			v.Greeting = x
+			v.Greeting = &x
 		case &memberDialog_farewell:
 			var x Farewell
 			if err := x.deserialize(d); err != nil {
@@ -2093,7 +2149,11 @@ func deserializeEventStream(d smithy.Deserializer) (EventStream, error) {
 
 func (v *Farewell) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaFarewell)
-	s.WriteString(&memberFarewell_phrase, v.Phrase)
+	if v.Phrase != nil {
+		s.WriteString(&memberFarewell_phrase, *v.Phrase)
+	} else {
+		s.WriteString(&memberFarewell_phrase, "bye")
+	}
 	s.CloseStruct()
 }
 
@@ -2101,7 +2161,7 @@ func (v *Farewell) deserialize(d smithy.Deserializer) error {
 	if err := d.ReadStruct(&schemaFarewell); err != nil {
 		return err
 	}
-	v.Phrase = "bye"
+	v.Phrase = new("bye")
 	for {
 		m, ok, err := d.ReadStructMember()
 		if err != nil {
@@ -2116,7 +2176,7 @@ func (v *Farewell) deserialize(d smithy.Deserializer) error {
 			if err != nil {
 				return err
 			}
-			v.Phrase = x
+			v.Phrase = &x
 		default:
 			return fmt.Errorf("restjson: structure aws.protocoltests.restjson#Farewell has no member %q; the codec returned a member of another shape", m.Name)
 		}
@@ -8175,7 +8235,11 @@ func (v *OperationWithDefaultsInput) serialize(s smithy.Serializer, m *smithy.Me
 	if v.ClientOptionalDefaults != nil {
 		v.ClientOptionalDefaults.serialize(s, &memberOperationWithDefaultsInput_clientOptionalDefaults)
 	}
-	s.WriteString(&memberOperationWithDefaultsInput_topLevelDefault, v.TopLevelDefault)
+	if v.TopLevelDefault != nil {
+		s.WriteString(&memberOperationWithDefaultsInput_topLevelDefault, *v.TopLevelDefault)
+	} else {
+		s.WriteString(&memberOperationWithDefaultsInput_topLevelDefault, "hi")
+	}
 	s.WriteInt32(&memberOperationWithDefaultsInput_otherTopLevelDefault, v.OtherTopLevelDefault)
 	s.CloseStruct()
 }
@@ -8190,7 +8254,7 @@ func (v *OperationWithDefaultsInput) deserialize(d smithy.Deserializer) error {
 	if err := d.ReadStruct(&schemaOperationWithDefaultsInput); err != nil {
 		return err
 	}
-	v.TopLevelDefault = "hi"
+	v.TopLevelDefault = new("hi")
 	for {
 		m, ok, err := d.ReadStructMember()
 		if err != nil {
@@ -8217,7 +8281,7 @@ func (v *OperationWithDefaultsInput) deserialize(d smithy.Deserializer) error {
 			if err != nil {
 				return err
 			}
-			v.TopLevelDefault = x
+			v.TopLevelDefault = &x
 		case &memberOperationWithDefaultsInput_otherTopLevelDefault:
 			x, err := d.ReadInt32(&memberOperationWithDefaultsInput_otherTopLevelDefault)
 			if err != nil {
@@ -8235,45 +8299,97 @@ func (v *OperationWithDefaultsOutput) Serialize(s smithy.Serializer) { v.seriali
 
 func (v *OperationWithDefaultsOutput) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaOperationWithDefaultsOutput)
-	s.WriteString(&memberOperationWithDefaultsOutput_defaultString, v.DefaultString)
-	s.WriteBool(&memberOperationWithDefaultsOutput_defaultBoolean, v.DefaultBoolean)
-	if v.DefaultList != nil {
-		serializeTestStringList(s, &memberOperationWithDefaultsOutput_defaultList, v.DefaultList)
+	if v.DefaultString != nil {
+		s.WriteString(&memberOperationWithDefaultsOutput_defaultString, *v.DefaultString)
+	} else {
+		s.WriteString(&memberOperationWithDefaultsOutput_defaultString, "hi")
 	}
+	if v.DefaultBoolean != nil {
+		s.WriteBool(&memberOperationWithDefaultsOutput_defaultBoolean, *v.DefaultBoolean)
+	} else {
+		s.WriteBool(&memberOperationWithDefaultsOutput_defaultBoolean, true)
+	}
+	serializeTestStringList(s, &memberOperationWithDefaultsOutput_defaultList, v.DefaultList)
 	if v.DefaultDocumentMap != nil {
 		s.WriteDocument(&memberOperationWithDefaultsOutput_defaultDocumentMap, v.DefaultDocumentMap)
+	} else {
+		s.WriteDocument(&memberOperationWithDefaultsOutput_defaultDocumentMap, document.Map{})
 	}
 	if v.DefaultDocumentString != nil {
 		s.WriteDocument(&memberOperationWithDefaultsOutput_defaultDocumentString, v.DefaultDocumentString)
+	} else {
+		s.WriteDocument(&memberOperationWithDefaultsOutput_defaultDocumentString, document.String("hi"))
 	}
 	if v.DefaultDocumentBoolean != nil {
 		s.WriteDocument(&memberOperationWithDefaultsOutput_defaultDocumentBoolean, v.DefaultDocumentBoolean)
+	} else {
+		s.WriteDocument(&memberOperationWithDefaultsOutput_defaultDocumentBoolean, document.Bool(true))
 	}
 	if v.DefaultDocumentList != nil {
 		s.WriteDocument(&memberOperationWithDefaultsOutput_defaultDocumentList, v.DefaultDocumentList)
+	} else {
+		s.WriteDocument(&memberOperationWithDefaultsOutput_defaultDocumentList, document.List{})
 	}
 	if v.DefaultNullDocument != nil {
 		s.WriteDocument(&memberOperationWithDefaultsOutput_defaultNullDocument, v.DefaultNullDocument)
 	}
-	s.WriteTimestamp(&memberOperationWithDefaultsOutput_defaultTimestamp, v.DefaultTimestamp)
+	if v.DefaultTimestamp != nil {
+		s.WriteTimestamp(&memberOperationWithDefaultsOutput_defaultTimestamp, *v.DefaultTimestamp)
+	} else {
+		s.WriteTimestamp(&memberOperationWithDefaultsOutput_defaultTimestamp, time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC))
+	}
 	if v.DefaultBlob != nil {
 		s.WriteBlob(&memberOperationWithDefaultsOutput_defaultBlob, v.DefaultBlob)
+	} else {
+		s.WriteBlob(&memberOperationWithDefaultsOutput_defaultBlob, []byte("abc"))
 	}
-	s.WriteInt8(&memberOperationWithDefaultsOutput_defaultByte, v.DefaultByte)
-	s.WriteInt16(&memberOperationWithDefaultsOutput_defaultShort, v.DefaultShort)
-	s.WriteInt32(&memberOperationWithDefaultsOutput_defaultInteger, v.DefaultInteger)
-	s.WriteInt64(&memberOperationWithDefaultsOutput_defaultLong, v.DefaultLong)
-	s.WriteFloat32(&memberOperationWithDefaultsOutput_defaultFloat, v.DefaultFloat)
-	s.WriteFloat64(&memberOperationWithDefaultsOutput_defaultDouble, v.DefaultDouble)
-	if v.DefaultMap != nil {
-		serializeTestStringMap(s, &memberOperationWithDefaultsOutput_defaultMap, v.DefaultMap)
+	if v.DefaultByte != nil {
+		s.WriteInt8(&memberOperationWithDefaultsOutput_defaultByte, *v.DefaultByte)
+	} else {
+		s.WriteInt8(&memberOperationWithDefaultsOutput_defaultByte, int8(1))
 	}
-	s.WriteString(&memberOperationWithDefaultsOutput_defaultEnum, string(v.DefaultEnum))
-	s.WriteInt32(&memberOperationWithDefaultsOutput_defaultIntEnum, int32(v.DefaultIntEnum))
+	if v.DefaultShort != nil {
+		s.WriteInt16(&memberOperationWithDefaultsOutput_defaultShort, *v.DefaultShort)
+	} else {
+		s.WriteInt16(&memberOperationWithDefaultsOutput_defaultShort, int16(1))
+	}
+	if v.DefaultInteger != nil {
+		s.WriteInt32(&memberOperationWithDefaultsOutput_defaultInteger, *v.DefaultInteger)
+	} else {
+		s.WriteInt32(&memberOperationWithDefaultsOutput_defaultInteger, int32(10))
+	}
+	if v.DefaultLong != nil {
+		s.WriteInt64(&memberOperationWithDefaultsOutput_defaultLong, *v.DefaultLong)
+	} else {
+		s.WriteInt64(&memberOperationWithDefaultsOutput_defaultLong, int64(100))
+	}
+	if v.DefaultFloat != nil {
+		s.WriteFloat32(&memberOperationWithDefaultsOutput_defaultFloat, *v.DefaultFloat)
+	} else {
+		s.WriteFloat32(&memberOperationWithDefaultsOutput_defaultFloat, float32(1.0))
+	}
+	if v.DefaultDouble != nil {
+		s.WriteFloat64(&memberOperationWithDefaultsOutput_defaultDouble, *v.DefaultDouble)
+	} else {
+		s.WriteFloat64(&memberOperationWithDefaultsOutput_defaultDouble, float64(1.0))
+	}
+	serializeTestStringMap(s, &memberOperationWithDefaultsOutput_defaultMap, v.DefaultMap)
+	if v.DefaultEnum != nil {
+		s.WriteString(&memberOperationWithDefaultsOutput_defaultEnum, string(*v.DefaultEnum))
+	} else {
+		s.WriteString(&memberOperationWithDefaultsOutput_defaultEnum, string(TestEnum("FOO")))
+	}
+	if v.DefaultIntEnum != nil {
+		s.WriteInt32(&memberOperationWithDefaultsOutput_defaultIntEnum, int32(*v.DefaultIntEnum))
+	} else {
+		s.WriteInt32(&memberOperationWithDefaultsOutput_defaultIntEnum, int32(TestIntEnum(1)))
+	}
 	s.WriteString(&memberOperationWithDefaultsOutput_emptyString, v.EmptyString)
 	s.WriteBool(&memberOperationWithDefaultsOutput_falseBoolean, v.FalseBoolean)
 	if v.EmptyBlob != nil {
 		s.WriteBlob(&memberOperationWithDefaultsOutput_emptyBlob, v.EmptyBlob)
+	} else {
+		s.WriteBlob(&memberOperationWithDefaultsOutput_emptyBlob, []byte(""))
 	}
 	s.WriteInt8(&memberOperationWithDefaultsOutput_zeroByte, v.ZeroByte)
 	s.WriteInt16(&memberOperationWithDefaultsOutput_zeroShort, v.ZeroShort)
@@ -8294,24 +8410,24 @@ func (v *OperationWithDefaultsOutput) deserialize(d smithy.Deserializer) error {
 	if err := d.ReadStruct(&schemaOperationWithDefaultsOutput); err != nil {
 		return err
 	}
-	v.DefaultString = "hi"
-	v.DefaultBoolean = true
+	v.DefaultString = new("hi")
+	v.DefaultBoolean = new(true)
 	v.DefaultList = []string{}
 	v.DefaultDocumentMap = document.Map{}
 	v.DefaultDocumentString = document.String("hi")
 	v.DefaultDocumentBoolean = document.Bool(true)
 	v.DefaultDocumentList = document.List{}
-	v.DefaultTimestamp = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
+	v.DefaultTimestamp = new(time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC))
 	v.DefaultBlob = []byte("abc")
-	v.DefaultByte = 1
-	v.DefaultShort = 1
-	v.DefaultInteger = 10
-	v.DefaultLong = 100
-	v.DefaultFloat = 1.0
-	v.DefaultDouble = 1.0
+	v.DefaultByte = new(int8(1))
+	v.DefaultShort = new(int16(1))
+	v.DefaultInteger = new(int32(10))
+	v.DefaultLong = new(int64(100))
+	v.DefaultFloat = new(float32(1.0))
+	v.DefaultDouble = new(float64(1.0))
 	v.DefaultMap = map[string]string{}
-	v.DefaultEnum = TestEnum("FOO")
-	v.DefaultIntEnum = TestIntEnum(1)
+	v.DefaultEnum = new(TestEnum("FOO"))
+	v.DefaultIntEnum = new(TestIntEnum(1))
 	v.EmptyBlob = []byte("")
 	for {
 		m, ok, err := d.ReadStructMember()
@@ -8327,13 +8443,13 @@ func (v *OperationWithDefaultsOutput) deserialize(d smithy.Deserializer) error {
 			if err != nil {
 				return err
 			}
-			v.DefaultString = x
+			v.DefaultString = &x
 		case &memberOperationWithDefaultsOutput_defaultBoolean:
 			x, err := d.ReadBool(&memberOperationWithDefaultsOutput_defaultBoolean)
 			if err != nil {
 				return err
 			}
-			v.DefaultBoolean = x
+			v.DefaultBoolean = &x
 		case &memberOperationWithDefaultsOutput_defaultList:
 			x, err := deserializeTestStringList(d, &memberOperationWithDefaultsOutput_defaultList)
 			if err != nil {
@@ -8375,7 +8491,7 @@ func (v *OperationWithDefaultsOutput) deserialize(d smithy.Deserializer) error {
 			if err != nil {
 				return err
 			}
-			v.DefaultTimestamp = x
+			v.DefaultTimestamp = &x
 		case &memberOperationWithDefaultsOutput_defaultBlob:
 			x, err := d.ReadBlob(&memberOperationWithDefaultsOutput_defaultBlob)
 			if err != nil {
@@ -8387,37 +8503,37 @@ func (v *OperationWithDefaultsOutput) deserialize(d smithy.Deserializer) error {
 			if err != nil {
 				return err
 			}
-			v.DefaultByte = x
+			v.DefaultByte = &x
 		case &memberOperationWithDefaultsOutput_defaultShort:
 			x, err := d.ReadInt16(&memberOperationWithDefaultsOutput_defaultShort)
 			if err != nil {
 				return err
 			}
-			v.DefaultShort = x
+			v.DefaultShort = &x
 		case &memberOperationWithDefaultsOutput_defaultInteger:
 			x, err := d.ReadInt32(&memberOperationWithDefaultsOutput_defaultInteger)
 			if err != nil {
 				return err
 			}
-			v.DefaultInteger = x
+			v.DefaultInteger = &x
 		case &memberOperationWithDefaultsOutput_defaultLong:
 			x, err := d.ReadInt64(&memberOperationWithDefaultsOutput_defaultLong)
 			if err != nil {
 				return err
 			}
-			v.DefaultLong = x
+			v.DefaultLong = &x
 		case &memberOperationWithDefaultsOutput_defaultFloat:
 			x, err := d.ReadFloat32(&memberOperationWithDefaultsOutput_defaultFloat)
 			if err != nil {
 				return err
 			}
-			v.DefaultFloat = x
+			v.DefaultFloat = &x
 		case &memberOperationWithDefaultsOutput_defaultDouble:
 			x, err := d.ReadFloat64(&memberOperationWithDefaultsOutput_defaultDouble)
 			if err != nil {
 				return err
 			}
-			v.DefaultDouble = x
+			v.DefaultDouble = &x
 		case &memberOperationWithDefaultsOutput_defaultMap:
 			x, err := deserializeTestStringMap(d, &memberOperationWithDefaultsOutput_defaultMap)
 			if err != nil {
@@ -8430,14 +8546,14 @@ func (v *OperationWithDefaultsOutput) deserialize(d smithy.Deserializer) error {
 				return err
 			}
 			x := TestEnum(raw)
-			v.DefaultEnum = x
+			v.DefaultEnum = &x
 		case &memberOperationWithDefaultsOutput_defaultIntEnum:
 			raw, err := d.ReadInt32(&memberOperationWithDefaultsOutput_defaultIntEnum)
 			if err != nil {
 				return err
 			}
 			x := TestIntEnum(raw)
-			v.DefaultIntEnum = x
+			v.DefaultIntEnum = &x
 		case &memberOperationWithDefaultsOutput_emptyString:
 			x, err := d.ReadString(&memberOperationWithDefaultsOutput_emptyString)
 			if err != nil {
@@ -8546,12 +8662,8 @@ func (v *OperationWithNestedStructureOutput) Serialize(s smithy.Serializer) { v.
 func (v *OperationWithNestedStructureOutput) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaOperationWithNestedStructureOutput)
 	v.Dialog.serialize(s, &memberOperationWithNestedStructureOutput_dialog)
-	if v.DialogList != nil {
-		serializeDialogList(s, &memberOperationWithNestedStructureOutput_dialogList, v.DialogList)
-	}
-	if v.DialogMap != nil {
-		serializeDialogMap(s, &memberOperationWithNestedStructureOutput_dialogMap, v.DialogMap)
-	}
+	serializeDialogList(s, &memberOperationWithNestedStructureOutput_dialogList, v.DialogList)
+	serializeDialogMap(s, &memberOperationWithNestedStructureOutput_dialogMap, v.DialogMap)
 	s.CloseStruct()
 }
 
@@ -11573,12 +11685,8 @@ func deserializeTimestampList(d smithy.Deserializer, m *smithy.Member) ([]time.T
 func (v *TopLevel) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaTopLevel)
 	v.Dialog.serialize(s, &memberTopLevel_dialog)
-	if v.DialogList != nil {
-		serializeDialogList(s, &memberTopLevel_dialogList, v.DialogList)
-	}
-	if v.DialogMap != nil {
-		serializeDialogMap(s, &memberTopLevel_dialogMap, v.DialogMap)
-	}
+	serializeDialogList(s, &memberTopLevel_dialogList, v.DialogList)
+	serializeDialogMap(s, &memberTopLevel_dialogMap, v.DialogMap)
 	s.CloseStruct()
 }
 

@@ -198,8 +198,11 @@ func (s *ShapeIR) fieldKinds() error {
 }
 
 // valueField reports whether a member is a plain Go value: required,
-// defaulted or alwaysEmit scalars and structures. Collections, unions,
-// documents, blobs, big integers and streams use nil for absent instead.
+// zero-defaulted or alwaysEmit scalars, and required structures. A scalar
+// whose default is not its Go zero value is a pointer whatever else holds,
+// so unset stays apart from an explicit zero (smithy-protocol-tests.md
+// 14.2). Collections, unions, documents, blobs, big integers and streams
+// use nil for absent instead.
 func valueField(m *MemberIR) bool {
 	switch {
 	case m.Streaming:
@@ -210,7 +213,9 @@ func valueField(m *MemberIR) bool {
 		return false
 	case m.Target.Type == smithy.TypeStructure:
 		return m.Required
+	case m.DefaultKind == DefaultPointer:
+		return false
 	default:
-		return m.Required || m.Default != nil || m.AlwaysEmit
+		return m.Required || m.DefaultKind == DefaultZero || m.AlwaysEmit
 	}
 }

@@ -179,8 +179,10 @@ type MemberIR struct {
 	Owner  *ShapeIR
 	Target *ShapeIR
 
-	Required        bool
-	Default         json.RawMessage // nil when absent or null
+	Required bool
+	Default  json.RawMessage // nil when absent or null
+	// DefaultKind says how the Go field holds Default.
+	DefaultKind     DefaultKind
 	JSONName        string
 	XMLName         string
 	XMLFlattened    bool
@@ -203,7 +205,8 @@ type MemberIR struct {
 	AlwaysEmit bool
 	Empty      EmptyCollection
 	// Value: the Go field is a plain value rather than a pointer (scalars and
-	// structures only; collections, unions and documents use nil for absent).
+	// structures only; collections, unions and documents use nil for absent,
+	// and a DefaultPointer member is never one).
 	Value bool
 	// Bit is the presence bit of a tracked required member, else -1.
 	Bit   int
@@ -212,6 +215,30 @@ type MemberIR struct {
 	// identities exist to resolve it against.
 	rulesRaw json.RawMessage
 }
+
+// DefaultKind is how a structure member's Go field holds its modeled
+// default, which the serializer writes for a member the handler leaves
+// unset and the deserializer fills in for an absent one
+// (smithy-protocol-tests.md 10.4, 14.2 to 14.4).
+type DefaultKind uint8
+
+// DefaultKind values.
+const (
+	// DefaultNone: no default applies. The member models none, models
+	// @default(null), is not a structure member, or streams, which keeps a
+	// stream as it is.
+	DefaultNone DefaultKind = iota
+	// DefaultZero: the default is the Go zero value of a plain field
+	// (numeric 0, false, "" or intEnum 0), so unset and default agree.
+	DefaultZero
+	// DefaultPointer: any other scalar default, every string enum and
+	// every timestamp default (Go's zero time is not the epoch). The field
+	// is a pointer and nil is unset.
+	DefaultPointer
+	// DefaultNil: a list, map, document, blob or big integer, whose Go type
+	// has its own nil for unset.
+	DefaultNil
+)
 
 // Bounds is a length or range trait, decimal text as the model wrote it.
 type Bounds struct {

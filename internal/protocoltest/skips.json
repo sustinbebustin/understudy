@@ -36,16 +36,6 @@
       "reason": "The error carries a nested structure member. A handler returns *awserr.Error, which holds a message, flat string fields and headers (internal/awserr), so the bench cannot express the value."
     },
     {
-      "protocol": "awsjson1_0", "kind": "response", "id": "AwsJson10ServerPopulatesDefaultsInResponseWhenMissingInParams",
-      "category": "gap",
-      "reason": "Asserts the server writes modeled defaults for members the output leaves unset. Generated types hold defaulted members as plain values and the generated case output is the zero value, so the codec writes zeros (internal/codegen)."
-    },
-    {
-      "protocol": "awsjson1_0", "kind": "response", "id": "AwsJson10ServerPopulatesNestedDefaultValuesWhenMissingInInResponseParams",
-      "category": "gap",
-      "reason": "Asserts the server writes modeled defaults inside nested structures; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen)."
-    },
-    {
       "protocol": "awsjson1_0", "kind": "response", "id": "QueryCompatibleAwsJson10CustomCodeError",
       "category": "aws-differs", "label": "third-party-recorded",
       "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (error-matrix.md 5, CloudWatch not found)",
@@ -125,16 +115,6 @@
       "protocol": "restjson1", "kind": "response", "id": "RestJsonComplexErrorWithNoMessage",
       "category": "gap",
       "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
-    },
-    {
-      "protocol": "restjson1", "kind": "response", "id": "RestJsonServerPopulatesDefaultsInResponseWhenMissingInParams",
-      "category": "gap",
-      "reason": "Asserts the server writes modeled defaults for members the output leaves unset; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen)."
-    },
-    {
-      "protocol": "restjson1", "kind": "response", "id": "RestJsonServerPopulatesNestedDefaultValuesWhenMissingInInResponseParams",
-      "category": "gap",
-      "reason": "Asserts the server writes modeled defaults inside nested structures; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonBodyMalformedListNullItem",
@@ -404,11 +384,6 @@
       "protocol": "rpcv2cbor", "kind": "response", "id": "RpcV2CborComplexError",
       "category": "gap",
       "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
-    },
-    {
-      "protocol": "rpcv2cbor", "kind": "response", "id": "RpcV2CborServerPopulatesDefaultsInResponseWhenMissingInParams",
-      "category": "gap",
-      "reason": "Asserts the server writes modeled defaults for members the output leaves unset; generated types hold defaulted members as plain values, so the codec writes zeros (internal/codegen)."
     }
   ]
 }

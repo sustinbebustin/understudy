@@ -1092,7 +1092,7 @@ type ErrorObject struct {
 type Event struct {
 	EventType                     *EventType
 	SubType                       *string
-	EventId                       int32
+	EventId                       *int32
 	Id                            *string
 	Name                          *string
 	EventTimestamp                *time.Time
@@ -1846,7 +1846,7 @@ type GetDurableExecutionHistoryOutput struct {
 // GetDurableExecutionInput is the input of GetDurableExecution, com.amazonaws.lambda#GetDurableExecutionRequest.
 type GetDurableExecutionInput struct {
 	DurableExecutionArn  string
-	IncludeExecutionData bool
+	IncludeExecutionData *bool
 	// missing has a bit set per required member Deserialize did not
 	// find, so Validate tells absent from zero. Values built in Go
 	// leave it zero; Validate then treats a nil required list, map,

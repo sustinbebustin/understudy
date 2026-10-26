@@ -66,7 +66,7 @@ func Suite() gen.Suite {
 				RequireHeaders: []string{"Content-Length"},
 				Body:           "v2hkZWZhdWx0c6D/",
 				BodyMediaType:  "application/cbor",
-				Params:         &OperationWithDefaultsInput{Defaults: new(Defaults{DefaultString: "hi", DefaultBoolean: true, DefaultList: []string{}, DefaultTimestamp: time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC), DefaultBlob: []byte("abc"), DefaultByte: int8(1), DefaultShort: int16(1), DefaultInteger: int32(10), DefaultLong: int64(100), DefaultFloat: float32(1.0), DefaultDouble: float64(1.0), DefaultMap: map[string]string{}, DefaultEnum: TestEnum("FOO"), DefaultIntEnum: TestIntEnum(1), EmptyString: "", FalseBoolean: false, EmptyBlob: []byte(""), ZeroByte: int8(0), ZeroShort: int16(0), ZeroInteger: int32(0), ZeroLong: int64(0), ZeroFloat: float32(0.0), ZeroDouble: float64(0.0)}), TopLevelDefault: "hi", OtherTopLevelDefault: int32(0)},
+				Params:         &OperationWithDefaultsInput{Defaults: new(Defaults{DefaultString: new("hi"), DefaultBoolean: new(true), DefaultList: []string{}, DefaultTimestamp: new(time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)), DefaultBlob: []byte("abc"), DefaultByte: new(int8(1)), DefaultShort: new(int16(1)), DefaultInteger: new(int32(10)), DefaultLong: new(int64(100)), DefaultFloat: new(float32(1.0)), DefaultDouble: new(float64(1.0)), DefaultMap: map[string]string{}, DefaultEnum: new(TestEnum("FOO")), DefaultIntEnum: new(TestIntEnum(1)), EmptyString: "", FalseBoolean: false, EmptyBlob: []byte(""), ZeroByte: int8(0), ZeroShort: int16(0), ZeroInteger: int32(0), ZeroLong: int64(0), ZeroFloat: float32(0.0), ZeroDouble: float64(0.0)}), TopLevelDefault: new("hi"), OtherTopLevelDefault: int32(0)},
 				Tags:           []string{"defaults"},
 			},
 			{

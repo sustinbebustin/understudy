@@ -34,25 +34,25 @@ type ContentTypeParametersOutput struct{}
 
 // Defaults is aws.protocoltests.json10#Defaults.
 type Defaults struct {
-	DefaultString          string
-	DefaultBoolean         bool
+	DefaultString          *string
+	DefaultBoolean         *bool
 	DefaultList            []string
 	DefaultDocumentMap     document.Value
 	DefaultDocumentString  document.Value
 	DefaultDocumentBoolean document.Value
 	DefaultDocumentList    document.Value
 	DefaultNullDocument    document.Value
-	DefaultTimestamp       time.Time
+	DefaultTimestamp       *time.Time
 	DefaultBlob            []byte
-	DefaultByte            int8
-	DefaultShort           int16
-	DefaultInteger         int32
-	DefaultLong            int64
-	DefaultFloat           float32
-	DefaultDouble          float64
+	DefaultByte            *int8
+	DefaultShort           *int16
+	DefaultInteger         *int32
+	DefaultLong            *int64
+	DefaultFloat           *float32
+	DefaultDouble          *float64
 	DefaultMap             map[string]string
-	DefaultEnum            TestEnum
-	DefaultIntEnum         TestIntEnum
+	DefaultEnum            *TestEnum
+	DefaultIntEnum         *TestIntEnum
 	EmptyString            string
 	FalseBoolean           bool
 	EmptyBlob              []byte
@@ -67,7 +67,7 @@ type Defaults struct {
 // Dialog is aws.protocoltests.json10#Dialog.
 type Dialog struct {
 	Language *string
-	Greeting string
+	Greeting *string
 	Farewell *Farewell
 }
 
@@ -98,7 +98,7 @@ type EndpointWithHostLabelOperationOutput struct{}
 
 // Farewell is aws.protocoltests.json10#Farewell.
 type Farewell struct {
-	Phrase string
+	Phrase *string
 }
 
 // FooEnum is aws.protocoltests.shared#FooEnum.
@@ -287,31 +287,31 @@ type NoInputAndOutputOutput struct{}
 type OperationWithDefaultsInput struct {
 	Defaults               *Defaults
 	ClientOptionalDefaults *ClientOptionalDefaults
-	TopLevelDefault        string
+	TopLevelDefault        *string
 	OtherTopLevelDefault   int32
 }
 
 // OperationWithDefaultsOutput is the output of OperationWithDefaults, aws.protocoltests.json10#OperationWithDefaultsOutput.
 type OperationWithDefaultsOutput struct {
-	DefaultString          string
-	DefaultBoolean         bool
+	DefaultString          *string
+	DefaultBoolean         *bool
 	DefaultList            []string
 	DefaultDocumentMap     document.Value
 	DefaultDocumentString  document.Value
 	DefaultDocumentBoolean document.Value
 	DefaultDocumentList    document.Value
 	DefaultNullDocument    document.Value
-	DefaultTimestamp       time.Time
+	DefaultTimestamp       *time.Time
 	DefaultBlob            []byte
-	DefaultByte            int8
-	DefaultShort           int16
-	DefaultInteger         int32
-	DefaultLong            int64
-	DefaultFloat           float32
-	DefaultDouble          float64
+	DefaultByte            *int8
+	DefaultShort           *int16
+	DefaultInteger         *int32
+	DefaultLong            *int64
+	DefaultFloat           *float32
+	DefaultDouble          *float64
 	DefaultMap             map[string]string
-	DefaultEnum            TestEnum
-	DefaultIntEnum         TestIntEnum
+	DefaultEnum            *TestEnum
+	DefaultIntEnum         *TestIntEnum
 	EmptyString            string
 	FalseBoolean           bool
 	EmptyBlob              []byte
@@ -364,20 +364,20 @@ type OperationWithRequiredMembersWithDefaultsInput struct{}
 
 // OperationWithRequiredMembersWithDefaultsOutput is the output of OperationWithRequiredMembersWithDefaults, aws.protocoltests.json10#OperationWithRequiredMembersWithDefaultsOutput.
 type OperationWithRequiredMembersWithDefaultsOutput struct {
-	RequiredString    string
-	RequiredBoolean   bool
+	RequiredString    *string
+	RequiredBoolean   *bool
 	RequiredList      []string
-	RequiredTimestamp time.Time
+	RequiredTimestamp *time.Time
 	RequiredBlob      []byte
-	RequiredByte      int8
-	RequiredShort     int16
-	RequiredInteger   int32
-	RequiredLong      int64
-	RequiredFloat     float32
-	RequiredDouble    float64
+	RequiredByte      *int8
+	RequiredShort     *int16
+	RequiredInteger   *int32
+	RequiredLong      *int64
+	RequiredFloat     *float32
+	RequiredDouble    *float64
 	RequiredMap       map[string]string
-	RequiredEnum      RequiredEnum
-	RequiredIntEnum   RequiredIntEnum
+	RequiredEnum      *RequiredEnum
+	RequiredIntEnum   *RequiredIntEnum
 }
 
 // PutWithContentEncodingInput is the input of PutWithContentEncoding, aws.protocoltests.json10#PutWithContentEncodingInput.

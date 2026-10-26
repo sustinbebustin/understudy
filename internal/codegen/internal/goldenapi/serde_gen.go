@@ -289,7 +289,7 @@ func (v *PutKindsInput) deserialize(d smithy.Deserializer) error {
 		return err
 	}
 	v.missing = 1<<2 - 1
-	v.Retries = 3
+	v.Retries = new(int32(3))
 	for {
 		m, ok, err := d.ReadStructMember()
 		if err != nil {
@@ -341,7 +341,7 @@ func (v *PutKindsInput) deserialize(d smithy.Deserializer) error {
 			if err != nil {
 				return err
 			}
-			v.Retries = x
+			v.Retries = &x
 		case &memberPutKindsInput_Ratio:
 			x, err := d.ReadFloat32(&memberPutKindsInput_Ratio)
 			if err != nil {

@@ -10,11 +10,15 @@ import (
 )
 
 func (v *Defaults) validate(path awserr.Path, out *[]awserr.Violation) {
-	if !v.DefaultEnum.Known() {
-		*out = append(*out, awserr.Violation{Path: at(path, "defaultEnum"), Value: awserr.RenderedText{Text: string(v.DefaultEnum)}, Constraint: awserr.Enum{Values: []string{"FOO", "BAR", "BAZ"}}})
+	if v.DefaultEnum != nil {
+		if !(*v.DefaultEnum).Known() {
+			*out = append(*out, awserr.Violation{Path: at(path, "defaultEnum"), Value: awserr.RenderedText{Text: string(*v.DefaultEnum)}, Constraint: awserr.Enum{Values: []string{"FOO", "BAR", "BAZ"}}})
+		}
 	}
-	if !v.DefaultIntEnum.Known() {
-		*out = append(*out, awserr.Violation{Path: at(path, "defaultIntEnum"), Value: awserr.RenderedText{Text: strconv.FormatInt(int64(v.DefaultIntEnum), 10)}, Constraint: awserr.Enum{Values: []string{"1", "2"}}})
+	if v.DefaultIntEnum != nil {
+		if !(*v.DefaultIntEnum).Known() {
+			*out = append(*out, awserr.Violation{Path: at(path, "defaultIntEnum"), Value: awserr.RenderedText{Text: strconv.FormatInt(int64(*v.DefaultIntEnum), 10)}, Constraint: awserr.Enum{Values: []string{"1", "2"}}})
+		}
 	}
 }
 
