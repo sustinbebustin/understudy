@@ -135,13 +135,15 @@ func genTarget() *rapid.Generator[delivery.Target] {
 		}),
 		rapid.Custom(func(t *rapid.T) delivery.Target {
 			// An event bus target forwards one matched event with its
-			// envelope (eventbridge-buses.md 10.4.12).
+			// envelope (eventbridge-buses.md 10.4.12). Its Detail is a JSON
+			// object: AWS refuses any other as MalformedDetail
+			// (secrets-logs-events-alarms.md 4.7), so no leading zeros.
 			bus := genARN("events").Draw(t, "bus")
 			bus.Resource = "event-bus/" + bus.Resource
 			entry := delivery.EventEntry{
 				Source:     rapid.StringMatching(`[a-z.]{1,10}`).Draw(t, "source"),
 				DetailType: rapid.StringMatching(`[A-Za-z ]{1,10}`).Draw(t, "detailType"),
-				Detail:     rapid.StringMatching(`\{"n":[0-9]{1,3}\}`).Draw(t, "detail"),
+				Detail:     rapid.StringMatching(`\{"n":(0|[1-9][0-9]{0,2})\}`).Draw(t, "detail"),
 				Forwarded:  genForwarded().Draw(t, "forwarded"),
 			}
 			if n := rapid.IntRange(0, 2).Draw(t, "resources"); n > 0 {
