@@ -222,6 +222,37 @@ func TestPackWithoutPoliciesWritesNothing(t *testing.T) {
 	wantNothingWritten(t, dir)
 }
 
+// When -pack cannot write policies.json.gz, LICENSE, which it writes first,
+// is already rewritten, and the error says so as well as that
+// policies.json.gz is unchanged.
+func TestPackSaysWhatItWroteBeforeAFailure(t *testing.T) {
+	dir, _, _ := written(t)
+	gz := filepath.Join(dir, awsmanagedpolicies.PoliciesGzipFile)
+	// A directory in its place makes the rename into place fail.
+	if err := os.Remove(gz); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(gz, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, awsmanagedpolicies.LicenseFile), []byte("an earlier licence text\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stderr strings.Builder
+	err := run(t.Context(), []string{"-pack", "-dir", dir}, &stderr)
+	if err == nil {
+		t.Fatal("run -pack = nil, want the failed write of policies.json.gz")
+	}
+	for _, s := range []string{"write policies.json.gz", "policies.json.gz is unchanged", "LICENSE was already rewritten"} {
+		if !strings.Contains(err.Error(), s) {
+			t.Errorf("run -pack = %q, want it to contain %q", err, s)
+		}
+	}
+	if got := string(readData(t, dir, awsmanagedpolicies.LicenseFile)); got != licenseText {
+		t.Error("LICENSE is not licenseText, though the error says it was rewritten")
+	}
+}
+
 // A policies.json.gz that is missing, is not gzip, carries a header the
 // generator does not write, or does not decompress to exactly policies.json
 // is one problem of policies.json.gz alone, whose

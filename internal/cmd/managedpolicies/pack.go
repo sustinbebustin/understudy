@@ -68,7 +68,7 @@ func pack(dir string) error {
 		return fmt.Errorf("%w; nothing was written", err)
 	}
 	if err := writeFiles(dir, files); err != nil {
-		return fmt.Errorf("%w; that file is unchanged", err)
+		return fmt.Errorf("%w; re-run -pack once the cause is fixed", err)
 	}
 	return verify(os.DirFS(dir), dir)
 }

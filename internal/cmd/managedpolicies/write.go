@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/policycatalogue"
 	awsmanagedpolicies "github.com/sustinbebustin/understudy/third_party/aws-managed-policies"
@@ -160,14 +161,31 @@ func write(dir string, cat *policycatalogue.Catalogue, src Source) error {
 }
 
 // writeFiles writes each file into dir atomically, in order, and stops at
-// the first that fails.
+// the first that fails. Its error names that file, which is unchanged, and
+// the files before it, which are already rewritten.
 func writeFiles(dir string, files []dataFile) error {
-	for _, f := range files {
+	for i, f := range files {
 		if err := writeFileAtomic(filepath.Join(dir, f.name), f.content); err != nil {
-			return fmt.Errorf("write %s: %w", f.name, err)
+			return fmt.Errorf("write %s: %w; %s is unchanged; %s", f.name, err, f.name, rewritten(files[:i]))
 		}
 	}
 	return nil
+}
+
+// rewritten says that files, the ones a failed writeFiles wrote before the
+// failure, are already rewritten.
+func rewritten(files []dataFile) string {
+	if len(files) == 0 {
+		return "no other file was written"
+	}
+	names := make([]string, len(files))
+	for i, f := range files {
+		names[i] = f.name
+	}
+	if len(names) == 1 {
+		return names[0] + " was already rewritten"
+	}
+	return strings.Join(names, ", ") + " were already rewritten"
 }
 
 // writeFileAtomic writes content to a temp file beside name and renames it
