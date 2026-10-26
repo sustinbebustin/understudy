@@ -212,11 +212,14 @@ func fifoOf(r *notify.Rule) (unvalidated, bool) {
 }
 
 // destinationExists looks the destination up in its own account and
-// region as S3's service principal. AWS validates a destination against
-// its stored policy (iam-enforcement-surfaces.md 8.3, 12.4), not through a
-// call that policy grants, so the lookup runs as the platform: it is not
-// access-recorded, and GET /iam/policy's resourcePolicies for the
-// notification name only the delivery's action. Only the destination
+// region as S3's service principal. AWS validates a destination by sending
+// it a test message (iam-enforcement-surfaces.md 8.3), which needs the same
+// grant as a delivery, so it adds no requirement beyond the delivery's
+// action. This lookup is not that message, so it runs as the platform: it
+// is not access-recorded, and GET /iam/policy's resourcePolicies for the
+// notification name only the delivery's action. Step 8 never asks about a
+// platform call, so under enforcement the destination's policy must be
+// checked for the test message explicitly (12.4). Only the destination
 // service's not-found answer means "does not exist"; any other failure (an
 // injected fault, an emulator bug) is the call's InternalError.
 func (s *Service) destinationExists(ctx context.Context, c *kernel.Call, r *notify.Rule) (bool, *awserr.Error) {

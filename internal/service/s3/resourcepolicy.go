@@ -27,6 +27,10 @@ func (s *Service) ResourcePolicy(target aws.ARN) (doc *policydoc.Document, ok bo
 		return nil, false
 	}
 	// PutBucketPolicy checks only the document's form (checkPolicy), so a
-	// text policydoc refuses reads as no policy.
+	// text policydoc refuses reads as no policy. The NOTE on
+	// authz.PolicyProvider says why that must change before enforcement.
+	// Refusing such a text at PutBucketPolicy instead would need the texts
+	// S3 answers grammar errors with, which s3.md does not record: it has
+	// only checkPolicy's two.
 	return policydoc.ParseStored(policy), true
 }
