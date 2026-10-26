@@ -23,13 +23,19 @@ func emitSerde(ir *ServiceIR) ([]byte, error) {
 		if s.Role&RoleOutput != 0 || ir.SerdeBoth {
 			f.serializer(s)
 		}
-		if s.Role&RoleInput != 0 || ir.SerdeBoth {
+		if decodes(ir, s) {
 			if err := f.deserializer(s); err != nil {
 				return nil, err
 			}
 		}
 	}
 	return f.bytes()
+}
+
+// decodes reports whether shape s of ir gets a deserializer: an input
+// reaches it, or ir emits both directions for every shape.
+func decodes(ir *ServiceIR, s *ShapeIR) bool {
+	return s.Role&RoleInput != 0 || ir.SerdeBoth
 }
 
 func (f *file) serializer(s *ShapeIR) {

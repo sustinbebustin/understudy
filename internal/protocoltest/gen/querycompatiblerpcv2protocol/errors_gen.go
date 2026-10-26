@@ -4,6 +4,7 @@ package querycompatiblerpcv2protocol
 
 import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // IdentityCustomCodeError returns the identity of aws.protocoltests.rpcv2cbor#CustomCodeError.
@@ -16,6 +17,9 @@ func ErrCustomCodeError(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityCustomCodeError(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of aws.protocoltests.rpcv2cbor#CustomCodeError.
+func (*CustomCodeError) ErrorIdentity() awserr.Identity { return IdentityCustomCodeError() }
+
 // IdentityNoCustomCodeError returns the identity of aws.protocoltests.rpcv2cbor#NoCustomCodeError.
 func IdentityNoCustomCodeError() awserr.Identity {
 	return awserr.Identity{Shape: "aws.protocoltests.rpcv2cbor#NoCustomCodeError", JSONType: "NoCustomCodeError", QueryCode: "NoCustomCodeError", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -26,6 +30,9 @@ func ErrNoCustomCodeError(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityNoCustomCodeError(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of aws.protocoltests.rpcv2cbor#NoCustomCodeError.
+func (*NoCustomCodeError) ErrorIdentity() awserr.Identity { return IdentityNoCustomCodeError() }
+
 // IdentitySerializationException returns the identity of com.amazon.coral.service#SerializationException.
 func IdentitySerializationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#SerializationException", JSONType: "SerializationException", QueryCode: "SerializationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -34,6 +41,11 @@ func IdentitySerializationException() awserr.Identity {
 // ErrSerializationException returns a SerializationException error with message.
 func ErrSerializationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentitySerializationException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#SerializationException.
+func (*SerializationException) ErrorIdentity() awserr.Identity {
+	return IdentitySerializationException()
 }
 
 // IdentityUnknownOperationException returns the identity of com.amazon.coral.service#UnknownOperationException.
@@ -46,6 +58,11 @@ func ErrUnknownOperationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityUnknownOperationException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#UnknownOperationException.
+func (*UnknownOperationException) ErrorIdentity() awserr.Identity {
+	return IdentityUnknownOperationException()
+}
+
 // IdentityValidationException returns the identity of com.amazon.coral.validate#ValidationException.
 func IdentityValidationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.validate#ValidationException", JSONType: "ValidationException", QueryCode: "ValidationError", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -54,6 +71,29 @@ func IdentityValidationException() awserr.Identity {
 // ErrValidationException returns a ValidationException error with message.
 func ErrValidationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityValidationException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.validate#ValidationException.
+func (*ValidationException) ErrorIdentity() awserr.Identity { return IdentityValidationException() }
+
+// NewErrorMembers returns a new, empty value of error shape id, to decode
+// a fault rule's members into, or false for a shape this package does not
+// generate a decoder for.
+func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	switch id {
+	case "aws.protocoltests.rpcv2cbor#CustomCodeError":
+		return new(CustomCodeError), true
+	case "aws.protocoltests.rpcv2cbor#NoCustomCodeError":
+		return new(NoCustomCodeError), true
+	case "com.amazon.coral.service#SerializationException":
+		return new(SerializationException), true
+	case "com.amazon.coral.service#UnknownOperationException":
+		return new(UnknownOperationException), true
+	case "com.amazon.coral.validate#ValidationException":
+		return new(ValidationException), true
+	default:
+		return nil, false
+	}
 }
 
 // UnknownOperationError returns the identity this service answers for an

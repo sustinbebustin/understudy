@@ -25,6 +25,7 @@ var service = registry.Service{
 	QueryCompatible:       true,
 	QueryErrorEnvelope:    registry.QueryErrorEnvelope{Namespace: true, Detail: false},
 	MalformedRequestError: IdentitySerializationException(),
+	NewErrorMembers:       NewErrorMembers,
 }
 
 // The operations point back at the service, so the list is linked once

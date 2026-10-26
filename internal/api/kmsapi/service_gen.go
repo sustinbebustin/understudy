@@ -22,6 +22,7 @@ var service = registry.Service{
 	JSONTargetPrefix:      "TrentService",
 	XMLNamespace:          "https://trent.amazonaws.com/doc/2014-11-01/",
 	MalformedRequestError: IdentitySerializationException(),
+	NewErrorMembers:       NewErrorMembers,
 }
 
 // The operations point back at the service, so the list is linked once

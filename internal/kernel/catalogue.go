@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
@@ -59,4 +60,13 @@ func (c Catalogue) Throttle(svc ref.ServiceID) awserr.Identity {
 		return id
 	}
 	return awserr.ThrottlingException()
+}
+
+// NewMembers returns a new, empty value of error shape for op's service,
+// from the descriptor's generated NewErrorMembers, or false for an unknown
+// operation or a service without one.
+//
+// It is not implemented yet: it always returns false.
+func (Catalogue) NewMembers(ref.OperationID, smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	return nil, false
 }

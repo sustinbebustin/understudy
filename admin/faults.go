@@ -73,6 +73,11 @@ type FaultAction interface {
 type InjectError struct {
 	Shape   string
 	Message string
+	// Members sets members of the error beyond its message: a JSON object
+	// of the shape's members as awsJson writes them, names as modeled,
+	// such as {"CancellationReasons": [{"Code": "TransactionConflict"}]}
+	// for DynamoDB's TransactionCanceledException. Empty sets none.
+	Members json.RawMessage
 }
 
 // Throttle fails the call with the service's own throttling error.
@@ -213,6 +218,9 @@ func encodeAction(a FaultAction) ([]byte, error) {
 	var w actionJSON
 	switch a := a.(type) {
 	case InjectError:
+		if len(a.Members) > 0 {
+			return nil, &FaultFormError{Field: "action.members", Reason: "is not implemented yet; leave Members empty"}
+		}
 		w = actionJSON{Kind: kindError, Shape: nonEmpty(a.Shape), Message: nonEmpty(a.Message)}
 	case Throttle:
 		w = actionJSON{Kind: kindThrottle}

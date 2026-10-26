@@ -65,6 +65,10 @@ type MatchInput struct {
 	// Origin is where the call came from; at DeliveryAttempt it is always
 	// ref.Internal{Via: Mechanism.Via()}.
 	Origin ref.Origin
+	// Items is the number of items of a transactional call (DynamoDB
+	// TransactItems, TransactStatements), which a rule's per-item members
+	// line up with; 0 for every other call.
+	Items int
 }
 
 // Decision is what the caller of Evaluate does with the call. BeforeHandler

@@ -21,6 +21,7 @@ var service = registry.Service{
 	Protocols:             []ref.ProtocolID{ref.AWSJSON11},
 	JSONTargetPrefix:      "JsonProtocol",
 	MalformedRequestError: IdentitySerializationException(),
+	NewErrorMembers:       NewErrorMembers,
 }
 
 // The operations point back at the service, so the list is linked once

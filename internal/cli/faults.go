@@ -176,6 +176,7 @@ func describeMatch(m *admin.FaultMatch) string {
 type faultFlags struct {
 	id, resource, origin, phase              string
 	errShape, message, afterCommit, statusOK string
+	members                                  string
 	throttle, drop                           bool
 	latency                                  time.Duration
 	next                                     int
@@ -200,6 +201,7 @@ func faultsAdd(fs *flag.FlagSet) action {
 	fs.StringVar(&f.phase, "phase", "request", "hook point: request or delivery")
 	fs.StringVar(&f.errShape, "error", "", "fail the call with this error shape, one the operation really sends")
 	fs.StringVar(&f.message, "message", "", "message of the --error (default one naming the rule)")
+	fs.StringVar(&f.members, "members", "", `members of the --error shape beyond its message, as a JSON object, such as '{"CancellationReasons": [{"Code": "TransactionConflict"}]}'`)
 	fs.BoolVar(&f.throttle, "throttle", false, "fail the call with the service's throttling error")
 	durationVar(fs, &f.latency, "latency", 0, "delay the call by this much wall time")
 	fs.StringVar(&f.afterCommit, "after-commit", "", "let the call take effect, then answer with this error shape")
@@ -271,6 +273,9 @@ func (f *faultFlags) rule() (admin.FaultRule, error) {
 	}
 	if f.message != "" && f.errShape == "" {
 		return admin.FaultRule{}, &usageError{msg: "--message goes with --error"}
+	}
+	if f.members != "" {
+		return admin.FaultRule{}, &usageError{msg: "--members is not implemented yet; leave it out"}
 	}
 	if err := operationForm(f.operations); err != nil {
 		return admin.FaultRule{}, err

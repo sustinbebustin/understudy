@@ -51,6 +51,7 @@ func emitService(ir *ServiceIR) ([]byte, error) {
 	if e := ir.MalformedRequest; e != nil {
 		f.p("\tMalformedRequestError: Identity%s(),", e.Shape.GoName)
 	}
+	f.p("\tNewErrorMembers: NewErrorMembers,")
 	f.p("}\n")
 	vars := make([]string, len(ir.Operations))
 	for i, o := range ir.Operations {

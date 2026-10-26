@@ -4,6 +4,7 @@ package dynamodbapi
 
 import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // IdentityAccessDeniedException returns the identity of com.amazon.coral.service#AccessDeniedException.
@@ -16,6 +17,9 @@ func ErrAccessDeniedException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityAccessDeniedException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#AccessDeniedException.
+func (*AccessDeniedException) ErrorIdentity() awserr.Identity { return IdentityAccessDeniedException() }
+
 // IdentityBackupInUseException returns the identity of com.amazonaws.dynamodb#BackupInUseException.
 func IdentityBackupInUseException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#BackupInUseException", JSONType: "com.amazonaws.dynamodb.v20120810#BackupInUseException", QueryCode: "BackupInUseException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -26,6 +30,9 @@ func ErrBackupInUseException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityBackupInUseException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#BackupInUseException.
+func (*BackupInUseException) ErrorIdentity() awserr.Identity { return IdentityBackupInUseException() }
+
 // IdentityBackupNotFoundException returns the identity of com.amazonaws.dynamodb#BackupNotFoundException.
 func IdentityBackupNotFoundException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#BackupNotFoundException", JSONType: "com.amazonaws.dynamodb.v20120810#BackupNotFoundException", QueryCode: "BackupNotFoundException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -34,6 +41,11 @@ func IdentityBackupNotFoundException() awserr.Identity {
 // ErrBackupNotFoundException returns a BackupNotFoundException error with message.
 func ErrBackupNotFoundException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityBackupNotFoundException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#BackupNotFoundException.
+func (*BackupNotFoundException) ErrorIdentity() awserr.Identity {
+	return IdentityBackupNotFoundException()
 }
 
 // IdentityConditionalCheckFailedException returns the identity of com.amazonaws.dynamodb#ConditionalCheckFailedException.
@@ -46,6 +58,21 @@ func ErrConditionalCheckFailedException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityConditionalCheckFailedException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ConditionalCheckFailedException.
+func (*ConditionalCheckFailedException) ErrorIdentity() awserr.Identity {
+	return IdentityConditionalCheckFailedException()
+}
+
+// ErrConditionalCheckFailedExceptionMembers returns a ConditionalCheckFailedException error with message, carrying v's members;
+// message replaces v.Message.
+func ErrConditionalCheckFailedExceptionMembers(message string, v ConditionalCheckFailedException) *awserr.Error {
+	v.Message = nil
+	if message != "" {
+		v.Message = &message
+	}
+	return awserr.WithMembers(&v, message, awserr.Modeled{})
+}
+
 // IdentityContinuousBackupsUnavailableException returns the identity of com.amazonaws.dynamodb#ContinuousBackupsUnavailableException.
 func IdentityContinuousBackupsUnavailableException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#ContinuousBackupsUnavailableException", JSONType: "com.amazonaws.dynamodb.v20120810#ContinuousBackupsUnavailableException", QueryCode: "ContinuousBackupsUnavailableException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -54,6 +81,11 @@ func IdentityContinuousBackupsUnavailableException() awserr.Identity {
 // ErrContinuousBackupsUnavailableException returns a ContinuousBackupsUnavailableException error with message.
 func ErrContinuousBackupsUnavailableException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityContinuousBackupsUnavailableException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ContinuousBackupsUnavailableException.
+func (*ContinuousBackupsUnavailableException) ErrorIdentity() awserr.Identity {
+	return IdentityContinuousBackupsUnavailableException()
 }
 
 // IdentityCoralServiceThrottlingException returns the identity of com.amazon.coral.service#ThrottlingException.
@@ -66,6 +98,11 @@ func ErrCoralServiceThrottlingException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityCoralServiceThrottlingException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#ThrottlingException.
+func (*CoralServiceThrottlingException) ErrorIdentity() awserr.Identity {
+	return IdentityCoralServiceThrottlingException()
+}
+
 // IdentityDuplicateItemException returns the identity of com.amazonaws.dynamodb#DuplicateItemException.
 func IdentityDuplicateItemException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#DuplicateItemException", JSONType: "com.amazonaws.dynamodb.v20120810#DuplicateItemException", QueryCode: "DuplicateItemException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -74,6 +111,11 @@ func IdentityDuplicateItemException() awserr.Identity {
 // ErrDuplicateItemException returns a DuplicateItemException error with message.
 func ErrDuplicateItemException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityDuplicateItemException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#DuplicateItemException.
+func (*DuplicateItemException) ErrorIdentity() awserr.Identity {
+	return IdentityDuplicateItemException()
 }
 
 // IdentityExpiredTokenException returns the identity of com.amazon.coral.service#ExpiredTokenException.
@@ -86,6 +128,9 @@ func ErrExpiredTokenException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityExpiredTokenException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#ExpiredTokenException.
+func (*ExpiredTokenException) ErrorIdentity() awserr.Identity { return IdentityExpiredTokenException() }
+
 // IdentityExportConflictException returns the identity of com.amazonaws.dynamodb#ExportConflictException.
 func IdentityExportConflictException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#ExportConflictException", JSONType: "com.amazonaws.dynamodb.v20120810#ExportConflictException", QueryCode: "ExportConflictException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -94,6 +139,11 @@ func IdentityExportConflictException() awserr.Identity {
 // ErrExportConflictException returns an ExportConflictException error with message.
 func ErrExportConflictException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityExportConflictException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ExportConflictException.
+func (*ExportConflictException) ErrorIdentity() awserr.Identity {
+	return IdentityExportConflictException()
 }
 
 // IdentityExportNotFoundException returns the identity of com.amazonaws.dynamodb#ExportNotFoundException.
@@ -106,6 +156,11 @@ func ErrExportNotFoundException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityExportNotFoundException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ExportNotFoundException.
+func (*ExportNotFoundException) ErrorIdentity() awserr.Identity {
+	return IdentityExportNotFoundException()
+}
+
 // IdentityGlobalTableAlreadyExistsException returns the identity of com.amazonaws.dynamodb#GlobalTableAlreadyExistsException.
 func IdentityGlobalTableAlreadyExistsException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#GlobalTableAlreadyExistsException", JSONType: "com.amazonaws.dynamodb.v20120810#GlobalTableAlreadyExistsException", QueryCode: "GlobalTableAlreadyExistsException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -114,6 +169,11 @@ func IdentityGlobalTableAlreadyExistsException() awserr.Identity {
 // ErrGlobalTableAlreadyExistsException returns a GlobalTableAlreadyExistsException error with message.
 func ErrGlobalTableAlreadyExistsException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityGlobalTableAlreadyExistsException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#GlobalTableAlreadyExistsException.
+func (*GlobalTableAlreadyExistsException) ErrorIdentity() awserr.Identity {
+	return IdentityGlobalTableAlreadyExistsException()
 }
 
 // IdentityGlobalTableNotFoundException returns the identity of com.amazonaws.dynamodb#GlobalTableNotFoundException.
@@ -126,6 +186,11 @@ func ErrGlobalTableNotFoundException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityGlobalTableNotFoundException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#GlobalTableNotFoundException.
+func (*GlobalTableNotFoundException) ErrorIdentity() awserr.Identity {
+	return IdentityGlobalTableNotFoundException()
+}
+
 // IdentityIdempotentParameterMismatchException returns the identity of com.amazonaws.dynamodb#IdempotentParameterMismatchException.
 func IdentityIdempotentParameterMismatchException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#IdempotentParameterMismatchException", JSONType: "com.amazonaws.dynamodb.v20120810#IdempotentParameterMismatchException", QueryCode: "IdempotentParameterMismatchException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -134,6 +199,11 @@ func IdentityIdempotentParameterMismatchException() awserr.Identity {
 // ErrIdempotentParameterMismatchException returns an IdempotentParameterMismatchException error with message.
 func ErrIdempotentParameterMismatchException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityIdempotentParameterMismatchException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#IdempotentParameterMismatchException.
+func (*IdempotentParameterMismatchException) ErrorIdentity() awserr.Identity {
+	return IdentityIdempotentParameterMismatchException()
 }
 
 // IdentityImportConflictException returns the identity of com.amazonaws.dynamodb#ImportConflictException.
@@ -146,6 +216,11 @@ func ErrImportConflictException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityImportConflictException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ImportConflictException.
+func (*ImportConflictException) ErrorIdentity() awserr.Identity {
+	return IdentityImportConflictException()
+}
+
 // IdentityImportNotFoundException returns the identity of com.amazonaws.dynamodb#ImportNotFoundException.
 func IdentityImportNotFoundException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#ImportNotFoundException", JSONType: "com.amazonaws.dynamodb.v20120810#ImportNotFoundException", QueryCode: "ImportNotFoundException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -154,6 +229,11 @@ func IdentityImportNotFoundException() awserr.Identity {
 // ErrImportNotFoundException returns an ImportNotFoundException error with message.
 func ErrImportNotFoundException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityImportNotFoundException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ImportNotFoundException.
+func (*ImportNotFoundException) ErrorIdentity() awserr.Identity {
+	return IdentityImportNotFoundException()
 }
 
 // IdentityIncompleteSignatureException returns the identity of com.amazon.coral.service#IncompleteSignatureException.
@@ -166,6 +246,11 @@ func ErrIncompleteSignatureException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityIncompleteSignatureException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#IncompleteSignatureException.
+func (*IncompleteSignatureException) ErrorIdentity() awserr.Identity {
+	return IdentityIncompleteSignatureException()
+}
+
 // IdentityIndexNotFoundException returns the identity of com.amazonaws.dynamodb#IndexNotFoundException.
 func IdentityIndexNotFoundException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#IndexNotFoundException", JSONType: "com.amazonaws.dynamodb.v20120810#IndexNotFoundException", QueryCode: "IndexNotFoundException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -174,6 +259,11 @@ func IdentityIndexNotFoundException() awserr.Identity {
 // ErrIndexNotFoundException returns an IndexNotFoundException error with message.
 func ErrIndexNotFoundException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityIndexNotFoundException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#IndexNotFoundException.
+func (*IndexNotFoundException) ErrorIdentity() awserr.Identity {
+	return IdentityIndexNotFoundException()
 }
 
 // IdentityInternalFailure returns the identity of com.amazon.coral.service#InternalFailure.
@@ -186,6 +276,9 @@ func ErrInternalFailure(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInternalFailure(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#InternalFailure.
+func (*InternalFailure) ErrorIdentity() awserr.Identity { return IdentityInternalFailure() }
+
 // IdentityInternalServerError returns the identity of com.amazonaws.dynamodb#InternalServerError.
 func IdentityInternalServerError() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#InternalServerError", JSONType: "com.amazonaws.dynamodb.v20120810#InternalServerError", QueryCode: "InternalServerError", Status: 500, Fault: awserr.Receiver, MessageKey: awserr.MessageLower}
@@ -196,6 +289,9 @@ func ErrInternalServerError(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInternalServerError(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#InternalServerError.
+func (*InternalServerError) ErrorIdentity() awserr.Identity { return IdentityInternalServerError() }
+
 // IdentityInvalidEndpointException returns the identity of com.amazonaws.dynamodb#InvalidEndpointException.
 func IdentityInvalidEndpointException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#InvalidEndpointException", JSONType: "com.amazonaws.dynamodb.v20120810#InvalidEndpointException", QueryCode: "InvalidEndpointException", Status: 421, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -204,6 +300,11 @@ func IdentityInvalidEndpointException() awserr.Identity {
 // ErrInvalidEndpointException returns an InvalidEndpointException error with message.
 func ErrInvalidEndpointException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidEndpointException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#InvalidEndpointException.
+func (*InvalidEndpointException) ErrorIdentity() awserr.Identity {
+	return IdentityInvalidEndpointException()
 }
 
 // IdentityInvalidExportTimeException returns the identity of com.amazonaws.dynamodb#InvalidExportTimeException.
@@ -216,6 +317,11 @@ func ErrInvalidExportTimeException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidExportTimeException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#InvalidExportTimeException.
+func (*InvalidExportTimeException) ErrorIdentity() awserr.Identity {
+	return IdentityInvalidExportTimeException()
+}
+
 // IdentityInvalidRestoreTimeException returns the identity of com.amazonaws.dynamodb#InvalidRestoreTimeException.
 func IdentityInvalidRestoreTimeException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#InvalidRestoreTimeException", JSONType: "com.amazonaws.dynamodb.v20120810#InvalidRestoreTimeException", QueryCode: "InvalidRestoreTimeException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -224,6 +330,11 @@ func IdentityInvalidRestoreTimeException() awserr.Identity {
 // ErrInvalidRestoreTimeException returns an InvalidRestoreTimeException error with message.
 func ErrInvalidRestoreTimeException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidRestoreTimeException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#InvalidRestoreTimeException.
+func (*InvalidRestoreTimeException) ErrorIdentity() awserr.Identity {
+	return IdentityInvalidRestoreTimeException()
 }
 
 // IdentityInvalidSignatureException returns the identity of com.amazon.coral.service#InvalidSignatureException.
@@ -236,6 +347,11 @@ func ErrInvalidSignatureException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidSignatureException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#InvalidSignatureException.
+func (*InvalidSignatureException) ErrorIdentity() awserr.Identity {
+	return IdentityInvalidSignatureException()
+}
+
 // IdentityItemCollectionSizeLimitExceededException returns the identity of com.amazonaws.dynamodb#ItemCollectionSizeLimitExceededException.
 func IdentityItemCollectionSizeLimitExceededException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#ItemCollectionSizeLimitExceededException", JSONType: "com.amazonaws.dynamodb.v20120810#ItemCollectionSizeLimitExceededException", QueryCode: "ItemCollectionSizeLimitExceededException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -244,6 +360,11 @@ func IdentityItemCollectionSizeLimitExceededException() awserr.Identity {
 // ErrItemCollectionSizeLimitExceededException returns an ItemCollectionSizeLimitExceededException error with message.
 func ErrItemCollectionSizeLimitExceededException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityItemCollectionSizeLimitExceededException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ItemCollectionSizeLimitExceededException.
+func (*ItemCollectionSizeLimitExceededException) ErrorIdentity() awserr.Identity {
+	return IdentityItemCollectionSizeLimitExceededException()
 }
 
 // IdentityLimitExceededException returns the identity of com.amazonaws.dynamodb#LimitExceededException.
@@ -256,6 +377,11 @@ func ErrLimitExceededException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityLimitExceededException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#LimitExceededException.
+func (*LimitExceededException) ErrorIdentity() awserr.Identity {
+	return IdentityLimitExceededException()
+}
+
 // IdentityMissingAuthenticationTokenException returns the identity of com.amazon.coral.service#MissingAuthenticationTokenException.
 func IdentityMissingAuthenticationTokenException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#MissingAuthenticationTokenException", JSONType: "com.amazon.coral.service#MissingAuthenticationTokenException", QueryCode: "MissingAuthenticationToken", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -264,6 +390,11 @@ func IdentityMissingAuthenticationTokenException() awserr.Identity {
 // ErrMissingAuthenticationTokenException returns a MissingAuthenticationTokenException error with message.
 func ErrMissingAuthenticationTokenException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityMissingAuthenticationTokenException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#MissingAuthenticationTokenException.
+func (*MissingAuthenticationTokenException) ErrorIdentity() awserr.Identity {
+	return IdentityMissingAuthenticationTokenException()
 }
 
 // IdentityNotImplemented returns the identity of dev.understudy#NotImplemented.
@@ -276,6 +407,9 @@ func ErrNotImplemented(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityNotImplemented(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of dev.understudy#NotImplemented.
+func (*NotImplemented) ErrorIdentity() awserr.Identity { return IdentityNotImplemented() }
+
 // IdentityPointInTimeRecoveryUnavailableException returns the identity of com.amazonaws.dynamodb#PointInTimeRecoveryUnavailableException.
 func IdentityPointInTimeRecoveryUnavailableException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#PointInTimeRecoveryUnavailableException", JSONType: "com.amazonaws.dynamodb.v20120810#PointInTimeRecoveryUnavailableException", QueryCode: "PointInTimeRecoveryUnavailableException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -284,6 +418,11 @@ func IdentityPointInTimeRecoveryUnavailableException() awserr.Identity {
 // ErrPointInTimeRecoveryUnavailableException returns a PointInTimeRecoveryUnavailableException error with message.
 func ErrPointInTimeRecoveryUnavailableException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityPointInTimeRecoveryUnavailableException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#PointInTimeRecoveryUnavailableException.
+func (*PointInTimeRecoveryUnavailableException) ErrorIdentity() awserr.Identity {
+	return IdentityPointInTimeRecoveryUnavailableException()
 }
 
 // IdentityPolicyNotFoundException returns the identity of com.amazonaws.dynamodb#PolicyNotFoundException.
@@ -296,6 +435,11 @@ func ErrPolicyNotFoundException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityPolicyNotFoundException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#PolicyNotFoundException.
+func (*PolicyNotFoundException) ErrorIdentity() awserr.Identity {
+	return IdentityPolicyNotFoundException()
+}
+
 // IdentityProvisionedThroughputExceededException returns the identity of com.amazonaws.dynamodb#ProvisionedThroughputExceededException.
 func IdentityProvisionedThroughputExceededException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#ProvisionedThroughputExceededException", JSONType: "com.amazonaws.dynamodb.v20120810#ProvisionedThroughputExceededException", QueryCode: "ProvisionedThroughputExceededException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -304,6 +448,21 @@ func IdentityProvisionedThroughputExceededException() awserr.Identity {
 // ErrProvisionedThroughputExceededException returns a ProvisionedThroughputExceededException error with message.
 func ErrProvisionedThroughputExceededException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityProvisionedThroughputExceededException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ProvisionedThroughputExceededException.
+func (*ProvisionedThroughputExceededException) ErrorIdentity() awserr.Identity {
+	return IdentityProvisionedThroughputExceededException()
+}
+
+// ErrProvisionedThroughputExceededExceptionMembers returns a ProvisionedThroughputExceededException error with message, carrying v's members;
+// message replaces v.Message.
+func ErrProvisionedThroughputExceededExceptionMembers(message string, v ProvisionedThroughputExceededException) *awserr.Error {
+	v.Message = nil
+	if message != "" {
+		v.Message = &message
+	}
+	return awserr.WithMembers(&v, message, awserr.Modeled{})
 }
 
 // IdentityReplicaAlreadyExistsException returns the identity of com.amazonaws.dynamodb#ReplicaAlreadyExistsException.
@@ -316,6 +475,11 @@ func ErrReplicaAlreadyExistsException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityReplicaAlreadyExistsException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ReplicaAlreadyExistsException.
+func (*ReplicaAlreadyExistsException) ErrorIdentity() awserr.Identity {
+	return IdentityReplicaAlreadyExistsException()
+}
+
 // IdentityReplicaNotFoundException returns the identity of com.amazonaws.dynamodb#ReplicaNotFoundException.
 func IdentityReplicaNotFoundException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#ReplicaNotFoundException", JSONType: "com.amazonaws.dynamodb.v20120810#ReplicaNotFoundException", QueryCode: "ReplicaNotFoundException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -324,6 +488,11 @@ func IdentityReplicaNotFoundException() awserr.Identity {
 // ErrReplicaNotFoundException returns a ReplicaNotFoundException error with message.
 func ErrReplicaNotFoundException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityReplicaNotFoundException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ReplicaNotFoundException.
+func (*ReplicaNotFoundException) ErrorIdentity() awserr.Identity {
+	return IdentityReplicaNotFoundException()
 }
 
 // IdentityReplicatedWriteConflictException returns the identity of com.amazonaws.dynamodb#ReplicatedWriteConflictException.
@@ -336,6 +505,11 @@ func ErrReplicatedWriteConflictException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityReplicatedWriteConflictException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ReplicatedWriteConflictException.
+func (*ReplicatedWriteConflictException) ErrorIdentity() awserr.Identity {
+	return IdentityReplicatedWriteConflictException()
+}
+
 // IdentityRequestEntityTooLargeException returns the identity of com.amazon.coral.service#RequestEntityTooLargeException.
 func IdentityRequestEntityTooLargeException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#RequestEntityTooLargeException", JSONType: "com.amazon.coral.service#RequestEntityTooLargeException", QueryCode: "RequestEntityTooLarge", Status: 413, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -344,6 +518,11 @@ func IdentityRequestEntityTooLargeException() awserr.Identity {
 // ErrRequestEntityTooLargeException returns a RequestEntityTooLargeException error with message.
 func ErrRequestEntityTooLargeException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityRequestEntityTooLargeException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#RequestEntityTooLargeException.
+func (*RequestEntityTooLargeException) ErrorIdentity() awserr.Identity {
+	return IdentityRequestEntityTooLargeException()
 }
 
 // IdentityRequestLimitExceeded returns the identity of com.amazonaws.dynamodb#RequestLimitExceeded.
@@ -356,6 +535,19 @@ func ErrRequestLimitExceeded(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityRequestLimitExceeded(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#RequestLimitExceeded.
+func (*RequestLimitExceeded) ErrorIdentity() awserr.Identity { return IdentityRequestLimitExceeded() }
+
+// ErrRequestLimitExceededMembers returns a RequestLimitExceeded error with message, carrying v's members;
+// message replaces v.Message.
+func ErrRequestLimitExceededMembers(message string, v RequestLimitExceeded) *awserr.Error {
+	v.Message = nil
+	if message != "" {
+		v.Message = &message
+	}
+	return awserr.WithMembers(&v, message, awserr.Modeled{})
+}
+
 // IdentityResourceInUseException returns the identity of com.amazonaws.dynamodb#ResourceInUseException.
 func IdentityResourceInUseException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#ResourceInUseException", JSONType: "com.amazonaws.dynamodb.v20120810#ResourceInUseException", QueryCode: "ResourceInUseException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -364,6 +556,11 @@ func IdentityResourceInUseException() awserr.Identity {
 // ErrResourceInUseException returns a ResourceInUseException error with message.
 func ErrResourceInUseException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityResourceInUseException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ResourceInUseException.
+func (*ResourceInUseException) ErrorIdentity() awserr.Identity {
+	return IdentityResourceInUseException()
 }
 
 // IdentityResourceNotFoundException returns the identity of com.amazonaws.dynamodb#ResourceNotFoundException.
@@ -376,6 +573,11 @@ func ErrResourceNotFoundException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityResourceNotFoundException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ResourceNotFoundException.
+func (*ResourceNotFoundException) ErrorIdentity() awserr.Identity {
+	return IdentityResourceNotFoundException()
+}
+
 // IdentitySerializationException returns the identity of com.amazon.coral.service#SerializationException.
 func IdentitySerializationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#SerializationException", JSONType: "com.amazon.coral.service#SerializationException", QueryCode: "SerializationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -384,6 +586,11 @@ func IdentitySerializationException() awserr.Identity {
 // ErrSerializationException returns a SerializationException error with message.
 func ErrSerializationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentitySerializationException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#SerializationException.
+func (*SerializationException) ErrorIdentity() awserr.Identity {
+	return IdentitySerializationException()
 }
 
 // IdentityTableAlreadyExistsException returns the identity of com.amazonaws.dynamodb#TableAlreadyExistsException.
@@ -396,6 +603,11 @@ func ErrTableAlreadyExistsException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityTableAlreadyExistsException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#TableAlreadyExistsException.
+func (*TableAlreadyExistsException) ErrorIdentity() awserr.Identity {
+	return IdentityTableAlreadyExistsException()
+}
+
 // IdentityTableInUseException returns the identity of com.amazonaws.dynamodb#TableInUseException.
 func IdentityTableInUseException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#TableInUseException", JSONType: "com.amazonaws.dynamodb.v20120810#TableInUseException", QueryCode: "TableInUseException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -406,6 +618,9 @@ func ErrTableInUseException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityTableInUseException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#TableInUseException.
+func (*TableInUseException) ErrorIdentity() awserr.Identity { return IdentityTableInUseException() }
+
 // IdentityTableNotFoundException returns the identity of com.amazonaws.dynamodb#TableNotFoundException.
 func IdentityTableNotFoundException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#TableNotFoundException", JSONType: "com.amazonaws.dynamodb.v20120810#TableNotFoundException", QueryCode: "TableNotFoundException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -414,6 +629,11 @@ func IdentityTableNotFoundException() awserr.Identity {
 // ErrTableNotFoundException returns a TableNotFoundException error with message.
 func ErrTableNotFoundException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityTableNotFoundException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#TableNotFoundException.
+func (*TableNotFoundException) ErrorIdentity() awserr.Identity {
+	return IdentityTableNotFoundException()
 }
 
 // IdentityThrottlingException returns the identity of com.amazonaws.dynamodb#ThrottlingException.
@@ -426,6 +646,19 @@ func ErrThrottlingException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityThrottlingException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#ThrottlingException.
+func (*ThrottlingException) ErrorIdentity() awserr.Identity { return IdentityThrottlingException() }
+
+// ErrThrottlingExceptionMembers returns a ThrottlingException error with message, carrying v's members;
+// message replaces v.Message.
+func ErrThrottlingExceptionMembers(message string, v ThrottlingException) *awserr.Error {
+	v.Message = nil
+	if message != "" {
+		v.Message = &message
+	}
+	return awserr.WithMembers(&v, message, awserr.Modeled{})
+}
+
 // IdentityTransactionCanceledException returns the identity of com.amazonaws.dynamodb#TransactionCanceledException.
 func IdentityTransactionCanceledException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#TransactionCanceledException", JSONType: "com.amazonaws.dynamodb.v20120810#TransactionCanceledException", QueryCode: "TransactionCanceledException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -434,6 +667,21 @@ func IdentityTransactionCanceledException() awserr.Identity {
 // ErrTransactionCanceledException returns a TransactionCanceledException error with message.
 func ErrTransactionCanceledException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityTransactionCanceledException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#TransactionCanceledException.
+func (*TransactionCanceledException) ErrorIdentity() awserr.Identity {
+	return IdentityTransactionCanceledException()
+}
+
+// ErrTransactionCanceledExceptionMembers returns a TransactionCanceledException error with message, carrying v's members;
+// message replaces v.Message.
+func ErrTransactionCanceledExceptionMembers(message string, v TransactionCanceledException) *awserr.Error {
+	v.Message = nil
+	if message != "" {
+		v.Message = &message
+	}
+	return awserr.WithMembers(&v, message, awserr.Modeled{})
 }
 
 // IdentityTransactionConflictException returns the identity of com.amazonaws.dynamodb#TransactionConflictException.
@@ -446,6 +694,11 @@ func ErrTransactionConflictException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityTransactionConflictException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#TransactionConflictException.
+func (*TransactionConflictException) ErrorIdentity() awserr.Identity {
+	return IdentityTransactionConflictException()
+}
+
 // IdentityTransactionInProgressException returns the identity of com.amazonaws.dynamodb#TransactionInProgressException.
 func IdentityTransactionInProgressException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.dynamodb#TransactionInProgressException", JSONType: "com.amazonaws.dynamodb.v20120810#TransactionInProgressException", QueryCode: "TransactionInProgressException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -454,6 +707,11 @@ func IdentityTransactionInProgressException() awserr.Identity {
 // ErrTransactionInProgressException returns a TransactionInProgressException error with message.
 func ErrTransactionInProgressException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityTransactionInProgressException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.dynamodb#TransactionInProgressException.
+func (*TransactionInProgressException) ErrorIdentity() awserr.Identity {
+	return IdentityTransactionInProgressException()
 }
 
 // IdentityUnknownOperationException returns the identity of com.amazon.coral.service#UnknownOperationException.
@@ -466,6 +724,11 @@ func ErrUnknownOperationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityUnknownOperationException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#UnknownOperationException.
+func (*UnknownOperationException) ErrorIdentity() awserr.Identity {
+	return IdentityUnknownOperationException()
+}
+
 // IdentityUnrecognizedClientException returns the identity of com.amazon.coral.service#UnrecognizedClientException.
 func IdentityUnrecognizedClientException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#UnrecognizedClientException", JSONType: "com.amazon.coral.service#UnrecognizedClientException", QueryCode: "InvalidClientTokenId", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -476,6 +739,11 @@ func ErrUnrecognizedClientException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityUnrecognizedClientException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#UnrecognizedClientException.
+func (*UnrecognizedClientException) ErrorIdentity() awserr.Identity {
+	return IdentityUnrecognizedClientException()
+}
+
 // IdentityValidationException returns the identity of com.amazon.coral.validate#ValidationException.
 func IdentityValidationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.validate#ValidationException", JSONType: "com.amazon.coral.validate#ValidationException", QueryCode: "ValidationError", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -484,6 +752,115 @@ func IdentityValidationException() awserr.Identity {
 // ErrValidationException returns a ValidationException error with message.
 func ErrValidationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityValidationException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.validate#ValidationException.
+func (*ValidationException) ErrorIdentity() awserr.Identity { return IdentityValidationException() }
+
+// NewErrorMembers returns a new, empty value of error shape id, to decode
+// a fault rule's members into, or false for a shape this package does not
+// generate a decoder for.
+func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	switch id {
+	case "com.amazon.coral.service#AccessDeniedException":
+		return new(AccessDeniedException), true
+	case "com.amazonaws.dynamodb#BackupInUseException":
+		return new(BackupInUseException), true
+	case "com.amazonaws.dynamodb#BackupNotFoundException":
+		return new(BackupNotFoundException), true
+	case "com.amazonaws.dynamodb#ConditionalCheckFailedException":
+		return new(ConditionalCheckFailedException), true
+	case "com.amazonaws.dynamodb#ContinuousBackupsUnavailableException":
+		return new(ContinuousBackupsUnavailableException), true
+	case "com.amazon.coral.service#ThrottlingException":
+		return new(CoralServiceThrottlingException), true
+	case "com.amazonaws.dynamodb#DuplicateItemException":
+		return new(DuplicateItemException), true
+	case "com.amazon.coral.service#ExpiredTokenException":
+		return new(ExpiredTokenException), true
+	case "com.amazonaws.dynamodb#ExportConflictException":
+		return new(ExportConflictException), true
+	case "com.amazonaws.dynamodb#ExportNotFoundException":
+		return new(ExportNotFoundException), true
+	case "com.amazonaws.dynamodb#GlobalTableAlreadyExistsException":
+		return new(GlobalTableAlreadyExistsException), true
+	case "com.amazonaws.dynamodb#GlobalTableNotFoundException":
+		return new(GlobalTableNotFoundException), true
+	case "com.amazonaws.dynamodb#IdempotentParameterMismatchException":
+		return new(IdempotentParameterMismatchException), true
+	case "com.amazonaws.dynamodb#ImportConflictException":
+		return new(ImportConflictException), true
+	case "com.amazonaws.dynamodb#ImportNotFoundException":
+		return new(ImportNotFoundException), true
+	case "com.amazon.coral.service#IncompleteSignatureException":
+		return new(IncompleteSignatureException), true
+	case "com.amazonaws.dynamodb#IndexNotFoundException":
+		return new(IndexNotFoundException), true
+	case "com.amazon.coral.service#InternalFailure":
+		return new(InternalFailure), true
+	case "com.amazonaws.dynamodb#InternalServerError":
+		return new(InternalServerError), true
+	case "com.amazonaws.dynamodb#InvalidEndpointException":
+		return new(InvalidEndpointException), true
+	case "com.amazonaws.dynamodb#InvalidExportTimeException":
+		return new(InvalidExportTimeException), true
+	case "com.amazonaws.dynamodb#InvalidRestoreTimeException":
+		return new(InvalidRestoreTimeException), true
+	case "com.amazon.coral.service#InvalidSignatureException":
+		return new(InvalidSignatureException), true
+	case "com.amazonaws.dynamodb#ItemCollectionSizeLimitExceededException":
+		return new(ItemCollectionSizeLimitExceededException), true
+	case "com.amazonaws.dynamodb#LimitExceededException":
+		return new(LimitExceededException), true
+	case "com.amazon.coral.service#MissingAuthenticationTokenException":
+		return new(MissingAuthenticationTokenException), true
+	case "dev.understudy#NotImplemented":
+		return new(NotImplemented), true
+	case "com.amazonaws.dynamodb#PointInTimeRecoveryUnavailableException":
+		return new(PointInTimeRecoveryUnavailableException), true
+	case "com.amazonaws.dynamodb#PolicyNotFoundException":
+		return new(PolicyNotFoundException), true
+	case "com.amazonaws.dynamodb#ProvisionedThroughputExceededException":
+		return new(ProvisionedThroughputExceededException), true
+	case "com.amazonaws.dynamodb#ReplicaAlreadyExistsException":
+		return new(ReplicaAlreadyExistsException), true
+	case "com.amazonaws.dynamodb#ReplicaNotFoundException":
+		return new(ReplicaNotFoundException), true
+	case "com.amazonaws.dynamodb#ReplicatedWriteConflictException":
+		return new(ReplicatedWriteConflictException), true
+	case "com.amazon.coral.service#RequestEntityTooLargeException":
+		return new(RequestEntityTooLargeException), true
+	case "com.amazonaws.dynamodb#RequestLimitExceeded":
+		return new(RequestLimitExceeded), true
+	case "com.amazonaws.dynamodb#ResourceInUseException":
+		return new(ResourceInUseException), true
+	case "com.amazonaws.dynamodb#ResourceNotFoundException":
+		return new(ResourceNotFoundException), true
+	case "com.amazon.coral.service#SerializationException":
+		return new(SerializationException), true
+	case "com.amazonaws.dynamodb#TableAlreadyExistsException":
+		return new(TableAlreadyExistsException), true
+	case "com.amazonaws.dynamodb#TableInUseException":
+		return new(TableInUseException), true
+	case "com.amazonaws.dynamodb#TableNotFoundException":
+		return new(TableNotFoundException), true
+	case "com.amazonaws.dynamodb#ThrottlingException":
+		return new(ThrottlingException), true
+	case "com.amazonaws.dynamodb#TransactionCanceledException":
+		return new(TransactionCanceledException), true
+	case "com.amazonaws.dynamodb#TransactionConflictException":
+		return new(TransactionConflictException), true
+	case "com.amazonaws.dynamodb#TransactionInProgressException":
+		return new(TransactionInProgressException), true
+	case "com.amazon.coral.service#UnknownOperationException":
+		return new(UnknownOperationException), true
+	case "com.amazon.coral.service#UnrecognizedClientException":
+		return new(UnrecognizedClientException), true
+	case "com.amazon.coral.validate#ValidationException":
+		return new(ValidationException), true
+	default:
+		return nil, false
+	}
 }
 
 // ThrottleError returns the identity a throttling fault rule injects for

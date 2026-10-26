@@ -13,13 +13,14 @@ import (
 )
 
 var service = registry.Service{
-	ID:           "s3",
-	Shape:        "com.amazonaws.s3#AmazonS3",
-	SigningName:  "s3",
-	IAMPrefix:    "",
-	ARNNamespace: "s3",
-	Protocols:    []ref.ProtocolID{ref.RESTXML},
-	XMLNamespace: "http://s3.amazonaws.com/doc/2006-03-01/",
+	ID:              "s3",
+	Shape:           "com.amazonaws.s3#AmazonS3",
+	SigningName:     "s3",
+	IAMPrefix:       "",
+	ARNNamespace:    "s3",
+	Protocols:       []ref.ProtocolID{ref.RESTXML},
+	XMLNamespace:    "http://s3.amazonaws.com/doc/2006-03-01/",
+	NewErrorMembers: NewErrorMembers,
 }
 
 // The operations point back at the service, so the list is linked once

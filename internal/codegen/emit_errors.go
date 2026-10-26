@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -9,10 +10,11 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
-// emitErrors writes errors_gen.go: an Identity function and an Err
-// constructor per error shape, the service-level identities the overlay
-// names (throttle, unknown operation, malformed request) and the families'
-// generic vocabularies.
+// emitErrors writes errors_gen.go: an Identity function, an Err
+// constructor and an ErrorIdentity method per error shape, an ErrMembers
+// constructor per shape with members beyond its message, NewErrorMembers,
+// the service-level identities the overlay names (throttle, unknown
+// operation, malformed request) and the families' generic vocabularies.
 func emitErrors(ir *ServiceIR) ([]byte, error) {
 	f := newFile(ir, "errors_gen.go")
 	f.use("awserr")
@@ -21,6 +23,7 @@ func emitErrors(ir *ServiceIR) ([]byte, error) {
 			return nil, err
 		}
 	}
+	f.newErrorMembers(ir)
 	if e := ir.Throttle; e != nil {
 		f.p("// ThrottleError returns the identity a throttling fault rule injects for")
 		f.p("// this service (dev.understudy#throttleError).")
@@ -116,7 +119,7 @@ func (f *file) errorFuncs(e *ErrorIR) error {
 	if e.Generic {
 		origin = "awserr.Generic{}"
 	}
-	msgs := ""
+	msgList, msgs := "", ""
 	if len(e.Messages) > 0 {
 		f.use("ref")
 		var parts []string
@@ -125,7 +128,8 @@ func (f *file) errorFuncs(e *ErrorIR) error {
 				parts = append(parts, fmt.Sprintf("{Protocol: ref.%s, Message: %s}", protocolConst(p), goString(m)))
 			}
 		}
-		msgs = ", Messages: []awserr.ProtocolMessage{" + strings.Join(parts, ", ") + "}"
+		msgList = "[]awserr.ProtocolMessage{" + strings.Join(parts, ", ") + "}"
+		msgs = ", Messages: " + msgList
 	}
 	if e.MessageKey == awserr.NoMessage {
 		f.p("// Err%s returns %s error; the shape carries no message.", name, withArticle(name))
@@ -140,7 +144,89 @@ func (f *file) errorFuncs(e *ErrorIR) error {
 		f.p("\treturn &awserr.Error{ID: Identity%s(), Message: message%s, Origin: %s}", name, msgs, origin)
 	}
 	f.p("}\n")
+	f.p("// ErrorIdentity returns the identity of %s.", e.Shape.ID)
+	f.p("func (*%s) ErrorIdentity() awserr.Identity { return Identity%s() }\n", name, name)
+	f.membersFunc(e, msgList, origin)
 	return nil
+}
+
+// membersFunc emits Err<X>Members, the constructor of an error carrying
+// its members beyond the message, for a shape that has any. The message
+// stays the error's one text: it replaces the value's own message member,
+// which codecs never write.
+func (f *file) membersFunc(e *ErrorIR, msgList, origin string) {
+	msg := messageMember(e.Shape)
+	if !slices.ContainsFunc(e.Shape.Members, func(m *MemberIR) bool { return m != msg }) {
+		return
+	}
+	name := e.Shape.GoName
+	text := "message"
+	switch {
+	case e.MessageKey == awserr.NoMessage:
+		text = `""`
+		f.p("// Err%sMembers returns %s error carrying v's members; the shape carries no message.", name, withArticle(name))
+		f.p("func Err%sMembers(v %s) *awserr.Error {", name, name)
+	case msg == nil:
+		f.p("// Err%sMembers returns %s error with message, carrying v's members.", name, withArticle(name))
+		f.p("func Err%sMembers(message string, v %s) *awserr.Error {", name, name)
+	default:
+		f.p("// Err%sMembers returns %s error with message, carrying v's members;", name, withArticle(name))
+		f.p("// message replaces v.%s.", msg.GoName)
+		f.p("func Err%sMembers(message string, v %s) *awserr.Error {", name, name)
+		if msg.Value {
+			f.p("\tv.%s = message", msg.GoName)
+		} else {
+			f.p("\tv.%s = nil", msg.GoName)
+			f.p("\tif message != \"\" {")
+			f.p("\t\tv.%s = &message", msg.GoName)
+			f.p("\t}")
+		}
+	}
+	if msgList == "" {
+		f.p("\treturn awserr.WithMembers(&v, %s, %s)", text, origin)
+	} else {
+		f.p("\te := awserr.WithMembers(&v, %s, %s)", text, origin)
+		f.p("\te.Messages = %s", msgList)
+		f.p("\treturn e")
+	}
+	f.p("}\n")
+}
+
+// messageMember is the member of error shape s that holds its message,
+// spelled message or Message as the IR builder reads it (ir_errors.go),
+// or nil when s has none.
+func messageMember(s *ShapeIR) *MemberIR {
+	var msg *MemberIR
+	for _, m := range s.Members {
+		if m.Name == "message" || m.Name == "Message" {
+			msg = m
+		}
+	}
+	return msg
+}
+
+// newErrorMembers emits NewErrorMembers, which a service descriptor carries
+// so fault rules can decode an error's members without importing the
+// generated package. It names only the error shapes that get a
+// deserializer (decodes).
+func (f *file) newErrorMembers(ir *ServiceIR) {
+	f.use("smithy")
+	f.p("// NewErrorMembers returns a new, empty value of error shape id, to decode")
+	f.p("// a fault rule's members into, or false for a shape this package does not")
+	f.p("// generate a decoder for.")
+	f.p("func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {")
+	f.p("\tswitch id {")
+	for _, e := range ir.Errors {
+		if !decodes(ir, e.Shape) {
+			continue
+		}
+		f.p("\tcase %s:", goString(string(e.Shape.ID)))
+		f.p("\t\treturn new(%s), true", e.Shape.GoName)
+	}
+	f.p("\tdefault:")
+	f.p("\t\treturn nil, false")
+	f.p("\t}")
+	f.p("}\n")
 }
 
 // withArticle prefixes a or an by the name's first letter.

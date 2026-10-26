@@ -22,6 +22,7 @@ var service = registry.Service{
 	QueryVersion:       "2010-03-31",
 	XMLNamespace:       "http://sns.amazonaws.com/doc/2010-03-31/",
 	QueryErrorEnvelope: registry.QueryErrorEnvelope{Namespace: true, Detail: false},
+	NewErrorMembers:    NewErrorMembers,
 }
 
 // The operations point back at the service, so the list is linked once

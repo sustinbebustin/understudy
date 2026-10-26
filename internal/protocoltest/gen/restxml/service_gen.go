@@ -13,12 +13,13 @@ import (
 )
 
 var service = registry.Service{
-	ID:           "restxml",
-	Shape:        "aws.protocoltests.restxml#RestXml",
-	SigningName:  "restxml",
-	IAMPrefix:    "",
-	ARNNamespace: "",
-	Protocols:    []ref.ProtocolID{ref.RESTXML},
+	ID:              "restxml",
+	Shape:           "aws.protocoltests.restxml#RestXml",
+	SigningName:     "restxml",
+	IAMPrefix:       "",
+	ARNNamespace:    "",
+	Protocols:       []ref.ProtocolID{ref.RESTXML},
+	NewErrorMembers: NewErrorMembers,
 }
 
 // The operations point back at the service, so the list is linked once

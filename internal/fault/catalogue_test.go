@@ -5,6 +5,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/ids"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
@@ -177,6 +178,12 @@ func (testCatalogue) Throttle(svc ref.ServiceID) awserr.Identity {
 	default:
 		return awserr.Identity{}
 	}
+}
+
+// NewMembers decodes no error's members: the shapes above are hand-built
+// identities without generated values.
+func (testCatalogue) NewMembers(ref.OperationID, smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	return nil, false
 }
 
 func newStore(seed uint64) *fault.Store {

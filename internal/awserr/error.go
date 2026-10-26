@@ -1,6 +1,7 @@
 package awserr
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
@@ -23,6 +24,48 @@ type Error struct {
 	// Headers are extra response headers: Retry-After, x-amz-bucket-region.
 	Headers []Header
 	Origin  Origin
+	// members is the generated value of the error's shape, for members
+	// beyond the message; only WithMembers sets it, from the value's own
+	// identity, so ID and the value cannot disagree.
+	members Members
+}
+
+// Members is a generated error structure: the value an Error carries for
+// members beyond its message. Every generated error type implements it on
+// its pointer.
+type Members interface {
+	smithy.Serializable
+	// ErrorIdentity returns the identity of the value's error shape, the
+	// value the generated Identity<X> function returns.
+	ErrorIdentity() Identity
+}
+
+// DecodableMembers is a generated error structure that also decodes, so a
+// fault rule's members can be read into it. Only the packages that
+// generate a deserializer for the shape return one (the generated
+// NewErrorMembers).
+type DecodableMembers interface {
+	Members
+	smithy.Deserializable
+}
+
+// errWithMembersNotImplemented is the cause WithMembers reports until
+// errors carry their members.
+var errWithMembersNotImplemented = errors.New("awserr: WithMembers is not implemented yet")
+
+// WithMembers returns the error of v's shape carrying v, with message as
+// its text and origin as its origin. Codecs write the message under the
+// identity's MessageKey, never v's own message member.
+//
+// It is not implemented yet: it returns an Internal error.
+func WithMembers(_ Members, _ string, _ Origin) *Error {
+	return Internalf(errWithMembersNotImplemented)
+}
+
+// Members returns the generated value e carries, or nil when it carries
+// none.
+func (e *Error) Members() Members {
+	return e.members
 }
 
 // Identity is everything a codec needs to render an error on any protocol.

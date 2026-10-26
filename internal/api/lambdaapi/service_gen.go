@@ -20,6 +20,7 @@ var service = registry.Service{
 	ARNNamespace:          "lambda",
 	Protocols:             []ref.ProtocolID{ref.RESTJSON1},
 	MalformedRequestError: IdentityInvalidRequestContentException(),
+	NewErrorMembers:       NewErrorMembers,
 }
 
 // The operations point back at the service, so the list is linked once

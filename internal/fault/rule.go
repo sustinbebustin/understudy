@@ -206,6 +206,8 @@ type Error struct {
 	// Message is the error text; empty means a message naming the rule. A
 	// shape with no message member takes none, and Add rejects one.
 	Message string `json:"message,omitempty"`
+	// Members sets members of the error beyond its message; nil sets none.
+	Members Members `json:"members,omitzero"`
 }
 
 // Throttle fails the call before the handler with the service's own

@@ -20,7 +20,7 @@ type Binder struct {
 }
 
 // BindOption adjusts one binding: WithValidator, WithCheck, WithResources,
-// WithActions and WithoutSecondaryActions build them.
+// WithItemCount, WithActions and WithoutSecondaryActions build them.
 type BindOption interface {
 	// apply adds the option to cfg, the *bindConfig of the operation's input
 	// type, and reports false when the option is for another input type.
@@ -120,6 +120,25 @@ func WithCheck[In any](check func(*In) *awserr.Error) BindOption {
 // handler answers it as usual.
 func WithResources[In any](resolve func(c *Call, in *In) []aws.ARN) BindOption {
 	return resourcesOption[In](resolve)
+}
+
+type itemCountOption[In any] func(*In) int
+
+// apply accepts the option for its input type and adds nothing yet.
+func (itemCountOption[In]) apply(cfg any) bool {
+	_, ok := cfg.(*bindConfig[In])
+	return ok
+}
+
+// WithItemCount names how many items a transactional call's input carries
+// (DynamoDB TransactItems, TransactStatements), so a fault rule's per-item
+// members line up with them: once the input is valid, the kernel sets
+// fault.MatchInput.Items from it for the call's request-phase rules.
+// Without the option Items is 0; with several, the last one applies.
+//
+// It is not implemented yet: the kernel accepts the option and ignores it.
+func WithItemCount[In any](count func(*In) int) BindOption {
+	return itemCountOption[In](count)
 }
 
 // Bind binds h as op's handler with the coverage the bind site states.

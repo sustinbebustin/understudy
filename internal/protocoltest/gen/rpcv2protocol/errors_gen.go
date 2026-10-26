@@ -4,6 +4,7 @@ package rpcv2protocol
 
 import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // IdentityComplexError returns the identity of smithy.protocoltests.rpcv2Cbor#ComplexError.
@@ -16,6 +17,14 @@ func ErrComplexError() *awserr.Error {
 	return &awserr.Error{ID: IdentityComplexError(), Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of smithy.protocoltests.rpcv2Cbor#ComplexError.
+func (*ComplexError) ErrorIdentity() awserr.Identity { return IdentityComplexError() }
+
+// ErrComplexErrorMembers returns a ComplexError error carrying v's members; the shape carries no message.
+func ErrComplexErrorMembers(v ComplexError) *awserr.Error {
+	return awserr.WithMembers(&v, "", awserr.Modeled{})
+}
+
 // IdentityInvalidGreeting returns the identity of smithy.protocoltests.rpcv2Cbor#InvalidGreeting.
 func IdentityInvalidGreeting() awserr.Identity {
 	return awserr.Identity{Shape: "smithy.protocoltests.rpcv2Cbor#InvalidGreeting", JSONType: "InvalidGreeting", QueryCode: "InvalidGreeting", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -26,6 +35,9 @@ func ErrInvalidGreeting(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidGreeting(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of smithy.protocoltests.rpcv2Cbor#InvalidGreeting.
+func (*InvalidGreeting) ErrorIdentity() awserr.Identity { return IdentityInvalidGreeting() }
+
 // IdentitySerializationException returns the identity of com.amazon.coral.service#SerializationException.
 func IdentitySerializationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#SerializationException", JSONType: "SerializationException", QueryCode: "SerializationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -34,6 +46,11 @@ func IdentitySerializationException() awserr.Identity {
 // ErrSerializationException returns a SerializationException error with message.
 func ErrSerializationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentitySerializationException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#SerializationException.
+func (*SerializationException) ErrorIdentity() awserr.Identity {
+	return IdentitySerializationException()
 }
 
 // IdentitySmithyFrameworkValidationException returns the identity of smithy.framework#ValidationException.
@@ -46,6 +63,18 @@ func ErrSmithyFrameworkValidationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentitySmithyFrameworkValidationException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of smithy.framework#ValidationException.
+func (*SmithyFrameworkValidationException) ErrorIdentity() awserr.Identity {
+	return IdentitySmithyFrameworkValidationException()
+}
+
+// ErrSmithyFrameworkValidationExceptionMembers returns a SmithyFrameworkValidationException error with message, carrying v's members;
+// message replaces v.Message.
+func ErrSmithyFrameworkValidationExceptionMembers(message string, v SmithyFrameworkValidationException) *awserr.Error {
+	v.Message = message
+	return awserr.WithMembers(&v, message, awserr.Generic{})
+}
+
 // IdentityUnknownOperationException returns the identity of com.amazon.coral.service#UnknownOperationException.
 func IdentityUnknownOperationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#UnknownOperationException", JSONType: "UnknownOperationException", QueryCode: "UnknownOperationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -56,6 +85,11 @@ func ErrUnknownOperationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityUnknownOperationException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#UnknownOperationException.
+func (*UnknownOperationException) ErrorIdentity() awserr.Identity {
+	return IdentityUnknownOperationException()
+}
+
 // IdentityValidationException returns the identity of com.amazon.coral.validate#ValidationException.
 func IdentityValidationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.validate#ValidationException", JSONType: "ValidationException", QueryCode: "ValidationError", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -64,6 +98,31 @@ func IdentityValidationException() awserr.Identity {
 // ErrValidationException returns a ValidationException error with message.
 func ErrValidationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityValidationException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.validate#ValidationException.
+func (*ValidationException) ErrorIdentity() awserr.Identity { return IdentityValidationException() }
+
+// NewErrorMembers returns a new, empty value of error shape id, to decode
+// a fault rule's members into, or false for a shape this package does not
+// generate a decoder for.
+func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	switch id {
+	case "smithy.protocoltests.rpcv2Cbor#ComplexError":
+		return new(ComplexError), true
+	case "smithy.protocoltests.rpcv2Cbor#InvalidGreeting":
+		return new(InvalidGreeting), true
+	case "com.amazon.coral.service#SerializationException":
+		return new(SerializationException), true
+	case "smithy.framework#ValidationException":
+		return new(SmithyFrameworkValidationException), true
+	case "com.amazon.coral.service#UnknownOperationException":
+		return new(UnknownOperationException), true
+	case "com.amazon.coral.validate#ValidationException":
+		return new(ValidationException), true
+	default:
+		return nil, false
+	}
 }
 
 // UnknownOperationError returns the identity this service answers for an

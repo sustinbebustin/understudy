@@ -4,6 +4,7 @@ package goldenapi
 
 import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
@@ -17,6 +18,9 @@ func ErrInvalidInput(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidInput(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.example.golden#InvalidInput.
+func (*InvalidInput) ErrorIdentity() awserr.Identity { return IdentityInvalidInput() }
+
 // IdentityKindsFault returns the identity of com.example.golden#KindsFault.
 func IdentityKindsFault() awserr.Identity {
 	return awserr.Identity{Shape: "com.example.golden#KindsFault", JSONType: "com.example.golden.v1#KindsFault", QueryCode: "Kinds.Fault", Status: 409, QueryModeStatus: 404, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -28,6 +32,9 @@ func ErrKindsFault(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityKindsFault(), Message: message, Messages: []awserr.ProtocolMessage{{Protocol: ref.AWSQuery, Message: "Kinds failed for this wsdl version."}}, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.example.golden#KindsFault.
+func (*KindsFault) ErrorIdentity() awserr.Identity { return IdentityKindsFault() }
+
 // IdentitySerializationException returns the identity of com.amazon.coral.service#SerializationException.
 func IdentitySerializationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#SerializationException", JSONType: "com.amazon.coral.service#SerializationException", QueryCode: "SerializationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -36,6 +43,11 @@ func IdentitySerializationException() awserr.Identity {
 // ErrSerializationException returns a SerializationException error with message.
 func ErrSerializationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentitySerializationException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#SerializationException.
+func (*SerializationException) ErrorIdentity() awserr.Identity {
+	return IdentitySerializationException()
 }
 
 // IdentityThrottled returns the identity of com.example.golden#Throttled.
@@ -48,6 +60,9 @@ func ErrThrottled() *awserr.Error {
 	return &awserr.Error{ID: IdentityThrottled(), Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.example.golden#Throttled.
+func (*Throttled) ErrorIdentity() awserr.Identity { return IdentityThrottled() }
+
 // IdentityUnknownOperationException returns the identity of com.amazon.coral.service#UnknownOperationException.
 func IdentityUnknownOperationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#UnknownOperationException", JSONType: "com.amazon.coral.service#UnknownOperationException", QueryCode: "UnknownOperationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -56,6 +71,21 @@ func IdentityUnknownOperationException() awserr.Identity {
 // ErrUnknownOperationException returns an UnknownOperationException error with message.
 func ErrUnknownOperationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityUnknownOperationException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#UnknownOperationException.
+func (*UnknownOperationException) ErrorIdentity() awserr.Identity {
+	return IdentityUnknownOperationException()
+}
+
+// NewErrorMembers returns a new, empty value of error shape id, to decode
+// a fault rule's members into, or false for a shape this package does not
+// generate a decoder for.
+func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	switch id {
+	default:
+		return nil, false
+	}
 }
 
 // ThrottleError returns the identity a throttling fault rule injects for

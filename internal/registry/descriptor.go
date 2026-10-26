@@ -37,6 +37,12 @@ type Service struct {
 	// InvalidRequestContentException). It is the zero Identity when the
 	// overlay sets none; the codec then answers with its protocol's default.
 	MalformedRequestError awserr.Identity
+	// NewErrorMembers returns a new, empty value of one of the service's
+	// error shapes, to decode a fault rule's members into, or false for a
+	// shape the service generates no decoder for. Generated descriptors set
+	// it to their package's NewErrorMembers; it is nil on a hand-built
+	// descriptor, whose errors then take no members.
+	NewErrorMembers func(smithy.ShapeID) (awserr.DecodableMembers, bool)
 	// Operations are every operation, sorted by name; an operation's Ordinal
 	// is its index.
 	Operations []*Operation

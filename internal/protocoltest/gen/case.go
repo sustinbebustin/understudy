@@ -96,7 +96,7 @@ type Output struct{ Value smithy.Serializable }
 // case states none.
 type Error struct {
 	ID    awserr.Identity
-	Value smithy.Serializable
+	Value awserr.Members
 	Code  string
 	Type  string
 }

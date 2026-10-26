@@ -27,6 +27,10 @@ type Catalogue interface {
 	// not know; validation also reads it to check that match.services names
 	// known services.
 	Throttle(svc ref.ServiceID) awserr.Identity
+	// NewMembers returns a new, empty generated value of error shape for
+	// op's service, to decode a rule's members into through the shape's
+	// generated deserializer, or false when the service has none for it.
+	NewMembers(op ref.OperationID, shape smithy.ShapeID) (awserr.DecodableMembers, bool)
 }
 
 // RuleError reports a rule that cannot be added. No rule was added or
