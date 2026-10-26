@@ -257,7 +257,7 @@ def test_infra():
 
 ## Cleanup
 
-The module's stop gives understudy 10 seconds to remove the containers it started; with DynamoDB Local running, the whole stop took under a second here. If the test process dies first, Testcontainers' reaper, Ryuk, removes understudy's container and, through the session labels, the containers understudy started. After a `kill -9` of a Python test process, both understudy and its DynamoDB Local container were gone about 10 seconds later.
+The module's stop gives understudy 10 seconds to remove the containers it started; with DynamoDB Local running, the whole stop took under a second here. If the test process dies first, Testcontainers' reaper, Ryuk, is meant to remove understudy's container and, through the session labels, the containers understudy started. After a `kill -9` of a Python test process (testcontainers-python 4.15.0, Ryuk 0.8.1), both understudy and its DynamoDB Local container were gone about 10 seconds later in 4 of 5 runs. In the fifth, neither was removed after 90 seconds and no Ryuk container was left; the cause was not found. When that happens, recover as without a reaper, below.
 
 With `TESTCONTAINERS_RYUK_DISABLED=true` there is no reaper, and a killed test process leaves understudy running with every container it started. `docker stop` on the understudy container (`docker ps --filter ancestor=understudy:dev`) still lets it remove them before it exits. Once the understudy container is gone without that stop, for example after `docker rm -f`, its containers stay until you run:
 
