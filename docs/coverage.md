@@ -117,6 +117,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
+| apigatewayv2 | 103 | 0 | 0 | 0 | 103 | 0 | 1 |
 | cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
 | dynamodb | 58 | 6 | 2 | 18 | 32 | 0 | 0 |
 | eventbridge | 57 | 6 | 3 | 13 | 35 | 0 | 0 |
@@ -129,6 +130,120 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | sns | 42 | 12 | 2 | 5 | 23 | 0 | 3 |
 | sqs | 23 | 16 | 2 | 5 | 0 | 2 | 0 |
 | sts | 11 | 1 | 0 | 2 | 8 | 0 | 0 |
+
+### apigatewayv2
+
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| CreateApi | unbound | unassessed |  |
+| CreateApiMapping | unbound | unassessed |  |
+| CreateAuthorizer | unbound | unassessed |  |
+| CreateDeployment | unbound | unassessed |  |
+| CreateDomainName | unbound | unassessed |  |
+| CreateIntegration | unbound | unassessed |  |
+| CreateIntegrationResponse | unbound | unassessed |  |
+| CreateModel | unbound | unassessed |  |
+| CreatePortal | unbound | unassessed |  |
+| CreatePortalProduct | unbound | unassessed |  |
+| CreateProductPage | unbound | unassessed |  |
+| CreateProductRestEndpointPage | unbound | unassessed |  |
+| CreateRoute | unbound | unassessed |  |
+| CreateRouteResponse | unbound | unassessed |  |
+| CreateRoutingRule | unbound | unassessed |  |
+| CreateStage | unbound | unassessed |  |
+| CreateVpcLink | unbound | unassessed |  |
+| DeleteAccessLogSettings | unbound | unassessed |  |
+| DeleteApi | unbound | unassessed |  |
+| DeleteApiMapping | unbound | unassessed |  |
+| DeleteAuthorizer | unbound | unassessed |  |
+| DeleteCorsConfiguration | unbound | unassessed |  |
+| DeleteDeployment | unbound | unassessed |  |
+| DeleteDomainName | unbound | unassessed |  |
+| DeleteIntegration | unbound | unassessed |  |
+| DeleteIntegrationResponse | unbound | unassessed |  |
+| DeleteModel | unbound | unassessed |  |
+| DeletePortal | unbound | unassessed |  |
+| DeletePortalProduct | unbound | unassessed |  |
+| DeletePortalProductSharingPolicy | unbound | unassessed |  |
+| DeleteProductPage | unbound | unassessed |  |
+| DeleteProductRestEndpointPage | unbound | unassessed |  |
+| DeleteRoute | unbound | unassessed |  |
+| DeleteRouteRequestParameter | unbound | unassessed |  |
+| DeleteRouteResponse | unbound | unassessed |  |
+| DeleteRouteSettings | unbound | unassessed |  |
+| DeleteRoutingRule | unbound | unassessed |  |
+| DeleteStage | unbound | unassessed |  |
+| DeleteVpcLink | unbound | unassessed |  |
+| DisablePortal | unbound | unassessed |  |
+| ExportApi | unbound | unassessed |  |
+| GetApi | unbound | unassessed |  |
+| GetApiMapping | unbound | unassessed |  |
+| GetApiMappings | unbound | unassessed |  |
+| GetApis | unbound | unassessed |  |
+| GetAuthorizer | unbound | unassessed |  |
+| GetAuthorizers | unbound | unassessed |  |
+| GetDeployment | unbound | unassessed |  |
+| GetDeployments | unbound | unassessed |  |
+| GetDomainName | unbound | unassessed |  |
+| GetDomainNames | unbound | unassessed |  |
+| GetIntegration | unbound | unassessed |  |
+| GetIntegrationResponse | unbound | unassessed |  |
+| GetIntegrationResponses | unbound | unassessed |  |
+| GetIntegrations | unbound | unassessed |  |
+| GetModel | unbound | unassessed |  |
+| GetModelTemplate | unbound | unassessed |  |
+| GetModels | unbound | unassessed |  |
+| GetPortal | unbound | unassessed |  |
+| GetPortalProduct | unbound | unassessed |  |
+| GetPortalProductSharingPolicy | unbound | unassessed |  |
+| GetProductPage | unbound | unassessed |  |
+| GetProductRestEndpointPage | unbound | unassessed |  |
+| GetRoute | unbound | unassessed |  |
+| GetRouteResponse | unbound | unassessed |  |
+| GetRouteResponses | unbound | unassessed |  |
+| GetRoutes | unbound | unassessed |  |
+| GetRoutingRule | unbound | unassessed |  |
+| GetStage | unbound | unassessed |  |
+| GetStages | unbound | unassessed |  |
+| GetTags | unbound | unassessed |  |
+| GetVpcLink | unbound | unassessed |  |
+| GetVpcLinks | unbound | unassessed |  |
+| ImportApi | unbound | unassessed |  |
+| ListPortalProducts | unbound | unassessed |  |
+| ListPortals | unbound | unassessed |  |
+| ListProductPages | unbound | unassessed |  |
+| ListProductRestEndpointPages | unbound | unassessed |  |
+| ListRoutingRules | unbound | unassessed |  |
+| PreviewPortal | unbound | unassessed |  |
+| PublishPortal | unbound | unassessed |  |
+| PutPortalProductSharingPolicy | unbound | unassessed |  |
+| PutRoutingRule | unbound | unassessed |  |
+| ReimportApi | unbound | unassessed |  |
+| ResetAuthorizersCache | unbound | unassessed |  |
+| TagResource | unbound | unassessed |  |
+| UntagResource | unbound | unassessed |  |
+| UpdateApi | unbound | unassessed |  |
+| UpdateApiMapping | unbound | unassessed |  |
+| UpdateAuthorizer | unbound | unassessed |  |
+| UpdateDeployment | unbound | unassessed |  |
+| UpdateDomainName | unbound | unassessed |  |
+| UpdateIntegration | unbound | unassessed |  |
+| UpdateIntegrationResponse | unbound | unassessed |  |
+| UpdateModel | unbound | unassessed |  |
+| UpdatePortal | unbound | unassessed |  |
+| UpdatePortalProduct | unbound | unassessed |  |
+| UpdateProductPage | unbound | unassessed |  |
+| UpdateProductRestEndpointPage | unbound | unassessed |  |
+| UpdateRoute | unbound | unassessed |  |
+| UpdateRouteResponse | unbound | unassessed |  |
+| UpdateStage | unbound | unassessed |  |
+| UpdateVpcLink | unbound | unassessed |  |
+
+Raw operations:
+
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| InvokeApi | unbound | unassessed |  |
 
 ### cloudwatch
 
@@ -1059,7 +1174,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-120 switches: 1 aws-recorded, 3 third-party-recorded, 17 aws-doc, 99 inferred.
+125 switches: 1 aws-recorded, 3 third-party-recorded, 17 aws-doc, 104 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1084,6 +1199,11 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sqs.move-task.message-identity` | `new-message` | aws-doc | docs/research/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask | none: sqs/R02/std-06-recv-src.json and fifo-06-recv-src.json are recorded; no scenario replays sqs/R02 yet |
 | `sqs.policy.limits` | `bytes-and-statements` | aws-doc | docs/research/sqs.md#4-queue-attributes | none: unrecorded: no recording exceeds a Policy limit |
 | `sqs.receipt.stale-handle` | `succeed-without-delete` | contradicted (sqs/R01/03-recv-after-6s.json) | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | sqs/R01#03-recv-after-6s |
+| `apigatewayv2.front.answers` | `{true {403 Forbidden} {403 Forbidden} {404 Not Found} {404 Not Found} {404 Not Found} application/json {refused allowed refused}}` | inferred | docs/research/apigateway-http.md#45-responses-api-gateway-generates-itself | none: unrecorded: APIGW2-06 and APIGW2-04 (apigateway-http.md 14) records it |
+| `apigatewayv2.lambda.failure-answers` | `{{500 Internal Server Error} {503 Service Unavailable} {413 Request Entity Too Large} 10485760 6291456}` | inferred | docs/research/apigateway-http.md#56-failures-function-errors-malformed-output-timeouts | none: unrecorded: APIGW2-10 (apigateway-http.md 14) records it |
+| `apigatewayv2.lambda.permission` | `{<api-id>/<stage>/<METHOD>/<route path without its leading slash>, the route key's template and ANY as written; <api-id>/<stage>/$default for the $default route {500 Internal Server Error}}` | inferred | docs/research/apigateway-http.md#55-invocation-credentials-and-the-resource-policy | none: unrecorded: APIGW2-11 (apigateway-http.md 14) records it |
+| `apigatewayv2.payload.unrecorded` | `{false true text/plain; charset=utf-8 false last first}` | inferred | docs/research/apigateway-http.md#51-payload-format-20-request-event | none: unrecorded: APIGW2-07, APIGW2-08 and APIGW2-09 (apigateway-http.md 14) records it |
+| `apigatewayv2.route.matching` | `{{true true false} {404 Not Found}}` | inferred | docs/research/apigateway-http.md#44-methods-head-trailing-slashes-case-and-decoding | none: unrecorded: APIGW2-05 (apigateway-http.md 14) records it |
 | `cloudwatch.put-metric-data.timestamp-window` | `wall-or-emulator` | inferred | docs/research/secrets-logs-events-alarms.md#52-putmetricdata | none: AWS has one clock: which of understudy's two the windows read is understudy's choice, which no recording settles |
 | `events.bus-policy.remove-all-without-policy` | `ResourceNotFoundException` | inferred | docs/research/eventbridge-buses.md#43-removepermission | none: unrecorded: EBB-06 (eventbridge-buses.md 12) records it |
 | `events.bus-policy.remove-last-statement` | `policy-removed` | inferred | docs/research/eventbridge-buses.md#43-removepermission | none: unrecorded: EBB-06 (eventbridge-buses.md 12) records it |

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/access"
+	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
@@ -50,6 +51,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 	serveradmin "github.com/sustinbebustin/understudy/internal/server/admin"
 	"github.com/sustinbebustin/understudy/internal/server/ui"
+	"github.com/sustinbebustin/understudy/internal/service/apigatewayv2"
 	"github.com/sustinbebustin/understudy/internal/service/cloudwatch"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb/ddblocal"
@@ -818,6 +820,11 @@ func wiredServices() []wiredService {
 		{api{lambdaapi.Service(), lambdaapi.ThrottleError(), lambdaapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			c.lambda, c.lambdaDeps = lambda.New(d, lambda.Options{StateTransitions: c.switches.LambdaTransitions, Images: c.images}), d
 			return c.lambda
+		}},
+		// After Lambda's row: a Lambda proxy integration reads the function
+		// policies of the Lambda service built above (apigateway-http.md 5.5).
+		{api{apigatewayv2api.Service(), apigatewayv2api.ThrottleError(), apigatewayv2api.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			return apigatewayv2.New(d, apigatewayv2.Options{FunctionPolicies: c.lambda, Regions: c.regions})
 		}},
 		{api{logsapi.Service(), logsapi.ThrottleError(), logsapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return logs.New(d, logs.Options{})
