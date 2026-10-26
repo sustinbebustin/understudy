@@ -6,6 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sustinbebustin/understudy/internal/api/iamapi"
+	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	"github.com/sustinbebustin/understudy/internal/outbox"
@@ -54,9 +57,12 @@ func TestWiringTableBuildsEachRowsService(t *testing.T) {
 }
 
 // The resource-policy providers are found by interface among the built
-// services and keyed by ARN namespace: today SQS, SNS and Lambda, as the
-// switch they replace routed (ARCHITECTURE.md 16).
-func TestWiredPolicyProvidersAreSQSSNSAndLambda(t *testing.T) {
+// services and keyed by ARN namespace (ARCHITECTURE.md 16): one per
+// resource policy enforcement reads, the SQS queue, SNS topic, S3 bucket,
+// Lambda function, KMS key and Secrets Manager secret policies and the IAM
+// role trust policy (iam-enforcement-surfaces.md 12.2). The router answers
+// for each through its namespace's provider.
+func TestWiredPolicyProvidersCoverEveryResourcePolicyKind(t *testing.T) {
 	buildTable(t, func(k *kerneltest.K, _ *construction, built []wiredBuilt) {
 		policies, err := policyProviders(built)
 		if err != nil {
@@ -67,13 +73,34 @@ func TestWiredPolicyProvidersAreSQSSNSAndLambda(t *testing.T) {
 			namespaces = append(namespaces, ns)
 		}
 		slices.Sort(namespaces)
-		if want := []string{"lambda", "sns", "sqs"}; !slices.Equal(namespaces, want) {
+		if want := []string{"iam", "kms", "lambda", "s3", "secretsmanager", "sns", "sqs"}; !slices.Equal(namespaces, want) {
 			k.Errorf("policy providers for %v, want %v", namespaces, want)
 		}
+		var router authz.PolicyProvider = policies
 		// A queue that does not exist has no policy to advise on.
 		missing := aws.ARN{Partition: "aws", Service: "sqs", Region: "us-east-1", Account: "000000000000", Resource: "absent"}
-		if doc, ok := policies.ResourcePolicy(missing); ok || doc != nil {
+		if doc, ok := router.ResourcePolicy(missing); ok || doc != nil {
 			k.Errorf("ResourcePolicy(%s) = %v, %v; want nil, false", missing, doc, ok)
+		}
+		key, kerr := k.Invoke(k.Context(), kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{})
+		if kerr != nil {
+			k.Fatal(kerr.AsError())
+		}
+		role, rerr := k.Invoke(k.Context(), iamapi.OpCreateRole, &iamapi.CreateRoleInput{
+			RoleName:                 "worker",
+			AssumeRolePolicyDocument: `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}`,
+		})
+		if rerr != nil {
+			k.Fatal(rerr.AsError())
+		}
+		for _, s := range []string{*key.KeyMetadata.Arn, role.Role.Arn} {
+			a, err := aws.ParseARN(s)
+			if err != nil {
+				k.Fatal(err)
+			}
+			if doc, ok := router.ResourcePolicy(a); !ok || doc == nil {
+				k.Errorf("ResourcePolicy(%s) through the router = %v, %v; want its policy", s, doc, ok)
+			}
 		}
 	})
 }
