@@ -36,7 +36,9 @@ func resolveSocket(ctx context.Context, group socketGroup) (*socketMount, error)
 			return nil, fmt.Errorf("understudy: WithDockerSocket cannot reach Docker to read the socket's group: %w", err)
 		}
 		host := cli.DaemonHost()
-		_ = cli.Close()
+		if err := cli.Close(); err != nil {
+			return nil, fmt.Errorf("understudy: closing the Docker client used to read the socket's group: %w", err)
+		}
 		if gid, err = daemonSocketGroup(host); err != nil {
 			return nil, err
 		}
