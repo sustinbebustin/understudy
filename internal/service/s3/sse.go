@@ -2,6 +2,8 @@ package s3
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"strings"
@@ -22,12 +24,17 @@ const defaultKMSKey = "alias/aws/s3"
 // 5.7, DOC UsingKMSEncryption).
 const arnContextKey = "aws:s3:arn"
 
-// Encryption is how an object version is encrypted at rest. Every object
-// reports at least SSE-S3 (AES256), so there is no "none": KMS is nil for
-// SSE-S3 (s3.md Implications 3).
-type Encryption struct {
-	KMS *KMSEncryption `json:"kms,omitempty"`
-}
+// Encryption is how an object version or an upload is encrypted at rest:
+// SSE-S3, SSE-KMS or SSE-C (s3-ssec-object-lock.md 11.2). Every object is
+// encrypted, so there is no "none" (s3.md Implications 3), and it is never
+// nil in state. Snapshots hold it as a tagged union (unionCodec).
+//
+//sumtype:decl
+type Encryption interface{ isEncryption() }
+
+// SSES3Encryption is an object encrypted under S3's own keys, the default
+// every bucket has (s3.md 4.1).
+type SSES3Encryption struct{}
 
 // KMSEncryption is an SSE-KMS object's key: S3 asks KMS for a data key on
 // the write and to decrypt it on every read, so a read depends on the
@@ -42,6 +49,29 @@ type KMSEncryption struct {
 	Context   map[string]string `json:"context"`
 	// DataKey is the data key as KMS encrypted it.
 	DataKey []byte `json:"dataKey"`
+}
+
+// CustomerEncryption is an SSE-C object version's or upload's key
+// fingerprint: a random salt and HMAC-SHA256(salt, key), never the key,
+// its base64 or its MD5 (s3-ssec-object-lock.md 3.11, 11.2). The bytes are
+// stored as sent, as SSE-KMS stores them; the key check is the observable
+// contract. No write makes one yet.
+type CustomerEncryption struct {
+	// Salt is 16 random bytes, drawn once per version or upload.
+	Salt []byte `json:"salt"`
+	// MAC is HMAC-SHA256(Salt, key), 32 bytes.
+	MAC []byte `json:"mac"`
+}
+
+func (SSES3Encryption) isEncryption()    {}
+func (KMSEncryption) isEncryption()      {}
+func (CustomerEncryption) isEncryption() {}
+
+// isKMS reports whether e is SSE-KMS, whose ETags are not the MD5 of the
+// bytes and whose results report no checksum (s3.md 5.3, 5.7).
+func isKMS(e Encryption) bool {
+	_, ok := e.(KMSEncryption)
+	return ok
 }
 
 // sseRequest is the server-side encryption a write's headers ask for.
@@ -157,7 +187,7 @@ func encryptionContext(header *string, objectARN string) (map[string]string, *aw
 func (s *Service) encrypt(ctx context.Context, c *kernel.Call, home Home, choice sseChoice) (Encryption, *awserr.Error) {
 	k, ok := choice.(sseKMS)
 	if !ok {
-		return Encryption{}, nil
+		return SSES3Encryption{}, nil
 	}
 	out, err := kernel.Invoke(ctx, s.k, c, kmsapi.OpGenerateDataKey, kmsTarget(home), &kmsapi.GenerateDataKeyInput{
 		KeyId:             k.keyID,
@@ -165,28 +195,29 @@ func (s *Service) encrypt(ctx context.Context, c *kernel.Call, home Home, choice
 		KeySpec:           new(kmsapi.DataKeySpecAes256),
 	})
 	if err != nil {
-		return Encryption{}, kmsError(err)
+		return nil, kmsError(err)
 	}
-	return Encryption{KMS: &KMSEncryption{
+	return KMSEncryption{
 		Algorithm: k.algorithm,
 		KeyARN:    deref(out.KeyId),
 		BucketKey: k.bucketKey,
 		Context:   k.context,
 		DataKey:   out.CiphertextBlob,
-	}}, nil
+	}, nil
 }
 
 // decrypt asks KMS to decrypt an SSE-KMS object's data key, as S3 does on
 // every read, so the read fails when the key is now disabled or pending
 // deletion (s3.md 5.7).
 func (s *Service) decrypt(ctx context.Context, c *kernel.Call, home Home, e Encryption) *awserr.Error {
-	if e.KMS == nil {
+	k, ok := e.(KMSEncryption)
+	if !ok {
 		return nil
 	}
 	_, err := kernel.Invoke(ctx, s.k, c, kmsapi.OpDecrypt, kmsTarget(home), &kmsapi.DecryptInput{
-		CiphertextBlob:    e.KMS.DataKey,
-		EncryptionContext: e.KMS.Context,
-		KeyId:             new(e.KMS.KeyARN),
+		CiphertextBlob:    k.DataKey,
+		EncryptionContext: k.Context,
+		KeyId:             new(k.KeyARN),
 	})
 	if err != nil {
 		return kmsError(err)
@@ -230,17 +261,23 @@ type sseHeaders struct {
 	bucketKey *bool
 }
 
-// headers reports e: AES256 for SSE-S3; for SSE-KMS the algorithm, the
-// full key ARN and, only when true, the bucket key flag (s3.md 5.7).
-func (e Encryption) headers() sseHeaders {
-	if e.KMS == nil {
+// encryptionHeaders reports e: AES256 for SSE-S3; for SSE-KMS the
+// algorithm, the full key ARN and, only when true, the bucket key flag
+// (s3.md 5.7); none of the three for SSE-C, whose responses carry the
+// customer-key pair from the request instead (s3-ssec-object-lock.md 3.4).
+func encryptionHeaders(e Encryption) sseHeaders {
+	switch e := e.(type) {
+	case SSES3Encryption:
 		return sseHeaders{algorithm: new(s3api.ServerSideEncryptionAes256)}
+	case KMSEncryption:
+		h := sseHeaders{algorithm: new(e.Algorithm), keyID: new(e.KeyARN)}
+		if e.BucketKey {
+			h.bucketKey = new(true)
+		}
+		return h
+	case CustomerEncryption:
 	}
-	h := sseHeaders{algorithm: new(e.KMS.Algorithm), keyID: new(e.KMS.KeyARN)}
-	if e.KMS.BucketKey {
-		h.bucketKey = new(true)
-	}
-	return h
+	return sseHeaders{}
 }
 
 // customerKeyed reports whether a read or a copy source sent SSE-C
@@ -300,21 +337,23 @@ func parseCustomerRead(customerHeaders) (*customerKey, *awserr.Error) {
 	return nil, errNotImplementedYet("parseCustomerRead")
 }
 
-// CustomerEncryption is an SSE-C object version's or upload's key
-// fingerprint: a random salt and HMAC-SHA256(salt, key), never the key
-// (s3-ssec-object-lock.md 3.11, 11.2). Nothing makes one yet.
-type CustomerEncryption struct {
-	Salt []byte `json:"salt"`
-	MAC  []byte `json:"mac"`
+// newCustomerEncryption fingerprints k under salt.
+func newCustomerEncryption(salt []byte, k customerKey) CustomerEncryption {
+	return CustomerEncryption{Salt: salt, MAC: fingerprint(salt, k.key)}
 }
 
-// newCustomerEncryption fingerprints the key under salt. Not implemented
-// yet: it returns the zero CustomerEncryption.
-func newCustomerEncryption([]byte, customerKey) CustomerEncryption { return CustomerEncryption{} }
+// matches reports whether k is the key e was made with, comparing in
+// constant time.
+func (e CustomerEncryption) matches(k customerKey) bool {
+	return hmac.Equal(e.MAC, fingerprint(e.Salt, k.key))
+}
 
-// matches reports whether the key is the one e was made with, comparing
-// in constant time. Not implemented yet: it reports false.
-func (CustomerEncryption) matches(customerKey) bool { return false }
+// fingerprint is HMAC-SHA256(salt, key).
+func fingerprint(salt, key []byte) []byte {
+	mac := hmac.New(sha256.New, salt)
+	_, _ = mac.Write(key) // a hash.Hash never returns an error
+	return mac.Sum(nil)
+}
 
 // checkCustomerWrite refuses an SSE-C write whose headers parsed: 403 on a
 // bucket that blocks SSE-C (switch s3.sse-c.blocked-write), then 400 over
@@ -355,16 +394,23 @@ const (
 	BlockNone
 )
 
-// MarshalText writes SSE-C or NONE, the EncryptionType values. Not
-// implemented yet: it fails.
-func (BlockedEncryption) MarshalText() ([]byte, error) {
-	return nil, &NotImplementedYetError{Func: "BlockedEncryption.MarshalText"}
+// blockedEncryptionTexts are the EncryptionType values each block is
+// written as (s3-ssec-object-lock.md 4.2).
+func blockedEncryptionTexts() textTable[BlockedEncryption] {
+	return textTable[BlockedEncryption]{
+		BlockSSEC: string(s3api.EncryptionTypeSseC),
+		BlockNone: string(s3api.EncryptionTypeNone),
+	}
 }
 
-// UnmarshalText reads SSE-C or NONE and refuses any other text. Not
-// implemented yet: it fails.
-func (*BlockedEncryption) UnmarshalText([]byte) error {
-	return &NotImplementedYetError{Func: "BlockedEncryption.UnmarshalText"}
+// MarshalText writes SSE-C or NONE, the EncryptionType values.
+func (b BlockedEncryption) MarshalText() ([]byte, error) {
+	return blockedEncryptionTexts().marshal("BlockedEncryption", b)
+}
+
+// UnmarshalText reads SSE-C or NONE and refuses any other text.
+func (b *BlockedEncryption) UnmarshalText(text []byte) error {
+	return blockedEncryptionTexts().unmarshal("BlockedEncryption", text, b)
 }
 
 // newBucketBlock is a new bucket's BlockedEncryption in region: BlockNone

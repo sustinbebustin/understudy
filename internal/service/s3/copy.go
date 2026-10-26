@@ -262,7 +262,7 @@ func (s *Service) copyObject(ctx context.Context, c *kernel.Call, in *s3api.Copy
 	result := &s3api.CopyObjectResult{ETag: new(quote(obj.ETag)), LastModified: new(done.version.Modified.Wire()), ChecksumType: new(obj.Checksum.Type)}
 	copyObjectResultFields(result).set(membersOf(obj.Checksum))
 	out := &s3api.CopyObjectOutput{CopyObjectResult: result, VersionId: done.reported, CopySourceVersionId: src.reported}
-	h := enc.headers()
+	h := encryptionHeaders(enc)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
 	return out, nil
 }
@@ -344,7 +344,7 @@ func (r copyRequest) changes(in *s3api.CopyObjectInput, so *Object, b *Bucket) b
 		in.StorageClass != nil ||
 		in.WebsiteRedirectLocation != nil ||
 		in.ServerSideEncryption != nil || in.SSEKMSKeyId != nil ||
-		b.Encryption != nil || so.Encryption.KMS != nil ||
+		b.Encryption != nil || isKMS(so.Encryption) ||
 		r.algorithm != nil && r.algorithm.String() != so.Checksum.Algorithm
 }
 
@@ -377,7 +377,7 @@ func (s *Service) copied(blobs *blob.Store, so *Object, r copyRequest, in *s3api
 	// A copy's checksum is always FULL_OBJECT (s3.md 7), so a composite
 	// source checksum is recomputed over the bytes, as is an MD5 ETag the
 	// source does not carry.
-	needMD5 := enc.KMS == nil && (so.Encryption.KMS != nil || len(so.Parts) > 0)
+	needMD5 := !isKMS(enc) && (isKMS(so.Encryption) || len(so.Parts) > 0)
 	if alg.String() != so.Checksum.Algorithm || so.Checksum.Type != s3api.ChecksumTypeFullObject || needMD5 {
 		md, sum, err := hashBlob(blobs, so.Blob, alg)
 		if err != nil {
@@ -388,7 +388,7 @@ func (s *Service) copied(blobs *blob.Store, so *Object, r copyRequest, in *s3api
 	} else {
 		obj.ETag = so.ETag
 	}
-	if enc.KMS != nil {
+	if isKMS(enc) {
 		obj.ETag = string(s.k.IDs().ETag())
 	}
 	return obj, nil

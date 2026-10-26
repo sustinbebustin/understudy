@@ -300,7 +300,7 @@ func headOf(got served, mode *s3api.ChecksumMode) *s3api.HeadObjectOutput {
 		StorageClass:            reportedClass(o.StorageClass),
 		TagCount:                tagCount(o.Tags),
 	}
-	sse := o.Encryption.headers()
+	sse := encryptionHeaders(o.Encryption)
 	h.ServerSideEncryption, h.SSEKMSKeyId, h.BucketKeyEnabled = sse.algorithm, sse.keyID, sse.bucketKey
 	if sum, ok := reportedChecksum(o, got.span); ok && mode != nil && *mode == s3api.ChecksumModeEnabled {
 		headObjectOutputFields(h).set(membersOf(sum))

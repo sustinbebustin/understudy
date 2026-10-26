@@ -76,7 +76,7 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 		return nil, err
 	}
 	etag := hex.EncodeToString(got.md5)
-	if enc.KMS != nil {
+	if isKMS(enc) {
 		etag = string(s.k.IDs().ETag())
 	}
 	obj := &Object{
@@ -94,9 +94,9 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 	}
 	out := &s3api.PutObjectOutput{ETag: new(quote(etag)), ChecksumType: new(s3api.ChecksumTypeFullObject), VersionId: committed.reported}
 	putObjectOutputFields(out).set(membersOf(obj.Checksum))
-	h := enc.headers()
+	h := encryptionHeaders(enc)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
-	if enc.KMS != nil && in.SSEKMSEncryptionContext != nil {
+	if isKMS(enc) && in.SSEKMSEncryptionContext != nil {
 		out.SSEKMSEncryptionContext = in.SSEKMSEncryptionContext
 	}
 	return out, nil

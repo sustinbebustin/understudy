@@ -129,7 +129,7 @@ func (s *Service) uploadPartCopy(ctx context.Context, c *kernel.Call, in *s3api.
 	result := &s3api.CopyPartResult{ETag: new(quote(p.ETag)), LastModified: new(p.Modified.Wire())}
 	copyPartResultFields(result).set(reportedPartChecksum(t.mode, p))
 	out := &s3api.UploadPartCopyOutput{CopyPartResult: result, CopySourceVersionId: src.reported}
-	h := t.enc.headers()
+	h := encryptionHeaders(t.enc)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
 	return out, nil
 }

@@ -1,7 +1,11 @@
 package s3
 
 import (
+	"cmp"
+	"fmt"
 	"maps"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
@@ -14,8 +18,12 @@ import (
 
 // stateVersion is the schema version of Index and BucketCell in snapshot
 // sections. The subresource documents are the S3 model's own shapes, so a
-// model pin that changes one of them bumps it.
-const stateVersion = 1
+// model pin that changes one of them bumps it. Version 2 made Encryption a
+// tagged union with an SSE-C variant and added the per-version lock state
+// and the bucket's SSE-C block (s3-ssec-object-lock.md 11.2); until the
+// first tagged release a section of another version is refused, not
+// migrated (ARCHITECTURE.md 13).
+const stateVersion = 2
 
 // Index is the partition-wide bucket name index (ARCHITECTURE.md 8 rule 3):
 // every bucket's owner and home region, by name. Bucket names are global
@@ -208,7 +216,63 @@ func unionCodec() (jsonx.Codec, error) {
 	if err != nil {
 		return jsonx.Codec{}, err
 	}
-	return jsonx.NewCodec(metrics, analytics), nil
+	encryption, err := jsonx.NewUnion("s3.Encryption",
+		jsonx.Variant[Encryption, SSES3Encryption]("sse-s3"),
+		jsonx.Variant[Encryption, KMSEncryption]("sse-kms"),
+		jsonx.Variant[Encryption, CustomerEncryption]("sse-c"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, err
+	}
+	return jsonx.NewCodec(metrics, analytics, encryption), nil
+}
+
+// textTable is the text each value of an enum held in state is written
+// as. A value missing from it has no text and fails to marshal, as a text
+// naming no value fails to unmarshal.
+type textTable[T cmp.Ordered] map[T]string
+
+func (t textTable[T]) marshal(typ string, v T) ([]byte, error) {
+	if text, ok := t[v]; ok {
+		return []byte(text), nil
+	}
+	return nil, &EnumTextError{Type: typ, Value: fmt.Sprint(v), Known: t.known()}
+}
+
+func (t textTable[T]) unmarshal(typ string, text []byte, v *T) error {
+	for value, s := range t {
+		if s == string(text) {
+			*v = value
+			return nil
+		}
+	}
+	return &EnumTextError{Type: typ, Value: strconv.Quote(string(text)), Known: t.known()}
+}
+
+// known is the table's texts in value order.
+func (t textTable[T]) known() []string {
+	out := make([]string, 0, len(t))
+	for _, v := range slices.Sorted(maps.Keys(t)) {
+		out = append(out, t[v])
+	}
+	return out
+}
+
+// EnumTextError reports an enum held in state that cannot be written or
+// read: a value with no text, or a text naming no value. Either is a bug
+// in this package or a snapshot it did not write; the snapshot is refused.
+type EnumTextError struct {
+	// Type names the enum, such as "RetentionMode".
+	Type string
+	// Value is the value without a text, as a number, or the text naming
+	// none, quoted.
+	Value string
+	// Known are the enum's texts.
+	Known []string
+}
+
+func (e *EnumTextError) Error() string {
+	return fmt.Sprintf("s3: %s %s is not one of %s", e.Type, e.Value, strings.Join(e.Known, ", "))
 }
 
 // with returns a copy of m with key set to v; m is never changed.

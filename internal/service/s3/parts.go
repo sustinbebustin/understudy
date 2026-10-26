@@ -67,7 +67,7 @@ type partTarget struct {
 // value, which is not the MD5 of the bytes (REC test_s3_multipart_upload_sse
 // step multi-sse-upload-part; s3.md 5.3).
 func (s *Service) partETag(enc Encryption, md5Hex string) string {
-	if enc.KMS != nil {
+	if isKMS(enc) {
 		return string(s.k.IDs().ETag())
 	}
 	return md5Hex
@@ -135,7 +135,7 @@ func (s *Service) uploadPart(ctx context.Context, c *kernel.Call, in *s3api.Uplo
 	}
 	out := &s3api.UploadPartOutput{ETag: new(quote(p.ETag))}
 	uploadPartOutputFields(out).set(uploadedPartChecksum(t.mode, u.checksum, got.sum, p))
-	h := t.enc.headers()
+	h := encryptionHeaders(t.enc)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
 	return out, nil
 }

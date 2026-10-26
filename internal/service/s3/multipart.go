@@ -225,9 +225,9 @@ func (s *Service) createMultipartUpload(ctx context.Context, c *kernel.Call, in 
 	}
 	out := &s3api.CreateMultipartUploadOutput{Bucket: new(in.Bucket), Key: new(in.Key), UploadId: new(u.ID)}
 	out.ChecksumAlgorithm, out.ChecksumType = declaredOf(req.mode)
-	h := enc.headers()
+	h := encryptionHeaders(enc)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
-	if enc.KMS != nil && in.SSEKMSEncryptionContext != nil {
+	if isKMS(enc) && in.SSEKMSEncryptionContext != nil {
 		out.SSEKMSEncryptionContext = in.SSEKMSEncryptionContext
 	}
 	return out, nil
@@ -361,11 +361,11 @@ func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, i
 	// that reads report (REC test_s3_multipart_upload_sse steps
 	// multi-sse-compete-multipart and get-obj; recorded for an undeclared
 	// upload, UNVERIFIED for a declared one).
-	if obj.Encryption.KMS == nil {
+	if !isKMS(obj.Encryption) {
 		out.ChecksumType = new(obj.Checksum.Type)
 		completeMultipartUploadOutputFields(out).set(membersOf(obj.Checksum))
 	}
-	h := obj.Encryption.headers()
+	h := encryptionHeaders(obj.Encryption)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
 	return out, nil
 }

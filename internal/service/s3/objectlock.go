@@ -107,7 +107,8 @@ type Retention struct {
 // implemented yet: it reports false.
 func (Retention) inForce(clock.Instant) bool { return false }
 
-// RetentionMode is a retention's mode (s3-ssec-object-lock.md 6.6).
+// RetentionMode is a retention's mode (s3-ssec-object-lock.md 6.6). The
+// zero value is no mode and has no text.
 type RetentionMode uint8
 
 // RetentionMode values.
@@ -119,16 +120,23 @@ const (
 	RetentionCompliance
 )
 
-// MarshalText writes GOVERNANCE or COMPLIANCE. Not implemented yet: it
-// fails.
-func (RetentionMode) MarshalText() ([]byte, error) {
-	return nil, &NotImplementedYetError{Func: "RetentionMode.MarshalText"}
+// retentionModeTexts are the model's ObjectLockRetentionMode values
+// (s3-ssec-object-lock.md 8).
+func retentionModeTexts() textTable[RetentionMode] {
+	return textTable[RetentionMode]{
+		RetentionGovernance: string(s3api.ObjectLockRetentionModeGovernance),
+		RetentionCompliance: string(s3api.ObjectLockRetentionModeCompliance),
+	}
+}
+
+// MarshalText writes GOVERNANCE or COMPLIANCE.
+func (m RetentionMode) MarshalText() ([]byte, error) {
+	return retentionModeTexts().marshal("RetentionMode", m)
 }
 
 // UnmarshalText reads GOVERNANCE or COMPLIANCE and refuses any other text.
-// Not implemented yet: it fails.
-func (*RetentionMode) UnmarshalText([]byte) error {
-	return &NotImplementedYetError{Func: "RetentionMode.UnmarshalText"}
+func (m *RetentionMode) UnmarshalText(text []byte) error {
+	return retentionModeTexts().unmarshal("RetentionMode", text, m)
 }
 
 // LegalHold is a version's legal hold (s3-ssec-object-lock.md 6.5): three
@@ -146,16 +154,24 @@ const (
 	LegalHoldOff
 )
 
-// MarshalText writes ON or OFF; LegalHoldNever is never written (the field
-// is omitzero). Not implemented yet: it fails.
-func (LegalHold) MarshalText() ([]byte, error) {
-	return nil, &NotImplementedYetError{Func: "LegalHold.MarshalText"}
+// legalHoldTexts are the model's ObjectLockLegalHoldStatus values
+// (s3-ssec-object-lock.md 8). LegalHoldNever has none: HEAD omits the
+// header for it (6.7), and the field is omitzero, so it is never written.
+func legalHoldTexts() textTable[LegalHold] {
+	return textTable[LegalHold]{
+		LegalHoldOn:  string(s3api.ObjectLockLegalHoldStatusOn),
+		LegalHoldOff: string(s3api.ObjectLockLegalHoldStatusOff),
+	}
 }
 
-// UnmarshalText reads ON or OFF and refuses any other text. Not
-// implemented yet: it fails.
-func (*LegalHold) UnmarshalText([]byte) error {
-	return &NotImplementedYetError{Func: "LegalHold.UnmarshalText"}
+// MarshalText writes ON or OFF and refuses LegalHoldNever.
+func (h LegalHold) MarshalText() ([]byte, error) {
+	return legalHoldTexts().marshal("LegalHold", h)
+}
+
+// UnmarshalText reads ON or OFF and refuses any other text.
+func (h *LegalHold) UnmarshalText(text []byte) error {
+	return legalHoldTexts().unmarshal("LegalHold", text, h)
 }
 
 // checkLockTarget refuses explicit lock settings on a bucket without
