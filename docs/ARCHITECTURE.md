@@ -568,7 +568,7 @@ External request
          7 validate   generated Validate, then the bound typed validator -> Violations -> kernel.Validate(op, v)
          8 authorize      only with Options.Authorizer, never for BindRawHTTP or AsPlatform calls: one question, the primary action plus the declared actions the generated list holds (never the whole list; an internal operation: its declared actions), each paired with the touched resources of its service; Denied ends the call with the service's denial identity, journaled and access-recorded as Failed, not as a fault
            fault.Before   first matching Request-phase rule may short-circuit (Error, Throttle, Latency)
-         9 handler    (pulls a streaming body only after its own pre-checks, so 100-continue and early rejects work)
+         9 handler    (pulls a streaming body only after its own pre-checks, so 100-continue and early rejects work; a resource it resolves itself, such as an IAM role by name, it touches and asks the Authorizer about through kernel.Authorize, before kernel.Write and holding no lock)
         10 fault.After    AfterCommit, StatusOKError (S3 200-with-error)
         11 access.Record(principal mode, primary action + actions the binding declared used (WithActions, Declare), or the whole generated list when it declared none, touched)   (never for injected faults; an internal operation only when its bind site declares actions)
         12 journal.End(outcome, latency)

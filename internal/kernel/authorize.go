@@ -200,7 +200,37 @@ func pairsOf(actions []registry.IAMAction, opService string, touched []aws.ARN) 
 // before Write, holding no cell lock. It returns nil when the call may go
 // on, else the error the handler returns.
 //
-// It is not implemented yet: it asks nothing and returns nil.
-func Authorize(_ context.Context, _ *Call, _ registry.IAMAction, _ aws.ARN, _ ConditionKeys) *awserr.Error {
-	return nil
+// The resource is touched whatever the verdict, so the journal and the
+// access record list it. Action may be any service's (iam:PassRole from
+// Lambda); keys are condition keys only the handler knows. Like step 8 it
+// asks nothing when authorization is off or the call is a platform call.
+// Asking while holding a cell lock, about the zero ARN, or for a call that
+// names no modeled operation is a caller bug: Internal, and the Authorizer
+// is not asked.
+func Authorize(ctx context.Context, c *Call, action registry.IAMAction, resource aws.ARN, keys ConditionKeys) *awserr.Error {
+	switch {
+	case c.holding.Load():
+		return awserr.Internalf(&HoldingError{Attempted: "kernel.Authorize of " + action.String(), Holder: c.label})
+	case resource == aws.ARN{}:
+		return awserr.Internalf(&AuthorizeError{Op: c.opID, Action: action, Reason: "the resource is the zero ARN; resolve the resource before asking about it"})
+	case c.op == nil:
+		return awserr.Internalf(&AuthorizeError{Op: c.opID, Action: action, Reason: "the call names no modeled operation, so it has no denial identity"})
+	}
+	c.Touch(resource)
+	if _, platform := c.mode.(AsPlatform); c.k.authorizer == nil || platform {
+		return nil
+	}
+	q := AuthzQuery{Pairs: []Pair{{Action: action, Resource: ResourceARN{ARN: resource}}}, Keys: keys}
+	return verdictError(c, c.k.authorizer.Authorize(ctx, c, q))
+}
+
+// AuthorizeError is a kernel.Authorize the kernel refuses to ask about.
+type AuthorizeError struct {
+	Op     ref.OperationID
+	Action registry.IAMAction
+	Reason string
+}
+
+func (e *AuthorizeError) Error() string {
+	return fmt.Sprintf("kernel.Authorize of %s from %s: %s", e.Action, e.Op, e.Reason)
 }
