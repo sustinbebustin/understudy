@@ -80,6 +80,14 @@ Only code paths your tests ran appear. A branch that never ran, or a request mem
 
 ## AWS managed policies
 
+<!-- TODO(05c): the get-policy, get-policy-version and Terraform examples
+below were not run against a build. A build without the maintainer's build:
+data commit answers NoSuchEntity for every AWS managed ARN, and the data
+source finds no policy. Once that commit lands, re-run each command with
+`just aws` (and the Terraform example with `just tf`) and paste the real
+output. The attach-role-policy NotAPolicy output was checked against a build
+of this branch on 2026-10-26. -->
+
 understudy ships the AWS managed policies the AWS Managed Policy Reference Guide lists, in `third_party/aws-managed-policies`; its `SOURCE.json` records the date they were retrieved. IAM reads and attaches them by their AWS ARNs, so code and configurations that name one work unchanged:
 
 ```sh
