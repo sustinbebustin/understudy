@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -101,13 +102,13 @@ type StatusOKError struct{ Shape string }
 type DropDelivery struct{}
 
 // HTTPStatus answers an HTTP delivery attempt with Status, 100 to 599,
-// without contacting the endpoint. Delivery phase only. Not implemented
-// yet: encoding it fails.
+// without contacting the endpoint. Delivery phase only; the rule selects
+// the attempts with Mechanisms "sns-to-http".
 type HTTPStatus struct{ Status int }
 
 // HTTPTimeout ends an HTTP delivery attempt as a timed-out exchange
-// without contacting the endpoint. Delivery phase only. Not implemented
-// yet: encoding it fails.
+// without contacting the endpoint or waiting. Delivery phase only, as
+// HTTPStatus.
 type HTTPTimeout struct{}
 
 func (InjectError) isFaultAction()   {}
@@ -158,6 +159,8 @@ const (
 	kindAfterCommit   = "after-commit"
 	kindStatusOKError = "status-ok-error"
 	kindDropDelivery  = "drop-delivery"
+	kindHTTPStatus    = "http-status"
+	kindHTTPTimeout   = "http-timeout"
 	kindAlways        = "always"
 	kindNextN         = "next-n"
 	kindProbability   = "probability"
@@ -179,6 +182,9 @@ type actionJSON struct {
 	Message *string         `json:"message,omitempty"`
 	Wall    *string         `json:"wall,omitempty"`
 	Members json.RawMessage `json:"members,omitempty"`
+	// Status is read by decodeStatus, so a status that is no integer is
+	// refused at action.status.
+	Status json.RawMessage `json:"status,omitempty"`
 }
 
 type triggerJSON struct {
@@ -251,8 +257,10 @@ func encodeAction(a FaultAction) ([]byte, error) {
 		w = actionJSON{Kind: kindStatusOKError, Shape: nonEmpty(a.Shape)}
 	case DropDelivery:
 		w = actionJSON{Kind: kindDropDelivery}
-	case HTTPStatus, HTTPTimeout:
-		return nil, &FaultFormError{Field: "action", Reason: "is an HTTP delivery action, which is not implemented yet"}
+	case HTTPStatus:
+		w = actionJSON{Kind: kindHTTPStatus, Status: json.RawMessage(strconv.Itoa(a.Status))}
+	case HTTPTimeout:
+		w = actionJSON{Kind: kindHTTPTimeout}
 	case nil:
 		return nil, &FaultFormError{Field: "action", Reason: "is missing; set an action such as admin.Throttle{}"}
 	}
@@ -282,51 +290,83 @@ func decodeAction(data json.RawMessage) (FaultAction, error) {
 	if err := decodeStrict(data, &w); err != nil {
 		return nil, &FaultFormError{Field: "action", Reason: err.Error()}
 	}
-	only := func(takes ...string) error {
-		return onlyMembers("action", w.Kind, []member{{"shape", w.Shape != nil}, {"message", w.Message != nil}, {"wall", w.Wall != nil}, {"members", w.Members != nil}}, takes)
+	takes, known := actionTakes(w.Kind)
+	if !known {
+		return nil, unknownAction(w.Kind)
+	}
+	present := []member{
+		{"shape", w.Shape != nil}, {"message", w.Message != nil}, {"wall", w.Wall != nil}, {"members", w.Members != nil}, {"status", w.Status != nil},
+	}
+	if err := onlyMembers("action", w.Kind, present, takes); err != nil {
+		return nil, err
 	}
 	switch w.Kind {
 	case kindError:
-		if err := only("shape", "message", "members"); err != nil {
-			return nil, err
-		}
 		members, err := decodeMembers(w.Members)
 		if err != nil {
 			return nil, err
 		}
 		return InjectError{Shape: valueOf(w.Shape), Message: valueOf(w.Message), Members: members}, nil
-	case kindThrottle:
-		if err := only(); err != nil {
-			return nil, err
-		}
-		return Throttle{}, nil
 	case kindLatency:
-		if err := only("wall"); err != nil {
-			return nil, err
-		}
 		wall, err := time.ParseDuration(valueOf(w.Wall))
 		if err != nil {
 			return nil, &FaultFormError{Field: "action.wall", Reason: fmt.Sprintf("%q is not a duration such as 250ms or 2s", valueOf(w.Wall))}
 		}
 		return Latency{Wall: wall}, nil
 	case kindAfterCommit:
-		if err := only("shape"); err != nil {
-			return nil, err
-		}
 		return AfterCommit{Shape: valueOf(w.Shape)}, nil
 	case kindStatusOKError:
-		if err := only("shape"); err != nil {
-			return nil, err
-		}
 		return StatusOKError{Shape: valueOf(w.Shape)}, nil
 	case kindDropDelivery:
-		if err := only(); err != nil {
+		return DropDelivery{}, nil
+	case kindHTTPStatus:
+		status, err := decodeStatus(w.Status)
+		if err != nil {
 			return nil, err
 		}
-		return DropDelivery{}, nil
-	default:
-		return nil, &FaultFormError{Field: "action.kind", Reason: fmt.Sprintf("%q is not an action; the kinds are error, throttle, latency, after-commit, status-ok-error and drop-delivery", w.Kind)}
+		return HTTPStatus{Status: status}, nil
+	case kindHTTPTimeout:
+		return HTTPTimeout{}, nil
+	case kindThrottle:
+		return Throttle{}, nil
 	}
+	return nil, unknownAction(w.Kind)
+}
+
+func unknownAction(kind string) *FaultFormError {
+	return &FaultFormError{Field: "action.kind", Reason: fmt.Sprintf("%q is not an action; the kinds are error, throttle, latency, after-commit, status-ok-error, drop-delivery, http-status and http-timeout", kind)}
+}
+
+// actionTakes returns the members an action of kind takes besides kind,
+// and false for a kind that is no action.
+func actionTakes(kind string) ([]string, bool) {
+	switch kind {
+	case kindError:
+		return []string{"shape", "message", "members"}, true
+	case kindLatency:
+		return []string{"wall"}, true
+	case kindAfterCommit, kindStatusOKError:
+		return []string{"shape"}, true
+	case kindHTTPStatus:
+		return []string{"status"}, true
+	case kindThrottle, kindDropDelivery, kindHTTPTimeout:
+		return nil, true
+	default:
+		return nil, false
+	}
+}
+
+// decodeStatus reads an http-status action's status: a JSON integer, or 0
+// when absent, which the server refuses with the range it takes.
+func decodeStatus(raw json.RawMessage) (int, error) {
+	if raw == nil {
+		return 0, nil
+	}
+	var status int
+	if err := json.Unmarshal(raw, &status); err != nil {
+		return 0, &FaultFormError{Field: "action.status", Reason: "is a JSON " + jsonKind(raw) + "; expected an integer HTTP status, 100 to 599"}
+	}
+	return status, nil
 }
 
 func decodeTrigger(data json.RawMessage) (FaultTrigger, error) {

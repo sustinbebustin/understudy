@@ -235,14 +235,15 @@ type DropDelivery struct{}
 
 // HTTPStatus answers an HTTP delivery attempt with Status, 100 to 599,
 // without contacting the endpoint (sns-http-delivery.md 8.2.2). Delivery
-// phase only. Not implemented yet: Add refuses it.
+// phase only, and sns-to-http attempts only: the rule must list
+// sns-to-http in match.mechanisms.
 type HTTPStatus struct {
 	Status int `json:"status"`
 }
 
 // HTTPTimeout ends an HTTP delivery attempt as a timed-out exchange
-// without contacting the endpoint or waiting. Delivery phase only. Not
-// implemented yet: Add refuses it.
+// without contacting the endpoint or waiting. Delivery phase only, and
+// sns-to-http attempts only, as HTTPStatus.
 type HTTPTimeout struct{}
 
 func (Error) isAction()         {}

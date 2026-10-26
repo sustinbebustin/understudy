@@ -95,10 +95,10 @@ func statusOKOperations() []ref.OperationID {
 
 // resolved holds the identities a valid rule's action injects: per matched
 // operation for the shape-carrying actions, per matched service for
-// Throttle, and neither for Latency and DropDelivery. An error action with
-// members also has what a hit needs per operation, and minItems, the
-// fewest transaction items a call it matches has: its number of
-// cancellation reasons, 0 for any other rule.
+// Throttle, and neither for Latency, DropDelivery and the HTTP actions. An
+// error action with members also has what a hit needs per operation, and
+// minItems, the fewest transaction items a call it matches has: its number
+// of cancellation reasons, 0 for any other rule.
 type resolved struct {
 	byOp      map[ref.OperationID]awserr.Identity
 	byService map[ref.ServiceID]awserr.Identity
@@ -108,7 +108,9 @@ type resolved struct {
 
 // identity returns what the rule injects into the call in, or false when the
 // call is outside what the rule resolved. Latency and DropDelivery inject
-// no error and apply to every call with the zero identity.
+// no error and apply to every call with the zero identity; the HTTP
+// actions likewise, but to sns-to-http attempts only, so an attempt of
+// another mechanism the rule also lists spends none of its budget.
 func (r resolved) identity(a Action, in MatchInput) (id awserr.Identity, ok bool) {
 	switch a.(type) {
 	case Error, AfterCommit, StatusOKError:
@@ -118,7 +120,7 @@ func (r resolved) identity(a Action, in MatchInput) (id awserr.Identity, ok bool
 	case Latency, DropDelivery:
 		ok = true
 	case HTTPStatus, HTTPTimeout:
-		// Not implemented yet: checkShape refuses these rules.
+		ok = in.Mechanism == delivery.SNSToHTTP
 	}
 	return id, ok
 }
@@ -169,9 +171,13 @@ func checkShape(r Rule) *RuleError {
 	case !r.Phase.valid():
 		return reject(r, "phase", `%d is not a phase; set "phase" to request or delivery`, uint8(r.Phase))
 	case r.Action == nil:
-		return reject(r, "action", "is missing; give one of error, throttle, latency, after-commit, status-ok-error and drop-delivery")
+		return reject(r, "action", "is missing; give one of error, throttle, latency, after-commit, status-ok-error, drop-delivery, http-status and http-timeout")
 	case r.Trigger == nil:
 		return reject(r, "trigger", "is missing; give one of always, next-n and probability")
+	case isHTTPAction(r.Action) && r.Phase != Delivery:
+		// Before the match checks: an HTTP rule always lists sns-to-http,
+		// so the phase is what to change.
+		return reject(r, "phase", "the %s action runs in the delivery phase", actionKind(r.Action))
 	case r.Phase == Request && len(r.Match.Mechanisms) > 0:
 		return reject(r, "match.mechanisms", "apply to the delivery phase only; in the request phase match operations")
 	case r.Phase == Delivery && len(r.Match.Operations) > 0:
@@ -192,8 +198,36 @@ func checkShape(r Rule) *RuleError {
 		if a.Wall <= 0 {
 			return reject(r, "action.wall", "is %s; a latency must be positive", a.Wall)
 		}
+	case HTTPStatus:
+		if a.Status < 100 || a.Status > 599 {
+			return reject(r, "action.status", "is %d; an HTTP status is 100 to 599", a.Status)
+		}
+		return checkHTTPMatch(r)
+	case HTTPTimeout:
+		return checkHTTPMatch(r)
+	}
+	return nil
+}
+
+// isHTTPAction reports whether a answers an HTTP delivery attempt.
+func isHTTPAction(a Action) bool {
+	switch a.(type) {
 	case HTTPStatus, HTTPTimeout:
-		return reject(r, "action", "the %s action is not implemented yet", actionKind(a))
+		return true
+	case Error, Throttle, Latency, AfterCommit, StatusOKError, DropDelivery:
+	}
+	return false
+}
+
+// checkHTTPMatch refuses an HTTP action's match that no sns-to-http
+// attempt meets: an HTTP endpoint lands in no service, and the action
+// answers sns-to-http attempts only.
+func checkHTTPMatch(r Rule) *RuleError {
+	if len(r.Match.Services) > 0 {
+		return reject(r, "match.services", "an HTTP delivery lands in no service, so a rule with match.services could never match it; select it with match.mechanisms %s", delivery.SNSToHTTP)
+	}
+	if !slices.Contains(r.Match.Mechanisms, delivery.SNSToHTTP) {
+		return reject(r, "match.mechanisms", "the %s action applies to %s deliveries only, which match.mechanisms does not list", actionKind(r.Action), delivery.SNSToHTTP)
 	}
 	return nil
 }
@@ -325,10 +359,8 @@ func resolveAction(cat Catalogue, r Rule) (resolved, *RuleError) {
 		return resolveShape(cat, r, a.Shape)
 	case Throttle:
 		return resolveThrottle(cat, r)
-	case Latency, DropDelivery:
+	case Latency, DropDelivery, HTTPStatus, HTTPTimeout:
 		return resolved{}, nil
-	case HTTPStatus, HTTPTimeout:
-		return resolved{}, reject(r, "action", "the %s action is not implemented yet", actionKind(r.Action))
 	default:
 		return resolved{}, reject(r, "action", "is an action this version does not know")
 	}

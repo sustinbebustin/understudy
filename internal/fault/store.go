@@ -268,10 +268,10 @@ func (s *Store) decide(e *entry, id awserr.Identity, inj Injection, next int, h 
 		return Delay{Wall: a.Wall, Then: s.evaluateFrom(next, h, in), Injection: inj}
 	case DropDelivery:
 		return Drop{Injection: inj}
-	case HTTPStatus, HTTPTimeout:
-		// Not implemented yet: checkShape refuses these rules, so none
-		// is ever held.
-		return None{}
+	case HTTPStatus:
+		return RespondHTTP{Status: a.Status, Injection: inj}
+	case HTTPTimeout:
+		return TimeOutHTTP{Injection: inj}
 	default:
 		return None{}
 	}

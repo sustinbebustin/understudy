@@ -182,9 +182,9 @@ type faultFlags struct {
 	id, resource, origin, phase              string
 	errShape, message, afterCommit, statusOK string
 	members                                  string
-	throttle, drop                           bool
+	throttle, drop, httpTimeout              bool
 	latency                                  time.Duration
-	next                                     int
+	next, httpStatus                         int
 	probability                              float64
 	services, operations, mechanisms         stringList
 	accounts, regions                        stringList
@@ -212,6 +212,11 @@ func faultsAdd(fs *flag.FlagSet) action {
 	fs.StringVar(&f.afterCommit, "after-commit", "", "let the call take effect, then answer with this error shape")
 	fs.StringVar(&f.statusOK, "status-ok", "", "answer 200 with this error shape in the body, as S3 does for some operations")
 	fs.BoolVar(&f.drop, "drop", false, "discard a delivery attempt (delivery phase)")
+	typedVar(fs, &typedValue[int]{
+		name: "http-status", placeholder: "CODE", want: "an HTTP status such as 503", dst: &f.httpStatus,
+		parse: strconv.Atoi, format: strconv.Itoa,
+	}, 0, "answer an sns-to-http delivery attempt with this HTTP status, 100 to 599, without contacting the endpoint (delivery phase)")
+	fs.BoolVar(&f.httpTimeout, "http-timeout", false, "end an sns-to-http delivery attempt as a timed-out exchange without contacting the endpoint (delivery phase)")
 	intVar(fs, &f.next, "next", 0, "fire on the next N matching calls, then remove the rule")
 	fractionVar(fs, &f.probability, "probability", "fire on each matching call with this probability, between 0 and 1")
 	return func(ctx context.Context, r *runner, args []string) error {
@@ -273,8 +278,15 @@ func (f *faultFlags) rule() (admin.FaultRule, error) {
 	if f.drop {
 		actions = append(actions, admin.DropDelivery{})
 	}
+	// The server refuses a status outside 100 to 599, naming the range.
+	if f.set["http-status"] {
+		actions = append(actions, admin.HTTPStatus{Status: f.httpStatus})
+	}
+	if f.httpTimeout {
+		actions = append(actions, admin.HTTPTimeout{})
+	}
 	if len(actions) != 1 {
-		return admin.FaultRule{}, &usageError{msg: fmt.Sprintf("takes exactly one action of --error, --throttle, --latency, --after-commit, --status-ok and --drop; got %d", len(actions))}
+		return admin.FaultRule{}, &usageError{msg: fmt.Sprintf("takes exactly one action of --error, --throttle, --latency, --after-commit, --status-ok, --drop, --http-status and --http-timeout; got %d", len(actions))}
 	}
 	if err := f.errorParts(); err != nil {
 		return admin.FaultRule{}, err

@@ -25,7 +25,8 @@ const (
 	// Request-phase AfterCommit and StatusOKError rules.
 	AfterHandler
 	// DeliveryAttempt is the delivery engine, once per attempt. It runs
-	// Delivery-phase Latency and DropDelivery rules.
+	// Delivery-phase Latency, DropDelivery, HTTPStatus and HTTPTimeout
+	// rules.
 	DeliveryAttempt
 )
 
@@ -36,13 +37,10 @@ func (h Hook) runs(r Rule) bool {
 		return h == BeforeHandler
 	case AfterCommit, StatusOKError:
 		return h == AfterHandler
-	case DropDelivery:
+	case DropDelivery, HTTPStatus, HTTPTimeout:
 		return h == DeliveryAttempt
 	case Latency:
 		return (h == BeforeHandler && r.Phase == Request) || (h == DeliveryAttempt && r.Phase == Delivery)
-	case HTTPStatus, HTTPTimeout:
-		// Not implemented yet: checkShape refuses these rules.
-		return false
 	default:
 		return false
 	}

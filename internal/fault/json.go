@@ -125,6 +125,8 @@ func codec() (jsonx.Codec, error) {
 		jsonx.Variant[Action, AfterCommit](kindAfterCommit),
 		jsonx.Variant[Action, StatusOKError](kindStatusOKError),
 		jsonx.Variant[Action, DropDelivery](kindDropDelivery),
+		jsonx.Variant[Action, HTTPStatus](kindHTTPStatus),
+		jsonx.Variant[Action, HTTPTimeout](kindHTTPTimeout),
 	)
 	if err != nil {
 		return jsonx.Codec{}, err
