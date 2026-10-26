@@ -51,13 +51,45 @@ var (
 // anchor is the anchor line for name.
 func anchor(name string) string { return `<a name="` + name + `"></a>` }
 
+// headingName is the text of a "## " heading line with its markdown
+// backslash escapes removed, and false for any other line: the guide writes
+// each underscore of a policy's heading as \_ (iam-evaluation.md 10.4).
+func headingName(line string) (string, bool) {
+	text, ok := strings.CutPrefix(trimEnd(line), "## ")
+	if !ok {
+		return "", false
+	}
+	return unescapeMarkdown(text), true
+}
+
+// unescapeMarkdown removes CommonMark's backslash escapes: a backslash
+// before ASCII punctuation stands for that character. A policy name holds
+// no backslash, so this loses nothing a heading can name.
+func unescapeMarkdown(s string) string {
+	if !strings.Contains(s, `\`) {
+		return s
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) && strings.IndexByte(asciiPunctuation, s[i+1]) >= 0 {
+			i++
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+// asciiPunctuation is what CommonMark lets a backslash escape.
+const asciiPunctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+
 // parseFull reads every policy idx lists out of the single-file guide, in
 // idx order: each policy page with its headings demoted one level, after a
 // preamble that opens no policy (iam-evaluation.md 10.3, 10.4). Every
 // problem is a *ParseError, all of them joined.
 //
-// A policy's section opens at "## <Name>" immediately followed by its
-// anchor and runs to the next line starting "## ". Fences are not tracked
+// A policy's section opens at "## <Name>", its underscores escaped as \_,
+// immediately followed by its anchor and runs to the next line starting
+// "## ". Fences are not tracked
 // for that: the only fenced block of a page is its JSON document
 // (iam-evaluation.md 10.3), and no line of a JSON text starts with "#", so
 // a fence never hides a heading, and one page's unclosed fence cannot
@@ -71,7 +103,7 @@ func parseFull(body []byte, idx index) ([]policycatalogue.Policy, error) {
 	errs := unlistedSections(ls, listed)
 	opens := map[string][]int{}
 	for i := 0; i+1 < len(ls); i++ {
-		if name, ok := strings.CutPrefix(trimEnd(ls[i]), "## "); ok && trimEnd(ls[i+1]) == anchor(name) {
+		if name, ok := headingName(ls[i]); ok && trimEnd(ls[i+1]) == anchor(name) {
 			opens[name] = append(opens[name], i)
 		}
 	}
@@ -106,10 +138,15 @@ func unlistedSections(ls []string, listed map[string]bool) []error {
 			continue
 		}
 		name, ok := strings.CutSuffix(m[1], "-details")
+		if !ok || listed[name] {
+			continue
+		}
 		// The anchor opening the section of a policy named <X>-details is
 		// no details anchor.
-		if !ok || listed[name] || (i > 0 && trimEnd(ls[i-1]) == "## "+m[1]) {
-			continue
+		if i > 0 {
+			if heading, ok := headingName(ls[i-1]); ok && heading == m[1] {
+				continue
+			}
 		}
 		errs = append(errs, &ParseError{
 			Source: fullSource, Policy: name, Field: fieldHeading, Line: i + 1,
