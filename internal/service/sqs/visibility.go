@@ -14,21 +14,23 @@ import (
 
 // bindVisibility binds what acts on received messages by receipt handle:
 // DeleteMessage, ChangeMessageVisibility, their batches and the internal
-// HoldVisibility and MessageCauses.
+// HoldVisibility and MessageCauses. The notes are what the sqs/R01 replay
+// finds (internal/parity/baseline.json); understudy's handles carry no
+// queue and only the latest is matched (sqs.receipt.stale-handle).
 func (s *Service) bindVisibility(b sqsapi.Binder) {
-	b.DeleteMessage(s.deleteMessage, registry.Full{},
+	b.DeleteMessage(s.deleteMessage, registry.Partial{Note: "an older receipt handle of a FIFO message received again since succeeds, where AWS answers 400 \"The receipt handle has expired.\""},
 		queueByURL(func(in *sqsapi.DeleteMessageInput) string { return in.QueueUrl }))
-	b.DeleteMessageBatch(s.deleteMessageBatch, registry.Full{},
+	b.DeleteMessageBatch(s.deleteMessageBatch, registry.Partial{Note: "a receipt handle of another queue is reported successful and deletes nothing, where AWS fails it as not valid for this queue; the answer's members are in model order, not AWS's alphabetical order"},
 		kernel.WithCheck(func(in *sqsapi.DeleteMessageBatchInput) *awserr.Error {
 			return checkBatchIDs("DeleteMessageBatchRequestEntry", entryIDs(in.Entries, func(e *sqsapi.DeleteMessageBatchRequestEntry) string { return e.Id }))
 		}),
 		queueByURL(func(in *sqsapi.DeleteMessageBatchInput) string { return in.QueueUrl }))
-	b.ChangeMessageVisibility(s.changeMessageVisibility, registry.Full{},
+	b.ChangeMessageVisibility(s.changeMessageVisibility, registry.Partial{Note: "an older receipt handle of a message received again since is refused with InvalidParameterValue, where AWS answers 200"},
 		kernel.WithCheck(func(in *sqsapi.ChangeMessageVisibilityInput) *awserr.Error {
 			return checkVisibility(in.VisibilityTimeout)
 		}),
 		queueByURL(func(in *sqsapi.ChangeMessageVisibilityInput) string { return in.QueueUrl }))
-	b.ChangeMessageVisibilityBatch(s.changeMessageVisibilityBatch, registry.Full{},
+	b.ChangeMessageVisibilityBatch(s.changeMessageVisibilityBatch, registry.Partial{Note: "an older receipt handle of a message received again since, or one of another queue, fails as not available for a visibility change, where AWS reports the first successful and fails the second as not valid for this queue; the answer's members are in model order, not AWS's alphabetical order"},
 		kernel.WithCheck(func(in *sqsapi.ChangeMessageVisibilityBatchInput) *awserr.Error {
 			return checkBatchIDs("ChangeMessageVisibilityBatchRequestEntry", entryIDs(in.Entries, func(e *sqsapi.ChangeMessageVisibilityBatchRequestEntry) string { return e.Id }))
 		}),

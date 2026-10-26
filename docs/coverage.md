@@ -148,7 +148,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | s3 | 112 | 14 | 47 | 21 | 30 | 0 | 3 |
 | secretsmanager | 23 | 12 | 1 | 2 | 8 | 0 | 0 |
 | sns | 42 | 12 | 2 | 5 | 23 | 0 | 3 |
-| sqs | 23 | 21 | 2 | 0 | 0 | 2 | 0 |
+| sqs | 23 | 16 | 2 | 5 | 0 | 2 | 0 |
 | sts | 11 | 1 | 0 | 2 | 8 | 0 | 0 |
 
 ### cloudwatch
@@ -1028,11 +1028,7 @@ Raw operations:
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
 | CancelMessageMoveTask | full | third-party-recorded, 2 of 2 claims |  |
-| ChangeMessageVisibility | full | contradicted (sqs/R01/05-cmv-stale.json), 3 of 9 claims |  |
-| ChangeMessageVisibilityBatch | full | contradicted (sqs/R01/06-cmv-batch.json), 1 of 7 claims |  |
 | CreateQueue | full | inferred, 2 of 6 claims |  |
-| DeleteMessage | full | contradicted (sqs/R01/03-recv-after-6s.json), 3 of 13 claims |  |
-| DeleteMessageBatch | full | contradicted (sqs/R01/03-recv-after-6s.json), 2 of 6 claims |  |
 | DeleteQueue | full | third-party-recorded, 3 of 3 claims |  |
 | GetQueueAttributes | full | third-party-recorded, 3 of 3 claims |  |
 | GetQueueUrl | full | third-party-recorded, 3 of 3 claims |  |
@@ -1041,7 +1037,6 @@ Raw operations:
 | ListQueueTags | full | third-party-recorded, 3 of 3 claims |  |
 | ListQueues | full | third-party-recorded, 2 of 2 claims |  |
 | PurgeQueue | full | third-party-recorded, 3 of 3 claims |  |
-| ReceiveMessage | full | contradicted (sqs/R01/02-recv1.json), 17 of 28 claims |  |
 | SendMessage | full | inferred, 4 of 17 claims |  |
 | SendMessageBatch | full | inferred, 4 of 7 claims |  |
 | SetQueueAttributes | full | aws-doc, 1 of 4 claims |  |
@@ -1050,6 +1045,11 @@ Raw operations:
 | UntagQueue | full | third-party-recorded, 3 of 3 claims |  |
 | AddPermission | stored-only | aws-doc, 1 of 4 claims | statements are stored in the queue's Policy attribute and not enforced |
 | RemovePermission | stored-only | third-party-recorded, 3 of 3 claims | statements are stored in the queue's Policy attribute and not enforced |
+| ChangeMessageVisibility | partial | contradicted (sqs/R01/05-cmv-stale.json), 3 of 9 claims | an older receipt handle of a message received again since is refused with InvalidParameterValue, where AWS answers 200 |
+| ChangeMessageVisibilityBatch | partial | contradicted (sqs/R01/06-cmv-batch.json), 1 of 7 claims | an older receipt handle of a message received again since, or one of another queue, fails as not available for a visibility change, where AWS reports the first successful and fails the second as not valid for this queue; the answer's members are in model order, not AWS's alphabetical order |
+| DeleteMessage | partial | contradicted (sqs/R01/03-recv-after-6s.json), 3 of 13 claims | an older receipt handle of a FIFO message received again since succeeds, where AWS answers 400 "The receipt handle has expired." |
+| DeleteMessageBatch | partial | contradicted (sqs/R01/03-recv-after-6s.json), 2 of 6 claims | a receipt handle of another queue is reported successful and deletes nothing, where AWS fails it as not valid for this queue; the answer's members are in model order, not AWS's alphabetical order |
+| ReceiveMessage | partial | contradicted (sqs/R01/02-recv1.json), 17 of 28 claims | a message's members are in model order and its Attributes sorted by name, where AWS writes the members in alphabetical order and the Attributes in an order of its own |
 
 Internal operations:
 
@@ -1063,7 +1063,7 @@ Internal operations:
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
 | GetCallerIdentity | full | third-party-recorded, 2 of 2 claims |  |
-| AssumeRole | partial | contradicted (sts/R15/06-assume-denied.json), 4 of 7 claims | the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012) |
+| AssumeRole | partial | contradicted (sts/R15/06-assume-denied.json), 4 of 7 claims | the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012); the answer leaves out PackedPolicySize, SessionTokenSize and SessionTokenUtilization, which AWS sends |
 | GetSessionToken | partial | third-party-recorded, 2 of 2 claims | MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused only under sigv4 verify |
 | AssumeRoleWithSAML | unbound | unassessed |  |
 | AssumeRoleWithWebIdentity | unbound | unassessed |  |

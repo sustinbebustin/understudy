@@ -92,8 +92,9 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 // staleReceipt is the behavior of DeleteMessage with an older receipt
 // handle of a message received again since: AWS documents that it
 // "will succeed, but the message might not be deleted"; understudy
-// succeeds without deleting. sqs/R01's receive after the stale delete
-// settles it.
+// succeeds without deleting. sqs/R01#03-recv-after-6s contradicts it: AWS
+// deleted the message with the older handle, so the receive after its
+// visibility timeout finds none (docs/guide/differences.md).
 func staleReceipt() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:    "sqs.receipt.stale-handle",
