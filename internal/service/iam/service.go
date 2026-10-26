@@ -9,29 +9,32 @@ import (
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/policycatalogue"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Service is AWS IAM: one state cell per account, since IAM is global.
 type Service struct {
-	ids      *ids.Source
-	identity *identity.Store
-	log      *slog.Logger
-	codec    jsonx.Codec
-	cells    *store.Partitioned[aws.AccountID, State]
+	ids       *ids.Source
+	identity  *identity.Store
+	log       *slog.Logger
+	codec     jsonx.Codec
+	cells     *store.Partitioned[aws.AccountID, State]
+	catalogue policycatalogue.Loader
 }
 
 // New binds the IAM operations understudy implements. Every other IAM
 // operation stays unbound and answers 501.
-func New(d kernel.ServiceDeps, _ Options) *Service {
+func New(d kernel.ServiceDeps, opts Options) *Service {
 	codec := jsonx.NewCodec()
 	s := &Service{
-		ids:      d.IDs,
-		identity: d.Identity,
-		log:      d.Log,
-		codec:    codec,
-		cells:    store.NewPartitioned(d.Kernel.Gate(), store.Codec{Marshal: codec.Marshal, Unmarshal: codec.Unmarshal}, newState),
+		ids:       d.IDs,
+		identity:  d.Identity,
+		log:       d.Log,
+		codec:     codec,
+		cells:     store.NewPartitioned(d.Kernel.Gate(), store.Codec{Marshal: codec.Marshal, Unmarshal: codec.Unmarshal}, newState),
+		catalogue: opts.Catalogue,
 	}
 	b := iamapi.NewBinder(d.Binder)
 	s.bindRoles(b)

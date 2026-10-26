@@ -18,14 +18,22 @@
 //   - Names are unique regardless of case and keep the case they were
 //     created with; state maps key them in lower case. Inline policy names
 //     follow the same rule within their role or user.
-//   - Any arn:aws:iam::aws:policy/... ARN is an attachable AWS managed
-//     policy; understudy carries no catalogue of them, so a mistyped one
-//     attaches where AWS answers NoSuchEntity. GetPolicy shows one with
-//     default version v1, no dates and a PolicyId derived from the ARN, so
-//     it is the same in every account and run. GetPolicyVersion of v1 shows
-//     a placeholder document that grants nothing and whose Sid says it is
-//     one, so the Terraform aws_iam_policy data source, which retries
-//     NoSuchEntity for minutes, reads it at once.
+//   - AWS managed policies come from the catalogue Options.Catalogue loads
+//     (package policycatalogue, the AWS Managed Policy Reference Guide;
+//     iam-evaluation.md 10). An arn:aws:iam::aws:policy/... ARN the
+//     catalogue holds exactly is an attachable policy shown with the
+//     guide's name, path, description, default version, times and
+//     document; its PolicyId is derived from the ARN, so it is the same in
+//     every account and run, and its one version is the default, dated the
+//     policy's UpdateDate. Any other such ARN names no policy: reads answer
+//     the missing-policy NoSuchEntity, attachments and boundaries their own
+//     (iam-evaluation.md 12.6). The catalogue loads only for a call that
+//     names an AWS managed policy ARN or lists AWS managed policies, before
+//     the call takes the account's state, and a load failure is
+//     InternalFailure. Attachments and boundaries already stored for an ARN
+//     the catalogue no longer holds stay stored and listed.
+//   - ListPolicies orders customer and AWS managed policies together by
+//     name regardless of case, then by ARN.
 //   - Tag keys of roles and users match regardless of case; those of
 //     managed policies and instance profiles match exactly, as the IAM User
 //     Guide's tagging rules say. A tag key or value beginning with aws:, in

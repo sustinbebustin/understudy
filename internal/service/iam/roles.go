@@ -20,7 +20,7 @@ const defaultMaxSessionDuration = 3600
 // bindRoles binds the role control plane and the internal ResolveRole.
 func (s *Service) bindRoles(b iamapi.Binder) {
 	stored := registry.StoredOnly{Note: "the trust policy is validated and stored, not enforced"}
-	b.CreateRole(s.createRole, registry.Partial{Note: stored.Note + "; as PermissionsBoundary, " + unknownAWSManaged})
+	b.CreateRole(s.createRole, registry.Partial{Note: stored.Note + "; as PermissionsBoundary, " + catalogueMembership})
 	b.GetRole(s.getRole, registry.Full{})
 	b.UpdateRole(s.updateRole, registry.Full{})
 	b.UpdateRoleDescription(s.updateRoleDescription, registry.Full{})
@@ -43,18 +43,21 @@ func (st *State) role(name string) (Role, *awserr.Error) {
 
 // boundaryNote is the coverage note of PutRolePermissionsBoundary and
 // PutUserPermissionsBoundary.
-const boundaryNote = "the boundary is stored, not enforced; " + unknownAWSManaged
+const boundaryNote = "the boundary is stored, not enforced; " + catalogueMembership
 
-// boundary checks a permissions boundary ARN: an AWS managed policy,
-// existing or not (unknownAWSManaged), or a customer managed one of the
-// account.
-func (st *State) boundary(account aws.AccountID, arn string) *awserr.Error {
-	ref, ok := parsePolicyARN(arn)
-	if !ok {
+// boundary checks a permissions boundary ARN, which named resolved among
+// the AWS managed policies: a catalogued AWS managed policy or a customer
+// managed one of the account.
+func (st *State) boundary(account aws.AccountID, arn string, named awsPolicy) *awserr.Error {
+	if _, ok := parsePolicyARN(arn); !ok {
 		return errInvalidPolicyARN(arn)
 	}
-	if ref.awsManaged() {
+	switch named.(type) {
+	case catalogued:
 		return nil
+	case uncatalogued:
+		return errNoSuchBoundary(arn)
+	case notAWSManaged:
 	}
 	if _, _, err := st.localPolicy(account, arn); err != nil {
 		return errNoSuchBoundary(arn)
@@ -90,12 +93,16 @@ func (s *Service) createRole(_ context.Context, c *kernel.Call, in *iamapi.Creat
 	if in.PermissionsBoundary != nil {
 		r.Boundary = *in.PermissionsBoundary
 	}
+	bound, err := s.lookup(r.Boundary)
+	if err != nil {
+		return nil, err
+	}
 	out, err := kernel.Write(c, s.cells, account, func(st *State, now clock.Instant, _ *kernel.Tx) (iamapi.Role, *awserr.Error) {
 		if _, ok := st.Roles[key(r.Name)]; ok {
 			return iamapi.Role{}, errRoleExists(r.Name)
 		}
 		if r.Boundary != "" {
-			if err := st.boundary(account, r.Boundary); err != nil {
+			if err := st.boundary(account, r.Boundary, bound); err != nil {
 				return iamapi.Role{}, err
 			}
 		}
@@ -185,9 +192,13 @@ func (s *Service) updateAssumeRolePolicy(_ context.Context, c *kernel.Call, in *
 }
 
 func (s *Service) putRolePermissionsBoundary(_ context.Context, c *kernel.Call, in *iamapi.PutRolePermissionsBoundaryInput) (*iamapi.PutRolePermissionsBoundaryOutput, *awserr.Error) {
+	bound, err := s.lookup(in.PermissionsBoundary)
+	if err != nil {
+		return nil, err
+	}
 	account := c.Scope().Account
-	_, err := s.changeRole(c, in.RoleName, func(st *State, r Role) (Role, *awserr.Error) {
-		if err := st.boundary(account, in.PermissionsBoundary); err != nil {
+	_, err = s.changeRole(c, in.RoleName, func(st *State, r Role) (Role, *awserr.Error) {
+		if err := st.boundary(account, in.PermissionsBoundary, bound); err != nil {
 			return Role{}, err
 		}
 		r.Boundary = in.PermissionsBoundary

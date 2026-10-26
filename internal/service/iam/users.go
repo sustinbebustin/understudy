@@ -14,7 +14,7 @@ import (
 
 // bindUsers binds the user control plane.
 func (s *Service) bindUsers(b iamapi.Binder) {
-	b.CreateUser(s.createUser, registry.Partial{Note: "as PermissionsBoundary, " + unknownAWSManaged})
+	b.CreateUser(s.createUser, registry.Partial{Note: "as PermissionsBoundary, " + catalogueMembership})
 	b.GetUser(s.getUser, registry.Partial{Note: "without UserName, a root caller gets its root identity with the Unix epoch as CreateDate, since account creation is not tracked"})
 	b.UpdateUser(s.updateUser, registry.Partial{Note: "access keys minted before a rename or a path change still resolve to the user's old name and path"})
 	b.DeleteUser(s.deleteUser, registry.Full{})
@@ -80,12 +80,16 @@ func (s *Service) createUser(_ context.Context, c *kernel.Call, in *iamapi.Creat
 	if in.PermissionsBoundary != nil {
 		u.Boundary = *in.PermissionsBoundary
 	}
+	bound, err := s.lookup(u.Boundary)
+	if err != nil {
+		return nil, err
+	}
 	out, err := kernel.Write(c, s.cells, account, func(st *State, now clock.Instant, _ *kernel.Tx) (iamapi.User, *awserr.Error) {
 		if _, ok := st.Users[key(u.Name)]; ok {
 			return iamapi.User{}, errUserExists(u.Name)
 		}
 		if u.Boundary != "" {
-			if err := st.boundary(account, u.Boundary); err != nil {
+			if err := st.boundary(account, u.Boundary, bound); err != nil {
 				return iamapi.User{}, err
 			}
 		}
@@ -223,9 +227,13 @@ func (s *Service) listUsers(_ context.Context, c *kernel.Call, in *iamapi.ListUs
 }
 
 func (s *Service) putUserPermissionsBoundary(_ context.Context, c *kernel.Call, in *iamapi.PutUserPermissionsBoundaryInput) (*iamapi.PutUserPermissionsBoundaryOutput, *awserr.Error) {
+	bound, err := s.lookup(in.PermissionsBoundary)
+	if err != nil {
+		return nil, err
+	}
 	account := c.Scope().Account
 	return unit[iamapi.PutUserPermissionsBoundaryOutput](s.changeUser(c, in.UserName, func(st *State, u User) (User, *awserr.Error) {
-		if err := st.boundary(account, in.PermissionsBoundary); err != nil {
+		if err := st.boundary(account, in.PermissionsBoundary, bound); err != nil {
 			return User{}, err
 		}
 		u.Boundary = in.PermissionsBoundary

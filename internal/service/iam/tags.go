@@ -197,12 +197,16 @@ func policyTagged(account aws.AccountID, arn string) tagged {
 	}
 }
 
-// policyTags reads the tags ListPolicyTags shows: a customer managed
-// policy's, or none for an AWS managed policy, which exists for every
-// account (unknownAWSManaged).
-func policyTags(account aws.AccountID, arn string) tagsOf {
-	if ref, ok := parsePolicyARN(arn); ok && ref.awsManaged() {
-		return func(*State) ([]Tag, aws.ARN, *awserr.Error) { return nil, ref.arn, nil }
+// policyTags reads the tags ListPolicyTags shows for arn, which named
+// resolved among the AWS managed policies: a customer managed policy's, or
+// none for a catalogued AWS managed policy, which every account sees.
+func policyTags(account aws.AccountID, arn string, named awsPolicy) tagsOf {
+	switch named := named.(type) {
+	case catalogued:
+		return func(*State) ([]Tag, aws.ARN, *awserr.Error) { return nil, named.ref.arn, nil }
+	case uncatalogued:
+		return func(*State) ([]Tag, aws.ARN, *awserr.Error) { return nil, aws.ARN{}, errNoSuchPolicy(arn) }
+	case notAWSManaged:
 	}
 	return policyTagged(account, arn).get
 }
@@ -243,7 +247,11 @@ func (s *Service) bindTags(b iamapi.Binder) {
 		return unit[iamapi.UntagPolicyOutput](s.untag(c, policyTagged(c.Scope().Account, in.PolicyArn), in.TagKeys))
 	}, registry.Full{})
 	b.ListPolicyTags(func(_ context.Context, c *kernel.Call, in *iamapi.ListPolicyTagsInput) (*iamapi.ListPolicyTagsOutput, *awserr.Error) {
-		p, err := s.listTags(c, "policy-tags", policyTags(c.Scope().Account, in.PolicyArn), in.Marker, in.MaxItems)
+		named, err := s.lookup(in.PolicyArn)
+		if err != nil {
+			return nil, err
+		}
+		p, err := s.listTags(c, "policy-tags", policyTags(c.Scope().Account, in.PolicyArn, named), in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}

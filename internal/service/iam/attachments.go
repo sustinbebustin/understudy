@@ -17,7 +17,7 @@ import (
 
 // bindAttachments binds the managed policy attachments of roles and users.
 func (s *Service) bindAttachments(b iamapi.Binder) {
-	stored := registry.Partial{Note: "the attachment is stored, not enforced; " + unknownAWSManaged}
+	stored := registry.Partial{Note: "the attachment is stored, not enforced; " + catalogueMembership + "; every catalogued policy attaches, service-linked role policies included, though the IAM model documents PolicyNotAttachable for them"}
 	b.AttachRolePolicy(func(_ context.Context, c *kernel.Call, in *iamapi.AttachRolePolicyInput) (*iamapi.AttachRolePolicyOutput, *awserr.Error) {
 		return unit[iamapi.AttachRolePolicyOutput](s.attach(c, roleHolder(c.Scope().Account, in.RoleName), in.PolicyArn))
 	}, stored)
@@ -47,15 +47,19 @@ func (s *Service) bindAttachments(b iamapi.Binder) {
 }
 
 // attach attaches a managed policy; attaching one already attached
-// succeeds and changes nothing.
+// succeeds and changes nothing. The holder is checked before the policy.
 func (s *Service) attach(c *kernel.Call, h holder, arn string) *awserr.Error {
+	named, err := s.lookup(arn)
+	if err != nil {
+		return err
+	}
 	account := c.Scope().Account
 	touched, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (aws.ARN, *awserr.Error) {
 		have, entity, err := h.get(st)
 		if err != nil {
 			return aws.ARN{}, err
 		}
-		if _, err := st.attachable(account, arn); err != nil {
+		if err := st.checkAttachable(account, arn, named); err != nil {
 			return aws.ARN{}, err
 		}
 		if slices.Contains(have.attached, arn) {
