@@ -300,7 +300,7 @@ func wantRefused(t *testing.T, n *network, err error, want egress.Refusal, host 
 }
 
 // The refusal matrix of sns-http-delivery.md 7.2-7.4: only listed hosts
-// are reached, loopback and private addresses only when listed, and AWS
+// are reached, loopback only when listed by localhost or its literal, and AWS
 // names (in the URL or anywhere in its CNAME chain), the metadata, link-
 // local, unspecified and multicast addresses and understudy's own
 // listeners never, whatever the list says.
@@ -329,8 +329,10 @@ func TestSendRefusals(t *testing.T) {
 		{"https's default port", []string{"hooks.example.test:80"}, nil, nil, "https://hooks.example.test/", egress.NotAllowed, "hooks.example.test", 443, ""},
 		// 7.2: no host wildcards.
 		{"a subdomain of a listed name", []string{"example.test:80"}, nil, nil, "http://hooks.example.test/", egress.NotAllowed, "hooks.example.test", 80, ""},
-		// Spec S4: loopback only when listed, private refused unless listed;
-		// a DNS-name entry lists the name, not what it resolves to.
+		// Loopback only when listed by localhost or its literal: a DNS-name
+		// entry lists the name, and the name may not lead to loopback (7.1).
+		// A name resolving to a private address is reached
+		// (TestSendReachesListedHosts).
 		{
 			"a listed name resolving to loopback",
 			[]string{"receiver.example.test:8080"},
@@ -339,11 +341,11 @@ func TestSendRefusals(t *testing.T) {
 			"http://receiver.example.test:8080/", egress.UnlistedLoopback, "receiver.example.test", 8080, "127.0.0.1",
 		},
 		{
-			"a listed name resolving to a private address",
+			"a listed name resolving to IPv6 loopback",
 			[]string{"receiver.example.test:8080"},
-			resolver{"receiver.example.test": to("receiver.example.test", "10.0.0.7")},
+			resolver{"receiver.example.test": to("receiver.example.test", "::1")},
 			nil,
-			"http://receiver.example.test:8080/", egress.UnlistedPrivate, "receiver.example.test", 8080, "10.0.0.7",
+			"http://receiver.example.test:8080/", egress.UnlistedLoopback, "receiver.example.test", 8080, "::1",
 		},
 		// 7.4: an entry named localhost must connect to a loopback address.
 		{
@@ -450,7 +452,7 @@ func TestSendRefusals(t *testing.T) {
 				_, err := send(t, cl, c.url, nil, "hello")
 				re := wantRefused(t, n, err, c.want, c.host, c.port, c.refused)
 				// The refusals a list entry can lift name the setting to change.
-				liftable := []egress.Refusal{egress.NotAllowed, egress.UnlistedLoopback, egress.UnlistedPrivate}
+				liftable := []egress.Refusal{egress.NotAllowed, egress.UnlistedLoopback}
 				if slices.Contains(liftable, c.want) && !strings.Contains(re.Error(), setting.String()) {
 					t.Errorf("error %q does not name the setting %s", re.Error(), setting)
 				}
@@ -488,6 +490,11 @@ func TestSendReachesListedHosts(t *testing.T) {
 		{"the IPv6 loopback", []string{"[::1]:8080"}, nil, "http://[::1]:8080/hook", "[::1]:8080"},
 		{"localhost", []string{"localhost:8080"}, resolver{"localhost": to("localhost", "127.0.0.1")}, "http://localhost:8080/hook", "127.0.0.1:8080"},
 		{"a listed private literal", []string{"10.1.2.3:8080"}, nil, "http://10.1.2.3:8080/hook", "10.1.2.3:8080"},
+		// A DNS-name entry may connect to a private address (RFC 1918 and
+		// ULA): a receiver on a LAN or a Docker network is named, and
+		// private ranges are not among the hard refusals of 7.3.
+		{"a listed name resolving to a private address", []string{"receiver.example.test:8080"}, resolver{"receiver.example.test": to("receiver.example.test", "10.0.0.7")}, "http://receiver.example.test:8080/", "10.0.0.7:8080"},
+		{"a listed name resolving to a ULA address", []string{"receiver.example.test:8080"}, resolver{"receiver.example.test": to("receiver.example.test", "fd12:3456:789a::7")}, "http://receiver.example.test:8080/", "[fd12:3456:789a::7]:8080"},
 		{"a public name", []string{"hooks.example.test:8080"}, resolver{"hooks.example.test": to("hooks.example.test", "203.0.113.10")}, "http://hooks.example.test:8080/hook", "203.0.113.10:8080"},
 		{"http on a port listed for https", []string{"hooks.example.test:443"}, resolver{"hooks.example.test": to("hooks.example.test", "203.0.113.10")}, "http://hooks.example.test:443/hook", "203.0.113.10:443"},
 	}
