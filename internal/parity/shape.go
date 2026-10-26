@@ -5,6 +5,8 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
+	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -73,10 +75,202 @@ func (e *ShapeError) Error() string {
 	return fmt.Sprintf("the %s value %q: %s", e.Side, e.Value, e.Reason)
 }
 
+// The sides of a binding, as a ShapeError names them.
+const (
+	sideAWS        = "aws"
+	sideUnderstudy = "understudy"
+)
+
 // CheckBind checks both sides of one binding against sh for a scenario's
-// account and region. Not implemented yet: it refuses every binding.
-func CheckBind(_ Shape, aws, _, _, _ string) error {
-	return &ShapeError{Side: "aws", Value: aws, Reason: notImplemented("CheckBind").Error()}
+// account and region (spec "Value binding"): each side must have the shape,
+// and what the shape leaves fixed must agree across sides (an ARN's name
+// when the shape gives it none, a URL's path). A *ShapeError names the side
+// that breaks a rule, the aws side first; a disagreement is the understudy
+// side's.
+func CheckBind(sh Shape, aws, ours, account, region string) error {
+	sc := bindScope{account: account, region: region, noRegion: arnRegion(aws) == ""}
+	if reason := sc.check(sh, aws); reason != "" {
+		return &ShapeError{Side: sideAWS, Value: aws, Reason: reason}
+	}
+	if reason := sc.check(sh, ours); reason != "" {
+		return &ShapeError{Side: sideUnderstudy, Value: ours, Reason: reason}
+	}
+	if reason := agree(sh, aws, ours); reason != "" {
+		return &ShapeError{Side: sideUnderstudy, Value: ours, Reason: reason}
+	}
+	return nil
+}
+
+// bindScope is what a bound value's shape is checked against.
+type bindScope struct {
+	account, region string
+	// noRegion lets an ARN leave its region empty: set when the recorded
+	// side's ARN has none, as IAM's ARNs do.
+	noRegion bool
+}
+
+var uuidPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// chars are the characters a allows; none for an unknown alphabet, which
+// the scenario loader refuses.
+func (a Alphabet) chars() string {
+	const upper, lower, digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz", "0123456789"
+	switch a {
+	case Hex:
+		return digits + "abcdef"
+	case Base32:
+		return upper + "234567"
+	case Base64:
+		return upper + lower + digits + "+/="
+	case Alnum:
+		return upper + lower + digits
+	case Digits:
+		return digits
+	}
+	return ""
+}
+
+// check says why v does not have the shape sh, or "" when it has.
+func (sc bindScope) check(sh Shape, v string) string {
+	switch sh := sh.(type) {
+	case UUIDShape:
+		if !uuidPattern.MatchString(v) {
+			return "is not a lower-case UUID, 8-4-4-4-12 hex digits"
+		}
+	case IDShape:
+		return sh.reason(v)
+	case ARNShape:
+		return sc.arnReason(sh, v)
+	case URLShape:
+		return sc.urlReason(sh, v)
+	case nil:
+		return "has no shape to check"
+	}
+	return ""
+}
+
+func (sh IDShape) reason(v string) string {
+	rest, ok := strings.CutPrefix(v, sh.Prefix)
+	switch {
+	case !ok:
+		return fmt.Sprintf("does not start with the prefix %q", sh.Prefix)
+	case len(v) < sh.Min || len(v) > sh.Max:
+		return fmt.Sprintf("has %d characters; the shape allows %d to %d", len(v), sh.Min, sh.Max)
+	}
+	if i := strings.IndexFunc(rest, func(r rune) bool { return !strings.ContainsRune(sh.Alphabet.chars(), r) }); i >= 0 {
+		return fmt.Sprintf("holds %q after the prefix, which is not in the %s alphabet", rest[i:i+1], sh.Alphabet)
+	}
+	return ""
+}
+
+// arn is an ARN of the aws partition split into its fields.
+type arn struct {
+	service, region, account, resource string
+}
+
+func parseARN(v string) (arn, bool) {
+	fields := strings.SplitN(v, ":", 6)
+	if len(fields) != 6 || fields[0] != "arn" || fields[1] != "aws" {
+		return arn{}, false
+	}
+	return arn{service: fields[2], region: fields[3], account: fields[4], resource: fields[5]}, true
+}
+
+// arnRegion is the region of the ARN v, "" when it has none or is no ARN.
+func arnRegion(v string) string {
+	a, _ := parseARN(v)
+	return a.region
+}
+
+// split cuts a's resource into its type, before the first / or :, and its
+// name; with no separator the whole resource is the name.
+func (a arn) split() (kind, name string, typed bool) {
+	i := strings.IndexAny(a.resource, "/:")
+	if i < 0 {
+		return "", a.resource, false
+	}
+	return a.resource[:i], a.resource[i+1:], true
+}
+
+func (sc bindScope) arnReason(sh ARNShape, v string) string {
+	a, ok := parseARN(v)
+	if !ok {
+		return "is not an ARN arn:aws:<service>:<region>:<account>:<resource>"
+	}
+	kind, name, typed := a.split()
+	switch {
+	case a.service != sh.Service:
+		return fmt.Sprintf("names the service %q, not %q", a.service, sh.Service)
+	case a.region != sc.region && (a.region != "" || !sc.noRegion):
+		return fmt.Sprintf("is in the region %q, not the scenario's %q", a.region, sc.region)
+	case a.account != sc.account:
+		return fmt.Sprintf("is in the account %q, not the scenario's %q", a.account, sc.account)
+	case sh.Resource == "" && typed:
+		return fmt.Sprintf("has the resource type %q where the shape has none", kind)
+	case sh.Resource != "" && (!typed || kind != sh.Resource):
+		return fmt.Sprintf("has the resource %q, not one of type %q", a.resource, sh.Resource)
+	case name == "":
+		return "has an empty resource name"
+	case sh.Name != nil:
+		if reason := sc.check(sh.Name, name); reason != "" {
+			return fmt.Sprintf("has the resource name %q, which %s", name, reason)
+		}
+	}
+	return ""
+}
+
+func (sc bindScope) urlReason(sh URLShape, v string) string {
+	u, err := url.Parse(v)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return "is not an absolute http or https URL"
+	}
+	want, got := strings.Split(sh.Path, "/"), strings.Split(u.Path, "/")
+	ok := len(want) == len(got)
+	for i := 0; ok && i < len(want); i++ {
+		switch want[i] {
+		case "{account}":
+			ok = got[i] == sc.account
+		case "{name}":
+			ok = got[i] != ""
+		default:
+			ok = got[i] == want[i]
+		}
+	}
+	if !ok {
+		return fmt.Sprintf("has the path %q, which does not match %q in the account %s", u.Path, sh.Path, sc.account)
+	}
+	return ""
+}
+
+// agree says why ours differs from aws where sh fixes the value, both
+// having the shape, or "" when they agree: an ARN's resource name when sh
+// gives the name no shape, and a URL's path.
+func agree(sh Shape, aws, ours string) string {
+	switch sh := sh.(type) {
+	case ARNShape:
+		a, _ := parseARN(aws)
+		o, _ := parseARN(ours)
+		_, an, _ := a.split()
+		_, on, _ := o.split()
+		if sh.Name == nil && an != on {
+			return fmt.Sprintf("names the resource %q where AWS's names %q; the shape gives the name no shape, so the names must be equal", on, an)
+		}
+	case URLShape:
+		if a, o := urlPath(aws), urlPath(ours); a != o {
+			return fmt.Sprintf("has the path %q where AWS's has %q", o, a)
+		}
+	case UUIDShape, IDShape, nil:
+	}
+	return ""
+}
+
+// urlPath is the path of the URL v, which CheckBind has parsed already.
+func urlPath(v string) string {
+	u, err := url.Parse(v)
+	if err != nil {
+		return ""
+	}
+	return u.Path
 }
 
 // checkShape says what makes sh, at field of a scenario, not a shape the
