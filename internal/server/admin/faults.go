@@ -66,12 +66,14 @@ func (h *Handler) faultPut(w http.ResponseWriter, r *http.Request, args []string
 		})
 		return
 	}
+	// The rule is active from here, so it is journaled even if rendering
+	// it for the answer fails.
+	h.journalAction(r.Context(), journal.FaultRuleAdded{Rule: added})
 	f, aerr := h.wireFault(rule, 0)
 	if aerr != nil {
 		h.fail(w, r, aerr)
 		return
 	}
-	h.journalAction(r.Context(), journal.FaultRuleAdded{Rule: added})
 	h.ok(w, r, f)
 }
 

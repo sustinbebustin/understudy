@@ -1,6 +1,7 @@
 package admin_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"slices"
@@ -10,6 +11,10 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/admin"
+	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/blob"
+	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	serveradmin "github.com/sustinbebustin/understudy/internal/server/admin"
@@ -39,6 +44,110 @@ func TestJournalTailAnswersTheLatestAdminAction(t *testing.T) {
 		if err := json.Unmarshal(page.Events[0].Detail, &detail); err != nil || page.Events[0].Kind != "admin-action" || detail.Op != "reset" {
 			k.Errorf("newest admin action = %s %s, want the reset", page.Events[0].Kind, page.Events[0].Detail)
 		}
+	})
+}
+
+// A reset that fails after it dropped state journals what it reset, since
+// the state changed: one whose blob release fails after the clock's return
+// records the restore and then its admin action (ADR 0007, implementation
+// amendment 2026-10-26).
+func TestResetWhoseBlobReleaseFailsIsJournaled(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		start := k.Clock.Now()
+		pinned := &blobService{refs: map[aws.Scope][]string{k.Scope: {strings.Repeat("a", 64)}}}
+		h := handlerWith(k, func(o *serveradmin.Options) {
+			o.Services, o.Blobs = []serveradmin.Service{pinned}, failingRelease{}
+			o.ClockStart = func() (clock.Instant, clock.Mode) { return start, clock.Frozen{} }
+		})
+		if _, err := k.Clock.Advance(time.Hour); err != nil {
+			k.Fatal(err)
+		}
+		moved := k.Clock.Mode()
+		before := k.Journal.NextID()
+		if rec := reset(k, h, `{"clock":true}`); rec.Code != http.StatusInternalServerError {
+			k.Fatalf("reset whose blob release fails = %d %s, want 500", rec.Code, rec.Body)
+		}
+		got := recordedSince(k, before)
+		if len(got) != 2 {
+			k.Fatalf("reset whose blob release fails recorded %v, want the clock's return then an admin action", got)
+		}
+		wantAdminEvent(k, "failed reset's clock return", got[0], journal.ClockChanged{From: moved, To: clock.Frozen{At: start}, Op: journal.ClockRestore})
+		wantAdminEvent(k, "reset whose blob release fails", got[1], journal.AdminAction{Op: journal.Reset{Services: []string{"blobs"}, Clock: true}})
+	})
+}
+
+// A reset whose clock restore fails journals the state and fault rules it
+// dropped, without the clock, which it did not restore.
+func TestResetWhoseClockRestoreFailsIsJournaled(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		h := handlerWith(k, func(o *serveradmin.Options) {
+			o.Services = []serveradmin.Service{&rearmCounter{}}
+			// An instant beyond clock.MaxSkew, which Restore refuses.
+			o.ClockStart = func() (clock.Instant, clock.Mode) { return k.Clock.Now().Add(2 * clock.MaxSkew), clock.Frozen{} }
+		})
+		if _, err := k.Faults.Add(fault.Rule{Phase: fault.Delivery, Action: fault.Latency{Wall: time.Second}, Trigger: fault.Always{}}); err != nil {
+			k.Fatal(err)
+		}
+		before := k.Journal.NextID()
+		if rec := reset(k, h, `{"clock":true,"faults":true}`); rec.Code != http.StatusInternalServerError {
+			k.Fatalf("reset whose clock restore fails = %d %s, want 500", rec.Code, rec.Body)
+		}
+		wantOneAdminEvent(k, "reset whose clock restore fails", before, journal.AdminAction{Op: journal.Reset{Services: []string{"late"}, Faults: 1}})
+	})
+}
+
+// A reset that fails at its first step, before it dropped anything,
+// journals nothing.
+func TestResetThatFailsBeforeDroppingStateJournalsNothing(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		late := &failingLateService{}
+		h := handlerWith(k, func(o *serveradmin.Options) {
+			o.Services, o.Late = []serveradmin.Service{late}, []snapshot.Late{late}
+		})
+		before := k.Journal.NextID()
+		if rec := reset(k, h, `{}`); rec.Code != http.StatusInternalServerError {
+			k.Fatalf("reset whose late data cannot be dropped = %d %s, want 500", rec.Code, rec.Body)
+		}
+		if got := recordedSince(k, before); len(got) != 0 {
+			k.Errorf("reset that dropped nothing recorded %v, want nothing", got)
+		}
+	})
+}
+
+// A snapshot load that fails after it began replacing state, which leaves
+// the state partially loaded, journals its admin action.
+func TestPartialSnapshotLoadIsJournaled(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		late := &failingLateService{}
+		h := handlerWith(k, func(o *serveradmin.Options) {
+			blobs, err := blob.NewMemory(k.TempDir(), 0)
+			if err != nil {
+				k.Fatal(err)
+			}
+			k.Cleanup(func() {
+				if err := blobs.Close(); err != nil {
+					k.Error(err)
+				}
+			})
+			coord, err := snapshot.NewCoordinator(snapshot.Config{
+				Gate: k.Kernel.Gate(), Blobs: blobs, Runtime: fixedRuntime{now: k.Clock.Now()}, Effects: k.Kernel, Late: []snapshot.Late{late}, Writer: "test",
+			})
+			if err != nil {
+				k.Fatal(err)
+			}
+			o.Snapshots, o.Blobs = coord, blobs
+			o.Services, o.Late = []serveradmin.Service{late}, []snapshot.Late{late}
+		})
+		saved := serve(k, h, http.MethodPost, admin.Prefix+"/snapshots")
+		if saved.Code != http.StatusOK {
+			k.Fatalf("save = %d %s", saved.Code, saved.Body)
+		}
+		before := k.Journal.NextID()
+		rec := load(k, h, bytes.NewReader(saved.Body.Bytes()))
+		if e := envelope(k, rec); rec.Code != http.StatusInternalServerError || !strings.Contains(e.Message, "partially loaded") {
+			k.Fatalf("load whose late import fails = %d %+v, want 500 naming a partial load", rec.Code, e)
+		}
+		wantOneAdminEvent(k, "partial load", before, journal.AdminAction{Op: journal.SnapshotLoad{}})
 	})
 }
 
