@@ -2,11 +2,12 @@ package policycatalogue
 
 import (
 	"cmp"
+	"compress/gzip"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"errors"
 	"fmt"
-	"io/fs"
+	"io"
 	"iter"
 	"regexp"
 	"slices"
@@ -399,15 +400,15 @@ func (c *Catalogue) Encode() ([]byte, error) {
 // that needs the catalogue and returns the same result each time.
 type Loader func() (*Catalogue, error)
 
-// embedded parses the compiled-in catalogue on first use, so starting the
-// emulator does not pay for it (ARCHITECTURE.md 5.7, the start and idle RSS
-// budgets).
+// embedded decompresses and parses the compiled-in catalogue on first use,
+// so starting the emulator does not pay for it (ARCHITECTURE.md 5.7, the
+// start and idle RSS budgets).
 //
 //nolint:gochecknoglobals // a lazily parsed immutable catalogue, not mutable state
 var embedded = sync.OnceValues(func() (*Catalogue, error) {
-	data, err := fs.ReadFile(awsmanagedpolicies.FS(), awsmanagedpolicies.PoliciesFile)
+	data, err := gunzipEmbedded()
 	if err != nil {
-		return nil, fmt.Errorf("policycatalogue: read the embedded %s: %w", awsmanagedpolicies.PoliciesFile, err)
+		return nil, fmt.Errorf("policycatalogue: the embedded %s does not decompress, so no AWS managed policy can be served; 'go run ./internal/cmd/managedpolicies -verify' reports why: %w", awsmanagedpolicies.PoliciesGzipFile, err)
 	}
 	c, err := Parse(data)
 	if err != nil {
@@ -416,9 +417,24 @@ var embedded = sync.OnceValues(func() (*Catalogue, error) {
 	return c, nil
 })
 
-// Embedded is the Loader of the catalogue compiled into the binary,
-// awsmanagedpolicies.PoliciesFile, parsed on the first call; every later
-// call returns the same catalogue or error.
+// gunzipEmbedded is policies.json, decompressed from the embedded
+// awsmanagedpolicies.PoliciesGzipFile.
+func gunzipEmbedded() ([]byte, error) {
+	f, err := awsmanagedpolicies.FS().Open(awsmanagedpolicies.PoliciesGzipFile)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	zr, err := gzip.NewReader(f)
+	if err != nil {
+		return nil, err
+	}
+	return io.ReadAll(zr)
+}
+
+// Embedded is the Loader of the catalogue compiled into the binary as
+// awsmanagedpolicies.PoliciesGzipFile, decompressed and parsed on the first
+// call; every later call returns the same catalogue or error.
 func Embedded() (*Catalogue, error) { return embedded() }
 
 // Static is a Loader that returns c.

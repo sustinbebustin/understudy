@@ -6,8 +6,9 @@
 //
 // The data is third_party/aws-managed-policies/policies.json, which
 // internal/cmd/managedpolicies writes and checks; Encode is its canonical
-// form and Parse its strict reader. Embedded loads the copy compiled into
-// the binary on first use, so starting the emulator does not pay for it.
+// form and Parse its strict reader. The binary carries it gzip-compressed,
+// as policies.json.gz beside it, and Embedded decompresses and parses that
+// copy on first use, so starting the emulator does not pay for it.
 // The policydoc rules are the generator's -verify check, not this
 // package's, so a policydoc gap never stops the emulator from starting.
 package policycatalogue

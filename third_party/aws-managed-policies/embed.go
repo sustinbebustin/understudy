@@ -13,22 +13,23 @@ import (
 const (
 	// PoliciesFile is the catalogue, the reviewable source of truth.
 	PoliciesFile = "policies.json"
-	// PoliciesGzipFile is PoliciesFile compressed; the generator derives it
-	// from PoliciesFile.
+	// PoliciesGzipFile is PoliciesFile compressed, the form the binary
+	// embeds; the generator derives it from PoliciesFile.
 	PoliciesGzipFile = "policies.json.gz"
 	SourceFile       = "SOURCE.json"
 	LicenseFile      = "LICENSE"
 	NoticeFile       = "NOTICE"
 )
 
-// The binary embeds every data file in this directory (ADR 0016, amendment
-// "managed policies"); internal/policycatalogue/embedded_impl_test.go fails
-// when a file the generator writes is missing from this list. Without
+// The binary embeds every data file in this directory except PoliciesFile,
+// which it carries as PoliciesGzipFile, a tenth of the size (ADR 0016,
+// amendment "managed policies"); internal/policycatalogue/embedded_impl_test.go
+// fails when a file the generator writes is missing from this list. Without
 // PoliciesGzipFile nothing that imports this package builds, the generator
 // included: restore it with git checkout, or create it empty and run
 // 'go run ./internal/cmd/managedpolicies -pack'.
 //
-//go:embed policies.json policies.json.gz SOURCE.json LICENSE NOTICE
+//go:embed policies.json.gz SOURCE.json LICENSE NOTICE
 var files embed.FS
 
 // FS returns the embedded data files, read-only.

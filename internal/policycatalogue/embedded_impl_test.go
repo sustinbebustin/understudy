@@ -12,10 +12,12 @@ import (
 // dataDir is the data package's directory, relative to this package's.
 const dataDir = "../../third_party/aws-managed-policies"
 
-// The binary embeds the data directory whole (ADR 0016, amendment "managed
-// policies"): every generator output beside embed.go is in FS, and FS holds
-// nothing else. A data commit that adds a file but leaves it off the embed
-// directive of embed.go fails here.
+// The binary embeds the data directory whole except policies.json, which
+// it carries compressed as policies.json.gz (ADR 0016, amendment "managed
+// policies"): every other generator output beside embed.go is in FS, and FS
+// holds nothing else. A data commit that adds a file but leaves it off the
+// embed directive of embed.go, or embeds the uncompressed policies.json,
+// fails here.
 func TestEmbeddedFilesAreTheDataDirectory(t *testing.T) {
 	dataFiles := []string{awsmanagedpolicies.PoliciesFile, awsmanagedpolicies.PoliciesGzipFile, awsmanagedpolicies.SourceFile, awsmanagedpolicies.LicenseFile, awsmanagedpolicies.NoticeFile}
 
@@ -33,8 +35,10 @@ func TestEmbeddedFilesAreTheDataDirectory(t *testing.T) {
 			onDisk = append(onDisk, name)
 		}
 	}
-	if !slices.Contains(onDisk, awsmanagedpolicies.PoliciesFile) {
-		t.Errorf("%s has no %s, which embed.go embeds and Embedded reads; restore it with git checkout", dataDir, awsmanagedpolicies.PoliciesFile)
+	for _, name := range []string{awsmanagedpolicies.PoliciesFile, awsmanagedpolicies.PoliciesGzipFile} {
+		if !slices.Contains(onDisk, name) {
+			t.Errorf("%s has no %s, which the generator writes and -verify checks; restore it with git checkout", dataDir, name)
+		}
 	}
 
 	var embedded []string
@@ -50,9 +54,10 @@ func TestEmbeddedFilesAreTheDataDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("walk FS: %v", err)
 	}
-	slices.Sort(onDisk)
+	want := slices.DeleteFunc(slices.Clone(onDisk), func(name string) bool { return name == awsmanagedpolicies.PoliciesFile })
+	slices.Sort(want)
 	slices.Sort(embedded)
-	if !slices.Equal(embedded, onDisk) {
-		t.Errorf("FS holds %v, the data directory %v; list every data file on the go:embed line of embed.go", embedded, onDisk)
+	if !slices.Equal(embedded, want) {
+		t.Errorf("FS holds %v, want %v: every data file but %s, which the binary carries as %s; fix the go:embed line of embed.go", embedded, want, awsmanagedpolicies.PoliciesFile, awsmanagedpolicies.PoliciesGzipFile)
 	}
 }
