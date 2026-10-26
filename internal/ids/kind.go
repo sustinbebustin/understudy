@@ -45,8 +45,13 @@ const (
 const kindCount = int(endKind)
 
 // Kinds returns every generator kind in value order, KindRequestID first.
-// Not implemented yet: it returns nil.
-func Kinds() []Kind { return nil }
+func Kinds() []Kind {
+	all := make([]Kind, 0, kindCount)
+	for k := range endKind {
+		all = append(all, k)
+	}
+	return all
+}
 
 // String returns the kind's stable name, which also seeds its stream and
 // keys it in snapshot manifests.

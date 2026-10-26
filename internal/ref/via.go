@@ -29,9 +29,14 @@ const (
 	endVia
 )
 
-// Vias returns every declared Via in value order. Not implemented yet: it
-// returns nil.
-func Vias() []Via { return nil }
+// Vias returns every declared Via in value order.
+func Vias() []Via {
+	all := make([]Via, 0, endVia-SNSDelivery)
+	for v := SNSDelivery; v < endVia; v++ {
+		all = append(all, v)
+	}
+	return all
+}
 
 // String returns the wire name, such as "sns-delivery".
 func (v Via) String() string {
