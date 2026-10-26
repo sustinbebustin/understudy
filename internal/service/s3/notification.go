@@ -75,7 +75,7 @@ func (s *Service) putNotification(ctx context.Context, c *kernel.Call, in *s3api
 	cfg := put.cfg
 	validate := in.SkipDestinationValidation == nil || !*in.SkipDestinationValidation
 	if validate {
-		if err := s.checkDestinations(ctx, c, in.Bucket, &cfg); err != nil {
+		if err := s.checkDestinations(ctx, c, &cfg); err != nil {
 			return nil, inRegion(err, put.home)
 		}
 	}
@@ -153,7 +153,7 @@ type unvalidated struct {
 // exist or is a FIFO queue or topic, which S3 does not deliver to (s3.md
 // 13.1). understudy enforces no IAM, so the permission half of AWS's check
 // is not made.
-func (s *Service) checkDestinations(ctx context.Context, c *kernel.Call, bucket string, cfg *notify.Config) *awserr.Error {
+func (s *Service) checkDestinations(ctx context.Context, c *kernel.Call, cfg *notify.Config) *awserr.Error {
 	var failed []unvalidated
 	for i := range cfg.Rules {
 		r := &cfg.Rules[i]
@@ -161,7 +161,7 @@ func (s *Service) checkDestinations(ctx context.Context, c *kernel.Call, bucket 
 			failed = append(failed, fifo)
 			continue
 		}
-		exists, err := s.destinationExists(ctx, c, bucket, r)
+		exists, err := s.destinationExists(ctx, c, r)
 		if err != nil {
 			return err
 		}
@@ -212,15 +212,19 @@ func fifoOf(r *notify.Rule) (unvalidated, bool) {
 }
 
 // destinationExists looks the destination up in its own account and
-// region as S3's service principal. Only the destination service's
-// not-found answer means "does not exist"; any other failure (an injected
-// fault, an emulator bug) is the call's InternalError.
-func (s *Service) destinationExists(ctx context.Context, c *kernel.Call, bucket string, r *notify.Rule) (bool, *awserr.Error) {
+// region as S3's service principal. AWS validates a destination against
+// its stored policy (iam-enforcement-surfaces.md 8.3, 12.4), not through a
+// call that policy grants, so the lookup runs as the platform: it is not
+// access-recorded, and GET /iam/policy's resourcePolicies for the
+// notification name only the delivery's action. Only the destination
+// service's not-found answer means "does not exist"; any other failure (an
+// injected fault, an emulator bug) is the call's InternalError.
+func (s *Service) destinationExists(ctx context.Context, c *kernel.Call, r *notify.Rule) (bool, *awserr.Error) {
 	scope, serr := aws.ScopeOf(r.ARN)
 	if serr != nil {
 		return false, nil
 	}
-	t := kernel.Target{Scope: scope, As: kernel.AsService{Name: "s3.amazonaws.com", Source: bucketARN(bucket)}, Via: ref.S3Notification}
+	t := kernel.Target{Scope: scope, As: kernel.AsPlatform{Name: "s3.amazonaws.com"}, Via: ref.S3Notification}
 	var (
 		err      *awserr.Error
 		notFound awserr.Identity

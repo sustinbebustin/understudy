@@ -59,8 +59,11 @@ type AsService struct {
 
 // AsPlatform is a call a service makes on its own behalf, which AWS
 // authorizes no principal or resource policy for: an event source mapping
-// invoking its function. It runs as the service principal Name and the
-// access recorder leaves it out, since no policy needs to grant it.
+// invoking its function, S3 checking that a notification destination exists
+// (iam-enforcement-surfaces.md 12.4) and DynamoDB's TTL sweep deleting
+// expired items (dynamodb-local.md 5.1). It runs as the service principal
+// Name; the access recorder leaves it out and step 8 does not ask about it,
+// since no policy needs to grant it.
 type AsPlatform struct{ Name string }
 
 func (AsCaller) isPrincipalMode()        {}
