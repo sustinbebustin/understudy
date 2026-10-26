@@ -301,11 +301,11 @@ func TestRegistryLookups(t *testing.T) {
 	if s, ok := r.ByJSONTarget("AmazonSQS"); !ok || s != sqs {
 		t.Errorf("ByJSONTarget(AmazonSQS) = %v, %v", s, ok)
 	}
-	if s, ok := r.BySigningName("monitoring"); !ok || s != cw {
-		t.Errorf("BySigningName(monitoring) = %v, %v", s, ok)
+	if got := r.BySigningName("monitoring"); len(got) != 1 || got[0] != cw {
+		t.Errorf("BySigningName(monitoring) = %v, want CloudWatch alone", got)
 	}
-	if _, ok := r.BySigningName("cloudwatch"); ok {
-		t.Error("BySigningName(cloudwatch) found a service; CloudWatch signs as monitoring")
+	if got := r.BySigningName("cloudwatch"); len(got) != 0 {
+		t.Errorf("BySigningName(cloudwatch) = %v; CloudWatch signs as monitoring", got)
 	}
 	if op, ok := r.ByQueryAction("SendMessage", "2012-11-05"); !ok || op != sqs.Operations[2] {
 		t.Errorf("ByQueryAction(SendMessage, 2012-11-05) = %v, %v", op, ok)

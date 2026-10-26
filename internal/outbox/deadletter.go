@@ -54,6 +54,9 @@ func deadLetterMessage(e *Entry, dlq aws.ARN, err *awserr.Error, end ending) sqs
 		m.body = string(t.Event)
 	case delivery.SNSTopic:
 		m.body, m.attributes = t.Message, t.Attributes
+	case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
+		// Not implemented yet: Enqueue refuses these targets, so none is
+		// ever dead-lettered.
 	}
 	if e.Request.Mechanism.Via() == ref.EventsTarget {
 		m.attributes = slices.Concat(m.attributes, eventBridgeAttributes(e, err, end))

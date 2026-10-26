@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -52,9 +53,52 @@ type SNSTopic struct {
 	Subject    string
 }
 
+// EventBus is a PutEvents to an event bus. No mechanism delivers to one
+// yet; the producers that need one add theirs (ADR 0015 amendment).
+type EventBus struct {
+	// ARN is the bus: arn:<partition>:events:<region>:<account>:event-bus/<name>.
+	ARN aws.ARN
+	// Entries are sent in order, 1 to 10 of them.
+	Entries []EventEntry
+}
+
+// EventEntry is one PutEvents entry of an EventBus delivery.
+type EventEntry struct {
+	Source     string
+	DetailType string
+	// Detail is the event's detail, JSON object text.
+	Detail    string
+	Resources []string
+}
+
+// S3Object is a PutObject. No mechanism delivers to one yet.
+type S3Object struct {
+	Bucket string
+	Key    string
+	Body   []byte
+}
+
+// HTTPEndpoint is a POST to an http or https URL, sent through
+// internal/egress, the only package that dials out. No mechanism delivers
+// to one yet.
+type HTTPEndpoint struct {
+	URL url.URL
+	// Headers are sent in order, their names as given.
+	Headers []HTTPHeader
+	Body    []byte
+}
+
+// HTTPHeader is one request header of an HTTPEndpoint delivery.
+type HTTPHeader struct {
+	Name, Value string
+}
+
 func (SQSQueue) isTarget()       {}
 func (LambdaFunction) isTarget() {}
 func (SNSTopic) isTarget()       {}
+func (EventBus) isTarget()       {}
+func (S3Object) isTarget()       {}
+func (HTTPEndpoint) isTarget()   {}
 
 // InvocationType is how a delivery invokes a function.
 type InvocationType uint8

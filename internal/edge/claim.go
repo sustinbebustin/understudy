@@ -541,11 +541,12 @@ func (c *claimer) s3(what string) (route, bool) {
 // a registered service answers with its own error, never S3's (ADR 0013),
 // and any other signing name names a service understudy does not emulate.
 func (c *claimer) signedElsewhere(signed string) (route, bool) {
-	svc, ok := c.h.opts.Registry.BySigningName(signed)
-	if !ok {
+	candidates := c.h.opts.Registry.BySigningName(signed)
+	if len(candidates) == 0 {
 		c.decline(8, "the request is signed for %q, which names no registered service", signed)
 		return notEmulated{signingName: signed, reasons: c.reasons}, true
 	}
+	svc := candidates[0]
 	c.decline(8, "the request is signed for %s, which no protocol rule claimed", svc.ID)
 	return toService{svc: svc, reasons: c.reasons}, true
 }

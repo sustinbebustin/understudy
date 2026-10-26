@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
@@ -36,6 +37,9 @@ type Options struct {
 	Faults kernel.FaultStage
 	// Policies supplies target policies for the access advisory.
 	Policies PolicySource
+	// Egress sends HTTPEndpoint deliveries; nil refuses each one, which is
+	// the default until a producer enables outbound delivery.
+	Egress *egress.Client
 }
 
 // Outbox is the delivery engine: the kernel's DeliverSink and a Stateful
@@ -56,6 +60,7 @@ type engine struct {
 	attempt  kernel.HandledKind
 	faults   kernel.FaultStage
 	policies PolicySource
+	egress   *egress.Client
 	// seq is the last Entry.Seq handed out; Import raises it past every
 	// loaded entry's.
 	seq atomic.Uint64
@@ -96,6 +101,7 @@ func (o *Outbox) Bind(k *kernel.Kernel, opts Options) error {
 		cells:    store.NewPartitioned(k.Gate(), codec(), newState),
 		faults:   opts.Faults,
 		policies: opts.Policies,
+		egress:   opts.Egress,
 	}
 	e.attempt = k.Timers().Handle(TimerAttempt, e.onAttempt)
 	o.e.Store(e)
@@ -257,6 +263,10 @@ func targetARN(t delivery.Target) (aws.ARN, bool) {
 		return t.ARN, true
 	case delivery.SNSTopic:
 		return t.ARN, true
+	case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
+		// Not implemented yet: reporting no resource makes Enqueue refuse
+		// these targets.
+		return aws.ARN{}, false
 	}
 	return aws.ARN{}, false
 }

@@ -67,6 +67,9 @@ func importRules() []importRule {
 		// Keyset pagination for listings. Its client-side checker,
 		// internal/paging/pagingtest, is for test files, which are exempt.
 		"internal/paging",
+		// The payload format 2.0 event and response of function URLs and
+		// API Gateway HTTP APIs.
+		"internal/httpevent",
 	}
 	return []importRule{
 		// Leaves.
@@ -95,6 +98,12 @@ func importRules() []importRule {
 		{"internal/topology", []string{"internal/docker"}},
 		{"internal/docker/dockertest", []string{"internal/docker"}},
 		{"internal/delivery", []string{"internal/aws", "internal/ref"}},
+		// The payload format 2.0 builders function URLs and API Gateway
+		// share (ARCHITECTURE.md 14.7).
+		{"internal/httpevent", nil},
+		// The only outbound dialer; its deadline is wall time from the
+		// emulator clock (ADR 0006, ADR 0015 amendment).
+		{"internal/egress", []string{"internal/clock"}},
 		{"internal/protocol/smithy", []string{"internal/protocol/smithy/document"}},
 
 		// Vocabulary and platform.
@@ -123,6 +132,9 @@ func importRules() []importRule {
 			// Access advisories call access.Advise with the target's stored
 			// policydoc.Document and the registry.IAMAction of the attempt.
 			"internal/access", "internal/policydoc", "internal/registry",
+			// HTTPEndpoint attempts go out through the one outbound dialer
+			// (ADR 0015 amendment).
+			"internal/egress",
 		}},
 		// The closed normalizer set snapshot and the parity replayer share
 		// (ARCHITECTURE.md 12, 19): minted access keys decode through ids,

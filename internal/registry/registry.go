@@ -40,6 +40,10 @@ const (
 	UnknownOperationKind
 	InvalidRoute
 	ConflictingRoutes
+	// OverlappingRouteTables is two REST services sharing a signing name
+	// whose route tables one request could match in both (ADR 0019). New
+	// does not return it yet.
+	OverlappingRouteTables
 )
 
 // DescriptorError reports a descriptor New refuses. Generated descriptors
@@ -112,10 +116,16 @@ func (r *Registry) ByQueryAction(action, version string) (*Operation, bool) {
 	return op, ok
 }
 
-// BySigningName finds the service whose SigV4 credential-scope name is name.
-func (r *Registry) BySigningName(name string) (*Service, bool) {
+// BySigningName returns the services whose SigV4 credential-scope name is
+// name, in the order New was given them; nil when none. Until shared
+// signing names land (ADR 0019), New refuses a second service with a name,
+// so the result holds at most one service.
+func (r *Registry) BySigningName(name string) []*Service {
 	s, ok := r.bySigning[name]
-	return s, ok
+	if !ok {
+		return nil
+	}
+	return []*Service{s}
 }
 
 func (r *Registry) add(s *Service) error {

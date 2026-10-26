@@ -81,6 +81,8 @@ func TestPublishFansOutInSubscriptionOrder(t *testing.T) {
 				}
 			case delivery.SNSTopic:
 				target = tg.ARN.String()
+			case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
+				h.Errorf("delivery %d has target %T; these subscriptions are a queue, a queue and a function", i, tg)
 			}
 			if target != wantTargets[i] || d.Request.Source.String() != topic {
 				h.Errorf("delivery %d goes %s -> %s, want %s -> %s", i, d.Request.Source, target, topic, wantTargets[i])

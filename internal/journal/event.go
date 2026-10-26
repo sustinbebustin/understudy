@@ -54,7 +54,11 @@ type APICall struct {
 
 // Delivery is one attempt to deliver a message across services.
 type Delivery struct {
-	From, To  aws.ARN
+	From, To aws.ARN
+	// Endpoint is an HTTP delivery's host:port, the port defaulted to 80 or
+	// 443, and "" for every other target; never the path, query or
+	// userinfo. The NDJSON encoding does not carry it yet.
+	Endpoint  string
 	Mechanism delivery.Mechanism
 	Attempt   int
 	Outcome   DeliveryOutcome

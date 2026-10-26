@@ -2,6 +2,7 @@ package outbox
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
@@ -9,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
@@ -22,8 +24,79 @@ func (a *attempt) send(ctx context.Context, t delivery.Target) *awserr.Error {
 		return a.invokeLambda(ctx, t)
 	case delivery.SNSTopic:
 		return a.publishSNS(ctx, t)
+	case delivery.EventBus:
+		return putEvents(ctx, a.e.k, a.c, a.as(a.scope), t)
+	case delivery.S3Object:
+		return putObject(ctx, a.e.k, a.c, a.as(a.scope), t)
+	case delivery.HTTPEndpoint:
+		// Enqueue refuses HTTPEndpoint targets until the attempt maps
+		// postHTTP's result onto its journal outcome itself.
+		what := "an HTTPEndpoint attempt that "
+		switch r := postHTTP(ctx, a.e.egress, t).(type) {
+		case httpAccepted:
+			what += "was accepted with status " + strconv.Itoa(r.status)
+		case httpRetry:
+			what += "failed: " + r.reason
+		case httpPermanent:
+			what += "was refused with status " + strconv.Itoa(r.status)
+		case httpRefused:
+			what += "was refused: " + r.reason
+		}
+		return awserr.Internalf(&notImplementedError{What: what})
 	}
 	return awserr.Internalf(&RequestError{Field: "Target", Reason: "is nil"})
+}
+
+// putEvents is the target call of an attempt of t: one events:PutEvents
+// through the kernel k, as the call c makes it, run as kt. It is not
+// implemented yet, so it uses none of them.
+func putEvents(_ context.Context, _ *kernel.Kernel, _ *kernel.Call, _ kernel.Target, t delivery.EventBus) *awserr.Error {
+	return awserr.Internalf(&notImplementedError{What: "delivery to event bus " + t.ARN.String()})
+}
+
+// putObject is the target call of an attempt of t: one s3:PutObject
+// through the kernel k, as the call c makes it, run as kt. It is not
+// implemented yet, so it uses none of them.
+func putObject(_ context.Context, _ *kernel.Kernel, _ *kernel.Call, _ kernel.Target, t delivery.S3Object) *awserr.Error {
+	return awserr.Internalf(&notImplementedError{What: "delivery to S3 object " + t.Bucket + "/" + t.Key})
+}
+
+// postHTTP sends t through the egress client, refusing it when the client
+// is nil, and classifies the answer (sns-http-delivery.md 6.1, 7.3). It is
+// not implemented yet and refuses every delivery.
+func postHTTP(_ context.Context, _ *egress.Client, t delivery.HTTPEndpoint) httpResult {
+	return httpRefused{reason: "outbound HTTP delivery to " + t.URL.Host + " is not implemented yet"}
+}
+
+// httpResult is how an HTTPEndpoint attempt ended.
+//
+//sumtype:decl
+type httpResult interface{ isHTTPResult() }
+
+// httpAccepted is a 2xx answer: the delivery is done.
+type httpAccepted struct{ status int }
+
+// httpRetry is a 429 or 5xx answer, or an exchange that failed or timed
+// out: retried under the delivery's policy.
+type httpRetry struct{ reason string }
+
+// httpPermanent is a 1xx, 3xx or other 4xx answer: not retried.
+type httpPermanent struct{ status int }
+
+// httpRefused is a request egress refused, or one with no client to send
+// it: never retried or dead-lettered (journal.Refused).
+type httpRefused struct{ reason string }
+
+func (httpAccepted) isHTTPResult()  {}
+func (httpRetry) isHTTPResult()     {}
+func (httpPermanent) isHTTPResult() {}
+func (httpRefused) isHTTPResult()   {}
+
+// notImplementedError is a delivery path this build does not have yet.
+type notImplementedError struct{ What string }
+
+func (e *notImplementedError) Error() string {
+	return "outbox: " + e.What + " is not implemented yet; the delivery was not made"
 }
 
 // operationOf is the operation a delivery to t calls; its IAM actions are
@@ -36,6 +109,9 @@ func operationOf(t delivery.Target) *registry.Operation {
 		return lambdaapi.OpInvoke.Descriptor()
 	case delivery.SNSTopic:
 		return snsapi.OpPublish.Descriptor()
+	case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
+		// Not implemented yet: Enqueue refuses these targets.
+		return nil
 	}
 	return nil
 }

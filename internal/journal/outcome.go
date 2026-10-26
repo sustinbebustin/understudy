@@ -67,11 +67,18 @@ type DeadLettered struct{ DLQ aws.ARN }
 // Dropped is a message abandoned for Reason with no dead-letter queue.
 type Dropped struct{ Reason string }
 
+// Refused is an attempt understudy chose not to make, such as an outbound
+// request its egress rules refuse (sns-http-delivery.md 7.3). AWS would
+// have made it, so it is never retried, dead-lettered or reported as an
+// AWS-shaped failure.
+type Refused struct{ Reason string }
+
 func (Delivered) isDeliveryOutcome()    {}
 func (Filtered) isDeliveryOutcome()     {}
 func (Retrying) isDeliveryOutcome()     {}
 func (DeadLettered) isDeliveryOutcome() {}
 func (Dropped) isDeliveryOutcome()      {}
+func (Refused) isDeliveryOutcome()      {}
 
 // InvocationOutcome is how one function invocation ended.
 //
@@ -314,7 +321,7 @@ func ResultOf(d Detail) (Result, bool) {
 		switch d.Outcome.(type) {
 		case Delivered, Filtered:
 			return ResultOK, true
-		case Retrying, DeadLettered, Dropped:
+		case Retrying, DeadLettered, Dropped, Refused:
 			return ResultError, true
 		}
 		return 0, false

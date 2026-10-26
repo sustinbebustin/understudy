@@ -130,7 +130,7 @@ func oracle(f Filter, e Event) bool {
 		case DeadLettered:
 			about = append(about, o.DLQ)
 			result = "error"
-		case Retrying, Dropped:
+		case Retrying, Dropped, Refused:
 			result = "error"
 		}
 	case Invocation:

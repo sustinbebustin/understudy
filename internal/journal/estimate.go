@@ -36,6 +36,8 @@ func detailSize(d Detail) int {
 			n += arns(o.DLQ)
 		case Dropped:
 			n += strs(o.Reason)
+		case Refused:
+			n += strs(o.Reason)
 		case Delivered, Retrying:
 		}
 		return n

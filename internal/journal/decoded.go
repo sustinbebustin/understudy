@@ -31,6 +31,8 @@ func asDecoded(d Detail) Detail {
 			d.Outcome = DeadLettered{DLQ: arnAsDecoded(o.DLQ)}
 		case Dropped:
 			d.Outcome = Dropped{Reason: wireText(o.Reason)}
+		case Refused:
+			d.Outcome = Refused{Reason: wireText(o.Reason)}
 		case Delivered, Retrying:
 		}
 		return d

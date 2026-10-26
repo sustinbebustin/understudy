@@ -296,6 +296,10 @@ func targetRecordOf(t delivery.Target) targetRecord {
 		return lambdaFunctionRecord{Function: t.ARN.String(), Qualifier: t.Qualifier, Event: t.Event, Invocation: t.Invocation}
 	case delivery.SNSTopic:
 		return snsTopicRecord{Topic: t.ARN.String(), Message: t.Message, Subject: t.Subject, Attributes: attributeRecordsOf(t.Attributes)}
+	case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
+		// Not implemented yet: Enqueue refuses these targets, so no entry
+		// holds one.
+		return nil
 	}
 	return nil
 }

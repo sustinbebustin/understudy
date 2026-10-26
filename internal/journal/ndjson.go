@@ -403,8 +403,18 @@ func encodeDeliveryResult(o DeliveryOutcome) (wireDeliveryResult, error) {
 		return wireDeliveryResult{Kind: "dead-lettered", DLQ: arnText(o.DLQ)}, nil
 	case Dropped:
 		return wireDeliveryResult{Kind: "dropped", Reason: o.Reason}, nil
+	case Refused:
+		return wireDeliveryResult{}, &notImplementedError{What: "a refused delivery outcome"}
 	}
 	return wireDeliveryResult{}, &missingError{What: "Delivery.Outcome"}
+}
+
+// notImplementedError is a detail this build cannot encode yet; the event
+// is not written.
+type notImplementedError struct{ What string }
+
+func (e *notImplementedError) Error() string {
+	return "journal: encoding " + e.What + " is not implemented yet, so the event was not written"
 }
 
 func encodeInvocationResult(o InvocationOutcome) (wireInvocationResult, error) {

@@ -601,6 +601,8 @@ func recordOf(n *notifier, t delivery.Target) s3Record {
 			n.Fatalf("function invocation = %s, want Event", t.Invocation)
 		}
 		body = string(t.Event)
+	case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
+		n.Fatalf("notification target %T; S3 notifies queues, topics and functions", t)
 	}
 	var doc struct{ Records []s3Record }
 	if err := json.Unmarshal([]byte(body), &doc); err != nil || len(doc.Records) != 1 {
