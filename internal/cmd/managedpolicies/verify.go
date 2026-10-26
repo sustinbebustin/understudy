@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json/v2"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"regexp"
 	"strings"
@@ -20,7 +22,8 @@ import (
 // Problem is one way the catalogue directory differs from what the
 // generator writes.
 type Problem struct {
-	// Path is "policies.json", "SOURCE.json", "LICENSE" or "NOTICE".
+	// Path is "policies.json", "policies.json.gz", "SOURCE.json", "LICENSE"
+	// or "NOTICE".
 	Path string
 	// Policy is the policy's ARN, "" when the problem is not one policy's.
 	Policy string
@@ -44,7 +47,7 @@ func (e *VerifyError) Error() string {
 			fmt.Fprintf(&b, "\n  %s: %s", p.Path, p.Detail)
 		}
 	}
-	b.WriteString("\nThe files are generator output and are never edited by hand; restore them with git checkout, or re-run 'go run ./internal/cmd/managedpolicies -fetch' to refresh them on purpose.")
+	b.WriteString("\nThe files are generator output and are never edited by hand; restore them with git checkout, or re-run 'go run ./internal/cmd/managedpolicies -fetch' to refresh them on purpose. 'go run ./internal/cmd/managedpolicies -pack' rewrites the two derived files offline: policies.json.gz from policies.json, and LICENSE.")
 	return b.String()
 }
 
@@ -59,12 +62,18 @@ func sha256Hex(b []byte) string {
 
 // verify checks the catalogue directory fsys, named dir in messages,
 // offline: policies.json parses and is canonical, every document parses as
-// an identity policy (see document), SOURCE.json is canonical and matches
-// the catalogue and its hashes, and LICENSE and NOTICE are the generator's.
-// It returns nil or a *VerifyError holding every problem found.
+// an identity policy (see document), policies.json.gz decompresses to
+// policies.json, SOURCE.json is canonical and matches the catalogue and its
+// hashes, and LICENSE and NOTICE are the generator's. It returns nil or a
+// *VerifyError holding every problem found.
 func verify(fsys fs.FS, dir string) error {
 	v := verifier{fsys: fsys}
-	cat := v.catalogue()
+	var cat *policycatalogue.Catalogue
+	policies, policiesOK := v.read(awsmanagedpolicies.PoliciesFile, byFetch)
+	if policiesOK {
+		cat = v.catalogue(policies)
+	}
+	v.gzipCopy(policies, policiesOK)
 	src, srcOK := v.source()
 	if cat != nil && srcOK {
 		v.provenance(cat, src)
@@ -86,24 +95,27 @@ func (v *verifier) add(path, policy, format string, args ...any) {
 	v.problems = append(v.problems, Problem{Path: path, Policy: policy, Detail: fmt.Sprintf(format, args...)})
 }
 
-// read reads a data file, reporting it when it cannot be read.
-func (v *verifier) read(name string) ([]byte, bool) {
+// The modes that write a data file, for the message when it is missing.
+const (
+	byFetch = "-fetch writes it"
+	byPack  = "-pack writes it, offline"
+)
+
+// read reads a data file, reporting it, and writer, the mode that writes
+// it, when it cannot be read.
+func (v *verifier) read(name, writer string) ([]byte, bool) {
 	b, err := fs.ReadFile(v.fsys, name)
 	if err != nil {
-		v.add(name, "", "cannot be read (%v); -fetch writes it", err)
+		v.add(name, "", "cannot be read (%v); %s", err, writer)
 		return nil, false
 	}
 	return b, true
 }
 
-// catalogue checks policies.json and returns its catalogue, or nil when it
-// does not parse.
-func (v *verifier) catalogue() *policycatalogue.Catalogue {
+// catalogue checks data, the bytes of policies.json, and returns its
+// catalogue, or nil when it does not parse.
+func (v *verifier) catalogue(data []byte) *policycatalogue.Catalogue {
 	const name = awsmanagedpolicies.PoliciesFile
-	data, ok := v.read(name)
-	if !ok {
-		return nil
-	}
 	cat, err := policycatalogue.Parse(data)
 	if de, ok := errors.AsType[*policycatalogue.DecodeError](err); ok {
 		v.add(name, "", "%v", de)
@@ -152,6 +164,40 @@ func (v *verifier) document(p policycatalogue.Policy) {
 	}
 }
 
+// gzipCopy checks that policies.json.gz is present and, when policiesOK,
+// decompresses to exactly policies, the bytes of policies.json. It compares
+// the decompressed text, not the compressed bytes, so a Go release whose
+// compress/flate writes other bytes for the same text does not fail it.
+func (v *verifier) gzipCopy(policies []byte, policiesOK bool) {
+	const name = awsmanagedpolicies.PoliciesGzipFile
+	const recovery = "it is policies.json compressed and is never edited by hand; re-run the generator's write step offline, 'go run ./internal/cmd/managedpolicies -pack', to rewrite it from policies.json"
+	f, err := v.fsys.Open(name)
+	if err != nil {
+		v.add(name, "", "cannot be read (%v); %s", err, recovery)
+		return
+	}
+	defer f.Close()
+	if !policiesOK {
+		return
+	}
+	zr, err := gzip.NewReader(f)
+	if err != nil {
+		v.add(name, "", "is not gzip data (%v); %s", err, recovery)
+		return
+	}
+	// One byte past policies.json tells a longer text, and bounds what a
+	// corrupt file can make this read.
+	got, err := io.ReadAll(io.LimitReader(zr, int64(len(policies))+1))
+	switch {
+	case err != nil:
+		v.add(name, "", "does not decompress (%v); %s", err, recovery)
+	case len(got) > len(policies):
+		v.add(name, "", "decompresses to more than the %d bytes of policies.json; %s", len(policies), recovery)
+	case !bytes.Equal(got, policies):
+		v.add(name, "", "decompresses to text that first differs from policies.json on line %d; %s", firstDifferentLine(got, policies), recovery)
+	}
+}
+
 // arnsByIndex is the arn member of each policy of policies.json, read
 // leniently, so a policy New refuses can be named by its ARN.
 func arnsByIndex(data []byte) []string {
@@ -194,7 +240,7 @@ func firstDifferentLine(a, b []byte) int {
 // does not decode.
 func (v *verifier) source() (Source, bool) {
 	const name = awsmanagedpolicies.SourceFile
-	raw, ok := v.read(name)
+	raw, ok := v.read(name, byFetch)
 	if !ok {
 		return Source{}, false
 	}
@@ -272,10 +318,10 @@ func (v *verifier) provenance(cat *policycatalogue.Catalogue, src Source) {
 
 // legal checks LICENSE, and NOTICE against src when SOURCE.json decoded.
 func (v *verifier) legal(src Source, srcOK bool) {
-	if b, ok := v.read(awsmanagedpolicies.LicenseFile); ok && string(b) != licenseText {
-		v.add(awsmanagedpolicies.LicenseFile, "", "differs from the licence text the generator writes; it first differs on line %d", firstDifferentLine(b, []byte(licenseText)))
+	if b, ok := v.read(awsmanagedpolicies.LicenseFile, byPack); ok && string(b) != licenseText {
+		v.add(awsmanagedpolicies.LicenseFile, "", "differs from the licence text the generator writes; it first differs on line %d; 'go run ./internal/cmd/managedpolicies -pack' rewrites it, offline", firstDifferentLine(b, []byte(licenseText)))
 	}
-	if b, ok := v.read(awsmanagedpolicies.NoticeFile); ok && srcOK {
+	if b, ok := v.read(awsmanagedpolicies.NoticeFile, byFetch); ok && srcOK {
 		if want := notice(src); !bytes.Equal(b, want) {
 			v.add(awsmanagedpolicies.NoticeFile, "", "differs from the notice the generator writes for SOURCE.json; it first differs on line %d", firstDifferentLine(b, want))
 		}

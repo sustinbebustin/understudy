@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/policycatalogue"
 	awsmanagedpolicies "github.com/sustinbebustin/understudy/third_party/aws-managed-policies"
@@ -55,10 +56,13 @@ type PolicySource struct {
 // grants for code in its documentation, with the copyright line of
 // https://github.com/aws/mit-0, and CC BY-SA 4.0 for the fields derived
 // from the documentation (ADR 0016, amendment "managed policies").
-const licenseText = `The data files in this directory (policies.json, SOURCE.json and NOTICE)
-hold the AWS managed policies as the AWS Managed Policy Reference Guide
-publishes them, under two licences. They are licensed separately from the
-rest of the repository, which is Apache-2.0; embed.go is part of that code.
+const licenseText = `The data files in this directory (policies.json, policies.json.gz,
+SOURCE.json and NOTICE) hold the AWS managed policies as the AWS Managed
+Policy Reference Guide publishes them, under two licences. They are
+licensed separately from the rest of the repository, which is Apache-2.0;
+embed.go is part of that code. policies.json.gz is policies.json
+compressed with gzip, the copy the binary embeds; everything below that
+applies to policies.json applies to it too.
 
 1. The policy documents, the "document" member of each policy in
    policies.json, are code in AWS documentation, licensed under the MIT No
@@ -130,8 +134,9 @@ that read the guide.
 `, full, docsBase+indexPath, src.Retrieved)
 }
 
-// write writes LICENSE, NOTICE, policies.json and, last, SOURCE.json into
-// dir, each atomically, so a run that fails part way leaves the previous
+// write writes NOTICE, policies.json, the derived files (LICENSE and
+// policies.json.gz, as -pack writes them) and, last, SOURCE.json into dir,
+// each atomically, so a run that fails part way leaves the previous
 // SOURCE.json and -verify reports the mismatch. Nothing is written when cat
 // or src does not encode.
 func write(dir string, cat *policycatalogue.Catalogue, src Source) error {
@@ -139,19 +144,25 @@ func write(dir string, cat *policycatalogue.Catalogue, src Source) error {
 	if err != nil {
 		return err
 	}
+	derived, err := derivedFiles(policies)
+	if err != nil {
+		return err
+	}
 	source, err := encodeSource(src)
 	if err != nil {
 		return err
 	}
-	for _, f := range []struct {
-		name    string
-		content []byte
-	}{
-		{awsmanagedpolicies.LicenseFile, []byte(licenseText)},
-		{awsmanagedpolicies.NoticeFile, notice(src)},
-		{awsmanagedpolicies.PoliciesFile, policies},
-		{awsmanagedpolicies.SourceFile, source},
-	} {
+	return writeFiles(dir, slices.Concat(
+		[]dataFile{{awsmanagedpolicies.NoticeFile, notice(src)}, {awsmanagedpolicies.PoliciesFile, policies}},
+		derived,
+		[]dataFile{{awsmanagedpolicies.SourceFile, source}},
+	))
+}
+
+// writeFiles writes each file into dir atomically, in order, and stops at
+// the first that fails.
+func writeFiles(dir string, files []dataFile) error {
+	for _, f := range files {
 		if err := writeFileAtomic(filepath.Join(dir, f.name), f.content); err != nil {
 			return fmt.Errorf("write %s: %w", f.name, err)
 		}

@@ -1,7 +1,10 @@
-The data files in this directory (policies.json, SOURCE.json and NOTICE)
-hold the AWS managed policies as the AWS Managed Policy Reference Guide
-publishes them, under two licences. They are licensed separately from the
-rest of the repository, which is Apache-2.0; embed.go is part of that code.
+The data files in this directory (policies.json, policies.json.gz,
+SOURCE.json and NOTICE) hold the AWS managed policies as the AWS Managed
+Policy Reference Guide publishes them, under two licences. They are
+licensed separately from the rest of the repository, which is Apache-2.0;
+embed.go is part of that code. policies.json.gz is policies.json
+compressed with gzip, the copy the binary embeds; everything below that
+applies to policies.json applies to it too.
 
 1. The policy documents, the "document" member of each policy in
    policies.json, are code in AWS documentation, licensed under the MIT No

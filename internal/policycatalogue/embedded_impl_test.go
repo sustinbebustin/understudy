@@ -17,7 +17,7 @@ const dataDir = "../../third_party/aws-managed-policies"
 // nothing else. A data commit that adds a file but leaves it off the embed
 // directive of embed.go fails here.
 func TestEmbeddedFilesAreTheDataDirectory(t *testing.T) {
-	dataFiles := []string{awsmanagedpolicies.PoliciesFile, awsmanagedpolicies.SourceFile, awsmanagedpolicies.LicenseFile, awsmanagedpolicies.NoticeFile}
+	dataFiles := []string{awsmanagedpolicies.PoliciesFile, awsmanagedpolicies.PoliciesGzipFile, awsmanagedpolicies.SourceFile, awsmanagedpolicies.LicenseFile, awsmanagedpolicies.NoticeFile}
 
 	entries, err := os.ReadDir(dataDir)
 	if err != nil {

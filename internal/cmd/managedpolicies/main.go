@@ -26,8 +26,8 @@ func main() {
 	}
 }
 
-// errUsage reports a command line that names no mode or both.
-var errUsage = errors.New("give exactly one of -fetch or -verify; see -h")
+// errUsage reports a command line that names no mode or more than one.
+var errUsage = errors.New("give exactly one of -fetch, -pack or -verify; see -h")
 
 // run parses the command line, runs its one mode and, when it succeeds,
 // prints the summary of the catalogue in the directory.
@@ -35,7 +35,8 @@ func run(ctx context.Context, args []string, stderr io.Writer) error {
 	fs := flag.NewFlagSet("managedpolicies", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	doFetch := fs.Bool("fetch", false, "read the AWS Managed Policy Reference Guide from docs.aws.amazon.com and rewrite the catalogue (network)")
-	doVerify := fs.Bool("verify", false, "check the catalogue, its hashes, LICENSE and NOTICE, offline")
+	doPack := fs.Bool("pack", false, "rewrite the two derived files, policies.json.gz from policies.json and LICENSE, then check the catalogue, offline")
+	doVerify := fs.Bool("verify", false, "check the catalogue, its hashes, policies.json.gz, LICENSE and NOTICE, offline")
 	dir := fs.String("dir", "third_party/aws-managed-policies", "the catalogue directory")
 	if err := fs.Parse(args); err != nil {
 		// -h and -help print the usage, which is what was asked for.
@@ -44,12 +45,20 @@ func run(ctx context.Context, args []string, stderr io.Writer) error {
 		}
 		return err
 	}
+	modes := 0
+	for _, on := range []bool{*doFetch, *doPack, *doVerify} {
+		if on {
+			modes++
+		}
+	}
 	var err error
 	switch {
-	case *doFetch == *doVerify || fs.NArg() > 0:
+	case modes != 1 || fs.NArg() > 0:
 		return errUsage
 	case *doFetch:
 		err = docsFetcher().fetch(ctx, *dir)
+	case *doPack:
+		err = pack(*dir)
 	default:
 		err = verify(os.DirFS(*dir), *dir)
 	}

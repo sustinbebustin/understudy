@@ -23,9 +23,12 @@ const (
 
 // The binary embeds every data file in this directory (ADR 0016, amendment
 // "managed policies"); internal/policycatalogue/embedded_impl_test.go fails
-// when a file the generator writes is missing from this list.
+// when a file the generator writes is missing from this list. Without
+// PoliciesGzipFile nothing that imports this package builds, the generator
+// included: restore it with git checkout, or create it empty and run
+// 'go run ./internal/cmd/managedpolicies -pack'.
 //
-//go:embed policies.json SOURCE.json LICENSE NOTICE
+//go:embed policies.json policies.json.gz SOURCE.json LICENSE NOTICE
 var files embed.FS
 
 // FS returns the embedded data files, read-only.
