@@ -2,11 +2,21 @@ package ref_test
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
+
+// Vias lists every declared Via in value order, so the web UI's label
+// table, generated from it, names each one (ARCHITECTURE.md 17).
+func TestViasListsEveryDeclaredVia(t *testing.T) {
+	named, _ := declaredVias()
+	if got := ref.Vias(); !slices.Equal(got, named) {
+		t.Fatalf("Vias() = %v, want %v", got, named)
+	}
+}
 
 // viaNames are the wire names every Via has had: journal files carry them
 // in each internal call's origin (ADR 0007) and snapshots in stored causes

@@ -659,6 +659,39 @@ func TestRemoveAndClear(t *testing.T) {
 	}
 }
 
+// RemoveAll deactivates every rule and names them in evaluation order, so
+// DELETE /faults can journal which rules it removed (ADR 0007 pre-tag
+// amendment: one admin action per call); with none it names none. A NextN
+// rule that left the list on its last hit is not active and not named.
+func TestRemoveAllNamesTheRulesInEvaluationOrder(t *testing.T) {
+	s := newStore(1)
+	if got := s.RemoveAll(); got != nil {
+		t.Errorf("RemoveAll of no rules = %v, want nil", got)
+	}
+	spent := throttleSend(fault.NextN{N: 1})
+	spent.ID = "spent"
+	mustAdd(t, s, spent)
+	s.Evaluate(fault.BeforeHandler, call(sendMessage))
+	want := make([]ref.RuleID, 0, 3)
+	for _, id := range []ref.RuleID{"c", "a", "b"} {
+		r := throttleSend(fault.Always{})
+		r.ID = id
+		want = append(want, mustAdd(t, s, r))
+	}
+	if got := s.List(); len(got) != 3 {
+		t.Fatalf("List after the NextN rule's last hit = %+v, want the three Always rules", got)
+	}
+	if got := s.RemoveAll(); !slices.Equal(got, want) {
+		t.Errorf("RemoveAll = %v, want %v", got, want)
+	}
+	if got := s.List(); len(got) != 0 {
+		t.Errorf("List after RemoveAll = %+v, want none", got)
+	}
+	if got := s.RemoveAll(); got != nil {
+		t.Errorf("second RemoveAll = %v, want nil", got)
+	}
+}
+
 func TestMintedIDsFollowTheSeed(t *testing.T) {
 	a := mustAdd(t, newStore(7), throttleSend(fault.Always{}))
 	b := mustAdd(t, newStore(7), throttleSend(fault.Always{}))

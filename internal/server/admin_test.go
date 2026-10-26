@@ -244,9 +244,11 @@ func TestAdminClockModes(t *testing.T) {
 	}
 	_, err = c.ChangeClock(t.Context(), admin.Scale{Factor: 0})
 	wantCode(t, err, admin.InvalidRequest)
+	// A set journals a clock change too (ADR 0007 pre-tag amendment: clock
+	// moves are journaled); the refused set and scale journal nothing.
 	page, err := c.JournalEvents(t.Context(), admin.JournalQuery{Kind: "clock-changed"})
-	if err != nil || len(page.Events) != 3 {
-		t.Fatalf("clock-changed events = %+v, %v; want scale, resume and freeze", page, err)
+	if err != nil || len(page.Events) != 4 {
+		t.Fatalf("clock-changed events = %+v, %v; want set, scale, resume and freeze", page, err)
 	}
 }
 

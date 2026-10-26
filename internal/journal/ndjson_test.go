@@ -96,6 +96,21 @@ func TestNDJSONRoundTripsEveryVariant(t *testing.T) {
 		Advisory{Kind: AdvisoryShadowedCodeUpdate, Resource: fn, Text: "hot reload overlay shadows the update"},
 		Unclaimed{Method: "GET", Host: "example.localhost:4566", Path: "/nowhere", Reasons: []string{"no X-Amz-Target", "no bucket named example"}},
 		Gap{Missed: 42},
+		ClockChanged{From: clock.Frozen{At: epoch}, To: clock.Frozen{At: at}, Op: ClockAdvance},
+		ClockChanged{From: clock.Running{Offset: -time.Hour}, To: clock.Frozen{At: at}, Op: ClockFreeze},
+		ClockChanged{From: clock.Frozen{At: at}, To: clock.Running{}, Op: ClockResume},
+		ClockChanged{From: clock.Frozen{At: at}, To: clock.Scaled{Factor: 60, AnchorWall: wall0, AnchorEmu: at}, Op: ClockScale},
+		ClockChanged{From: clock.Frozen{At: epoch}, To: clock.Frozen{At: at}, Op: ClockSet},
+		ClockChanged{From: clock.Frozen{At: at}, To: clock.Frozen{At: epoch}, Op: ClockRestore},
+		AdminAction{Op: Reset{Services: []string{"sqs", "sns"}, Accounts: []string{"111111111111"}, Regions: []string{"us-east-1"}, Clock: true, Faults: 2}},
+		AdminAction{Op: Reset{}},
+		AdminAction{Op: SnapshotSave{Path: "before.tar"}},
+		AdminAction{Op: SnapshotSave{}},
+		AdminAction{Op: SnapshotLoad{Path: "snaps/before.tar"}},
+		AdminAction{Op: SnapshotLoad{}},
+		AdminAction{Op: FaultRuleAdded{Rule: "orders-throttle"}},
+		AdminAction{Op: FaultRuleRemoved{Rules: []ref.RuleID{"a", "b"}}},
+		AdminAction{Op: FaultRuleRemoved{}},
 	}
 	for _, d := range details {
 		e := Event{ID: 7, Cause: ref.Cause{Parent: 3, Trace: 1}, Links: []ref.EventID{4, 5}, At: at, Wall: wall0, Scope: scope(), Detail: d}

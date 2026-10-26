@@ -2,11 +2,22 @@ package ids_test
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/ids"
 )
+
+// Kinds lists every generator kind in value order, KindRequestID first, so
+// the web UI's label table, generated from it, names each one
+// (ARCHITECTURE.md 17).
+func TestKindsListsEveryDeclaredKind(t *testing.T) {
+	named, _ := declaredKinds()
+	if got := ids.Kinds(); !slices.Equal(got, named) || got[0] != ids.KindRequestID {
+		t.Fatalf("Kinds() = %v, want %v", got, named)
+	}
+}
 
 // kindNames are the stream names of every generator kind: each seeds its
 // stream and keys it in snapshot manifests (ADR 0018, ADR 0009), so a

@@ -319,7 +319,9 @@ func genDetailOf(text *rapid.Generator[string]) *rapid.Generator[Detail] {
 			return FaultInjected{Rule: ref.RuleID(text.Draw(t, "rule")), Hit: rapid.IntRange(1, 9).Draw(t, "hit"), Of: rapid.IntRange(0, 9).Draw(t, "of")}
 		}),
 		rapid.Custom(func(t *rapid.T) Detail {
-			return ClockChanged{From: genMode().Draw(t, "from"), To: genMode().Draw(t, "to")}
+			// Op 0 is a clock change an earlier build wrote, without op.
+			op := ClockOp(rapid.Uint8Range(0, uint8(ClockRestore)).Draw(t, "op"))
+			return ClockChanged{From: genMode().Draw(t, "from"), To: genMode().Draw(t, "to"), Op: op}
 		}),
 		rapid.Custom(func(t *rapid.T) Detail {
 			return Advisory{
@@ -337,6 +339,32 @@ func genDetailOf(text *rapid.Generator[string]) *rapid.Generator[Detail] {
 			}
 		}),
 		rapid.Custom(func(t *rapid.T) Detail { return Gap{Missed: rapid.Uint64().Draw(t, "missed")} }),
+		rapid.Custom(func(t *rapid.T) Detail { return AdminAction{Op: genAdminOp(text).Draw(t, "op")} }),
+	)
+}
+
+// genAdminOp draws any AdminOp variant, as decoding would produce it: empty
+// lists as nil.
+func genAdminOp(text *rapid.Generator[string]) *rapid.Generator[AdminOp] {
+	names := func(t *rapid.T, label string) []string { return nilIfEmpty(rapid.SliceOfN(text, 0, 3).Draw(t, label)) }
+	path := rapid.OneOf(rapid.Just(""), text)
+	rule := rapid.Map(text, func(s string) ref.RuleID { return ref.RuleID(s) })
+	return rapid.OneOf(
+		rapid.Custom(func(t *rapid.T) AdminOp {
+			return Reset{
+				Services: names(t, "services"),
+				Accounts: names(t, "accounts"),
+				Regions:  names(t, "regions"),
+				Clock:    rapid.Bool().Draw(t, "clock"),
+				Faults:   rapid.IntRange(0, 50).Draw(t, "faults"),
+			}
+		}),
+		rapid.Custom(func(t *rapid.T) AdminOp { return SnapshotSave{Path: path.Draw(t, "path")} }),
+		rapid.Custom(func(t *rapid.T) AdminOp { return SnapshotLoad{Path: path.Draw(t, "path")} }),
+		rapid.Custom(func(t *rapid.T) AdminOp { return FaultRuleAdded{Rule: rule.Draw(t, "rule")} }),
+		rapid.Custom(func(t *rapid.T) AdminOp {
+			return FaultRuleRemoved{Rules: nilIfEmpty(rapid.SliceOfN(rule, 0, 3).Draw(t, "rules"))}
+		}),
 	)
 }
 
