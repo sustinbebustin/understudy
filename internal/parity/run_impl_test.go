@@ -68,6 +68,19 @@ func TestOutgoingSubstitutesWithinDecodedParts(t *testing.T) {
 	}
 }
 
+// A bind reads a JSON string, never a number: the bound normalizer
+// substitutes within strings only, so a bound number would still differ.
+func TestBindReadsJSONStringsOnly(t *testing.T) {
+	t.Parallel()
+	r := kmsJSON(200, `{"Name":"7","Count":7}`)
+	if v, ok := valueAt(r, "body/Name"); !ok || v != "7" {
+		t.Errorf(`valueAt(body/Name) = %q, %v; want "7", true`, v, ok)
+	}
+	if v, ok := valueAt(r, "body/Count"); ok {
+		t.Errorf("valueAt(body/Count) = %q, true; want a JSON number refused", v)
+	}
+}
+
 // A setup bind that fails halts the scenario as a failed call does, naming
 // the bind.
 func TestRunStopsAtAFailedSetupBind(t *testing.T) {

@@ -51,8 +51,10 @@ func (s xmlStep) child(ns []xmlNode) int { return nthNamed(ns, s.name, s.k) }
 
 // valueAt is the value a bind reads at p, a leaf path, in r: the status, the
 // error code or message as the comparison derives them, a header's first
-// value, a JSON string's value or number's text, or an XML element's text or
-// attribute value. ok is false when r holds no such value.
+// value, a JSON string's value, or an XML element's text or attribute
+// value. ok is false when r holds no such value. A JSON number is refused:
+// the bound normalizer substitutes within strings only, so a bound number
+// would still differ, and later requests would carry AWS's.
 func valueAt(r Response, p Path) (string, bool) {
 	switch p {
 	case statusPath:
@@ -78,7 +80,7 @@ func valueAt(r Response, p Path) (string, bool) {
 	switch d := readBody(r).doc.(type) {
 	case jsonDocument:
 		v, ok := d.root.at(tokens)
-		return v.text, ok && (v.kind == jsonString || v.kind == jsonNumber)
+		return v.text, ok && v.kind == jsonString
 	case xmlDocument:
 		return d.root.valueAt(tokens)
 	case textDocument, nil:
