@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base32"
+	"slices"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
@@ -62,10 +64,11 @@ func parseRoleARN(s string) (assumed, *awserr.Error) {
 func (s *Service) assumeRole(ctx context.Context, c *kernel.Call, in *stsapi.AssumeRoleInput) (*stsapi.AssumeRoleOutput, *awserr.Error) {
 	// A role session assuming a role is role chaining.
 	chained := false
+	var caller *identity.SessionAttributes
 	switch p := c.Principal().(type) {
 	case identity.Root, identity.User:
 	case identity.AssumedRole:
-		chained = true
+		chained, caller = true, p.Attributes
 	case identity.Anonymous:
 		return nil, errUnsigned()
 	case identity.ServicePrincipal:
@@ -91,7 +94,10 @@ func (s *Service) assumeRole(ctx context.Context, c *kernel.Call, in *stsapi.Ass
 	if duration > target.maxSession {
 		return nil, errOverMaxSession()
 	}
-	session := identity.AssumedRole{Account: target.account, Role: target.role, Session: in.RoleSessionName, Source: identity.FromAssumeRole{}}
+	session := identity.AssumedRole{
+		Account: target.account, Role: target.role, Session: in.RoleSessionName, Source: identity.FromAssumeRole{},
+		Attributes: sessionAttributes(c.Admitted(), in, caller),
+	}
 	creds, err := s.mint(session, duration)
 	if err != nil {
 		return nil, err
@@ -105,6 +111,57 @@ func (s *Service) assumeRole(ctx context.Context, c *kernel.Call, in *stsapi.Ass
 		},
 		SourceIdentity: in.SourceIdentity,
 	}, nil
+}
+
+// sessionAttributes are what a session keeps of its AssumeRole request for
+// IAM evaluation (iam-evaluation.md 2.7, 8.1): the session policies, the
+// session tags, the transitive tag keys, the source identity and the issue
+// time. A session a role session assumes inherits caller's transitive tags
+// whose keys the request does not set, compared regardless of case, and
+// its source identity when the request sets none ("by default tags do not
+// pass to the next session; transitive tags do", 2.7). Whether AWS refuses
+// a request that sets a tag key or source identity the caller passes on is
+// unrecorded; the request's value is kept.
+func sessionAttributes(issued clock.Instant, in *stsapi.AssumeRoleInput, caller *identity.SessionAttributes) *identity.SessionAttributes {
+	a := &identity.SessionAttributes{Issued: issued, TransitiveTagKeys: slices.Clone(in.TransitiveTagKeys)}
+	if in.Policy != nil {
+		a.Policy = *in.Policy
+	}
+	for _, p := range in.PolicyArns {
+		if p.Arn != nil {
+			a.PolicyARNs = append(a.PolicyARNs, *p.Arn)
+		}
+	}
+	for _, t := range in.Tags {
+		a.Tags = append(a.Tags, identity.SessionTag{Key: t.Key, Value: t.Value})
+	}
+	if in.SourceIdentity != nil {
+		a.SourceIdentity = *in.SourceIdentity
+	}
+	if caller == nil {
+		return a
+	}
+	set := len(a.Tags)
+	for _, t := range caller.Tags {
+		if foldedIn(caller.TransitiveTagKeys, t.Key) && !slices.ContainsFunc(a.Tags[:set], func(r identity.SessionTag) bool { return strings.EqualFold(r.Key, t.Key) }) {
+			a.Tags = append(a.Tags, t)
+		}
+	}
+	for _, k := range caller.TransitiveTagKeys {
+		if !foldedIn(a.TransitiveTagKeys, k) {
+			a.TransitiveTagKeys = append(a.TransitiveTagKeys, k)
+		}
+	}
+	if a.SourceIdentity == "" {
+		a.SourceIdentity = caller.SourceIdentity
+	}
+	return a
+}
+
+// foldedIn reports whether keys holds key, regardless of case: session tag
+// keys are not case sensitive (AssumeRole API reference, Tags).
+func foldedIn(keys []string, key string) bool {
+	return slices.ContainsFunc(keys, func(k string) bool { return strings.EqualFold(k, key) })
 }
 
 // resolve reads the role from IAM in the role's account: its id and its
