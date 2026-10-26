@@ -30,7 +30,7 @@ conformance/terraform/run.sh sqs lambda                    # only these services
 
 Every Terraform and AWS CLI call goes through `scripts/sealed`, so no real AWS setting or credential is used.
 
-Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scripts/sealed`), `jq`, `curl` and GNU `timeout`. The first run downloads the providers from the Terraform registry and pulls the Lambda base images; later runs reuse the provider cache in `.build/conformance/terraform/plugin-cache`. The Go worker is built for `x86_64`.
+Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scripts/sealed`), `jq`, `curl`, GNU `timeout`, `openssl` and `python3`. The SNS configuration's https subscription goes to an HTTPS receiver `run.sh` starts on `127.0.0.1:45667` (`CONFORMANCE_SNS_RECEIVER_PORT`), with a certificate `openssl` makes and understudy trusts through `--sns-http-delivery-ca-bundle`; the receiver confirms the subscription through its SubscribeURL. The first run downloads the providers from the Terraform registry and pulls the Lambda base images; later runs reuse the provider cache in `.build/conformance/terraform/plugin-cache`. The Go worker is built for `x86_64`.
 
 | Variable | Effect |
 |---|---|

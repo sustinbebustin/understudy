@@ -40,6 +40,11 @@ sealed="$repo_root/scripts/sealed"
 
 port="${CONFORMANCE_PORT:-45665}"
 endpoint="http://127.0.0.1:$port"
+# The HTTPS receiver SNS's https subscription delivers to; it confirms each
+# subscription through its SubscribeURL, as endpoint_auto_confirms expects
+# (tf-messaging.md 3.5, sns-http-delivery.md 8.6).
+receiver_port="${CONFORMANCE_SNS_RECEIVER_PORT:-45667}"
+receiver_url="https://127.0.0.1:$receiver_port"
 max_jobs="${CONFORMANCE_JOBS:-11}"
 phase_timeout="${CONFORMANCE_PHASE_TIMEOUT:-900}"
 
@@ -66,7 +71,7 @@ die() {
   exit 2
 }
 
-for tool in go jq docker curl uv timeout; do
+for tool in go jq docker curl uv timeout openssl python3; do
   command -v "$tool" >/dev/null || die "$tool is not on PATH; install it and run again"
 done
 conformance_require_tool terraform version
@@ -99,10 +104,15 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 
 data_dir=$(mktemp -d "${TMPDIR:-/tmp}/understudy-terraform.XXXXXX")
 server_pid=""
+receiver_pid=""
 
 stop_server() {
   local status=$?
   set +e
+  if [[ -n "$receiver_pid" ]]; then
+    kill "$receiver_pid" 2>/dev/null
+    wait "$receiver_pid" 2>/dev/null
+  fi
   if [[ -n "$server_pid" ]] && kill -0 "$server_pid" 2>/dev/null; then
     "$binary" journal --endpoint "$endpoint" --errors --output json --limit 100000 \
       >"$logs_dir/journal-errors.json" 2>&1
@@ -143,15 +153,69 @@ trap 'exit 143' TERM
 
 conformance_isolate_serve_env
 
+# The receiver's key and certificate, for its IP address; understudy trusts
+# it through the CA bundle setting (sns-http-delivery.md 7.4).
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=127.0.0.1" -addext "subjectAltName=IP:127.0.0.1" \
+  -keyout "$run_dir/receiver.key" -out "$run_dir/receiver.pem" >"$logs_dir/openssl.log" 2>&1 ||
+  die "openssl could not make the SNS receiver's certificate; see $logs_dir/openssl.log"
+
 echo "==> starting understudy on $endpoint (data in $data_dir)"
 env "${conformance_serve_env[@]}" "$binary" serve --listen "127.0.0.1:$port" --persist "$data_dir" \
-  --sigv4 "${SIGV4:-parse}" --log-format json >"$logs_dir/server.log" 2>&1 &
+  --sigv4 "${SIGV4:-parse}" --log-format json \
+  --sns-http-delivery-allow "127.0.0.1:$receiver_port" --sns-http-delivery-ca-bundle "$run_dir/receiver.pem" \
+  >"$logs_dir/server.log" 2>&1 &
 server_pid=$!
 if ! "$binary" health --endpoint "$endpoint" --wait 60s >"$logs_dir/health.txt" 2>&1; then
   cat "$logs_dir/health.txt" >&2
   die "understudy did not become ready on $endpoint; see $logs_dir/server.log"
 fi
 conformance_require_ddb_enabled "$endpoint/_understudy/v1" "$logs_dir/server.log"
+
+# The SNS HTTPS receiver: it logs each POST and, for a
+# SubscriptionConfirmation, GETs the SubscribeURL once it has answered
+# (sns-http-delivery.md 2.3). Its log is logs/sns-receiver.jsonl.
+echo "==> starting the SNS HTTPS receiver on $receiver_url"
+python3 -I - "$run_dir/receiver.pem" "$run_dir/receiver.key" "$receiver_port" "$logs_dir/sns-receiver.jsonl" <<'PY' >"$logs_dir/sns-receiver.log" 2>&1 &
+import http.server, json, ssl, sys, urllib.request
+
+cert, key, port, log = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
+opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def note(entry):
+    with open(log, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+class Hook(http.server.BaseHTTPRequestHandler):
+    def do_POST(self):
+        body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+        kind = self.headers.get("x-amz-sns-message-type", "")
+        note({"path": self.path, "kind": kind})
+        self.send_response(200)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        if kind == "SubscriptionConfirmation":
+            link = json.loads(body)["SubscribeURL"]
+            with opener.open(link, timeout=10) as r:
+                note({"confirmed": self.path, "status": r.status})
+
+    def log_message(self, *args):
+        pass
+
+
+server = http.server.ThreadingHTTPServer(("127.0.0.1", port), Hook)
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+context.load_cert_chain(cert, key)
+server.socket = context.wrap_socket(server.socket, server_side=True)
+server.serve_forever()
+PY
+receiver_pid=$!
+for _ in $(seq 1 100); do
+  curl -sk -o /dev/null "$receiver_url/" -X POST && break
+  sleep 0.05
+done
+kill -0 "$receiver_pid" 2>/dev/null || die "the SNS HTTPS receiver did not start; see $logs_dir/sns-receiver.log"
 
 # sealed points Terraform at this cache, creates it and disables the
 # version check.
@@ -313,7 +377,8 @@ prepare() {
     --arg run_id "$run_id" \
     --arg functions_dir "$suite_dir/functions" \
     --arg artifacts_dir "$artifacts_dir" \
-    '{name_prefix: $name_prefix, run_id: $run_id, functions_dir: $functions_dir, artifacts_dir: $artifacts_dir}' \
+    --arg sns_https_receiver "$receiver_url" \
+    '{name_prefix: $name_prefix, run_id: $run_id, functions_dir: $functions_dir, artifacts_dir: $artifacts_dir, sns_https_receiver: $sns_https_receiver}' \
     >"$dir/terraform.tfvars.json"
   local status=0
   run_phase "$svc" init init -lockfile=readonly || status=$?

@@ -1,8 +1,10 @@
 # SNS: a topic with a topic policy, fanned out to SQS through two
 # subscriptions: one with a MessageBody-scoped filter policy and raw delivery,
-# one with an attribute-scoped filter policy and the JSON envelope. The update
-# step changes the display name, the topic policy, both filter policies and
-# the raw delivery flag.
+# one with an attribute-scoped filter policy and the JSON envelope; and an
+# https subscription to the receiver run.sh starts, which Terraform waits on
+# until the receiver confirms it (endpoint_auto_confirms, tf-messaging.md
+# 3.5, sns-http-delivery.md 8.6). The update step changes the display name,
+# the topic policy, both filter policies and the raw delivery flags.
 
 resource "aws_sns_topic" "events" {
   name         = "${var.name_prefix}-events"
@@ -109,6 +111,21 @@ resource "aws_sns_topic_subscription" "attribute_filtered" {
   })
 
   depends_on = [aws_sqs_queue_policy.sns_attribute_filtered]
+}
+
+# endpoint_auto_confirms makes the provider poll PendingConfirmation until it
+# reads "false" (tf-messaging.md 3.5): the confirmation must reach the
+# receiver as soon as Subscribe returns, and its SubscribeURL confirm it.
+resource "aws_sns_topic_subscription" "https_auto_confirmed" {
+  topic_arn              = aws_sns_topic.events.arn
+  protocol               = "https"
+  endpoint               = "${var.sns_https_receiver}/${var.name_prefix}/webhook"
+  endpoint_auto_confirms = true
+  raw_message_delivery   = local.updated
+}
+
+output "sns_https_subscription_arn" {
+  value = aws_sns_topic_subscription.https_auto_confirmed.arn
 }
 
 output "sns_topic_arn" {

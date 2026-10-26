@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # SNS: topics, attributes, subscriptions, publish, publish-batch, delivery to SQS
-# (enveloped and raw), filter policies, FIFO topics, tags.
-# Arbiter: docs/research/sns.md.
+# (enveloped and raw), delivery to an http endpoint, filter policies, FIFO
+# topics, tags.
+# Arbiter: docs/research/sns.md, docs/research/sns-http-delivery.md.
 
 # mktopic NAME [create-topic args...]: sets TOPIC_ARN.
 mktopic() {
@@ -464,4 +465,96 @@ test_fifo_topic_deduplicates_by_deduplication_id() {
   aws_ok sns publish --topic-arn "$TOPIC_ARN" --message two --message-group-id g --message-deduplication-id same
   receive_all "$QUEUE_URL"
   assert_jq '.Messages | map(.Body) | join(",")' 'one'
+}
+
+# start_hook_receiver: start an HTTP receiver on a free loopback port that
+# appends each POST to HOOK_LOG as one JSON line {"type", "headers", "body"};
+# sets HOOK_URL and stops the receiver when the test's shell exits.
+start_hook_receiver() {
+  HOOK_LOG="$UE_TMP/hook.$$.jsonl"
+  local portfile="$UE_TMP/hook.$$.port"
+  : >"$HOOK_LOG"
+  python3 -I - "$HOOK_LOG" "$portfile" <<'PY' &
+import http.server, json, sys
+
+log, portfile = sys.argv[1], sys.argv[2]
+
+class Hook(http.server.BaseHTTPRequestHandler):
+    def do_POST(self):
+        body = self.rfile.read(int(self.headers.get("Content-Length", "0"))).decode()
+        with open(log, "a") as f:
+            f.write(json.dumps({"type": self.headers.get("x-amz-sns-message-type", ""),
+                                "headers": {k.lower(): v for k, v in self.headers.items()}, "body": body}) + "\n")
+        self.send_response(200)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def log_message(self, *args):
+        pass
+
+server = http.server.HTTPServer(("127.0.0.1", 0), Hook)
+with open(portfile, "w") as f:
+    f.write(str(server.server_address[1]))
+server.serve_forever()
+PY
+  HOOK_PID=$!
+  trap 'kill "$HOOK_PID" 2>/dev/null || true' EXIT
+  local i
+  for i in $(seq 1 100); do
+    [ -s "$portfile" ] && break
+    sleep 0.05
+  done
+  [ -s "$portfile" ] || fail "the hook receiver did not start"
+  HOOK_URL="http://127.0.0.1:$(cat "$portfile")/hook"
+}
+
+# hook_message TYPE: wait up to 10 s for a POST of TYPE and print its body.
+hook_message() {
+  local i body
+  for i in $(seq 1 100); do
+    body=$(jq -r --arg t "$1" 'select(.type == $t) | .body' "$HOOK_LOG" | tail -n 1)
+    if [ -n "$body" ]; then
+      printf '%s' "$body"
+      return 0
+    fi
+    sleep 0.1
+  done
+  fail "no $1 reached the hook receiver in 10 s"
+}
+
+# An http subscription gets a SubscriptionConfirmation at once
+# (sns-http-delivery.md 2.2); an unsigned GET of its SubscribeURL confirms it
+# (2.3); a publish then arrives as a Notification with the headers of 3.2,
+# and nothing names an AWS host (8.8).
+test_http_subscription_confirms_by_link_and_receives() {
+  start_hook_receiver
+  mktopic "$(new_name sns-http)"
+  aws_ok sns subscribe --topic-arn "$TOPIC_ARN" --protocol http --notification-endpoint "$HOOK_URL" --return-subscription-arn
+  SUB_ARN=$(jqv '.SubscriptionArn')
+  AWS_OUT=$(hook_message SubscriptionConfirmation)
+  assert_jq '.Type' 'SubscriptionConfirmation'
+  assert_jq '.TopicArn' "$TOPIC_ARN"
+  local link answer
+  link=$(jqv '.SubscribeURL')
+  answer=$(curl -fsS "$link")
+  assert_contains "<SubscriptionArn>$SUB_ARN</SubscriptionArn>" "$answer" "the SubscribeURL answer"
+  aws_ok sns get-subscription-attributes --subscription-arn "$SUB_ARN"
+  assert_jq '.Attributes.PendingConfirmation' 'false'
+
+  aws_ok sns publish --topic-arn "$TOPIC_ARN" --message hello-http
+  local message_id
+  message_id=$(jqv '.MessageId')
+  AWS_OUT=$(hook_message Notification)
+  assert_jq '.Type' 'Notification'
+  assert_jq '.Message' 'hello-http'
+  assert_jq '.MessageId' "$message_id"
+  local headers
+  headers=$(jq -c 'select(.type == "Notification") | .headers' "$HOOK_LOG" | tail -n 1)
+  assert_eq "$SUB_ARN" "$(jq -r '."x-amz-sns-subscription-arn"' <<<"$headers")" x-amz-sns-subscription-arn
+  assert_eq "$TOPIC_ARN" "$(jq -r '."x-amz-sns-topic-arn"' <<<"$headers")" x-amz-sns-topic-arn
+  assert_eq 'Amazon Simple Notification Service Agent' "$(jq -r '."user-agent"' <<<"$headers")" User-Agent
+  if grep -qiE 'amazonaws\.com|amazonaws\.eu|api\.aws|\.aws[/:?"]' "$HOOK_LOG"; then
+    fail "a POST names an AWS host: $(grep -iE 'amazonaws|\.aws' "$HOOK_LOG" | head -n 1)"
+  fi
+  aws_ok sns unsubscribe --subscription-arn "$SUB_ARN"
 }
