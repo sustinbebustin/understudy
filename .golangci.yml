@@ -139,6 +139,8 @@ linters:
           msg: return an error to main
         - pattern: ^panic$
           msg: return an error value
+        - pattern: ^dynamodbapi\.ErrTransactionCanceledException$
+          msg: AWS always sends it with CancellationReasons, one per item (smithy-protocol-tests.md 12.2, 14.14); use ErrTransactionCanceledExceptionMembers
     gomoddirectives: { replace-allow-list: [] }
   exclusions:
     generated: strict
