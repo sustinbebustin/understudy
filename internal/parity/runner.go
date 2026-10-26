@@ -109,6 +109,11 @@ type compared struct {
 	recorded, ours Response
 	bindings       []normalize.Replacement
 	waivers        []Path
+	// binds are the step's own binds, and before the runner as it stood
+	// before them, so the sensitivity check can bind them again from the
+	// mutated recording.
+	binds  []Bind
+	before runner
 }
 
 // step runs setup due before step i, then the step.
@@ -218,15 +223,9 @@ func (r *runner) replay(s Step, f Fixture, res StepResult) (stepRun, error) {
 func (r *runner) compare(s Step, xs []Exchange, ours []Response, first int, res StepResult) stepRun {
 	last := len(xs) - 1
 	recorded := *xs[last].Response
-	var failed []string
-	for _, b := range s.Bind {
-		aws, okAWS := valueAt(recorded, b.Path)
-		got, okOurs := valueAt(ours[last], b.Path)
-		if !okAWS || !okOurs || !r.tryBind(b.Shape, aws, got) {
-			failed = append(failed, "bind "+string(b.Path))
-		}
-	}
-	c := compared{recorded: recorded, ours: ours[last], bindings: r.toAWS(), waivers: r.waivers(res.Step)}
+	before := *r
+	failed := r.readBinds(s.Bind, recorded, ours[last])
+	c := compared{recorded: recorded, ours: ours[last], bindings: r.toAWS(), waivers: r.waivers(res.Step), binds: s.Bind, before: before}
 	for i, x := range xs {
 		prefix := Path("")
 		if i < last {
@@ -244,6 +243,21 @@ func (r *runner) compare(s Step, xs []Exchange, ours []Response, first int, res 
 		res.Outcome = Differs{Reason: differsReason(res.Differences, failed)}
 	}
 	return stepRun{result: res, compared: &c}
+}
+
+// readBinds binds each of binds from the recorded response and
+// understudy's, and names those that fail: a value absent on either side,
+// outside its shape, or bound already to another value.
+func (r *runner) readBinds(binds []Bind, recorded, ours Response) []string {
+	var failed []string
+	for _, b := range binds {
+		aws, okAWS := valueAt(recorded, b.Path)
+		got, okOurs := valueAt(ours, b.Path)
+		if !okAWS || !okOurs || !r.tryBind(b.Shape, aws, got) {
+			failed = append(failed, "bind "+string(b.Path))
+		}
+	}
+	return failed
 }
 
 // waivers are the fields waived in step name.
@@ -318,20 +332,31 @@ func (s stepRun) claim(field Path) (ClaimState, error) {
 }
 
 // sensitivity mutates the recorded final response at field and compares it
-// with understudy's captured answer under the same bindings (D6): any
-// unwaived difference settles the claim; otherwise a waiver hid the field
-// when the unwaived comparison changed, else a normalizer did.
+// with understudy's captured answer (D6): any unwaived difference settles
+// the claim; otherwise a waiver hid the field when the mutation changed the
+// unwaived comparison, else a normalizer did.
+//
+// The re-comparison stands in for the replay of the mutated recording the
+// spec describes ("Sensitivity check"), which differs from the first replay
+// in one more way: the step's own binds read the mutated value. So they are
+// bound again from it, on the bindings made before the step: a value only
+// the bind carries is hidden by the bound normalizer, and a mutation its
+// bind refuses fails the step, which settles the claim.
 func (c *compared) sensitivity(field Path) (ClaimState, error) {
 	m, err := Mutate(c.recorded, field)
 	if err != nil {
 		return nil, err
 	}
-	opts := CompareOptions{Bindings: c.bindings}
-	mutated := Compare(m, c.ours, opts)
+	again := c.before
+	again.bound = slices.Clone(c.before.bound)
+	if len(again.readBinds(c.binds, m, c.ours)) > 0 {
+		return Settled{}, nil
+	}
+	mutated := Compare(m, c.ours, CompareOptions{Bindings: again.toAWS()})
 	if slices.ContainsFunc(mutated, func(d Difference) bool { return !waived(d.Path, c.waivers) }) {
 		return Settled{}, nil
 	}
-	if !slices.Equal(mutated, Compare(c.recorded, c.ours, opts)) {
+	if !slices.Equal(mutated, Compare(c.recorded, c.ours, CompareOptions{Bindings: c.bindings})) {
 		return Insensitive{By: HiddenByWaiver}, nil
 	}
 	return Insensitive{By: HiddenByNormalizer}, nil
