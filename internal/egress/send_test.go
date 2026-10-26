@@ -98,6 +98,14 @@ func (b *sendBuffer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// SetDeadline and SetWriteDeadline leave the pipe alone. Writes are queued,
+// and tls.Conn.Close sets a write deadline of now after queueing its
+// close_notify alert (crypto/tls conn.go closeNotify); passed to the pipe, it
+// would cut off the response still draining to the client.
+func (b *sendBuffer) SetDeadline(time.Time) error { return nil }
+
+func (b *sendBuffer) SetWriteDeadline(time.Time) error { return nil }
+
 // Close sends what is queued, until the client takes it or hangs up, and
 // then closes the pipe.
 func (b *sendBuffer) Close() error {
