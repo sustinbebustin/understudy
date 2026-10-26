@@ -48,9 +48,9 @@ func wiredReport(t *testing.T) coverage.Report {
 }
 
 // Every fidelity switch a wired service declares says what backs it, which
-// operations it governs and what settles it (contract section 3): a label
-// of the vocabulary, Ops naming operations of one service's registry, each
-// once, and a Settles that names a scenario step or says why none exists.
+// operations it governs and what settles it: a label of the vocabulary,
+// Ops naming operations of one service's registry, each once, and a
+// Settles that names a scenario step or says why none exists.
 // A Ruler or logsfilter switch missing from its wrapper's table has none of
 // them.
 func TestEverySwitchStatesItsOpsAndSettles(t *testing.T) {
@@ -99,8 +99,8 @@ func TestEverySwitchStatesItsOpsAndSettles(t *testing.T) {
 // A switch's SettledBy and the checked-in scenarios' claims on it name each
 // other: every claim on a switch is on the step the switch's Settles names,
 // and every SettledBy names a step of a checked-in scenario with a claim on
-// that switch, so the coverage page's evidence column can join them
-// (contract section 4, CheckEvidence).
+// that switch, so the coverage page's evidence column can join a switch to
+// the replayed step that settles it.
 func TestSwitchSettlesMatchTheScenarioClaims(t *testing.T) {
 	settledBy := map[string]string{}
 	for _, sw := range wiredReport(t).Switches {

@@ -11,7 +11,7 @@ import (
 )
 
 // A step reference is the scenario directory under testdata/parity and the
-// step's fixture name, "<svc>/<item>#<step>" (contract section 3).
+// step's fixture name without ".json", "<svc>/<item>#<step>".
 func TestParseStepRefReadsScenarioAndStep(t *testing.T) {
 	t.Parallel()
 	got, err := fidelity.ParseStepRef("sqs/R01#03-recv-after-6s")

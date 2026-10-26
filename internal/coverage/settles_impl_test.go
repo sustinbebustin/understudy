@@ -30,8 +30,8 @@ func settlesReport() coverage.Report {
 
 // A switch's Ops and Settles reach the report's JSON in the tagged-union
 // convention, a scenario step as "kind":"scenario" with the step reference
-// and no scenario as "kind":"none" with the reason (contract section 4),
-// and read back as the switches that wrote them.
+// and no scenario as "kind":"none" with the reason, and read back as the
+// switches that wrote them.
 func TestJSONCarriesSwitchOpsAndSettles(t *testing.T) {
 	t.Parallel()
 	r := settlesReport()
