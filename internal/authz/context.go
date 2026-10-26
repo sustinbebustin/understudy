@@ -166,10 +166,10 @@ func setKnown(c *policydoc.Context, key, id, value string) {
 func sessionKeys(c *policydoc.Context, a *identity.SessionAttributes) {
 	if a == nil || a.Issued.IsZero() {
 		c.Unsupplied("aws:TokenIssueTime")
-		return
+	} else {
+		c.Set("aws:TokenIssueTime", isoTime(a.Issued))
 	}
-	c.Set("aws:TokenIssueTime", isoTime(a.Issued))
-	if a.SourceIdentity != "" {
+	if a != nil && a.SourceIdentity != "" {
 		c.Set("aws:SourceIdentity", a.SourceIdentity)
 	}
 }

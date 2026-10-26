@@ -35,10 +35,12 @@ func TestBuildContextMarksUnknownValuesUnsupplied(t *testing.T) {
 		"aws:userid":       unsupplied,
 		"aws:PrincipalArn": present("arn:aws:iam::111122223333:role/team/app"),
 	})
-	// Attributes with no issue time read as a session understudy did not mint.
+	// Attributes with no issue time leave that one key unknown; the source
+	// identity is still the session's.
 	session.Attributes = &identity.SessionAttributes{SourceIdentity: "ana"}
 	checkKeys(t, "attributes without an issue time", authz.BuildContext(contextInput(session, "s3:GetObject", anyIn("111122223333"))), map[string]presence{
 		"aws:TokenIssueTime": unsupplied,
+		"aws:SourceIdentity": present("ana"),
 	})
 }
 
