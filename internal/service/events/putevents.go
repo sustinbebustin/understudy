@@ -99,7 +99,7 @@ func (s *Service) putEvents(ctx context.Context, c *kernel.Call, in *eventbridge
 	}
 	for _, g := range buses {
 		c.Touch(busARN(g.scope, g.bus))
-		if err := s.publish(ctx, c, g.scope, g.bus, g.events); err != nil {
+		if err := s.publish(ctx, c, g.scope, g.bus, g.events, forwarded); err != nil {
 			return nil, err
 		}
 	}
@@ -272,15 +272,18 @@ func eventTime(e *eventbridgeapi.PutEventsRequestEntry, admitted clock.Instant) 
 // publish sends events on scope's bus to the targets of the bus's rules
 // that match them, as Deliver effects of one write that changes nothing. A
 // bus the scope does not hold has no rules, so its events reach no target,
-// as AWS drops events to a missing bus (eventbridge-buses.md 10.3).
-func (s *Service) publish(ctx context.Context, c *kernel.Call, scope aws.Scope, bus string, events []envelope.Event) *awserr.Error {
+// as AWS drops events to a missing bus (eventbridge-buses.md 10.3), and a
+// delivery from an event bus target to a missing bus with them
+// (eventbridge-buses.md 10.4.14). Events that arrived through an event bus
+// target (forwarded) reach no bus target (fanOut.forwarded).
+func (s *Service) publish(ctx context.Context, c *kernel.Call, scope aws.Scope, bus string, events []envelope.Event, forwarded bool) *awserr.Error {
 	if _, ok := s.cells.Lookup(scope); !ok {
 		return nil
 	}
 	var f fanOut
 	_, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		tx.Unchanged()
-		f = fanOut{}
+		f = s.newFanOut(forwarded)
 		for i := range events {
 			s.matchEvent(&f, scope, st, bus, events[i], c.Admitted())
 		}

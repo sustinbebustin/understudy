@@ -193,9 +193,44 @@ func msgForeignRegionBus(scope aws.Scope, bus aws.ARN) string {
 // fail, or the parameters be ignored, silently.
 func msgUnsupportedTarget(scope aws.Scope, arn string) string {
 	return "understudy delivers EventBridge targets to Lambda functions, SQS queues and SNS topics in the rule's region (" + scope.Region.String() +
-		"), in an account it serves, and " + arn + " is none of them; the target was not added. " +
+		") and to event buses in any region, in an account it serves, and " + arn + " is none of them; the target was not added. " +
 		"Run 'understudy coverage --service eventbridge' for what is supported."
 }
+
+// errCrossAccountRole and errCrossAccountInput are inferred: AWS requires a
+// RoleArn on every cross-account event bus target created after 2023-03-02
+// (eb-cross-account.html; events.bus-target.cross-account-role) and takes no
+// input form on one (API_PutTargets), and its refusal texts are unrecorded
+// (eventbridge-buses.md 6.3, EBB-09). The first follows errFIFONeedsGroup's
+// form, the second is the PutTargets page's sentence.
+func errCrossAccountRole(targetID string) *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Parameter(s) RoleArn must be specified for target: " + targetID + ".")
+}
+
+func errCrossAccountInput() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Input, InputPath, and InputTransformer are not available with PutTarget if the target is an event bus of a different AWS account.")
+}
+
+// msgBusTargetInput is understudy's own PutTargets per-entry failure for an
+// input form on an event bus target of the rule's account: AWS's handling
+// is unrecorded (eventbridge-buses.md 6.2, EBB-08), so understudy neither
+// stores an input it might not apply as AWS does nor guesses a refusal.
+const msgBusTargetInput = "understudy forwards the matched event to an event bus target in the rule's account and does not implement Input, InputPath or " +
+	"InputTransformer on it, since AWS's handling is unrecorded; the target was not added. Remove the input member, or run " +
+	"'understudy coverage --service eventbridge' for what is supported."
+
+// msgSecondHop is the journal's reason for a bus target of a rule that
+// matched an event which reached its bus through an event bus target: AWS
+// sends such an event to no further bus (eb-cross-account.html,
+// eventbridge-buses.md 6.5, 10.4.13).
+const msgSecondHop = "the event reached this bus through an event bus target, and EventBridge does not forward it to another bus (eb-cross-account.html); it was not sent"
+
+// msgStoredBusTargetInput is the journal's reason for an event bus target
+// stored with an input form, which PutTargets never stores (msgBusTargetInput,
+// errCrossAccountInput), so it comes from an edited snapshot.
+const msgStoredBusTargetInput = "the event bus target has an Input, InputPath or InputTransformer, which understudy does not implement on an event bus target " +
+	"and PutTargets does not store, so it came from an edited snapshot; the event was not sent. " +
+	"Remove the target with RemoveTargets and add it again with PutTargets"
 
 func msgUnsupportedParameters(members []string) string {
 	return "understudy does not implement " + strings.Join(members, ", ") +

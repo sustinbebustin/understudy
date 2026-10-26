@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
@@ -21,16 +22,31 @@ import (
 )
 
 // deliveryTarget is a target ARN understudy delivers to, parsed: a Lambda
-// function, an SQS queue or an SNS topic. Each kind fixes its mechanism.
+// function, an SQS queue, an SNS topic or an event bus. Each kind fixes its
+// mechanism.
 type deliveryTarget interface {
 	arn() aws.ARN
 	// mechanism is how the outbox delivers to the target.
 	mechanism() delivery.Mechanism
+}
+
+// payloadTarget is a deliveryTarget that receives the payload the stored
+// target's input shapes from the event: a function, a queue or a topic. An
+// event bus receives the event itself (fanOut.forward).
+type payloadTarget interface {
+	deliveryTarget
 	// receiver is the delivery of body, the payload for event ev, to the
 	// target for stored target t. An error is a target parameter ev
 	// cannot fill, and the target receives nothing.
 	receiver(body []byte, t *Target, ev envelope.Event) (delivery.Target, error)
 }
+
+// The payload targets. busTarget is none: it receives the event itself.
+var (
+	_ payloadTarget = functionTarget{}
+	_ payloadTarget = queueTarget{}
+	_ payloadTarget = topicTarget{}
+)
 
 // functionTarget is a Lambda function, with or without a qualifier, which
 // receives an asynchronous invocation.
@@ -42,13 +58,24 @@ type queueTarget struct{ queue aws.ARN }
 // topicTarget is an SNS topic.
 type topicTarget struct{ topic aws.ARN }
 
+// busTarget is an event bus of any served account and region, to which
+// the rule forwards the matched event (eventbridge-buses.md 6.2, 10.4.12).
+type busTarget struct{ bus aws.ARN }
+
 func (f functionTarget) arn() aws.ARN { return f.function }
 func (q queueTarget) arn() aws.ARN    { return q.queue }
 func (t topicTarget) arn() aws.ARN    { return t.topic }
+func (b busTarget) arn() aws.ARN      { return b.bus }
 
 func (functionTarget) mechanism() delivery.Mechanism { return delivery.EventsToLambda }
 func (queueTarget) mechanism() delivery.Mechanism    { return delivery.EventsToSQS }
 func (topicTarget) mechanism() delivery.Mechanism    { return delivery.EventsToSNS }
+func (busTarget) mechanism() delivery.Mechanism      { return delivery.EventsToEvents }
+
+// crossAccount reports whether the bus is in another account than scope,
+// the rule's: a target that needs a RoleArn and takes no input form
+// (eventbridge-buses.md 6.3).
+func (b busTarget) crossAccount(scope aws.Scope) bool { return b.bus.Account != scope.Account.String() }
 
 func (f functionTarget) receiver(body []byte, _ *Target, _ envelope.Event) (delivery.Target, error) {
 	return delivery.LambdaFunction{ARN: f.function, Event: body, Invocation: delivery.InvocationEvent}, nil
@@ -109,14 +136,29 @@ func (q queueTarget) fifo() bool { return strings.HasSuffix(q.queue.Resource, ".
 
 // targetOf parses the ARN of a target of a rule in scope: a Lambda function
 // (with or without a qualifier), an SQS queue or an SNS topic in the rule's
-// partition and region, in an account understudy serves. AWS delivers to
-// these targets across accounts but not across regions (eb-targets.html).
+// partition and region, or an event bus in the rule's partition and any
+// region, in an account understudy serves. AWS delivers to the first three
+// across accounts but not across regions (eb-targets.html), and to a bus
+// across both (eventbridge-buses.md 6.3, 6.4). A bus need not exist yet: a
+// delivery to a missing bus is dropped as PutEvents drops one
+// (eventbridge-buses.md 10.4.14).
 func targetOf(scope aws.Scope, s string) (deliveryTarget, bool) {
 	arn, err := aws.ParseARN(s)
 	if err != nil {
 		return nil, false
 	}
-	if at, err := aws.ScopeOf(arn); err != nil || at.Partition != scope.Partition || at.Region != scope.Region {
+	at, err := aws.ScopeOf(arn)
+	if err != nil || at.Partition != scope.Partition {
+		return nil, false
+	}
+	if arn.Service == "events" {
+		name, isBus := strings.CutPrefix(arn.Resource, "event-bus/")
+		if !isBus || name == "" || strings.Contains(name, "/") {
+			return nil, false
+		}
+		return busTarget{bus: arn}, true
+	}
+	if at.Region != scope.Region {
 		return nil, false
 	}
 	switch {
@@ -185,14 +227,27 @@ func retryPolicy(p *RetryPolicy) delivery.EventBridgeTarget {
 }
 
 // fanOut collects, while the state lock is held, what a scheduled fire or a
-// PutEvents call sends: the deliveries to make, the matched targets that receive nothing, the stored
-// targets understudy cannot deliver to and the stored dead-letter queues it
-// cannot use.
+// PutEvents call sends: the deliveries to make, the matched targets that
+// receive nothing, the stored targets understudy cannot deliver to and the
+// stored dead-letter queues it cannot use.
 type fanOut struct {
+	// newID draws an event id, for an event forwarded to another region's
+	// bus (eventbridge-buses.md 6.4).
+	newID func() string
+	// forwarded is set when the events arrived through an event bus target:
+	// they make their one hop, so no bus target receives them
+	// (eventbridge-buses.md 6.5, 10.4.13).
+	forwarded bool
 	requests  []delivery.Request
 	skipped   []skip
 	strays    []stray
 	strayDLQs []strayDLQ
+}
+
+// newFanOut is the fan-out of a scheduled fire or a PutEvents call, whose
+// events arrived through an event bus target when forwarded is set.
+func (s *Service) newFanOut(forwarded bool) fanOut {
+	return fanOut{newID: func() string { return s.ids.UUID(ids.KindEventID).String() }, forwarded: forwarded}
 }
 
 // skip is a matched target that receives nothing, which the journal
@@ -232,17 +287,22 @@ func (f *fanOut) resolve(r ruleRef, t *Target) (deliveryTarget, bool) {
 }
 
 // send adds the delivery of ev to target t of rule r, parsed as dt: its
-// payload shaped by the target's input, or a skip when AWS would deliver
-// nothing or ev cannot fill the target's parameters.
+// payload shaped by the target's input, or for an event bus the event
+// itself, or a skip when AWS would deliver nothing, ev cannot fill the
+// target's parameters or ev already made its one hop.
 func (f *fanOut) send(r ruleRef, t *Target, dt deliveryTarget, ev envelope.Event, ingested clock.Instant) {
-	body, why, ok := payload(t.Input, ev, envelope.Context{RuleARN: r.arn().String(), RuleName: r.name, Ingested: ingested.Wire()})
-	if !ok {
-		f.skipped = append(f.skipped, skip{rule: r.arn(), target: dt, reason: why})
-		return
+	var receiver delivery.Target
+	var why string
+	switch dt := dt.(type) {
+	case busTarget:
+		receiver, why = f.forward(dt, t, ev)
+	case payloadTarget:
+		receiver, why = shape(r, t, dt, ev, ingested)
+	default:
+		why = "understudy has no delivery for a " + dt.mechanism().String() + " target; this is a bug in understudy, please report it"
 	}
-	receiver, err := dt.receiver(body, t, ev)
-	if err != nil {
-		f.skipped = append(f.skipped, skip{rule: r.arn(), target: dt, reason: err.Error()})
+	if receiver == nil {
+		f.skipped = append(f.skipped, skip{rule: r.arn(), target: dt, reason: why})
 		return
 	}
 	req := delivery.Request{Source: r.arn(), Mechanism: dt.mechanism(), Policy: retryPolicy(t.Retry), Target: receiver}
@@ -254,6 +314,55 @@ func (f *fanOut) send(r ruleRef, t *Target, dt deliveryTarget, ev envelope.Event
 		}
 	}
 	f.requests = append(f.requests, req)
+}
+
+// shape is the delivery of ev to target t of rule r, parsed as dt: the
+// payload its input shapes. A nil delivery comes with why the target
+// receives nothing.
+func shape(r ruleRef, t *Target, dt payloadTarget, ev envelope.Event, ingested clock.Instant) (receiver delivery.Target, why string) {
+	body, why, ok := payload(t.Input, ev, envelope.Context{RuleARN: r.arn().String(), RuleName: r.name, Ingested: ingested.Wire()})
+	if !ok {
+		return nil, why
+	}
+	receiver, err := dt.receiver(body, t, ev)
+	if err != nil {
+		return nil, err.Error()
+	}
+	return receiver, ""
+}
+
+// forward is the delivery of ev to the event bus target t, parsed as dt:
+// the event with its envelope, which the receiving bus keeps
+// (eventbridge-buses.md 10.4.12). The forwarded event keeps its source,
+// detail-type, detail, account and region (recorded, eventbridge-buses.md
+// 6.2), and its time and resources (inferred, EBB-08). Its id is new when
+// the bus is in another region (eventbridge-buses.md 6.4), and kept in the
+// same region, for another account (6.3) and for the rule's own
+// (events.bus-target.same-account-event-id).
+//
+// A nil delivery comes with why the bus receives nothing: the event
+// already made its one hop (msgSecondHop), or the stored target has an
+// input form, which PutTargets refuses on a bus target, so one comes only
+// from an edited snapshot.
+func (f *fanOut) forward(dt busTarget, t *Target, ev envelope.Event) (receiver delivery.Target, why string) {
+	if f.forwarded {
+		return nil, msgSecondHop
+	}
+	if _, matched := t.Input.(MatchedEvent); !matched {
+		return nil, msgStoredBusTargetInput
+	}
+	detail, err := ev.DetailJSON()
+	if err != nil {
+		return nil, unwritable(err)
+	}
+	id := ev.ID
+	if dt.bus.Region != ev.Region {
+		id = f.newID()
+	}
+	return delivery.EventBus{ARN: dt.bus, Entries: []delivery.EventEntry{{
+		Source: ev.Source, DetailType: ev.DetailType, Detail: string(detail), Resources: slices.Clone(ev.Resources),
+		Forwarded: &delivery.Forwarded{ID: id, Account: ev.Account, Region: ev.Region, Time: ev.Time},
+	}}}, ""
 }
 
 // payload is what a target receives for ev. ok is false, with why, when

@@ -505,6 +505,12 @@ func busSwitches() []fidelity.Switch[string] {
 		// modified at the scope's first use (State.bus).
 		sw("events.default-bus.creation-time", "first-use", evidence.Inferred, "36-the-default-bus", "EBB-07",
 			"eventbridge.DescribeEventBus", "eventbridge.ListEventBuses"),
+		// An event forwarded to a bus of the rule's own account and region
+		// keeps its id, as it does across accounts (fanOut.forward).
+		sw("events.bus-target.same-account-event-id", "kept", evidence.Inferred, "62-an-event-bus-as-a-target", "EBB-08", "eventbridge.PutEvents"),
+		// PutTargets refuses another account's bus target without a RoleArn,
+		// by the newer user-guide rule (checkCrossAccountBus).
+		sw("events.bus-target.cross-account-role", "required", evidence.AWSDoc, "63-cross-account", "EBB-09", "eventbridge.PutTargets"),
 	}
 }
 

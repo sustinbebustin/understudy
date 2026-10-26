@@ -22,7 +22,8 @@ const maxTargets = 5
 // bindTargets binds the target operations.
 func (s *Service) bindTargets(b eventbridgeapi.Binder) {
 	b.PutTargets(s.putTargets,
-		registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; " +
+		registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; " +
+			"RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; " +
 			"a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented"},
 		namedRule(func(in *eventbridgeapi.PutTargetsInput) *string { return in.EventBusName },
 			func(in *eventbridgeapi.PutTargetsInput) string { return in.Rule }))
@@ -103,7 +104,8 @@ func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgea
 
 // parseTarget checks a PutTargets entry for a rule in scope and returns it
 // as stored: at most one input form, each well formed, a message group for a
-// FIFO queue and a dead-letter queue deadLetterQueue accepts.
+// FIFO queue, a RoleArn and no input form for another account's event bus,
+// and a dead-letter queue deadLetterQueue accepts.
 func parseTarget(scope aws.Scope, t *eventbridgeapi.Target) (Target, *awserr.Error) {
 	input, err := parseInput(t)
 	if err != nil {
@@ -113,9 +115,15 @@ func parseTarget(scope aws.Scope, t *eventbridgeapi.Target) (Target, *awserr.Err
 	if p := t.SqsParameters; p != nil {
 		out.SQS = &SQSParameters{MessageGroupID: copyOf(p.MessageGroupId)}
 	}
-	if dt, ok := targetOf(scope, t.Arn); ok {
-		if q, ok := dt.(queueTarget); ok && q.fifo() && (out.SQS == nil || out.SQS.MessageGroupID == nil || *out.SQS.MessageGroupID == "") {
+	dt, _ := targetOf(scope, t.Arn)
+	switch dt := dt.(type) {
+	case queueTarget:
+		if dt.fifo() && (out.SQS == nil || out.SQS.MessageGroupID == nil || *out.SQS.MessageGroupID == "") {
 			return Target{}, errFIFONeedsGroup(t.Id)
+		}
+	case busTarget:
+		if err := checkCrossAccountBus(scope, dt, t); err != nil {
+			return Target{}, err
 		}
 	}
 	if d := t.DeadLetterConfig; d != nil {
@@ -132,14 +140,40 @@ func parseTarget(scope aws.Scope, t *eventbridgeapi.Target) (Target, *awserr.Err
 	return out, nil
 }
 
+// checkCrossAccountBus checks a PutTargets entry t whose ARN is the event
+// bus dt, for a rule in scope. Another account's bus needs a RoleArn
+// (events.bus-target.cross-account-role: "EventBridge now requires all new
+// cross account event bus targets to add IAM roles", eb-cross-account.html)
+// and takes no input form (API_PutTargets); both refusals' texts are
+// unrecorded (eventbridge-buses.md 6.3, EBB-09). The role is stored, not
+// assumed.
+func checkCrossAccountBus(scope aws.Scope, dt busTarget, t *eventbridgeapi.Target) *awserr.Error {
+	if !dt.crossAccount(scope) {
+		return nil
+	}
+	if t.RoleArn == nil {
+		return errCrossAccountRole(t.Id)
+	}
+	if t.Input != nil || t.InputPath != nil || t.InputTransformer != nil {
+		return errCrossAccountInput()
+	}
+	return nil
+}
+
 // refusal is why understudy does not add a PutTargets entry, which fails
 // the entry with NotImplemented: its ARN is not a target understudy
-// delivers to from a rule in scope, or it sets a member understudy does not
-// model. Storing it would make deliveries fail, or the member be ignored,
+// delivers to from a rule in scope, it sets a member understudy does not
+// model, or it sets an input form on an event bus of the rule's account,
+// where AWS's handling is unrecorded (eventbridge-buses.md 6.2, EBB-08).
+// Storing it would make deliveries fail, or the member be ignored,
 // silently.
 func refusal(scope aws.Scope, t *eventbridgeapi.Target) (string, bool) {
-	if _, ok := targetOf(scope, t.Arn); !ok {
+	dt, ok := targetOf(scope, t.Arn)
+	if !ok {
 		return msgUnsupportedTarget(scope, t.Arn), true
+	}
+	if _, isBus := dt.(busTarget); isBus && (t.Input != nil || t.InputPath != nil || t.InputTransformer != nil) {
+		return msgBusTargetInput, true
 	}
 	var unmodeled []string
 	for _, m := range []struct {

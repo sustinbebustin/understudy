@@ -66,6 +66,10 @@ func (e Event) Document() document.Map {
 // never produces.
 func (e Event) JSON() ([]byte, error) { return encode(e.Document()) }
 
+// DetailJSON returns the event's detail as compact JSON, {} for none: the
+// Detail an event bus target forwards. Its error is JSON's, as for JSON.
+func (e Event) DetailJSON() ([]byte, error) { return encode(e.detail()) }
+
 // withoutDetail is the aws.events.event variable: the recorded members
 // and order, with detailType in camel case and no detail.
 func (e Event) withoutDetail() document.Map {

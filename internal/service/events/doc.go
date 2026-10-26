@@ -1,8 +1,8 @@
 // Package events implements Amazon EventBridge: the default bus and custom
 // buses (docs/research/eventbridge-buses.md), rules with event patterns on
-// any of them and schedule expressions on the default bus, PutEvents and
-// the Lambda, SQS and SNS targets (docs/research/secrets-logs-events-alarms.md
-// 4; ARCHITECTURE.md 16).
+// any of them and schedule expressions on the default bus, PutEvents, the
+// Lambda, SQS and SNS targets (docs/research/secrets-logs-events-alarms.md
+// 4; ARCHITECTURE.md 16) and event bus targets (eventbridge-buses.md 6.2).
 //
 // A rule's schedule is a timer on the emulator clock (TimerSchedule, keyed by
 // the rule ARN). Each fire sends the scheduled event, stamped with the due
@@ -70,10 +70,34 @@
 //     it leaves a seeded run's later ids where they were.
 //   - A target must be a Lambda function, SQS queue or SNS topic in the
 //     rule's region and a served account (AWS delivers to these across
-//     accounts, not regions), and must not set a parameters member
-//     understudy does not model (HttpParameters, KinesisParameters and
-//     the like); any other fails its PutTargets entry with NotImplemented
-//     instead of being stored and never delivered or acted on.
+//     accounts, not regions), or an event bus in any served account and
+//     region, and must not set a parameters member understudy does not
+//     model (HttpParameters, KinesisParameters and the like); any other
+//     fails its PutTargets entry with NotImplemented instead of being
+//     stored and never delivered or acted on.
+//   - An event bus target forwards each matched event as an
+//     events-to-events delivery whose entry keeps the event's source,
+//     detail-type, detail, account, region, time and resources; keeping the
+//     time and resources is inferred (EBB-08). The id is new for a bus in
+//     another region and kept otherwise, also for a bus of the rule's own
+//     account and region (events.bus-target.same-account-event-id). The bus
+//     need not exist when PutTargets adds it, and a delivery to a bus that
+//     does not exist is dropped as PutEvents drops one; both are inferred
+//     (EBB-08). The RoleArn is stored, not assumed.
+//   - An event that arrived through an event bus target matches the
+//     receiving bus's rules as usual and reaches their other targets, but
+//     no bus target: each is journaled as a dropped delivery and not
+//     dead-lettered (eb-cross-account.html; whether AWS leaves a trace is
+//     unrecorded, EBB-08).
+//   - Another account's bus target needs a RoleArn
+//     (events.bus-target.cross-account-role) and takes no Input, InputPath
+//     or InputTransformer, as AWS documents; both refusals fail PutTargets
+//     with a ValidationException whose text is inferred (EBB-09). On a bus
+//     of the rule's own account, AWS's handling of an input form is
+//     unrecorded (EBB-08), so that entry fails with NotImplemented. A bus
+//     target stored with an input form, which only an edited snapshot
+//     holds, is journaled as a dropped delivery rather than forwarded with
+//     its input ignored.
 //   - A FIFO queue target without SqsParameters.MessageGroupId, an Input
 //     that is not JSON, an unsupported InputPath or InputPathsMap path, and
 //     a DeadLetterConfig that is not a standard SQS queue in the rule's
