@@ -8,6 +8,7 @@ Thanks for helping. This file covers the setup, the rules every change follows, 
 - [uv](https://docs.astral.sh/uv/), which runs `scripts/sealed`.
 - Docker, for Lambda, DynamoDB Local and the `-tags docker` tests.
 - For the conformance suites: the AWS CLI v2, Terraform 1.16 or later, Python 3.14 (through uv), [Bun](https://bun.sh), `jq` and `curl`.
+- For the Testcontainers modules (`just testcontainers`): Node 24 and Bun.
 
 ```sh
 just verify
@@ -114,6 +115,7 @@ A new wire protocol needs an ADR; the protocol compliance corpus already carries
 | Generated code | `go run ./internal/cmd/gen -all -check` | Regenerating from the vendored inputs reproduces what is committed; CI runs `just generate-check`, which also fails on any uncommitted change |
 | Coverage page | `just coverage-check` | `docs/coverage.md` matches the binary |
 | Conformance | `conformance/<suite>/run.sh` | Real clients against a real server; see below |
+| Testcontainers modules | `just testcontainers` | The Go, Python and Node modules start the image from `just image`, pass their own lint, and drive it with real clients; each module's `testcontainers/<language>/run.sh` runs one |
 
 When a fix makes a protocol compliance case pass, record it with `just protocoltest-baseline`. A case understudy cannot pass yet goes in `internal/protocoltest/skips.json` with its reason; the ratchet fails if a passing case regresses or the baseline would shrink.
 

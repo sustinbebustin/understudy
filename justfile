@@ -92,6 +92,12 @@ budgets:
 smoke:
     go test -race -count=1 -tags smoke ./internal/smoke
 
+# Build the image, then run the Go, Python and Node Testcontainers suites on it.
+testcontainers: image
+    testcontainers/go/run.sh
+    testcontainers/python/run.sh
+    testcontainers/node/run.sh
+
 # Build the Docker image.
 image:
     docker build -t understudy:dev .

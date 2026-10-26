@@ -201,3 +201,40 @@ jobs:
       - run: conformance/${{ matrix.suite }}/run.sh
         env:
           SIGV4: ${{ matrix.sigv4 }}
+
+  # Builds understudy:dev once, then lints and tests each Testcontainers
+  # module against it with the module's run.sh (testcontainers.md 8.7). Each
+  # suite runs when another fails, as the conformance matrix lets every suite
+  # finish. The libraries pull their Ryuk images from Docker Hub
+  # (testcontainers/ryuk:0.14.0 for Go and Node, 0.8.1 for Python), and
+  # understudy pulls the Lambda base image for the Lambda cases.
+  testcontainers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.2"
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15.0
+          install-only: true
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: "1.58.0"
+      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24.22.1"
+      # The bun that wrote testcontainers/node/bun.lock; the tests run on Node.
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: "1.4.3"
+      - id: image
+        run: just image
+      - if: ${{ !cancelled() && steps.image.outcome == 'success' }}
+        run: testcontainers/go/run.sh
+      - if: ${{ !cancelled() && steps.image.outcome == 'success' }}
+        run: testcontainers/python/run.sh
+      - if: ${{ !cancelled() && steps.image.outcome == 'success' }}
+        run: testcontainers/node/run.sh
