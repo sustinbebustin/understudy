@@ -12,7 +12,7 @@ understudy needs an admin API under a reserved prefix plus CLI subcommands for h
 - The CLI is a thin client of the public `admin.Client`. It never prompts; `--output text|json` on every command; `--endpoint` or `UNDERSTUDY_ENDPOINT`; exit codes 0, 1 (operation failed), 2 (usage), 3 (unreachable), 4 (condition not met); every error names what failed and the next command to try; `--help` carries examples. `understudy coverage` works offline from the registry when no server is up.
 - Configuration precedence: flags > `UNDERSTUDY_*` environment > an optional JSON file (`--config`, or `understudy.json` in the working directory) > defaults. The file is parsed strictly into a typed `config.Config` at the boundary with sum types where a setting has modes; unknown keys are errors naming the key and the closest valid one.
 - `--ready-file PATH` writes the endpoint and pid once listening; `--listen 127.0.0.1:0` picks an ephemeral port.
-- Two public packages, both marked experimental until 1.0: `admin` (wire types and client) and `understudytest` (start an in-process emulator from a Go test with a seed, a frozen clock, `Settle` and journal accessors).
+- Two public packages, both marked experimental until 1.0: `admin` (wire types and client) and `understudytest` (start an in-process emulator from a Go test with a seed, a frozen clock, `Settle` and journal accessors). The Testcontainers module amendment (2026-10-26) adds a third public Go surface, the nested module `testcontainers/go`.
 
 ## Alternatives considered
 

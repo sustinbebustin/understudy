@@ -98,7 +98,7 @@ The roadmap's new services need their models. Nine more files are vendored verba
 
 ## Amendment (Testcontainers module, 2026-10-26)
 
-The Go Testcontainers module (ADR 0017, amendment 2026-10-26) is a nested module, `testcontainers/go`, with its own `go.mod`, like the conformance suites. Nothing in it links into understudy's binary or the root module's graph: the go tool excludes a nested module from the parent's packages and module zip (testcontainers.md 4.6). The root allow-list and the table above are unchanged. The maintainer approved these dependencies on 2026-10-26 (testcontainers.md 8.10, 9.8).
+The Go Testcontainers module (ADR 0017, amendment 2026-10-26) is a nested module, `testcontainers/go`, with its own `go.mod`, like the conformance suites. Nothing in it links into understudy's binary or the root module's graph: the go tool excludes a nested module from the parent's packages and module zip (testcontainers.md 4.6). The root allow-list and the table above are unchanged. On 2026-10-26 the maintainer approved the dependencies testcontainers.md 8.10 names (9.8): testcontainers-go, moby `api`, understudy for `admin`, and the test-only `service/sqs`, which brings the SDK core, `config` and `credentials` with it as any SDK client does. Three test-only rows go beyond 8.10 and await the maintainer's confirmation: `service/lambda` and `service/iam`, which 8.7's Lambda round trip needs, and moby `client`, already in tc-go's own graph, for the teardown listing. The Node package's dev dependencies `@aws-sdk/client-lambda` and `@aws-sdk/client-iam` (`testcontainers/node/package.json`) are the same case beyond 8.10's list.
 
 | Module | Version | Tier | Reason | Licence |
 |---|---|---|---|---|
