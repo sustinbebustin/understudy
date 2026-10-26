@@ -79,12 +79,10 @@ func errForeignBus(bus aws.ARN) *awserr.Error {
 		"Run 'understudy coverage --service eventbridge' for what is supported.")
 }
 
-// errCustomBusRules is understudy's own answer to a rule or target call on
-// one of the caller's custom buses: understudy keeps rules on the default
-// bus only, and the bus exists, so "does not exist" would mislead.
-func errCustomBusRules(bus string) *awserr.Error {
-	return eventbridgeapi.ErrNotImplemented("understudy manages rules and targets only on the default event bus, and " + bus +
-		" is a custom bus; nothing was changed. Use the default bus, or run 'understudy coverage --service eventbridge' for what is supported.")
+// errScheduleOnCustomBus is AWS-recorded
+// (testdata/parity/events/R14/04-custom-bus-schedule.json).
+func errScheduleOnCustomBus() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("ScheduleExpression is supported only on the default event bus.")
 }
 
 // errNoPatternOrSchedule carries moto's text; AWS's is unrecorded.

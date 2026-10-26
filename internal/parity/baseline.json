@@ -4,6 +4,7 @@
     {
       "scenario": "events/R14",
       "steps": [
+        {"step": "04-custom-bus-schedule", "fixture": "events/R14/04-custom-bus-schedule.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
         {"step": "H1-01", "fixture": "events/R14/H1-01.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},
         {"step": "H1-02", "fixture": "events/R14/H1-02.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},
         {"step": "H8-01", "fixture": "events/R14/H8-01.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},

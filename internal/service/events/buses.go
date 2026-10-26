@@ -102,37 +102,60 @@ func namedBus[In any](name func(*In) *string) kernel.BindOption {
 	})
 }
 
-// requireDefaultBus admits only the caller's default bus to a rule or target
-// call: one of its custom buses is NotImplemented, as is another served
-// account's or region's bus, and any other bus does not exist.
-func (s *Service) requireDefaultBus(scope aws.Scope, name *string) *awserr.Error {
-	return s.admitDefaultBus(scope, parseBus(scope, name))
+// busNamePart is the bus name an EventBusName gives, whoever's bus it is:
+// the default bus for nil and empty, the name after event-bus/ in an
+// EventBridge ARN, and anything else as sent.
+func busNamePart(name *string) string {
+	if name == nil || *name == "" {
+		return defaultBus
+	}
+	if arn, err := aws.ParseARN(*name); err == nil && arn.Service == "events" {
+		if bus, ok := strings.CutPrefix(arn.Resource, "event-bus/"); ok {
+			return bus
+		}
+	}
+	return *name
 }
 
-// admitDefaultBus is requireDefaultBus on a parsed bus. A nil bus, which
-// parseBus never returns, is refused as an internal failure rather than
-// admitted.
-func (s *Service) admitDefaultBus(scope aws.Scope, bus busRef) *awserr.Error {
+// ownBusName is the name of the caller's bus a rule or target call's
+// EventBusName names. Another served account's or region's bus is
+// NotImplemented, and an ARN no bus can have does not exist. Whether an own
+// bus exists is State.requireBus's question, asked under the cell lock.
+func ownBusName(scope aws.Scope, name *string) (string, *awserr.Error) {
+	return admitOwnBus(parseBus(scope, name))
+}
+
+// admitOwnBus is ownBusName on a parsed bus. A nil bus, which parseBus
+// never returns, is refused as an internal failure rather than admitted.
+func admitOwnBus(bus busRef) (string, *awserr.Error) {
 	switch b := bus.(type) {
 	case ownBus:
-		if b.name == defaultBus {
-			return nil
-		}
-		if _, ok := s.lookupBus(scope, b.name, clock.Instant{}); ok {
-			return errCustomBusRules(b.name)
-		}
-		return errBusNotFound(b.name)
+		return b.name, nil
 	case foreignBus:
-		return errForeignBus(b.arn())
+		return "", errForeignBus(b.arn())
 	case missingBus:
-		return errBusNotFound(b.name)
+		return "", errBusNotFound(b.name)
 	}
-	return awserr.Internalf(errNilBus)
+	return "", awserr.Internalf(errNilBus)
 }
 
-// errNilBus is the cause of admitting a busRef that is nil, a bug in
+// errNilBus is the cause of resolving a busRef that is nil, a bug in
 // whatever built it.
 var errNilBus = errors.New("events: the event bus reference is nil, so no bus was checked; parseBus builds every busRef")
+
+// readBus runs fn on scope's state when the scope holds bus
+// (State.requireBus); a scope without a state cell holds only its default
+// bus, which then has no rules for fn to read.
+func (s *Service) readBus(scope aws.Scope, bus string, fn func(st *State)) *awserr.Error {
+	empty := newState(scope)
+	err := empty.requireBus(bus)
+	s.read(scope, func(st *State) {
+		if err = st.requireBus(bus); err == nil {
+			fn(st)
+		}
+	})
+	return err
+}
 
 // lookupBus returns the bus name of scope as State.bus does; a scope
 // without a state cell has only its default bus, created at at.

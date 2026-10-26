@@ -24,19 +24,25 @@ func (s *Service) bindTargets(b eventbridgeapi.Binder) {
 	b.PutTargets(s.putTargets,
 		registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; " +
 			"a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented"},
-		namedRule(func(in *eventbridgeapi.PutTargetsInput) string { return in.Rule }))
+		namedRule(func(in *eventbridgeapi.PutTargetsInput) *string { return in.EventBusName },
+			func(in *eventbridgeapi.PutTargetsInput) string { return in.Rule }))
 	b.RemoveTargets(s.removeTargets, registry.Full{},
-		namedRule(func(in *eventbridgeapi.RemoveTargetsInput) string { return in.Rule }))
+		namedRule(func(in *eventbridgeapi.RemoveTargetsInput) *string { return in.EventBusName },
+			func(in *eventbridgeapi.RemoveTargetsInput) string { return in.Rule }))
 	b.ListTargetsByRule(s.listTargetsByRule, registry.Full{},
-		namedRule(func(in *eventbridgeapi.ListTargetsByRuleInput) string { return in.Rule }))
+		namedRule(func(in *eventbridgeapi.ListTargetsByRuleInput) *string { return in.EventBusName },
+			func(in *eventbridgeapi.ListTargetsByRuleInput) string { return in.Rule }))
 }
 
-// putTargets adds targets to a rule or replaces those with the same Id. A
-// request-level problem (inputs, placeholders, a FIFO queue's message group,
-// the dead-letter queue, the target limit) fails the whole request; a target understudy cannot deliver to, or with a member it
-// does not model, fails its entry.
+// putTargets adds targets to a rule of one of the caller's buses or
+// replaces those with the same Id. A request-level problem (inputs,
+// placeholders, a FIFO queue's message group, the dead-letter queue, the
+// target limit) fails the whole request; a target understudy cannot deliver
+// to, or with a member it does not model, fails its entry. Like the rule,
+// the bus is looked up after the targets are checked.
 func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgeapi.PutTargetsInput) (*eventbridgeapi.PutTargetsOutput, *awserr.Error) {
-	if err := s.requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
+	bus, err := ownBusName(c.Scope(), in.EventBusName)
+	if err != nil {
 		return nil, err
 	}
 	scope := c.Scope()
@@ -59,8 +65,11 @@ func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgea
 		}
 		accepted = append(accepted, parsed[i])
 	}
-	r := ruleRef{scope: scope, bus: defaultBus, name: in.Rule}
-	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+	r := ruleRef{scope: scope, bus: bus, name: in.Rule}
+	_, err = kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+		if err := st.requireBus(r.bus); err != nil {
+			return struct{}{}, err
+		}
 		rule, ok := st.rule(r.bus, r.name)
 		if !ok {
 			return struct{}{}, errRuleNotFound(r.name, r.bus)
@@ -192,14 +201,18 @@ func parseInput(t *eventbridgeapi.Target) (Input, *awserr.Error) {
 	return nil, errInputsExclusive(t.Id)
 }
 
-// removeTargets removes the targets with the given Ids. An Id the rule has
-// no target for is ignored.
+// removeTargets removes the targets with the given Ids from a rule of one
+// of the caller's buses. An Id the rule has no target for is ignored.
 func (s *Service) removeTargets(_ context.Context, c *kernel.Call, in *eventbridgeapi.RemoveTargetsInput) (*eventbridgeapi.RemoveTargetsOutput, *awserr.Error) {
-	if err := s.requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
+	bus, err := ownBusName(c.Scope(), in.EventBusName)
+	if err != nil {
 		return nil, err
 	}
-	r := ruleRef{scope: c.Scope(), bus: defaultBus, name: in.Rule}
-	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+	r := ruleRef{scope: c.Scope(), bus: bus, name: in.Rule}
+	_, err = kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+		if err := st.requireBus(r.bus); err != nil {
+			return struct{}{}, err
+		}
 		rule, ok := st.rule(r.bus, r.name)
 		if !ok {
 			return struct{}{}, errRuleNotFound(r.name, r.bus)
@@ -220,14 +233,19 @@ func (s *Service) removeTargets(_ context.Context, c *kernel.Call, in *eventbrid
 	return &eventbridgeapi.RemoveTargetsOutput{FailedEntries: []eventbridgeapi.RemoveTargetsResultEntry{}}, nil
 }
 
-// listTargetsByRule lists a rule's targets in creation order, each as
-// PutTargets sent it.
+// listTargetsByRule lists the targets of a rule of one of the caller's
+// buses in creation order, each as PutTargets sent it.
 func (s *Service) listTargetsByRule(_ context.Context, c *kernel.Call, in *eventbridgeapi.ListTargetsByRuleInput) (*eventbridgeapi.ListTargetsByRuleOutput, *awserr.Error) {
-	if err := s.requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
+	bus, err := ownBusName(c.Scope(), in.EventBusName)
+	if err != nil {
 		return nil, err
 	}
-	r := ruleRef{scope: c.Scope(), bus: defaultBus, name: in.Rule}
-	rule, ok := s.rule(r)
+	r := ruleRef{scope: c.Scope(), bus: bus, name: in.Rule}
+	var rule Rule
+	var ok bool
+	if err := s.readBus(r.scope, r.bus, func(st *State) { rule, ok = st.rule(r.bus, r.name) }); err != nil {
+		return nil, err
+	}
 	if !ok {
 		return nil, errRuleNotFound(r.name, r.bus)
 	}

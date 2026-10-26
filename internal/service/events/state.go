@@ -115,6 +115,18 @@ func (s *State) bus(name string, at clock.Instant) (Bus, bool) {
 	return Bus{Name: defaultBus, Created: first, Modified: first}, true
 }
 
+// requireBus refuses a bus the scope does not hold: it holds its default
+// bus always and a custom bus from CreateEventBus to DeleteEventBus. A rule
+// or target call on a missing bus gets the bus operations' not-found text;
+// AWS's answer to those calls is unrecorded (eventbridge-buses.md 5.4,
+// EBB-03).
+func (s *State) requireBus(name string) *awserr.Error {
+	if _, ok := s.Buses[name]; ok || name == defaultBus {
+		return nil
+	}
+	return errBusNotFound(name)
+}
+
 // setBus stores b, which materializes the default bus, as a write admitted
 // at at.
 func (s *State) setBus(b Bus, at clock.Instant) {

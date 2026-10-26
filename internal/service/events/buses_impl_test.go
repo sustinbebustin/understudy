@@ -232,21 +232,6 @@ func TestCreateEventBusEchoesItsSettings(t *testing.T) {
 	})
 }
 
-// Rules live on the default bus only for now: a rule or target call naming
-// one of the caller's custom buses answers NotImplemented rather than "does
-// not exist", and one naming a bus that does not exist is not found
-// (eventbridge-buses.md 5.4).
-func TestRuleCallsOnACustomBusAreNotImplemented(t *testing.T) {
-	run(t, func(h *harness) {
-		h.createBus("orders")
-		_, err := call(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "r", EventBusName: new("orders"), EventPattern: new(`{"source": ["s"]}`)})
-		wantError(t, err, "NotImplemented", "understudy manages rules and targets only on the default event bus, and orders is a custom bus; nothing was changed. "+
-			"Use the default bus, or run 'understudy coverage --service eventbridge' for what is supported.")
-		_, err = call(h, eventbridgeapi.OpListRules, &eventbridgeapi.ListRulesInput{EventBusName: new(busPrefix + "missing")})
-		wantError(t, err, "ResourceNotFoundException", "Event bus missing does not exist.")
-	})
-}
-
 // PutEvents matches an event only against the rules of the bus it names
 // (eventbridge-buses.md 6.1, 10.4.11); rules on a custom bus come from a
 // snapshot here.

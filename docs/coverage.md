@@ -275,7 +275,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | UpdateEventBus | stored-only | inferred, 2 of 4 claims | Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged |
 | CreateEventBus | partial | inferred, 1 of 3 claims | custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged |
 | PutEvents | partial | contradicted (events/R14/H14-02.json), 1 of 8 claims | default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
-| PutRule | partial | contradicted (events/R14/H14-01.json), 1 of 7 claims | the default bus only; RoleArn is stored, not used |
+| PutRule | partial | contradicted (events/R14/H14-01.json), 1 of 8 claims | default and custom buses of the caller's account and region; ScheduleExpression only on the default bus, as AWS; RoleArn is stored, not used; a rule on another account's or region's bus answers NotImplemented |
 | PutTargets | partial | third-party-recorded, 2 of 2 claims | Lambda function, SQS queue and SNS topic targets in the rule's region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented |
 | ActivateEventSource | unbound | unassessed |  |
 | CancelReplay | unbound | unassessed |  |

@@ -1,7 +1,7 @@
 // Package events implements Amazon EventBridge: the default bus and custom
-// buses (docs/research/eventbridge-buses.md), rules with schedule
-// expressions and event patterns on the default bus, PutEvents and the
-// Lambda, SQS and SNS targets (docs/research/secrets-logs-events-alarms.md
+// buses (docs/research/eventbridge-buses.md), rules with event patterns on
+// any of them and schedule expressions on the default bus, PutEvents and
+// the Lambda, SQS and SNS targets (docs/research/secrets-logs-events-alarms.md
 // 4; ARCHITECTURE.md 16).
 //
 // A rule's schedule is a timer on the emulator clock (TimerSchedule, keyed by
@@ -33,8 +33,12 @@
 //     dropping it would hide that it was not sent; a control-plane call
 //     naming another account's or region's bus is NotImplemented, not
 //     "does not exist".
-//   - A rule or target call naming one of the caller's custom buses answers
-//     NotImplemented: rules live on the default bus only.
+//   - A rule or target call on a custom bus that does not exist answers
+//     "Event bus <name> does not exist.", the text of the bus operations;
+//     AWS's answer is unrecorded (EBB-03). PutRule refuses a
+//     ScheduleExpression on any bus but the default one before it parses
+//     the expression or looks the bus up; the recording shows the refusal
+//     for a missing bus, and the rest of the order is inferred.
 //   - The bus choices no recording settles are the switches of
 //     eventbridge-buses.md 10.5: DeleteEventBus refuses a bus with rules,
 //     UpdateEventBus keeps an omitted member, a KMS key is stored unchecked,
