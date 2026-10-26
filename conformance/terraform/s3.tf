@@ -1,7 +1,17 @@
 # S3: a bucket with a public access block, BucketOwnerEnforced ownership,
 # SSE-KMS default encryption with a bucket key, versioning, a lifecycle
-# configuration, a bucket policy and an event notification to SQS. The update
-# step changes tags, lifecycle rules, the policy and the notification filter.
+# configuration, a bucket policy and an event notification to SQS; and a
+# bucket with Object Lock, a GOVERNANCE default retention and an object with
+# GOVERNANCE retention and its legal hold OFF (s3-ssec-object-lock.md 11.6).
+# The update step changes tags, lifecycle rules, the policy, the notification
+# filter, the default retention's days and the object's retain-until date,
+# moved later so no bypass is needed.
+#
+# Object Lock uses GOVERNANCE only: destroy deletes with the bypass, which
+# COMPLIANCE would refuse. No object holds a legal hold and a retention at
+# once, which fails the first destroy on AWS too (9.6). No SSE-C object:
+# aws_s3_object has no SSE-C arguments and the suite runs over plain HTTP
+# (9.3, 9.4).
 
 # Fixture: the KMS key the bucket encrypts with.
 resource "aws_kms_key" "s3_objects" {
@@ -163,6 +173,40 @@ resource "aws_s3_bucket_notification" "artifacts" {
   }
 
   depends_on = [aws_sqs_queue_policy.s3_uploads]
+}
+
+# Object Lock at creation turns versioning on (s3-ssec-object-lock.md 5.1, 9.1).
+resource "aws_s3_bucket" "locked" {
+  bucket              = "${var.name_prefix}-locked-${var.run_id}"
+  object_lock_enabled = true
+  force_destroy       = true
+}
+
+# Get must echo the mode and the one of days or years put (9.2).
+resource "aws_s3_bucket_object_lock_configuration" "locked" {
+  bucket = aws_s3_bucket.locked.id
+
+  rule {
+    default_retention {
+      mode = "GOVERNANCE"
+      days = local.updated ? 2 : 1
+    }
+  }
+}
+
+# HEAD must return the lock headers in a form time.RFC3339 re-renders to the
+# configured whole-second date; the provider adds the CRC32 the retention
+# needs (9.3, 6.3). Destroy deletes every version with the bypass (9.6).
+resource "aws_s3_object" "locked" {
+  bucket                        = aws_s3_bucket.locked.id
+  key                           = "locked.txt"
+  content                       = "locked"
+  object_lock_mode              = "GOVERNANCE"
+  object_lock_retain_until_date = local.updated ? "2031-01-01T00:00:00Z" : "2030-01-01T00:00:00Z"
+  object_lock_legal_hold_status = "OFF"
+  force_destroy                 = true
+
+  depends_on = [aws_s3_bucket_object_lock_configuration.locked]
 }
 
 output "s3_bucket" {
