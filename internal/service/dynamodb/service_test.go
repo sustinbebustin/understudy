@@ -297,9 +297,12 @@ func TestTableARNOfAnotherScopeIsNotFound(t *testing.T) {
 
 // TestFaultNotesNameInjectableShapes: every fault rule a coverage note
 // offers ("inject X or Y with a fault rule") is one the fault store
-// accepts for that operation.
+// accepts for that operation. A shape is a capitalized name or a full id;
+// the transactional operations' offer of a rule with members ("inject it
+// with a fault rule whose members ...") is checked by
+// TestTransactionRulesCountTheRequestItems.
 func TestFaultNotesNameInjectableShapes(t *testing.T) {
-	offer := regexp.MustCompile(`inject ([A-Za-z.#]+(?: or [A-Za-z.#]+)*) with a fault rule`)
+	offer := regexp.MustCompile(`inject ((?:[A-Z]|com\.)[A-Za-z.#]*(?: or (?:[A-Z]|com\.)[A-Za-z.#]*)*) with a fault rule`)
 	run(t, func(h *harness) {
 		checked := 0
 		for _, op := range dynamodbapi.Service().Operations {
