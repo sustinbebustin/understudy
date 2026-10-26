@@ -148,7 +148,7 @@ func (l *lazyLocal) manager(ctx context.Context) (*ddblocal.Manager, error) {
 		Docker:  l.host.client,
 		Storage: l.storage,
 		Network: localNetwork(top),
-		Labels:  docker.Labels{Ownership: l.host.ownership},
+		Labels:  docker.Labels{Ownership: l.host.ownership, Extra: l.host.extraLabels},
 		Memory:  l.memory,
 		Log:     l.log,
 	})

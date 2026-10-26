@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"net"
 	"net/netip"
 	"os"
@@ -45,9 +46,12 @@ type containerHost struct {
 	// network is how function containers reach understudy; never nil.
 	network   LambdaNetwork
 	ownership docker.Ownership
-	clock     *clock.Clock
-	log       *slog.Logger
-	detector  topology.Detector
+	// extraLabels go on every container beside the own labels
+	// (dockerLabels); New checked that none is under docker.ReservedPrefix.
+	extraLabels map[string]string
+	clock       *clock.Clock
+	log         *slog.Logger
+	detector    topology.Detector
 
 	// mu serializes detection and construction and guards the fields
 	// below.
@@ -124,11 +128,11 @@ func (e *BridgeGatewayError) Error() string {
 		"set lambda.network to the gateway function containers use, or to auto", e.Gateway, known)
 }
 
-func newContainerHost(setting Docker, network LambdaNetwork, ownership docker.Ownership, clk *clock.Clock, log *slog.Logger) (*containerHost, error) {
+func newContainerHost(setting Docker, network LambdaNetwork, ownership docker.Ownership, extraLabels map[string]string, clk *clock.Clock, log *slog.Logger) (*containerHost, error) {
 	if network == nil {
 		network = NetworkAuto{}
 	}
-	h := &containerHost{network: network, ownership: ownership, clock: clk, log: log, built: make(chan struct{})}
+	h := &containerHost{network: network, ownership: ownership, extraLabels: maps.Clone(extraLabels), clock: clk, log: log, built: make(chan struct{})}
 	switch d := setting.(type) {
 	case DockerDisabled:
 		return h, nil
@@ -389,7 +393,7 @@ func (h *containerHost) lambda(ctx context.Context) (*lambdaHost, error) {
 	}
 	// The listener opens last: one left open by a failed build would make
 	// the next call's open fail with the address in use.
-	l, err := launcher.New(h.client, launcher.Options{Ownership: h.ownership, Topology: top, EndpointPort: h.port, Logger: h.log})
+	l, err := launcher.New(h.client, launcher.Options{Ownership: h.ownership, ExtraLabels: h.extraLabels, Topology: top, EndpointPort: h.port, Logger: h.log})
 	if err != nil {
 		return nil, err
 	}

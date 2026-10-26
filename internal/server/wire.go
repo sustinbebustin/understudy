@@ -403,7 +403,7 @@ func (w *wiring) containers(cfg Config, instance string, clk *clock.Clock, log *
 		storage, codeDir = ddblocal.InMemory{}, filepath.Join(w.temp, "code")
 	}
 	var err error
-	if w.host, err = newContainerHost(cfg.Docker, cfg.LambdaNetwork, ownership, clk, log); err != nil {
+	if w.host, err = newContainerHost(cfg.Docker, cfg.LambdaNetwork, ownership, cfg.DockerLabels, clk, log); err != nil {
 		return err
 	}
 	w.local = &lazyLocal{host: w.host, mode: cfg.DynamoDB, storage: storage, memory: cfg.DynamoDBMemory, log: log}

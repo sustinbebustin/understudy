@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/config"
+	"github.com/sustinbebustin/understudy/internal/docker"
 )
 
 // Server is one understudy serve: the wired emulator and its listeners.
@@ -116,8 +117,9 @@ func (e *BindError) Unwrap() error { return e.Err }
 // 127.0.0.1:0; a non-loopback one is a *ListenError unless it has the
 // ContainerPublished exposure inside a container, or an AdminToken and
 // AWSAPIUnauthenticated, and an unwritable ReadyFile is a *ReadyFileError.
-// A setting refused as it is applied, such as a fault rule or a hot-reload
-// directory, is a *SettingError.
+// A setting refused as it is applied, such as a fault rule, a hot-reload
+// directory or a dockerLabels key under understudy.dev/, is a
+// *SettingError.
 //
 // What New opens (the journal, the blob store, the data directory, the
 // code store) is released when Serve shuts down, or by Close when the
@@ -131,6 +133,9 @@ func New(cfg Config) (*Server, error) {
 	}
 	if err := checkReadyFile(cfg.ReadyFile); err != nil {
 		return nil, err
+	}
+	if err := docker.CheckExtra(cfg.DockerLabels); err != nil {
+		return nil, &SettingError{Setting: "dockerLabels", Reason: err.Error(), Err: err}
 	}
 	out := cfg.LogOutput
 	if out == nil {

@@ -71,8 +71,10 @@ type Config struct {
 	// default socket.
 	Docker Docker
 	// DockerLabels are added to every container and network understudy
-	// creates (dockerLabels, testcontainers.md 9.3); New refuses a key
-	// starting with understudy.dev/. Not applied yet.
+	// creates (dockerLabels, testcontainers.md 9.3): the Lambda launcher's
+	// function containers and DynamoDB Local. New refuses a key starting
+	// with understudy.dev/ (docker.ReservedPrefix) as a *SettingError, with
+	// Docker enabled or not.
 	DockerLabels map[string]string
 	// DynamoDB is whether the DynamoDB service runs; nil is
 	// DynamoDBEnabled.

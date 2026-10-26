@@ -38,7 +38,7 @@ func testHostOn(t *testing.T, network LambdaNetwork, socket string) *containerHo
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := newContainerHost(DockerSocket{Path: socket}, network, docker.Ownership{Instance: "test", Owner: "run-test"}, clk, slog.New(slog.DiscardHandler))
+	h, err := newContainerHost(DockerSocket{Path: socket}, network, docker.Ownership{Instance: "test", Owner: "run-test"}, nil, clk, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
