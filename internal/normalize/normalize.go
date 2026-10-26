@@ -68,15 +68,26 @@ func ParseName(s string) (Name, error) {
 // angle brackets, so a masked value says which rule hid it.
 func (n Name) Mask() string { return "<" + string(n) + ">" }
 
-// Set is a selection of normalizers, applied in its order.
+// Set is a selection of normalizers, applied in its order. Its names are
+// never written, so the sets of one kind share one table and building one
+// allocates nothing, however often a caller does.
 type Set struct {
 	names []Name
 }
 
+// snapshotNames and exchangeNames are the orders of Snapshot and Exchange.
+//
+//nolint:gochecknoglobals // constant tables; Go has no constant arrays.
+var (
+	snapshotNames = [...]Name{RequestID, ReceiptHandle, WallTime, Duration, Host, Account, AccessKey, EventID}
+	exchangeNames = [...]Name{
+		Bound, RequestID, HostID, ISOTime, EpochTime, HTTPDate, Caller, UniqueID,
+		CanonicalID, PrincipalID, SourceIP, Credential, Account, ReceiptHandle,
+	}
+)
+
 // Snapshot is the set snapshot diff --normalize applies (ARCHITECTURE.md 12).
-func Snapshot() Set {
-	return Set{names: []Name{RequestID, ReceiptHandle, WallTime, Duration, Host, Account, AccessKey, EventID}}
-}
+func Snapshot() Set { return Set{names: snapshotNames[:]} }
 
 // Exchange is the set the parity replayer applies to recorded HTTP
 // exchanges and understudy's answers (ARCHITECTURE.md 19). Bound comes
@@ -85,12 +96,7 @@ func Snapshot() Set {
 // replay caller (the masked account's root, ADR 0012) are one placeholder
 // rather than an id or ARN with a masked account. It keeps URL hosts, which
 // a scenario's bindings settle, and masks the account a URL path starts with.
-func Exchange() Set {
-	return Set{names: []Name{
-		Bound, RequestID, HostID, ISOTime, EpochTime, HTTPDate, Caller, UniqueID,
-		CanonicalID, PrincipalID, SourceIP, Credential, Account, ReceiptHandle,
-	}}
-}
+func Exchange() Set { return Set{names: exchangeNames[:]} }
 
 // Names returns the set's normalizers in the order their rules apply.
 func (s Set) Names() []Name { return slices.Clone(s.names) }
@@ -113,7 +119,7 @@ const (
 // lower-cased, with '_' and '-' dropped, so RequestId, requestId and
 // request_id are one name.
 func (s Set) Member(name string, kind Kind, value string) (masked string, ok bool) {
-	key := foldName(name)
+	key := FoldName(name)
 	for _, n := range s.names {
 		if n.masksMember(key, kind, value) {
 			return n.Mask(), true
@@ -184,9 +190,11 @@ func (r Replacement) apply(spans []span) []span {
 	return next
 }
 
-// foldName lowercases a member name and drops '_' and '-', so requestId,
-// RequestId and request_id compare alike.
-func foldName(name string) string {
+// FoldName is the member name the member rules read: lower-cased, with '_'
+// and '-' dropped, so requestId, RequestId and request_id compare alike.
+// snapshot folds the names its scope rules read with it too, so the two
+// kinds of rule cannot read one name two ways.
+func FoldName(name string) string {
 	return strings.Map(func(r rune) rune {
 		switch {
 		case r == '_' || r == '-':

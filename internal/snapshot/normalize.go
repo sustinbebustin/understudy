@@ -117,24 +117,10 @@ func ruleKey(name string) string {
 	for {
 		i := strings.LastIndexByte(name, '#')
 		if i < 0 || i == len(name)-1 || strings.TrimLeft(name[i+1:], "0123456789") != "" {
-			return foldName(name)
+			return normalizer.FoldName(name)
 		}
 		name = name[:i]
 	}
-}
-
-// foldName lowercases a member name and drops '_' and '-', so requestId,
-// RequestId and request_id compare alike, as normalize.Set.Member folds it.
-func foldName(name string) string {
-	return strings.Map(func(r rune) rune {
-		switch {
-		case r == '_' || r == '-':
-			return -1
-		case 'A' <= r && r <= 'Z':
-			return r + 'a' - 'A'
-		}
-		return r
-	}, name)
 }
 
 // disambiguate renames the members of ms, whose values are normalized, with
