@@ -259,6 +259,7 @@ func serverConfig(cfg config.Config, version string) (server.Config, error) {
 			MaxEnvironments:  cfg.Lambda.MaxEnvironments,
 		},
 		LambdaNetwork:  mapNetwork(cfg.Lambda.Network),
+		DockerLabels:   cfg.DockerLabels,
 		DynamoDBMemory: cfg.DynamoDB.MemoryLimit,
 		Switches: server.Switches{
 			LambdaTransitions:  server.LambdaTransitionsFinal,

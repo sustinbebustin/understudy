@@ -105,6 +105,10 @@ func parseFile(name string, data []byte) (fileDoc, *Error) {
 	for _, key := range slices.Sorted(maps.Keys(top)) {
 		where := name + ": " + key
 		switch {
+		case key == keyDockerLabels:
+			// The file takes the label object itself, or a string holding
+			// its text, as the flag does.
+			doc.scalars[key] = value{text: jsonText(top[key]), where: where, source: fromFile}
 		case slices.Contains(scalarKeys, key):
 			text, err := scalarText(top[key])
 			if err != nil {

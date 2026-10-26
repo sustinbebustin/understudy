@@ -28,7 +28,8 @@ type Config struct {
 	Docker  Docker
 	// DockerLabels are added to every container and network understudy
 	// creates (dockerLabels, testcontainers.md 9.3); no key starts with
-	// understudy.dev/. Nil when unset. Not read from any source yet.
+	// understudy.dev/. Nil when unset; the source that sets it replaces the
+	// others whole.
 	DockerLabels map[string]string
 	S3           S3
 	Lambda       Lambda

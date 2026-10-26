@@ -73,6 +73,7 @@ func setters() map[string]func(*draft, value) *Error {
 		keyClockScale:   (*draft).setScale,
 		keySigV4:        (*draft).setSigV4,
 		keyDocker:       (*draft).setDocker,
+		keyDockerLabels: (*draft).setDockerLabels,
 		keyReadyFile:    func(d *draft, v value) *Error { return nonEmpty(v, &d.cfg.ReadyFile) },
 		keyLogFormat:    (*draft).setLogFormat,
 		keyLogLevel:     (*draft).setLogLevel,

@@ -48,6 +48,8 @@ Lambda and DynamoDB Local run on the Docker Engine `--docker` names, else `DOCKE
 
 A daemon on another host, such as a docker:dind CI service, is detected when the first container is needed: functions reach understudy at its own address on the daemon's network, so understudy must run on that network ([CI guide](guide/ci.md#docker-in-docker)). `understudy doctor` reports the daemon, its transport and the topology.
 
+`--docker-labels` (`UNDERSTUDY_DOCKER_LABELS`, file key `dockerLabels`) adds labels to every container and network understudy creates, function environments and DynamoDB Local among them, beside understudy's own `understudy.dev/` labels. The value is a JSON object of string values; the file takes the object itself or a string holding its text, and the source that sets it replaces the others whole. It is how a Testcontainers module that runs understudy in a container hands over the session's reaper labels, such as `{"org.testcontainers.session-id":"<id>"}`, so Ryuk also removes the containers understudy started when the test process dies. Keys under `understudy.dev/` are refused (`label key "understudy.dev/managed" is reserved for understudy's own labels; choose a key outside understudy.dev/`), so the sweeps and `understudy cleanup`, which select only those labels, remove what they did before.
+
 ## Exit codes
 
 `serve` exits 2 when it refuses a flag, variable or file setting, and 1 when it fails after loading them, such as a port already in use. Every CLI command shares one table, which `understudy --help` prints:
@@ -114,6 +116,9 @@ This is what `understudy serve --help` prints under Flags. A test keeps it in st
   --docker URL
       Docker Engine for Lambda and DynamoDB Local: unix://<socket>, tcp://<host>:<port> (TLS when DOCKER_TLS_VERIFY is set, with ca.pem, cert.pem and key.pem from DOCKER_CERT_PATH), or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)
       variable UNDERSTUDY_DOCKER, file key "docker"
+  --docker-labels JSON
+      labels added to every container and network understudy creates, as a JSON object of string values, such as {"org.testcontainers.session-id":"<id>"} so a Testcontainers reaper also removes them; keys under understudy.dev/ are understudy's own and refused (default none)
+      variable UNDERSTUDY_DOCKER_LABELS, file key "dockerLabels"
   --ready-file FILE
       file to write {"endpoint", "pid"} to once listening
       variable UNDERSTUDY_READY_FILE, file key "readyFile"
