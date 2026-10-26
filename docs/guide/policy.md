@@ -77,3 +77,55 @@ Actions AWS needs that the record does not yet carry; add them yourself:
 - `s3:GetObjectVersion` on a `HeadObject` with a version ID, which the Service Reference does not list for the operation.
 
 Only code paths your tests ran appear. A branch that never ran, or a request member your tests never sent, needs permissions the record cannot know.
+
+## AWS managed policies
+
+understudy ships the AWS managed policies the AWS Managed Policy Reference Guide lists, in `third_party/aws-managed-policies`; its `SOURCE.json` records the date they were retrieved. IAM reads and attaches them by their AWS ARNs, so code and configurations that name one work unchanged:
+
+```sh
+aws iam get-policy --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole \
+  --query 'Policy.[Path,DefaultVersionId,UpdateDate]' --output text
+```
+
+```text
+/service-role/	v1	2015-04-09T15:03:00+00:00
+```
+
+```sh
+aws iam get-policy-version --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole \
+  --version-id v1 --query 'PolicyVersion.Document.Statement[0].Action'
+aws iam attach-role-policy --role-name worker --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+```
+
+```text
+[
+    "logs:CreateLogGroup",
+    "logs:CreateLogStream",
+    "logs:PutLogEvents"
+]
+```
+
+`aws iam list-policies --scope AWS` lists the catalogue, `--scope All` (the default) lists it with your own policies, and `--only-attached` keeps the ones attached in the account. Attached, an AWS managed policy is stored like any other, not enforced. In Terraform, the `aws_iam_policy` data source finds one by name:
+
+```hcl
+data "aws_iam_policy" "basic_execution" {
+  name = "AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "worker_basic_execution" {
+  role       = aws_iam_role.worker.name
+  policy_arn = data.aws_iam_policy.basic_execution.arn
+}
+```
+
+An ARN the catalogue does not hold, such as a policy AWS published after it was retrieved, answers `NoSuchEntity`, and a name it does not hold fails the data source with `no matching IAM Policy found`:
+
+```sh
+aws iam attach-role-policy --role-name worker --policy-arn arn:aws:iam::aws:policy/NotAPolicy
+```
+
+```text
+An error occurred (NoSuchEntity) when calling the AttachRolePolicy operation: Policy arn:aws:iam::aws:policy/NotAPolicy does not exist or is not attachable.
+```
+
+Each policy has only its default version, so another `--version-id` answers `NoSuchEntity`; its dates have minute precision and its `PolicyId` is derived from the ARN. [Differences from AWS](differences.md) lists the rest.
