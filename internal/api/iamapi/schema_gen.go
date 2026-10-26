@@ -13,6 +13,10 @@ var memberAcceptDelegationRequestInput_DelegationRequestId = smithy.Member{Name:
 
 var schemaAccessAdvisorUsageGranularityType = smithy.Schema{ID: "com.amazonaws.iam#AccessAdvisorUsageGranularityType", Type: smithy.TypeEnum}
 
+var schemaAccessDenied = smithy.Schema{ID: "com.amazon.coral.service#AccessDenied", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberAccessDenied_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
 var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
@@ -3502,6 +3506,8 @@ var schemaVirtualMFADeviceName = smithy.Schema{ID: "com.amazonaws.iam#virtualMFA
 func init() {
 	memberAcceptDelegationRequestInput_DelegationRequestId.Target = &schemaDelegationRequestIdType
 	schemaAcceptDelegationRequestInput.Members = []*smithy.Member{&memberAcceptDelegationRequestInput_DelegationRequestId}
+	memberAccessDenied_message.Target = &schemaSmithyString
+	schemaAccessDenied.Members = []*smithy.Member{&memberAccessDenied_message}
 	memberAccessDeniedException_message.Target = &schemaSmithyString
 	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_message}
 	memberAccessDetail_ServiceName.Target = &schemaServiceNameType

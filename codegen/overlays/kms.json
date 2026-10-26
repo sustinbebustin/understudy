@@ -5,6 +5,7 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
+        "dev.understudy#denialError": "com.amazonaws.kms#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#evidence": [
           {
@@ -17,8 +18,26 @@
             "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/kms/test_kms.snapshot.json#L17",
             "validated": "2024-04-11",
             "covers": ["dev.understudy#validationError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the code AccessDeniedException is the KMS CommonErrors template's and Terraform's (3.2); its 400 status follows the recorded Logs and Secrets Manager denials, not the template's 403, switch kms.denial.status, until recording IAM-ENF-05",
+            "covers": ["dev.understudy#denialError"]
           }
         ]
+      }
+    },
+    "com.amazonaws.kms#AccessDeniedException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/iam-enforcement-surfaces.md#32-per-service-identity: the model declares no denial shape (3.1); code AccessDeniedException with body key message, and 400 by the JSON client-error default as recorded for Logs and Secrets Manager; the status is UNVERIFIED until recording IAM-ENF-05"
+        }
       }
     },
     "com.amazonaws.kms#AlreadyExistsException": {

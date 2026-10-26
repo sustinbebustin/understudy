@@ -19,9 +19,9 @@ var memberAPIErrorType_ErrorCode = smithy.Member{Name: "ErrorCode", Index: 1}
 
 var memberAPIErrorType_Message = smithy.Member{Name: "Message", Index: 2}
 
-var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaAccessDeniedException = smithy.Schema{ID: "com.amazonaws.secretsmanager#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
+var memberAccessDeniedException_Message = smithy.Member{Name: "Message", Index: 0}
 
 var schemaAddReplicaRegionListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#AddReplicaRegionListType", Type: smithy.TypeList}
 
@@ -62,6 +62,10 @@ var memberCancelRotateSecretOutput_Name = smithy.Member{Name: "Name", Index: 1}
 var memberCancelRotateSecretOutput_VersionId = smithy.Member{Name: "VersionId", Index: 2}
 
 var schemaClientRequestTokenType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ClientRequestTokenType", Type: smithy.TypeString}
+
+var schemaCoralServiceAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberCoralServiceAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaCreateSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#CreateSecretRequest", Type: smithy.TypeStructure}
 
@@ -832,8 +836,8 @@ func init() {
 	memberAPIErrorType_ErrorCode.Target = &schemaErrorCode
 	memberAPIErrorType_Message.Target = &schemaErrorMessage
 	schemaAPIErrorType.Members = []*smithy.Member{&memberAPIErrorType_SecretId, &memberAPIErrorType_ErrorCode, &memberAPIErrorType_Message}
-	memberAccessDeniedException_message.Target = &schemaSmithyString
-	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_message}
+	memberAccessDeniedException_Message.Target = &schemaSmithyString
+	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_Message}
 	memberAddReplicaRegionListType_member.Target = &schemaReplicaRegionType
 	schemaAddReplicaRegionListType.Members = []*smithy.Member{&memberAddReplicaRegionListType_member}
 	memberBatchGetSecretValueInput_SecretIdList.Target = &schemaSecretIdListType
@@ -851,6 +855,8 @@ func init() {
 	memberCancelRotateSecretOutput_Name.Target = &schemaSecretNameType
 	memberCancelRotateSecretOutput_VersionId.Target = &schemaSecretVersionIdType
 	schemaCancelRotateSecretOutput.Members = []*smithy.Member{&memberCancelRotateSecretOutput_ARN, &memberCancelRotateSecretOutput_Name, &memberCancelRotateSecretOutput_VersionId}
+	memberCoralServiceAccessDeniedException_message.Target = &schemaSmithyString
+	schemaCoralServiceAccessDeniedException.Members = []*smithy.Member{&memberCoralServiceAccessDeniedException_message}
 	memberCreateSecretInput_Name.Target = &schemaNameType
 	memberCreateSecretInput_ClientRequestToken.Target = &schemaClientRequestTokenType
 	memberCreateSecretInput_Description.Target = &schemaDescriptionType

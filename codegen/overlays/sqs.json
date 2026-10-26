@@ -9,6 +9,7 @@
         "dev.understudy#emptyCollection": "omit",
         "dev.understudy#queryErrorEnvelope": {"namespace": true, "detail": true},
         "dev.understudy#throttleError": "com.amazonaws.sqs#RequestThrottled",
+        "dev.understudy#denialError": "com.amazon.coral.service#AccessDenied",
         "dev.understudy#unknownOperationError": {
           "json": "com.amazon.coral.service#UnknownOperationException",
           "query": "com.amazon.coral.service#InvalidAction"
@@ -44,6 +45,11 @@
             "label": "inferred",
             "source": "docs/research/error-matrix.md#51-sqs-json-10",
             "covers": ["dev.understudy#throttleError", "dev.understudy#unknownOperationError", "dev.understudy#validationError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the Query code AccessDenied is documented (3.2); the 403 status and the JSON __type com.amazon.coral.service#AccessDeniedException with x-amzn-query-error AccessDenied;Sender are inferred, switches sqs.denial.json-identity and sqs.denial.query-text, until recordings IAM-ENF-01 and IAM-ENF-02",
+            "covers": ["dev.understudy#denialError"]
           }
         ]
       }

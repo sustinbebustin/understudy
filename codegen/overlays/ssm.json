@@ -5,8 +5,14 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazonaws.ssm#ThrottlingException",
+        "dev.understudy#denialError": "com.amazonaws.ssm#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the SSM denial; the model's own AccessDeniedException is taken; UNVERIFIED until recording IAM-ENF-41",
+            "covers": ["dev.understudy#denialError"]
+          },
           {
             "label": "inferred",
             "source": "docs/research/ssm-parameters.md#22-errors: CommonErrors.html gives code ThrottlingException, HTTP 400, as a generic common error with no envelope, and API_PutParameter.html names 'ThrottlingException: Rate exceeded' in prose but not among its errors; the model binds com.amazonaws.ssm#ThrottlingException (Message, QuotaCode, ServiceCode) only to GetAccessToken and StartAccessRequest, so choosing it for Parameter Store over com.amazon.coral.service#ThrottlingException (message) is inference; UNVERIFIED (SSM-01): the message key casing; the SSM queue (ssm-parameters.md 13) has no throttle case, so J14 (error-matrix.md 10) run against ssm settles it",

@@ -7,6 +7,10 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 )
 
+var schemaAccessDenied = smithy.Schema{ID: "com.amazon.coral.service#AccessDenied", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberAccessDenied_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
 var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
@@ -1548,6 +1552,8 @@ var memberWorkmailAction_TopicArn = smithy.Member{Name: "TopicArn", Index: 0}
 var memberWorkmailAction_OrganizationArn = smithy.Member{Name: "OrganizationArn", Index: 1, Required: true}
 
 func init() {
+	memberAccessDenied_message.Target = &schemaSmithyString
+	schemaAccessDenied.Members = []*smithy.Member{&memberAccessDenied_message}
 	memberAccessDeniedException_message.Target = &schemaSmithyString
 	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_message}
 	memberAccountSendingPausedException_message.Target = &schemaErrorMessage

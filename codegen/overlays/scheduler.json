@@ -5,8 +5,14 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazonaws.scheduler#ThrottlingException",
+        "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazonaws.scheduler#ValidationException"},
         "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Scheduler denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers; UNVERIFIED until recording IAM-ENF-37",
+            "covers": ["dev.understudy#denialError"]
+          },
           {
             "label": "inferred",
             "source": "docs/research/eventbridge-buses.md#111-model-and-wire: the model declares ThrottlingException (429) on every operation while CommonErrors.html lists a 400 ThrottlingException; no recording shows which Scheduler emits; the EBB queue has no throttle case, so J14 (error-matrix.md 10) run against scheduler settles it",

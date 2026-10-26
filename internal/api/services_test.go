@@ -293,8 +293,16 @@ func TestServiceWideOverlayTraits(t *testing.T) {
 // awserr catalogue describe the same protocol-level errors per family; a
 // service speaks the vocabulary of each family it belongs to and no other.
 // The __type is compared by name alone, since awsJson1_1 and restJson1
-// services send it bare.
+// services send it bare. A service overlay may correct a generic status
+// its service documents otherwise; each correction is listed here, so any
+// other drift still fails.
 func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
+	statusOverrides := map[ref.ServiceID]map[string]int{
+		// DynamoDB's developer guide lists AccessDeniedException under HTTP
+		// 400 (iam-enforcement-surfaces.md 3.2); Streams follows DynamoDB.
+		"dynamodb":        {"com.amazon.coral.service#AccessDeniedException": 400},
+		"dynamodbstreams": {"com.amazon.coral.service#AccessDeniedException": 400},
+	}
 	generic := map[ref.ServiceID]func(awserr.Family) []awserr.Identity{
 		"cloudwatch": cloudwatchapi.GenericErrors, "dynamodb": dynamodbapi.GenericErrors, "eventbridge": eventbridgeapi.GenericErrors,
 		"iam": iamapi.GenericErrors, "kms": kmsapi.GenericErrors, "lambda": lambdaapi.GenericErrors, "logs": logsapi.GenericErrors,
@@ -333,8 +341,15 @@ func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
 			if speaks[f] {
 				want = awserr.Catalogue(f)
 			}
-			if got := byShape(fn(f)); !reflect.DeepEqual(got, byShape(want)) {
-				t.Errorf("%s: GenericErrors(%v) =\n%+v\nwant\n%+v", svc.ID, f, got, byShape(want))
+			wantByShape := byShape(want)
+			for shape, status := range statusOverrides[svc.ID] {
+				if id, ok := wantByShape[shape]; ok {
+					id.Status = status
+					wantByShape[shape] = id
+				}
+			}
+			if got := byShape(fn(f)); !reflect.DeepEqual(got, wantByShape) {
+				t.Errorf("%s: GenericErrors(%v) =\n%+v\nwant\n%+v", svc.ID, f, got, wantByShape)
 			}
 		}
 	}

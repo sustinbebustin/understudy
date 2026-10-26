@@ -8,7 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
-// AccessDeniedException is the error com.amazon.coral.service#AccessDeniedException.
+// AccessDeniedException is the error com.amazonaws.lambda#AccessDeniedException.
 type AccessDeniedException struct {
 	Message *string
 }
@@ -573,6 +573,11 @@ type ContextStartedDetails struct{}
 // ContextSucceededDetails is com.amazonaws.lambda#ContextSucceededDetails.
 type ContextSucceededDetails struct {
 	Result EventResult
+}
+
+// CoralServiceAccessDeniedException is the error com.amazon.coral.service#AccessDeniedException.
+type CoralServiceAccessDeniedException struct {
+	Message *string
 }
 
 // CoralServiceUnknownOperationException is the error com.amazon.coral.service#UnknownOperationException.

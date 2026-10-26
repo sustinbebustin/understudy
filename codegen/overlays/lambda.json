@@ -5,6 +5,7 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazonaws.lambda#TooManyRequestsException",
+        "dev.understudy#denialError": "com.amazonaws.lambda#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#validationPathStyle": "rolledUp",
         "dev.understudy#malformedRequestError": "com.amazonaws.lambda#InvalidRequestContentException",
@@ -38,8 +39,28 @@
             "label": "aws-doc",
             "source": "https://docs.aws.amazon.com/lambda/latest/api/CommonErrors.html",
             "covers": ["dev.understudy#unknownOperationError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: AccessDeniedException, 403, is recorded for another account's function ARN with Message null (3.2, third-party-recorded); that a same-account IAM denial answers it with the grammar in Message is inferred, switch lambda.denial.body, until recording IAM-ENF-11",
+            "covers": ["dev.understudy#denialError"]
           }
         ]
+      }
+    },
+    "com.amazonaws.lambda#AccessDeniedException": {
+      "type": "structure",
+      "members": {
+        "Message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 403,
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L13926-L13934: CreateFunction with another account's function ARN answers x-amzn-errortype AccessDeniedException, 403, with the body key Message (docs/research/iam-enforcement-surfaces.md#32-per-service-identity); the model declares no such shape",
+          "validated": "2025-11-25"
+        }
       }
     },
     "com.amazonaws.lambda#UnknownOperationException": {

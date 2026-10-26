@@ -5,6 +5,7 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
+        "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#evidence": [
           {
@@ -14,10 +15,25 @@
           },
           {
             "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Streams denial, so it follows DynamoDB's row (com.amazon.coral.service#AccessDeniedException at 400); UNVERIFIED until recording IAM-ENF-35",
+            "covers": ["dev.understudy#denialError"]
+          },
+          {
+            "label": "inferred",
             "source": "docs/research/dynamodb-streams.md#65-error-and-validation-texts: DynamoDB Local answers the Limit 0 range violation with the Coral constraint text and its own checks with com.amazon.coral.validate#ValidationException (5.1, 6.4), but skips length checks and answers enum, required and digit violations with 500 InternalFailure (8.3 row 11); AWS documents ValidationException on GetShardIterator; AWS's class for constraint failures is UNVERIFIED until recording DDBS-02",
             "covers": ["dev.understudy#validationError"]
           }
         ]
+      }
+    },
+    "com.amazon.coral.service#AccessDeniedException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#statusOverride": 400,
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/iam-enforcement-surfaces.md#32-per-service-identity: the DynamoDB developer guide lists AccessDeniedException under HTTP 400; the Streams endpoint is assumed to answer as DynamoDB does, UNVERIFIED until recording IAM-ENF-35"
+        }
       }
     }
   }

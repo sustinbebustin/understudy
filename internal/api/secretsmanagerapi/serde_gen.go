@@ -38,7 +38,7 @@ func (v *AccessDeniedException) Serialize(s smithy.Serializer) { v.serialize(s, 
 func (v *AccessDeniedException) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaAccessDeniedException)
 	if v.Message != nil {
-		s.WriteString(&memberAccessDeniedException_message, *v.Message)
+		s.WriteString(&memberAccessDeniedException_Message, *v.Message)
 	}
 	s.CloseStruct()
 }
@@ -172,6 +172,17 @@ func (v *CancelRotateSecretOutput) serialize(s smithy.Serializer, m *smithy.Memb
 	}
 	if v.VersionId != nil {
 		s.WriteString(&memberCancelRotateSecretOutput_VersionId, *v.VersionId)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *CoralServiceAccessDeniedException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *CoralServiceAccessDeniedException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaCoralServiceAccessDeniedException)
+	if v.Message != nil {
+		s.WriteString(&memberCoralServiceAccessDeniedException_message, *v.Message)
 	}
 	s.CloseStruct()
 }

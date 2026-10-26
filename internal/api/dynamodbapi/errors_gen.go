@@ -9,7 +9,7 @@ import (
 
 // IdentityAccessDeniedException returns the identity of com.amazon.coral.service#AccessDeniedException.
 func IdentityAccessDeniedException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazon.coral.service#AccessDeniedException", JSONType: "com.amazon.coral.service#AccessDeniedException", QueryCode: "AccessDeniedException", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazon.coral.service#AccessDeniedException", JSONType: "com.amazon.coral.service#AccessDeniedException", QueryCode: "AccessDeniedException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrAccessDeniedException returns an AccessDeniedException error with message.
@@ -866,6 +866,10 @@ func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
 // ThrottleError returns the identity a throttling fault rule injects for
 // this service (dev.understudy#throttleError).
 func ThrottleError() awserr.Identity { return IdentityThrottlingException() }
+
+// DenialError returns the identity this service answers an authorization
+// refusal with (dev.understudy#denialError), evidence inferred.
+func DenialError() awserr.Identity { return IdentityAccessDeniedException() }
 
 // UnknownOperationError returns the identity this service answers for an
 // operation absent from its model, per protocol family

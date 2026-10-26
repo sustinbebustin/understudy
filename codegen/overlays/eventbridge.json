@@ -5,12 +5,18 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazonaws.eventbridge#ThrottlingException",
+        "dev.understudy#denialError": "com.amazonaws.eventbridge#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#evidence": [
           {
             "label": "inferred",
             "source": "docs/research/error-matrix.md#512-eventbridge-json-11",
             "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDeniedException (client, no httpError, so 400) is declared on CreateConnection and UpdateConnection only (3.1); that an IAM denial answers it at 400 rather than the CommonErrors template's 403 is inferred, switch events.denial.status, until recording IAM-ENF-08",
+            "covers": ["dev.understudy#denialError"]
           },
           {
             "label": "third-party-recorded",

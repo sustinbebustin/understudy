@@ -11,6 +11,10 @@ var schemaAWSAccountIdList = smithy.Schema{ID: "com.amazonaws.sqs#AWSAccountIdLi
 
 var memberAWSAccountIdList_member = smithy.Member{Name: "member", Index: 0}
 
+var schemaAccessDenied = smithy.Schema{ID: "com.amazon.coral.service#AccessDenied", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberAccessDenied_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
 var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
@@ -732,6 +736,8 @@ var memberUntagQueueInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Req
 func init() {
 	memberAWSAccountIdList_member.Target = &schemaString
 	schemaAWSAccountIdList.Members = []*smithy.Member{&memberAWSAccountIdList_member}
+	memberAccessDenied_message.Target = &schemaSmithyString
+	schemaAccessDenied.Members = []*smithy.Member{&memberAccessDenied_message}
 	memberAccessDeniedException_message.Target = &schemaSmithyString
 	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_message}
 	memberActionNameList_member.Target = &schemaString

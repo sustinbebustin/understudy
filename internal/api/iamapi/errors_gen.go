@@ -7,6 +7,19 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
+// IdentityAccessDenied returns the identity of com.amazon.coral.service#AccessDenied.
+func IdentityAccessDenied() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazon.coral.service#AccessDenied", JSONType: "AccessDeniedException", QueryCode: "AccessDenied", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrAccessDenied returns an AccessDenied error with message.
+func ErrAccessDenied(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityAccessDenied(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#AccessDenied.
+func (*AccessDenied) ErrorIdentity() awserr.Identity { return IdentityAccessDenied() }
+
 // IdentityAccessDeniedException returns the identity of com.amazon.coral.service#AccessDeniedException.
 func IdentityAccessDeniedException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -742,6 +755,10 @@ func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
 // ThrottleError returns the identity a throttling fault rule injects for
 // this service (dev.understudy#throttleError).
 func ThrottleError() awserr.Identity { return IdentityThrottlingException() }
+
+// DenialError returns the identity this service answers an authorization
+// refusal with (dev.understudy#denialError), evidence inferred.
+func DenialError() awserr.Identity { return IdentityAccessDenied() }
 
 // UnknownOperationError returns the identity this service answers for an
 // operation absent from its model, per protocol family

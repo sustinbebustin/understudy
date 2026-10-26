@@ -5,8 +5,14 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
+        "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Step Functions denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers with that awsJson1_0 __type; UNVERIFIED until recording IAM-ENF-40",
+            "covers": ["dev.understudy#denialError"]
+          },
           {
             "label": "inferred",
             "source": "docs/research/stepfunctions-api.md#32-error-identities-and-statuses: code ThrottlingException, HTTP 400 and SDK retry are documented at https://docs.aws.amazon.com/step-functions/latest/apireference/CommonErrors.html, which shows the bare name only; UNVERIFIED (SFN-01): the awsJson1_0 __type namespace com.amazon.coral.service# and the message key casing; recording-queue SFN-01 (stepfunctions-api.md 14.2) settles it",

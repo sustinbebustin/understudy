@@ -22,6 +22,7 @@ var service = registry.Service{
 	JSONTargetPrefix:      "AWSStepFunctions",
 	XMLNamespace:          "http://swf.amazonaws.com/doc/2015-07-20/",
 	MalformedRequestError: IdentitySerializationException(),
+	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "inferred"},
 	NewErrorMembers:       NewErrorMembers,
 }
 

@@ -20,6 +20,7 @@ var service = registry.Service{
 	ARNNamespace:          "lambda",
 	Protocols:             []ref.ProtocolID{ref.RESTJSON1},
 	MalformedRequestError: IdentityInvalidRequestContentException(),
+	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "inferred"},
 	NewErrorMembers:       NewErrorMembers,
 }
 

@@ -7,17 +7,17 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
-// IdentityAccessDeniedException returns the identity of com.amazon.coral.service#AccessDeniedException.
+// IdentityAccessDeniedException returns the identity of com.amazonaws.lambda#AccessDeniedException.
 func IdentityAccessDeniedException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazon.coral.service#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.lambda#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
 }
 
 // ErrAccessDeniedException returns an AccessDeniedException error with message.
 func ErrAccessDeniedException(message string) *awserr.Error {
-	return &awserr.Error{ID: IdentityAccessDeniedException(), Message: message, Origin: awserr.Generic{}}
+	return &awserr.Error{ID: IdentityAccessDeniedException(), Message: message, Origin: awserr.Modeled{}}
 }
 
-// ErrorIdentity returns the identity of com.amazon.coral.service#AccessDeniedException.
+// ErrorIdentity returns the identity of com.amazonaws.lambda#AccessDeniedException.
 func (*AccessDeniedException) ErrorIdentity() awserr.Identity { return IdentityAccessDeniedException() }
 
 // IdentityAliasLimitExceededException returns the identity of com.amazonaws.lambda#AliasLimitExceededException.
@@ -243,6 +243,21 @@ func ErrCodeVerificationFailedExceptionMembers(message string, v CodeVerificatio
 		v.Message = &message
 	}
 	return awserr.WithMembers(&v, message, awserr.Modeled{})
+}
+
+// IdentityCoralServiceAccessDeniedException returns the identity of com.amazon.coral.service#AccessDeniedException.
+func IdentityCoralServiceAccessDeniedException() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazon.coral.service#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrCoralServiceAccessDeniedException returns a CoralServiceAccessDeniedException error with message.
+func ErrCoralServiceAccessDeniedException(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityCoralServiceAccessDeniedException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#AccessDeniedException.
+func (*CoralServiceAccessDeniedException) ErrorIdentity() awserr.Identity {
+	return IdentityCoralServiceAccessDeniedException()
 }
 
 // IdentityCoralServiceUnknownOperationException returns the identity of com.amazon.coral.service#UnknownOperationException.
@@ -1603,6 +1618,10 @@ func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
 // this service (dev.understudy#throttleError).
 func ThrottleError() awserr.Identity { return IdentityTooManyRequestsException() }
 
+// DenialError returns the identity this service answers an authorization
+// refusal with (dev.understudy#denialError), evidence inferred.
+func DenialError() awserr.Identity { return IdentityAccessDeniedException() }
+
 // UnknownOperationError returns the identity this service answers for an
 // operation absent from its model, per protocol family
 // (dev.understudy#unknownOperationError); false for a family it does not
@@ -1627,7 +1646,7 @@ func MalformedRequestError() awserr.Identity { return IdentityInvalidRequestCont
 func GenericErrors(f awserr.Family) []awserr.Identity {
 	switch f {
 	case awserr.JSONFamily:
-		return []awserr.Identity{IdentitySerializationException(), IdentityCoralServiceUnknownOperationException(), IdentityMissingAuthenticationTokenException(), IdentityIncompleteSignatureException(), IdentityInvalidSignatureException(), IdentityUnrecognizedClientException(), IdentityExpiredTokenException(), IdentityAccessDeniedException(), IdentityInternalFailure(), IdentityNotImplemented(), IdentityRequestEntityTooLargeException(), IdentityThrottlingException()}
+		return []awserr.Identity{IdentitySerializationException(), IdentityCoralServiceUnknownOperationException(), IdentityMissingAuthenticationTokenException(), IdentityIncompleteSignatureException(), IdentityInvalidSignatureException(), IdentityUnrecognizedClientException(), IdentityExpiredTokenException(), IdentityCoralServiceAccessDeniedException(), IdentityInternalFailure(), IdentityNotImplemented(), IdentityRequestEntityTooLargeException(), IdentityThrottlingException()}
 	default:
 		return nil
 	}

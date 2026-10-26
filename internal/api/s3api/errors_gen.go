@@ -1315,6 +1315,10 @@ func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
 // this service (dev.understudy#throttleError).
 func ThrottleError() awserr.Identity { return IdentitySlowDown() }
 
+// DenialError returns the identity this service answers an authorization
+// refusal with (dev.understudy#denialError), evidence aws-doc.
+func DenialError() awserr.Identity { return IdentityAccessDenied() }
+
 // MalformedRequestError returns the identity this service answers for a
 // body that does not decode (dev.understudy#malformedRequestError).
 func MalformedRequestError() awserr.Identity { return IdentityMalformedXML() }

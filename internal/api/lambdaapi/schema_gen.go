@@ -7,9 +7,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 )
 
-var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaAccessDeniedException = smithy.Schema{ID: "com.amazonaws.lambda#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
+var memberAccessDeniedException_Message = smithy.Member{Name: "Message", Index: 0}
 
 var schemaAccountLimit = smithy.Schema{ID: "com.amazonaws.lambda#AccountLimit", Type: smithy.TypeStructure}
 
@@ -460,6 +460,10 @@ var schemaContextStartedDetails = smithy.Schema{ID: "com.amazonaws.lambda#Contex
 var schemaContextSucceededDetails = smithy.Schema{ID: "com.amazonaws.lambda#ContextSucceededDetails", Type: smithy.TypeStructure}
 
 var memberContextSucceededDetails_Result = smithy.Member{Name: "Result", Index: 0, Required: true}
+
+var schemaCoralServiceAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberCoralServiceAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaCoralServiceUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
@@ -3446,8 +3450,8 @@ var schemaWorkingDirectory = smithy.Schema{ID: "com.amazonaws.lambda#WorkingDire
 var schemaXAmznTraceId = smithy.Schema{ID: "com.amazonaws.lambda#XAmznTraceId", Type: smithy.TypeString}
 
 func init() {
-	memberAccessDeniedException_message.Target = &schemaSmithyString
-	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_message}
+	memberAccessDeniedException_Message.Target = &schemaSmithyString
+	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_Message}
 	memberAccountLimit_TotalCodeSize.Target = &schemaLong
 	memberAccountLimit_CodeSizeUnzipped.Target = &schemaLong
 	memberAccountLimit_CodeSizeZipped.Target = &schemaLong
@@ -3645,6 +3649,8 @@ func init() {
 	schemaContextOptions.Members = []*smithy.Member{&memberContextOptions_ReplayChildren}
 	memberContextSucceededDetails_Result.Target = &schemaEventResult
 	schemaContextSucceededDetails.Members = []*smithy.Member{&memberContextSucceededDetails_Result}
+	memberCoralServiceAccessDeniedException_message.Target = &schemaSmithyString
+	schemaCoralServiceAccessDeniedException.Members = []*smithy.Member{&memberCoralServiceAccessDeniedException_message}
 	memberCoralServiceUnknownOperationException_message.Target = &schemaSmithyString
 	schemaCoralServiceUnknownOperationException.Members = []*smithy.Member{&memberCoralServiceUnknownOperationException_message}
 	memberCors_AllowCredentials.Target = &schemaAllowCredentials

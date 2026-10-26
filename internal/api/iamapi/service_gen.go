@@ -22,6 +22,7 @@ var service = registry.Service{
 	QueryVersion:       "2010-05-08",
 	XMLNamespace:       "https://iam.amazonaws.com/doc/2010-05-08/",
 	QueryErrorEnvelope: registry.QueryErrorEnvelope{Namespace: true, Detail: false},
+	Denial:             registry.Denial{Identity: IdentityAccessDenied(), Label: "inferred"},
 	NewErrorMembers:    NewErrorMembers,
 }
 

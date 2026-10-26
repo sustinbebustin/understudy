@@ -393,6 +393,10 @@ func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
 // this service (dev.understudy#throttleError).
 func ThrottleError() awserr.Identity { return IdentityThrottlingException() }
 
+// DenialError returns the identity this service answers an authorization
+// refusal with (dev.understudy#denialError), evidence inferred.
+func DenialError() awserr.Identity { return IdentityAccessDeniedException() }
+
 // UnknownOperationError returns the identity this service answers for an
 // operation absent from its model, per protocol family
 // (dev.understudy#unknownOperationError); false for a family it does not

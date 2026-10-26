@@ -9,7 +9,7 @@ import (
 
 var schemaAWSAccountIdType = smithy.Schema{ID: "com.amazonaws.kms#AWSAccountIdType", Type: smithy.TypeString}
 
-var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaAccessDeniedException = smithy.Schema{ID: "com.amazonaws.kms#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
 var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
 
@@ -96,6 +96,10 @@ var schemaConnectCustomKeyStoreOutput = smithy.Schema{ID: "com.amazonaws.kms#Con
 var schemaConnectionErrorCodeType = smithy.Schema{ID: "com.amazonaws.kms#ConnectionErrorCodeType", Type: smithy.TypeEnum}
 
 var schemaConnectionStateType = smithy.Schema{ID: "com.amazonaws.kms#ConnectionStateType", Type: smithy.TypeEnum}
+
+var schemaCoralServiceAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberCoralServiceAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
 
 var schemaCreateAliasInput = smithy.Schema{ID: "com.amazonaws.kms#CreateAliasRequest", Type: smithy.TypeStructure}
 
@@ -1564,6 +1568,8 @@ func init() {
 	schemaConflictException.Members = []*smithy.Member{&memberConflictException_message}
 	memberConnectCustomKeyStoreInput_CustomKeyStoreId.Target = &schemaCustomKeyStoreIdType
 	schemaConnectCustomKeyStoreInput.Members = []*smithy.Member{&memberConnectCustomKeyStoreInput_CustomKeyStoreId}
+	memberCoralServiceAccessDeniedException_message.Target = &schemaSmithyString
+	schemaCoralServiceAccessDeniedException.Members = []*smithy.Member{&memberCoralServiceAccessDeniedException_message}
 	memberCreateAliasInput_AliasName.Target = &schemaAliasNameType
 	memberCreateAliasInput_TargetKeyId.Target = &schemaKeyIdType
 	schemaCreateAliasInput.Members = []*smithy.Member{&memberCreateAliasInput_AliasName, &memberCreateAliasInput_TargetKeyId}

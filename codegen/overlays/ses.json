@@ -5,9 +5,15 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazonaws.ses#Throttling",
+        "dev.understudy#denialError": "com.amazon.coral.service#AccessDenied",
         "dev.understudy#validationError": {"code": "com.amazonaws.ses#InvalidParameterValue"},
         "dev.understudy#queryErrorEnvelope": {"namespace": true},
         "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the SES v1 denial and its model declares none; it takes the Query services' AccessDenied, 403, as STS answers (recorded) and IAM is inferred to; UNVERIFIED until recording IAM-ENF-38",
+            "covers": ["dev.understudy#denialError"]
+          },
           {
             "label": "inferred",
             "source": "docs/research/ses.md#114-fidelity-switches: the note names Code Throttling (AWS blog, 3.3) as the v1 throttle identity rather than CommonErrors.html's ThrottlingException; its 400 status is UNVERIFIED until recording SES-21",

@@ -5,8 +5,14 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazonaws.apigatewayv2#TooManyRequestsException",
+        "dev.understudy#denialError": "com.amazonaws.apigatewayv2#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazonaws.apigatewayv2#BadRequestException"},
         "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the API Gateway v2 denial; the model's own AccessDeniedException is taken; UNVERIFIED until recording IAM-ENF-34",
+            "covers": ["dev.understudy#denialError"]
+          },
           {
             "label": "inferred",
             "source": "docs/research/apigateway-http.md#23-errors: the model's only 429 shape is TooManyRequestsException while the API Reference names the 429 model LimitExceededException; which name AWS sends is UNVERIFIED until recording APIGW2-02",

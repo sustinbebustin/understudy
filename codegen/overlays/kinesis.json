@@ -5,8 +5,14 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazonaws.kinesis#ProvisionedThroughputExceededException",
+        "dev.understudy#denialError": "com.amazonaws.kinesis#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Kinesis denial; the model's own AccessDeniedException is taken; UNVERIFIED until recording IAM-ENF-36",
+            "covers": ["dev.understudy#denialError"]
+          },
           {
             "label": "inferred",
             "source": "docs/research/kinesis.md#137-fault-injection: one service-wide throttle identity is wrong for the control plane, so this takes the note's recommended data-plane identity ProvisionedThroughputExceededException (PutRecord, PutRecords, GetRecords, GetShardIterator) and leaves control-plane fault rules to name LimitExceededException explicitly; the control-plane code is UNVERIFIED until recording KIN-23",

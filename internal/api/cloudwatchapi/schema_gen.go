@@ -6,6 +6,10 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
+var schemaAccessDenied = smithy.Schema{ID: "com.amazon.coral.service#AccessDenied", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+
+var memberAccessDenied_message = smithy.Member{Name: "message", Index: 0}
+
 var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
 var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
@@ -2121,6 +2125,8 @@ var memberWarmUpConfiguration_OnlyStartEvaluatingAfterWarmUpPeriodEnds = smithy.
 var schemaWarmUpPeriodDurationInMinutes = smithy.Schema{ID: "com.amazonaws.cloudwatch#WarmUpPeriodDurationInMinutes", Type: smithy.TypeInteger}
 
 func init() {
+	memberAccessDenied_message.Target = &schemaSmithyString
+	schemaAccessDenied.Members = []*smithy.Member{&memberAccessDenied_message}
 	memberAccessDeniedException_message.Target = &schemaSmithyString
 	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_message}
 	memberAlarmContributor_ContributorId.Target = &schemaContributorId

@@ -2,6 +2,11 @@
 
 package sqsapi
 
+// AccessDenied is the error com.amazon.coral.service#AccessDenied.
+type AccessDenied struct {
+	Message *string
+}
+
 // AccessDeniedException is the error com.amazon.coral.service#AccessDeniedException.
 type AccessDeniedException struct {
 	Message *string
