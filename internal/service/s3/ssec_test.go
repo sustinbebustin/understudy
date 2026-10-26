@@ -18,6 +18,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
+	"github.com/sustinbebustin/understudy/internal/checksum"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	"github.com/sustinbebustin/understudy/internal/service/s3"
 )
@@ -719,10 +720,11 @@ func TestSSECMultipart(t *testing.T) {
 		summed := withKey(key1)
 		summed.ChecksumAlgorithm = new(s3api.ChecksumAlgorithmCrc32)
 		sumID := h.startUploadAs(overTLS, "mpu", "summed", summed)
-		out, err := as(h, overTLS, s3api.OpUploadPart, &s3api.UploadPartInput{
-			Bucket: "mpu", Key: "summed", UploadId: sumID, PartNumber: 1, Body: bytesBody("only part"),
-			ChecksumAlgorithm: new(s3api.ChecksumAlgorithmCrc32), SSECustomerAlgorithm: key1.alg(), SSECustomerKey: key1.k(), SSECustomerKeyMD5: key1.m(),
-		})
+		summedPart := partHeaderFor(checksum.CRC32, sumOf(h, checksum.CRC32, []byte("only part")))
+		summedPart.Bucket, summedPart.Key, summedPart.UploadId, summedPart.PartNumber, summedPart.Body = "mpu", "summed", sumID, 1, bytesBody("only part")
+		summedPart.ChecksumAlgorithm = new(s3api.ChecksumAlgorithmCrc32)
+		summedPart.SSECustomerAlgorithm, summedPart.SSECustomerKey, summedPart.SSECustomerKeyMD5 = key1.alg(), key1.k(), key1.m()
+		out, err := as(h, overTLS, s3api.OpUploadPart, &summedPart)
 		if err != nil {
 			t.Fatalf("UploadPart of the CRC32 upload: %s %q", err.ID.QueryCode, err.Message)
 		}
