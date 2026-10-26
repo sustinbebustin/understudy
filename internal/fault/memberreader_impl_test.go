@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/fault"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 	"github.com/sustinbebustin/understudy/internal/protocoltest/gen/jsonprotocol"
 )
 
@@ -90,5 +91,37 @@ func TestNestedDuplicateNames(t *testing.T) {
 	pe, ok := errors.AsType[*fault.RuleParseError](err)
 	if !ok || pe.Path != "action.members.CancellationReasons.0" || pe.Reason != `is invalid: duplicate member "Code"` {
 		t.Errorf("UnmarshalJSON = %v; want a RuleParseError at action.members.CancellationReasons.0", err)
+	}
+}
+
+// Members built in Go skip their JSON decoder, so Add refuses a name given
+// twice itself: the store would check the first CancellationReasons and the
+// generated decoder keep the second, injecting reasons that were never
+// checked against the items (smithy-protocol-tests.md 14.14).
+func TestAddRefusesNamesGivenTwice(t *testing.T) {
+	reason := func(code string) document.Map { return document.Map{{Key: "Code", Value: document.String(code)}} }
+	key := func(s string) document.Map { return document.Map{{Key: "S", Value: document.String(s)}} }
+	withItem := append(reason("ConditionalCheckFailed"), document.Entry{Key: "Item", Value: document.Map{{Key: "pk", Value: key("a")}, {Key: "pk", Value: key("b")}}})
+	for _, c := range []struct {
+		name    string
+		members fault.Members
+		at      string
+		reason  string
+	}{
+		{
+			"member",
+			fault.Members{{Key: "CancellationReasons", Value: document.List{reason("TransactionConflict")}}, {Key: "CancellationReasons", Value: document.List{reason("None")}}},
+			"action.members", `has the member "CancellationReasons" twice; give each member once`,
+		},
+		{
+			"map key",
+			fault.Members{{Key: "CancellationReasons", Value: document.List{withItem}}},
+			"action.members.CancellationReasons.0.Item", `has the key "pk" twice; give each key once`,
+		},
+	} {
+		_, err := generatedStore(t, 1).Add(errorRule("r", transactWriteItems, "TransactionCanceledException", c.members))
+		if err == nil || err.Field != c.at || err.Reason != c.reason {
+			t.Errorf("%s: Add = %v; want a refusal at %s: %s", c.name, err, c.at, c.reason)
+		}
 	}
 }

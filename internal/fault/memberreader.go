@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -28,11 +29,12 @@ type memberError struct {
 func (e *memberError) Error() string { return e.At + " " + e.Reason }
 
 // decodeMembers reads m into v through v's generated deserializer, the
-// awsJson1_0 form of the shape (names as modeled, D6), and returns the
-// schema of v's shape. It is strict where the codecs are lenient: an
-// unknown member, a value of the wrong JSON kind, a number out of range,
-// bad base64 and a null anywhere but in a @sparse collection are each a
-// *memberError.
+// awsJson1_0 form of the shape whatever the service's protocol (names as
+// modeled, never jsonName; ARCHITECTURE.md 11), and returns the schema of
+// v's shape. It is strict where the codecs are lenient: an unknown member,
+// a member or map key given twice, a value of the wrong JSON kind, a
+// number out of range, bad base64 and a null anywhere but in a @sparse
+// collection are each a *memberError.
 func decodeMembers(v smithy.Deserializable, m Members) (*smithy.Schema, error) {
 	r := &memberReader{next: document.Map(m), at: membersField}
 	if err := v.Deserialize(r); err != nil {
@@ -66,6 +68,15 @@ type frame struct {
 	i       int
 }
 
+// repeats reports whether the next entry of a structure or map frame
+// repeats the name of an earlier one. Members' JSON decoder refuses that
+// already, but Members built in Go can carry it, and the store reads the
+// first entry of a name where the generated decoder keeps the last.
+func (f *frame) repeats() bool {
+	key := f.entries[f.i].Key
+	return slices.ContainsFunc(f.entries[:f.i], func(e document.Entry) bool { return e.Key == key })
+}
+
 type frameKind uint8
 
 const (
@@ -93,7 +104,7 @@ func (r *memberReader) ReadStruct(s *smithy.Schema) error {
 }
 
 // ReadStructMember returns the next member given, refusing a name the
-// structure does not model.
+// structure does not model or one given twice.
 func (r *memberReader) ReadStructMember() (*smithy.Member, bool, error) {
 	f, err := r.top(structFrame)
 	if err != nil {
@@ -104,6 +115,9 @@ func (r *memberReader) ReadStructMember() (*smithy.Member, bool, error) {
 		return nil, false, nil
 	}
 	e := f.entries[f.i]
+	if f.repeats() {
+		return nil, false, &memberError{At: f.at, Reason: fmt.Sprintf("has the member %q twice; give each member once", e.Key)}
+	}
 	f.i++
 	m, err := memberNamed(f.schema, f.at, e.Key)
 	if err != nil {
@@ -199,6 +213,9 @@ func (r *memberReader) ReadMapKey() (key string, ok bool, err error) {
 		return "", false, nil
 	}
 	e := f.entries[f.i]
+	if f.repeats() {
+		return "", false, &memberError{At: f.at, Reason: fmt.Sprintf("has the key %q twice; give each key once", e.Key)}
+	}
 	f.i++
 	r.pend(e.Value, f.at+"."+e.Key)
 	return e.Key, true, nil
