@@ -39,6 +39,12 @@ const (
 	// KindLambdaRecordKey is the UUID that ends the S3 object key of an
 	// asynchronous invocation record (lambda-destinations-layers.md 4.5).
 	KindLambdaRecordKey
+	// KindAPIGatewayAPIID is API Gateway's API ids, which HTTP and REST
+	// APIs draw alike, so the execute-api namespace is one stream.
+	KindAPIGatewayAPIID
+	// KindAPIGatewayChildID is the ids of what an API Gateway API holds:
+	// routes, integrations and deployments.
+	KindAPIGatewayChildID
 
 	// endKind follows the last kind and is no kind: kindCount counts up to
 	// it, so a new kind is one line above it plus its String case.
@@ -100,6 +106,10 @@ func (k Kind) String() string {
 		return "s3-ssec-salt"
 	case KindLambdaRecordKey:
 		return "lambda-record-key"
+	case KindAPIGatewayAPIID:
+		return "apigateway-api-id"
+	case KindAPIGatewayChildID:
+		return "apigateway-child-id"
 	}
 	return fmt.Sprintf("kind(%d)", uint8(k))
 }

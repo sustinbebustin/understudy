@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"maps"
 	"net/http"
 )
@@ -74,6 +75,26 @@ func InferV2(payload []byte) (Response, error) {
 		resp.Header.Set("Content-Type", "application/json")
 	}
 	return resp, nil
+}
+
+// V2Defaults are what InferV2With assumes for a member a structured
+// response leaves out, where the front ends differ. The zero value is a
+// function URL's, which InferV2 applies.
+type V2Defaults struct {
+	// ContentType is the Content-Type of a structured response that sets
+	// none; empty means application/json.
+	ContentType string
+}
+
+// errV2DefaultsNotImplemented is InferV2With's answer until it is
+// implemented.
+var errV2DefaultsNotImplemented = errors.New("httpevent: InferV2With is not implemented yet")
+
+// InferV2With is InferV2 with the defaults d in place of a function URL's
+// (apigateway-http.md 5.3, 4.5). It is not implemented yet and returns an
+// error.
+func InferV2With(_ []byte, _ V2Defaults) (Response, error) {
+	return Response{}, errV2DefaultsNotImplemented
 }
 
 // structured reads a structured response's members. Final statuses only:

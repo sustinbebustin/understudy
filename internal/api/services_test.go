@@ -199,6 +199,9 @@ func TestEveryRouteRowRoundTrips(t *testing.T) {
 // descriptors with their IAM actions and no schema (ARCHITECTURE.md 5.3).
 func TestRawOperations(t *testing.T) {
 	want := map[ref.OperationID][]string{
+		// The execute-api data plane declares no action: AWS evaluates no
+		// IAM on a NONE route (apigateway-http.md 8.2, 8.3).
+		{Service: "apigatewayv2", Name: "InvokeApi"}:      nil,
 		{Service: "lambda", Name: "InvokeFunctionUrl"}:    {"lambda:InvokeFunctionUrl"},
 		{Service: "lambda", Name: "DownloadFunctionCode"}: nil,
 		{Service: "s3", Name: "ListTagsForResource"}:      {"s3:ListTagsForResource"},

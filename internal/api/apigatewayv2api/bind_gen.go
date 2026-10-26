@@ -692,6 +692,11 @@ func (b Binder) ImportApi(h kernel.Handler[ImportApiInput, ImportApiOutput], cov
 	kernel.Bind(b.b, OpImportApi, h, cov, opts...)
 }
 
+// InvokeApi binds the raw HTTP handler of InvokeApi.
+func (b Binder) InvokeApi(h kernel.RawHTTPHandler, cov registry.BindCoverage) {
+	kernel.BindRawHTTP(b.b, &descInvokeApi, h, cov)
+}
+
 // ListPortalProducts binds the handler of ListPortalProducts.
 func (b Binder) ListPortalProducts(h kernel.Handler[ListPortalProductsInput, ListPortalProductsOutput], cov registry.BindCoverage, opts ...kernel.BindOption) {
 	kernel.Bind(b.b, OpListPortalProducts, h, cov, opts...)

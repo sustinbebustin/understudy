@@ -4,6 +4,9 @@
   "model": "apigatewayv2",
   "iamPrefix": "apigateway",
   "sdkService": "apigatewayv2",
+  "rawOperations": [
+    {"name": "InvokeApi", "iam": []}
+  ],
   "iamPrimary": [
     {
       "operation": "CreateDomainName",
