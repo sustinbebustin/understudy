@@ -26,10 +26,10 @@ type Config struct {
 	// Regions are region names accepted beyond AWS's own.
 	Regions []aws.Region
 	Docker  Docker
-	// DockerLabels are added to every container and network understudy
-	// creates (dockerLabels, testcontainers.md 9.3); no key starts with
-	// understudy.dev/. Nil when unset; the source that sets it replaces the
-	// others whole.
+	// DockerLabels are added to every container understudy creates, function
+	// environments and DynamoDB Local (dockerLabels, testcontainers.md 9.3);
+	// serve creates no network. No key starts with understudy.dev/. Nil when
+	// unset; the source that sets it replaces the others whole.
 	DockerLabels map[string]string
 	S3           S3
 	Lambda       Lambda

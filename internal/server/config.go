@@ -70,11 +70,11 @@ type Config struct {
 	// Docker is where the Docker Engine is; nil is DockerSocket at the
 	// default socket.
 	Docker Docker
-	// DockerLabels are added to every container and network understudy
-	// creates (dockerLabels, testcontainers.md 9.3): the Lambda launcher's
-	// function containers and DynamoDB Local. New refuses a key starting
-	// with understudy.dev/ (docker.ReservedPrefix) as a *SettingError, with
-	// Docker enabled or not.
+	// DockerLabels are added to every container serve creates, the Lambda
+	// launcher's function containers and DynamoDB Local; serve creates no
+	// network (dockerLabels, testcontainers.md 9.3). New refuses a key
+	// starting with understudy.dev/ (docker.ReservedPrefix) as a
+	// *SettingError, with Docker enabled or not.
 	DockerLabels map[string]string
 	// DynamoDB is whether the DynamoDB service runs; nil is
 	// DynamoDBEnabled.
