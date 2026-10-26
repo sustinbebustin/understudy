@@ -11,10 +11,14 @@ import (
 
 // The data files, as the generator names them.
 const (
+	// PoliciesFile is the catalogue, the reviewable source of truth.
 	PoliciesFile = "policies.json"
-	SourceFile   = "SOURCE.json"
-	LicenseFile  = "LICENSE"
-	NoticeFile   = "NOTICE"
+	// PoliciesGzipFile is PoliciesFile compressed; the generator derives it
+	// from PoliciesFile.
+	PoliciesGzipFile = "policies.json.gz"
+	SourceFile       = "SOURCE.json"
+	LicenseFile      = "LICENSE"
+	NoticeFile       = "NOTICE"
 )
 
 // The binary embeds every data file in this directory (ADR 0016, amendment
