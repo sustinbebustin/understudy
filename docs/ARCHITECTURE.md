@@ -50,7 +50,8 @@ internal/
   normalize/                    the closed, named normalizer set snapshot diff and the parity replayer share (sections 12, 19)
   coverage/                     report (JSON, Markdown) from kernel bindings + protocol-test baseline + fidelity ledger + overlay evidence and parity baseline (offline only)
   delivery/                     LEAF types: Target variants with their payloads, Request, RetryPolicy, Mechanism
-  outbox/                       the delivery engine: a Stateful outbox cell, attempts on the clock, DLQ routing, kernel.Invoke per attempt
+  outbox/                       the delivery engine: a Stateful outbox cell, attempts on the clock, DLQ routing, kernel.Invoke per attempt (egress for HTTP endpoints)
+  egress/                       the only outbound HTTP dialer: allow-lists, hard refusals, checked-address dial, one HTTP/1.1 exchange on a wall deadline
   protocol/
     smithy/                     runtime schema descriptors incl. streaming kind, Serializer and Deserializer interfaces, ShapeID
     jsonx/                      the only importer of encoding/json/v2 and jsontext; tagged-union convention for persisted sums
@@ -105,7 +106,7 @@ Dependency direction, checked by a test in `internal/ref` that walks imports wit
 - `api/*` (generated) imports only `protocol/smithy`, `awserr`, `registry`, `kernel`, `aws`, `ref`.
 - `service/*` imports `api/*`, `kernel`, `store`, `clock`, `ids`, `blob`, `delivery`, `fidelity`, `paging` and the engines it needs. A service never imports another service; it calls it through `kernel.Invoke` with the other service's generated `Op`. Three exceptions: a service imports `journal` for `Detail` values only, which it records through `kernel.Call.Record` or `kernel.Tx.Record` (section 10); DynamoDB imports `protocol/awsjson` to encode a `Synthesized` call as a client would; S3 imports `protocol/xmlw` and `protocol/restxml` for the bodies and `x-amz-id-2` of its raw S3 Control tag operations.
 - `protocol/*` imports `protocol/smithy`, `awserr`, `ref` and the other protocol helpers it builds on; the codecs and `restbind` also import `registry` and `aws`, because a codec claims requests through the service descriptor and reads its identities. It never sees a service or a generated package.
-- `outbox` imports `kernel`, `delivery`, `journal`, `store`, `clock`, and the generated `api/*` packages whose `SendMessage`, `Invoke` and `Publish` ops its attempts call. `edge` imports `kernel`, `registry`, `auth`, `identity` and the codec interface, plus the public `admin` package (standard library only) for the JSON error envelope it sends to LocalStack paths (4.1 rule 1); `server` is the only package that names every service, every codec and `outbox`.
+- `outbox` imports `kernel`, `delivery`, `journal`, `store`, `clock`, the generated `api/*` packages whose `SendMessage`, `Invoke`, `Publish`, `PutEvents` and `PutObject` ops its attempts call, and `egress`, which imports only `clock` and is the one package that dials outbound HTTP (ADR 0015 amendment of 2026-10-26). `edge` imports `kernel`, `registry`, `auth`, `identity` and the codec interface, plus the public `admin` package (standard library only) for the JSON error envelope it sends to LocalStack paths (4.1 rule 1); `server` is the only package that names every service, every codec and `outbox`.
 - `snapshot` imports `store`, `blob`, `jsonx`, `clock`, `ids`, `ref` and `normalize`; `kernel.Stateful` exports `store.Section` values and `snapshot` archives them, so neither imports the other. `normalize` imports `ids` (minted access keys decode to their account) and `store` (scope keys).
 - `parity` imports only `normalize`; its test files drive `server` in process. `coverage` reads `internal/parity/baseline.json` with its own reader (`coverage.ParseParity`) and never imports `parity`.
 - `cli` depends on `admin`, `config` and `server`, plus the read-only non-service packages its offline subcommands need: `serve` maps `config.Config` onto `server.Config`; `coverage` runs offline in process and filters, renders and adds overlay evidence and the parity baseline (`--parity`) through `coverage`; `snapshot inspect` and `diff` read local archives through `snapshot`; `doctor` and `cleanup` reach the daemon through `docker` and detect the topology through `topology`; `env` checks `--region` against the region names in the `aws` leaf. It never imports a service.
@@ -985,7 +986,7 @@ type APICall struct {
 	Latency   time.Duration   // wall
 	Input     Redacted        // generated Redact(); sensitive members never stored; bodies only with journal.bodies
 }
-type Delivery struct{ From, To aws.ARN; Mechanism delivery.Mechanism; Attempt int; Outcome DeliveryOutcome } // Delivered | Filtered{rule} | Retrying{next} | DeadLettered{dlq} | Dropped{reason}
+type Delivery struct{ From, To aws.ARN; Endpoint string; Mechanism delivery.Mechanism; Attempt int; Outcome DeliveryOutcome } // Endpoint: an HTTP delivery's host:port, To then zero; Delivered | Filtered{rule} | Retrying{next} | DeadLettered{dlq} | Dropped{reason} | Refused{reason}
 type Invocation struct{ Function aws.ARN; Version, Env string; Cold bool; Init, Duration time.Duration; Outcome InvocationOutcome } // OK | FunctionError{Type} | Timeout | ExitError{Code} | OOM | Throttled
 type TimerFired struct{ Key clock.TimerKey }
 type StateChange struct{ Resource aws.ARN; From, To ResourceState } // ResourceState is a closed string type per service, declared next to the state machine
@@ -1220,8 +1221,11 @@ type Target interface{ isTarget() }
 type SQSQueue struct{ ARN aws.ARN; Body string; Attributes []MessageAttribute; GroupID, DedupID string }
 type LambdaFunction struct{ ARN aws.ARN; Qualifier string; Event []byte; Invocation InvocationType } // Event | RequestResponse (ESM uses Invoke directly, not the outbox)
 type SNSTopic struct{ ARN aws.ARN; Message string; Attributes []MessageAttribute; Subject string }
+type EventBus struct{ ARN aws.ARN; Entries []EventEntry }           // events:PutEvents, 1 to 10 entries; no DLQ yet
+type S3Object struct{ Bucket, Key string; Body []byte }             // s3:PutObject
+type HTTPEndpoint struct{ URL url.URL; Headers []HTTPHeader; Body []byte } // POST through internal/egress
 
-type Mechanism uint8 // closed: SNSToSQS | SNSToLambda | S3ToSQS | S3ToSNS | S3ToLambda | EventsToLambda | EventsToSQS | EventsToSNS
+type Mechanism uint8 // closed: SNSToSQS | SNSToLambda | S3ToSQS | S3ToSNS | S3ToLambda | EventsToLambda | EventsToSQS | EventsToSNS; no mechanism delivers to EventBus, S3Object or HTTPEndpoint yet
 
 type Request struct {
 	Source    aws.ARN
@@ -1251,11 +1255,13 @@ Deliveries to one SQS FIFO queue with one `GroupID` form a lane, attempted one a
 
 A `Deliver` effect is an outbox insert the kernel performs before the source call returns, so an accepted delivery is state the moment SNS returns a `MessageId`; the insert arms the attempt timer. Attempts, backoff and DLQ routing run on the emulator clock with jitter drawn from the seeded source, so `clock advance` replays a retry storm deterministically. A due attempt is tracked work (`DeliveryAttempt`) stamped `At = due` that calls the target through `kernel.Invoke` as `AsService{name}` with `Origin Internal{Via}`, is subject to `Phase: Delivery` rules, emits a `journal.Delivery` event whose parent is the source event, and removes the entry on a terminal outcome. `Rearm` restores every pending attempt after a snapshot load. Client-side failures (queue or function missing) go straight to the DLQ; filtered messages never reach a DLQ. Fan-out order is deterministic (subscription or target creation order). Before each attempt the access recorder checks the target's stored resource policy with `policydoc` and journals an `Advisory` when it would not allow the delivery in AWS (SNS to a queue without a `sqs:SendMessage` statement for the topic, EventBridge to a function without `lambda:InvokeFunction` permission); the delivery is still attempted.
 
+An `EventBus` or `S3Object` attempt is one `events:PutEvents` or `s3:PutObject` through `kernel.Invoke` like the others; a `PutEvents` answer with failed entries is a retried failure. An `HTTPEndpoint` attempt is the only delivery that leaves the process: it POSTs through `internal/egress` on its own goroutine, off the attempt sequencer, since it waits on the network. Egress refuses, before anything is sent, any scheme but `http` and `https`, any name under an AWS partition suffix, the `aws` top-level domain or `execute-api.com` (in the URL or anywhere in its CNAME chain), metadata, link-local, unspecified and multicast addresses, and understudy's own listeners. A host must match the producer's allow-list, `<service>.<feature>.allow` (empty by default); a DNS-name entry reaches neither loopback nor a private address, which only an IP literal entry lists; a `localhost` entry reaches only loopback. Every address is checked after resolution and the checked address is the one dialed, with no proxy, no redirect followed, verified TLS, a bounded response read and one deadline on the clock's wall time (`sns-http-delivery.md 7.2-7.4`, ADR 0015 amendment of 2026-10-26). 2xx delivers; 429, 5xx and a failed exchange retry; other answers are permanent (`sns-http-delivery.md 6.1`); a refusal is journaled `Refused{reason}`, never retried or dead-lettered, and the `Delivery` event names the endpoint's host and port instead of an ARN. The allow-list and the engine exist; SNS HTTP subscriptions do not deliver yet.
+
 | Path | Trigger | Target operation | Retry and failure |
 |---|---|---|---|
 | SNS -> SQS | Publish (after response) | `sqs:SendMessage`, envelope or raw; FIFO keeps group and dedup ids | AWS-managed policy (3 immediate, 2 at 1 s, 10 exponential 1 to 20 s, 100,000 at 20 s); missing queue to subscription DLQ at once |
 | SNS -> Lambda | Publish | async `Invoke` with `Records[0].Sns` | Lambda async retries after acceptance |
-| SNS -> HTTP/S | Publish | none in phase 1: `Subscribe` stores a pending subscription with a readable token and `ConfirmSubscription` works; the outbound POST engine and its allow-list are phase 2 | n/a |
+| SNS -> HTTP/S | Publish | none yet: `Subscribe` stores a pending subscription with a readable token and `ConfirmSubscription` works; the allow-list and the engine exist (`HTTPEndpoint`, `internal/egress`); SNS HTTP subscriptions do not deliver yet | n/a |
 | SQS -> Lambda | ESM poller cycle | sync `Invoke`, then internal `DeleteMessageBatch`, both `AsExecutionRole` | visibility timeout; DLQ by `maxReceiveCount` |
 | SQS -> SQS (DLQ) | the receive attempt that exceeds `maxReceiveCount` | inside SQS | a `Redrive` journal event whose parent is the receive (or the move task's step) |
 | EventBridge -> Lambda, SQS, SNS | schedule timer or `PutEvents` | async `Invoke`, `SendMessage`, `Publish` with `Input`, `InputPath`, `InputTransformer` | stored target retry policy; unknown bus drops with 200 and a journal entry |
@@ -1388,7 +1394,7 @@ Gates: `go vet`, `golangci-lint` (the strict configuration in `go-toolchain.md 1
 - Input limits: body caps per operation, `MaxHeaderBytes`, `MaxHeaderValueCount`, CBOR depth and length checks, JSON and XML decoders with size limits; region strings validated before they reach DynamoDB Local; user metadata 2 KB; S3 single PUT 5 GiB; DynamoDB 413 above 16 MiB.
 - Secrets: `sensitive` members are redacted in the journal and logs from the schema; credential and secret types implement `slog.LogValuer`; secret values and KMS plaintext never appear in errors; minted credentials and container `Env` arrays are never logged. KMS uses real AES-256-GCM with the encryption context as AAD; key material comes from `crypto/rand` even when seeded.
 - Identity: real-looking access keys are never decoded into foreign account numbers; SigV4 verification is opt-in, parsing always runs.
-- Outbound network: none at runtime except image pulls and allow-listed SNS HTTP delivery; no telemetry; DynamoDB Local telemetry disabled and egress-tested.
+- Outbound network: none at runtime except image pulls; no telemetry; DynamoDB Local telemetry disabled and egress-tested. `internal/egress` is the one package that may dial outbound HTTP, only to hosts a producer's `<service>.<feature>.allow` lists (empty by default), never to AWS names, metadata, link-local, unspecified or multicast addresses or understudy's own listeners, and on the address it checked after resolution (16). The allow-list and the engine exist; SNS HTTP subscriptions do not deliver yet, and no setting enables egress.
 - Containers: every object labeled with `understudy.dev/managed`, `instance`, `owner`, `function`, `account`, `region`, `generation`; graceful drain on SIGINT and SIGTERM (`DELETE ?force=1&v=1`, Python RIC as PID 1 ignores SIGTERM); startup sweep of this owner's leftovers guarded by the data-dir `flock`; every `serve` also removes, in the background, the containers, networks and temporary directories of runs without persistence whose process is gone, judged by boot id, PID namespace, PID and process start time (`internal/server/runs.go`), and never a run of another boot or PID namespace, which may be live elsewhere; `understudy cleanup` on demand; `understudy.dev/test=1` is set only by test harnesses.
 - `scripts/sealed` is the only way tooling in this repo talks to understudy; conformance suites run through it.
 
@@ -1432,7 +1438,7 @@ Gates: `go vet`, `golangci-lint` (the strict configuration in `go-toolchain.md 1
 | [0012](adr/0012-identity-and-defaults.md) | Account from access key policy, default account, port, region table |
 | [0013](adr/0013-s3-addressing-and-urls.md) | No DNS server, base-domain addressing, AWS cross-region behavior by default, queue URLs echo the Host |
 | [0014](adr/0014-dynamodb-local-proxy.md) | DynamoDB Local as a raw proxy behind the pipeline, on by default under Amazon's licence terms, TTL in the shim |
-| [0015](adr/0015-cross-service-delivery.md) | Delivery engine on the clock; SNS HTTP delivery behind an allow-list |
+| [0015](adr/0015-cross-service-delivery.md) | Delivery engine on the clock; outbound HTTP only through `internal/egress`, behind a per-producer allow-list |
 | [0016](adr/0016-third-party-inputs-and-dependencies.md) | Pinned models and corpus, derived IAM table, rapid, in-repo xxHash |
 | [0017](adr/0017-admin-api-cli-config.md) | Admin API, non-interactive CLI, configuration precedence, public Go packages |
 | [0018](adr/0018-ids-and-determinism.md) | Seeded id streams and the determinism contract |
