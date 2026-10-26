@@ -207,7 +207,8 @@ type AtSubscribe struct {
 // ConfirmSubscription: authenticated.
 type ByCall struct {
 	// Token is the token it was confirmed with, so confirming again is
-	// idempotent.
+	// idempotent, as AWS's is (third-party-recorded,
+	// sns-http-delivery.md 2.3).
 	Token string `json:"token"`
 	// AuthenticateOnUnsubscribe is ConfirmSubscription's
 	// AuthenticateOnUnsubscribe: only a caller with credentials may then
@@ -219,7 +220,8 @@ type ByCall struct {
 // not authenticated.
 type ByLink struct {
 	// Token is the token it was confirmed with, so confirming again is
-	// idempotent.
+	// idempotent, as AWS's is (third-party-recorded,
+	// sns-http-delivery.md 2.3).
 	Token string `json:"token"`
 }
 

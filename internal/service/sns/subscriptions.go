@@ -26,8 +26,9 @@ const (
 	// tokenValidity is how long a confirmation token confirms (sns.md
 	// 3.1): two days of emulator time.
 	tokenValidity = 48 * time.Hour
-	// tokenBytes is the random length of a token, 288 hex characters
-	// as LocalStack reports real tokens to be (sns.md 3.2, UNVERIFIED).
+	// tokenBytes is the random length of a token, 288 lower-case hex
+	// characters as in the ConfirmSubscription example (aws-doc,
+	// sns-http-delivery.md 2.3); the docs state no length.
 	tokenBytes = 144
 	// pendingARN is Subscribe's SubscriptionArn for a subscription that
 	// waits for confirmation, unless ReturnSubscriptionArn is set.

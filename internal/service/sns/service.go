@@ -52,8 +52,10 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 }
 
 // pendingInListings is how ListSubscriptions shows a pending
-// subscription: AWS's widely observed "PendingConfirmation" in place of the
-// ARN, which no primary source documents (sns.md 3.4).
+// subscription: "PendingConfirmation" in place of the ARN (sns.md 3.4),
+// which a third-party recording shows for an email subscription
+// (sns-http-delivery.md 2.2). No project recording lists a pending
+// subscription, so it stays a switch.
 func pendingInListings() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:    "sns.listing.pending-arn",
