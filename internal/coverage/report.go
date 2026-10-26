@@ -39,8 +39,8 @@ type Report struct {
 	Services    []Service         `json:"services"`
 	Switches    []Switch          `json:"switches"`
 	Overlays    Overlays          `json:"overlays"`
-	// Parity is the parity replay evidence. Not wired yet: Build leaves it
-	// nil.
+	// Parity is the parity replay evidence: the baseline `understudy
+	// coverage --parity` reads, else not carried.
 	Parity Parity `json:"parity,omitzero"`
 }
 
@@ -103,8 +103,7 @@ type Operation struct {
 	Name   string `json:"name"`
 	Status Status `json:"status"`
 	// Shapes are the shape ids overlay evidence attaches to the operation
-	// by: the operation, its input and output, and its errors. Not wired
-	// yet: Build leaves it empty.
+	// by: the operation, its input and output, and its errors, sorted.
 	Shapes []string `json:"shapes,omitempty"`
 }
 
@@ -155,9 +154,12 @@ type Switch struct {
 
 // Build assembles the report.
 func Build(in Input) Report {
-	r := Report{Overlays: in.Overlays}
+	r := Report{Overlays: in.Overlays, Parity: in.Parity}
 	if r.Overlays == nil {
 		r.Overlays = OverlaysNotCarried{}
+	}
+	if r.Parity == nil {
+		r.Parity = ParityNotCarried{}
 	}
 	for _, s := range in.Baseline.Suites {
 		r.Protocols = append(r.Protocols, suiteOf(s, in.Skips))
@@ -203,7 +205,7 @@ func suiteOf(s protocoltest.Suite, skips protocoltest.Skips) Suite {
 func serviceOf(svc *registry.Service, b *kernel.Bindings) Service {
 	out := Service{Service: svc.ID}
 	for _, op := range svc.Operations {
-		o := Operation{Name: op.ID.Name, Status: statusOf(b.Status(op))}
+		o := Operation{Name: op.ID.Name, Status: statusOf(b.Status(op)), Shapes: shapesOf(op)}
 		switch op.Kind {
 		case registry.Modeled:
 			out.Operations = append(out.Operations, o)
@@ -219,6 +221,24 @@ func serviceOf(svc *registry.Service, b *kernel.Bindings) Service {
 		})
 	}
 	return out
+}
+
+// shapesOf lists the shapes overlay evidence attaches to op by: the
+// operation, its input and output, and its errors, sorted and once each.
+func shapesOf(op *registry.Operation) []string {
+	shapes := []string{string(op.Shape)}
+	if op.Input != nil {
+		shapes = append(shapes, string(op.Input.ID))
+	}
+	if op.Output != nil {
+		shapes = append(shapes, string(op.Output.ID))
+	}
+	for _, e := range op.Errors {
+		shapes = append(shapes, string(e.Shape))
+	}
+	shapes = slices.DeleteFunc(shapes, func(s string) bool { return s == "" })
+	slices.Sort(shapes)
+	return slices.Compact(shapes)
 }
 
 func statusOf(s kernel.Status) Status {

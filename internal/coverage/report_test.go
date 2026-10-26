@@ -62,7 +62,8 @@ func built(t *testing.T) coverage.Report {
 }
 
 // Operation coverage is read from the kernel's bindings: what each bind
-// site stated, unbound for the rest, ordered by status then name.
+// site stated, unbound for the rest, ordered by status then name. (The
+// operations' shapes are TestBuildRecordsOperationShapesAndParity's.)
 func TestBuildReadsOperationStatusFromTheKernel(t *testing.T) {
 	r := built(t)
 	if len(r.Services) != 1 {
@@ -74,8 +75,12 @@ func TestBuildReadsOperationStatusFromTheKernel(t *testing.T) {
 		{Name: "NoInputAndNoOutput", Status: coverage.StoredOnly{Note: "kept, never acted on"}},
 		{Name: "SimpleScalarProperties", Status: coverage.Partial{Note: "no NaN"}},
 	}
-	if !reflect.DeepEqual(ops[:3], want) {
-		t.Errorf("first operations = %+v, want %+v", ops[:3], want)
+	first := make([]coverage.Operation, 0, 3)
+	for _, op := range ops[:3] {
+		first = append(first, coverage.Operation{Name: op.Name, Status: op.Status})
+	}
+	if !reflect.DeepEqual(first, want) {
+		t.Errorf("first operations = %+v, want %+v", first, want)
 	}
 	for _, op := range ops[3:] {
 		if op.Status != (coverage.Unbound{}) {
