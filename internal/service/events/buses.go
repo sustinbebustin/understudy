@@ -516,7 +516,8 @@ func busSwitches() []fidelity.Switch[string] {
 		// keeps its id, as it does across accounts (fanOut.forward).
 		sw("events.bus-target.same-account-event-id", "kept", evidence.Inferred, "62-an-event-bus-as-a-target", "EBB-08", "eventbridge.PutEvents"),
 		// PutTargets refuses another account's bus target without a RoleArn,
-		// by the newer user-guide rule (checkCrossAccountBus).
+		// by the newer user-guide rule, unless it replaces one with the same
+		// Id and Arn whose role it keeps (withCrossAccountRole).
 		sw("events.bus-target.cross-account-role", "required", evidence.AWSDoc, "63-cross-account", "EBB-09", "eventbridge.PutTargets"),
 	}
 }

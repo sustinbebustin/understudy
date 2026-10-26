@@ -75,20 +75,9 @@ func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgea
 		if !ok {
 			return struct{}{}, errRuleNotFound(r.name, r.bus)
 		}
-		targets := slices.Clone(rule.Targets)
-		seq := st.TargetSeq
-		for _, t := range accepted {
-			if i := slices.IndexFunc(targets, func(o Target) bool { return o.ID == t.ID }); i >= 0 {
-				t.Seq = targets[i].Seq
-				targets[i] = t
-				continue
-			}
-			seq++
-			t.Seq = seq
-			targets = append(targets, t)
-		}
-		if len(targets) > maxTargets {
-			return struct{}{}, errTooManyTargets()
+		targets, seq, err := merged(r.scope, rule.Targets, accepted, st.TargetSeq)
+		if err != nil {
+			return struct{}{}, err
 		}
 		rule.Targets = targets
 		st.setRule(r.bus, rule)
@@ -102,10 +91,43 @@ func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgea
 	return &eventbridgeapi.PutTargetsOutput{FailedEntryCount: int32(len(failed)), FailedEntries: failed}, nil //nolint:gosec // at most 100 targets, the model's limit
 }
 
+// merged is current, a rule's targets in scope, with accepted put: each
+// replaces the target with its Id, keeping its Seq, or is added with the
+// next number after seq. It returns the targets and the scope's last Seq,
+// or the refusal of a cross-account bus target without a role
+// (withCrossAccountRole) or of more than maxTargets.
+func merged(scope aws.Scope, current, accepted []Target, seq uint64) ([]Target, uint64, *awserr.Error) {
+	targets := slices.Clone(current)
+	for _, t := range accepted {
+		i := slices.IndexFunc(targets, func(o Target) bool { return o.ID == t.ID })
+		var replaced *Target
+		if i >= 0 {
+			replaced = &targets[i]
+		}
+		t, err := withCrossAccountRole(scope, t, replaced)
+		if err != nil {
+			return nil, 0, err
+		}
+		if replaced != nil {
+			t.Seq = replaced.Seq
+			targets[i] = t
+			continue
+		}
+		seq++
+		t.Seq = seq
+		targets = append(targets, t)
+	}
+	if len(targets) > maxTargets {
+		return nil, 0, errTooManyTargets()
+	}
+	return targets, seq, nil
+}
+
 // parseTarget checks a PutTargets entry for a rule in scope and returns it
 // as stored: at most one input form, each well formed, a message group for a
-// FIFO queue, a RoleArn and no input form for another account's event bus,
-// and a dead-letter queue deadLetterQueue accepts.
+// FIFO queue, no input form for another account's event bus, and a
+// dead-letter queue deadLetterQueue accepts. Whether such a bus target has
+// a RoleArn depends on the target it replaces (withCrossAccountRole).
 func parseTarget(scope aws.Scope, t *eventbridgeapi.Target) (Target, *awserr.Error) {
 	input, err := parseInput(t)
 	if err != nil {
@@ -141,23 +163,35 @@ func parseTarget(scope aws.Scope, t *eventbridgeapi.Target) (Target, *awserr.Err
 }
 
 // checkCrossAccountBus checks a PutTargets entry t whose ARN is the event
-// bus dt, for a rule in scope. Another account's bus needs a RoleArn
-// (events.bus-target.cross-account-role: "EventBridge now requires all new
-// cross account event bus targets to add IAM roles", eb-cross-account.html)
-// and takes no input form (API_PutTargets); both refusals' texts are
-// unrecorded (eventbridge-buses.md 6.3, EBB-09). The role is stored, not
-// assumed.
+// bus dt, for a rule in scope: another account's bus takes no input form
+// (API_PutTargets; the refusal's text is unrecorded, eventbridge-buses.md
+// 6.3, EBB-09).
 func checkCrossAccountBus(scope aws.Scope, dt busTarget, t *eventbridgeapi.Target) *awserr.Error {
-	if !dt.crossAccount(scope) {
-		return nil
-	}
-	if t.RoleArn == nil {
-		return errCrossAccountRole(t.Id)
-	}
-	if t.Input != nil || t.InputPath != nil || t.InputTransformer != nil {
+	if dt.crossAccount(scope) && (t.Input != nil || t.InputPath != nil || t.InputTransformer != nil) {
 		return errCrossAccountInput()
 	}
 	return nil
+}
+
+// withCrossAccountRole is t, a target of a rule in scope, as stored in
+// place of replaced, the rule's target with t's Id, if any. Another
+// account's bus needs a RoleArn (events.bus-target.cross-account-role:
+// "EventBridge now requires all new cross account event bus targets to add
+// IAM roles", eb-cross-account.html; the refusal's text is unrecorded,
+// eventbridge-buses.md 6.3, EBB-09), and a call without one keeps the role
+// of the target it replaces when the Arn is the same ("a PutTargets call
+// without a role on the same target (same Id and Arn) will not remove the
+// role", API_PutTargets). The role is stored, not assumed.
+func withCrossAccountRole(scope aws.Scope, t Target, replaced *Target) (Target, *awserr.Error) {
+	dt, _ := targetOf(scope, t.ARN)
+	if bus, isBus := dt.(busTarget); !isBus || !bus.crossAccount(scope) || t.RoleARN != nil {
+		return t, nil
+	}
+	if replaced == nil || replaced.ARN != t.ARN || replaced.RoleARN == nil {
+		return Target{}, errCrossAccountRole(t.ID)
+	}
+	t.RoleARN = replaced.RoleARN
+	return t, nil
 }
 
 // refusal is why understudy does not add a PutTargets entry, which fails

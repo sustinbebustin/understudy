@@ -1,6 +1,7 @@
 package events_test
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -66,6 +67,38 @@ func TestBusTargetToAMissingBus(t *testing.T) {
 		}
 		if got := h.sink.take(); len(got) != 0 {
 			t.Errorf("deliveries %v, want none from a missing bus", targetARNs(got))
+		}
+	})
+}
+
+// A PutTargets call without a RoleArn on a cross-account event bus target
+// that has one keeps the role when the Id and Arn are the same: "If you
+// have an IAM role on a cross-account event bus target, a PutTargets call
+// without a role on the same target (same Id and Arn) will not remove the
+// role" (aws-doc API_PutTargets, eventbridge-buses.md 6.3). The rest of the
+// target is replaced. Under another Arn the target is new and needs a role
+// of its own (events.bus-target.cross-account-role).
+func TestPutTargetsKeepsACrossAccountBusTargetsRole(t *testing.T) {
+	run(t, func(h *harness) {
+		const theirs = "arn:aws:events:us-east-1:111111111111:event-bus/default"
+		h.patternRule("fwd", `{"source": ["shop"]}`)
+		h.target("fwd", eventbridgeapi.Target{Id: "bus", Arn: theirs, RoleArn: new(invokerRole)})
+		retry := &eventbridgeapi.RetryPolicy{MaximumRetryAttempts: new(int32(1))}
+		h.target("fwd", eventbridgeapi.Target{Id: "bus", Arn: theirs, RetryPolicy: retry})
+		want := []eventbridgeapi.Target{{Id: "bus", Arn: theirs, RoleArn: new(invokerRole), RetryPolicy: retry}}
+		if listed := must(h, eventbridgeapi.OpListTargetsByRule, &eventbridgeapi.ListTargetsByRuleInput{Rule: "fwd"}).Targets; !reflect.DeepEqual(listed, want) {
+			t.Errorf("ListTargetsByRule after a put without RoleArn = %+v\nwant %+v", listed, want)
+		}
+		if v := h.switchValue("events.bus-target.cross-account-role"); v != "required" {
+			t.Fatalf("no expectation for events.bus-target.cross-account-role = %q", v)
+		}
+		const orders = "arn:aws:events:us-east-1:111111111111:event-bus/orders"
+		_, err := call(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "fwd", Targets: []eventbridgeapi.Target{{Id: "bus", Arn: orders}}})
+		if !refused(err) {
+			t.Errorf("PutTargets of the Id on another cross-account bus without RoleArn = %v, want a client error", err)
+		}
+		if listed := must(h, eventbridgeapi.OpListTargetsByRule, &eventbridgeapi.ListTargetsByRuleInput{Rule: "fwd"}).Targets; !reflect.DeepEqual(listed, want) {
+			t.Errorf("ListTargetsByRule after the refused put = %+v\nwant %+v", listed, want)
 		}
 	})
 }
