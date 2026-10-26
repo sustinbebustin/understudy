@@ -37,6 +37,14 @@ curl -s http://127.0.0.1:46635/_understudy/v1/ui/session -H 'Understudy-UI-Sessi
 {"valid":true}
 ```
 
+The secret keeps other web pages out of the admin API, not other programs: the CLI and `curl` need no secret on a loopback listener. [SECURITY.md](../../SECURITY.md) describes the whole model.
+
+### Beyond loopback
+
+On a listener beyond loopback, which needs the admin token, the page still loads without it, since a browser cannot send a token when it opens a URL. Its first admin call answers `401`; the page then asks for the token once, keeps it in memory like the secret, and sends it with every call.
+
+A browser reaches such a listener only by an IP address, a loopback name or a configured S3 base domain. Opened at the listener's network address, the page reads every view but cannot change anything: its `POST`, `PUT` and `DELETE` calls carry that address as `Origin`, and understudy refuses an admin call from an `Origin` that is not loopback. To add fault rules or move the clock there, open the `ui` path at `localhost` or `127.0.0.1`, through a port forward for a remote host, with the printed `#s=` fragment.
+
 ## Live traces
 
 The **Traces** view opens first. It subscribes to the journal stream, then loads the newest 500 events, so nothing recorded in between is missed, and draws each new event as it is recorded. The header shows `live` while the stream is connected. Each row is one trace: its root event's id, kind and summary, and how many of its events the page holds. **Pause** stops redrawing the list; events that arrive meanwhile are kept and appear on **Resume**.
