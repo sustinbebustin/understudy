@@ -60,7 +60,14 @@
 
 
 ### Re-recorded 2026-10-14 (session name `rec`; the first run used `s`, which the CLI refuses)
-- 06-assume-denied: matches (403 AccessDenied "User: <caller arn> is not authorized to perform: sts:AssumeRole on resource: <role arn>"; internal/service/sts/errors.go:27)
-- 06-assume-ok and 06-get-caller-identity-assumed: matches (Arn `arn:aws:sts::123456789012:assumed-role/<role>/rec`)
+- 06-assume-denied: matches (403 AccessDenied "User: <caller arn> is not authorized to perform: sts:AssumeRole on resource: <role arn>"; internal/service/sts/errors.go:27). Replay: differs: understudy assumes the role (200), since it evaluates no trust policy (internal/service/sts/doc.go); the text above is the one it sends for a role it does not hold
+- 06-assume-ok and 06-get-caller-identity-assumed: matches (Arn `arn:aws:sts::123456789012:assumed-role/<role>/rec`). Replay of 06-assume-ok: differs: understudy leaves out `PackedPolicySize` (AWS 21), `SessionTokenSize` (888) and `SessionTokenUtilization` (21)
 - x-assume-11-policy-arns: differs: AWS 400 `ValidationError` "The limit of ARNs for the PolicyArns parameter was exceeded. 10 ARNs can be requested at most in an API request."; understudy renders a Coral constraint text (internal/service/sts/errors.go:45-48)
 - x-assume-refused-session-policy: differs: AWS 400 `MalformedPolicyDocument` "Missing required field Action"; understudy says "Policy statement must contain actions." (internal/policydoc/validate.go:71)
+
+## Replay (internal/parity)
+
+`scenario.json` replays the STS steps above; internal/parity/baseline.json holds the outcomes, and the "Replay:" notes above record where they differ from this file.
+
+- Made up: both roles' trust policies, which the setup creates. The kit's documents were not recorded. The trust role trusts `arn:aws:iam::123456789012:root`, the deny role only `lambda.amazonaws.com`. understudy evaluates no trust policy, so 06-assume-denied differs whatever they hold; once it does, a match there would rest on the made-up deny policy, so no settles entry sits on the step until the kit's documents are recorded.
+- Not replayed: 06-get-caller-identity-assumed. It was signed with the session credentials 06-assume-ok returned, and the replayer signs only as the account root, so its Arn and UserId would differ by construction.

@@ -38,7 +38,7 @@ Compared against understudy built locally (same corpus replayed on a local insta
 - H8-01..03 string vs number: matches (false x3)
 - H9-01, H9-02 full-length masks: matches (InvalidEventPatternException "Event pattern is not valid. Reason: IPv4 mask bits must be < 32" / "IPv6 mask bits must be < 128", no location suffix)
 - H9-03-a 0.0.0.0/0 vs 10.0.0.1: matches (true)
-- H9-03-b 0.0.0.0/0 vs 2001:db8::1: differs: AWS true (H9-03-b.out, Ruler's mask-0 behaviour); understudy false (internal/ruler/matcher.go:254-260; choice documented at internal/ruler/doc.go:111-112)
+- H9-03-b 0.0.0.0/0 vs 2001:db8::1: differs: AWS true (H9-03-b.out, Ruler's mask-0 behaviour); understudy false (internal/ruler/matcher.go:254-260; choice documented at internal/ruler/doc.go:111-112). Replay: matches; understudy now answers true (internal/parity/baseline.json, events/R14#H9-03-b)
 - H14-01 {"exactly":"a"}: differs: AWS accepts, Result true (H14-01.out); understudy 400 InvalidEventPatternException "Event pattern is not valid. Reason: Unrecognized match type exactly" (internal/ruler/compile.go:609-611, profile.go:132-140)
 - H14-02, H14-04 $or members sharing values: differs: AWS false, false (H14-02.out, H14-04.out: order-dependent, as executed Ruler); understudy true, true (documented semantics, internal/ruler/profile.go:141-147, doc.go:104-110)
 - H14-03 swapped $or: matches (true)

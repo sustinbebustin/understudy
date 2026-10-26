@@ -107,7 +107,7 @@ Dependency direction, checked by a test in `internal/ref` that walks imports wit
 - `protocol/*` imports `protocol/smithy`, `awserr`, `ref` and the other protocol helpers it builds on; the codecs and `restbind` also import `registry` and `aws`, because a codec claims requests through the service descriptor and reads its identities. It never sees a service or a generated package.
 - `outbox` imports `kernel`, `delivery`, `journal`, `store`, `clock`, and the generated `api/*` packages whose `SendMessage`, `Invoke` and `Publish` ops its attempts call. `edge` imports `kernel`, `registry`, `auth`, `identity` and the codec interface, plus the public `admin` package (standard library only) for the JSON error envelope it sends to LocalStack paths (4.1 rule 1); `server` is the only package that names every service, every codec and `outbox`.
 - `snapshot` imports `store`, `blob`, `jsonx`, `clock`, `ids`, `ref` and `normalize`; `kernel.Stateful` exports `store.Section` values and `snapshot` archives them, so neither imports the other. `normalize` imports `ids` (minted access keys decode to their account) and `store` (scope keys).
-- `parity` imports `normalize` and `evidence`; its test files drive `server` in process. `coverage` reads `internal/parity/baseline.json` with its own reader (`coverage.ParseParity`) and never imports `parity`.
+- `parity` imports only `normalize`; its test files drive `server` in process. `coverage` reads `internal/parity/baseline.json` with its own reader (`coverage.ParseParity`) and never imports `parity`.
 - `cli` depends on `admin`, `config` and `server`, plus the read-only non-service packages its offline subcommands need: `serve` maps `config.Config` onto `server.Config`; `coverage` runs offline in process and filters, renders and adds overlay evidence and the parity baseline (`--parity`) through `coverage`; `snapshot inspect` and `diff` read local archives through `snapshot`; `doctor` and `cleanup` reach the daemon through `docker` and detect the topology through `topology`; `env` checks `--region` against the region names in the `aws` leaf. It never imports a service.
 
 Every service package has the same files, so reading one teaches all: `service.go` (struct, `New(kernel.ServiceDeps, Options)`, lifecycle, one `bind<Family>` call per resource family), `state.go` (persisted types with `json` tags and `stateVersion`), one file per resource family, `validate.go` for typed per-operation validators bound with `kernel.WithValidator`, `errors.go` for message builders over the generated constructors (never an `awserr.Identity` literal), `*_test.go` through `kernel.Invoke` inside `kerneltest` bubbles.
@@ -1291,7 +1291,7 @@ understudy journal [--trace ID] [--request-id ID] [--service S] [--operation O] 
 understudy journal trace (ID | --request-id ID) [--canonical]
 understudy snapshot save FILE | load FILE | inspect FILE | diff A B [--normalize]
 understudy resources [--service S] [--account A] [--region R]
-understudy coverage [--service S] [--format text|markdown|json] [--switches]     # offline from the registry when no server is up
+understudy coverage [--service S] [--format text|markdown|json] [--switches] [--overlays DIR] [--parity FILE]     # offline from the registry when no server is up
 understudy iam usage [--principal ARN] | iam policy --principal ARN
 understudy lambda hot-reload FUNCTION DIR
 understudy images pull [--runtime R]
