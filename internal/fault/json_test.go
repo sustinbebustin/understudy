@@ -290,7 +290,7 @@ func TestImportRefusesBadDocumentsAndKeepsTheRules(t *testing.T) {
 	spent := `{"version":1,"rules":[{"rule":{"id":"a","phase":"request","match":{"operations":["sqs.SendMessage"]},"action":{"kind":"throttle"},"trigger":{"kind":"next-n","n":2}},"hits":2}]}`
 	invalid := `{"version":1,"rules":[{"rule":{"id":"a","phase":"request","match":{"operations":["sqs.SendMessage"]},"action":{"kind":"error","shape":"Nope"},"trigger":{"kind":"always"}}}]}`
 	cases := map[string]string{
-		"other version":     `{"version":2,"rules":[]}`,
+		"other version":     `{"version":3,"rules":[]}`,
 		"unknown member":    `{"version":1,"rules":[],"seed":1}`,
 		"spent budget":      spent,
 		"invalid rule":      invalid,
