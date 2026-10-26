@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# EventBridge (default bus): rules, schedule expressions, event patterns,
-# targets, input shaping, PutEvents and delivery to SQS and Lambda targets.
-# Arbiter: docs/research/secrets-logs-events-alarms.md section 4 and
-# docs/research/lambda-events.md section 5.
+# EventBridge: rules, schedule expressions, event patterns, targets, input
+# shaping, PutEvents and delivery to SQS and Lambda targets on the default
+# bus; custom buses, their rules, bus targets and bus policies.
+# Arbiter: docs/research/secrets-logs-events-alarms.md section 4,
+# docs/research/lambda-events.md section 5 and
+# docs/research/eventbridge-buses.md.
 
 # shellcheck source=../lambda-helpers.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lambda-helpers.sh"
@@ -538,4 +540,154 @@ test_scheduled_rule_delivers_scheduled_event() {
   assert_jq_match '.time' '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
   assert_jq_true ".resources == [\"$RULE_ARN\"]"
   assert_jq_true '.detail == {}'
+}
+
+# Custom buses (eventbridge-buses.md)
+
+# new_bus: create a custom bus named in BUS (ARN in BUS_ARN).
+new_bus() {
+  BUS=$(new_name events-bus)
+  aws_ok events create-event-bus --name "$BUS"
+  BUS_ARN=$(jqv '.EventBusArn')
+}
+
+# CreateEventBus, DescribeEventBus, ListEventBuses, DeleteEventBus
+# (eventbridge-buses.md 3.1-3.5, third-party-recorded; the missing-bus text
+# is testdata/parity/events/R07/04-describe-event-bus-missing.json).
+test_custom_bus_lifecycle() {
+  aws_ok sts get-caller-identity
+  local acct
+  acct=$(jqv '.Account')
+  BUS=$(new_name events-bus)
+  aws_ok events create-event-bus --name "$BUS" --description 'test bus'
+  assert_jq '.EventBusArn' "arn:aws:events:${AWS_REGION}:${acct}:event-bus/${BUS}"
+  assert_jq '.Description' 'test bus'
+  aws_ok events describe-event-bus --name "$BUS"
+  assert_jq '.Name' "$BUS"
+  assert_jq '.Arn' "arn:aws:events:${AWS_REGION}:${acct}:event-bus/${BUS}"
+  assert_jq '.Description' 'test bus'
+  assert_jq_true 'has("CreationTime") and has("LastModifiedTime")'
+  assert_jq_true '(has("Policy") or has("KmsKeyIdentifier") or has("DeadLetterConfig") or has("LogConfig")) | not'
+  aws_ok events list-event-buses --name-prefix "$BUS"
+  assert_jq_true "[.EventBuses[].Name] == [\"$BUS\"]"
+  aws_error ResourceAlreadyExistsException 400 events create-event-bus --name "$BUS"
+  aws_error_message_contains "Event bus $BUS already exists."
+  aws_error ValidationException 400 events delete-event-bus --name default
+  aws_error_message_contains 'Cannot delete event bus default.'
+  aws_ok events delete-event-bus --name "$(new_name events-never)"
+  aws_ok events delete-event-bus --name "$BUS"
+  aws_error ResourceNotFoundException 400 events describe-event-bus --name "$BUS"
+  aws_error_message_contains "Event bus $BUS does not exist."
+}
+
+# The default bus takes tags (eventbridge-buses.md 5.5, third-party-recorded).
+test_default_bus_tags() {
+  aws_ok sts get-caller-identity
+  local bus_arn key
+  bus_arn="arn:aws:events:${AWS_REGION}:$(jqv '.Account'):event-bus/default"
+  key=$(new_name tag)
+  aws_ok events tag-resource --resource-arn "$bus_arn" --tags "Key=$key,Value=v"
+  aws_ok events list-tags-for-resource --resource-arn "$bus_arn"
+  assert_jq_true "any(.Tags[]; .Key == \"$key\" and .Value == \"v\")"
+  aws_ok events untag-resource --resource-arn "$bus_arn" --tag-keys "$key"
+}
+
+# A custom-bus rule's ARN names the bus (eventbridge-buses.md 5.2), and only
+# the named bus's rules match its events (6.1).
+test_custom_bus_rule_and_put_events() {
+  new_bus
+  new_target_queue
+  local bus_queue_url=$QUEUE_URL source entry acct
+  source="conformance.$BUS"
+  RULE=$(new_name events-rule)
+  aws_ok events put-rule --name "$RULE" --event-bus-name "$BUS_ARN" --event-pattern "$(jq -nc --arg s "$source" '{source:[$s]}')"
+  acct=$(cut -d: -f5 <<<"$BUS_ARN")
+  assert_jq '.RuleArn' "arn:aws:events:${AWS_REGION}:${acct}:rule/${BUS}/${RULE}"
+  aws_ok events describe-rule --name "$RULE" --event-bus-name "$BUS"
+  assert_jq '.EventBusName' "$BUS"
+  assert_jq '.CreatedBy' "$acct"
+  aws_ok events put-targets --rule "$RULE" --event-bus-name "$BUS" --targets "$(targets_json q "$QUEUE_ARN")"
+  assert_jq '.FailedEntryCount' '0'
+  new_target_queue
+  local default_queue_url=$QUEUE_URL
+  aws_ok events put-rule --name "$RULE" --event-pattern "$(jq -nc --arg s "$source" '{source:[$s]}')"
+  aws_ok events put-targets --rule "$RULE" --targets "$(targets_json q "$QUEUE_ARN")"
+
+  entry=$(jq -nc --arg s "$source" --arg b "$BUS" '[{Source:$s,DetailType:"order.created",Detail:"{\"n\":1}",EventBusName:$b}]')
+  aws_ok events put-events --entries "$entry"
+  assert_jq '.FailedEntryCount' '0'
+  EVENT_ID=$(jqv '.Entries[0].EventId')
+  wait_message "$bus_queue_url" 30
+  AWS_OUT=$MSG_BODY
+  assert_jq '.id' "$EVENT_ID"
+  assert_jq '.source' "$source"
+  assert_jq '.account' "$acct"
+  aws_ok sqs receive-message --queue-url "$default_queue_url" --wait-time-seconds 3
+  assert_jq '(.Messages // []) | length' '0' 'messages on the default bus rule'
+}
+
+# A schedule on a custom bus is refused, the bus never created included
+# (testdata/parity/events/R14/04-custom-bus-schedule.json, aws-recorded).
+test_custom_bus_schedule_refused() {
+  aws_error ValidationException 400 events put-rule --name "$(new_name events-busrule)" \
+    --schedule-expression 'rate(5 minutes)' --event-bus-name "$(new_name events-bus)"
+  aws_error_message_contains 'ScheduleExpression is supported only on the default event bus.'
+}
+
+# An event bus target forwards the matched event, which keeps its source,
+# detail-type, account, region and detail (eventbridge-buses.md 6.2,
+# third-party-recorded), and goes no further than one hop (6.5, aws-doc).
+test_bus_target_forwards_one_hop() {
+  local first first_arn second second_arn third_arn reached beyond source pattern acct role
+  new_bus; first=$BUS; first_arn=$BUS_ARN
+  new_bus; second=$BUS; second_arn=$BUS_ARN
+  new_bus; third_arn=$BUS_ARN
+  local third=$BUS
+  acct=$(cut -d: -f5 <<<"$first_arn")
+  role="arn:aws:iam::${acct}:role/conformance-events"
+  source="conformance.$first"
+  pattern=$(jq -nc --arg s "$source" '{source:[$s]}')
+  new_target_queue; reached=$QUEUE_URL
+  local reached_arn=$QUEUE_ARN
+  new_target_queue; beyond=$QUEUE_URL
+  local beyond_arn=$QUEUE_ARN
+
+  aws_ok events put-rule --name fwd --event-bus-name "$first" --event-pattern "$pattern"
+  aws_ok events put-targets --rule fwd --event-bus-name "$first" --targets "$(targets_json bus "$second_arn" "{\"RoleArn\":\"$role\"}")"
+  assert_jq '.FailedEntryCount' '0'
+  aws_ok events put-rule --name in --event-bus-name "$second" --event-pattern "$pattern"
+  aws_ok events put-targets --rule in --event-bus-name "$second" --targets \
+    "$(jq -nc --arg q "$reached_arn" --arg b "$third_arn" --arg r "$role" '[{Id:"q",Arn:$q},{Id:"onward",Arn:$b,RoleArn:$r}]')"
+  assert_jq '.FailedEntryCount' '0'
+  aws_ok events put-rule --name last --event-bus-name "$third" --event-pattern "$pattern"
+  aws_ok events put-targets --rule last --event-bus-name "$third" --targets "$(targets_json q "$beyond_arn")"
+
+  aws_ok events put-events --entries "$(jq -nc --arg s "$source" --arg b "$first" '[{Source:$s,DetailType:"order.created",Detail:"{\"n\":1}",EventBusName:$b}]')"
+  assert_jq '.FailedEntryCount' '0'
+  wait_message "$reached" 30
+  AWS_OUT=$MSG_BODY
+  assert_jq '.source' "$source"
+  assert_jq '."detail-type"' 'order.created'
+  assert_jq '.account' "$acct"
+  assert_jq '.region' "$AWS_REGION"
+  assert_jq_true '.detail == {"n":1}'
+  aws_ok sqs receive-message --queue-url "$beyond" --wait-time-seconds 5
+  assert_jq '(.Messages // []) | length' '0' 'messages after a second hop'
+}
+
+# PutPermission and RemovePermission keep the bus Policy that
+# DescribeEventBus returns (eventbridge-buses.md 4.1-4.3, third-party-recorded).
+test_bus_policy_put_and_remove() {
+  new_bus
+  aws_ok events put-permission --event-bus-name "$BUS" --statement-id s1 --action events:PutEvents --principal 111111111111
+  aws_ok events put-permission --event-bus-name "$BUS" --statement-id s2 --action events:PutEvents --principal '*'
+  aws_ok events describe-event-bus --name "$BUS"
+  assert_jq '.Policy | fromjson | .Version' '2012-10-17'
+  assert_jq_true ".Policy | fromjson | [.Statement[] | select(.Sid == \"s1\")][0] | .Effect == \"Allow\" and .Principal == {\"AWS\":\"arn:aws:iam::111111111111:root\"} and .Action == \"events:PutEvents\" and .Resource == \"$BUS_ARN\""
+  assert_jq_true '.Policy | fromjson | [.Statement[] | select(.Sid == "s2")][0].Principal == "*"'
+  aws_error ResourceNotFoundException 400 events remove-permission --event-bus-name "$BUS" --statement-id nope
+  aws_error_message_contains 'Statement with the provided id does not exist.'
+  aws_ok events remove-permission --event-bus-name "$BUS" --remove-all-permissions
+  aws_ok events describe-event-bus --name "$BUS"
+  assert_jq 'has("Policy")' 'false'
 }
