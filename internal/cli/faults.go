@@ -133,6 +133,10 @@ func describeAction(a admin.FaultAction) string {
 		return "status-ok " + a.Shape
 	case admin.DropDelivery:
 		return "drop"
+	case admin.HTTPStatus:
+		return "http-status " + strconv.Itoa(a.Status)
+	case admin.HTTPTimeout:
+		return "http-timeout"
 	}
 	return "none"
 }

@@ -202,7 +202,7 @@ func (k *Kernel) before(ctx context.Context, c *Call, items int) (Result, *fault
 				return Failure{Err: err}, nil, true
 			}
 			decision = d.Then
-		case fault.None, fault.FailAfterCommit, fault.FailStatusOK, fault.Drop, nil:
+		case fault.None, fault.FailAfterCommit, fault.FailStatusOK, fault.Drop, fault.RespondHTTP, fault.TimeOutHTTP, nil:
 			return nil, nil, false
 		}
 	}
@@ -220,7 +220,7 @@ func (k *Kernel) journalSpent(ctx context.Context, c *Call, decision fault.Decis
 		case fault.Delay:
 			k.journalFault(ctx, c, d.Injection)
 			decision = d.Then
-		case fault.None, fault.FailAfterCommit, fault.FailStatusOK, fault.Drop, nil:
+		case fault.None, fault.FailAfterCommit, fault.FailStatusOK, fault.Drop, fault.RespondHTTP, fault.TimeOutHTTP, nil:
 			return
 		}
 	}
@@ -239,7 +239,7 @@ func (k *Kernel) after(ctx context.Context, c *Call, items int) (Result, *fault.
 	case fault.FailStatusOK:
 		k.journalFault(ctx, c, d.Injection)
 		return StatusOKFailure{Err: d.Err}, &d.Injection, true
-	case fault.None, fault.Fail, fault.Delay, fault.Drop, nil:
+	case fault.None, fault.Fail, fault.Delay, fault.Drop, fault.RespondHTTP, fault.TimeOutHTTP, nil:
 	}
 	return nil, nil, false
 }

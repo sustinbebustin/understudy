@@ -100,14 +100,70 @@ type S3Object struct {
 }
 
 // HTTPEndpoint is a POST to an http or https URL, sent through
-// internal/egress, the only package that dials out. No mechanism delivers
-// to one yet.
+// internal/egress, the only package that dials out. SNSToHTTP delivers to
+// it.
 type HTTPEndpoint struct {
 	URL url.URL
+	// Kind is what the POST carries (sns-http-delivery.md 8.2.1).
+	Kind HTTPKind
 	// Headers are sent with their names as given, the values of one name
 	// in order; net/http writes the names sorted.
 	Headers []HTTPHeader
 	Body    []byte
+	// DeadLetterAttributes are sent as SQS message attributes with the dead
+	// letter only, never to the endpoint: a raw notification's message
+	// attributes (sns.http.dlq-body, sns-http-delivery.md 6.5). Nil for
+	// every other delivery.
+	DeadLetterAttributes []MessageAttribute
+}
+
+// HTTPKind is what an HTTPEndpoint delivery carries
+// (sns-http-delivery.md 8.2.1).
+type HTTPKind uint8
+
+// HTTPKind values.
+const (
+	HTTPNotification HTTPKind = iota + 1
+	HTTPSubscriptionConfirmation
+	HTTPUnsubscribeConfirmation
+)
+
+// String returns the x-amz-sns-message-type value, such as "Notification"
+// (sns-http-delivery.md 3.2). Not implemented yet: it returns the numeric
+// fallback for every value.
+func (k HTTPKind) String() string {
+	return fmt.Sprintf("HTTPKind(%d)", uint8(k))
+}
+
+// HTTPKindError reports text that names no HTTP delivery kind.
+type HTTPKindError struct {
+	Text string
+}
+
+func (e *HTTPKindError) Error() string {
+	return fmt.Sprintf("%q names no HTTP delivery kind; known names are Notification, SubscriptionConfirmation and UnsubscribeConfirmation", e.Text)
+}
+
+// ParseHTTPKind returns the HTTPKind whose name is s. Not implemented yet:
+// it refuses every name.
+func ParseHTTPKind(s string) (HTTPKind, error) {
+	return 0, &HTTPKindError{Text: s}
+}
+
+// MarshalText encodes the kind's name. Not implemented yet: it refuses
+// every value.
+func (k HTTPKind) MarshalText() ([]byte, error) {
+	return nil, &HTTPKindError{Text: k.String()}
+}
+
+// UnmarshalText decodes a kind's name.
+func (k *HTTPKind) UnmarshalText(text []byte) error {
+	parsed, err := ParseHTTPKind(string(text))
+	if err != nil {
+		return err
+	}
+	*k = parsed
+	return nil
 }
 
 // HTTPHeader is one request header of an HTTPEndpoint delivery.
@@ -265,10 +321,88 @@ type S3Notification struct{}
 // None makes one attempt.
 type None struct{}
 
+// SNSHTTP is an SNS http or https subscription's resolved delivery policy
+// (sns-http-delivery.md 6.2 to 6.4, 8.2.1).
+type SNSHTTP struct {
+	// Retry counts per phase, in phase order; their sum is numRetries.
+	NoDelay, MinDelay, Backoff, MaxDelay int
+	MinDelayTarget, MaxDelayTarget       time.Duration
+	// BackoffFunction is kept for when a recording settles the curves;
+	// under sns.http.backoff-curves every function steps linearly.
+	BackoffFunction BackoffFunction
+	// MaxReceivesPerSecond is throttlePolicy.maxReceivesPerSecond; 0 for
+	// none.
+	MaxReceivesPerSecond int
+}
+
+// Retries is the number of retries after the first attempt, the sum of the
+// phase counts (sns-http-delivery.md 6.3). Not implemented yet: it
+// returns 0.
+func (p SNSHTTP) Retries() int { return 0 }
+
+// Delay is how long after the failed attempt ended a retry, numbered from
+// 1, is due; false when the number is below 1 or above Retries. Not
+// implemented yet: it allows no retry.
+func (p SNSHTTP) Delay(_ int) (time.Duration, bool) { return 0, false }
+
+// PaceInterval is the least time between the starts of two attempts to
+// the subscription, 0 without throttling (sns-http-delivery.md 6.4). Not
+// implemented yet: it returns 0.
+func (p SNSHTTP) PaceInterval() time.Duration { return 0 }
+
 func (SNSManaged) isRetryPolicy()        {}
 func (EventBridgeTarget) isRetryPolicy() {}
 func (S3Notification) isRetryPolicy()    {}
 func (None) isRetryPolicy()              {}
+func (SNSHTTP) isRetryPolicy()           {}
+
+// BackoffFunction is a healthyRetryPolicy's backoffFunction (sns.md 7.3).
+type BackoffFunction uint8
+
+// BackoffFunction values.
+const (
+	BackoffLinear BackoffFunction = iota + 1
+	BackoffArithmetic
+	BackoffGeometric
+	BackoffExponential
+)
+
+// String returns the policy's name, such as "linear". Not implemented yet:
+// it returns the numeric fallback for every value.
+func (f BackoffFunction) String() string {
+	return fmt.Sprintf("BackoffFunction(%d)", uint8(f))
+}
+
+// BackoffFunctionError reports text that names no backoff function.
+type BackoffFunctionError struct {
+	Text string
+}
+
+func (e *BackoffFunctionError) Error() string {
+	return fmt.Sprintf("%q names no backoff function; known names are linear, arithmetic, geometric and exponential", e.Text)
+}
+
+// ParseBackoffFunction returns the BackoffFunction named s. Not
+// implemented yet: it refuses every name.
+func ParseBackoffFunction(s string) (BackoffFunction, error) {
+	return 0, &BackoffFunctionError{Text: s}
+}
+
+// MarshalText encodes the function's name. Not implemented yet: it refuses
+// every value.
+func (f BackoffFunction) MarshalText() ([]byte, error) {
+	return nil, &BackoffFunctionError{Text: f.String()}
+}
+
+// UnmarshalText decodes a function's name.
+func (f *BackoffFunction) UnmarshalText(text []byte) error {
+	parsed, err := ParseBackoffFunction(string(text))
+	if err != nil {
+		return err
+	}
+	*f = parsed
+	return nil
+}
 
 // Mechanism is the closed set of delivery paths; fault rules in the Delivery
 // phase match on it.
@@ -285,6 +419,7 @@ const (
 	EventsToSQS
 	EventsToSNS
 	EventsToEvents
+	SNSToHTTP
 
 	// endMechanism follows the last value and is no mechanism: Mechanisms,
 	// valid and the MechanismError text count up to it, so a new value is
@@ -322,6 +457,8 @@ func (m Mechanism) String() string {
 		return "events-to-sns"
 	case EventsToEvents:
 		return "events-to-events"
+	case SNSToHTTP:
+		return "sns-to-http"
 	default:
 		return fmt.Sprintf("Mechanism(%d)", uint8(m))
 	}
@@ -339,6 +476,10 @@ func (m Mechanism) Via() ref.Via {
 		return ref.S3Notification
 	case EventsToLambda, EventsToSQS, EventsToSNS, EventsToEvents:
 		return ref.EventsTarget
+	case SNSToHTTP:
+		// Not implemented yet: no delivery by SNSToHTTP is accepted, so it
+		// runs under no Via.
+		return 0
 	default:
 		return 0
 	}
@@ -356,6 +497,9 @@ func (m Mechanism) Target() ref.ServiceID {
 		return "sns"
 	case EventsToEvents:
 		return "eventbridge"
+	case SNSToHTTP:
+		// An HTTP endpoint lands in no service.
+		return ""
 	default:
 		return ""
 	}

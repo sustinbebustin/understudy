@@ -81,6 +81,60 @@ func (DeadLettered) isDeliveryOutcome() {}
 func (Dropped) isDeliveryOutcome()      {}
 func (Refused) isDeliveryOutcome()      {}
 
+// HTTPClass is how an HTTP delivery attempt's answer is classed
+// (sns.http.status-classes, sns-http-delivery.md 6.1).
+type HTTPClass uint8
+
+// HTTPClass values.
+const (
+	// HTTPSuccess is a 2xx answer.
+	HTTPSuccess HTTPClass = iota + 1
+	// HTTPRetryable is a 429 or 5xx answer, or a failed or timed-out
+	// exchange.
+	HTTPRetryable
+	// HTTPPermanent is any other status.
+	HTTPPermanent
+	// HTTPRefused is a request egress refused, or one with no client.
+	HTTPRefused
+)
+
+// String returns the class's name, such as "retryable". Not implemented
+// yet: it returns the numeric fallback for every value.
+func (c HTTPClass) String() string {
+	return fmt.Sprintf("HTTPClass(%d)", uint8(c))
+}
+
+// HTTPClassError reports text that names no HTTP class.
+type HTTPClassError struct {
+	Text string
+}
+
+func (e *HTTPClassError) Error() string {
+	return fmt.Sprintf("%q names no HTTP class; known names are success, retryable, permanent and refused", e.Text)
+}
+
+// ParseHTTPClass returns the HTTPClass named s. Not implemented yet: it
+// refuses every name.
+func ParseHTTPClass(s string) (HTTPClass, error) {
+	return 0, &HTTPClassError{Text: s}
+}
+
+// MarshalText encodes the class's name. Not implemented yet: it refuses
+// every value.
+func (c HTTPClass) MarshalText() ([]byte, error) {
+	return nil, &HTTPClassError{Text: c.String()}
+}
+
+// UnmarshalText decodes a class's name.
+func (c *HTTPClass) UnmarshalText(text []byte) error {
+	parsed, err := ParseHTTPClass(string(text))
+	if err != nil {
+		return err
+	}
+	*c = parsed
+	return nil
+}
+
 // InvocationOutcome is how one function invocation ended.
 //
 //sumtype:decl

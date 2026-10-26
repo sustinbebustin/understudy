@@ -40,6 +40,9 @@ func (h Hook) runs(r Rule) bool {
 		return h == DeliveryAttempt
 	case Latency:
 		return (h == BeforeHandler && r.Phase == Request) || (h == DeliveryAttempt && r.Phase == Delivery)
+	case HTTPStatus, HTTPTimeout:
+		// Not implemented yet: checkShape refuses these rules.
+		return false
 	default:
 		return false
 	}
@@ -129,9 +132,22 @@ type FailStatusOK struct {
 // Drop discards the delivery attempt.
 type Drop struct{ Injection }
 
+// RespondHTTP ends an HTTP delivery attempt as an answer of Status,
+// without contacting the endpoint (an HTTPStatus rule).
+type RespondHTTP struct {
+	Status int
+	Injection
+}
+
+// TimeOutHTTP ends an HTTP delivery attempt as a timed-out exchange,
+// without contacting the endpoint (an HTTPTimeout rule).
+type TimeOutHTTP struct{ Injection }
+
 func (None) isDecision()            {}
 func (Fail) isDecision()            {}
 func (Delay) isDecision()           {}
 func (FailAfterCommit) isDecision() {}
 func (FailStatusOK) isDecision()    {}
 func (Drop) isDecision()            {}
+func (RespondHTTP) isDecision()     {}
+func (TimeOutHTTP) isDecision()     {}

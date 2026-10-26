@@ -483,6 +483,10 @@ func policyRecordOf(p delivery.RetryPolicy) policyRecord {
 		return s3NotificationRecord{}
 	case delivery.None:
 		return noneRecord{}
+	case delivery.SNSHTTP:
+		// Not implemented yet: Enqueue refuses this policy, so no entry
+		// holds it.
+		return nil
 	}
 	return nil
 }

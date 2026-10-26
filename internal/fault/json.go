@@ -79,6 +79,8 @@ const (
 	kindAfterCommit   = "after-commit"
 	kindStatusOKError = "status-ok-error"
 	kindDropDelivery  = "drop-delivery"
+	kindHTTPStatus    = "http-status"
+	kindHTTPTimeout   = "http-timeout"
 	kindAlways        = "always"
 	kindNextN         = "next-n"
 	kindProbability   = "probability"
@@ -99,6 +101,10 @@ func actionKind(a Action) string {
 		return kindStatusOKError
 	case DropDelivery:
 		return kindDropDelivery
+	case HTTPStatus:
+		return kindHTTPStatus
+	case HTTPTimeout:
+		return kindHTTPTimeout
 	default:
 		return fmt.Sprintf("%T", a)
 	}

@@ -289,6 +289,9 @@ func checkTarget(req delivery.Request) (aws.ARN, string, *RequestError) {
 		if err := deliversTo(m, "HTTPEndpoint", ""); err != nil {
 			return aws.ARN{}, "", err
 		}
+		if m == delivery.SNSToHTTP {
+			return aws.ARN{}, "", &RequestError{Field: "Target", Reason: "is an HTTPEndpoint target, which " + m.String() + " does not deliver to: not implemented yet"}
+		}
 		return req.Source, "Source", checkHTTPEndpoint(t)
 	}
 	return aws.ARN{}, "", &RequestError{Field: "Target", Reason: "is nil"}
@@ -410,6 +413,8 @@ func checkPolicy(p delivery.RetryPolicy) *RequestError {
 				p.MaxAge, p.MaxAttempts, minEventAge, maxEventAge, maxEventRetries)}
 		}
 		return nil
+	case delivery.SNSHTTP:
+		return &RequestError{Field: "Policy", Reason: "is SNSHTTP, which the outbox does not schedule: not implemented yet"}
 	}
 	return &RequestError{Field: "Policy", Reason: "is nil"}
 }

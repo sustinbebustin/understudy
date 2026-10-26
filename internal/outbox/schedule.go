@@ -68,6 +68,8 @@ func retryDelay(p delivery.RetryPolicy, retry int, seed uint64) (time.Duration, 
 		}
 		return time.Second << (retry - 1), true
 	case delivery.None:
+	case delivery.SNSHTTP:
+		// Not implemented yet: Enqueue refuses this policy.
 	}
 	return 0, false
 }

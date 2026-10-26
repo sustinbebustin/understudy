@@ -241,6 +241,9 @@ func (a *attempt) faults(ctx context.Context) (outcome journal.DeliveryOutcome, 
 			decision = d.Then
 		case fault.None, fault.Fail, fault.FailAfterCommit, fault.FailStatusOK, nil:
 			return nil, false, true
+		case fault.RespondHTTP, fault.TimeOutHTTP:
+			// Not implemented yet: the fault store never decides these.
+			return nil, false, true
 		}
 	}
 }
@@ -257,6 +260,9 @@ func (a *attempt) journalSpent(ctx context.Context, decision fault.Decision) {
 			a.journal(ctx, journal.FaultInjected{Rule: d.Rule, Hit: d.Hit, Of: d.Of})
 			decision = d.Then
 		case fault.None, fault.Fail, fault.FailAfterCommit, fault.FailStatusOK, nil:
+			return
+		case fault.RespondHTTP, fault.TimeOutHTTP:
+			// Not implemented yet: the fault store never decides these.
 			return
 		}
 	}
@@ -420,7 +426,7 @@ func (a *attempt) journal(ctx context.Context, d journal.Detail) {
 // servicePrincipal is the AWS service principal that makes deliveries by m.
 func servicePrincipal(m delivery.Mechanism) string {
 	switch m {
-	case delivery.SNSToSQS, delivery.SNSToLambda:
+	case delivery.SNSToSQS, delivery.SNSToLambda, delivery.SNSToHTTP:
 		return "sns.amazonaws.com"
 	case delivery.S3ToSQS, delivery.S3ToSNS, delivery.S3ToLambda:
 		return "s3.amazonaws.com"

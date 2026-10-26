@@ -64,6 +64,22 @@ type Delivery struct {
 	Mechanism delivery.Mechanism
 	Attempt   int
 	Outcome   DeliveryOutcome
+	// HTTP is an HTTP endpoint attempt's exchange; nil for every other
+	// target, for a decision before any attempt (Attempt 0) and for an
+	// attempt a DropDelivery rule dropped. Not implemented yet: nothing
+	// sets it and NDJSON does not write it.
+	HTTP *HTTPExchange
+}
+
+// HTTPExchange is one HTTP delivery attempt (sns-http-delivery.md 8.2.2).
+type HTTPExchange struct {
+	// Status is the final answer's status, or the injected one; 0 when
+	// none came.
+	Status int
+	Class  HTTPClass
+	// Duration is the wall time egress took to send; 0 for an injected
+	// answer.
+	Duration time.Duration
 }
 
 // Invocation is one Lambda function invocation in an execution environment.

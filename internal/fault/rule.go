@@ -233,12 +233,26 @@ type StatusOKError struct {
 // DropDelivery discards a delivery attempt: the target never receives it.
 type DropDelivery struct{}
 
+// HTTPStatus answers an HTTP delivery attempt with Status, 100 to 599,
+// without contacting the endpoint (sns-http-delivery.md 8.2.2). Delivery
+// phase only. Not implemented yet: Add refuses it.
+type HTTPStatus struct {
+	Status int `json:"status"`
+}
+
+// HTTPTimeout ends an HTTP delivery attempt as a timed-out exchange
+// without contacting the endpoint or waiting. Delivery phase only. Not
+// implemented yet: Add refuses it.
+type HTTPTimeout struct{}
+
 func (Error) isAction()         {}
 func (Throttle) isAction()      {}
 func (Latency) isAction()       {}
 func (AfterCommit) isAction()   {}
 func (StatusOKError) isAction() {}
 func (DropDelivery) isAction()  {}
+func (HTTPStatus) isAction()    {}
+func (HTTPTimeout) isAction()   {}
 
 // Trigger says which matched calls a rule fires on.
 //

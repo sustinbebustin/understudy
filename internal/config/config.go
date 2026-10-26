@@ -1,11 +1,13 @@
 package config
 
 import (
+	"crypto/x509"
 	"log/slog"
 	"net/netip"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/fault"
 )
 
@@ -34,6 +36,7 @@ type Config struct {
 	S3           S3
 	Lambda       Lambda
 	SQS          SQS
+	SNS          SNS
 	IAM          IAM
 	DynamoDB     DynamoDB
 	Journal      Journal
@@ -336,6 +339,21 @@ const (
 	// DeletedRecentlyEnforce refuses it for 60 seconds, as AWS does.
 	DeletedRecentlyEnforce
 )
+
+// SNS holds the SNS settings.
+type SNS struct{ HTTPDelivery SNSHTTPDelivery }
+
+// SNSHTTPDelivery is sns.httpDelivery, SNS's outbound HTTP delivery. Not
+// implemented yet: Load sets neither field.
+type SNSHTTPDelivery struct {
+	// Allow is sns.httpDelivery.allow parsed (sns-http-delivery.md 7.2);
+	// the zero AllowList allows nothing.
+	Allow egress.AllowList
+	// CABundle is sns.httpDelivery.caBundle read and parsed: the
+	// certificates an https endpoint may chain to beside the system roots;
+	// nil when unset.
+	CABundle []*x509.Certificate
+}
 
 // IAM holds the IAM and STS settings.
 type IAM struct {

@@ -74,6 +74,19 @@ type Options struct {
 	Resolver Resolver
 	// Dialer opens connections; nil means a net.Dialer.
 	Dialer Dialer
+	// Listeners adds understudy's live listener addresses to Refuse; nil
+	// adds none. Not implemented yet: New ignores it.
+	Listeners Listeners
+}
+
+// Listeners reports understudy's own listening addresses when a request is
+// checked (sns-http-delivery.md 7.3); the server implements it.
+type Listeners interface {
+	// ListenerAddrs returns every address one of understudy's listeners
+	// accepts on now: main, TLS, container and each Runtime API listener,
+	// one per local address for a listener bound to an unspecified
+	// address.
+	ListenerAddrs() []netip.AddrPort
 }
 
 // OptionsError reports Options New cannot use. Nothing was created.

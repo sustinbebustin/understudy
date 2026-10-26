@@ -213,8 +213,10 @@ func importRules() []importRule {
 			"internal/ids", "internal/store", "internal/blob", "internal/policydoc", "internal/identity", "internal/protocol/jsonx",
 		}},
 		// Config parses and validates the default account and the regions
-		// through aws, and carries the fault rules to preload as fault.Rule.
-		{"internal/config", []string{"internal/aws", "internal/fault"}},
+		// through aws, carries the fault rules to preload as fault.Rule, and
+		// parses sns.httpDelivery.allow with egress at load, so a bad entry
+		// stops serve (ADR 0015 amendment).
+		{"internal/config", []string{"internal/aws", "internal/fault", "internal/egress"}},
 		// Docker-tagged tests reach the daemon serve would use, resolved by
 		// config; only test files import it.
 		{"internal/config/configtest", []string{"internal/config", "internal/docker"}},

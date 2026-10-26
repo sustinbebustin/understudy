@@ -100,12 +100,24 @@ type StatusOKError struct{ Shape string }
 // DropDelivery discards a delivery attempt.
 type DropDelivery struct{}
 
+// HTTPStatus answers an HTTP delivery attempt with Status, 100 to 599,
+// without contacting the endpoint. Delivery phase only. Not implemented
+// yet: encoding it fails.
+type HTTPStatus struct{ Status int }
+
+// HTTPTimeout ends an HTTP delivery attempt as a timed-out exchange
+// without contacting the endpoint. Delivery phase only. Not implemented
+// yet: encoding it fails.
+type HTTPTimeout struct{}
+
 func (InjectError) isFaultAction()   {}
 func (Throttle) isFaultAction()      {}
 func (Latency) isFaultAction()       {}
 func (AfterCommit) isFaultAction()   {}
 func (StatusOKError) isFaultAction() {}
 func (DropDelivery) isFaultAction()  {}
+func (HTTPStatus) isFaultAction()    {}
+func (HTTPTimeout) isFaultAction()   {}
 
 // FaultTrigger says which matched calls a rule fires on. Its JSON form is
 // {"kind": "always"}, {"kind": "next-n", "n": 3} or {"kind": "probability",
@@ -239,6 +251,8 @@ func encodeAction(a FaultAction) ([]byte, error) {
 		w = actionJSON{Kind: kindStatusOKError, Shape: nonEmpty(a.Shape)}
 	case DropDelivery:
 		w = actionJSON{Kind: kindDropDelivery}
+	case HTTPStatus, HTTPTimeout:
+		return nil, &FaultFormError{Field: "action", Reason: "is an HTTP delivery action, which is not implemented yet"}
 	case nil:
 		return nil, &FaultFormError{Field: "action", Reason: "is missing; set an action such as admin.Throttle{}"}
 	}

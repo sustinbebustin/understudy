@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 	"github.com/sustinbebustin/understudy/internal/service/s3"
@@ -99,8 +101,11 @@ type Config struct {
 	// S3BaseDomains are the hosts virtual-hosted S3 addresses end in; nil
 	// is localhost and s3.localhost.
 	S3BaseDomains []string
-	LogFormat     LogFormat
-	LogLevel      slog.Level
+	// SNSHTTPDelivery is SNS HTTP delivery's outbound settings
+	// (sns.httpDelivery.*); the zero value allows no host.
+	SNSHTTPDelivery SNSHTTPDelivery
+	LogFormat       LogFormat
+	LogLevel        slog.Level
 	// ReadyFile, when set, receives {"endpoint", "pid"} once the listeners
 	// accept, plus "tlsEndpoint" with the TLS listener, and is removed at
 	// shutdown.
@@ -114,6 +119,16 @@ type Config struct {
 	Version string
 	// LogOutput receives the logs and the banner; nil means stderr.
 	LogOutput io.Writer
+}
+
+// SNSHTTPDelivery is where SNS may deliver http and https subscriptions
+// (sns-http-delivery.md 7). Not implemented yet: New reads neither field.
+type SNSHTTPDelivery struct {
+	// Allow is sns.httpDelivery.allow; the zero AllowList allows nothing.
+	Allow egress.AllowList
+	// CABundle are the certificates an https endpoint may chain to beside
+	// the system roots (sns.httpDelivery.caBundle).
+	CABundle []*x509.Certificate
 }
 
 // SettingError is a setting New refuses as it applies it, after the

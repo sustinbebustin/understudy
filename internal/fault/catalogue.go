@@ -117,6 +117,8 @@ func (r resolved) identity(a Action, in MatchInput) (id awserr.Identity, ok bool
 		id, ok = r.byService[in.Service]
 	case Latency, DropDelivery:
 		ok = true
+	case HTTPStatus, HTTPTimeout:
+		// Not implemented yet: checkShape refuses these rules.
 	}
 	return id, ok
 }
@@ -190,6 +192,8 @@ func checkShape(r Rule) *RuleError {
 		if a.Wall <= 0 {
 			return reject(r, "action.wall", "is %s; a latency must be positive", a.Wall)
 		}
+	case HTTPStatus, HTTPTimeout:
+		return reject(r, "action", "the %s action is not implemented yet", actionKind(a))
 	}
 	return nil
 }
@@ -244,7 +248,13 @@ func checkMechanisms(r Rule) *RuleError {
 		if _, err := mech.MarshalText(); err != nil {
 			return reject(r, "match.mechanisms", "%s", err)
 		}
-		if target := mech.Target(); len(r.Match.Services) > 0 && !slices.Contains(r.Match.Services, target) {
+		target := mech.Target()
+		switch {
+		case len(r.Match.Services) == 0:
+		case target == "":
+			return reject(r, "match.mechanisms", "%s delivers to an HTTP endpoint, which lands in no service, so a rule with match.services could never match it; "+
+				"leave match.services empty to select it", mech)
+		case !slices.Contains(r.Match.Services, target):
 			return reject(r, "match.mechanisms", "%s delivers to service %s, which match.services does not list, so the rule could never match; "+
 				"in the delivery phase match.services names the target", mech, target)
 		}
@@ -261,7 +271,8 @@ func checkDeliveryTarget(r Rule, svc ref.ServiceID) *RuleError {
 		if m.Target() == svc {
 			return nil
 		}
-		if t := string(m.Target()); !slices.Contains(targets, t) {
+		// An HTTP endpoint lands in no service, so it names no target.
+		if t := string(m.Target()); t != "" && !slices.Contains(targets, t) {
 			targets = append(targets, t)
 		}
 		if name := m.String(); strings.HasPrefix(name, string(svc)+"-to-") {
@@ -316,6 +327,8 @@ func resolveAction(cat Catalogue, r Rule) (resolved, *RuleError) {
 		return resolveThrottle(cat, r)
 	case Latency, DropDelivery:
 		return resolved{}, nil
+	case HTTPStatus, HTTPTimeout:
+		return resolved{}, reject(r, "action", "the %s action is not implemented yet", actionKind(r.Action))
 	default:
 		return resolved{}, reject(r, "action", "is an action this version does not know")
 	}
