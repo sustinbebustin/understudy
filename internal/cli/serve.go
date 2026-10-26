@@ -40,7 +40,11 @@ func serveFlags(w io.Writer) error {
 		case s.Flag != "":
 			name = "--" + s.Flag + " " + s.Value
 		}
-		fmt.Fprintf(&b, "  %s\n      %s\n      variable %s, file key %q\n", name, s.Usage, s.Env, s.Key)
+		fileKey := fmt.Sprintf("file key %q", s.Key)
+		if section, member, nested := strings.Cut(s.Key, "."); nested {
+			fileKey = fmt.Sprintf("file key %q in the %q section", member, section)
+		}
+		fmt.Fprintf(&b, "  %s\n      %s\n      variable %s, %s\n", name, s.Usage, s.Env, fileKey)
 	}
 	fmt.Fprintf(&b, "  --%s text|json\n      another name for --log-format\n", config.OutputFlag)
 	b.WriteString("\nPrecedence: flags, then UNDERSTUDY_* variables, then the file, then the defaults.\n" +

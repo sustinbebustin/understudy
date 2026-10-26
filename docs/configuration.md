@@ -115,7 +115,7 @@ This is what `understudy serve --help` prints under Flags. A test keeps it in st
       variable UNDERSTUDY_SIGV4, file key "sigv4"
   --iam-enforce MODE
       IAM enforcement: off (default) records which actions each principal uses and enforces nothing; advise and enforce are not built yet, so this build refuses them
-      variable UNDERSTUDY_IAM_ENFORCE, file key "iam.enforce"
+      variable UNDERSTUDY_IAM_ENFORCE, file key "enforce" in the "iam" section
   --docker URL
       Docker Engine for Lambda and DynamoDB Local: unix://<socket>, tcp://<host>:<port> (TLS when DOCKER_TLS_VERIFY is set, with ca.pem, cert.pem and key.pem from DOCKER_CERT_PATH), or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)
       variable UNDERSTUDY_DOCKER, file key "docker"
