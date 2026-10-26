@@ -32,6 +32,7 @@
       "kind": "response",
       "cases": 23,
       "passing": [
+        "AwsJson10ComplexError",
         "AwsJson10DeserializeBlobUnionValue",
         "AwsJson10DeserializeBooleanUnionValue",
         "AwsJson10DeserializeEnumUnionValue",
@@ -122,6 +123,7 @@
       "kind": "response",
       "cases": 45,
       "passing": [
+        "AwsJson11ComplexError",
         "AwsJson11DeserializeBlobUnionValue",
         "AwsJson11DeserializeBooleanUnionValue",
         "AwsJson11DeserializeEnumUnionValue",
@@ -214,6 +216,7 @@
         "AwsQuerySupportsInfinityFloatOutputs",
         "AwsQuerySupportsNaNFloatOutputs",
         "AwsQuerySupportsNegativeInfinityFloatOutputs",
+        "QueryComplexError",
         "QueryCustomizedError",
         "QueryEmptyInputAndEmptyOutput",
         "QueryGreetingWithErrors",
@@ -395,6 +398,7 @@
         "PostUnionWithJsonNameResponse1",
         "PostUnionWithJsonNameResponse2",
         "PostUnionWithJsonNameResponse3",
+        "RestJsonComplexErrorWithNoMessage",
         "RestJsonDeserializeBlobUnionValue",
         "RestJsonDeserializeBooleanUnionValue",
         "RestJsonDeserializeEnumUnionValue",
@@ -1333,6 +1337,7 @@
       "cases": 29,
       "passing": [
         "QueryCompatibleRpcV2CborNoCustomCodeError",
+        "RpcV2CborComplexError",
         "RpcV2CborDeserializesDenseSetMap",
         "RpcV2CborDeserializesNestedUnionValue",
         "RpcV2CborDeserializesNullMapValues",

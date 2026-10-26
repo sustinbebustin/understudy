@@ -31,11 +31,6 @@
       "reason": "requestCompression: asserts the SDK gzips the body; the request is only a Content-Encoding header, with no target and no body (smithy-protocol-tests.md 4.2)."
     },
     {
-      "protocol": "awsjson1_0", "kind": "response", "id": "AwsJson10ComplexError",
-      "category": "gap",
-      "reason": "The error carries a nested structure member. A handler returns *awserr.Error, which holds a message, flat string fields and headers (internal/awserr), so the bench cannot express the value."
-    },
-    {
       "protocol": "awsjson1_0", "kind": "response", "id": "QueryCompatibleAwsJson10CustomCodeError",
       "category": "aws-differs", "label": "third-party-recorded",
       "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (error-matrix.md 5, CloudWatch not found)",
@@ -50,11 +45,6 @@
       "protocol": "awsjson1_1", "kind": "request", "id": "SDKAppliedContentEncoding_awsJson1_1",
       "category": "client-only",
       "reason": "requestCompression: asserts the SDK gzips the body; the request is only a Content-Encoding header, with no target and no body (smithy-protocol-tests.md 4.2)."
-    },
-    {
-      "protocol": "awsjson1_1", "kind": "response", "id": "AwsJson11ComplexError",
-      "category": "gap",
-      "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
     },
     {
       "protocol": "awsjson1_1", "kind": "response", "id": "AwsJson11IntEnums",
@@ -75,11 +65,6 @@
       "protocol": "awsquery", "kind": "request", "id": "SDKAppliedContentEncoding_awsQuery",
       "category": "client-only",
       "reason": "requestCompression: asserts the SDK gzips the body; the request is only a Content-Encoding header, with no Action and no body (smithy-protocol-tests.md 4.2)."
-    },
-    {
-      "protocol": "awsquery", "kind": "response", "id": "QueryComplexError",
-      "category": "gap",
-      "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
     },
     {
       "protocol": "awsquery", "kind": "response", "id": "QueryNoInputAndNoOutputWithResponseMetadata",
@@ -110,11 +95,6 @@
       "protocol": "restjson1", "kind": "request", "id": "SDKAppliedContentEncoding_restJson1",
       "category": "client-only",
       "reason": "requestCompression: asserts the SDK sets Content-Encoding: gzip and compresses the body; the request carries the header but an uncompressed body (smithy-protocol-tests.md 4.2)."
-    },
-    {
-      "protocol": "restjson1", "kind": "response", "id": "RestJsonComplexErrorWithNoMessage",
-      "category": "gap",
-      "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
     },
     {
       "protocol": "restjson1", "kind": "malformed", "id": "RestJsonBodyMalformedListNullItem",
@@ -345,8 +325,8 @@
     },
     {
       "protocol": "restxml", "kind": "response", "id": "ComplexError",
-      "category": "gap",
-      "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
+      "category": "corpus-bug",
+      "reason": "The expected body carries <Message>Hi</Message>, which ComplexError does not model and the params do not set; a server sends only modeled members, as for InvalidGreetingError. No reference server runs the RestXml service (smithy-protocol-tests.md 9.2, 11.3)."
     },
     {
       "protocol": "restxml", "kind": "response", "id": "InvalidGreetingError",
@@ -379,11 +359,6 @@
       "category": "aws-differs", "label": "third-party-recorded",
       "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156 (error-matrix.md 5.13, CloudWatch not found)",
       "reason": "Expects status 400 for an awsQueryError with httpResponseCode 402. Recorded CloudWatch answers a query-compatible request that sends x-amzn-query-mode: true with the awsQueryError status (404 for ResourceNotFound) on the CBOR wire as on JSON, so the codec does too, and this case's request sends that header. The awsJson1_0 twin is skipped for the same reason."
-    },
-    {
-      "protocol": "rpcv2cbor", "kind": "response", "id": "RpcV2CborComplexError",
-      "category": "gap",
-      "reason": "The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr)."
     }
   ]
 }

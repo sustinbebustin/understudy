@@ -18,12 +18,12 @@
 //
 // Decisions the architecture leaves open:
 //
-//   - skips.json also records known failures, category gap: cases
+//   - skips.json can also record known failures, category gap: cases
 //     understudy fails because a part it builds on cannot yet express what
-//     they assert (an error member holding a structure). They are not
-//     skips: the coverage report counts them as failed and lists them with
-//     their owning package, and the ratchet accepts them until the fix
-//     lands (ARCHITECTURE.md 6.4).
+//     they assert. They are not skips: the coverage report counts them as
+//     failed and lists them with their owning package, and the ratchet
+//     accepts them until the fix lands (ARCHITECTURE.md 6.4). None is
+//     recorded today.
 //   - The baseline records each suite's case count beside its passing ids,
 //     so the coverage report states passed, skipped and failed counts
 //     without running the corpus, and a corpus update that adds or drops

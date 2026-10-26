@@ -11,18 +11,18 @@ Server-runnable cases of the Smithy protocol compliance corpus, run against the 
 | Protocol | Kind | Cases | Passed | Skipped | Failed | Known |
 |---|---|---|---|---|---|---|
 | awsjson1_0 | request | 26 | 20 | 6 | 0 | 0 |
-| awsjson1_0 | response | 23 | 21 | 1 | 1 | 1 |
+| awsjson1_0 | response | 23 | 22 | 1 | 0 | 0 |
 | awsjson1_1 | request | 57 | 55 | 2 | 0 | 0 |
-| awsjson1_1 | response | 45 | 43 | 1 | 1 | 1 |
+| awsjson1_1 | response | 45 | 44 | 1 | 0 | 0 |
 | awsquery | request | 35 | 32 | 3 | 0 | 0 |
-| awsquery | response | 31 | 29 | 1 | 1 | 1 |
+| awsquery | response | 31 | 30 | 1 | 0 | 0 |
 | restjson1 | request | 133 | 128 | 5 | 0 | 0 |
-| restjson1 | response | 92 | 91 | 0 | 1 | 1 |
+| restjson1 | response | 92 | 92 | 0 | 0 | 0 |
 | restjson1 | malformed | 655 | 621 | 34 | 0 | 0 |
 | restxml | request | 101 | 93 | 8 | 0 | 0 |
-| restxml | response | 77 | 71 | 5 | 1 | 1 |
+| restxml | response | 77 | 71 | 6 | 0 | 0 |
 | rpcv2cbor | request | 39 | 39 | 0 | 0 | 0 |
-| rpcv2cbor | response | 29 | 27 | 1 | 1 | 1 |
+| rpcv2cbor | response | 29 | 28 | 1 | 0 | 0 |
 
 5 server-runnable cases are not generated, so the counts above leave them out (ARCHITECTURE.md 6.4 counts them):
 
@@ -33,19 +33,6 @@ Server-runnable cases of the Smithy protocol compliance corpus, run against the 
 | restjson1 | request | `AcceptHeaderStarStarRequestTest` | Its operation, aws.protocoltests.misc#AcceptHeaderStarService, belongs to no service of the corpus, so no synthetic service carries it. |
 | restjson1 | request | `ApiGatewayAccept` | A customization of API Gateway (com.amazonaws.apigateway), which understudy does not generate: the Accept header API Gateway requires on every request. |
 | restjson1 | request | `GlacierVersionHeader` | A customization of Glacier (com.amazonaws.glacier), which understudy does not generate: the X-Amz-Glacier-Version header Glacier requires on every request. |
-
-### Known failures
-
-Cases understudy fails because a part it builds on cannot yet express what they assert. They count as failed above, and Known counts them apart; each reason names, in parentheses, the package to fix.
-
-| Protocol | Kind | Case | Reason |
-|---|---|---|---|
-| awsjson1_0 | response | `AwsJson10ComplexError` | The error carries a nested structure member. A handler returns *awserr.Error, which holds a message, flat string fields and headers (internal/awserr), so the bench cannot express the value. |
-| awsjson1_1 | response | `AwsJson11ComplexError` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
-| awsquery | response | `QueryComplexError` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
-| restjson1 | response | `RestJsonComplexErrorWithNoMessage` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
-| restxml | response | `ComplexError` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
-| rpcv2cbor | response | `RpcV2CborComplexError` | The error carries a nested structure member, which *awserr.Error cannot hold (internal/awserr). |
 
 ### Skipped cases
 
@@ -114,6 +101,7 @@ corpus-bug: the case's expectation is wrong; client-only: only a client can run 
 | restxml | request | `RestXmlZeroAndFalseQueryValues` | corpus-bug | Its params omit queryParamsMapOfStrings, which an httpQueryParams map fills with every query parameter on a server (RestXmlServersPutAllQueryParamsInMap); the restJson1 twin lists them. |
 | restxml | request | `SDKAppendedGzipAfterProvidedEncoding_restXml` | client-only | requestCompression: asserts the SDK appends gzip to the modeled Content-Encoding and compresses the body; the request carries the appended header but an uncompressed body (smithy-protocol-tests.md 4.2). |
 | restxml | request | `SDKAppliedContentEncoding_restXml` | client-only | requestCompression: asserts the SDK sets Content-Encoding: gzip and compresses the body; the request carries the header but an uncompressed body (smithy-protocol-tests.md 4.2). |
+| restxml | response | `ComplexError` | corpus-bug | The expected body carries <Message>Hi</Message>, which ComplexError does not model and the params do not set; a server sends only modeled members, as for InvalidGreetingError. No reference server runs the RestXml service (smithy-protocol-tests.md 9.2, 11.3). |
 | restxml | response | `InvalidGreetingError` | client-only | The expected body carries AnotherSetting, which InvalidGreeting does not model, to test that clients skip unknown elements; a server sends only modeled members. |
 | restxml | response | `RestXmlDateTimeWithNegativeOffset` | client-only | Tests that clients parse a date-time with a UTC offset; a server writes the instant in UTC. |
 | restxml | response | `RestXmlDateTimeWithPositiveOffset` | client-only | Tests that clients parse a date-time with a UTC offset; a server writes the instant in UTC. |
