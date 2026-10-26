@@ -68,12 +68,16 @@ An error occurred (NotImplemented) when calling the GetRandomPassword operation:
 
 A call to a service understudy does not emulate at all, such as ECS, fails the same way and names the twelve it does.
 
-An API Gateway endpoint, `http://<api-id>.execute-api.us-east-1.localhost:4566/...` or its path form `http://localhost:4566/_understudy/execute-api/<api-id>/...`, answers 501 in API Gateway's own shape, never as an S3 bucket:
+An API Gateway endpoint, `http://<api-id>.execute-api.us-east-1.localhost:4566/...` or its path form `http://localhost:4566/_understudy/execute-api/<api-id>/...`, answers 501 in API Gateway's own shape, never as an S3 bucket. The path form also carries `Content-Security-Policy: sandbox`, so a page served there cannot script understudy's own origin:
 
 ```text
 $ curl -i http://localhost:4566/_understudy/execute-api/abc123/prod/pets
 HTTP/1.1 501 Not Implemented
+Content-Security-Policy: sandbox
 Content-Type: application/json
+Date: Mon, 26 Oct 2026 17:12:42 GMT
+X-Amzn-Requestid: ae23d693-92df-4811-b4e4-bb31c3b48d38
+Content-Length: 198
 
 {"message":"understudy does not implement API Gateway invoke (the execute-api data plane); nothing was changed. To ask for it, see https://github.com/sustinbebustin/understudy/issues?q=execute-api"}
 ```
