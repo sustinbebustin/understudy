@@ -213,12 +213,17 @@ func (w *writer) WriteBigInt(m *smithy.Member, v *big.Int) {
 func (w *writer) WriteBigDecimal(m *smithy.Member, v smithy.BigDecimal) { w.scalar(m, string(v)) }
 
 func (w *writer) WriteTimestamp(m *smithy.Member, v time.Time) {
-	format := restbind.TimestampFormat(m, smithy.DateTime)
-	if format == smithy.DateTime && w.opts.millis {
-		w.scalar(m, v.UTC().Truncate(time.Millisecond).Format(restbind.DateTimeMillis))
-		return
+	w.scalar(m, formatTimestamp(v, restbind.TimestampFormat(m, smithy.DateTime), w.opts.millis))
+}
+
+// formatTimestamp writes v in format as Smithy does, except that date-time
+// has milliseconds always under millis, as S3 writes it in bodies and
+// headers alike.
+func formatTimestamp(v time.Time, format smithy.TimestampFormat, millis bool) string {
+	if format == smithy.DateTime && millis {
+		return v.UTC().Truncate(time.Millisecond).Format(restbind.DateTimeMillis)
 	}
-	w.scalar(m, restbind.FormatTimestamp(v, format))
+	return restbind.FormatTimestamp(v, format)
 }
 
 func (w *writer) WriteBlob(m *smithy.Member, v []byte) {

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/protocol/restbind"
@@ -29,7 +30,9 @@ type Dialect struct {
 	// <ErrorResponse><Error>...</Error><RequestId/></ErrorResponse>.
 	NoErrorWrapping bool
 	// MillisecondTimestamps writes date-time values with milliseconds
-	// always, as S3 does: 2009-10-12T17:50:30.000Z.
+	// always, in bodies and response headers, as S3 does:
+	// 2009-10-12T17:50:30.000Z (s3-ssec-object-lock.md 6.7, switch
+	// s3.object-lock.retain-until-format, for the one such header).
 	MillisecondTimestamps bool
 	// InvalidArgument answers a label, query or header value that does not
 	// parse, with ArgumentName and ArgumentValue (S3's InvalidArgument,
@@ -181,7 +184,10 @@ func (c Codec) Encode(r *http.Request, op *registry.Operation, requestID string,
 		encodeKeys: r != nil && r.URL.Query().Get("encoding-type") == "url" && hasMember(op.Output, "EncodingType"),
 		unwrapped:  unwrapped(op.Output),
 	}
-	enc, err := restbind.Encode(op, out, status, restbind.HasResponseDocument, func() restbind.DocumentWriter { return newWriter(opts) })
+	stamp := func(t time.Time, f smithy.TimestampFormat) string {
+		return formatTimestamp(t, f, d.MillisecondTimestamps)
+	}
+	enc, err := restbind.EncodeTimestamps(op, out, status, restbind.HasResponseDocument, func() restbind.DocumentWriter { return newWriter(opts) }, stamp)
 	if err != nil {
 		return Response{}, awserr.Internalf(fmt.Errorf("encoding the %s output: %w", op.ID, err))
 	}
