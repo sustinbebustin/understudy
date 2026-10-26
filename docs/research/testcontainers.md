@@ -397,7 +397,7 @@ Values understudy validates itself are not re-implemented. These are the seed ("
 
 ### 9.6 Terraform
 
-Nothing module-specific. `Env()` provides `AWS_ENDPOINT_URL` at an IP endpoint, which needs `skip_requesting_account_id = true` in the provider block. Without it, the provider reads bucket tags through S3 Control at `<account>.<endpoint host>`, which cannot resolve for an IP, and the refresh fails ([repo] `docs/guide/terraform.md:L24`). The module docs show that block.
+Nothing module-specific. `Env()` provides `AWS_ENDPOINT_URL` at an IP endpoint, which needs `skip_credentials_validation = true` and `skip_requesting_account_id = true` in the provider block. With an account id, the provider reads bucket tags through S3 Control at `<account>.<endpoint host>`, which cannot resolve for an IP, and the refresh fails ([s3.md](s3.md) finding 1). With credential validation on, the provider takes the account from `sts:GetCallerIdentity` and never consults `skip_requesting_account_id` ([tf-messaging.md 1.1](tf-messaging.md)), so that setting alone is not enough. Correction, 2026-10-26: this section first named `skip_requesting_account_id` alone, after `docs/guide/terraform.md`. Run against `understudy:dev` with provider 6.68.0, that block failed on every `aws_s3_bucket` with `dial tcp: lookup 000000000000.127.0.0.1: no such host`, through the Python module and against a host `understudy serve`; with both settings, apply, a no-change plan and destroy passed. The module docs show that block.
 
 ### 9.7 What must never be faked
 
