@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -221,14 +222,7 @@ func responseOf(res *http.Response) (Response, error) {
 		return Response{}, err
 	}
 	r := Response{Status: res.StatusCode, Body: NoBody{}}
-	names := slices.Sorted(func(yield func(string) bool) {
-		for name := range res.Header {
-			if !yield(name) {
-				return
-			}
-		}
-	})
-	for _, name := range names {
+	for _, name := range slices.Sorted(maps.Keys(res.Header)) {
 		for _, v := range res.Header[name] {
 			r.Headers = append(r.Headers, Header{Name: name, Value: v})
 		}
@@ -298,11 +292,16 @@ func queryForm(op *registry.Operation, input []byte) (string, error) {
 }
 
 // checkMembers refuses an input member the schema does not have, at any
-// depth, which the encoder would otherwise drop.
+// depth, which the encoder would otherwise drop, and an object or array
+// where the schema has none: a typo in a setup input is an error, not a
+// crash of the whole replay.
 func checkMembers(s *smithy.Schema, v any) error {
 	switch x := v.(type) {
 	case map[string]any:
-		if s != nil && s.Type == smithy.TypeMap {
+		switch {
+		case s == nil:
+			return fmt.Errorf("input object %v has no schema to hold it; the operation takes no input there", x)
+		case s.Type == smithy.TypeMap && len(s.Members) == 2:
 			for _, e := range x {
 				if err := checkMembers(s.Members[1].Target, e); err != nil {
 					return err
@@ -311,10 +310,7 @@ func checkMembers(s *smithy.Schema, v any) error {
 			return nil
 		}
 		for name, e := range x {
-			i := -1
-			if s != nil {
-				i = slices.IndexFunc(s.Members, func(m *smithy.Member) bool { return m.Name == name })
-			}
+			i := slices.IndexFunc(s.Members, func(m *smithy.Member) bool { return m.Name == name })
 			if i < 0 {
 				return fmt.Errorf("input member %q is not a member of %v", name, s.ID)
 			}
@@ -323,6 +319,9 @@ func checkMembers(s *smithy.Schema, v any) error {
 			}
 		}
 	case []any:
+		if s == nil || s.Type != smithy.TypeList || len(s.Members) == 0 {
+			return fmt.Errorf("input array %v is not a list member of the operation's input", x)
+		}
 		for _, e := range x {
 			if err := checkMembers(s.Members[0].Target, e); err != nil {
 				return err
@@ -330,6 +329,21 @@ func checkMembers(s *smithy.Schema, v any) error {
 		}
 	}
 	return nil
+}
+
+// A setup input with an object or array where the operation has no schema
+// is refused with an error rather than crashing the replay.
+func TestCheckMembersRefusesInputWithoutASchema(t *testing.T) {
+	t.Parallel()
+	for _, v := range []any{map[string]any{"QueueName": "q"}, []any{"q"}} {
+		if err := checkMembers(nil, v); err == nil {
+			t.Errorf("checkMembers(nil, %v) = nil; want an error", v)
+		}
+	}
+	str := &smithy.Schema{Type: smithy.TypeString}
+	if err := checkMembers(str, []any{"q"}); err == nil {
+		t.Error("checkMembers(string schema, array) = nil; want an error")
+	}
 }
 
 func appendQueryStruct(pairs []string, prefix string, s *smithy.Schema, v map[string]any) []string {
@@ -356,13 +370,7 @@ func appendQueryValue(pairs []string, key string, m *smithy.Member, inStruct boo
 			base += ".entry"
 		}
 		km, vm := m.Target.Members[0], m.Target.Members[1]
-		for i, k := range slices.Sorted(func(yield func(string) bool) {
-			for k := range x {
-				if !yield(k) {
-					return
-				}
-			}
-		}) {
+		for i, k := range slices.Sorted(maps.Keys(x)) {
 			entry := base + "." + strconv.Itoa(i+1)
 			pairs = append(pairs, url.QueryEscape(entry+"."+queryKey(km, "key"))+"="+url.QueryEscape(k))
 			pairs = appendQueryValue(pairs, entry+"."+queryKey(vm, "value"), vm, false, x[k])
@@ -469,17 +477,23 @@ func TestReplay(t *testing.T) {
 		}
 		return
 	}
+	for _, d := range Ratchet(checkedInBaseline(t), got) {
+		t.Errorf("%s%s\nRun just parity-baseline once the change is intended; a pending step that now differs is a finding: fix understudy or the research (CLAUDE.md invariant 2)", d, stepDifferences(results, d.Key))
+	}
+}
+
+// checkedInBaseline is internal/parity/baseline.json.
+func checkedInBaseline(t *testing.T) Baseline {
+	t.Helper()
 	data, err := os.ReadFile("baseline.json")
 	if err != nil {
 		t.Fatalf("reading internal/parity/baseline.json: %v; run just parity-baseline", err)
 	}
-	want, err := ParseBaseline(data)
+	b, err := ParseBaseline(data)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, d := range Ratchet(want, got) {
-		t.Errorf("%s%s\nRun just parity-baseline once the change is intended; a pending step that now differs is a finding: fix understudy or the research (CLAUDE.md invariant 2)", d, stepDifferences(results, d.Key))
-	}
+	return b
 }
 
 // stepDifferences lists the differences of the Differs step a drift key
@@ -500,12 +514,18 @@ func stepDifferences(results []Result, key string) string {
 }
 
 // Signatures are checked under verify and only read under parse; the
-// replay signs correctly, so both modes replay alike.
+// replay signs correctly, so both modes replay alike. TestReplay holds the
+// verify replay to baseline.json, so this one holds the parse replay to the
+// same file rather than replaying verify a second time. Under
+// -update-baseline TestReplay rewrites the file, so there is nothing yet to
+// hold this one to.
 func TestReplaySigV4Parse(t *testing.T) {
 	t.Parallel()
-	corpora := replayCorpus(t, "verify", "parse")
-	verify, parse := BaselineOf(corpora[0]), BaselineOf(corpora[1])
-	for _, d := range Ratchet(verify, parse) {
+	if *updateBaseline {
+		t.Skip("TestReplay is rewriting baseline.json from the verify replay")
+	}
+	parse := BaselineOf(replayCorpus(t, "parse")[0])
+	for _, d := range Ratchet(checkedInBaseline(t), parse) {
 		t.Errorf("under sigv4 parse, %s", d)
 	}
 }
