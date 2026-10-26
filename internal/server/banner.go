@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	serveradmin "github.com/sustinbebustin/understudy/internal/server/admin"
+	"github.com/sustinbebustin/understudy/internal/server/ui"
 )
 
 // resolveTimeout bounds the *.localhost resolution check of the banner.
@@ -22,7 +23,8 @@ const resolveTimeout = time.Second
 const localhostProbe = "understudy-probe.s3.localhost"
 
 // banner announces the endpoints, the environment that points an SDK at
-// them, the admin URL, the services and the warnings (ARCHITECTURE.md 17):
+// them, the admin URL, the web UI's URL with this run's session secret in
+// its fragment (ADR 0020), the services and the warnings (ARCHITECTURE.md 17):
 // a block of text with text logs, one record with JSON logs, so a log
 // pipeline never sees a line it cannot parse. bound is the main listener's
 // address as bound, with the port a requested port 0 resolved to.
@@ -37,10 +39,12 @@ func (s *Server) banner(ctx context.Context, eps Endpoints, bound net.Addr) {
 	services := s.services(status)
 	notes := s.warnings(ctx, status, bound)
 	clockLine := clockNote(s.wired.kernel.Clock(), s.wired.clockFrom)
+	page := ui.URL(eps.Main, s.cfg.UISecret)
 	if s.cfg.LogFormat == LogJSON {
 		attrs := []slog.Attr{
 			slog.String("endpoint", eps.Main),
 			slog.String("admin", eps.Main+"/_understudy/v1/"),
+			slog.String("ui", page),
 			slog.Any("services", services),
 			slog.Any("env", env),
 			slog.Any("warnings", notes),
@@ -61,6 +65,7 @@ func (s *Server) banner(ctx context.Context, eps Endpoints, bound net.Addr) {
 		fmt.Fprintf(&b, "  tls       %s (self-signed for localhost, *.localhost and 127.0.0.1)\n", eps.TLS)
 	}
 	fmt.Fprintf(&b, "  admin     %s/_understudy/v1/\n", eps.Main)
+	fmt.Fprintf(&b, "  ui        %s\n", page)
 	fmt.Fprintf(&b, "  services  %s\n", strings.Join(services, ", "))
 	if clockLine != "" {
 		fmt.Fprintf(&b, "  clock     %s\n", clockLine)

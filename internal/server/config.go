@@ -28,8 +28,8 @@ type Config struct {
 	// main listener must carry. It guards the admin API only.
 	AdminToken string
 	// UISecret is the web UI session secret (ADR 0020); empty draws one
-	// with ui.NewSecret when New wires the server. Not implemented yet: it
-	// is stored and ignored.
+	// with ui.NewSecret when New wires the server. The banner prints it in
+	// the fragment of the UI's URL.
 	UISecret string
 	// Exposure is what makes a non-loopback Listen safe without a token;
 	// nil is TokenRequired.

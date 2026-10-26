@@ -18,6 +18,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/config"
 	"github.com/sustinbebustin/understudy/internal/docker"
+	"github.com/sustinbebustin/understudy/internal/server/ui"
 )
 
 // Server is one understudy serve: the wired emulator and its listeners.
@@ -148,6 +149,9 @@ func New(cfg Config) (*Server, error) {
 		handler = slog.NewJSONHandler(out, hopts)
 	}
 	log := slog.New(handler)
+	if cfg.UISecret == "" {
+		cfg.UISecret = ui.NewSecret()
+	}
 	// Each wiring step names what it was doing, and a *SettingError reads
 	// as the configuration's own refusals do, so the error goes out bare.
 	w, err := wire(cfg, log)

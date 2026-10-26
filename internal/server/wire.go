@@ -47,6 +47,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	serveradmin "github.com/sustinbebustin/understudy/internal/server/admin"
+	"github.com/sustinbebustin/understudy/internal/server/ui"
 	"github.com/sustinbebustin/understudy/internal/service/cloudwatch"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb/ddblocal"
@@ -211,6 +212,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		DefaultAccount:   account,
 		MaxSnapshotBytes: snapshotMaxBytes(cfg),
 		Token:            cfg.AdminToken,
+		UISecret:         cfg.UISecret,
 		Version:          cfg.Version,
 		ModelPin:         modelPin,
 		Uptime:           clk.Stopwatch(),
@@ -503,7 +505,9 @@ func unwatchable(bindings []HotReload, err error) error {
 }
 
 // edges builds the main listener's front door and the container
-// listener's. A main listener beyond loopback answers every Host from a
+// listener's. The main listener, and the TLS listener sharing its front
+// door, serve the web UI beside the admin API; the container listener does
+// not. A main listener beyond loopback answers every Host from a
 // client that is not a browser, since its clients name it by whatever
 // their network calls it, such as a compose service name; checkExposure
 // has already required what guards it. The container listener keeps
@@ -521,6 +525,10 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 	if !cfg.Listen.Addr().IsLoopback() {
 		hosts = edge.NetworkHosts{}
 	}
+	page, err := ui.New(ui.Assets())
+	if err != nil {
+		return err
+	}
 	o := edge.Options{
 		Hosts:                 hosts,
 		Kernel:                k,
@@ -534,7 +542,7 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 		Listener:              ref.ListenerMain,
 		Served:                &edge.ServedPorts{},
 		Timeline:              &edge.ClockTimeline{},
-		Admin:                 w.admin,
+		Admin:                 ui.Mount(page, w.admin),
 		Unclaimed:             ref.AWSJSON10,
 		UnknownOperationError: cat.unknownOperationError,
 		Log:                   log,
@@ -544,7 +552,6 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 	o.OperationAuth = map[ref.OperationID]auth.Vocabulary{{Service: lambdaapi.Service().ID, Name: "InvokeFunctionUrl"}: lambda.FunctionURLAuth()}
 	o.ProtocolAuth = map[edge.ServiceProtocol]auth.Vocabulary{{Service: sqsapi.Service().ID, Protocol: ref.AWSJSON10}: sqs.JSONAuth()}
 	o.Verify = cfg.SigV4 == SigV4Verify
-	var err error
 	if w.edge, err = edge.New(o); err != nil {
 		return err
 	}
