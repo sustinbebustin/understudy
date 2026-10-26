@@ -302,9 +302,38 @@ func (c *claimer) functionURL() (route, bool) {
 	return toLink{op: op}, true
 }
 
-// executeAPIHost matches <api-id>.execute-api.<region>.<base> and
-// <api-id>.execute-api.<base>.
-var executeAPIHost = regexp.MustCompile(`^[a-z0-9]+\.execute-api\.[^.]+`)
+// executeAPIHost matches <api-id>.execute-api.<rest>; isExecuteAPIHost
+// checks that rest is <region>.<domain> or <domain>.
+var executeAPIHost = regexp.MustCompile(`^[a-z0-9]+\.execute-api\.(.+)$`)
+
+// isExecuteAPIHost reports whether the host is
+// <api-id>.execute-api.<region>.<domain> or <api-id>.execute-api.<domain>,
+// domain being a configured base domain without a leading "s3." label, as
+// for regionalBase. Host detection is configuration on the base domains
+// (apigateway-http.md 11.3), so the claim ends at one: a bucket named
+// x.execute-api.y is S3's on its regional virtual host
+// x.execute-api.y.s3.<region>.<domain>, as on AWS.
+func (c *claimer) isExecuteAPIHost() bool {
+	m := executeAPIHost.FindStringSubmatch(c.host)
+	if m == nil {
+		return false
+	}
+	rest := m[1]
+	for _, base := range c.h.opts.S3BaseDomains {
+		domain := strings.TrimPrefix(base, "s3.")
+		if rest == domain {
+			return true
+		}
+		region, ok := strings.CutSuffix(rest, "."+domain)
+		if !ok || strings.Contains(region, ".") {
+			continue
+		}
+		if _, err := c.h.opts.Regions.Parse(region); err == nil {
+			return true
+		}
+	}
+	return false
+}
 
 // executeAPI is rule 2's execute-api part: an execute-api host is API
 // Gateway's data plane whatever the credentials, never an S3
@@ -312,7 +341,7 @@ var executeAPIHost = regexp.MustCompile(`^[a-z0-9]+\.execute-api\.[^.]+`)
 // (apigateway-http.md 4.1, ADR 0013). A bucket of that name stays
 // reachable path style.
 func (c *claimer) executeAPI() (route, bool) {
-	if !executeAPIHost.MatchString(c.host) {
+	if !c.isExecuteAPIHost() {
 		return nil, false
 	}
 	c.decline(2, "host %q is an API Gateway execute-api host, and understudy does not implement API Gateway invoke", c.host)

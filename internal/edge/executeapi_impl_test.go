@@ -3,6 +3,7 @@ package edge_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/edge"
@@ -47,6 +48,21 @@ func TestExecuteAPIAnswerAndJournal(t *testing.T) {
 				t.Errorf("last reason = %q, want %q", got, c.reason)
 			}
 		})
+	}
+}
+
+// The host claim ends at a base domain (apigateway-http.md 11.3): a bucket
+// named like an execute-api host is S3's on its regional virtual host,
+// <bucket>.s3.<region>.<base>, as every such host is S3's on AWS.
+func TestExecuteAPIHostClaimEndsAtABaseDomain(t *testing.T) {
+	f := s3Front(t)
+	r := request(t, http.MethodGet, "/", nil, "", "")
+	r.Host = "abc123.execute-api.bar.s3.us-east-1.localhost:4566"
+	if got := f.serve(t, r); !strings.Contains(got, "X-Amz-Request-Id: ") {
+		t.Fatalf("regional virtual host of bucket abc123.execute-api.bar did not reach S3:\n%s", got)
+	}
+	if op, want := f.lastCall(t), (ref.OperationID{Service: "s3", Name: "ListObjects"}); op != want {
+		t.Errorf("the request reached %s, want %s", op, want)
 	}
 }
 
