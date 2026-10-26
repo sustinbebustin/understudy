@@ -136,8 +136,10 @@ export class UnderstudyContainer extends GenericContainer {
   #token: string | undefined;
   #publishedOn = LOOPBACK;
   #socket: SocketRequest | undefined;
-  // Set by start() for the hooks tc-node calls while it creates the container.
+  // Set by start() for the hooks tc-node calls while it creates the container,
+  // and by those hooks for start().
   #mount: SocketMount | undefined;
+  #createdId: string | undefined;
   #exitWatch: ExitWatch | undefined;
 
   constructor(image: string) {
@@ -262,9 +264,10 @@ export class UnderstudyContainer extends GenericContainer {
   /**
    * Start understudy and resolve once it reports ready (testcontainers.md 8.3).
    *
-   * A container that exits first rejects with its log and is removed. With
-   * the Docker socket, a socket understudy does not report enabled stops
-   * and removes the container and rejects with UnderstudyDockerError.
+   * A container that exits first rejects with its log. With the Docker
+   * socket, a socket understudy does not report enabled rejects with
+   * UnderstudyDockerError. A start that fails after creating the container
+   * removes it.
    */
   override async start(): Promise<StartedUnderstudyContainer> {
     // tc-node unrefs the socket of the log it reads to report an exit, so a
@@ -282,6 +285,7 @@ export class UnderstudyContainer extends GenericContainer {
     this.#checkExposure();
     const client = await getContainerRuntimeClient();
     this.#mount = this.#socket === undefined ? undefined : resolveSocket(client, this.#socket);
+    this.#createdId = undefined;
     let started: StartedTestContainer;
     try {
       started = await super.start();
@@ -289,8 +293,9 @@ export class UnderstudyContainer extends GenericContainer {
       // An exit the watch already saw still resolves after stop().
       this.#exitWatch?.stop();
       const exited = await this.#exitWatch?.exited;
-      if (exited !== undefined) throw new Error(exited, { cause: err });
-      throw err;
+      const failure = exited === undefined ? err : new Error(exited, { cause: err });
+      if (this.#createdId !== undefined) await removeLeftover(client, this.#createdId, failure);
+      throw failure;
     } finally {
       this.#exitWatch?.stop();
       this.#exitWatch = undefined;
@@ -329,6 +334,7 @@ export class UnderstudyContainer extends GenericContainer {
   }
 
   protected override async containerCreated(containerId: string): Promise<void> {
+    this.#createdId = containerId;
     this.#exitWatch = watchExit(await getContainerRuntimeClient(), containerId);
   }
 
@@ -467,6 +473,25 @@ async function stopAfterFailedStart(u: StartedUnderstudyContainer, cause: unknow
       `understudy: start failed (${String(cause)}), and stopping container ${u.getId()} then failed too: ` +
         `${String(stopErr)}; remove it with 'docker rm -f -v ${u.getId()}'.`,
       { cause },
+    );
+  }
+}
+
+/**
+ * Remove the container of a failed start unless it is already gone.
+ *
+ * tc-node removes it when the wait fails, but not when the port binding or
+ * its lookup fails after the container started.
+ */
+async function removeLeftover(client: ContainerRuntimeClient, id: string, failure: unknown): Promise<void> {
+  try {
+    await client.container.getById(id).remove({ force: true, v: true });
+  } catch (err) {
+    if (isRecord(err) && err.statusCode === 404) return;
+    throw new Error(
+      `understudy: start failed (${String(failure)}), and removing container ${id} then failed too: ` +
+        `${String(err)}; remove it with 'docker rm -f -v ${id}'.`,
+      { cause: failure },
     );
   }
 }

@@ -1,9 +1,11 @@
 // Module behavior beyond container.test.ts and validation.test.ts: what a
-// failed start leaves behind, the user's own mounts and groups beside the
+// failed start leaves behind, a failed start in a process with nothing else
+// pending, the user's own mounts and groups beside the
 // socket's, the stop's grace, and the call-time refusals the blind tests do
 // not reach (testcontainers.md 8.2, 8.5, 8.6, 9.5).
 
 import { execFileSync } from "node:child_process";
+import { lookup } from "node:dns/promises";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -26,6 +28,32 @@ test("a container that exits before ready is removed and its log reported", asyn
         assert.match(e.message, /UNDERSTUDY_CLOCK_SCALE: scales the clock while UNDERSTUDY_CLOCK freezes it/);
         return true;
       },
+    );
+    assert.deepEqual(
+      (await imageContainers()).filter((id) => !before.has(id)),
+      [],
+      "the failed start left its container",
+    );
+  } finally {
+    removeContainers((await imageContainers()).filter((id) => !before.has(id)));
+  }
+});
+
+test("a start that fails after the container started leaves no container", async (t) => {
+  // Published on :: only, the port has no IPv4 binding, and tc-node looks a
+  // port up by the address families localhost resolves to; where that is
+  // IPv4 only, the lookup fails after the container started, and tc-node
+  // removes a container only when its wait fails (testcontainers.md 6.3).
+  const families = (await lookup("localhost", { all: true })).map((a) => a.family);
+  if (families.includes(6)) {
+    t.skip(`localhost resolves to IPv6 here (${JSON.stringify(families)}), so the lookup succeeds`);
+    return;
+  }
+  const before = new Set(await imageContainers());
+  try {
+    await assert.rejects(
+      new UnderstudyContainer(image()).withAdminToken().withPublishedOn("::").start(),
+      /No host port found for host IP/,
     );
     assert.deepEqual(
       (await imageContainers()).filter((id) => !before.has(id)),
