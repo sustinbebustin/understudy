@@ -64,7 +64,7 @@ func TestDelayedMessage(t *testing.T) {
 }
 ```
 
-`emu.Admin()` is an `admin.Client` with the whole admin API: clock, faults, journal, snapshots, resources, IAM usage. `emu.Settle(ctx)` waits until deliveries and invocations are done. Both packages are public and experimental until the first release.
+`emu.Admin()` is an `admin.Client` with the whole admin API: clock, faults, journal, snapshots, resources, IAM usage. `emu.Settle(ctx)` waits until deliveries and invocations are done. Both packages are public and experimental until the first release. To run understudy as a container from a testcontainers-go, Python or Node suite instead, see [Testcontainers](testcontainers-modules.md).
 
 ## Python (boto3)
 

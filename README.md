@@ -77,6 +77,10 @@ Mounting the socket grants root on the host to whoever controls understudy; see 
 
 understudy finds Docker the way the Docker CLI does: `DOCKER_HOST`, else `/var/run/docker.sock`; `--docker` (`UNDERSTUDY_DOCKER`) overrides both. A `tcp://` daemon works too, such as a docker:dind service in CI: plain TCP by default, and TLS with the client certificates `ca.pem`, `cert.pem` and `key.pem` from `DOCKER_CERT_PATH` when `DOCKER_TLS_VERIFY` is set. On a daemon on another host, functions reach understudy at its address on the daemon's network, so understudy must run on that network; the [CI guide](docs/guide/ci.md#docker-in-docker) shows the setup. `understudy doctor` names the daemon, the transport and the detected topology.
 
+### Testcontainers
+
+Go, Python and Node test suites can start the image themselves with the [Testcontainers](https://testcontainers.com/) modules in [testcontainers/](testcontainers/): [Go](testcontainers/go/), [Python](testcontainers/python/) and [Node](testcontainers/node/). Each publishes the port on `127.0.0.1` only, waits until understudy is ready, returns the environment that points an SDK at it, and has the test session's reaper remove the containers understudy starts. They are not published yet; the [Testcontainers guide](docs/guide/testcontainers-modules.md) installs them from a clone. For Go tests, [`understudytest`](docs/guide/sdks.md#go-tests-with-understudytest) runs understudy in process, without a container.
+
 ## Quick start
 
 1. Start the emulator. State is kept in memory until it stops.
@@ -199,7 +203,7 @@ Behavior that differs from AWS in ways a test can observe is listed in [docs/gui
 
 ## Documentation
 
-- [Guide](docs/guide/README.md) -- getting started, configuration, SDKs and the CLI, Terraform, Lambda, the clock, fault injection, the journal, snapshots, policy generation and CI.
+- [Guide](docs/guide/README.md) -- getting started, configuration, SDKs and the CLI, Terraform, Lambda, the clock, fault injection, the journal, snapshots, policy generation, CI and Testcontainers.
 - [Configuration reference](docs/configuration.md) -- every flag, variable and file key.
 - [Coverage](docs/coverage.md) -- every operation, fidelity switch and evidence item.
 - [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/adr/) -- the design and its decisions.
