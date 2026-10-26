@@ -298,6 +298,12 @@ pre.detail {
   overflow-x: auto;
 }
 
+/* A table wider than a phone screen, such as the fault rules', scrolls
+   inside this box instead of widening the page. */
+.table-scroll {
+  overflow-x: auto;
+}
+
 table {
   border-collapse: collapse;
   width: 100%;
@@ -310,12 +316,20 @@ td {
   padding: 4px 8px;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 th {
   color: var(--muted);
   font-weight: 600;
+}
+
+/* An ARN is one long token: letting it break anywhere keeps its table within
+   a phone-width screen. Other cells break only a word that overflows, since
+   breaking anywhere lets a long column (a fault rule's warning) squeeze its
+   neighbours' headers and short words down to a letter or two. */
+.arn {
+  overflow-wrap: anywhere;
 }
 
 .group h3,

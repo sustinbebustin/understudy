@@ -31,8 +31,12 @@ function section(title: string, ...rest: readonly (Node | null)[]): HTMLElement 
 const button = (text: string, onclick: () => void, cls?: string): HTMLButtonElement =>
   h("button", { attrs: { type: "button" }, onclick, ...(cls === undefined ? {} : { class: cls }) }, text);
 
-const table = (head: readonly string[], rows: readonly (readonly (Node | string)[])[]): HTMLTableElement =>
-  h("table", {}, h("thead", {}, h("tr", {}, ...head.map((c) => h("th", {}, c)))), h("tbody", {}, ...rows.map((r) => h("tr", {}, ...r.map((c) => h("td", {}, c))))));
+const table = (head: readonly string[], rows: readonly (readonly (Node | string)[])[]): HTMLDivElement =>
+  h(
+    "div",
+    { class: "table-scroll" },
+    h("table", {}, h("thead", {}, h("tr", {}, ...head.map((c) => h("th", {}, c)))), h("tbody", {}, ...rows.map((r) => h("tr", {}, ...r.map((c) => h("td", {}, c)))))),
+  );
 
 export function resourcesPanel(admin: Admin): Panel {
   const body = h("div");
@@ -63,7 +67,7 @@ export function resourcesPanel(admin: Admin): Panel {
               h("h4", {}, r.region === "" ? "global" : r.region),
               table(
                 ["Service", "ARN", "Summary"],
-                r.resources.map((res) => [res.service, h("code", {}, res.arn), res.summary ?? ""]),
+                r.resources.map((res) => [res.service, h("code", { class: "arn" }, res.arn), res.summary ?? ""]),
               ),
             ),
           ),
@@ -221,7 +225,7 @@ export function iamPanel(admin: Admin): Panel {
       h("h3", {}, p.principal),
       h("pre", { class: "detail" }, JSON.stringify(p.document, null, 2)),
       p.resourcePolicies.length > 0 ? h("h4", {}, "Statements resource policies need") : null,
-      p.resourcePolicies.length > 0 ? table(["Target", "Principal", "Action", "Source"], p.resourcePolicies.map((r) => [h("code", {}, r.target), r.principal, r.action, h("code", {}, r.source)])) : null,
+      p.resourcePolicies.length > 0 ? table(["Target", "Principal", "Action", "Source"], p.resourcePolicies.map((r) => [h("code", { class: "arn" }, r.target), h("span", { class: "arn" }, r.principal), r.action, h("code", { class: "arn" }, r.source)])) : null,
     );
   }
 
