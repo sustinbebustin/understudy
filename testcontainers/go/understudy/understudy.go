@@ -41,7 +41,9 @@ const (
 // Container is a started understudy container. Terminate, inherited from
 // testcontainers.Container, stops it with tc-go's 10 s grace, which lets
 // understudy remove its own containers before it exits (testcontainers.md
-// 8.6).
+// 8.6). Its Endpoint(ctx) replaces the embedded Endpoint(ctx, proto), so a
+// *Container is not itself a testcontainers.Container: pass c.Container
+// where tc-go wants one, as testcontainers.CleanupContainer does.
 type Container struct {
 	testcontainers.Container
 
@@ -62,8 +64,9 @@ type Container struct {
 //
 // Once a container exists, a failed start, a wait that sees understudy
 // exit, or a mounted socket understudy cannot use (*DockerUnavailableError)
-// returns the container with the error, so testcontainers.CleanupContainer
-// registered before the error check removes it (testcontainers.md 4.1).
+// returns the container with the error, so
+// testcontainers.CleanupContainer(t, c.Container), registered when c is not
+// nil and before the error check, removes it (testcontainers.md 4.1).
 func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustomizer) (*Container, error) {
 	o := newOptions()
 	for _, opt := range opts {
