@@ -18,12 +18,10 @@ const (
 )
 
 // The binary embeds every data file in this directory (ADR 0016, amendment
-// "managed policies"). Until the maintainer's first -fetch run is committed,
-// policies.json holding the empty catalogue is the only one; that commit adds
-// SOURCE.json, LICENSE and NOTICE to this list, and
-// internal/policycatalogue/embedded_impl_test.go fails until it does.
+// "managed policies"); internal/policycatalogue/embedded_impl_test.go fails
+// when a file the generator writes is missing from this list.
 //
-//go:embed policies.json
+//go:embed policies.json SOURCE.json LICENSE NOTICE
 var files embed.FS
 
 // FS returns the embedded data files, read-only.

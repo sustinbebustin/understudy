@@ -44,15 +44,10 @@ test-docker:
 ruler-diff:
     go test -tags rulerdiff -count=1 -run TestJavaRulerDifferential ./internal/ruler
 
-# TODO(05c): run `go run ./internal/cmd/managedpolicies -verify` between the
-# vendor check and go generate, in the commit after the maintainer's build:
-# commit adds SOURCE.json, LICENSE and NOTICE to third_party/aws-managed-policies.
-# Until then -verify fails on those missing files, so the managed policy
-# catalogue goes unchecked here.
-
-# Verify the vendored models, then run every go:generate directive.
+# Verify the vendored models and the AWS managed policy catalogue, then run
+# every go:generate directive.
 generate:
-    go run ./internal/cmd/vendor -verify && go generate ./...
+    go run ./internal/cmd/vendor -verify && go run ./internal/cmd/managedpolicies -verify && go generate ./...
 
 # Regenerate, then fail when the working tree differs from what is checked in.
 generate-check: generate

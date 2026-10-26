@@ -2,7 +2,6 @@ package server
 
 import (
 	"io"
-	"io/fs"
 	"net/url"
 	"regexp"
 	"slices"
@@ -24,11 +23,9 @@ func TestIAMServesTheEmbeddedCatalogue(t *testing.T) {
 	for p := range cat.All() {
 		want = append(want, p.ARN)
 	}
-	// Until the maintainer's first -fetch is committed, policies.json is the
-	// empty catalogue and embedded alone. Once SOURCE.json is embedded beside
-	// it, an empty catalogue would make the comparison below vacuous.
-	if _, err := fs.Stat(awsmanagedpolicies.FS(), awsmanagedpolicies.SourceFile); err == nil && len(want) == 0 {
-		t.Fatalf("the embedded catalogue is empty although %s is embedded; restore third_party/aws-managed-policies with git checkout", awsmanagedpolicies.SourceFile)
+	// An empty catalogue would make the comparison below vacuous.
+	if len(want) == 0 {
+		t.Fatalf("the embedded catalogue is empty although %s records a run; restore third_party/aws-managed-policies with git checkout", awsmanagedpolicies.SourceFile)
 	}
 	srv, err := New(Config{Docker: DockerDisabled{}, LogOutput: io.Discard})
 	if err != nil {
