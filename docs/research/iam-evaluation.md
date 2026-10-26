@@ -1089,8 +1089,8 @@ The maintainer's `-fetch` of 2026-10-26 (`third_party/aws-managed-policies/SOURC
 | SageMakerStudioUserIAMDefaultExecutionPolicy (AWS managed policy, v31) | `arn:aws:s3:*:*:access-grants/default/location/*`, `.../default/grant/*` | S3 region |
 
 - `-verify` no longer applies those rules to the catalogue. They model what IAM checks on a customer's upload (CreatePolicy, Put*Policy; iam-sts-kms.md 3.3), and AWS publishes its managed policies without that call. AWS is the arbiter of what its own documents hold, so a published document that breaks one is a finding about the port, not the data. `-verify` requires each document to parse (`policydoc.Parse`) and to be an identity policy (`policydoc.ValidateIdentityForm`: Version 2012-10-17, no Principal or NotPrincipal), the form the evaluator reads (5.5); the rest of `ValidateIdentity` is not applied.
-- The S3 region rule was wrong for customer documents too. The resource types table of the Service Authorization Reference for Amazon S3 (https://docs.aws.amazon.com/service-authorization/latest/reference/list_s3.html, read 2026-10-26; the older name `list_amazons3.html` now redirects to the reference's index) gives a `${Region}` element to accessgrantsinstance (`access-grants/default`), accessgrant, accessgrantslocation, accesspoint, accesspointobject, job, storagelensconfiguration and storagelensgroup, and a fixed `us-west-2` to multiregionaccesspointrequestarn (`async-request/mrap/...`); bucket, object and multiregionaccesspoint carry no region. policydoc now exempts those types by the leading literal of the resource element (`access-grants/`, `accesspoint/`, `async-request/mrap/`, `job/`, `storage-lens/`, `storage-lens-group/`) and still refuses a bucket or object ARN with a region. Whether CreatePolicy accepts a regional access-grants ARN in a customer policy is UNVERIFIED (IAM-EVAL-36).
-- The IAM resource path list is unchanged. The Service Authorization Reference for IAM (https://docs.aws.amazon.com/service-authorization/latest/reference/list_iam.html, read 2026-10-26) lists `role-template` (`arn:${Partition}:iam::aws:role-template/${AWSServicePrincipal}/${RoleTemplateName}:${RoleTemplateMajorVersion}`), `assumed-role` and `delegation-request` beside moto's types, and does not list moto's `report/`; whether a customer CreatePolicy accepts any of them is UNVERIFIED (IAM-EVAL-35).
+- The Service Authorization Reference's S3 ARN formats disagree with moto's S3 region rule. Its resource types table for Amazon S3 (https://docs.aws.amazon.com/service-authorization/latest/reference/list_s3.html, read 2026-10-26; the older name `list_amazons3.html` now redirects to the reference's index) gives a `${Region}` and an `${Account}` element to accessgrantsinstance (`access-grants/default`), accessgrant, accessgrantslocation, accesspoint, accesspointobject, job, storagelensconfiguration and storagelensgroup, and a fixed `us-west-2` and an `${Account}` to multiregionaccesspointrequestarn (`async-request/mrap/${Operation}/${Token}`); bucket and object carry neither, and multiregionaccesspoint an account but no region. The formats describe resources for authorization, not what CreatePolicy accepts. policydoc follows them: it exempts those types by the leading literal of the resource element (`access-grants/`, `accesspoint/`, `async-request/mrap/`, `job/`, `storage-lens/`, `storage-lens-group/`) when the account element is not empty, so it still refuses a bucket or object ARN with a region, an object in a bucket named `job` included (`arn:aws:s3:us-east-1::job/k`), where moto exempts `accesspoint/` alone and by prefix, an empty account included. policydoc checks no region's value, so it accepts `async-request/mrap/` in any Region. Whether CreatePolicy accepts a regional ARN of each exempted type in a customer policy, whether it holds the multi-Region access point request type to us-west-2, and whether it refuses an object in a bucket named like a type, are UNVERIFIED (IAM-EVAL-36).
+- The IAM resource path list is unchanged. The Service Authorization Reference for IAM (https://docs.aws.amazon.com/service-authorization/latest/reference/list_iam.html, read 2026-10-26) lists `role-template` (`arn:${Partition}:iam::aws:role-template/${AWSServicePrincipal}/${RoleTemplateName}:${RoleTemplateMajorVersion}`), `assumed-role` (`arn:${Partition}:iam::${Account}:assumed-role/${RoleName}/${RoleSessionName}`) and `delegation-request` (`arn:${Partition}:iam::${Account}:delegation-request/${DelegationRequestId}`) beside moto's types, and does not list moto's `report/`; whether a customer CreatePolicy accepts each of the three, and still accepts `report/`, is UNVERIFIED (IAM-EVAL-35).
 
 ## 11. Conflicts between sources
 
@@ -1784,26 +1784,53 @@ via calledvia-absent '{"Null":{"aws:CalledVia":"true"}}'
 
 Each Deny fires only when its condition holds, so a failed `put-object` means: `via-true`, S3's KMS call carried `aws:ViaAWSService` true; `via-false`, it carried false; `calledvia-s3`, `aws:CalledVia` held `s3.amazonaws.com`; `calledvia-absent`, the key was absent. Cost USD 0 beyond IAM-EVAL-27, 4 minutes. Teardown: `aws s3api delete-object --bucket $B --key k`; `aws s3api delete-bucket --bucket $B`; `aws iam delete-role-policy --role-name $P-eval-via --policy-name p`; `aws iam delete-role --role-name $P-eval-via`; then IAM-EVAL-27's teardown.
 
-### 13.36 IAM-EVAL-35: a customer policy naming an IAM role template
+### 13.36 IAM-EVAL-35: a customer policy naming IAM resource types outside moto's list
 
-Settles 10.6 (the IAM resource path rule for `role-template/`).
-
-```sh
-rec IAM-EVAL-35/01-role-template aws iam create-policy --policy-name $P-eval-rtpl \
-  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"iam:GetRoleTemplateVersion","Resource":"arn:aws:iam::aws:role-template/cloudwatch.amazonaws.com/CloudWatchOmniAWSIntegrationForOrgRoleTemplate:1"}]}'
-```
-
-Expected: either the policy is created, so a customer policy may name a role template and policydoc's IAM resource path list gains `role-template/` (and `assumed-role/` and `delegation-request/`, which the Service Authorization Reference lists too, are worth the same check), or `MalformedPolicyDocument` with `IAM resource path must either be "*" or start with ...`, whose list of types is recorded verbatim. Cost USD 0, 1 minute. Teardown, only if created: `aws iam delete-policy --policy-arn arn:aws:iam::$A:policy/$P-eval-rtpl`.
-
-### 13.37 IAM-EVAL-36: a customer policy naming regional access-grants ARNs
-
-Settles 10.6 (the S3 region rule).
+Settles 10.6 (the IAM resource path rule for `role-template/`, `assumed-role/`, `delegation-request/` and `report/`).
 
 ```sh
-rec IAM-EVAL-36/01-access-grants aws iam create-policy --policy-name $P-eval-s3ag \
-  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:CreateAccessGrant","s3:DeleteAccessGrant"],"Resource":["arn:aws:s3:*:*:access-grants/default/grant/*","arn:aws:s3:'"$R"':'"$A"':access-grants/default"]}]}'
-rec IAM-EVAL-36/02-object-region aws iam create-policy --policy-name $P-eval-s3rg \
-  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject","Resource":"arn:aws:s3:'"$R"':'"$A"':'"$P"'-eval/k"}]}'
+# iampol <step> <resource>: one customer policy per step, so a refusal names its own resource.
+iampol() { rec "IAM-EVAL-35/$1" aws iam create-policy --policy-name "$P-eval-iampath-$1" \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"iam:Get*","Resource":"'"$2"'"}]}'; }
+iampol 01-role-template      "arn:aws:iam::aws:role-template/cloudwatch.amazonaws.com/CloudWatchOmniAWSIntegrationForOrgRoleTemplate:1"
+iampol 02-assumed-role       "arn:aws:iam::$A:assumed-role/$P-eval-none/s"
+iampol 03-delegation-request "arn:aws:iam::$A:delegation-request/$P-eval-none"
+iampol 04-report             "arn:aws:iam::$A:report/x"
 ```
 
-Expected: 01 created, as policydoc accepts it since 10.6; 02 refused with `MalformedPolicyDocument` `Resource arn:aws:s3:<region>:<account>:<prefix>-eval/k can not contain region information.`, the rule policydoc keeps for bucket and object ARNs. If 01 is refused, record the text: policydoc's exemption for that resource type goes. Cost USD 0, 1 minute. Teardown, for each policy created: `aws iam delete-policy --policy-arn arn:aws:iam::$A:policy/$P-eval-s3ag`; `aws iam delete-policy --policy-arn arn:aws:iam::$A:policy/$P-eval-s3rg`.
+policydoc refuses 01 to 03 and accepts 04, as moto does. Expected, for each step: either the policy is created, so policydoc's IAM resource path list gains that type (01 to 03) or keeps `report/` (04), or `MalformedPolicyDocument` with `IAM resource path must either be "*" or start with ...`, whose list of types is recorded verbatim, so the type stays out of the list (01 to 03) or `report/` leaves it (04). Cost USD 0, 2 minutes. Teardown, for each step that created its policy:
+
+```sh
+for s in 01-role-template 02-assumed-role 03-delegation-request 04-report; do
+  grep -qx 'exit=0' "$REC/IAM-EVAL-35/$s.out" && aws iam delete-policy --policy-arn "arn:aws:iam::$A:policy/$P-eval-iampath-$s"; done
+```
+
+### 13.37 IAM-EVAL-36: a customer policy naming regional S3 resource types
+
+Settles 10.6 (the S3 region rule): one step per type policydoc exempts, and controls for what it refuses.
+
+```sh
+# s3pol <step> <resource>: one customer policy per step, so a refusal names its own resource.
+s3pol() { rec "IAM-EVAL-36/$1" aws iam create-policy --policy-name "$P-eval-s3rg-$1" \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:*","Resource":"'"$2"'"}]}'; }
+s3pol 01-ag-instance              "arn:aws:s3:$R:$A:access-grants/default"
+s3pol 02-ag-grant                 "arn:aws:s3:$R:$A:access-grants/default/grant/*"
+s3pol 03-ag-location              "arn:aws:s3:$R:$A:access-grants/default/location/*"
+s3pol 04-ag-wildcards             "arn:aws:s3:*:*:access-grants/default/grant/*"
+s3pol 05-accesspoint-object       "arn:aws:s3:$R:$A:accesspoint/$P-eval/object/*"
+s3pol 06-job                      "arn:aws:s3:$R:$A:job/*"
+s3pol 07-storage-lens             "arn:aws:s3:$R:$A:storage-lens/*"
+s3pol 08-storage-lens-group       "arn:aws:s3:$R:$A:storage-lens-group/*"
+s3pol 09-mrap-request             "arn:aws:s3:us-west-2:$A:async-request/mrap/*"
+s3pol 10-mrap-request-elsewhere   "arn:aws:s3:eu-west-1:$A:async-request/mrap/*"
+s3pol 11-object-region            "arn:aws:s3:$R:$A:$P-eval/k"
+s3pol 12-bucket-named-job         "arn:aws:s3:$R::job/k"
+s3pol 13-bucket-named-accesspoint "arn:aws:s3:$R::accesspoint/k"
+```
+
+Expected, as policydoc answers each today: 01 to 10 created; 11 to 13 refused with `MalformedPolicyDocument` `Resource <arn> can not contain region information.`, the resource verbatim (moto accepts 05 and 13 and refuses the rest). A refused step among 01 to 08 drops that type's exemption; 10 refused while 09 is created limits `async-request/mrap/` to us-west-2; 12 or 13 created means the exemption goes by prefix alone, without the account element. Record each refusal's text. Cost USD 0, 3 minutes. Teardown, for each step that created its policy:
+
+```sh
+for f in "$REC"/IAM-EVAL-36/*.out; do s=$(basename "$f" .out)
+  grep -qx 'exit=0' "$f" && aws iam delete-policy --policy-arn "arn:aws:iam::$A:policy/$P-eval-s3rg-$s"; done
+```
