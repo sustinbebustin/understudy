@@ -12,6 +12,7 @@ Task-oriented pages. Each command shown was run against a build of this reposito
 | [The clock](clock.md) | Freeze, advance, scale; what runs on emulator time and what does not |
 | [Fault injection](faults.md) | Rules, triggers, delivery faults, SDK retries |
 | [The journal](journal.md) | Querying, following and tracing calls, deliveries and invocations |
+| [The web UI](ui.md) | Live trace trees, resources, fault rules, the clock, IAM policy and coverage in a browser |
 | [Snapshots and persistence](snapshots.md) | Save, load, diff, `--persist`, reset |
 | [Policy generation](policy.md) | Least-privilege policies from recorded access |
 | [CI](ci.md) | Running understudy in a pipeline |
