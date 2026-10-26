@@ -496,7 +496,7 @@ func (s *Service) report(ctx context.Context, c *kernel.Call, scope aws.Scope, f
 	}
 	for _, st := range f.strays {
 		s.k.Log().LogAttrs(ctx, slog.LevelError,
-			"an EventBridge rule's stored target is not a Lambda function, SQS queue or SNS topic in the rule's region and a served account; "+
+			"an EventBridge rule's stored target is not a Lambda function, SQS queue or SNS topic in the rule's region, or an event bus, in a served account; "+
 				"nothing was delivered to it. Remove it with RemoveTargets and add it again with PutTargets",
 			slog.String("rule", st.rule.String()), slog.String("target", st.target))
 	}

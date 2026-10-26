@@ -224,7 +224,9 @@ func (g grant) statement(bus aws.ARN) (string, error) {
 // putPermission adds a statement to, or replaces, the policy of a bus of
 // the caller's scope; no EventBusName names the default bus, which this
 // materializes (eventbridge-buses.md 4.1, 10.2.2). A policy that would pass
-// maxPolicyLength is refused and nothing changes.
+// maxPolicyLength is refused and nothing changes. Any Action the model's
+// pattern allows is stored, and the call moves the bus's LastModifiedTime;
+// both are inferred (eventbridge-buses.md 4.1, 3.6; EBB-06, EBB-07).
 func (s *Service) putPermission(_ context.Context, c *kernel.Call, in *eventbridgeapi.PutPermissionInput) (*eventbridgeapi.PutPermissionOutput, *awserr.Error) {
 	perm, err := parsePermission(in)
 	if err != nil {
@@ -258,7 +260,8 @@ func (s *Service) putPermission(_ context.Context, c *kernel.Call, in *eventbrid
 }
 
 // removePermission removes one statement of a bus's policy, or the whole
-// policy (eventbridge-buses.md 4.3).
+// policy (eventbridge-buses.md 4.3). It moves the bus's LastModifiedTime,
+// which is inferred (eventbridge-buses.md 3.6, EBB-07).
 func (s *Service) removePermission(_ context.Context, c *kernel.Call, in *eventbridgeapi.RemovePermissionInput) (*eventbridgeapi.RemovePermissionOutput, *awserr.Error) {
 	name, err := ownBusName(c.Scope(), in.EventBusName)
 	if err != nil {

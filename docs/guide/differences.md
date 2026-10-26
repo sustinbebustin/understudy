@@ -138,7 +138,7 @@ Under `--sigv4 verify`, an `AWS_IAM` function URL refuses credentials with 403 a
 
 Custom buses take rules, targets, tags and `PutEvents` as the default bus does, and an event bus target forwards an event one hop, as on AWS. Their differences:
 
-- Bus policies are stored and returned in `DescribeEventBus`'s `Policy`, not enforced. On AWS a bus takes another account's events only when its policy allows that account; understudy delivers them whatever the policy says. Here account 111111111111's `PutEvents` answers an `EventId` and no failed entry, and the bus's rules deliver the event with `"account": "111111111111"`:
+- Bus policies are stored and returned in `DescribeEventBus`'s `Policy`, not enforced. On AWS a bus takes another account's events only when its policy allows that account; understudy delivers them whatever the policy says. Here account 111111111111's `PutEvents`, which the policy does not allow, answers an `EventId` and no failed entry:
 
   ```sh
   aws events create-event-bus --name orders
@@ -153,7 +153,7 @@ Custom buses take rules, targets, tags and `PutEvents` as the default bus does, 
 - AWS lets a call that takes a bus name or ARN name another account's or Region's bus by its ARN; another account's bus must allow the call in its policy. understudy answers 501 `NotImplemented` for rule, target and `DescribeEventBus` calls on such a bus; call with the bus owner's credentials in its Region instead.
 - An event bus target in the rule's own account with `Input`, `InputPath` or `InputTransformer` fails its `PutTargets` entry with `NotImplemented`, since AWS's answer is unrecorded.
 - Partner event buses (`CreateEventBus` with `EventSourceName`), archives, replays, connections, API destinations and global endpoints answer 501 `NotImplemented`.
-- Where AWS's answer is unrecorded, understudy chose one, each a fidelity switch (`understudy coverage --service eventbridge --switches`): `DeleteEventBus` on a bus with rules is refused with `ValidationException` "Cannot delete event bus orders. All rules associated with this event bus need to be deleted."; `UpdateEventBus` keeps the members it leaves out; `ListEventBuses` sorts by name, the default bus among the rest; the default bus's `CreationTime` is the first EventBridge write in its account and Region; an event forwarded to a bus in the same account and Region keeps its `id`; removing a bus's last statement removes its `Policy`, and `RemovePermission` with `RemoveAllPermissions` on a bus without one is `ResourceNotFoundException`.
+- Where AWS's answer is unrecorded, understudy chose one, each a fidelity switch (`understudy coverage --service eventbridge --switches`): `DeleteEventBus` on a bus with rules is refused with `ValidationException` "Cannot delete event bus orders. All rules associated with this event bus need to be deleted."; `UpdateEventBus` keeps the members it leaves out; `ListEventBuses` sorts by name, the default bus among the rest; the default bus's `CreationTime` is the first EventBridge write in its account and Region, and until a write, each call reports its own instant; an event forwarded to a bus in the same account and Region keeps its `id`; removing a bus's last statement removes its `Policy`, and `RemovePermission` with `RemoveAllPermissions` on a bus without one is `ResourceNotFoundException`.
 
 ## CloudWatch and CloudWatch Logs
 

@@ -105,7 +105,11 @@ func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage 
 // deadLetterOf is deadLetterMessage with an event bus target's body: the
 // forwarded event as the destination bus would have received it
 // (delivery.EventEntry.Envelope), the dead letter of an EventBridge target
-// being the event it failed to deliver (eb-rule-dlq.html). Enqueue takes a
+// being the event it failed to deliver (eb-rule-dlq.html). The body is
+// inferred: no recording shows a bus target's dead letter, and for a bus in
+// another region it carries the id drawn for that region, which AWS
+// assigns on arrival (eventbridge-buses.md 6.4) and so may never assign to
+// an event that did not arrive (EBB-08). Enqueue takes a
 // dead-letter queue for an EventBus delivery only under events-to-events
 // (checkDLQ), whose one entry has an envelope (checkForwarding), so the
 // error, an entry with no envelope, never comes from an accepted delivery.

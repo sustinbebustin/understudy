@@ -306,7 +306,9 @@ func bindOutbox(box *outbox.Outbox, k *kernel.Kernel, faults *fault.Store, built
 // the key policy, the secret's resource policy and the role's trust policy
 // (iam-enforcement-surfaces.md 12.2), and the event bus's policy
 // (eventbridge-buses.md 10.2.5). The outbox's access advisory asks it about
-// delivery targets.
+// delivery targets; it never asks for an event bus's policy, since it skips
+// events-to-events deliveries (ADR 0015 amendment 2026-10-26;
+// eventbridge-buses.md 6.2, 6.3).
 type policySources map[string]authz.PolicyProvider
 
 // The router reads every namespace's policies through one provider.

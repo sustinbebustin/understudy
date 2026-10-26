@@ -120,7 +120,8 @@
 // HTTP endpoint's body otherwise, the HTTP form UNVERIFIED
 // (sns-http-delivery.md 6.5). An events-to-events delivery's dead letter
 // is the forwarded event as the destination bus would have received it
-// (delivery.EventEntry.Envelope). An S3Object delivery, or an EventBus one
+// (delivery.EventEntry.Envelope), which is inferred, a cross-region id
+// included (EBB-08). An S3Object delivery, or an EventBus one
 // under any other mechanism, takes no dead-letter queue: its dead letter's
 // form is not researched. An
 // EventBridge dead letter adds the String attributes RULE_ARN, TARGET_ARN,

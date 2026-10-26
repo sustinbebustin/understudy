@@ -56,19 +56,26 @@
 //     PutPermission) stores it, removing a bus policy's last statement
 //     removes the policy, and RemoveAllPermissions on a bus without one is
 //     ResourceNotFoundException. A tag call changes no bus's
-//     LastModifiedTime, which is inferred.
+//     LastModifiedTime, and PutPermission and RemovePermission move it;
+//     both are inferred (EBB-07). UpdateEventBus without a Name updates the
+//     default bus, and an empty KmsKeyIdentifier clears the key; both are
+//     inferred (EBB-04).
 //   - A bus policy is stored and returned, never enforced
 //     (eventbridge-buses.md 4.4, 10.7.22): PutPermission keeps its
 //     statements in insertion order, upserted by Sid, each generated one in
 //     the recorded member order, and a Policy document verbatim until a
-//     statement call rebuilds the policy from its statements. The policy is
-//     the bus's resource policy for the delivery access advisory and IAM
-//     enforcement (ResourcePolicy). PutPermission refuses a Policy sent with
-//     a statement member, a statement form missing a member, a Policy that
-//     is not an object whose Statement is an object or a list of objects
-//     with distinct string Sids, and a policy over 10,240 characters, in
-//     that order, all before it looks the bus up except the last; the order
-//     and the texts are inferred (EBB-06).
+//     statement call rebuilds the policy from its statements. Any Action the
+//     model's events:<name> pattern allows is stored, which is inferred:
+//     whether AWS takes only events:PutEvents is unrecorded (EBB-06). The
+//     policy is the bus's resource policy for IAM enforcement
+//     (ResourcePolicy), which no caller makes yet; the delivery access
+//     advisory skips events-to-events deliveries (ADR 0015 amendment
+//     2026-10-26). PutPermission refuses a Policy sent with a statement
+//     member, a statement form missing a member, a Policy that is not an
+//     object whose Statement is an object or a list of objects with
+//     distinct string Sids, and a policy over 10,240 characters, in that
+//     order, all before it looks the bus up except the last; the order and
+//     the texts are inferred (EBB-06).
 //   - A Detail integer outside the signed 64-bit range API_PutEvents
 //     documents fails its entry with MalformedDetail; the code and text are
 //     inferred (the events.put-events.detail-integer-range switch).
@@ -106,7 +113,9 @@
 //   - Another account's bus target needs a RoleArn
 //     (events.bus-target.cross-account-role) and takes no Input, InputPath
 //     or InputTransformer, as AWS documents; both refusals fail PutTargets
-//     with a ValidationException whose text is inferred (EBB-09). On a bus
+//     with a ValidationException whose text is inferred (EBB-09). A put
+//     without a RoleArn on a target with the same Id and Arn keeps its
+//     stored role, as API_PutTargets documents. On a bus
 //     of the rule's own account, AWS's handling of an input form is
 //     unrecorded (EBB-08), so that entry fails with NotImplemented. A bus
 //     target stored with an input form, which only an edited snapshot

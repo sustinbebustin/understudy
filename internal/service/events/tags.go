@@ -62,8 +62,11 @@ var errNilTaggable = errors.New("events: the tagged resource is nil, so no tags 
 
 // parseTaggable reads a tag call's ResourceARN: an event-bus/<name> or a
 // rule ARN of either form (eventbridge-buses.md 5.2). A bus or rule of
-// another account or region is not found by the texts of a missing one;
-// any other ARN is not valid.
+// another account or region is not found by the texts of a missing one,
+// which is inferred: AWS's answer to tagging another scope's resource is
+// unrecorded, and a bus policy can grant another account only PutEvents,
+// PutRule and PutTargets (eventbridge-buses.md 4.4). Any other ARN is not
+// valid.
 func parseTaggable(c *kernel.Call, resource string) (taggable, *awserr.Error) {
 	arn, err := aws.ParseARN(resource)
 	if err != nil || arn.Service != "events" {

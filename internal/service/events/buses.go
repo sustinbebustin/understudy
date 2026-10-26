@@ -356,9 +356,11 @@ func (s *Service) listEventBuses(_ context.Context, c *kernel.Call, in *eventbri
 }
 
 // updateEventBus replaces each setting the request sends and keeps each it
-// omits (events.update-bus.omitted-members); an empty Description or
-// KmsKeyIdentifier clears it. No Name, or default, updates the default bus,
-// which this materializes (eventbridge-buses.md 3.4, 10.2.2).
+// omits (events.update-bus.omitted-members); an empty Description clears
+// it, as Terraform's update relies on (eventbridge-buses.md 3.4). An empty
+// KmsKeyIdentifier clears the key, and no Name updates the default bus;
+// both are inferred (eventbridge-buses.md 3.4, EBB-04). No Name, or
+// default, materializes the default bus (eventbridge-buses.md 10.2.2).
 func (s *Service) updateEventBus(_ context.Context, c *kernel.Call, in *eventbridgeapi.UpdateEventBusInput) (*eventbridgeapi.UpdateEventBusOutput, *awserr.Error) {
 	name := defaultBus
 	if in.Name != nil && *in.Name != "" {
