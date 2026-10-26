@@ -53,7 +53,7 @@ func TestOrders(t *testing.T) {
 | `WithSigV4Verify()` | verify request signatures |
 | `WithSnapshot(path)` | load a snapshot archive at start |
 | `WithAdminToken()` | a random admin token, sent by the wait and the helpers |
-| `WithPublishedOn(addr)` | publish on another address; beyond loopback only with `WithAdminToken()` |
+| `WithPublishedOn(addr)` | publish on another address; beyond loopback only with `WithAdminToken()`; a loopback address other than `127.0.0.1` is refused, since the endpoint never dials it |
 
 testcontainers-go's own customizers apply after these, so `testcontainers.WithEnv` sets any other `UNDERSTUDY_*` setting. `Admin(ctx)` returns an `admin.Client`; `Settle`, `AdvanceClock` and `Reset` wrap the common calls. Refusals before any container is created are `*ExposureError` and `*SocketGroupError`; a mounted socket understudy cannot use is `*DockerUnavailableError`.
 

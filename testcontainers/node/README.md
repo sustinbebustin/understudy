@@ -46,9 +46,9 @@ test("orders", async () => {
 | `withSigV4Verify()` | verify request signatures |
 | `withSnapshot(path)` | load a snapshot archive at start |
 | `withAdminToken()` | a random admin token, sent by the wait and the helpers |
-| `withPublishedOn(addr)` | publish on another address; beyond loopback only with `withAdminToken()` |
+| `withPublishedOn(addr)` | publish on another address; beyond loopback only with `withAdminToken()`; a loopback address other than `127.0.0.1` is refused, since the endpoint never dials it |
 
-`withEnvironment` sets any other `UNDERSTUDY_*` setting. `settle(timeoutMs)`, `advanceClock(byMs)` and `reset()` wrap the common admin calls and reject with `UnderstudyAdminError` on an error answer. Misconfigurations throw or reject with `UnderstudyConfigError`, before any container is created.
+`withEnvironment` sets any other `UNDERSTUDY_*` setting. `settle(timeoutMs)`, `advanceClock(byMs)` and `reset()` wrap the common admin calls and reject with `UnderstudyAdminError` on an error answer. Misconfigurations throw or reject with `UnderstudyConfigError`, before any container is created. The exception is a missing snapshot archive: `withSnapshot` throws Node's own `ENOENT` error for it.
 
 The [Testcontainers guide](https://github.com/sustinbebustin/understudy/blob/main/docs/guide/testcontainers-modules.md) covers Lambda, Terraform and cleanup in more detail.
 

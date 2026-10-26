@@ -110,3 +110,17 @@ def test_snapshot_directory_is_refused(tmp_path: Path) -> None:
         f"understudy: with_snapshot({str(tmp_path)!r}) names a directory; "
         "pass the archive file, such as one POST /_understudy/v1/snapshots answered with."
     )
+
+
+@pytest.mark.parametrize("addr", ["127.0.0.2", "::1"])
+def test_another_loopback_address_is_refused(addr: str) -> None:
+    # The endpoint and the wait dial the daemon's host, 127.0.0.1 for a local
+    # daemon, so no other loopback address is reachable; start() would fail only
+    # after the 60 s timeout (testcontainers.md 8.2, 9.5).
+    with pytest.raises(UnderstudyConfigError) as raised:
+        UnderstudyContainer(image()).with_published_on(addr)
+    assert str(raised.value) == (
+        f"understudy: with_published_on({addr!r}) is a loopback address the endpoint never dials: the endpoint and "
+        "the readiness wait reach port 4566 at the Docker host's address, 127.0.0.1 for a local daemon; publish on "
+        "127.0.0.1, or on 0.0.0.0 with with_admin_token()."
+    )

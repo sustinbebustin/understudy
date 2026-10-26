@@ -212,7 +212,18 @@ The admin token option sets a random token, which the wait and the helpers send.
 understudy: publishing port 4566 on 0.0.0.0 exposes the admin API, which has no token in the container; add with_admin_token() or publish on 127.0.0.1.
 ```
 
-The endpoint's host is the daemon host the library reports, `127.0.0.1` for a local daemon. A loopback address other than `127.0.0.1`, such as `127.0.0.2`, therefore does not work yet: Python's start dialed `127.0.0.1` and timed out after 60 s.
+The endpoint's host is the daemon host the library reports, `127.0.0.1` for a local daemon, and the start's readiness wait dials the same host. No loopback address other than `127.0.0.1` is ever reached that way, so the option refuses one, such as `127.0.0.2` or `::1`, when it is called:
+
+```text
+understudy: with_published_on('127.0.0.2') is a loopback address the endpoint never dials: the endpoint and the readiness wait reach port 4566 at the Docker host's address, 127.0.0.1 for a local daemon; publish on 127.0.0.1, or on 0.0.0.0 with with_admin_token().
+```
+
+Two more publish addresses do not work yet, and start does not refuse them up front:
+
+- A specific address beyond loopback, such as the host's LAN address, on a local daemon. The start dials `127.0.0.1` and fails after the 60-second timeout. This was seen with `127.0.0.2` in Python, before the option refused it; a LAN address was not run.
+- `::` in Node, on a host whose `localhost` resolves to IPv4 only. testcontainers-node finds no mapped port, and start rejects with its `No host port found for host IP` error after removing the container. Go and Python were not run with `::`.
+
+`0.0.0.0` with the token option works in all three.
 
 ## Terraform
 

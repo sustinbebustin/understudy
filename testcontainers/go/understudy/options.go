@@ -187,11 +187,17 @@ func WithAdminToken() Option {
 
 // WithPublishedOn publishes port 4566 on addr instead of 127.0.0.1; an
 // address beyond loopback needs WithAdminToken, or Run refuses with an
-// *ExposureError (testcontainers.md 8.4).
+// *ExposureError (testcontainers.md 8.4). Any other loopback address is
+// refused: the endpoint and the wait dial the daemon's host, 127.0.0.1 for
+// a local daemon, so they could never reach it and Run would fail only
+// after the startup timeout (testcontainers.md 8.2, 9.5).
 func WithPublishedOn(addr netip.Addr) Option {
 	return func(o *options) error {
-		if !addr.IsValid() {
+		switch {
+		case !addr.IsValid():
 			return errors.New("understudy: WithPublishedOn got the zero netip.Addr; pass an address such as netip.MustParseAddr(\"127.0.0.1\")")
+		case addr.IsLoopback() && addr != netip.MustParseAddr(loopbackHost):
+			return fmt.Errorf("understudy: WithPublishedOn(%s) is a loopback address the endpoint never dials: the endpoint and the readiness wait reach port 4566 at the Docker host's address, %s for a local daemon; publish on %s, or on 0.0.0.0 with WithAdminToken()", addr, loopbackHost, loopbackHost)
 		}
 		o.publish = addr
 		return nil

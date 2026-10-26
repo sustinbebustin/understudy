@@ -52,9 +52,9 @@ def test_orders_queue():
 | `with_sigv4_verify()` | verify request signatures |
 | `with_snapshot(path)` | load a snapshot archive at start |
 | `with_admin_token()` | a random admin token, sent by the wait and the helpers |
-| `with_published_on(addr)` | publish on another address; beyond loopback only with `with_admin_token()` |
+| `with_published_on(addr)` | publish on another address; beyond loopback only with `with_admin_token()`; a loopback address other than `127.0.0.1` is refused, since the endpoint never dials it |
 
-`with_env` sets any other `UNDERSTUDY_*` setting. `settle(timeout)`, `advance_clock(by)` and `reset()` wrap the common admin calls and raise `UnderstudyAdminError` on an error answer. Misconfigurations raise `UnderstudyConfigError`, before any container is created.
+`with_env` sets any other `UNDERSTUDY_*` setting. `settle(timeout)`, `advance_clock(by)` and `reset()` wrap the common admin calls and raise `UnderstudyAdminError` on an error answer. Misconfigurations raise `UnderstudyConfigError`, before any container is created. The exception is a missing snapshot archive: `with_snapshot` raises `FileNotFoundError` for it.
 
 The [Testcontainers guide](https://github.com/sustinbebustin/understudy/blob/main/docs/guide/testcontainers-modules.md) covers Lambda, Terraform and cleanup in more detail.
 

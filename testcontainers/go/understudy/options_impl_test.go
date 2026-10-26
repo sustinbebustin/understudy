@@ -42,7 +42,7 @@ func TestSocketGroupOptionsCommute(t *testing.T) {
 	}
 }
 
-// Loopback needs no token, IPv6's included; beyond it the token is needed
+// 127.0.0.1 needs no token; beyond loopback the token is needed
 // (testcontainers.md 8.4, 9.5).
 func TestExposureNeedsTheTokenOnlyBeyondLoopback(t *testing.T) {
 	cases := []struct {
@@ -50,8 +50,7 @@ func TestExposureNeedsTheTokenOnlyBeyondLoopback(t *testing.T) {
 		refused bool
 	}{
 		{nil, false},
-		{[]Option{WithPublishedOn(netip.MustParseAddr("::1"))}, false},
-		{[]Option{WithPublishedOn(netip.MustParseAddr("127.0.0.2"))}, false},
+		{[]Option{WithPublishedOn(netip.MustParseAddr("127.0.0.1"))}, false},
 		{[]Option{WithPublishedOn(netip.MustParseAddr("0.0.0.0"))}, true},
 		{[]Option{WithPublishedOn(netip.MustParseAddr("0.0.0.0")), WithAdminToken()}, false},
 	}
@@ -78,6 +77,23 @@ func TestOptionArgumentShapes(t *testing.T) {
 		}
 		if o.snapshot != "" || o.publish.IsValid() || len(o.env) != 0 {
 			t.Errorf("%s: a refused option set %+v", name, o)
+		}
+	}
+}
+
+// A loopback address other than 127.0.0.1 is refused before any container:
+// the endpoint and the wait dial the daemon's host, 127.0.0.1 for a local
+// daemon, so Run would otherwise fail only after the startup timeout
+// (testcontainers.md 8.2, 9.5).
+func TestOtherLoopbackAddressesAreRefused(t *testing.T) {
+	for _, addr := range []string{"127.0.0.2", "::1"} {
+		c, err := Run(t.Context(), "understudy:never-pulled", WithPublishedOn(netip.MustParseAddr(addr)))
+		want := "understudy: WithPublishedOn(" + addr + ") is a loopback address the endpoint never dials: the endpoint and the readiness wait reach port 4566 at the Docker host's address, 127.0.0.1 for a local daemon; publish on 127.0.0.1, or on 0.0.0.0 with WithAdminToken()"
+		if err == nil || err.Error() != want {
+			t.Errorf("Run publishing on %s = %v, want %q", addr, err, want)
+		}
+		if c != nil {
+			t.Errorf("Run publishing on %s returned a container with the refusal", addr)
 		}
 	}
 }

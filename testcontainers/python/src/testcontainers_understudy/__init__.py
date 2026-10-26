@@ -212,12 +212,23 @@ class UnderstudyContainer(DockerContainer):
 
         An address beyond loopback, 0.0.0.0 and :: included, needs
         with_admin_token(), or start() refuses it (testcontainers.md 8.4).
+        Any other loopback address is refused here: the endpoint and the
+        wait dial the daemon's host, 127.0.0.1 for a local daemon, so they
+        could never reach it (testcontainers.md 8.2, 9.5).
         """
         try:
-            self._published_on = ipaddress.ip_address(addr)
+            published_on = ipaddress.ip_address(addr)
         except ValueError:
             msg = f"understudy: with_published_on({addr!r}) is not an IP address; pass one such as 127.0.0.1."
             raise UnderstudyConfigError(msg) from None
+        if published_on.is_loopback and published_on != _LOOPBACK:
+            msg = (
+                f"understudy: with_published_on({addr!r}) is a loopback address the endpoint never dials: the "
+                "endpoint and the readiness wait reach port 4566 at the Docker host's address, 127.0.0.1 for a "
+                "local daemon; publish on 127.0.0.1, or on 0.0.0.0 with with_admin_token()."
+            )
+            raise UnderstudyConfigError(msg)
+        self._published_on = published_on
         return self
 
     def start(self) -> UnderstudyContainer:

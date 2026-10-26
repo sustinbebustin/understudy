@@ -249,12 +249,22 @@ export class UnderstudyContainer extends GenericContainer {
    * Publish port 4566 on `addr` instead of 127.0.0.1.
    *
    * An address beyond loopback, 0.0.0.0 and :: included, needs
-   * withAdminToken(), or start() refuses it (testcontainers.md 8.4).
+   * withAdminToken(), or start() refuses it (testcontainers.md 8.4). Any
+   * other loopback address is refused here: the endpoint and the wait dial
+   * the daemon's host, 127.0.0.1 for a local daemon, so they could never
+   * reach it (testcontainers.md 8.2, 9.5).
    */
   withPublishedOn(addr: string): this {
     if (isIP(addr) === 0) {
       throw new UnderstudyConfigError(
         `understudy: withPublishedOn(${JSON.stringify(addr)}) is not an IP address; pass one such as 127.0.0.1.`,
+      );
+    }
+    if (isLoopback(addr) && addr !== LOOPBACK) {
+      throw new UnderstudyConfigError(
+        `understudy: withPublishedOn(${JSON.stringify(addr)}) is a loopback address the endpoint never dials: ` +
+          `the endpoint and the readiness wait reach port 4566 at the Docker host's address, ${LOOPBACK} for a ` +
+          `local daemon; publish on ${LOOPBACK}, or on 0.0.0.0 with withAdminToken().`,
       );
     }
     this.#publishedOn = addr;

@@ -168,3 +168,21 @@ test("an invalid frozenAt is refused when the option is applied", () => {
         'understudy: withClock({frozenAt}) got an invalid Date; pass one such as new Date("2026-01-01T00:00:00Z").',
   );
 });
+
+test("another loopback address is refused when the option is applied", () => {
+  // The endpoint and the wait dial the daemon's host, 127.0.0.1 for a local
+  // daemon, so no other loopback address is reachable; start() would fail only
+  // after the 60 s timeout (testcontainers.md 8.2, 9.5).
+  for (const addr of ["127.0.0.2", "::1"]) {
+    assert.throws(
+      () => new UnderstudyContainer(image()).withPublishedOn(addr),
+      (e: unknown) =>
+        e instanceof UnderstudyConfigError &&
+        e.message ===
+          `understudy: withPublishedOn(${JSON.stringify(addr)}) is a loopback address the endpoint never dials: ` +
+            "the endpoint and the readiness wait reach port 4566 at the Docker host's address, 127.0.0.1 for a " +
+            "local daemon; publish on 127.0.0.1, or on 0.0.0.0 with withAdminToken().",
+      addr,
+    );
+  }
+});
