@@ -32,7 +32,7 @@ func mustRegion(h *harness, s string) aws.Region {
 // TestTerraformUserLifecycle replays aws_iam_user, aws_iam_user_policy and
 // aws_iam_user_policy_attachment (tf-remaining.md 3.1, 3.3, 3.4).
 func TestTerraformUserLifecycle(t *testing.T) {
-	run(t, func(h *harness) {
+	runCatalogued(t, func(h *harness) {
 		created := must(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{
 			UserName: "g6-user", Path: new("/svc/"), Tags: []iamapi.Tag{{Key: "env", Value: "test"}},
 		}).User

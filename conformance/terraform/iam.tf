@@ -1,8 +1,22 @@
 # IAM: a role with a path, a customer managed policy, an inline role policy,
-# and attachments of both a customer managed and an AWS managed policy. The
-# update step changes the role description, session duration and tags, adds a
-# statement to the managed policy (a new default version) and rewrites the
-# inline policy.
+# and attachments of both a customer managed and an AWS managed policy, the
+# latter looked up by name through the aws_iam_policy data source, which lists
+# every policy, then reads the one named and its default version. Its ARN,
+# path and actions are the ones the AWS Managed Policy Reference Guide
+# publishes (iam-evaluation.md 10.3). The update step changes the role
+# description, session duration and tags, adds a statement to the managed
+# policy (a new default version) and rewrites the inline policy.
+
+data "aws_iam_policy" "basic_execution" {
+  name = "AWSLambdaBasicExecutionRole"
+
+  lifecycle {
+    postcondition {
+      condition     = self.arn == "arn:${local.partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole" && self.path == "/service-role/" && contains(jsondecode(self.policy).Statement[0].Action, "logs:CreateLogGroup")
+      error_message = "data.aws_iam_policy.basic_execution: want arn:${local.partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole on path /service-role/ allowing logs:CreateLogGroup, the guide's AWSLambdaBasicExecutionRole (iam-evaluation.md 10.3); got ${self.arn} on ${self.path}. The policy comes from understudy's catalogue in third_party/aws-managed-policies."
+    }
+  }
+}
 
 data "aws_iam_policy_document" "worker_assume" {
   statement {
@@ -84,7 +98,7 @@ resource "aws_iam_role_policy_attachment" "worker_queue_access" {
 
 resource "aws_iam_role_policy_attachment" "worker_basic_execution" {
   role       = aws_iam_role.worker.name
-  policy_arn = "arn:${local.partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  policy_arn = data.aws_iam_policy.basic_execution.arn
 }
 
 output "iam_role_arn" {

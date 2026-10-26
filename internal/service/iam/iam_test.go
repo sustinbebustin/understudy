@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
+	"github.com/sustinbebustin/understudy/internal/policycatalogue"
 	"github.com/sustinbebustin/understudy/internal/protocol/awsquery"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/iam"
@@ -34,10 +35,17 @@ type harness struct {
 	*kerneltest.K
 }
 
+// run runs fn against IAM with no AWS managed policy catalogue.
 func run(t *testing.T, fn func(h *harness)) {
 	t.Helper()
+	runWith(t, iam.Options{}, fn)
+}
+
+// runWith runs fn against IAM built with opts.
+func runWith(t *testing.T, opts iam.Options, fn func(h *harness)) {
+	t.Helper()
 	kerneltest.Run(t, func(k *kerneltest.K) {
-		iam.New(k.Deps(iamapi.Service()), iam.Options{})
+		iam.New(k.Deps(iamapi.Service()), opts)
 		fn(&harness{K: k})
 	}, kerneltest.Services(iamapi.Service()))
 }
@@ -113,7 +121,7 @@ func (h *harness) role(name string) iamapi.Role {
 // reads a refresh makes, which must return what was written, and the
 // destroy order.
 func TestTerraformRoleLifecycle(t *testing.T) {
-	run(t, func(h *harness) {
+	runCatalogued(t, func(h *harness) {
 		created := must(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{
 			RoleName: "worker", Path: new("/"), AssumeRolePolicyDocument: trustLambda,
 			MaxSessionDuration: new(int32(3600)), Tags: []iamapi.Tag{{Key: "env", Value: "test"}},
@@ -249,7 +257,7 @@ func TestUpdateRole(t *testing.T) {
 // aws_iam_role (tf-compute.md 3.1): each put and delete reads back exactly
 // what was written, and a second read matches the first.
 func TestRolePermissionsBoundary(t *testing.T) {
-	run(t, func(h *harness) {
+	runCatalogued(t, func(h *harness) {
 		h.role("r")
 		local := must(h, iamapi.OpCreatePolicy, &iamapi.CreatePolicyInput{PolicyName: "boundary", PolicyDocument: allowLogs}).Policy
 		for _, arn := range []string{basicExecution, *local.Arn} {
@@ -375,7 +383,7 @@ func TestInlinePoliciesShareTheRoleQuota(t *testing.T) {
 }
 
 func TestAttachments(t *testing.T) {
-	run(t, func(h *harness) {
+	runCatalogued(t, func(h *harness) {
 		h.role("r")
 		local := must(h, iamapi.OpCreatePolicy, &iamapi.CreatePolicyInput{PolicyName: "mine", Path: new("/team/"), PolicyDocument: allowLogs}).Policy
 		must(h, iamapi.OpAttachRolePolicy, &iamapi.AttachRolePolicyInput{RoleName: "r", PolicyArn: *local.Arn})
@@ -408,7 +416,7 @@ func TestAttachments(t *testing.T) {
 // passes validation when sent back, and following them visits each
 // attached policy once.
 func TestAttachmentListingsPageThroughLongPolicyARNs(t *testing.T) {
-	run(t, func(h *harness) {
+	runCatalogued(t, func(h *harness) {
 		h.role("r")
 		must(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "u"})
 		path := "/" + strings.Repeat("p", 248) + "/"
@@ -540,21 +548,30 @@ func TestAttachUnattachable(t *testing.T) {
 }
 
 func TestAttachedPolicyQuota(t *testing.T) {
-	run(t, func(h *harness) {
-		h.role("r")
-		for i := range 20 {
-			arn := "arn:aws:iam::aws:policy/P" + strings.Repeat("x", i)
-			must(h, iamapi.OpAttachRolePolicy, &iamapi.AttachRolePolicyInput{RoleName: "r", PolicyArn: arn})
+	// 21 catalogued AWS managed policies, one more than a role may hold.
+	ps := make([]policycatalogue.Policy, 21)
+	for i := range ps {
+		name := "P" + strings.Repeat("x", i)
+		ps[i] = policycatalogue.Policy{
+			Name: name, ARN: "arn:aws:iam::aws:policy/" + name, Path: "/", Type: policycatalogue.AWSManaged, VersionID: "v1",
+			Created: utcMinute(2015, time.February, 6, 18, 41), Updated: utcMinute(2015, time.February, 6, 18, 41), Document: allowLogs,
 		}
-		fails(h, iamapi.OpAttachRolePolicy, &iamapi.AttachRolePolicyInput{RoleName: "r", PolicyArn: "arn:aws:iam::aws:policy/Last"}, "LimitExceeded", "PoliciesPerRole: 20")
+	}
+	runWith(t, iam.Options{Catalogue: policycatalogue.Static(catalogueOf(t, ps))}, func(h *harness) {
+		h.role("r")
+		for _, p := range ps[:20] {
+			must(h, iamapi.OpAttachRolePolicy, &iamapi.AttachRolePolicyInput{RoleName: "r", PolicyArn: p.ARN})
+		}
+		fails(h, iamapi.OpAttachRolePolicy, &iamapi.AttachRolePolicyInput{RoleName: "r", PolicyArn: ps[20].ARN}, "LimitExceeded", "PoliciesPerRole: 20")
 	})
 }
 
 // An attachment a hand-edited snapshot left unreadable fails the listing
 // rather than vanishing from it while DeleteRole still counts it.
 func TestListAttachedFailsOnACorruptAttachment(t *testing.T) {
+	opts := iam.Options{Catalogue: policycatalogue.Static(catalogueOf(t, testPolicies()))}
 	kerneltest.Run(t, func(k *kerneltest.K) {
-		svc := iam.New(k.Deps(iamapi.Service()), iam.Options{})
+		svc := iam.New(k.Deps(iamapi.Service()), opts)
 		h := &harness{K: k}
 		h.role("r")
 		must(h, iamapi.OpAttachRolePolicy, &iamapi.AttachRolePolicyInput{RoleName: "r", PolicyArn: basicExecution})
@@ -687,33 +704,12 @@ func TestResetRevokesTheAccountsAccessKeys(t *testing.T) {
 	}, kerneltest.Services(iamapi.Service()))
 }
 
-func TestAWSManagedPolicy(t *testing.T) {
-	run(t, func(h *harness) {
-		p := must(h, iamapi.OpGetPolicy, &iamapi.GetPolicyInput{PolicyArn: basicExecution}).Policy
-		if *p.PolicyName != "AWSLambdaBasicExecutionRole" || *p.Path != "/service-role/" || !p.IsAttachable || !strings.HasPrefix(*p.PolicyId, "ANPA") {
-			t.Errorf("GetPolicy(AWS managed) = %+v", p)
-		}
-		again := must(h, iamapi.OpGetPolicy, &iamapi.GetPolicyInput{PolicyArn: basicExecution}).Policy
-		if *again.PolicyId != *p.PolicyId {
-			t.Errorf("PolicyId = %s then %s, want a stable id", *p.PolicyId, *again.PolicyId)
-		}
-		// The Terraform aws_iam_policy data source reads the default
-		// version next and retries NoSuchEntity for minutes, so the
-		// default version answers, with a placeholder that says what it is.
-		v := must(h, iamapi.OpGetPolicyVersion, &iamapi.GetPolicyVersionInput{PolicyArn: basicExecution, VersionId: *p.DefaultVersionId}).PolicyVersion
-		if !v.IsDefaultVersion || *v.VersionId != *p.DefaultVersionId || !strings.Contains(*v.Document, "UnderstudyHoldsNoCopyOfThisAWSManagedPolicy") {
-			t.Errorf("GetPolicyVersion(AWS managed, default) = %+v", v)
-		}
-		fails(h, iamapi.OpGetPolicyVersion, &iamapi.GetPolicyVersionInput{PolicyArn: basicExecution, VersionId: "v2"}, "NoSuchEntity", "version v2 does not exist")
-	})
-}
-
 // A tool that walks a policy's versions and tags after GetPolicy finds an
 // AWS managed policy there too: its one version, the default, without a
 // document, and no tags of the account's. Another account's customer
 // managed policy stays out of reach.
 func TestAWSManagedPolicyVersionsAndTags(t *testing.T) {
-	run(t, func(h *harness) {
+	runCatalogued(t, func(h *harness) {
 		vs := must(h, iamapi.OpListPolicyVersions, &iamapi.ListPolicyVersionsInput{PolicyArn: basicExecution})
 		if len(vs.Versions) != 1 || *vs.Versions[0].VersionId != "v1" || !vs.Versions[0].IsDefaultVersion || vs.Versions[0].Document != nil || vs.IsTruncated {
 			t.Errorf("ListPolicyVersions(AWS managed) = %+v, want v1, the default, without a document", vs)
