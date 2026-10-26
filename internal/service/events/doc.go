@@ -51,10 +51,24 @@
 //   - The bus choices no recording settles are the switches of
 //     eventbridge-buses.md 10.5: DeleteEventBus refuses a bus with rules,
 //     UpdateEventBus keeps an omitted member, a KMS key is stored unchecked,
-//     ListEventBuses sorts by name, and the default bus reports the scope's
-//     first use as its creation time until a write (tags, UpdateEventBus)
-//     stores it. A tag call changes no bus's LastModifiedTime, which is
-//     inferred.
+//     ListEventBuses sorts by name, the default bus reports the scope's
+//     first use as its creation time until a write (tags, UpdateEventBus,
+//     PutPermission) stores it, removing a bus policy's last statement
+//     removes the policy, and RemoveAllPermissions on a bus without one is
+//     ResourceNotFoundException. A tag call changes no bus's
+//     LastModifiedTime, which is inferred.
+//   - A bus policy is stored and returned, never enforced
+//     (eventbridge-buses.md 4.4, 10.7.22): PutPermission keeps its
+//     statements in insertion order, upserted by Sid, each generated one in
+//     the recorded member order, and a Policy document verbatim until a
+//     statement call rebuilds the policy from its statements. The policy is
+//     the bus's resource policy for the delivery access advisory and IAM
+//     enforcement (ResourcePolicy). PutPermission refuses a Policy sent with
+//     a statement member, a statement form missing a member, a Policy that
+//     is not an object whose Statement is an object or a list of objects
+//     with distinct string Sids, and a policy over 10,240 characters, in
+//     that order, all before it looks the bus up except the last; the order
+//     and the texts are inferred (EBB-06).
 //   - A Detail integer outside the signed 64-bit range API_PutEvents
 //     documents fails its entry with MalformedDetail; the code and text are
 //     inferred (the events.put-events.detail-integer-range switch).

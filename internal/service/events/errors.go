@@ -79,6 +79,34 @@ func errForeignBus(bus aws.ARN) *awserr.Error {
 		"Run 'understudy coverage --service eventbridge' for what is supported.")
 }
 
+// errStatementNotFound is third-party-recorded (eventbridge-buses.md 4.3).
+func errStatementNotFound() *awserr.Error {
+	return eventbridgeapi.ErrResourceNotFoundException("Statement with the provided id does not exist.")
+}
+
+// errPolicyTooLong, errPermissionIncomplete, errPolicyWithStatement and
+// errNoPolicy are inferred: the PutPermission page states the 10 KB limit
+// and that a Policy is sent instead of the statement members, and AWS's
+// texts, and its answer to RemoveAllPermissions on a bus without a policy
+// (events.bus-policy.remove-all-without-policy), are unrecorded
+// (eventbridge-buses.md 4.1, 4.3, EBB-06). The first is the page's
+// sentence; the next two follow errNoPatternOrSchedule's form.
+func errPolicyTooLong() *awserr.Error {
+	return eventbridgeapi.ErrPolicyLengthExceededException("The permission policy on the event bus cannot exceed 10 KB in size.")
+}
+
+func errPermissionIncomplete() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Parameter(s) Action, Principal and StatementId must be specified when Policy is not.")
+}
+
+func errPolicyWithStatement() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Parameter(s) Policy cannot be specified together with StatementId, Action, Principal or Condition.")
+}
+
+func errNoPolicy(bus string) *awserr.Error {
+	return eventbridgeapi.ErrResourceNotFoundException("Event bus " + bus + " does not have a policy.")
+}
+
 // errScheduleOnCustomBus is AWS-recorded
 // (testdata/parity/events/R14/04-custom-bus-schedule.json).
 func errScheduleOnCustomBus() *awserr.Error {
@@ -126,7 +154,7 @@ func errFIFONeedsGroup(targetID string) *awserr.Error {
 // errInvalidParameter follows the recorded "Parameter ScheduleExpression is
 // not valid." and "Parameter Event is not valid."; for the other
 // parameters it names (DeadLetterConfig.Arn, Input, InputPath,
-// InputPathsMap, NextToken, ResourceARN) the text is inferred.
+// InputPathsMap, NextToken, Policy, ResourceARN) the text is inferred.
 func errInvalidParameter(name string) *awserr.Error {
 	return eventbridgeapi.ErrValidationException("Parameter " + name + " is not valid.")
 }

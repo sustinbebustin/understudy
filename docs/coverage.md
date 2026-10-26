@@ -119,7 +119,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 |---|---|---|---|---|---|---|---|
 | cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
 | dynamodb | 58 | 6 | 2 | 18 | 32 | 0 | 0 |
-| eventbridge | 57 | 15 | 1 | 4 | 37 | 0 | 0 |
+| eventbridge | 57 | 15 | 3 | 4 | 35 | 0 | 0 |
 | iam | 180 | 42 | 6 | 16 | 116 | 1 | 0 |
 | kms | 54 | 19 | 3 | 5 | 27 | 0 | 0 |
 | lambda | 88 | 25 | 2 | 14 | 47 | 0 | 2 |
@@ -272,6 +272,8 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | TagResource | full | third-party-recorded, 2 of 2 claims |  |
 | TestEventPattern | full | contradicted (events/R14/H14-01.json), 5 of 25 claims |  |
 | UntagResource | full | third-party-recorded, 2 of 2 claims |  |
+| PutPermission | stored-only | third-party-recorded, 2 of 2 claims | statements are stored in the bus Policy that DescribeEventBus returns; not enforced |
+| RemovePermission | stored-only | inferred, 2 of 4 claims | statements are removed from the bus Policy; not enforced |
 | UpdateEventBus | stored-only | inferred, 2 of 4 claims | Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged |
 | CreateEventBus | partial | inferred, 1 of 3 claims | custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged |
 | PutEvents | partial | contradicted (events/R14/H14-02.json), 1 of 9 claims | default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
@@ -307,8 +309,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | ListPartnerEventSources | unbound | unassessed |  |
 | ListReplays | unbound | unassessed |  |
 | PutPartnerEvents | unbound | unassessed |  |
-| PutPermission | unbound | unassessed |  |
-| RemovePermission | unbound | unassessed |  |
 | StartReplay | unbound | unassessed |  |
 | UpdateApiDestination | unbound | unassessed |  |
 | UpdateArchive | unbound | unassessed |  |
@@ -1059,7 +1059,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-94 switches: 1 aws-recorded, 1 third-party-recorded, 16 aws-doc, 76 inferred.
+96 switches: 1 aws-recorded, 1 third-party-recorded, 16 aws-doc, 78 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1082,6 +1082,8 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sqs.policy.limits` | `bytes-and-statements` | aws-doc | docs/research/sqs.md#4-queue-attributes | none: unrecorded: no recording exceeds a Policy limit |
 | `sqs.receipt.stale-handle` | `succeed-without-delete` | contradicted (sqs/R01/03-recv-after-6s.json) | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | sqs/R01#03-recv-after-6s |
 | `cloudwatch.put-metric-data.timestamp-window` | `wall-or-emulator` | inferred | docs/research/secrets-logs-events-alarms.md#52-putmetricdata | none: AWS has one clock: which of understudy's two the windows read is understudy's choice, which no recording settles |
+| `events.bus-policy.remove-all-without-policy` | `ResourceNotFoundException` | inferred | docs/research/eventbridge-buses.md#43-removepermission | none: unrecorded: EBB-06 (eventbridge-buses.md 12) records it |
+| `events.bus-policy.remove-last-statement` | `policy-removed` | inferred | docs/research/eventbridge-buses.md#43-removepermission | none: unrecorded: EBB-06 (eventbridge-buses.md 12) records it |
 | `events.bus-target.same-account-event-id` | `kept` | inferred | docs/research/eventbridge-buses.md#62-an-event-bus-as-a-target | none: unrecorded: EBB-08 (eventbridge-buses.md 12) records it |
 | `events.bus.kms-key-check` | `none` | inferred | docs/research/eventbridge-buses.md#31-createeventbus | none: unrecorded: EBB-05 (eventbridge-buses.md 12) records it |
 | `events.default-bus.creation-time` | `first-use` | inferred | docs/research/eventbridge-buses.md#36-the-default-bus | none: unrecorded: EBB-07 (eventbridge-buses.md 12) records it |

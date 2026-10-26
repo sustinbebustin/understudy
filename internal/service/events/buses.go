@@ -498,6 +498,13 @@ func busSwitches() []fidelity.Switch[string] {
 		// exists or grants EventBridge (createEventBus, updateEventBus).
 		sw("events.bus.kms-key-check", "none", evidence.Inferred, "31-createeventbus", "EBB-05",
 			"eventbridge.CreateEventBus", "eventbridge.UpdateEventBus"),
+		// Removing a bus policy's last statement removes the policy, so
+		// DescribeEventBus answers no Policy (removed).
+		sw("events.bus-policy.remove-last-statement", "policy-removed", evidence.Inferred, "43-removepermission", "EBB-06", "eventbridge.RemovePermission"),
+		// RemoveAllPermissions on a bus without a policy answers
+		// ResourceNotFoundException (removed, errNoPolicy).
+		sw("events.bus-policy.remove-all-without-policy", "ResourceNotFoundException", evidence.Inferred, "43-removepermission", "EBB-06",
+			"eventbridge.RemovePermission"),
 		// ListEventBuses sorts by name, the default bus among the rest
 		// (State.buses).
 		sw("events.list-buses.order", "by-name", evidence.Inferred, "33-listeventbuses", "EBB-07", "eventbridge.ListEventBuses"),

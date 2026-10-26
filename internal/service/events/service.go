@@ -97,6 +97,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	s.schedule = d.Kernel.Timers().Handle(TimerSchedule, s.onSchedule)
 	b := eventbridgeapi.NewBinder(d.Binder)
 	s.bindBuses(b)
+	s.bindPolicy(b)
 	s.bindRules(b)
 	s.bindTags(b)
 	s.bindTargets(b)
