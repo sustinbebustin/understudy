@@ -1,6 +1,9 @@
 package parity
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Path locates one compared field of a response: status, error/code,
 // error/message, header/<name>, or body followed by RFC 6901 tokens (JSON)
@@ -20,12 +23,105 @@ func (e *PathError) Error() string {
 	return fmt.Sprintf("comparison path %q: %s", e.Text, e.Reason)
 }
 
-// ParsePath returns the comparison path spelled s. Not implemented yet: it
-// refuses every path.
+// The fields a path names, below any exchange/<i>/ prefix.
+const (
+	statusPath       Path = "status"
+	errorPath        Path = "error"
+	errorCodePath    Path = "error/code"
+	errorMessagePath Path = "error/message"
+	headerPath       Path = "header"
+	bodyPath         Path = "body"
+)
+
+// ParsePath returns the comparison path spelled s.
 func ParsePath(s string) (Path, error) {
-	return "", &PathError{Text: s, Reason: notImplemented("ParsePath").Error()}
+	field := s
+	if rest, ok := strings.CutPrefix(s, "exchange/"); ok {
+		i, after, ok := strings.Cut(rest, "/")
+		if !ok || !isIndex(i) {
+			return "", &PathError{Text: s, Reason: "exchange/ takes a 0-based exchange index and a field, as in exchange/0/status"}
+		}
+		field = after
+	}
+	if reason := fieldReason(field); reason != "" {
+		return "", &PathError{Text: s, Reason: reason}
+	}
+	return Path(s), nil
 }
 
+// fieldReason says why field is not a path's field, or "" when it is one.
+func fieldReason(field string) string {
+	switch Path(field) {
+	case statusPath, errorPath, errorCodePath, errorMessagePath, headerPath, bodyPath:
+		return ""
+	}
+	if name, ok := strings.CutPrefix(field, "header/"); ok {
+		return headerNameReason(name)
+	}
+	if tokens, ok := strings.CutPrefix(field, "body/"); ok {
+		for tok := range strings.SplitSeq(tokens, "/") {
+			if !validToken(tok) {
+				return fmt.Sprintf("body token %q has a ~ not followed by 0 or 1 (RFC 6901 writes ~ as ~0 and / as ~1)", tok)
+			}
+		}
+		return ""
+	}
+	return "the field is not status, error, error/code, error/message, header, header/<name>, body or body/<token>..."
+}
+
+// headerNameReason says why name is not a header field's name, or "" when
+// it is one: an HTTP token in lower case.
+func headerNameReason(name string) string {
+	if name == "" {
+		return "header/ takes a header name"
+	}
+	if strings.ToLower(name) != name {
+		return "header names are lower-case: write header/" + strings.ToLower(name)
+	}
+	for i := range len(name) {
+		if c := name[i]; !isDigit(c) && ('a' > c || c > 'z') && !strings.ContainsRune("!#$%&'*+-.^_`|~", rune(c)) {
+			return fmt.Sprintf("%q is not an HTTP header name", name)
+		}
+	}
+	return ""
+}
+
+// validToken reports whether every ~ in tok starts an RFC 6901 escape.
+func validToken(tok string) bool {
+	for i := range len(tok) {
+		if tok[i] == '~' && (i+1 == len(tok) || tok[i+1] != '0' && tok[i+1] != '1') {
+			return false
+		}
+	}
+	return true
+}
+
+// isIndex reports whether s is a decimal index without leading zeros.
+func isIndex(s string) bool {
+	if s == "" || len(s) > 1 && s[0] == '0' {
+		return false
+	}
+	for i := range len(s) {
+		if !isDigit(s[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func isDigit(c byte) bool { return '0' <= c && c <= '9' }
+
 // Covers reports whether p is q or an ancestor of q, as a waiver on p covers
-// q. Not implemented yet: it reports false.
-func (p Path) Covers(Path) bool { return false }
+// q: q equals p or continues it after a "/".
+func (p Path) Covers(q Path) bool {
+	return q == p || strings.HasPrefix(string(q), string(p)+"/")
+}
+
+// child is the path of p's member or element token, written as is.
+func (p Path) child(token string) Path { return p + "/" + Path(token) }
+
+// member is the path of p's JSON member name, escaped as an RFC 6901
+// reference token.
+func (p Path) member(name string) Path {
+	return p.child(strings.NewReplacer("~", "~0", "/", "~1").Replace(name))
+}
