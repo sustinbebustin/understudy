@@ -160,6 +160,13 @@ aws s3api get-object --bucket ssec-demo --key secret.txt \
   --sse-customer-algorithm AES256 --sse-customer-key 0123456789abcdef0123456789abcdef out.txt
 ```
 
+`get-object` writes the object to `out.txt` and echoes the algorithm and the key's MD5 (trimmed):
+
+```text
+    "SSECustomerAlgorithm": "AES256",
+    "SSECustomerKeyMD5": "hRasmdxgYDKV3nvbahU1MA=="
+```
+
 Without the `put-bucket-encryption` call, the put fails with `AccessDenied` "Access Denied". At the plain HTTP endpoint it fails with `InvalidRequest` "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection." A `get-object` without the key fails with `InvalidRequest` "The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object.", and one with another key fails with `AccessDenied`. understudy never stores the key. It keeps a salted HMAC of the key to check reads, and stores the object's bytes as sent, unencrypted.
 
 Object Lock retention runs on the [emulator clock](clock.md), so a test moves the clock past the retain-until date instead of waiting for it:
@@ -176,7 +183,14 @@ understudy clock advance 24h
 aws s3api delete-object --bucket lock-demo --key report.csv --version-id "$VERSION"  # deleted
 ```
 
-- **Refused deletes:** until the clock reaches the date, the versioned delete fails with 403 `AccessDenied` "Access Denied because object protected by object lock.". A delete without `--version-id` succeeds, because it only adds a delete marker.
+The first delete and the clock advance print:
+
+```text
+An error occurred (AccessDenied) when calling the DeleteObject operation: Access Denied because object protected by object lock.
+2026-01-02T00:00:00Z frozen
+```
+
+- **Refused deletes:** until the clock reaches the date, the versioned delete fails with 403 `AccessDenied`, as above. A delete without `--version-id` succeeds, because it only adds a delete marker.
 - **Bypass:** `--bypass-governance-retention` lifts GOVERNANCE retention but never COMPLIANCE retention. understudy does not evaluate `s3:BypassGovernanceRetention` ([differences](differences.md#s3)).
 - **Legal holds:** `put-object-legal-hold --legal-hold Status=ON` blocks deletes, bypass or not, until the hold is set to `OFF`.
 - **Default retention:** a bucket default from `put-object-lock-configuration` dates each new version from its creation. A `put-object` into such a bucket needs `Content-MD5` or a checksum, which the AWS CLI and current SDKs send by default.
