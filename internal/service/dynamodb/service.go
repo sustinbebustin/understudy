@@ -65,11 +65,11 @@ const (
 	noThrottling = "aws-differs: dynamodb-local: requests are never throttled; inject com.amazonaws.dynamodb#ThrottlingException with a fault rule"
 	noConflicts  = "aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule"
 	// noTxConflicts is how a conflict shows on the transaction operations,
-	// which do not send TransactionConflictException. The fault store
-	// refuses a TransactionCanceledException rule (internal/fault,
-	// unsettable).
+	// which do not send TransactionConflictException. A fault rule sets the
+	// reasons through its members, one per item of the call, which the
+	// bindings count (smithy-protocol-tests.md 14.9, 14.10).
 	noTxConflicts = "aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException " +
-		"and the cancellation reason TransactionConflict, which a fault rule cannot set yet, so a rule injecting TransactionCanceledException is refused"
+		"and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons"
 	caseTwins      = "aws-differs: dynamodb-local: table names are case-insensitive, so a name that differs from an existing table's only in case is refused with ResourceInUseException"
 	statementTwins = "aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table"
 	parallelScan   = "aws-differs: dynamodb-local: Segment and TotalSegments are ignored, so a parallel scan reads sequentially"
@@ -117,9 +117,13 @@ func (s *Service) bindItems(b dynamodbapi.Binder) {
 	batchWrite := func(in *dynamodbapi.BatchWriteItemInput) []string { return slices.Sorted(maps.Keys(in.RequestItems)) }
 	b.BatchWriteItemRaw(ttlWrites(s, passthrough(s, batchWrite, echoed(batchWrite, "UnprocessedItems", "ItemCollectionMetrics")), batchWrites),
 		notes(noThroughput), tables(batchWrite))
-	b.TransactGetItemsRaw(passthrough(s, transactGetTables, echoed(transactGetTables)), notes(noThroughput, noTxConflicts), tables(transactGetTables))
+	// A cancellation reason lines up with each requested item
+	// (smithy-protocol-tests.md 12.2), so fault matching counts them.
+	b.TransactGetItemsRaw(passthrough(s, transactGetTables, echoed(transactGetTables)), notes(noThroughput, noTxConflicts), tables(transactGetTables),
+		kernel.WithItemCount(func(in *dynamodbapi.TransactGetItemsInput) int { return len(in.TransactItems) }))
 	b.TransactWriteItemsRaw(ttlWrites(s, passthrough(s, transactWriteTables, echoed(transactWriteTables, "ItemCollectionMetrics")), transactWrites),
-		notes(noThroughput, noTxConflicts), tables(transactWriteTables))
+		notes(noThroughput, noTxConflicts), tables(transactWriteTables),
+		kernel.WithItemCount(func(in *dynamodbapi.TransactWriteItemsInput) int { return len(in.TransactItems) }))
 }
 
 // bindStatements binds PartiQL, whose tables are inside the statements.
@@ -129,7 +133,8 @@ func (s *Service) bindStatements(b dynamodbapi.Binder) {
 	b.BatchExecuteStatementRaw(ttlStatements(s, passthrough(s, noTables, plainAnswer[dynamodbapi.BatchExecuteStatementInput]), batchStatements),
 		notes(noThrottling, statementTwins))
 	b.ExecuteTransactionRaw(ttlStatements(s, passthrough(s, noTables, plainAnswer[dynamodbapi.ExecuteTransactionInput]), transactionStatements),
-		notes(noThroughput, noTxConflicts, statementTwins))
+		notes(noThroughput, noTxConflicts, statementTwins),
+		kernel.WithItemCount(func(in *dynamodbapi.ExecuteTransactionInput) int { return len(in.TransactStatements) }))
 }
 
 // named lists the one table a TableName member addresses.
