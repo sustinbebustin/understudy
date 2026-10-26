@@ -304,8 +304,9 @@ func bindOutbox(box *outbox.Outbox, k *kernel.Kernel, faults *fault.Store, built
 // the target's policy, by the target ARN's service namespace: the queue's
 // and the topic's Policy, the bucket policy, the function's permissions,
 // the key policy, the secret's resource policy and the role's trust policy
-// (iam-enforcement-surfaces.md 12.2). The outbox's access advisory asks it
-// about delivery targets.
+// (iam-enforcement-surfaces.md 12.2), and the event bus's policy
+// (eventbridge-buses.md 10.2.5). The outbox's access advisory asks it about
+// delivery targets.
 type policySources map[string]authz.PolicyProvider
 
 // The router reads every namespace's policies through one provider.

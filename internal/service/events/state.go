@@ -36,6 +36,50 @@ func (s *State) IsZero() bool { return len(s.Rules) == 0 }
 // silently dropping the skip.
 var _ store.Zeroer = (*State)(nil)
 
+// Bus is one event bus of a scope: a custom bus as CreateEventBus and
+// UpdateEventBus last set it, or the default bus once a write materializes
+// it (eventbridge-buses.md 10.2.1, 10.2.2). Its ARN derives from the scope
+// and Name. State does not hold buses yet; custom buses are not
+// implemented yet.
+type Bus struct {
+	Name string `json:"name"`
+	// Description is nil when absent or empty.
+	Description *string `json:"description,omitempty"`
+	// KMSKeyIdentifier is stored as sent and never applied; nil when absent
+	// or empty.
+	KMSKeyIdentifier *string `json:"kmsKeyIdentifier,omitempty"`
+	// DeadLetter is stored as sent and never applied.
+	DeadLetter *DeadLetterConfig `json:"deadLetter,omitempty"`
+	// Log is stored as sent, NONE and OFF included, and never applied.
+	Log      *LogConfig        `json:"log,omitempty"`
+	Policy   *Policy           `json:"policy,omitempty"`
+	Tags     map[string]string `json:"tags,omitempty"`
+	Created  clock.Instant     `json:"createdAt"`
+	Modified clock.Instant     `json:"modifiedAt"`
+}
+
+// LogConfig is a bus's LogConfig, members as sent.
+type LogConfig struct {
+	IncludeDetail *eventbridgeapi.IncludeDetail `json:"includeDetail,omitempty"`
+	Level         *eventbridgeapi.Level         `json:"level,omitempty"`
+}
+
+// Policy is a bus's resource policy (eventbridge-buses.md 10.2.5).
+type Policy struct {
+	// Statements are in insertion order; a non-empty Sid is unique.
+	Statements []PolicyStatement `json:"statements"`
+	// Document is the text PutPermission's Policy member stored, returned
+	// verbatim until a statement call changes Statements; nil otherwise.
+	Document *string `json:"document,omitempty"`
+}
+
+// PolicyStatement is one statement of a bus policy, kept as its JSON text
+// with its Sid.
+type PolicyStatement struct {
+	Sid  string `json:"sid,omitempty"`
+	JSON string `json:"json"`
+}
+
 // Rule is one rule of the default bus, as PutRule last set it.
 type Rule struct {
 	Name        string                   `json:"name"`

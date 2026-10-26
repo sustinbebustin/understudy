@@ -101,6 +101,7 @@ func TestMechanismVia(t *testing.T) {
 		delivery.EventsToLambda: ref.EventsTarget,
 		delivery.EventsToSQS:    ref.EventsTarget,
 		delivery.EventsToSNS:    ref.EventsTarget,
+		delivery.EventsToEvents: ref.EventsTarget,
 	}
 	for _, m := range delivery.Mechanisms() {
 		if got := m.Via(); got != want[m] {
@@ -119,6 +120,7 @@ func TestMechanismTarget(t *testing.T) {
 		delivery.EventsToLambda: "lambda",
 		delivery.EventsToSQS:    "sqs",
 		delivery.EventsToSNS:    "sns",
+		delivery.EventsToEvents: "eventbridge",
 	}
 	for _, m := range delivery.Mechanisms() {
 		if got := m.Target(); got != want[m] {

@@ -414,7 +414,7 @@ func servicePrincipal(m delivery.Mechanism) string {
 		return "sns.amazonaws.com"
 	case delivery.S3ToSQS, delivery.S3ToSNS, delivery.S3ToLambda:
 		return "s3.amazonaws.com"
-	case delivery.EventsToLambda, delivery.EventsToSQS, delivery.EventsToSNS:
+	case delivery.EventsToLambda, delivery.EventsToSQS, delivery.EventsToSNS, delivery.EventsToEvents:
 		return "events.amazonaws.com"
 	}
 	return ""

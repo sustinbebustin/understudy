@@ -71,6 +71,25 @@ type EventEntry struct {
 	// Detail is the event's detail, JSON object text.
 	Detail    string
 	Resources []string
+	// Forwarded is set when an event bus target forwards an event that was
+	// already put; nil for an event a producer puts as new.
+	Forwarded *Forwarded
+}
+
+// Forwarded is the envelope an event keeps when an event bus target
+// forwards it to another bus (eventbridge-buses.md 10.4.12). Its presence
+// marks the event's one hop: the receiving bus sends it to no further bus
+// (eventbridge-buses.md 10.4.13).
+type Forwarded struct {
+	// ID is the event's id: the original in the same region, a new one
+	// across regions.
+	ID string
+	// Account is the account that first put the event, the sender's.
+	Account string
+	// Region is the region the event was first put in.
+	Region string
+	// Time is the event's time.
+	Time time.Time
 }
 
 // S3Object is a PutObject. No mechanism delivers to one yet.
@@ -265,6 +284,7 @@ const (
 	EventsToLambda
 	EventsToSQS
 	EventsToSNS
+	EventsToEvents
 
 	// endMechanism follows the last value and is no mechanism: Mechanisms,
 	// valid and the MechanismError text count up to it, so a new value is
@@ -300,6 +320,8 @@ func (m Mechanism) String() string {
 		return "events-to-sqs"
 	case EventsToSNS:
 		return "events-to-sns"
+	case EventsToEvents:
+		return "events-to-events"
 	default:
 		return fmt.Sprintf("Mechanism(%d)", uint8(m))
 	}
@@ -315,7 +337,7 @@ func (m Mechanism) Via() ref.Via {
 		return ref.SNSDelivery
 	case S3ToSQS, S3ToSNS, S3ToLambda:
 		return ref.S3Notification
-	case EventsToLambda, EventsToSQS, EventsToSNS:
+	case EventsToLambda, EventsToSQS, EventsToSNS, EventsToEvents:
 		return ref.EventsTarget
 	default:
 		return 0
@@ -332,6 +354,8 @@ func (m Mechanism) Target() ref.ServiceID {
 		return "lambda"
 	case S3ToSNS, EventsToSNS:
 		return "sns"
+	case EventsToEvents:
+		return "eventbridge"
 	default:
 		return ""
 	}

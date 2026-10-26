@@ -25,6 +25,7 @@ var mechanismNames = []struct {
 	{delivery.EventsToLambda, "events-to-lambda"},
 	{delivery.EventsToSQS, "events-to-sqs"},
 	{delivery.EventsToSNS, "events-to-sns"},
+	{delivery.EventsToEvents, "events-to-events"},
 }
 
 func TestMechanismWireNamesAreStable(t *testing.T) {

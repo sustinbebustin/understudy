@@ -60,8 +60,9 @@ func TestWiringTableBuildsEachRowsService(t *testing.T) {
 // services and keyed by ARN namespace (ARCHITECTURE.md 16): one per
 // resource policy enforcement reads, the SQS queue, SNS topic, S3 bucket,
 // Lambda function, KMS key and Secrets Manager secret policies and the IAM
-// role trust policy (iam-enforcement-surfaces.md 12.2). The router answers
-// for each through its namespace's provider.
+// role trust policy (iam-enforcement-surfaces.md 12.2), and the EventBridge
+// bus policy (eventbridge-buses.md 10.2.5). The router answers for each
+// through its namespace's provider.
 func TestWiredPolicyProvidersCoverEveryResourcePolicyKind(t *testing.T) {
 	buildTable(t, func(k *kerneltest.K, _ *construction, built []wiredBuilt) {
 		policies, err := policyProviders(built)
@@ -73,7 +74,7 @@ func TestWiredPolicyProvidersCoverEveryResourcePolicyKind(t *testing.T) {
 			namespaces = append(namespaces, ns)
 		}
 		slices.Sort(namespaces)
-		if want := []string{"iam", "kms", "lambda", "s3", "secretsmanager", "sns", "sqs"}; !slices.Equal(namespaces, want) {
+		if want := []string{"events", "iam", "kms", "lambda", "s3", "secretsmanager", "sns", "sqs"}; !slices.Equal(namespaces, want) {
 			k.Errorf("policy providers for %v, want %v", namespaces, want)
 		}
 		var router authz.PolicyProvider = policies
