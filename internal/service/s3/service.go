@@ -157,6 +157,12 @@ func declareAccess(b *kernel.Binder) {
 		}
 		return append(out, bypassing(in.BypassGovernanceRetention)...)
 	}))
+	// Shortening or removing governance-mode retention needs
+	// s3:BypassGovernanceRetention with the header (Object Lock, "Bypassing
+	// governance mode").
+	kernel.Declare(b, s3api.OpPutObjectRetention, kernel.WithActions(func(_ *kernel.Call, in *s3api.PutObjectRetentionInput) []registry.IAMAction {
+		return bypassing(in.BypassGovernanceRetention)
+	}))
 	// CreateBucket needs s3:PutBucketAcl for an ACL or grant,
 	// s3:PutBucketObjectLockConfiguration and s3:PutBucketVersioning to
 	// enable Object Lock, and s3:PutBucketOwnershipControls to set object

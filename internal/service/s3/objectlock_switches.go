@@ -6,14 +6,17 @@ import (
 )
 
 // The Object Lock switches of s3-ssec-object-lock.md 11.4 that the lock
-// headers, the default retention and the delete paths follow, in that
-// table's order after the SSE-C ones (ssecSwitches). None is settled by a
-// recording yet: each names the recording-queue item of section 12 that
-// would settle it.
+// headers, the default retention, the retention and legal-hold operations
+// and the delete paths follow, in that table's order after the SSE-C ones
+// (ssecSwitches). None is settled by a recording yet: each names the
+// recording-queue item of section 12 that would settle it.
 
 // objectLockSwitches lists the switches in table order.
 func objectLockSwitches() []fidelity.Entry {
-	const headerValidation = "62-header-validation-third-party-recorded-all-400-invalidargument"
+	const (
+		headerValidation = "62-header-validation-third-party-recorded-all-400-invalidargument"
+		retentionOps     = "64-putobjectretention-and-getobjectretention"
+	)
 	return []fidelity.Entry{
 		ssecSwitch("s3.object-lock.retain-until-format", "milliseconds", evidence.Inferred, "67-response-headers-on-get-and-head", "S3SOL-12",
 			[]string{"s3.GetObject", "s3.HeadObject", "s3.GetObjectRetention", "s3.DeleteObject", "s3.DeleteObjects"}),
@@ -27,6 +30,14 @@ func objectLockSwitches() []fidelity.Entry {
 			[]string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload"}),
 		ssecSwitch("s3.object-lock.header-texts", "InvalidArgument", evidence.Inferred, headerValidation, "S3SOL-18",
 			[]string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.PutObjectRetention"}),
+		ssecSwitch("s3.object-lock.mode-upgrade", "refused", evidence.Inferred, retentionOps, "S3SOL-19",
+			[]string{"s3.PutObjectRetention"}),
+		ssecSwitch("s3.object-lock.date-without-mode", "MalformedXML", evidence.Inferred, retentionOps, "S3SOL-20",
+			[]string{"s3.PutObjectRetention"}),
+		ssecSwitch("s3.object-lock.cleared-reads", "404-and-OFF", evidence.Inferred, retentionOps, "S3SOL-21",
+			[]string{"s3.GetObjectRetention", "s3.GetObjectLegalHold", "s3.GetObject", "s3.HeadObject"}),
+		ssecSwitch("s3.object-lock.check-order", "lock-state-first", evidence.Inferred, "65-putobjectlegalhold-and-getobjectlegalhold", "S3SOL-22",
+			[]string{"s3.PutObjectRetention", "s3.GetObjectRetention", "s3.PutObjectLegalHold", "s3.GetObjectLegalHold"}),
 		ssecSwitch("s3.object-lock.bypass-without-lock", "refused", evidence.ThirdPartyRecorded, "73-the-bypass-header-on-a-bucket-without-object-lock", "S3SOL-23",
 			[]string{"s3.DeleteObject", "s3.DeleteObjects"}),
 	}

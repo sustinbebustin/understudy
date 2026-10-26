@@ -124,7 +124,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | kms | 54 | 19 | 3 | 5 | 27 | 0 | 0 |
 | lambda | 88 | 25 | 2 | 14 | 47 | 0 | 2 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
-| s3 | 112 | 19 | 42 | 21 | 30 | 0 | 3 |
+| s3 | 112 | 22 | 42 | 22 | 26 | 0 | 3 |
 | secretsmanager | 23 | 12 | 1 | 2 | 8 | 0 | 0 |
 | sns | 42 | 12 | 2 | 5 | 23 | 0 | 3 |
 | sqs | 23 | 16 | 2 | 5 | 0 | 2 | 0 |
@@ -809,13 +809,16 @@ Internal operations:
 | GetBucketTagging | full | inferred, 1 of 3 claims |  |
 | GetBucketVersioning | full | inferred, 1 of 3 claims |  |
 | GetObjectAttributes | full | inferred, 4 of 6 claims |  |
+| GetObjectLegalHold | full | inferred, 3 of 4 claims |  |
 | GetObjectLockConfiguration | full | inferred, 1 of 3 claims |  |
+| GetObjectRetention | full | inferred, 4 of 5 claims |  |
 | GetObjectTagging | full | inferred, 1 of 2 claims |  |
 | HeadBucket | full | inferred, 1 of 3 claims |  |
 | ListMultipartUploads | full | inferred, 1 of 3 claims |  |
 | ListParts | full | inferred, 2 of 3 claims |  |
 | PutBucketEncryption | full | inferred, 3 of 5 claims |  |
 | PutBucketTagging | full | inferred, 1 of 4 claims |  |
+| PutObjectLegalHold | full | inferred, 2 of 3 claims |  |
 | PutObjectTagging | full | inferred, 1 of 2 claims |  |
 | DeleteBucketAnalyticsConfiguration | stored-only | inferred, 1 of 2 claims | the analytics configuration is stored and echoed; not applied |
 | DeleteBucketCors | stored-only | inferred, 1 of 2 claims | the CORS configuration is stored and echoed; not applied |
@@ -867,17 +870,18 @@ Internal operations:
 | DeleteObject | partial | inferred, 2 of 4 claims | no MFA delete or Object Lock retention |
 | DeleteObjects | partial | inferred, 2 of 4 claims | no MFA delete or Object Lock retention |
 | GetBucketOwnershipControls | partial | inferred, 1 of 3 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| GetObject | partial | inferred, 4 of 6 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
-| HeadObject | partial | inferred, 5 of 8 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
+| GetObject | partial | inferred, 5 of 7 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
+| HeadObject | partial | inferred, 6 of 9 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
 | ListBuckets | partial | third-party-recorded, 1 of 1 claim | general purpose buckets only; no directory buckets |
 | ListObjectVersions | partial | inferred, 1 of 3 claims | no RestoreStatus |
 | ListObjects | partial | inferred, 1 of 3 claims | no RestoreStatus |
 | ListObjectsV2 | partial | inferred, 1 of 3 claims | no RestoreStatus |
-| PutBucketNotificationConfiguration | partial | inferred, 1 of 2 claims | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions |
+| PutBucketNotificationConfiguration | partial | inferred, 1 of 2 claims | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions; s3:ObjectRetention:Put is stored but sends nothing |
 | PutBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | PutBucketVersioning | partial | inferred, 1 of 2 claims | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
 | PutObject | partial | inferred, 9 of 12 claims | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
 | PutObjectLockConfiguration | partial | inferred, 2 of 3 claims | DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored |
+| PutObjectRetention | partial | inferred, 5 of 6 claims | event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent |
 | UploadPart | partial | inferred, 5 of 7 claims | chunk signatures are verified under sigv4 verify |
 | UploadPartCopy | partial | inferred, 7 of 9 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
 | CreateBucketMetadataConfiguration | unbound | unassessed |  |
@@ -892,16 +896,12 @@ Internal operations:
 | GetBucketPolicyStatus | unbound | unassessed |  |
 | GetObjectAcl | unbound | unassessed |  |
 | GetObjectAnnotation | unbound | unassessed |  |
-| GetObjectLegalHold | unbound | unassessed |  |
-| GetObjectRetention | unbound | unassessed |  |
 | GetObjectTorrent | unbound | unassessed |  |
 | ListDirectoryBuckets | unbound | unassessed |  |
 | ListObjectAnnotations | unbound | unassessed |  |
 | PutBucketAbac | unbound | unassessed |  |
 | PutObjectAcl | unbound | unassessed |  |
 | PutObjectAnnotation | unbound | unassessed |  |
-| PutObjectLegalHold | unbound | unassessed |  |
-| PutObjectRetention | unbound | unassessed |  |
 | RenameObject | unbound | unassessed |  |
 | RestoreObject | unbound | unassessed |  |
 | SelectObjectContent | unbound | unassessed |  |
@@ -1059,7 +1059,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-83 switches: 1 aws-recorded, 1 third-party-recorded, 14 aws-doc, 67 inferred.
+87 switches: 1 aws-recorded, 1 third-party-recorded, 14 aws-doc, 71 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1103,11 +1103,15 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `s3.bucket.cross-account` | `served` | inferred | UNVERIFIED: no research note or recording shows AWS's answer to a bucket request from an account that does not own the bucket | none: unrecorded: no recording sends a bucket request from an account that does not own the bucket |
 | `s3.encryption.blocked-types-omitted` | `kept` | inferred | docs/research/s3-ssec-object-lock.md#42-blocking-and-unblocking | none: unrecorded: S3SOL-11 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.encryption.unblocked-read` | `NONE-element` | inferred | docs/research/s3-ssec-object-lock.md#42-blocking-and-unblocking | none: unrecorded: S3SOL-10 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.object-lock.check-order` | `lock-state-first` | inferred | docs/research/s3-ssec-object-lock.md#65-putobjectlegalhold-and-getobjectlegalhold | none: unrecorded: S3SOL-22 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.object-lock.checksum-scope` | `PutObject-retention` | inferred | docs/research/s3-ssec-object-lock.md#63-the-content-md5-or-checksum-requirement | none: unrecorded: S3SOL-14, S3SOL-15 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.object-lock.cleared-reads` | `404-and-OFF` | inferred | docs/research/s3-ssec-object-lock.md#64-putobjectretention-and-getobjectretention | none: unrecorded: S3SOL-21 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.object-lock.copy-default` | `default-applied` | inferred | docs/research/s3-ssec-object-lock.md#68-copyobject-does-not-carry-lock-state | none: unrecorded: S3SOL-16 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.object-lock.date-without-mode` | `MalformedXML` | inferred | docs/research/s3-ssec-object-lock.md#64-putobjectretention-and-getobjectretention | none: unrecorded: S3SOL-20 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.object-lock.default-years` | `365-day` | inferred | docs/research/s3-ssec-object-lock.md#53-default-retention-dating | none: unrecorded: S3SOL-13 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.object-lock.header-texts` | `InvalidArgument` | inferred | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument | none: unrecorded: S3SOL-18 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.object-lock.headers-without-lock` | `InvalidRequest` | inferred | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument | none: unrecorded: S3SOL-17 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.object-lock.mode-upgrade` | `refused` | inferred | docs/research/s3-ssec-object-lock.md#64-putobjectretention-and-getobjectretention | none: unrecorded: S3SOL-19 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.object-lock.retain-until-format` | `milliseconds` | inferred | docs/research/s3-ssec-object-lock.md#67-response-headers-on-get-and-head | none: unrecorded: S3SOL-12 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.sse-c.blocked-write` | `AccessDenied` | inferred | docs/research/s3-ssec-object-lock.md#43-what-the-block-refuses | none: unrecorded: S3SOL-01 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.sse-c.complete-headers` | `checked-when-sent` | inferred | docs/research/s3-ssec-object-lock.md#36-multipart-uploads | none: unrecorded: S3SOL-08 is queued in docs/research/s3-ssec-object-lock.md 12 |
@@ -1151,7 +1155,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-288 evidence items: 48 aws-recorded, 96 third-party-recorded, 52 aws-doc, 2 sdk-source, 90 inferred.
+291 evidence items: 48 aws-recorded, 98 third-party-recorded, 52 aws-doc, 2 sdk-source, 91 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1267,8 +1271,10 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#MalformedXML` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L1526 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#MethodNotAllowed` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_delete_object_versioned, a delete marker addressed by version id (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#MissingSecurityHeader` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2873 (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#NoSuchObjectLockConfiguration` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_object_retention_exc (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#NoSuchVersion` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#NotImplemented` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_preconditions.snapshot.json: conditional write headers S3 does not implement (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#ObjectLockRetention$Mode` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json L9500: a bad PutObjectRetention Mode is MalformedXML (s3-ssec-object-lock.md 6.4) (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#OwnershipControlsRule$ObjectOwnership` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json: an unknown ObjectOwnership is MalformedXML (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#PreconditionFailed` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#PutBucketAnalyticsConfiguration` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
@@ -1392,6 +1398,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | s3.json | `com.amazonaws.s3#CopyObjectRequest$ObjectLockMode` |  | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: CopyObject carries PutObject's lock headers, whose bad mode is InvalidArgument "Unknown wormMode directive." after the pairing check (recorded for PutObject and CreateMultipartUpload) |
 | inferred | s3.json | `com.amazonaws.s3#CreateMultipartUploadRequest$ObjectLockLegalHoldStatus` |  | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18) |
 | inferred | s3.json | `com.amazonaws.s3#InvalidBucketAclWithObjectOwnership` |  | docs/research/s3.md#32-createbucket: a public ACL on a BucketOwnerEnforced bucket fails; the code is AWS's documented ACL-ownership conflict, UNVERIFIED by recording |
+| inferred | s3.json | `com.amazonaws.s3#ObjectLockLegalHold$Status` |  | docs/research/s3-ssec-object-lock.md#65-putobjectlegalhold-and-getobjectlegalhold: a PutObjectLegalHold body without a valid Status is MalformedXML, as one without a body is (LocalStack test_s3.snapshot.json L10002); the bad-value text is UNVERIFIED |
 | inferred | s3.json | `com.amazonaws.s3#PutObjectRequest$ObjectLockLegalHoldStatus` |  | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18) |
 | inferred | s3.json | `com.amazonaws.s3#ServerSideEncryptionConfigurationNotFoundError` |  | docs/research/wire-rest.md#36-errors-and-not-configured-responses: AWS docs say 400, every other S3 not-configured error is 404; 404 is UNVERIFIED |
 | inferred | s3.json | `com.amazonaws.s3#UploadPartCopyRequest$CopySource` |  | docs/research/s3.md#7-copyobject-and-uploadpartcopy: UploadPartCopy takes the same x-amz-copy-source as CopyObject |

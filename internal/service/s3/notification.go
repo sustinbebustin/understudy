@@ -34,7 +34,7 @@ func (s *Service) bindNotification(b s3api.Binder) {
 	put := func(in *s3api.PutBucketNotificationConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
-	b.PutBucketNotificationConfiguration(s.putNotification, registry.Partial{Note: "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions"}, touches(put))
+	b.PutBucketNotificationConfiguration(s.putNotification, registry.Partial{Note: "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions; s3:ObjectRetention:Put is stored but sends nothing"}, touches(put))
 }
 
 // notificationPut is a configuration that passed admission and its own

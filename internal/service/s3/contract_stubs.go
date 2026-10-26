@@ -21,10 +21,5 @@ func errNotImplementedYet(fn string) *awserr.Error {
 // linter reports a stub left behind once it is wired rather than every
 // stub now.
 var _ = []any{
-	ObjectLock.withRetention,
 	ObjectLock.checkDelete,
-	Retention.inForce,
-	parseRetentionBody,
-	parseLegalHoldBody,
-	(*Service).governanceBypass,
 }

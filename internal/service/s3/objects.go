@@ -47,6 +47,7 @@ func (s *Service) bindObjects(b s3api.Binder) {
 	lvv := func(in *s3api.ListObjectVersionsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListObjectVersions(reader(s, lvv, listObjectVersions), registry.Partial{Note: "no RestoreStatus"}, touches(lvv))
 	s.bindObjectTagging(b)
+	s.bindObjectLockState(b)
 }
 
 // nullVersion is the version id of an object written while the bucket was

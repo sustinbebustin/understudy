@@ -160,12 +160,30 @@ type ObjectLock struct {
 
 // withRetention applies a PutObjectRetention's change rules
 // (s3-ssec-object-lock.md 6.4, 11.3) to l: next replaces the retention,
-// nil removes it. A retention in force refuses removal, an earlier date
-// or a change of mode unless it is GOVERNANCE and bypass is true;
-// COMPLIANCE refuses them always. Not implemented yet: it answers
-// errNotImplementedYet.
-func (ObjectLock) withRetention(*Retention, clock.Instant, bool) (ObjectLock, *awserr.Error) {
-	return ObjectLock{}, errNotImplementedYet("ObjectLock.withRetention")
+// nil removes it, and the legal hold is kept (6.5). A retention in force
+// allows the same mode with a same-or-later date (LocalStack
+// test_s3.snapshot.json L9871); removal, an earlier date or another mode
+// needs bypass on GOVERNANCE (L9478, L9677; GOVERNANCE to COMPLIANCE under
+// switch s3.object-lock.mode-upgrade) and is refused on COMPLIANCE whatever
+// the bypass (L17884, L17894). A retention no longer in force imposes
+// nothing (inferred: protection lasts for the retention period,
+// s3-ssec-object-lock.md 6.4).
+func (l ObjectLock) withRetention(next *Retention, now clock.Instant, bypass bool) (ObjectLock, *awserr.Error) {
+	if cur := l.Retention; cur != nil && cur.inForce(now) {
+		keeps := next != nil && next.Mode == cur.Mode && next.RetainUntil.Compare(cur.RetainUntil) >= 0
+		if !keeps && (cur.Mode == RetentionCompliance || !bypass) {
+			return ObjectLock{}, errObjectLocked()
+		}
+	}
+	l.Retention = next
+	return l, nil
+}
+
+// errObjectLocked answers a retention change or a versioned delete Object
+// Lock forbids (LocalStack test_s3.snapshot.json L9478, L9639, L10044,
+// L17856; s3-ssec-object-lock.md 6.4, 7.1).
+func errObjectLocked() *awserr.Error {
+	return s3api.ErrAccessDenied("Access Denied because object protected by object lock.")
 }
 
 // checkDelete refuses a versioned delete of a version under a legal hold,
@@ -185,9 +203,8 @@ type Retention struct {
 }
 
 // inForce reports whether the retention still protects its version: now
-// is before RetainUntil (switch s3.object-lock.retain-until-format). Not
-// implemented yet: it reports false.
-func (Retention) inForce(clock.Instant) bool { return false }
+// is before RetainUntil (switch s3.object-lock.retain-until-format).
+func (r Retention) inForce(now clock.Instant) bool { return now.Before(r.RetainUntil) }
 
 // RetentionMode is a retention's mode (s3-ssec-object-lock.md 6.6). The
 // zero value is no mode and has no text.
@@ -349,12 +366,30 @@ func needsIntegrity(cfg *s3api.ObjectLockConfiguration, explicit ObjectLock) boo
 }
 
 // parseRetentionBody reads a PutObjectRetention body
-// (s3-ssec-object-lock.md 6.4): nil for an empty Retention, which removes
-// the retention; MalformedXML for no body or a mode without a date or a
-// date without a mode; 501 for event holds. Not implemented yet: it
-// answers errNotImplementedYet.
-func parseRetentionBody(*s3api.ObjectLockRetention) (*Retention, *awserr.Error) {
-	return nil, errNotImplementedYet("parseRetentionBody")
+// (s3-ssec-object-lock.md 6.4, 11.3): nil for an empty Retention, which
+// removes the retention (LocalStack test_s3.snapshot.json L9677). No body
+// is MalformedXML (11.3); event-hold elements are understudy's 501 (11.7);
+// a mode without a date or a bad mode is MalformedXML (L9468, L9500), as is
+// a date without a mode (switch s3.object-lock.date-without-mode). The
+// date keeps its milliseconds (switch s3.object-lock.retain-until-format).
+func parseRetentionBody(r *s3api.ObjectLockRetention) (*Retention, *awserr.Error) {
+	switch {
+	case r == nil:
+		return nil, errMalformedXML()
+	case r.EventHold != nil:
+		return nil, errEventHold("EventHold")
+	case r.EventHoldDuration != nil:
+		return nil, errEventHold("EventHoldDuration")
+	case r.Mode == nil && r.RetainUntilDate == nil:
+		return nil, nil
+	case r.Mode == nil || r.RetainUntilDate == nil:
+		return nil, errMalformedXML()
+	}
+	mode, ok := retentionModeTexts().value(string(*r.Mode))
+	if !ok {
+		return nil, errMalformedXML()
+	}
+	return &Retention{Mode: mode, RetainUntil: clock.FromWire(r.RetainUntilDate.Truncate(time.Millisecond))}, nil
 }
 
 // checkRetainUntil refuses a retain-until date that is not in the future
@@ -374,11 +409,18 @@ func checkRetainUntil(until, now clock.Instant, name string) *awserr.Error {
 }
 
 // parseLegalHoldBody reads a PutObjectLegalHold body
-// (s3-ssec-object-lock.md 6.5): MalformedXML for no body, no Status or a
-// Status other than ON or OFF. Not implemented yet: it answers
-// errNotImplementedYet.
-func parseLegalHoldBody(*s3api.ObjectLockLegalHold) (LegalHold, *awserr.Error) {
-	return LegalHoldNever, errNotImplementedYet("parseLegalHoldBody")
+// (s3-ssec-object-lock.md 6.5): MalformedXML for no body (LocalStack
+// test_s3.snapshot.json L10002), and for no Status or a Status other than
+// ON or OFF (inferred from it).
+func parseLegalHoldBody(h *s3api.ObjectLockLegalHold) (LegalHold, *awserr.Error) {
+	if h == nil || h.Status == nil {
+		return LegalHoldNever, errMalformedXML()
+	}
+	hold, ok := legalHoldTexts().value(string(*h.Status))
+	if !ok {
+		return LegalHoldNever, errMalformedXML()
+	}
+	return hold, nil
 }
 
 // javaDate renders t as Java's Date.toString() in US Pacific time, as S3
@@ -424,7 +466,9 @@ func checkBypassHeader(b *Bucket, header *bool) *awserr.Error {
 // the object version object names (s3-ssec-object-lock.md 6.6). It is the
 // seam IAM enforcement plugs into: under iam.enforce off, the only mode
 // this build has, x-amz-bypass-governance-retention: true alone bypasses
-// and s3:BypassGovernanceRetention is not evaluated (the coverage notes).
-// Callers run it before kernel.Write, holding no lock. Not implemented
-// yet: it reports false.
-func (*Service) governanceBypass(*kernel.Call, *bool, aws.ARN) bool { return false }
+// and s3:BypassGovernanceRetention is not evaluated (the coverage notes);
+// false is no bypass (switch s3.object-lock.bypass-without-lock). Callers
+// run it before kernel.Write, holding no lock.
+func (*Service) governanceBypass(_ *kernel.Call, header *bool, _ aws.ARN) bool {
+	return header != nil && *header
+}

@@ -92,6 +92,14 @@ func objectsAddressed(in any) ([]aws.ARN, bool) {
 		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
 	case *s3api.DeleteObjectTaggingInput:
 		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.PutObjectRetentionInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.GetObjectRetentionInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.PutObjectLegalHoldInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
+	case *s3api.GetObjectLegalHoldInput:
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
 	case *s3api.CreateMultipartUploadInput:
 		return []aws.ARN{objectResource(in.Bucket, in.Key)}, true
 	case *s3api.UploadPartInput:
