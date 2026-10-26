@@ -1,6 +1,7 @@
 package fault_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
@@ -51,6 +52,23 @@ func TestExportKeepsTheMembersOrder(t *testing.T) {
 		`"shape":"TransactionCanceledException"},"id":"tx","match":{"operations":["dynamodb.TransactWriteItems"]},"phase":"request","trigger":{"kind":"always"}}}],"version":2}`
 	if err != nil || string(data) != want {
 		t.Errorf("Export = %s, %v\nwant %s", data, err, want)
+	}
+}
+
+// Version 1 rules carry no members, so a version-1 document whose rule
+// sets them is refused as corrupt; the same rule imports under version 2.
+func TestVersionOneRuleWithMembers(t *testing.T) {
+	doc := func(version string) []byte {
+		return []byte(`{"rules":[{"rule":{"action":{"kind":"error","members":{"CancellationReasons":[` + conflictReason + `]},"shape":"TransactionCanceledException"},` +
+			`"id":"tx","match":{"operations":["dynamodb.TransactWriteItems"]},"phase":"request","trigger":{"kind":"always"}}}],"version":` + version + `}`)
+	}
+	s := generatedStore(t, 1)
+	ie, ok := errors.AsType[*fault.ImportError](s.Import(doc("1")))
+	if want := "it sets action.members, which version 1 rules never carry; the document is corrupt or was not written by Export"; !ok || ie.Index != 0 || ie.Rule != "tx" || ie.Reason != want {
+		t.Errorf("Import of version 1 = %v; want rule 0 (tx) refused: %s", ie, want)
+	}
+	if err := s.Import(doc("2")); err != nil {
+		t.Errorf("Import of version 2 = %v", err)
 	}
 }
 
