@@ -296,12 +296,31 @@ func contextValue(context map[string]string, key string) (value string, found bo
 // colon-separated elements, and each element of pattern globs the same
 // element of arn, so a * never spans a colon outside the resource element.
 func arnMatches(pattern, arn string, v Version) bool {
-	p, a := strings.SplitN(pattern, ":", 6), strings.SplitN(arn, ":", 6)
-	if len(p) != 6 || len(a) != 6 {
+	return arnTokensMatch(compile(pattern, v), arn)
+}
+
+// arnTokensMatch is arnMatches for a compiled pattern: the pattern splits at
+// its first five literal colons, as the ARN does at its first five, and no
+// escape stands for a colon, so splitting before or after compiling agrees.
+func arnTokensMatch(p []token, arn string) bool {
+	a := strings.SplitN(arn, ":", 6)
+	fields := make([][]token, 0, 6)
+	start := 0
+	for i, t := range p {
+		if len(fields) == 5 {
+			break
+		}
+		if t.kind == literal && t.r == ':' {
+			fields = append(fields, p[start:i])
+			start = i + 1
+		}
+	}
+	fields = append(fields, p[start:])
+	if len(fields) != 6 || len(a) != 6 {
 		return false
 	}
-	for i := range p {
-		if !glob(p[i], a[i], v) {
+	for i := range fields {
+		if !match(fields[i], a[i]) {
 			return false
 		}
 	}
@@ -327,7 +346,12 @@ func valueText(v Value) string {
 // and ? matches one character. Only the pattern has wildcards: a * or ? in
 // s is a plain character.
 func glob(pattern, s string, v Version) bool {
-	p, t := compile(pattern, v), []rune(s)
+	return match(compile(pattern, v), s)
+}
+
+// match reports whether s matches the compiled pattern p.
+func match(p []token, s string) bool {
+	t := []rune(s)
 	pi, ti := 0, 0
 	star, mark := -1, 0
 	for ti < len(t) {
@@ -377,16 +401,21 @@ func compile(pattern string, v Version) []token {
 			i += 3
 			continue
 		}
-		switch rs[i] {
-		case '*':
-			out = append(out, token{kind: anyRun})
-		case '?':
-			out = append(out, token{kind: anyOne})
-		default:
-			out = append(out, token{kind: literal, r: rs[i]})
-		}
+		out = append(out, tokenOf(rs[i]))
 	}
 	return out
+}
+
+// tokenOf is the token a pattern character outside an escape compiles to.
+func tokenOf(r rune) token {
+	switch r {
+	case '*':
+		return token{kind: anyRun}
+	case '?':
+		return token{kind: anyOne}
+	default:
+		return token{kind: literal, r: r}
+	}
 }
 
 // escapeAt reports whether rs[i:] opens one of a 2012-10-17 document's

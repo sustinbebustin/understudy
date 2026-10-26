@@ -1,5 +1,10 @@
 package policydoc
 
+import (
+	"slices"
+	"strings"
+)
+
 // Presence is how a condition key stands in a request context.
 type Presence uint8
 
@@ -30,49 +35,78 @@ type ContextValue struct {
 type Context struct {
 	// service is the IAM prefix whose keys are Unsupplied when never set.
 	service string
+	// keys holds every key set, by its lower-cased name.
+	keys map[string]contextEntry
+	// families are the lower-cased prefixes UnsuppliedFamily marked.
+	families []string
+}
+
+// contextEntry is what one Set, SetMulti, Absent or Unsupplied call recorded.
+type contextEntry struct {
+	presence Presence
+	value    ContextValue
 }
 
 // NewContext returns an empty context for a request whose action has the IAM
 // prefix service: a key of that prefix that is never set is Unsupplied, any
 // other key never set is Absent. NewContext("") makes every unset key
 // Absent.
-//
-// Not implemented yet: the context it returns answers Absent for every key.
 func NewContext(service string) *Context {
-	return &Context{service: service}
+	return &Context{service: service, keys: map[string]contextEntry{}}
 }
 
 // Set makes key present and single-valued with value.
-//
-// Not implemented yet: it records nothing.
-func (c *Context) Set(_, _ string) {}
+func (c *Context) Set(key, value string) {
+	c.put(key, contextEntry{presence: Present, value: ContextValue{Values: []string{value}}})
+}
 
 // SetMulti makes key present and multivalued with values, which may be none.
-//
-// Not implemented yet: it records nothing.
-func (c *Context) SetMulti(_ string, _ ...string) {}
+func (c *Context) SetMulti(key string, values ...string) {
+	c.put(key, contextEntry{presence: Present, value: ContextValue{Values: append([]string{}, values...), Multivalued: true}})
+}
 
 // Absent records that the request does not carry key.
-//
-// Not implemented yet: it records nothing.
-func (c *Context) Absent(_ string) {}
+func (c *Context) Absent(key string) {
+	c.put(key, contextEntry{presence: Absent})
+}
 
 // Unsupplied records that AWS would send key with this request and
 // understudy cannot compute it.
-//
-// Not implemented yet: it records nothing.
-func (c *Context) Unsupplied(_ string) {}
+func (c *Context) Unsupplied(key string) {
+	c.put(key, contextEntry{presence: Unsupplied})
+}
 
 // UnsuppliedFamily makes every key that begins with prefix, such as
 // "aws:ResourceTag/", and is not set Unsupplied.
-//
-// Not implemented yet: it records nothing.
-func (c *Context) UnsuppliedFamily(_ string) {}
+func (c *Context) UnsuppliedFamily(prefix string) {
+	c.families = append(c.families, strings.ToLower(prefix))
+}
 
 // Lookup reports key's presence and, when Present, its value. A nil *Context
-// answers Absent.
-//
-// Not implemented yet: it answers Absent.
-func (c *Context) Lookup(_ string) (ContextValue, Presence) {
+// answers Absent. A key set by name wins over its family and its service.
+func (c *Context) Lookup(key string) (ContextValue, Presence) {
+	if c == nil {
+		return ContextValue{}, Absent
+	}
+	name := strings.ToLower(key)
+	if e, ok := c.keys[name]; ok {
+		if e.presence != Present {
+			return ContextValue{}, e.presence
+		}
+		return ContextValue{Values: slices.Clone(e.value.Values), Multivalued: e.value.Multivalued}, Present
+	}
+	if slices.ContainsFunc(c.families, func(prefix string) bool { return strings.HasPrefix(name, prefix) }) {
+		return ContextValue{}, Unsupplied
+	}
+	if prefix, _, ok := strings.Cut(key, ":"); ok && c.service != "" && strings.EqualFold(prefix, c.service) {
+		return ContextValue{}, Unsupplied
+	}
 	return ContextValue{}, Absent
+}
+
+func (c *Context) put(key string, e contextEntry) {
+	if c.keys == nil {
+		c.keys = map[string]contextEntry{}
+	}
+	c.keys[strings.ToLower(key)] = e
 }

@@ -9,9 +9,11 @@
 // and trust policies, with the MalformedPolicyDocument texts of
 // docs/research/iam-sts-kms.md 3.3; ValidateIdentityForm applies only the
 // two that make a document an identity policy, for documents that never
-// went through CreatePolicy. Encode writes a canonical form and Allows
-// evaluates a request against one document. understudy stores policies and
-// does not enforce them; Allows serves resource-policy advisories and tests.
+// went through CreatePolicy. Encode writes a canonical form. Allows evaluates
+// a request against one document for resource-policy advisories and tests;
+// Evaluate is the per-document evaluator that enforcement builds on: it lists
+// the statements that apply, how each named the requester, and the condition
+// keys a Context marks as unsupplied.
 //
 // Decisions where neither the architecture nor an AWS recording settles the
 // behavior:
@@ -78,4 +80,28 @@
 //     condition is assumed to hold and reported, rather than Allows
 //     returning a bare bool, so a caller can tell an unconditional answer
 //     from an assumed one.
+//   - Evaluate is the enforcement evaluator and never assumes a clause
+//     holds: an unsupplied key evaluates as absent by the truth table of
+//     iam-evaluation.md 6.14 and is reported. Where AWS's behavior is not
+//     recorded it follows the default of the switch authz.Switches
+//     registers, or an inference: a multivalued key under a plain operator
+//     holds when any value does (IAM-EVAL-02); a set qualifier reads a
+//     single-valued key as a set of one (IAM-EVAL-03); Null counts a key
+//     whose every value is "" as null (IAM-EVAL-05); Bool takes policy
+//     variables (IAM-EVAL-01) and true and false in any case, and IgnoreCase
+//     folds with strings.EqualFold (IAM-EVAL-08); numbers are decimal with
+//     an optional exponent, compared as float64 (IAM-EVAL-09); dates are the
+//     W3C profile of ISO 8601 or integer epoch seconds, four digits reading
+//     as a year (IAM-EVAL-06); an IPv6 address without a prefix is /128
+//     (IAM-EVAL-07); an ARN condition value or context value without six
+//     fields never matches, and only an identity policy completes an
+//     incomplete Resource ARN (IAM-EVAL-11); a variable is ${name} or
+//     ${name, 'default'} spelled exactly so (IAM-EVAL-15), a multivalued key
+//     gives it no value and variables in Action stay literal (IAM-EVAL-14),
+//     and a value or default substitutes as literal characters; an
+//     unresolved policy value matches nothing, in a list of values as in
+//     Resource or NotResource (IAM-EVAL-16, IAM-EVAL-13); NotPrincipal
+//     exempts a user or session only when its account and its own or its
+//     role's identifier are both listed (IAM-EVAL-18); "*" names service
+//     principals (IAM-EVAL-33).
 package policydoc
