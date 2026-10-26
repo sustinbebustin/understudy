@@ -867,8 +867,8 @@ Internal operations:
 | CopyObject | partial | inferred, 12 of 15 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
 | CreateMultipartUpload | partial | inferred, 7 of 10 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
 | DeleteBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| DeleteObject | partial | inferred, 2 of 4 claims | no MFA delete or Object Lock retention |
-| DeleteObjects | partial | inferred, 2 of 4 claims | no MFA delete or Object Lock retention |
+| DeleteObject | partial | inferred, 2 of 4 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
+| DeleteObjects | partial | inferred, 2 of 4 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
 | GetBucketOwnershipControls | partial | inferred, 1 of 3 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | GetObject | partial | inferred, 5 of 7 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
 | HeadObject | partial | inferred, 6 of 9 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |

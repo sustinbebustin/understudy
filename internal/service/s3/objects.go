@@ -35,9 +35,9 @@ func (s *Service) bindObjects(b s3api.Binder) {
 		})
 	}, registry.Full{}, touches(attrs))
 	del := func(in *s3api.DeleteObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.DeleteObject(s.deleteObject, registry.Partial{Note: "no MFA delete or Object Lock retention"}, touches(del))
+	b.DeleteObject(s.deleteObject, registry.Partial{Note: deleteNote}, touches(del))
 	dels := func(in *s3api.DeleteObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.DeleteObjects(s.deleteObjects, registry.Partial{Note: "no MFA delete or Object Lock retention"}, touches(dels))
+	b.DeleteObjects(s.deleteObjects, registry.Partial{Note: deleteNote}, touches(dels))
 	cp := func(in *s3api.CopyObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.CopyObject(s.copyObject, registry.Partial{Note: "an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; " + eventHoldNote}, touches(cp))
 	lv1 := func(in *s3api.ListObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
@@ -102,8 +102,8 @@ type Object struct {
 	// Parts are a multipart object's parts, in part order; empty for an
 	// object written in one request.
 	Parts []ObjectPart `json:"parts,omitempty"`
-	// Lock is the version's retention and legal hold. Nothing sets it
-	// yet, so it is always zero and never written.
+	// Lock is the version's retention and legal hold: zero, and not
+	// written, for a version that never had either.
 	Lock ObjectLock `json:"lock,omitzero"`
 }
 

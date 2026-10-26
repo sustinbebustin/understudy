@@ -188,10 +188,19 @@ func errObjectLocked() *awserr.Error {
 
 // checkDelete refuses a versioned delete of a version under a legal hold,
 // or under a retention in force that is COMPLIANCE, or GOVERNANCE without
-// bypass, with 403 AccessDenied (s3-ssec-object-lock.md 7.1). Not
-// implemented yet: it answers errNotImplementedYet.
-func (ObjectLock) checkDelete(clock.Instant, bool) *awserr.Error {
-	return errNotImplementedYet("ObjectLock.checkDelete")
+// bypass, with 403 AccessDenied (s3-ssec-object-lock.md 7.1; LocalStack
+// test_s3.snapshot.json L9639, L10044, L17856). Bypass lifts GOVERNANCE
+// only, never COMPLIANCE (L17874) or a hold (6.6). Once now reaches
+// RetainUntil the retention protects nothing (L17904; switch
+// s3.object-lock.retain-until-format).
+func (l ObjectLock) checkDelete(now clock.Instant, bypass bool) *awserr.Error {
+	if l.LegalHold == LegalHoldOn {
+		return errObjectLocked()
+	}
+	if r := l.Retention; r != nil && r.inForce(now) && (r.Mode == RetentionCompliance || !bypass) {
+		return errObjectLocked()
+	}
+	return nil
 }
 
 // Retention is a retention period: its mode and the instant it ends on the
