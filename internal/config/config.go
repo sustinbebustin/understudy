@@ -24,14 +24,18 @@ type Config struct {
 	Clock    ClockStart
 	Accounts Accounts
 	// Regions are region names accepted beyond AWS's own.
-	Regions  []aws.Region
-	Docker   Docker
-	S3       S3
-	Lambda   Lambda
-	SQS      SQS
-	IAM      IAM
-	DynamoDB DynamoDB
-	Journal  Journal
+	Regions []aws.Region
+	Docker  Docker
+	// DockerLabels are added to every container and network understudy
+	// creates (dockerLabels, testcontainers.md 9.3); no key starts with
+	// understudy.dev/. Nil when unset. Not read from any source yet.
+	DockerLabels map[string]string
+	S3           S3
+	Lambda       Lambda
+	SQS          SQS
+	IAM          IAM
+	DynamoDB     DynamoDB
+	Journal      Journal
 	// Faults are fault rules active from the start.
 	Faults []fault.Rule
 	Log    Log

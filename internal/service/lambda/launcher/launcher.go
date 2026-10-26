@@ -17,6 +17,10 @@ type Options struct {
 	Ownership docker.Ownership
 	// Test adds the understudy.dev/test=1 label; only test harnesses set it.
 	Test bool
+	// ExtraLabels are added to every container's labels (the dockerLabels
+	// setting, testcontainers.md 9.3); New refuses a key starting with
+	// docker.ReservedPrefix. Not applied yet.
+	ExtraLabels map[string]string
 	// Topology decides the addresses, extra hosts and network function
 	// containers get, and whether code is bind-mounted or copied.
 	Topology topology.Topology

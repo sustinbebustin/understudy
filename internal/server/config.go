@@ -70,6 +70,10 @@ type Config struct {
 	// Docker is where the Docker Engine is; nil is DockerSocket at the
 	// default socket.
 	Docker Docker
+	// DockerLabels are added to every container and network understudy
+	// creates (dockerLabels, testcontainers.md 9.3); New refuses a key
+	// starting with understudy.dev/. Not applied yet.
+	DockerLabels map[string]string
 	// DynamoDB is whether the DynamoDB service runs; nil is
 	// DynamoDBEnabled.
 	DynamoDB DynamoDB

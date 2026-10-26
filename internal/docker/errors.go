@@ -221,6 +221,17 @@ func (e *OwnershipError) Error() string {
 	return fmt.Sprintf("ownership %+v lacks an instance or an owner, so sweeps could not tell its objects from other instances'; set both", e.Ownership)
 }
 
+// ReservedLabelError reports an added label whose key starts with
+// ReservedPrefix, which only understudy's own labels use (testcontainers.md
+// 9.3).
+type ReservedLabelError struct {
+	Key string
+}
+
+func (e *ReservedLabelError) Error() string {
+	return fmt.Sprintf("label key %q is reserved for understudy's own labels; choose a key outside %s", e.Key, ReservedPrefix)
+}
+
 // EngineLimitError reports a request the detected engine cannot honor, so
 // it is refused before it is sent.
 type EngineLimitError struct {

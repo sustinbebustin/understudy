@@ -1,0 +1,32 @@
+{
+  "name": "testcontainers-understudy",
+  "version": "0.0.0",
+  "description": "Testcontainers module for understudy, the local AWS emulator",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">= 22.22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --test-timeout=300000 test/"
+  },
+  "peerDependencies": {
+    "testcontainers": "^12.2.1"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-iam": "^3.1149.0",
+    "@aws-sdk/client-lambda": "^3.1149.0",
+    "@aws-sdk/client-sqs": "^3.1149.0",
+    "testcontainers": "^12.2.1",
+    "typescript": "^7.0.2"
+  }
+}
