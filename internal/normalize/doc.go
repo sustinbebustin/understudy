@@ -10,6 +10,9 @@
 // timestamps, the masked identity values of the recordings, credentials, the
 // account, receipt handles, and the values a parity scenario binds.
 //
-// Not implemented yet: the rules are stubs, and snapshot still applies its
-// own copy of the snapshot set.
+// A normalizer has a member rule, a text rule, or both. A member rule masks
+// a whole scalar by the name of the JSON member or XML element holding it
+// (Set.Member); a text rule masks what it finds inside free text (Set.Text).
+// The bound normalizer has neither: the replayer applies Substitute with the
+// scenario's bindings before the rest of the set.
 package normalize
