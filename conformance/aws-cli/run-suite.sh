@@ -22,6 +22,7 @@ source "$here/lib.sh"
 : "${UE_ADMIN_URL:?UE_ADMIN_URL must be set (run through run.sh)}"
 UE_RESULTS_DIR=${UE_RESULTS_DIR:-$(mktemp -d)}
 UE_TMP=$(mktemp -d)
+trap 'rm -rf "$UE_TMP"' EXIT
 UE_TEST_TIMEOUT=${UE_TEST_TIMEOUT:-180}
 export UE_ADMIN_URL UE_TMP
 
