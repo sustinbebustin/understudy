@@ -123,7 +123,7 @@ test_s3_cp_upload_and_download_round_trip() {
 
 test_s3_cp_stdin_and_stdout() {
   mkbucket
-  printf 'from stdin' | aws s3 cp - "s3://$BUCKET/stdin.txt" >/dev/null
+  printf 'from stdin' | AWS_CONFIG_FILE=$(ue_cli_config) aws s3 cp - "s3://$BUCKET/stdin.txt" >/dev/null
   aws_ok s3 cp "s3://$BUCKET/stdin.txt" -
   assert_eq 'from stdin' "$AWS_OUT" 'object body on stdout'
 }
@@ -1418,8 +1418,7 @@ test_virtual_hosted_style_addressing() {
   mkbucket
   put_obj vh.txt 'virtual hosted'
   local cfg port
-  cfg=$(mktemp "$UE_TMP/awsconfig.XXXXXX")
-  printf '[default]\ns3 =\n    addressing_style = virtual\n' >"$cfg"
+  cfg=$(ue_cli_config 'addressing_style = virtual')
   port=${AWS_ENDPOINT_URL##*:}
   AWS_CONFIG_FILE=$cfg AWS_ENDPOINT_URL="http://localhost:$port" aws_ok s3 cp "s3://$BUCKET/vh.txt" -
   assert_eq 'virtual hosted' "$AWS_OUT"
@@ -1429,8 +1428,7 @@ test_virtual_hosted_style_addressing() {
 test_virtual_hosted_style_listing_and_put() {
   mkbucket
   local cfg port src="$UE_TMP/vhput.txt"
-  cfg=$(mktemp "$UE_TMP/awsconfig.XXXXXX")
-  printf '[default]\ns3 =\n    addressing_style = virtual\n' >"$cfg"
+  cfg=$(ue_cli_config 'addressing_style = virtual')
   port=${AWS_ENDPOINT_URL##*:}
   printf 'put through the bucket host' >"$src"
   AWS_CONFIG_FILE=$cfg AWS_ENDPOINT_URL="http://localhost:$port" aws_ok s3 cp "$src" "s3://$BUCKET/dir/put.txt"

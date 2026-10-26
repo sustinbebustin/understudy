@@ -36,18 +36,47 @@ new_name() {
 
 # Running the CLI
 
+# ue_cli_config [SETTING ...]: print the path of an AWS CLI config file whose
+# default profile's s3 section holds each SETTING ("name = value") and, when
+# UE_TRANSFER_CLIENT is set (classic or crt), preferred_transfer_client, which
+# the CLI reads from no environment variable. With nothing to hold it prints
+# /dev/null, the sealed default. The file names no endpoint and no
+# credentials; those stay sealed in the environment.
+# shellcheck disable=SC2120 # tests pass settings (tests/s3.sh)
+ue_cli_config() {
+  local settings=("$@") cfg
+  if [ -n "${UE_TRANSFER_CLIENT:-}" ]; then
+    settings+=("preferred_transfer_client = $UE_TRANSFER_CLIENT")
+  fi
+  if [ "${#settings[@]}" -eq 0 ]; then
+    printf '/dev/null'
+    return
+  fi
+  cfg=$(mktemp "${UE_TMP:?UE_TMP unset}/awsconfig.XXXXXX")
+  printf '[default]\ns3 =\n' >"$cfg"
+  printf '    %s\n' "${settings[@]}" >>"$cfg"
+  printf '%s' "$cfg"
+}
+
 # aws_run ARGS...: run the CLI with --debug and record the outcome in
 #   AWS_RC      exit status
 #   AWS_OUT     stdout
 #   AWS_ERR     path of the file holding stderr (including the debug log)
 #   AWS_STATUS  HTTP status of the last request the CLI sent, or empty
 #   AWS_CMD     the command line, for failure messages
-# It never fails the test; use aws_ok or aws_error for that.
+# It never fails the test; use aws_ok or aws_error for that. The CLI runs
+# under UE_TRANSFER_CLIENT (ue_cli_config); a call that brings its own
+# AWS_CONFIG_FILE builds it with ue_cli_config, so the client still applies.
 aws_run() {
   AWS_CMD="aws $*"
   AWS_ERR=$(mktemp "${UE_TMP:?UE_TMP unset}/err.XXXXXX")
   AWS_RC=0
-  AWS_OUT=$(aws "$@" --debug 2>"$AWS_ERR") || AWS_RC=$?
+  local cfg=${AWS_CONFIG_FILE:-}
+  if [ "$cfg" = /dev/null ]; then
+    # shellcheck disable=SC2119 # no settings: the transfer client alone
+    cfg=$(ue_cli_config)
+  fi
+  AWS_OUT=$(AWS_CONFIG_FILE=$cfg aws "$@" --debug 2>"$AWS_ERR") || AWS_RC=$?
   AWS_STATUS=$(sed -nE 's/.*"(GET|POST|PUT|DELETE|HEAD|PATCH) [^"]*" ([0-9]{3}) .*/\2/p' "$AWS_ERR" | tail -n 1)
 }
 

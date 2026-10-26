@@ -9,7 +9,10 @@ conformance/aws-cli/run.sh                                 # every service
 CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh          # every service but DynamoDB
 conformance/aws-cli/run.sh sqs sns                         # only these services (test file names)
 UE_ONLY='dlq|redrive' conformance/aws-cli/run.sh sqs       # only tests whose name matches
+UE_TRANSFER_CLIENTS=crt conformance/aws-cli/run.sh s3      # the s3 transfer tests under crt only
 ```
+
+The `aws s3` transfer tests (`test_s3_*` and the virtual-hosted ones in `tests/s3.sh`) run once under each AWS CLI transfer client in `UE_TRANSFER_CLIENTS`, default `classic crt`, and report as `<test>[classic]` and `<test>[crt]`. The two clients send different requests (the CRT sends `x-amz-checksum-mode: enabled`, `docs/research/s3.md` 5.8), and which one the CLI picks by itself depends on its version and host. The client reaches the CLI as `preferred_transfer_client` in a config file `lib.sh` writes (`ue_cli_config`), which holds no endpoint or credentials. An empty `UE_TRANSFER_CLIENTS` runs them once, under the CLI's own choice.
 
 `run.sh` builds understudy into `.build/conformance/aws-cli/understudy`, starts it on `127.0.0.1:45664` with a fresh data directory, waits for `/_understudy/v1/health`, runs the suite through `scripts/sealed`, then stops the server and removes the containers it labelled. It ends with a summary on stderr, `run.sh: passed=N failed=N skipped=N` and a `run.sh: SKIP <service>/<test>: <reason>` line per skip, read from `results.tsv`. It exits non-zero when any test fails, or when the build or the server start fails. On failure it keeps the work directory (server log, data, one log per test) and prints its path.
 
