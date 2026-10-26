@@ -361,10 +361,10 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | UntagUser | full | third-party-recorded, 2 of 2 claims |  |
 | UpdateRole | full | third-party-recorded, 2 of 2 claims |  |
 | UpdateRoleDescription | full | third-party-recorded, 2 of 2 claims |  |
-| CreatePolicy | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced |
-| CreatePolicyVersion | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced |
-| PutRolePolicy | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced |
-| PutUserPolicy | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced |
+| CreatePolicy | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced; the S3 region rule exempts the regional S3 resource types of the Service Authorization Reference (access grants, batch jobs, Storage Lens, multi-Region access point requests), which moto refuses, and whether IAM accepts them is UNVERIFIED (iam-evaluation.md 10.6) |
+| CreatePolicyVersion | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced; the S3 region rule exempts the regional S3 resource types of the Service Authorization Reference (access grants, batch jobs, Storage Lens, multi-Region access point requests), which moto refuses, and whether IAM accepts them is UNVERIFIED (iam-evaluation.md 10.6) |
+| PutRolePolicy | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced; the S3 region rule exempts the regional S3 resource types of the Service Authorization Reference (access grants, batch jobs, Storage Lens, multi-Region access point requests), which moto refuses, and whether IAM accepts them is UNVERIFIED (iam-evaluation.md 10.6) |
+| PutUserPolicy | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced; the S3 region rule exempts the regional S3 resource types of the Service Authorization Reference (access grants, batch jobs, Storage Lens, multi-Region access point requests), which moto refuses, and whether IAM accepts them is UNVERIFIED (iam-evaluation.md 10.6) |
 | UpdateAccessKey | stored-only | third-party-recorded, 2 of 2 claims | an Inactive key still authenticates, since understudy does not enforce IAM |
 | UpdateAssumeRolePolicy | stored-only | third-party-recorded, 2 of 2 claims | the trust policy is validated and stored, not enforced |
 | AttachRolePolicy | partial | third-party-recorded, 2 of 2 claims | the attachment is stored, not enforced; an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity; every catalogued policy attaches, service-linked role policies included, though the IAM model documents PolicyNotAttachable for them |
@@ -1042,7 +1042,7 @@ Internal operations:
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
 | GetCallerIdentity | full | third-party-recorded, 2 of 2 claims |  |
-| AssumeRole | partial | contradicted (sts/R15/06-assume-denied.json), 4 of 7 claims | the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012); the answer leaves out PackedPolicySize, SessionTokenSize and SessionTokenUtilization, which AWS sends |
+| AssumeRole | partial | contradicted (sts/R15/06-assume-denied.json), 4 of 7 claims | the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; the inline session policy is validated as an IAM identity policy, whose S3 region rule exempts the regional S3 resource types moto refuses, UNVERIFIED (iam-evaluation.md 10.6); MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012); the answer leaves out PackedPolicySize, SessionTokenSize and SessionTokenUtilization, which AWS sends |
 | GetSessionToken | partial | third-party-recorded, 2 of 2 claims | MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused only under sigv4 verify |
 | AssumeRoleWithSAML | unbound | unassessed |  |
 | AssumeRoleWithWebIdentity | unbound | unassessed |  |

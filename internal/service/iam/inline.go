@@ -16,7 +16,7 @@ import (
 
 // bindInline binds the inline policies of roles and users.
 func (s *Service) bindInline(b iamapi.Binder) {
-	stored := registry.StoredOnly{Note: "the document is validated and stored, not enforced"}
+	stored := registry.StoredOnly{Note: identityDocumentNote}
 	b.PutRolePolicy(func(_ context.Context, c *kernel.Call, in *iamapi.PutRolePolicyInput) (*iamapi.PutRolePolicyOutput, *awserr.Error) {
 		return unit[iamapi.PutRolePolicyOutput](s.putInline(c, roleHolder(c.Scope().Account, in.RoleName), in.PolicyName, in.PolicyDocument))
 	}, stored)

@@ -20,7 +20,7 @@ import (
 
 // bindPolicies binds managed policies and their versions.
 func (s *Service) bindPolicies(b iamapi.Binder) {
-	stored := registry.StoredOnly{Note: "the document is validated and stored, not enforced"}
+	stored := registry.StoredOnly{Note: identityDocumentNote}
 	b.CreatePolicy(s.createPolicy, stored)
 	b.GetPolicy(s.getPolicy, registry.Partial{Note: catalogueSource + "; " + catalogueShown + "; Description is the guide's text, not recorded against IAM (iam-evaluation.md 10.5)"})
 	b.DeletePolicy(s.deletePolicy, registry.Full{})
