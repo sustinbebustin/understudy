@@ -306,6 +306,10 @@ Amended 2026-10-26: DescribeEventBus and the rule and target row were Full, and 
 | `events.default-bus.creation-time` | `first-use` of the scope | inferred | section 3.6 | EBB-07 |
 | `events.bus-target.same-account-event-id` | `kept` (or `new`) | inferred | sections 6.2, 6.3 | EBB-08 |
 | `events.bus-target.cross-account-role` | `required` (or `organization-only`) | aws-doc | sections 6.3, 9 | EBB-09 |
+| `events.bus-target.forwarded-time-resources` | `kept`: the forwarded event keeps `time` and `resources` (or `reset`) | inferred | section 6.2, implication 12 | EBB-08 |
+| `events.bus-target.missing-bus` | `dropped`: `PutTargets` accepts a bus that does not exist, and a delivery to it is dropped as `PutEvents` drops one (or `refused`) | inferred | section 6.2, implication 14 | EBB-08 |
+
+The last two rows were added 2026-10-26: implications 12 and 14 chose them without a switch, so the coverage page did not show them.
 
 ### 10.6 Terraform: apply and an empty second plan
 

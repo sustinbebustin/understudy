@@ -521,6 +521,12 @@ func busSwitches() []fidelity.Switch[string] {
 		// by the newer user-guide rule, unless it replaces one with the same
 		// Id and Arn whose role it keeps (withCrossAccountRole).
 		sw("events.bus-target.cross-account-role", "required", evidence.AWSDoc, "63-cross-account", "EBB-09", "eventbridge.PutTargets"),
+		// A forwarded event keeps its time and resources, which every
+		// recording redacts or leaves empty (fanOut.forward).
+		sw("events.bus-target.forwarded-time-resources", "kept", evidence.Inferred, "62-an-event-bus-as-a-target", "EBB-08", "eventbridge.PutEvents"),
+		// PutTargets accepts an event bus that does not exist, and a
+		// delivery to it is dropped as PutEvents drops one (targetOf).
+		sw("events.bus-target.missing-bus", "dropped", evidence.Inferred, "62-an-event-bus-as-a-target", "EBB-08", "eventbridge.PutTargets"),
 	}
 }
 

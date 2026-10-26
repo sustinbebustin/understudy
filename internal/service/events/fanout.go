@@ -141,7 +141,7 @@ func (q queueTarget) fifo() bool { return strings.HasSuffix(q.queue.Resource, ".
 // across accounts but not across regions (eb-targets.html), and to a bus
 // across both (eventbridge-buses.md 6.3, 6.4). A bus need not exist yet: a
 // delivery to a missing bus is dropped as PutEvents drops one
-// (eventbridge-buses.md 10.4.14).
+// (eventbridge-buses.md 10.4.14, events.bus-target.missing-bus).
 func targetOf(scope aws.Scope, s string) (deliveryTarget, bool) {
 	arn, err := aws.ParseARN(s)
 	if err != nil {
@@ -335,9 +335,10 @@ func shape(r ruleRef, t *Target, dt payloadTarget, ev envelope.Event, ingested c
 // the event with its envelope, which the receiving bus keeps
 // (eventbridge-buses.md 10.4.12). The forwarded event keeps its source,
 // detail-type, detail, account and region (recorded, eventbridge-buses.md
-// 6.2), and its time and resources (inferred, EBB-08). Its id is new when
-// the bus is in another region (eventbridge-buses.md 6.4), and kept in the
-// same region, for another account (6.3) and for the rule's own
+// 6.2), and its time and resources
+// (events.bus-target.forwarded-time-resources). Its id is new when the bus
+// is in another region (eventbridge-buses.md 6.4), and kept in the same
+// region, for another account (6.3) and for the rule's own
 // (events.bus-target.same-account-event-id).
 //
 // A nil delivery comes with why the bus receives nothing: the event

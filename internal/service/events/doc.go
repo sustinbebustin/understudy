@@ -99,12 +99,14 @@
 //   - An event bus target forwards each matched event as an
 //     events-to-events delivery whose entry keeps the event's source,
 //     detail-type, detail, account, region, time and resources; keeping the
-//     time and resources is inferred (EBB-08). The id is new for a bus in
-//     another region and kept otherwise, also for a bus of the rule's own
-//     account and region (events.bus-target.same-account-event-id). The bus
-//     need not exist when PutTargets adds it, and a delivery to a bus that
-//     does not exist is dropped as PutEvents drops one; both are inferred
-//     (EBB-08). The RoleArn is stored, not assumed.
+//     time and resources is inferred
+//     (events.bus-target.forwarded-time-resources). The id is new for a bus
+//     in another region and kept otherwise, also for a bus of the rule's
+//     own account and region (events.bus-target.same-account-event-id). The
+//     bus need not exist when PutTargets adds it, and a delivery to a bus
+//     that does not exist is dropped as PutEvents drops one; both are
+//     inferred (events.bus-target.missing-bus). The RoleArn is stored, not
+//     assumed.
 //   - An event that arrived through an event bus target matches the
 //     receiving bus's rules as usual and reaches their other targets, but
 //     no bus target: each is journaled as a dropped delivery and not

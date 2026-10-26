@@ -275,9 +275,9 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | ListRuleNamesByTarget | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
 | ListRules | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
 | ListTargetsByRule | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
-| PutEvents | partial | contradicted (events/R14/H14-02.json), 1 of 9 claims | default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
+| PutEvents | partial | contradicted (events/R14/H14-02.json), 1 of 10 claims | default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
 | PutRule | partial | contradicted (events/R14/H14-01.json), 1 of 8 claims | default and custom buses of the caller's account and region; ScheduleExpression only on the default bus, as AWS; RoleArn is stored, not used; a rule on another account's or region's bus answers NotImplemented |
-| PutTargets | partial | inferred, 1 of 4 claims | Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented |
+| PutTargets | partial | inferred, 2 of 5 claims | Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented |
 | RemoveTargets | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
 | ActivateEventSource | unbound | unassessed |  |
 | CancelReplay | unbound | unassessed |  |
@@ -1059,7 +1059,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-96 switches: 1 aws-recorded, 1 third-party-recorded, 16 aws-doc, 78 inferred.
+98 switches: 1 aws-recorded, 1 third-party-recorded, 16 aws-doc, 80 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1084,6 +1084,8 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `cloudwatch.put-metric-data.timestamp-window` | `wall-or-emulator` | inferred | docs/research/secrets-logs-events-alarms.md#52-putmetricdata | none: AWS has one clock: which of understudy's two the windows read is understudy's choice, which no recording settles |
 | `events.bus-policy.remove-all-without-policy` | `ResourceNotFoundException` | inferred | docs/research/eventbridge-buses.md#43-removepermission | none: unrecorded: EBB-06 (eventbridge-buses.md 12) records it |
 | `events.bus-policy.remove-last-statement` | `policy-removed` | inferred | docs/research/eventbridge-buses.md#43-removepermission | none: unrecorded: EBB-06 (eventbridge-buses.md 12) records it |
+| `events.bus-target.forwarded-time-resources` | `kept` | inferred | docs/research/eventbridge-buses.md#62-an-event-bus-as-a-target | none: unrecorded: EBB-08 (eventbridge-buses.md 12) records it |
+| `events.bus-target.missing-bus` | `dropped` | inferred | docs/research/eventbridge-buses.md#62-an-event-bus-as-a-target | none: unrecorded: EBB-08 (eventbridge-buses.md 12) records it |
 | `events.bus-target.same-account-event-id` | `kept` | inferred | docs/research/eventbridge-buses.md#62-an-event-bus-as-a-target | none: unrecorded: EBB-08 (eventbridge-buses.md 12) records it |
 | `events.bus.kms-key-check` | `none` | inferred | docs/research/eventbridge-buses.md#31-createeventbus | none: unrecorded: EBB-05 (eventbridge-buses.md 12) records it |
 | `events.default-bus.creation-time` | `first-use` | inferred | docs/research/eventbridge-buses.md#36-the-default-bus | none: unrecorded: EBB-07 (eventbridge-buses.md 12) records it |

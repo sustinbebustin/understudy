@@ -13,10 +13,13 @@ import (
 
 // The forwarded event keeps its time and resources as well as the recorded
 // members (eventbridge-buses.md 10.4.12): the recordings redact time and
-// carry only resources: [], so keeping both is understudy's choice until
-// EBB-08 records them.
+// carry only resources: [], so keeping both is understudy's choice
+// (events.bus-target.forwarded-time-resources) until EBB-08 records them.
 func TestBusTargetForwardsTheEventTimeAndResources(t *testing.T) {
 	run(t, func(h *harness) {
+		if v := h.switchValue("events.bus-target.forwarded-time-resources"); v != "kept" {
+			t.Fatalf("no expectation for events.bus-target.forwarded-time-resources = %q", v)
+		}
 		dest := h.createBus("dest")
 		h.patternRule("fwd", `{"source": ["shop"]}`)
 		h.target("fwd", eventbridgeapi.Target{Id: "bus", Arn: dest})
@@ -40,9 +43,13 @@ func TestBusTargetForwardsTheEventTimeAndResources(t *testing.T) {
 // handling leaves unrecorded (eventbridge-buses.md 6.2, EBB-08), and the
 // delivery to it is made. The receiving PutEvents then drops the event as it
 // drops one put to a missing bus: an EventId and no delivery
-// (eventbridge-buses.md 10.4.14; 6.1, testdata/parity/events/R14/03-missing-bus.json).
+// (eventbridge-buses.md 10.4.14, events.bus-target.missing-bus; 6.1,
+// testdata/parity/events/R14/03-missing-bus.json).
 func TestBusTargetToAMissingBus(t *testing.T) {
 	run(t, func(h *harness) {
+		if v := h.switchValue("events.bus-target.missing-bus"); v != "dropped" {
+			t.Fatalf("no expectation for events.bus-target.missing-bus = %q", v)
+		}
 		missing := busPrefix + "not-yet"
 		h.patternRule("fwd", `{"source": ["shop"]}`)
 		h.target("fwd", eventbridgeapi.Target{Id: "bus", Arn: missing})
