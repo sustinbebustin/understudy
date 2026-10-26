@@ -614,6 +614,55 @@ func TestIAMPrimaryAction(t *testing.T) {
 	}
 }
 
+// TestIAMRowPerSDKClient: a prefix two models share can list one operation
+// name once per Boto3 client; sdkService picks the model's row, and a config
+// without one is refused rather than given either row.
+func TestIAMRowPerSDKClient(t *testing.T) {
+	const single = `{"name": "PutKinds", "authorized": ["golden:TagThing", "golden:PutKinds", "iam:PassRole"]}`
+	const shared = `{"name": "PutKinds", "sdk": ["golden"], "authorized": ["golden:PutKinds"]},
+        {"name": "PutKinds", "sdk": ["goldenv2"], "authorized": ["golden:WriteKinds"]}`
+	tests := []struct{ name, sdk, first, err string }{
+		{name: "the model's client", sdk: "golden", first: `{Prefix: "golden", Name: "PutKinds"}}`},
+		{name: "the other model's client", sdk: "goldenv2", first: `{Prefix: "golden", Name: "WriteKinds"}}`},
+		{
+			name: "no sdkService",
+			err:  "understudy-gen ir: com.example.golden#PutKinds: the golden table lists PutKinds once per SDK client (2 rows match); set sdkService in the service config to the model's Boto3 client",
+		},
+		{
+			name: "a client the table does not name", sdk: "goldenv3",
+			err: "understudy-gen ir: com.example.golden#PutKinds: the Service Reference table has no golden entry for this operation; re-run go run ./internal/cmd/vendor -service-reference",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in := goldenInputs(t)
+			table, ok := in.IAM.(codegen.ActionsTable)
+			if !ok {
+				t.Fatalf("goldenInputs gives IAM %T, want an ActionsTable", in.IAM)
+			}
+			if !bytes.Contains(table.Source.Content, []byte(single)) {
+				t.Fatalf("the golden table no longer holds %s", single)
+			}
+			table.Source.Content = bytes.Replace(table.Source.Content, []byte(single), []byte(shared), 1)
+			in.IAM = table
+			in.Config.SDKService = tt.sdk
+			files, err := codegen.Generate(in)
+			if tt.err != "" {
+				if err == nil || err.Error() != tt.err {
+					t.Fatalf("Generate = %v\nwant %s", err, tt.err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := "[]registry.IAMAction{" + tt.first; !bytes.Contains(files["ops_gen.go"], []byte(want)) {
+				t.Fatalf("PutKinds does not list %s:\n%s", tt.first, files["ops_gen.go"])
+			}
+		})
+	}
+}
+
 // TestServiceConfigIAMPrimaryEntries: an iamPrimary entry states its reason,
 // and one operation has one entry.
 func TestServiceConfigIAMPrimaryEntries(t *testing.T) {

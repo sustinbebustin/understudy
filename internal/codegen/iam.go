@@ -32,13 +32,22 @@ type iamTable struct {
 
 // iamService is one service's part of the table.
 type iamService struct {
-	// operations holds, per operation, the authorized actions in the
-	// Service Reference's order.
-	operations map[string][]registry.IAMAction
+	// operations holds, per operation name, its rows: one per group of
+	// Boto3 clients the operation belongs to, each with the authorized
+	// actions in the Service Reference's order.
+	operations map[string][]iamRow
 	// actions holds the names of every action the service lists under
 	// Actions[], which may name an operation's own action that its
 	// authorized list leaves out.
 	actions map[string]bool
+}
+
+// iamRow is one table row of an operation name: the Boto3 clients it is an
+// operation of (none named means every model of the prefix) and what it
+// authorizes.
+type iamRow struct {
+	sdk        []string
+	authorized []registry.IAMAction
 }
 
 // iamEntry is one operation's row of the table.
@@ -65,6 +74,7 @@ func parseIAMTable(in IAMInput) (*iamTable, error) {
 			Prefix     string `json:"prefix"`
 			Operations []struct {
 				Name       string   `json:"name"`
+				SDK        []string `json:"sdk"`
 				Authorized []string `json:"authorized"`
 			} `json:"operations"`
 			Actions []struct {
@@ -79,7 +89,7 @@ func parseIAMTable(in IAMInput) (*iamTable, error) {
 	}
 	t := &iamTable{byPrefix: map[string]iamService{}}
 	for _, s := range v.Services {
-		ops := map[string][]registry.IAMAction{}
+		ops := map[string][]iamRow{}
 		names := map[string]bool{}
 		for _, a := range s.Actions {
 			if _, err := parseIAMAction(s.Prefix + ":" + a.Name); err != nil {
@@ -96,26 +106,41 @@ func parseIAMTable(in IAMInput) (*iamTable, error) {
 				}
 				acts = append(acts, act)
 			}
-			ops[op.Name] = acts
+			ops[op.Name] = append(ops[op.Name], iamRow{sdk: op.SDK, authorized: acts})
 		}
 		t.byPrefix[s.Prefix] = iamService{operations: ops, actions: names}
 	}
 	return t, nil
 }
 
-// entry returns operation op's row of the table. Its authorized actions
-// are in the table's order, which is alphabetical rather than primary
-// first. A nil table gives every operation an empty row.
-func (t *iamTable) entry(prefix, op string) (iamEntry, bool) {
+// entry returns operation op's row of the table for the model whose Boto3
+// client is sdk: the row naming sdk, or one naming no client. Its authorized
+// actions are in the table's order, which is alphabetical rather than primary
+// first. A nil table gives every operation an empty row. An operation with no
+// row for the model is not found; one with several is an error, since only
+// sdkService can pick between them.
+func (t *iamTable) entry(prefix, sdk, op string) (iamEntry, bool, error) {
 	if t == nil {
-		return iamEntry{}, true
+		return iamEntry{}, true, nil
 	}
 	s, ok := t.byPrefix[prefix]
 	if !ok {
-		return iamEntry{}, false
+		return iamEntry{}, false, nil
 	}
-	acts, ok := s.operations[op]
-	return iamEntry{authorized: acts, listed: s.actions[op]}, ok
+	var rows []iamRow
+	for _, r := range s.operations[op] {
+		if len(r.sdk) == 0 || sdk == "" || slices.Contains(r.sdk, sdk) {
+			rows = append(rows, r)
+		}
+	}
+	switch len(rows) {
+	case 0:
+		return iamEntry{}, false, nil
+	case 1:
+		return iamEntry{authorized: rows[0].authorized, listed: s.actions[op]}, true, nil
+	default:
+		return iamEntry{}, false, fmt.Errorf("the %s table lists %s once per SDK client (%d rows match); set sdkService in the service config to the model's Boto3 client", prefix, op, len(rows))
+	}
 }
 
 // primaryFirst orders operation op's actions primary first

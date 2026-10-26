@@ -20,12 +20,17 @@ import (
 // service's IAM action prefix and its key in the Service Reference table,
 // stated rather than derived: the model's arnNamespace is wrong for
 // CloudWatch (monitoring, where IAM says cloudwatch; smithy-models.md 3.1).
+// SDKService is the Boto3 client name the table records for the model's
+// operations; it tells apart two models whose operations share one prefix
+// (API Gateway v1 and v2), and may be empty for a model whose prefix no other
+// model uses.
 type ServiceConfig struct {
 	ID             ref.ServiceID
 	Service        smithy.ShapeID
 	Package        string
 	Model          string
 	IAMPrefix      string
+	SDKService     string
 	ExtraProtocols []ref.ProtocolID
 	// RawBinding adds a <Op>Raw binder method per operation (DynamoDB's
 	// passthrough, ADR 0014).
@@ -82,6 +87,7 @@ func ParseServiceConfig(r io.Reader, id ref.ServiceID) (ServiceConfig, error) {
 		Package        string            `json:"package"`
 		Model          string            `json:"model"`
 		IAMPrefix      string            `json:"iamPrefix"`
+		SDKService     string            `json:"sdkService"`
 		ExtraProtocols []string          `json:"extraProtocols"`
 		RawBinding     bool              `json:"rawBinding"`
 		RawOperations  []json.RawMessage `json:"rawOperations"`
@@ -104,8 +110,11 @@ func ParseServiceConfig(r io.Reader, id ref.ServiceID) (ServiceConfig, error) {
 	if !isIAMPrefix(v.IAMPrefix) {
 		return ServiceConfig{}, failf(StageLoad, subject, `"iamPrefix" is %q; give the IAM action prefix the Service Reference lists, such as "sqs" or "cloudwatch" (not the arnNamespace "monitoring")`, v.IAMPrefix)
 	}
+	if v.SDKService != "" && !isIAMPrefix(v.SDKService) {
+		return ServiceConfig{}, failf(StageLoad, subject, `"sdkService" is %q; give the Boto3 client name, such as "apigatewayv2" or "stepfunctions"`, v.SDKService)
+	}
 	cfg := ServiceConfig{
-		ID: id, Service: svc, Package: v.Package, Model: v.Model, IAMPrefix: v.IAMPrefix,
+		ID: id, Service: svc, Package: v.Package, Model: v.Model, IAMPrefix: v.IAMPrefix, SDKService: v.SDKService,
 		RawBinding: v.RawBinding, Destination: APIPackage{},
 	}
 	for _, p := range v.ExtraProtocols {

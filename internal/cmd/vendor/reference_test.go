@@ -79,7 +79,7 @@ func fakeReference(t *testing.T) referenceFetcher {
 	mux := http.NewServeMux()
 	var srv *httptest.Server
 	mux.HandleFunc("GET /index", func(w http.ResponseWriter, _ *http.Request) {
-		prefixes := slices.Sorted(maps.Values(referencePrefixes()))
+		prefixes := referencePrefixes()
 		index := make([]indexEntry, 0, len(prefixes))
 		for _, p := range prefixes {
 			index = append(index, indexEntry{Service: p, URL: srv.URL + "/v1/" + p + "/" + p + ".json", Modified: 1791496902})
@@ -118,7 +118,7 @@ func TestFetchActionsWritesOneEntryPerPinnedPrefix(t *testing.T) {
 	for _, s := range a.Services {
 		prefixes = append(prefixes, s.Prefix)
 	}
-	if want := slices.Sorted(maps.Values(referencePrefixes())); !slices.Equal(prefixes, want) || a.Retrieved != "2026-10-10" {
+	if want := referencePrefixes(); !slices.Equal(prefixes, want) || a.Retrieved != "2026-10-10" {
 		t.Fatalf("actions.json lists %v retrieved %s, want %v", prefixes, a.Retrieved, want)
 	}
 	cw := a.Services[0]
@@ -128,12 +128,12 @@ func TestFetchActionsWritesOneEntryPerPinnedPrefix(t *testing.T) {
 }
 
 // actionsFixture is an actions table (root) that covers every operation of
-// twelve one-operation models (models).
+// the pinned models, each a one-operation model (models).
 func actionsFixture(t *testing.T) (root, models fstest.MapFS) {
 	t.Helper()
 	models = fstest.MapFS{}
 	a := Actions{Source: referenceIndex, Retrieved: "2026-10-10"}
-	for _, prefix := range slices.Sorted(maps.Values(referencePrefixes())) {
+	for _, prefix := range referencePrefixes() {
 		a.Services = append(a.Services, ServiceActions{
 			Prefix: prefix, URL: referenceIndex + "v1/" + prefix + "/" + prefix + ".json", Version: "v1.4", Modified: 1, SHA256: strings.Repeat("d", 64),
 			Operations: []OperationAction{{Name: "Ping", Authorized: []string{prefix + ":Ping"}}},
@@ -160,7 +160,7 @@ func TestVerifyActionsAcceptsACompleteTable(t *testing.T) {
 // an operation fails -verify before the generator does.
 func TestVerifyActionsNamesAModelOperationWithoutAnEntry(t *testing.T) {
 	root, models := actionsFixture(t)
-	sqs := pinnedModels()[10]
+	sqs := pinnedModel(t, "sqs")
 	models[sqs.Path] = &fstest.MapFile{Data: []byte(`{"smithy":"2.0","shapes":{"x#Ping":{"type":"operation"},"x#Purge":{"type":"operation"}}}`)}
 	err := verifyActions(root, models, "fixture")
 	want := "service sqs has no entry for operation Purge of " + sqs.Path
@@ -169,16 +169,75 @@ func TestVerifyActionsNamesAModelOperationWithoutAnEntry(t *testing.T) {
 	}
 }
 
-// TestReferencePrefixesMatchTheServiceConfigs: the prefixes this tool
-// fetches are the iamPrefix values the generator looks up, model by model,
-// so the two tables cannot drift apart.
-func TestReferencePrefixesMatchTheServiceConfigs(t *testing.T) {
+// pinnedModel is the pinned model of directory dir.
+func pinnedModel(t *testing.T, dir string) model {
+	t.Helper()
+	i := slices.IndexFunc(pinnedModels(), func(m model) bool { return m.Dir == dir })
+	if i < 0 {
+		t.Fatalf("no pinned model in directory %s", dir)
+	}
+	return pinnedModels()[i]
+}
+
+// sharedDocFixture is a Service Reference document whose CreateDeployment is
+// an operation of two Boto3 clients with different authorized actions, as a
+// prefix two models share may list it.
+func sharedDocFixture() []byte {
+	return []byte(`{
+  "Name": "apigateway",
+  "Version": "v1.4",
+  "Operations": [
+    {"Name": "CreateDeployment", "AuthorizedActions": [{"Name": "POST", "Service": "apigateway"}],
+     "SDK": [{"Name": "apigatewayv2", "Method": "create_deployment", "Package": "Boto3"}]},
+    {"Name": "CreateDeployment", "AuthorizedActions": [{"Name": "POST", "Service": "apigateway"}, {"Name": "PATCH", "Service": "apigateway"}],
+     "SDK": [{"Name": "apigateway", "Method": "create_deployment", "Package": "Boto3"}, {"Name": "apigateway", "Method": "createDeployment", "Package": "SomeOtherSDK"}]}
+  ],
+  "Actions": []
+}`)
+}
+
+func TestDeriveServiceKeepsEachSDKClientsOperation(t *testing.T) {
+	svc, err := deriveService("apigateway", indexEntry{URL: "u"}, sharedDocFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []OperationAction{
+		{Name: "CreateDeployment", SDK: []string{"apigateway"}, Authorized: []string{"apigateway:POST", "apigateway:PATCH"}},
+		{Name: "CreateDeployment", SDK: []string{"apigatewayv2"}, Authorized: []string{"apigateway:POST"}},
+	}
+	if !reflect.DeepEqual(svc.Operations, want) {
+		t.Fatalf("operations =\n%+v\nwant\n%+v", svc.Operations, want)
+	}
+	var problems []string
+	checkService(svc, func(_, format string, args ...any) { problems = append(problems, fmt.Sprintf(format, args...)) })
+	if slices.ContainsFunc(problems, func(p string) bool { return strings.Contains(p, "appears twice") }) {
+		t.Fatalf("checkService = %v; one name for two SDK clients is not a duplicate", problems)
+	}
+}
+
+func TestCheckServiceRefusesAnOperationListedTwiceForOneClient(t *testing.T) {
+	svc := ServiceActions{Prefix: "sqs", Operations: []OperationAction{
+		{Name: "SendMessage", Authorized: []string{"sqs:SendMessage"}},
+		{Name: "SendMessage", SDK: []string{"sqs"}, Authorized: []string{"sqs:SendMessage"}},
+	}}
+	var problems []string
+	checkService(svc, func(_, format string, args ...any) { problems = append(problems, fmt.Sprintf(format, args...)) })
+	if !slices.Contains(problems, "operation SendMessage appears twice for one SDK client") {
+		t.Fatalf("checkService = %v, want the duplicate named", problems)
+	}
+}
+
+// TestReferenceServicesMatchTheServiceConfigs: the prefixes this tool
+// fetches and the SDK clients it keeps apart are the iamPrefix and
+// sdkService values the generator looks up, model by model, so the two
+// tables cannot drift apart.
+func TestReferenceServicesMatchTheServiceConfigs(t *testing.T) {
 	dir := filepath.Join("..", "..", "..", "codegen", "services")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := map[string]string{}
+	got := map[string]referenceService{}
 	for _, e := range entries {
 		id, ok := strings.CutSuffix(e.Name(), ".json")
 		if !ok {
@@ -192,9 +251,9 @@ func TestReferencePrefixesMatchTheServiceConfigs(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		got[cfg.Model] = cfg.IAMPrefix
+		got[cfg.Model] = referenceService{Prefix: cfg.IAMPrefix, SDK: cfg.SDKService}
 	}
-	if want := referencePrefixes(); !maps.Equal(got, want) {
-		t.Fatalf("codegen/services model -> iamPrefix = %v\nreferencePrefixes() = %v", got, want)
+	if want := referenceServices(); !maps.Equal(got, want) {
+		t.Fatalf("codegen/services model -> {iamPrefix, sdkService} = %v\nreferenceServices() = %v", got, want)
 	}
 }

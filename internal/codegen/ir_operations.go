@@ -73,7 +73,10 @@ func (b *builder) iamActions() error {
 		if o.Kind != registry.Modeled {
 			continue
 		}
-		row, ok := b.iam.entry(b.ir.IAMPrefix, o.Name)
+		row, ok, err := b.iam.entry(b.ir.IAMPrefix, b.cfg.SDKService, o.Name)
+		if err != nil {
+			return failf(StageIR, string(o.ID), "%w", err)
+		}
 		if !ok {
 			return failf(StageIR, string(o.ID), "the Service Reference table has no %s entry for this operation; re-run go run ./internal/cmd/vendor -service-reference", b.ir.IAMPrefix)
 		}
