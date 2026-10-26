@@ -3,6 +3,7 @@ package delivery
 import (
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -262,11 +263,20 @@ const (
 	EventsToLambda
 	EventsToSQS
 	EventsToSNS
+
+	// endMechanism follows the last value and is no mechanism: Mechanisms,
+	// valid and the MechanismError text count up to it, so a new value is
+	// one line above it plus its String, Via and Target cases.
+	endMechanism
 )
 
 // Mechanisms returns every declared mechanism in value order.
 func Mechanisms() []Mechanism {
-	return []Mechanism{SNSToSQS, SNSToLambda, S3ToSQS, S3ToSNS, S3ToLambda, EventsToLambda, EventsToSQS, EventsToSNS}
+	all := make([]Mechanism, 0, endMechanism-SNSToSQS)
+	for m := SNSToSQS; m < endMechanism; m++ {
+		all = append(all, m)
+	}
+	return all
 }
 
 // String returns the wire name, such as "sns-to-sqs".
@@ -331,7 +341,18 @@ type MechanismError struct {
 }
 
 func (e *MechanismError) Error() string {
-	return fmt.Sprintf("%q names no delivery mechanism; known names are sns-to-sqs, sns-to-lambda, s3-to-sqs, s3-to-sns, s3-to-lambda, events-to-lambda, events-to-sqs and events-to-sns", e.Text)
+	return fmt.Sprintf("%q names no delivery mechanism; known names are %s", e.Text, knownMechanisms())
+}
+
+// knownMechanisms lists every mechanism's wire name in value order, the
+// last after "and".
+func knownMechanisms() string {
+	all := Mechanisms()
+	names := make([]string, len(all))
+	for i, m := range all {
+		names[i] = m.String()
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }
 
 // ParseMechanism returns the mechanism whose wire name is s.
@@ -363,4 +384,4 @@ func (m *Mechanism) UnmarshalText(text []byte) error {
 }
 
 // valid reports whether m is one of the declared values.
-func (m Mechanism) valid() bool { return m >= SNSToSQS && m <= EventsToSNS }
+func (m Mechanism) valid() bool { return m >= SNSToSQS && m < endMechanism }

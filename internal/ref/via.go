@@ -1,6 +1,9 @@
 package ref
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Via is the closed set of mechanisms that make internal calls.
 type Via uint8
@@ -19,6 +22,11 @@ const (
 	KMSForward                    // S3, Secrets Manager, DynamoDB or CloudWatch Logs calling KMS for the caller, or on its own behalf for the caller's request
 	STSAssumeRole                 // STS reading the role AssumeRole names from IAM, for the caller
 	LambdaCode                    // Lambda reading a function's package from S3, for the caller
+
+	// endVia follows the last value and is no Via: valid, ParseVia and the
+	// ViaError text count up to it, so a new value is one line above it
+	// plus its String case.
+	endVia
 )
 
 // String returns the wire name, such as "sns-delivery".
@@ -59,7 +67,17 @@ type ViaError struct {
 }
 
 func (e *ViaError) Error() string {
-	return fmt.Sprintf("%q names no internal call mechanism; known names are sns-delivery, lambda-esm, events-target, s3-notification, lambda-logs, dynamodb-ttl, timer, snapshot, admin, kms-forward, sts-assume-role and lambda-code", e.Text)
+	return fmt.Sprintf("%q names no internal call mechanism; known names are %s", e.Text, knownVias())
+}
+
+// knownVias lists every Via's wire name in value order, the last after
+// "and".
+func knownVias() string {
+	names := make([]string, 0, endVia-SNSDelivery)
+	for v := SNSDelivery; v < endVia; v++ {
+		names = append(names, v.String())
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }
 
 // ParseVia returns the Via whose wire name is s.
@@ -91,4 +109,4 @@ func (v *Via) UnmarshalText(text []byte) error {
 }
 
 // valid reports whether v is one of the declared values.
-func (v Via) valid() bool { return v >= SNSDelivery && v <= LambdaCode }
+func (v Via) valid() bool { return v >= SNSDelivery && v < endVia }

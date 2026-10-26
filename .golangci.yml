@@ -75,7 +75,11 @@ linters:
     govet:
       enable-all: true
       disable: [fieldalignment, shadow]
-    exhaustive: { default-signifies-exhaustive: false }
+    exhaustive:
+      default-signifies-exhaustive: false
+      # A closed set's unexported end sentinel (endVia, endMechanism, ...)
+      # follows its last value and is no member, so no switch names it.
+      ignore-constants: ['\.end[A-Z][A-Za-z]*$']
     gochecksumtype: { default-signifies-exhaustive: false }
     godox: { keywords: [TODO, FIXME, HACK, XXX] }
     nolintlint: { require-explanation: true, require-specific: true }

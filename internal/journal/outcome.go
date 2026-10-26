@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -143,6 +144,11 @@ const (
 	// while understudy was not running, or before a loaded snapshot's
 	// time, were skipped rather than delivered in a burst.
 	AdvisoryScheduleFiresSkipped
+
+	// endAdvisoryKind follows the last value and is no advisory kind:
+	// ParseAdvisoryKind, MarshalText and the AdvisoryKindError text count
+	// up to it, so a new kind is one line above it plus its String case.
+	endAdvisoryKind
 )
 
 // String returns the wire name, such as "policy-would-deny".
@@ -171,12 +177,22 @@ type AdvisoryKindError struct {
 }
 
 func (e *AdvisoryKindError) Error() string {
-	return fmt.Sprintf("%q names no advisory kind; known names are policy-would-deny, unminted-credentials, shadowed-code-update, cross-region-served, filter-undecided and schedule-fires-skipped", e.Text)
+	return fmt.Sprintf("%q names no advisory kind; known names are %s", e.Text, knownAdvisoryKinds())
+}
+
+// knownAdvisoryKinds lists every AdvisoryKind's wire name in value order,
+// the last after "and".
+func knownAdvisoryKinds() string {
+	names := make([]string, 0, endAdvisoryKind-AdvisoryPolicyWouldDeny)
+	for k := AdvisoryPolicyWouldDeny; k < endAdvisoryKind; k++ {
+		names = append(names, k.String())
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }
 
 // ParseAdvisoryKind returns the AdvisoryKind whose wire name is s.
 func ParseAdvisoryKind(s string) (AdvisoryKind, error) {
-	for k := AdvisoryPolicyWouldDeny; k <= AdvisoryScheduleFiresSkipped; k++ {
+	for k := AdvisoryPolicyWouldDeny; k < endAdvisoryKind; k++ {
 		if k.String() == s {
 			return k, nil
 		}
@@ -186,7 +202,7 @@ func ParseAdvisoryKind(s string) (AdvisoryKind, error) {
 
 // MarshalText encodes the wire name.
 func (k AdvisoryKind) MarshalText() ([]byte, error) {
-	if k < AdvisoryPolicyWouldDeny || k > AdvisoryScheduleFiresSkipped {
+	if k < AdvisoryPolicyWouldDeny || k >= endAdvisoryKind {
 		return nil, &AdvisoryKindError{Text: k.String()}
 	}
 	return []byte(k.String()), nil

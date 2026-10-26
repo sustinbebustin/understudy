@@ -3,6 +3,7 @@ package journal
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -143,6 +144,11 @@ const (
 	KindAdvisory
 	KindUnclaimed
 	KindGap
+
+	// endKind follows the last kind and is no kind: ParseKind, MarshalText
+	// and the KindError text count up to it, so a new kind is one line
+	// above it plus its String, KindOf and NDJSON cases.
+	endKind
 )
 
 // KindOf returns the Kind of d; a nil Detail has kind 0.
@@ -206,12 +212,22 @@ type KindError struct {
 }
 
 func (e *KindError) Error() string {
-	return fmt.Sprintf("%q names no journal event kind; known names are api-call, delivery, invocation, timer-fired, state-change, fault-injected, clock-changed, advisory, unclaimed and gap", e.Text)
+	return fmt.Sprintf("%q names no journal event kind; known names are %s", e.Text, knownKinds())
+}
+
+// knownKinds lists every Kind's wire name in value order, the last after
+// "and".
+func knownKinds() string {
+	names := make([]string, 0, endKind-KindAPICall)
+	for k := KindAPICall; k < endKind; k++ {
+		names = append(names, k.String())
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }
 
 // ParseKind returns the Kind whose wire name is s.
 func ParseKind(s string) (Kind, error) {
-	for k := KindAPICall; k <= KindGap; k++ {
+	for k := KindAPICall; k < endKind; k++ {
 		if k.String() == s {
 			return k, nil
 		}
@@ -221,7 +237,7 @@ func ParseKind(s string) (Kind, error) {
 
 // MarshalText encodes the wire name.
 func (k Kind) MarshalText() ([]byte, error) {
-	if k < KindAPICall || k > KindGap {
+	if k < KindAPICall || k >= endKind {
 		return nil, &KindError{Text: k.String()}
 	}
 	return []byte(k.String()), nil

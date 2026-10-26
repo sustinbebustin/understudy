@@ -31,11 +31,15 @@ const (
 	KindFaultStream
 	KindJitter
 	// KindEventID is EventBridge's: PutEvents entry ids and the ids of
-	// scheduled events. It stays last: kindCount counts up to it.
+	// scheduled events.
 	KindEventID
+
+	// endKind follows the last kind and is no kind: kindCount counts up to
+	// it, so a new kind is one line above it plus its String case.
+	endKind
 )
 
-const kindCount = int(KindEventID) + 1
+const kindCount = int(endKind)
 
 // String returns the kind's stable name, which also seeds its stream and
 // keys it in snapshot manifests.
