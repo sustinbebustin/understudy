@@ -70,14 +70,17 @@ type FaultAction interface {
 
 // InjectError fails the call before the handler with Shape, one of the
 // errors the matched operations really send; an empty Message names the
-// rule.
+// rule. Members makes it not comparable: compare two with
+// reflect.DeepEqual, or their Shape and Message with == and their Members
+// with bytes.Equal, never with == or through FaultAction values.
 type InjectError struct {
 	Shape   string
 	Message string
 	// Members sets members of the error beyond its message: a JSON object
 	// of the shape's members as awsJson writes them, names as modeled,
 	// such as {"CancellationReasons": [{"Code": "TransactionConflict"}]}
-	// for DynamoDB's TransactionCanceledException. Empty sets none.
+	// for DynamoDB's TransactionCanceledException. Empty or JSON null sets
+	// none.
 	Members json.RawMessage
 }
 
@@ -351,9 +354,10 @@ func decodeTrigger(data json.RawMessage) (FaultTrigger, error) {
 }
 
 // encodeMembers checks that an error action's members are one JSON object
-// and returns them compact; empty members encode as none.
+// and returns them compact; empty members and null encode as none, as
+// decodeMembers reads them.
 func encodeMembers(raw json.RawMessage) (json.RawMessage, error) {
-	if len(raw) == 0 {
+	if len(raw) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
 		return nil, nil
 	}
 	var out bytes.Buffer

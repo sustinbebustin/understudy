@@ -246,6 +246,30 @@ func TestFaultRuleRefusesIncompleteRules(t *testing.T) {
 	}
 }
 
+// JSON null members are none in both directions: an InjectError whose
+// Members is null encodes without members, as "members": null decodes.
+func TestNullMembersAreNone(t *testing.T) {
+	data, err := json.Marshal(admin.FaultRule{
+		Phase:   admin.RequestPhase,
+		Match:   admin.FaultMatch{Operations: []string{"dynamodb.PutItem"}},
+		Action:  admin.InjectError{Shape: "ConditionalCheckFailedException", Members: json.RawMessage(" null ")},
+		Trigger: admin.Always{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "members") {
+		t.Errorf("encoded %s; want no members", data)
+	}
+	var got admin.FaultRule
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("decoding %s: %v", data, err)
+	}
+	if e, ok := got.Action.(admin.InjectError); !ok || e.Members != nil {
+		t.Errorf("decoded action %#v; want an InjectError without members", got.Action)
+	}
+}
+
 func TestNewRefusesUnusableEndpoints(t *testing.T) {
 	for _, endpoint := range []string{"127.0.0.1:4566", "ftp://127.0.0.1:4566", "http://", "http://127.0.0.1:4566/prefix", "http://127.0.0.1:4566?x=1"} {
 		var e *admin.EndpointError
