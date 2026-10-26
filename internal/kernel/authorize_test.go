@@ -228,18 +228,29 @@ func bindGuard[Out any](k *kerneltest.K, op kernel.Op[guardInput, Out], h kernel
 	}
 }
 
-// callEvent returns the journaled API call of c.
+// callEvent returns the journaled API call of c. Trace roots its tree at
+// the trace's root event, so an internal call's own event is found among
+// the root's descendants.
 func callEvent(k *kerneltest.K, c *kernel.Call) journal.APICall {
 	k.Helper()
 	tree, ok := k.Journal.Trace(c.Event())
 	if !ok {
 		k.Fatalf("call %d is not journaled", c.Event())
 	}
-	call, ok := tree.Event.Detail.(journal.APICall)
-	if !ok {
-		k.Fatalf("event of call %d = %T, want an APICall", c.Event(), tree.Event.Detail)
+	for pending := []*journal.Tree{tree}; len(pending) > 0; {
+		t := pending[0]
+		pending = append(pending[1:], t.Children...)
+		if t.Event.ID != c.Event() {
+			continue
+		}
+		call, ok := t.Event.Detail.(journal.APICall)
+		if !ok {
+			k.Fatalf("event of call %d = %T, want an APICall", c.Event(), t.Event.Detail)
+		}
+		return call
 	}
-	return call
+	k.Fatalf("call %d is not in its own trace", c.Event())
+	return journal.APICall{}
 }
 
 // useOf returns the access record of action on scope.
