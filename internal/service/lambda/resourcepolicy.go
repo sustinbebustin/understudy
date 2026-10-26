@@ -9,10 +9,10 @@ import (
 )
 
 // ResourcePolicy returns the permissions of the function target names,
-// arn:...:function:<name>[:<qualifier>], as the policy GetPolicy returns,
-// for the delivery access advisory (outbox.PolicySource, ARCHITECTURE.md
-// 16); nil when the function or qualifier has no statements. ok is false
-// when no such function exists, which skips the advisory.
+// arn:...:function:<name>[:<qualifier>], as the policy GetPolicy returns
+// (authz.PolicyProvider, ARCHITECTURE.md 16); nil when the function or
+// qualifier has no statements. ok is false when no such function exists,
+// which skips the delivery access advisory.
 func (s *Service) ResourcePolicy(target aws.ARN) (doc *policydoc.Document, ok bool) {
 	rest, isFunction := strings.CutPrefix(target.Resource, "function:")
 	scope, serr := aws.ScopeOf(target)

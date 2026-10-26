@@ -7,13 +7,13 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
-	"github.com/sustinbebustin/understudy/internal/policydoc"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -24,12 +24,9 @@ const TimerAttempt kernel.TimerKind = "outbox.attempt"
 
 // PolicySource reads the stored resource policy of a delivery target: an
 // SQS queue's Policy attribute, a function's permissions, a topic's Policy.
-type PolicySource interface {
-	// ResourcePolicy returns target's stored policy, nil when it has none.
-	// ok is false when target does not exist, which skips the advisory: the
-	// attempt then fails on its own.
-	ResourcePolicy(target aws.ARN) (doc *policydoc.Document, ok bool)
-}
+// A target it does not find (ok false) skips the advisory: the attempt then
+// fails on its own.
+type PolicySource = authz.PolicyProvider
 
 // Options configures Bind. A nil field disables its stage.
 type Options struct {

@@ -28,6 +28,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
 	"github.com/sustinbebustin/understudy/internal/auth"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
@@ -299,20 +300,25 @@ func bindOutbox(box *outbox.Outbox, k *kernel.Kernel, faults *fault.Store, built
 	return box.Bind(k, outbox.Options{Faults: faults, Policies: policies})
 }
 
-// policySources routes the outbox's access advisory to the service that
-// stores the delivery target's resource policy, by the target ARN's
-// service namespace: today the queue's Policy, the topic's Policy and the
-// function's permissions.
-type policySources map[string]outbox.PolicySource
+// policySources routes a resource-policy read to the service that stores
+// the target's policy, by the target ARN's service namespace: the queue's
+// and the topic's Policy, the bucket policy, the function's permissions,
+// the key policy, the secret's resource policy and the role's trust policy
+// (iam-enforcement-surfaces.md 12.2). The outbox's access advisory asks it
+// about delivery targets.
+type policySources map[string]authz.PolicyProvider
+
+// The router reads every namespace's policies through one provider.
+var _ authz.PolicyProvider = policySources(nil)
 
 // policyProviders indexes the built services that implement
-// outbox.PolicySource by their descriptor's ARNNamespace. Two providers for
-// one namespace are a *PolicySourceError.
+// authz.PolicyProvider by their descriptor's ARNNamespace. Two providers
+// for one namespace are a *PolicySourceError.
 func policyProviders(built []wiredBuilt) (policySources, error) {
 	out := policySources{}
 	by := map[string]ref.ServiceID{}
 	for _, b := range built {
-		p, ok := b.svc.(outbox.PolicySource)
+		p, ok := b.svc.(authz.PolicyProvider)
 		if !ok {
 			continue
 		}
@@ -326,7 +332,7 @@ func policyProviders(built []wiredBuilt) (policySources, error) {
 }
 
 // ResourcePolicy asks the provider of target's namespace; a namespace no
-// service provides has no policy to advise on.
+// service provides has no resource policy.
 func (p policySources) ResourcePolicy(target aws.ARN) (*policydoc.Document, bool) {
 	src, ok := p[target.Service]
 	if !ok {
@@ -336,7 +342,7 @@ func (p policySources) ResourcePolicy(target aws.ARN) (*policydoc.Document, bool
 }
 
 // PolicySourceError names an ARN namespace whose resource policies two
-// wired services provide, so the access advisory could ask only one of
+// wired services provide, so a resource-policy read could ask only one of
 // them. It is a bug in wire.go; nothing is served.
 type PolicySourceError struct {
 	Namespace string
@@ -344,7 +350,7 @@ type PolicySourceError struct {
 }
 
 func (e *PolicySourceError) Error() string {
-	return fmt.Sprintf("server: the wired services %s and %s both provide the resource policies of ARN namespace %q, so the access advisory cannot tell which to ask; "+
+	return fmt.Sprintf("server: the wired services %s and %s both provide the resource policies of ARN namespace %q, so a resource-policy read cannot tell which to ask; "+
 		"this is a bug in understudy's wiring: have one service in wire.go provide each namespace", e.Services[0], e.Services[1], e.Namespace)
 }
 

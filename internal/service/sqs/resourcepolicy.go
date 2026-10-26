@@ -7,9 +7,9 @@ import (
 )
 
 // ResourcePolicy returns the queue target names with its stored Policy
-// attribute parsed, for the delivery access advisory (outbox.PolicySource,
-// ARCHITECTURE.md 16); nil when the queue has none. ok is false when no
-// such queue exists, which skips the advisory.
+// attribute parsed (authz.PolicyProvider, ARCHITECTURE.md 16); nil when the
+// queue has none. ok is false when no such queue exists, which skips the
+// delivery access advisory.
 func (s *Service) ResourcePolicy(target aws.ARN) (doc *policydoc.Document, ok bool) {
 	if target.Service != "sqs" {
 		return nil, false
