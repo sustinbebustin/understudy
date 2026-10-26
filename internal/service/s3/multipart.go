@@ -72,7 +72,9 @@ type Upload struct {
 	Parts        map[int32]Part     `json:"parts,omitempty"`
 	// Lock is the retention and legal hold Create's headers asked for,
 	// which the completed object takes, with the bucket default's retention
-	// dated at Initiated when they name none (s3-ssec-object-lock.md 5.3).
+	// dated at Initiated when they name none (completeWrite). Whether
+	// Create's headers land on the object at all is UNVERIFIED (S3SOL-15,
+	// s3-ssec-object-lock.md 6.3).
 	Lock ObjectLock `json:"lock,omitzero"`
 }
 
@@ -523,10 +525,13 @@ func errInvalidPartOrder(uploadID string) *awserr.Error {
 // completeWrite commits a judged Complete: the upload must still hold
 // every listed part as judged, and the write condition is judged again; a
 // failure there means another request landed in between. The object's
-// version is dated at the upload's initiation (s3.md 10), as is a default
-// retention the bucket's rule at Complete gives it (testdata/parity/s3/R12/notes.md
-// step 8), and placed by completedSeq; the upload is dropped, and every
-// part's reference is released.
+// version is dated at the upload's initiation (s3.md 10;
+// testdata/parity/s3/R12/notes.md step 8), so a default retention is dated
+// there too (inferred from s3-ssec-object-lock.md 5.3: creation instant
+// plus the period). That the bucket's rule at Complete applies, not the
+// one at Create, and that Create's lock headers land on the object, are
+// UNVERIFIED (S3SOL-15, 6.3). The version is placed by completedSeq; the
+// upload is dropped, and every part's reference is released.
 func (s *Service) completeWrite(req completeRequest, plan completion, obj *Object) objectWrite[committed] {
 	return func(b *Bucket, w objectTx) (committed, []blob.Ref, *awserr.Error) {
 		u, err := b.Uploads.find(req.id, req.key)
