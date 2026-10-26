@@ -409,8 +409,9 @@ export class StartedUnderstudyContainer extends AbstractStartedContainer {
   /**
    * Wait up to `timeoutMs` for understudy's tracked work to finish.
    *
-   * Sent as `<timeoutMs>ms` to GET /_understudy/v1/settle; understudy
-   * answers 412 condition_not_met on timeout (testcontainers.md 3.7).
+   * Sent as `<timeoutMs>ms` to GET /_understudy/v1/settle (testcontainers.md
+   * 3.7); understudy answers 412 condition_not_met on timeout
+   * (admin.ConditionNotMet in admin/errors.go).
    */
   async settle(timeoutMs: number): Promise<void> {
     const callMs = Math.max(timeoutMs, 0) + ADMIN_CALL_MS;
@@ -649,7 +650,7 @@ function dockerState(health: unknown): { status: string; reason: string } {
 /**
  * The error for a non-2xx admin answer: its envelope's fields, or the body text when it has none.
  *
- * The envelope is {"error": {"code", "message", "hint"}} (testcontainers.md 3.7).
+ * The envelope is {"error": {"code", "message", "hint"}} (ARCHITECTURE.md 17).
  */
 function adminError(status: number, raw: string): UnderstudyAdminError {
   const doc = parseJson(raw);

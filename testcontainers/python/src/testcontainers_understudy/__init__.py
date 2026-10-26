@@ -285,8 +285,9 @@ class UnderstudyContainer(DockerContainer):
     def settle(self, timeout: float) -> None:
         """Wait up to ``timeout`` seconds for understudy's tracked work to finish.
 
-        Sent as whole milliseconds to GET /_understudy/v1/settle; understudy
-        answers 412 condition_not_met on timeout (testcontainers.md 3.7).
+        Sent as whole milliseconds to GET /_understudy/v1/settle
+        (testcontainers.md 3.7); understudy answers 412 condition_not_met on
+        timeout (admin.ConditionNotMet in admin/errors.go).
         """
         self._call("GET", f"/settle?timeout={int(timeout * 1000)}ms", timeout=max(timeout, 0) + _ADMIN_CALL_SECONDS)
 
@@ -492,7 +493,7 @@ def _endpoint_url(host: str, port: int) -> str:
 def _admin_error(status: int, raw: bytes) -> UnderstudyAdminError:
     """The error for a non-2xx admin answer: its envelope's fields, or the body text when it has none.
 
-    The envelope is {"error": {"code", "message", "hint"}} (testcontainers.md 3.7).
+    The envelope is {"error": {"code", "message", "hint"}} (ARCHITECTURE.md 17).
     """
     text = raw.decode(errors="replace")
     try:
