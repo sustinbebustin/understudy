@@ -2,6 +2,7 @@ package parity
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -34,5 +35,15 @@ func TestCheckBindFreesWhatTheShapeNames(t *testing.T) {
 	prefixed := IDShape{Alphabet: Digits, Min: 5, Max: 5, Prefix: "id-"}
 	if err := CheckBind(prefixed, "id-12", "id-34", shapeAccount, shapeRegion); err != nil {
 		t.Errorf("CheckBind(prefixed digits): %v; want nil", err)
+	}
+}
+
+// A character outside the alphabet is quoted whole, not as the first byte
+// of its encoding.
+func TestCheckBindQuotesAWholeCharacter(t *testing.T) {
+	t.Parallel()
+	err := CheckBind(IDShape{Alphabet: Digits, Min: 1, Max: 10}, "12é3", "123", shapeAccount, shapeRegion)
+	if se, ok := errors.AsType[*ShapeError](err); !ok || !strings.Contains(se.Reason, `holds 'é'`) {
+		t.Errorf("CheckBind(non-ASCII outside the alphabet) error = %v; want the reason to quote 'é'", err)
 	}
 }

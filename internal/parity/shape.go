@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 // Shape is the form a bound value must have on both sides before it is
@@ -158,7 +159,8 @@ func (sh IDShape) reason(v string) string {
 		return fmt.Sprintf("has %d characters; the shape allows %d to %d", len(v), sh.Min, sh.Max)
 	}
 	if i := strings.IndexFunc(rest, func(r rune) bool { return !strings.ContainsRune(sh.Alphabet.chars(), r) }); i >= 0 {
-		return fmt.Sprintf("holds %q after the prefix, which is not in the %s alphabet", rest[i:i+1], sh.Alphabet)
+		r, _ := utf8.DecodeRuneInString(rest[i:])
+		return fmt.Sprintf("holds %q after the prefix, which is not in the %s alphabet", r, sh.Alphabet)
 	}
 	return ""
 }
