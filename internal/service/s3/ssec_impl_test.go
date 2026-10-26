@@ -120,6 +120,29 @@ func TestSSECSelfCopyChangesEncryption(t *testing.T) {
 	})
 }
 
+// TestSelfCopyUnderABlockOnlyRule: a rule put with BlockedEncryptionTypes
+// alone keeps the implicit SSE-S3 default (switch
+// s3.encryption.unblocked-read), so it is no default of the bucket's own,
+// and a copy onto itself that changes nothing is still refused (s3.md 7),
+// whether the rule unblocks SSE-C or blocks it again.
+func TestSelfCopyUnderABlockOnlyRule(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		t := h.T
+		h.createBucket("copies")
+		h.put("copies", "k", "v")
+		for _, block := range []s3api.EncryptionType{s3api.EncryptionTypeNone, s3api.EncryptionTypeSseC} {
+			ok(h, who{}, s3api.OpPutBucketEncryption, &s3api.PutBucketEncryptionInput{Bucket: "copies", ServerSideEncryptionConfiguration: s3api.ServerSideEncryptionConfiguration{
+				Rules: []s3api.ServerSideEncryptionRule{{BlockedEncryptionTypes: &s3api.BlockedEncryptionTypes{EncryptionType: []s3api.EncryptionType{block}}}},
+			}})
+			_, err := as(h, who{}, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "copies", Key: "k", CopySource: "copies/k"})
+			failure{
+				status: 400, code: "InvalidRequest",
+				message: "This copy request is illegal because it is trying to copy an object to itself without changing the object's metadata, storage class, website redirect location or encryption attributes.",
+			}.is(t, "self-copy under a rule of BlockedEncryptionTypes "+string(block)+" alone", err)
+		}
+	})
+}
+
 // TestSSECCompleteHeaders: under switch s3.sse-c.complete-headers, SSE-C
 // headers sent on CompleteMultipartUpload are judged as UploadPart's are:
 // over plain HTTP they are refused, and on an upload that is not SSE-C they

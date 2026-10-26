@@ -204,6 +204,13 @@ func bucketDefault(b *Bucket) (s3api.ServerSideEncryption, *string, bool) {
 	return s3api.ServerSideEncryptionAes256, nil, bucketKey
 }
 
+// hasOwnDefault reports whether the bucket's rule names a default of its
+// own. A rule put with BlockedEncryptionTypes alone keeps the implicit
+// SSE-S3 default (switch s3.encryption.unblocked-read), so it names none.
+func hasOwnDefault(b *Bucket) bool {
+	return b.Encryption != nil && len(b.Encryption.Rules) > 0 && b.Encryption.Rules[0].ApplyServerSideEncryptionByDefault != nil
+}
+
 // encryptionContext reads x-amz-server-side-encryption-context, base64 of
 // a JSON object of strings, and adds the object's ARN as S3 does.
 func encryptionContext(header *string, objectARN string) (map[string]string, *awserr.Error) {

@@ -344,9 +344,9 @@ func readCopy(in *s3api.CopyObjectInput, now clock.Instant) (copyRequest, *awser
 // something S3 counts (s3.md 7): the metadata (REPLACE), a storage class,
 // even the one the object has, the website redirect, the checksum
 // algorithm, or the encryption, which target SSE-C headers change, and a
-// write without SSE headers changes when the bucket has a default rule of
-// its own or when the object is SSE-KMS or SSE-C and the implicit SSE-S3
-// default would re-encrypt it (LocalStack aws_validated
+// write without SSE headers changes when the bucket's rule names a default
+// of its own (hasOwnDefault) or when the object is SSE-KMS or SSE-C and
+// the implicit SSE-S3 default would re-encrypt it (LocalStack aws_validated
 // test_s3_copy_object_in_place_storage_class,
 // test_copy_in_place_with_bucket_encryption and
 // test_s3_copy_object_in_place_with_encryption; the SSE-C cases are
@@ -358,7 +358,7 @@ func (r copyRequest) changes(in *s3api.CopyObjectInput, so *Object, b *Bucket) b
 		in.StorageClass != nil ||
 		in.WebsiteRedirectLocation != nil ||
 		in.ServerSideEncryption != nil || in.SSEKMSKeyId != nil || r.sse.customer.sent() ||
-		b.Encryption != nil || isKMS(so.Encryption) || isCustomer(so.Encryption) ||
+		hasOwnDefault(b) || isKMS(so.Encryption) || isCustomer(so.Encryption) ||
 		r.algorithm != nil && r.algorithm.String() != so.Checksum.Algorithm
 }
 
