@@ -6,6 +6,11 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/fault"
+	"github.com/sustinbebustin/understudy/internal/ids"
+	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
+	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // A ConditionalCheckFailedException rule may set members other than Item:
@@ -46,6 +51,34 @@ func TestExportKeepsTheMembersOrder(t *testing.T) {
 		`"shape":"TransactionCanceledException"},"id":"tx","match":{"operations":["dynamodb.TransactWriteItems"]},"phase":"request","trigger":{"kind":"always"}}}],"version":2}`
 	if err != nil || string(data) != want {
 		t.Errorf("Export = %s, %v\nwant %s", data, err, want)
+	}
+}
+
+// swappedDecoders is a catalogue whose decoder for every shape builds a
+// ConditionalCheckFailedException: generated code out of step with the
+// catalogue.
+type swappedDecoders struct{ fault.Catalogue }
+
+func (swappedDecoders) NewMembers(ref.OperationID, smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	return &dynamodbapi.ConditionalCheckFailedException{}, true
+}
+
+// A decoder of another identity than the shape the rule resolved is an
+// understudy bug, reported with both identities, not as a missing decoder.
+func TestDecoderOfAnotherIdentity(t *testing.T) {
+	reg, err := registry.New(dynamodbapi.Service())
+	if err != nil {
+		t.Fatal(err)
+	}
+	seed := uint64(1)
+	s := fault.New(&seed, ids.NewSeeded(seed), swappedDecoders{kernel.NewCatalogue(reg, nil)})
+	_, rerr := s.Add(errorRule("tx", transactWriteItems, "TransactionCanceledException", members(t, `{"CancellationReasons":[`+conflictReason+`]}`)))
+	want := "the generated decoder of com.amazonaws.dynamodb#TransactionCanceledException builds com.amazonaws.dynamodb#ConditionalCheckFailedException " +
+		"(__type com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException) where dynamodb.TransactWriteItems sends " +
+		"com.amazonaws.dynamodb#TransactionCanceledException (__type com.amazonaws.dynamodb.v20120810#TransactionCanceledException); " +
+		"the catalogue and the generated code disagree, which is an understudy bug, not a fault of the rule, so report it"
+	if rerr == nil || rerr.Field != "action.members" || rerr.Reason != want {
+		t.Errorf("Add = %v; want a refusal at action.members: %s", rerr, want)
 	}
 }
 

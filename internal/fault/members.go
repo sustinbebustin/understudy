@@ -218,8 +218,9 @@ type memberPlan struct {
 
 // checkMembers validates error action a's members for op, which sends id,
 // and returns what a hit needs. The checks run in order: empty members,
-// a message given twice, a shape without a generated decoder, the strict
-// decode, then the checks of checkAWSShape. A
+// a message given twice, a shape without a generated decoder or with one
+// of another identity, the strict decode, then the checks of
+// checkAWSShape. A
 // TransactionCanceledException rule without CancellationReasons is refused
 // even when it sets no members.
 func checkMembers(cat Catalogue, r Rule, a Error, op ref.OperationID, id awserr.Identity) (memberPlan, *RuleError) {
@@ -240,8 +241,13 @@ func checkMembers(cat Catalogue, r Rule, a Error, op ref.OperationID, id awserr.
 		}
 	}
 	v, ok := cat.NewMembers(op, id.Shape)
-	if !ok || v.ErrorIdentity() != id {
+	if !ok {
 		return memberPlan{}, reject(r, membersField, "%s has no generated decoder, so a fault rule cannot set its members; leave action.members out", id.Shape)
+	}
+	if got := v.ErrorIdentity(); got != id {
+		return memberPlan{}, reject(r, membersField, "the generated decoder of %s builds %s (__type %s) where %s sends %s (__type %s); "+
+			"the catalogue and the generated code disagree, which is an understudy bug, not a fault of the rule, so report it",
+			id.Shape, got.Shape, got.JSONType, op, id.Shape, id.JSONType)
 	}
 	schema, err := decodeMembers(v, a.Members)
 	if err != nil {
