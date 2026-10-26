@@ -355,11 +355,13 @@ func decodeDetail[T any](detail json.RawMessage) (T, bool) {
 
 // deliverySummary is a delivery attempt in brief: "sns-to-sqs t1 -> q1
 // attempt 1 delivered", with the next attempt's time, the dead-letter
-// queue or the reason it was dropped.
+// queue or the reason it was dropped or refused. An HTTP delivery, which
+// has no target ARN, is shown going to its endpoint's host:port.
 func deliverySummary(detail json.RawMessage) (string, bool) {
 	d, ok := decodeDetail[struct {
 		From      string `json:"from"`
 		To        string `json:"to"`
+		Endpoint  string `json:"endpoint"`
 		Mechanism string `json:"mechanism"`
 		Attempt   int    `json:"attempt"`
 		Outcome   struct {
@@ -373,7 +375,11 @@ func deliverySummary(detail json.RawMessage) (string, bool) {
 	if !ok || d.Mechanism == "" || d.Outcome.Kind == "" {
 		return "", false
 	}
-	text := fmt.Sprintf("%s %s -> %s attempt %d %s", d.Mechanism, shortARN(d.From), shortARN(d.To), d.Attempt, d.Outcome.Kind)
+	to := shortARN(d.To)
+	if d.To == "" && d.Endpoint != "" {
+		to = d.Endpoint
+	}
+	text := fmt.Sprintf("%s %s -> %s attempt %d %s", d.Mechanism, shortARN(d.From), to, d.Attempt, d.Outcome.Kind)
 	switch {
 	case d.Outcome.Rule != "":
 		text += " by " + d.Outcome.Rule
