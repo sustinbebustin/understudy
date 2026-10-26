@@ -45,10 +45,11 @@ func newState(aws.Scope) State {
 	return State{Buses: map[string]Bus{}, Rules: map[string]map[string]Rule{}}
 }
 
-// IsZero reports a scope without buses or rules, which snapshots skip; a
-// lone FirstUse is not worth a section.
+// IsZero reports a scope no call has changed, which snapshots skip. A scope
+// left with only FirstUse is kept: it is the creation time of a default bus
+// no write has stored (State.bus), which a snapshot must not move.
 func (s *State) IsZero() bool {
-	if len(s.Buses) > 0 {
+	if !s.FirstUse.IsZero() || len(s.Buses) > 0 {
 		return false
 	}
 	for _, rules := range s.Rules {

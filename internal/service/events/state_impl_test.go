@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
+	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/events"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -227,7 +228,8 @@ func TestImportDropsEmptyRuleMaps(t *testing.T) {
 // firstUse is the admission instant of the first call that changes the
 // scope's state (events.default-bus.creation-time, eventbridge-buses.md
 // 10.5): a call that changes nothing does not set it, a later change does
-// not move it, and a scope left with only firstUse is not saved.
+// not move it. A scope left with only firstUse is still saved, so an
+// unmaterialized default bus keeps its creation time across a snapshot.
 func TestFirstUseIsTheFirstChange(t *testing.T) {
 	run(t, func(h *harness) {
 		firstUse := func() time.Time {
@@ -254,8 +256,17 @@ func TestFirstUseIsTheFirstChange(t *testing.T) {
 		}
 		must(h, eventbridgeapi.OpRemoveTargets, &eventbridgeapi.RemoveTargetsInput{Rule: "r", Ids: []string{"q"}})
 		must(h, eventbridgeapi.OpDeleteRule, &eventbridgeapi.DeleteRuleInput{Name: "r"})
-		if sections, err := h.svc.Export(); err != nil || len(sections) != 0 {
-			t.Errorf("Export of a scope with only firstUse = %d sections, %v; want none", len(sections), err)
+		if got := firstUse(); !got.Equal(first) {
+			t.Errorf("firstUse of a scope left without rules = %v, want %v", got, first)
+		}
+		sections := []store.Section{exportOne(h)}
+		h.svc.Reset(kernel.ResetScope{})
+		h.advance(time.Minute)
+		if err := h.svc.Import(sections); err != nil {
+			t.Fatalf("Import = %v", err)
+		}
+		if d := h.describeBus(nil); d.CreationTime == nil || !d.CreationTime.Equal(first) {
+			t.Errorf("default bus after the round trip = %+v, want CreationTime %v", d, first)
 		}
 	})
 }
