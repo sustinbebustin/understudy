@@ -53,10 +53,10 @@ func (a *attempt) send(ctx context.Context, t delivery.Target) (journal.Delivery
 //
 // PutEvents reports a failed entry in its answer, not as an error
 // (https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html),
-// so an answer with failed entries is an InternalFailure, which the
-// outbox retries: how AWS treats a failed entry of a bus target is
-// UNVERIFIED, and the codes PutEvents reports per entry are mostly
-// transient.
+// so an answer with failed entries is the attempt's error, classed by the
+// first failed entry's code (entryError). A delivery carries one entry
+// (checkEventBus), so that class is the whole attempt's, and a retry puts
+// no entry twice.
 func putEvents(ctx context.Context, k *kernel.Kernel, c *kernel.Call, kt kernel.Target, t delivery.EventBus) *awserr.Error {
 	bus := t.ARN.String()
 	in := &eventbridgeapi.PutEventsInput{Entries: make([]eventbridgeapi.PutEventsRequestEntry, len(t.Entries))}
@@ -74,8 +74,34 @@ func putEvents(ctx context.Context, k *kernel.Kernel, c *kernel.Call, kt kernel.
 		return nil
 	}
 	reason := strconv.Itoa(int(out.FailedEntryCount)) + " of " + strconv.Itoa(len(t.Entries)) + " entries failed"
+	code := ""
 	if i := slices.IndexFunc(out.Entries, func(e eventbridgeapi.PutEventsResultEntry) bool { return e.ErrorCode != nil }); i >= 0 {
-		reason += "; the first with " + deref(out.Entries[i].ErrorCode) + ": " + deref(out.Entries[i].ErrorMessage)
+		code = deref(out.Entries[i].ErrorCode)
+		reason += "; the first with " + code + ": " + deref(out.Entries[i].ErrorMessage)
+	}
+	return entryError(code, reason)
+}
+
+// entryError is the attempt's error for a PutEvents answer whose first
+// failed entry has code, reason describing it.
+//
+// The codes AWS lists as non-retryable
+// (https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEventsResultEntry.html)
+// fail the delivery outright: no error shape models an entry code, so
+// ValidationException, which is not retried, stands in and reason names
+// the code. NotImplemented, the code understudy's PutEvents gives an entry
+// for a bus it does not deliver to (internal/service/events putevents.go,
+// foreignRegion), is unimplemented, so the delivery is dropped as a 501
+// is. Any other code, the listed retryable InternalFailure and
+// ThrottlingException among them, is an InternalFailure, which the outbox
+// retries.
+func entryError(code, reason string) *awserr.Error {
+	switch code {
+	case "AccessDeniedException", "InvalidAccountIdException", "InvalidArgument", "MalformedDetail",
+		"RedactionFailure", "NotAuthorizedForSourceException", "NotAuthorizedForDetailTypeException":
+		return eventbridgeapi.ErrValidationException(reason)
+	case "NotImplemented":
+		return &awserr.Error{ID: awserr.NotImplemented(), Message: reason, Origin: awserr.Unimplemented{Op: eventbridgeapi.OpPutEvents.Descriptor().ID}}
 	}
 	return &awserr.Error{ID: awserr.InternalFailure(), Message: reason, Origin: awserr.Generic{}}
 }

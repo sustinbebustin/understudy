@@ -13,11 +13,17 @@ import (
 
 	"pgregory.net/rapid"
 
+	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
+	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
+	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // genNewTarget draws an EventBus, S3Object or HTTPEndpoint target.
@@ -25,7 +31,9 @@ func genNewTarget() *rapid.Generator[delivery.Target] {
 	text := rapid.StringMatching(`[A-Za-z0-9 ."{}:]{0,12}`)
 	return rapid.OneOf(
 		rapid.Custom(func(t *rapid.T) delivery.Target {
-			entries := make([]delivery.EventEntry, rapid.IntRange(1, maxBusEntries).Draw(t, "entries"))
+			// The record holds a list; the outbox's checks, not the
+			// record, limit it to one entry.
+			entries := make([]delivery.EventEntry, rapid.IntRange(1, 3).Draw(t, "entries"))
 			for i := range entries {
 				entries[i] = delivery.EventEntry{Source: text.Draw(t, "source"), DetailType: text.Draw(t, "detailType"), Detail: text.Draw(t, "detail")}
 				if n := rapid.IntRange(0, 2).Draw(t, "resources"); n > 0 {
@@ -176,9 +184,8 @@ func TestNewTargetChecks(t *testing.T) {
 		field string
 	}{
 		{"a bus", checkEventBus(delivery.EventBus{ARN: bus, Entries: []delivery.EventEntry{entry}}), ""},
-		{"ten entries", checkEventBus(delivery.EventBus{ARN: bus, Entries: make([]delivery.EventEntry, maxBusEntries)}), ""},
 		{"no entries", checkEventBus(delivery.EventBus{ARN: bus}), "Target.Entries"},
-		{"eleven entries", checkEventBus(delivery.EventBus{ARN: bus, Entries: make([]delivery.EventEntry, maxBusEntries+1)}), "Target.Entries"},
+		{"two entries", checkEventBus(delivery.EventBus{ARN: bus, Entries: []delivery.EventEntry{entry, entry}}), "Target.Entries"},
 		{"a rule, not a bus", checkEventBus(delivery.EventBus{ARN: aws.ARN{Partition: "aws", Service: "events", Region: "us-east-1", Account: "000000000000", Resource: "rule/r"}, Entries: []delivery.EventEntry{entry}}), "Target.ARN"},
 		{"a bus with no name", checkEventBus(delivery.EventBus{ARN: aws.ARN{Partition: "aws", Service: "events", Region: "us-east-1", Account: "000000000000", Resource: "event-bus/"}, Entries: []delivery.EventEntry{entry}}), "Target.ARN"},
 		{"a queue, not a bus", checkEventBus(delivery.EventBus{ARN: aws.ARN{Partition: "aws", Service: "sqs", Region: "us-east-1", Account: "000000000000", Resource: "event-bus/orders"}, Entries: []delivery.EventEntry{entry}}), "Target.ARN"},
@@ -327,3 +334,127 @@ func TestDeliveredToAndEndpoint(t *testing.T) {
 		}
 	}
 }
+
+// plant makes req pending and arms its first attempt now, as Enqueue does,
+// without Enqueue's mechanism check: no mechanism delivers to the new
+// targets until their producers add one, so Enqueue refuses them today.
+func plant(k *kerneltest.K, o *Outbox, req delivery.Request) {
+	k.Helper()
+	e := o.e.Load()
+	in, ok := targetARN(req.Target)
+	if !ok {
+		in = req.Source
+	}
+	scope, serr := scopeOf(in)
+	if serr != nil {
+		k.Fatal(serr)
+	}
+	now := k.Clock.Now()
+	entry := Entry{ID: e.k.IDs().DeliveryID(), Request: req, NextAt: now, Accepted: now, Seq: e.seq.Add(1)}
+	store.Update(e.cells.For(scope), func(st *State) (struct{}, bool) {
+		st.Entries[entry.ID] = entry
+		e.k.Timers().Scheduler().Arm(e.attempt.Key(timerID(scope, entry.ID)), now)
+		return struct{}{}, true
+	})
+}
+
+// busCode is an EventBus target of one entry whose DetailType names the
+// code the PutEvents stub answers for it: "" puts the entry.
+func busCode(code string) delivery.EventBus {
+	return delivery.EventBus{ARN: busARN(), Entries: []delivery.EventEntry{{Source: "app", DetailType: code, Detail: `{}`}}}
+}
+
+// Each new target runs the whole attempt path: the timer fires, the
+// attempt makes its call, an HTTP one on its own goroutine, and finish
+// journals a Delivery naming where it landed. A failed EventBus entry ends
+// by its code (API_PutEventsResultEntry): a code AWS lists as
+// non-retryable is not retried, InternalFailure is, and understudy's own
+// NotImplemented is dropped as unimplemented.
+func TestNewTargetsRunTheAttemptPath(t *testing.T) {
+	source := aws.ARN{Partition: "aws", Service: "sns", Region: "us-east-1", Account: "000000000000", Resource: "events"}
+	object := aws.ARN{Partition: "aws", Service: "s3", Resource: "audit/k"}
+	cases := []struct {
+		name   string
+		target delivery.Target
+		// calls is how many target calls the attempts made before the
+		// clock moved: more than one is a retry.
+		calls func(n int) bool
+		want  func(d journal.Delivery) bool
+	}{
+		{"bus entry put", busCode(""), one, func(d journal.Delivery) bool {
+			return d.To == busARN() && d.Endpoint == "" && d.Outcome == journal.Delivered{}
+		}},
+		{"bus entry refused", busCode("MalformedDetail"), one, func(d journal.Delivery) bool {
+			r, ok := d.Outcome.(journal.Dropped)
+			return ok && d.To == busARN() && strings.Contains(r.Reason, "not retried") && strings.Contains(r.Reason, "MalformedDetail: the stub failed it")
+		}},
+		{"bus entry unimplemented", busCode("NotImplemented"), one, func(d journal.Delivery) bool {
+			r, ok := d.Outcome.(journal.Dropped)
+			return ok && strings.HasPrefix(r.Reason, "dev.understudy#NotImplemented: 1 of 1 entries failed; the first with NotImplemented")
+		}},
+		{"bus entry retried", busCode("InternalFailure"), func(n int) bool { return n > 1 }, func(d journal.Delivery) bool {
+			_, ok := d.Outcome.(journal.Retrying)
+			return ok && d.To == busARN()
+		}},
+		{"object", delivery.S3Object{Bucket: "audit", Key: "k", Body: []byte("b")}, one, func(d journal.Delivery) bool {
+			return d.To == object && d.Endpoint == "" && d.Outcome == journal.Delivered{}
+		}},
+		{"endpoint", hook(t, "http://127.0.0.1:8080/hook"), one, func(d journal.Delivery) bool {
+			return d.To == (aws.ARN{}) && d.Endpoint == "127.0.0.1:8080" && d.Outcome == journal.Delivered{}
+		}},
+		{"endpoint egress refuses", hook(t, "http://10.9.9.9:8080/hook"), none, func(d journal.Delivery) bool {
+			r, ok := d.Outcome.(journal.Refused)
+			return ok && d.To == (aws.ARN{}) && d.Endpoint == "10.9.9.9:8080" && strings.Contains(r.Reason, "10.9.9.9")
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			kerneltest.Run(t, func(k *kerneltest.K) {
+				var made calls[string]
+				k.Stub(eventbridgeapi.OpPutEvents, func(_ context.Context, _ *kernel.Call, in *eventbridgeapi.PutEventsInput) (*eventbridgeapi.PutEventsOutput, *awserr.Error) {
+					out := &eventbridgeapi.PutEventsOutput{}
+					for _, e := range in.Entries {
+						made.add(val(e.DetailType))
+						if code := val(e.DetailType); code != "" {
+							out.FailedEntryCount++
+							out.Entries = append(out.Entries, eventbridgeapi.PutEventsResultEntry{ErrorCode: new(code), ErrorMessage: new("the stub failed it")})
+							continue
+						}
+						out.Entries = append(out.Entries, eventbridgeapi.PutEventsResultEntry{EventId: new("event-0")})
+					}
+					return out, nil
+				})
+				k.Stub(s3api.OpPutObject, func(_ context.Context, _ *kernel.Call, in *s3api.PutObjectInput) (*s3api.PutObjectOutput, *awserr.Error) {
+					made.add(in.Bucket + "/" + in.Key)
+					return &s3api.PutObjectOutput{}, nil
+				})
+				receiver := &endpoint{status: http.StatusOK}
+				o := New()
+				if err := o.Bind(k.Kernel, Options{Faults: k.Faults, Egress: egressTo(k.T, receiver)}); err != nil {
+					k.Fatal(err)
+				}
+				plant(k, o, delivery.Request{Source: source, Mechanism: delivery.SNSToSQS, Target: c.target, Policy: delivery.SNSManaged{}})
+				if p, err := k.Kernel.Settle(k.Context(), time.Minute); err != nil {
+					k.Fatalf("Settle = %v, %v", p, err)
+				}
+				receiver.mu.Lock()
+				n := len(made.all()) + len(receiver.reqs)
+				receiver.mu.Unlock()
+				if !c.calls(n) {
+					k.Errorf("the attempts made %d target calls", n)
+				}
+				events := k.Journal.Query(journal.Filter{Kind: journal.KindDelivery, Limit: 100}).Events
+				if len(events) == 0 {
+					k.Fatal("no Delivery event was journaled")
+				}
+				if d, ok := events[0].Detail.(journal.Delivery); !ok || !c.want(d) {
+					k.Errorf("first Delivery event = %#v", events[0].Detail)
+				}
+			}, kerneltest.Services(eventbridgeapi.Service(), s3api.Service()))
+		})
+	}
+}
+
+func one(n int) bool { return n == 1 }
+
+func none(n int) bool { return n == 0 }

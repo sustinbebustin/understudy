@@ -59,7 +59,8 @@ type SNSTopic struct {
 type EventBus struct {
 	// ARN is the bus: arn:<partition>:events:<region>:<account>:event-bus/<name>.
 	ARN aws.ARN
-	// Entries are sent in order, 1 to 10 of them.
+	// Entries are sent in order. The outbox takes exactly one, so a retry
+	// of a failed entry puts no other entry twice.
 	Entries []EventEntry
 }
 

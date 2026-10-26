@@ -273,19 +273,19 @@ func checkTarget(req delivery.Request) (aws.ARN, string, *RequestError) {
 	return aws.ARN{}, "", &RequestError{Field: "Target", Reason: "is nil"}
 }
 
-// maxBusEntries is the most entries one PutEvents takes
-// (https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html).
-const maxBusEntries = 10
-
-// checkEventBus checks that t names an event bus and holds as many entries
-// as one PutEvents takes.
+// checkEventBus checks that t names an event bus and holds one entry.
+// PutEvents takes up to 10 and fails each on its own
+// (https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html),
+// but a retry of the call would put the entries that succeeded again, so a
+// producer enqueues one delivery per entry and each is retried or dropped
+// by its own entry's code (entryError).
 func checkEventBus(t delivery.EventBus) *RequestError {
 	name, isBus := strings.CutPrefix(t.ARN.Resource, "event-bus/")
 	if t.ARN.Service != "events" || !isBus || name == "" {
 		return &RequestError{Field: "Target.ARN", Reason: t.ARN.String() + " is not an event bus, arn:<partition>:events:<region>:<account>:event-bus/<name>"}
 	}
-	if n := len(t.Entries); n < 1 || n > maxBusEntries {
-		return &RequestError{Field: "Target.Entries", Reason: fmt.Sprintf("has %d entries; a PutEvents takes 1 to %d", n, maxBusEntries)}
+	if n := len(t.Entries); n != 1 {
+		return &RequestError{Field: "Target.Entries", Reason: fmt.Sprintf("has %d entries; an EventBus delivery carries exactly 1, so a retry puts no entry twice", n)}
 	}
 	return nil
 }
