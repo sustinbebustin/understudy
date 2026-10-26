@@ -102,6 +102,7 @@ func TestMechanismVia(t *testing.T) {
 		delivery.EventsToSQS:    ref.EventsTarget,
 		delivery.EventsToSNS:    ref.EventsTarget,
 		delivery.EventsToEvents: ref.EventsTarget,
+		delivery.SNSToHTTP:      ref.SNSDelivery,
 	}
 	for _, m := range delivery.Mechanisms() {
 		if got := m.Via(); got != want[m] {
@@ -121,8 +122,13 @@ func TestMechanismTarget(t *testing.T) {
 		delivery.EventsToSQS:    "sqs",
 		delivery.EventsToSNS:    "sns",
 		delivery.EventsToEvents: "eventbridge",
+		// An HTTP endpoint lands in no service.
+		delivery.SNSToHTTP: "",
 	}
 	for _, m := range delivery.Mechanisms() {
+		if _, listed := want[m]; !listed {
+			t.Errorf("%v has no expected target", m)
+		}
 		if got := m.Target(); got != want[m] {
 			t.Errorf("%v.Target() = %q, want %q", m, got, want[m])
 		}

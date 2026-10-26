@@ -277,6 +277,21 @@ func genAPICall(text *rapid.Generator[string], outcome *rapid.Generator[Outcome]
 	})
 }
 
+// genHTTPExchange draws an HTTP attempt's exchange or none: a status of 0
+// (no answer came) or 100 to 599, any class, a duration of 0 or more.
+func genHTTPExchange() *rapid.Generator[*HTTPExchange] {
+	return rapid.OneOf(
+		rapid.Just[*HTTPExchange](nil),
+		rapid.Custom(func(t *rapid.T) *HTTPExchange {
+			return &HTTPExchange{
+				Status:   rapid.OneOf(rapid.Just(0), rapid.IntRange(100, 599)).Draw(t, "status"),
+				Class:    rapid.SampledFrom([]HTTPClass{HTTPSuccess, HTTPRetryable, HTTPPermanent, HTTPRefused}).Draw(t, "class"),
+				Duration: time.Duration(rapid.Int64Range(0, int64(time.Minute)).Draw(t, "duration")),
+			}
+		}),
+	)
+}
+
 // genDetail draws any Detail variant, as decoding would produce it.
 func genDetail() *rapid.Generator[Detail] { return genDetailOf(genText()) }
 
@@ -292,9 +307,11 @@ func genDetailOf(text *rapid.Generator[string]) *rapid.Generator[Detail] {
 				Mechanism: rapid.SampledFrom([]delivery.Mechanism{
 					delivery.SNSToSQS, delivery.SNSToLambda, delivery.S3ToSQS, delivery.S3ToSNS,
 					delivery.S3ToLambda, delivery.EventsToLambda, delivery.EventsToSQS, delivery.EventsToSNS,
+					delivery.SNSToHTTP,
 				}).Draw(t, "mechanism"),
 				Attempt: rapid.IntRange(1, 100).Draw(t, "attempt"),
 				Outcome: genDeliveryOutcome(text).Draw(t, "outcome"),
+				HTTP:    genHTTPExchange().Draw(t, "http"),
 			}
 		}),
 		rapid.Custom(func(t *rapid.T) Detail {
