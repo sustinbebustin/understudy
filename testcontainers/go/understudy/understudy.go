@@ -116,9 +116,10 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 // its binding, the environment, the socket, the snapshot and the wait.
 func (o *options) customizers(sock *socketMount) ([]testcontainers.ContainerCustomizer, error) {
 	env := maps.Clone(o.env)
-	// The session's Ryuk filter labels, all five, go on every container
-	// understudy starts, so Ryuk reaps them too (testcontainers.md 8.6,
-	// 4.5, 9.3).
+	// The session's labels from testcontainers.GenericLabels go on every
+	// container understudy starts, so Ryuk reaps them too; the reap label
+	// is among them only while Ryuk is enabled (testcontainers.md 8.6, 4.5,
+	// 9.3).
 	labels, err := json.Marshal(testcontainers.GenericLabels())
 	if err != nil {
 		return nil, fmt.Errorf("understudy: encoding tc-go's session labels for UNDERSTUDY_DOCKER_LABELS: %w", err)
