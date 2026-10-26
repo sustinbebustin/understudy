@@ -15,12 +15,12 @@ import (
 // policy.
 //
 // NOTE: a stored text policydoc cannot parse reads as nil, the same as no
-// policy (policydoc.ParseStored). S3 PutBucketPolicy and SQS
-// SetQueueAttributes check only a policy's JSON form, so they can store
-// one. That is harmless while stored policies only feed advisories, but an
-// explicit Deny in such a text would vanish under enforcement, so the
-// result must tell "unreadable" apart from "none" before an evaluator
-// reads it (iam-enforcement-surfaces.md 12.10).
+// policy (ProvidedDocument). S3 PutBucketPolicy and SQS SetQueueAttributes
+// check only a policy's JSON form, so they can store one. That is harmless
+// while stored policies only feed advisories, but an explicit Deny in such
+// a text would vanish under enforcement, so the evaluator reads
+// StoredPolicyReader instead, which tells "unreadable" apart from "none"
+// (iam-enforcement-surfaces.md 12.10).
 type PolicyProvider interface {
 	// ResourcePolicy returns target's stored policy, nil when it has none.
 	// ok is false when target does not exist or its kind has no resource

@@ -118,13 +118,14 @@
 //     checks that each service implements its hook; the rows of the
 //     services they need record them by type, and a table that leaves one
 //     unbuilt is an *UnbuiltServiceError. Resource-policy reads, the
-//     outbox's access advisory among them, route on the target ARN's
-//     service namespace to the wired service of that ARNNamespace that
-//     implements authz.PolicyProvider: SQS, SNS, S3, Lambda, KMS, Secrets
-//     Manager and IAM, which read the queue's and the topic's Policy, the
-//     bucket policy, the function's permissions, the key policy, the
-//     secret's resource policy and the role's trust policy; two providers
-//     of one namespace are a *PolicySourceError.
+//     outbox's access advisory and IAM evaluation's owner and stored-policy
+//     reads among them, route on the target ARN's service namespace to the
+//     wired service of that ARNNamespace that implements both
+//     authz.PolicyProvider and authz.StoredPolicyReader: SQS, SNS, S3,
+//     Lambda, KMS, Secrets Manager and IAM, which read the queue's and the
+//     topic's Policy, the bucket policy, the function's permissions, the
+//     key policy, the secret's resource policy and the role's trust policy;
+//     two providers of one namespace are a *PolicySourceError.
 //   - The kernel takes its Linker before the Lambda execution layer that
 //     implements it exists, so wire.go hands it a deferredLinker that the
 //     execution layer is set into.

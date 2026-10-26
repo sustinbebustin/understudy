@@ -138,8 +138,8 @@ func TestCollectPutsTheAsyncQueueBesideLambda(t *testing.T) {
 	})
 }
 
-// policyHolder is a built service that stores resource policies; only Name
-// and ResourcePolicy are called.
+// policyHolder is a built service that stores resource policies; only Name,
+// ResourcePolicy and StoredPolicy are called.
 type policyHolder struct {
 	serveradmin.Service
 	name ref.ServiceID
@@ -149,6 +149,13 @@ type policyHolder struct {
 func (p policyHolder) Name() ref.ServiceID { return p.name }
 
 func (p policyHolder) ResourcePolicy(aws.ARN) (*policydoc.Document, bool) { return p.doc, true }
+
+func (p policyHolder) StoredPolicy(aws.ARN) (authz.StoredPolicy, bool) {
+	if p.doc == nil {
+		return authz.StoredPolicy{Policy: authz.NoPolicy{}}, true
+	}
+	return authz.StoredPolicy{Policy: authz.Parsed{Document: *p.doc}}, true
+}
 
 // stateOnly is a built service that stores no resource policy.
 type stateOnly struct {

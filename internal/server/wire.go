@@ -324,20 +324,32 @@ func bindOutbox(box *outbox.Outbox, k *kernel.Kernel, faults *fault.Store, deliv
 // (eventbridge-buses.md 10.2.5). The outbox's access advisory asks it about
 // delivery targets; it never asks for an event bus's policy, since it skips
 // events-to-events deliveries (ADR 0015 amendment 2026-10-26;
-// eventbridge-buses.md 6.2, 6.3).
-type policySources map[string]authz.PolicyProvider
+// eventbridge-buses.md 6.2, 6.3). IAM evaluation reads each target's owner
+// and stored policy through it.
+type policySources map[string]policyStore
+
+// policyStore is a service that stores resource policies, read both ways:
+// as the advisory reads them and as the evaluator does.
+type policyStore interface {
+	authz.PolicyProvider
+	authz.StoredPolicyReader
+}
 
 // The router reads every namespace's policies through one provider.
-var _ authz.PolicyProvider = policySources(nil)
+var (
+	_ authz.PolicyProvider     = policySources(nil)
+	_ authz.StoredPolicyReader = policySources(nil)
+)
 
-// policyProviders indexes the built services that implement
-// authz.PolicyProvider by their descriptor's ARNNamespace. Two providers
-// for one namespace are a *PolicySourceError.
+// policyProviders indexes the built services that implement both
+// authz.PolicyProvider and authz.StoredPolicyReader by their descriptor's
+// ARNNamespace, so a namespace never answers one question and not the
+// other. Two providers for one namespace are a *PolicySourceError.
 func policyProviders(built []wiredBuilt) (policySources, error) {
 	out := policySources{}
 	by := map[string]ref.ServiceID{}
 	for _, b := range built {
-		p, ok := b.svc.(authz.PolicyProvider)
+		p, ok := b.svc.(policyStore)
 		if !ok {
 			continue
 		}
@@ -358,6 +370,16 @@ func (p policySources) ResourcePolicy(target aws.ARN) (*policydoc.Document, bool
 		return nil, false
 	}
 	return src.ResourcePolicy(target)
+}
+
+// StoredPolicy asks the provider of target's namespace; a namespace no
+// service provides has no resource policy.
+func (p policySources) StoredPolicy(target aws.ARN) (authz.StoredPolicy, bool) {
+	src, ok := p[target.Service]
+	if !ok {
+		return authz.StoredPolicy{}, false
+	}
+	return src.StoredPolicy(target)
 }
 
 // PolicySourceError names an ARN namespace whose resource policies two

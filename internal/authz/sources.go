@@ -93,3 +93,29 @@ type Unparsed struct {
 func (NoPolicy) isStored() {}
 func (Parsed) isStored()   {}
 func (Unparsed) isStored() {}
+
+// ReadStored reads a policy text a service stored as the caller sent it:
+// NoPolicy for "", Parsed when policydoc.Parse reads it, else Unparsed with
+// the *policydoc.ParseError, since SQS and S3 store any JSON object as a
+// policy (iam-enforcement-surfaces.md 12.10).
+func ReadStored(text string) Stored {
+	if text == "" {
+		return NoPolicy{}
+	}
+	doc, err := policydoc.Parse([]byte(text))
+	if err != nil {
+		return Unparsed{Text: text, Err: err}
+	}
+	return Parsed{Document: doc}
+}
+
+// ProvidedDocument is what PolicyProvider.ResourcePolicy answers for a
+// stored policy: Parsed's document, else nil, so an unparsed text reads as
+// no policy there (the NOTE on PolicyProvider); the evaluator reads Stored
+// itself and tells the two apart.
+func ProvidedDocument(s Stored) *policydoc.Document {
+	if p, ok := s.(Parsed); ok {
+		return &p.Document
+	}
+	return nil
+}
