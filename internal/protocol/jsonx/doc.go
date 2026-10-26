@@ -34,9 +34,11 @@
 //
 // Codec is Marshal and Unmarshal for store.Codec and other persisted
 // documents. Marshal sorts every object's members, so equal values give
-// equal bytes. Unmarshal is strict (unknown members, duplicate names and
-// invalid UTF-8 fail) because a persisted document that does not match the
-// running binary's types is corrupt or from another schema version.
+// equal bytes, except inside a Verbatim value, whose member order is part
+// of the value or already canonical. Unmarshal is strict (unknown members,
+// duplicate names and invalid UTF-8 fail) because a persisted document
+// that does not match the running binary's types is corrupt or from
+// another schema version.
 //
 // Union implements the tagged-union convention for persisted sealed sums
 // (ARCHITECTURE.md 13): a variant is written as {"kind": "<variant>",

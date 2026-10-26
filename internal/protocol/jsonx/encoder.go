@@ -44,15 +44,20 @@ func (e *UsageError) Error() string {
 // nothing and Bytes returns it.
 type Encoder struct {
 	order Order
-	buf   []byte
-	open  []container
-	done  bool
-	err   error
+	// verbatim is above 0 while Codec.Marshal writes a Verbatim value, whose
+	// objects keep call order under SortedKeys too.
+	verbatim int
+	buf      []byte
+	open     []container
+	done     bool
+	err      error
 }
 
 // container is an open object or array.
 type container struct {
 	object bool
+	// sorted is set on an object whose members EndObject sorts.
+	sorted bool
 	// count is the number of values (array) or members (object) written.
 	count int
 	// named is set between an object member's name and its value.
@@ -60,7 +65,7 @@ type container struct {
 	// start is the offset just after the opening bracket.
 	start int
 	// members are the offsets where each member starts, after its comma;
-	// kept only for SortedKeys.
+	// kept only for a sorted object.
 	members []int
 	// names are the member names, parallel to members.
 	names []string
@@ -109,7 +114,7 @@ func (e *Encoder) BeginObject() {
 		return
 	}
 	e.buf = append(e.buf, '{')
-	e.open = append(e.open, container{object: true, start: len(e.buf)})
+	e.open = append(e.open, container{object: true, sorted: e.order == SortedKeys && e.verbatim == 0, start: len(e.buf)})
 }
 
 // Name writes the name of the next member of the open object.
@@ -125,7 +130,7 @@ func (e *Encoder) Name(name string) {
 	if top.count > 0 {
 		e.buf = append(e.buf, ',')
 	}
-	if e.order == SortedKeys {
+	if top.sorted {
 		top.members = append(top.members, len(e.buf))
 		top.names = append(top.names, name)
 	}
@@ -144,7 +149,7 @@ func (e *Encoder) EndObject() {
 		e.fail("EndObject", "no object is open, or its last member has no value")
 		return
 	}
-	if e.order == SortedKeys {
+	if top.sorted {
 		e.sortMembers(top)
 	}
 	e.buf = append(e.buf, '}')
