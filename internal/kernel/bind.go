@@ -33,6 +33,8 @@ type bindConfig[In any] struct {
 	checks     []func(*In) *awserr.Error
 	resources  []func(*Call, *In) []aws.ARN
 	actions    []func(*Call, *In) []registry.IAMAction
+	// count is the last WithItemCount; nil without one.
+	count func(*In) int
 }
 
 // validate runs step 7 over in: the generated validator and the typed
@@ -124,9 +126,11 @@ func WithResources[In any](resolve func(c *Call, in *In) []aws.ARN) BindOption {
 
 type itemCountOption[In any] func(*In) int
 
-// apply accepts the option for its input type and adds nothing yet.
-func (itemCountOption[In]) apply(cfg any) bool {
-	_, ok := cfg.(*bindConfig[In])
+func (o itemCountOption[In]) apply(cfg any) bool {
+	c, ok := cfg.(*bindConfig[In])
+	if ok {
+		c.count = o
+	}
 	return ok
 }
 
@@ -135,8 +139,6 @@ func (itemCountOption[In]) apply(cfg any) bool {
 // members line up with them: once the input is valid, the kernel sets
 // fault.MatchInput.Items from it for the call's request-phase rules.
 // Without the option Items is 0; with several, the last one applies.
-//
-// It is not implemented yet: the kernel accepts the option and ignores it.
 func WithItemCount[In any](count func(*In) int) BindOption {
 	return itemCountOption[In](count)
 }
@@ -197,6 +199,7 @@ func BindRawHTTP(b *Binder, op *registry.Operation, h RawHTTPHandler, cov regist
 		},
 		validate:  func(any) *awserr.Error { return nil },
 		resources: func(*Call, any) []aws.ARN { return nil },
+		items:     func(any) int { return 0 },
 		redact:    func(any) ([]byte, error) { return nil, nil },
 	})
 }
@@ -220,6 +223,7 @@ func (cfg *bindConfig[In]) clone() bindConfig[In] {
 		checks:     slices.Clone(cfg.checks),
 		resources:  slices.Clone(cfg.resources),
 		actions:    slices.Clone(cfg.actions),
+		count:      cfg.count,
 	}
 }
 
@@ -247,6 +251,13 @@ func configured[In any](b *Binder, id ref.OperationID, base bindConfig[In], opts
 				return nil
 			}
 			return cfg.resolve(c, typed)
+		},
+		items: func(in any) int {
+			typed, ok := in.(*In)
+			if !ok || cfg.count == nil {
+				return 0
+			}
+			return cfg.count(typed)
 		},
 		redact: func(in any) ([]byte, error) {
 			if r, ok := in.(interface{ Redact() *In }); ok {
@@ -314,6 +325,9 @@ type binding struct {
 	validate func(in any) *awserr.Error
 	// resources names what a valid input addresses (WithResources).
 	resources func(c *Call, in any) []aws.ARN
+	// items counts a valid input's transaction items (WithItemCount); 0
+	// without the option.
+	items func(in any) int
 	// actions are the IAM actions a valid input declares used besides the
 	// primary (WithActions, WithoutSecondaryActions); nil when the binding
 	// declares none, so its calls record the operation's whole list.
@@ -422,8 +436,9 @@ const (
 	NoCoverage
 	// NotRaw is a BindRawHTTP of an operation not of kind raw.
 	NotRaw
-	// OptionType is a WithValidator, WithCheck, WithResources or
-	// WithActions option for another input type than the operation's.
+	// OptionType is a WithValidator, WithCheck, WithResources,
+	// WithItemCount or WithActions option for another input type than the
+	// operation's.
 	OptionType
 	// DeclaredUnbound is a Declare for an operation not bound yet, so no
 	// binding takes its options.
@@ -456,7 +471,7 @@ func (e *BindError) Error() string {
 	case NotRaw:
 		why = "BindRawHTTP binds only operations of kind raw"
 	case OptionType:
-		why = "a WithValidator, WithCheck, WithResources or WithActions option is for another input type than the operation's"
+		why = "a WithValidator, WithCheck, WithResources, WithItemCount or WithActions option is for another input type than the operation's"
 	case DeclaredUnbound:
 		why = "Declare names an operation that is not bound, so its options are not applied; call Declare after the operation's bind site"
 	case DeclaredRaw:

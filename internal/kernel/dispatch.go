@@ -149,14 +149,15 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	}
 	c.Touch(bnd.resources(c, in.In)...)
 	*used = bnd.secondaries(c, in.In)
-	if res, inj, stop := k.before(ctx, c); stop {
+	items := bnd.items(in.In)
+	if res, inj, stop := k.before(ctx, c, items); stop {
 		return res, inj
 	}
 	out, err := k.handle(ctx, c, bnd, in)
 	if err != nil {
 		return Failure{Err: err}, nil
 	}
-	if res, inj, hit := k.after(ctx, c); hit {
+	if res, inj, hit := k.after(ctx, c, items); hit {
 		k.discard(ctx, c, out)
 		return res, inj
 	}
@@ -173,14 +174,15 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	return Output{Out: out, Status: status}, nil
 }
 
-// before runs the request-phase fault rules (step 8). It reports stop when
-// a rule answers the call; a latency rule holds the call for its wall time
+// before runs the request-phase fault rules (step 8) on a call whose input
+// carries items transaction items (WithItemCount). It reports stop when a
+// rule answers the call; a latency rule holds the call for its wall time
 // and lets the rules after it decide.
-func (k *Kernel) before(ctx context.Context, c *Call) (Result, *fault.Injection, bool) {
+func (k *Kernel) before(ctx context.Context, c *Call, items int) (Result, *fault.Injection, bool) {
 	if k.faults == nil {
 		return nil, nil, false
 	}
-	decision := k.faults.Evaluate(fault.BeforeHandler, k.matchInput(c))
+	decision := k.faults.Evaluate(fault.BeforeHandler, k.matchInput(c, items))
 	for {
 		switch d := decision.(type) {
 		case fault.Fail:
@@ -219,11 +221,11 @@ func (k *Kernel) journalSpent(ctx context.Context, c *Call, decision fault.Decis
 
 // after runs the after-commit fault rules (step 10) on a call whose handler
 // succeeded.
-func (k *Kernel) after(ctx context.Context, c *Call) (Result, *fault.Injection, bool) {
+func (k *Kernel) after(ctx context.Context, c *Call, items int) (Result, *fault.Injection, bool) {
 	if k.faults == nil {
 		return nil, nil, false
 	}
-	switch d := k.faults.Evaluate(fault.AfterHandler, k.matchInput(c)).(type) {
+	switch d := k.faults.Evaluate(fault.AfterHandler, k.matchInput(c, items)).(type) {
 	case fault.FailAfterCommit:
 		k.journalFault(ctx, c, d.Injection)
 		return Failure{Err: d.Err}, &d.Injection, true
@@ -254,8 +256,8 @@ func (k *Kernel) wallDelay(ctx context.Context, d time.Duration) *awserr.Error {
 	return nil
 }
 
-func (k *Kernel) matchInput(c *Call) fault.MatchInput {
-	return fault.MatchInput{Service: c.opID.Service, Op: c.opID, Touched: c.Touched(), Scope: c.scope, Origin: c.origin}
+func (k *Kernel) matchInput(c *Call, items int) fault.MatchInput {
+	return fault.MatchInput{Service: c.opID.Service, Op: c.opID, Touched: c.Touched(), Scope: c.scope, Origin: c.origin, Items: items}
 }
 
 // begin opens the call's journal event (step 6).

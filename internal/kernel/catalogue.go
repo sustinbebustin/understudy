@@ -65,8 +65,10 @@ func (c Catalogue) Throttle(svc ref.ServiceID) awserr.Identity {
 // NewMembers returns a new, empty value of error shape for op's service,
 // from the descriptor's generated NewErrorMembers, or false for an unknown
 // operation or a service without one.
-//
-// It is not implemented yet: it always returns false.
-func (Catalogue) NewMembers(ref.OperationID, smithy.ShapeID) (awserr.DecodableMembers, bool) {
-	return nil, false
+func (c Catalogue) NewMembers(op ref.OperationID, shape smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	d, ok := c.reg.Operation(op)
+	if !ok || d.Service.NewErrorMembers == nil {
+		return nil, false
+	}
+	return d.Service.NewErrorMembers(shape)
 }
