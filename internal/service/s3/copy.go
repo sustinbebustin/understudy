@@ -223,8 +223,9 @@ func (s *Service) copyObject(ctx context.Context, c *kernel.Call, in *s3api.Copy
 			s.release(ctx, so.Blob)
 		}
 	}()
-	if customerKeyed(in.CopySourceSSECustomerAlgorithm, in.CopySourceSSECustomerKey, in.CopySourceSSECustomerKeyMD5) {
-		return nil, errSSECNotApplicable()
+	sourceKey := customerHeaders{algorithm: in.CopySourceSSECustomerAlgorithm, key: in.CopySourceSSECustomerKey, keyMD5: in.CopySourceSSECustomerKeyMD5}
+	if _, err := checkCustomerRead(so.Encryption, sourceKey, c.Endpoint().Scheme); err != nil {
+		return nil, err
 	}
 	if archived(so.StorageClass) {
 		return nil, s3api.ErrObjectNotInActiveTierError("The source object of the COPY action is not in the active tier and is only stored in Amazon S3 Glacier.")
@@ -238,7 +239,7 @@ func (s *Service) copyObject(ctx context.Context, c *kernel.Call, in *s3api.Copy
 		if inPlace && !req.changes(in, so, b) {
 			return preWrite{}, errInvalidRequest(selfCopyMessage)
 		}
-		return prepareWrite(b, in.Key, req.cond, req.sse, req.acl)
+		return prepareWrite(b, in.Key, req.cond, req.sse, req.acl, c.Endpoint().Scheme)
 	})
 	if err != nil {
 		return nil, err
@@ -264,6 +265,7 @@ func (s *Service) copyObject(ctx context.Context, c *kernel.Call, in *s3api.Copy
 	out := &s3api.CopyObjectOutput{CopyObjectResult: result, VersionId: done.reported, CopySourceVersionId: src.reported}
 	h := encryptionHeaders(enc)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
+	out.SSECustomerAlgorithm, out.SSECustomerKeyMD5 = customerEcho(customerOf(pre.sse))
 	return out, nil
 }
 
@@ -295,7 +297,7 @@ func readCopy(in *s3api.CopyObjectInput) (copyRequest, *awserr.Error) {
 		acl:             writeACL(in.ACL, in.GrantFullControl, in.GrantRead, in.GrantReadACP, in.GrantWriteACP),
 		sse: sseRequest{
 			algorithm: in.ServerSideEncryption, keyID: in.SSEKMSKeyId, context: in.SSEKMSEncryptionContext, bucketKey: in.BucketKeyEnabled,
-			customer: in.SSECustomerAlgorithm != nil || in.SSECustomerKey != nil,
+			customer: customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5},
 		},
 	}
 	if r.replaceMetadata {
@@ -333,25 +335,27 @@ func readCopy(in *s3api.CopyObjectInput) (copyRequest, *awserr.Error) {
 // changes reports whether a copy of so onto itself in bucket b changes
 // something S3 counts (s3.md 7): the metadata (REPLACE), a storage class,
 // even the one the object has, the website redirect, the checksum
-// algorithm, or the encryption, which a write without SSE headers changes
-// when the bucket has a default rule of its own or when the object is
-// SSE-KMS and the implicit SSE-S3 default would re-encrypt it (LocalStack
-// aws_validated test_s3_copy_object_in_place_storage_class,
+// algorithm, or the encryption, which target SSE-C headers change, and a
+// write without SSE headers changes when the bucket has a default rule of
+// its own or when the object is SSE-KMS or SSE-C and the implicit SSE-S3
+// default would re-encrypt it (LocalStack aws_validated
+// test_s3_copy_object_in_place_storage_class,
 // test_copy_in_place_with_bucket_encryption and
-// test_s3_copy_object_in_place_with_encryption).
+// test_s3_copy_object_in_place_with_encryption; the SSE-C cases are
+// inferred).
 func (r copyRequest) changes(in *s3api.CopyObjectInput, so *Object, b *Bucket) bool {
 	return r.replaceMetadata ||
 		in.StorageClass != nil ||
 		in.WebsiteRedirectLocation != nil ||
-		in.ServerSideEncryption != nil || in.SSEKMSKeyId != nil ||
-		b.Encryption != nil || isKMS(so.Encryption) ||
+		in.ServerSideEncryption != nil || in.SSEKMSKeyId != nil || r.sse.customer.sent() ||
+		b.Encryption != nil || isKMS(so.Encryption) || isCustomer(so.Encryption) ||
 		r.algorithm != nil && r.algorithm.String() != so.Checksum.Algorithm
 }
 
 // copied is the destination record of a copy (s3.md 7): metadata and tags
 // by their directives, never the website redirect unless restated, the
 // source's checksum unless another algorithm is asked for, and an MD5 ETag
-// unless the destination is SSE-KMS.
+// unless the destination is SSE-KMS or SSE-C (s3-ssec-object-lock.md 3.4).
 func (s *Service) copied(blobs *blob.Store, so *Object, r copyRequest, in *s3api.CopyObjectInput, enc Encryption) (*Object, *awserr.Error) {
 	obj := &Object{Blob: so.Blob, Size: so.Size, Checksum: so.Checksum, StorageClass: r.class, Encryption: enc}
 	obj.Header, obj.Metadata = so.Header, so.Metadata
@@ -376,8 +380,9 @@ func (s *Service) copied(blobs *blob.Store, so *Object, r copyRequest, in *s3api
 	}
 	// A copy's checksum is always FULL_OBJECT (s3.md 7), so a composite
 	// source checksum is recomputed over the bytes, as is an MD5 ETag the
-	// source does not carry.
-	needMD5 := !isKMS(enc) && (isKMS(so.Encryption) || len(so.Parts) > 0)
+	// source does not carry (LocalStack test_s3.snapshot.json L12913 for an
+	// SSE-C source).
+	needMD5 := !opaqueETag(enc) && (opaqueETag(so.Encryption) || len(so.Parts) > 0)
 	if alg.String() != so.Checksum.Algorithm || so.Checksum.Type != s3api.ChecksumTypeFullObject || needMD5 {
 		md, sum, err := hashBlob(blobs, so.Blob, alg)
 		if err != nil {
@@ -388,7 +393,7 @@ func (s *Service) copied(blobs *blob.Store, so *Object, r copyRequest, in *s3api
 	} else {
 		obj.ETag = so.ETag
 	}
-	if isKMS(enc) {
+	if opaqueETag(enc) {
 		obj.ETag = string(s.k.IDs().ETag())
 	}
 	return obj, nil

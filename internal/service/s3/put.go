@@ -62,7 +62,7 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 	}
 	a := at(in.Bucket, in.ExpectedBucketOwner)
 	pre, err := read(ctx, s, c, a, func(b *Bucket) (preWrite, *awserr.Error) {
-		return prepareWrite(b, in.Key, req.cond, req.sse, req.acl)
+		return prepareWrite(b, in.Key, req.cond, req.sse, req.acl, c.Endpoint().Scheme)
 	})
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 		return nil, err
 	}
 	etag := hex.EncodeToString(got.md5)
-	if isKMS(enc) {
+	if opaqueETag(enc) {
 		etag = string(s.k.IDs().ETag())
 	}
 	obj := &Object{
@@ -96,6 +96,7 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 	putObjectOutputFields(out).set(membersOf(obj.Checksum))
 	h := encryptionHeaders(enc)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
+	out.SSECustomerAlgorithm, out.SSECustomerKeyMD5 = customerEcho(customerOf(pre.sse))
 	if isKMS(enc) && in.SSEKMSEncryptionContext != nil {
 		out.SSEKMSEncryptionContext = in.SSEKMSEncryptionContext
 	}
@@ -179,7 +180,7 @@ func readPut(c *kernel.Call, secrets *identity.Store, in *s3api.PutObjectInput) 
 		acl: writeACL(in.ACL, in.GrantFullControl, in.GrantRead, in.GrantReadACP, in.GrantWriteACP),
 		sse: sseRequest{
 			algorithm: in.ServerSideEncryption, keyID: in.SSEKMSKeyId, context: in.SSEKMSEncryptionContext, bucketKey: in.BucketKeyEnabled,
-			customer: in.SSECustomerAlgorithm != nil || in.SSECustomerKey != nil,
+			customer: customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5},
 		},
 	}, nil
 }
@@ -193,12 +194,13 @@ type preWrite struct {
 
 // prepareWrite judges a write against its bucket before the body is read:
 // its ACL, the encryption it resolves to and its condition, which is
-// judged again at commit.
-func prepareWrite(b *Bucket, key string, cond writeCondition, r sseRequest, acl objectACL) (preWrite, *awserr.Error) {
+// judged again at commit. scheme is the call's, which SSE-C needs to be
+// https.
+func prepareWrite(b *Bucket, key string, cond writeCondition, r sseRequest, acl objectACL, scheme string) (preWrite, *awserr.Error) {
 	if err := acl.check(b); err != nil {
 		return preWrite{}, err
 	}
-	choice, err := resolveSSE(r, b, objectResource(b.Name, key).String())
+	choice, err := resolveSSE(r, b, objectResource(b.Name, key).String(), scheme)
 	if err != nil {
 		return preWrite{}, err
 	}

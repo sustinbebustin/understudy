@@ -7736,6 +7736,20 @@ func (v *InvalidDigest) serialize(s smithy.Serializer, m *smithy.Member) {
 }
 
 // Serialize writes v through s.
+func (v *InvalidEncryptionAlgorithmError) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *InvalidEncryptionAlgorithmError) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaInvalidEncryptionAlgorithmError)
+	if v.ArgumentName != nil {
+		s.WriteString(&memberInvalidEncryptionAlgorithmError_ArgumentName, *v.ArgumentName)
+	}
+	if v.ArgumentValue != nil {
+		s.WriteString(&memberInvalidEncryptionAlgorithmError_ArgumentValue, *v.ArgumentValue)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *InvalidLocationConstraint) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *InvalidLocationConstraint) serialize(s smithy.Serializer, m *smithy.Member) {

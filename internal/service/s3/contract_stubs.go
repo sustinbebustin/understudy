@@ -5,13 +5,11 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 )
 
-// The SSE-C and Object Lock API below is declared ahead of its
-// implementation (s3-ssec-object-lock.md 11): every stub answers
-// errNotImplementedYet or a zero value, and nothing calls one yet, so no
-// request behaves differently. A few are implemented already and wait
-// only for their callers (newCustomerEncryption, CustomerEncryption.matches).
-// Each leaves this file when the change that wires it in lands; the file
-// goes once the last one has.
+// The Object Lock API below is declared ahead of its implementation
+// (s3-ssec-object-lock.md 11): every stub answers errNotImplementedYet or
+// a zero value, and nothing calls one yet, so no request behaves
+// differently. Each leaves this file when the change that wires it in
+// lands; the file goes once the last one has.
 
 // errNotImplementedYet is a stub's answer: 501 NotImplemented naming the
 // function.
@@ -40,17 +38,4 @@ var _ = []any{
 	javaDate,
 	checkBypassHeader,
 	(*Service).governanceBypass,
-	customerHeaders{algorithm: nil, key: nil, keyMD5: nil},
-	customerHeaders.sent,
-	customerKey{key: nil, keyMD5: ""},
-	parseCustomerWrite,
-	parseCustomerRead,
-	newCustomerEncryption,
-	CustomerEncryption.matches,
-	checkCustomerWrite,
-	checkCustomerRead,
-	checkCustomerPart,
-	newBucketBlock,
-	blockedEncryptionOf,
-	encryptionRead,
 }

@@ -2291,6 +2291,12 @@ var schemaInvalidChunkSizeError = smithy.Schema{ID: "com.amazonaws.s3#InvalidChu
 
 var schemaInvalidDigest = smithy.Schema{ID: "com.amazonaws.s3#InvalidDigest", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
+var schemaInvalidEncryptionAlgorithmError = smithy.Schema{ID: "com.amazonaws.s3#InvalidEncryptionAlgorithmError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+
+var memberInvalidEncryptionAlgorithmError_ArgumentName = smithy.Member{Name: "ArgumentName", Index: 0}
+
+var memberInvalidEncryptionAlgorithmError_ArgumentValue = smithy.Member{Name: "ArgumentValue", Index: 1}
+
 var schemaInvalidLocationConstraint = smithy.Schema{ID: "com.amazonaws.s3#InvalidLocationConstraint", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
 var memberInvalidLocationConstraint_LocationConstraint = smithy.Member{Name: "LocationConstraint", Index: 0}
@@ -6089,6 +6095,9 @@ func init() {
 	schemaInvalidArgument.Members = []*smithy.Member{&memberInvalidArgument_ArgumentName, &memberInvalidArgument_ArgumentValue}
 	memberInvalidBucketName_BucketName.Target = &schemaSmithyString
 	schemaInvalidBucketName.Members = []*smithy.Member{&memberInvalidBucketName_BucketName}
+	memberInvalidEncryptionAlgorithmError_ArgumentName.Target = &schemaSmithyString
+	memberInvalidEncryptionAlgorithmError_ArgumentValue.Target = &schemaSmithyString
+	schemaInvalidEncryptionAlgorithmError.Members = []*smithy.Member{&memberInvalidEncryptionAlgorithmError_ArgumentName, &memberInvalidEncryptionAlgorithmError_ArgumentValue}
 	memberInvalidLocationConstraint_LocationConstraint.Target = &schemaSmithyString
 	schemaInvalidLocationConstraint.Members = []*smithy.Member{&memberInvalidLocationConstraint_LocationConstraint}
 	memberInvalidObjectState_StorageClass.Target = &schemaStorageClass

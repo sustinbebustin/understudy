@@ -23,13 +23,13 @@ import (
 // bindMultipart binds the multipart upload operations.
 func (s *Service) bindMultipart(b s3api.Binder) {
 	create := func(in *s3api.CreateMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.CreateMultipartUpload(s.createMultipartUpload, registry.Partial{Note: "no SSE-C; " + objectLockNote + "; an object ACL a bucket accepts is not stored; no lifecycle abort date"}, touches(create))
+	b.CreateMultipartUpload(s.createMultipartUpload, registry.Partial{Note: objectLockNote + "; an object ACL a bucket accepts is not stored; no lifecycle abort date"}, touches(create))
 	part := func(in *s3api.UploadPartInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.UploadPart(s.uploadPart, registry.Partial{Note: "no SSE-C; chunk signatures are verified under sigv4 verify"}, touches(part))
+	b.UploadPart(s.uploadPart, registry.Partial{Note: "chunk signatures are verified under sigv4 verify"}, touches(part))
 	partCopy := func(in *s3api.UploadPartCopyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.UploadPartCopy(s.uploadPartCopy, registry.Partial{Note: "no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"}, touches(partCopy))
+	b.UploadPartCopy(s.uploadPartCopy, registry.Partial{Note: "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"}, touches(partCopy))
 	complete := func(in *s3api.CompleteMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.CompleteMultipartUpload(s.completeMultipartUpload, registry.Partial{Note: "no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"}, touches(complete))
+	b.CompleteMultipartUpload(s.completeMultipartUpload, registry.Partial{Note: "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"}, touches(complete))
 	abort := func(in *s3api.AbortMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.AbortMultipartUpload(s.abortMultipartUpload, registry.Partial{Note: "x-amz-if-match-initiated-time, a directory bucket header, answers 501"}, touches(abort))
 	lp := func(in *s3api.ListPartsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
@@ -185,7 +185,7 @@ func readCreate(in *s3api.CreateMultipartUploadInput) (createRequest, *awserr.Er
 		acl: writeACL(in.ACL, in.GrantFullControl, in.GrantRead, in.GrantReadACP, in.GrantWriteACP),
 		sse: sseRequest{
 			algorithm: in.ServerSideEncryption, keyID: in.SSEKMSKeyId, context: in.SSEKMSEncryptionContext, bucketKey: in.BucketKeyEnabled,
-			customer: in.SSECustomerAlgorithm != nil || in.SSECustomerKey != nil,
+			customer: customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5},
 		},
 	}, nil
 }
@@ -200,7 +200,7 @@ func (s *Service) createMultipartUpload(ctx context.Context, c *kernel.Call, in 
 	}
 	a := at(in.Bucket, in.ExpectedBucketOwner)
 	pre, err := read(ctx, s, c, a, func(b *Bucket) (preWrite, *awserr.Error) {
-		return prepareWrite(b, in.Key, unconditional{}, req.sse, req.acl)
+		return prepareWrite(b, in.Key, unconditional{}, req.sse, req.acl, c.Endpoint().Scheme)
 	})
 	if err != nil {
 		return nil, err
@@ -227,6 +227,7 @@ func (s *Service) createMultipartUpload(ctx context.Context, c *kernel.Call, in 
 	out.ChecksumAlgorithm, out.ChecksumType = declaredOf(req.mode)
 	h := encryptionHeaders(enc)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
+	out.SSECustomerAlgorithm, out.SSECustomerKeyMD5 = customerEcho(customerOf(pre.sse))
 	if isKMS(enc) && in.SSEKMSEncryptionContext != nil {
 		out.SSEKMSEncryptionContext = in.SSEKMSEncryptionContext
 	}
@@ -264,13 +265,17 @@ type completeRequest struct {
 	// size is x-amz-mp-object-size.
 	size *int64
 	cond writeCondition
+	// customer is the SSE-C trio sent, judged against the upload, and
+	// scheme the call's (checkCustomerComplete).
+	customer customerHeaders
+	scheme   string
 }
 
 // readComplete reads a Complete. A request without a body lists no parts,
 // which judgeCompletion answers after the upload is found (REC
 // test_multipart_complete_multipart_too_small step complete-exc-no-parts,
 // test_multipart_no_such_upload step complete-exc).
-func readComplete(in *s3api.CompleteMultipartUploadInput) (completeRequest, *awserr.Error) {
+func readComplete(in *s3api.CompleteMultipartUploadInput, scheme string) (completeRequest, *awserr.Error) {
 	var parts []s3api.CompletedPart
 	if in.MultipartUpload != nil {
 		parts = in.MultipartUpload.Parts
@@ -283,7 +288,10 @@ func readComplete(in *s3api.CompleteMultipartUploadInput) (completeRequest, *aws
 		return completeRequest{}, err
 	}
 	sums := completeMultipartUploadInputFields(in).members().sent()
-	r := completeRequest{id: in.UploadId, key: in.Key, parts: parts, typ: in.ChecksumType, size: in.MpuObjectSize, cond: cond}
+	r := completeRequest{
+		id: in.UploadId, key: in.Key, parts: parts, typ: in.ChecksumType, size: in.MpuObjectSize, cond: cond,
+		customer: customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5}, scheme: scheme,
+	}
 	switch len(sums) {
 	case 0:
 	case 1:
@@ -317,10 +325,7 @@ func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, i
 	if err != nil {
 		return nil, err
 	}
-	if customerKeyed(in.SSECustomerAlgorithm, in.SSECustomerKey, in.SSECustomerKeyMD5) {
-		return nil, errSSECNotApplicable()
-	}
-	req, err := readComplete(in)
+	req, err := readComplete(in, c.Endpoint().Scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -345,8 +350,14 @@ func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, i
 		return nil, awserr.Internalf(fmt.Errorf("concatenating the %d parts of upload %s into %s/%s: %w", len(refs), req.id, in.Bucket, in.Key, perr))
 	}
 	u := plan.upload
+	etag := plan.etag
+	if isCustomer(u.Encryption) {
+		// An SSE-C object's ETag keeps the -N suffix but is not the MD5 of
+		// the part ETags (s3-ssec-object-lock.md 3.4, 11.3).
+		etag = string(s.k.IDs().ETag()) + "-" + strconv.Itoa(len(plan.parts))
+	}
 	obj := &Object{
-		Blob: ref, Size: size, ETag: plan.etag, Checksum: plan.sum, Header: u.Header, Metadata: u.Metadata, Tags: u.Tags,
+		Blob: ref, Size: size, ETag: etag, Checksum: plan.sum, Header: u.Header, Metadata: u.Metadata, Tags: u.Tags,
 		StorageClass: u.StorageClass, Encryption: u.Encryption, Parts: objectParts(plan.parts, plan.sum.Type),
 	}
 	done, err := s.commitOwned(ctx, c, a, obj, s.completeWrite(req, plan, obj))
@@ -357,11 +368,12 @@ func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, i
 		Location: new(objectLocation(c.Endpoint(), in.Bucket, in.Key)), Bucket: new(in.Bucket), Key: new(in.Key),
 		ETag: new(quote(obj.ETag)), VersionId: done.reported,
 	}
-	// An SSE-KMS result reports no checksum, though the object keeps one
-	// that reads report (REC test_s3_multipart_upload_sse steps
-	// multi-sse-compete-multipart and get-obj; recorded for an undeclared
+	// An SSE-KMS or SSE-C result reports no checksum, though the object
+	// keeps one that reads report (REC test_s3_multipart_upload_sse steps
+	// multi-sse-compete-multipart and get-obj; LocalStack
+	// test_s3.snapshot.json L13083 for SSE-C; recorded for an undeclared
 	// upload, UNVERIFIED for a declared one).
-	if !isKMS(obj.Encryption) {
+	if !opaqueETag(obj.Encryption) {
 		out.ChecksumType = new(obj.Checksum.Type)
 		completeMultipartUploadOutputFields(out).set(membersOf(obj.Checksum))
 	}
@@ -394,6 +406,9 @@ func objectParts(parts []listedPart, typ s3api.ChecksumType) []ObjectPart {
 func (s *Service) judgeCompletion(ctx context.Context, blobs *blob.Store, b *Bucket, req completeRequest) (completion, *awserr.Error) {
 	u, err := b.Uploads.find(req.id, req.key)
 	if err != nil {
+		return completion{}, err
+	}
+	if err := checkCustomerComplete(u, req.customer, req.scheme); err != nil {
 		return completion{}, err
 	}
 	m, merr := u.Checksum.mode()

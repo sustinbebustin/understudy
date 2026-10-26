@@ -1,0 +1,53 @@
+package s3
+
+import (
+	"github.com/sustinbebustin/understudy/internal/evidence"
+	"github.com/sustinbebustin/understudy/internal/fidelity"
+)
+
+// The SSE-C and bucket-encryption switches of s3-ssec-object-lock.md 11.4,
+// in that table's order. None is settled by a recording yet: each names
+// the recording-queue item of section 12 that would settle it.
+
+// ssecSwitches lists the switches in table order.
+func ssecSwitches() []fidelity.Entry {
+	// The operations that take the SSE-C trio, whose requests over plain
+	// HTTP are refused (s3-ssec-object-lock.md 3.1, 3.9).
+	ssecPlainHTTPOps := []string{
+		"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy",
+		"s3.CompleteMultipartUpload", "s3.GetObject", "s3.HeadObject", "s3.GetObjectAttributes",
+	}
+	return []fidelity.Entry{
+		ssecSwitch("s3.sse-c.plain-http", "refused", evidence.AWSDoc, "39-https", "S3SOL-02", ssecPlainHTTPOps),
+		ssecSwitch("s3.sse-c.blocked-write", "AccessDenied", evidence.Inferred, "43-what-the-block-refuses", "S3SOL-01",
+			[]string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy"}),
+		ssecSwitch("s3.sse-c.missing-key-md5", "InvalidArgument", evidence.Inferred, "32-write-side-validation-third-party-recorded", "S3SOL-03", ssecPlainHTTPOps),
+		ssecSwitch("s3.sse-c.key-encoding", "write-side-texts", evidence.Inferred, "32-write-side-validation-third-party-recorded", "S3SOL-04", ssecPlainHTTPOps),
+		ssecSwitch("s3.sse-c.metadata-without-key", "InvalidRequest", evidence.Inferred, "33-reads-getobject-headobject-getobjectattributes", "S3SOL-05",
+			[]string{"s3.HeadObject", "s3.GetObjectAttributes"}),
+		ssecSwitch("s3.sse-c.copy-source-not-applicable", "InvalidRequest", evidence.Inferred, "35-copyobject-and-uploadpartcopy", "S3SOL-06",
+			[]string{"s3.CopyObject", "s3.UploadPartCopy"}),
+		ssecSwitch("s3.sse-c.copy-source-wrong-key", "AccessDenied", evidence.Inferred, "35-copyobject-and-uploadpartcopy", "S3SOL-07",
+			[]string{"s3.CopyObject", "s3.UploadPartCopy"}),
+		ssecSwitch("s3.sse-c.complete-headers", "checked-when-sent", evidence.Inferred, "36-multipart-uploads", "S3SOL-08",
+			[]string{"s3.CompleteMultipartUpload", "s3.ListParts"}),
+		ssecSwitch("s3.encryption.unblocked-read", "NONE-element", evidence.Inferred, "42-blocking-and-unblocking", "S3SOL-10",
+			[]string{"s3.PutBucketEncryption", "s3.GetBucketEncryption"}),
+		ssecSwitch("s3.encryption.blocked-types-omitted", "kept", evidence.Inferred, "42-blocking-and-unblocking", "S3SOL-11",
+			[]string{"s3.PutBucketEncryption", "s3.DeleteBucketEncryption"}),
+	}
+}
+
+// ssecSwitch is one switch of s3-ssec-object-lock.md 11.4: anchor is its
+// section's anchor in that note, record its section 12 queue item.
+func ssecSwitch(name, value string, label evidence.Label, anchor, record string, ops []string) fidelity.Entry {
+	return fidelity.Switch[string]{
+		Name:    name,
+		Value:   value,
+		Label:   label,
+		Ref:     "docs/research/s3-ssec-object-lock.md#" + anchor,
+		Record:  record,
+		Ops:     ops,
+		Settles: fidelity.NoScenario{Reason: "unrecorded: " + record + " is queued in docs/research/s3-ssec-object-lock.md 12"},
+	}.Entry()
+}

@@ -1146,7 +1146,7 @@ var descPutBucketEncryption = registry.Operation{
 	Shape:       "com.amazonaws.s3#PutBucketEncryption",
 	Input:       &schemaPutBucketEncryptionInput,
 	Output:      &schemaSmithyUnit,
-	Errors:      []awserr.Identity{IdentityInvalidArgument()},
+	Errors:      []awserr.Identity{IdentityMalformedXML(), IdentityInvalidArgument()},
 	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "PutEncryptionConfiguration"}},
 	HTTP:        &registry.HTTPBinding{Method: "PUT", Path: []registry.Segment{registry.Label{Name: "Bucket"}}, Query: []registry.QueryMatch{registry.QueryPresent{Key: "encryption"}}},
 	SuccessCode: 200,

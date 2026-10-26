@@ -23,6 +23,10 @@ type readRequest struct {
 	conds      readConditions
 	rangeSpec  *string
 	partNumber *int32
+	// customer is the SSE-C trio the read sent, and scheme the call's
+	// (checkCustomerRead).
+	customer customerHeaders
+	scheme   string
 	// retain is set by GetObject: the version's blob gains a reference
 	// under the bucket's lock, which the caller releases once it opened
 	// the body, so a concurrent overwrite or delete cannot drop the bytes
@@ -31,12 +35,13 @@ type readRequest struct {
 }
 
 // served is an object version a read resolved, with the part of it the
-// response carries.
+// response carries and, for an SSE-C version, the key the read sent.
 type served struct {
 	version  Version
 	reported *string
 	home     Home
 	span     span
+	key      *customerKey
 }
 
 // span is the bytes a read returns: the whole object, or a range of it
@@ -61,9 +66,12 @@ func (s span) contentRange() *string {
 }
 
 // readObject resolves the version a read addresses and applies, in S3's
-// order, the conditional headers, then partNumber or Range (s3.md 5.8 to
-// 5.10). With r.retain set, a read that succeeds holds a reference on the
-// version's blob, which the caller releases.
+// order, the SSE-C key, the conditional headers, then partNumber or Range
+// (s3.md 5.8 to 5.10). The key is judged first so that no 304, 412 or 416
+// reports an SSE-C version's metadata to a read without its key
+// (s3-ssec-object-lock.md 11.7; the order against the conditions is
+// inferred). With r.retain set, a read that succeeds holds a reference on
+// the version's blob, which the caller releases.
 func (s *Service) readObject(ctx context.Context, c *kernel.Call, a access, r readRequest) (served, *awserr.Error) {
 	if r.partNumber != nil && r.rangeSpec != nil {
 		return served{}, errInvalidRequest("Cannot specify both Range header and partNumber query parameter")
@@ -71,6 +79,10 @@ func (s *Service) readObject(ctx context.Context, c *kernel.Call, a access, r re
 	now := c.Admitted().Wire()
 	return read(ctx, s, c, a, func(b *Bucket) (served, *awserr.Error) {
 		v, err := findVersion(b, r.key, r.versionID, r.method)
+		if err != nil {
+			return served{}, err
+		}
+		k, err := checkCustomerRead(v.Object.Encryption, r.customer, r.scheme)
 		if err != nil {
 			return served{}, err
 		}
@@ -86,7 +98,7 @@ func (s *Service) readObject(ctx context.Context, c *kernel.Call, a access, r re
 				return served{}, awserr.Internalf(fmt.Errorf("retaining the body of %s version %s for GetObject: %w", r.key, v.ID, rerr))
 			}
 		}
-		return served{version: v, reported: reportedVersion(b, v.ID), home: b.Home, span: sp}, nil
+		return served{version: v, reported: reportedVersion(b, v.ID), home: b.Home, span: sp, key: k}, nil
 	})
 }
 
@@ -217,17 +229,16 @@ func (s *Service) getObject(ctx context.Context, c *kernel.Call, in *s3api.GetOb
 	}
 	got, err := s.readObject(ctx, c, at(in.Bucket, in.ExpectedBucketOwner), readRequest{
 		key: in.Key, versionID: in.VersionId, method: http.MethodGet, rangeSpec: in.Range, partNumber: in.PartNumber,
-		conds:  readConditions{ifMatch: in.IfMatch, ifNoneMatch: in.IfNoneMatch, ifModifiedSince: in.IfModifiedSince, ifUnmodifiedSince: in.IfUnmodifiedSince},
-		retain: blobs,
+		conds:    readConditions{ifMatch: in.IfMatch, ifNoneMatch: in.IfNoneMatch, ifModifiedSince: in.IfModifiedSince, ifUnmodifiedSince: in.IfUnmodifiedSince},
+		customer: customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5},
+		scheme:   c.Endpoint().Scheme,
+		retain:   blobs,
 	})
 	if err != nil {
 		return nil, err
 	}
 	o := got.version.Object
 	defer s.release(ctx, o.Blob)
-	if customerKeyed(in.SSECustomerAlgorithm, in.SSECustomerKey, in.SSECustomerKeyMD5) {
-		return nil, errSSECNotApplicable()
-	}
 	if archived(o.StorageClass) {
 		return nil, withField(s3api.ErrInvalidObjectState("The operation is not valid for the object's storage class"), "StorageClass", string(o.StorageClass))
 	}
@@ -246,6 +257,7 @@ func (s *Service) getObject(ctx context.Context, c *kernel.Call, in *s3api.GetOb
 		CacheControl: h.CacheControl, ContentDisposition: h.ContentDisposition, ContentEncoding: h.ContentEncoding,
 		ContentLanguage: h.ContentLanguage, ContentType: h.ContentType, Expires: h.Expires, WebsiteRedirectLocation: h.WebsiteRedirectLocation,
 		ServerSideEncryption: h.ServerSideEncryption, SSEKMSKeyId: h.SSEKMSKeyId, BucketKeyEnabled: h.BucketKeyEnabled,
+		SSECustomerAlgorithm: h.SSECustomerAlgorithm, SSECustomerKeyMD5: h.SSECustomerKeyMD5,
 		StorageClass: h.StorageClass, TagCount: h.TagCount, ChecksumType: h.ChecksumType,
 	}
 	getObjectOutputFields(out).set(headObjectOutputFields(h).members())
@@ -302,6 +314,7 @@ func headOf(got served, mode *s3api.ChecksumMode) *s3api.HeadObjectOutput {
 	}
 	sse := encryptionHeaders(o.Encryption)
 	h.ServerSideEncryption, h.SSEKMSKeyId, h.BucketKeyEnabled = sse.algorithm, sse.keyID, sse.bucketKey
+	h.SSECustomerAlgorithm, h.SSECustomerKeyMD5 = customerEcho(got.key)
 	if sum, ok := reportedChecksum(o, got.span); ok && mode != nil && *mode == s3api.ChecksumModeEnabled {
 		headObjectOutputFields(h).set(membersOf(sum))
 		h.ChecksumType = new(sum.Type)

@@ -523,32 +523,57 @@ func (s *Service) bindReplication(b s3api.Binder) {
 func (s *Service) bindEncryption(b s3api.Binder) {
 	get := func(in *s3api.GetBucketEncryptionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetBucketEncryption(reader(s, get, func(_ *s3api.GetBucketEncryptionInput, b *Bucket) (*s3api.GetBucketEncryptionOutput, *awserr.Error) {
-		if b.Encryption == nil {
-			return s3api.NotConfiguredGetBucketEncryption(), nil
-		}
-		return &s3api.GetBucketEncryptionOutput{ServerSideEncryptionConfiguration: b.Encryption}, nil
-	}), stored("the default encryption rule is"), touches(get))
+		return &s3api.GetBucketEncryptionOutput{ServerSideEncryptionConfiguration: encryptionRead(b)}, nil
+	}), registry.Full{}, touches(get))
 	put := func(in *s3api.PutBucketEncryptionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketEncryption(writer[s3api.PutBucketEncryptionInput, s3api.PutBucketEncryptionOutput](s, put, func(in *s3api.PutBucketEncryptionInput, b *Bucket) *awserr.Error {
-		b.Encryption = &in.ServerSideEncryptionConfiguration
+		// The rule is kept without BlockedEncryptionTypes, which the bucket
+		// holds apart, so a rule that omits it keeps the block (switch
+		// s3.encryption.blocked-types-omitted).
+		rule := in.ServerSideEncryptionConfiguration.Rules[0]
+		block, sent, err := blockedEncryptionOf(rule)
+		if err != nil {
+			return err
+		}
+		if sent {
+			b.BlockedEncryption = block
+		}
+		rule.BlockedEncryptionTypes = nil
+		b.Encryption = &s3api.ServerSideEncryptionConfiguration{Rules: []s3api.ServerSideEncryptionRule{rule}}
 		return nil
-	}), stored("the default encryption rule is"), touches(put), kernel.WithCheck(checkEncryption))
+	}), registry.Full{}, touches(put), kernel.WithCheck(checkEncryption))
 	del := func(in *s3api.DeleteBucketEncryptionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketEncryption(writer[s3api.DeleteBucketEncryptionInput, s3api.DeleteBucketEncryptionOutput](s, del, func(_ *s3api.DeleteBucketEncryptionInput, b *Bucket) *awserr.Error {
+		// The SSE-C block stays as it was (switch
+		// s3.encryption.blocked-types-omitted;
+		// testdata/parity/s3/R06/02-get-encryption-after-delete.json).
 		b.Encryption = nil
 		return nil
-	}), stored("the default encryption rule is"), touches(del))
+	}), registry.Full{}, touches(del))
 }
 
-// checkEncryption checks a default encryption configuration: exactly one
-// rule with a default, and a KMS key only for the KMS algorithms (s3.md
-// 4.2.2).
+// checkEncryption checks a default encryption configuration (s3.md 4.2.2):
+// exactly one rule, holding a default, a BlockedEncryptionTypes or both
+// (API_PutBucketEncryption Example 4 sends the block alone; a rule with
+// neither is MalformedXML under switch s3.encryption.unblocked-read), a
+// block that blockedEncryptionOf reads, and a KMS key only for the KMS
+// algorithms.
 func checkEncryption(in *s3api.PutBucketEncryptionInput) *awserr.Error {
 	rules := in.ServerSideEncryptionConfiguration.Rules
-	if len(rules) != 1 || rules[0].ApplyServerSideEncryptionByDefault == nil {
+	if len(rules) != 1 {
 		return errMalformedXML()
 	}
-	d := rules[0].ApplyServerSideEncryptionByDefault
+	rule := rules[0]
+	if rule.ApplyServerSideEncryptionByDefault == nil && rule.BlockedEncryptionTypes == nil {
+		return errMalformedXML()
+	}
+	if _, _, err := blockedEncryptionOf(rule); err != nil {
+		return err
+	}
+	d := rule.ApplyServerSideEncryptionByDefault
+	if d == nil {
+		return nil
+	}
 	kms := d.SSEAlgorithm == s3api.ServerSideEncryptionAwsKms || d.SSEAlgorithm == s3api.ServerSideEncryptionAwsKmsDsse
 	if d.KMSMasterKeyID != nil && !kms {
 		return withField(s3api.ErrInvalidArgument("a KMSMasterKeyID is not applicable if the default sse algorithm is not aws:kms or aws:kms:dsse"),

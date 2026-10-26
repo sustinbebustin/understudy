@@ -139,11 +139,13 @@ type Bucket struct {
 	Lifecycle   *Lifecycle                      `json:"lifecycle,omitempty"`
 	Replication *s3api.ReplicationConfiguration `json:"replication,omitempty"`
 	// Encryption is nil for the default rule every bucket has: SSE-S3 with
-	// no bucket key (s3.md 4.1).
+	// no bucket key (s3.md 4.1). A rule put is kept as sent but for its
+	// BlockedEncryptionTypes.
 	Encryption *s3api.ServerSideEncryptionConfiguration `json:"encryption,omitempty"`
 	// BlockedEncryption is the rule's BlockedEncryptionTypes, kept apart
-	// from Encryption so that a Put omitting it keeps it. Nothing reads or
-	// sets it yet: its zero value, SSE-C blocked, is never written.
+	// from Encryption so that a Put omitting it, or a Delete, keeps it
+	// (switch s3.encryption.blocked-types-omitted). Its zero value, SSE-C
+	// blocked, is never written.
 	BlockedEncryption BlockedEncryption                     `json:"blockedEncryption,omitzero"`
 	ObjectLock        *s3api.ObjectLockConfiguration        `json:"objectLock,omitempty"`
 	RequestPayment    *s3api.RequestPaymentConfiguration    `json:"requestPayment,omitempty"`

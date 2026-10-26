@@ -5659,7 +5659,7 @@ var policyPutBucketEncryption = validationPolicy{
 		{segments: []string{"contentMD5"}, param: "ContentMD5"},
 		{segments: []string{"checksumAlgorithm"}, param: "ChecksumAlgorithm"},
 		{segments: []string{"serverSideEncryptionConfiguration"}, param: "ServerSideEncryptionConfiguration"},
-		{segments: []string{"serverSideEncryptionConfiguration", "rules"}, param: "Rules"},
+		{segments: []string{"serverSideEncryptionConfiguration", "rules"}, param: "Rules", rules: []validationRule{{kinds: kindRequired, id: IdentityMalformedXML, style: styleFixed, reason: "The XML you provided was not well-formed or did not validate against our published schema"}}},
 		{segments: []string{"serverSideEncryptionConfiguration", "rules", "*", "member"}, param: "Rules"},
 		{segments: []string{"serverSideEncryptionConfiguration", "rules", "*", "member", "applyServerSideEncryptionByDefault"}, param: "ApplyServerSideEncryptionByDefault"},
 		{segments: []string{"serverSideEncryptionConfiguration", "rules", "*", "member", "applyServerSideEncryptionByDefault", "sSEAlgorithm"}, param: "SSEAlgorithm"},

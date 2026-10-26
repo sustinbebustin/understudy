@@ -428,6 +428,26 @@ func ErrInvalidDigest(message string) *awserr.Error {
 // ErrorIdentity returns the identity of com.amazonaws.s3#InvalidDigest.
 func (*InvalidDigest) ErrorIdentity() awserr.Identity { return IdentityInvalidDigest() }
 
+// IdentityInvalidEncryptionAlgorithmError returns the identity of com.amazonaws.s3#InvalidEncryptionAlgorithmError.
+func IdentityInvalidEncryptionAlgorithmError() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidEncryptionAlgorithmError", JSONType: "InvalidEncryptionAlgorithmError", QueryCode: "InvalidEncryptionAlgorithmError", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrInvalidEncryptionAlgorithmError returns an InvalidEncryptionAlgorithmError error with message.
+func ErrInvalidEncryptionAlgorithmError(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityInvalidEncryptionAlgorithmError(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.s3#InvalidEncryptionAlgorithmError.
+func (*InvalidEncryptionAlgorithmError) ErrorIdentity() awserr.Identity {
+	return IdentityInvalidEncryptionAlgorithmError()
+}
+
+// ErrInvalidEncryptionAlgorithmErrorMembers returns an InvalidEncryptionAlgorithmError error with message, carrying v's members.
+func ErrInvalidEncryptionAlgorithmErrorMembers(message string, v InvalidEncryptionAlgorithmError) *awserr.Error {
+	return awserr.WithMembers(&v, message, awserr.Modeled{})
+}
+
 // IdentityInvalidLocationConstraint returns the identity of com.amazonaws.s3#InvalidLocationConstraint.
 func IdentityInvalidLocationConstraint() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.s3#InvalidLocationConstraint", JSONType: "InvalidLocationConstraint", QueryCode: "InvalidLocationConstraint", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}

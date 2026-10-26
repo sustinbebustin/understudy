@@ -3181,6 +3181,12 @@ type InvalidChunkSizeError struct{}
 // InvalidDigest is the error com.amazonaws.s3#InvalidDigest.
 type InvalidDigest struct{}
 
+// InvalidEncryptionAlgorithmError is the error com.amazonaws.s3#InvalidEncryptionAlgorithmError.
+type InvalidEncryptionAlgorithmError struct {
+	ArgumentName  *string
+	ArgumentValue *string
+}
+
 // InvalidLocationConstraint is the error com.amazonaws.s3#InvalidLocationConstraint.
 type InvalidLocationConstraint struct {
 	LocationConstraint *string

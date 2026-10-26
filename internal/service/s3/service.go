@@ -355,13 +355,13 @@ func (s *Service) Scopes() []aws.Scope {
 
 // Switches lists the behaviors chosen without AWS-recorded evidence.
 func (s *Service) Switches() []fidelity.Entry {
-	return []fidelity.Entry{
+	return append([]fidelity.Entry{
 		encryptionAfterDelete().Entry(),
 		crossAccountAccess(s.bucketOperations()).Entry(),
 		publicACLAtCreate().Entry(),
 		tagLimits().Entry(),
 		lifecycleRuleLimits().Entry(),
-	}
+	}, ssecSwitches()...)
 }
 
 // bucketOperations are the operations bound in s's kernel that address an
@@ -468,14 +468,15 @@ func (s *Service) homes() map[string]Home {
 }
 
 // encryptionAfterDelete is GetBucketEncryption after DeleteBucketEncryption:
-// AWS documents that every bucket always has the SSE-S3 default (s3.md
-// 4.1), and s3/R06/02-get-encryption-after-delete.json records the read.
+// the SSE-S3 default every bucket has (s3.md 4.1), as
+// s3/R06/02-get-encryption-after-delete.json records the read
+// (s3-ssec-object-lock.md 2).
 func encryptionAfterDelete() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:    "s3.encryption.after-delete",
 		Value:   "default-sse-s3",
-		Label:   evidence.AWSDoc,
-		Ref:     "docs/research/s3.md#41-state-of-a-freshly-created-bucket-and-what-unset-means",
+		Label:   evidence.AWSRecorded,
+		Ref:     "docs/research/s3-ssec-object-lock.md#2-what-the-repos-recordings-already-settled",
 		Ops:     []string{"s3.GetBucketEncryption"},
 		Settles: fidelity.NoScenario{Reason: s3Unreplayed("s3/R06/02-get-encryption-after-delete.json is")},
 	}

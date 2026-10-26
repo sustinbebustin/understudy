@@ -360,6 +360,15 @@
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
       }
     },
+    "com.amazonaws.s3#InvalidEncryptionAlgorithmError": {
+      "type": "structure",
+      "members": {"ArgumentName": {"target": "smithy.api#String"}, "ArgumentValue": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_put_object_validation_sse_c", "validated": "2026-02-21"}
+      }
+    },
     "com.amazonaws.s3#InvalidLocationConstraint": {
       "type": "structure",
       "members": {"LocationConstraint": {"target": "smithy.api#String"}},
@@ -475,6 +484,13 @@
       "traits": {
         "dev.understudy#validationError": {"enumPolicy": "handler"},
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_list_operations.snapshot.json test_list_ops_encoding_type_validation: InvalidArgument \"Invalid Encoding Method specified in Request\" naming encoding-type (s3.md 9.1)"}
+      }
+    },
+    "com.amazonaws.s3#ServerSideEncryptionConfiguration$Rules": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.s3#MalformedXML", "style": "fixed", "constraints": ["required"], "reason": "The XML you provided was not well-formed or did not validate against our published schema"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json test_s3_default_bucket_encryption_exc: a configuration without a rule is MalformedXML (s3.md 4.2.2)"}
       }
     },
     "com.amazonaws.s3#OwnershipControlsRule$ObjectOwnership": {

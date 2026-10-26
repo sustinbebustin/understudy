@@ -14,13 +14,17 @@ import (
 // version it addresses (s3.md 6.4, AWS-recorded test_get_object_attributes):
 // the ETag without quotes, the stored checksum with its type, a page of a
 // multipart object's parts, the size and the storage class, STANDARD
-// included; Last-Modified and the version id always.
-func getObjectAttributes(in *s3api.GetObjectAttributesInput, b *Bucket) (*s3api.GetObjectAttributesOutput, *awserr.Error) {
-	if customerKeyed(in.SSECustomerAlgorithm, in.SSECustomerKey, in.SSECustomerKeyMD5) {
-		return nil, errSSECNotApplicable()
-	}
+// included; Last-Modified and the version id always. An SSE-C version
+// needs its key, sent over HTTPS (checkCustomerRead); scheme is the
+// call's. The output has no encryption members (s3-ssec-object-lock.md
+// 3.4).
+func getObjectAttributes(in *s3api.GetObjectAttributesInput, b *Bucket, scheme string) (*s3api.GetObjectAttributesOutput, *awserr.Error) {
 	v, err := findVersion(b, in.Key, in.VersionId, "GET")
 	if err != nil {
+		return nil, err
+	}
+	customer := customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5}
+	if _, err := checkCustomerRead(v.Object.Encryption, customer, scheme); err != nil {
 		return nil, err
 	}
 	o := v.Object

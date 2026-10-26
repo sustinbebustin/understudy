@@ -124,7 +124,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | kms | 54 | 19 | 3 | 5 | 27 | 0 | 0 |
 | lambda | 88 | 25 | 2 | 14 | 47 | 0 | 2 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
-| s3 | 112 | 14 | 47 | 21 | 30 | 0 | 3 |
+| s3 | 112 | 18 | 44 | 20 | 30 | 0 | 3 |
 | secretsmanager | 23 | 12 | 1 | 2 | 8 | 0 | 0 |
 | sns | 42 | 12 | 2 | 5 | 23 | 0 | 3 |
 | sqs | 23 | 16 | 2 | 5 | 0 | 2 | 0 |
@@ -800,21 +800,24 @@ Internal operations:
 |---|---|---|---|
 | CreateBucket | full | aws-doc, 2 of 4 claims |  |
 | DeleteBucket | full | inferred, 1 of 2 claims |  |
+| DeleteBucketEncryption | full | inferred, 2 of 3 claims |  |
 | DeleteBucketTagging | full | inferred, 1 of 2 claims |  |
 | DeleteObjectTagging | full | inferred, 1 of 2 claims |  |
+| GetBucketEncryption | full | inferred, 2 of 5 claims |  |
 | GetBucketLocation | full | inferred, 1 of 2 claims |  |
 | GetBucketNotificationConfiguration | full | inferred, 1 of 3 claims |  |
 | GetBucketTagging | full | inferred, 1 of 3 claims |  |
 | GetBucketVersioning | full | inferred, 1 of 3 claims |  |
+| GetObjectAttributes | full | inferred, 4 of 6 claims |  |
 | GetObjectTagging | full | inferred, 1 of 2 claims |  |
 | HeadBucket | full | inferred, 1 of 3 claims |  |
 | ListMultipartUploads | full | inferred, 1 of 3 claims |  |
-| ListParts | full | inferred, 1 of 2 claims |  |
+| ListParts | full | inferred, 2 of 3 claims |  |
+| PutBucketEncryption | full | inferred, 3 of 5 claims |  |
 | PutBucketTagging | full | inferred, 1 of 4 claims |  |
 | PutObjectTagging | full | inferred, 1 of 2 claims |  |
 | DeleteBucketAnalyticsConfiguration | stored-only | inferred, 1 of 2 claims | the analytics configuration is stored and echoed; not applied |
 | DeleteBucketCors | stored-only | inferred, 1 of 2 claims | the CORS configuration is stored and echoed; not applied |
-| DeleteBucketEncryption | stored-only | inferred, 1 of 2 claims | the default encryption rule is stored and echoed; not applied |
 | DeleteBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 2 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
 | DeleteBucketInventoryConfiguration | stored-only | inferred, 1 of 2 claims | the inventory configuration is stored and echoed; not applied |
 | DeleteBucketLifecycle | stored-only | inferred, 1 of 2 claims | the lifecycle rules are stored and echoed; not applied |
@@ -827,7 +830,6 @@ Internal operations:
 | GetBucketAcl | stored-only | inferred, 1 of 2 claims | the access control list is stored and echoed; not applied |
 | GetBucketAnalyticsConfiguration | stored-only | inferred, 1 of 3 claims | the analytics configuration is stored and echoed; not applied |
 | GetBucketCors | stored-only | inferred, 1 of 3 claims | the CORS configuration is stored and echoed; not applied |
-| GetBucketEncryption | stored-only | inferred, 1 of 4 claims | the default encryption rule is stored and echoed; not applied |
 | GetBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 3 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
 | GetBucketInventoryConfiguration | stored-only | inferred, 1 of 3 claims | the inventory configuration is stored and echoed; not applied |
 | GetBucketLifecycleConfiguration | stored-only | inferred, 1 of 3 claims | the lifecycle rules are stored and echoed; not applied |
@@ -847,7 +849,6 @@ Internal operations:
 | PutBucketAcl | stored-only | inferred, 1 of 2 claims | the access control list is stored and echoed; not applied |
 | PutBucketAnalyticsConfiguration | stored-only | inferred, 1 of 3 claims | the analytics configuration is stored and echoed; not applied |
 | PutBucketCors | stored-only | inferred, 1 of 2 claims | the CORS configuration is stored and echoed; not applied |
-| PutBucketEncryption | stored-only | inferred, 1 of 2 claims | the default encryption rule is stored and echoed; not applied |
 | PutBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 3 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
 | PutBucketInventoryConfiguration | stored-only | inferred, 1 of 3 claims | the inventory configuration is stored and echoed; not applied |
 | PutBucketLifecycleConfiguration | stored-only | inferred, 1 of 4 claims | the lifecycle rules are stored and echoed; not applied |
@@ -860,16 +861,15 @@ Internal operations:
 | PutObjectLockConfiguration | stored-only | inferred, 1 of 2 claims | the Object Lock configuration is stored and echoed; not applied |
 | PutPublicAccessBlock | stored-only | inferred, 1 of 2 claims | the public access block is stored and echoed; not applied |
 | AbortMultipartUpload | partial | inferred, 1 of 2 claims | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
-| CompleteMultipartUpload | partial | inferred, 1 of 2 claims | no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
-| CopyObject | partial | inferred, 1 of 3 claims | no SSE-C; Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error |
-| CreateMultipartUpload | partial | inferred, 1 of 2 claims | no SSE-C; Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; no lifecycle abort date |
+| CompleteMultipartUpload | partial | inferred, 4 of 6 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
+| CopyObject | partial | inferred, 6 of 9 claims | Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error |
+| CreateMultipartUpload | partial | inferred, 4 of 6 claims | Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; no lifecycle abort date |
 | DeleteBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | DeleteObject | partial | inferred, 1 of 2 claims | no MFA delete or Object Lock retention |
 | DeleteObjects | partial | inferred, 1 of 2 claims | no MFA delete or Object Lock retention |
 | GetBucketOwnershipControls | partial | inferred, 1 of 3 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| GetObject | partial | inferred, 1 of 2 claims | no SSE-C, so SSE-C headers are refused; presigned URLs are verified and expire on the emulator clock under sigv4 verify |
-| GetObjectAttributes | partial | inferred, 1 of 2 claims | no SSE-C, so SSE-C headers are refused |
-| HeadObject | partial | inferred, 1 of 3 claims | no SSE-C, so SSE-C headers are refused; presigned URLs are verified and expire on the emulator clock under sigv4 verify |
+| GetObject | partial | inferred, 3 of 5 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
+| HeadObject | partial | inferred, 4 of 7 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
 | ListBuckets | partial | third-party-recorded, 1 of 1 claim | general purpose buckets only; no directory buckets |
 | ListObjectVersions | partial | inferred, 1 of 3 claims | no RestoreStatus |
 | ListObjects | partial | inferred, 1 of 3 claims | no RestoreStatus |
@@ -877,9 +877,9 @@ Internal operations:
 | PutBucketNotificationConfiguration | partial | inferred, 1 of 2 claims | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions |
 | PutBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | PutBucketVersioning | partial | inferred, 1 of 2 claims | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
-| PutObject | partial | inferred, 1 of 2 claims | no SSE-C; Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify |
-| UploadPart | partial | inferred, 1 of 2 claims | no SSE-C; chunk signatures are verified under sigv4 verify |
-| UploadPartCopy | partial | inferred, 2 of 3 claims | no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
+| PutObject | partial | inferred, 4 of 6 claims | Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify |
+| UploadPart | partial | inferred, 4 of 6 claims | chunk signatures are verified under sigv4 verify |
+| UploadPartCopy | partial | inferred, 7 of 9 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
 | CreateBucketMetadataConfiguration | unbound | unassessed |  |
 | CreateBucketMetadataTableConfiguration | unbound | unassessed |  |
 | CreateSession | unbound | unassessed |  |
@@ -1059,10 +1059,11 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-66 switches: 14 aws-doc, 52 inferred.
+76 switches: 1 aws-recorded, 14 aws-doc, 61 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
+| `s3.encryption.after-delete` | `default-sse-s3` | aws-recorded | docs/research/s3-ssec-object-lock.md#2-what-the-repos-recordings-already-settled | none: s3/R06/02-get-encryption-after-delete.json is recorded; the replayer skips S3's REST requests |
 | `cloudwatch.get-metric-data.start-rounding` | `by-age` | aws-doc | docs/research/secrets-logs-events-alarms.md#53-getmetricdata | none: unrecorded: no recording shows GetMetricData's period boundaries |
 | `iam.assumeRole` | `strict` | aws-doc | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions | none: the switch decides AssumeRole of a role IAM does not hold, which no recording asks; sts/R15#06-assume-denied names a role that exists, refused by its trust policy |
 | `kms.pending-deletion.crypto-error` | `KMSInvalidStateException` | aws-doc | docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix | none: kms/R15/02-pending-encrypt.json and the other 02-pending steps are recorded; no scenario replays kms/R15 yet |
@@ -1070,8 +1071,8 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `logs.delivery.retention-days` | `2` | aws-doc | https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html | none: unrecorded: no recording creates a DELIVERY-class log group |
 | `logs.retention.expiry` | `at-expiry` | aws-doc | docs/research/secrets-logs-events-alarms.md#32-retention | none: AWS deletes expired events lazily, typically within 72 hours, so no recording pins the instant |
 | `s3.create-bucket.public-acl` | `InvalidBucketAclWithObjectOwnership` | aws-doc | docs/research/s3.md#32-createbucket | none: unrecorded: no recording creates a bucket with a public canned ACL under BucketOwnerEnforced |
-| `s3.encryption.after-delete` | `default-sse-s3` | aws-doc | docs/research/s3.md#41-state-of-a-freshly-created-bucket-and-what-unset-means | none: s3/R06/02-get-encryption-after-delete.json is recorded; the replayer skips S3's REST requests |
 | `s3.lifecycle.rule-limits` | `InvalidArgument` | aws-doc | https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html | none: s3/R12/12-lifecycle-transition-7-standard-ia.json, the other 12-lifecycle steps and 15-lifecycle-glacier-then-onezone-ia.json are recorded; the replayer skips S3's REST requests |
+| `s3.sse-c.plain-http` | `refused` | aws-doc | docs/research/s3-ssec-object-lock.md#39-https | none: unrecorded: S3SOL-02 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.tagging.limits` | `InvalidTag` | aws-doc | docs/research/s3.md#429-bucket-tagging | none: unrecorded: no recording exceeds a bucket tag limit |
 | `secretsmanager.last-accessed-date.granularity` | `day` | aws-doc | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording reads a LastAccessedDate |
 | `sqs.move-task.message-identity` | `new-message` | aws-doc | docs/research/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask | none: sqs/R02/std-06-recv-src.json and fifo-06-recv-src.json are recorded; no scenario replays sqs/R02 yet |
@@ -1099,6 +1100,15 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `logs.filter.delimited-field-count` | `last-absorbs` | inferred | docs/research/logs-filter-patterns.md#3 | none: logs/R10/03-filter-11.json is recorded; no scenario replays logs/R10 yet |
 | `logs.filter.term-boundary` | `substring` | inferred | docs/research/logs-filter-patterns.md#5 | none: logs/R10/03-filter-01.json is recorded; no scenario replays logs/R10 yet |
 | `s3.bucket.cross-account` | `served` | inferred | UNVERIFIED: no research note or recording shows AWS's answer to a bucket request from an account that does not own the bucket | none: unrecorded: no recording sends a bucket request from an account that does not own the bucket |
+| `s3.encryption.blocked-types-omitted` | `kept` | inferred | docs/research/s3-ssec-object-lock.md#42-blocking-and-unblocking | none: unrecorded: S3SOL-11 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.encryption.unblocked-read` | `NONE-element` | inferred | docs/research/s3-ssec-object-lock.md#42-blocking-and-unblocking | none: unrecorded: S3SOL-10 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.sse-c.blocked-write` | `AccessDenied` | inferred | docs/research/s3-ssec-object-lock.md#43-what-the-block-refuses | none: unrecorded: S3SOL-01 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.sse-c.complete-headers` | `checked-when-sent` | inferred | docs/research/s3-ssec-object-lock.md#36-multipart-uploads | none: unrecorded: S3SOL-08 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.sse-c.copy-source-not-applicable` | `InvalidRequest` | inferred | docs/research/s3-ssec-object-lock.md#35-copyobject-and-uploadpartcopy | none: unrecorded: S3SOL-06 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.sse-c.copy-source-wrong-key` | `AccessDenied` | inferred | docs/research/s3-ssec-object-lock.md#35-copyobject-and-uploadpartcopy | none: unrecorded: S3SOL-07 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.sse-c.key-encoding` | `write-side-texts` | inferred | docs/research/s3-ssec-object-lock.md#32-write-side-validation-third-party-recorded | none: unrecorded: S3SOL-04 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.sse-c.metadata-without-key` | `InvalidRequest` | inferred | docs/research/s3-ssec-object-lock.md#33-reads-getobject-headobject-getobjectattributes | none: unrecorded: S3SOL-05 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.sse-c.missing-key-md5` | `InvalidArgument` | inferred | docs/research/s3-ssec-object-lock.md#32-write-side-validation-third-party-recorded | none: unrecorded: S3SOL-03 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `secretsmanager.list-secrets.all-filter-match` | `any-word,word-prefix` | inferred | https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.list-secrets.filter-combination` | `and-across-filters,or-across-values` | inferred | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.restore.not-scheduled` | `no-op` | inferred | docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven | none: secretsmanager/R15/05-restore-live.json is recorded; no scenario replays secretsmanager/R15 yet |
@@ -1134,7 +1144,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-279 evidence items: 48 aws-recorded, 91 third-party-recorded, 52 aws-doc, 2 sdk-source, 86 inferred.
+281 evidence items: 48 aws-recorded, 93 third-party-recorded, 52 aws-doc, 2 sdk-source, 86 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1231,6 +1241,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidBucketName` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidBucketState` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidDigest` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_invalid_content_md5 (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#InvalidEncryptionAlgorithmError` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_put_object_validation_sse_c (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidLocationConstraint` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-23) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidPartOrder` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidStorageClass` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_put_object_storage_class_outposts (validated 2026-02-21) |
@@ -1258,6 +1269,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#PutBucketMetricsConfiguration` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#PutBucketPolicy` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#PutBucketTagging` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#ServerSideEncryptionConfiguration$Rules` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json test_s3_default_bucket_encryption_exc: a configuration without a rule is MalformedXML (s3.md 4.2.2) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#SignatureDoesNotMatch` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L3365 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#UnexpectedContent` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L3021 (validated 2026-10-11) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#VersioningConfiguration$Status` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json: a Status other than Enabled or Suspended is MalformedXML (validated 2026-02-21) |

@@ -56,28 +56,36 @@ func checkPartNumber(n int32) *awserr.Error {
 
 // partTarget is what a part write learns of its upload before it reads
 // the body: how its parts are checksummed and how its object is
-// encrypted, which the part's response reports.
+// encrypted, which the part's response reports, with the SSE-C key the
+// part sent for an SSE-C upload.
 type partTarget struct {
 	mode checksumMode
 	enc  Encryption
+	key  *customerKey
 }
 
 // partETag is the ETag of a part of an upload encrypted as enc, whose
-// bytes have the MD5 md5Hex: that MD5, or for SSE-KMS a random 128-bit
-// value, which is not the MD5 of the bytes (REC test_s3_multipart_upload_sse
-// step multi-sse-upload-part; s3.md 5.3).
+// bytes have the MD5 md5Hex: that MD5, or for SSE-KMS and SSE-C a random
+// 128-bit value, which is not the MD5 of the bytes (REC
+// test_s3_multipart_upload_sse step multi-sse-upload-part; s3.md 5.3;
+// s3-ssec-object-lock.md 3.4).
 func (s *Service) partETag(enc Encryption, md5Hex string) string {
-	if isKMS(enc) {
+	if opaqueETag(enc) {
 		return string(s.k.IDs().ETag())
 	}
 	return md5Hex
 }
 
 // readTarget reads the upload a part write addresses: NoSuchUpload when
-// the id names no upload in progress for key.
-func (s *Service) readTarget(ctx context.Context, c *kernel.Call, a access, id, key string) (partTarget, *awserr.Error) {
+// the id names no upload in progress for key; then the part's SSE-C trio
+// h is judged against the upload (checkCustomerPart).
+func (s *Service) readTarget(ctx context.Context, c *kernel.Call, a access, id, key string, h customerHeaders) (partTarget, *awserr.Error) {
 	return read(ctx, s, c, a, func(b *Bucket) (partTarget, *awserr.Error) {
 		u, err := b.Uploads.find(id, key)
+		if err != nil {
+			return partTarget{}, err
+		}
+		k, err := checkCustomerPart(u.Encryption, h, b, c.Endpoint().Scheme)
 		if err != nil {
 			return partTarget{}, err
 		}
@@ -85,7 +93,7 @@ func (s *Service) readTarget(ctx context.Context, c *kernel.Call, a access, id, 
 		if merr != nil {
 			return partTarget{}, awserr.Internalf(merr)
 		}
-		return partTarget{mode: m, enc: u.Encryption}, nil
+		return partTarget{mode: m, enc: u.Encryption, key: k}, nil
 	})
 }
 
@@ -101,9 +109,6 @@ func (s *Service) uploadPart(ctx context.Context, c *kernel.Call, in *s3api.Uplo
 	if err := checkPartNumber(in.PartNumber); err != nil {
 		return nil, err
 	}
-	if customerKeyed(in.SSECustomerAlgorithm, in.SSECustomerKey, in.SSECustomerKeyMD5) {
-		return nil, errSSECNotApplicable()
-	}
 	// UploadPart models no Content-Encoding, so it is read from the call to
 	// tell an aws-chunked body as PutObject does.
 	var encoding *string
@@ -115,7 +120,7 @@ func (s *Service) uploadPart(ctx context.Context, c *kernel.Call, in *s3api.Uplo
 		return nil, err
 	}
 	a := at(in.Bucket, in.ExpectedBucketOwner)
-	t, err := s.readTarget(ctx, c, a, in.UploadId, in.Key)
+	t, err := s.readTarget(ctx, c, a, in.UploadId, in.Key, customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5})
 	if err != nil {
 		return nil, err
 	}
@@ -137,6 +142,7 @@ func (s *Service) uploadPart(ctx context.Context, c *kernel.Call, in *s3api.Uplo
 	uploadPartOutputFields(out).set(uploadedPartChecksum(t.mode, u.checksum, got.sum, p))
 	h := encryptionHeaders(t.enc)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
+	out.SSECustomerAlgorithm, out.SSECustomerKeyMD5 = customerEcho(t.key)
 	return out, nil
 }
 
