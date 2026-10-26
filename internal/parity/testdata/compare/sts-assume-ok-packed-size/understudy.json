@@ -1,0 +1,16 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "an answer to sts/R15/06-assume-ok whose PackedPolicySize differs, a member no normalizer covers",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Content-Type", "text/xml"]
+        ],
+        "body": "<AssumeRoleResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\"><AssumeRoleResult><AssumedRoleUser><AssumedRoleId>AROARZPUZDIKAAAAAAAHA:rec</AssumedRoleId><Arn>arn:aws:sts::123456789012:assumed-role/usr-rec-20261014-trust/rec</Arn></AssumedRoleUser><Credentials><AccessKeyId>ASIAREDACTED</AccessKeyId><SecretAccessKey>REDACTED</SecretAccessKey><SessionToken>REDACTED</SessionToken><Expiration>2026-10-14T15:21:12Z</Expiration></Credentials><PackedPolicySize>6</PackedPolicySize><SessionTokenSize>888</SessionTokenSize><SessionTokenUtilization>21</SessionTokenUtilization></AssumeRoleResult><ResponseMetadata><RequestId>eb14de1e-89b2-447d-8836-9ac7a692f6e9</RequestId></ResponseMetadata></AssumeRoleResponse>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "an answer to kms/KMS-alias/01-duplicate whose x-amzn-ErrorType header names the recorded code while the body's __type does not: the error code is read from the header first",
+  "exchanges": [
+    {
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-ErrorType", "AlreadyExistsException:http://internal.amazon.com/coral/com.amazonaws.kms/"],
+          ["Content-Type", "application/x-amz-json-1.1"]
+        ],
+        "body": "{\"__type\":\"InvalidAliasNameException\",\"message\":\"An alias with the name arn:aws:kms:us-east-2:123456789012:alias/usr-rec-20261014-dup already exists\"}"
+      }
+    }
+  ]
+}

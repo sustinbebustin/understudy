@@ -1,0 +1,16 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "an answer to sts/R15/06-assume-denied with another error code",
+  "exchanges": [
+    {
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Content-Type", "text/xml"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\"><Error><Type>Sender</Type><Code>AccessDeniedException</Code><Message>User: arn:aws:iam::123456789012:root is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::123456789012:role/usr-rec-20261014-deny</Message></Error><RequestId>7d1f3c52-8a0b-4e6f-9c2d-1b3a5e7f9d10</RequestId></ErrorResponse>"
+      }
+    }
+  ]
+}

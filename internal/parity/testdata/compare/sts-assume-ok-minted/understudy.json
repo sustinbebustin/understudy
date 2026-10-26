@@ -1,0 +1,17 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "an answer to sts/R15/06-assume-ok with understudy's own role id, credentials, expiration and request id: each is normalized (unique-id, credential, iso-time, request-id)",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "headers": [
+          ["X-Amzn-Requestid", "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f"],
+          ["Content-Type", "text/xml"]
+        ],
+        "body": "<AssumeRoleResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\"><AssumeRoleResult><AssumedRoleUser><AssumedRoleId>AROAQ2BCDEFGHIJKLMNOP:rec</AssumedRoleId><Arn>arn:aws:sts::123456789012:assumed-role/usr-rec-20261014-trust/rec</Arn></AssumedRoleUser><Credentials><AccessKeyId>ASIAQ2BCDEFGHIJKLMNO</AccessKeyId><SecretAccessKey>understudy-minted-secret-0001</SecretAccessKey><SessionToken>understudy-minted-token-0001</SessionToken><Expiration>2026-10-26T10:00:00Z</Expiration></Credentials><PackedPolicySize>21</PackedPolicySize><SessionTokenSize>888</SessionTokenSize><SessionTokenUtilization>21</SessionTokenUtilization></AssumeRoleResult><ResponseMetadata><RequestId>1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f</RequestId></ResponseMetadata></AssumeRoleResponse>"
+      }
+    }
+  ]
+}

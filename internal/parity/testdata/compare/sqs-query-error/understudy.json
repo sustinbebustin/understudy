@@ -1,0 +1,17 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "the same error without the x-amzn-query-error header",
+  "exchanges": [
+    {
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f"],
+          ["Content-Type", "application/x-amz-json-1.0"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Value x for parameter ReceiptHandle is invalid.\"}"
+      }
+    }
+  ]
+}

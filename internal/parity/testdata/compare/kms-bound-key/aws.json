@@ -1,0 +1,17 @@
+{
+  "step": "aws",
+  "client": "aws-cli",
+  "exit": 0,
+  "note": "a CreateKey answer holding the key id kms/KMS-alias/01-duplicate targets, which a scenario binds",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Content-Type", "application/x-amz-json-1.1"]
+        ],
+        "body": "{\"KeyMetadata\":{\"KeyId\":\"157cb509-e842-4095-b0b6-e97188e0a507\",\"Arn\":\"arn:aws:kms:us-east-2:123456789012:key/157cb509-e842-4095-b0b6-e97188e0a507\",\"Description\":\"usr-rec-20261014-alias\"}}"
+      }
+    }
+  ]
+}

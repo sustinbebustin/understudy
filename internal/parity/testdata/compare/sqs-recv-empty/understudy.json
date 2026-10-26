@@ -1,0 +1,16 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "an answer to sqs/R01/02-recv1 that delivers no message",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Content-Type", "application/x-amz-json-1.0"]
+        ],
+        "body": "{\"Messages\":[]}"
+      }
+    }
+  ]
+}
