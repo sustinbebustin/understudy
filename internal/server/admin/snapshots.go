@@ -168,12 +168,21 @@ func syncDir(root *os.Root, dir string) error {
 	return errors.Join(d.Sync(), d.Close())
 }
 
-// createTemp creates a new file next to target in root, named
-// <target>.<random>.tmp, that no other caller has opened.
+// saveTempSuffix ends the name of a save's temporary file.
+const saveTempSuffix = ".tmp"
+
+// saveTempName is the name of a save's temporary file next to target,
+// random being a crypto/rand.Text result; isSaveTemp recognizes it.
+func saveTempName(target, random string) string {
+	return target + "." + random + saveTempSuffix
+}
+
+// createTemp creates a new file next to target in root, named by
+// saveTempName, that no other caller has opened.
 func createTemp(root *os.Root, target string) (*os.File, string, error) {
 	const attempts = 10
 	for range attempts {
-		name := target + "." + rand.Text() + ".tmp"
+		name := saveTempName(target, rand.Text())
 		f, err := root.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 		if errors.Is(err, fs.ErrExist) {
 			continue

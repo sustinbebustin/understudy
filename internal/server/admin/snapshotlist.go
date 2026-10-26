@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"errors"
 	"io/fs"
 	"net/http"
 	"path"
@@ -32,8 +33,9 @@ func (h *Handler) snapshotList(w http.ResponseWriter, r *http.Request, _ []strin
 // listArchives lists every regular file under fsys at any depth, except a
 // save's in-flight temporary file, by its slash-separated path, size and
 // modification time in UTC, sorted by path in byte order. Directories,
-// symlinks and other entries are left out. A directory that cannot be read
-// fails the list rather than leaving its archives out of it.
+// symlinks and other entries are left out, and so is a file removed after
+// its directory was read. A directory or file that cannot be read for any
+// other reason fails the list rather than leaving archives out of it.
 func listArchives(fsys fs.FS) ([]admin.SnapshotFile, error) {
 	files := []admin.SnapshotFile{}
 	err := fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
@@ -44,6 +46,9 @@ func listArchives(fsys fs.FS) ([]admin.SnapshotFile, error) {
 			return nil
 		}
 		info, err := d.Info()
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
 		if err != nil {
 			return err
 		}
@@ -65,10 +70,9 @@ func listArchives(fsys fs.FS) ([]admin.SnapshotFile, error) {
 const randTextLen = 26
 
 // isSaveTemp reports whether name is a save's in-flight temporary file,
-// <target>.<rand.Text()>.tmp (createTemp), which a list must not offer as
-// an archive.
+// named by saveTempName, which a list must not offer as an archive.
 func isSaveTemp(name string) bool {
-	rest, ok := strings.CutSuffix(path.Base(name), ".tmp")
+	rest, ok := strings.CutSuffix(path.Base(name), saveTempSuffix)
 	if !ok {
 		return false
 	}
