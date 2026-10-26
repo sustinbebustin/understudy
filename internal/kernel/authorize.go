@@ -119,10 +119,13 @@ const (
 	inHandler
 	// never asks nothing (NeverAuthorized).
 	never
+	// afterResolve asks about every pair the binding declares once the
+	// handler resolved its resources (AuthorizedAfterResolve).
+	afterResolve
 )
 
-// authorizationOption is the option AuthorizedInHandler and NeverAuthorized
-// return. It fits every input type.
+// authorizationOption is the option AuthorizedInHandler, NeverAuthorized
+// and AuthorizedAfterResolve return. It fits every input type.
 type authorizationOption authorization
 
 // authorizes is a binding configuration that can record an authorization.
@@ -146,7 +149,8 @@ func (cfg *bindConfig[In]) setAuthorization(a authorization) { cfg.authorization
 // policy granting it only on that resource does not allow, though AWS
 // evaluates the call against the resource (iam-evaluation.md 2.1). The
 // other actions the binding declares are asked about at step 8 as usual.
-// With several of AuthorizedInHandler and NeverAuthorized, the last applies.
+// With several of AuthorizedInHandler, NeverAuthorized and
+// AuthorizedAfterResolve, the last applies.
 func AuthorizedInHandler() BindOption { return authorizationOption(inHandler) }
 
 // NeverAuthorized marks an operation AWS evaluates no policy for, not even
@@ -162,8 +166,10 @@ func NeverAuthorized() BindOption { return authorizationOption(never) }
 // unless its handler calls Authorize or authz.CheckResource), for a
 // platform call (which no policy grants, so recordAccess leaves it out
 // too), for a NeverAuthorized binding and for a call with no pair. An
-// AuthorizedInHandler binding is not asked about its primary action.
-func (k *Kernel) authorize(ctx context.Context, c *Call, bnd *binding, used secondaries) *awserr.Error {
+// AuthorizedInHandler binding is not asked about its primary action; an
+// AuthorizedAfterResolve binding is asked later (authorizeDeferred). keys
+// are the binding's WithConditionKeys for the input.
+func (k *Kernel) authorize(ctx context.Context, c *Call, bnd *binding, used secondaries, keys ConditionKeys) *awserr.Error {
 	if _, platform := c.mode.(AsPlatform); k.authorizer == nil || bnd.raw || platform {
 		return nil
 	}
@@ -176,12 +182,15 @@ func (k *Kernel) authorize(ctx context.Context, c *Call, bnd *binding, used seco
 		}
 	case never:
 		return nil
+	case afterResolve:
+		c.deferred = &deferred{ctx: ctx, used: used, keys: keys}
+		return nil
 	}
 	pairs := pairsOf(actions, c.op.Service.IAMPrefix, c.Touched())
 	if len(pairs) == 0 {
 		return nil
 	}
-	return verdictError(c, k.authorizer.Authorize(ctx, c, AuthzQuery{Pairs: pairs}))
+	return verdictError(c, k.authorizer.Authorize(ctx, c, AuthzQuery{Pairs: pairs, Keys: keys}))
 }
 
 // verdictError returns the error c ends with for v, nil for Allowed.

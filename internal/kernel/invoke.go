@@ -122,6 +122,11 @@ func Invoke[In, Out any](ctx context.Context, k *Kernel, parent *Call, op Op[In,
 	case t.Scope.Account.IsZero():
 		return nil, awserr.Internalf(&TargetError{Op: id, Reason: "Target.Scope has no account; take it from the target resource"})
 	}
+	// An AuthorizedAfterResolve parent is asked at its first Invoke, before
+	// the call: a denial is what Invoke returns.
+	if err := parent.authorizeDeferred(); err != nil {
+		return nil, err
+	}
 	c := k.internalCall(parent, op.desc.ID, t)
 	switch r := k.Dispatch(ctx, c, Ok{In: in, Wire: Synthesized{}}).(type) {
 	case Output:

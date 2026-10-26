@@ -184,6 +184,11 @@ func (e *DeliverError) Unwrap() error { return e.Err }
 // counted by the work tracker.
 func Write[K comparable, S, R any](c *Call, p *store.Partitioned[K, S], key K, fn func(s *S, now clock.Instant, tx *Tx) (R, *awserr.Error)) (R, *awserr.Error) {
 	var zero R
+	// An AuthorizedAfterResolve call is asked at its first Write, before the
+	// lock: a denial is what the Write returns (AuthorizedAfterResolve).
+	if err := c.authorizeDeferred(); err != nil {
+		return zero, err
+	}
 	if !c.holding.CompareAndSwap(false, true) {
 		return zero, awserr.Internalf(&HoldingError{Attempted: "kernel.Write", Holder: c.label})
 	}

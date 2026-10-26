@@ -55,6 +55,9 @@ type Call struct {
 	elapsed  func() time.Duration
 
 	holding atomic.Bool
+	// deferred is the authorization an AuthorizedAfterResolve binding's
+	// call owes, set at step 8; nil for every other call.
+	deferred *deferred
 
 	mu      sync.Mutex
 	touched []aws.ARN

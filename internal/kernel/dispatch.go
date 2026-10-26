@@ -153,7 +153,7 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	}
 	c.Touch(bnd.resources(c, in.In)...)
 	*used = bnd.secondaries(c, in.In)
-	if err := k.authorize(ctx, c, bnd, *used); err != nil {
+	if err := k.authorize(ctx, c, bnd, *used, bnd.conditionKeys(c, in.In)); err != nil {
 		return Failure{Err: err}, nil
 	}
 	items := bnd.items(in.In)
@@ -162,6 +162,12 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	}
 	out, err := k.handle(ctx, c, bnd, in)
 	if err != nil {
+		return Failure{Err: err}, nil
+	}
+	// An AuthorizedAfterResolve call that neither wrote nor invoked is asked
+	// now, and a denial replaces its output.
+	if err := c.authorizeDeferred(); err != nil {
+		k.discard(ctx, c, out)
 		return Failure{Err: err}, nil
 	}
 	if res, inj, hit := k.after(ctx, c, items); hit {

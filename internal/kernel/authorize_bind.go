@@ -1,7 +1,12 @@
 package kernel
 
 import (
+	"context"
+	"maps"
+	"sync"
+
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -36,9 +41,17 @@ func WithResourcesFor[In any](_ []registry.IAMAction, _ func(c *Call, in *In) []
 // of AuthorizedInHandler, NeverAuthorized and AuthorizedAfterResolve, the
 // last applies. A handler that maps errors from Invoke passes an
 // awserr.Denial through unchanged.
-//
-// Not implemented yet: the option is accepted and has no effect.
-func AuthorizedAfterResolve() BindOption { return pendingOption{} }
+func AuthorizedAfterResolve() BindOption { return authorizationOption(afterResolve) }
+
+type conditionKeysOption[In any] func(*Call, *In) ConditionKeys
+
+func (o conditionKeysOption[In]) apply(cfg any) bool {
+	c, ok := cfg.(*bindConfig[In])
+	if ok {
+		c.keys = append(c.keys, o)
+	}
+	return ok
+}
 
 // WithConditionKeys supplies, from a call's valid input, request condition
 // keys AWS sends with the call, such as sts:ExternalId, aws:RequestTag/<key>
@@ -46,8 +59,66 @@ func AuthorizedAfterResolve() BindOption { return pendingOption{} }
 // authorization, pass the union of every option's keys as AuthzQuery.Keys,
 // later options replacing earlier ones key by key. A key with no values is
 // one the request does not carry.
-//
-// Not implemented yet: the option is accepted and has no effect.
-func WithConditionKeys[In any](_ func(c *Call, in *In) ConditionKeys) BindOption {
-	return pendingOption{}
+func WithConditionKeys[In any](supply func(c *Call, in *In) ConditionKeys) BindOption {
+	return conditionKeysOption[In](supply)
+}
+
+// conditionKeys returns the union of every WithConditionKeys option's keys
+// for the input in, a later option's key replacing an earlier one's; nil
+// without an option.
+func (cfg *bindConfig[In]) conditionKeys(c *Call, in *In) ConditionKeys {
+	if len(cfg.keys) == 0 {
+		return nil
+	}
+	out := ConditionKeys{}
+	for _, supply := range cfg.keys {
+		maps.Copy(out, supply(c, in))
+	}
+	return out
+}
+
+// erasedKeys is conditionKeys for the type-erased binding; nil without a
+// WithConditionKeys option.
+func (cfg *bindConfig[In]) erasedKeys() func(c *Call, in any) ConditionKeys {
+	if len(cfg.keys) == 0 {
+		return nil
+	}
+	return func(c *Call, in any) ConditionKeys {
+		typed, ok := in.(*In)
+		if !ok {
+			return nil
+		}
+		return cfg.conditionKeys(c, typed)
+	}
+}
+
+// deferred is the authorization an AuthorizedAfterResolve binding's call
+// owes: step 8 leaves it on the call, and the call's first Write, its first
+// Invoke or the handler's successful return asks it, once.
+type deferred struct {
+	// ctx is the pipeline's context, since Write takes none.
+	ctx  context.Context //nolint:containedctx // Write has no context to pass; the call lives within the pipeline's.
+	used secondaries
+	keys ConditionKeys
+
+	once sync.Once
+	err  *awserr.Error
+}
+
+// authorizeDeferred asks the call's deferred authorization, the first time
+// only, and returns the error the call ends with; nil when the call owes
+// none or may go on.
+func (c *Call) authorizeDeferred() *awserr.Error {
+	d := c.deferred
+	if d == nil {
+		return nil
+	}
+	d.once.Do(func() {
+		pairs := pairsOf(authorizedActions(c.op, d.used), c.op.Service.IAMPrefix, c.Touched())
+		if len(pairs) == 0 {
+			return
+		}
+		d.err = verdictError(c, c.k.authorizer.Authorize(d.ctx, c, AuthzQuery{Pairs: pairs, Keys: d.keys}))
+	})
+	return d.err
 }
