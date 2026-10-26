@@ -633,9 +633,10 @@ x-amz-crc32: <CRC32 of the body>
 11. Fidelity switches: none.
     - Defaults, sparse nulls and structured error members are protocol rules that the spec and the normative corpus fix (10.2, 11.2, 13.1), with no AWS-visible variant in the pinned models.
     - The DynamoDB open points (12.4) are unknowns, not known deviations. Hard-code the defaults with a comment citing this section and the PROTO id, as the `ConditionalCheckFailedException` key rule does (`internal/service/dynamodb/rewrite.go` L208-L214), and revise them when the recordings land.
-12. Limits and validation texts (understudy's own admin API, not AWS text):
-    - "fault rule <id>: members.CancellationReasons has 0 entries; com.amazonaws.dynamodb#CancellationReasonList holds 1 to 100. Give at least one reason, or omit the member."
-    - "fault rule <id>: com.amazonaws.dynamodb#TransactionCanceledException has no member \"<name>\"; its members are Message and CancellationReasons. The rule was not added."
+12. Limits and validation texts (understudy's own admin API, not AWS text), in the store's frame `fault rule "<id>" rejected, no rule was added or changed: <field>: <reason>`:
+    - `action.members.CancellationReasons: has 0 entries; com.amazonaws.dynamodb#CancellationReasonList holds 1 to 100; give at least one reason`. Leaving `CancellationReasons` out is refused as well, so the text offers no such remedy.
+    - `action.members: com.amazonaws.dynamodb#TransactionCanceledException has no member "<name>"; its members are Message and CancellationReasons`.
+    - Reasons whose codes are all `None` are refused. This guard is understudy's inference, not recorded or documented AWS behavior: every code 12.2 lists but `None` names a failure of the item, and no source shows AWS cancelling a transaction in which no item failed, nor rules it out. Revise the guard if a recording shows one.
     - Item counts follow `TransactItems` (1 to 100, 12.2).
 13. Terraform: no resource touches these paths (12.3); `apply` and the empty second plan are unaffected, and the Terraform suite must stay green unchanged.
 14. Never fake:

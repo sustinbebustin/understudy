@@ -278,7 +278,8 @@ func reasonsMissing() string {
 // checkAWSShape refuses members that decode but would make an error AWS
 // never sends (smithy-protocol-tests.md 14.14): cancellation reasons
 // outside 1 to 100, a reason without a code, reasons naming no failing
-// item, and a ConditionalCheckFailedException carrying Item.
+// item (an inferred guard, 14.12), and a ConditionalCheckFailedException
+// carrying Item.
 func checkAWSShape(r Rule, id awserr.Identity, m Members) *RuleError {
 	switch id.Shape {
 	case transactionCanceled:
@@ -301,6 +302,10 @@ func checkAWSShape(r Rule, id awserr.Identity, m Members) *RuleError {
 				return reject(r, field+"."+strconv.Itoa(i), "has no Code; every cancellation reason carries one, None for an item that did not fail")
 			}
 		}
+		// understudy's own guard, inferred, not recorded: every documented
+		// code but None names a failure of the item, and no source shows
+		// AWS cancelling a transaction in which no item failed, nor rules
+		// it out (smithy-protocol-tests.md 12.2, 14.12).
 		if !slices.ContainsFunc(codes, func(c string) bool { return c != noneCode }) {
 			return reject(r, field, "names no failing item, since every Code is None; AWS cancels a transaction only for an item that fails, "+
 				"so give one reason a Code such as TransactionConflict or ConditionalCheckFailed")

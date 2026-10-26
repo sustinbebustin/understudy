@@ -93,7 +93,8 @@ aws dynamodb transact-write-items --transact-items file://three-puts.json --cli-
 - Reason `i` belongs to item `i`. Each item after the rule's last reason gets `{"Code": "None"}`, so the error carries one reason per item.
 - A call with fewer items than the rule gives reasons does not match it: it reaches DynamoDB Local and spends none of the rule's budget.
 - Without `--message`, the message lists the codes as AWS writes it. The cancelled call writes none of its items.
-- Every reason needs a `Code`, at least one must not be `None`, and there are 1 to 100 of them. The error is not one the SDKs retry.
+- Every reason needs a `Code`, and there are 1 to 100 of them. The error is not one the SDKs retry.
+- Reasons that are all `None` are refused. That guard is understudy's own: AWS is not known to cancel a transaction in which no item failed, but no recording settles it.
 - `--after-commit` cannot inject `TransactionCanceledException`, since a cancelled transaction changes nothing.
 - The top-level `Message` key follows the model's spelling and DynamoDB Local, and the bytes of a `None` reason follow the API reference and DynamoDB Local. On `ExecuteTransaction`, the message and reasons take the `TransactWriteItems` form. None of these is recorded from AWS yet.
 
