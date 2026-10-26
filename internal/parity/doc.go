@@ -13,7 +13,8 @@
 // reads for its evidence column. The server-driving transport lives in this
 // package's test files, which may import internal/server.
 //
-// Fixture parsing, comparison paths and Compare are built. Not implemented
-// yet: scenarios, binding shapes, Mutate, Run and the baseline are stubs,
-// and nothing imports the package.
+// Fixture parsing, comparison paths, Compare and the scenario format
+// (ParseScenario, Encode, ReadScenario, ListScenarios) are built. Not
+// implemented yet: CheckBind, Mutate, Run and the baseline are stubs, and
+// nothing imports the package.
 package parity

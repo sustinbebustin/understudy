@@ -22,6 +22,11 @@ const (
 	Socket     Client = "socket"
 )
 
+// known reports whether c is one of the recording clients.
+func (c Client) known() bool {
+	return slices.Contains([]Client{AWSCLI, Boto3, Curl, HTTPClient, Socket}, c)
+}
+
 // Fixture is one recorded step, testdata/parity/<svc>/<item>/<step>.json.
 type Fixture struct {
 	Step   string
@@ -196,7 +201,7 @@ func (d fixtureDoc) fixture() (f Fixture, reason string) {
 		return Fixture{}, "the step member is missing"
 	case d.Client == nil:
 		return Fixture{}, "the client member is missing"
-	case !slices.Contains([]Client{AWSCLI, Boto3, Curl, HTTPClient, Socket}, Client(*d.Client)):
+	case !Client(*d.Client).known():
 		return Fixture{}, fmt.Sprintf("client %q is not one of aws-cli, boto3, curl, http.client, socket", *d.Client)
 	case d.Exchanges == nil:
 		return Fixture{}, "the exchanges member is missing (an empty list when the client sent nothing)"

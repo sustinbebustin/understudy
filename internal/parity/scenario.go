@@ -1,6 +1,8 @@
 package parity
 
 import (
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"strings"
 	"time"
@@ -170,13 +172,40 @@ func (e *ScenarioError) Error() string {
 	return fmt.Sprintf("%s: %s", where, e.Reason)
 }
 
-// ParseScenario reads and validates a scenario file. Not implemented yet:
-// it refuses every scenario.
-func ParseScenario([]byte) (Scenario, error) {
-	return Scenario{}, &ScenarioError{Reason: notImplemented("ParseScenario").Error()}
+// ParseScenario reads and validates a scenario file (testdata/README.md,
+// scenarios). An unknown, repeated or missing member, or a value the format
+// refuses, is a *ScenarioError at that member.
+func ParseScenario(data []byte) (Scenario, error) {
+	var f scenarioFile
+	if err := json.Unmarshal(data, &f, json.RejectUnknownMembers(true)); err != nil {
+		return Scenario{}, decodeError("", err)
+	}
+	s, err := f.scenario()
+	if err != nil {
+		return Scenario{}, err
+	}
+	if err := s.check(); err != nil {
+		return Scenario{}, err
+	}
+	return s, nil
 }
 
-// Encode writes s in the canonical form. Not implemented yet.
+// Encode writes s in the canonical form: members in the format's order,
+// two-space indentation, a trailing newline, empty optional members left
+// out, a setup input as nested JSON and an advance as
+// time.Duration.String writes it. Encode refuses, as a *ScenarioError, a
+// scenario ParseScenario would refuse, so what it writes reads back as s.
 func (s Scenario) Encode() ([]byte, error) {
-	return nil, notImplemented("Scenario.Encode")
+	if err := s.check(); err != nil {
+		return nil, err
+	}
+	f, err := s.file()
+	if err != nil {
+		return nil, fmt.Errorf("encoding scenario %s: %w", s.Item, err)
+	}
+	data, err := json.Marshal(f, jsontext.WithIndent("  "))
+	if err != nil {
+		return nil, fmt.Errorf("encoding scenario %s: %w", s.Item, err)
+	}
+	return append(data, '\n'), nil
 }

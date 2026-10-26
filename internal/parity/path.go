@@ -117,6 +117,22 @@ func (p Path) Covers(q Path) bool {
 	return q == p || strings.HasPrefix(string(q), string(p)+"/")
 }
 
+// leafReason says why p, a parsed path, names no single value of a step's
+// final response, which a bind and a settles field must name; "" when it
+// names one. error and header alone are groups only a waiver may name, and
+// exchange/<i>/ names an exchange before the final one.
+func (p Path) leafReason() string {
+	switch {
+	case strings.HasPrefix(string(p), "exchange/"):
+		return "names an exchange before the final one; binds and settles fields read the final exchange, whose paths carry no exchange/ prefix"
+	case p == errorPath:
+		return "names every error field, which only a waiver may; name error/code or error/message"
+	case p == headerPath:
+		return "names every header, which only a waiver may; name one, such as header/content-type"
+	}
+	return ""
+}
+
 // child is the path of p's member or element token, written as is.
 func (p Path) child(token string) Path { return p + "/" + Path(token) }
 
