@@ -64,10 +64,13 @@ func docsFetcher() fetcher {
 // fetch reads robots.txt, llms.txt and the single-file guide, one request
 // each, waiting the robots.txt Crawl-delay before each request after the
 // first (iam-evaluation.md 10.1 to 10.4). robots.txt must allow each path
-// for productToken before it is requested. Any failure ends the run with
-// nothing written; otherwise fetch writes the catalogue into dir and
-// returns verify's verdict on it. No per-policy page is requested: one
-// single-file guide holds them all.
+// for productToken before it is requested. A failure before writing (a
+// request, a parse, the catalogue's rules) ends the run with dir untouched.
+// Then fetch writes the catalogue into dir and returns verify's verdict on
+// it: a failure part way through writing leaves some files replaced beside
+// the previous SOURCE.json, and a verify failure leaves every file written,
+// so either way -verify reports what is wrong. No per-policy page is
+// requested: one single-file guide holds them all.
 func (f fetcher) fetch(ctx context.Context, dir string) error {
 	robotsBody, robotsGot, err := f.get(ctx, robotsPath)
 	if err != nil {
