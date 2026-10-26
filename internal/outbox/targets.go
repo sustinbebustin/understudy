@@ -47,9 +47,14 @@ func (a *attempt) send(ctx context.Context, t delivery.Target) (journal.Delivery
 
 // putEvents is the target call of an attempt of t: one events:PutEvents
 // through the kernel k, as the call c makes it, run as kt, with one entry
-// per entry of t in order. EventBusName takes the bus's ARN, and no Time
-// is sent, so the call's own time stamps each event
+// per entry of t in order. EventBusName takes the bus's ARN
 // (https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEventsRequestEntry.html).
+// A new event is sent without Time, so the call's own time stamps it. A
+// forwarded event (events-to-events, which carries exactly one entry) is
+// sent with its own time, and its envelope rides the call's context
+// (delivery.WithForwarded), since the wire input has no id, account or
+// region member: the receiving bus keeps all four (eventbridge-buses.md
+// 10.4.12).
 //
 // PutEvents reports a failed entry in its answer, not as an error
 // (https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html),
@@ -65,8 +70,16 @@ func putEvents(ctx context.Context, k *kernel.Kernel, c *kernel.Call, kt kernel.
 			Source: &e.Source, DetailType: &e.DetailType, Detail: &e.Detail,
 			Resources: slices.Clone(e.Resources), EventBusName: &bus,
 		}
+		if e.Forwarded != nil {
+			at := e.Forwarded.Time
+			in.Entries[i].Time = &at
+		}
 	}
-	out, err := kernel.Invoke(ctx, k, c, eventbridgeapi.OpPutEvents, kt, in)
+	call := ctx
+	if len(t.Entries) == 1 && t.Entries[0].Forwarded != nil {
+		call = delivery.WithForwarded(ctx, *t.Entries[0].Forwarded)
+	}
+	out, err := kernel.Invoke(call, k, c, eventbridgeapi.OpPutEvents, kt, in)
 	if err != nil {
 		return err
 	}

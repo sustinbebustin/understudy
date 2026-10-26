@@ -17,8 +17,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshot sections.
-const stateVersion = 1
+// stateVersion is the schema version of State in snapshot sections. 2: an
+// event bus entry keeps a forwarded event's envelope (forwardedRecord).
+const stateVersion = 2
 
 // State is the outbox of one account and region, the scope of the targets
 // its deliveries land in: every accepted delivery not yet delivered,
@@ -146,10 +147,37 @@ type eventBusRecord struct {
 }
 
 type eventEntryRecord struct {
-	Source     string   `json:"source"`
-	DetailType string   `json:"detailType"`
-	Detail     string   `json:"detail"`
-	Resources  []string `json:"resources,omitempty"`
+	Source     string           `json:"source"`
+	DetailType string           `json:"detailType"`
+	Detail     string           `json:"detail"`
+	Resources  []string         `json:"resources,omitempty"`
+	Forwarded  *forwardedRecord `json:"forwarded,omitempty"`
+}
+
+// forwardedRecord is the persisted form of a delivery.Forwarded.
+type forwardedRecord struct {
+	ID      string    `json:"id"`
+	Account string    `json:"account"`
+	Region  string    `json:"region"`
+	Time    time.Time `json:"time"`
+}
+
+// eventEntryRecordOf returns the persisted form of e.
+func eventEntryRecordOf(e delivery.EventEntry) eventEntryRecord {
+	r := eventEntryRecord{Source: e.Source, DetailType: e.DetailType, Detail: e.Detail, Resources: e.Resources}
+	if f := e.Forwarded; f != nil {
+		r.Forwarded = &forwardedRecord{ID: f.ID, Account: f.Account, Region: f.Region, Time: f.Time}
+	}
+	return r
+}
+
+// eventEntryOf returns the entry r persists.
+func eventEntryOf(r eventEntryRecord) delivery.EventEntry {
+	e := delivery.EventEntry{Source: r.Source, DetailType: r.DetailType, Detail: r.Detail, Resources: r.Resources}
+	if f := r.Forwarded; f != nil {
+		e.Forwarded = &delivery.Forwarded{ID: f.ID, Account: f.Account, Region: f.Region, Time: f.Time}
+	}
+	return e
 }
 
 type s3ObjectRecord struct {
@@ -332,7 +360,7 @@ func targetRecordOf(t delivery.Target) targetRecord {
 	case delivery.EventBus:
 		entries := make([]eventEntryRecord, len(t.Entries))
 		for i, e := range t.Entries {
-			entries[i] = eventEntryRecord{Source: e.Source, DetailType: e.DetailType, Detail: e.Detail, Resources: e.Resources}
+			entries[i] = eventEntryRecordOf(e)
 		}
 		return eventBusRecord{Bus: t.ARN.String(), Entries: entries}
 	case delivery.S3Object:
@@ -382,7 +410,7 @@ func targetOf(r targetRecord) (delivery.Target, *RequestError) {
 		}
 		entries := make([]delivery.EventEntry, len(r.Entries))
 		for i, e := range r.Entries {
-			entries[i] = delivery.EventEntry{Source: e.Source, DetailType: e.DetailType, Detail: e.Detail, Resources: e.Resources}
+			entries[i] = eventEntryOf(e)
 		}
 		return delivery.EventBus{ARN: bus, Entries: entries}, nil
 	case s3ObjectRecord:

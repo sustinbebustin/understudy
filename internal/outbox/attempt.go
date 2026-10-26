@@ -273,11 +273,17 @@ func (a *attempt) wait(ctx context.Context, d time.Duration) bool {
 // advise journals an Advisory when the target's stored resource policy
 // would not let the delivering service make the call in AWS. understudy
 // delivers anyway (ARCHITECTURE.md 16).
+//
+// An events-to-events delivery gets none: AWS authorizes an event bus
+// target through its RoleArn, or the sender account against the receiving
+// bus's policy (eventbridge-buses.md 6.2, 6.3), not through a grant to
+// events.amazonaws.com, so this model would misreport every same-account
+// forward.
 func (a *attempt) advise(ctx context.Context) {
-	if a.e.policies == nil {
+	req := a.entry.Request
+	if a.e.policies == nil || req.Mechanism == delivery.EventsToEvents {
 		return
 	}
-	req := a.entry.Request
 	target := deliveredTo(req)
 	op := operationOf(req.Target)
 	if op == nil || len(op.IAM) == 0 {
@@ -320,7 +326,11 @@ func (a *attempt) deadLetter(ctx context.Context, f failure, end ending) (journa
 	if scopeErr != nil {
 		return journal.Dropped{Reason: fmt.Sprintf("%s; the dead-letter queue %s: %v", why, unservedScope, scopeErr)}, true
 	}
-	sendErr := a.sendSQS(ctx, scope, deadLetterMessage(&a.entry, *dlq, f, end))
+	m, msgErr := deadLetterOf(&a.entry, *dlq, f, end)
+	if msgErr != nil {
+		return journal.Dropped{Reason: fmt.Sprintf("%s; its dead letter for %s could not be written: %v", why, dlq, msgErr)}, true
+	}
+	sendErr := a.sendSQS(ctx, scope, m)
 	if ctx.Err() != nil {
 		return nil, false
 	}

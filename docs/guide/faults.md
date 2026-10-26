@@ -106,7 +106,7 @@ A delivery-phase rule acts on understudy's own deliveries between services rathe
 understudy faults add --phase delivery --mechanism sns-to-sqs --drop --next 1
 ```
 
-The mechanisms are `sns-to-sqs`, `sns-to-lambda`, `s3-to-sqs`, `s3-to-sns`, `s3-to-lambda`, `events-to-lambda`, `events-to-sqs` and `events-to-sns`. A request-phase rule with `--origin internal` fails the internal call itself instead, which drives the source's own retry policy: SNS retries a failed SQS delivery on its AWS schedule (on the [emulator clock](clock.md)) and then sends it to the subscription's dead-letter queue.
+The mechanisms are `sns-to-sqs`, `sns-to-lambda`, `s3-to-sqs`, `s3-to-sns`, `s3-to-lambda`, `events-to-lambda`, `events-to-sqs`, `events-to-sns` and `events-to-events` (an EventBridge rule's event bus target). A request-phase rule with `--origin internal` fails the internal call itself instead, which drives the source's own retry policy: SNS retries a failed SQS delivery on its AWS schedule (on the [emulator clock](clock.md)) and then sends it to the subscription's dead-letter queue.
 
 ## SDK retries
 

@@ -225,15 +225,20 @@ func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 
 // checkDLQ checks req's dead-letter queue, if it has one: an SQS queue in
 // a scope understudy serves, for a target whose dead letter has a known
-// form. No research gives the form of an EventBus or S3Object dead letter,
-// so either refuses a queue until its producer researches it.
+// form. An event bus target's dead letter is the forwarded event, as for
+// any EventBridge target (eb-rule-dlq.html, iam-enforcement-surfaces.md
+// 8.4); no research gives the form of an S3Object dead letter or of an
+// EventBus one under another mechanism, so those refuse a queue until
+// their producer researches it.
 func checkDLQ(req delivery.Request) *RequestError {
 	if req.DLQ == nil {
 		return nil
 	}
 	switch req.Target.(type) {
 	case delivery.EventBus:
-		return &RequestError{Field: "DLQ", Reason: "is set, but an EventBus delivery has no dead-letter format yet"}
+		if req.Mechanism != delivery.EventsToEvents {
+			return &RequestError{Field: "DLQ", Reason: "is set, but an EventBus delivery under " + req.Mechanism.String() + " has no dead-letter format yet; only " + delivery.EventsToEvents.String() + " has one"}
+		}
 	case delivery.S3Object:
 		return &RequestError{Field: "DLQ", Reason: "is set, but an S3Object delivery has no dead-letter format yet"}
 	case delivery.SQSQueue, delivery.LambdaFunction, delivery.SNSTopic, delivery.HTTPEndpoint:
@@ -268,10 +273,13 @@ func checkTarget(req delivery.Request) (aws.ARN, string, *RequestError) {
 		}
 		return t.ARN, "Target.ARN", nil
 	case delivery.EventBus:
-		if err := deliversTo(m, "EventBus", "events"); err != nil {
+		if err := checkEventBus(t); err != nil {
 			return aws.ARN{}, "", err
 		}
-		return t.ARN, "Target.ARN", checkEventBus(t)
+		if err := checkForwarding(m, t.Entries[0]); err != nil {
+			return aws.ARN{}, "", err
+		}
+		return t.ARN, "Target.ARN", nil
 	case delivery.S3Object:
 		if err := deliversTo(m, "S3Object", "s3"); err != nil {
 			return aws.ARN{}, "", err
@@ -299,6 +307,32 @@ func checkEventBus(t delivery.EventBus) *RequestError {
 	}
 	if n := len(t.Entries); n != 1 {
 		return &RequestError{Field: "Target.Entries", Reason: fmt.Sprintf("has %d entries; an EventBus delivery carries exactly 1, so a retry puts no entry twice", n)}
+	}
+	return nil
+}
+
+// checkForwarding checks that m delivers the EventBus entry e. Only
+// events-to-events, an event bus target's delivery, forwards an event that
+// was already put, and it forwards nothing else: its entry carries the
+// event's envelope (eventbridge-buses.md 10.4.12), whose detail is one
+// JSON object (MalformedDetail, secrets-logs-events-alarms.md 4.7). The
+// envelope is checked before the mechanism, so a Forwarded under another
+// mechanism is named as such rather than as a target m does not deliver to.
+func checkForwarding(m delivery.Mechanism, e delivery.EventEntry) *RequestError {
+	forwards := m == delivery.EventsToEvents
+	switch {
+	case forwards && e.Forwarded == nil:
+		return &RequestError{Field: "Target.Entries[0].Forwarded", Reason: "is nil, but an " + m.String() + " delivery forwards an event that was already put, with its id, account, region and time"}
+	case !forwards && e.Forwarded != nil:
+		return &RequestError{Field: "Target.Entries[0].Forwarded", Reason: "is set, but only " + delivery.EventsToEvents.String() + " forwards an event, and this delivery is " + m.String()}
+	}
+	if err := deliversTo(m, "EventBus", "eventbridge"); err != nil {
+		return err
+	}
+	if forwards {
+		if _, err := e.Envelope(); err != nil {
+			return &RequestError{Field: "Target.Entries[0].Detail", Reason: "is not the detail of a forwarded event", Err: err}
+		}
 	}
 	return nil
 }

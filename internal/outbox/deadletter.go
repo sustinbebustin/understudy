@@ -72,8 +72,10 @@ func (e ending) reason(f failure) string {
 // function's event, a topic's message and an HTTP endpoint's body become
 // the body. The HTTP form is UNVERIFIED: sns-http-delivery.md 6.5 gives
 // SQS's as the likely one (SNSH-08). Group and deduplication ids carry
-// over to a FIFO dead-letter queue. An EventBridge dead letter also
-// carries the failure as message attributes (eventBridgeAttributes).
+// over to a FIFO dead-letter queue. An event bus target's body is the
+// forwarded event, which deadLetterOf writes, since writing it can fail. An
+// EventBridge dead letter also carries the failure as message attributes
+// (eventBridgeAttributes).
 func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage {
 	m := sqsMessage{queue: dlq}
 	switch t := e.Request.Target.(type) {
@@ -86,9 +88,11 @@ func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage 
 		m.body = string(t.Event)
 	case delivery.SNSTopic:
 		m.body, m.attributes = t.Message, t.Attributes
-	case delivery.EventBus, delivery.S3Object:
-		// Enqueue refuses a dead-letter queue for these deliveries
-		// (checkDLQ): the form of their dead letter is not researched.
+	case delivery.EventBus:
+		// deadLetterOf writes the body.
+	case delivery.S3Object:
+		// Enqueue refuses a dead-letter queue for this delivery (checkDLQ):
+		// the form of its dead letter is not researched.
 	case delivery.HTTPEndpoint:
 		m.body = string(t.Body)
 	}
@@ -96,6 +100,25 @@ func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage 
 		m.attributes = slices.Concat(m.attributes, eventBridgeAttributes(e, f, end))
 	}
 	return m
+}
+
+// deadLetterOf is deadLetterMessage with an event bus target's body: the
+// forwarded event as the destination bus would have received it
+// (delivery.EventEntry.Envelope), the dead letter of an EventBridge target
+// being the event it failed to deliver (eb-rule-dlq.html). Enqueue takes a
+// dead-letter queue for an EventBus delivery only under events-to-events
+// (checkDLQ), whose one entry has an envelope (checkForwarding), so the
+// error, an entry with no envelope, never comes from an accepted delivery.
+func deadLetterOf(e *Entry, dlq aws.ARN, f failure, end ending) (sqsMessage, error) {
+	m := deadLetterMessage(e, dlq, f, end)
+	if t, ok := e.Request.Target.(delivery.EventBus); ok {
+		body, err := t.Entries[0].Envelope()
+		if err != nil {
+			return sqsMessage{}, err
+		}
+		m.body = string(body)
+	}
+	return m, nil
 }
 
 // eventBridgeAttributes are the String attributes EventBridge adds to a

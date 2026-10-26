@@ -21,7 +21,10 @@
 //     target calls follow it too.
 //  2. When a PolicySource is set, access.Advise checks the target's stored
 //     resource policy and a would-deny becomes a journal Advisory; the
-//     attempt is made anyway.
+//     attempt is made anyway. An events-to-events delivery is not checked:
+//     AWS authorizes an event bus target through its RoleArn or the bus
+//     policy's grant to the sender account (eventbridge-buses.md 6.2, 6.3),
+//     not a grant to events.amazonaws.com.
 //  3. The target operation (SQS SendMessage, Lambda Invoke, SNS Publish,
 //     EventBridge PutEvents, S3 PutObject) runs through kernel.Invoke as
 //     the delivering service principal, with the mechanism's Via, admitted
@@ -115,8 +118,11 @@
 // message attributes, sns.md 7.4) with group and deduplication ids kept for
 // a FIFO dead-letter queue; a function's event, a topic's message or an
 // HTTP endpoint's body otherwise, the HTTP form UNVERIFIED
-// (sns-http-delivery.md 6.5). An EventBus or S3Object delivery takes no
-// dead-letter queue: its dead letter's form is not researched. An
+// (sns-http-delivery.md 6.5). An events-to-events delivery's dead letter
+// is the forwarded event as the destination bus would have received it
+// (delivery.EventEntry.Envelope). An S3Object delivery, or an EventBus one
+// under any other mechanism, takes no dead-letter queue: its dead letter's
+// form is not researched. An
 // EventBridge dead letter adds the String attributes RULE_ARN, TARGET_ARN,
 // ERROR_CODE, ERROR_MESSAGE, RETRY_ATTEMPTS and, when retries ran out,
 // EXHAUSTED_RETRY_CONDITION (eb-rule-dlq). A dead letter the queue refuses

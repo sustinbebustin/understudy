@@ -1243,11 +1243,11 @@ type Target interface{ isTarget() }
 type SQSQueue struct{ ARN aws.ARN; Body string; Attributes []MessageAttribute; GroupID, DedupID string }
 type LambdaFunction struct{ ARN aws.ARN; Qualifier string; Event []byte; Invocation InvocationType } // Event | RequestResponse (ESM uses Invoke directly, not the outbox)
 type SNSTopic struct{ ARN aws.ARN; Message string; Attributes []MessageAttribute; Subject string }
-type EventBus struct{ ARN aws.ARN; Entries []EventEntry }           // events:PutEvents, exactly 1 entry; no DLQ yet
+type EventBus struct{ ARN aws.ARN; Entries []EventEntry }           // events:PutEvents, exactly 1 entry; EventEntry.Forwarded is the envelope and hop mark of an event a bus target forwards; DLQ under EventsToEvents only
 type S3Object struct{ Bucket, Key string; Body []byte }             // s3:PutObject; no DLQ yet
 type HTTPEndpoint struct{ URL url.URL; Headers []HTTPHeader; Body []byte } // POST through internal/egress
 
-type Mechanism uint8 // closed: SNSToSQS | SNSToLambda | S3ToSQS | S3ToSNS | S3ToLambda | EventsToLambda | EventsToSQS | EventsToSNS; no mechanism delivers to EventBus, S3Object or HTTPEndpoint yet
+type Mechanism uint8 // closed: SNSToSQS | SNSToLambda | S3ToSQS | S3ToSNS | S3ToLambda | EventsToLambda | EventsToSQS | EventsToSNS | EventsToEvents; EventsToEvents alone delivers to EventBus, and none to S3Object or HTTPEndpoint yet
 
 type Request struct {
 	Source    aws.ARN
