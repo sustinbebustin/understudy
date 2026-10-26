@@ -12,10 +12,12 @@ import (
 // Registry indexes the service descriptors the server wires. It is
 // immutable after New.
 type Registry struct {
-	services  []*Service // sorted by ID
-	byID      map[ref.ServiceID]*Service
-	byTarget  map[string]*Service
-	bySigning map[string]*Service
+	services []*Service // sorted by ID
+	byID     map[ref.ServiceID]*Service
+	byTarget map[string]*Service
+	// bySigning holds each signing name's candidates in the order New was
+	// given them (ADR 0019).
+	bySigning map[string][]*Service
 	byQuery   map[queryKey]*Operation
 }
 
@@ -41,8 +43,7 @@ const (
 	InvalidRoute
 	ConflictingRoutes
 	// OverlappingRouteTables is two REST services sharing a signing name
-	// whose route tables one request could match in both (ADR 0019). New
-	// does not return it yet.
+	// whose route tables one request could match in both (ADR 0019).
 	OverlappingRouteTables
 )
 
@@ -64,16 +65,17 @@ func (e *DescriptorError) Error() string {
 }
 
 // New indexes services. It fails on a nil or duplicate service, a JSON target
-// prefix or signing name two services share, an awsQuery service with no
-// QueryVersion or with an Action and Version another service holds, a nil
-// operation, an operation whose Ordinal is not its index, operations out of
-// name order, an operation of another service or of an unknown kind, an
-// invalid route, and two routes no request can tell apart.
+// prefix two services share, an awsQuery service with no QueryVersion or
+// with an Action and Version another service holds, a nil operation, an
+// operation whose Ordinal is not its index, operations out of name order, an
+// operation of another service or of an unknown kind, an invalid route, two
+// routes no request can tell apart, and a signing name shared with an
+// earlier service when no claim rule tells their requests apart (ADR 0019).
 func New(services ...*Service) (*Registry, error) {
 	r := &Registry{
 		byID:      make(map[ref.ServiceID]*Service, len(services)),
 		byTarget:  map[string]*Service{},
-		bySigning: map[string]*Service{},
+		bySigning: map[string][]*Service{},
 		byQuery:   map[queryKey]*Operation{},
 	}
 	for _, s := range services {
@@ -117,15 +119,10 @@ func (r *Registry) ByQueryAction(action, version string) (*Operation, bool) {
 }
 
 // BySigningName returns the services whose SigV4 credential-scope name is
-// name, in the order New was given them; nil when none. Until shared
-// signing names land (ADR 0019), New refuses a second service with a name,
-// so the result holds at most one service.
+// name, in the order New was given them; nil when none. A service with no
+// signing name is never returned. The slice is the caller's.
 func (r *Registry) BySigningName(name string) []*Service {
-	s, ok := r.bySigning[name]
-	if !ok {
-		return nil
-	}
-	return []*Service{s}
+	return slices.Clone(r.bySigning[name])
 }
 
 func (r *Registry) add(s *Service) error {
@@ -144,9 +141,12 @@ func (r *Registry) add(s *Service) error {
 	if err := r.indexQuery(s); err != nil {
 		return err
 	}
+	if err := r.checkSigning(s); err != nil {
+		return err
+	}
 	r.byID[s.ID] = s
 	if s.SigningName != "" {
-		r.bySigning[s.SigningName] = s
+		r.bySigning[s.SigningName] = append(r.bySigning[s.SigningName], s)
 	}
 	if s.JSONTargetPrefix != "" {
 		r.byTarget[s.JSONTargetPrefix] = s
@@ -165,9 +165,6 @@ func (r *Registry) checkService(s *Service) error {
 	}
 	if _, dup := r.byID[s.ID]; dup {
 		return fail(DuplicateService, "two descriptors share the service id")
-	}
-	if other, dup := r.bySigning[s.SigningName]; dup {
-		return fail(DuplicateSigningName, fmt.Sprintf("signing name %q is also service %q's", s.SigningName, other.ID))
 	}
 	if other, dup := r.byTarget[s.JSONTargetPrefix]; dup {
 		return fail(DuplicateJSONTarget, fmt.Sprintf("JSON target prefix %q is also service %q's", s.JSONTargetPrefix, other.ID))
