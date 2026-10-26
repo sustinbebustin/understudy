@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
@@ -126,5 +127,15 @@ func TestDocumentedDenialIdentities(t *testing.T) {
 		if !c.check(c.got) {
 			t.Errorf("%s denial identity = %+v, want %s", c.svc, c.got, c.want)
 		}
+	}
+}
+
+// DynamoDB's developer guide lists AccessDeniedException under "HTTP status
+// code 400" (iam-enforcement-surfaces.md 3.2, aws-doc), so its generic
+// AccessDeniedException, the one fault rules inject, answers 400. Whether
+// an IAM denial uses that identity is inferred (IAM-ENF-04).
+func TestDynamoDBAccessDeniedExceptionIs400(t *testing.T) {
+	if id := dynamodbapi.IdentityAccessDeniedException(); id.Status != http.StatusBadRequest || id.QueryCode != "AccessDeniedException" {
+		t.Errorf("dynamodb AccessDeniedException = %+v, want status 400", id)
 	}
 }
