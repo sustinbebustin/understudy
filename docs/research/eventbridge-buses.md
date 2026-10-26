@@ -256,17 +256,19 @@ From [TF] `internal/service/events/bus.go`:
 |---|---|---|
 | CreateEventBus | Partial | custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged |
 | UpdateEventBus | StoredOnly | Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged |
-| DescribeEventBus | Full | |
+| DescribeEventBus | Partial | another account's or region's bus answers NotImplemented |
 | ListEventBuses | Full | |
 | DeleteEventBus | Full | |
 | PutPermission | StoredOnly | statements are stored in the bus Policy that DescribeEventBus returns; not enforced |
 | RemovePermission | StoredOnly | statements are removed from the bus Policy; not enforced |
 | PutRule | Partial | default and custom buses of the caller's account and region; ScheduleExpression only on the default bus, as AWS; RoleArn is stored, not used; a rule on another account's or region's bus answers NotImplemented |
-| PutTargets | Partial | Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented |
+| PutTargets | Partial | Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented |
 | PutEvents | Partial | default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
 | TagResource, UntagResource, ListTagsForResource | Full | (today Partial "rules only; the default bus takes no tags"; section 5.5 shows AWS tags every bus) |
-| DescribeRule, DeleteRule, EnableRule, DisableRule, ListRules, ListRuleNamesByTarget, ListTargetsByRule, RemoveTargets | Full (unchanged) | their `EventBusName` now resolves custom buses |
+| DescribeRule, DeleteRule, EnableRule, DisableRule, ListRules, ListRuleNamesByTarget, ListTargetsByRule, RemoveTargets | Partial | another account's or region's bus answers NotImplemented |
 | Partner sources, archives, replays, connections, API destinations, endpoints | unbound (501) | |
+
+Amended 2026-10-26: DescribeEventBus and the rule and target row were Full, and the PutTargets note left out two NotImplemented answers. AWS accepts another account's or region's bus by ARN wherever a bus name or ARN is taken ("Use these parameters to reference cross-account or cross-Region event buses through the APIs", section 4.4), and understudy answers NotImplemented for such a bus (PutRule's note already says so), so these operations are Partial. PutPermission and RemovePermission take a bus name only (`NonPartnerEventBusName`, section 2.2), so they cannot name another account's bus and keep their notes. The rule and target operations' `EventBusName` resolves custom buses of the caller's account and region.
 
 ### 10.2 State model
 

@@ -225,7 +225,7 @@ func (s *Service) bindBuses(b eventbridgeapi.Binder) {
 			"KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged"},
 		kernel.WithCheck(checkCreateEventBus),
 		namedBus(func(in *eventbridgeapi.CreateEventBusInput) *string { return &in.Name }))
-	b.DescribeEventBus(s.describeEventBus, registry.Full{},
+	b.DescribeEventBus(s.describeEventBus, registry.Partial{Note: noteForeignBus},
 		namedBus(func(in *eventbridgeapi.DescribeEventBusInput) *string { return in.Name }))
 	b.ListEventBuses(s.listEventBuses, registry.Full{})
 	b.UpdateEventBus(s.updateEventBus,

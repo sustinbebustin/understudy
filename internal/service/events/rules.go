@@ -15,6 +15,12 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
+// noteForeignBus is the Partial note of a call that takes a bus name or ARN
+// and manages only the caller's buses: AWS accepts another account's or
+// region's bus by ARN (eventbridge-buses.md 4.4), and understudy answers
+// errForeignBus (eventbridge-buses.md 10.1).
+const noteForeignBus = "another account's or region's bus answers NotImplemented"
+
 // bindRules binds the rule control plane, on the default and custom buses
 // of the caller's scope (eventbridge-buses.md 10.1).
 func (s *Service) bindRules(b eventbridgeapi.Binder) {
@@ -24,20 +30,20 @@ func (s *Service) bindRules(b eventbridgeapi.Binder) {
 		kernel.WithCheck(s.checkPutRule),
 		namedRule(func(in *eventbridgeapi.PutRuleInput) *string { return in.EventBusName },
 			func(in *eventbridgeapi.PutRuleInput) string { return in.Name }))
-	b.DescribeRule(s.describeRule, registry.Full{},
+	b.DescribeRule(s.describeRule, registry.Partial{Note: noteForeignBus},
 		namedRule(func(in *eventbridgeapi.DescribeRuleInput) *string { return in.EventBusName },
 			func(in *eventbridgeapi.DescribeRuleInput) string { return in.Name }))
-	b.ListRules(s.listRules, registry.Full{})
-	b.DeleteRule(s.deleteRule, registry.Full{},
+	b.ListRules(s.listRules, registry.Partial{Note: noteForeignBus})
+	b.DeleteRule(s.deleteRule, registry.Partial{Note: noteForeignBus},
 		namedRule(func(in *eventbridgeapi.DeleteRuleInput) *string { return in.EventBusName },
 			func(in *eventbridgeapi.DeleteRuleInput) string { return in.Name }))
-	b.EnableRule(s.enableRule, registry.Full{},
+	b.EnableRule(s.enableRule, registry.Partial{Note: noteForeignBus},
 		namedRule(func(in *eventbridgeapi.EnableRuleInput) *string { return in.EventBusName },
 			func(in *eventbridgeapi.EnableRuleInput) string { return in.Name }))
-	b.DisableRule(s.disableRule, registry.Full{},
+	b.DisableRule(s.disableRule, registry.Partial{Note: noteForeignBus},
 		namedRule(func(in *eventbridgeapi.DisableRuleInput) *string { return in.EventBusName },
 			func(in *eventbridgeapi.DisableRuleInput) string { return in.Name }))
-	b.ListRuleNamesByTarget(s.listRuleNamesByTarget, registry.Full{})
+	b.ListRuleNamesByTarget(s.listRuleNamesByTarget, registry.Partial{Note: noteForeignBus})
 }
 
 // namedRule names the rule a call addresses on the bus its EventBusName

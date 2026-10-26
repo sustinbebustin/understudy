@@ -24,13 +24,15 @@ func (s *Service) bindTargets(b eventbridgeapi.Binder) {
 	b.PutTargets(s.putTargets,
 		registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; " +
 			"RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; " +
-			"a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented"},
+			"a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, " +
+			"or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; " +
+			"a rule on another account's or region's bus answers NotImplemented"},
 		namedRule(func(in *eventbridgeapi.PutTargetsInput) *string { return in.EventBusName },
 			func(in *eventbridgeapi.PutTargetsInput) string { return in.Rule }))
-	b.RemoveTargets(s.removeTargets, registry.Full{},
+	b.RemoveTargets(s.removeTargets, registry.Partial{Note: noteForeignBus},
 		namedRule(func(in *eventbridgeapi.RemoveTargetsInput) *string { return in.EventBusName },
 			func(in *eventbridgeapi.RemoveTargetsInput) string { return in.Rule }))
-	b.ListTargetsByRule(s.listTargetsByRule, registry.Full{},
+	b.ListTargetsByRule(s.listTargetsByRule, registry.Partial{Note: noteForeignBus},
 		namedRule(func(in *eventbridgeapi.ListTargetsByRuleInput) *string { return in.EventBusName },
 			func(in *eventbridgeapi.ListTargetsByRuleInput) string { return in.Rule }))
 }

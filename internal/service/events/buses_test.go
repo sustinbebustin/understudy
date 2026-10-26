@@ -93,31 +93,37 @@ func refused(err *awserr.Error) bool {
 // The bus operations are bound with the coverage marks and notes of
 // eventbridge-buses.md 10.1, verbatim; partner sources, archives, replays,
 // connections, API destinations and endpoints stay unbound and answer 501
-// (eventbridge-buses.md 10.1, 10.7.23).
+// (eventbridge-buses.md 10.1, 10.7.23). The calls that take a bus by ARN
+// and answer NotImplemented for another account's or region's bus are
+// Partial: AWS accepts such a bus there ("Use these parameters to reference
+// cross-account or cross-Region event buses through the APIs",
+// eb-event-bus-perms.html, eventbridge-buses.md 4.4; 10.1 as amended
+// 2026-10-26).
 func TestBusOperationsCoverage(t *testing.T) {
 	run(t, func(h *harness) {
+		const foreign = "another account's or region's bus answers NotImplemented"
 		want := map[string]registry.BindCoverage{
 			"CreateEventBus":        registry.Partial{Note: "custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged"},
 			"UpdateEventBus":        registry.StoredOnly{Note: "Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged"},
-			"DescribeEventBus":      registry.Full{},
+			"DescribeEventBus":      registry.Partial{Note: foreign},
 			"ListEventBuses":        registry.Full{},
 			"DeleteEventBus":        registry.Full{},
 			"PutPermission":         registry.StoredOnly{Note: "statements are stored in the bus Policy that DescribeEventBus returns; not enforced"},
 			"RemovePermission":      registry.StoredOnly{Note: "statements are removed from the bus Policy; not enforced"},
 			"PutRule":               registry.Partial{Note: "default and custom buses of the caller's account and region; ScheduleExpression only on the default bus, as AWS; RoleArn is stored, not used; a rule on another account's or region's bus answers NotImplemented"},
-			"PutTargets":            registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented"},
+			"PutTargets":            registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented"},
 			"PutEvents":             registry.Partial{Note: "default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used"},
 			"TagResource":           registry.Full{},
 			"UntagResource":         registry.Full{},
 			"ListTagsForResource":   registry.Full{},
-			"DescribeRule":          registry.Full{},
-			"DeleteRule":            registry.Full{},
-			"EnableRule":            registry.Full{},
-			"DisableRule":           registry.Full{},
-			"ListRules":             registry.Full{},
-			"ListRuleNamesByTarget": registry.Full{},
-			"ListTargetsByRule":     registry.Full{},
-			"RemoveTargets":         registry.Full{},
+			"DescribeRule":          registry.Partial{Note: foreign},
+			"DeleteRule":            registry.Partial{Note: foreign},
+			"EnableRule":            registry.Partial{Note: foreign},
+			"DisableRule":           registry.Partial{Note: foreign},
+			"ListRules":             registry.Partial{Note: foreign},
+			"ListRuleNamesByTarget": registry.Partial{Note: foreign},
+			"ListTargetsByRule":     registry.Partial{Note: foreign},
+			"RemoveTargets":         registry.Partial{Note: foreign},
 			"TestEventPattern":      registry.Full{},
 		}
 		for _, op := range eventbridgeapi.Service().Operations {

@@ -119,7 +119,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 |---|---|---|---|---|---|---|---|
 | cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
 | dynamodb | 58 | 6 | 2 | 18 | 32 | 0 | 0 |
-| eventbridge | 57 | 15 | 3 | 4 | 35 | 0 | 0 |
+| eventbridge | 57 | 6 | 3 | 13 | 35 | 0 | 0 |
 | iam | 180 | 42 | 6 | 16 | 116 | 1 | 0 |
 | kms | 54 | 19 | 3 | 5 | 27 | 0 | 0 |
 | lambda | 88 | 25 | 2 | 14 | 47 | 0 | 2 |
@@ -258,17 +258,8 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
 | DeleteEventBus | full | aws-doc, 1 of 3 claims |  |
-| DeleteRule | full | third-party-recorded, 2 of 2 claims |  |
-| DescribeEventBus | full | inferred, 1 of 3 claims |  |
-| DescribeRule | full | third-party-recorded, 2 of 2 claims |  |
-| DisableRule | full | third-party-recorded, 2 of 2 claims |  |
-| EnableRule | full | inferred, 1 of 3 claims |  |
 | ListEventBuses | full | inferred, 2 of 4 claims |  |
-| ListRuleNamesByTarget | full | third-party-recorded, 2 of 2 claims |  |
-| ListRules | full | third-party-recorded, 2 of 2 claims |  |
 | ListTagsForResource | full | third-party-recorded, 2 of 2 claims |  |
-| ListTargetsByRule | full | third-party-recorded, 2 of 2 claims |  |
-| RemoveTargets | full | third-party-recorded, 2 of 2 claims |  |
 | TagResource | full | third-party-recorded, 2 of 2 claims |  |
 | TestEventPattern | full | contradicted (events/R14/H14-01.json), 5 of 25 claims |  |
 | UntagResource | full | third-party-recorded, 2 of 2 claims |  |
@@ -276,9 +267,18 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | RemovePermission | stored-only | inferred, 2 of 4 claims | statements are removed from the bus Policy; not enforced |
 | UpdateEventBus | stored-only | inferred, 2 of 4 claims | Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged |
 | CreateEventBus | partial | inferred, 1 of 3 claims | custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged |
+| DeleteRule | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
+| DescribeEventBus | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
+| DescribeRule | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
+| DisableRule | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
+| EnableRule | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
+| ListRuleNamesByTarget | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
+| ListRules | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
+| ListTargetsByRule | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
 | PutEvents | partial | contradicted (events/R14/H14-02.json), 1 of 9 claims | default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
 | PutRule | partial | contradicted (events/R14/H14-01.json), 1 of 8 claims | default and custom buses of the caller's account and region; ScheduleExpression only on the default bus, as AWS; RoleArn is stored, not used; a rule on another account's or region's bus answers NotImplemented |
-| PutTargets | partial | aws-doc, 1 of 3 claims | Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented |
+| PutTargets | partial | aws-doc, 1 of 3 claims | Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented |
+| RemoveTargets | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
 | ActivateEventSource | unbound | unassessed |  |
 | CancelReplay | unbound | unassessed |  |
 | CreateApiDestination | unbound | unassessed |  |
