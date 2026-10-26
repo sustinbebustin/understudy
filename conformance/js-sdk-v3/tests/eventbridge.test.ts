@@ -1,24 +1,32 @@
 // EventBridge over awsJson1_1, through @aws-sdk/client-eventbridge, with SQS
 // targets read back through @aws-sdk/client-sqs.
-// Expected behavior: docs/research/secrets-logs-events-alarms.md section 4.
+// Expected behavior: docs/research/secrets-logs-events-alarms.md section 4,
+// and docs/research/eventbridge-buses.md for custom buses.
 
 import { describe, expect, test } from "bun:test";
 import {
+  CreateEventBusCommand,
+  DeleteEventBusCommand,
   DeleteRuleCommand,
+  DescribeEventBusCommand,
   DescribeRuleCommand,
   DisableRuleCommand,
   EnableRuleCommand,
   EventBridgeClient,
+  ListEventBusesCommand,
   ListRulesCommand,
   ListTagsForResourceCommand,
   ListTargetsByRuleCommand,
   PutEventsCommand,
+  PutPermissionCommand,
   PutRuleCommand,
   PutTargetsCommand,
+  RemovePermissionCommand,
   RemoveTargetsCommand,
   TagResourceCommand,
   TestEventPatternCommand,
   UntagResourceCommand,
+  UpdateEventBusCommand,
 } from "@aws-sdk/client-eventbridge";
 import { CreateQueueCommand, DeleteMessageBatchCommand, ReceiveMessageCommand, SQSClient, type Message } from "@aws-sdk/client-sqs";
 import { CreateTopicCommand, SNSClient, SubscribeCommand } from "@aws-sdk/client-sns";
@@ -243,10 +251,14 @@ describe("EventBridge schedule expressions", () => {
     });
   }
 
+  // The schedule check runs before the bus lookup: AWS refuses a bus the
+  // recording never created (testdata/parity/events/R14/04-custom-bus-schedule.json,
+  // eventbridge-buses.md 5.3).
   test("a schedule rule on a custom event bus is refused", async () => {
     await expectFailure(events.send(new PutRuleCommand({ Name: ruleName(), ScheduleExpression: "rate(5 minutes)", EventBusName: uniq("bus") })), {
-      name: "ResourceNotFoundException",
+      name: "ValidationException",
       status: 400,
+      messageIncludes: "ScheduleExpression is supported only on the default event bus.",
     });
   });
 });
@@ -641,4 +653,128 @@ describe("EventBridge scheduled rules", () => {
     expect(body.time).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
     await events.send(new DisableRuleCommand({ Name: name }));
   }, 120_000);
+});
+
+describe("EventBridge custom buses", () => {
+  const busArn = (name: string) => `arn:aws:events:${region}:${defaultAccount}:event-bus/${name}`;
+
+  // eventbridge-buses.md 3.1-3.5 (third-party-recorded; the missing-bus text
+  // is testdata/parity/events/R07/04-describe-event-bus-missing.json).
+  test("a bus is created, described, listed, updated and deleted", async () => {
+    const name = uniq("bus");
+    const created = await events.send(new CreateEventBusCommand({ Name: name, Description: "test bus" }));
+    expect(created.EventBusArn).toBe(busArn(name));
+    expect(created.Description).toBe("test bus");
+    const described = await events.send(new DescribeEventBusCommand({ Name: name }));
+    expect(described).toMatchObject({ Name: name, Arn: busArn(name), Description: "test bus" });
+    expect(described.CreationTime).toBeInstanceOf(Date);
+    expect(described.LastModifiedTime).toBeInstanceOf(Date);
+    for (const absent of ["Policy", "KmsKeyIdentifier", "DeadLetterConfig", "LogConfig"] as const) {
+      expect(described[absent]).toBeUndefined();
+    }
+    const listed = await events.send(new ListEventBusesCommand({ NamePrefix: name }));
+    expect((listed.EventBuses ?? []).map((b) => b.Name)).toEqual([name]);
+    await expectFailure(events.send(new CreateEventBusCommand({ Name: name })), {
+      name: "ResourceAlreadyExistsException",
+      status: 400,
+      messageIncludes: `Event bus ${name} already exists.`,
+    });
+    // Terraform unsets a description with "" (eventbridge-buses.md 3.4).
+    await events.send(new UpdateEventBusCommand({ Name: name, Description: "" }));
+    const updated = await events.send(new DescribeEventBusCommand({ Name: name }));
+    expect(updated.Description ?? "").toBe("");
+    await events.send(new DeleteEventBusCommand({ Name: name }));
+    await expectFailure(events.send(new DescribeEventBusCommand({ Name: name })), {
+      name: "ResourceNotFoundException",
+      status: 400,
+      messageIncludes: `Event bus ${name} does not exist.`,
+    });
+  });
+
+  test("the default bus cannot be deleted and a missing bus deletes with 200", async () => {
+    await expectFailure(events.send(new DeleteEventBusCommand({ Name: "default" })), {
+      name: "ValidationException",
+      status: 400,
+      messageIncludes: "Cannot delete event bus default.",
+    });
+    await events.send(new DeleteEventBusCommand({ Name: uniq("never") }));
+  });
+
+  test("the default bus takes tags", async () => {
+    const key = uniq("tag");
+    await events.send(new TagResourceCommand({ ResourceARN: busArn("default"), Tags: [{ Key: key, Value: "v" }] }));
+    const tags = await events.send(new ListTagsForResourceCommand({ ResourceARN: busArn("default") }));
+    expect(tags.Tags).toContainEqual({ Key: key, Value: "v" });
+    await events.send(new UntagResourceCommand({ ResourceARN: busArn("default"), TagKeys: [key] }));
+  });
+
+  // eventbridge-buses.md 5.2 and 6.1: the rule ARN names the bus, and only the
+  // named bus's rules match.
+  test("rules on a bus have rule/<bus>/<rule> ARNs and match only that bus's events", async () => {
+    const bus = uniq("bus");
+    await events.send(new CreateEventBusCommand({ Name: bus }));
+    const name = ruleName();
+    const onBus = await makeQueue();
+    const onDefault = await makeQueue();
+    const source = `conformance.${bus}`;
+    const put = await events.send(new PutRuleCommand({ Name: name, EventBusName: busArn(bus), EventPattern: JSON.stringify({ source: [source] }) }));
+    expect(put.RuleArn).toBe(`arn:aws:events:${region}:${defaultAccount}:rule/${bus}/${name}`);
+    const described = await events.send(new DescribeRuleCommand({ Name: name, EventBusName: bus }));
+    expect(described).toMatchObject({ EventBusName: bus, CreatedBy: defaultAccount, Arn: put.RuleArn });
+    expect((await events.send(new PutTargetsCommand({ Rule: name, EventBusName: bus, Targets: [{ Id: "q", Arn: onBus.arn }] }))).FailedEntryCount).toBe(0);
+    await events.send(new PutRuleCommand({ Name: name, EventPattern: JSON.stringify({ source: [source] }) }));
+    expect((await events.send(new PutTargetsCommand({ Rule: name, Targets: [{ Id: "q", Arn: onDefault.arn }] }))).FailedEntryCount).toBe(0);
+
+    const out = await events.send(new PutEventsCommand({ Entries: [entry({ Source: source, EventBusName: bus })] }));
+    expect(out.FailedEntryCount).toBe(0);
+    const [message] = await drain(onBus.url, 1);
+    expect(JSON.parse(message?.Body ?? "null")).toMatchObject({ id: out.Entries?.[0]?.EventId, source, account: defaultAccount, region });
+    expect(await drain(onDefault.url, 1, 3_000)).toHaveLength(0);
+  });
+
+  // eventbridge-buses.md 6.2 (third-party-recorded) and 6.5 (aws-doc
+  // eb-cross-account.html: one hop only).
+  test("a bus target forwards the event once, keeping its source, account, region and detail", async () => {
+    const [first, second, third] = [uniq("bus"), uniq("bus"), uniq("bus")];
+    for (const bus of [first, second, third]) await events.send(new CreateEventBusCommand({ Name: bus }));
+    const source = `conformance.${first}`;
+    const pattern = JSON.stringify({ source: [source] });
+    const role = `arn:aws:iam::${defaultAccount}:role/conformance-events`;
+    const reached = await makeQueue();
+    const beyond = await makeQueue();
+    const rules: [string, { Id: string; Arn: string; RoleArn?: string }[]][] = [
+      [first, [{ Id: "bus", Arn: busArn(second), RoleArn: role }]],
+      [second, [{ Id: "q", Arn: reached.arn }, { Id: "onward", Arn: busArn(third), RoleArn: role }]],
+      [third, [{ Id: "q", Arn: beyond.arn }]],
+    ];
+    for (const [bus, targets] of rules) {
+      await events.send(new PutRuleCommand({ Name: "r", EventBusName: bus, EventPattern: pattern }));
+      expect((await events.send(new PutTargetsCommand({ Rule: "r", EventBusName: bus, Targets: targets }))).FailedEntryCount).toBe(0);
+    }
+    await events.send(new PutEventsCommand({ Entries: [entry({ Source: source, EventBusName: first, Detail: JSON.stringify({ n: 1 }) })] }));
+    const [message] = await drain(reached.url, 1);
+    expect(JSON.parse(message?.Body ?? "null")).toMatchObject({ source, "detail-type": "Order Placed", account: defaultAccount, region, detail: { n: 1 } });
+    expect(await drain(beyond.url, 1, 5_000)).toHaveLength(0);
+  });
+
+  // eventbridge-buses.md 4.1-4.3 (third-party-recorded).
+  test("PutPermission and RemovePermission keep the bus Policy", async () => {
+    const bus = uniq("bus");
+    await events.send(new CreateEventBusCommand({ Name: bus }));
+    await events.send(new PutPermissionCommand({ EventBusName: bus, StatementId: "s1", Action: "events:PutEvents", Principal: "111111111111" }));
+    await events.send(new PutPermissionCommand({ EventBusName: bus, StatementId: "s2", Action: "events:PutEvents", Principal: "*" }));
+    const described = await events.send(new DescribeEventBusCommand({ Name: bus }));
+    const policy = JSON.parse(described.Policy ?? "null");
+    expect(policy.Version).toBe("2012-10-17");
+    const bySid: Record<string, unknown> = Object.fromEntries((policy.Statement as { Sid: string }[]).map((s) => [s.Sid, s]));
+    expect(bySid.s1).toEqual({ Sid: "s1", Effect: "Allow", Principal: { AWS: "arn:aws:iam::111111111111:root" }, Action: "events:PutEvents", Resource: busArn(bus) });
+    expect(bySid.s2).toEqual({ Sid: "s2", Effect: "Allow", Principal: "*", Action: "events:PutEvents", Resource: busArn(bus) });
+    await expectFailure(events.send(new RemovePermissionCommand({ EventBusName: bus, StatementId: "nope" })), {
+      name: "ResourceNotFoundException",
+      status: 400,
+      messageIncludes: "Statement with the provided id does not exist.",
+    });
+    await events.send(new RemovePermissionCommand({ EventBusName: bus, RemoveAllPermissions: true }));
+    expect((await events.send(new DescribeEventBusCommand({ Name: bus }))).Policy).toBeUndefined();
+  });
 });
