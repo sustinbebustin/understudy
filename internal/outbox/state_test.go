@@ -133,7 +133,36 @@ func genTarget() *rapid.Generator[delivery.Target] {
 				Subject:    rapid.StringMatching(`[A-Za-z ]{0,10}`).Draw(t, "subject"),
 			}
 		}),
+		rapid.Custom(func(t *rapid.T) delivery.Target {
+			// An event bus target forwards one matched event with its
+			// envelope (eventbridge-buses.md 10.4.12).
+			bus := genARN("events").Draw(t, "bus")
+			bus.Resource = "event-bus/" + bus.Resource
+			entry := delivery.EventEntry{
+				Source:     rapid.StringMatching(`[a-z.]{1,10}`).Draw(t, "source"),
+				DetailType: rapid.StringMatching(`[A-Za-z ]{1,10}`).Draw(t, "detailType"),
+				Detail:     rapid.StringMatching(`\{"n":[0-9]{1,3}\}`).Draw(t, "detail"),
+				Forwarded:  genForwarded().Draw(t, "forwarded"),
+			}
+			if n := rapid.IntRange(0, 2).Draw(t, "resources"); n > 0 {
+				entry.Resources = rapid.SliceOfN(rapid.StringMatching(`arn:aws:s3:::[a-z]{1,8}`), n, n).Draw(t, "resource")
+			}
+			return delivery.EventBus{ARN: bus, Entries: []delivery.EventEntry{entry}}
+		}),
 	)
+}
+
+// genForwarded draws the envelope of a forwarded event, its time in UTC as
+// a snapshot reads one back.
+func genForwarded() *rapid.Generator[*delivery.Forwarded] {
+	return rapid.Custom(func(t *rapid.T) *delivery.Forwarded {
+		return &delivery.Forwarded{
+			ID:      rapid.StringMatching(`[0-9a-f]{8}-[0-9a-f]{4}`).Draw(t, "eventID"),
+			Account: rapid.StringMatching(`[0-9]{12}`).Draw(t, "sender"),
+			Region:  rapid.SampledFrom([]string{"us-east-1", "eu-west-2"}).Draw(t, "origin"),
+			Time:    time.Unix(rapid.Int64Range(0, 4e9).Draw(t, "time"), rapid.Int64Range(0, 999).Draw(t, "ms")*int64(time.Millisecond)).UTC(),
+		}
+	})
 }
 
 func genPolicy() *rapid.Generator[delivery.RetryPolicy] {
@@ -180,12 +209,18 @@ func genEntry() *rapid.Generator[Entry] {
 	})
 }
 
-// genMechanismInto draws a mechanism that delivers to target's service.
+// genMechanismInto draws a mechanism that delivers to target's service. A
+// mechanism names its target by registry service ID, which for EventBridge
+// is not its ARN namespace (internal/ref/ref.go).
 func genMechanismInto(target delivery.Target) *rapid.Generator[delivery.Mechanism] {
 	arn, _ := targetARN(target)
+	service := arn.Service
+	if service == "events" {
+		service = "eventbridge"
+	}
 	var into []delivery.Mechanism
 	for _, m := range delivery.Mechanisms() {
-		if string(m.Target()) == arn.Service {
+		if string(m.Target()) == service {
 			into = append(into, m)
 		}
 	}

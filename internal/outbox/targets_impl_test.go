@@ -39,6 +39,11 @@ func genNewTarget() *rapid.Generator[delivery.Target] {
 				if n := rapid.IntRange(0, 2).Draw(t, "resources"); n > 0 {
 					entries[i].Resources = rapid.SliceOfN(text, n, n).Draw(t, "resource")
 				}
+				// A forwarded event keeps its envelope in the record
+				// (eventbridge-buses.md 10.4.12).
+				if rapid.Bool().Draw(t, "forwarded") {
+					entries[i].Forwarded = genForwarded().Draw(t, "envelope")
+				}
 			}
 			bus := genARN("events").Draw(t, "bus")
 			bus.Resource = "event-bus/" + bus.Resource
@@ -116,6 +121,13 @@ func TestNewTargetRecordsWireShape(t *testing.T) {
 		{
 			delivery.EventBus{ARN: bus, Entries: []delivery.EventEntry{{Source: "app", DetailType: "Order", Detail: `{}`}}},
 			`{"bus":"arn:aws:events:us-east-1:000000000000:event-bus/orders","entries":[{"detail":"{}","detailType":"Order","source":"app"}],"kind":"event-bus"}`,
+		},
+		{
+			delivery.EventBus{ARN: bus, Entries: []delivery.EventEntry{{Source: "app", DetailType: "Order", Detail: `{}`, Forwarded: &delivery.Forwarded{
+				ID: "e-1", Account: "111111111111", Region: "eu-west-2", Time: time.Date(2026, 10, 14, 7, 14, 15, 0, time.UTC),
+			}}}},
+			`{"bus":"arn:aws:events:us-east-1:000000000000:event-bus/orders","entries":[{"detail":"{}","detailType":"Order",` +
+				`"forwarded":{"account":"111111111111","id":"e-1","region":"eu-west-2","time":"2026-10-14T07:14:15Z"},"source":"app"}],"kind":"event-bus"}`,
 		},
 		{
 			delivery.S3Object{Bucket: "audit", Key: "a/b.json", Body: []byte("hello")},
@@ -306,8 +318,10 @@ func TestHTTPDeadLetterCarriesTheBody(t *testing.T) {
 }
 
 // A dead-letter queue is refused for a target whose dead letter has no
-// researched form, an event bus or an S3 object, and taken for an HTTP
-// endpoint.
+// researched form, an event bus under any mechanism but events-to-events
+// or an S3 object, and taken for an HTTP endpoint and for an event bus
+// target, which is an EventBridge target like any other (eb-rule-dlq.html,
+// iam-enforcement-surfaces.md 8.4).
 func TestCheckDLQ(t *testing.T) {
 	dlq := aws.ARN{Partition: "aws", Service: "sqs", Region: "us-east-1", Account: "000000000000", Resource: "dlq"}
 	hook, err := url.Parse("http://127.0.0.1:8080/hook")
@@ -315,17 +329,20 @@ func TestCheckDLQ(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := []struct {
-		target  delivery.Target
-		refused bool
+		mechanism delivery.Mechanism
+		target    delivery.Target
+		refused   bool
 	}{
-		{busCode(""), true},
-		{delivery.S3Object{Bucket: "b", Key: "k", Body: []byte("b")}, true},
-		{delivery.HTTPEndpoint{URL: *hook, Body: []byte("b")}, false},
+		{delivery.SNSToSQS, busCode(""), true},
+		{delivery.EventsToSQS, busCode(""), true},
+		{delivery.EventsToEvents, busCode(""), false},
+		{delivery.SNSToSQS, delivery.S3Object{Bucket: "b", Key: "k", Body: []byte("b")}, true},
+		{delivery.SNSToSQS, delivery.HTTPEndpoint{URL: *hook, Body: []byte("b")}, false},
 	}
 	for _, c := range cases {
-		err := checkDLQ(delivery.Request{Target: c.target, DLQ: &dlq})
+		err := checkDLQ(delivery.Request{Mechanism: c.mechanism, Target: c.target, DLQ: &dlq})
 		if refused := err != nil && err.Field == "DLQ"; refused != c.refused {
-			t.Errorf("checkDLQ(%T with a queue) = %v, want refused %t", c.target, err, c.refused)
+			t.Errorf("checkDLQ(%T under %s with a queue) = %v, want refused %t", c.target, c.mechanism, err, c.refused)
 		}
 	}
 }
