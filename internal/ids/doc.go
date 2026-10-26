@@ -23,5 +23,10 @@
 //     documents all three as opaque.
 //   - IAM unique ids are random after the prefix; whether AWS embeds the
 //     account in them is unverified.
+//   - API Gateway ids take the lengths of AWS's samples over [a-z0-9],
+//     drawn by rejection sampling so every character is equally likely; an
+//     integration id is as long as a route id. The apigw-requestid is
+//     derived from the call's request id rather than drawn, so the header
+//     and the Lambda event carry one value.
 //   - SecretAccessKey and SessionToken redact themselves in log/slog output.
 package ids
