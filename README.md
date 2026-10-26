@@ -144,7 +144,7 @@ From [docs/coverage.md](docs/coverage.md), which `understudy coverage` regenerat
 | EventBridge | 57 | 15 | 3 | 4 | 35 |
 | CloudWatch | 55 | 1 | 2 | 9 | 43 |
 
-The implemented operations are the ones an event-driven pipeline uses: SNS fan-out with filter policies to SQS, SQS with dead-letter queues feeding Lambda, S3 with SSE-KMS, a DynamoDB lock table with TTL, Secrets Manager, CloudWatch Logs, EventBridge schedules, and the IAM, KMS and CloudWatch resources Terraform declares around them.
+The implemented operations are the ones an event-driven pipeline uses: SNS fan-out with filter policies to SQS, SQS with dead-letter queues feeding Lambda, S3 with SSE-KMS, a DynamoDB lock table with TTL, Secrets Manager, CloudWatch Logs, EventBridge schedules and custom buses, and the IAM, KMS and CloudWatch resources Terraform declares around them.
 
 Behavior the models do not fix rests on evidence that the coverage page labels item by item. Real AWS was recorded for the backlog R01 to R18 (`testdata/parity/`), so 48 of the 279 overlay evidence items are `aws-recorded`; the rest come from AWS's documentation, recordings published by other projects, SDK source, and inference. Per operation, the page shows the weakest evidence behind it, with the verdict of the recordings `internal/parity` replays. Known differences from AWS are listed in [the differences page](docs/guide/differences.md).
 
@@ -198,7 +198,8 @@ Behavior that differs from AWS in ways a test can observe is listed in [docs/gui
 - **SNS** stores HTTP/S and email subscriptions and their confirmation flow but sends them nothing; SMS, mobile push and Firehose subscriptions answer 501.
 - **S3** has no MFA delete or Object Lock event holds, and `s3:BypassGovernanceRetention` is not evaluated. SSE-C works only over `--tls` and on a bucket whose encryption configuration unblocks it, as on AWS since April 2026.
 - **CloudWatch** alarms are stored and never evaluated. `GetMetricStatistics` answers 501, and `GetMetricData` has no metric math.
-- **EventBridge** bus policies are stored and returned but not enforced, so another account's `PutEvents` reaches a bus whose policy grants it nothing, and an event bus target with `Input`, `InputPath` or `InputTransformer` in the rule's own account fails its `PutTargets` entry with `NotImplemented`. `terraform import` of an SQS queue fails on the queue URL form.
+- **EventBridge** custom buses take rules, targets and events, and forward events between buses one hop, but their KMS key, dead-letter queue and log settings are stored, not applied. Bus policies are stored and returned but not enforced, so another account's `PutEvents` reaches a bus whose policy grants it nothing. Rules on another account's bus, partner event sources, archives, replays, connections, API destinations and endpoints answer 501.
+- **Terraform** `import` of an SQS queue fails on the queue URL form.
 - **Snapshots** use format version 0: archives from one build may be refused by another until the first release. The TLS listener's certificate is new at every start.
 
 ## Documentation

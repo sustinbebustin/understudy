@@ -136,6 +136,25 @@ Under `--sigv4 verify`, an `AWS_IAM` function URL refuses credentials with 403 a
 - A rate rule fires first at creation and again when enabled on AWS; understudy fires one interval after (`events/R14/02-arrivals.jsonl`).
 - Pattern matching and texts: see [Event patterns and filter policies](#event-patterns-and-filter-policies).
 
+Custom buses take rules, targets, tags and `PutEvents` as the default bus does, and an event bus target forwards an event one hop, as on AWS. Their differences:
+
+- Bus policies are stored and returned in `DescribeEventBus`'s `Policy`, not enforced. On AWS a bus takes another account's events only when its policy allows that account; understudy delivers them whatever the policy says. Here account 111111111111's `PutEvents` answers an `EventId` and no failed entry, and the bus's rules deliver the event with `"account": "111111111111"`:
+
+  ```sh
+  aws events create-event-bus --name orders
+  aws events put-permission --event-bus-name orders --statement-id only-222 \
+    --action events:PutEvents --principal 222222222222
+  AWS_ACCESS_KEY_ID=111111111111 aws events put-events --entries \
+    '[{"EventBusName":"arn:aws:events:us-east-1:000000000000:event-bus/orders","Source":"shop","DetailType":"order","Detail":"{}"}]'
+  ```
+
+- A target's `RoleArn` is stored, not assumed: an event bus target forwards whether or not the role may call `events:PutEvents`.
+- `KmsKeyIdentifier`, `DeadLetterConfig` and `LogConfig` are stored and returned, never applied: events are not encrypted, dead-lettered or logged. Any key identifier the model's pattern allows is accepted; whether AWS checks that the key exists is unrecorded.
+- AWS lets an account manage rules and targets on another account's bus, by its ARN, when the bus's policy allows it. understudy answers 501 `NotImplemented`; call with the bus owner's credentials instead.
+- An event bus target in the rule's own account with `Input`, `InputPath` or `InputTransformer` fails its `PutTargets` entry with `NotImplemented`, since AWS's answer is unrecorded.
+- Partner event buses (`CreateEventBus` with `EventSourceName`), archives, replays, connections, API destinations and global endpoints answer 501 `NotImplemented`.
+- Where AWS's answer is unrecorded, understudy chose one, each a fidelity switch (`understudy coverage --service eventbridge --switches`): `DeleteEventBus` on a bus with rules is refused with `ValidationException` "Cannot delete event bus orders. All rules associated with this event bus need to be deleted."; `UpdateEventBus` keeps the members it leaves out; `ListEventBuses` sorts by name, the default bus among the rest; the default bus's `CreationTime` is the first EventBridge write in its account and Region; an event forwarded to a bus in the same account and Region keeps its `id`; removing a bus's last statement removes its `Policy`, and `RemovePermission` with `RemoveAllPermissions` on a bus without one is `ResourceNotFoundException`.
+
 ## CloudWatch and CloudWatch Logs
 
 - A list of structures over its length limit is reported without a rendered value on AWS (Logs `PutLogEvents`, IAM `TagRole`); understudy renders it (`logs/R10/06-10001-events.json`, `iam/R15/06-tag-role-51.json`).
