@@ -163,6 +163,8 @@ func faultRule() *rapid.Generator[admin.FaultRule] {
 		rapid.Map(shape, func(s string) admin.FaultAction { return admin.AfterCommit{Shape: s} }),
 		rapid.Map(shape, func(s string) admin.FaultAction { return admin.StatusOKError{Shape: s} }),
 		rapid.Just[admin.FaultAction](admin.DropDelivery{}),
+		rapid.Map(rapid.IntRange(100, 599), func(n int) admin.FaultAction { return admin.HTTPStatus{Status: n} }),
+		rapid.Just[admin.FaultAction](admin.HTTPTimeout{}),
 	)
 	trigger := rapid.OneOf(
 		rapid.Just[admin.FaultTrigger](admin.Always{}),

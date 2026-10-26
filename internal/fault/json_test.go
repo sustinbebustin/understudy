@@ -108,7 +108,7 @@ func drawShape(t *rapid.T) smithy.ShapeID {
 }
 
 func drawAction(t *rapid.T) fault.Action {
-	switch rapid.IntRange(0, 5).Draw(t, "action") {
+	switch rapid.IntRange(0, 7).Draw(t, "action") {
 	case 0:
 		return fault.Error{Shape: drawShape(t), Message: rapid.String().Draw(t, "message")}
 	case 1:
@@ -119,6 +119,10 @@ func drawAction(t *rapid.T) fault.Action {
 		return fault.AfterCommit{Shape: drawShape(t)}
 	case 4:
 		return fault.StatusOKError{Shape: drawShape(t)}
+	case 5:
+		return fault.HTTPStatus{Status: rapid.IntRange(100, 599).Draw(t, "status")}
+	case 6:
+		return fault.HTTPTimeout{}
 	default:
 		return fault.DropDelivery{}
 	}
