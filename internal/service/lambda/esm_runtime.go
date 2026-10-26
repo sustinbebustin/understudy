@@ -335,8 +335,8 @@ func newPoller(scope aws.Scope, uuid string, m Mapping) (*poller, bool) {
 	case esm.SQS:
 		return newQueuePoller(scope, uuid, m)
 	case nil:
-		// createMapping and the state codec give every mapping a kind; one
-		// without has nothing to poll.
+		// createMapping gives every mapping a kind and every section of
+		// this state version stores it; one without has nothing to poll.
 	}
 	return nil, false
 }

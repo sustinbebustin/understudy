@@ -1,6 +1,7 @@
 package lambda_test
 
 import (
+	"errors"
 	"net/http"
 	"reflect"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // PublishTo LATEST_PUBLISHED publishes a Lambda Managed Instances version,
@@ -98,6 +100,30 @@ func TestSnapshotOfAnEmptiedScopeKeepsItsIdentifiersUnique(t *testing.T) {
 		}
 		if next := h.createFunction("b"); *next.RevisionId == *first.RevisionId {
 			t.Errorf("function b's RevisionId %s repeats deleted function a's", *next.RevisionId)
+		}
+	})
+}
+
+// State version 2 added each mapping's source kind. Before the first
+// release a version 1 section, written by an older binary, is refused
+// naming both versions rather than migrated (ADR 0009).
+func TestSnapshotRefusesAVersion1Section(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		h.createFunction("a")
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range sections {
+			sections[i].Version = 1
+		}
+		err = h.svc.Import(sections)
+		vm, ok := errors.AsType[*store.VersionMismatchError](err)
+		if !ok {
+			t.Fatalf("Import(a version 1 section) = %v, want a *store.VersionMismatchError", err)
+		}
+		if vm.Section != 1 || vm.Running != 2 || h.svc.SchemaVersion() != 2 {
+			t.Errorf("mismatch %+v, schema version %d; want section 1 refused by running 2", vm, h.svc.SchemaVersion())
 		}
 	})
 }

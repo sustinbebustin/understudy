@@ -41,8 +41,8 @@ type Mapping struct {
 	UUID string `json:"uuid"`
 	// Source is the source's ARN: the queue's for SQS.
 	Source string `json:"source"`
-	// SourceKind is the kind of source Source names, never nil; a mapping
-	// stored before it existed loads as SQS (State.defaultSourceKinds).
+	// SourceKind is the kind of source Source names, never nil once
+	// createMapping has stored the mapping.
 	SourceKind esm.EventSourceKind `json:"sourceKind"`
 	// Function is the function's name; Qualifier its version or alias, ""
 	// when the mapping names the function unqualified.

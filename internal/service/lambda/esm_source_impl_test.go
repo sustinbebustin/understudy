@@ -37,18 +37,14 @@ func kindState(t *testing.T) State {
 }
 
 // withSourceKind re-encodes the section data with u1's sourceKind member
-// replaced by raw, or removed when raw is nil.
+// replaced by raw.
 func withSourceKind(t *testing.T, data []byte, raw json.RawMessage) []byte {
 	t.Helper()
 	var doc map[string]map[string]map[string]json.RawMessage
 	if err := json.Unmarshal(data, &doc); err != nil {
 		t.Fatalf("section %s: %v", data, err)
 	}
-	if raw == nil {
-		delete(doc["mappings"]["u1"], "sourceKind")
-	} else {
-		doc["mappings"]["u1"]["sourceKind"] = raw
-	}
+	doc["mappings"]["u1"]["sourceKind"] = raw
 	out, err := json.Marshal(doc)
 	if err != nil {
 		t.Fatal(err)
@@ -74,33 +70,6 @@ func TestMappingSourceKindRoundTrips(t *testing.T) {
 	}
 	if _, ok := got.Mappings["u1"].SourceKind.(esm.SQS); !ok {
 		t.Errorf("SourceKind = %#v, want esm.SQS", got.Mappings["u1"].SourceKind)
-	}
-}
-
-// A section written before the member existed, or holding null, loads its
-// mappings as SQS, the only kind state version 1 stored then; the version
-// stays 1.
-func TestMappingWithoutSourceKindLoadsAsSQS(t *testing.T) {
-	codec := stateCodec()
-	st := kindState(t)
-	data, err := codec.Marshal(&st)
-	if err != nil {
-		t.Fatalf("Marshal: %v", err)
-	}
-	for name, raw := range map[string]json.RawMessage{"absent": nil, "null": json.RawMessage(`null`)} {
-		t.Run(name, func(t *testing.T) {
-			old := withSourceKind(t, data, raw)
-			got := newState(kindScope(t))
-			if err := codec.Unmarshal(old, &got); err != nil {
-				t.Fatalf("Unmarshal %s: %v", old, err)
-			}
-			if _, ok := got.Mappings["u1"].SourceKind.(esm.SQS); !ok {
-				t.Errorf("SourceKind = %#v from %s, want esm.SQS", got.Mappings["u1"].SourceKind, old)
-			}
-		})
-	}
-	if stateVersion != 1 {
-		t.Errorf("stateVersion = %d, want 1: the member is additive", stateVersion)
 	}
 }
 
