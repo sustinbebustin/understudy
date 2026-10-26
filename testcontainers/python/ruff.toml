@@ -1,0 +1,5 @@
+# Lint settings for `uvx ruff@<version>`, pinned in run.sh; ruff is a tool
+# here, not a dependency, so it stays out of pyproject.toml and uv.lock.
+line-length = 120
+# tests/ holds the suite's own support module, imported as first party.
+src = ["src", "tests"]
