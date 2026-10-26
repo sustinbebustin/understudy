@@ -50,6 +50,30 @@ A daemon on another host, such as a docker:dind CI service, is detected when the
 
 `--docker-labels` (`UNDERSTUDY_DOCKER_LABELS`, file key `dockerLabels`) adds labels to every container understudy creates, function environments and DynamoDB Local, beside understudy's own `understudy.dev/` labels. `serve` creates no Docker network. The value is a JSON object of string values; the file takes the object itself or a string holding its text, and the source that sets it replaces the others whole. It is how a Testcontainers module that runs understudy in a container hands over the session's reaper labels, such as `{"org.testcontainers.session-id":"<id>"}`, so Ryuk also removes the containers understudy started when the test process dies. Keys under `understudy.dev/` are refused (`label key "understudy.dev/managed" is reserved for understudy's own labels; choose a key outside understudy.dev/`), so the sweeps and `understudy cleanup`, which select only those labels, remove what they did before.
 
+## Outbound HTTP delivery
+
+understudy makes no outbound HTTP request unless a setting allows it. `--sns-http-delivery-allow` (`UNDERSTUDY_SNS_HTTP_DELIVERY_ALLOW`, file key `sns.httpDelivery.allow`) lists the hosts SNS delivers `http` and `https` subscriptions to. It is empty by default: such a subscription stays pending and receives nothing, and each delivery is journaled as `refused`, with the entry that would allow it.
+
+Each entry is `host:port`. The host is `localhost`, an IPv4 literal, a bracketed IPv6 literal such as `[::1]`, or a DNS name; the port is 1 to 65535, or `*` for any port, meant for a test receiver on an ephemeral port. There are no host wildcards and no address ranges. The flag and the variable take the entries comma-separated, untrimmed; the file takes a JSON array, nested in its `sns` section:
+
+```json
+{"sns": {"httpDelivery": {"allow": ["127.0.0.1:*", "receiver:8080"]}}}
+```
+
+The source that sets the list replaces the others whole. A malformed entry, or one naming a host understudy never reaches, stops `serve` with exit code 2, naming the entry by its index from 0.
+
+A subscription's URL is allowed when its host, lowercased and without a trailing dot, equals an entry's host, and its port (80 for `http` and 443 for `https` when the URL names none) equals the entry's port or the entry's port is `*`; the scheme does not matter. The address is checked again once the name resolves, and the address checked is the one dialed:
+
+- A `localhost` entry reaches only loopback.
+- An IP literal entry reaches that address.
+- A DNS-name entry reaches any address but loopback, which only `localhost` or an IP literal entry lists. Private addresses (RFC 1918 and IPv6 ULA) are allowed, so a compose service such as `receiver:8080` or a Kubernetes service such as `receiver.default.svc.cluster.local:8080` can be listed by name.
+
+Whatever the list says, understudy never delivers to a name under an AWS domain (in the URL or anywhere in its CNAME chain), to the instance metadata and ECS credentials addresses, to any link-local, unspecified or multicast address, to its own listeners (main, TLS, container and each Runtime API) or to a `tcp://` Docker Engine. A delivery uses no proxy, follows no redirect, speaks HTTP/1.1 and gives up after 15 seconds.
+
+`--sns-http-delivery-ca-bundle` (`UNDERSTUDY_SNS_HTTP_DELIVERY_CA_BUNDLE`, file key `sns.httpDelivery.caBundle`) names a PEM file of CA certificates an `https` endpoint may chain to, beside the system roots; certificate verification is never skipped. The file is read at start, and one that cannot be read, holds no certificate or holds one that does not parse stops `serve`.
+
+While `--tls` serves, the `SubscribeURL`, `UnsubscribeURL` and `SigningCertURL` an HTTP delivery carries are on `https://localhost:<TLS port>`; otherwise they are on the address the calling client used.
+
 ## Exit codes
 
 `serve` exits 2 when it refuses a flag, variable or file setting, and 1 when it fails after loading them, such as a port already in use. Every CLI command shares one table, which `understudy --help` prints:

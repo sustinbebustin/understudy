@@ -19,7 +19,7 @@ These are promises; a way around any of them is a vulnerability:
 - **Input limits.** Request bodies are capped per operation, and headers by Go's HTTP server limit. The XML decoder also bounds size and nesting depth, and the CBOR decoder nesting depth.
 - **Secrets in logs.** Members AWS's models mark sensitive, session tokens and minted credentials are redacted from logs and from the journal, and request signatures are never logged. Secret values and KMS plaintext never appear in error messages.
 - **Containers.** Function containers run with every capability dropped, `no-new-privileges`, memory and process limits, read-only code and no Docker socket. Every container understudy starts is labeled and removed when it stops, and leftovers of a crashed run are swept.
-- **No outbound traffic.** understudy sends no telemetry and makes no network calls at runtime except Docker image pulls. It starts DynamoDB Local with that program's telemetry turned off.
+- **No outbound traffic by default.** understudy sends no telemetry and makes no network calls at runtime except Docker image pulls and SNS `http` and `https` deliveries to the hosts `sns.httpDelivery.allow` lists, none by default. Those never reach AWS names, metadata or link-local addresses, understudy's own listeners or a `tcp://` Docker Engine, whatever the list says. It starts DynamoDB Local with that program's telemetry turned off.
 - **Cryptography.** KMS uses AES-256-GCM with key material from `crypto/rand`, even when identifiers are seeded.
 - **Sealing in this repository.** `scripts/sealed` must never let a command reach a non-loopback endpoint or read real AWS credentials.
 
