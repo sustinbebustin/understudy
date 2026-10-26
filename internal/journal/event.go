@@ -66,8 +66,8 @@ type Delivery struct {
 	Outcome   DeliveryOutcome
 	// HTTP is an HTTP endpoint attempt's exchange; nil for every other
 	// target, for a decision before any attempt (Attempt 0) and for an
-	// attempt a DropDelivery rule dropped. Not implemented yet: nothing
-	// sets it and NDJSON does not write it.
+	// attempt a DropDelivery rule dropped. NDJSON writes it as "http",
+	// omitted when nil.
 	HTTP *HTTPExchange
 }
 

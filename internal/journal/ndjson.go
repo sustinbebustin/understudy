@@ -155,6 +155,14 @@ type (
 		Mechanism delivery.Mechanism `json:"mechanism"`
 		Attempt   int                `json:"attempt"`
 		Outcome   wireDeliveryResult `json:"outcome"`
+		HTTP      *wireHTTPExchange  `json:"http,omitempty"`
+	}
+	// wireHTTPExchange's class is always written; a status or duration of
+	// 0 is not.
+	wireHTTPExchange struct {
+		Status   int           `json:"status,omitempty"`
+		Class    HTTPClass     `json:"class"`
+		Duration time.Duration `json:"duration,omitempty"`
 	}
 	wireDeliveryResult struct {
 		Kind   string         `json:"kind"`
@@ -339,7 +347,11 @@ func encodeDetail(d Detail) (any, error) {
 			return nil, err
 		}
 		out, err := encodeDeliveryResult(d.Outcome)
-		return wireDelivery{From: arnText(d.From), To: arnText(d.To), Endpoint: d.Endpoint, Mechanism: d.Mechanism, Attempt: d.Attempt, Outcome: out}, err
+		var exchange *wireHTTPExchange
+		if d.HTTP != nil {
+			exchange = &wireHTTPExchange{Status: d.HTTP.Status, Class: d.HTTP.Class, Duration: d.HTTP.Duration}
+		}
+		return wireDelivery{From: arnText(d.From), To: arnText(d.To), Endpoint: d.Endpoint, Mechanism: d.Mechanism, Attempt: d.Attempt, Outcome: out, HTTP: exchange}, err
 	case Invocation:
 		out, err := encodeInvocationResult(d.Outcome)
 		return wireInvocation{
@@ -788,7 +800,16 @@ func decodeDelivery(w wireDelivery) (Detail, error) {
 	default:
 		return nil, &tagError{Sum: "delivery outcome", Kind: w.Outcome.Kind}
 	}
-	return Delivery{From: from, To: to, Endpoint: w.Endpoint, Mechanism: w.Mechanism, Attempt: w.Attempt, Outcome: out}, nil
+	var exchange *HTTPExchange
+	if w.HTTP != nil {
+		if w.HTTP.Class == 0 {
+			// The class is always written; an exchange without one is no
+			// record this package wrote.
+			return nil, &HTTPClassError{Text: ""}
+		}
+		exchange = &HTTPExchange{Status: w.HTTP.Status, Class: w.HTTP.Class, Duration: w.HTTP.Duration}
+	}
+	return Delivery{From: from, To: to, Endpoint: w.Endpoint, Mechanism: w.Mechanism, Attempt: w.Attempt, Outcome: out, HTTP: exchange}, nil
 }
 
 func decodeInvocation(w wireInvocation) (Detail, error) {

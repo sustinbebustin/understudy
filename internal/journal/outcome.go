@@ -98,10 +98,20 @@ const (
 	HTTPRefused
 )
 
-// String returns the class's name, such as "retryable". Not implemented
-// yet: it returns the numeric fallback for every value.
+// String returns the class's name, such as "retryable".
 func (c HTTPClass) String() string {
-	return fmt.Sprintf("HTTPClass(%d)", uint8(c))
+	switch c {
+	case HTTPSuccess:
+		return "success"
+	case HTTPRetryable:
+		return "retryable"
+	case HTTPPermanent:
+		return "permanent"
+	case HTTPRefused:
+		return "refused"
+	default:
+		return fmt.Sprintf("HTTPClass(%d)", uint8(c))
+	}
 }
 
 // HTTPClassError reports text that names no HTTP class.
@@ -113,16 +123,22 @@ func (e *HTTPClassError) Error() string {
 	return fmt.Sprintf("%q names no HTTP class; known names are success, retryable, permanent and refused", e.Text)
 }
 
-// ParseHTTPClass returns the HTTPClass named s. Not implemented yet: it
-// refuses every name.
+// ParseHTTPClass returns the HTTPClass named s, compared exactly.
 func ParseHTTPClass(s string) (HTTPClass, error) {
+	for c := HTTPSuccess; c.valid(); c++ {
+		if c.String() == s {
+			return c, nil
+		}
+	}
 	return 0, &HTTPClassError{Text: s}
 }
 
-// MarshalText encodes the class's name. Not implemented yet: it refuses
-// every value.
+// MarshalText encodes the class's name.
 func (c HTTPClass) MarshalText() ([]byte, error) {
-	return nil, &HTTPClassError{Text: c.String()}
+	if !c.valid() {
+		return nil, &HTTPClassError{Text: c.String()}
+	}
+	return []byte(c.String()), nil
 }
 
 // UnmarshalText decodes a class's name.
@@ -134,6 +150,9 @@ func (c *HTTPClass) UnmarshalText(text []byte) error {
 	*c = parsed
 	return nil
 }
+
+// valid reports whether c is one of the declared classes.
+func (c HTTPClass) valid() bool { return c >= HTTPSuccess && c <= HTTPRefused }
 
 // InvocationOutcome is how one function invocation ended.
 //

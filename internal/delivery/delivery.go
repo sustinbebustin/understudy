@@ -129,10 +129,23 @@ const (
 )
 
 // String returns the x-amz-sns-message-type value, such as "Notification"
-// (sns-http-delivery.md 3.2). Not implemented yet: it returns the numeric
-// fallback for every value.
+// (sns-http-delivery.md 3.2).
 func (k HTTPKind) String() string {
-	return fmt.Sprintf("HTTPKind(%d)", uint8(k))
+	switch k {
+	case HTTPNotification:
+		return "Notification"
+	case HTTPSubscriptionConfirmation:
+		return "SubscriptionConfirmation"
+	case HTTPUnsubscribeConfirmation:
+		return "UnsubscribeConfirmation"
+	default:
+		return fmt.Sprintf("HTTPKind(%d)", uint8(k))
+	}
+}
+
+// Valid reports whether k is one of the declared kinds.
+func (k HTTPKind) Valid() bool {
+	return k >= HTTPNotification && k <= HTTPUnsubscribeConfirmation
 }
 
 // HTTPKindError reports text that names no HTTP delivery kind.
@@ -144,16 +157,22 @@ func (e *HTTPKindError) Error() string {
 	return fmt.Sprintf("%q names no HTTP delivery kind; known names are Notification, SubscriptionConfirmation and UnsubscribeConfirmation", e.Text)
 }
 
-// ParseHTTPKind returns the HTTPKind whose name is s. Not implemented yet:
-// it refuses every name.
+// ParseHTTPKind returns the HTTPKind whose name is s, compared exactly.
 func ParseHTTPKind(s string) (HTTPKind, error) {
+	for k := HTTPNotification; k.Valid(); k++ {
+		if k.String() == s {
+			return k, nil
+		}
+	}
 	return 0, &HTTPKindError{Text: s}
 }
 
-// MarshalText encodes the kind's name. Not implemented yet: it refuses
-// every value.
+// MarshalText encodes the kind's name.
 func (k HTTPKind) MarshalText() ([]byte, error) {
-	return nil, &HTTPKindError{Text: k.String()}
+	if !k.Valid() {
+		return nil, &HTTPKindError{Text: k.String()}
+	}
+	return []byte(k.String()), nil
 }
 
 // UnmarshalText decodes a kind's name.
@@ -336,19 +355,49 @@ type SNSHTTP struct {
 }
 
 // Retries is the number of retries after the first attempt, the sum of the
-// phase counts (sns-http-delivery.md 6.3). Not implemented yet: it
-// returns 0.
-func (p SNSHTTP) Retries() int { return 0 }
+// phase counts, so a delivery makes 1 + Retries attempts
+// (sns-http-delivery.md 6.3).
+func (p SNSHTTP) Retries() int { return p.NoDelay + p.MinDelay + p.Backoff + p.MaxDelay }
 
 // Delay is how long after the failed attempt ended a retry, numbered from
-// 1, is due; false when the number is below 1 or above Retries. Not
-// implemented yet: it allows no retry.
-func (p SNSHTTP) Delay(_ int) (time.Duration, bool) { return 0, false }
+// 1, is due; false when the number is below 1 or above Retries. The phases
+// run in order: no delay, minDelayTarget, the backoff phase, maxDelayTarget
+// (sns-http-delivery.md 6.3). The backoff phase steps linearly from
+// minDelayTarget to maxDelayTarget, truncated to the millisecond, whatever
+// BackoffFunction says, and a single backoff retry waits minDelayTarget
+// (sns.http.backoff-curves); no delay is jittered (sns.http.retry-jitter).
+func (p SNSHTTP) Delay(retry int) (time.Duration, bool) {
+	noDelayEnd := p.NoDelay
+	minDelayEnd := noDelayEnd + p.MinDelay
+	backoffEnd := minDelayEnd + p.Backoff
+	switch {
+	case retry < 1 || retry > p.Retries():
+		return 0, false
+	case retry <= noDelayEnd:
+		return 0, true
+	case retry <= minDelayEnd:
+		return p.MinDelayTarget, true
+	case retry <= backoffEnd:
+		if p.Backoff == 1 {
+			return p.MinDelayTarget, true
+		}
+		step := int64(retry - minDelayEnd - 1)
+		span := int64(p.MaxDelayTarget - p.MinDelayTarget)
+		return (p.MinDelayTarget + time.Duration(span*step/int64(p.Backoff-1))).Truncate(time.Millisecond), true
+	default:
+		return p.MaxDelayTarget, true
+	}
+}
 
 // PaceInterval is the least time between the starts of two attempts to
-// the subscription, 0 without throttling (sns-http-delivery.md 6.4). Not
-// implemented yet: it returns 0.
-func (p SNSHTTP) PaceInterval() time.Duration { return 0 }
+// the subscription, 1/maxReceivesPerSecond in whole nanoseconds, 0 without
+// throttling (sns-http-delivery.md 6.4).
+func (p SNSHTTP) PaceInterval() time.Duration {
+	if p.MaxReceivesPerSecond <= 0 {
+		return 0
+	}
+	return time.Second / time.Duration(p.MaxReceivesPerSecond)
+}
 
 func (SNSManaged) isRetryPolicy()        {}
 func (EventBridgeTarget) isRetryPolicy() {}
@@ -367,10 +416,25 @@ const (
 	BackoffExponential
 )
 
-// String returns the policy's name, such as "linear". Not implemented yet:
-// it returns the numeric fallback for every value.
+// String returns the function's name, such as "linear".
 func (f BackoffFunction) String() string {
-	return fmt.Sprintf("BackoffFunction(%d)", uint8(f))
+	switch f {
+	case BackoffLinear:
+		return "linear"
+	case BackoffArithmetic:
+		return "arithmetic"
+	case BackoffGeometric:
+		return "geometric"
+	case BackoffExponential:
+		return "exponential"
+	default:
+		return fmt.Sprintf("BackoffFunction(%d)", uint8(f))
+	}
+}
+
+// Valid reports whether f is one of the declared functions.
+func (f BackoffFunction) Valid() bool {
+	return f >= BackoffLinear && f <= BackoffExponential
 }
 
 // BackoffFunctionError reports text that names no backoff function.
@@ -382,16 +446,23 @@ func (e *BackoffFunctionError) Error() string {
 	return fmt.Sprintf("%q names no backoff function; known names are linear, arithmetic, geometric and exponential", e.Text)
 }
 
-// ParseBackoffFunction returns the BackoffFunction named s. Not
-// implemented yet: it refuses every name.
+// ParseBackoffFunction returns the BackoffFunction named s, compared
+// exactly: the lower-case names only.
 func ParseBackoffFunction(s string) (BackoffFunction, error) {
+	for f := BackoffLinear; f.Valid(); f++ {
+		if f.String() == s {
+			return f, nil
+		}
+	}
 	return 0, &BackoffFunctionError{Text: s}
 }
 
-// MarshalText encodes the function's name. Not implemented yet: it refuses
-// every value.
+// MarshalText encodes the function's name.
 func (f BackoffFunction) MarshalText() ([]byte, error) {
-	return nil, &BackoffFunctionError{Text: f.String()}
+	if !f.Valid() {
+		return nil, &BackoffFunctionError{Text: f.String()}
+	}
+	return []byte(f.String()), nil
 }
 
 // UnmarshalText decodes a function's name.
@@ -470,16 +541,12 @@ func (m Mechanism) String() string {
 // Via, which ref.Via's MarshalText rejects.
 func (m Mechanism) Via() ref.Via {
 	switch m {
-	case SNSToSQS, SNSToLambda:
+	case SNSToSQS, SNSToLambda, SNSToHTTP:
 		return ref.SNSDelivery
 	case S3ToSQS, S3ToSNS, S3ToLambda:
 		return ref.S3Notification
 	case EventsToLambda, EventsToSQS, EventsToSNS, EventsToEvents:
 		return ref.EventsTarget
-	case SNSToHTTP:
-		// Not implemented yet: no delivery by SNSToHTTP is accepted, so it
-		// runs under no Via.
-		return 0
 	default:
 		return 0
 	}
