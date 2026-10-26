@@ -188,7 +188,8 @@ func bucketARN(name string) aws.ARN {
 // stateCodec is the snapshot codec of the index and the buckets, with the
 // S3 model's unions that subresource documents hold in the tagged-union
 // form. A table jsonx refuses is a bug in this file; the codec then fails
-// every Export and Import with that error.
+// every Export and Import with that error. A bucket it reads must pass
+// checkEncrypted, so Import refuses the section before changing anything.
 func stateCodec() store.Codec {
 	c, err := unionCodec()
 	if err != nil {
@@ -197,7 +198,53 @@ func stateCodec() store.Codec {
 			Unmarshal: func([]byte, any) error { return err },
 		}
 	}
-	return store.Codec{Marshal: c.Marshal, Unmarshal: c.Unmarshal}
+	return store.Codec{Marshal: c.Marshal, Unmarshal: func(data []byte, v any) error {
+		if err := c.Unmarshal(data, v); err != nil {
+			return err
+		}
+		if cell, ok := v.(*BucketCell); ok {
+			return cell.checkEncrypted()
+		}
+		return nil
+	}}
+}
+
+// checkEncrypted refuses a bucket holding an object version or an upload
+// without its encryption, which state never holds (Encryption): the union
+// reads a null or absent "encryption" as no variant at all.
+func (c *BucketCell) checkEncrypted() error {
+	b := c.Bucket
+	if b == nil {
+		return nil
+	}
+	for _, key := range slices.Sorted(maps.Keys(b.Objects.Keys)) {
+		for _, v := range b.Objects.Keys[key] {
+			if !v.marker() && v.Object.Encryption == nil {
+				return &MissingEncryptionError{Bucket: b.Name, Key: key, Holder: "version " + v.ID}
+			}
+		}
+	}
+	for _, id := range slices.Sorted(maps.Keys(b.Uploads.ByID)) {
+		if u := b.Uploads.ByID[id]; u.Encryption == nil {
+			return &MissingEncryptionError{Bucket: b.Name, Key: u.Key, Holder: "upload " + id}
+		}
+	}
+	return nil
+}
+
+// MissingEncryptionError reports a snapshot's object version or upload
+// with no encryption. Every one this package writes has one, so the
+// snapshot was not written by it and is refused.
+type MissingEncryptionError struct {
+	Bucket string
+	Key    string
+	// Holder is what lacks it: "version <id>" or "upload <id>".
+	Holder string
+}
+
+func (e *MissingEncryptionError) Error() string {
+	return fmt.Sprintf("s3: %s of %s/%s has no encryption, which every object version and upload understudy writes holds, "+
+		"so the snapshot was not written by understudy and is refused; load a snapshot that understudy exported", e.Holder, e.Bucket, e.Key)
 }
 
 func unionCodec() (jsonx.Codec, error) {

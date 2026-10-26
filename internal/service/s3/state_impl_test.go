@@ -101,6 +101,44 @@ func TestEncryptionSnapshotRefusesUnknownKind(t *testing.T) {
 	}
 }
 
+// TestSnapshotRefusesMissingEncryption: a bucket section whose object
+// version or upload has a null or absent encryption is refused, naming the
+// bucket, key and holder, rather than read as an object with no encryption,
+// which state never holds (Encryption).
+func TestSnapshotRefusesMissingEncryption(t *testing.T) {
+	obj := snapshotObject(t, SSES3Encryption{}, ObjectLock{})
+	withObject := BucketCell{Bucket: &Bucket{Name: "b", Objects: Objects{Keys: map[string][]Version{"k": {{ID: "v1", Object: &obj}}}}}}
+	withUpload := BucketCell{Bucket: &Bucket{Name: "b", Uploads: Uploads{ByID: map[string]*Upload{"u1": {ID: "u1", Key: "k", Encryption: SSES3Encryption{}}}}}}
+	const stored = `,"encryption":{"kind":"sse-s3"}`
+	codec := stateCodec()
+	for _, tc := range []struct {
+		name, holder string
+		cell         BucketCell
+		replacement  string
+	}{
+		{"version, null", "version v1", withObject, `,"encryption":null`},
+		{"version, absent", "version v1", withObject, ""},
+		{"upload, null", "upload u1", withUpload, `,"encryption":null`},
+		{"upload, absent", "upload u1", withUpload, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := codec.Marshal(&tc.cell)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Count(string(data), stored) != 1 {
+				t.Fatalf("the snapshot form %s does not hold %s once", data, stored)
+			}
+			var back BucketCell
+			err = codec.Unmarshal([]byte(strings.Replace(string(data), stored, tc.replacement, 1)), &back)
+			e, ok := errors.AsType[*MissingEncryptionError](err)
+			if !ok || *e != (MissingEncryptionError{Bucket: "b", Key: "k", Holder: tc.holder}) {
+				t.Fatalf("Unmarshal = %v, want a MissingEncryptionError for %s of b/k", err, tc.holder)
+			}
+		})
+	}
+}
+
 // TestObjectLockSnapshotForm: a version's lock state is held as
 // "lock":{"legalHold":...,"retention":{"mode":...,"retainUntil":...}} to the
 // millisecond (s3-ssec-object-lock.md 11.2, switch
@@ -169,8 +207,9 @@ func TestStateTextsRefuseUnknownValues(t *testing.T) {
 	}
 }
 
-// TestLockedVersionRoundTrip: any lock state and encryption a version can
-// hold survive a snapshot unchanged (ARCHITECTURE.md 13).
+// TestLockedVersionRoundTrip: any lock state and encryption a version, or
+// an upload that completes to one, can hold survive a snapshot unchanged
+// (ARCHITECTURE.md 13).
 func TestLockedVersionRoundTrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		var enc Encryption
@@ -201,6 +240,11 @@ func TestLockedVersionRoundTrip(t *testing.T) {
 		_, back := snapshotForm(t, obj)
 		if d := cmp.Diff(obj, back, cmp.AllowUnexported(clock.Instant{}, blob.Ref{})); d != "" {
 			t.Fatalf("version read back (-want +got):\n%s", d)
+		}
+		up := Upload{ID: "u", Key: "k", Encryption: enc, Lock: lock}
+		_, upBack := snapshotForm(t, up)
+		if d := cmp.Diff(up, upBack, cmp.AllowUnexported(clock.Instant{}, blob.Ref{})); d != "" {
+			t.Fatalf("upload read back (-want +got):\n%s", d)
 		}
 	})
 }
