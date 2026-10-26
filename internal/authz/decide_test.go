@@ -125,7 +125,13 @@ func TestDecideKeyPolicyRoleGrantFollowsItsSwitch(t *testing.T) {
 // ("because no session policy allows"), and a resource policy that alone
 // could allow a service principal ("because no resource-based policy
 // allows").
+//
+// Which one reason a denial names when several apply is inferred
+// (iam-evaluation.md 12.4), the choice of switch iam.denial.grammar.
 func TestDecideImplicitDenyNamesTheStepThatFailed(t *testing.T) {
+	if v := evalSwitch(t, "iam.denial.grammar"); !strings.Contains(v, "one reason") {
+		t.Fatalf("iam.denial.grammar = %q, a value this test does not know (iam-enforcement-surfaces.md 12.8)", v)
+	}
 	const q = "arn:aws:sqs:us-east-1:111122223333:q"
 	u := userOf("111122223333", "U", "AIDAUEXAMPLE00000001")
 	s := sessionOf("111122223333", "app", "AROAAPPEXAMPLE000001", "s")
