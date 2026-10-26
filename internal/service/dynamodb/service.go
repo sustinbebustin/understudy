@@ -67,9 +67,13 @@ const (
 	// noTxConflicts is how a conflict shows on the transaction operations,
 	// which do not send TransactionConflictException. A fault rule sets the
 	// reasons through its members, one per item of the call, which the
-	// bindings count (smithy-protocol-tests.md 14.9, 14.10).
+	// bindings count (smithy-protocol-tests.md 14.9, 14.10). The injected
+	// error's wire details that no AWS recording fixes yet are named
+	// UNVERIFIED (12.4: PROTO-01, PROTO-02 and PROTO-05).
 	noTxConflicts = "aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException " +
-		"and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons"
+		"and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons; " +
+		"the injected error's top-level message key, the bytes of a None reason and ExecuteTransaction's message text and reasons are UNVERIFIED " +
+		"(smithy-protocol-tests.md 12.4)"
 	caseTwins      = "aws-differs: dynamodb-local: table names are case-insensitive, so a name that differs from an existing table's only in case is refused with ResourceInUseException"
 	statementTwins = "aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table"
 	parallelScan   = "aws-differs: dynamodb-local: Segment and TotalSegments are ignored, so a parallel scan reads sequentially"

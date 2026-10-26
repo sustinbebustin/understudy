@@ -361,11 +361,13 @@ func reasonCount(a Action) int {
 // TransactionCanceledException gets one reason per item: the rule's
 // reasons, then {"Code":"None"} for each item after them, with no Message
 // and no Item (smithy-protocol-tests.md 12.2, 14.9; the bytes of a None
-// reason are UNVERIFIED, PROTO-02). The message, first match wins: the
-// members' own message member, action.message, for a
-// TransactionCanceledException AWS's text listing the codes (12.4), the
-// text naming the rule, or none for a shape without a message key. The
-// value's message member carries the same text.
+// reason are UNVERIFIED, PROTO-02). ExecuteTransaction pads its statements
+// the same way, though its reasons are UNVERIFIED (12.4, PROTO-05). The
+// message, first match wins: the members' own message member,
+// action.message, for a TransactionCanceledException AWS's text listing
+// the codes (12.4), the text naming the rule, or none for a shape without
+// a message key. The value's message member carries the same text, and
+// the codec writes it under id's MessageKey.
 func injectMembers(cat Catalogue, op ref.OperationID, id awserr.Identity, rule ref.RuleID, a Error, plan memberPlan, items int) *awserr.Error {
 	m := a.Members.clone()
 	var codes []string
@@ -411,8 +413,12 @@ func injectedMessage(m Members, plan memberPlan, message string, id awserr.Ident
 	case message != "":
 		return message
 	case id.Shape == transactionCanceled:
-		// The codes in request order inside AWS's frame (smithy-protocol-tests.md
-		// 12.3, third-party-recorded; 12.4).
+		// The codes in request order inside AWS's frame, recorded for
+		// TransactWriteItems only (smithy-protocol-tests.md 12.3,
+		// third-party-recorded; 12.4). ExecuteTransaction takes the same
+		// frame, which is UNVERIFIED (12.4, PROTO-05). The key it goes
+		// under is the identity's MessageKey, Message from the model's
+		// spelling: inferred, UNVERIFIED (12.4, 14.9, PROTO-01).
 		return "Transaction cancelled, please refer cancellation reasons for specific reasons [" + strings.Join(codes, ", ") + "]"
 	case id.MessageKey != awserr.NoMessage:
 		return "Injected by understudy fault rule " + string(rule) + "."

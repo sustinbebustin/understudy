@@ -95,7 +95,7 @@ aws dynamodb transact-write-items --transact-items file://three-puts.json --cli-
 - Without `--message`, the message lists the codes as AWS writes it. The cancelled call writes none of its items.
 - Every reason needs a `Code`, at least one must not be `None`, and there are 1 to 100 of them. The error is not one the SDKs retry.
 - `--after-commit` cannot inject `TransactionCanceledException`, since a cancelled transaction changes nothing.
-- The top-level `Message` key and the bytes of a `None` reason follow the API reference and DynamoDB Local; neither is recorded from AWS yet.
+- The top-level `Message` key follows the model's spelling and DynamoDB Local, and the bytes of a `None` reason follow the API reference and DynamoDB Local. On `ExecuteTransaction`, the message and reasons take the `TransactWriteItems` form. None of these is recorded from AWS yet.
 
 ## Delivery faults
 
