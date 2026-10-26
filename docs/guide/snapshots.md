@@ -74,6 +74,16 @@ understudy snapshot save fixtures/a.tar --on-server
 understudy snapshot load fixtures/a.tar --on-server
 ```
 
+`GET /_understudy/v1/snapshots` lists the archives there (`admin.Client.Snapshots` in Go); without `--persist` it answers `503`:
+
+```sh
+curl -s http://127.0.0.1:4566/_understudy/v1/snapshots
+```
+
+```json
+{"snapshots":[{"path":"fixtures/a.tar","bytes":3072,"modified":"2026-10-26T21:33:34.758371515Z"}]}
+```
+
 After a crash, `understudy cleanup --persist ./.understudy` removes the containers the crashed server left; it refuses while a server is still running there.
 
 ## Resetting

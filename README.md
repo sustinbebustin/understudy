@@ -31,7 +31,7 @@ The result: tests keep real AWS settings (visibility timeouts, delays, TTLs, sch
 - **Fidelity generated from AWS's models.** Request and response shapes, error codes and input validation come from AWS's Smithy models. The protocol layer runs against Smithy's official compliance tests, and behavior is checked with the Go v2, boto3 and JS v3 SDKs, the AWS CLI and Terraform.
 - **Nothing silently faked.** An unimplemented operation answers `501 NotImplemented` in AWS's error format and names itself. Settings that are stored but have no effect are marked as such.
 - **A controllable clock.** Visibility timeouts, delays, retention, TTL, batching windows, schedules, secret deletion windows and log retention all run on one emulator clock. Freeze it, advance it an hour, or run it 60 times faster.
-- **A causal journal.** Every API call, delivery, Lambda invocation and timer is recorded with its cause, so `SNS Publish -> SQS SendMessage -> Lambda Invoke -> the function's own calls` is one tree you can query or follow.
+- **A causal journal.** Every API call, delivery, Lambda invocation and timer is recorded with its cause, so `SNS Publish -> SQS SendMessage -> Lambda Invoke -> the function's own calls` is one tree you can query or follow, from the CLI or live in a web UI `serve` links to.
 - **Fault injection.** Rules by service, operation, resource, account or region inject AWS's own errors, throttling or latency, for the next N calls or with a seeded probability.
 - **Snapshots and persistence.** State saves to a deterministic archive you can commit, diff and load. Persistence across restarts is opt-in.
 - **Real Lambda execution.** Functions run in AWS's Lambda base images through Docker: zip and image functions, warm reuse, hot reload from a directory, SDK calls routed back to understudy, logs in CloudWatch Logs.
@@ -122,6 +122,8 @@ Go, Python and Node test suites can start the image themselves with the [Testcon
    ```sh
    understudy journal --service sqs
    ```
+
+   Or open the `ui` URL from `serve`'s banner: the [web UI](docs/guide/ui.md) draws the same events as causal trees as they happen, and shows resources, fault rules, the clock and the IAM policy each principal needs.
 
 [Getting started](docs/guide/getting-started.md) continues with accounts, regions and resetting state.
 
