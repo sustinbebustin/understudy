@@ -89,6 +89,7 @@ Evaluating attached AWS managed policies needs their documents, and IAM enforcem
 - **Precedent.** moto (Apache-2.0) has embedded every AWS managed policy document since 2017, fetched from the IAM API, with no objection found.
 - **If AWS objects.** Stop the generator and keep the shipped data, whose CC BY-SA 4.0 grant is irrevocable. If AWS publishes the documents in a separately licensed bundle, switch to it.
 - Building the catalogue is part of IAM enforcement (ROADMAP item 5), not a separate item.
+- **Source, 2026-10-26.** The generator reads the single-file `full.md` that `llms.txt` lists under "Full content", not each policy's page: it holds every page, headings demoted one level, with the same anchors (`docs/research/iam-evaluation.md` 10.4). That makes three requests in all (robots.txt, `llms.txt`, `full.md`), each one within the crawl delay, where per-page reads would take 1,608. `SOURCE.json` still records each policy's page URL from `llms.txt`. The single pages are not fetched, so the generator does not cross-check `full.md` against a sample of them, the check iam-evaluation.md 10.5 suggests.
 
 ## Amendment (roadmap models, 2026-10-26)
 
