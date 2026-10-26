@@ -58,18 +58,27 @@ func TestUIIsServedWithoutTheAdminToken(t *testing.T) {
 }
 
 // The edge refuses a cross-site request before the UI sees it, so a site
-// cannot frame or fetch the page from another origin (ADR 0020).
+// cannot frame or fetch the page from another origin (ADR 0020). The
+// refusal says how to open the UI, not how to call the admin API.
 func TestEdgeRefusesCrossSiteRequestsForTheUI(t *testing.T) {
 	srv := newServer(t, server.Config{UISecret: e2eUISecret, LogOutput: io.Discard})
 	for name, header := range map[string]http.Header{
-		"cross-site":     {"Sec-Fetch-Site": {"cross-site"}},
-		"foreign origin": {"Origin": {"https://example.com"}},
-		"null origin":    {"Origin": {"null"}},
+		"cross-site":            {"Sec-Fetch-Site": {"cross-site"}},
+		"cross-site navigation": {"Sec-Fetch-Site": {"cross-site"}, "Sec-Fetch-Mode": {"navigate"}, "Sec-Fetch-Dest": {"document"}},
+		"foreign origin":        {"Origin": {"https://example.com"}},
+		"null origin":           {"Origin": {"null"}},
 	} {
-		rec := getRecorded(t, srv.Handler(), "http://localhost:4566/_understudy/ui/", header)
-		if rec.Code != http.StatusForbidden || strings.Contains(rec.Body.String(), "<html") {
-			t.Errorf("GET /_understudy/ui/ %s = %d %s, want 403 and no page", name, rec.Code, rec.Body)
+		for _, path := range []string{"/_understudy/ui/", "/_understudy/ui"} {
+			rec := getRecorded(t, srv.Handler(), "http://localhost:4566"+path, header)
+			body := rec.Body.String()
+			if rec.Code != http.StatusForbidden || strings.Contains(body, "<html") || !strings.Contains(body, "address bar") || strings.Contains(body, "admin call") {
+				t.Errorf("GET %s %s = %d %s, want 403, no page, and the way to open the UI", path, name, rec.Code, body)
+			}
 		}
+	}
+	rec := getRecorded(t, srv.Handler(), "http://localhost:4566/_understudy/v1/clock", http.Header{"Sec-Fetch-Site": {"cross-site"}})
+	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "admin call") {
+		t.Errorf("GET /_understudy/v1/clock cross-site = %d %s, want the admin call refusal", rec.Code, rec.Body)
 	}
 }
 

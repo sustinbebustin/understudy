@@ -18,7 +18,7 @@ understudy dev is serving
   ui        http://127.0.0.1:46635/_understudy/ui/#s=JPEGWO6U37SUOEU5XMRGF2SPGZ
 ```
 
-Port 0 picks a free port; with the default listener the URL starts `http://127.0.0.1:4566/_understudy/ui/`. Open the whole `ui` URL. The part after `#s=` is a secret `serve` draws each time it starts. A browser never sends a URL's fragment to the server, so the secret travels only into the page, which removes it from the address bar at once (the tab shows `http://127.0.0.1:46635/_understudy/ui/`), keeps it in memory, and sends it with each admin call as the `Understudy-UI-Session` header.
+Port 0 picks a free port; with the default listener the URL starts `http://127.0.0.1:4566/_understudy/ui/`. Open the whole `ui` URL by pasting it into the address bar or opening it from the terminal. A link to it on another web page is refused with a `403` that says to paste the URL, so no site you visit can load the UI. The part after `#s=` is a secret `serve` draws each time it starts. A browser never sends a URL's fragment to the server, so the secret travels only into the page, which removes it from the address bar at once (the tab shows `http://127.0.0.1:46635/_understudy/ui/`), keeps it in memory, and sends it with each admin call as the `Understudy-UI-Session` header.
 
 Because the secret lives in the page's memory:
 
@@ -43,7 +43,9 @@ The secret keeps other web pages out of the admin API, not other programs: the C
 
 On a listener beyond loopback, which needs the admin token, the page still loads without it, since a browser cannot send a token when it opens a URL. Its first admin call answers `401`; the page then asks for the token once, keeps it in memory like the secret, and sends it with every call.
 
-A browser reaches such a listener only by an IP address, a loopback name or a configured S3 base domain. Opened at the listener's network address, the page reads every view but cannot change anything: its `POST`, `PUT` and `DELETE` calls carry that address as `Origin`, and understudy refuses an admin call from an `Origin` that is not loopback. To add fault rules or move the clock there, open the `ui` path at `localhost` or `127.0.0.1`, through a port forward for a remote host, with the printed `#s=` fragment.
+Open the `ui` path at `localhost` or `127.0.0.1`, with the printed `#s=` fragment. With `--listen 0.0.0.0` the banner's URL already does. With `--listen` bound to one specific address, the banner's URL names that address and `localhost` does not reach the listener; nor does it for a remote host. Forward a loopback port to the listener (for example with `ssh -L`) and open the `ui` path on that port.
+
+Opened at a name that is not loopback, such as the listener's network address, the page has not been tried in a browser, and it may not work at all. understudy refuses every request under `/_understudy/` that carries an `Origin` that is not loopback, the page's own script and stylesheet included, and a browser may send one when it loads the page's module script, which would leave the page blank. The page's `POST`, `PUT` and `DELETE` calls carry that address as `Origin`, so at best it can read the views but not change anything. Over plain HTTP at such an address a browser sends no `Sec-Fetch-*` headers, so the page's reads would pass as calls from a program, not through the session secret.
 
 ## Live traces
 

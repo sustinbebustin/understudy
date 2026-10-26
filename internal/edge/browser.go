@@ -275,6 +275,25 @@ func refuseCrossSite(why string) Response {
 		" Nothing was changed. Call it with the understudy CLI or from a tool that sends no Origin header.")
 }
 
+// uiPath is the web UI's prefix (internal/server/ui's Path) without its
+// final slash; the admin handler mounts the UI, so crossSiteAdmin guards it.
+const uiPath = "/_understudy/ui"
+
+// isUIPath reports whether path, as requestPath returns it, is the web
+// UI's.
+func isUIPath(path string) bool {
+	return path == uiPath || strings.HasPrefix(path, uiPath+"/")
+}
+
+// refuseCrossSiteUI is the answer to a request for the web UI that
+// crossSiteAdmin refuses, such as following a link to it on another site.
+func refuseCrossSiteUI(why string) Response {
+	return plainError(http.StatusForbidden, "understudy refused to serve its web UI: "+why+
+		". The UI opens only from its own URL, pasted or typed into the address bar or opened from a terminal,"+
+		" never from a link or frame on another site, so a site you visit cannot load it."+
+		" Nothing was changed. Paste the ui URL understudy serve printed, with its #s= fragment, into the address bar.")
+}
+
 // loopbackOrigin reports whether origin, an origin or a page URL, is http
 // or https on a loopback address, localhost or a name under it. "null" is
 // not.

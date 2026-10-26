@@ -322,6 +322,11 @@ func (h *Handler) refusedPage(ctx context.Context, x *exchange, rt route) bool {
 // only health and clock from it.
 func (h *Handler) serveAdmin(ctx context.Context, x *exchange) {
 	if why, refused := crossSiteAdmin(x.r); refused {
+		if isUIPath(requestPath(x.r)) {
+			h.log.LogAttrs(ctx, slog.LevelWarn, "refused a cross-site request for the web UI", slog.String("reason", why), slog.String("request_id", string(x.id)))
+			h.write(ctx, x, refuseCrossSiteUI(why))
+			return
+		}
 		h.log.LogAttrs(ctx, slog.LevelWarn, "refused a cross-site admin call", slog.String("reason", why), slog.String("request_id", string(x.id)))
 		h.write(ctx, x, refuseCrossSite(why))
 		return
