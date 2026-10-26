@@ -31,7 +31,9 @@ func (h *Handler) state() admin.ClockState {
 // clockChange applies one ClockOp and journals it as a ClockChanged naming
 // the op. Advances answer the timers they fired, and their ClockChanged is
 // recorded once the advance returns, after every event those timers
-// recorded.
+// recorded. Each event's From and To come from the clock's lock, but the
+// append follows it, so concurrent clock calls can journal their changes
+// in another order than they applied them.
 func (h *Handler) clockChange(w http.ResponseWriter, r *http.Request, _ []string) {
 	data, aerr := readBody(w, r, "clock op")
 	if aerr != nil {
