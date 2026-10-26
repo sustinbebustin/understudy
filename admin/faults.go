@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -158,10 +159,11 @@ type faultRuleJSON struct {
 // actionJSON holds every action member; a nil member was absent, so a
 // member its kind does not take is refused even when empty.
 type actionJSON struct {
-	Kind    string  `json:"kind"`
-	Shape   *string `json:"shape,omitempty"`
-	Message *string `json:"message,omitempty"`
-	Wall    *string `json:"wall,omitempty"`
+	Kind    string          `json:"kind"`
+	Shape   *string         `json:"shape,omitempty"`
+	Message *string         `json:"message,omitempty"`
+	Wall    *string         `json:"wall,omitempty"`
+	Members json.RawMessage `json:"members,omitempty"`
 }
 
 type triggerJSON struct {
@@ -218,10 +220,11 @@ func encodeAction(a FaultAction) ([]byte, error) {
 	var w actionJSON
 	switch a := a.(type) {
 	case InjectError:
-		if len(a.Members) > 0 {
-			return nil, &FaultFormError{Field: "action.members", Reason: "is not implemented yet; leave Members empty"}
+		members, err := encodeMembers(a.Members)
+		if err != nil {
+			return nil, err
 		}
-		w = actionJSON{Kind: kindError, Shape: nonEmpty(a.Shape), Message: nonEmpty(a.Message)}
+		w = actionJSON{Kind: kindError, Shape: nonEmpty(a.Shape), Message: nonEmpty(a.Message), Members: members}
 	case Throttle:
 		w = actionJSON{Kind: kindThrottle}
 	case Latency:
@@ -263,14 +266,18 @@ func decodeAction(data json.RawMessage) (FaultAction, error) {
 		return nil, &FaultFormError{Field: "action", Reason: err.Error()}
 	}
 	only := func(takes ...string) error {
-		return onlyMembers("action", w.Kind, []member{{"shape", w.Shape != nil}, {"message", w.Message != nil}, {"wall", w.Wall != nil}}, takes)
+		return onlyMembers("action", w.Kind, []member{{"shape", w.Shape != nil}, {"message", w.Message != nil}, {"wall", w.Wall != nil}, {"members", w.Members != nil}}, takes)
 	}
 	switch w.Kind {
 	case kindError:
-		if err := only("shape", "message"); err != nil {
+		if err := only("shape", "message", "members"); err != nil {
 			return nil, err
 		}
-		return InjectError{Shape: valueOf(w.Shape), Message: valueOf(w.Message)}, nil
+		members, err := decodeMembers(w.Members)
+		if err != nil {
+			return nil, err
+		}
+		return InjectError{Shape: valueOf(w.Shape), Message: valueOf(w.Message), Members: members}, nil
 	case kindThrottle:
 		if err := only(); err != nil {
 			return nil, err
@@ -340,6 +347,62 @@ func decodeTrigger(data json.RawMessage) (FaultTrigger, error) {
 		return Probability{P: *w.P}, nil
 	default:
 		return nil, &FaultFormError{Field: "trigger.kind", Reason: fmt.Sprintf("%q is not a trigger; the kinds are always, next-n and probability", w.Kind)}
+	}
+}
+
+// encodeMembers checks that an error action's members are one JSON object
+// and returns them compact; empty members encode as none.
+func encodeMembers(raw json.RawMessage) (json.RawMessage, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var out bytes.Buffer
+	if err := json.Compact(&out, raw); err != nil {
+		return nil, &FaultFormError{Field: "action.members", Reason: "is not a JSON object: " + err.Error()}
+	}
+	if kind := jsonKind(out.Bytes()); kind != "object" {
+		return nil, &FaultFormError{Field: "action.members", Reason: "is not a JSON object: it is a JSON " + kind +
+			`; set Members to an object of the error shape's members, such as {"CancellationReasons": [{"Code": "TransactionConflict"}]}`}
+	}
+	return out.Bytes(), nil
+}
+
+// decodeMembers reads an error action's members, compact; null reads as
+// none, and any other value than an object is refused.
+func decodeMembers(raw json.RawMessage) (json.RawMessage, error) {
+	if raw == nil || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return nil, nil
+	}
+	if kind := jsonKind(raw); kind != "object" {
+		return nil, &FaultFormError{Field: "action.members", Reason: "is a JSON " + kind + "; members is an object of the error shape's members"}
+	}
+	var out bytes.Buffer
+	if err := json.Compact(&out, raw); err != nil {
+		return nil, &FaultFormError{Field: "action.members", Reason: "is not valid JSON: " + err.Error()}
+	}
+	return out.Bytes(), nil
+}
+
+// jsonKind names the kind of the valid JSON value raw by its first byte:
+// "object", "array", "string", "boolean", "null" or "number".
+func jsonKind(raw []byte) string {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 {
+		return "nothing"
+	}
+	switch raw[0] {
+	case '{':
+		return "object"
+	case '[':
+		return "array"
+	case '"':
+		return "string"
+	case 't', 'f':
+		return "boolean"
+	case 'n':
+		return "null"
+	default:
+		return "number"
 	}
 }
 
