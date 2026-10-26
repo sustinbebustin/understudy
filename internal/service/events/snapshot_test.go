@@ -147,9 +147,11 @@ func TestImportRefusesBusesNoCallCouldStore(t *testing.T) {
 					h.Fatal(err)
 				}
 				err = h.svc.Import(applyEdits(h, sections, tt.edits))
-				prefix := `events: the stored event bus "` + tt.bus + `" `
-				if err == nil || !strings.HasPrefix(err.Error(), prefix) || !strings.HasSuffix(err.Error(), tail) {
-					h.Fatalf("Import = %v, want an error beginning %q and ending %q", err, prefix, tail)
+				// Import wraps a section's error with the section's name, so
+				// the events text follows that prefix.
+				want := `events: the stored event bus "` + tt.bus + `" `
+				if err == nil || !strings.Contains(err.Error(), want) || !strings.HasSuffix(err.Error(), tail) {
+					h.Fatalf("Import = %v, want an error containing %q and ending %q", err, want, tail)
 				}
 				if got := slices.Sorted(maps.Keys(bySid(h.policyOf(new("orders"))))); !slices.Equal(got, []string{"s1", "s2"}) {
 					h.Errorf("orders' statements after the refused import = %v, want s1 and s2 unchanged", got)
@@ -170,8 +172,8 @@ func TestImportRefusesRulesOfAnUnknownBus(t *testing.T) {
 			h.Fatal(err)
 		}
 		err = h.svc.Import(applyEdits(h, sections, []edit{{regexp.MustCompile(`"orders":\{"r":`), `"ghost":{"r":`}}))
-		if prefix := `events: the stored rule "r" on the event bus "ghost" `; err == nil || !strings.HasPrefix(err.Error(), prefix) {
-			h.Fatalf("Import = %v, want an error beginning %q", err, prefix)
+		if want := `events: the stored rule "r" on the event bus "ghost" `; err == nil || !strings.Contains(err.Error(), want) {
+			h.Fatalf("Import = %v, want an error containing %q", err, want)
 		}
 		must(h, eventbridgeapi.OpDescribeRule, &eventbridgeapi.DescribeRuleInput{Name: "r", EventBusName: new("orders")})
 	})
