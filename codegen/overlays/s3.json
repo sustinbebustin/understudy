@@ -500,6 +500,55 @@
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json: an unknown ObjectOwnership is MalformedXML", "validated": "2026-02-21"}
       }
     },
+    "com.amazonaws.s3#PutObjectRequest$ObjectLockMode": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json L17916, L17938: a bad mode without a date is refused for the pairing first; with a date it is InvalidArgument \"Unknown wormMode directive.\" naming x-amz-object-lock-mode (s3-ssec-object-lock.md 6.2)", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#PutObjectRequest$ObjectLockLegalHoldStatus": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18)"}
+      }
+    },
+    "com.amazonaws.s3#CopyObjectRequest$ObjectLockMode": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: CopyObject carries PutObject's lock headers, whose bad mode is InvalidArgument \"Unknown wormMode directive.\" after the pairing check (recorded for PutObject and CreateMultipartUpload)"}
+      }
+    },
+    "com.amazonaws.s3#CopyObjectRequest$ObjectLockLegalHoldStatus": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18)"}
+      }
+    },
+    "com.amazonaws.s3#CreateMultipartUploadRequest$ObjectLockMode": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json L17950: a bad mode with a date on CreateMultipartUpload is InvalidArgument \"Unknown wormMode directive.\" naming x-amz-object-lock-mode (s3-ssec-object-lock.md 6.2)", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#CreateMultipartUploadRequest$ObjectLockLegalHoldStatus": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18)"}
+      }
+    },
+    "com.amazonaws.s3#DefaultRetention$Mode": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json L2571: a bad DefaultRetention Mode is MalformedXML (s3-ssec-object-lock.md 5.2)", "validated": "2026-02-21"}
+      }
+    },
     "com.amazonaws.s3#GetBucketPolicy": {
       "type": "apply",
       "traits": {

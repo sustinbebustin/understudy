@@ -355,13 +355,13 @@ func (s *Service) Scopes() []aws.Scope {
 
 // Switches lists the behaviors chosen without AWS-recorded evidence.
 func (s *Service) Switches() []fidelity.Entry {
-	return append([]fidelity.Entry{
+	return slices.Concat([]fidelity.Entry{
 		encryptionAfterDelete().Entry(),
 		crossAccountAccess(s.bucketOperations()).Entry(),
 		publicACLAtCreate().Entry(),
 		tagLimits().Entry(),
 		lifecycleRuleLimits().Entry(),
-	}, ssecSwitches()...)
+	}, ssecSwitches(), objectLockSwitches())
 }
 
 // bucketOperations are the operations bound in s's kernel that address an

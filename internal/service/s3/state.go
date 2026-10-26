@@ -242,13 +242,25 @@ func (t textTable[T]) marshal(typ string, v T) ([]byte, error) {
 }
 
 func (t textTable[T]) unmarshal(typ string, text []byte, v *T) error {
+	value, ok := t.value(string(text))
+	if !ok {
+		return &EnumTextError{Type: typ, Value: strconv.Quote(string(text)), Known: t.known()}
+	}
+	*v = value
+	return nil
+}
+
+// value is the value written as text; false when none is. Request parsers
+// read their headers with it, so a request and the state agree on the
+// texts.
+func (t textTable[T]) value(text string) (T, bool) {
 	for value, s := range t {
-		if s == string(text) {
-			*v = value
-			return nil
+		if s == text {
+			return value, true
 		}
 	}
-	return &EnumTextError{Type: typ, Value: strconv.Quote(string(text)), Known: t.known()}
+	var zero T
+	return zero, false
 }
 
 // known is the table's texts in value order.

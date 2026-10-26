@@ -259,6 +259,7 @@ func (s *Service) getObject(ctx context.Context, c *kernel.Call, in *s3api.GetOb
 		ServerSideEncryption: h.ServerSideEncryption, SSEKMSKeyId: h.SSEKMSKeyId, BucketKeyEnabled: h.BucketKeyEnabled,
 		SSECustomerAlgorithm: h.SSECustomerAlgorithm, SSECustomerKeyMD5: h.SSECustomerKeyMD5,
 		StorageClass: h.StorageClass, TagCount: h.TagCount, ChecksumType: h.ChecksumType,
+		ObjectLockMode: h.ObjectLockMode, ObjectLockRetainUntilDate: h.ObjectLockRetainUntilDate, ObjectLockLegalHoldStatus: h.ObjectLockLegalHoldStatus,
 	}
 	getObjectOutputFields(out).set(headObjectOutputFields(h).members())
 	override(&out.CacheControl, in.ResponseCacheControl)
@@ -290,7 +291,9 @@ func override(field **string, v *string) {
 // HeadObject share (s3.md 5.8). A checksum is reported only with
 // x-amz-checksum-mode: ENABLED, and only when it describes the bytes sent,
 // so a ranged read never carries the whole object's checksum (boto3 would
-// fail it).
+// fail it). The lock headers are always sent; AWS sends them only to a
+// caller allowed s3:GetObjectRetention and s3:GetObjectLegalHold, which
+// no permission check here evaluates (declareAccess).
 func headOf(got served, mode *s3api.ChecksumMode) *s3api.HeadObjectOutput {
 	o := got.version.Object
 	h := &s3api.HeadObjectOutput{
@@ -315,6 +318,7 @@ func headOf(got served, mode *s3api.ChecksumMode) *s3api.HeadObjectOutput {
 	sse := encryptionHeaders(o.Encryption)
 	h.ServerSideEncryption, h.SSEKMSKeyId, h.BucketKeyEnabled = sse.algorithm, sse.keyID, sse.bucketKey
 	h.SSECustomerAlgorithm, h.SSECustomerKeyMD5 = customerEcho(got.key)
+	h.ObjectLockMode, h.ObjectLockRetainUntilDate, h.ObjectLockLegalHoldStatus = lockHeaders(o.Lock)
 	if sum, ok := reportedChecksum(o, got.span); ok && mode != nil && *mode == s3api.ChecksumModeEnabled {
 		headObjectOutputFields(h).set(membersOf(sum))
 		h.ChecksumType = new(sum.Type)

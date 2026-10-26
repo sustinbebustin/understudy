@@ -333,16 +333,6 @@ func (v *CopyObjectInput) validate(path awserr.Path, out *[]awserr.Violation) {
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
 		}
 	}
-	if v.ObjectLockMode != nil {
-		if !(*v.ObjectLockMode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockMode"), Value: awserr.RenderedText{Text: string(*v.ObjectLockMode)}, Constraint: awserr.Enum{Values: []string{"GOVERNANCE", "COMPLIANCE"}}})
-		}
-	}
-	if v.ObjectLockLegalHoldStatus != nil {
-		if !(*v.ObjectLockLegalHoldStatus).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockLegalHoldStatus"), Value: awserr.RenderedText{Text: string(*v.ObjectLockLegalHoldStatus)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
 	if v.ObjectLockEventHold != nil {
 		if !(*v.ObjectLockEventHold).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "objectLockEventHold"), Value: awserr.RenderedText{Text: string(*v.ObjectLockEventHold)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
@@ -479,16 +469,6 @@ func (v *CreateMultipartUploadInput) validate(path awserr.Path, out *[]awserr.Vi
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
 		}
 	}
-	if v.ObjectLockMode != nil {
-		if !(*v.ObjectLockMode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockMode"), Value: awserr.RenderedText{Text: string(*v.ObjectLockMode)}, Constraint: awserr.Enum{Values: []string{"GOVERNANCE", "COMPLIANCE"}}})
-		}
-	}
-	if v.ObjectLockLegalHoldStatus != nil {
-		if !(*v.ObjectLockLegalHoldStatus).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockLegalHoldStatus"), Value: awserr.RenderedText{Text: string(*v.ObjectLockLegalHoldStatus)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
 	if v.ObjectLockEventHold != nil {
 		if !(*v.ObjectLockEventHold).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "objectLockEventHold"), Value: awserr.RenderedText{Text: string(*v.ObjectLockEventHold)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
@@ -526,14 +506,6 @@ func (v *CreateSessionInput) validate(path awserr.Path, out *[]awserr.Violation)
 	if v.ServerSideEncryption != nil {
 		if !(*v.ServerSideEncryption).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "serverSideEncryption"), Value: awserr.RenderedText{Text: string(*v.ServerSideEncryption)}, Constraint: awserr.Enum{Values: []string{"AES256", "aws:fsx", "aws:backup", "aws:kms", "aws:kms:dsse"}}})
-		}
-	}
-}
-
-func (v *DefaultRetention) validate(path awserr.Path, out *[]awserr.Violation) {
-	if v.Mode != nil {
-		if !(*v.Mode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "mode"), Value: awserr.RenderedText{Text: string(*v.Mode)}, Constraint: awserr.Enum{Values: []string{"GOVERNANCE", "COMPLIANCE"}}})
 		}
 	}
 }
@@ -2308,9 +2280,6 @@ func (v *ObjectLockConfiguration) validate(path awserr.Path, out *[]awserr.Viola
 			*out = append(*out, awserr.Violation{Path: at(path, "objectLockEnabled"), Value: awserr.RenderedText{Text: string(*v.ObjectLockEnabled)}, Constraint: awserr.Enum{Values: []string{"Enabled"}}})
 		}
 	}
-	if v.Rule != nil {
-		v.Rule.validate(at(path, "rule"), out)
-	}
 }
 
 func (v *ObjectLockLegalHold) validate(path awserr.Path, out *[]awserr.Violation) {
@@ -2331,12 +2300,6 @@ func (v *ObjectLockRetention) validate(path awserr.Path, out *[]awserr.Violation
 		if !(*v.EventHold).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "eventHold"), Value: awserr.RenderedText{Text: string(*v.EventHold)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
 		}
-	}
-}
-
-func (v *ObjectLockRule) validate(path awserr.Path, out *[]awserr.Violation) {
-	if v.DefaultRetention != nil {
-		v.DefaultRetention.validate(at(path, "defaultRetention"), out)
 	}
 }
 
@@ -2937,16 +2900,6 @@ func (v *PutObjectInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.RequestPayer != nil {
 		if !(*v.RequestPayer).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
-		}
-	}
-	if v.ObjectLockMode != nil {
-		if !(*v.ObjectLockMode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockMode"), Value: awserr.RenderedText{Text: string(*v.ObjectLockMode)}, Constraint: awserr.Enum{Values: []string{"GOVERNANCE", "COMPLIANCE"}}})
-		}
-	}
-	if v.ObjectLockLegalHoldStatus != nil {
-		if !(*v.ObjectLockLegalHoldStatus).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockLegalHoldStatus"), Value: awserr.RenderedText{Text: string(*v.ObjectLockLegalHoldStatus)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
 		}
 	}
 	if v.ObjectLockEventHold != nil {

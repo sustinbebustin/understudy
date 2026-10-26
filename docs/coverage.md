@@ -124,7 +124,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | kms | 54 | 19 | 3 | 5 | 27 | 0 | 0 |
 | lambda | 88 | 25 | 2 | 14 | 47 | 0 | 2 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
-| s3 | 112 | 18 | 44 | 20 | 30 | 0 | 3 |
+| s3 | 112 | 19 | 42 | 21 | 30 | 0 | 3 |
 | secretsmanager | 23 | 12 | 1 | 2 | 8 | 0 | 0 |
 | sns | 42 | 12 | 2 | 5 | 23 | 0 | 3 |
 | sqs | 23 | 16 | 2 | 5 | 0 | 2 | 0 |
@@ -809,6 +809,7 @@ Internal operations:
 | GetBucketTagging | full | inferred, 1 of 3 claims |  |
 | GetBucketVersioning | full | inferred, 1 of 3 claims |  |
 | GetObjectAttributes | full | inferred, 4 of 6 claims |  |
+| GetObjectLockConfiguration | full | inferred, 1 of 3 claims |  |
 | GetObjectTagging | full | inferred, 1 of 2 claims |  |
 | HeadBucket | full | inferred, 1 of 3 claims |  |
 | ListMultipartUploads | full | inferred, 1 of 3 claims |  |
@@ -839,7 +840,6 @@ Internal operations:
 | GetBucketReplication | stored-only | inferred, 1 of 3 claims | the replication configuration is stored and echoed; not applied |
 | GetBucketRequestPayment | stored-only | inferred, 1 of 3 claims | the payer is stored and echoed; not applied |
 | GetBucketWebsite | stored-only | inferred, 1 of 3 claims | the website configuration is stored and echoed; not applied |
-| GetObjectLockConfiguration | stored-only | inferred, 1 of 3 claims | the Object Lock configuration is stored and echoed; not applied |
 | GetPublicAccessBlock | stored-only | inferred, 1 of 3 claims | the public access block is stored and echoed; not applied |
 | ListBucketAnalyticsConfigurations | stored-only | inferred, 1 of 2 claims | the analytics configuration is stored and echoed; not applied |
 | ListBucketIntelligentTieringConfigurations | stored-only | inferred, 1 of 2 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
@@ -858,18 +858,17 @@ Internal operations:
 | PutBucketReplication | stored-only | inferred, 1 of 2 claims | the replication configuration is stored and echoed; not applied |
 | PutBucketRequestPayment | stored-only | inferred, 1 of 2 claims | the payer is stored and echoed; not applied |
 | PutBucketWebsite | stored-only | inferred, 1 of 2 claims | the website configuration is stored and echoed; not applied |
-| PutObjectLockConfiguration | stored-only | inferred, 1 of 2 claims | the Object Lock configuration is stored and echoed; not applied |
 | PutPublicAccessBlock | stored-only | inferred, 1 of 2 claims | the public access block is stored and echoed; not applied |
 | AbortMultipartUpload | partial | inferred, 1 of 2 claims | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
-| CompleteMultipartUpload | partial | inferred, 4 of 6 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
-| CopyObject | partial | inferred, 6 of 9 claims | Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error |
-| CreateMultipartUpload | partial | inferred, 4 of 6 claims | Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; no lifecycle abort date |
+| CompleteMultipartUpload | partial | inferred, 5 of 7 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
+| CopyObject | partial | inferred, 12 of 15 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
+| CreateMultipartUpload | partial | inferred, 7 of 10 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
 | DeleteBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| DeleteObject | partial | inferred, 1 of 2 claims | no MFA delete or Object Lock retention |
-| DeleteObjects | partial | inferred, 1 of 2 claims | no MFA delete or Object Lock retention |
+| DeleteObject | partial | inferred, 2 of 4 claims | no MFA delete or Object Lock retention |
+| DeleteObjects | partial | inferred, 2 of 4 claims | no MFA delete or Object Lock retention |
 | GetBucketOwnershipControls | partial | inferred, 1 of 3 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| GetObject | partial | inferred, 3 of 5 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
-| HeadObject | partial | inferred, 4 of 7 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
+| GetObject | partial | inferred, 4 of 6 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
+| HeadObject | partial | inferred, 5 of 8 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
 | ListBuckets | partial | third-party-recorded, 1 of 1 claim | general purpose buckets only; no directory buckets |
 | ListObjectVersions | partial | inferred, 1 of 3 claims | no RestoreStatus |
 | ListObjects | partial | inferred, 1 of 3 claims | no RestoreStatus |
@@ -877,8 +876,9 @@ Internal operations:
 | PutBucketNotificationConfiguration | partial | inferred, 1 of 2 claims | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions |
 | PutBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | PutBucketVersioning | partial | inferred, 1 of 2 claims | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
-| PutObject | partial | inferred, 4 of 6 claims | Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify |
-| UploadPart | partial | inferred, 4 of 6 claims | chunk signatures are verified under sigv4 verify |
+| PutObject | partial | inferred, 9 of 12 claims | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
+| PutObjectLockConfiguration | partial | inferred, 2 of 3 claims | DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored |
+| UploadPart | partial | inferred, 5 of 7 claims | chunk signatures are verified under sigv4 verify |
 | UploadPartCopy | partial | inferred, 7 of 9 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
 | CreateBucketMetadataConfiguration | unbound | unassessed |  |
 | CreateBucketMetadataTableConfiguration | unbound | unassessed |  |
@@ -1059,11 +1059,12 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-76 switches: 1 aws-recorded, 14 aws-doc, 61 inferred.
+83 switches: 1 aws-recorded, 1 third-party-recorded, 14 aws-doc, 67 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
 | `s3.encryption.after-delete` | `default-sse-s3` | aws-recorded | docs/research/s3-ssec-object-lock.md#2-what-the-repos-recordings-already-settled | none: s3/R06/02-get-encryption-after-delete.json is recorded; the replayer skips S3's REST requests |
+| `s3.object-lock.bypass-without-lock` | `refused` | third-party-recorded | docs/research/s3-ssec-object-lock.md#73-the-bypass-header-on-a-bucket-without-object-lock | none: unrecorded: S3SOL-23 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `cloudwatch.get-metric-data.start-rounding` | `by-age` | aws-doc | docs/research/secrets-logs-events-alarms.md#53-getmetricdata | none: unrecorded: no recording shows GetMetricData's period boundaries |
 | `iam.assumeRole` | `strict` | aws-doc | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions | none: the switch decides AssumeRole of a role IAM does not hold, which no recording asks; sts/R15#06-assume-denied names a role that exists, refused by its trust policy |
 | `kms.pending-deletion.crypto-error` | `KMSInvalidStateException` | aws-doc | docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix | none: kms/R15/02-pending-encrypt.json and the other 02-pending steps are recorded; no scenario replays kms/R15 yet |
@@ -1102,6 +1103,12 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `s3.bucket.cross-account` | `served` | inferred | UNVERIFIED: no research note or recording shows AWS's answer to a bucket request from an account that does not own the bucket | none: unrecorded: no recording sends a bucket request from an account that does not own the bucket |
 | `s3.encryption.blocked-types-omitted` | `kept` | inferred | docs/research/s3-ssec-object-lock.md#42-blocking-and-unblocking | none: unrecorded: S3SOL-11 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.encryption.unblocked-read` | `NONE-element` | inferred | docs/research/s3-ssec-object-lock.md#42-blocking-and-unblocking | none: unrecorded: S3SOL-10 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.object-lock.checksum-scope` | `PutObject-retention` | inferred | docs/research/s3-ssec-object-lock.md#63-the-content-md5-or-checksum-requirement | none: unrecorded: S3SOL-14, S3SOL-15 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.object-lock.copy-default` | `default-applied` | inferred | docs/research/s3-ssec-object-lock.md#68-copyobject-does-not-carry-lock-state | none: unrecorded: S3SOL-16 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.object-lock.default-years` | `365-day` | inferred | docs/research/s3-ssec-object-lock.md#53-default-retention-dating | none: unrecorded: S3SOL-13 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.object-lock.header-texts` | `InvalidArgument` | inferred | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument | none: unrecorded: S3SOL-18 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.object-lock.headers-without-lock` | `InvalidRequest` | inferred | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument | none: unrecorded: S3SOL-17 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.object-lock.retain-until-format` | `milliseconds` | inferred | docs/research/s3-ssec-object-lock.md#67-response-headers-on-get-and-head | none: unrecorded: S3SOL-12 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.sse-c.blocked-write` | `AccessDenied` | inferred | docs/research/s3-ssec-object-lock.md#43-what-the-block-refuses | none: unrecorded: S3SOL-01 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.sse-c.complete-headers` | `checked-when-sent` | inferred | docs/research/s3-ssec-object-lock.md#36-multipart-uploads | none: unrecorded: S3SOL-08 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.sse-c.copy-source-not-applicable` | `InvalidRequest` | inferred | docs/research/s3-ssec-object-lock.md#35-copyobject-and-uploadpartcopy | none: unrecorded: S3SOL-06 is queued in docs/research/s3-ssec-object-lock.md 12 |
@@ -1144,7 +1151,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-281 evidence items: 48 aws-recorded, 93 third-party-recorded, 52 aws-doc, 2 sdk-source, 86 inferred.
+288 evidence items: 48 aws-recorded, 96 third-party-recorded, 52 aws-doc, 2 sdk-source, 90 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1234,6 +1241,8 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#CopySource` |  | docs/research/tf-remaining.md#8-aws_s3_object-family: terraform-provider-aws 6.68.0 aws_s3_object_copy sends x-amz-copy-source as url.QueryEscape(bucket/key), so the slash between bucket and key arrives as %2F; the model's pattern would refuse every Terraform copy |
 | third-party-recorded | s3.json | `com.amazonaws.s3#CreateBucketConfiguration$LocationConstraint` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: an unknown constraint is InvalidLocationConstraint or IllegalLocationConstraintException by endpoint region, never InvalidArgument (validated 2026-02-23) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#CreateBucketRequest$ObjectOwnership` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json: InvalidArgument names the header, x-amz-object-ownership, and echoes the value (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#CreateMultipartUploadRequest$ObjectLockMode` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json L17950: a bad mode with a date on CreateMultipartUpload is InvalidArgument "Unknown wormMode directive." naming x-amz-object-lock-mode (s3-ssec-object-lock.md 6.2) (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#DefaultRetention$Mode` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json L2571: a bad DefaultRetention Mode is MalformedXML (s3-ssec-object-lock.md 5.2) (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#EntityTooSmall` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#IllegalLocationConstraintException` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-23) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#IllegalVersioningConfigurationException` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
@@ -1269,6 +1278,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#PutBucketMetricsConfiguration` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#PutBucketPolicy` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#PutBucketTagging` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#PutObjectRequest$ObjectLockMode` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json L17916, L17938: a bad mode without a date is refused for the pairing first; with a date it is InvalidArgument "Unknown wormMode directive." naming x-amz-object-lock-mode (s3-ssec-object-lock.md 6.2) (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#ServerSideEncryptionConfiguration$Rules` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json test_s3_default_bucket_encryption_exc: a configuration without a rule is MalformedXML (s3.md 4.2.2) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#SignatureDoesNotMatch` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L3365 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#UnexpectedContent` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L3021 (validated 2026-10-11) |
@@ -1378,7 +1388,11 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | protocoltests.json | `aws.protocoltests.rpcv2cbor#QueryCompatibleRpcV2Protocol` |  | docs/research/wire-cbor.md#6-the-smithy-test-corpus-at-1740: the rpcv2Cbor corpus has no server-side validation case |
 | inferred | protocoltests.json | `com.amazonaws.s3#AmazonS3` |  | docs/research/smithy-protocol-tests.md#71-s3-comamazonawss3amazons3-tag-aws-service-test: the S3 slice has no validation case |
 | inferred | protocoltests.json | `smithy.protocoltests.rpcv2Cbor#RpcV2Protocol` |  | docs/research/wire-cbor.md#6-the-smithy-test-corpus-at-1740: the rpcv2Cbor corpus has no server-side validation case |
+| inferred | s3.json | `com.amazonaws.s3#CopyObjectRequest$ObjectLockLegalHoldStatus` |  | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18) |
+| inferred | s3.json | `com.amazonaws.s3#CopyObjectRequest$ObjectLockMode` |  | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: CopyObject carries PutObject's lock headers, whose bad mode is InvalidArgument "Unknown wormMode directive." after the pairing check (recorded for PutObject and CreateMultipartUpload) |
+| inferred | s3.json | `com.amazonaws.s3#CreateMultipartUploadRequest$ObjectLockLegalHoldStatus` |  | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18) |
 | inferred | s3.json | `com.amazonaws.s3#InvalidBucketAclWithObjectOwnership` |  | docs/research/s3.md#32-createbucket: a public ACL on a BucketOwnerEnforced bucket fails; the code is AWS's documented ACL-ownership conflict, UNVERIFIED by recording |
+| inferred | s3.json | `com.amazonaws.s3#PutObjectRequest$ObjectLockLegalHoldStatus` |  | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18) |
 | inferred | s3.json | `com.amazonaws.s3#ServerSideEncryptionConfigurationNotFoundError` |  | docs/research/wire-rest.md#36-errors-and-not-configured-responses: AWS docs say 400, every other S3 not-configured error is 404; 404 is UNVERIFIED |
 | inferred | s3.json | `com.amazonaws.s3#UploadPartCopyRequest$CopySource` |  | docs/research/s3.md#7-copyobject-and-uploadpartcopy: UploadPartCopy takes the same x-amz-copy-source as CopyObject |
 | inferred | scheduler.json | `com.amazonaws.scheduler#AWSChronosService` | dev.understudy#throttleError | docs/research/eventbridge-buses.md#111-model-and-wire: the model declares ThrottlingException (429) on every operation while CommonErrors.html lists a 400 ThrottlingException; no recording shows which Scheduler emits; the EBB queue has no throttle case, so J14 (error-matrix.md 10) run against scheduler settles it |

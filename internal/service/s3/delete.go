@@ -48,6 +48,9 @@ func (s *Service) deleteObject(ctx context.Context, c *kernel.Call, in *s3api.De
 		return nil, err
 	}
 	got, _, err := writeObjects(ctx, s, c, at(in.Bucket, in.ExpectedBucketOwner), func(b *Bucket, w objectTx) (deleted, []blob.Ref, *awserr.Error) {
+		if err := checkBypassHeader(b, in.BypassGovernanceRetention); err != nil {
+			return deleted{}, nil, err
+		}
 		return s.deleteOne(b, d, w)
 	})
 	if err != nil {
@@ -66,6 +69,9 @@ func (s *Service) deleteObjects(ctx context.Context, c *kernel.Call, in *s3api.D
 	}
 	quiet := in.Delete.Quiet != nil && *in.Delete.Quiet
 	got, _, err := writeObjects(ctx, s, c, at(in.Bucket, in.ExpectedBucketOwner), func(b *Bucket, w objectTx) (*s3api.DeleteObjectsOutput, []blob.Ref, *awserr.Error) {
+		if err := checkBypassHeader(b, in.BypassGovernanceRetention); err != nil {
+			return nil, nil, err
+		}
 		out := &s3api.DeleteObjectsOutput{}
 		var released []blob.Ref
 		for _, o := range in.Delete.Objects {

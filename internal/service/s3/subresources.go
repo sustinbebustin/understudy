@@ -589,20 +589,26 @@ func (s *Service) bindObjectLock(b s3api.Binder) {
 			return nil, notConfigured(s3api.NotConfiguredGetObjectLockConfiguration(noSuchObjectLockMessage), b)
 		}
 		return &s3api.GetObjectLockConfigurationOutput{ObjectLockConfiguration: b.ObjectLock}, nil
-	}), stored("the Object Lock configuration is"), touches(get))
+	}), registry.Full{}, touches(get))
 	put := func(in *s3api.PutObjectLockConfigurationInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
+	// The rule's default retention applies to versions written afterwards
+	// (lockOnWrite); existing versions keep theirs (s3-ssec-object-lock.md
+	// 5.3). The x-amz-bucket-object-lock-token header is not read.
 	b.PutObjectLockConfiguration(writer[s3api.PutObjectLockConfigurationInput, s3api.PutObjectLockConfigurationOutput](s, put, func(in *s3api.PutObjectLockConfigurationInput, b *Bucket) *awserr.Error {
 		if b.versioning() != versionsEnabled {
 			return errObjectLockNeedsVersioning()
 		}
 		b.ObjectLock = in.ObjectLockConfiguration
 		return nil
-	}), stored("the Object Lock configuration is"), touches(put), kernel.WithCheck(checkObjectLock))
+	}), registry.Partial{Note: "DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored"}, touches(put), kernel.WithCheck(checkObjectLock))
 }
 
-// checkObjectLock checks an Object Lock configuration (s3.md 4.2.10): it
-// is enabled, and a default retention names a mode and exactly one of
-// Days and Years.
+// checkObjectLock checks an Object Lock configuration (s3.md 4.2.10;
+// s3-ssec-object-lock.md 5.2): it is enabled, and a default retention
+// names a known mode and exactly one of Days and Years, else MalformedXML
+// (LocalStack test_s3_api.snapshot.json L2521-L2581). DefaultEventHold is
+// refused with understudy's 501 (11.7). Days must be 1 to 36,500 and Years
+// 1 to 100, else MalformedXML (switch s3.object-lock.default-years).
 func checkObjectLock(in *s3api.PutObjectLockConfigurationInput) *awserr.Error {
 	cfg := in.ObjectLockConfiguration
 	if cfg == nil || cfg.ObjectLockEnabled == nil || *cfg.ObjectLockEnabled != s3api.ObjectLockEnabledEnabled {
@@ -613,6 +619,15 @@ func checkObjectLock(in *s3api.PutObjectLockConfigurationInput) *awserr.Error {
 	}
 	d := cfg.Rule.DefaultRetention
 	if d == nil || d.Mode == nil || (d.Days == nil) == (d.Years == nil) {
+		return errMalformedXML()
+	}
+	if _, ok := retentionModeTexts().value(string(*d.Mode)); !ok {
+		return errMalformedXML()
+	}
+	if d.DefaultEventHold != nil {
+		return errEventHold("DefaultEventHold")
+	}
+	if d.Days != nil && (*d.Days < 1 || *d.Days > 36500) || d.Years != nil && (*d.Years < 1 || *d.Years > 100) {
 		return errMalformedXML()
 	}
 	return nil

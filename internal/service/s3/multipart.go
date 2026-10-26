@@ -23,7 +23,7 @@ import (
 // bindMultipart binds the multipart upload operations.
 func (s *Service) bindMultipart(b s3api.Binder) {
 	create := func(in *s3api.CreateMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.CreateMultipartUpload(s.createMultipartUpload, registry.Partial{Note: objectLockNote + "; an object ACL a bucket accepts is not stored; no lifecycle abort date"}, touches(create))
+	b.CreateMultipartUpload(s.createMultipartUpload, registry.Partial{Note: "an object ACL a bucket accepts is not stored; no lifecycle abort date; " + eventHoldNote}, touches(create))
 	part := func(in *s3api.UploadPartInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.UploadPart(s.uploadPart, registry.Partial{Note: "chunk signatures are verified under sigv4 verify"}, touches(part))
 	partCopy := func(in *s3api.UploadPartCopyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
@@ -67,8 +67,8 @@ type Upload struct {
 	Encryption   Encryption         `json:"encryption"`
 	Parts        map[int32]Part     `json:"parts,omitempty"`
 	// Lock is the retention and legal hold Create's headers asked for,
-	// which the completed object takes. Nothing sets it yet, so it is
-	// always zero and never written.
+	// which the completed object takes, with the bucket default's retention
+	// dated at Initiated when they name none (s3-ssec-object-lock.md 5.3).
 	Lock ObjectLock `json:"lock,omitzero"`
 }
 
@@ -149,13 +149,18 @@ type createRequest struct {
 	sse     sseRequest
 	acl     objectACL
 	mode    checksumMode
+	lock    ObjectLock
 }
 
-func readCreate(in *s3api.CreateMultipartUploadInput) (createRequest, *awserr.Error) {
-	if err := (objectLockHeaders{
+// readCreate runs the checks of a CreateMultipartUpload that need no
+// bucket; now is the call's admission, which lock dates are judged
+// against.
+func readCreate(in *s3api.CreateMultipartUploadInput, now clock.Instant) (createRequest, *awserr.Error) {
+	lock, err := objectLockHeaders{
 		mode: in.ObjectLockMode, retainUntil: in.ObjectLockRetainUntilDate, legalHold: in.ObjectLockLegalHoldStatus,
 		eventHold: in.ObjectLockEventHold, eventHoldDays: in.ObjectLockEventHoldDurationDays, eventHoldYears: in.ObjectLockEventHoldDurationYears,
-	}).refuse(); err != nil {
+	}.parse(now)
+	if err != nil {
 		return createRequest{}, err
 	}
 	if err := checkKey(in.Key); err != nil {
@@ -181,7 +186,7 @@ func readCreate(in *s3api.CreateMultipartUploadInput) (createRequest, *awserr.Er
 			contentType: in.ContentType, cacheControl: in.CacheControl, contentDisposition: in.ContentDisposition,
 			contentEncoding: in.ContentEncoding, contentLanguage: in.ContentLanguage, expires: in.Expires, websiteRedirect: in.WebsiteRedirectLocation,
 		},
-		tags: tags, class: class, mode: mode,
+		tags: tags, class: class, mode: mode, lock: lock,
 		acl: writeACL(in.ACL, in.GrantFullControl, in.GrantRead, in.GrantReadACP, in.GrantWriteACP),
 		sse: sseRequest{
 			algorithm: in.ServerSideEncryption, keyID: in.SSEKMSKeyId, context: in.SSEKMSEncryptionContext, bucketKey: in.BucketKeyEnabled,
@@ -194,13 +199,13 @@ func readCreate(in *s3api.CreateMultipartUploadInput) (createRequest, *awserr.Er
 // shapes the object is checked and fixed here, the KMS data key included,
 // under an upload id from the emulator's id source.
 func (s *Service) createMultipartUpload(ctx context.Context, c *kernel.Call, in *s3api.CreateMultipartUploadInput) (*s3api.CreateMultipartUploadOutput, *awserr.Error) {
-	req, err := readCreate(in)
+	req, err := readCreate(in, c.Admitted())
 	if err != nil {
 		return nil, err
 	}
 	a := at(in.Bucket, in.ExpectedBucketOwner)
 	pre, err := read(ctx, s, c, a, func(b *Bucket) (preWrite, *awserr.Error) {
-		return prepareWrite(b, in.Key, unconditional{}, req.sse, req.acl, c.Endpoint().Scheme)
+		return prepareWrite(b, in.Key, unconditional{}, req.sse, req.acl, lockRequest{explicit: req.lock}, c.Endpoint().Scheme)
 	})
 	if err != nil {
 		return nil, err
@@ -211,7 +216,7 @@ func (s *Service) createMultipartUpload(ctx context.Context, c *kernel.Call, in 
 	}
 	u := &Upload{
 		ID: string(s.k.IDs().UploadID()), Key: in.Key, Initiator: canonicalID(c.Scope().Account), Checksum: persisted(req.mode),
-		Header: req.headers.metadata(), Metadata: in.Metadata, Tags: req.tags, StorageClass: req.class, Encryption: enc,
+		Header: req.headers.metadata(), Metadata: in.Metadata, Tags: req.tags, StorageClass: req.class, Encryption: enc, Lock: req.lock,
 	}
 	_, _, err = writeObjects(ctx, s, c, a, func(b *Bucket, w objectTx) (struct{}, []blob.Ref, *awserr.Error) {
 		x := *u
@@ -358,7 +363,7 @@ func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, i
 	}
 	obj := &Object{
 		Blob: ref, Size: size, ETag: etag, Checksum: plan.sum, Header: u.Header, Metadata: u.Metadata, Tags: u.Tags,
-		StorageClass: u.StorageClass, Encryption: u.Encryption, Parts: objectParts(plan.parts, plan.sum.Type),
+		StorageClass: u.StorageClass, Encryption: u.Encryption, Parts: objectParts(plan.parts, plan.sum.Type), Lock: u.Lock,
 	}
 	done, err := s.commitOwned(ctx, c, a, obj, s.completeWrite(req, plan, obj))
 	if err != nil {
@@ -514,9 +519,10 @@ func errInvalidPartOrder(uploadID string) *awserr.Error {
 // completeWrite commits a judged Complete: the upload must still hold
 // every listed part as judged, and the write condition is judged again; a
 // failure there means another request landed in between. The object's
-// version is dated at the upload's initiation (s3.md 10) and placed by
-// completedSeq, the upload is dropped, and every part's reference is
-// released.
+// version is dated at the upload's initiation (s3.md 10), as is a default
+// retention the bucket's rule at Complete gives it (testdata/parity/s3/R12/notes.md
+// step 8), and placed by completedSeq; the upload is dropped, and every
+// part's reference is released.
 func (s *Service) completeWrite(req completeRequest, plan completion, obj *Object) objectWrite[committed] {
 	return func(b *Bucket, w objectTx) (committed, []blob.Ref, *awserr.Error) {
 		u, err := b.Uploads.find(req.id, req.key)
@@ -532,7 +538,7 @@ func (s *Service) completeWrite(req completeRequest, plan completion, obj *Objec
 		if err := checkWrite(req.cond, req.key, currentValidator(b, req.key)); err != nil {
 			return committed{}, nil, errConditionalConflict(req.cond, req.key)
 		}
-		v := s.newVersion(b, completedSeq(b, u), u.Initiated, obj)
+		v := s.newVersion(b, completedSeq(b, u), u.Initiated, lockedAt(b, obj, u.Initiated))
 		released := b.Objects.add(req.key, v)
 		b.Uploads.remove(req.id)
 		s.commitObject(w, b, event{key: req.key, versionID: v.ID, change: notify.Created{Action: notify.CreatedCompleteMultipartUpload, Size: obj.Size, ETag: obj.ETag}})

@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/checksum"
+	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/s3/notify"
 	"github.com/sustinbebustin/understudy/internal/store"
@@ -203,7 +204,7 @@ func (s *Service) copyObject(ctx context.Context, c *kernel.Call, in *s3api.Copy
 	if err != nil {
 		return nil, err
 	}
-	req, err := readCopy(in)
+	req, err := readCopy(in, c.Admitted())
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +240,7 @@ func (s *Service) copyObject(ctx context.Context, c *kernel.Call, in *s3api.Copy
 		if inPlace && !req.changes(in, so, b) {
 			return preWrite{}, errInvalidRequest(selfCopyMessage)
 		}
-		return prepareWrite(b, in.Key, req.cond, req.sse, req.acl, c.Endpoint().Scheme)
+		return prepareWrite(b, in.Key, req.cond, req.sse, req.acl, lockRequest{explicit: req.lock}, c.Endpoint().Scheme)
 	})
 	if err != nil {
 		return nil, err
@@ -278,14 +279,20 @@ type copyRequest struct {
 	cond            writeCondition
 	sse             sseRequest
 	acl             objectACL
-	algorithm       *checksum.Algorithm
+	// lock is the copy's own lock settings; the source's never carry over
+	// (s3-ssec-object-lock.md 6.8).
+	lock      ObjectLock
+	algorithm *checksum.Algorithm
 }
 
-func readCopy(in *s3api.CopyObjectInput) (copyRequest, *awserr.Error) {
-	if err := (objectLockHeaders{
+// readCopy runs the checks of a CopyObject that need no bucket; now is
+// the call's admission, which lock dates are judged against.
+func readCopy(in *s3api.CopyObjectInput, now clock.Instant) (copyRequest, *awserr.Error) {
+	lock, err := objectLockHeaders{
 		mode: in.ObjectLockMode, retainUntil: in.ObjectLockRetainUntilDate, legalHold: in.ObjectLockLegalHoldStatus,
 		eventHold: in.ObjectLockEventHold, eventHoldDays: in.ObjectLockEventHoldDurationDays, eventHoldYears: in.ObjectLockEventHoldDurationYears,
-	}).refuse(); err != nil {
+	}.parse(now)
+	if err != nil {
 		return copyRequest{}, err
 	}
 	if err := checkKey(in.Key); err != nil {
@@ -295,6 +302,7 @@ func readCopy(in *s3api.CopyObjectInput) (copyRequest, *awserr.Error) {
 		replaceMetadata: in.MetadataDirective != nil && *in.MetadataDirective == s3api.MetadataDirectiveReplace,
 		replaceTags:     in.TaggingDirective != nil && *in.TaggingDirective == s3api.TaggingDirectiveReplace,
 		acl:             writeACL(in.ACL, in.GrantFullControl, in.GrantRead, in.GrantReadACP, in.GrantWriteACP),
+		lock:            lock,
 		sse: sseRequest{
 			algorithm: in.ServerSideEncryption, keyID: in.SSEKMSKeyId, context: in.SSEKMSEncryptionContext, bucketKey: in.BucketKeyEnabled,
 			customer: customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5},
@@ -342,9 +350,11 @@ func readCopy(in *s3api.CopyObjectInput) (copyRequest, *awserr.Error) {
 // test_s3_copy_object_in_place_storage_class,
 // test_copy_in_place_with_bucket_encryption and
 // test_s3_copy_object_in_place_with_encryption; the SSE-C cases are
-// inferred).
+// inferred). Lock headers change the new version's lock state, so they
+// count too (inferred, s3-ssec-object-lock.md 6.8).
 func (r copyRequest) changes(in *s3api.CopyObjectInput, so *Object, b *Bucket) bool {
 	return r.replaceMetadata ||
+		r.lock != (ObjectLock{}) ||
 		in.StorageClass != nil ||
 		in.WebsiteRedirectLocation != nil ||
 		in.ServerSideEncryption != nil || in.SSEKMSKeyId != nil || r.sse.customer.sent() ||
@@ -356,8 +366,9 @@ func (r copyRequest) changes(in *s3api.CopyObjectInput, so *Object, b *Bucket) b
 // by their directives, never the website redirect unless restated, the
 // source's checksum unless another algorithm is asked for, and an MD5 ETag
 // unless the destination is SSE-KMS or SSE-C (s3-ssec-object-lock.md 3.4).
+// Its lock settings are the copy's own, never the source's (6.8).
 func (s *Service) copied(blobs *blob.Store, so *Object, r copyRequest, in *s3api.CopyObjectInput, enc Encryption) (*Object, *awserr.Error) {
-	obj := &Object{Blob: so.Blob, Size: so.Size, Checksum: so.Checksum, StorageClass: r.class, Encryption: enc}
+	obj := &Object{Blob: so.Blob, Size: so.Size, Checksum: so.Checksum, StorageClass: r.class, Encryption: enc, Lock: r.lock}
 	obj.Header, obj.Metadata = so.Header, so.Metadata
 	obj.Header.WebsiteRedirect = in.WebsiteRedirectLocation
 	if r.replaceMetadata {

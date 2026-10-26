@@ -19,23 +19,12 @@ func errNotImplementedYet(fn string) *awserr.Error {
 
 // stubs keeps the stubs referenced until their callers exist, so the
 // linter reports a stub left behind once it is wired rather than every
-// stub now. The keyed literals stand for the fields only stubs read.
+// stub now.
 var _ = []any{
-	objectLockHeaders.parse,
 	ObjectLock.withRetention,
 	ObjectLock.checkDelete,
 	Retention.inForce,
-	checkLockTarget,
-	defaultRetention{mode: 0, period: 0},
-	bucketDefaultRetention,
-	defaultRetention.from,
-	lockOnWrite,
-	needsIntegrity,
-	upload.integrityDeclared,
 	parseRetentionBody,
-	checkRetainUntil,
 	parseLegalHoldBody,
-	javaDate,
-	checkBypassHeader,
 	(*Service).governanceBypass,
 }
