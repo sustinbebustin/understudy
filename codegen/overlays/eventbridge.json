@@ -27,6 +27,33 @@
         ]
       }
     },
+    "com.amazonaws.eventbridge#CreateEventBus": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing the name default, a name with /, and the 101st bus are unrecorded (EBB-02)"
+        }
+      }
+    },
+    "com.amazonaws.eventbridge#PutPermission": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing a Policy sent with a statement member, a statement missing a member, a Policy that is not a policy document, and a policy over 10,240 characters are unrecorded (EBB-06)"
+        }
+      }
+    },
+    "com.amazonaws.eventbridge#PutTargets": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing a cross-account event bus target without a RoleArn or with Input, InputPath or InputTransformer are unrecorded (EBB-09)"
+        }
+      }
+    },
     "com.amazonaws.eventbridge#PathParameter": {
       "type": "apply",
       "traits": {

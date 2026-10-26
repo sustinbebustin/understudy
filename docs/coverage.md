@@ -263,10 +263,10 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | TagResource | full | third-party-recorded, 2 of 2 claims |  |
 | TestEventPattern | full | contradicted (events/R14/H14-01.json), 5 of 25 claims |  |
 | UntagResource | full | third-party-recorded, 2 of 2 claims |  |
-| PutPermission | stored-only | third-party-recorded, 2 of 2 claims | statements are stored in the bus Policy that DescribeEventBus returns; not enforced |
+| PutPermission | stored-only | inferred, 1 of 3 claims | statements are stored in the bus Policy that DescribeEventBus returns; not enforced |
 | RemovePermission | stored-only | inferred, 2 of 4 claims | statements are removed from the bus Policy; not enforced |
 | UpdateEventBus | stored-only | inferred, 2 of 4 claims | Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged |
-| CreateEventBus | partial | inferred, 1 of 3 claims | custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged |
+| CreateEventBus | partial | inferred, 2 of 4 claims | custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged |
 | DeleteRule | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
 | DescribeEventBus | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
 | DescribeRule | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
@@ -277,7 +277,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | ListTargetsByRule | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
 | PutEvents | partial | contradicted (events/R14/H14-02.json), 1 of 9 claims | default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
 | PutRule | partial | contradicted (events/R14/H14-01.json), 1 of 8 claims | default and custom buses of the caller's account and region; ScheduleExpression only on the default bus, as AWS; RoleArn is stored, not used; a rule on another account's or region's bus answers NotImplemented |
-| PutTargets | partial | aws-doc, 1 of 3 claims | Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented |
+| PutTargets | partial | inferred, 1 of 4 claims | Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented |
 | RemoveTargets | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
 | ActivateEventSource | unbound | unassessed |  |
 | CancelReplay | unbound | unassessed |  |
@@ -1164,7 +1164,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-325 evidence items: 49 aws-recorded, 102 third-party-recorded, 56 aws-doc, 5 sdk-source, 113 inferred.
+328 evidence items: 49 aws-recorded, 102 third-party-recorded, 56 aws-doc, 5 sdk-source, 116 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1396,7 +1396,10 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | dynamodbstreams.json | `com.amazonaws.dynamodbstreams#DynamoDBStreams_20120810` | dev.understudy#validationError | docs/research/dynamodb-streams.md#65-error-and-validation-texts: DynamoDB Local answers the Limit 0 range violation with the Coral constraint text and its own checks with com.amazon.coral.validate#ValidationException (5.1, 6.4), but skips length checks and answers enum, required and digit violations with 500 InternalFailure (8.3 row 11); AWS documents ValidationException on GetShardIterator; AWS's class for constraint failures is UNVERIFIED until recording DDBS-02 |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#AWSEvents` | dev.understudy#throttleError | docs/research/error-matrix.md#512-eventbridge-json-11 |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#AWSEvents` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDeniedException (client, no httpError, so 400) is declared on CreateConnection and UpdateConnection only (3.1); that an IAM denial answers it at 400 rather than the CommonErrors template's 403 is inferred, proposed switch events.denial.status (12.8, added with enforcement), until recording IAM-ENF-08 |
+| inferred | eventbridge.json | `com.amazonaws.eventbridge#CreateEventBus` |  | docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing the name default, a name with /, and the 101st bus are unrecorded (EBB-02) |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#PathParameter` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace |
+| inferred | eventbridge.json | `com.amazonaws.eventbridge#PutPermission` |  | docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing a Policy sent with a statement member, a statement missing a member, a Policy that is not a policy document, and a policy over 10,240 characters are unrecorded (EBB-06) |
+| inferred | eventbridge.json | `com.amazonaws.eventbridge#PutTargets` |  | docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing a cross-account event bus target without a RoleArn or with Input, InputPath or InputTransformer are unrecorded (EBB-09) |
 | inferred | iam.json | `com.amazonaws.iam#AWSIdentityManagementV20100508` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: code AccessDenied, Type Sender, 403 in the IAM namespace envelope, inferred from the recorded STS denial (testdata/parity/sts/R15/06-assume-denied.json) and Terraform matching 'AccessDenied: .+ with an explicit deny' (3.2); the CommonErrors page's AccessDeniedException is a template (3.3); proposed switch iam.denial.identity (12.8, added with enforcement) until recording IAM-ENF-10 |
 | inferred | iam.json | `com.amazonaws.iam#ResolveRole` |  | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions: STS AssumeRole succeeds only if the role exists, and the same path mints Lambda execution-role credentials; STS reads the role from IAM through this operation |
 | inferred | iam.json | `com.amazonaws.iam#ResolveRoleRequest` |  | docs/research/iam-sts-kms.md#42-assumerole: AssumeRole names the role by ARN |
