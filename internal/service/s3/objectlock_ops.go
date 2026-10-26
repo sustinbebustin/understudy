@@ -84,7 +84,7 @@ func getObjectRetention(in *s3api.GetObjectRetentionInput, b *Bucket) (*s3api.Ge
 	if r == nil {
 		return nil, errNoObjectLockState()
 	}
-	mode := s3api.ObjectLockRetentionMode(retentionModeTexts()[r.Mode])
+	mode := s3api.ObjectLockRetentionMode(retentionModeTexts[r.Mode])
 	return &s3api.GetObjectRetentionOutput{Retention: &s3api.ObjectLockRetention{Mode: &mode, RetainUntilDate: new(r.RetainUntil.Wire())}}, nil
 }
 
@@ -120,7 +120,7 @@ func getObjectLegalHold(in *s3api.GetObjectLegalHoldInput, b *Bucket) (*s3api.Ge
 	if err != nil {
 		return nil, err
 	}
-	text, ok := legalHoldTexts()[v.Object.Lock.LegalHold]
+	text, ok := legalHoldTexts[v.Object.Lock.LegalHold]
 	if !ok {
 		return nil, errNoObjectLockState()
 	}

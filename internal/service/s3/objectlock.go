@@ -68,7 +68,7 @@ func (h objectLockHeaders) parse(now clock.Instant) (ObjectLock, *awserr.Error) 
 	}
 	var mode RetentionMode
 	if h.mode != nil {
-		m, ok := retentionModeTexts().value(string(*h.mode))
+		m, ok := retentionModeTexts.value(string(*h.mode))
 		if !ok {
 			return ObjectLock{}, errInvalidArgument("Unknown wormMode directive.", headerLockMode, string(*h.mode))
 		}
@@ -76,7 +76,7 @@ func (h objectLockHeaders) parse(now clock.Instant) (ObjectLock, *awserr.Error) 
 	}
 	var l ObjectLock
 	if h.legalHold != nil {
-		hold, ok := legalHoldTexts().value(string(*h.legalHold))
+		hold, ok := legalHoldTexts.value(string(*h.legalHold))
 		if !ok {
 			return ObjectLock{}, errInvalidArgument("Invalid value for the "+headerLockLegalHold+" header.", headerLockLegalHold, string(*h.legalHold))
 		}
@@ -138,10 +138,10 @@ func (r lockRequest) check(b *Bucket) *awserr.Error {
 // retention, expired or not, and the legal hold once one was ever set.
 func lockHeaders(l ObjectLock) (mode *s3api.ObjectLockMode, until *time.Time, hold *s3api.ObjectLockLegalHoldStatus) {
 	if r := l.Retention; r != nil {
-		mode = new(s3api.ObjectLockMode(retentionModeTexts()[r.Mode]))
+		mode = new(s3api.ObjectLockMode(retentionModeTexts[r.Mode]))
 		until = new(r.RetainUntil.Wire())
 	}
-	if text, ok := legalHoldTexts()[l.LegalHold]; ok {
+	if text, ok := legalHoldTexts[l.LegalHold]; ok {
 		hold = new(s3api.ObjectLockLegalHoldStatus(text))
 	}
 	return mode, until, hold
@@ -230,21 +230,19 @@ const (
 
 // retentionModeTexts are the model's ObjectLockRetentionMode values
 // (s3-ssec-object-lock.md 8).
-func retentionModeTexts() textTable[RetentionMode] {
-	return textTable[RetentionMode]{
-		RetentionGovernance: string(s3api.ObjectLockRetentionModeGovernance),
-		RetentionCompliance: string(s3api.ObjectLockRetentionModeCompliance),
-	}
+var retentionModeTexts = textTable[RetentionMode]{ //nolint:gochecknoglobals // a constant table; Go has no constant maps.
+	RetentionGovernance: string(s3api.ObjectLockRetentionModeGovernance),
+	RetentionCompliance: string(s3api.ObjectLockRetentionModeCompliance),
 }
 
 // MarshalText writes GOVERNANCE or COMPLIANCE.
 func (m RetentionMode) MarshalText() ([]byte, error) {
-	return retentionModeTexts().marshal("RetentionMode", m)
+	return retentionModeTexts.marshal("RetentionMode", m)
 }
 
 // UnmarshalText reads GOVERNANCE or COMPLIANCE and refuses any other text.
 func (m *RetentionMode) UnmarshalText(text []byte) error {
-	return retentionModeTexts().unmarshal("RetentionMode", text, m)
+	return retentionModeTexts.unmarshal("RetentionMode", text, m)
 }
 
 // LegalHold is a version's legal hold (s3-ssec-object-lock.md 6.5): three
@@ -265,21 +263,19 @@ const (
 // legalHoldTexts are the model's ObjectLockLegalHoldStatus values
 // (s3-ssec-object-lock.md 8). LegalHoldNever has none: HEAD omits the
 // header for it (6.7), and the field is omitzero, so it is never written.
-func legalHoldTexts() textTable[LegalHold] {
-	return textTable[LegalHold]{
-		LegalHoldOn:  string(s3api.ObjectLockLegalHoldStatusOn),
-		LegalHoldOff: string(s3api.ObjectLockLegalHoldStatusOff),
-	}
+var legalHoldTexts = textTable[LegalHold]{ //nolint:gochecknoglobals // a constant table; Go has no constant maps.
+	LegalHoldOn:  string(s3api.ObjectLockLegalHoldStatusOn),
+	LegalHoldOff: string(s3api.ObjectLockLegalHoldStatusOff),
 }
 
 // MarshalText writes ON or OFF and refuses LegalHoldNever.
 func (h LegalHold) MarshalText() ([]byte, error) {
-	return legalHoldTexts().marshal("LegalHold", h)
+	return legalHoldTexts.marshal("LegalHold", h)
 }
 
 // UnmarshalText reads ON or OFF and refuses any other text.
 func (h *LegalHold) UnmarshalText(text []byte) error {
-	return legalHoldTexts().unmarshal("LegalHold", text, h)
+	return legalHoldTexts.unmarshal("LegalHold", text, h)
 }
 
 // checkLockTarget refuses explicit lock settings on a bucket without
@@ -319,7 +315,7 @@ func bucketDefaultRetention(cfg *s3api.ObjectLockConfiguration) (defaultRetentio
 		return defaultRetention{}, false
 	}
 	d := cfg.Rule.DefaultRetention
-	mode, ok := retentionModeTexts().value(string(*d.Mode))
+	mode, ok := retentionModeTexts.value(string(*d.Mode))
 	if !ok {
 		return defaultRetention{}, false
 	}
@@ -394,7 +390,7 @@ func parseRetentionBody(r *s3api.ObjectLockRetention) (*Retention, *awserr.Error
 	case r.Mode == nil || r.RetainUntilDate == nil:
 		return nil, errMalformedXML()
 	}
-	mode, ok := retentionModeTexts().value(string(*r.Mode))
+	mode, ok := retentionModeTexts.value(string(*r.Mode))
 	if !ok {
 		return nil, errMalformedXML()
 	}
@@ -425,7 +421,7 @@ func parseLegalHoldBody(h *s3api.ObjectLockLegalHold) (LegalHold, *awserr.Error)
 	if h == nil || h.Status == nil {
 		return LegalHoldNever, errMalformedXML()
 	}
-	hold, ok := legalHoldTexts().value(string(*h.Status))
+	hold, ok := legalHoldTexts.value(string(*h.Status))
 	if !ok {
 		return LegalHoldNever, errMalformedXML()
 	}

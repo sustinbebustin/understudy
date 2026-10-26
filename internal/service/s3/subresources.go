@@ -626,7 +626,7 @@ func checkObjectLock(in *s3api.PutObjectLockConfigurationInput) *awserr.Error {
 	if d == nil || d.Mode == nil || (d.Days == nil) == (d.Years == nil) {
 		return errMalformedXML()
 	}
-	if _, ok := retentionModeTexts().value(string(*d.Mode)); !ok {
+	if _, ok := retentionModeTexts.value(string(*d.Mode)); !ok {
 		return errMalformedXML()
 	}
 	if d.Days != nil && (*d.Days < 1 || *d.Days > 36500) || d.Years != nil && (*d.Years < 1 || *d.Years > 100) {

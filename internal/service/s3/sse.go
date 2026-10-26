@@ -663,21 +663,19 @@ const (
 
 // blockedEncryptionTexts are the EncryptionType values each block is
 // written as (s3-ssec-object-lock.md 4.2).
-func blockedEncryptionTexts() textTable[BlockedEncryption] {
-	return textTable[BlockedEncryption]{
-		BlockSSEC: string(s3api.EncryptionTypeSseC),
-		BlockNone: string(s3api.EncryptionTypeNone),
-	}
+var blockedEncryptionTexts = textTable[BlockedEncryption]{ //nolint:gochecknoglobals // a constant table; Go has no constant maps.
+	BlockSSEC: string(s3api.EncryptionTypeSseC),
+	BlockNone: string(s3api.EncryptionTypeNone),
 }
 
 // MarshalText writes SSE-C or NONE, the EncryptionType values.
 func (b BlockedEncryption) MarshalText() ([]byte, error) {
-	return blockedEncryptionTexts().marshal("BlockedEncryption", b)
+	return blockedEncryptionTexts.marshal("BlockedEncryption", b)
 }
 
 // UnmarshalText reads SSE-C or NONE and refuses any other text.
 func (b *BlockedEncryption) UnmarshalText(text []byte) error {
-	return blockedEncryptionTexts().unmarshal("BlockedEncryption", text, b)
+	return blockedEncryptionTexts.unmarshal("BlockedEncryption", text, b)
 }
 
 // newBucketBlock is a new bucket's BlockedEncryption in region: BlockNone
@@ -738,7 +736,7 @@ func encryptionRead(b *Bucket) *s3api.ServerSideEncryptionConfiguration {
 	if rule.BucketKeyEnabled == nil {
 		rule.BucketKeyEnabled = new(false)
 	}
-	blocked := s3api.EncryptionType(blockedEncryptionTexts()[b.BlockedEncryption])
+	blocked := s3api.EncryptionType(blockedEncryptionTexts[b.BlockedEncryption])
 	rule.BlockedEncryptionTypes = &s3api.BlockedEncryptionTypes{EncryptionType: []s3api.EncryptionType{blocked}}
 	return &s3api.ServerSideEncryptionConfiguration{Rules: []s3api.ServerSideEncryptionRule{rule}}
 }
