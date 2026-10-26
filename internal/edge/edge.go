@@ -279,6 +279,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.answerForService(ctx, x, rt.svc, rt.reasons)
 	case notEmulated:
 		h.notEmulated(ctx, x, rt)
+	case notEmulatedTarget:
+		h.notEmulatedTarget(ctx, x, rt)
 	case unclaimed:
 		h.unclaimed(ctx, x, rt.reasons)
 	case toLocalStack:
@@ -294,7 +296,7 @@ func (h *Handler) refusedPage(ctx context.Context, x *exchange, rt route) bool {
 	switch rt.(type) {
 	case toAdmin, toLink:
 		return false
-	case toOperation, toUnknown, toRaw, toService, notEmulated, unclaimed, toLocalStack:
+	case toOperation, toUnknown, toRaw, toService, notEmulated, notEmulatedTarget, unclaimed, toLocalStack:
 	}
 	why, refused := h.crossSitePage(x.r)
 	if !refused {

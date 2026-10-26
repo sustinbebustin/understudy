@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -124,9 +126,27 @@ const issuesURL = "https://github.com/sustinbebustin/understudy/issues"
 // terminals link the whole URL.
 func NotImplemented(op *registry.Operation) *awserr.Error {
 	return &awserr.Error{
-		ID: awserr.NotImplemented(),
-		Message: fmt.Sprintf("understudy does not implement %s. Run 'understudy coverage --service %s' for what is supported; to ask for it, see %s?q=%s",
-			op.ID, op.ID.Service, issuesURL, op.ID),
-		Origin: awserr.Unimplemented{Op: op.ID},
+		ID:      awserr.NotImplemented(),
+		Message: notImplementedMessage(op.ID.String(), op.ID.Service),
+		Origin:  awserr.Unimplemented{Op: op.ID},
 	}
+}
+
+// NotEmulated is NotImplemented for an operation of a service understudy
+// does not emulate whose requests carry an emulated service's signing name,
+// such as DynamoDB Streams signed for dynamodb (dynamodb-streams.md 3.2):
+// the same 501 and message, naming the operation as service.Operation with
+// the service's SDK name, and pointing coverage at the emulated service.
+// No operation was dispatched, so its origin is Generic.
+func NotEmulated(service, operation string, coverage ref.ServiceID) *awserr.Error {
+	return &awserr.Error{
+		ID:      awserr.NotImplemented(),
+		Message: notImplementedMessage(service+"."+operation, coverage),
+		Origin:  awserr.Generic{},
+	}
+}
+
+func notImplementedMessage(name string, coverage ref.ServiceID) string {
+	return fmt.Sprintf("understudy does not implement %s. Run 'understudy coverage --service %s' for what is supported; to ask for it, see %s?q=%s",
+		name, coverage, issuesURL, url.QueryEscape(name))
 }

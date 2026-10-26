@@ -133,6 +133,12 @@ func TestEveryOperationLocalServesIsBound(t *testing.T) {
 			if slices.Contains(labelled, op.ID.Name) && (!partial || !strings.Contains(p.Note, "LatestStreamLabel is minted by DynamoDB Local")) {
 				h.Errorf("%s: coverage %#v does not list the stream-label deviation", op.ID.Name, bound.Coverage)
 			}
+			// The stream these answers name cannot be read: DynamoDB
+			// Streams is not emulated (dynamodb-streams.md 11.2).
+			const noStreams = "StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501"
+			if slices.Contains(labelled, op.ID.Name) && (!partial || !strings.Contains(p.Note, noStreams)) {
+				h.Errorf("%s: coverage %#v does not say the stream cannot be read", op.ID.Name, bound.Coverage)
+			}
 		}
 	})
 }

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/auth"
@@ -68,6 +69,14 @@ type notEmulated struct {
 	reasons     []reason
 }
 
+// notEmulatedTarget is an operation of a service understudy does not
+// emulate that X-Amz-Target names (rule 6).
+type notEmulatedTarget struct {
+	target    unemulatedTarget
+	operation string
+	reasons   []reason
+}
+
 // unclaimed is a request no rule claimed (rule 9), or one rule 5 rejected.
 type unclaimed struct{ reasons []reason }
 
@@ -76,15 +85,16 @@ type unclaimed struct{ reasons []reason }
 // passed over before it, for the Unclaimed journal event.
 type toLocalStack struct{ reasons []reason }
 
-func (toAdmin) isRoute()      {}
-func (toOperation) isRoute()  {}
-func (toUnknown) isRoute()    {}
-func (toRaw) isRoute()        {}
-func (toLink) isRoute()       {}
-func (toService) isRoute()    {}
-func (notEmulated) isRoute()  {}
-func (unclaimed) isRoute()    {}
-func (toLocalStack) isRoute() {}
+func (toAdmin) isRoute()           {}
+func (toOperation) isRoute()       {}
+func (toUnknown) isRoute()         {}
+func (toRaw) isRoute()             {}
+func (toLink) isRoute()            {}
+func (toService) isRoute()         {}
+func (notEmulated) isRoute()       {}
+func (notEmulatedTarget) isRoute() {}
+func (unclaimed) isRoute()         {}
+func (toLocalStack) isRoute()      {}
 
 // reason is why one claim rule passed over a request: its number in
 // ARCHITECTURE.md 4.1, which the journal records, and the words a client
@@ -319,7 +329,60 @@ func (c *claimer) awsJSON() (route, bool) {
 			return rt, true
 		}
 	}
-	return nil, false
+	return c.unemulatedJSON()
+}
+
+// unemulatedTarget is a service understudy does not emulate whose awsJson
+// requests carry the signing name of one it does, so rule 8 would answer
+// them as that service's unknown operation.
+type unemulatedTarget struct {
+	// name is the service as its SDKs name it (sdkId).
+	name string
+	// coverage is the emulated service whose coverage says what understudy
+	// does with this one.
+	coverage     ref.ServiceID
+	protocol     ref.ProtocolID
+	signingNames []string
+	operations   []string
+}
+
+// unemulated returns the service an X-Amz-Target prefix names among those
+// understudy does not emulate. DynamoDB Streams is signed for dynamodb
+// (dynamodb-streams.md 3.1, 3.2;
+// testdata/parity/dynamodb/R11/07-streams-signed-dynamodb.json); its
+// endpoint prefix streams.dynamodb, which AWS refuses, gets the same 501.
+func unemulated(prefix string) (unemulatedTarget, bool) {
+	if prefix != "DynamoDBStreams_20120810" {
+		return unemulatedTarget{}, false
+	}
+	return unemulatedTarget{
+		name: "DynamoDB Streams", coverage: "dynamodb", protocol: ref.AWSJSON10,
+		signingNames: []string{"dynamodb", "streams.dynamodb"},
+		operations:   []string{"DescribeStream", "GetRecords", "GetShardIterator", "ListStreams"},
+	}, true
+}
+
+// unemulatedJSON is rule 6's last part: an awsJson request naming an
+// operation of a service understudy does not emulate (unemulated), signed
+// for it or unsigned, is that service's 501, so the signing name's service
+// never answers it as its own unknown operation. A target naming no
+// operation of it, or a request in another shape, goes on to rule 8.
+func (c *claimer) unemulatedJSON() (route, bool) {
+	prefix, name, _ := strings.Cut(c.r.Header.Get("X-Amz-Target"), ".")
+	t, ok := unemulated(prefix)
+	if !ok || !slices.Contains(t.operations, name) {
+		return nil, false
+	}
+	if mt := mediaType(c.r.Header.Get("Content-Type")); c.r.Method != http.MethodPost || (mt != jsonMediaType(t.protocol) && mt != "application/json") {
+		c.decline(6, "X-Amz-Target names %s.%s, but the request is not a POST in %s", t.name, name, t.protocol)
+		return nil, false
+	}
+	if signed, ok := signingName(c.auth); ok && !slices.Contains(t.signingNames, signed) {
+		c.decline(6, "X-Amz-Target names %s.%s but the request is signed for %q", t.name, name, signed)
+		return nil, false
+	}
+	c.decline(6, "X-Amz-Target names %s.%s, and understudy does not emulate %s", t.name, name, t.name)
+	return notEmulatedTarget{target: t, operation: name, reasons: c.reasons}, true
 }
 
 // awsQuery is rule 7: a form body, or a GET with Action.

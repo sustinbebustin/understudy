@@ -34,6 +34,11 @@
 //     restJson1 by a JSON body, else restXml, whose body a JSON client still
 //     keeps as the message. Client-facing reasons drop the ARCHITECTURE.md
 //     4.1 rule numbers, which the journal keeps.
+//   - An X-Amz-Target naming an operation of a service understudy does not
+//     emulate but whose SDKs sign for one it does (DynamoDB Streams, signed
+//     for dynamodb) is claimed by rule 6 and answered with an unbound
+//     operation's 501 NotImplemented, naming the operation, so DynamoDB never
+//     answers it as its own unknown operation. It is journaled as Unclaimed.
 //   - A path under /_localstack/, LocalStack's reserved prefix, is claimed
 //     under rule 1 before S3, which would answer it as the bucket
 //     "_localstack" that no bucket name can be: 404 in the admin API's JSON

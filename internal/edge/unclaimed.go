@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/journal"
+	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
@@ -106,6 +107,21 @@ func (h *Handler) notEmulated(ctx context.Context, x *exchange, rt notEmulated) 
 			h.emulated + "; run 'understudy coverage' for the operations of each. Nothing was changed.",
 		Origin: awserr.Generic{},
 	})
+}
+
+// notEmulatedTarget answers an operation of a service understudy does not
+// emulate that X-Amz-Target names, such as DynamoDB Streams signed for
+// dynamodb, with the 501 NotImplemented an unbound operation gets (ADR
+// 0003), in the request's JSON envelope. As for notEmulated, the rule trace
+// stays in the Unclaimed journal event.
+func (h *Handler) notEmulatedTarget(ctx context.Context, x *exchange, rt notEmulatedTarget) {
+	h.journalUnclaimed(ctx, x, rt.reasons)
+	if h.warned.first("not emulated " + rt.target.name) {
+		h.log.LogAttrs(ctx, slog.LevelWarn, "a client called a service understudy does not emulate",
+			slog.String("service", rt.target.name), slog.String("operation", rt.operation),
+			slog.String("request_id", string(x.id)))
+	}
+	h.answerUnrouted(ctx, x, kernel.NotEmulated(rt.target.name, rt.operation, rt.target.coverage))
 }
 
 // unclaimed answers a request no rule claimed (rule 9): an AWS-shaped 400

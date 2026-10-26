@@ -97,6 +97,7 @@ understudy forwards DynamoDB to DynamoDB Local, so its answers carry Local's beh
 - TTL changed again within the interval is refused on AWS: "Time to live has been modified multiple times within a fixed interval" (`dynamodb/R04/03-ttl-disable.json`).
 - `UpdateTable` to `PROVISIONED` stamps `ProvisionedThroughput.LastIncreaseDateTime` in its answer on AWS; `CreateTable` and `DeleteTable` answers omit `WarmThroughput`, and `DeleteTable` omits the key schema (`dynamodb/R04/x-billing-to-provisioned.json`, `dynamodb/R04/01-create-table.json`, `dynamodb/R04/99-delete-table.json`).
 - `DescribeContributorInsights` is not implemented; AWS answers `DISABLED` (`dynamodb/R04/02-describe-contributor-insights.json`).
+- DynamoDB Streams is not implemented: a table takes `StreamSpecification` and answers `LatestStreamArn`, but `ListStreams`, `DescribeStream`, `GetShardIterator` and `GetRecords` answer 501 `NotImplemented`, signed for `dynamodb` as SDKs sign them or for `streams.dynamodb`. AWS serves them signed for `dynamodb` (`dynamodb/R11/07-streams-signed-dynamodb.json`).
 - An unknown KMS key is "KMS validation error: com.amazonaws.services.kms.model.NotFoundException: Key '<arn>' does not exist (...)" on AWS (`dynamodb/R04/x-create-table-unknown-kms.json`).
 - A fault rule cannot inject a `TransactionCanceledException` with `CancellationReasons`, so transaction conflicts cannot be simulated.
 

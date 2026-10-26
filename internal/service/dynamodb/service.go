@@ -75,6 +75,10 @@ const (
 	// streamLabels goes on the operations whose answers carry
 	// LatestStreamLabel (ADR 0009 amendment, ARCHITECTURE.md 15).
 	streamLabels = "aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one"
+	// noStreams goes on the same operations: Local keeps the stream, but
+	// understudy does not serve DynamoDB Streams, whose calls answer 501
+	// (dynamodb-streams.md 11.2).
+	noStreams = "StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501"
 )
 
 // notes joins coverage notes into one Partial.
@@ -82,13 +86,13 @@ func notes(ns ...string) registry.Partial { return registry.Partial{Note: string
 
 func (s *Service) bindTables(b dynamodbapi.Binder) {
 	createTable := named(func(in *dynamodbapi.CreateTableInput) string { return in.TableName })
-	b.CreateTableRaw(s.createTable, notes(caseTwins, streamLabels), tables(createTable))
+	b.CreateTableRaw(s.createTable, notes(caseTwins, streamLabels, noStreams), tables(createTable))
 	deleteTable := named(func(in *dynamodbapi.DeleteTableInput) string { return in.TableName })
 	b.DeleteTableRaw(s.deleteTable, registry.Full{}, tables(deleteTable))
 	describeTable := named(func(in *dynamodbapi.DescribeTableInput) string { return in.TableName })
-	b.DescribeTableRaw(s.describeTable, notes(streamLabels), tables(describeTable))
+	b.DescribeTableRaw(s.describeTable, notes(streamLabels, noStreams), tables(describeTable))
 	updateTable := named(func(in *dynamodbapi.UpdateTableInput) string { return in.TableName })
-	b.UpdateTableRaw(s.updateTable, notes(streamLabels), tables(updateTable))
+	b.UpdateTableRaw(s.updateTable, notes(streamLabels, noStreams), tables(updateTable))
 	b.ListTablesRaw(passthrough(s, noTables, plainAnswer[dynamodbapi.ListTablesInput]), registry.Full{})
 	b.DescribeLimitsRaw(passthrough(s, noTables, plainAnswer[dynamodbapi.DescribeLimitsInput]), registry.Full{})
 }

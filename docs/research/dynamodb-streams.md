@@ -52,7 +52,7 @@ Anything no source fixes is marked UNVERIFIED with the recording case that settl
 - Endpoints: IPv4 `streams.dynamodb.<region>.amazonaws.com`, dual-stack `streams-dynamodb.<region>.api.aws` (STREAMS, "Endpoints for DynamoDB Streams"); the MODEL rule set has the same templates. "The AWS SDKs provide separate clients for DynamoDB and DynamoDB Streams" (same section).
 - SDK configuration: `AWS_ENDPOINT_URL_DYNAMODB_STREAMS` and the `dynamodb_streams` config key override the global `AWS_ENDPOINT_URL` ([identifiers table](https://docs.aws.amazon.com/sdkref/latest/guide/ss-endpoints-table.html), [service-specific endpoints](https://docs.aws.amazon.com/sdkref/latest/guide/feature-ss-endpoints.html)). With only the global variable set, both clients reach the same understudy port.
 - IAM: the vendored service reference lists the four operations under the `dynamodb` prefix, with `DescribeStream`, `GetRecords` and `GetShardIterator` also authorizing `dynamodb:ReadDataForReplication` (`third_party/aws-service-reference/actions.json`). The managed policy [AWSLambdaDynamoDBExecutionRole](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AWSLambdaDynamoDBExecutionRole.html) grants exactly `dynamodb:DescribeStream`, `GetRecords`, `GetShardIterator`, `ListStreams` plus three `logs:` actions.
-- understudy today answers these targets 501 NotImplemented (`testdata/parity/dynamodb/R11/notes.md:L33`).
+- understudy today answers these targets 501 NotImplemented, signed for `dynamodb` or `streams.dynamodb` (`testdata/parity/dynamodb/R11/notes.md:L33`; `internal/edge/claim.go`, `unemulatedJSON`).
 
 ### 3.3 Error shapes
 
