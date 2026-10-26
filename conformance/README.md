@@ -11,6 +11,7 @@ Suites that check understudy from the outside, each a separate module or project
 | `terraform/` | Terraform: apply, a no-change plan, an update, destroy | `conformance/terraform/run.sh` |
 | `e2e-pipeline/` | the event-driven pipeline end to end | `conformance/e2e-pipeline/run.sh` |
 | `patterns/` | serverless-patterns as their READMEs run them, through Terraform | `conformance/patterns/run.sh` |
+| `iam-loop/` | the aws-cli and go-sdk suites as an IAM user: record under `--iam-enforce advise`, attach the rendered policies, re-run under `enforce` | `conformance/iam-loop/run.sh` |
 
 ## DynamoDB
 

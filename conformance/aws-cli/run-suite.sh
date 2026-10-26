@@ -10,6 +10,11 @@
 #                     the reason on a SKIP line
 #   UE_TEST_TIMEOUT   seconds allowed per test (default 180)
 #   UE_ONLY           extended regex; run only tests whose name matches
+#   UE_SKIP           extended regex; skip tests whose name matches, each
+#                     reported as a SKIP naming UE_SKIP (the IAM loop skips
+#                     the tests that need the account root, conformance/iam-loop)
+#   CONFORMANCE_NAME_SEED, CONFORMANCE_ROLE_POLICY_DIR
+#                     read by lib.sh's new_name and make_role (see there)
 #   UE_TRANSFER_CLIENTS
 #                     the AWS CLI transfer clients the s3 transfer tests run
 #                     under, one run each (default "classic crt"; see below)
@@ -62,8 +67,10 @@ run_test() {
   local name=$t${client:+[$client]}
   local log="$UE_RESULTS_DIR/$svc.$name.log"
   local start=$SECONDS rc secs reason
+  # UE_TEST names the test (and its transfer client) for new_name's seeded
+  # names.
   # shellcheck disable=SC2016 # the inner shell expands its own arguments and variables
-  UE_TRANSFER_CLIENT=$client timeout --kill-after=5 "$UE_TEST_TIMEOUT" bash -c '
+  UE_TEST=$name UE_TRANSFER_CLIENT=$client timeout --kill-after=5 "$UE_TEST_TIMEOUT" bash -c '
     set -eEuo pipefail
     source "$1/lib.sh"
     source "$2"
@@ -105,6 +112,12 @@ for file in "${files[@]}"; do
   echo "== $svc (${#tests[@]} tests)"
   for t in "${tests[@]}"; do
     if [ -n "${UE_ONLY:-}" ] && ! printf '%s' "$t" | grep -qE -- "$UE_ONLY"; then
+      continue
+    fi
+    if [ -n "${UE_SKIP:-}" ] && printf '%s' "$t" | grep -qE -- "$UE_SKIP"; then
+      skipped=$((skipped + 1))
+      printf 'SKIP\t%s\t%s\t0s\t%s\n' "$svc" "$t" "listed in UE_SKIP" >>"$results"
+      printf '  SKIP  %s: listed in UE_SKIP\n' "$t"
       continue
     fi
     if [ "$svc" = s3 ] && [[ $t =~ $transfer_tests ]] && [ "${#transfer_clients[@]}" -gt 0 ]; then

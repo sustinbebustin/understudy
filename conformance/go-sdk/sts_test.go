@@ -2,6 +2,8 @@ package gosdk_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -35,7 +37,7 @@ func TestSTSGetCallerIdentity(t *testing.T) {
 func TestSTSAssumeRole(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	role := createRole(t, name("sts-role"), lambdaTrustPolicy)
+	role := createRole(t, name(t, "sts-role"), lambdaTrustPolicy)
 	client := sts.NewFromConfig(awsCfg)
 	acct := account(t)
 	session := "conformance-session"
@@ -100,7 +102,7 @@ func TestSTSAssumeRole(t *testing.T) {
 
 	t.Run("role that does not exist", func(t *testing.T) {
 		_, err := client.AssumeRole(ctx, &sts.AssumeRoleInput{
-			RoleArn:         aws.String("arn:aws:iam::" + acct + ":role/" + name("missing")),
+			RoleArn:         aws.String("arn:aws:iam::" + acct + ":role/" + name(t, "missing")),
 			RoleSessionName: aws.String(session),
 		})
 		apiErr(t, err, "AssumeRole of a missing role", "AccessDenied")
@@ -130,13 +132,31 @@ func TestSTSGetSessionToken(t *testing.T) {
 // lambdaTrustPolicy lets Lambda assume a role.
 const lambdaTrustPolicy = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}`
 
+// rolePolicyDirEnv names the directory of per-role policies the IAM loop
+// gives the roles it re-creates (conformance/iam-loop).
+const rolePolicyDirEnv = "CONFORMANCE_ROLE_POLICY_DIR"
+
 // createRole creates an IAM role with the trust policy and deletes it when
-// the test ends.
+// the test ends. With CONFORMANCE_ROLE_POLICY_DIR set and a file
+// <roleName>.json in it, the account root then puts that file as the role's
+// inline policy iam-loop, the policy the IAM loop rendered for the role.
 func createRole(t *testing.T, roleName, trust string) *iamRole {
 	t.Helper()
 	client := iam.NewFromConfig(awsCfg)
 	out, err := client.CreateRole(t.Context(), &iam.CreateRoleInput{RoleName: aws.String(roleName), AssumeRolePolicyDocument: aws.String(trust)})
 	ok(t, err, "CreateRole "+roleName)
+	if dir := os.Getenv(rolePolicyDirEnv); dir != "" {
+		if doc, err := os.ReadFile(filepath.Join(dir, roleName+".json")); err == nil {
+			// The dummy key test is the default account's root (ADR 0012).
+			root := iam.NewFromConfig(awsCfg, func(o *iam.Options) {
+				o.Credentials = credentials.NewStaticCredentialsProvider("test", "test", "")
+			})
+			// The root calls nothing else, so the loop's check that the root
+			// made no call after setup holds; the role outlives the test.
+			_, err := root.PutRolePolicy(t.Context(), &iam.PutRolePolicyInput{RoleName: aws.String(roleName), PolicyName: aws.String("iam-loop"), PolicyDocument: aws.String(string(doc))})
+			ok(t, err, "PutRolePolicy iam-loop "+roleName)
+		}
+	}
 	t.Cleanup(func() {
 		_, _ = client.DeleteRole(context.Background(), &iam.DeleteRoleInput{RoleName: aws.String(roleName)})
 	})

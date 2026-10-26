@@ -51,7 +51,7 @@ func TestCloudWatchAlarms(t *testing.T) {
 	ctx := t.Context()
 	client := cloudwatch.NewFromConfig(awsCfg)
 	acct := account(t)
-	alarmName := name("alarm")
+	alarmName := name(t, "alarm")
 	in := alarmInput(alarmName)
 	in.Tags = []types.Tag{{Key: aws.String("team"), Value: aws.String("platform")}}
 	putAlarm(t, in)
@@ -73,7 +73,7 @@ func TestCloudWatchAlarms(t *testing.T) {
 		if a.TreatMissingData != nil || a.Unit != "" || a.AlarmDescription != nil || a.DatapointsToAlarm != nil {
 			t.Errorf("unset fields present: TreatMissingData %v, Unit %q, AlarmDescription %v, DatapointsToAlarm %v", a.TreatMissingData, a.Unit, a.AlarmDescription, a.DatapointsToAlarm)
 		}
-		none, err := client.DescribeAlarms(ctx, &cloudwatch.DescribeAlarmsInput{AlarmNames: []string{name("missing")}})
+		none, err := client.DescribeAlarms(ctx, &cloudwatch.DescribeAlarmsInput{AlarmNames: []string{name(t, "missing")}})
 		ok(t, err, "DescribeAlarms of a missing name (empty, not an error)")
 		if len(none.MetricAlarms) != 0 {
 			t.Errorf("DescribeAlarms of a missing name = %+v", none.MetricAlarms)
@@ -97,7 +97,7 @@ func TestCloudWatchAlarms(t *testing.T) {
 		if a := describeAlarm(t, client, alarmName); a.StateValue != types.StateValueAlarm {
 			t.Errorf("state after updating the alarm = %q, want ALARM kept", a.StateValue)
 		}
-		_, err = client.SetAlarmState(ctx, &cloudwatch.SetAlarmStateInput{AlarmName: aws.String(name("missing")), StateValue: types.StateValueOk, StateReason: aws.String("x")})
+		_, err = client.SetAlarmState(ctx, &cloudwatch.SetAlarmStateInput{AlarmName: aws.String(name(t, "missing")), StateValue: types.StateValueOk, StateReason: aws.String("x")})
 		errAs[*types.ResourceNotFound](t, err, "SetAlarmState on a missing alarm")
 		wantStatus(t, err, "SetAlarmState on a missing alarm", 404)
 		_, err = client.SetAlarmState(ctx, &cloudwatch.SetAlarmStateInput{AlarmName: aws.String(alarmName), StateValue: types.StateValue("INVALID"), StateReason: aws.String("x")})
@@ -143,10 +143,10 @@ func TestCloudWatchAlarms(t *testing.T) {
 	})
 
 	t.Run("DeleteAlarms", func(t *testing.T) {
-		other := name("doomed")
+		other := name(t, "doomed")
 		_, err := client.PutMetricAlarm(ctx, alarmInput(other))
 		ok(t, err, "PutMetricAlarm")
-		_, err = client.DeleteAlarms(ctx, &cloudwatch.DeleteAlarmsInput{AlarmNames: []string{other, name("never-existed")}})
+		_, err = client.DeleteAlarms(ctx, &cloudwatch.DeleteAlarmsInput{AlarmNames: []string{other, name(t, "never-existed")}})
 		ok(t, err, "DeleteAlarms with one existing and one missing name")
 		out, err := client.DescribeAlarms(ctx, &cloudwatch.DescribeAlarmsInput{AlarmNames: []string{other}})
 		ok(t, err, "DescribeAlarms")
@@ -165,7 +165,7 @@ func TestCloudWatchMetrics(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := cloudwatch.NewFromConfig(awsCfg)
-	namespace := "Conformance/" + name("ns")
+	namespace := "Conformance/" + name(t, "ns")
 	dims := []types.Dimension{{Name: aws.String("Service"), Value: aws.String("api")}}
 	at := time.Now().Add(-5 * time.Minute).Truncate(time.Minute).Add(10 * time.Second)
 

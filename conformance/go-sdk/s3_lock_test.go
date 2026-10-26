@@ -151,7 +151,7 @@ func TestS3SSEC(t *testing.T) {
 // always remove what they wrote (s3-ssec-object-lock.md 12).
 func lockBucket(t *testing.T, client *s3.Client) string {
 	t.Helper()
-	bucket := name("cf-lock")
+	bucket := name(t, "cf-lock")
 	_, err := client.CreateBucket(t.Context(), &s3.CreateBucketInput{Bucket: aws.String(bucket), ObjectLockEnabledForBucket: aws.Bool(true)})
 	ok(t, err, "CreateBucket with Object Lock")
 	t.Cleanup(func() {

@@ -5,6 +5,11 @@
 #
 #   examples/check.sh                                  # every example
 #   examples/check.sh python-worker docker-compose     # only these
+#   CONFORMANCE_IAM_ENFORCE=enforce CONFORMANCE_ADVISORIES_OUT=advisories.json \
+#     examples/check.sh                                # serve with --iam-enforce enforce
+#                                                      # (default off) and write the journal's
+#                                                      # advisories as JSON before stopping
+#                                                      # (conformance/iam-loop reads them)
 #
 # understudy serves on a free loopback port with a fresh data directory, and
 # every example runs under scripts/sealed, so no real AWS setting or
@@ -88,6 +93,10 @@ cleanup() {
       docker compose down --volumes --remove-orphans --rmi all >/dev/null 2>&1
   fi
   if [[ -n "$server_pid" ]] && kill -0 "$server_pid" 2>/dev/null; then
+    if [[ -n "${CONFORMANCE_ADVISORIES_OUT:-}" && -n "${endpoint:-}" ]]; then
+      "$build_dir/bin/understudy" journal --endpoint "$endpoint" --kind advisory --output json --limit 100000 \
+        >"$CONFORMANCE_ADVISORIES_OUT" 2>&1
+    fi
     kill -TERM "$server_pid"
     wait "$server_pid" 2>/dev/null
   fi
@@ -106,7 +115,7 @@ go -C "$repo_root" build -o "$build_dir/bin/understudy" ./cmd/understudy
 export PATH="$build_dir/bin:$PATH"
 
 "$build_dir/bin/understudy" serve --listen 127.0.0.1:0 --ready-file "$scratch/ready.json" \
-  --persist "$scratch/data" --log-format json >"$logs_dir/server.log" 2>&1 &
+  --persist "$scratch/data" --iam-enforce "${CONFORMANCE_IAM_ENFORCE:-off}" --log-format json >"$logs_dir/server.log" 2>&1 &
 server_pid=$!
 for _ in $(seq 1 100); do
   [[ -s "$scratch/ready.json" ]] && break

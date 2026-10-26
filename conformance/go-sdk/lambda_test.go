@@ -109,7 +109,7 @@ func TestLambdaFunctionLifecycle(t *testing.T) {
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
 	acct := account(t)
-	fnName := name("fn")
+	fnName := name(t, "fn")
 	role := createRole(t, fnName+"-role", lambdaTrustPolicy)
 	code := functionZip(t, "1")
 	sum := sha256.Sum256(code)
@@ -169,7 +169,7 @@ func TestLambdaFunctionLifecycle(t *testing.T) {
 		wantMessage(t, err, "CreateFunction of an existing name", "Function already exist: "+fnName)
 
 		_, err = client.CreateFunction(ctx, &lambda.CreateFunctionInput{
-			FunctionName: aws.String(name("badrole")), Role: aws.String("r1"), Runtime: types.RuntimePython313,
+			FunctionName: aws.String(name(t, "badrole")), Role: aws.String("r1"), Runtime: types.RuntimePython313,
 			Handler: aws.String("handler.echo"), Code: &types.FunctionCode{ZipFile: code},
 		})
 		apiErr(t, err, "CreateFunction with role r1", "ValidationException")
@@ -177,14 +177,14 @@ func TestLambdaFunctionLifecycle(t *testing.T) {
 		wantMessageContains(t, err, "CreateFunction with role r1", "Value 'r1' at 'role' failed to satisfy constraint: Member must satisfy regular expression pattern: arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+")
 
 		_, err = client.CreateFunction(ctx, &lambda.CreateFunctionInput{
-			FunctionName: aws.String(name("old")), Role: role.Arn, Runtime: types.RuntimePython37,
+			FunctionName: aws.String(name(t, "old")), Role: role.Arn, Runtime: types.RuntimePython37,
 			Handler: aws.String("handler.echo"), Code: &types.FunctionCode{ZipFile: code},
 		})
 		errAs[*types.InvalidParameterValueException](t, err, "CreateFunction with python3.7")
 		wantMessage(t, err, "CreateFunction with python3.7", "The runtime parameter of python3.7 is no longer supported for creating or updating AWS Lambda functions. We recommend you use a supported runtime while creating or updating functions.")
 
 		_, err = client.CreateFunction(ctx, &lambda.CreateFunctionInput{
-			FunctionName: aws.String(name("badzip")), Role: role.Arn, Runtime: types.RuntimePython313,
+			FunctionName: aws.String(name(t, "badzip")), Role: role.Arn, Runtime: types.RuntimePython313,
 			Handler: aws.String("handler.echo"), Code: &types.FunctionCode{ZipFile: []byte("not a zip file")},
 		})
 		errAs[*types.InvalidParameterValueException](t, err, "CreateFunction with a corrupt zip")
@@ -227,7 +227,7 @@ func TestLambdaFunctionLifecycle(t *testing.T) {
 			t.Errorf("ListFunctions(FunctionVersion ALL) does not list %s:$LATEST", fnArn)
 		}
 
-		missing := name("missing")
+		missing := name(t, "missing")
 		_, err = client.GetFunction(ctx, &lambda.GetFunctionInput{FunctionName: aws.String(missing)})
 		errAs[*types.ResourceNotFoundException](t, err, "GetFunction of a missing function")
 		wantStatus(t, err, "GetFunction of a missing function", 404)
@@ -428,7 +428,7 @@ func TestLambdaPermissions(t *testing.T) {
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
 	acct := account(t)
-	fn := deployFunction(t, name("perm"), "handler.echo", nil)
+	fn := deployFunction(t, name(t, "perm"), "handler.echo", nil)
 	fnName := aws.ToString(fn.FunctionName)
 	topic := "arn:aws:sns:" + region() + ":" + acct + ":t"
 
@@ -507,7 +507,7 @@ func TestLambdaInvoke(t *testing.T) {
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
 	acct := account(t)
-	echo := deployFunction(t, name("echo"), "handler.echo", nil)
+	echo := deployFunction(t, name(t, "echo"), "handler.echo", nil)
 	echoName := aws.ToString(echo.FunctionName)
 
 	t.Run("RequestResponse", func(t *testing.T) {
@@ -546,7 +546,7 @@ func TestLambdaInvoke(t *testing.T) {
 		errAs[*types.InvalidRequestContentException](t, err, "Invoke with a non-JSON payload")
 		wantStatus(t, err, "Invoke with a non-JSON payload", 400)
 		wantMessageContains(t, err, "Invoke with a non-JSON payload", "Could not parse request body into json")
-		missing := name("missing")
+		missing := name(t, "missing")
 		_, err = client.Invoke(ctx, &lambda.InvokeInput{FunctionName: aws.String(missing)})
 		errAs[*types.ResourceNotFoundException](t, err, "Invoke of a missing function")
 		// An unqualified Invoke names the $LATEST ARN (LocalStack
@@ -555,7 +555,7 @@ func TestLambdaInvoke(t *testing.T) {
 	})
 
 	t.Run("function error", func(t *testing.T) {
-		fn := deployFunction(t, name("fail"), "handler.fail", nil)
+		fn := deployFunction(t, name(t, "fail"), "handler.fail", nil)
 		out, err := client.Invoke(ctx, &lambda.InvokeInput{FunctionName: fn.FunctionName})
 		ok(t, err, "Invoke of a failing handler")
 		if out.StatusCode != 200 || aws.ToString(out.FunctionError) != "Unhandled" {
@@ -573,7 +573,7 @@ func TestLambdaInvoke(t *testing.T) {
 	})
 
 	t.Run("timeout", func(t *testing.T) {
-		fn := deployFunction(t, name("slow"), "handler.sleep", nil)
+		fn := deployFunction(t, name(t, "slow"), "handler.sleep", nil)
 		_, err := client.UpdateFunctionConfiguration(ctx, &lambda.UpdateFunctionConfigurationInput{FunctionName: fn.FunctionName, Timeout: aws.Int32(1)})
 		ok(t, err, "UpdateFunctionConfiguration Timeout 1")
 		ok(t, lambda.NewFunctionUpdatedV2Waiter(client).Wait(ctx, &lambda.GetFunctionInput{FunctionName: fn.FunctionName}, time.Minute), "FunctionUpdatedV2 waiter")
@@ -623,7 +623,7 @@ func TestLambdaEventInvokeConfig(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
-	fn := deployFunction(t, name("async"), "handler.echo", nil)
+	fn := deployFunction(t, name(t, "async"), "handler.echo", nil)
 	fnName := aws.ToString(fn.FunctionName)
 	latestArn := aws.ToString(fn.FunctionArn) + ":$LATEST"
 
@@ -662,7 +662,7 @@ func TestLambdaFunctionURL(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
-	fn := deployFunction(t, name("url"), "handler.url", nil)
+	fn := deployFunction(t, name(t, "url"), "handler.url", nil)
 	fnName := aws.ToString(fn.FunctionName)
 
 	created, err := client.CreateFunctionUrlConfig(ctx, &lambda.CreateFunctionUrlConfigInput{FunctionName: aws.String(fnName), AuthType: types.FunctionUrlAuthTypeNone})
@@ -755,11 +755,11 @@ func TestLambdaSQSEventSourceMapping(t *testing.T) {
 	client := lambda.NewFromConfig(awsCfg)
 	sqsClient := sqs.NewFromConfig(awsCfg)
 	acct := account(t)
-	resultURL := createQueue(t, name("esm-result"), nil)
-	fn := deployFunction(t, name("esm"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": resultURL})
+	resultURL := createQueue(t, name(t, "esm-result"), nil)
+	fn := deployFunction(t, name(t, "esm"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": resultURL})
 	fnName := aws.ToString(fn.FunctionName)
-	dlqURL := createQueue(t, name("esm-dlq"), nil)
-	srcName := name("esm-src")
+	dlqURL := createQueue(t, name(t, "esm-dlq"), nil)
+	srcName := name(t, "esm-src")
 	srcURL := createQueue(t, srcName, map[string]string{
 		"VisibilityTimeout": "5",
 		"RedrivePolicy":     `{"deadLetterTargetArn":"` + queueArn(t, dlqURL) + `","maxReceiveCount":"1"}`,
@@ -770,10 +770,10 @@ func TestLambdaSQSEventSourceMapping(t *testing.T) {
 		_, err := client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(fnName), EventSourceArn: aws.String(srcArn), BatchSize: aws.Int32(20)})
 		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping BatchSize 20 without a window")
 		wantMessage(t, err, "CreateEventSourceMapping BatchSize 20 without a window", "Maximum batch window in seconds must be greater than 0 if maximum batch size is greater than 10")
-		_, err = client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(name("nofn")), EventSourceArn: aws.String(srcArn)})
+		_, err = client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(name(t, "nofn")), EventSourceArn: aws.String(srcArn)})
 		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping of a missing function")
 		wantMessage(t, err, "CreateEventSourceMapping of a missing function", "Function does not exist")
-		short := createQueue(t, name("esm-short"), map[string]string{"VisibilityTimeout": "2"})
+		short := createQueue(t, name(t, "esm-short"), map[string]string{"VisibilityTimeout": "2"})
 		_, err = client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(fnName), EventSourceArn: aws.String(queueArn(t, short))})
 		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping on a queue whose visibility timeout is below the function timeout")
 		wantMessage(t, err, "CreateEventSourceMapping on a queue whose visibility timeout is below the function timeout", "Queue visibility timeout: 2 seconds is less than Function timeout: 5 seconds")

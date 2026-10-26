@@ -3,6 +3,7 @@ package gosdk_test
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -128,14 +130,38 @@ func account(t *testing.T) string {
 // region is the region the clients sign for.
 func region() string { return awsCfg.Region }
 
+// nameSeedEnv names the variable that makes name deterministic.
+const nameSeedEnv = "CONFORMANCE_NAME_SEED"
+
+var (
+	namesMu    sync.Mutex
+	nameCounts = map[string]int{}
+)
+
 // name returns prefix plus a random lowercase suffix, unique per call, so
 // tests never collide with each other or with an earlier run.
-func name(prefix string) string {
-	b := make([]byte, 5)
-	if _, err := rand.Read(b); err != nil {
-		panic(err)
+//
+// With CONFORMANCE_NAME_SEED set, the suffix is instead a function of the
+// seed, tb's name, prefix and how many names of prefix tb drew before, so
+// two runs with one seed create the same names: the IAM loop's second run
+// (conformance/iam-loop) must touch the resources the policy rendered from
+// its first run names.
+func name(tb testing.TB, prefix string) string {
+	seed := os.Getenv(nameSeedEnv)
+	if seed == "" {
+		b := make([]byte, 5)
+		if _, err := rand.Read(b); err != nil {
+			panic(err)
+		}
+		return prefix + "-" + hex.EncodeToString(b)
 	}
-	return prefix + "-" + hex.EncodeToString(b)
+	key := tb.Name() + "/" + prefix
+	namesMu.Lock()
+	n := nameCounts[key]
+	nameCounts[key] = n + 1
+	namesMu.Unlock()
+	sum := sha256.Sum256([]byte(seed + "/" + key + "/" + strconv.Itoa(n)))
+	return prefix + "-" + hex.EncodeToString(sum[:5])
 }
 
 // ok fails the test when err is not nil.

@@ -63,7 +63,7 @@ func TestDynamoDBTable(t *testing.T) {
 	ctx := t.Context()
 	client := dynamodb.NewFromConfig(awsCfg)
 	acct := account(t)
-	tableName := name("locks")
+	tableName := name(t, "locks")
 	created := createLockTable(t, tableName)
 	tableArn := "arn:aws:dynamodb:" + region() + ":" + acct + ":table/" + tableName
 
@@ -93,7 +93,7 @@ func TestDynamoDBTable(t *testing.T) {
 			BillingMode:          types.BillingModePayPerRequest,
 		})
 		errAs[*types.ResourceInUseException](t, err, "CreateTable with an existing name")
-		missing := name("missing")
+		missing := name(t, "missing")
 		_, err = client.DescribeTable(ctx, &dynamodb.DescribeTableInput{TableName: aws.String(missing)})
 		errAs[*types.ResourceNotFoundException](t, err, "DescribeTable missing")
 		wantStatus(t, err, "DescribeTable missing", 400)
@@ -169,7 +169,7 @@ func TestDynamoDBItems(t *testing.T) {
 	requireDynamoDB(t)
 	ctx := t.Context()
 	client := dynamodb.NewFromConfig(awsCfg)
-	tableName := name("items")
+	tableName := name(t, "items")
 	createLockTable(t, tableName)
 	table := aws.String(tableName)
 

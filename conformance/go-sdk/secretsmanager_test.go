@@ -45,7 +45,7 @@ func TestSecretsManagerLifecycle(t *testing.T) {
 	ctx := t.Context()
 	client := secretsmanager.NewFromConfig(awsCfg)
 	acct := account(t)
-	secretName := name("app/db")
+	secretName := name(t, "app/db")
 
 	created, err := client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{
 		Name: aws.String(secretName), SecretString: aws.String(`{"user":"app"}`), Description: aws.String("conformance"),
@@ -103,7 +103,7 @@ func TestSecretsManagerLifecycle(t *testing.T) {
 		_, err := client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{Name: aws.String(secretName), SecretString: aws.String("x")})
 		errAs[*types.ResourceExistsException](t, err, "CreateSecret with an existing name")
 		wantMessage(t, err, "CreateSecret with an existing name", "The operation failed because the secret "+secretName+" already exists.")
-		missing := name("missing")
+		missing := name(t, "missing")
 		_, err = client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{SecretId: aws.String(missing)})
 		errAs[*types.ResourceNotFoundException](t, err, "GetSecretValue of a missing secret")
 		wantStatus(t, err, "GetSecretValue of a missing secret", 400)
@@ -170,7 +170,7 @@ func TestSecretsManagerVersions(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := secretsmanager.NewFromConfig(awsCfg)
-	secretName := name("versions")
+	secretName := name(t, "versions")
 	v1 := aws.ToString(createSecret(t, secretName, "one").VersionId)
 
 	put2, err := client.PutSecretValue(ctx, &secretsmanager.PutSecretValueInput{SecretId: aws.String(secretName), SecretString: aws.String("two")})
@@ -282,7 +282,7 @@ func TestSecretsManagerEmptyAndBinary(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := secretsmanager.NewFromConfig(awsCfg)
-	secretName := name("empty")
+	secretName := name(t, "empty")
 	out, err := client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{Name: aws.String(secretName)})
 	ok(t, err, "CreateSecret without a value")
 	t.Cleanup(func() {
@@ -310,7 +310,7 @@ func TestSecretsManagerDeletion(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := secretsmanager.NewFromConfig(awsCfg)
-	secretName := name("deleted")
+	secretName := name(t, "deleted")
 	arn := aws.ToString(createSecret(t, secretName, "value").ARN)
 
 	_, err := client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{SecretId: aws.String(secretName), RecoveryWindowInDays: aws.Int64(3)})
@@ -371,7 +371,7 @@ func TestSecretsManagerDeletion(t *testing.T) {
 	if aws.ToString(again.ARN) == arn {
 		t.Errorf("a recreated secret reuses the ARN %q; AWS gives it a new random suffix", arn)
 	}
-	_, err = client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{SecretId: aws.String(name("never")), ForceDeleteWithoutRecovery: aws.Bool(true)})
+	_, err = client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{SecretId: aws.String(name(t, "never")), ForceDeleteWithoutRecovery: aws.Bool(true)})
 	ok(t, err, "force-deleting a secret that does not exist (no ResourceNotFoundException)")
 }
 
@@ -380,7 +380,7 @@ func TestSecretsManagerKMS(t *testing.T) {
 	ctx := t.Context()
 	client := secretsmanager.NewFromConfig(awsCfg)
 	key := createKey(t, "secrets manager conformance")
-	secretName := name("kms")
+	secretName := name(t, "kms")
 	out, err := client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{Name: aws.String(secretName), SecretString: aws.String("encrypted"), KmsKeyId: key.KeyId})
 	ok(t, err, "CreateSecret with a customer key")
 	t.Cleanup(func() {

@@ -165,7 +165,7 @@ func TestSQSQueueLifecycle(t *testing.T) {
 	ctx := t.Context()
 	client := sqs.NewFromConfig(awsCfg)
 	acct := account(t)
-	queueName := name("lifecycle")
+	queueName := name(t, "lifecycle")
 	queueURL := createQueue(t, queueName, nil)
 
 	if !strings.HasSuffix(queueURL, "/"+acct+"/"+queueName) {
@@ -241,7 +241,7 @@ func TestSQSQueueLifecycle(t *testing.T) {
 		if aws.ToString(got.QueueUrl) != queueURL {
 			t.Errorf("GetQueueUrl = %q, want %q", aws.ToString(got.QueueUrl), queueURL)
 		}
-		_, err = client.GetQueueUrl(ctx, &sqs.GetQueueUrlInput{QueueName: aws.String(name("missing"))})
+		_, err = client.GetQueueUrl(ctx, &sqs.GetQueueUrlInput{QueueName: aws.String(name(t, "missing"))})
 		e := typedErr[*types.QueueDoesNotExist](t, err, "GetQueueUrl of a missing queue")
 		if e.ErrorCode() != "AWS.SimpleQueueService.NonExistentQueue" {
 			t.Errorf("error code = %q, want AWS.SimpleQueueService.NonExistentQueue", e.ErrorCode())
@@ -249,7 +249,7 @@ func TestSQSQueueLifecycle(t *testing.T) {
 		wantStatus(t, err, "GetQueueUrl of a missing queue", 400)
 		wantMessage(t, err, "GetQueueUrl of a missing queue", "The specified queue does not exist.")
 
-		prefix := name("list")
+		prefix := name(t, "list")
 		createQueue(t, prefix+"-a", nil)
 		createQueue(t, prefix+"-b", nil)
 		list, err := client.ListQueues(ctx, &sqs.ListQueuesInput{QueueNamePrefix: aws.String(prefix)})
@@ -262,7 +262,7 @@ func TestSQSQueueLifecycle(t *testing.T) {
 		if len(page.QueueUrls) != 1 || page.NextToken == nil {
 			t.Errorf("ListQueues MaxResults 1 = %v with NextToken %v, want one URL and a token", page.QueueUrls, page.NextToken)
 		}
-		none, err := client.ListQueues(ctx, &sqs.ListQueuesInput{QueueNamePrefix: aws.String(name("nothing"))})
+		none, err := client.ListQueues(ctx, &sqs.ListQueuesInput{QueueNamePrefix: aws.String(name(t, "nothing"))})
 		ok(t, err, "ListQueues with no match")
 		if len(none.QueueUrls) != 0 {
 			t.Errorf("ListQueues with no match = %v", none.QueueUrls)
@@ -340,7 +340,7 @@ func TestSQSQueueLifecycle(t *testing.T) {
 	})
 
 	t.Run("DeleteQueue", func(t *testing.T) {
-		gone := name("gone")
+		gone := name(t, "gone")
 		goneURL := createQueue(t, gone, nil)
 		_, err := client.DeleteQueue(ctx, &sqs.DeleteQueueInput{QueueUrl: aws.String(goneURL)})
 		ok(t, err, "DeleteQueue")
@@ -362,7 +362,7 @@ func TestSQSSendReceive(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := sqs.NewFromConfig(awsCfg)
-	queueURL := createQueue(t, name("send"), nil)
+	queueURL := createQueue(t, name(t, "send"), nil)
 
 	attrs := map[string]types.MessageAttributeValue{
 		"General": str("String", "Kenobi"),
@@ -447,7 +447,7 @@ func TestSQSSendReceive(t *testing.T) {
 	}
 
 	t.Run("attribute name filters", func(t *testing.T) {
-		qURL := createQueue(t, name("filters"), nil)
+		qURL := createQueue(t, name(t, "filters"), nil)
 		sel := map[string]types.MessageAttributeValue{"General": str("String", "Kenobi"), "Hello": str("String", "There"), "Help.Me": str("String", "Me")}
 		_, err := client.SendMessage(ctx, &sqs.SendMessageInput{QueueUrl: aws.String(qURL), MessageBody: aws.String("filters"), MessageAttributes: sel})
 		ok(t, err, "SendMessage")
@@ -493,7 +493,7 @@ func TestSQSSendValidation(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := sqs.NewFromConfig(awsCfg)
-	queueURL := createQueue(t, name("validation"), map[string]string{"MaximumMessageSize": "1024"})
+	queueURL := createQueue(t, name(t, "validation"), map[string]string{"MaximumMessageSize": "1024"})
 
 	_, err := client.SendMessage(ctx, &sqs.SendMessageInput{QueueUrl: aws.String(queueURL), MessageBody: aws.String("")})
 	apiErr(t, err, "SendMessage with an empty body", "MissingParameter")
@@ -540,7 +540,7 @@ func TestSQSBatches(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := sqs.NewFromConfig(awsCfg)
-	queueURL := createQueue(t, name("batch"), map[string]string{"MaximumMessageSize": "1024"})
+	queueURL := createQueue(t, name(t, "batch"), map[string]string{"MaximumMessageSize": "1024"})
 
 	sent, err := client.SendMessageBatch(ctx, &sqs.SendMessageBatchInput{QueueUrl: aws.String(queueURL), Entries: []types.SendMessageBatchRequestEntry{
 		{Id: aws.String("ok-1"), MessageBody: aws.String("first")},
@@ -591,7 +591,7 @@ func TestSQSBatches(t *testing.T) {
 		_, err = client.SendMessageBatch(ctx, &sqs.SendMessageBatchInput{QueueUrl: aws.String(queueURL), Entries: []types.SendMessageBatchRequestEntry{}})
 		errAs[*types.EmptyBatchRequest](t, err, "SendMessageBatch with no entries")
 
-		big := createQueue(t, name("batch-big"), nil)
+		big := createQueue(t, name(t, "batch-big"), nil)
 		half := strings.Repeat("c", 524288)
 		_, err = client.SendMessageBatch(ctx, &sqs.SendMessageBatchInput{QueueUrl: aws.String(big), Entries: []types.SendMessageBatchRequestEntry{
 			{Id: aws.String("a"), MessageBody: aws.String(half)}, {Id: aws.String("b"), MessageBody: aws.String(half + "c")},
@@ -639,7 +639,7 @@ func TestSQSVisibilityAndDelay(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := sqs.NewFromConfig(awsCfg)
-	queueURL := createQueue(t, name("visibility"), nil)
+	queueURL := createQueue(t, name(t, "visibility"), nil)
 
 	_, err := client.SendMessage(ctx, &sqs.SendMessageInput{QueueUrl: aws.String(queueURL), MessageBody: aws.String("hide me")})
 	ok(t, err, "SendMessage")
@@ -722,7 +722,7 @@ func TestSQSLongPolling(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := sqs.NewFromConfig(awsCfg)
-	queueURL := createQueue(t, name("longpoll"), nil)
+	queueURL := createQueue(t, name(t, "longpoll"), nil)
 
 	t.Run("empty queue waits", func(t *testing.T) {
 		start := time.Now()
@@ -754,7 +754,7 @@ func TestSQSLongPolling(t *testing.T) {
 	})
 
 	t.Run("queue ReceiveMessageWaitTimeSeconds applies", func(t *testing.T) {
-		waitURL := createQueue(t, name("longpoll-attr"), map[string]string{"ReceiveMessageWaitTimeSeconds": "2"})
+		waitURL := createQueue(t, name(t, "longpoll-attr"), map[string]string{"ReceiveMessageWaitTimeSeconds": "2"})
 		start := time.Now()
 		out, err := client.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{QueueUrl: aws.String(waitURL)})
 		ok(t, err, "ReceiveMessage without WaitTimeSeconds")
@@ -771,7 +771,7 @@ func TestSQSPurge(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := sqs.NewFromConfig(awsCfg)
-	queueName := name("purge")
+	queueName := name(t, "purge")
 	queueURL := createQueue(t, queueName, nil)
 	for i := range 3 {
 		_, err := client.SendMessage(ctx, &sqs.SendMessageInput{QueueUrl: aws.String(queueURL), MessageBody: aws.String(fmt.Sprint("m", i)), DelaySeconds: int32(i * 30)})
@@ -805,14 +805,14 @@ func TestSQSFifo(t *testing.T) {
 	client := sqs.NewFromConfig(awsCfg)
 
 	t.Run("queue creation", func(t *testing.T) {
-		_, err := client.CreateQueue(ctx, &sqs.CreateQueueInput{QueueName: aws.String(name("nosuffix")), Attributes: map[string]string{"FifoQueue": "true"}})
+		_, err := client.CreateQueue(ctx, &sqs.CreateQueueInput{QueueName: aws.String(name(t, "nosuffix")), Attributes: map[string]string{"FifoQueue": "true"}})
 		apiErr(t, err, "CreateQueue FifoQueue without .fifo", "InvalidParameterValue")
-		_, err = client.CreateQueue(ctx, &sqs.CreateQueueInput{QueueName: aws.String(name("std") + ".fifo")})
+		_, err = client.CreateQueue(ctx, &sqs.CreateQueueInput{QueueName: aws.String(name(t, "std") + ".fifo")})
 		apiErr(t, err, "CreateQueue of a standard queue named .fifo", "InvalidParameterValue")
-		_, err = client.CreateQueue(ctx, &sqs.CreateQueueInput{QueueName: aws.String(name("std")), Attributes: map[string]string{"ContentBasedDeduplication": "true"}})
+		_, err = client.CreateQueue(ctx, &sqs.CreateQueueInput{QueueName: aws.String(name(t, "std")), Attributes: map[string]string{"ContentBasedDeduplication": "true"}})
 		errAs[*types.InvalidAttributeName](t, err, "CreateQueue of a standard queue with ContentBasedDeduplication")
 
-		fifoURL := createQueue(t, name("attrs")+".fifo", map[string]string{"FifoQueue": "true"})
+		fifoURL := createQueue(t, name(t, "attrs")+".fifo", map[string]string{"FifoQueue": "true"})
 		attrs := queueAttrs(t, fifoURL)
 		for k, v := range map[string]string{"FifoQueue": "true", "DeduplicationScope": "queue", "FifoThroughputLimit": "perQueue", "ContentBasedDeduplication": "false"} {
 			if attrs[k] != v {
@@ -825,7 +825,7 @@ func TestSQSFifo(t *testing.T) {
 	})
 
 	t.Run("send validation", func(t *testing.T) {
-		fifoURL := createQueue(t, name("validate")+".fifo", map[string]string{"FifoQueue": "true"})
+		fifoURL := createQueue(t, name(t, "validate")+".fifo", map[string]string{"FifoQueue": "true"})
 		_, err := client.SendMessage(ctx, &sqs.SendMessageInput{QueueUrl: aws.String(fifoURL), MessageBody: aws.String("x"), MessageDeduplicationId: aws.String("d")})
 		apiErr(t, err, "FIFO SendMessage without MessageGroupId", "MissingParameter")
 		wantMessage(t, err, "FIFO SendMessage without MessageGroupId", "The request must contain the parameter MessageGroupId.")
@@ -846,7 +846,7 @@ func TestSQSFifo(t *testing.T) {
 	})
 
 	t.Run("group ordering and blocking", func(t *testing.T) {
-		fifoURL := createQueue(t, name("order")+".fifo", map[string]string{"FifoQueue": "true", "ContentBasedDeduplication": "true"})
+		fifoURL := createQueue(t, name(t, "order")+".fifo", map[string]string{"FifoQueue": "true", "ContentBasedDeduplication": "true"})
 		var seqs []string
 		for _, s := range []struct{ group, body string }{{"g1", "g1-m1"}, {"g2", "g2-m1"}, {"g1", "g1-m2"}, {"g1", "g1-m3"}} {
 			out, err := client.SendMessage(ctx, &sqs.SendMessageInput{QueueUrl: aws.String(fifoURL), MessageBody: aws.String(s.body), MessageGroupId: aws.String(s.group)})
@@ -900,7 +900,7 @@ func TestSQSFifo(t *testing.T) {
 	})
 
 	t.Run("deduplication", func(t *testing.T) {
-		fifoURL := createQueue(t, name("dedup")+".fifo", map[string]string{"FifoQueue": "true"})
+		fifoURL := createQueue(t, name(t, "dedup")+".fifo", map[string]string{"FifoQueue": "true"})
 		for _, group := range []string{"g1", "g2"} {
 			_, err := client.SendMessage(ctx, &sqs.SendMessageInput{QueueUrl: aws.String(fifoURL), MessageBody: aws.String("dup-" + group), MessageGroupId: aws.String(group), MessageDeduplicationId: aws.String("same-id")})
 			ok(t, err, "SendMessage with a repeated deduplication id")
@@ -915,7 +915,7 @@ func TestSQSFifo(t *testing.T) {
 			t.Errorf("a duplicate sent after the original was deleted was delivered: %d messages", len(got))
 		}
 
-		groupURL := createQueue(t, name("dedup-group")+".fifo", map[string]string{"FifoQueue": "true", "DeduplicationScope": "messageGroup"})
+		groupURL := createQueue(t, name(t, "dedup-group")+".fifo", map[string]string{"FifoQueue": "true", "DeduplicationScope": "messageGroup"})
 		for _, group := range []string{"g1", "g2"} {
 			_, err := client.SendMessage(ctx, &sqs.SendMessageInput{QueueUrl: aws.String(groupURL), MessageBody: aws.String("dup-" + group), MessageGroupId: aws.String(group), MessageDeduplicationId: aws.String("same-id")})
 			ok(t, err, "SendMessage")
@@ -924,7 +924,7 @@ func TestSQSFifo(t *testing.T) {
 			t.Errorf("with DeduplicationScope messageGroup, the same id in two groups delivered %d messages, want 2", len(got))
 		}
 
-		cbdURL := createQueue(t, name("cbd")+".fifo", map[string]string{"FifoQueue": "true", "ContentBasedDeduplication": "true"})
+		cbdURL := createQueue(t, name(t, "cbd")+".fifo", map[string]string{"FifoQueue": "true", "ContentBasedDeduplication": "true"})
 		for range 2 {
 			_, err := client.SendMessage(ctx, &sqs.SendMessageInput{QueueUrl: aws.String(cbdURL), MessageBody: aws.String("same body"), MessageGroupId: aws.String("g")})
 			ok(t, err, "SendMessage with content-based deduplication")
@@ -935,7 +935,7 @@ func TestSQSFifo(t *testing.T) {
 	})
 
 	t.Run("expired receipt handle", func(t *testing.T) {
-		fifoURL := createQueue(t, name("expired")+".fifo", map[string]string{"FifoQueue": "true", "ContentBasedDeduplication": "true"})
+		fifoURL := createQueue(t, name(t, "expired")+".fifo", map[string]string{"FifoQueue": "true", "ContentBasedDeduplication": "true"})
 		_, err := client.SendMessage(ctx, &sqs.SendMessageInput{QueueUrl: aws.String(fifoURL), MessageBody: aws.String("x"), MessageGroupId: aws.String("g")})
 		ok(t, err, "SendMessage")
 		out, err := client.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{QueueUrl: aws.String(fifoURL), VisibilityTimeout: 1, WaitTimeSeconds: 1})
@@ -951,7 +951,7 @@ func TestSQSFifo(t *testing.T) {
 	})
 
 	t.Run("ReceiveRequestAttemptId", func(t *testing.T) {
-		fifoURL := createQueue(t, name("attempt")+".fifo", map[string]string{"FifoQueue": "true", "ContentBasedDeduplication": "true"})
+		fifoURL := createQueue(t, name(t, "attempt")+".fifo", map[string]string{"FifoQueue": "true", "ContentBasedDeduplication": "true"})
 		_, err := client.SendMessage(ctx, &sqs.SendMessageInput{QueueUrl: aws.String(fifoURL), MessageBody: aws.String("retry me"), MessageGroupId: aws.String("g")})
 		ok(t, err, "SendMessage")
 		in := &sqs.ReceiveMessageInput{QueueUrl: aws.String(fifoURL), WaitTimeSeconds: 1, ReceiveRequestAttemptId: aws.String("attempt-1")}
@@ -969,9 +969,9 @@ func TestSQSDeadLetterQueues(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := sqs.NewFromConfig(awsCfg)
-	dlqURL := createQueue(t, name("dlq"), nil)
+	dlqURL := createQueue(t, name(t, "dlq"), nil)
 	dlqArn := queueArn(t, dlqURL)
-	srcURL := createQueue(t, name("src"), map[string]string{
+	srcURL := createQueue(t, name(t, "src"), map[string]string{
 		"RedrivePolicy": `{"deadLetterTargetArn":"` + dlqArn + `","maxReceiveCount":"1"}`,
 	})
 	srcArn := queueArn(t, srcURL)
@@ -987,7 +987,7 @@ func TestSQSDeadLetterQueues(t *testing.T) {
 		t.Errorf("RedrivePolicy = %+v, want the DLQ ARN and maxReceiveCount as the JSON number 1", policy)
 	}
 
-	_, err := client.CreateQueue(ctx, &sqs.CreateQueueInput{QueueName: aws.String(name("badredrive")), Attributes: map[string]string{
+	_, err := client.CreateQueue(ctx, &sqs.CreateQueueInput{QueueName: aws.String(name(t, "badredrive")), Attributes: map[string]string{
 		"RedrivePolicy": `{"deadLetterTargetArn":"` + dlqArn + `"}`,
 	}})
 	apiErr(t, err, "CreateQueue with a RedrivePolicy lacking maxReceiveCount", "InvalidParameterValue")
@@ -1027,7 +1027,7 @@ func TestSQSDeadLetterQueues(t *testing.T) {
 	}
 
 	t.Run("message move task", func(t *testing.T) {
-		destURL := createQueue(t, name("dest"), nil)
+		destURL := createQueue(t, name(t, "dest"), nil)
 		destArn := queueArn(t, destURL)
 		_, err := client.StartMessageMoveTask(ctx, &sqs.StartMessageMoveTaskInput{SourceArn: aws.String(srcArn), DestinationArn: aws.String(destArn)})
 		apiErr(t, err, "StartMessageMoveTask from a queue that is not a DLQ", "InvalidParameterValue")

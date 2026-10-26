@@ -30,8 +30,26 @@ ue_require_sealed
 
 # new_name PREFIX -> PREFIX-<8 random hex digits>: lowercase [a-z0-9-], unique
 # per call and per run, so tests never collide on a long-lived emulator.
+#
+# With CONFORMANCE_NAME_SEED set, the digits are instead a function of the
+# seed, the test (UE_TEST, which run-suite.sh sets), PREFIX and how many
+# names of PREFIX the test drew before, so two runs with one seed create the
+# same names: the IAM loop's second run (conformance/iam-loop) must touch the
+# resources the policy rendered from its first run names.
 new_name() {
-  printf '%s-%s' "$1" "$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+  if [ -z "${CONFORMANCE_NAME_SEED:-}" ]; then
+    printf '%s-%s' "$1" "$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+    return
+  fi
+  : "${UE_TEST:?new_name: CONFORMANCE_NAME_SEED needs UE_TEST (run through run-suite.sh)}"
+  : "${UE_TMP:?new_name: CONFORMANCE_NAME_SEED needs UE_TMP (run through run-suite.sh)}"
+  # The count lives in a file: new_name runs in command substitutions, whose
+  # variables do not outlive them.
+  local counter n
+  counter="$UE_TMP/names.$(printf '%s/%s' "$UE_TEST" "$1" | sha256sum | cut -c1-16)"
+  n=$(cat "$counter" 2>/dev/null || echo 0)
+  echo $((n + 1)) >"$counter"
+  printf '%s-%s' "$1" "$(printf '%s/%s/%s/%s' "$CONFORMANCE_NAME_SEED" "$UE_TEST" "$1" "$n" | sha256sum | cut -c1-8)"
 }
 
 # Running the CLI
@@ -284,7 +302,22 @@ PY
 LAMBDA_TRUST='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
 
 # make_role NAME: create an IAM role Lambda and others can use; print its ARN.
+#
+# With CONFORMANCE_ROLE_POLICY_DIR set and a file NAME.json in it, the
+# account root then puts that file as the role's inline policy iam-loop: the
+# IAM loop's second run (conformance/iam-loop) gives each role the policy
+# rendered from its first run, under iam.enforce=enforce.
 make_role() {
+  local arn policy
   aws_ok iam create-role --role-name "$1" --assume-role-policy-document "$LAMBDA_TRUST" --output json
-  jqv '.Role.Arn'
+  arn=$(jqv '.Role.Arn')
+  policy="${CONFORMANCE_ROLE_POLICY_DIR:-}/$1.json"
+  if [ -n "${CONFORMANCE_ROLE_POLICY_DIR:-}" ] && [ -f "$policy" ]; then
+    # The dummy key test is the default account's root (ADR 0012).
+    (
+      export AWS_ACCESS_KEY_ID=test
+      aws_ok iam put-role-policy --role-name "$1" --policy-name iam-loop --policy-document "file://$policy"
+    )
+  fi
+  printf '%s\n' "$arn"
 }

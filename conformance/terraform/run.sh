@@ -13,6 +13,10 @@
 #   conformance/terraform/run.sh sqs sns         # only these
 #   CONFORMANCE_JOBS=1 conformance/terraform/run.sh
 #   SIGV4=verify conformance/terraform/run.sh    # serve with --sigv4 verify (default parse)
+#   CONFORMANCE_IAM_ENFORCE=enforce CONFORMANCE_ADVISORIES_OUT=advisories.json \
+#     conformance/terraform/run.sh               # serve with --iam-enforce enforce (default off)
+#                                                # and write the journal's advisories as JSON
+#                                                # before stopping (conformance/iam-loop reads them)
 #
 # DynamoDB runs on DynamoDB Local, pulled on first use; CONFORMANCE_DYNAMODB
 # is unset or 0, and run.sh exits 2 before building on any other value, as
@@ -117,6 +121,10 @@ stop_server() {
   if [[ -n "$server_pid" ]] && kill -0 "$server_pid" 2>/dev/null; then
     "$binary" journal --endpoint "$endpoint" --errors --output json --limit 100000 \
       >"$logs_dir/journal-errors.json" 2>&1
+    if [[ -n "${CONFORMANCE_ADVISORIES_OUT:-}" ]]; then
+      "$binary" journal --endpoint "$endpoint" --kind advisory --output json --limit 100000 \
+        >"$CONFORMANCE_ADVISORIES_OUT" 2>&1
+    fi
     kill -TERM "$server_pid" 2>/dev/null
     for _ in $(seq 1 60); do
       kill -0 "$server_pid" 2>/dev/null || break
@@ -162,7 +170,7 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=127.0.0.1" -addext 
 
 echo "==> starting understudy on $endpoint (data in $data_dir)"
 env "${conformance_serve_env[@]}" "$binary" serve --listen "127.0.0.1:$port" --persist "$data_dir" \
-  --sigv4 "${SIGV4:-parse}" --log-format json \
+  --sigv4 "${SIGV4:-parse}" --iam-enforce "${CONFORMANCE_IAM_ENFORCE:-off}" --log-format json \
   --sns-http-delivery-allow "127.0.0.1:$receiver_port" --sns-http-delivery-ca-bundle "$run_dir/receiver.pem" \
   >"$logs_dir/server.log" 2>&1 &
 server_pid=$!

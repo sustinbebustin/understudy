@@ -69,7 +69,7 @@ func TestEventBridgeRules(t *testing.T) {
 	ctx := t.Context()
 	client := eventbridge.NewFromConfig(awsCfg)
 	acct := account(t)
-	ruleName := name("rule")
+	ruleName := name(t, "rule")
 	pattern := `{"source":["conformance.app"],"detail-type":["Order Placed"]}`
 	ruleArn := putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), EventPattern: aws.String(pattern), Tags: []types.Tag{{Key: aws.String("team"), Value: aws.String("platform")}}})
 
@@ -88,7 +88,7 @@ func TestEventBridgeRules(t *testing.T) {
 	})
 
 	t.Run("PutRule replaces", func(t *testing.T) {
-		other := name("replace")
+		other := name(t, "replace")
 		putRule(t, &eventbridge.PutRuleInput{Name: aws.String(other), EventPattern: aws.String(pattern), Description: aws.String("first")})
 		_, err := client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(other), EventPattern: aws.String(pattern), State: types.RuleStateDisabled})
 		ok(t, err, "PutRule again")
@@ -108,18 +108,18 @@ func TestEventBridgeRules(t *testing.T) {
 	})
 
 	t.Run("errors", func(t *testing.T) {
-		missing := name("missing")
+		missing := name(t, "missing")
 		_, err := client.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: aws.String(missing)})
 		errAs[*types.ResourceNotFoundException](t, err, "DescribeRule missing")
 		wantMessage(t, err, "DescribeRule missing", "Rule "+missing+" does not exist on EventBus default.")
-		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name("bad")), EventPattern: aws.String(`{"source":"not-an-array"}`)})
+		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name(t, "bad")), EventPattern: aws.String(`{"source":"not-an-array"}`)})
 		errAs[*types.InvalidEventPatternException](t, err, "PutRule with a non-array leaf")
 		wantMessageContains(t, err, "PutRule with a non-array leaf", "Event pattern is not valid. Reason: ")
-		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name("bad")), EventPattern: aws.String(`{"source":[]}`)})
+		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name(t, "bad")), EventPattern: aws.String(`{"source":[]}`)})
 		errAs[*types.InvalidEventPatternException](t, err, "PutRule with an empty array")
 		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String("bad name!"), EventPattern: aws.String(pattern)})
 		apiErr(t, err, "PutRule with an invalid name", "ValidationException")
-		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name("none"))})
+		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name(t, "none"))})
 		// A rule needs EventPattern or ScheduleExpression; the research
 		// records no error code for the omission, so only the failure is
 		// asserted.
@@ -133,7 +133,7 @@ func TestEventBridgeRules(t *testing.T) {
 			"rate(1 minute)", "rate(5 minutes)", "rate(2 hours)", "rate(1 day)", "cron(0 10 * * ? *)", "cron(0/15 * * * ? *)",
 			"cron(0 18 ? * MON-FRI *)", "cron(15 10 ? * 6L 2002-2005)", "cron(0 2 ? * SAT#3 *)", "cron(0/5 5 ? JAN 1-5 2022)",
 		} {
-			n := name("sched")
+			n := name(t, "sched")
 			putRule(t, &eventbridge.PutRuleInput{Name: aws.String(n), ScheduleExpression: aws.String(expr), State: types.RuleStateDisabled})
 			out, err := client.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: aws.String(n)})
 			ok(t, err, "DescribeRule "+expr)
@@ -145,7 +145,7 @@ func TestEventBridgeRules(t *testing.T) {
 			"rate(10 seconds)", "rate(1 minutes)", "rate(10 minute)", "rate(10 MINUTES)", "rate(0 minutes)", "rate( 10 minutes )",
 			"cron(0 1 * * * *)", "cron(71 8 1 * ? *)", "cron(INVALID)",
 		} {
-			_, err := client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name("badsched")), ScheduleExpression: aws.String(expr)})
+			_, err := client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name(t, "badsched")), ScheduleExpression: aws.String(expr)})
 			apiErr(t, err, "PutRule ScheduleExpression "+expr, "ValidationException")
 			wantMessage(t, err, "PutRule ScheduleExpression "+expr, "Parameter ScheduleExpression is not valid.")
 		}
@@ -169,7 +169,7 @@ func TestEventBridgeRules(t *testing.T) {
 	})
 
 	t.Run("targets", func(t *testing.T) {
-		queueURL := createQueue(t, name("eb-target"), nil)
+		queueURL := createQueue(t, name(t, "eb-target"), nil)
 		qArn := queueArn(t, queueURL)
 		putTargets(t, ruleName, types.Target{Id: aws.String("q"), Arn: aws.String(qArn), Input: aws.String(`{"fixed":true}`)})
 		list, err := client.ListTargetsByRule(ctx, &eventbridge.ListTargetsByRuleInput{Rule: aws.String(ruleName)})
@@ -222,14 +222,14 @@ func TestEventBridgePutEvents(t *testing.T) {
 	ctx := t.Context()
 	client := eventbridge.NewFromConfig(awsCfg)
 	acct := account(t)
-	source := "conformance." + name("app")
-	ruleName := name("orders")
+	source := "conformance." + name(t, "app")
+	ruleName := name(t, "orders")
 	putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), EventPattern: aws.String(`{"source":["` + source + `"],"detail":{"amount":[{"numeric":[">",100]}]}}`)})
-	whole := createQueue(t, name("eb-whole"), nil)
-	path := createQueue(t, name("eb-path"), nil)
-	transformed := createQueue(t, name("eb-tx"), nil)
-	topicArn := createTopic(t, name("eb-topic"), nil)
-	viaTopic, _ := subscribeQueue(t, topicArn, name("eb-via-topic"), nil, map[string]string{"RawMessageDelivery": "true"})
+	whole := createQueue(t, name(t, "eb-whole"), nil)
+	path := createQueue(t, name(t, "eb-path"), nil)
+	transformed := createQueue(t, name(t, "eb-tx"), nil)
+	topicArn := createTopic(t, name(t, "eb-topic"), nil)
+	viaTopic, _ := subscribeQueue(t, topicArn, name(t, "eb-via-topic"), nil, map[string]string{"RawMessageDelivery": "true"})
 	putTargets(t, ruleName,
 		types.Target{Id: aws.String("whole"), Arn: aws.String(queueArn(t, whole))},
 		types.Target{Id: aws.String("path"), Arn: aws.String(queueArn(t, path)), InputPath: aws.String("$.detail.customer")},
@@ -320,7 +320,7 @@ func TestEventBridgePutEvents(t *testing.T) {
 		apiErr(t, err, "PutEvents with 11 entries", "ValidationException")
 		wantMessageContains(t, err, "PutEvents with 11 entries", "at 'entries' failed to satisfy constraint: Member must have length less than or equal to 10")
 		none, err := client.PutEvents(ctx, &eventbridge.PutEventsInput{Entries: []types.PutEventsRequestEntry{
-			{Source: aws.String(source), DetailType: aws.String("x"), Detail: aws.String("{}"), EventBusName: aws.String(name("no-such-bus"))},
+			{Source: aws.String(source), DetailType: aws.String("x"), Detail: aws.String("{}"), EventBusName: aws.String(name(t, "no-such-bus"))},
 		}})
 		ok(t, err, "PutEvents to a bus that does not exist (200, dropped)")
 		if none.FailedEntryCount != 0 || aws.ToString(none.Entries[0].EventId) == "" {
@@ -350,14 +350,14 @@ func TestEventBridgeBusAndPatterns(t *testing.T) {
 		if !found {
 			t.Errorf("ListEventBuses = %+v, want the default bus", list.EventBuses)
 		}
-		missing := name("bus")
+		missing := name(t, "bus")
 		_, err = client.DescribeEventBus(ctx, &eventbridge.DescribeEventBusInput{Name: aws.String(missing)})
 		errAs[*types.ResourceNotFoundException](t, err, "DescribeEventBus of a missing bus")
 		wantMessage(t, err, "DescribeEventBus of a missing bus", "Event bus "+missing+" does not exist.")
 	})
 
 	t.Run("EnableRule, DisableRule and ListRuleNamesByTarget", func(t *testing.T) {
-		ruleName := name("toggle")
+		ruleName := name(t, "toggle")
 		putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), EventPattern: aws.String(`{"source":["x"]}`)})
 		_, err := client.DisableRule(ctx, &eventbridge.DisableRuleInput{Name: aws.String(ruleName)})
 		ok(t, err, "DisableRule")
@@ -369,9 +369,9 @@ func TestEventBridgeBusAndPatterns(t *testing.T) {
 		if out, err := client.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: aws.String(ruleName)}); err != nil || out.State != types.RuleStateEnabled {
 			t.Errorf("after EnableRule: State %v, err %v; want ENABLED", out, err)
 		}
-		_, err = client.DisableRule(ctx, &eventbridge.DisableRuleInput{Name: aws.String(name("missing"))})
+		_, err = client.DisableRule(ctx, &eventbridge.DisableRuleInput{Name: aws.String(name(t, "missing"))})
 		errAs[*types.ResourceNotFoundException](t, err, "DisableRule of a missing rule")
-		queueURL := createQueue(t, name("eb-by-target"), nil)
+		queueURL := createQueue(t, name(t, "eb-by-target"), nil)
 		qArn := queueArn(t, queueURL)
 		putTargets(t, ruleName, types.Target{Id: aws.String("q"), Arn: aws.String(qArn)})
 		names, err := client.ListRuleNamesByTarget(ctx, &eventbridge.ListRuleNamesByTargetInput{TargetArn: aws.String(qArn)})
@@ -430,10 +430,10 @@ func TestEventBridgeBusAndPatterns(t *testing.T) {
 func TestEventBridgeLambdaTarget(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	forward := createQueue(t, name("eb-lambda-out"), nil)
-	fn := deployFunction(t, name("eb-fn"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": forward})
-	source := "conformance." + name("lambda")
-	ruleName := name("to-lambda")
+	forward := createQueue(t, name(t, "eb-lambda-out"), nil)
+	fn := deployFunction(t, name(t, "eb-fn"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": forward})
+	source := "conformance." + name(t, "lambda")
+	ruleName := name(t, "to-lambda")
 	ruleArn := putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), EventPattern: aws.String(`{"source":["` + source + `"]}`)})
 	_, err := lambda.NewFromConfig(awsCfg).AddPermission(ctx, &lambda.AddPermissionInput{
 		FunctionName: fn.FunctionName, StatementId: aws.String("eventbridge"), Action: aws.String("lambda:InvokeFunction"),
@@ -460,8 +460,8 @@ func TestEventBridgeLambdaTarget(t *testing.T) {
 // queue; the first fire is one interval after the rule is created.
 func TestEventBridgeSchedule(t *testing.T) {
 	t.Parallel()
-	queueURL := createQueue(t, name("eb-sched"), nil)
-	ruleName := name("every-minute")
+	queueURL := createQueue(t, name(t, "eb-sched"), nil)
+	ruleName := name(t, "every-minute")
 	created := time.Now()
 	ruleArn := putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), ScheduleExpression: aws.String("rate(1 minute)")})
 	putTargets(t, ruleName, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, queueURL))})
