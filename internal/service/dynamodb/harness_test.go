@@ -158,6 +158,13 @@ var withKMS = neighbour{api: kmsapi.Service, build: func(k *kerneltest.K) { kms.
 // service without one, as a server with DynamoDB turned off answers.
 func runWith(t *testing.T, local *fakeLocal, fn func(h *harness), others ...neighbour) {
 	t.Helper()
+	runWithOptions(t, local, nil, fn, others...)
+}
+
+// runWithOptions is runWith with further kernel options, such as an
+// Authorizer.
+func runWithOptions(t *testing.T, local *fakeLocal, kopts []kerneltest.Option, fn func(h *harness), others ...neighbour) {
+	t.Helper()
 	services := make([]*registry.Service, 0, 1+len(others))
 	services = append(services, dynamodbapi.Service())
 	for _, o := range others {
@@ -187,7 +194,7 @@ func runWith(t *testing.T, local *fakeLocal, fn func(h *harness), others ...neig
 			local = &fakeLocal{}
 		}
 		fn(&harness{K: k, local: local, svc: svc, front: front})
-	}, kerneltest.Services(services...))
+	}, append(kopts, kerneltest.Services(services...))...)
 }
 
 // jsonCodec adapts the awsJson codec to the edge as server/codecs.go does;
