@@ -154,6 +154,8 @@ func styleLit(s ValidationStyle) string {
 		return "styleMissingParameter"
 	case StyleSNSParameter:
 		return "styleSNSParameter"
+	case StyleFixed:
+		return "styleFixed"
 	default:
 		return "styleCoral"
 	}

@@ -6845,6 +6845,9 @@ const (
 	styleMissingParameter
 	// styleSNSParameter is SNS's hand text for the first violation.
 	styleSNSParameter
+	// styleFixed is the rule's reason as the whole message: a text the
+	// service sends whatever failed, such as S3's MalformedXML text.
+	styleFixed
 )
 
 // validationRule is one dev.understudy#validationError rule.
@@ -6890,6 +6893,8 @@ func (p *validationPolicy) render(vs []awserr.Violation) *awserr.Error {
 		msg = "The request must contain the parameter " + params[0] + "."
 	case styleSNSParameter:
 		msg = "Invalid parameter: " + params[0] + " Reason: " + first.reason
+	case styleFixed:
+		msg = first.reason
 	case styleCoral:
 		msg = coralUnder(id, vs, rules)
 	default:

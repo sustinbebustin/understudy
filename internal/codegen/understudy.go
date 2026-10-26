@@ -331,12 +331,16 @@ const (
 	// StyleSNSParameter is SNS's hand text for the first violation:
 	// "Invalid parameter: <P> Reason: <reason>".
 	StyleSNSParameter
+	// StyleFixed is the reason as the whole message: a text the service
+	// sends whatever failed, such as S3's MalformedXML text.
+	StyleFixed
 )
 
 func validationStyles() map[string]ValidationStyle {
 	return map[string]ValidationStyle{
 		"coral": StyleCoral, "parameter": StyleParameter,
 		"missingParameter": StyleMissingParameter, "snsParameter": StyleSNSParameter,
+		"fixed": StyleFixed,
 	}
 }
 
@@ -501,7 +505,7 @@ func parseValidationRule(raw json.RawMessage) (ValidationRule, error) {
 		r.Kinds |= k
 	}
 	r.Reason = v.Reason
-	needsReason := r.Style == StyleParameter || r.Style == StyleSNSParameter
+	needsReason := r.Style == StyleParameter || r.Style == StyleSNSParameter || r.Style == StyleFixed
 	switch {
 	case needsReason && r.Reason == "":
 		return r, fmt.Errorf("style %s needs a reason", v.Style)
