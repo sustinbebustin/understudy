@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "item": "R15",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "iam",
+      "operation": "CreateRole",
+      "input": {
+        "RoleName": "usr-rec-20261014-trust",
+        "AssumeRolePolicyDocument": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::123456789012:root\"},\"Action\":\"sts:AssumeRole\"}]}"
+      },
+      "before": "06-assume-denied"
+    },
+    {
+      "service": "iam",
+      "operation": "CreateRole",
+      "input": {
+        "RoleName": "usr-rec-20261014-deny",
+        "AssumeRolePolicyDocument": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"lambda.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+      },
+      "before": "06-assume-denied"
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "sts/R15/06-get-access-key-info-deleted.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sts/R15/06-assume-denied.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sts/R15/06-assume-ok.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sts/R15/x-assume-11-policy-arns.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sts/R15/x-assume-refused-session-policy.json",
+      "compare": "all"
+    }
+  ]
+}

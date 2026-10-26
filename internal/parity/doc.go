@@ -9,12 +9,13 @@
 // overlay entries a step settles. Comparison applies the Exchange set of
 // internal/normalize, so only the named normalizers and the waivers hide a
 // difference; a sensitivity check proves a settled field is still compared.
-// The outcomes are a ratchet in baseline.json, which the coverage report
-// reads for its evidence column. The server-driving transport lives in this
-// package's test files, which may import internal/server.
+// The outcomes are a ratchet in baseline.json: TestReplay fails on any
+// drift from it, and just parity-baseline rewrites it. The server-driving
+// transport (ServerTransport) lives in this package's test files, which may
+// import internal/server.
 //
-// Fixture parsing, comparison paths, Compare and the scenario format
-// (ParseScenario, Encode, ReadScenario, ListScenarios) are built. Not
-// implemented yet: CheckBind, Mutate, Run and the baseline are stubs, and
-// nothing imports the package.
+// The replayer routes awsJson and awsQuery requests only; a REST step is
+// skipped (rest-routing), and so is every step of a scenario that needs
+// Docker when none serves the run, as under TestReplay. Not built yet: the coverage report does not read baseline.json
+// for its evidence column, and nothing outside this package imports it.
 package parity

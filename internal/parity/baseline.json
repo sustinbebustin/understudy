@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "scenarios": [
+    {
+      "scenario": "kms/KMS-alias",
+      "steps": [
+        {"step": "01-duplicate", "fixture": "kms/KMS-alias/01-duplicate.json", "operation": "kms.CreateAlias", "outcome": {"kind": "match"}},
+        {"step": "02-duplicate-raw", "fixture": "kms/KMS-alias/02-duplicate-raw.json", "outcome": {"kind": "reconstructed"}}
+      ],
+      "claims": [
+        {"target": {"kind": "overlay", "shape": "com.amazonaws.kms#AlreadyExistsException"}, "step": "01-duplicate", "field": "status", "result": {"kind": "settled"}},
+        {"target": {"kind": "overlay", "shape": "com.amazonaws.kms#AlreadyExistsException"}, "step": "02-duplicate-raw", "field": "status", "result": {"kind": "open"}}
+      ]
+    },
+    {
+      "scenario": "sts/R15",
+      "steps": [
+        {"step": "06-get-access-key-info-deleted", "fixture": "sts/R15/06-get-access-key-info-deleted.json", "operation": "sts.GetAccessKeyInfo", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/GetAccessKeyInfoResponse, body/ErrorResponse"}},
+        {"step": "06-assume-denied", "fixture": "sts/R15/06-assume-denied.json", "operation": "sts.AssumeRole", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/ErrorResponse, body/AssumeRoleResponse"}},
+        {"step": "06-assume-ok", "fixture": "sts/R15/06-assume-ok.json", "operation": "sts.AssumeRole", "outcome": {"kind": "differs", "reason": "body/AssumeRoleResponse/AssumeRoleResult/PackedPolicySize, body/AssumeRoleResponse/AssumeRoleResult/SessionTokenSize, body/AssumeRoleResponse/AssumeRoleResult/SessionTokenUtilization"}},
+        {"step": "x-assume-11-policy-arns", "fixture": "sts/R15/x-assume-11-policy-arns.json", "operation": "sts.AssumeRole", "outcome": {"kind": "differs", "reason": "error/message, body/ErrorResponse/Error/Message"}},
+        {"step": "x-assume-refused-session-policy", "fixture": "sts/R15/x-assume-refused-session-policy.json", "operation": "sts.AssumeRole", "outcome": {"kind": "differs", "reason": "error/message, body/ErrorResponse/Error/Message"}}
+      ]
+    }
+  ]
+}

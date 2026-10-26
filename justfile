@@ -63,6 +63,10 @@ generate-check: generate
 protocoltest-baseline:
     go test ./internal/protocoltest -run TestCorpus -update-baseline
 
+# Rewrite the parity replay baseline from the current results.
+parity-baseline:
+    go test ./internal/parity -run TestReplay -count=1 -update-baseline
+
 # Regenerate docs/coverage.md and fail when it differs from what is checked in.
 coverage-check:
     #!/usr/bin/env bash

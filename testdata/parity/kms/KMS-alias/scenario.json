@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "item": "KMS-alias",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "kms",
+      "operation": "CreateKey",
+      "input": {
+        "Description": "usr-rec-20261014-alias"
+      },
+      "bind": [
+        {
+          "path": "body/KeyMetadata/KeyId",
+          "shape": {
+            "kind": "uuid"
+          },
+          "aws": "157cb509-e842-4095-b0b6-e97188e0a507"
+        }
+      ]
+    },
+    {
+      "service": "kms",
+      "operation": "CreateAlias",
+      "input": {
+        "AliasName": "alias/usr-rec-20261014-dup",
+        "TargetKeyId": "157cb509-e842-4095-b0b6-e97188e0a507"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "kms/KMS-alias/01-duplicate.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/KMS-alias/02-duplicate-raw.json",
+      "compare": "all"
+    }
+  ],
+  "settles": [
+    {
+      "overlay": "com.amazonaws.kms#AlreadyExistsException",
+      "step": "01-duplicate",
+      "field": "status"
+    },
+    {
+      "overlay": "com.amazonaws.kms#AlreadyExistsException",
+      "step": "02-duplicate-raw",
+      "field": "status"
+    }
+  ]
+}
