@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"sync"
 
 	"github.com/sustinbebustin/understudy/internal/docker"
@@ -19,7 +20,7 @@ type Options struct {
 	Test bool
 	// ExtraLabels are added to every container's labels (the dockerLabels
 	// setting, testcontainers.md 9.3); New refuses a key starting with
-	// docker.ReservedPrefix. Not applied yet.
+	// docker.ReservedPrefix.
 	ExtraLabels map[string]string
 	// Topology decides the addresses, extra hosts and network function
 	// containers get, and whether code is bind-mounted or copied.
@@ -43,6 +44,7 @@ type Launcher struct {
 	client       *docker.Client
 	ownership    docker.Ownership
 	test         bool
+	extraLabels  map[string]string
 	addrs        topology.Addresses
 	endpointPort uint16
 	log          *slog.Logger
@@ -70,12 +72,16 @@ type tracked struct {
 
 // New validates opts. A topology the launcher cannot serve returns its
 // *topology.UnsupportedError; an incomplete ownership its
-// *docker.OwnershipError.
+// *docker.OwnershipError; an extra label under docker.ReservedPrefix its
+// *docker.ReservedLabelError.
 func New(client *docker.Client, opts Options) (*Launcher, error) {
 	if client == nil {
 		return nil, errors.New("launcher: Docker client is nil")
 	}
 	if err := opts.Ownership.Validate(); err != nil {
+		return nil, err
+	}
+	if err := docker.CheckExtra(opts.ExtraLabels); err != nil {
 		return nil, err
 	}
 	if opts.Topology == nil {
@@ -96,6 +102,7 @@ func New(client *docker.Client, opts Options) (*Launcher, error) {
 		client:       client,
 		ownership:    opts.Ownership,
 		test:         opts.Test,
+		extraLabels:  maps.Clone(opts.ExtraLabels),
 		addrs:        addrs,
 		delivery:     deliveryFor(opts.Topology),
 		endpointPort: opts.EndpointPort,
@@ -125,7 +132,8 @@ func (l *Launcher) Start(ctx context.Context, spec Spec, slot Slot) (Container, 
 			Region:     spec.Function.Region.String(),
 			Generation: spec.Generation,
 		},
-		Test: l.test,
+		Test:  l.test,
+		Extra: l.extraLabels,
 	}.Map()
 	if err != nil {
 		return Container{}, err

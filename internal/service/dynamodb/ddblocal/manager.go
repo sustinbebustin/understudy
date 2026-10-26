@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"net/netip"
@@ -95,7 +96,8 @@ type Config struct {
 	Storage Storage
 	// Network is nil for DefaultBridge.
 	Network Network
-	// Labels mark the container; Ownership is required and Function nil.
+	// Labels mark the container; Ownership is required, Function nil and
+	// no Extra key under docker.ReservedPrefix.
 	Labels docker.Labels
 	// Memory is the container's memory limit in bytes; 0 means
 	// DefaultMemory.
@@ -160,9 +162,13 @@ func New(cfg Config) (*Manager, error) {
 	case cfg.Labels.Function != nil:
 		return nil, &ConfigError{Reason: "Config.Labels.Function must be nil: the DynamoDB Local container serves no function"}
 	}
-	if err := cfg.Labels.Ownership.Validate(); err != nil {
+	// Map refuses what Start's create would: an incomplete ownership
+	// (*docker.OwnershipError) or an extra key under docker.ReservedPrefix
+	// (*docker.ReservedLabelError).
+	if _, err := cfg.Labels.Map(); err != nil {
 		return nil, err
 	}
+	cfg.Labels.Extra = maps.Clone(cfg.Labels.Extra)
 	if cfg.Storage == nil {
 		cfg.Storage = InMemory{}
 	}
