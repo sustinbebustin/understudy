@@ -557,9 +557,13 @@ func (w *workload) policy(t *testing.T) {
 }
 
 // coverage reads the coverage report's three numbers: protocol compliance,
-// operations per service and evidence.
+// operations per service and evidence, for every service health lists.
 func (w *workload) coverage(t *testing.T) {
 	t.Helper()
+	var health struct {
+		Services map[string]json.RawMessage
+	}
+	decode(t, "health", must(t, "health", send(t, w.emu, request{method: http.MethodGet, path: "/_understudy/v1/health"}), http.StatusOK).body, &health)
 	var report struct {
 		Protocols []struct {
 			Protocol string
@@ -579,7 +583,8 @@ func (w *workload) coverage(t *testing.T) {
 	for _, s := range report.Services {
 		operations += len(s.Operations)
 	}
-	if passed == 0 || len(report.Services) != 12 || operations == 0 || len(report.Switches) == 0 {
-		t.Fatalf("coverage: %d protocol cases passed, %d services with %d operations, %d switches; want all three numbers", passed, len(report.Services), operations, len(report.Switches))
+	if passed == 0 || len(health.Services) == 0 || len(report.Services) != len(health.Services) || operations == 0 || len(report.Switches) == 0 {
+		t.Fatalf("coverage: %d protocol cases passed, %d services (health lists %d) with %d operations, %d switches; want all three numbers for every service",
+			passed, len(report.Services), len(health.Services), operations, len(report.Switches))
 	}
 }

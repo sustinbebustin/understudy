@@ -34,7 +34,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
-// services are the twelve services the server wires.
+// services are the services the server wires.
 func services() []*registry.Service {
 	return []*registry.Service{
 		cloudwatchapi.Service(), dynamodbapi.Service(), eventbridgeapi.Service(), iamapi.Service(),
@@ -54,10 +54,10 @@ func generated() []*registry.Service {
 	)
 }
 
-// TestTheTwelveServicesRegisterTogether is the check the server runs at
-// boot: unique ids, ordinals by name, JSON target and Query (Action,
-// Version) tables without collisions, valid route tables.
-func TestTheTwelveServicesRegisterTogether(t *testing.T) {
+// TestTheServicesRegisterTogether is the check the server runs at boot:
+// unique ids, ordinals by name, JSON target and Query (Action, Version)
+// tables without collisions, valid route tables.
+func TestTheServicesRegisterTogether(t *testing.T) {
 	if _, err := registry.New(services()...); err != nil {
 		t.Fatal(err)
 	}

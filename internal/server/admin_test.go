@@ -114,8 +114,14 @@ func TestAdminHealthReportsReadinessAndServices(t *testing.T) {
 	if !h.Ready || h.Version != "test" || h.Services["sqs"].Status != admin.Enabled || !strings.HasPrefix(h.Model, "api-models-aws@") {
 		t.Fatalf("health = %+v", h)
 	}
-	if len(h.Services) != 12 {
-		t.Fatalf("health lists %d services, want the twelve services: %+v", len(h.Services), h.Services)
+	wired := server.ServiceIDs()
+	if len(h.Services) != len(wired) {
+		t.Fatalf("health lists %d services, want the %d wired services %v: %+v", len(h.Services), len(wired), wired, h.Services)
+	}
+	for _, id := range wired {
+		if _, ok := h.Services[string(id)]; !ok {
+			t.Errorf("health does not list the wired service %s: %+v", id, h.Services)
+		}
 	}
 	// Every wired service holds its state under its registry id, so a reset
 	// can name each one.
@@ -622,8 +628,8 @@ func TestAdminCoverageReportsTheRunningServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Protocols) == 0 || len(report.Services) != 12 {
-		t.Fatalf("coverage lists %d protocol suites and %d services, want some suites and the twelve services", len(report.Protocols), len(report.Services))
+	if wired := len(server.ServiceIDs()); len(report.Protocols) == 0 || len(report.Services) != wired {
+		t.Fatalf("coverage lists %d protocol suites and %d services, want some suites and the %d wired services", len(report.Protocols), len(report.Services), wired)
 	}
 }
 

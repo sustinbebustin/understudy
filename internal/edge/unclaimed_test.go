@@ -27,13 +27,14 @@ func TestServicesNotEmulatedAreNamedInTheRequestsProtocol(t *testing.T) {
 			"text/xml",
 		},
 		{"query GET", http.MethodGet, "/?Action=DescribeDBInstances&Version=2014-10-31", "", "rds", nil, "text/xml"},
+		// Services no planned item adds, so the examples stay not emulated.
 		{
-			"awsJson1_1", http.MethodPost, "/", `{}`, "kinesis",
-			jsonHeader("Kinesis_20131202.ListStreams", "application/x-amz-json-1.1"), "application/x-amz-json-1.1",
+			"awsJson1_1", http.MethodPost, "/", `{}`, "firehose",
+			jsonHeader("Firehose_20150804.ListDeliveryStreams", "application/x-amz-json-1.1"), "application/x-amz-json-1.1",
 		},
 		{"restXml", http.MethodGet, "/2013-04-01/hostedzone", "", "route53", nil, "application/xml"},
 		{
-			"restJson1", http.MethodPost, "/restapis", `{"name":"api"}`, "apigateway",
+			"restJson1", http.MethodPost, "/2015-01-01/es/domain", `{"DomainName":"search"}`, "es",
 			http.Header{"Content-Type": {"application/json"}},
 			"application/json",
 		},
