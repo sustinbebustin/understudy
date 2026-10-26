@@ -74,8 +74,8 @@ type Options struct {
 	Resolver Resolver
 	// Dialer opens connections; nil means a net.Dialer.
 	Dialer Dialer
-	// Listeners adds understudy's live listener addresses to Refuse; nil
-	// adds none. Not implemented yet: New ignores it.
+	// Listeners adds understudy's live listener addresses to Refuse, read
+	// at each request's check; nil adds none.
 	Listeners Listeners
 }
 
@@ -100,14 +100,15 @@ func (e *OptionsError) Error() string { return "egress: Options." + e.Field + " 
 // Client sends outbound HTTP requests under the checks of the package doc.
 // It is safe for concurrent use.
 type Client struct {
-	allow    AllowList
-	clock    *clock.Clock
-	timeout  time.Duration
-	maxBody  int64
-	refuse   []netip.AddrPort
-	rootCAs  *x509.CertPool
-	resolver Resolver
-	dialer   Dialer
+	allow     AllowList
+	clock     *clock.Clock
+	timeout   time.Duration
+	maxBody   int64
+	refuse    []netip.AddrPort
+	listeners Listeners
+	rootCAs   *x509.CertPool
+	resolver  Resolver
+	dialer    Dialer
 }
 
 // New returns a client for o, with the defaults of its zero fields.
@@ -121,13 +122,14 @@ func New(o Options) (*Client, *OptionsError) {
 		return nil, &OptionsError{Field: "MaxResponseBytes", Reason: "is " + strconv.FormatInt(o.MaxResponseBytes, 10) + "; use a positive bound, or 0 for DefaultMaxResponseBytes"}
 	}
 	c := &Client{
-		allow:    o.Allow,
-		clock:    o.Clock,
-		timeout:  o.Timeout,
-		maxBody:  o.MaxResponseBytes,
-		rootCAs:  o.RootCAs,
-		resolver: o.Resolver,
-		dialer:   o.Dialer,
+		allow:     o.Allow,
+		clock:     o.Clock,
+		timeout:   o.Timeout,
+		maxBody:   o.MaxResponseBytes,
+		listeners: o.Listeners,
+		rootCAs:   o.RootCAs,
+		resolver:  o.Resolver,
+		dialer:    o.Dialer,
 	}
 	if c.timeout == 0 {
 		c.timeout = DefaultTimeout
@@ -276,10 +278,11 @@ func (c *Client) addresses(ctx context.Context, t target) ([]netip.Addr, error) 
 		}
 		addrs = res.Addrs
 	}
+	own := c.ownAddrs()
 	checked := make([]netip.Addr, len(addrs))
 	for i, a := range addrs {
 		a = a.Unmap()
-		if refusal, ok := c.refusal(t, a); ok {
+		if refusal, ok := c.refusal(t, a, own); ok {
 			return nil, c.refused(refusal, t.host, t.port, a.String())
 		}
 		checked[i] = a
@@ -287,16 +290,31 @@ func (c *Client) addresses(ctx context.Context, t target) ([]netip.Addr, error) 
 	return checked, nil
 }
 
+// ownAddrs returns the addresses refused as understudy's own: Refuse and
+// the listeners' addresses now, since a Runtime API listener comes and
+// goes with its environment (sns-http-delivery.md 7.3).
+func (c *Client) ownAddrs() []netip.AddrPort {
+	if c.listeners == nil {
+		return c.refuse
+	}
+	own := slices.Clone(c.refuse)
+	for _, a := range c.listeners.ListenerAddrs() {
+		own = append(own, netip.AddrPortFrom(a.Addr().Unmap(), a.Port()))
+	}
+	return own
+}
+
 // refusal returns why t may not connect to a, if it may not: the hard
-// refusals (sns-http-delivery.md 7.3), then the rule of the entry that
-// allowed t. A localhost entry reaches only loopback (7.4); a DNS-name
-// entry reaches neither loopback nor a private address, which only an IP
-// literal entry lists (ADR 0015); an IP literal entry reaches that address.
-func (c *Client) refusal(t target, a netip.Addr) (Refusal, bool) {
+// refusals (sns-http-delivery.md 7.3), own being understudy's own
+// addresses, then the rule of the entry that allowed t. A localhost entry
+// reaches only loopback (7.4); a DNS-name entry reaches any address but
+// loopback, which only localhost or an IP literal entry lists (ADR 0015); an
+// IP literal entry reaches that address.
+func (c *Client) refusal(t target, a netip.Addr, own []netip.AddrPort) (Refusal, bool) {
 	if _, forbidden := forbiddenAddress(a); forbidden {
 		return ForbiddenAddress, true
 	}
-	if slices.Contains(c.refuse, netip.AddrPortFrom(a, t.port)) {
+	if slices.Contains(own, netip.AddrPortFrom(a, t.port)) {
 		return OwnListener, true
 	}
 	switch {
@@ -307,8 +325,6 @@ func (c *Client) refusal(t target, a netip.Addr) (Refusal, bool) {
 		}
 	case a.IsLoopback():
 		return UnlistedLoopback, true
-	case a.IsPrivate():
-		return UnlistedPrivate, true
 	}
 	return 0, false
 }
@@ -493,9 +509,6 @@ const (
 	OwnListener
 	// UnlistedLoopback is a DNS-name entry that resolved to loopback.
 	UnlistedLoopback
-	// UnlistedPrivate is a DNS-name entry that resolved to a private
-	// address.
-	UnlistedPrivate
 	// AddressMismatch is a localhost entry that resolved to an address
 	// that is not loopback.
 	AddressMismatch
@@ -516,8 +529,6 @@ func (r Refusal) String() string {
 		return "own-listener"
 	case UnlistedLoopback:
 		return "unlisted-loopback"
-	case UnlistedPrivate:
-		return "unlisted-private"
 	case AddressMismatch:
 		return "address-mismatch"
 	case UnsupportedScheme:
@@ -580,9 +591,7 @@ func (e *RefusedError) reason() string {
 	case OwnListener:
 		return net.JoinHostPort(refused, strconv.Itoa(int(e.Port))) + " is one of understudy's own listeners or the Docker Engine"
 	case UnlistedLoopback:
-		return "it resolved to the loopback address " + e.Name + ", and an entry that names a DNS name reaches only public addresses"
-	case UnlistedPrivate:
-		return "it resolved to the private address " + e.Name + ", and an entry that names a DNS name reaches only public addresses"
+		return "it resolved to the loopback address " + e.Name + ", and an entry that names a DNS name never reaches loopback"
 	case AddressMismatch:
 		return "the entry localhost resolved to " + e.Name + ", which is not a loopback address"
 	case UnsupportedScheme:
@@ -603,7 +612,7 @@ func (e *RefusedError) remedy() string {
 			return "Its host is not localhost, an IP literal or a DNS name, so no entry of " + e.Setting.String() + " can allow it."
 		}
 		return e.addEntry(e.Host)
-	case UnlistedLoopback, UnlistedPrivate:
+	case UnlistedLoopback:
 		return e.addEntry(e.Name)
 	case AWSEndpoint:
 		return "understudy never reaches AWS, so no setting allows it."
