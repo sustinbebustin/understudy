@@ -89,3 +89,7 @@ Evaluating attached AWS managed policies needs their documents, and IAM enforcem
 - **Precedent.** moto (Apache-2.0) has embedded every AWS managed policy document since 2017, fetched from the IAM API, with no objection found.
 - **If AWS objects.** Stop the generator and keep the shipped data, whose CC BY-SA 4.0 grant is irrevocable. If AWS publishes the documents in a separately licensed bundle, switch to it.
 - Building the catalogue is part of IAM enforcement (ROADMAP item 5), not a separate item.
+
+## Amendment (roadmap models, 2026-10-26)
+
+The roadmap's new services need their models. Nine more files are vendored verbatim from the same `api-models-aws` commit, `1cfdfb4bb9ea858e65623e66d73af04bec353201`, so the twelve phase 1 files are unchanged: API Gateway (`api-gateway`, `apigatewayv2`), DynamoDB Streams, Kinesis, EventBridge Scheduler, SES (`ses`, `sesv2`), Step Functions and SSM. `actions.json` gains their IAM prefixes. Models now share a prefix in three cases (API Gateway v1 and v2 under `apigateway`, SES v1 and v2 under `ses`, DynamoDB Streams under `dynamodb`), so the table keeps each operation's Boto3 client names and a service config may name its client with `sdkService`. A maintainer ran the two networked modes; everything after them is offline as before.

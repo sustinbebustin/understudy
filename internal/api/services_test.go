@@ -8,29 +8,50 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sustinbebustin/understudy/internal/api/apigatewayapi"
+	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
+	"github.com/sustinbebustin/understudy/internal/api/kinesisapi"
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/api/schedulerapi"
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesv2api"
+	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
+	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
+// services are the twelve services the server wires.
 func services() []*registry.Service {
 	return []*registry.Service{
 		cloudwatchapi.Service(), dynamodbapi.Service(), eventbridgeapi.Service(), iamapi.Service(),
 		kmsapi.Service(), lambdaapi.Service(), logsapi.Service(), s3api.Service(),
 		secretsmanagerapi.Service(), snsapi.Service(), sqsapi.Service(), stsapi.Service(),
 	}
+}
+
+// generated is every generated package: the wired services and the
+// roadmap's services that are generated but not wired yet. Several of the
+// latter share a signing name with another service, so they register only
+// once the registry accepts shared signing names.
+func generated() []*registry.Service {
+	return append(services(),
+		apigatewayapi.Service(), apigatewayv2api.Service(), dynamodbstreamsapi.Service(), kinesisapi.Service(),
+		schedulerapi.Service(), sesapi.Service(), sesv2api.Service(), sfnapi.Service(), ssmapi.Service(),
+	)
 }
 
 // TestTheTwelveServicesRegisterTogether is the check the server runs at
@@ -66,15 +87,31 @@ func TestEveryModeledOperationNamesItsIAMActions(t *testing.T) {
 		"logs.PutLogEvents":                "logs:PutLogEvents",
 		"eventbridge.PutRule":              "events:PutRule",
 		"dynamodb.BatchWriteItem":          "dynamodb:BatchWriteItem",
-		"sts.AssumeRole":                   "sts:AssumeRole",
+		// The Service Reference also lists dynamodb:ReadDataForReplication
+		// for Scan; the same-name action stays first.
+		"dynamodb.Scan":  "dynamodb:Scan",
+		"sts.AssumeRole": "sts:AssumeRole",
 		// The same-name action is listed under the service's Actions[]
 		// only; the operation's authorized list leaves it out.
 		"dynamodb.RestoreTableToPointInTime": "dynamodb:RestoreTableToPointInTime",
 		"s3.GetObjectAttributes":             "s3:GetObjectAttributes",
 		"sts.AssumeRoleWithWebIdentity":      "sts:AssumeRoleWithWebIdentity",
 		"logs.StartLiveTail":                 "logs:StartLiveTail",
+		// API Gateway management actions are HTTP methods; the operation's
+		// own method is its primary action (codegen/services iamPrimary).
+		"apigateway.CreateRestApi":   "apigateway:POST",
+		"apigateway.TagResource":     "apigateway:PUT",
+		"apigatewayv2.TagResource":   "apigateway:POST",
+		"apigatewayv2.ImportApi":     "apigateway:PUT",
+		"dynamodbstreams.GetRecords": "dynamodb:GetRecords",
+		"kinesis.PutRecords":         "kinesis:PutRecords",
+		"scheduler.CreateSchedule":   "scheduler:CreateSchedule",
+		"ses.SendEmail":              "ses:SendEmail",
+		"sesv2.SendEmail":            "ses:SendEmail",
+		"sfn.StartExecution":         "states:StartExecution",
+		"ssm.GetParameter":           "ssm:GetParameter",
 	}
-	for _, svc := range services() {
+	for _, svc := range generated() {
 		for _, op := range svc.Operations {
 			if op.Kind != registry.Modeled {
 				continue
@@ -108,7 +145,7 @@ func TestEveryModeledOperationNamesItsIAMActions(t *testing.T) {
 // its query conditions and required headers present, nothing else) must
 // also route back to that row's operation through registry.RouteTable.Match.
 func TestEveryRouteRowRoundTrips(t *testing.T) {
-	for _, svc := range services() {
+	for _, svc := range generated() {
 		if svc.Routes == nil {
 			continue
 		}
@@ -164,7 +201,7 @@ func TestRawOperations(t *testing.T) {
 		{Service: "sns", Name: "UnsubscribeLink"}:         {"sns:Unsubscribe"},
 	}
 	got := map[ref.OperationID][]string{}
-	for _, svc := range services() {
+	for _, svc := range generated() {
 		for _, op := range svc.Operations {
 			if op.Kind != registry.Raw {
 				continue
@@ -254,6 +291,9 @@ func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
 		"cloudwatch": cloudwatchapi.GenericErrors, "dynamodb": dynamodbapi.GenericErrors, "eventbridge": eventbridgeapi.GenericErrors,
 		"iam": iamapi.GenericErrors, "kms": kmsapi.GenericErrors, "lambda": lambdaapi.GenericErrors, "logs": logsapi.GenericErrors,
 		"secretsmanager": secretsmanagerapi.GenericErrors, "sns": snsapi.GenericErrors, "sqs": sqsapi.GenericErrors, "sts": stsapi.GenericErrors,
+		"apigateway": apigatewayapi.GenericErrors, "apigatewayv2": apigatewayv2api.GenericErrors, "dynamodbstreams": dynamodbstreamsapi.GenericErrors,
+		"kinesis": kinesisapi.GenericErrors, "scheduler": schedulerapi.GenericErrors, "ses": sesapi.GenericErrors, "sesv2": sesv2api.GenericErrors,
+		"sfn": sfnapi.GenericErrors, "ssm": ssmapi.GenericErrors,
 	}
 	byShape := func(ids []awserr.Identity) map[string]awserr.Identity {
 		out := make(map[string]awserr.Identity, len(ids))
@@ -266,7 +306,7 @@ func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
 		}
 		return out
 	}
-	for _, svc := range services() {
+	for _, svc := range generated() {
 		speaks := map[awserr.Family]bool{}
 		for _, p := range svc.Protocols {
 			if f, ok := awserr.FamilyOf(p); ok {

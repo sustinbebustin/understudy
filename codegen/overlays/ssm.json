@@ -1,0 +1,250 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.ssm#AmazonSSM": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazonaws.ssm#ThrottlingException",
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/ssm-parameters.md#22-errors: CommonErrors.html gives code ThrottlingException, HTTP 400, as a generic common error with no envelope, and API_PutParameter.html names 'ThrottlingException: Rate exceeded' in prose but not among its errors; the model binds com.amazonaws.ssm#ThrottlingException (Message, QuotaCode, ServiceCode) only to GetAccessToken and StartAccessRequest, so choosing it for Parameter Store over com.amazon.coral.service#ThrottlingException (message) is inference; UNVERIFIED (SSM-01): the message key casing; the SSM queue (ssm-parameters.md 13) has no throttle case, so J14 (error-matrix.md 10) run against ssm settles it",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/ssm-parameters.md#124-limits-and-validation-texts: no SSM capture shows a constraint violation; ValidationException with the Coral text is the cross-service rule of error-matrix.md 4; recording-queue SSM-16 step 02 and SSM-18 step 03 settle it",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.ssm#AlarmName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.ssm#CloudConnectorIamRoleArn": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^arn:aws[a-z0-9\\-]*:iam::\\d{12}:role/[\\w\\-/.@+=,]{1,1000}[\\w\\-/.@+=,]{0,17}$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: RE2 caps a repeat at 1000, so {1,1017} is {1,1000}{0,17}; ECMA reads [\\w-\\/] as \\w, - and /"
+        }
+      }
+    },
+    "com.amazonaws.ssm#DocumentReviewComment": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.ssm#InstancePropertyFilterValue": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {"allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"]},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^.{1,100000}$ is one or more non-line-terminator characters; RE2 cannot repeat past 1000 and an exact check would chain a hundred 1000-repeats compiled at package init, so the bound is left to the shape's @length(1..100000), and a longer value gets the length violation without a second pattern violation; the regex stage and @length count code points while ECMA without the u flag counts UTF-16 units, so a value of 50001 to 100000 astral characters fails the ECMA pattern and passes here"
+        }
+      }
+    },
+    "com.amazonaws.ssm#InstancePropertyStringFilterKey": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {"allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"]},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^.{1,100000}$ is one or more non-line-terminator characters; RE2 cannot repeat past 1000 and an exact check would chain a hundred 1000-repeats compiled at package init, so the bound is left to the shape's @length(1..100000), and a longer value gets the length violation without a second pattern violation; the regex stage and @length count code points while ECMA without the u flag counts UTF-16 units, so a value of 50001 to 100000 astral characters fails the ECMA pattern and passes here"
+        }
+      }
+    },
+    "com.amazonaws.ssm#MetadataKey": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.ssm#OpsItemCategory": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.ssm#OpsItemDataKey": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.ssm#OpsItemSeverity": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.ssm#OpsItemSource": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.ssm#OpsItemTitle": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.ssm#OpsMetadataFilterKey": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.ssm#OpsMetadataResourceId": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.ssm#Policy": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.ssm#RegistrationMetadataKey": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.ssm#RegistrationMetadataValue": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^[^\\n\\r\\x{2028}\\x{2029}]+$"],
+          "noneOf": ["^[\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.ssm#StringDateTime": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^-?\\d{4}(?:(?:-(?:(?:0[1-9]|1[0-2])(?:-(?:[12]\\d|0[1-9]|3[01]))?|W(?:[0-4]\\d|5[0-2])(?:-?[1-7])?|(?:00[1-9]|0[1-9]\\d|[12]\\d{2}|3(?:[0-5]\\d|6[1-6])))|(?:0[1-9]|1[0-2])(?:[12]\\d|0[1-9]|3[01])?|W(?:[0-4]\\d|5[0-2])(?:-?[1-7])?|(?:00[1-9]|0[1-9]\\d|[12]\\d{2}|3(?:[0-5]\\d|6[1-6])))(?:[T\\t\\n\\x0B\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}](?:(?:(?:(?:[01]\\d|2[0-3])|24:?00)(?:[.,]\\d)?)?(?:[0-5]\\d(?:[.,]\\d)?)?|(?:[01]\\d|2[0-3]):[0-5]\\d(?:[.,]\\d|:[0-5]\\d(?:[.,]\\d)?)?|(?:[01]\\d|2[0-3])[0-5]\\d(?:[.,]\\d)?(?:[0-5]\\d(?:[.,]\\d)?)?)(?:[zZ]|-(?:[01]\\d|2[0-3]):?(?:[0-5]\\d)?)?)?)?$"],
+          "noneOf": ["^-?\\d{6}\\b"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: the ISO 8601 pattern's (?!\\d{2}\\b) after the year is the noneOf; its backreferences \\3 (date separator) and \\17 (time separator, empty when unset as in ECMA-262) and the (?!:) after a fraction are expanded into alternatives"
+        }
+      }
+    },
+    "com.amazonaws.ssm#TargetLocationsURL": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^https://[\\-a-zA-Z0-9@:%._+~#=]{1,253}\\.s3(?:\\.[a-z\\d\\-]{9,16})?\\.amazonaws\\.com/[^\\n\\r\\x{2028}\\x{2029}]{1,1000}[^\\n\\r\\x{2028}\\x{2029}]{0,1000}$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: RE2 caps a repeat at 1000, so .{1,2000} is {1,1000}{0,1000} of the ECMA dot, counting code points as the regex stage does; ECMA without the u flag counts UTF-16 units, so a path of 1001 to 2000 astral characters fails the ECMA pattern and passes here"
+        }
+      }
+    }
+  }
+}

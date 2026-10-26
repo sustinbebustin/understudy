@@ -1,5 +1,5 @@
 // Command vendor keeps the generator's third-party inputs verifiable (ADR
-// 0016): the twelve phase 1 Smithy models at one pinned upstream commit, the
+// 0016): the pinned Smithy models at one upstream commit, the
 // Smithy protocol compliance corpus and the operation to IAM action table
 // derived from the AWS Service Reference.
 //

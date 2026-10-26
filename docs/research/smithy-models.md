@@ -263,7 +263,7 @@ Size share of ignorable traits (derived): after dropping documentation, examples
 
 ### 4.3 Safe-to-ignore summary
 
-Ignorable on the server: everything under `smithy.rules#*`, `smithy.test#*`, `smithy.waiters#*`, `aws.api#clientDiscoveredEndpoint`, `smithy.api#endpoint`/`hostLabel`, `clientOptional`, `addedDefault`, the `@input` optionality rule, `paginated` (as behavior), `tags`, `suppress`, `title`, `deprecated`. Everything else in the first table affects the wire or validation.
+Ignorable on the server: everything under `smithy.rules#*`, `smithy.test#*`, `smithy.waiters#*`, `aws.api#clientDiscoveredEndpoint`, `smithy.api#endpoint`/`hostLabel`, `clientOptional`, `addedDefault`, the `@input` optionality rule, `paginated` (as behavior), `tags`, `suppress`, `title`, `deprecated`. Everything else in the first table affects the wire or validation. The roadmap's later models (Scheduler, 2026-10-26) add `aws.cloudformation#cfnResource` and `cfnExcludeProperty`, CloudFormation resource-schema metadata the server ignores, and `aws.iam#requiredActions`, IAM metadata that is generation-only like `aws.iam#iamAction`.
 
 Recommended safeguard: a generator-side trait registry that classifies every trait ID (honor / generation-only / ignore) and fails the build on an unclassified ID. A model bump that introduces a new trait then surfaces as a failing `go generate`, not as silent infidelity.
 
@@ -300,6 +300,13 @@ Smithy requires "ECMA 262" patterns (https://github.com/smithy-lang/smithy/blob/
 | Negative lookahead `(?!` | 6 | EventBridge `PathParameter` `^(?!\s*$).+$`; IAM `accountAliasType` `^[a-z0-9]([a-z0-9]\|-(?!-)){1,61}[a-z0-9]$`; Lambda `Alias` `^(?!^[0-9]+$)([a-zA-Z0-9-_]+)$`, `CollectionName`, `FunctionUrlFunctionName`, `FunctionUrlQualifier` | Hand-written validator functions keyed by shape ID, or generator rewrite to two checks. |
 | Negative lookbehind `(?<!` | 1 | Lambda `S3Bucket` `^[0-9A-Za-z\.\-_]*(?<!\.)$` | Same. |
 | `\p{Print}` (Java class) | 1 | DynamoDB `AutoScalingPolicyName` | `[[:print:]]` or `[\x20-\x7E]`. |
+
+Later models add two failure classes the 12 files do not contain. Derived by scanning the 107 `pattern` values of the SSM model at the same pin (retrieved 2026-10-26):
+
+| Failure | Count | Where | Fix |
+|---|---|---|---|
+| Repeat count above 1000 | 4 | SSM `CloudConnectorIamRoleArn` `{1,1017}`, `TargetLocationsURL` `.{1,2000}`, `InstancePropertyFilterValue` and `InstancePropertyStringFilterKey` `^.{1,100000}$` | Go rejects it: "Implementation restriction: The counting forms x{n,m}, x{n,}, and x{n} reject forms that create a minimum or maximum repetition count above 1000" (https://pkg.go.dev/regexp/syntax). Chain repeats of at most 1000 (`{1,1017}` is `{1,1000}{0,17}`), or leave a large bound to the shape's `length` trait. |
+| Backreference `\1` to `\9` | 1 | SSM `StringDateTime` (ISO 8601; `\3` and `\17` repeat the date and time separators) | RE2 has none; the translator fails with "backreferences have no RE2 rendering" (`internal/codegen/regex.go`). Expand each backreference into one alternative per value its group can capture; a group that did not participate matches the empty string in ECMA-262 (BackreferenceMatcher: "If r is undefined, return c(x)", https://tc39.es/ecma262/#sec-backreference-matcher). |
 
 One more trap: STS `arnType` ends its character class with a five-hex-digit range written as backslash, `u`, `10000` through backslash, `u`, `10FFFF`. ECMA reads each of those as the four-digit escape `1000` / `10FF` followed by a literal `0` / `F`, so the intended astral range (`\x{10000}-\x{10FFFF}` in RE2) is not what the pattern says. Whether the real STS service enforces these patterns at all is UNVERIFIED. All `\p{L}`, `\p{N}`, `\p{Z}` classes compile in RE2. Other dialect differences to test: `\s`/`\w` are ASCII-only in RE2 but Unicode-aware for `\s` in ECMA; `.` in ECMA excludes `\r`, U+2028 and U+2029 while RE2 excludes only `\n`.
 

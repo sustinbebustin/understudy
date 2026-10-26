@@ -212,7 +212,7 @@ func TestFetchWritesVerbatimFilesAndAManifestThatVerifies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(m.Files) != 12 || m.Retrieved != "2026-10-08" || m.License != "Apache-2.0" {
+	if len(m.Files) != len(pinnedModels()) || m.Retrieved != "2026-10-08" || m.License != "Apache-2.0" {
 		t.Fatalf("manifest = %+v", m)
 	}
 }

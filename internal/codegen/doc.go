@@ -47,10 +47,10 @@
 //     under its defaults shape's errors, and every real service speaking the
 //     family gets GenericErrors(f) in errors_gen.go. awserr.Catalogue stays
 //     the runtime copy the edge and the kernel use before a service is
-//     known; a test in internal/api checks the two agree for all twelve
-//     services. The Query family sets no malformedRequestError: no recording
-//     shows what a Query service sends, so the awsquery codec's fallback
-//     applies.
+//     known; a test in internal/api checks the two agree for every
+//     generated service. The Query family sets no malformedRequestError: no
+//     recording shows what a Query service sends, so the awsquery codec's
+//     fallback applies.
 //   - codegen/services/<svc>.json names its model's directory in
 //     third_party/api-models-aws/UPSTREAM.json ("model"). An overlay
 //     operation without internalOperation fails generation, since no

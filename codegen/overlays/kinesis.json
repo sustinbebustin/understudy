@@ -1,0 +1,24 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.kinesis#Kinesis_20131202": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazonaws.kinesis#ProvisionedThroughputExceededException",
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/kinesis.md#137-fault-injection: one service-wide throttle identity is wrong for the control plane, so this takes the note's recommended data-plane identity ProvisionedThroughputExceededException (PutRecord, PutRecords, GetRecords, GetShardIterator) and leaves control-plane fault rules to name LimitExceededException explicitly; the control-plane code is UNVERIFIED until recording KIN-23",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/kinesis.md#133-limits-and-validation: the constraint-failure identity is UNVERIFIED, so generated validators answer the Coral ValidationException until recording KIN-07 settles it against InvalidArgumentException",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    }
+  }
+}

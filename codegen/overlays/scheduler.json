@@ -1,0 +1,36 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.scheduler#AWSChronosService": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazonaws.scheduler#ThrottlingException",
+        "dev.understudy#validationError": {"code": "com.amazonaws.scheduler#ValidationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/eventbridge-buses.md#111-model-and-wire: the model declares ThrottlingException (429) on every operation while CommonErrors.html lists a 400 ThrottlingException; no recording shows which Scheduler emits; the EBB queue has no throttle case, so J14 (error-matrix.md 10) run against scheduler settles it",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/eventbridge-buses.md#111-model-and-wire: the only Scheduler error recording (LocalStack test_scheduler.snapshot.json L33-L44, AWS-validated 2025-01-26) is the handler's 'Invalid Schedule Expression <expr>.' check, which shows ValidationException 400 with body key Message; UNVERIFIED: no capture shows a model-constraint violation (required, length, range, pattern, enum) or its text, so the Coral text is the cross-service rule of error-matrix.md 4; a constraint-violation step not yet in recording-queue EBB-11 (create-schedule with a 65-character Name, model length 1-64) settles it",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.scheduler#Source": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {
+          "allOf": ["^(?:[/.\\-_A-Zb-z0-9]|a(?:$|[^w]|w(?:$|[^s]|s(?:$|[^.]))))|\\$(?:\\.[\\w_-]+(?:\\[(?:\\d+|\\*)\\])*)*$"]
+        },
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: the model's ^(?=[/\\.\\-_A-Za-z0-9]+)((?!aws\\.).*)|(\\$(\\.[\\w_-]+(\\[(\\d+|\\*)\\])*)*)$ is a first character in [/.\\-_A-Za-z0-9] with no leading aws., or a $-path suffix; a rendering of the model pattern, not an AWS behavior, so no recording case settles it"
+        }
+      }
+    }
+  }
+}

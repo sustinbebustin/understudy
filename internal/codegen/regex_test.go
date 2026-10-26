@@ -171,19 +171,36 @@ func simplified(p string) (string, error) {
 	return re.Simplify().String(), nil
 }
 
-// TestEveryVendoredPatternTranslates walks the 319 patterns of the twelve
-// vendored models: each translates to a compiling RE2 pattern, except the
-// lookarounds of smithy-models.md 6.2, which need a hand validator. Where
-// RE2 and ECMA agree on the source syntax, the translation must keep its
-// meaning exactly.
+// phaseOneModels are the directories of the twelve phase 1 models, whose
+// patterns smithy-models.md 4.1 and 6.2 count.
+var phaseOneModels = map[string]bool{
+	"cloudwatch": true, "cloudwatch-logs": true, "dynamodb": true, "eventbridge": true,
+	"iam": true, "kms": true, "lambda": true, "s3": true,
+	"secrets-manager": true, "sns": true, "sqs": true, "sts": true,
+}
+
+// TestEveryVendoredPatternTranslates walks the patterns of every vendored
+// model: each translates to a compiling RE2 pattern, except the lookarounds
+// of smithy-models.md 6.2 and, in a later model, the constructs a
+// PatternError names; those need a hand validator, and the generator
+// refuses such a shape without one. Where RE2 and ECMA agree on the source
+// syntax, the translation must keep its meaning exactly. The twelve phase 1
+// models hold the 319 patterns and the seven lookarounds smithy-models.md
+// counts.
 func TestEveryVendoredPatternTranslates(t *testing.T) {
 	paths, err := filepath.Glob("../../third_party/api-models-aws/models/*/service/*/*.json")
-	if err != nil || len(paths) != 12 {
-		t.Fatalf("found %d vendored models (%v), want 12", len(paths), err)
+	if err != nil || len(paths) < len(phaseOneModels) {
+		t.Fatalf("found %d vendored models (%v), want at least the %d of phase 1", len(paths), err, len(phaseOneModels))
 	}
-	var count int
+	var count, phaseOne int
 	var lookarounds []string
 	for _, p := range paths {
+		// models/<dir>/service/<version>/<file>.json
+		dir := filepath.Base(filepath.Dir(filepath.Dir(filepath.Dir(p))))
+		first := phaseOneModels[dir]
+		if first {
+			phaseOne++
+		}
 		f, err := os.Open(p)
 		if err != nil {
 			t.Fatal(err)
@@ -204,12 +221,18 @@ func TestEveryVendoredPatternTranslates(t *testing.T) {
 			if err := json.Unmarshal(raw, &src); err != nil {
 				t.Fatal(err)
 			}
-			count++
+			if first {
+				count++
+			}
 			re2, err := codegen.TranslatePattern(src)
 			var la *codegen.LookaroundError
+			var pe *codegen.PatternError
 			switch {
 			case errors.As(err, &la):
-				lookarounds = append(lookarounds, string(id))
+				if first {
+					lookarounds = append(lookarounds, string(id))
+				}
+			case errors.As(err, &pe) && !first:
 			case err != nil:
 				t.Errorf("%s: %v", id, err)
 			case !rewritten(src):
@@ -224,6 +247,9 @@ func TestEveryVendoredPatternTranslates(t *testing.T) {
 				}
 			}
 		}
+	}
+	if phaseOne != len(phaseOneModels) {
+		t.Errorf("found %d of the %d phase 1 models", phaseOne, len(phaseOneModels))
 	}
 	if count != 319 {
 		t.Errorf("%d patterns, smithy-models.md 4.1 counts 319", count)

@@ -1,0 +1,7 @@
+{
+  "service": "com.amazonaws.ses#SimpleEmailService",
+  "package": "sesapi",
+  "model": "ses",
+  "iamPrefix": "ses",
+  "sdkService": "ses"
+}

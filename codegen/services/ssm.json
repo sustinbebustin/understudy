@@ -1,0 +1,6 @@
+{
+  "service": "com.amazonaws.ssm#AmazonSSM",
+  "package": "ssmapi",
+  "model": "ssm",
+  "iamPrefix": "ssm"
+}

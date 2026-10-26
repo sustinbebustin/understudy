@@ -1,0 +1,84 @@
+{
+  "service": "com.amazonaws.apigateway#BackplaneControlService",
+  "package": "apigatewayapi",
+  "model": "api-gateway",
+  "iamPrefix": "apigateway",
+  "sdkService": "apigateway",
+  "iamPrimary": [
+    {
+      "operation": "CreateApiKey",
+      "action": "apigateway:POST",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is POST /apikeys; the other listed action gates optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "CreateDomainName",
+      "action": "apigateway:POST",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is POST /domainnames; the other listed actions gate optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "CreateDomainNameAccessAssociation",
+      "action": "apigateway:POST",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is POST /domainnameaccessassociations; the other listed actions gate optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "CreateRestApi",
+      "action": "apigateway:POST",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is POST /restapis; the other listed actions gate optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "CreateStage",
+      "action": "apigateway:POST",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is POST /restapis/{restApiId}/stages; the other listed action gates optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "CreateUsagePlan",
+      "action": "apigateway:POST",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is POST /usageplans; the other listed action gates optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "CreateVpcLink",
+      "action": "apigateway:POST",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is POST /vpclinks; the other listed action gates optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "DeleteDomainName",
+      "action": "apigateway:DELETE",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is DELETE /domainnames/{domainName}; the other listed action gates optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "GenerateClientCertificate",
+      "action": "apigateway:POST",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is POST /clientcertificates; the other listed action gates optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "ImportRestApi",
+      "action": "apigateway:POST",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is POST /restapis?mode=import; the other listed actions gate optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "PutRestApi",
+      "action": "apigateway:PUT",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is PUT /restapis/{restApiId}; the other listed actions gate optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "TagResource",
+      "action": "apigateway:PUT",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is PUT /tags/{resourceArn}; the other listed actions gate optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "UntagResource",
+      "action": "apigateway:DELETE",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is DELETE /tags/{resourceArn}; the other listed action gates optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "UpdateDomainName",
+      "action": "apigateway:PATCH",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is PATCH /domainnames/{domainName}; the other listed actions gate optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "UpdateRestApi",
+      "action": "apigateway:PATCH",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is PATCH /restapis/{restApiId}; the other listed action gates optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    }
+  ]
+}

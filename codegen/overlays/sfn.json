@@ -1,0 +1,35 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.sfn#AWSStepFunctions": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/stepfunctions-api.md#32-error-identities-and-statuses: code ThrottlingException, HTTP 400 and SDK retry are documented at https://docs.aws.amazon.com/step-functions/latest/apireference/CommonErrors.html, which shows the bare name only; UNVERIFIED (SFN-01): the awsJson1_0 __type namespace com.amazon.coral.service# and the message key casing; recording-queue SFN-01 (stepfunctions-api.md 14.2) settles it",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/stepfunctions-api.md#32-error-identities-and-statuses: code ValidationException, HTTP 400, a top-level message member and the Coral grammar are recorded against AWS (LocalStack, validated 2024-07-01) at https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/stepfunctions/v2/test_sfn_api.snapshot.json#L1882-L1892; botocore strips the namespace, so UNVERIFIED (SFN-01): the raw __type namespace com.amazon.coral.validate#; recording-queue SFN-01 (stepfunctions-api.md 14.2) settles it",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.sfn#CharacterRestrictedName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {"allOf": ["^[0-9]*[a-zA-Z_\\-\\.][a-zA-Z0-9_\\-\\.]*$"]},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/stepfunctions/v2/test_sfn_api_aliasing.snapshot.json#L132-L152",
+          "validated": "2025-04-09"
+        }
+      }
+    }
+  }
+}

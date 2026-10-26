@@ -23,21 +23,32 @@ type model struct {
 	Path string
 }
 
-// pinnedModels are the twelve phase 1 models of smithy-models.md 3.1, sorted
-// by directory name.
+// pinnedModels are the twelve phase 1 models of smithy-models.md 3.1 and the
+// models of the roadmap's new services (API Gateway, Step Functions,
+// DynamoDB Streams, Kinesis, SSM, SES and EventBridge Scheduler), sorted by
+// directory name.
 func pinnedModels() []model {
 	return []model{
+		{Dir: "api-gateway", Path: "models/api-gateway/service/2015-07-09/api-gateway-2015-07-09.json"},
+		{Dir: "apigatewayv2", Path: "models/apigatewayv2/service/2018-11-29/apigatewayv2-2018-11-29.json"},
 		{Dir: "cloudwatch", Path: "models/cloudwatch/service/2010-08-01/cloudwatch-2010-08-01.json"},
 		{Dir: "cloudwatch-logs", Path: "models/cloudwatch-logs/service/2014-03-28/cloudwatch-logs-2014-03-28.json"},
 		{Dir: "dynamodb", Path: "models/dynamodb/service/2012-08-10/dynamodb-2012-08-10.json"},
+		{Dir: "dynamodb-streams", Path: "models/dynamodb-streams/service/2012-08-10/dynamodb-streams-2012-08-10.json"},
 		{Dir: "eventbridge", Path: "models/eventbridge/service/2015-10-07/eventbridge-2015-10-07.json"},
 		{Dir: "iam", Path: "models/iam/service/2010-05-08/iam-2010-05-08.json"},
+		{Dir: "kinesis", Path: "models/kinesis/service/2013-12-02/kinesis-2013-12-02.json"},
 		{Dir: "kms", Path: "models/kms/service/2014-11-01/kms-2014-11-01.json"},
 		{Dir: "lambda", Path: "models/lambda/service/2015-03-31/lambda-2015-03-31.json"},
 		{Dir: "s3", Path: "models/s3/service/2006-03-01/s3-2006-03-01.json"},
+		{Dir: "scheduler", Path: "models/scheduler/service/2021-06-30/scheduler-2021-06-30.json"},
 		{Dir: "secrets-manager", Path: "models/secrets-manager/service/2017-10-17/secrets-manager-2017-10-17.json"},
+		{Dir: "ses", Path: "models/ses/service/2010-12-01/ses-2010-12-01.json"},
+		{Dir: "sesv2", Path: "models/sesv2/service/2019-09-27/sesv2-2019-09-27.json"},
+		{Dir: "sfn", Path: "models/sfn/service/2016-11-23/sfn-2016-11-23.json"},
 		{Dir: "sns", Path: "models/sns/service/2010-03-31/sns-2010-03-31.json"},
 		{Dir: "sqs", Path: "models/sqs/service/2012-11-05/sqs-2012-11-05.json"},
+		{Dir: "ssm", Path: "models/ssm/service/2014-11-06/ssm-2014-11-06.json"},
 		{Dir: "sts", Path: "models/sts/service/2011-06-15/sts-2011-06-15.json"},
 	}
 }

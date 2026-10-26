@@ -1,0 +1,6 @@
+{
+  "service": "com.amazonaws.kinesis#Kinesis_20131202",
+  "package": "kinesisapi",
+  "model": "kinesis",
+  "iamPrefix": "kinesis"
+}

@@ -16,7 +16,7 @@ import (
 
 // ServiceConfig is codegen/services/<svc>.json (ARCHITECTURE.md 5.3). Model
 // names the UPSTREAM.json directory of the service's model file, so the
-// generator reads one model instead of scanning all twelve. IAMPrefix is the
+// generator reads one model instead of scanning them all. IAMPrefix is the
 // service's IAM action prefix and its key in the Service Reference table,
 // stated rather than derived: the model's arnNamespace is wrong for
 // CloudWatch (monitoring, where IAM says cloudwatch; smithy-models.md 3.1).

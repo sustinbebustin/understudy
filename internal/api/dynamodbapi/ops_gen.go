@@ -576,7 +576,7 @@ var descScan = registry.Operation{
 	Input:       &schemaScanInput,
 	Output:      &schemaScanOutput,
 	Errors:      []awserr.Identity{IdentityInternalServerError(), IdentityInvalidEndpointException(), IdentityProvisionedThroughputExceededException(), IdentityRequestLimitExceeded(), IdentityResourceNotFoundException(), IdentityThrottlingException(), IdentityValidationException()},
-	IAM:         []registry.IAMAction{{Prefix: "dynamodb", Name: "Scan"}},
+	IAM:         []registry.IAMAction{{Prefix: "dynamodb", Name: "Scan"}, {Prefix: "dynamodb", Name: "ReadDataForReplication"}},
 	SuccessCode: 200,
 }
 

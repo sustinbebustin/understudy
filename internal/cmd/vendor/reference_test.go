@@ -121,8 +121,11 @@ func TestFetchActionsWritesOneEntryPerPinnedPrefix(t *testing.T) {
 	if want := referencePrefixes(); !slices.Equal(prefixes, want) || a.Retrieved != "2026-10-10" {
 		t.Fatalf("actions.json lists %v retrieved %s, want %v", prefixes, a.Retrieved, want)
 	}
-	cw := a.Services[0]
-	if cw.Prefix != "cloudwatch" || cw.Operations[2].Authorized[0] != "cloudwatch:SendMessage" {
+	i := slices.IndexFunc(a.Services, func(s ServiceActions) bool { return s.Prefix == "cloudwatch" })
+	if i < 0 {
+		t.Fatalf("actions.json lists no cloudwatch entry: %v", prefixes)
+	}
+	if cw := a.Services[i]; cw.Operations[2].Authorized[0] != "cloudwatch:SendMessage" {
 		t.Fatalf("cloudwatch entry = %+v; actions are prefixed by the document's own service", cw)
 	}
 }

@@ -86,7 +86,7 @@ codegen/
   overlays/<svc>.json           Smithy JSON AST fragments with dev.understudy traits and evidence
   overlays/common.json          framework errors, generic vocabulary
 third_party/
-  api-models-aws/               12 model files verbatim at 1cfdfb4bb9ea858e65623e66d73af04bec353201, UPSTREAM.json, LICENSE, NOTICE
+  api-models-aws/               21 model files verbatim at 1cfdfb4bb9ea858e65623e66d73af04bec353201, UPSTREAM.json, LICENSE, NOTICE
   smithy-protocol-tests/        flattened AST from Smithy 1.74.0 jars, PIN.json
   aws-service-reference/        derived operation -> IAM action table with provenance
 testdata/parity/<svc>/<item>/   parity recordings, one file per step, and where one exists the item's replay scenario (scenario.json)
