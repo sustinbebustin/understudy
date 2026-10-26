@@ -110,6 +110,7 @@ export class Forest {
   readonly #traceOf = new Map<number, number>();
   readonly #gaps: Gap[] = [];
   #highest: number | null = null;
+  #added = 0;
 
   constructor(maxTraces = 1000) {
     if (!isPositive(maxTraces)) {
@@ -148,7 +149,15 @@ export class Forest {
     }
     members.set(e.id, e);
     this.#traceOf.set(e.id, t);
+    this.#added++;
     return "added";
+  }
+
+  // eventCount is how many events add has answered "added" for, those of
+  // dropped traces included: an event that ends a held pending call, a
+  // duplicate and a Gap are not counted again.
+  eventCount(): number {
+    return this.#added;
   }
 
   // has reports whether the event with id is held.

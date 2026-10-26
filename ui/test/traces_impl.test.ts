@@ -42,6 +42,23 @@ describe("Forest", () => {
     expect(f.trace(1)?.root?.children[0]?.event.detail).toEqual({ outcome: { kind: "ok" } });
   });
 
+  test("eventCount counts a call pending in the tail and ended on the stream once, and no gap or duplicate", () => {
+    const f = new Forest();
+    f.add(event(1, { trace: 1 }));
+    f.add(event(2, { parent: 1, trace: 1, detail: { outcome: { kind: "pending" } } }));
+    f.add(event(2, { parent: 1, trace: 1 }));
+    f.add(event(1, { trace: 1 }));
+    f.add(gap(4));
+    expect(f.eventCount()).toBe(2);
+  });
+
+  test("eventCount keeps the events of a dropped trace", () => {
+    const f = new Forest(1);
+    f.add(event(1, { trace: 1 }));
+    f.add(event(2, { trace: 2 }));
+    expect([f.eventCount(), f.traces().length]).toEqual([2, 1]);
+  });
+
   test("gaps() is a fresh value", () => {
     const f = new Forest();
     f.add(gap(2));

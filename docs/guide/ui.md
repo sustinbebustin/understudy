@@ -47,7 +47,7 @@ A browser reaches such a listener only by an IP address, a loopback name or a co
 
 ## Live traces
 
-The **Traces** view opens first. It subscribes to the journal stream, then loads the newest 500 events, so nothing recorded in between is missed, and draws each new event as it is recorded. The header shows `live` while the stream is connected. Each row is one trace: its root event's id, kind and summary, and how many of its events the page holds. **Pause** stops redrawing the list; events that arrive meanwhile are kept and appear on **Resume**.
+The **Traces** view opens first. It subscribes to the journal stream, then loads the newest 500 events, so nothing recorded in between is missed, and draws each new event as it is recorded. The header shows `live` while the stream is connected. When the stream drops, the page reconnects and resumes after the newest event the stream gave it, so it receives what was recorded meanwhile; what the journal evicted meanwhile is shown as a gap. Each row is one trace: its root event's id, kind and summary, and how many of its events the page holds. **Pause** stops redrawing the list; events that arrive meanwhile are kept and appear on **Resume**.
 
 With the page open, an SNS topic fanning out to an SQS queue:
 

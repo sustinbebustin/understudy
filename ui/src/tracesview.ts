@@ -31,7 +31,7 @@ function kindTag(e: JournalEvent): HTMLElement {
 
 function gapText(g: Gap): string {
   const where = g.afterId === null ? "before the first event this page saw" : `after event #${String(g.afterId)}`;
-  return `The stream missed ${String(g.missed)} event(s) ${where}: this page read too slowly. GET /journal/events still holds what the journal retains.`;
+  return `The stream missed ${String(g.missed)} event(s) ${where}: this page read too slowly, or lost the stream while the journal evicted them. GET /journal/events still holds what the journal retains.`;
 }
 
 export class TracesView {
@@ -44,7 +44,6 @@ export class TracesView {
   #selected: number | null = null;
   // #open: the events whose full detail is shown.
   readonly #open = new Set<number>();
-  #events = 0;
   #badLines = 0;
   #lastBad = "";
   #paused = false;
@@ -69,7 +68,6 @@ export class TracesView {
   // add places an event from the journal.
   add(e: JournalEvent): void {
     if (this.#forest.add(e) !== "duplicate") {
-      this.#events++;
       this.#schedule();
     }
   }
@@ -96,7 +94,7 @@ export class TracesView {
     const traces = this.#forest.traces();
     fill(
       this.#meta,
-      `${String(this.#events)} event(s) in ${String(traces.length)} trace(s)`,
+      `${String(this.#forest.eventCount())} event(s) in ${String(traces.length)} trace(s)`,
       this.#paused ? " (paused: new events are kept, not drawn)" : "",
       this.#badLines > 0 ? h("span", { class: "warn", title: this.#lastBad }, ` ${String(this.#badLines)} line(s) unreadable; last: ${this.#lastBad}`) : null,
     );

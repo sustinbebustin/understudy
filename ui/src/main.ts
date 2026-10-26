@@ -147,21 +147,28 @@ function start(app: HTMLElement, secret: string): void {
 
   async function followJournal(): Promise<void> {
     let wait = firstRetry;
+    // resumeAfter is the newest event a stream delivered, which a reconnect
+    // resumes after, so the server replays what the page missed or reports
+    // it as a gap; null until a stream has delivered one.
+    let resumeAfter: number | null = null;
     for (;;) {
       fill(status, "connecting");
       const end = await follow({
         fetch: async (input, init) => {
           const resp = await fetch(input, init);
-          if (resp.ok && input.endsWith("/journal/stream")) {
+          if (resp.ok && (input.split("?", 1)[0] ?? "").endsWith("/journal/stream")) {
             fill(status, "live");
             wait = firstRetry;
           }
           return resp;
         },
         headers: admin.headers(),
-        tail,
+        ...(resumeAfter === null ? { tail } : { after: resumeAfter }),
         signal: new AbortController().signal,
-        onEvent: (e) => {
+        onEvent: (e, by) => {
+          if (by === "stream" && e.kind !== "gap") {
+            resumeAfter = Math.max(resumeAfter ?? 0, e.id);
+          }
           traces.add(e);
           invalidate(refreshFor(e));
         },
