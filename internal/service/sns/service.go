@@ -25,17 +25,20 @@ type Service struct {
 	// policies holds the subscriptions' filter policies compiled, filled
 	// where a policy is set and on its first publish after a load.
 	policies *filterpolicy.Cache
+	// tlsPort is Options.TLSPort: where HTTP deliveries' links point.
+	tlsPort func() (uint16, bool)
 }
 
 // New binds the SNS operations understudy implements. Every other SNS
 // operation (SMS, mobile push, data protection) stays unbound and answers
 // 501.
-func New(d kernel.ServiceDeps, _ Options) *Service {
+func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{
 		clock:    d.Clock,
 		ids:      d.IDs,
 		cells:    store.NewPartitioned(d.Kernel.Gate(), codec(), newState),
 		policies: filterpolicy.NewCache(),
+		tlsPort:  o.TLSPort,
 	}
 	b := snsapi.NewBinder(d.Binder)
 	s.bindTopics(b)

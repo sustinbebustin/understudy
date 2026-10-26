@@ -18,7 +18,12 @@
 //     ConfirmSubscriptionLink?Action=ConfirmSubscription&TopicArn=<arn>&Token=<token>.
 //     The query keeps AWS's shape, so code that reads SubscriptionArn out
 //     of the URL works. The links carry no credentials, so the ARN alone
-//     says which account and region they act in.
+//     says which account and region they act in. An http or https
+//     delivery's links are on the TLS listener, https://localhost:<port>,
+//     while one serves, so the AWS validators' https and .pem checks can
+//     pass (sns-http-delivery.md 5.6, 8.3), and else on the client's host,
+//     which a loopback listener never answers as an AWS name (8.8; the
+//     exposed-listener case is at httpLinks).
 //   - Confirmation. An sqs or lambda endpoint is confirmed at Subscribe
 //     when its ARN's account is the topic owner's or the caller's; every
 //     other subscription is pending with a 288-hex-character token that

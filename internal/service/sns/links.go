@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
@@ -33,6 +34,24 @@ type links struct {
 }
 
 func linksOf(e kernel.Endpoint) links { return links{base: e.String() + linkPrefix} }
+
+// httpLinks builds the links of an http or https delivery: on the TLS
+// listener as https://localhost:<port> while one serves, so the
+// validators' https and .pem checks can pass (sns-http-delivery.md 5.6,
+// 8.3.3), else on the host the calling client addressed, as every other
+// delivery's. Never on an AWS host (8.8): localhost is not one, and a
+// loopback listener answers only local names (ADR 0013). An exposed
+// listener answers any Host from a client that is not a browser, so a
+// client that addresses it by an AWS name, with no TLS listener serving,
+// gets links on that name.
+func (s *Service) httpLinks(e kernel.Endpoint) links {
+	if s.tlsPort != nil {
+		if port, ok := s.tlsPort(); ok {
+			return links{base: "https://localhost:" + strconv.FormatUint(uint64(port), 10) + linkPrefix}
+		}
+	}
+	return linksOf(e)
+}
 
 // unsubscribe is a subscription's UnsubscribeURL, shaped as AWS's
 // (sns.md 5.1) under the reserved prefix.
