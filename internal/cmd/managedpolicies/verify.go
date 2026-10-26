@@ -58,8 +58,8 @@ func sha256Hex(b []byte) string {
 }
 
 // verify checks the catalogue directory fsys, named dir in messages,
-// offline: policies.json parses and is canonical, every document passes
-// policydoc's identity policy rules, SOURCE.json is canonical and matches
+// offline: policies.json parses and is canonical, every document parses as
+// an identity policy (see document), SOURCE.json is canonical and matches
 // the catalogue and its hashes, and LICENSE and NOTICE are the generator's.
 // It returns nil or a *VerifyError holding every problem found.
 func verify(fsys fs.FS, dir string) error {
@@ -127,16 +127,29 @@ func (v *verifier) catalogue() *policycatalogue.Catalogue {
 		v.add(name, "", "is not in the generator's canonical form (sorted by name regardless of case, two-space indent, one trailing newline); it first differs on line %d", firstDifferentLine(data, encoded))
 	}
 	for p := range cat.All() {
-		doc, perr := policydoc.Parse([]byte(p.Document))
-		if perr != nil {
-			v.add(name, p.ARN, "the document does not parse as a policy: %v; this is a finding about policydoc or the data for the maintainer, never patched in the data", perr)
-			continue
-		}
-		if verr := policydoc.ValidateIdentity(doc); verr != nil {
-			v.add(name, p.ARN, "the document fails policydoc's identity policy rules: %v; this is a finding about policydoc or the data for the maintainer, never patched in the data", verr)
-		}
+		v.document(p)
 	}
 	return cat
+}
+
+// document checks that p's document parses and is an identity policy
+// (policydoc.ValidateIdentityForm). The rest of policydoc.ValidateIdentity
+// is not applied: it ports moto's CreatePolicy checks, which IAM applies to
+// a customer's upload, and AWS publishes its managed policies without that
+// call. Some of AWS's published documents break those checks (resources
+// naming IAM role templates, which the IAM resource path rule refuses), and
+// AWS is the arbiter of what its own documents hold (iam-evaluation.md
+// 10.6).
+func (v *verifier) document(p policycatalogue.Policy) {
+	const name = awsmanagedpolicies.PoliciesFile
+	doc, perr := policydoc.Parse([]byte(p.Document))
+	if perr != nil {
+		v.add(name, p.ARN, "the document does not parse as a policy: %v; this is a finding about policydoc or the data for the maintainer, never patched in the data", perr)
+		return
+	}
+	if verr := policydoc.ValidateIdentityForm(doc); verr != nil {
+		v.add(name, p.ARN, "the document is not an identity policy: %v; this is a finding about policydoc or the data for the maintainer, never patched in the data", verr)
+	}
 }
 
 // arnsByIndex is the arn member of each policy of policies.json, read

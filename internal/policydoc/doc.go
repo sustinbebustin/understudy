@@ -7,7 +7,9 @@
 // Resource or NotResource, Condition) into a typed Document;
 // ValidateIdentity and ValidateTrust add the rules IAM applies to identity
 // and trust policies, with the MalformedPolicyDocument texts of
-// docs/research/iam-sts-kms.md 3.3. Encode writes a canonical form and Allows
+// docs/research/iam-sts-kms.md 3.3; ValidateIdentityForm applies only the
+// two that make a document an identity policy, for documents that never
+// went through CreatePolicy. Encode writes a canonical form and Allows
 // evaluates a request against one document. understudy stores policies and
 // does not enforce them; Allows serves resource-policy advisories and tests.
 //

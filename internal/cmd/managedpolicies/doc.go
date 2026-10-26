@@ -16,9 +16,12 @@
 // last, then runs -verify.
 //
 // -verify checks, offline, that the data parses and is in canonical form,
-// that every document passes policydoc's identity policy rules, that
-// SOURCE.json matches the data and its hashes, and that LICENSE and NOTICE
-// are the ones the generator writes.
+// that every document parses as a policy and is an identity policy
+// (Version 2012-10-17, no principal), that SOURCE.json matches the data and
+// its hashes, and that LICENSE and NOTICE are the ones the generator
+// writes. The CreatePolicy rules policydoc applies to a customer's document
+// are not applied: AWS publishes its managed policies without that call,
+// and some of them break those rules (iam-evaluation.md 10.6).
 //
 // On success each mode prints one line to stderr: the number of policies,
 // the count of each Type and the highest default version, for the

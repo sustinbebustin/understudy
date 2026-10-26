@@ -119,7 +119,25 @@ func ValidateIdentity(doc Document) *ValidationError {
 			return &ValidationError{Rule: RuleResourcesRequired}
 		}
 	}
-	for _, st := range doc.Statements {
+	return checkNoPrincipal(doc.Statements)
+}
+
+// ValidateIdentityForm applies only the two rules of ValidateIdentity that
+// make doc an identity policy, Version 2012-10-17 and no Principal or
+// NotPrincipal, and returns the first one doc breaks. It is for documents
+// that never went through a customer's CreatePolicy, such as the AWS managed
+// policies AWS publishes, to which the rest of ValidateIdentity, a port of
+// moto's CreatePolicy checks, need not apply (iam-evaluation.md 10.6).
+func ValidateIdentityForm(doc Document) *ValidationError {
+	if doc.Version != Version20121017 {
+		return &ValidationError{Rule: RuleVersion}
+	}
+	return checkNoPrincipal(doc.Statements)
+}
+
+// checkNoPrincipal rejects a statement with a Principal or NotPrincipal.
+func checkNoPrincipal(statements []Statement) *ValidationError {
+	for _, st := range statements {
 		if st.Principal != nil {
 			return &ValidationError{Rule: RulePrincipalProhibited}
 		}
