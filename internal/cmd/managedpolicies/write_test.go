@@ -57,7 +57,7 @@ func written(t *testing.T) (dir string, cat *policycatalogue.Catalogue, src Sour
 }
 
 // dataFiles are the files of the catalogue directory.
-var dataFiles = []string{awsmanagedpolicies.PoliciesFile, awsmanagedpolicies.SourceFile, awsmanagedpolicies.LicenseFile, awsmanagedpolicies.NoticeFile}
+var dataFiles = []string{awsmanagedpolicies.PoliciesFile, awsmanagedpolicies.PoliciesGzipFile, awsmanagedpolicies.SourceFile, awsmanagedpolicies.LicenseFile, awsmanagedpolicies.NoticeFile}
 
 func asMapFS(t *testing.T, dir string) fstest.MapFS {
 	t.Helper()
@@ -164,7 +164,7 @@ func TestNoticeAttributesTheGuide(t *testing.T) {
 	}
 }
 
-// write leaves exactly the four data files, each mode 0644, holding the
+// write leaves exactly the five data files, each mode 0644, holding the
 // generator's forms of cat and src, and the directory verifies.
 func TestWriteThenVerify(t *testing.T) {
 	dir, cat, src := written(t)
