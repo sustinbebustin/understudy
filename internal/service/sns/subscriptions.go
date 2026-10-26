@@ -38,8 +38,9 @@ const (
 // bindSubscriptions binds the subscription lifecycle and listings.
 func (s *Service) bindSubscriptions(b snsapi.Binder) {
 	b.Subscribe(s.subscribe, registry.Partial{Note: "sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; " +
-		"http, https, email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; " +
-		"the quota of 10,000 filter policies per account is not enforced"},
+		"http and https endpoints get a signed SubscriptionConfirmation when their host and port are in sns.httpDelivery.allow, " +
+		"and otherwise stay subscribed with a readable token but receive nothing; email and email-json stay subscribed with a readable token but receive nothing; " +
+		"sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced; " + httpPolicyGap},
 		arnResource(func(in *snsapi.SubscribeInput) string { return in.TopicArn }))
 	b.ConfirmSubscription(s.confirmSubscription, registry.Full{},
 		arnResource(func(in *snsapi.ConfirmSubscriptionInput) string { return in.TopicArn }))
@@ -112,6 +113,10 @@ const (
 	// confirmedFromQueue: it waits as confirmedByToken does, and its queue
 	// gets a SubscriptionConfirmation carrying the token (sns.md 3.1).
 	confirmedFromQueue
+	// confirmedFromEndpoint: it waits as confirmedByToken does, and its
+	// http or https endpoint gets a SubscriptionConfirmation POST carrying
+	// the token (sns-http-delivery.md 2.2).
+	confirmedFromEndpoint
 )
 
 // confirmRouteOf is the confirmRoute of a subscription of protocol to an
@@ -124,9 +129,17 @@ func confirmRouteOf(protocol Protocol, owner string, ref topicRef, c *kernel.Cal
 		return confirmedAtSubscribe
 	case protocol == ProtocolSQS:
 		return confirmedFromQueue
+	case protocol.http():
+		return confirmedFromEndpoint
 	default:
 		return confirmedByToken
 	}
+}
+
+// sendsConfirmation reports a route whose endpoint gets a signed
+// SubscriptionConfirmation, which needs the scope's signing key.
+func (r confirmRoute) sendsConfirmation() bool {
+	return r == confirmedFromQueue || r == confirmedFromEndpoint
 }
 
 // added is the outcome of a Subscribe write that stored or found a
@@ -142,18 +155,23 @@ type added struct {
 // endpoint when settings agree with it. A new subscription whose
 // FilterPolicy would pass the topic's quota is still stored, without the
 // policy, and Subscribe answers the quota error, as AWS still creates it
-// (sns.md 3.1).
+// (sns.md 3.1). Under sns.http.resubscribe-pending a repeat for a pending
+// http or https subscription sends its endpoint the SubscriptionConfirmation
+// again, with the same token and expiry (sns-http-delivery.md 2.2).
 func (s *Service) addSubscription(c *kernel.Call, ref topicRef, candidate Subscription, settings []subscriptionSetting, route confirmRoute) (Subscription, *awserr.Error) {
 	token := ""
 	if route != confirmedAtSubscribe {
 		token = hex.EncodeToString(s.ids.Draw(ids.KindSNSMessageID, tokenBytes))
 	}
-	if route == confirmedFromQueue {
+	if route.sendsConfirmation() {
 		if err := s.ensureKey(c, ref); err != nil {
 			return Subscription{}, err
 		}
 	}
-	links := linksOf(c.Endpoint())
+	l := linksOf(c.Endpoint())
+	if route == confirmedFromEndpoint {
+		l = s.httpLinks(c.Endpoint())
+	}
 	out, err := kernel.Write(c, s.cells, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (added, *awserr.Error) {
 		t, ok := st.writable(ref.name, now)
 		if !ok {
@@ -161,7 +179,7 @@ func (s *Service) addSubscription(c *kernel.Call, ref topicRef, candidate Subscr
 		}
 		if existing, ok := t.subscribed(candidate.Protocol, candidate.Endpoint); ok {
 			tx.Unchanged()
-			return added{sub: existing}, existing.agrees(settings)
+			return added{sub: existing}, s.resubscribe(tx, route, st, ref, &t, &existing, settings, l, now)
 		}
 		if route != confirmedAtSubscribe {
 			candidate.Status = Pending{Token: token, Expires: now.Add(tokenValidity)}
@@ -171,12 +189,8 @@ func (s *Service) addSubscription(c *kernel.Call, ref topicRef, candidate Subscr
 		if reason := t.largeMessageViolation(); reason != "" {
 			return added{}, errLargeMessages(reason)
 		}
-		if route == confirmedFromQueue {
-			r, err := s.confirmation(st, ref, &t, &candidate, token, links, now)
-			if err != nil {
-				return added{}, err
-			}
-			tx.Deliver(r)
+		if err := s.sendConfirmation(tx, route, st, ref, &t, &candidate, token, l, now); err != nil {
+			return added{}, err
 		}
 		st.Topics[ref.name] = t
 		return added{sub: candidate, refused: refused}, nil
@@ -185,6 +199,48 @@ func (s *Service) addSubscription(c *kernel.Call, ref topicRef, candidate Subscr
 		return Subscription{}, err
 	}
 	return out.sub, out.refused
+}
+
+// resubscribe answers a repeated Subscribe of existing, the topic's
+// subscription of the same protocol and endpoint: the conflict when
+// settings disagree with it, else nil. Under sns.http.resubscribe-pending a
+// pending http or https subscription's endpoint gets its
+// SubscriptionConfirmation again, with the same token and expiry, a new
+// MessageId and the current Timestamp (sns-http-delivery.md 2.2); a
+// confirmed one gets nothing.
+func (s *Service) resubscribe(tx *kernel.Tx, route confirmRoute, st *State, ref topicRef, t *Topic, existing *Subscription, settings []subscriptionSetting, l links, now clock.Instant) *awserr.Error {
+	if err := existing.agrees(settings); err != nil {
+		return err
+	}
+	pending, isPending := existing.Status.(Pending)
+	if !isPending || route != confirmedFromEndpoint {
+		return nil
+	}
+	return s.sendConfirmation(tx, route, st, ref, t, existing, pending.Token, l, now)
+}
+
+// sendConfirmation hands tx the SubscriptionConfirmation of token that
+// route sends sub, a pending subscription of the topic ref names: to its
+// queue, or to its http or https endpoint, its links on l. A route that
+// sends none hands nothing.
+func (s *Service) sendConfirmation(tx *kernel.Tx, route confirmRoute, st *State, ref topicRef, t *Topic, sub *Subscription, token string, l links, now clock.Instant) *awserr.Error {
+	var (
+		r   delivery.Request
+		err *awserr.Error
+	)
+	switch route {
+	case confirmedFromQueue:
+		r, err = s.confirmation(st, ref, t, sub, token, l, now)
+	case confirmedFromEndpoint:
+		r, err = s.httpConfirmation(st, ref, t, sub, token, l, now)
+	case confirmedAtSubscribe, confirmedByToken:
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	tx.Deliver(r)
+	return nil
 }
 
 // subscribed returns a copy of t's subscription of protocol and endpoint,
@@ -231,23 +287,30 @@ func (s *Service) confirmation(st *State, ref topicRef, t *Topic, sub *Subscript
 	if perr != nil {
 		return delivery.Request{}, awserr.Internalf(perr)
 	}
-	topicARN := ref.arn().String()
-	messageID := string(s.ids.SNSMessageID())
-	body, berr := envelope.SQSConfirmation(envelope.Confirmation{
-		MessageID:    messageID,
-		Token:        token,
-		TopicARN:     topicARN,
-		Timestamp:    now.Wire(),
-		SubscribeURL: l.confirm(topicARN, token),
-	}, signing)
+	c := s.confirmationMessage(ref, token, l, now)
+	body, berr := envelope.SQSConfirmation(c, signing)
 	if berr != nil {
 		return delivery.Request{}, awserr.Internalf(berr)
 	}
 	target := delivery.SQSQueue{ARN: queue, Body: string(body)}
 	if isFIFOQueue(queue.Resource) {
-		target.GroupID, target.DedupID = sub.ID, messageID
+		target.GroupID, target.DedupID = sub.ID, c.MessageID
 	}
 	return delivery.Request{Source: ref.arn(), Mechanism: delivery.SNSToSQS, Target: target, Policy: delivery.SNSManaged{}}, nil
+}
+
+// confirmationMessage is a SubscriptionConfirmation of token from the
+// topic ref names at now, with a new MessageId and its SubscribeURL the
+// confirm link of token on l (sns.md 5.5, sns-http-delivery.md 4.3).
+func (s *Service) confirmationMessage(ref topicRef, token string, l links, now clock.Instant) envelope.Confirmation {
+	topicARN := ref.arn().String()
+	return envelope.Confirmation{
+		MessageID:    string(s.ids.SNSMessageID()),
+		Token:        token,
+		TopicARN:     topicARN,
+		Timestamp:    now.Wire(),
+		SubscribeURL: l.confirm(topicARN, token),
+	}
 }
 
 // subscribeProtocol parses Subscribe's Protocol: sms, application and
@@ -282,8 +345,10 @@ var e164 = regexp.MustCompile(`^\+?[1-9]\d{1,14}$`)
 // to (aws.ScopeOf), or every later publish to the topic would fail. Only
 // the SQS endpoint ARN text and the FIFO-queue-on-a-standard-topic text
 // are AWS-recorded (sns.md 3.1); the FIFO-topic endpoint text, whose
-// wording sns.md 3.1 leaves UNVERIFIED, and the lambda, http and email
-// texts are inferred.
+// wording sns.md 3.1 leaves UNVERIFIED, and the lambda and email texts are
+// inferred. The http text is AWS's for an endpoint without the protocol's
+// scheme (sns-http-delivery.md 2.1); giving it for a URL with the scheme
+// that does not parse with a host is inferred.
 func checkEndpoint(p Protocol, endpoint string, topic topicRef) (string, *awserr.Error) {
 	if endpoint == "" {
 		return "", errReason("Endpoint", "no value for required parameter")
@@ -302,7 +367,7 @@ func checkEndpoint(p Protocol, endpoint string, topic topicRef) (string, *awserr
 		}
 		return "", errInvalidParameter("Lambda endpoint ARN")
 	case ProtocolHTTP, ProtocolHTTPS:
-		if !strings.HasPrefix(endpoint, p.String()+"://") {
+		if _, ok := httpURL(p, endpoint); !ok {
 			return "", errInvalidParameter("Endpoint must match the specified protocol")
 		}
 	case ProtocolEmail, ProtocolEmailJSON:
@@ -463,8 +528,13 @@ const (
 // topic's SubscriptionsDeleted, or forgets it when DeleteTopic detached
 // it. A pending subscription cannot be removed (sns.md 3.2: Terraform
 // swallows exactly this text), and one with AuthenticateOnUnsubscribe only
-// by an authenticated caller.
+// by an authenticated caller. Under sns.http.unsubscribe-confirmation an
+// unauthenticated caller that removes an http or https subscription still
+// attached to its topic sends its endpoint an UnsubscribeConfirmation
+// (sns-http-delivery.md 2.4); a detached one, whose topic is gone, sends
+// nothing, which is inferred.
 func (s *Service) unsubscribe(c *kernel.Call, ref subscriptionRef, by caller) *awserr.Error {
+	l := s.httpLinks(c.Endpoint())
 	_, err := kernel.Write(c, s.cells, ref.topic.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		t, ok := st.writable(ref.topic.name, now)
 		i := t.indexOf(ref.id)
@@ -485,6 +555,13 @@ func (s *Service) unsubscribe(c *kernel.Call, ref subscriptionRef, by caller) *a
 		}
 		if err := mayUnsubscribe(&t.Subscriptions[i], by); err != nil {
 			return struct{}{}, err
+		}
+		if by == unauthenticated && t.Subscriptions[i].Protocol.http() {
+			r, err := s.unsubscribeConfirmation(st, ref, &t, &t.Subscriptions[i], l, now)
+			if err != nil {
+				return struct{}{}, err
+			}
+			tx.Deliver(r)
 		}
 		t.Subscriptions = slices.Delete(t.Subscriptions, i, i+1)
 		t.Unsubscribed++

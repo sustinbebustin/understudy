@@ -961,15 +961,15 @@ Raw operations:
 | ListTagsForResource | full | third-party-recorded, 2 of 2 claims |  |
 | ListTopics | full | third-party-recorded, 2 of 2 claims |  |
 | TagResource | full | third-party-recorded, 2 of 2 claims |  |
-| Unsubscribe | full | inferred, 1 of 3 claims |  |
+| Unsubscribe | full | inferred, 2 of 4 claims |  |
 | UntagResource | full | third-party-recorded, 2 of 2 claims |  |
 | AddPermission | stored-only | third-party-recorded, 2 of 2 claims | statements are stored in the topic Policy; not enforced |
 | RemovePermission | stored-only | third-party-recorded, 2 of 2 claims | statements are stored in the topic Policy; not enforced |
-| Publish | partial | inferred, 10 of 12 claims | fan-out to sqs and lambda subscriptions after their filter policies, with raw or enveloped delivery and the RedrivePolicy dead-letter queue; http, https, email and email-json subscriptions receive nothing |
-| PublishBatch | partial | inferred, 10 of 12 claims | fan-out to sqs and lambda subscriptions after their filter policies, with raw or enveloped delivery and the RedrivePolicy dead-letter queue; http, https, email and email-json subscriptions receive nothing |
-| SetSubscriptionAttributes | partial | inferred, 9 of 11 claims | DeliveryPolicy is stored and echoed but not applied: http and https endpoints receive nothing; the quota of 10,000 filter policies per account is not enforced |
-| SetTopicAttributes | partial | third-party-recorded, 2 of 2 claims | Policy, DeliveryPolicy, KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never enforced |
-| Subscribe | partial | inferred, 9 of 11 claims | sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; http, https, email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced |
+| Publish | partial | inferred, 18 of 20 claims | fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, with raw or enveloped delivery and the RedrivePolicy dead-letter queue; other http and https endpoints, email and email-json receive nothing; every http and https delivery retries 3 times 20 seconds apart, unthrottled: the healthyRetryPolicy and throttlePolicy of a DeliveryPolicy are stored, never applied |
+| PublishBatch | partial | inferred, 18 of 20 claims | fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, with raw or enveloped delivery and the RedrivePolicy dead-letter queue; other http and https endpoints, email and email-json receive nothing; every http and https delivery retries 3 times 20 seconds apart, unthrottled: the healthyRetryPolicy and throttlePolicy of a DeliveryPolicy are stored, never applied |
+| SetSubscriptionAttributes | partial | inferred, 9 of 11 claims | DeliveryPolicy requestPolicy applies to http and https deliveries; healthyRetryPolicy, throttlePolicy, sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced |
+| SetTopicAttributes | partial | third-party-recorded, 2 of 2 claims | Policy, KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never enforced; of the http defaults in DeliveryPolicy only defaultRequestPolicy applies to http and https subscriptions, the others are stored and echoed, never applied |
+| Subscribe | partial | inferred, 18 of 20 claims | sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; http and https endpoints get a signed SubscriptionConfirmation when their host and port are in sns.httpDelivery.allow, and otherwise stay subscribed with a readable token but receive nothing; email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced; every http and https delivery retries 3 times 20 seconds apart, unthrottled: the healthyRetryPolicy and throttlePolicy of a DeliveryPolicy are stored, never applied |
 | CheckIfPhoneNumberIsOptedOut | unbound | unassessed |  |
 | CreatePlatformApplication | unbound | unassessed |  |
 | CreatePlatformEndpoint | unbound | unassessed |  |
@@ -1000,7 +1000,7 @@ Raw operations:
 |---|---|---|---|
 | ConfirmSubscriptionLink | full | unassessed |  |
 | SigningCert | full | unassessed |  |
-| UnsubscribeLink | full | unassessed |  |
+| UnsubscribeLink | partial | inferred, 9 of 9 claims | the UnsubscribeConfirmation reaches the endpoint only when its host and port are in sns.httpDelivery.allow; its Token and SubscribeURL do not restore the subscription |
 
 ### sqs
 
@@ -1059,7 +1059,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-98 switches: 1 aws-recorded, 1 third-party-recorded, 16 aws-doc, 80 inferred.
+110 switches: 1 aws-recorded, 1 third-party-recorded, 16 aws-doc, 92 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1152,6 +1152,18 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sns.filter-policy.number-attribute-type` | `json-number` | inferred | docs/research/matching-engines.md#5.4 | none: recorded in sns/R09 (T19a, T19b); no scenario replays sns/R09 yet |
 | `sns.filter-policy.numeric-range` | `binary64` | inferred | docs/research/matching-engines.md#5.2 | none: recorded in sns/R09 (T15, H5); no scenario replays sns/R09 yet |
 | `sns.filter-policy.wildcard-points` | `3-per-star` | inferred | docs/research/matching-engines.md#8 | none: recorded in sns/R09 (H11-10-single-subscribe and the other H11 subscribes); no scenario replays sns/R09 yet |
+| `sns.http.backoff-curves` | `linear-for-all` | inferred | docs/research/sns-http-delivery.md#63-retry-schedule | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-09 |
+| `sns.http.basic-auth` | `preemptive` | inferred | docs/research/sns-http-delivery.md#31-method-url-and-connection | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-22 |
+| `sns.http.control-content-type` | `text-plain` | inferred | docs/research/sns-http-delivery.md#33-content-type | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-03 |
+| `sns.http.control-dlq` | `never` | inferred | docs/research/sns-http-delivery.md#65-dead-letter-queue | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-17 |
+| `sns.http.dlq-body` | `as-sqs` | inferred | docs/research/sns-http-delivery.md#65-dead-letter-queue | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-08 |
+| `sns.http.pending-messages` | `dropped` | inferred | docs/research/sns-http-delivery.md#22-the-confirmation-post-and-the-pending-period | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-11 |
+| `sns.http.redirects` | `not-followed` | inferred | docs/research/sns-http-delivery.md#31-method-url-and-connection | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-06 |
+| `sns.http.resubscribe-pending` | `resend-same-token` | inferred | docs/research/sns-http-delivery.md#22-the-confirmation-post-and-the-pending-period | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-12 |
+| `sns.http.retry-body` | `identical` | inferred | docs/research/sns-http-delivery.md#46-field-values | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-07 |
+| `sns.http.retry-jitter` | `none` | inferred | docs/research/sns-http-delivery.md#63-retry-schedule | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-10 |
+| `sns.http.status-classes` | `retries-doc` | inferred | docs/research/sns-http-delivery.md#61-response-classes | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-05, SNSH-24 |
+| `sns.http.unsubscribe-confirmation` | `unauthenticated-only` | inferred | docs/research/sns-http-delivery.md#24-unsubscribing-and-the-unsubscribeconfirmation | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-15 |
 | `sns.lambda.attribute-type` | `as-published` | inferred | docs/research/sns.md#9-conflicts-between-sources | none: logs/R16/01-lambda-events.json is recorded; no scenario replays it, as the delivery runs a Lambda function under Docker |
 | `sns.listing.pending-arn` | `PendingConfirmation` | inferred | docs/research/sns.md#34-listing | none: unrecorded: no recording lists a pending subscription |
 | `sqs.batch.unset-visibility-timeout` | `zero` | inferred | docs/research/sqs.md#62-sendmessagebatch-and-the-other-batch-apis | none: unrecorded: sqs/R01#06-cmv-batch sets VisibilityTimeout on every entry |

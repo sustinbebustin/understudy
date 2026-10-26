@@ -442,6 +442,10 @@ func (p *Protocol) UnmarshalText(text []byte) error {
 // ConfirmSubscription.
 func (p Protocol) confirmedAtOnce() bool { return p == ProtocolSQS || p == ProtocolLambda }
 
+// http reports a protocol whose endpoint is a URL SNS POSTs to: http or
+// https (sns-http-delivery.md 2.1).
+func (p Protocol) http() bool { return p == ProtocolHTTP || p == ProtocolHTTPS }
+
 // rawDelivery reports a protocol that takes RawMessageDelivery=true: AWS
 // documents raw delivery for sqs, http, https and firehose only, and
 // refuses it for email and sms (recorded against AWS by

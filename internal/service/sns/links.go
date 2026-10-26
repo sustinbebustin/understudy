@@ -23,7 +23,8 @@ const linkPrefix = "/_understudy/sns/"
 // carries: the signing certificate and the unsubscribe and confirm links.
 func (s *Service) bindLinks(b snsapi.Binder) {
 	b.SigningCert(s.signingCert, registry.Full{})
-	b.UnsubscribeLink(s.unsubscribeLink, registry.Full{})
+	b.UnsubscribeLink(s.unsubscribeLink, registry.Partial{Note: "the UnsubscribeConfirmation reaches the endpoint only when its host and port are in sns.httpDelivery.allow; " +
+		"its Token and SubscribeURL do not restore the subscription"})
 	b.ConfirmSubscriptionLink(s.confirmLink, registry.Full{})
 }
 
@@ -102,7 +103,9 @@ func (s *Service) signingCert(_ context.Context, _ *kernel.Call, r *http.Request
 }
 
 // unsubscribeLink serves UnsubscribeURL: Unsubscribe without credentials,
-// the subscription named by the SubscriptionArn query member.
+// the subscription named by the SubscriptionArn query member. The
+// UnsubscribeConfirmation it sends an http or https endpoint is signed, so
+// a standard topic's scope gets its key first, as for a publish.
 func (s *Service) unsubscribeLink(_ context.Context, c *kernel.Call, r *http.Request, w http.ResponseWriter) *awserr.Error {
 	arn := r.URL.Query().Get("SubscriptionArn")
 	if _, err := aws.ParseARN(arn); err != nil {
@@ -110,6 +113,11 @@ func (s *Service) unsubscribeLink(_ context.Context, c *kernel.Call, r *http.Req
 	}
 	if ref, ok := s.subscriptionOf(arn); ok {
 		c.Touch(ref.arn())
+		if !ref.topic.fifo() {
+			if err := s.ensureKey(c, ref.topic); err != nil {
+				return err
+			}
+		}
 		if err := s.unsubscribe(c, ref, unauthenticated); err != nil {
 			return err
 		}

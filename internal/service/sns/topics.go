@@ -24,7 +24,8 @@ func (s *Service) bindTopics(b snsapi.Binder) {
 		arnResource(func(in *snsapi.DeleteTopicInput) string { return in.TopicArn }))
 	b.GetTopicAttributes(s.getTopicAttributes, registry.Full{},
 		arnResource(func(in *snsapi.GetTopicAttributesInput) string { return in.TopicArn }))
-	b.SetTopicAttributes(s.setTopicAttributes, registry.Partial{Note: "Policy, DeliveryPolicy, KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never enforced"},
+	b.SetTopicAttributes(s.setTopicAttributes, registry.Partial{Note: "Policy, KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never enforced; " +
+		"of the http defaults in DeliveryPolicy only defaultRequestPolicy applies to http and https subscriptions, the others are stored and echoed, never applied"},
 		arnResource(func(in *snsapi.SetTopicAttributesInput) string { return in.TopicArn }))
 	b.ListTopics(s.listTopics, registry.Full{})
 }

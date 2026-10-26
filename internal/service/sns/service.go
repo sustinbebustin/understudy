@@ -132,11 +132,15 @@ func detachedRetention() fidelity.Switch[time.Duration] {
 	}
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence,
-// filter policy evaluation's among them.
+// Switches lists the behaviors chosen without AWS-recorded evidence, http
+// delivery's and filter policy evaluation's among them.
 func (s *Service) Switches() []fidelity.Entry {
-	return append([]fidelity.Entry{
+	entries := []fidelity.Entry{
 		pendingInListings().Entry(), fifoSequence().Entry(), lambdaAttributeTypes().Entry(), fifoDuplicate().Entry(),
 		detachedRetention().Entry(),
-	}, filterpolicy.Switches()...)
+	}
+	for _, sw := range httpSwitches() {
+		entries = append(entries, sw.Entry())
+	}
+	return append(entries, filterpolicy.Switches()...)
 }

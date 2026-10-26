@@ -42,7 +42,8 @@ const (
 
 // bindPublish binds Publish and PublishBatch.
 func (s *Service) bindPublish(b snsapi.Binder) {
-	const note = "fan-out to sqs and lambda subscriptions after their filter policies, with raw or enveloped delivery and the RedrivePolicy dead-letter queue; http, https, email and email-json subscriptions receive nothing"
+	const note = "fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, " +
+		"with raw or enveloped delivery and the RedrivePolicy dead-letter queue; other http and https endpoints, email and email-json receive nothing; " + httpPolicyGap
 	b.Publish(s.publish, registry.Partial{Note: note},
 		kernel.WithResources(func(_ *kernel.Call, in *snsapi.PublishInput) []aws.ARN {
 			for _, target := range []*string{in.TopicArn, in.TargetArn} {
@@ -300,16 +301,16 @@ type published struct {
 // fanOut publishes msgs to a topic in one write: it checks them against
 // the topic (size first, with checkSize, then the FIFO rules), gives each
 // a MessageId and, on a FIFO topic, a SequenceNumber, drops a FIFO
-// duplicate inside the deduplication window, and hands every confirmed sqs
-// and lambda subscription its delivery in subscription creation order
-// (ARCHITECTURE.md 16).
+// duplicate inside the deduplication window, and hands every confirmed sqs,
+// lambda, http and https subscription its delivery in subscription
+// creation order (ARCHITECTURE.md 16).
 func (s *Service) fanOut(c *kernel.Call, ref topicRef, msgs []message, checkSize func(t *Topic) *awserr.Error) ([]published, *awserr.Error) {
 	if !ref.fifo() {
 		if err := s.ensureKey(c, ref); err != nil {
 			return nil, err
 		}
 	}
-	links := linksOf(c.Endpoint())
+	l := notifierLinks{service: linksOf(c.Endpoint()), http: s.httpLinks(c.Endpoint())}
 	return kernel.Write(c, s.cells, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) ([]published, *awserr.Error) {
 		t, ok := st.writable(ref.name, now)
 		if !ok {
@@ -323,7 +324,7 @@ func (s *Service) fanOut(c *kernel.Call, ref topicRef, msgs []message, checkSize
 				return nil, err
 			}
 		}
-		n, err := s.newNotifier(st, ref, &t, links, now)
+		n, err := s.newNotifier(st, ref, &t, l, now)
 		if err != nil {
 			return nil, err
 		}
@@ -424,30 +425,49 @@ func (t *Topic) pruneDedup(now clock.Instant) {
 	})
 }
 
+// notifierLinks are where a publish's links point: service for sqs and
+// lambda deliveries, http for http and https ones (sns-http-delivery.md
+// 8.3.3).
+type notifierLinks struct {
+	service links
+	http    links
+}
+
 // notifier builds the deliveries of one write's messages.
 type notifier struct {
 	topic topicRef
-	links links
+	links notifierLinks
 	at    time.Time
-	// signing signs a standard topic's notifications; zero on a FIFO
+	// signing signs a standard topic's sqs and lambda notifications, and
+	// httpSigning its http and https ones: the same key and memo, each
+	// with its certificate URL on its own links. Both are zero on a FIFO
 	// topic, whose notifications are not signed.
-	signing envelope.Signing
+	signing, httpSigning envelope.Signing
+	// deliveryPolicy is the topic's stored DeliveryPolicy, "" for none.
+	deliveryPolicy string
 	// policies holds the subscriptions' compiled filter policies.
 	policies *filterpolicy.Cache
 }
 
 // newNotifier is the notifier of a publish to t at now: a standard topic's
 // notifications are signed with the scope's key.
-func (s *Service) newNotifier(st *State, ref topicRef, t *Topic, l links, now clock.Instant) (notifier, *awserr.Error) {
-	n := notifier{topic: ref, links: l, at: now.Wire(), policies: s.policies}
+func (s *Service) newNotifier(st *State, ref topicRef, t *Topic, l notifierLinks, now clock.Instant) (notifier, *awserr.Error) {
+	n := notifier{topic: ref, links: l, at: now.Wire(), deliveryPolicy: t.Attributes[attrDeliveryPolicy], policies: s.policies}
 	switch t.Kind.(type) {
 	case FIFO:
 	case Standard:
-		signing, err := s.signing(st.Signing, ref, t.signatureVersion(), l)
+		signing, err := s.signing(st.Signing, ref, t.signatureVersion(), l.service)
 		if err != nil {
 			return notifier{}, err
 		}
-		n.signing = signing
+		httpSigning, err := s.signing(st.Signing, ref, t.signatureVersion(), l.http)
+		if err != nil {
+			return notifier{}, err
+		}
+		// A string to sign names no link (sns.md 5.6), so both sign each
+		// text once between them.
+		httpSigning.Signer = signing.Signer
+		n.signing, n.httpSigning = signing, httpSigning
 	}
 	return n, nil
 }
@@ -493,16 +513,24 @@ func endpointOf(sub *Subscription) (endpoint, bool, *awserr.Error) {
 			return nil, false, nil
 		}
 		return functionEndpoint{function: function, qualifier: qualifier}, true, nil
-	case ProtocolHTTP, ProtocolHTTPS, ProtocolEmail, ProtocolEmailJSON:
+	case ProtocolHTTP, ProtocolHTTPS:
+		to, err := httpEndpointOf(sub)
+		if err != nil {
+			return nil, false, err
+		}
+		return to, true, nil
+	case ProtocolEmail, ProtocolEmailJSON:
 	}
 	return nil, false, nil
 }
 
 // deliver hands m to sub's endpoint through the outbox. A pending
 // subscription, or one whose endpoint type understudy does not deliver to,
-// receives nothing. A filter policy is evaluated before any outbox entry
-// exists, so a message it keeps out never reaches the subscription's
-// dead-letter queue (sns.md 6.3).
+// receives nothing: under sns.http.pending-messages nothing is held for an
+// http or https subscription while it is pending (sns-http-delivery.md
+// 2.2). A filter policy is evaluated before any outbox entry exists, so a
+// message it keeps out never reaches the subscription's dead-letter queue
+// (sns.md 6.3).
 func (n notifier) deliver(sub *Subscription, m *message, p published, tx *kernel.Tx) *awserr.Error {
 	if _, confirmed := sub.Status.(Confirmed); !confirmed {
 		return nil
@@ -527,7 +555,8 @@ func (n notifier) deliver(sub *Subscription, m *message, p published, tx *kernel
 // does not match is journaled as Filtered with the policy as the rule; one
 // the matcher gives up on (its work bound, an understudy limit) is
 // journaled as Dropped with the matcher's reason. Either Delivery event
-// has Attempt 0: the decision comes before any attempt.
+// has Attempt 0: the decision comes before any attempt. An http or https
+// endpoint, which has no ARN, is journaled by its host and port.
 func (n notifier) admits(sub *Subscription, m *message, to endpoint, tx *kernel.Tx) (bool, *awserr.Error) {
 	policy, err := sub.filter(n.policies)
 	if err != nil || policy == nil {
@@ -536,6 +565,9 @@ func (n notifier) admits(sub *Subscription, m *message, to endpoint, tx *kernel.
 	matched, merr := policy.Match(m.attributes, m.bodyFor(sub.Protocol))
 	mechanism, target := to.route()
 	event := journal.Delivery{From: n.topic.arn(), To: target, Mechanism: mechanism}
+	if h, isHTTP := to.(httpEndpoint); isHTTP {
+		event.Endpoint = delivery.HTTPEndpoint{URL: h.url}.HostPort()
+	}
 	switch {
 	case merr != nil:
 		event.Outcome = journal.Dropped{Reason: "the filter policy of subscription " + sub.ID + " could not be evaluated, so nothing was delivered " +
@@ -550,8 +582,9 @@ func (n notifier) admits(sub *Subscription, m *message, to endpoint, tx *kernel.
 }
 
 // request is the delivery of m to sub at to: the raw message or the
-// envelope for a queue, the event for a function, with sub's
-// RedrivePolicy queue as the dead-letter queue (sns.md 7.4).
+// envelope for a queue or an http or https endpoint, the event for a
+// function, with sub's RedrivePolicy queue as the dead-letter queue
+// (sns.md 7.4, sns-http-delivery.md 6.5).
 func (n notifier) request(sub *Subscription, m *message, p published, to endpoint) (delivery.Request, *awserr.Error) {
 	dlq, err := sub.deadLetterQueue()
 	if err != nil {
@@ -565,7 +598,7 @@ func (n notifier) request(sub *Subscription, m *message, p published, to endpoin
 		Message:        m.bodyFor(sub.Protocol),
 		Timestamp:      n.at,
 		Attributes:     envelopeAttributes(m.attributes),
-		UnsubscribeURL: n.links.unsubscribe(subARN),
+		UnsubscribeURL: n.links.service.unsubscribe(subARN),
 	}
 	req := delivery.Request{Source: n.topic.arn(), Policy: delivery.SNSManaged{}, DLQ: dlq}
 	req.Mechanism, _ = to.route()
@@ -582,8 +615,42 @@ func (n notifier) request(sub *Subscription, m *message, p published, to endpoin
 			return delivery.Request{}, awserr.Internalf(err)
 		}
 		req.Target = delivery.LambdaFunction{ARN: to.function, Qualifier: to.qualifier, Event: event, Invocation: delivery.InvocationEvent}
+	case httpEndpoint:
+		note.UnsubscribeURL = n.links.http.unsubscribe(subARN)
+		target, err := n.httpTarget(sub, m, note, subARN, to)
+		if err != nil {
+			return delivery.Request{}, err
+		}
+		req.Target, req.Policy = target, httpRetryPolicy(sub.Attributes[attrDeliveryPolicy], n.deliveryPolicy)
 	}
 	return req, nil
+}
+
+// httpTarget is the Notification POST of a delivery to (sns-http-delivery.md
+// 3.2, 4.2, 4.5): the raw message, after MessageStructure picked the
+// protocol's entry, with x-amz-sns-rawdelivery and its attributes kept for
+// the dead letter only (sns.http.dlq-body), else the signed envelope with
+// its links on the HTTP links; Content-Type is the effective
+// requestPolicy's.
+func (n notifier) httpTarget(sub *Subscription, m *message, note envelope.Notification, subARN string, to httpEndpoint) (delivery.HTTPEndpoint, *awserr.Error) {
+	target := delivery.HTTPEndpoint{URL: to.url, Kind: delivery.HTTPNotification}
+	if sub.RawMessageDelivery {
+		target.Body, target.DeadLetterAttributes = []byte(note.Message), m.attributes
+	} else {
+		body, err := envelope.HTTPNotification(note, n.httpSigning)
+		if err != nil {
+			return delivery.HTTPEndpoint{}, awserr.Internalf(err)
+		}
+		target.Body = body
+	}
+	target.Headers = envelope.HTTPHeaders(envelope.NotificationPost{
+		MessageID:       note.MessageID,
+		TopicARN:        note.TopicARN,
+		SubscriptionARN: subARN,
+		Raw:             sub.RawMessageDelivery,
+		ContentType:     httpContentType(sub.Attributes[attrDeliveryPolicy], n.deliveryPolicy),
+	}, to.url.User)
+	return target, nil
 }
 
 // sqsTarget is the SQS message of a delivery to queue (sns.md 5.1 to
