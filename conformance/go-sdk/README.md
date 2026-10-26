@@ -66,6 +66,7 @@ There is one file per service, named after it, so that one person can own and fi
 | `eventbridge_test.go` | EventBridge |
 | `eventbridge_accounts_test.go` | EventBridge between two accounts, the second selected by a 12-digit access key |
 | `cloudwatch_test.go` | CloudWatch metrics and alarms |
+| `apigatewayv2_test.go` | API Gateway HTTP APIs: the control plane and Lambda proxy invocations through the execute-api path fallback |
 
 `main_test.go` holds the shared setup and helpers:
 
