@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 	"time"
@@ -115,6 +116,21 @@ type HTTPEndpoint struct {
 	// attributes (sns.http.dlq-body, sns-http-delivery.md 6.5). Nil for
 	// every other delivery.
 	DeadLetterAttributes []MessageAttribute
+}
+
+// HostPort is the host and port t's URL names, the port defaulted to 80
+// for http and 443 for https, never its path, query or userinfo: what the
+// journal records as an HTTP delivery's Endpoint.
+func (t HTTPEndpoint) HostPort() string {
+	port := t.URL.Port()
+	switch {
+	case port != "":
+	case t.URL.Scheme == "https":
+		port = "443"
+	default:
+		port = "80"
+	}
+	return net.JoinHostPort(t.URL.Hostname(), port)
 }
 
 // HTTPKind is what an HTTPEndpoint delivery carries

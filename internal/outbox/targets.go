@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"net"
 	"net/http"
 	"slices"
 	"strconv"
@@ -221,22 +220,13 @@ func statusText(status int) string {
 }
 
 // endpointOf is the journal's Endpoint of a delivery to t: an HTTP
-// endpoint's host:port, the port defaulted to 80 or 443, never its path,
-// query or userinfo; "" for every other target.
+// endpoint's HostPort; "" for every other target.
 func endpointOf(t delivery.Target) string {
 	h, ok := t.(delivery.HTTPEndpoint)
 	if !ok {
 		return ""
 	}
-	port := h.URL.Port()
-	switch {
-	case port != "":
-	case h.URL.Scheme == "https":
-		port = "443"
-	default:
-		port = "80"
-	}
-	return net.JoinHostPort(h.URL.Hostname(), port)
+	return h.HostPort()
 }
 
 // httpResult is how an HTTPEndpoint attempt ended.
