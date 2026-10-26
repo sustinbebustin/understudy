@@ -20,9 +20,24 @@ const (
 // value is one setting's raw text and where it came from, spelled as that
 // source spells the setting.
 type value struct {
-	text   string
+	text string
+	// list is a list setting's entries as the file's JSON array holds them;
+	// a flag or variable holds them comma-separated in text instead.
+	list   []string
 	where  string
 	source source
+}
+
+// entries returns a list setting's entries: the file's array, else text
+// split on commas, untrimmed, where empty text is the empty list.
+func (v value) entries() []string {
+	if v.source == fromFile {
+		return v.list
+	}
+	if v.text == "" {
+		return nil
+	}
+	return strings.Split(v.text, ",")
 }
 
 // OutputFlag is accepted by serve as another name for --log-format, since
@@ -81,7 +96,7 @@ func load(args, env []string, readFile func(path string) ([]byte, error)) (*draf
 	if err != nil {
 		return nil, err
 	}
-	d := newDraft(DetectPlacement(readFile, env), envs.docker)
+	d := newDraft(DetectPlacement(readFile, env), envs.docker, readFile)
 	setters := setters()
 	for _, s := range Settings() {
 		v, ok := flags[s.Key]

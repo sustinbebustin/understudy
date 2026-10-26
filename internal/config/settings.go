@@ -2,8 +2,9 @@ package config
 
 // Setting is one scalar setting serve reads from a flag, the environment
 // and the file, in that order of precedence. The file key is the flag name
-// in camelCase, or section.member for a setting the file holds in one of
-// its sections, as iam.enforce sits beside iam.assumeRole.
+// in camelCase, or a dotted path for a setting the file holds nested in its
+// section: iam.enforce sits beside iam.assumeRole, and
+// sns.httpDelivery.allow is {"sns": {"httpDelivery": {"allow": ...}}}.
 type Setting struct {
 	// Key is the setting's file key.
 	Key string
@@ -60,6 +61,8 @@ const (
 	keyClockScale   = "clockScale"
 	keySigV4        = "sigv4"
 	keyIAMEnforce   = "iam.enforce"
+	keySNSAllow     = "sns.httpDelivery.allow"
+	keySNSCABundle  = "sns.httpDelivery.caBundle"
 	keyDocker       = "docker"
 	keyDockerLabels = "dockerLabels"
 	keyReadyFile    = "readyFile"
@@ -85,6 +88,15 @@ func Settings() []Setting {
 		{Key: keyClockScale, Flag: "clock-scale", Env: "UNDERSTUDY_CLOCK_SCALE", Value: "FACTOR", Usage: "run the clock this many emulator seconds per wall second from start, above 0 and at most 10000; not with a frozen --clock (default 1)"},
 		{Key: keySigV4, Flag: "sigv4", Env: "UNDERSTUDY_SIGV4", Value: "MODE", Usage: "signature checking: parse (default) reads credentials only; verify refuses a bad signature, an unknown key, a missing or expired session token, and expires presigned URLs on the emulator clock"},
 		{Key: keyIAMEnforce, Flag: "iam-enforce", Env: "UNDERSTUDY_IAM_ENFORCE", Value: "MODE", Usage: "IAM enforcement: off (default) records which actions each principal uses and enforces nothing; advise and enforce are not built yet, so this build refuses them"},
+		{
+			Key: keySNSAllow, Flag: "sns-http-delivery-allow", Env: "UNDERSTUDY_SNS_HTTP_DELIVERY_ALLOW", Value: "HOST:PORT,...",
+			Usage: "hosts SNS delivers http and https subscriptions to, as comma-separated host:port entries: the host localhost, an IP literal ([v6] for IPv6) or a DNS name, " +
+				"the port 1-65535 or * (default none: nothing is delivered). AWS hosts, link-local and metadata addresses and understudy's own listeners are refused whatever the list says",
+		},
+		{
+			Key: keySNSCABundle, Flag: "sns-http-delivery-ca-bundle", Env: "UNDERSTUDY_SNS_HTTP_DELIVERY_CA_BUNDLE", Value: "FILE",
+			Usage: "PEM file of CA certificates an https subscription endpoint may chain to, beside the system roots (default none)",
+		},
 		{Key: keyDocker, Flag: "docker", Env: "UNDERSTUDY_DOCKER", Value: "URL", Usage: "Docker Engine for Lambda and DynamoDB Local: unix://<socket>, tcp://<host>:<port> (TLS when DOCKER_TLS_VERIFY is set, with ca.pem, cert.pem and key.pem from DOCKER_CERT_PATH), or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)"},
 		{Key: keyDockerLabels, Flag: "docker-labels", Env: "UNDERSTUDY_DOCKER_LABELS", Value: "JSON", Usage: `labels added to every container understudy creates, function environments and DynamoDB Local, as a JSON object of string values, such as {"org.testcontainers.session-id":"<id>"} so a Testcontainers reaper also removes them; keys under understudy.dev/ are understudy's own and refused (default none)`},
 		{Key: keyReadyFile, Flag: "ready-file", Env: "UNDERSTUDY_READY_FILE", Value: "FILE", Usage: "file to write {\"endpoint\", \"pid\"} to once listening"},

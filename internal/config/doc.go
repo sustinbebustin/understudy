@@ -14,11 +14,19 @@
 //   - Scalar settings have a variable, a file key and, but for the admin
 //     token, a flag, the file key being the flag name in camelCase
 //     (Settings lists them), except iam.enforce, which the file holds in
-//     its iam section; the structured settings (accounts, regions, s3,
-//     lambda, sqs, iam, dynamodb, journal, faults) are file sections
-//     only. The fidelity switches are keyed by their switch names
-//     (s3.crossRegion, lambda.stateTransitions, sqs.queueDeletedRecently,
-//     iam.assumeRole).
+//     its iam section, and sns.httpDelivery.allow and
+//     sns.httpDelivery.caBundle, which it holds nested in its sns section;
+//     each is refused as a dotted top-level key. The structured
+//     settings (accounts, regions, s3, lambda, sqs, iam, dynamodb,
+//     journal, faults) are file sections only. The fidelity switches are
+//     keyed by their switch names (s3.crossRegion,
+//     lambda.stateTransitions, sqs.queueDeletedRecently, iam.assumeRole).
+//   - sns.httpDelivery.allow is a JSON array of strings in the file and
+//     comma-separated text in its flag and variable, entries untrimmed,
+//     and an empty flag is the empty list. It is parsed at load by
+//     egress.ParseAllowList, so an entry egress refuses stops serve.
+//     sns.httpDelivery.caBundle is read through Load's readFile and parsed
+//     at load, so an unreadable or unusable bundle stops serve too.
 //   - An UNDERSTUDY_* variable no setting reads is refused, so a typo is not
 //     ignored; UNDERSTUDY_ENDPOINT, the CLI's, is allowed. An empty variable is
 //     unset.

@@ -17,6 +17,9 @@ type draft struct {
 	placement Placement
 	cfg       Config
 	dockerEnv dockerEnv
+	// readFile is Load's file reader, which reads the files a setting
+	// names, such as sns.httpDelivery.caBundle.
+	readFile func(path string) ([]byte, error)
 
 	listen      *netip.AddrPort
 	listenAt    string
@@ -51,8 +54,8 @@ const (
 	authContainerPublished
 )
 
-func newDraft(p Placement, env dockerEnv) *draft {
-	return &draft{placement: p, cfg: Defaults(p), dockerEnv: env}
+func newDraft(p Placement, env dockerEnv, readFile func(string) ([]byte, error)) *draft {
+	return &draft{placement: p, cfg: Defaults(p), dockerEnv: env, readFile: readFile}
 }
 
 // setters apply each scalar setting's text to a draft.
@@ -73,6 +76,8 @@ func setters() map[string]func(*draft, value) *Error {
 		keyClockScale:   (*draft).setScale,
 		keySigV4:        (*draft).setSigV4,
 		keyIAMEnforce:   (*draft).setIAMEnforce,
+		keySNSAllow:     (*draft).setSNSAllow,
+		keySNSCABundle:  (*draft).setSNSCABundle,
 		keyDocker:       (*draft).setDocker,
 		keyDockerLabels: (*draft).setDockerLabels,
 		keyReadyFile:    func(d *draft, v value) *Error { return nonEmpty(v, &d.cfg.ReadyFile) },

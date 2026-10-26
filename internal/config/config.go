@@ -343,8 +343,7 @@ const (
 // SNS holds the SNS settings.
 type SNS struct{ HTTPDelivery SNSHTTPDelivery }
 
-// SNSHTTPDelivery is sns.httpDelivery, SNS's outbound HTTP delivery. Not
-// implemented yet: Load sets neither field.
+// SNSHTTPDelivery is sns.httpDelivery, SNS's outbound HTTP delivery.
 type SNSHTTPDelivery struct {
 	// Allow is sns.httpDelivery.allow parsed (sns-http-delivery.md 7.2);
 	// the zero AllowList allows nothing.

@@ -116,6 +116,12 @@ This is what `understudy serve --help` prints under Flags. A test keeps it in st
   --iam-enforce MODE
       IAM enforcement: off (default) records which actions each principal uses and enforces nothing; advise and enforce are not built yet, so this build refuses them
       variable UNDERSTUDY_IAM_ENFORCE, file key "enforce" in the "iam" section
+  --sns-http-delivery-allow HOST:PORT,...
+      hosts SNS delivers http and https subscriptions to, as comma-separated host:port entries: the host localhost, an IP literal ([v6] for IPv6) or a DNS name, the port 1-65535 or * (default none: nothing is delivered). AWS hosts, link-local and metadata addresses and understudy's own listeners are refused whatever the list says
+      variable UNDERSTUDY_SNS_HTTP_DELIVERY_ALLOW, file key "httpDelivery.allow" in the "sns" section
+  --sns-http-delivery-ca-bundle FILE
+      PEM file of CA certificates an https subscription endpoint may chain to, beside the system roots (default none)
+      variable UNDERSTUDY_SNS_HTTP_DELIVERY_CA_BUNDLE, file key "httpDelivery.caBundle" in the "sns" section
   --docker URL
       Docker Engine for Lambda and DynamoDB Local: unix://<socket>, tcp://<host>:<port> (TLS when DOCKER_TLS_VERIFY is set, with ca.pem, cert.pem and key.pem from DOCKER_CERT_PATH), or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)
       variable UNDERSTUDY_DOCKER, file key "docker"
@@ -150,6 +156,7 @@ setting has one; any key may be left out:
       "hotReload": [{"function": "worker", "dir": "/abs/path/to/build", "account": "000000000000", "region": "us-east-1"}]
     },
     "sqs": {"queueDeletedRecently": "ignore"},
+    "sns": {"httpDelivery": {"allow": ["127.0.0.1:8080"]}},
     "iam": {"assumeRole": "strict", "enforce": "off"},
     "dynamodb": {"enabled": true, "memoryLimit": 1073741824},
     "journal": {"capacity": 100000, "maxBytes": 134217728, "file": "/abs/path/to/journal.ndjson"},

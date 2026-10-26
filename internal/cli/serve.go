@@ -80,6 +80,7 @@ const exampleFile = `  {
       "hotReload": [{"function": "worker", "dir": "/abs/path/to/build", "account": "000000000000", "region": "us-east-1"}]
     },
     "sqs": {"queueDeletedRecently": "ignore"},
+    "sns": {"httpDelivery": {"allow": ["127.0.0.1:8080"]}},
     "iam": {"assumeRole": "strict", "enforce": "off"},
     "dynamodb": {"enabled": true, "memoryLimit": 1073741824},
     "journal": {"capacity": 100000, "maxBytes": 134217728, "file": "/abs/path/to/journal.ndjson"},
