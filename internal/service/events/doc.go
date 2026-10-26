@@ -27,12 +27,21 @@
 //     region reaches that bus's rules, as AWS sends events across accounts
 //     in a region (eb-cross-account.html). No IAM is enforced, so the
 //     receiving bus's resource policy is not consulted. The event's
-//     account stays the sender's, which is inferred: no recording shows a
-//     cross-account envelope. An event for another region's bus fails its
-//     entry with NotImplemented, since AWS's answer is unrecorded and
-//     dropping it would hide that it was not sent; a control-plane call
+//     account stays the sender's, as a third-party recording against AWS
+//     shows (eventbridge-buses.md 6.1). An event for another region's bus
+//     fails its entry with NotImplemented, since AWS's answer is unrecorded
+//     and dropping it would hide that it was not sent; a control-plane call
 //     naming another account's or region's bus is NotImplemented, not
 //     "does not exist".
+//   - The internal PutEvents call of an events-to-events delivery puts the
+//     one event an event bus target forwards, with the id, account, region
+//     and time it was first put with (eventbridge-buses.md 10.4.12; keeping
+//     the time is inferred, EBB-08). The PutEvents input has no member for
+//     them, so they travel beside the call on its context, which only that
+//     internal call reads. The event was accepted once, so its Source and
+//     DetailType are not checked again and a scheduled aws.events event is
+//     forwarded; its Detail must still parse. Such a call carries exactly
+//     one entry; any other count is a bug in understudy and fails whole.
 //   - A rule or target call on a custom bus that does not exist answers
 //     "Event bus <name> does not exist.", the text of the bus operations;
 //     AWS's answer is unrecorded (EBB-03). PutRule refuses a

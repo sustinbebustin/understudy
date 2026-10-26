@@ -16,15 +16,21 @@ func (e EventEntry) Envelope() ([]byte, error) {
 	return nil, errEnvelopeNotImplemented
 }
 
+// forwardedKey is the context key of a Forwarded. Being unexported, only
+// WithForwarded can set the value.
+type forwardedKey struct{}
+
 // WithForwarded returns ctx carrying f, for the one entry of an
-// events-to-events attempt's PutEvents call. It is not implemented yet and
-// returns ctx unchanged.
-func WithForwarded(ctx context.Context, _ Forwarded) context.Context {
-	return ctx
+// events-to-events attempt's PutEvents call. The envelope cannot ride the
+// PutEvents wire input, which has no id, account or region member, so it
+// travels beside the call.
+func WithForwarded(ctx context.Context, f Forwarded) context.Context {
+	return context.WithValue(ctx, forwardedKey{}, f)
 }
 
-// ForwardedFrom returns the Forwarded ctx carries. It is not implemented
-// yet and reports none.
-func ForwardedFrom(context.Context) (Forwarded, bool) {
-	return Forwarded{}, false
+// ForwardedFrom returns the Forwarded ctx carries, and false when it
+// carries none.
+func ForwardedFrom(ctx context.Context) (Forwarded, bool) {
+	f, ok := ctx.Value(forwardedKey{}).(Forwarded)
+	return f, ok
 }

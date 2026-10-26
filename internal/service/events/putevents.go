@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -11,9 +12,11 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
+	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/ruler"
 	"github.com/sustinbebustin/understudy/internal/service/events/envelope"
@@ -39,9 +42,23 @@ func (s *Service) bindEvents(b eventbridgeapi.Binder) {
 // another account in the caller's region reaches that account's rules,
 // stamped with the sender's account, as on AWS; one for a bus that does not
 // exist gets an EventId and is dropped, as on AWS.
+//
+// The internal call of an events-to-events attempt puts the one event an
+// event bus target forwards, which keeps the id, account, region and time
+// it was first put with (eventbridge-buses.md 10.4.12). It was accepted
+// once, so only its members and Detail are checked again: a scheduled
+// event's aws.events source is forwarded as it is.
 func (s *Service) putEvents(ctx context.Context, c *kernel.Call, in *eventbridgeapi.PutEventsInput) (*eventbridgeapi.PutEventsOutput, *awserr.Error) {
 	if entriesSize(in.Entries) >= maxEntriesSize {
 		return nil, errEntriesTooLarge()
+	}
+	parse := parseEntry
+	fwd, forwarded := forwardedCall(ctx, c)
+	if forwarded {
+		if len(in.Entries) != 1 {
+			return nil, awserr.Internalf(&forwardedEntriesError{Entries: len(in.Entries)})
+		}
+		parse = parseForwardedEntry
 	}
 	scope := c.Scope()
 	out := &eventbridgeapi.PutEventsOutput{Entries: make([]eventbridgeapi.PutEventsResultEntry, len(in.Entries))}
@@ -49,7 +66,7 @@ func (s *Service) putEvents(ctx context.Context, c *kernel.Call, in *eventbridge
 	for i := range in.Entries {
 		e := &in.Entries[i]
 		bus := parseBus(scope, e.EventBusName)
-		detail, failure := parseEntry(e)
+		detail, failure := parse(e)
 		if failure == nil {
 			failure = foreignRegion(c, bus)
 		}
@@ -58,18 +75,19 @@ func (s *Service) putEvents(ctx context.Context, c *kernel.Call, in *eventbridge
 			out.FailedEntryCount++
 			continue
 		}
-		id := s.ids.UUID(ids.KindEventID).String()
-		out.Entries[i] = eventbridgeapi.PutEventsResultEntry{EventId: new(id)}
 		ev := envelope.Event{
-			ID:         id,
 			DetailType: *e.DetailType,
 			Source:     *e.Source,
-			Account:    scope.Account.String(),
-			Time:       eventTime(e, c.Admitted()),
-			Region:     scope.Region.String(),
 			Resources:  slices.Clone(e.Resources),
 			Detail:     detail,
 		}
+		if forwarded {
+			ev.ID, ev.Account, ev.Region, ev.Time = fwd.ID, fwd.Account, fwd.Region, fwd.Time
+		} else {
+			ev.ID = s.ids.UUID(ids.KindEventID).String()
+			ev.Account, ev.Region, ev.Time = scope.Account.String(), scope.Region.String(), eventTime(e, c.Admitted())
+		}
+		out.Entries[i] = eventbridgeapi.PutEventsResultEntry{EventId: new(ev.ID)}
 		switch b := bus.(type) {
 		case ownBus:
 			buses.add(scope, b.name, ev)
@@ -86,6 +104,29 @@ func (s *Service) putEvents(ctx context.Context, c *kernel.Call, in *eventbridge
 		}
 	}
 	return out, nil
+}
+
+// forwardedCall returns the envelope of the event c forwards when c is the
+// internal PutEvents call of an events-to-events attempt, which alone puts
+// one on ctx. Any other call ignores ctx.
+func forwardedCall(ctx context.Context, c *kernel.Call) (delivery.Forwarded, bool) {
+	if o, ok := c.Origin().(ref.Internal); !ok || o.Via != ref.EventsTarget {
+		return delivery.Forwarded{}, false
+	}
+	return delivery.ForwardedFrom(ctx)
+}
+
+// forwardedEntriesError is the cause of an events-to-events attempt's
+// PutEvents call that carries other than one entry: the outbox forwards one
+// event per call, so this is a bug in understudy, and nothing was sent.
+type forwardedEntriesError struct {
+	// Entries is how many entries the call carried.
+	Entries int
+}
+
+func (e *forwardedEntriesError) Error() string {
+	return "events: an events-to-events delivery's PutEvents call carried " + strconv.Itoa(e.Entries) +
+		" entries, and the outbox forwards exactly one event per call; nothing was sent. This is a bug in understudy, please report it"
 }
 
 // foreignRegion is the failure of an entry for a bus of another region,
@@ -149,13 +190,8 @@ const maxDetailType = 128
 // parseEntry checks an entry's required members, its DetailType's length
 // and its Source, and parses its Detail; a problem is the entry's failure.
 func parseEntry(e *eventbridgeapi.PutEventsRequestEntry) (document.Map, *eventbridgeapi.PutEventsResultEntry) {
-	for _, m := range []struct {
-		name  string
-		value *string
-	}{{"Source", e.Source}, {"DetailType", e.DetailType}, {"Detail", e.Detail}} {
-		if m.value == nil || *m.value == "" {
-			return nil, entryFailure(codeInvalidArgument, msgRequired(m.name))
-		}
+	if failure := requireMembers(e); failure != nil {
+		return nil, failure
 	}
 	if utf8.RuneCountInString(*e.DetailType) > maxDetailType {
 		return nil, entryFailure(codeInvalidArgument, msgTooLong("DetailType", maxDetailType))
@@ -163,7 +199,37 @@ func parseEntry(e *eventbridgeapi.PutEventsRequestEntry) (document.Map, *eventbr
 	if strings.HasPrefix(*e.Source, reservedSourcePrefix) {
 		return nil, entryFailure(codeNotAuthorizedForSource, msgNotAuthorizedForSource)
 	}
-	detail, ok := envelope.ParseDetail(*e.Detail)
+	return parseDetail(*e.Detail)
+}
+
+// parseForwardedEntry checks the required members of the entry an event
+// bus target forwards and parses its Detail. The event was accepted when it
+// was first put, so its DetailType and Source are not checked again.
+func parseForwardedEntry(e *eventbridgeapi.PutEventsRequestEntry) (document.Map, *eventbridgeapi.PutEventsResultEntry) {
+	if failure := requireMembers(e); failure != nil {
+		return nil, failure
+	}
+	return parseDetail(*e.Detail)
+}
+
+// requireMembers is the failure of an entry without a Source, DetailType
+// or Detail, or nil.
+func requireMembers(e *eventbridgeapi.PutEventsRequestEntry) *eventbridgeapi.PutEventsResultEntry {
+	for _, m := range []struct {
+		name  string
+		value *string
+	}{{"Source", e.Source}, {"DetailType", e.DetailType}, {"Detail", e.Detail}} {
+		if m.value == nil || *m.value == "" {
+			return entryFailure(codeInvalidArgument, msgRequired(m.name))
+		}
+	}
+	return nil
+}
+
+// parseDetail parses an entry's Detail, which must be a JSON object whose
+// integers are in range.
+func parseDetail(s string) (document.Map, *eventbridgeapi.PutEventsResultEntry) {
+	detail, ok := envelope.ParseDetail(s)
 	if !ok || !integersInRange(detail) {
 		return nil, entryFailure(codeMalformedDetail, msgMalformedDetail)
 	}
