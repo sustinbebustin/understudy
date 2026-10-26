@@ -73,15 +73,26 @@ func (st *State) checkAttachable(account aws.AccountID, arn string, named awsPol
 	return nil
 }
 
-// usage counts the roles and users that attach arn, and those that use it
-// as their permissions boundary.
-func (st *State) usage(arn string) (attached, boundaries int32) {
+// policyUsage is how many of the account's roles and users attach a policy,
+// and how many use it as their permissions boundary.
+type policyUsage struct{ attached, boundaries int32 }
+
+// usages tallies the usage of every policy ARN in one pass over the roles
+// and users, keyed by ARN, so a listing reads each policy's counts without
+// rescanning them. attach keeps an ARN once per holder, so each entry
+// counts a holder.
+func (st *State) usages() map[string]policyUsage {
+	used := map[string]policyUsage{}
 	tally := func(attachedTo []string, boundary string) {
-		if slices.Contains(attachedTo, arn) {
-			attached++
+		for _, arn := range attachedTo {
+			u := used[arn]
+			u.attached++
+			used[arn] = u
 		}
-		if boundary == arn {
-			boundaries++
+		if boundary != "" {
+			u := used[boundary]
+			u.boundaries++
+			used[boundary] = u
 		}
 	}
 	for k := range st.Roles {
@@ -90,21 +101,21 @@ func (st *State) usage(arn string) (attached, boundaries int32) {
 	for k := range st.Users {
 		tally(st.Users[k].Attached, st.Users[k].Boundary)
 	}
-	return attached, boundaries
+	return used
 }
 
-// apiPolicy is a customer managed policy with its live usage counts.
-func apiPolicy(st *State, account aws.AccountID, p Policy) iamapi.Policy {
+// apiPolicy is a customer managed policy with its usage counts from used.
+func apiPolicy(account aws.AccountID, p Policy, used map[string]policyUsage) iamapi.Policy {
 	arn := localPolicyARN(account, p.Path, p.Name).String()
-	attached, boundaries := st.usage(arn)
+	u := used[arn]
 	out := iamapi.Policy{
 		PolicyName:                    new(p.Name),
 		PolicyId:                      new(string(p.ID)),
 		Arn:                           new(arn),
 		Path:                          new(p.Path),
 		DefaultVersionId:              new(p.Default),
-		AttachmentCount:               new(attached),
-		PermissionsBoundaryUsageCount: new(boundaries),
+		AttachmentCount:               new(u.attached),
+		PermissionsBoundaryUsageCount: new(u.boundaries),
 		IsAttachable:                  true,
 		CreateDate:                    new(p.Created.Wire()),
 		UpdateDate:                    new(p.Updated.Wire()),
@@ -174,7 +185,7 @@ func (s *Service) createPolicy(_ context.Context, c *kernel.Call, in *iamapi.Cre
 		p.Created, p.Updated = now, now
 		p.Versions = []PolicyVersion{{ID: "v1", Document: in.PolicyDocument, Created: now}}
 		st.Policies[key(p.Name)] = p
-		return apiPolicy(st, account, p), nil
+		return apiPolicy(account, p, st.usages()), nil
 	})
 	if err != nil {
 		return nil, err
@@ -192,7 +203,7 @@ func (s *Service) getPolicy(_ context.Context, c *kernel.Call, in *iamapi.GetPol
 	out, err := view(s, account, func(st *State) (iamapi.Policy, *awserr.Error) {
 		switch named := named.(type) {
 		case catalogued:
-			return apiAWSManagedPolicy(st, named.policy), nil
+			return apiAWSManagedPolicy(named.policy, st.usages()), nil
 		case uncatalogued:
 			return iamapi.Policy{}, errNoSuchPolicy(in.PolicyArn)
 		case notAWSManaged:
@@ -201,7 +212,7 @@ func (s *Service) getPolicy(_ context.Context, c *kernel.Call, in *iamapi.GetPol
 		if err != nil {
 			return iamapi.Policy{}, err
 		}
-		return apiPolicy(st, account, p), nil
+		return apiPolicy(account, p, st.usages()), nil
 	})
 	if err != nil {
 		return nil, err
@@ -248,7 +259,7 @@ func (s *Service) deletePolicy(_ context.Context, c *kernel.Call, in *iamapi.Del
 		if err != nil {
 			return struct{}{}, err
 		}
-		if attached, boundaries := st.usage(in.PolicyArn); attached+boundaries > 0 {
+		if u := st.usages()[in.PolicyArn]; u.attached+u.boundaries > 0 {
 			return struct{}{}, errPolicyAttached()
 		}
 		if len(p.Versions) > 1 {
@@ -286,15 +297,16 @@ func (s *Service) listPolicies(_ context.Context, c *kernel.Call, in *iamapi.Lis
 				all = append(all, l)
 			}
 		}
+		used := st.usages()
 		if listsLocal {
 			local := sortedWhere(st.Policies, func(p *Policy) bool { return underPrefix(p.Path, in.PathPrefix) })
 			for i := range local {
-				add(apiPolicy(st, account, local[i]))
+				add(apiPolicy(account, local[i], used))
 			}
 		}
 		for p := range managed.All() {
 			if underPrefix(p.Path, in.PathPrefix) {
-				add(apiAWSManagedPolicy(st, p))
+				add(apiAWSManagedPolicy(p, used))
 			}
 		}
 		slices.SortFunc(all, func(a, b listedPolicy) int { return strings.Compare(a.key, b.key) })

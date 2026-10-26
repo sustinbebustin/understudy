@@ -88,17 +88,18 @@ func (e *catalogueError) Unwrap() error { return e.err }
 
 // apiAWSManagedPolicy is a catalogued AWS managed policy as GetPolicy shows
 // it: the guide's name, path, default version, times and description, a
-// PolicyId derived from the ARN, usage counted in the account, and no tags.
-func apiAWSManagedPolicy(st *State, p policycatalogue.Policy) iamapi.Policy {
-	attached, boundaries := st.usage(p.ARN)
+// PolicyId derived from the ARN, its usage in the account from used, and no
+// tags.
+func apiAWSManagedPolicy(p policycatalogue.Policy, used map[string]policyUsage) iamapi.Policy {
+	u := used[p.ARN]
 	out := iamapi.Policy{
 		PolicyName:                    new(p.Name),
 		PolicyId:                      new(string(awsManagedPolicyID(p.ARN))),
 		Arn:                           new(p.ARN),
 		Path:                          new(p.Path),
 		DefaultVersionId:              new(p.VersionID),
-		AttachmentCount:               new(attached),
-		PermissionsBoundaryUsageCount: new(boundaries),
+		AttachmentCount:               new(u.attached),
+		PermissionsBoundaryUsageCount: new(u.boundaries),
 		IsAttachable:                  true,
 		CreateDate:                    new(p.Created),
 		UpdateDate:                    new(p.Updated),
