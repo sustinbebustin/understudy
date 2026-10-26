@@ -338,7 +338,22 @@ const (
 )
 
 // IAM holds the IAM and STS settings.
-type IAM struct{ AssumeRole AssumeRole }
+type IAM struct {
+	AssumeRole AssumeRole
+	// Enforce is iam.enforce. Not read yet: no setting sets it, so it is
+	// always EnforceOff.
+	Enforce Enforcement
+}
+
+// Enforcement is the iam.enforce mode (iam-enforcement-surfaces.md 12.1).
+type Enforcement uint8
+
+// Enforcement values.
+const (
+	// EnforceOff records which actions each principal uses and enforces
+	// nothing. It is the only mode this build runs.
+	EnforceOff Enforcement = iota
+)
 
 // AssumeRole is the iam.assumeRole switch.
 type AssumeRole uint8

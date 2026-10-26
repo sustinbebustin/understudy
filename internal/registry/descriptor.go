@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
@@ -37,6 +38,10 @@ type Service struct {
 	// InvalidRequestContentException). It is the zero Identity when the
 	// overlay sets none; the codec then answers with its protocol's default.
 	MalformedRequestError awserr.Identity
+	// Denial is the overlay's dev.understudy#denialError, the error an
+	// authorization refusal answers with; zero when the overlay names none.
+	// Not generated yet: every descriptor holds the zero Denial.
+	Denial Denial
 	// NewErrorMembers returns a new, empty value of one of the service's
 	// error shapes, to decode a fault rule's members into, or false for a
 	// shape the service generates no decoder for. Generated descriptors set
@@ -48,6 +53,15 @@ type Service struct {
 	Operations []*Operation
 	// Routes is the REST dispatch table, nil for RPC services.
 	Routes *RouteTable
+}
+
+// Denial is the error a service answers an authorization refusal with, and
+// the weakest evidence behind it (iam-enforcement-surfaces.md 12.3).
+type Denial struct {
+	Identity awserr.Identity
+	// Label is the weakest label, in evidence.Labels order, among the overlay
+	// evidence items covering dev.understudy#denialError.
+	Label evidence.Label
 }
 
 // QueryErrorEnvelope is how a service's awsQuery ErrorResponse differs from

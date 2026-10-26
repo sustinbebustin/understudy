@@ -101,6 +101,10 @@ func (c *Call) VerifiedAuth() (auth.Auth, bool) { return c.verified, c.verified 
 // Origin returns where the call came from.
 func (c *Call) Origin() ref.Origin { return c.origin }
 
+// Mode returns how an internal call is authorized (Target.As); nil for
+// external and timer calls.
+func (c *Call) Mode() PrincipalMode { return c.mode }
+
 // Op returns the operation's descriptor. It is nil only for a request that
 // names an operation its service does not model, which never reaches a
 // handler.

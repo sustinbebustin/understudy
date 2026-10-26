@@ -67,6 +67,10 @@ type Options struct {
 	// error of the write that produced it.
 	Deliver DeliverSink
 	Linker  Linker
+	// Authorizer decides authorization at pipeline step 8 and in Authorize;
+	// nil turns authorization off (iam.enforce off). Not implemented yet:
+	// New ignores it.
+	Authorizer Authorizer
 	// Log receives kernel diagnostics; nil discards them.
 	Log *slog.Logger
 	// Strict turns a zero-valued required timestamp in an output into an

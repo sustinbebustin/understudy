@@ -70,6 +70,10 @@ func importRules() []importRule {
 		// The payload format 2.0 event and response of function URLs and
 		// API Gateway HTTP APIs.
 		"internal/httpevent",
+		// Resource-policy providers implement authz.PolicyProvider, and
+		// function URLs and API Gateway check a resource policy with
+		// authz.CheckResource (iam-enforcement-surfaces.md 12.2).
+		"internal/authz",
 	}
 	return []importRule{
 		// Leaves.
@@ -108,13 +112,19 @@ func importRules() []importRule {
 
 		// Vocabulary and platform.
 		{"internal/awserr", []string{"internal/ref", "internal/evidence", "internal/protocol/smithy/..."}},
-		{"internal/registry", []string{"internal/awserr", "internal/protocol/smithy/...", "internal/ref", "internal/aws"}},
+		// Service.Denial carries the evidence.Label of its identity
+		// (iam-enforcement-surfaces.md 12.3).
+		{"internal/registry", []string{"internal/awserr", "internal/protocol/smithy/...", "internal/ref", "internal/aws", "internal/evidence"}},
 		// ADR 0007 amendment and ARCHITECTURE.md 10: Delivery events carry a delivery.Mechanism.
 		{"internal/journal", []string{"internal/ref", "internal/aws", "internal/clock", "internal/ids", "internal/delivery"}},
 		// Rules export as JSON through the jsonx tagged-union convention.
 		{"internal/fault", []string{"internal/ref", "internal/aws", "internal/awserr", "internal/protocol/smithy/...", "internal/ids", "internal/delivery", "internal/protocol/jsonx"}},
 		// Recorder entries carry registry.IAMAction.
 		{"internal/access", []string{"internal/ref", "internal/aws", "internal/policydoc", "internal/registry"}},
+		// The authorization vocabulary: providers return policydoc documents
+		// for aws.ARN targets, and a resource request names a
+		// registry.IAMAction.
+		{"internal/authz", []string{"internal/aws", "internal/policydoc", "internal/registry"}},
 		{"internal/identity", []string{"internal/aws", "internal/ids", "internal/clock"}},
 		{"internal/auth", []string{"internal/aws", "internal/awserr", "internal/clock", "internal/ref"}},
 		{"internal/kernel", kernel},
@@ -130,8 +140,9 @@ func importRules() []importRule {
 			// (QueueDoesNotExist) are told apart by their awserr identity.
 			"internal/fault", "internal/awserr",
 			// Access advisories call access.Advise with the target's stored
-			// policydoc.Document and the registry.IAMAction of the attempt.
-			"internal/access", "internal/policydoc", "internal/registry",
+			// policydoc.Document and the registry.IAMAction of the attempt;
+			// PolicySource is authz.PolicyProvider.
+			"internal/access", "internal/policydoc", "internal/registry", "internal/authz",
 			// HTTPEndpoint attempts go out through the one outbound dialer
 			// (ADR 0015 amendment).
 			"internal/egress",

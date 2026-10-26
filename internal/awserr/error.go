@@ -306,6 +306,10 @@ type Unimplemented struct{ Op ref.OperationID }
 // Injected is an error a fault injection rule produced.
 type Injected struct{ Rule ref.RuleID }
 
+// Denial is an authorization refusal: pipeline step 8 or kernel.Authorize
+// (iam-enforcement-surfaces.md 12.1).
+type Denial struct{}
+
 // Internal is a bug: rendered as 500 InternalFailure; Cause is journaled and
 // logged, never sent.
 type Internal struct{ Cause error }
@@ -315,6 +319,7 @@ func (Generic) isOrigin()       {}
 func (Validation) isOrigin()    {}
 func (Unimplemented) isOrigin() {}
 func (Injected) isOrigin()      {}
+func (Denial) isOrigin()        {}
 func (Internal) isOrigin()      {}
 
 // Internalf wraps a bug as a 500 InternalFailure whose cause stays inside the
