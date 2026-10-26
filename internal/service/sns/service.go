@@ -53,34 +53,44 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 // ARN, which no primary source documents (sns.md 3.4).
 func pendingInListings() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "sns.listing.pending-arn",
-		Value: "PendingConfirmation",
-		Label: evidence.Inferred,
-		Ref:   "docs/research/sns.md#34-listing",
+		Name:    "sns.listing.pending-arn",
+		Value:   "PendingConfirmation",
+		Label:   evidence.Inferred,
+		Ref:     "docs/research/sns.md#34-listing",
+		Ops:     []string{"sns.ListSubscriptions", "sns.ListSubscriptionsByTopic"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording lists a pending subscription"},
 	}
 }
+
+// publishOps are the operations that publish, where the FIFO and Lambda
+// delivery switches apply.
+func publishOps() []string { return []string{"sns.Publish", "sns.PublishBatch"} }
 
 // fifoSequence is the text of a FIFO SequenceNumber: a 20-digit decimal
 // counter per topic, as LocalStack renders it; AWS documents a 128-bit
 // increasing number without its text (sns.md 4.3).
 func fifoSequence() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "sns.fifo.sequence-number",
-		Value: "20-digit-decimal-per-topic",
-		Label: evidence.Inferred,
-		Ref:   "docs/research/sns.md#43-fifo-publish",
+		Name:    "sns.fifo.sequence-number",
+		Value:   "20-digit-decimal-per-topic",
+		Label:   evidence.Inferred,
+		Ref:     "docs/research/sns.md#43-fifo-publish",
+		Ops:     publishOps(),
+		Settles: fidelity.NoScenario{Reason: "sns/R16/04-publish-fifo.json holds one SequenceNumber, which does not show how the numbers count"},
 	}
 }
 
 // lambdaAttributeTypes is the DataType a Lambda event carries for Number
 // and String.Array attributes: the published one, where the docs say
-// String and no recording exists (sns.md 9).
+// String (sns.md 9).
 func lambdaAttributeTypes() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "sns.lambda.attribute-type",
-		Value: "as-published",
-		Label: evidence.Inferred,
-		Ref:   "docs/research/sns.md#9-conflicts-between-sources",
+		Name:    "sns.lambda.attribute-type",
+		Value:   "as-published",
+		Label:   evidence.Inferred,
+		Ref:     "docs/research/sns.md#9-conflicts-between-sources",
+		Ops:     publishOps(),
+		Settles: fidelity.NoScenario{Reason: "logs/R16/01-lambda-events.json is recorded; no scenario replays it, as the delivery runs a Lambda function under Docker"},
 	}
 }
 
@@ -90,24 +100,30 @@ func lambdaAttributeTypes() fidelity.Switch[string] {
 // original's (sns.md Implications 10).
 func fifoDuplicate() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "sns.fifo.duplicate",
-		Value: "fresh-message-id-no-delivery",
-		Label: evidence.Inferred,
-		Ref:   "docs/research/sns.md#43-fifo-publish",
+		Name:    "sns.fifo.duplicate",
+		Value:   "fresh-message-id-no-delivery",
+		Label:   evidence.Inferred,
+		Ref:     "docs/research/sns.md#43-fifo-publish",
+		Ops:     publishOps(),
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording shows what a FIFO publish inside the deduplication window answers"},
 	}
 }
 
 // detachedRetention is how long the subscriptions of a deleted topic stay
-// readable through GetSubscriptionAttributes. AWS keeps them after
-// DeleteTopic (LocalStack test_delete_subscriptions_on_delete_topic,
-// AWS-recorded) for a time no source documents; 48 hours is LocalStack's
-// report.
+// readable through GetSubscriptionAttributes, and removable through
+// Unsubscribe. AWS keeps them after DeleteTopic (LocalStack
+// test_delete_subscriptions_on_delete_topic, AWS-recorded) for a time no
+// source documents; 48 hours is LocalStack's report.
 func detachedRetention() fidelity.Switch[time.Duration] {
 	return fidelity.Switch[time.Duration]{
 		Name:  "sns.delete-topic.detached-retention",
 		Value: 48 * time.Hour,
 		Label: evidence.Inferred,
 		Ref:   "docs/research/sns.md#22-topic-attributes",
+		Ops:   []string{"sns.DeleteTopic", "sns.GetSubscriptionAttributes", "sns.Unsubscribe"},
+		Settles: fidelity.NoScenario{
+			Reason: "sns/R16/06-list-subscriptions-after-delete.json shows the subscriptions 5 s after DeleteTopic; how long they stay is unrecorded",
+		},
 	}
 }
 

@@ -86,13 +86,17 @@ func unmasking(unmask bool) []registry.IAMAction {
 
 // expiryRule is how retention removes events: deterministically at
 // timestamp plus the retention period on the emulator clock, where AWS
-// deletes them lazily, typically within 72 hours after.
+// deletes them lazily, typically within 72 hours after. The rule decides
+// which events the reads return, which PutLogEvents refuses as expired and
+// what a shorter PutRetentionPolicy drops at once.
 func expiryRule() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "logs.retention.expiry",
-		Value: "at-expiry",
-		Label: evidence.AWSDoc,
-		Ref:   "docs/research/secrets-logs-events-alarms.md#32-retention",
+		Name:    "logs.retention.expiry",
+		Value:   "at-expiry",
+		Label:   evidence.AWSDoc,
+		Ref:     "docs/research/secrets-logs-events-alarms.md#32-retention",
+		Ops:     []string{"logs.PutLogEvents", "logs.PutRetentionPolicy", "logs.GetLogEvents", "logs.FilterLogEvents"},
+		Settles: fidelity.NoScenario{Reason: "AWS deletes expired events lazily, typically within 72 hours, so no recording pins the instant"},
 	}
 }
 
@@ -102,24 +106,52 @@ func expiryRule() fidelity.Switch[string] {
 // Terraform provider's acceptance tests read back from AWS.
 func deliveryRetention() fidelity.Switch[int32] {
 	return fidelity.Switch[int32]{
-		Name:  "logs.delivery.retention-days",
-		Value: 2,
-		Label: evidence.AWSDoc,
-		Ref:   "https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html",
+		Name:    "logs.delivery.retention-days",
+		Value:   2,
+		Label:   evidence.AWSDoc,
+		Ref:     "https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html",
+		Ops:     []string{"logs.CreateLogGroup", "logs.DescribeLogGroups"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording creates a DELIVERY-class log group"},
 	}
 }
 
 // Switches lists the behaviors chosen without AWS-recorded evidence: the
-// filter-pattern questions logsfilter leaves open, the retention rule and
-// the DELIVERY class's fixed retention.
+// filter-pattern questions logsfilter leaves open, with the label,
+// operations and settling step filterSwitches states for each, the
+// retention rule and the DELIVERY class's fixed retention.
 func (s *Service) Switches() []fidelity.Entry {
 	switches := s.filter.Switches()
+	table := filterSwitches()
 	out := make([]fidelity.Entry, 0, 2+len(switches))
 	out = append(out, expiryRule().Entry(), deliveryRetention().Entry())
 	for _, sw := range switches {
+		m := table[sw.Name]
 		out = append(out, fidelity.Switch[string]{
-			Name: sw.Name, Value: sw.Value, Label: evidence.Inferred, Ref: sw.Ref, Record: sw.Record,
+			Name: sw.Name, Value: sw.Value, Label: m.label, Ref: sw.Ref, Record: sw.Record, Ops: m.ops, Settles: m.settles,
 		}.Entry())
 	}
 	return out
+}
+
+// filterSwitch is what Logs states about one of logsfilter's switches:
+// what backs its value, the operations it governs and what settles it.
+type filterSwitch struct {
+	label   evidence.Label
+	ops     []string
+	settles fidelity.Settles
+}
+
+// filterSwitches holds the filterSwitch of every logsfilter switch by
+// name. A name it lacks gets no label, operations or settles, which the
+// coverage checks refuse. FilterLogEvents is the one bound operation that
+// takes a filter pattern.
+func filterSwitches() map[string]filterSwitch {
+	ops := []string{"logs.FilterLogEvents"}
+	r10 := func(step string) fidelity.Settles {
+		return fidelity.NoScenario{Reason: "logs/R10/" + step + ".json is recorded; no scenario replays logs/R10 yet"}
+	}
+	return map[string]filterSwitch{
+		"logs.filter.term-boundary":         {evidence.Inferred, ops, r10("03-filter-01")},
+		"logs.filter.delimited-field-count": {evidence.Inferred, ops, r10("03-filter-11")},
+	}
 }

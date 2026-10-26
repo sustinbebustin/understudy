@@ -115,28 +115,40 @@ func firstError(errs ...*awserr.Error) *awserr.Error {
 func (*Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		fidelity.Switch[string]{
-			Name:  "secretsmanager.list-secrets.filter-combination",
-			Value: "and-across-filters,or-across-values",
-			Label: evidence.Inferred,
-			Ref:   "docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts",
+			Name:    "secretsmanager.list-secrets.filter-combination",
+			Value:   "and-across-filters,or-across-values",
+			Label:   evidence.Inferred,
+			Ref:     "docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts",
+			Ops:     []string{"secretsmanager.ListSecrets"},
+			Settles: fidelity.NoScenario{Reason: "unrecorded: no recording calls ListSecrets"},
 		}.Entry(),
 		fidelity.Switch[string]{
-			Name:  "secretsmanager.list-secrets.all-filter-match",
-			Value: "any-word,word-prefix",
-			Label: evidence.Inferred,
-			Ref:   "https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html",
+			Name:    "secretsmanager.list-secrets.all-filter-match",
+			Value:   "any-word,word-prefix",
+			Label:   evidence.Inferred,
+			Ref:     "https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html",
+			Ops:     []string{"secretsmanager.ListSecrets"},
+			Settles: fidelity.NoScenario{Reason: "unrecorded: no recording calls ListSecrets"},
 		}.Entry(),
 		fidelity.Switch[string]{
+			// GetSecretValue sets the date; the others report it.
 			Name:  "secretsmanager.last-accessed-date.granularity",
 			Value: "day",
 			Label: evidence.AWSDoc,
 			Ref:   "docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts",
+			Ops: []string{
+				"secretsmanager.GetSecretValue", "secretsmanager.DescribeSecret", "secretsmanager.ListSecrets",
+				"secretsmanager.ListSecretVersionIds",
+			},
+			Settles: fidelity.NoScenario{Reason: "unrecorded: no recording reads a LastAccessedDate"},
 		}.Entry(),
 		fidelity.Switch[string]{
-			Name:  "secretsmanager.restore.not-scheduled",
-			Value: "no-op",
-			Label: evidence.Inferred,
-			Ref:   "docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven",
+			Name:    "secretsmanager.restore.not-scheduled",
+			Value:   "no-op",
+			Label:   evidence.Inferred,
+			Ref:     "docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven",
+			Ops:     []string{"secretsmanager.RestoreSecret"},
+			Settles: fidelity.NoScenario{Reason: "secretsmanager/R15/05-restore-live.json is recorded; no scenario replays secretsmanager/R15 yet"},
 		}.Entry(),
 	}
 }

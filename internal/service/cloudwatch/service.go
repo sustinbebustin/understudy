@@ -38,10 +38,12 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 // since an application stamps its data with wall time.
 func timestampWindow() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "cloudwatch.put-metric-data.timestamp-window",
-		Value: "wall-or-emulator",
-		Label: evidence.Inferred,
-		Ref:   "docs/research/secrets-logs-events-alarms.md#52-putmetricdata",
+		Name:    "cloudwatch.put-metric-data.timestamp-window",
+		Value:   "wall-or-emulator",
+		Label:   evidence.Inferred,
+		Ref:     "docs/research/secrets-logs-events-alarms.md#52-putmetricdata",
+		Ops:     []string{"cloudwatch.PutMetricData"},
+		Settles: fidelity.NoScenario{Reason: "AWS has one clock: which of understudy's two the windows read is understudy's choice, which no recording settles"},
 	}
 }
 
@@ -51,10 +53,12 @@ func timestampWindow() fidelity.Switch[string] {
 // documents; no recording shows the period boundaries.
 func startRounding() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "cloudwatch.get-metric-data.start-rounding",
-		Value: "by-age",
-		Label: evidence.AWSDoc,
-		Ref:   "docs/research/secrets-logs-events-alarms.md#53-getmetricdata",
+		Name:    "cloudwatch.get-metric-data.start-rounding",
+		Value:   "by-age",
+		Label:   evidence.AWSDoc,
+		Ref:     "docs/research/secrets-logs-events-alarms.md#53-getmetricdata",
+		Ops:     []string{"cloudwatch.GetMetricData"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording shows GetMetricData's period boundaries"},
 	}
 }
 

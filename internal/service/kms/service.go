@@ -52,13 +52,20 @@ func (*Service) Switches() []fidelity.Entry {
 // account's key ARN. AWS's answer is unrecorded; understudy answers the
 // NotFoundException of a key the caller's account does not have. Each key
 // management operation's API reference page carries the "Cross-account
-// use: No" line; Ref names one of them.
+// use: No" line; Ref names one of them. Ops are the operations whose key
+// reference is ownAccount (keyref.go).
 func crossAccountManagementError() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:  "kms.cross-account.management-error",
 		Value: "NotFoundException",
 		Label: evidence.Inferred,
 		Ref:   "https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyPolicy.html",
+		Ops: []string{
+			"kms.CancelKeyDeletion", "kms.DisableKey", "kms.DisableKeyRotation", "kms.EnableKey", "kms.EnableKeyRotation",
+			"kms.GetKeyPolicy", "kms.ListAliases", "kms.ListKeyPolicies", "kms.ListResourceTags", "kms.PutKeyPolicy",
+			"kms.ScheduleKeyDeletion", "kms.TagResource", "kms.UntagResource", "kms.UpdateKeyDescription",
+		},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording names another account's key"},
 	}
 }
 
@@ -68,9 +75,11 @@ func crossAccountManagementError() fidelity.Switch[string] {
 // understudy answers the first.
 func pendingCryptoError() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "kms.pending-deletion.crypto-error",
-		Value: "KMSInvalidStateException",
-		Label: evidence.AWSDoc,
-		Ref:   "docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix",
+		Name:    "kms.pending-deletion.crypto-error",
+		Value:   "KMSInvalidStateException",
+		Label:   evidence.AWSDoc,
+		Ref:     "docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix",
+		Ops:     []string{"kms.Encrypt", "kms.Decrypt", "kms.ReEncrypt", "kms.GenerateDataKey", "kms.GenerateDataKeyWithoutPlaintext"},
+		Settles: fidelity.NoScenario{Reason: "kms/R15/02-pending-encrypt.json and the other 02-pending steps are recorded; no scenario replays kms/R15 yet"},
 	}
 }

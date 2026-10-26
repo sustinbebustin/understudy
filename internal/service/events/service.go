@@ -105,6 +105,10 @@ func rateRestart() fidelity.Switch[string] {
 		Value: "on-schedule-change-or-enable",
 		Label: evidence.Inferred,
 		Ref:   "docs/research/secrets-logs-events-alarms.md#42-schedule-expressions-rate-and-cron",
+		Ops:   []string{"eventbridge.PutRule", "eventbridge.EnableRule"},
+		Settles: fidelity.NoScenario{
+			Reason: "events/R14 records the EnableRule half only, as arrival times (02-enable.time, 02-arrivals-after-enable.jsonl) a scenario does not replay; a PutRule schedule change is unrecorded",
+		},
 	}
 }
 
@@ -112,10 +116,12 @@ func rateRestart() fidelity.Switch[string] {
 // an event receives: no AWS source says; understudy delivers nothing.
 func unmatchedInputPath() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "events.input-path.unmatched",
-		Value: "not-delivered",
-		Label: evidence.Inferred,
-		Ref:   "docs/research/secrets-logs-events-alarms.md#45-targets",
+		Name:    "events.input-path.unmatched",
+		Value:   "not-delivered",
+		Label:   evidence.Inferred,
+		Ref:     "docs/research/secrets-logs-events-alarms.md#45-targets",
+		Ops:     []string{"eventbridge.PutEvents"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording delivers to a target whose InputPath selects nothing"},
 	}
 }
 
@@ -125,27 +131,77 @@ func unmatchedInputPath() fidelity.Switch[string] {
 // MalformedDetail failure for a bad Detail.
 func detailIntegerRange() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "events.put-events.detail-integer-range",
-		Value: codeMalformedDetail,
-		Label: evidence.Inferred,
-		Ref:   "https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html",
+		Name:    "events.put-events.detail-integer-range",
+		Value:   codeMalformedDetail,
+		Label:   evidence.Inferred,
+		Ref:     "https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html",
+		Ops:     []string{"eventbridge.PutEvents"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording sends a Detail integer outside the signed 64-bit range"},
 	}
 }
 
 // Switches lists the behaviors chosen without AWS-recorded evidence: the
-// service's own and those of its Event Ruler profile.
+// service's own and those of its Event Ruler profile, with the label,
+// operations and settling step rulerSwitches states for each.
 func (s *Service) Switches() []fidelity.Entry {
 	profile := ruler.Switches(s.profile)
+	table := rulerSwitches()
 	out := make([]fidelity.Entry, 0, 3+len(profile))
 	out = append(out, rateRestart().Entry(), unmatchedInputPath().Entry(), detailIntegerRange().Entry())
 	for _, sw := range profile {
+		m := table[sw.Name]
 		out = append(out, fidelity.Switch[string]{
-			Name:   sw.Name,
-			Value:  sw.Value,
-			Label:  evidence.Inferred,
-			Ref:    sw.Ref,
-			Record: sw.Record,
+			Name:    sw.Name,
+			Value:   sw.Value,
+			Label:   m.label,
+			Ref:     sw.Ref,
+			Record:  sw.Record,
+			Ops:     m.ops,
+			Settles: m.settles,
 		}.Entry())
 	}
 	return out
+}
+
+// rulerSwitch is what EventBridge states about one of Ruler's EventBridge
+// profile switches: what backs its value, the operations it governs and
+// what settles it.
+type rulerSwitch struct {
+	label   evidence.Label
+	ops     []string
+	settles fidelity.Settles
+}
+
+// rulerSwitches holds the rulerSwitch of every EventBridge profile switch
+// by name. A name it lacks gets no label, operations or settles, which the
+// coverage checks refuse. PutRule and TestEventPattern compile a pattern,
+// so the switches that accept or refuse one govern them; PutEvents and
+// TestEventPattern match it, so the switches that decide a match govern
+// those. The events/R14 steps a switch names are its settles claims in
+// testdata/parity/events/R14/scenario.json.
+func rulerSwitches() map[string]rulerSwitch {
+	compile := []string{"eventbridge.PutRule", "eventbridge.TestEventPattern"}
+	match := []string{"eventbridge.PutEvents", "eventbridge.TestEventPattern"}
+	r14 := func(step string) fidelity.Settles {
+		return fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "events/R14", Step: step}}
+	}
+	unreplayed := func(steps string) fidelity.Settles {
+		return fidelity.NoScenario{Reason: "recorded in events/R14 (" + steps + "); the events/R14 scenario does not replay those steps yet"}
+	}
+	return map[string]rulerSwitch{
+		"events.pattern.exists-true-empty-value": {
+			evidence.Inferred, match,
+			fidelity.NoScenario{Reason: "unrecorded for EventBridge: matching-engines.md H2 was recorded for SNS and Lambda only"},
+		},
+		"events.pattern.empty-input": {evidence.Inferred, match, r14("H1-01")},
+		"events.pattern.bare-number": {
+			evidence.Inferred, match,
+			fidelity.NoScenario{Reason: "events/R14's H8 steps do not decide it: both values answer false for a string"},
+		},
+		"events.pattern.malformed-or":            {evidence.Inferred, compile, unreplayed("H10-01 to H10-06")},
+		"events.pattern.exactly-operator":        {evidence.Inferred, compile, r14("H14-01")},
+		"events.pattern.or-shared-values":        {evidence.Inferred, match, r14("H14-02")},
+		"events.pattern.wildcard-complexity-cap": {evidence.Inferred, compile, unreplayed("H11-01 to H11-03")},
+		"events.pattern.or-combination-counting": {evidence.Inferred, compile, unreplayed("H12-01-10x10x10, H12-02-7x11x13, H12-03-nested")},
+	}
 }

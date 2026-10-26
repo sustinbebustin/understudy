@@ -120,5 +120,9 @@ func (s *Service) roleCheck() fidelity.Switch[string] {
 		Value: s.opts.AssumeRole.String(),
 		Label: s.opts.AssumeRole.label(),
 		Ref:   "docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions",
+		Ops:   []string{"sts.AssumeRole"},
+		Settles: fidelity.NoScenario{
+			Reason: "the switch decides AssumeRole of a role IAM does not hold, which no recording asks; sts/R15#06-assume-denied names a role that exists, refused by its trust policy",
+		},
 	}
 }

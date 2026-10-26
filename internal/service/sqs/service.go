@@ -92,26 +92,30 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 // staleReceipt is the behavior of DeleteMessage with an older receipt
 // handle of a message received again since: AWS documents that it
 // "will succeed, but the message might not be deleted"; understudy
-// succeeds without deleting.
+// succeeds without deleting. sqs/R01's receive after the stale delete
+// settles it.
 func staleReceipt() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "sqs.receipt.stale-handle",
-		Value: "succeed-without-delete",
-		Label: evidence.AWSDoc,
-		Ref:   "docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility",
+		Name:    "sqs.receipt.stale-handle",
+		Value:   "succeed-without-delete",
+		Label:   evidence.AWSDoc,
+		Ref:     "docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility",
+		Ops:     []string{"sqs.DeleteMessage", "sqs.DeleteMessageBatch"},
+		Settles: fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "sqs/R01", Step: "03-recv-after-6s"}},
 	}
 }
 
 // movedIdentity is what a message move task does to a message: the
 // documentation says redriven messages are new messages with a new
-// MessageId and enqueue time; LocalStack keeps the id, and no recording
-// settles it (sqs.md 9.3).
+// MessageId and enqueue time; LocalStack keeps the id (sqs.md 9.3).
 func movedIdentity() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "sqs.move-task.message-identity",
-		Value: "new-message",
-		Label: evidence.AWSDoc,
-		Ref:   "docs/research/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask",
+		Name:    "sqs.move-task.message-identity",
+		Value:   "new-message",
+		Label:   evidence.AWSDoc,
+		Ref:     "docs/research/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask",
+		Ops:     []string{"sqs.StartMessageMoveTask"},
+		Settles: fidelity.NoScenario{Reason: "sqs/R02/std-06-recv-src.json and fifo-06-recv-src.json are recorded; no scenario replays sqs/R02 yet"},
 	}
 }
 
@@ -129,42 +133,70 @@ const (
 // counts from the latest, which issued the handle and started the
 // visibility window being changed. No recording settles it (sqs.md 7.2).
 func visibilityCeiling() fidelity.Switch[string] {
-	return fidelity.Switch[string]{Name: "sqs.visibility.ceiling-from", Value: "latest-receive", Label: evidence.Inferred, Ref: refReceipts}
+	return fidelity.Switch[string]{
+		Name: "sqs.visibility.ceiling-from", Value: "latest-receive", Label: evidence.Inferred, Ref: refReceipts,
+		Ops:     []string{"sqs.ChangeMessageVisibility", "sqs.ChangeMessageVisibilityBatch"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording reaches the 12-hour ceiling"},
+	}
 }
 
 // fifoReceiptExpiry is which calls a FIFO receipt handle expires for once
 // its visibility timeout ends: recorded for DeleteMessage, applied to
 // ChangeMessageVisibility too (sqs.md 7.2).
 func fifoReceiptExpiry() fidelity.Switch[string] {
-	return fidelity.Switch[string]{Name: "sqs.fifo.receipt-expiry", Value: "delete-and-change-visibility", Label: evidence.Inferred, Ref: refReceipts}
+	return fidelity.Switch[string]{
+		Name: "sqs.fifo.receipt-expiry", Value: "delete-and-change-visibility", Label: evidence.Inferred, Ref: refReceipts,
+		Ops: []string{"sqs.DeleteMessage", "sqs.DeleteMessageBatch", "sqs.ChangeMessageVisibility", "sqs.ChangeMessageVisibilityBatch"},
+		Settles: fidelity.NoScenario{
+			Reason: "sqs/R01#07-fifo-delete-expired records the DeleteMessage half only; ChangeMessageVisibility on an expired FIFO handle is unrecorded",
+		},
+	}
 }
 
 // fifoDuplicate is what a send suppressed as a FIFO duplicate answers: the
 // original's MessageId and SequenceNumber, as both emulators do; AWS's
 // fields are unrecorded (sqs.md 8.2).
 func fifoDuplicate() fidelity.Switch[string] {
-	return fidelity.Switch[string]{Name: "sqs.fifo.duplicate", Value: "original-message-id-and-sequence", Label: evidence.Inferred, Ref: refDedup}
+	return fidelity.Switch[string]{
+		Name: "sqs.fifo.duplicate", Value: "original-message-id-and-sequence", Label: evidence.Inferred, Ref: refDedup,
+		Ops:     []string{"sqs.SendMessage", "sqs.SendMessageBatch"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording shows what a suppressed FIFO duplicate send answers"},
+	}
 }
 
 // contentDedupFormat is how a content-based MessageDeduplicationId reads:
 // the SHA-256 of the body is documented, its rendering is not (sqs.md
-// 8.2).
+// 8.2). It is computed on send and read back on receive.
 func contentDedupFormat() fidelity.Switch[string] {
-	return fidelity.Switch[string]{Name: "sqs.fifo.content-dedup-id", Value: "lowercase-hex-sha256", Label: evidence.Inferred, Ref: refDedup}
+	return fidelity.Switch[string]{
+		Name: "sqs.fifo.content-dedup-id", Value: "lowercase-hex-sha256", Label: evidence.Inferred, Ref: refDedup,
+		Ops: []string{"sqs.SendMessage", "sqs.SendMessageBatch", "sqs.ReceiveMessage"},
+		Settles: fidelity.NoScenario{
+			Reason: "sqs/R01#07-fifo-recv1 holds the value, but the step differs on JSON member order, so a claim there would read contradicted for another reason",
+		},
+	}
 }
 
 // sequenceFormat is the SequenceNumber form: a 20-digit decimal counting
 // per queue, so numbers order as strings too; AWS documents only a
 // 128-bit-range decimal increasing within a group (sqs.md 3).
 func sequenceFormat() fidelity.Switch[string] {
-	return fidelity.Switch[string]{Name: "sqs.fifo.sequence-number", Value: "20-digit-decimal-per-queue", Label: evidence.Inferred, Ref: refFormats}
+	return fidelity.Switch[string]{
+		Name: "sqs.fifo.sequence-number", Value: "20-digit-decimal-per-queue", Label: evidence.Inferred, Ref: refFormats,
+		Ops:     []string{"sqs.SendMessage", "sqs.SendMessageBatch", "sqs.ReceiveMessage"},
+		Settles: fidelity.NoScenario{Reason: "sqs/R01#07-fifo-recv1 records the 20-digit form but not how the numbers count"},
+	}
 }
 
 // batchUnsetVisibility is what a ChangeMessageVisibilityBatch entry
 // without a VisibilityTimeout sets: 0, the value an unset integer
 // serializes to; no source records it (sqs.md 6.2).
 func batchUnsetVisibility() fidelity.Switch[string] {
-	return fidelity.Switch[string]{Name: "sqs.batch.unset-visibility-timeout", Value: "zero", Label: evidence.Inferred, Ref: refBatches}
+	return fidelity.Switch[string]{
+		Name: "sqs.batch.unset-visibility-timeout", Value: "zero", Label: evidence.Inferred, Ref: refBatches,
+		Ops:     []string{"sqs.ChangeMessageVisibilityBatch"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: sqs/R01#06-cmv-batch sets VisibilityTimeout on every entry"},
+	}
 }
 
 // policyLimits is which documented Policy limits are enforced: the 8,192
@@ -173,7 +205,11 @@ func batchUnsetVisibility() fidelity.Switch[string] {
 // principal, condition and per-statement action counts are not, as the
 // documentation does not say what each counts (sqs.md 4).
 func policyLimits() fidelity.Switch[string] {
-	return fidelity.Switch[string]{Name: "sqs.policy.limits", Value: "bytes-and-statements", Label: evidence.AWSDoc, Ref: refAttributes}
+	return fidelity.Switch[string]{
+		Name: "sqs.policy.limits", Value: "bytes-and-statements", Label: evidence.AWSDoc, Ref: refAttributes,
+		Ops:     []string{"sqs.CreateQueue", "sqs.SetQueueAttributes", "sqs.AddPermission"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording exceeds a Policy limit"},
+	}
 }
 
 // Switches lists the behaviors chosen without AWS-recorded evidence.
@@ -190,9 +226,11 @@ func (s *Service) Switches() []fidelity.Entry {
 // default departs from AWS on purpose (ARCHITECTURE.md 9).
 func (s *Service) deletedRecently() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "sqs.queueDeletedRecently",
-		Value: s.opts.DeletedRecently.String(),
-		Label: evidence.Inferred,
-		Ref:   "docs/ARCHITECTURE.md#9-the-clock",
+		Name:    "sqs.queueDeletedRecently",
+		Value:   s.opts.DeletedRecently.String(),
+		Label:   evidence.Inferred,
+		Ref:     "docs/ARCHITECTURE.md#9-the-clock",
+		Ops:     []string{"sqs.CreateQueue"},
+		Settles: fidelity.NoScenario{Reason: "a deliberate departure from AWS (ARCHITECTURE.md 9), which a recording does not change"},
 	}
 }

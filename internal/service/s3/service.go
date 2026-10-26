@@ -354,14 +354,31 @@ func (s *Service) Scopes() []aws.Scope {
 }
 
 // Switches lists the behaviors chosen without AWS-recorded evidence.
-func (*Service) Switches() []fidelity.Entry {
+func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		encryptionAfterDelete().Entry(),
-		crossAccountAccess().Entry(),
+		crossAccountAccess(s.bucketOperations()).Entry(),
 		publicACLAtCreate().Entry(),
 		tagLimits().Entry(),
 		lifecycleRuleLimits().Entry(),
 	}
+}
+
+// bucketOperations are the operations bound in s's kernel that address an
+// existing bucket, every one of which admit serves whatever account sends
+// it: each bound S3 operation but CreateBucket and ListBuckets. They are
+// read from the bindings so that an operation bound later joins them.
+func (s *Service) bucketOperations() []string {
+	var out []string
+	for _, op := range s3api.Service().Operations {
+		if op == s3api.OpCreateBucket.Descriptor() || op == s3api.OpListBuckets.Descriptor() {
+			continue
+		}
+		if _, bound := s.k.Bindings().Status(op).(kernel.Bound); bound {
+			out = append(out, op.ID.String())
+		}
+	}
+	return out
 }
 
 func (s *Service) reset(rs kernel.ResetScope) error {
@@ -451,26 +468,38 @@ func (s *Service) homes() map[string]Home {
 }
 
 // encryptionAfterDelete is GetBucketEncryption after DeleteBucketEncryption:
-// AWS documents that every bucket always has the SSE-S3 default, and no
-// recording shows the read (s3.md 4.1).
+// AWS documents that every bucket always has the SSE-S3 default (s3.md
+// 4.1), and s3/R06/02-get-encryption-after-delete.json records the read.
 func encryptionAfterDelete() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "s3.encryption.after-delete",
-		Value: "default-sse-s3",
-		Label: evidence.AWSDoc,
-		Ref:   "docs/research/s3.md#41-state-of-a-freshly-created-bucket-and-what-unset-means",
+		Name:    "s3.encryption.after-delete",
+		Value:   "default-sse-s3",
+		Label:   evidence.AWSDoc,
+		Ref:     "docs/research/s3.md#41-state-of-a-freshly-created-bucket-and-what-unset-means",
+		Ops:     []string{"s3.GetBucketEncryption"},
+		Settles: fidelity.NoScenario{Reason: s3Unreplayed("s3/R06/02-get-encryption-after-delete.json is")},
 	}
+}
+
+// s3Unreplayed is why no scenario settles a switch whose recording exists:
+// S3 requests are REST, which the replayer does not route yet. recorded
+// names the fixtures, with "is" or "are".
+func s3Unreplayed(recorded string) string {
+	return recorded + " recorded; the replayer skips S3's REST requests"
 }
 
 // crossAccountAccess is a bucket request from an account that does not own
 // the bucket: understudy evaluates no bucket policy or ACL, so it is served.
 // What AWS answers is UNVERIFIED: no research note or recording covers it.
-func crossAccountAccess() fidelity.Switch[string] {
+// ops are the operations that address an existing bucket.
+func crossAccountAccess(ops []string) fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "s3.bucket.cross-account",
-		Value: "served",
-		Label: evidence.Inferred,
-		Ref:   "UNVERIFIED: no research note or recording shows AWS's answer to a bucket request from an account that does not own the bucket",
+		Name:    "s3.bucket.cross-account",
+		Value:   "served",
+		Label:   evidence.Inferred,
+		Ref:     "UNVERIFIED: no research note or recording shows AWS's answer to a bucket request from an account that does not own the bucket",
+		Ops:     ops,
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording sends a bucket request from an account that does not own the bucket"},
 	}
 }
 
@@ -479,22 +508,27 @@ func crossAccountAccess() fidelity.Switch[string] {
 // code (s3.md 3.2).
 func publicACLAtCreate() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "s3.create-bucket.public-acl",
-		Value: "InvalidBucketAclWithObjectOwnership",
-		Label: evidence.AWSDoc,
-		Ref:   "docs/research/s3.md#32-createbucket",
+		Name:    "s3.create-bucket.public-acl",
+		Value:   "InvalidBucketAclWithObjectOwnership",
+		Label:   evidence.AWSDoc,
+		Ref:     "docs/research/s3.md#32-createbucket",
+		Ops:     []string{"s3.CreateBucket"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording creates a bucket with a public canned ACL under BucketOwnerEnforced"},
 	}
 }
 
 // tagLimits are the 50-tag, 128-character key and 256-character value
 // limits of a bucket tag set: documented, with error texts no recording
-// shows (s3.md 4.2.9).
+// shows (s3.md 4.2.9). CreateBucket, PutBucketTagging and the S3 Control
+// TagResource check them.
 func tagLimits() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "s3.tagging.limits",
-		Value: "InvalidTag",
-		Label: evidence.AWSDoc,
-		Ref:   "docs/research/s3.md#429-bucket-tagging",
+		Name:    "s3.tagging.limits",
+		Value:   "InvalidTag",
+		Label:   evidence.AWSDoc,
+		Ref:     "docs/research/s3.md#429-bucket-tagging",
+		Ops:     []string{"s3.CreateBucket", "s3.PutBucketTagging", "s3.TagResource"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording exceeds a bucket tag limit"},
 	}
 }
 
@@ -507,5 +541,9 @@ func lifecycleRuleLimits() fidelity.Switch[string] {
 		Value: "InvalidArgument",
 		Label: evidence.AWSDoc,
 		Ref:   "https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html",
+		Ops:   []string{"s3.PutBucketLifecycleConfiguration"},
+		Settles: fidelity.NoScenario{
+			Reason: s3Unreplayed("s3/R12/12-lifecycle-transition-7-standard-ia.json, the other 12-lifecycle steps and 15-lifecycle-glacier-then-onezone-ia.json are"),
+		},
 	}
 }

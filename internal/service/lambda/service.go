@@ -159,12 +159,21 @@ func lambdaAction(name string) registry.IAMAction {
 
 // Switches lists the behaviors chosen without AWS-recorded evidence: the
 // state transitions and the event source mapping filter engine's choices.
+// The transitions govern the calls that create or change a function or
+// mapping and the reads that report its state.
 func (s *Service) Switches() []fidelity.Entry {
 	return append([]fidelity.Entry{fidelity.Switch[string]{
 		Name:  "lambda.stateTransitions",
 		Value: s.opts.StateTransitions.String(),
 		Label: evidence.AWSDoc,
 		Ref:   "docs/ARCHITECTURE.md#9-the-clock",
+		Ops: []string{
+			"lambda.CreateFunction", "lambda.UpdateFunctionCode", "lambda.UpdateFunctionConfiguration", "lambda.PublishVersion",
+			"lambda.GetFunction", "lambda.GetFunctionConfiguration",
+			"lambda.CreateEventSourceMapping", "lambda.UpdateEventSourceMapping", "lambda.DeleteEventSourceMapping",
+			"lambda.GetEventSourceMapping",
+		},
+		Settles: fidelity.NoScenario{Reason: "a deliberate default (ARCHITECTURE.md 9), which a recording of AWS's transient states does not change"},
 	}.Entry()}, esm.Switches()...)
 }
 
