@@ -10,6 +10,7 @@ understudy serve --iam-enforce enforce
 
 ```text
 understudy serve: --iam-enforce: "enforce" is not supported: IAM enforcement is not built yet, so this build accepts only off; remove the setting or set it to off
+Run 'understudy serve --help' for usage and examples.
 ```
 
 ## Make calls as the principal
@@ -69,7 +70,7 @@ The policy has one statement per resource, with exact ARNs, except that S3 objec
 
 The second part lists the resource-policy statements that SNS, S3, EventBridge and Lambda deliveries would need on AWS: a queue policy allowing the topic, a function permission allowing the rule. understudy attempts those deliveries anyway, and journals an `advisory` event for each one the target's stored policy would refuse.
 
-Only deliveries are listed. Two kinds of call are the service acting on its own behalf, which no policy grants: S3 checking that each destination exists when you configure a bucket's notifications, and DynamoDB deleting expired TTL items. Neither `iam usage` nor the resource policies list them. So a bucket that notifies a queue needs only `sqs:SendMessage` from the bucket. With `queue-policy.json` holding the queue's policy as its `Policy` attribute and `notification.json` sending `s3:ObjectCreated:*` to the queue:
+Only deliveries are listed. Two kinds of call are the service acting on its own behalf: S3 checking that each destination exists when you configure a bucket's notifications, and DynamoDB deleting expired TTL items. On AWS, S3 validates a destination by sending it a test message, which needs the same grant as a delivery, so it adds nothing to the policy; understudy's existence check is not that message. Neither `iam usage` nor the resource policies list these calls. So a bucket that notifies a queue needs only `sqs:SendMessage` from the bucket. With `queue-policy.json` holding the queue's policy as its `Policy` attribute and `notification.json` sending `s3:ObjectCreated:*` to the queue:
 
 ```json
 {"Policy":"{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"s3.amazonaws.com\"},\"Action\":\"sqs:SendMessage\",\"Resource\":\"arn:aws:sqs:us-east-1:000000000000:uploads\",\"Condition\":{\"ArnLike\":{\"aws:SourceArn\":\"arn:aws:s3:::uploads\"}}}]}"}
