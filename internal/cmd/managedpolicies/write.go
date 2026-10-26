@@ -108,8 +108,10 @@ func encodeSource(src Source) ([]byte, error) {
 
 // notice is NOTICE for src: the CC BY-SA 4.0 attribution ADR 0016's
 // amendment "managed policies" lists, the source and its URLs, the
-// retrieval date, the copyright holder, the licence and that the data was
-// reformatted with no other change. It depends on src alone.
+// retrieval date, the copyright holder, the licence, that the data was
+// reformatted with no other change and that policies.json.gz, the copy the
+// binary embeds, is policies.json compressed (ADR 0016, "Embedding,
+// 2026-10-26"). It depends on src alone.
 func notice(src Source) []byte {
 	full := guidePrefix + "full.md"
 	if len(src.Fetched) == 3 {
@@ -121,8 +123,10 @@ Copyright Amazon Web Services, Inc. or its affiliates. All rights reserved.
 The policies in policies.json are the AWS Managed Policy Reference Guide's,
 by Amazon Web Services, Inc. or its affiliates, licensed under CC BY-SA 4.0
 (https://creativecommons.org/licenses/by-sa/4.0/legalcode), each policy
-document under MIT No Attribution; see LICENSE. The material is provided
-as is, without warranties of any kind (section 5 of CC BY-SA 4.0).
+document under MIT No Attribution; see LICENSE. policies.json.gz, the copy
+the binary embeds, is policies.json compressed with gzip and is under the
+same terms. The material is provided as is, without warranties of any kind
+(section 5 of CC BY-SA 4.0).
 
 Source: %s
 Index: %s
@@ -131,7 +135,8 @@ Retrieved: %s
 internal/cmd/managedpolicies read each policy's fields from the guide and
 reformatted to JSON with no other changes: each document is byte for byte
 as published, and SOURCE.json records the sha256 of each and the request
-that read the guide.
+that read the guide. It then compressed policies.json, byte for byte, into
+policies.json.gz.
 `, full, docsBase+indexPath, src.Retrieved)
 }
 

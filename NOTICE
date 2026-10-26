@@ -51,9 +51,10 @@ AWS Managed Policy Reference Guide
            or its affiliates. The directory's own LICENSE and NOTICE carry
            the terms and the attribution.
   Use:     the AWS managed policies, reformatted to JSON with no other
-           changes, embedded in the binary from
-           third_party/aws-managed-policies and served by IAM (see
-           docs/adr/0016, amendment "managed policies").
+           changes, embedded in the binary gzip-compressed, as
+           policies.json.gz, from third_party/aws-managed-policies and
+           served by IAM (see docs/adr/0016, amendment "managed policies",
+           "Embedding, 2026-10-26").
 
 xxHash
   Source:  the public xxHash specification (https://github.com/Cyan4973/xxHash)

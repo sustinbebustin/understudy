@@ -156,6 +156,17 @@ func TestLicenseNamesTheGzipCopy(t *testing.T) {
 	}
 }
 
+// NOTICE names policies.json.gz too, as the compressed copy the binary
+// embeds, under the same terms.
+func TestNoticeNamesTheGzipCopy(t *testing.T) {
+	text := strings.Join(strings.Fields(string(notice(sourceFor(fixtureCatalogue(t))))), " ")
+	for _, s := range []string{"policies.json.gz, the copy the binary embeds, is policies.json compressed with gzip", "under the same terms"} {
+		if !strings.Contains(text, s) {
+			t.Errorf("notice does not contain %q:\n%s", s, text)
+		}
+	}
+}
+
 // -pack rewrites a stale LICENSE and a missing policies.json.gz to the
 // bytes write gives them, so -fetch and -pack agree on the derived files.
 func TestPackWritesTheDerivedFilesAsWriteDoes(t *testing.T) {
