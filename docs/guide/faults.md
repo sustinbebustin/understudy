@@ -19,16 +19,6 @@ The error has AWS's wire form for the protocol the client speaks; here the JSON 
 understudy faults add: fault rule rejected, no rule was added or changed: action.shape: sqs.ReceiveMessage never sends "NoSuchKey" (known: InvalidAddress, InvalidSecurity, ..., QueueDoesNotExist, RequestThrottled, ...)
 ```
 
-An error AWS always sends with a member a rule cannot set yet is refused too, since the error would not be AWS's. DynamoDB's `TransactionCanceledException` is one: AWS always lists `CancellationReasons`.
-
-```sh
-understudy faults add --operation dynamodb.TransactWriteItems --error TransactionCanceledException
-```
-
-```text
-understudy faults add: fault rule rejected, no rule was added or changed: action.shape: com.amazonaws.dynamodb#TransactionCanceledException always carries CancellationReasons on AWS, which a fault rule cannot set yet, so the error would not be AWS's; to simulate a conflict, inject TransactionConflictException or ConditionalCheckFailedException on PutItem, UpdateItem or DeleteItem
-```
-
 A rule has a match, an action and a trigger.
 
 | Match | Flag |
@@ -45,7 +35,7 @@ S3 object calls (`GetObject`, `HeadObject`, `GetObjectAttributes`, `PutObject`, 
 
 | Action | Flag | Effect |
 |---|---|---|
-| Error | `--error SHAPE [--message TEXT]` | The call fails with that error before the handler runs |
+| Error | `--error SHAPE [--message TEXT] [--members JSON]` | The call fails with that error before the handler runs; `--members` sets its other members ([below](#errors-with-members)) |
 | Throttle | `--throttle` | The service's own throttling error, such as `RequestThrottled` for SQS or `TooManyRequestsException` for Lambda |
 | Latency | `--latency 2s` | The call waits this much wall time, then runs |
 | After commit | `--after-commit SHAPE` | The call takes effect, then the client gets the error |
@@ -59,6 +49,53 @@ S3 object calls (`GetObject`, `HeadObject`, `GetObjectAttributes`, `PutObject`, 
 | Each matching call with probability P | `--probability 0.2` |
 
 Probability draws come from a stream seeded by `serve --seed` and the rule id, so the same seed, rules and call order give the same failures.
+
+## Errors with members
+
+`--members` sets an error's members beyond its message: a JSON object of the shape's members as awsJson writes them, with names as modeled, base64 blobs and epoch-second timestamps. They are checked against the shape when the rule is added, and a refusal names the member at fault. Only DynamoDB's errors take members. In the JSON form a rule carries them as `"members"` in its error action.
+
+DynamoDB Local never conflicts, so a cancelled transaction is simulated with `TransactionCanceledException`. AWS always sends it with `CancellationReasons`, one per item of the transaction in item order, so a rule must set them. Without them the rule is refused:
+
+```sh
+understudy faults add --operation dynamodb.TransactWriteItems --error TransactionCanceledException
+```
+
+```text
+understudy faults add: fault rule rejected, no rule was added or changed: action.members: com.amazonaws.dynamodb#TransactionCanceledException always carries CancellationReasons on AWS, one per item of the transaction in item order; set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item."}]}
+```
+
+```sh
+understudy faults add --id conflict --operation dynamodb.TransactWriteItems --error TransactionCanceledException \
+  --members '{"CancellationReasons": [{"Code": "None"}, {"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item."}]}'
+# three-puts.json holds three Put items for one table
+aws dynamodb transact-write-items --transact-items file://three-puts.json --cli-error-format json
+```
+
+```text
+{
+    "Message": "Transaction cancelled, please refer cancellation reasons for specific reasons [None, TransactionConflict, None]",
+    "Code": "TransactionCanceledException",
+    "CancellationReasons": [
+        {
+            "Code": "None"
+        },
+        {
+            "Code": "TransactionConflict",
+            "Message": "Transaction is ongoing for the item."
+        },
+        {
+            "Code": "None"
+        }
+    ]
+}
+```
+
+- Reason `i` belongs to item `i`. Each item after the rule's last reason gets `{"Code": "None"}`, so the error carries one reason per item.
+- A call with fewer items than the rule gives reasons does not match it: it reaches DynamoDB Local and spends none of the rule's budget.
+- Without `--message`, the message lists the codes as AWS writes it. The cancelled call writes none of its items.
+- Every reason needs a `Code`, at least one must not be `None`, and there are 1 to 100 of them. The error is not one the SDKs retry.
+- `--after-commit` cannot inject `TransactionCanceledException`, since a cancelled transaction changes nothing.
+- The top-level `Message` key and the bytes of a `None` reason follow the API reference and DynamoDB Local; neither is recorded from AWS yet.
 
 ## Delivery faults
 
