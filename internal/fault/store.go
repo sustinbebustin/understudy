@@ -127,11 +127,7 @@ func (s *Store) List() []Active {
 
 // Clear deactivates every rule and returns how many there were.
 func (s *Store) Clear() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	n := len(s.rules)
-	s.rules = nil
-	return n
+	return len(s.RemoveAll())
 }
 
 // RemoveAll deactivates every rule and returns their ids in evaluation
