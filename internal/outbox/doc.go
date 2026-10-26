@@ -1,7 +1,7 @@
 // Package outbox is the delivery engine: a Stateful outbox cell that makes
 // delivery attempts on the emulator clock, routes failures to dead-letter
-// queues and runs each attempt through kernel.Invoke (ARCHITECTURE.md 16,
-// ADR 0015).
+// queues and runs each attempt through kernel.Invoke, or through
+// internal/egress for an HTTP endpoint (ARCHITECTURE.md 16, ADR 0015).
 //
 // # Lifecycle of a delivery
 //
@@ -22,16 +22,22 @@
 //  2. When a PolicySource is set, access.Advise checks the target's stored
 //     resource policy and a would-deny becomes a journal Advisory; the
 //     attempt is made anyway.
-//  3. The target operation (SQS SendMessage, Lambda Invoke, SNS Publish)
-//     runs through kernel.Invoke as the delivering service principal, with
-//     the mechanism's Via, admitted at the due instant.
+//  3. The target operation (SQS SendMessage, Lambda Invoke, SNS Publish,
+//     EventBridge PutEvents, S3 PutObject) runs through kernel.Invoke as
+//     the delivering service principal, with the mechanism's Via, admitted
+//     at the due instant. An HTTP endpoint is POSTed to through the
+//     egress client of Options.Egress instead.
 //  4. Success removes the entry. A server-side failure (a retryable or
 //     throttling error, a server fault, a 5xx or a 429) is retried on the
 //     request's policy; a client-side failure (QueueDoesNotExist,
 //     ResourceNotFoundException, any other 4xx) is not (sns.md 7.1). An
 //     exhausted or client-side failure goes to the dead-letter queue when
 //     one is set and is dropped otherwise. An operation understudy does
-//     not implement drops the delivery with its message.
+//     not implement drops the delivery with its message. An HTTP endpoint's
+//     429, 5xx or failed exchange is retried and any other non-2xx answer
+//     is permanent (sns-http-delivery.md 6.1); a request egress refuses,
+//     or any request with no egress client, ends Refused, never retried or
+//     dead-lettered (7.3).
 //  5. A journal.Delivery event records the attempt with the source call as
 //     its parent.
 //
@@ -50,6 +56,8 @@
 // Entries are partitioned by the target's scope: every target ARN names an
 // account and region (an S3 bucket source does not), the attempt runs
 // there, and a reset of an account drops the deliveries pending into it.
+// An S3 object and an HTTP endpoint name no ARN with a scope, so their
+// deliveries are partitioned by the source's.
 //
 // Retry delays count from the failed attempt's due instant, never from when
 // its goroutine ran, so a retry storm lands on the same instants however an
@@ -90,11 +98,12 @@
 // the Go scheduler runs goroutines (ADR 0018). The target calls do not
 // block on anything but their target's cell: an SQS SendMessage, an SNS
 // Publish, whose own fan-out comes back through the outbox, and an Event
-// invoke, which Lambda queues. Two kinds of attempt would hold the
+// invoke, which Lambda queues. Three kinds of attempt would hold the
 // sequencer for wall time and run on their own goroutine instead, outside
 // that order: one a Delivery-phase latency rule delays, whose order
-// against the others depends on wall time anyway, and a RequestResponse
-// invoke, which waits for the function (no producer enqueues one).
+// against the others depends on wall time anyway, a RequestResponse
+// invoke, which waits for the function (no producer enqueues one), and a
+// POST to an HTTP endpoint, which waits on the network.
 // A delivery has at most one attempt in flight: the attempt claims its
 // entry (Entry.Running) until it records its outcome, so a timer that fires
 // again meanwhile, as a Rearm does for every armable entry, starts
@@ -104,8 +113,9 @@
 // A dead letter is the payload the target would have received: for SQS the
 // body (the SNS envelope, or the raw message with its attributes as SQS
 // message attributes, sns.md 7.4) with group and deduplication ids kept for
-// a FIFO dead-letter queue; a function's event or a topic's message
-// otherwise. An EventBridge dead letter adds the String attributes
+// a FIFO dead-letter queue; a function's event, a topic's message, an
+// object's body or an HTTP endpoint's body otherwise. An EventBus delivery
+// takes no dead-letter queue: its dead letter's form is not researched. An EventBridge dead letter adds the String attributes
 // RULE_ARN, TARGET_ARN, ERROR_CODE, ERROR_MESSAGE, RETRY_ATTEMPTS and, when
 // retries ran out, EXHAUSTED_RETRY_CONDITION (eb-rule-dlq). A dead letter
 // the queue refuses is dropped, both reasons journaled.

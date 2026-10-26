@@ -84,7 +84,8 @@ type S3Object struct {
 // to one yet.
 type HTTPEndpoint struct {
 	URL url.URL
-	// Headers are sent in order, their names as given.
+	// Headers are sent with their names as given, the values of one name
+	// in order; net/http writes the names sorted.
 	Headers []HTTPHeader
 	Body    []byte
 }

@@ -1,71 +1,171 @@
 package outbox
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"io"
+	"net"
+	"net/http"
+	"slices"
 	"strconv"
 
+	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
+	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/egress"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
-// send calls the target's operation through the kernel.
-func (a *attempt) send(ctx context.Context, t delivery.Target) *awserr.Error {
+// send makes the attempt's target call and returns its outcome; false when
+// the kernel stopped first. Every target but an HTTP endpoint is called
+// through the kernel.
+func (a *attempt) send(ctx context.Context, t delivery.Target) (journal.DeliveryOutcome, bool) {
 	switch t := t.(type) {
 	case delivery.SQSQueue:
-		return a.sendSQS(ctx, a.scope, sqsMessage{queue: t.ARN, body: t.Body, attributes: t.Attributes, groupID: t.GroupID, dedupID: t.DedupID})
+		return a.end(ctx, a.sendSQS(ctx, a.scope, sqsMessage{queue: t.ARN, body: t.Body, attributes: t.Attributes, groupID: t.GroupID, dedupID: t.DedupID}))
 	case delivery.LambdaFunction:
-		return a.invokeLambda(ctx, t)
+		return a.end(ctx, a.invokeLambda(ctx, t))
 	case delivery.SNSTopic:
-		return a.publishSNS(ctx, t)
+		return a.end(ctx, a.publishSNS(ctx, t))
 	case delivery.EventBus:
-		return putEvents(ctx, a.e.k, a.c, a.as(a.scope), t)
+		return a.end(ctx, putEvents(ctx, a.e.k, a.c, a.as(a.scope), t))
 	case delivery.S3Object:
-		return putObject(ctx, a.e.k, a.c, a.as(a.scope), t)
+		return a.end(ctx, putObject(ctx, a.e.k, a.c, a.as(a.scope), t))
 	case delivery.HTTPEndpoint:
-		// Enqueue refuses HTTPEndpoint targets until the attempt maps
-		// postHTTP's result onto its journal outcome itself.
-		what := "an HTTPEndpoint attempt that "
-		switch r := postHTTP(ctx, a.e.egress, t).(type) {
-		case httpAccepted:
-			what += "was accepted with status " + strconv.Itoa(r.status)
-		case httpRetry:
-			what += "failed: " + r.reason
-		case httpPermanent:
-			what += "was refused with status " + strconv.Itoa(r.status)
-		case httpRefused:
-			what += "was refused: " + r.reason
-		}
-		return awserr.Internalf(&notImplementedError{What: what})
+		return a.endHTTP(ctx, postHTTP(ctx, a.e.egress, t))
 	}
-	return awserr.Internalf(&RequestError{Field: "Target", Reason: "is nil"})
+	return a.end(ctx, awserr.Internalf(&RequestError{Field: "Target", Reason: "is nil"}))
 }
 
 // putEvents is the target call of an attempt of t: one events:PutEvents
-// through the kernel k, as the call c makes it, run as kt. It is not
-// implemented yet, so it uses none of them.
-func putEvents(_ context.Context, _ *kernel.Kernel, _ *kernel.Call, _ kernel.Target, t delivery.EventBus) *awserr.Error {
-	return awserr.Internalf(&notImplementedError{What: "delivery to event bus " + t.ARN.String()})
+// through the kernel k, as the call c makes it, run as kt, with one entry
+// per entry of t in order. EventBusName takes the bus's ARN, and no Time
+// is sent, so the call's own time stamps each event
+// (https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEventsRequestEntry.html).
+//
+// PutEvents reports a failed entry in its answer, not as an error
+// (https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html),
+// so an answer with failed entries is an InternalFailure, which the
+// outbox retries: how AWS treats a failed entry of a bus target is
+// UNVERIFIED, and the codes PutEvents reports per entry are mostly
+// transient.
+func putEvents(ctx context.Context, k *kernel.Kernel, c *kernel.Call, kt kernel.Target, t delivery.EventBus) *awserr.Error {
+	bus := t.ARN.String()
+	in := &eventbridgeapi.PutEventsInput{Entries: make([]eventbridgeapi.PutEventsRequestEntry, len(t.Entries))}
+	for i, e := range t.Entries {
+		in.Entries[i] = eventbridgeapi.PutEventsRequestEntry{
+			Source: &e.Source, DetailType: &e.DetailType, Detail: &e.Detail,
+			Resources: slices.Clone(e.Resources), EventBusName: &bus,
+		}
+	}
+	out, err := kernel.Invoke(ctx, k, c, eventbridgeapi.OpPutEvents, kt, in)
+	if err != nil {
+		return err
+	}
+	if out.FailedEntryCount == 0 {
+		return nil
+	}
+	reason := strconv.Itoa(int(out.FailedEntryCount)) + " of " + strconv.Itoa(len(t.Entries)) + " entries failed"
+	if i := slices.IndexFunc(out.Entries, func(e eventbridgeapi.PutEventsResultEntry) bool { return e.ErrorCode != nil }); i >= 0 {
+		reason += "; the first with " + deref(out.Entries[i].ErrorCode) + ": " + deref(out.Entries[i].ErrorMessage)
+	}
+	return &awserr.Error{ID: awserr.InternalFailure(), Message: reason, Origin: awserr.Generic{}}
+}
+
+// deref is *p, or "" for nil.
+func deref(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }
 
 // putObject is the target call of an attempt of t: one s3:PutObject
-// through the kernel k, as the call c makes it, run as kt. It is not
-// implemented yet, so it uses none of them.
-func putObject(_ context.Context, _ *kernel.Kernel, _ *kernel.Call, _ kernel.Target, t delivery.S3Object) *awserr.Error {
-	return awserr.Internalf(&notImplementedError{What: "delivery to S3 object " + t.Bucket + "/" + t.Key})
+// through the kernel k, as the call c makes it, run as kt, of t's body
+// with its length.
+func putObject(ctx context.Context, k *kernel.Kernel, c *kernel.Call, kt kernel.Target, t delivery.S3Object) *awserr.Error {
+	length := int64(len(t.Body))
+	in := &s3api.PutObjectInput{Bucket: t.Bucket, Key: t.Key, Body: objectBody(t.Body), ContentLength: &length}
+	_, err := kernel.Invoke(ctx, k, c, s3api.OpPutObject, kt, in)
+	return err
 }
 
-// postHTTP sends t through the egress client, refusing it when the client
-// is nil, and classifies the answer (sns-http-delivery.md 6.1, 7.3). It is
-// not implemented yet and refuses every delivery.
-func postHTTP(_ context.Context, _ *egress.Client, t delivery.HTTPEndpoint) httpResult {
-	return httpRefused{reason: "outbound HTTP delivery to " + t.URL.Host + " is not implemented yet"}
+// objectBody is a PutObject body held in memory: a smithy.Body of known
+// length with no trailers.
+type objectBody []byte
+
+func (b objectBody) Open() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(b)), nil }
+
+func (b objectBody) Len() (int64, bool) { return int64(len(b)), true }
+
+func (objectBody) Trailer(string) (string, bool) { return "", false }
+
+// postHTTP POSTs t's body to its URL with its headers through client, the
+// one outbound dialer, and classifies the answer: 2xx accepted; 429, 5xx
+// and a failed or timed-out exchange retried; any other status permanent
+// (sns-http-delivery.md 6.1). A request client refuses, or any request when
+// client is nil, is refused (7.3).
+func postHTTP(ctx context.Context, client *egress.Client, t delivery.HTTPEndpoint) httpResult {
+	if client == nil {
+		return httpRefused{reason: "outbound HTTP delivery is off: no allow-list enables it, so nothing was sent to " + endpointOf(t)}
+	}
+	header := make(http.Header, len(t.Headers))
+	for _, h := range t.Headers {
+		header[h.Name] = append(header[h.Name], h.Value)
+	}
+	u := t.URL
+	res, err := client.Send(ctx, egress.Request{Method: http.MethodPost, URL: &u, Header: header, Body: t.Body})
+	if re, ok := errors.AsType[*egress.RefusedError](err); ok {
+		return httpRefused{reason: re.Error()}
+	}
+	if err != nil {
+		return httpRetry{reason: err.Error()}
+	}
+	switch s := res.Status; {
+	case s >= 200 && s < 300:
+		return httpAccepted{status: s}
+	case s == http.StatusTooManyRequests || s >= 500:
+		return httpRetry{reason: statusText(s)}
+	default:
+		return httpPermanent{status: s}
+	}
+}
+
+// statusText names an HTTP status for a journal reason: "HTTP 503 Service
+// Unavailable".
+func statusText(status int) string {
+	text := "HTTP " + strconv.Itoa(status)
+	if name := http.StatusText(status); name != "" {
+		text += " " + name
+	}
+	return text
+}
+
+// endpointOf is the journal's Endpoint of a delivery to t: an HTTP
+// endpoint's host:port, the port defaulted to 80 or 443, never its path,
+// query or userinfo; "" for every other target.
+func endpointOf(t delivery.Target) string {
+	h, ok := t.(delivery.HTTPEndpoint)
+	if !ok {
+		return ""
+	}
+	port := h.URL.Port()
+	switch {
+	case port != "":
+	case h.URL.Scheme == "https":
+		port = "443"
+	default:
+		port = "80"
+	}
+	return net.JoinHostPort(h.URL.Hostname(), port)
 }
 
 // httpResult is how an HTTPEndpoint attempt ended.
@@ -92,15 +192,9 @@ func (httpRetry) isHTTPResult()     {}
 func (httpPermanent) isHTTPResult() {}
 func (httpRefused) isHTTPResult()   {}
 
-// notImplementedError is a delivery path this build does not have yet.
-type notImplementedError struct{ What string }
-
-func (e *notImplementedError) Error() string {
-	return "outbox: " + e.What + " is not implemented yet; the delivery was not made"
-}
-
 // operationOf is the operation a delivery to t calls; its IAM actions are
-// what the target's resource policy must allow. It is nil for a nil target.
+// what the target's resource policy must allow. It is nil for an HTTP
+// endpoint, which no AWS operation reaches, and for a nil target.
 func operationOf(t delivery.Target) *registry.Operation {
 	switch t.(type) {
 	case delivery.SQSQueue:
@@ -109,8 +203,11 @@ func operationOf(t delivery.Target) *registry.Operation {
 		return lambdaapi.OpInvoke.Descriptor()
 	case delivery.SNSTopic:
 		return snsapi.OpPublish.Descriptor()
-	case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
-		// Not implemented yet: Enqueue refuses these targets.
+	case delivery.EventBus:
+		return eventbridgeapi.OpPutEvents.Descriptor()
+	case delivery.S3Object:
+		return s3api.OpPutObject.Descriptor()
+	case delivery.HTTPEndpoint:
 		return nil
 	}
 	return nil

@@ -73,11 +73,14 @@ func (e *engine) evaluateFaults(scope aws.Scope, en *Entry) fault.Decision {
 		return fault.None{}
 	}
 	req := en.Request
-	target, _ := targetARN(req.Target)
+	var touched []aws.ARN
+	if to := deliveredTo(req); to != (aws.ARN{}) {
+		touched = []aws.ARN{to}
+	}
 	return e.faults.Evaluate(fault.DeliveryAttempt, fault.MatchInput{
 		Service:   req.Mechanism.Target(),
 		Mechanism: req.Mechanism,
-		Touched:   []aws.ARN{target},
+		Touched:   touched,
 		Scope:     scope,
 		Origin:    ref.Internal{Via: req.Mechanism.Via()},
 	})
@@ -100,15 +103,22 @@ type attempt struct {
 }
 
 // blocks reports whether the attempt would hold the sequencer for wall
-// time: a Delivery-phase latency rule holds it, or it invokes a function
-// synchronously, which waits for the function to run. Such an attempt runs
-// on its own goroutine, so its target call is not ordered with the others.
+// time: a Delivery-phase latency rule holds it, it invokes a function
+// synchronously, which waits for the function to run, or it posts to an
+// HTTP endpoint, which waits on the network. Such an attempt runs on its
+// own goroutine, so its target call is not ordered with the others.
 func (a *attempt) blocks() bool {
 	if _, delayed := a.decision.(fault.Delay); delayed {
 		return true
 	}
-	f, ok := a.entry.Request.Target.(delivery.LambdaFunction)
-	return ok && f.Invocation == delivery.InvocationRequestResponse
+	switch t := a.entry.Request.Target.(type) {
+	case delivery.LambdaFunction:
+		return t.Invocation == delivery.InvocationRequestResponse
+	case delivery.HTTPEndpoint:
+		return true
+	case delivery.SQSQueue, delivery.SNSTopic, delivery.EventBus, delivery.S3Object:
+	}
+	return false
 }
 
 // do makes the attempt and records its outcome.
@@ -155,7 +165,12 @@ func (a *attempt) run(ctx context.Context) (journal.DeliveryOutcome, bool) {
 		return outcome, ok
 	}
 	a.advise(ctx)
-	err := a.send(ctx, a.entry.Request.Target)
+	return a.send(ctx, a.entry.Request.Target)
+}
+
+// end is the outcome of an attempt whose target call answered err, nil
+// when it delivered; false when the kernel stopped first.
+func (a *attempt) end(ctx context.Context, err *awserr.Error) (journal.DeliveryOutcome, bool) {
 	if ctx.Err() != nil {
 		return nil, false
 	}
@@ -165,13 +180,41 @@ func (a *attempt) run(ctx context.Context) (journal.DeliveryOutcome, bool) {
 	case unimplemented(err):
 		return journal.Dropped{Reason: describe(err)}, true
 	case retryable(err.ID):
-		if next, ok := nextAttempt(&a.entry, a.due); ok {
-			return journal.Retrying{Next: next}, true
-		}
-		return a.deadLetter(ctx, err, exhausted)
+		return a.retry(ctx, targetError{err: err})
 	default:
-		return a.deadLetter(ctx, err, refused)
+		return a.deadLetter(ctx, targetError{err: err}, refused)
 	}
+}
+
+// endHTTP is the outcome of an HTTPEndpoint attempt that ended as r; false
+// when the kernel stopped first. A 2xx delivers; 429, 5xx and a failed or
+// timed-out exchange are retried; any other answer is a permanent failure
+// (sns-http-delivery.md 6.1). A request egress refused, or one with no
+// client to send it, is Refused: never retried or dead-lettered (7.3).
+func (a *attempt) endHTTP(ctx context.Context, r httpResult) (journal.DeliveryOutcome, bool) {
+	if ctx.Err() != nil {
+		return nil, false
+	}
+	switch r := r.(type) {
+	case httpAccepted:
+		return journal.Delivered{}, true
+	case httpRetry:
+		return a.retry(ctx, endpointError(r))
+	case httpPermanent:
+		return a.deadLetter(ctx, endpointError{reason: statusText(r.status)}, refused)
+	case httpRefused:
+		return journal.Refused{Reason: r.reason}, true
+	}
+	return journal.Dropped{Reason: "the HTTP attempt reported no result"}, true
+}
+
+// retry arms the delivery's next attempt when its retry policy allows
+// one, and otherwise dead-letters it, f being how this attempt failed.
+func (a *attempt) retry(ctx context.Context, f failure) (journal.DeliveryOutcome, bool) {
+	if next, ok := nextAttempt(&a.entry, a.due); ok {
+		return journal.Retrying{Next: next}, true
+	}
+	return a.deadLetter(ctx, f, exhausted)
 }
 
 // faults applies the attempt's Delivery-phase decision: it journals each
@@ -231,7 +274,7 @@ func (a *attempt) advise(ctx context.Context) {
 		return
 	}
 	req := a.entry.Request
-	target, _ := targetARN(req.Target)
+	target := deliveredTo(req)
 	op := operationOf(req.Target)
 	if op == nil || len(op.IAM) == 0 {
 		return
@@ -261,10 +304,10 @@ func (a *attempt) as(scope aws.Scope) kernel.Target {
 }
 
 // deadLetter sends the delivery's dead letter to its dead-letter queue, or
-// drops it when it has none or the queue refuses it. err is the target's
-// last error and end why it was not retried again.
-func (a *attempt) deadLetter(ctx context.Context, err *awserr.Error, end ending) (journal.DeliveryOutcome, bool) {
-	why := end.reason(err)
+// drops it when it has none or the queue refuses it. f is how the last
+// attempt failed and end why it was not retried again.
+func (a *attempt) deadLetter(ctx context.Context, f failure, end ending) (journal.DeliveryOutcome, bool) {
+	why := end.reason(f)
 	dlq := a.entry.Request.DLQ
 	if dlq == nil {
 		return journal.Dropped{Reason: "no dead-letter queue is set and " + why}, true
@@ -273,7 +316,7 @@ func (a *attempt) deadLetter(ctx context.Context, err *awserr.Error, end ending)
 	if scopeErr != nil {
 		return journal.Dropped{Reason: fmt.Sprintf("%s; the dead-letter queue %s: %v", why, unservedScope, scopeErr)}, true
 	}
-	sendErr := a.sendSQS(ctx, scope, deadLetterMessage(&a.entry, *dlq, err, end))
+	sendErr := a.sendSQS(ctx, scope, deadLetterMessage(&a.entry, *dlq, f, end))
 	if ctx.Err() != nil {
 		return nil, false
 	}
@@ -305,8 +348,10 @@ func (a *attempt) deadLetter(ctx context.Context, err *awserr.Error, end ending)
 func (a *attempt) finish(ctx context.Context, outcome journal.DeliveryOutcome) {
 	id := a.entry.ID
 	req := a.entry.Request
-	target, _ := targetARN(req.Target)
-	event := journal.Delivery{From: req.Source, To: target, Mechanism: req.Mechanism, Attempt: a.entry.Attempt + 1, Outcome: outcome}
+	event := journal.Delivery{
+		From: req.Source, To: deliveredTo(req), Endpoint: endpointOf(req.Target),
+		Mechanism: req.Mechanism, Attempt: a.entry.Attempt + 1, Outcome: outcome,
+	}
 	changed, err := kernel.Write(a.c, a.e.cells, a.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (bool, *awserr.Error) {
 		// Import and Reset retire cells under the gate's exclusive side and
 		// Write holds its shared side, so the check cannot race them.

@@ -97,7 +97,9 @@ func (o *Outbox) Scopes() []aws.Scope {
 }
 
 // Resources lists the deliveries pending into scope, oldest first, each by
-// its target.
+// the resource it lands in (deliveredTo). A delivery to an HTTP endpoint,
+// which has no ARN, is listed by its source, its summary naming the
+// endpoint.
 func (o *Outbox) Resources(scope aws.Scope) []kernel.Resource {
 	e := o.e.Load()
 	if e == nil {
@@ -110,12 +112,18 @@ func (o *Outbox) Resources(scope aws.Scope) []kernel.Resource {
 	return store.Read(cell, func(st *State) []kernel.Resource {
 		out := make([]kernel.Resource, 0, len(st.Entries))
 		for _, en := range st.sorted() {
-			target, _ := targetARN(en.Request.Target)
-			out = append(out, kernel.Resource{
-				ARN: target,
+			req := en.Request
+			res := kernel.Resource{
+				ARN: deliveredTo(req),
 				Summary: fmt.Sprintf("pending %s delivery %s from %s: attempt %d due %s",
-					en.Request.Mechanism, en.ID, en.Request.Source, en.Attempt+1, en.NextAt),
-			})
+					req.Mechanism, en.ID, req.Source, en.Attempt+1, en.NextAt),
+			}
+			if endpoint := endpointOf(req.Target); endpoint != "" {
+				res.ARN = req.Source
+				res.Summary = fmt.Sprintf("pending %s delivery %s from %s to %s: attempt %d due %s",
+					req.Mechanism, en.ID, req.Source, endpoint, en.Attempt+1, en.NextAt)
+			}
+			out = append(out, res)
 		}
 		return out
 	})

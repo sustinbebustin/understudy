@@ -121,7 +121,7 @@ func importRules() []importRule {
 		{"internal/kernel/kerneltest", append(slices.Clone(kernel), "internal/kernel")},
 		{"internal/outbox", []string{
 			"internal/kernel", "internal/delivery", "internal/journal", "internal/store", "internal/clock",
-			"internal/api/...", // attempts call the generated SendMessage, Invoke and Publish ops
+			"internal/api/...", // attempts call the generated SendMessage, Invoke, Publish, PutEvents and PutObject ops
 			// Entries live in Partitioned[aws.Scope, State], Enqueue takes a
 			// ref.Cause and returns an ids.DeliveryID, and Stateful exports
 			// through jsonx (ARCHITECTURE.md 13).

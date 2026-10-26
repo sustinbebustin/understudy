@@ -3,6 +3,7 @@ package outbox
 import (
 	"fmt"
 	"maps"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -139,9 +140,41 @@ type snsTopicRecord struct {
 	Attributes []attributeRecord `json:"attributes,omitempty"`
 }
 
+type eventBusRecord struct {
+	Bus     string             `json:"bus"`
+	Entries []eventEntryRecord `json:"entries"`
+}
+
+type eventEntryRecord struct {
+	Source     string   `json:"source"`
+	DetailType string   `json:"detailType"`
+	Detail     string   `json:"detail"`
+	Resources  []string `json:"resources,omitempty"`
+}
+
+type s3ObjectRecord struct {
+	Bucket string `json:"bucket"`
+	Key    string `json:"key"`
+	Body   []byte `json:"body"`
+}
+
+type httpEndpointRecord struct {
+	URL     string             `json:"url"`
+	Headers []httpHeaderRecord `json:"headers,omitempty"`
+	Body    []byte             `json:"body"`
+}
+
+type httpHeaderRecord struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 func (sqsQueueRecord) isTargetRecord()       {}
 func (lambdaFunctionRecord) isTargetRecord() {}
 func (snsTopicRecord) isTargetRecord()       {}
+func (eventBusRecord) isTargetRecord()       {}
+func (s3ObjectRecord) isTargetRecord()       {}
+func (httpEndpointRecord) isTargetRecord()   {}
 
 type attributeRecord struct {
 	Name  string               `json:"name"`
@@ -296,10 +329,20 @@ func targetRecordOf(t delivery.Target) targetRecord {
 		return lambdaFunctionRecord{Function: t.ARN.String(), Qualifier: t.Qualifier, Event: t.Event, Invocation: t.Invocation}
 	case delivery.SNSTopic:
 		return snsTopicRecord{Topic: t.ARN.String(), Message: t.Message, Subject: t.Subject, Attributes: attributeRecordsOf(t.Attributes)}
-	case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
-		// Not implemented yet: Enqueue refuses these targets, so no entry
-		// holds one.
-		return nil
+	case delivery.EventBus:
+		entries := make([]eventEntryRecord, len(t.Entries))
+		for i, e := range t.Entries {
+			entries[i] = eventEntryRecord{Source: e.Source, DetailType: e.DetailType, Detail: e.Detail, Resources: e.Resources}
+		}
+		return eventBusRecord{Bus: t.ARN.String(), Entries: entries}
+	case delivery.S3Object:
+		return s3ObjectRecord{Bucket: t.Bucket, Key: t.Key, Body: t.Body}
+	case delivery.HTTPEndpoint:
+		var headers []httpHeaderRecord
+		for _, h := range t.Headers {
+			headers = append(headers, httpHeaderRecord(h))
+		}
+		return httpEndpointRecord{URL: t.URL.String(), Headers: headers, Body: t.Body}
 	}
 	return nil
 }
@@ -332,6 +375,28 @@ func targetOf(r targetRecord) (delivery.Target, *RequestError) {
 			return nil, err
 		}
 		return delivery.SNSTopic{ARN: topic, Message: r.Message, Subject: r.Subject, Attributes: attrs}, nil
+	case eventBusRecord:
+		bus, err := parseARN("Target.ARN", r.Bus)
+		if err != nil {
+			return nil, err
+		}
+		entries := make([]delivery.EventEntry, len(r.Entries))
+		for i, e := range r.Entries {
+			entries[i] = delivery.EventEntry{Source: e.Source, DetailType: e.DetailType, Detail: e.Detail, Resources: e.Resources}
+		}
+		return delivery.EventBus{ARN: bus, Entries: entries}, nil
+	case s3ObjectRecord:
+		return delivery.S3Object{Bucket: r.Bucket, Key: r.Key, Body: r.Body}, nil
+	case httpEndpointRecord:
+		u, err := url.Parse(r.URL)
+		if err != nil {
+			return nil, &RequestError{Field: "Target.URL", Reason: "is not a URL", Err: err}
+		}
+		var headers []delivery.HTTPHeader
+		for _, h := range r.Headers {
+			headers = append(headers, delivery.HTTPHeader(h))
+		}
+		return delivery.HTTPEndpoint{URL: *u, Headers: headers, Body: r.Body}, nil
 	}
 	return nil, &RequestError{Field: "Target", Reason: "is missing"}
 }
@@ -473,6 +538,9 @@ func unions() (jsonx.Codec, error) {
 		jsonx.Variant[targetRecord, sqsQueueRecord]("sqs-queue"),
 		jsonx.Variant[targetRecord, lambdaFunctionRecord]("lambda-function"),
 		jsonx.Variant[targetRecord, snsTopicRecord]("sns-topic"),
+		jsonx.Variant[targetRecord, eventBusRecord]("event-bus"),
+		jsonx.Variant[targetRecord, s3ObjectRecord]("s3-object"),
+		jsonx.Variant[targetRecord, httpEndpointRecord]("http-endpoint"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, err

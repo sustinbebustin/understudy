@@ -203,26 +203,23 @@ func (e *RequestError) problem() string {
 	return p
 }
 
-// checkRequest returns the scope of req's target, or why the outbox cannot
-// attempt req.
+// checkRequest returns the scope req's delivery lands in, or why the
+// outbox cannot attempt req.
 func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 	if !slices.Contains(delivery.Mechanisms(), req.Mechanism) {
 		return aws.Scope{}, &RequestError{Field: "Mechanism", Reason: "is not a declared mechanism"}
 	}
-	target, ok := targetARN(req.Target)
-	if !ok {
-		return aws.Scope{}, &RequestError{Field: "Target", Reason: "is nil"}
-	}
-	if string(req.Mechanism.Target()) != target.Service {
-		return aws.Scope{}, &RequestError{Field: "Target.ARN", Reason: fmt.Sprintf("%s is not a %s resource, which %s delivers to", target, req.Mechanism.Target(), req.Mechanism)}
-	}
-	if f, ok := req.Target.(delivery.LambdaFunction); ok && f.Invocation != delivery.InvocationEvent && f.Invocation != delivery.InvocationRequestResponse {
-		return aws.Scope{}, &RequestError{Field: "Target.Invocation", Reason: "is neither Event nor RequestResponse"}
+	in, field, err := checkTarget(req)
+	if err != nil {
+		return aws.Scope{}, err
 	}
 	if err := checkPolicy(req.Policy); err != nil {
 		return aws.Scope{}, err
 	}
 	if req.DLQ != nil {
+		if _, ok := req.Target.(delivery.EventBus); ok {
+			return aws.Scope{}, &RequestError{Field: "DLQ", Reason: "is set, but an EventBus delivery has no dead-letter format yet"}
+		}
 		if req.DLQ.Service != "sqs" {
 			return aws.Scope{}, &RequestError{Field: "DLQ", Reason: fmt.Sprintf("%s is not an SQS queue", req.DLQ)}
 		}
@@ -230,11 +227,107 @@ func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 			return aws.Scope{}, &RequestError{Field: "DLQ", Reason: unservedScope, Err: err}
 		}
 	}
-	scope, err := scopeOf(target)
-	if err != nil {
-		return aws.Scope{}, &RequestError{Field: "Target.ARN", Reason: unservedScope, Err: err}
+	scope, serr := scopeOf(in)
+	if serr != nil {
+		return aws.Scope{}, &RequestError{Field: field, Reason: unservedScope, Err: serr}
 	}
 	return scope, nil
+}
+
+// checkTarget checks req's target, and that req's mechanism delivers to
+// its kind, and returns the ARN whose account and region the delivery
+// lands in with the request field that names it: the target's own ARN, or
+// the source's for a target that names none (an S3 object, an HTTP
+// endpoint).
+func checkTarget(req delivery.Request) (aws.ARN, string, *RequestError) {
+	m := req.Mechanism
+	switch t := req.Target.(type) {
+	case delivery.SQSQueue:
+		return arnTarget(m, t.ARN)
+	case delivery.SNSTopic:
+		return arnTarget(m, t.ARN)
+	case delivery.LambdaFunction:
+		if _, _, err := arnTarget(m, t.ARN); err != nil {
+			return aws.ARN{}, "", err
+		}
+		if t.Invocation != delivery.InvocationEvent && t.Invocation != delivery.InvocationRequestResponse {
+			return aws.ARN{}, "", &RequestError{Field: "Target.Invocation", Reason: "is neither Event nor RequestResponse"}
+		}
+		return t.ARN, "Target.ARN", nil
+	case delivery.EventBus:
+		if err := deliversTo(m, "EventBus", "events"); err != nil {
+			return aws.ARN{}, "", err
+		}
+		return t.ARN, "Target.ARN", checkEventBus(t)
+	case delivery.S3Object:
+		if err := deliversTo(m, "S3Object", "s3"); err != nil {
+			return aws.ARN{}, "", err
+		}
+		return req.Source, "Source", checkS3Object(t)
+	case delivery.HTTPEndpoint:
+		if err := deliversTo(m, "HTTPEndpoint", ""); err != nil {
+			return aws.ARN{}, "", err
+		}
+		return req.Source, "Source", checkHTTPEndpoint(t)
+	}
+	return aws.ARN{}, "", &RequestError{Field: "Target", Reason: "is nil"}
+}
+
+// maxBusEntries is the most entries one PutEvents takes
+// (https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html).
+const maxBusEntries = 10
+
+// checkEventBus checks that t names an event bus and holds as many entries
+// as one PutEvents takes.
+func checkEventBus(t delivery.EventBus) *RequestError {
+	name, isBus := strings.CutPrefix(t.ARN.Resource, "event-bus/")
+	if t.ARN.Service != "events" || !isBus || name == "" {
+		return &RequestError{Field: "Target.ARN", Reason: t.ARN.String() + " is not an event bus, arn:<partition>:events:<region>:<account>:event-bus/<name>"}
+	}
+	if n := len(t.Entries); n < 1 || n > maxBusEntries {
+		return &RequestError{Field: "Target.Entries", Reason: fmt.Sprintf("has %d entries; a PutEvents takes 1 to %d", n, maxBusEntries)}
+	}
+	return nil
+}
+
+// checkS3Object checks that t names a bucket and a key.
+func checkS3Object(t delivery.S3Object) *RequestError {
+	if t.Bucket == "" {
+		return &RequestError{Field: "Target.Bucket", Reason: "is empty"}
+	}
+	if t.Key == "" {
+		return &RequestError{Field: "Target.Key", Reason: "is empty"}
+	}
+	return nil
+}
+
+// checkHTTPEndpoint checks that t's URL is http or https and names a host.
+func checkHTTPEndpoint(t delivery.HTTPEndpoint) *RequestError {
+	if t.URL.Scheme != "http" && t.URL.Scheme != "https" {
+		return &RequestError{Field: "Target.URL", Reason: fmt.Sprintf("has the scheme %q; an HTTP endpoint is http or https", t.URL.Scheme)}
+	}
+	if t.URL.Hostname() == "" {
+		return &RequestError{Field: "Target.URL", Reason: "names no host"}
+	}
+	return nil
+}
+
+// arnTarget checks that m delivers to the service of target, an ARN a
+// target names.
+func arnTarget(m delivery.Mechanism, target aws.ARN) (aws.ARN, string, *RequestError) {
+	if string(m.Target()) != target.Service {
+		return aws.ARN{}, "", &RequestError{Field: "Target.ARN", Reason: fmt.Sprintf("%s is not a %s resource, which %s delivers to", target, m.Target(), m)}
+	}
+	return target, "Target.ARN", nil
+}
+
+// deliversTo checks that m delivers to a target of kind, which lands in
+// the service into ("" for an HTTP endpoint, which lands in none).
+func deliversTo(m delivery.Mechanism, kind string, into ref.ServiceID) *RequestError {
+	if m.Target() == into {
+		return nil
+	}
+	return &RequestError{Field: "Target", Reason: "is an " + kind + " target, which " + m.String() + " does not deliver to"}
 }
 
 // unservedScope is the RequestError reason of an ARN scopeOf refuses.
@@ -254,7 +347,8 @@ func checkPolicy(p delivery.RetryPolicy) *RequestError {
 	return &RequestError{Field: "Policy", Reason: "is nil"}
 }
 
-// targetARN returns the resource a target names.
+// targetARN returns the ARN a target names; false for one that names none:
+// an S3 object, an HTTP endpoint or a nil target.
 func targetARN(t delivery.Target) (aws.ARN, bool) {
 	switch t := t.(type) {
 	case delivery.SQSQueue:
@@ -263,12 +357,27 @@ func targetARN(t delivery.Target) (aws.ARN, bool) {
 		return t.ARN, true
 	case delivery.SNSTopic:
 		return t.ARN, true
-	case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
-		// Not implemented yet: reporting no resource makes Enqueue refuse
-		// these targets.
+	case delivery.EventBus:
+		return t.ARN, true
+	case delivery.S3Object, delivery.HTTPEndpoint:
 		return aws.ARN{}, false
 	}
 	return aws.ARN{}, false
+}
+
+// deliveredTo is the resource a delivery of req lands in: the journal's
+// To, and what the fault rules and the access advisory match. It is the
+// ARN the target names, an S3 object's ARN in the source's partition, or
+// the zero ARN for an HTTP endpoint, which journal.Delivery.Endpoint names
+// instead.
+func deliveredTo(req delivery.Request) aws.ARN {
+	if target, ok := targetARN(req.Target); ok {
+		return target
+	}
+	if o, ok := req.Target.(delivery.S3Object); ok {
+		return aws.ARN{Partition: req.Source.Partition, Service: "s3", Resource: o.Bucket + "/" + o.Key}
+	}
+	return aws.ARN{}
 }
 
 // scopeError is why an ARN names no account and region understudy serves.

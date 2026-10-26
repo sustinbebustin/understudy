@@ -23,26 +23,57 @@ const (
 	exhausted
 )
 
-// reason is the journal's account of why the delivery ended, err being the
-// target's last error.
-func (e ending) reason(err *awserr.Error) string {
-	if e == exhausted {
-		return "its retries are exhausted; the last attempt failed with " + describe(err)
+// failure is how the last attempt of a delivery that ends undelivered
+// failed.
+//
+//sumtype:decl
+type failure interface{ isFailure() }
+
+// targetError is the error a target call answered.
+type targetError struct{ err *awserr.Error }
+
+// endpointError is an HTTP endpoint's failing answer or a failed exchange
+// with it, which is no AWS error: reason says which, such as "HTTP 503
+// Service Unavailable".
+type endpointError struct{ reason string }
+
+func (targetError) isFailure()   {}
+func (endpointError) isFailure() {}
+
+// describeFailure renders f for a journal reason.
+func describeFailure(f failure) string {
+	switch f := f.(type) {
+	case targetError:
+		return describe(f.err)
+	case endpointError:
+		return f.reason
 	}
-	return "the target refused it with a client-side error, which is not retried: " + describe(err)
+	return "no failure was recorded"
+}
+
+// reason is the journal's account of why the delivery ended, f being how
+// its last attempt failed.
+func (e ending) reason(f failure) string {
+	if e == exhausted {
+		return "its retries are exhausted; the last attempt failed with " + describeFailure(f)
+	}
+	if ep, ok := f.(endpointError); ok {
+		return "the endpoint's answer is a permanent failure, which is not retried: " + ep.reason
+	}
+	return "the target refused it with a client-side error, which is not retried: " + describeFailure(f)
 }
 
 // deadLetterMessage is what the failed delivery e leaves in the queue dlq,
-// err being the target's last error and end why it ended.
+// f being how its last attempt failed and end why it ended.
 //
 // The body is the payload the target would have received. For SNS to SQS
 // that is what the subscription would have received: the envelope, or the
 // raw message with its attributes as SQS attributes (sns.md 7.4). A
-// function's event and a topic's message become the body. Group and
-// deduplication ids carry over to a FIFO dead-letter queue. An EventBridge
-// dead letter also carries the failure as message attributes
-// (eventBridgeAttributes).
-func deadLetterMessage(e *Entry, dlq aws.ARN, err *awserr.Error, end ending) sqsMessage {
+// function's event, a topic's message, an object's body and an HTTP
+// endpoint's body become the body. Group and deduplication ids carry over
+// to a FIFO dead-letter queue. An EventBridge dead letter also carries the
+// failure as message attributes (eventBridgeAttributes).
+func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage {
 	m := sqsMessage{queue: dlq}
 	switch t := e.Request.Target.(type) {
 	case delivery.SQSQueue:
@@ -54,12 +85,16 @@ func deadLetterMessage(e *Entry, dlq aws.ARN, err *awserr.Error, end ending) sqs
 		m.body = string(t.Event)
 	case delivery.SNSTopic:
 		m.body, m.attributes = t.Message, t.Attributes
-	case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint:
-		// Not implemented yet: Enqueue refuses these targets, so none is
-		// ever dead-lettered.
+	case delivery.EventBus:
+		// Enqueue refuses a dead-letter queue for an EventBus delivery: the
+		// form of its dead letter is not researched.
+	case delivery.S3Object:
+		m.body = string(t.Body)
+	case delivery.HTTPEndpoint:
+		m.body = string(t.Body)
 	}
 	if e.Request.Mechanism.Via() == ref.EventsTarget {
-		m.attributes = slices.Concat(m.attributes, eventBridgeAttributes(e, err, end))
+		m.attributes = slices.Concat(m.attributes, eventBridgeAttributes(e, f, end))
 	}
 	return m
 }
@@ -71,17 +106,21 @@ func deadLetterMessage(e *Entry, dlq aws.ARN, err *awserr.Error, end ending) sqs
 // values and the error code vocabulary, not their data type or when the
 // condition is absent: understudy sends every one as a String and leaves
 // the condition out when the target refused the delivery outright, since
-// then no retry limit was reached.
-func eventBridgeAttributes(e *Entry, err *awserr.Error, end ending) []delivery.MessageAttribute {
-	target, _ := targetARN(e.Request.Target)
-	message := err.Message
-	if message == "" {
-		message = err.ID.Shape.Name()
+// then no retry limit was reached. No EventBridge mechanism delivers to an
+// HTTP endpoint yet; its failure is sent as ERROR_FROM_TARGET with its
+// reason as the message.
+func eventBridgeAttributes(e *Entry, f failure, end ending) []delivery.MessageAttribute {
+	code, message := "ERROR_FROM_TARGET", describeFailure(f)
+	if te, ok := f.(targetError); ok {
+		code, message = eventBridgeErrorCode(te.err.ID), te.err.Message
+		if message == "" {
+			message = te.err.ID.Shape.Name()
+		}
 	}
 	attrs := []delivery.MessageAttribute{
 		eventBridgeAttribute("RULE_ARN", e.Request.Source.String()),
-		eventBridgeAttribute("TARGET_ARN", target.String()),
-		eventBridgeAttribute("ERROR_CODE", eventBridgeErrorCode(err.ID)),
+		eventBridgeAttribute("TARGET_ARN", deliveredTo(e.Request).String()),
+		eventBridgeAttribute("ERROR_CODE", code),
 		eventBridgeAttribute("ERROR_MESSAGE", message),
 	}
 	if p, ok := e.Request.Policy.(delivery.EventBridgeTarget); ok && end == exhausted {
