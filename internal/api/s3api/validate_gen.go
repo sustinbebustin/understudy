@@ -2282,20 +2282,7 @@ func (v *ObjectLockConfiguration) validate(path awserr.Path, out *[]awserr.Viola
 	}
 }
 
-func (v *ObjectLockLegalHold) validate(path awserr.Path, out *[]awserr.Violation) {
-	if v.Status != nil {
-		if !(*v.Status).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "status"), Value: awserr.RenderedText{Text: string(*v.Status)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
-}
-
 func (v *ObjectLockRetention) validate(path awserr.Path, out *[]awserr.Violation) {
-	if v.Mode != nil {
-		if !(*v.Mode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "mode"), Value: awserr.RenderedText{Text: string(*v.Mode)}, Constraint: awserr.Enum{Values: []string{"GOVERNANCE", "COMPLIANCE"}}})
-		}
-	}
 	if v.EventHold != nil {
 		if !(*v.EventHold).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "eventHold"), Value: awserr.RenderedText{Text: string(*v.EventHold)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
@@ -2927,9 +2914,6 @@ func (v *PutObjectLegalHoldInput) validate(path awserr.Path, out *[]awserr.Viola
 		if utf8.RuneCountInString(v.Key) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "key"), Value: awserr.RenderedText{Text: v.Key}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-	}
-	if v.LegalHold != nil {
-		v.LegalHold.validate(at(path, "legalHold"), out)
 	}
 	if v.RequestPayer != nil {
 		if !(*v.RequestPayer).Known() {

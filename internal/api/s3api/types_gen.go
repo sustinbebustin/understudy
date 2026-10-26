@@ -4356,6 +4356,9 @@ type NoSuchLifecycleConfiguration struct {
 	BucketName *string
 }
 
+// NoSuchObjectLockConfiguration is the error com.amazonaws.s3#NoSuchObjectLockConfiguration.
+type NoSuchObjectLockConfiguration struct{}
+
 // NoSuchPublicAccessBlockConfiguration is the error com.amazonaws.s3#NoSuchPublicAccessBlockConfiguration.
 type NoSuchPublicAccessBlockConfiguration struct {
 	BucketName *string

@@ -3181,6 +3181,8 @@ var schemaNoSuchLifecycleConfiguration = smithy.Schema{ID: "com.amazonaws.s3#NoS
 
 var memberNoSuchLifecycleConfiguration_BucketName = smithy.Member{Name: "BucketName", Index: 0}
 
+var schemaNoSuchObjectLockConfiguration = smithy.Schema{ID: "com.amazonaws.s3#NoSuchObjectLockConfiguration", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
+
 var schemaNoSuchPublicAccessBlockConfiguration = smithy.Schema{ID: "com.amazonaws.s3#NoSuchPublicAccessBlockConfiguration", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
 
 var memberNoSuchPublicAccessBlockConfiguration_BucketName = smithy.Member{Name: "BucketName", Index: 0}

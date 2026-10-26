@@ -909,6 +909,21 @@ func ErrNoSuchLifecycleConfigurationMembers(message string, v NoSuchLifecycleCon
 	return awserr.WithMembers(&v, message, awserr.Modeled{})
 }
 
+// IdentityNoSuchObjectLockConfiguration returns the identity of com.amazonaws.s3#NoSuchObjectLockConfiguration.
+func IdentityNoSuchObjectLockConfiguration() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#NoSuchObjectLockConfiguration", JSONType: "NoSuchObjectLockConfiguration", QueryCode: "NoSuchObjectLockConfiguration", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrNoSuchObjectLockConfiguration returns a NoSuchObjectLockConfiguration error with message.
+func ErrNoSuchObjectLockConfiguration(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityNoSuchObjectLockConfiguration(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.s3#NoSuchObjectLockConfiguration.
+func (*NoSuchObjectLockConfiguration) ErrorIdentity() awserr.Identity {
+	return IdentityNoSuchObjectLockConfiguration()
+}
+
 // IdentityNoSuchPublicAccessBlockConfiguration returns the identity of com.amazonaws.s3#NoSuchPublicAccessBlockConfiguration.
 func IdentityNoSuchPublicAccessBlockConfiguration() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.s3#NoSuchPublicAccessBlockConfiguration", JSONType: "NoSuchPublicAccessBlockConfiguration", QueryCode: "NoSuchPublicAccessBlockConfiguration", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}

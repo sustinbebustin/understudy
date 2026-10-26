@@ -414,6 +414,15 @@
         "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-metrics-nope.json", "validated": "2026-10-14"}
       }
     },
+    "com.amazonaws.s3#NoSuchObjectLockConfiguration": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json: test_s3_object_retention_exc", "validated": "2026-02-21"}
+      }
+    },
     "com.amazonaws.s3#PermanentRedirect": {
       "type": "structure",
       "members": {"Endpoint": {"target": "smithy.api#String"}, "Bucket": {"target": "smithy.api#String"}},
@@ -547,6 +556,20 @@
       "traits": {
         "dev.understudy#validationError": {"enumPolicy": "handler"},
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json L2571: a bad DefaultRetention Mode is MalformedXML (s3-ssec-object-lock.md 5.2)", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#ObjectLockRetention$Mode": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json L9500: a bad PutObjectRetention Mode is MalformedXML (s3-ssec-object-lock.md 6.4)", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#ObjectLockLegalHold$Status": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#65-putobjectlegalhold-and-getobjectlegalhold: a PutObjectLegalHold body without a valid Status is MalformedXML, as one without a body is (LocalStack test_s3.snapshot.json L10002); the bad-value text is UNVERIFIED"}
       }
     },
     "com.amazonaws.s3#GetBucketPolicy": {

@@ -10664,6 +10664,14 @@ func (v *NoSuchLifecycleConfiguration) serialize(s smithy.Serializer, m *smithy.
 }
 
 // Serialize writes v through s.
+func (v *NoSuchObjectLockConfiguration) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *NoSuchObjectLockConfiguration) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaNoSuchObjectLockConfiguration)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *NoSuchPublicAccessBlockConfiguration) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *NoSuchPublicAccessBlockConfiguration) serialize(s smithy.Serializer, m *smithy.Member) {
