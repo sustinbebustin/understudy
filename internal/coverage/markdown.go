@@ -14,8 +14,9 @@ import (
 // Markdown renders the report as docs/coverage.md: the three measures in
 // their own sections, never added together. With the parity baseline and
 // the overlay files read, every operation also shows its evidence, each
-// switch the label its recording gives it, and the switches and overlay
-// items a recording settles are listed for retirement.
+// switch and overlay evidence item the label its recording gives it, and
+// the switches and overlay items a recording settles are listed for
+// retirement.
 func (r Report) Markdown() []byte {
 	var b strings.Builder
 	b.WriteString("# Coverage\n\n")
@@ -139,7 +140,10 @@ func (r Report) writeServices(b *strings.Builder) {
 			"a fidelity switch whose Ops list the operation; or a recorded step that `internal/parity` replays against it. " +
 			"Labels, weakest first: contradicted (<fixture>), when the replay differs from AWS; inferred; sdk-source; aws-doc; " +
 			"third-party-recorded; aws-recorded, written aws-recorded (<fixture>) when the replay matches AWS and, for a switch " +
-			"or overlay entry it settles, fails once the settled field is changed. unassessed: no claim.\n\n")
+			"or overlay entry it settles, fails once the settled field is changed. unassessed: no claim. " +
+			"An unbound operation's only claims are recorded steps replayed against it, since the switches and overlay items " +
+			"describe behavior it does not have. Overlay items on a service shape apply to every operation of the service and " +
+			"are attributed to none; the Overlay entries table shows their labels.\n\n")
 	}
 	table(b, []string{"Service", "Operations", "Full", "Stored only", "Partial", "Unbound", "Internal", "Raw"}, len(r.Services), func(i int) []string {
 		s := r.Services[i]
@@ -243,8 +247,14 @@ func (r Report) writeRetirement(b *strings.Builder) {
 
 func (r Report) writeOverlays(b *strings.Builder) {
 	b.WriteString("\n### Overlay entries\n\n")
-	b.WriteString("Corrections to the vendored models in `codegen/overlays`, one row per evidence item, " +
-		"strongest evidence first.\n\n")
+	if r.showsEvidence() {
+		b.WriteString("Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count " +
+			"and order, strongest evidence first, follow the label the overlay states; the Label column shows the " +
+			"recording's verdict where a replayed step settles or contradicts the item.\n\n")
+	} else {
+		b.WriteString("Corrections to the vendored models in `codegen/overlays`, one row per evidence item, " +
+			"strongest evidence first.\n\n")
+	}
 	switch o := r.Overlays.(type) {
 	case OverlaysNotCarried:
 		b.WriteString("This report was built by a running server, which does not carry the overlay files; " +
@@ -263,7 +273,11 @@ func (r Report) writeOverlays(b *strings.Builder) {
 			if e.Validated != "" {
 				source += " (validated " + e.Validated + ")"
 			}
-			return []string{string(e.Label), e.File, code(e.Shape), strings.Join(e.Covers, ", "), source}
+			label := string(e.Label)
+			if r.showsEvidence() {
+				label = ClaimLabelText(labelOf(r.overlaySettlement(e), e.Label))
+			}
+			return []string{label, e.File, code(e.Shape), strings.Join(e.Covers, ", "), source}
 		})
 	}
 }

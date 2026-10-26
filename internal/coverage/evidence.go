@@ -253,16 +253,23 @@ func (r Report) operation(svc ref.ServiceID, op string) (Operation, bool) {
 // whose shape, a member's taken as the shape that holds it, is one of the
 // operation's, in SortOverlayEntries order; and the baseline's steps
 // routed to it that were compared (match or differs), by scenario id, then
-// in scenario order.
+// in scenario order. An overlay item on the service shape is no
+// operation's: it applies to them all, and the overlay table shows it. An
+// unbound operation's claims are its steps only: it answers 501, so the
+// behavior a switch or an overlay item describes is not one it has.
 func (r Report) Claims(svc ref.ServiceID, op string) []Claim {
 	id := ref.OperationID{Service: svc, Name: op}.String()
 	var out []Claim
+	o, ok := r.operation(svc, op)
+	if _, unbound := o.Status.(Unbound); ok && unbound {
+		return r.stepClaims(id)
+	}
 	for _, sw := range r.switchesByName() {
 		if slices.Contains(sw.Ops, id) {
 			out = append(out, Claim{Source: FromSwitch{Name: sw.Name}, Label: labelOf(r.switchSettlement(sw), sw.Label)})
 		}
 	}
-	if o, ok := r.operation(svc, op); ok {
+	if ok {
 		for _, e := range r.overlayItems() {
 			shape, _, _ := strings.Cut(e.Shape, "$")
 			if slices.Contains(o.Shapes, shape) {
@@ -270,6 +277,13 @@ func (r Report) Claims(svc ref.ServiceID, op string) []Claim {
 			}
 		}
 	}
+	return append(out, r.stepClaims(id)...)
+}
+
+// stepClaims are the claims of the baseline's steps routed to operation id
+// and compared, by scenario id, then in scenario order.
+func (r Report) stepClaims(id string) []Claim {
+	var out []Claim
 	scenarios := slices.Clone(r.parity().Scenarios)
 	slices.SortStableFunc(scenarios, func(a, b ParityScenario) int { return cmp.Compare(a.Scenario, b.Scenario) })
 	for _, sc := range scenarios {
@@ -411,7 +425,9 @@ func (r Report) opsProblems() []string {
 // claimProblem is what is wrong with a baseline claim on target at step,
 // "" when nothing is: a switch that is not declared or whose Settles names
 // another step, or, when the overlays are read, a shape no overlay entry
-// has.
+// has, or a claim without covers on a shape with several evidence items,
+// which would settle or contradict items for traits its field does not
+// decide.
 func (r Report) claimProblem(target ClaimTarget, step string, settledBy map[string]string) string {
 	switch t := target.(type) {
 	case TargetSwitch:
@@ -425,9 +441,23 @@ func (r Report) claimProblem(target ClaimTarget, step string, settledBy map[stri
 			return fmt.Sprintf("%s claims switch %s, whose Settles names %s", step, t.Name, want)
 		}
 	case TargetOverlay:
-		items := r.overlayItems()
-		if _, read := r.Overlays.(OverlaysRead); read && !slices.ContainsFunc(items, func(e OverlayEntry) bool { return e.Shape == t.Shape }) {
+		if _, read := r.Overlays.(OverlaysRead); !read {
+			return ""
+		}
+		var traits []string
+		n := 0
+		for _, e := range r.overlayItems() {
+			if e.Shape == t.Shape {
+				n++
+				traits = append(traits, e.Covers...)
+			}
+		}
+		switch {
+		case n == 0:
 			return fmt.Sprintf("%s claims overlay shape %s, which no overlay entry has", step, t.Shape)
+		case n > 1 && len(t.Covers) == 0:
+			return fmt.Sprintf("%s claims overlay shape %s without covers, which names all %d of its evidence items; "+
+				"give the settles entry the covers of the item its field decides, among %v", step, t.Shape, n, traits)
 		}
 	}
 	return ""

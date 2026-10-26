@@ -25,7 +25,10 @@ const (
 		"a fidelity switch whose Ops list the operation; or a recorded step that `internal/parity` replays against it. " +
 		"Labels, weakest first: contradicted (<fixture>), when the replay differs from AWS; inferred; sdk-source; aws-doc; " +
 		"third-party-recorded; aws-recorded, written aws-recorded (<fixture>) when the replay matches AWS and, for a switch " +
-		"or overlay entry it settles, fails once the settled field is changed. unassessed: no claim."
+		"or overlay entry it settles, fails once the settled field is changed. unassessed: no claim. " +
+		"An unbound operation's only claims are recorded steps replayed against it, since the switches and overlay items " +
+		"describe behavior it does not have. Overlay items on a service shape apply to every operation of the service and " +
+		"are attributed to none; the Overlay entries table shows their labels."
 	retirementIntro = "Switches and overlay evidence items whose recorded step matches AWS and fails once the settled field " +
 		"is changed, while the code still labels them below aws-recorded. Each is ready to retire: fix its label or remove " +
 		"the switch, with a test that cites the fixture (docs/recording-kit.md 6)."
@@ -177,6 +180,37 @@ func TestClaimsOfAnOperation(t *testing.T) {
 		if got := r.Claims("sqs", tc.op); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("Claims(sqs, %s) =\n%+v\nwant\n%+v", tc.op, got, tc.want)
 		}
+	}
+}
+
+// An unbound operation answers 501, so its claims are the steps replayed
+// against it only: a switch or overlay item on it describes behavior it
+// does not have.
+func TestClaimsOfAnUnboundOperationAreItsSteps(t *testing.T) {
+	t.Parallel()
+	r := evidenceReport()
+	r.Switches = append(r.Switches, coverage.Switch{
+		Name: "sqs.q-list", Label: evidence.Inferred, Ops: []string{"sqs.ListQueues"}, Settles: fidelity.NoScenario{Reason: "x"},
+	})
+	read, ok := r.Overlays.(coverage.OverlaysRead)
+	if !ok {
+		t.Fatalf("overlays = %#v, want read", r.Overlays)
+	}
+	r.Overlays = coverage.OverlaysRead{Entries: append(slices.Clone(read.Entries),
+		coverage.OverlayEntry{File: "sqs.json", Shape: "com.amazonaws.sqs#ListQueues", Label: evidence.ThirdPartyRecorded, Source: "s5"})}
+	p, ok := r.Parity.(coverage.ParityRead)
+	if !ok {
+		t.Fatalf("parity = %#v, want read", r.Parity)
+	}
+	p.Scenarios[0].Steps = append(slices.Clone(p.Scenarios[0].Steps),
+		coverage.ParityStep{Step: "08-list", Fixture: "sqs/R01/08-list.json", Operation: "sqs.ListQueues", Outcome: coverage.StepDiffers{Reason: "status"}})
+	r.Parity = p
+	want := []coverage.Claim{{
+		Source: coverage.FromStep{Scenario: "sqs/R01", Step: "08-list", Fixture: "sqs/R01/08-list.json"},
+		Label:  coverage.ContradictedLabel{Fixture: "sqs/R01/08-list.json"},
+	}}
+	if got := r.Claims("sqs", "ListQueues"); !reflect.DeepEqual(got, want) {
+		t.Errorf("Claims(sqs, ListQueues) =\n%+v\nwant\n%+v", got, want)
 	}
 }
 
@@ -382,6 +416,7 @@ func TestCheckEvidenceListsEveryProblem(t *testing.T) {
 		coverage.ParityClaim{Target: coverage.TargetSwitch{Name: "sqs.unknown"}, Step: "02-delete", Field: "status", Result: coverage.ClaimSettled{}},
 		coverage.ParityClaim{Target: coverage.TargetSwitch{Name: "sqs.other-step"}, Step: "07-url", Field: "status", Result: coverage.ClaimSettled{}},
 		coverage.ParityClaim{Target: coverage.TargetOverlay{Shape: "com.amazonaws.sqs#NoEntry"}, Step: "02-delete", Field: "status", Result: coverage.ClaimSettled{}},
+		coverage.ParityClaim{Target: coverage.TargetOverlay{Shape: "com.amazonaws.sqs#ReceiptHandleIsInvalid"}, Step: "06-url", Field: "status", Result: coverage.ClaimSettled{}},
 	)
 	err := r.CheckEvidence()
 	var pe *coverage.ParityError
@@ -396,6 +431,7 @@ func TestCheckEvidenceListsEveryProblem(t *testing.T) {
 		{"sqs.unknown", "sqs/R01#02-delete"},
 		{"sqs.other-step", "sqs/R01#07-url", "sqs/R01#06-url"},
 		{"com.amazonaws.sqs#NoEntry", "sqs/R01#02-delete"},
+		{"com.amazonaws.sqs#ReceiptHandleIsInvalid", "sqs/R01#06-url", "without covers", "aws.protocols#awsQueryError"},
 	} {
 		found := false
 		for _, p := range pe.Problems {
@@ -409,8 +445,8 @@ func TestCheckEvidenceListsEveryProblem(t *testing.T) {
 			t.Errorf("no problem names all of %q; problems:\n%s", want, strings.Join(pe.Problems, "\n"))
 		}
 	}
-	if len(pe.Problems) != 8 {
-		t.Errorf("%d problems, want 8 (sqs.other-step's SettledBy step also has no claim on it):\n%s", len(pe.Problems), strings.Join(pe.Problems, "\n"))
+	if len(pe.Problems) != 9 {
+		t.Errorf("%d problems, want 9 (sqs.other-step's SettledBy step also has no claim on it):\n%s", len(pe.Problems), strings.Join(pe.Problems, "\n"))
 	}
 	if !strings.Contains(err.Error(), pe.Problems[0]) || !strings.Contains(err.Error(), pe.Problems[len(pe.Problems)-1]) {
 		t.Errorf("Error() = %q does not list every problem", err)
@@ -454,6 +490,10 @@ func TestMarkdownShowsTheEvidenceColumn(t *testing.T) {
 		"| `sqs.a-contradicted` | `on` | contradicted (sqs/R01/03-recv.json) | r.md#2 | sqs/R01#03-recv |",
 		"| `sqs.m-code` | `3` | sdk-source | r.md#3 | none: unrecorded |",
 		"| `sqs.z-settled` | `off` | aws-recorded (sqs/R01/02-delete.json) | r.md#1 | sqs/R01#02-delete |",
+		"the Label column shows the recording's verdict where a replayed step settles or contradicts the item.",
+		"| aws-recorded (sqs/R01/02-delete.json) | sqs.json | `com.amazonaws.sqs#AmazonSQS` |  | s4 |",
+		"| aws-recorded (sqs/R01/02-delete.json) | sqs.json | `com.amazonaws.sqs#ReceiptHandleIsInvalid` | aws.protocols#awsQueryError | s3 |",
+		"| inferred | sqs.json | `com.amazonaws.sqs#ReceiptHandleIsInvalid` | smithy.api#httpError | s2 |",
 		"\n### Settled by recording, pending retirement\n\n" + retirementIntro + "\n\n" +
 			"| Switch or shape | Code label | Fixture | Field |\n|---|---|---|---|\n" +
 			"| `sqs.z-settled` | inferred | sqs/R01/02-delete.json | status |\n" +

@@ -134,7 +134,7 @@ corpus-bug: the case's expectation is wrong; client-only: only a client can run 
 
 Every operation of each service's model, with what its handler states: full, stored-only (accepted, stored and echoed, with no runtime effect), partial (implemented with named gaps) or unbound (answers 501 NotImplemented). Internal and raw operations are not in the models and are listed apart.
 
-Evidence is the weakest claim attributed to the operation, and how many of its claims carry that label. A claim is an overlay evidence item whose shape is the operation, its input, its output or one of its errors; a fidelity switch whose Ops list the operation; or a recorded step that `internal/parity` replays against it. Labels, weakest first: contradicted (<fixture>), when the replay differs from AWS; inferred; sdk-source; aws-doc; third-party-recorded; aws-recorded, written aws-recorded (<fixture>) when the replay matches AWS and, for a switch or overlay entry it settles, fails once the settled field is changed. unassessed: no claim.
+Evidence is the weakest claim attributed to the operation, and how many of its claims carry that label. A claim is an overlay evidence item whose shape is the operation, its input, its output or one of its errors; a fidelity switch whose Ops list the operation; or a recorded step that `internal/parity` replays against it. Labels, weakest first: contradicted (<fixture>), when the replay differs from AWS; inferred; sdk-source; aws-doc; third-party-recorded; aws-recorded, written aws-recorded (<fixture>) when the replay matches AWS and, for a switch or overlay entry it settles, fails once the settled field is changed. unassessed: no claim. An unbound operation's only claims are recorded steps replayed against it, since the switches and overlay items describe behavior it does not have. Overlay items on a service shape apply to every operation of the service and are attributed to none; the Overlay entries table shows their labels.
 
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
@@ -167,49 +167,49 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | SetAlarmState | partial | third-party-recorded, 4 of 4 claims | the state is set and echoed; no action runs and no evaluation follows |
 | TagResource | partial | third-party-recorded, 2 of 2 claims | alarms only: insight rules and metric streams are never stored |
 | UntagResource | partial | third-party-recorded, 2 of 2 claims | alarms only: insight rules and metric streams are never stored |
-| AssociateDatasetKmsKey | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateResourceMetricsConfiguration | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteAlarmMuteRule | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteAnomalyDetector | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteDashboards | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteInsightRules | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteMetricStream | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteResourceMetricsConfiguration | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeAlarmContributors | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeAlarmHistory | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeAlarmsForMetric | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeAnomalyDetectors | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeInsightRules | unbound | third-party-recorded, 2 of 2 claims |  |
-| DisableInsightRules | unbound | third-party-recorded, 2 of 2 claims |  |
-| DisassociateDatasetKmsKey | unbound | third-party-recorded, 2 of 2 claims |  |
-| EnableInsightRules | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetAlarmMuteRule | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetDashboard | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetDataset | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetInsightRuleReport | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetMetricStatistics | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetMetricStream | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetMetricWidgetImage | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetOTelEnrichment | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetResourceMetricsConfiguration | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListAlarmMuteRules | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListDashboards | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListManagedInsightRules | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListMetricStreams | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutAlarmMuteRule | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutAnomalyDetector | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutCompositeAlarm | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutDashboard | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutInsightRule | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutLogAlarm | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutManagedInsightRules | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutMetricStream | unbound | third-party-recorded, 2 of 2 claims |  |
-| StartMetricStreams | unbound | third-party-recorded, 2 of 2 claims |  |
-| StartOTelEnrichment | unbound | third-party-recorded, 2 of 2 claims |  |
-| StopMetricStreams | unbound | third-party-recorded, 2 of 2 claims |  |
-| StopOTelEnrichment | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateOTelEnrichment | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateResourceMetricsConfiguration | unbound | third-party-recorded, 2 of 2 claims |  |
+| AssociateDatasetKmsKey | unbound | unassessed |  |
+| CreateResourceMetricsConfiguration | unbound | unassessed |  |
+| DeleteAlarmMuteRule | unbound | unassessed |  |
+| DeleteAnomalyDetector | unbound | unassessed |  |
+| DeleteDashboards | unbound | unassessed |  |
+| DeleteInsightRules | unbound | unassessed |  |
+| DeleteMetricStream | unbound | unassessed |  |
+| DeleteResourceMetricsConfiguration | unbound | unassessed |  |
+| DescribeAlarmContributors | unbound | unassessed |  |
+| DescribeAlarmHistory | unbound | unassessed |  |
+| DescribeAlarmsForMetric | unbound | unassessed |  |
+| DescribeAnomalyDetectors | unbound | unassessed |  |
+| DescribeInsightRules | unbound | unassessed |  |
+| DisableInsightRules | unbound | unassessed |  |
+| DisassociateDatasetKmsKey | unbound | unassessed |  |
+| EnableInsightRules | unbound | unassessed |  |
+| GetAlarmMuteRule | unbound | unassessed |  |
+| GetDashboard | unbound | unassessed |  |
+| GetDataset | unbound | unassessed |  |
+| GetInsightRuleReport | unbound | unassessed |  |
+| GetMetricStatistics | unbound | unassessed |  |
+| GetMetricStream | unbound | unassessed |  |
+| GetMetricWidgetImage | unbound | unassessed |  |
+| GetOTelEnrichment | unbound | unassessed |  |
+| GetResourceMetricsConfiguration | unbound | unassessed |  |
+| ListAlarmMuteRules | unbound | unassessed |  |
+| ListDashboards | unbound | unassessed |  |
+| ListManagedInsightRules | unbound | unassessed |  |
+| ListMetricStreams | unbound | unassessed |  |
+| PutAlarmMuteRule | unbound | unassessed |  |
+| PutAnomalyDetector | unbound | unassessed |  |
+| PutCompositeAlarm | unbound | unassessed |  |
+| PutDashboard | unbound | unassessed |  |
+| PutInsightRule | unbound | unassessed |  |
+| PutLogAlarm | unbound | unassessed |  |
+| PutManagedInsightRules | unbound | unassessed |  |
+| PutMetricStream | unbound | unassessed |  |
+| StartMetricStreams | unbound | unassessed |  |
+| StartOTelEnrichment | unbound | unassessed |  |
+| StopMetricStreams | unbound | unassessed |  |
+| StopOTelEnrichment | unbound | unassessed |  |
+| UpdateOTelEnrichment | unbound | unassessed |  |
+| UpdateResourceMetricsConfiguration | unbound | unassessed |  |
 
 ### dynamodb
 
@@ -241,38 +241,38 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | UpdateItem | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
 | UpdateTable | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one; StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501 |
 | UpdateTimeToLive | partial | third-party-recorded, 2 of 2 claims | aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; the one change per hour AWS allows is not enforced |
-| CreateBackup | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateGlobalTable | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteBackup | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeBackup | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeContributorInsights | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeEndpoints | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeExport | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeGlobalTable | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeGlobalTableSettings | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeImport | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeKinesisStreamingDestination | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeTableReplicaAutoScaling | unbound | third-party-recorded, 2 of 2 claims |  |
-| DisableKinesisStreamingDestination | unbound | third-party-recorded, 2 of 2 claims |  |
-| EnableKinesisStreamingDestination | unbound | third-party-recorded, 2 of 2 claims |  |
-| ExportTableToPointInTime | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| ImportTable | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListBackups | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListContributorInsights | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListExports | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListGlobalTables | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListImports | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| RestoreTableFromBackup | unbound | third-party-recorded, 2 of 2 claims |  |
-| RestoreTableToPointInTime | unbound | third-party-recorded, 2 of 2 claims |  |
-| SearchVectors | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateContributorInsights | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateGlobalTable | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateGlobalTableSettings | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateKinesisStreamingDestination | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateTableReplicaAutoScaling | unbound | third-party-recorded, 2 of 2 claims |  |
+| CreateBackup | unbound | unassessed |  |
+| CreateGlobalTable | unbound | unassessed |  |
+| DeleteBackup | unbound | unassessed |  |
+| DeleteResourcePolicy | unbound | unassessed |  |
+| DescribeBackup | unbound | unassessed |  |
+| DescribeContributorInsights | unbound | unassessed |  |
+| DescribeEndpoints | unbound | unassessed |  |
+| DescribeExport | unbound | unassessed |  |
+| DescribeGlobalTable | unbound | unassessed |  |
+| DescribeGlobalTableSettings | unbound | unassessed |  |
+| DescribeImport | unbound | unassessed |  |
+| DescribeKinesisStreamingDestination | unbound | unassessed |  |
+| DescribeTableReplicaAutoScaling | unbound | unassessed |  |
+| DisableKinesisStreamingDestination | unbound | unassessed |  |
+| EnableKinesisStreamingDestination | unbound | unassessed |  |
+| ExportTableToPointInTime | unbound | unassessed |  |
+| GetResourcePolicy | unbound | unassessed |  |
+| ImportTable | unbound | unassessed |  |
+| ListBackups | unbound | unassessed |  |
+| ListContributorInsights | unbound | unassessed |  |
+| ListExports | unbound | unassessed |  |
+| ListGlobalTables | unbound | unassessed |  |
+| ListImports | unbound | unassessed |  |
+| PutResourcePolicy | unbound | unassessed |  |
+| RestoreTableFromBackup | unbound | unassessed |  |
+| RestoreTableToPointInTime | unbound | unassessed |  |
+| SearchVectors | unbound | unassessed |  |
+| UpdateContributorInsights | unbound | unassessed |  |
+| UpdateGlobalTable | unbound | unassessed |  |
+| UpdateGlobalTableSettings | unbound | unassessed |  |
+| UpdateKinesisStreamingDestination | unbound | unassessed |  |
+| UpdateTableReplicaAutoScaling | unbound | unassessed |  |
 
 ### eventbridge
 
@@ -295,46 +295,46 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | PutTargets | partial | third-party-recorded, 2 of 2 claims | Lambda function, SQS queue and SNS topic targets in the rule's region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented |
 | TagResource | partial | third-party-recorded, 2 of 2 claims | rules only; the default bus takes no tags |
 | UntagResource | partial | third-party-recorded, 2 of 2 claims | rules only; the default bus takes no tags |
-| ActivateEventSource | unbound | third-party-recorded, 2 of 2 claims |  |
-| CancelReplay | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateApiDestination | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateArchive | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateConnection | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateEndpoint | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateEventBus | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreatePartnerEventSource | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeactivateEventSource | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeauthorizeConnection | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteApiDestination | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteArchive | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteConnection | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteEndpoint | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteEventBus | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeletePartnerEventSource | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeApiDestination | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeArchive | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeConnection | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeEndpoint | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeEventSource | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribePartnerEventSource | unbound | third-party-recorded, 2 of 2 claims |  |
-| DescribeReplay | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListApiDestinations | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListArchives | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListConnections | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListEndpoints | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListEventSources | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListPartnerEventSourceAccounts | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListPartnerEventSources | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListReplays | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutPartnerEvents | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutPermission | unbound | third-party-recorded, 2 of 2 claims |  |
-| RemovePermission | unbound | third-party-recorded, 2 of 2 claims |  |
-| StartReplay | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateApiDestination | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateArchive | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateConnection | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateEndpoint | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateEventBus | unbound | third-party-recorded, 2 of 2 claims |  |
+| ActivateEventSource | unbound | unassessed |  |
+| CancelReplay | unbound | unassessed |  |
+| CreateApiDestination | unbound | unassessed |  |
+| CreateArchive | unbound | unassessed |  |
+| CreateConnection | unbound | unassessed |  |
+| CreateEndpoint | unbound | unassessed |  |
+| CreateEventBus | unbound | unassessed |  |
+| CreatePartnerEventSource | unbound | unassessed |  |
+| DeactivateEventSource | unbound | unassessed |  |
+| DeauthorizeConnection | unbound | unassessed |  |
+| DeleteApiDestination | unbound | unassessed |  |
+| DeleteArchive | unbound | unassessed |  |
+| DeleteConnection | unbound | unassessed |  |
+| DeleteEndpoint | unbound | unassessed |  |
+| DeleteEventBus | unbound | unassessed |  |
+| DeletePartnerEventSource | unbound | unassessed |  |
+| DescribeApiDestination | unbound | unassessed |  |
+| DescribeArchive | unbound | unassessed |  |
+| DescribeConnection | unbound | unassessed |  |
+| DescribeEndpoint | unbound | unassessed |  |
+| DescribeEventSource | unbound | unassessed |  |
+| DescribePartnerEventSource | unbound | unassessed |  |
+| DescribeReplay | unbound | unassessed |  |
+| ListApiDestinations | unbound | unassessed |  |
+| ListArchives | unbound | unassessed |  |
+| ListConnections | unbound | unassessed |  |
+| ListEndpoints | unbound | unassessed |  |
+| ListEventSources | unbound | unassessed |  |
+| ListPartnerEventSourceAccounts | unbound | unassessed |  |
+| ListPartnerEventSources | unbound | unassessed |  |
+| ListReplays | unbound | unassessed |  |
+| PutPartnerEvents | unbound | unassessed |  |
+| PutPermission | unbound | unassessed |  |
+| RemovePermission | unbound | unassessed |  |
+| StartReplay | unbound | unassessed |  |
+| UpdateApiDestination | unbound | unassessed |  |
+| UpdateArchive | unbound | unassessed |  |
+| UpdateConnection | unbound | unassessed |  |
+| UpdateEndpoint | unbound | unassessed |  |
+| UpdateEventBus | unbound | unassessed |  |
 
 ### iam
 
@@ -404,122 +404,122 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | PutRolePermissionsBoundary | partial | third-party-recorded, 2 of 2 claims | the boundary is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
 | PutUserPermissionsBoundary | partial | third-party-recorded, 2 of 2 claims | the boundary is stored, not enforced; any well-formed arn:aws:iam::aws:policy ARN is accepted without an existence check, since understudy carries no catalogue of AWS managed policies |
 | UpdateUser | partial | third-party-recorded, 2 of 2 claims | access keys minted before a rename or a path change still resolve to the user's old name and path |
-| AcceptDelegationRequest | unbound | third-party-recorded, 2 of 2 claims |  |
-| AcquireRole | unbound | third-party-recorded, 2 of 2 claims |  |
-| AddClientIDToOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| AddUserToGroup | unbound | third-party-recorded, 2 of 2 claims |  |
-| AssociateDelegationRequest | unbound | third-party-recorded, 2 of 2 claims |  |
-| AttachGroupPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| ChangePassword | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateAccountAlias | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateDelegationRequest | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateGroup | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateLoginProfile | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateSAMLProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateServiceLinkedRole | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateServiceSpecificCredential | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateVirtualMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeactivateMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteAccountAlias | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteAccountPasswordPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteGroup | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteGroupPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteLoginProfile | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteSAMLProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteSSHPublicKey | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteServerCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteServiceLinkedRole | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteServiceSpecificCredential | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteSigningCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteVirtualMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
-| DetachGroupPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| DisableOrganizationsRootCredentialsManagement | unbound | third-party-recorded, 2 of 2 claims |  |
-| DisableOrganizationsRootSessions | unbound | third-party-recorded, 2 of 2 claims |  |
-| DisableOutboundWebIdentityFederation | unbound | third-party-recorded, 2 of 2 claims |  |
-| EnableMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
-| EnableOrganizationsRootCredentialsManagement | unbound | third-party-recorded, 2 of 2 claims |  |
-| EnableOrganizationsRootSessions | unbound | third-party-recorded, 2 of 2 claims |  |
-| EnableOutboundWebIdentityFederation | unbound | third-party-recorded, 2 of 2 claims |  |
-| GenerateCredentialReport | unbound | third-party-recorded, 2 of 2 claims |  |
-| GenerateOrganizationsAccessReport | unbound | third-party-recorded, 2 of 2 claims |  |
-| GenerateServiceLastAccessedDetails | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetAccessKeyLastUsed | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetAccountAuthorizationDetails | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetAccountPasswordPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetAccountProperties | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetAccountSummary | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetContextKeysForCustomPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetContextKeysForPrincipalPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetCredentialReport | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetDelegationRequest | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetGroup | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetGroupPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetHumanReadableSummary | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetLoginProfile | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetOrganizationsAccessReport | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetOutboundWebIdentityFederationInfo | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetRoleTemplateVersion | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetSAMLProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetSSHPublicKey | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetServerCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetServiceLastAccessedDetails | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetServiceLastAccessedDetailsWithEntities | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetServiceLinkedRoleDeletionStatus | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListAccountAliases | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListAttachedGroupPolicies | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListDelegationRequests | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListGroupPolicies | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListGroups | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListMFADeviceTags | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListMFADevices | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListOpenIDConnectProviderTags | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListOpenIDConnectProviders | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListOrganizationsFeatures | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListPoliciesGrantingServiceAccess | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListSAMLProviderTags | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListSAMLProviders | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListSSHPublicKeys | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListServerCertificateTags | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListServerCertificates | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListServiceSpecificCredentials | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListSigningCertificates | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListVirtualMFADevices | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutAccountProperties | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutGroupPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| RejectDelegationRequest | unbound | third-party-recorded, 2 of 2 claims |  |
-| RemoveClientIDFromOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| RemoveUserFromGroup | unbound | third-party-recorded, 2 of 2 claims |  |
-| ResetServiceSpecificCredential | unbound | third-party-recorded, 2 of 2 claims |  |
-| ResyncMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
-| SendDelegationToken | unbound | third-party-recorded, 2 of 2 claims |  |
-| SetSecurityTokenServicePreferences | unbound | third-party-recorded, 2 of 2 claims |  |
-| SimulateCustomPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| SimulatePrincipalPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| TagMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
-| TagOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| TagSAMLProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| TagServerCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
-| UntagMFADevice | unbound | third-party-recorded, 2 of 2 claims |  |
-| UntagOpenIDConnectProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| UntagSAMLProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| UntagServerCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateAccountPasswordPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateDelegationRequest | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateGroup | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateLoginProfile | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateOpenIDConnectProviderThumbprint | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateSAMLProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateSSHPublicKey | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateServerCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateServiceSpecificCredential | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateSigningCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
-| UploadSSHPublicKey | unbound | third-party-recorded, 2 of 2 claims |  |
-| UploadServerCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
-| UploadSigningCertificate | unbound | third-party-recorded, 2 of 2 claims |  |
+| AcceptDelegationRequest | unbound | unassessed |  |
+| AcquireRole | unbound | unassessed |  |
+| AddClientIDToOpenIDConnectProvider | unbound | unassessed |  |
+| AddUserToGroup | unbound | unassessed |  |
+| AssociateDelegationRequest | unbound | unassessed |  |
+| AttachGroupPolicy | unbound | unassessed |  |
+| ChangePassword | unbound | unassessed |  |
+| CreateAccountAlias | unbound | unassessed |  |
+| CreateDelegationRequest | unbound | unassessed |  |
+| CreateGroup | unbound | unassessed |  |
+| CreateLoginProfile | unbound | unassessed |  |
+| CreateOpenIDConnectProvider | unbound | unassessed |  |
+| CreateSAMLProvider | unbound | unassessed |  |
+| CreateServiceLinkedRole | unbound | unassessed |  |
+| CreateServiceSpecificCredential | unbound | unassessed |  |
+| CreateVirtualMFADevice | unbound | unassessed |  |
+| DeactivateMFADevice | unbound | unassessed |  |
+| DeleteAccountAlias | unbound | unassessed |  |
+| DeleteAccountPasswordPolicy | unbound | unassessed |  |
+| DeleteGroup | unbound | unassessed |  |
+| DeleteGroupPolicy | unbound | unassessed |  |
+| DeleteLoginProfile | unbound | unassessed |  |
+| DeleteOpenIDConnectProvider | unbound | unassessed |  |
+| DeleteSAMLProvider | unbound | unassessed |  |
+| DeleteSSHPublicKey | unbound | unassessed |  |
+| DeleteServerCertificate | unbound | unassessed |  |
+| DeleteServiceLinkedRole | unbound | unassessed |  |
+| DeleteServiceSpecificCredential | unbound | unassessed |  |
+| DeleteSigningCertificate | unbound | unassessed |  |
+| DeleteVirtualMFADevice | unbound | unassessed |  |
+| DetachGroupPolicy | unbound | unassessed |  |
+| DisableOrganizationsRootCredentialsManagement | unbound | unassessed |  |
+| DisableOrganizationsRootSessions | unbound | unassessed |  |
+| DisableOutboundWebIdentityFederation | unbound | unassessed |  |
+| EnableMFADevice | unbound | unassessed |  |
+| EnableOrganizationsRootCredentialsManagement | unbound | unassessed |  |
+| EnableOrganizationsRootSessions | unbound | unassessed |  |
+| EnableOutboundWebIdentityFederation | unbound | unassessed |  |
+| GenerateCredentialReport | unbound | unassessed |  |
+| GenerateOrganizationsAccessReport | unbound | unassessed |  |
+| GenerateServiceLastAccessedDetails | unbound | unassessed |  |
+| GetAccessKeyLastUsed | unbound | unassessed |  |
+| GetAccountAuthorizationDetails | unbound | unassessed |  |
+| GetAccountPasswordPolicy | unbound | unassessed |  |
+| GetAccountProperties | unbound | unassessed |  |
+| GetAccountSummary | unbound | unassessed |  |
+| GetContextKeysForCustomPolicy | unbound | unassessed |  |
+| GetContextKeysForPrincipalPolicy | unbound | unassessed |  |
+| GetCredentialReport | unbound | unassessed |  |
+| GetDelegationRequest | unbound | unassessed |  |
+| GetGroup | unbound | unassessed |  |
+| GetGroupPolicy | unbound | unassessed |  |
+| GetHumanReadableSummary | unbound | unassessed |  |
+| GetLoginProfile | unbound | unassessed |  |
+| GetMFADevice | unbound | unassessed |  |
+| GetOpenIDConnectProvider | unbound | unassessed |  |
+| GetOrganizationsAccessReport | unbound | unassessed |  |
+| GetOutboundWebIdentityFederationInfo | unbound | unassessed |  |
+| GetRoleTemplateVersion | unbound | unassessed |  |
+| GetSAMLProvider | unbound | unassessed |  |
+| GetSSHPublicKey | unbound | unassessed |  |
+| GetServerCertificate | unbound | unassessed |  |
+| GetServiceLastAccessedDetails | unbound | unassessed |  |
+| GetServiceLastAccessedDetailsWithEntities | unbound | unassessed |  |
+| GetServiceLinkedRoleDeletionStatus | unbound | unassessed |  |
+| ListAccountAliases | unbound | unassessed |  |
+| ListAttachedGroupPolicies | unbound | unassessed |  |
+| ListDelegationRequests | unbound | unassessed |  |
+| ListGroupPolicies | unbound | unassessed |  |
+| ListGroups | unbound | unassessed |  |
+| ListMFADeviceTags | unbound | unassessed |  |
+| ListMFADevices | unbound | unassessed |  |
+| ListOpenIDConnectProviderTags | unbound | unassessed |  |
+| ListOpenIDConnectProviders | unbound | unassessed |  |
+| ListOrganizationsFeatures | unbound | unassessed |  |
+| ListPoliciesGrantingServiceAccess | unbound | unassessed |  |
+| ListSAMLProviderTags | unbound | unassessed |  |
+| ListSAMLProviders | unbound | unassessed |  |
+| ListSSHPublicKeys | unbound | unassessed |  |
+| ListServerCertificateTags | unbound | unassessed |  |
+| ListServerCertificates | unbound | unassessed |  |
+| ListServiceSpecificCredentials | unbound | unassessed |  |
+| ListSigningCertificates | unbound | unassessed |  |
+| ListVirtualMFADevices | unbound | unassessed |  |
+| PutAccountProperties | unbound | unassessed |  |
+| PutGroupPolicy | unbound | unassessed |  |
+| RejectDelegationRequest | unbound | unassessed |  |
+| RemoveClientIDFromOpenIDConnectProvider | unbound | unassessed |  |
+| RemoveUserFromGroup | unbound | unassessed |  |
+| ResetServiceSpecificCredential | unbound | unassessed |  |
+| ResyncMFADevice | unbound | unassessed |  |
+| SendDelegationToken | unbound | unassessed |  |
+| SetSecurityTokenServicePreferences | unbound | unassessed |  |
+| SimulateCustomPolicy | unbound | unassessed |  |
+| SimulatePrincipalPolicy | unbound | unassessed |  |
+| TagMFADevice | unbound | unassessed |  |
+| TagOpenIDConnectProvider | unbound | unassessed |  |
+| TagSAMLProvider | unbound | unassessed |  |
+| TagServerCertificate | unbound | unassessed |  |
+| UntagMFADevice | unbound | unassessed |  |
+| UntagOpenIDConnectProvider | unbound | unassessed |  |
+| UntagSAMLProvider | unbound | unassessed |  |
+| UntagServerCertificate | unbound | unassessed |  |
+| UpdateAccountPasswordPolicy | unbound | unassessed |  |
+| UpdateDelegationRequest | unbound | unassessed |  |
+| UpdateGroup | unbound | unassessed |  |
+| UpdateLoginProfile | unbound | unassessed |  |
+| UpdateOpenIDConnectProviderThumbprint | unbound | unassessed |  |
+| UpdateSAMLProvider | unbound | unassessed |  |
+| UpdateSSHPublicKey | unbound | unassessed |  |
+| UpdateServerCertificate | unbound | unassessed |  |
+| UpdateServiceSpecificCredential | unbound | unassessed |  |
+| UpdateSigningCertificate | unbound | unassessed |  |
+| UploadSSHPublicKey | unbound | unassessed |  |
+| UploadServerCertificate | unbound | unassessed |  |
+| UploadSigningCertificate | unbound | unassessed |  |
 
 Internal operations:
 
@@ -558,33 +558,33 @@ Internal operations:
 | GenerateDataKey | partial | aws-doc, 5 of 8 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException |
 | GenerateRandom | partial | aws-doc, 1 of 3 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException; custom key stores do not exist |
 | ReEncrypt | partial | aws-doc, 5 of 8 claims | DryRunModifiers answer UnsupportedOperationException |
-| ConnectCustomKeyStore | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateCustomKeyStore | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateGrant | unbound | aws-doc, 4 of 7 claims |  |
-| DeleteCustomKeyStore | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteImportedKeyMaterial | unbound | aws-doc, 3 of 5 claims |  |
-| DeriveSharedSecret | unbound | aws-doc, 4 of 7 claims |  |
-| DescribeCustomKeyStores | unbound | third-party-recorded, 2 of 2 claims |  |
-| DisconnectCustomKeyStore | unbound | third-party-recorded, 2 of 2 claims |  |
-| GenerateDataKeyPair | unbound | aws-doc, 4 of 7 claims |  |
-| GenerateDataKeyPairWithoutPlaintext | unbound | aws-doc, 4 of 7 claims |  |
-| GenerateMac | unbound | aws-doc, 3 of 6 claims |  |
-| GetKeyLastUsage | unbound | aws-doc, 2 of 4 claims |  |
-| GetParametersForImport | unbound | aws-doc, 3 of 5 claims |  |
-| GetPublicKey | unbound | aws-doc, 4 of 6 claims |  |
-| ImportKeyMaterial | unbound | aws-doc, 3 of 5 claims |  |
-| ListGrants | unbound | aws-doc, 3 of 5 claims |  |
-| ListKeyRotations | unbound | aws-doc, 2 of 4 claims |  |
-| ListRetirableGrants | unbound | aws-doc, 2 of 4 claims |  |
-| ReplicateKey | unbound | aws-doc, 3 of 6 claims |  |
-| RetireGrant | unbound | aws-doc, 3 of 6 claims |  |
-| RevokeGrant | unbound | aws-doc, 3 of 6 claims |  |
-| RotateKeyOnDemand | unbound | aws-doc, 4 of 6 claims |  |
-| Sign | unbound | aws-doc, 4 of 7 claims |  |
-| UpdateCustomKeyStore | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdatePrimaryRegion | unbound | aws-doc, 3 of 5 claims |  |
-| Verify | unbound | aws-doc, 4 of 7 claims |  |
-| VerifyMac | unbound | aws-doc, 3 of 6 claims |  |
+| ConnectCustomKeyStore | unbound | unassessed |  |
+| CreateCustomKeyStore | unbound | unassessed |  |
+| CreateGrant | unbound | unassessed |  |
+| DeleteCustomKeyStore | unbound | unassessed |  |
+| DeleteImportedKeyMaterial | unbound | unassessed |  |
+| DeriveSharedSecret | unbound | unassessed |  |
+| DescribeCustomKeyStores | unbound | unassessed |  |
+| DisconnectCustomKeyStore | unbound | unassessed |  |
+| GenerateDataKeyPair | unbound | unassessed |  |
+| GenerateDataKeyPairWithoutPlaintext | unbound | unassessed |  |
+| GenerateMac | unbound | unassessed |  |
+| GetKeyLastUsage | unbound | unassessed |  |
+| GetParametersForImport | unbound | unassessed |  |
+| GetPublicKey | unbound | unassessed |  |
+| ImportKeyMaterial | unbound | unassessed |  |
+| ListGrants | unbound | unassessed |  |
+| ListKeyRotations | unbound | unassessed |  |
+| ListRetirableGrants | unbound | unassessed |  |
+| ReplicateKey | unbound | unassessed |  |
+| RetireGrant | unbound | unassessed |  |
+| RevokeGrant | unbound | unassessed |  |
+| RotateKeyOnDemand | unbound | unassessed |  |
+| Sign | unbound | unassessed |  |
+| UpdateCustomKeyStore | unbound | unassessed |  |
+| UpdatePrimaryRegion | unbound | unassessed |  |
+| Verify | unbound | unassessed |  |
+| VerifyMac | unbound | unassessed |  |
 
 ### lambda
 
@@ -631,53 +631,53 @@ Internal operations:
 | UpdateFunctionConfiguration | partial | inferred, 1 of 4 claims | layers and DurableConfig are refused; code signing and VPC networking are stored only |
 | UpdateFunctionEventInvokeConfig | partial | third-party-recorded, 2 of 2 claims | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
 | UpdateFunctionUrlConfig | partial | third-party-recorded, 2 of 2 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
-| AddLayerVersionPermission | unbound | third-party-recorded, 2 of 2 claims |  |
-| CheckpointDurableExecution | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateCapacityProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteCapacityProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteFunctionCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteLayerVersion | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteProvisionedConcurrencyConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetCapacityProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetDurableExecution | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetDurableExecutionHistory | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetDurableExecutionState | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetFunctionRecursionConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetFunctionScalingConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetLayerVersion | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetLayerVersionByArn | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetLayerVersionPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetProvisionedConcurrencyConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetRuntimeManagementConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| InvokeAsync | unbound | third-party-recorded, 2 of 2 claims |  |
-| InvokeWithResponseStream | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListCapacityProviders | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListCodeSigningConfigs | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListDurableExecutionsByFunction | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListFunctionVersionsByCapacityProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListFunctionsByCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListLayerVersions | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListLayers | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListProvisionedConcurrencyConfigs | unbound | third-party-recorded, 2 of 2 claims |  |
-| PublishLayerVersion | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutFunctionCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutFunctionRecursionConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutFunctionScalingConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutProvisionedConcurrencyConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutRuntimeManagementConfig | unbound | third-party-recorded, 2 of 2 claims |  |
-| RemoveLayerVersionPermission | unbound | third-party-recorded, 2 of 2 claims |  |
-| SendDurableExecutionCallbackFailure | unbound | third-party-recorded, 2 of 2 claims |  |
-| SendDurableExecutionCallbackHeartbeat | unbound | third-party-recorded, 2 of 2 claims |  |
-| SendDurableExecutionCallbackSuccess | unbound | third-party-recorded, 2 of 2 claims |  |
-| StopDurableExecution | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateCapacityProvider | unbound | third-party-recorded, 2 of 2 claims |  |
-| UpdateCodeSigningConfig | unbound | third-party-recorded, 2 of 2 claims |  |
+| AddLayerVersionPermission | unbound | unassessed |  |
+| CheckpointDurableExecution | unbound | unassessed |  |
+| CreateCapacityProvider | unbound | unassessed |  |
+| CreateCodeSigningConfig | unbound | unassessed |  |
+| DeleteCapacityProvider | unbound | unassessed |  |
+| DeleteCodeSigningConfig | unbound | unassessed |  |
+| DeleteFunctionCodeSigningConfig | unbound | unassessed |  |
+| DeleteLayerVersion | unbound | unassessed |  |
+| DeleteProvisionedConcurrencyConfig | unbound | unassessed |  |
+| DeleteResourcePolicy | unbound | unassessed |  |
+| GetCapacityProvider | unbound | unassessed |  |
+| GetCodeSigningConfig | unbound | unassessed |  |
+| GetDurableExecution | unbound | unassessed |  |
+| GetDurableExecutionHistory | unbound | unassessed |  |
+| GetDurableExecutionState | unbound | unassessed |  |
+| GetFunctionRecursionConfig | unbound | unassessed |  |
+| GetFunctionScalingConfig | unbound | unassessed |  |
+| GetLayerVersion | unbound | unassessed |  |
+| GetLayerVersionByArn | unbound | unassessed |  |
+| GetLayerVersionPolicy | unbound | unassessed |  |
+| GetProvisionedConcurrencyConfig | unbound | unassessed |  |
+| GetResourcePolicy | unbound | unassessed |  |
+| GetRuntimeManagementConfig | unbound | unassessed |  |
+| InvokeAsync | unbound | unassessed |  |
+| InvokeWithResponseStream | unbound | unassessed |  |
+| ListCapacityProviders | unbound | unassessed |  |
+| ListCodeSigningConfigs | unbound | unassessed |  |
+| ListDurableExecutionsByFunction | unbound | unassessed |  |
+| ListFunctionVersionsByCapacityProvider | unbound | unassessed |  |
+| ListFunctionsByCodeSigningConfig | unbound | unassessed |  |
+| ListLayerVersions | unbound | unassessed |  |
+| ListLayers | unbound | unassessed |  |
+| ListProvisionedConcurrencyConfigs | unbound | unassessed |  |
+| PublishLayerVersion | unbound | unassessed |  |
+| PutFunctionCodeSigningConfig | unbound | unassessed |  |
+| PutFunctionRecursionConfig | unbound | unassessed |  |
+| PutFunctionScalingConfig | unbound | unassessed |  |
+| PutProvisionedConcurrencyConfig | unbound | unassessed |  |
+| PutResourcePolicy | unbound | unassessed |  |
+| PutRuntimeManagementConfig | unbound | unassessed |  |
+| RemoveLayerVersionPermission | unbound | unassessed |  |
+| SendDurableExecutionCallbackFailure | unbound | unassessed |  |
+| SendDurableExecutionCallbackHeartbeat | unbound | unassessed |  |
+| SendDurableExecutionCallbackSuccess | unbound | unassessed |  |
+| StopDurableExecution | unbound | unassessed |  |
+| UpdateCapacityProvider | unbound | unassessed |  |
+| UpdateCodeSigningConfig | unbound | unassessed |  |
 
 Raw operations:
 
@@ -901,36 +901,36 @@ Internal operations:
 | PutObject | partial | inferred, 1 of 2 claims | no SSE-C; Object Lock retention and legal-hold headers answer 501; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify |
 | UploadPart | partial | inferred, 1 of 2 claims | no SSE-C; chunk signatures are verified under sigv4 verify |
 | UploadPartCopy | partial | inferred, 2 of 3 claims | no SSE-C; errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
-| CreateBucketMetadataConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
-| CreateBucketMetadataTableConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
-| CreateSession | unbound | third-party-recorded, 1 of 1 claim |  |
-| DeleteBucketMetadataConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
-| DeleteBucketMetadataTableConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
-| DeleteObjectAnnotation | unbound | third-party-recorded, 1 of 1 claim |  |
-| GetBucketAbac | unbound | third-party-recorded, 1 of 1 claim |  |
-| GetBucketMetadataConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
-| GetBucketMetadataTableConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
-| GetBucketPolicyStatus | unbound | third-party-recorded, 1 of 1 claim |  |
-| GetObjectAcl | unbound | third-party-recorded, 1 of 1 claim |  |
-| GetObjectAnnotation | unbound | third-party-recorded, 1 of 1 claim |  |
-| GetObjectLegalHold | unbound | third-party-recorded, 1 of 1 claim |  |
-| GetObjectRetention | unbound | third-party-recorded, 1 of 1 claim |  |
-| GetObjectTorrent | unbound | third-party-recorded, 1 of 1 claim |  |
-| ListDirectoryBuckets | unbound | third-party-recorded, 1 of 1 claim |  |
-| ListObjectAnnotations | unbound | third-party-recorded, 1 of 1 claim |  |
-| PutBucketAbac | unbound | third-party-recorded, 1 of 1 claim |  |
-| PutObjectAcl | unbound | third-party-recorded, 1 of 1 claim |  |
-| PutObjectAnnotation | unbound | third-party-recorded, 1 of 1 claim |  |
-| PutObjectLegalHold | unbound | third-party-recorded, 1 of 1 claim |  |
-| PutObjectRetention | unbound | third-party-recorded, 1 of 1 claim |  |
-| RenameObject | unbound | third-party-recorded, 1 of 1 claim |  |
-| RestoreObject | unbound | third-party-recorded, 1 of 1 claim |  |
-| SelectObjectContent | unbound | third-party-recorded, 1 of 1 claim |  |
-| UpdateBucketMetadataAnnotationTableConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
-| UpdateBucketMetadataInventoryTableConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
-| UpdateBucketMetadataJournalTableConfiguration | unbound | third-party-recorded, 1 of 1 claim |  |
-| UpdateObjectEncryption | unbound | third-party-recorded, 1 of 1 claim |  |
-| WriteGetObjectResponse | unbound | third-party-recorded, 1 of 1 claim |  |
+| CreateBucketMetadataConfiguration | unbound | unassessed |  |
+| CreateBucketMetadataTableConfiguration | unbound | unassessed |  |
+| CreateSession | unbound | unassessed |  |
+| DeleteBucketMetadataConfiguration | unbound | unassessed |  |
+| DeleteBucketMetadataTableConfiguration | unbound | unassessed |  |
+| DeleteObjectAnnotation | unbound | unassessed |  |
+| GetBucketAbac | unbound | unassessed |  |
+| GetBucketMetadataConfiguration | unbound | unassessed |  |
+| GetBucketMetadataTableConfiguration | unbound | unassessed |  |
+| GetBucketPolicyStatus | unbound | unassessed |  |
+| GetObjectAcl | unbound | unassessed |  |
+| GetObjectAnnotation | unbound | unassessed |  |
+| GetObjectLegalHold | unbound | unassessed |  |
+| GetObjectRetention | unbound | unassessed |  |
+| GetObjectTorrent | unbound | unassessed |  |
+| ListDirectoryBuckets | unbound | unassessed |  |
+| ListObjectAnnotations | unbound | unassessed |  |
+| PutBucketAbac | unbound | unassessed |  |
+| PutObjectAcl | unbound | unassessed |  |
+| PutObjectAnnotation | unbound | unassessed |  |
+| PutObjectLegalHold | unbound | unassessed |  |
+| PutObjectRetention | unbound | unassessed |  |
+| RenameObject | unbound | unassessed |  |
+| RestoreObject | unbound | unassessed |  |
+| SelectObjectContent | unbound | unassessed |  |
+| UpdateBucketMetadataAnnotationTableConfiguration | unbound | unassessed |  |
+| UpdateBucketMetadataInventoryTableConfiguration | unbound | unassessed |  |
+| UpdateBucketMetadataJournalTableConfiguration | unbound | unassessed |  |
+| UpdateObjectEncryption | unbound | unassessed |  |
+| WriteGetObjectResponse | unbound | unassessed |  |
 
 Raw operations:
 
@@ -959,14 +959,14 @@ Raw operations:
 | PutResourcePolicy | stored-only | third-party-recorded, 2 of 2 claims | the policy is parsed and stored verbatim, not enforced; BlockPublicPolicy is not evaluated |
 | CreateSecret | partial | third-party-recorded, 2 of 2 claims | AddReplicaRegions (replication) answers NotImplemented |
 | PutSecretValue | partial | third-party-recorded, 2 of 2 claims | RotationToken is accepted and ignored: rotation is not implemented |
-| BatchGetSecretValue | unbound | third-party-recorded, 2 of 2 claims |  |
-| CancelRotateSecret | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetRandomPassword | unbound | third-party-recorded, 2 of 2 claims |  |
-| RemoveRegionsFromReplication | unbound | third-party-recorded, 2 of 2 claims |  |
-| ReplicateSecretToRegions | unbound | third-party-recorded, 2 of 2 claims |  |
-| RotateSecret | unbound | third-party-recorded, 2 of 2 claims |  |
-| StopReplicationToReplica | unbound | third-party-recorded, 2 of 2 claims |  |
-| ValidateResourcePolicy | unbound | third-party-recorded, 2 of 2 claims |  |
+| BatchGetSecretValue | unbound | unassessed |  |
+| CancelRotateSecret | unbound | unassessed |  |
+| GetRandomPassword | unbound | unassessed |  |
+| RemoveRegionsFromReplication | unbound | unassessed |  |
+| ReplicateSecretToRegions | unbound | unassessed |  |
+| RotateSecret | unbound | unassessed |  |
+| StopReplicationToReplica | unbound | unassessed |  |
+| ValidateResourcePolicy | unbound | unassessed |  |
 
 ### sns
 
@@ -991,29 +991,29 @@ Raw operations:
 | SetSubscriptionAttributes | partial | inferred, 9 of 11 claims | DeliveryPolicy is stored and echoed but not applied: http and https endpoints receive nothing; the quota of 10,000 filter policies per account is not enforced |
 | SetTopicAttributes | partial | third-party-recorded, 2 of 2 claims | Policy, DeliveryPolicy, KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never enforced |
 | Subscribe | partial | inferred, 9 of 11 claims | sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; http, https, email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced |
-| CheckIfPhoneNumberIsOptedOut | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreatePlatformApplication | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreatePlatformEndpoint | unbound | third-party-recorded, 2 of 2 claims |  |
-| CreateSMSSandboxPhoneNumber | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteEndpoint | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeletePlatformApplication | unbound | third-party-recorded, 2 of 2 claims |  |
-| DeleteSMSSandboxPhoneNumber | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetDataProtectionPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetEndpointAttributes | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetPlatformApplicationAttributes | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetSMSAttributes | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetSMSSandboxAccountStatus | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListEndpointsByPlatformApplication | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListOriginationNumbers | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListPhoneNumbersOptedOut | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListPlatformApplications | unbound | third-party-recorded, 2 of 2 claims |  |
-| ListSMSSandboxPhoneNumbers | unbound | third-party-recorded, 2 of 2 claims |  |
-| OptInPhoneNumber | unbound | third-party-recorded, 2 of 2 claims |  |
-| PutDataProtectionPolicy | unbound | third-party-recorded, 2 of 2 claims |  |
-| SetEndpointAttributes | unbound | third-party-recorded, 2 of 2 claims |  |
-| SetPlatformApplicationAttributes | unbound | third-party-recorded, 2 of 2 claims |  |
-| SetSMSAttributes | unbound | third-party-recorded, 2 of 2 claims |  |
-| VerifySMSSandboxPhoneNumber | unbound | third-party-recorded, 2 of 2 claims |  |
+| CheckIfPhoneNumberIsOptedOut | unbound | unassessed |  |
+| CreatePlatformApplication | unbound | unassessed |  |
+| CreatePlatformEndpoint | unbound | unassessed |  |
+| CreateSMSSandboxPhoneNumber | unbound | unassessed |  |
+| DeleteEndpoint | unbound | unassessed |  |
+| DeletePlatformApplication | unbound | unassessed |  |
+| DeleteSMSSandboxPhoneNumber | unbound | unassessed |  |
+| GetDataProtectionPolicy | unbound | unassessed |  |
+| GetEndpointAttributes | unbound | unassessed |  |
+| GetPlatformApplicationAttributes | unbound | unassessed |  |
+| GetSMSAttributes | unbound | unassessed |  |
+| GetSMSSandboxAccountStatus | unbound | unassessed |  |
+| ListEndpointsByPlatformApplication | unbound | unassessed |  |
+| ListOriginationNumbers | unbound | unassessed |  |
+| ListPhoneNumbersOptedOut | unbound | unassessed |  |
+| ListPlatformApplications | unbound | unassessed |  |
+| ListSMSSandboxPhoneNumbers | unbound | unassessed |  |
+| OptInPhoneNumber | unbound | unassessed |  |
+| PutDataProtectionPolicy | unbound | unassessed |  |
+| SetEndpointAttributes | unbound | unassessed |  |
+| SetPlatformApplicationAttributes | unbound | unassessed |  |
+| SetSMSAttributes | unbound | unassessed |  |
+| VerifySMSSandboxPhoneNumber | unbound | unassessed |  |
 
 Raw operations:
 
@@ -1065,14 +1065,14 @@ Internal operations:
 | GetCallerIdentity | full | third-party-recorded, 2 of 2 claims |  |
 | AssumeRole | partial | contradicted (sts/R15/06-assume-denied.json), 4 of 7 claims | the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012) |
 | GetSessionToken | partial | third-party-recorded, 2 of 2 claims | MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused only under sigv4 verify |
-| AssumeRoleWithSAML | unbound | third-party-recorded, 2 of 2 claims |  |
-| AssumeRoleWithWebIdentity | unbound | third-party-recorded, 2 of 2 claims |  |
-| AssumeRoot | unbound | third-party-recorded, 2 of 2 claims |  |
-| DecodeAuthorizationMessage | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetAccessKeyInfo | unbound | contradicted (sts/R15/06-get-access-key-info-deleted.json), 1 of 3 claims |  |
-| GetDelegatedAccessToken | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetFederationToken | unbound | third-party-recorded, 2 of 2 claims |  |
-| GetWebIdentityToken | unbound | third-party-recorded, 2 of 2 claims |  |
+| AssumeRoleWithSAML | unbound | unassessed |  |
+| AssumeRoleWithWebIdentity | unbound | unassessed |  |
+| AssumeRoot | unbound | unassessed |  |
+| DecodeAuthorizationMessage | unbound | unassessed |  |
+| GetAccessKeyInfo | unbound | contradicted (sts/R15/06-get-access-key-info-deleted.json), 1 of 1 claim |  |
+| GetDelegatedAccessToken | unbound | unassessed |  |
+| GetFederationToken | unbound | unassessed |  |
+| GetWebIdentityToken | unbound | unassessed |  |
 
 ## Evidence
 
@@ -1153,7 +1153,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 ### Overlay entries
 
-Corrections to the vendored models in `codegen/overlays`, one row per evidence item, strongest evidence first.
+Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
 238 evidence items: 48 aws-recorded, 89 third-party-recorded, 51 aws-doc, 2 sdk-source, 48 inferred.
 
@@ -1162,7 +1162,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#errorNamespace | testdata/parity/cloudwatch/R07/cw-GetDashboard.json (validated 2026-10-14) |
 | aws-recorded | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#errorNamespace | testdata/parity/dynamodb/R04/07-ttl-missing-table.json (validated 2026-10-14) |
 | aws-recorded | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#validationError | testdata/parity/dynamodb/R04/03-ttl-long-name.json (validated 2026-10-14) |
-| aws-recorded | kms.json | `com.amazonaws.kms#AlreadyExistsException` |  | testdata/parity/kms/KMS-alias/02-duplicate-raw.json (validated 2026-10-14) |
+| aws-recorded (kms/KMS-alias/01-duplicate.json) | kms.json | `com.amazonaws.kms#AlreadyExistsException` |  | testdata/parity/kms/KMS-alias/02-duplicate-raw.json (validated 2026-10-14) |
 | aws-recorded | logs.json | `com.amazonaws.cloudwatchlogs#Logs_20140328` | dev.understudy#validationError | testdata/parity/logs/R10/06-10001-events.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#AuthorizationQueryParametersError` |  | testdata/parity/s3/R18/01-presign-expires-minus-1.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#BadDigest` |  | testdata/parity/s3/R08/04-checksum-plus-wrong-content-md5.json (validated 2026-10-14) |
@@ -1348,7 +1348,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-doc | sqs.json | `com.amazonaws.sqs#SendMessageRequest$DelaySeconds` | smithy.api#range | https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html |
 | aws-doc | sts.json | `com.amazonaws.sts#AWSSecurityTokenServiceV20110615` | dev.understudy#throttleError | https://docs.aws.amazon.com/STS/latest/APIReference/CommonErrors.html |
 | sdk-source | iam.json | `com.amazonaws.iam#AWSIdentityManagementV20100508` | dev.understudy#queryErrorEnvelope | https://github.com/aws/aws-cli/blob/develop/tests/unit/botocore/response_parsing/xml/errors/iam-get-user.xml |
-| sdk-source | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#errorNamespace | https://github.com/boto/botocore/blob/develop/tests/functional/test_sqs.py |
+| contradicted (sqs/R01/05-cmv-deleted.json) | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#errorNamespace | https://github.com/boto/botocore/blob/develop/tests/functional/test_sqs.py |
 | inferred | common.json | `com.amazon.coral.service#RequestEntityTooLargeException` | aws.protocols#awsQueryError | docs/research/error-matrix.md 3: the Query template lists no such code; the Query code drops the Exception suffix, as the Query codes of the auth family do |
 | inferred | common.json | `dev.understudy#NotImplemented` |  | docs/adr/0003-operation-binding-and-coverage.md: understudy's own code for a modeled operation no handler is bound to; 501 is outside every SDK's retry set |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#AWSEvents` | dev.understudy#throttleError | docs/research/error-matrix.md#512-eventbridge-json-11 |
