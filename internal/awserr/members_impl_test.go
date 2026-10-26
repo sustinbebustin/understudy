@@ -42,6 +42,27 @@ func TestWireMembersLeaveOutOnlyTheErrorsMessageMember(t *testing.T) {
 	}
 }
 
+// Setting ID to another shape turns the error into that shape, so the
+// value built for the first shape is no longer written under it; a change
+// that keeps the shape keeps the value.
+func TestReassigningIDDetachesTheValue(t *testing.T) {
+	tce := func() *awserr.Error {
+		return dynamodbapi.ErrTransactionCanceledExceptionMembers("m", dynamodbapi.TransactionCanceledException{
+			CancellationReasons: []dynamodbapi.CancellationReason{{Code: new("TransactionConflict")}},
+		})
+	}
+	other := tce()
+	other.ID = dynamodbapi.IdentityConditionalCheckFailedException()
+	if v, ok := other.WireMembers(); ok || other.Members() != nil {
+		t.Errorf("after ID changed shape: WireMembers = %T, %t and Members = %T; want none", v, ok, other.Members())
+	}
+	status := tce()
+	status.ID.Status = 500
+	if _, ok := status.WireMembers(); !ok || status.Members() == nil {
+		t.Error("after a status change of the same shape: the value is gone; want it kept")
+	}
+}
+
 // An error without a value has no members to write, so codecs render it
 // as before.
 func TestWireMembersOfAnErrorWithoutAValue(t *testing.T) {

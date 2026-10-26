@@ -343,8 +343,8 @@ type Members interface {
 // DecodableMembers also decodes, so a fault rule's members can be read into it (the generated NewErrorMembers).
 type DecodableMembers interface{ Members; smithy.Deserializable }
 
-func WithMembers(v Members, message string, origin Origin) *Error // ID is v.ErrorIdentity(), so the two cannot disagree
-func (e *Error) Members() Members                                  // nil when e carries no value
+func WithMembers(v Members, message string, origin Origin) *Error // ID is v.ErrorIdentity(); a later ID of another shape detaches v
+func (e *Error) Members() Members                                  // nil when e carries no value, or ID names another shape than v's
 func (e *Error) WireMembers() (smithy.Serializable, bool)           // the value without its message member, as codecs write it
 
 // Identity is everything a codec needs to render an error on any protocol.
