@@ -144,8 +144,23 @@ Custom buses take rules, targets, tags and `PutEvents` as the default bus does, 
   aws events create-event-bus --name orders
   aws events put-permission --event-bus-name orders --statement-id only-222 \
     --action events:PutEvents --principal 222222222222
+  aws events describe-event-bus --name orders --query Policy --output text
   AWS_ACCESS_KEY_ID=111111111111 aws events put-events --entries \
     '[{"EventBusName":"arn:aws:events:us-east-1:000000000000:event-bus/orders","Source":"shop","DetailType":"order","Detail":"{}"}]'
+  ```
+
+  The policy, then the `PutEvents` answer:
+
+  ```text
+  {"Version":"2012-10-17","Statement":[{"Sid":"only-222","Effect":"Allow","Principal":{"AWS":"arn:aws:iam::222222222222:root"},"Action":"events:PutEvents","Resource":"arn:aws:events:us-east-1:000000000000:event-bus/orders"}]}
+  {
+      "FailedEntryCount": 0,
+      "Entries": [
+          {
+              "EventId": "c46d670c-dfa4-49e3-9235-df099230d94c"
+          }
+      ]
+  }
   ```
 
 - A target's `RoleArn` is stored, not assumed: an event bus target forwards whether or not the role may call `events:PutEvents`.
