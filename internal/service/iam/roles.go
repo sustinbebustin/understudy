@@ -21,7 +21,7 @@ const defaultMaxSessionDuration = 3600
 func (s *Service) bindRoles(b iamapi.Binder) {
 	stored := registry.StoredOnly{Note: "the trust policy is validated and stored, not enforced"}
 	b.CreateRole(s.createRole, registry.Partial{Note: stored.Note + "; as PermissionsBoundary, " + catalogueMembership})
-	b.GetRole(s.getRole, registry.Full{})
+	b.GetRole(s.getRole, registry.Full{}, kernel.AuthorizedInHandler())
 	b.UpdateRole(s.updateRole, registry.Full{})
 	b.UpdateRoleDescription(s.updateRoleDescription, registry.Full{})
 	b.UpdateAssumeRolePolicy(s.updateAssumeRolePolicy, stored)
@@ -124,20 +124,30 @@ func (s *Service) createRole(_ context.Context, c *kernel.Call, in *iamapi.Creat
 	return &iamapi.CreateRoleOutput{Role: out}, nil
 }
 
+// iamAction is the IAM action of that name.
+func iamAction(name string) registry.IAMAction {
+	return registry.IAMAction{Prefix: "iam", Name: name}
+}
+
 // getRole reads the role, then authorizes iam:GetRole on its ARN, which
-// only the read learns: the path is part of it. A missing role is
-// NoSuchEntity before any authorization, since there is no ARN to ask
-// about. Whether AWS answers an unauthorized caller the denial instead is
-// unverified (iam-enforcement-surfaces.md 5.3, IAM-ENF-14); switch
-// iam.enforce.missing-resource (iam-enforcement-surfaces.md 12.8) will
-// settle it when enforcement is built.
+// only the read learns: the path is part of it. Its binding leaves
+// iam:GetRole to it (kernel.AuthorizedInHandler), so this is the call's
+// only question about it.
+//
+// A missing role answers NoSuchEntity before any authorization. That is
+// not the default the note sets for switch iam.enforce.missing-resource,
+// deny-first (iam-enforcement-surfaces.md 12.8), whose AWS behavior is
+// unverified (5.3, IAM-ENF-14): deny-first needs the ARN of a role that
+// does not exist, whose path the request does not carry. The switch and
+// that ARN arrive with enforcement; until then no Authorizer is installed,
+// so the order changes no answer.
 func (s *Service) getRole(ctx context.Context, c *kernel.Call, in *iamapi.GetRoleInput) (*iamapi.GetRoleOutput, *awserr.Error) {
 	account := c.Scope().Account
 	r, err := view(s, account, func(st *State) (Role, *awserr.Error) { return st.role(in.RoleName) })
 	if err != nil {
 		return nil, err
 	}
-	if err := kernel.Authorize(ctx, c, registry.IAMAction{Prefix: "iam", Name: "GetRole"}, roleARN(account, r.Path, r.Name), nil); err != nil {
+	if err := kernel.Authorize(ctx, c, iamAction("GetRole"), roleARN(account, r.Path, r.Name), nil); err != nil {
 		return nil, err
 	}
 	return &iamapi.GetRoleOutput{Role: apiRoleDetail(account, r)}, nil

@@ -46,7 +46,8 @@ type ResourceARN struct{ ARN aws.ARN }
 
 // AnyResource is an action of the operation's own service whose call names
 // no resource of that service, such as sqs:ListQueues; a policy grants it
-// on "*".
+// on "*". An operation whose handler resolves its resource itself is bound
+// AuthorizedInHandler, so its primary action is never paired with it.
 type AnyResource struct{}
 
 func (ResourceARN) isResourceRef() {}
@@ -100,19 +101,76 @@ func (e *VerdictError) Error() string {
 	return fmt.Sprintf("kernel: the Authorizer answered the %s call with no verdict; return kernel.Allowed{} or kernel.Denied{}", e.Op)
 }
 
+// authorization is what step 8 asks about a binding's calls.
+type authorization uint8
+
+const (
+	// atStep8 asks about every pair the binding declares.
+	atStep8 authorization = iota
+	// inHandler leaves the operation's primary action to the handler
+	// (AuthorizedInHandler).
+	inHandler
+	// never asks nothing (NeverAuthorized).
+	never
+)
+
+// authorizationOption is the option AuthorizedInHandler and NeverAuthorized
+// return. It fits every input type.
+type authorizationOption authorization
+
+// authorizes is a binding configuration that can record an authorization.
+type authorizes interface{ setAuthorization(authorization) }
+
+func (o authorizationOption) apply(cfg any) bool {
+	c, ok := cfg.(authorizes)
+	if ok {
+		c.setAuthorization(authorization(o))
+	}
+	return ok
+}
+
+func (cfg *bindConfig[In]) setAuthorization(a authorization) { cfg.authorization = a }
+
+// AuthorizedInHandler marks an operation whose handler resolves its
+// resource itself and asks about the operation's primary action on it
+// through Authorize, such as IAM GetRole on the role it reads. Step 8
+// leaves the primary action out: before the handler nothing names the
+// resource, so step 8 would ask about the action on AnyResource, which a
+// policy granting it only on that resource does not allow, though AWS
+// evaluates the call against the resource (iam-evaluation.md 2.1). The
+// other actions the binding declares are asked about at step 8 as usual.
+// With several of AuthorizedInHandler and NeverAuthorized, the last applies.
+func AuthorizedInHandler() BindOption { return authorizationOption(inHandler) }
+
+// NeverAuthorized marks an operation AWS evaluates no policy for, not even
+// an explicit Deny: sts:GetCallerIdentity (iam-enforcement-surfaces.md 5.1,
+// 12.10). Step 8 never asks about its calls.
+func NeverAuthorized() BindOption { return authorizationOption(never) }
+
 // authorize is pipeline step 8's authorization, after validation and before
 // the request-phase fault rules (iam-enforcement-surfaces.md 12.1). It asks
 // the Authorizer about the pairs the call's binding declares and returns
 // the error the call ends with, nil when it may go on. It asks nothing when
-// authorization is off, for a raw HTTP binding (which authorizes itself
-// through Authorize or authz.CheckResource), for a platform call (which no
-// policy grants, so recordAccess leaves it out too) and for a call with no
-// pair.
+// authorization is off, for a raw HTTP binding (not authorized at all
+// unless its handler calls Authorize or authz.CheckResource), for a
+// platform call (which no policy grants, so recordAccess leaves it out
+// too), for a NeverAuthorized binding and for a call with no pair. An
+// AuthorizedInHandler binding is not asked about its primary action.
 func (k *Kernel) authorize(ctx context.Context, c *Call, bnd *binding, used secondaries) *awserr.Error {
 	if _, platform := c.mode.(AsPlatform); k.authorizer == nil || bnd.raw || platform {
 		return nil
 	}
-	pairs := pairsOf(authorizedActions(c.op, used), c.op.Service.IAMPrefix, c.Touched())
+	actions := authorizedActions(c.op, used)
+	switch bnd.authorization {
+	case atStep8:
+	case inHandler:
+		if len(c.op.IAM) > 0 {
+			actions = slices.DeleteFunc(actions, func(a registry.IAMAction) bool { return a == c.op.IAM[0] })
+		}
+	case never:
+		return nil
+	}
+	pairs := pairsOf(actions, c.op.Service.IAMPrefix, c.Touched())
 	if len(pairs) == 0 {
 		return nil
 	}

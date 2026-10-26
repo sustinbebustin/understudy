@@ -2,6 +2,7 @@ package iam_test
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
@@ -11,9 +12,12 @@ import (
 // GetRole's in-handler authorization beyond the specification tests
 // (authorize_test.go).
 
-// An allowed GetRole asks once about the role's ARN with its path, which
-// only the read learns, supplies no condition keys of its own, and answers
-// the role as without an Authorizer.
+// An allowed GetRole asks exactly one question: iam:GetRole on the role's
+// ARN with its path, which only the read learns, with no condition keys of
+// its own. Step 8 asks nothing (kernel.AuthorizedInHandler), since on
+// AnyResource it would deny a caller whose policy grants iam:GetRole on
+// that role alone (iam-evaluation.md 2.1). It answers the role as without
+// an Authorizer.
 func TestAnAllowedGetRoleAsksAboutTheRolesPathARN(t *testing.T) {
 	gate := &roleGate{}
 	runGated(t, gate, func(h *harness) {
@@ -25,9 +29,12 @@ func TestAnAllowedGetRoleAsksAboutTheRolesPathARN(t *testing.T) {
 		if got.Arn != created.Arn || got.Arn != role.String() || got.Path != "/team/" {
 			h.Errorf("GetRole = %s (path %s), want %s", got.Arn, got.Path, role)
 		}
-		want := kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: getRole, Resource: kernel.ResourceARN{ARN: role}}}}
-		if asked := gate.askedAbout(getRole, role); len(asked) != 1 || !reflect.DeepEqual(asked[0], want) {
-			h.Errorf("questions about the role = %+v, want once %+v", asked, want)
+		want := []kernel.AuthzQuery{{Pairs: []kernel.Pair{{Action: getRole, Resource: kernel.ResourceARN{ARN: role}}}}}
+		gate.mu.Lock()
+		asked := slices.Clone(gate.asked)
+		gate.mu.Unlock()
+		if !reflect.DeepEqual(asked, want) {
+			h.Errorf("GetRole asked %+v, want only %+v", asked, want)
 		}
 	})
 }

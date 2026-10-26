@@ -20,7 +20,8 @@ type Binder struct {
 }
 
 // BindOption adjusts one binding: WithValidator, WithCheck, WithResources,
-// WithItemCount, WithActions and WithoutSecondaryActions build them.
+// WithItemCount, WithActions, WithoutSecondaryActions, AuthorizedInHandler
+// and NeverAuthorized build them.
 type BindOption interface {
 	// apply adds the option to cfg, the *bindConfig of the operation's input
 	// type, and reports false when the option is for another input type.
@@ -35,6 +36,9 @@ type bindConfig[In any] struct {
 	actions    []func(*Call, *In) []registry.IAMAction
 	// count is the last WithItemCount; nil without one.
 	count func(*In) int
+	// authorization is the last AuthorizedInHandler or NeverAuthorized;
+	// atStep8 without one.
+	authorization authorization
 }
 
 // validate runs step 7 over in: the generated validator and the typed
@@ -219,11 +223,12 @@ func typedBinding[In any](b *Binder, desc *registry.Operation, opts []BindOption
 // with cfg's, so extending one leaves the other as it was.
 func (cfg *bindConfig[In]) clone() bindConfig[In] {
 	return bindConfig[In]{
-		validators: slices.Clone(cfg.validators),
-		checks:     slices.Clone(cfg.checks),
-		resources:  slices.Clone(cfg.resources),
-		actions:    slices.Clone(cfg.actions),
-		count:      cfg.count,
+		validators:    slices.Clone(cfg.validators),
+		checks:        slices.Clone(cfg.checks),
+		resources:     slices.Clone(cfg.resources),
+		actions:       slices.Clone(cfg.actions),
+		count:         cfg.count,
+		authorization: cfg.authorization,
 	}
 }
 
@@ -272,7 +277,8 @@ func configured[In any](b *Binder, id ref.OperationID, base bindConfig[In], opts
 			}
 			return run(ctx, c, typed, w)
 		},
-		extend: func(more []BindOption) *binding { return configured(b, id, cfg, more, run) },
+		extend:        func(more []BindOption) *binding { return configured(b, id, cfg, more, run) },
+		authorization: cfg.authorization,
 	}
 	if len(cfg.actions) > 0 {
 		bnd.actions = func(c *Call, in any) []registry.IAMAction {
@@ -337,6 +343,9 @@ type binding struct {
 	// extend returns the binding with more options (Declare); nil for raw
 	// HTTP bindings, which take none.
 	extend func(opts []BindOption) *binding
+	// authorization is what step 8 asks about the binding's calls
+	// (AuthorizedInHandler, NeverAuthorized).
+	authorization authorization
 }
 
 // Bindings is a kernel's binding table, indexed by service and

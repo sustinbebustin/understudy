@@ -36,7 +36,7 @@ var _ kernel.Stateful = (*Service)(nil)
 func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{k: d.Kernel, clock: d.Clock, identity: d.Identity, opts: o}
 	b := stsapi.NewBinder(d.Binder)
-	b.GetCallerIdentity(s.getCallerIdentity, registry.Full{})
+	b.GetCallerIdentity(s.getCallerIdentity, registry.Full{}, kernel.NeverAuthorized())
 	b.AssumeRole(s.assumeRole, registry.Partial{Note: "the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; the inline session policy is validated as an IAM identity policy, whose S3 region rule exempts the regional S3 resource types moto refuses, UNVERIFIED (iam-evaluation.md 10.6); MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012); the answer leaves out PackedPolicySize, SessionTokenSize and SessionTokenUtilization, which AWS sends"},
 		kernel.WithActions(assumeRoleActions))
 	b.GetSessionToken(s.getSessionToken, registry.Partial{Note: "MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused only under sigv4 verify"})
