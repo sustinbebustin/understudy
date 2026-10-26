@@ -38,6 +38,10 @@ func run(ctx context.Context, args []string, stderr io.Writer) error {
 	doVerify := fs.Bool("verify", false, "check the catalogue, its hashes, LICENSE and NOTICE, offline")
 	dir := fs.String("dir", "third_party/aws-managed-policies", "the catalogue directory")
 	if err := fs.Parse(args); err != nil {
+		// -h and -help print the usage, which is what was asked for.
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
 		return err
 	}
 	var err error
