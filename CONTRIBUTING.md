@@ -96,7 +96,7 @@ A new service is a larger change; open an issue first so the depth and the resea
 
    This produces `internal/api/<service>api/`. `go run ./internal/cmd/gen -all -check` reports drift without writing.
 4. **Write the service package** in `internal/service/<service>/`. `internal/service/sts` is the smallest complete example: `New(kernel.ServiceDeps, Options)` binds the operations, and the service implements `kernel.Stateful` (export, import, reset, re-arming timers, listing resources) so snapshots, reset and `understudy resources` work.
-5. **Wire it** in `internal/server/wire.go`: construct it, add it to the stateful set, and register its descriptor with its throttle and unknown-operation errors.
+5. **Wire it** in `internal/server/wire.go`: add one row to the wiring table, `wiredServices`, with its descriptor, its throttle and unknown-operation errors, and its constructor. The registry, the stateful set, the startup checks and the resource-policy lookup read that row.
 6. **Prove it** with service tests, a request in `internal/smoke`, conformance cases per SDK and Terraform, and the coverage page.
 
 A new wire protocol needs an ADR; the protocol compliance corpus already carries its cases.

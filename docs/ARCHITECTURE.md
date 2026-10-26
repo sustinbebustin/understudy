@@ -453,7 +453,7 @@ func New(services ...*Service) (*Registry, error) // fails on duplicate ids or o
 
 Bindings are per kernel (`kernel.Bindings`, indexed by `Operation.Ordinal`); `kernel.New` fails when the same operation is bound twice. Runtime coverage (`Bound{Full}`, `Bound{StoredOnly}`, `Bound{Partial}`, `Unbound`) is read from the kernel, never from the descriptor. A `-race` test builds two kernels concurrently with different handlers for the same operation.
 
-Wiring is explicit in `internal/server/wire.go`: construct each service with `kernel.ServiceDeps` and its `Options`, collect every service's `Switches()` and `Stateful` view. No `init()` registration. A service is wired even while its `New` binds nothing, so binding its operations never edits the wiring file.
+Wiring is explicit in `internal/server/wire.go`: one table row per service (its descriptor and a constructor that builds it with `kernel.ServiceDeps` and its `Options`) from which wire registers the descriptors, constructs each service, collects every service's `Switches()` and `Stateful` view, and finds the resource-policy providers by interface. No `init()` registration. A service is wired even while its `New` binds nothing, so binding its operations never edits the wiring file.
 
 ```go
 package evidence // leaf
@@ -743,7 +743,7 @@ Budgets, measured by `just budgets` and gated in CI; a breach is fixed by the ro
 
 Adding an operation: write `func (s *Service) listQueueTags(ctx, c, in *sqsapi.ListQueueTagsInput) (*sqsapi.ListQueueTagsOutput, *awserr.Error)`; add `b.ListQueueTags(s.listQueueTags, registry.Full)` in `New`; add overlay entries if research shows AWS enforces more than the model; write a test through `kernel.Invoke` in a synctest bubble; `understudy coverage` and the conformance suites pick it up over every protocol the service speaks.
 
-Adding a service: `cmd/vendor -add <dir>`; `codegen/services/<svc>.json` and `codegen/overlays/<svc>.json`; `just generate`; copy STS's skeleton; add it to `wire.go`; bind handlers one at a time; add a conformance case per SDK.
+Adding a service: `cmd/vendor -add <dir>`; `codegen/services/<svc>.json` and `codegen/overlays/<svc>.json`; `just generate`; copy STS's skeleton; add its row to the wiring table in `wire.go`; bind handlers one at a time; add a conformance case per SDK.
 
 ## 6. Protocol layer
 

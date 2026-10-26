@@ -172,36 +172,22 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	deps := func(desc *registry.Service) kernel.ServiceDeps {
 		return kernel.ServiceDeps{Kernel: k, Binder: k.Binder(desc), Clock: clk, IDs: src, Blob: w.blobs, Identity: idStore, Docker: w.host.client, Log: log}
 	}
-	var images lambda.ImageSource
-	if w.pool != nil {
-		images = w.host
+	c := &construction{switches: cfg.Switches, regions: regions, local: w.local, images: w.images()}
+	built, err := c.build(deps)
+	if err != nil {
+		return w, err
 	}
-	sw := cfg.Switches
-	sqsSvc := sqs.New(deps(sqsapi.Service()), sqs.Options{DeletedRecently: sw.SQSDeletedRecently})
-	snsSvc := sns.New(deps(snsapi.Service()), sns.Options{})
-	s3Svc := s3.New(deps(s3api.Service()), s3.Options{CrossRegion: sw.S3CrossRegion, Regions: regions})
-	dynamoSvc := dynamodb.New(deps(dynamodbapi.Service()), dynamodb.Options{Local: w.local})
-	lambdaDeps := deps(lambdaapi.Service())
-	lambdaSvc := lambda.New(lambdaDeps, lambda.Options{StateTransitions: sw.LambdaTransitions, Images: images})
-	logsSvc := logs.New(deps(logsapi.Service()), logs.Options{})
-	secretsSvc := secretsmanager.New(deps(secretsmanagerapi.Service()), secretsmanager.Options{})
-	kmsSvc := kms.New(deps(kmsapi.Service()), kms.Options{})
-	iamSvc := iam.New(deps(iamapi.Service()), iam.Options{})
-	stsSvc := sts.New(deps(stsapi.Service()), sts.Options{AssumeRole: sw.STSAssumeRole})
-	eventsSvc := events.New(deps(eventbridgeapi.Service()), events.Options{})
-	cloudwatchSvc := cloudwatch.New(deps(cloudwatchapi.Service()), cloudwatch.Options{})
-	if err := w.execution(cfg, account, regions, lambdaSvc, lambdaDeps, images); err != nil {
+	if err := w.execution(cfg, account, regions, c.lambda, c.lambdaDeps, c.images); err != nil {
 		return w, err
 	}
 	link.set(w.lambda)
 	if err := k.BindErr(); err != nil {
 		return w, err
 	}
-	policies := policySources{sqs: sqsSvc, sns: snsSvc, lambda: lambdaSvc}
-	if err := box.Bind(k, outbox.Options{Faults: w.faults, Policies: policies}); err != nil {
+	if err := bindOutbox(box, k, w.faults, built); err != nil {
 		return w, err
 	}
-	stateful, late := collect(box, sqsSvc, snsSvc, s3Svc, dynamoSvc, lambdaSvc, w.lambda.AsyncQueue(), logsSvc, secretsSvc, kmsSvc, iamSvc, stsSvc, eventsSvc, cloudwatchSvc)
+	stateful, late := collect(box, built, w.lambda)
 	if err := checkCollected(reg, stateful); err != nil {
 		return w, err
 	}
@@ -233,8 +219,8 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		Pollers:       w.lambda,
 		HotReloader:   w.lambda,
 		ImagePuller:   w.lambda,
-		TTLSweeper:    dynamoSvc,
-		Subscriptions: snsSvc,
+		TTLSweeper:    c.dynamodb,
+		Subscriptions: c.sns,
 	}
 	if err := w.snapshotDirs(&opts); err != nil {
 		return w, err
@@ -242,7 +228,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	if w.admin, err = serveradmin.New(opts); err != nil {
 		return w, err
 	}
-	if err := w.edges(cfg, k, reg, idStore, regions, cat, s3Svc.BucketExists, log); err != nil {
+	if err := w.edges(cfg, k, reg, idStore, regions, cat, c.s3.BucketExists, log); err != nil {
 		return w, err
 	}
 	if err := w.load(cfg, snapshots, log); err != nil {
@@ -293,23 +279,72 @@ func (w *wiring) snapshotDirs(o *serveradmin.Options) error {
 	return err
 }
 
-// policySources routes the outbox's access advisory to the service that
-// stores the delivery target's resource policy: the queue's Policy, the
-// topic's Policy, the function's permissions.
-type policySources struct {
-	sqs, sns, lambda outbox.PolicySource
+// images is the Lambda image source: the container host when there is a
+// pool to run images in, else none.
+func (w *wiring) images() lambda.ImageSource {
+	if w.pool == nil {
+		return nil
+	}
+	return w.host
 }
 
-func (p policySources) ResourcePolicy(target aws.ARN) (*policydoc.Document, bool) {
-	switch target.Service {
-	case "sqs":
-		return p.sqs.ResourcePolicy(target)
-	case "sns":
-		return p.sns.ResourcePolicy(target)
-	case "lambda":
-		return p.lambda.ResourcePolicy(target)
+// bindOutbox binds the outbox to the kernel, with the access advisory
+// asking the built services that store resource policies.
+func bindOutbox(box *outbox.Outbox, k *kernel.Kernel, faults *fault.Store, built []wiredBuilt) error {
+	policies, err := policyProviders(built)
+	if err != nil {
+		return err
 	}
-	return nil, false
+	return box.Bind(k, outbox.Options{Faults: faults, Policies: policies})
+}
+
+// policySources routes the outbox's access advisory to the service that
+// stores the delivery target's resource policy, by the target ARN's
+// service namespace: today the queue's Policy, the topic's Policy and the
+// function's permissions.
+type policySources map[string]outbox.PolicySource
+
+// policyProviders indexes the built services that implement
+// outbox.PolicySource by their descriptor's ARNNamespace. Two providers for
+// one namespace are a *PolicySourceError.
+func policyProviders(built []wiredBuilt) (policySources, error) {
+	out := policySources{}
+	by := map[string]ref.ServiceID{}
+	for _, b := range built {
+		p, ok := b.svc.(outbox.PolicySource)
+		if !ok {
+			continue
+		}
+		ns := b.desc.ARNNamespace
+		if first, dup := by[ns]; dup {
+			return nil, &PolicySourceError{Namespace: ns, Services: [2]ref.ServiceID{first, b.desc.ID}}
+		}
+		out[ns], by[ns] = p, b.desc.ID
+	}
+	return out, nil
+}
+
+// ResourcePolicy asks the provider of target's namespace; a namespace no
+// service provides has no policy to advise on.
+func (p policySources) ResourcePolicy(target aws.ARN) (*policydoc.Document, bool) {
+	src, ok := p[target.Service]
+	if !ok {
+		return nil, false
+	}
+	return src.ResourcePolicy(target)
+}
+
+// PolicySourceError names an ARN namespace whose resource policies two
+// wired services provide, so the access advisory could ask only one of
+// them. It is a bug in wire.go; nothing is served.
+type PolicySourceError struct {
+	Namespace string
+	Services  [2]ref.ServiceID
+}
+
+func (e *PolicySourceError) Error() string {
+	return fmt.Sprintf("server: the wired services %s and %s both provide the resource policies of ARN namespace %q, so the access advisory cannot tell which to ask; "+
+		"this is a bug in understudy's wiring: have one service in wire.go provide each namespace", e.Services[0], e.Services[1], e.Namespace)
 }
 
 // journalOptions maps the journal setting onto the journal.
@@ -606,26 +641,32 @@ func ruleSettingError(i int, err *fault.RuleError) *SettingError {
 	return out
 }
 
-// collect gathers the Stateful views, with the outbox first, and the Late
-// services.
-func collect(box *outbox.Outbox, services ...serveradmin.Service) ([]serveradmin.Service, []snapshot.Late) {
-	stateful := make([]serveradmin.Service, 0, 1+len(services))
-	stateful = append(stateful, box)
+// collect gathers the Stateful views: the outbox first, then each built
+// service's in table order, with the Lambda execution layer's asynchronous
+// queue beside Lambda's (ARCHITECTURE.md 14.7); and the Late services.
+func collect(box *outbox.Outbox, built []wiredBuilt, x *lambda.Execution) ([]serveradmin.Service, []snapshot.Late) {
+	views := make([]serveradmin.Service, 0, 2+len(built))
+	views = append(views, box)
+	for _, b := range built {
+		views = append(views, b.svc)
+		if b.svc.Name() == x.Name() {
+			views = append(views, x.AsyncQueue())
+		}
+	}
 	var late []snapshot.Late
-	for _, s := range services {
-		stateful = append(stateful, s)
-		if l, ok := s.(snapshot.Late); ok {
+	for _, v := range views {
+		if l, ok := v.(snapshot.Late); ok {
 			late = append(late, l)
 		}
 	}
-	return stateful, late
+	return views, late
 }
 
-// UncollectedServiceError names registered services wire passed no
-// Stateful view of to collect: their state would silently be left out of
-// snapshots, persistence, resets and the resource listing. It is a bug in
-// wire.go, which names each service in apis(), its constructor block and
-// its collect call; nothing is served.
+// UncollectedServiceError names registered services wire collected no
+// Stateful view of: their state would silently be left out of snapshots,
+// persistence, resets and the resource listing. It is a bug in wire.go:
+// its wiring table collects each row's service, so a row's service is
+// named other than its descriptor; nothing is served.
 type UncollectedServiceError struct{ Services []ref.ServiceID }
 
 func (e *UncollectedServiceError) Error() string {
@@ -634,7 +675,7 @@ func (e *UncollectedServiceError) Error() string {
 		names[i] = string(s)
 	}
 	return "server: the registered services " + strings.Join(names, ", ") + " are not collected for snapshots, resets and resources; " +
-		"this is a bug in understudy's wiring: pass each one to collect in wire.go"
+		"this is a bug in understudy's wiring: each one's row in wiredServices in wire.go must build a service whose Name is the descriptor's ID"
 }
 
 // checkCollected refuses a registry service without a collected Stateful
@@ -713,23 +754,142 @@ func (c catalogue) unknownOperationError(svc ref.ServiceID, f awserr.Family) (aw
 	return none, false
 }
 
-// apis lists every generated service. S3 routes through its restXml route
-// table only, so it has no unknown-operation identity.
-func apis() []api {
-	return []api{
-		{sqsapi.Service(), sqsapi.ThrottleError(), sqsapi.UnknownOperationError},
-		{snsapi.Service(), snsapi.ThrottleError(), snsapi.UnknownOperationError},
-		{s3api.Service(), s3api.ThrottleError(), nil},
-		{dynamodbapi.Service(), dynamodbapi.ThrottleError(), dynamodbapi.UnknownOperationError},
-		{lambdaapi.Service(), lambdaapi.ThrottleError(), lambdaapi.UnknownOperationError},
-		{logsapi.Service(), logsapi.ThrottleError(), logsapi.UnknownOperationError},
-		{secretsmanagerapi.Service(), secretsmanagerapi.ThrottleError(), secretsmanagerapi.UnknownOperationError},
-		{kmsapi.Service(), kmsapi.ThrottleError(), kmsapi.UnknownOperationError},
-		{iamapi.Service(), iamapi.ThrottleError(), iamapi.UnknownOperationError},
-		{stsapi.Service(), stsapi.ThrottleError(), stsapi.UnknownOperationError},
-		{eventbridgeapi.Service(), eventbridgeapi.ThrottleError(), eventbridgeapi.UnknownOperationError},
-		{cloudwatchapi.Service(), cloudwatchapi.ThrottleError(), cloudwatchapi.UnknownOperationError},
+// wiredService is one row of the wiring table: a generated API and the
+// constructor of the service that serves it.
+type wiredService struct {
+	api api
+	// build constructs the service from its kernel.ServiceDeps and the
+	// run's settings in c, and records in c the services wire hands on by
+	// type.
+	build func(kernel.ServiceDeps, *construction) serveradmin.Service
+}
+
+// wiredServices is the wiring table: every service, in the order wire
+// registers, builds and collects them. apis(), the collected Stateful
+// views, checkCollected and the policy lookup all read it, so a new service
+// is one row. S3 routes through its restXml route table only, so it has no
+// unknown-operation identity.
+func wiredServices() []wiredService {
+	return []wiredService{
+		{api{sqsapi.Service(), sqsapi.ThrottleError(), sqsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			return sqs.New(d, sqs.Options{DeletedRecently: c.switches.SQSDeletedRecently})
+		}},
+		{api{snsapi.Service(), snsapi.ThrottleError(), snsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.sns = sns.New(d, sns.Options{})
+			return c.sns
+		}},
+		{api{s3api.Service(), s3api.ThrottleError(), nil}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.s3 = s3.New(d, s3.Options{CrossRegion: c.switches.S3CrossRegion, Regions: c.regions})
+			return c.s3
+		}},
+		{api{dynamodbapi.Service(), dynamodbapi.ThrottleError(), dynamodbapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.dynamodb = dynamodb.New(d, dynamodb.Options{Local: c.local})
+			return c.dynamodb
+		}},
+		{api{lambdaapi.Service(), lambdaapi.ThrottleError(), lambdaapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.lambda, c.lambdaDeps = lambda.New(d, lambda.Options{StateTransitions: c.switches.LambdaTransitions, Images: c.images}), d
+			return c.lambda
+		}},
+		{api{logsapi.Service(), logsapi.ThrottleError(), logsapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return logs.New(d, logs.Options{})
+		}},
+		{api{secretsmanagerapi.Service(), secretsmanagerapi.ThrottleError(), secretsmanagerapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return secretsmanager.New(d, secretsmanager.Options{})
+		}},
+		{api{kmsapi.Service(), kmsapi.ThrottleError(), kmsapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return kms.New(d, kms.Options{})
+		}},
+		{api{iamapi.Service(), iamapi.ThrottleError(), iamapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return iam.New(d, iam.Options{})
+		}},
+		{api{stsapi.Service(), stsapi.ThrottleError(), stsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			return sts.New(d, sts.Options{AssumeRole: c.switches.STSAssumeRole})
+		}},
+		{api{eventbridgeapi.Service(), eventbridgeapi.ThrottleError(), eventbridgeapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return events.New(d, events.Options{})
+		}},
+		{api{cloudwatchapi.Service(), cloudwatchapi.ThrottleError(), cloudwatchapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return cloudwatch.New(d, cloudwatch.Options{})
+		}},
 	}
+}
+
+// apis lists every wired service's generated API, in table order.
+func apis() []api {
+	rows := wiredServices()
+	out := make([]api, len(rows))
+	for i, r := range rows {
+		out[i] = r.api
+	}
+	return out
+}
+
+// wiredBuilt is a built row: the service and its descriptor.
+type wiredBuilt struct {
+	desc *registry.Service
+	svc  serveradmin.Service
+}
+
+// construction is what the constructors take beyond kernel.ServiceDeps,
+// and the services wire hands on by type once every row is built: to the
+// front door (S3's bucket lookup), the admin hooks (DynamoDB's TTL sweep,
+// SNS's subscription tokens) and the Lambda execution layer, the named
+// hook built after the table. Handing them on by type keeps the compiler
+// checking that each implements its hook.
+type construction struct {
+	switches Switches
+	regions  aws.Regions
+	local    *lazyLocal
+	images   lambda.ImageSource
+
+	s3         *s3.Service
+	dynamodb   *dynamodb.Service
+	sns        *sns.Service
+	lambda     *lambda.Service
+	lambdaDeps kernel.ServiceDeps
+}
+
+// build constructs every row of the wiring table in order. A table whose
+// rows leave a service wire hands on by type unbuilt is an
+// *UnbuiltServiceError.
+func (c *construction) build(deps func(*registry.Service) kernel.ServiceDeps) ([]wiredBuilt, error) {
+	rows := wiredServices()
+	built := make([]wiredBuilt, len(rows))
+	for i, r := range rows {
+		built[i] = wiredBuilt{desc: r.api.desc, svc: r.build(deps(r.api.desc), c)}
+	}
+	var missing []ref.ServiceID
+	for _, m := range []struct {
+		unbuilt bool
+		id      ref.ServiceID
+	}{
+		{c.s3 == nil, s3api.Service().ID},
+		{c.dynamodb == nil, dynamodbapi.Service().ID},
+		{c.sns == nil, snsapi.Service().ID},
+		{c.lambda == nil, lambdaapi.Service().ID},
+	} {
+		if m.unbuilt {
+			missing = append(missing, m.id)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, &UnbuiltServiceError{Services: missing}
+	}
+	return built, nil
+}
+
+// UnbuiltServiceError names services that the front door, an admin hook or
+// the Lambda execution layer takes by type and no row of the wiring table
+// built. It is a bug in wire.go; nothing is served.
+type UnbuiltServiceError struct{ Services []ref.ServiceID }
+
+func (e *UnbuiltServiceError) Error() string {
+	names := make([]string, len(e.Services))
+	for i, s := range e.Services {
+		names[i] = string(s)
+	}
+	return "server: the services " + strings.Join(names, ", ") + " are not built, but the front door, the admin hooks or the Lambda execution layer need them; " +
+		"this is a bug in understudy's wiring: keep each one's row in wiredServices in wire.go, recording the service in its construction field"
 }
 
 // drainTimeout bounds how long closing waits for the Lambda environments
