@@ -566,7 +566,8 @@ External request
   kernel.Dispatch(ctx, call, decoded)                 <-- kernel.Invoke enters here for internal calls
          6 journal.Begin(APICall with redacted input); an unknown operation, an Unbound operation (501) or a Rejected decode ends here, journaled and access-recorded by the same code
          7 validate   generated Validate, then the bound typed validator -> Violations -> kernel.Validate(op, v)
-         8 fault.Before   first matching Request-phase rule may short-circuit (Error, Throttle, Latency)
+         8 authorize      only with Options.Authorizer, never for BindRawHTTP or AsPlatform calls: one question, the primary action plus the declared actions the generated list holds (never the whole list; an internal operation: its declared actions), each paired with the touched resources of its service; Denied ends the call with the service's denial identity, journaled and access-recorded as Failed, not as a fault
+           fault.Before   first matching Request-phase rule may short-circuit (Error, Throttle, Latency)
          9 handler    (pulls a streaming body only after its own pre-checks, so 100-continue and early rejects work)
         10 fault.After    AfterCommit, StatusOKError (S3 200-with-error)
         11 access.Record(principal mode, primary action + actions the binding declared used (WithActions, Declare), or the whole generated list when it declared none, touched)   (never for injected faults; an internal operation only when its bind site declares actions)
@@ -576,7 +577,7 @@ External request
 
 Internal calls skip 1 to 5: `Invoke` builds a `Call` with `Origin Internal{Via}`, the target scope, the principal the `PrincipalMode` resolves to, `Cause{Parent: parent.Event, Trace: parent.Cause.Trace}`, `Admitted = Target.At` when set (deferred work is stamped with the instant that triggered it, never `Now()`), and runs 6 to 12. Validation runs for internal calls too; it is cheap and catches a delivery that builds an input AWS would reject. `Deliver` effects are inserted into the outbox before step 12 returns; `Wake` effects run after unlock; the work tracker counts both.
 
-A panic in steps 7 to 10 (validators, checks, resource resolvers, the handler and the after-commit work) is recovered by one deferred recover over those steps and becomes `Internal` (500 `InternalFailure`) with the stack in the journal and the log, never in the response. Every goroutine the kernel starts (`Kernel.Go`: delivery attempts, pollers, stream writers, timer dispatch) has the same recovery.
+A panic in steps 7 to 10 (validators, checks, resource resolvers, the Authorizer, the handler and the after-commit work) is recovered by one deferred recover over those steps and becomes `Internal` (500 `InternalFailure`) with the stack in the journal and the log, never in the response. Every goroutine the kernel starts (`Kernel.Go`: delivery attempts, pollers, stream writers, timer dispatch) has the same recovery.
 
 ### 4.1 Front-door claiming
 

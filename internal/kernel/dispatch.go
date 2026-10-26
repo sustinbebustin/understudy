@@ -84,8 +84,8 @@ func (e *DecodedError) Error() string {
 }
 
 // PanicError is service code that panicked during a call: a validator,
-// check or resource resolver (steps 7 and 8) or the handler (step 9). The
-// stack goes to the journal and the log, never to the client.
+// check, resource resolver or the Authorizer (steps 7 and 8) or the handler
+// (step 9). The stack goes to the journal and the log, never to the client.
 type PanicError struct {
 	Op    string
 	Value any
@@ -99,11 +99,11 @@ func (e *PanicError) Error() string {
 
 // Dispatch runs pipeline steps 6 to 12 of ARCHITECTURE.md 4 for c: journal
 // begin; for a modeled, bound operation the generated and typed
-// validators, request-phase faults, the handler, after-commit faults; the
-// access record; journal end. An unknown operation, an unbound one (501)
-// and a rejected decode end after step 6, journaled and access-recorded
-// like any other call; an unauthenticated request ends there too,
-// journaled but not access-recorded.
+// validators, authorization, request-phase faults, the handler,
+// after-commit faults; the access record; journal end. An unknown
+// operation, an unbound one (501) and a rejected decode end after step 6,
+// journaled and access-recorded like any other call; an unauthenticated
+// request ends there too, journaled but not access-recorded.
 func (k *Kernel) Dispatch(ctx context.Context, c *Call, d Decoded) Result {
 	bnd, _ := k.bindings.lookup(c.op)
 	k.begin(ctx, c, d, bnd)
@@ -117,10 +117,14 @@ func (k *Kernel) Dispatch(ctx context.Context, c *Call, d Decoded) Result {
 }
 
 // pipeline runs steps 7 to 10, setting *used to what the binding says
-// about the secondary IAM actions a valid input used (WithActions). A
-// panic anywhere in them, in the bound validators, checks and resolvers as
-// much as in the handler, becomes Internal carrying the stack, so steps 11
-// and 12 still record the call and the client gets 500 InternalFailure.
+// about the secondary IAM actions a valid input used (WithActions). Step 8
+// authorizes the call before the request-phase fault rules
+// (iam-enforcement-surfaces.md 12.1), so a denied call reaches neither
+// them nor the handler, and ends as a Failure, not an injected fault. A
+// panic anywhere in them, in the bound validators, checks, resolvers and
+// the Authorizer as much as in the handler, becomes Internal carrying the
+// stack, so steps 11 and 12 still record the call and the client gets 500
+// InternalFailure.
 func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding, used *secondaries) (res Result, inj *fault.Injection) {
 	defer func() {
 		if v := recover(); v != nil {
@@ -149,6 +153,9 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	}
 	c.Touch(bnd.resources(c, in.In)...)
 	*used = bnd.secondaries(c, in.In)
+	if err := k.authorize(ctx, c, bnd, *used); err != nil {
+		return Failure{Err: err}, nil
+	}
 	items := bnd.items(in.In)
 	if res, inj, stop := k.before(ctx, c, items); stop {
 		return res, inj
