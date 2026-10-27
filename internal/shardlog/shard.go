@@ -263,5 +263,22 @@ type TrimmedError struct {
 }
 
 func (e *TrimmedError) Error() string {
-	return fmt.Sprintf("shard %s: the records from %#v on have been trimmed", e.Shard, e.From)
+	return "shard " + e.Shard + ": the records from " + positionText(e.From) + " on have been trimmed"
+}
+
+// positionText names p by the shard iterator type that asks for it.
+func positionText(p Position) string {
+	switch p := p.(type) {
+	case TrimHorizon:
+		return "TRIM_HORIZON"
+	case Latest:
+		return "LATEST"
+	case At:
+		return "AT_SEQUENCE_NUMBER " + string(p.Seq)
+	case After:
+		return "AFTER_SEQUENCE_NUMBER " + string(p.Seq)
+	case AtTime:
+		return "AT_TIMESTAMP " + p.At.String()
+	}
+	return fmt.Sprintf("%#v", p)
 }
