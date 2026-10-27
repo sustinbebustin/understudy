@@ -21,8 +21,10 @@ import (
 // stateVersion is the schema version of State in snapshot sections. 2: an
 // event bus entry keeps a forwarded event's envelope (forwardedRecord). 3:
 // a Lambda delivery keeps its sender (senderRecord) and a queue target its
-// trace header.
-const stateVersion = 3
+// trace header. 4: a request keeps the aws:SourceAccount its delivery sends
+// (sourceAccount), which an earlier entry left implied, so an earlier
+// section is refused rather than restored without it (ADR 0009).
+const stateVersion = 4
 
 // State is the outbox of one account and region, the scope of the targets
 // its deliveries land in: every accepted delivery not yet delivered,

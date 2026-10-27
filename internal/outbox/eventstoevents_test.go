@@ -197,10 +197,11 @@ func TestEventsToEventsAttemptCarriesTheEnvelope(t *testing.T) {
 
 // The snapshot record of an event bus entry gained its envelope (version
 // 2), then a Lambda delivery's sender and a queue target's trace header
-// (version 3), so a section an older binary wrote is refused naming both
-// versions rather than migrated (ADR 0009).
+// (version 3), then a request's aws:SourceAccount (version 4), so a section
+// an older binary wrote is refused naming both versions rather than
+// migrated or restored without it (ADR 0009).
 func TestOutboxSnapshotRefusesAnEarlierVersion(t *testing.T) {
-	for _, earlier := range []int{1, 2} {
+	for _, earlier := range []int{1, 2, 3} {
 		run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 			stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return throttled("") })
 			enqueue(k, o, toQueue("pending", delivery.SNSManaged{}), source(k))
@@ -220,8 +221,8 @@ func TestOutboxSnapshotRefusesAnEarlierVersion(t *testing.T) {
 			if !ok {
 				k.Fatalf("Import(a version %d section) = %v, want a *store.VersionMismatchError", earlier, err)
 			}
-			if vm.Section != earlier || vm.Running != 3 || o.SchemaVersion() != 3 {
-				k.Errorf("mismatch %+v, schema version %d; want section %d refused by running 3", vm, o.SchemaVersion(), earlier)
+			if vm.Section != earlier || vm.Running != 4 || o.SchemaVersion() != 4 {
+				k.Errorf("mismatch %+v, schema version %d; want section %d refused by running 4", vm, o.SchemaVersion(), earlier)
 			}
 		})
 	}
