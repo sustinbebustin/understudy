@@ -156,37 +156,45 @@ func errFeatureNotYet(op, feature string) *awserr.Error {
 		" yet. Run 'understudy coverage --service ssm' for what is supported. Nothing was changed.")
 }
 
-// The handlers below are not implemented yet: each answers
-// errNotImplementedYet.
-
-func (*Service) getParameters(context.Context, *kernel.Call, *ssmapi.GetParametersInput) (*ssmapi.GetParametersOutput, *awserr.Error) {
-	return nil, errNotImplementedYet("GetParameters")
+// notYet answers an operation whose handler has not landed yet, after the
+// reserved-namespace check every operation runs first (checkReserved).
+func notYet(op string, raws ...string) *awserr.Error {
+	if err := checkReserved(op, raws...); err != nil {
+		return err
+	}
+	return errNotImplementedYet(op)
 }
 
-func (*Service) getParametersByPath(context.Context, *kernel.Call, *ssmapi.GetParametersByPathInput) (*ssmapi.GetParametersByPathOutput, *awserr.Error) {
-	return nil, errNotImplementedYet("GetParametersByPath")
+// The handlers below are not implemented yet: each answers notYet.
+
+func (*Service) getParameters(_ context.Context, _ *kernel.Call, in *ssmapi.GetParametersInput) (*ssmapi.GetParametersOutput, *awserr.Error) {
+	return nil, notYet("GetParameters", in.Names...)
 }
 
-func (*Service) getParameterHistory(context.Context, *kernel.Call, *ssmapi.GetParameterHistoryInput) (*ssmapi.GetParameterHistoryOutput, *awserr.Error) {
-	return nil, errNotImplementedYet("GetParameterHistory")
+func (*Service) getParametersByPath(_ context.Context, _ *kernel.Call, in *ssmapi.GetParametersByPathInput) (*ssmapi.GetParametersByPathOutput, *awserr.Error) {
+	return nil, notYet("GetParametersByPath", in.Path)
 }
 
-func (*Service) deleteParameters(context.Context, *kernel.Call, *ssmapi.DeleteParametersInput) (*ssmapi.DeleteParametersOutput, *awserr.Error) {
-	return nil, errNotImplementedYet("DeleteParameters")
+func (*Service) getParameterHistory(_ context.Context, _ *kernel.Call, in *ssmapi.GetParameterHistoryInput) (*ssmapi.GetParameterHistoryOutput, *awserr.Error) {
+	return nil, notYet("GetParameterHistory", in.Name)
 }
 
-func (*Service) labelParameterVersion(context.Context, *kernel.Call, *ssmapi.LabelParameterVersionInput) (*ssmapi.LabelParameterVersionOutput, *awserr.Error) {
-	return nil, errNotImplementedYet("LabelParameterVersion")
+func (*Service) deleteParameters(_ context.Context, _ *kernel.Call, in *ssmapi.DeleteParametersInput) (*ssmapi.DeleteParametersOutput, *awserr.Error) {
+	return nil, notYet("DeleteParameters", in.Names...)
 }
 
-func (*Service) unlabelParameterVersion(context.Context, *kernel.Call, *ssmapi.UnlabelParameterVersionInput) (*ssmapi.UnlabelParameterVersionOutput, *awserr.Error) {
-	return nil, errNotImplementedYet("UnlabelParameterVersion")
+func (*Service) labelParameterVersion(_ context.Context, _ *kernel.Call, in *ssmapi.LabelParameterVersionInput) (*ssmapi.LabelParameterVersionOutput, *awserr.Error) {
+	return nil, notYet("LabelParameterVersion", in.Name)
 }
 
-func (*Service) addTagsToResource(context.Context, *kernel.Call, *ssmapi.AddTagsToResourceInput) (*ssmapi.AddTagsToResourceOutput, *awserr.Error) {
-	return nil, errNotImplementedYet("AddTagsToResource")
+func (*Service) unlabelParameterVersion(_ context.Context, _ *kernel.Call, in *ssmapi.UnlabelParameterVersionInput) (*ssmapi.UnlabelParameterVersionOutput, *awserr.Error) {
+	return nil, notYet("UnlabelParameterVersion", in.Name)
 }
 
-func (*Service) removeTagsFromResource(context.Context, *kernel.Call, *ssmapi.RemoveTagsFromResourceInput) (*ssmapi.RemoveTagsFromResourceOutput, *awserr.Error) {
-	return nil, errNotImplementedYet("RemoveTagsFromResource")
+func (*Service) addTagsToResource(_ context.Context, _ *kernel.Call, in *ssmapi.AddTagsToResourceInput) (*ssmapi.AddTagsToResourceOutput, *awserr.Error) {
+	return nil, notYet("AddTagsToResource", in.ResourceId)
+}
+
+func (*Service) removeTagsFromResource(_ context.Context, _ *kernel.Call, in *ssmapi.RemoveTagsFromResourceInput) (*ssmapi.RemoveTagsFromResourceOutput, *awserr.Error) {
+	return nil, notYet("RemoveTagsFromResource", in.ResourceId)
 }

@@ -3,7 +3,6 @@ package ssm
 import (
 	"context"
 	"slices"
-	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -81,6 +80,14 @@ func (*sealedReadError) Error() string {
 // each of which answers NotImplemented naming it.
 func (s *Service) putParameter(_ context.Context, c *kernel.Call, in *ssmapi.PutParameterInput) (*ssmapi.PutParameterOutput, *awserr.Error) {
 	const op = "PutParameter"
+	if err := checkReserved(op, in.Name); err != nil {
+		return nil, err
+	}
+	scope := c.Scope()
+	n, err := parseName(in.Name, scope)
+	if err != nil {
+		return nil, err
+	}
 	switch {
 	case in.Policies != nil:
 		return nil, errFeatureNotYet(op, "Policies")
@@ -99,10 +106,8 @@ func (s *Service) putParameter(_ context.Context, c *kernel.Call, in *ssmapi.Put
 		// (ssm-parameters.md 10.1), which is no pattern.
 		return nil, errFeatureNotYet(op, "AllowedPattern")
 	}
-	n := parseName(in.Name)
-	scope := c.Scope()
 	user := identity.Render(c.Principal())
-	_, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+	_, err = kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
 		if _, ok := st.Parameters[n.canonical]; ok {
 			if in.Overwrite != nil && *in.Overwrite {
 				return struct{}{}, errFeatureNotYet(op, "Overwrite")
@@ -128,18 +133,21 @@ func (s *Service) putParameter(_ context.Context, c *kernel.Call, in *ssmapi.Put
 	return &ssmapi.PutParameterOutput{Version: 1, Tier: new(ssmapi.ParameterTierStandard)}, nil
 }
 
-// getParameter reads a parameter's latest version by name. Not implemented
-// yet: a name given as an ARN or with a selector.
+// getParameter reads a parameter's latest version by name or ARN. Not
+// implemented yet: a version or label selector.
 func (s *Service) getParameter(_ context.Context, c *kernel.Call, in *ssmapi.GetParameterInput) (*ssmapi.GetParameterOutput, *awserr.Error) {
 	const op = "GetParameter"
-	n := parseName(in.Name)
-	switch {
-	case strings.HasPrefix(n.spelling, "arn:"):
-		return nil, errFeatureNotYet(op, "a Name given as an ARN")
-	case strings.Contains(n.spelling, ":"):
+	if err := checkReserved(op, in.Name); err != nil {
+		return nil, err
+	}
+	if hasSelector(in.Name) {
 		return nil, errFeatureNotYet(op, "a Name with a version or label selector")
 	}
 	scope := c.Scope()
+	n, err := parseNameOrARN(in.Name, scope)
+	if err != nil {
+		return nil, err
+	}
 	p, ok := s.lookup(scope, n.canonical)
 	if !ok {
 		return nil, errNotFound()
@@ -163,6 +171,14 @@ func (s *Service) getParameter(_ context.Context, c *kernel.Call, in *ssmapi.Get
 // deprecated Filters.
 func (s *Service) describeParameters(_ context.Context, c *kernel.Call, in *ssmapi.DescribeParametersInput) (*ssmapi.DescribeParametersOutput, *awserr.Error) {
 	const op = "DescribeParameters"
+	for _, f := range in.ParameterFilters {
+		if f.Key != "Name" && f.Key != "Path" {
+			continue
+		}
+		if err := checkReserved(op, f.Values...); err != nil {
+			return nil, err
+		}
+	}
 	switch {
 	case len(in.Filters) > 0:
 		return nil, errFeatureNotYet(op, "Filters")
@@ -176,7 +192,7 @@ func (s *Service) describeParameters(_ context.Context, c *kernel.Call, in *ssma
 	}
 	wanted := make([]string, 0, len(in.ParameterFilters[0].Values))
 	for _, raw := range in.ParameterFilters[0].Values {
-		wanted = append(wanted, parseName(raw).canonical)
+		wanted = append(wanted, canonicalOf(raw))
 	}
 	slices.Sort(wanted)
 	wanted = slices.Compact(wanted)
@@ -212,9 +228,15 @@ func (s *Service) describeParameters(_ context.Context, c *kernel.Call, in *ssma
 
 // deleteParameter drops a parameter with its versions, labels and tags.
 func (s *Service) deleteParameter(_ context.Context, c *kernel.Call, in *ssmapi.DeleteParameterInput) (*ssmapi.DeleteParameterOutput, *awserr.Error) {
-	n := parseName(in.Name)
+	if err := checkReserved("DeleteParameter", in.Name); err != nil {
+		return nil, err
+	}
 	scope := c.Scope()
-	_, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+	n, err := parseName(in.Name, scope)
+	if err != nil {
+		return nil, err
+	}
+	_, err = kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		if _, ok := st.Parameters[n.canonical]; !ok {
 			tx.Unchanged()
 			return struct{}{}, errNotFound()
@@ -233,11 +255,19 @@ func (s *Service) deleteParameter(_ context.Context, c *kernel.Call, in *ssmapi.
 // first set, [] when it has none. UNVERIFIED (SSM-25), ssm-parameters.md
 // 7.9: the empty list rather than an absent one.
 func (s *Service) listTagsForResource(_ context.Context, c *kernel.Call, in *ssmapi.ListTagsForResourceInput) (*ssmapi.ListTagsForResourceOutput, *awserr.Error) {
+	if err := checkReserved("ListTagsForResource", in.ResourceId); err != nil {
+		return nil, err
+	}
 	if in.ResourceType != ssmapi.ResourceTypeForTaggingParameter {
 		return nil, ssmapi.ErrInvalidResourceId()
 	}
-	n := parseName(in.ResourceId)
 	scope := c.Scope()
+	// A ResourceId that is not a valid name names no parameter
+	// (contract 0: InvalidResourceId).
+	n, err := parseName(in.ResourceId, scope)
+	if err != nil {
+		return nil, ssmapi.ErrInvalidResourceId()
+	}
 	p, ok := s.lookup(scope, n.canonical)
 	if !ok {
 		return nil, ssmapi.ErrInvalidResourceId()
