@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
+	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -354,13 +355,22 @@ func (e *SealError) Error() string {
 }
 
 // kmsFailure is how a failed KMS call reaches the Secrets Manager caller:
-// an understudy bug stays Internal; anything KMS answered becomes the
-// documented EncryptionFailure or DecryptionFailure.
+// an understudy bug stays Internal, and so does the call's own denial,
+// which Invoke returns when the call's authorization, put off until its
+// first Invoke, refuses it (kernel.AuthorizedAfterResolve); anything KMS
+// answered becomes the documented EncryptionFailure or DecryptionFailure.
 func kmsFailure(err *awserr.Error, wrap func(*awserr.Error) *awserr.Error) *awserr.Error {
-	if isInternal(err) {
+	if isInternal(err) || ownDenial(err) {
 		return err
 	}
 	return wrap(err)
+}
+
+// ownDenial reports Secrets Manager's own denial of the call, as opposed
+// to KMS refusing the call Secrets Manager made, which has KMS's identity.
+func ownDenial(err *awserr.Error) bool {
+	_, denial := err.Origin.(awserr.Denial)
+	return denial && err.ID == secretsmanagerapi.DenialError()
 }
 
 // isInternal reports an understudy bug rather than an answer KMS gave.
