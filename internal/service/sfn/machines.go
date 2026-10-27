@@ -92,10 +92,36 @@ func (s *Service) createStateMachine(ctx context.Context, c *kernel.Call, in *sf
 		Tracing:    in.TracingConfiguration != nil && in.TracingConfiguration.Enabled,
 		Tags:       tagsOf(nil, in.Tags),
 	}
-	if err := checkExecutionRole(ctx, c, roleCheck{machine: ref, role: m.RoleArn, trust: true, logging: m.Logging}); err != nil {
+	// An idempotent repeat answers the existing machine with its own role,
+	// so the role it names is not checked (stepfunctions-api.md 5.1;
+	// inferred, SFN-08). Should the machine be gone by the write, the role
+	// is checked then and the write runs again.
+	checked := false
+	if _, existing, err := s.machine(c, ref.arn().String()); err != nil || existing.Deleting || !existing.sameConfiguration(&m) {
+		if err := checkExecutionRole(ctx, c, roleCheck{machine: ref, role: m.RoleArn, trust: true, logging: m.Logging}); err != nil {
+			return nil, err
+		}
+		checked = true
+	}
+	created, unchecked, err := s.writeMachine(c, ref, m, checked)
+	if err == nil && unchecked {
+		if err := checkExecutionRole(ctx, c, roleCheck{machine: ref, role: m.RoleArn, trust: true, logging: m.Logging}); err != nil {
+			return nil, err
+		}
+		created, _, err = s.writeMachine(c, ref, m, true)
+	}
+	if err != nil {
 		return nil, err
 	}
-	created, err := kernel.Write(c, s.cells, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (clock.Instant, *awserr.Error) {
+	return &sfnapi.CreateStateMachineOutput{StateMachineArn: ref.arn().String(), CreationDate: created.Wire()}, nil
+}
+
+// writeMachine stores m under ref, or answers the creation of an existing
+// machine of the same configuration. A machine whose role was not checked
+// (checked false) is not stored: unchecked reports that, so the caller
+// checks the role and writes again.
+func (s *Service) writeMachine(c *kernel.Call, ref machineRef, m Machine, checked bool) (created clock.Instant, unchecked bool, err *awserr.Error) {
+	created, err = kernel.Write(c, s.cells, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (clock.Instant, *awserr.Error) {
 		if old, ok := st.Machines[ref.name]; ok {
 			if old.Deleting {
 				// Terraform retries a create on StateMachineDeleting
@@ -108,14 +134,16 @@ func (s *Service) createStateMachine(ctx context.Context, c *kernel.Call, in *sf
 			tx.Unchanged()
 			return old.Created, nil
 		}
+		if !checked {
+			unchecked = true
+			tx.Unchanged()
+			return clock.Instant{}, nil
+		}
 		m.Created = now
 		st.Machines[ref.name] = m
 		return now, nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	return &sfnapi.CreateStateMachineOutput{StateMachineArn: ref.arn().String(), CreationDate: created.Wire()}, nil
+	return created, unchecked, err
 }
 
 // machine reads the machine an ARN names; StateMachineDoesNotExist names

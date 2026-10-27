@@ -143,3 +143,41 @@ func TestExecutionRoleDenials(t *testing.T) {
 		})
 	}
 }
+
+// An idempotent CreateStateMachine repeat answers the existing machine and
+// keeps its role, so the handler asks nothing about the role the repeat
+// names: AWS ignores a different roleArn on a repeat (stepfunctions-api.md
+// 5.1). Whether AWS checks the repeat's role at all is unrecorded; step 8's
+// iam:PassRole on it, the caller's own question, is still asked.
+//
+// inferred, SFN-08.
+func TestSFN08IdempotentRepeatSkipsRoleChecks(t *testing.T) {
+	m := &moded{}
+	run(t, func(h *harness) {
+		arn := h.create("m", resultMachine)
+		m.take()
+		m.mu.Lock()
+		m.deny = []string{"sts:AssumeRole"}
+		m.mu.Unlock()
+		other := "arn:aws:iam::" + h.Scope.Account.String() + ":role/other"
+		out := must(h, sfnapi.OpCreateStateMachine, &sfnapi.CreateStateMachineInput{Name: "m", Definition: resultMachine, RoleArn: other})
+		if out.StateMachineArn != arn {
+			h.Fatalf("repeat answered %s, want %s", out.StateMachineArn, arn)
+		}
+		passed := false
+		for _, q := range m.take() {
+			if q.mode != nil {
+				h.Errorf("repeat asked as %#v about %+v, want only the caller's questions", q.mode, q.q)
+			}
+			for _, p := range q.q.Pairs {
+				passed = passed || p.Action.String() == "iam:PassRole"
+			}
+		}
+		if !passed {
+			h.Error("repeat never asked step 8's iam:PassRole")
+		}
+		if d := must(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: arn}); d.RoleArn != h.roleArn() {
+			h.Errorf("role after the repeat = %s, want the original %s", d.RoleArn, h.roleArn())
+		}
+	}, kerneltest.Authorizer(m))
+}
