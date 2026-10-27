@@ -114,13 +114,18 @@ func (s *Sources) resourceOf(pair kernel.Pair, account aws.AccountID) (authz.Res
 	return resource, authz.NoResourcePolicy{}, nil
 }
 
-// via maps how a call reaches its service onto the request context's
-// (contract 8.1 step 2): a forward-access call, an execution role's, a
-// delivery with its source keys, else a direct call.
-func via(m kernel.PrincipalMode) authz.Via {
-	switch m := m.(type) {
+// via maps how c reaches its service onto the request context's (contract
+// 8.1 step 2): a forward-access call with the endpoint of the service that
+// forwards it (kms:ViaService, iam-enforcement-surfaces.md 9.2), an
+// execution role's, a delivery with its source keys, else a direct call.
+func via(c *kernel.Call) authz.Via {
+	switch m := c.Mode().(type) {
 	case kernel.AsCaller:
-		return authz.ForwardAccess{}
+		forward := authz.ForwardAccess{}
+		if svc, ok := c.ForwardedBy(); ok {
+			forward.ViaService = svc.SigningName + "." + c.Scope().Region.String() + ".amazonaws.com"
+		}
+		return forward
 	case kernel.AsExecutionRole:
 		return authz.ExecutionRole{}
 	case kernel.AsService:

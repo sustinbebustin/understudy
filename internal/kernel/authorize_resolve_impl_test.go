@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
+	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
 // AuthorizedAfterResolve and WithConditionKeys beyond the blind tests in
@@ -86,6 +87,46 @@ func TestTheLastAuthorizationOptionApplies(t *testing.T) {
 					k.Errorf("asked about the primary action %+v, want it left to the handler (AuthorizedInHandler applies)", p)
 				}
 			}
+		}
+	})
+}
+
+// A forward-access call knows the service whose call made it, which
+// kms:ViaService names; a delivery and an external call know none.
+func TestForwardedByNamesTheForwardingService(t *testing.T) {
+	g := newGuard(guardDenial())
+	runGuard(t, g, nil, func(k *kerneltest.K) {
+		type seen struct {
+			name string
+			ok   bool
+		}
+		var got []seen
+		bindGuard(k, g.probe, func(_ context.Context, c *kernel.Call, _ *guardInput) (*guardOutput, *awserr.Error) {
+			svc, ok := c.ForwardedBy()
+			name := ""
+			if ok {
+				name = string(svc.ID)
+			}
+			got = append(got, seen{name, ok})
+			return &guardOutput{}, nil
+		})
+		bindGuard(k, g.run, func(ctx context.Context, c *kernel.Call, _ *guardInput) (*guardOutput, *awserr.Error) {
+			if _, ok := c.ForwardedBy(); ok {
+				k.Error("an external call names a forwarding service")
+			}
+			for _, as := range []kernel.PrincipalMode{kernel.AsCaller{}, kernel.AsService{Name: "guard.amazonaws.com", Source: guardThing1}} {
+				if _, err := kernel.Invoke(ctx, k.Kernel, c, g.probe, kernel.Target{Scope: c.Scope(), As: as, Via: ref.KMSForward}, &guardInput{}); err != nil {
+					return nil, err
+				}
+			}
+			return &guardOutput{}, nil
+		})
+		if _, err := k.Invoke(k.Context(), g.run, &guardInput{}); err != nil {
+			k.Fatalf("call = %s", err.Message)
+		}
+		want := []seen{{"guard", true}, {"", false}}
+		if !reflect.DeepEqual(got, want) {
+			k.Errorf("ForwardedBy of the AsCaller and AsService calls = %+v, want %+v", got, want)
 		}
 	})
 }

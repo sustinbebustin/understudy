@@ -22,7 +22,13 @@ type Via interface{ isVia() }
 type Direct struct{}
 
 // ForwardAccess is an internal call made as the caller (kernel.AsCaller).
-type ForwardAccess struct{}
+type ForwardAccess struct {
+	// ViaService is the endpoint of the service that makes the call,
+	// <service>.<region>.amazonaws.com, which kms:ViaService carries
+	// (iam-enforcement-surfaces.md 9.2); "" when it is not known, which
+	// leaves kms:ViaService Unsupplied.
+	ViaService string
+}
 
 // ExecutionRole is an internal call made as a function's execution role.
 type ExecutionRole struct{}
@@ -231,14 +237,20 @@ func viaKeys(c *policydoc.Context, via Via) {
 // kmsKeys sets the KMS keys understudy knows for a kms action
 // (iam-enforcement-surfaces.md 9.2): kms:CallerAccount for a root, user or
 // session, and kms:ViaService, which AWS sends only for a call a service
-// makes for the caller and understudy cannot name.
+// makes for the caller: the forwarding service's endpoint, Unsupplied when
+// the call does not name it.
 func kmsKeys(c *policydoc.Context, in ContextInput) {
 	if account, ok := identity.AccountOf(in.Principal); ok {
 		c.Set("kms:CallerAccount", account.String())
 	}
-	if _, forward := in.Via.(ForwardAccess); forward {
-		c.Unsupplied("kms:ViaService")
-	} else {
+	switch v := in.Via.(type) {
+	case ForwardAccess:
+		if v.ViaService == "" {
+			c.Unsupplied("kms:ViaService")
+			return
+		}
+		c.Set("kms:ViaService", v.ViaService)
+	case Direct, ExecutionRole, Delivery, nil:
 		c.Absent("kms:ViaService")
 	}
 }

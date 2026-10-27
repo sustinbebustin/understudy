@@ -38,8 +38,11 @@ type Call struct {
 	// mode is how an internal call is authorized; nil for external and
 	// timer calls.
 	mode PrincipalMode
-	op   *registry.Operation // nil only for an operation the service does not model
-	opID ref.OperationID
+	// forwarder is the service of the call that made this forward-access
+	// call (AsCaller); nil for every other call.
+	forwarder *registry.Service
+	op        *registry.Operation // nil only for an operation the service does not model
+	opID      ref.OperationID
 	// label names the call in diagnostics: its operation, or the timer kind
 	// of a timer callback.
 	label string
@@ -107,6 +110,11 @@ func (c *Call) Origin() ref.Origin { return c.origin }
 // Mode returns how an internal call is authorized (Target.As); nil for
 // external and timer calls.
 func (c *Call) Mode() PrincipalMode { return c.mode }
+
+// ForwardedBy returns the service whose call made this forward-access call
+// (AsCaller), as kms:ViaService names it, and false for every other call
+// and for one a timer callback made.
+func (c *Call) ForwardedBy() (*registry.Service, bool) { return c.forwarder, c.forwarder != nil }
 
 // Op returns the operation's descriptor. It is nil only for a request that
 // names an operation its service does not model, which never reaches a

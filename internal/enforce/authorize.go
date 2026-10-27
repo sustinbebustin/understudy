@@ -27,7 +27,7 @@ func (a *Authorizer) Authorize(ctx context.Context, c *kernel.Call, q kernel.Aut
 	}
 	principal := c.Principal()
 	ids, idErr := s.identity(principal)
-	base := authz.ContextInput{Now: c.Admitted(), Region: callRegion(c), Via: via(c.Mode()), Keys: q.Keys}
+	base := authz.ContextInput{Now: c.Admitted(), Region: callRegion(c), Via: via(c), Keys: q.Keys}
 	base.UserAgent, _ = c.Header("User-Agent")
 	base.Referer, _ = c.Header("Referer")
 	for _, pair := range q.Pairs {

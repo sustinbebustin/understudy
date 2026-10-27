@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // Target says where and as whom an internal call runs.
@@ -155,7 +156,12 @@ func (k *Kernel) internalCall(parent *Call, id ref.OperationID, t Target) *Call 
 	if cause == (ref.Cause{}) {
 		cause = ref.Cause{Parent: parent.event, Trace: parent.cause.Trace}
 	}
+	var forwarder *registry.Service
+	if _, forward := t.As.(AsCaller); forward && parent.op != nil {
+		forwarder = parent.op.Service
+	}
 	return &Call{
+		forwarder: forwarder,
 		k:         k,
 		id:        k.ids.RequestID(),
 		scope:     t.Scope,
