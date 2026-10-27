@@ -66,7 +66,7 @@ func TestLambdaLayerLifecycle(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
-	layerName := name("layer")
+	layerName := name(t, "layer")
 	archive := greetLayer(t)
 	first := publishLayer(t, client, layerName, archive)
 	layerArn := "arn:aws:lambda:" + region() + ":" + account(t) + ":layer:" + layerName
@@ -140,7 +140,7 @@ func TestLambdaLayerPermissions(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
-	layerName := name("layer-policy")
+	layerName := name(t, "layer-policy")
 	version := aws.ToString(publishLayer(t, client, layerName, greetLayer(t)).LayerVersionArn)
 	acct := account(t)
 
@@ -193,10 +193,10 @@ func TestLambdaFunctionWithALayer(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
-	layerName := name("greet")
+	layerName := name(t, "greet")
 	archive := greetLayer(t)
 	layer := publishLayer(t, client, layerName, archive)
-	fnName := name("layered")
+	fnName := name(t, "layered")
 	role := createRole(t, fnName+"-role", lambdaTrustPolicy)
 	created, err := client.CreateFunction(ctx, &lambda.CreateFunctionInput{
 		FunctionName: aws.String(fnName), Role: role.Arn, Runtime: types.RuntimePython313, Handler: aws.String("handler.handler"), Timeout: aws.Int32(5),
@@ -274,12 +274,12 @@ func TestLambdaEventInvokeDestinations(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
-	successURL := createQueue(t, name("on-success"), nil)
-	failureURL := createQueue(t, name("on-failure"), nil)
-	echo := deployFunction(t, name("dest-echo"), "handler.echo", nil)
-	failing := deployFunction(t, name("dest-fail"), "handler.fail", nil)
+	successURL := createQueue(t, name(t, "on-success"), nil)
+	failureURL := createQueue(t, name(t, "on-failure"), nil)
+	echo := deployFunction(t, name(t, "dest-echo"), "handler.echo", nil)
+	failing := deployFunction(t, name(t, "dest-fail"), "handler.fail", nil)
 
-	missing := "arn:aws:lambda:" + region() + ":" + account(t) + ":function:" + name("doesnotexist")
+	missing := "arn:aws:lambda:" + region() + ":" + account(t) + ":function:" + name(t, "doesnotexist")
 	_, err := client.PutFunctionEventInvokeConfig(ctx, &lambda.PutFunctionEventInvokeConfigInput{
 		FunctionName: echo.FunctionName, DestinationConfig: &types.DestinationConfig{OnSuccess: &types.OnSuccess{Destination: aws.String(missing)}},
 	})

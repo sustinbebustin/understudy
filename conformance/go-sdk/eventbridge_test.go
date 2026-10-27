@@ -539,7 +539,7 @@ func TestEventBridgeCustomBus(t *testing.T) {
 	busARN := func(n string) string { return "arn:aws:events:" + region() + ":" + acct + ":event-bus/" + n }
 
 	t.Run("lifecycle", func(t *testing.T) {
-		bus := name("bus")
+		bus := name(t, "bus")
 		// CreateEventBus answers the ARN and echoes Description
 		// (eventbridge-buses.md 3.1, third-party-recorded).
 		out := createBus(t, &eventbridge.CreateEventBusInput{
@@ -574,7 +574,7 @@ func TestEventBridgeCustomBus(t *testing.T) {
 		_, err = client.DeleteEventBus(ctx, &eventbridge.DeleteEventBusInput{Name: aws.String("default")})
 		apiErr(t, err, "DeleteEventBus default", "ValidationException")
 		wantMessage(t, err, "DeleteEventBus default", "Cannot delete event bus default.")
-		_, err = client.DeleteEventBus(ctx, &eventbridge.DeleteEventBusInput{Name: aws.String(name("never-created"))})
+		_, err = client.DeleteEventBus(ctx, &eventbridge.DeleteEventBusInput{Name: aws.String(name(t, "never-created"))})
 		ok(t, err, "DeleteEventBus of a missing bus (200)")
 
 		_, err = client.UpdateEventBus(ctx, &eventbridge.UpdateEventBusInput{Name: aws.String(bus), Description: aws.String("")})
@@ -590,12 +590,12 @@ func TestEventBridgeCustomBus(t *testing.T) {
 	})
 
 	t.Run("rules and PutEvents", func(t *testing.T) {
-		bus := name("bus")
+		bus := name(t, "bus")
 		createBus(t, &eventbridge.CreateEventBusInput{Name: aws.String(bus)})
-		source := "conformance." + name("app")
-		onBus := createQueue(t, name("eb-on-bus"), nil)
-		onDefault := createQueue(t, name("eb-on-default"), nil)
-		rule := name("r")
+		source := "conformance." + name(t, "app")
+		onBus := createQueue(t, name(t, "eb-on-bus"), nil)
+		onDefault := createQueue(t, name(t, "eb-on-default"), nil)
+		rule := name(t, "r")
 		// A custom-bus rule's ARN names the bus (eventbridge-buses.md 5.2).
 		ruleArn := putBusRule(t, bus, rule, `{"source":["`+source+`"]}`, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, onBus))})
 		if want := "arn:aws:events:" + region() + ":" + acct + ":rule/" + bus + "/" + rule; ruleArn != want {
@@ -610,7 +610,7 @@ func TestEventBridgeCustomBus(t *testing.T) {
 		}
 		// A schedule on a custom bus is refused (eventbridge-buses.md 5.3,
 		// testdata/parity/events/R14/04-custom-bus-schedule.json).
-		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name("timer")), EventBusName: aws.String(bus), ScheduleExpression: aws.String("rate(5 minutes)")})
+		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name(t, "timer")), EventBusName: aws.String(bus), ScheduleExpression: aws.String("rate(5 minutes)")})
 		apiErr(t, err, "PutRule with a schedule on a custom bus", "ValidationException")
 		wantMessage(t, err, "PutRule with a schedule on a custom bus", "ScheduleExpression is supported only on the default event bus.")
 
@@ -634,20 +634,20 @@ func TestEventBridgeCustomBus(t *testing.T) {
 	})
 
 	t.Run("bus target", func(t *testing.T) {
-		first, second, third := name("bus"), name("bus"), name("bus")
+		first, second, third := name(t, "bus"), name(t, "bus"), name(t, "bus")
 		createBus(t, &eventbridge.CreateEventBusInput{Name: aws.String(first)})
 		createBus(t, &eventbridge.CreateEventBusInput{Name: aws.String(second)})
 		createBus(t, &eventbridge.CreateEventBusInput{Name: aws.String(third)})
-		source := "conformance." + name("app")
+		source := "conformance." + name(t, "app")
 		pattern := `{"source":["` + source + `"]}`
-		reached := createQueue(t, name("eb-second"), nil)
-		beyond := createQueue(t, name("eb-third"), nil)
+		reached := createQueue(t, name(t, "eb-second"), nil)
+		beyond := createQueue(t, name(t, "eb-third"), nil)
 		role := aws.String("arn:aws:iam::" + acct + ":role/conformance-events")
-		putBusRule(t, first, name("fwd"), pattern, types.Target{Id: aws.String("bus"), Arn: aws.String(busARN(second)), RoleArn: role})
-		putBusRule(t, second, name("in"), pattern,
+		putBusRule(t, first, name(t, "fwd"), pattern, types.Target{Id: aws.String("bus"), Arn: aws.String(busARN(second)), RoleArn: role})
+		putBusRule(t, second, name(t, "in"), pattern,
 			types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, reached))},
 			types.Target{Id: aws.String("onward"), Arn: aws.String(busARN(third)), RoleArn: role})
-		putBusRule(t, third, name("last"), pattern, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, beyond))})
+		putBusRule(t, third, name(t, "last"), pattern, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, beyond))})
 
 		_, err := client.PutEvents(ctx, &eventbridge.PutEventsInput{Entries: []types.PutEventsRequestEntry{
 			{Source: aws.String(source), DetailType: aws.String("Order Placed"), Detail: aws.String(`{"n":1}`), EventBusName: aws.String(first)},
@@ -674,7 +674,7 @@ func TestEventBridgeCustomBus(t *testing.T) {
 	})
 
 	t.Run("bus policy", func(t *testing.T) {
-		bus := name("bus")
+		bus := name(t, "bus")
 		createBus(t, &eventbridge.CreateEventBusInput{Name: aws.String(bus)})
 		for sid, principal := range map[string]string{"s1": "111111111111", "s2": "*"} {
 			_, err := client.PutPermission(ctx, &eventbridge.PutPermissionInput{

@@ -101,7 +101,7 @@ func TestSNSHTTPSubscription(t *testing.T) {
 	ctx := t.Context()
 	client := sns.NewFromConfig(awsCfg)
 	rcv := newHookReceiver(t)
-	topic := createTopic(t, name("hooks"), nil)
+	topic := createTopic(t, name(t, "hooks"), nil)
 	sub, err := client.Subscribe(ctx, &sns.SubscribeInput{
 		TopicArn: aws.String(topic), Protocol: aws.String("http"), Endpoint: aws.String(rcv.URL + "/hook"), ReturnSubscriptionArn: true,
 	})

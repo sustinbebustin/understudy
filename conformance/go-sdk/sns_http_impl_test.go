@@ -22,7 +22,7 @@ func TestSNSHTTPConfirmByTokenThenRawDelivery(t *testing.T) {
 	ctx := t.Context()
 	client := sns.NewFromConfig(awsCfg)
 	rcv := newHookReceiver(t)
-	topic := createTopic(t, name("hooks-raw"), nil)
+	topic := createTopic(t, name(t, "hooks-raw"), nil)
 	sub, err := client.Subscribe(ctx, &sns.SubscribeInput{
 		TopicArn: aws.String(topic), Protocol: aws.String("http"), Endpoint: aws.String(rcv.URL + "/raw"), ReturnSubscriptionArn: true,
 	})

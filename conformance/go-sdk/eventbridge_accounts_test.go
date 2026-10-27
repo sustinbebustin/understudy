@@ -34,15 +34,15 @@ func senderConfig() aws.Config {
 // matches pattern to a new queue. It returns the bus ARN and the queue URL.
 func receivingBus(t *testing.T, pattern string) (busARN, queueURL string) {
 	t.Helper()
-	bus := name("receiver")
+	bus := name(t, "receiver")
 	out := createBus(t, &eventbridge.CreateEventBusInput{Name: aws.String(bus)})
 	_, err := eventbridge.NewFromConfig(awsCfg).PutPermission(t.Context(), &eventbridge.PutPermissionInput{
 		EventBusName: aws.String(bus), StatementId: aws.String("sender"),
 		Action: aws.String("events:PutEvents"), Principal: aws.String(senderAccount),
 	})
 	ok(t, err, "PutPermission for the sender account")
-	queueURL = createQueue(t, name("eb-receiver"), nil)
-	putBusRule(t, bus, name("in"), pattern, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, queueURL))})
+	queueURL = createQueue(t, name(t, "eb-receiver"), nil)
+	putBusRule(t, bus, name(t, "in"), pattern, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, queueURL))})
 	return aws.ToString(out.EventBusArn), queueURL
 }
 
@@ -67,7 +67,7 @@ func TestEventBridgeAcrossAccounts(t *testing.T) {
 	sender := eventbridge.NewFromConfig(senderConfig())
 
 	t.Run("PutEvents to another account's bus", func(t *testing.T) {
-		source := "conformance." + name("app")
+		source := "conformance." + name(t, "app")
 		busARN, queue := receivingBus(t, `{"source":["`+source+`"]}`)
 		out, err := sender.PutEvents(ctx, &eventbridge.PutEventsInput{Entries: []types.PutEventsRequestEntry{
 			{Source: aws.String(source), DetailType: aws.String("Order Placed"), Detail: aws.String(`{"n":1}`), EventBusName: aws.String(busARN)},
@@ -86,11 +86,11 @@ func TestEventBridgeAcrossAccounts(t *testing.T) {
 	})
 
 	t.Run("event bus target in another account", func(t *testing.T) {
-		source := "conformance." + name("app")
+		source := "conformance." + name(t, "app")
 		pattern := `{"source":["` + source + `"]}`
 		busARN, queue := receivingBus(t, pattern)
 
-		bus, rule := name("sender"), name("fwd")
+		bus, rule := name(t, "sender"), name(t, "fwd")
 		_, err := sender.CreateEventBus(ctx, &eventbridge.CreateEventBusInput{Name: aws.String(bus)})
 		ok(t, err, "CreateEventBus in the sender account")
 		t.Cleanup(func() {
