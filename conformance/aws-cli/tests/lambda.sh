@@ -1190,3 +1190,97 @@ test_async_failure_reaches_the_on_failure_queue() {
   assert_jq '.responseContext.functionError' 'Unhandled'
   assert_jq '.responsePayload.errorMessage' 'Handler fails'
 }
+
+# Event source mappings (DynamoDB streams)
+# Arbiter: docs/research/lambda-stream-sources.md (sections 3 and 12) and
+# docs/research/dynamodb-streams.md 7.8.
+
+# new_stream_table: create a table keyed by the string id with a NEW_IMAGE
+# stream; sets TABLE and STREAM_ARN.
+new_stream_table() {
+  require_service dynamodb
+  TABLE=$(new_name lambda-esm-t)
+  aws_ok dynamodb create-table --table-name "$TABLE" \
+    --attribute-definitions AttributeName=id,AttributeType=S \
+    --key-schema AttributeName=id,KeyType=HASH --billing-mode PAY_PER_REQUEST \
+    --stream-specification StreamEnabled=true,StreamViewType=NEW_IMAGE
+  STREAM_ARN=$(jqv '.TableDescription.LatestStreamArn')
+}
+
+test_stream_mapping_requires_starting_position() {
+  # lambda-stream-sources.md 3.3 row 1 (third-party-recorded LS-API:L12333-L12343).
+  new_fn
+  new_stream_table
+  aws_error InvalidParameterValueException 400 lambda create-event-source-mapping --function-name "$FN" --event-source-arn "$STREAM_ARN"
+  aws_error_message_contains "1 validation error detected: Value null at 'startingPosition' failed to satisfy constraint: Member must not be null."
+}
+
+test_stream_mapping_stream_not_found() {
+  # lambda-stream-sources.md 3.3 row 4 (third-party-recorded LS-D:L4478-L4494).
+  new_fn
+  new_stream_table
+  local missing=${STREAM_ARN/\/stream\//x\/stream\/}
+  aws_error InvalidParameterValueException 400 lambda create-event-source-mapping --function-name "$FN" \
+    --event-source-arn "$missing" --starting-position TRIM_HORIZON
+  aws_error_message_contains "Stream not found: ${missing}"
+}
+
+test_stream_mapping_create_response() {
+  # lambda-stream-sources.md 3.5 (third-party-recorded LS-D:L246-L271).
+  new_fn
+  new_stream_table
+  aws_ok lambda create-event-source-mapping --function-name "$FN" --event-source-arn "$STREAM_ARN" --starting-position TRIM_HORIZON
+  assert_eq 202 "$AWS_STATUS" 'CreateEventSourceMapping status'
+  assert_jq '.BatchSize' '100'
+  assert_jq '.BisectBatchOnFunctionError' 'false'
+  assert_jq_true '.DestinationConfig == {"OnFailure":{}}'
+  assert_jq_true '.FunctionResponseTypes == []'
+  assert_jq '.LastProcessingResult' 'No records processed'
+  assert_jq '.MaximumBatchingWindowInSeconds' '0'
+  assert_jq '.MaximumRecordAgeInSeconds' '-1'
+  assert_jq '.MaximumRetryAttempts' '-1'
+  assert_jq '.ParallelizationFactor' '1'
+  assert_jq '.StartingPosition' 'TRIM_HORIZON'
+  assert_jq '.State' 'Creating'
+  assert_jq '.StateTransitionReason' 'User action'
+  assert_jq '.TumblingWindowInSeconds' '0'
+  assert_jq '.EventSourceArn' "$STREAM_ARN"
+  assert_jq_true 'has("ScalingConfig") or has("FilterCriteria") or has("Queues") | not'
+}
+
+test_stream_mapping_duplicate() {
+  # lambda-stream-sources.md 3.3 row 5 (third-party-recorded LS-D:L557-L568).
+  new_fn
+  new_stream_table
+  aws_ok lambda create-event-source-mapping --function-name "$FN" --event-source-arn "$STREAM_ARN" --starting-position LATEST
+  local uuid
+  uuid=$(jqv '.UUID')
+  aws_error ResourceConflictException 409 lambda create-event-source-mapping --function-name "$FN" --event-source-arn "$STREAM_ARN" --starting-position LATEST
+  aws_error_message_contains "The event source arn (\" ${STREAM_ARN} \") and function (\" ${FN} \") provided mapping already exists. Please update or delete the existing mapping with UUID ${uuid}"
+}
+
+test_stream_mapping_delivers_a_write() {
+  require_docker
+  new_fn
+  wait_active "$FN"
+  new_stream_table
+  aws_ok lambda create-event-source-mapping --function-name "$FN" --event-source-arn "$STREAM_ARN" --starting-position TRIM_HORIZON
+  aws_ok dynamodb put-item --table-name "$TABLE" --item '{"id":{"S":"stream-marker-5d21"}}'
+  wait_logs "/aws/lambda/$FN" stream-marker-5d21 120
+  aws_ok logs filter-log-events --log-group-name "/aws/lambda/$FN" --filter-pattern '"stream-marker-5d21"'
+  local record
+  record=$(jqv '[.events[].message | select(startswith("conformance-log-line"))][0] | ltrimstr("conformance-log-line ")')
+  AWS_OUT=$record
+  # dynamodb-streams.md 7.8: the Lambda form adds eventSourceARN; eventVersion
+  # 1.1 (ESM-SNAP:L73); ApproximateCreationDateTime has 10 integral digits
+  # (ESM-TEST:L190).
+  assert_jq '.Records | length' '1'
+  assert_jq '.Records[0].eventName' 'INSERT'
+  assert_jq '.Records[0].eventSource' 'aws:dynamodb'
+  assert_jq '.Records[0].eventVersion' '1.1'
+  assert_jq '.Records[0].eventSourceARN' "$STREAM_ARN"
+  assert_jq '.Records[0].awsRegion' "$AWS_REGION"
+  assert_jq '.Records[0].dynamodb.Keys.id.S' 'stream-marker-5d21'
+  assert_jq '.Records[0].dynamodb.StreamViewType' 'NEW_IMAGE'
+  assert_jq '.Records[0].dynamodb.ApproximateCreationDateTime | floor | tostring | length' '10'
+}
