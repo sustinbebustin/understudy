@@ -48,7 +48,7 @@ func (s *Service) createRoute(_ context.Context, c *kernel.Call, in *apigatewayv
 		}
 		integration = id
 	}
-	r, err := updateAPI(s, c, in.ApiId, func(a *API, now clock.Instant) (Route, *awserr.Error) {
+	r, err := writeAPI(s, c, in.ApiId, func(a *API, now clock.Instant) (Route, *awserr.Error) {
 		if slices.ContainsFunc(a.Routes, func(r Route) bool { return r.Key == in.RouteKey }) {
 			return Route{}, errConflict("the API already has a route with route key %q", in.RouteKey)
 		}

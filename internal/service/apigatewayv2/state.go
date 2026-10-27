@@ -16,6 +16,8 @@ import (
 type State struct {
 	// APIs are by API id.
 	APIs map[string]API `json:"apis"`
+	// NextSeq is the Seq the next API created in the scope gets.
+	NextSeq uint64 `json:"nextSeq"`
 }
 
 func newState(aws.Scope) State { return State{APIs: map[string]API{}} }
@@ -33,15 +35,50 @@ func stateCodec() store.Codec {
 }
 
 // API is one HTTP API. Its routes, integrations, stages and deployments are
-// in creation order.
+// in creation order. A pointer member is optional, absent when nil; no
+// write changes what one points at. Optional members are omitzero, not
+// omitempty, which would drop a set "" (encoding/json/v2 omits a field
+// whose JSON is empty).
 type API struct {
-	ID           string        `json:"id"`
-	Name         string        `json:"name"`
-	Created      clock.Instant `json:"created"`
-	Routes       []Route       `json:"routes"`
-	Integrations []Integration `json:"integrations"`
-	Stages       []Stage       `json:"stages"`
-	Deployments  []Deployment  `json:"deployments"`
+	ID string `json:"id"`
+	// Seq orders the scope's APIs by creation, as GetApis lists them.
+	Seq         uint64  `json:"seq"`
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitzero"`
+	Version     *string `json:"version,omitzero"`
+	// RouteSelectionExpression and APIKeySelectionExpression are as sent,
+	// or the defaults (apigateway-http.md 3.1, 12 item 5).
+	RouteSelectionExpression  string `json:"routeSelectionExpression"`
+	APIKeySelectionExpression string `json:"apiKeySelectionExpression"`
+	// CORS is the CORS configuration as sent. understudy does not apply
+	// it: a data-plane request with an Origin header answers 501.
+	CORS *CORS `json:"cors,omitzero"`
+	// DisableExecuteAPIEndpoint turns the default endpoint off, from the
+	// call that sets it.
+	DisableExecuteAPIEndpoint bool `json:"disableExecuteApiEndpoint"`
+	// DisableSchemaValidation is stored and returned; it concerns models,
+	// which HTTP APIs do not validate (WebSocket only).
+	DisableSchemaValidation *bool `json:"disableSchemaValidation,omitzero"`
+	// IPAddressType is stored without effect: ipv4 or dualstack.
+	IPAddressType string            `json:"ipAddressType"`
+	Tags          map[string]string `json:"tags,omitempty"`
+	Created       clock.Instant     `json:"created"`
+	Routes        []Route           `json:"routes"`
+	Integrations  []Integration     `json:"integrations"`
+	Stages        []Stage           `json:"stages"`
+	Deployments   []Deployment      `json:"deployments"`
+}
+
+// CORS is an API's CORS configuration, kept as sent: a nil list was not
+// sent, an empty one was sent empty (apigateway-http.md 3.7). omitzero
+// keeps the difference: encoding/json/v2 writes a nil slice as [].
+type CORS struct {
+	AllowCredentials *bool    `json:"allowCredentials,omitzero"`
+	AllowHeaders     []string `json:"allowHeaders,omitzero"`
+	AllowMethods     []string `json:"allowMethods,omitzero"`
+	AllowOrigins     []string `json:"allowOrigins,omitzero"`
+	ExposeHeaders    []string `json:"exposeHeaders,omitzero"`
+	MaxAge           *int32   `json:"maxAge,omitzero"`
 }
 
 // Route is one route of an API.
@@ -74,7 +111,8 @@ type Stage struct {
 	// before its first.
 	Deployment string `json:"deployment,omitempty"`
 	// LastDeploymentStatusMessage is set by an automatic deployment.
-	LastDeploymentStatusMessage string `json:"lastDeploymentStatusMessage,omitempty"`
+	LastDeploymentStatusMessage string            `json:"lastDeploymentStatusMessage,omitempty"`
+	Tags                        map[string]string `json:"tags,omitempty"`
 }
 
 // Deployment is a snapshot of an API's routes and integrations at its

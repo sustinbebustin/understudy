@@ -177,7 +177,6 @@ func TestTracerRefusesWhatItDoesNotStore(t *testing.T) {
 		fnARN := h.createFunction("fn")
 		ws := apigatewayv2api.ProtocolTypeWebsocket
 		wantNotImplemented(t, fail(h, apigatewayv2api.OpCreateApi, &apigatewayv2api.CreateApiInput{Name: "w", ProtocolType: ws}), "WEBSOCKET")
-		wantNotImplemented(t, fail(h, apigatewayv2api.OpCreateApi, &apigatewayv2api.CreateApiInput{Name: "d", ProtocolType: apigatewayv2api.ProtocolTypeHttp, Description: new("x")}), "description")
 		wantNotImplemented(t, fail(h, apigatewayv2api.OpCreateRoute, &apigatewayv2api.CreateRouteInput{ApiId: id, RouteKey: "GET /pets/{id}"}), "path variables")
 		jwt := apigatewayv2api.AuthorizationTypeJwt
 		wantNotImplemented(t, fail(h, apigatewayv2api.OpCreateRoute, &apigatewayv2api.CreateRouteInput{ApiId: id, RouteKey: "GET /a", AuthorizationType: &jwt}), "JWT")

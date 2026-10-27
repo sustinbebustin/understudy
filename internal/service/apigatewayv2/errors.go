@@ -23,6 +23,10 @@ func errBadRequest(format string, args ...any) *awserr.Error {
 	return apigatewayv2api.ErrBadRequestException(fmt.Sprintf(format, args...))
 }
 
+func errNotFound(format string, args ...any) *awserr.Error {
+	return apigatewayv2api.ErrNotFoundException(fmt.Sprintf(format, args...))
+}
+
 func errConflict(format string, args ...any) *awserr.Error {
 	return apigatewayv2api.ErrConflictException(fmt.Sprintf(format, args...))
 }

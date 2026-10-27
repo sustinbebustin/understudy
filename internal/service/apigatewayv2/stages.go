@@ -2,6 +2,7 @@ package apigatewayv2
 
 import (
 	"context"
+	"maps"
 	"regexp"
 	"slices"
 
@@ -31,19 +32,21 @@ func (s *Service) createStage(_ context.Context, c *kernel.Call, in *apigatewayv
 		member{"description", in.Description != nil},
 		member{"routeSettings", in.RouteSettings != nil},
 		member{"stageVariables", in.StageVariables != nil},
-		member{"tags", in.Tags != nil},
 	); err != nil {
 		return nil, err
 	}
 	if in.StageName != defaultStage && !stageName.MatchString(in.StageName) {
 		return nil, errBadRequest("stageName %q is not $default or 1 to 128 letters, digits, '-' and '_'", in.StageName)
 	}
+	if err := checkTags(in.Tags); err != nil {
+		return nil, err
+	}
 	auto := in.AutoDeploy != nil && *in.AutoDeploy
-	st, err := updateAPI(s, c, in.ApiId, func(a *API, now clock.Instant) (Stage, *awserr.Error) {
+	st, err := writeAPI(s, c, in.ApiId, func(a *API, now clock.Instant) (Stage, *awserr.Error) {
 		if _, ok := a.stage(in.StageName); ok {
 			return Stage{}, errConflict("the API already has a stage named %q", in.StageName)
 		}
-		a.Stages = append(slices.Clone(a.Stages), Stage{Name: in.StageName, AutoDeploy: auto, Created: now, Updated: now})
+		a.Stages = append(slices.Clone(a.Stages), Stage{Name: in.StageName, AutoDeploy: auto, Created: now, Updated: now, Tags: maps.Clone(in.Tags)})
 		if auto {
 			a.deployTo(len(a.Stages)-1, now, s.deploymentID)
 		}
@@ -55,6 +58,7 @@ func (s *Service) createStage(_ context.Context, c *kernel.Call, in *apigatewayv
 	out := &apigatewayv2api.CreateStageOutput{
 		StageName: new(st.Name), AutoDeploy: new(st.AutoDeploy),
 		CreatedDate: new(st.Created.Wire()), LastUpdatedDate: new(st.Updated.Wire()),
+		Tags: tagsOut(st.Tags),
 	}
 	if st.Deployment != "" {
 		out.DeploymentId = new(st.Deployment)

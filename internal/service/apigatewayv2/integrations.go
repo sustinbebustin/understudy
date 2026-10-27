@@ -29,7 +29,7 @@ func (s *Service) createIntegration(_ context.Context, c *kernel.Call, in *apiga
 	if err := checkIntegration(in); err != nil {
 		return nil, err
 	}
-	i, err := updateAPI(s, c, in.ApiId, func(a *API, now clock.Instant) (Integration, *awserr.Error) {
+	i, err := writeAPI(s, c, in.ApiId, func(a *API, now clock.Instant) (Integration, *awserr.Error) {
 		i := Integration{ID: s.newChildID(a, s.integrationID), URI: *in.IntegrationUri, PayloadFormatVersion: *in.PayloadFormatVersion}
 		a.Integrations = append(slices.Clone(a.Integrations), i)
 		a.autoDeploy(now, s.deploymentID)

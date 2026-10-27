@@ -9,6 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -53,18 +54,21 @@ const baseNote = "error message texts and generated ids are inferred (UNVERIFIED
 // Coverage notes of the operations bound so far: what each leaves out of
 // the documented behavior.
 const (
-	createAPINote = "only name and protocolType HTTP are accepted, and the output omits ApiEndpoint and the documented defaults; " +
-		"every other member, and protocolType WEBSOCKET, answers NotImplemented"
+	apiNote = "HTTP APIs only: protocolType WEBSOCKET and quick create (Target, RouteKey, CredentialsArn) answer NotImplemented; " +
+		"corsConfiguration is stored and returned, and a data-plane request with an Origin header to an API that has one answers 501 (CORS is not applied); " +
+		"ipAddressType is stored without effect; " +
+		"ApiEndpoint names the emulator (http://<api-id>.execute-api.<region>.localhost:<port>), not amazonaws.com"
 	createRouteNote = "only $default and literal route keys with authorizationType NONE and an optional target are accepted; " +
 		"route keys with path variables and every other member answer NotImplemented; " +
 		"a change deploys to the autoDeploy stages before the call returns (UNVERIFIED delay, APIGW2-04)"
 	createIntegrationNote = "only Lambda AWS_PROXY with payloadFormatVersion 2.0 and a function ARN or invoke URI is accepted, and the output omits the documented defaults; " +
 		"HTTP_PROXY, payload format 1.0, a stage variable in the URI and every other member answer NotImplemented; " +
 		"a change deploys to the autoDeploy stages before the call returns (UNVERIFIED delay, APIGW2-04)"
-	createStageNote = "only stageName and autoDeploy are accepted, and the output omits the documented defaults; " +
+	createStageNote = "only stageName, autoDeploy and tags are accepted, and the output omits the documented defaults; " +
 		"every other member answers NotImplemented; an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04)"
 	invokeAPINote = "Lambda AWS_PROXY with payload format 2.0 through the path fallback /_understudy/execute-api/<api-id>/ only " +
 		"(the execute-api host answers 501); stage and literal route selection as documented; " +
+		"CORS requests (an Origin header to an API with a corsConfiguration) answer 501; " +
 		"the integration timeout is not applied; " +
 		"inferred, UNVERIFIED: the gateway's own answers and their status (APIGW2-05, APIGW2-06, APIGW2-10, APIGW2-11), " +
 		"the 2.0 isBase64Encoded of a bodyless request and default Content-Type (APIGW2-07, APIGW2-09)"
@@ -86,8 +90,25 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		index:    apiIndex{scopes: map[string]aws.Scope{}},
 	}
 	b := apigatewayv2api.NewBinder(d.Binder)
-	b.CreateApi(s.createAPI, partial(createAPINote),
+	b.CreateApi(s.createAPI, partial(apiNote), kernel.WithCheck(checkCreateAPI),
 		kernel.WithResources(apisCollection[apigatewayv2api.CreateApiInput]))
+	b.GetApis(s.getAPIs, registry.Partial{Note: baseNote},
+		kernel.WithResources(apisCollection[apigatewayv2api.GetApisInput]))
+	b.GetApi(s.getAPI, registry.Partial{Note: baseNote},
+		kernel.WithResources(apiItem(func(in *apigatewayv2api.GetApiInput) string { return in.ApiId })))
+	b.UpdateApi(s.updateAPI, partial(apiNote), kernel.WithCheck(checkUpdateAPI),
+		kernel.WithResources(apiItem(func(in *apigatewayv2api.UpdateApiInput) string { return in.ApiId })))
+	b.DeleteApi(s.deleteAPI, registry.Partial{Note: baseNote},
+		kernel.WithResources(apiItem(func(in *apigatewayv2api.DeleteApiInput) string { return in.ApiId })))
+	b.DeleteCorsConfiguration(s.deleteCORS, registry.Partial{Note: baseNote},
+		kernel.WithResources(childCollection(func(in *apigatewayv2api.DeleteCorsConfigurationInput) string { return in.ApiId }, "cors")))
+	b.TagResource(s.tagResource, registry.Partial{Note: baseNote},
+		kernel.WithCheck(func(in *apigatewayv2api.TagResourceInput) *awserr.Error { return checkTags(in.Tags) }),
+		kernel.WithResources(tagsResource(func(in *apigatewayv2api.TagResourceInput) string { return in.ResourceArn })))
+	b.UntagResource(s.untagResource, registry.Partial{Note: baseNote},
+		kernel.WithResources(tagsResource(func(in *apigatewayv2api.UntagResourceInput) string { return in.ResourceArn })))
+	b.GetTags(s.getTags, registry.Partial{Note: baseNote},
+		kernel.WithResources(tagsResource(func(in *apigatewayv2api.GetTagsInput) string { return in.ResourceArn })))
 	b.CreateRoute(s.createRoute, partial(createRouteNote),
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.CreateRouteInput) string { return in.ApiId }, "routes")))
 	b.CreateIntegration(s.createIntegration, partial(createIntegrationNote),

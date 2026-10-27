@@ -1,7 +1,11 @@
 package apigatewayv2
 
 import (
+	"cmp"
 	"context"
+	"maps"
+	"net"
+	"slices"
 	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
@@ -11,37 +15,117 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
-// maxNameLen is the longest API name (apigateway-http.md 13.5).
-const maxNameLen = 128
+// Lengths of an API's members, in characters (apigateway-http.md 13.5).
+const (
+	maxNameLen        = 128
+	maxDescriptionLen = 1024
+	maxVersionLen     = 64
+)
 
-// createAPI creates an HTTP API with a name and nothing else.
+// The selection expressions of an HTTP API. AWS returns the unbraced route
+// selection expression and Terraform sends it, while the API Reference
+// says it "must be ${request.method} ${request.path}"; both are accepted
+// and echoed as sent (apigateway-http.md 2.4, 12 item 5). The defaults are
+// what AWS's create-api example answers (3.1).
+const (
+	defaultRouteSelection  = "$request.method $request.path"
+	bracedRouteSelection   = "${request.method} ${request.path}"
+	defaultAPIKeySelection = "$request.header.x-api-key"
+)
+
+// checkCreateAPI refuses what CreateApi cannot create, at step 7: a
+// WebSocket API or quick create, which understudy does not emulate, and a
+// member outside its limits.
+func checkCreateAPI(in *apigatewayv2api.CreateApiInput) *awserr.Error {
+	const op = "CreateApi"
+	if in.ProtocolType == apigatewayv2api.ProtocolTypeWebsocket {
+		return errNotImplemented(op, "protocolType WEBSOCKET", "WebSocket APIs are not emulated; create an HTTP API (protocolType HTTP).")
+	}
+	if err := refuseQuickCreate(op, in.Target, in.RouteKey, in.CredentialsArn); err != nil {
+		return err
+	}
+	if err := checkAPIMembers(&in.Name, in.Description, in.Version, in.RouteSelectionExpression); err != nil {
+		return err
+	}
+	return checkTags(in.Tags)
+}
+
+// checkUpdateAPI is checkCreateAPI for the members an UpdateApi carries.
+func checkUpdateAPI(in *apigatewayv2api.UpdateApiInput) *awserr.Error {
+	if err := refuseQuickCreate("UpdateApi", in.Target, in.RouteKey, in.CredentialsArn); err != nil {
+		return err
+	}
+	return checkAPIMembers(in.Name, in.Description, in.Version, in.RouteSelectionExpression)
+}
+
+// refuseQuickCreate refuses quick create: Target, RouteKey and
+// CredentialsArn make CreateApi build an integration, a route and an
+// automatically deploying $default stage, and UpdateApi change them
+// (apigateway-http.md 3.1). understudy does not emulate it (the unit's
+// conflict row 4).
+func refuseQuickCreate(op string, target, routeKey, credentials *string) *awserr.Error {
+	for _, m := range []member{{"target", target != nil}, {"routeKey", routeKey != nil}, {"credentialsArn", credentials != nil}} {
+		if m.set {
+			return errNotImplemented(op, m.name+" (quick create)",
+				"Leave out target, routeKey and credentialsArn, and add the integration, route and $default stage with CreateIntegration, CreateRoute and CreateStage.")
+		}
+	}
+	return nil
+}
+
+// checkAPIMembers checks the members of an API that are present: name
+// 1..128, description 0..1024 and version 1..64 characters (13.5), and a
+// route selection expression of an HTTP API. The texts are inferred
+// (APIGW2-01) and name the constraint.
+func checkAPIMembers(name, description, version, routeSelection *string) *awserr.Error {
+	for _, l := range []struct {
+		member         string
+		value          *string
+		minLen, maxLen int
+	}{
+		{"name", name, 1, maxNameLen},
+		{"description", description, 0, maxDescriptionLen},
+		{"version", version, 1, maxVersionLen},
+	} {
+		if l.value == nil {
+			continue
+		}
+		if err := checkLength(l.member, *l.value, l.minLen, l.maxLen); err != nil {
+			return err
+		}
+	}
+	if r := routeSelection; r != nil && *r != defaultRouteSelection && *r != bracedRouteSelection {
+		return errBadRequest("routeSelectionExpression %q is not valid for an HTTP API: it must be %s", *r, bracedRouteSelection)
+	}
+	return nil
+}
+
+// checkLength refuses a member whose length in characters is outside
+// minLen..maxLen.
+func checkLength(member, value string, minLen, maxLen int) *awserr.Error {
+	if n := utf8.RuneCountInString(value); n < minLen || n > maxLen {
+		return errBadRequest("%s must be %d to %d characters long, not %d", member, minLen, maxLen, n)
+	}
+	return nil
+}
+
+// createAPI creates an HTTP API with the defaults AWS fills (3.1).
 func (s *Service) createAPI(_ context.Context, c *kernel.Call, in *apigatewayv2api.CreateApiInput) (*apigatewayv2api.CreateApiOutput, *awserr.Error) {
-	if in.ProtocolType != apigatewayv2api.ProtocolTypeHttp {
-		return nil, errNotImplemented("CreateApi", "protocolType "+string(in.ProtocolType), "WebSocket APIs are not emulated; create an HTTP API (protocolType HTTP).")
-	}
-	if err := refuseMembers("CreateApi",
-		member{"apiKeySelectionExpression", in.ApiKeySelectionExpression != nil},
-		member{"corsConfiguration", in.CorsConfiguration != nil},
-		member{"credentialsArn", in.CredentialsArn != nil},
-		member{"description", in.Description != nil},
-		member{"disableExecuteApiEndpoint", in.DisableExecuteApiEndpoint != nil},
-		member{"disableSchemaValidation", in.DisableSchemaValidation != nil},
-		member{"ipAddressType", in.IpAddressType != nil},
-		member{"routeKey", in.RouteKey != nil},
-		member{"routeSelectionExpression", in.RouteSelectionExpression != nil},
-		member{"tags", in.Tags != nil},
-		member{"target", in.Target != nil},
-		member{"version", in.Version != nil},
-	); err != nil {
-		return nil, err
-	}
-	if n := utf8.RuneCountInString(in.Name); n < 1 || n > maxNameLen {
-		return nil, errBadRequest("name must be 1 to %d characters long, not %d", maxNameLen, n)
-	}
 	scope := c.Scope()
 	id := s.newAPIID(scope)
 	api, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, _ *kernel.Tx) (API, *awserr.Error) {
-		a := API{ID: id, Name: in.Name, Created: now}
+		a := API{
+			ID: id, Seq: st.NextSeq, Name: in.Name, Description: clonePtr(in.Description), Version: clonePtr(in.Version),
+			RouteSelectionExpression:  deref(in.RouteSelectionExpression, defaultRouteSelection),
+			APIKeySelectionExpression: deref(in.ApiKeySelectionExpression, defaultAPIKeySelection),
+			CORS:                      corsIn(in.CorsConfiguration),
+			DisableExecuteAPIEndpoint: deref(in.DisableExecuteApiEndpoint, false),
+			DisableSchemaValidation:   clonePtr(in.DisableSchemaValidation),
+			IPAddressType:             string(deref(in.IpAddressType, apigatewayv2api.IpAddressTypeIpv4)),
+			Tags:                      maps.Clone(in.Tags),
+			Created:                   now,
+		}
+		st.NextSeq++
 		st.APIs[id] = a
 		return a, nil
 	})
@@ -53,9 +137,8 @@ func (s *Service) createAPI(_ context.Context, c *kernel.Call, in *apigatewayv2a
 	// and the write.
 	s.index.set(id, scope)
 	c.Touch(apiARN(scope, id))
-	return &apigatewayv2api.CreateApiOutput{
-		ApiId: new(id), Name: new(api.Name), ProtocolType: new(apigatewayv2api.ProtocolTypeHttp), CreatedDate: new(api.Created.Wire()),
-	}, nil
+	out := apigatewayv2api.CreateApiOutput(api.output(scope, c.Endpoint()))
+	return &out, nil
 }
 
 // newAPIID draws an API id no account holds and reserves it for scope.
@@ -68,9 +151,105 @@ func (s *Service) newAPIID(scope aws.Scope) string {
 	}
 }
 
-// updateAPI runs fn on the API id of the call's scope inside one write;
+// getAPI answers one API of the caller's account and region.
+func (s *Service) getAPI(_ context.Context, c *kernel.Call, in *apigatewayv2api.GetApiInput) (*apigatewayv2api.GetApiOutput, *awserr.Error) {
+	scope := c.Scope()
+	out := readState(s, scope, func(st *State) *apigatewayv2api.GetApiOutput {
+		a, ok := st.APIs[in.ApiId]
+		if !ok {
+			return nil
+		}
+		return new(a.output(scope, c.Endpoint()))
+	})
+	if out == nil {
+		return nil, errAPINotFound(scope, in.ApiId)
+	}
+	return out, nil
+}
+
+// getAPIs lists the APIs of the caller's account and region in creation
+// order (inferred, APIGW2-03), a page at a time.
+func (s *Service) getAPIs(_ context.Context, c *kernel.Call, in *apigatewayv2api.GetApisInput) (*apigatewayv2api.GetApisOutput, *awserr.Error) {
+	scope := c.Scope()
+	apis := readState(s, scope, func(st *State) []API {
+		return slices.SortedFunc(maps.Values(st.APIs), func(x, y API) int { return cmp.Or(cmp.Compare(x.Seq, y.Seq), cmp.Compare(x.ID, y.ID)) })
+	})
+	items, next, err := page(apis, func(a API) uint64 { return a.Seq }, in.MaxResults, in.NextToken)
+	if err != nil {
+		return nil, err
+	}
+	out := &apigatewayv2api.GetApisOutput{Items: make([]apigatewayv2api.Api, 0, len(items)), NextToken: next}
+	for i := range items {
+		out.Items = append(out.Items, items[i].item(scope, c.Endpoint()))
+	}
+	return out, nil
+}
+
+// updateAPI replaces the members an UpdateApi carries and keeps the rest; a
+// CORS configuration replaces the whole configuration.
+func (s *Service) updateAPI(_ context.Context, c *kernel.Call, in *apigatewayv2api.UpdateApiInput) (*apigatewayv2api.UpdateApiOutput, *awserr.Error) {
+	scope := c.Scope()
+	api, err := writeAPI(s, c, in.ApiId, func(a *API, _ clock.Instant) (API, *awserr.Error) {
+		a.Name = deref(in.Name, a.Name)
+		a.RouteSelectionExpression = deref(in.RouteSelectionExpression, a.RouteSelectionExpression)
+		a.APIKeySelectionExpression = deref(in.ApiKeySelectionExpression, a.APIKeySelectionExpression)
+		a.DisableExecuteAPIEndpoint = deref(in.DisableExecuteApiEndpoint, a.DisableExecuteAPIEndpoint)
+		a.IPAddressType = string(deref(in.IpAddressType, apigatewayv2api.IpAddressType(a.IPAddressType)))
+		if in.Description != nil {
+			a.Description = clonePtr(in.Description)
+		}
+		if in.Version != nil {
+			a.Version = clonePtr(in.Version)
+		}
+		if in.CorsConfiguration != nil {
+			a.CORS = corsIn(in.CorsConfiguration)
+		}
+		if in.DisableSchemaValidation != nil {
+			a.DisableSchemaValidation = clonePtr(in.DisableSchemaValidation)
+		}
+		return *a, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := apigatewayv2api.UpdateApiOutput(api.output(scope, c.Endpoint()))
+	return &out, nil
+}
+
+// deleteAPI removes an API with its routes, integrations, stages and
+// deployments, and frees its id.
+func (s *Service) deleteAPI(_ context.Context, c *kernel.Call, in *apigatewayv2api.DeleteApiInput) (*apigatewayv2api.DeleteApiOutput, *awserr.Error) {
+	scope := c.Scope()
+	_, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+		if _, ok := st.APIs[in.ApiId]; !ok {
+			return struct{}{}, errAPINotFound(scope, in.ApiId)
+		}
+		delete(st.APIs, in.ApiId)
+		return struct{}{}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	s.index.release(in.ApiId)
+	return &apigatewayv2api.DeleteApiOutput{}, nil
+}
+
+// deleteCORS removes an API's CORS configuration, so GetApi answers none
+// (apigateway-http.md 3.7, 9.1); an API without one answers the same
+// (inferred).
+func (s *Service) deleteCORS(_ context.Context, c *kernel.Call, in *apigatewayv2api.DeleteCorsConfigurationInput) (*apigatewayv2api.DeleteCorsConfigurationOutput, *awserr.Error) {
+	if _, err := writeAPI(s, c, in.ApiId, func(a *API, _ clock.Instant) (struct{}, *awserr.Error) {
+		a.CORS = nil
+		return struct{}{}, nil
+	}); err != nil {
+		return nil, err
+	}
+	return &apigatewayv2api.DeleteCorsConfigurationOutput{}, nil
+}
+
+// writeAPI runs fn on the API id of the call's scope inside one write;
 // an id the scope does not hold is NotFoundException.
-func updateAPI[R any](s *Service, c *kernel.Call, id string, fn func(a *API, now clock.Instant) (R, *awserr.Error)) (R, *awserr.Error) {
+func writeAPI[R any](s *Service, c *kernel.Call, id string, fn func(a *API, now clock.Instant) (R, *awserr.Error)) (R, *awserr.Error) {
 	scope := c.Scope()
 	r, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, _ *kernel.Tx) (R, *awserr.Error) {
 		var zero R
@@ -89,4 +268,99 @@ func updateAPI[R any](s *Service, c *kernel.Call, id string, fn func(a *API, now
 		c.Touch(apiARN(scope, id))
 	}
 	return r, err
+}
+
+// output is the API as GetApi answers it, with the ApiEndpoint of the
+// endpoint the client addressed (apigateway-http.md 3.1, 9.1): Tags,
+// DisableExecuteApiEndpoint and IpAddressType always, CorsConfiguration,
+// Description and Version only when set, and no ApiGatewayManaged,
+// Warnings or ImportInfo, which quick create and import set.
+func (a *API) output(scope aws.Scope, e kernel.Endpoint) apigatewayv2api.GetApiOutput {
+	return apigatewayv2api.GetApiOutput{
+		ApiEndpoint:               new(apiEndpoint(e, scope, a.ID)),
+		ApiId:                     new(a.ID),
+		ApiKeySelectionExpression: new(a.APIKeySelectionExpression),
+		CorsConfiguration:         a.CORS.wire(),
+		CreatedDate:               new(a.Created.Wire()),
+		Description:               clonePtr(a.Description),
+		DisableSchemaValidation:   clonePtr(a.DisableSchemaValidation),
+		DisableExecuteApiEndpoint: new(a.DisableExecuteAPIEndpoint),
+		IpAddressType:             new(apigatewayv2api.IpAddressType(a.IPAddressType)),
+		Name:                      new(a.Name),
+		ProtocolType:              new(apigatewayv2api.ProtocolTypeHttp),
+		RouteSelectionExpression:  new(a.RouteSelectionExpression),
+		Tags:                      tagsOut(a.Tags),
+		Version:                   clonePtr(a.Version),
+	}
+}
+
+// item is the API as GetApis lists it, the members of output.
+func (a *API) item(scope aws.Scope, e kernel.Endpoint) apigatewayv2api.Api {
+	o := a.output(scope, e)
+	return apigatewayv2api.Api{
+		ApiEndpoint: o.ApiEndpoint, ApiId: o.ApiId, ApiKeySelectionExpression: o.ApiKeySelectionExpression,
+		CorsConfiguration: o.CorsConfiguration, CreatedDate: o.CreatedDate, Description: o.Description,
+		DisableSchemaValidation: o.DisableSchemaValidation, DisableExecuteApiEndpoint: o.DisableExecuteApiEndpoint,
+		IpAddressType: o.IpAddressType, Name: a.Name, ProtocolType: apigatewayv2api.ProtocolTypeHttp,
+		RouteSelectionExpression: a.RouteSelectionExpression, Tags: o.Tags, Version: o.Version,
+	}
+}
+
+// apiEndpoint is an API's ApiEndpoint: <scheme>://<api-id>.execute-api.
+// <region>.localhost[:<port>] on the scheme and port the client addressed,
+// with no trailing slash (apigateway-http.md 2.5, 13.1.4). AWS names
+// amazonaws.com, which understudy never answers (11.3, ADR 0013).
+func apiEndpoint(e kernel.Endpoint, scope aws.Scope, id string) string {
+	scheme := e.Scheme
+	if scheme == "" {
+		scheme = "http"
+	}
+	host := id + ".execute-api." + scope.Region.String() + ".localhost"
+	if _, port, err := net.SplitHostPort(e.Host); err == nil && port != "" {
+		host = net.JoinHostPort(host, port)
+	}
+	return scheme + "://" + host
+}
+
+// corsIn is a request's CORS configuration as stored: a copy, nil lists
+// kept nil and empty ones empty.
+func corsIn(c *apigatewayv2api.Cors) *CORS {
+	if c == nil {
+		return nil
+	}
+	return &CORS{
+		AllowCredentials: clonePtr(c.AllowCredentials), AllowHeaders: slices.Clone(c.AllowHeaders),
+		AllowMethods: slices.Clone(c.AllowMethods), AllowOrigins: slices.Clone(c.AllowOrigins),
+		ExposeHeaders: slices.Clone(c.ExposeHeaders), MaxAge: clonePtr(c.MaxAge),
+	}
+}
+
+// wire is the stored CORS configuration as an output carries it, a copy.
+func (c *CORS) wire() *apigatewayv2api.Cors {
+	if c == nil {
+		return nil
+	}
+	return &apigatewayv2api.Cors{
+		AllowCredentials: clonePtr(c.AllowCredentials), AllowHeaders: slices.Clone(c.AllowHeaders),
+		AllowMethods: slices.Clone(c.AllowMethods), AllowOrigins: slices.Clone(c.AllowOrigins),
+		ExposeHeaders: slices.Clone(c.ExposeHeaders), MaxAge: clonePtr(c.MaxAge),
+	}
+}
+
+// clonePtr copies the value p points at, nil for nil, so state never shares
+// a request's or an output's memory.
+func clonePtr[T any](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	v := *p
+	return &v
+}
+
+// deref is the value p points at, or def when p is nil.
+func deref[T any](p *T, def T) T {
+	if p == nil {
+		return def
+	}
+	return *p
 }

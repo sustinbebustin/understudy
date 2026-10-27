@@ -59,9 +59,11 @@ func (s *Service) invoke(ctx context.Context, c *kernel.Call, r *http.Request, w
 	if !ok {
 		return writeAnswer(w, FrontAnswersSwitch().Value.UnknownAPI)
 	}
-	switch sel := s.selectRoute(addr, r.Method).(type) {
+	switch sel := s.selectRoute(addr, r.Method, r.Header.Get("Origin") != "").(type) {
 	case answered:
 		return writeAnswer(w, sel.answer)
+	case unemulated:
+		return apigatewayv2api.ErrNotImplemented(sel.message)
 	case corrupt:
 		return awserr.Internalf(sel.err)
 	case toFunction:
@@ -116,63 +118,98 @@ type toFunction struct {
 	integration Integration
 }
 
+// unemulated is a request understudy cannot serve as AWS would, answered
+// 501 with message (the unit's conflict row 3).
+type unemulated struct{ message string }
+
 // corrupt is state the service cannot have written: an understudy bug.
 type corrupt struct{ err error }
 
 func (answered) isSelection()   {}
 func (toFunction) isSelection() {}
+func (unemulated) isSelection() {}
 func (corrupt) isSelection()    {}
 
 // selectRoute finds the API addr names, its stage and the route of the
-// stage's deployment a request with method matches.
-func (s *Service) selectRoute(addr address, method string) selection {
-	front := FrontAnswersSwitch().Value
+// stage's deployment a request with method matches; origin is whether the
+// request carries an Origin header. The API's DisableExecuteApiEndpoint
+// and CORS configuration are read live, so they hold from the call that
+// set them (apigateway-http.md 3.1, the front.answers switch).
+func (s *Service) selectRoute(addr address, method string, origin bool) selection {
 	owner, ok := s.index.lookup(addr.apiID)
 	if !ok {
-		return answered{front.UnknownAPI}
+		return answered{FrontAnswersSwitch().Value.UnknownAPI}
 	}
 	return readState(s, owner, func(st *State) selection {
 		a, ok := st.APIs[addr.apiID]
 		if !ok {
-			return answered{front.UnknownAPI}
+			return answered{FrontAnswersSwitch().Value.UnknownAPI}
 		}
-		stage, path, ok := a.selectStage(addr.path, method)
-		if !ok {
-			return answered{front.NoStage}
-		}
-		if stage.Deployment == "" {
-			return answered{front.NoDeployment}
-		}
-		d, ok := a.deployment(stage.Deployment)
-		if !ok {
-			return corrupt{fmt.Errorf("apigatewayv2: stage %q of API %s serves deployment %s, which the API does not hold", stage.Name, a.ID, stage.Deployment)}
-		}
-		table, err := d.table()
-		if err != nil {
-			return corrupt{err}
-		}
-		m, ok := table.Match(method, path, RouteMatchingSwitch().Value.Matching)
-		if !ok {
-			return answered{front.NoRoute}
-		}
-		i := slices.IndexFunc(table, func(r route.Route) bool { return r.ID == m.RouteID })
-		if i < 0 {
-			return corrupt{fmt.Errorf("apigatewayv2: route.Table.Match selected route %s, which deployment %s of API %s does not hold", m.RouteID, d.ID, a.ID)}
-		}
-		// table holds d.Routes' keys parsed, in d.Routes' order.
-		rt, key := d.Routes[i], table[i].Key
-		if rt.Integration == "" {
-			return answered{RouteMatchingSwitch().Value.NoTarget}
-		}
-		j := slices.IndexFunc(d.Integrations, func(x Integration) bool { return x.ID == rt.Integration })
-		if j < 0 {
-			return corrupt{fmt.Errorf("apigatewayv2: route %s of deployment %s of API %s targets integration %s, which the deployment does not hold", rt.ID, d.ID, a.ID, rt.Integration)}
-		}
-		return toFunction{
-			owner: owner, apiID: a.ID, stage: stage.Name, key: key, routeKey: rt.Key,
-			rawPath: addr.path, params: m.PathParameters, integration: d.Integrations[j],
-		}
+		return a.selectRoute(owner, addr, method, origin)
 	})
+}
+
+// selectRoute is Service.selectRoute on the API addr names, which owner
+// holds.
+func (a *API) selectRoute(owner aws.Scope, addr address, method string, origin bool) selection {
+	front := FrontAnswersSwitch().Value
+	if refused := a.refuse(origin); refused != nil {
+		return refused
+	}
+	stage, path, ok := a.selectStage(addr.path, method)
+	if !ok {
+		return answered{front.NoStage}
+	}
+	if stage.Deployment == "" {
+		return answered{front.NoDeployment}
+	}
+	d, ok := a.deployment(stage.Deployment)
+	if !ok {
+		return corrupt{fmt.Errorf("apigatewayv2: stage %q of API %s serves deployment %s, which the API does not hold", stage.Name, a.ID, stage.Deployment)}
+	}
+	table, err := d.table()
+	if err != nil {
+		return corrupt{err}
+	}
+	m, ok := table.Match(method, path, RouteMatchingSwitch().Value.Matching)
+	if !ok {
+		return answered{front.NoRoute}
+	}
+	i := slices.IndexFunc(table, func(r route.Route) bool { return r.ID == m.RouteID })
+	if i < 0 {
+		return corrupt{fmt.Errorf("apigatewayv2: route.Table.Match selected route %s, which deployment %s of API %s does not hold", m.RouteID, d.ID, a.ID)}
+	}
+	// table holds d.Routes' keys parsed, in d.Routes' order.
+	rt, key := d.Routes[i], table[i].Key
+	if rt.Integration == "" {
+		return answered{RouteMatchingSwitch().Value.NoTarget}
+	}
+	j := slices.IndexFunc(d.Integrations, func(x Integration) bool { return x.ID == rt.Integration })
+	if j < 0 {
+		return corrupt{fmt.Errorf("apigatewayv2: route %s of deployment %s of API %s targets integration %s, which the deployment does not hold", rt.ID, d.ID, a.ID, rt.Integration)}
+	}
+	return toFunction{
+		owner: owner, apiID: a.ID, stage: stage.Name, key: key, routeKey: rt.Key,
+		rawPath: addr.path, params: m.PathParameters, integration: d.Integrations[j],
+	}
+}
+
+// refuse is how the API's own settings answer a request before any stage
+// is selected, nil when they let it through: a disabled default endpoint
+// is the front.answers switch's DisabledEndpoint, and a request with an
+// Origin header (origin) to an API with a CORS configuration answers 501.
+func (a *API) refuse(origin bool) selection {
+	switch {
+	case a.DisableExecuteAPIEndpoint:
+		return answered{FrontAnswersSwitch().Value.DisabledEndpoint}
+	case a.CORS != nil && origin:
+		// AWS answers a CORS request from the API's configuration
+		// (apigateway-http.md 4.6); understudy does not apply it, so serving
+		// the request would fake its CORS headers.
+		return unemulated{fmt.Sprintf("understudy does not apply CORS: API %s has a corsConfiguration and the request carries an Origin header, "+
+			"so no integration ran and nothing was changed. Send the request without an Origin header, or remove the API's corsConfiguration (DeleteCorsConfiguration).", a.ID)}
+	}
+	return nil
 }
 
 // selectStage selects the stage a request path names and the path its
