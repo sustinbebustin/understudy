@@ -137,7 +137,7 @@ understudy never assumes that a condition holds. Some keys AWS would send are on
 
 These differences hold under every mode, and each is stated in the operation's coverage note (`understudy coverage --service <name>`):
 
-- An operation that finds its resource by name answers that the resource does not exist before it is authorized. These are IAM users, roles and instance profiles, KMS keys addressed by alias, and Secrets Manager secrets. AWS denies first, before saying whether the resource exists (the `iam.enforce.missing-resource` switch).
+- An operation that finds its resource by name answers that the resource does not exist before it is authorized. These are IAM users, roles and instance profiles, KMS keys addressed by alias, and Secrets Manager secrets. AWS denies first, before saying whether the resource exists (the `iam.enforce.missing-resource.by-name`, `kms.enforce.missing-resource.by-name` and `secretsmanager.enforce.missing-resource.by-name` switches).
 - S3 Block Public Access and Secrets Manager's `BlockPublicPolicy` are stored and not applied, and KMS's key-policy lockout check is not run.
 - A function URL with `AuthType` `AWS_IAM` checks only the signature, never a policy. An `AuthType` `NONE` URL checks its resource policy under every mode.
 - Groups, KMS grants and the IAM policy simulator are not implemented, and answer 501.

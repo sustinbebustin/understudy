@@ -13,7 +13,7 @@ import (
 // knows, so the call is authorized once IAM resolved it, and a missing one
 // answers NoSuchEntity before authorization. Whether AWS denies first is
 // UNVERIFIED (iam-enforcement-surfaces.md 5.3, IAM-ENF-14).
-const resolvedFirst = "under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource)"
+const resolvedFirst = "under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource.by-name)"
 
 // resolvedPartial is the coverage of an operation on an entity named by
 // name that is otherwise fully implemented.

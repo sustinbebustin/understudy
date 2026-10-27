@@ -20,6 +20,9 @@ const (
 // and Denial.Message follow; the enforce pair (iam.enforce.order,
 // iam.enforce.missing-resource) is what the kernel's step 8 follows. No
 // entry lists its Ops: the service that reports it names them (SwitchesOf).
+// iam.enforce.missing-resource is deny-first only for the operations asked
+// at step 8; those that resolve a resource by name first report
+// ResolveFirstSwitch instead.
 func Switches() []fidelity.Entry {
 	inferred := evidence.Inferred
 	return []fidelity.Entry{
@@ -87,6 +90,17 @@ func EnforcementSwitch(name, value string, label evidence.Label, section, record
 	e := researchSwitch(name, value, label, enforcementNote, section, record)
 	e.Ops = slices.Clone(ops)
 	return e
+}
+
+// ResolveFirstSwitch is service's switch <service>.enforce.missing-resource.by-name,
+// at resolve-first, governing ops: the operations that find their resource
+// by name (kernel.Bindings.ResolvedFirstOps, and IAM GetRole), whose ARN
+// only the lookup learns, so a missing resource answers its not-found error
+// before authorization. It deviates from deny-first, the default of
+// iam.enforce.missing-resource, whose AWS behavior is unrecorded
+// (iam-enforcement-surfaces.md 5.3, 12.8; amended 2026-10-27).
+func ResolveFirstSwitch(service string, ops []string) fidelity.Entry {
+	return EnforcementSwitch(service+".enforce.missing-resource.by-name", "resolve-first", evidence.Inferred, "5.3", "IAM-ENF-14", ops)
 }
 
 // grammarValue is switch iam.denial.grammar's value: the reason clauses of

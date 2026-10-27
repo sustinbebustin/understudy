@@ -12,7 +12,7 @@ import (
 // is authorized then, and an alias or key that does not exist answers
 // NotFoundException before authorization. Whether AWS denies first is
 // UNVERIFIED (iam-enforcement-surfaces.md 5.3, IAM-ENF-14).
-const resolvedFirst = "under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (iam.enforce.missing-resource)"
+const resolvedFirst = "under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name)"
 
 // declareAuthorization states what each KMS operation is authorized on
 // (iam-evaluation.md 2.1, 4): an operation that takes a key id or key ARN

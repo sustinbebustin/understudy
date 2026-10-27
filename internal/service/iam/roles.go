@@ -134,13 +134,11 @@ func iamAction(name string) registry.IAMAction {
 // iam:GetRole to it (kernel.AuthorizedInHandler), so this is the call's
 // only question about it.
 //
-// A missing role answers NoSuchEntity before any authorization. That is
-// not the default the note sets for switch iam.enforce.missing-resource,
-// deny-first (iam-enforcement-surfaces.md 12.8), whose AWS behavior is
-// unverified (5.3, IAM-ENF-14): deny-first needs the ARN of a role that
-// does not exist, whose path the request does not carry. The switch and
-// that ARN arrive with enforcement; until then no Authorizer is installed,
-// so the order changes no answer.
+// A missing role answers NoSuchEntity before any authorization, as switch
+// iam.enforce.missing-resource.by-name states: deny-first, the default of
+// iam.enforce.missing-resource (iam-enforcement-surfaces.md 12.8), whose
+// AWS behavior is unverified (5.3, IAM-ENF-14), needs the ARN of a role
+// that does not exist, whose path the request does not carry.
 func (s *Service) getRole(ctx context.Context, c *kernel.Call, in *iamapi.GetRoleInput) (*iamapi.GetRoleOutput, *awserr.Error) {
 	account := c.Scope().Account
 	r, err := view(s, account, func(st *State) (Role, *awserr.Error) { return st.role(in.RoleName) })

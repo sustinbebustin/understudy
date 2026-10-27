@@ -2,6 +2,7 @@ package iam
 
 import (
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
@@ -60,20 +61,29 @@ func New(d kernel.ServiceDeps, opts Options) *Service {
 // 12.8) and the evaluation switches (authz.Switches), which IAM reports.
 // The rules a policy document is evaluated by govern the operations that
 // store one; the grammar and the enforcement order govern every operation
-// a denial answers.
+// a denial answers. A missing resource is denied first by the operations
+// asked at step 8, and answers not-found first in those that find their
+// entity by name (resolvedFirst), which report their own switch.
 func (s *Service) Switches() []fidelity.Entry {
 	authorized := s.bindings.AuthorizedOps(iamapi.Service())
+	// GetRole is AuthorizedInHandler, and asks once its read found the role.
+	byName := append(s.bindings.ResolvedFirstOps(iamapi.Service()), iamapi.OpGetRole.Descriptor().ID.String())
+	stepEight := slices.DeleteFunc(slices.Clone(authorized), func(op string) bool { return slices.Contains(byName, op) })
 	evaluation := authz.SwitchesOf("iam", nil)
-	out := make([]fidelity.Entry, 0, 1+len(evaluation))
+	out := make([]fidelity.Entry, 0, 2+len(evaluation))
 	out = append(out, authz.DenialSwitch("iam.denial.identity", "AccessDenied 403 with the IAM namespace", evidence.Inferred, "3.2", "IAM-ENF-10", authorized))
 	for _, e := range evaluation {
-		e.Ops = documentOps()
-		if e.Name == "iam.denial.grammar" || strings.HasPrefix(e.Name, "iam.enforce.") {
+		switch {
+		case e.Name == "iam.enforce.missing-resource":
+			e.Ops = stepEight
+		case e.Name == "iam.denial.grammar" || strings.HasPrefix(e.Name, "iam.enforce."):
 			e.Ops = authorized
+		default:
+			e.Ops = documentOps()
 		}
 		out = append(out, e)
 	}
-	return out
+	return append(out, authz.ResolveFirstSwitch("iam", byName))
 }
 
 // documentOps are the IAM operations that store a policy document IAM

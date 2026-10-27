@@ -130,11 +130,13 @@ func firstError(errs ...*awserr.Error) *awserr.Error {
 
 // Switches lists the behaviors chosen without AWS-recorded evidence, with
 // the status of a denial (iam-enforcement-surfaces.md 12.8;
-// third-party-recorded for a denial that is not IAM's).
+// third-party-recorded for a denial that is not IAM's) and the operations
+// that answer a missing secret before authorization (resolvedFirst).
 func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		authz.DenialSwitch("secretsmanager.denial.status", "AccessDeniedException 400, body key Message", evidence.ThirdPartyRecorded, "3.2", "IAM-ENF-06",
 			s.k.Bindings().AuthorizedOps(secretsmanagerapi.Service())),
+		authz.ResolveFirstSwitch("secretsmanager", s.k.Bindings().ResolvedFirstOps(secretsmanagerapi.Service())),
 		fidelity.Switch[string]{
 			Name:    "secretsmanager.list-secrets.filter-combination",
 			Value:   "and-across-filters,or-across-values",

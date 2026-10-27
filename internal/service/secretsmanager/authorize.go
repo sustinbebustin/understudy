@@ -12,7 +12,7 @@ import (
 // authorized then, and a secret that does not exist answers
 // ResourceNotFoundException before authorization. Whether AWS denies first
 // is UNVERIFIED (iam-enforcement-surfaces.md 5.3, IAM-ENF-14).
-const resolvedFirst = "under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource)"
+const resolvedFirst = "under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (secretsmanager.enforce.missing-resource.by-name)"
 
 // declareAuthorization states what each operation that takes a SecretId is
 // authorized on: the secret it names, by its full ARN, once Secrets Manager
