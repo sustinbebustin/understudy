@@ -1,17 +1,55 @@
 # Policy generation
 
-understudy does not enforce IAM. It records, for every call, which principal made it, which IAM actions the operation needs and which resources it touched. From that record it prints the least-privilege identity policy each principal needs, and the resource-policy statements understudy's own deliveries would need on AWS. Run your tests, then read off the policy.
+understudy records, for every call, which principal made it, which IAM actions the operation needs and which resources it touched. From that record it prints the least-privilege identity policy each principal needs, and the resource-policy statements understudy's own deliveries would need on AWS. Run your tests, then read off the policy.
 
-`--iam-enforce` (`UNDERSTUDY_IAM_ENFORCE`, or `{"iam": {"enforce": "off"}}` in the file) takes only `off`, the default, in this build. `advise` and `enforce` are refused at start rather than accepted and ignored:
+`--iam-enforce` (`UNDERSTUDY_IAM_ENFORCE`, or `{"iam": {"enforce": "off"}}` in the file) decides whether understudy also evaluates the policies it stores:
+
+- `off`, the default, evaluates nothing.
+- `advise` evaluates each call against the caller's identity-based policies, permissions boundary and session policies and the resource's policy, serves it as `off` does, and journals an `access-would-deny` advisory for each call AWS would deny.
+- `enforce` answers those denials with each service's denial error.
+
+Any other value is refused at start:
 
 ```sh
-understudy serve --iam-enforce enforce
+understudy serve --iam-enforce on
 ```
 
 ```text
-understudy serve: --iam-enforce: "enforce" is not supported: IAM enforcement is not built yet, so this build accepts only off; remove the setting or set it to off
+understudy serve: --iam-enforce: "on" is not off, advise or enforce; set iam.enforce to off, advise or enforce
 Run 'understudy serve --help' for usage and examples.
 ```
+
+## Enforce
+
+Under `enforce`, a user with no policy is denied. As the account root (the dummy keys), create the user and its key:
+
+```sh
+understudy serve --iam-enforce enforce
+aws iam create-user --user-name app
+aws iam create-access-key --user-name app
+```
+
+With the returned key exported, the user's call is refused:
+
+```sh
+aws sqs list-queues
+```
+
+```text
+aws: [ERROR]: An error occurred (AccessDenied) when calling the ListQueues operation: User: arn:aws:iam::000000000000:user/app is not authorized to perform: sqs:ListQueues because no identity-based policy allows the sqs:ListQueues action
+```
+
+Once root puts a policy allowing `sqs:ListQueues` on the user (`aws iam put-user-policy`), the same call succeeds. Under `advise` the call is served and the journal says what AWS would have answered:
+
+```sh
+understudy journal --kind advisory
+```
+
+```text
+4      2026-10-27T00:44:20.070175997Z  advisory       000000000000/us-east-1 access-would-deny: User: arn:aws:iam::000000000000:user/app is not authorized to perform: sqs:CreateQueue because no identity-based policy allows the sqs:CreateQueue action; decided by identity-based policy for arn:aws:iam::000000000000:user/app calling sqs:CreateQueue on arn:aws:sqs:us-east-1:000000000000:orders; iam.enforce is advise, so understudy served the call
+```
+
+A condition on a key understudy cannot compute, such as `aws:SourceIp`, evaluates as absent, and each evaluation that tests it journals a `condition-key-unsupplied` advisory naming the key. Which texts and statuses each service answers with, and which of them are inferred, is listed by `understudy coverage --switches` (the `*.denial.*` switches).
 
 ## Make calls as the principal
 
