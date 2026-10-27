@@ -54,6 +54,9 @@ const (
 	// KindSFNExecutionName names a Step Functions execution started without
 	// a name: a v4 UUID (stepfunctions-api.md 6.1).
 	KindSFNExecutionName
+	// KindSFNRevisionID is the revisionId an effective UpdateStateMachine
+	// mints: a v4 UUID (stepfunctions-api.md 5.3).
+	KindSFNRevisionID
 
 	// endKind follows the last kind and is no kind: kindCount counts up to
 	// it, so a new kind is one line above it plus its String case.
@@ -125,6 +128,8 @@ func (k Kind) String() string {
 		return "shard-iterator-key"
 	case KindSFNExecutionName:
 		return "sfn-execution-name"
+	case KindSFNRevisionID:
+		return "sfn-revision-id"
 	}
 	return fmt.Sprintf("kind(%d)", uint8(k))
 }

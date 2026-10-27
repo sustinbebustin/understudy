@@ -46,8 +46,10 @@ const (
 		"Definitions are JSONPath with Pass and Succeed states only, and a Pass state takes Result, Next, End and Comment only; " +
 		"every other state type and field answers InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY, as do JSONata, Assign and variables, " +
 		"Distributed Map and its fields, Credentials and HeartbeatSeconds. Only the first problem in a definition is reported (UNVERIFIED, ASL-01, SFN-08). " +
-		"loggingConfiguration and tracingConfiguration are stored and echoed without validation; no log events or traces are emitted. " +
-		"The role ARN is stored as sent, unchecked"
+		"loggingConfiguration and tracingConfiguration are validated, stored and echoed; no log events or traces are emitted. " +
+		"The role ARN is checked for syntax only, with understudy's message (UNVERIFIED, SFN-08); its trust policy is not checked"
+	noteUpdate = "The CreateStateMachine definition and configuration rules apply; publish true and versionDescription answer 501. " +
+		"Running executions keep the definition and role they started with"
 	noteValidate = "Diagnostics use AWS's codes; messages are AWS's for the recorded blank, empty-object, missing-field and unknown-Type cases " +
 		"(stepfunctions-asl.md 3.5-3.6) and understudy's wording elsewhere, including a definition that is not JSON (UNVERIFIED, ASL-01). " +
 		"Features understudy refuses are ERROR diagnostics with code UNSUPPORTED_BY_UNDERSTUDY; type EXPRESS answers 501"
@@ -76,6 +78,11 @@ func (s *Service) bindMachines(b sfnapi.Binder) {
 			}
 			return []registry.IAMAction{{Prefix: "states", Name: "TagResource"}}
 		}))
+	// UpdateStateMachine's generated list also holds iam:PassRole, the
+	// execution role's check rather than one of this service's actions, and
+	// states:PublishStateMachineVersion, which publish true needs and is
+	// refused.
+	b.UpdateStateMachine(s.updateStateMachine, registry.Partial{Note: noteUpdate}, kernel.WithoutSecondaryActions())
 	b.DescribeStateMachine(s.describeStateMachine, registry.Full{})
 	b.DeleteStateMachine(s.deleteStateMachine, registry.Partial{Note: noteDelete})
 	b.ListStateMachines(s.listStateMachines, registry.Full{})

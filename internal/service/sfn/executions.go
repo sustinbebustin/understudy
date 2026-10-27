@@ -234,7 +234,7 @@ func optional(s string) *string {
 
 // describeStateMachineForExecution describes the machine as the execution
 // ran it, with updateDate in place of creationDate (stepfunctions-api.md
-// 6.3). Machines are never updated yet, so updateDate is the creation.
+// 6.3): the last effective update before the start, or the creation.
 func (s *Service) describeStateMachineForExecution(_ context.Context, c *kernel.Call, in *sfnapi.DescribeStateMachineForExecutionInput) (*sfnapi.DescribeStateMachineForExecutionOutput, *awserr.Error) {
 	ref, rec, err := s.execution(c, in.ExecutionArn)
 	if err != nil {
@@ -245,9 +245,10 @@ func (s *Service) describeStateMachineForExecution(_ context.Context, c *kernel.
 		Name:                    rec.Run.Name,
 		Definition:              rec.Run.Definition,
 		RoleArn:                 rec.Run.RoleArn,
-		UpdateDate:              rec.Run.Created.Wire(),
+		UpdateDate:              rec.Run.lastChange().Wire(),
 		LoggingConfiguration:    rec.Run.Logging.wire(),
 		TracingConfiguration:    &sfnapi.TracingConfiguration{Enabled: rec.Run.Tracing},
+		RevisionId:              optional(rec.Run.RevisionID),
 		EncryptionConfiguration: awsOwnedKey(),
 	}, nil
 }

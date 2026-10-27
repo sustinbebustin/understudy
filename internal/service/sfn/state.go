@@ -1,6 +1,7 @@
 package sfn
 
 import (
+	"slices"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -44,9 +45,29 @@ type Machine struct {
 	Definition string        `json:"definition"`
 	RoleArn    string        `json:"roleArn"`
 	Created    clock.Instant `json:"created"`
-	Logging    Logging       `json:"logging"`
-	Tracing    bool          `json:"tracing,omitempty"`
-	Tags       []Tag         `json:"tags,omitempty"`
+	// Updated is the last effective UpdateStateMachine; zero before one.
+	Updated clock.Instant `json:"updated,omitzero"`
+	// RevisionID is the UUID the last effective update minted; "" before
+	// one (stepfunctions-api.md 5.3).
+	RevisionID string  `json:"revisionId,omitempty"`
+	Logging    Logging `json:"logging"`
+	Tracing    bool    `json:"tracing,omitempty"`
+	Tags       []Tag   `json:"tags,omitempty"`
+}
+
+// sameConfiguration reports whether m and o have the same definition,
+// logging and tracing: what CreateStateMachine's idempotency compares
+// besides the name (stepfunctions-api.md 5.1).
+func (m *Machine) sameConfiguration(o *Machine) bool {
+	return m.Definition == o.Definition && m.Logging.equal(o.Logging) && m.Tracing == o.Tracing
+}
+
+// lastChange is when the machine was created or last effectively updated.
+func (m *Machine) lastChange() clock.Instant {
+	if m.Updated.IsZero() {
+		return m.Created
+	}
+	return m.Updated
 }
 
 // Logging is a stored loggingConfiguration; the zero value is AWS's default
@@ -55,9 +76,13 @@ type Logging struct {
 	// Level is "" for the default OFF.
 	Level                string `json:"level,omitempty"`
 	IncludeExecutionData bool   `json:"includeExecutionData,omitempty"`
-	// Destinations are the log group ARNs as sent; "" is a destination
-	// without a cloudWatchLogsLogGroup.
+	// Destinations are the log group ARNs as sent, each naming a log group
+	// that existed when the configuration was set.
 	Destinations []string `json:"destinations,omitempty"`
+}
+
+func (l Logging) equal(o Logging) bool {
+	return l.Level == o.Level && l.IncludeExecutionData == o.IncludeExecutionData && slices.Equal(l.Destinations, o.Destinations)
 }
 
 // Tag is one resource tag; tags keep the order they were added in.

@@ -24,6 +24,7 @@ const (
 	LambdaCode                       // Lambda reading a function's package from S3, for the caller
 	LambdaDestination                // Lambda delivering an asynchronous invocation's record or dead letter, or looking a destination up
 	ViaAPIGateway                    // an API Gateway integration calling its backend, such as a Lambda proxy invoke
+	SFNLogDestination                // Step Functions checking that a state machine's log group exists
 
 	// endVia follows the last value and is no Via: valid, ParseVia and the
 	// ViaError text count up to it, so a new value is one line above it
@@ -71,6 +72,8 @@ func (v Via) String() string {
 		return "lambda-destination"
 	case ViaAPIGateway:
 		return "apigateway-integration"
+	case SFNLogDestination:
+		return "sfn-log-destination"
 	default:
 		return fmt.Sprintf("Via(%d)", uint8(v))
 	}

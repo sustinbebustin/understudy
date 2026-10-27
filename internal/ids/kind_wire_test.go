@@ -52,6 +52,7 @@ var kindNames = []struct {
 	{ids.KindStreamEventID, "dynamodb-stream-event-id"},
 	{ids.KindStreamIteratorKey, "shard-iterator-key"},
 	{ids.KindSFNExecutionName, "sfn-execution-name"},
+	{ids.KindSFNRevisionID, "sfn-revision-id"},
 }
 
 // declaredKinds walks the kinds from the first until String falls back to

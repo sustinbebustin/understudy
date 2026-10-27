@@ -8,6 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/sfn/asl"
 	"github.com/sustinbebustin/understudy/internal/store"
@@ -65,15 +66,21 @@ func checkCreate(in *sfnapi.CreateStateMachineInput) *awserr.Error {
 	if len(in.Tags) > maxTags {
 		return errTooManyTags(in.Name)
 	}
-	return checkDefinition(in.Definition)
+	if err := checkDefinition(in.Definition); err != nil {
+		return err
+	}
+	return checkRoleArn(in.RoleArn)
 }
 
 // createStateMachine creates a Standard state machine. A request equal in
 // name, definition, type and configuration answers the existing machine,
 // keeping its role and tags; any other request for the name answers
 // StateMachineAlreadyExists (stepfunctions-api.md 5.1).
-func (s *Service) createStateMachine(_ context.Context, c *kernel.Call, in *sfnapi.CreateStateMachineInput) (*sfnapi.CreateStateMachineOutput, *awserr.Error) {
+func (s *Service) createStateMachine(ctx context.Context, c *kernel.Call, in *sfnapi.CreateStateMachineInput) (*sfnapi.CreateStateMachineOutput, *awserr.Error) {
 	if err := checkCreate(in); err != nil {
+		return nil, err
+	}
+	if err := s.checkLogging(ctx, c, in.LoggingConfiguration); err != nil {
 		return nil, err
 	}
 	ref := machineRef{scope: c.Scope(), name: in.Name}
@@ -87,8 +94,7 @@ func (s *Service) createStateMachine(_ context.Context, c *kernel.Call, in *sfna
 	}
 	created, err := kernel.Write(c, s.cells, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (clock.Instant, *awserr.Error) {
 		if old, ok := st.Machines[ref.name]; ok {
-			if old.Definition != m.Definition || !slices.Equal(old.Logging.Destinations, m.Logging.Destinations) ||
-				old.Logging.Level != m.Logging.Level || old.Logging.IncludeExecutionData != m.Logging.IncludeExecutionData || old.Tracing != m.Tracing {
+			if !old.sameConfiguration(&m) {
 				return clock.Instant{}, sfnapi.ErrStateMachineAlreadyExists("State Machine Already Exists: '" + ref.arn().String() + "'")
 			}
 			tx.Unchanged()
@@ -153,8 +159,90 @@ func (s *Service) describeStateMachine(_ context.Context, c *kernel.Call, in *sf
 		CreationDate:            m.Created.Wire(),
 		LoggingConfiguration:    m.Logging.wire(),
 		TracingConfiguration:    &sfnapi.TracingConfiguration{Enabled: m.Tracing},
+		RevisionId:              optional(m.RevisionID),
 		EncryptionConfiguration: awsOwnedKey(),
 	}, nil
+}
+
+// errNothingToUpdate is the recorded MissingRequiredParameter text
+// (stepfunctions-api.md 3.2, 5.3).
+const errNothingToUpdate = "Either the definition, the role ARN, the LoggingConfiguration, or the TracingConfiguration must be specified"
+
+// checkUpdate runs UpdateStateMachine's input rules: the 501 refusals
+// first, so a refused member never reaches the other checks, then
+// CreateStateMachine's rules for each member sent.
+func checkUpdate(in *sfnapi.UpdateStateMachineInput) *awserr.Error {
+	if err := checkUnimplemented("UpdateStateMachine", nil, in.Publish, in.EncryptionConfiguration); err != nil {
+		return err
+	}
+	if in.VersionDescription != nil {
+		// A description belongs to a published version, which is refused
+		// above; without publish it would be stored for nothing.
+		return sfnapi.ErrNotImplemented("UpdateStateMachine with versionDescription describes a state machine version, which understudy does not implement; nothing was changed. " +
+			"Leave versionDescription out." + unsupportedSuffix)
+	}
+	if in.Definition == nil && in.RoleArn == nil && in.LoggingConfiguration == nil && in.TracingConfiguration == nil && in.EncryptionConfiguration == nil {
+		return sfnapi.ErrMissingRequiredParameter(errNothingToUpdate)
+	}
+	if in.Definition != nil {
+		if err := checkDefinition(*in.Definition); err != nil {
+			return err
+		}
+	}
+	if in.RoleArn != nil {
+		return checkRoleArn(*in.RoleArn)
+	}
+	return nil
+}
+
+// updateStateMachine changes the members sent. An update that changes
+// something mints a new revisionId and updateDate; one that changes
+// nothing returns the existing revisionId, none before the first effective
+// update (stepfunctions-api.md 5.3). Running executions keep the machine
+// they started with (Execution.Run). encryptionConfiguration can only be
+// AWS_OWNED_KEY here, which every machine already has.
+func (s *Service) updateStateMachine(ctx context.Context, c *kernel.Call, in *sfnapi.UpdateStateMachineInput) (*sfnapi.UpdateStateMachineOutput, *awserr.Error) {
+	ref, ok, err := machineOfARN(c.Scope(), in.StateMachineArn)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkUpdate(in); err != nil {
+		return nil, err
+	}
+	if err := s.checkLogging(ctx, c, in.LoggingConfiguration); err != nil {
+		return nil, err
+	}
+	missing := sfnapi.ErrStateMachineDoesNotExist("State Machine Does Not Exist: '" + in.StateMachineArn + "'")
+	if !ok {
+		return nil, missing
+	}
+	return kernel.Write(c, s.cells, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (*sfnapi.UpdateStateMachineOutput, *awserr.Error) {
+		old, ok := st.Machines[ref.name]
+		if !ok {
+			return nil, missing
+		}
+		m := old
+		if in.Definition != nil {
+			m.Definition = *in.Definition
+		}
+		if in.RoleArn != nil {
+			m.RoleArn = *in.RoleArn
+		}
+		if in.LoggingConfiguration != nil {
+			m.Logging = loggingOf(in.LoggingConfiguration)
+		}
+		if in.TracingConfiguration != nil {
+			m.Tracing = in.TracingConfiguration.Enabled
+		}
+		if m.sameConfiguration(&old) && m.RoleArn == old.RoleArn {
+			tx.Unchanged()
+			return &sfnapi.UpdateStateMachineOutput{UpdateDate: now.Wire(), RevisionId: optional(old.RevisionID)}, nil
+		}
+		m.Updated = now
+		m.RevisionID = s.ids.UUID(ids.KindSFNRevisionID).String()
+		st.Machines[ref.name] = m
+		return &sfnapi.UpdateStateMachineOutput{UpdateDate: now.Wire(), RevisionId: new(m.RevisionID)}, nil
+	})
 }
 
 // awsOwnedKey is the encryptionConfiguration every machine describes with:

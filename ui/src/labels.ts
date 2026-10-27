@@ -31,6 +31,7 @@ export const viaLabels: Readonly<Record<string, string>> = {
   "lambda-code": "Lambda code fetch",
   "lambda-destination": "Lambda destination",
   "apigateway-integration": "API Gateway integration",
+  "sfn-log-destination": "Step Functions log destination check",
 };
 
 export const mechanismLabels: Readonly<Record<string, string>> = {
@@ -80,6 +81,7 @@ export const idKindLabels: Readonly<Record<string, string>> = {
   "dynamodb-stream-event-id": "DynamoDB stream event ID",
   "shard-iterator-key": "Shard iterator key",
   "sfn-execution-name": "Step Functions execution name",
+  "sfn-revision-id": "Step Functions revision ID",
 };
 
 // label returns table's label for name, or name when it has none.
