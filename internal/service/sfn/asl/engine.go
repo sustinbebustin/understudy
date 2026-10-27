@@ -32,21 +32,24 @@ const maxDataBytes = 262_144
 // timer or task x does not know, anything after the outcome) returns x
 // unchanged with no events or effects.
 //
-// Start and TimerFired apply. Stop, MachineDeleting, LambdaSucceeded and
-// LambdaFailed do not apply yet: no built state waits on a task, and
-// StopExecution and the deletion of a machine with running executions are
-// not wired to the engine.
+// Start, TimerFired, Stop and MachineDeleting apply. LambdaSucceeded and
+// LambdaFailed do not apply yet: no built state waits on a task.
+// MachineDeleting writes no event and asks for nothing: under
+// Rules.AbortOnDelete it marks the execution, which ends ABORTED at its
+// next transition instead of taking it.
 func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Event) (Execution, []HistoryEvent, []Effect) {
 	if _, done := x.Outcome(); done {
+		return x, nil, nil
+	}
+	if _, isStart := ev.(Start); isStart == x.started {
+		// Start applies only before the execution started, everything
+		// else only after.
 		return x, nil, nil
 	}
 	s := stepper{d: d, rules: rules, src: src, x: x}
 	s.x.timers = slices.Clone(x.timers)
 	switch ev := ev.(type) {
 	case Start:
-		if x.started {
-			return x, nil, nil
-		}
 		s.start(ev)
 	case TimerFired:
 		i := slices.IndexFunc(x.timers, func(t armed) bool { return t.id == ev.Timer })
@@ -56,7 +59,19 @@ func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Even
 		fired := s.x.timers[i]
 		s.x.timers = slices.Delete(s.x.timers, i, i+1)
 		s.at = ev.At
+		if _, deadline := fired.job.(deadlineJob); s.x.deleting && !deadline {
+			s.abort("", "")
+			break
+		}
 		s.run(fired.job)
+	case Stop:
+		s.at = ev.At
+		s.abort(ev.Error, ev.Cause)
+	case MachineDeleting:
+		if !rules.AbortOnDelete || x.deleting {
+			return x, nil, nil
+		}
+		s.x.deleting = true
 	default:
 		return x, nil, nil
 	}
@@ -124,13 +139,52 @@ func (s *stepper) start(ev Start) {
 	}
 	s.emit("ExecutionStarted", 0, details)
 	s.arm(ev.At, stepJob{state: s.d.startAt, input: input, previous: 0})
+	s.arm(ev.At.Add(s.d.limit()), deadlineJob{})
 }
 
 // run does what a fired timer's job asks.
 func (s *stepper) run(j job) {
-	if j, ok := j.(stepJob); ok {
+	switch j := j.(type) {
+	case stepJob:
 		s.step(j)
+	case waitJob:
+		s.waitExit(j)
+	case deadlineJob:
+		s.timedOut()
 	}
+}
+
+// maxExecution is the longest a Standard execution runs: one year
+// (stepfunctions-asl.md 3.1, aws-doc dg/service-quotas "Maximum execution
+// time"). AWS's length of that year is unrecorded; understudy takes 365
+// days (inferred, ASL-09).
+const maxExecution = 365 * 24 * time.Hour
+
+// limit is how long an execution of d may run: its TimeoutSeconds, at most
+// maxExecution.
+func (d *Definition) limit() time.Duration {
+	if d.timeoutSeconds > 0 && time.Duration(d.timeoutSeconds)*time.Second < maxExecution {
+		return time.Duration(d.timeoutSeconds) * time.Second
+	}
+	return maxExecution
+}
+
+// timedOut ends the execution TIMED_OUT at its deadline. DescribeExecution
+// then has no error or cause (stepfunctions-asl.md 8.6; aws-recorded
+// localstack@8b9a79f v2/timeouts/test_timeouts.snapshot.json:L688-L708), so
+// ExecutionTimedOut's details are {}. Its previousEventId is 0, as
+// ExecutionAborted's from StopExecution is, and a running Wait writes no
+// WaitStateAborted (UNVERIFIED, ASL-12).
+func (s *stepper) timedOut() {
+	s.emit("ExecutionTimedOut", 0, errorDetails("", ""))
+	s.end(TimedOut{})
+}
+
+// abort ends the execution ABORTED: ExecutionAborted has previousEventId 0
+// and {error?, cause?} (stepfunctions-asl.md 11.2 rule 10, 11.3).
+func (s *stepper) abort(name, cause string) {
+	s.emit("ExecutionAborted", 0, errorDetails(name, cause))
+	s.end(Aborted{Error: name, Cause: cause})
 }
 
 // step runs one state transition (contract 5.5 item 2).
@@ -177,7 +231,9 @@ func (s *stepper) step(j stepJob) {
 		s.fail(name, cause, entered)
 	case choiceState:
 		s.choice(st, j)
-	case waitState, taskState, parallelState, mapState:
+	case waitState:
+		s.wait(st, j)
+	case taskState, parallelState, mapState:
 		// Parse accepts these types only under features whose runtime has
 		// not landed, which the service does not accept yet.
 		s.fail(errRuntime, "The state '"+j.state+"' is of a type this engine does not run yet.", j.previous)

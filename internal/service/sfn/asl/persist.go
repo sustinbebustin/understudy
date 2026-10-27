@@ -16,8 +16,9 @@ type executionRecord struct {
 	LastTimer int64         `json:"lastTimer,omitempty"`
 	Timers    []timerRecord `json:"timers,omitempty"`
 	// Context is the JSON text of the start context; "" before Start.
-	Context string        `json:"context,omitempty"`
-	Outcome outcomeRecord `json:"outcome,omitzero"`
+	Context  string        `json:"context,omitempty"`
+	Outcome  outcomeRecord `json:"outcome,omitzero"`
+	Deleting bool          `json:"deleting,omitempty"`
 }
 
 type timerRecord struct {
@@ -26,7 +27,8 @@ type timerRecord struct {
 	Job jobRecord `json:"job"`
 }
 
-// jobRecord is the persisted job: stepRecord.
+// jobRecord is the persisted job: stepRecord, waitRecord or
+// deadlineRecord.
 type jobRecord interface{ isJobRecord() }
 
 type stepRecord struct {
@@ -35,7 +37,17 @@ type stepRecord struct {
 	Previous int64  `json:"previous"`
 }
 
-func (stepRecord) isJobRecord() {}
+type waitRecord struct {
+	State   string `json:"state"`
+	Output  string `json:"output"`
+	Entered int64  `json:"entered"`
+}
+
+type deadlineRecord struct{}
+
+func (stepRecord) isJobRecord()     {}
+func (waitRecord) isJobRecord()     {}
+func (deadlineRecord) isJobRecord() {}
 
 // outcomeRecord is the persisted outcome.
 type outcomeRecord interface{ isOutcomeRecord() }
@@ -64,6 +76,8 @@ func (abortedRecord) isOutcomeRecord()   {}
 func recordCodec() (jsonx.Codec, error) {
 	jobs, err := jsonx.NewUnion("asl.jobRecord",
 		jsonx.Variant[jobRecord, stepRecord]("step"),
+		jsonx.Variant[jobRecord, waitRecord]("wait"),
+		jsonx.Variant[jobRecord, deadlineRecord]("deadline"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, err
@@ -87,14 +101,19 @@ func (x Execution) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	r := executionRecord{Started: x.started, LastEvent: x.lastEvent, LastTimer: int64(x.lastTimer)}
+	r := executionRecord{Started: x.started, LastEvent: x.lastEvent, LastTimer: int64(x.lastTimer), Deleting: x.deleting}
 	if x.context != nil {
 		r.Context = text(x.context)
 	}
 	for _, t := range x.timers {
 		tr := timerRecord{ID: int64(t.id), At: t.at}
-		if j, ok := t.job.(stepJob); ok {
+		switch j := t.job.(type) {
+		case stepJob:
 			tr.Job = stepRecord{State: j.state, Input: text(j.input), Previous: j.previous}
+		case waitJob:
+			tr.Job = waitRecord{State: j.state, Output: text(j.output), Entered: j.entered}
+		case deadlineJob:
+			tr.Job = deadlineRecord{}
 		}
 		r.Timers = append(r.Timers, tr)
 	}
@@ -121,7 +140,7 @@ func (x *Execution) UnmarshalJSON(b []byte) error {
 	if err := c.Unmarshal(b, &r); err != nil {
 		return err
 	}
-	out := Execution{started: r.Started, lastEvent: r.LastEvent, lastTimer: TimerID(r.LastTimer)}
+	out := Execution{started: r.Started, lastEvent: r.LastEvent, lastTimer: TimerID(r.LastTimer), deleting: r.Deleting}
 	if r.Context != "" {
 		if out.context, err = parseText(r.Context, "context"); err != nil {
 			return err
@@ -136,6 +155,14 @@ func (x *Execution) UnmarshalJSON(b []byte) error {
 				return err
 			}
 			t.job = stepJob{state: j.State, input: input, previous: j.Previous}
+		case waitRecord:
+			output, err := parseText(j.Output, "wait output")
+			if err != nil {
+				return err
+			}
+			t.job = waitJob{state: j.State, output: output, entered: j.Entered}
+		case deadlineRecord:
+			t.job = deadlineJob{}
 		default:
 			return fmt.Errorf("asl: timer %d of a saved execution has no job; the execution cannot be resumed", tr.ID)
 		}

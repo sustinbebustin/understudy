@@ -23,6 +23,9 @@ type Execution struct {
 	context document.Value
 	// outcome is nil while the execution runs.
 	outcome Outcome
+	// deleting is set by MachineDeleting under Rules.AbortOnDelete: the
+	// next transition ends the execution ABORTED.
+	deleting bool
 }
 
 // armed is one armed timer and what it does when it fires.
@@ -32,7 +35,7 @@ type armed struct {
 	job job
 }
 
-// job is what a timer does: stepJob.
+// job is what a timer does: stepJob, waitJob or deadlineJob.
 type job interface{ isJob() }
 
 // stepJob runs one state: the state named state on input, its first event
@@ -43,7 +46,21 @@ type stepJob struct {
 	previous int64
 }
 
-func (stepJob) isJob() {}
+// waitJob ends the Wait state named state: it writes WaitStateExited
+// pointing at entered with output, then moves on.
+type waitJob struct {
+	state   string
+	output  document.Value
+	entered int64
+}
+
+// deadlineJob ends the execution TIMED_OUT: its TimeoutSeconds or the
+// one-year limit has passed.
+type deadlineJob struct{}
+
+func (stepJob) isJob()     {}
+func (waitJob) isJob()     {}
+func (deadlineJob) isJob() {}
 
 // Outcome reports how the execution ended; false while it runs or before
 // Start.
