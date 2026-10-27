@@ -79,7 +79,7 @@ Recorded message texts (the format is `<Words of the code>: '<subject>'`):
 
 The `statusFilter` enum list is not in model order: `Member must satisfy enum value set: [SUCCEEDED, TIMED_OUT, PENDING_REDRIVE, ABORTED, FAILED, RUNNING]` (v2/test_sfn_api.snapshot.json:L1672, 2024-03-14) against model order `RUNNING|SUCCEEDED|FAILED|TIMED_OUT|ABORTED|PENDING_REDRIVE` [M] `com.amazonaws.sfn#ExecutionStatus`. Generated validation must carry the recorded order as an overlay, as error-matrix.md 4 already does for other services.
 
-UNVERIFIED (SFN-01): the raw `__type` value (bare `StateMachineDoesNotExist` or a namespaced form) and the `message`/`Message` key casing on the wire; the `InvalidArn` texts for a well-formed ARN of the wrong service, the wrong resource type (`execution:` where `stateMachine:` is expected) and another region. Clients strip namespaces, so emitting the bare shape name is safe until recorded.
+UNVERIFIED (SFN-01): the raw `__type` value (bare `StateMachineDoesNotExist` or a namespaced form) and the `message`/`Message` key casing on the wire; the `InvalidArn` texts for a well-formed ARN of the wrong service, the wrong resource type (`execution:` where `stateMachine:` is expected) and another region. Clients strip namespaces, so either form parses; understudy keeps the generated `com.amazonaws.sfn#<Shape>`, the code generator's rule for every awsJson service, until SFN-01 settles it (13.2 `sfn.error.type`).
 
 ### 3.3 The `sync-` host prefix in clients
 
@@ -402,17 +402,19 @@ Do not adopt it as a runtime backend, a CI oracle or a conformance target. A mai
 
 First slice (tracer bullet): the Terraform set, then executions. Note texts are what the bind site's `registry.Partial` carries.
 
+**Item 7 minimum.** ROADMAP item 7 builds Standard workflows with Lambda tasks and the minimum operations, and binds less than the table below; where they differ, this paragraph wins for item 7 and the table describes a later slice. Partial: `CreateStateMachine`, `UpdateStateMachine`, `ValidateStateMachineDefinition`, `ListStateMachineVersions` (always empty: `publish` true is refused), `StartExecution`, `StopExecution`, `ListExecutions`, `GetExecutionHistory`. Full: `DescribeStateMachine`, `DeleteStateMachine`, `ListStateMachines`, `DescribeExecution`, `DescribeStateMachineForExecution`, `TagResource`, `UntagResource`, `ListTagsForResource`. Unbound (501), 21: `StartSyncExecution` (the Express unit), `SendTaskSuccess`, `SendTaskFailure`, `SendTaskHeartbeat`, the five activity operations, the five alias operations, `PublishStateMachineVersion`, `DeleteStateMachineVersion`, `RedriveExecution`, `TestState`, `DescribeMapRun`, `ListMapRuns`, `UpdateMapRun`. `type` `EXPRESS`, `publish` true (with or without `versionDescription`) and `encryptionConfiguration.type` `CUSTOMER_MANAGED_KMS_KEY` answer 501 `NotImplemented` naming the member; `publish` false, which Terraform always sends, is accepted, and `versionDescription` without `publish` keeps the recorded `ValidationException` (5.1). A Task resource other than a Lambda function ARN or `arn:aws:states:::lambda:invoke` is refused at create with `InvalidDefinition` code `UNSUPPORTED_BY_UNDERSTUDY` (stepfunctions-asl.md 10.4, 15.1), not accepted and failed at run time (13.7). Nothing is `StoredOnly`.
+
 | Operation | Coverage | Note |
 |---|---|---|
-| `CreateStateMachine`, `UpdateStateMachine` | Partial | `tracingConfiguration is stored and echoed, no X-Ray trace is emitted; encryptionConfiguration is validated against the KMS key and stored, execution data is not encrypted with it; the execution role is checked for ARN syntax only` |
+| `CreateStateMachine`, `UpdateStateMachine` | Partial | `tracingConfiguration is stored and echoed, no X-Ray trace is emitted; encryptionConfiguration is validated against the KMS key and stored, execution data is not encrypted with it; the execution role is checked for ARN syntax only` (item 7 answers 501 for `CUSTOMER_MANAGED_KMS_KEY` until the KMS validation is built) |
 | `DescribeStateMachine`, `DeleteStateMachine`, `ListStateMachines`, `TagResource`, `UntagResource`, `ListTagsForResource` | Full | |
 | `ValidateStateMachineDefinition` | Partial | `diagnostics come from understudy's ASL validator; codes and messages are AWS's only for the cases recorded in stepfunctions-api.md 5.6` |
-| `PublishStateMachineVersion`, `ListStateMachineVersions`, `DeleteStateMachineVersion` | Full | |
-| `StartExecution`, `StartSyncExecution`, `DescribeExecution`, `DescribeStateMachineForExecution`, `StopExecution`, `GetExecutionHistory` | Full | |
+| `PublishStateMachineVersion`, `ListStateMachineVersions`, `DeleteStateMachineVersion` | Full (later slice; item 7 binds only `ListStateMachineVersions`, always empty) | |
+| `StartExecution`, `StartSyncExecution`, `DescribeExecution`, `DescribeStateMachineForExecution`, `StopExecution`, `GetExecutionHistory` | Full (`StartSyncExecution` in the Express unit; unbound in item 7) | |
 | `ListExecutions` | Partial | `mapRunArn and redriveFilter are validated; no Map Run or redrive exists, so they never match` |
-| `SendTaskSuccess`, `SendTaskFailure`, `SendTaskHeartbeat` | Full | |
-| `CreateActivity`, `DescribeActivity`, `DeleteActivity`, `ListActivities`, `GetActivityTask` | Full (second slice) | |
-| `CreateStateMachineAlias`, `DescribeStateMachineAlias`, `UpdateStateMachineAlias`, `DeleteStateMachineAlias`, `ListStateMachineAliases` | Full (second slice) | routing draws from a seeded `ids` stream of its own (ADR 0018) |
+| `SendTaskSuccess`, `SendTaskFailure`, `SendTaskHeartbeat` | Full (later slice; unbound in item 7) | |
+| `CreateActivity`, `DescribeActivity`, `DeleteActivity`, `ListActivities`, `GetActivityTask` | Full (second slice; unbound in item 7) | |
+| `CreateStateMachineAlias`, `DescribeStateMachineAlias`, `UpdateStateMachineAlias`, `DeleteStateMachineAlias`, `ListStateMachineAliases` | Full (second slice; unbound in item 7) | routing draws from a seeded `ids` stream of its own (ADR 0018) |
 | `TestState` | unbound (501) in the first slice | a later Partial over the interpreter with `mock` input only |
 | `RedriveExecution`, `DescribeMapRun`, `ListMapRuns`, `UpdateMapRun` | unbound (501) | Distributed Map and redrive are out of scope |
 
@@ -420,29 +422,33 @@ Nothing is `StoredOnly`: every stored-only member sits inside an operation that 
 
 ### 13.2 Fidelity switches
 
-| Name | Default | Label | Ground |
-|---|---|---|---|
-| `sfn.definition.compare` | byte-exact for idempotency and storage | third-party-recorded | 5.1 |
-| `sfn.execution.idempotent-input-compare` | byte-exact | inferred (SFN-03) | 6.1 |
-| `sfn.execution.name-reuse-after-close` | 90 days on the emulator clock | aws-doc | 6.1 |
-| `sfn.input.parse-error-text` | the three recorded `InvalidExecutionInput` texts; other parse failures `Invalid State Machine Execution Input: 'Invalid execution input.'` | third-party-recorded (fallback inferred) | 6.1 |
-| `sfn.create.role-validation` | ARN syntax only | inferred (SFN-08) | 5.1 |
-| `sfn.delete.idle-machine` | removed at once (Describe answers `StateMachineDoesNotExist`) | inferred (SFN-06); Terraform accepts either | 5.4 |
-| `sfn.delete.running-execution` | machine stays `DELETING`; each execution ends `ABORTED` at its next transition | inferred (SFN-06) | 5.4 |
-| `sfn.sync.billing-details` | duration rounded up to 100 ms, memory 64 MB | third-party-recorded minimum, inferred rounding (SFN-12) | 6.2 |
-| `sfn.task-token.format` | opaque base64url, 256 characters (any length inside the model's 1..2048 serves), from the seeded stream | inferred (SFN-02) | 7.1 |
-| `sfn.task-token.closed-error` | `TaskTimedOut`, message `Task Timed Out: '<token>'` built on the `<Words>: '<subject>'` pattern of 3.2 | aws-doc code, inferred text (SFN-02) | 7.1 |
-| `sfn.activity.empty-poll-body` | `{}` | inferred (SFN-10) | 7.2 |
-| `sfn.logs.event-timestamp` | epoch milliseconds as a decimal string | inferred (SFN-07) | 8.2 |
-| `sfn.logs.stream-name` | `states/<state machine name>/<yyyy-mm-dd-hh-mm>/<32 hex>` | inferred (SFN-07) | 8.2 |
-| `sfn.logs.validation-stream` | create `log_stream_created_by_aws_to_validate_log_delivery_subscriptions` when logging is enabled | inferred (SFN-07) | 8.2 |
-| `sfn.history.exclude-data` | `includeExecutionData: false` drops `input`/`output` and keeps `*Details` | inferred (SFN-05) | 6.6 |
-| `sfn.integration.sdk-http-metadata` | `SdkHttpMetadata`/`SdkResponseMetadata` built from the headers understudy's own handler returned | third-party-recorded shape | 9.2 |
-| `sfn.integration.aws-sdk-cause-suffix` | append ` (SDK Attempt Count: 1)` | third-party-recorded for `Sfn` (2025-11-06), inferred for other services (SFN-11) | 9.4 |
-| `sfn.integration.sync-managed-rule` | not created | inferred (SFN-11), deviation | 9.1 |
-| `sfn.integration.unimplemented` | fail the execution with `States.Runtime`, cause `understudy does not implement <resource>; see /coverage` | inferred, deviation | 13.7 |
-| `sfn.events.target-execution-name` | a UUID from the seeded stream | inferred (SFN-09) | 10.1 |
-| `sfn.error.type` | bare shape name in `__type` | inferred (SFN-01) | 3.2 |
+"Status in item 7" says how ROADMAP item 7 carries each row: a `fidelity.Switch` (six in all, three of them in stepfunctions-asl.md 15.3), an exact coverage note naming the recording id with an inferred-choice test, a value implemented with its citation and no switch, or a later slice.
+
+| Name | Default | Label | Ground | Status in item 7 |
+|---|---|---|---|---|
+| `sfn.definition.compare` | byte-exact for idempotency and storage | third-party-recorded | 5.1 | implemented as documented |
+| `sfn.execution.idempotent-input-compare` | byte-exact | inferred (SFN-03) | 6.1 | coverage note (StartExecution, SFN-03) |
+| `sfn.execution.name-reuse-after-close` | 90 days on the emulator clock | aws-doc | 6.1 | implemented as documented |
+| `sfn.input.parse-error-text` | the three recorded `InvalidExecutionInput` texts; other parse failures `Invalid State Machine Execution Input: 'Invalid execution input.'` | third-party-recorded (fallback inferred) | 6.1 | implemented as documented; the fallback is a coverage note (StartExecution, SFN-08) |
+| `sfn.create.role-validation` | ARN syntax only | inferred (SFN-08) | 5.1 | coverage note (CreateStateMachine, SFN-08); the trust policy is checked only under `iam.enforce=enforce` |
+| `sfn.delete.idle-machine` | removed at once (Describe answers `StateMachineDoesNotExist`) | inferred (SFN-06); Terraform accepts either | 5.4 | switch, folded into `sfn.delete.running-execution` |
+| `sfn.delete.running-execution` | machine stays `DELETING`; each execution ends `ABORTED` at its next transition | inferred (SFN-06) | 5.4 | switch |
+| `sfn.sync.billing-details` | duration rounded up to 100 ms, memory 64 MB | third-party-recorded minimum, inferred rounding (SFN-12) | 6.2 | later slice (Express unit) |
+| `sfn.task-token.format` | opaque base64url, 256 characters (any length inside the model's 1..2048 serves), from the seeded stream | inferred (SFN-02) | 7.1 | later slice |
+| `sfn.task-token.closed-error` | `TaskTimedOut`, message `Task Timed Out: '<token>'` built on the `<Words>: '<subject>'` pattern of 3.2 | aws-doc code, inferred text (SFN-02) | 7.1 | later slice |
+| `sfn.activity.empty-poll-body` | `{}` | inferred (SFN-10) | 7.2 | later slice |
+| `sfn.logs.event-timestamp` | epoch milliseconds as a decimal string | inferred (SFN-07) | 8.2 | later slice (item 7 emits no log events) |
+| `sfn.logs.stream-name` | `states/<state machine name>/<yyyy-mm-dd-hh-mm>/<32 hex>` | inferred (SFN-07) | 8.2 | later slice |
+| `sfn.logs.validation-stream` | create `log_stream_created_by_aws_to_validate_log_delivery_subscriptions` when logging is enabled | inferred (SFN-07) | 8.2 | later slice |
+| `sfn.history.exclude-data` | `includeExecutionData: false` drops `input`/`output` and keeps `*Details` | inferred (SFN-05) | 6.6 | coverage note (GetExecutionHistory, SFN-05) |
+| `sfn.integration.sdk-http-metadata` | `SdkHttpMetadata`/`SdkResponseMetadata` built from the headers understudy's own handler returned | third-party-recorded shape | 9.2 | implemented as documented for lambda:invoke: the recorded header keys, values from `lambdaapi.InvokeOutput`, the recorded constants, the request-id kind and the emulator clock; the `X-Amzn-Trace-Id` value is a coverage note (StartExecution) |
+| `sfn.integration.aws-sdk-cause-suffix` | append ` (SDK Attempt Count: 1)` | third-party-recorded for `Sfn` (2025-11-06), inferred for other services (SFN-11) | 9.4 | later slice |
+| `sfn.integration.sync-managed-rule` | not created | inferred (SFN-11), deviation | 9.1 | later slice |
+| `sfn.integration.unimplemented` | superseded: an unimplemented `Resource` is refused at create with `InvalidDefinition` code `UNSUPPORTED_BY_UNDERSTUDY`, so the refusal reaches `terraform plan` (stepfunctions-asl.md 10.4, 13); only a path-valued lambda:invoke `InvocationType`, unknowable at create, fails at run time with `States.Runtime` when it resolves to anything but `RequestResponse` | inferred, deviation | 13.7 | coverage note (CreateStateMachine; StartExecution, SFN-13) |
+| `sfn.events.target-execution-name` | a UUID from the seeded stream | inferred (SFN-09) | 10.1 | later slice |
+| `sfn.error.type` | the generated `com.amazonaws.sfn#<Shape>` in `__type`, the code generator's rule for every awsJson service; clients strip the namespace, so either form parses (3.2); UNVERIFIED until SFN-01 | inferred (SFN-01) | 3.2 | implemented as generated, no switch |
+| `sfn.integration.lambda-error` | a Lambda service error becomes `Lambda.<Shape>` when Lambda models the shape (`ResourceNotFoundException`, `TooManyRequestsException`, `ServiceException`, ...) and `Lambda.AWSLambdaException` otherwise (`AccessDeniedException` among them), with cause `<message> (Service: AWSLambda; Status Code: <status>; Error Code: <code>; Request ID: <id>; Proxy: null)`; recorded for `ResourceNotFoundException` (9.4 row 4), the unmodeled-code rule follows the DynamoDB and SQS rows (9.4 rows 2-3) | inferred (SFN-15) | 9.4 | switch |
+| `sfn.denial.status` | `AccessDeniedException` at 400 | inferred (SFN-15) | iam-enforcement-surfaces.md 12.3 | switch |
 
 ### 13.3 Validation texts and limits
 
@@ -451,6 +457,8 @@ Nothing is `StoredOnly`: every stored-only member sits inside an operation that 
 - Enforce 262,144 characters on every data member, 25,000 history events (the interpreter fails the execution), 1-year and 5-minute durations on the emulator clock (ARCHITECTURE.md 9), 90-day retention of closed Standard executions, and the 60-second `GetActivityTask` hold as a context-aware wait (ARCHITECTURE.md 8).
 
 ### 13.4 Endpoint and host prefix
+
+This section belongs to the Express unit, which binds `StartSyncExecution`; item 7 leaves it unbound, routes by `X-Amz-Target` as below, and its conformance check of the 501 sends with host-prefix injection off (3.3).
 
 - Route by `X-Amz-Target` and accept any host the policy allows; never require the `sync-` label.
 - `understudy env` prints `AWS_DISABLE_HOST_PREFIX_INJECTION=true` for boto3 and the AWS CLI (botocore 1.37.5 or later) and `AWS_ENDPOINT_URL_SFN=http://sfn.localhost:<port>` as the setting that also covers Go v2 and JS v3 where `*.localhost` resolves; the guide shows the Go middleware and the JS `disableHostPrefix: true` option for hosts where it does not. `understudy doctor` checks that `sync-sfn.localhost` resolves.
@@ -472,7 +480,7 @@ Bind `CreateStateMachine`, `DescribeStateMachine`, `UpdateStateMachine`, `Delete
 
 ### 13.7 What must never be faked
 
-- An integration or `Resource` understudy does not implement (any `aws-sdk:` service it does not emulate, any optimized service outside 9.2, `.sync` on anything but `states:startExecution`) is accepted at create, as AWS accepts it, but its task fails the execution with `States.Runtime`, which `States.ALL` cannot catch ([D] concepts-error-handling), so no `Catch` turns a missing integration into a green workflow. Coverage lists the integration matrix.
+- An integration or `Resource` understudy does not implement (any `aws-sdk:` service it does not emulate, any optimized service outside 9.2, `.sync` on anything but `states:startExecution`; in item 7 every resource but a Lambda function ARN and `arn:aws:states:::lambda:invoke`) is refused at create with `InvalidDefinition` code `UNSUPPORTED_BY_UNDERSTUDY` (stepfunctions-asl.md 10.4), so the refusal reaches `terraform plan` through `ValidateStateMachineDefinition` and no `Catch` can turn a missing integration into a green workflow. Only what create cannot know fails at run time with `States.Runtime`, which `States.ALL` cannot catch ([D] concepts-error-handling): a path-valued lambda:invoke `InvocationType` that resolves to anything but `RequestResponse` (SFN-13). Coverage lists the integration matrix.
 - No X-Ray segments, no KMS encryption of execution data, no role assumption: stated in the Partial notes, never implied by success.
 - Express history is never served through `DescribeExecution` or `GetExecutionHistory`; it is visible through CloudWatch Logs and the journal only.
 - `TestState`, redrive and Distributed Map stay unbound (501) until built.
@@ -819,3 +827,62 @@ sha256sum "$ZD/sfnlocal.zip" >"$REC/SFN-14/sha256.txt"
 ```
 
 Teardown: `rm -rf "$ZD"`. Never run the JAR from the recording shell.
+
+### 14.16 SFN-15: denials and Lambda service errors
+
+Settles `sfn.denial.status` (the identity, status and text of a Step Functions IAM denial, iam-enforcement-surfaces.md 12.3) and `sfn.integration.lambda-error` (how a Lambda service error the model does not declare, and one it does, reach a Task's history, 9.4). Cost under USD 0.01, 15 minutes.
+
+```sh
+# 1. A caller without states:ListStateMachines (an IAM user with no policy).
+aws iam create-user --user-name "$P-sfn-nobody"
+read -r UK US < <(aws iam create-access-key --user-name "$P-sfn-nobody" \
+  --query 'AccessKey.[AccessKeyId,SecretAccessKey]' --output text)
+sleep 15   # a new key can be refused for a few seconds
+AWS_ACCESS_KEY_ID=$UK AWS_SECRET_ACCESS_KEY=$US AWS_SESSION_TOKEN= \
+  sfn SFN-15/01-denied-list ListStateMachines '{}'
+
+# 2. A Task whose execution role lacks lambda:InvokeFunction.
+printf 'def handler(event, context):\n    return {"ok": True}\n' >sfn15.py && zip -q sfn15.zip sfn15.py
+aws iam create-role --role-name "$P-sfn15-fn" --assume-role-policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+aws iam create-role --role-name "$P-sfn-noinv" --assume-role-policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"states.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+sleep 20
+aws lambda create-function --function-name "$P-sfn15-fn" --runtime python3.13 --handler sfn15.handler \
+  --role "arn:aws:iam::$A:role/$P-sfn15-fn" --zip-file fileb://sfn15.zip
+aws lambda wait function-active-v2 --function-name "$P-sfn15-fn"
+FN="arn:aws:lambda:$R:$A:function:$P-sfn15-fn"
+NR="arn:aws:iam::$A:role/$P-sfn-noinv"
+aws stepfunctions create-state-machine --name "$P-noinv-invoke" --role-arn "$NR" --definition \
+  "{\"StartAt\":\"T\",\"States\":{\"T\":{\"Type\":\"Task\",\"Resource\":\"arn:aws:states:::lambda:invoke\",\"Parameters\":{\"FunctionName\":\"$FN\"},\"End\":true}}}"
+aws stepfunctions create-state-machine --name "$P-noinv-arn" --role-arn "$NR" --definition \
+  "{\"StartAt\":\"T\",\"States\":{\"T\":{\"Type\":\"Task\",\"Resource\":\"$FN\",\"End\":true}}}"
+X1=$(aws stepfunctions start-execution --state-machine-arn "$SM:$P-noinv-invoke" --query executionArn --output text)
+X2=$(aws stepfunctions start-execution --state-machine-arn "$SM:$P-noinv-arn" --query executionArn --output text)
+sleep 10
+rec SFN-15/02-denied-invoke-history aws stepfunctions get-execution-history --execution-arn "$X1"
+rec SFN-15/03-denied-arn-history aws stepfunctions get-execution-history --execution-arn "$X2"
+
+# 3. A throttled function: reserved concurrency 0, invoked by the shared role, which may invoke it.
+aws lambda put-function-concurrency --function-name "$P-sfn15-fn" --reserved-concurrent-executions 0
+aws stepfunctions create-state-machine --name "$P-throttled" --role-arn "$SR" --definition \
+  "{\"StartAt\":\"T\",\"States\":{\"T\":{\"Type\":\"Task\",\"Resource\":\"arn:aws:states:::lambda:invoke\",\"Parameters\":{\"FunctionName\":\"$FN\"},\"End\":true}}}"
+X=$(aws stepfunctions start-execution --state-machine-arn "$SM:$P-throttled" --query executionArn --output text)
+sleep 10
+rec SFN-15/04-throttled-history aws stepfunctions get-execution-history --execution-arn "$X"
+```
+
+Expected (inferred, which this case settles): 01 is `AccessDeniedException` at 400 with the IAM grammar of iam-enforcement-surfaces.md 4.1; record the status line, the body's `__type` value and its message key. 02 ends `TaskFailed` and 03 `LambdaFunctionFailed`, each with error `Lambda.AWSLambdaException` and a cause containing `Error Code: AccessDeniedException` in the `(Service: AWSLambda; Status Code: <status>; ...)` form of 9.4; record whether 03 fails before or after `LambdaFunctionScheduled`. 04 ends `TaskFailed` with `Lambda.TooManyRequestsException` (9.4: a documented Lambda name); record its cause.
+
+Teardown:
+
+```sh
+for n in noinv-invoke noinv-arn throttled; do aws stepfunctions delete-state-machine --state-machine-arn "$SM:$P-$n"; done
+aws lambda delete-function --function-name "$P-sfn15-fn"
+aws logs delete-log-group --log-group-name "/aws/lambda/$P-sfn15-fn"
+aws iam delete-role --role-name "$P-sfn15-fn"
+aws iam delete-role --role-name "$P-sfn-noinv"
+aws iam delete-access-key --user-name "$P-sfn-nobody" --access-key-id "$UK"
+aws iam delete-user --user-name "$P-sfn-nobody"
+rm -f sfn15.py sfn15.zip
+```

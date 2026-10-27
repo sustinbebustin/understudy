@@ -470,7 +470,7 @@ The service API as a whole (operations, ARNs, Standard versus Express, service i
 - **Input**: `""` gives `InvalidExecutionInput`, `Invalid State Machine Execution Input: 'Invalid execution input.'`; non-JSON gives the Jackson text, for example `Invalid State Machine Execution Input: 'Unrecognized token 'not': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false')'`; numbers, strings and `null` are accepted (localstack@8b9a79f v2/test_sfn_api.snapshot.json:L402 onward [R 2023-06-22]). No input means `{}` ([Spec] [spec#data](https://states-language.net/spec.html#data)). UNVERIFIED: the error code and message for input over 262,144 bytes (ASL-15).
 - **CreateStateMachine idempotency**: same name with a re-indented definition gives `StateMachineAlreadyExists`, `State Machine Already Exists: '<ARN>'` (localstack@8b9a79f v2/test_sfn_api.snapshot.json:L165-L211 [R 2023-06-22]), so the comparison is on the definition string; differences in `roleArn` or `tags` alone are ignored and not applied ([D] [api/API_CreateStateMachine](https://docs.aws.amazon.com/step-functions/latest/apireference/API_CreateStateMachine.html)).
 - **UpdateStateMachine** returns a new `revisionId` (UUID) and `updateDate` on a real change and the same `revisionId` when nothing changed; `DescribeStateMachine` shows `revisionId` only after the first update; an update with nothing gives `MissingRequiredParameter`, `Either the definition, the role ARN, the LoggingConfiguration, or the TracingConfiguration must be specified` (localstack@8b9a79f v2/test_sfn_api.snapshot.json:L609-L705, L990-L1100 [R 2023-08-08]).
-- **DescribeStateMachine** defaults: `loggingConfiguration {includeExecutionData: false, level: OFF}`, `tracingConfiguration {enabled: false}`, `status ACTIVE` (same file L165 onward [R 2023-06-22]); activities show `encryptionConfiguration {type: AWS_OWNED_KEY}` (localstack@8b9a79f v2/test_sfn_api_activities.snapshot.json:L102 [R 2024-11-25]). UNVERIFIED: whether state machines show the same encryption default, and that the definition comes back with its whitespace intact (ASL-17).
+- **DescribeStateMachine** defaults: `loggingConfiguration {includeExecutionData: false, level: OFF}`, `tracingConfiguration {enabled: false}`, `status ACTIVE` (same file L165 onward [R 2023-06-22]); activities show `encryptionConfiguration {type: AWS_OWNED_KEY}` (localstack@8b9a79f v2/test_sfn_api_activities.snapshot.json:L102 [R 2024-11-25]), and so do state machines (localstack@8b9a79f v2/test_sfn_api_variable_references.snapshot.json:L31-L33 [R 2024-11-20], stepfunctions-api.md 5.2). UNVERIFIED: that the definition comes back with its whitespace intact (ASL-17).
 - **DescribeExecution** of a failed Standard execution: `{executionArn, input, inputDetails {included: true}, name, redriveCount: 0, redriveStatus: REDRIVABLE, startDate, stateMachineArn, status, stopDate}`, plus `error`/`cause` when present (localstack@8b9a79f v2/base/test_base.snapshot.json:L184-L199 [R 2024-03-06]).
 - **StartSyncExecution** (Express only): Standard gives `StateMachineTypeNotSupported`, `This operation is not supported by this type of state machine` (localstack@8b9a79f v2/test_sfn_api.snapshot.json:L1773 onward [R 2024-07-03]); the response is `{billingDetails {billedDurationInMilliseconds, billedMemoryUsedInMB}, executionArn arn:aws:states:<r>:<a>:express:<machine>:<name>:<uuid>, input, inputDetails, name, output, outputDetails, startDate, stateMachineArn, status, stopDate}` plus `error`/`cause` on failure (localstack@8b9a79f v2/express/test_express_sync.snapshot.json:L2-L79 [R 2024-06-26]); billing rounds duration up to 100 ms and memory to 64 MB chunks ([D] [pricing](https://aws.amazon.com/step-functions/pricing/)), recorded `100` and `64` for trivial runs.
 - **Payload limit**: 256 KiB UTF-8 for task, state and execution input and output ([D] [dg/service-quotas](https://docs.aws.amazon.com/step-functions/latest/dg/service-quotas.html)).
@@ -507,12 +507,14 @@ From terraform-provider-aws v6.68.0 sfn/state_machine.go:
 
 ### 15.1 Operation coverage
 
-1. **Full**: `DescribeStateMachine`, `DeleteStateMachine`, `ListStateMachines`, `StartExecution`, `DescribeExecution`, `ListExecutions`, `GetExecutionHistory`, `StopExecution`, `DescribeStateMachineForExecution`, `SendTaskSuccess`, `SendTaskFailure`, `SendTaskHeartbeat`, `CreateActivity`, `DescribeActivity`, `DeleteActivity`, `ListActivities`, `GetActivityTask`, `TagResource`, `UntagResource`, `ListTagsForResource`, `PublishStateMachineVersion`, `ListStateMachineVersions`, `DeleteStateMachineVersion`.
-2. **Partial** `CreateStateMachine` and `UpdateStateMachine`, note: "JSONPath definitions with Pass, Task, Choice, Wait, Succeed, Fail, Parallel and inline Map states; JSONata, Distributed Map (Mode DISTRIBUTED, ItemReader, ItemBatcher, ResultWriter), HTTP Tasks and unsupported Task resources answer InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY; loggingConfiguration, tracingConfiguration and encryptionConfiguration are validated, stored and echoed, but no log events, traces or KMS calls happen".
+**Item 7 minimum.** ROADMAP item 7 builds Standard workflows only, with Lambda tasks and the minimum operations; this paragraph binds it where the list below asks for more. Bound: `CreateStateMachine`, `UpdateStateMachine`, `ValidateStateMachineDefinition`, `ListStateMachineVersions` (always empty) and the `StartExecution`, `StopExecution`, `ListExecutions`, `GetExecutionHistory` group as Partial; `DescribeStateMachine`, `DeleteStateMachine`, `ListStateMachines`, `DescribeExecution`, `DescribeStateMachineForExecution`, `TagResource`, `UntagResource`, `ListTagsForResource` as Full. Unbound (501), 21: `StartSyncExecution`, the task-token and activity operations, the alias operations, `PublishStateMachineVersion`, `DeleteStateMachineVersion`, `RedriveExecution`, `TestState` and the Map Run operations. Definitions are JSONPath with Pass, Task, Choice, Wait, Succeed, Fail, Parallel and inline Map states, and a Task resource is a Lambda function ARN (qualifier allowed) or `arn:aws:states:::lambda:invoke`. Refused at create with `InvalidDefinition` code `UNSUPPORTED_BY_UNDERSTUDY` in the 10.4 form: JSONata and its fields, `Assign` and variables, Distributed Map and its fields, `Credentials`, `HeartbeatSeconds(Path)`, callbacks, activities, every other Task resource, a literal lambda:invoke `InvocationType` other than `RequestResponse`, and JSONPath functions, multi-clause filters and filter scripts (ASL-19); a `dynamodb:` action outside `getItem|putItem|updateItem|deleteItem` keeps AWS's recorded `SCHEMA_VALIDATION_FAILED` text (3.5). `type` `EXPRESS`, `publish` true and `encryptionConfiguration.type` `CUSTOMER_MANAGED_KMS_KEY` answer 501 `NotImplemented`. Items 1, 4 and 6 and the KMS clause of item 2 are a later slice.
+
+1. **Full** (later slice beyond the Item 7 minimum): `DescribeStateMachine`, `DeleteStateMachine`, `ListStateMachines`, `StartExecution`, `DescribeExecution`, `ListExecutions`, `GetExecutionHistory`, `StopExecution`, `DescribeStateMachineForExecution`, `SendTaskSuccess`, `SendTaskFailure`, `SendTaskHeartbeat`, `CreateActivity`, `DescribeActivity`, `DeleteActivity`, `ListActivities`, `GetActivityTask`, `TagResource`, `UntagResource`, `ListTagsForResource`, `PublishStateMachineVersion`, `ListStateMachineVersions`, `DeleteStateMachineVersion`.
+2. **Partial** `CreateStateMachine` and `UpdateStateMachine`, note: "JSONPath definitions with Pass, Task, Choice, Wait, Succeed, Fail, Parallel and inline Map states; JSONata, Distributed Map (Mode DISTRIBUTED, ItemReader, ItemBatcher, ResultWriter), HTTP Tasks and unsupported Task resources answer InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY; loggingConfiguration and tracingConfiguration are validated, stored and echoed, but no log events or traces happen". `encryptionConfiguration` with `CUSTOMER_MANAGED_KMS_KEY` answers 501 until it is built; then it is validated against the KMS key as stepfunctions-api.md 13.1 says (5.1 there documents `InvalidEncryptionConfiguration` for a disabled or asymmetric key), not stored without a KMS call.
 3. **Partial** `ValidateStateMachineDefinition`, note: "diagnostics use AWS's codes and the recorded messages; unrecorded messages are understudy's own wording (sfn.validation.message-wording); features understudy refuses are reported as ERROR UNSUPPORTED_BY_UNDERSTUDY".
-4. **Partial** `StartSyncExecution`, note: "billingDetails is computed from the emulator clock (duration rounded up to 100 ms, memory 64 MB); SDKs prefix the endpoint host with sync- for this operation, see docs/guide for loopback endpoints".
+4. **Express unit, unbound (501) in item 7** `StartSyncExecution`, note when built: "billingDetails is computed from the emulator clock (duration rounded up to 100 ms, memory 64 MB); SDKs prefix the endpoint host with sync- for this operation, see docs/guide for loopback endpoints". Item 7's conformance check of the 501 sends with host-prefix injection off (stepfunctions-api.md 3.3).
 5. **Unbound (501)**: `CreateStateMachineAlias`, `DescribeStateMachineAlias`, `UpdateStateMachineAlias`, `DeleteStateMachineAlias`, `ListStateMachineAliases`, `RedriveExecution`, `TestState`, `DescribeMapRun`, `ListMapRuns`, `UpdateMapRun`.
-6. Task resources for the first cut, matching the roadmap's targets: the legacy Lambda ARN, `arn:aws:states:::lambda:invoke` (+ `.waitForTaskToken`), `sqs:sendMessage`, `sns:publish`, `events:putEvents`, `dynamodb:getItem|putItem|updateItem|deleteItem` (+ `.waitForTaskToken` where AWS allows it), `states:startExecution` (+ `.sync`, `.sync:2`, `.waitForTaskToken`), and activities. Their request and result shapes (for example `SdkHttpMetadata` in SQS results, 11.3) need their own research note before implementation.
+6. Task resources for a later slice (item 7 accepts only the two Lambda forms above and refuses these at create): `.waitForTaskToken` on lambda:invoke, `sqs:sendMessage`, `sns:publish`, `events:putEvents`, `dynamodb:getItem|putItem|updateItem|deleteItem` (+ `.waitForTaskToken` where AWS allows it), `states:startExecution` (+ `.sync`, `.sync:2`, `.waitForTaskToken`), and activities. Their request and result shapes (for example `SdkHttpMetadata` in SQS results, 11.3) need their own research note before implementation.
 
 ### 15.2 Interpreter structure
 
@@ -528,28 +530,28 @@ From terraform-provider-aws v6.68.0 sfn/state_machine.go:
 
 ### 15.3 Fidelity switches
 
-| Switch | Default | Label | Grounds | Settled by |
-|---|---|---|---|---|
-| `sfn.task.default-timeout-seconds` | 99999999 | aws-doc | 8.6, 14 | none planned (a recording would take 3 years) |
-| `sfn.retry.full-jitter` | uniform in [0, d_k] | aws-doc | 8.3 | ASL-10 |
-| `sfn.retry.fractional-interval` | keep milliseconds | inferred | 8.3 | ASL-10 |
-| `sfn.catch.all-matches-data-limit` | true | third-party-recorded | 8.5 | none planned |
-| `sfn.timeout.heartbeat-error-name` | `States.Timeout` reported; `States.HeartbeatTimeout` also matches | inferred | 8.6 | ASL-11 |
-| `sfn.path.missing-in-parameters` | `States.Runtime` | third-party-recorded | 4.6 | ASL-04 |
-| `sfn.choice.missing-variable` | `States.Runtime` | inferred | 6.4 | ASL-08 |
-| `sfn.choice.no-match` | `States.NoChoiceMatched`, catchable | inferred | 6.4 | ASL-08 |
-| `sfn.payload.key-order` | template order | inferred | 4.3 | ASL-02 |
-| `sfn.history.concurrent-order` | branch or item index first, then step | inferred | 9.1, 11.2 | ASL-13 |
-| `sfn.intrinsic.format-container` | Java `Map.toString`/`List.toString` | third-party-recorded | 5.2 | ASL-06 (numbers) |
-| `sfn.intrinsic.integer-rounding` | half up, `floor(x + 0.5)` | third-party-recorded | 5.3 | ASL-06 (other functions) |
-| `sfn.intrinsic.math-random` | understudy's seeded stream; end exclusive | aws-doc | 5.2 | ASL-06 |
-| `sfn.intrinsic.failure-error` | `States.IntrinsicFailure`, catchable | inferred | 5.4 | ASL-05 |
-| `sfn.context.timestamp-fraction` | 0, 3, 6 or 9 digits, trailing zeros trimmed | aws-doc | 4.7 | none planned |
-| `sfn.wait.timestamp-precision` | seconds | aws-doc | 7.1 | none planned |
-| `sfn.map.inline-max-concurrency` | 40 | aws-doc | 9.2 | none planned |
-| `sfn.validation.message-wording` | recorded texts, understudy's wording elsewhere | inferred | 3.6 | ASL-01, ASL-18 |
+| Switch | Default | Label | Grounds | Settled by | Status in item 7 |
+|---|---|---|---|---|---|
+| `sfn.task.default-timeout-seconds` | 99999999 | aws-doc | 8.6, 14 | none planned (a recording would take 3 years) | implemented as documented |
+| `sfn.retry.full-jitter` | uniform in [0, d_k] | aws-doc | 8.3 | ASL-10 | implemented as documented; the seeded stream is in the StartExecution coverage note (ASL-10) |
+| `sfn.retry.fractional-interval` | keep milliseconds | inferred | 8.3 | ASL-10 | coverage note (StartExecution, ASL-10) |
+| `sfn.catch.all-matches-data-limit` | true | third-party-recorded | 8.5 | none planned | implemented as documented |
+| `sfn.timeout.heartbeat-error-name` | `States.Timeout` reported; `States.HeartbeatTimeout` also matches | inferred | 8.6 | ASL-11 | later slice (`HeartbeatSeconds` is refused) |
+| `sfn.path.missing-in-parameters` | `States.Runtime` | third-party-recorded | 4.6 | ASL-04 | implemented as documented for Pass; coverage note for Task, Parallel and Map templates (StartExecution, ASL-04) |
+| `sfn.choice.missing-variable` | `States.Runtime` | inferred | 6.4 | ASL-08 | switch |
+| `sfn.choice.no-match` | `States.NoChoiceMatched`, catchable | inferred | 6.4 | ASL-08 | switch |
+| `sfn.payload.key-order` | template order | inferred | 4.3 | ASL-02 | coverage note (GetExecutionHistory, ASL-02) |
+| `sfn.history.concurrent-order` | branch or item index first, then step | inferred | 9.1, 11.2 | ASL-13 | coverage note (GetExecutionHistory, ASL-13) |
+| `sfn.intrinsic.format-container` | Java `Map.toString`/`List.toString` | third-party-recorded | 5.2 | ASL-06 (numbers) | implemented as documented |
+| `sfn.intrinsic.integer-rounding` | half up, `floor(x + 0.5)` | third-party-recorded | 5.3 | ASL-06 (other functions) | implemented as documented |
+| `sfn.intrinsic.math-random` | understudy's seeded stream; end exclusive | aws-doc | 5.2 | ASL-06 | implemented as documented; the StartExecution coverage note says AWS's sequence is never reproduced |
+| `sfn.intrinsic.failure-error` | `States.IntrinsicFailure`, catchable | inferred | 5.4 | ASL-05 | switch |
+| `sfn.context.timestamp-fraction` | 0, 3, 6 or 9 digits, trailing zeros trimmed | aws-doc | 4.7 | none planned | implemented as documented |
+| `sfn.wait.timestamp-precision` | seconds | aws-doc | 7.1 | none planned | implemented as documented |
+| `sfn.map.inline-max-concurrency` | 40 | aws-doc | 9.2 | none planned | implemented as documented |
+| `sfn.validation.message-wording` | recorded texts, understudy's wording elsewhere | inferred | 3.6 | ASL-01, ASL-18 | coverage note (ValidateStateMachineDefinition and CreateStateMachine, ASL-01) |
 
-The "Settled by" value goes into each switch's `Record` field.
+The "Settled by" value goes into each switch's `Record` field. "Status in item 7" says how ROADMAP item 7 carries each row: a `fidelity.Switch` (six in all; the other three are `sfn.integration.lambda-error`, `sfn.delete.running-execution` and `sfn.denial.status`, stepfunctions-api.md 13.2), an exact coverage note naming the recording id with an inferred-choice test, a value implemented with its citation and no switch, or a later slice.
 
 ### 15.4 Validation and limit texts to encode as golden tests
 
@@ -563,11 +565,11 @@ The "Settled by" value goes into each switch's `Record` field.
 
 ### 15.6 Never faked
 
-20. No definition feature is accepted and silently ignored: JSONata, Distributed Map and unsupported resources are refused (10.4); `Credentials` is parsed and validated, and its role is reported in `TaskScheduled.taskCredentials` ([S] `com.amazonaws.sfn#TaskCredentials`), but no role is assumed (coverage note, since understudy does not enforce IAM).
+20. No definition feature is accepted and silently ignored: JSONata, Distributed Map and unsupported resources are refused (10.4); `Credentials` is refused at create (`UNSUPPORTED_BY_UNDERSTUDY`) until role assumption exists, since under `iam.enforce=enforce` understudy never pretends to act as a role it has not assumed. When built, its role is reported in `TaskScheduled.taskCredentials` ([S] `com.amazonaws.sfn#TaskCredentials`).
 21. Tasks call understudy's real Lambda, SQS, SNS, DynamoDB and EventBridge; there is no canned task result.
 22. `States.MathRandom` and `$random(seed)` never claim AWS's sequence for a seed (`sfn.intrinsic.math-random`).
 23. Express executions keep no history in AWS ([D] [dg/choosing-workflow-type](https://docs.aws.amazon.com/step-functions/latest/dg/choosing-workflow-type.html)); understudy may keep one in its journal but answers `GetExecutionHistory` for an Express ARN with AWS's error (ASL-14), not with a history.
-24. Conformance check for finding 9: a Go SDK v2 test of `StartSyncExecution` against understudy's loopback endpoint, with and without host-prefix injection; the outcome goes into `docs/guide/` (sdk-source evidence, no AWS recording needed).
+24. Express unit (item 7 leaves `StartSyncExecution` unbound and its conformance 501 check sends with host-prefix injection off). Conformance check for finding 9: a Go SDK v2 test of `StartSyncExecution` against understudy's loopback endpoint, with and without host-prefix injection; the outcome goes into `docs/guide/` (sdk-source evidence, no AWS recording needed).
 
 ## 16. Recording queue
 
@@ -854,7 +856,7 @@ asl_rm loop
 
 Expected: the status, error and cause of the failure near event 25,000 (each loop writes four events, so about 6,250 loops), and the last events.
 
-**ASL-17. State machine describe defaults** (settles 12 encryption default, 13). USD 0.00, 5 minutes.
+**ASL-17. State machine describe defaults** (settles 12 definition whitespace, 13; it also re-checks the encryption default recorded in stepfunctions-api.md 5.2). USD 0.00, 5 minutes.
 
 ```sh
 D='{
