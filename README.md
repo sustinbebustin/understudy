@@ -147,8 +147,9 @@ From [docs/coverage.md](docs/coverage.md), which `understudy coverage` regenerat
 | EventBridge | 57 | 6 | 1 | 15 | 35 |
 | CloudWatch | 55 | 1 | 2 | 9 | 43 |
 | API Gateway (HTTP APIs) | 103 | 0 | 2 | 29 | 72 |
+| SSM (Parameter Store) | 152 | 0 | 0 | 13 | 139 |
 
-The implemented operations are the ones an event-driven pipeline uses: an API Gateway HTTP API in front of Lambda, SNS fan-out with filter policies to SQS, SQS with dead-letter queues feeding Lambda, S3 with SSE-KMS, a DynamoDB lock table with TTL, a DynamoDB table's stream feeding Lambda, Secrets Manager, CloudWatch Logs, EventBridge schedules and custom buses, and the IAM, KMS and CloudWatch resources Terraform declares around them.
+The implemented operations are the ones an event-driven pipeline uses: an API Gateway HTTP API in front of Lambda, SNS fan-out with filter policies to SQS, SQS with dead-letter queues feeding Lambda, S3 with SSE-KMS, a DynamoDB lock table with TTL, a DynamoDB table's stream feeding Lambda, Secrets Manager and SSM Parameter Store, CloudWatch Logs, EventBridge schedules and custom buses, and the IAM, KMS and CloudWatch resources Terraform declares around them.
 
 Behavior the models do not fix rests on evidence that the coverage page labels item by item. Real AWS was recorded for the backlog R01 to R18 (`testdata/parity/`), so 50 of the 336 overlay evidence items are `aws-recorded`; the rest come from AWS's documentation, recordings published by other projects, SDK source, and inference. Per operation, the page shows the weakest evidence behind it, with the verdict of the recordings `internal/parity` replays. Known differences from AWS are listed in [the differences page](docs/guide/differences.md).
 
@@ -204,12 +205,13 @@ Behavior that differs from AWS in ways a test can observe is listed in [docs/gui
 - **CloudWatch** alarms are stored and never evaluated. `GetMetricStatistics` answers 501, and `GetMetricData` has no metric math.
 - **EventBridge** custom buses take rules, targets and events, and forward events between buses one hop, but their KMS key, dead-letter queue and log settings are stored, not applied. Bus policies are stored and returned, and enforced only under `--iam-enforce enforce`; otherwise another account's `PutEvents` reaches a bus whose policy grants it nothing. Rule, target and `DescribeEventBus` calls on another account's or Region's bus, partner event sources, archives, replays, connections, API destinations and endpoints answer 501.
 - **API Gateway** serves HTTP APIs whose routes reach Lambda proxy integrations, with payload formats 1.0 and 2.0. Authorizers, OpenAPI import and export, custom domain names, REST and WebSocket APIs answer 501; HTTP proxy, AWS service and private integrations, `AWS_IAM` routes and requests to an API with a CORS configuration are stored and answer 501 when a request reaches them. Stage throttling and access logs are stored, not applied.
+- **SSM** serves Parameter Store only. AWS public parameters, Secrets Manager references, parameter policies, Advanced-tier SecureString and the legacy Query protocol answer 501.
 - **Terraform** `import` of an SQS queue fails on the queue URL form.
 - **Snapshots** use format version 0: archives from one build may be refused by another until the first release. The TLS listener's certificate is new at every start.
 
 ## Documentation
 
-- [Guide](docs/guide/README.md) -- getting started, configuration, SDKs and the CLI, Terraform, Lambda, API Gateway HTTP APIs, the clock, fault injection, the journal, snapshots, policy generation, CI and Testcontainers.
+- [Guide](docs/guide/README.md) -- getting started, configuration, SDKs and the CLI, Terraform, Lambda, API Gateway HTTP APIs, SSM Parameter Store, the clock, fault injection, the journal, snapshots, policy generation, CI and Testcontainers.
 - [Configuration reference](docs/configuration.md) -- every flag, variable and file key.
 - [Coverage](docs/coverage.md) -- every operation, fidelity switch and evidence item.
 - [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/adr/) -- the design and its decisions.

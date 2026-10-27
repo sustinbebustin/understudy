@@ -202,6 +202,16 @@ No HTTP API behavior has been recorded against AWS yet, so these come from AWS's
 - `AssumeRole` refuses a role that does not trust the caller only under `--iam-enforce enforce`, where AWS always answers 403 `AccessDenied` (`sts/R15/06-assume-denied.json`). Under `off`, the default, such a role is assumed. Under `advise` it is assumed too, and the denial is journaled. Under `off` and `advise`, the account root may also assume a role, which AWS refuses. Its answer leaves out `PackedPolicySize`, `SessionTokenSize` and `SessionTokenUtilization`, which AWS sends even without a session policy, so an SDK reads them as unset (`sts/R15/06-assume-ok.json`).
 - `GetSessionToken` called with temporary credentials is refused under `--sigv4 verify`, as on AWS, but accepted under `parse`.
 
+## SSM Parameter Store
+
+Real AWS has not been recorded for SSM yet (there is no `testdata/parity/ssm/`); where AWS's answer is unrecorded, understudy's choice is labelled per operation on the [coverage page](../coverage.md). The [SSM guide](ssm.md) shows each item below.
+
+- AWS serves the legacy Query protocol, a POST with `?Action=GetParameter` in the query string and no `X-Amz-Target`, answering with the parameter (recorded in LocalStack's API Gateway SSM tests, 2024-07-12). understudy answers 501 `NotImplemented` naming the protocol, for every SSM operation. Send the JSON 1.1 request the SDKs and the CLI send.
+- AWS public parameters (`/aws/service/...`) and Secrets Manager references (`/aws/reference/secretsmanager/...`) answer 501 `NotImplemented` on every Parameter Store operation. Read the value from its own source, or store a copy under a name of your own.
+- Parameter policies, `DataType` `aws:ec2:image`, an Advanced-tier SecureString and an `AllowedPattern` Go's RE2 cannot compile answer 501 `NotImplemented`; nothing is stored.
+- No `Parameter Store Change` events reach EventBridge.
+- The default parameter tier is always Standard, since the service settings answer 501.
+
 ## Signatures
 
 These apply to every service; S3's own refusals are under [S3 auth](#s3-auth).
