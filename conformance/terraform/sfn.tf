@@ -1,6 +1,7 @@
 # Step Functions: an execution role and a Standard state machine of a Choice
-# routing to a Wait then a Pass, or to a Succeed state, under a top-level
-# TimeoutSeconds, with tags and logging to a log group through the ":*" ARN
+# routing to a Wait then a Parallel whose branches are a Pass and an inline
+# Map, or to a Succeed state, under a top-level TimeoutSeconds, with tags
+# and logging to a log group through the ":*" ARN
 # DescribeLogGroups gives (stepfunctions-api.md 5.1); and a Lambda-task
 # machine that invokes a Python function through arn:aws:states:::lambda:invoke
 # as the execution role, which a role policy lets invoke it
@@ -33,7 +34,7 @@ resource "aws_sfn_state_machine" "pass" {
   name     = "${var.name_prefix}-pass"
   role_arn = aws_iam_role.states.arn
   definition = jsonencode({
-    Comment        = "A Choice routing to a Wait then a Pass state, or to a Succeed state"
+    Comment        = "A Choice routing to a Wait then a Parallel of a Pass and a Map, or to a Succeed state"
     StartAt        = "Route"
     TimeoutSeconds = 3600
     States = {
@@ -47,9 +48,37 @@ resource "aws_sfn_state_machine" "pass" {
         ]
         Default = "Done"
       }
-      Pause = { Type = "Wait", SecondsPath = "$.delay", Next = "Hello" }
-      Hello = { Type = "Pass", Result = { greeting = local.updated ? "hello again" : "hello" }, End = true }
-      Done  = { Type = "Succeed" }
+      Pause = { Type = "Wait", SecondsPath = "$.delay", Next = "Fan" }
+      Fan = {
+        Type = "Parallel"
+        Branches = [
+          {
+            StartAt = "Hello"
+            States = {
+              Hello = { Type = "Pass", Result = { greeting = local.updated ? "hello again" : "hello" }, End = true }
+            }
+          },
+          {
+            StartAt = "Each"
+            States = {
+              Each = {
+                Type           = "Map"
+                ItemsPath      = "$.items"
+                MaxConcurrency = 2
+                ItemSelector   = { "item.$" = "$$.Map.Item.Value", "index.$" = "$$.Map.Item.Index" }
+                ItemProcessor = {
+                  ProcessorConfig = { Mode = "INLINE" }
+                  StartAt         = "Item"
+                  States          = { Item = { Type = "Pass", End = true } }
+                }
+                End = true
+              }
+            }
+          },
+        ]
+        End = true
+      }
+      Done = { Type = "Succeed" }
     }
   })
 
