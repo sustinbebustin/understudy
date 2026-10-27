@@ -60,16 +60,18 @@ const (
 		"corsConfiguration is stored and returned, and a data-plane request with an Origin header to an API that has one answers 501 (CORS is not applied); " +
 		"ipAddressType is stored without effect; " +
 		"ApiEndpoint names the emulator (http://<api-id>.execute-api.<region>.localhost:<port>), not amazonaws.com"
-	routeNote = "authorizationType JWT and CUSTOM answer NotImplemented (authorizers are not emulated); " +
+	routeNote = "authorizationType JWT and CUSTOM, authorizerId and authorizationScopes answer NotImplemented (authorizers are not emulated); " +
 		"a route with AWS_IAM is stored and a request it matches answers 501; " +
 		"WebSocket-only members are stored and echoed without effect"
 	integrationNote = "Lambda AWS_PROXY with payload 1.0 and 2.0 runs; " +
 		"integration subtypes, HTTP_PROXY and VPC_LINK connections are stored and a request that reaches them answers 501; " +
 		"a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI is stored and a request that reaches it answers 501; " +
-		"tlsConfig is stored without effect"
+		"tlsConfig is stored without effect; " +
+		"requestTemplates, templateSelectionExpression and contentHandlingStrategy answer NotImplemented (WebSocket API members)"
 	stageNote = "accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); " +
 		"an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04); " +
-		"an explicit DeploymentId on an autoDeploy stage is refused (documented as not updatable; identity and text inferred, APIGW2-04)"
+		"an explicit DeploymentId on an autoDeploy stage is refused (documented as not updatable; identity and text inferred, APIGW2-04); " +
+		"clientCertificateId answers NotImplemented (WebSocket APIs only)"
 	deploymentNote = "a deployment of an API with no routes succeeds and serves 404 Not Found, " +
 		"and deleting a deployment a stage uses is refused with BadRequestException (the REST rule; both UNVERIFIED for HTTP APIs, APIGW2-04)"
 	// storedOnlyNote heads the StoredOnly mark of the two calls that remove
