@@ -176,29 +176,30 @@ func (s *Streams) listStreams(ctx context.Context, c *kernel.Call, in *dynamodbs
 		limit = int(*in.Limit)
 	}
 	scope := c.Scope()
-	var all []Stream
+	// The rows are values copied under the cell's lock: a Stream shares its
+	// log with the state (ADR 0005).
+	type listed struct {
+		table, label, arn string
+		at                clock.Instant
+	}
+	var rows []listed
 	if _, ok := s.svc.cells.Lookup(scope); ok {
 		var err *awserr.Error
-		all, err = streamsWrite(c, s.svc, scope, func(st *State, _ clock.Instant) ([]Stream, bool, *awserr.Error) {
-			return slices.Clone(st.Streams), false, nil
+		rows, err = streamsWrite(c, s.svc, scope, func(st *State, _ clock.Instant) ([]listed, bool, *awserr.Error) {
+			var out []listed
+			for _, l := range st.Streams {
+				if in.TableName == nil || l.Table == *in.TableName {
+					out = append(out, listed{table: l.Table, label: l.label(), arn: l.arn(scope), at: l.Label})
+				}
+			}
+			return out, false, nil
 		})
 		if err != nil {
 			return nil, err
 		}
 	}
-	if in.TableName != nil {
-		all = slices.DeleteFunc(all, func(st Stream) bool { return st.Table != *in.TableName })
-	}
-	type listed struct {
-		Stream
-		arn string
-	}
-	rows := make([]listed, len(all))
-	for i, st := range all {
-		rows[i] = listed{Stream: st, arn: st.arn(scope)}
-	}
 	slices.SortFunc(rows, func(a, b listed) int {
-		return cmp.Or(b.Label.Compare(a.Label), cmp.Compare(a.arn, b.arn))
+		return cmp.Or(b.at.Compare(a.at), cmp.Compare(a.arn, b.arn))
 	})
 	if in.ExclusiveStartStreamArn != nil {
 		if i := slices.IndexFunc(rows, func(r listed) bool { return r.arn == *in.ExclusiveStartStreamArn }); i >= 0 {
@@ -207,7 +208,7 @@ func (s *Streams) listStreams(ctx context.Context, c *kernel.Call, in *dynamodbs
 	}
 	out := &dynamodbstreamsapi.ListStreamsOutput{Streams: []dynamodbstreamsapi.Stream{}}
 	for _, r := range rows[:min(limit, len(rows))] {
-		out.Streams = append(out.Streams, dynamodbstreamsapi.Stream{StreamArn: new(r.arn), TableName: new(r.Table), StreamLabel: new(r.label())})
+		out.Streams = append(out.Streams, dynamodbstreamsapi.Stream{StreamArn: new(r.arn), TableName: new(r.table), StreamLabel: new(r.label)})
 	}
 	if len(rows) > limit {
 		out.LastEvaluatedStreamArn = new(rows[limit-1].arn)
