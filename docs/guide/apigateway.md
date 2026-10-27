@@ -45,6 +45,15 @@ aws lambda add-permission --function-name hello --statement-id apigateway --acti
   --principal apigateway.amazonaws.com --source-arn 'arn:aws:execute-api:us-east-1:000000000000:wfod7wzey6/*/*'
 ```
 
+An integration whose `--integration-uri` names a version or alias (`arn:aws:lambda:us-east-1:000000000000:function:hello:live`) invokes that version or alias, and the policy checked is that alias's own, so its permission is added with `--qualifier live`. A permission on the function alone still answers `500`:
+
+```sh
+aws lambda add-permission --function-name hello --qualifier live --statement-id apigateway --action lambda:InvokeFunction \
+  --principal apigateway.amazonaws.com --source-arn 'arn:aws:execute-api:us-east-1:000000000000:u8vvg5sx8u/*/*'
+curl http://localhost:4566/_understudy/execute-api/u8vvg5sx8u/live
+# hello from GET /live
+```
+
 ## Calling the API
 
 An API is reached at its `ApiEndpoint`, `http://<api-id>.execute-api.<region>.localhost:4566`, or, where `*.localhost` does not resolve (inside a container, for one), at `/_understudy/execute-api/<api-id>/<path>` on understudy's endpoint. The `$default` stage serves the paths themselves; a named stage `prod` serves them under `/prod/...`.
@@ -145,7 +154,26 @@ curl http://localhost:4566/_understudy/execute-api/vsstkl7iok/legacy/x
 # {"message":"understudy does not run HTTP proxy integrations (integrationType HTTP_PROXY): route \"ANY /legacy/{proxy+}\" of API vsstkl7iok targets integration 9r4p1ir, so no integration ran and nothing was changed. ..."}
 ```
 
-`--timeout-in-millis` and `--tls-config` are stored and change nothing yet.
+A request waits for the function at most the integration's `--timeout-in-millis` (30000 by default) of real time, whatever the emulator clock does. Past it the client gets `503 {"message":"Service Unavailable"}`, and the function runs on to its end with its answer dropped. A function error answers `500 {"message":"Internal Server Error"}`, as malformed output does. AWS has not been recorded on these statuses; [coverage.md](../coverage.md) lists them. With a handler that sleeps five seconds behind `--timeout-in-millis 2000`:
+
+```sh
+curl -i http://localhost:4566/_understudy/execute-api/u8vvg5sx8u/slow
+# HTTP/1.1 503 Service Unavailable       (after two seconds)
+# Apigw-Requestid: 1nPP1e0vLnV9JB0=
+# Content-Type: application/json
+#
+# {"message":"Service Unavailable"}
+```
+
+Without Docker the function cannot run, so a request that reaches it answers 501 with Lambda's reason, never an AWS-shaped error:
+
+```sh
+curl http://localhost:4566/_understudy/execute-api/fk1emmw8kw/hello
+# {"message":"understudy could not run the Lambda proxy integration of API fk1emmw8kw, route \"GET /hello\": the function did not run
+#  and nothing was changed. Lambda answered: Lambda cannot run functions: Docker is disabled by configuration ..."}
+```
+
+`--tls-config` is stored and changes nothing.
 
 understudy stores an API's `--cors-configuration` and returns it, but does not apply CORS. A request with an `Origin` header to an API that has one answers 501 and runs nothing, rather than reaching your function without the CORS headers AWS would add:
 
@@ -200,5 +228,3 @@ Requests understudy cannot serve as AWS would are refused with `NotImplemented` 
 - the WebSocket integration members `--request-templates`, `--template-selection-expression` and `--content-handling-strategy`;
 - the WebSocket stage member `--client-certificate-id`;
 - every operation this page does not describe, among them authorizers, `import-api` and `export-api`.
-
-The integration timeout is not applied yet: a request waits for the function however long it runs.
