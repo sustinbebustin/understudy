@@ -6,11 +6,12 @@ package jsonpath
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 )
 
-var errNotImplemented = errors.New("jsonpath: not implemented yet")
+var errNotImplemented = errors.New("jsonpath: evaluation is not implemented yet")
 
 // Kind is the grammar a path is parsed with.
 type Kind int
@@ -26,7 +27,9 @@ const (
 
 // Path is a parsed path, built only by Parse.
 type Path struct {
-	_ struct{}
+	// context is true for a "$$" path, which reads the context object.
+	context bool
+	steps   []step
 }
 
 // SyntaxError is a path that does not parse.
@@ -63,20 +66,27 @@ func (e *MissingError) Error() string { return "Invalid path '" + e.Path + "' : 
 
 // Parse parses s with grammar k. The error is a *SyntaxError or an
 // *UnsupportedError naming the refused construct.
-//
-// Not implemented yet: it fails.
 func Parse(s string, k Kind) (Path, error) {
-	_, _ = s, k
-	return Path{}, errNotImplemented
+	return parse(s, k)
 }
 
+// IsContext reports whether p is a "$$" path, which reads the context
+// object (stepfunctions-asl.md 4.7).
+func (p Path) IsContext() bool { return p.context }
+
 // String returns p in canonical form: Parse(p.String(), k) succeeds with the
-// kind p was parsed with and has the same String.
-//
-// Not implemented yet: it returns "".
+// kind p was parsed with and has the same String. Names print in shorthand
+// dot notation when they can, else as ['name'].
 func (p Path) String() string {
-	_ = p
-	return ""
+	var b strings.Builder
+	b.WriteString("$")
+	if p.context {
+		b.WriteString("$")
+	}
+	for _, s := range p.steps {
+		s.write(&b)
+	}
+	return b.String()
 }
 
 // Eval evaluates p against input, or against context for a "$$" path. A
