@@ -54,7 +54,7 @@ phase_timeout="${CONFORMANCE_PHASE_TIMEOUT:-900}"
 
 # Each service runs in an account of its own: understudy derives the account
 # from a 12-digit access key, so services never see each other's resources.
-all_services=(sqs sns s3 dynamodb kms secretsmanager iam lambda logs events cloudwatch apigatewayv2)
+all_services=(sqs sns s3 dynamodb kms secretsmanager iam lambda logs events cloudwatch apigatewayv2 dynamodbstreams)
 declare -A accounts=(
   [sqs]=100000000001
   [sns]=100000000002
@@ -68,6 +68,7 @@ declare -A accounts=(
   [events]=100000000010
   [cloudwatch]=100000000011
   [apigatewayv2]=100000000012
+  [dynamodbstreams]=100000000013
 )
 phases=(apply-create plan-create-no-changes apply-update plan-update-no-changes destroy nothing-left)
 
@@ -305,8 +306,9 @@ plan_clean() {
 
 # nothing_left SERVICE checks the state is empty and understudy holds no
 # resource in the service's account, except what AWS keeps after a delete:
-# customer managed keys waiting out their deletion window, and AWS managed
-# keys, which cannot be deleted.
+# customer managed keys waiting out their deletion window, AWS managed
+# keys, which cannot be deleted, and a deleted table's stream, which AWS
+# deletes 24 hours after its table (dynamodb-streams.md 5.4).
 nothing_left() {
   local svc=$1 acct=${accounts[$1]} log="$logs_dir/$1/nothing-left.log"
   local state remaining kept="" arn manager problems=""
@@ -319,7 +321,7 @@ nothing_left() {
     return
   fi
   cp -- "$run_dir/resources-$svc.json" "$log.resources.json"
-  remaining=$(jq -r '.resources[] | select(.service != "kms" or .summary != "PendingDeletion") | "\(.service) \(.arn) (\(.summary))"' "$run_dir/resources-$svc.json")
+  remaining=$(jq -r '.resources[] | select(.service != "kms" or .summary != "PendingDeletion") | select(.service != "dynamodb" or (.arn | test(":table/[^/]+/stream/") | not)) | "\(.service) \(.arn) (\(.summary))"' "$run_dir/resources-$svc.json")
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
     arn=$(cut -d' ' -f2 <<<"$line")
@@ -480,7 +482,7 @@ prepare() {
 # concurrent installs. The lifecycles then run in parallel.
 ready=()
 for svc in "${services[@]}"; do
-  if [[ "$svc" == dynamodb && "$conformance_ddb" == opted-out ]]; then
+  if [[ ("$svc" == dynamodb || "$svc" == dynamodbstreams) && "$conformance_ddb" == opted-out ]]; then
     skip_rest "$svc" "${phases[0]}" "$conformance_ddb_opt_out_reason"
     continue
   fi

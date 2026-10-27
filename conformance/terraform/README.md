@@ -7,7 +7,7 @@ Checks that the Terraform AWS provider can manage every phase 1 resource type, a
 3. `apply` of an update that changes several attributes of every resource, then, for `apigatewayv2`, `check-update`;
 4. `plan -detailed-exitcode` again, which must report no changes;
 5. `destroy`;
-6. a check that the Terraform state is empty and that understudy holds nothing in the service's account. The only exceptions are the ones AWS also keeps after a delete: customer managed KMS keys in `PendingDeletion`, and AWS managed keys.
+6. a check that the Terraform state is empty and that understudy holds nothing in the service's account. The only exceptions are the ones AWS also keeps after a delete: customer managed KMS keys in `PendingDeletion`, AWS managed keys, and a deleted table's stream, which AWS deletes 24 hours after its table (`dynamodb-streams.md` 5.4).
 
 Expected behavior comes from the research in `docs/research/` (`tf-messaging.md`, `tf-storage.md`, `tf-compute.md`, `tf-remaining.md`, and `apigateway-http.md` 9 for `apigatewayv2`), which documents what provider 6.68.0 sends and what it needs back. The suite asserts AWS behavior, never an understudy quirk.
 
@@ -34,7 +34,7 @@ Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scrip
 
 | Variable | Effect |
 |---|---|
-| `CONFORMANCE_DYNAMODB=0` | Skips the `dynamodb` tests with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`. Unset, they run on DynamoDB Local, pulled on first use. |
+| `CONFORMANCE_DYNAMODB=0` | Skips the `dynamodb` and `dynamodbstreams` tests with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`. Unset, they run on DynamoDB Local, pulled on first use. |
 | `CONFORMANCE_JOBS` | Services run in parallel (default 11). |
 | `CONFORMANCE_PHASE_TIMEOUT` | Seconds before one Terraform command is interrupted (default 900). |
 | `CONFORMANCE_PORT` | Port understudy listens on (default 45665). |
@@ -45,7 +45,7 @@ Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scrip
 | Path | Contents |
 |---|---|
 | `provider.tf` | Provider and Terraform settings, and the variables every service shares. |
-| `<service>.tf` | One self-contained configuration per service: `sqs`, `sns`, `s3`, `dynamodb`, `kms`, `secretsmanager`, `iam`, `lambda`, `logs`, `events` (EventBridge), `cloudwatch` (metric alarms) and `apigatewayv2` (API Gateway HTTP APIs). Resources from other services that a configuration needs, such as the queue an S3 notification targets, are declared in that file and marked as fixtures. |
+| `<service>.tf` | One self-contained configuration per service: `sqs`, `sns`, `s3`, `dynamodb`, `kms`, `secretsmanager`, `iam`, `lambda`, `logs`, `events` (EventBridge), `cloudwatch` (metric alarms), `apigatewayv2` (API Gateway HTTP APIs) and `dynamodbstreams` (a table's stream read by a Lambda event source mapping). Resources from other services that a configuration needs, such as the queue an S3 notification targets, are declared in that file and marked as fixtures. |
 | `.terraform.lock.hcl` | Pinned provider checksums, copied into every working directory (`init -lockfile=readonly`). |
 | `functions/go-worker` | The Go worker for `provided.al2023`, standard library only, its own module. |
 | `functions/python-handler` | The Python handler for `python3.13`. |
@@ -54,7 +54,7 @@ Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scrip
 
 The `step` variable selects the scenario: `create` is the initial configuration and `update` the changed one. Each file's header says what the update changes.
 
-Resource names start with `tfc-<service>`. Each service signs with a 12-digit access key from which understudy derives a separate account (`100000000001` to `100000000012`, in the order of the table above). So one service never sees another's resources, and the leftover check can ask understudy for exactly one account.
+Resource names start with `tfc-<service>`. Each service signs with a 12-digit access key from which understudy derives a separate account (`100000000001` to `100000000013`, in the order of the table above). So one service never sees another's resources, and the leftover check can ask understudy for exactly one account.
 
 The provider is configured as the research documents for a custom endpoint (`tf-messaging.md` 1.2): the endpoint comes from `AWS_ENDPOINT_URL`, set by `scripts/sealed`, and the provider block sets `skip_credentials_validation`, `skip_requesting_account_id`, `skip_metadata_api_check` and `s3_use_path_style`. The endpoint is an IP literal, so S3 must use path style.
 
