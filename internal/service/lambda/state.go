@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
@@ -20,9 +21,16 @@ import (
 )
 
 // stateVersion is the schema version of State in snapshot sections. Version
-// 2 added Mapping.SourceKind, version 3 the layer store; a section of an
-// earlier version is refused (ADR 0009).
-const stateVersion = 3
+// 2 added Mapping.SourceKind, version 3 the layer store, and version 4
+// moved an SQS mapping's scaling into its source kind and saves stream
+// checkpoints. A version 3 section is migrated on import
+// (migrateUnkindedScaling); a section of an earlier version is refused
+// (ADR 0009).
+const stateVersion = 4
+
+// stateVersionUnkindedScaling is the version whose mappings hold their
+// scaling beside their source kind, which Import still reads.
+const stateVersionUnkindedScaling = 3
 
 // State is the Lambda state of one account and region: its functions by
 // name, its event source mappings by UUID and its layers by name. Records
@@ -41,10 +49,10 @@ type State struct {
 	// forbidden rather than unknown, as on AWS.
 	RetiredURLs map[string]bool `json:"retiredUrls,omitempty"`
 	// Checkpoints are where each stream mapping's reader resumes, by
-	// mapping UUID and then shard. They are not saved in snapshots yet: a
-	// loaded mapping reads its stream again from its StartingPosition (the
-	// CreateEventSourceMapping note).
-	Checkpoints map[string]map[string]shardlog.Position `json:"-"`
+	// mapping UUID, one per shard read so far. A mapping without one reads
+	// from its StartingPosition. Saved, so a loaded mapping resumes where
+	// it stopped (lambda-stream-sources.md 12.3 item 4).
+	Checkpoints map[string][]esm.Checkpoint `json:"checkpoints,omitempty"`
 }
 
 func newState(aws.Scope) State {
@@ -92,6 +100,34 @@ func (s *State) retireURLs(urls ...URLConfig) {
 		}
 		s.RetiredURLs[u.ID] = true
 	}
+}
+
+// checkpoint is where mapping uuid's reader resumes shard; nil when it has
+// no checkpoint there.
+func (s *State) checkpoint(uuid, shard string) shardlog.Position {
+	for _, c := range s.Checkpoints[uuid] {
+		if c.Shard == shard {
+			return c.Next
+		}
+	}
+	return nil
+}
+
+// setCheckpoint moves mapping uuid's checkpoint of shard to next. The
+// slice is replaced, never written in place: a State read out of a cell
+// shares it with the stored value.
+func (s *State) setCheckpoint(uuid, shard string, next shardlog.Position) {
+	if s.Checkpoints == nil {
+		s.Checkpoints = map[string][]esm.Checkpoint{}
+	}
+	cps := slices.DeleteFunc(slices.Clone(s.Checkpoints[uuid]), func(c esm.Checkpoint) bool { return c.Shard == shard })
+	s.Checkpoints[uuid] = append(cps, esm.Checkpoint{Shard: shard, Next: next})
+}
+
+// dropMapping removes mapping uuid and its checkpoints.
+func (s *State) dropMapping(uuid string) {
+	delete(s.Mappings, uuid)
+	delete(s.Checkpoints, uuid)
 }
 
 // mint derives a new identifier of the scope from its serial and purpose:
@@ -486,6 +522,50 @@ type EventInvokeConfig struct {
 	Modified                 clock.Instant `json:"modified"`
 }
 
+// migrateUnkindedScaling rewrites the data of a version 3 section as
+// version 4: each SQS mapping's scaling member moves into its source kind,
+// and a stream mapping's, always unbounded, is dropped (spec conflict row
+// 6). A version 3 section saved no stream checkpoints, so any stream
+// mappings in it read again from their StartingPosition. The layer store
+// is carried over unchanged.
+func migrateUnkindedScaling(data []byte) ([]byte, error) {
+	var doc map[string]json.RawMessage
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, fmt.Errorf("migrating a version %d lambda section: %w", stateVersionUnkindedScaling, err)
+	}
+	raw, ok := doc["mappings"]
+	if !ok {
+		return data, nil
+	}
+	var mappings map[string]map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &mappings); err != nil {
+		return nil, fmt.Errorf("migrating a version %d lambda section's mappings: %w", stateVersionUnkindedScaling, err)
+	}
+	for uuid, m := range mappings {
+		scaling, has := m["scaling"]
+		delete(m, "scaling")
+		var kind map[string]json.RawMessage
+		if err := json.Unmarshal(m["sourceKind"], &kind); err != nil {
+			return nil, fmt.Errorf("migrating mapping %s of a version %d lambda section: sourceKind: %w", uuid, stateVersionUnkindedScaling, err)
+		}
+		if !has || string(kind[jsonx.KindKey]) != `"sqs"` {
+			continue
+		}
+		kind["scaling"] = scaling
+		rekinded, err := json.Marshal(kind)
+		if err != nil {
+			return nil, err
+		}
+		m["sourceKind"] = rekinded
+	}
+	enc, err := json.Marshal(mappings)
+	if err != nil {
+		return nil, err
+	}
+	doc["mappings"] = enc
+	return json.Marshal(doc)
+}
+
 // stateCodec is the codec of State: the tagged-union tables of its sums.
 // The tables are static, so an error building them is a bug in them; the
 // codec then fails every section with it.
@@ -526,10 +606,10 @@ func unions() (jsonx.Codec, error) {
 	if err != nil {
 		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
 	}
-	scaling, err := jsonx.NewUnion("lambda.Scaling",
-		jsonx.Variant[Scaling, Unbounded]("unbounded"),
-		jsonx.Variant[Scaling, MaximumConcurrency]("maximum-concurrency"),
-		jsonx.Variant[Scaling, ProvisionedPollers]("provisioned-pollers"),
+	scaling, err := jsonx.NewUnion("esm.Scaling",
+		jsonx.Variant[esm.Scaling, esm.Unbounded]("unbounded"),
+		jsonx.Variant[esm.Scaling, esm.MaximumConcurrency]("maximum-concurrency"),
+		jsonx.Variant[esm.Scaling, esm.ProvisionedPollers]("provisioned-pollers"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
@@ -570,5 +650,15 @@ func unions() (jsonx.Codec, error) {
 	if err != nil {
 		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
 	}
-	return jsonx.NewCodec(code, statuses, updates, scaling, sources, starts, ages, retries, failures), nil
+	positions, err := jsonx.NewUnion("shardlog.Position",
+		jsonx.Variant[shardlog.Position, shardlog.TrimHorizon]("trim-horizon"),
+		jsonx.Variant[shardlog.Position, shardlog.Latest]("latest"),
+		jsonx.Variant[shardlog.Position, shardlog.At]("at"),
+		jsonx.Variant[shardlog.Position, shardlog.After]("after"),
+		jsonx.Variant[shardlog.Position, shardlog.AtTime]("at-time"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
+	}
+	return jsonx.NewCodec(code, statuses, updates, scaling, sources, starts, ages, retries, failures, positions), nil
 }

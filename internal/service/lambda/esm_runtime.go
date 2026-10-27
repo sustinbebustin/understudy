@@ -143,7 +143,7 @@ func (st *State) settleMapping(uuid string, due clock.Instant) bool {
 		return false
 	}
 	if m.Transition.State == MappingDeleting {
-		delete(st.Mappings, uuid)
+		st.dropMapping(uuid)
 		return true
 	}
 	m.Transition = nil

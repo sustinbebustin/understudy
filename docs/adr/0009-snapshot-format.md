@@ -43,6 +43,7 @@ understudy needs a versioned, deterministic file for the whole emulator state an
 
 - DynamoDB's state version 4 carries each scope's streams (label, view type, status, the deleted table's delete instant, the shard with its untrimmed records, the feed's place in Local's stream) and the scope's iterator key. A load maps each re-created table's new Local stream to the restored stream at the new stream's tip, so labels, records and iterators issued before the save survive and the load's own writes emit nothing. The review amendment's "Local-minted stream labels change across a load" no longer holds.
 - Exception to "refused, not migrated": DynamoDB reads a version 3 section, which is a version 4 section without streams, so snapshots saved before streams were kept still load. A stream-enabled table in one gets a fresh stream labeled at the import instant.
+- Lambda's state version 4 saves each stream mapping's checkpoints (one resume position per shard), so a loaded mapping resumes after the last record it processed, and moves an SQS mapping's scaling into its source kind, so a stream mapping cannot hold one. A second exception to "refused, not migrated": Lambda reads a version 3 section (the layer store) by moving each SQS mapping's scaling into its kind; any stream mappings in it, saved without checkpoints, read again from their StartingPosition. Version 1 and 2 sections are still refused.
 
 ## Amendments (hardening round 1)
 

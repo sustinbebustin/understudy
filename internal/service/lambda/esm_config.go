@@ -55,7 +55,6 @@ type Mapping struct {
 	Filters []string `json:"filters,omitempty"`
 	// ReportFailures is FunctionResponseTypes [ReportBatchItemFailures].
 	ReportFailures bool              `json:"reportFailures,omitzero"`
-	Scaling        Scaling           `json:"scaling"`
 	KMSKeyArn      string            `json:"kmsKeyArn,omitempty"`
 	Metrics        []string          `json:"metrics,omitempty"`
 	Enabled        bool              `json:"enabled"`
@@ -101,38 +100,16 @@ func (m Mapping) state() MappingState {
 	return MappingDisabled
 }
 
-// Scaling is how a mapping's poller concurrency is bounded: not at all, by
-// ScalingConfig.MaximumConcurrency, or by ProvisionedPollerConfig, which
-// the documentation makes mutually exclusive.
-//
-//sumtype:decl
-type Scaling interface{ isScaling() }
-
-// Unbounded is a mapping without either configuration.
-type Unbounded struct{}
-
-// MaximumConcurrency is ScalingConfig.MaximumConcurrency.
-type MaximumConcurrency struct {
-	N int32 `json:"n"`
-}
-
-// ProvisionedPollers is ProvisionedPollerConfig, stored and echoed.
-type ProvisionedPollers struct {
-	Minimum *int32 `json:"minimum,omitempty"`
-	Maximum *int32 `json:"maximum,omitempty"`
-	Group   string `json:"group,omitempty"`
-}
-
-func (Unbounded) isScaling()          {}
-func (MaximumConcurrency) isScaling() {}
-func (ProvisionedPollers) isScaling() {}
-
 func (s *Service) bindMappings(b lambdaapi.Binder) {
-	const note = "SQS queues and DynamoDB streams; serve polls the source and invokes the function with each batch; Kinesis streams answer 501; " +
-		"on a DynamoDB stream, StartingPosition LATEST and every setting but BatchSize and Enabled answer 501; " +
+	const note = "SQS queues and DynamoDB streams; serve polls the source and invokes the function with each batch; " +
+		"Kinesis streams, ParallelizationFactor above 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a valid FilterCriteria on a stream and an S3 on-failure destination answer 501; " +
+		"on a DynamoDB stream, MaximumBatchingWindowInSeconds above 0 and MaximumRetryAttempts and MaximumRecordAgeInSeconds other than -1 also answer 501 until the poller applies them, " +
+		"so a failing batch is retried until it succeeds and an on-failure destination is stored but never sent to; " +
 		"a stream is read as soon as it receives a record rather than at AWS's polling rate (4 per second for DynamoDB), which is used as the delay before a retry; " +
-		"a failing batch is retried until it succeeds; a stream mapping's position is not saved in snapshots, so after a load it reads its stream again from its StartingPosition; " +
-		"UNVERIFIED (lambda-stream-sources.md 4.2, 5.1): a retried batch keeping its records, and the 6 MB limit counted over the serialized event; " +
+		"UNVERIFIED (lambda-stream-sources.md 3.3, 3.4, 3.7, 4.2, 5.1, 5.5): the text refusing MaximumRecordAgeInSeconds 0 to 59, an explicit BatchSize above 10 without a window being accepted on a stream, " +
+		"members of the other source type being ignored, destination existence checked only at delivery, a retried batch keeping its records, the 6 MB limit counted over the serialized event, " +
+		"an itemIdentifier outside the batch counting as complete failure, batchItemFailures keys matched case-sensitively, and LastProcessingResult unchanged by a failure; " +
+		"MetricsConfig is stored, no metrics are emitted; " +
 		"under iam.enforce=enforce an SQS mapping's execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage (lambda.esm.create-denied-text), " +
 		"and a role refused its polls leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss)"
 	b.CreateEventSourceMapping(s.createMapping, partial(note), kernel.WithValidator(validateCreateMapping))
@@ -222,19 +199,25 @@ func (u mappingSettings) applyBatching(m *Mapping) *awserr.Error {
 	return nil
 }
 
-// applyScaling sets ScalingConfig or ProvisionedPollerConfig, never both;
-// an empty ScalingConfig removes the bound.
+// applyScaling sets an SQS mapping's ScalingConfig or
+// ProvisionedPollerConfig, never both; an empty ScalingConfig removes the
+// bound.
 func (u mappingSettings) applyScaling(m *Mapping) *awserr.Error {
+	kind := esm.SQS{Scaling: esm.Unbounded{}}
+	if k, ok := m.SourceKind.(esm.SQS); ok && k.Scaling != nil {
+		kind = k
+	}
 	switch {
 	case u.scaling != nil && u.pollers != nil:
 		return errPollerConfigs()
 	case u.scaling != nil && u.scaling.MaximumConcurrency != nil:
-		m.Scaling = MaximumConcurrency{N: *u.scaling.MaximumConcurrency}
+		kind.Scaling = esm.MaximumConcurrency{N: *u.scaling.MaximumConcurrency}
 	case u.scaling != nil:
-		m.Scaling = Unbounded{}
+		kind.Scaling = esm.Unbounded{}
 	case u.pollers != nil:
-		m.Scaling = ProvisionedPollers{Minimum: u.pollers.MinimumPollers, Maximum: u.pollers.MaximumPollers, Group: deref(u.pollers.PollerGroupName)}
+		kind.Scaling = esm.ProvisionedPollers{Minimum: u.pollers.MinimumPollers, Maximum: u.pollers.MaximumPollers, Group: deref(u.pollers.PollerGroupName)}
 	}
+	m.SourceKind = kind
 	return nil
 }
 
@@ -356,7 +339,7 @@ func (s *Service) createMapping(ctx context.Context, c *kernel.Call, in *lambdaa
 		return s.createStreamMapping(ctx, c, in, queue)
 	case esm.SQS:
 	}
-	m := Mapping{Source: queue.String(), SourceKind: kind, BatchSize: defaultBatchSize, Scaling: Unbounded{}, Enabled: in.Enabled == nil || *in.Enabled, Tags: maps.Clone(in.Tags)}
+	m := Mapping{Source: queue.String(), SourceKind: kind, BatchSize: defaultBatchSize, Enabled: in.Enabled == nil || *in.Enabled, Tags: maps.Clone(in.Tags)}
 	settings := mappingSettings{
 		batchSize: in.BatchSize, window: in.MaximumBatchingWindowInSeconds, filters: in.FilterCriteria, scaling: in.ScalingConfig,
 		pollers: in.ProvisionedPollerConfig, destinations: in.DestinationConfig, responseTypes: in.FunctionResponseTypes,
@@ -483,17 +466,14 @@ func toggle(m *Mapping, enabled *bool) MappingState {
 
 func (s *Service) updateMapping(ctx context.Context, c *kernel.Call, in *lambdaapi.UpdateEventSourceMappingInput) (*lambdaapi.EventSourceMappingConfiguration, *awserr.Error) {
 	scope := c.Scope()
-	stream, err := view(s, scope, func(st *State) (bool, *awserr.Error) {
-		_, ok := st.Mappings[in.UUID].SourceKind.(esm.DynamoDBStream)
-		return ok, nil
+	current, err := view(s, scope, func(st *State) (Mapping, *awserr.Error) {
+		return st.Mappings[in.UUID], nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	if stream {
-		if err := checkStreamUpdate(in); err != nil {
-			return nil, err
-		}
+	if _, stream := current.SourceKind.(esm.DynamoDBStream); stream {
+		return s.updateStreamMapping(ctx, c, in, current)
 	}
 	target, err := s.retarget(ctx, c, in.UUID, in.FunctionName)
 	if err != nil {
@@ -513,14 +493,8 @@ func (s *Service) updateMapping(ctx context.Context, c *kernel.Call, in *lambdaa
 			return lambdaapi.EventSourceMappingConfiguration{}, errMappingInUse(m.UUID, m.Transition.State)
 		}
 		m.Filters, m.Metrics = slices.Clone(m.Filters), slices.Clone(m.Metrics)
-		switch m.SourceKind.(type) {
-		case esm.DynamoDBStream:
-			// checkStreamUpdate let through nothing else.
-			set(&m.BatchSize, in.BatchSize)
-		case esm.SQS, nil:
-			if err := settings.apply(&m); err != nil {
-				return lambdaapi.EventSourceMappingConfiguration{}, err
-			}
+		if err := settings.apply(&m); err != nil {
+			return lambdaapi.EventSourceMappingConfiguration{}, err
 		}
 		if target != nil {
 			m.Function, m.Qualifier = target.ref.name, target.ref.qualifier
@@ -553,7 +527,7 @@ func (s *Service) deleteMapping(_ context.Context, c *kernel.Call, in *lambdaapi
 		}
 		s.transition(tx, scope, &m, MappingDeleting, now)
 		if m.Transition == nil {
-			delete(st.Mappings, m.UUID)
+			st.dropMapping(m.UUID)
 			m.Transition = &Transition{State: MappingDeleting, Settles: now}
 		} else {
 			st.Mappings[m.UUID] = m
@@ -605,20 +579,26 @@ func renderMapping(scope aws.Scope, m Mapping) lambdaapi.EventSourceMappingConfi
 			out.MetricsConfig.Metrics = append(out.MetricsConfig.Metrics, lambdaapi.EventSourceMappingMetric(metric))
 		}
 	}
-	switch sc := m.Scaling.(type) {
-	case MaximumConcurrency:
+	switch kind := m.SourceKind.(type) {
+	case esm.SQS:
+		renderScaling(&out, kind.Scaling)
+	case esm.DynamoDBStream:
+		renderStreamMapping(&out, &m, kind)
+	}
+	return out
+}
+
+// renderScaling reports an SQS mapping's ScalingConfig or
+// ProvisionedPollerConfig, only when set.
+func renderScaling(out *lambdaapi.EventSourceMappingConfiguration, s esm.Scaling) {
+	switch sc := s.(type) {
+	case esm.MaximumConcurrency:
 		out.ScalingConfig = &lambdaapi.ScalingConfig{MaximumConcurrency: new(sc.N)}
-	case ProvisionedPollers:
+	case esm.ProvisionedPollers:
 		out.ProvisionedPollerConfig = &lambdaapi.ProvisionedPollerConfig{MinimumPollers: sc.Minimum, MaximumPollers: sc.Maximum}
 		if sc.Group != "" {
 			out.ProvisionedPollerConfig.PollerGroupName = new(sc.Group)
 		}
-	case Unbounded:
+	case esm.Unbounded, nil:
 	}
-	if kind, ok := m.SourceKind.(esm.DynamoDBStream); ok {
-		// A stream mapping ignores the SQS type's members (12.4 item 9).
-		out.ScalingConfig, out.ProvisionedPollerConfig = nil, nil
-		renderStreamMapping(&out, &m, kind)
-	}
-	return out
 }

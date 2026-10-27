@@ -30,8 +30,8 @@ func kindState(t *testing.T) State {
 	t.Helper()
 	st := newState(kindScope(t))
 	st.Mappings["u1"] = Mapping{
-		UUID: "u1", Source: kindQueue, SourceKind: esm.SQS{}, Function: "f",
-		BatchSize: defaultBatchSize, Scaling: Unbounded{}, Enabled: true,
+		UUID: "u1", Source: kindQueue, SourceKind: esm.SQS{Scaling: esm.Unbounded{}}, Function: "f",
+		BatchSize: defaultBatchSize, Enabled: true,
 	}
 	return st
 }
@@ -52,8 +52,9 @@ func withSourceKind(t *testing.T, data []byte, raw json.RawMessage) []byte {
 	return out
 }
 
-// A mapping's kind is persisted as the tagged lambda.EventSourceKind union
-// and read back as the same variant.
+// A mapping's kind is persisted as the tagged lambda.EventSourceKind union,
+// an SQS kind with its scaling (state version 3), and read back as the
+// same variant.
 func TestMappingSourceKindRoundTrips(t *testing.T) {
 	codec := stateCodec()
 	st := kindState(t)
@@ -61,8 +62,8 @@ func TestMappingSourceKindRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
-	if !bytes.Contains(data, []byte(`"sourceKind":{"kind":"sqs"}`)) {
-		t.Errorf("section %s does not hold sourceKind {\"kind\":\"sqs\"}", data)
+	if want := `"sourceKind":{"kind":"sqs","scaling":{"kind":"unbounded"}}`; !bytes.Contains(data, []byte(want)) {
+		t.Errorf("section %s does not hold %s", data, want)
 	}
 	got := newState(kindScope(t))
 	if err := codec.Unmarshal(data, &got); err != nil {

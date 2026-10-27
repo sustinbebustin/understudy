@@ -104,10 +104,12 @@ func TestSnapshotOfAnEmptiedScopeKeepsItsIdentifiersUnique(t *testing.T) {
 	})
 }
 
-// State version 2 added each mapping's source kind and version 3 the layer
-// store and each function version's layers. Before the first release a
+// State version 2 added each mapping's source kind, version 3 the layer
+// store and each function version's layers, and version 4 moved an SQS
+// mapping's scaling into its source kind. Before the first release a
 // section an older binary wrote is refused naming both versions rather
-// than migrated (ADR 0009).
+// than migrated (ADR 0009); version 3 is migrated (the ADR's amendment of
+// 2026-10-27).
 func TestSnapshotRefusesAnEarlierVersion(t *testing.T) {
 	for _, earlier := range []int{1, 2} {
 		run(t, lambda.Options{}, func(h *harness) {
@@ -125,8 +127,8 @@ func TestSnapshotRefusesAnEarlierVersion(t *testing.T) {
 			if !ok {
 				t.Fatalf("Import(a version %d section) = %v, want a *store.VersionMismatchError", earlier, err)
 			}
-			if vm.Section != earlier || vm.Running != 3 || h.svc.SchemaVersion() != 3 {
-				t.Errorf("mismatch %+v, schema version %d; want section %d refused by running 3", vm, h.svc.SchemaVersion(), earlier)
+			if vm.Section != earlier || vm.Running != 4 || h.svc.SchemaVersion() != 4 {
+				t.Errorf("mismatch %+v, schema version %d; want section %d refused by running 4", vm, h.svc.SchemaVersion(), earlier)
 			}
 		})
 	}

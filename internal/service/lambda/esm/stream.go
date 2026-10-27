@@ -15,7 +15,7 @@ import (
 )
 
 // DynamoDBStream is a DynamoDB stream; the mapping's source is the
-// stream's ARN. Mappings on one are not accepted yet: not implemented yet.
+// stream's ARN.
 type DynamoDBStream struct {
 	Position StreamStart    `json:"position"`
 	Settings StreamSettings `json:"settings"`

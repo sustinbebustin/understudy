@@ -185,12 +185,12 @@ func lambdaAction(name string) registry.IAMAction {
 // state transitions, the asynchronous queue's, destinations' and layers'
 // choices, the event source mapping filter engine's choices, Lambda's
 // denial body, how a mapping meets a role refused the queue
-// (iam-enforcement-surfaces.md 8.6, 12.8) and the stream poller's retry
-// delay. The transitions govern the calls that create or change a function
-// or mapping and the reads that report its state. The stream poller's
-// latest-anchor and partial-resend-budget switches are not listed: what
-// they govern, LATEST and partial batch responses on a stream, answers 501
-// until it is built.
+// (iam-enforcement-surfaces.md 8.6, 12.8) and the stream poller's LATEST
+// anchor and retry delay. The transitions govern the calls that create or
+// change a function or mapping and the reads that report its state. The
+// stream poller's partial-resend-budget switch is not listed: what it
+// governs, the retry limit of a partial resend, answers 501 until the limit
+// is built.
 func (s *Service) Switches() []fidelity.Entry {
 	// AccessDeniedException 403 is recorded for another account's ARN
 	// (third-party); the same-account body is inferred.
@@ -203,7 +203,7 @@ func (s *Service) Switches() []fidelity.Entry {
 	permissionLoss := authz.EnforcementSwitch("lambda.esm.permission-loss", "stay-enabled", evidence.Inferred, "8.6", "IAM-ENF-25",
 		[]string{"lambda.CreateEventSourceMapping"})
 	streams := slices.DeleteFunc(esm.StreamSwitches(s.opts.Streams), func(e fidelity.Entry) bool {
-		return e.Name != "lambda.esm-stream.retry-delay"
+		return e.Name == "lambda.esm-stream.partial-resend-budget"
 	})
 	entries := []fidelity.Entry{denial, roleDenied, permissionLoss, fidelity.Switch[string]{
 		Name:  "lambda.stateTransitions",
@@ -236,9 +236,21 @@ func (s *Service) Export() ([]store.Section, error) {
 	return s.cells.Export(store.ScopeKeys(), stateVersion)
 }
 
-// Import loads sections written by Export of this schema version.
+// Import loads sections written by Export of this schema version or of
+// version 3, which it migrates first (migrateUnkindedScaling).
 func (s *Service) Import(ss []store.Section) error {
-	return s.cells.Import(store.ScopeKeys(), stateVersion, ss)
+	out := make([]store.Section, 0, len(ss))
+	for _, sec := range ss {
+		if sec.Version == stateVersionUnkindedScaling {
+			data, err := migrateUnkindedScaling(sec.Data)
+			if err != nil {
+				return &store.SectionError{Path: sec.Path, Defect: store.UndecodableState, Err: err}
+			}
+			sec.Version, sec.Data = stateVersion, data
+		}
+		out = append(out, sec)
+	}
+	return s.cells.Import(store.ScopeKeys(), stateVersion, out)
 }
 
 // Reset drops the scopes rs covers. It releases no blob reference: the
