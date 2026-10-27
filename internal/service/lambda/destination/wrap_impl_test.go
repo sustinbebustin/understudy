@@ -97,6 +97,36 @@ func TestDeadLetterToAQueueCarriesTheTraceHeader(t *testing.T) {
 	}
 }
 
+// A target whose account or region understudy cannot hold is refused when
+// the delivery is built: the outbox would refuse it only after the write
+// that ended the event committed, losing it and any later delivery of
+// that write without a trace. DeadLetterConfig.TargetArn's pattern lets
+// such an ARN through (lambda-destinations-layers.md 5.1).
+func TestDeliveriesToAnUnservedScopeAreRefused(t *testing.T) {
+	for _, arn := range []string{
+		"arn:aws:sqs:us-east-1:12345:dlq",
+		"arn:aws-cn:sns:cn-north-1:111111111111:alerts",
+	} {
+		if _, err := destination.DeadLetter(mustARN(t, arn), sender(t), goldenRequestID, ranWithPythonError(), []byte(pythonEvent)); !isWrapError(err) {
+			t.Errorf("DeadLetter(%s) = %v, want a *WrapError", arn, err)
+		}
+	}
+	for _, arn := range []string{
+		"arn:aws:sqs:us-east-1:12345:orders",
+		"arn:aws-cn:sns:cn-north-1:111111111111:alerts",
+		"arn:aws:lambda:us-east-1:12345:function:worker",
+		"arn:aws:events:us-east-1:12345:event-bus/default",
+	} {
+		d, err := destination.Parse(arn)
+		if err != nil {
+			t.Fatalf("Parse(%s) = %v", arn, err)
+		}
+		if _, err := destination.To(d, sender(t), destination.Outgoing{Condition: destination.Success, Body: []byte("{}")}); !isWrapError(err) {
+			t.Errorf("To(%s) = %v, want a *WrapError", arn, err)
+		}
+	}
+}
+
 // To with no destination is refused rather than sending nowhere.
 func TestToRefusesANilDestination(t *testing.T) {
 	if _, err := destination.To(nil, sender(t), destination.Outgoing{Condition: destination.Success, Body: []byte("{}")}); !isWrapError(err) {

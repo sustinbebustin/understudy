@@ -181,7 +181,7 @@ const recordInvocation = delivery.InvocationEvent
 // with a *WrapError, a record Lambda never sends: a Success to S3, which
 // takes on-failure records only (2.2), an S3 record without its key or a
 // key for any other destination, an undeclared condition and an empty
-// record.
+// record, and one bound for a scope understudy does not serve (served).
 func To(d Destination, s Sender, o Outgoing) (delivery.Request, error) {
 	if err := o.check(d); err != nil {
 		return delivery.Request{}, err
@@ -191,28 +191,34 @@ func To(d Destination, s Sender, o Outgoing) (delivery.Request, error) {
 		Policy: delivery.None{},
 		Sender: &delivery.LambdaSender{Role: s.Role, Carries: delivery.DestinationRecord},
 	}
+	// in is the ARN the record lands in; a bucket's names no scope, and the
+	// record lands in the function's.
+	var in aws.ARN
 	switch d := d.(type) {
 	case Queue:
 		// No message attributes; AWSTraceHeader is the Invoke's trace header
 		// (4.1, 11.3.5).
-		req.Mechanism, req.Target = delivery.LambdaToSQS, delivery.SQSQueue{ARN: d.ARN, Body: string(o.Body), TraceHeader: s.Trace}
+		in, req.Mechanism, req.Target = d.ARN, delivery.LambdaToSQS, delivery.SQSQueue{ARN: d.ARN, Body: string(o.Body), TraceHeader: s.Trace}
 	case Topic:
 		// No subject or attributes, which are unrecorded (4.2, LDL-05). A
 		// record over SNS's limit goes out whole and SNS refuses it, as the
 		// switch lambda.destination.sns-oversize says.
-		req.Mechanism, req.Target = delivery.LambdaToSNS, delivery.SNSTopic{ARN: d.ARN, Message: string(o.Body)}
+		in, req.Mechanism, req.Target = d.ARN, delivery.LambdaToSNS, delivery.SNSTopic{ARN: d.ARN, Message: string(o.Body)}
 	case Function:
-		req.Mechanism, req.Target = delivery.LambdaToLambda, delivery.LambdaFunction{ARN: d.ARN, Qualifier: d.Qualifier, Event: o.Body, Invocation: recordInvocation}
+		in, req.Mechanism, req.Target = d.ARN, delivery.LambdaToLambda, delivery.LambdaFunction{ARN: d.ARN, Qualifier: d.Qualifier, Event: o.Body, Invocation: recordInvocation}
 	case Bus:
 		// Resources are the bus, then the qualified function: the switch
 		// lambda.destination.eventbridge-resources-order (4.4, LDL-10).
-		req.Mechanism, req.Target = delivery.LambdaToEvents, delivery.EventBus{ARN: d.ARN, Entries: []delivery.EventEntry{{
+		in, req.Mechanism, req.Target = d.ARN, delivery.LambdaToEvents, delivery.EventBus{ARN: d.ARN, Entries: []delivery.EventEntry{{
 			Source: "lambda", DetailType: o.Condition.DetailType(), Detail: string(o.Body), Resources: []string{d.ARN.String(), s.Qualified},
 		}}}
 	case Bucket:
-		req.Mechanism, req.Target = delivery.LambdaToS3, delivery.S3Object{Bucket: d.Name, Key: o.ObjectKey, Body: o.Body}
+		in, req.Mechanism, req.Target = s.Function, delivery.LambdaToS3, delivery.S3Object{Bucket: d.Name, Key: o.ObjectKey, Body: o.Body}
 	default:
 		return delivery.Request{}, &WrapError{Reason: "the destination is nil"}
+	}
+	if err := served(in); err != nil {
+		return delivery.Request{}, err
 	}
 	return req, nil
 }
@@ -244,7 +250,7 @@ func (o Outgoing) check(d Destination) *WrapError {
 // that never ran is unrecorded (LDL-04), so it gets RequestID alone. One
 // attempt, as the execution role; a failure loses the event (5.4). It
 // refuses, with a *WrapError, a target that is neither SQS nor SNS (5.1)
-// and a nil inv.
+// or is in a scope understudy does not serve (served), and a nil inv.
 func DeadLetter(target aws.ARN, s Sender, requestID ids.LambdaRequestID, inv Invocation, payload []byte) (delivery.Request, error) {
 	var attrs []delivery.MessageAttribute
 	switch inv := inv.(type) {
@@ -276,7 +282,24 @@ func DeadLetter(target aws.ARN, s Sender, requestID ids.LambdaRequestID, inv Inv
 	default:
 		return delivery.Request{}, &WrapError{Reason: target.String() + " is neither an SQS queue nor an SNS topic, the only dead-letter targets (lambda-destinations-layers.md 5.1)"}
 	}
+	if err := served(target); err != nil {
+		return delivery.Request{}, err
+	}
 	return req, nil
+}
+
+// served refuses a target ARN whose partition, account or region
+// understudy cannot hold. The outbox refuses such a delivery too, but only
+// after the write that ended the event has committed, so the event and the
+// write's later deliveries would be lost without a trace; refused here, it
+// is logged like any other delivery Lambda cannot build.
+// DeadLetterConfig.TargetArn's pattern admits such an ARN
+// (lambda-destinations-layers.md 5.1), and a snapshot can hold one.
+func served(target aws.ARN) *WrapError {
+	if _, err := aws.ScopeOf(target); err != nil {
+		return &WrapError{Reason: target.String() + " names a partition, account or region understudy does not serve, so nothing can receive it: " + err.Error()}
+	}
+	return nil
 }
 
 // maxErrorMessage is "the first 1 KB of the error message": 1,024 bytes
