@@ -91,7 +91,7 @@ type Options struct {
 	ImagePuller   ImagePuller
 	TTLSweeper    TTLSweeper
 	Subscriptions SubscriptionTokens
-	// IAM answers POST /iam/evaluate. Not routed yet.
+	// IAM answers POST /iam/evaluate; nil answers it unavailable.
 	IAM IAMEvaluator
 	// Components reports Docker and DynamoDB Local for health; nil leaves
 	// them out.
@@ -295,6 +295,7 @@ func routes() []route {
 		{method: http.MethodGet, path: []string{"coverage"}, params: []string{"format"}, serve: (*Handler).coverage},
 		{method: http.MethodGet, path: []string{"iam", "usage"}, params: []string{"principal", "service"}, serve: (*Handler).iamUsage},
 		{method: http.MethodGet, path: []string{"iam", "policy"}, params: []string{"principal"}, serve: (*Handler).iamPolicy},
+		{method: http.MethodPost, path: []string{"iam", "evaluate"}, serve: (*Handler).iamEvaluate},
 		{method: http.MethodGet, path: []string{"settle"}, params: []string{"timeout"}, waits: true, serve: (*Handler).settle},
 		{method: http.MethodGet, path: []string{"ui", "session"}, serve: (*Handler).uiSessionState},
 		{method: http.MethodPost, path: []string{"lambda", "functions", "{function}", "hot-reload"}, serve: (*Handler).hotReload},

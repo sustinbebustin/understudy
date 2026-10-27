@@ -98,6 +98,10 @@
 //   - GET /iam/policy lists every recorded delivery's resource-policy
 //     requirement beside the identity policy; they concern the targets, not
 //     the principal.
+//   - POST /iam/evaluate asks Options.IAM, the enforce.Authorizer, which
+//     decides pairs under every iam.enforce mode and journals nothing; a
+//     principal it does not know is not_found, a pair it cannot decide
+//     internal.
 //   - The service hooks (Drainer, HotReloader, ImagePuller, TTLSweeper,
 //     SubscriptionTokens) speak *awserr.Error where the failure is the
 //     service's (a missing function or subscription) and error where it is

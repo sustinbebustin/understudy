@@ -418,11 +418,12 @@ func (c *Client) IAMPolicy(ctx context.Context, principal string) (*Policy, erro
 	return fetch[Policy](ctx, c, http.MethodGet, "/iam/policy", url.Values{"principal": {principal}}, nil)
 }
 
-// IAMEvaluate decides r's pairs for r's principal as iam.enforce would.
-//
-// Not implemented yet: it returns an error and sends nothing.
-func (c *Client) IAMEvaluate(_ context.Context, _ EvaluateRequest) (*Evaluation, error) {
-	return nil, errors.New("admin: IAMEvaluate is not implemented yet")
+// IAMEvaluate decides r's pairs for r's principal as iam.enforce would,
+// under every mode, journaling nothing: an invalid principal, policy,
+// action or resource is an *Error with code invalid_request naming the
+// field, and a principal that does not exist one with code not_found.
+func (c *Client) IAMEvaluate(ctx context.Context, r EvaluateRequest) (*Evaluation, error) {
+	return fetch[Evaluation](ctx, c, http.MethodPost, "/iam/evaluate", nil, r)
 }
 
 // Settle waits up to timeout for the emulator's tracked work to finish. On
