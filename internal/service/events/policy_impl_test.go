@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/events"
 )
@@ -297,6 +298,37 @@ func TestBusResourcePolicyAcrossScopesAndUnparsedPolicies(t *testing.T) {
 			if doc, ok := h.svc.ResourcePolicy(h.mustARN(bad)); ok || doc != nil {
 				t.Errorf("ResourcePolicy(%s) = %+v, %t; want no bus", bad, doc, ok)
 			}
+		}
+	})
+}
+
+// IAM evaluation reads a bus's owner and policy: none until PutPermission
+// stores one, the stored document once it does, and a document policydoc
+// refuses as unparsed rather than as no policy
+// (iam-enforcement-surfaces.md 12.10). A bus that does not exist has none.
+func TestBusStoredPolicy(t *testing.T) {
+	run(t, func(h *harness) {
+		def := h.mustARN(busPrefix + "default")
+		if got, ok := h.svc.StoredPolicy(def); !ok || got.Owner != h.Scope.Account || got.Policy != (authz.NoPolicy{}) {
+			t.Errorf("StoredPolicy(default) before PutPermission = %+v, %t; want the account's bus with no policy", got, ok)
+		}
+		h.permit(nil, "d", "111111111111")
+		if got, ok := h.svc.StoredPolicy(def); !ok {
+			t.Errorf("StoredPolicy(default) = %+v, %t; want the bus", got, ok)
+		} else if p, parsed := got.Policy.(authz.Parsed); !parsed || len(p.Document.Statements) != 1 {
+			t.Errorf("StoredPolicy(default).Policy = %+v; want the one-statement policy", got.Policy)
+		}
+		h.createBus("odd")
+		must(h, eventbridgeapi.OpPutPermission, &eventbridgeapi.PutPermissionInput{
+			EventBusName: new("odd"), Policy: new(`{"Bogus":1,"Statement":[{"Sid":"x"}]}`),
+		})
+		if got, ok := h.svc.StoredPolicy(h.mustARN(busPrefix + "odd")); !ok {
+			t.Errorf("StoredPolicy(odd) = %+v, %t; want the bus", got, ok)
+		} else if _, unparsed := got.Policy.(authz.Unparsed); !unparsed {
+			t.Errorf("StoredPolicy(odd).Policy = %+v; want Unparsed", got.Policy)
+		}
+		if got, ok := h.svc.StoredPolicy(h.mustARN(busPrefix + "absent")); ok {
+			t.Errorf("StoredPolicy(absent) = %+v, true; want no bus", got)
 		}
 	})
 }

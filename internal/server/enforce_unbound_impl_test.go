@@ -24,12 +24,11 @@ func TestEnforcementLeavesUnevaluatedPolicyTypesUnbound(t *testing.T) {
 			"GetGroup", "GetGroupPolicy", "ListAttachedGroupPolicies", "ListGroupPolicies", "ListGroups", "PutGroupPolicy",
 			"RemoveUserFromGroup", "UpdateGroup",
 		},
-		"kms":         {"CreateGrant", "ListGrants", "ListRetirableGrants", "RetireGrant", "RevokeGrant"},
-		"sts":         {"DecodeAuthorizationMessage"},
-		"eventbridge": {"PutPermission", "RemovePermission"},
-		"logs":        {"PutResourcePolicy", "DescribeResourcePolicies"},
-		"dynamodb":    {"PutResourcePolicy", "GetResourcePolicy", "DeleteResourcePolicy"},
-		"lambda":      {"PutResourcePolicy", "GetResourcePolicy", "DeleteResourcePolicy"},
+		"kms":      {"CreateGrant", "ListGrants", "ListRetirableGrants", "RetireGrant", "RevokeGrant"},
+		"sts":      {"DecodeAuthorizationMessage"},
+		"logs":     {"PutResourcePolicy", "DescribeResourcePolicies"},
+		"dynamodb": {"PutResourcePolicy", "GetResourcePolicy", "DeleteResourcePolicy"},
+		"lambda":   {"PutResourcePolicy", "GetResourcePolicy", "DeleteResourcePolicy"},
 	}
 	data, err := c.Coverage(t.Context(), "json")
 	if err != nil {

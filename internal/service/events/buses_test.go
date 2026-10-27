@@ -102,16 +102,19 @@ func refused(err *awserr.Error) bool {
 func TestBusOperationsCoverage(t *testing.T) {
 	run(t, func(h *harness) {
 		const foreign = "another account's or region's bus answers NotImplemented"
+		// A bus policy is evaluated as the other stored resource policies
+		// are (iam-enforcement-surfaces.md 12.7).
+		const evaluated = "evaluated for the calls and deliveries that name the bus under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce"
 		want := map[string]registry.BindCoverage{
 			"CreateEventBus":        registry.Partial{Note: "custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged"},
 			"UpdateEventBus":        registry.StoredOnly{Note: "Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged"},
 			"DescribeEventBus":      registry.Partial{Note: foreign},
 			"ListEventBuses":        registry.Full{},
 			"DeleteEventBus":        registry.Full{},
-			"PutPermission":         registry.StoredOnly{Note: "statements are stored in the bus Policy that DescribeEventBus returns; not enforced"},
-			"RemovePermission":      registry.StoredOnly{Note: "statements are removed from the bus Policy; not enforced"},
+			"PutPermission":         registry.Partial{Note: "statements are stored in the bus Policy that DescribeEventBus returns, " + evaluated},
+			"RemovePermission":      registry.Partial{Note: "statements are removed from the bus Policy, which is " + evaluated},
 			"PutRule":               registry.Partial{Note: "default and custom buses of the caller's account and region; ScheduleExpression only on the default bus, as AWS; RoleArn is stored, not used; a rule on another account's or region's bus answers NotImplemented"},
-			"PutTargets":            registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented"},
+			"PutTargets":            registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; RoleArn is not assumed, so under iam.enforce=enforce every function, queue and topic delivery is decided for events.amazonaws.com against the target's policy, and one it refuses is not retried and goes to the dead-letter queue with ERROR_CODE NO_PERMISSIONS (events.delivery.denied-code), else is dropped; no topic policy is added (events.put-targets.sns-policy); a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented"},
 			"PutEvents":             registry.Partial{Note: "default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used"},
 			"TagResource":           registry.Full{},
 			"UntagResource":         registry.Full{},

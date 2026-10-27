@@ -9,9 +9,8 @@ import (
 )
 
 // ResourcePolicy returns the event bus target names with its stored policy
-// parsed (outbox.PolicySource). It is wired for IAM enforcement of bus
-// policies (ARCHITECTURE.md 21; eventbridge-buses.md 10.7.22), which no
-// caller makes yet. The delivery access advisory never reads it: it skips
+// parsed (outbox.PolicySource); IAM evaluation reads the same policy
+// through StoredPolicy. The delivery access advisory never reads it: it skips
 // events-to-events deliveries, the only ones to a bus (ADR 0015 amendment
 // 2026-10-26; eventbridge-buses.md 6.2, 6.3). ok is false when target is
 // not an event bus ARN of a served scope or names a bus the scope does not

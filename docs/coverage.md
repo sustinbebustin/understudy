@@ -120,7 +120,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | apigatewayv2 | 103 | 0 | 2 | 29 | 72 | 0 | 1 |
 | cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
 | dynamodb | 58 | 6 | 2 | 18 | 32 | 0 | 0 |
-| eventbridge | 57 | 6 | 3 | 13 | 35 | 0 | 0 |
+| eventbridge | 57 | 6 | 1 | 15 | 35 | 0 | 0 |
 | iam | 180 | 10 | 1 | 53 | 116 | 1 | 0 |
 | kms | 54 | 16 | 2 | 9 | 27 | 0 | 0 |
 | lambda | 88 | 30 | 2 | 18 | 38 | 0 | 2 |
@@ -378,8 +378,6 @@ Raw operations:
 | TagResource | full | inferred, 1 of 3 claims |  |
 | TestEventPattern | full | contradicted (events/R14/H14-01.json), 5 of 26 claims |  |
 | UntagResource | full | inferred, 1 of 3 claims |  |
-| PutPermission | stored-only | inferred, 2 of 4 claims | statements are stored in the bus Policy that DescribeEventBus returns; not enforced |
-| RemovePermission | stored-only | inferred, 3 of 5 claims | statements are removed from the bus Policy; not enforced |
 | UpdateEventBus | stored-only | inferred, 3 of 5 claims | Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged |
 | CreateEventBus | partial | inferred, 3 of 5 claims | custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged |
 | DeleteRule | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
@@ -391,8 +389,10 @@ Raw operations:
 | ListRules | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
 | ListTargetsByRule | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
 | PutEvents | partial | contradicted (events/R14/H14-02.json), 1 of 11 claims | default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
+| PutPermission | partial | inferred, 2 of 4 claims | statements are stored in the bus Policy that DescribeEventBus returns, evaluated for the calls and deliveries that name the bus under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce |
 | PutRule | partial | contradicted (events/R14/H14-01.json), 1 of 9 claims | default and custom buses of the caller's account and region; ScheduleExpression only on the default bus, as AWS; RoleArn is stored, not used; a rule on another account's or region's bus answers NotImplemented |
 | PutTargets | partial | inferred, 6 of 10 claims | Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; RoleArn is not assumed, so under iam.enforce=enforce every function, queue and topic delivery is decided for events.amazonaws.com against the target's policy, and one it refuses is not retried and goes to the dead-letter queue with ERROR_CODE NO_PERMISSIONS (events.delivery.denied-code), else is dropped; no topic policy is added (events.put-targets.sns-policy); a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented |
+| RemovePermission | partial | inferred, 3 of 5 claims | statements are removed from the bus Policy, which is evaluated for the calls and deliveries that name the bus under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce |
 | RemoveTargets | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
 | ActivateEventSource | unbound | unassessed |  |
 | CancelReplay | unbound | unassessed |  |

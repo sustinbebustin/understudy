@@ -21,16 +21,19 @@ import (
 // Event bus policy size; eventbridge-buses.md 4.1).
 const maxPolicyLength = 10240
 
-// bindPolicy binds PutPermission and RemovePermission with the coverage
-// notes of eventbridge-buses.md 10.1: the policy is stored and returned,
-// and no call is authorized against it (eventbridge-buses.md 4.4).
+// bindPolicy binds PutPermission and RemovePermission. The policy is
+// stored and returned (eventbridge-buses.md 10.1), and IAM evaluation reads
+// it for the calls and deliveries that name the bus: partial, as
+// iam-enforcement-surfaces.md 12.7 marks the other stored resource
+// policies, since under iam.enforce off it has no effect.
 func (s *Service) bindPolicy(b eventbridgeapi.Binder) {
+	const evaluated = "evaluated for the calls and deliveries that name the bus under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce"
 	b.PutPermission(s.putPermission,
-		registry.StoredOnly{Note: "statements are stored in the bus Policy that DescribeEventBus returns; not enforced"},
+		registry.Partial{Note: "statements are stored in the bus Policy that DescribeEventBus returns, " + evaluated},
 		kernel.WithCheck(checkPutPermission),
 		namedBus(func(in *eventbridgeapi.PutPermissionInput) *string { return in.EventBusName }))
 	b.RemovePermission(s.removePermission,
-		registry.StoredOnly{Note: "statements are removed from the bus Policy; not enforced"},
+		registry.Partial{Note: "statements are removed from the bus Policy, which is " + evaluated},
 		namedBus(func(in *eventbridgeapi.RemovePermissionInput) *string { return in.EventBusName }))
 }
 
