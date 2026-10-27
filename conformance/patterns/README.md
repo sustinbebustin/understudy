@@ -15,7 +15,7 @@ conformance/patterns/run.sh lambda-layer-terraform   # only these
 2. `init` and `apply`;
 3. `check`: the pattern's documented test;
 4. `plan-no-changes`: a plan that must show no changes;
-5. `destroy`, then `nothing-left`: the state is empty and understudy lists nothing in the pattern's account.
+5. `destroy`, then `nothing-left`: the state is empty and understudy lists nothing in the pattern's account but what AWS keeps after a destroy: the `/aws/lambda/<function>` log group of each function the pattern created, which Lambda makes when the function first runs and `DeleteFunction` leaves in place (`docs/research/lambda-api.md` 6.4, `docs/research/tf-compute.md` 5).
 
 Each pattern runs in an account of its own. Every Terraform and AWS CLI call goes through `scripts/sealed`, so no real AWS setting or credential is used. The run prints one line per step and ends with a summary on stderr (`run.sh: passed=N failed=N skipped=N`, then a `run.sh: SKIP <pattern>/<step>: <reason>` line per skip). Logs are under `.build/conformance/patterns/run/logs/<pattern>/`.
 

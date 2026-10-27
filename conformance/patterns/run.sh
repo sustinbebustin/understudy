@@ -8,7 +8,8 @@
 # each pattern named (every pattern when none is) through: its documented
 # preparation, terraform init, apply, its documented check, a plan that must
 # show no changes, destroy, and a check that understudy holds nothing in the
-# pattern's account. The server is always stopped and its containers removed.
+# pattern's account but what AWS keeps after a destroy (nothing_left). The
+# server is always stopped and its containers removed.
 # Exits non-zero when any step fails.
 #
 #   conformance/patterns/run.sh                          # every pattern
@@ -190,10 +191,21 @@ drift_summary() {
   grep -E '^ *(# .* (will|must) be|[-+~] [a-z_"]+.*(=|->|\{)|Plan: )' "$1" | sed -n '1,40p'
 }
 
+# created_functions PATTERN prints the name of each Lambda function in the
+# pattern's applied state, one per line.
+created_functions() {
+  local p=$1
+  "$sealed" --endpoint "$endpoint" --access-key-id "${accounts[$p]}" terraform -chdir="$work_dir/$p" show -json |
+    jq -r '.values.root_module // {} | .. | objects | select(.type? == "aws_lambda_function") | .values.function_name'
+}
+
 # nothing_left PATTERN: the state is empty and understudy lists nothing in
-# the pattern's account.
+# the pattern's account, except what AWS keeps after a destroy: the log
+# group /aws/lambda/<name> Lambda creates for a function it runs, which
+# DeleteFunction leaves in place (lambda-api.md 6.4, tf-compute.md 5), for
+# each function the pattern created.
 nothing_left() {
-  local p=$1 log="$logs_dir/$1/nothing-left.log" state remaining problems=""
+  local p=$1 log="$logs_dir/$1/nothing-left.log" state remaining functions='[]' problems=""
   state=$("$sealed" --endpoint "$endpoint" --access-key-id "${accounts[$p]}" terraform -chdir="$work_dir/$p" state list 2>>"$log") ||
     problems+="terraform state list failed; "
   [[ -n "$state" ]] && problems+="state still lists: $(tr '\n' ' ' <<<"$state"); "
@@ -201,7 +213,14 @@ nothing_left() {
     record "$p/nothing-left" FAIL "${problems}understudy resources failed: $(tail -n 3 "$log")"
     return
   fi
-  remaining=$(jq -r '.resources[] | "\(.service) \(.arn) (\(.summary))"' "$log.resources.json" | tr '\n' ';')
+  if [[ -s "$logs_dir/$p/functions.txt" ]]; then
+    functions=$(jq -R . "$logs_dir/$p/functions.txt" | jq -s .)
+  fi
+  remaining=$(jq -r --argjson functions "$functions" '
+    .resources[]
+    | select((.service == "logs" and (.arn | test(":log-group:/aws/lambda/[^:]+$"))
+        and ((.arn | sub(".*:log-group:/aws/lambda/"; "")) as $name | any($functions[]; . == $name))) | not)
+    | "\(.service) \(.arn) (\(.summary))"' "$log.resources.json" | tr '\n' ';')
   [[ -n "$remaining" ]] && problems+="left in account ${accounts[$p]} after destroy: $remaining"
   if [[ -n "$problems" ]]; then
     record "$p/nothing-left" FAIL "$problems"
@@ -244,6 +263,9 @@ run_pattern() {
 
   if tf_step "$p" apply apply -auto-approve; then
     record "$p/apply" PASS ""
+    # A failure leaves the list empty, so nothing_left then reports every
+    # function's log group.
+    created_functions "$p" >"$logs_dir/$p/functions.txt" 2>>"$logs_dir/$p/apply.log" || true
     if declare -F pattern_check >/dev/null; then
       if pattern_check "$dir" >"$logs_dir/$p/check.log" 2>&1; then
         record "$p/check" PASS ""
