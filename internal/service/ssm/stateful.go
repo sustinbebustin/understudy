@@ -1,6 +1,10 @@
 package ssm
 
 import (
+	"fmt"
+	"slices"
+	"strings"
+
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -35,10 +39,23 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 // Rearm does nothing: Parameter Store arms no timers.
 func (*Service) Rearm(clock.Instant) {}
 
-// Resources lists the parameters of scope by ARN, in byte order of
-// canonical names, each summarized as "<Type>, version <n>". Not
-// implemented yet: it lists nothing.
-func (*Service) Resources(aws.Scope) []kernel.Resource { return nil }
+// Resources lists the parameters of scope in byte order of ARN, each
+// summarized as "<Type>, version <n>" of its latest
+// version.
+func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
+	return readState(s, scope, func(st *State) []kernel.Resource {
+		out := make([]kernel.Resource, 0, len(st.Parameters))
+		for canonical, p := range st.Parameters {
+			v := p.latest()
+			out = append(out, kernel.Resource{
+				ARN:     parameterARN(scope, canonical),
+				Summary: fmt.Sprintf("%s, version %d", v.Type, v.Number),
+			})
+		}
+		slices.SortFunc(out, func(a, b kernel.Resource) int { return strings.Compare(a.ARN.String(), b.ARN.String()) })
+		return out
+	})
+}
 
 // Scopes returns the accounts and regions that hold a state cell.
 func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) }

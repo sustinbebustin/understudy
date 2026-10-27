@@ -31,20 +31,37 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	}
 	b := ssmapi.NewBinder(d.Binder)
 
-	b.PutParameter(s.putParameter, registry.Partial{Note: notePutParameter})
-	b.GetParameter(s.getParameter, registry.Partial{Note: noteGetParameter})
-	b.GetParameters(s.getParameters, registry.Partial{Note: noteGetParameters})
-	b.GetParametersByPath(s.getParametersByPath, registry.Partial{Note: noteGetParametersByPath})
+	b.PutParameter(s.putParameter, registry.Partial{Note: notePutParameter},
+		byName(func(in *ssmapi.PutParameterInput) string { return in.Name }), putActions())
+	b.GetParameter(s.getParameter, registry.Partial{Note: noteGetParameter},
+		byName(func(in *ssmapi.GetParameterInput) string { return in.Name }))
+	b.GetParameters(s.getParameters, registry.Partial{Note: noteGetParameters},
+		byNames(func(in *ssmapi.GetParametersInput) []string { return in.Names }))
+	b.GetParametersByPath(s.getParametersByPath, registry.Partial{Note: noteGetParametersByPath}, byPath())
 	b.DescribeParameters(s.describeParameters, registry.Partial{Note: noteDescribeParameters})
-	b.GetParameterHistory(s.getParameterHistory, registry.Partial{Note: noteGetParameterHistory})
-	b.DeleteParameter(s.deleteParameter, registry.Partial{Note: reserved + "; no Parameter Store Change events are sent"})
-	b.DeleteParameters(s.deleteParameters, registry.Partial{Note: noteDeleteParameters})
-	b.LabelParameterVersion(s.labelParameterVersion, registry.Partial{Note: noteLabelParameterVersion})
-	b.UnlabelParameterVersion(s.unlabelParameterVersion, registry.Partial{Note: reserved})
-	b.AddTagsToResource(s.addTagsToResource, registry.Partial{Note: reserved + "; " + parameterOnly})
-	b.RemoveTagsFromResource(s.removeTagsFromResource, registry.Partial{Note: reserved + "; " + parameterOnly})
+	b.GetParameterHistory(s.getParameterHistory, registry.Partial{Note: noteGetParameterHistory},
+		byName(func(in *ssmapi.GetParameterHistoryInput) string { return in.Name }))
+	b.DeleteParameter(s.deleteParameter, registry.Partial{Note: reserved + "; no Parameter Store Change events are sent"},
+		byName(func(in *ssmapi.DeleteParameterInput) string { return in.Name }))
+	b.DeleteParameters(s.deleteParameters, registry.Partial{Note: noteDeleteParameters},
+		byNames(func(in *ssmapi.DeleteParametersInput) []string { return in.Names }))
+	b.LabelParameterVersion(s.labelParameterVersion, registry.Partial{Note: noteLabelParameterVersion},
+		byName(func(in *ssmapi.LabelParameterVersionInput) string { return in.Name }))
+	b.UnlabelParameterVersion(s.unlabelParameterVersion, registry.Partial{Note: reserved},
+		byName(func(in *ssmapi.UnlabelParameterVersionInput) string { return in.Name }))
+	b.AddTagsToResource(s.addTagsToResource, registry.Partial{Note: reserved + "; " + parameterOnly},
+		byTagTarget(func(in *ssmapi.AddTagsToResourceInput) (ssmapi.ResourceTypeForTagging, string) {
+			return in.ResourceType, in.ResourceId
+		}))
+	b.RemoveTagsFromResource(s.removeTagsFromResource, registry.Partial{Note: reserved + "; " + parameterOnly},
+		byTagTarget(func(in *ssmapi.RemoveTagsFromResourceInput) (ssmapi.ResourceTypeForTagging, string) {
+			return in.ResourceType, in.ResourceId
+		}))
 	b.ListTagsForResource(s.listTagsForResource, registry.Partial{Note: reserved + "; " + parameterOnly +
-		"; unrecorded, understudy's choice: an untagged parameter answers TagList []"})
+		"; unrecorded, understudy's choice: an untagged parameter answers TagList []"},
+		byTagTarget(func(in *ssmapi.ListTagsForResourceInput) (ssmapi.ResourceTypeForTagging, string) {
+			return in.ResourceType, in.ResourceId
+		}))
 	return s
 }
 
