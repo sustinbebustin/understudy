@@ -1,8 +1,10 @@
 // Package httpevent builds the Lambda payload format 2.0 request event and
 // reads the function's response, for Lambda function URLs and API Gateway
-// HTTP APIs alike (lambda-events.md 7.3, 7.4; apigateway-http.md 5.1, 5.3).
-// It is pure and imports nothing in the repository: the caller resolves
-// the route, authorizes the request and invokes the function.
+// HTTP APIs alike (lambda-events.md 7.3, 7.4; apigateway-http.md 5.1, 5.3),
+// and the payload format 1.0 event and response of an API Gateway front
+// (apigateway-http.md 5.2, 5.4; v1.go). It is pure and imports nothing in
+// the repository: the caller resolves the route, authorizes the request
+// and invokes the function.
 //
 // Decisions the research leaves open, which a function URL's recorded
 // behavior settles (internal/service/lambda/furl):
@@ -32,6 +34,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"maps"
 	"mime"
 	"net/http"
 	"net/url"
@@ -220,17 +223,16 @@ func EventV2(r Request, c Context) ([]byte, error) {
 	case nil:
 		return nil, errNoAuthorizer
 	}
-	if len(r.Body) > 0 {
-		body := string(r.Body)
-		if !isText(r.Header.Get("Content-Type"), r.Body) {
-			body = base64.StdEncoding.EncodeToString(r.Body)
-			ev.IsBase64Encoded = true
-		}
-		ev.Body = &body
-	}
+	ev.Body, ev.IsBase64Encoded = eventBody(r)
+	return encode(ev)
+}
+
+// encode writes an event as compact JSON without a trailing newline,
+// keeping &, < and > unescaped: query strings and bodies reach the
+// function as sent.
+func encode(ev any) ([]byte, error) {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
-	// rawQueryString and bodies keep &, < and > as sent.
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(ev); err != nil {
 		return nil, err
@@ -238,34 +240,64 @@ func EventV2(r Request, c Context) ([]byte, error) {
 	return bytes.TrimSuffix(b.Bytes(), []byte("\n")), nil
 }
 
+// eventBody is the event's body: nil without one, the body as text for a
+// text content type (isText), and base64 with encoded true otherwise.
+func eventBody(r Request) (body *string, encoded bool) {
+	if len(r.Body) == 0 {
+		return nil, false
+	}
+	if !isText(r.Header.Get("Content-Type"), r.Body) {
+		return new(base64.StdEncoding.EncodeToString(r.Body)), true
+	}
+	return new(string(r.Body)), false
+}
+
 // eventHeaders lowercases r's header names and joins repeated headers
 // with commas; Cookie headers become cookies, one element per name=value
-// pair. The headers the front end adds are set over the client's: host,
-// x-forwarded-for, x-forwarded-proto, x-forwarded-port and, with a trace,
-// x-amzn-trace-id.
+// pair. The headers the front end adds are set over the client's
+// (frontHeaders).
 func eventHeaders(r Request, trace string) (headers map[string]string, cookies []string) {
 	headers = map[string]string{}
-	for name, values := range r.Header {
-		lower := strings.ToLower(name)
+	for lower, values := range lowerHeaders(r.Header) {
 		if lower == "cookie" {
 			for _, v := range values {
 				cookies = append(cookies, splitCookies(v)...)
 			}
 			continue
 		}
-		if prev, ok := headers[lower]; ok {
-			values = append([]string{prev}, values...)
-		}
 		headers[lower] = strings.Join(values, ",")
 	}
-	headers["host"] = r.Host
-	headers["x-forwarded-for"] = r.SourceIP
-	headers["x-forwarded-proto"] = r.Scheme
-	headers["x-forwarded-port"] = r.Port
-	if trace != "" {
-		headers["x-amzn-trace-id"] = trace
-	}
+	maps.Copy(headers, frontHeaders(r, trace))
 	return headers, cookies
+}
+
+// lowerHeaders is h with its names lowercased, every value of a name in
+// the order sent. Spellings of one name that differ in case, which an
+// http.Header built by net/http never holds, merge in the sorted order of
+// their spellings.
+func lowerHeaders(h http.Header) map[string][]string {
+	out := make(map[string][]string, len(h))
+	for _, name := range slices.Sorted(maps.Keys(h)) {
+		lower := strings.ToLower(name)
+		out[lower] = append(out[lower], h[name]...)
+	}
+	return out
+}
+
+// frontHeaders are the headers the front end adds, set over the client's
+// own: host, x-forwarded-for, x-forwarded-proto, x-forwarded-port and,
+// with a trace, x-amzn-trace-id.
+func frontHeaders(r Request, trace string) map[string]string {
+	h := map[string]string{
+		"host":              r.Host,
+		"x-forwarded-for":   r.SourceIP,
+		"x-forwarded-proto": r.Scheme,
+		"x-forwarded-port":  r.Port,
+	}
+	if trace != "" {
+		h["x-amzn-trace-id"] = trace
+	}
+	return h
 }
 
 // splitCookies splits a Cookie header into its name=value pairs.
@@ -281,13 +313,24 @@ func splitCookies(header string) []string {
 
 // queryParameters decodes a raw query into queryStringParameters, the
 // values of a repeated parameter joined with commas in the order sent;
-// nil when the query is empty. A pair whose escapes are malformed is left
-// out, as url.ParseQuery leaves it out.
+// nil when the query is empty.
 func queryParameters(raw string) map[string]string {
-	if raw == "" {
+	values := queryValues(raw)
+	if values == nil {
 		return nil
 	}
-	out := map[string]string{}
+	out := make(map[string]string, len(values))
+	for key, vs := range values {
+		out[key] = strings.Join(vs, ",")
+	}
+	return out
+}
+
+// queryValues decodes a raw query, every value of a name in the order
+// sent; nil when it holds no pair. A pair whose escapes are malformed is
+// left out, as url.ParseQuery leaves it out.
+func queryValues(raw string) map[string][]string {
+	out := map[string][]string{}
 	for pair := range strings.SplitSeq(raw, "&") {
 		if pair == "" {
 			continue
@@ -298,11 +341,7 @@ func queryParameters(raw string) map[string]string {
 		if kerr != nil || verr != nil {
 			continue
 		}
-		if prev, ok := out[key]; ok {
-			out[key] = prev + "," + value
-			continue
-		}
-		out[key] = value
+		out[key] = append(out[key], value)
 	}
 	if len(out) == 0 {
 		return nil

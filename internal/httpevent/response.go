@@ -97,14 +97,14 @@ func InferV2With(payload []byte, d V2Defaults) (Response, error) {
 	return resp, nil
 }
 
-// structured reads a structured response's members. Final statuses only:
-// an informational one cannot end an HTTP exchange. A null body is an
-// empty one.
+// structured reads a structured 2.0 response's members: statusCode,
+// headers, cookies, body and isBase64Encoded.
 func structured(fields map[string]json.RawMessage) (Response, error) {
-	r := Response{Header: http.Header{}}
-	if err := json.Unmarshal(fields["statusCode"], &r.Status); err != nil || r.Status < 200 || r.Status > 599 {
-		return Response{}, &MalformedError{Problem: "statusCode " + string(fields["statusCode"]) + " is not an integer from 200 to 599"}
+	status, err := statusOf(fields)
+	if err != nil {
+		return Response{}, err
 	}
+	r := Response{Status: status, Header: http.Header{}}
 	var headers map[string]string
 	if err := member(fields, "headers", &headers); err != nil {
 		return Response{}, &MalformedError{Problem: "headers is not an object of string values"}
@@ -117,26 +117,44 @@ func structured(fields map[string]json.RawMessage) (Response, error) {
 	if err := member(fields, "cookies", &r.Cookies); err != nil {
 		return Response{}, &MalformedError{Problem: "cookies is not an array of strings"}
 	}
+	if r.Body, err = bodyOf(fields); err != nil {
+		return Response{}, err
+	}
+	return r, nil
+}
+
+// statusOf reads a response's statusCode: final statuses only, since an
+// informational one cannot end an HTTP exchange.
+func statusOf(fields map[string]json.RawMessage) (int, error) {
+	var status int
+	if err := json.Unmarshal(fields["statusCode"], &status); err != nil || status < 200 || status > 599 {
+		return 0, &MalformedError{Problem: "statusCode " + string(fields["statusCode"]) + " is not an integer from 200 to 599"}
+	}
+	return status, nil
+}
+
+// bodyOf reads a response's body and isBase64Encoded: a string body, null
+// or absent being empty, decoded when isBase64Encoded is true.
+func bodyOf(fields map[string]json.RawMessage) ([]byte, error) {
 	var body *string
 	if err := member(fields, "body", &body); err != nil {
-		return Response{}, &MalformedError{Problem: "body is not a string"}
+		return nil, &MalformedError{Problem: "body is not a string"}
 	}
 	var encoded bool
 	if err := member(fields, "isBase64Encoded", &encoded); err != nil {
-		return Response{}, &MalformedError{Problem: "isBase64Encoded is not a boolean"}
+		return nil, &MalformedError{Problem: "isBase64Encoded is not a boolean"}
 	}
 	if body == nil {
-		return r, nil
+		return nil, nil
 	}
-	r.Body = []byte(*body)
-	if encoded {
-		decoded, err := base64.StdEncoding.DecodeString(*body)
-		if err != nil {
-			return Response{}, &MalformedError{Problem: "isBase64Encoded is true but body is not base64"}
-		}
-		r.Body = decoded
+	if !encoded {
+		return []byte(*body), nil
 	}
-	return r, nil
+	decoded, err := base64.StdEncoding.DecodeString(*body)
+	if err != nil {
+		return nil, &MalformedError{Problem: "isBase64Encoded is true but body is not base64"}
+	}
+	return decoded, nil
 }
 
 // framing reports whether name, in any case, is a header that frames the
