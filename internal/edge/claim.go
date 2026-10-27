@@ -51,7 +51,8 @@ type toRaw struct {
 // toLink is a raw operation serving a link understudy hands out for a
 // browser to open from any page, as AWS serves its own: an SNS link or a
 // Lambda code link (rule 1), a function URL by path (rule 1) or by host
-// (rule 2), or the execute-api path fallback (rule 1). The edge's browser
+// (rule 2), or the execute-api data plane by path (rule 1) or by host
+// (rule 2). The edge's browser
 // defences never refuse one. policy is cspSandbox for the path fallbacks,
 // a user's page on understudy's origin (ADR 0020).
 type toLink struct {
@@ -90,10 +91,10 @@ type unclaimed struct{ reasons []reason }
 // passed over before it, for the Unclaimed journal event.
 type toLocalStack struct{ reasons []reason }
 
-// toExecuteAPI is API Gateway's execute-api data plane, by host (rule 2),
-// or by the path fallback (rule 1) when no raw apigatewayv2.InvokeApi is
-// registered: it is claimed so S3 never answers it, and answered 501. reasons end with
-// the claiming rule's, for the Unclaimed journal event. policy is
+// toExecuteAPI is API Gateway's execute-api data plane, by host (rule 2)
+// or by the path fallback (rule 1), when no raw apigatewayv2.InvokeApi is
+// registered: it is claimed so S3 never answers it, and answered 501.
+// reasons end with the claiming rule's, for the Unclaimed journal event. policy is
 // cspSandbox for the path fallback, which an integration controls on
 // understudy's origin (ADR 0020).
 type toExecuteAPI struct {
@@ -263,11 +264,18 @@ func (c *claimer) executeAPIPath() (route, bool) {
 	if !strings.HasPrefix(c.path, executeAPIPathPrefix) || c.h.opts.Listener != ref.ListenerMain {
 		return nil, false
 	}
-	if op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: "apigatewayv2", Name: "InvokeApi"}); ok && op.Kind == registry.Raw {
+	if op, ok := c.invokeAPI(); ok {
 		return toLink{op: op, policy: cspSandbox}, true
 	}
 	c.decline(1, "%s is the API Gateway execute-api path fallback, and understudy does not implement API Gateway invoke", c.path)
 	return toExecuteAPI{reasons: c.reasons, policy: cspSandbox}, true
+}
+
+// invokeAPI returns the raw apigatewayv2.InvokeApi operation, which serves
+// both execute-api forms, when the registry holds it.
+func (c *claimer) invokeAPI() (*registry.Operation, bool) {
+	op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: "apigatewayv2", Name: "InvokeApi"})
+	return op, ok && op.Kind == registry.Raw
 }
 
 // lambdaCodePrefix is where GetFunction's Code.Location links live.
@@ -344,10 +352,16 @@ func (c *claimer) isExecuteAPIHost() bool {
 // Gateway's data plane whatever the credentials, never an S3
 // virtual-hosted bucket, as AWS serves those hosts apart from S3
 // (apigateway-http.md 4.1, ADR 0013). A bucket of that name stays
-// reachable path style.
+// reachable path style. It goes to the raw apigatewayv2.InvokeApi
+// operation, which resolves the API id from the host, when the registry
+// holds one, unsandboxed, since the host is an origin of its own (ADR
+// 0020); else it is answered 501.
 func (c *claimer) executeAPI() (route, bool) {
 	if !c.isExecuteAPIHost() {
 		return nil, false
+	}
+	if op, ok := c.invokeAPI(); ok {
+		return toLink{op: op}, true
 	}
 	c.decline(2, "host %q is an API Gateway execute-api host, and understudy does not implement API Gateway invoke", c.host)
 	return toExecuteAPI{reasons: c.reasons}, true

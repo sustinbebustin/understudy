@@ -46,8 +46,7 @@ func invokeAPIFront(t *testing.T, seen *string) *front {
 
 // With the raw apigatewayv2.InvokeApi registered, the path fallback is that
 // operation's, sandboxed over the integration's own policy (ADR 0020), and
-// journaled as its call, never as Unclaimed; the host form still answers
-// the 501 until the data plane serves it.
+// journaled as its call, never as Unclaimed.
 func TestExecuteAPIPathFallbackReachesInvokeAPI(t *testing.T) {
 	var seen string
 	f := invokeAPIFront(t, &seen)
@@ -65,16 +64,35 @@ func TestExecuteAPIPathFallbackReachesInvokeAPI(t *testing.T) {
 	if page := f.journal.Query(journal.Filter{Kind: journal.KindUnclaimed}); len(page.Events) != 0 {
 		t.Errorf("journaled %d Unclaimed events, want none", len(page.Events))
 	}
+}
 
-	seen = ""
-	f = invokeAPIFront(t, &seen)
-	r := request(t, http.MethodGet, "/prod/pets", nil, "", "")
-	r.Host = "abc123.execute-api.us-east-1.localhost:4566"
-	rec = httptest.NewRecorder()
-	f.handler.ServeHTTP(rec, r)
-	wantInvokeNotImplemented(t, f, rec, "the host form")
-	if seen != "" {
-		t.Errorf("the host form reached InvokeApi with %q", seen)
+// With the raw apigatewayv2.InvokeApi registered, an execute-api host, with
+// or without a region label and whatever the credentials, is that
+// operation's too, with the path as sent; the host is an origin of its
+// own, so the integration's policy passes as written (ADR 0020).
+func TestExecuteAPIHostReachesInvokeAPI(t *testing.T) {
+	for _, host := range []string{"abc123.execute-api.us-east-1.localhost:4566", "abc123.execute-api.localhost", "ABC123.EXECUTE-API.US-EAST-1.LOCALHOST"} {
+		for _, signedFor := range []string{"", "s3", "apigateway"} {
+			var seen string
+			f := invokeAPIFront(t, &seen)
+			r := request(t, http.MethodGet, "/prod/pets", nil, "", signedFor)
+			r.Host = host
+			rec := httptest.NewRecorder()
+			f.handler.ServeHTTP(rec, r)
+			what := host + " signed for " + signedFor
+			if rec.Code != http.StatusOK || rec.Body.String() != "served" || seen != "/prod/pets" {
+				t.Errorf("%s = %d %q, handler saw %q; want InvokeApi's 200 for /prod/pets", what, rec.Code, rec.Body, seen)
+			}
+			if got := policies(rec); !slices.Equal(got, []string{"default-src 'self'"}) {
+				t.Errorf("%s: Content-Security-Policy = %q, want the integration's own", what, got)
+			}
+			if ops := f.calls(t); !slices.Equal(ops, []ref.OperationID{{Service: "apigatewayv2", Name: "InvokeApi"}}) {
+				t.Errorf("%s: journaled calls = %v, want one InvokeApi", what, ops)
+			}
+			if page := f.journal.Query(journal.Filter{Kind: journal.KindUnclaimed}); len(page.Events) != 0 {
+				t.Errorf("%s: journaled %d Unclaimed events, want none", what, len(page.Events))
+			}
+		}
 	}
 }
 

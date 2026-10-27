@@ -36,7 +36,7 @@ const executeAPIPrefix = "/_understudy/execute-api/"
 const servicePrincipal = "apigateway.amazonaws.com"
 
 // invoke is InvokeApi, the execute-api data plane (apigateway-http.md
-// 13.3): it finds the API the path fallback names, selects the stage and
+// 13.3): it finds the API the host or path fallback names, selects the stage and
 // the route of the stage's deployment, checks that the function's resource
 // policy lets API Gateway invoke it, invokes it synchronously with the
 // payload format 2.0 event and answers with the response read from its
@@ -56,7 +56,7 @@ func (s *Service) invoke(ctx context.Context, c *kernel.Call, r *http.Request, w
 	case tooLarge:
 		return writeAnswer(w, failures.TooLarge)
 	}
-	addr, ok := resolvePath(escapedPath(r))
+	addr, ok := s.resolve(r)
 	if !ok {
 		return writeAnswer(w, FrontAnswersSwitch().Value.UnknownAPI)
 	}
@@ -74,25 +74,72 @@ func (s *Service) invoke(ctx context.Context, c *kernel.Call, r *http.Request, w
 	return awserr.Internalf(errors.New("apigatewayv2: selectRoute returned no selection"))
 }
 
-// address is what the path fallback names: an API id and the escaped path
-// after it, "/" when there is none.
+// address is what a request names: an API id, the escaped path the API
+// sees and the host the request named.
 type address struct {
 	apiID string
-	path  string
+	// path is the escaped path after the path fallback's prefix and API id,
+	// or the host form's path as sent; "/" when there is none.
+	path string
+	// host is the execute-api host the request named, lowercase and without
+	// its port; "" on the path fallback.
+	host string
+	// region is the region the host names; zero when it names none (the
+	// path fallback, or <api-id>.execute-api.<base>), and the API serves in
+	// its own.
+	region aws.Region
 }
 
-// resolvePath reads the path fallback; the API id is lowercased, as a
-// host name is.
-func resolvePath(escaped string) (address, bool) {
-	rest, ok := strings.CutPrefix(escaped, executeAPIPrefix)
-	if !ok {
+// resolve reads what a request names (apigateway-http.md 11.3, 13.1.3): the
+// path fallback /_understudy/execute-api/<api-id>/<path>, which the edge
+// claims before the host (ARCHITECTURE.md 4.1 rule 1), else the host
+// <api-id>.execute-api.<region>.<base> or <api-id>.execute-api.<base>.
+// The third label is a region only when the region table accepts it and
+// labels follow it, as the edge claims the host. The API id is lowercased,
+// as a host name is.
+func (s *Service) resolve(r *http.Request) (address, bool) {
+	escaped := escapedPath(r)
+	if rest, ok := strings.CutPrefix(escaped, executeAPIPrefix); ok {
+		id, path, _ := strings.Cut(rest, "/")
+		if id == "" {
+			return address{}, false
+		}
+		return address{apiID: strings.ToLower(id), path: "/" + path}, true
+	}
+	host := hostName(r.Host)
+	labels := strings.SplitN(host, ".", 3)
+	if len(labels) != 3 || labels[0] == "" || labels[1] != "execute-api" || labels[2] == "" {
 		return address{}, false
 	}
-	id, path, _ := strings.Cut(rest, "/")
-	if id == "" {
-		return address{}, false
+	addr := address{apiID: labels[0], path: escaped, host: host}
+	if addr.path == "" {
+		addr.path = "/"
 	}
-	return address{apiID: strings.ToLower(id), path: "/" + path}, true
+	if first, after, ok := strings.Cut(labels[2], "."); ok && after != "" {
+		if region, err := s.regions.Parse(first); err == nil {
+			addr.region = region
+		}
+	}
+	return addr, true
+}
+
+// domain is the domain name the event reports: the host the request named,
+// or for the path fallback the host form under localhost in the API's
+// region (apigateway-http.md 13.1.3), as the function URL fallback reports
+// its own.
+func (a address) domain(owner aws.Scope) string {
+	if a.host != "" {
+		return a.host
+	}
+	return a.apiID + ".execute-api." + owner.Region.String() + ".localhost"
+}
+
+// hostName is a Host header without its port, lowercase.
+func hostName(host string) string {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	return strings.ToLower(strings.Trim(host, "[]"))
 }
 
 // selection is what a request selects in the state, copied out of it.
@@ -112,10 +159,12 @@ type toFunction struct {
 	// key is the route's parsed key, routeKey the key as stored.
 	key      route.Key
 	routeKey string
-	// rawPath is the escaped path after the API id, a named stage's
-	// segment included (apigateway-http.md finding 8).
+	// rawPath is the escaped path the API sees, a named stage's segment
+	// included (apigateway-http.md finding 8).
 	rawPath string
-	params  map[string]string
+	// domain is the event's domainName (address.domain).
+	domain string
+	params map[string]string
 	// stageVariables are the stage's (apigateway-http.md 5.1) as it holds
 	// them now: they are no part of a deployment, so a change serves at once
 	// (inferred).
@@ -137,12 +186,15 @@ func (corrupt) isSelection()    {}
 
 // selectRoute finds the API addr names, its stage and the route of the
 // stage's deployment a request with method matches; origin is whether the
-// request carries an Origin header. The API's DisableExecuteApiEndpoint
-// and CORS configuration are read live, so they hold from the call that
-// set them (apigateway-http.md 3.1, the front.answers switch).
+// request carries an Origin header. The API is found by its id in any
+// account (apigateway-http.md 4.1), and a host naming a region other than
+// the API's is the front.answers switch's UnknownAPI, as an unknown id is
+// (APIGW2-06). The API's DisableExecuteApiEndpoint and CORS configuration
+// are read live, so they hold from the call that set them
+// (apigateway-http.md 3.1, the front.answers switch).
 func (s *Service) selectRoute(addr address, method string, origin bool) selection {
 	owner, ok := s.index.lookup(addr.apiID)
-	if !ok {
+	if !ok || (!addr.region.IsZero() && addr.region != owner.Region) {
 		return answered{FrontAnswersSwitch().Value.UnknownAPI}
 	}
 	return readState(s, owner, func(st *State) selection {
@@ -207,7 +259,7 @@ func (a *API) selectRoute(owner aws.Scope, addr address, method string, origin b
 	}
 	return toFunction{
 		owner: owner, apiID: a.ID, stage: stage.Name, key: key, routeKey: rt.Key,
-		rawPath: addr.path, params: m.PathParameters, stageVariables: maps.Clone(stage.Variables), integration: integration,
+		rawPath: addr.path, domain: addr.domain(owner), params: m.PathParameters, stageVariables: maps.Clone(stage.Variables), integration: integration,
 	}
 }
 
@@ -329,7 +381,7 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 	event, eerr := httpevent.EventV2(eventRequest(c, r, t.rawPath, body), httpevent.Context{
 		AccountID:    t.owner.Account.String(),
 		APIID:        t.apiID,
-		DomainName:   t.apiID + ".execute-api." + t.owner.Region.String() + ".localhost",
+		DomainName:   t.domain,
 		DomainPrefix: t.apiID,
 		RouteKey:     t.routeKey,
 		Stage:        t.stage,
@@ -455,7 +507,7 @@ func readBody(r *http.Request, limit int) (body []byte, tooLarge bool, err *awse
 }
 
 // eventRequest is the request as the event reports it, rawPath being the
-// path after the path fallback's prefix and API id.
+// path the API sees (address.path).
 func eventRequest(c *kernel.Call, r *http.Request, rawPath string, body []byte) httpevent.Request {
 	e := c.Endpoint()
 	scheme := e.Scheme

@@ -39,6 +39,7 @@ type Service struct {
 	k        *kernel.Kernel
 	ids      *ids.Source
 	policies authz.PolicyProvider
+	regions  aws.Regions
 	cells    *store.Partitioned[aws.Scope, State]
 	index    apiIndex
 }
@@ -74,13 +75,12 @@ const (
 	// storedOnlyNote heads the StoredOnly mark of the two calls that remove
 	// stage settings understudy stores without effect.
 	storedOnlyNote = "the settings they remove are stored without effect"
-	invokeAPINote  = "Lambda AWS_PROXY with payload format 2.0 through the path fallback /_understudy/execute-api/<api-id>/ only " +
-		"(the execute-api host answers 501); stage and route selection as documented; " +
+	invokeAPINote  = "Lambda AWS_PROXY with payload format 2.0; stage and route selection as documented; " +
 		"where the documents leave the order of two matching routes open it is inferred (APIGW2-05): " +
 		"a full match on ANY before a greedy match on the method, the greedy route with more segments before its variable first, then the leftmost literal segment; " +
 		"AWS_IAM routes, CORS requests (an Origin header to an API with a corsConfiguration), payload format 1.0 and integrations other than Lambda AWS_PROXY answer 501, " +
 		"as does a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI; " +
-		"the integration timeout is not applied; " +
+		"the integration timeout, access logging and throttling are not applied; " +
 		"inferred, UNVERIFIED: the gateway's own answers and their status (APIGW2-05, APIGW2-06, APIGW2-10, APIGW2-11), " +
 		"the 2.0 isBase64Encoded of a bodyless request and default Content-Type (APIGW2-07, APIGW2-09)"
 )
@@ -97,6 +97,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		k:        d.Kernel,
 		ids:      d.IDs,
 		policies: o.FunctionPolicies,
+		regions:  o.Regions,
 		cells:    store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
 		index:    apiIndex{scopes: map[string]aws.Scope{}},
 	}
