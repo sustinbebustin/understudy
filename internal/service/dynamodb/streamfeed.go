@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -63,48 +64,115 @@ func (f *feedLocks) lock(scope aws.Scope, tables []string) func() {
 	}
 }
 
-// fed is h with the feed: a write naming a table with an enabled stream
-// holds the table's stream lock across h and drains Local's stream of it
-// once Local has answered, success or failure. A call understudy refused
-// before Local saw it drains nothing.
-//
-// Only PutItem, UpdateItem and DeleteItem feed so far; BatchWriteItem,
-// TransactWriteItems and the PartiQL writes do not (the GetRecords note).
+// fed is h with the feed for a write whose tables names lists: PutItem,
+// UpdateItem, DeleteItem, BatchWriteItem and TransactWriteItems
+// (dynamodb-streams.md 11.1 item 2).
 func fed[In any](s *Service, h kernel.RawHandler[In], names func(*In) []string) kernel.RawHandler[In] {
 	return func(ctx context.Context, c *kernel.Call, in *In, w kernel.Wire) (kernel.RawResponse, *awserr.Error) {
-		streamed := s.streamedTables(c.Scope(), names(in))
-		if len(streamed) == 0 {
-			return h(ctx, c, in, w)
-		}
-		defer s.feedLocks.lock(c.Scope(), streamed)()
-		resp, err := h(ctx, c, in, w)
-		if err != nil {
-			return resp, err
-		}
-		for _, t := range streamed {
-			s.drain(ctx, c, t)
-		}
-		return resp, err
+		wanted := names(in)
+		streamed := s.streamedTables(c.Scope(), func(t string) bool {
+			return slices.ContainsFunc(wanted, func(n string) bool { return tableName(n) == t })
+		})
+		return s.feeding(ctx, c, streamed, func() (kernel.RawResponse, *awserr.Error) { return h(ctx, c, in, w) })
 	}
 }
 
-// streamedTables are the tables of names, by name, that have an enabled
-// stream in scope.
-func (s *Service) streamedTables(scope aws.Scope, names []string) []string {
+// fedScope is h with the feed for a PartiQL call, whose tables are inside
+// its statements: every table of the caller's scope with an enabled stream
+// is locked and drained, so no statement is parsed (dynamodb-streams.md
+// 11.1 item 2).
+func fedScope[In any](s *Service, h kernel.RawHandler[In]) kernel.RawHandler[In] {
+	return func(ctx context.Context, c *kernel.Call, in *In, w kernel.Wire) (kernel.RawResponse, *awserr.Error) {
+		streamed := s.streamedTables(c.Scope(), func(string) bool { return true })
+		return s.feeding(ctx, c, streamed, func() (kernel.RawResponse, *awserr.Error) { return h(ctx, c, in, w) })
+	}
+}
+
+// feeding runs forward, a write to the tables streamed, under their stream
+// locks, taken in sorted name order so writes to overlapping tables never
+// deadlock. A table whose last drain failed is drained first, so its
+// records keep the failed write's instant; once Local has answered forward,
+// success or failure, each table is drained with c's. A call understudy
+// refused before Local saw it drains nothing after it.
+func (s *Service) feeding(ctx context.Context, c *kernel.Call, streamed []string, forward func() (kernel.RawResponse, *awserr.Error)) (kernel.RawResponse, *awserr.Error) {
+	if len(streamed) == 0 {
+		return forward()
+	}
+	scope := c.Scope()
+	defer s.feedLocks.lock(scope, streamed)()
+	for _, t := range streamed {
+		s.drainFailed(ctx, c, scope, t)
+	}
+	resp, err := forward()
+	if err != nil {
+		return resp, err
+	}
+	for _, t := range streamed {
+		s.drain(ctx, c, scope, t, stampOf(c))
+	}
+	return resp, err
+}
+
+// streamedTables are the tables of scope with an enabled stream that
+// wanted keeps, in name order.
+func (s *Service) streamedTables(scope aws.Scope, wanted func(table string) bool) []string {
 	cell, ok := s.cells.Lookup(scope)
 	if !ok {
 		return nil
 	}
 	return store.Read(cell, func(st *State) []string {
 		var out []string
-		for _, n := range names {
-			t := tableName(n)
-			if l, ok := st.latestStream(t); ok && l.Enabled && !slices.Contains(out, t) {
-				out = append(out, t)
+		for _, l := range st.Streams {
+			if l.Enabled && !l.TableGone && wanted(l.Table) && !slices.Contains(out, l.Table) {
+				out = append(out, l.Table)
 			}
 		}
+		slices.Sort(out)
 		return out
 	})
+}
+
+// writeStamp is what a write gives the records it made: its admission
+// instant, and whether it was the TTL sweeper's delete, whose record
+// carries userIdentity (dynamodb-streams.md 7.5, 11.1 item 4).
+type writeStamp struct {
+	at  clock.Instant
+	ttl bool
+}
+
+// stampOf is c's writeStamp.
+func stampOf(c *kernel.Call) writeStamp {
+	o, isInternal := c.Origin().(ref.Internal)
+	return writeStamp{at: c.Admitted(), ttl: isInternal && o.Via == ref.DynamoDBTTL}
+}
+
+// drainTimer is the kind of the timers that retry a failed drain.
+const drainTimer kernel.TimerKind = "dynamodb.stream-drain"
+
+// drainRetry is how long after a failed drain it is retried without a
+// write: a short emulator-clock timer (dynamodb-streams.md 11.1 item 3).
+const drainRetry = time.Second
+
+// onDrainRetry is the retry timer's handler: it drains the table under its
+// stream lock as tracked work, which never blocks the clock.
+func (s *Service) onDrainRetry(c *kernel.Call, key clock.TimerKey, _ clock.Instant) {
+	k, err := parseTableKey(key.ID)
+	if err != nil {
+		s.kernel.Log().LogAttrs(context.Background(), slog.LevelError, "dropped a DynamoDB stream drain timer", slog.String("error", err.Error()))
+		return
+	}
+	s.kernel.Go(kernel.InvocationRunning, func(ctx context.Context) {
+		defer s.feedLocks.lock(k.scope, []string{k.table})()
+		s.drainFailed(ctx, c, k.scope, k.table)
+	})
+}
+
+// drainFailed drains table's stream when its last drain failed; the
+// records take the failed write's stamp.
+func (s *Service) drainFailed(ctx context.Context, c *kernel.Call, scope aws.Scope, table string) {
+	if _, feed, ok := s.enabledStream(scope, table); ok && feed.failed != nil {
+		s.drain(ctx, c, scope, table, *feed.failed)
+	}
 }
 
 // enabledStream is the enabled stream of table in scope with a copy of its
@@ -129,19 +197,20 @@ func (s *Service) enabledStream(scope aws.Scope, table string) (Stream, localFee
 	return f.st, f.feed, f.ok
 }
 
-// drain copies the records Local appended to its stream of table since the
-// feed's saved position into the log, each stamped with c's admission
+// drain copies the records Local appended to its stream of table in scope
+// since the feed's saved position into the log, each stamped with stamp's
 // instant, a new eventID and, for a TTL sweeper's delete, userIdentity
 // (dynamodb-streams.md 11.1 item 4, 7.5), and wakes the stream's readers.
+// The caller holds the table's stream lock.
 //
-// A drain that fails appends nothing and is journaled as the stream moving
-// from Draining to DrainFailed; the write's answer stays as it was. The
-// next write's drain then takes the records from the saved position, with
-// that write's instant. Not built yet: keeping the failed write's instant
-// for its records and retrying on a 1 s emulator timer
-// (dynamodb-streams.md 11.1 item 3); the GetRecords note says so.
-func (s *Service) drain(ctx context.Context, c *kernel.Call, table string) {
-	scope := c.Scope()
+// A drain that fails appends nothing, keeps the stamp of the first write
+// whose records it left in Local, is logged, journaled as the stream moving
+// from Draining to DrainFailed, and is retried at the next write to the
+// table or drainRetry later (dynamodb-streams.md 11.1 item 3); the write's
+// answer stays as it was. While a failed drain is pending, every drain
+// stamps with the failed write's stamp: Local's records carry nothing that
+// tells which of several writes made them.
+func (s *Service) drain(ctx context.Context, c *kernel.Call, scope aws.Scope, table string, stamp writeStamp) {
 	st, feed, ok := s.enabledStream(scope, table)
 	if !ok {
 		return
@@ -150,25 +219,38 @@ func (s *Service) drain(ctx context.Context, c *kernel.Call, table string) {
 	if err != nil {
 		return
 	}
-	p, err := s.pull(ctx, c, st.localARN(), feed)
+	if feed.failed != nil {
+		stamp = *feed.failed
+	}
+	p, err := s.pull(ctx, c, scope, st.localARN(), feed)
+	if err == nil {
+		err = s.appendPulled(c, scope, st, arn, p, stamp)
+	}
 	if err != nil {
-		s.kernel.Log().LogAttrs(ctx, slog.LevelWarn, "draining DynamoDB Local's stream failed; its records stay in Local until the next write to the table drains them",
+		s.kernel.Log().LogAttrs(ctx, slog.LevelWarn, "draining DynamoDB Local's stream failed; its records stay in Local and are drained at the next write to the table or a second of emulator time later",
 			slog.String("stream", arn.String()), slog.String("error", err.Error()))
+		s.failDrain(c, scope, st, stamp)
+		s.kernel.Timers().Scheduler().Arm(s.drains.Key(tableKey{scope: scope, table: table}.path()), s.kernel.Clock().Now().Add(drainRetry))
 		c.Record(ctx, scope, journal.StateChange{Resource: arn, From: "Draining", To: "DrainFailed"})
 		return
 	}
-	ttl := false
-	if o, isInternal := c.Origin().(ref.Internal); isInternal && o.Via == ref.DynamoDBTTL {
-		ttl = true
+	if feed.failed != nil {
+		c.Record(ctx, scope, journal.StateChange{Resource: arn, From: "DrainFailed", To: "Draining"})
 	}
+}
+
+// appendPulled appends p's records to st's log stamped with stamp, moves
+// the feed's saved position past them and clears a pending failed drain.
+func (s *Service) appendPulled(c *kernel.Call, scope aws.Scope, st Stream, arn aws.ARN, p pulled, stamp writeStamp) error {
 	_, werr := kernel.Write(c, s.cells, scope, func(_ *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		log := st.log
 		log.feed.shard = p.shard
+		log.feed.failed = nil
 		for _, r := range p.records {
 			v := r.value
 			v.EventID = s.kernel.IDs().StreamEventID()
-			v.TTL = ttl
-			if _, err := log.shard.Append(c.Admitted(), v); err != nil {
+			v.TTL = stamp.ttl
+			if _, err := log.shard.Append(stamp.at, v); err != nil {
 				return struct{}{}, awserr.Internalf(err)
 			}
 			log.feed.last = r.seq
@@ -181,8 +263,23 @@ func (s *Service) drain(ctx context.Context, c *kernel.Call, table string) {
 		return struct{}{}, nil
 	})
 	if werr != nil {
-		c.Record(ctx, scope, journal.StateChange{Resource: arn, From: "Draining", To: "DrainFailed"})
+		return werr.AsError()
 	}
+	return nil
+}
+
+// failDrain keeps stamp as st's pending failed drain unless an earlier one
+// is pending.
+func (s *Service) failDrain(c *kernel.Call, scope aws.Scope, st Stream, stamp writeStamp) {
+	// The feed's position is not saved state, so the write changes nothing
+	// a snapshot holds; it only needs the cell's lock.
+	_, _ = kernel.Write(c, s.cells, scope, func(_ *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+		tx.Unchanged()
+		if st.log.feed.failed == nil {
+			st.log.feed.failed = &stamp
+		}
+		return struct{}{}, nil
+	})
 }
 
 // pulled is what one drain read from Local's stream.
@@ -206,13 +303,13 @@ const drainPage = 1000
 // once to learn the shard, GetShardIterator from the saved number (or
 // TRIM_HORIZON before the first record), then GetRecords until a page is
 // empty.
-func (s *Service) pull(ctx context.Context, c *kernel.Call, localARN string, feed localFeed) (pulled, error) {
+func (s *Service) pull(ctx context.Context, c *kernel.Call, scope aws.Scope, localARN string, feed localFeed) (pulled, error) {
 	endpoint, ok := s.local.Endpoint()
 	if !ok {
 		return pulled{}, errStopped
 	}
 	call := func(op *registry.Operation, in, out any) error {
-		return s.callLocalStreams(ctx, c, endpoint, op, in, out)
+		return s.callLocalStreams(ctx, c, scope, endpoint, op, in, out)
 	}
 	p := pulled{shard: feed.shard}
 	if p.shard == "" {
@@ -301,16 +398,16 @@ func (r *localPageRecord) value() (streamRecord, error) {
 }
 
 // callLocalStreams sends Local the DynamoDB Streams operation op with in
-// as its body, under c's credential, and decodes its answer into out: an
-// error answer is a *LocalError, one that does not decode an *AnswerError.
-// The feed's reads are understudy reading its own backend, not a
-// principal's call, so they skip the pipeline.
-func (s *Service) callLocalStreams(ctx context.Context, c *kernel.Call, endpoint *url.URL, op *registry.Operation, in, out any) error {
+// as its body, under scope's credential, and decodes its answer into out:
+// an error answer is a *LocalError, one that does not decode an
+// *AnswerError. The feed's reads are understudy reading its own backend,
+// not a principal's call, so they skip the pipeline.
+func (s *Service) callLocalStreams(ctx context.Context, c *kernel.Call, scope aws.Scope, endpoint *url.URL, op *registry.Operation, in, out any) error {
 	body, err := json.Marshal(in)
 	if err != nil {
 		return err
 	}
-	resp, aerr := s.send(ctx, endpoint, exchange{scope: c.Scope(), op: op.ID, at: c.Admitted()}, body)
+	resp, aerr := s.send(ctx, endpoint, exchange{scope: scope, op: op.ID, at: c.Admitted()}, body)
 	if aerr != nil {
 		return aerr.AsError()
 	}

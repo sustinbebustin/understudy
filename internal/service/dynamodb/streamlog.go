@@ -72,6 +72,9 @@ type localFeed struct {
 	// last is the SequenceNumber of the last Local record the feed
 	// appended; empty before the first.
 	last string
+	// failed is the stamp of the first write whose drain failed while its
+	// records are still in Local; nil when the feed is caught up.
+	failed *writeStamp
 }
 
 // localARN is the ARN of Local's stream of the table, as Local minted it:

@@ -48,8 +48,7 @@ const getShardIteratorNote = "AT_TIMESTAMP is refused: the pinned model (api-mod
 // getRecordsNote is GetRecords' coverage note (dynamodb-streams.md 4.4,
 // 5.3, 6.4, 7.3, 7.4, 7.6, 11.1 items 2-3).
 const getRecordsNote = "aws-differs: understudy: more than two concurrent readers of a shard are never throttled; inject LimitExceededException with a fault rule; " +
-	"only PutItem, UpdateItem, DeleteItem and TTL deletes add records: BatchWriteItem, TransactWriteItems and the PartiQL writes add none; " +
-	"a write whose drain of DynamoDB Local's stream failed has its records stamped with the next write's instant (dynamodb-streams.md 11.1 items 2-3); " +
+	"when drains of DynamoDB Local's stream fail for several writes in a row, the records of all of them carry the first failed write's instant (dynamodb-streams.md 11.1 item 3); " +
 	"the last page of a closed shard omits NextShardIterator, a Limit above 1000 answers ValidationException as DynamoDB Local does, ApproximateCreationDateTime is written as a plain epoch-seconds number, " +
 	"a NextShardIterator expires 15 minutes after its own issue, SizeBytes is DynamoDB Local's (a byte above the documented item-size rule for some fractional numbers), a DeleteItem of an absent key emits no record, " +
 	"and the malformed and expired iterator texts are DynamoDB Local's or understudy's; AWS's forms are UNVERIFIED (dynamodb-streams.md 4.4, 5.3, 6.4, 7.3, 7.4, 7.6)"

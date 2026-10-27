@@ -29,6 +29,8 @@ type Service struct {
 	// feedLocks are the stream locks of the tables, each held across a
 	// write and the drain that follows it (dynamodb-streams.md 11.1 item 2).
 	feedLocks feedLocks
+	// drains are the timers that retry a failed drain.
+	drains kernel.HandledKind
 }
 
 // The service is the snapshot and reset view of its shim state.
@@ -49,6 +51,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	}
 	timers := d.Kernel.Timers()
 	s.sweeps = newSweeper(timers.Scheduler(), timers.Handle(ttlTimer, s.onSweep))
+	s.drains = timers.Handle(drainTimer, s.onDrainRetry)
 	b := dynamodbapi.NewBinder(d.Binder)
 	s.bindTables(b)
 	s.bindItems(b)
@@ -124,24 +127,24 @@ func (s *Service) bindItems(b dynamodbapi.Binder) {
 	batchGet := func(in *dynamodbapi.BatchGetItemInput) []string { return slices.Sorted(maps.Keys(in.RequestItems)) }
 	b.BatchGetItemRaw(passthrough(s, batchGet, echoed(batchGet, "Responses", "UnprocessedKeys")), notes(noThroughput), tables(batchGet))
 	batchWrite := func(in *dynamodbapi.BatchWriteItemInput) []string { return slices.Sorted(maps.Keys(in.RequestItems)) }
-	b.BatchWriteItemRaw(ttlWrites(s, passthrough(s, batchWrite, echoed(batchWrite, "UnprocessedItems", "ItemCollectionMetrics")), batchWrites),
+	b.BatchWriteItemRaw(ttlWrites(s, fed(s, passthrough(s, batchWrite, echoed(batchWrite, "UnprocessedItems", "ItemCollectionMetrics")), batchWrite), batchWrites),
 		notes(noThroughput), tables(batchWrite))
 	// A cancellation reason lines up with each requested item
 	// (smithy-protocol-tests.md 12.2), so fault matching counts them.
 	b.TransactGetItemsRaw(passthrough(s, transactGetTables, echoed(transactGetTables)), notes(noThroughput, noTxConflicts), tables(transactGetTables),
 		kernel.WithItemCount(func(in *dynamodbapi.TransactGetItemsInput) int { return len(in.TransactItems) }))
-	b.TransactWriteItemsRaw(ttlWrites(s, passthrough(s, transactWriteTables, echoed(transactWriteTables, "ItemCollectionMetrics")), transactWrites),
+	b.TransactWriteItemsRaw(ttlWrites(s, fed(s, passthrough(s, transactWriteTables, echoed(transactWriteTables, "ItemCollectionMetrics")), transactWriteTables), transactWrites),
 		notes(noThroughput, noTxConflicts, transactPutAlways), tables(transactWriteTables),
 		kernel.WithItemCount(func(in *dynamodbapi.TransactWriteItemsInput) int { return len(in.TransactItems) }))
 }
 
 // bindStatements binds PartiQL, whose tables are inside the statements.
 func (s *Service) bindStatements(b dynamodbapi.Binder) {
-	b.ExecuteStatementRaw(ttlStatements(s, passthrough(s, noTables, plainAnswer[dynamodbapi.ExecuteStatementInput]), statementOf),
+	b.ExecuteStatementRaw(ttlStatements(s, fedScope(s, passthrough(s, noTables, plainAnswer[dynamodbapi.ExecuteStatementInput])), statementOf),
 		notes(noThroughput, noConflicts, statementLimit, statementTwins, partiQLSelectAlways))
-	b.BatchExecuteStatementRaw(ttlStatements(s, passthrough(s, noTables, plainAnswer[dynamodbapi.BatchExecuteStatementInput]), batchStatements),
+	b.BatchExecuteStatementRaw(ttlStatements(s, fedScope(s, passthrough(s, noTables, plainAnswer[dynamodbapi.BatchExecuteStatementInput])), batchStatements),
 		notes(noThrottling, statementTwins, partiQLSelectAlways))
-	b.ExecuteTransactionRaw(ttlStatements(s, passthrough(s, noTables, plainAnswer[dynamodbapi.ExecuteTransactionInput]), transactionStatements),
+	b.ExecuteTransactionRaw(ttlStatements(s, fedScope(s, passthrough(s, noTables, plainAnswer[dynamodbapi.ExecuteTransactionInput])), transactionStatements),
 		notes(noThroughput, noTxConflicts, statementTwins, partiQLSelectAlways),
 		kernel.WithItemCount(func(in *dynamodbapi.ExecuteTransactionInput) int { return len(in.TransactStatements) }))
 }
