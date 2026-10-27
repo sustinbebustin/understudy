@@ -221,7 +221,7 @@ aws apigatewayv2 create-stage --api-id o6tvc1uf6b --stage-name auto --auto-deplo
 
 ## Terraform
 
-`aws_apigatewayv2_api`, `_integration`, `_route`, `_stage` and `_deployment` apply, plan again with no changes, update and destroy with provider 6.68.0 and the provider block in [terraform.md](terraform.md); `conformance/terraform/apigatewayv2.tf` is a complete configuration. Two attributes need care at understudy's endpoint:
+`aws_apigatewayv2_api`, `_integration`, `_route`, `_stage` and `_deployment` apply, plan again with no changes, update and destroy with provider 6.68.0 and the provider block in [terraform.md](terraform.md); `conformance/terraform/apigatewayv2.tf` is a complete configuration. Three attributes need care at understudy's endpoint:
 
 - `execution_arn` has no account, `arn:aws:execute-api:us-east-1::<api-id>`, because `skip_credentials_validation` leaves the provider without one, and dropping that setting breaks S3 buckets. Build the permission's source ARN from `data.aws_caller_identity` instead:
 
@@ -237,6 +237,12 @@ aws apigatewayv2 create-stage --api-id o6tvc1uf6b --stage-name auto --auto-deplo
   ```
 
 - `invoke_url` on a stage always names `amazonaws.com`. Call the API at `api_endpoint`, or at `/_understudy/execute-api/<api-id>/...`.
+- `body` on `aws_apigatewayv2_api` fails to apply: the provider creates the API, then imports the OpenAPI definition with `ReimportApi`, which understudy does not implement. The API is left tainted, and `destroy` removes it. Declare routes and integrations as resources instead.
+
+  ```text
+  Error: reimporting API Gateway v2 API (lbdaxqbjyb) OpenAPI definition: operation error ApiGatewayV2: ReimportApi,
+  https response error StatusCode: 501, ..., api error NotImplemented: understudy does not implement apigatewayv2.ReimportApi. ...
+  ```
 
 A deployment with `triggers` and `create_before_destroy` is replaced on an update: Terraform creates the new deployment, points the stage at it, then deletes the old one, which understudy refuses while a stage serves it. Hash the attributes that change what the API serves (route keys and targets, integration URIs), not whole resource objects: the provider reads empty maps such as `request_models` back as `{}` on the first refresh after a create, so a hash of the objects changes and the second plan replaces the deployment again.
 
@@ -248,4 +254,4 @@ Requests understudy cannot serve as AWS would are refused with `NotImplemented` 
 - authorizers: `--authorization-type JWT` or `CUSTOM`, `--authorizer-id` and `--authorization-scopes` on a route;
 - the WebSocket integration members `--request-templates`, `--template-selection-expression` and `--content-handling-strategy`;
 - the WebSocket stage member `--client-certificate-id`;
-- every operation this page does not describe, among them authorizers, `import-api` and `export-api`.
+- every operation this page does not describe, among them authorizers, `import-api`, `reimport-api`, `export-api`, custom domain names and VPC links.

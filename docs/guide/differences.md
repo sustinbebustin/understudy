@@ -171,6 +171,16 @@ Custom buses take rules, targets, tags and `PutEvents` as the default bus does, 
 - Partner event buses (`CreateEventBus` with `EventSourceName`), archives, replays, connections, API destinations and global endpoints answer 501 `NotImplemented`.
 - Where AWS's answer is unrecorded, understudy chose one, each a fidelity switch (`understudy coverage --service eventbridge --switches`): `DeleteEventBus` on a bus with rules is refused with `ValidationException` "Cannot delete event bus orders. All rules associated with this event bus need to be deleted."; `UpdateEventBus` keeps the members it leaves out; `ListEventBuses` sorts by name, the default bus among the rest; the default bus's `CreationTime` is the first EventBridge write in its account and Region, and until a write, each call reports its own instant; an event forwarded to a bus in the same account and Region keeps its `id`; a forwarded event keeps its `time` and `resources`; `PutTargets` accepts an event bus that does not exist, and an event forwarded to it is dropped as `PutEvents` drops one; removing a bus's last statement removes its `Policy`, and `RemovePermission` with `RemoveAllPermissions` on a bus without one is `ResourceNotFoundException`.
 
+## API Gateway HTTP APIs
+
+No HTTP API behavior has been recorded against AWS yet, so these come from AWS's documentation, with understudy's choice where it is silent. [API Gateway HTTP APIs](apigateway.md) shows each one.
+
+- Error texts and generated ids are understudy's own. Validation errors are `BadRequestException` 400, as the API reference documents, but AWS's texts are not recorded, so a test should not compare them.
+- `ApiEndpoint` names understudy (`http://<api-id>.execute-api.<region>.localhost:<port>`). Terraform's `invoke_url` still names `amazonaws.com`, and its `execution_arn` has no account under the provider block in [terraform.md](terraform.md).
+- Where AWS's answer is unrecorded, understudy chose one, each a fidelity switch (`understudy coverage --service apigatewayv2 --switches`): a function error or malformed output answers 500 and an integration timeout 503; a missing Lambda permission answers 500 and the function does not run; literal path segments match case-sensitively, `/a` and `/a/` are different paths, and `HEAD` reaches only `HEAD` and `ANY` routes; an unknown API id, another region's host and a disabled default endpoint answer 403; deleting a deployment a stage serves is refused, a deployment of an API with no routes succeeds, and an `--auto-deploy` stage takes no explicit deployment; a 2.0 event of a bodyless request has `isBase64Encoded` false, and a 1.0 event's single-value maps keep a repeated header's last value and a repeated query parameter's first.
+- The order of two routes that both match, where AWS documents none, is understudy's ([Routes](apigateway.md#routes)).
+- A 1.0 event's header names are all lowercase, as AWS's documentation states. A published serverless pattern (`apigw-http-api-lambda-terraform`) reads `X-Forwarded-For` in mixed case from a 1.0 event and fails here with a 500; read headers case-insensitively.
+
 ## CloudWatch and CloudWatch Logs
 
 - A list of structures over its length limit is reported without a rendered value on AWS (Logs `PutLogEvents`, IAM `TagRole`); understudy renders it (`logs/R10/06-10001-events.json`, `iam/R15/06-tag-role-51.json`).

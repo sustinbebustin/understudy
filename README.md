@@ -2,7 +2,7 @@
 
 A local AWS emulator for development machines and CI, built for testing event-driven systems.
 
-understudy is one Go binary, or a Docker image of about 11 MB compressed, that stands in for twelve AWS services. Applications, the AWS SDKs, the AWS CLI and Terraform reach it through the standard `AWS_ENDPOINT_URL` override, with no code changes.
+understudy is one Go binary, or a Docker image of about 11 MB compressed, that stands in for thirteen AWS services. Applications, the AWS SDKs, the AWS CLI and Terraform reach it through the standard `AWS_ENDPOINT_URL` override, with no code changes.
 
 1. `understudy serve` starts the emulator on `127.0.0.1:4566`.
 2. `eval "$(understudy env)"` points every SDK, the AWS CLI and Terraform at it.
@@ -133,9 +133,9 @@ From [docs/coverage.md](docs/coverage.md), which `understudy coverage` regenerat
 
 | Service | Operations | Full | Stored only | Partial | Unbound |
 |---|---|---|---|---|---|
-| SQS | 23 | 21 | 2 | 0 | 0 |
+| SQS | 23 | 16 | 2 | 5 | 0 |
 | SNS | 42 | 12 | 2 | 5 | 23 |
-| S3 | 112 | 14 | 47 | 21 | 30 |
+| S3 | 112 | 22 | 42 | 22 | 26 |
 | DynamoDB | 58 | 6 | 2 | 18 | 32 |
 | Lambda | 88 | 25 | 2 | 14 | 47 |
 | CloudWatch Logs | 118 | 9 | 0 | 9 | 100 |
@@ -145,10 +145,11 @@ From [docs/coverage.md](docs/coverage.md), which `understudy coverage` regenerat
 | STS | 11 | 1 | 0 | 2 | 8 |
 | EventBridge | 57 | 6 | 3 | 13 | 35 |
 | CloudWatch | 55 | 1 | 2 | 9 | 43 |
+| API Gateway (HTTP APIs) | 103 | 0 | 2 | 29 | 72 |
 
-The implemented operations are the ones an event-driven pipeline uses: SNS fan-out with filter policies to SQS, SQS with dead-letter queues feeding Lambda, S3 with SSE-KMS, a DynamoDB lock table with TTL, Secrets Manager, CloudWatch Logs, EventBridge schedules and custom buses, and the IAM, KMS and CloudWatch resources Terraform declares around them.
+The implemented operations are the ones an event-driven pipeline uses: an API Gateway HTTP API in front of Lambda, SNS fan-out with filter policies to SQS, SQS with dead-letter queues feeding Lambda, S3 with SSE-KMS, a DynamoDB lock table with TTL, Secrets Manager, CloudWatch Logs, EventBridge schedules and custom buses, and the IAM, KMS and CloudWatch resources Terraform declares around them.
 
-Behavior the models do not fix rests on evidence that the coverage page labels item by item. Real AWS was recorded for the backlog R01 to R18 (`testdata/parity/`), so 48 of the 279 overlay evidence items are `aws-recorded`; the rest come from AWS's documentation, recordings published by other projects, SDK source, and inference. Per operation, the page shows the weakest evidence behind it, with the verdict of the recordings `internal/parity` replays. Known differences from AWS are listed in [the differences page](docs/guide/differences.md).
+Behavior the models do not fix rests on evidence that the coverage page labels item by item. Real AWS was recorded for the backlog R01 to R18 (`testdata/parity/`), so 49 of the 328 overlay evidence items are `aws-recorded`; the rest come from AWS's documentation, recordings published by other projects, SDK source, and inference. Per operation, the page shows the weakest evidence behind it, with the verdict of the recordings `internal/parity` replays. Known differences from AWS are listed in [the differences page](docs/guide/differences.md).
 
 ## Commands
 
@@ -183,10 +184,10 @@ understudy never bundles, mirrors, re-tags, saves, pushes or patches the DynamoD
 
 ## Choosing an emulator
 
-- **LocalStack** when you need services understudy does not emulate, such as ECS, RDS, Step Functions, API Gateway, Cognito or CloudFormation deploys, or enforced IAM policies.
+- **LocalStack** when you need services understudy does not emulate, such as ECS, RDS, Step Functions, API Gateway REST and WebSocket APIs, Cognito or CloudFormation deploys, or enforced IAM policies.
 - **moto** for Python unit tests that should not leave the process.
 - **Real AWS** for final validation. Emulators can pass where the cloud fails, and that applies to understudy too.
-- **understudy** when your system lives in the twelve services above and you want fast, deterministic, free tests of how they interact, including time, failures and permissions.
+- **understudy** when your system lives in the thirteen services above and you want fast, deterministic, free tests of how they interact, including time, failures and permissions.
 
 ## Limitations
 
@@ -201,12 +202,13 @@ Behavior that differs from AWS in ways a test can observe is listed in [docs/gui
 - **S3** has no MFA delete or Object Lock event holds, and `s3:BypassGovernanceRetention` is not evaluated. SSE-C works only over `--tls` and on a bucket whose encryption configuration unblocks it, as on AWS since April 2026.
 - **CloudWatch** alarms are stored and never evaluated. `GetMetricStatistics` answers 501, and `GetMetricData` has no metric math.
 - **EventBridge** custom buses take rules, targets and events, and forward events between buses one hop, but their KMS key, dead-letter queue and log settings are stored, not applied. Bus policies are stored and returned but not enforced, so another account's `PutEvents` reaches a bus whose policy grants it nothing. Rule, target and `DescribeEventBus` calls on another account's or Region's bus, partner event sources, archives, replays, connections, API destinations and endpoints answer 501.
+- **API Gateway** serves HTTP APIs whose routes reach Lambda proxy integrations, with payload formats 1.0 and 2.0. Authorizers, OpenAPI import and export, custom domain names, REST and WebSocket APIs answer 501; HTTP proxy, AWS service and private integrations, `AWS_IAM` routes and requests to an API with a CORS configuration are stored and answer 501 when a request reaches them. Stage throttling and access logs are stored, not applied.
 - **Terraform** `import` of an SQS queue fails on the queue URL form.
 - **Snapshots** use format version 0: archives from one build may be refused by another until the first release. The TLS listener's certificate is new at every start.
 
 ## Documentation
 
-- [Guide](docs/guide/README.md) -- getting started, configuration, SDKs and the CLI, Terraform, Lambda, the clock, fault injection, the journal, snapshots, policy generation, CI and Testcontainers.
+- [Guide](docs/guide/README.md) -- getting started, configuration, SDKs and the CLI, Terraform, Lambda, API Gateway HTTP APIs, the clock, fault injection, the journal, snapshots, policy generation, CI and Testcontainers.
 - [Configuration reference](docs/configuration.md) -- every flag, variable and file key.
 - [Coverage](docs/coverage.md) -- every operation, fidelity switch and evidence item.
 - [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/adr/) -- the design and its decisions.
