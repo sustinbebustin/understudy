@@ -2,6 +2,13 @@
   "version": 1,
   "scenarios": [
     {
+      "scenario": "dynamodb/R11",
+      "steps": [
+        {"step": "07-streams-signed-dynamodb", "fixture": "dynamodb/R11/07-streams-signed-dynamodb.json", "outcome": {"kind": "reconstructed"}},
+        {"step": "07-streams-signed-streams.dynamodb", "fixture": "dynamodb/R11/07-streams-signed-streams.dynamodb.json", "outcome": {"kind": "reconstructed"}}
+      ]
+    },
+    {
       "scenario": "events/R14",
       "steps": [
         {"step": "04-custom-bus-schedule", "fixture": "events/R14/04-custom-bus-schedule.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
