@@ -66,27 +66,21 @@ func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Even
 		}
 		s.run(fired.job)
 	case LambdaSucceeded:
-		t, ok := s.takeTask(ev.Task)
-		if !ok {
+		t, applies, ok := s.answered(ev.Task, ev.At)
+		if !applies {
 			return x, nil, nil
 		}
-		s.at = ev.At
-		if s.x.deleting {
-			s.abort("", "")
-			break
+		if ok {
+			s.lambdaSucceeded(t, ev.Output)
 		}
-		s.lambdaSucceeded(t, ev.Output)
 	case LambdaFailed:
-		t, ok := s.takeTask(ev.Task)
-		if !ok {
+		t, applies, ok := s.answered(ev.Task, ev.At)
+		if !applies {
 			return x, nil, nil
 		}
-		s.at = ev.At
-		if s.x.deleting {
-			s.abort("", "")
-			break
+		if ok {
+			s.taskError(t, "Failed", ev.Err)
 		}
-		s.taskError(t, "Failed", ev.Err)
 	case Stop:
 		s.at = ev.At
 		s.abort(ev.Error, ev.Cause)

@@ -110,7 +110,7 @@ func (s *Service) record(tx *kernel.Tx, st *State, ref executionRef, rec Executi
 			})
 			tx.Arm(s.expireKind, ref.arn().String(), at.Add(retention))
 		case asl.InvokeLambda:
-			// No built state invokes Lambda yet; Parse refuses Task states.
+			tx.Arm(s.invokeKind, taskKey(ref, e.Task), at)
 		}
 	}
 	st.Executions[ref.key()] = rec

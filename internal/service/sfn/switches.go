@@ -1,8 +1,10 @@
 package sfn
 
 import (
+	"fmt"
 	"net/http"
 
+	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -100,11 +102,18 @@ func LambdaError() fidelity.Switch[LambdaErrorNaming] {
 // shape name when e's shape is in Lambda's model namespace, else Unmodeled;
 // the cause is Cause formatted with e's message, status, code and
 // requestID.
-//
-// Not implemented yet: it returns the zero StateError.
 func LambdaTaskError(n LambdaErrorNaming, e *awserr.Error, requestID string) asl.StateError {
-	_, _, _ = n, e, requestID
-	return asl.StateError{}
+	name := n.Unmodeled
+	// Every error shape Lambda's model declares shares one namespace,
+	// com.amazonaws.lambda; generic errors carry another. Lambda's denial,
+	// com.amazonaws.lambda#AccessDeniedException, is the overlay's: the
+	// model declares no such shape (codegen/overlays/lambda.json;
+	// iam-enforcement-surfaces.md 3.1).
+	lambda := lambdaapi.Service()
+	if e.ID.Shape.Namespace() == lambdaapi.IdentityServiceException().Shape.Namespace() && e.ID.Shape != lambda.Denial.Identity.Shape {
+		name = n.Prefix + e.ID.Shape.Name()
+	}
+	return asl.StateError{Name: name, Cause: fmt.Sprintf(n.Cause, e.Message, e.ID.Status, e.ID.QueryCode, requestID)}
 }
 
 // DeleteRunningExecution says what DeleteStateMachine does to running

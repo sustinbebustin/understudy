@@ -80,6 +80,19 @@ func (d details) str(key string) *string {
 	return nil
 }
 
+// integer is the integer member key; nil when it is absent or not an
+// integer.
+func (d details) integer(key string) *int64 {
+	for _, e := range d.m {
+		if n, ok := e.Value.(document.Number); ok && e.Key == key {
+			if v, err := n.Int64(); err == nil {
+				return &v
+			}
+		}
+	}
+	return nil
+}
+
 // data is a data member (input, output): nil when absent or when the
 // caller asked for no execution data.
 func (d details) data(key string, include bool) *string {
@@ -145,6 +158,49 @@ func wireEvent(r *HistoryRecord, includeData bool) sfnapi.HistoryEvent {
 		out.StateExitedEventDetails = &sfnapi.StateExitedEventDetails{
 			Name: deref(d.str("name")), Output: d.data("output", includeData), OutputDetails: d.dataDetails("outputDetails"),
 		}
+	default:
+		taskDetails(&out, d, includeData)
 	}
 	return out
+}
+
+// taskDetails fills the details of a Task's events, in their lambda:invoke
+// (Task*) and function ARN (LambdaFunction*) forms (stepfunctions-asl.md
+// 11.3).
+func taskDetails(out *sfnapi.HistoryEvent, d details, includeData bool) {
+	switch string(out.Type) {
+	case "TaskScheduled":
+		out.TaskScheduledEventDetails = &sfnapi.TaskScheduledEventDetails{
+			ResourceType: deref(d.str("resourceType")), Resource: deref(d.str("resource")), Region: deref(d.str("region")),
+			Parameters: deref(d.str("parameters")), TimeoutInSeconds: d.integer("timeoutInSeconds"),
+		}
+	case "TaskStarted":
+		out.TaskStartedEventDetails = &sfnapi.TaskStartedEventDetails{ResourceType: deref(d.str("resourceType")), Resource: deref(d.str("resource"))}
+	case "TaskSucceeded":
+		out.TaskSucceededEventDetails = &sfnapi.TaskSucceededEventDetails{
+			ResourceType: deref(d.str("resourceType")), Resource: deref(d.str("resource")),
+			Output: d.data("output", includeData), OutputDetails: d.dataDetails("outputDetails"),
+		}
+	case "TaskFailed":
+		out.TaskFailedEventDetails = &sfnapi.TaskFailedEventDetails{
+			ResourceType: deref(d.str("resourceType")), Resource: deref(d.str("resource")), Error: d.str("error"), Cause: d.str("cause"),
+		}
+	case "TaskTimedOut":
+		out.TaskTimedOutEventDetails = &sfnapi.TaskTimedOutEventDetails{
+			ResourceType: deref(d.str("resourceType")), Resource: deref(d.str("resource")), Error: d.str("error"), Cause: d.str("cause"),
+		}
+	case "LambdaFunctionScheduled":
+		out.LambdaFunctionScheduledEventDetails = &sfnapi.LambdaFunctionScheduledEventDetails{
+			Resource: deref(d.str("resource")), Input: d.data("input", includeData), InputDetails: d.dataDetails("inputDetails"),
+			TimeoutInSeconds: d.integer("timeoutInSeconds"),
+		}
+	case "LambdaFunctionSucceeded":
+		out.LambdaFunctionSucceededEventDetails = &sfnapi.LambdaFunctionSucceededEventDetails{
+			Output: d.data("output", includeData), OutputDetails: d.dataDetails("outputDetails"),
+		}
+	case "LambdaFunctionFailed":
+		out.LambdaFunctionFailedEventDetails = &sfnapi.LambdaFunctionFailedEventDetails{Error: d.str("error"), Cause: d.str("cause")}
+	case "LambdaFunctionTimedOut":
+		out.LambdaFunctionTimedOutEventDetails = &sfnapi.LambdaFunctionTimedOutEventDetails{Error: d.str("error"), Cause: d.str("cause")}
+	}
 }

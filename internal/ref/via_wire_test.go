@@ -41,6 +41,7 @@ var viaNames = []struct {
 	{ref.LambdaDestination, "lambda-destination"},
 	{ref.ViaAPIGateway, "apigateway-integration"},
 	{ref.SFNLogDestination, "sfn-log-destination"},
+	{ref.SFNTask, "sfn-task"},
 }
 
 // declaredVias walks the values from the first until String falls back to

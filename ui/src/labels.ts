@@ -32,6 +32,7 @@ export const viaLabels: Readonly<Record<string, string>> = {
   "lambda-destination": "Lambda destination",
   "apigateway-integration": "API Gateway integration",
   "sfn-log-destination": "Step Functions log destination check",
+  "sfn-task": "Step Functions Lambda task",
 };
 
 export const mechanismLabels: Readonly<Record<string, string>> = {

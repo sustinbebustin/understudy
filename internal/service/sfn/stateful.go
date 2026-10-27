@@ -37,12 +37,13 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
 }
 
-// Rearm arms the engine timers of every running execution and the removal
-// of every closed one; timers are never saved (ADR 0009). It arms under the
-// cell lock, where kernel.Write arms, so a concurrent step either commits
-// first and its timers are read here, or commits after and its own arms
-// replace these.
-func (s *Service) Rearm(clock.Instant) {
+// Rearm arms the engine timers of every running execution, an invocation
+// now of each Lambda task it has in flight (the StartExecution coverage
+// note: the task is invoked again), and the removal of every closed one;
+// timers are never saved (ADR 0009). It arms under the cell lock, where
+// kernel.Write arms, so a concurrent step either commits first and its
+// timers are read here, or commits after and its own arms replace these.
+func (s *Service) Rearm(now clock.Instant) {
 	sched := s.k.Timers().Scheduler()
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
 		cell, ok := s.cells.Lookup(scope)
@@ -59,6 +60,9 @@ func (s *Service) Rearm(clock.Instant) {
 				}
 				for _, t := range rec.Engine.Timers() {
 					sched.Arm(s.stepKind.Key(timerID(exec, t.Timer)), clock.FromWire(t.At))
+				}
+				for _, inv := range rec.Engine.InFlight() {
+					sched.Arm(s.invokeKind.Key(taskKey(exec, inv.Task)), now)
 				}
 			}
 			return struct{}{}

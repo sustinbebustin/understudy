@@ -172,6 +172,28 @@ func TestTaskInFlightAborts(t *testing.T) {
 	}
 }
 
+// A result that reaches the engine at or after the task's timeout instant,
+// before the timeout timer fired, loses to the timeout: the function ran on
+// wall time past an emulator-time deadline (spec "Runtime decisions").
+func TestLateResultTimesOut(t *testing.T) {
+	for _, late := range []time.Duration{5 * time.Second, time.Hour} {
+		d := newDriver(t, fmt.Sprintf(legacyTask, `"TimeoutSeconds":5,`, ""), rules())
+		d.start(`{}`)
+		d.runUntilWaiting()
+		inv := d.pending[0]
+		d.pending = nil
+		d.apply(asl.LambdaSucceeded{At: t0.Add(late), Task: inv.Task, Output: document.Map{}})
+		d.wantShape("contract 5.5 item 3", "ExecutionStarted 1<-0", "TaskStateEntered 2<-0", "LambdaFunctionScheduled 3<-2",
+			"LambdaFunctionStarted 4<-3", "LambdaFunctionTimedOut 5<-4", "ExecutionFailed 6<-5")
+		if at := d.event("LambdaFunctionTimedOut").Timestamp; !at.Equal(t0.Add(5 * time.Second)) {
+			t.Errorf("result at +%v: timed out at +%v, want the deadline +5s", late, at.Sub(t0))
+		}
+		if len(d.timers) != 0 {
+			t.Errorf("result at +%v: timers left armed: %v", late, d.timers)
+		}
+	}
+}
+
 // An execution saved with a task in flight and loaded again takes the
 // result the way the original does, the task timeout included.
 func TestTaskPersistenceRoundTrip(t *testing.T) {

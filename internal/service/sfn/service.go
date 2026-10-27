@@ -19,9 +19,9 @@ type Service struct {
 	k     *kernel.Kernel
 	ids   *ids.Source
 	cells *store.Partitioned[aws.Scope, State]
-	// stepKind and expireKind are TimerStep and TimerExpire as registered
-	// with the kernel.
-	stepKind, expireKind kernel.HandledKind
+	// stepKind, expireKind and invokeKind are TimerStep, TimerExpire and
+	// TimerInvoke as registered with the kernel.
+	stepKind, expireKind, invokeKind kernel.HandledKind
 }
 
 // New binds the Step Functions operations understudy implements and
@@ -31,6 +31,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	s := &Service{k: d.Kernel, ids: d.IDs, cells: store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState)}
 	s.stepKind = d.Kernel.Timers().Handle(TimerStep, s.onStep)
 	s.expireKind = d.Kernel.Timers().Handle(TimerExpire, s.onExpire)
+	s.invokeKind = d.Kernel.Timers().Handle(TimerInvoke, s.onInvoke)
 	b := sfnapi.NewBinder(d.Binder)
 	s.bindMachines(b)
 	s.bindExecutions(b)
@@ -42,21 +43,25 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 // refused with code UNSUPPORTED_BY_UNDERSTUDY.
 func AcceptedFeatures() asl.Features {
 	return asl.NewFeatures(asl.FeatPass, asl.FeatSucceed, asl.FeatFail, asl.FeatChoice, asl.FeatWait, asl.FeatTimeout,
-		asl.FeatPathDialect, asl.FeatPayloadTemplates, asl.FeatIntrinsics)
+		asl.FeatPathDialect, asl.FeatPayloadTemplates, asl.FeatIntrinsics, asl.FeatLambdaTask)
 }
 
 // The coverage notes of the bound operations.
 const (
 	noteCreate = "Standard workflows only: type EXPRESS, publish true and a CUSTOMER_MANAGED_KMS_KEY encryptionConfiguration answer 501. " +
-		"Definitions are JSONPath with Pass, Succeed, Fail, Choice and Wait states only, and a top-level TimeoutSeconds. " +
+		"Definitions are JSONPath with Pass, Succeed, Fail, Choice, Wait and Task states only, and a top-level TimeoutSeconds. " +
 		"A Pass state takes Result, InputPath, Parameters, ResultPath, OutputPath, " +
 		"Next, End and Comment, a Succeed state InputPath, OutputPath and Comment, a Fail state Error or ErrorPath, Cause or CausePath " +
 		"and Comment, a Choice state Choices (every JSONPath operator and its Path form, And, Or, Not), Default, InputPath, OutputPath " +
-		"and Comment, and a Wait state one of Seconds, SecondsPath, Timestamp and TimestampPath, InputPath, OutputPath, Next, End and Comment; " +
+		"and Comment, a Wait state one of Seconds, SecondsPath, Timestamp and TimestampPath, InputPath, OutputPath, Next, End and Comment, " +
+		"and a Task state a Resource that is a Lambda function ARN (qualifier allowed) or arn:aws:states:::lambda:invoke, InputPath, Parameters, " +
+		"ResultSelector, ResultPath, OutputPath, TimeoutSeconds or TimeoutSecondsPath, Next, End and Comment; " +
 		"'.$' values are paths, '$$' context paths and calls of the 18 States.* intrinsic functions. " +
 		"Every other state type and field answers InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY, as do JSONata, Assign and variables, " +
-		"Distributed Map and its fields, Credentials, HeartbeatSeconds, and JSONPath functions such as length(), " +
-		"multi-clause filters and filter scripts (ASL-19). Only the first problem in a definition is reported (UNVERIFIED, ASL-01, SFN-08). " +
+		"Distributed Map and its fields, Credentials, HeartbeatSeconds, callbacks, activities, every other Task resource, " +
+		"a literal lambda:invoke InvocationType other than RequestResponse, and JSONPath functions such as length(), " +
+		"multi-clause filters and filter scripts (ASL-19). A dynamodb resource outside getItem, putItem, updateItem and deleteItem answers " +
+		"AWS's SCHEMA_VALIDATION_FAILED text. Only the first problem in a definition is reported (UNVERIFIED, ASL-01, SFN-08). " +
 		"loggingConfiguration and tracingConfiguration are validated, stored and echoed; no log events or traces are emitted. " +
 		"The role ARN is checked for syntax only, with understudy's message (UNVERIFIED, SFN-08); its trust policy is not checked"
 	noteUpdate = "The CreateStateMachine definition and configuration rules apply; publish true and versionDescription answer 501. " +
@@ -66,10 +71,10 @@ const (
 	noteVersions = "Always empty: publishing versions is not implemented (publish is refused and PublishStateMachineVersion is unbound)"
 	noteStop     = "error and cause are kept in DescribeExecution and ExecutionAborted; stopping a closed execution answers 200 with its stopDate " +
 		"and changes nothing (UNVERIFIED, SFN-04)"
-	noteStart = "Standard executions of Pass, Succeed, Fail, Choice and Wait states. Unrecorded AWS behavior understudy chooses, each with its recording case: " +
+	noteStart = "Standard executions of Pass, Succeed, Fail, Choice, Wait and Lambda Task states. Unrecorded AWS behavior understudy chooses, each with its recording case: " +
 		"same-name idempotency compares input byte for byte (SFN-03); malformed input other than the recorded cases answers " +
-		"'Invalid execution input.' (SFN-08); ResultPath into a non-object fails with States.Runtime (ASL-03); " +
-		"States.DataLimitExceeded from a Pass, Succeed or Choice state is terminal (ASL-15); " +
+		"'Invalid execution input.' (SFN-08); ResultPath into a non-object and a missing path in a Task template fail with States.Runtime (ASL-03, ASL-04); " +
+		"States.DataLimitExceeded from a non-Task state, or from a Task's output after ResultPath and OutputPath, is terminal (ASL-15); " +
 		"a Choice no rule matches without Default fails with switch sfn.choice.no-match's error, and a Variable or Path operand " +
 		"that selects nothing (IsPresent aside) with switch sfn.choice.missing-variable's, each with understudy's cause (ASL-08); " +
 		"IsTimestamp and the Timestamp operators follow the documented RFC 3339 profile and compare instants, and a StringMatches " +
@@ -79,8 +84,14 @@ const (
 		"an intrinsic function failing at run time fails with switch sfn.intrinsic.failure-error's error and understudy's cause (ASL-05); " +
 		"ArrayContains and ArrayUnique compare numbers by value and objects as member sets, and ArrayPartition, ArrayRange and " +
 		"MathRandom round non-integers half up as MathAdd does (ASL-06). " +
+		"A lambda:invoke InvocationType that resolves to anything but RequestResponse fails with States.Runtime (SFN-13). " +
+		"lambda:invoke passes FunctionName, Qualifier and Payload to Invoke and ignores its other Parameters. " +
+		"A TimeoutSecondsPath that selects no positive integer fails with States.Runtime and understudy's cause. " +
+		"A Lambda service error is named by switch sfn.integration.lambda-error; a function error without an errorType is Lambda.Unknown. " +
+		"lambda:invoke results carry SdkHttpMetadata with AWS's recorded header names; the X-Amzn-Trace-Id value is understudy's. " +
 		"traceHeader, or the X-Amzn-Trace-Id request header when both are sent, " +
-		"is stored and returned by DescribeExecution; no X-Ray trace is emitted. States.MathRandom never reproduces AWS's sequence for a seed"
+		"is stored and returned by DescribeExecution; no X-Ray trace is emitted. A Lambda task in flight when a snapshot was saved is invoked again after load. " +
+		"States.MathRandom never reproduces AWS's sequence for a seed"
 	noteListExecutions    = "mapRunArn and redriveFilter are validated; no Map Run or redrive exists, so they match nothing"
 	noteDescribeExecution = "redriveStatus is given for SUCCEEDED and FAILED executions only, and redriveStatusReason for SUCCEEDED ones"
 	noteHistory           = "includeExecutionData false removes input and output and keeps the *Details members (UNVERIFIED, SFN-05). " +
