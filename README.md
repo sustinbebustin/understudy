@@ -137,7 +137,7 @@ From [docs/coverage.md](docs/coverage.md), which `understudy coverage` regenerat
 | SNS | 42 | 12 | 0 | 7 | 23 |
 | S3 | 112 | 22 | 39 | 25 | 26 |
 | DynamoDB | 58 | 6 | 2 | 18 | 32 |
-| Lambda | 88 | 25 | 1 | 15 | 47 |
+| Lambda | 88 | 30 | 2 | 18 | 38 |
 | CloudWatch Logs | 118 | 9 | 0 | 9 | 100 |
 | Secrets Manager | 23 | 1 | 0 | 14 | 8 |
 | KMS | 54 | 16 | 2 | 9 | 27 |
