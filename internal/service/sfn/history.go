@@ -1,6 +1,7 @@
 package sfn
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
@@ -93,6 +94,16 @@ func (d details) integer(key string) *int64 {
 	return nil
 }
 
+// count is the int32 member key, a Map's length or an iteration's index,
+// which the engine writes below 2^31; 0 when it is absent.
+func (d details) count(key string) int32 {
+	n := d.integer(key)
+	if n == nil || *n < 0 || *n > math.MaxInt32 {
+		return 0
+	}
+	return int32(*n)
+}
+
 // data is a data member (input, output): nil when absent or when the
 // caller asked for no execution data.
 func (d details) data(key string, include bool) *string {
@@ -158,10 +169,30 @@ func wireEvent(r *HistoryRecord, includeData bool) sfnapi.HistoryEvent {
 		out.StateExitedEventDetails = &sfnapi.StateExitedEventDetails{
 			Name: deref(d.str("name")), Output: d.data("output", includeData), OutputDetails: d.dataDetails("outputDetails"),
 		}
+	case r.Type == "MapStateStarted":
+		out.MapStateStartedEventDetails = &sfnapi.MapStateStartedEventDetails{Length: d.count("length")}
+	case strings.HasPrefix(r.Type, "MapIteration"):
+		mapIterationDetails(&out, d)
 	default:
 		taskDetails(&out, d, includeData)
 	}
 	return out
+}
+
+// mapIterationDetails fills a MapIteration* event's {name, index}
+// (stepfunctions-asl.md 11.3).
+func mapIterationDetails(out *sfnapi.HistoryEvent, d details) {
+	it := &sfnapi.MapIterationEventDetails{Name: d.str("name"), Index: d.count("index")}
+	switch string(out.Type) {
+	case "MapIterationStarted":
+		out.MapIterationStartedEventDetails = it
+	case "MapIterationSucceeded":
+		out.MapIterationSucceededEventDetails = it
+	case "MapIterationFailed":
+		out.MapIterationFailedEventDetails = it
+	case "MapIterationAborted":
+		out.MapIterationAbortedEventDetails = it
+	}
 }
 
 // taskDetails fills the details of a Task's events, in their lambda:invoke
