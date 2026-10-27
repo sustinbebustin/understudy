@@ -2,7 +2,7 @@
 // (`just smoke`). It builds the binary, starts `understudy serve` on
 // 127.0.0.1:0 with a ready file, a frozen clock, seed 1 and the TLS
 // listener, and drives a few raw HTTP requests per service with net/http:
-// SQS and DynamoDB over awsJson1_0, SNS publishing to the queue over
+// SQS, DynamoDB and DynamoDB Streams over awsJson1_0, SNS publishing to the queue over
 // awsQuery with the delivery asserted in the journal, S3 over restXml (a
 // checksum header over HTTP, an aws-chunked trailer body over TLS,
 // SSE-KMS), Lambda and an API Gateway HTTP API over restJson1, CloudWatch
@@ -26,9 +26,10 @@
 //   - The emulator runs with the test's environment minus UNDERSTUDY_* and
 //     AWS_* variables, in an empty working directory, so no configuration
 //     of the machine changes what it does. Without the docker tag it runs
-//     with --docker disabled, so it starts no container and DynamoDB
-//     answers 501 saying it needs Docker; under the docker tag DynamoDB
-//     lists tables through DynamoDB Local.
+//     with --docker disabled, so it starts no container and DynamoDB and
+//     DynamoDB Streams answer 501 saying DynamoDB Local needs Docker; under
+//     the docker tag DynamoDB lists tables through DynamoDB Local and
+//     DynamoDB Streams lists none.
 //   - The test trusts the TLS listener's self-signed certificate by
 //     reading it from a first handshake, then verifies every request
 //     against it.

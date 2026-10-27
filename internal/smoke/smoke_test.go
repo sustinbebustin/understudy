@@ -78,6 +78,7 @@ func (w *workload) run(t *testing.T) {
 		{"kms", w.kms},
 		{"s3", w.s3},
 		{"dynamodb", w.dynamodb},
+		{"dynamodb streams", w.dynamodbStreams},
 		{"iam", w.iam},
 		{"sts", w.sts},
 		{"lambda", w.lambda},
@@ -324,6 +325,25 @@ func (w *workload) dynamodb(t *testing.T) {
 	must(t, "ListTables", resp, http.StatusNotImplemented)
 	if !strings.Contains(resp.body, "which needs Docker") {
 		t.Fatalf("ListTables with Docker disabled = %s, want the 501 saying DynamoDB Local needs Docker", resp.body)
+	}
+}
+
+// dynamodbStreams lists streams under the dynamodb signing name (ADR 0019):
+// none, since no table has a stream, when DynamoDB Local can run, else the
+// same 501 as DynamoDB, which serves the stream log.
+func (w *workload) dynamodbStreams(t *testing.T) {
+	t.Helper()
+	resp := awsJSON(t, w.emu, "1.0", "dynamodb", "DynamoDBStreams_20120810.ListStreams", `{}`)
+	if w.dynamoDB {
+		must(t, "ListStreams", resp, http.StatusOK)
+		if resp.body != `{"Streams":[]}` {
+			t.Fatalf(`ListStreams = %s, want {"Streams":[]}`, resp.body)
+		}
+		return
+	}
+	must(t, "ListStreams", resp, http.StatusNotImplemented)
+	if !strings.Contains(resp.body, "which needs Docker") {
+		t.Fatalf("ListStreams with Docker disabled = %s, want the 501 saying DynamoDB Local needs Docker", resp.body)
 	}
 }
 
