@@ -15,13 +15,13 @@ import (
 // bindUsers binds the user control plane.
 func (s *Service) bindUsers(b iamapi.Binder) {
 	b.CreateUser(s.createUser, registry.Partial{Note: "as PermissionsBoundary, " + catalogueMembership})
-	b.GetUser(s.getUser, registry.Partial{Note: "without UserName, a root caller gets its root identity with the Unix epoch as CreateDate, since account creation is not tracked"})
-	b.UpdateUser(s.updateUser, registry.Partial{Note: "access keys minted before a rename or a path change still resolve to the user's old name and path"})
-	b.DeleteUser(s.deleteUser, registry.Full{})
+	b.GetUser(s.getUser, registry.Partial{Note: withResolved("without UserName, a root caller gets its root identity with the Unix epoch as CreateDate, since account creation is not tracked")})
+	b.UpdateUser(s.updateUser, registry.Partial{Note: withResolved("access keys minted before a rename or a path change still resolve to the user's old name and path, so under iam.enforce they are denied as a user IAM does not hold")})
+	b.DeleteUser(s.deleteUser, resolvedPartial())
 	b.ListUsers(s.listUsers, registry.Full{})
-	b.PutUserPermissionsBoundary(s.putUserPermissionsBoundary, registry.Partial{Note: boundaryNote})
-	b.DeleteUserPermissionsBoundary(s.deleteUserPermissionsBoundary, registry.Full{})
-	b.ListGroupsForUser(s.listGroupsForUser, registry.Partial{Note: "groups are not implemented, so a user belongs to none"})
+	b.PutUserPermissionsBoundary(s.putUserPermissionsBoundary, registry.Partial{Note: withResolved(boundaryNote)})
+	b.DeleteUserPermissionsBoundary(s.deleteUserPermissionsBoundary, resolvedPartial())
+	b.ListGroupsForUser(s.listGroupsForUser, registry.Partial{Note: withResolved("groups are not implemented, so a user belongs to none")})
 }
 
 // user finds a user by name.

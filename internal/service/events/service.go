@@ -52,6 +52,17 @@ func declareAccess(b *kernel.Binder) {
 			}
 			return passedRoles(roles...)
 		}))
+	// The bus an EventBusName names is its ARN, known from the name: step 8
+	// asks events:PutEvents about each entry's bus (iam-evaluation.md 2.1).
+	// The bus operations name theirs through namedBus.
+	kernel.Declare(b, eventbridgeapi.OpPutEvents,
+		kernel.WithResources(func(c *kernel.Call, in *eventbridgeapi.PutEventsInput) []aws.ARN {
+			out := make([]aws.ARN, 0, len(in.Entries))
+			for i := range in.Entries {
+				out = append(out, parseBus(c.Scope(), in.Entries[i].EventBusName).busARN(c.Scope()))
+			}
+			return out
+		}))
 }
 
 // tagActions is events:TagResource for a create call that tags what it

@@ -214,32 +214,33 @@ func policyTags(account aws.AccountID, arn string, named awsPolicy) tagsOf {
 // bindTags binds the tag operations of roles, users, managed policies and
 // instance profiles.
 func (s *Service) bindTags(b iamapi.Binder) {
+	named := resolvedPartial()
 	b.TagRole(func(_ context.Context, c *kernel.Call, in *iamapi.TagRoleInput) (*iamapi.TagRoleOutput, *awserr.Error) {
 		return unit[iamapi.TagRoleOutput](s.tag(c, roleTagged(c.Scope().Account, in.RoleName), in.Tags))
-	}, registry.Full{})
+	}, named)
 	b.UntagRole(func(_ context.Context, c *kernel.Call, in *iamapi.UntagRoleInput) (*iamapi.UntagRoleOutput, *awserr.Error) {
 		return unit[iamapi.UntagRoleOutput](s.untag(c, roleTagged(c.Scope().Account, in.RoleName), in.TagKeys))
-	}, registry.Full{})
+	}, named)
 	b.ListRoleTags(func(_ context.Context, c *kernel.Call, in *iamapi.ListRoleTagsInput) (*iamapi.ListRoleTagsOutput, *awserr.Error) {
 		p, err := s.listTags(c, "role-tags", roleTagged(c.Scope().Account, in.RoleName).get, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
 		return &iamapi.ListRoleTagsOutput{Tags: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
-	}, registry.Full{})
+	}, named)
 	b.TagUser(func(_ context.Context, c *kernel.Call, in *iamapi.TagUserInput) (*iamapi.TagUserOutput, *awserr.Error) {
 		return unit[iamapi.TagUserOutput](s.tag(c, userTagged(c.Scope().Account, in.UserName), in.Tags))
-	}, registry.Full{})
+	}, named)
 	b.UntagUser(func(_ context.Context, c *kernel.Call, in *iamapi.UntagUserInput) (*iamapi.UntagUserOutput, *awserr.Error) {
 		return unit[iamapi.UntagUserOutput](s.untag(c, userTagged(c.Scope().Account, in.UserName), in.TagKeys))
-	}, registry.Full{})
+	}, named)
 	b.ListUserTags(func(_ context.Context, c *kernel.Call, in *iamapi.ListUserTagsInput) (*iamapi.ListUserTagsOutput, *awserr.Error) {
 		p, err := s.listTags(c, "user-tags", userTagged(c.Scope().Account, in.UserName).get, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
 		return &iamapi.ListUserTagsOutput{Tags: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
-	}, registry.Full{})
+	}, named)
 	b.TagPolicy(func(_ context.Context, c *kernel.Call, in *iamapi.TagPolicyInput) (*iamapi.TagPolicyOutput, *awserr.Error) {
 		return unit[iamapi.TagPolicyOutput](s.tag(c, policyTagged(c.Scope().Account, in.PolicyArn), in.Tags))
 	}, registry.Full{})
@@ -259,17 +260,17 @@ func (s *Service) bindTags(b iamapi.Binder) {
 	}, registry.Full{})
 	b.TagInstanceProfile(func(_ context.Context, c *kernel.Call, in *iamapi.TagInstanceProfileInput) (*iamapi.TagInstanceProfileOutput, *awserr.Error) {
 		return unit[iamapi.TagInstanceProfileOutput](s.tag(c, instanceProfileTagged(c.Scope().Account, in.InstanceProfileName), in.Tags))
-	}, registry.Full{})
+	}, named)
 	b.UntagInstanceProfile(func(_ context.Context, c *kernel.Call, in *iamapi.UntagInstanceProfileInput) (*iamapi.UntagInstanceProfileOutput, *awserr.Error) {
 		return unit[iamapi.UntagInstanceProfileOutput](s.untag(c, instanceProfileTagged(c.Scope().Account, in.InstanceProfileName), in.TagKeys))
-	}, registry.Full{})
+	}, named)
 	b.ListInstanceProfileTags(func(_ context.Context, c *kernel.Call, in *iamapi.ListInstanceProfileTagsInput) (*iamapi.ListInstanceProfileTagsOutput, *awserr.Error) {
 		p, err := s.listTags(c, "instance-profile-tags", instanceProfileTagged(c.Scope().Account, in.InstanceProfileName).get, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
 		return &iamapi.ListInstanceProfileTagsOutput{Tags: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
-	}, registry.Full{})
+	}, named)
 }
 
 // tag adds or replaces tags on the entity e reaches.

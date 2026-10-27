@@ -41,28 +41,30 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 		kernel.WithCheck(func(in *secretsmanagerapi.CreateSecretInput) *awserr.Error {
 			return firstError(requireToken(in.ClientRequestToken), checkName(in.Name), checkValue(in.SecretString, in.SecretBinary))
 		}))
-	b.DescribeSecret(s.describeSecret, registry.Full{})
+	named := registry.Partial{Note: resolvedFirst}
+	b.DescribeSecret(s.describeSecret, named)
 	b.ListSecrets(s.listSecrets, registry.Full{})
-	b.UpdateSecret(s.updateSecret, registry.Full{},
+	b.UpdateSecret(s.updateSecret, named,
 		kernel.WithCheck(func(in *secretsmanagerapi.UpdateSecretInput) *awserr.Error {
 			return firstError(requireToken(in.ClientRequestToken), checkValue(in.SecretString, in.SecretBinary))
 		}))
-	b.DeleteSecret(s.deleteSecret, registry.Full{}, kernel.WithCheck(checkDelete))
-	b.RestoreSecret(s.restoreSecret, registry.Full{})
+	b.DeleteSecret(s.deleteSecret, named, kernel.WithCheck(checkDelete))
+	b.RestoreSecret(s.restoreSecret, named)
 
-	b.PutSecretValue(s.putSecretValue, registry.Partial{Note: "RotationToken is accepted and ignored: rotation is not implemented"},
+	b.PutSecretValue(s.putSecretValue, registry.Partial{Note: "RotationToken is accepted and ignored: rotation is not implemented; " + resolvedFirst},
 		kernel.WithCheck(func(in *secretsmanagerapi.PutSecretValueInput) *awserr.Error {
 			return firstError(requireToken(in.ClientRequestToken), checkValue(in.SecretString, in.SecretBinary))
 		}))
-	b.GetSecretValue(s.getSecretValue, registry.Full{})
-	b.ListSecretVersionIds(s.listSecretVersionIDs, registry.Full{})
-	b.UpdateSecretVersionStage(s.updateSecretVersionStage, registry.Full{})
+	b.GetSecretValue(s.getSecretValue, named)
+	b.ListSecretVersionIds(s.listSecretVersionIDs, named)
+	b.UpdateSecretVersionStage(s.updateSecretVersionStage, named)
 
-	b.TagResource(s.tagResource, registry.Full{})
-	b.UntagResource(s.untagResource, registry.Full{})
-	b.PutResourcePolicy(s.putResourcePolicy, registry.StoredOnly{Note: "the policy is parsed and stored verbatim, not enforced; BlockPublicPolicy is not evaluated"})
-	b.GetResourcePolicy(s.getResourcePolicy, registry.Full{})
-	b.DeleteResourcePolicy(s.deleteResourcePolicy, registry.Full{})
+	b.TagResource(s.tagResource, named)
+	b.UntagResource(s.untagResource, named)
+	b.PutResourcePolicy(s.putResourcePolicy, registry.Partial{Note: "the policy is parsed and stored verbatim, and evaluated only when iam.enforce is advise or enforce; BlockPublicPolicy is not evaluated; " + resolvedFirst})
+	b.GetResourcePolicy(s.getResourcePolicy, named)
+	b.DeleteResourcePolicy(s.deleteResourcePolicy, named)
+	s.declareAuthorization(d.Binder)
 	return s
 }
 

@@ -34,7 +34,11 @@ func busARN(scope aws.Scope, name string) aws.ARN {
 // It is syntactic: whether the bus exists is a question for the state.
 //
 //sumtype:decl
-type busRef interface{ isBusRef() }
+type busRef interface {
+	isBusRef()
+	// busARN is the ARN of the bus, for a caller in scope.
+	busARN(scope aws.Scope) aws.ARN
+}
 
 // ownBus is a bus of the caller's scope: the default bus for no name, the
 // empty name or the name default, else the bus a name or an ARN in the
@@ -58,6 +62,10 @@ type missingBus struct {
 func (ownBus) isBusRef()     {}
 func (foreignBus) isBusRef() {}
 func (missingBus) isBusRef() {}
+
+func (o ownBus) busARN(scope aws.Scope) aws.ARN { return busARN(scope, o.name) }
+func (f foreignBus) busARN(aws.Scope) aws.ARN   { return f.arn() }
+func (m missingBus) busARN(aws.Scope) aws.ARN   { return m.arn }
 
 // arn is the ARN of the foreign bus.
 func (f foreignBus) arn() aws.ARN { return busARN(f.scope, f.name) }

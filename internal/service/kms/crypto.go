@@ -13,16 +13,16 @@ import (
 // with the encryption context as additional authenticated data.
 func (s *Service) bindCrypto(b kmsapi.Binder) {
 	noRecipient := "Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException"
-	b.Encrypt(s.encrypt, registry.Full{})
-	b.Decrypt(s.decrypt, registry.Partial{Note: noRecipient + ", as do DryRunModifiers"},
+	b.Encrypt(s.encrypt, registry.Partial{Note: resolvedFirst})
+	b.Decrypt(s.decrypt, registry.Partial{Note: noRecipient + ", as do DryRunModifiers; " + resolvedFirst},
 		kernel.WithValidator(func(in *kmsapi.DecryptInput) []awserr.Violation { return requireBlob(in.CiphertextBlob) }))
-	b.ReEncrypt(s.reEncrypt, registry.Partial{Note: "DryRunModifiers answer UnsupportedOperationException"},
+	b.ReEncrypt(s.reEncrypt, registry.Partial{Note: "DryRunModifiers answer UnsupportedOperationException; " + resolvedFirst},
 		kernel.WithValidator(func(in *kmsapi.ReEncryptInput) []awserr.Violation { return requireBlob(in.CiphertextBlob) }))
-	b.GenerateDataKey(s.generateDataKey, registry.Partial{Note: noRecipient},
+	b.GenerateDataKey(s.generateDataKey, registry.Partial{Note: noRecipient + "; " + resolvedFirst},
 		kernel.WithCheck(func(in *kmsapi.GenerateDataKeyInput) *awserr.Error {
 			return checkDataKeySize(in.KeySpec, in.NumberOfBytes)
 		}))
-	b.GenerateDataKeyWithoutPlaintext(s.generateDataKeyWithoutPlaintext, registry.Full{},
+	b.GenerateDataKeyWithoutPlaintext(s.generateDataKeyWithoutPlaintext, registry.Partial{Note: resolvedFirst},
 		kernel.WithCheck(func(in *kmsapi.GenerateDataKeyWithoutPlaintextInput) *awserr.Error {
 			return checkDataKeySize(in.KeySpec, in.NumberOfBytes)
 		}))

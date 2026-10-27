@@ -17,33 +17,34 @@ import (
 
 // bindAttachments binds the managed policy attachments of roles and users.
 func (s *Service) bindAttachments(b iamapi.Binder) {
-	stored := registry.Partial{Note: "the attachment is stored, not enforced; " + catalogueMembership + "; every catalogued policy attaches, service-linked role policies included, though the IAM model documents PolicyNotAttachable for them"}
+	stored := registry.Partial{Note: withResolved("the attachment is stored, and evaluated only when iam.enforce is advise or enforce; " + catalogueMembership + "; every catalogued policy attaches, service-linked role policies included, though the IAM model documents PolicyNotAttachable for them")}
+	named := resolvedPartial()
 	b.AttachRolePolicy(func(_ context.Context, c *kernel.Call, in *iamapi.AttachRolePolicyInput) (*iamapi.AttachRolePolicyOutput, *awserr.Error) {
 		return unit[iamapi.AttachRolePolicyOutput](s.attach(c, roleHolder(c.Scope().Account, in.RoleName), in.PolicyArn))
 	}, stored)
 	b.DetachRolePolicy(func(_ context.Context, c *kernel.Call, in *iamapi.DetachRolePolicyInput) (*iamapi.DetachRolePolicyOutput, *awserr.Error) {
 		return unit[iamapi.DetachRolePolicyOutput](s.detach(c, roleHolder(c.Scope().Account, in.RoleName), in.PolicyArn))
-	}, registry.Full{})
+	}, named)
 	b.ListAttachedRolePolicies(func(_ context.Context, c *kernel.Call, in *iamapi.ListAttachedRolePoliciesInput) (*iamapi.ListAttachedRolePoliciesOutput, *awserr.Error) {
 		p, err := s.listAttached(c, "attached-role-policies", roleHolder(c.Scope().Account, in.RoleName), in.PathPrefix, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
 		return &iamapi.ListAttachedRolePoliciesOutput{AttachedPolicies: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
-	}, registry.Full{})
+	}, named)
 	b.AttachUserPolicy(func(_ context.Context, c *kernel.Call, in *iamapi.AttachUserPolicyInput) (*iamapi.AttachUserPolicyOutput, *awserr.Error) {
 		return unit[iamapi.AttachUserPolicyOutput](s.attach(c, userHolder(c.Scope().Account, in.UserName), in.PolicyArn))
 	}, stored)
 	b.DetachUserPolicy(func(_ context.Context, c *kernel.Call, in *iamapi.DetachUserPolicyInput) (*iamapi.DetachUserPolicyOutput, *awserr.Error) {
 		return unit[iamapi.DetachUserPolicyOutput](s.detach(c, userHolder(c.Scope().Account, in.UserName), in.PolicyArn))
-	}, registry.Full{})
+	}, named)
 	b.ListAttachedUserPolicies(func(_ context.Context, c *kernel.Call, in *iamapi.ListAttachedUserPoliciesInput) (*iamapi.ListAttachedUserPoliciesOutput, *awserr.Error) {
 		p, err := s.listAttached(c, "attached-user-policies", userHolder(c.Scope().Account, in.UserName), in.PathPrefix, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
 		return &iamapi.ListAttachedUserPoliciesOutput{AttachedPolicies: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
-	}, registry.Full{})
+	}, named)
 }
 
 // attach attaches a managed policy; attaching one already attached

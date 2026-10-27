@@ -45,6 +45,7 @@ func New(d kernel.ServiceDeps, opts Options) *Service {
 	s.bindAccessKeys(b)
 	s.bindInstanceProfiles(b)
 	s.bindTags(b)
+	s.declareAuthorization(d.Binder)
 	return s
 }
 

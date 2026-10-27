@@ -1,0 +1,197 @@
+package iam
+
+import (
+	"github.com/sustinbebustin/understudy/internal/api/iamapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/registry"
+)
+
+// resolvedFirst is the coverage note of the operations that name a user,
+// role or instance profile by name: its ARN holds a path only IAM's state
+// knows, so the call is authorized once IAM resolved it, and a missing one
+// answers NoSuchEntity before authorization. Whether AWS denies first is
+// UNVERIFIED (iam-enforcement-surfaces.md 5.3, IAM-ENF-14).
+const resolvedFirst = "under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource)"
+
+// resolvedPartial is the coverage of an operation on an entity named by
+// name that is otherwise fully implemented.
+func resolvedPartial() registry.Partial { return registry.Partial{Note: resolvedFirst} }
+
+// withResolved is note followed by resolvedFirst.
+func withResolved(note string) string { return note + "; " + resolvedFirst }
+
+// declareAuthorization states what each IAM operation is authorized on
+// (iam-evaluation.md 2.1): an operation that names a user, role or instance
+// profile by name is asked about once IAM resolved its ARN
+// (kernel.AuthorizedAfterResolve), the resolved ARN touched before the
+// handler; one that carries a managed policy's ARN, or creates an entity
+// whose path and name it carries, is asked about that ARN at step 8. GetRole
+// authorizes in its handler (kernel.AuthorizedInHandler). It runs after the
+// bind sites, whose bindings it extends.
+func (s *Service) declareAuthorization(b *kernel.Binder) {
+	s.declareUsers(b)
+	s.declareRoles(b)
+	// Adding or removing a role is authorized on the profile; iam:PassRole
+	// on the role is another question.
+	kernel.Declare(b, iamapi.OpGetInstanceProfile, profileNamed(s, func(in *iamapi.GetInstanceProfileInput) string { return in.InstanceProfileName })...)
+	kernel.Declare(b, iamapi.OpDeleteInstanceProfile, profileNamed(s, func(in *iamapi.DeleteInstanceProfileInput) string { return in.InstanceProfileName })...)
+	kernel.Declare(b, iamapi.OpAddRoleToInstanceProfile, profileNamed(s, func(in *iamapi.AddRoleToInstanceProfileInput) string { return in.InstanceProfileName })...)
+	kernel.Declare(b, iamapi.OpRemoveRoleFromInstanceProfile, profileNamed(s, func(in *iamapi.RemoveRoleFromInstanceProfileInput) string { return in.InstanceProfileName })...)
+	kernel.Declare(b, iamapi.OpTagInstanceProfile, profileNamed(s, func(in *iamapi.TagInstanceProfileInput) string { return in.InstanceProfileName })...)
+	kernel.Declare(b, iamapi.OpUntagInstanceProfile, profileNamed(s, func(in *iamapi.UntagInstanceProfileInput) string { return in.InstanceProfileName })...)
+	kernel.Declare(b, iamapi.OpListInstanceProfileTags, profileNamed(s, func(in *iamapi.ListInstanceProfileTagsInput) string { return in.InstanceProfileName })...)
+
+	kernel.Declare(b, iamapi.OpGetPolicy, policyNamed(func(in *iamapi.GetPolicyInput) string { return in.PolicyArn }))
+	kernel.Declare(b, iamapi.OpDeletePolicy, policyNamed(func(in *iamapi.DeletePolicyInput) string { return in.PolicyArn }))
+	kernel.Declare(b, iamapi.OpCreatePolicyVersion, policyNamed(func(in *iamapi.CreatePolicyVersionInput) string { return in.PolicyArn }))
+	kernel.Declare(b, iamapi.OpGetPolicyVersion, policyNamed(func(in *iamapi.GetPolicyVersionInput) string { return in.PolicyArn }))
+	kernel.Declare(b, iamapi.OpListPolicyVersions, policyNamed(func(in *iamapi.ListPolicyVersionsInput) string { return in.PolicyArn }))
+	kernel.Declare(b, iamapi.OpDeletePolicyVersion, policyNamed(func(in *iamapi.DeletePolicyVersionInput) string { return in.PolicyArn }))
+	kernel.Declare(b, iamapi.OpSetDefaultPolicyVersion, policyNamed(func(in *iamapi.SetDefaultPolicyVersionInput) string { return in.PolicyArn }))
+	kernel.Declare(b, iamapi.OpListEntitiesForPolicy, policyNamed(func(in *iamapi.ListEntitiesForPolicyInput) string { return in.PolicyArn }))
+	kernel.Declare(b, iamapi.OpTagPolicy, policyNamed(func(in *iamapi.TagPolicyInput) string { return in.PolicyArn }))
+	kernel.Declare(b, iamapi.OpUntagPolicy, policyNamed(func(in *iamapi.UntagPolicyInput) string { return in.PolicyArn }))
+	kernel.Declare(b, iamapi.OpListPolicyTags, policyNamed(func(in *iamapi.ListPolicyTagsInput) string { return in.PolicyArn }))
+
+	kernel.Declare(b, iamapi.OpCreateUser, created(func(account aws.AccountID, in *iamapi.CreateUserInput) (aws.ARN, *string) {
+		return userARN(account, pathOrRoot(in.Path), in.UserName), in.Path
+	}))
+	kernel.Declare(b, iamapi.OpCreateRole, created(func(account aws.AccountID, in *iamapi.CreateRoleInput) (aws.ARN, *string) {
+		return roleARN(account, pathOrRoot(in.Path), in.RoleName), in.Path
+	}))
+	kernel.Declare(b, iamapi.OpCreatePolicy, created(func(account aws.AccountID, in *iamapi.CreatePolicyInput) (aws.ARN, *string) {
+		return localPolicyARN(account, pathOrRoot(in.Path), in.PolicyName), in.Path
+	}))
+	kernel.Declare(b, iamapi.OpCreateInstanceProfile, created(func(account aws.AccountID, in *iamapi.CreateInstanceProfileInput) (aws.ARN, *string) {
+		return instanceProfileARN(account, pathOrRoot(in.Path), in.InstanceProfileName), in.Path
+	}))
+}
+
+// declareUsers declares the operations on a user named, or defaulting to
+// the caller.
+func (s *Service) declareUsers(b *kernel.Binder) {
+	kernel.Declare(b, iamapi.OpGetUser, userNamed(s, func(in *iamapi.GetUserInput) *string { return in.UserName })...)
+	kernel.Declare(b, iamapi.OpUpdateUser, userNamed(s, func(in *iamapi.UpdateUserInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpDeleteUser, userNamed(s, func(in *iamapi.DeleteUserInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpPutUserPermissionsBoundary, userNamed(s, func(in *iamapi.PutUserPermissionsBoundaryInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpDeleteUserPermissionsBoundary, userNamed(s, func(in *iamapi.DeleteUserPermissionsBoundaryInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpListGroupsForUser, userNamed(s, func(in *iamapi.ListGroupsForUserInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpCreateAccessKey, userNamed(s, func(in *iamapi.CreateAccessKeyInput) *string { return in.UserName })...)
+	kernel.Declare(b, iamapi.OpListAccessKeys, userNamed(s, func(in *iamapi.ListAccessKeysInput) *string { return in.UserName })...)
+	kernel.Declare(b, iamapi.OpUpdateAccessKey, userNamed(s, func(in *iamapi.UpdateAccessKeyInput) *string { return in.UserName })...)
+	kernel.Declare(b, iamapi.OpDeleteAccessKey, userNamed(s, func(in *iamapi.DeleteAccessKeyInput) *string { return in.UserName })...)
+	kernel.Declare(b, iamapi.OpPutUserPolicy, userNamed(s, func(in *iamapi.PutUserPolicyInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpGetUserPolicy, userNamed(s, func(in *iamapi.GetUserPolicyInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpDeleteUserPolicy, userNamed(s, func(in *iamapi.DeleteUserPolicyInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpListUserPolicies, userNamed(s, func(in *iamapi.ListUserPoliciesInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpAttachUserPolicy, userNamed(s, func(in *iamapi.AttachUserPolicyInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpDetachUserPolicy, userNamed(s, func(in *iamapi.DetachUserPolicyInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpListAttachedUserPolicies, userNamed(s, func(in *iamapi.ListAttachedUserPoliciesInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpTagUser, userNamed(s, func(in *iamapi.TagUserInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpUntagUser, userNamed(s, func(in *iamapi.UntagUserInput) *string { return &in.UserName })...)
+	kernel.Declare(b, iamapi.OpListUserTags, userNamed(s, func(in *iamapi.ListUserTagsInput) *string { return &in.UserName })...)
+}
+
+// declareRoles declares the operations on a role named; GetRole
+// authorizes in its handler.
+func (s *Service) declareRoles(b *kernel.Binder) {
+	kernel.Declare(b, iamapi.OpUpdateRole, roleNamed(s, func(in *iamapi.UpdateRoleInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpUpdateRoleDescription, roleNamed(s, func(in *iamapi.UpdateRoleDescriptionInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpUpdateAssumeRolePolicy, roleNamed(s, func(in *iamapi.UpdateAssumeRolePolicyInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpDeleteRole, roleNamed(s, func(in *iamapi.DeleteRoleInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpPutRolePermissionsBoundary, roleNamed(s, func(in *iamapi.PutRolePermissionsBoundaryInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpDeleteRolePermissionsBoundary, roleNamed(s, func(in *iamapi.DeleteRolePermissionsBoundaryInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpPutRolePolicy, roleNamed(s, func(in *iamapi.PutRolePolicyInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpGetRolePolicy, roleNamed(s, func(in *iamapi.GetRolePolicyInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpDeleteRolePolicy, roleNamed(s, func(in *iamapi.DeleteRolePolicyInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpListRolePolicies, roleNamed(s, func(in *iamapi.ListRolePoliciesInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpAttachRolePolicy, roleNamed(s, func(in *iamapi.AttachRolePolicyInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpDetachRolePolicy, roleNamed(s, func(in *iamapi.DetachRolePolicyInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpListAttachedRolePolicies, roleNamed(s, func(in *iamapi.ListAttachedRolePoliciesInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpTagRole, roleNamed(s, func(in *iamapi.TagRoleInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpUntagRole, roleNamed(s, func(in *iamapi.UntagRoleInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpListRoleTags, roleNamed(s, func(in *iamapi.ListRoleTagsInput) string { return in.RoleName })...)
+	kernel.Declare(b, iamapi.OpListInstanceProfilesForRole, roleNamed(s, func(in *iamapi.ListInstanceProfilesForRoleInput) string { return in.RoleName })...)
+}
+
+// resolved authorizes an operation once its handler resolved the entity:
+// resolve names the entity's ARN from the state before the handler, false
+// for one that does not exist, which the handler then answers before
+// anything is asked (kernel.AuthorizedAfterResolve).
+func resolved[In any](resolve func(c *kernel.Call, in *In) (aws.ARN, bool)) []kernel.BindOption {
+	return []kernel.BindOption{
+		kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
+			if arn, ok := resolve(c, in); ok {
+				return []aws.ARN{arn}
+			}
+			return nil
+		}),
+		kernel.AuthorizedAfterResolve(),
+	}
+}
+
+// userNamed authorizes an operation on the user name names, or on the
+// caller when it names none, as IAM defaults UserName: the root's ARN for a
+// root caller, else the user's ARN once IAM resolved its path.
+func userNamed[In any](s *Service, name func(*In) *string) []kernel.BindOption {
+	return resolved(func(c *kernel.Call, in *In) (aws.ARN, bool) {
+		who, err := callerUser(c, name(in))
+		if err != nil {
+			return aws.ARN{}, false
+		}
+		account := c.Scope().Account
+		switch who := who.(type) {
+		case accountRoot:
+			return rootARN(account), true
+		case namedUser:
+			u, err := view(s, account, func(st *State) (User, *awserr.Error) { return st.user(who.name) })
+			return userARN(account, u.Path, u.Name), err == nil
+		}
+		return aws.ARN{}, false
+	})
+}
+
+// roleNamed authorizes an operation on the role name names.
+func roleNamed[In any](s *Service, name func(*In) string) []kernel.BindOption {
+	return resolved(func(c *kernel.Call, in *In) (aws.ARN, bool) {
+		account := c.Scope().Account
+		r, err := view(s, account, func(st *State) (Role, *awserr.Error) { return st.role(name(in)) })
+		return roleARN(account, r.Path, r.Name), err == nil
+	})
+}
+
+// profileNamed authorizes an operation on the instance profile name names.
+func profileNamed[In any](s *Service, name func(*In) string) []kernel.BindOption {
+	return resolved(func(c *kernel.Call, in *In) (aws.ARN, bool) {
+		account := c.Scope().Account
+		p, err := view(s, account, func(st *State) (InstanceProfile, *awserr.Error) { return st.instanceProfile(name(in)) })
+		return instanceProfileARN(account, p.Path, p.Name), err == nil
+	})
+}
+
+// policyNamed asks at step 8 about the managed policy whose ARN the input
+// carries; an ARN that is no policy's names nothing, and the handler
+// answers it.
+func policyNamed[In any](arn func(*In) string) kernel.BindOption {
+	return kernel.WithResources(func(_ *kernel.Call, in *In) []aws.ARN {
+		ref, ok := parsePolicyARN(arn(in))
+		if !ok {
+			return nil
+		}
+		return []aws.ARN{ref.arn}
+	})
+}
+
+// created asks at step 8 about the ARN a creation names: its path, or "/",
+// and its name. An invalid path names nothing, and the handler answers it.
+func created[In any](arn func(account aws.AccountID, in *In) (aws.ARN, *string)) kernel.BindOption {
+	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
+		a, path := arn(c.Scope().Account, in)
+		if checkPath("path", path) != nil {
+			return nil
+		}
+		return []aws.ARN{a}
+	})
+}

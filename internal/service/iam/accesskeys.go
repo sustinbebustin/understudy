@@ -18,10 +18,10 @@ import (
 // bindAccessKeys binds the access keys of users. The identity store mints
 // each key, so a request signed with it runs as the user.
 func (s *Service) bindAccessKeys(b iamapi.Binder) {
-	b.CreateAccessKey(s.createAccessKey, registry.Partial{Note: "only for IAM users: root user access keys are not managed, so a root caller must name a user"})
-	b.ListAccessKeys(s.listAccessKeys, registry.Partial{Note: "root user access keys are not managed, so a root caller that names no user lists none"})
-	b.UpdateAccessKey(s.updateAccessKey, registry.StoredOnly{Note: "an Inactive key still authenticates, since understudy does not enforce IAM"})
-	b.DeleteAccessKey(s.deleteAccessKey, registry.Full{})
+	b.CreateAccessKey(s.createAccessKey, registry.Partial{Note: withResolved("only for IAM users: root user access keys are not managed, so a root caller must name a user")})
+	b.ListAccessKeys(s.listAccessKeys, registry.Partial{Note: withResolved("root user access keys are not managed, so a root caller that names no user lists none")})
+	b.UpdateAccessKey(s.updateAccessKey, registry.StoredOnly{Note: withResolved("an Inactive key still authenticates, since understudy does not check a key's status")})
+	b.DeleteAccessKey(s.deleteAccessKey, resolvedPartial())
 }
 
 // accessKeyIndex finds a user's access key by id.

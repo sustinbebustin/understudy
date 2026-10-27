@@ -39,6 +39,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	s.bindAliases(b)
 	s.bindTags(b)
 	s.bindCrypto(b)
+	s.declareAuthorization(d.Binder)
 	return s
 }
 

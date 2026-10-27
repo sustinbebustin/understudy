@@ -16,7 +16,8 @@ import (
 
 // bindInline binds the inline policies of roles and users.
 func (s *Service) bindInline(b iamapi.Binder) {
-	stored := registry.StoredOnly{Note: identityDocumentNote}
+	stored := registry.Partial{Note: withResolved(identityDocumentNote)}
+	named := resolvedPartial()
 	b.PutRolePolicy(func(_ context.Context, c *kernel.Call, in *iamapi.PutRolePolicyInput) (*iamapi.PutRolePolicyOutput, *awserr.Error) {
 		return unit[iamapi.PutRolePolicyOutput](s.putInline(c, roleHolder(c.Scope().Account, in.RoleName), in.PolicyName, in.PolicyDocument))
 	}, stored)
@@ -26,17 +27,17 @@ func (s *Service) bindInline(b iamapi.Binder) {
 			return nil, err
 		}
 		return &iamapi.GetRolePolicyOutput{RoleName: in.RoleName, PolicyName: p.Name, PolicyDocument: p.Document}, nil
-	}, registry.Full{})
+	}, named)
 	b.DeleteRolePolicy(func(_ context.Context, c *kernel.Call, in *iamapi.DeleteRolePolicyInput) (*iamapi.DeleteRolePolicyOutput, *awserr.Error) {
 		return unit[iamapi.DeleteRolePolicyOutput](s.deleteInline(c, roleHolder(c.Scope().Account, in.RoleName), in.PolicyName))
-	}, registry.Full{})
+	}, named)
 	b.ListRolePolicies(func(_ context.Context, c *kernel.Call, in *iamapi.ListRolePoliciesInput) (*iamapi.ListRolePoliciesOutput, *awserr.Error) {
 		p, err := s.listInline(c, "role-policies", roleHolder(c.Scope().Account, in.RoleName), in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
 		return &iamapi.ListRolePoliciesOutput{PolicyNames: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
-	}, registry.Full{})
+	}, named)
 	b.PutUserPolicy(func(_ context.Context, c *kernel.Call, in *iamapi.PutUserPolicyInput) (*iamapi.PutUserPolicyOutput, *awserr.Error) {
 		return unit[iamapi.PutUserPolicyOutput](s.putInline(c, userHolder(c.Scope().Account, in.UserName), in.PolicyName, in.PolicyDocument))
 	}, stored)
@@ -46,17 +47,17 @@ func (s *Service) bindInline(b iamapi.Binder) {
 			return nil, err
 		}
 		return &iamapi.GetUserPolicyOutput{UserName: in.UserName, PolicyName: p.Name, PolicyDocument: p.Document}, nil
-	}, registry.Full{})
+	}, named)
 	b.DeleteUserPolicy(func(_ context.Context, c *kernel.Call, in *iamapi.DeleteUserPolicyInput) (*iamapi.DeleteUserPolicyOutput, *awserr.Error) {
 		return unit[iamapi.DeleteUserPolicyOutput](s.deleteInline(c, userHolder(c.Scope().Account, in.UserName), in.PolicyName))
-	}, registry.Full{})
+	}, named)
 	b.ListUserPolicies(func(_ context.Context, c *kernel.Call, in *iamapi.ListUserPoliciesInput) (*iamapi.ListUserPoliciesOutput, *awserr.Error) {
 		p, err := s.listInline(c, "user-policies", userHolder(c.Scope().Account, in.UserName), in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
 		return &iamapi.ListUserPoliciesOutput{PolicyNames: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
-	}, registry.Full{})
+	}, named)
 }
 
 // inlineIndex finds an inline policy by name; names are unique regardless

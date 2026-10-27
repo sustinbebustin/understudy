@@ -19,16 +19,16 @@ const defaultMaxSessionDuration = 3600
 
 // bindRoles binds the role control plane and the internal ResolveRole.
 func (s *Service) bindRoles(b iamapi.Binder) {
-	stored := registry.StoredOnly{Note: "the trust policy is validated and stored, not enforced"}
-	b.CreateRole(s.createRole, registry.Partial{Note: stored.Note + "; as PermissionsBoundary, " + catalogueMembership})
-	b.GetRole(s.getRole, registry.Full{}, kernel.AuthorizedInHandler())
-	b.UpdateRole(s.updateRole, registry.Full{})
-	b.UpdateRoleDescription(s.updateRoleDescription, registry.Full{})
-	b.UpdateAssumeRolePolicy(s.updateAssumeRolePolicy, stored)
-	b.DeleteRole(s.deleteRole, registry.Full{})
+	const trust = "the trust policy is validated and stored, and evaluated by AssumeRole only when iam.enforce is advise or enforce"
+	b.CreateRole(s.createRole, registry.Partial{Note: trust + "; as PermissionsBoundary, " + catalogueMembership})
+	b.GetRole(s.getRole, resolvedPartial(), kernel.AuthorizedInHandler())
+	b.UpdateRole(s.updateRole, resolvedPartial())
+	b.UpdateRoleDescription(s.updateRoleDescription, resolvedPartial())
+	b.UpdateAssumeRolePolicy(s.updateAssumeRolePolicy, registry.Partial{Note: withResolved(trust)})
+	b.DeleteRole(s.deleteRole, resolvedPartial())
 	b.ListRoles(s.listRoles, registry.Full{})
-	b.PutRolePermissionsBoundary(s.putRolePermissionsBoundary, registry.Partial{Note: boundaryNote})
-	b.DeleteRolePermissionsBoundary(s.deleteRolePermissionsBoundary, registry.Full{})
+	b.PutRolePermissionsBoundary(s.putRolePermissionsBoundary, registry.Partial{Note: withResolved(boundaryNote)})
+	b.DeleteRolePermissionsBoundary(s.deleteRolePermissionsBoundary, resolvedPartial())
 	b.ResolveRole(s.resolveRole, registry.Full{})
 }
 
@@ -43,7 +43,7 @@ func (st *State) role(name string) (Role, *awserr.Error) {
 
 // boundaryNote is the coverage note of PutRolePermissionsBoundary and
 // PutUserPermissionsBoundary.
-const boundaryNote = "the boundary is stored, not enforced; " + catalogueMembership
+const boundaryNote = "the boundary is stored, and evaluated only when iam.enforce is advise or enforce; " + catalogueMembership
 
 // boundary checks a permissions boundary ARN, which named resolved among
 // the AWS managed policies: a catalogued AWS managed policy or a customer

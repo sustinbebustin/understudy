@@ -32,7 +32,7 @@ func (s *Service) bindKeys(b kmsapi.Binder) {
 	b.CreateKey(s.createKey,
 		registry.Partial{Note: "symmetric encryption keys with AWS_KMS origin only: other key specs, key usages, origins, custom key stores and multi-Region keys answer UnsupportedOperationException; the key policy is parsed and stored, the lockout safety check is not run"},
 		kernel.WithCheck(checkCreateKey), kernel.WithCheck(func(in *kmsapi.CreateKeyInput) *awserr.Error { return checkTags(in.Tags) }))
-	b.DescribeKey(s.describeKey, registry.Full{})
+	b.DescribeKey(s.describeKey, registry.Partial{Note: resolvedFirst})
 	b.ListKeys(s.listKeys, registry.Full{})
 	b.UpdateKeyDescription(s.updateKeyDescription, registry.Full{})
 	b.EnableKey(s.enableKey, registry.Full{})
