@@ -531,11 +531,6 @@ func (v *ListExecutionsInput) validate(path awserr.Path, out *[]awserr.Violation
 			*out = append(*out, awserr.Violation{Path: at(path, "stateMachineArn"), Value: awserr.RenderedText{Text: *v.StateMachineArn}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 	}
-	if v.StatusFilter != nil {
-		if !(*v.StatusFilter).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "statusFilter"), Value: awserr.RenderedText{Text: string(*v.StatusFilter)}, Constraint: awserr.Enum{Values: []string{"RUNNING", "SUCCEEDED", "FAILED", "TIMED_OUT", "ABORTED", "PENDING_REDRIVE"}}})
-		}
-	}
 	if int64(v.MaxResults) < 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "maxResults"), Value: awserr.RenderedText{Text: strconv.FormatInt(int64(v.MaxResults), 10)}, Constraint: awserr.RangeMin{Min: "0"}})
 	}

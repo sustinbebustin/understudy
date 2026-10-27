@@ -203,6 +203,11 @@ func importRules() []importRule {
 		// IAM serves AWS managed policies from the shipped catalogue (ADR
 		// 0016, amendment "managed policies").
 		{"internal/service/iam", append(slices.Clone(service), "internal/policycatalogue")},
+		// The States Language engine is pure (stepfunctions-asl.md 15.2): JSON
+		// values are documents, persisted sums use jsonx (ARCHITECTURE.md 13).
+		// Never the kernel, clock, ids or store the service row allows; the
+		// service hands it times, draws and events.
+		{"internal/service/sfn/asl/...", []string{"internal/service/sfn/asl/...", "internal/protocol/smithy/document", "internal/protocol/jsonx"}},
 
 		// The AWS managed policy catalogue: the embedded data files import
 		// nothing, and the typed catalogue reads them and checks names and
@@ -336,6 +341,16 @@ import (
 	_ "example.com/m/internal/service/sqs/attrs"
 )
 `,
+		// The States Language engine never reaches the kernel, though the
+		// service row around it would allow it.
+		"internal/service/sfn/asl/asl.go": `package asl
+
+import (
+	_ "example.com/m/internal/kernel"
+	_ "example.com/m/internal/protocol/smithy/document"
+	_ "example.com/m/internal/service/sfn/asl/jsonpath"
+)
+`,
 		// The base of a "/..." row follows that row.
 		"internal/api/generate.go": `package api
 
@@ -385,6 +400,7 @@ import _ "example.com/m/internal/journal"
 		"internal/aws imports internal/journal, which ARCHITECTURE.md section 2 does not allow; it may import nothing in the repository",
 		"internal/aws imports internal/kernel, which ARCHITECTURE.md section 2 does not allow; it may import nothing in the repository",
 		"internal/newpkg has no row in the import table of internal/ref/deps_test.go; add one that mirrors ARCHITECTURE.md section 2",
+		"internal/service/sfn/asl imports internal/kernel, which ARCHITECTURE.md section 2 does not allow; it may import internal/service/sfn/asl/..., internal/protocol/smithy/document, internal/protocol/jsonx",
 		"internal/service/sqs imports internal/service/sns, which ARCHITECTURE.md section 2 does not allow; a service reaches another through kernel.Invoke with the generated Op",
 	}
 	if !slices.Equal(got, want) {

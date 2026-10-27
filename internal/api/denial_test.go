@@ -50,7 +50,7 @@ func TestEveryServiceNamesItsDenialIdentity(t *testing.T) {
 		"scheduler":       {evidence.Inferred, "no source"},
 		"ses":             {evidence.Inferred, "no source"},
 		"sesv2":           {evidence.Inferred, "no source"},
-		"sfn":             {evidence.Inferred, "no source"},
+		"sfn":             {evidence.Inferred, "switch sfn.denial.status, case SFN-15"},
 		"ssm":             {evidence.Inferred, "no source"},
 	}
 	for _, svc := range generated() {

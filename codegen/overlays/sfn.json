@@ -10,7 +10,7 @@
         "dev.understudy#evidence": [
           {
             "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Step Functions denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers with that awsJson1_0 __type; UNVERIFIED until recording IAM-ENF-40",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Step Functions denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException answers with that awsJson1_0 __type, at 400 as every plain awsJson service of 12.3 (switch sfn.denial.status); UNVERIFIED until recording SFN-15 (stepfunctions-api.md 14.16) or IAM-ENF-40",
             "covers": ["dev.understudy#denialError"]
           },
           {
@@ -34,6 +34,27 @@
           "label": "third-party-recorded",
           "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/stepfunctions/v2/test_sfn_api_aliasing.snapshot.json#L132-L152",
           "validated": "2025-04-09"
+        }
+      }
+    },
+    "com.amazonaws.sfn#ListExecutionsInput$statusFilter": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/stepfunctions/v2/test_sfn_api.snapshot.json#L1672: Member must satisfy enum value set: [SUCCEEDED, TIMED_OUT, PENDING_REDRIVE, ABORTED, FAILED, RUNNING], not model order, so the handler renders the recorded order (docs/research/stepfunctions-api.md#32-error-identities-and-statuses)",
+          "validated": "2024-03-14"
+        }
+      }
+    },
+    "com.amazon.coral.service#AccessDeniedException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#statusOverride": 400,
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: 400 as every plain awsJson service of 12.3 (DynamoDB, EventBridge, Logs, KMS, Secrets Manager); 3.3 rules out the CommonErrors 403 template as sole ground; switch sfn.denial.status, UNVERIFIED until recording SFN-15 (docs/research/stepfunctions-api.md#1416-sfn-15-denials-and-lambda-service-errors)"
         }
       }
     }

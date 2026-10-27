@@ -305,6 +305,9 @@ func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
 		// 400 (iam-enforcement-surfaces.md 3.2); Streams follows DynamoDB.
 		"dynamodb":        {"com.amazon.coral.service#AccessDeniedException": 400},
 		"dynamodbstreams": {"com.amazon.coral.service#AccessDeniedException": 400},
+		// Step Functions' denial answers 400 as every plain awsJson service
+		// of iam-enforcement-surfaces.md 12.3 (switch sfn.denial.status).
+		"sfn": {"com.amazon.coral.service#AccessDeniedException": 400},
 	}
 	generic := map[ref.ServiceID]func(awserr.Family) []awserr.Identity{
 		"cloudwatch": cloudwatchapi.GenericErrors, "dynamodb": dynamodbapi.GenericErrors, "eventbridge": eventbridgeapi.GenericErrors,
