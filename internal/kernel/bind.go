@@ -598,8 +598,8 @@ const (
 	// NotRaw is a BindRawHTTP of an operation not of kind raw.
 	NotRaw
 	// OptionType is a WithValidator, WithCheck, WithResources,
-	// WithItemCount or WithActions option for another input type than the
-	// operation's.
+	// WithResourcesFor, WithItemCount, WithActions or WithConditionKeys
+	// option for another input type than the operation's.
 	OptionType
 	// DeclaredUnbound is a Declare for an operation not bound yet, so no
 	// binding takes its options.
@@ -632,7 +632,7 @@ func (e *BindError) Error() string {
 	case NotRaw:
 		why = "BindRawHTTP binds only operations of kind raw"
 	case OptionType:
-		why = "a WithValidator, WithCheck, WithResources, WithItemCount or WithActions option is for another input type than the operation's"
+		why = "a WithValidator, WithCheck, WithResources, WithResourcesFor, WithItemCount, WithActions or WithConditionKeys option is for another input type than the operation's; build it for the operation's input"
 	case DeclaredUnbound:
 		why = "Declare names an operation that is not bound, so its options are not applied; call Declare after the operation's bind site"
 	case DeclaredRaw:
