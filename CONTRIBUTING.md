@@ -30,7 +30,7 @@ just verify
 
 ## Adding an operation
 
-Every operation of the twelve services already has generated types, serialization, validation and a binder method, so adding one needs no generator run.
+Every operation of each vendored model (`codegen/services/`, `internal/api/<service>api`), served services and not-yet-served ones alike, already has generated types, serialization, validation and a binder method, so adding one needs no generator run.
 
 1. **Read the research.** Find the operation in `docs/research/<service>.md`: its errors, limits and edge cases. If something you need is not there, record what you found and where.
 2. **Write the handler** in the service package, next to its resource family:
