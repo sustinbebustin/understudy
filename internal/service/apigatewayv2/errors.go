@@ -43,14 +43,3 @@ type member struct {
 	name string
 	set  bool
 }
-
-// refuseMembers answers NotImplemented naming the first member of ms the
-// request sets, or nil when it sets none.
-func refuseMembers(op string, ms ...member) *awserr.Error {
-	for _, m := range ms {
-		if m.set {
-			return errNotImplemented(op, m.name, "Send the request without "+m.name+".")
-		}
-	}
-	return nil
-}

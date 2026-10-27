@@ -65,7 +65,8 @@ type API struct {
 	IPAddressType string            `json:"ipAddressType"`
 	Tags          map[string]string `json:"tags,omitempty"`
 	Created       clock.Instant     `json:"created"`
-	// NextChild is the Seq the next route or integration of the API gets.
+	// NextChild is the Seq the next route, integration, stage or deployment
+	// of the API gets.
 	NextChild    uint64        `json:"nextChild"`
 	Routes       []Route       `json:"routes"`
 	Integrations []Integration `json:"integrations"`
@@ -197,18 +198,54 @@ func cloned[T any, P interface {
 	return out
 }
 
-// Stage is one stage of an API.
+// Stage is one stage of an API. Its variables reach the function in the
+// event; its access log and route settings are stored without effect (no
+// access log records, no throttling or metrics).
 type Stage struct {
-	Name       string        `json:"name"`
-	AutoDeploy bool          `json:"autoDeploy"`
-	Created    clock.Instant `json:"created"`
-	Updated    clock.Instant `json:"updated"`
+	Name string `json:"name"`
+	// Seq orders the API's stages by creation, as GetStages pages them.
+	Seq         uint64        `json:"seq"`
+	AutoDeploy  bool          `json:"autoDeploy"`
+	Description *string       `json:"description,omitzero"`
+	Created     clock.Instant `json:"created"`
+	Updated     clock.Instant `json:"updated"`
 	// Deployment is the id of the deployment the stage serves; empty
 	// before its first.
 	Deployment string `json:"deployment,omitempty"`
-	// LastDeploymentStatusMessage is set by an automatic deployment.
-	LastDeploymentStatusMessage string            `json:"lastDeploymentStatusMessage,omitempty"`
-	Tags                        map[string]string `json:"tags,omitempty"`
+	// LastDeploymentStatusMessage is set by an automatic deployment and
+	// cleared by an explicit one, whose status it would misstate.
+	LastDeploymentStatusMessage string                   `json:"lastDeploymentStatusMessage,omitempty"`
+	Variables                   map[string]string        `json:"variables,omitzero"`
+	AccessLog                   *AccessLogSettings       `json:"accessLog,omitzero"`
+	DefaultRouteSettings        *RouteSettings           `json:"defaultRouteSettings,omitzero"`
+	RouteSettings               map[string]RouteSettings `json:"routeSettings,omitzero"`
+	Tags                        map[string]string        `json:"tags,omitempty"`
+}
+
+// AccessLogSettings is a stage's access log settings, as sent.
+type AccessLogSettings struct {
+	DestinationARN *string `json:"destinationArn,omitzero"`
+	Format         *string `json:"format,omitzero"`
+}
+
+// RouteSettings is a stage's default settings, or those of one route key,
+// as sent. DataTraceEnabled and LoggingLevel act only on WebSocket APIs
+// (apigateway-http.md 3.4).
+type RouteSettings struct {
+	DataTraceEnabled       *bool                         `json:"dataTraceEnabled,omitzero"`
+	DetailedMetricsEnabled *bool                         `json:"detailedMetricsEnabled,omitzero"`
+	LoggingLevel           *apigatewayv2api.LoggingLevel `json:"loggingLevel,omitzero"`
+	ThrottlingBurstLimit   *int32                        `json:"throttlingBurstLimit,omitzero"`
+	ThrottlingRateLimit    *float64                      `json:"throttlingRateLimit,omitzero"`
+}
+
+// clone is a copy of the stage with maps of its own.
+func (st *Stage) clone() Stage {
+	c := *st
+	c.Variables = maps.Clone(st.Variables)
+	c.RouteSettings = maps.Clone(st.RouteSettings)
+	c.Tags = maps.Clone(st.Tags)
+	return c
 }
 
 // Deployment is a snapshot of an API's routes and integrations at its
@@ -217,9 +254,12 @@ type Stage struct {
 // or a slice added to Route or Integration must be copied by its clone
 // method.
 type Deployment struct {
-	ID           string        `json:"id"`
+	ID string `json:"id"`
+	// Seq orders the API's deployments by creation, as GetDeployments
+	// pages them.
+	Seq          uint64        `json:"seq"`
 	AutoDeployed bool          `json:"autoDeployed"`
-	Description  string        `json:"description,omitempty"`
+	Description  *string       `json:"description,omitzero"`
 	Created      clock.Instant `json:"created"`
 	Routes       []Route       `json:"routes"`
 	Integrations []Integration `json:"integrations"`
@@ -287,15 +327,31 @@ func (a *API) autoDeploy(now clock.Instant, newID func() string) {
 // deployment the stage then serves, with the status message the
 // get-stages CLI example shows (apigateway-http.md 3.4).
 func (a *API) deployTo(i int, now clock.Instant, newID func() string) {
+	d := a.deploy(now, newID, true, new(autoDeployDescription))
+	a.serve(i, d.ID, now)
+	a.Stages[i].LastDeploymentStatusMessage = fmt.Sprintf("Successfully deployed stage with deployment ID '%s'", d.ID)
+}
+
+// deploy adds a deployment of the API's current routes and integrations
+// and returns it; newID draws its id.
+func (a *API) deploy(now clock.Instant, newID func() string, auto bool, description *string) Deployment {
 	id := newID()
 	for a.hasChild(id) {
 		id = newID()
 	}
-	a.Deployments = append(slices.Clone(a.Deployments), Deployment{
-		ID: id, AutoDeployed: true, Description: autoDeployDescription, Created: now,
+	d := Deployment{
+		ID: id, Seq: a.nextChild(), AutoDeployed: auto, Description: clonePtr(description), Created: now,
 		Routes: cloned(a.Routes), Integrations: cloned(a.Integrations),
-	})
+	}
+	a.Deployments = append(slices.Clone(a.Deployments), d)
+	return d
+}
+
+// serve makes the stage at index i serve the deployment id from now on.
+// The status message describes an automatic deployment only, so it goes.
+func (a *API) serve(i int, id string, now clock.Instant) {
 	a.Stages = slices.Clone(a.Stages)
 	a.Stages[i].Deployment = id
-	a.Stages[i].LastDeploymentStatusMessage = fmt.Sprintf("Successfully deployed stage with deployment ID '%s'", id)
+	a.Stages[i].LastDeploymentStatusMessage = ""
+	a.Stages[i].Updated = now
 }

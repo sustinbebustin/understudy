@@ -117,7 +117,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
-| apigatewayv2 | 103 | 0 | 0 | 20 | 83 | 0 | 1 |
+| apigatewayv2 | 103 | 0 | 2 | 29 | 72 | 0 | 1 |
 | cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
 | dynamodb | 58 | 6 | 2 | 18 | 32 | 0 | 0 |
 | eventbridge | 57 | 6 | 3 | 13 | 35 | 0 | 0 |
@@ -135,29 +135,39 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
+| DeleteAccessLogSettings | stored-only | unassessed | the settings they remove are stored without effect; error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
+| DeleteRouteSettings | stored-only | unassessed | the settings they remove are stored without effect; error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | CreateApi | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); HTTP APIs only: protocolType WEBSOCKET and quick create (Target, RouteKey, CredentialsArn) answer NotImplemented; corsConfiguration is stored and returned, and a data-plane request with an Origin header to an API that has one answers 501 (CORS is not applied); ipAddressType is stored without effect; ApiEndpoint names the emulator (http://<api-id>.execute-api.<region>.localhost:<port>), not amazonaws.com |
+| CreateDeployment | partial | inferred, 1 of 1 claim | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); a deployment of an API with no routes succeeds and serves 404 Not Found, and deleting a deployment a stage uses is refused with BadRequestException (the REST rule; both UNVERIFIED for HTTP APIs, APIGW2-04) |
 | CreateIntegration | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); Lambda AWS_PROXY with payload 2.0 runs; a Lambda integration of payload 1.0, integration subtypes, HTTP_PROXY and VPC_LINK connections are stored and a request that reaches them answers 501; a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI is stored and a request that reaches it answers 501; timeoutInMillis is stored without effect (a request waits for the function however long it runs); tlsConfig is stored without effect |
 | CreateRoute | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); authorizationType JWT and CUSTOM answer NotImplemented (authorizers are not emulated); a route with AWS_IAM is stored and a request it matches answers 501; WebSocket-only members are stored and echoed without effect |
-| CreateStage | partial | inferred, 1 of 1 claim | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); only stageName, autoDeploy and tags are accepted, and the output omits the documented defaults; every other member answers NotImplemented; an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04) |
+| CreateStage | partial | inferred, 1 of 1 claim | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04); an explicit DeploymentId on an autoDeploy stage is refused (documented as not updatable; identity and text inferred, APIGW2-04) |
 | DeleteApi | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | DeleteCorsConfiguration | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
+| DeleteDeployment | partial | inferred, 1 of 1 claim | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); a deployment of an API with no routes succeeds and serves 404 Not Found, and deleting a deployment a stage uses is refused with BadRequestException (the REST rule; both UNVERIFIED for HTTP APIs, APIGW2-04) |
 | DeleteIntegration | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | DeleteRoute | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
+| DeleteStage | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | GetApi | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | GetApis | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
+| GetDeployment | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
+| GetDeployments | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | GetIntegration | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | GetIntegrations | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | GetRoute | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | GetRoutes | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
+| GetStage | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
+| GetStages | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | GetTags | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | TagResource | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | UntagResource | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | UpdateApi | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); HTTP APIs only: protocolType WEBSOCKET and quick create (Target, RouteKey, CredentialsArn) answer NotImplemented; corsConfiguration is stored and returned, and a data-plane request with an Origin header to an API that has one answers 501 (CORS is not applied); ipAddressType is stored without effect; ApiEndpoint names the emulator (http://<api-id>.execute-api.<region>.localhost:<port>), not amazonaws.com |
+| UpdateDeployment | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03) |
 | UpdateIntegration | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); Lambda AWS_PROXY with payload 2.0 runs; a Lambda integration of payload 1.0, integration subtypes, HTTP_PROXY and VPC_LINK connections are stored and a request that reaches them answers 501; a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI is stored and a request that reaches it answers 501; timeoutInMillis is stored without effect (a request waits for the function however long it runs); tlsConfig is stored without effect |
 | UpdateRoute | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); authorizationType JWT and CUSTOM answer NotImplemented (authorizers are not emulated); a route with AWS_IAM is stored and a request it matches answers 501; WebSocket-only members are stored and echoed without effect |
+| UpdateStage | partial | inferred, 1 of 1 claim | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04); an explicit DeploymentId on an autoDeploy stage is refused (documented as not updatable; identity and text inferred, APIGW2-04) |
 | CreateApiMapping | unbound | unassessed |  |
 | CreateAuthorizer | unbound | unassessed |  |
-| CreateDeployment | unbound | unassessed |  |
 | CreateDomainName | unbound | unassessed |  |
 | CreateIntegrationResponse | unbound | unassessed |  |
 | CreateModel | unbound | unassessed |  |
@@ -168,10 +178,8 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | CreateRouteResponse | unbound | unassessed |  |
 | CreateRoutingRule | unbound | unassessed |  |
 | CreateVpcLink | unbound | unassessed |  |
-| DeleteAccessLogSettings | unbound | unassessed |  |
 | DeleteApiMapping | unbound | unassessed |  |
 | DeleteAuthorizer | unbound | unassessed |  |
-| DeleteDeployment | unbound | unassessed |  |
 | DeleteDomainName | unbound | unassessed |  |
 | DeleteIntegrationResponse | unbound | unassessed |  |
 | DeleteModel | unbound | unassessed |  |
@@ -182,9 +190,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | DeleteProductRestEndpointPage | unbound | unassessed |  |
 | DeleteRouteRequestParameter | unbound | unassessed |  |
 | DeleteRouteResponse | unbound | unassessed |  |
-| DeleteRouteSettings | unbound | unassessed |  |
 | DeleteRoutingRule | unbound | unassessed |  |
-| DeleteStage | unbound | unassessed |  |
 | DeleteVpcLink | unbound | unassessed |  |
 | DisablePortal | unbound | unassessed |  |
 | ExportApi | unbound | unassessed |  |
@@ -192,8 +198,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | GetApiMappings | unbound | unassessed |  |
 | GetAuthorizer | unbound | unassessed |  |
 | GetAuthorizers | unbound | unassessed |  |
-| GetDeployment | unbound | unassessed |  |
-| GetDeployments | unbound | unassessed |  |
 | GetDomainName | unbound | unassessed |  |
 | GetDomainNames | unbound | unassessed |  |
 | GetIntegrationResponse | unbound | unassessed |  |
@@ -209,8 +213,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | GetRouteResponse | unbound | unassessed |  |
 | GetRouteResponses | unbound | unassessed |  |
 | GetRoutingRule | unbound | unassessed |  |
-| GetStage | unbound | unassessed |  |
-| GetStages | unbound | unassessed |  |
 | GetVpcLink | unbound | unassessed |  |
 | GetVpcLinks | unbound | unassessed |  |
 | ImportApi | unbound | unassessed |  |
@@ -227,7 +229,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | ResetAuthorizersCache | unbound | unassessed |  |
 | UpdateApiMapping | unbound | unassessed |  |
 | UpdateAuthorizer | unbound | unassessed |  |
-| UpdateDeployment | unbound | unassessed |  |
 | UpdateDomainName | unbound | unassessed |  |
 | UpdateIntegrationResponse | unbound | unassessed |  |
 | UpdateModel | unbound | unassessed |  |
@@ -236,7 +237,6 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | UpdateProductPage | unbound | unassessed |  |
 | UpdateProductRestEndpointPage | unbound | unassessed |  |
 | UpdateRouteResponse | unbound | unassessed |  |
-| UpdateStage | unbound | unassessed |  |
 | UpdateVpcLink | unbound | unassessed |  |
 
 Raw operations:

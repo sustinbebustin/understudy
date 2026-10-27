@@ -166,10 +166,10 @@ func TestTracerAutoDeployStageOutput(t *testing.T) {
 	})
 }
 
-// What the first slice does not store is refused with NotImplemented naming
+// What understudy does not emulate is refused with NotImplemented naming
 // it and saying nothing was changed, never stored silently (CLAUDE.md
-// invariant 3): WebSocket APIs, authorizers and stage members beyond the
-// tracer's.
+// invariant 3): WebSocket APIs, authorizers and a stage's client
+// certificate.
 func TestTracerRefusesWhatItDoesNotStore(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.apiID("t")
@@ -177,7 +177,7 @@ func TestTracerRefusesWhatItDoesNotStore(t *testing.T) {
 		wantNotImplemented(t, fail(h, apigatewayv2api.OpCreateApi, &apigatewayv2api.CreateApiInput{Name: "w", ProtocolType: ws}), "WEBSOCKET")
 		jwt := apigatewayv2api.AuthorizationTypeJwt
 		wantNotImplemented(t, fail(h, apigatewayv2api.OpCreateRoute, &apigatewayv2api.CreateRouteInput{ApiId: id, RouteKey: "GET /a", AuthorizationType: &jwt}), "JWT")
-		wantNotImplemented(t, fail(h, apigatewayv2api.OpCreateStage, &apigatewayv2api.CreateStageInput{ApiId: id, StageName: "s", StageVariables: map[string]string{"a": "b"}}), "stageVariables")
+		wantNotImplemented(t, fail(h, apigatewayv2api.OpUpdateStage, &apigatewayv2api.UpdateStageInput{ApiId: id, StageName: "s", ClientCertificateId: new("c")}), "clientCertificateId")
 	})
 }
 

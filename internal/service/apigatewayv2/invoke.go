@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"slices"
@@ -113,9 +114,13 @@ type toFunction struct {
 	routeKey string
 	// rawPath is the escaped path after the API id, a named stage's
 	// segment included (apigateway-http.md finding 8).
-	rawPath     string
-	params      map[string]string
-	integration Integration
+	rawPath string
+	params  map[string]string
+	// stageVariables are the stage's (apigateway-http.md 5.1) as it holds
+	// them now: they are no part of a deployment, so a change serves at once
+	// (inferred).
+	stageVariables map[string]string
+	integration    Integration
 }
 
 // unemulated is a request understudy cannot serve as AWS would, answered
@@ -202,7 +207,7 @@ func (a *API) selectRoute(owner aws.Scope, addr address, method string, origin b
 	}
 	return toFunction{
 		owner: owner, apiID: a.ID, stage: stage.Name, key: key, routeKey: rt.Key,
-		rawPath: addr.path, params: m.PathParameters, integration: integration,
+		rawPath: addr.path, params: m.PathParameters, stageVariables: maps.Clone(stage.Variables), integration: integration,
 	}
 }
 
@@ -332,6 +337,7 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 		// requestId is the apigw-requestid header's value (APIGW2-07).
 		RequestID:      requestID,
 		PathParameters: t.params,
+		StageVariables: t.stageVariables,
 		At:             c.Admitted().Wire(),
 		TraceID:        c.Trace(),
 		Authorizer:     httpevent.NoAuthorizer{},

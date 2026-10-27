@@ -66,9 +66,15 @@ const (
 		"a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI is stored and a request that reaches it answers 501; " +
 		"timeoutInMillis is stored without effect (a request waits for the function however long it runs); " +
 		"tlsConfig is stored without effect"
-	createStageNote = "only stageName, autoDeploy and tags are accepted, and the output omits the documented defaults; " +
-		"every other member answers NotImplemented; an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04)"
-	invokeAPINote = "Lambda AWS_PROXY with payload format 2.0 through the path fallback /_understudy/execute-api/<api-id>/ only " +
+	stageNote = "accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); " +
+		"an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04); " +
+		"an explicit DeploymentId on an autoDeploy stage is refused (documented as not updatable; identity and text inferred, APIGW2-04)"
+	deploymentNote = "a deployment of an API with no routes succeeds and serves 404 Not Found, " +
+		"and deleting a deployment a stage uses is refused with BadRequestException (the REST rule; both UNVERIFIED for HTTP APIs, APIGW2-04)"
+	// storedOnlyNote heads the StoredOnly mark of the two calls that remove
+	// stage settings understudy stores without effect.
+	storedOnlyNote = "the settings they remove are stored without effect"
+	invokeAPINote  = "Lambda AWS_PROXY with payload format 2.0 through the path fallback /_understudy/execute-api/<api-id>/ only " +
 		"(the execute-api host answers 501); stage and route selection as documented; " +
 		"where the documents leave the order of two matching routes open it is inferred (APIGW2-05): " +
 		"a full match on ANY before a greedy match on the method, the greedy route with more segments before its variable first, then the leftmost literal segment; " +
@@ -134,8 +140,36 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(childItem(func(in *apigatewayv2api.UpdateIntegrationInput) (string, string) { return in.ApiId, in.IntegrationId }, "integrations")))
 	b.DeleteIntegration(s.deleteIntegration, registry.Partial{Note: baseNote},
 		kernel.WithResources(childItem(func(in *apigatewayv2api.DeleteIntegrationInput) (string, string) { return in.ApiId, in.IntegrationId }, "integrations")))
-	b.CreateStage(s.createStage, partial(createStageNote),
+	b.CreateStage(s.createStage, partial(stageNote), kernel.WithCheck(checkCreateStage),
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.CreateStageInput) string { return in.ApiId }, "stages")))
+	b.GetStages(s.getStages, registry.Partial{Note: baseNote},
+		kernel.WithResources(childCollection(func(in *apigatewayv2api.GetStagesInput) string { return in.ApiId }, "stages")))
+	b.GetStage(s.getStage, registry.Partial{Note: baseNote},
+		kernel.WithResources(childItem(func(in *apigatewayv2api.GetStageInput) (string, string) { return in.ApiId, in.StageName }, "stages")))
+	b.UpdateStage(s.updateStage, partial(stageNote), kernel.WithCheck(checkUpdateStage),
+		kernel.WithResources(childItem(func(in *apigatewayv2api.UpdateStageInput) (string, string) { return in.ApiId, in.StageName }, "stages")))
+	b.DeleteStage(s.deleteStage, registry.Partial{Note: baseNote},
+		kernel.WithResources(childItem(func(in *apigatewayv2api.DeleteStageInput) (string, string) { return in.ApiId, in.StageName }, "stages")))
+	b.DeleteAccessLogSettings(s.deleteAccessLogSettings, registry.StoredOnly{Note: storedOnlyNote + "; " + baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayv2api.DeleteAccessLogSettingsInput) string {
+			return "/apis/" + in.ApiId + "/stages/" + in.StageName + "/accesslogsettings"
+		})))
+	b.DeleteRouteSettings(s.deleteRouteSettings, registry.StoredOnly{Note: storedOnlyNote + "; " + baseNote},
+		kernel.WithResources(resourceAt(func(in *apigatewayv2api.DeleteRouteSettingsInput) string {
+			// The route key as sent; whether AWS writes it so or
+			// percent-encoded is UNVERIFIED (apigateway-http.md 8.1, APIGW2-15).
+			return "/apis/" + in.ApiId + "/stages/" + in.StageName + "/routesettings/" + in.RouteKey
+		})))
+	b.CreateDeployment(s.createDeployment, partial(deploymentNote),
+		kernel.WithResources(childCollection(func(in *apigatewayv2api.CreateDeploymentInput) string { return in.ApiId }, "deployments")))
+	b.GetDeployments(s.getDeployments, registry.Partial{Note: baseNote},
+		kernel.WithResources(childCollection(func(in *apigatewayv2api.GetDeploymentsInput) string { return in.ApiId }, "deployments")))
+	b.GetDeployment(s.getDeployment, registry.Partial{Note: baseNote},
+		kernel.WithResources(childItem(func(in *apigatewayv2api.GetDeploymentInput) (string, string) { return in.ApiId, in.DeploymentId }, "deployments")))
+	b.UpdateDeployment(s.updateDeployment, registry.Partial{Note: baseNote},
+		kernel.WithResources(childItem(func(in *apigatewayv2api.UpdateDeploymentInput) (string, string) { return in.ApiId, in.DeploymentId }, "deployments")))
+	b.DeleteDeployment(s.deleteDeployment, partial(deploymentNote),
+		kernel.WithResources(childItem(func(in *apigatewayv2api.DeleteDeploymentInput) (string, string) { return in.ApiId, in.DeploymentId }, "deployments")))
 	b.InvokeApi(s.invoke, registry.Partial{Note: invokeAPINote})
 	return s
 }

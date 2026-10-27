@@ -48,6 +48,15 @@ func childItem[In any](ids func(*In) (apiID, id string), sub string) func(*kerne
 	}
 }
 
+// resourceAt is the kernel.WithResources resolver of a call on the
+// resource at path (apigateway-http.md 8.1), for the stage settings the
+// collection and item forms do not reach.
+func resourceAt[In any](path func(*In) string) func(*kernel.Call, *In) []aws.ARN {
+	return func(c *kernel.Call, in *In) []aws.ARN {
+		return []aws.ARN{resourceARN(c.Scope(), path(in))}
+	}
+}
+
 // tagsResource is the kernel.WithResources resolver of a tag operation:
 // /tags/<the resource ARN percent-encoded> (apigateway-http.md 8.1, the
 // form REST APIs document; for HTTP APIs the form, which bytes are encoded
