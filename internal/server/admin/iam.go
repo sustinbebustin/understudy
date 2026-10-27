@@ -64,7 +64,7 @@ func (h *Handler) iamPolicy(w http.ResponseWriter, r *http.Request, _ []string) 
 	}
 	doc, ok := h.o.Access.Policy(identity)
 	if !ok {
-		h.fail(w, r, &admin.Error{Code: admin.NotFound, Message: "no call by " + text + " is recorded, so there is no policy to write", Hint: "'understudy iam usage' (GET " + admin.Prefix + "/iam/usage) lists the principals that made calls"})
+		h.fail(w, r, noPolicy(text, len(h.o.Access.Usage(access.Filter{Principal: identity})) > 0))
 		return
 	}
 	out := admin.Policy{Principal: identity.String(), Document: json.RawMessage(policydoc.Encode(doc))}
@@ -78,6 +78,25 @@ func (h *Handler) iamPolicy(w http.ResponseWriter, r *http.Request, _ []string) 
 		})
 	}
 	h.ok(w, r, out)
+}
+
+// noPolicy is GET /iam/policy's 404 for principal, whose calls, when
+// recorded is true, all need no permission: Policy leaves out
+// sts:GetCallerIdentity (iam-enforcement-surfaces.md 5.1, 12.6), which
+// /iam/usage still lists.
+func noPolicy(principal string, recorded bool) *admin.Error {
+	if recorded {
+		return &admin.Error{
+			Code:    admin.NotFound,
+			Message: "the calls recorded for " + principal + " need no permission (sts:GetCallerIdentity), so there is no policy to write",
+			Hint:    "'understudy iam usage --principal " + principal + "' (GET " + admin.Prefix + "/iam/usage?principal=" + principal + ") lists them",
+		}
+	}
+	return &admin.Error{
+		Code:    admin.NotFound,
+		Message: "no call by " + principal + " is recorded, so there is no policy to write",
+		Hint:    "'understudy iam usage' (GET " + admin.Prefix + "/iam/usage) lists the principals that made calls",
+	}
 }
 
 func modeText(m access.Mode) string {
