@@ -25,8 +25,8 @@ func TestAPIGatewayV2RouteAndIntegrationLifecycle(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := apigatewayv2.NewFromConfig(awsCfg)
-	id := createHTTPAPI(t, client, name("conf-lifecycle")).ApiId
-	fnARN := "arn:aws:lambda:" + region() + ":" + account(t) + ":function:" + name("conf-target")
+	id := createHTTPAPI(t, client, name(t, "conf-lifecycle")).ApiId
+	fnARN := "arn:aws:lambda:" + region() + ":" + account(t) + ":function:" + name(t, "conf-target")
 	integ, err := client.CreateIntegration(ctx, &apigatewayv2.CreateIntegrationInput{
 		ApiId: id, IntegrationType: agtypes.IntegrationTypeAwsProxy, IntegrationUri: aws.String(fnARN), PayloadFormatVersion: aws.String("2.0"),
 	})
@@ -83,7 +83,7 @@ func TestAPIGatewayV2StageAndDeploymentLifecycle(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := apigatewayv2.NewFromConfig(awsCfg)
-	id := createHTTPAPI(t, client, name("conf-stages")).ApiId
+	id := createHTTPAPI(t, client, name(t, "conf-stages")).ApiId
 	_, err := client.CreateRoute(ctx, &apigatewayv2.CreateRouteInput{ApiId: id, RouteKey: aws.String("GET /pets")})
 	ok(t, err, "CreateRoute")
 
@@ -102,7 +102,7 @@ func TestAPIGatewayV2StageAndDeploymentLifecycle(t *testing.T) {
 		t.Errorf("GetStages names = %v, want [dev qa]", names)
 	}
 
-	logGroup := "arn:aws:logs:" + region() + ":" + account(t) + ":log-group:" + name("conf-access")
+	logGroup := "arn:aws:logs:" + region() + ":" + account(t) + ":log-group:" + name(t, "conf-access")
 	upd, err := client.UpdateStage(ctx, &apigatewayv2.UpdateStageInput{
 		ApiId: id, StageName: aws.String("dev"), StageVariables: map[string]string{"b": "", "c": "3"},
 		AccessLogSettings: &agtypes.AccessLogSettings{DestinationArn: aws.String(logGroup), Format: aws.String("$context.requestId")},
@@ -166,7 +166,7 @@ func TestAPIGatewayV2DeleteCorsConfiguration(t *testing.T) {
 	ctx := t.Context()
 	client := apigatewayv2.NewFromConfig(awsCfg)
 	created, err := client.CreateApi(ctx, &apigatewayv2.CreateApiInput{
-		Name: aws.String(name("conf-cors")), ProtocolType: agtypes.ProtocolTypeHttp,
+		Name: aws.String(name(t, "conf-cors")), ProtocolType: agtypes.ProtocolTypeHttp,
 		CorsConfiguration: &agtypes.Cors{AllowOrigins: []string{"https://example.com"}, MaxAge: aws.Int32(300)},
 	})
 	ok(t, err, "CreateApi with CORS")

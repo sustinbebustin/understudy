@@ -45,7 +45,7 @@ func TestAPIGatewayV2Apis(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := apigatewayv2.NewFromConfig(awsCfg)
-	created := createHTTPAPI(t, client, name("conf-api"))
+	created := createHTTPAPI(t, client, name(t, "conf-api"))
 	id := aws.ToString(created.ApiId)
 	if aws.ToString(created.ApiKeySelectionExpression) != "$request.header.x-api-key" || aws.ToString(created.RouteSelectionExpression) != "$request.method $request.path" {
 		t.Errorf("CreateApi selection expressions %q, %q; want $request.header.x-api-key and $request.method $request.path",
@@ -98,7 +98,7 @@ func TestAPIGatewayV2Tags(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := apigatewayv2.NewFromConfig(awsCfg)
-	created, err := client.CreateApi(ctx, &apigatewayv2.CreateApiInput{Name: aws.String(name("conf-tags")), ProtocolType: agtypes.ProtocolTypeHttp, Tags: map[string]string{"team": "a"}})
+	created, err := client.CreateApi(ctx, &apigatewayv2.CreateApiInput{Name: aws.String(name(t, "conf-tags")), ProtocolType: agtypes.ProtocolTypeHttp, Tags: map[string]string{"team": "a"}})
 	ok(t, err, "CreateApi with tags")
 	t.Cleanup(func() {
 		_, _ = client.DeleteApi(context.Background(), &apigatewayv2.DeleteApiInput{ApiId: created.ApiId})
@@ -132,8 +132,8 @@ func TestAPIGatewayV2RoutesStagesDeployments(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := apigatewayv2.NewFromConfig(awsCfg)
-	id := createHTTPAPI(t, client, name("conf-routes")).ApiId
-	fnARN := "arn:aws:lambda:" + region() + ":" + account(t) + ":function:" + name("conf-target")
+	id := createHTTPAPI(t, client, name(t, "conf-routes")).ApiId
+	fnARN := "arn:aws:lambda:" + region() + ":" + account(t) + ":function:" + name(t, "conf-target")
 	integ, err := client.CreateIntegration(ctx, &apigatewayv2.CreateIntegrationInput{
 		ApiId: id, IntegrationType: agtypes.IntegrationTypeAwsProxy, IntegrationUri: aws.String(fnARN), PayloadFormatVersion: aws.String("2.0"),
 	})
@@ -181,7 +181,7 @@ func TestAPIGatewayV2RoutesStagesDeployments(t *testing.T) {
 		t.Errorf("stage prod DeploymentId = %q, want %q", aws.ToString(prod.DeploymentId), aws.ToString(manual.DeploymentId))
 	}
 
-	_, err = client.CreateApi(ctx, &apigatewayv2.CreateApiInput{Name: aws.String(name("conf-ws")), ProtocolType: agtypes.ProtocolTypeWebsocket, RouteSelectionExpression: aws.String("$request.body.action")})
+	_, err = client.CreateApi(ctx, &apigatewayv2.CreateApiInput{Name: aws.String(name(t, "conf-ws")), ProtocolType: agtypes.ProtocolTypeWebsocket, RouteSelectionExpression: aws.String("$request.body.action")})
 	apiErr(t, err, "CreateApi WEBSOCKET", "NotImplemented")
 	wantStatus(t, err, "CreateApi WEBSOCKET", http.StatusNotImplemented)
 }
@@ -241,9 +241,9 @@ func TestAPIGatewayV2InvokesLambda(t *testing.T) {
 			t.Parallel()
 			ctx := t.Context()
 			client := apigatewayv2.NewFromConfig(awsCfg)
-			fnName := name("conf-apigw")
+			fnName := name(t, "conf-apigw")
 			fnARN := deployAPIGatewayHandler(t, fnName)
-			id := createHTTPAPI(t, client, name("conf-invoke")).ApiId
+			id := createHTTPAPI(t, client, name(t, "conf-invoke")).ApiId
 			integ, err := client.CreateIntegration(ctx, &apigatewayv2.CreateIntegrationInput{
 				ApiId: id, IntegrationType: agtypes.IntegrationTypeAwsProxy, IntegrationUri: aws.String(fnARN), PayloadFormatVersion: aws.String(version),
 			})
