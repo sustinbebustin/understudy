@@ -16,6 +16,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // Decoded is what the edge hands the kernel. The kernel is the only caller
@@ -157,7 +158,8 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	c.scoped = scoped
 	c.Touch(resolved...)
 	*used = bnd.secondaries(c, in.In)
-	if err := k.authorize(ctx, c, bnd, *used, bnd.conditionKeys(c, in.In)); err != nil {
+	c.keys = bnd.conditionKeys(c, in.In)
+	if err := k.authorize(ctx, c, bnd, *used, c.keys); err != nil {
 		return Failure{Err: err}, nil
 	}
 	items := bnd.items(in.In)
@@ -401,9 +403,11 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used sec
 	actions := k.recordedActions(ctx, c, used)
 	touched := c.Touched()
 	pairs := pairsOf(actions, c.op.Service.IAMPrefix, touched, c.scoped)
+	recorded := accessPairs(pairs, c.keys)
 	for _, p := range c.authorizedPairs() {
 		if !slices.Contains(pairs, p) {
 			pairs = append(pairs, p)
+			recorded = append(recorded, accessPairs([]Pair{p}, nil)...)
 		}
 	}
 	if len(pairs) == 0 {
@@ -423,7 +427,7 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used sec
 		Service:   c.op.Service.IAMPrefix,
 		Actions:   actions,
 		Resources: touched,
-		Pairs:     accessPairs(pairs),
+		Pairs:     recorded,
 		Outcome:   outcome,
 		At:        c.admitted.Wire(),
 	})
@@ -433,8 +437,14 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used sec
 	}
 }
 
-// accessPairs maps step 8's pairs onto the access record's.
-func accessPairs(pairs []Pair) []access.Pair {
+// accessPairs maps step 8's pairs onto the access record's, an iam:PassRole
+// pair with the one iam:PassedToService keys supply, so the rendered policy
+// grants the pass on that condition (iam-enforcement-surfaces.md 12.6).
+func accessPairs(pairs []Pair, keys ConditionKeys) []access.Pair {
+	var passedTo string
+	if v := keys["iam:PassedToService"]; len(v) == 1 {
+		passedTo = v[0]
+	}
 	out := make([]access.Pair, 0, len(pairs))
 	for _, p := range pairs {
 		var scope access.Scope = access.AnyResource{}
@@ -443,7 +453,11 @@ func accessPairs(pairs []Pair) []access.Pair {
 			scope = access.OnResource{ARN: r.ARN}
 		case AnyResource:
 		}
-		out = append(out, access.Pair{Action: p.Action, Resource: scope})
+		pair := access.Pair{Action: p.Action, Resource: scope}
+		if p.Action == (registry.IAMAction{Prefix: "iam", Name: "PassRole"}) {
+			pair.PassedToService = passedTo
+		}
+		out = append(out, pair)
 	}
 	return out
 }

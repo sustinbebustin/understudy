@@ -64,6 +64,9 @@ type Call struct {
 	// scoped is what the binding's WithResourcesFor options resolved, set
 	// once at step 7 before the handler runs; nil without the option.
 	scoped scoping
+	// keys are the binding's WithConditionKeys for the input, set once at
+	// step 8; the access record keeps iam:PassedToService from them.
+	keys ConditionKeys
 
 	mu      sync.Mutex
 	touched []aws.ARN

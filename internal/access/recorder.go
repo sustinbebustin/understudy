@@ -88,6 +88,10 @@ type Entry struct {
 type Pair struct {
 	Action   registry.IAMAction
 	Resource Scope
+	// PassedToService is the iam:PassedToService an iam:PassRole call sent,
+	// such as "states.amazonaws.com"; "" when it sent none. A policy grants
+	// the pass on that condition (iam-enforcement-surfaces.md 12.6).
+	PassedToService string
 }
 
 // EntryProblem is why Record refused an Entry.
@@ -160,13 +164,16 @@ func (e *EntryError) Error() string {
 // Use aggregates the calls of one principal, in one mode, of one action on
 // one resource.
 type Use struct {
-	Principal   Principal
-	Mode        Mode
-	Action      registry.IAMAction
-	Resource    Scope
-	Calls       int // every call, failures included
-	Failures    int
-	First, Last time.Time
+	Principal Principal
+	Mode      Mode
+	Action    registry.IAMAction
+	Resource  Scope
+	// PassedToService is the Pair's: uses of iam:PassRole that pass a role
+	// to different services are kept apart.
+	PassedToService string
+	Calls           int // every call, failures included
+	Failures        int
+	First, Last     time.Time
 }
 
 // Scope is what a Use's action was called on.
@@ -292,6 +299,7 @@ type useKey struct {
 	mode      Mode
 	action    registry.IAMAction
 	resource  Scope
+	passedTo  string
 }
 
 // Record adds a call. It refuses, with an *EntryError and recording
@@ -321,7 +329,7 @@ func (r *Recorder) Record(e Entry) error {
 	for _, k := range useKeys(principal, e) {
 		u, ok := r.uses[k]
 		if !ok {
-			u = &Use{Principal: principal, Mode: e.Mode, Action: k.action, Resource: k.resource, First: e.At, Last: e.At}
+			u = &Use{Principal: principal, Mode: e.Mode, Action: k.action, Resource: k.resource, PassedToService: k.passedTo, First: e.At, Last: e.At}
 			r.uses[k] = u
 		}
 		u.Calls++
@@ -344,8 +352,8 @@ func (r *Recorder) Record(e Entry) error {
 // onto its own source, or a repeated action) counts once.
 func useKeys(principal Principal, e Entry) []useKey {
 	var out []useKey
-	add := func(action registry.IAMAction, res Scope) {
-		k := useKey{principal: principal, mode: e.Mode, action: action, resource: res}
+	add := func(action registry.IAMAction, res Scope, passedTo string) {
+		k := useKey{principal: principal, mode: e.Mode, action: action, resource: res, passedTo: passedTo}
 		if !slices.Contains(out, k) {
 			out = append(out, k)
 		}
@@ -356,13 +364,13 @@ func useKeys(principal Principal, e Entry) []useKey {
 			if on, ok := res.(OnResource); ok {
 				res = scopeOf(on.ARN)
 			}
-			add(p.Action, res)
+			add(p.Action, res, p.PassedToService)
 		}
 		return out
 	}
 	for _, action := range e.Actions {
 		for _, res := range scopesFor(action, e.Service, e.Resources) {
-			add(action, res)
+			add(action, res, "")
 		}
 	}
 	return out
@@ -424,6 +432,7 @@ func (r *Recorder) Usage(f Filter) []Use {
 			cmp.Compare(a.Principal.String(), b.Principal.String()),
 			cmp.Compare(a.Action.String(), b.Action.String()),
 			cmp.Compare(scopeText(a.Resource), scopeText(b.Resource)),
+			cmp.Compare(a.PassedToService, b.PassedToService),
 			cmp.Compare(modeRank(a.Mode), modeRank(b.Mode)),
 			cmp.Compare(modeSource(a.Mode), modeSource(b.Mode)),
 		)
@@ -445,7 +454,7 @@ func (r *Recorder) Policy(principal Identity) (doc policydoc.Document, ok bool) 
 	if principal == nil {
 		return policydoc.Document{}, false
 	}
-	type group struct{ service, resource string }
+	type group struct{ service, resource, passedTo string }
 	actions := map[group][]string{}
 	uses := r.Usage(Filter{Principal: principal})
 	for i := range uses {
@@ -453,14 +462,28 @@ func (r *Recorder) Policy(principal Identity) (doc policydoc.Document, ok bool) 
 		if needsNoPermission(u.Action) {
 			continue
 		}
-		g := group{service: u.Action.Prefix, resource: scopeText(u.Resource)}
+		g := group{service: u.Action.Prefix, resource: scopeText(u.Resource), passedTo: u.PassedToService}
 		actions[g] = append(actions[g], u.Action.String())
 	}
 	grants := make([]policydoc.Grant, 0, len(actions))
 	for g, as := range actions {
-		grants = append(grants, policydoc.Grant{Actions: as, Resources: []string{g.resource}})
+		grants = append(grants, policydoc.Grant{Actions: as, Resources: []string{g.resource}, Condition: passedToCondition(g.passedTo)})
 	}
 	return policydoc.Render(grants)
+}
+
+// passedToCondition is the Condition of a grant of iam:PassRole to
+// service: StringEquals on iam:PassedToService (iam-enforcement-surfaces.md
+// 12.6); none for "".
+func passedToCondition(service string) policydoc.Condition {
+	if service == "" {
+		return nil
+	}
+	return policydoc.Condition{{
+		Operator: policydoc.Operator{Test: policydoc.StringEquals},
+		Key:      "iam:PassedToService",
+		Values:   []policydoc.Value{policydoc.StringValue(service)},
+	}}
 }
 
 // needsNoPermission reports whether Policy leaves action out:
