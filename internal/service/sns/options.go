@@ -7,4 +7,9 @@ type Options struct {
 	// their links on https://localhost:<port> when it reports one
 	// (sns-http-delivery.md 8.3.3).
 	TLSPort func() (uint16, bool)
+	// AWSName reports whether a host name is an AWS one (egress.IsAWSName,
+	// which a service may not import); nil means none is. An HTTP
+	// delivery's links never name one (8.8): a client that addressed
+	// understudy by an AWS name gets them on localhost instead.
+	AWSName func(host string) bool
 }

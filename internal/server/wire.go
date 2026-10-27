@@ -37,6 +37,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/config"
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/edge"
+	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
@@ -803,7 +804,7 @@ func wiredServices() []wiredService {
 			return sqs.New(d, sqs.Options{DeletedRecently: c.switches.SQSDeletedRecently})
 		}},
 		{api{snsapi.Service(), snsapi.ThrottleError(), snsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
-			c.sns = sns.New(d, sns.Options{TLSPort: c.tlsPort})
+			c.sns = sns.New(d, sns.Options{TLSPort: c.tlsPort, AWSName: egress.IsAWSName})
 			return c.sns
 		}},
 		{api{s3api.Service(), s3api.ThrottleError(), nil}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {

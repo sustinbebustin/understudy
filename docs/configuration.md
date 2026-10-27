@@ -72,7 +72,7 @@ Whatever the list says, understudy never delivers to a name under an AWS domain 
 
 `--sns-http-delivery-ca-bundle` (`UNDERSTUDY_SNS_HTTP_DELIVERY_CA_BUNDLE`, file key `sns.httpDelivery.caBundle`) names a PEM file of CA certificates an `https` endpoint may chain to, beside the system roots; certificate verification is never skipped. The file is read at start, and one that cannot be read, holds no certificate or holds one that does not parse stops `serve`.
 
-While `--tls` serves, the `SubscribeURL`, `UnsubscribeURL` and `SigningCertURL` an HTTP delivery carries are on `https://localhost:<TLS port>`; otherwise they are on the address the calling client used.
+While `--tls` serves, the `SubscribeURL`, `UnsubscribeURL` and `SigningCertURL` an HTTP delivery carries are on `https://localhost:<TLS port>`; otherwise they are on the address the calling client used, unless that address is an AWS name, in which case they are on `localhost` at the port the client used. They never name an AWS host.
 
 ## Exit codes
 

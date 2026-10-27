@@ -9,6 +9,7 @@ import (
 	"pgregory.net/rapid"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
@@ -47,6 +48,61 @@ func TestHTTPLinksBase(t *testing.T) {
 			}
 		}
 	}
+}
+
+// With no TLS listener, a client that addressed understudy by an AWS name,
+// through an exposed listener or an AWS S3 base domain, gets an HTTP
+// delivery's links on localhost at the port it used; any other name keeps
+// its links (sns-http-delivery.md 8.3.3, 8.8).
+func TestHTTPLinksReplaceAnAWSHost(t *testing.T) {
+	const topic = "arn:aws:sns:us-east-1:000000000000:events"
+	cases := []struct {
+		host, base string
+	}{
+		{"sns.us-east-1.amazonaws.com:4566", "http://localhost:4566/_understudy/sns/"},
+		{"SNS.US-EAST-1.AMAZONAWS.COM.:4566", "http://localhost:4566/_understudy/sns/"},
+		{"sns.us-east-1.amazonaws.com", "http://localhost/_understudy/sns/"},
+		{"abc123.lambda-url.us-east-1.on.aws:8080", "http://localhost:8080/_understudy/sns/"},
+		{"understudy:4566", "http://understudy:4566/_understudy/sns/"},
+		{"amazonaws.com.example.test:4566", "http://amazonaws.com.example.test:4566/_understudy/sns/"},
+		{"[::1]:4566", "http://[::1]:4566/_understudy/sns/"},
+	}
+	for _, tlsPort := range []func() (uint16, bool){nil, func() (uint16, bool) { return 0, false }} {
+		s := &Service{tlsPort: tlsPort, awsName: egress.IsAWSName}
+		for _, c := range cases {
+			got := s.httpLinks(kernel.Endpoint{Scheme: "http", Host: c.host}).confirm(topic, "t")
+			if want := c.base + "ConfirmSubscriptionLink?Action=ConfirmSubscription&TopicArn=" + topic + "&Token=t"; got != want {
+				t.Errorf("Host %q: link %q, want %q", c.host, got, want)
+			}
+		}
+	}
+}
+
+// Whatever AWS name and port the client addressed, an HTTP delivery's
+// links with no TLS listener name no AWS host (sns-http-delivery.md 8.8).
+func TestHTTPLinksNeverNameTheClientsAWSHost(t *testing.T) {
+	suffixes := []string{"amazonaws.com", "amazonaws.com.cn", "api.aws", "on.aws", "amazonaws.eu", "c2s.ic.gov", "sc2s.sgov.gov", "execute-api.com"}
+	scope := aws.Scope{Partition: aws.PartitionAWS(), Account: aws.DefaultAccount(), Region: aws.DefaultRegion()}
+	rapid.Check(t, func(t *rapid.T) {
+		host := rapid.StringMatching(`([a-z0-9-]{1,10}\.){0,3}`).Draw(t, "labels") + rapid.SampledFrom(suffixes).Draw(t, "suffix")
+		if rapid.Bool().Draw(t, "port") {
+			host += ":" + strconv.Itoa(rapid.IntRange(1, 65535).Draw(t, "number"))
+		}
+		const topic = "arn:aws:sns:us-east-1:000000000000:events"
+		l := (&Service{awsName: egress.IsAWSName}).httpLinks(kernel.Endpoint{Scheme: "http", Host: host})
+		for _, link := range []string{l.confirm(topic, "t"), l.unsubscribe(topic + ":sub"), l.cert(scope, "SimpleNotificationService-0.pem")} {
+			u, err := url.Parse(link)
+			if err != nil {
+				t.Fatalf("link %q does not parse: %v", link, err)
+			}
+			if u.Hostname() != "localhost" {
+				t.Errorf("Host %q: link %q is on %s, want localhost", host, link, u.Hostname())
+			}
+			if m := awsName.FindString(link); m != "" {
+				t.Errorf("Host %q: link %q names the AWS host %q", host, link, m)
+			}
+		}
+	})
 }
 
 // awsName matches an AWS DNS suffix: a partition's, the aws top-level

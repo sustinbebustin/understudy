@@ -3,6 +3,7 @@ package sns
 import (
 	"context"
 	"encoding/xml"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -40,15 +41,29 @@ func linksOf(e kernel.Endpoint) links { return links{base: e.String() + linkPref
 // listener as https://localhost:<port> while one serves, so the
 // validators' https and .pem checks can pass (sns-http-delivery.md 5.6,
 // 8.3.3), else on the host the calling client addressed, as every other
-// delivery's. Never on an AWS host (8.8): localhost is not one, and a
-// loopback listener answers only local names (ADR 0013). An exposed
-// listener answers any Host from a client that is not a browser, so a
-// client that addresses it by an AWS name, with no TLS listener serving,
-// gets links on that name.
+// delivery's. Never on an AWS host (8.8): an exposed listener answers any
+// Host from a client that is not a browser, and a configured S3 base
+// domain can be an AWS one, so a client that addressed understudy by an
+// AWS name gets the links on localhost at the port it used. A receiver on
+// another host then cannot follow them; it confirms with the Token
+// instead.
 func (s *Service) httpLinks(e kernel.Endpoint) links {
 	if s.tlsPort != nil {
 		if port, ok := s.tlsPort(); ok {
 			return links{base: "https://localhost:" + strconv.FormatUint(uint64(port), 10) + linkPrefix}
+		}
+	}
+	if s.awsName != nil {
+		host, port, err := net.SplitHostPort(e.Host)
+		if err != nil {
+			// No port: the Host is the name alone.
+			host, port = e.Host, ""
+		}
+		if s.awsName(host) {
+			e.Host = "localhost"
+			if port != "" {
+				e.Host += ":" + port
+			}
 		}
 	}
 	return linksOf(e)

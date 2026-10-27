@@ -73,7 +73,7 @@ cat Notification.json
 }
 ```
 
-The body has AWS's members, order and layout, and the headers are AWS's: `x-amz-sns-message-type`, `x-amz-sns-message-id`, `x-amz-sns-topic-arn`, `x-amz-sns-subscription-arn`, and `x-amz-sns-rawdelivery: true` for a subscription with `RawMessageDelivery`, whose body is the message alone. Credentials in the endpoint URL (`http://user:password@host/`) are sent as Basic authentication on every request. The links point at understudy, never at an AWS host: on the address the client that subscribed or published used, or on the TLS listener while one serves ([below](#validating-signatures)).
+The body has AWS's members, order and layout, and the headers are AWS's: `x-amz-sns-message-type`, `x-amz-sns-message-id`, `x-amz-sns-topic-arn`, `x-amz-sns-subscription-arn`, and `x-amz-sns-rawdelivery: true` for a subscription with `RawMessageDelivery`, whose body is the message alone. Credentials in the endpoint URL (`http://user:password@host/`) are sent as Basic authentication on every request. The links point at understudy, never at an AWS host: on the TLS listener while one serves ([below](#validating-signatures)), otherwise on the address the client that subscribed or published used. When that address is an AWS name, such as a compose alias `sns.us-east-1.amazonaws.com`, the links are on `localhost` at the port the client used instead; a receiver that cannot reach understudy as `localhost` confirms with `aws sns confirm-subscription --token`.
 
 ## What the allow-list allows
 

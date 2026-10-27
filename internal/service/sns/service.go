@@ -27,6 +27,9 @@ type Service struct {
 	policies *filterpolicy.Cache
 	// tlsPort is Options.TLSPort: where HTTP deliveries' links point.
 	tlsPort func() (uint16, bool)
+	// awsName is Options.AWSName: the hosts HTTP deliveries' links never
+	// name.
+	awsName func(host string) bool
 }
 
 // New binds the SNS operations understudy implements. Every other SNS
@@ -39,6 +42,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		cells:    store.NewPartitioned(d.Kernel.Gate(), codec(), newState),
 		policies: filterpolicy.NewCache(),
 		tlsPort:  o.TLSPort,
+		awsName:  o.AWSName,
 	}
 	b := snsapi.NewBinder(d.Binder)
 	s.bindTopics(b)
