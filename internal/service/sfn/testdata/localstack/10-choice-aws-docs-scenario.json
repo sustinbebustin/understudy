@@ -1,0 +1,34 @@
+{
+  "golden": 10,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/scenarios/test_base_scenarios.snapshot.json:L20635",
+  "test": "test_choice_aws_docs_scenario[CHOICE_STATE_AWS_SCENARIO] (get_execution_history)",
+  "validated": "2024-11-18",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/scenarios/statemachines/choice_state_aws_scenario.json5",
+  "definition": {
+    "StartAt": "ChoiceStateX",
+    "States": {
+      "ChoiceStateX": {
+        "Type": "Choice",
+        "Choices": [
+          {"Not": {"Variable": "$.type", "StringEquals": "Private"}, "Next": "Public"},
+          {"Variable": "$.value", "NumericEquals": 0, "Next": "ValueIsZero"},
+          {"And": [{"Variable": "$.value", "NumericGreaterThanEquals": 20}, {"Variable": "$.value", "NumericLessThan": 30}], "Next": "ValueInTwenties"}
+        ],
+        "Default": "DefaultState"
+      },
+      "Public": {"Type": "Pass", "End": true},
+      "ValueIsZero": {"Type": "Pass", "End": true},
+      "ValueInTwenties": {"Type": "Pass", "End": true},
+      "DefaultState": {"Type": "Fail", "Cause": "No Matches!"}
+    }
+  },
+  "input": {"type": "Private", "value": 22},
+  "history": [
+    {"executionStartedEventDetails": {"input": {"type": "Private", "value": 22}, "inputDetails": {"truncated": false}, "roleArn": "snf_role_arn"}, "id": 1, "previousEventId": 0, "timestamp": "timestamp", "type": "ExecutionStarted"},
+    {"id": 2, "previousEventId": 0, "stateEnteredEventDetails": {"input": {"type": "Private", "value": 22}, "inputDetails": {"truncated": false}, "name": "ChoiceStateX"}, "timestamp": "timestamp", "type": "ChoiceStateEntered"},
+    {"id": 3, "previousEventId": 2, "stateExitedEventDetails": {"name": "ChoiceStateX", "output": {"type": "Private", "value": 22}, "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "ChoiceStateExited"},
+    {"id": 4, "previousEventId": 3, "stateEnteredEventDetails": {"input": {"type": "Private", "value": 22}, "inputDetails": {"truncated": false}, "name": "ValueInTwenties"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": 5, "previousEventId": 4, "stateExitedEventDetails": {"name": "ValueInTwenties", "output": {"type": "Private", "value": 22}, "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"executionSucceededEventDetails": {"output": {"type": "Private", "value": 22}, "outputDetails": {"truncated": false}}, "id": 6, "previousEventId": 5, "timestamp": "timestamp", "type": "ExecutionSucceeded"}
+  ]
+}
