@@ -29,10 +29,9 @@ var _ kernel.Stateful = (*Streams)(nil)
 
 // listStreamsNote is ListStreams' coverage note: the answers DynamoDB
 // Local gives where AWS's are unrecorded (dynamodb-streams.md 6.1, 6.5;
-// DDBS-03, DDBS-08), and that a deleted table's stream is never deleted.
-const listStreamsNote = "a TableName naming no table returns an empty list, a disabled stream stays listed, and LastEvaluatedStreamArn is set only when more streams follow; " +
-	"AWS's answers to all three, and the Limit text (DynamoDB Local's), are UNVERIFIED (dynamodb-streams.md 6.1, 6.5); " +
-	"aws-differs: understudy: a deleted table's stream stays listed, where AWS deletes it 24 hours after its table (dynamodb-streams.md 5.4)"
+// DDBS-03, DDBS-08).
+const listStreamsNote = "a TableName naming no table returns an empty list, a disabled stream stays listed until it is deleted 24 hours after its table, and LastEvaluatedStreamArn is set only when more streams follow; " +
+	"AWS's answers to all three, and the Limit text (DynamoDB Local's), are UNVERIFIED (dynamodb-streams.md 6.1, 6.5)"
 
 // describeStreamNote is DescribeStream's coverage note (dynamodb-streams.md
 // 6.5, 11.4).
@@ -40,18 +39,18 @@ const describeStreamNote = "aws-differs: understudy: a stream has one shard, whi
 	"StreamStatus is ENABLED or DISABLED at once, never ENABLING or DISABLING; the Limit text is DynamoDB Local's and UNVERIFIED (dynamodb-streams.md 6.5)"
 
 // getShardIteratorNote is GetShardIterator's coverage note: the texts
-// DynamoDB Local gives (dynamodb-streams.md 6.3, 6.5; DDBS-02), and the
-// retention the log does not apply yet (5.4, 5.5).
-const getShardIteratorNote = "AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it; the validation and not-found texts are DynamoDB Local's; AWS's forms are UNVERIFIED (dynamodb-streams.md 6.5); " +
-	"aws-differs: understudy: records are never trimmed, where AWS trims them 24 hours after they arrive, and a deleted table's stream stays readable, where AWS deletes it 24 hours after its table (dynamodb-streams.md 5.4, 5.5)"
+// DynamoDB Local gives (dynamodb-streams.md 6.3, 6.5; DDBS-02), and a
+// deleted table's stream readable until it is deleted (Local's behavior,
+// 5.4; DDBS-17).
+const getShardIteratorNote = "AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it; the validation and not-found texts are DynamoDB Local's, " +
+	"and a deleted table's stream stays readable until it is deleted 24 hours later; AWS's forms of both are UNVERIFIED (dynamodb-streams.md 5.4, 6.5)"
 
 // getRecordsNote is GetRecords' coverage note (dynamodb-streams.md 4.4,
-// 5.3, 6.4, 7.3, 7.4, 7.6, 11.1 items 2-3).
+// 5.3, 5.5, 6.4, 7.3, 7.4, 7.6), as the spec words it.
 const getRecordsNote = "aws-differs: understudy: more than two concurrent readers of a shard are never throttled; inject LimitExceededException with a fault rule; " +
-	"when drains of DynamoDB Local's stream fail for several writes in a row, the records of all of them carry the first failed write's instant (dynamodb-streams.md 11.1 item 3); " +
 	"the last page of a closed shard omits NextShardIterator, a Limit above 1000 answers ValidationException as DynamoDB Local does, ApproximateCreationDateTime is written as a plain epoch-seconds number, " +
 	"a NextShardIterator expires 15 minutes after its own issue, SizeBytes is DynamoDB Local's (a byte above the documented item-size rule for some fractional numbers), a DeleteItem of an absent key emits no record, " +
-	"and the malformed and expired iterator texts are DynamoDB Local's or understudy's; AWS's forms are UNVERIFIED (dynamodb-streams.md 4.4, 5.3, 6.4, 7.3, 7.4, 7.6)"
+	"and the malformed, expired and trimmed iterator texts are DynamoDB Local's or understudy's; AWS's forms are UNVERIFIED (dynamodb-streams.md 4.4, 5.3, 5.5, 6.4, 7.3, 7.4, 7.6)"
 
 // NewStreams binds the DynamoDB Streams operations understudy serves,
 // reading svc's log.
@@ -90,19 +89,28 @@ func (*Streams) Resources(aws.Scope) []kernel.Resource { return nil }
 // Scopes returns DynamoDB's scopes, where the streams are.
 func (s *Streams) Scopes() []aws.Scope { return s.svc.Scopes() }
 
-// Switches lists the stream switches in effect. Only
-// dynamodb.streams.sequence-number is built; iterator-reuse is not yet, and
-// an iterator reads again until it expires, its default.
+// Switches lists the stream switches in effect.
 func (s *Streams) Switches() []fidelity.Entry {
-	return []fidelity.Entry{fidelity.Switch[string]{
-		Name:    "dynamodb.streams.sequence-number",
-		Value:   s.svc.streamSeq.String(),
-		Label:   evidence.Inferred,
-		Ref:     "docs/research/dynamodb-streams.md#43-sequence-numbers",
-		Record:  "DDBS-09",
-		Ops:     []string{"dynamodbstreams.DescribeStream", "dynamodbstreams.GetRecords"},
-		Settles: fidelity.NoScenario{Reason: "unrecorded: DDBS-09 is queued"},
-	}.Entry()}
+	return []fidelity.Entry{
+		fidelity.Switch[string]{
+			Name:    "dynamodb.streams.sequence-number",
+			Value:   s.svc.streamSeq.String(),
+			Label:   evidence.Inferred,
+			Ref:     "docs/research/dynamodb-streams.md#43-sequence-numbers",
+			Record:  "DDBS-09",
+			Ops:     []string{"dynamodbstreams.DescribeStream", "dynamodbstreams.GetRecords"},
+			Settles: fidelity.NoScenario{Reason: "unrecorded: DDBS-09 is queued"},
+		}.Entry(),
+		fidelity.Switch[string]{
+			Name:    "dynamodb.streams.iterator-reuse",
+			Value:   s.svc.iteratorReuse.String(),
+			Label:   evidence.Inferred,
+			Ref:     "docs/research/dynamodb-streams.md#44-shard-iterators",
+			Record:  "DDBS-04",
+			Ops:     []string{"dynamodbstreams.GetRecords"},
+			Settles: fidelity.NoScenario{Reason: "unrecorded: DDBS-04 is queued"},
+		}.Entry(),
+	}
 }
 
 // listStreamsMax is ListStreams' largest Limit and its default ("The upper
@@ -129,7 +137,16 @@ func (s *Streams) listStreams(ctx context.Context, c *kernel.Call, in *dynamodbs
 		limit = int(*in.Limit)
 	}
 	scope := c.Scope()
-	all := s.svc.streams(scope)
+	var all []Stream
+	if _, ok := s.svc.cells.Lookup(scope); ok {
+		var err *awserr.Error
+		all, err = streamsWrite(c, s.svc, scope, func(st *State, _ clock.Instant) ([]Stream, bool, *awserr.Error) {
+			return slices.Clone(st.Streams), false, nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
 	if in.TableName != nil {
 		all = slices.DeleteFunc(all, func(st Stream) bool { return st.Table != *in.TableName })
 	}

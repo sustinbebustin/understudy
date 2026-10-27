@@ -26,6 +26,8 @@ type Service struct {
 	sweeps *sweeper
 	// streamSeq is the dynamodb.streams.sequence-number switch.
 	streamSeq StreamSequence
+	// iteratorReuse is the dynamodb.streams.iterator-reuse switch.
+	iteratorReuse IteratorReuse
 	// feedLocks are the stream locks of the tables, each held across a
 	// write and the drain that follows it (dynamodb-streams.md 11.1 item 2).
 	feedLocks feedLocks
@@ -41,10 +43,11 @@ var _ kernel.Stateful = (*Service)(nil)
 // Local sees them, and coverage lists them.
 func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{
-		local:     o.Local,
-		cells:     store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
-		kernel:    d.Kernel,
-		streamSeq: o.StreamSequence,
+		local:         o.Local,
+		cells:         store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
+		kernel:        d.Kernel,
+		streamSeq:     o.StreamSequence,
+		iteratorReuse: o.IteratorReuse,
 	}
 	if s.local == nil {
 		s.local = noLocal{}

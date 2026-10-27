@@ -75,6 +75,10 @@ type State struct {
 	// iteratorKey signs the scope's shard iterators; drawn on the first
 	// GetShardIterator. Like Streams, not saved in snapshots yet.
 	iteratorKey []byte
+	// usedIterators are the shard iterators GetRecords has read with, each
+	// with its issue instant, kept until it expires; filled only under
+	// IteratorSingleUse. Like Streams, not saved in snapshots yet.
+	usedIterators map[string]clock.Instant
 }
 
 func newState(aws.Scope) State { return State{Tables: map[string]Table{}} }

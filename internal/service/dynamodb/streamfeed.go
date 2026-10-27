@@ -123,7 +123,7 @@ func (s *Service) streamedTables(scope aws.Scope, wanted func(table string) bool
 	return store.Read(cell, func(st *State) []string {
 		var out []string
 		for _, l := range st.Streams {
-			if l.Enabled && !l.TableGone && wanted(l.Table) && !slices.Contains(out, l.Table) {
+			if l.Enabled && l.TableDeleted == nil && wanted(l.Table) && !slices.Contains(out, l.Table) {
 				out = append(out, l.Table)
 			}
 		}
@@ -240,9 +240,11 @@ func (s *Service) drain(ctx context.Context, c *kernel.Call, scope aws.Scope, ta
 }
 
 // appendPulled appends p's records to st's log stamped with stamp, moves
-// the feed's saved position past them and clears a pending failed drain.
+// the feed's saved position past them and clears a pending failed drain,
+// after applying the stream lifetimes (State.expire).
 func (s *Service) appendPulled(c *kernel.Call, scope aws.Scope, st Stream, arn aws.ARN, p pulled, stamp writeStamp) error {
-	_, werr := kernel.Write(c, s.cells, scope, func(_ *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+	_, werr := kernel.Write(c, s.cells, scope, func(state *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+		expired := state.expire(now)
 		log := st.log
 		log.feed.shard = p.shard
 		log.feed.failed = nil
@@ -256,7 +258,9 @@ func (s *Service) appendPulled(c *kernel.Call, scope aws.Scope, st Stream, arn a
 			log.feed.last = r.seq
 		}
 		if len(p.records) == 0 {
-			tx.Unchanged()
+			if !expired {
+				tx.Unchanged()
+			}
 			return struct{}{}, nil
 		}
 		tx.Wake(shardlog.WaitKey(arn))

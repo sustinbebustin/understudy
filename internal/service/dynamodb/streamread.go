@@ -3,6 +3,7 @@ package dynamodb
 import (
 	"context"
 	"errors"
+	"maps"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
@@ -11,7 +12,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
-	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // The read side of the stream log: DescribeStream, GetShardIterator and
@@ -58,21 +58,31 @@ func (st *State) streamByARN(scope aws.Scope, arn string) (Stream, bool) {
 	return Stream{}, false
 }
 
-// stream finds the stream named arn in scope.
-func (s *Service) stream(scope aws.Scope, arn string) (Stream, bool) {
-	cell, ok := s.cells.Lookup(scope)
-	if !ok {
-		return Stream{}, false
+// streamsWrite runs fn on scope's state under the cell's lock after
+// State.expire, as a write at the commit instant, so every Streams answer
+// sees the stream lifetimes as of the instant it is given. fn reports
+// whether it changed the state, and must change nothing when it returns an
+// error; the cell keeps its revision when neither fn nor expire changed
+// anything. fn's error is the answer, and what expire did is committed
+// with it.
+func streamsWrite[T any](c *kernel.Call, s *Service, scope aws.Scope, fn func(st *State, now clock.Instant) (T, bool, *awserr.Error)) (T, *awserr.Error) {
+	type result struct {
+		out T
+		err *awserr.Error
 	}
-	type found struct {
-		st Stream
-		ok bool
-	}
-	f := store.Read(cell, func(st *State) found {
-		x, ok := st.streamByARN(scope, arn)
-		return found{x, ok}
+	r, werr := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, tx *kernel.Tx) (result, *awserr.Error) {
+		expired := st.expire(now)
+		out, changed, err := fn(st, now)
+		if !expired && !changed {
+			tx.Unchanged()
+		}
+		return result{out: out, err: err}, nil
 	})
-	return f.st, f.ok
+	if werr != nil {
+		var zero T
+		return zero, werr
+	}
+	return r.out, r.err
 }
 
 func (s *Streams) describeStream(ctx context.Context, c *kernel.Call, in *dynamodbstreamsapi.DescribeStreamInput) (*dynamodbstreamsapi.DescribeStreamOutput, *awserr.Error) {
@@ -84,25 +94,20 @@ func (s *Streams) describeStream(ctx context.Context, c *kernel.Call, in *dynamo
 		return nil, dynamodbstreamsapi.ErrValidationException("One or more parameter values were invalid: Limit cannot be greater than the maximum: 100")
 	}
 	scope := c.Scope()
-	cell, ok := s.svc.cells.Lookup(scope)
-	if !ok {
+	if _, ok := s.svc.cells.Lookup(scope); !ok {
 		return nil, errStreamNotFound(in.StreamArn)
 	}
-	type described struct {
-		out *dynamodbstreamsapi.StreamDescription
-		ok  bool
-	}
-	d := store.Read(cell, func(st *State) described {
+	d, err := streamsWrite(c, s.svc, scope, func(st *State, _ clock.Instant) (*dynamodbstreamsapi.StreamDescription, bool, *awserr.Error) {
 		x, ok := st.streamByARN(scope, in.StreamArn)
 		if !ok {
-			return described{}
+			return nil, false, errStreamNotFound(in.StreamArn)
 		}
-		return described{out: x.description(scope, in), ok: true}
+		return x.description(scope, in), false, nil
 	})
-	if !d.ok {
-		return nil, errStreamNotFound(in.StreamArn)
+	if err != nil {
+		return nil, err
 	}
-	return &dynamodbstreamsapi.DescribeStreamOutput{StreamDescription: d.out}, nil
+	return &dynamodbstreamsapi.DescribeStreamOutput{StreamDescription: d}, nil
 }
 
 // errStreamNotFound is DescribeStream's answer for a stream that does not
@@ -180,28 +185,29 @@ func (s *Streams) getShardIterator(ctx context.Context, c *kernel.Call, in *dyna
 		return nil, aerr
 	}
 	scope := c.Scope()
-	if _, ok := s.svc.stream(scope, in.StreamArn); !ok {
+	if _, ok := s.svc.cells.Lookup(scope); !ok {
 		return nil, dynamodbstreamsapi.ErrResourceNotFoundException(textStreamMissing)
 	}
-	return kernel.Write(c, s.svc.cells, scope, func(st *State, now clock.Instant, _ *kernel.Tx) (*dynamodbstreamsapi.GetShardIteratorOutput, *awserr.Error) {
+	return streamsWrite(c, s.svc, scope, func(st *State, now clock.Instant) (*dynamodbstreamsapi.GetShardIteratorOutput, bool, *awserr.Error) {
 		x, ok := st.streamByARN(scope, in.StreamArn)
 		if !ok {
-			return nil, dynamodbstreamsapi.ErrResourceNotFoundException(textStreamMissing)
+			return nil, false, dynamodbstreamsapi.ErrResourceNotFoundException(textStreamMissing)
 		}
 		shard := x.log.shard
 		if in.ShardId != shard.Info().ID {
-			return nil, dynamodbstreamsapi.ErrResourceNotFoundException(textShardMissing)
+			return nil, false, dynamodbstreamsapi.ErrResourceNotFoundException(textShardMissing)
 		}
 		pos = shard.Resolve(pos)
 		if _, _, err := shard.Read(pos, 1, 1, recordSize); err != nil {
-			return nil, readError(err)
+			return nil, false, readError(err)
 		}
 		arn, err := aws.ParseARN(in.StreamArn)
 		if err != nil {
-			return nil, awserr.Internalf(err)
+			return nil, false, awserr.Internalf(err)
 		}
+		drawn := st.iteratorKey == nil
 		token := st.codec(s.svc).Encode(shardlog.Iterator{Stream: arn, Created: x.Label, Shard: shard.Info().ID, Pos: pos, Issued: now})
-		return &dynamodbstreamsapi.GetShardIteratorOutput{ShardIterator: new(string(token))}, nil
+		return &dynamodbstreamsapi.GetShardIteratorOutput{ShardIterator: new(string(token))}, drawn, nil
 	})
 }
 
@@ -242,52 +248,75 @@ func (s *Streams) getRecords(ctx context.Context, c *kernel.Call, in *dynamodbst
 		// No iterator was ever issued in the scope.
 		return nil, dynamodbstreamsapi.ErrValidationException(textInvalidIterator)
 	}
-	// A write that changes nothing, for the commit instant: an iterator's
-	// age is judged on the clock as it reads, as GetShardIterator issues
-	// it on the clock as it writes.
-	return kernel.Write(c, s.svc.cells, scope, func(st *State, now clock.Instant, tx *kernel.Tx) (*dynamodbstreamsapi.GetRecordsOutput, *awserr.Error) {
-		tx.Unchanged()
-		return st.records(scope, in.ShardIterator, limit, now)
+	// A write for the commit instant: an iterator's age is judged on the
+	// clock as it reads, as GetShardIterator issues it on the clock as it
+	// writes.
+	return streamsWrite(c, s.svc, scope, func(st *State, now clock.Instant) (*dynamodbstreamsapi.GetRecordsOutput, bool, *awserr.Error) {
+		return st.records(scope, in.ShardIterator, limit, now, s.svc.iteratorReuse)
 	})
 }
 
 // records reads the page token names, as of now: up to limit records and
 // pageBytes of SizeBytes, the first record always, and a NextShardIterator
-// unless the page exhausts a closed shard (dynamodb-streams.md 6.4).
-func (st *State) records(scope aws.Scope, token string, limit int, now clock.Instant) (*dynamodbstreamsapi.GetRecordsOutput, *awserr.Error) {
+// unless the page exhausts a closed shard (dynamodb-streams.md 6.4). Under
+// IteratorSingleUse a token reads once: records remembers it until it
+// expires, and reports that as a change of the state.
+func (st *State) records(scope aws.Scope, token string, limit int, now clock.Instant, reuse IteratorReuse) (*dynamodbstreamsapi.GetRecordsOutput, bool, *awserr.Error) {
 	if st.iteratorKey == nil {
-		return nil, dynamodbstreamsapi.ErrValidationException(textInvalidIterator)
+		return nil, false, dynamodbstreamsapi.ErrValidationException(textInvalidIterator)
 	}
 	codec := shardlog.NewCodec(st.iteratorKey, shardlog.ARNPrefixed{})
 	it, err := codec.Decode([]byte(token), now, iteratorTTL)
 	if err != nil {
 		if _, expired := errors.AsType[*shardlog.ExpiredError](err); expired {
-			return nil, dynamodbstreamsapi.ErrExpiredIteratorException(textExpiredIterator)
+			return nil, false, dynamodbstreamsapi.ErrExpiredIteratorException(textExpiredIterator)
 		}
-		return nil, dynamodbstreamsapi.ErrValidationException(textInvalidIterator)
+		return nil, false, dynamodbstreamsapi.ErrValidationException(textInvalidIterator)
 	}
 	x, ok := st.streamByARN(scope, it.Stream.String())
 	if !ok || x.Label.Compare(it.Created) != 0 || x.log.shard.Info().ID != it.Shard {
-		return nil, dynamodbstreamsapi.ErrResourceNotFoundException(textStreamMissing)
+		return nil, false, dynamodbstreamsapi.ErrResourceNotFoundException(textStreamMissing)
+	}
+	singleUse := reuse == IteratorSingleUse
+	if _, used := st.usedIterators[token]; singleUse && used {
+		// dynamodb.streams.iterator-reuse single-use (inferred, DDBS-04):
+		// a second read is refused as an expired iterator.
+		return nil, false, dynamodbstreamsapi.ErrExpiredIteratorException(textExpiredIterator)
 	}
 	shard := x.log.shard
 	entries, next, err := shard.Read(it.Pos, limit, pageBytes, recordSize)
 	if err != nil {
-		return nil, readError(err)
+		return nil, false, readError(err)
 	}
 	out := &dynamodbstreamsapi.GetRecordsOutput{Records: make([]dynamodbstreamsapi.Record, 0, len(entries))}
 	for _, e := range entries {
 		r, err := x.record(scope, e)
 		if err != nil {
-			return nil, awserr.Internalf(err)
+			return nil, false, awserr.Internalf(err)
 		}
 		out.Records = append(out.Records, r)
+	}
+	if singleUse {
+		if st.usedIterators == nil {
+			st.usedIterators = map[string]clock.Instant{}
+		}
+		st.usedIterators[token] = it.Issued
 	}
 	if !shard.Exhausted(next) {
 		it.Pos, it.Issued = next, now
 		out.NextShardIterator = new(string(codec.Encode(it)))
 	}
-	return out, nil
+	return out, singleUse, nil
+}
+
+// forgetUsed drops the used iterators that have expired as of now, which
+// Decode refuses on its own, and reports whether there were any.
+func (st *State) forgetUsed(now clock.Instant) bool {
+	n := len(st.usedIterators)
+	maps.DeleteFunc(st.usedIterators, func(_ string, issued clock.Instant) bool {
+		return issued.Add(iteratorTTL).Compare(now) <= 0
+	})
+	return len(st.usedIterators) != n
 }
 
 // record is e as GetRecords answers it (dynamodb-streams.md 7.1): the

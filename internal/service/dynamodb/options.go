@@ -23,8 +23,7 @@ type Options struct {
 }
 
 // StreamSequence is how a stream's sequence numbers are minted
-// (dynamodb-streams.md 4.3, DDBS-09). Streams are not served yet, so
-// nothing reads it: not implemented yet.
+// (dynamodb-streams.md 4.3, DDBS-09).
 type StreamSequence uint8
 
 // StreamSequence values; the zero value is SequenceDecimal21.
@@ -48,8 +47,7 @@ func (q StreamSequence) String() string {
 }
 
 // IteratorReuse is whether GetRecords accepts a shard iterator it has
-// already read with (dynamodb-streams.md 4.4, DDBS-04). Streams are not
-// served yet, so nothing reads it: not implemented yet.
+// already read with (dynamodb-streams.md 4.4, DDBS-04).
 type IteratorReuse uint8
 
 // IteratorReuse values; the zero value is IteratorReuseAllowed.

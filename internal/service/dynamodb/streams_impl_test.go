@@ -23,8 +23,8 @@ func (h *streamsHarness) listedStreams(body string) []string {
 
 // A table created again under a deleted table's name starts without a
 // stream: its description names none, while the deleted table's stream
-// stays listed, disabled (dynamodb-streams.md 5.4: AWS keeps it 24 hours,
-// which the ListStreams note says understudy does not end).
+// stays listed, disabled, until it is deleted 24 hours after its table
+// (dynamodb-streams.md 5.4).
 func TestRecreatedTableDoesNotInheritTheStream(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		old, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))

@@ -18,8 +18,8 @@ import (
 // item 6): a CreateTable or UpdateTable that enables a stream mints one,
 // labeled with the call's admission instant on the emulator clock, in
 // place of DynamoDB Local's, whose labels follow the wall clock (8.3). A
-// stream stays in its scope's list after its table disables it or is
-// deleted.
+// stream stays in its scope's list after its table disables it, and until
+// streamRetention after its table is deleted (State.expire).
 type Stream struct {
 	// Table is the name of the table the stream belongs to.
 	Table string
@@ -28,9 +28,9 @@ type Stream struct {
 	ViewType dynamodbapi.StreamViewType
 	// Enabled is false once the table disabled the stream or was deleted.
 	Enabled bool
-	// TableGone is set when the table was deleted: a table created again
-	// under the name starts without a stream.
-	TableGone bool
+	// TableDeleted is when the table was deleted, nil while it exists: a
+	// table created again under the name starts without a stream.
+	TableDeleted *clock.Instant
 	// log holds the stream's records. Every copy of the Stream shares it,
 	// and it is read and changed only under the cell's lock.
 	log *streamLog
@@ -118,7 +118,7 @@ func (s Stream) arn(scope aws.Scope) string {
 // (dynamodb-streams.md 5.3, 9.3).
 func (st *State) latestStream(name string) (Stream, bool) {
 	for _, v := range slices.Backward(st.Streams) {
-		if s := v; s.Table == name && !s.TableGone {
+		if s := v; s.Table == name && s.TableDeleted == nil {
 			return s, true
 		}
 	}
@@ -142,22 +142,62 @@ func (st *State) streamLabel(name string, now clock.Instant) clock.Instant {
 // one, closing its shard at (dynamodb-streams.md 5.3).
 func (st *State) disableStream(name string, at clock.Instant) {
 	for i := range st.Streams {
-		if s := &st.Streams[i]; s.Table == name && !s.TableGone {
+		if s := &st.Streams[i]; s.Table == name && s.TableDeleted == nil {
 			s.Enabled = false
 			s.log.shard.Close(at)
 		}
 	}
 }
 
-// tableDeleted marks every stream of the table name disabled and gone with
-// its table, closing its shard at (dynamodb-streams.md 5.4).
+// tableDeleted marks every stream of the table name, deleted at at,
+// disabled and gone with its table, closing its shard
+// (dynamodb-streams.md 5.4).
 func (st *State) tableDeleted(name string, at clock.Instant) {
 	for i := range st.Streams {
-		if s := &st.Streams[i]; s.Table == name {
-			s.Enabled, s.TableGone = false, true
+		if s := &st.Streams[i]; s.Table == name && s.TableDeleted == nil {
+			s.Enabled, s.TableDeleted = false, &at
 			s.log.shard.Close(at)
 		}
 	}
+}
+
+// streamRetention is how long a stream keeps a record, and how long a
+// deleted table's stream outlives the table: 24 hours ("Stream records
+// ... are removed automatically after 24 hours"; "the stream is
+// automatically deleted after 24 hours", aws-doc, dynamodb-streams.md 5.4,
+// 5.5).
+const streamRetention = 24 * time.Hour
+
+// expire applies the stream lifetimes as of now and reports whether it
+// changed anything: a deleted table's stream is gone exactly
+// streamRetention after the delete, a record exactly streamRetention after
+// its arrival, and a used shard iterator is forgotten once it has expired.
+// Every Streams operation and every drain runs it under the cell's lock
+// first, so the lifetimes hold to the instant on the emulator clock with
+// no timer.
+func (st *State) expire(now clock.Instant) bool {
+	horizon := now.Add(-streamRetention)
+	n := len(st.Streams)
+	st.Streams = slices.DeleteFunc(st.Streams, func(s Stream) bool {
+		return s.TableDeleted != nil && s.TableDeleted.Compare(horizon) <= 0
+	})
+	changed := len(st.Streams) != n
+	for _, s := range st.Streams {
+		changed = s.log.trim(horizon) || changed
+	}
+	return st.forgetUsed(now) || changed
+}
+
+// trim drops the records that arrived at or before through and reports
+// whether there were any.
+func (l *streamLog) trim(through clock.Instant) bool {
+	// A read from TrimHorizon is never behind the trim point.
+	first, _, err := l.shard.Read(shardlog.TrimHorizon{}, 1, 1, recordSize)
+	if err != nil || len(first) == 0 || first[0].Arrival.Compare(through) > 0 {
+		return false
+	}
+	l.shard.Trim(through)
+	return true
 }
 
 // streamChange is what a StreamSpecification asks of a table's stream.
@@ -248,13 +288,4 @@ const streamSeqDigits = 21
 func (s Stream) adopt(seen *localStreamSeen) {
 	s.log.keys = seen.keys
 	s.log.feed.label = seen.label
-}
-
-// streams is a copy of the streams minted in scope, oldest first.
-func (s *Service) streams(scope aws.Scope) []Stream {
-	cell, ok := s.cells.Lookup(scope)
-	if !ok {
-		return nil
-	}
-	return store.Read(cell, func(st *State) []Stream { return slices.Clone(st.Streams) })
 }
