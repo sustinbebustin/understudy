@@ -413,9 +413,9 @@ func errUnrecognizedEventSource() *awserr.Error {
 }
 
 // errEventSourceUnsupported answers an event source other than an SQS
-// queue: understudy polls only SQS.
+// queue or a DynamoDB stream, the sources understudy polls (contract 8.2).
 func errEventSourceUnsupported(arn string) *awserr.Error {
-	return lambdaapi.ErrNotImplemented("understudy implements event source mappings for Amazon SQS queues only; " + arn + " is not an SQS queue ARN. Run 'understudy coverage --service lambda' for what is supported.")
+	return lambdaapi.ErrNotImplemented("understudy implements event source mappings for Amazon SQS queues and DynamoDB streams only; " + arn + " is neither. Run 'understudy coverage --service lambda' for what is supported.")
 }
 
 // checkUnimplementedConfig refuses a configuration member whose feature

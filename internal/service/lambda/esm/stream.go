@@ -8,6 +8,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
@@ -39,11 +40,27 @@ func (TrimHorizon) isStreamStart() {}
 func (Latest) isStreamStart()      {}
 
 // ParseStreamStart reads a StartingPosition: TRIM_HORIZON or LATEST, and
-// false for anything else. Not implemented yet: it answers false.
-func ParseStreamStart(_ string) (StreamStart, bool) { return nil, false }
+// false for anything else, AT_TIMESTAMP included.
+func ParseStreamStart(s string) (StreamStart, bool) {
+	switch s {
+	case "TRIM_HORIZON":
+		return TrimHorizon{}, true
+	case "LATEST":
+		return Latest{}, true
+	}
+	return nil, false
+}
 
-// StreamStartName is p's wire name. Not implemented yet: it answers "".
-func StreamStartName(_ StreamStart) string { return "" }
+// StreamStartName is p's wire name.
+func StreamStartName(p StreamStart) string {
+	switch p.(type) {
+	case TrimHorizon:
+		return "TRIM_HORIZON"
+	case Latest:
+		return "LATEST"
+	}
+	return ""
+}
 
 // StreamSettings are the members only a stream mapping has.
 type StreamSettings struct {
@@ -145,8 +162,8 @@ type StreamRecord struct {
 }
 
 // MarshalJSON returns the record as the function receives it, so a Batch
-// of StreamRecords encodes its event. Not implemented yet: it answers null.
-func (r StreamRecord) MarshalJSON() ([]byte, error) { return []byte("null"), nil }
+// of StreamRecords encodes its event.
+func (r StreamRecord) MarshalJSON() ([]byte, error) { return r.Event, nil }
 
 // GoneError is a stream or shard that no longer exists.
 type GoneError struct {
@@ -241,6 +258,24 @@ func (b ResendBudget) String() string {
 	return "ResendBudget(" + strconv.Itoa(int(b)) + ")"
 }
 
-// StreamSwitches returns the stream poller's switch entries. Not
-// implemented yet: it answers none.
-func StreamSwitches(_ StreamFidelity) []fidelity.Entry { return nil }
+// StreamSwitches returns the stream poller's switch entries (contract 9;
+// lambda-stream-sources.md 12.7).
+func StreamSwitches(f StreamFidelity) []fidelity.Entry {
+	sw := func(name, value, ref, record string, ops ...string) fidelity.Entry {
+		return fidelity.Switch[string]{
+			Name: name, Value: value, Label: evidence.Inferred, Ref: ref, Record: record, Ops: ops,
+			Settles: fidelity.NoScenario{Reason: "unrecorded: " + record + " is queued"},
+		}.Entry()
+	}
+	return []fidelity.Entry{
+		sw("lambda.esm-stream.latest-anchor", f.LatestAnchor.String(),
+			"docs/research/lambda-stream-sources.md#32-startingposition-and-startingpositiontimestamp", "ESMS-17",
+			"lambda.CreateEventSourceMapping"),
+		sw("lambda.esm-stream.retry-delay", f.RetryDelay.String(),
+			"docs/research/lambda-stream-sources.md#51-what-blocks-a-shard-and-what-counts-as-a-retry", "ESMS-06",
+			"lambda.CreateEventSourceMapping", "lambda.UpdateEventSourceMapping"),
+		sw("lambda.esm-stream.partial-resend-budget", f.ResendBudget.String(),
+			"docs/research/lambda-stream-sources.md#55-reportbatchitemfailures", "ESMS-08",
+			"lambda.CreateEventSourceMapping", "lambda.UpdateEventSourceMapping"),
+	}
+}

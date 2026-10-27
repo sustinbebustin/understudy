@@ -62,6 +62,10 @@ type Mapping struct {
 	Transition     *Transition       `json:"transition,omitempty"`
 	Modified       clock.Instant     `json:"modified"`
 	Tags           map[string]string `json:"tags,omitempty"`
+	// Processed is set once a stream mapping's batch succeeded, which
+	// turns its LastProcessingResult from "No records processed" to "OK"
+	// (recorded LS-K:L3066, LS-D:L184).
+	Processed bool `json:"processed,omitzero"`
 }
 
 // Transition is a mapping's transient state under TransitionsClock, until
@@ -124,8 +128,12 @@ func (MaximumConcurrency) isScaling() {}
 func (ProvisionedPollers) isScaling() {}
 
 func (s *Service) bindMappings(b lambdaapi.Binder) {
-	const note = "SQS queues only; serve polls the queue and invokes the function with each batch; " +
-		"under iam.enforce=enforce the execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage (lambda.esm.create-denied-text), " +
+	const note = "SQS queues and DynamoDB streams; serve polls the source and invokes the function with each batch; Kinesis streams answer 501; " +
+		"on a DynamoDB stream, StartingPosition LATEST and every setting but BatchSize and Enabled answer 501; " +
+		"a stream is read as soon as it receives a record rather than at AWS's polling rate (4 per second for DynamoDB), which is used as the delay before a retry; " +
+		"a failing batch is retried until it succeeds; a stream mapping's position is not saved in snapshots, so after a load it reads its stream again from its StartingPosition; " +
+		"UNVERIFIED (lambda-stream-sources.md 4.2, 5.1): a retried batch keeping its records, and the 6 MB limit counted over the serialized event; " +
+		"under iam.enforce=enforce an SQS mapping's execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage (lambda.esm.create-denied-text), " +
 		"and a role refused its polls leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss)"
 	b.CreateEventSourceMapping(s.createMapping, partial(note), kernel.WithValidator(validateCreateMapping))
 	b.GetEventSourceMapping(s.getMapping, full())
@@ -317,8 +325,9 @@ func fromSQS(err *awserr.Error) *awserr.Error {
 }
 
 // eventSource reads EventSourceArn and the kind of source it names: an
-// SQS queue's ARN. Another service's source is unimplemented; none is
-// "Unrecognized event source.".
+// SQS queue's ARN, or a DynamoDB stream's, whose kind createStreamMapping
+// completes with its StartingPosition. Another service's source is
+// unimplemented; none is "Unrecognized event source.".
 func eventSource(arn *string) (aws.ARN, esm.EventSourceKind, *awserr.Error) {
 	if arn == nil {
 		return aws.ARN{}, nil, errUnrecognizedEventSource()
@@ -326,6 +335,9 @@ func eventSource(arn *string) (aws.ARN, esm.EventSourceKind, *awserr.Error) {
 	a, err := aws.ParseARN(*arn)
 	if err != nil {
 		return aws.ARN{}, nil, errUnrecognizedEventSource()
+	}
+	if isDynamoDBStream(a) {
+		return a, esm.DynamoDBStream{}, nil
 	}
 	kind, ok := esm.SourceKindOf(a)
 	if !ok {
@@ -338,6 +350,11 @@ func (s *Service) createMapping(ctx context.Context, c *kernel.Call, in *lambdaa
 	queue, kind, err := eventSource(in.EventSourceArn)
 	if err != nil {
 		return nil, err
+	}
+	switch kind.(type) {
+	case esm.DynamoDBStream:
+		return s.createStreamMapping(ctx, c, in, queue)
+	case esm.SQS:
 	}
 	m := Mapping{Source: queue.String(), SourceKind: kind, BatchSize: defaultBatchSize, Scaling: Unbounded{}, Enabled: in.Enabled == nil || *in.Enabled, Tags: maps.Clone(in.Tags)}
 	settings := mappingSettings{
@@ -466,6 +483,18 @@ func toggle(m *Mapping, enabled *bool) MappingState {
 
 func (s *Service) updateMapping(ctx context.Context, c *kernel.Call, in *lambdaapi.UpdateEventSourceMappingInput) (*lambdaapi.EventSourceMappingConfiguration, *awserr.Error) {
 	scope := c.Scope()
+	stream, err := view(s, scope, func(st *State) (bool, *awserr.Error) {
+		_, ok := st.Mappings[in.UUID].SourceKind.(esm.DynamoDBStream)
+		return ok, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if stream {
+		if err := checkStreamUpdate(in); err != nil {
+			return nil, err
+		}
+	}
 	target, err := s.retarget(ctx, c, in.UUID, in.FunctionName)
 	if err != nil {
 		return nil, err
@@ -484,8 +513,14 @@ func (s *Service) updateMapping(ctx context.Context, c *kernel.Call, in *lambdaa
 			return lambdaapi.EventSourceMappingConfiguration{}, errMappingInUse(m.UUID, m.Transition.State)
 		}
 		m.Filters, m.Metrics = slices.Clone(m.Filters), slices.Clone(m.Metrics)
-		if err := settings.apply(&m); err != nil {
-			return lambdaapi.EventSourceMappingConfiguration{}, err
+		switch m.SourceKind.(type) {
+		case esm.DynamoDBStream:
+			// checkStreamUpdate let through nothing else.
+			set(&m.BatchSize, in.BatchSize)
+		case esm.SQS, nil:
+			if err := settings.apply(&m); err != nil {
+				return lambdaapi.EventSourceMappingConfiguration{}, err
+			}
 		}
 		if target != nil {
 			m.Function, m.Qualifier = target.ref.name, target.ref.qualifier
@@ -579,6 +614,11 @@ func renderMapping(scope aws.Scope, m Mapping) lambdaapi.EventSourceMappingConfi
 			out.ProvisionedPollerConfig.PollerGroupName = new(sc.Group)
 		}
 	case Unbounded:
+	}
+	if kind, ok := m.SourceKind.(esm.DynamoDBStream); ok {
+		// A stream mapping ignores the SQS type's members (12.4 item 9).
+		out.ScalingConfig, out.ProvisionedPollerConfig = nil, nil
+		renderStreamMapping(&out, &m, kind)
 	}
 	return out
 }

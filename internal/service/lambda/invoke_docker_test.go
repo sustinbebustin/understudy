@@ -100,7 +100,15 @@ func randomID(t *testing.T) string {
 	return hex.EncodeToString(b)
 }
 
-func newDockerStack(t *testing.T) *dockerStack {
+// stackServices are services a dockerStack serves beside Lambda: their
+// models, and bind, which binds them with the deps of each model before
+// the kernel runs.
+type stackServices struct {
+	apis []*registry.Service
+	bind func(t *testing.T, deps func(api *registry.Service) kernel.ServiceDeps)
+}
+
+func newDockerStack(t *testing.T, extra ...stackServices) *dockerStack {
 	t.Helper()
 	ctx := t.Context()
 	client := configtest.EngineClient(t)
@@ -118,7 +126,11 @@ func newDockerStack(t *testing.T) *dockerStack {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reg, err := registry.New(lambdaapi.Service(), logsapi.Service())
+	apis := []*registry.Service{lambdaapi.Service(), logsapi.Service()}
+	for _, e := range extra {
+		apis = append(apis, e.apis...)
+	}
+	reg, err := registry.New(apis...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,6 +179,14 @@ func newDockerStack(t *testing.T) *dockerStack {
 	link.set(x)
 	logs := &logSink{}
 	logs.stub(k)
+	for _, e := range extra {
+		e.bind(t, func(api *registry.Service) kernel.ServiceDeps {
+			return kernel.ServiceDeps{Kernel: k, Binder: k.Binder(api), Clock: clk, IDs: src, Blob: blobs, Identity: idStore, Docker: client, Log: k.Log()}
+		})
+	}
+	if err := k.BindErr(); err != nil {
+		t.Fatal(err)
+	}
 
 	runCtx, stop := context.WithCancel(context.Background())
 	var wg sync.WaitGroup

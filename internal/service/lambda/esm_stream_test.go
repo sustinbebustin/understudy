@@ -365,7 +365,7 @@ func (h *streamHarness) get(uuid string) *lambdaapi.EventSourceMappingConfigurat
 	return call(h.harness, lambdaapi.OpGetEventSourceMapping, &lambdaapi.GetEventSourceMappingInput{UUID: uuid})
 }
 
-func deref[T any](p *T) any {
+func derefAny[T any](p *T) any {
 	if p == nil {
 		return nil
 	}
@@ -391,11 +391,11 @@ func TestStreamMappingCreateShape(t *testing.T) {
 				"StateTransitionReason": "User action", "TumblingWindowInSeconds": int32(0),
 			}
 			have := map[string]any{
-				"BatchSize": deref(m.BatchSize), "BisectBatchOnFunctionError": deref(m.BisectBatchOnFunctionError), "EventSourceArn": deref(m.EventSourceArn),
-				"LastProcessingResult": deref(m.LastProcessingResult), "MaximumBatchingWindowInSeconds": deref(m.MaximumBatchingWindowInSeconds),
-				"MaximumRecordAgeInSeconds": deref(m.MaximumRecordAgeInSeconds), "MaximumRetryAttempts": deref(m.MaximumRetryAttempts), "ParallelizationFactor": deref(m.ParallelizationFactor),
-				"StartingPosition": deref(m.StartingPosition), "State": deref(m.State),
-				"StateTransitionReason": deref(m.StateTransitionReason), "TumblingWindowInSeconds": deref(m.TumblingWindowInSeconds),
+				"BatchSize": derefAny(m.BatchSize), "BisectBatchOnFunctionError": derefAny(m.BisectBatchOnFunctionError), "EventSourceArn": derefAny(m.EventSourceArn),
+				"LastProcessingResult": derefAny(m.LastProcessingResult), "MaximumBatchingWindowInSeconds": derefAny(m.MaximumBatchingWindowInSeconds),
+				"MaximumRecordAgeInSeconds": derefAny(m.MaximumRecordAgeInSeconds), "MaximumRetryAttempts": derefAny(m.MaximumRetryAttempts), "ParallelizationFactor": derefAny(m.ParallelizationFactor),
+				"StartingPosition": derefAny(m.StartingPosition), "State": derefAny(m.State),
+				"StateTransitionReason": derefAny(m.StateTransitionReason), "TumblingWindowInSeconds": derefAny(m.TumblingWindowInSeconds),
 			}
 			for k, v := range want {
 				if have[k] != v {
@@ -533,7 +533,7 @@ func TestStreamMappingUpdate(t *testing.T) {
 			ScalingConfig:         &lambdaapi.ScalingConfig{MaximumConcurrency: new(int32(5))},
 			FunctionResponseTypes: []lambdaapi.FunctionResponseType{"ReportBatchItemFailures"},
 		})
-		if d := m.DestinationConfig; d == nil || d.OnFailure == nil || deref(d.OnFailure.Destination) != dlq {
+		if d := m.DestinationConfig; d == nil || d.OnFailure == nil || derefAny(d.OnFailure.Destination) != dlq {
 			h.Errorf("DestinationConfig = %+v, want OnFailure %s", d, dlq)
 		}
 		if m.ScalingConfig != nil {
@@ -544,7 +544,7 @@ func TestStreamMappingUpdate(t *testing.T) {
 		}
 		h.settle()
 		up := call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *m.UUID, BatchSize: new(int32(10))})
-		if d := up.DestinationConfig; d == nil || d.OnFailure == nil || deref(d.OnFailure.Destination) != dlq {
+		if d := up.DestinationConfig; d == nil || d.OnFailure == nil || derefAny(d.OnFailure.Destination) != dlq {
 			h.Errorf("after an Update without DestinationConfig = %+v, want %s kept", d, dlq)
 		}
 		h.settle()
@@ -557,8 +557,8 @@ func TestStreamMappingUpdate(t *testing.T) {
 		}
 		h.settle()
 		up = call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *m.UUID, Enabled: new(false)})
-		if deref(up.State) != "Disabling" || deref(up.StateTransitionReason) != "User action" {
-			h.Errorf("disable = %v, %v; want Disabling, User action", deref(up.State), deref(up.StateTransitionReason))
+		if derefAny(up.State) != "Disabling" || derefAny(up.StateTransitionReason) != "User action" {
+			h.Errorf("disable = %v, %v; want Disabling, User action", derefAny(up.State), derefAny(up.StateTransitionReason))
 		}
 	})
 }
@@ -633,7 +633,7 @@ func TestStreamRecordReachesTheFunction(t *testing.T) {
 		if _, has := rec["userIdentity"]; has {
 			h.Errorf("an ordinary write's record carries userIdentity")
 		}
-		if got := deref(h.get(*m.UUID).LastProcessingResult); got != "OK" {
+		if got := derefAny(h.get(*m.UUID).LastProcessingResult); got != "OK" {
 			h.Errorf("LastProcessingResult = %v, want OK", got)
 		}
 	})
@@ -837,7 +837,7 @@ func TestStreamOnFailureToSNS(t *testing.T) {
 		}
 		p := h.topics.messages[0]
 		var b failureBody
-		if deref(p.TopicArn) != topic || p.Subject != nil || len(p.MessageAttributes) != 0 || json.Unmarshal([]byte(p.Message), &b) != nil ||
+		if derefAny(p.TopicArn) != topic || p.Subject != nil || len(p.MessageAttributes) != 0 || json.Unmarshal([]byte(p.Message), &b) != nil ||
 			b.RequestContext.Condition != "RetryAttemptsExhausted" || b.RequestContext.ApproximateInvokeCount != 1 {
 			h.Errorf("publish %+v", p)
 		}
@@ -897,8 +897,8 @@ func TestStreamReportBatchItemFailuresMatrix(t *testing.T) {
 					h.Fatalf("%d invocations, %d on-failure records; want 4 and 1", n, len(got))
 				}
 				f := got[0]
-				if f.RequestContext.ApproximateInvokeCount != 4 || f.ResponseContext == nil || deref(f.ResponseContext.FunctionError) != deref(c.fnError) {
-					h.Errorf("on-failure record %+v, want count 4 and functionError %v", f, deref(c.fnError))
+				if f.RequestContext.ApproximateInvokeCount != 4 || f.ResponseContext == nil || derefAny(f.ResponseContext.FunctionError) != derefAny(c.fnError) {
+					h.Errorf("on-failure record %+v, want count 4 and functionError %v", f, derefAny(c.fnError))
 				}
 			})
 		})
@@ -1050,7 +1050,7 @@ func TestStreamGoneStopsTheReader(t *testing.T) {
 		if got := stateChanges(h, *m.EventSourceMappingArn); !slices.Contains(got, "Polling->StreamGone") {
 			h.Errorf("mapping state changes %v, want Polling->StreamGone", got)
 		}
-		if got := deref(h.get(*m.UUID).State); got != "Enabled" {
+		if got := derefAny(h.get(*m.UUID).State); got != "Enabled" {
 			h.Errorf("State = %v, want Enabled", got)
 		}
 	})

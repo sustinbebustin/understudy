@@ -89,9 +89,9 @@ func TestMappingUnknownSourceKindIsRefused(t *testing.T) {
 	}
 }
 
-// CreateEventSourceMapping takes the kind from the source ARN; a source of
-// another service is still refused 501 in the words it had before kinds
-// existed (docs/coverage.md, CreateEventSourceMapping: "SQS queues only").
+// CreateEventSourceMapping takes the kind from the source ARN: an SQS queue
+// or a DynamoDB stream; a source of another service is refused 501 naming
+// both (contract 8.2).
 func TestEventSourceTakesTheKindFromTheARN(t *testing.T) {
 	queue := kindQueue
 	a, kind, err := eventSource(&queue)
@@ -102,10 +102,17 @@ func TestEventSourceTakesTheKindFromTheARN(t *testing.T) {
 		t.Errorf("eventSource(%s) = %s, %#v; want the queue and esm.SQS", queue, a, kind)
 	}
 
+	table := "arn:aws:dynamodb:us-east-1:000000000000:table/orders/stream/2026-10-25T21:13:37.075"
+	if _, kind, err := eventSource(&table); err != nil {
+		t.Errorf("eventSource(%s): %v", table, err)
+	} else if _, ok := kind.(esm.DynamoDBStream); !ok {
+		t.Errorf("eventSource(%s) kind = %#v, want esm.DynamoDBStream", table, kind)
+	}
+
 	stream := "arn:aws:kinesis:us-east-1:000000000000:stream/orders"
 	_, kind, err = eventSource(&stream)
-	want := "understudy implements event source mappings for Amazon SQS queues only; " + stream +
-		" is not an SQS queue ARN. Run 'understudy coverage --service lambda' for what is supported."
+	want := "understudy implements event source mappings for Amazon SQS queues and DynamoDB streams only; " + stream +
+		" is neither. Run 'understudy coverage --service lambda' for what is supported."
 	if err == nil || err.Message != want || kind != nil {
 		t.Fatalf("eventSource(%s) = %#v, %v; want no kind and %q", stream, kind, err, want)
 	}

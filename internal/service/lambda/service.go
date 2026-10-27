@@ -184,10 +184,13 @@ func lambdaAction(name string) registry.IAMAction {
 // Switches lists the behaviors chosen without AWS-recorded evidence: the
 // state transitions, the asynchronous queue's, destinations' and layers'
 // choices, the event source mapping filter engine's choices, Lambda's
-// denial body and how a mapping meets a role refused the queue
-// (iam-enforcement-surfaces.md 8.6, 12.8). The transitions govern the
-// calls that create or change a function or mapping and the reads that
-// report its state.
+// denial body, how a mapping meets a role refused the queue
+// (iam-enforcement-surfaces.md 8.6, 12.8) and the stream poller's retry
+// delay. The transitions govern the calls that create or change a function
+// or mapping and the reads that report its state. The stream poller's
+// latest-anchor and partial-resend-budget switches are not listed: what
+// they govern, LATEST and partial batch responses on a stream, answers 501
+// until it is built.
 func (s *Service) Switches() []fidelity.Entry {
 	// AccessDeniedException 403 is recorded for another account's ARN
 	// (third-party); the same-account body is inferred.
@@ -199,6 +202,9 @@ func (s *Service) Switches() []fidelity.Entry {
 		[]string{"lambda.CreateEventSourceMapping", "lambda.UpdateEventSourceMapping"})
 	permissionLoss := authz.EnforcementSwitch("lambda.esm.permission-loss", "stay-enabled", evidence.Inferred, "8.6", "IAM-ENF-25",
 		[]string{"lambda.CreateEventSourceMapping"})
+	streams := slices.DeleteFunc(esm.StreamSwitches(s.opts.Streams), func(e fidelity.Entry) bool {
+		return e.Name != "lambda.esm-stream.retry-delay"
+	})
 	entries := []fidelity.Entry{denial, roleDenied, permissionLoss, fidelity.Switch[string]{
 		Name:  "lambda.stateTransitions",
 		Value: s.opts.StateTransitions.String(),
@@ -215,7 +221,8 @@ func (s *Service) Switches() []fidelity.Entry {
 	for _, sw := range append(asyncSwitches(), layerSwitches()...) {
 		entries = append(entries, sw.Entry())
 	}
-	return append(entries, esm.Switches()...)
+	entries = append(entries, esm.Switches()...)
+	return append(entries, streams...)
 }
 
 // Name returns "lambda".

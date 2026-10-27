@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
+	"github.com/sustinbebustin/understudy/internal/shardlog"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -39,6 +40,11 @@ type State struct {
 	// directly or with their alias or function, which a request then finds
 	// forbidden rather than unknown, as on AWS.
 	RetiredURLs map[string]bool `json:"retiredUrls,omitempty"`
+	// Checkpoints are where each stream mapping's reader resumes, by
+	// mapping UUID and then shard. They are not saved in snapshots yet: a
+	// loaded mapping reads its stream again from its StartingPosition (the
+	// CreateEventSourceMapping note).
+	Checkpoints map[string]map[string]shardlog.Position `json:"-"`
 }
 
 func newState(aws.Scope) State {
@@ -530,9 +536,39 @@ func unions() (jsonx.Codec, error) {
 	}
 	sources, err := jsonx.NewUnion("lambda.EventSourceKind",
 		jsonx.Variant[esm.EventSourceKind, esm.SQS]("sqs"),
+		jsonx.Variant[esm.EventSourceKind, esm.DynamoDBStream]("dynamodb-stream"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
 	}
-	return jsonx.NewCodec(code, statuses, updates, scaling, sources), nil
+	starts, err := jsonx.NewUnion("esm.StreamStart",
+		jsonx.Variant[esm.StreamStart, esm.TrimHorizon]("trim-horizon"),
+		jsonx.Variant[esm.StreamStart, esm.Latest]("latest"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
+	}
+	ages, err := jsonx.NewUnion("esm.RecordAge",
+		jsonx.Variant[esm.RecordAge, esm.AnyAge]("any-age"),
+		jsonx.Variant[esm.RecordAge, esm.MaxAge]("max-age"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
+	}
+	retries, err := jsonx.NewUnion("esm.Retries",
+		jsonx.Variant[esm.Retries, esm.Unlimited]("unlimited"),
+		jsonx.Variant[esm.Retries, esm.Attempts]("attempts"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
+	}
+	failures, err := jsonx.NewUnion("esm.OnFailure",
+		jsonx.Variant[esm.OnFailure, esm.NoDestination]("none"),
+		jsonx.Variant[esm.OnFailure, esm.QueueDestination]("queue"),
+		jsonx.Variant[esm.OnFailure, esm.TopicDestination]("topic"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
+	}
+	return jsonx.NewCodec(code, statuses, updates, scaling, sources, starts, ages, retries, failures), nil
 }

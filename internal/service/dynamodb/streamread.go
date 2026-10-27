@@ -238,20 +238,17 @@ func (s *Streams) getRecords(ctx context.Context, c *kernel.Call, in *dynamodbst
 		limit = int(*in.Limit)
 	}
 	scope := c.Scope()
-	cell, ok := s.svc.cells.Lookup(scope)
-	if !ok {
+	if _, ok := s.svc.cells.Lookup(scope); !ok {
 		// No iterator was ever issued in the scope.
 		return nil, dynamodbstreamsapi.ErrValidationException(textInvalidIterator)
 	}
-	type answer struct {
-		out *dynamodbstreamsapi.GetRecordsOutput
-		err *awserr.Error
-	}
-	a := store.Read(cell, func(st *State) answer {
-		out, err := st.records(scope, in.ShardIterator, limit, c.Admitted())
-		return answer{out, err}
+	// A write that changes nothing, for the commit instant: an iterator's
+	// age is judged on the clock as it reads, as GetShardIterator issues
+	// it on the clock as it writes.
+	return kernel.Write(c, s.svc.cells, scope, func(st *State, now clock.Instant, tx *kernel.Tx) (*dynamodbstreamsapi.GetRecordsOutput, *awserr.Error) {
+		tx.Unchanged()
+		return st.records(scope, in.ShardIterator, limit, now)
 	})
-	return a.out, a.err
 }
 
 // records reads the page token names, as of now: up to limit records and
