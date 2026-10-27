@@ -50,10 +50,10 @@ type toRaw struct {
 
 // toLink is a raw operation serving a link understudy hands out for a
 // browser to open from any page, as AWS serves its own: an SNS link or a
-// Lambda code link (rule 1), or a function URL by path (rule 1) or by host
-// (rule 2). The edge's browser defences never refuse one. policy is
-// cspSandbox for the function URL path fallback, a user's page on
-// understudy's origin (ADR 0020).
+// Lambda code link (rule 1), a function URL by path (rule 1) or by host
+// (rule 2), or the execute-api path fallback (rule 1). The edge's browser
+// defences never refuse one. policy is cspSandbox for the path fallbacks,
+// a user's page on understudy's origin (ADR 0020).
 type toLink struct {
 	op     *registry.Operation
 	policy csp
@@ -90,9 +90,9 @@ type unclaimed struct{ reasons []reason }
 // passed over before it, for the Unclaimed journal event.
 type toLocalStack struct{ reasons []reason }
 
-// toExecuteAPI is API Gateway's execute-api data plane, by host (rule 2)
-// or by the path fallback (rule 1), which understudy does not implement:
-// it is claimed so S3 never answers it, and answered 501. reasons end with
+// toExecuteAPI is API Gateway's execute-api data plane, by host (rule 2),
+// or by the path fallback (rule 1) when no raw apigatewayv2.InvokeApi is
+// registered: it is claimed so S3 never answers it, and answered 501. reasons end with
 // the claiming rule's, for the Unclaimed journal event. policy is
 // cspSandbox for the path fallback, which an integration controls on
 // understudy's origin (ADR 0020).
@@ -255,11 +255,16 @@ const executeAPIPathPrefix = adminPrefix + "execute-api/"
 // executeAPIPath is rule 1's execute-api part: on the main listener, the
 // path fallback is API Gateway's data plane, whatever follows the prefix
 // and whatever the credentials, sandboxed, since its pages share
-// understudy's origin (ADR 0020). Any other request goes on to the admin
-// part of rule 1.
+// understudy's origin (ADR 0020). It goes to the raw apigatewayv2.InvokeApi
+// operation, which resolves the API id from the path, when the registry
+// holds one; else it is answered 501. Any other request goes on to the
+// admin part of rule 1.
 func (c *claimer) executeAPIPath() (route, bool) {
 	if !strings.HasPrefix(c.path, executeAPIPathPrefix) || c.h.opts.Listener != ref.ListenerMain {
 		return nil, false
+	}
+	if op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: "apigatewayv2", Name: "InvokeApi"}); ok && op.Kind == registry.Raw {
+		return toLink{op: op, policy: cspSandbox}, true
 	}
 	c.decline(1, "%s is the API Gateway execute-api path fallback, and understudy does not implement API Gateway invoke", c.path)
 	return toExecuteAPI{reasons: c.reasons, policy: cspSandbox}, true

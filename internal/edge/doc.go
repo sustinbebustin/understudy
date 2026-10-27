@@ -49,10 +49,12 @@
 //   - API Gateway's execute-api data plane is claimed before every rule
 //     that reads credentials, so S3 never answers it as a virtual-hosted
 //     bucket: its hosts under rule 2 on every listener, its path fallback
-//     /_understudy/execute-api/ under rule 1 on the main listener. Until
-//     API Gateway invoke is implemented both answer 501 in API Gateway's
-//     {"message": ...} shape, journaled as Unclaimed, and the browser
-//     defences refuse neither, as any page may call one on AWS.
+//     /_understudy/execute-api/ under rule 1 on the main listener. The path
+//     fallback goes to the raw apigatewayv2.InvokeApi operation when it is
+//     registered. The host form, and the path fallback without that
+//     operation, answer 501 in API Gateway's {"message": ...} shape,
+//     journaled as Unclaimed. The browser defences refuse neither form, as
+//     any page may call one on AWS.
 //   - Every answer on the function URL and execute-api path fallbacks
 //     carries exactly one Content-Security-Policy: sandbox, over any the
 //     function or the edge set (sandbox.go), since those pages share the
