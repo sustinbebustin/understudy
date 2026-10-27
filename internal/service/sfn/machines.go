@@ -92,6 +92,9 @@ func (s *Service) createStateMachine(ctx context.Context, c *kernel.Call, in *sf
 		Tracing:    in.TracingConfiguration != nil && in.TracingConfiguration.Enabled,
 		Tags:       tagsOf(nil, in.Tags),
 	}
+	if err := checkExecutionRole(ctx, c, roleCheck{machine: ref, role: m.RoleArn, trust: true, logging: m.Logging}); err != nil {
+		return nil, err
+	}
 	created, err := kernel.Write(c, s.cells, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (clock.Instant, *awserr.Error) {
 		if old, ok := st.Machines[ref.name]; ok {
 			if old.Deleting {
@@ -224,6 +227,9 @@ func (s *Service) updateStateMachine(ctx context.Context, c *kernel.Call, in *sf
 	if !ok {
 		return nil, missing
 	}
+	if err := s.checkUpdatedRole(ctx, c, in); err != nil {
+		return nil, err
+	}
 	return kernel.Write(c, s.cells, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (*sfnapi.UpdateStateMachineOutput, *awserr.Error) {
 		old, ok := st.Machines[ref.name]
 		if !ok {
@@ -254,6 +260,27 @@ func (s *Service) updateStateMachine(ctx context.Context, c *kernel.Call, in *sf
 		st.Machines[ref.name] = m
 		return &sfnapi.UpdateStateMachineOutput{UpdateDate: now.Wire(), RevisionId: new(m.RevisionID)}, nil
 	})
+}
+
+// checkUpdatedRole runs checkExecutionRole for an update that passes a
+// role or changes the logging configuration, against the role and logging
+// the machine will have: the trust only for a passed role.
+func (s *Service) checkUpdatedRole(ctx context.Context, c *kernel.Call, in *sfnapi.UpdateStateMachineInput) *awserr.Error {
+	if in.RoleArn == nil && in.LoggingConfiguration == nil {
+		return nil
+	}
+	ref, m, err := s.machine(c, in.StateMachineArn)
+	if err != nil {
+		return err
+	}
+	rc := roleCheck{machine: ref, role: m.RoleArn, logging: m.Logging}
+	if in.RoleArn != nil {
+		rc.role, rc.trust = *in.RoleArn, true
+	}
+	if in.LoggingConfiguration != nil {
+		rc.logging = loggingOf(in.LoggingConfiguration)
+	}
+	return checkExecutionRole(ctx, c, rc)
 }
 
 // awsOwnedKey is the encryptionConfiguration every machine describes with:

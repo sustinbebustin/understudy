@@ -63,7 +63,7 @@ const (
 		"multi-clause filters and filter scripts (ASL-19). A dynamodb resource outside getItem, putItem, updateItem and deleteItem answers " +
 		"AWS's SCHEMA_VALIDATION_FAILED text. Only the first problem in a definition is reported (UNVERIFIED, ASL-01, SFN-08). " +
 		"loggingConfiguration and tracingConfiguration are validated, stored and echoed; no log events or traces are emitted. " +
-		"The role ARN is checked for syntax only, with understudy's message (UNVERIFIED, SFN-08); its trust policy is not checked"
+		"The role ARN is checked for syntax, and its trust policy only under iam.enforce=enforce, with understudy's message (UNVERIFIED, SFN-08)"
 	noteUpdate = "The CreateStateMachine definition and configuration rules apply; publish true and versionDescription answer 501. " +
 		"Running executions keep the definition and role they started with"
 	noteValidate = "Diagnostics use AWS's codes; messages are AWS's for the recorded cases (stepfunctions-asl.md 3.4-3.6) and understudy's wording elsewhere " +
@@ -103,21 +103,8 @@ const (
 
 // bindMachines binds the state machine control plane and tags.
 func (s *Service) bindMachines(b sfnapi.Binder) {
-	b.CreateStateMachine(s.createStateMachine, registry.Partial{Note: noteCreate},
-		kernel.WithActions(func(_ *kernel.Call, in *sfnapi.CreateStateMachineInput) []registry.IAMAction {
-			// Tags on create need states:TagResource (stepfunctions-api.md
-			// 9.5); iam:PassRole is the execution role's check, not one of
-			// this service's actions.
-			if len(in.Tags) == 0 {
-				return nil
-			}
-			return []registry.IAMAction{{Prefix: "states", Name: "TagResource"}}
-		}))
-	// UpdateStateMachine's generated list also holds iam:PassRole, the
-	// execution role's check rather than one of this service's actions, and
-	// states:PublishStateMachineVersion, which publish true needs and is
-	// refused.
-	b.UpdateStateMachine(s.updateStateMachine, registry.Partial{Note: noteUpdate}, kernel.WithoutSecondaryActions())
+	b.CreateStateMachine(s.createStateMachine, registry.Partial{Note: noteCreate}, createAuthorization()...)
+	b.UpdateStateMachine(s.updateStateMachine, registry.Partial{Note: noteUpdate}, updateAuthorization()...)
 	b.DescribeStateMachine(s.describeStateMachine, registry.Full{})
 	b.DeleteStateMachine(s.deleteStateMachine, registry.Full{})
 	b.ListStateMachines(s.listStateMachines, registry.Full{})
