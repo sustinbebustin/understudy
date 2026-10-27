@@ -83,6 +83,15 @@ no_aws_host() {
   fi
 }
 
+# assert_local_link URL: fail unless a received link is on loopback, so the
+# suite never follows one to another host, an AWS one least of all (8.8).
+assert_local_link() {
+  case "$1" in
+    http://127.0.0.1:* | http://localhost:* | 'http://[::1]:'*) ;;
+    *) fail "link [$1] is not on loopback; not following it" ;;
+  esac
+}
+
 # A subscription is pending until confirmed (2.2); ConfirmSubscription with
 # the confirmation's Token confirms it (2.3); a publish then arrives as a
 # Notification with the members of 4.2 and the headers of 3.2.
@@ -149,6 +158,7 @@ test_http_subscription_confirmed_by_link_unsubscribes_by_link() {
   local confirm_token link answer
   confirm_token=$(jqv '.Token')
   link=$(jqv '.SubscribeURL')
+  assert_local_link "$link"
   answer=$(curl -fsS "$link")
   assert_contains '<ConfirmSubscriptionResponse' "$answer" "the SubscribeURL answer"
   assert_contains "<SubscriptionArn>$sub_arn</SubscriptionArn>" "$answer" "the SubscribeURL answer"
@@ -159,6 +169,7 @@ test_http_subscription_confirmed_by_link_unsubscribes_by_link() {
   received Notification
   assert_jq '.Message' 'hello-link'
   link=$(jqv '.UnsubscribeURL')
+  assert_local_link "$link"
   answer=$(curl -fsS "$link")
   assert_contains '<UnsubscribeResponse' "$answer" "the UnsubscribeURL answer"
 
