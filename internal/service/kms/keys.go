@@ -109,7 +109,7 @@ const maxPolicyChars = 32768
 
 // checkPolicy checks a key policy against the size quota, parses it and
 // requires a Principal or NotPrincipal in every statement, as CreateKey and
-// PutKeyPolicy document; KMS stores it and understudy does not enforce it. A
+// PutKeyPolicy document; KMS stores it, and iam.enforce evaluates it. A
 // statement without Action or Resource is accepted, as AWS accepts it (it
 // has no effect).
 func checkPolicy(policy string) *awserr.Error {

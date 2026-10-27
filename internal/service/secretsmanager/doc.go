@@ -1,7 +1,7 @@
 // Package secretsmanager implements AWS Secrets Manager: secrets, versions and
 // staging labels, ClientRequestToken idempotency, tags, resource policies
-// (stored, not enforced) and deletion with a recovery window on the emulator
-// clock.
+// (stored, and evaluated under iam.enforce advise and enforce) and deletion
+// with a recovery window on the emulator clock.
 //
 // A secret's versions are sealed with envelope encryption, as AWS does
 // (iam-sts-kms.md 5.8): GenerateDataKey for an AES-256 data key under the
@@ -60,7 +60,7 @@
 //   - UpdateSecret with a new KmsKeyId moves the data keys of the versions
 //     labeled AWSCURRENT, AWSPREVIOUS and AWSPENDING under the new key (KMS
 //     Decrypt, then Encrypt), as AWS does for a caller with kms:Encrypt on
-//     it, which every caller has while IAM is not enforced. A version KMS
+//     it, which every caller has unless iam.enforce is enforce. A version KMS
 //     refuses to move (the old key disabled, deleted or otherwise refusing
 //     Decrypt, or the new key refusing Encrypt) stays under its old key
 //     while the key still changes, as AWS documents for a caller without

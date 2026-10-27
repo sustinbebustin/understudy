@@ -77,7 +77,7 @@
 //     rename keep resolving to the old name and path, since the identity
 //     store cannot rename a principal (coverage lists UpdateUser as Partial).
 //   - UpdateAccessKey stores Inactive, and the key still authenticates,
-//     since understudy does not enforce IAM.
+//     since understudy does not check a key's status.
 //   - GetRole answers an empty RoleLastUsed: role use is not tracked.
 //   - Error texts follow iam-sts-kms.md 3.4 (the role texts are the ones
 //     Terraform matches); errors.go marks each text no source records.
