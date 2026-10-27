@@ -48,7 +48,7 @@ func (p *pollers) pin(ctx context.Context, c *kernel.Call, pl *poller, target ke
 // return to the queue when their visibility timeout ends.
 func (p *pollers) giveBack(ctx context.Context, c *kernel.Call, pl *poller) {
 	h := &pl.held
-	h.batch, h.opened, h.carry = esm.Batch{}, clock.Instant{}, nil
+	h.batch, h.opened, h.carry = esm.QueueBatch{}, clock.Instant{}, nil
 	p.unpin(ctx, c, pl, h.pinned, h.pinned)
 }
 

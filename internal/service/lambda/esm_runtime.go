@@ -50,7 +50,7 @@ import (
 //     pinned when the snapshot was saved loads unpinned and returns after
 //     its visibility timeout.
 //   - A message received again while its batch waits for the window, its
-//     visibility timeout over, replaces the held copy (esm.Batch.Add).
+//     visibility timeout over, replaces the held copy (esm.QueueBatch.Add).
 //   - A throttled invocation, or one the emulator could not run, fails the
 //     whole batch, which returns to the queue with its visibility timeout.
 //   - A receive that fails after earlier receives filled part of the batch
@@ -233,7 +233,7 @@ const (
 // has received and not yet invoked or given back, with its pins, and the
 // step's caches and failure tracking.
 type held struct {
-	batch esm.Batch
+	batch esm.QueueBatch
 	// opened is when the batch's first message was received, which opens
 	// its batching window.
 	opened clock.Instant
@@ -334,6 +334,9 @@ func newPoller(scope aws.Scope, uuid string, m Mapping) (*poller, bool) {
 	switch m.SourceKind.(type) {
 	case esm.SQS:
 		return newQueuePoller(scope, uuid, m)
+	case esm.DynamoDBStream:
+		// createMapping does not accept a stream yet, so no stored mapping
+		// has this kind: the stream poller is not implemented yet.
 	case nil:
 		// createMapping gives every mapping a kind and every section of
 		// this state version stores it; one without has nothing to poll.

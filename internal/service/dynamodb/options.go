@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb/ddblocal"
 )
@@ -15,6 +16,59 @@ type Options struct {
 	// Local is the DynamoDB Local container the service forwards to; a
 	// *ddblocal.Manager in production, a fake in tests.
 	Local Local
+	// StreamSequence is the dynamodb.streams.sequence-number switch.
+	StreamSequence StreamSequence
+	// IteratorReuse is the dynamodb.streams.iterator-reuse switch.
+	IteratorReuse IteratorReuse
+}
+
+// StreamSequence is how a stream's sequence numbers are minted
+// (dynamodb-streams.md 4.3, DDBS-09). Streams are not served yet, so
+// nothing reads it: not implemented yet.
+type StreamSequence uint8
+
+// StreamSequence values; the zero value is SequenceDecimal21.
+const (
+	// SequenceDecimal21 is 21 digits from a per-shard counter, the first
+	// record one above the shard's StartingSequenceNumber.
+	SequenceDecimal21 StreamSequence = iota
+	// SequenceStartEqualsFirst numbers the first record with the shard's
+	// StartingSequenceNumber, as DynamoDB Local does (8.3).
+	SequenceStartEqualsFirst
+)
+
+func (q StreamSequence) String() string {
+	switch q {
+	case SequenceDecimal21:
+		return "decimal-21"
+	case SequenceStartEqualsFirst:
+		return "start-equals-first"
+	}
+	return "StreamSequence(" + strconv.Itoa(int(q)) + ")"
+}
+
+// IteratorReuse is whether GetRecords accepts a shard iterator it has
+// already read with (dynamodb-streams.md 4.4, DDBS-04). Streams are not
+// served yet, so nothing reads it: not implemented yet.
+type IteratorReuse uint8
+
+// IteratorReuse values; the zero value is IteratorReuseAllowed.
+const (
+	// IteratorReuseAllowed reads with an iterator again until it expires.
+	IteratorReuseAllowed IteratorReuse = iota
+	// IteratorSingleUse answers ExpiredIteratorException for an iterator
+	// already used.
+	IteratorSingleUse
+)
+
+func (r IteratorReuse) String() string {
+	switch r {
+	case IteratorReuseAllowed:
+		return "allowed"
+	case IteratorSingleUse:
+		return "single-use"
+	}
+	return "IteratorReuse(" + strconv.Itoa(int(r)) + ")"
 }
 
 // Local is a DynamoDB Local the proxy reaches over HTTP.

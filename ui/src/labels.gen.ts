@@ -73,4 +73,6 @@ export const idKinds = [
   "lambda-record-key",
   "apigateway-api-id",
   "apigateway-child-id",
+  "dynamodb-stream-event-id",
+  "shard-iterator-key",
 ] as const;

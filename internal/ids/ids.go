@@ -122,6 +122,13 @@ func (s *Source) SSECSalt() []byte { return s.Draw(KindSSECSalt, 16) }
 // asynchronous invocation record (lambda-destinations-layers.md 4.5).
 func (s *Source) LambdaRecordKey() uuid.UUID { return s.UUID(KindLambdaRecordKey) }
 
+// StreamEventID mints a DynamoDB stream record's eventID: 32 lower-case hex
+// digits, the form of the documentation's example (dynamodb-streams.md 4.5).
+func (s *Source) StreamEventID() string { return hex.EncodeToString(s.Draw(KindStreamEventID, 16)) }
+
+// StreamIteratorKey draws the 32-byte HMAC key that signs shard iterators.
+func (s *Source) StreamIteratorKey() []byte { return s.Draw(KindStreamIteratorKey, 32) }
+
 // KMSKeyID mints a KMS key id.
 func (s *Source) KMSKeyID() KMSKeyID { return KMSKeyID(s.UUID(KindKMSKeyID).String()) }
 

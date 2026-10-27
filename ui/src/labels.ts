@@ -75,6 +75,8 @@ export const idKindLabels: Readonly<Record<string, string>> = {
   "lambda-record-key": "Lambda record object key",
   "apigateway-api-id": "API Gateway API ID",
   "apigateway-child-id": "API Gateway route, integration or deployment ID",
+  "dynamodb-stream-event-id": "DynamoDB stream event ID",
+  "shard-iterator-key": "Shard iterator key",
 };
 
 // label returns table's label for name, or name when it has none.

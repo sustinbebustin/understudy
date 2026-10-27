@@ -74,6 +74,10 @@ func importRules() []importRule {
 		// function URLs and API Gateway check a resource policy with
 		// authz.CheckResource (iam-enforcement-surfaces.md 12.2).
 		"internal/authz",
+		// The stream log DynamoDB Streams, Kinesis and Lambda's stream
+		// poller share (dynamodb-streams.md 11.1, ADR 0014 amendment of
+		// 2026-10-26).
+		"internal/shardlog",
 	}
 	return []importRule{
 		// Leaves.
@@ -102,6 +106,11 @@ func importRules() []importRule {
 		{"internal/topology", []string{"internal/docker"}},
 		{"internal/docker/dockertest", []string{"internal/docker"}},
 		{"internal/delivery", []string{"internal/aws", "internal/ref"}},
+		// The shared stream log: pure, keyed by stream ARN, with instants of
+		// the emulator clock's type and the wait key its appends wake
+		// (dynamodb-streams.md 11.1). ARCHITECTURE.md section 2 gains it
+		// with the 8a docs.
+		{"internal/shardlog", []string{"internal/aws", "internal/clock", "internal/store"}},
 		// The payload format 2.0 builders function URLs and API Gateway
 		// share (ARCHITECTURE.md 14.7).
 		{"internal/httpevent", nil},

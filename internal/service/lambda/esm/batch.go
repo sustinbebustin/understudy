@@ -11,10 +11,10 @@ import (
 // (lambda-events.md 2.1).
 const MaxPayload = 6_291_456
 
-// Batch is the records of one invocation, in the order they were
+// QueueBatch is the records of one SQS invocation, in the order they were
 // received, and the size of the event they make. It holds each message
 // once.
-type Batch struct {
+type QueueBatch struct {
 	records []Record
 	encoded [][]byte
 	// encodedSize is the sum of the encoded records' lengths.
@@ -30,10 +30,10 @@ const (
 )
 
 // Len returns the number of records.
-func (b *Batch) Len() int { return len(b.records) }
+func (b *QueueBatch) Len() int { return len(b.records) }
 
 // Size returns the length of Event's JSON.
-func (b *Batch) Size() int {
+func (b *QueueBatch) Size() int {
 	return sizeOf(len(b.records), b.encodedSize)
 }
 
@@ -55,7 +55,7 @@ func sizeOf(n, encoded int) int {
 // receipt handle that can still delete it. The held one is removed even
 // when r is then refused, since its handle no longer reaches the message;
 // any other refused record leaves the batch unchanged.
-func (b *Batch) Add(r Record) (bool, error) {
+func (b *QueueBatch) Add(r Record) (bool, error) {
 	enc, err := json.Marshal(r)
 	if err != nil {
 		return false, err
@@ -77,10 +77,10 @@ func (b *Batch) Add(r Record) (bool, error) {
 }
 
 // Records returns the records in order. The caller must not change them.
-func (b *Batch) Records() []Record { return b.records }
+func (b *QueueBatch) Records() []Record { return b.records }
 
 // MessageIDs returns the records' message ids in order.
-func (b *Batch) MessageIDs() []string {
+func (b *QueueBatch) MessageIDs() []string {
 	out := make([]string, len(b.records))
 	for i := range b.records {
 		out[i] = b.records[i].MessageID
@@ -89,7 +89,7 @@ func (b *Batch) MessageIDs() []string {
 }
 
 // Event returns the invocation's payload: {"Records":[...]}.
-func (b *Batch) Event() []byte {
+func (b *QueueBatch) Event() []byte {
 	out := make([]byte, 0, b.Size())
 	out = append(out, eventOpen...)
 	out = append(out, bytes.Join(b.encoded, []byte(","))...)
@@ -97,7 +97,7 @@ func (b *Batch) Event() []byte {
 }
 
 // remove drops the record of message id, which the batch holds.
-func (b *Batch) remove(id string) {
+func (b *QueueBatch) remove(id string) {
 	i := slices.IndexFunc(b.records, func(r Record) bool { return r.MessageID == id })
 	b.encodedSize -= len(b.encoded[i])
 	b.records = slices.Delete(b.records, i, i+1)

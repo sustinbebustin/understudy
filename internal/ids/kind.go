@@ -45,6 +45,12 @@ const (
 	// KindAPIGatewayChildID is the ids of what an API Gateway API holds:
 	// routes, integrations and deployments.
 	KindAPIGatewayChildID
+	// KindStreamEventID is a DynamoDB stream record's eventID
+	// (dynamodb-streams.md 4.5).
+	KindStreamEventID
+	// KindStreamIteratorKey is the HMAC key that signs shard iterators
+	// (dynamodb-streams.md 11.1).
+	KindStreamIteratorKey
 
 	// endKind follows the last kind and is no kind: kindCount counts up to
 	// it, so a new kind is one line above it plus its String case.
@@ -110,6 +116,10 @@ func (k Kind) String() string {
 		return "apigateway-api-id"
 	case KindAPIGatewayChildID:
 		return "apigateway-child-id"
+	case KindStreamEventID:
+		return "dynamodb-stream-event-id"
+	case KindStreamIteratorKey:
+		return "shard-iterator-key"
 	}
 	return fmt.Sprintf("kind(%d)", uint8(k))
 }
