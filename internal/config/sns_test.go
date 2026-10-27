@@ -80,7 +80,7 @@ func TestSNSHTTPDeliveryAllowSources(t *testing.T) {
 	}{
 		{"default", nil, nil, files{}, nil},
 		{"file", nil, nil, file, []string{"127.0.0.1:8080", "localhost:*"}},
-		{"variable over file", nil, []string{"UNDERSTUDY_SNS_HTTP_DELIVERY_ALLOW=[::1]:9000,hooks.example.test:443"}, file, []string{"::1:9000", "hooks.example.test:443"}},
+		{"variable over file", nil, []string{"UNDERSTUDY_SNS_HTTP_DELIVERY_ALLOW=[::1]:9000,hooks.example.test:443"}, file, []string{"[::1]:9000", "hooks.example.test:443"}},
 		{
 			"flag over variable",
 			[]string{"--sns-http-delivery-allow", "127.0.0.1:*"},

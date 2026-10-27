@@ -606,8 +606,10 @@ func TestSNSHTTPPacing(t *testing.T) {
 // 8.2 item 7).
 func TestSNSHTTPSettleCountsTheAttemptInFlight(t *testing.T) {
 	r := answeringHook(http.StatusServiceUnavailable)
-	r.hold = make(chan struct{})
 	runHTTP(t, r, func(k *kerneltest.K, o *outbox.Outbox) {
+		// Made inside the bubble, so the receiver's wait on it is durably
+		// blocking and synctest.Wait returns (testing/synctest).
+		r.hold = make(chan struct{})
 		enqueue(k, o, toHook(k, "http://127.0.0.1:8080/hook", delivery.HTTPNotification, defaultHTTPPolicy()), source(k))
 		done := make(chan error, 1)
 		go func() {

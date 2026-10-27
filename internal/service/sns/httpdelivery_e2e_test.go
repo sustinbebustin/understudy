@@ -345,6 +345,7 @@ func TestHTTPStatusClassesFollowTheSwitch(t *testing.T) {
 				must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
 				h.settle()
 				h.advance(time.Minute)
+				h.settle()
 				_, ds := attemptsSince(h, t1)
 				want := 1
 				if c.retried {
@@ -416,6 +417,7 @@ func TestHTTPRetriesResendTheSameBytes(t *testing.T) {
 		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
 		h.settle()
 		h.advance(time.Hour)
+		h.settle()
 		ns := s.ofType("Notification")
 		if len(ns) != 2 {
 			h.Fatalf("the endpoint got %d Notifications, want the failed one and its retry", len(ns))
@@ -483,6 +485,7 @@ func TestHTTPBackoffFollowsTheSwitches(t *testing.T) {
 			must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
 			h.settle()
 			h.advance(time.Hour)
+			h.settle()
 			at, _ = attemptsSince(h, t1)
 		})
 		return at
