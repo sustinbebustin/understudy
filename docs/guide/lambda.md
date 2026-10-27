@@ -122,7 +122,7 @@ aws lambda invoke --function-name layered out.json && cat out.json
 ```
 
 - understudy merges a function's layers into `/opt` in the order listed, and mounts the merged tree read-only, or copies it into the container where a bind mount is not possible. A later layer's file replaces an earlier one's at the same path. AWS does not say which layer wins, so this is the fidelity switch `lambda.layers.merge-conflict`. A file in one layer where another has a directory fails the invoke with a `ServiceException` naming the path.
-- understudy sets no `PYTHONPATH`, `NODE_PATH` or `PATH`. The runtimes in AWS's base images search `/opt/python`, `/opt/python/lib/python3.x/site-packages`, `/opt/bin` and `/opt/lib` themselves, and `provided.al2023` runs a layer's `/opt/bootstrap` when the package has none. That the Node.js runtimes search `/opt/nodejs/node_modules` the same way is inferred, not yet checked against the pinned `nodejs22.x` image; if `require` cannot find a layer's package, set `NODE_PATH` in the function's environment.
+- understudy sets no `PYTHONPATH`, `NODE_PATH` or `PATH`. The runtimes in AWS's base images search `/opt/python`, `/opt/python/lib/python3.x/site-packages`, `/opt/nodejs/node_modules`, `/opt/bin` and `/opt/lib` themselves, and `provided.al2023` runs a layer's `/opt/bootstrap` when the package has none.
 - Only layers published to understudy exist, because understudy never fetches a layer from AWS. An AWS-published layer such as Powertools is refused:
 
   ```sh
@@ -183,9 +183,9 @@ The on-failure queue's message is the record:
 ```text
 {
     "version": "1.0",
-    "timestamp": "2026-10-27T02:59:50.093Z",
+    "timestamp": "2026-10-27T03:49:13.665Z",
     "requestContext": {
-        "requestId": "a99a8137-ff53-43c1-bcc8-eb76cfd3934c",
+        "requestId": "39b8e24a-f937-476b-911a-5e57733aaf6c",
         "functionArn": "arn:aws:lambda:us-east-1:000000000000:function:orders:$LATEST",
         "condition": "RetriesExhausted",
         "approximateInvokeCount": 1
@@ -201,7 +201,7 @@ The on-failure queue's message is the record:
     "responsePayload": {
         "errorMessage": "order 42 failed",
         "errorType": "Exception",
-        "requestId": "a99a8137-ff53-43c1-bcc8-eb76cfd3934c",
+        "requestId": "39b8e24a-f937-476b-911a-5e57733aaf6c",
         "stackTrace": [
             "  File \"/var/task/orders.py\", line 2, in handler\n    raise Exception(\"order \" + event[\"order\"] + \" failed\")\n"
         ]
@@ -229,7 +229,7 @@ aws sqs receive-message --queue-url http://localhost:4566/000000000000/orders-dl
             "DataType": "String"
         },
         "RequestID": {
-            "StringValue": "a99a8137-ff53-43c1-bcc8-eb76cfd3934c",
+            "StringValue": "39b8e24a-f937-476b-911a-5e57733aaf6c",
             "DataType": "String"
         }
     }
@@ -259,7 +259,7 @@ aws sqs receive-message --queue-url http://localhost:4566/000000000000/orders-dl
   ```
 
   ```text
-  54     2026-10-27T03:02:54.428280135Z  delivery       000000000000/us-east-1 lambda-to-sqs orders -> failed.fifo attempt 1 dropped: arn:aws:sqs:us-east-1:000000000000:failed.fifo is a FIFO queue, which Lambda does not deliver to (lambda-destinations-layers.md 2.2, 5.1); Lambda counts it in DestinationDeliveryFailures
+  41     2026-10-27T03:49:15.848025476Z  delivery       000000000000/us-east-1 lambda-to-sqs orders -> failed.fifo attempt 1 dropped: arn:aws:sqs:us-east-1:000000000000:failed.fifo is a FIFO queue, which Lambda does not deliver to (lambda-destinations-layers.md 2.2, 5.1); Lambda counts it in DestinationDeliveryFailures
   ```
 
 - Records and dead letters are sent as the function's execution role. understudy does not check the role's permissions, but `understudy iam policy --principal <role ARN>` lists the `sqs:SendMessage`, `sns:Publish`, `lambda:InvokeFunction`, `events:PutEvents`, `s3:ListBucket` and `s3:PutObject` statements the deliveries need (see [IAM policy](policy.md)).
