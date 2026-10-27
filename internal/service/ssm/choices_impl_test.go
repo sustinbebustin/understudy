@@ -1,6 +1,8 @@
 package ssm_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
@@ -166,5 +168,126 @@ func TestVersionNumbersContinuePastTheCap(t *testing.T) {
 		if got := h.mustGet("/choice/many", false); got.Version != 101 {
 			h.Errorf("Version after 101 writes = %d, want 101", got.Version)
 		}
+	})
+}
+
+// Value size is counted in UTF-8 bytes: 4096 bytes fit Standard, 4097 do
+// not, and 2049 two-byte characters (4098 bytes) do not either; Advanced
+// takes 8192 bytes, not 8193. An oversize value is SSM's
+// ValidationException naming the parameter, the limit and the measured
+// bytes, never the value, and nothing is written. UNVERIFIED (SSM-12),
+// ssm-parameters.md 4.2.
+func TestValueSizeIsCountedInBytes(t *testing.T) {
+	run(t, func(h *harness) {
+		std, adv := new(ssmapi.ParameterTierStandard), new(ssmapi.ParameterTierAdvanced)
+		must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/size/std", Value: strings.Repeat("a", 4096), Type: new(ssmapi.ParameterTypeString), Tier: std})
+		must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/size/adv", Value: strings.Repeat("a", 8192), Type: new(ssmapi.ParameterTypeString), Tier: adv})
+		for _, c := range []struct {
+			name, value, limit, size string
+			tier                     *ssmapi.ParameterTier
+		}{
+			{"/size/std-over", strings.Repeat("b", 4097), "4096", "4097", std},
+			{"/size/std-utf8", strings.Repeat("é", 2049), "4096", "4098", std},
+			{"/size/adv-over", strings.Repeat("c", 8193), "8192", "8193", adv},
+		} {
+			_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: c.name, Value: c.value, Type: new(ssmapi.ParameterTypeString), Tier: c.tier})
+			wantCode(h.T, c.name, err, ssmapi.IdentityValidationException())
+			wantOwnMessage(h.T, c.name, err, c.value, c.name, c.limit, c.size)
+			if err := h.get(c.name); err == nil {
+				h.Errorf("%s was stored", c.name)
+			}
+		}
+	})
+}
+
+// The six structural regexp errors no dialect accepts answer
+// InvalidAllowedPatternException naming the parameter and the pattern, and
+// nothing is written. UNVERIFIED (SSM-15), ssm-parameters.md 4.4.
+func TestStructuralAllowedPatternErrors(t *testing.T) {
+	run(t, func(h *harness) {
+		// Missing bracket, missing paren, unexpected paren, trailing
+		// backslash, missing repeat argument, invalid character range; the
+		// last two would pair with an anchoring group if wrapped first.
+		for _, p := range []string{`[a`, `(a`, `a)`, `a\`, `*a`, `[z-a]`, `a)(b`} {
+			_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/pat/bad", Value: "secret-value", Type: new(ssmapi.ParameterTypeString), AllowedPattern: new(p)})
+			wantCode(h.T, "AllowedPattern "+p, err, ssmapi.IdentityInvalidAllowedPatternException())
+			wantOwnMessage(h.T, "AllowedPattern "+p, err, "secret-value", "/pat/bad", p)
+		}
+		if err := h.get("/pat/bad"); err == nil {
+			h.Error("a parameter with an invalid pattern was stored")
+		}
+	})
+}
+
+// An Intelligent-Tiering request answers the resolved tier, never
+// Intelligent-Tiering; an Advanced parameter overwritten without Tier, or
+// with Intelligent-Tiering and a small value, stays Advanced. UNVERIFIED
+// (SSM-13), ssm-parameters.md 4.2.
+func TestIntelligentTieringAnswersTheResolvedTier(t *testing.T) {
+	run(t, func(h *harness) {
+		it := new(ssmapi.ParameterTierIntelligentTiering)
+		out := must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/it/a", Value: "v", Type: new(ssmapi.ParameterTypeString), Tier: it})
+		if val(out.Tier) != ssmapi.ParameterTierStandard {
+			h.Errorf("Intelligent-Tiering small response Tier = %q, want Standard", val(out.Tier))
+		}
+		out = must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/it/a", Value: strings.Repeat("x", 4097), Overwrite: new(true), Tier: it})
+		if val(out.Tier) != ssmapi.ParameterTierAdvanced {
+			h.Errorf("Intelligent-Tiering 4097 bytes response Tier = %q, want Advanced", val(out.Tier))
+		}
+		if out := h.overwrite("/it/a", "small"); val(out.Tier) != ssmapi.ParameterTierAdvanced {
+			h.Errorf("overwrite without Tier response Tier = %q, want Advanced", val(out.Tier))
+		}
+		out = must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/it/a", Value: "tiny", Overwrite: new(true), Tier: it})
+		if val(out.Tier) != ssmapi.ParameterTierAdvanced {
+			h.Errorf("Intelligent-Tiering small on Advanced response Tier = %q, want Advanced", val(out.Tier))
+		}
+		if got := val(h.mustDescribeOne("/it/a").Tier); got != ssmapi.ParameterTierAdvanced {
+			h.Errorf("DescribeParameters Tier = %q, want Advanced", got)
+		}
+	})
+}
+
+// An empty AllowedPattern on an overwrite clears the stored pattern, so a
+// value the old pattern refused is accepted. UNVERIFIED (SSM-10 step 04),
+// ssm-parameters.md 7.1.
+func TestEmptyAllowedPatternClears(t *testing.T) {
+	run(t, func(h *harness) {
+		must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/pat/clear", Value: "12", Type: new(ssmapi.ParameterTypeString), AllowedPattern: new(`\d+`)})
+		must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/pat/clear", Value: "letters", Overwrite: new(true), AllowedPattern: new("")})
+		if d := h.mustDescribeOne("/pat/clear"); d.AllowedPattern != nil {
+			h.Errorf("AllowedPattern = %q after an empty one, want absent", *d.AllowedPattern)
+		}
+		h.overwrite("/pat/clear", "more letters")
+	})
+}
+
+// The 10,001st Standard parameter of a scope is ParameterLimitExceeded
+// (ssm-parameters.md 4.2, 9.3 [D]) naming the parameter and the limit, and
+// is not created; an Intelligent-Tiering create then resolves to Advanced
+// (4.2 [D]), and an overwrite of a Standard parameter still fits.
+// UNVERIFIED (SSM-33), ssm-parameters.md 9.3: the text.
+func TestStandardParameterCount(t *testing.T) {
+	run(t, func(h *harness) {
+		for i := range 10_000 {
+			h.put(fmt.Sprintf("/count/p%05d", i), "v")
+		}
+		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/count/over", Value: "secret-value", Type: new(ssmapi.ParameterTypeString)})
+		wantCode(h.T, "the 10,001st Standard parameter", err, ssmapi.IdentityParameterLimitExceeded())
+		wantOwnMessage(h.T, "the 10,001st Standard parameter", err, "secret-value", "/count/over", "10000")
+		if err := h.get("/count/over"); err == nil {
+			h.Error("the 10,001st Standard parameter was stored")
+		}
+		out := must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{
+			Name: "/count/it", Value: "v", Type: new(ssmapi.ParameterTypeString), Tier: new(ssmapi.ParameterTierIntelligentTiering),
+		})
+		if val(out.Tier) != ssmapi.ParameterTierAdvanced {
+			h.Errorf("Intelligent-Tiering with 10,000 Standard parameters = %q, want Advanced", val(out.Tier))
+		}
+		if out := h.overwrite("/count/p00000", "w"); val(out.Tier) != ssmapi.ParameterTierStandard || out.Version != 2 {
+			h.Errorf("overwrite of a Standard parameter at the limit = %q version %d, want Standard 2", val(out.Tier), out.Version)
+		}
+		must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{
+			Name: "/count/adv", Value: "v", Type: new(ssmapi.ParameterTypeString), Tier: new(ssmapi.ParameterTierAdvanced),
+		})
 	})
 }

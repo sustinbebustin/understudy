@@ -2,6 +2,7 @@ package ssm
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -154,6 +155,16 @@ func errNotImplementedYet(op string) *awserr.Error {
 func errFeatureNotYet(op, feature string) *awserr.Error {
 	return ssmapi.ErrNotImplemented("understudy does not implement " + feature + " in ssm " + op +
 		" yet. Run 'understudy coverage --service ssm' for what is supported. Nothing was changed.")
+}
+
+// errUnsupported answers a request that needs a feature of op understudy
+// does not implement (spec "Scope"; ssm-parameters.md 12.1): 501 naming
+// the feature and where to ask for it.
+func errUnsupported(op, feature string) *awserr.Error {
+	return ssmapi.ErrNotImplemented(fmt.Sprintf(
+		"understudy does not implement %s in ssm %s; nothing was changed. "+
+			"Run 'understudy coverage --service ssm' for what is supported; to ask for it, see %s?q=ssm",
+		feature, op, issuesURL))
 }
 
 // notYet answers an operation whose handler has not landed yet, after the

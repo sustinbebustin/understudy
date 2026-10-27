@@ -95,9 +95,8 @@ func errTagsWithOverwrite() *awserr.Error {
 }
 
 // putParameter creates a parameter, or with Overwrite writes its next
-// version. Not implemented yet: SecureString, tiers other than Standard,
-// DataTypes other than text, AllowedPattern, value sizes and policies, each
-// of which answers NotImplemented naming it.
+// version. Not implemented yet: SecureString, which answers NotImplemented
+// naming it.
 func (s *Service) putParameter(_ context.Context, c *kernel.Call, in *ssmapi.PutParameterInput) (*ssmapi.PutParameterOutput, *awserr.Error) {
 	const op = "PutParameter"
 	if err := checkReserved(op, in.Name); err != nil {
@@ -111,17 +110,9 @@ func (s *Service) putParameter(_ context.Context, c *kernel.Call, in *ssmapi.Put
 	overwrite := in.Overwrite != nil && *in.Overwrite
 	switch {
 	case in.Policies != nil:
-		return nil, errFeatureNotYet(op, "Policies")
-	case in.Type != nil && *in.Type == ssmapi.ParameterTypeSecureString:
-		return nil, errFeatureNotYet(op, "SecureString")
-	case in.Tier != nil && *in.Tier != ssmapi.ParameterTierStandard:
-		return nil, errFeatureNotYet(op, "a Tier other than Standard")
-	case in.DataType != nil && *in.DataType != defaultDataType:
-		return nil, errFeatureNotYet(op, "a DataType other than text")
-	case in.AllowedPattern != nil && *in.AllowedPattern != "":
-		// Terraform sends AllowedPattern "" when none is configured
-		// (ssm-parameters.md 10.1), which is no pattern.
-		return nil, errFeatureNotYet(op, "AllowedPattern")
+		return nil, errUnsupported(op, "parameter Policies")
+	case in.DataType != nil && *in.DataType == dataTypeEC2Image:
+		return nil, errUnsupported(op, "DataType aws:ec2:image, since understudy has no EC2 to validate an AMI,")
 	case len(in.Tags) > 0 && overwrite:
 		return nil, errTagsWithOverwrite()
 	}
@@ -129,18 +120,18 @@ func (s *Service) putParameter(_ context.Context, c *kernel.Call, in *ssmapi.Put
 	if len(tags) > maxTags {
 		return nil, ssmapi.ErrTooManyTagsError()
 	}
-	w := write{name: n, in: in, tags: tags, at: c.Admitted(), user: identity.Render(c.Principal())}
+	w := write{op: op, name: n, in: in, tags: tags, at: c.Admitted(), user: identity.Render(c.Principal())}
 	v, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (Version, *awserr.Error) {
 		prev, exists := st.Parameters[n.canonical]
 		var p Parameter
 		var err *awserr.Error
 		switch {
 		case !exists:
-			p, err = w.create()
+			p, err = w.create(st)
 		case !overwrite:
 			err = errAlreadyExists()
 		default:
-			p, err = w.next(prev)
+			p, err = w.next(st, prev)
 		}
 		if err != nil {
 			tx.Unchanged()
@@ -159,6 +150,7 @@ func (s *Service) putParameter(_ context.Context, c *kernel.Call, in *ssmapi.Put
 // write is one PutParameter request, validated up to what needs the stored
 // parameter.
 type write struct {
+	op   string
 	name name
 	in   *ssmapi.PutParameterInput
 	tags []Tag
@@ -167,16 +159,14 @@ type write struct {
 }
 
 // create is the parameter a create writes: version 1, with DataType text
-// and tier Standard unless given (ssm-parameters.md 4.2, 4.3).
-func (w write) create() (Parameter, *awserr.Error) {
+// unless given (ssm-parameters.md 4.3).
+func (w write) create(st *State) (Parameter, *awserr.Error) {
 	if w.in.Type == nil {
 		// UNVERIFIED (SSM-11), ssm-parameters.md 7.1: AWS's code and text.
 		return Parameter{}, ssmapi.ErrValidationException(fmt.Sprintf(
 			"Parameter %q does not exist, so this request creates it, and a create needs a Type: String, StringList or SecureString.", w.name.spelling))
 	}
-	v, err := w.version(Version{
-		Number: 1, Type: paramType(*w.in.Type), DataType: defaultDataType, Tier: tier(ssmapi.ParameterTierStandard),
-	})
+	v, err := w.version(st, Version{Number: 1, Type: paramType(*w.in.Type), DataType: defaultDataType}, nil)
 	if err != nil {
 		return Parameter{}, err
 	}
@@ -189,10 +179,10 @@ func (w write) create() (Parameter, *awserr.Error) {
 // dropped, unless a label names it (ssm-parameters.md 6.1, 12.4); numbers
 // keep counting from LastVersion (UNVERIFIED (SSM-30), ssm-parameters.md
 // 6.1).
-func (w write) next(prev Parameter) (Parameter, *awserr.Error) {
+func (w write) next(st *State, prev Parameter) (Parameter, *awserr.Error) {
 	base := prev.latest()
 	base.Number = prev.LastVersion + 1
-	v, err := w.version(base)
+	v, err := w.version(st, base, &base.Tier)
 	if err != nil {
 		return Parameter{}, err
 	}
@@ -215,12 +205,13 @@ func (w write) next(prev Parameter) (Parameter, *awserr.Error) {
 	return p, nil
 }
 
-// version is base with the request's fields applied. Under switch
-// ssm.put.omitted-fields (preserved) a field the request leaves out keeps
-// base's value (ssm-parameters.md 7.1); an empty Description or
-// AllowedPattern clears it (UNVERIFIED (SSM-10), ssm-parameters.md 7.1:
-// Terraform sends AllowedPattern "" whenever none is configured).
-func (w write) version(base Version) (Version, *awserr.Error) {
+// version is base with the request's fields applied, checked in the order
+// of contract 4.1. Under switch ssm.put.omitted-fields (preserved) a field
+// the request leaves out keeps base's value (ssm-parameters.md 7.1); an
+// empty Description or AllowedPattern clears it (UNVERIFIED (SSM-10),
+// ssm-parameters.md 7.1: Terraform sends AllowedPattern "" whenever none
+// is configured). current is the parameter's tier, nil on a create.
+func (w write) version(st *State, base Version, current *tier) (Version, *awserr.Error) {
 	in := w.in
 	v := base
 	v.Value = plainValue{Text: in.Value}
@@ -248,6 +239,11 @@ func (w write) version(base Version) (Version, *awserr.Error) {
 		return Version{}, ssmapi.ErrValidationException(fmt.Sprintf(
 			"Parameter %q is a %s, and KeyId applies only to a SecureString. Remove KeyId, or write the parameter as a SecureString.", w.name.spelling, v.Type))
 	}
+	if in.DataType != nil {
+		if err := w.checkDataType(*in.DataType); err != nil {
+			return Version{}, err
+		}
+	}
 	if hasReference(in.Value) {
 		// UNVERIFIED (SSM-11 step 05), ssm-parameters.md 4.1: the doc
 		// forbids such values; AWS's code and text are unrecorded.
@@ -262,6 +258,40 @@ func (w write) version(base Version) (Version, *awserr.Error) {
 		return Version{}, ssmapi.ErrHierarchyTypeMismatchException(fmt.Sprintf(
 			"Parameter %q is a %s, and a parameter in a hierarchy can't change its type to %s. Create a new parameter with another name instead.",
 			w.name.spelling, base.Type, v.Type))
+	}
+	return w.valueRules(st, v, current)
+}
+
+// valueRules resolves v's tier and checks the value against it, the
+// pattern and the scope's parameter count (contract 4.1 rows 9-13).
+func (w write) valueRules(st *State, v Version, current *tier) (Version, *awserr.Error) {
+	t, err := w.resolveTier(st, current)
+	if err != nil {
+		return Version{}, err
+	}
+	v.Tier = t
+	if v.Type == paramType(ssmapi.ParameterTypeSecureString) {
+		if t == tierAdvanced {
+			return Version{}, errUnsupported(w.op, "an Advanced-tier SecureString (understudy stores only Standard SecureString values)")
+		}
+		return Version{}, errFeatureNotYet(w.op, "SecureString")
+	}
+	if err := w.checkSize(t); err != nil {
+		return Version{}, err
+	}
+	if v.AllowedPattern != nil {
+		p, err := w.compilePattern(w.op, *v.AllowedPattern)
+		if err != nil {
+			return Version{}, err
+		}
+		if err := w.checkPattern(p); err != nil {
+			return Version{}, err
+		}
+	}
+	if current == nil || *current != t {
+		if err := w.checkCount(st, t); err != nil {
+			return Version{}, err
+		}
 	}
 	return v, nil
 }
