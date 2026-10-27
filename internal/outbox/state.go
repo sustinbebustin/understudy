@@ -110,12 +110,13 @@ type causeRecord struct {
 }
 
 type requestRecord struct {
-	Source    string             `json:"source"`
-	Mechanism delivery.Mechanism `json:"mechanism"`
-	Target    targetRecord       `json:"target"`
-	Policy    policyRecord       `json:"policy"`
-	DLQ       string             `json:"dlq,omitempty"`
-	Sender    *senderRecord      `json:"sender,omitempty"`
+	Source        string             `json:"source"`
+	SourceAccount aws.AccountID      `json:"sourceAccount,omitzero"`
+	Mechanism     delivery.Mechanism `json:"mechanism"`
+	Target        targetRecord       `json:"target"`
+	Policy        policyRecord       `json:"policy"`
+	DLQ           string             `json:"dlq,omitempty"`
+	Sender        *senderRecord      `json:"sender,omitempty"`
 }
 
 // senderRecord is the persisted form of a delivery.LambdaSender.
@@ -314,10 +315,11 @@ func recordOf(e *Entry) entryRecord {
 	req := e.Request
 	r := entryRecord{
 		Request: requestRecord{
-			Source:    req.Source.String(),
-			Mechanism: req.Mechanism,
-			Target:    targetRecordOf(req.Target),
-			Policy:    policyRecordOf(req.Policy),
+			Source:        req.Source.String(),
+			SourceAccount: req.SourceAccount,
+			Mechanism:     req.Mechanism,
+			Target:        targetRecordOf(req.Target),
+			Policy:        policyRecordOf(req.Policy),
 		},
 		Attempt:  e.Attempt,
 		NextAt:   e.NextAt,
@@ -391,7 +393,7 @@ func requestOf(r *requestRecord) (delivery.Request, *RequestError) {
 		}
 		return delivery.Request{}, &RequestError{Field: "Policy", Reason: reason}
 	}
-	req := delivery.Request{Source: source, Mechanism: r.Mechanism, Target: target, Policy: policy}
+	req := delivery.Request{Source: source, SourceAccount: r.SourceAccount, Mechanism: r.Mechanism, Target: target, Policy: policy}
 	if r.DLQ != "" {
 		dlq, err := parseARN("DLQ", r.DLQ)
 		if err != nil {

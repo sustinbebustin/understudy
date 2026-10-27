@@ -301,7 +301,9 @@ func (s *Service) confirmation(st *State, ref topicRef, t *Topic, sub *Subscript
 	if isFIFOQueue(queue.Resource) {
 		target.GroupID, target.DedupID = sub.ID, c.MessageID
 	}
-	return delivery.Request{Source: ref.arn(), Mechanism: delivery.SNSToSQS, Target: target, Policy: delivery.SNSManaged{}}, nil
+	req := ref.deliveryFrom()
+	req.Mechanism, req.Target = delivery.SNSToSQS, target
+	return req, nil
 }
 
 // confirmationMessage is a SubscriptionConfirmation of token from the

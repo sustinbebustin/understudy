@@ -514,7 +514,7 @@ func (c Config) Requests(ev Event) ([]delivery.Request, error) {
 		if err != nil {
 			return nil, err
 		}
-		req, err := r.request(ev.Bucket.ARN, body)
+		req, err := r.request(ev.Bucket, body)
 		if err != nil {
 			return nil, err
 		}
@@ -536,7 +536,7 @@ func (c Config) TestRequests(b Bucket, at time.Time, req Request) ([]delivery.Re
 		if r.Kind == Function {
 			continue
 		}
-		req, err := r.request(b.ARN, body)
+		req, err := r.request(b, body)
 		if err != nil {
 			return nil, err
 		}
@@ -545,9 +545,10 @@ func (c Config) TestRequests(b Bucket, at time.Time, req Request) ([]delivery.Re
 	return out, nil
 }
 
-// request is the delivery of body to the rule's destination.
-func (r *Rule) request(source aws.ARN, body []byte) (delivery.Request, error) {
-	req := delivery.Request{Source: source, Policy: delivery.S3Notification{}}
+// request is the delivery of body from bucket b to the rule's destination,
+// sending the bucket owner's account as aws:SourceAccount.
+func (r *Rule) request(b Bucket, body []byte) (delivery.Request, error) {
+	req := delivery.Request{Source: b.ARN, SourceAccount: b.Account, Policy: delivery.S3Notification{}}
 	switch r.Kind {
 	case Queue:
 		req.Mechanism, req.Target = delivery.S3ToSQS, delivery.SQSQueue{ARN: r.ARN, Body: string(body)}

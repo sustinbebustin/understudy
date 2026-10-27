@@ -35,6 +35,10 @@ type Bucket struct {
 	// Owner is ownerIdentity.principalId, which AWS keeps only for
 	// backward compatibility.
 	Owner string
+	// Account is the bucket owner's account, which S3 sends as
+	// aws:SourceAccount with every notification (iam-enforcement-surfaces.md
+	// 8.1, aws-doc).
+	Account aws.AccountID
 }
 
 // Request is the call that made the change, as the record and the test

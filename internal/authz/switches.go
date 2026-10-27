@@ -76,6 +76,14 @@ func SwitchesOf(service string, ops []string) []fidelity.Entry {
 // for how it answers a denial: value chosen in section of the note, backed
 // by label, settled by the recording queue item record, governing ops.
 func DenialSwitch(name, value string, label evidence.Label, section, record string, ops []string) fidelity.Entry {
+	return EnforcementSwitch(name, value, label, section, record, ops)
+}
+
+// EnforcementSwitch is any service switch of iam-enforcement-surfaces.md
+// 12.8, such as how a delivery its target refuses ends or which keys a
+// delivery sends: value chosen in section of the note, backed by label,
+// settled by the recording queue item record, governing ops.
+func EnforcementSwitch(name, value string, label evidence.Label, section, record string, ops []string) fidelity.Entry {
 	e := researchSwitch(name, value, label, enforcementNote, section, record)
 	e.Ops = slices.Clone(ops)
 	return e

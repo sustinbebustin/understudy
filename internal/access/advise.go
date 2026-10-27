@@ -31,16 +31,30 @@ func (WouldDeny) isAdvice() {}
 // AWS evaluates SNS-to-SQS, S3 notification and EventBridge-target
 // deliveries: aws:SourceArn is source and aws:SourceAccount its account. A
 // nil stored is a target without a resource policy, which AWS treats as a
-// denial. Advise runs before each delivery attempt, which understudy makes
-// whatever the advice; the advice becomes a journal Advisory
-// (ARCHITECTURE.md 16).
+// denial. Under iam.enforce=off the outbox advises before each delivery
+// attempt, which understudy makes whatever the advice; the advice becomes a
+// journal Advisory (ARCHITECTURE.md 16). Under advise and enforce, pipeline
+// step 8 decides each delivery call instead.
 func Advise(stored *policydoc.Document, servicePrincipal ServicePrincipal, action registry.IAMAction, source, target aws.ARN) Advice {
+	return advise(stored, servicePrincipal, action, source, source.Account, target)
+}
+
+// AdviseWith is Advise with the aws:SourceAccount the delivery sends, zero
+// for none, instead of the source ARN's account: EventBridge sends none to
+// Lambda, and S3 sends the bucket owner's account, which a bucket ARN does
+// not name (iam-enforcement-surfaces.md 8.1, 12.4).
+func AdviseWith(stored *policydoc.Document, servicePrincipal ServicePrincipal, action registry.IAMAction, source aws.ARN, sourceAccount aws.AccountID, target aws.ARN) Advice {
+	return advise(stored, servicePrincipal, action, source, sourceAccount.String(), target)
+}
+
+// advise is Advise with aws:SourceAccount sourceAccount, absent when empty.
+func advise(stored *policydoc.Document, servicePrincipal ServicePrincipal, action registry.IAMAction, source aws.ARN, sourceAccount string, target aws.ARN) Advice {
 	if stored == nil {
 		return implicitDeny(target.String()+" has no resource policy, which does not allow", servicePrincipal, action, source, target)
 	}
 	context := map[string]string{"aws:SourceArn": source.String()}
-	if source.Account != "" {
-		context["aws:SourceAccount"] = source.Account
+	if sourceAccount != "" {
+		context["aws:SourceAccount"] = sourceAccount
 	}
 	decision := policydoc.Allows(*stored, policydoc.Query{
 		Principal: policydoc.ServiceCaller{Name: servicePrincipal.Name},
@@ -53,7 +67,7 @@ func Advise(stored *policydoc.Document, servicePrincipal ServicePrincipal, actio
 	case policydoc.ExplicitDeny:
 		return WouldDeny{Reason: fmt.Sprintf(
 			"%s in the resource policy of %s explicitly denies %s calling %s for a delivery from %s, so AWS would deny it; "+
-				"understudy does not enforce resource policies, so it attempts the delivery anyway. "+
+				"understudy does not enforce resource policies while iam.enforce is off, so it attempts the delivery anyway. "+
 				"An Allow statement cannot override an explicit Deny: narrow that statement so it does not match this delivery, or remove it.",
 			describeStatement(d.Statement), target, servicePrincipal, action, source,
 		)}
@@ -63,21 +77,12 @@ func Advise(stored *policydoc.Document, servicePrincipal ServicePrincipal, actio
 	return Allowed{}
 }
 
-// AdviseWith is Advise with the aws:SourceAccount the delivery sends, zero
-// for none, instead of the source ARN's account: EventBridge sends none to
-// Lambda (iam-enforcement-surfaces.md 8.1, 12.4).
-//
-// Not implemented yet: it returns a nil Advice.
-func AdviseWith(_ *policydoc.Document, _ ServicePrincipal, _ registry.IAMAction, _ aws.ARN, _ aws.AccountID, _ aws.ARN) Advice {
-	return nil
-}
-
 // implicitDeny is the advice for a delivery no statement allows; what says
 // whose policy does not allow it.
 func implicitDeny(what string, servicePrincipal ServicePrincipal, action registry.IAMAction, source, target aws.ARN) WouldDeny {
 	return WouldDeny{Reason: fmt.Sprintf(
 		"%s %s to call %s for a delivery from %s, so AWS would deny it; "+
-			"understudy does not enforce resource policies, so it attempts the delivery anyway. %s",
+			"understudy does not enforce resource policies while iam.enforce is off, so it attempts the delivery anyway. %s",
 		what, servicePrincipal, action, source, remedy(servicePrincipal, action, source, target),
 	)}
 }

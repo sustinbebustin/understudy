@@ -14,10 +14,16 @@ import (
 // Request is one cross-service delivery: what a Deliver effect hands the
 // outbox.
 type Request struct {
-	Source    aws.ARN // the topic, bucket or rule that produced the delivery
-	Mechanism Mechanism
-	Target    Target
-	Policy    RetryPolicy
+	Source aws.ARN // the topic, bucket or rule that produced the delivery
+	// SourceAccount is the aws:SourceAccount the delivering service sends
+	// with each call of the delivery, zero when it sends none. The producer
+	// decides: S3 sends the bucket owner's account, which a bucket ARN does
+	// not name, and EventBridge sends none to Lambda
+	// (iam-enforcement-surfaces.md 8.1).
+	SourceAccount aws.AccountID
+	Mechanism     Mechanism
+	Target        Target
+	Policy        RetryPolicy
 	// DLQ is where a delivery goes when its retries are exhausted or the
 	// target is gone; nil drops it.
 	DLQ *aws.ARN
@@ -106,6 +112,13 @@ func (p *LambdaPayload) UnmarshalText(text []byte) error {
 	}
 	return &LambdaPayloadError{Text: string(text)}
 }
+
+// EventBridgeDeniedCode is the ERROR_CODE of an EventBridge dead letter
+// whose target refused the delivery on its policy, the value of switch
+// events.delivery.denied-code: NO_PERMISSIONS is among the codes AWS lists,
+// and which one a policy refusal produces is UNVERIFIED
+// (iam-enforcement-surfaces.md 8.4, IAM-ENF-22).
+const EventBridgeDeniedCode = "NO_PERMISSIONS"
 
 // Target is where a delivery goes, carrying the payload for that target.
 //

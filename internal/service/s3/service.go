@@ -362,8 +362,9 @@ func (s *Service) Scopes() []aws.Scope {
 
 // Switches lists the behaviors chosen without AWS-recorded evidence, last
 // those of IAM enforcement: S3's denial text (iam-enforcement-surfaces.md
-// 12.8) and the root's bucket-policy lockout rule (6.3), which governs the
-// bucket policy operations.
+// 12.8), what becomes of a notification its destination refuses (8.3) and
+// the root's bucket-policy lockout rule (6.3), which governs the bucket
+// policy operations.
 func (s *Service) Switches() []fidelity.Entry {
 	return slices.Concat([]fidelity.Entry{
 		encryptionAfterDelete().Entry(),
@@ -374,7 +375,19 @@ func (s *Service) Switches() []fidelity.Entry {
 	}, ssecSwitches(), objectLockSwitches(), []fidelity.Entry{
 		authz.DenialSwitch("s3.denial.text", "the S3 variant of 4.2: a quoted resource, \", with policy ARN:\", Access Denied outside the owner's account",
 			evidence.AWSDoc, "4.2", "IAM-ENF-12", s.k.Bindings().AuthorizedOps(s3api.Service())),
+		notificationDeliveryDenied(),
 	}, authz.SwitchesOf("s3", []string{"s3.GetBucketPolicy", "s3.PutBucketPolicy", "s3.DeleteBucketPolicy"}))
+}
+
+// notificationDeliveryDenied is what becomes of a notification whose
+// destination's policy refuses it under iam.enforce=enforce: drop, since a
+// notification has no dead-letter queue and no document says what S3 does
+// with it (iam-enforcement-surfaces.md 8.3, IAM-ENF-21). The outbox drops
+// it by construction: a notification's request carries no DLQ and is not
+// retried after a denial.
+func notificationDeliveryDenied() fidelity.Entry {
+	return authz.EnforcementSwitch("s3.notification.delivery-denied", "drop", evidence.Inferred, "8.3", "IAM-ENF-21",
+		[]string{"s3.PutBucketNotificationConfiguration"})
 }
 
 // bucketOperations are the operations bound in s's kernel that address an

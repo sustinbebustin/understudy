@@ -610,7 +610,8 @@ func (n notifier) request(sub *Subscription, m *message, p published, to endpoin
 		Attributes:     envelopeAttributes(m.attributes),
 		UnsubscribeURL: n.links.service.unsubscribe(subARN),
 	}
-	req := delivery.Request{Source: n.topic.arn(), Policy: delivery.SNSManaged{}, DLQ: dlq}
+	req := n.topic.deliveryFrom()
+	req.DLQ = dlq
 	req.Mechanism, _ = to.route()
 	switch to := to.(type) {
 	case queueEndpoint:

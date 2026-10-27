@@ -257,6 +257,12 @@ func (a *attempt) end(ctx context.Context, err *awserr.Error) (journal.DeliveryO
 		return journal.Delivered{}, true
 	case unimplemented(err):
 		return journal.Dropped{Reason: describe(err)}, true
+	case denied(err):
+		// A refusal by the target's policy is a client-side error, whatever
+		// status the target's denial identity carries: SNS does not retry
+		// it and EventBridge sends it straight to the dead-letter queue
+		// (iam-enforcement-surfaces.md 8.2, 8.4, aws-doc).
+		return a.deadLetter(ctx, targetError{err: err}, refused)
 	case retryable(err.ID):
 		return a.retry(ctx, targetError{err: err}, a.due)
 	default:
@@ -407,19 +413,22 @@ func (a *attempt) advise(ctx context.Context) {
 		return
 	}
 	principal := access.ServicePrincipal{Name: servicePrincipal(req.Mechanism)}
-	if d, ok := access.Advise(doc, principal, op.IAM[0], req.Source, target).(access.WouldDeny); ok {
+	if d, ok := access.AdviseWith(doc, principal, op.IAM[0], req.Source, req.SourceAccount, target).(access.WouldDeny); ok {
 		a.journal(ctx, journal.Advisory{Kind: journal.AdvisoryPolicyWouldDeny, Resource: target, Text: d.Reason})
 	}
 }
 
 // as is how every call of the attempt runs: in scope, as the delivering
-// service on behalf of the source, or as the function's execution role for
-// a Lambda delivery (lambda-destinations-layers.md 2.5, 11.3.2), admitted
-// at the due instant and caused by the source call, like the attempt's
-// Delivery event.
+// service on behalf of the source, with the aws:SourceAccount the request
+// says it sends, or as the function's execution role for a Lambda delivery
+// (lambda-destinations-layers.md 2.5, 11.3.2), admitted at the due instant
+// and caused by the source call, like the attempt's Delivery event. A dead
+// letter is sent the same way: AWS documents only aws:SourceArn for an
+// EventBridge dead letter (iam-enforcement-surfaces.md 8.1), so its
+// aws:SourceAccount following the delivery's is inferred.
 func (a *attempt) as(scope aws.Scope) kernel.Target {
 	req := a.entry.Request
-	var as kernel.PrincipalMode = kernel.AsService{Name: servicePrincipal(req.Mechanism), Source: req.Source}
+	var as kernel.PrincipalMode = kernel.AsService{Name: servicePrincipal(req.Mechanism), Source: req.Source, SourceAccount: req.SourceAccount}
 	if req.Sender != nil {
 		as = kernel.AsExecutionRole{Role: req.Sender.Role}
 	}
@@ -565,6 +574,13 @@ func retryable(id awserr.Identity) bool {
 // that message.
 func unimplemented(err *awserr.Error) bool {
 	_, ok := err.Origin.(awserr.Unimplemented)
+	return ok
+}
+
+// denied reports whether err is the target refusing the delivery on its
+// policy: an authorization denial under iam.enforce=enforce.
+func denied(err *awserr.Error) bool {
+	_, ok := err.Origin.(awserr.Denial)
 	return ok
 }
 

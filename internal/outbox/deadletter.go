@@ -142,7 +142,7 @@ func deadLetterOf(e *Entry, dlq aws.ARN, f failure, end ending) (sqsMessage, err
 func eventBridgeAttributes(e *Entry, f failure, end ending) []delivery.MessageAttribute {
 	code, message := "ERROR_FROM_TARGET", describeFailure(f)
 	if te, ok := f.(targetError); ok {
-		code, message = eventBridgeErrorCode(te.err.ID), te.err.Message
+		code, message = eventBridgeErrorCode(te.err), te.err.Message
 		if message == "" {
 			message = te.err.ID.Shape.Name()
 		}
@@ -164,11 +164,16 @@ func eventBridgeAttribute(name, value string) delivery.MessageAttribute {
 }
 
 // eventBridgeErrorCode maps a target error onto EventBridge's dead-letter
-// error codes: THROTTLING for a throttling error or a 429, NO_RESOURCE for
-// a missing queue, function or topic, NO_PERMISSIONS for an access denial,
-// and ERROR_FROM_TARGET for anything else the target answered. AWS lists
-// the codes, not this mapping.
-func eventBridgeErrorCode(id awserr.Identity) string {
+// error codes: delivery.EventBridgeDeniedCode for a refusal by the
+// target's policy, THROTTLING for a throttling error or a 429, NO_RESOURCE
+// for a missing queue, function or topic, NO_PERMISSIONS for any other
+// access denial, and ERROR_FROM_TARGET for anything else the target
+// answered. AWS lists the codes, not this mapping.
+func eventBridgeErrorCode(err *awserr.Error) string {
+	if denied(err) {
+		return delivery.EventBridgeDeniedCode
+	}
+	id := err.ID
 	name := id.Shape.Name()
 	switch {
 	case id.Status == 429 || strings.Contains(name, "Throttl"):

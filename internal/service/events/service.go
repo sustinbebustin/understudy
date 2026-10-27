@@ -4,6 +4,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/ids"
@@ -163,16 +164,18 @@ func detailIntegerRange() fidelity.Switch[string] {
 }
 
 // Switches lists the behaviors chosen without AWS-recorded evidence: the
-// service's own, the status of a denial (iam-enforcement-surfaces.md 12.8)
-// and those of its Event Ruler profile, with the label, operations and
-// settling step rulerSwitches states for each.
+// service's own, the status of a denial and its deliveries under
+// enforcement (iam-enforcement-surfaces.md 12.8), and those of its Event
+// Ruler profile, with the label, operations and settling step
+// rulerSwitches states for each.
 func (s *Service) Switches() []fidelity.Entry {
 	profile := ruler.Switches(s.profile)
 	table := rulerSwitches()
 	buses := busSwitches()
-	out := make([]fidelity.Entry, 0, 4+len(buses)+len(profile))
+	out := make([]fidelity.Entry, 0, 8+len(buses)+len(profile))
 	out = append(out, rateRestart().Entry(), unmatchedInputPath().Entry(), detailIntegerRange().Entry(),
 		authz.DenialSwitch("events.denial.status", "AccessDeniedException 400", evidence.Inferred, "3.2", "IAM-ENF-08", s.k.Bindings().AuthorizedOps(eventbridgeapi.Service())))
+	out = append(out, deliverySwitches()...)
 	for _, sw := range buses {
 		out = append(out, sw.Entry())
 	}
@@ -189,6 +192,24 @@ func (s *Service) Switches() []fidelity.Entry {
 		}.Entry())
 	}
 	return out
+}
+
+// deliverySwitches are the choices of a delivery to a target, which
+// PutTargets configures, under iam.enforce (iam-enforcement-surfaces.md
+// 8.1, 8.4, 12.8): the dead letter's ERROR_CODE when the target's policy
+// refuses the delivery (the outbox writes delivery.EventBridgeDeniedCode),
+// which deliveries send aws:SourceAccount (deliveryTarget.sendsSourceAccount),
+// and that PutTargets adds no statement to an SNS topic's policy, so a
+// topic whose policy does not admit events.amazonaws.com refuses the
+// delivery.
+func deliverySwitches() []fidelity.Entry {
+	ops := []string{"eventbridge.PutTargets"}
+	return []fidelity.Entry{
+		authz.EnforcementSwitch("events.delivery.denied-code", delivery.EventBridgeDeniedCode, evidence.Inferred, "8.4", "IAM-ENF-22", ops),
+		authz.EnforcementSwitch("events.delivery.source-account-lambda", "absent", evidence.AWSDoc, "8.1", "IAM-ENF-22", ops),
+		authz.EnforcementSwitch("events.delivery.source-account-sqs", "present", evidence.Inferred, "8.1", "IAM-ENF-22", ops),
+		authz.EnforcementSwitch("events.put-targets.sns-policy", "unchanged", evidence.Inferred, "8.4", "IAM-ENF-23", ops),
+	}
 }
 
 // rulerSwitch is what EventBridge states about one of Ruler's EventBridge

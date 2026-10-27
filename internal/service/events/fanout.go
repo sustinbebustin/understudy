@@ -28,6 +28,12 @@ type deliveryTarget interface {
 	arn() aws.ARN
 	// mechanism is how the outbox delivers to the target.
 	mechanism() delivery.Mechanism
+	// sendsSourceAccount reports whether EventBridge sends the rule's
+	// account as aws:SourceAccount with the delivery: never to a function
+	// (switch events.delivery.source-account-lambda, aws-doc), always to a
+	// queue or topic (events.delivery.source-account-sqs, inferred for a
+	// queue), iam-enforcement-surfaces.md 8.1.
+	sendsSourceAccount() bool
 }
 
 // payloadTarget is a deliveryTarget that receives the payload the stored
@@ -76,6 +82,16 @@ func (busTarget) mechanism() delivery.Mechanism      { return delivery.EventsToE
 // the rule's: a target that needs a RoleArn and takes no input form
 // (eventbridge-buses.md 6.3).
 func (b busTarget) crossAccount(scope aws.Scope) bool { return b.bus.Account != scope.Account.String() }
+
+func (functionTarget) sendsSourceAccount() bool { return false }
+func (queueTarget) sendsSourceAccount() bool    { return true }
+func (topicTarget) sendsSourceAccount() bool    { return true }
+
+// Whether EventBridge sends aws:SourceAccount when a rule forwards to an
+// event bus is unknown: iam-enforcement-surfaces.md 8.1 lists no
+// events-to-events row. understudy sends none, and the outbox asks no
+// resource policy about an events-to-events delivery.
+func (busTarget) sendsSourceAccount() bool { return false }
 
 func (f functionTarget) receiver(body []byte, _ *Target, _ envelope.Event) (delivery.Target, error) {
 	return delivery.LambdaFunction{ARN: f.function, Event: body, Invocation: delivery.InvocationEvent}, nil
@@ -306,6 +322,9 @@ func (f *fanOut) send(r ruleRef, t *Target, dt deliveryTarget, ev envelope.Event
 		return
 	}
 	req := delivery.Request{Source: r.arn(), Mechanism: dt.mechanism(), Policy: retryPolicy(t.Retry), Target: receiver}
+	if dt.sendsSourceAccount() {
+		req.SourceAccount = r.scope.Account
+	}
 	if t.DeadLetter != nil && t.DeadLetter.ARN != nil {
 		if dlq, ok := deadLetterQueue(r.scope, *t.DeadLetter.ARN); ok {
 			req.DLQ = &dlq

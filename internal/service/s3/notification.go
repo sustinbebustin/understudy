@@ -297,7 +297,7 @@ func principalID(p identity.Principal) string {
 
 // notifyBucket is b as its notifications name it.
 func notifyBucket(b *Bucket) notify.Bucket {
-	return notify.Bucket{Name: b.Name, ARN: bucketARN(b.Name), Owner: canonicalID(b.Home.OwnerAccount)}
+	return notify.Bucket{Name: b.Name, ARN: bucketARN(b.Name), Owner: canonicalID(b.Home.OwnerAccount), Account: b.Home.OwnerAccount}
 }
 
 // event is an object change that event notifications report: the object

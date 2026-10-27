@@ -141,8 +141,8 @@ func detachedRetention() fidelity.Switch[time.Duration] {
 }
 
 // Switches lists the behaviors chosen without AWS-recorded evidence, http
-// delivery's, filter policy evaluation's and SNS's denial text
-// (iam-enforcement-surfaces.md 12.8) among them.
+// delivery's, filter policy evaluation's, and SNS's denial text and
+// deliveries (iam-enforcement-surfaces.md 12.8) among them.
 func (s *Service) Switches() []fidelity.Entry {
 	entries := []fidelity.Entry{
 		pendingInListings().Entry(), fifoSequence().Entry(), lambdaAttributeTypes().Entry(), fifoDuplicate().Entry(),
@@ -151,9 +151,30 @@ func (s *Service) Switches() []fidelity.Entry {
 		// (aws-doc); the message is inferred.
 		authz.DenialSwitch("sns.denial.text", "AuthorizationError 403 with the grammar of 4.1", evidence.Inferred, "3.2", "IAM-ENF-03",
 			s.bindings.AuthorizedOps(snsapi.Service())),
+		deliverySourceAccount(), subscribePolicyCheck(),
 	}
 	for _, sw := range httpSwitches() {
 		entries = append(entries, sw.Entry())
 	}
 	return append(entries, filterpolicy.Switches()...)
+}
+
+// deliverySourceAccount is whether SNS sends aws:SourceAccount, the topic's
+// account, with each delivery to a queue or function, a confirmation
+// included: present. AWS documents aws:SourceArn for SNS's deliveries and
+// lists aws:SourceAccount only among the keys other services set when they
+// publish (iam-enforcement-surfaces.md 8.1, IAM-ENF-18). topicRef.deliveryFrom
+// applies it.
+func deliverySourceAccount() fidelity.Entry {
+	return authz.EnforcementSwitch("sns.delivery.source-account", "present", evidence.Inferred, "8.1", "IAM-ENF-18",
+		[]string{"sns.Publish", "sns.Subscribe"})
+}
+
+// subscribePolicyCheck is what Subscribe checks of an sqs or lambda
+// endpoint's resource policy: none, so a policy that refuses SNS refuses
+// each delivery instead, under iam.enforce=enforce
+// (iam-enforcement-surfaces.md 8.2, IAM-ENF-19).
+func subscribePolicyCheck() fidelity.Entry {
+	return authz.EnforcementSwitch("sns.subscribe.policy-check", "none", evidence.Inferred, "8.2", "IAM-ENF-19",
+		[]string{"sns.Subscribe"})
 }
