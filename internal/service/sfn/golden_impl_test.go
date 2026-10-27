@@ -29,7 +29,10 @@ type goldenFixture struct {
 	// with <json-input:N>; AWS's serialisation of it is UNVERIFIED (ASL-04),
 	// so the fixture names understudy's (stepfunctions-asl.md 15.4 item 16).
 	Placeholders map[string]string `json:"placeholders"`
-	History      json.RawMessage   `json:"history"`
+	// Stop says the recording stopped the execution with StopExecution,
+	// without error or cause, once it had settled.
+	Stop    bool            `json:"stop"`
+	History json.RawMessage `json:"history"`
 }
 
 // TestLocalStackHistoryGoldens replays every fixture under
@@ -59,6 +62,10 @@ func TestLocalStackHistoryGoldens(t *testing.T) {
 			run(t, func(h *harness) {
 				machine := h.create("golden", compact(h, g.Definition))
 				arn := h.start(machine, "golden", new(compact(h, g.Input)))
+				if g.Stop {
+					must(h, sfnapi.OpStopExecution, &sfnapi.StopExecutionInput{ExecutionArn: arn})
+					h.settled()
+				}
 				got := undoTransforms(wireHistory(h, arn), h.roleArn())
 				want := withPlaceholders(decode(h, string(g.History)), g.Placeholders)
 				if !equal(got, want) {
