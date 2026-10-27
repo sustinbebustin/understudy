@@ -82,10 +82,12 @@ aws ssm get-parameters-by-path --path /orders --recursive --query 'Parameters[].
 ```text
 [
     "/orders/db/host",
+    "/orders/db/password",
     "/orders/db/port"
 ]
 /orders/db/host	String	2
 /orders/db/password	SecureString	1
+/orders/db/port	String	1
 /orders/queue/url	String	1
 ```
 
