@@ -202,9 +202,11 @@ func (s *Service) getParameter(ctx context.Context, c *kernel.Call, in *ssmapi.G
 // when every name was found (localstack@8b9a79f
 // tests/aws/services/ssm/test_ssm.snapshot.json:L57-L74). A KMS failure
 // on a decrypting read fails the whole call.
-// UNVERIFIED (SSM-17, SSM-18), ssm-parameters.md 6.3, 7.3: a name given
-// twice is answered once, and an invalid name or a selector naming no
-// version is listed in InvalidParameters rather than failing the call.
+// UNVERIFIED (SSM-17, SSM-18), ssm-parameters.md 6.3, 7.3: a parameter
+// named twice with one selector, under any of its spellings (3.2), is
+// answered once, as the first spelling asked; and an invalid name or a
+// selector naming no version is listed in InvalidParameters rather than
+// failing the call.
 func (s *Service) getParameters(ctx context.Context, c *kernel.Call, in *ssmapi.GetParametersInput) (*ssmapi.GetParametersOutput, *awserr.Error) {
 	if err := checkReserved("GetParameters", in.Names...); err != nil {
 		return nil, err
@@ -212,7 +214,12 @@ func (s *Service) getParameters(ctx context.Context, c *kernel.Call, in *ssmapi.
 	scope := c.Scope()
 	decrypt := in.WithDecryption != nil && *in.WithDecryption
 	out := &ssmapi.GetParametersOutput{Parameters: []ssmapi.Parameter{}, InvalidParameters: []string{}}
+	type asking struct {
+		canonical string
+		sel       selector
+	}
 	seen := make(map[string]bool, len(in.Names))
+	answered := make(map[asking]bool, len(in.Names))
 	for _, raw := range in.Names {
 		asked := strings.Trim(raw, " ")
 		if seen[asked] {
@@ -224,6 +231,11 @@ func (s *Service) getParameters(ctx context.Context, c *kernel.Call, in *ssmapi.
 			out.InvalidParameters = append(out.InvalidParameters, asked)
 			continue
 		}
+		k := asking{f.name.canonical, f.sel}
+		if answered[k] {
+			continue
+		}
+		answered[k] = true
 		p, err := s.render(ctx, c, scope, f, decrypt)
 		if err != nil {
 			return nil, err

@@ -357,10 +357,11 @@ func (s *Service) deleteParameter(_ context.Context, c *kernel.Call, in *ssmapi.
 // deleteParameters deletes up to ten parameters by name
 // (ssm-parameters.md 7.7): those deleted, as the request spelled them
 // (trimmed), in byte order; those not found, as given, in
-// InvalidParameters. Both are [] rather than absent when empty (7.10). A
-// name given twice is answered once.
+// InvalidParameters. Both are [] rather than absent when empty (7.10).
 // UNVERIFIED (SSM-27), ssm-parameters.md 7.7: a name that is not valid is
-// listed in InvalidParameters rather than failing the call.
+// listed in InvalidParameters rather than failing the call, and a
+// parameter named twice, under any of its spellings (3.2), is deleted and
+// listed once, as the first spelling asked.
 func (s *Service) deleteParameters(_ context.Context, c *kernel.Call, in *ssmapi.DeleteParametersInput) (*ssmapi.DeleteParametersOutput, *awserr.Error) {
 	if err := checkReserved("DeleteParameters", in.Names...); err != nil {
 		return nil, err
@@ -373,6 +374,7 @@ func (s *Service) deleteParameters(_ context.Context, c *kernel.Call, in *ssmapi
 	o, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (outcome, *awserr.Error) {
 		o := outcome{invalid: []string{}}
 		seen := make(map[string]bool, len(in.Names))
+		gone := make(map[string]bool, len(in.Names))
 		for _, raw := range in.Names {
 			asked := strings.Trim(raw, " ")
 			if seen[asked] {
@@ -380,11 +382,15 @@ func (s *Service) deleteParameters(_ context.Context, c *kernel.Call, in *ssmapi
 			}
 			seen[asked] = true
 			n, err := parseName(asked, scope)
+			if err == nil && gone[n.canonical] {
+				continue
+			}
 			if _, ok := st.Parameters[n.canonical]; err != nil || !ok {
 				o.invalid = append(o.invalid, asked)
 				continue
 			}
 			delete(st.Parameters, n.canonical)
+			gone[n.canonical] = true
 			o.deleted = append(o.deleted, n)
 		}
 		if len(o.deleted) == 0 {
