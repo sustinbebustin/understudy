@@ -7,8 +7,59 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb"
 )
+
+// GetRecords floors ApproximateCreationDateTime to the second
+// (dynamodb-streams.md 7.3), but answers an event source mapping's
+// in-process read with the stored arrival, from which the poller measures
+// record age and retention (spec 8a poller, inferred, ESMS-09).
+func TestRecordsKeepTheArrivalForAMappingRead(t *testing.T) {
+	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
+		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
+		h.advance(1500 * time.Millisecond)
+		at := h.Clock.Now()
+		h.put("Orders", "a")
+		stream, err := aws.ParseARN(arn)
+		if err != nil {
+			h.Fatal(err)
+		}
+		scope, err := aws.ScopeOf(stream)
+		if err != nil {
+			h.Fatal(err)
+		}
+		parent := h.Call(dynamodbapi.OpDescribeTableRaw.Descriptor())
+		read := func(via ref.Via) time.Time {
+			h.Helper()
+			as := kernel.Target{Scope: scope, As: kernel.AsPlatform{Name: "lambda.amazonaws.com"}, Via: via}
+			it, aerr := kernel.Invoke(h.Context(), h.Kernel, parent, dynamodbstreamsapi.OpGetShardIterator, as, &dynamodbstreamsapi.GetShardIteratorInput{
+				StreamArn: arn, ShardId: h.describe(arn).Shards[0].ShardID, ShardIteratorType: dynamodbstreamsapi.ShardIteratorTypeTrimHorizon,
+			})
+			if aerr != nil {
+				h.Fatalf("GetShardIterator: %v", aerr)
+			}
+			out, aerr := kernel.Invoke(h.Context(), h.Kernel, parent, dynamodbstreamsapi.OpGetRecords, as, &dynamodbstreamsapi.GetRecordsInput{ShardIterator: *it.ShardIterator})
+			if aerr != nil {
+				h.Fatalf("GetRecords: %v", aerr)
+			}
+			if len(out.Records) != 1 || out.Records[0].Dynamodb == nil || out.Records[0].Dynamodb.ApproximateCreationDateTime == nil {
+				h.Fatalf("GetRecords = %+v, want one record with a creation time", out.Records)
+			}
+			return *out.Records[0].Dynamodb.ApproximateCreationDateTime
+		}
+		if got := read(ref.LambdaESM); !got.Equal(at.Wire()) {
+			h.Errorf("a mapping's read: ApproximateCreationDateTime = %v, want the arrival %v", got, at.Wire())
+		}
+		if got, want := read(ref.ViaAPIGateway), at.Wire().Truncate(time.Second); !got.Equal(want) {
+			h.Errorf("another internal read: ApproximateCreationDateTime = %v, want %v (floored)", got, want)
+		}
+	})
+}
 
 // Trimming drops only the records 24 hours old (dynamodb-streams.md 5.5,
 // aws-doc): a record an hour younger is still read from TRIM_HORIZON and

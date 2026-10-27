@@ -46,10 +46,9 @@ import (
 // the oldest record of a batch being retried, that falls behind the
 // stream's retention drops the lost records without an on-failure record
 // (inferred, UNVERIFIED), journals Polling to RecordsTrimmed and back, and
-// resumes at TRIM_HORIZON (aws-doc 5.1, 5.3). A retried record's age is
-// read from its ApproximateCreationDateTime, floored to the second, so a
-// batch may be dropped up to a second early; its records still in the
-// stream are then read again from TRIM_HORIZON.
+// resumes at TRIM_HORIZON (aws-doc 5.1, 5.3). Record age and retention
+// are measured from the stored arrival, which GetRecords answers a
+// mapping's read unfloored (dynamodb streamread.go creationExact).
 //
 // MaximumRetryAttempts discards a batch once that many retries have failed
 // (5.2), and MaximumRecordAgeInSeconds discards each record past its age

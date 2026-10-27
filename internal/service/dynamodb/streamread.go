@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 )
 
@@ -251,9 +252,34 @@ func (s *Streams) getRecords(ctx context.Context, c *kernel.Call, in *dynamodbst
 	// A write for the commit instant: an iterator's age is judged on the
 	// clock as it reads, as GetShardIterator issues it on the clock as it
 	// writes.
+	created := creationOf(c)
 	return streamsWrite(c, s.svc, scope, func(st *State, now clock.Instant) (*dynamodbstreamsapi.GetRecordsOutput, bool, *awserr.Error) {
-		return st.records(scope, in.ShardIterator, limit, now, s.svc.iteratorReuse)
+		return st.records(scope, in.ShardIterator, limit, now, s.svc.iteratorReuse, created)
 	})
+}
+
+// creationTime is how a GetRecords answer writes a record's
+// ApproximateCreationDateTime.
+type creationTime uint8
+
+const (
+	// creationWire floors the arrival to the second, as the wire form is
+	// (dynamodb-streams.md 7.3).
+	creationWire creationTime = iota
+	// creationExact keeps the stored arrival. An event source mapping's
+	// read is answered in process and never serialized; the poller measures
+	// record age and retention from the arrival (spec 8a poller, inferred,
+	// ESMS-09) and floors the time itself in the event it sends.
+	creationExact
+)
+
+// creationOf is creationExact for an event source mapping's read and
+// creationWire for any other caller.
+func creationOf(c *kernel.Call) creationTime {
+	if o, ok := c.Origin().(ref.Internal); ok && o.Via == ref.LambdaESM {
+		return creationExact
+	}
+	return creationWire
 }
 
 // records reads the page token names, as of now: up to limit records and
@@ -261,7 +287,7 @@ func (s *Streams) getRecords(ctx context.Context, c *kernel.Call, in *dynamodbst
 // unless the page exhausts a closed shard (dynamodb-streams.md 6.4). Under
 // IteratorSingleUse a token reads once: records remembers it until it
 // expires, and reports that as a change of the state.
-func (st *State) records(scope aws.Scope, token string, limit int, now clock.Instant, reuse IteratorReuse) (*dynamodbstreamsapi.GetRecordsOutput, bool, *awserr.Error) {
+func (st *State) records(scope aws.Scope, token string, limit int, now clock.Instant, reuse IteratorReuse, created creationTime) (*dynamodbstreamsapi.GetRecordsOutput, bool, *awserr.Error) {
 	if st.IteratorKey == nil {
 		return nil, false, dynamodbstreamsapi.ErrValidationException(textInvalidIterator)
 	}
@@ -290,7 +316,7 @@ func (st *State) records(scope aws.Scope, token string, limit int, now clock.Ins
 	}
 	out := &dynamodbstreamsapi.GetRecordsOutput{Records: make([]dynamodbstreamsapi.Record, 0, len(entries))}
 	for _, e := range entries {
-		r, err := x.record(scope, e)
+		r, err := x.record(scope, e, created)
 		if err != nil {
 			return nil, false, awserr.Internalf(err)
 		}
@@ -320,13 +346,16 @@ func (st *State) forgetUsed(now clock.Instant) bool {
 }
 
 // record is e as GetRecords answers it (dynamodb-streams.md 7.1): the
-// images Local wrote, the stream's region and view type, the arrival
-// floored to the second (7.3), eventVersion 1.1 (third-party-recorded,
-// DDB-SNAP:L761).
-func (s Stream) record(scope aws.Scope, e shardlog.Entry[streamRecord]) (dynamodbstreamsapi.Record, error) {
+// images Local wrote, the stream's region and view type, the arrival as
+// created says (floored to the second on the wire, 7.3), eventVersion 1.1
+// (third-party-recorded, DDB-SNAP:L761).
+func (s Stream) record(scope aws.Scope, e shardlog.Entry[streamRecord], created creationTime) (dynamodbstreamsapi.Record, error) {
 	v := e.Value
 	d := &dynamodbstreamsapi.StreamRecord{SequenceNumber: new(string(e.Seq)), SizeBytes: new(v.SizeBytes)}
-	at := e.Arrival.Wire().UTC().Truncate(time.Second)
+	at := e.Arrival.Wire().UTC()
+	if created == creationWire {
+		at = at.Truncate(time.Second)
+	}
 	view := dynamodbstreamsapi.StreamViewType(s.ViewType)
 	d.ApproximateCreationDateTime, d.StreamViewType = &at, &view
 	var err error

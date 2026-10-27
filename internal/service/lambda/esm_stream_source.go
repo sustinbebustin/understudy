@@ -128,7 +128,9 @@ func (e *deniedReadError) Error() string {
 // lambdaRecord is r as a stream mapping's function receives it
 // (dynamodb-streams.md 7.8; contract 8.3): GetRecords' record with
 // eventSourceARN added, ApproximateCreationDateTime as whole epoch
-// seconds, and userIdentity in Lambda's casing.
+// seconds, and userIdentity in Lambda's casing. Its Arrival is the
+// creation time as answered, which for a mapping's read is the stored
+// arrival, not floored.
 func lambdaRecord(r *dynamodbstreamsapi.Record, stream aws.ARN) (esm.StreamRecord, error) {
 	d := r.Dynamodb
 	if d == nil || d.SequenceNumber == nil {
