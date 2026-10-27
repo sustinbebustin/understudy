@@ -272,16 +272,22 @@ func (s *Service) checkStream(ctx context.Context, c *kernel.Call, stream aws.AR
 }
 
 // fromStreamRead maps a failed read of stream by the control plane onto
-// Lambda's model: a stream that is gone is row 4 of 3.3; an emulator bug
-// or an aborted request stays as it is; any other Streams answer is
-// wrapped with its code and message, as the Lambda client must never see a
-// Streams error shape.
+// Lambda's model: a stream that is gone is row 4 of 3.3; a read
+// iam.enforce refused the execution role is switch
+// lambda.esm.create-denied-text's sentence naming the refused operation on
+// DynamoDB (spec enforce matrix row 2); an emulator bug or an aborted
+// request stays as it is; any other Streams answer of op is wrapped with
+// its code and message, as the Lambda client must never see a Streams
+// error shape.
 func fromStreamRead(op string, stream aws.ARN, err error) *awserr.Error {
 	if err == nil {
 		return nil
 	}
 	if _, gone := errors.AsType[*esm.GoneError](err); gone {
 		return errStreamMissing(stream)
+	}
+	if denied, ok := errors.AsType[*deniedReadError](err); ok {
+		return errESMRoleDenied(denied.Op, "DynamoDB")
 	}
 	boundary, ok := errors.AsType[*awserr.BoundaryError](err)
 	if !ok {

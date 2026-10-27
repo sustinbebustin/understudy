@@ -194,9 +194,10 @@ func (s *Service) Switches() []fidelity.Entry {
 	// (third-party); the same-account body is inferred.
 	denial := authz.DenialSwitch("lambda.denial.body", `AccessDeniedException 403, {"Message":"<grammar of 4.1>"}`, evidence.Inferred, "3.2", "IAM-ENF-11",
 		s.k.Bindings().AuthorizedOps(lambdaapi.Service()))
-	// checkQueue answers esmRoleDeniedText; a poll the role is refused is
-	// retried after a backoff, invoking nothing and changing no field.
-	roleDenied := authz.EnforcementSwitch("lambda.esm.create-denied-text", esmRoleDeniedText, evidence.Inferred, "8.6", "IAM-ENF-24",
+	// checkQueue and checkStream answer esmRoleDeniedText; a poll or a
+	// stream read the role is refused is retried after a backoff, invoking
+	// nothing and changing no field.
+	roleDenied := authz.EnforcementSwitch("lambda.esm.create-denied-text", esmCreateDeniedValue(), evidence.Inferred, "8.6", "IAM-ENF-24",
 		[]string{"lambda.CreateEventSourceMapping", "lambda.UpdateEventSourceMapping"})
 	permissionLoss := authz.EnforcementSwitch("lambda.esm.permission-loss", "stay-enabled", evidence.Inferred, "8.6", "IAM-ENF-25",
 		[]string{"lambda.CreateEventSourceMapping"})

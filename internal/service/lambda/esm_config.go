@@ -110,8 +110,10 @@ func (s *Service) bindMappings(b lambdaapi.Binder) {
 		"an itemIdentifier outside the batch counting as complete failure, batchItemFailures keys matched case-sensitively, records lost to stream retention dropped without an on-failure record, " +
 		"an on-failure record the execution role may not send dropped with a journal entry, LastProcessingResult unchanged by a failure, and on-failure messages without attributes; " +
 		"MetricsConfig is stored, no metrics are emitted; " +
-		"under iam.enforce=enforce an SQS mapping's execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage (lambda.esm.create-denied-text), " +
-		"and a role refused its polls leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss)"
+		"under iam.enforce=enforce an SQS mapping's execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage, " +
+		"and a stream mapping's dynamodb:DescribeStream on the stream, and at LATEST dynamodb:GetShardIterator and dynamodb:GetRecords (lambda.esm.create-denied-text); " +
+		"a role lacking only dynamodb:ListStreams, or at TRIM_HORIZON only dynamodb:GetShardIterator or dynamodb:GetRecords, is accepted, where whether AWS refuses it is UNVERIFIED (iam-enforcement-surfaces.md 8.6); " +
+		"a role refused its polls or stream reads leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss)"
 	b.CreateEventSourceMapping(s.createMapping, partial(note), kernel.WithValidator(validateCreateMapping))
 	b.GetEventSourceMapping(s.getMapping, full())
 	b.ListEventSourceMappings(s.listMappings, full())
@@ -274,7 +276,7 @@ func (s *Service) checkQueue(ctx context.Context, c *kernel.Call, queue aws.ARN,
 	})
 	if err != nil {
 		if _, denied := err.Origin.(awserr.Denial); denied {
-			return errESMRoleDenied()
+			return errESMRoleDenied("ReceiveMessage", "SQS")
 		}
 		return fromSQS(err)
 	}

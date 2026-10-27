@@ -120,8 +120,9 @@ func TestESMStaysEnabledWhenItsRoleLosesTheQueue(t *testing.T) {
 		wantBodies(h, rec.bodies(), [][]string{{"queued"}})
 
 		want := map[string]string{
-			"lambda.esm.create-denied-text": "The provided execution role does not have permissions to call ReceiveMessage on SQS",
-			"lambda.esm.permission-loss":    "stay-enabled",
+			"lambda.esm.create-denied-text": "The provided execution role does not have permissions to call ReceiveMessage on SQS; " +
+				"for a DynamoDB stream: The provided execution role does not have permissions to call DescribeStream on DynamoDB",
+			"lambda.esm.permission-loss": "stay-enabled",
 		}
 		for _, e := range h.svc.Switches() {
 			if w, ok := want[e.Name]; ok {

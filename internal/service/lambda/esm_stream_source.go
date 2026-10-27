@@ -30,7 +30,7 @@ var _ esm.StreamSource = dynamoSource{}
 func (d dynamoSource) Shards(ctx context.Context) ([]string, error) {
 	out, err := kernel.Invoke(ctx, d.k, d.parent, dynamodbstreamsapi.OpDescribeStream, d.target, &dynamodbstreamsapi.DescribeStreamInput{StreamArn: d.stream.String()})
 	if err != nil {
-		return nil, d.readError(err, nil, "")
+		return nil, d.readError("DescribeStream", err, nil, "")
 	}
 	var ids []string
 	if out.StreamDescription != nil {
@@ -70,7 +70,7 @@ func (d dynamoSource) Read(ctx context.Context, shard string, from shardlog.Posi
 		StreamArn: d.stream.String(), ShardId: shard, ShardIteratorType: typ, SequenceNumber: seq,
 	})
 	if err != nil {
-		return esm.StreamPage{}, d.readError(err, from, shard)
+		return esm.StreamPage{}, d.readError("GetShardIterator", err, from, shard)
 	}
 	if it.ShardIterator == nil {
 		return esm.StreamPage{}, fmt.Errorf("GetShardIterator of %s shard %s answered no iterator", d.stream, shard)
@@ -79,7 +79,7 @@ func (d dynamoSource) Read(ctx context.Context, shard string, from shardlog.Posi
 		ShardIterator: *it.ShardIterator, Limit: new(int32(min(limit, getRecordsLimit))), //nolint:gosec // bounded by getRecordsLimit
 	})
 	if err != nil {
-		return esm.StreamPage{}, d.readError(err, from, shard)
+		return esm.StreamPage{}, d.readError("GetRecords", err, from, shard)
 	}
 	page := esm.StreamPage{Next: from, Closed: out.NextShardIterator == nil}
 	for i := range out.Records {
@@ -96,10 +96,14 @@ func (d dynamoSource) Read(ctx context.Context, shard string, from shardlog.Posi
 // getRecordsLimit is GetRecords' largest Limit (dynamodb-streams.md 6.4).
 const getRecordsLimit = 1000
 
-// readError is a Streams refusal as a StreamSource reports it: a missing
-// stream or shard is *esm.GoneError, a trimmed position
-// *shardlog.TrimmedError, anything else the error itself.
-func (d dynamoSource) readError(err *awserr.Error, from shardlog.Position, shard string) error {
+// readError is a Streams refusal of op as a StreamSource reports it: a
+// missing stream or shard is *esm.GoneError, a trimmed position
+// *shardlog.TrimmedError, a read iam.enforce refused the execution role
+// *deniedReadError, anything else the error itself.
+func (d dynamoSource) readError(op string, err *awserr.Error, from shardlog.Position, shard string) error {
+	if _, denied := err.Origin.(awserr.Denial); denied {
+		return &deniedReadError{Op: op, Err: err}
+	}
 	switch err.ID {
 	case dynamodbstreamsapi.IdentityResourceNotFoundException():
 		return &esm.GoneError{Stream: d.stream, Reason: err.Message}
@@ -107,6 +111,18 @@ func (d dynamoSource) readError(err *awserr.Error, from shardlog.Position, shard
 		return &shardlog.TrimmedError{Shard: shard, From: from}
 	}
 	return err.AsError()
+}
+
+// deniedReadError is a Streams read iam.enforce refused the mapping's
+// execution role: Op is the operation, such as "GetRecords", and Err the
+// denial it answered.
+type deniedReadError struct {
+	Op  string
+	Err *awserr.Error
+}
+
+func (e *deniedReadError) Error() string {
+	return "the execution role may not call " + e.Op + " on the stream: " + e.Err.Message
 }
 
 // lambdaRecord is r as a stream mapping's function receives it
