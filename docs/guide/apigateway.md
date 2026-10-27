@@ -1,6 +1,6 @@
 # API Gateway HTTP APIs
 
-understudy serves API Gateway HTTP APIs (`apigatewayv2`): an API, Lambda proxy integrations, routes and stages, and the data plane that invokes the function a route targets. Invoking needs Docker, as Lambda does ([lambda.md](lambda.md)). What each operation supports is in [coverage.md](../coverage.md); this page grows with it.
+understudy serves API Gateway HTTP APIs (`apigatewayv2`): an API, its routes, integrations and stages, and the data plane that invokes the Lambda function a route targets. Invoking needs Docker, as Lambda does ([lambda.md](lambda.md)). What each operation supports is in [coverage.md](../coverage.md); this page grows with it.
 
 ## A Lambda-backed API
 
@@ -80,7 +80,48 @@ curl http://localhost:4566/_understudy/execute-api/pfovz1oe8r/
 # {"message":"Not Found"}
 ```
 
+`create-route` answers the defaults AWS fills, `ApiKeyRequired` false and `AuthorizationType` `NONE`, and `get-route`, `get-routes`, `update-route` and `delete-route` work. Every change serves on an `--auto-deploy` stage by the time the call returns. Members that act only on WebSocket APIs (`--api-key-required`, `--operation-name`, the model and request-parameter members) are stored and returned and change nothing. understudy does not evaluate IAM on requests, so a route with `--authorization-type AWS_IAM` is stored but a request it matches answers 501 and runs nothing; `JWT` and `CUSTOM` name authorizers, which understudy does not emulate, so they are refused:
+
+```sh
+aws apigatewayv2 create-route --api-id vsstkl7iok --route-key 'GET /me' --authorization-type JWT --target integrations/7tvrwuh
+# An error occurred (NotImplemented) when calling the CreateRoute operation: understudy does not implement
+# authorizationType JWT (authorizers are not emulated) on CreateRoute yet; nothing was changed. ...
+aws apigatewayv2 create-route --api-id vsstkl7iok --route-key 'GET /admin' --authorization-type AWS_IAM --target integrations/7tvrwuh
+curl http://localhost:4566/_understudy/execute-api/vsstkl7iok/admin
+# {"message":"understudy does not evaluate IAM authorization of requests: route \"GET /admin\" of API vsstkl7iok has authorizationType AWS_IAM, so no integration ran and nothing was changed. ..."}
+```
+
 A request takes the most specific route, in AWS's documented order: a full match, then a match with a `{name+}` variable, then `$default`; on one path, a literal segment before a variable and the request's own method before `ANY`. Where AWS documents no order, understudy prefers a full match on `ANY` to a `{name+}` match on the request's method, and the `{name+}` route with more segments before its variable. A variable never matches an empty segment, so `/pets/` is not `GET /pets/{id}`. Literal segments match case-sensitively, `/pets` and `/pets/` are different paths, and `HEAD` reaches only `HEAD` and `ANY` routes. AWS has not been recorded on any of these choices; [coverage.md](../coverage.md) lists them.
+
+## Integrations
+
+`create-integration` answers the defaults AWS fills, and `get-integration`, `get-integrations`, `update-integration` and `delete-integration` work:
+
+```sh
+aws apigatewayv2 create-integration --api-id vsstkl7iok --integration-type AWS_PROXY \
+  --integration-uri arn:aws:lambda:us-east-1:000000000000:function:hello --payload-format-version 2.0
+# "ConnectionType": "INTERNET",
+# "IntegrationMethod": "POST",
+# "PayloadFormatVersion": "2.0",
+# "TimeoutInMillis": 30000, ...
+```
+
+`--integration-uri` names the function by its ARN or by the invoke URI Terraform's `invoke_arn` gives. `--payload-format-version` is required, as on AWS: `1.0` or `2.0` for a Lambda integration and `1.0` for anything else. An AWS service integration (`--integration-subtype`) needs every request parameter AWS lists as required for its subtype. `--request-parameters` and `--response-parameters` come back exactly as sent; on `update-integration` a request parameter sent with an empty value, or a response status sent as `{}`, is removed. `delete-integration` is refused while a route targets the integration:
+
+```sh
+aws apigatewayv2 delete-integration --api-id vsstkl7iok --integration-id 7tvrwuh
+# An error occurred (BadRequestException) when calling the DeleteIntegration operation:
+# integration 7tvrwuh of API vsstkl7iok is the target of routes wa0s05t, uzmc2mg; delete them or change their targets first
+```
+
+Only a Lambda proxy integration with payload format 2.0 runs. HTTP proxy integrations, AWS service integrations (`--integration-subtype`), private integrations (`--connection-type VPC_LINK`) and Lambda integrations with payload format 1.0 are stored, and so is a Lambda integration with `--credentials-arn`, `--request-parameters`, `--response-parameters` or a stage variable in its URI, but a request that reaches one answers 501 and runs nothing:
+
+```sh
+curl http://localhost:4566/_understudy/execute-api/vsstkl7iok/legacy/x
+# {"message":"understudy does not run HTTP proxy integrations (integrationType HTTP_PROXY): route \"ANY /legacy/{proxy+}\" of API vsstkl7iok targets integration 9r4p1ir, so no integration ran and nothing was changed. ..."}
+```
+
+`--timeout-in-millis` and `--tls-config` are stored and change nothing yet.
 
 `update-api --disable-execute-api-endpoint` turns this path off from that call on: requests answer `403 {"message":"Forbidden"}` until `--no-disable-execute-api-endpoint`.
 
@@ -99,9 +140,9 @@ Requests without `Origin` are served as usual; `delete-cors-configuration` remov
 Requests understudy cannot serve as AWS would are refused with `NotImplemented` (501), naming what is missing, and change nothing:
 
 - WebSocket APIs (`--protocol-type WEBSOCKET`) and quick create (`create-api` or `update-api` with `--target`, `--route-key` or `--credentials-arn`);
-- route members other than `--route-key` and `--target`, among them every `--authorization-type` but `NONE`;
-- integrations other than Lambda `AWS_PROXY` with payload format 2.0, and any optional integration member;
+- authorizers: `--authorization-type JWT` or `CUSTOM`, `--authorizer-id` and `--authorization-scopes` on a route;
+- the WebSocket integration members `--request-templates`, `--template-selection-expression` and `--content-handling-strategy`;
 - stage members other than `--stage-name`, `--auto-deploy` and `--tags`, so a stage without `--auto-deploy` has no deployment yet and answers `404 {"message":"Not Found"}`;
-- every other operation, among them the reads, updates and deletes of routes, integrations, stages and deployments (`get-routes`, `get-stage`, ...) and `create-deployment`.
+- every other operation, among them the reads, updates and deletes of stages and deployments (`get-stage`, ...) and `create-deployment`.
 
 The integration timeout is not applied yet: a request waits for the function however long it runs.
