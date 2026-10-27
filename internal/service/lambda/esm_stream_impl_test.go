@@ -8,55 +8,35 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 )
 
-// A retry limit and a record age are applied and echoed; an on-failure
-// destination on a mapping either can discard with answers 501 rather
-// than being stored without effect, as on-failure records are not sent
-// yet (invariant 3; spec stop-rule fallback "before A10"). The 3.5
-// defaults stated explicitly are accepted with a destination.
-func TestStreamMappingDiscardingDestinationAnswers501(t *testing.T) {
+// A retry limit, a record age and an on-failure destination are applied
+// and echoed together, on Create and on an Update that adds either
+// (recorded LS-D:L304-L457 creates MaximumRetryAttempts 1 with an SQS
+// destination; lambda-stream-sources.md 3.5, 5.6).
+func TestStreamMappingDestinationBesideLimits(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		h.createFunction("worker")
 		dlq := "arn:aws:sqs:us-east-1:000000000000:dlq"
 		withDLQ := &lambdaapi.DestinationConfig{OnFailure: &lambdaapi.OnFailure{Destination: new(dlq)}}
-		for name, in := range map[string]lambdaapi.CreateEventSourceMappingInput{
-			"MaximumRetryAttempts": {MaximumRetryAttempts: new(int32(3)), DestinationConfig: withDLQ},
-			"MaximumRecordAge":     {MaximumRecordAgeInSeconds: new(int32(120)), DestinationConfig: withDLQ},
-		} {
-			err := fail(h.harness, lambdaapi.OpCreateEventSourceMapping, h.streamInput(in))
-			if err.ID.Shape.Name() != "NotImplemented" || err.ID.Status != 501 {
-				h.Errorf("%s with a destination: %s %d %q, want 501 NotImplemented", name, err.ID.Shape.Name(), err.ID.Status, err.Message)
-			}
-		}
-		limited := call(h.harness, lambdaapi.OpCreateEventSourceMapping, h.streamInput(lambdaapi.CreateEventSourceMappingInput{
-			MaximumRetryAttempts: new(int32(3)), MaximumRecordAgeInSeconds: new(int32(120)),
-		}))
-		if derefAny(limited.MaximumRetryAttempts) != int32(3) || derefAny(limited.MaximumRecordAgeInSeconds) != int32(120) {
-			h.Errorf("limits echoed as %v, %v; want 3, 120", derefAny(limited.MaximumRetryAttempts), derefAny(limited.MaximumRecordAgeInSeconds))
-		}
-		h.settle()
-		if err := fail(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *limited.UUID, DestinationConfig: withDLQ}); err.ID.Status != 501 {
-			h.Errorf("Update adding a destination to a limited mapping = %d %q, want 501", err.ID.Status, err.Message)
-		}
-		lifted := call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{
-			UUID: *limited.UUID, MaximumRetryAttempts: new(int32(-1)), MaximumRecordAgeInSeconds: new(int32(-1)),
-		})
-		if derefAny(lifted.MaximumRetryAttempts) != int32(-1) || derefAny(lifted.MaximumRecordAgeInSeconds) != int32(-1) {
-			h.Errorf("lifted limits echoed as %v, %v; want -1, -1", derefAny(lifted.MaximumRetryAttempts), derefAny(lifted.MaximumRecordAgeInSeconds))
-		}
-		call(h.harness, lambdaapi.OpDeleteEventSourceMapping, &lambdaapi.DeleteEventSourceMappingInput{UUID: *limited.UUID})
-		h.settle()
 		m := call(h.harness, lambdaapi.OpCreateEventSourceMapping, h.streamInput(lambdaapi.CreateEventSourceMappingInput{
-			MaximumRetryAttempts: new(int32(-1)), MaximumRecordAgeInSeconds: new(int32(-1)), ParallelizationFactor: new(int32(1)),
-			BisectBatchOnFunctionError: new(false), TumblingWindowInSeconds: new(int32(0)), MaximumBatchingWindowInSeconds: new(int32(0)),
-			DestinationConfig: withDLQ,
+			MaximumRetryAttempts: new(int32(3)), MaximumRecordAgeInSeconds: new(int32(120)), DestinationConfig: withDLQ,
 		}))
-		h.settle()
-		if err := fail(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *m.UUID, MaximumRetryAttempts: new(int32(2))}); err.ID.Status != 501 {
-			h.Errorf("Update adding a retry limit beside a destination = %d %q, want 501", err.ID.Status, err.Message)
+		if derefAny(m.MaximumRetryAttempts) != int32(3) || derefAny(m.MaximumRecordAgeInSeconds) != int32(120) ||
+			m.DestinationConfig == nil || m.DestinationConfig.OnFailure == nil || derefAny(m.DestinationConfig.OnFailure.Destination) != dlq {
+			h.Errorf("Create echoed %v, %v, %+v; want 3, 120 and the destination", derefAny(m.MaximumRetryAttempts), derefAny(m.MaximumRecordAgeInSeconds), m.DestinationConfig)
 		}
-		up := call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *m.UUID, BatchSize: new(int32(7))})
-		if derefAny(up.BatchSize) != int32(7) || derefAny(up.StartingPosition) != lambdaapi.EventSourcePosition("TRIM_HORIZON") {
-			h.Errorf("Update of BatchSize = %v, %v; want 7 on the TRIM_HORIZON mapping", derefAny(up.BatchSize), derefAny(up.StartingPosition))
+		h.settle()
+		cleared := call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{
+			UUID: *m.UUID, DestinationConfig: &lambdaapi.DestinationConfig{OnFailure: &lambdaapi.OnFailure{Destination: new("")}},
+		})
+		if cleared.DestinationConfig == nil || cleared.DestinationConfig.OnFailure == nil || cleared.DestinationConfig.OnFailure.Destination != nil {
+			h.Errorf("Update clearing the destination = %+v, want {\"OnFailure\": {}}", cleared.DestinationConfig)
+		}
+		h.settle()
+		up := call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{
+			UUID: *m.UUID, MaximumRetryAttempts: new(int32(2)), DestinationConfig: withDLQ,
+		})
+		if derefAny(up.MaximumRetryAttempts) != int32(2) || up.DestinationConfig == nil || up.DestinationConfig.OnFailure == nil || derefAny(up.DestinationConfig.OnFailure.Destination) != dlq {
+			h.Errorf("Update adding a limit and a destination = %v, %+v; want 2 and the destination", derefAny(up.MaximumRetryAttempts), up.DestinationConfig)
 		}
 	})
 }

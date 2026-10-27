@@ -421,6 +421,9 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 	if _, external := c.Origin().(ref.External); external {
 		ctx = outliveCaller(ctx)
 	}
+	if sink, ok := ctx.Value(invokedRequestKey{}).(*ids.LambdaRequestID); ok {
+		*sink = ids.LambdaRequestID(c.ID())
+	}
 	res, err := x.runSync(ctx, c, t, syncRun{payload: payload, clientContext: clientContext})
 	if err != nil {
 		return nil, err
@@ -437,6 +440,17 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 		out.LogResult = new(base64.StdEncoding.EncodeToString(lastBytes(res.tail, maxTail)))
 	}
 	return out, nil
+}
+
+// invokedRequestKey is the context key of withInvokedRequest's sink.
+type invokedRequestKey struct{}
+
+// withInvokedRequest is ctx carrying sink, which the Invoke operation sets
+// to its request id when it runs the function synchronously: how a stream
+// mapping learns the request id of the invocation an on-failure record
+// names (lambda-stream-sources.md 5.6), which InvokeOutput does not carry.
+func withInvokedRequest(ctx context.Context, sink *ids.LambdaRequestID) context.Context {
+	return context.WithValue(ctx, invokedRequestKey{}, sink)
 }
 
 // syncRun is a RequestResponse invocation run on behalf of a call; see

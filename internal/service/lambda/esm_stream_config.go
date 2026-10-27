@@ -21,9 +21,7 @@ import (
 // 3, 12.4; contract 8.2). What the stream poller does not build answers
 // 501 rather than being stored without effect: ParallelizationFactor above
 // 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a
-// FilterCriteria pattern, an S3 on-failure destination and, until the
-// poller sends on-failure records, a destination on a mapping with a retry
-// limit or a record age. The SQS rule that
+// FilterCriteria pattern and an S3 on-failure destination. The SQS rule that
 // a BatchSize above 10 needs a batching window does not apply to a stream
 // (contract 8.2 step 4).
 
@@ -135,9 +133,6 @@ func (u streamSettings) apply(m *Mapping, kind *esm.DynamoDBStream) *awserr.Erro
 		return err
 	}
 	u.applyLimits(kind)
-	if err := checkDiscardDestination(*kind); err != nil {
-		return err
-	}
 	set(&m.BatchSize, u.batchSize)
 	set(&m.Window, u.window)
 	if u.responseTypes != nil {
@@ -206,23 +201,6 @@ func (u streamSettings) applyLimits(kind *esm.DynamoDBStream) {
 			kind.Settings.Retries = esm.Attempts{N: *u.retries}
 		}
 	}
-}
-
-// checkDiscardDestination refuses an on-failure destination on a mapping
-// whose limits can discard a batch: the poller does not send on-failure
-// records yet, so the destination would be stored without effect. Without
-// a limit only stream retention discards, and it sends no record (inferred,
-// UNVERIFIED; lambda-stream-sources.md 5.1, 5.3).
-func checkDiscardDestination(kind esm.DynamoDBStream) *awserr.Error {
-	if _, none := kind.Settings.OnFailure.(esm.NoDestination); none || kind.Settings.OnFailure == nil {
-		return nil
-	}
-	_, aged := kind.Settings.RecordAge.(esm.MaxAge)
-	_, limited := kind.Settings.Retries.(esm.Attempts)
-	if aged || limited {
-		return errStreamSettingUnbuilt("an on-failure destination together with MaximumRetryAttempts or MaximumRecordAgeInSeconds other than -1")
-	}
-	return nil
 }
 
 // streamOnFailure reads an on-failure destination: "" is none, which also
