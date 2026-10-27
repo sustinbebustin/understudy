@@ -1309,7 +1309,7 @@ func (v *CreateFunctionInput) validate(path awserr.Path, out *[]awserr.Violation
 			}
 			return false
 		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "layers"), Value: awserr.RenderedText{Text: renderLayerList(v.Layers)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "((arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+:[0-9]+)|(arn:[a-zA-Z0-9-]+:lambda:::awslayer:[a-zA-Z0-9-_]+))"}, awserr.LengthMax{Max: 2048}, awserr.LengthMin{Min: 1}}}})
+			*out = append(*out, awserr.Violation{Path: at(path, "layers"), Value: awserr.RenderedText{Text: renderLayerList(v.Layers)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+:[0-9]+)|(arn:[a-zA-Z0-9-]+:lambda:::awslayer:[a-zA-Z0-9-_]+)"}, awserr.LengthMax{Max: 2048}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.FileSystemConfigs != nil {
@@ -2511,7 +2511,7 @@ func (v *GetLayerVersionByArnInput) validate(path awserr.Path, out *[]awserr.Vio
 		*out = append(*out, awserr.Violation{Path: at(path, "arn"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if !pattern3.MatchString(v.Arn) {
-			*out = append(*out, awserr.Violation{Path: at(path, "arn"), Value: awserr.RenderedText{Text: v.Arn}, Constraint: awserr.Pattern{Echo: "((arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+:[0-9]+)|(arn:[a-zA-Z0-9-]+:lambda:::awslayer:[a-zA-Z0-9-_]+))"}})
+			*out = append(*out, awserr.Violation{Path: at(path, "arn"), Value: awserr.RenderedText{Text: v.Arn}, Constraint: awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+:[0-9]+)|(arn:[a-zA-Z0-9-]+:lambda:::awslayer:[a-zA-Z0-9-_]+)"}})
 		}
 		if utf8.RuneCountInString(v.Arn) > 2048 {
 			*out = append(*out, awserr.Violation{Path: at(path, "arn"), Value: awserr.RenderedText{Text: v.Arn}, Constraint: awserr.LengthMax{Max: 2048}})
@@ -3436,11 +3436,6 @@ func (v *ListLayerVersionsInput) validate(path awserr.Path, out *[]awserr.Violat
 			*out = append(*out, awserr.Violation{Path: at(path, "compatibleArchitecture"), Value: awserr.RenderedText{Text: string(*v.CompatibleArchitecture)}, Constraint: awserr.Enum{Values: []string{"x86_64", "arm64"}}})
 		}
 	}
-	if v.CompatibleRuntime != nil {
-		if !(*v.CompatibleRuntime).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "compatibleRuntime"), Value: awserr.RenderedText{Text: string(*v.CompatibleRuntime)}, Constraint: awserr.Enum{Values: []string{"nodejs", "nodejs4.3", "nodejs6.10", "nodejs8.10", "nodejs10.x", "nodejs12.x", "nodejs14.x", "nodejs16.x", "nodejs18.x", "nodejs20.x", "nodejs22.x", "nodejs24.x", "java8", "java8.al2", "java11", "java17", "java21", "java25", "python2.7", "python3.6", "python3.7", "python3.8", "python3.9", "python3.10", "python3.11", "python3.12", "python3.13", "python3.14", "dotnetcore1.0", "dotnetcore2.0", "dotnetcore2.1", "dotnetcore3.1", "dotnet6", "dotnet8", "dotnet10", "nodejs4.3-edge", "go1.x", "ruby2.5", "ruby2.7", "ruby3.2", "ruby3.3", "ruby3.4", "ruby4.0", "provided", "provided.al2", "provided.al2023", "nodejs26.x", "python3.15", "java8.al2023", "java11.al2023", "java17.al2023"}}})
-		}
-	}
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "layerName"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
@@ -3476,11 +3471,6 @@ func (v *ListLayersInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.CompatibleArchitecture != nil {
 		if !(*v.CompatibleArchitecture).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "compatibleArchitecture"), Value: awserr.RenderedText{Text: string(*v.CompatibleArchitecture)}, Constraint: awserr.Enum{Values: []string{"x86_64", "arm64"}}})
-		}
-	}
-	if v.CompatibleRuntime != nil {
-		if !(*v.CompatibleRuntime).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "compatibleRuntime"), Value: awserr.RenderedText{Text: string(*v.CompatibleRuntime)}, Constraint: awserr.Enum{Values: []string{"nodejs", "nodejs4.3", "nodejs6.10", "nodejs8.10", "nodejs10.x", "nodejs12.x", "nodejs14.x", "nodejs16.x", "nodejs18.x", "nodejs20.x", "nodejs22.x", "nodejs24.x", "java8", "java8.al2", "java11", "java17", "java21", "java25", "python2.7", "python3.6", "python3.7", "python3.8", "python3.9", "python3.10", "python3.11", "python3.12", "python3.13", "python3.14", "dotnetcore1.0", "dotnetcore2.0", "dotnetcore2.1", "dotnetcore3.1", "dotnet6", "dotnet8", "dotnet10", "nodejs4.3-edge", "go1.x", "ruby2.5", "ruby2.7", "ruby3.2", "ruby3.3", "ruby3.4", "ruby4.0", "provided", "provided.al2", "provided.al2023", "nodejs26.x", "python3.15", "java8.al2023", "java11.al2023", "java17.al2023"}}})
 		}
 	}
 	if v.MaxItems != nil {
@@ -3829,16 +3819,6 @@ func (v *PublishLayerVersionInput) validate(path awserr.Path, out *[]awserr.Viol
 		if len(v.CompatibleArchitectures) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "compatibleArchitectures"), Value: awserr.RenderedText{Text: renderCompatibleArchitectures(v.CompatibleArchitectures)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		if func() bool {
-			for _, e2 := range v.CompatibleArchitectures {
-				if !e2.Known() {
-					return true
-				}
-			}
-			return false
-		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "compatibleArchitectures"), Value: awserr.RenderedText{Text: renderCompatibleArchitectures(v.CompatibleArchitectures)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Enum{Values: []string{"x86_64", "arm64"}}}}})
-		}
 	}
 	if v.CompatibleRuntimes != nil {
 		if len(v.CompatibleRuntimes) > 15 {
@@ -3846,16 +3826,6 @@ func (v *PublishLayerVersionInput) validate(path awserr.Path, out *[]awserr.Viol
 		}
 		if len(v.CompatibleRuntimes) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "compatibleRuntimes"), Value: awserr.RenderedText{Text: renderCompatibleRuntimes(v.CompatibleRuntimes)}, Constraint: awserr.LengthMin{Min: 0}})
-		}
-		if func() bool {
-			for _, e2 := range v.CompatibleRuntimes {
-				if !e2.Known() {
-					return true
-				}
-			}
-			return false
-		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "compatibleRuntimes"), Value: awserr.RenderedText{Text: renderCompatibleRuntimes(v.CompatibleRuntimes)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Enum{Values: []string{"nodejs", "nodejs4.3", "nodejs6.10", "nodejs8.10", "nodejs10.x", "nodejs12.x", "nodejs14.x", "nodejs16.x", "nodejs18.x", "nodejs20.x", "nodejs22.x", "nodejs24.x", "java8", "java8.al2", "java11", "java17", "java21", "java25", "python2.7", "python3.6", "python3.7", "python3.8", "python3.9", "python3.10", "python3.11", "python3.12", "python3.13", "python3.14", "dotnetcore1.0", "dotnetcore2.0", "dotnetcore2.1", "dotnetcore3.1", "dotnet6", "dotnet8", "dotnet10", "nodejs4.3-edge", "go1.x", "ruby2.5", "ruby2.7", "ruby3.2", "ruby3.3", "ruby3.4", "ruby4.0", "provided", "provided.al2", "provided.al2023", "nodejs26.x", "python3.15", "java8.al2023", "java11.al2023", "java17.al2023"}}}}})
 		}
 	}
 	if v.LicenseInfo != nil {
@@ -5144,7 +5114,7 @@ func (v *UpdateFunctionConfigurationInput) validate(path awserr.Path, out *[]aws
 			}
 			return false
 		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "layers"), Value: awserr.RenderedText{Text: renderLayerList(v.Layers)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "((arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+:[0-9]+)|(arn:[a-zA-Z0-9-]+:lambda:::awslayer:[a-zA-Z0-9-_]+))"}, awserr.LengthMax{Max: 2048}, awserr.LengthMin{Min: 1}}}})
+			*out = append(*out, awserr.Violation{Path: at(path, "layers"), Value: awserr.RenderedText{Text: renderLayerList(v.Layers)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+:[0-9]+)|(arn:[a-zA-Z0-9-]+:lambda:::awslayer:[a-zA-Z0-9-_]+)"}, awserr.LengthMax{Max: 2048}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.FileSystemConfigs != nil {
