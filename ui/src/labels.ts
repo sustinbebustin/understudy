@@ -82,6 +82,8 @@ export const idKindLabels: Readonly<Record<string, string>> = {
   "shard-iterator-key": "Shard iterator key",
   "sfn-execution-name": "Step Functions execution name",
   "sfn-revision-id": "Step Functions revision ID",
+  "sfn-uuid": "Step Functions States.UUID",
+  "sfn-math-random": "Step Functions States.MathRandom",
 };
 
 // label returns table's label for name, or name when it has none.

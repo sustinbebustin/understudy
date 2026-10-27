@@ -53,6 +53,8 @@ var kindNames = []struct {
 	{ids.KindStreamIteratorKey, "shard-iterator-key"},
 	{ids.KindSFNExecutionName, "sfn-execution-name"},
 	{ids.KindSFNRevisionID, "sfn-revision-id"},
+	{ids.KindSFNUUID, "sfn-uuid"},
+	{ids.KindSFNMathRandom, "sfn-math-random"},
 }
 
 // declaredKinds walks the kinds from the first until String falls back to

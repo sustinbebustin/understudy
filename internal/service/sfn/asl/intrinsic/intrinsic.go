@@ -3,14 +3,6 @@
 // 5.2, over document.Value.
 package intrinsic
 
-import (
-	"errors"
-
-	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
-)
-
-var errNotImplemented = errors.New("intrinsic: evaluation is not implemented yet")
-
 // MaxDepth is the deepest nesting of calls a definition may use
 // (stepfunctions-asl.md 3.7).
 const MaxDepth = 10
@@ -66,15 +58,4 @@ func (e *FunctionError) Error() string { return e.Function + ": " + e.Cause }
 // *SyntaxError.
 func Parse(s string) (Call, error) {
 	return parse(s)
-}
-
-// Eval evaluates c. Path arguments read input, or context for "$$" paths;
-// States.UUID and unseeded States.MathRandom draw from src. A failing
-// function is a *FunctionError; a missing path argument is the
-// *jsonpath.MissingError of that path.
-//
-// Not implemented yet: it fails.
-func (c Call) Eval(input, context document.Value, src Source) (document.Value, error) {
-	_, _, _, _ = c, input, context, src
-	return nil, errNotImplemented
 }

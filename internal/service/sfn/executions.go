@@ -92,8 +92,7 @@ func (s *Service) startExecution(_ context.Context, c *kernel.Call, in *sfnapi.S
 		m.Tags = slices.Clone(m.Tags)
 		rec := Execution{Machine: m.Name, Name: name, Input: raw, TraceHeader: trace, Started: now, Run: m}
 		start := asl.Start{At: now.Wire(), Input: input, Context: startContext(ref, m.RoleArn, input, now)}
-		// No built construct draws from the intrinsic source yet.
-		x, events, effects := asl.Step(def, EngineRules(), nil, asl.Execution{}, start)
+		x, events, effects := asl.Step(def, EngineRules(), intrinsicSource{s.ids}, asl.Execution{}, start)
 		s.record(tx, ref, &rec, x, events, effects, now)
 		st.Executions[ref.key()] = rec
 		return startedExecution{arn: ref.arn().String(), started: now}, nil

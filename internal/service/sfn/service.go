@@ -39,16 +39,17 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 // landed; Create and Validate parse with it, so any other construct is
 // refused with code UNSUPPORTED_BY_UNDERSTUDY.
 func AcceptedFeatures() asl.Features {
-	return asl.NewFeatures(asl.FeatPass, asl.FeatSucceed, asl.FeatPathDialect, asl.FeatPayloadTemplates)
+	return asl.NewFeatures(asl.FeatPass, asl.FeatSucceed, asl.FeatPathDialect, asl.FeatPayloadTemplates, asl.FeatIntrinsics)
 }
 
 // The coverage notes of the bound operations.
 const (
 	noteCreate = "Standard workflows only: type EXPRESS, publish true and a CUSTOMER_MANAGED_KMS_KEY encryptionConfiguration answer 501. " +
 		"Definitions are JSONPath with Pass and Succeed states only. A Pass state takes Result, InputPath, Parameters, ResultPath, OutputPath, " +
-		"Next, End and Comment, and a Succeed state InputPath, OutputPath and Comment; '.$' values are paths and '$$' context paths. " +
+		"Next, End and Comment, and a Succeed state InputPath, OutputPath and Comment; '.$' values are paths, '$$' context paths and " +
+		"calls of the 18 States.* intrinsic functions. " +
 		"Every other state type and field answers InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY, as do JSONata, Assign and variables, " +
-		"intrinsic functions, Distributed Map and its fields, Credentials, HeartbeatSeconds, and JSONPath functions such as length(), " +
+		"Distributed Map and its fields, Credentials, HeartbeatSeconds, and JSONPath functions such as length(), " +
 		"multi-clause filters and filter scripts (ASL-19). Only the first problem in a definition is reported (UNVERIFIED, ASL-01, SFN-08). " +
 		"loggingConfiguration and tracingConfiguration are validated, stored and echoed; no log events or traces are emitted. " +
 		"The role ARN is checked for syntax only, with understudy's message (UNVERIFIED, SFN-08); its trust policy is not checked"
@@ -62,9 +63,12 @@ const (
 	noteStart = "Standard executions of Pass and Succeed states. Unrecorded AWS behavior understudy chooses, each with its recording case: " +
 		"same-name idempotency compares input byte for byte (SFN-03); input that is not JSON answers 'Invalid execution input.', " +
 		"not AWS's parser text (SFN-08); ResultPath into a non-object fails with States.Runtime (ASL-03); " +
-		"the 25,000-event history limit fails the execution with States.Runtime (ASL-16). " +
+		"the 25,000-event history limit fails the execution with States.Runtime (ASL-16); " +
+		"an intrinsic function failing at run time fails with switch sfn.intrinsic.failure-error's error and understudy's cause (ASL-05); " +
+		"ArrayContains and ArrayUnique compare numbers by value and objects as member sets, and ArrayPartition, ArrayRange and " +
+		"MathRandom round non-integers half up as MathAdd does (ASL-06). " +
 		"The 262,144-byte limit on state data is not enforced. traceHeader, or the X-Amzn-Trace-Id request header when both are sent, " +
-		"is stored and returned by DescribeExecution; no X-Ray trace is emitted"
+		"is stored and returned by DescribeExecution; no X-Ray trace is emitted. States.MathRandom never reproduces AWS's sequence for a seed"
 	noteDescribeExecution = "Closed executions are kept until a reset, not removed 90 days after they close. " +
 		"redriveStatus and redriveStatusReason are given for SUCCEEDED executions only"
 	noteHistory = "includeExecutionData false removes input and output and keeps the *Details members (UNVERIFIED, SFN-05). " +

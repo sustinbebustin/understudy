@@ -57,6 +57,12 @@ const (
 	// KindSFNRevisionID is the revisionId an effective UpdateStateMachine
 	// mints: a v4 UUID (stepfunctions-api.md 5.3).
 	KindSFNRevisionID
+	// KindSFNUUID is a States.UUID value: a v4 UUID (stepfunctions-asl.md
+	// 5.2).
+	KindSFNUUID
+	// KindSFNMathRandom draws an unseeded States.MathRandom value
+	// (stepfunctions-asl.md 5.2).
+	KindSFNMathRandom
 
 	// endKind follows the last kind and is no kind: kindCount counts up to
 	// it, so a new kind is one line above it plus its String case.
@@ -130,6 +136,10 @@ func (k Kind) String() string {
 		return "sfn-execution-name"
 	case KindSFNRevisionID:
 		return "sfn-revision-id"
+	case KindSFNUUID:
+		return "sfn-uuid"
+	case KindSFNMathRandom:
+		return "sfn-math-random"
 	}
 	return fmt.Sprintf("kind(%d)", uint8(k))
 }

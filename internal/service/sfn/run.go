@@ -93,7 +93,7 @@ func (s *Service) onStep(c *kernel.Call, key clock.TimerKey, due clock.Instant) 
 		if def == nil {
 			return struct{}{}, definitionError(diags)
 		}
-		x, events, effects := asl.Step(def, EngineRules(), nil, rec.Engine, asl.TimerFired{At: due.Wire(), Timer: timer})
+		x, events, effects := asl.Step(def, EngineRules(), intrinsicSource{s.ids}, rec.Engine, asl.TimerFired{At: due.Wire(), Timer: timer})
 		if len(events) == 0 && len(effects) == 0 {
 			tx.Unchanged()
 			return struct{}{}, nil
