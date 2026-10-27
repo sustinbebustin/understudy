@@ -91,7 +91,7 @@ The address is checked again after the name resolves, and the address checked is
 
 - A `localhost` or loopback IP entry reaches loopback. A DNS-name entry never does.
 - A DNS-name entry may reach a private address (RFC 1918 or IPv6 ULA). That is how a receiver in Docker Compose (`receiver:8080`) or Kubernetes (`receiver.default.svc.cluster.local:8080`) is listed by its service name.
-- Whatever the list says, understudy never connects to a name under an AWS domain (in the URL or its CNAME chain), the instance metadata and ECS credentials addresses, any link-local, unspecified or multicast address, its own listeners, or a `tcp://` Docker Engine.
+- Whatever the list says, understudy never connects to a name under an AWS domain (in the URL or its CNAME chain), the instance metadata and ECS credentials addresses, any link-local, unspecified or multicast address, its own listeners, or a `tcp://` Docker Engine whose host resolved when `serve` started.
 
 An endpoint that is not listed can still subscribe: `Subscribe` succeeds, but every delivery to it is refused, so it stays pending and receives nothing. A refusal is never retried and never goes to a dead-letter queue. The journal names it and the entry that would allow it:
 
