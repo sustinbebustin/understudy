@@ -243,11 +243,7 @@ func invokedFunction(c *kernel.Call, in *lambdaapi.InvokeInput) []aws.ARN {
 	if err != nil {
 		return nil
 	}
-	a, perr := aws.ParseARN(r.qualifiedARN())
-	if perr != nil {
-		return nil
-	}
-	return []aws.ARN{a}
+	return parsedARN(r.qualifiedARN())
 }
 
 // Close stops every execution environment, log stream and watcher, and

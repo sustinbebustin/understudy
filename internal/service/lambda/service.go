@@ -83,6 +83,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.bindMappings(b)
 	s.bindLayers(b)
 	declareAccess(d.Binder)
+	declareAddressed(d.Binder)
 	return s
 }
 
