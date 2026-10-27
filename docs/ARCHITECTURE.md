@@ -183,7 +183,7 @@ type Cause struct{ Parent, Trace EventID } // Parent 0 for roots; Trace is the r
 type ProtocolID string                      // awsjson1_0 | awsjson1_1 | awsquery | restjson1 | restxml | rpcv2cbor | raw
 type ListenerKind uint8                     // Main | Container
 
-type Via uint8 // closed: SNSDelivery | LambdaESM | EventsTarget | S3Notification | LambdaLogs | DynamoDBTTL | Timer | Snapshot | Admin | KMSForward | STSAssumeRole
+type Via uint8 // closed: SNSDelivery | LambdaESM | EventsTarget | S3Notification | LambdaLogs | DynamoDBTTL | Timer | Snapshot | Admin | KMSForward | STSAssumeRole | LambdaCode | LambdaDestination
 
 // Origin says where a call came from.
 //
