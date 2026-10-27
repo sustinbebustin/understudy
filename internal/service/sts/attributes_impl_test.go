@@ -64,7 +64,7 @@ func TestASessionWithoutAttributesPassesNothingOn(t *testing.T) {
 
 // The attributes survive a snapshot of the identity store: a session read
 // back after Export and Import keeps its session policies, tags and source
-// identity (contract 4; iam-evaluation.md 2.7).
+// identity (iam-evaluation.md 2.7).
 func TestAssumeRoleAttributesSurviveAnIdentitySnapshot(t *testing.T) {
 	run(t, sts.Options{}, func(h *harness) {
 		h.role("app", "/", 3600)

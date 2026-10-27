@@ -9,7 +9,7 @@ import (
 
 // serve refuses an iam.enforce text that is not off, advise or enforce
 // before it listens, as a usage error naming the setting and what to do.
-// The 5a version refused enforce itself; 5b runs it (contract 9.1).
+// enforce itself is accepted (iam-enforcement-surfaces.md 12.1).
 func TestServeRefusesAnUnknownIAMEnforceMode(t *testing.T) {
 	cases := []struct {
 		args, env []string

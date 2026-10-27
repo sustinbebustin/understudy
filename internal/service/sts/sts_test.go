@@ -160,7 +160,8 @@ func TestAssumeRoleUnsigned(t *testing.T) {
 
 // The iam.assumeRole switch reports what backs the configured behavior:
 // AWS's documentation for strict, nothing for lenient. STS also registers
-// sts.denial.reason (contract 11.3), so the entry is found by name.
+// sts.denial.reason (iam-enforcement-surfaces.md 12.8), so the entry is
+// found by name.
 func TestAssumeRoleSwitchLabel(t *testing.T) {
 	for _, tc := range []struct {
 		opts  sts.Options

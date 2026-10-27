@@ -9,8 +9,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/server"
 )
 
-// serverConfig carries iam.enforce onto server.Config (contract 9.2), off
-// by default.
+// serverConfig carries iam.enforce onto server.Config
+// (iam-enforcement-surfaces.md 12.1), off by default.
 func TestServerConfigMapsIAMEnforce(t *testing.T) {
 	cases := []struct {
 		args []string
@@ -35,7 +35,7 @@ func TestServerConfigMapsIAMEnforce(t *testing.T) {
 
 // Under enforce a role IAM does not hold is denied at authorization
 // whatever iam.assumeRole says, and the iam.assumeRole line of serve --help
-// says so by naming iam.enforce (contract 9.2).
+// says so by naming iam.enforce (iam-evaluation.md 3.5).
 func TestAssumeRoleUsageNamesEnforcement(t *testing.T) {
 	settings := config.Settings()
 	at := slices.IndexFunc(settings, func(s config.Setting) bool { return s.Key == "iam.assumeRole" })

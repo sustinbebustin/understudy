@@ -10,7 +10,7 @@ import (
 )
 
 // Every text but off, advise and enforce is refused from each source with
-// the same reason, so no other spelling is read as a mode (contract 9.1;
+// the same reason, so no other spelling is read as a mode (iam-enforcement-surfaces.md 12.1;
 // the 5a version refused everything but off).
 func TestIAMEnforceRefusesEveryOtherText(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {

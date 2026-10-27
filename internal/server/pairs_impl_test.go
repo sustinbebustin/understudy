@@ -75,7 +75,7 @@ func TestTheRecordPairsCopyAndMissingKeyReadsWithTheirResources(t *testing.T) {
 
 // HeadObject and GetObjectAttributes answer a missing key as GetObject
 // does: 403 without s3:ListBucket on the bucket, 404 NoSuchKey with it
-// (contract 11.6; iam-enforcement-surfaces.md 5.1, 12.1).
+// (iam-enforcement-surfaces.md 5.1, 12.1).
 func TestEnforceAnswersMissingKeysOfHeadAndAttributesByListBucket(t *testing.T) {
 	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
 	if got := s3Call(t, dummy, http.MethodPut, endpoint+"/docs", ""); got.status != http.StatusOK {

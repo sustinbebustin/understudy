@@ -44,7 +44,7 @@ type evaluation struct {
 	denial  authz.Denial
 }
 
-// evaluate decides one pair (contract 8.1 steps 1 to 3): the resource with
+// evaluate decides one pair (iam-evaluation.md 2.2): the resource with
 // its owner and policy, the request context, then authz.Decide.
 func (s *Sources) evaluate(r request) (evaluation, error) {
 	resource, policy, err := s.resourceOf(r.pair, r.account)
@@ -68,7 +68,7 @@ func (s *Sources) evaluate(r request) (evaluation, error) {
 }
 
 // resourceOf is a pair's resource with the account that owns it, and the
-// resource-based policy AWS reads for it (contract 8.1 step 1). The owner is
+// resource-based policy AWS reads for it (iam-enforcement-surfaces.md 12.2). The owner is
 // the holding service's, else the ARN's account (an S3 ARN names none),
 // else account. An sts action on a role reads the role's trust policy
 // (iam-evaluation.md 3.1); any other action on an IAM resource reads none,
@@ -114,8 +114,8 @@ func (s *Sources) resourceOf(pair kernel.Pair, account aws.AccountID) (authz.Res
 	return resource, authz.NoResourcePolicy{}, nil
 }
 
-// via maps how c reaches its service onto the request context's (contract
-// 8.1 step 2): a forward-access call with the endpoint of the service that
+// via maps how c reaches its service onto the request context's
+// (iam-enforcement-surfaces.md 9): a forward-access call with the endpoint of the service that
 // forwards it (kms:ViaService, iam-enforcement-surfaces.md 9.2), an
 // execution role's, a delivery with its source keys, else a direct call.
 func via(c *kernel.Call) authz.Via {

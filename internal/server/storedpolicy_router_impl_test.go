@@ -15,7 +15,7 @@ import (
 )
 
 // The router answers the evaluator's question, owner and stored policy,
-// through the same namespace provider as the advisory's (contract 9.2): a
+// through the same namespace provider as the advisory's (iam-enforcement-surfaces.md 12.2): a
 // bucket's owner and policy by an object's ARN, a role's trust policy, and
 // none for a missing queue.
 func TestWiredRouterReadsStoredPolicies(t *testing.T) {

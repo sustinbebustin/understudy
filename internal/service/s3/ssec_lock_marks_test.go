@@ -107,7 +107,7 @@ type wantSwitch struct {
 // settled by no scenario yet (section 12); s3.encryption.after-delete is
 // now backed by the recording of section 2. IAM enforcement's two S3
 // switches (s3.denial.text, s3.root.bucket-policy-lockout) follow them
-// (05-iam contract 11.6, 3.7).
+// (iam-enforcement-surfaces.md 12.8).
 func TestSSECAndObjectLockSwitches(t *testing.T) {
 	plainHTTPOps := []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy", "s3.CompleteMultipartUpload", "s3.GetObject", "s3.HeadObject", "s3.GetObjectAttributes"}
 	inferred := evidence.Inferred
