@@ -51,7 +51,8 @@ import {
 import { CreateRoleCommand, DeleteRoleCommand, IAMClient } from "@aws-sdk/client-iam";
 import { CloudWatchLogsClient, DeleteLogGroupCommand, DescribeLogGroupsCommand, DescribeLogStreamsCommand, FilterLogEventsCommand } from "@aws-sdk/client-cloudwatch-logs";
 import { CreateQueueCommand, DeleteQueueCommand, GetQueueAttributesCommand, ReceiveMessageCommand, SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
-import { clientConfig, defaultAccount, lambdaExecutionEnabled, port, region } from "../support/env";
+import { CreateTableCommand, DeleteTableCommand, DynamoDBClient, PutItemCommand, waitUntilTableExists } from "@aws-sdk/client-dynamodb";
+import { clientConfig, defaultAccount, dynamoDbOptedOut, lambdaExecutionEnabled, port, region } from "../support/env";
 import { awsFailure, eventually, expectFailure, sleep, uniq } from "../support/helpers";
 import { zip } from "../support/zip";
 
@@ -807,6 +808,79 @@ describe.skipIf(!lambdaExecutionEnabled)("Lambda SQS event source mappings", () 
     const failure = await eventually("the deleted mapping to be gone", () => awsFailure(lambda.send(new GetEventSourceMappingCommand({ UUID: mapping.UUID }))));
     expect(failure.name).toBe("ResourceNotFoundException");
     expect(failure.status).toBe(404);
+  });
+});
+
+const STREAM_HANDLER = `
+def handler(event, context):
+    for record in event["Records"]:
+        print("conformance-stream", record["eventName"], record["dynamodb"]["Keys"]["id"]["S"], record["eventSourceARN"], record["eventVersion"])
+`;
+
+describe.skipIf(!lambdaExecutionEnabled || dynamoDbOptedOut)("Lambda DynamoDB stream event source mappings", () => {
+  const ddb = new DynamoDBClient(clientConfig());
+
+  test("a stream mapping refuses as recorded, describes itself with the stream defaults and delivers a write", async () => {
+    const table = uniq("conf-esm-stream");
+    const created = await ddb.send(new CreateTableCommand({
+      TableName: table,
+      KeySchema: [{ AttributeName: "id", KeyType: "HASH" }],
+      AttributeDefinitions: [{ AttributeName: "id", AttributeType: "S" }],
+      BillingMode: "PAY_PER_REQUEST",
+      StreamSpecification: { StreamEnabled: true, StreamViewType: "NEW_IMAGE" },
+    }));
+    cleanups.push(() => ddb.send(new DeleteTableCommand({ TableName: table })));
+    await waitUntilTableExists({ client: ddb, maxWaitTime: 120 }, { TableName: table });
+    const arn = created.TableDescription?.LatestStreamArn ?? "";
+    const fn = await makeFunction(STREAM_HANDLER);
+
+    // lambda-stream-sources.md 3.3 rows 1 and 4 (third-party-recorded LS-API:L12333-L12343, LS-D:L4478-L4494).
+    const noPosition = await expectFailure(lambda.send(new CreateEventSourceMappingCommand({ FunctionName: fn.FunctionName, EventSourceArn: arn })), {
+      name: "InvalidParameterValueException",
+      status: 400,
+    });
+    expect(noPosition.message).toBe("1 validation error detected: Value null at 'startingPosition' failed to satisfy constraint: Member must not be null.");
+    const missing = arn.replace("/stream/", "x/stream/");
+    const notFound = await expectFailure(
+      lambda.send(new CreateEventSourceMappingCommand({ FunctionName: fn.FunctionName, EventSourceArn: missing, StartingPosition: "TRIM_HORIZON" })),
+      { name: "InvalidParameterValueException", status: 400 },
+    );
+    expect(notFound.message).toBe(`Stream not found: ${missing}`);
+
+    // lambda-stream-sources.md 3.5 (third-party-recorded LS-D:L246-L271).
+    const mapping = await lambda.send(new CreateEventSourceMappingCommand({ FunctionName: fn.FunctionName, EventSourceArn: arn, StartingPosition: "TRIM_HORIZON" }));
+    cleanups.push(() => lambda.send(new DeleteEventSourceMappingCommand({ UUID: mapping.UUID })));
+    expect(mapping).toMatchObject({
+      BatchSize: 100,
+      BisectBatchOnFunctionError: false,
+      DestinationConfig: { OnFailure: {} },
+      FunctionResponseTypes: [],
+      LastProcessingResult: "No records processed",
+      MaximumBatchingWindowInSeconds: 0,
+      MaximumRecordAgeInSeconds: -1,
+      MaximumRetryAttempts: -1,
+      ParallelizationFactor: 1,
+      StartingPosition: "TRIM_HORIZON",
+      StateTransitionReason: "User action",
+      TumblingWindowInSeconds: 0,
+    });
+    await eventually("the mapping to be Enabled", async () => {
+      const got = await lambda.send(new GetEventSourceMappingCommand({ UUID: mapping.UUID }));
+      return got.State === "Enabled" ? got : undefined;
+    });
+
+    await ddb.send(new PutItemCommand({ TableName: table, Item: { id: { S: "hello" } } }));
+    const lines = await eventually("the stream record to reach the function", async () => {
+      const all = await logMessages(fn.FunctionName, "conformance-stream");
+      return all.length === 1 ? all : undefined;
+    }, { timeoutMs: 60_000, intervalMs: 500 });
+    // dynamodb-streams.md 7.8: eventSourceARN is the stream; eventVersion 1.1 (ESM-SNAP:L73).
+    expect(lines[0]?.trim().split(" ").slice(1)).toEqual(["INSERT", "hello", arn, "1.1"]);
+    const settled = await eventually("LastProcessingResult OK", async () => {
+      const got = await lambda.send(new GetEventSourceMappingCommand({ UUID: mapping.UUID }));
+      return got.LastProcessingResult === "OK" ? got : undefined;
+    });
+    expect(settled.State).toBe("Enabled");
   });
 });
 
