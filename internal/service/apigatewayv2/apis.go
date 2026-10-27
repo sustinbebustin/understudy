@@ -136,7 +136,6 @@ func (s *Service) createAPI(_ context.Context, c *kernel.Call, in *apigatewayv2a
 	// Set again in case a Reset rebuilt the index between the reservation
 	// and the write.
 	s.index.set(id, scope)
-	c.Touch(apiARN(scope, id))
 	out := apigatewayv2api.CreateApiOutput(api.output(scope, c.Endpoint()))
 	return &out, nil
 }
@@ -264,9 +263,6 @@ func writeAPI[R any](s *Service, c *kernel.Call, id string, fn func(a *API, now 
 		st.APIs[id] = a
 		return r, nil
 	})
-	if err == nil {
-		c.Touch(apiARN(scope, id))
-	}
 	return r, err
 }
 

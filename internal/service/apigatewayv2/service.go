@@ -171,7 +171,27 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	b.DeleteDeployment(s.deleteDeployment, partial(deploymentNote),
 		kernel.WithResources(childItem(func(in *apigatewayv2api.DeleteDeploymentInput) (string, string) { return in.ApiId, in.DeploymentId }, "deployments")))
 	b.InvokeApi(s.invoke, registry.Partial{Note: invokeAPINote})
+	declareAccess(d.Binder)
 	return s
+}
+
+// declareAccess states which generated secondary actions the control
+// plane's calls use, after the bind sites, whose bindings it extends.
+// Each operation's action is apigateway:<its HTTP method> on the 8.1
+// resource alone (apigateway-http.md 8.1), which is what step 8 asks.
+// actions.json also lists apigateway:PUT on CreateStage and
+// apigateway:PATCH (and PUT) beside the tag operations' methods. No page
+// says what PUT on CreateStage is for, so it is left out (inferred). For
+// the tag operations PATCH would be a second pair on the tagged resource
+// itself, as REST APIs document; whether HTTP APIs need it is UNVERIFIED
+// (APIGW2-15 steps 16 to 18), and until it is recorded neither step 8 nor
+// GET /iam/policy asks for it (inferred). The iam:PassRole entries are of
+// another service and are granted only on a role the call touches, which
+// none does.
+func declareAccess(b *kernel.Binder) {
+	kernel.Declare(b, apigatewayv2api.OpCreateStage, kernel.WithoutSecondaryActions())
+	kernel.Declare(b, apigatewayv2api.OpTagResource, kernel.WithoutSecondaryActions())
+	kernel.Declare(b, apigatewayv2api.OpUntagResource, kernel.WithoutSecondaryActions())
 }
 
 // Name returns "apigatewayv2", the service's registry id; its ARNs use the
