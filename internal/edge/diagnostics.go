@@ -89,6 +89,9 @@ func routed(rt route) string {
 	case toService:
 		return string(rt.svc.ID) + " (no operation named)"
 	case legacyQuery:
+		if rt.action == "" {
+			return string(rt.svc.ID) + " (legacy Query form body, not implemented)"
+		}
 		return string(rt.svc.ID) + "." + rt.action + " (legacy Query, not implemented)"
 	case notEmulated:
 		return rt.signingName + " (not emulated)"

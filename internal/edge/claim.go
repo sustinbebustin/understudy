@@ -69,11 +69,13 @@ type toService struct {
 }
 
 // legacyQuery is a POST signed for a service of Options.LegacyQuery that
-// names its operation in an Action query parameter and carries no
-// X-Amz-Target: the legacy Query protocol AWS also serves for it, which
-// understudy does not (rule 8; ssm-parameters.md 2.3).
+// carries no X-Amz-Target and names its operation in an Action query
+// parameter or sends a form body: the legacy Query protocol AWS also
+// serves for it, which understudy does not (rule 8; ssm-parameters.md 2.3).
 type legacyQuery struct {
-	svc     *registry.Service
+	svc *registry.Service
+	// action is the Action query parameter; empty when the request is a
+	// form body, whose Action the edge does not read.
 	action  string
 	reasons []reason
 }
@@ -647,18 +649,25 @@ func (c *claimer) signedElsewhere(signed string) (route, bool) {
 	return toService{svc: svc, reasons: c.reasons}, true
 }
 
-// legacyQuery claims, for a service of Options.LegacyQuery, a POST with an
-// Action query parameter and no X-Amz-Target: the legacy Query protocol,
-// answered 501 rather than as the service's unknown operation, so the
-// client learns that the protocol is missing, not the operation
-// (ssm-parameters.md 2.3, 12.1).
+// legacyQuery claims, for a service of Options.LegacyQuery, a POST with no
+// X-Amz-Target and either an Action query parameter (the recorded form,
+// ssm-parameters.md 2.3) or a form body (Query's other form; AWS's answer
+// to it is unrecorded): the legacy Query protocol, answered 501 rather
+// than as the service's unknown operation, so the client learns that the
+// protocol is missing, not the operation (ssm-parameters.md 12.1).
 func (c *claimer) legacyQuery(svc *registry.Service) (route, bool) {
-	action := c.r.URL.Query().Get("Action")
-	if !slices.Contains(c.h.opts.LegacyQuery, svc.ID) || c.r.Method != http.MethodPost || action == "" || c.r.Header.Get("X-Amz-Target") != "" {
+	if !slices.Contains(c.h.opts.LegacyQuery, svc.ID) || c.r.Method != http.MethodPost || c.r.Header.Get("X-Amz-Target") != "" {
 		return nil, false
 	}
-	c.decline(8, "the request is signed for %s and names %s in an Action query parameter without X-Amz-Target: the legacy Query protocol, which understudy does not serve", svc.ID, action)
-	return legacyQuery{svc: svc, action: action, reasons: c.reasons}, true
+	if action := c.r.URL.Query().Get("Action"); action != "" {
+		c.decline(8, "the request is signed for %s and names %s in an Action query parameter without X-Amz-Target: the legacy Query protocol, which understudy does not serve", svc.ID, action)
+		return legacyQuery{svc: svc, action: action, reasons: c.reasons}, true
+	}
+	if mediaType(c.r.Header.Get("Content-Type")) == "application/x-www-form-urlencoded" {
+		c.decline(8, "the request is signed for %s and sends a form body without X-Amz-Target: the legacy Query protocol, which understudy does not serve", svc.ID)
+		return legacyQuery{svc: svc, reasons: c.reasons}, true
+	}
+	return nil, false
 }
 
 // restCandidates matches the request against the route table of each REST

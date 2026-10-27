@@ -99,10 +99,10 @@ type Options struct {
 	UnknownOperationError func(svc ref.ServiceID, f awserr.Family) (awserr.Identity, bool)
 	// LegacyQuery lists the JSON services AWS also serves over the legacy
 	// Query protocol, which understudy does not (SSM, ssm-parameters.md
-	// 2.3). A POST signed for one of them that carries an Action query
-	// parameter and no X-Amz-Target answers 501 NotImplemented naming the
-	// legacy Query protocol, journaled Unclaimed (ARCHITECTURE.md 4.1 rule
-	// 8).
+	// 2.3). A POST signed for one of them that carries no X-Amz-Target and
+	// either an Action query parameter or a form body answers 501
+	// NotImplemented naming the legacy Query protocol, journaled Unclaimed
+	// (ARCHITECTURE.md 4.1 rule 8).
 	LegacyQuery []ref.ServiceID
 	// Log receives edge diagnostics; nil discards them.
 	Log *slog.Logger

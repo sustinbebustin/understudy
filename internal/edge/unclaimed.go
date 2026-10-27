@@ -94,10 +94,14 @@ func jsonMediaType(p ref.ProtocolID) string {
 // journals it as Unclaimed with the rule trace.
 func (h *Handler) legacyQuery(ctx context.Context, x *exchange, rt legacyQuery) {
 	h.journalUnclaimed(ctx, x, rt.reasons)
+	form, target := "?Action="+rt.action, rt.svc.JSONTargetPrefix+"."+rt.action
+	if rt.action == "" {
+		form, target = "a form body", rt.svc.JSONTargetPrefix+".<Action>"
+	}
 	e := &awserr.Error{
 		ID: awserr.NotImplemented(),
-		Message: "understudy does not serve the legacy Query protocol (?Action=" + rt.action + " without X-Amz-Target) for " + string(rt.svc.ID) +
-			", which AWS also accepts. Send the JSON 1.1 request instead, with X-Amz-Target: " + rt.svc.JSONTargetPrefix + "." + rt.action +
+		Message: "understudy does not serve the legacy Query protocol (" + form + " without X-Amz-Target) for " + string(rt.svc.ID) +
+			", which AWS also accepts. Send the JSON 1.1 request instead, with X-Amz-Target: " + target +
 			", as the AWS SDKs and CLI do. Nothing was changed.",
 		Origin: awserr.Generic{},
 	}
