@@ -1,15 +1,11 @@
 package shardlog
 
 import (
-	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/clock"
 )
-
-// errNotImplemented is what the parts of the log that are not built yet
-// answer.
-var errNotImplemented = errors.New("shardlog: not implemented yet")
 
 // Seq is a sequence number: decimal digits without a leading zero, or "0".
 // String order and numeric order disagree for numbers of different lengths
@@ -17,12 +13,34 @@ var errNotImplemented = errors.New("shardlog: not implemented yet")
 type Seq string
 
 // Compare orders s and o numerically, by length and then by bytes, and
-// returns -1, 0 or +1. Not implemented yet: it answers 0.
-func (s Seq) Compare(_ Seq) int { return 0 }
+// returns -1, 0 or +1.
+func (s Seq) Compare(o Seq) int {
+	switch {
+	case len(s) < len(o):
+		return -1
+	case len(s) > len(o):
+		return 1
+	}
+	return strings.Compare(string(s), string(o))
+}
+
+// maxSeqDigits is the longest sequence number the Kinesis model allows
+// (kinesis.md 3.4).
+const maxSeqDigits = 129
 
 // ParseSeq accepts 1 to 129 decimal digits without a leading zero, or "0"
-// (kinesis.md 3.4); anything else is a *SeqError. Not implemented yet.
-func ParseSeq(_ string) (Seq, error) { return "", errNotImplemented }
+// (kinesis.md 3.4); anything else is a *SeqError.
+func ParseSeq(s string) (Seq, error) {
+	if s == "" || len(s) > maxSeqDigits || (s[0] == '0' && len(s) > 1) {
+		return "", &SeqError{Text: s}
+	}
+	for i := range len(s) {
+		if s[i] < '0' || s[i] > '9' {
+			return "", &SeqError{Text: s}
+		}
+	}
+	return Seq(s), nil
+}
 
 // SeqError is text that is not a sequence number.
 type SeqError struct{ Text string }
@@ -61,10 +79,31 @@ type DecimalCounter struct {
 	FirstAtStart bool
 }
 
-// Start returns the shard's starting number. Not implemented yet: it
-// answers "".
-func (c DecimalCounter) Start(ShardInfo) Seq { return "" }
+// Start returns 10^(Digits-1), "1" when Digits is below 1.
+func (c DecimalCounter) Start(ShardInfo) Seq {
+	return Seq("1" + strings.Repeat("0", max(c.Digits-1, 0)))
+}
 
-// Next returns the next record's number. Not implemented yet: it answers
-// "".
-func (c DecimalCounter) Next(_ ShardInfo, _ Seq, _ clock.Instant) Seq { return "" }
+// Next returns the next record's number.
+func (c DecimalCounter) Next(shard ShardInfo, prev Seq, _ clock.Instant) Seq {
+	if prev == "" {
+		if c.FirstAtStart {
+			return c.Start(shard)
+		}
+		return increment(c.Start(shard))
+	}
+	return increment(prev)
+}
+
+// increment returns s+1 for a decimal s.
+func increment(s Seq) Seq {
+	b := []byte(s)
+	for i := len(b) - 1; i >= 0; i-- {
+		if b[i] < '9' {
+			b[i]++
+			return Seq(b)
+		}
+		b[i] = '0'
+	}
+	return Seq("1" + string(b))
+}

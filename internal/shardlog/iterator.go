@@ -1,6 +1,11 @@
 package shardlog
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -31,6 +36,10 @@ type ARNPrefixed struct{}
 
 func (ARNPrefixed) isForm() {}
 
+// arnSeparator ends the stream ARN of an ARNPrefixed token. A table name
+// cannot hold '|' and base64 never does, so the last one is the separator.
+const arnSeparator = "|1|"
+
 // Codec signs and checks iterator tokens with an HMAC key that comes from
 // the seeded id streams and lives in the snapshot.
 type Codec struct {
@@ -41,15 +50,107 @@ type Codec struct {
 // NewCodec returns a codec signing with key in form.
 func NewCodec(key []byte, form Form) Codec { return Codec{key: key, form: form} }
 
-// Encode returns it as a token. Not implemented yet: it answers nil.
-func (c Codec) Encode(_ Iterator) []byte { return nil }
+// payload is the signed part of a token. The stream is not in it: the HMAC
+// covers the ARN prefix, so a token moved under another stream's prefix
+// fails to verify.
+type payload struct {
+	Created stamp  `json:"c"`
+	Shard   string `json:"h"`
+	Kind    string `json:"k"`
+	Seq     Seq    `json:"q,omitempty"`
+	Issued  stamp  `json:"i"`
+}
+
+// stamp is an instant as Unix seconds and nanoseconds, exact for every
+// instant including the zero one.
+type stamp [2]int64
+
+func stampOf(i clock.Instant) stamp {
+	t := i.Wire()
+	return stamp{t.Unix(), int64(t.Nanosecond())}
+}
+
+func (s stamp) instant() clock.Instant { return clock.FromWire(time.Unix(s[0], s[1]).UTC()) }
+
+// Position kinds in a payload.
+const (
+	kindTrimHorizon = "t"
+	kindAt          = "a"
+	kindAfter       = "f"
+)
+
+// Encode returns it as a token. Pos must be resolved (TrimHorizon, At or
+// After); Latest and AtTime encode as TrimHorizon, which no caller issues.
+func (c Codec) Encode(it Iterator) []byte {
+	p := payload{Created: stampOf(it.Created), Shard: it.Shard, Kind: kindTrimHorizon, Issued: stampOf(it.Issued)}
+	switch pos := it.Pos.(type) {
+	case At:
+		p.Kind, p.Seq = kindAt, pos.Seq
+	case After:
+		p.Kind, p.Seq = kindAfter, pos.Seq
+	case TrimHorizon, Latest, AtTime:
+	}
+	body, err := json.Marshal(p)
+	if err != nil {
+		// A struct of strings and integers always marshals.
+		return nil
+	}
+	prefix := []byte(it.Stream.String() + arnSeparator)
+	body = append(body, c.sign(prefix, body)...)
+	out := make([]byte, len(prefix)+base64.StdEncoding.EncodedLen(len(body)))
+	copy(out, prefix)
+	base64.StdEncoding.Encode(out[len(prefix):], body)
+	return out
+}
 
 // Decode checks a token's HMAC, its prefix against the stream it names and
 // its age: *MalformedError for one that does not decode or verify,
 // *ExpiredError when now is at or past Issued plus ttl or before Issued.
-// Not implemented yet.
-func (c Codec) Decode(_ []byte, _ clock.Instant, _ time.Duration) (Iterator, error) {
-	return Iterator{}, errNotImplemented
+func (c Codec) Decode(b []byte, now clock.Instant, ttl time.Duration) (Iterator, error) {
+	i := bytes.LastIndex(b, []byte(arnSeparator))
+	if i < 0 {
+		return Iterator{}, &MalformedError{Reason: "no stream ARN prefix"}
+	}
+	prefix, enc := b[:i+len(arnSeparator)], b[i+len(arnSeparator):]
+	stream, err := aws.ParseARN(string(b[:i]))
+	if err != nil {
+		return Iterator{}, &MalformedError{Reason: "the prefix is not a stream ARN"}
+	}
+	signed := make([]byte, base64.StdEncoding.DecodedLen(len(enc)))
+	n, err := base64.StdEncoding.Strict().Decode(signed, enc)
+	if err != nil || n <= sha256.Size {
+		return Iterator{}, &MalformedError{Reason: "the token is not base64 of a signed payload"}
+	}
+	body, mac := signed[:n-sha256.Size], signed[n-sha256.Size:n]
+	if !hmac.Equal(mac, c.sign(prefix, body)) {
+		return Iterator{}, &MalformedError{Reason: "bad signature"}
+	}
+	var p payload
+	if err := json.Unmarshal(body, &p); err != nil {
+		return Iterator{}, &MalformedError{Reason: "the payload does not parse"}
+	}
+	it := Iterator{Stream: stream, Created: p.Created.instant(), Shard: p.Shard, Issued: p.Issued.instant()}
+	switch p.Kind {
+	case kindTrimHorizon:
+		it.Pos = TrimHorizon{}
+	case kindAt:
+		it.Pos = At{Seq: p.Seq}
+	case kindAfter:
+		it.Pos = After{Seq: p.Seq}
+	default:
+		return Iterator{}, &MalformedError{Reason: "unknown position kind " + p.Kind}
+	}
+	if now.Before(it.Issued) || now.Compare(it.Issued.Add(ttl)) >= 0 {
+		return Iterator{}, &ExpiredError{Issued: it.Issued, Now: now}
+	}
+	return it, nil
+}
+
+func (c Codec) sign(prefix, body []byte) []byte {
+	m := hmac.New(sha256.New, c.key)
+	m.Write(prefix)
+	m.Write(body)
+	return m.Sum(nil)
 }
 
 // MalformedError is a token that does not decode or verify.
