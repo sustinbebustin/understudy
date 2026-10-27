@@ -9,7 +9,4 @@
 // kernel.Invoke, outside any cell lock: as the caller for a customer
 // managed key, as ssm.amazonaws.com for the default key alias/aws/ssm
 // (ssm-parameters.md 5.6).
-//
-// Not implemented yet: the operations are bound and answer NotImplemented
-// until their handlers land.
 package ssm

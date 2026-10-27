@@ -11,9 +11,12 @@ import (
 const stateVersion = 1
 
 // State is the Parameter Store state of one account and region
-// (ssm-parameters.md 12.3). Records are values: a handler copies a
-// Parameter out, changes the copy and stores it back, cloning what it
-// changes, so nothing read out of a cell aliases it.
+// (ssm-parameters.md 12.3). Records are immutable values replaced on
+// change (ADR 0005), but a Parameter read out of a cell shares storage
+// with it: its Versions, Labels and Tags, and the pointers and ciphertext
+// bytes inside a Version. None of these is ever changed in place; a
+// writer clones the slice or map it changes and stores the new Parameter
+// back.
 type State struct {
 	// Parameters are by canonical name: a single-level name without its
 	// leading slash, a hierarchical name as written (ssm-parameters.md 3.2).

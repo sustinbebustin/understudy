@@ -42,8 +42,8 @@ type PrincipalMode interface{ isPrincipalMode() }
 
 // AsCaller is a forward-access call charged to the original principal: S3,
 // Secrets Manager, SSM Parameter Store, DynamoDB and CloudWatch Logs
-// calling KMS, STS reading
-// the role AssumeRole names, and Lambda reading a package from S3.
+// calling KMS, STS reading the role AssumeRole names, and Lambda reading a
+// package from S3.
 type AsCaller struct{}
 
 // AsExecutionRole is a call made as a function's execution role: event
