@@ -18,6 +18,14 @@ const maxHistoryEvents = 25_000
 // (stepfunctions-asl.md 8.1).
 const errRuntime = "States.Runtime"
 
+// errDataLimit is the error of state data over maxDataBytes
+// (stepfunctions-asl.md 8.5).
+const errDataLimit = "States.DataLimitExceeded"
+
+// maxDataBytes is the UTF-8 size limit on state input and output
+// (stepfunctions-asl.md 12, aws-doc dg/service-quotas).
+const maxDataBytes = 262_144
+
 // Step applies ev to x and returns the new execution, the history events it
 // wrote (ids continuing from x's last) and the effects, in order. It is
 // pure: equal arguments give equal results. An event that does not apply (a
@@ -138,6 +146,9 @@ func (s *stepper) step(j stepJob) {
 	case passState:
 		entered := s.emit("PassStateEntered", j.previous, stateEntered(st.name, j.input))
 		output, f := s.pass(st, j.input)
+		if f == nil {
+			f = dataLimit(st.name, output)
+		}
 		if f != nil {
 			s.stateFailed(st.name, entered, f)
 			return
@@ -147,13 +158,24 @@ func (s *stepper) step(j stepJob) {
 	case succeedState:
 		entered := s.emit("SucceedStateEntered", j.previous, stateEntered(st.name, j.input))
 		output, f := s.passThrough(st.name, st.io, j.input)
+		if f == nil {
+			f = dataLimit(st.name, output)
+		}
 		if f != nil {
 			s.stateFailed(st.name, entered, f)
 			return
 		}
 		exited := s.emit("SucceedStateExited", entered, stateExited(st.name, output))
 		s.succeed(output, exited)
-	case failState, choiceState, waitState, taskState, parallelState, mapState:
+	case failState:
+		entered := s.emit("FailStateEntered", j.previous, stateEntered(st.name, j.input))
+		name, cause, f := s.failMessages(st, j.input)
+		if f != nil {
+			s.stateFailed(st.name, entered, f)
+			return
+		}
+		s.fail(name, cause, entered)
+	case choiceState, waitState, taskState, parallelState, mapState:
 		// Parse accepts these types only under features whose runtime has
 		// not landed, which the service does not accept yet.
 		s.fail(errRuntime, "The state '"+j.state+"' is of a type this engine does not run yet.", j.previous)

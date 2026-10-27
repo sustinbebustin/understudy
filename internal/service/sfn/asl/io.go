@@ -187,6 +187,19 @@ func (sc scope) callFailure(field string, input document.Value, err error) Failu
 	return missingInTemplate(field, input, err)
 }
 
+// dataLimit is States.DataLimitExceeded when the output of the state named
+// name is over maxDataBytes of UTF-8 JSON text, with the recorded cause and
+// no States.Runtime prefix (stepfunctions-asl.md 8.5; aws-recorded
+// localstack@8b9a79f v2/error_handling/test_states_errors.snapshot.json:L608).
+// It is terminal: a Pass state has no Catch to show otherwise, and the error
+// stays terminal inside a Parallel or Map (inferred, ASL-15).
+func dataLimit(name string, output document.Value) Failure {
+	if len(text(output)) <= maxDataBytes {
+		return nil
+	}
+	return Terminal{Name: errDataLimit, Cause: "The state/task '" + name + "' returned a result with a size exceeding the maximum number of bytes service limit."}
+}
+
 // ruleFailure is a switch's error with cause.
 func ruleFailure(r ErrorRule, cause string) Failure {
 	if r.Terminal {
