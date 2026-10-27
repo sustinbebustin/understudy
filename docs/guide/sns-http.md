@@ -120,15 +120,17 @@ understudy faults add --id slow --phase delivery --mechanism sns-to-http --http-
 aws sns publish --topic-arn arn:aws:sns:us-east-1:000000000000:orders --message 'order 42 shipped'
 understudy settle
 understudy clock advance 20s && understudy settle
-understudy clock advance 20s && understudy settle
+understudy clock advance 35s && understudy settle
 understudy journal --kind delivery
 ```
 
 ```text
-9      2026-10-26T23:46:28.217920171Z  delivery       000000000000/us-east-1 sns-to-http orders -> 127.0.0.1:8080 attempt 1 retrying, next attempt at 2026-10-26T23:46:48.217920171Z
-12     2026-10-26T23:46:48.217920171Z  delivery       000000000000/us-east-1 sns-to-http orders -> 127.0.0.1:8080 attempt 2 retrying, next attempt at 2026-10-26T23:47:08.217920171Z
-14     2026-10-26T23:47:08.217920171Z  delivery       000000000000/us-east-1 sns-to-http orders -> 127.0.0.1:8080 attempt 3 delivered
+11     2026-10-27T01:30:36.880896465Z  delivery       000000000000/us-east-1 sns-to-http orders -> 127.0.0.1:8080 attempt 1 retrying, next attempt at 2026-10-27T01:30:56.880896465Z
+15     2026-10-27T01:30:56.880896465Z  delivery       000000000000/us-east-1 sns-to-http orders -> 127.0.0.1:8080 attempt 2 retrying, next attempt at 2026-10-27T01:31:31.880896465Z
+18     2026-10-27T01:31:31.880896465Z  delivery       000000000000/us-east-1 sns-to-http orders -> 127.0.0.1:8080 attempt 3 delivered
 ```
+
+The 503 is retried 20 seconds after the attempt. The injected timeout stands for an attempt that waited out its 15-second deadline, so its retry is due 20 seconds after that deadline, 35 seconds after the attempt.
 
 - The phases `numNoDelayRetries`, `numMinDelayRetries`, the backoff retries and `numMaxDelayRetries` run in that order. AWS does not document its backoff curves, so every `backoffFunction` steps linearly from `minDelayTarget` to `maxDelayTarget`, without jitter.
 - `throttlePolicy.maxReceivesPerSecond` spaces a subscription's attempts at least `1/maxReceivesPerSecond` seconds apart, and a delayed attempt uses up no retry.
