@@ -206,11 +206,12 @@ No HTTP API behavior has been recorded against AWS yet, so these come from AWS's
 
 Real AWS has not been recorded for SSM yet (there is no `testdata/parity/ssm/`); where AWS's answer is unrecorded, understudy's choice is labelled per operation on the [coverage page](../coverage.md). The [SSM guide](ssm.md) shows each item below.
 
-- AWS serves the legacy Query protocol, a POST with `?Action=GetParameter` in the query string and no `X-Amz-Target`, answering with the parameter (recorded in LocalStack's API Gateway SSM tests, 2024-07-12). understudy answers 501 `NotImplemented` naming the protocol, for every SSM operation. Send the JSON 1.1 request the SDKs and the CLI send.
+- AWS serves the legacy Query protocol, a POST with `?Action=GetParameter` in the query string and no `X-Amz-Target`, answering with the parameter (recorded in LocalStack's API Gateway SSM tests, 2024-07-12). understudy answers 501 `NotImplemented` naming the protocol, for every SSM operation, and answers a form-encoded POST with `Action` in the body the same way (AWS's answer to that form is unrecorded). Send the JSON 1.1 request the SDKs and the CLI send.
 - AWS public parameters (`/aws/service/...`) and Secrets Manager references (`/aws/reference/secretsmanager/...`) answer 501 `NotImplemented` on every Parameter Store operation. Read the value from its own source, or store a copy under a name of your own.
 - Parameter policies, `DataType` `aws:ec2:image`, an Advanced-tier SecureString and an `AllowedPattern` Go's RE2 cannot compile answer 501 `NotImplemented`; nothing is stored.
 - No `Parameter Store Change` events reach EventBridge.
 - The default parameter tier is always Standard, since the service settings answer 501.
+- Under `--iam-enforce enforce`, a SecureString on the default key `alias/aws/ssm` is encrypted and decrypted by SSM itself, so an identity policy that explicitly denies `kms:Encrypt` or `kms:Decrypt` on that key does not stop the call. A parameter ARN of another account is denied before understudy looks for it; AWS's answer there is unrecorded.
 
 ## Signatures
 

@@ -70,6 +70,14 @@ const (
 	reserved      = "a name under /aws/service/ or /aws/reference/secretsmanager/ makes the call answer 501"
 	parameterOnly = "ResourceType Parameter only: the other resource types name nothing understudy stores, so they answer InvalidResourceId"
 
+	// The default key is called as ssm.amazonaws.com (spec conflict 9;
+	// ssm-parameters.md 5.6, inferred), so step 8 never sees the caller's
+	// kms: actions on it.
+	defaultKeyEncrypt = "under iam.enforce, a SecureString on the default key alias/aws/ssm is encrypted as SSM itself, " +
+		"so an explicit identity-policy deny of kms:Encrypt on that key is not applied"
+	defaultKeyDecrypt = "under iam.enforce, a SecureString on the default key alias/aws/ssm is decrypted as SSM itself, " +
+		"so an explicit identity-policy deny of kms:Decrypt on that key is not applied"
+
 	notePutParameter = reserved + "; parameter policies answer 501; DataType aws:ec2:image answers 501, since understudy has no EC2 to validate an AMI; " +
 		"an Advanced-tier SecureString, including an Intelligent-Tiering one that resolves to Advanced, answers 501; " +
 		"AllowedPattern is compiled as Go RE2: a pattern RE2 cannot compile answers 501, except an unbalanced bracket or parenthesis, " +
@@ -81,16 +89,21 @@ const (
 		"a deleted name can be created again at once with a fresh history, StringList values are stored verbatim, " +
 		"value size is counted in bytes and an oversize value answers ValidationException, " +
 		"a hierarchical parameter cannot change type (HierarchyTypeMismatchException) while a root parameter can, " +
-		"and the messages for name, depth, length, size, count, type-change, missing-Type, KeyId-on-String, AllowedPattern and {{...}} refusals are understudy's own"
+		"and the messages for name, depth, length, size, count, type-change, missing-Type, KeyId-on-String, AllowedPattern and {{...}} refusals are understudy's own; " +
+		defaultKeyEncrypt
 	noteGetParameter = "no AWS public parameters: names under /aws/service/ answer 501; " +
 		"Secrets Manager references (names under /aws/reference/secretsmanager/) answer 501; " +
 		"the legacy Query protocol (?Action= without X-Amz-Target), which AWS also serves, answers 501 for this and every SSM operation; " +
-		"unrecorded, understudy's choice: an ARN of another account or Region answers ParameterNotFound, and the ParameterVersionNotFound message is understudy's own"
+		"unrecorded, understudy's choice: an ARN of another account or Region answers ParameterNotFound, except that under iam.enforce=enforce " +
+		"an ARN of another account is denied at step 8 first, and the ParameterVersionNotFound message is understudy's own; " +
+		defaultKeyDecrypt
 	noteGetParameters = "no AWS public parameters: a name under /aws/service/ makes the call answer 501; " +
 		"a Secrets Manager reference (a name under /aws/reference/secretsmanager/) makes the call answer 501; " +
-		"unrecorded, understudy's choice: a name given twice is answered once, and a name that is not valid, or whose version or label does not exist, is listed in InvalidParameters"
+		"unrecorded, understudy's choice: a name given twice is answered once, and a name that is not valid, or whose version or label does not exist, is listed in InvalidParameters; " +
+		defaultKeyDecrypt
 	noteGetParametersByPath = "no AWS public parameters or Secrets Manager references: paths under /aws/service/ or /aws/reference/secretsmanager/ answer 501; " +
-		"unrecorded, understudy's choice: 10 results per page without MaxResults, Path / lists root parameters, and a Label filter's results carry no Selector"
+		"unrecorded, understudy's choice: 10 results per page without MaxResults, Path / lists root parameters, and a Label filter's results carry no Selector; " +
+		defaultKeyDecrypt
 	noteDescribeParameters = "AWS public parameters and Secrets Manager references are never listed: " +
 		"a Name or Path filter value under /aws/service/ or /aws/reference/secretsmanager/ answers 501; " +
 		"Shared lists nothing, since no parameter can be shared (resource policies are unbound); " +
@@ -99,7 +112,8 @@ const (
 		"the values of one filter match any of them, a tag filter without Values matches any value of its key, " +
 		"BeginsWith and Contains are case-sensitive, and LastModifiedUser of a role session is the assumed-role session ARN"
 	noteGetParameterHistory = reserved + "; unrecorded, understudy's choice: 50 versions per page without MaxResults, " +
-		"version numbers keep counting after the oldest of 100 is dropped, and LastModifiedUser of a role session is the assumed-role session ARN"
+		"version numbers keep counting after the oldest of 100 is dropped, and LastModifiedUser of a role session is the assumed-role session ARN; " +
+		defaultKeyDecrypt
 	noteDeleteParameters = reserved + "; no Parameter Store Change events are sent; " +
 		"unrecorded, understudy's choice: a name that is not valid is listed in InvalidParameters"
 	noteLabelParameterVersion = reserved + "; no Parameter Store Change events are sent; " +
