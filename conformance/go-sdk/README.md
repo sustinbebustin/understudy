@@ -56,6 +56,7 @@ There is one file per service, named after it, so that one person can own and fi
 | `sns_test.go` | SNS |
 | `sns_http_test.go`, `sns_http_impl_test.go` | SNS delivery to an http endpoint: an `httptest` receiver the test starts, on a loopback port `run.sh` lists in `sns.httpDelivery.allow` |
 | `lambda_test.go` | Lambda |
+| `lambda_layers_test.go` | Lambda layers and asynchronous invocation destinations |
 | `dynamodb_test.go` | DynamoDB |
 | `cloudwatchlogs_test.go` | CloudWatch Logs |
 | `secretsmanager_test.go` | Secrets Manager |
