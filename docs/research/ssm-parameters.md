@@ -472,6 +472,18 @@ Behavior the provider relies on:
   - `get_parameters_by_name` -> `GetParameters` in chunks of `_MAX_GET_PARAMETERS_ITEM = 10` (L108, L572-L632), reading `InvalidParameters` (L677).
 - AWS Parameters and Secrets Lambda Extension: "uses read-only access to the **GetParameter** API action". It is a localhost proxy on port 2773 (`/systemsmanager/parameters/get?name=...&version=...&label=...&withDecryption=...`) that caches for `SSM_PARAMETER_STORE_TTL`, default 300 s, and accepts ARNs, public parameter names and Secrets Manager references ([Lambda extension](https://docs.aws.amazon.com/systems-manager/latest/userguide/ps-integration-lambda-extensions.html)). understudy does not run the extension, but a Lambda image that bundles it calls `GetParameter` through `AWS_ENDPOINT_URL`.
 
+### 10.4 Terraform `aws_ssm_parameter` in provider v5.100.0
+
+The serverless-patterns pattern `lambda-ssm-parameter-terraform` asks for `hashicorp/aws` `~> 5.0`, and the lock file committed beside it pins v5.100.0, the last 5.x. Its calls are from `internal/service/ssm/parameter.go` at tag v5.100.0 (commit `f7a3b98da589ab1d52756b0dcee0dbf2de83d635`), cited by line in the table. Only the three phases the pattern runs are listed; update is as in 10.1.
+
+| Phase | Calls | Lines |
+|---|---|---|
+| Create | `PutParameter{AllowedPattern: "<config or empty>", Name, Overwrite: <config, else false for a new resource>, Type, Value (`insecure_value` or `value_wo` when set), DataType?, Description?, KeyId? (SecureString), Tier?, Tags? (only when not overwriting)}`; on a `ValidationException` containing `Tier is not supported`, one retry without `Tier`; `AddTagsToResource` when tags were held back; the id is the configured name; then Read | L168-L245, L487-L496 |
+| Read | `GetParameter{Name: id, WithDecryption: true}` (retried 2 min for a new `aws:ec2:image`), setting `arn`, `name`, `type`, `version` and `value` from the answer; `DescribeParameters` with `ParameterFilters` `Name Equals <name>`, every page, exactly one result, setting `allowed_pattern`, `data_type`, `description`, `key_id` and `tier`; `ListTagsForResource{ResourceType: Parameter, ResourceId: id}` through transparent tagging | L31-L32, L247-L332, L420-L485 |
+| Delete | `DeleteParameter{Name: name}`; `ParameterNotFound` ignored | L399-L418 |
+
+These are the calls 10.1 lists for v6.68.0, so the same answers give an empty second plan. The pattern's parameter is the root name `ExampleParameterName`, written without a slash, so the spelling rule of 3.2 does not arise. Its function (`src/app.js`) calls `GetParameter{Name}` and `PutParameter{Name, Value, Overwrite: true, Type: String}` through the JavaScript SDK v3. understudy built on 2026-10-27 ran the pattern through `scripts/sealed`: v5.100.0 took the endpoint from `AWS_ENDPOINT_URL`, and apply, the function's GET and PUT events, an empty second plan and destroy all passed.
+
 ## 11. Conflicts between sources
 
 | Topic | Sources | Resolution |
