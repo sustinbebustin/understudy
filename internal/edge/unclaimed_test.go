@@ -1,13 +1,14 @@
 package edge_test
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/sustinbebustin/understudy/internal/edge"
+	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/server"
 )
 
@@ -68,45 +69,54 @@ func TestServicesNotEmulatedAreNamedInTheRequestsProtocol(t *testing.T) {
 	}
 }
 
-// SDKs sign DynamoDB Streams for dynamodb, the signing name of a service
-// understudy emulates (dynamodb-streams.md 3.2,
-// testdata/parity/dynamodb/R11/07-streams-signed-dynamodb.json). Its target
-// prefix names a service understudy does not emulate, so a call is 501
-// NotImplemented naming the operation (ADR 0003) whichever of its signing
-// name and endpoint prefix signed it, never DynamoDB's unknown operation,
-// and it is journaled as Unclaimed.
-func TestDynamoDBStreamsTargetsAreNotImplemented(t *testing.T) {
-	for _, signedFor := range []string{"dynamodb", "streams.dynamodb", ""} {
-		t.Run("signed for "+signedFor, func(t *testing.T) {
-			f := newFront(t, nil)
+// DynamoDB Streams is emulated (spec 8a): rule 6 claims its target prefix
+// through the registered service, with no unemulated entry. AWS refuses a
+// request whose credential is scoped to the endpoint prefix
+// streams.dynamodb with 400 InvalidSignatureException (aws-recorded,
+// testdata/parity/dynamodb/R11/07-streams-signed-streams.dynamodb.json;
+// dynamodb-streams.md 3.2), whatever understudy's sigv4 mode: it is a
+// credential-scope check, not signature verification (spec conflict row
+// 12). The request never reaches the service.
+func TestDynamoDBStreamsScopedToStreamsDynamoDBIsRefused(t *testing.T) {
+	for _, verify := range []bool{false, true} {
+		name := "sigv4 parse"
+		if verify {
+			name = "sigv4 verify"
+		}
+		t.Run(name, func(t *testing.T) {
+			f := newFrontWith(t, nil, func(o *edge.Options) { o.Verify = verify }, dynamoDBStreams())
 			rec := httptest.NewRecorder()
 			header := jsonHeader("DynamoDBStreams_20120810.ListStreams", "application/x-amz-json-1.0")
-			f.handler.ServeHTTP(rec, request(t, http.MethodPost, "/", header, `{}`, signedFor))
-			if rec.Code != http.StatusNotImplemented {
-				t.Errorf("status = %d, want 501", rec.Code)
+			f.handler.ServeHTTP(rec, request(t, http.MethodPost, "/", header, `{}`, "streams.dynamodb"))
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("status = %d, want 400", rec.Code)
 			}
 			if got := rec.Header().Get("Content-Type"); got != "application/x-amz-json-1.0" {
 				t.Errorf("Content-Type = %q, want application/x-amz-json-1.0", got)
 			}
-			var body struct {
-				Type    string `json:"__type"`
-				Message string `json:"message"`
+			// The recorded body, byte for byte, trailing space included.
+			want := `{"__type":"com.amazon.coral.service#InvalidSignatureException","message":"Credential should be scoped to correct service: 'dynamodb'. "}`
+			if got := rec.Body.String(); got != want {
+				t.Errorf("body = %s, want %s", got, want)
 			}
-			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-				t.Fatalf("body %s: %v", rec.Body, err)
-			}
-			want := "understudy does not implement DynamoDB Streams.ListStreams. Run 'understudy coverage --service dynamodb' for what is supported; " +
-				"to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=DynamoDB+Streams.ListStreams"
-			if body.Type != "NotImplemented" || body.Message != want {
-				t.Errorf("body = %+v, want NotImplemented %q", body, want)
-			}
-			reasons := f.unclaimedReasons(t)
-			if !slices.ContainsFunc(reasons, func(r string) bool {
-				return strings.HasPrefix(r, "rule 6: ") && strings.Contains(r, "DynamoDB Streams")
-			}) {
-				t.Errorf("journaled reasons = %q, want rule 6's naming DynamoDB Streams", reasons)
+			if slices.ContainsFunc(f.calls(t), func(op ref.OperationID) bool { return op.Service == "dynamodbstreams" }) {
+				t.Error("a request scoped to streams.dynamodb reached dynamodbstreams")
 			}
 		})
+	}
+}
+
+// Signed for dynamodb, as every SDK signs it (aws-recorded,
+// testdata/parity/dynamodb/R11/07-streams-signed-dynamodb.json), a Streams
+// call reaches the Streams service under either sigv4 mode.
+func TestDynamoDBStreamsSignedForDynamoDBIsServed(t *testing.T) {
+	for _, verify := range []bool{false, true} {
+		f := newFrontWith(t, nil, func(o *edge.Options) { o.Verify = verify }, dynamoDBStreams())
+		header := jsonHeader("DynamoDBStreams_20120810.ListStreams", "application/x-amz-json-1.0")
+		f.serve(t, request(t, http.MethodPost, "/", header, `{}`, "dynamodb"))
+		if got := f.lastCall(t); got.Service != "dynamodbstreams" {
+			t.Errorf("verify %v: the request reached %s, want dynamodbstreams", verify, got)
+		}
 	}
 }
 
