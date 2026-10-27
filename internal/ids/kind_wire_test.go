@@ -49,6 +49,9 @@ var kindNames = []struct {
 	{ids.KindLambdaRecordKey, "lambda-record-key"},
 	{ids.KindAPIGatewayAPIID, "apigateway-api-id"},
 	{ids.KindAPIGatewayChildID, "apigateway-child-id"},
+	{ids.KindStreamEventID, "dynamodb-stream-event-id"},
+	{ids.KindStreamIteratorKey, "shard-iterator-key"},
+	{ids.KindSFNExecutionName, "sfn-execution-name"},
 }
 
 // declaredKinds walks the kinds from the first until String falls back to

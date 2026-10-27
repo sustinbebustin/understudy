@@ -88,6 +88,7 @@ func (w *workload) run(t *testing.T) {
 		{"ssm", w.ssm},
 		{"eventbridge", w.events},
 		{"cloudwatch", w.cloudwatch},
+		{"step functions", w.stepFunctions},
 		{"iam policy", w.policy},
 		{"coverage", w.coverage},
 	}
@@ -588,6 +589,20 @@ func (w *workload) cloudwatch(t *testing.T) {
 	}), http.StatusOK).body, &alarms)
 	if len(alarms.MetricAlarms) != 2 || alarms.MetricAlarms[0].AlarmName != "cbor" || alarms.MetricAlarms[1].AlarmName != "json" {
 		t.Fatalf("DescribeAlarms = %+v, want the alarms put over both protocols", alarms)
+	}
+}
+
+// stepFunctions creates a Pass state machine over awsJson1_0 and lists it.
+func (w *workload) stepFunctions(t *testing.T) {
+	t.Helper()
+	must(t, "CreateStateMachine", awsJSON(t, w.emu, "1.0", "states", "AWSStepFunctions.CreateStateMachine",
+		`{"name":"smoke","roleArn":"arn:aws:iam::`+account+`:role/smoke","definition":"{\"StartAt\":\"P\",\"States\":{\"P\":{\"Type\":\"Pass\",\"End\":true}}}"}`), http.StatusOK)
+	var list struct {
+		StateMachines []struct{ Name, StateMachineArn string }
+	}
+	decode(t, "ListStateMachines", must(t, "ListStateMachines", awsJSON(t, w.emu, "1.0", "states", "AWSStepFunctions.ListStateMachines", `{}`), http.StatusOK).body, &list)
+	if len(list.StateMachines) != 1 || list.StateMachines[0].StateMachineArn != "arn:aws:states:"+region+":"+account+":stateMachine:smoke" {
+		t.Fatalf("ListStateMachines = %+v, want the smoke machine", list)
 	}
 }
 

@@ -27,6 +27,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
+	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
@@ -68,6 +69,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/logs"
 	"github.com/sustinbebustin/understudy/internal/service/s3"
 	"github.com/sustinbebustin/understudy/internal/service/secretsmanager"
+	"github.com/sustinbebustin/understudy/internal/service/sfn"
 	"github.com/sustinbebustin/understudy/internal/service/sns"
 	"github.com/sustinbebustin/understudy/internal/service/sqs"
 	"github.com/sustinbebustin/understudy/internal/service/ssm"
@@ -919,6 +921,9 @@ func wiredServices() []wiredService {
 		}},
 		{api{cloudwatchapi.Service(), cloudwatchapi.ThrottleError(), cloudwatchapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return cloudwatch.New(d, cloudwatch.Options{})
+		}},
+		{api{sfnapi.Service(), sfnapi.ThrottleError(), sfnapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return sfn.New(d, sfn.Options{})
 		}},
 	}
 }

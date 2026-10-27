@@ -51,6 +51,9 @@ const (
 	// KindStreamIteratorKey is the HMAC key that signs shard iterators
 	// (dynamodb-streams.md 11.1).
 	KindStreamIteratorKey
+	// KindSFNExecutionName names a Step Functions execution started without
+	// a name: a v4 UUID (stepfunctions-api.md 6.1).
+	KindSFNExecutionName
 
 	// endKind follows the last kind and is no kind: kindCount counts up to
 	// it, so a new kind is one line above it plus its String case.
@@ -120,6 +123,8 @@ func (k Kind) String() string {
 		return "dynamodb-stream-event-id"
 	case KindStreamIteratorKey:
 		return "shard-iterator-key"
+	case KindSFNExecutionName:
+		return "sfn-execution-name"
 	}
 	return fmt.Sprintf("kind(%d)", uint8(k))
 }
