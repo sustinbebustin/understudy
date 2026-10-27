@@ -183,26 +183,43 @@ func (e *DeliverError) Unwrap() error { return e.Err }
 // unlock, stamped with the call's cause (or the one Tx.Resume set) and
 // counted by the work tracker.
 func Write[K comparable, S, R any](c *Call, p *store.Partitioned[K, S], key K, fn func(s *S, now clock.Instant, tx *Tx) (R, *awserr.Error)) (R, *awserr.Error) {
-	var zero R
-	if err := c.beginWrite(); err != nil {
+	var r R
+	err := write(c, func() *store.Cell[S] { return p.For(key) }, func(s *S, now clock.Instant, tx *Tx) *awserr.Error {
+		var err *awserr.Error
+		r, err = fn(s, now, tx)
+		return err
+	})
+	if err != nil {
+		var zero R
 		return zero, err
+	}
+	return r, nil
+}
+
+// write is Write over the state type alone, its key and result captured by
+// the caller, so its body is compiled once per state type rather than per
+// key, state and result (ADR 0001's binary budget). cell resolves the cell
+// again for each attempt.
+func write[S any](c *Call, cell func() *store.Cell[S], fn func(s *S, now clock.Instant, tx *Tx) *awserr.Error) *awserr.Error {
+	if err := c.beginWrite(); err != nil {
+		return err
 	}
 	defer c.holding.Store(false)
 	for {
-		res := commit(c, p.For(key), fn)
+		res := commit(c, cell(), fn)
 		if res.retired {
 			continue
 		}
 		if res.err != nil {
-			return zero, res.err
+			return res.err
 		}
 		if err := c.k.afterUnlock(c, res.tx); err != nil {
-			return zero, err
+			return err
 		}
 		if res.tx.err != nil {
-			return zero, awserr.Internalf(res.tx.err)
+			return awserr.Internalf(res.tx.err)
 		}
-		return res.r, nil
+		return nil
 	}
 }
 
@@ -225,8 +242,7 @@ func (c *Call) beginWrite() *awserr.Error {
 }
 
 // committed is the outcome of one attempt at a Write.
-type committed[R any] struct {
-	r   R
+type committed struct {
 	err *awserr.Error
 	tx  *Tx
 	// retired reports that the cell was retired before fn ran; nothing
@@ -238,16 +254,15 @@ type committed[R any] struct {
 // An effect Tx refused (tx.err) does not undo the others: fn has changed
 // the state in place, so its valid timers, wakes and deliveries still run
 // and the scheduler agrees with the state; Write then answers Internal.
-func commit[S, R any](c *Call, cell *store.Cell[S], fn func(s *S, now clock.Instant, tx *Tx) (R, *awserr.Error)) committed[R] {
+func commit[S any](c *Call, cell *store.Cell[S], fn func(s *S, now clock.Instant, tx *Tx) *awserr.Error) committed {
 	k := c.k
-	return store.Update(cell, func(s *S) (committed[R], bool) {
+	return store.Update(cell, func(s *S) (committed, bool) {
 		if cell.Retired() {
-			return committed[R]{retired: true}, false
+			return committed{retired: true}, false
 		}
 		tx := &Tx{k: k, now: k.clock.Now()}
-		r, err := fn(s, tx.now, tx)
-		if err != nil {
-			return committed[R]{err: err}, false
+		if err := fn(s, tx.now, tx); err != nil {
+			return committed{err: err}, false
 		}
 		for _, rec := range tx.records {
 			if err := k.record(tx.cause(c), tx.now, rec.scope, rec.detail); err != nil {
@@ -264,7 +279,7 @@ func commit[S, R any](c *Call, cell *store.Cell[S], fn func(s *S, now clock.Inst
 		if n := len(tx.wakes) + len(tx.sends); n > 0 {
 			k.work.add(EffectPending, n)
 		}
-		return committed[R]{r: r, tx: tx}, !tx.unchanged
+		return committed{tx: tx}, !tx.unchanged
 	})
 }
 

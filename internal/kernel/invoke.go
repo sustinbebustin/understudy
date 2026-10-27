@@ -107,42 +107,54 @@ func (e *TargetError) Error() string {
 // admission instant when t.At is zero. It returns Internal, never panics,
 // when parent holds a cell lock.
 func Invoke[In, Out any](ctx context.Context, k *Kernel, parent *Call, op Op[In, Out], t Target, in *In) (*Out, *awserr.Error) {
+	c, out, err := k.invoke(ctx, parent, op.desc, t, in)
+	if err != nil {
+		return nil, err
+	}
+	typed, ok := out.(*Out)
+	if !ok {
+		k.discard(ctx, c, out)
+		return nil, awserr.Internalf(&TargetError{Op: op.desc.ID, Reason: fmt.Sprintf("the handler's output is %T, want %T", out, (*Out)(nil))})
+	}
+	return typed, nil
+}
+
+// invoke is Invoke without its type parameters, so its body is compiled
+// once rather than per operation (ADR 0001's binary budget): it returns
+// the internal call and the output its handler answered, which Invoke
+// checks is an *Out.
+func (k *Kernel) invoke(ctx context.Context, parent *Call, desc *registry.Operation, t Target, in any) (*Call, any, *awserr.Error) {
 	var id ref.OperationID
-	if op.desc != nil {
-		id = op.desc.ID
+	if desc != nil {
+		id = desc.ID
 	}
 	switch {
 	case parent == nil:
-		return nil, awserr.Internalf(&TargetError{Op: id, Reason: "no parent call; internal calls run on behalf of a call or a timer"})
+		return nil, nil, awserr.Internalf(&TargetError{Op: id, Reason: "no parent call; internal calls run on behalf of a call or a timer"})
 	case parent.holding.Load():
-		return nil, awserr.Internalf(&HoldingError{Attempted: "kernel.Invoke of " + id.String(), Holder: parent.label})
-	case op.desc == nil:
-		return nil, awserr.Internalf(&TargetError{Reason: "the Op has no descriptor"})
+		return nil, nil, awserr.Internalf(&HoldingError{Attempted: "kernel.Invoke of " + id.String(), Holder: parent.label})
+	case desc == nil:
+		return nil, nil, awserr.Internalf(&TargetError{Reason: "the Op has no descriptor"})
 	case t.As == nil:
-		return nil, awserr.Internalf(&TargetError{Op: id, Reason: "Target.As is nil; say whom AWS authorizes the call as"})
+		return nil, nil, awserr.Internalf(&TargetError{Op: id, Reason: "Target.As is nil; say whom AWS authorizes the call as"})
 	case t.Scope.Account.IsZero():
-		return nil, awserr.Internalf(&TargetError{Op: id, Reason: "Target.Scope has no account; take it from the target resource"})
+		return nil, nil, awserr.Internalf(&TargetError{Op: id, Reason: "Target.Scope has no account; take it from the target resource"})
 	}
 	// An AuthorizedAfterResolve parent is asked at its first Invoke, before
 	// the call: a denial is what Invoke returns.
 	if err := parent.authorizeDeferred(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	c := k.internalCall(parent, op.desc.ID, t)
+	c := k.internalCall(parent, desc.ID, t)
 	switch r := k.Dispatch(ctx, c, Ok{In: in, Wire: Synthesized{}}).(type) {
 	case Output:
-		out, ok := r.Out.(*Out)
-		if !ok {
-			k.discard(ctx, c, r.Out)
-			return nil, awserr.Internalf(&TargetError{Op: id, Reason: fmt.Sprintf("the handler's output is %T, want %T", r.Out, (*Out)(nil))})
-		}
-		return out, nil
+		return c, r.Out, nil
 	case Failure:
-		return nil, r.Err
+		return nil, nil, r.Err
 	case StatusOKFailure:
-		return nil, r.Err
+		return nil, nil, r.Err
 	}
-	return nil, awserr.Internalf(&TargetError{Op: id, Reason: "Dispatch returned no result"})
+	return nil, nil, awserr.Internalf(&TargetError{Op: id, Reason: "Dispatch returned no result"})
 }
 
 // internalCall builds the call Invoke dispatches.
