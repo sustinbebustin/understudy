@@ -3,7 +3,6 @@ package sfn
 import (
 	"context"
 	"slices"
-	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -125,29 +124,13 @@ func startContext(ref executionRef, role string, input document.Value, now clock
 			{Key: "Input", Value: input},
 			{Key: "Name", Value: document.String(ref.name)},
 			{Key: "RoleArn", Value: document.String(role)},
-			{Key: "StartTime", Value: document.String(contextTime(now.Wire()))},
+			{Key: "StartTime", Value: document.String(asl.ContextTime(now.Wire()))},
 			{Key: "RedriveCount", Value: document.Number("0")},
 		}},
 		{Key: "StateMachine", Value: document.Map{
 			{Key: "Id", Value: document.String(ref.machine.arn().String())},
 			{Key: "Name", Value: document.String(ref.machine.name)},
 		}},
-	}
-}
-
-// contextTime renders a context timestamp in UTC with zero, three, six or
-// nine fraction digits (aws-doc, stepfunctions-asl.md 4.7).
-func contextTime(t time.Time) string {
-	t = t.UTC()
-	switch ns := t.Nanosecond(); {
-	case ns == 0:
-		return t.Format("2006-01-02T15:04:05Z")
-	case ns%1_000_000 == 0:
-		return t.Format("2006-01-02T15:04:05.000Z")
-	case ns%1_000 == 0:
-		return t.Format("2006-01-02T15:04:05.000000Z")
-	default:
-		return t.Format("2006-01-02T15:04:05.000000000Z")
 	}
 }
 

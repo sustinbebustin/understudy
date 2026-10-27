@@ -29,11 +29,10 @@ const errRuntime = "States.Runtime"
 // StopExecution and the deletion of a machine with running executions are
 // not wired to the engine.
 func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Event) (Execution, []HistoryEvent, []Effect) {
-	_, _ = rules, src
 	if _, done := x.Outcome(); done {
 		return x, nil, nil
 	}
-	s := stepper{d: d, x: x}
+	s := stepper{d: d, rules: rules, src: src, x: x}
 	s.x.timers = slices.Clone(x.timers)
 	switch ev := ev.(type) {
 	case Start:
@@ -60,6 +59,8 @@ func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Even
 // its events carry, and what it writes.
 type stepper struct {
 	d       *Definition
+	rules   Rules
+	src     intrinsic.Source
 	x       Execution
 	at      time.Time
 	events  []HistoryEvent
@@ -136,16 +137,22 @@ func (s *stepper) step(j stepJob) {
 	switch st := s.d.states[j.state].(type) {
 	case passState:
 		entered := s.emit("PassStateEntered", j.previous, stateEntered(st.name, j.input))
-		output := j.input
-		if st.result != nil {
-			output = st.result
+		output, f := s.pass(st, j.input)
+		if f != nil {
+			s.stateFailed(st.name, entered, f)
+			return
 		}
 		exited := s.emit("PassStateExited", entered, stateExited(st.name, output))
 		s.transition(st.next, output, exited)
 	case succeedState:
 		entered := s.emit("SucceedStateEntered", j.previous, stateEntered(st.name, j.input))
-		exited := s.emit("SucceedStateExited", entered, stateExited(st.name, j.input))
-		s.succeed(j.input, exited)
+		output, f := s.passThrough(st.name, st.io, j.input)
+		if f != nil {
+			s.stateFailed(st.name, entered, f)
+			return
+		}
+		exited := s.emit("SucceedStateExited", entered, stateExited(st.name, output))
+		s.succeed(output, exited)
 	case failState, choiceState, waitState, taskState, parallelState, mapState:
 		// Parse accepts these types only under features whose runtime has
 		// not landed, which the service does not accept yet.

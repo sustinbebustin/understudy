@@ -216,7 +216,7 @@ func (p *parser) templateObject(obj document.Map, at string) templateObject {
 		if keys[key] {
 			// Field names must be unique after renaming (stepfunctions-asl.md
 			// 4.3); the message is understudy's (ASL-01).
-			p.schema("The field '"+key+"' appears more than once the '.$' suffixes are removed", at)
+			p.schema("The field '"+key+"' appears more than once after the '.$' suffixes are removed", at)
 		}
 		keys[key] = true
 		if value != nil {
