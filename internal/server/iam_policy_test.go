@@ -12,7 +12,8 @@ import (
 
 // An S3 notification to a queue needs one statement in the queue's policy:
 // s3.amazonaws.com may call sqs:SendMessage with aws:SourceArn the bucket's
-// ARN (iam-enforcement-surfaces.md 8.1, aws-doc). S3 checks that the
+// ARN and aws:SourceAccount its owner's account, which S3 always sends
+// (iam-enforcement-surfaces.md 8.1, 12.6, aws-doc). S3 checks that the
 // destination exists by reading it (8.3), not through a call any policy
 // grants, so that lookup runs as the platform: the journal marks it so, and
 // neither GET /iam/usage nor the resourcePolicies of GET /iam/policy lists
@@ -53,7 +54,7 @@ func TestAnS3NotificationNeedsOnlySendMessageOnTheQueue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []admin.ResourcePolicy{{Target: queueARN, Principal: "s3.amazonaws.com", Action: "sqs:SendMessage", Source: "arn:aws:s3:::" + bucket}}
+	want := []admin.ResourcePolicy{{Target: queueARN, Principal: "s3.amazonaws.com", Action: "sqs:SendMessage", Source: "arn:aws:s3:::" + bucket, SourceAccount: "000000000000"}}
 	if len(got.ResourcePolicies) != len(want) || got.ResourcePolicies[0] != want[0] {
 		t.Errorf("resourcePolicies = %+v, want exactly %+v", got.ResourcePolicies, want)
 	}
