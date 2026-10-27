@@ -151,6 +151,8 @@ UNVERIFIED (IAM-ENF-13): for an invalid request (missing required member, out-of
 
 UNVERIFIED (IAM-ENF-14): for a well-formed request naming a nonexistent resource, from a principal with no permissions, whether each service other than S3 answers the denial or its not-found error. The plausible default is the denial, since the resource ARN can be built from the name in every service here except SQS (queue URL) and Secrets Manager (name or partial ARN); STS `AssumeRole` on a missing role is already AccessDenied in understudy (`internal/service/sts/assumerole.go`).
 
+Amended 2026-10-27: understudy follows `deny-first` only where the resource ARN follows from the request. Where it does not, it answers not-found before authorizing, and says so in a switch at `resolve-first`. These are IAM operations that name a user, role or instance profile by name, whose ARN carries a path only IAM's state holds; KMS operations addressed by alias; and every Secrets Manager `SecretId` operation, since a name or partial ARN lacks the secret's suffix. The switches are `iam.enforce.missing-resource.by-name`, `kms.enforce.missing-resource.by-name` and `secretsmanager.enforce.missing-resource.by-name` (12.8). Denying first would need the ARN of a resource that does not exist. IAM-ENF-14 settles both values.
+
 ## 6. Policy evaluation enforcement must reproduce
 
 ### 6.1 Order and the same-account rule
@@ -540,6 +542,7 @@ Leave unbound (501): EventBridge `PutPermission`/`RemovePermission`, Logs `PutRe
 |---|---|---|---|---|
 | `iam.enforce.order` | `validate-first` | inferred | 5.3 | IAM-ENF-13 |
 | `iam.enforce.missing-resource` | `deny-first` (S3 object reads: `list-bucket-decides`, aws-doc) | inferred | 5.1, 5.3 | IAM-ENF-14 |
+| `iam.enforce.missing-resource.by-name`, `kms.enforce.missing-resource.by-name`, `secretsmanager.enforce.missing-resource.by-name` | `resolve-first` (amended 2026-10-27: the operations that find their resource by name) | inferred | 5.3 | IAM-ENF-14 |
 | `iam.context.secure-transport` | `true` | inferred | 9.1 | none needed: AWS's own value is always true for its HTTPS endpoints; the choice is understudy's |
 | `iam.denial.grammar` | the 4.1 table, one reason, `on resource:` on explicit denials only | aws-doc (phrases, one reason); inferred (`on resource:` placement) | 4.1 | IAM-ENF-15 |
 | `sqs.denial.json-identity` | header `AccessDenied;Sender`, `__type` `com.amazon.coral.service#AccessDeniedException`, 403 | inferred | 3.2 | IAM-ENF-01 |
