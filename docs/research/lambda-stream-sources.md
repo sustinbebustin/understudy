@@ -436,7 +436,7 @@ Envelope `{"Records": [...]}`. Recorded (LS-K:L33-L48) and documented ([with-kin
 
 ### 12.1 Sequencing and scope
 
-1. DynamoDB streams come first, read through the DynamoDB proxy (`GetRecords` with rewritten ARNs, dynamodb-local.md 8; ADR 0014). Kinesis needs the Kinesis service of roadmap item 8. Until it exists, a Kinesis source must keep answering 501 through `errEventSourceUnsupported` in `internal/service/lambda/errors.go`, with the text updated to name DynamoDB streams as supported.
+1. DynamoDB streams come first, read from understudy's own stream log through its DynamoDB Streams operations, not by proxying Local's Streams API, which refuses rewritten ARNs (dynamodb-streams.md 8.3, 11.1; ADR 0014 amendment of 2026-10-26). Kinesis needs the Kinesis service of roadmap item 8. Until it exists, a Kinesis source must keep answering 501 through `errEventSourceUnsupported` in `internal/service/lambda/errors.go`, with the text updated to name DynamoDB streams as supported.
 2. A Kinesis stream consumer ARN (`.../consumer/...`, enhanced fan-out) must answer 501 even after Kinesis lands, until consumers exist.
 3. `TumblingWindowInSeconds` above 0 must answer 501 until windows are built. The value 0 is accepted and echoed. Storing a window without applying it would be a silent fake.
 4. One stream poller should serve both kinds. Source adapters supply the shard list, records, arrival instants and sequence order. Batch assembly, filters, retries, bisection, partial responses, record age and destinations are shared.
@@ -451,7 +451,7 @@ Envelope `{"Records": [...]}`. Recorded (LS-K:L33-L48) and documented ([with-kin
 
 ### 12.3 Types
 
-1. `Mapping` in `internal/service/lambda/esm_config.go` should hold a closed source sum: `SQSQueue{ARN}`, `DynamoDBStream{ARN, Position}` and later `KinesisStream{ARN, Position}`. `Position` is `TrimHorizon | Latest | AtTimestamp{Instant}`, and `AtTimestamp` is constructible only for Kinesis. `AT_TIMESTAMP` on DynamoDB, or `ScalingConfig` on a stream, then cannot survive parsing.
+1. `Mapping` in `internal/service/lambda/esm_config.go` should hold a closed source sum: `SQSQueue{ARN}`, `DynamoDBStream{ARN, Position}` and later `KinesisStream{ARN, Position}`. `Position` is `TrimHorizon | Latest | AtTimestamp{Instant}`, and `AtTimestamp` is constructible only for Kinesis. `AT_TIMESTAMP` on DynamoDB then cannot survive parsing. `ScalingConfig` sent with a stream mapping is ignored and not echoed (12.4 item 9); because `Scaling` lives only on the SQS variant, a stream mapping cannot store it.
 2. Stream settings as their own value: `ParallelizationFactor` 1..10, `RecordAge` (`Infinite | Seconds` 60..604800), `Retries` (`Infinite | Attempts` 0..10000), `Bisect`, `ReportFailures`, `Window` (`None | Seconds` 1..900), `OnFailure` (`None | SQSQueue | SNSTopic | S3Bucket`). `Scaling` stays on the SQS variant.
 3. `StateTransitionReason` per kind: the constant `userInitiated` (`USER_INITIATED`) stays for SQS, and streams report `User action` (3.5).
 4. Poller state per shard and lane: the checkpoint (last sequence number processed), the batch in flight, its attempt count and a bisection stack. Persist it in the snapshot (ADR 0009), so `clock advance` and snapshot reload resume at the checkpoint.
@@ -463,7 +463,7 @@ Envelope `{"Records": [...]}`. Recorded (LS-K:L33-L48) and documented ([with-kin
 3. `StartingPosition` is required for both stream kinds. Check it before the stream lookup. The recorded order is unknown and not worth a recording.
 4. Do not apply the SQS batch-window rule to stream mappings (switch `lambda.esm-stream.batch-window-rule`).
 5. Refuse `MaximumRecordAgeInSeconds` 0..59 with an IPVE whose text states the rule, marked inferred in the code (switch `lambda.esm-stream.record-age-floor`). Smithy ranges go through the generated validator.
-6. Stream existence: `DescribeStream` through the proxy. An unknown stream answers `Stream not found: <arn>`, and a stream ARN in another region does too until ESMS-01 says otherwise.
+6. Stream existence: understudy's `DescribeStream` on its own stream log, called through the kernel as the execution role. An unknown stream answers `Stream not found: <arn>`, and a stream ARN in another region does too until ESMS-01 says otherwise.
 7. Duplicates: one mapping per function and stream, answered with the stream text of 3.3 row 5. Several functions may share a stream. Journal an advisory when more than two mappings read one DynamoDB stream ([with-ddb](https://docs.aws.amazon.com/lambda/latest/dg/with-ddb.html)).
 8. Destinations: check the ARN's form (Smithy pattern) and service (`sqs`, `sns`, `s3`); `kafka://` and other services answer IPVE. Existence is checked at delivery (switch `lambda.esm-stream.destination-existence`). On Update, an absent `DestinationConfig` leaves the destination unchanged, and `{"OnFailure": {"Destination": ""}}` clears it to `{"OnFailure": {}}`.
 9. Members of the other source type are ignored and not echoed (switch `lambda.esm-stream.foreign-parameters`), except a `DestinationConfig` destination on an SQS mapping, which stays refused as today (3.4), and `OnSuccess` on a stream, which answers the recorded SQS text `Unsupported DestinationConfig parameter for given event source mapping type.` (inferred to apply to streams too).
@@ -473,7 +473,7 @@ Envelope `{"Records": [...]}`. Recorded (LS-K:L33-L48) and documented ([with-kin
 
 ### 12.5 Poller
 
-1. Poll each shard on the emulator clock, every 250 ms for DynamoDB and every second for Kinesis (aws-doc, switches). `LATEST` anchors at the Create call's instant (switch `lambda.esm-stream.latest-anchor`), so tests do not lose records to AWS's minutes-long start.
+1. An idle reader waits on its stream's wake key and reads as soon as a write wakes it, not on a timer, so an idle poller never holds settle (ARCHITECTURE.md 14.8, as for SQS; kinesis.md 13.8 item 1). The documented rates, 250 ms for DynamoDB and one second for Kinesis (aws-doc, 4.1), become the delay before a retry (switch `lambda.esm-stream.retry-delay`), and the CreateEventSourceMapping coverage note states the read-on-write deviation. `LATEST` anchors at the Create call's instant (switch `lambda.esm-stream.latest-anchor`), so tests do not lose records to AWS's minutes-long start.
 2. Lanes: `ParallelizationFactor` lanes per shard, assigned by a hash of the partition key (switch). For DynamoDB the key is the table's partition-key value from `Keys`. Order per key must hold; each lane has its own checkpoint.
 3. Batch: read from the checkpoint. A filter drops non-matching records and advances past them without invoking, and they do not count toward `BatchSize` (switch). Drop records older than `MaximumRecordAgeInSeconds` (measured from the record's arrival instant on the emulator clock) without invoking them, each reported in a `RecordAgeExceeded` record with `approximateInvokeCount: 1` (third-party-recorded for one expired record, 5.3). A batch that expires while being retried reports the invocations made instead (`approximateInvokeCount: 8` recorded, 5.3), also without `responseContext`. One on-failure record per expired record is the `lambda.esm-stream.expired-grouping` switch. Gather until `BatchSize`, until the window closes (it opens when the previous invocation completes), or until the next record would push the serialized event over 6 MB.
 4. Invoke synchronously (`RequestResponse`) with `{"Records": [...]}`.
@@ -488,20 +488,18 @@ Envelope `{"Records": [...]}`. Recorded (LS-K:L33-L48) and documented ([with-kin
 
 1. The record builder is a pure function with golden fixtures. Keys come in the docs' order (`requestContext`, `responseContext`, `version`, `timestamp`, then `KinesisBatchInfo` or `DDBStreamBatchInfo`). The batch info uses second-precision `Z` times for DynamoDB and millisecond times for Kinesis, and the timestamps come from stored emulator-clock instants.
 2. SQS and SNS send through the outbox (ADR 0015 `SQSQueue{Body}` and `SNSTopic{Message}`), with no message attributes and no subject (switch).
-3. S3 needs a new `delivery.Target` variant, since ADR 0015 lists only `SQSQueue`, `LambdaFunction` and `SNSTopic`. Until it exists, an S3 destination must answer 501 rather than be stored. Once built it writes the record plus `payload` as a JSON string under `aws/lambda/<uuid>/<shardId>/YYYY/MM/DD/YYYY-MM-DDTHH.MM.SS-<uuid>`.
+3. S3 has its `delivery.Target` variant (`delivery.S3Object`, ADR 0015 amendment), but an S3 on-failure destination on a mapping still answers 501 rather than be stored until the ESM writes to it. Once built it writes the record plus `payload` as a JSON string under `aws/lambda/<uuid>/<shardId>/YYYY/MM/DD/YYYY-MM-DDTHH.MM.SS-<uuid>`.
 
 ### 12.7 Fidelity switches
 
 | Switch | Default | Label | Grounds | Settled by |
 |---|---|---|---|---|
-| `lambda.esm-stream.dynamodb.poll-interval` | `250ms` | aws-doc | 4.1 | ESMS-17 |
-| `lambda.esm-stream.kinesis.poll-interval` | `1s` | aws-doc | 4.1 | ESMS-17 |
 | `lambda.esm-stream.latest-anchor` | `create-instant` | inferred | 3.2 | ESMS-17 |
 | `lambda.esm-stream.batch-window-rule` | `sqs-only` | inferred | 3.3 | ESMS-02 |
 | `lambda.esm-stream.record-age-floor` | `InvalidParameterValueException` | inferred | 3.3 | ESMS-01 |
 | `lambda.esm-stream.foreign-parameters` | `ignore` | inferred | 3.4 | ESMS-03 |
 | `lambda.esm-stream.destination-existence` | `at-delivery` | inferred | 3.7 | ESMS-05 |
-| `lambda.esm-stream.retry-delay` | `next-poll` | inferred | 5.1 | ESMS-06 |
+| `lambda.esm-stream.retry-delay` | `poll-interval` (250 ms for DynamoDB, 1 s for Kinesis, emulator time, from the failed invocation's end; the rates are aws-doc 4.1, their use as the retry delay is not) | inferred | 5.1 | ESMS-06 |
 | `lambda.esm-stream.retry-batch` | `same-records` | inferred | 5.1 | ESMS-06 |
 | `lambda.esm-stream.bisect` | `halves-in-order` | inferred | 5.4 | ESMS-07 |
 | `lambda.esm-stream.report-outside-sequence` | `complete-failure` | inferred | 5.5 | ESMS-08 |
@@ -521,7 +519,9 @@ Envelope `{"Records": [...]}`. Recorded (LS-K:L33-L48) and documented ([with-kin
 | `lambda.esm-stream.non-json-data` | `dropped` | aws-doc | 4.5 | ESMS-16 |
 | `lambda.esm-stream.payload-accounting` | `serialized-event` | inferred | 4.2 | ESMS-18 |
 
-The window switches matter only once windows are built (12.1 item 3). Third-party-recorded behavior (5.2, 5.3, 5.5, 5.6) is fixed behavior with tests that cite the snapshot, not a switch.
+The window switches matter only once windows are built (12.1 item 3). There is no poll-interval switch: readers are woken by writes (12.5 item 1).
+
+Only `latest-anchor`, `retry-delay` and `partial-resend-budget` are built as switches, under the per-unit cap of about five new switches (roadmap item 8a). The rest are moot while their feature answers 501 (`bisect`, the window switches, `parallel-assignment`, `reshard-order`, and the three filter switches, since a filter that compiles answers 501 on a stream), implemented as documented (`disabled-resume`, aws-doc), or an UNVERIFIED clause in the CreateEventSourceMapping coverage note with a code comment citing this note and the recording id (`batch-window-rule`, `record-age-floor`, `foreign-parameters`, `destination-existence`, `retry-batch`, `report-outside-sequence`, `report-key-case`, `expired-grouping`, `last-processing-result-on-failure`, `on-failure.message-attributes`, `payload-accounting`). Third-party-recorded behavior (5.2, 5.3, 5.5, 5.6) is fixed behavior with tests that cite the snapshot, not a switch.
 
 ### 12.8 Terraform: apply and an empty second plan
 
@@ -538,7 +538,7 @@ The window switches matter only once windows are built (12.1 item 3). Third-part
 
 - A Kinesis mapping accepted without a Kinesis service, a consumer ARN, a tumbling window, or an S3 destination stored without delivery: each answers 501 until built.
 - `LastProcessingResult` or `StateTransitionReason` texts that no source records.
-- Sequence numbers or shard ids that the poller invents for DynamoDB. The poller takes them from the DynamoDB Streams layer behind the proxy. That layer decides whether Local's values, one sequence counter shared by every table, pass through or are replaced.
+- Sequence numbers or shard ids that the poller invents for DynamoDB. The poller takes them from understudy's stream log, which mints its own per-shard sequence numbers rather than pass Local's cross-table counter through (dynamodb-streams.md 11.1).
 - Wall-clock times in records or batch info (invariant 5). Arrival and creation times come from instants the DynamoDB shim stores on the emulator clock (ADR 0014).
 - Shard topology: Local's single shard is a documented deviation, not a split pretended into existence.
 - A bisection or retry the journal does not show.
@@ -1146,7 +1146,7 @@ In notes.md, write the invocation sizes in step 02 (five matching records per ba
 
 ### 13.18 ESMS-17: write-to-invocation latency
 
-Settles 4.1 and the switches `lambda.esm-stream.dynamodb.poll-interval`, `kinesis.poll-interval` and `latest-anchor`.
+Settles 4.1, the read-on-write clause of the CreateEventSourceMapping coverage note (12.5 item 1) and the switch `lambda.esm-stream.latest-anchor`.
 
 ```sh
 mode ok

@@ -505,6 +505,8 @@ That is 35 bound and 10 unbound of 45.
 | `kinesis.reshard.update-shard-count` | `direct-even-split` | inferred | 4.8 | KIN-16 |
 | `kinesis.creating.data-plane-error` (clock mode only) | `ResourceNotFoundException` with the not-found text | inferred | 4.2 | KIN-04 |
 
+Only `kinesis.hash.even-split`, `kinesis.hash.md5-byte-order`, `kinesis.sequence.layout`, `kinesis.get-records.millis-behind-latest` and `kinesis.retention.equal-value` are built as switches in slice 1, under the per-unit cap of about five new switches (roadmap item 8b). The rest are moot (status transitions are final with no `kinesis.stateTransitions` key, so `kinesis.creating.data-plane-error` never applies; resharding answers 501, so the two `kinesis.reshard.*` rows wait for it), implemented as documented (`kinesis.get-records.empty-batches`, `kinesis.retention.trim`: aws-doc), or fixed recorded behavior (`kinesis.on-demand.initial-shards`, third-party-recorded), with an UNVERIFIED clause in the operation's coverage note where AWS's behavior is unknown.
+
 ### 13.3 Limits and validation
 
 Generated validators cover the model's constraints (stream name, `ShardCount >= 1`, `PartitionKey` 1 to 256 scalar values, `Data` up to 10485760, `Records` 1 to 500, `Limit` ranges, tag lengths, hash key and sequence patterns). The validation identity for the overlay (`dev.understudy#validationError`) is UNVERIFIED (KIN-07); use `ValidationException` until recorded, with evidence label `inferred`. Hand-owned checks, each with a `rapid` property test:

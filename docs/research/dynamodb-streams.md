@@ -271,7 +271,7 @@ Sources: the view-type definitions (StreamRecord; STREAMS); recorded KEYS_ONLY (
 
 - It is given "in UNIX epoch time format and rounded down to the closest second" (StreamRecord), a `timestamp` shape and so an epoch-seconds number in awsJson. Recorded: boto parsed it to a `datetime` with `microsecond == 0` (third-party-recorded, DDB-TEST:L1990 and L2001, validated 2024-06-26).
 - In the Lambda form it is a number with 10 integral digits (`int(math.log10(timestamp)) == 9`, ESM-TEST:L190, validated 2025-11-25). A numeric event filter on it matches ("gets converted into a float BEFORE filtering", ESM-TEST:L766-L774; case `date_time_conversion`, ESM-SNAP:L1818-L1983).
-- The GetRecords example prints `1.46480431E9`. DynamoDB's own answers use that exponent form for timestamps: `CreationDateTime` `1.791959601263E9` and a whole-second `EarliestRestorableDateTime` `1.791959752E9` (aws-recorded, `testdata/parity/dynamodb/R04/01-create-table.json`, `04-pitr-describe-1.json`). That is DynamoDB, not Streams, so it supports the switch default in 11.3 without settling it. Local prints `1792962840.000` and floors to the minute: writes at 21:14:04 UTC carried 21:14:00 (observed; dynamodb-local.md 8).
+- The GetRecords example prints `1.46480431E9`. DynamoDB's own answers use that exponent form for timestamps: `CreationDateTime` `1.791959601263E9` and a whole-second `EarliestRestorableDateTime` `1.791959752E9` (aws-recorded, `testdata/parity/dynamodb/R04/01-create-table.json`, `04-pitr-describe-1.json`). That is DynamoDB, not Streams, so it supports the exponent form without settling it. understudy writes the codec's plain epoch-seconds number and states it in the GetRecords coverage note (11.3). Local prints `1792962840.000` and floors to the minute: writes at 21:14:04 UTC carried 21:14:00 (observed; dynamodb-local.md 8).
 - UNVERIFIED: how AWS spells the number on the wire today: integral, `.0`, three decimals or an exponent (DDBS-10).
 
 ### 7.4 SizeBytes
@@ -411,7 +411,7 @@ Facts the stream must support for the second half. All are third-party-recorded 
 
 ### 11.1 Own the stream log; read Local only to learn what changed
 
-Decision (recommended; it amends ARCHITECTURE.md 15 and the "DynamoDB Streams to Lambda" row of ARCHITECTURE.md 21, so it needs an ADR amendment to ADR 0014):
+Decision (adopted 2026-10-26 by the ADR 0014 amendment "owned stream log"; it replaces ARCHITECTURE.md 15's stream lines and the "DynamoDB Streams to Lambda" row of ARCHITECTURE.md 21):
 
 1. Serve all four Streams operations from an understudy-owned stream log per `(account, region, table)`. Local supplies the change data (keys and images) and nothing else.
 2. **Feed.** After every forwarded write to a table whose stream is enabled, drain Local's shard from the saved position before answering, holding a per-table stream lock across the forward and the drain, so each record is attributed to the write that caused it. The writes are PutItem, UpdateItem, DeleteItem, BatchWriteItem, TransactWriteItems, ExecuteStatement, BatchExecuteStatement and ExecuteTransaction, plus the TTL sweeper's DeleteItem. Local makes records readable as soon as the write returns (8.2). Stamp each record with the write's admission instant on the emulator clock (floored to the second on output, 7.3), a sequence number from understudy's per-shard counter (4.3), an `eventID` from the seeded id stream (ARCHITECTURE.md 12), and `userIdentity` when the write's Origin is `Internal{Via: DynamoDBTTL}` (7.5). Copy `Keys`, the images, `SizeBytes` and `eventName` from Local unchanged.
@@ -452,11 +452,13 @@ No Streams operation stays unbound. DynamoDB's Kinesis streaming-destination ope
 | `dynamodb.streams.list-unknown-table` | `empty` | inferred | 6.1 | DDBS-03 |
 | `dynamodb.streams.user-identity-case` | `PascalCase` (GetRecords form; the Lambda form is always lower camel case) | aws-doc | 7.5 | DDBS-13 |
 | `dynamodb.streams.delete-absent-item` | `no-record` | inferred | 7.6 | DDBS-12 |
-| `dynamodb.streams.creation-time-number` | `exponent` (`1.792962844E9`, the API reference form and DynamoDB's recorded form) | aws-doc | 7.3 | DDBS-10 |
 | `dynamodb.streams.trim-after` | `24h` (exactly: the earliest point the documentation allows) | aws-doc | 5.5 | DDBS-15 |
-| `dynamodb.streams.error-namespace` | `com.amazonaws.dynamodb.v20120810` | inferred | 3.3 | DDBS-01 |
 
 Each switch exists because no recording fixes the behavior (ADR 0003). A recording replaces its switch with fixed behavior and a test that cites the fixture.
+
+Two candidates are settled without a switch. The timestamp spelling is the awsJson codec's plain epoch-seconds number (`internal/protocol/awsjson/doc.go`), as the DynamoDB shim writes it, and the GetRecords coverage note says so (DDBS-10). The error namespace `com.amazonaws.dynamodb.v20120810` is the overlay trait `dev.understudy#errorNamespace` on the Streams service, label inferred, as `codegen/overlays/dynamodb.json` does for DynamoDB (DDBS-01).
+
+Only `dynamodb.streams.sequence-number` and `dynamodb.streams.iterator-reuse` are built as switches, under the per-unit cap of about five new switches (roadmap item 8a). Every other row is implemented as documented (`event-id`, `list-order`, `user-identity-case`, `trim-after`: aws-doc), or is an UNVERIFIED clause in the operation's coverage note with a code comment citing this note and the recording id (`status-transitions`, `shard-rollover`, `closed-shard-next-iterator`, `list-unknown-table`, `delete-absent-item`).
 
 ### 11.4 Limits and validation
 
@@ -470,8 +472,8 @@ Each switch exists because no recording fixes the behavior (ADR 0003). A recordi
 
 ### 11.5 Routing, signing and IAM
 
-- Vendor the model at the pin by adding `{Dir: "dynamodb-streams", Path: "models/dynamodb-streams/service/2012-08-10/dynamodb-streams-2012-08-10.json"}` to `pinnedModels` in `internal/cmd/vendor/upstream.go` (CONTRIBUTING.md, "Pin the model"). Add `codegen/services/dynamodbstreams.json` with `iamPrefix: "dynamodb"`; DescribeStream, GetRecords and GetShardIterator need an `iamPrimary` entry naming their own action over `dynamodb:ReadDataForReplication` (3.2).
-- The edge claims the service by the `DynamoDBStreams_20120810.` target prefix. Its signing-name cross-check (`internal/edge/doc.go`) must accept `dynamodb` for this service. Under sigv4 verify, refuse `streams.dynamodb` with the recorded `InvalidSignatureException` text (3.2).
+- Vendor the model at the pin by adding `{Dir: "dynamodb-streams", Path: "models/dynamodb-streams/service/2012-08-10/dynamodb-streams-2012-08-10.json"}` to `pinnedModels` in `internal/cmd/vendor/upstream.go` (CONTRIBUTING.md, "Pin the model"). Add `codegen/services/dynamodbstreams.json` with `iamPrefix: "dynamodb"`. DescribeStream, GetRecords and GetShardIterator need no `iamPrimary` entry: the vendored service reference lists each operation's own action first, and the generator uses only that primary, so `dynamodb:ReadDataForReplication` is never required (3.2; `internal/api/dynamodbstreamsapi/ops_gen.go`). A test pins each to its own action.
+- The edge claims the service by the `DynamoDBStreams_20120810.` target prefix. Its signing-name cross-check (`internal/edge/doc.go`) must accept `dynamodb` for this service. Under every sigv4 mode, parse included, refuse `streams.dynamodb` with the recorded `InvalidSignatureException` text (3.2): AWS refuses the scope whatever understudy's mode, so this is a credential-scope check like the region and terminator checks the parse makes, not signature verification.
 - IAM resources: `*` for ListStreams; the stream ARN for the other three. The second half's poller calls them through the kernel as the execution role, so `dynamodb:GetRecords` and the others are attributed.
 
 ### 11.6 DynamoDB-side changes
@@ -559,7 +561,7 @@ Cost: on-demand requests and stream reads at these volumes are fractions of a ce
 
 ### 12.2 DDBS-01: error identity of Streams errors
 
-Settles 3.3 (`__type` namespace and message member casing) and switch `dynamodb.streams.error-namespace`, plus the not-found texts of 6.5.
+Settles 3.3 (`__type` namespace and message member casing) and the Streams overlay's `dev.understudy#errorNamespace` (11.3), plus the not-found texts of 6.5.
 
 ```sh
 ds DDBS-01/01-describe-missing DescribeStream "{\"StreamArn\":\"arn:aws:dynamodb:$R:$A:table/$P-ddbs-none/stream/2026-01-01T00:00:00.000\"}"
@@ -704,7 +706,7 @@ Expected: three records on one shard (INSERT, MODIFY, REMOVE). Note `eventID` le
 
 ### 12.11 DDBS-10: the wire form of ApproximateCreationDateTime
 
-Settles 7.3 and switch `dynamodb.streams.creation-time-number`. It reads DDBS-09's raw bodies and makes no call.
+Settles 7.3 and the GetRecords coverage clause on the timestamp's spelling (11.3). It reads DDBS-09's raw bodies and makes no call.
 
 ```sh
 grep -h -A1 'Response body' "$REC"/DDBS-09/records-*.http | grep -o '"ApproximateCreationDateTime": *[^,}]*' | sort -u

@@ -4,10 +4,16 @@
     "com.amazonaws.dynamodbstreams#DynamoDBStreams_20120810": {
       "type": "apply",
       "traits": {
+        "dev.understudy#errorNamespace": "com.amazonaws.dynamodb.v20120810",
         "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
         "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/dynamodb-streams.md#33-error-shapes: Streams is served by the DynamoDB backend, DynamoDB's own modeled errors carry com.amazonaws.dynamodb.v20120810# (aws-recorded, testdata/parity/dynamodb/R04/07-ttl-missing-table.json) and DynamoDB Local sends that namespace for Streams errors; whether AWS sends it or the model's com.amazonaws.dynamodbstreams# is UNVERIFIED until recording DDBS-01",
+            "covers": ["dev.understudy#errorNamespace"]
+          },
           {
             "label": "inferred",
             "source": "docs/research/dynamodb-streams.md#33-error-shapes: the DynamoDB API Reference CommonErrors page lists ThrottlingException, HTTP 400, with no namespace; the Streams endpoint's one recorded generic error carries com.amazon.coral.service# (3.2), but the __type a Streams error carries is UNVERIFIED until recording DDBS-01, and 11.2 names LimitExceededException for the per-shard reader limit",

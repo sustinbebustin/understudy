@@ -22,7 +22,7 @@ func (*AccessDeniedException) ErrorIdentity() awserr.Identity { return IdentityA
 
 // IdentityExpiredIteratorException returns the identity of com.amazonaws.dynamodbstreams#ExpiredIteratorException.
 func IdentityExpiredIteratorException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.dynamodbstreams#ExpiredIteratorException", JSONType: "com.amazonaws.dynamodbstreams#ExpiredIteratorException", QueryCode: "ExpiredIteratorException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.dynamodbstreams#ExpiredIteratorException", JSONType: "com.amazonaws.dynamodb.v20120810#ExpiredIteratorException", QueryCode: "ExpiredIteratorException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrExpiredIteratorException returns an ExpiredIteratorException error with message.
@@ -78,7 +78,7 @@ func (*InternalFailure) ErrorIdentity() awserr.Identity { return IdentityInterna
 
 // IdentityInternalServerError returns the identity of com.amazonaws.dynamodbstreams#InternalServerError.
 func IdentityInternalServerError() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.dynamodbstreams#InternalServerError", JSONType: "com.amazonaws.dynamodbstreams#InternalServerError", QueryCode: "InternalServerError", Status: 500, Fault: awserr.Receiver, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.dynamodbstreams#InternalServerError", JSONType: "com.amazonaws.dynamodb.v20120810#InternalServerError", QueryCode: "InternalServerError", Status: 500, Fault: awserr.Receiver, MessageKey: awserr.MessageLower}
 }
 
 // ErrInternalServerError returns an InternalServerError error with message.
@@ -106,7 +106,7 @@ func (*InvalidSignatureException) ErrorIdentity() awserr.Identity {
 
 // IdentityLimitExceededException returns the identity of com.amazonaws.dynamodbstreams#LimitExceededException.
 func IdentityLimitExceededException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.dynamodbstreams#LimitExceededException", JSONType: "com.amazonaws.dynamodbstreams#LimitExceededException", QueryCode: "LimitExceededException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.dynamodbstreams#LimitExceededException", JSONType: "com.amazonaws.dynamodb.v20120810#LimitExceededException", QueryCode: "LimitExceededException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrLimitExceededException returns a LimitExceededException error with message.
@@ -164,7 +164,7 @@ func (*RequestEntityTooLargeException) ErrorIdentity() awserr.Identity {
 
 // IdentityResourceNotFoundException returns the identity of com.amazonaws.dynamodbstreams#ResourceNotFoundException.
 func IdentityResourceNotFoundException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.dynamodbstreams#ResourceNotFoundException", JSONType: "com.amazonaws.dynamodbstreams#ResourceNotFoundException", QueryCode: "ResourceNotFoundException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.dynamodbstreams#ResourceNotFoundException", JSONType: "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException", QueryCode: "ResourceNotFoundException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrResourceNotFoundException returns a ResourceNotFoundException error with message.
@@ -207,7 +207,7 @@ func (*ThrottlingException) ErrorIdentity() awserr.Identity { return IdentityThr
 
 // IdentityTrimmedDataAccessException returns the identity of com.amazonaws.dynamodbstreams#TrimmedDataAccessException.
 func IdentityTrimmedDataAccessException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.dynamodbstreams#TrimmedDataAccessException", JSONType: "com.amazonaws.dynamodbstreams#TrimmedDataAccessException", QueryCode: "TrimmedDataAccessException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.dynamodbstreams#TrimmedDataAccessException", JSONType: "com.amazonaws.dynamodb.v20120810#TrimmedDataAccessException", QueryCode: "TrimmedDataAccessException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrTrimmedDataAccessException returns a TrimmedDataAccessException error with message.
