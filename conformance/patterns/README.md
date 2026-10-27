@@ -39,4 +39,5 @@ Requirements: Go, Terraform 1.16 or later, the AWS CLI, Docker (patterns run Lam
 
 | Pattern | What it proves | Documented check |
 |---|---|---|
+| `apigw-http-api-lambda-terraform` | An HTTP API with a CORS configuration, a `$default` auto-deploy stage with access logs, a `$default` route and a Lambda `AWS_PROXY` integration in payload format 1.0 (`docs/research/apigateway-http.md` 5.2, 9) | A GET of `/` and a POST of `/pets/dog/1?foo=bar`, through `/_understudy/execute-api/<api-id>/`, answer the function's message. Fails today: the function reads `event["headers"]["X-Forwarded-For"]`, and understudy lowercases header names as the doc says, so the function raises `KeyError` and the call answers 500 (`docs/research/apigateway-http.md` 5.2, UNVERIFIED until APIGW2-08 is recorded). |
 | `lambda-layer-terraform` | `aws_lambda_layer_version`, and a function using it beside one without it (`docs/research/lambda-destinations-layers.md` 6, 7, 8) | The function with the layer lists the layer's files under `/opt`; the one without fails with `Unable to import module 'app': No module named 'mysql'`. |
