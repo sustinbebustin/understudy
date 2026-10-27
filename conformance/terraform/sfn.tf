@@ -1,5 +1,5 @@
-# Step Functions: an execution role and a Standard state machine of one Pass
-# state, with tags and logging to a log group through the ":*" ARN
+# Step Functions: an execution role and a Standard state machine of a Choice
+# routing to a Pass or a Succeed state, with tags and logging to a log group through the ":*" ARN
 # DescribeLogGroups gives (stepfunctions-api.md 5.1). The update step changes
 # the definition and the tags (stepfunctions-api.md 11.1).
 
@@ -28,10 +28,21 @@ resource "aws_sfn_state_machine" "pass" {
   name     = "${var.name_prefix}-pass"
   role_arn = aws_iam_role.states.arn
   definition = jsonencode({
-    Comment = "One Pass state"
-    StartAt = "Hello"
+    Comment = "A Choice routing to a Pass state or a Succeed state"
+    StartAt = "Route"
     States = {
+      Route = {
+        Type = "Choice"
+        Choices = [
+          {
+            And  = [{ Variable = "$.name", IsPresent = true }, { Not = { Variable = "$.name", StringMatches = "test-*" } }]
+            Next = "Hello"
+          },
+        ]
+        Default = "Done"
+      }
       Hello = { Type = "Pass", Result = { greeting = local.updated ? "hello again" : "hello" }, End = true }
+      Done  = { Type = "Succeed" }
     }
   })
 
