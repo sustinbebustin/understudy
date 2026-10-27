@@ -51,6 +51,22 @@ understudy journal --kind advisory
 
 A condition on a key understudy cannot compute, such as `aws:SourceIp`, evaluates as absent, and each evaluation that tests it journals a `condition-key-unsupplied` advisory naming the key. Which texts and statuses each service answers with, and which of them are inferred, is listed by `understudy coverage --switches` (the `*.denial.*` switches).
 
+Deliveries are decided the same way. SNS, S3 and EventBridge call the target as their service principal, with `aws:SourceArn` the topic, bucket or rule, and `aws:SourceAccount` as each sends it: the topic's account, the bucket owner's, the rule's to a queue or topic, and none to a function. A delivery the target's policy refuses is not retried. It goes to the subscription's or target's dead-letter queue when one is set, and an EventBridge dead letter carries `ERROR_CODE` `NO_PERMISSIONS`; otherwise it is dropped. Subscribe and PutTargets neither check nor change the target's policy. With a queue that has no policy subscribed to a topic, a published message is dropped:
+
+```sh
+aws sqs create-queue --queue-name orders
+aws sns create-topic --name orders
+aws sns subscribe --topic-arn arn:aws:sns:us-east-1:000000000000:orders --protocol sqs --notification-endpoint arn:aws:sqs:us-east-1:000000000000:orders
+aws sns publish --topic-arn arn:aws:sns:us-east-1:000000000000:orders --message hello
+understudy journal --kind delivery
+```
+
+```text
+8      2026-10-27T01:22:00.236664666Z  delivery       000000000000/us-east-1 sns-to-sqs orders -> orders attempt 1 dropped: no dead-letter queue is set and the target refused it with a client-side error, which is not retried: com.amazon.coral.service#AccessDenied: User: sns.amazonaws.com is not authorized to perform: sqs:SendMessage because no resource-based policy allows the sqs:SendMessage action
+```
+
+The statements such deliveries need are the second part of `understudy iam policy` (below). Which delivery choices are inferred is listed by `understudy coverage --switches` (the `*.delivery.*`, `sns.subscribe.*`, `events.put-targets.*` and `s3.notification.*` switches).
+
 ## Make calls as the principal
 
 Calls signed with understudy's dummy keys act as the account root. To record a role, call as the role: assume it, or run the code in a Lambda function whose execution role it is, since understudy mints credentials for each function's role.
@@ -106,7 +122,7 @@ Resource policies the recorded deliveries need:
 
 The policy has one statement per resource, with exact ARNs, except that S3 objects are granted per bucket as `arn:aws:s3:::<bucket>/*`. `Resource: "*"` appears only for an action of the called service whose call touched no resource of that service, such as `sqs:ListQueues` or `sts:GetCallerIdentity`. Calls that failed are included, because handled failures need permissions too; injected faults are not, nor are calls `--sigv4 verify` refused at authentication (a bad signature, an unknown key, a missing or expired session token), which on AWS never reach IAM. Writing and reading an SSE-KMS object records `kms:GenerateDataKey` and `kms:Decrypt` on the key for the caller, as AWS requires.
 
-The second part lists the resource-policy statements that SNS, S3, EventBridge and Lambda deliveries would need on AWS: a queue policy allowing the topic, a function permission allowing the rule. understudy attempts those deliveries anyway, and journals an `advisory` event for each one the target's stored policy would refuse.
+The second part lists the resource-policy statements that SNS, S3, EventBridge and Lambda deliveries would need on AWS: a queue policy allowing the topic, a function permission allowing the rule. Under `off` understudy attempts those deliveries anyway, and journals an `advisory` event for each one the target's stored policy would refuse; under `enforce` the target refuses them (see Enforce).
 
 Only deliveries are listed. Two kinds of call are the service acting on its own behalf: S3 checking that each destination exists when you configure a bucket's notifications, and DynamoDB deleting expired TTL items. On AWS, S3 validates a destination by sending it a test message, which needs the same grant as a delivery, so it adds nothing to the policy; understudy's existence check is not that message. Neither `iam usage` nor the resource policies list these calls. So a bucket that notifies a queue needs only `sqs:SendMessage` from the bucket. With `queue-policy.json` holding the queue's policy as its `Policy` attribute and `notification.json` sending `s3:ObjectCreated:*` to the queue:
 
