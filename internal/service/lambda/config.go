@@ -133,8 +133,10 @@ type configUpdate struct {
 
 // apply sets what u carries. Each structure replaces the setting whole, as
 // AWS does: Environment.Variables {} clears the environment, an empty
-// DeadLetterConfig.TargetArn the queue, an empty ImageConfig the overrides
-// and empty VPC lists the attachment (lambda-api.md 6.2).
+// ImageConfig the overrides and empty VPC lists the attachment
+// (lambda-api.md 6.2). DeadLetterConfig is the exception: {"TargetArn": ""}
+// clears the queue, but {} leaves it in place
+// (lambda-destinations-layers.md 5.1, 11.5).
 func (c *Config) apply(u configUpdate) {
 	set(&c.Timeout, u.Timeout)
 	set(&c.MemorySize, u.MemorySize)
@@ -146,7 +148,7 @@ func (c *Config) apply(u configUpdate) {
 		}
 	}
 	if u.DeadLetter != nil {
-		c.DeadLetterTarget = deref(u.DeadLetter.TargetArn)
+		set(&c.DeadLetterTarget, u.DeadLetter.TargetArn)
 	}
 	if u.Tracing != nil && u.Tracing.Mode != nil {
 		c.TracingMode = string(*u.Tracing.Mode)
