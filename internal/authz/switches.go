@@ -49,7 +49,7 @@ func Switches() []fidelity.Entry {
 			Label: inferred,
 			Ref:   "docs/research/" + evaluationNote + "#8.2",
 			Settles: fidelity.NoScenario{Reason: "none needed: AWS's own value is always true for its HTTPS endpoints, " +
-				"so the choice is understudy's (iam-enforcement-surfaces.md 12.8)"},
+				"so no recording can tell the values apart and the choice is understudy's (iam-evaluation.md 12.3, iam-enforcement-surfaces.md 12.8)"},
 		}.Entry(),
 		// Denial.Message: the phrases and the one reason are aws-doc, where
 		// "on resource:" goes is inferred (iam-enforcement-surfaces.md 4.1).
