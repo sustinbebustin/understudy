@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"net/http"
 	"strconv"
@@ -195,8 +196,9 @@ type Response struct {
 // it), Content-Type of the version, x-amzn-RequestId, and a JSON object of
 // the set members, {} when none is set. An operation without modeled
 // output (smithy.api#Unit) gets an empty body, as SQS answers
-// DeleteMessage (sqs.md 2.1). A serializer failure is an Internal error,
-// returned before anything is written.
+// DeleteMessage (sqs.md 2.1). A service with ResponseCRC32 adds
+// x-amz-crc32. A serializer failure is an Internal error, returned before
+// anything is written.
 func (c Codec) Encode(op *registry.Operation, requestID string, out smithy.Serializable, status int) (Response, *awserr.Error) {
 	var body []byte
 	if op.Output != nil && op.Output.Type != smithy.TypeUnit {
@@ -208,7 +210,18 @@ func (c Codec) Encode(op *registry.Operation, requestID string, out smithy.Seria
 		}
 		body = b
 	}
-	return Response{Status: status, Header: c.header(requestID, len(body)), Body: body}, nil
+	h := c.header(requestID, len(body))
+	checksum(h, op.Service, body)
+	return Response{Status: status, Header: h, Body: body}, nil
+}
+
+// checksum sets x-amz-crc32, the CRC-32 (IEEE) of body in decimal, when
+// svc declares ResponseCRC32 (DynamoDB Streams: aws-recorded on a 200 and
+// a 400, dynamodb-streams.md 3.1).
+func checksum(h http.Header, svc *registry.Service, body []byte) {
+	if svc != nil && svc.ResponseCRC32 {
+		h.Set("X-Amz-Crc32", strconv.FormatUint(uint64(crc32.ChecksumIEEE(body)), 10))
+	}
 }
 
 // EncodeError renders e for svc as AWS's JSON front end does
@@ -251,6 +264,7 @@ func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID str
 	}
 	body = append(body, '}')
 	h := c.header(requestID, len(body))
+	checksum(h, svc, body)
 	queryCompatible := svc != nil && svc.QueryCompatible
 	if queryCompatible {
 		h.Set("X-Amzn-Query-Error", e.ID.QueryCode+";"+e.ID.Fault.String())

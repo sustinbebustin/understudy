@@ -44,6 +44,7 @@ const (
 	utStatusOverride      = understudyNamespace + "statusOverride"
 	utUnknownOperation    = understudyNamespace + "unknownOperationError"
 	utQueryErrorEnvelope  = understudyNamespace + "queryErrorEnvelope"
+	utResponseCRC32       = understudyNamespace + "responseCrc32"
 )
 
 // site is where a trait sits once overlays are merged.
@@ -107,6 +108,7 @@ func understudyTraits() map[string]understudyTrait {
 		utStatusOverride:      {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseStatus(r); return err }},
 		utUnknownOperation:    {Honor, siteService, func(r json.RawMessage) error { _, err := parseUnknownOperation(r); return err }},
 		utQueryErrorEnvelope:  {Honor, siteService, func(r json.RawMessage) error { _, err := parseQueryErrorEnvelope(r); return err }},
+		utResponseCRC32:       {Honor, siteService, parseAnnotation},
 	}
 }
 

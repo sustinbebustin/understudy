@@ -162,6 +162,7 @@ func (b *builder) serviceProtocols(svc *Shape) error {
 		ir.QueryVersion = svc.Version
 	}
 	ir.QueryCompatible = svc.Traits.Has(traitQueryCompatible)
+	ir.ResponseCRC32 = svc.Traits.Has(utResponseCRC32)
 	if raw, ok := svc.Traits[traitXMLNamespace]; ok {
 		ns, err := parseXMLNamespace(raw)
 		if err != nil {

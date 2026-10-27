@@ -29,6 +29,10 @@ type Service struct {
 	QueryVersion    string
 	XMLNamespace    string
 	QueryCompatible bool // awsQueryCompatible: JSON errors carry x-amzn-query-error
+	// ResponseCRC32 is the overlay's dev.understudy#responseCrc32: every
+	// answer the awsJson codec encodes, success and error, carries
+	// x-amz-crc32, the CRC-32 (IEEE) of its body in decimal.
+	ResponseCRC32 bool
 	// QueryErrorEnvelope is the overlay's dev.understudy#queryErrorEnvelope:
 	// how the awsQuery ErrorResponse differs from Smithy's example. The zero
 	// value is Smithy's example.

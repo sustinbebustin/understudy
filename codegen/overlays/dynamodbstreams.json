@@ -8,7 +8,14 @@
         "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
         "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#responseCrc32": {},
         "dev.understudy#evidence": [
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/dynamodb/R11/07-streams-signed-streams.dynamodb.json",
+            "validated": "2026-10-14",
+            "covers": ["dev.understudy#responseCrc32"]
+          },
           {
             "label": "inferred",
             "source": "docs/research/dynamodb-streams.md#33-error-shapes: Streams is served by the DynamoDB backend, DynamoDB's own modeled errors carry com.amazonaws.dynamodb.v20120810# (aws-recorded, testdata/parity/dynamodb/R04/07-ttl-missing-table.json) and DynamoDB Local sends that namespace for Streams errors; whether AWS sends it or the model's com.amazonaws.dynamodbstreams# is UNVERIFIED until recording DDBS-01",

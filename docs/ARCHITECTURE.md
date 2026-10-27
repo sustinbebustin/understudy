@@ -682,6 +682,7 @@ The closed set of `dev.understudy#` traits; the generator fails on anything else
 | `malformedRequestError` | service | identity for undecodable bodies (Lambda `InvalidRequestContentException`, DynamoDB `SerializationException`) |
 | `statusOverride` | error shape | KMS documented 400/400/500 where the model says 404/409/503 (`iam-sts-kms.md` Implications 3) |
 | `unknownOperationError` | service | identity for an operation absent from the model, per protocol family |
+| `responseCrc32` | awsJson service | annotation: every answer the codec encodes, success and error, carries `x-amz-crc32`, the CRC-32 (IEEE) of its body in decimal, emitted as `registry.Service.ResponseCRC32` (DynamoDB Streams; `dynamodb-streams.md 3.1`) |
 | `queryErrorEnvelope` | awsQuery service | `{namespace?, detail?}`: how `ErrorResponse` differs from Smithy's example, emitted as `registry.Service.QueryErrorEnvelope` (CloudWatch and IAM declare the service's `xmlns`, SQS sends an empty `<Detail/>`; `error-matrix.md 3`) |
 
 Overlays are applied after loading and before validation of the merged model. Applying a trait the vendored model already has with a different value is an error unless the entry says `"replace": true`, so a model bump that fixes a gap surfaces as a failing generate.

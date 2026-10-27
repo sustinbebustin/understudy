@@ -1364,13 +1364,14 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-335 evidence items: 49 aws-recorded, 107 third-party-recorded, 56 aws-doc, 5 sdk-source, 118 inferred.
+336 evidence items: 50 aws-recorded, 107 third-party-recorded, 56 aws-doc, 5 sdk-source, 118 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
 | aws-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#errorNamespace | testdata/parity/cloudwatch/R07/cw-GetDashboard.json (validated 2026-10-14) |
 | aws-recorded | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#errorNamespace | testdata/parity/dynamodb/R04/07-ttl-missing-table.json (validated 2026-10-14) |
 | aws-recorded | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#validationError | testdata/parity/dynamodb/R04/03-ttl-long-name.json (validated 2026-10-14) |
+| aws-recorded | dynamodbstreams.json | `com.amazonaws.dynamodbstreams#DynamoDBStreams_20120810` | dev.understudy#responseCrc32 | testdata/parity/dynamodb/R11/07-streams-signed-streams.dynamodb.json (validated 2026-10-14) |
 | aws-recorded (kms/KMS-alias/01-duplicate.json) | kms.json | `com.amazonaws.kms#AlreadyExistsException` |  | testdata/parity/kms/KMS-alias/02-duplicate-raw.json (validated 2026-10-14) |
 | aws-recorded | logs.json | `com.amazonaws.cloudwatchlogs#Logs_20140328` | dev.understudy#validationError | testdata/parity/logs/R10/06-10001-events.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#AuthorizationQueryParametersError` |  | testdata/parity/s3/R18/01-presign-expires-minus-1.json (validated 2026-10-14) |

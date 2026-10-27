@@ -45,6 +45,9 @@ func emitService(ir *ServiceIR) ([]byte, error) {
 	if ir.QueryCompatible {
 		f.p("\tQueryCompatible: true,")
 	}
+	if ir.ResponseCRC32 {
+		f.p("\tResponseCRC32: true,")
+	}
 	if env := ir.QueryErrorEnvelope; env != (registry.QueryErrorEnvelope{}) {
 		f.p("\tQueryErrorEnvelope: registry.QueryErrorEnvelope{Namespace: %t, Detail: %t},", env.Namespace, env.Detail)
 	}

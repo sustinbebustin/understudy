@@ -157,7 +157,7 @@ func TestStageFailures(t *testing.T) {
 				"dev.understudy#evidence dev.understudy#internalOperation dev.understudy#jsonType dev.understudy#malformedRequestError " +
 				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#notConfigured dev.understudy#patternEcho " +
 				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryKeyAlias " +
-				"dev.understudy#statusOverride dev.understudy#successCode " +
+				"dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
 				"dev.understudy#throttleError dev.understudy#unknownOperationError dev.understudy#validationError " +
 				"dev.understudy#validationPathStyle]",
 		},
@@ -756,6 +756,7 @@ func TestClassifyOverlayTraits(t *testing.T) {
 		"dev.understudy#statusOverride":        codegen.Honor,
 		"dev.understudy#unknownOperationError": codegen.Honor,
 		"dev.understudy#queryErrorEnvelope":    codegen.Honor,
+		"dev.understudy#responseCrc32":         codegen.Honor,
 	}
 	for id, class := range want {
 		if c, ok := codegen.Classify(id); c != class || !ok {
