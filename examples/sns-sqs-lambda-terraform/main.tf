@@ -142,8 +142,9 @@ resource "aws_iam_role" "worker" {
 }
 
 # What the worker needs: read and delete from its queue, write its orders,
-# and write its logs. understudy stores IAM policies but does not enforce
-# them, so a missing permission shows up only on AWS.
+# and write its logs. understudy enforces IAM policies only when started
+# with --iam-enforce enforce; otherwise a missing permission shows up only
+# on AWS.
 resource "aws_iam_role_policy" "worker" {
   name = "order-worker"
   role = aws_iam_role.worker.id

@@ -4,7 +4,7 @@ understudy records, for every call, which principal made it, which IAM actions t
 
 `--iam-enforce` (`UNDERSTUDY_IAM_ENFORCE`, or `{"iam": {"enforce": "off"}}` in the file) decides whether understudy also evaluates the policies it stores:
 
-- `off`, the default, evaluates nothing.
+- `off`, the default, denies nothing. It journals a `policy-would-deny` advisory for each delivery the target's stored policy would refuse, and evaluates nothing else.
 - `advise` evaluates each call against the caller's identity-based policies, permissions boundary and session policies and the resource's policy, serves it as `off` does, and journals an `access-would-deny` advisory for each call AWS would deny.
 - `enforce` answers those denials with each service's denial error.
 
@@ -21,35 +21,127 @@ Run 'understudy serve --help' for usage and examples.
 
 ## Enforce
 
-Under `enforce`, a user with no policy is denied. As the account root (the dummy keys), create the user and its key:
+Calls signed with the dummy keys act as the account root, which has full access to its own account's resources, as on AWS: no identity policy is needed, though a resource policy's explicit `Deny` and a KMS key policy still apply to it. Under `enforce`, the account root cannot call `AssumeRole`, which AWS also refuses; under `off` and `advise` it can. So to see enforcement, call as an IAM user or a role. The loop below records what a user's code needs, prints the policy, enforces it, and shows what removing one statement breaks.
+
+Record under `advise`. As the account root, create the user and its key:
 
 ```sh
-understudy serve --iam-enforce enforce
+understudy serve --iam-enforce advise
 aws iam create-user --user-name app
 aws iam create-access-key --user-name app
 ```
 
-With the returned key exported, the user's call is refused:
+With the returned key exported, run the code as the user. Here that code is five calls:
 
 ```sh
-aws sqs list-queues
+aws sqs create-queue --queue-name orders
+aws sqs send-message --queue-url http://localhost:4566/000000000000/orders --message-body hi
+aws sqs receive-message --queue-url http://localhost:4566/000000000000/orders
+aws s3api create-bucket --bucket app-uploads
+aws s3api put-object --bucket app-uploads --key in/hello.txt --body hello.txt
 ```
 
-```text
-aws: [ERROR]: An error occurred (AccessDenied) when calling the ListQueues operation: User: arn:aws:iam::000000000000:user/app is not authorized to perform: sqs:ListQueues because no identity-based policy allows the sqs:ListQueues action
-```
-
-Once root puts a policy allowing `sqs:ListQueues` on the user (`aws iam put-user-policy`), the same call succeeds. Under `advise` the call is served and the journal says what AWS would have answered:
+Each call is served. The user has no policy yet, so each one journals what AWS would have answered:
 
 ```sh
 understudy journal --kind advisory
 ```
 
 ```text
-4      2026-10-27T00:44:20.070175997Z  advisory       000000000000/us-east-1 access-would-deny: User: arn:aws:iam::000000000000:user/app is not authorized to perform: sqs:CreateQueue because no identity-based policy allows the sqs:CreateQueue action; decided by identity-based policy for arn:aws:iam::000000000000:user/app calling sqs:CreateQueue on arn:aws:sqs:us-east-1:000000000000:orders; iam.enforce is advise, so understudy served the call
+4      2026-10-27T03:56:12.758399069Z  advisory       000000000000/us-east-1 access-would-deny: User: arn:aws:iam::000000000000:user/app is not authorized to perform: sqs:CreateQueue because no identity-based policy allows the sqs:CreateQueue action; decided by identity-based policy for arn:aws:iam::000000000000:user/app calling sqs:CreateQueue on arn:aws:sqs:us-east-1:000000000000:orders; iam.enforce is advise, so understudy served the call
+...
 ```
 
-A condition on a key understudy cannot compute, such as `aws:SourceIp`, evaluates as absent, and each evaluation that tests it journals a `condition-key-unsupplied` advisory naming the key. Which texts and statuses each service answers with, and which of them are inferred, is listed by `understudy coverage --switches` (the `*.denial.*` switches).
+Print the policy the record implies (see [Print the policy](#print-the-policy)), and save it as a file:
+
+```sh
+understudy iam policy --principal arn:aws:iam::000000000000:user/app
+understudy iam policy --principal arn:aws:iam::000000000000:user/app --output json | jq .document > app-policy.json
+```
+
+```text
+{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:CreateBucket","Resource":"arn:aws:s3:::app-uploads"},{"Effect":"Allow","Action":"s3:PutObject","Resource":"arn:aws:s3:::app-uploads/*"},{"Effect":"Allow","Action":["sqs:CreateQueue","sqs:ReceiveMessage","sqs:SendMessage"],"Resource":"arn:aws:sqs:us-east-1:000000000000:orders"}]}
+```
+
+Enforce it. Restart with `--iam-enforce enforce`. Without `--persist`, the restart starts empty, so as the root create the user and a key again, and attach the policy:
+
+```sh
+understudy serve --iam-enforce enforce
+aws iam create-user --user-name app
+aws iam create-access-key --user-name app
+aws iam put-user-policy --user-name app --policy-name app --policy-document file://app-policy.json
+```
+
+Export the new key and run the same five calls. All five succeed, and nothing is denied:
+
+```sh
+understudy journal --kind advisory
+```
+
+```text
+no events matched
+```
+
+Now remove the statement for the bucket's objects, attach the shorter policy as the root, and repeat the upload as the user:
+
+```sh
+jq 'del(.Statement[] | select(.Resource == "arn:aws:s3:::app-uploads/*"))' app-policy.json > app-policy-trimmed.json
+aws iam put-user-policy --user-name app --policy-name app --policy-document file://app-policy-trimmed.json
+aws s3api put-object --bucket app-uploads --key in/hello.txt --body hello.txt
+```
+
+```text
+aws: [ERROR]: An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:iam::000000000000:user/app is not authorized to perform: s3:PutObject because no identity-based policy allows the s3:PutObject action
+```
+
+The text follows AWS's documented form for an implicit denial. The journal records the call that was refused, and the policy that refused it:
+
+```sh
+understudy journal --kind advisory
+```
+
+```text
+11     2026-10-27T03:59:03.154647689Z  advisory       000000000000/us-east-1 access-denied: User: arn:aws:iam::000000000000:user/app is not authorized to perform: s3:PutObject because no identity-based policy allows the s3:PutObject action; decided by identity-based policy for arn:aws:iam::000000000000:user/app calling s3:PutObject on arn:aws:s3:::app-uploads/in/hello.txt
+```
+
+### Ask without calling
+
+`POST /_understudy/v1/iam/evaluate` decides `(action, resource)` pairs for a principal the way `advise` and `enforce` decide calls, but without making the calls, and it journals nothing. It works under every mode, `off` included. With the shorter policy attached:
+
+```sh
+curl -s --json '{"principal":"arn:aws:iam::000000000000:user/app","requests":[{"action":"sqs:SendMessage","resource":"arn:aws:sqs:us-east-1:000000000000:orders"},{"action":"s3:PutObject","resource":"arn:aws:s3:::app-uploads/in/hello.txt"}]}' \
+  http://localhost:4566/_understudy/v1/iam/evaluate
+```
+
+```text
+{"results":[{"action":"sqs:SendMessage","resource":"arn:aws:sqs:us-east-1:000000000000:orders","decision":"allowed"},{"action":"s3:PutObject","resource":"arn:aws:s3:::app-uploads/in/hello.txt","decision":"implicitDeny","policyType":"identity-based policy","message":"User: arn:aws:iam::000000000000:user/app is not authorized to perform: s3:PutObject because no identity-based policy allows the s3:PutObject action"}]}
+```
+
+`"identityPolicies": [...]` in the request replaces the principal's identity policies for that one evaluation (`[]` is none), so you can try a policy before attaching it. `decision` uses the IAM policy simulator's spellings: `allowed`, `implicitDeny` or `explicitDeny`. `unsuppliedKeys` lists the condition keys understudy could not supply (below).
+
+### Advisories
+
+Each decision that is not a plain allow is journaled as an `advisory` event (`understudy journal --kind advisory`):
+
+| Advisory | Mode | Means |
+|---|---|---|
+| `access-would-deny` | `advise` | AWS would deny the call; understudy served it |
+| `access-denied` | `enforce` | understudy denied the call with the service's denial error |
+| `access-unevaluated` | `advise` | understudy could not evaluate the call, for example because a stored policy does not parse; the call was served. Under `enforce` such a call fails with an internal error naming the policy |
+| `condition-key-unsupplied` | `advise`, `enforce` | a condition tested a key AWS would send that understudy cannot compute |
+| `policy-would-deny` | `off` | a delivery the target's stored policy would refuse; it is attempted anyway |
+
+understudy never assumes that a condition holds. Some keys AWS would send are ones understudy cannot compute: `aws:SourceIp`, the resource's tags (`aws:ResourceTag/...`), and the called service's own keys that it does not supply, such as `s3:prefix`. A condition on such a key is evaluated as if the key were absent, which is how AWS evaluates a key a request does not carry. Each evaluation that tests one journals `condition-key-unsupplied` naming the key. understudy never sends the VPC, organization and MFA keys (`aws:MultiFactorAuthPresent` is `false` in a session), so a condition on one gets AWS's own answer for a request made over the public endpoint, from outside an organization, without MFA. Where AWS's denial text, status or behavior is not recorded, understudy follows a fidelity switch. `understudy coverage --switches` lists them, and the `iam.*` and `*.denial.*` switches cover enforcement.
+
+### What is not enforced
+
+These differences hold under every mode, and each is stated in the operation's coverage note (`understudy coverage --service <name>`):
+
+- An operation that finds its resource by name answers that the resource does not exist before it is authorized. These are IAM users, roles and instance profiles, KMS keys addressed by alias, and Secrets Manager secrets. AWS denies first, before saying whether the resource exists (the `iam.enforce.missing-resource` switch).
+- S3 Block Public Access and Secrets Manager's `BlockPublicPolicy` are stored and not applied, and KMS's key-policy lockout check is not run.
+- A function URL with `AuthType` `AWS_IAM` checks only the signature, never a policy. An `AuthType` `NONE` URL checks its resource policy under every mode.
+- The S3 Control tag operations are not authorized.
+- Groups, KMS grants and the IAM policy simulator are not implemented, and answer 501.
 
 Deliveries are decided the same way. SNS, S3 and EventBridge call the target as their service principal, with `aws:SourceArn` the topic, bucket or rule, and `aws:SourceAccount` as each sends it: the topic's account, the bucket owner's, the rule's to a queue or topic, and none to a function. A delivery the target's policy refuses is not retried. It goes to the subscription's or target's dead-letter queue when one is set, and an EventBridge dead letter carries `ERROR_CODE` `NO_PERMISSIONS`; otherwise it is dropped. Subscribe and PutTargets neither check nor change the target's policy. With a queue that has no policy subscribed to a topic, a published message is dropped:
 
@@ -200,7 +292,7 @@ aws iam attach-role-policy --role-name worker --policy-arn arn:aws:iam::aws:poli
 ]
 ```
 
-`aws iam list-policies --scope AWS` lists the catalogue, `--scope All` (the default) lists it with your own policies, and `--only-attached` keeps the ones attached in the account. Attached, an AWS managed policy is stored like any other, not enforced. In Terraform, the `aws_iam_policy` data source finds one by name:
+`aws iam list-policies --scope AWS` lists the catalogue, `--scope All` (the default) lists it with your own policies, and `--only-attached` keeps the ones attached in the account. An attached AWS managed policy is evaluated like any other under `advise` and `enforce`. In Terraform, the `aws_iam_policy` data source finds one by name:
 
 ```hcl
 data "aws_iam_policy" "basic_execution" {

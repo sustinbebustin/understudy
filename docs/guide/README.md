@@ -16,7 +16,7 @@ Task-oriented pages. Each command shown was run against a build of this reposito
 | [The journal](journal.md) | Querying, following and tracing calls, deliveries and invocations |
 | [The web UI](ui.md) | Live trace trees, resources, fault rules, the clock, IAM policy and coverage in a browser |
 | [Snapshots and persistence](snapshots.md) | Save, load, diff, `--persist`, reset |
-| [Policy generation](policy.md) | Least-privilege policies from recorded access |
+| [Policy generation](policy.md) | Least-privilege policies from recorded access, and opt-in enforcement |
 | [CI](ci.md) | Running understudy in a pipeline |
 | [Testcontainers](testcontainers-modules.md) | The Go, Python and Node modules that start the image from a test suite; Lambda through the socket, Terraform, cleanup |
 | [Differences from AWS](differences.md) | Recorded behavior that still differs from AWS, by service, with workarounds |

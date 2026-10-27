@@ -35,7 +35,7 @@ The result: tests keep real AWS settings (visibility timeouts, delays, TTLs, sch
 - **Fault injection.** Rules by service, operation, resource, account or region inject AWS's own errors, throttling or latency, for the next N calls or with a seeded probability.
 - **Snapshots and persistence.** State saves to a deterministic archive you can commit, diff and load. Persistence across restarts is opt-in.
 - **Real Lambda execution.** Functions run in AWS's Lambda base images through Docker: zip and image functions, warm reuse, hot reload from a directory, SDK calls routed back to understudy, logs in CloudWatch Logs.
-- **Least-privilege policies.** understudy records which IAM actions each principal used, on which resources, and prints the policy that record implies.
+- **Least-privilege policies.** understudy records which IAM actions each principal used, on which resources, and prints the policy that record implies. Opt in with `--iam-enforce enforce` to have understudy evaluate identity, resource, trust and key policies and answer with each service's denial error. Attach the printed policy and rerun, and you see what a missing statement breaks.
 - **Small and offline.** A 39 MiB binary, ready in about 20 ms, idling at about 34 MiB (`just budgets` on Linux). No telemetry; the only network access is pulling Docker images for Lambda and DynamoDB Local.
 
 ## Prerequisites
@@ -133,15 +133,15 @@ From [docs/coverage.md](docs/coverage.md), which `understudy coverage` regenerat
 
 | Service | Operations | Full | Stored only | Partial | Unbound |
 |---|---|---|---|---|---|
-| SQS | 23 | 16 | 2 | 5 | 0 |
-| SNS | 42 | 12 | 2 | 5 | 23 |
-| S3 | 112 | 22 | 42 | 22 | 26 |
+| SQS | 23 | 16 | 0 | 7 | 0 |
+| SNS | 42 | 12 | 0 | 7 | 23 |
+| S3 | 112 | 22 | 39 | 25 | 26 |
 | DynamoDB | 58 | 6 | 2 | 18 | 32 |
-| Lambda | 88 | 25 | 2 | 14 | 47 |
+| Lambda | 88 | 25 | 1 | 15 | 47 |
 | CloudWatch Logs | 118 | 9 | 0 | 9 | 100 |
-| Secrets Manager | 23 | 12 | 1 | 2 | 8 |
-| KMS | 54 | 19 | 3 | 5 | 27 |
-| IAM | 180 | 42 | 6 | 16 | 116 |
+| Secrets Manager | 23 | 1 | 0 | 14 | 8 |
+| KMS | 54 | 16 | 2 | 9 | 27 |
+| IAM | 180 | 10 | 1 | 53 | 116 |
 | STS | 11 | 1 | 0 | 2 | 8 |
 | EventBridge | 57 | 6 | 3 | 13 | 35 |
 | CloudWatch | 55 | 1 | 2 | 9 | 43 |
@@ -184,7 +184,7 @@ understudy never bundles, mirrors, re-tags, saves, pushes or patches the DynamoD
 
 ## Choosing an emulator
 
-- **LocalStack** when you need services understudy does not emulate, such as ECS, RDS, Step Functions, API Gateway REST and WebSocket APIs, Cognito or CloudFormation deploys, or enforced IAM policies.
+- **LocalStack** when you need services understudy does not emulate, such as ECS, RDS, Step Functions, API Gateway REST and WebSocket APIs, Cognito or CloudFormation deploys.
 - **moto** for Python unit tests that should not leave the process.
 - **Real AWS** for final validation. Emulators can pass where the cloud fails, and that applies to understudy too.
 - **understudy** when your system lives in the thirteen services above and you want fast, deterministic, free tests of how they interact, including time, failures and permissions.
@@ -193,7 +193,7 @@ understudy never bundles, mirrors, re-tags, saves, pushes or patches the DynamoD
 
 Behavior that differs from AWS in ways a test can observe is listed in [docs/guide/differences.md](docs/guide/differences.md). The broad limits:
 
-- **Access control is recorded, not enforced.** IAM, resource and key policies are stored; nothing denies a call, and a delivery AWS would deny goes through with an `advisory` journal event. Lambda's asynchronous records and dead letters get no such advisory: neither the execution role's permissions nor, for a destination in another account, its resource policy is checked. `understudy iam policy` grants more than needed in places; review it as the [policy guide](docs/guide/policy.md#review-before-use) describes.
+- **Access control is enforced only on request.** By default IAM, resource and key policies are stored and recorded but deny nothing, and a delivery AWS would deny goes through with an `advisory` journal event. Lambda's asynchronous records and dead letters get no such advisory: neither the execution role's permissions nor, for a destination in another account, its resource policy is checked. Calls with the dummy keys act as the account root under every mode. `--iam-enforce advise` journals each denial AWS would issue, and `--iam-enforce enforce` answers with it. Even then, some checks are not made. Groups, KMS grants and the policy simulator are not implemented, and S3 Block Public Access is not applied. Condition keys understudy cannot compute, such as `aws:SourceIp`, are evaluated as absent. The [policy guide](docs/guide/policy.md#what-is-not-enforced) lists every gap. `understudy iam policy` grants more than needed in places; review it as the [policy guide](docs/guide/policy.md#review-before-use) describes.
 - **Signatures are parsed, not verified**, unless you start with `--sigv4 verify`. Even then every client may sign with the public dummy pair `test`/`test`, so a signature is not access control.
 - **Lambda function code can reach the admin API** wherever functions call the main listener: when understudy runs in a container, on Docker Desktop, or when `--listen` already binds the address functions reach (`0.0.0.0`, or the bridge gateway). It can reset state, change the clock and read the journal. [SECURITY.md](SECURITY.md) describes the mitigations and where they stop.
 - **Lambda needs a Docker Engine** and is tested on Linux. Docker Desktop on macOS is supported by design but untested; rootless Docker and Podman are not supported; Windows works through WSL2 only. Functions of the other architecture need a binfmt handler (`understudy doctor` checks). Functions run against understudy's own Lambda Runtime API, not AWS's Runtime Interface Emulator ([ADR 0010](docs/adr/0010-lambda-hosted-runtime-api.md)). Asynchronous invocations deliver to their destinations and dead-letter queues; layer versions published to understudy attach to functions and fill their `/opt`, and a layer that exists only in AWS is refused.

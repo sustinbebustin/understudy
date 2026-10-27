@@ -54,7 +54,7 @@ Every operation of each vendored model (`codegen/services/`, `internal/api/<serv
 
    ```go
    b.ListQueueTags(s.listQueueTags, registry.Full{})
-   b.AddPermission(s.addPermission, registry.StoredOnly{Note: "statements are stored in the queue's Policy attribute and not enforced"})
+   b.EnableKeyRotation(s.enableKeyRotation, registry.StoredOnly{Note: "the rotation status and period are stored and reported; key material is never rotated"})
    b.CreateSecret(s.createSecret, registry.Partial{Note: "AddReplicaRegions (replication) answers NotImplemented"})
    ```
 

@@ -302,7 +302,7 @@ aws lambda create-event-source-mapping --function-name hello \
   --event-source-arn arn:aws:sqs:us-east-1:000000000000:jobs --batch-size 10
 ```
 
-AWS checks a function's resource policy before SNS, S3 or EventBridge may invoke it. understudy does not enforce it, but journals an advisory when the delivery would be denied on AWS, and `understudy iam policy` lists the statements the deliveries need.
+AWS checks a function's resource policy before SNS, S3 or EventBridge may invoke it. understudy checks it too, but by default only journals an advisory when AWS would deny the delivery. Under `--iam-enforce enforce` it refuses the delivery as AWS does ([Enforce](policy.md#enforce)). `understudy iam policy` lists the statements the deliveries need.
 
 ## Function URLs
 
