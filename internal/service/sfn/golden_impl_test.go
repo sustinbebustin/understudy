@@ -61,8 +61,15 @@ type goldenFixture struct {
 	// Omit names members AWS added to the context object after the
 	// recording date; they are removed from understudy's history at any
 	// depth before comparing.
-	Omit    []string        `json:"omit"`
-	History json.RawMessage `json:"history"`
+	Omit []string `json:"omit"`
+	// Parallel says the recording ran LocalStack's
+	// SfnNoneRecursiveParallelTransformer: the events between
+	// ParallelStateStarted and the Parallel's next own event have id [0]
+	// and previousEventId 0 and are sorted, and ParallelStateSucceeded is
+	// missing (spec "Done checks"). The same is done to understudy's
+	// history; what it hides is covered by the ASL-13 inferred tests.
+	Parallel bool            `json:"parallel"`
+	History  json.RawMessage `json:"history"`
 }
 
 // goldenAnswer is one answer of the stub Lambda: a function error with
@@ -150,13 +157,95 @@ func TestLocalStackHistoryGoldens(t *testing.T) {
 				}
 				got := masked(undoTransforms(wireHistory(h, arn), h.roleArn()), g.Masks)
 				got = omitted(transformed(h, got, g.Transforms), g.Omit)
-				want := withPlaceholders(decode(h, string(g.History)), g.Placeholders)
+				// Older recordings keep some input and output texts as
+				// strings; parse them as understudy's are.
+				want := undoTransforms(withPlaceholders(decode(h, string(g.History)), g.Placeholders), "snf_role_arn")
+				if g.Parallel {
+					got, want = parallelNormalised(got), parallelNormalised(want)
+				}
 				if !equal(got, want) {
 					h.Fatalf("history of golden %d (%s, validated %s):\n%s\nwant:\n%s", g.Golden, g.Source, g.Validated, docText(got), docText(want))
 				}
 			})
 		})
 	}
+}
+
+// parallelNormalised applies LocalStack's SfnNoneRecursiveParallelTransformer
+// (localstack@8b9a79f localstack-core/localstack/testing/pytest/stepfunctions/utils.py:L929)
+// to a history: the events after ParallelStateStarted, up to the next
+// ParallelState{Succeeded,Aborted,Exited,Failed}, get id [0] and
+// previousEventId 0 and are sorted; ParallelStateSucceeded, which the
+// recording lacks, is dropped. The sort key is the event's text with keys
+// sorted, applied alike to both sides.
+func parallelNormalised(events document.Value) document.Value {
+	list, ok := events.(document.List)
+	if !ok {
+		return events
+	}
+	var out, sub document.List
+	in := false
+	flush := func() {
+		slices.SortFunc(sub, func(a, b document.Value) int { return strings.Compare(sortedText(a), sortedText(b)) })
+		out = append(out, sub...)
+		sub, in = nil, false
+	}
+	for _, e := range list {
+		typ, isString := at(e, "type").(document.String)
+		m, isMap := e.(document.Map)
+		if !isString || !isMap {
+			out = append(out, e)
+			continue
+		}
+		switch {
+		case typ == "ParallelStateSucceeded":
+			flush()
+			continue
+		case typ == "ParallelStateAborted" || typ == "ParallelStateExited" || typ == "ParallelStateFailed":
+			flush()
+		case in:
+			masked := make(document.Map, 0, len(m))
+			for _, entry := range m {
+				switch entry.Key {
+				case "id":
+					entry.Value = document.List{document.Number("0")}
+				case "previousEventId":
+					entry.Value = document.Number("0")
+				}
+				masked = append(masked, entry)
+			}
+			sub = append(sub, masked)
+			continue
+		}
+		out = append(out, e)
+		if typ == "ParallelStateStarted" {
+			in = true
+		}
+	}
+	flush()
+	return out
+}
+
+// sortedText is v's JSON text with object keys sorted at every depth.
+func sortedText(v document.Value) string {
+	switch v := v.(type) {
+	case document.Map:
+		entries := slices.Clone(v)
+		slices.SortFunc(entries, func(a, b document.Entry) int { return strings.Compare(a.Key, b.Key) })
+		parts := make([]string, 0, len(entries))
+		for _, e := range entries {
+			parts = append(parts, docText(document.String(e.Key))+":"+sortedText(e.Value))
+		}
+		return "{" + strings.Join(parts, ",") + "}"
+	case document.List:
+		parts := make([]string, 0, len(v))
+		for _, e := range v {
+			parts = append(parts, sortedText(e))
+		}
+		return "[" + strings.Join(parts, ",") + "]"
+	case document.String, document.Number, document.Bool, document.Null:
+	}
+	return docText(v)
 }
 
 // compact is raw JSON text in compact form, member order kept.
