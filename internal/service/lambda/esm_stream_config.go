@@ -261,14 +261,15 @@ func (s *Service) streamSource(c *kernel.Call, stream aws.ARN, target mappingTar
 }
 
 // checkStream describes the stream as the function's execution role and
-// refuses one that does not exist with row 4 of 3.3.
-func (s *Service) checkStream(ctx context.Context, c *kernel.Call, stream aws.ARN, target mappingTarget) *awserr.Error {
+// refuses one that does not exist with row 4 of 3.3; it returns the source
+// it described, for a caller that reads on.
+func (s *Service) checkStream(ctx context.Context, c *kernel.Call, stream aws.ARN, target mappingTarget) (dynamoSource, *awserr.Error) {
 	src, ok := s.streamSource(c, stream, target)
 	if !ok {
-		return errStreamMissing(stream)
+		return dynamoSource{}, errStreamMissing(stream)
 	}
 	_, err := src.Shards(ctx)
-	return fromStreamRead("DescribeStream", stream, err)
+	return src, fromStreamRead("DescribeStream", stream, err)
 }
 
 // fromStreamRead maps a failed read of stream by the control plane onto
@@ -367,12 +368,12 @@ func (s *Service) createStreamMapping(ctx context.Context, c *kernel.Call, in *l
 	if err != nil {
 		return nil, err
 	}
-	if err := s.checkStream(ctx, c, stream, target); err != nil {
+	src, err := s.checkStream(ctx, c, stream, target)
+	if err != nil {
 		return nil, err
 	}
 	var anchors []esm.Checkpoint
 	if _, latest := start.(esm.Latest); latest && s.opts.Streams.LatestAnchor == esm.AnchorCreateInstant {
-		src, _ := s.streamSource(c, stream, target)
 		cps, aerr := anchorLatest(ctx, src)
 		if err := fromStreamRead("GetRecords", stream, aerr); err != nil {
 			return nil, err
@@ -468,7 +469,7 @@ func (s *Service) retargetStream(ctx context.Context, c *kernel.Call, source str
 	if perr != nil {
 		return nil, awserr.Internalf(perr)
 	}
-	if err := s.checkStream(ctx, c, stream, t); err != nil {
+	if _, err := s.checkStream(ctx, c, stream, t); err != nil {
 		return nil, err
 	}
 	return &t, nil

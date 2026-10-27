@@ -19,8 +19,8 @@ type Options struct {
 	// *launcher.Launcher. nil means no Docker daemon is reachable, so an
 	// image function becomes Failed with a message naming its image.
 	Images ImageSource
-	// Streams are the stream poller's switches. Stream mappings are not
-	// accepted yet, so nothing reads them: not implemented yet.
+	// Streams are the stream poller's switches (lambda.esm-stream.*): the
+	// LATEST anchor, the retry delay and the partial-resend budget.
 	Streams esm.StreamFidelity
 }
 
