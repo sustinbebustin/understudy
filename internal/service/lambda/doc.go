@@ -54,8 +54,11 @@
 //     refused in AWS's words for one that does not exist, followed by why.
 //     Each function version holds a blob reference on its layers'
 //     archives, so a deleted layer version keeps working where it is used.
-//     Invoking a function with layers is not implemented yet: its
-//     invocations fail, saying so.
+//     The execution merges a version's layers, in order, into one tree in
+//     the code store, the read-only /opt of its environments, held while
+//     a slot mounts it (codeTrees); a file where an earlier layer has a
+//     directory, or the reverse, fails the invocation, since what AWS does
+//     then is unrecorded (lambda-destinations-layers.md 8.1, LDL-12).
 //   - RevisionIds and function URL ids are derived from the scope and a
 //     per-scope serial in the state, so they are deterministic under a seed
 //     without a new identifier stream, and never repeat until a reset.

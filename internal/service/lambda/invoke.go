@@ -649,7 +649,11 @@ func (x *Execution) lease(ctx context.Context, r *run, fn fnVersion) (leased, *a
 	case ZipCode:
 		overlayDir, w.overlay = x.overlays.current(fnKey{scope: fn.scope, name: fn.name})
 		if overlayDir == "" {
-			w.tree = code.Sha256
+			w.trees = append(w.trees, packageTree(code.Sha256))
+		}
+		// An overlay replaces the code, never the layers.
+		if layers := t.version.Config.Layers; len(layers) > 0 {
+			w.trees = append(w.trees, layersKey(layers))
 		}
 	case ImageCode:
 	}
