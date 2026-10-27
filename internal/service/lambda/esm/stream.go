@@ -185,6 +185,12 @@ type Checkpoint struct {
 // poll-interval.
 const DynamoDBRetryDelay = 250 * time.Millisecond
 
+// DynamoDBRetention is how long a DynamoDB stream keeps a record: 24 hours
+// (aws-doc, dynamodb-streams.md 5.5). A reader whose retried batch reaches
+// it drops the batch and resumes at TRIM_HORIZON (lambda-stream-sources.md
+// 5.1, 5.3).
+const DynamoDBRetention = 24 * time.Hour
+
 // StreamFidelity holds the stream poller's switch values; the zero value
 // is every default.
 type StreamFidelity struct {

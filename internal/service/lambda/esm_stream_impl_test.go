@@ -9,16 +9,15 @@ import (
 )
 
 // A stream setting the poller does not apply yet answers 501 rather than
-// being stored without effect (invariant 3; spec stop-rule fallbacks
-// "before A8" and "before A9"): a batching window, a retry limit and a
-// record age other than the 3.5 defaults.
+// being stored without effect (invariant 3; spec stop-rule fallback
+// "before A9"): a retry limit and a record age other than the 3.5
+// defaults.
 func TestStreamMappingUnbuiltSettingsAnswer501(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		h.createFunction("worker")
 		for name, in := range map[string]lambdaapi.CreateEventSourceMappingInput{
 			"MaximumRetryAttempts": {MaximumRetryAttempts: new(int32(3))},
 			"MaximumRecordAge":     {MaximumRecordAgeInSeconds: new(int32(120))},
-			"a batching window":    {MaximumBatchingWindowInSeconds: new(int32(5))},
 		} {
 			err := fail(h.harness, lambdaapi.OpCreateEventSourceMapping, h.streamInput(in))
 			if err.ID.Shape.Name() != "NotImplemented" || err.ID.Status != 501 {

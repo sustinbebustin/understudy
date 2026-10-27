@@ -103,12 +103,13 @@ func (m Mapping) state() MappingState {
 func (s *Service) bindMappings(b lambdaapi.Binder) {
 	const note = "SQS queues and DynamoDB streams; serve polls the source and invokes the function with each batch; " +
 		"Kinesis streams, ParallelizationFactor above 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a valid FilterCriteria on a stream and an S3 on-failure destination answer 501; " +
-		"on a DynamoDB stream, MaximumBatchingWindowInSeconds above 0 and MaximumRetryAttempts and MaximumRecordAgeInSeconds other than -1 also answer 501 until the poller applies them, " +
-		"so a failing batch is retried until it succeeds and an on-failure destination is stored but never sent to; " +
+		"on a DynamoDB stream, MaximumRetryAttempts and MaximumRecordAgeInSeconds other than -1 also answer 501 until the poller applies them, " +
+		"so a failing batch is retried until stream retention ends it and an on-failure destination is stored but never sent to; " +
 		"a stream is read as soon as it receives a record rather than at AWS's polling rate (4 per second for DynamoDB), which is used as the delay before a retry; " +
-		"UNVERIFIED (lambda-stream-sources.md 3.3, 3.4, 3.7, 4.2, 5.1, 5.5): the text refusing MaximumRecordAgeInSeconds 0 to 59, an explicit BatchSize above 10 without a window being accepted on a stream, " +
+		"UNVERIFIED (lambda-stream-sources.md 3.3, 3.4, 3.7, 4.2, 5.1, 5.3, 5.5): the text refusing MaximumRecordAgeInSeconds 0 to 59, an explicit BatchSize above 10 without a window being accepted on a stream, " +
 		"members of the other source type being ignored, destination existence checked only at delivery, a retried batch keeping its records, the 6 MB limit counted over the serialized event, " +
-		"an itemIdentifier outside the batch counting as complete failure, batchItemFailures keys matched case-sensitively, and LastProcessingResult unchanged by a failure; " +
+		"an itemIdentifier outside the batch counting as complete failure, batchItemFailures keys matched case-sensitively, records lost to stream retention dropped without an on-failure record, " +
+		"and LastProcessingResult unchanged by a failure; " +
 		"MetricsConfig is stored, no metrics are emitted; " +
 		"under iam.enforce=enforce an SQS mapping's execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage (lambda.esm.create-denied-text), " +
 		"and a role refused its polls leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss)"

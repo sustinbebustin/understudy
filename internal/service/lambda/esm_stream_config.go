@@ -22,7 +22,9 @@ import (
 // 501 rather than being stored without effect: ParallelizationFactor above
 // 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a
 // FilterCriteria pattern, an S3 on-failure destination and, until the
-// poller applies them, a batching window, a retry limit and a record age.
+// poller applies them, a retry limit and a record age. The SQS rule that
+// a BatchSize above 10 needs a batching window does not apply to a stream
+// (contract 8.2 step 4).
 
 // defaultStreamBatchSize is a stream mapping's BatchSize when Create sets
 // none (lambda-stream-sources.md 3.5, recorded LS-D:L246-L271).
@@ -132,6 +134,7 @@ func (u streamSettings) apply(m *Mapping, kind *esm.DynamoDBStream) *awserr.Erro
 		return err
 	}
 	set(&m.BatchSize, u.batchSize)
+	set(&m.Window, u.window)
 	if u.responseTypes != nil {
 		m.ReportFailures = slices.Contains(u.responseTypes, lambdaapi.FunctionResponseTypeReportBatchItemFailures)
 	}
@@ -182,8 +185,6 @@ func (u streamSettings) checkUnbuilt() *awserr.Error {
 		return errStreamSettingUnbuilt("MaximumRecordAgeInSeconds other than -1")
 	case u.retries != nil && *u.retries != -1:
 		return errStreamSettingUnbuilt("MaximumRetryAttempts other than -1")
-	case u.window != nil && *u.window != 0:
-		return errStreamSettingUnbuilt("MaximumBatchingWindowInSeconds above 0")
 	}
 	return nil
 }
