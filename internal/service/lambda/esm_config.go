@@ -124,7 +124,9 @@ func (MaximumConcurrency) isScaling() {}
 func (ProvisionedPollers) isScaling() {}
 
 func (s *Service) bindMappings(b lambdaapi.Binder) {
-	const note = "SQS queues only; serve polls the queue and invokes the function with each batch"
+	const note = "SQS queues only; serve polls the queue and invokes the function with each batch; " +
+		"under iam.enforce=enforce the execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage (lambda.esm.create-denied-text), " +
+		"and a role refused its polls leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss)"
 	b.CreateEventSourceMapping(s.createMapping, partial(note), kernel.WithValidator(validateCreateMapping))
 	b.GetEventSourceMapping(s.getMapping, full())
 	b.ListEventSourceMappings(s.listMappings, full())
@@ -256,6 +258,11 @@ func (s *Service) mappingFunction(c *kernel.Call, name string) (mappingTarget, *
 // checkQueue reads the queue's visibility timeout as the function's
 // execution role and refuses a missing queue or one whose visibility
 // timeout is shorter than the function's timeout (lambda-events.md 1.3).
+// The queue's URL is how understudy addresses it, which needs no
+// permission in AWS, so Lambda reads it as itself: the role needs only
+// sqs:ReceiveMessage, sqs:DeleteMessage and sqs:GetQueueAttributes
+// (iam-enforcement-surfaces.md 8.1). A role that may not read the queue is
+// refused with errESMRoleDenied.
 func (s *Service) checkQueue(ctx context.Context, c *kernel.Call, queue aws.ARN, target mappingTarget) *awserr.Error {
 	scope, serr := aws.ScopeOf(queue)
 	if serr != nil || queue.Region != c.Scope().Region.String() {
@@ -265,15 +272,19 @@ func (s *Service) checkQueue(ctx context.Context, c *kernel.Call, queue aws.ARN,
 	if perr != nil {
 		return errQueueMissing()
 	}
-	t := kernel.Target{Scope: scope, As: kernel.AsExecutionRole{Role: role}, Via: ref.LambdaESM}
-	url, err := kernel.Invoke(ctx, s.k, c, sqsapi.OpGetQueueUrl, t, &sqsapi.GetQueueUrlInput{QueueName: queue.Resource, QueueOwnerAWSAccountId: new(queue.Account)})
+	platform := kernel.Target{Scope: scope, As: kernel.AsPlatform{Name: lambdaService}, Via: ref.LambdaESM}
+	url, err := kernel.Invoke(ctx, s.k, c, sqsapi.OpGetQueueUrl, platform, &sqsapi.GetQueueUrlInput{QueueName: queue.Resource, QueueOwnerAWSAccountId: new(queue.Account)})
 	if err != nil {
 		return fromSQS(err)
 	}
+	t := kernel.Target{Scope: scope, As: kernel.AsExecutionRole{Role: role}, Via: ref.LambdaESM}
 	attrs, err := kernel.Invoke(ctx, s.k, c, sqsapi.OpGetQueueAttributes, t, &sqsapi.GetQueueAttributesInput{
 		QueueUrl: deref(url.QueueUrl), AttributeNames: []sqsapi.QueueAttributeName{sqsapi.QueueAttributeNameVisibilityTimeout},
 	})
 	if err != nil {
+		if _, denied := err.Origin.(awserr.Denial); denied {
+			return errESMRoleDenied()
+		}
 		return fromSQS(err)
 	}
 	visibility, perr := strconv.Atoi(attrs.Attributes[sqsapi.QueueAttributeNameVisibilityTimeout])

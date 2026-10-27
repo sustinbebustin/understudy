@@ -718,7 +718,7 @@ Internal operations:
 | GetFunctionCodeSigningConfig | stored-only | inferred, 1 of 3 claims | code signing is not enforced; no function has a configuration |
 | AddPermission | partial | inferred, 1 of 3 claims | statements are stored and returned by GetPolicy, and evaluated for function URLs with AuthType NONE; for calls and service deliveries they are evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce, where a delivery they refuse is not retried |
 | CreateAlias | partial | inferred, 1 of 3 claims | weighted routing is stored, not applied to invocations |
-| CreateEventSourceMapping | partial | inferred, 7 of 11 claims | SQS queues only; serve polls the queue and invokes the function with each batch |
+| CreateEventSourceMapping | partial | inferred, 9 of 13 claims | SQS queues only; serve polls the queue and invokes the function with each batch; under iam.enforce=enforce the execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage (lambda.esm.create-denied-text), and a role refused its polls leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss) |
 | CreateFunction | partial | inferred, 3 of 8 claims | a layer version is found only if it was published to understudy, which never fetches layers from AWS; PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only |
 | CreateFunctionUrlConfig | partial | inferred, 1 of 3 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
 | GetFunction | partial | inferred, 1 of 4 claims | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
@@ -729,7 +729,7 @@ Internal operations:
 | PublishVersion | partial | inferred, 1 of 4 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
 | PutFunctionEventInvokeConfig | partial | inferred, 3 of 5 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
 | UpdateAlias | partial | inferred, 1 of 3 claims | weighted routing is stored, not applied to invocations |
-| UpdateEventSourceMapping | partial | inferred, 7 of 10 claims | SQS queues only; serve polls the queue and invokes the function with each batch |
+| UpdateEventSourceMapping | partial | inferred, 8 of 11 claims | SQS queues only; serve polls the queue and invokes the function with each batch; under iam.enforce=enforce the execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage (lambda.esm.create-denied-text), and a role refused its polls leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss) |
 | UpdateFunctionCode | partial | inferred, 1 of 4 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
 | UpdateFunctionConfiguration | partial | inferred, 4 of 7 claims | a layer version is found only if it was published to understudy, which never fetches layers from AWS; DurableConfig is refused; code signing and VPC networking are stored only |
 | UpdateFunctionEventInvokeConfig | partial | inferred, 2 of 4 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
@@ -1174,7 +1174,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-162 switches: 1 aws-recorded, 5 third-party-recorded, 20 aws-doc, 136 inferred.
+164 switches: 1 aws-recorded, 5 third-party-recorded, 20 aws-doc, 138 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1266,6 +1266,8 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `lambda.esm-filter.exists-true-empty-value` | `any-value` | inferred | docs/research/matching-engines.md#10 | none: recorded in lambda/R03 (H2-01-create); the replayer skips REST and Docker steps |
 | `lambda.esm-filter.malformed-or` | `rejected` | inferred | docs/research/matching-engines.md#10 | none: recorded in lambda/R03 (H10-01-create to H10-06-create); the replayer skips REST and Docker steps |
 | `lambda.esm-filter.operator-allow-list` | `documented-table` | inferred | docs/research/matching-engines.md#8 | none: recorded in lambda/R03 (H13-01-create to H13-15-create); the replayer skips REST and Docker steps |
+| `lambda.esm.create-denied-text` | `The provided execution role does not have permissions to call ReceiveMessage on SQS` | inferred | docs/research/iam-enforcement-surfaces.md#8.6 | none: unrecorded: IAM-ENF-24 waits in the recording queue (iam-enforcement-surfaces.md 13) |
+| `lambda.esm.permission-loss` | `stay-enabled` | inferred | docs/research/iam-enforcement-surfaces.md#8.6 | none: unrecorded: IAM-ENF-25 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `lambda.layers.compatibility` | `not-enforced` | inferred | docs/research/lambda-destinations-layers.md#73-compatibility-is-metadata | none: unrecorded: LDL-13 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `lambda.layers.cross-account-policy` | `advise` | inferred | docs/research/lambda-destinations-layers.md#74-layers-of-other-accounts | none: unrecorded: LDL-15 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `lambda.layers.merge-conflict` | `later-overwrites` | inferred | docs/research/lambda-destinations-layers.md#81-extraction-and-merge-order | none: unrecorded: LDL-12 is queued in docs/research/lambda-destinations-layers.md 12 |

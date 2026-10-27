@@ -500,6 +500,18 @@ func errSQSFailure(code, message string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Error occurred while ReceiveMessage. SQS Error Code: " + code + ". SQS Error Message: " + message))
 }
 
+// esmRoleDeniedText is what CreateEventSourceMapping and
+// UpdateEventSourceMapping answer when iam.enforce=enforce refuses the
+// execution role's read of the queue, the value of switch
+// lambda.esm.create-denied-text: the Terraform provider retries on the
+// fragment "execution role does not have permissions", and the rest of the
+// sentence is inferred (iam-enforcement-surfaces.md 4.3, 8.6, IAM-ENF-24).
+const esmRoleDeniedText = "The provided execution role does not have permissions to call ReceiveMessage on SQS"
+
+func errESMRoleDenied() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException(esmRoleDeniedText))
+}
+
 func errVisibilityTimeout(visibility, timeout int) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Queue visibility timeout: " + strconv.Itoa(visibility) + " seconds is less than Function timeout: " + strconv.Itoa(timeout) + " seconds"))
 }

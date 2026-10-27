@@ -182,16 +182,23 @@ func lambdaAction(name string) registry.IAMAction {
 
 // Switches lists the behaviors chosen without AWS-recorded evidence: the
 // state transitions, the asynchronous queue's, destinations' and layers'
-// choices, the event source mapping filter engine's choices and Lambda's
-// denial body (iam-enforcement-surfaces.md 12.8). The transitions govern
-// the calls that create or change a function or mapping and the reads that
+// choices, the event source mapping filter engine's choices, Lambda's
+// denial body and how a mapping meets a role refused the queue
+// (iam-enforcement-surfaces.md 8.6, 12.8). The transitions govern the
+// calls that create or change a function or mapping and the reads that
 // report its state.
 func (s *Service) Switches() []fidelity.Entry {
 	// AccessDeniedException 403 is recorded for another account's ARN
 	// (third-party); the same-account body is inferred.
 	denial := authz.DenialSwitch("lambda.denial.body", `AccessDeniedException 403, {"Message":"<grammar of 4.1>"}`, evidence.Inferred, "3.2", "IAM-ENF-11",
 		s.k.Bindings().AuthorizedOps(lambdaapi.Service()))
-	entries := []fidelity.Entry{denial, fidelity.Switch[string]{
+	// checkQueue answers esmRoleDeniedText; a poll the role is refused is
+	// retried after a backoff, invoking nothing and changing no field.
+	roleDenied := authz.EnforcementSwitch("lambda.esm.create-denied-text", esmRoleDeniedText, evidence.Inferred, "8.6", "IAM-ENF-24",
+		[]string{"lambda.CreateEventSourceMapping", "lambda.UpdateEventSourceMapping"})
+	permissionLoss := authz.EnforcementSwitch("lambda.esm.permission-loss", "stay-enabled", evidence.Inferred, "8.6", "IAM-ENF-25",
+		[]string{"lambda.CreateEventSourceMapping"})
+	entries := []fidelity.Entry{denial, roleDenied, permissionLoss, fidelity.Switch[string]{
 		Name:  "lambda.stateTransitions",
 		Value: s.opts.StateTransitions.String(),
 		Label: evidence.AWSDoc,
