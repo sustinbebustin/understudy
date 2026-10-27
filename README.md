@@ -36,7 +36,7 @@ The result: tests keep real AWS settings (visibility timeouts, delays, TTLs, sch
 - **Snapshots and persistence.** State saves to a deterministic archive you can commit, diff and load. Persistence across restarts is opt-in.
 - **Real Lambda execution.** Functions run in AWS's Lambda base images through Docker: zip and image functions, warm reuse, hot reload from a directory, SDK calls routed back to understudy, logs in CloudWatch Logs.
 - **Least-privilege policies.** understudy records which IAM actions each principal used, on which resources, and prints the policy that record implies. Opt in with `--iam-enforce enforce` to have understudy evaluate identity, resource, trust and key policies and answer with each service's denial error. Attach the printed policy and rerun, and you see what a missing statement breaks.
-- **Small and offline.** A 39 MiB binary, ready in about 20 ms, idling at about 34 MiB (`just budgets` on Linux). No telemetry; the only network access is pulling Docker images for Lambda and DynamoDB Local.
+- **Small and offline.** A 39 MiB binary, ready in about 20 ms, idling at about 36 MiB (`just budgets` on Linux). No telemetry; the only network access is pulling Docker images for Lambda and DynamoDB Local.
 
 ## Prerequisites
 
@@ -148,8 +148,9 @@ From [docs/coverage.md](docs/coverage.md), which `understudy coverage` regenerat
 | CloudWatch | 55 | 1 | 2 | 9 | 43 |
 | API Gateway (HTTP APIs) | 103 | 0 | 2 | 29 | 72 |
 | SSM (Parameter Store) | 152 | 0 | 0 | 13 | 139 |
+| Step Functions | 37 | 7 | 0 | 9 | 21 |
 
-The implemented operations are the ones an event-driven pipeline uses: an API Gateway HTTP API in front of Lambda, SNS fan-out with filter policies to SQS, SQS with dead-letter queues feeding Lambda, S3 with SSE-KMS, a DynamoDB lock table with TTL, a DynamoDB table's stream feeding Lambda, Secrets Manager and SSM Parameter Store, CloudWatch Logs, EventBridge schedules and custom buses, and the IAM, KMS and CloudWatch resources Terraform declares around them.
+The implemented operations are the ones an event-driven pipeline uses: an API Gateway HTTP API in front of Lambda, a Step Functions Standard workflow calling Lambda, SNS fan-out with filter policies to SQS, SQS with dead-letter queues feeding Lambda, S3 with SSE-KMS, a DynamoDB lock table with TTL, a DynamoDB table's stream feeding Lambda, Secrets Manager and SSM Parameter Store, CloudWatch Logs, EventBridge schedules and custom buses, and the IAM, KMS and CloudWatch resources Terraform declares around them.
 
 Behavior the models do not fix rests on evidence that the coverage page labels item by item. Real AWS was recorded for the backlog R01 to R18 (`testdata/parity/`), so 50 of the 336 overlay evidence items are `aws-recorded`; the rest come from AWS's documentation, recordings published by other projects, SDK source, and inference. Per operation, the page shows the weakest evidence behind it, with the verdict of the recordings `internal/parity` replays. Known differences from AWS are listed in [the differences page](docs/guide/differences.md).
 
@@ -186,7 +187,7 @@ understudy never bundles, mirrors, re-tags, saves, pushes or patches the DynamoD
 
 ## Choosing an emulator
 
-- **LocalStack** when you need services understudy does not emulate, such as ECS, RDS, Step Functions, API Gateway REST and WebSocket APIs, Cognito or CloudFormation deploys.
+- **LocalStack** when you need services understudy does not emulate, such as ECS, RDS, Step Functions Express workflows and service integrations other than Lambda, API Gateway REST and WebSocket APIs, Cognito or CloudFormation deploys.
 - **moto** for Python unit tests that should not leave the process.
 - **Real AWS** for final validation. Emulators can pass where the cloud fails, and that applies to understudy too.
 - **understudy** when your system lives in the fourteen services above and you want fast, deterministic, free tests of how they interact, including time, failures and permissions.
@@ -206,12 +207,13 @@ Behavior that differs from AWS in ways a test can observe is listed in [docs/gui
 - **EventBridge** custom buses take rules, targets and events, and forward events between buses one hop, but their KMS key, dead-letter queue and log settings are stored, not applied. Bus policies are stored and returned, and enforced only under `--iam-enforce enforce`; otherwise another account's `PutEvents` reaches a bus whose policy grants it nothing. Rule, target and `DescribeEventBus` calls on another account's or Region's bus, partner event sources, archives, replays, connections, API destinations and endpoints answer 501.
 - **API Gateway** serves HTTP APIs whose routes reach Lambda proxy integrations, with payload formats 1.0 and 2.0. Authorizers, OpenAPI import and export, custom domain names, REST and WebSocket APIs answer 501; HTTP proxy, AWS service and private integrations, `AWS_IAM` routes and requests to an API with a CORS configuration are stored and answer 501 when a request reaches them. Stage throttling and access logs are stored, not applied.
 - **SSM** serves Parameter Store only. AWS public parameters, Secrets Manager references, parameter policies, Advanced-tier SecureString and the legacy Query protocol answer 501.
+- **Step Functions** runs Standard workflows in JSONPath, with Lambda as the only Task resource. JSONata, variables, Distributed Map, activities, callbacks and other service integrations are refused at create with `UNSUPPORTED_BY_UNDERSTUDY`; Express workflows, versions, aliases and redrive answer 501. Logging and tracing settings are validated and stored; no log events or traces are written.
 - **Terraform** `import` of an SQS queue fails on the queue URL form.
 - **Snapshots** use format version 0: archives from one build may be refused by another until the first release. The TLS listener's certificate is new at every start.
 
 ## Documentation
 
-- [Guide](docs/guide/README.md) -- getting started, configuration, SDKs and the CLI, Terraform, Lambda, API Gateway HTTP APIs, SSM Parameter Store, the clock, fault injection, the journal, snapshots, policy generation, CI and Testcontainers.
+- [Guide](docs/guide/README.md) -- getting started, configuration, SDKs and the CLI, Terraform, Lambda, API Gateway HTTP APIs, SSM Parameter Store, Step Functions, the clock, fault injection, the journal, snapshots, policy generation, CI and Testcontainers.
 - [Configuration reference](docs/configuration.md) -- every flag, variable and file key.
 - [Coverage](docs/coverage.md) -- every operation, fidelity switch and evidence item.
 - [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/adr/) -- the design and its decisions.

@@ -181,6 +181,17 @@ No HTTP API behavior has been recorded against AWS yet, so these come from AWS's
 - The order of two routes that both match, where AWS documents none, is understudy's ([Routes](apigateway.md#routes)).
 - A 1.0 event's header names are all lowercase, as AWS's documentation states. A published serverless pattern (`apigw-http-api-lambda-terraform`) reads `X-Forwarded-For` in mixed case from a 1.0 event and fails here with a 500; read headers case-insensitively.
 
+## Step Functions
+
+understudy has not recorded Step Functions against AWS yet. Its behavior comes from AWS's documentation and from LocalStack's recordings of AWS, which the history tests replay event by event; where both are silent, understudy chose, and each choice is named in the coverage notes with the recording case that will settle it. [Step Functions](stepfunctions.md) shows the commands.
+
+- Error and diagnostic texts are AWS's where recorded and understudy's elsewhere: a definition with several problems reports only the first, and a role whose trust policy does not allow `states.amazonaws.com` (under `--iam-enforce enforce` only) is refused in understudy's words. Compare codes, not messages.
+- Where AWS's answer is unrecorded, understudy chose, each a fidelity switch (`understudy coverage --service sfn --switches`): a Choice with no matching rule fails `States.NoChoiceMatched`, and one whose variable is missing `States.Runtime`; a failing intrinsic function is `States.IntrinsicFailure`; a Lambda service error is `Lambda.<code>` (`Lambda.AWSLambdaException` for a code Lambda's model does not declare, such as an access denial) with a cause in the form AWS records for a missing function; an access denial is 400; and deleting a machine aborts its running executions at their next step.
+- Concurrent Parallel branches and Map iterations write their events in the order understudy runs them, steps due at the same emulator instant in branch or item order. AWS's interleaving differs from run to run, so compare events per branch, not the whole history in order.
+- A Task's `lambda:invoke` result carries `SdkHttpMetadata` with AWS's header names, but understudy's `X-Amzn-Trace-Id` value; no X-Ray trace or CloudWatch Logs event is written for an execution, whatever the logging and tracing settings say.
+- `States.MathRandom` with a seed returns understudy's sequence, never AWS's.
+- `describe-execution` gives `REDRIVABLE` for every failed, timed-out and aborted execution, however long ago it closed, and no `redriveStatus` for a running one; AWS documents `NOT_REDRIVABLE` reasons for those cases that are not recorded. Redrive itself answers 501.
+
 ## CloudWatch and CloudWatch Logs
 
 - A list of structures over its length limit is reported without a rendered value on AWS (Logs `PutLogEvents`, IAM `TagRole`); understudy renders it (`logs/R10/06-10001-events.json`, `iam/R15/06-tag-role-51.json`).
