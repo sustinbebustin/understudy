@@ -52,6 +52,38 @@ func TestHostFormServesTheAPIsRegion(t *testing.T) {
 	})
 }
 
+// A function in another region than its API sees a source ARN whose
+// region is the function's: "If your function and API are in different
+// AWS Regions, the Region identifier in the source ARN must match the
+// Region of the function" (apigateway-http.md 5.5). A permission written
+// that way lets the invocation through.
+func TestCrossRegionFunctionSourceARNNamesTheFunctionsRegion(t *testing.T) {
+	run(t, func(h *harness) {
+		east := h.Scope.Region
+		west, err := aws.KnownRegions().Parse("us-west-2")
+		if err != nil {
+			t.Fatal(err)
+		}
+		h.Scope.Region = west
+		fnARN := h.createFunction("fn")
+		h.Scope.Region = east
+		id := h.apiID("t")
+		h.createRoute(id, "GET /hello", h.lambdaIntegration(id, fnARN, "2.0"))
+		h.autoStage(id)
+		h.Scope.Region = west
+		h.allow("fn", "apigateway", "arn:aws:execute-api:us-west-2:"+account+":"+id+"/*/*")
+		h.Scope.Region = east
+		if rec := h.send(h.request(http.MethodGet, hostURL(id+".execute-api."+region+".localhost", "/hello"), "")); rec.Code != http.StatusOK {
+			t.Fatalf("GET /hello = %d %s, want the function's 200", rec.Code, rec.Body)
+		}
+		mode := h.only().mode
+		as, ok := mode.(kernel.AsService)
+		if !ok || as.Source.String() != "arn:aws:execute-api:us-west-2:"+account+":"+id+"/$default/GET/hello" {
+			t.Errorf("invoked as %#v, want the source ARN in the function's region us-west-2", mode)
+		}
+	})
+}
+
 // The host form routes as the path fallback does (apigateway-http.md 4.2,
 // 4.4): a named stage's first segment selects it and stays in rawPath, the
 // path reaches the event escaped as sent and pathParameters decoded, and a

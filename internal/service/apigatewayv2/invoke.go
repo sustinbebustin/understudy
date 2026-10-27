@@ -367,7 +367,7 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 	if serr != nil {
 		return awserr.Internalf(fmt.Errorf("apigatewayv2: integration %s of API %s names function %s: %w", t.integration.ID, t.apiID, fn, serr))
 	}
-	source := t.sourceARN()
+	source := t.sourceARN(fnScope.Region)
 	allowed, err := s.permitted(fn, source, t.owner)
 	if err != nil {
 		return err
@@ -546,8 +546,10 @@ func lambdaRefused(w http.ResponseWriter, t toFunction, err *awserr.Error) *awse
 // it: <api-id>/<stage>/<METHOD>/<route path without its leading slash>,
 // the route key as written, or <api-id>/<stage>/$default for the $default
 // route (apigateway-http.md 5.5; inferred beyond the documented forms,
-// APIGW2-11).
-func (t toFunction) sourceARN() aws.ARN {
+// APIGW2-11). Its region is fnRegion, the function's: "If your function and
+// API are in different AWS Regions, the Region identifier in the source ARN
+// must match the Region of the function" (5.5).
+func (t toFunction) sourceARN(fnRegion aws.Region) aws.ARN {
 	resource := t.apiID + "/" + t.stage + "/"
 	switch k := t.key.(type) {
 	case route.Default:
@@ -556,7 +558,7 @@ func (t toFunction) sourceARN() aws.ARN {
 		resource += string(k.Method) + k.Path()
 	}
 	return aws.ARN{
-		Partition: t.owner.Partition.String(), Service: "execute-api", Region: t.owner.Region.String(),
+		Partition: t.owner.Partition.String(), Service: "execute-api", Region: fnRegion.String(),
 		Account: t.owner.Account.String(), Resource: resource,
 	}
 }
