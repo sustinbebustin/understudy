@@ -26,6 +26,7 @@ Requirements: Go, Terraform 1.16 or later, the AWS CLI, Docker (patterns run Lam
 | `CONFORMANCE_PHASE_TIMEOUT` | Seconds before one Terraform command is interrupted (default 900). |
 | `CONFORMANCE_PORT` | Port understudy listens on (default 45667). |
 | `SIGV4` | serve's `--sigv4` mode (default `parse`). |
+| `CONFORMANCE_IAM_ENFORCE` | serve's `--iam-enforce` mode (default `off`). Every pattern acts as its account's root, so under `enforce` only resource policies and deliveries can deny; the journal's errors are kept in `logs/journal-errors.json`. |
 
 ## Layout
 

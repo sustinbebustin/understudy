@@ -15,6 +15,8 @@
 #   conformance/patterns/run.sh                          # every pattern
 #   conformance/patterns/run.sh lambda-layer-terraform   # only these
 #   SIGV4=verify conformance/patterns/run.sh             # serve with --sigv4 verify (default parse)
+#   CONFORMANCE_IAM_ENFORCE=enforce conformance/patterns/run.sh
+#                                                        # serve with --iam-enforce enforce (default off)
 #
 # A pattern's documented preparation and check live in checks/<pattern>.sh,
 # which defines pattern_prepare DIR and pattern_check DIR; both are optional.
@@ -134,7 +136,7 @@ conformance_isolate_serve_env
 
 echo "==> starting understudy on $endpoint (data in $data_dir)"
 env "${conformance_serve_env[@]}" "$binary" serve --listen "127.0.0.1:$port" --persist "$data_dir" \
-  --sigv4 "${SIGV4:-parse}" --log-format json >"$logs_dir/server.log" 2>&1 &
+  --sigv4 "${SIGV4:-parse}" --iam-enforce "${CONFORMANCE_IAM_ENFORCE:-off}" --log-format json >"$logs_dir/server.log" 2>&1 &
 server_pid=$!
 if ! "$binary" health --endpoint "$endpoint" --wait 60s >"$logs_dir/health.txt" 2>&1; then
   cat "$logs_dir/health.txt" >&2
