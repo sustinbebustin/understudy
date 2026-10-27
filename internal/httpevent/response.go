@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"maps"
 	"net/http"
 )
@@ -52,29 +51,7 @@ func (e *MalformedError) Error() string {
 // anything else re-serialized compactly. Without a Content-Type header the
 // response is application/json.
 func InferV2(payload []byte) (Response, error) {
-	var value any
-	var b bytes.Buffer
-	if json.Unmarshal(payload, &value) != nil || json.Compact(&b, payload) != nil {
-		return Response{}, &MalformedError{Problem: "it is not JSON"}
-	}
-	resp := Response{Status: http.StatusOK, Header: http.Header{}, Body: b.Bytes()}
-	var fields map[string]json.RawMessage
-	switch v := value.(type) {
-	case map[string]any:
-		if _, ok := v["statusCode"]; ok && json.Unmarshal(payload, &fields) == nil {
-			r, err := structured(fields)
-			if err != nil {
-				return Response{}, err
-			}
-			resp = r
-		}
-	case string:
-		resp.Body = []byte(v)
-	}
-	if resp.Header.Get("Content-Type") == "" {
-		resp.Header.Set("Content-Type", "application/json")
-	}
-	return resp, nil
+	return InferV2With(payload, V2Defaults{})
 }
 
 // V2Defaults are what InferV2With assumes for a member a structured
@@ -86,15 +63,38 @@ type V2Defaults struct {
 	ContentType string
 }
 
-// errV2DefaultsNotImplemented is InferV2With's answer until it is
-// implemented.
-var errV2DefaultsNotImplemented = errors.New("httpevent: InferV2With is not implemented yet")
-
 // InferV2With is InferV2 with the defaults d in place of a function URL's
-// (apigateway-http.md 5.3, 4.5). It is not implemented yet and returns an
-// error.
-func InferV2With(_ []byte, _ V2Defaults) (Response, error) {
-	return Response{}, errV2DefaultsNotImplemented
+// (apigateway-http.md 5.3, 4.5). d.ContentType applies only to a
+// structured response with no Content-Type header in any case; any other
+// output is always application/json.
+func InferV2With(payload []byte, d V2Defaults) (Response, error) {
+	var value any
+	var b bytes.Buffer
+	if json.Unmarshal(payload, &value) != nil || json.Compact(&b, payload) != nil {
+		return Response{}, &MalformedError{Problem: "it is not JSON"}
+	}
+	resp := Response{Status: http.StatusOK, Header: http.Header{}, Body: b.Bytes()}
+	contentType := "application/json"
+	var fields map[string]json.RawMessage
+	switch v := value.(type) {
+	case map[string]any:
+		if _, ok := v["statusCode"]; ok && json.Unmarshal(payload, &fields) == nil {
+			r, err := structured(fields)
+			if err != nil {
+				return Response{}, err
+			}
+			resp = r
+			if d.ContentType != "" {
+				contentType = d.ContentType
+			}
+		}
+	case string:
+		resp.Body = []byte(v)
+	}
+	if resp.Header.Get("Content-Type") == "" {
+		resp.Header.Set("Content-Type", contentType)
+	}
+	return resp, nil
 }
 
 // structured reads a structured response's members. Final statuses only:
