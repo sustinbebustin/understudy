@@ -1030,9 +1030,9 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| ListTagsForResource | partial | inferred, 1 of 1 claim | not authorized under any iam.enforce mode: under iam.enforce=enforce a caller whose policies do not allow the action is served |
-| TagResource | partial | inferred, 1 of 2 claims | not authorized under any iam.enforce mode: under iam.enforce=enforce a caller whose policies do not allow the action is served |
-| UntagResource | partial | inferred, 1 of 1 claim | not authorized under any iam.enforce mode: under iam.enforce=enforce a caller whose policies do not allow the action is served |
+| ListTagsForResource | full | inferred, 1 of 1 claim |  |
+| TagResource | full | inferred, 1 of 2 claims |  |
+| UntagResource | full | inferred, 1 of 1 claim |  |
 
 ### secretsmanager
 

@@ -140,7 +140,6 @@ These differences hold under every mode, and each is stated in the operation's c
 - An operation that finds its resource by name answers that the resource does not exist before it is authorized. These are IAM users, roles and instance profiles, KMS keys addressed by alias, and Secrets Manager secrets. AWS denies first, before saying whether the resource exists (the `iam.enforce.missing-resource` switch).
 - S3 Block Public Access and Secrets Manager's `BlockPublicPolicy` are stored and not applied, and KMS's key-policy lockout check is not run.
 - A function URL with `AuthType` `AWS_IAM` checks only the signature, never a policy. An `AuthType` `NONE` URL checks its resource policy under every mode.
-- The S3 Control tag operations are not authorized.
 - Groups, KMS grants and the IAM policy simulator are not implemented, and answer 501.
 
 Deliveries are decided the same way. SNS, S3 and EventBridge call the target as their service principal, with `aws:SourceArn` the topic, bucket or rule, and `aws:SourceAccount` as each sends it: the topic's account, the bucket owner's, the rule's to a queue or topic, and none to a function. A delivery the target's policy refuses is not retried. It goes to the subscription's or target's dead-letter queue when one is set, and an EventBridge dead letter carries `ERROR_CODE` `NO_PERMISSIONS`; otherwise it is dropped. Subscribe and PutTargets neither check nor change the target's policy. With a queue that has no policy subscribed to a topic, a published message is dropped:
