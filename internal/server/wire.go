@@ -29,6 +29,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
+	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/authz"
@@ -69,6 +70,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/secretsmanager"
 	"github.com/sustinbebustin/understudy/internal/service/sns"
 	"github.com/sustinbebustin/understudy/internal/service/sqs"
+	"github.com/sustinbebustin/understudy/internal/service/ssm"
 	"github.com/sustinbebustin/understudy/internal/service/sts"
 	"github.com/sustinbebustin/understudy/internal/snapshot"
 )
@@ -620,6 +622,7 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 		Admin:                 ui.Mount(page, w.admin),
 		Unclaimed:             ref.AWSJSON10,
 		UnknownOperationError: cat.unknownOperationError,
+		LegacyQuery:           []ref.ServiceID{ssmapi.Service().ID},
 		Log:                   log,
 	}
 	vocabulary, refuse := s3.AuthDialect()
@@ -900,6 +903,9 @@ func wiredServices() []wiredService {
 		}},
 		{api{kmsapi.Service(), kmsapi.ThrottleError(), kmsapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return kms.New(d, kms.Options{})
+		}},
+		{api{ssmapi.Service(), ssmapi.ThrottleError(), ssmapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return ssm.New(d, ssm.Options{})
 		}},
 		{api{iamapi.Service(), iamapi.ThrottleError(), iamapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			c.iam = iam.New(d, iam.Options{Catalogue: policycatalogue.Embedded})

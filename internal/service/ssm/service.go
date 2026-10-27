@@ -149,15 +149,15 @@ func errNotImplementedYet(op string) *awserr.Error {
 		" yet. Run 'understudy coverage --service ssm' for what is supported. Nothing was changed.")
 }
 
-// The handlers are not implemented yet: each answers errNotImplementedYet.
-
-func (*Service) putParameter(context.Context, *kernel.Call, *ssmapi.PutParameterInput) (*ssmapi.PutParameterOutput, *awserr.Error) {
-	return nil, errNotImplementedYet("PutParameter")
+// errFeatureNotYet answers a request that needs a part of op whose handler
+// has not landed yet.
+func errFeatureNotYet(op, feature string) *awserr.Error {
+	return ssmapi.ErrNotImplemented("understudy does not implement " + feature + " in ssm " + op +
+		" yet. Run 'understudy coverage --service ssm' for what is supported. Nothing was changed.")
 }
 
-func (*Service) getParameter(context.Context, *kernel.Call, *ssmapi.GetParameterInput) (*ssmapi.GetParameterOutput, *awserr.Error) {
-	return nil, errNotImplementedYet("GetParameter")
-}
+// The handlers below are not implemented yet: each answers
+// errNotImplementedYet.
 
 func (*Service) getParameters(context.Context, *kernel.Call, *ssmapi.GetParametersInput) (*ssmapi.GetParametersOutput, *awserr.Error) {
 	return nil, errNotImplementedYet("GetParameters")
@@ -167,16 +167,8 @@ func (*Service) getParametersByPath(context.Context, *kernel.Call, *ssmapi.GetPa
 	return nil, errNotImplementedYet("GetParametersByPath")
 }
 
-func (*Service) describeParameters(context.Context, *kernel.Call, *ssmapi.DescribeParametersInput) (*ssmapi.DescribeParametersOutput, *awserr.Error) {
-	return nil, errNotImplementedYet("DescribeParameters")
-}
-
 func (*Service) getParameterHistory(context.Context, *kernel.Call, *ssmapi.GetParameterHistoryInput) (*ssmapi.GetParameterHistoryOutput, *awserr.Error) {
 	return nil, errNotImplementedYet("GetParameterHistory")
-}
-
-func (*Service) deleteParameter(context.Context, *kernel.Call, *ssmapi.DeleteParameterInput) (*ssmapi.DeleteParameterOutput, *awserr.Error) {
-	return nil, errNotImplementedYet("DeleteParameter")
 }
 
 func (*Service) deleteParameters(context.Context, *kernel.Call, *ssmapi.DeleteParametersInput) (*ssmapi.DeleteParametersOutput, *awserr.Error) {
@@ -197,8 +189,4 @@ func (*Service) addTagsToResource(context.Context, *kernel.Call, *ssmapi.AddTags
 
 func (*Service) removeTagsFromResource(context.Context, *kernel.Call, *ssmapi.RemoveTagsFromResourceInput) (*ssmapi.RemoveTagsFromResourceOutput, *awserr.Error) {
 	return nil, errNotImplementedYet("RemoveTagsFromResource")
-}
-
-func (*Service) listTagsForResource(context.Context, *kernel.Call, *ssmapi.ListTagsForResourceInput) (*ssmapi.ListTagsForResourceOutput, *awserr.Error) {
-	return nil, errNotImplementedYet("ListTagsForResource")
 }

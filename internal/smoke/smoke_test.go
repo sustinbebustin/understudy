@@ -85,6 +85,7 @@ func (w *workload) run(t *testing.T) {
 		{"api gateway http api", w.apigatewayv2},
 		{"logs", w.logs},
 		{"secrets manager", w.secrets},
+		{"ssm", w.ssm},
 		{"eventbridge", w.events},
 		{"cloudwatch", w.cloudwatch},
 		{"iam policy", w.policy},
@@ -516,6 +517,17 @@ func (w *workload) secrets(t *testing.T) {
 	decode(t, "GetSecretValue", must(t, "GetSecretValue", awsJSON(t, w.emu, "1.1", "secretsmanager", "secretsmanager.GetSecretValue", `{"SecretId":"smoke"}`), http.StatusOK).body, &got)
 	if got.Name != "smoke" || got.SecretString != "s3cret" {
 		t.Fatalf("GetSecretValue = %+v", got)
+	}
+}
+
+// ssm stores a String parameter and reads it back over awsJson1_1.
+func (w *workload) ssm(t *testing.T) {
+	t.Helper()
+	must(t, "PutParameter", awsJSON(t, w.emu, "1.1", "ssm", "AmazonSSM.PutParameter", `{"Name":"/smoke/a","Type":"String","Value":"v"}`), http.StatusOK)
+	var got struct{ Parameter struct{ Name, Value string } }
+	decode(t, "GetParameter", must(t, "GetParameter", awsJSON(t, w.emu, "1.1", "ssm", "AmazonSSM.GetParameter", `{"Name":"/smoke/a"}`), http.StatusOK).body, &got)
+	if got.Parameter.Name != "/smoke/a" || got.Parameter.Value != "v" {
+		t.Fatalf("GetParameter = %+v", got.Parameter)
 	}
 }
 
