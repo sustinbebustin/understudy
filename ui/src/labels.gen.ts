@@ -48,6 +48,8 @@ export const mechanisms = [
   "lambda-to-lambda",
   "lambda-to-events",
   "lambda-to-s3",
+  "esm-to-sqs",
+  "esm-to-sns",
 ] as const;
 
 export const idKinds = [

@@ -27,10 +27,11 @@ type Request struct {
 	// DLQ is where a delivery goes when its retries are exhausted or the
 	// target is gone; nil drops it.
 	DLQ *aws.ARN
-	// Sender is set for the Lambda* mechanisms and nil for every other:
-	// Lambda delivers an asynchronous invocation's record or dead letter as
-	// the function's execution role (lambda-destinations-layers.md 2.5,
-	// 11.3).
+	// Sender is set for the Lambda* and ESM* mechanisms and nil for every
+	// other: Lambda delivers an asynchronous invocation's record or dead
+	// letter (lambda-destinations-layers.md 2.5, 11.3), and an event source
+	// mapping's on-failure record (lambda-stream-sources.md 5.6), as the
+	// function's execution role.
 	Sender *LambdaSender
 }
 
@@ -616,6 +617,11 @@ const (
 	LambdaToLambda
 	LambdaToEvents
 	LambdaToS3
+	// ESMToSQS and ESMToSNS send an event source mapping's on-failure
+	// record to its destination queue or topic, as the function's execution
+	// role (lambda-stream-sources.md 5.6).
+	ESMToSQS
+	ESMToSNS
 
 	// endMechanism follows the last value and is no mechanism: Mechanisms,
 	// valid and the MechanismError text count up to it, so a new value is
@@ -665,6 +671,10 @@ func (m Mechanism) String() string {
 		return "lambda-to-events"
 	case LambdaToS3:
 		return "lambda-to-s3"
+	case ESMToSQS:
+		return "esm-to-sqs"
+	case ESMToSNS:
+		return "esm-to-sns"
 	default:
 		return fmt.Sprintf("Mechanism(%d)", uint8(m))
 	}
@@ -684,6 +694,8 @@ func (m Mechanism) Via() ref.Via {
 		return ref.EventsTarget
 	case LambdaToSQS, LambdaToSNS, LambdaToLambda, LambdaToEvents, LambdaToS3:
 		return ref.LambdaDestination
+	case ESMToSQS, ESMToSNS:
+		return ref.LambdaESM
 	default:
 		return 0
 	}
@@ -693,11 +705,11 @@ func (m Mechanism) Via() ref.Via {
 // Mechanism, as for Via; any other m yields "".
 func (m Mechanism) Target() ref.ServiceID {
 	switch m {
-	case SNSToSQS, S3ToSQS, EventsToSQS, LambdaToSQS:
+	case SNSToSQS, S3ToSQS, EventsToSQS, LambdaToSQS, ESMToSQS:
 		return "sqs"
 	case SNSToLambda, S3ToLambda, EventsToLambda, LambdaToLambda:
 		return "lambda"
-	case S3ToSNS, EventsToSNS, LambdaToSNS:
+	case S3ToSNS, EventsToSNS, LambdaToSNS, ESMToSNS:
 		return "sns"
 	case EventsToEvents, LambdaToEvents:
 		return "eventbridge"

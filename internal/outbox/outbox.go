@@ -230,13 +230,15 @@ func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 
 // checkSender checks req's sender: set for the Lambda mechanisms, which
 // deliver an asynchronous invocation's record or dead letter as the
-// function's execution role, and nil for every other mechanism
-// (lambda-destinations-layers.md 2.5, 11.3.2). A dead letter goes to a
-// queue or topic only (5.1), and Lambda neither retries nor dead-letters
-// its own deliveries: a failed one is counted in a metric (4.6, 5.4).
+// function's execution role (lambda-destinations-layers.md 2.5, 11.3.2),
+// and for the ESM mechanisms, which send an event source mapping's
+// on-failure record as that role (lambda-stream-sources.md 5.6); nil for
+// every other mechanism. A dead letter goes to a queue or topic only (5.1),
+// and Lambda neither retries nor dead-letters its own deliveries: a failed
+// one is counted in a metric (4.6, 5.4).
 func checkSender(req delivery.Request) *RequestError {
 	m, s := req.Mechanism, req.Sender
-	lambda := m.Via() == ref.LambdaDestination
+	lambda := m.Via() == ref.LambdaDestination || m.Via() == ref.LambdaESM
 	switch {
 	case !lambda && s == nil:
 		return nil

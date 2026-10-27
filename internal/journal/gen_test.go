@@ -307,7 +307,7 @@ func genDetailOf(text *rapid.Generator[string]) *rapid.Generator[Detail] {
 				Mechanism: rapid.SampledFrom([]delivery.Mechanism{
 					delivery.SNSToSQS, delivery.SNSToLambda, delivery.S3ToSQS, delivery.S3ToSNS,
 					delivery.S3ToLambda, delivery.EventsToLambda, delivery.EventsToSQS, delivery.EventsToSNS,
-					delivery.SNSToHTTP,
+					delivery.SNSToHTTP, delivery.ESMToSQS, delivery.ESMToSNS,
 				}).Draw(t, "mechanism"),
 				Attempt: rapid.IntRange(1, 100).Draw(t, "attempt"),
 				Outcome: genDeliveryOutcome(text).Draw(t, "outcome"),

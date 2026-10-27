@@ -546,8 +546,8 @@ func (a *attempt) journal(ctx context.Context, d journal.Detail) {
 }
 
 // servicePrincipal is the AWS service principal that makes deliveries by m;
-// "" for the Lambda mechanisms, which run as the function's execution role
-// (delivery.Request.Sender), never as a service principal.
+// "" for the Lambda and ESM mechanisms, which run as the function's
+// execution role (delivery.Request.Sender), never as a service principal.
 func servicePrincipal(m delivery.Mechanism) string {
 	switch m {
 	case delivery.SNSToSQS, delivery.SNSToLambda, delivery.SNSToHTTP:
@@ -556,7 +556,8 @@ func servicePrincipal(m delivery.Mechanism) string {
 		return "s3.amazonaws.com"
 	case delivery.EventsToLambda, delivery.EventsToSQS, delivery.EventsToSNS, delivery.EventsToEvents:
 		return "events.amazonaws.com"
-	case delivery.LambdaToSQS, delivery.LambdaToSNS, delivery.LambdaToLambda, delivery.LambdaToEvents, delivery.LambdaToS3:
+	case delivery.LambdaToSQS, delivery.LambdaToSNS, delivery.LambdaToLambda, delivery.LambdaToEvents, delivery.LambdaToS3,
+		delivery.ESMToSQS, delivery.ESMToSNS:
 	}
 	return ""
 }

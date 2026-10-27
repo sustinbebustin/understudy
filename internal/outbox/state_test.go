@@ -203,13 +203,20 @@ func genEntry() *rapid.Generator[Entry] {
 			Mechanism: genMechanismInto(target).Draw(t, "mechanism"),
 			Target:    target,
 		}
-		if req.Mechanism.Via() == ref.LambdaDestination {
+		via := req.Mechanism.Via()
+		if via == ref.LambdaDestination || via == ref.LambdaESM {
 			req.Source = genARN("lambda").Draw(t, "function")
 			req.Source.Resource = "function:" + req.Source.Resource
 			req.Policy = delivery.None{}
 			carries := []delivery.LambdaPayload{delivery.DestinationRecord}
 			switch tg := target.(type) {
 			case delivery.SQSQueue, delivery.SNSTopic:
+				// An event source mapping sends on-failure records only
+				// (lambda-stream-sources.md 5.6), from the mapping's ARN.
+				if via == ref.LambdaESM {
+					req.Source.Resource = "event-source-mapping:" + req.Source.Resource
+					break
+				}
 				carries = append(carries, delivery.DeadLetter)
 			case delivery.EventBus:
 				for i := range tg.Entries {

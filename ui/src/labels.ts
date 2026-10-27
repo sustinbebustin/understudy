@@ -49,6 +49,8 @@ export const mechanismLabels: Readonly<Record<string, string>> = {
   "lambda-to-lambda": "Lambda to Lambda",
   "lambda-to-events": "Lambda to EventBridge",
   "lambda-to-s3": "Lambda to S3",
+  "esm-to-sqs": "Event source mapping to SQS",
+  "esm-to-sns": "Event source mapping to SNS",
 };
 
 // ids.Kind: the generator streams (internal/ids/kind.go).
