@@ -40,6 +40,7 @@ export const mechanisms = [
   "events-to-sqs",
   "events-to-sns",
   "events-to-events",
+  "sns-to-http",
 ] as const;
 
 export const idKinds = [
