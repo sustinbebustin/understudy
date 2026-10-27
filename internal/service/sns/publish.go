@@ -515,9 +515,9 @@ func endpointOf(sub *Subscription) (endpoint, bool, *awserr.Error) {
 		}
 		return functionEndpoint{function: function, qualifier: qualifier}, true, nil
 	case ProtocolHTTP, ProtocolHTTPS:
-		to, err := httpEndpointOf(sub)
-		if err != nil {
-			return nil, false, err
+		to, bad := httpEndpointOf(sub)
+		if bad != nil {
+			return nil, false, awserr.Internalf(bad)
 		}
 		return to, true, nil
 	case ProtocolEmail, ProtocolEmailJSON:
@@ -529,12 +529,21 @@ func endpointOf(sub *Subscription) (endpoint, bool, *awserr.Error) {
 // subscription, or one whose endpoint type understudy does not deliver to,
 // receives nothing: under sns.http.pending-messages nothing is held for an
 // http or https subscription while it is pending (sns-http-delivery.md
-// 2.2). A filter policy is evaluated before any outbox entry exists, so a
-// message it keeps out never reaches the subscription's dead-letter queue
-// (sns.md 6.3).
+// 2.2). An http or https subscription whose stored endpoint is not a URL it
+// can send to (state an older build wrote) gets nothing, journaled as
+// Dropped, and the topic's other subscriptions still get the message. A
+// filter policy is evaluated before any outbox entry exists, so a message
+// it keeps out never reaches the subscription's dead-letter queue (sns.md
+// 6.3).
 func (n notifier) deliver(sub *Subscription, m *message, p published, tx *kernel.Tx) *awserr.Error {
 	if _, confirmed := sub.Status.(Confirmed); !confirmed {
 		return nil
+	}
+	if sub.Protocol.http() {
+		if _, bad := httpEndpointOf(sub); bad != nil {
+			tx.Record(n.topic.scope, unusableEndpoint(n.topic.arn(), bad))
+			return nil
+		}
 	}
 	to, ok, err := endpointOf(sub)
 	if err != nil || !ok {

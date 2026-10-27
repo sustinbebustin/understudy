@@ -14,6 +14,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/ids"
+	"github.com/sustinbebustin/understudy/internal/journal"
+	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
 )
@@ -40,13 +42,22 @@ func httpURL(p Protocol, endpoint string) (*url.URL, bool) {
 
 // httpEndpointOf is the endpoint of sub, an http or https subscription.
 // Subscribe refuses an endpoint httpURL does not parse, so only state
-// loaded from a snapshot taken before it did can hold one.
-func httpEndpointOf(sub *Subscription) (httpEndpoint, *awserr.Error) {
+// loaded from a snapshot taken before it did can hold one; a publish or an
+// unsigned unsubscribe then journals what it would have sent as Dropped
+// (unusableEndpoint) rather than fail.
+func httpEndpointOf(sub *Subscription) (httpEndpoint, *EndpointError) {
 	u, ok := httpURL(sub.Protocol, sub.Endpoint)
 	if !ok {
-		return httpEndpoint{}, awserr.Internalf(&EndpointError{Subscription: sub.ID, Protocol: sub.Protocol, Endpoint: sub.Endpoint})
+		return httpEndpoint{}, &EndpointError{Subscription: sub.ID, Protocol: sub.Protocol, Endpoint: sub.Endpoint}
 	}
 	return httpEndpoint{url: *u}, nil
+}
+
+// unusableEndpoint is the Delivery event of a message from topic that
+// understudy drops before any attempt, since the subscription's stored
+// endpoint is not a URL it can send to.
+func unusableEndpoint(topic aws.ARN, bad *EndpointError) journal.Delivery {
+	return journal.Delivery{From: topic, Mechanism: delivery.SNSToHTTP, Outcome: journal.Dropped{Reason: bad.Error()}}
 }
 
 // EndpointError is a stored http or https subscription whose endpoint is
@@ -151,9 +162,10 @@ func httpPolicyOf(sub *Subscription, t *Topic) delivery.SNSHTTP {
 // the RedrivePolicy queue, and under sns.http.control-content-type it is
 // text/plain whatever requestPolicy says.
 func (s *Service) httpConfirmation(st *State, ref topicRef, t *Topic, sub *Subscription, token string, l links, now clock.Instant) (delivery.Request, *awserr.Error) {
-	to, err := httpEndpointOf(sub)
-	if err != nil {
-		return delivery.Request{}, err
+	to, bad := httpEndpointOf(sub)
+	if bad != nil {
+		// Subscribe checked this endpoint before it got here.
+		return delivery.Request{}, awserr.Internalf(bad)
 	}
 	signing, err := s.signing(st.Signing, ref, t.signatureVersion(), l)
 	if err != nil {
@@ -173,19 +185,34 @@ func (s *Service) httpConfirmation(st *State, ref topicRef, t *Topic, sub *Subsc
 	}, nil
 }
 
-// unsubscribeConfirmation is the delivery of the UnsubscribeConfirmation
-// that an unsigned GET of the UnsubscribeURL of sub, a confirmed http or
-// https subscription of the topic ref names, sends its endpoint, due at
-// now (sns-http-delivery.md 2.4, 4.4): a new MessageId and a new token,
-// signed over the confirmation field list with Token (5.1). The token is
-// kept nowhere, so its SubscribeURL confirms nothing: whether AWS's
-// restores the subscription is UNVERIFIED (2.4, SNSH-16), and the
-// UnsubscribeLink coverage note says understudy's does not.
-func (s *Service) unsubscribeConfirmation(st *State, ref subscriptionRef, t *Topic, sub *Subscription, l links, now clock.Instant) (delivery.Request, *awserr.Error) {
-	to, err := httpEndpointOf(sub)
-	if err != nil {
-		return delivery.Request{}, err
+// sendUnsubscribeConfirmation hands tx the UnsubscribeConfirmation that an
+// unsigned GET of the UnsubscribeURL of sub, a confirmed http or https
+// subscription of the topic ref names, sends its endpoint, due at now
+// (sns-http-delivery.md 2.4, 4.4): a new MessageId and a new token, signed
+// over the confirmation field list with Token (5.1). AWS documents its
+// SubscribeURL as the one to visit to re-confirm the subscription (2.4,
+// aws-doc). understudy keeps the token nowhere, so its SubscribeURL
+// confirms nothing, a deviation the UnsubscribeLink coverage note records;
+// whether AWS restores the same subscription ARN, and how long the token
+// lasts, are UNVERIFIED (2.4, SNSH-16). A stored endpoint that is not a URL
+// gets nothing, journaled as Dropped, and the unsubscribe still succeeds.
+func (s *Service) sendUnsubscribeConfirmation(tx *kernel.Tx, st *State, ref subscriptionRef, t *Topic, sub *Subscription, l links, now clock.Instant) *awserr.Error {
+	to, bad := httpEndpointOf(sub)
+	if bad != nil {
+		tx.Record(ref.topic.scope, unusableEndpoint(ref.topic.arn(), bad))
+		return nil
 	}
+	r, err := s.unsubscribeConfirmation(st, ref, t, sub, to, l, now)
+	if err != nil {
+		return err
+	}
+	tx.Deliver(r)
+	return nil
+}
+
+// unsubscribeConfirmation is the delivery of sendUnsubscribeConfirmation's
+// message to to, sub's endpoint.
+func (s *Service) unsubscribeConfirmation(st *State, ref subscriptionRef, t *Topic, sub *Subscription, to httpEndpoint, l links, now clock.Instant) (delivery.Request, *awserr.Error) {
 	signing, err := s.signing(st.Signing, ref.topic, t.signatureVersion(), l)
 	if err != nil {
 		return delivery.Request{}, err

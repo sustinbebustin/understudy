@@ -1,12 +1,15 @@
 package sns_test
 
 import (
+	"bytes"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/service/sns"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
 )
@@ -128,6 +131,98 @@ func TestPublishBatchSendsEachEntryToAnHTTPSubscription(t *testing.T) {
 			if got := headerMap(h, n.Headers)["x-amz-sns-message-id"]; got != b.MessageID {
 				h.Errorf("Notification %d x-amz-sns-message-id = %q, want %q", i, got, b.MessageID)
 			}
+		}
+	})
+}
+
+// A confirmed http subscription whose stored endpoint is not a URL with a
+// host, which a snapshot from a build that checked only the scheme can
+// hold, breaks nothing else: a publish still reaches the topic's sqs
+// subscription and journals the message to the http one as Dropped before
+// any attempt, and its UnsubscribeURL still removes it, journaling the
+// UnsubscribeConfirmation as Dropped.
+func TestAStoredEndpointThatIsNotAURLIsDropped(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		h.subscribe(topic, "sqs", "arn:aws:sqs:us-east-1:000000000000:inbox", nil)
+		arn := h.subscribe(topic, "http", hookURL, nil)
+		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn)})
+		sections, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		for i := range sections {
+			sections[i].Data = bytes.ReplaceAll(sections[i].Data, []byte(strconv.Quote(hookURL)), []byte(`"http://"`))
+		}
+		if err := h.svc.Import(sections); err != nil {
+			h.Fatal(err)
+		}
+		if got := h.subscriptionAttributes(arn)["Endpoint"]; got != "http://" {
+			h.Fatalf("Endpoint after the import = %q, want %q", got, "http://")
+		}
+		before := len(h.sink.all())
+		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
+		got := h.sink.all()[before:]
+		if len(got) != 1 || got[0].Request.Mechanism != delivery.SNSToSQS {
+			h.Errorf("publish deliveries = %+v, want the sqs subscription's alone", got)
+		}
+		if _, aerr := h.link("UnsubscribeLink", "/_understudy/sns/UnsubscribeLink?Action=Unsubscribe&SubscriptionArn="+url.QueryEscape(arn)); aerr != nil {
+			h.Fatalf("UnsubscribeLink = %s %q", aerr.ID.QueryCode, aerr.Message)
+		}
+		_, gerr := call(h, snsapi.OpGetSubscriptionAttributes, &snsapi.GetSubscriptionAttributesInput{SubscriptionArn: arn})
+		wantError(h, gerr, "NotFound", "Subscription does not exist")
+		var dropped int
+		events := h.k.Journal().Query(journal.Filter{Kind: journal.KindDelivery, Limit: 1000}).Events
+		for i := range events {
+			d, ok := events[i].Detail.(journal.Delivery)
+			if !ok {
+				continue
+			}
+			if out, isDropped := d.Outcome.(journal.Dropped); isDropped {
+				dropped++
+				if d.Mechanism != delivery.SNSToHTTP || d.Attempt != 0 || !strings.Contains(out.Reason, `"http://"`) {
+					h.Errorf("dropped = %+v, want sns-to-http at attempt 0 naming the endpoint", d)
+				}
+			}
+		}
+		if dropped != 2 {
+			h.Errorf("%d Dropped deliveries, want the Notification and the UnsubscribeConfirmation", dropped)
+		}
+	})
+}
+
+// The UnsubscribeURL of a subscription that gets no UnsubscribeConfirmation
+// makes no signing key in a scope that has none, whether the link removes
+// it (a lambda subscription) or refuses (the queue owner's sqs
+// subscription): only a confirmation that will be sent needs one.
+func TestUnsubscribeLinkMakesAKeyOnlyForAConfirmation(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		function := h.subscribe(topic, "lambda", "arn:aws:lambda:us-east-1:000000000000:function:f", nil)
+		queue := h.subscribe(topic, "sqs", "arn:aws:sqs:us-east-1:000000000000:inbox", nil)
+		hasKey := func() bool {
+			sections, err := h.svc.Export()
+			if err != nil {
+				h.Fatal(err)
+			}
+			for _, s := range sections {
+				if bytes.Contains(s.Data, []byte(`"signing"`)) {
+					return true
+				}
+			}
+			return false
+		}
+		if hasKey() {
+			h.Fatal("the scope has a signing key before anything was signed")
+		}
+		if _, aerr := h.link("UnsubscribeLink", "/_understudy/sns/UnsubscribeLink?Action=Unsubscribe&SubscriptionArn="+url.QueryEscape(function)); aerr != nil {
+			h.Fatalf("UnsubscribeLink of the lambda subscription = %s %q", aerr.ID.QueryCode, aerr.Message)
+		}
+		if _, aerr := h.link("UnsubscribeLink", "/_understudy/sns/UnsubscribeLink?Action=Unsubscribe&SubscriptionArn="+url.QueryEscape(queue)); aerr == nil {
+			h.Fatal("UnsubscribeLink removed the queue owner's sqs subscription")
+		}
+		if hasKey() {
+			h.Error("an UnsubscribeURL that sends no UnsubscribeConfirmation made a signing key")
 		}
 	})
 }

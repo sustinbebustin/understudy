@@ -557,11 +557,9 @@ func (s *Service) unsubscribe(c *kernel.Call, ref subscriptionRef, by caller) *a
 			return struct{}{}, err
 		}
 		if by == unauthenticated && t.Subscriptions[i].Protocol.http() {
-			r, err := s.unsubscribeConfirmation(st, ref, &t, &t.Subscriptions[i], l, now)
-			if err != nil {
+			if err := s.sendUnsubscribeConfirmation(tx, st, ref, &t, &t.Subscriptions[i], l, now); err != nil {
 				return struct{}{}, err
 			}
-			tx.Deliver(r)
 		}
 		t.Subscriptions = slices.Delete(t.Subscriptions, i, i+1)
 		t.Unsubscribed++
