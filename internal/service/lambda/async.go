@@ -438,6 +438,9 @@ func (x *Execution) settleAsync(ctx context.Context, c *kernel.Call, scope aws.S
 			tx.Unchanged()
 			return outcome{}, nil
 		}
+		// The record, dead letter and advisories continue the Invoke, as the
+		// attempt did, not the TimerFired event that started the attempt.
+		tx.Resume(ev.cause())
 		plan := ev.next(r, cfg, now)
 		var s sent
 		switch p := plan.(type) {

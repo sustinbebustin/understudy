@@ -172,14 +172,14 @@ func (c *Call) Touch(arns ...aws.ARN) {
 // pipeline's own events. A record that describes a state change belongs on
 // the Write that makes it: Tx.Record.
 func (c *Call) Record(ctx context.Context, scope aws.Scope, d journal.Detail) {
-	if err := c.k.record(c, c.admitted, scope, d); err != nil {
+	if err := c.k.record(c.effectCause(), c.admitted, scope, d); err != nil {
 		c.k.log.LogAttrs(ctx, slog.LevelWarn, "journal refused an event a handler recorded",
 			slog.String("op", c.label), slog.String("request_id", string(c.id)), slog.String("error", err.Error()))
 	}
 }
 
-func (k *Kernel) record(c *Call, at clock.Instant, scope aws.Scope, d journal.Detail) error {
-	_, err := k.journal.Append(journal.Event{Cause: ref.Cause{Parent: c.event, Trace: c.cause.Trace}, At: at, Scope: scope, Detail: d})
+func (k *Kernel) record(cause ref.Cause, at clock.Instant, scope aws.Scope, d journal.Detail) error {
+	_, err := k.journal.Append(journal.Event{Cause: cause, At: at, Scope: scope, Detail: d})
 	return err
 }
 
@@ -190,6 +190,10 @@ func (c *Call) Touched() []aws.ARN {
 	defer c.mu.Unlock()
 	return slices.Clone(c.touched)
 }
+
+// effectCause is the cause of an event or delivery the call produces: the
+// call's event, in its trace.
+func (c *Call) effectCause() ref.Cause { return ref.Cause{Parent: c.event, Trace: c.cause.Trace} }
 
 // CallHeaders is the closed set of unmodeled request headers a Call keeps
 // for its handler: the trace header SQS copies into AWSTraceHeader, the

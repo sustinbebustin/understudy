@@ -37,7 +37,18 @@ type Tx struct {
 	err     error
 	// unchanged is set by Unchanged: the cell's revision stays.
 	unchanged bool
+	// resume is the stored cause Resume set, zero for the call's own.
+	resume ref.Cause
 }
+
+// Resume stamps the write's journal records and deliveries with cause, a
+// stored cause the write continues, instead of the writing call's event
+// and trace, as Target.Resume does for an internal call (ARCHITECTURE.md
+// 10: state carries causes across time). A timer call that finishes work
+// another call began, such as an asynchronous invocation the Invoke
+// queued, uses it so the work's effects stay in that call's trace rather
+// than in the TimerFired event's. The zero cause leaves the call's own.
+func (tx *Tx) Resume(cause ref.Cause) { tx.resume = cause }
 
 // Unchanged tells the write that fn left the state exactly as it was (an
 // empty receive, an idempotent create), so the cell's revision
@@ -108,6 +119,15 @@ func (tx *Tx) fail(err error) {
 	}
 }
 
+// cause is what the write's effects are stamped with: the resumed cause,
+// or c's.
+func (tx *Tx) cause(c *Call) ref.Cause {
+	if tx.resume != (ref.Cause{}) {
+		return tx.resume
+	}
+	return c.effectCause()
+}
+
 // UnregisteredKindError is a timer armed with the zero HandledKind, which
 // no handler stands behind; the timer was not armed.
 type UnregisteredKindError struct {
@@ -160,7 +180,8 @@ func (e *DeliverError) Unwrap() error { return e.Err }
 // made from fn, returns Internal naming the attempt and the holding call
 // (HoldingError). Journal records and timer arms and disarms apply inside
 // the critical section in commit order; wakes and deliveries run after
-// unlock, stamped with the call's cause and counted by the work tracker.
+// unlock, stamped with the call's cause (or the one Tx.Resume set) and
+// counted by the work tracker.
 func Write[K comparable, S, R any](c *Call, p *store.Partitioned[K, S], key K, fn func(s *S, now clock.Instant, tx *Tx) (R, *awserr.Error)) (R, *awserr.Error) {
 	var zero R
 	if !c.holding.CompareAndSwap(false, true) {
@@ -211,7 +232,7 @@ func commit[S, R any](c *Call, cell *store.Cell[S], fn func(s *S, now clock.Inst
 			return committed[R]{err: err}, false
 		}
 		for _, rec := range tx.records {
-			if err := k.record(c, tx.now, rec.scope, rec.detail); err != nil {
+			if err := k.record(tx.cause(c), tx.now, rec.scope, rec.detail); err != nil {
 				tx.fail(&RecordError{Err: err})
 			}
 		}
@@ -236,7 +257,7 @@ func (k *Kernel) afterUnlock(c *Call, tx *Tx) *awserr.Error {
 	for _, key := range tx.wakes {
 		k.waiters.Wake(key)
 	}
-	cause := ref.Cause{Parent: c.event, Trace: c.cause.Trace}
+	cause := tx.cause(c)
 	for i := range tx.sends {
 		if err := k.deliver.Deliver(Delivery{Request: tx.sends[i], Cause: cause, Accepted: tx.now}); err != nil {
 			return awserr.Internalf(&DeliverError{Err: err})

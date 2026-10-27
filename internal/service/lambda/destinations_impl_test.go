@@ -9,6 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
 // A dead-letter topic gets the event as sent with the same attributes a
@@ -108,13 +109,72 @@ func TestFunctionDeletedWhileQueuedIsJournaled(t *testing.T) {
 		call(h.harness, lambdaapi.OpDeleteFunction, &lambdaapi.DeleteFunctionInput{FunctionName: "fn"})
 		h.advance(10 * time.Minute)
 		var found []journal.Advisory
+		var causes []ref.Cause
 		for _, e := range h.Journal.Query(journal.Filter{Kind: journal.KindAdvisory, Limit: 10}).Events {
 			if a, ok := e.Detail.(journal.Advisory); ok && a.Kind == journal.AdvisoryAsyncEventAbandoned {
 				found = append(found, a)
+				causes = append(causes, e.Cause)
 			}
 		}
 		if len(found) != 1 || found[0].Resource.String() != fnUnqualified || !strings.Contains(found[0].Text, request) {
-			t.Errorf("async-event-abandoned advisories = %+v, want one on %s naming request %s", found, fnUnqualified, request)
+			t.Fatalf("async-event-abandoned advisories = %+v, want one on %s naming request %s", found, fnUnqualified, request)
 		}
+		if want := h.invokeCause(); causes[0] != want {
+			t.Errorf("the advisory's cause = %+v, want the Invoke's %+v", causes[0], want)
+		}
+	})
+}
+
+// invokeCause is the cause of what the one Invoke call in the journal
+// caused: its event, in its trace.
+func (h *destHarness) invokeCause() ref.Cause {
+	h.Helper()
+	invoke := h.Journal.Query(journal.Filter{Kind: journal.KindAPICall, Operation: lambdaapi.OpInvoke.Descriptor().ID}).Events
+	if len(invoke) != 1 {
+		h.Fatalf("journal holds %d Invoke calls, want 1", len(invoke))
+	}
+	return ref.Cause{Parent: invoke[0].ID, Trace: invoke[0].Cause.Trace}
+}
+
+// A failed event's record and dead letter continue the Invoke's trace, as
+// its attempts do (ARCHITECTURE.md 10: state carries causes across time),
+// not the trace the retry timer's TimerFired event roots.
+func TestRecordAndDeadLetterStayInTheInvokesTrace(t *testing.T) {
+	s := newScript()
+	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
+		h.createWithDLQ()
+		h.configure("", 1, "", failureQueue)
+		h.invoke(fnEvent(`{"action":"fail"}`))
+		h.settle()
+		h.advance(10 * time.Minute)
+		want := h.invokeCause()
+		got := h.sink.lambda()
+		if len(got) != 2 {
+			t.Fatalf("deliveries = %+v, want a record and a dead letter", got)
+		}
+		for _, d := range got {
+			if d.Cause != want {
+				t.Errorf("%s delivery cause = %+v, want the Invoke's %+v", d.Request.Mechanism, d.Cause, want)
+			}
+		}
+	})
+}
+
+// A dead-letter target whose account understudy cannot hold passes
+// DeadLetterConfig.TargetArn's pattern (lambda-destinations-layers.md 5.1)
+// but cannot be delivered to: it is left out, and the on-failure record of
+// the same event still goes.
+func TestUnservedDeadLetterTargetLeavesTheRecordGoing(t *testing.T) {
+	s := newScript()
+	runDestinations(t, s.handle, func(h *destHarness) {
+		t := h.T
+		in := zipFunction(h, "fn")
+		in.DeadLetterConfig = &lambdaapi.DeadLetterConfig{TargetArn: new("arn:aws:sqs:us-east-1:12345:dlq")}
+		call(h.harness, lambdaapi.OpCreateFunction, in)
+		h.configure("", 0, "", failureQueue)
+		h.invoke(fnEvent(`{"action":"fail"}`))
+		h.settle()
+		queueTarget(t, h.onlyDelivery(), failureQueue)
 	})
 }

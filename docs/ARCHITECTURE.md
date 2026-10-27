@@ -558,6 +558,7 @@ func (tx *Tx) Wake(k store.WaitKey)
 func (tx *Tx) Arm(k clock.TimerKey, at clock.Instant) // replaces the same key; the kind must be registered or New fails
 func (tx *Tx) Disarm(k clock.TimerKey)
 func (tx *Tx) Deliver(r delivery.Request)              // inserted into the outbox cell before the call returns
+func (tx *Tx) Resume(cause ref.Cause)                  // stamp this write's records and deliveries with a stored cause, as Target.Resume does a call
 ```
 
 The convention, enforced by per-service tests, is validate first, mutate last: if `fn` returns an error the state is unchanged. Timer callbacks and `Rearm` re-read state and do nothing when their condition no longer holds (a visibility timer for a deleted message is a no-op). Writes that start in a timer get a synthetic `Call` with `Origin Internal{Via: Timer}`, so there is one write path.

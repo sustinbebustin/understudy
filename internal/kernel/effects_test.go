@@ -92,6 +92,43 @@ func TestDeliveriesRunAfterCommitWithTheCallsCause(t *testing.T) {
 	}
 }
 
+// A write that resumes a stored cause stamps its deliveries and records with
+// it in place of the call's, so work a timer finishes stays in the trace of
+// the call that began it (ARCHITECTURE.md 10).
+func TestResumedWriteStampsItsEffectsWithTheStoredCause(t *testing.T) {
+	timers := kernel.NewTimers()
+	clk, err := clock.New(clock.Options{Mode: clock.Frozen{}, Timers: timers.Scheduler()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &sink{}
+	k := newKernelWith(t, clk, timers, s)
+	c := k.NewCall(kernel.ExternalCall{Operation: sqsapi.OpSendMessage.Descriptor().ID, Scope: scope(), Admitted: clk.Now()})
+	k.Dispatch(t.Context(), c, kernel.Ok{In: &sqsapi.SendMessageInput{QueueUrl: "u", MessageBody: "b"}})
+	queue := aws.ARN{Partition: "aws", Service: "sqs", Region: scope().Region.String(), Account: scope().Account.String(), Resource: "q"}
+	// began is the event of the work the write continues, an earlier root.
+	began, err := k.Journal().Append(journal.Event{At: clk.Now(), Scope: scope(), Detail: journal.Advisory{Kind: journal.AdvisoryPolicyWouldDeny, Resource: queue, Text: "began"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored := ref.Cause{Parent: began, Trace: began}
+	if _, err := kernel.Write(c, cellsOf(k), scope(), func(_ *int, _ clock.Instant, tx *kernel.Tx) (int, *awserr.Error) {
+		tx.Resume(stored)
+		tx.Deliver(delivery.Request{Mechanism: delivery.SNSToSQS, Target: delivery.SQSQueue{Body: "x"}})
+		tx.Record(scope(), journal.Advisory{Kind: journal.AdvisoryPolicyWouldDeny, Resource: queue, Text: "resumed"})
+		return 0, nil
+	}); err != nil {
+		t.Fatal(err.AsError())
+	}
+	if len(s.got) != 1 || s.got[0].Cause != stored {
+		t.Errorf("deliveries = %+v, want one caused by %+v", s.got, stored)
+	}
+	events := k.Journal().Query(journal.Filter{Kind: journal.KindAdvisory}).Events
+	if len(events) != 2 || events[1].Cause != stored {
+		t.Errorf("records = %+v, want one caused by %+v", events, stored)
+	}
+}
+
 // A handler's records carry the call's event as their parent and its trace:
 // Call.Record at once, Tx.Record only when the write commits. A malformed
 // record fails the write as Internal after it commits.
