@@ -18,6 +18,7 @@
         "@aws-sdk/client-secrets-manager": "^3.1149.0",
         "@aws-sdk/client-sns": "^3.1149.0",
         "@aws-sdk/client-sqs": "^3.1149.0",
+        "@aws-sdk/client-ssm": "^3.1149.0",
         "@aws-sdk/client-sts": "^3.1149.0",
         "@aws-sdk/lib-dynamodb": "^3.1149.0",
         "@aws-sdk/lib-storage": "^3.1149.0",
@@ -58,6 +59,8 @@
     "@aws-sdk/client-sns": ["@aws-sdk/client-sns@3.1149.0", "", { "dependencies": { "@aws-sdk/core": "^3.978.2", "@aws-sdk/credential-provider-node": "^3.972.85", "@aws-sdk/types": "^3.974.6", "@smithy/core": "^3.35.2", "@smithy/fetch-http-handler": "^5.8.0", "@smithy/node-http-handler": "^4.12.1", "@smithy/types": "^4.19.0", "tslib": "^2.6.2" } }, "sha512-qd+j4ZQcIuVsRjmEMHhCwgisymKmKSD62ToGt6v/C2+XSFfkeWsFx0cMXaxXVbdXi/8gO5RlOuj0kD14PCE5RQ=="],
 
     "@aws-sdk/client-sqs": ["@aws-sdk/client-sqs@3.1149.0", "", { "dependencies": { "@aws-sdk/core": "^3.978.2", "@aws-sdk/credential-provider-node": "^3.972.85", "@aws-sdk/middleware-sdk-sqs": "^3.972.44", "@aws-sdk/types": "^3.974.6", "@smithy/core": "^3.35.2", "@smithy/fetch-http-handler": "^5.8.0", "@smithy/node-http-handler": "^4.12.1", "@smithy/types": "^4.19.0", "tslib": "^2.6.2" } }, "sha512-9+EqyZeDAy+hqmBU8Zk76wXOBrTblg1jCTbjc12rWvGnkVcWymrfbBi411eKapcENuXIKN+H25DQ2aKh5Xq7Zw=="],
+
+    "@aws-sdk/client-ssm": ["@aws-sdk/client-ssm@3.1149.0", "", { "dependencies": { "@aws-sdk/core": "^3.978.2", "@aws-sdk/credential-provider-node": "^3.972.85", "@aws-sdk/types": "^3.974.6", "@smithy/core": "^3.35.2", "@smithy/fetch-http-handler": "^5.8.0", "@smithy/node-http-handler": "^4.12.1", "@smithy/types": "^4.19.0", "tslib": "^2.6.2" } }, "sha512-buGH6rQ+4Sa4Lm3nagRNYg3Rhoff25FQv3xZcqWmfhnWFTPmO/DLqiLmOBOadPZpPLm+gui5azYdpVTcTpZzTQ=="],
 
     "@aws-sdk/client-sts": ["@aws-sdk/client-sts@3.1149.0", "", { "dependencies": { "@aws-sdk/core": "^3.978.2", "@aws-sdk/credential-provider-node": "^3.972.85", "@aws-sdk/signature-v4-multi-region": "^3.996.48", "@aws-sdk/types": "^3.974.6", "@smithy/core": "^3.35.2", "@smithy/fetch-http-handler": "^5.8.0", "@smithy/node-http-handler": "^4.12.1", "@smithy/types": "^4.19.0", "tslib": "^2.6.2" } }, "sha512-0In5ROb7LuUKsixQIe5YeKrHTScOxpmDhSUBRgZY+wgsd2OotS6IwJfPHhT8IqeNoZtW/qPpX13xUX7YfoUJDA=="],
 

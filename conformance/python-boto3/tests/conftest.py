@@ -146,6 +146,7 @@ kms = _client_fixture("kms")
 logs = _client_fixture("logs")
 sts = _client_fixture("sts")
 iam = _client_fixture("iam")
+ssm = _client_fixture("ssm")
 
 
 @pytest.fixture(scope="session", name="lambda_")
