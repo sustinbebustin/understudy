@@ -977,6 +977,7 @@ Domain contract (`lambda-runtime-contract.md 3`, adopted in full):
 | DynamoDB TTL sweep, secret deletion windows, KMS deletion, log retention | `slog` timestamps |
 | server-assigned timestamps (`Last-Modified`, `CreatedTimestamp`, `LastModified`) | injected fault latency |
 | S3 presigned URL expiry (`emu now >= X-Amz-Date + X-Amz-Expires`) | `PutLogEvents` 2 h / 14 day windows accept if valid against wall OR emulator |
+| | API Gateway integration timeout (`TimeoutInMillis`; `apigateway-http.md` 13.3 item 6) |
 
 Two consequences the docs state: user code that calls `time.time()` cannot be steered (functions read emulator time from `GET /_understudy/v1/clock`, served on the container listener too), and a frozen clock never fires, shortens or lengthens a function timeout.
 

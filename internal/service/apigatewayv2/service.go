@@ -65,7 +65,6 @@ const (
 	integrationNote = "Lambda AWS_PROXY with payload 1.0 and 2.0 runs; " +
 		"integration subtypes, HTTP_PROXY and VPC_LINK connections are stored and a request that reaches them answers 501; " +
 		"a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI is stored and a request that reaches it answers 501; " +
-		"timeoutInMillis is stored without effect (a request waits for the function however long it runs); " +
 		"tlsConfig is stored without effect"
 	stageNote = "accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); " +
 		"an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04); " +
@@ -78,11 +77,9 @@ const (
 	invokeAPINote  = "Lambda AWS_PROXY with payload 1.0 and 2.0; stage and route selection as documented; " +
 		"where the documents leave the order of two matching routes open it is inferred (APIGW2-05): " +
 		"a full match on ANY before a greedy match on the method, the greedy route with more segments before its variable first, then the leftmost literal segment; " +
-		"AWS_IAM routes, CORS requests (an Origin header to an API with a corsConfiguration) and integrations other than Lambda AWS_PROXY answer 501, " +
-		"as does a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI; " +
-		"the integration timeout, access logging and throttling are not applied; " +
-		"inferred, UNVERIFIED: the gateway's own answers and their status (APIGW2-05, APIGW2-06, APIGW2-10, APIGW2-11), " +
-		"the 2.0 isBase64Encoded of a bodyless request and default Content-Type (APIGW2-07, APIGW2-09), " +
+		"AWS_IAM routes, CORS requests and integrations other than Lambda AWS_PROXY answer 501; " +
+		"parameter mapping, access logging and throttling are not applied; " +
+		"inferred, UNVERIFIED: the 2.0 isBase64Encoded of a bodyless request and default Content-Type (APIGW2-07, APIGW2-09), " +
 		"the 1.0 single-value maps, resource, path and identity (APIGW2-08), " +
 		"and how a 1.0 response's headers and multiValueHeaders merge (APIGW2-09)"
 )

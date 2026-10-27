@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
@@ -397,11 +398,21 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 	if len(event) > failures.MaxEvent {
 		return writeAnswer(w, failures.TooLarge)
 	}
-	out, ierr := kernel.Invoke(ctx, s.k, c, lambdaapi.OpInvoke, kernel.Target{
+	var out *lambdaapi.InvokeOutput
+	switch r := s.invokeWithin(ctx, c, t.integration.timeout(), kernel.Target{
 		Scope: fnScope, As: kernel.AsService{Name: servicePrincipal, Source: source}, Via: ref.ViaAPIGateway,
-	}, &lambdaapi.InvokeInput{FunctionName: fn.String(), InvocationType: new(lambdaapi.InvocationTypeRequestResponse), Payload: event})
-	if ierr != nil {
-		return lambdaRefused(w, t, ierr)
+	}, &lambdaapi.InvokeInput{FunctionName: fn.String(), InvocationType: new(lambdaapi.InvocationTypeRequestResponse), Payload: event}).(type) {
+	case clientGone:
+		return awserr.RequestAborted()
+	case timedOut:
+		return writeAnswer(w, failures.Timeout)
+	case lambdaRefusal:
+		return lambdaRefused(w, t, r.err)
+	case lambdaOutput:
+		out = r.out
+	}
+	if out == nil {
+		return awserr.Internalf(fmt.Errorf("apigatewayv2: Lambda's Invoke of %s answered neither an output nor an error", fn))
 	}
 	if out.FunctionError != nil {
 		return writeAnswer(w, failures.FunctionError)
@@ -414,6 +425,70 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 	}
 	resp.Write(w)
 	return nil
+}
+
+// waited is how the wait for an invocation ended.
+//
+//sumtype:decl
+type waited interface{ isWaited() }
+
+// lambdaOutput is Lambda's output for the invocation.
+type lambdaOutput struct{ out *lambdaapi.InvokeOutput }
+
+// lambdaRefusal is the error Lambda refused the invocation with.
+type lambdaRefusal struct{ err *awserr.Error }
+
+// timedOut is an invocation still running when the integration's timeout
+// passed.
+type timedOut struct{}
+
+// clientGone is a client that went away before Lambda answered.
+type clientGone struct{}
+
+func (lambdaOutput) isWaited()  {}
+func (lambdaRefusal) isWaited() {}
+func (timedOut) isWaited()      {}
+func (clientGone) isWaited()    {}
+
+// invokeWithin invokes the function and waits for Lambda's answer at most
+// timeout of wall time. The integration timeout bounds real work in a
+// container, as the function timeout does, so it runs on wall time and a
+// frozen or scaled emulator clock neither stretches nor shortens it
+// (apigateway-http.md 13.3 item 6, ARCHITECTURE.md 9). The invocation runs
+// as tracked work, so settling waits for it, and it outlives the wait: past
+// the timeout the function keeps running until it ends, its own timeout
+// ends it or understudy stops, and its answer is dropped (inferred: what
+// becomes of an invocation past the integration timeout is unrecorded,
+// apigateway-http.md 5.6, APIGW2-10).
+func (s *Service) invokeWithin(ctx context.Context, c *kernel.Call, timeout time.Duration, t kernel.Target, in *lambdaapi.InvokeInput) waited {
+	done := make(chan waited, 1)
+	s.k.Go(kernel.InvocationRunning, func(work context.Context) { //nolint:contextcheck // the invocation outlives the request as tracked work of the kernel
+		out, err := kernel.Invoke(work, s.k, c, lambdaapi.OpInvoke, t, in)
+		if err != nil {
+			done <- lambdaRefusal{err}
+			return
+		}
+		done <- lambdaOutput{out}
+	})
+	wait, stop := context.WithCancel(ctx)
+	defer stop()
+	clk := s.k.Clock()
+	expired := clk.Until(wait, clk.WallDeadline(clk.Wall().Add(timeout)))
+	select {
+	case r := <-done:
+		return r
+	case <-expired:
+		if ctx.Err() != nil {
+			return clientGone{}
+		}
+		return timedOut{}
+	}
+}
+
+// timeout is how long API Gateway waits for the integration
+// (TimeoutInMillis).
+func (i *Integration) timeout() time.Duration {
+	return time.Duration(i.TimeoutInMillis) * time.Millisecond
 }
 
 // event is the request event of the integration's payload format: 1.0 as
