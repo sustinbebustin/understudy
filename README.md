@@ -36,7 +36,7 @@ The result: tests keep real AWS settings (visibility timeouts, delays, TTLs, sch
 - **Snapshots and persistence.** State saves to a deterministic archive you can commit, diff and load. Persistence across restarts is opt-in.
 - **Real Lambda execution.** Functions run in AWS's Lambda base images through Docker: zip and image functions, warm reuse, hot reload from a directory, SDK calls routed back to understudy, logs in CloudWatch Logs.
 - **Least-privilege policies.** understudy records which IAM actions each principal used, on which resources, and prints the policy that record implies. Opt in with `--iam-enforce enforce` to have understudy evaluate identity, resource, trust and key policies and answer with each service's denial error. Attach the printed policy and rerun, and you see what a missing statement breaks.
-- **Small and offline.** A 39 MiB binary, ready in about 20 ms, idling at about 34 MiB (`just budgets` on Linux). No telemetry; the only network access is pulling Docker images for Lambda and DynamoDB Local.
+- **Small and offline.** A 38 MiB binary, ready in about 20 ms, idling at about 34 MiB (`just budgets` on Linux). No telemetry; the only network access is pulling Docker images for Lambda and DynamoDB Local.
 
 ## Prerequisites
 
