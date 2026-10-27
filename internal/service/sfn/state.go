@@ -80,8 +80,10 @@ type Logging struct {
 	Level                string `json:"level,omitempty"`
 	IncludeExecutionData bool   `json:"includeExecutionData,omitempty"`
 	// Destinations are the log group ARNs as sent, each naming a log group
-	// that existed when the configuration was set.
-	Destinations []string `json:"destinations,omitempty"`
+	// that existed when the configuration was set. Nil is destinations not
+	// sent; empty is "destinations": [], which AWS echoes as sent
+	// (stepfunctions-api.md 5.1), so the tag is omitzero, not omitempty.
+	Destinations []string `json:"destinations,omitzero"`
 }
 
 func (l Logging) equal(o Logging) bool {

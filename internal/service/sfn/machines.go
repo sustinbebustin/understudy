@@ -433,7 +433,8 @@ func (s *Service) validateStateMachineDefinition(_ context.Context, _ *kernel.Ca
 }
 
 // loggingOf is the stored form of a loggingConfiguration; an absent or
-// empty one is the default (stepfunctions-api.md 5.1).
+// empty one is the default, and destinations sent empty stay empty rather
+// than absent, as AWS echoes them (stepfunctions-api.md 5.1).
 func loggingOf(in *sfnapi.LoggingConfiguration) Logging {
 	if in == nil {
 		return Logging{}
@@ -441,6 +442,9 @@ func loggingOf(in *sfnapi.LoggingConfiguration) Logging {
 	l := Logging{IncludeExecutionData: in.IncludeExecutionData}
 	if in.Level != nil && *in.Level != sfnapi.LogLevelOff {
 		l.Level = string(*in.Level)
+	}
+	if in.Destinations != nil {
+		l.Destinations = make([]string, 0, len(in.Destinations))
 	}
 	for _, d := range in.Destinations {
 		arn := ""
@@ -459,6 +463,9 @@ func (l Logging) wire() *sfnapi.LoggingConfiguration {
 		level = sfnapi.LogLevel(l.Level)
 	}
 	out := &sfnapi.LoggingConfiguration{Level: &level, IncludeExecutionData: l.IncludeExecutionData}
+	if l.Destinations != nil {
+		out.Destinations = make([]sfnapi.LogDestination, 0, len(l.Destinations))
+	}
 	for _, arn := range l.Destinations {
 		d := sfnapi.LogDestination{}
 		if arn != "" {

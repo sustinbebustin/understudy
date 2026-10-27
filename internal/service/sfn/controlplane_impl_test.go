@@ -6,6 +6,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
+	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
 // endMachine is a second definition of one Pass state, for updates while
@@ -111,6 +112,43 @@ func TestSFN07DestinationWithoutStar(t *testing.T) {
 			})
 			wantError(h, err, "InvalidLoggingConfiguration", 400, "Invalid Logging Configuration: Log Destination not found.")
 		}
+	})
+}
+
+// A loggingConfiguration sent with "destinations": [] is echoed with
+// "destinations": [], and one sent without destinations is echoed without
+// them, also after a snapshot round trip (stepfunctions-api.md 5.1;
+// aws-recorded localstack@8b9a79f v2/test_sfn_api_logs.snapshot.json:L418-L507, L490).
+func TestEmptyLogDestinationsAreEchoed(t *testing.T) {
+	run(t, func(h *harness) {
+		off := sfnapi.LogLevelOff
+		empty := must(h, sfnapi.OpCreateStateMachine, &sfnapi.CreateStateMachineInput{
+			Name: "empty", Definition: resultMachine, RoleArn: h.roleArn(),
+			LoggingConfiguration: &sfnapi.LoggingConfiguration{Level: &off, Destinations: []sfnapi.LogDestination{}},
+		}).StateMachineArn
+		absent := must(h, sfnapi.OpCreateStateMachine, &sfnapi.CreateStateMachineInput{
+			Name: "absent", Definition: resultMachine, RoleArn: h.roleArn(),
+			LoggingConfiguration: &sfnapi.LoggingConfiguration{},
+		}).StateMachineArn
+		check := func(when string) {
+			h.Helper()
+			if d := must(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: empty}); d.LoggingConfiguration.Destinations == nil || len(d.LoggingConfiguration.Destinations) != 0 {
+				h.Errorf("%s: destinations sent empty echoed as %#v, want []", when, d.LoggingConfiguration.Destinations)
+			}
+			if d := must(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: absent}); d.LoggingConfiguration.Destinations != nil {
+				h.Errorf("%s: destinations not sent echoed as %#v, want none", when, d.LoggingConfiguration.Destinations)
+			}
+		}
+		check("after create")
+		sections, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		if err := h.svc.Import(sections); err != nil {
+			h.Fatal(err)
+		}
+		check("after a snapshot round trip")
 	})
 }
 
