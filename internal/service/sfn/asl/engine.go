@@ -175,7 +175,9 @@ func (s *stepper) step(j stepJob) {
 			return
 		}
 		s.fail(name, cause, entered)
-	case choiceState, waitState, taskState, parallelState, mapState:
+	case choiceState:
+		s.choice(st, j)
+	case waitState, taskState, parallelState, mapState:
 		// Parse accepts these types only under features whose runtime has
 		// not landed, which the service does not accept yet.
 		s.fail(errRuntime, "The state '"+j.state+"' is of a type this engine does not run yet.", j.previous)

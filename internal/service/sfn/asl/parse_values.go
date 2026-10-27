@@ -55,12 +55,20 @@ func (p *parser) integer(v document.Value, field, at string, lo, hi int64) (int6
 // numeric offset (stepfunctions-asl.md 3.5, 7.1).
 var rfc3339 = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$`)
 
+// parseTimestamp parses s in the rfc3339 profile.
+func parseTimestamp(s string) (time.Time, bool) {
+	if !rfc3339.MatchString(s) {
+		return time.Time{}, false
+	}
+	t, err := time.Parse(time.RFC3339Nano, s)
+	return t, err == nil
+}
+
 // timestamp reads a Wait's literal Timestamp; the message is recorded
 // (stepfunctions-asl.md 3.5).
 func (p *parser) timestamp(v document.Value, at string) (time.Time, bool) {
-	s, isString := v.(document.String)
-	if isString && rfc3339.MatchString(string(s)) {
-		if t, err := time.Parse(time.RFC3339Nano, string(s)); err == nil {
+	if s, isString := v.(document.String); isString {
+		if t, ok := parseTimestamp(string(s)); ok {
 			return t, true
 		}
 	}

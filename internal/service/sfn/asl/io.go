@@ -64,20 +64,32 @@ func (s *stepper) passThrough(name string, io paths, raw document.Value) (docume
 // stateFailed ends the execution with a failure the state named name
 // raised before writing its exited event; ExecutionFailed points at its
 // entered event. A States.Runtime cause starts with the recorded prefix
-// naming the state (stepfunctions-asl.md 4.6). No state built here has
-// Retry or Catch, so a StateError ends the execution too.
+// naming the state (stepfunctions-asl.md 4.6).
 func (s *stepper) stateFailed(name string, entered int64, f Failure) {
+	if t, ok := f.(Terminal); ok && t.Name == errRuntime {
+		t.Cause = runtimeCause(name, entered, t.Cause)
+		f = t
+	}
+	s.raise(f, entered)
+}
+
+// raise ends the execution with f, whose cause is complete; ExecutionFailed
+// points at entered. No state built here has Retry or Catch, so a StateError
+// ends the execution too.
+func (s *stepper) raise(f Failure, entered int64) {
 	switch f := f.(type) {
 	case Terminal:
-		cause := f.Cause
-		if f.Name == errRuntime {
-			cause = "An error occurred while executing the state '" + name + "' (entered at the event id #" +
-				strconv.FormatInt(entered, 10) + "). " + cause
-		}
-		s.fail(f.Name, cause, entered)
+		s.fail(f.Name, f.Cause, entered)
 	case StateError:
 		s.fail(f.Name, f.Cause, entered)
 	}
+}
+
+// runtimeCause is rest after the recorded prefix of a States.Runtime cause
+// naming the state and its entered event (stepfunctions-asl.md 4.6).
+func runtimeCause(name string, entered int64, rest string) string {
+	return "An error occurred while executing the state '" + name + "' (entered at the event id #" +
+		strconv.FormatInt(entered, 10) + "). " + rest
 }
 
 // stateContext is the context object a state sees: Start's Execution and
