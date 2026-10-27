@@ -50,9 +50,8 @@ const (
 		"The role ARN is checked for syntax only, with understudy's message (UNVERIFIED, SFN-08); its trust policy is not checked"
 	noteUpdate = "The CreateStateMachine definition and configuration rules apply; publish true and versionDescription answer 501. " +
 		"Running executions keep the definition and role they started with"
-	noteValidate = "Diagnostics use AWS's codes; messages are AWS's for the recorded blank, empty-object, missing-field and unknown-Type cases " +
-		"(stepfunctions-asl.md 3.5-3.6) and understudy's wording elsewhere, including a definition that is not JSON (UNVERIFIED, ASL-01). " +
-		"Features understudy refuses are ERROR diagnostics with code UNSUPPORTED_BY_UNDERSTUDY; type EXPRESS answers 501"
+	noteValidate = "Diagnostics use AWS's codes; messages are AWS's for the recorded cases (stepfunctions-asl.md 3.4-3.6) and understudy's wording elsewhere " +
+		"(UNVERIFIED, ASL-01). Features understudy refuses are ERROR diagnostics with code UNSUPPORTED_BY_UNDERSTUDY; type EXPRESS answers 501"
 	noteVersions = "Always empty: publishing versions is not implemented (publish is refused and PublishStateMachineVersion is unbound)"
 	noteDelete   = "The machine is removed at once and its running executions run on to their end; AWS keeps it DELETING until they finish " +
 		"and ends them at their next transition (switch sfn.delete.running-execution is not applied yet)"

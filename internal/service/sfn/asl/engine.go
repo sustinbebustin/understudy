@@ -146,7 +146,11 @@ func (s *stepper) step(j stepJob) {
 		entered := s.emit("SucceedStateEntered", j.previous, stateEntered(st.name, j.input))
 		exited := s.emit("SucceedStateExited", entered, stateExited(st.name, j.input))
 		s.succeed(j.input, exited)
-	default:
+	case failState, choiceState, waitState, taskState, parallelState, mapState:
+		// Parse accepts these types only under features whose runtime has
+		// not landed, which the service does not accept yet.
+		s.fail(errRuntime, "The state '"+j.state+"' is of a type this engine does not run yet.", j.previous)
+	case nil:
 		// Parse admits no transition to a missing state; a definition that
 		// lacks one was changed under a running execution.
 		s.fail(errRuntime, "The state '"+j.state+"' is not in the definition the execution runs.", j.previous)

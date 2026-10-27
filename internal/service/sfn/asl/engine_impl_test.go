@@ -50,16 +50,17 @@ func TestASL01EveryProblemInDocumentOrder(t *testing.T) {
 	}
 }
 
-// A construct whose runtime has not landed is refused even when its feature
-// is accepted, so the engine never accepts what it cannot run (spec "Every
-// commit is honest").
+// A construct outside the accepted features is refused, so a caller that
+// accepts only the features whose runtime has landed never gets a
+// definition the engine cannot run (spec "Every commit is honest").
 func TestParseRefusesWhatTheEngineCannotRun(t *testing.T) {
+	landed := asl.NewFeatures(asl.FeatPass, asl.FeatSucceed)
 	for _, def := range []string{
 		`{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":1,"End":true}}}`,
 		`{"StartAt":"P","TimeoutSeconds":5,"States":{"P":{"Type":"Pass","End":true}}}`,
 		`{"StartAt":"P","States":{"P":{"Type":"Pass","InputPath":"$.a","End":true}}}`,
 	} {
-		d, diags := asl.Parse(def, allFeatures)
+		d, diags := asl.Parse(def, landed)
 		if d != nil || len(diags) == 0 || diags[0].Code != asl.CodeUnsupported {
 			t.Errorf("Parse(%s) = %v, %+v; want %s", def, d != nil, diags, asl.CodeUnsupported)
 		}
