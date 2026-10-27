@@ -7,7 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
+	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/awsjson"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
@@ -31,8 +34,16 @@ type goldenFixture struct {
 	Placeholders map[string]string `json:"placeholders"`
 	// Stop says the recording stopped the execution with StopExecution,
 	// without error or cause, once it had settled.
-	Stop    bool            `json:"stop"`
-	History json.RawMessage `json:"history"`
+	Stop bool `json:"stop"`
+	// LambdaPayload is the recorded function's output: the stub Lambda
+	// answers every Invoke with it (spec "Done checks": a test double for
+	// Lambda, never for SFN). Absent, the stub echoes the payload.
+	LambdaPayload json.RawMessage `json:"lambdaPayload"`
+	// Masks are LocalStack's key transforms: every member a key names, at
+	// any depth of understudy's history, has its value replaced by the
+	// string LocalStack recorded for it.
+	Masks   map[string]string `json:"masks"`
+	History json.RawMessage   `json:"history"`
 }
 
 // TestLocalStackHistoryGoldens replays every fixture under
@@ -60,13 +71,19 @@ func TestLocalStackHistoryGoldens(t *testing.T) {
 				t.Fatalf("fixture %s lacks its golden number, localstack@8b9a79f source or validation date", path)
 			}
 			run(t, func(h *harness) {
+				if g.LambdaPayload != nil {
+					payload := []byte(compact(h, g.LambdaPayload))
+					h.answer(func(_ *kernel.Call, _ *lambdaapi.InvokeInput) (*lambdaapi.InvokeOutput, *awserr.Error) {
+						return &lambdaapi.InvokeOutput{StatusCode: 200, Payload: payload, ExecutedVersion: new("$LATEST")}, nil
+					})
+				}
 				machine := h.create("golden", compact(h, g.Definition))
 				arn := h.start(machine, "golden", new(compact(h, g.Input)))
 				if g.Stop {
 					must(h, sfnapi.OpStopExecution, &sfnapi.StopExecutionInput{ExecutionArn: arn})
 					h.settled()
 				}
-				got := undoTransforms(wireHistory(h, arn), h.roleArn())
+				got := masked(undoTransforms(wireHistory(h, arn), h.roleArn()), g.Masks)
 				want := withPlaceholders(decode(h, string(g.History)), g.Placeholders)
 				if !equal(got, want) {
 					h.Fatalf("history of golden %d (%s, validated %s):\n%s\nwant:\n%s", g.Golden, g.Source, g.Validated, docText(got), docText(want))
@@ -134,7 +151,7 @@ func undoDetails(v document.Value, role string) document.Value {
 	for _, entry := range m {
 		s, isString := entry.Value.(document.String)
 		switch {
-		case isString && (entry.Key == "input" || entry.Key == "output"):
+		case isString && (entry.Key == "input" || entry.Key == "output" || entry.Key == "parameters"):
 			if parsed, ok := parseJSON(string(s)); ok {
 				entry.Value = parsed
 			}
@@ -168,6 +185,31 @@ func docText(v document.Value) string {
 		return "<unencodable: " + err.Error() + ">"
 	}
 	return string(b)
+}
+
+// masked replaces the value of every member masks names, at any depth of
+// v, with the string masks gives for it.
+func masked(v document.Value, masks map[string]string) document.Value {
+	switch v := v.(type) {
+	case document.Map:
+		out := make(document.Map, 0, len(v))
+		for _, e := range v {
+			if s, ok := masks[e.Key]; ok {
+				out = append(out, document.Entry{Key: e.Key, Value: document.String(s)})
+				continue
+			}
+			out = append(out, document.Entry{Key: e.Key, Value: masked(e.Value, masks)})
+		}
+		return out
+	case document.List:
+		out := make(document.List, 0, len(v))
+		for _, e := range v {
+			out = append(out, masked(e, masks))
+		}
+		return out
+	case document.String, document.Number, document.Bool, document.Null:
+	}
+	return v
 }
 
 // withPlaceholders replaces the fixture's placeholders in every string of

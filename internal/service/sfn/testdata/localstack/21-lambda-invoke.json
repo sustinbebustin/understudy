@@ -1,0 +1,327 @@
+{
+  "golden": 21,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/services/test_lambda_task_service.snapshot.json:L2",
+  "test": "test_invoke (get_execution_history)",
+  "validated": "2025-11-06",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/services/statemachines/lambda_invoke.json5",
+  "definition": {
+    "Comment": "TASK_SERVICE_LAMBDA_INVOKE",
+    "StartAt": "Start",
+    "States": {
+      "Start": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::lambda:invoke",
+        "Parameters": {
+          "FunctionName.$": "$.FunctionName",
+          "Payload.$": "$.Payload"
+        },
+        "Next": "EndWithFinal"
+      },
+      "EndWithFinal": {
+        "Type": "Pass",
+        "ResultPath": "$.final",
+        "End": true
+      }
+    }
+  },
+  "input": {"FunctionName": "golden-fn", "Payload": null},
+  "lambdaPayload": {},
+  "placeholders": {"<lambda_function_name>": "golden-fn", "<region>": "us-east-1"},
+  "masks": {"x-amzn-RequestId": "x-amzn-RequestId", "Date": "date", "X-Amzn-Trace-Id": "X-Amzn-Trace-Id", "RequestId": "RequestId"},
+  "history": [
+    {
+      "executionStartedEventDetails": {
+        "input": {"FunctionName": "<lambda_function_name>", "Payload": null},
+        "inputDetails": {"truncated": false},
+        "roleArn": "snf_role_arn"
+      },
+      "id": 1,
+      "previousEventId": 0,
+      "timestamp": "timestamp",
+      "type": "ExecutionStarted"
+    },
+    {
+      "id": 2,
+      "previousEventId": 0,
+      "stateEnteredEventDetails": {
+        "input": {"FunctionName": "<lambda_function_name>", "Payload": null},
+        "inputDetails": {"truncated": false},
+        "name": "Start"
+      },
+      "timestamp": "timestamp",
+      "type": "TaskStateEntered"
+    },
+    {
+      "id": 3,
+      "previousEventId": 2,
+      "taskScheduledEventDetails": {
+        "parameters": {"FunctionName": "<lambda_function_name>", "Payload": null},
+        "region": "<region>",
+        "resource": "invoke",
+        "resourceType": "lambda"
+      },
+      "timestamp": "timestamp",
+      "type": "TaskScheduled"
+    },
+    {
+      "id": 4,
+      "previousEventId": 3,
+      "taskStartedEventDetails": {"resource": "invoke", "resourceType": "lambda"},
+      "timestamp": "timestamp",
+      "type": "TaskStarted"
+    },
+    {
+      "id": 5,
+      "previousEventId": 4,
+      "taskSucceededEventDetails": {
+        "output": {
+          "ExecutedVersion": "$LATEST",
+          "Payload": {},
+          "SdkHttpMetadata": {
+            "AllHttpHeaders": {
+              "X-Amz-Executed-Version": ["$LATEST"],
+              "x-amzn-Remapped-Content-Length": ["0"],
+              "Connection": ["keep-alive"],
+              "x-amzn-RequestId": "x-amzn-RequestId",
+              "Content-Length": ["2"],
+              "Date": "date",
+              "X-Amzn-Trace-Id": "X-Amzn-Trace-Id",
+              "Content-Type": ["application/json"]
+            },
+            "HttpHeaders": {
+              "Connection": "keep-alive",
+              "Content-Length": "2",
+              "Content-Type": "application/json",
+              "Date": "date",
+              "X-Amz-Executed-Version": "$LATEST",
+              "x-amzn-Remapped-Content-Length": "0",
+              "x-amzn-RequestId": "x-amzn-RequestId",
+              "X-Amzn-Trace-Id": "X-Amzn-Trace-Id"
+            },
+            "HttpStatusCode": 200
+          },
+          "SdkResponseMetadata": {"RequestId": "RequestId"},
+          "StatusCode": 200
+        },
+        "outputDetails": {"truncated": false},
+        "resource": "invoke",
+        "resourceType": "lambda"
+      },
+      "timestamp": "timestamp",
+      "type": "TaskSucceeded"
+    },
+    {
+      "id": 6,
+      "previousEventId": 5,
+      "stateExitedEventDetails": {
+        "name": "Start",
+        "output": {
+          "ExecutedVersion": "$LATEST",
+          "Payload": {},
+          "SdkHttpMetadata": {
+            "AllHttpHeaders": {
+              "X-Amz-Executed-Version": ["$LATEST"],
+              "x-amzn-Remapped-Content-Length": ["0"],
+              "Connection": ["keep-alive"],
+              "x-amzn-RequestId": "x-amzn-RequestId",
+              "Content-Length": ["2"],
+              "Date": "date",
+              "X-Amzn-Trace-Id": "X-Amzn-Trace-Id",
+              "Content-Type": ["application/json"]
+            },
+            "HttpHeaders": {
+              "Connection": "keep-alive",
+              "Content-Length": "2",
+              "Content-Type": "application/json",
+              "Date": "date",
+              "X-Amz-Executed-Version": "$LATEST",
+              "x-amzn-Remapped-Content-Length": "0",
+              "x-amzn-RequestId": "x-amzn-RequestId",
+              "X-Amzn-Trace-Id": "X-Amzn-Trace-Id"
+            },
+            "HttpStatusCode": 200
+          },
+          "SdkResponseMetadata": {"RequestId": "RequestId"},
+          "StatusCode": 200
+        },
+        "outputDetails": {"truncated": false}
+      },
+      "timestamp": "timestamp",
+      "type": "TaskStateExited"
+    },
+    {
+      "id": 7,
+      "previousEventId": 6,
+      "stateEnteredEventDetails": {
+        "input": {
+          "ExecutedVersion": "$LATEST",
+          "Payload": {},
+          "SdkHttpMetadata": {
+            "AllHttpHeaders": {
+              "X-Amz-Executed-Version": ["$LATEST"],
+              "x-amzn-Remapped-Content-Length": ["0"],
+              "Connection": ["keep-alive"],
+              "x-amzn-RequestId": "x-amzn-RequestId",
+              "Content-Length": ["2"],
+              "Date": "date",
+              "X-Amzn-Trace-Id": "X-Amzn-Trace-Id",
+              "Content-Type": ["application/json"]
+            },
+            "HttpHeaders": {
+              "Connection": "keep-alive",
+              "Content-Length": "2",
+              "Content-Type": "application/json",
+              "Date": "date",
+              "X-Amz-Executed-Version": "$LATEST",
+              "x-amzn-Remapped-Content-Length": "0",
+              "x-amzn-RequestId": "x-amzn-RequestId",
+              "X-Amzn-Trace-Id": "X-Amzn-Trace-Id"
+            },
+            "HttpStatusCode": 200
+          },
+          "SdkResponseMetadata": {"RequestId": "RequestId"},
+          "StatusCode": 200
+        },
+        "inputDetails": {"truncated": false},
+        "name": "EndWithFinal"
+      },
+      "timestamp": "timestamp",
+      "type": "PassStateEntered"
+    },
+    {
+      "id": 8,
+      "previousEventId": 7,
+      "stateExitedEventDetails": {
+        "name": "EndWithFinal",
+        "output": {
+          "ExecutedVersion": "$LATEST",
+          "Payload": {},
+          "SdkHttpMetadata": {
+            "AllHttpHeaders": {
+              "X-Amz-Executed-Version": ["$LATEST"],
+              "x-amzn-Remapped-Content-Length": ["0"],
+              "Connection": ["keep-alive"],
+              "x-amzn-RequestId": "x-amzn-RequestId",
+              "Content-Length": ["2"],
+              "Date": "date",
+              "X-Amzn-Trace-Id": "X-Amzn-Trace-Id",
+              "Content-Type": ["application/json"]
+            },
+            "HttpHeaders": {
+              "Connection": "keep-alive",
+              "Content-Length": "2",
+              "Content-Type": "application/json",
+              "Date": "date",
+              "X-Amz-Executed-Version": "$LATEST",
+              "x-amzn-Remapped-Content-Length": "0",
+              "x-amzn-RequestId": "x-amzn-RequestId",
+              "X-Amzn-Trace-Id": "X-Amzn-Trace-Id"
+            },
+            "HttpStatusCode": 200
+          },
+          "SdkResponseMetadata": {"RequestId": "RequestId"},
+          "StatusCode": 200,
+          "final": {
+            "ExecutedVersion": "$LATEST",
+            "Payload": {},
+            "SdkHttpMetadata": {
+              "AllHttpHeaders": {
+                "X-Amz-Executed-Version": ["$LATEST"],
+                "x-amzn-Remapped-Content-Length": ["0"],
+                "Connection": ["keep-alive"],
+                "x-amzn-RequestId": "x-amzn-RequestId",
+                "Content-Length": ["2"],
+                "Date": "date",
+                "X-Amzn-Trace-Id": "X-Amzn-Trace-Id",
+                "Content-Type": ["application/json"]
+              },
+              "HttpHeaders": {
+                "Connection": "keep-alive",
+                "Content-Length": "2",
+                "Content-Type": "application/json",
+                "Date": "date",
+                "X-Amz-Executed-Version": "$LATEST",
+                "x-amzn-Remapped-Content-Length": "0",
+                "x-amzn-RequestId": "x-amzn-RequestId",
+                "X-Amzn-Trace-Id": "X-Amzn-Trace-Id"
+              },
+              "HttpStatusCode": 200
+            },
+            "SdkResponseMetadata": {"RequestId": "RequestId"},
+            "StatusCode": 200
+          }
+        },
+        "outputDetails": {"truncated": false}
+      },
+      "timestamp": "timestamp",
+      "type": "PassStateExited"
+    },
+    {
+      "executionSucceededEventDetails": {
+        "output": {
+          "ExecutedVersion": "$LATEST",
+          "Payload": {},
+          "SdkHttpMetadata": {
+            "AllHttpHeaders": {
+              "X-Amz-Executed-Version": ["$LATEST"],
+              "x-amzn-Remapped-Content-Length": ["0"],
+              "Connection": ["keep-alive"],
+              "x-amzn-RequestId": "x-amzn-RequestId",
+              "Content-Length": ["2"],
+              "Date": "date",
+              "X-Amzn-Trace-Id": "X-Amzn-Trace-Id",
+              "Content-Type": ["application/json"]
+            },
+            "HttpHeaders": {
+              "Connection": "keep-alive",
+              "Content-Length": "2",
+              "Content-Type": "application/json",
+              "Date": "date",
+              "X-Amz-Executed-Version": "$LATEST",
+              "x-amzn-Remapped-Content-Length": "0",
+              "x-amzn-RequestId": "x-amzn-RequestId",
+              "X-Amzn-Trace-Id": "X-Amzn-Trace-Id"
+            },
+            "HttpStatusCode": 200
+          },
+          "SdkResponseMetadata": {"RequestId": "RequestId"},
+          "StatusCode": 200,
+          "final": {
+            "ExecutedVersion": "$LATEST",
+            "Payload": {},
+            "SdkHttpMetadata": {
+              "AllHttpHeaders": {
+                "X-Amz-Executed-Version": ["$LATEST"],
+                "x-amzn-Remapped-Content-Length": ["0"],
+                "Connection": ["keep-alive"],
+                "x-amzn-RequestId": "x-amzn-RequestId",
+                "Content-Length": ["2"],
+                "Date": "date",
+                "X-Amzn-Trace-Id": "X-Amzn-Trace-Id",
+                "Content-Type": ["application/json"]
+              },
+              "HttpHeaders": {
+                "Connection": "keep-alive",
+                "Content-Length": "2",
+                "Content-Type": "application/json",
+                "Date": "date",
+                "X-Amz-Executed-Version": "$LATEST",
+                "x-amzn-Remapped-Content-Length": "0",
+                "x-amzn-RequestId": "x-amzn-RequestId",
+                "X-Amzn-Trace-Id": "X-Amzn-Trace-Id"
+              },
+              "HttpStatusCode": 200
+            },
+            "SdkResponseMetadata": {"RequestId": "RequestId"},
+            "StatusCode": 200
+          }
+        },
+        "outputDetails": {"truncated": false}
+      },
+      "id": 9,
+      "previousEventId": 8,
+      "timestamp": "timestamp",
+      "type": "ExecutionSucceeded"
+    }
+  ]
+}
