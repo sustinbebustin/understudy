@@ -137,6 +137,10 @@ func (s *Service) viewLayerVersion(c *kernel.Call, ref layerRef, n int64) (*lamb
 	return out, nil
 }
 
+// listLayers makes three choices AWS has not been recorded making, all
+// UNVERIFIED (lambda-destinations-layers.md 6.5, LDL-11): an empty result
+// renders "Layers": [] rather than {}, a layer whose versions are all
+// deleted is left out, and with no MaxItems a page holds listPageCap items.
 func (s *Service) listLayers(_ context.Context, c *kernel.Call, in *lambdaapi.ListLayersInput) (*lambdaapi.ListLayersOutput, *awserr.Error) {
 	scope := c.Scope()
 	items, _ := view(s, scope, func(st *State) ([]lambdaapi.LayersListItem, *awserr.Error) {

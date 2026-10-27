@@ -119,6 +119,13 @@ func (r layerRef) versionARN(n int64) string { return r.arn() + ":" + strconv.Fo
 // semantics do, so a value such as a versioned ARN passes it; the name read
 // from it is then one no layer has, and only PublishLayerVersion, which
 // would store it, refuses it (isLayerName).
+//
+// An ARN of another account is served in that account with no check and no
+// advisory, for every layer operation. AWS lets another account call
+// GetLayerVersion and GetLayerVersionByArn on a version whose policy grants
+// it; that it refuses the other operations rests on a test's comment the
+// recording does not exercise, so it is UNVERIFIED
+// (lambda-destinations-layers.md 6.4). docs/guide/differences.md says so.
 func parseLayerName(c *kernel.Call, s string) (layerRef, *awserr.Error) {
 	if !strings.HasPrefix(s, "arn:") {
 		return layerRef{scope: c.Scope(), name: s}, nil

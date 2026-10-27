@@ -386,7 +386,12 @@ func (a *attempt) wait(ctx context.Context, d time.Duration) bool {
 // events.amazonaws.com, so this model would misreport every same-account
 // forward. Nor does a Lambda delivery, which AWS authorizes as the
 // function's execution role, not as a service principal a resource policy
-// names (lambda-destinations-layers.md 2.5, 11.3.2).
+// names (lambda-destinations-layers.md 2.5, 11.3.2). That holds across
+// accounts too: a destination in another account needs its resource policy
+// to grant the role as well (iam-evaluation.md 2.4), and that is not
+// checked here either. Both wait for IAM enforcement (ROADMAP.md item 5),
+// which can decide the attempt's calls as the role; until then nothing
+// advises them (docs/guide/differences.md).
 func (a *attempt) advise(ctx context.Context) {
 	req := a.entry.Request
 	if a.e.policies == nil || req.Mechanism == delivery.EventsToEvents || req.Sender != nil {

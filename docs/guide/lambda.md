@@ -122,7 +122,7 @@ aws lambda invoke --function-name layered out.json && cat out.json
 ```
 
 - understudy merges a function's layers into `/opt` in the order listed, and mounts the merged tree read-only, or copies it into the container where a bind mount is not possible. A later layer's file replaces an earlier one's at the same path. AWS does not say which layer wins, so this is the fidelity switch `lambda.layers.merge-conflict`. A file in one layer where another has a directory fails the invoke with a `ServiceException` naming the path.
-- understudy sets no `PYTHONPATH`, `NODE_PATH` or `PATH`. The runtimes in AWS's base images search `/opt/python`, `/opt/python/lib/python3.x/site-packages`, `/opt/nodejs/node_modules`, `/opt/bin` and `/opt/lib` themselves, and `provided.al2023` runs a layer's `/opt/bootstrap` when the package has none.
+- understudy sets no `PYTHONPATH`, `NODE_PATH` or `PATH`. The runtimes in AWS's base images search `/opt/python`, `/opt/python/lib/python3.x/site-packages`, `/opt/bin` and `/opt/lib` themselves, and `provided.al2023` runs a layer's `/opt/bootstrap` when the package has none. That the Node.js runtimes search `/opt/nodejs/node_modules` the same way is inferred, not yet checked against the pinned `nodejs22.x` image; if `require` cannot find a layer's package, set `NODE_PATH` in the function's environment.
 - Only layers published to understudy exist, because understudy never fetches a layer from AWS. An AWS-published layer such as Powertools is refused:
 
   ```sh

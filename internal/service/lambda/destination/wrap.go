@@ -287,7 +287,9 @@ const maxErrorMessage = 1024
 // error's response: the errorMessage member of the error object
 // (lambda-destinations-layers.md 5.2), or the response as text when it is
 // no object with a string errorMessage, cut to its first 1,024 bytes and
-// moved back to a UTF-8 character boundary (11.3.7).
+// moved back to a UTF-8 character boundary (11.3.7). Only the errorMessage
+// case is recorded; the whole-response fallback is understudy's choice, and
+// what AWS sends then is UNVERIFIED (5.2, LDL-03).
 func ErrorMessage(response []byte) string {
 	msg := string(response)
 	var obj map[string]json.RawMessage
