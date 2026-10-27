@@ -130,6 +130,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
 | sqs | 23 | 16 | 0 | 7 | 0 | 2 | 0 |
+| ssm | 152 | 0 | 0 | 13 | 139 | 0 | 0 |
 | sts | 11 | 1 | 0 | 2 | 8 | 0 | 0 |
 
 ### apigatewayv2
@@ -1162,6 +1163,163 @@ Internal operations:
 | HoldVisibility | full | inferred, 2 of 5 claims |  |
 | MessageCauses | full | inferred, 3 of 6 claims |  |
 
+### ssm
+
+| Operation | Status | Evidence | Note |
+|---|---|---|---|
+| AddTagsToResource | partial | third-party-recorded, 2 of 2 claims | a name under /aws/service/ or /aws/reference/secretsmanager/ makes the call answer 501; ResourceType Parameter only: the other resource types name nothing understudy stores, so they answer InvalidResourceId |
+| DeleteParameter | partial | inferred, 1 of 3 claims | a name under /aws/service/ or /aws/reference/secretsmanager/ makes the call answer 501; no Parameter Store Change events are sent |
+| DeleteParameters | partial | third-party-recorded, 2 of 2 claims | a name under /aws/service/ or /aws/reference/secretsmanager/ makes the call answer 501; no Parameter Store Change events are sent; unrecorded, understudy's choice: a name that is not valid is listed in InvalidParameters |
+| DescribeParameters | partial | inferred, 3 of 5 claims | AWS public parameters and Secrets Manager references are never listed: a Name or Path filter value under /aws/service/ or /aws/reference/secretsmanager/ answers 501; Shared lists nothing, since no parameter can be shared (resource policies are unbound); the deprecated Filters member answers 501 (use ParameterFilters); unrecorded, understudy's choice: 50 results per page without MaxResults, a Path filter without Option is OneLevel, the values of one filter match any of them, a tag filter without Values matches any value of its key, BeginsWith and Contains are case-sensitive, and LastModifiedUser of a role session is the assumed-role session ARN |
+| GetParameter | partial | inferred, 1 of 3 claims | no AWS public parameters: names under /aws/service/ answer 501; Secrets Manager references (names under /aws/reference/secretsmanager/) answer 501; the legacy Query protocol (?Action= without X-Amz-Target), which AWS also serves, answers 501 for this and every SSM operation; unrecorded, understudy's choice: an ARN of another account or Region answers ParameterNotFound, and the ParameterVersionNotFound message is understudy's own |
+| GetParameterHistory | partial | inferred, 3 of 5 claims | a name under /aws/service/ or /aws/reference/secretsmanager/ makes the call answer 501; unrecorded, understudy's choice: 50 versions per page without MaxResults, version numbers keep counting after the oldest of 100 is dropped, and LastModifiedUser of a role session is the assumed-role session ARN |
+| GetParameters | partial | inferred, 1 of 3 claims | no AWS public parameters: a name under /aws/service/ makes the call answer 501; a Secrets Manager reference (a name under /aws/reference/secretsmanager/) makes the call answer 501; unrecorded, understudy's choice: a name given twice is answered once, and a name that is not valid, or whose version or label does not exist, is listed in InvalidParameters |
+| GetParametersByPath | partial | inferred, 1 of 3 claims | no AWS public parameters or Secrets Manager references: paths under /aws/service/ or /aws/reference/secretsmanager/ answer 501; unrecorded, understudy's choice: 10 results per page without MaxResults, Path / lists root parameters, and a Label filter's results carry no Selector |
+| LabelParameterVersion | partial | inferred, 1 of 3 claims | a name under /aws/service/ or /aws/reference/secretsmanager/ makes the call answer 501; no Parameter Store Change events are sent; the ParameterVersionLabelLimitExceeded message is understudy's own (AWS's is unrecorded) |
+| ListTagsForResource | partial | third-party-recorded, 2 of 2 claims | a name under /aws/service/ or /aws/reference/secretsmanager/ makes the call answer 501; ResourceType Parameter only: the other resource types name nothing understudy stores, so they answer InvalidResourceId; unrecorded, understudy's choice: an untagged parameter answers TagList [] |
+| PutParameter | partial | inferred, 2 of 4 claims | a name under /aws/service/ or /aws/reference/secretsmanager/ makes the call answer 501; parameter policies answer 501; DataType aws:ec2:image answers 501, since understudy has no EC2 to validate an AMI; an Advanced-tier SecureString, including an Intelligent-Tiering one that resolves to Advanced, answers 501; AllowedPattern is compiled as Go RE2: a pattern RE2 cannot compile answers 501, except an unbalanced bracket or parenthesis, a trailing backslash, a repetition without an argument or a reversed character range, which answer InvalidAllowedPatternException; no Parameter Store Change events are sent; the default tier is always Standard (the service setting is unbound); unrecorded, understudy's choice: an identical overwrite creates a version, Tags with Overwrite are refused for a new name too, an Intelligent-Tiering request answers with the resolved tier, an Advanced parameter written without Tier stays Advanced, an empty AllowedPattern on an overwrite clears the stored one, an empty Value is accepted, a deleted name can be created again at once with a fresh history, StringList values are stored verbatim, value size is counted in bytes and an oversize value answers ValidationException, a hierarchical parameter cannot change type (HierarchyTypeMismatchException) while a root parameter can, and the messages for name, depth, length, size, count, type-change, missing-Type, KeyId-on-String, AllowedPattern and {{...}} refusals are understudy's own |
+| RemoveTagsFromResource | partial | third-party-recorded, 2 of 2 claims | a name under /aws/service/ or /aws/reference/secretsmanager/ makes the call answer 501; ResourceType Parameter only: the other resource types name nothing understudy stores, so they answer InvalidResourceId |
+| UnlabelParameterVersion | partial | inferred, 1 of 3 claims | a name under /aws/service/ or /aws/reference/secretsmanager/ makes the call answer 501 |
+| AssociateOpsItemRelatedItem | unbound | unassessed |  |
+| CancelCommand | unbound | unassessed |  |
+| CancelMaintenanceWindowExecution | unbound | unassessed |  |
+| CreateActivation | unbound | unassessed |  |
+| CreateAssociation | unbound | unassessed |  |
+| CreateAssociationBatch | unbound | unassessed |  |
+| CreateCloudConnector | unbound | unassessed |  |
+| CreateDocument | unbound | unassessed |  |
+| CreateMaintenanceWindow | unbound | unassessed |  |
+| CreateOpsItem | unbound | unassessed |  |
+| CreateOpsMetadata | unbound | unassessed |  |
+| CreatePatchBaseline | unbound | unassessed |  |
+| CreateResourceDataSync | unbound | unassessed |  |
+| DeleteActivation | unbound | unassessed |  |
+| DeleteAssociation | unbound | unassessed |  |
+| DeleteCloudConnector | unbound | unassessed |  |
+| DeleteDocument | unbound | unassessed |  |
+| DeleteInventory | unbound | unassessed |  |
+| DeleteMaintenanceWindow | unbound | unassessed |  |
+| DeleteOpsItem | unbound | unassessed |  |
+| DeleteOpsMetadata | unbound | unassessed |  |
+| DeletePatchBaseline | unbound | unassessed |  |
+| DeleteResourceDataSync | unbound | unassessed |  |
+| DeleteResourcePolicy | unbound | unassessed |  |
+| DeregisterManagedInstance | unbound | unassessed |  |
+| DeregisterPatchBaselineForPatchGroup | unbound | unassessed |  |
+| DeregisterTargetFromMaintenanceWindow | unbound | unassessed |  |
+| DeregisterTaskFromMaintenanceWindow | unbound | unassessed |  |
+| DescribeActivations | unbound | unassessed |  |
+| DescribeAssociation | unbound | unassessed |  |
+| DescribeAssociationExecutionTargets | unbound | unassessed |  |
+| DescribeAssociationExecutions | unbound | unassessed |  |
+| DescribeAutomationExecutions | unbound | unassessed |  |
+| DescribeAutomationStepExecutions | unbound | unassessed |  |
+| DescribeAvailablePatches | unbound | unassessed |  |
+| DescribeDocument | unbound | unassessed |  |
+| DescribeDocumentPermission | unbound | unassessed |  |
+| DescribeEffectiveInstanceAssociations | unbound | unassessed |  |
+| DescribeEffectivePatchesForPatchBaseline | unbound | unassessed |  |
+| DescribeInstanceAssociationsStatus | unbound | unassessed |  |
+| DescribeInstanceInformation | unbound | unassessed |  |
+| DescribeInstancePatchStates | unbound | unassessed |  |
+| DescribeInstancePatchStatesForPatchGroup | unbound | unassessed |  |
+| DescribeInstancePatches | unbound | unassessed |  |
+| DescribeInstanceProperties | unbound | unassessed |  |
+| DescribeInventoryDeletions | unbound | unassessed |  |
+| DescribeMaintenanceWindowExecutionTaskInvocations | unbound | unassessed |  |
+| DescribeMaintenanceWindowExecutionTasks | unbound | unassessed |  |
+| DescribeMaintenanceWindowExecutions | unbound | unassessed |  |
+| DescribeMaintenanceWindowSchedule | unbound | unassessed |  |
+| DescribeMaintenanceWindowTargets | unbound | unassessed |  |
+| DescribeMaintenanceWindowTasks | unbound | unassessed |  |
+| DescribeMaintenanceWindows | unbound | unassessed |  |
+| DescribeMaintenanceWindowsForTarget | unbound | unassessed |  |
+| DescribeOpsItems | unbound | unassessed |  |
+| DescribePatchBaselines | unbound | unassessed |  |
+| DescribePatchGroupState | unbound | unassessed |  |
+| DescribePatchGroups | unbound | unassessed |  |
+| DescribePatchProperties | unbound | unassessed |  |
+| DescribeSessions | unbound | unassessed |  |
+| DisassociateOpsItemRelatedItem | unbound | unassessed |  |
+| GetAccessToken | unbound | unassessed |  |
+| GetAutomationExecution | unbound | unassessed |  |
+| GetCalendarState | unbound | unassessed |  |
+| GetCloudConnector | unbound | unassessed |  |
+| GetCommandInvocation | unbound | unassessed |  |
+| GetConnectionStatus | unbound | unassessed |  |
+| GetDefaultPatchBaseline | unbound | unassessed |  |
+| GetDeployablePatchSnapshotForInstance | unbound | unassessed |  |
+| GetDocument | unbound | unassessed |  |
+| GetExecutionPreview | unbound | unassessed |  |
+| GetInventory | unbound | unassessed |  |
+| GetInventorySchema | unbound | unassessed |  |
+| GetMaintenanceWindow | unbound | unassessed |  |
+| GetMaintenanceWindowExecution | unbound | unassessed |  |
+| GetMaintenanceWindowExecutionTask | unbound | unassessed |  |
+| GetMaintenanceWindowExecutionTaskInvocation | unbound | unassessed |  |
+| GetMaintenanceWindowTask | unbound | unassessed |  |
+| GetOpsItem | unbound | unassessed |  |
+| GetOpsMetadata | unbound | unassessed |  |
+| GetOpsSummary | unbound | unassessed |  |
+| GetPatchBaseline | unbound | unassessed |  |
+| GetPatchBaselineForPatchGroup | unbound | unassessed |  |
+| GetResourcePolicies | unbound | unassessed |  |
+| GetServiceSetting | unbound | unassessed |  |
+| ListAssociationVersions | unbound | unassessed |  |
+| ListAssociations | unbound | unassessed |  |
+| ListCloudConnectors | unbound | unassessed |  |
+| ListCommandInvocations | unbound | unassessed |  |
+| ListCommands | unbound | unassessed |  |
+| ListComplianceItems | unbound | unassessed |  |
+| ListComplianceSummaries | unbound | unassessed |  |
+| ListDocumentMetadataHistory | unbound | unassessed |  |
+| ListDocumentVersions | unbound | unassessed |  |
+| ListDocuments | unbound | unassessed |  |
+| ListInventoryEntries | unbound | unassessed |  |
+| ListNodes | unbound | unassessed |  |
+| ListNodesSummary | unbound | unassessed |  |
+| ListOpsItemEvents | unbound | unassessed |  |
+| ListOpsItemRelatedItems | unbound | unassessed |  |
+| ListOpsMetadata | unbound | unassessed |  |
+| ListResourceComplianceSummaries | unbound | unassessed |  |
+| ListResourceDataSync | unbound | unassessed |  |
+| ModifyDocumentPermission | unbound | unassessed |  |
+| PutComplianceItems | unbound | unassessed |  |
+| PutInventory | unbound | unassessed |  |
+| PutResourcePolicy | unbound | unassessed |  |
+| RegisterDefaultPatchBaseline | unbound | unassessed |  |
+| RegisterPatchBaselineForPatchGroup | unbound | unassessed |  |
+| RegisterTargetWithMaintenanceWindow | unbound | unassessed |  |
+| RegisterTaskWithMaintenanceWindow | unbound | unassessed |  |
+| ResetServiceSetting | unbound | unassessed |  |
+| ResumeSession | unbound | unassessed |  |
+| SendAutomationSignal | unbound | unassessed |  |
+| SendCommand | unbound | unassessed |  |
+| StartAccessRequest | unbound | unassessed |  |
+| StartAssociationsOnce | unbound | unassessed |  |
+| StartAutomationExecution | unbound | unassessed |  |
+| StartChangeRequestExecution | unbound | unassessed |  |
+| StartExecutionPreview | unbound | unassessed |  |
+| StartSession | unbound | unassessed |  |
+| StopAutomationExecution | unbound | unassessed |  |
+| TerminateSession | unbound | unassessed |  |
+| UpdateAssociation | unbound | unassessed |  |
+| UpdateAssociationStatus | unbound | unassessed |  |
+| UpdateCloudConnector | unbound | unassessed |  |
+| UpdateDocument | unbound | unassessed |  |
+| UpdateDocumentDefaultVersion | unbound | unassessed |  |
+| UpdateDocumentMetadata | unbound | unassessed |  |
+| UpdateMaintenanceWindow | unbound | unassessed |  |
+| UpdateMaintenanceWindowTarget | unbound | unassessed |  |
+| UpdateMaintenanceWindowTask | unbound | unassessed |  |
+| UpdateManagedInstanceRole | unbound | unassessed |  |
+| UpdateOpsItem | unbound | unassessed |  |
+| UpdateOpsMetadata | unbound | unassessed |  |
+| UpdatePatchBaseline | unbound | unassessed |  |
+| UpdateResourceDataSync | unbound | unassessed |  |
+| UpdateServiceSetting | unbound | unassessed |  |
+| ValidateCloudConnector | unbound | unassessed |  |
+
 ### sts
 
 | Operation | Status | Evidence | Note |
@@ -1360,6 +1518,11 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sqs.fifo.sequence-number` | `20-digit-decimal-per-queue` | inferred | docs/research/sqs.md#3-identifiers-and-formats | none: sqs/R01#07-fifo-recv1 records the 20-digit form but not how the numbers count |
 | `sqs.queueDeletedRecently` | `ignore` | inferred | docs/ARCHITECTURE.md#9-the-clock | none: a deliberate departure from AWS (ARCHITECTURE.md 9), which a recording does not change |
 | `sqs.visibility.ceiling-from` | `latest-receive` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | none: unrecorded: no recording reaches the 12-hour ceiling |
+| `ssm.error.parameter-not-found-message` | `empty` | inferred | docs/research/ssm-parameters.md#22-errors | none: unrecorded: SSM-02 not yet recorded |
+| `ssm.kms.key-id-echo` | `verbatim` | inferred | docs/research/ssm-parameters.md#54-keyid-in-metadata | none: unrecorded: SSM-22 not yet recorded |
+| `ssm.list.order` | `name-ascending` | inferred | docs/research/ssm-parameters.md#74-getparametersbypath | none: unrecorded: SSM-19 and SSM-20 not yet recorded |
+| `ssm.name.root-slash-echo` | `request-spelling` | inferred | docs/research/ssm-parameters.md#32-root-parameters-and-the-leading-slash | none: unrecorded: SSM-07 not yet recorded |
+| `ssm.put.omitted-fields` | `preserved` | inferred | docs/research/ssm-parameters.md#71-putparameter | none: unrecorded: SSM-10 not yet recorded |
 | `sts.denial.reason` | `omitted` | inferred | docs/research/iam-enforcement-surfaces.md#4.3 | none: unrecorded: IAM-ENF-16 waits in the recording queue (iam-enforcement-surfaces.md 13); sts/R15#06-assume-denied records only the implicit trust denial, whose text this value reproduces |
 
 ### Overlay entries
