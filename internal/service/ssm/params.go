@@ -329,21 +329,6 @@ func hasReference(value string) bool {
 	return ok && strings.Contains(after, "}}")
 }
 
-// addTags is tags with add applied in order: a new key is appended, an
-// existing key takes the new value (AddTagsToResource "Adds or
-// overwrites", ssm-parameters.md 7.9). tags is not modified.
-func addTags(tags []Tag, add []ssmapi.Tag) []Tag {
-	out := slices.Clone(tags)
-	for _, t := range add {
-		if i := slices.IndexFunc(out, func(o Tag) bool { return o.Key == t.Key }); i >= 0 {
-			out[i].Value = t.Value
-			continue
-		}
-		out = append(out, Tag{Key: t.Key, Value: t.Value})
-	}
-	return out
-}
-
 // deleteParameter drops a parameter with its versions, labels and tags.
 func (s *Service) deleteParameter(_ context.Context, c *kernel.Call, in *ssmapi.DeleteParameterInput) (*ssmapi.DeleteParameterOutput, *awserr.Error) {
 	if err := checkReserved("DeleteParameter", in.Name); err != nil {
@@ -369,31 +354,52 @@ func (s *Service) deleteParameter(_ context.Context, c *kernel.Call, in *ssmapi.
 	return &ssmapi.DeleteParameterOutput{}, nil
 }
 
-// listTagsForResource lists a parameter's tags in the order they were
-// first set, [] when it has none. UNVERIFIED (SSM-25), ssm-parameters.md
-// 7.9: the empty list rather than an absent one.
-func (s *Service) listTagsForResource(_ context.Context, c *kernel.Call, in *ssmapi.ListTagsForResourceInput) (*ssmapi.ListTagsForResourceOutput, *awserr.Error) {
-	if err := checkReserved("ListTagsForResource", in.ResourceId); err != nil {
+// deleteParameters deletes up to ten parameters by name
+// (ssm-parameters.md 7.7): those deleted, as the request spelled them
+// (trimmed), in byte order; those not found, as given, in
+// InvalidParameters. Both are [] rather than absent when empty (7.10). A
+// name given twice is answered once.
+// UNVERIFIED (SSM-27), ssm-parameters.md 7.7: a name that is not valid is
+// listed in InvalidParameters rather than failing the call.
+func (s *Service) deleteParameters(_ context.Context, c *kernel.Call, in *ssmapi.DeleteParametersInput) (*ssmapi.DeleteParametersOutput, *awserr.Error) {
+	if err := checkReserved("DeleteParameters", in.Names...); err != nil {
 		return nil, err
 	}
-	if in.ResourceType != ssmapi.ResourceTypeForTaggingParameter {
-		return nil, ssmapi.ErrInvalidResourceId()
-	}
 	scope := c.Scope()
-	// A ResourceId that is not a valid name names no parameter
-	// (contract 0: InvalidResourceId).
-	n, err := parseName(in.ResourceId, scope)
+	type outcome struct {
+		deleted []name
+		invalid []string
+	}
+	o, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (outcome, *awserr.Error) {
+		o := outcome{invalid: []string{}}
+		seen := make(map[string]bool, len(in.Names))
+		for _, raw := range in.Names {
+			asked := strings.Trim(raw, " ")
+			if seen[asked] {
+				continue
+			}
+			seen[asked] = true
+			n, err := parseName(asked, scope)
+			if _, ok := st.Parameters[n.canonical]; err != nil || !ok {
+				o.invalid = append(o.invalid, asked)
+				continue
+			}
+			delete(st.Parameters, n.canonical)
+			o.deleted = append(o.deleted, n)
+		}
+		if len(o.deleted) == 0 {
+			tx.Unchanged()
+		}
+		return o, nil
+	})
 	if err != nil {
-		return nil, ssmapi.ErrInvalidResourceId()
+		return nil, err
 	}
-	p, ok := s.lookup(scope, n.canonical)
-	if !ok {
-		return nil, ssmapi.ErrInvalidResourceId()
+	deleted := make([]string, 0, len(o.deleted))
+	for _, n := range o.deleted {
+		deleted = append(deleted, n.spelling)
+		c.Touch(parameterARN(scope, n.canonical))
 	}
-	tags := make([]ssmapi.Tag, 0, len(p.Tags))
-	for _, t := range p.Tags {
-		tags = append(tags, ssmapi.Tag{Key: t.Key, Value: t.Value})
-	}
-	c.Touch(parameterARN(scope, p.Name))
-	return &ssmapi.ListTagsForResourceOutput{TagList: tags}, nil
+	slices.Sort(deleted)
+	return &ssmapi.DeleteParametersOutput{DeletedParameters: deleted, InvalidParameters: o.invalid}, nil
 }
