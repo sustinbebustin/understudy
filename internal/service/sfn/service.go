@@ -80,8 +80,10 @@ const (
 		"is stored and returned by DescribeExecution; no X-Ray trace is emitted. A Lambda task in flight when a snapshot was saved is invoked again after load. " +
 		"States.MathRandom never reproduces AWS's sequence for a seed"
 	noteListExecutions    = "mapRunArn and redriveFilter are validated; no Map Run or redrive exists, so they match nothing"
-	noteDescribeExecution = "redriveStatus is given for SUCCEEDED and FAILED executions only, and redriveStatusReason for SUCCEEDED ones"
-	noteHistory           = "includeExecutionData false removes input and output and keeps the *Details members (UNVERIFIED, SFN-05). " +
+	noteDescribeExecution = "redriveStatus is NOT_REDRIVABLE for SUCCEEDED executions and REDRIVABLE for FAILED, TIMED_OUT and ABORTED ones, " +
+		"however long ago they closed; a RUNNING execution has none. The other NOT_REDRIVABLE reasons AWS documents " +
+		"(a running execution, a DELETING machine, the 14-day redrive period) are not given: none is recorded"
+	noteHistory = "includeExecutionData false removes input and output and keeps the *Details members (UNVERIFIED, SFN-05). " +
 		"Events of concurrent Parallel branches and Map iterations are appended in the order understudy runs them, " +
 		"steps due at the same emulator instant in branch or item order (UNVERIFIED, ASL-13); " +
 		"payload-template output keeps template key order (UNVERIFIED, ASL-02)"

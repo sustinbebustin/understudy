@@ -218,9 +218,14 @@ func (s *Service) describeExecution(_ context.Context, c *kernel.Call, in *sfnap
 		out.Error, out.Cause = optional(o.Error), optional(o.Cause)
 		out.RedriveStatus = new(sfnapi.ExecutionRedriveStatusRedrivable)
 	case asl.TimedOut:
+		// Recorded REDRIVABLE (stepfunctions-api.md 6.3).
 		out.Error, out.Cause = optional(o.Error), optional(o.Cause)
+		out.RedriveStatus = new(sfnapi.ExecutionRedriveStatusRedrivable)
 	case asl.Aborted:
+		// Documented redrivable, as failed and timed-out executions are
+		// (stepfunctions-api.md 6.3).
 		out.Error, out.Cause = optional(o.Error), optional(o.Cause)
+		out.RedriveStatus = new(sfnapi.ExecutionRedriveStatusRedrivable)
 	}
 	return out, nil
 }
