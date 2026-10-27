@@ -49,6 +49,7 @@ Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scrip
 | `.terraform.lock.hcl` | Pinned provider checksums, copied into every working directory (`init -lockfile=readonly`). |
 | `functions/go-worker` | The Go worker for `provided.al2023`, standard library only, its own module. |
 | `functions/python-handler` | The Python handler for `python3.13`. |
+| `functions/python-layer` | The layer the Python function uses: a module under `python/`, which Lambda extracts to `/opt/python`. |
 
 The `step` variable selects the scenario: `create` is the initial configuration and `update` the changed one. Each file's header says what the update changes.
 

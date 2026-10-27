@@ -1,8 +1,12 @@
 # Lambda: a Go worker on provided.al2023 fed by an SQS event source mapping
 # with partial batch responses, and a Python function exposed through a
 # function URL and invokable by an SNS topic. Both are zip packages with log
-# groups managed here. The update step changes memory, timeout, environment,
-# description and the Python code, the mapping's batching, and the URL's CORS.
+# groups managed here. The Python function uses a layer shared with its own
+# account, and its asynchronous invocations go to an SQS queue on success
+# and an SNS topic on failure. The update step changes memory, timeout,
+# environment, description and the Python code, the mapping's batching, the
+# URL's CORS, the layer (a new version, which the function then uses) and
+# the asynchronous invocation configuration.
 
 data "aws_iam_policy_document" "lambda_assume" {
   statement {
@@ -110,6 +114,35 @@ resource "aws_lambda_function" "go_worker" {
   ]
 }
 
+# The shared layer: every argument forces a new version, so the update
+# publishes version 2 and the function moves to it
+# (docs/research/lambda-destinations-layers.md 9.3).
+data "archive_file" "python_layer" {
+  type        = "zip"
+  source_dir  = "${var.functions_dir}/python-layer"
+  output_path = "${var.artifacts_dir}/lambda-python-layer.zip"
+}
+
+resource "aws_lambda_layer_version" "shared" {
+  layer_name               = "${var.name_prefix}-shared"
+  description              = local.updated ? "Shared helpers (updated)" : "Shared helpers"
+  filename                 = data.archive_file.python_layer.output_path
+  source_code_hash         = data.archive_file.python_layer.output_base64sha256
+  compatible_runtimes      = local.updated ? ["python3.13", "python3.12"] : ["python3.13"]
+  compatible_architectures = ["x86_64"]
+}
+
+# The provider reads Statement[0] and turns the principal back into the
+# account id, so the policy must render it as {"AWS": "arn:...:root"}
+# (docs/research/lambda-destinations-layers.md 9.4).
+resource "aws_lambda_layer_version_permission" "shared" {
+  layer_name     = aws_lambda_layer_version.shared.layer_arn
+  version_number = aws_lambda_layer_version.shared.version
+  statement_id   = "same-account"
+  action         = "lambda:GetLayerVersion"
+  principal      = local.account_id
+}
+
 resource "aws_lambda_function" "python_api" {
   function_name    = "${var.name_prefix}-python-api"
   description      = "Webhook status API"
@@ -120,6 +153,7 @@ resource "aws_lambda_function" "python_api" {
   source_code_hash = data.archive_file.python_api.output_base64sha256
   memory_size      = 128
   timeout          = local.updated ? 10 : 5
+  layers           = [aws_lambda_layer_version.shared.arn]
 
   environment {
     variables = {
@@ -131,6 +165,47 @@ resource "aws_lambda_function" "python_api" {
     aws_cloudwatch_log_group.python_api,
     aws_iam_role_policy_attachment.lambda_basic_execution,
   ]
+}
+
+# Fixtures: where the Python function's asynchronous invocations go.
+resource "aws_sqs_queue" "lambda_success" {
+  name = "${var.name_prefix}-on-success"
+}
+
+resource "aws_sns_topic" "lambda_failure" {
+  name = "${var.name_prefix}-on-failure"
+}
+
+# Lambda delivers to destinations as the execution role, which needs to
+# reach each one (docs/research/lambda-destinations-layers.md 2.5).
+resource "aws_iam_role_policy" "lambda_destinations" {
+  name = "${var.name_prefix}-destinations"
+  role = aws_iam_role.lambda_exec.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      { Effect = "Allow", Action = "sqs:SendMessage", Resource = aws_sqs_queue.lambda_success.arn },
+      { Effect = "Allow", Action = "sns:Publish", Resource = aws_sns_topic.lambda_failure.arn },
+    ]
+  })
+}
+
+resource "aws_lambda_function_event_invoke_config" "python_api" {
+  function_name                = aws_lambda_function.python_api.function_name
+  maximum_retry_attempts       = local.updated ? 1 : 0
+  maximum_event_age_in_seconds = local.updated ? 600 : 300
+
+  destination_config {
+    on_success {
+      destination = aws_sqs_queue.lambda_success.arn
+    }
+
+    on_failure {
+      destination = aws_sns_topic.lambda_failure.arn
+    }
+  }
+
+  depends_on = [aws_iam_role_policy.lambda_destinations]
 }
 
 resource "aws_lambda_event_source_mapping" "go_worker" {
