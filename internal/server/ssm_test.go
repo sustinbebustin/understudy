@@ -14,9 +14,10 @@ import (
 	"github.com/sustinbebustin/understudy/internal/server"
 )
 
-// jsonCall sends one signed awsJson1_1 request to service with X-Amz-Target
-// target as the default account's root and returns the status and body.
-func jsonCall(t *testing.T, endpoint, service, target, body string) (status int, out string) {
+// rootJSONCall sends one signed awsJson1_1 request to service with
+// X-Amz-Target target as the default account's root and returns the status
+// and body.
+func rootJSONCall(t *testing.T, endpoint, service, target, body string) (status int, out string) {
 	t.Helper()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, endpoint+"/", strings.NewReader(body))
 	if err != nil {
@@ -39,7 +40,7 @@ func jsonCall(t *testing.T, endpoint, service, target, body string) (status int,
 
 func mustSSM(t *testing.T, endpoint, op, body string) string {
 	t.Helper()
-	status, out := jsonCall(t, endpoint, "ssm", "AmazonSSM."+op, body)
+	status, out := rootJSONCall(t, endpoint, "ssm", "AmazonSSM."+op, body)
 	if status != http.StatusOK {
 		t.Fatalf("ssm %s = %d %s", op, status, out)
 	}
@@ -172,7 +173,7 @@ func TestSSMIAMPolicy(t *testing.T) {
 	}
 
 	c2, endpoint2 := adminServer(t, server.Config{})
-	status, out := jsonCall(t, endpoint2, "kms", "TrentService.CreateKey", `{}`)
+	status, out := rootJSONCall(t, endpoint2, "kms", "TrentService.CreateKey", `{}`)
 	if status != http.StatusOK {
 		t.Fatalf("CreateKey = %d %s", status, out)
 	}
