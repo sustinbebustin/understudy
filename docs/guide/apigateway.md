@@ -47,20 +47,29 @@ aws lambda add-permission --function-name hello --statement-id apigateway --acti
 
 ## Calling the API
 
-An API is reached at `/_understudy/execute-api/<api-id>/<path>` on understudy's endpoint. The `$default` stage serves the paths themselves; a named stage `prod` serves them under `/prod/...`.
+An API is reached at its `ApiEndpoint`, `http://<api-id>.execute-api.<region>.localhost:4566`, or, where `*.localhost` does not resolve (inside a container, for one), at `/_understudy/execute-api/<api-id>/<path>` on understudy's endpoint. The `$default` stage serves the paths themselves; a named stage `prod` serves them under `/prod/...`.
 
 ```sh
+curl -i http://wfod7wzey6.execute-api.us-east-1.localhost:4566/hello
+# HTTP/1.1 200 OK
+# Apigw-Requestid: uey0EOEuNMRNhTQ=
+# Content-Type: text/plain; charset=utf-8
+#
+# hello from GET /hello
 curl -i http://localhost:4566/_understudy/execute-api/wfod7wzey6/hello
 # HTTP/1.1 200 OK
-# Apigw-Requestid: c4Zzo5MmWjE_qVY=
+# Apigw-Requestid: 2JjoL0Qr2QtVkdk=
+# Content-Security-Policy: sandbox
 # Content-Type: text/plain; charset=utf-8
 #
 # hello from GET /hello
 ```
 
-The function gets the payload format 2.0 event. Its `rawPath` is the path after the API id, a named stage's segment included. Every answer on this path carries `Content-Security-Policy: sandbox`, since it shares understudy's origin (ADR 0020).
+`http://<api-id>.execute-api.localhost:4566` serves the API too, in its own region; a host naming another region answers `403 {"message":"Forbidden"}`, as an unknown API id does. An API of any account is reached by its id alone.
 
-The execute-api host form, `http://<api-id>.execute-api.us-east-1.localhost:4566/hello`, still answers 501.
+The function gets the payload format 2.0 event. Its `rawPath` is the path the API sees, a named stage's segment included, and `requestContext.domainName` is the host the request named, or on the path fallback the `ApiEndpoint` host name. Every answer on the path fallback carries `Content-Security-Policy: sandbox`, since it shares understudy's origin (ADR 0020); the host is an origin of its own and gets none.
+
+`update-api --disable-execute-api-endpoint` turns off both forms from that call on: requests answer `403 {"message":"Forbidden"}` until `--no-disable-execute-api-endpoint`.
 
 ## Routes
 
@@ -122,8 +131,6 @@ curl http://localhost:4566/_understudy/execute-api/vsstkl7iok/legacy/x
 ```
 
 `--timeout-in-millis` and `--tls-config` are stored and change nothing yet.
-
-`update-api --disable-execute-api-endpoint` turns this path off from that call on: requests answer `403 {"message":"Forbidden"}` until `--no-disable-execute-api-endpoint`.
 
 understudy stores an API's `--cors-configuration` and returns it, but does not apply CORS. A request with an `Origin` header to an API that has one answers 501 and runs nothing, rather than reaching your function without the CORS headers AWS would add:
 
