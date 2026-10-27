@@ -139,7 +139,7 @@ func (o authorizationOption) apply(cfg any) bool {
 	return ok
 }
 
-func (cfg *bindConfig[In]) setAuthorization(a authorization) { cfg.authorization = a }
+func (cfg *bindConfig) setAuthorization(a authorization) { cfg.authorization = a }
 
 // AuthorizedInHandler marks an operation whose handler resolves its
 // resource itself and asks about the operation's primary action on it

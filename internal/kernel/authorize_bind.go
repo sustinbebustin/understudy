@@ -20,17 +20,6 @@ type scopedResources struct {
 	resolve func(c *Call, in any) []aws.ARN
 }
 
-// resourcesFor is the option WithResourcesFor returns for input type In.
-type resourcesFor[In any] scopedResources
-
-func (o resourcesFor[In]) apply(cfg any) bool {
-	c, ok := cfg.(*bindConfig[In])
-	if ok {
-		c.erased.scoped = append(c.erased.scoped, scopedResources(o))
-	}
-	return ok
-}
-
 // WithResourcesFor declares, from a call's valid input, the resources the
 // named actions apply to, such as CopyObject's source for s3:GetObject and
 // its destination for s3:PutObject. The ARNs are touched as WithResources
@@ -41,16 +30,7 @@ func (o resourcesFor[In]) apply(cfg any) bool {
 // with every touched resource of its service (iam-enforcement-surfaces.md
 // 12.6).
 func WithResourcesFor[In any](actions []registry.IAMAction, resolve func(c *Call, in *In) []aws.ARN) BindOption {
-	return resourcesFor[In]{
-		actions: slices.Clone(actions),
-		resolve: func(c *Call, in any) []aws.ARN {
-			typed, ok := in.(*In)
-			if !ok {
-				return nil
-			}
-			return resolve(c, typed)
-		},
-	}
+	return scopedOf[*In](actions, resolve)
 }
 
 // scoping is what a call's WithResourcesFor options resolved: for each
@@ -114,19 +94,6 @@ func scope(scoped []scopedResources, c *Call, in any) (scoping, []aws.ARN) {
 // awserr.Denial through unchanged.
 func AuthorizedAfterResolve() BindOption { return authorizationOption(afterResolve) }
 
-// conditionKeysOption is the option WithConditionKeys returns for input type
-// In, its supplier type-erased where the option is built, as for
-// scopedResources.
-type conditionKeysOption[In any] func(c *Call, in any) ConditionKeys
-
-func (o conditionKeysOption[In]) apply(cfg any) bool {
-	c, ok := cfg.(*bindConfig[In])
-	if ok {
-		c.erased.keys = append(c.erased.keys, o)
-	}
-	return ok
-}
-
 // WithConditionKeys supplies, from a call's valid input, request condition
 // keys AWS sends with the call, such as sts:ExternalId, aws:RequestTag/<key>
 // and aws:TagKeys. Step 8, and an AuthorizedAfterResolve binding's
@@ -134,13 +101,7 @@ func (o conditionKeysOption[In]) apply(cfg any) bool {
 // later options replacing earlier ones key by key. A key with no values is
 // one the request does not carry.
 func WithConditionKeys[In any](supply func(c *Call, in *In) ConditionKeys) BindOption {
-	return conditionKeysOption[In](func(c *Call, in any) ConditionKeys {
-		typed, ok := in.(*In)
-		if !ok {
-			return nil
-		}
-		return supply(c, typed)
-	})
+	return keysOf[*In](supply)
 }
 
 // conditionKeys returns the union of every WithConditionKeys option's keys

@@ -8,16 +8,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
-type actionsOption[In any] func(*Call, *In) []registry.IAMAction
-
-func (o actionsOption[In]) apply(cfg any) bool {
-	c, ok := cfg.(*bindConfig[In])
-	if ok {
-		c.actions = append(c.actions, o)
-	}
-	return ok
-}
-
 // WithActions declares, from a call's valid input, the IAM actions of the
 // operation's own service the call uses besides its primary action (the
 // first of Operation.IAM): s3:PutObjectTagging for a PutObject that carries
@@ -30,7 +20,7 @@ func (o actionsOption[In]) apply(cfg any) bool {
 // bind-site bug: it is logged and not recorded. For an internal operation,
 // which has no generated list, the declared actions are all it records.
 func WithActions[In any](declare func(c *Call, in *In) []registry.IAMAction) BindOption {
-	return actionsOption[In](declare)
+	return actionsOf[*In](declare)
 }
 
 // noSecondaryActions is the option WithoutSecondaryActions returns. It fits
@@ -49,8 +39,8 @@ func (noSecondaryActions) apply(cfg any) bool {
 	return ok
 }
 
-func (cfg *bindConfig[In]) declareNoAction() {
-	cfg.actions = append(cfg.actions, func(*Call, *In) []registry.IAMAction { return nil })
+func (cfg *bindConfig) declareNoAction() {
+	cfg.actions = append(cfg.actions, func(*Call, any) []registry.IAMAction { return nil })
 }
 
 // WithoutSecondaryActions records the decision that no call of the
@@ -63,7 +53,7 @@ func WithoutSecondaryActions() BindOption { return noSecondaryActions{} }
 
 // declare returns the IAM actions that every WithActions option declares
 // used for the input in.
-func (cfg *bindConfig[In]) declare(c *Call, in *In) []registry.IAMAction {
+func (cfg *bindConfig) declare(c *Call, in any) []registry.IAMAction {
 	out := make([]registry.IAMAction, 0, len(cfg.actions))
 	for _, d := range cfg.actions {
 		out = append(out, d(c, in)...)

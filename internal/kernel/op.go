@@ -106,15 +106,21 @@ func (e *NoValidationPolicyError) Error() string {
 // order when they span two codes. The policy is generated onto *In; an In
 // without one is an Internal error.
 func Validate[In any](vs []awserr.Violation) *awserr.Error {
+	return validateAs((*In)(nil), vs)
+}
+
+// validateAs is Validate for the input type of token, a (*In)(nil), so the
+// kernel's bindings reach it without a copy per input type.
+func validateAs(token any, vs []awserr.Violation) *awserr.Error {
 	if len(vs) == 0 {
 		return nil
 	}
-	if p, ok := any((*In)(nil)).(interface {
+	if p, ok := token.(interface {
 		ValidationError(vs []awserr.Violation) *awserr.Error
 	}); ok {
 		return p.ValidationError(vs)
 	}
-	return awserr.Internalf(&NoValidationPolicyError{Type: fmt.Sprintf("%T", (*In)(nil))})
+	return awserr.Internalf(&NoValidationPolicyError{Type: fmt.Sprintf("%T", token)})
 }
 
 // issuesURL is where users ask for an operation understudy does not implement.
