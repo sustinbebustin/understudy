@@ -218,6 +218,17 @@
         }
       }
     },
+    "com.amazonaws.lambda#LayerList$member": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"patternPolicy": "handler"},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L9396-L9405: the refusal of a layer ARN without a version is the rolled-up element constraint ending in 'Member must not be null', a clause the generated one lacks (docs/research/lambda-destinations-layers.md#71-createfunction-and-updatefunctionconfiguration)",
+          "validated": "2026-01-12"
+        }
+      }
+    },
     "com.amazonaws.lambda#CompatibleRuntimes$member": {
       "type": "apply",
       "traits": {

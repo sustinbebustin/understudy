@@ -1303,13 +1303,13 @@ func (v *CreateFunctionInput) validate(path awserr.Path, out *[]awserr.Violation
 	if v.Layers != nil {
 		if func() bool {
 			for _, e2 := range v.Layers {
-				if !pattern3.MatchString(e2) || utf8.RuneCountInString(e2) > 2048 || utf8.RuneCountInString(e2) < 1 {
+				if utf8.RuneCountInString(e2) > 2048 || utf8.RuneCountInString(e2) < 1 {
 					return true
 				}
 			}
 			return false
 		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "layers"), Value: awserr.RenderedText{Text: renderLayerList(v.Layers)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+:[0-9]+)|(arn:[a-zA-Z0-9-]+:lambda:::awslayer:[a-zA-Z0-9-_]+)"}, awserr.LengthMax{Max: 2048}, awserr.LengthMin{Min: 1}}}})
+			*out = append(*out, awserr.Violation{Path: at(path, "layers"), Value: awserr.RenderedText{Text: renderLayerList(v.Layers)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 2048}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.FileSystemConfigs != nil {
@@ -5108,13 +5108,13 @@ func (v *UpdateFunctionConfigurationInput) validate(path awserr.Path, out *[]aws
 	if v.Layers != nil {
 		if func() bool {
 			for _, e2 := range v.Layers {
-				if !pattern3.MatchString(e2) || utf8.RuneCountInString(e2) > 2048 || utf8.RuneCountInString(e2) < 1 {
+				if utf8.RuneCountInString(e2) > 2048 || utf8.RuneCountInString(e2) < 1 {
 					return true
 				}
 			}
 			return false
 		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "layers"), Value: awserr.RenderedText{Text: renderLayerList(v.Layers)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+:[0-9]+)|(arn:[a-zA-Z0-9-]+:lambda:::awslayer:[a-zA-Z0-9-_]+)"}, awserr.LengthMax{Max: 2048}, awserr.LengthMin{Min: 1}}}})
+			*out = append(*out, awserr.Violation{Path: at(path, "layers"), Value: awserr.RenderedText{Text: renderLayerList(v.Layers)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 2048}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.FileSystemConfigs != nil {

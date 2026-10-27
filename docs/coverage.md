@@ -604,7 +604,7 @@ Internal operations:
 | GetFunctionCodeSigningConfig | stored-only | third-party-recorded, 2 of 2 claims | code signing is not enforced; no function has a configuration |
 | CreateAlias | partial | third-party-recorded, 2 of 2 claims | weighted routing is stored, not applied to invocations |
 | CreateEventSourceMapping | partial | inferred, 6 of 10 claims | SQS queues only; serve polls the queue and invokes the function with each batch |
-| CreateFunction | partial | aws-doc, 1 of 5 claims | layers, PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only |
+| CreateFunction | partial | inferred, 2 of 7 claims | a layer version is found only if it was published to understudy, which never fetches layers from AWS; PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only |
 | CreateFunctionUrlConfig | partial | third-party-recorded, 2 of 2 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
 | GetFunction | partial | aws-doc, 1 of 3 claims | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
 | GetLayerVersion | partial | third-party-recorded, 2 of 2 claims | Content.Location is a link understudy serves the archive at, not a presigned S3 URL |
@@ -616,7 +616,7 @@ Internal operations:
 | UpdateAlias | partial | third-party-recorded, 2 of 2 claims | weighted routing is stored, not applied to invocations |
 | UpdateEventSourceMapping | partial | inferred, 6 of 9 claims | SQS queues only; serve polls the queue and invokes the function with each batch |
 | UpdateFunctionCode | partial | aws-doc, 1 of 3 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
-| UpdateFunctionConfiguration | partial | inferred, 1 of 4 claims | layers and DurableConfig are refused; code signing and VPC networking are stored only |
+| UpdateFunctionConfiguration | partial | inferred, 3 of 6 claims | a layer version is found only if it was published to understudy, which never fetches layers from AWS; DurableConfig is refused; code signing and VPC networking are stored only |
 | UpdateFunctionEventInvokeConfig | partial | inferred, 1 of 3 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
 | UpdateFunctionUrlConfig | partial | third-party-recorded, 2 of 2 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
 | CheckpointDurableExecution | unbound | unassessed |  |
@@ -1059,7 +1059,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-117 switches: 1 aws-recorded, 3 third-party-recorded, 17 aws-doc, 96 inferred.
+119 switches: 1 aws-recorded, 3 third-party-recorded, 17 aws-doc, 98 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1117,6 +1117,8 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `lambda.esm-filter.exists-true-empty-value` | `any-value` | inferred | docs/research/matching-engines.md#10 | none: recorded in lambda/R03 (H2-01-create); the replayer skips REST and Docker steps |
 | `lambda.esm-filter.malformed-or` | `rejected` | inferred | docs/research/matching-engines.md#10 | none: recorded in lambda/R03 (H10-01-create to H10-06-create); the replayer skips REST and Docker steps |
 | `lambda.esm-filter.operator-allow-list` | `documented-table` | inferred | docs/research/matching-engines.md#8 | none: recorded in lambda/R03 (H13-01-create to H13-15-create); the replayer skips REST and Docker steps |
+| `lambda.layers.compatibility` | `not-enforced` | inferred | docs/research/lambda-destinations-layers.md#73-compatibility-is-metadata | none: unrecorded: LDL-13 is queued in docs/research/lambda-destinations-layers.md 12 |
+| `lambda.layers.cross-account-policy` | `advise` | inferred | docs/research/lambda-destinations-layers.md#74-layers-of-other-accounts | none: unrecorded: LDL-15 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `logs.filter.delimited-field-count` | `last-absorbs` | inferred | docs/research/logs-filter-patterns.md#3 | none: logs/R10/03-filter-11.json is recorded; no scenario replays logs/R10 yet |
 | `logs.filter.term-boundary` | `substring` | inferred | docs/research/logs-filter-patterns.md#5 | none: logs/R10/03-filter-01.json is recorded; no scenario replays logs/R10 yet |
 | `s3.bucket.cross-account` | `served` | inferred | UNVERIFIED: no research note or recording shows AWS's answer to a bucket request from an account that does not own the bucket | none: unrecorded: no recording sends a bucket request from an account that does not own the bucket |
@@ -1185,7 +1187,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-333 evidence items: 49 aws-recorded, 106 third-party-recorded, 56 aws-doc, 5 sdk-source, 117 inferred.
+334 evidence items: 49 aws-recorded, 107 third-party-recorded, 56 aws-doc, 5 sdk-source, 117 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -1269,6 +1271,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#CreateFunction` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7052 (validated 2025-11-25) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#CreateFunctionRequest$Runtime` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7869 (validated 2026-01-12) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#DeleteFunction` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L309 (validated 2025-11-25) |
+| third-party-recorded | lambda.json | `com.amazonaws.lambda#LayerList$member` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L9396-L9405: the refusal of a layer ARN without a version is the rolled-up element constraint ending in 'Member must not be null', a clause the generated one lacks (docs/research/lambda-destinations-layers.md#71-createfunction-and-updatefunctionconfiguration) (validated 2026-01-12) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#LayerVersionArn` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8368-L8377: AWS prints the pattern without the model's anchors and without its outer group (docs/research/lambda-destinations-layers.md#64-getlayerversion-and-getlayerversionbyarn) (validated 2026-01-12) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#ListLayersRequest$CompatibleRuntime` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8296: the filter is checked against a 56-value internal list, not the model's enum (docs/research/lambda-destinations-layers.md#65-listlayers-and-listlayerversions) (validated 2026-01-12) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#NumericLatestPublishedOrAliasQualifier` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7779: AWS matches the whole value against either branch of the model's top-level alternation, so 'invalid-qualifier-with-?-char' fails it (validated 2025-11-25) |

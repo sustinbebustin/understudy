@@ -2,9 +2,11 @@ package lambda
 
 import (
 	"maps"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -23,6 +25,8 @@ const (
 	// ARN's prefix too.
 	maxNameLength = 64
 	maxLayers     = 5
+	// maxLayerARNLength is the model's LayerVersionArn length bound.
+	maxLayerARNLength = 2048
 	// maxTags is the resource tag limit (lambda-api.md 4.1).
 	maxTags = 50
 	// maxEnvironmentBytes caps the variables as their JSON object.
@@ -103,12 +107,49 @@ func limitViolations(timeout, memory *int32, storage *lambdaapi.EphemeralStorage
 	return vs
 }
 
+// layerVersionARN is the model's LayerVersionArn pattern, which the overlay
+// leaves to the service for a function's Layers, and layerVersionARNEcho
+// the pattern as AWS prints it, without the anchors and the outer group
+// (lambda-destinations-layers.md 6.4).
+var layerVersionARN = regexp.MustCompile(`^((arn:(aws[a-zA-Z\-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\d{1}:\d{12}:layer:[a-zA-Z0-9\-_]+:[0-9]+)|` +
+	`(arn:[a-zA-Z0-9\-]+:lambda:::awslayer:[a-zA-Z0-9\-_]+))$`)
+
+const layerVersionARNEcho = `(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\d{1}:\d{12}:layer:[a-zA-Z0-9-_]+:[0-9]+)|` +
+	`(arn:[a-zA-Z0-9-]+:lambda:::awslayer:[a-zA-Z0-9-_]+)`
+
+// layersViolation is the rolled-up check of a function's Layers against
+// the version ARN pattern, ending in the not-null clause the generated
+// constraint lacks (lambda-destinations-layers.md 7.1:
+// test_lambda_api.snapshot.json:L9396-L9405). An entry outside the model's
+// 1..2048 length is the generated validator's to report, which keeps the
+// list from being reported twice; its text then lacks the pattern and
+// not-null clauses.
+func layersViolation(layers []string) []awserr.Violation {
+	mismatch := false
+	for _, l := range layers {
+		if n := utf8.RuneCountInString(l); n < 1 || n > maxLayerARNLength {
+			return nil
+		}
+		mismatch = mismatch || !layerVersionARN.MatchString(l)
+	}
+	if !mismatch {
+		return nil
+	}
+	return []awserr.Violation{{
+		Path:  awserr.Path{"layers"},
+		Value: awserr.RenderedText{Text: "[" + strings.Join(layers, ", ") + "]"},
+		Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{
+			awserr.LengthMax{Max: maxLayerARNLength}, awserr.LengthMin{Min: 1}, awserr.Pattern{Echo: layerVersionARNEcho}, awserr.Required{},
+		}},
+	}}
+}
+
 func validateCreateFunction(in *lambdaapi.CreateFunctionInput) []awserr.Violation {
-	return append(architectureViolation("architectures", in.Architectures), limitViolations(in.Timeout, in.MemorySize, in.EphemeralStorage)...)
+	return slices.Concat(architectureViolation("architectures", in.Architectures), limitViolations(in.Timeout, in.MemorySize, in.EphemeralStorage), layersViolation(in.Layers))
 }
 
 func validateUpdateConfiguration(in *lambdaapi.UpdateFunctionConfigurationInput) []awserr.Violation {
-	return limitViolations(in.Timeout, in.MemorySize, in.EphemeralStorage)
+	return append(limitViolations(in.Timeout, in.MemorySize, in.EphemeralStorage), layersViolation(in.Layers)...)
 }
 
 // validateCreateMapping checks StartingPosition, which the overlay leaves
@@ -143,14 +184,17 @@ func checkCreateFunction(in *lambdaapi.CreateFunctionInput) *awserr.Error {
 	if err := checkRuntime(in.Runtime); err != nil {
 		return err
 	}
+	// The layer count and repeats come before an image function's refusal
+	// of any layer, the order of lambda-destinations-layers.md 7.1's checks
+	// being unrecorded.
+	if err := checkLayers(in.Layers); err != nil {
+		return err
+	}
 	switch {
 	case packageType == lambdaapi.PackageTypeImage && (in.Runtime != nil || in.Handler != nil || len(in.Layers) > 0):
 		return errImageTakesNoRuntime()
 	case packageType == lambdaapi.PackageTypeZip && (in.Runtime == nil || in.Handler == nil):
 		return errZipNeedsRuntime()
-	}
-	if err := checkLayers(in.Layers); err != nil {
-		return err
 	}
 	if err := checkPublishTo("CreateFunction", in.PublishTo); err != nil {
 		return err
@@ -191,19 +235,6 @@ func checkRuntime(r *lambdaapi.Runtime) *awserr.Error {
 	default:
 		return errRuntime(string(*r))
 	}
-}
-
-// checkLayers refuses every layer: functions do not resolve layers against
-// the layer store yet, so even a published version is answered as AWS
-// answers one that does not exist.
-func checkLayers(layers []string) *awserr.Error {
-	switch {
-	case len(layers) > maxLayers:
-		return errTooManyLayers()
-	case len(layers) > 0:
-		return errLayerNotFound(layers[0])
-	}
-	return nil
 }
 
 // checkEnvironment refuses reserved variables and an environment above

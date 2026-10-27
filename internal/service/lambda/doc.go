@@ -47,7 +47,15 @@
 //     2026-01-12; the runtimes the model lists before them are deprecated,
 //     and anything else is outside the enum. Deprecation does not follow
 //     the emulator clock.
-//   - Every layer reference is refused: understudy publishes no layers.
+//   - A function's layers are resolved against the versions published to
+//     understudy when CreateFunction or UpdateFunctionConfiguration names
+//     them; a version understudy does not hold, including another
+//     account's never published to it and every AWS-managed one, is
+//     refused in AWS's words for one that does not exist, followed by why.
+//     Each function version holds a blob reference on its layers'
+//     archives, so a deleted layer version keeps working where it is used.
+//     Invoking a function with layers is not implemented yet: its
+//     invocations fail, saying so.
 //   - RevisionIds and function URL ids are derived from the scope and a
 //     per-scope serial in the state, so they are deterministic under a seed
 //     without a new identifier stream, and never repeat until a reset.

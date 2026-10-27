@@ -136,9 +136,53 @@ func errTooManyLayers() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Cannot reference more than 5 layers."))
 }
 
-// errLayerNotFound answers a function's layer reference (checkLayers).
+// errLayerTwice names two entries of a function's Layers that are versions
+// of one layer, or the same version twice (lambda-destinations-layers.md
+// 7.1: test_lambda_api.snapshot.json:L9336-L9371).
+func errLayerTwice(first, second string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Two different versions of the same layer are not allowed to be referenced in the same function. " +
+		first + " and " + second + " are versions of the same layer."))
+}
+
+// errLayerRegion answers a layer of another region than the function's
+// (lambda-destinations-layers.md 7.1: test_lambda_api.snapshot.json:L9406-L9417).
+func errLayerRegion(region string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Layers are not in the same region as the function. Layers are expected to be in region " + region + "."))
+}
+
+// errLayerNotFound answers a function's layer version that understudy does
+// not hold, in AWS's words for one that does not exist
+// (lambda-destinations-layers.md 7.1: test_lambda_api.snapshot.json:L9372-L9395).
 func errLayerNotFound(arn string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Layer version " + arn + " does not exist."))
+}
+
+// layerNeverFetched follows AWS's sentence when a layer understudy does not
+// hold may well exist on AWS (lambda-destinations-layers.md 8.4, 11.5.6).
+const layerNeverFetched = " understudy has only the layers published to it and never fetches layers from AWS; "
+
+// errForeignLayerNotFound is errLayerNotFound for a version of account,
+// another account than the caller's, then why understudy lacks it and how
+// to give it one.
+func errForeignLayerNotFound(arn, account string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Layer version " + arn + " does not exist." + layerNeverFetched +
+		"publish the archive to understudy with credentials for account " + account + " and use the version that returns."))
+}
+
+// errManagedLayerNotFound is errLayerNotFound for an AWS-managed awslayer
+// ARN, which no one can publish to understudy.
+func errManagedLayerNotFound(arn string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Layer version " + arn + " does not exist." + layerNeverFetched +
+		"an AWS-managed layer cannot be published to understudy, so publish its content as a layer of your own."))
+}
+
+// errCodeWithLayersTooLarge answers a package and layers whose unzipped
+// sizes together pass maxUnzipped. Its start is what a third-party CLI
+// matches AWS's text on; the rest is understudy's, AWS's being unrecorded
+// (lambda-destinations-layers.md 7.1, LDL-14).
+func errCodeWithLayersTooLarge(total int64) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Function code combined with layers exceeds the maximum allowed size of " +
+		strconv.FormatInt(maxUnzipped, 10) + " bytes. The actual size is " + strconv.FormatInt(total, 10) + " bytes."))
 }
 
 // errLayerVersionMissing is the permission operations' answer for a layer

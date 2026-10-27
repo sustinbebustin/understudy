@@ -305,6 +305,13 @@ func (x *Execution) spec(ctx context.Context, t *target, s *slot, gen uint64, ov
 	}
 	switch code := t.version.Code.(type) {
 	case ZipCode:
+		// Not implemented: the launcher does not fill /opt with the layers
+		// yet (lambda-destinations-layers.md 11.5.5), and running the
+		// function without them would hide that.
+		if len(cfg.Layers) > 0 {
+			return launcher.Spec{}, fmt.Errorf("understudy does not run function %s yet: its configuration lists %d layers, and placing layers in /opt is not implemented; "+
+				"the layers stay attached, and removing them with UpdateFunctionConfiguration Layers [] lets it run", t.ref.name, len(cfg.Layers))
+		}
 		img, ok := launcher.ImageForRuntime(cfg.Runtime)
 		if !ok {
 			return launcher.Spec{}, fmt.Errorf("understudy pins no base image for the runtime %s; the runtimes it runs are listed by `understudy images pull --help`", cfg.Runtime)

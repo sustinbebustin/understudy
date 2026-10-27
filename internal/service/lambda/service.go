@@ -94,11 +94,10 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 // touches so the action lands on the provider's ARN. The recorder pairs
 // every lambda action of a call with every lambda resource it touched, so
 // the provider also gets the primary action and the function
-// lambda:PassCapacityProvider. lambda:GetLayerVersion is not declared:
-// validation refuses every layer (checkLayers) before a call's actions are
-// chosen, so no call that names one gets that far; declare it, touching
-// the layer version ARNs, once layers are accepted. It runs after the bind
-// sites, whose bindings it extends.
+// lambda:PassCapacityProvider; and lambda:GetLayerVersion on each layer
+// version a configuration names, which the call touches likewise
+// (lambda-destinations-layers.md 7.4). It runs after the bind sites, whose
+// bindings it extends.
 func declareAccess(b *kernel.Binder) {
 	// GetFunction declares no secondary: lambda:ListTags only decides
 	// whether the response carries the function's tags.
@@ -112,10 +111,10 @@ func declareAccess(b *kernel.Binder) {
 		}))
 	kernel.Declare(b, lambdaapi.OpCreateFunction,
 		kernel.WithResources(func(_ *kernel.Call, in *lambdaapi.CreateFunctionInput) []aws.ARN {
-			return append(passedRole(&in.Role), capacityProvider(in.CapacityProviderConfig)...)
+			return slices.Concat(passedRole(&in.Role), capacityProvider(in.CapacityProviderConfig), layerVersions(in.Layers))
 		}),
 		kernel.WithActions(func(_ *kernel.Call, in *lambdaapi.CreateFunctionInput) []registry.IAMAction {
-			out := providerActions(in.CapacityProviderConfig)
+			out := append(providerActions(in.CapacityProviderConfig), layerActions(in.Layers)...)
 			if len(in.Tags) > 0 {
 				out = append(out, lambdaAction("TagResource"))
 			}
@@ -123,11 +122,33 @@ func declareAccess(b *kernel.Binder) {
 		}))
 	kernel.Declare(b, lambdaapi.OpUpdateFunctionConfiguration,
 		kernel.WithResources(func(_ *kernel.Call, in *lambdaapi.UpdateFunctionConfigurationInput) []aws.ARN {
-			return append(passedRole(in.Role), capacityProvider(in.CapacityProviderConfig)...)
+			return slices.Concat(passedRole(in.Role), capacityProvider(in.CapacityProviderConfig), layerVersions(in.Layers))
 		}),
 		kernel.WithActions(func(_ *kernel.Call, in *lambdaapi.UpdateFunctionConfigurationInput) []registry.IAMAction {
-			return providerActions(in.CapacityProviderConfig)
+			return append(providerActions(in.CapacityProviderConfig), layerActions(in.Layers)...)
 		}))
+}
+
+// layerActions is lambda:GetLayerVersion for a configuration that names
+// layers.
+func layerActions(layers []string) []registry.IAMAction {
+	if len(layers) == 0 {
+		return nil
+	}
+	return []registry.IAMAction{lambdaAction("GetLayerVersion")}
+}
+
+// layerVersions are the layer version ARNs a configuration names, which
+// lambda:GetLayerVersion acts on; the generated check has matched each
+// against the model's pattern.
+func layerVersions(layers []string) []aws.ARN {
+	var out []aws.ARN
+	for _, l := range layers {
+		if a, err := aws.ParseARN(l); err == nil && a.Service == "lambda" {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // providerActions is lambda:PassCapacityProvider for a configuration that
@@ -159,10 +180,10 @@ func lambdaAction(name string) registry.IAMAction {
 }
 
 // Switches lists the behaviors chosen without AWS-recorded evidence: the
-// state transitions, the asynchronous queue's and destinations' choices
-// and the event source mapping filter engine's choices. The transitions
-// govern the calls that create or change a function or mapping and the
-// reads that report its state.
+// state transitions, the asynchronous queue's, destinations' and layers'
+// choices and the event source mapping filter engine's choices. The
+// transitions govern the calls that create or change a function or mapping
+// and the reads that report its state.
 func (s *Service) Switches() []fidelity.Entry {
 	entries := []fidelity.Entry{fidelity.Switch[string]{
 		Name:  "lambda.stateTransitions",
@@ -177,7 +198,7 @@ func (s *Service) Switches() []fidelity.Entry {
 		},
 		Settles: fidelity.NoScenario{Reason: "a deliberate default (ARCHITECTURE.md 9), which a recording of AWS's transient states does not change"},
 	}.Entry()}
-	for _, sw := range asyncSwitches() {
+	for _, sw := range append(asyncSwitches(), layerSwitches()...) {
 		entries = append(entries, sw.Entry())
 	}
 	return append(entries, esm.Switches()...)

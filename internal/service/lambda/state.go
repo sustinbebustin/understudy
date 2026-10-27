@@ -61,11 +61,12 @@ var (
 )
 
 // BlobRefs lists one entry per reference the state holds on a zip archive:
-// one per version whose code is a zip and one per stored layer version.
+// those of every function version (Version.blobRefs) and one per stored
+// layer version.
 func (s *State) BlobRefs() []string {
 	var refs []string
 	for _, name := range slices.Sorted(maps.Keys(s.Functions)) {
-		for _, ref := range s.Functions[name].zipRefs() {
+		for _, ref := range s.Functions[name].blobRefs() {
 			refs = append(refs, ref.String())
 		}
 	}
@@ -185,18 +186,14 @@ func (f Function) withRevision(q, rev string) Function {
 	return f
 }
 
-// zipRefs lists the blob reference of every version whose code is a zip,
-// and of the zip an update in progress replaced.
-func (f Function) zipRefs() []blob.Ref {
+// blobRefs lists the blob references every version of f holds.
+func (f Function) blobRefs() []blob.Ref {
+	var refs []blob.Ref
 	versions := f.all()
-	codes := make([]Code, 0, len(versions))
 	for i := range versions {
-		codes = append(codes, versions[i].Code)
-		if replaced := versions[i].replacedCode(); replaced != nil {
-			codes = append(codes, replaced)
-		}
+		refs = append(refs, versions[i].blobRefs()...)
 	}
-	return codeRefs(codes...)
+	return refs
 }
 
 // all lists $LATEST and then the published versions, oldest first.
@@ -275,9 +272,12 @@ type Code interface{ isCode() }
 // ZipCode is a zip package kept in the blob store.
 type ZipCode struct {
 	// Sha256 is CodeSha256: the base64 SHA-256 of the package.
-	Sha256 string   `json:"sha256"`
-	Size   int64    `json:"size"`
-	Blob   blob.Ref `json:"blob"`
+	Sha256 string `json:"sha256"`
+	Size   int64  `json:"size"`
+	// Unzipped is the sum of the entries' uncompressed sizes, which the
+	// function's layers add to (checkCodeWithLayers).
+	Unzipped int64    `json:"unzipped"`
+	Blob     blob.Ref `json:"blob"`
 }
 
 // ImageCode is a container image.
@@ -374,15 +374,33 @@ func (v Version) serving(generation uint64) (runs Version, runsGeneration uint64
 	return v, u.Serving.Generation
 }
 
-// replacedCode is the code an update in progress keeps for the
-// invocations it serves, nil when there is none.
-func (v Version) replacedCode() Code {
+// updating is the update in progress on v; false when there is none.
+func (v Version) updating() (Updating, bool) {
 	if a, ok := v.Status.(Active); ok {
 		if u, ok := a.Update.(Updating); ok {
-			return u.Serving.Code
+			return u, true
 		}
 	}
-	return nil
+	return Updating{}, false
+}
+
+// blobRefs lists the blob references v holds: its zip package's, one per
+// layer its configuration lists, and while an update is in progress those
+// of what the update serves (Serving.blobRefs).
+func (v Version) blobRefs() []blob.Ref {
+	refs := append(codeRefs(v.Code), layerBlobs(v.Config.Layers)...)
+	if u, ok := v.updating(); ok {
+		refs = append(refs, u.Serving.blobRefs()...)
+	}
+	return refs
+}
+
+// blobRefs lists the blob references an update in progress holds for the
+// invocations it serves until it settles: the package an UpdateFunctionCode
+// replaced, and one per layer of the configuration it serves, which
+// updateLatest takes when the update starts.
+func (s Serving) blobRefs() []blob.Ref {
+	return append(codeRefs(s.Code), layerBlobs(s.Config.Layers)...)
 }
 
 // UpdatingImage is a code update to Pending's image, applied once the

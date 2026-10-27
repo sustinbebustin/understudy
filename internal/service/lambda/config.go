@@ -43,6 +43,9 @@ type Config struct {
 	Image     *ImageSettings `json:"image,omitempty"`
 	SnapStart string         `json:"snapStart"`
 	Logging   Logging        `json:"logging"`
+	// Layers are the layer versions as resolved when attached, in the order
+	// given; nil when the function has none.
+	Layers []LayerRef `json:"layers,omitempty"`
 }
 
 // Vpc is a VPC attachment, stored and echoed.
@@ -235,6 +238,7 @@ func (c *Config) clone() Config {
 	out := *c
 	out.Environment = maps.Clone(c.Environment)
 	out.FileSystems = slices.Clone(c.FileSystems)
+	out.Layers = slices.Clone(c.Layers)
 	if c.Vpc != nil {
 		v := *c.Vpc
 		v.SubnetIDs, v.SecurityGroupIDs = slices.Clone(v.SubnetIDs), slices.Clone(v.SecurityGroupIDs)
@@ -305,6 +309,11 @@ func renderConfig(scope aws.Scope, f *Function, v *Version, arn string, rows lis
 	}
 	for _, fs := range c.FileSystems {
 		out.FileSystemConfigs = append(out.FileSystemConfigs, lambdaapi.FileSystemConfig{Arn: fs.ARN, LocalMountPath: fs.MountPath})
+	}
+	// Layers in stored order, no key without any, and never a signing ARN
+	// (lambda-destinations-layers.md 7.2, 11.8).
+	for _, l := range c.Layers {
+		out.Layers = append(out.Layers, lambdaapi.Layer{Arn: new(l.ARN), CodeSize: l.CodeSize})
 	}
 	if !rows {
 		sv := renderStatus(v.Status)

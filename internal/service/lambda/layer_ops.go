@@ -50,7 +50,7 @@ func (s *Service) publishLayerVersion(ctx context.Context, c *kernel.Call, in *l
 	if err != nil {
 		return nil, err
 	}
-	code, err := s.storeZip(ctx, archive)
+	code, err := s.storeZip(ctx, archive, unzipped)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (s *Service) publishLayerVersion(ctx context.Context, c *kernel.Call, in *l
 			Created:                 now,
 			Sha256:                  code.Sha256,
 			Size:                    code.Size,
-			Unzipped:                unzipped,
+			Unzipped:                code.Unzipped,
 			Blob:                    code.Blob,
 		}
 		st.withLayerVersion(ref, v)
