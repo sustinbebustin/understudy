@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
@@ -207,19 +208,21 @@ func (s *Service) Export() ([]store.Section, error) {
 }
 
 // Import loads sections written by Export of this schema version, then
-// rebuilds the API id index from the loaded cells.
+// rebuilds the API id index from the loaded cells. It runs under the gate's
+// exclusive side, where no cell can be read (store.Gate), so it finds the
+// APIs through the cells' sections, as IAM's Reset finds access keys.
 func (s *Service) Import(ss []store.Section) error {
 	if err := s.cells.Import(store.ScopeKeys(), stateVersion, ss); err != nil {
 		return err
 	}
-	s.reindex()
-	return nil
+	return s.reindex()
 }
 
-// Reset drops the scopes rs covers, and their APIs' ids from the index.
+// Reset drops the scopes rs covers, and their APIs' ids from the index. It
+// runs under the gate's exclusive side, so it reads no cell.
 func (s *Service) Reset(rs kernel.ResetScope) {
 	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
-	s.reindex()
+	s.index.drop(rs.Covers)
 }
 
 // Rearm rebuilds timers; the service has none.
@@ -251,15 +254,32 @@ func readState[R any](s *Service, scope aws.Scope, fn func(st *State) R) R {
 	return store.Read(cell, fn)
 }
 
-// reindex rebuilds the API id index from the cells.
-func (s *Service) reindex() {
+// reindex rebuilds the API id index from the cells' sections, without
+// taking the gate. The caller holds the gate's exclusive side. A failure is
+// a bug in this package: the cells encode and decode as Import just did.
+// The index is then left as it was.
+func (s *Service) reindex() error {
+	sections, err := s.cells.Export(store.ScopeKeys(), stateVersion)
+	if err != nil {
+		return fmt.Errorf("rebuilding the apigatewayv2 API id index: %w", err)
+	}
 	scopes := map[string]aws.Scope{}
-	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
-		for _, id := range readState(s, scope, func(st *State) []string { return slices.Collect(maps.Keys(st.APIs)) }) {
+	codec := stateCodec()
+	for _, sec := range sections {
+		scope, err := store.ScopeKeys().Decode(strings.TrimSuffix(sec.Path, ".json"))
+		if err != nil {
+			return fmt.Errorf("rebuilding the apigatewayv2 API id index: section %q names no scope: %w", sec.Path, err)
+		}
+		st := newState(scope)
+		if err := codec.Unmarshal(sec.Data, &st); err != nil {
+			return fmt.Errorf("rebuilding the apigatewayv2 API id index: decoding section %q: %w", sec.Path, err)
+		}
+		for id := range st.APIs {
 			scopes[id] = scope
 		}
 	}
 	s.index.replace(scopes)
+	return nil
 }
 
 // apiIndex maps every API id to the account and region that hold it: the
@@ -303,6 +323,13 @@ func (x *apiIndex) lookup(id string) (aws.Scope, bool) {
 	defer x.mu.Unlock()
 	scope, ok := x.scopes[id]
 	return scope, ok
+}
+
+// drop removes every id whose scope covered reports true.
+func (x *apiIndex) drop(covered func(aws.Scope) bool) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	maps.DeleteFunc(x.scopes, func(_ string, scope aws.Scope) bool { return covered(scope) })
 }
 
 // replace makes scopes the whole index.

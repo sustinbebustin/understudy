@@ -127,15 +127,17 @@ func (s *Service) createAPI(_ context.Context, c *kernel.Call, in *apigatewayv2a
 		}
 		st.NextSeq++
 		st.APIs[id] = a
+		// Set again in case a Reset dropped the reservation before the
+		// write. Inside the write, the gate's shared side orders it against
+		// Reset and Import; the index lock is a leaf, never held while a
+		// cell lock is taken.
+		s.index.set(id, scope)
 		return a, nil
 	})
 	if err != nil {
 		s.index.release(id)
 		return nil, err
 	}
-	// Set again in case a Reset rebuilt the index between the reservation
-	// and the write.
-	s.index.set(id, scope)
 	out := apigatewayv2api.CreateApiOutput(api.output(scope, c.Endpoint()))
 	return &out, nil
 }
@@ -224,12 +226,14 @@ func (s *Service) deleteAPI(_ context.Context, c *kernel.Call, in *apigatewayv2a
 			return struct{}{}, errAPINotFound(scope, in.ApiId)
 		}
 		delete(st.APIs, in.ApiId)
+		// Inside the write, so a snapshot load that restores the API
+		// cannot land between the delete and the release.
+		s.index.release(in.ApiId)
 		return struct{}{}, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.index.release(in.ApiId)
 	return &apigatewayv2api.DeleteApiOutput{}, nil
 }
 

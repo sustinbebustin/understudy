@@ -75,6 +75,39 @@ func TestTracerResetOfAnotherAccountKeepsTheAPI(t *testing.T) {
 	})
 }
 
+// Import and a scoped Reset return under the gate's exclusive side, where
+// the snapshot load and the admin reset call them, so neither may read a
+// cell (store.Gate); the index still follows the cells. A regression hangs
+// here until the test binary's timeout.
+func TestImportAndScopedResetUnderTheExclusiveGate(t *testing.T) {
+	run(t, func(h *harness) {
+		id, _ := h.lambdaAPI("2.0", "GET /hello")
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		other, err := aws.ParseAccountID("111111111111")
+		if err != nil {
+			t.Fatal(err)
+		}
+		release := h.Kernel.Gate().Exclusive()
+		h.svc.Reset(kernel.ResetScope{})
+		err = h.svc.Import(sections)
+		h.svc.Reset(kernel.ResetScope{Accounts: []aws.AccountID{other}})
+		release()
+		if err != nil {
+			t.Fatalf("Import = %v", err)
+		}
+		if rec := h.get(id, "/hello"); rec.Code != http.StatusOK {
+			t.Errorf("GET /hello after Import and another account's Reset = %d %s, want the function's 200", rec.Code, rec.Body)
+		}
+		release = h.Kernel.Gate().Exclusive()
+		h.svc.Reset(kernel.ResetScope{Accounts: []aws.AccountID{h.Scope.Account}})
+		release()
+		wantAnswer(t, h.get(id, "/hello"), apigatewayv2.FrontAnswersSwitch().Value.UnknownAPI, "after the owning account's Reset")
+	})
+}
+
 // A named stage is addressed by its first path segment (apigateway-http.md
 // 3.4, 4.2): with autoDeploy it serves the API's routes, the function sees
 // the stage segment in rawPath but not in routeKey (finding 8), and /prod
