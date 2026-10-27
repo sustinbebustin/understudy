@@ -46,7 +46,7 @@ func (s *stepper) choice(st choiceState, j stepJob) {
 		return
 	}
 	exited := s.emit("ChoiceStateExited", entered, stateExited(st.name, output))
-	s.arm(s.at, stepJob{state: next, input: output, previous: exited})
+	s.arm(s.at, stepJob{fr: s.fr, state: next, input: output, previous: exited})
 }
 
 // choose is the state the first matching rule names, else Default; "" when

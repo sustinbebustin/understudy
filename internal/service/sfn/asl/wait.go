@@ -32,7 +32,7 @@ func (s *stepper) wait(st waitState, j stepJob) {
 		s.stateFailed(st.name, entered, f)
 		return
 	}
-	s.arm(until, waitJob{state: st.name, output: output, entered: entered})
+	s.arm(until, waitJob{fr: s.fr, state: st.name, output: output, entered: entered})
 }
 
 // waitExit ends a Wait state: WaitStateExited points at WaitStateEntered

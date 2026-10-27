@@ -33,11 +33,42 @@ type Execution struct {
 	// jitterSeed is Start's Jitter; jitterDraws counts the FULL jitter
 	// draws made so far.
 	jitterSeed, jitterDraws uint64
+	// lastRun is the id of the last Parallel or Map run started.
+	lastRun int64
+	// runs are the running Parallel and Map states, in id order.
+	runs []run
 }
 
-// visit is one visit of a Task state, across its retries.
+// frame is the scope a job runs in: the top level (the zero frame) or one
+// branch or iteration of a running Parallel or Map state.
+type frame struct {
+	// run is the run's id; 0 at the top level.
+	run int64
+	// index is the branch or item index within the run.
+	index int
+}
+
+// run is one running Parallel or inline Map state (stepfunctions-asl.md
+// 9.1, 9.2): its visit, and its branches or iterations.
+type run struct {
+	id int64
+	visit
+	// inputs are the inputs of the branches or iterations, in index order.
+	inputs []document.Value
+	// results hold the output of each branch or iteration that finished;
+	// nil for one still running or not yet started.
+	results []document.Value
+	// launched counts the branches or iterations started, running those
+	// started and not finished, finished those finished; limit is how many
+	// may run at once.
+	launched, running, finished, limit int
+}
+
+// visit is one visit of a Task, Parallel or Map state, across its retries.
 type visit struct {
-	// state is the Task state's name; input its raw input, which ResultPath
+	// fr is the frame the state runs in.
+	fr frame
+	// state is the state's name; input its raw input, which ResultPath
 	// and a catcher's ResultPath place into.
 	state string
 	input document.Value
@@ -77,21 +108,24 @@ type armed struct {
 	job job
 }
 
-// job is what a timer does: stepJob, waitJob, deadlineJob or
-// taskTimeoutJob.
+// job is what a timer does: stepJob, waitJob, deadlineJob, taskTimeoutJob,
+// retryJob or runRetryJob.
 type job interface{ isJob() }
 
-// stepJob runs one state: the state named state on input, its first event
-// pointing at previous (stepfunctions-asl.md 11.2 rules 2 and 4).
+// stepJob runs one state in frame fr: the state named state on input, its
+// first event pointing at previous (stepfunctions-asl.md 11.2 rules 2 and
+// 4).
 type stepJob struct {
+	fr       frame
 	state    string
 	input    document.Value
 	previous int64
 }
 
-// waitJob ends the Wait state named state: it writes WaitStateExited
-// pointing at entered with output, then moves on.
+// waitJob ends the Wait state named state in frame fr: it writes
+// WaitStateExited pointing at entered with output, then moves on.
 type waitJob struct {
+	fr      frame
 	state   string
 	output  document.Value
 	entered int64
@@ -113,11 +147,22 @@ type retryJob struct {
 	previous int64
 }
 
+// runRetryJob starts the Parallel or Map state of v again after a
+// retrier's delay, every branch or iteration anew (stepfunctions-asl.md
+// 8.2); its *StateStarted event points at previous, the failure retried
+// (aws-recorded localstack@8b9a79f
+// v2/scenarios/test_base_scenarios.snapshot.json:L1484).
+type runRetryJob struct {
+	visit
+	previous int64
+}
+
 func (stepJob) isJob()        {}
 func (waitJob) isJob()        {}
 func (deadlineJob) isJob()    {}
 func (taskTimeoutJob) isJob() {}
 func (retryJob) isJob()       {}
+func (runRetryJob) isJob()    {}
 
 // Outcome reports how the execution ended; false while it runs or before
 // Start.

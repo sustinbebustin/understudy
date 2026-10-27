@@ -23,12 +23,31 @@ type executionRecord struct {
 	Tasks    []taskRecord  `json:"tasks,omitempty"`
 	// JitterSeed and JitterDraws are the FULL retry jitter stream's seed and
 	// the draws made from it.
-	JitterSeed  uint64 `json:"jitterSeed,omitempty"`
-	JitterDraws uint64 `json:"jitterDraws,omitempty"`
+	JitterSeed  uint64      `json:"jitterSeed,omitempty"`
+	JitterDraws uint64      `json:"jitterDraws,omitempty"`
+	LastRun     int64       `json:"lastRun,omitempty"`
+	Runs        []runRecord `json:"runs,omitempty"`
 }
 
-// visitRecord is a persisted Task state visit.
+// runRecord is a persisted Parallel or Map run.
+type runRecord struct {
+	ID int64 `json:"id"`
+	visitRecord
+	// Inputs are the JSON texts of the branch or iteration inputs; Results
+	// those of the finished outputs, "" for one not finished.
+	Inputs   []string `json:"inputs"`
+	Results  []string `json:"results"`
+	Launched int      `json:"launched,omitempty"`
+	Running  int      `json:"running,omitempty"`
+	Finished int      `json:"finished,omitempty"`
+	Limit    int      `json:"limit"`
+}
+
+// visitRecord is a persisted Task, Parallel or Map state visit.
 type visitRecord struct {
+	// Run and Index are the visit's frame; zero at the top level.
+	Run       int64     `json:"run,omitempty"`
+	Index     int       `json:"index,omitempty"`
 	State     string    `json:"state"`
 	Input     string    `json:"input"`
 	EnteredAt time.Time `json:"enteredAt"`
@@ -61,12 +80,16 @@ type timerRecord struct {
 type jobRecord interface{ isJobRecord() }
 
 type stepRecord struct {
+	Run      int64  `json:"run,omitempty"`
+	Index    int    `json:"index,omitempty"`
 	State    string `json:"state"`
 	Input    string `json:"input"`
 	Previous int64  `json:"previous"`
 }
 
 type waitRecord struct {
+	Run     int64  `json:"run,omitempty"`
+	Index   int    `json:"index,omitempty"`
 	State   string `json:"state"`
 	Output  string `json:"output"`
 	Entered int64  `json:"entered"`
@@ -83,11 +106,17 @@ type retryRecord struct {
 	Previous int64 `json:"previous"`
 }
 
+type runRetryRecord struct {
+	visitRecord
+	Previous int64 `json:"previous"`
+}
+
 func (stepRecord) isJobRecord()        {}
 func (waitRecord) isJobRecord()        {}
 func (deadlineRecord) isJobRecord()    {}
 func (taskTimeoutRecord) isJobRecord() {}
 func (retryRecord) isJobRecord()       {}
+func (runRetryRecord) isJobRecord()    {}
 
 // outcomeRecord is the persisted outcome.
 type outcomeRecord interface{ isOutcomeRecord() }
@@ -120,6 +149,7 @@ func recordCodec() (jsonx.Codec, error) {
 		jsonx.Variant[jobRecord, deadlineRecord]("deadline"),
 		jsonx.Variant[jobRecord, taskTimeoutRecord]("task-timeout"),
 		jsonx.Variant[jobRecord, retryRecord]("retry"),
+		jsonx.Variant[jobRecord, runRetryRecord]("run-retry"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, err
@@ -145,7 +175,10 @@ func (x Execution) MarshalJSON() ([]byte, error) {
 	}
 	r := executionRecord{
 		Started: x.started, LastEvent: x.lastEvent, LastTimer: int64(x.lastTimer), Deleting: x.deleting,
-		LastTask: int64(x.lastTask), JitterSeed: x.jitterSeed, JitterDraws: x.jitterDraws,
+		LastTask: int64(x.lastTask), JitterSeed: x.jitterSeed, JitterDraws: x.jitterDraws, LastRun: x.lastRun,
+	}
+	for i := range x.runs {
+		r.Runs = append(r.Runs, writeRun(&x.runs[i]))
 	}
 	if x.context != nil {
 		r.Context = text(x.context)
@@ -166,15 +199,17 @@ func (x Execution) MarshalJSON() ([]byte, error) {
 		tr := timerRecord{ID: int64(t.id), At: t.at}
 		switch j := t.job.(type) {
 		case stepJob:
-			tr.Job = stepRecord{State: j.state, Input: text(j.input), Previous: j.previous}
+			tr.Job = stepRecord{Run: j.fr.run, Index: j.fr.index, State: j.state, Input: text(j.input), Previous: j.previous}
 		case waitJob:
-			tr.Job = waitRecord{State: j.state, Output: text(j.output), Entered: j.entered}
+			tr.Job = waitRecord{Run: j.fr.run, Index: j.fr.index, State: j.state, Output: text(j.output), Entered: j.entered}
 		case deadlineJob:
 			tr.Job = deadlineRecord{}
 		case taskTimeoutJob:
 			tr.Job = taskTimeoutRecord{Task: int64(j.task)}
 		case retryJob:
 			tr.Job = retryRecord{visitRecord: writeVisit(j.visit), Previous: j.previous}
+		case runRetryJob:
+			tr.Job = runRetryRecord{visitRecord: writeVisit(j.visit), Previous: j.previous}
 		}
 		r.Timers = append(r.Timers, tr)
 	}
@@ -203,7 +238,14 @@ func (x *Execution) UnmarshalJSON(b []byte) error {
 	}
 	out := Execution{
 		started: r.Started, lastEvent: r.LastEvent, lastTimer: TimerID(r.LastTimer), deleting: r.Deleting,
-		jitterSeed: r.JitterSeed, jitterDraws: r.JitterDraws,
+		jitterSeed: r.JitterSeed, jitterDraws: r.JitterDraws, lastRun: r.LastRun,
+	}
+	for i := range r.Runs {
+		rn, err := readRun(&r.Runs[i])
+		if err != nil {
+			return err
+		}
+		out.runs = append(out.runs, rn)
 	}
 	if r.Context != "" {
 		if out.context, err = parseText(r.Context, "context"); err != nil {
@@ -251,13 +293,13 @@ func readJob(tr timerRecord) (job, error) {
 		if err != nil {
 			return nil, err
 		}
-		return stepJob{state: j.State, input: input, previous: j.Previous}, nil
+		return stepJob{fr: frame{run: j.Run, index: j.Index}, state: j.State, input: input, previous: j.Previous}, nil
 	case waitRecord:
 		output, err := parseText(j.Output, "wait output")
 		if err != nil {
 			return nil, err
 		}
-		return waitJob{state: j.State, output: output, entered: j.Entered}, nil
+		return waitJob{fr: frame{run: j.Run, index: j.Index}, state: j.State, output: output, entered: j.Entered}, nil
 	case deadlineRecord:
 		return deadlineJob{}, nil
 	case taskTimeoutRecord:
@@ -268,22 +310,82 @@ func readJob(tr timerRecord) (job, error) {
 			return nil, err
 		}
 		return retryJob{visit: v, previous: j.Previous}, nil
+	case runRetryRecord:
+		v, err := readVisit(j.visitRecord)
+		if err != nil {
+			return nil, err
+		}
+		return runRetryJob{visit: v, previous: j.Previous}, nil
 	}
 	return nil, fmt.Errorf("asl: timer %d of a saved execution has no job; the execution cannot be resumed", tr.ID)
 }
 
 // writeVisit is v's persisted form.
 func writeVisit(v visit) visitRecord {
-	return visitRecord{State: v.state, Input: text(v.input), EnteredAt: v.enteredAt, Entered: v.entered, Attempts: v.attempts}
+	return visitRecord{
+		Run: v.fr.run, Index: v.fr.index, State: v.state, Input: text(v.input), EnteredAt: v.enteredAt,
+		Entered: v.entered, Attempts: v.attempts,
+	}
 }
 
-// readVisit reads a persisted Task state visit.
+// readVisit reads a persisted state visit.
 func readVisit(vr visitRecord) (visit, error) {
-	input, err := parseText(vr.Input, "task input")
+	input, err := parseText(vr.Input, "state input")
 	if err != nil {
 		return visit{}, err
 	}
-	return visit{state: vr.State, input: input, enteredAt: vr.EnteredAt, entered: vr.Entered, attempts: vr.Attempts}, nil
+	return visit{
+		fr: frame{run: vr.Run, index: vr.Index}, state: vr.State, input: input, enteredAt: vr.EnteredAt,
+		entered: vr.Entered, attempts: vr.Attempts,
+	}, nil
+}
+
+// writeRun is r's persisted form.
+func writeRun(r *run) runRecord {
+	rr := runRecord{
+		ID: r.id, visitRecord: writeVisit(r.visit), Launched: r.launched, Running: r.running,
+		Finished: r.finished, Limit: r.limit,
+		Inputs: make([]string, len(r.inputs)), Results: make([]string, len(r.results)),
+	}
+	for i, in := range r.inputs {
+		rr.Inputs[i] = text(in)
+	}
+	for i, out := range r.results {
+		if out != nil {
+			rr.Results[i] = text(out)
+		}
+	}
+	return rr
+}
+
+// readRun reads a persisted run.
+func readRun(rr *runRecord) (run, error) {
+	v, err := readVisit(rr.visitRecord)
+	if err != nil {
+		return run{}, err
+	}
+	if len(rr.Results) != len(rr.Inputs) {
+		return run{}, fmt.Errorf("asl: run %d of a saved execution has %d inputs but %d results; the snapshot is corrupt",
+			rr.ID, len(rr.Inputs), len(rr.Results))
+	}
+	out := run{
+		id: rr.ID, visit: v, launched: rr.Launched, running: rr.Running, finished: rr.Finished, limit: rr.Limit,
+		inputs: make([]document.Value, len(rr.Inputs)), results: make([]document.Value, len(rr.Results)),
+	}
+	for i, in := range rr.Inputs {
+		if out.inputs[i], err = parseText(in, "branch or iteration input"); err != nil {
+			return run{}, err
+		}
+	}
+	for i, res := range rr.Results {
+		if res == "" {
+			continue
+		}
+		if out.results[i], err = parseText(res, "branch or iteration output"); err != nil {
+			return run{}, err
+		}
+	}
+	return out, nil
 }
 
 // readTask reads a persisted in-flight task.

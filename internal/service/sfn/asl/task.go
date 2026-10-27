@@ -21,7 +21,7 @@ const errTimeout = "States.Timeout"
 // TaskStateEntered and makes the first attempt.
 func (s *stepper) task(st taskState, j stepJob) {
 	entered := s.emit("TaskStateEntered", j.previous, stateEntered(st.name, j.input))
-	s.attempt(st, visit{state: st.name, input: j.input, enteredAt: s.at, entered: entered}, entered)
+	s.attempt(st, visit{fr: s.fr, state: st.name, input: j.input, enteredAt: s.at, entered: entered}, entered)
 }
 
 // retry makes the next attempt of a Task a retrier sent back
@@ -231,6 +231,7 @@ func (s *stepper) takeTask(id TaskID) (inflight, bool) {
 // (stepfunctions-asl.md 8.6, 9.1).
 func (s *stepper) answered(id TaskID, at time.Time) (t inflight, applies, ok bool) {
 	t, applies = s.takeTask(id)
+	s.fr = t.fr
 	switch {
 	case !applies:
 		return inflight{}, false, false
@@ -331,46 +332,66 @@ func (s *stepper) taskError(t inflight, ending string, e StateError) {
 }
 
 // taskFailed handles a failure of the Task st in visit v whose last event
-// is last. A Terminal ends the execution, a States.Runtime cause prefixed
-// with the state's entered event (stepfunctions-asl.md 4.6, 8.5). A
-// StateError goes to the first retrier naming it, which retries while it
-// has attempts left, and otherwise to the first catcher naming it, and
-// ends the execution when neither applies (8.2, 8.4): a retrier that has
-// run out of attempts hands the error to Catch, not to a later retrier
-// (spec#complex-retry-scenarios).
+// is last. A Terminal ends the frame, a States.Runtime cause prefixed with
+// the state's entered event (stepfunctions-asl.md 4.6, 8.5). A StateError
+// is retried or caught (retrying, catching), and ends the frame when
+// neither applies.
 func (s *stepper) taskFailed(st taskState, v visit, last int64, fl Failure) {
 	e, ok := fl.(StateError)
 	if !ok {
 		s.stateFailedAfter(st.name, v.entered, last, fl)
 		return
 	}
-	if i := slices.IndexFunc(st.retry, func(r Retrier) bool { return errorNamed(r.ErrorEquals, e.Name) }); i >= 0 {
-		r := st.retry[i]
-		attempts := make([]int, len(st.retry))
-		copy(attempts, v.attempts)
-		if attempts[i] < r.MaxAttempts {
-			attempts[i]++
-			v.attempts = attempts
-			s.arm(s.at.Add(RetryDelay(r, attempts[i], s.jitter(r))), retryJob{visit: v, previous: last})
-			return
-		}
-	}
-	i := slices.IndexFunc(st.catch, func(c catcher) bool { return errorNamed(c.errorEquals, e.Name) })
-	if i < 0 {
-		s.fail(e.Name, e.Cause, last)
+	again := func(v visit) job { return retryJob{visit: v, previous: last} }
+	if s.retrying(st.retry, v, e, again) || s.catching(st.catch, "TaskStateExited", v, last, e) {
 		return
 	}
-	c := st.catch[i]
+	s.raise(e, last)
+}
+
+// retrying arms a retry of the state in visit v when the first retrier
+// naming e has attempts left (stepfunctions-asl.md 8.2): again is the job
+// that retries, given the visit with the attempt counted. It is false when
+// no retrier applies: a retrier that has run out of attempts hands the
+// error to Catch, not to a later retrier (spec#complex-retry-scenarios).
+func (s *stepper) retrying(retry []Retrier, v visit, e StateError, again func(visit) job) bool {
+	i := slices.IndexFunc(retry, func(r Retrier) bool { return errorNamed(r.ErrorEquals, e.Name) })
+	if i < 0 {
+		return false
+	}
+	r := retry[i]
+	attempts := make([]int, len(retry))
+	copy(attempts, v.attempts)
+	if attempts[i] >= r.MaxAttempts {
+		return false
+	}
+	attempts[i]++
+	v.attempts = attempts
+	s.arm(s.at.Add(RetryDelay(r, attempts[i], s.jitter(r))), again(v))
+	return true
+}
+
+// catching hands e to the first catcher naming it (stepfunctions-asl.md
+// 8.4): the error output is placed by its ResultPath into the raw input,
+// the state's exited event (of type exited) points at last, and the
+// catcher's Next follows. It is false when no catcher names e.
+func (s *stepper) catching(catch []catcher, exited string, v visit, last int64, e StateError) bool {
+	i := slices.IndexFunc(catch, func(c catcher) bool { return errorNamed(c.errorEquals, e.Name) })
+	if i < 0 {
+		return false
+	}
+	c := catch[i]
 	out, fl := placeResult(c.resultPath, v.input, errorOutput(e))
 	if fl == nil {
-		fl = dataLimit(st.name, out)
+		fl = dataLimit(v.state, out)
 	}
 	if fl != nil {
-		s.stateFailedAfter(st.name, v.entered, last, fl)
-		return
+		s.stateFailedAfter(v.state, v.entered, last, fl)
+		return true
 	}
-	exited := s.emit("TaskStateExited", last, stateExited(st.name, out))
-	s.transition(c.next, out, exited)
+	id := s.emit(exited, last, stateExited(v.state, out))
+	s.transition(c.next, out, id)
+	return true
 }
 
 // jitter is the next FULL jitter draw for r, 0 for any other strategy.

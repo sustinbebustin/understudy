@@ -49,6 +49,11 @@ func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Even
 	s := stepper{d: d, rules: rules, src: src, x: x}
 	s.x.timers = slices.Clone(x.timers)
 	s.x.tasks = slices.Clone(x.tasks)
+	s.x.runs = slices.Clone(x.runs)
+	for i := range s.x.runs {
+		// A run's results change in place; x keeps its own.
+		s.x.runs[i].results = slices.Clone(x.runs[i].results)
+	}
 	switch ev := ev.(type) {
 	case Start:
 		s.start(ev)
@@ -96,13 +101,14 @@ func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Even
 }
 
 // stepper is one Step in progress: the execution it changes, the instant
-// its events carry, and what it writes.
+// its events carry, the frame it runs in, and what it writes.
 type stepper struct {
 	d       *Definition
 	rules   Rules
 	src     intrinsic.Source
 	x       Execution
 	at      time.Time
+	fr      frame
 	events  []HistoryEvent
 	cancels []Effect
 	allocs  []Effect
@@ -136,6 +142,7 @@ func (s *stepper) end(o Outcome) {
 	}
 	s.x.timers = nil
 	s.x.tasks = nil
+	s.x.runs = nil
 	s.x.outcome = o
 	s.finish = []Effect{Finish{Outcome: o}}
 }
@@ -161,22 +168,29 @@ func (s *stepper) start(ev Start) {
 	s.arm(ev.At.Add(s.d.limit()), deadlineJob{})
 }
 
-// run does what a fired timer's job asks.
+// run does what a fired timer's job asks, in the job's frame.
 func (s *stepper) run(j job) {
 	switch j := j.(type) {
 	case stepJob:
+		s.fr = j.fr
 		s.step(j)
 	case waitJob:
+		s.fr = j.fr
 		s.waitExit(j)
 	case deadlineJob:
 		s.timedOut()
 	case taskTimeoutJob:
 		// The timer is the task's own, so the task is in flight.
 		if t, ok := s.takeTask(j.task); ok {
+			s.fr = t.fr
 			s.taskError(t, "TimedOut", StateError{Name: errTimeout})
 		}
 	case retryJob:
+		s.fr = j.fr
 		s.retry(j)
+	case runRetryJob:
+		s.fr = j.fr
+		s.runRetry(j)
 	}
 }
 
@@ -246,7 +260,7 @@ func (s *stepper) step(j stepJob) {
 			return
 		}
 		exited := s.emit("SucceedStateExited", entered, stateExited(st.name, output))
-		s.succeed(output, exited)
+		s.scopeDone(output, exited)
 	case failState:
 		entered := s.emit("FailStateEntered", j.previous, stateEntered(st.name, j.input))
 		name, cause, f := s.failMessages(st, j.input)
@@ -254,17 +268,21 @@ func (s *stepper) step(j stepJob) {
 			s.stateFailed(st.name, entered, f)
 			return
 		}
-		s.fail(name, cause, entered)
+		// Inside a branch or iteration the error becomes the enclosing
+		// state's, which Retry and Catch see (stepfunctions-asl.md 7.2).
+		s.raise(StateError{Name: name, Cause: cause}, entered)
 	case choiceState:
 		s.choice(st, j)
 	case waitState:
 		s.wait(st, j)
 	case taskState:
 		s.task(st, j)
-	case parallelState, mapState:
-		// Parse accepts these types only under features whose runtime has
-		// not landed, which the service does not accept yet.
-		s.fail(errRuntime, "The state '"+j.state+"' is of a type this engine does not run yet.", j.previous)
+	case parallelState:
+		entered := s.emit("ParallelStateEntered", j.previous, stateEntered(st.name, j.input))
+		s.startRun(st, visit{fr: s.fr, state: st.name, input: j.input, enteredAt: s.at, entered: entered}, entered)
+	case mapState:
+		entered := s.emit("MapStateEntered", j.previous, stateEntered(st.name, j.input))
+		s.startRun(st, visit{fr: s.fr, state: st.name, input: j.input, enteredAt: s.at, entered: entered}, entered)
 	case nil:
 		// Parse admits no transition to a missing state; a definition that
 		// lacks one was changed under a running execution.
@@ -272,14 +290,14 @@ func (s *stepper) step(j stepJob) {
 	}
 }
 
-// transition moves to next on output, or ends the execution when next is
-// "".
+// transition moves to next on output in the step's frame, or ends the
+// frame when next is "".
 func (s *stepper) transition(next string, output document.Value, previous int64) {
 	if next == "" {
-		s.succeed(output, previous)
+		s.scopeDone(output, previous)
 		return
 	}
-	s.arm(s.at, stepJob{state: next, input: output, previous: previous})
+	s.arm(s.at, stepJob{fr: s.fr, state: next, input: output, previous: previous})
 }
 
 func (s *stepper) succeed(output document.Value, previous int64) {

@@ -21,7 +21,12 @@ type scope struct {
 // scopeOf is what the state named name reads, entered at the step's
 // instant.
 func (s *stepper) scopeOf(name string) scope {
-	return scope{context: stateContext(s.x.context, name, s.at), src: s.src, rules: s.rules}
+	return s.scopeAt(name, s.at)
+}
+
+// scopeAt is what the state named name reads, entered at entered.
+func (s *stepper) scopeAt(name string, entered time.Time) scope {
+	return scope{context: stateContext(s.x.context, name, entered), src: s.src, rules: s.rules}
 }
 
 // pass is a Pass state's output (stepfunctions-asl.md 4.1): InputPath, then
@@ -81,17 +86,13 @@ func (s *stepper) stateFailedAfter(name string, entered, last int64, f Failure) 
 	s.raise(f, last)
 }
 
-// raise ends the execution with f, whose cause is complete; ExecutionFailed
-// points at last. It serves the states without Retry or Catch, so a
-// StateError ends the execution too; a Task's failures go through
-// taskFailed.
+// raise ends the step's frame with f, whose cause is complete; the
+// failure's first event points at last. At the top level it ends the
+// execution; in a branch or iteration it fails the enclosing Parallel or
+// Map (scopeFailed). It serves the states without Retry or Catch of their
+// own; a Task's failures go through taskFailed.
 func (s *stepper) raise(f Failure, last int64) {
-	switch f := f.(type) {
-	case Terminal:
-		s.fail(f.Name, f.Cause, last)
-	case StateError:
-		s.fail(f.Name, f.Cause, last)
-	}
+	s.scopeFailed(f, last)
 }
 
 // runtimeCause is rest after the recorded prefix of a States.Runtime cause
