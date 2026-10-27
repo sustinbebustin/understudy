@@ -177,7 +177,7 @@ func TestStreamsAttributeConcurrentWritesDocker(t *testing.T) {
 		t.Fatalf("%d records, want %d", len(records), writers)
 	}
 	for _, r := range records {
-		key, ok := r.Dynamodb.Keys["id"].(*dynamodbstreamsapi.AttributeValueMemberS)
+		key, ok := r.Dynamodb.Keys["id"].(dynamodbstreamsapi.AttributeValueMemberS)
 		if !ok {
 			t.Fatalf("record key %#v", r.Dynamodb.Keys)
 		}
@@ -228,7 +228,7 @@ func TestStreamsTagOnlySweeperDeletesDocker(t *testing.T) {
 	removes := map[string]*dynamodbstreamsapi.Identity{}
 	for _, r := range allStreamRecords(t, k, scope, "Locks") {
 		if r.EventName != nil && *r.EventName == dynamodbstreamsapi.OperationTypeRemove {
-			key, ok := r.Dynamodb.Keys["id"].(*dynamodbstreamsapi.AttributeValueMemberS)
+			key, ok := r.Dynamodb.Keys["id"].(dynamodbstreamsapi.AttributeValueMemberS)
 			if !ok {
 				t.Fatalf("record key %#v", r.Dynamodb.Keys)
 			}
