@@ -117,7 +117,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Service | Operations | Full | Stored only | Partial | Unbound | Internal | Raw |
 |---|---|---|---|---|---|---|---|
-| apigatewayv2 | 103 | 0 | 0 | 0 | 103 | 0 | 1 |
+| apigatewayv2 | 103 | 0 | 0 | 4 | 99 | 0 | 1 |
 | cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
 | dynamodb | 58 | 6 | 2 | 18 | 32 | 0 | 0 |
 | eventbridge | 57 | 6 | 3 | 13 | 35 | 0 | 0 |
@@ -135,22 +135,22 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| CreateApi | unbound | unassessed |  |
+| CreateApi | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); only name and protocolType HTTP are accepted, and the output omits ApiEndpoint and the documented defaults; every other member, and protocolType WEBSOCKET, answers NotImplemented |
+| CreateIntegration | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); only Lambda AWS_PROXY with payloadFormatVersion 2.0 and a function ARN or invoke URI is accepted, and the output omits the documented defaults; HTTP_PROXY, payload format 1.0, a stage variable in the URI and every other member answer NotImplemented; a change deploys to the autoDeploy stages before the call returns (UNVERIFIED delay, APIGW2-04) |
+| CreateRoute | partial | unassessed | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); only $default and literal route keys with authorizationType NONE and an optional target are accepted; route keys with path variables and every other member answer NotImplemented; a change deploys to the autoDeploy stages before the call returns (UNVERIFIED delay, APIGW2-04) |
+| CreateStage | partial | inferred, 1 of 1 claim | error message texts and generated ids are inferred (UNVERIFIED, APIGW2-01, APIGW2-03); only stageName and autoDeploy are accepted, and the output omits the documented defaults; every other member answers NotImplemented; an automatic deployment completes before the call returns (UNVERIFIED delay, APIGW2-04) |
 | CreateApiMapping | unbound | unassessed |  |
 | CreateAuthorizer | unbound | unassessed |  |
 | CreateDeployment | unbound | unassessed |  |
 | CreateDomainName | unbound | unassessed |  |
-| CreateIntegration | unbound | unassessed |  |
 | CreateIntegrationResponse | unbound | unassessed |  |
 | CreateModel | unbound | unassessed |  |
 | CreatePortal | unbound | unassessed |  |
 | CreatePortalProduct | unbound | unassessed |  |
 | CreateProductPage | unbound | unassessed |  |
 | CreateProductRestEndpointPage | unbound | unassessed |  |
-| CreateRoute | unbound | unassessed |  |
 | CreateRouteResponse | unbound | unassessed |  |
 | CreateRoutingRule | unbound | unassessed |  |
-| CreateStage | unbound | unassessed |  |
 | CreateVpcLink | unbound | unassessed |  |
 | DeleteAccessLogSettings | unbound | unassessed |  |
 | DeleteApi | unbound | unassessed |  |
@@ -243,7 +243,7 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| InvokeApi | unbound | unassessed |  |
+| InvokeApi | partial | inferred, 5 of 5 claims | Lambda AWS_PROXY with payload format 2.0 through the path fallback /_understudy/execute-api/<api-id>/ only (the execute-api host answers 501); stage and literal route selection as documented; the integration timeout is not applied; inferred, UNVERIFIED: the gateway's own answers and their status (APIGW2-05, APIGW2-06, APIGW2-10, APIGW2-11), the 2.0 isBase64Encoded of a bodyless request and default Content-Type (APIGW2-07, APIGW2-09) |
 
 ### cloudwatch
 

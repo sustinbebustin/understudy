@@ -81,6 +81,7 @@ func (w *workload) run(t *testing.T) {
 		{"iam", w.iam},
 		{"sts", w.sts},
 		{"lambda", w.lambda},
+		{"api gateway http api", w.apigatewayv2},
 		{"logs", w.logs},
 		{"secrets manager", w.secrets},
 		{"eventbridge", w.events},
@@ -423,6 +424,55 @@ func (w *workload) lambda(t *testing.T) {
 	}
 	decode(t, "Invoke", invoked.body, &ran)
 	w.instance = containerInstance(t, ran.Container)
+}
+
+// apigatewayv2 builds an HTTP API over restJson1, signed for apigateway: a
+// Lambda proxy integration of payload format 2.0 to the function, a
+// GET /hello route and a $default stage that deploys automatically; it
+// lets API Gateway invoke the function, then sends GET /hello through the
+// path fallback. With Docker the function answers the 2.0 event it got;
+// without, the answer is 501 naming Docker.
+func (w *workload) apigatewayv2(t *testing.T) {
+	t.Helper()
+	call := func(what, path, body string, v any) {
+		t.Helper()
+		got := must(t, what, send(t, w.emu, request{
+			path: path, service: "apigateway", header: map[string]string{"Content-Type": "application/json"}, body: []byte(body),
+		}), http.StatusCreated)
+		decode(t, what, got.body, v)
+	}
+	var api struct {
+		APIID string `json:"apiId"`
+	}
+	call("CreateApi", "/v2/apis", `{"name":"smoke","protocolType":"HTTP"}`, &api)
+	var integration struct {
+		IntegrationID string `json:"integrationId"`
+	}
+	call("CreateIntegration", "/v2/apis/"+api.APIID+"/integrations",
+		`{"integrationType":"AWS_PROXY","integrationUri":"arn:aws:lambda:`+region+`:`+account+`:function:`+function+`","payloadFormatVersion":"2.0"}`, &integration)
+	var created struct{ RouteKey string }
+	call("CreateRoute", "/v2/apis/"+api.APIID+"/routes", `{"routeKey":"GET /hello","target":"integrations/`+integration.IntegrationID+`"}`, &created)
+	var stage struct{ DeploymentID string }
+	call("CreateStage", "/v2/apis/"+api.APIID+"/stages", `{"stageName":"$default","autoDeploy":true}`, &stage)
+	if api.APIID == "" || created.RouteKey != "GET /hello" || stage.DeploymentID == "" {
+		t.Fatalf("CreateApi id %q, CreateRoute key %q, CreateStage deployment %q; want an id, GET /hello and the automatic deployment", api.APIID, created.RouteKey, stage.DeploymentID)
+	}
+	permission := `{"StatementId":"apigateway","Action":"lambda:InvokeFunction","Principal":"apigateway.amazonaws.com",` +
+		`"SourceArn":"arn:aws:execute-api:` + region + `:` + account + `:` + api.APIID + `/*/*"}`
+	must(t, "AddPermission", send(t, w.emu, request{
+		path: "/2015-03-31/functions/" + function + "/policy", service: "lambda",
+		header: map[string]string{"Content-Type": "application/json"}, body: []byte(permission),
+	}), http.StatusCreated)
+	invoked := send(t, w.emu, request{method: http.MethodGet, path: "/_understudy/execute-api/" + api.APIID + "/hello"})
+	if !w.invoke {
+		if invoked.status != http.StatusNotImplemented || !strings.Contains(invoked.body, "Docker") {
+			t.Fatalf("GET /hello without Docker = %d %s, want 501 naming Docker", invoked.status, invoked.body)
+		}
+		return
+	}
+	if invoked.status != http.StatusOK || !strings.Contains(invoked.body, `"routeKey":"GET /hello"`) || invoked.header.Get("Apigw-Requestid") == "" {
+		t.Fatalf("GET /hello = %d %v %s, want the function's echo of the GET /hello event with an apigw-requestid", invoked.status, invoked.header, invoked.body)
+	}
 }
 
 // logs writes a log event over awsJson1_1.

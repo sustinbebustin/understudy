@@ -5,14 +5,17 @@
 // SQS and DynamoDB over awsJson1_0, SNS publishing to the queue over
 // awsQuery with the delivery asserted in the journal, S3 over restXml (a
 // checksum header over HTTP, an aws-chunked trailer body over TLS,
-// SSE-KMS), Lambda over restJson1, CloudWatch Logs, Secrets Manager, KMS
-// and EventBridge over awsJson1_1, IAM and STS over awsQuery, and
-// CloudWatch alarms over awsJson1_0 and rpcv2Cbor. It then asks
+// SSE-KMS), Lambda and an API Gateway HTTP API over restJson1, CloudWatch
+// Logs, Secrets Manager, KMS and EventBridge over awsJson1_1, IAM and STS
+// over awsQuery, and CloudWatch alarms over awsJson1_0 and rpcv2Cbor. It
+// then asks
 // `understudy iam policy` for the smoke principal's policy and reads the
 // coverage report.
 //
 // With the docker tag as well, the workload invokes its zip function on a
-// provided.al2023 runtime, and runs again against understudy inside the
+// provided.al2023 runtime, directly and through the HTTP API's execute-api
+// path fallback (without Docker that request answers 501 naming Docker),
+// and runs again against understudy inside the
 // image built from the repository's Dockerfile, with the Docker socket
 // mounted: the InContainer topology.
 //
