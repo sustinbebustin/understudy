@@ -315,8 +315,16 @@ func (s *Service) getExecutionHistory(_ context.Context, c *kernel.Call, in *sfn
 		if err != nil {
 			return nil, err
 		}
-		if from = positionOf(at); from < 0 || from > len(events) {
+		// The token names the next event by id, not by index: a running
+		// execution appends events between pages, which shifts every index
+		// of the reversed listing. Ids run from 1 without gaps (11.2).
+		next := positionOf(at)
+		if next < 1 || next > len(events) {
 			return nil, errInvalidToken()
+		}
+		from = next - 1
+		if in.ReverseOrder {
+			from = len(events) - next
 		}
 	}
 	data := in.IncludeExecutionData == nil || *in.IncludeExecutionData
@@ -324,7 +332,7 @@ func (s *Service) getExecutionHistory(_ context.Context, c *kernel.Call, in *sfn
 	out := &sfnapi.GetExecutionHistoryOutput{Events: []sfnapi.HistoryEvent{}}
 	for i := from; i < len(events); i++ {
 		if i-from == size {
-			out.NextToken = new(pageToken(listing, positionText(i), c.Admitted()))
+			out.NextToken = new(pageToken(listing, positionText(int(events[i].ID)), c.Admitted()))
 			break
 		}
 		out.Events = append(out.Events, wireEvent(&events[i], data))

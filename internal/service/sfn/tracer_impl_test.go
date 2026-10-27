@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -126,6 +127,25 @@ func TestHistoryTokenBelongsToItsListing(t *testing.T) {
 		rest := must(h, sfnapi.OpGetExecutionHistory, &sfnapi.GetExecutionHistoryInput{ExecutionArn: arn, NextToken: page.NextToken})
 		if len(rest.Events) != 3 || rest.Events[0].Id != 2 || rest.NextToken != nil {
 			h.Errorf("second page:\n%s", shape(rest.Events))
+		}
+	})
+}
+
+// A reverse-order history page token resumes after the last event it
+// returned, even when the running execution wrote events between the
+// pages: a page never repeats or skips an event.
+func TestReverseHistoryPagingOfARunningExecution(t *testing.T) {
+	run(t, func(h *harness) {
+		machine := h.create("w", `{"StartAt":"A","States":{"A":{"Type":"Wait","Seconds":10,"Next":"B"},"B":{"Type":"Wait","Seconds":10,"End":true}}}`)
+		arn := h.start(machine, "x", nil)
+		first := must(h, sfnapi.OpGetExecutionHistory, &sfnapi.GetExecutionHistoryInput{ExecutionArn: arn, MaxResults: 1, ReverseOrder: true})
+		if len(first.Events) != 1 || first.Events[0].Id != 2 || first.NextToken == nil {
+			h.Fatalf("first page:\n%s", shape(first.Events))
+		}
+		h.advance(10 * time.Second)
+		rest := must(h, sfnapi.OpGetExecutionHistory, &sfnapi.GetExecutionHistoryInput{ExecutionArn: arn, NextToken: first.NextToken, ReverseOrder: true})
+		if len(rest.Events) != 1 || rest.Events[0].Id != 1 || rest.NextToken != nil {
+			h.Errorf("second page after two more events, want only event 1:\n%s", shape(rest.Events))
 		}
 	})
 }

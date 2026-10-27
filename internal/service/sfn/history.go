@@ -40,7 +40,7 @@ func historyRecords(events []asl.HistoryEvent) []HistoryRecord {
 }
 
 // positionText and positionOf write and read a history page token's
-// position: the index of the next event.
+// position: the id of the next event.
 func positionText(i int) string { return strconv.Itoa(i) }
 
 func positionOf(s string) int {
