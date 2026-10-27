@@ -48,6 +48,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.bindItems(b)
 	s.bindStatements(b)
 	s.bindShims(b)
+	declareActions(d.Binder)
 	return s
 }
 
@@ -126,18 +127,18 @@ func (s *Service) bindItems(b dynamodbapi.Binder) {
 	b.TransactGetItemsRaw(passthrough(s, transactGetTables, echoed(transactGetTables)), notes(noThroughput, noTxConflicts), tables(transactGetTables),
 		kernel.WithItemCount(func(in *dynamodbapi.TransactGetItemsInput) int { return len(in.TransactItems) }))
 	b.TransactWriteItemsRaw(ttlWrites(s, passthrough(s, transactWriteTables, echoed(transactWriteTables, "ItemCollectionMetrics")), transactWrites),
-		notes(noThroughput, noTxConflicts), tables(transactWriteTables),
+		notes(noThroughput, noTxConflicts, transactPutAlways), tables(transactWriteTables),
 		kernel.WithItemCount(func(in *dynamodbapi.TransactWriteItemsInput) int { return len(in.TransactItems) }))
 }
 
 // bindStatements binds PartiQL, whose tables are inside the statements.
 func (s *Service) bindStatements(b dynamodbapi.Binder) {
 	b.ExecuteStatementRaw(ttlStatements(s, passthrough(s, noTables, plainAnswer[dynamodbapi.ExecuteStatementInput]), statementOf),
-		notes(noThroughput, noConflicts, statementLimit, statementTwins))
+		notes(noThroughput, noConflicts, statementLimit, statementTwins, partiQLSelectAlways))
 	b.BatchExecuteStatementRaw(ttlStatements(s, passthrough(s, noTables, plainAnswer[dynamodbapi.BatchExecuteStatementInput]), batchStatements),
-		notes(noThrottling, statementTwins))
+		notes(noThrottling, statementTwins, partiQLSelectAlways))
 	b.ExecuteTransactionRaw(ttlStatements(s, passthrough(s, noTables, plainAnswer[dynamodbapi.ExecuteTransactionInput]), transactionStatements),
-		notes(noThroughput, noTxConflicts, statementTwins),
+		notes(noThroughput, noTxConflicts, statementTwins, partiQLSelectAlways),
 		kernel.WithItemCount(func(in *dynamodbapi.ExecuteTransactionInput) int { return len(in.TransactStatements) }))
 }
 

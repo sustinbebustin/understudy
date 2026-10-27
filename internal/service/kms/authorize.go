@@ -4,6 +4,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // resolvedFirst is the coverage note of the operations that accept an
@@ -25,6 +26,20 @@ func (s *Service) declareAuthorization(b *kernel.Binder) {
 	kernel.Declare(b, kmsapi.OpEncrypt, keyResolved(s, func(in *kmsapi.EncryptInput) *string { return &in.KeyId })...)
 	kernel.Declare(b, kmsapi.OpDecrypt, keyResolved(s, func(in *kmsapi.DecryptInput) *string { return in.KeyId })...)
 	kernel.Declare(b, kmsapi.OpReEncrypt, keyResolved(s, func(in *kmsapi.ReEncryptInput) *string { return &in.DestinationKeyId })...)
+	// ReEncrypt needs kms:ReEncryptFrom on the key that sealed the
+	// ciphertext and kms:ReEncryptTo on the destination key, each on its
+	// own key, never crossed (iam-enforcement-surfaces.md 10.2, 12.6; the
+	// ReEncrypt API reference, Required permissions).
+	kernel.Declare(b, kmsapi.OpReEncrypt,
+		kernel.WithActions(func(*kernel.Call, *kmsapi.ReEncryptInput) []registry.IAMAction {
+			return []registry.IAMAction{{Prefix: "kms", Name: "ReEncryptTo"}}
+		}),
+		kernel.WithResourcesFor([]registry.IAMAction{{Prefix: "kms", Name: "ReEncryptFrom"}}, func(c *kernel.Call, in *kmsapi.ReEncryptInput) []aws.ARN {
+			return s.sealedBy(c, in.CiphertextBlob)
+		}),
+		kernel.WithResourcesFor([]registry.IAMAction{{Prefix: "kms", Name: "ReEncryptTo"}}, func(c *kernel.Call, in *kmsapi.ReEncryptInput) []aws.ARN {
+			return s.keysOf(c, in.DestinationKeyId)
+		}))
 	kernel.Declare(b, kmsapi.OpGenerateDataKey, keyResolved(s, func(in *kmsapi.GenerateDataKeyInput) *string { return &in.KeyId })...)
 	kernel.Declare(b, kmsapi.OpGenerateDataKeyWithoutPlaintext, keyResolved(s, func(in *kmsapi.GenerateDataKeyWithoutPlaintextInput) *string { return &in.KeyId })...)
 
@@ -87,6 +102,16 @@ func keyResolved[In any](s *Service, id func(*In) *string) []kernel.BindOption {
 		}),
 		kernel.AuthorizedAfterResolve(),
 	}
+}
+
+// sealedBy is the key a ciphertext blob names as its sealer; none for
+// bytes that are not a blob understudy wrote, which the handler refuses.
+func (s *Service) sealedBy(c *kernel.Call, blob []byte) []aws.ARN {
+	env, ok := parseBlob(blob)
+	if !ok {
+		return nil
+	}
+	return s.keysOf(c, env.keyARN)
 }
 
 // keysOf is the key a key id, key ARN, alias name or alias ARN names: the

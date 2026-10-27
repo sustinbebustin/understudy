@@ -38,6 +38,24 @@ func (s *Service) declareAuthorization(b *kernel.Binder) {
 	kernel.Declare(b, iamapi.OpGetInstanceProfile, profileNamed(s, func(in *iamapi.GetInstanceProfileInput) string { return in.InstanceProfileName })...)
 	kernel.Declare(b, iamapi.OpDeleteInstanceProfile, profileNamed(s, func(in *iamapi.DeleteInstanceProfileInput) string { return in.InstanceProfileName })...)
 	kernel.Declare(b, iamapi.OpAddRoleToInstanceProfile, profileNamed(s, func(in *iamapi.AddRoleToInstanceProfileInput) string { return in.InstanceProfileName })...)
+	// Adding a role passes it: the caller needs iam:PassRole on the role,
+	// with iam:PassedToService ec2.amazonaws.com, the SAR's fixed value,
+	// and iam:AddRoleToInstanceProfile on the profile alone, never crossed
+	// (iam-enforcement-surfaces.md 10.2, 12.6; the AddRoleToInstanceProfile
+	// API reference).
+	kernel.Declare(b, iamapi.OpAddRoleToInstanceProfile,
+		kernel.WithActions(func(*kernel.Call, *iamapi.AddRoleToInstanceProfileInput) []registry.IAMAction {
+			return []registry.IAMAction{iamAction("PassRole")}
+		}),
+		kernel.WithResourcesFor([]registry.IAMAction{iamAction("AddRoleToInstanceProfile")}, func(c *kernel.Call, in *iamapi.AddRoleToInstanceProfileInput) []aws.ARN {
+			return found(s.profileARN(c, in.InstanceProfileName))
+		}),
+		kernel.WithResourcesFor([]registry.IAMAction{iamAction("PassRole")}, func(c *kernel.Call, in *iamapi.AddRoleToInstanceProfileInput) []aws.ARN {
+			return found(s.roleARN(c, in.RoleName))
+		}),
+		kernel.WithConditionKeys(func(*kernel.Call, *iamapi.AddRoleToInstanceProfileInput) kernel.ConditionKeys {
+			return kernel.ConditionKeys{"iam:PassedToService": {"ec2.amazonaws.com"}}
+		}))
 	kernel.Declare(b, iamapi.OpRemoveRoleFromInstanceProfile, profileNamed(s, func(in *iamapi.RemoveRoleFromInstanceProfileInput) string { return in.InstanceProfileName })...)
 	kernel.Declare(b, iamapi.OpTagInstanceProfile, profileNamed(s, func(in *iamapi.TagInstanceProfileInput) string { return in.InstanceProfileName })...)
 	kernel.Declare(b, iamapi.OpUntagInstanceProfile, profileNamed(s, func(in *iamapi.UntagInstanceProfileInput) string { return in.InstanceProfileName })...)
@@ -67,6 +85,23 @@ func (s *Service) declareAuthorization(b *kernel.Binder) {
 	kernel.Declare(b, iamapi.OpCreateInstanceProfile, created(func(account aws.AccountID, in *iamapi.CreateInstanceProfileInput) (aws.ARN, *string) {
 		return instanceProfileARN(account, pathOrRoot(in.Path), in.InstanceProfileName), in.Path
 	}))
+	// A create needs its tag action only when it sends tags
+	// (iam-enforcement-surfaces.md 10.2, 10.4).
+	kernel.Declare(b, iamapi.OpCreateUser, taggedWith("TagUser", func(in *iamapi.CreateUserInput) []iamapi.Tag { return in.Tags }))
+	kernel.Declare(b, iamapi.OpCreateRole, taggedWith("TagRole", func(in *iamapi.CreateRoleInput) []iamapi.Tag { return in.Tags }))
+	kernel.Declare(b, iamapi.OpCreatePolicy, taggedWith("TagPolicy", func(in *iamapi.CreatePolicyInput) []iamapi.Tag { return in.Tags }))
+	kernel.Declare(b, iamapi.OpCreateInstanceProfile, taggedWith("TagInstanceProfile", func(in *iamapi.CreateInstanceProfileInput) []iamapi.Tag { return in.Tags }))
+}
+
+// taggedWith declares the IAM tag action a create uses when its input
+// sends tags.
+func taggedWith[In any](action string, tags func(*In) []iamapi.Tag) kernel.BindOption {
+	return kernel.WithActions(func(_ *kernel.Call, in *In) []registry.IAMAction {
+		if len(tags(in)) == 0 {
+			return nil
+		}
+		return []registry.IAMAction{iamAction(action)}
+	})
 }
 
 // declareUsers declares the operations on a user named, or defaulting to
@@ -205,20 +240,36 @@ func userNamed[In any](s *Service, name func(*In) *string) []kernel.BindOption {
 
 // roleNamed authorizes an operation on the role name names.
 func roleNamed[In any](s *Service, name func(*In) string) []kernel.BindOption {
-	return resolved(func(c *kernel.Call, in *In) (aws.ARN, bool) {
-		account := c.Scope().Account
-		r, err := view(s, account, func(st *State) (Role, *awserr.Error) { return st.role(name(in)) })
-		return roleARN(account, r.Path, r.Name), err == nil
-	})
+	return resolved(func(c *kernel.Call, in *In) (aws.ARN, bool) { return s.roleARN(c, name(in)) })
 }
 
 // profileNamed authorizes an operation on the instance profile name names.
 func profileNamed[In any](s *Service, name func(*In) string) []kernel.BindOption {
-	return resolved(func(c *kernel.Call, in *In) (aws.ARN, bool) {
-		account := c.Scope().Account
-		p, err := view(s, account, func(st *State) (InstanceProfile, *awserr.Error) { return st.instanceProfile(name(in)) })
-		return instanceProfileARN(account, p.Path, p.Name), err == nil
-	})
+	return resolved(func(c *kernel.Call, in *In) (aws.ARN, bool) { return s.profileARN(c, name(in)) })
+}
+
+// roleARN is the ARN of the role name names in the caller's account, false
+// when there is none.
+func (s *Service) roleARN(c *kernel.Call, name string) (aws.ARN, bool) {
+	account := c.Scope().Account
+	r, err := view(s, account, func(st *State) (Role, *awserr.Error) { return st.role(name) })
+	return roleARN(account, r.Path, r.Name), err == nil
+}
+
+// profileARN is the ARN of the instance profile name names in the caller's
+// account, false when there is none.
+func (s *Service) profileARN(c *kernel.Call, name string) (aws.ARN, bool) {
+	account := c.Scope().Account
+	p, err := view(s, account, func(st *State) (InstanceProfile, *awserr.Error) { return st.instanceProfile(name) })
+	return instanceProfileARN(account, p.Path, p.Name), err == nil
+}
+
+// found is arn alone when ok, else nothing.
+func found(arn aws.ARN, ok bool) []aws.ARN {
+	if !ok {
+		return nil
+	}
+	return []aws.ARN{arn}
 }
 
 // policyNamed asks at step 8 about the managed policy whose ARN the input

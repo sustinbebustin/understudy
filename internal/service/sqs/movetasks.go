@@ -28,8 +28,15 @@ const (
 	moveStep = time.Second
 )
 
-// bindMoveTasks binds the message move task operations.
+// bindMoveTasks binds the message move task operations. Each declares
+// every action its generated list holds (iam-enforcement-surfaces.md
+// 10.2): a task receives, deletes and reads the attributes of its source
+// queue's messages and sends them on, and the SAR states no condition on
+// any of them (10.4). StartMessageMoveTask pairs its source actions with
+// the source and sqs:SendMessage with where the messages go
+// (moveDestinations), never crossed (12.6).
 func (s *Service) bindMoveTasks(b sqsapi.Binder) {
+	source := func(in *sqsapi.StartMessageMoveTaskInput) string { return in.SourceArn }
 	b.StartMessageMoveTask(s.startMessageMoveTask, registry.Full{},
 		kernel.WithCheck(func(in *sqsapi.StartMessageMoveTaskInput) *awserr.Error {
 			if r := in.MaxNumberOfMessagesPerSecond; r != nil && (*r < 1 || *r > maxMoveRate) {
@@ -37,7 +44,14 @@ func (s *Service) bindMoveTasks(b sqsapi.Binder) {
 			}
 			return nil
 		}),
-		queueByARN(func(in *sqsapi.StartMessageMoveTaskInput) string { return in.SourceArn }))
+		queueByARN(source),
+		allActions[sqsapi.StartMessageMoveTaskInput](sqsapi.OpStartMessageMoveTask.Descriptor()),
+		kernel.WithResourcesFor(
+			[]registry.IAMAction{sqsAction("StartMessageMoveTask"), sqsAction("ReceiveMessage"), sqsAction("DeleteMessage"), sqsAction("GetQueueAttributes")},
+			func(_ *kernel.Call, in *sqsapi.StartMessageMoveTaskInput) []aws.ARN { return queueARNOf(in.SourceArn) }),
+		kernel.WithResourcesFor([]registry.IAMAction{sqsAction("SendMessage")}, func(_ *kernel.Call, in *sqsapi.StartMessageMoveTaskInput) []aws.ARN {
+			return s.moveDestinations(in)
+		}))
 	b.ListMessageMoveTasks(s.listMessageMoveTasks, registry.Full{},
 		kernel.WithCheck(func(in *sqsapi.ListMessageMoveTasksInput) *awserr.Error {
 			if n := in.MaxResults; n != nil && (*n < 1 || *n > maxListedTasks) {
@@ -45,12 +59,62 @@ func (s *Service) bindMoveTasks(b sqsapi.Binder) {
 			}
 			return nil
 		}),
-		queueByARN(func(in *sqsapi.ListMessageMoveTasksInput) string { return in.SourceArn }))
+		queueByARN(func(in *sqsapi.ListMessageMoveTasksInput) string { return in.SourceArn }),
+		allActions[sqsapi.ListMessageMoveTasksInput](sqsapi.OpListMessageMoveTasks.Descriptor()))
 	b.CancelMessageMoveTask(s.cancelMessageMoveTask, registry.Full{},
 		queueByARN(func(in *sqsapi.CancelMessageMoveTaskInput) string {
 			h, _ := decodeTaskHandle(in.TaskHandle)
 			return h.SourceArn
-		}))
+		}),
+		allActions[sqsapi.CancelMessageMoveTaskInput](sqsapi.OpCancelMessageMoveTask.Descriptor()))
+}
+
+// allActions declares every sqs action of op's generated list used by
+// each call.
+func allActions[In any](op *registry.Operation) kernel.BindOption {
+	return kernel.WithActions(func(*kernel.Call, *In) []registry.IAMAction { return op.IAM })
+}
+
+// sqsAction is the sqs action name.
+func sqsAction(name string) registry.IAMAction { return registry.IAMAction{Prefix: "sqs", Name: name} }
+
+// queueARNOf is the queue an SQS ARN names; nothing for any other text,
+// which the handler refuses.
+func queueARNOf(raw string) []aws.ARN {
+	a, err := aws.ParseARN(raw)
+	if err != nil || a.Service != "sqs" {
+		return nil
+	}
+	return []aws.ARN{a}
+}
+
+// moveDestinations are the queues a move task sends its messages to:
+// DestinationArn, or else each queue whose redrive policy targets the
+// source, since a message goes back to the queue it was dead-lettered from
+// (sqs.md 9.3). Nothing for a source that names no queue, which the
+// handler refuses.
+func (s *Service) moveDestinations(in *sqsapi.StartMessageMoveTaskInput) []aws.ARN {
+	if in.DestinationArn != nil {
+		return queueARNOf(*in.DestinationArn)
+	}
+	src := queueARNOf(in.SourceArn)
+	if len(src) == 0 {
+		return nil
+	}
+	dlq, ok := queueOf(src[0])
+	if !ok {
+		return nil
+	}
+	names, err := readQueue(s, dlq, func(st *State, _ *Queue) []string { return sourcesOf(st, dlq) })
+	if err != nil {
+		return nil
+	}
+	slices.Sort(names)
+	out := make([]aws.ARN, 0, len(names))
+	for _, n := range names {
+		out = append(out, queueRef{scope: dlq.scope, name: n}.arn())
+	}
+	return out
 }
 
 // startMessageMoveTask starts moving the messages of a dead-letter queue,

@@ -41,6 +41,20 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	b.CreateSecret(s.createSecret, registry.Partial{Note: "AddReplicaRegions (replication) answers NotImplemented"},
 		kernel.WithCheck(func(in *secretsmanagerapi.CreateSecretInput) *awserr.Error {
 			return firstError(requireToken(in.ClientRequestToken), checkName(in.Name), checkValue(in.SecretString, in.SecretBinary))
+		}),
+		// secretsmanager:TagResource only for a secret created with tags,
+		// secretsmanager:ReplicateSecretToRegions only with replica regions:
+		// each applies when its member is sent (iam-enforcement-surfaces.md
+		// 10.2, 10.4).
+		kernel.WithActions(func(_ *kernel.Call, in *secretsmanagerapi.CreateSecretInput) []registry.IAMAction {
+			var out []registry.IAMAction
+			if len(in.Tags) > 0 {
+				out = append(out, registry.IAMAction{Prefix: "secretsmanager", Name: "TagResource"})
+			}
+			if len(in.AddReplicaRegions) > 0 {
+				out = append(out, registry.IAMAction{Prefix: "secretsmanager", Name: "ReplicateSecretToRegions"})
+			}
+			return out
 		}))
 	named := registry.Partial{Note: resolvedFirst}
 	b.DescribeSecret(s.describeSecret, named)

@@ -28,7 +28,16 @@ func (s *Service) bindAlarms(b cloudwatchapi.Binder) {
 	b.PutMetricAlarm(s.putMetricAlarm,
 		registry.Partial{Note: "stored and echoed; alarms are never evaluated, so their state changes only through SetAlarmState, and their actions never run"},
 		kernel.WithCheck(checkPutMetricAlarm),
-		alarmsNamed(func(in *cloudwatchapi.PutMetricAlarmInput) []string { return []string{in.AlarmName} }))
+		alarmsNamed(func(in *cloudwatchapi.PutMetricAlarmInput) []string { return []string{in.AlarmName} }),
+		// cloudwatch:TagResource only for an alarm created with tags: a tag
+		// action on a create applies when tags are sent
+		// (iam-enforcement-surfaces.md 10.2, 10.4).
+		kernel.WithActions(func(_ *kernel.Call, in *cloudwatchapi.PutMetricAlarmInput) []registry.IAMAction {
+			if len(in.Tags) == 0 {
+				return nil
+			}
+			return []registry.IAMAction{{Prefix: "cloudwatch", Name: "TagResource"}}
+		}))
 	b.DescribeAlarms(s.describeAlarms,
 		registry.Partial{Note: "metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing"},
 		kernel.WithCheck(checkDescribeAlarms))
