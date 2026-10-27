@@ -43,7 +43,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 // refused with code UNSUPPORTED_BY_UNDERSTUDY.
 func AcceptedFeatures() asl.Features {
 	return asl.NewFeatures(asl.FeatPass, asl.FeatSucceed, asl.FeatFail, asl.FeatChoice, asl.FeatWait, asl.FeatTimeout,
-		asl.FeatPathDialect, asl.FeatPayloadTemplates, asl.FeatIntrinsics, asl.FeatLambdaTask)
+		asl.FeatPathDialect, asl.FeatPayloadTemplates, asl.FeatIntrinsics, asl.FeatLambdaTask, asl.FeatRetryCatch)
 }
 
 // The coverage notes of the bound operations.
@@ -55,7 +55,7 @@ const (
 		"and Comment, a Choice state Choices (every JSONPath operator and its Path form, And, Or, Not), Default, InputPath, OutputPath " +
 		"and Comment, a Wait state one of Seconds, SecondsPath, Timestamp and TimestampPath, InputPath, OutputPath, Next, End and Comment, " +
 		"and a Task state a Resource that is a Lambda function ARN (qualifier allowed) or arn:aws:states:::lambda:invoke, InputPath, Parameters, " +
-		"ResultSelector, ResultPath, OutputPath, TimeoutSeconds or TimeoutSecondsPath, Next, End and Comment; " +
+		"ResultSelector, ResultPath, OutputPath, TimeoutSeconds or TimeoutSecondsPath, Retry, Catch, Next, End and Comment; " +
 		"'.$' values are paths, '$$' context paths and calls of the 18 States.* intrinsic functions. " +
 		"Every other state type and field answers InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY, as do JSONata, Assign and variables, " +
 		"Distributed Map and its fields, Credentials, HeartbeatSeconds, callbacks, activities, every other Task resource, " +
@@ -81,6 +81,9 @@ const (
 		"backslash escaping neither '*' nor '\\' fails with States.Runtime (ASL-07); " +
 		"a Wait past the one-year execution limit ends with States.Timeout at the limit (ASL-09); " +
 		"the 25,000-event history limit fails the execution with States.Runtime (ASL-16); " +
+		"retry delays keep milliseconds, FULL jitter is uniform from understudy's seeded stream and applies after MaxDelaySeconds, " +
+		"and $$.State.RetryCount counts the retries of every retrier of the state (ASL-10); " +
+		"a catcher's error output has no Cause member when the error has no cause (ASL-13); " +
 		"an intrinsic function failing at run time fails with switch sfn.intrinsic.failure-error's error and understudy's cause (ASL-05); " +
 		"ArrayContains and ArrayUnique compare numbers by value and objects as member sets, and ArrayPartition, ArrayRange and " +
 		"MathRandom round non-integers half up as MathAdd does (ASL-06). " +

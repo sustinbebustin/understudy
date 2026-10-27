@@ -111,7 +111,7 @@ func (s *Service) startExecution(_ context.Context, c *kernel.Call, in *sfnapi.S
 		}
 		m.Tags = slices.Clone(m.Tags)
 		rec := Execution{Machine: m.Name, Name: name, Input: raw, TraceHeader: trace, Started: now, Run: m}
-		start := asl.Start{At: now.Wire(), Input: input, Context: startContext(ref, m.RoleArn, input, now)}
+		start := asl.Start{At: now.Wire(), Input: input, Context: startContext(ref, m.RoleArn, input, now), Jitter: s.ids.Uint64(ids.KindJitter)}
 		x, events, effects := asl.Step(def, EngineRules(), intrinsicSource{s.ids}, asl.Execution{}, start)
 		s.record(tx, st, ref, rec, x, events, effects, now)
 		return startedExecution{arn: ref.arn().String(), started: now}, nil
