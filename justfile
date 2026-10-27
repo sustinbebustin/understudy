@@ -1,5 +1,12 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
+# Test binaries reach the network only on loopback and private addresses
+# (Docker networks): their default HTTP clients send any other host to a dead
+# proxy, so a test that follows a link to a real AWS name fails at once
+# instead of dialing it (CLAUDE.md invariant 1). The go command keeps its
+# network for module downloads, since -exec wraps only the test binaries.
+test_exec := "env HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 NO_PROXY=localhost,.localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+
 # List the recipes.
 default:
     @just --list
@@ -8,7 +15,7 @@ default:
 verify: fmt-check
     go vet ./...
     golangci-lint run ./...
-    go test -race ./...
+    go test -race -exec '{{test_exec}}' ./...
 
 # Fail when gofmt would change a hand-written Go file. Generated files are skipped.
 fmt-check:
@@ -33,11 +40,11 @@ lint:
 
 # Run the unit tests with the race detector.
 test:
-    go test -race ./...
+    go test -race -exec '{{test_exec}}' ./...
 
 # Run the tests that need a Docker daemon.
 test-docker:
-    go test -race -tags docker ./...
+    go test -race -tags docker -exec '{{test_exec}}' ./...
 
 # Compare internal/ruler with AWS's Java Event Ruler, pinned in
 # internal/ruler/testdata/rulerdiff/pom.xml. Needs Docker, or a JDK 21 with Maven.
@@ -133,7 +140,7 @@ budgets:
 # Build and start the binary and send one request per service. The test
 # builds the binary itself, which Go's test cache cannot see, so it always runs.
 smoke:
-    go test -race -count=1 -tags smoke ./internal/smoke
+    go test -race -count=1 -tags smoke -exec '{{test_exec}}' ./internal/smoke
 
 # Build the image, then run the Go, Python and Node Testcontainers suites on it.
 testcontainers: image
