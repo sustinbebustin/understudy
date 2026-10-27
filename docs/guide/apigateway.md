@@ -135,6 +135,40 @@ curl -i -H 'Origin: https://app.example' http://localhost:4566/_understudy/execu
 
 Requests without `Origin` are served as usual; `delete-cors-configuration` removes the configuration.
 
+## Stages and deployments
+
+A stage without `--auto-deploy` serves a deployment, a snapshot of the API's routes and integrations taken when it was made. Until the stage has one it answers `404 {"message":"Not Found"}`, and a route created after the deployment is not served there until the next one. With a handler that returns `event["routeKey"] + " " + json.dumps(event.get("stageVariables"))`:
+
+```sh
+aws apigatewayv2 create-stage --api-id o6tvc1uf6b --stage-name prod --stage-variables color=blue
+# "DefaultRouteSettings": {"DetailedMetricsEnabled": false},
+# "RouteSettings": {}, "StageVariables": {"color": "blue"}, "Tags": {}, ...
+aws apigatewayv2 create-deployment --api-id o6tvc1uf6b --stage-name prod --description v1
+# "AutoDeployed": false, "DeploymentId": "w92293", "DeploymentStatus": "DEPLOYED", ...
+curl http://localhost:4566/_understudy/execute-api/o6tvc1uf6b/prod/hello
+# GET /hello {"color": "blue"}
+aws apigatewayv2 create-route --api-id o6tvc1uf6b --route-key 'GET /later' --target integrations/5oge6gq
+curl http://localhost:4566/_understudy/execute-api/o6tvc1uf6b/prod/later
+# {"message":"Not Found"}
+```
+
+A deployment reads `DEPLOYED` as soon as `create-deployment` returns. `update-stage --deployment-id` points the stage at another deployment, and `--stage-variables` merges into the stage's variables, where a variable sent empty (`color=`) is removed; the function gets them in `stageVariables`. `get-stage`, `get-stages`, `delete-stage`, `get-deployment`, `get-deployments`, `update-deployment` and `delete-deployment` work as well, and `update-stage --auto-deploy` deploys at once.
+
+AWS documents no answer for three cases, and understudy picks one for each. A deployment of an API with no routes succeeds, and its stage answers `404`. Deleting a deployment a stage serves is refused, as REST APIs refuse it, so point the stage at the new deployment first. A stage with `--auto-deploy` takes no explicit deployment, since AWS documents its deployment as not updatable:
+
+```sh
+aws apigatewayv2 delete-deployment --api-id o6tvc1uf6b --deployment-id d6gheb
+# An error occurred (BadRequestException) when calling the DeleteDeployment operation:
+# Active stages pointing to this deployment must be moved or deleted (stages prod serve deployment d6gheb)
+aws apigatewayv2 create-stage --api-id o6tvc1uf6b --stage-name auto --auto-deploy --deployment-id d6gheb
+# An error occurred (BadRequestException) when calling the CreateStage operation:
+# stage "auto" has autoDeploy enabled, so its deploymentId can't be set; turn autoDeploy off to serve deployment d6gheb
+```
+
+`create-deployment --stage-name` on an `--auto-deploy` stage is refused the same way.
+
+`--access-log-settings` (its format must include `$context.requestId`), `--default-route-settings` and `--route-settings` are stored and returned but change nothing: understudy writes no access log records and throttles nothing. `delete-access-log-settings` and `delete-route-settings` remove them.
+
 ## What answers NotImplemented for now
 
 Requests understudy cannot serve as AWS would are refused with `NotImplemented` (501), naming what is missing, and change nothing:
@@ -142,7 +176,7 @@ Requests understudy cannot serve as AWS would are refused with `NotImplemented` 
 - WebSocket APIs (`--protocol-type WEBSOCKET`) and quick create (`create-api` or `update-api` with `--target`, `--route-key` or `--credentials-arn`);
 - authorizers: `--authorization-type JWT` or `CUSTOM`, `--authorizer-id` and `--authorization-scopes` on a route;
 - the WebSocket integration members `--request-templates`, `--template-selection-expression` and `--content-handling-strategy`;
-- stage members other than `--stage-name`, `--auto-deploy` and `--tags`, so a stage without `--auto-deploy` has no deployment yet and answers `404 {"message":"Not Found"}`;
-- every other operation, among them the reads, updates and deletes of stages and deployments (`get-stage`, ...) and `create-deployment`.
+- the WebSocket stage member `--client-certificate-id`;
+- every operation this page does not describe, among them authorizers, `import-api` and `export-api`.
 
 The integration timeout is not applied yet: a request waits for the function however long it runs.
