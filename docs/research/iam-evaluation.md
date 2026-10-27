@@ -493,7 +493,7 @@ Sensitive keys, for which "the use of wildcards ... does not have any valid use 
 - **TLS.** understudy is reached over plain HTTP on loopback (`AWS_ENDPOINT_URL`), while clients of AWS use TLS. A truthful `aws:SecureTransport` would be false and would trip the common "deny when SecureTransport is false" statement on every call. Switch `iam.context.secure-transport`: `assume-tls` (default, true; inferred) or `listener` (true only on a TLS listener).
 - **Source IP.** `aws:SourceIp` "can only be used for public IP address ranges" (S-KEYS `#condition-keys-sourceip`); understudy sees loopback or private addresses. Switch `iam.context.source-ip`: `peer` (default, the TCP peer address; inferred) or `absent` (as if through a VPC endpoint). Amended 2026-10-27: understudy does not take the key from the transport (iam-enforcement-surfaces.md 9.1, 12.10). It is unsupplied, evaluated as absent by the truth table of 6.14, with a `condition-key-unsupplied` advisory naming it, and there is no switch.
 - **VPC, organization and MFA keys**: never supplied (8.1); the absent-key rule then gives AWS's own answer for a public-endpoint request outside an organization, without MFA.
-- **Service-specific keys** (`s3:prefix`, `s3:x-amz-server-side-encryption`, `kms:ViaService`, `sqs:...`): AWS supplies them per action (Service Authorization Reference, linked from S-COND); understudy supplies only those it implements. A condition on a key AWS would supply but understudy does not must never be assumed to hold: switch `iam.condition.unsupplied-key` `absent` (default: evaluate as absent and journal the key, operation and policy; inferred) or `assume-holds` (today's advisory behavior, for `iam.enforce: report` only).
+- **Service-specific keys** (`s3:prefix`, `s3:x-amz-server-side-encryption`, `kms:ViaService`, `sqs:...`): AWS supplies them per action (Service Authorization Reference, linked from S-COND); understudy supplies only those it implements. A condition on a key AWS would supply but understudy does not must never be assumed to hold: switch `iam.condition.unsupplied-key` `absent` (default: evaluate as absent and journal the key, operation and policy; inferred) or `assume-holds` (today's advisory behavior, for `iam.enforce: report` only). Amended 2026-10-27: there is no switch. An unsupplied key is always absent under every mode, with a `condition-key-unsupplied` advisory naming it, and `assume-holds` is not implemented.
 
 ## 9. Worked examples as test vectors
 
@@ -1121,7 +1121,7 @@ The maintainer's `-fetch` of 2026-10-26 (`third_party/aws-managed-policies/SOURC
 
 | Service, operation | Mark | Coverage note (exact text) |
 |---|---|---|
-| sts AssumeRole | partial | with iam.enforce on, the trust policy and the caller's identity policies, permissions boundary and session policies are evaluated (iam-evaluation.md 3); MFA is accepted and not checked, so aws:MultiFactorAuthPresent is false in every session; the account root user may assume roles unless iam.assume-role.root is set to refused, though AWS always refuses it (ADR 0012) |
+| sts AssumeRole | partial | with iam.enforce on, the trust policy and the caller's identity policies, permissions boundary and session policies are evaluated (iam-evaluation.md 3); MFA is accepted and not checked, so aws:MultiFactorAuthPresent is false in every session; the account root user may assume roles unless iam.assume-role.root is set to refused, though AWS always refuses it (ADR 0012). Amended 2026-10-27: no switch; the mode decides. The root user may assume roles under off and advise, and is refused with STS's recorded denial under enforce |
 | iam SimulateCustomPolicy | partial | evaluated by understudy's evaluator (iam-evaluation.md 2, 5, 6 and 7), not AWS's; OrderedOrganizationPolicyInputList is rejected with InvalidInput, since understudy has no AWS Organizations; MatchedStatements, MissingContextValues and EvalDecisionDetails follow the model's shapes and are not recorded against AWS |
 | iam SimulatePrincipalPolicy | partial | as SimulateCustomPolicy; the principal has no group policies, since groups are not implemented |
 | iam GetContextKeysForCustomPolicy, GetContextKeysForPrincipalPolicy | partial | lists the condition keys the documents name in Condition blocks; whether AWS also lists keys used only as policy variables is not recorded (iam-evaluation.md 13.18) |
@@ -1141,12 +1141,12 @@ Binding `SimulateCustomPolicy` also gives the conformance suite a parity harness
 
 | Switch | Values | Default | Label | Grounds |
 |---|---|---|---|---|
-| `iam.assume-role.root` | `allowed`, `refused` | `allowed` | inferred | 3.5; ADR 0012 deviation |
-| `iam.context.secure-transport` | `assume-tls`, `listener` | `assume-tls` | inferred | 8.2 |
+| `iam.assume-role.root` | `allowed`, `refused` | `allowed` | inferred | 3.5; ADR 0012 deviation; amended 2026-10-27: not registered, since the mode decides (allowed under off and advise, refused under enforce) |
+| `iam.context.secure-transport` | `assume-tls`, `listener` | `assume-tls` | inferred | 8.2; no recording item (amended 2026-10-27): every AWS endpoint is HTTPS, so AWS's own value is always true and a recording cannot tell the two values apart; the choice is understudy's (iam-enforcement-surfaces.md 12.8) |
 | `iam.context.source-ip` | `peer`, `absent` | `peer` | inferred | 8.2; amended 2026-10-27: not registered, since the key is unsupplied (8.2) |
 | `iam.context.mfa-present` | `false-in-sessions`, `absent` | `false-in-sessions` | aws-doc | 8.1 (S-KEYS `#condition-keys-multifactorauthpresent`); IAM-EVAL-26 |
 | `iam.context.service-principal-identity-keys` | `absent`, `present` | `absent` | inferred | 2.9; IAM-EVAL-33 |
-| `iam.condition.unsupplied-key` | `absent`, `assume-holds` | `absent` | inferred | 8.2 |
+| `iam.condition.unsupplied-key` | `absent`, `assume-holds` | `absent` | inferred | 8.2; amended 2026-10-27: not registered, since an unsupplied key is always absent (8.2) |
 | `iam.condition.bool-variables` | `substituted`, `literal` | `substituted` | inferred | 6.6; IAM-EVAL-01 |
 | `iam.condition.multivalued-plain-operator` | `any-value`, `all-values`, `no-match` | `any-value` | inferred | 6.12; IAM-EVAL-02 |
 | `iam.condition.empty-value` | `null`, `value` | `null` | inferred | 6.11; IAM-EVAL-05 |
