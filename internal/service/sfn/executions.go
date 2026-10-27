@@ -95,6 +95,9 @@ func (s *Service) startExecution(_ context.Context, c *kernel.Call, in *sfnapi.S
 		if !ok {
 			return startedExecution{}, missing
 		}
+		if m.Deleting {
+			return startedExecution{}, errDeleting(machine)
+		}
 		if old, ok := st.Executions[ref.key()]; ok {
 			if _, done := old.Engine.Outcome(); done || old.Input != raw {
 				return startedExecution{}, sfnapi.ErrExecutionAlreadyExists("Execution Already Exists: '" + ref.arn().String() + "'")
@@ -110,8 +113,7 @@ func (s *Service) startExecution(_ context.Context, c *kernel.Call, in *sfnapi.S
 		rec := Execution{Machine: m.Name, Name: name, Input: raw, TraceHeader: trace, Started: now, Run: m}
 		start := asl.Start{At: now.Wire(), Input: input, Context: startContext(ref, m.RoleArn, input, now)}
 		x, events, effects := asl.Step(def, EngineRules(), intrinsicSource{s.ids}, asl.Execution{}, start)
-		s.record(tx, ref, &rec, x, events, effects, now)
-		st.Executions[ref.key()] = rec
+		s.record(tx, st, ref, rec, x, events, effects, now)
 		return startedExecution{arn: ref.arn().String(), started: now}, nil
 	})
 	if err != nil {
@@ -221,6 +223,39 @@ func (s *Service) describeExecution(_ context.Context, c *kernel.Call, in *sfnap
 		out.Error, out.Cause = optional(o.Error), optional(o.Cause)
 	}
 	return out, nil
+}
+
+// stopExecution ends a running execution ABORTED with the error and cause
+// given, which DescribeExecution and ExecutionAborted keep
+// (stepfunctions-api.md 6.4). Stopping a closed execution answers its
+// stopDate and changes nothing (inferred, SFN-04).
+func (s *Service) stopExecution(_ context.Context, c *kernel.Call, in *sfnapi.StopExecutionInput) (*sfnapi.StopExecutionOutput, *awserr.Error) {
+	ref, ok, err := executionOfARN(c.Scope(), in.ExecutionArn)
+	if err != nil {
+		return nil, err
+	}
+	missing := sfnapi.ErrExecutionDoesNotExist("Execution Does Not Exist: '" + in.ExecutionArn + "'")
+	if !ok {
+		return nil, missing
+	}
+	stopped, err := kernel.Write(c, s.cells, ref.machine.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (clock.Instant, *awserr.Error) {
+		rec, ok := st.Executions[ref.key()]
+		if !ok {
+			return clock.Instant{}, missing
+		}
+		if _, done := rec.Engine.Outcome(); done {
+			tx.Unchanged()
+			return rec.Stopped, nil
+		}
+		if err := s.advance(tx, st, ref, asl.Stop{At: now.Wire(), Error: deref(in.Error), Cause: deref(in.Cause)}, now); err != nil {
+			return clock.Instant{}, err
+		}
+		return now, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &sfnapi.StopExecutionOutput{StopDate: stopped.Wire()}, nil
 }
 
 // optional is s, or nil when it is empty.

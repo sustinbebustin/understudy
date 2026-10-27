@@ -19,8 +19,9 @@ type Service struct {
 	k     *kernel.Kernel
 	ids   *ids.Source
 	cells *store.Partitioned[aws.Scope, State]
-	// step is TimerStep as registered with the kernel.
-	step kernel.HandledKind
+	// stepKind and expireKind are TimerStep and TimerExpire as registered
+	// with the kernel.
+	stepKind, expireKind kernel.HandledKind
 }
 
 // New binds the Step Functions operations understudy implements and
@@ -28,7 +29,8 @@ type Service struct {
 // answers 501.
 func New(d kernel.ServiceDeps, _ Options) *Service {
 	s := &Service{k: d.Kernel, ids: d.IDs, cells: store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState)}
-	s.step = d.Kernel.Timers().Handle(TimerStep, s.onStep)
+	s.stepKind = d.Kernel.Timers().Handle(TimerStep, s.onStep)
+	s.expireKind = d.Kernel.Timers().Handle(TimerExpire, s.onExpire)
 	b := sfnapi.NewBinder(d.Binder)
 	s.bindMachines(b)
 	s.bindExecutions(b)
@@ -39,16 +41,19 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 // landed; Create and Validate parse with it, so any other construct is
 // refused with code UNSUPPORTED_BY_UNDERSTUDY.
 func AcceptedFeatures() asl.Features {
-	return asl.NewFeatures(asl.FeatPass, asl.FeatSucceed, asl.FeatFail, asl.FeatChoice, asl.FeatPathDialect, asl.FeatPayloadTemplates, asl.FeatIntrinsics)
+	return asl.NewFeatures(asl.FeatPass, asl.FeatSucceed, asl.FeatFail, asl.FeatChoice, asl.FeatWait, asl.FeatTimeout,
+		asl.FeatPathDialect, asl.FeatPayloadTemplates, asl.FeatIntrinsics)
 }
 
 // The coverage notes of the bound operations.
 const (
 	noteCreate = "Standard workflows only: type EXPRESS, publish true and a CUSTOMER_MANAGED_KMS_KEY encryptionConfiguration answer 501. " +
-		"Definitions are JSONPath with Pass, Succeed, Fail and Choice states only. A Pass state takes Result, InputPath, Parameters, ResultPath, OutputPath, " +
+		"Definitions are JSONPath with Pass, Succeed, Fail, Choice and Wait states only, and a top-level TimeoutSeconds. " +
+		"A Pass state takes Result, InputPath, Parameters, ResultPath, OutputPath, " +
 		"Next, End and Comment, a Succeed state InputPath, OutputPath and Comment, a Fail state Error or ErrorPath, Cause or CausePath " +
-		"and Comment, and a Choice state Choices (every JSONPath operator and its Path form, And, Or, Not), Default, InputPath, OutputPath " +
-		"and Comment; '.$' values are paths, '$$' context paths and calls of the 18 States.* intrinsic functions. " +
+		"and Comment, a Choice state Choices (every JSONPath operator and its Path form, And, Or, Not), Default, InputPath, OutputPath " +
+		"and Comment, and a Wait state one of Seconds, SecondsPath, Timestamp and TimestampPath, InputPath, OutputPath, Next, End and Comment; " +
+		"'.$' values are paths, '$$' context paths and calls of the 18 States.* intrinsic functions. " +
 		"Every other state type and field answers InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY, as do JSONata, Assign and variables, " +
 		"Distributed Map and its fields, Credentials, HeartbeatSeconds, and JSONPath functions such as length(), " +
 		"multi-clause filters and filter scripts (ASL-19). Only the first problem in a definition is reported (UNVERIFIED, ASL-01, SFN-08). " +
@@ -59,9 +64,9 @@ const (
 	noteValidate = "Diagnostics use AWS's codes; messages are AWS's for the recorded cases (stepfunctions-asl.md 3.4-3.6) and understudy's wording elsewhere " +
 		"(UNVERIFIED, ASL-01). Features understudy refuses are ERROR diagnostics with code UNSUPPORTED_BY_UNDERSTUDY; type EXPRESS answers 501"
 	noteVersions = "Always empty: publishing versions is not implemented (publish is refused and PublishStateMachineVersion is unbound)"
-	noteDelete   = "The machine is removed at once and its running executions run on to their end; AWS keeps it DELETING until they finish " +
-		"and ends them at their next transition (switch sfn.delete.running-execution is not applied yet)"
-	noteStart = "Standard executions of Pass, Succeed, Fail and Choice states. Unrecorded AWS behavior understudy chooses, each with its recording case: " +
+	noteStop     = "error and cause are kept in DescribeExecution and ExecutionAborted; stopping a closed execution answers 200 with its stopDate " +
+		"and changes nothing (UNVERIFIED, SFN-04)"
+	noteStart = "Standard executions of Pass, Succeed, Fail, Choice and Wait states. Unrecorded AWS behavior understudy chooses, each with its recording case: " +
 		"same-name idempotency compares input byte for byte (SFN-03); malformed input other than the recorded cases answers " +
 		"'Invalid execution input.' (SFN-08); ResultPath into a non-object fails with States.Runtime (ASL-03); " +
 		"States.DataLimitExceeded from a Pass, Succeed or Choice state is terminal (ASL-15); " +
@@ -69,6 +74,7 @@ const (
 		"that selects nothing (IsPresent aside) with switch sfn.choice.missing-variable's, each with understudy's cause (ASL-08); " +
 		"IsTimestamp and the Timestamp operators follow the documented RFC 3339 profile and compare instants, and a StringMatches " +
 		"backslash escaping neither '*' nor '\\' fails with States.Runtime (ASL-07); " +
+		"a Wait past the one-year execution limit ends with States.Timeout at the limit (ASL-09); " +
 		"the 25,000-event history limit fails the execution with States.Runtime (ASL-16); " +
 		"an intrinsic function failing at run time fails with switch sfn.intrinsic.failure-error's error and understudy's cause (ASL-05); " +
 		"ArrayContains and ArrayUnique compare numbers by value and objects as member sets, and ArrayPartition, ArrayRange and " +
@@ -76,9 +82,8 @@ const (
 		"traceHeader, or the X-Amzn-Trace-Id request header when both are sent, " +
 		"is stored and returned by DescribeExecution; no X-Ray trace is emitted. States.MathRandom never reproduces AWS's sequence for a seed"
 	noteListExecutions    = "mapRunArn and redriveFilter are validated; no Map Run or redrive exists, so they match nothing"
-	noteDescribeExecution = "Closed executions are kept until a reset, not removed 90 days after they close. " +
-		"redriveStatus is given for SUCCEEDED and FAILED executions only, and redriveStatusReason for SUCCEEDED ones"
-	noteHistory = "includeExecutionData false removes input and output and keeps the *Details members (UNVERIFIED, SFN-05). " +
+	noteDescribeExecution = "redriveStatus is given for SUCCEEDED and FAILED executions only, and redriveStatusReason for SUCCEEDED ones"
+	noteHistory           = "includeExecutionData false removes input and output and keeps the *Details members (UNVERIFIED, SFN-05). " +
 		"Payload-template output keeps template key order (UNVERIFIED, ASL-02)"
 )
 
@@ -100,7 +105,7 @@ func (s *Service) bindMachines(b sfnapi.Binder) {
 	// refused.
 	b.UpdateStateMachine(s.updateStateMachine, registry.Partial{Note: noteUpdate}, kernel.WithoutSecondaryActions())
 	b.DescribeStateMachine(s.describeStateMachine, registry.Full{})
-	b.DeleteStateMachine(s.deleteStateMachine, registry.Partial{Note: noteDelete})
+	b.DeleteStateMachine(s.deleteStateMachine, registry.Full{})
 	b.ListStateMachines(s.listStateMachines, registry.Full{})
 	b.ValidateStateMachineDefinition(s.validateStateMachineDefinition, registry.Partial{Note: noteValidate})
 	b.ListStateMachineVersions(s.listStateMachineVersions, registry.Partial{Note: noteVersions})
@@ -114,6 +119,7 @@ func (s *Service) bindExecutions(b sfnapi.Binder) {
 	// StartExecution's generated list also holds states:DescribeExecution,
 	// which a start never needs.
 	b.StartExecution(s.startExecution, registry.Partial{Note: noteStart}, kernel.WithoutSecondaryActions())
+	b.StopExecution(s.stopExecution, registry.Partial{Note: noteStop})
 	b.ListExecutions(s.listExecutions, registry.Partial{Note: noteListExecutions}, kernel.WithValidator(validateListExecutions))
 	b.DescribeExecution(s.describeExecution, registry.Partial{Note: noteDescribeExecution})
 	b.DescribeStateMachineForExecution(s.describeStateMachineForExecution, registry.Full{})

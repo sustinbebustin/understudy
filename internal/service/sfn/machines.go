@@ -94,6 +94,11 @@ func (s *Service) createStateMachine(ctx context.Context, c *kernel.Call, in *sf
 	}
 	created, err := kernel.Write(c, s.cells, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (clock.Instant, *awserr.Error) {
 		if old, ok := st.Machines[ref.name]; ok {
+			if old.Deleting {
+				// Terraform retries a create on StateMachineDeleting
+				// (stepfunctions-api.md 5.4).
+				return clock.Instant{}, errDeleting(ref)
+			}
 			if !old.sameConfiguration(&m) {
 				return clock.Instant{}, sfnapi.ErrStateMachineAlreadyExists("State Machine Already Exists: '" + ref.arn().String() + "'")
 			}
@@ -149,6 +154,9 @@ func (s *Service) describeStateMachine(_ context.Context, c *kernel.Call, in *sf
 		return nil, err
 	}
 	status := sfnapi.StateMachineStatusActive
+	if m.Deleting {
+		status = sfnapi.StateMachineStatusDeleting
+	}
 	return &sfnapi.DescribeStateMachineOutput{
 		StateMachineArn:         ref.arn().String(),
 		Name:                    m.Name,
@@ -221,6 +229,9 @@ func (s *Service) updateStateMachine(ctx context.Context, c *kernel.Call, in *sf
 		if !ok {
 			return nil, missing
 		}
+		if old.Deleting {
+			return nil, errDeleting(ref)
+		}
 		m := old
 		if in.Definition != nil {
 			m.Definition = *in.Definition
@@ -251,9 +262,18 @@ func awsOwnedKey() *sfnapi.EncryptionConfiguration {
 	return &sfnapi.EncryptionConfiguration{Type: sfnapi.EncryptionTypeAwsOwnedKey}
 }
 
-// deleteStateMachine removes the machine. Deleting one that does not exist
-// answers 200 (stepfunctions-api.md 5.4). Its executions stay, and a
-// running one runs on to its end.
+// errDeleting is StateMachineDeleting for the machine ref, in understudy's
+// words: AWS's text is unrecorded (inferred, SFN-06).
+func errDeleting(ref machineRef) *awserr.Error {
+	return sfnapi.ErrStateMachineDeleting("State Machine is being deleted: '" + ref.arn().String() + "'")
+}
+
+// deleteStateMachine deletes the machine. Deleting one that does not exist
+// answers 200. An idle machine is removed at once; one with running
+// executions is DELETING until the last of them ends, and each learns of
+// the deletion, which under switch sfn.delete.running-execution ends it
+// ABORTED at its next transition (stepfunctions-api.md 5.4). Closed
+// executions stay until their retention passes.
 func (s *Service) deleteStateMachine(_ context.Context, c *kernel.Call, in *sfnapi.DeleteStateMachineInput) (*sfnapi.DeleteStateMachineOutput, *awserr.Error) {
 	ref, ok, err := machineOfARN(c.Scope(), in.StateMachineArn)
 	if err != nil {
@@ -262,12 +282,26 @@ func (s *Service) deleteStateMachine(_ context.Context, c *kernel.Call, in *sfna
 	if !ok {
 		return &sfnapi.DeleteStateMachineOutput{}, nil
 	}
-	_, err = kernel.Write(c, s.cells, ref.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		if _, ok := st.Machines[ref.name]; !ok {
+	_, err = kernel.Write(c, s.cells, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+		m, ok := st.Machines[ref.name]
+		if !ok || m.Deleting {
 			tx.Unchanged()
 			return struct{}{}, nil
 		}
-		delete(st.Machines, ref.name)
+		if !hasRunning(st, m.Name) {
+			delete(st.Machines, ref.name)
+			return struct{}{}, nil
+		}
+		m.Deleting = true
+		st.Machines[ref.name] = m
+		for _, key := range slices.Sorted(maps.Keys(st.Executions)) {
+			if rec := st.Executions[key]; rec.Machine == m.Name {
+				exec := executionRef{machine: ref, name: rec.Name}
+				if err := s.advance(tx, st, exec, asl.MachineDeleting{At: now.Wire()}, now); err != nil {
+					return struct{}{}, err
+				}
+			}
+		}
 		return struct{}{}, nil
 	})
 	if err != nil {

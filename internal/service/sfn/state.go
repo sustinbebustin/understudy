@@ -53,6 +53,9 @@ type Machine struct {
 	Logging    Logging `json:"logging"`
 	Tracing    bool    `json:"tracing,omitempty"`
 	Tags       []Tag   `json:"tags,omitempty"`
+	// Deleting is set by DeleteStateMachine while executions still run; the
+	// last of them to end removes the machine (stepfunctions-api.md 5.4).
+	Deleting bool `json:"deleting,omitempty"`
 }
 
 // sameConfiguration reports whether m and o have the same definition,

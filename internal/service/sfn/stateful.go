@@ -37,10 +37,11 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 	s.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
 }
 
-// Rearm arms the engine timers of every running execution; timers are
-// never saved (ADR 0009). It arms under the cell lock, where kernel.Write
-// arms, so a concurrent step either commits first and its timers are read
-// here, or commits after and its own arms replace these.
+// Rearm arms the engine timers of every running execution and the removal
+// of every closed one; timers are never saved (ADR 0009). It arms under the
+// cell lock, where kernel.Write arms, so a concurrent step either commits
+// first and its timers are read here, or commits after and its own arms
+// replace these.
 func (s *Service) Rearm(clock.Instant) {
 	sched := s.k.Timers().Scheduler()
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
@@ -52,8 +53,12 @@ func (s *Service) Rearm(clock.Instant) {
 			for _, key := range slices.Sorted(maps.Keys(st.Executions)) {
 				rec := st.Executions[key]
 				exec := executionRef{machine: machineRef{scope: scope, name: rec.Machine}, name: rec.Name}
+				if _, done := rec.Engine.Outcome(); done {
+					sched.Arm(s.expireKind.Key(exec.arn().String()), rec.Stopped.Add(retention))
+					continue
+				}
 				for _, t := range rec.Engine.Timers() {
-					sched.Arm(s.step.Key(timerID(exec, t.Timer)), clock.FromWire(t.At))
+					sched.Arm(s.stepKind.Key(timerID(exec, t.Timer)), clock.FromWire(t.At))
 				}
 			}
 			return struct{}{}

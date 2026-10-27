@@ -133,6 +133,10 @@ func wireEvent(r *HistoryRecord, includeData bool) sfnapi.HistoryEvent {
 		}
 	case r.Type == "ExecutionFailed":
 		out.ExecutionFailedEventDetails = &sfnapi.ExecutionFailedEventDetails{Error: d.str("error"), Cause: d.str("cause")}
+	case r.Type == "ExecutionAborted":
+		out.ExecutionAbortedEventDetails = &sfnapi.ExecutionAbortedEventDetails{Error: d.str("error"), Cause: d.str("cause")}
+	case r.Type == "ExecutionTimedOut":
+		out.ExecutionTimedOutEventDetails = &sfnapi.ExecutionTimedOutEventDetails{Error: d.str("error"), Cause: d.str("cause")}
 	case strings.HasSuffix(r.Type, "StateEntered"):
 		out.StateEnteredEventDetails = &sfnapi.StateEnteredEventDetails{
 			Name: deref(d.str("name")), Input: d.data("input", includeData), InputDetails: d.dataDetails("inputDetails"),
