@@ -144,6 +144,7 @@ func (s *stepper) start(ev Start) {
 	s.at = ev.At
 	s.x.started = true
 	s.x.context = ev.Context
+	s.x.jitterSeed = ev.Jitter
 	input := ev.Input
 	if input == nil {
 		input = document.Null{}
@@ -174,6 +175,8 @@ func (s *stepper) run(j job) {
 		if t, ok := s.takeTask(j.task); ok {
 			s.taskError(t, "TimedOut", StateError{Name: errTimeout})
 		}
+	case retryJob:
+		s.retry(j)
 	}
 }
 

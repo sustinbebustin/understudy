@@ -82,8 +82,9 @@ func (s *stepper) stateFailedAfter(name string, entered, last int64, f Failure) 
 }
 
 // raise ends the execution with f, whose cause is complete; ExecutionFailed
-// points at last. No state built here has Retry or Catch, so a StateError
-// ends the execution too.
+// points at last. It serves the states without Retry or Catch, so a
+// StateError ends the execution too; a Task's failures go through
+// taskFailed.
 func (s *stepper) raise(f Failure, last int64) {
 	switch f := f.(type) {
 	case Terminal:

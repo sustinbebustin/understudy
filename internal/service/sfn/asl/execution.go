@@ -30,20 +30,42 @@ type Execution struct {
 	lastTask TaskID
 	// tasks are the Lambda invocations awaiting a result, in TaskID order.
 	tasks []inflight
+	// jitterSeed is Start's Jitter; jitterDraws counts the FULL jitter
+	// draws made so far.
+	jitterSeed, jitterDraws uint64
+}
+
+// visit is one visit of a Task state, across its retries.
+type visit struct {
+	// state is the Task state's name; input its raw input, which ResultPath
+	// and a catcher's ResultPath place into.
+	state string
+	input document.Value
+	// enteredAt is when the state was entered: $$.State.EnteredTime.
+	enteredAt time.Time
+	// entered is the id of its TaskStateEntered event.
+	entered int64
+	// attempts holds, per retrier of the state, the retries it has made in
+	// this visit (stepfunctions-asl.md 8.2); nil before the first retry.
+	attempts []int
+}
+
+// retries is $$.State.RetryCount: the retries of the visit so far, over
+// all its retriers.
+func (v visit) retries() int {
+	n := 0
+	for _, a := range v.attempts {
+		n += a
+	}
+	return n
 }
 
 // inflight is one Task state waiting on its Lambda invocation.
 type inflight struct {
 	invoke InvokeLambda
-	// state is the Task state's name; input its raw input, which ResultPath
-	// places the result into.
-	state string
-	input document.Value
-	// enteredAt is when the state was entered: $$.State.EnteredTime.
-	enteredAt time.Time
-	// entered and started are the ids of its TaskStateEntered and its
-	// LambdaFunctionStarted or TaskStarted events.
-	entered, started int64
+	visit
+	// started is the id of its LambdaFunctionStarted or TaskStarted event.
+	started int64
 	// timer is the task timeout's timer.
 	timer TimerID
 }
@@ -83,10 +105,19 @@ type deadlineJob struct{}
 // TimeoutSeconds has passed (stepfunctions-asl.md 8.6).
 type taskTimeoutJob struct{ task TaskID }
 
+// retryJob runs the Task of v again after a retrier's delay; its first
+// event points at previous, the failure retried (stepfunctions-asl.md 11.2
+// rule 7).
+type retryJob struct {
+	visit
+	previous int64
+}
+
 func (stepJob) isJob()        {}
 func (waitJob) isJob()        {}
 func (deadlineJob) isJob()    {}
 func (taskTimeoutJob) isJob() {}
+func (retryJob) isJob()       {}
 
 // Outcome reports how the execution ended; false while it runs or before
 // Start.
@@ -150,10 +181,12 @@ type Event interface{ event() }
 
 // Start begins an execution. Context holds the stepfunctions-asl.md 4.7
 // Execution and StateMachine members; the engine adds State, Map and the
-// rest.
+// rest. Jitter seeds the execution's FULL retry jitter draws (the service
+// draws it from the ids jitter stream).
 type Start struct {
 	At             time.Time
 	Input, Context document.Value
+	Jitter         uint64
 }
 
 // TimerFired reports that a timer the engine armed is due.

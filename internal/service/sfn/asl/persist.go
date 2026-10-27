@@ -21,6 +21,19 @@ type executionRecord struct {
 	Deleting bool          `json:"deleting,omitempty"`
 	LastTask int64         `json:"lastTask,omitempty"`
 	Tasks    []taskRecord  `json:"tasks,omitempty"`
+	// JitterSeed and JitterDraws are the FULL retry jitter stream's seed and
+	// the draws made from it.
+	JitterSeed  uint64 `json:"jitterSeed,omitempty"`
+	JitterDraws uint64 `json:"jitterDraws,omitempty"`
+}
+
+// visitRecord is a persisted Task state visit.
+type visitRecord struct {
+	State     string    `json:"state"`
+	Input     string    `json:"input"`
+	EnteredAt time.Time `json:"enteredAt"`
+	Entered   int64     `json:"entered"`
+	Attempts  []int     `json:"attempts,omitempty"`
 }
 
 // taskRecord is a persisted in-flight task.
@@ -31,13 +44,10 @@ type taskRecord struct {
 	// Payload is the payload's JSON text; "" when lambda:invoke sends none.
 	Payload string `json:"payload,omitempty"`
 	// TimeoutSeconds is the task timeout, always whole seconds.
-	TimeoutSeconds int64     `json:"timeoutSeconds"`
-	State          string    `json:"state"`
-	Input          string    `json:"input"`
-	EnteredAt      time.Time `json:"enteredAt"`
-	Entered        int64     `json:"entered"`
-	Started        int64     `json:"started"`
-	Timer          int64     `json:"timer"`
+	TimeoutSeconds int64 `json:"timeoutSeconds"`
+	visitRecord
+	Started int64 `json:"started"`
+	Timer   int64 `json:"timer"`
 }
 
 type timerRecord struct {
@@ -68,10 +78,16 @@ type taskTimeoutRecord struct {
 	Task int64 `json:"task"`
 }
 
+type retryRecord struct {
+	visitRecord
+	Previous int64 `json:"previous"`
+}
+
 func (stepRecord) isJobRecord()        {}
 func (waitRecord) isJobRecord()        {}
 func (deadlineRecord) isJobRecord()    {}
 func (taskTimeoutRecord) isJobRecord() {}
+func (retryRecord) isJobRecord()       {}
 
 // outcomeRecord is the persisted outcome.
 type outcomeRecord interface{ isOutcomeRecord() }
@@ -103,6 +119,7 @@ func recordCodec() (jsonx.Codec, error) {
 		jsonx.Variant[jobRecord, waitRecord]("wait"),
 		jsonx.Variant[jobRecord, deadlineRecord]("deadline"),
 		jsonx.Variant[jobRecord, taskTimeoutRecord]("task-timeout"),
+		jsonx.Variant[jobRecord, retryRecord]("retry"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, err
@@ -128,7 +145,7 @@ func (x Execution) MarshalJSON() ([]byte, error) {
 	}
 	r := executionRecord{
 		Started: x.started, LastEvent: x.lastEvent, LastTimer: int64(x.lastTimer), Deleting: x.deleting,
-		LastTask: int64(x.lastTask),
+		LastTask: int64(x.lastTask), JitterSeed: x.jitterSeed, JitterDraws: x.jitterDraws,
 	}
 	if x.context != nil {
 		r.Context = text(x.context)
@@ -137,8 +154,8 @@ func (x Execution) MarshalJSON() ([]byte, error) {
 		t := &x.tasks[i]
 		tr := taskRecord{
 			Task: int64(t.invoke.Task), Resource: int(t.invoke.Resource), Function: t.invoke.Function,
-			TimeoutSeconds: int64(t.invoke.Timeout / time.Second), State: t.state, Input: text(t.input), EnteredAt: t.enteredAt,
-			Entered: t.entered, Started: t.started, Timer: int64(t.timer),
+			TimeoutSeconds: int64(t.invoke.Timeout / time.Second), visitRecord: writeVisit(t.visit),
+			Started: t.started, Timer: int64(t.timer),
 		}
 		if t.invoke.Payload != nil {
 			tr.Payload = text(t.invoke.Payload)
@@ -156,6 +173,8 @@ func (x Execution) MarshalJSON() ([]byte, error) {
 			tr.Job = deadlineRecord{}
 		case taskTimeoutJob:
 			tr.Job = taskTimeoutRecord{Task: int64(j.task)}
+		case retryJob:
+			tr.Job = retryRecord{visitRecord: writeVisit(j.visit), Previous: j.previous}
 		}
 		r.Timers = append(r.Timers, tr)
 	}
@@ -182,35 +201,21 @@ func (x *Execution) UnmarshalJSON(b []byte) error {
 	if err := c.Unmarshal(b, &r); err != nil {
 		return err
 	}
-	out := Execution{started: r.Started, lastEvent: r.LastEvent, lastTimer: TimerID(r.LastTimer), deleting: r.Deleting}
+	out := Execution{
+		started: r.Started, lastEvent: r.LastEvent, lastTimer: TimerID(r.LastTimer), deleting: r.Deleting,
+		jitterSeed: r.JitterSeed, jitterDraws: r.JitterDraws,
+	}
 	if r.Context != "" {
 		if out.context, err = parseText(r.Context, "context"); err != nil {
 			return err
 		}
 	}
 	for _, tr := range r.Timers {
-		t := armed{id: TimerID(tr.ID), at: tr.At}
-		switch j := tr.Job.(type) {
-		case stepRecord:
-			input, err := parseText(j.Input, "step input")
-			if err != nil {
-				return err
-			}
-			t.job = stepJob{state: j.State, input: input, previous: j.Previous}
-		case waitRecord:
-			output, err := parseText(j.Output, "wait output")
-			if err != nil {
-				return err
-			}
-			t.job = waitJob{state: j.State, output: output, entered: j.Entered}
-		case deadlineRecord:
-			t.job = deadlineJob{}
-		case taskTimeoutRecord:
-			t.job = taskTimeoutJob{task: TaskID(j.Task)}
-		default:
-			return fmt.Errorf("asl: timer %d of a saved execution has no job; the execution cannot be resumed", tr.ID)
+		j, err := readJob(tr)
+		if err != nil {
+			return err
 		}
-		out.timers = append(out.timers, t)
+		out.timers = append(out.timers, armed{id: TimerID(tr.ID), at: tr.At, job: j})
 	}
 	out.lastTask = TaskID(r.LastTask)
 	for i := range r.Tasks {
@@ -238,9 +243,52 @@ func (x *Execution) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// readJob reads a persisted timer's job.
+func readJob(tr timerRecord) (job, error) {
+	switch j := tr.Job.(type) {
+	case stepRecord:
+		input, err := parseText(j.Input, "step input")
+		if err != nil {
+			return nil, err
+		}
+		return stepJob{state: j.State, input: input, previous: j.Previous}, nil
+	case waitRecord:
+		output, err := parseText(j.Output, "wait output")
+		if err != nil {
+			return nil, err
+		}
+		return waitJob{state: j.State, output: output, entered: j.Entered}, nil
+	case deadlineRecord:
+		return deadlineJob{}, nil
+	case taskTimeoutRecord:
+		return taskTimeoutJob{task: TaskID(j.Task)}, nil
+	case retryRecord:
+		v, err := readVisit(j.visitRecord)
+		if err != nil {
+			return nil, err
+		}
+		return retryJob{visit: v, previous: j.Previous}, nil
+	}
+	return nil, fmt.Errorf("asl: timer %d of a saved execution has no job; the execution cannot be resumed", tr.ID)
+}
+
+// writeVisit is v's persisted form.
+func writeVisit(v visit) visitRecord {
+	return visitRecord{State: v.state, Input: text(v.input), EnteredAt: v.enteredAt, Entered: v.entered, Attempts: v.attempts}
+}
+
+// readVisit reads a persisted Task state visit.
+func readVisit(vr visitRecord) (visit, error) {
+	input, err := parseText(vr.Input, "task input")
+	if err != nil {
+		return visit{}, err
+	}
+	return visit{state: vr.State, input: input, enteredAt: vr.EnteredAt, entered: vr.Entered, attempts: vr.Attempts}, nil
+}
+
 // readTask reads a persisted in-flight task.
 func readTask(tr *taskRecord) (inflight, error) {
-	input, err := parseText(tr.Input, "task input")
+	v, err := readVisit(tr.visitRecord)
 	if err != nil {
 		return inflight{}, err
 	}
@@ -256,13 +304,10 @@ func readTask(tr *taskRecord) (inflight, error) {
 			tr.Task, tr.Resource, FunctionARN, LambdaInvoke)
 	}
 	return inflight{
-		invoke:    InvokeLambda{Task: TaskID(tr.Task), Resource: kind, Function: tr.Function, Payload: payload, Timeout: time.Duration(tr.TimeoutSeconds) * time.Second},
-		state:     tr.State,
-		input:     input,
-		enteredAt: tr.EnteredAt,
-		entered:   tr.Entered,
-		started:   tr.Started,
-		timer:     TimerID(tr.Timer),
+		invoke:  InvokeLambda{Task: TaskID(tr.Task), Resource: kind, Function: tr.Function, Payload: payload, Timeout: time.Duration(tr.TimeoutSeconds) * time.Second},
+		visit:   v,
+		started: tr.Started,
+		timer:   TimerID(tr.Timer),
 	}, nil
 }
 

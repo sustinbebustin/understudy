@@ -18,22 +18,47 @@ const defaultTaskTimeout = maxSeconds * time.Second
 const errTimeout = "States.Timeout"
 
 // task enters a Lambda Task state (contract 5.5 item 3): it writes
-// TaskStateEntered, works out the invocation from the effective input, and
-// writes the scheduled and started events of its resource form
-// (stepfunctions-asl.md 11.3), then asks for the invocation and arms the
-// task timeout.
+// TaskStateEntered and makes the first attempt.
 func (s *stepper) task(st taskState, j stepJob) {
 	entered := s.emit("TaskStateEntered", j.previous, stateEntered(st.name, j.input))
-	sc := s.taskScope(st.name, s.at)
-	selected, f := sc.selectFrom(st.io.input, j.input)
+	s.attempt(st, visit{state: st.name, input: j.input, enteredAt: s.at, entered: entered}, entered)
+}
+
+// retry makes the next attempt of a Task a retrier sent back
+// (stepfunctions-asl.md 8.2). A retry writes no event of its own: the
+// attempt's first event points at the failure retried (11.2 rule 7).
+func (s *stepper) retry(j retryJob) {
+	// An attempt writes at most its scheduled and started events before the
+	// execution's last event, within step's quota margin (inferred, ASL-16).
+	if s.x.lastEvent+4 > maxHistoryEvents {
+		s.fail(errRuntime, "The execution reached the limit of "+strconv.Itoa(maxHistoryEvents)+" history events.", s.x.lastEvent)
+		return
+	}
+	st, ok := s.d.states[j.state].(taskState)
+	if !ok {
+		// Parse built the state the retry names; a definition without it
+		// was changed under a running execution.
+		s.fail(errRuntime, "The state '"+j.state+"' is not in the definition the execution runs.", j.previous)
+		return
+	}
+	s.attempt(st, j.visit, j.previous)
+}
+
+// attempt works out the invocation from the effective input, writes the
+// scheduled and started events of the Task's resource form, the first
+// pointing at previous (stepfunctions-asl.md 11.3), then asks for the
+// invocation and arms the task timeout.
+func (s *stepper) attempt(st taskState, v visit, previous int64) {
+	sc := s.taskScope(v)
+	selected, f := sc.selectFrom(st.io.input, v.input)
 	if f != nil {
-		s.stateFailed(st.name, entered, f)
+		s.taskFailed(st, v, previous, f)
 		return
 	}
 	effective := selected
 	if st.parameters != nil {
 		if effective, f = sc.render(st.parameters, selected); f != nil {
-			s.stateFailed(st.name, entered, f)
+			s.taskFailed(st, v, previous, f)
 			return
 		}
 	}
@@ -42,7 +67,7 @@ func (s *stepper) task(st taskState, j stepJob) {
 	// input").
 	timeout, f := sc.taskTimeout(st.timeout, selected)
 	if f != nil {
-		s.stateFailed(st.name, entered, f)
+		s.taskFailed(st, v, previous, f)
 		return
 	}
 	invoke := InvokeLambda{Resource: st.resource, Timeout: timeout}
@@ -55,17 +80,17 @@ func (s *stepper) task(st taskState, j stepJob) {
 			{Key: "input", Value: document.String(text(effective))},
 			{Key: "inputDetails", Value: untruncated()},
 		}
-		scheduled = s.emit("LambdaFunctionScheduled", entered, withTimeout(details, st.timeout, timeout))
+		scheduled = s.emit("LambdaFunctionScheduled", previous, withTimeout(details, st.timeout, timeout))
 	case LambdaInvoke:
 		if invoke.Function, invoke.Payload, f = invokeArguments(effective); f != nil {
-			s.stateFailed(st.name, entered, f)
+			s.taskFailed(st, v, previous, f)
 			return
 		}
 		details := slices.Concat(invokeResource(), document.Map{
 			{Key: "region", Value: document.String(s.region())},
 			{Key: "parameters", Value: document.String(text(effective))},
 		})
-		scheduled = s.emit("TaskScheduled", entered, withTimeout(details, st.timeout, timeout))
+		scheduled = s.emit("TaskScheduled", previous, withTimeout(details, st.timeout, timeout))
 	}
 	var started int64
 	if st.resource == FunctionARN {
@@ -77,10 +102,7 @@ func (s *stepper) task(st taskState, j stepJob) {
 	invoke.Task = s.x.lastTask
 	s.allocs = append(s.allocs, invoke)
 	s.arm(s.at.Add(timeout), taskTimeoutJob{task: invoke.Task})
-	s.x.tasks = append(s.x.tasks, inflight{
-		invoke: invoke, state: st.name, input: j.input, enteredAt: s.at,
-		entered: entered, started: started, timer: s.x.lastTimer,
-	})
+	s.x.tasks = append(s.x.tasks, inflight{invoke: invoke, visit: v, started: started, timer: s.x.lastTimer})
 }
 
 // invokeResource are the resource members of the lambda:invoke task events
@@ -113,15 +135,18 @@ func (s *stepper) region() string {
 	return parts[3]
 }
 
-// taskScope is what a Task's paths and templates read: its context object
-// adds State.RetryCount (aws-recorded localstack@8b9a79f
-// v2/scenarios/test_base_scenarios.snapshot.json:L10427-L10431).
-func (s *stepper) taskScope(name string, entered time.Time) scope {
-	ctx := stateContext(s.x.context, name, entered)
+// taskScope is what a Task's paths and templates read in visit v: its
+// context object adds State.RetryCount, the retries made so far
+// (aws-recorded localstack@8b9a79f
+// v2/scenarios/test_base_scenarios.snapshot.json:L10427-L10434). With
+// several retriers it counts the retries of all of them (UNVERIFIED,
+// ASL-10).
+func (s *stepper) taskScope(v visit) scope {
+	ctx := stateContext(s.x.context, v.state, v.enteredAt)
 	ctx[2].Value = document.Map{
-		{Key: "Name", Value: document.String(name)},
-		{Key: "EnteredTime", Value: document.String(ContextTime(entered))},
-		{Key: "RetryCount", Value: document.Number("0")},
+		{Key: "Name", Value: document.String(v.state)},
+		{Key: "EnteredTime", Value: document.String(ContextTime(v.enteredAt))},
+		{Key: "RetryCount", Value: document.Number(strconv.Itoa(v.retries()))},
 	}
 	return scope{context: ctx, src: s.src, rules: s.rules}
 }
@@ -266,7 +291,7 @@ func (s *stepper) lambdaSucceeded(t inflight, result document.Value) {
 	} else {
 		succeeded = s.emit("TaskSucceeded", t.started, slices.Concat(invokeResource(), output))
 	}
-	sc := s.taskScope(st.name, t.enteredAt)
+	sc := s.taskScope(t.visit)
 	var f Failure
 	if st.resultSelector != nil {
 		result, f = sc.render(st.resultSelector, result)
@@ -282,7 +307,7 @@ func (s *stepper) lambdaSucceeded(t inflight, result document.Value) {
 		f = dataLimit(st.name, out)
 	}
 	if f != nil {
-		s.stateFailedAfter(st.name, t.entered, succeeded, f)
+		s.taskFailed(st, t.visit, succeeded, f)
 		return
 	}
 	exited := s.emit("TaskStateExited", succeeded, stateExited(st.name, out))
@@ -290,9 +315,10 @@ func (s *stepper) lambdaSucceeded(t inflight, result document.Value) {
 }
 
 // taskError writes the task's Failed or TimedOut event of its resource form
-// (stepfunctions-asl.md 11.3, 8.6) and raises e after it.
+// (stepfunctions-asl.md 11.3, 8.6) and hands e to Retry and Catch after it.
 func (s *stepper) taskError(t inflight, ending string, e StateError) {
-	if _, ok := s.taskOf(t); !ok {
+	st, ok := s.taskOf(t)
+	if !ok {
 		return
 	}
 	details := errorDetails(e.Name, e.Cause)
@@ -301,5 +327,70 @@ func (s *stepper) taskError(t inflight, ending string, e StateError) {
 		typ = "Task" + ending
 		details = append(details, invokeResource()...)
 	}
-	s.raise(e, s.emit(typ, t.started, details))
+	s.taskFailed(st, t.visit, s.emit(typ, t.started, details), e)
+}
+
+// taskFailed handles a failure of the Task st in visit v whose last event
+// is last. A Terminal ends the execution, a States.Runtime cause prefixed
+// with the state's entered event (stepfunctions-asl.md 4.6, 8.5). A
+// StateError goes to the first retrier naming it, which retries while it
+// has attempts left, and otherwise to the first catcher naming it, and
+// ends the execution when neither applies (8.2, 8.4): a retrier that has
+// run out of attempts hands the error to Catch, not to a later retrier
+// (spec#complex-retry-scenarios).
+func (s *stepper) taskFailed(st taskState, v visit, last int64, fl Failure) {
+	e, ok := fl.(StateError)
+	if !ok {
+		s.stateFailedAfter(st.name, v.entered, last, fl)
+		return
+	}
+	if i := slices.IndexFunc(st.retry, func(r Retrier) bool { return errorNamed(r.ErrorEquals, e.Name) }); i >= 0 {
+		r := st.retry[i]
+		attempts := make([]int, len(st.retry))
+		copy(attempts, v.attempts)
+		if attempts[i] < r.MaxAttempts {
+			attempts[i]++
+			v.attempts = attempts
+			s.arm(s.at.Add(RetryDelay(r, attempts[i], s.jitter(r))), retryJob{visit: v, previous: last})
+			return
+		}
+	}
+	i := slices.IndexFunc(st.catch, func(c catcher) bool { return errorNamed(c.errorEquals, e.Name) })
+	if i < 0 {
+		s.fail(e.Name, e.Cause, last)
+		return
+	}
+	c := st.catch[i]
+	out, fl := placeResult(c.resultPath, v.input, errorOutput(e))
+	if fl == nil {
+		fl = dataLimit(st.name, out)
+	}
+	if fl != nil {
+		s.stateFailedAfter(st.name, v.entered, last, fl)
+		return
+	}
+	exited := s.emit("TaskStateExited", last, stateExited(st.name, out))
+	s.transition(c.next, out, exited)
+}
+
+// jitter is the next FULL jitter draw for r, 0 for any other strategy.
+func (s *stepper) jitter(r Retrier) float64 {
+	if r.Jitter != JitterFull {
+		return 0
+	}
+	s.x.jitterDraws++
+	return jitterDraw(s.x.jitterSeed, s.x.jitterDraws)
+}
+
+// errorOutput is a catcher's result: {"Error", "Cause"}, Error first as
+// recorded (stepfunctions-asl.md 8.4; aws-recorded localstack@8b9a79f
+// v2/error_handling/test_states_errors.snapshot.json:L77). An error without
+// a cause, such as a task's States.Timeout, has no Cause member: whether AWS
+// omits it or gives "" or null is unrecorded (inferred, ASL-13).
+func errorOutput(e StateError) document.Map {
+	out := document.Map{{Key: "Error", Value: document.String(e.Name)}}
+	if e.Cause != "" {
+		out = append(out, document.Entry{Key: "Cause", Value: document.String(e.Cause)})
+	}
+	return out
 }
