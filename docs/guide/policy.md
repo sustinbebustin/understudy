@@ -157,6 +157,17 @@ understudy journal --kind delivery
 8      2026-10-27T01:22:00.236664666Z  delivery       000000000000/us-east-1 sns-to-sqs orders -> orders attempt 1 dropped: no dead-letter queue is set and the target refused it with a client-side error, which is not retried: com.amazon.coral.service#AccessDenied: User: sns.amazonaws.com is not authorized to perform: sqs:SendMessage because no resource-based policy allows the sqs:SendMessage action
 ```
 
+An event bus's policy, set with `PutPermission`, is evaluated like the other resource policies, for `PutEvents` to the bus and for the events rules forward to it. A user whose identity policy allows `events:PutEvents` on `*` is still refused once the root puts a bus policy with an explicit `Deny` for it (the first command as the root, the second as the user):
+
+```sh
+aws events put-permission --policy '{"Version":"2012-10-17","Statement":[{"Sid":"no-app","Effect":"Deny","Principal":{"AWS":"arn:aws:iam::000000000000:user/app"},"Action":"events:PutEvents","Resource":"arn:aws:events:us-east-1:000000000000:event-bus/default"}]}'
+aws events put-events --entries '[{"Source":"app","DetailType":"order","Detail":"{}"}]'
+```
+
+```text
+aws: [ERROR]: An error occurred (AccessDeniedException) when calling the PutEvents operation: User: arn:aws:iam::000000000000:user/app is not authorized to perform: events:PutEvents on resource: arn:aws:events:us-east-1:000000000000:event-bus/default with an explicit deny in a resource-based policy
+```
+
 The statements such deliveries need are the second part of `understudy iam policy` (below). Which delivery choices are inferred is listed by `understudy coverage --switches` (the `*.delivery.*`, `sns.subscribe.*`, `events.put-targets.*` and `s3.notification.*` switches).
 
 ## Make calls as the principal
