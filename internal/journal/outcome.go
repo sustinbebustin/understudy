@@ -239,6 +239,11 @@ const (
 	// AdvisoryConditionKeyUnsupplied: a condition key AWS would send with a
 	// call that understudy cannot compute, evaluated as absent.
 	AdvisoryConditionKeyUnsupplied
+	// AdvisoryCheckNotRun: a call AWS refuses when a check understudy does
+	// not run fails, such as S3 Block Public Access on a public bucket
+	// policy or KMS's key-policy lockout check, served unchecked under every
+	// iam.enforce mode.
+	AdvisoryCheckNotRun
 
 	// endAdvisoryKind follows the last value and is no advisory kind:
 	// ParseAdvisoryKind, MarshalText and the AdvisoryKindError text count
@@ -273,6 +278,8 @@ func (k AdvisoryKind) String() string {
 		return "access-unevaluated"
 	case AdvisoryConditionKeyUnsupplied:
 		return "condition-key-unsupplied"
+	case AdvisoryCheckNotRun:
+		return "check-not-run"
 	default:
 		return fmt.Sprintf("AdvisoryKind(%d)", uint8(k))
 	}

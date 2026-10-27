@@ -130,6 +130,7 @@ Each decision that is not a plain allow is journaled as an `advisory` event (`un
 | `access-unevaluated` | `advise` | understudy could not evaluate the call, for example because a stored policy does not parse; the call was served. Under `enforce` such a call fails with an internal error naming the policy |
 | `condition-key-unsupplied` | `advise`, `enforce` | a condition tested a key AWS would send that understudy cannot compute |
 | `policy-would-deny` | `off` | a delivery the target's stored policy would refuse; it is attempted anyway |
+| `check-not-run` | all | a call AWS refuses when a check fails that understudy does not run (below); the call was served |
 
 understudy never assumes that a condition holds. Some keys AWS would send are ones understudy cannot compute: `aws:SourceIp`, the resource's tags (`aws:ResourceTag/...`), and the called service's own keys that it does not supply, such as `s3:prefix`. A condition on such a key is evaluated as if the key were absent, which is how AWS evaluates a key a request does not carry. Each evaluation that tests one journals `condition-key-unsupplied` naming the key. understudy never sends the VPC, organization and MFA keys (`aws:MultiFactorAuthPresent` is `false` in a session), so a condition on one gets AWS's own answer for a request made over the public endpoint, from outside an organization, without MFA. Where AWS's denial text, status or behavior is not recorded, understudy follows a fidelity switch. `understudy coverage --switches` lists them, and the `iam.*` and `*.denial.*` switches cover enforcement.
 
@@ -138,7 +139,7 @@ understudy never assumes that a condition holds. Some keys AWS would send are on
 These differences hold under every mode, and each is stated in the operation's coverage note (`understudy coverage --service <name>`):
 
 - An operation that finds its resource by name answers that the resource does not exist before it is authorized. These are IAM users, roles and instance profiles, KMS keys addressed by alias, and Secrets Manager secrets. AWS denies first, before saying whether the resource exists (the `iam.enforce.missing-resource.by-name`, `kms.enforce.missing-resource.by-name` and `secretsmanager.enforce.missing-resource.by-name` switches).
-- S3 Block Public Access and Secrets Manager's `BlockPublicPolicy` are stored and not applied, and KMS's key-policy lockout check is not run.
+- S3 Block Public Access and Secrets Manager's `BlockPublicPolicy` are stored and not applied, and KMS's key-policy lockout check is not run. Under `enforce` a public policy or ACL, or a key policy that locks out its caller, is stored where AWS refuses it. Each call AWS would check journals `check-not-run`: `PutBucketPolicy` while `BlockPublicPolicy` is true, `PutBucketAcl` granting `AllUsers` or `AuthenticatedUsers` while `BlockPublicAcls` is true, `PutResourcePolicy` with `BlockPublicPolicy` true, and a key policy sent to `CreateKey` or `PutKeyPolicy` without `BypassPolicyLockoutSafetyCheck`.
 - A function URL with `AuthType` `AWS_IAM` checks only the signature, never a policy. An `AuthType` `NONE` URL checks its resource policy under every mode.
 - Groups, KMS grants and the IAM policy simulator are not implemented, and answer 501.
 

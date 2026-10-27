@@ -30,7 +30,7 @@ const day = 24 * time.Hour
 // disable, update description, schedule and cancel deletion.
 func (s *Service) bindKeys(b kmsapi.Binder) {
 	b.CreateKey(s.createKey,
-		registry.Partial{Note: "symmetric encryption keys with AWS_KMS origin only: other key specs, key usages, origins, custom key stores and multi-Region keys answer UnsupportedOperationException; the key policy is parsed and stored, and enforced under iam.enforce=enforce; the lockout safety check is not run"},
+		registry.Partial{Note: "symmetric encryption keys with AWS_KMS origin only: other key specs, key usages, origins, custom key stores and multi-Region keys answer UnsupportedOperationException; the key policy is parsed and stored, and enforced under iam.enforce=enforce; the lockout safety check is not run under any iam.enforce mode, so a policy that locks out its caller is stored where AWS answers MalformedPolicyDocumentException, and each key created with a Policy and without BypassPolicyLockoutSafetyCheck journals a check-not-run advisory"},
 		kernel.WithCheck(checkCreateKey), kernel.WithCheck(func(in *kmsapi.CreateKeyInput) *awserr.Error { return checkTags(in.Tags) }),
 		// kms:TagResource only for a key created with tags
 		// (iam-enforcement-surfaces.md 10.2, 10.4). kms:PutKeyPolicy is never
@@ -140,7 +140,7 @@ func checkPolicy(policy string) *awserr.Error {
 	return nil
 }
 
-func (s *Service) createKey(_ context.Context, c *kernel.Call, in *kmsapi.CreateKeyInput) (*kmsapi.CreateKeyOutput, *awserr.Error) {
+func (s *Service) createKey(ctx context.Context, c *kernel.Call, in *kmsapi.CreateKeyInput) (*kmsapi.CreateKeyOutput, *awserr.Error) {
 	policy := ""
 	if in.Policy != nil {
 		if err := checkPolicy(*in.Policy); err != nil {
@@ -164,6 +164,11 @@ func (s *Service) createKey(_ context.Context, c *kernel.Call, in *kmsapi.Create
 		return nil, err
 	}
 	c.Touch(keyARN(scope, k.ID))
+	// The default key policy allows the account, so only a sent one is
+	// checked in AWS.
+	if in.Policy != nil {
+		lockoutUnchecked(ctx, c, in.BypassPolicyLockoutSafetyCheck, keyARN(scope, k.ID))
+	}
 	return &kmsapi.CreateKeyOutput{KeyMetadata: metadata(scope, k)}, nil
 }
 

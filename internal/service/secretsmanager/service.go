@@ -76,7 +76,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 
 	b.TagResource(s.tagResource, named)
 	b.UntagResource(s.untagResource, named)
-	b.PutResourcePolicy(s.putResourcePolicy, registry.Partial{Note: "the policy is parsed and stored verbatim, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; BlockPublicPolicy is not evaluated under any mode, so a broad policy sent with BlockPublicPolicy true is stored where AWS answers PublicPolicyException;" + resolvedFirst})
+	b.PutResourcePolicy(s.putResourcePolicy, registry.Partial{Note: "the policy is parsed and stored verbatim, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; BlockPublicPolicy is not evaluated under any mode, so a broad policy sent with BlockPublicPolicy true is stored where AWS answers PublicPolicyException, and each put sending it true journals a check-not-run advisory; " + resolvedFirst})
 	b.GetResourcePolicy(s.getResourcePolicy, named)
 	b.DeleteResourcePolicy(s.deleteResourcePolicy, named)
 	s.declareAuthorization(d.Binder)

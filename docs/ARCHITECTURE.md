@@ -1022,7 +1022,7 @@ type FaultInjected struct{ Rule ref.RuleID; Hit, Of int }
 type ClockChanged struct{ From, To clock.Mode; Op ClockOp } // freeze | resume | scale | advance | set | restore (a reset with clock); 0 on lines an earlier build wrote
 type Redrive struct{ From, To aws.ARN; Messages int; Reason RedriveReason } // MaxReceiveCount{Count} | MoveTask{TaskHandle}; post-tag (ADR 0007 pre-tag review amendment)
 type AdminAction struct{ Op AdminOp } // Reset{Services, Accounts, Regions, Clock, Faults} | SnapshotSave{Path} | SnapshotLoad{Path} | FaultRuleAdded{Rule} | FaultRuleRemoved{Rules}
-type Advisory struct{ Kind AdvisoryKind; Resource aws.ARN; Text string } // resource policy would deny a delivery; unminted credentials from a function container; shadowed code update under hot reload; a cross-region request s3.crossRegion lenient served; an IAM decision under iam.enforce advise or enforce (access-would-deny, access-denied, access-unevaluated, condition-key-unsupplied)
+type Advisory struct{ Kind AdvisoryKind; Resource aws.ARN; Text string } // resource policy would deny a delivery; unminted credentials from a function container; shadowed code update under hot reload; a cross-region request s3.crossRegion lenient served; an IAM decision under iam.enforce advise or enforce (access-would-deny, access-denied, access-unevaluated, condition-key-unsupplied); a call served without a check AWS runs, such as Block Public Access or KMS's lockout check (check-not-run)
 type Unclaimed struct{ Method, Host, Path string; Reasons []string }
 type Gap struct{ Missed uint64 } // slow stream consumer
 ```

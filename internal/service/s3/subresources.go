@@ -92,7 +92,7 @@ func (s *Service) bindACL(b s3api.Binder) {
 		return &s3api.GetBucketAclOutput{Owner: &s3api.Owner{ID: new(canonicalID(b.Home.OwnerAccount))}, Grants: b.Grants}, nil
 	}), stored("the access control list is"), touches(get))
 	put := func(in *s3api.PutBucketAclInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutBucketAcl(writer[s3api.PutBucketAclInput, s3api.PutBucketAclOutput](s, put, putACL), stored("the access control list is"), touches(put),
+	b.PutBucketAcl(s.putBucketACL, registry.StoredOnly{Note: publicACLNote}, touches(put),
 		kernel.WithCheck(checkACLRequest))
 }
 
@@ -223,6 +223,9 @@ const (
 func (s *Service) bindPolicy(b s3api.Binder) {
 	// iam-enforcement-surfaces.md 12.7.
 	evaluated := registry.Partial{Note: "the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated, and Block Public Access is not applied (PutPublicAccessBlock)"}
+	put := func(in *s3api.PutBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
+	putNote := registry.Partial{Note: "the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated; " +
+		"BlockPublicPolicy is not checked under any iam.enforce mode, so a public policy put while it is true is stored where AWS answers 403 AccessDenied, and each put while it is true journals a check-not-run advisory"}
 	get := func(in *s3api.GetBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetBucketPolicy(reader(s, get, func(_ *s3api.GetBucketPolicyInput, b *Bucket) (*s3api.GetBucketPolicyOutput, *awserr.Error) {
 		if b.Policy == "" {
@@ -230,11 +233,7 @@ func (s *Service) bindPolicy(b s3api.Binder) {
 		}
 		return &s3api.GetBucketPolicyOutput{Policy: new(b.Policy)}, nil
 	}), evaluated, touches(get))
-	put := func(in *s3api.PutBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutBucketPolicy(writer[s3api.PutBucketPolicyInput, s3api.PutBucketPolicyOutput](s, put, func(in *s3api.PutBucketPolicyInput, b *Bucket) *awserr.Error {
-		b.Policy = in.Policy
-		return nil
-	}), evaluated, touches(put),
+	b.PutBucketPolicy(s.putBucketPolicy, putNote, touches(put),
 		kernel.WithCheck(func(in *s3api.PutBucketPolicyInput) *awserr.Error { return checkPolicy(in.Policy) }))
 	del := func(in *s3api.DeleteBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketPolicy(writer[s3api.DeleteBucketPolicyInput, s3api.DeleteBucketPolicyOutput](s, del, func(_ *s3api.DeleteBucketPolicyInput, b *Bucket) *awserr.Error {
@@ -698,14 +697,11 @@ func (s *Service) bindPublicAccessBlock(b s3api.Binder) {
 	}), stored("the public access block is"), touches(del))
 }
 
-// blockPublicAccessNote is PutPublicAccessBlock's coverage note. In one
-// account only BlockPublicPolicy, at PutBucketPolicy, and BlockPublicAcls,
-// at ACL writes, change an outcome (iam-enforcement-surfaces.md 7.3, 12.2),
-// and understudy applies neither under any iam.enforce mode: which policies
-// AWS counts as public is not researched, and refusing only some would let
-// the rest pass as checked.
+// blockPublicAccessNote is PutPublicAccessBlock's coverage note; why
+// neither flag is applied is in publicaccess.go.
 const blockPublicAccessNote = "the public access block is stored and echoed; not applied under any iam.enforce mode, " +
-	"where AWS refuses PutBucketPolicy with a public policy while BlockPublicPolicy is true and a public ACL while BlockPublicAcls is true"
+	"where AWS refuses PutBucketPolicy with a public policy while BlockPublicPolicy is true and a public ACL while BlockPublicAcls is true; " +
+	"PutBucketPolicy while BlockPublicPolicy is true, and PutBucketAcl granting AllUsers or AuthenticatedUsers while BlockPublicAcls is true, journal a check-not-run advisory"
 
 // publicAccessBlock is the stored form of a put: every flag present, an
 // absent one false, as Terraform reads all four back (tf-storage.md 2.6).
