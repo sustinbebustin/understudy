@@ -14,9 +14,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/server"
 )
 
-// wire sends one request to srv on the host clients address and returns
+// layerCall sends one request to srv on the host clients address and returns
 // the answer.
-func wire(t *testing.T, srv *server.Server, method, path, body string) *httptest.ResponseRecorder {
+func layerCall(t *testing.T, srv *server.Server, method, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequestWithContext(t.Context(), method, "http://localhost:4566"+path, strings.NewReader(body))
 	if strings.HasPrefix(path, "/2015-03-31/") || strings.HasPrefix(path, "/2018-10-31/") {
@@ -62,7 +62,7 @@ func TestLayerRoutesOnTheWire(t *testing.T) {
 	srv, _ := build(t, server.Config{})
 	archive := zipped(t, "layer content")
 	publish := `{"Content":{"ZipFile":"` + base64.StdEncoding.EncodeToString(archive) + `"},"CompatibleRuntimes":["python3.12"]}`
-	rec := wire(t, srv, http.MethodPost, "/2018-10-31/layers/shared/versions", publish)
+	rec := layerCall(t, srv, http.MethodPost, "/2018-10-31/layers/shared/versions", publish)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("PublishLayerVersion = %d %s, want 201", rec.Code, rec.Body)
 	}
@@ -90,45 +90,45 @@ func TestLayerRoutesOnTheWire(t *testing.T) {
 		t.Fatalf("Content.Location = %q, want a link under %s", out.Content.Location, linkPrefix)
 	}
 	link := strings.TrimPrefix(out.Content.Location, "http://localhost:4566")
-	got := wire(t, srv, http.MethodGet, link, "")
+	got := layerCall(t, srv, http.MethodGet, link, "")
 	if got.Code != http.StatusOK || got.Header().Get("Content-Type") != "application/zip" || !bytes.Equal(got.Body.Bytes(), archive) ||
 		got.Header().Get("X-Content-Type-Options") != "nosniff" || got.Header().Get("Content-Security-Policy") != "sandbox" {
 		t.Errorf("GET Content.Location = %d %v (%d bytes), want 200 application/zip with the archive, nosniff and a sandbox policy", got.Code, got.Header(), got.Body.Len())
 	}
 
-	if rec := wire(t, srv, http.MethodGet, "/2018-10-31/layers/shared/versions/1", ""); rec.Code != http.StatusOK {
+	if rec := layerCall(t, srv, http.MethodGet, "/2018-10-31/layers/shared/versions/1", ""); rec.Code != http.StatusOK {
 		t.Errorf("GetLayerVersion = %d %s, want 200", rec.Code, rec.Body)
 	}
-	if rec := wire(t, srv, http.MethodGet, "/2018-10-31/layers?find=LayerVersion&Arn="+url.QueryEscape(out.LayerVersionArn), ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), out.LayerVersionArn) {
+	if rec := layerCall(t, srv, http.MethodGet, "/2018-10-31/layers?find=LayerVersion&Arn="+url.QueryEscape(out.LayerVersionArn), ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), out.LayerVersionArn) {
 		t.Errorf("GetLayerVersionByArn = %d %s, want 200 with the version", rec.Code, rec.Body)
 	}
-	if rec := wire(t, srv, http.MethodGet, "/2018-10-31/layers/doesnotexist/versions", ""); rec.Code != http.StatusOK || strings.TrimSpace(rec.Body.String()) != `{"LayerVersions":[]}` {
+	if rec := layerCall(t, srv, http.MethodGet, "/2018-10-31/layers/doesnotexist/versions", ""); rec.Code != http.StatusOK || strings.TrimSpace(rec.Body.String()) != `{"LayerVersions":[]}` {
 		t.Errorf("ListLayerVersions of a layer that never existed = %d %s, want 200 {\"LayerVersions\":[]}", rec.Code, rec.Body)
 	}
 
-	missing := wire(t, srv, http.MethodGet, "/2018-10-31/layers/shared/versions/2", "")
+	missing := layerCall(t, srv, http.MethodGet, "/2018-10-31/layers/shared/versions/2", "")
 	mm := members(t, missing)
 	if missing.Code != http.StatusNotFound || missing.Header().Get("X-Amzn-Errortype") != "ResourceNotFoundException" ||
 		string(mm["Message"]) != `"The resource you requested does not exist."` || string(mm["Type"]) != `"User"` {
 		t.Errorf("GetLayerVersion of a missing version = %d %s %s, want 404 ResourceNotFoundException with Message and Type User", missing.Code, missing.Header().Get("X-Amzn-Errortype"), missing.Body)
 	}
-	zero := wire(t, srv, http.MethodGet, "/2018-10-31/layers/shared/versions/0", "")
+	zero := layerCall(t, srv, http.MethodGet, "/2018-10-31/layers/shared/versions/0", "")
 	zm := members(t, zero)
 	if zero.Code != http.StatusBadRequest || zero.Header().Get("X-Amzn-Errortype") != "InvalidParameterValueException" ||
 		string(zm["message"]) != `"Layer Version Cannot be less than 1"` || string(zm["Type"]) != `"User"` {
 		t.Errorf("GetLayerVersion of version 0 = %d %s %s, want 400 InvalidParameterValueException with message and Type User", zero.Code, zero.Header().Get("X-Amzn-Errortype"), zero.Body)
 	}
 
-	if rec := wire(t, srv, http.MethodPost, "/2018-10-31/layers/shared/versions/1/policy", `{"StatementId":"s1","Action":"lambda:GetLayerVersion","Principal":"*"}`); rec.Code != http.StatusCreated {
+	if rec := layerCall(t, srv, http.MethodPost, "/2018-10-31/layers/shared/versions/1/policy", `{"StatementId":"s1","Action":"lambda:GetLayerVersion","Principal":"*"}`); rec.Code != http.StatusCreated {
 		t.Errorf("AddLayerVersionPermission = %d %s, want 201", rec.Code, rec.Body)
 	}
-	if rec := wire(t, srv, http.MethodDelete, "/2018-10-31/layers/shared/versions/1/policy/s1", ""); rec.Code != http.StatusNoContent {
+	if rec := layerCall(t, srv, http.MethodDelete, "/2018-10-31/layers/shared/versions/1/policy/s1", ""); rec.Code != http.StatusNoContent {
 		t.Errorf("RemoveLayerVersionPermission = %d %s, want 204", rec.Code, rec.Body)
 	}
-	if rec := wire(t, srv, http.MethodDelete, "/2018-10-31/layers/shared/versions/1", ""); rec.Code != http.StatusNoContent {
+	if rec := layerCall(t, srv, http.MethodDelete, "/2018-10-31/layers/shared/versions/1", ""); rec.Code != http.StatusNoContent {
 		t.Errorf("DeleteLayerVersion = %d %s, want 204", rec.Code, rec.Body)
 	}
-	if rec := wire(t, srv, http.MethodGet, link, ""); rec.Code != http.StatusNotFound {
+	if rec := layerCall(t, srv, http.MethodGet, link, ""); rec.Code != http.StatusNotFound {
 		t.Errorf("GET a deleted version's Content.Location = %d, want 404", rec.Code)
 	}
 }
@@ -139,12 +139,12 @@ func TestLayerRoutesOnTheWire(t *testing.T) {
 func TestFunctionLayersOnTheWire(t *testing.T) {
 	srv, _ := build(t, server.Config{})
 	archive := zipped(t, "layer content")
-	if rec := wire(t, srv, http.MethodPost, "/2018-10-31/layers/shared/versions", `{"Content":{"ZipFile":"`+base64.StdEncoding.EncodeToString(archive)+`"}}`); rec.Code != http.StatusCreated {
+	if rec := layerCall(t, srv, http.MethodPost, "/2018-10-31/layers/shared/versions", `{"Content":{"ZipFile":"`+base64.StdEncoding.EncodeToString(archive)+`"}}`); rec.Code != http.StatusCreated {
 		t.Fatalf("PublishLayerVersion = %d %s", rec.Code, rec.Body)
 	}
 	code := base64.StdEncoding.EncodeToString(zipped(t, "#!/bin/sh\n"))
 	create := func(name, layers string) *httptest.ResponseRecorder {
-		return wire(t, srv, http.MethodPost, "/2015-03-31/functions", `{"FunctionName":"`+name+`","Runtime":"provided.al2023","Handler":"bootstrap",`+
+		return layerCall(t, srv, http.MethodPost, "/2015-03-31/functions", `{"FunctionName":"`+name+`","Runtime":"provided.al2023","Handler":"bootstrap",`+
 			`"Role":"arn:aws:iam::000000000000:role/r","Code":{"ZipFile":"`+code+`"}`+layers+`}`)
 	}
 	plain := create("plain", "")
@@ -185,11 +185,11 @@ func TestPublishLayerVersionFromS3(t *testing.T) {
 		{http.MethodPut, "/layer-bucket", ""},
 		{http.MethodPut, "/layer-bucket//layercontent.zip", string(archive)},
 	} {
-		if rec := wire(t, srv, step.method, step.path, step.body); rec.Code != http.StatusOK {
+		if rec := layerCall(t, srv, step.method, step.path, step.body); rec.Code != http.StatusOK {
 			t.Fatalf("%s %s = %d %s", step.method, step.path, rec.Code, rec.Body)
 		}
 	}
-	rec := wire(t, srv, http.MethodPost, "/2018-10-31/layers/from-s3/versions", `{"Content":{"S3Bucket":"layer-bucket","S3Key":"/layercontent.zip"}}`)
+	rec := layerCall(t, srv, http.MethodPost, "/2018-10-31/layers/from-s3/versions", `{"Content":{"S3Bucket":"layer-bucket","S3Key":"/layercontent.zip"}}`)
 	var out struct{ Content struct{ CodeSha256 string } }
 	if rec.Code != http.StatusCreated || json.Unmarshal(rec.Body.Bytes(), &out) != nil {
 		t.Fatalf("PublishLayerVersion from S3 = %d %s", rec.Code, rec.Body)
