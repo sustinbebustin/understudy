@@ -90,8 +90,8 @@ func routed(rt route) string {
 		return string(rt.svc.ID) + " (no operation named)"
 	case notEmulated:
 		return rt.signingName + " (not emulated)"
-	case notEmulatedTarget:
-		return rt.target.name + "." + rt.operation + " (not emulated)"
+	case misscoped:
+		return string(rt.svc.ID) + " (credential scope refused)"
 	case unclaimed:
 		return "unclaimed"
 	case toLocalStack:

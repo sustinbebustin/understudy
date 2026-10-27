@@ -11,7 +11,6 @@ import (
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/journal"
-	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
@@ -109,19 +108,20 @@ func (h *Handler) notEmulated(ctx context.Context, x *exchange, rt notEmulated) 
 	})
 }
 
-// notEmulatedTarget answers an operation of a service understudy does not
-// emulate that X-Amz-Target names, such as DynamoDB Streams signed for
-// dynamodb, with the 501 NotImplemented an unbound operation gets (ADR
-// 0003), in the request's JSON envelope. As for notEmulated, the rule trace
-// stays in the Unclaimed journal event.
-func (h *Handler) notEmulatedTarget(ctx context.Context, x *exchange, rt notEmulatedTarget) {
+// misscoped answers a request whose credential is scoped to a service name
+// AWS refuses for the operation it names, such as DynamoDB Streams scoped
+// to streams.dynamodb, with AWS's 400 InvalidSignatureException in the
+// service's envelope (refusedScope). The service never sees it, so the
+// rule trace is journaled as Unclaimed; the client gets AWS's text, which
+// names the scope to sign for.
+func (h *Handler) misscoped(ctx context.Context, x *exchange, rt misscoped) {
 	h.journalUnclaimed(ctx, x, rt.reasons)
-	if h.warned.first("not emulated " + rt.target.name) {
-		h.log.LogAttrs(ctx, slog.LevelWarn, "a client called a service understudy does not emulate",
-			slog.String("service", rt.target.name), slog.String("operation", rt.operation),
-			slog.String("request_id", string(x.id)))
-	}
-	h.answerUnrouted(ctx, x, kernel.NotEmulated(rt.target.name, rt.operation, rt.target.coverage))
+	x.protocol = rt.codec.Protocol()
+	h.write(ctx, x, rt.codec.EncodeError(x.r, rt.svc, string(x.id), &awserr.Error{
+		ID:      awserr.InvalidSignatureException(),
+		Message: "Credential should be scoped to correct service: '" + rt.svc.SigningName + "'. ",
+		Origin:  awserr.Generic{},
+	}))
 }
 
 // unclaimed answers a request no rule claimed (rule 9): an AWS-shaped 400

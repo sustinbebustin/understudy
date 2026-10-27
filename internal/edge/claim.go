@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/auth"
@@ -75,12 +74,13 @@ type notEmulated struct {
 	reasons     []reason
 }
 
-// notEmulatedTarget is an operation of a service understudy does not
-// emulate that X-Amz-Target names (rule 6).
-type notEmulatedTarget struct {
-	target    unemulatedTarget
-	operation string
-	reasons   []reason
+// misscoped is an operation X-Amz-Target names whose SigV4 credential is
+// scoped to a service name AWS refuses for it (rule 6, refusedScope). It
+// never reaches the service.
+type misscoped struct {
+	codec   Codec
+	svc     *registry.Service
+	reasons []reason
 }
 
 // unclaimed is a request no rule claimed (rule 9), or one rule 5 rejected.
@@ -102,17 +102,17 @@ type toExecuteAPI struct {
 	policy  csp
 }
 
-func (toAdmin) isRoute()           {}
-func (toOperation) isRoute()       {}
-func (toUnknown) isRoute()         {}
-func (toRaw) isRoute()             {}
-func (toLink) isRoute()            {}
-func (toService) isRoute()         {}
-func (notEmulated) isRoute()       {}
-func (notEmulatedTarget) isRoute() {}
-func (unclaimed) isRoute()         {}
-func (toLocalStack) isRoute()      {}
-func (toExecuteAPI) isRoute()      {}
+func (toAdmin) isRoute()      {}
+func (toOperation) isRoute()  {}
+func (toUnknown) isRoute()    {}
+func (toRaw) isRoute()        {}
+func (toLink) isRoute()       {}
+func (toService) isRoute()    {}
+func (notEmulated) isRoute()  {}
+func (misscoped) isRoute()    {}
+func (unclaimed) isRoute()    {}
+func (toLocalStack) isRoute() {}
+func (toExecuteAPI) isRoute() {}
 
 // reason is why one claim rule passed over a request: its number in
 // ARCHITECTURE.md 4.1, which the journal records, and the words a client
@@ -436,60 +436,22 @@ func (c *claimer) awsJSON() (route, bool) {
 			return rt, true
 		}
 	}
-	return c.unemulatedJSON()
+	return nil, false
 }
 
-// unemulatedTarget is a service understudy does not emulate whose awsJson
-// requests carry the signing name of one it does, so rule 8 would answer
-// them as that service's unknown operation.
-type unemulatedTarget struct {
-	// name is the service as its SDKs name it (sdkId).
-	name string
-	// coverage is the emulated service whose coverage says what understudy
-	// does with this one.
-	coverage     ref.ServiceID
-	protocol     ref.ProtocolID
-	signingNames []string
-	operations   []string
-}
-
-// unemulated returns the service an X-Amz-Target prefix names among those
-// understudy does not emulate. DynamoDB Streams is signed for dynamodb
-// (dynamodb-streams.md 3.1, 3.2;
-// testdata/parity/dynamodb/R11/07-streams-signed-dynamodb.json); its
-// endpoint prefix streams.dynamodb, which AWS refuses, gets the same 501.
-func unemulated(prefix string) (unemulatedTarget, bool) {
-	if prefix != "DynamoDBStreams_20120810" {
-		return unemulatedTarget{}, false
+// refusedScope is the credential-scope service name AWS refuses for a
+// service whose endpoint prefix differs from its signing name, "" for any
+// other service. DynamoDB Streams is reached at streams.dynamodb.<region>
+// but signed for dynamodb; a credential scoped to streams.dynamodb is
+// refused with 400 InvalidSignatureException whatever the signature
+// (aws-recorded, testdata/parity/dynamodb/R11/07-streams-signed-streams.dynamodb.json;
+// dynamodb-streams.md 3.2). It is a check of the credential's scope, as
+// the region check is, so it holds under sigv4 parse as under verify.
+func refusedScope(id ref.ServiceID) string {
+	if id == "dynamodbstreams" {
+		return "streams.dynamodb"
 	}
-	return unemulatedTarget{
-		name: "DynamoDB Streams", coverage: "dynamodb", protocol: ref.AWSJSON10,
-		signingNames: []string{"dynamodb", "streams.dynamodb"},
-		operations:   []string{"DescribeStream", "GetRecords", "GetShardIterator", "ListStreams"},
-	}, true
-}
-
-// unemulatedJSON is rule 6's last part: an awsJson request naming an
-// operation of a service understudy does not emulate (unemulated), signed
-// for it or unsigned, is that service's 501, so the signing name's service
-// never answers it as its own unknown operation. A target naming no
-// operation of it, or a request in another shape, goes on to rule 8.
-func (c *claimer) unemulatedJSON() (route, bool) {
-	prefix, name, _ := strings.Cut(c.r.Header.Get("X-Amz-Target"), ".")
-	t, ok := unemulated(prefix)
-	if !ok || !slices.Contains(t.operations, name) {
-		return nil, false
-	}
-	if mt := mediaType(c.r.Header.Get("Content-Type")); c.r.Method != http.MethodPost || (mt != jsonMediaType(t.protocol) && mt != "application/json") {
-		c.decline(6, "X-Amz-Target names %s.%s, but the request is not a POST in %s", t.name, name, t.protocol)
-		return nil, false
-	}
-	if signed, ok := signingName(c.auth); ok && !slices.Contains(t.signingNames, signed) {
-		c.decline(6, "X-Amz-Target names %s.%s but the request is signed for %q", t.name, name, signed)
-		return nil, false
-	}
-	c.decline(6, "X-Amz-Target names %s.%s, and understudy does not emulate %s", t.name, name, t.name)
-	return notEmulatedTarget{target: t, operation: name, reasons: c.reasons}, true
+	return ""
 }
 
 // awsQuery is rule 7: a form body, or a GET with Action.
@@ -536,6 +498,10 @@ func (c *claimer) codecClaim(p ref.ProtocolID, rule int) (route, bool) {
 		return nil, false
 	}
 	if signed, ok := signingName(c.auth); ok && signed != svc.SigningName {
+		if _, named := rt.(toOperation); named && signed == refusedScope(svc.ID) {
+			c.decline(rule, "the request names %s service %s, whose credentials AWS refuses when scoped to %q: sign for %q", p, svc.ID, signed, svc.SigningName)
+			return misscoped{codec: codec, svc: svc, reasons: c.reasons}, true
+		}
 		c.decline(rule, "the request names %s service %s but is signed for %q", p, svc.ID, signed)
 		return nil, false
 	}
