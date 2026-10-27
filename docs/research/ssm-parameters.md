@@ -32,6 +32,8 @@ Anything resting only on [E] or inference is marked UNVERIFIED with the recordin
 9. **Two reserved namespaces are read-through:**
    - `/aws/reference/secretsmanager/<secret>` returns a Secrets Manager secret through `GetParameter` and `GetParameters` only. The result has `Type: SecureString`, `Version: 0` and a JSON `SourceResult` [D].
    - `/aws/service/...` holds AWS public parameters, whose ARNs have an empty account field [D] (section 8).
+
+   understudy serves neither: a name, path, `ResourceId` or `DescribeParameters` `Name`/`Path` filter value under either prefix answers 501 on every operation (12.1). The AWS facts above stand.
 10. **SSM also answers the legacy Query protocol** (`?Action=GetParameter`, XML namespace `http://ssm.amazonaws.com/doc/2014-11-06/`), recorded by a direct SigV4 `POST` in LocalStack's API Gateway SSM tests [R]. The model declares only `awsJson1_1` (section 2.3).
 11. **A Lambda's read path** is `GetParameter` with `WithDecryption` (boto3 examples, the Parameters and Secrets extension), `GetParametersByPath` with `Recursive` through the paginator, and `GetParameters` in batches of 10 (Powertools) (section 10.3).
 
@@ -221,6 +223,18 @@ UNVERIFIED (SSM-22): the cases this guide leaves open:
 - `KeyId` as metadata reports it when the key was given as a key id, a key ARN or an alias ARN.
 - That KMS `Decrypt` of a standard parameter's ciphertext with `PARAMETER_ARN` works as documented.
 - The `InvalidKeyId` texts for a missing and for a disabled key.
+- The answer to a read with decryption by a caller without `kms:Decrypt` on a customer managed key (step 07).
+
+understudy maps every KMS client error, an IAM denial included, to `InvalidKeyId` carrying KMS's message, and a KMS server error to `InternalServerError` naming the KMS failure (inferred).
+
+### 5.6 KMS permissions of Parameter Store callers
+
+Inferred; no source states it for SSM. The AWS managed key's policy grants `Principal AWS "*"` under `kms:CallerAccount` and `kms:ViaService` ([iam-enforcement-surfaces.md 7.5](iam-enforcement-surfaces.md)), so in AWS a caller holding only `ssm:` permissions encrypts and decrypts with `alias/aws/ssm`; the KMS actions a caller needs are documented only for customer managed keys ([iam-enforcement-surfaces.md 8.7](iam-enforcement-surfaces.md)). understudy's internal call names no calling service, so it cannot evaluate `kms:ViaService`. Rule:
+
+- A customer managed key: `kms:Encrypt` (write) and `kms:Decrypt` (read with decryption) are calls as the caller, forward access through KMS: recorded under the caller and, under enforce, decided by KMS.
+- The default key (no `KeyId`, or a `KeyId` naming `alias/aws/ssm` in any form): called as the service principal `ssm.amazonaws.com`, never recorded under the caller and never denied for a missing KMS grant; an explicit identity-policy deny on that key is not applied.
+
+UNVERIFIED (SSM-22 step 08): that a caller with only `ssm:PutParameter` and `ssm:GetParameter` writes and reads a default-key SecureString with decryption.
 
 ## 6. Versions, labels and selectors
 
@@ -469,8 +483,8 @@ Behavior the provider relies on:
 | `ParameterMetadata.AllowedPattern` doc | model doc text describes name characters | doc error; the field echoes the pattern |
 | Name length | model 2048; doc 1011 including the ARN prefix | enforce the doc's 1011 (SSM-06) |
 | Tags per parameter | model `TagList` up to 1000; doc 50 per resource | 50 (doc) |
-| Type change | doc: not in a hierarchy; Terraform changes a root parameter's type against AWS | switch `ssm.put.type-change` (SSM-09) |
-| `SourceResult` keys | doc PascalCase; AWS-validated test lower-case `name` | switch (SSM-23) |
+| Type change | doc: not in a hierarchy; Terraform changes a root parameter's type against AWS | a plain rule: `HierarchyTypeMismatchException` in a hierarchy, accepted for a root parameter; UNVERIFIED (SSM-09) |
+| `SourceResult` keys | doc PascalCase; AWS-validated test lower-case `name` | none needed: Secrets Manager references answer 501 (12.1), so SSM-23 is not relied on |
 | Leading slash in `DescribeParameters` names | `GetParameter` keeps it; `DescribeParameters` drops it (provider PR) | canonical vs request spelling (3.2) |
 | `KeyId` meaning | model: "the alias of the KMS key"; Terraform: verbatim alias | verbatim (SSM-22 for key ids and ARNs) |
 | Default `Name` option in `DescribeParameters` | [search](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-search.html): `Equals`; [DescribeParameters](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_DescribeParameters.html) example: `Name` `/Branch312` with no option returns `/Branch312/Dev/*` | `Equals`, the stated rule (SSM-21) |
@@ -480,51 +494,55 @@ Behavior the provider relies on:
 
 ### 12.1 Coverage per operation
 
-New service package `internal/service/ssm`. Vendor `models/ssm/service/2014-11-06/ssm-2014-11-06.json` at the pin into `third_party/api-models-aws` (with its `UPSTREAM.json` entry), add `codegen/services/ssm.json` (IAM prefix `ssm`), add a row to `internal/ref/deps_test.go` (ssm depends on kms and secretsmanager through `kernel.Invoke`, as `internal/service/secretsmanager/values.go` does for kms), write `docs/guide/ssm.md`, and regenerate `docs/coverage.md`.
+The model (`internal/api/ssmapi`), `codegen/services/ssm.json` (IAM prefix `ssm`) and the overlay exist since commit `6e132e8`. What remains is the service package `internal/service/ssm` (covered by the `internal/service/...` row of `internal/ref/deps_test.go`; it reaches KMS only through `kernel.Invoke`, as `internal/service/secretsmanager/values.go` does), `docs/guide/ssm.md`, and a regenerated `docs/coverage.md`.
+
+Deferred, each answering 501 NotImplemented (roadmap item 9f cut to its done checks): Secrets Manager references, parameter policies, Advanced-tier SecureString (the envelope design in 12.3 is a follow-up) and DataType `aws:ec2:image`. In the table, `<reserved>` stands for `a name under /aws/service/ or /aws/reference/secretsmanager/ makes the call answer 501`.
 
 | Operation | Status | Coverage note (exact text) |
 |---|---|---|
-| PutParameter | partial | `parameter policies are stored and echoed with PolicyStatus Pending but never enforced; aws:ec2:image values are checked for the AMI ID format only, since understudy has no EC2; no Parameter Store Change events are sent; AllowedPattern is compiled as Go RE2 and a pattern RE2 cannot compile answers 501; the default tier is always Standard (the service setting is unbound)` |
-| GetParameter | partial | `no AWS public parameters: names under /aws/service/ answer 501; Secrets Manager references read understudy's Secrets Manager; an advanced SecureString read without decryption returns understudy's envelope, not an AWS Encryption SDK message` |
-| GetParameters | partial | `no AWS public parameters: a name under /aws/service/ makes the call answer 501; Secrets Manager references read understudy's Secrets Manager; an advanced SecureString read without decryption returns understudy's envelope, not an AWS Encryption SDK message` |
-| GetParametersByPath | partial | `no AWS public parameters: paths under /aws/service/ answer 501; an advanced SecureString read without decryption returns understudy's envelope, not an AWS Encryption SDK message` |
-| DescribeParameters | partial | `AWS public parameters are never listed; Shared lists nothing, since no parameter can be shared (resource policies are unbound)` |
-| GetParameterHistory | partial | `an advanced SecureString version read without decryption returns understudy's envelope, not an AWS Encryption SDK message` |
-| DeleteParameter | full | |
-| DeleteParameters | full | |
-| LabelParameterVersion | full | |
-| UnlabelParameterVersion | full | |
-| AddTagsToResource | partial | `ResourceType Parameter only: the other resource types name nothing understudy stores, so they answer InvalidResourceId` |
-| RemoveTagsFromResource | partial | same text |
-| ListTagsForResource | partial | same text |
+| PutParameter | partial | `<reserved>; parameter policies answer 501; DataType aws:ec2:image answers 501, since understudy has no EC2 to validate an AMI; an Advanced-tier SecureString, including an Intelligent-Tiering one that resolves to Advanced, answers 501; AllowedPattern is compiled as Go RE2: a pattern RE2 cannot compile answers 501, except an unbalanced bracket or parenthesis, a trailing backslash, a repetition without an argument or a reversed character range, which answer InvalidAllowedPatternException; no Parameter Store Change events are sent; the default tier is always Standard (the service setting is unbound); unrecorded, understudy's choice: an identical overwrite creates a version, Tags with Overwrite are refused for a new name too, an Intelligent-Tiering request answers with the resolved tier, an Advanced parameter written without Tier stays Advanced, an empty AllowedPattern on an overwrite clears the stored one, an empty Value is accepted, a deleted name can be created again at once with a fresh history, StringList values are stored verbatim, value size is counted in bytes and an oversize value answers ValidationException, a hierarchical parameter cannot change type (HierarchyTypeMismatchException) while a root parameter can, and the messages for name, depth, length, size, count, type-change, missing-Type, KeyId-on-String, AllowedPattern and {{...}} refusals are understudy's own` |
+| GetParameter | partial | `no AWS public parameters: names under /aws/service/ answer 501; Secrets Manager references (names under /aws/reference/secretsmanager/) answer 501; the legacy Query protocol (?Action= without X-Amz-Target), which AWS also serves, answers 501 for this and every SSM operation; unrecorded, understudy's choice: an ARN of another account or Region answers ParameterNotFound, and the ParameterVersionNotFound message is understudy's own` |
+| GetParameters | partial | `no AWS public parameters: a name under /aws/service/ makes the call answer 501; a Secrets Manager reference (a name under /aws/reference/secretsmanager/) makes the call answer 501; unrecorded, understudy's choice: a name given twice is answered once, and a name that is not valid, or whose version or label does not exist, is listed in InvalidParameters` |
+| GetParametersByPath | partial | `no AWS public parameters or Secrets Manager references: paths under /aws/service/ or /aws/reference/secretsmanager/ answer 501; unrecorded, understudy's choice: 10 results per page without MaxResults, Path / lists root parameters, and a Label filter's results carry no Selector` |
+| DescribeParameters | partial | `AWS public parameters and Secrets Manager references are never listed: a Name or Path filter value under /aws/service/ or /aws/reference/secretsmanager/ answers 501; Shared lists nothing, since no parameter can be shared (resource policies are unbound); the deprecated Filters member answers 501 (use ParameterFilters); unrecorded, understudy's choice: 50 results per page without MaxResults, a Path filter without Option is OneLevel, the values of one filter match any of them, a tag filter without Values matches any value of its key, BeginsWith and Contains are case-sensitive, and LastModifiedUser of a role session is the assumed-role session ARN` |
+| GetParameterHistory | partial | `<reserved>; unrecorded, understudy's choice: 50 versions per page without MaxResults, version numbers keep counting after the oldest of 100 is dropped, and LastModifiedUser of a role session is the assumed-role session ARN` |
+| DeleteParameter | partial | `<reserved>; no Parameter Store Change events are sent` |
+| DeleteParameters | partial | `<reserved>; no Parameter Store Change events are sent; unrecorded, understudy's choice: a name that is not valid is listed in InvalidParameters` |
+| LabelParameterVersion | partial | `<reserved>; no Parameter Store Change events are sent; the ParameterVersionLabelLimitExceeded message is understudy's own (AWS's is unrecorded)` |
+| UnlabelParameterVersion | partial | `<reserved>` |
+| AddTagsToResource | partial | `<reserved>; ResourceType Parameter only: the other resource types name nothing understudy stores, so they answer InvalidResourceId` |
+| RemoveTagsFromResource | partial | same text as AddTagsToResource |
+| ListTagsForResource | partial | `<reserved>; ResourceType Parameter only: the other resource types name nothing understudy stores, so they answer InvalidResourceId; unrecorded, understudy's choice: an untagged parameter answers TagList []` |
 | GetServiceSetting, UpdateServiceSetting, ResetServiceSetting | unbound (501) | |
 | PutResourcePolicy, GetResourcePolicies, DeleteResourcePolicy | unbound (501) | |
 | the other 133 operations | unbound (501) | |
 
-`StoredOnly` fits none of the thirteen: each has a runtime effect. Policies are a field-level gap, so they go in PutParameter's partial note. The 501 answers follow CloudWatch's precedent in `GetMetricData` ("metric math ... answer 501", `docs/coverage.md`). The legacy Query protocol (2.3) stays unrouted; record it as a coverage note on the service if the edge reports a reason for SSM requests without `X-Amz-Target`.
+`StoredOnly` fits none of the thirteen: each has a runtime effect. Policies are a field-level gap, so they go in PutParameter's partial note. The 501 answers follow CloudWatch's precedent in `GetMetricData` ("metric math ... answer 501", `docs/coverage.md`). The legacy Query protocol (2.3) is not served: a `POST` signed `ssm` with an `Action` query parameter and no `X-Amz-Target` answers 501 NotImplemented naming the legacy Query protocol, journaled as unclaimed, never an unknown-operation error. GetParameter's coverage note discloses it for every operation.
 
 ### 12.2 Fidelity switches
 
-| Name | Default | Label | Grounds | Record |
-|---|---|---|---|---|
-| `ssm.name.root-slash-echo` | `request-spelling` (GetParameter/GetParameters echo `/foo` or `foo` as asked; metadata and history report `foo`) | inferred ([R-weak] and [T]; history unrecorded) | 3.2 | SSM-07 |
-| `ssm.error.parameter-not-found-message` | `empty` | third-party-recorded (GetParameter), inferred (other operations) | 2.2 | SSM-02 |
-| `ssm.put.type-change` | `rejected-in-hierarchy` (root parameters may change type; hierarchical ones answer `HierarchyTypeMismatchException`) | aws-doc | 4.1 | SSM-09 |
-| `ssm.put.identical-overwrite` | `new-version` | inferred | 6.1 | SSM-08 |
-| `ssm.put.omitted-fields` | `preserved` | aws-doc (AllowedPattern), inferred (Description from [T] acceptance tests; KeyId, DataType, Type) | 7.1 | SSM-10 |
-| `ssm.put.tags-with-overwrite` | `rejected-always` (also for a new name) | inferred | 7.1 | SSM-03 |
-| `ssm.value.size-unit` | `bytes` | aws-doc | 4.2 | SSM-12 |
-| `ssm.tier.omitted-on-advanced` | `kept-advanced` | inferred | 4.2 | SSM-13 |
-| `ssm.data-type.ec2-image-invalid` | `accepted-not-stored` (200 with a version, no change) | aws-doc | 4.3 | SSM-34 |
-| `ssm.label.too-long` | `validation-exception` (model `@length`) | inferred | 6.2 | SSM-16 |
-| `ssm.kms.key-id-echo` | `verbatim` | inferred (alias names from [T] acceptance tests; ids and ARNs) | 5.4 | SSM-22 |
-| `ssm.list.order` | `name-ascending` for GetParametersByPath and DescribeParameters | inferred | 7.4, 7.5 | SSM-19, SSM-20 |
-| `ssm.paging.default-page-size` | the model maximum: 10 (by path), 50 (describe), 50 (history) | inferred | 7.4, 7.5, 7.6 | SSM-19, SSM-20, SSM-30 |
-| `ssm.delete.recreate-window` | `immediate` | inferred | 7.7 | SSM-26 |
-| `ssm.stringlist.value` | `verbatim` | inferred | 4.1 | SSM-28 |
-| `ssm.arn.foreign-scope` | `parameter-not-found` (other account or Region) | inferred | 3.3 | SSM-29 |
-| `ssm.secretsmanager-ref.source-result-keys` | `lower-except-arn` | inferred ([R-weak]; the doc shows PascalCase) | 8.2 | SSM-23 |
-| `ssm.secretsmanager-ref.without-decryption` | `rejected` (`ValidationException`) | inferred | 8.2 | SSM-23 |
+| Name | Default | Label | Grounds | Record | Disposition (roadmap 9f) |
+|---|---|---|---|---|---|
+| `ssm.name.root-slash-echo` | `request-spelling` (GetParameter/GetParameters echo `/foo` or `foo` as asked; metadata and history report `foo`) | inferred ([R-weak] and [T]; history unrecorded) | 3.2 | SSM-07 | switch |
+| `ssm.error.parameter-not-found-message` | `empty` | third-party-recorded (GetParameter), inferred (other operations) | 2.2 | SSM-02 | switch over DeleteParameter, GetParameterHistory, LabelParameterVersion and UnlabelParameterVersion, labeled inferred; GetParameter's empty message is a plain rule backed by the [R] snapshot |
+| `ssm.put.type-change` | `rejected-in-hierarchy` (root parameters may change type; hierarchical ones answer `HierarchyTypeMismatchException`) | aws-doc | 4.1 | SSM-09 | plain rule, UNVERIFIED (SSM-09) |
+| `ssm.put.identical-overwrite` | `new-version` | inferred | 6.1 | SSM-08 | fixed at the default, a code comment and a coverage-note clause |
+| `ssm.put.omitted-fields` | `preserved` | aws-doc (AllowedPattern), inferred (Description from [T] acceptance tests; KeyId, DataType, Type) | 7.1 | SSM-10 | switch, labeled inferred |
+| `ssm.put.tags-with-overwrite` | `rejected-always` (also for a new name) | inferred | 7.1 | SSM-03 | fixed at the default |
+| `ssm.value.size-unit` | `bytes` | aws-doc | 4.2 | SSM-12 | plain rule, UNVERIFIED (SSM-12) |
+| `ssm.tier.omitted-on-advanced` | `kept-advanced` | inferred | 4.2 | SSM-13 | fixed at the default |
+| `ssm.data-type.ec2-image-invalid` | `accepted-not-stored` (200 with a version, no change) | aws-doc | 4.3 | SSM-34 | dropped: `aws:ec2:image` answers 501 (12.1) |
+| `ssm.label.too-long` | `validation-exception` (model `@length`) | inferred | 6.2 | SSM-16 | plain rule: the generator's `@length` check, under the overlay's `validationError` evidence naming SSM-16 |
+| `ssm.kms.key-id-echo` | `verbatim` | inferred (alias names from [T] acceptance tests; ids and ARNs) | 5.4 | SSM-22 | switch |
+| `ssm.list.order` | `name-ascending` for GetParametersByPath and DescribeParameters | inferred | 7.4, 7.5 | SSM-19, SSM-20 | switch |
+| `ssm.paging.default-page-size` | the model maximum: 10 (by path), 50 (describe), 50 (history) | inferred | 7.4, 7.5, 7.6 | SSM-19, SSM-20, SSM-30 | fixed at the default |
+| `ssm.delete.recreate-window` | `immediate` | inferred | 7.7 | SSM-26 | fixed at the default |
+| `ssm.stringlist.value` | `verbatim` | inferred | 4.1 | SSM-28 | fixed at the default |
+| `ssm.arn.foreign-scope` | `parameter-not-found` (other account or Region) | inferred | 3.3 | SSM-29 | fixed at the default |
+| `ssm.secretsmanager-ref.source-result-keys` | `lower-except-arn` | inferred ([R-weak]; the doc shows PascalCase) | 8.2 | SSM-23 | dropped: Secrets Manager references answer 501 (12.1) |
+| `ssm.secretsmanager-ref.without-decryption` | `rejected` (`ValidationException`) | inferred | 8.2 | SSM-23 | dropped: Secrets Manager references answer 501 (12.1) |
+
+Roadmap item 9f keeps five switches (`root-slash-echo`, `parameter-not-found-message`, `omitted-fields`, `key-id-echo`, `list.order`), each labeled inferred. "Fixed at the default" and "plain rule" both mean behavior without a switch: a named constant or check carrying `UNVERIFIED (<record>)` at the code, listed among understudy's choices in the operation's coverage note (12.1).
 
 Each switch's `Ref` is `docs/research/ssm-parameters.md#<section>` and its `Record` the SSM id. `third-party-recorded` is used only where a LocalStack snapshot with a validation date backs the default ([R]), as `internal/evidence/label.go` defines the label. A LocalStack assertion without a snapshot ([R-weak]) and a Terraform acceptance test ([T]) ran against AWS but captured nothing, so the switches they support are labeled `inferred`.
 
@@ -540,10 +558,11 @@ Each switch's `Ref` is `docs/research/ssm-parameters.md#<section>` and its `Reco
 - Delete drops the parameter, its versions, labels and tags (per switch `ssm.delete.recreate-window`).
 - SecureString:
   - Standard: KMS `Encrypt`/`Decrypt` through `kernel.Invoke` with `EncryptionContext {"PARAMETER_ARN": <ARN>}`. The value returned without decryption is base64 of the understudy KMS `CiphertextBlob`, so KMS `Decrypt` with that context opens it (5.2).
-  - Advanced (up to 8 KB, past KMS `Encrypt`'s 4096-byte limit): `GenerateDataKey` plus a local AEAD, the same pattern as `seal`/`open` in `internal/service/secretsmanager/values.go`. This deviates from AWS: there the stored value is an AWS Encryption SDK message (5.1), so an advanced value read without decryption is understudy's own envelope, which neither the Encryption SDK nor KMS `Decrypt` alone opens. The coverage notes of the four reads that return values (GetParameter, GetParameters, GetParametersByPath, GetParameterHistory) must say so, unless understudy emits the Encryption SDK message format.
+  - Advanced (deferred: answers 501 until a follow-up, 12.1) (up to 8 KB, past KMS `Encrypt`'s 4096-byte limit): `GenerateDataKey` plus a local AEAD, the same pattern as `seal`/`open` in `internal/service/secretsmanager/values.go`. This deviates from AWS: there the stored value is an AWS Encryption SDK message (5.1), so an advanced value read without decryption is understudy's own envelope, which neither the Encryption SDK nor KMS `Decrypt` alone opens. The coverage notes of the four reads that return values (GetParameter, GetParameters, GetParametersByPath, GetParameterHistory) must say so, unless understudy emits the Encryption SDK message format.
   - With no `KeyId`, use `alias/aws/ssm`, which understudy's KMS creates on first use (`internal/service/kms/doc.go`), and store the string `alias/aws/ssm`.
-  - A KMS refusal maps to `InvalidKeyId` carrying KMS's message (5.5).
-- Secrets Manager references call understudy's Secrets Manager `GetSecretValue` (and `DescribeSecret` for `SourceResult`) as the caller, with selectors as `VersionId` or `VersionStage`. Nothing is stored.
+  - A KMS client error, an IAM denial included, maps to `InvalidKeyId` carrying KMS's message; a KMS server error maps to `InternalServerError` naming the KMS failure (5.5, inferred).
+  - Who calls KMS: the caller for a customer managed key, `ssm.amazonaws.com` for the default key (5.6).
+- Secrets Manager references (deferred: answer 501, 12.1) call understudy's Secrets Manager `GetSecretValue` (and `DescribeSecret` for `SourceResult`) as the caller, with selectors as `VersionId` or `VersionStage`. Nothing is stored.
 - Journal every call. Snapshots serialize parameters, versions, labels, tags and the version counters.
 - Do not throttle by default. `ThrottlingException`, `TooManyUpdates`, `InternalServerError` and latency are fault-injection targets.
 
@@ -570,6 +589,8 @@ Model constraints the generator enforces with Coral texts (`1 validation error d
 
 No SSM capture shows these. That SSM answers a constraint violation with `ValidationException` and the Coral text is the cross-service rule of [error-matrix.md 4](error-matrix.md), and the code there is per operation ([error-matrix.md 1](error-matrix.md)). SSM-16 step 02 (a 101-character label) and SSM-18 step 03 (11 names) record two instances.
 
+Two identities: a generated constraint check keeps the Coral identity `com.amazon.coral.validate#ValidationException` (the overlay, [error-matrix.md 4](error-matrix.md)); every hand-coded `ValidationException` in the table below is the model's `com.amazonaws.ssm#ValidationException` (members `Message`, `ReasonCode`; 2.2). Both wire forms are UNVERIFIED (SSM-01 step 03, SSM-04).
+
 Hand-coded rules and texts (exact where a source gives them):
 
 | Condition | Code (status) | Message | Source |
@@ -590,7 +611,7 @@ Hand-coded rules and texts (exact where a source gives them):
 | policies on Standard; policy over 10 | `ValidationException` / `PoliciesLimitExceededException` (400) | understudy's own until SSM-14 | [D] 4.5 |
 | ARN past 1011 characters | `ValidationException` (400) | understudy's own until SSM-06 | [D] 3.4 |
 
-Every understudy-owned text names the limit and the value, per the repo's error-message rules, and is listed as such in the coverage notes.
+Every understudy-owned text names the parameter and the limit it broke, and for a size the measured bytes, and is listed as such in the coverage notes. No error message, log line or journal field ever contains a parameter's `Value`, of any type: the journal keeps each failed outcome's message.
 
 ### 12.5 Terraform apply and an empty second plan
 
@@ -637,9 +658,32 @@ ssmsweep() {  # delete every parameter this queue created
     aws ssm delete-parameter --name "$n"
   done
 }
+SSMTRUST=$(jq -nc --arg a "arn:aws:iam::$A:root" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Principal:{AWS:$a},Action:"sts:AssumeRole"}]}')
+ssmrole() {  # ssmrole <role name> <policy json>: a role this account can assume, with that one inline policy
+  aws iam create-role --role-name "$1" --assume-role-policy-document "$SSMTRUST" >/dev/null
+  aws iam put-role-policy --role-name "$1" --policy-name p --policy-document "$2"
+}
+ssmunrole() {  # ssmunrole <role name>: delete what ssmrole made
+  aws iam delete-role-policy --role-name "$1" --policy-name p
+  aws iam delete-role --role-name "$1"
+}
+ssmcreds() {  # ssmcreds <role name>: key, secret and token of a fresh session of that role
+  aws sts assume-role --role-arn "arn:aws:iam::$A:role/$1" --role-session-name ssm \
+    --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text
+}
+ssmas() {  # ssmas <role name> <aws args...>: the AWS CLI as a fresh session of that role
+  local k s t role=$1; shift
+  read -r k s t <<<"$(ssmcreds "$role")"
+  env -u AWS_PROFILE AWS_ACCESS_KEY_ID="$k" AWS_SECRET_ACCESS_KEY="$s" AWS_SESSION_TOKEN="$t" aws "$@"
+}
+ssmasraw() {  # ssmasraw <case>/<step> <role name> <Operation> <json body>: ssmraw as a fresh session of that role
+  local k s t
+  read -r k s t <<<"$(ssmcreds "$2")"
+  AWS_ACCESS_KEY_ID="$k" AWS_SECRET_ACCESS_KEY="$s" AWS_SESSION_TOKEN="$t" ssmraw "$1" "$3" "$4"
+}
 ```
 
-Every case ends with its teardown; `ssmsweep` catches anything left.
+Every case ends with its teardown; `ssmsweep` catches anything left, and `ssmunrole` removes the roles SSM-22 and SSM-35 create.
 
 ### 13.2 SSM-01: error envelope
 
@@ -806,8 +850,11 @@ rec SSM-11/01-no-type aws ssm put-parameter --name "$N/c11a" --value v
 rec SSM-11/02-keyid-on-string aws ssm put-parameter --name "$N/c11b" --type String --value v --key-id alias/aws/ssm
 ssmraw SSM-11/03-empty-value PutParameter "{\"Name\":\"$N/c11c\",\"Type\":\"String\",\"Value\":\"\"}"
 rec SSM-11/04-describe aws ssm describe-parameters --parameter-filters "Key=Name,Option=BeginsWith,Values=$N/c11"
+ssmraw SSM-11/05-nested-reference PutParameter "{\"Name\":\"$N/c11e\",\"Type\":\"String\",\"Value\":\"{{ssm:x}}\"}"
 ssmsweep
 ```
+
+Step 05 settles the code and text for a value containing `{{...}}` (4.1 [D] forbids it; understudy answers `ValidationException` with its own text).
 
 Cost USD 0, 2 min.
 
@@ -1013,12 +1060,20 @@ rec SSM-22/04-missing-key aws ssm put-parameter --name "$N/k22/missing" --type S
 aws kms disable-key --key-id "$K"
 rec SSM-22/05-disabled-put aws ssm put-parameter --name "$N/k22/id" --type SecureString --value t --key-id "$K" --overwrite
 rec SSM-22/06-disabled-get aws ssm get-parameter --name "$N/k22/id" --with-decryption
+aws kms enable-key --key-id "$K"
+ssmrole "$P-ssm-k7" "$(jq -nc --arg r "arn:aws:ssm:$R:$A:parameter$N/k22/*" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:"ssm:GetParameter",Resource:$r}]}')"
+ssmrole "$P-ssm-k8" "$(jq -nc --arg r "arn:aws:ssm:$R:$A:parameter$N/k22/*" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:["ssm:PutParameter","ssm:GetParameter"],Resource:$r}]}')"
+sleep 15   # role propagation
+rec SSM-22/07-no-kms-decrypt ssmas "$P-ssm-k7" ssm get-parameter --name "$N/k22/id" --with-decryption
+rec SSM-22/08a-default-key-put ssmas "$P-ssm-k8" ssm put-parameter --name "$N/k22/role-default" --type SecureString --value s
+rec SSM-22/08b-default-key-get ssmas "$P-ssm-k8" ssm get-parameter --name "$N/k22/role-default" --with-decryption
+ssmunrole "$P-ssm-k7"; ssmunrole "$P-ssm-k8"
 ssmsweep
 aws kms delete-alias --alias-name "alias/$P-ssm"
 aws kms schedule-key-deletion --key-id "$K" --pending-window-in-days 7
 ```
 
-Step 03 expects `Plaintext` `cw==` (base64 of `s`). Cost at most USD 0.25 (one customer key at USD 1 per month, prorated, if the 7-day window is billed), 6 min.
+Step 03 expects `Plaintext` `cw==` (base64 of `s`). Step 07 settles the answer to a read with decryption on a customer managed key by a caller without `kms:Decrypt` (understudy: `InvalidKeyId` with KMS's message, 5.5). Step 08 settles 5.6: understudy expects both calls to succeed, since the AWS managed key's policy admits the caller through Systems Manager. Cost at most USD 0.25 (one customer key at USD 1 per month, prorated, if the 7-day window is billed), 6 min.
 
 ### 13.24 SSM-23: Secrets Manager references
 
@@ -1215,3 +1270,20 @@ ssmsweep
 ```
 
 Cost USD 0, 1 min.
+
+### 13.36 SSM-35: the resource GetParametersByPath is authorized on, and the denial identity
+
+Settles the path ARN form understudy uses for `ssm:GetParametersByPath` (7.4 says AWS authorizes the path; no source gives the ARN): the path without its leading slash and without a trailing slash, so `Path: "/"` is `arn:<partition>:ssm:<region>:<account>:parameter/`. Step 01 also records SSM's denial identity (the SSM row of [iam-enforcement-surfaces.md 12.3](iam-enforcement-surfaces.md), IAM-ENF-41): `AccessDeniedException`, 400, the IAM grammar.
+
+```sh
+aws ssm put-parameter --name "$N/p35/a" --type String --value v >/dev/null
+ssmrole "$P-ssm-p35" "$(jq -nc --arg r "arn:aws:ssm:$R:$A:parameter$N/p35" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:"ssm:GetParametersByPath",Resource:$r}]}')"
+sleep 15   # role propagation
+ssmasraw SSM-35/01-get-denied "$P-ssm-p35" GetParameter "{\"Name\":\"$N/p35/a\"}"
+ssmasraw SSM-35/02-by-path-trailing-slash "$P-ssm-p35" GetParametersByPath "{\"Path\":\"$N/p35/\"}"
+ssmasraw SSM-35/03-by-path-root "$P-ssm-p35" GetParametersByPath '{"Path":"/"}'
+ssmunrole "$P-ssm-p35"
+ssmsweep
+```
+
+Step 02 allowed means AWS drops the trailing slash as understudy does. Step 03 is denied (the policy names only the `p35` path), and its message names the ARN AWS evaluated for `/`. Cost USD 0, 2 min.
