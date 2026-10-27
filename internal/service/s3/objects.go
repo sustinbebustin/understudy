@@ -30,9 +30,13 @@ func (s *Service) bindObjects(b s3api.Binder) {
 	b.HeadObject(s.headObject, registry.Partial{Note: readNote}, touches(head))
 	attrs := func(in *s3api.GetObjectAttributesInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetObjectAttributes(func(ctx context.Context, c *kernel.Call, in *s3api.GetObjectAttributesInput) (*s3api.GetObjectAttributesOutput, *awserr.Error) {
-		return read(ctx, s, c, attrs(in), func(b *Bucket) (*s3api.GetObjectAttributesOutput, *awserr.Error) {
+		out, err := read(ctx, s, c, attrs(in), func(b *Bucket) (*s3api.GetObjectAttributesOutput, *awserr.Error) {
 			return getObjectAttributes(in, b, c.Endpoint().Scheme)
 		})
+		if err != nil {
+			return nil, missingKey(ctx, c, in.Bucket, err)
+		}
+		return out, nil
 	}, registry.Full{}, touches(attrs))
 	del := func(in *s3api.DeleteObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteObject(s.deleteObject, registry.Partial{Note: deleteNote}, touches(del))

@@ -239,7 +239,7 @@ func (s *Service) getObject(ctx context.Context, c *kernel.Call, in *s3api.GetOb
 		retain:   blobs,
 	})
 	if err != nil {
-		return nil, err
+		return nil, missingKey(ctx, c, in.Bucket, err)
 	}
 	o := got.version.Object
 	defer s.release(ctx, o.Blob)
@@ -275,6 +275,22 @@ func (s *Service) getObject(ctx context.Context, c *kernel.Call, in *s3api.GetOb
 		out.Expires = new(in.ResponseExpires.UTC().Format(http.TimeFormat))
 	}
 	return out, nil
+}
+
+// missingKey answers a read of a key that does not exist as AWS does: 404
+// NoSuchKey to a caller allowed s3:ListBucket on the bucket, else the
+// denial (iam-enforcement-surfaces.md 5.1, 12.1, aws-doc). The question is
+// asked whatever iam.enforce is, so the access record keeps s3:ListBucket on
+// the bucket; under off and advise the answer stays NoSuchKey. Every other
+// error passes through.
+func missingKey(ctx context.Context, c *kernel.Call, bucket string, err *awserr.Error) *awserr.Error {
+	if err.ID.Shape != s3api.IdentityNoSuchKey().Shape {
+		return err
+	}
+	if denied := kernel.Authorize(ctx, c, s3Action("ListBucket"), bucketARN(bucket), nil); denied != nil {
+		return denied
+	}
+	return err
 }
 
 // overrides reports whether in sets any response-* query override, which

@@ -24,7 +24,7 @@ func (s *Service) headObject(ctx context.Context, c *kernel.Call, in *s3api.Head
 		scheme:   c.Endpoint().Scheme,
 	})
 	if err != nil {
-		return nil, err
+		return nil, missingKey(ctx, c, in.Bucket, err)
 	}
 	return headOf(got, withChecksum), nil
 }

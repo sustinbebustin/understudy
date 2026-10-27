@@ -112,19 +112,42 @@ func declareAccess(b *kernel.Binder) {
 	kernel.Declare(b, s3api.OpUploadPartCopy, kernel.WithActions(func(_ *kernel.Call, in *s3api.UploadPartCopyInput) []registry.IAMAction {
 		return []registry.IAMAction{copySourceRead(in.CopySource)}
 	}))
+	// A copy reads its source and writes its destination: step 8 and the
+	// access record pair the read actions with the source object alone and
+	// the write actions with the destination alone, never crossed
+	// (iam-enforcement-surfaces.md 12.6; 8.7 documents the split for the
+	// copy's KMS actions).
+	kernel.Declare(b, s3api.OpCopyObject,
+		kernel.WithResourcesFor(copyReads(), func(_ *kernel.Call, in *s3api.CopyObjectInput) []aws.ARN { return copySourceObject(in.CopySource) }),
+		kernel.WithResourcesFor(copyWrites(s3api.OpCopyObject.Descriptor()), func(_ *kernel.Call, in *s3api.CopyObjectInput) []aws.ARN {
+			return []aws.ARN{objectResource(in.Bucket, in.Key)}
+		}))
+	kernel.Declare(b, s3api.OpUploadPartCopy,
+		kernel.WithResourcesFor(copyReads(), func(_ *kernel.Call, in *s3api.UploadPartCopyInput) []aws.ARN { return copySourceObject(in.CopySource) }),
+		kernel.WithResourcesFor(copyWrites(s3api.OpUploadPartCopy.Descriptor()), func(_ *kernel.Call, in *s3api.UploadPartCopyInput) []aws.ARN {
+			return []aws.ARN{objectResource(in.Bucket, in.Key)}
+		}))
 	// Reading a version needs s3:GetObjectVersion. Never declared:
 	// s3:GetObjectLegalHold, s3:GetObjectRetention and s3:GetObjectTagging,
 	// which only decide whether the response carries the object's lock
-	// headers; no input member asks for them.
+	// headers; no input member asks for them. Its actions apply to the
+	// object alone: a missing key also asks s3:ListBucket about the bucket
+	// (missingKey), which the object actions are not paired with.
 	kernel.Declare(b, s3api.OpGetObject, kernel.WithActions(func(_ *kernel.Call, in *s3api.GetObjectInput) []registry.IAMAction {
 		return versioned(in.VersionId, s3Action("GetObjectVersion"))
+	}), kernel.WithResourcesFor(s3api.OpGetObject.Descriptor().IAM, func(_ *kernel.Call, in *s3api.GetObjectInput) []aws.ARN {
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}
 	}))
 	// HeadObject declares no secondary, for the same reason as GetObject's
 	// lock actions. Heading a version needs s3:GetObjectVersion on AWS
 	// (HeadObject, Permissions), but its generated list has no
 	// s3:GetObjectVersion, so a versioned call's record lacks it; the
-	// policy guide lists the gap.
-	kernel.Declare(b, s3api.OpHeadObject, kernel.WithoutSecondaryActions())
+	// policy guide lists the gap. Its actions apply to the object alone, as
+	// GetObject's.
+	kernel.Declare(b, s3api.OpHeadObject, kernel.WithoutSecondaryActions(),
+		kernel.WithResourcesFor(s3api.OpHeadObject.Descriptor().IAM, func(_ *kernel.Call, in *s3api.HeadObjectInput) []aws.ARN {
+			return []aws.ARN{objectResource(in.Bucket, in.Key)}
+		}))
 	// GetObjectAttributes needs s3:GetObject and s3:GetObjectAttributes
 	// without a version, s3:GetObjectVersion and
 	// s3:GetObjectVersionAttributes with one (GetObjectAttributes,
@@ -136,6 +159,8 @@ func declareAccess(b *kernel.Binder) {
 			return []registry.IAMAction{s3Action("GetObjectVersion")}
 		}
 		return []registry.IAMAction{s3Action("GetObject")}
+	}), kernel.WithResourcesFor(s3api.OpGetObjectAttributes.Descriptor().IAM, func(_ *kernel.Call, in *s3api.GetObjectAttributesInput) []aws.ARN {
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}
 	}))
 	kernel.Declare(b, s3api.OpGetObjectTagging, kernel.WithActions(func(_ *kernel.Call, in *s3api.GetObjectTaggingInput) []registry.IAMAction {
 		return versioned(in.VersionId, s3Action("GetObjectVersionTagging"))
@@ -221,6 +246,27 @@ func objectWriteActions(m objectWriteMembers) []registry.IAMAction {
 		}
 	}
 	return out
+}
+
+// copyReads are the actions a copy needs on its source object.
+func copyReads() []registry.IAMAction {
+	return []registry.IAMAction{s3Action("GetObject"), s3Action("GetObjectVersion")}
+}
+
+// copyWrites are the actions of a copy's generated list that it needs on
+// its destination object: all but the source reads.
+func copyWrites(op *registry.Operation) []registry.IAMAction {
+	return slices.DeleteFunc(slices.Clone(op.IAM), func(a registry.IAMAction) bool { return slices.Contains(copyReads(), a) })
+}
+
+// copySourceObject is the object the x-amz-copy-source header names;
+// nothing when it does not parse, and the handler refuses it.
+func copySourceObject(header string) []aws.ARN {
+	src, err := parseCopySource(header)
+	if err != nil {
+		return nil
+	}
+	return []aws.ARN{objectResource(src.bucket, src.key)}
 }
 
 // copySourceRead is the action reading a copy source needs:
