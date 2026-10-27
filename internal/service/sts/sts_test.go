@@ -1,6 +1,7 @@
 package sts_test
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/evidence"
+	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -157,7 +159,8 @@ func TestAssumeRoleUnsigned(t *testing.T) {
 }
 
 // The iam.assumeRole switch reports what backs the configured behavior:
-// AWS's documentation for strict, nothing for lenient.
+// AWS's documentation for strict, nothing for lenient. STS also registers
+// sts.denial.reason (contract 11.3), so the entry is found by name.
 func TestAssumeRoleSwitchLabel(t *testing.T) {
 	for _, tc := range []struct {
 		opts  sts.Options
@@ -169,7 +172,8 @@ func TestAssumeRoleSwitchLabel(t *testing.T) {
 	} {
 		kerneltest.Run(t, func(k *kerneltest.K) {
 			got := sts.New(k.Deps(stsapi.Service()), tc.opts).Switches()
-			if len(got) != 1 || got[0].Name != "iam.assumeRole" || got[0].Value != tc.value || got[0].Label != tc.label {
+			at := slices.IndexFunc(got, func(e fidelity.Entry) bool { return e.Name == "iam.assumeRole" })
+			if at < 0 || got[at].Value != tc.value || got[at].Label != tc.label {
 				t.Errorf("Switches() with %s = %+v, want iam.assumeRole %s labeled %s", tc.value, got, tc.value, tc.label)
 			}
 		}, kerneltest.Services(stsapi.Service()))
