@@ -20,9 +20,9 @@ type Binder struct {
 }
 
 // BindOption adjusts one binding: WithValidator, WithCheck, WithResources,
-// WithItemCount, WithActions, WithoutSecondaryActions, WithConditionKeys,
-// AuthorizedInHandler, NeverAuthorized and AuthorizedAfterResolve build
-// them.
+// WithResourcesFor, WithItemCount, WithActions, WithoutSecondaryActions,
+// WithConditionKeys, AuthorizedInHandler, NeverAuthorized and
+// AuthorizedAfterResolve build them.
 type BindOption interface {
 	// apply adds the option to cfg, the *bindConfig of the operation's input
 	// type, and reports false when the option is for another input type.
@@ -34,6 +34,7 @@ type bindConfig[In any] struct {
 	validators []func(*In) []awserr.Violation
 	checks     []func(*In) *awserr.Error
 	resources  []func(*Call, *In) []aws.ARN
+	scoped     []resourcesFor[In]
 	actions    []func(*Call, *In) []registry.IAMAction
 	keys       []func(*Call, *In) ConditionKeys
 	// count is the last WithItemCount; nil without one.
@@ -228,6 +229,7 @@ func (cfg *bindConfig[In]) clone() bindConfig[In] {
 		validators:    slices.Clone(cfg.validators),
 		checks:        slices.Clone(cfg.checks),
 		resources:     slices.Clone(cfg.resources),
+		scoped:        slices.Clone(cfg.scoped),
 		actions:       slices.Clone(cfg.actions),
 		keys:          slices.Clone(cfg.keys),
 		count:         cfg.count,
@@ -267,7 +269,8 @@ func configured[In any](b *Binder, id ref.OperationID, base bindConfig[In], opts
 			}
 			return cfg.count(typed)
 		},
-		keys: cfg.erasedKeys(),
+		keys:  cfg.erasedKeys(),
+		scope: cfg.erasedScope(),
 		redact: func(in any) ([]byte, error) {
 			if r, ok := in.(interface{ Redact() *In }); ok {
 				return json.Marshal(r.Redact())
@@ -342,6 +345,10 @@ type binding struct {
 	// (WithConditionKeys); nil without the option and for raw HTTP
 	// bindings.
 	keys func(c *Call, in any) ConditionKeys
+	// scope resolves what a valid input's WithResourcesFor options name: the
+	// resources each named action applies to, and all of them in order to
+	// touch; nil without the option and for raw HTTP bindings.
+	scope func(c *Call, in any) (scoping, []aws.ARN)
 	// actions are the IAM actions a valid input declares used besides the
 	// primary (WithActions, WithoutSecondaryActions); nil when the binding
 	// declares none, so its calls record the operation's whole list.
@@ -354,6 +361,16 @@ type binding struct {
 	// authorization is what step 8 asks about the binding's calls
 	// (AuthorizedInHandler, NeverAuthorized, AuthorizedAfterResolve).
 	authorization authorization
+}
+
+// scoping resolves the binding's WithResourcesFor options for the valid
+// input in: the resources each named action applies to, and all of them to
+// touch; nil without the option.
+func (bnd *binding) scoping(c *Call, in any) (scoping, []aws.ARN) {
+	if bnd.scope == nil {
+		return nil, nil
+	}
+	return bnd.scope(c, in)
 }
 
 // conditionKeys returns the request condition keys the binding's

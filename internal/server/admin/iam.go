@@ -73,6 +73,8 @@ func (h *Handler) iamPolicy(w http.ResponseWriter, r *http.Request, _ []string) 
 		req := &reqs[i]
 		out.ResourcePolicies = append(out.ResourcePolicies, admin.ResourcePolicy{
 			Target: req.Target.String(), Principal: req.Principal.String(), Action: req.Action.String(), Source: req.Source.String(),
+			// A zero account renders "", which the field omits.
+			SourceAccount: req.SourceAccount.String(),
 		})
 	}
 	h.ok(w, r, out)

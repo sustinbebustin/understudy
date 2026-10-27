@@ -300,7 +300,9 @@ func TestPolicyCoversMultiActionAndResourcelessOperations(t *testing.T) {
 // CreateFunction's iam:PassRole is granted on the role when the call
 // touched one and not at all when it touched only the function, since no
 // role was passed; STS actions act on IAM roles. An action of the
-// operation's own service with no resource is granted on "*".
+// operation's own service with no resource is granted on "*", except
+// sts:GetCallerIdentity, which needs no permission
+// (iam-enforcement-surfaces.md 5.1, 12.6).
 func TestPolicyPairsActionsWithTheirServicesResources(t *testing.T) {
 	var r access.Recorder
 	fn, role := arn(t, "arn:aws:lambda:us-east-1:111111111111:function:worker"), arn(t, roleARN)
@@ -311,8 +313,7 @@ func TestPolicyPairsActionsWithTheirServicesResources(t *testing.T) {
 	)
 	want := `{"Version":"2012-10-17","Statement":[` +
 		`{"Effect":"Allow","Action":"lambda:CreateFunction","Resource":"` + fn.String() + `"},` +
-		`{"Effect":"Allow","Action":"sts:AssumeRole","Resource":"` + roleARN + `"},` +
-		`{"Effect":"Allow","Action":"sts:GetCallerIdentity","Resource":"*"}]}`
+		`{"Effect":"Allow","Action":"sts:AssumeRole","Resource":"` + roleARN + `"}]}`
 	if got := userPolicy(t, &r); got != want {
 		t.Errorf("Policy =\n%s\nwant\n%s", got, want)
 	}

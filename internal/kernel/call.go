@@ -61,9 +61,15 @@ type Call struct {
 	// deferred is the authorization an AuthorizedAfterResolve binding's
 	// call owes, set at step 8; nil for every other call.
 	deferred *deferred
+	// scoped is what the binding's WithResourcesFor options resolved, set
+	// once at step 7 before the handler runs; nil without the option.
+	scoped scoping
 
 	mu      sync.Mutex
 	touched []aws.ARN
+	// authorized are the pairs the handler asked about through Authorize,
+	// in order, without repeats.
+	authorized []Pair
 }
 
 // Endpoint is the scheme and host a client addressed the emulator with, as
@@ -205,6 +211,24 @@ func (c *Call) Touched() []aws.ARN {
 // effectCause is the cause of an event or delivery the call produces: the
 // call's event, in its trace.
 func (c *Call) effectCause() ref.Cause { return ref.Cause{Parent: c.event, Trace: c.cause.Trace} }
+
+// asked keeps p, a pair the handler asked about through Authorize, for the
+// access record.
+func (c *Call) asked(p Pair) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !slices.Contains(c.authorized, p) {
+		c.authorized = append(c.authorized, p)
+	}
+}
+
+// authorizedPairs returns the pairs the handler asked about through
+// Authorize, in order.
+func (c *Call) authorizedPairs() []Pair {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return slices.Clone(c.authorized)
+}
 
 // CallHeaders is the closed set of unmodeled request headers a Call keeps
 // for its handler: the trace header SQS copies into AWSTraceHeader, the

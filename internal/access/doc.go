@@ -25,7 +25,8 @@
 //
 //   - Mode mirrors kernel.PrincipalMode, which this package cannot import,
 //     plus Direct for a principal's own requests. AsService carries the
-//     delivery source, which ResourceRequirements reports; the principal
+//     delivery source and the aws:SourceAccount it sends, which
+//     ResourceRequirements reports; the principal
 //     itself is the Entry's Principal in every mode, a ServicePrincipal
 //     exactly when the mode is AsService.
 //   - Record refuses an Entry without a Principal, Mode, Outcome, Service or
@@ -39,14 +40,17 @@
 //     with call and failure counts and the first and last instants, rather
 //     than every Entry, so a long session costs memory in proportion to the
 //     variety of its calls; Usage returns these aggregates.
-//   - Record pairs every action of an Entry with every touched resource of
-//     the action's own service (STS actions with IAM roles), so
-//     CopyObject's s3:GetObject also covers the destination; the record
-//     cannot tell which action needed which resource. An action of the
-//     Entry's Service with no touched resource of that service is granted
-//     on "*"; one of another service with none, such as iam:PassRole on a
-//     CreateFunction that passed no role, is dropped, since the call did
-//     not use it.
+//   - Record keeps an Entry's Pairs when it has them: the kernel pairs each
+//     action with the resources it applies to, so CopyObject's s3:GetObject
+//     covers its source alone (iam-enforcement-surfaces.md 12.6). Without
+//     Pairs, every action is paired with every touched resource of the
+//     action's own service (STS actions with IAM roles). Either way, an
+//     action of the Entry's Service with no resource of that service is
+//     granted on "*"; one of another service with none, such as
+//     iam:PassRole on a CreateFunction that passed no role, is dropped,
+//     since the call did not use it.
+//   - Policy leaves out sts:GetCallerIdentity, which needs no permission
+//     (iam-enforcement-surfaces.md 5.1); Usage still lists its calls.
 //   - An S3 object (arn:aws:s3:::<bucket>/<key>) is recorded as its
 //     bucket's objects (BucketObjects), which Usage reports and Policy
 //     grants as arn:aws:s3:::<bucket>/*: a run that writes a key per

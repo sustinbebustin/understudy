@@ -186,7 +186,7 @@ func (k *Kernel) authorize(ctx context.Context, c *Call, bnd *binding, used seco
 		c.deferred = &deferred{ctx: ctx, used: used, keys: keys}
 		return nil
 	}
-	pairs := pairsOf(actions, c.op.Service.IAMPrefix, c.Touched())
+	pairs := pairsOf(actions, c.op.Service.IAMPrefix, c.Touched(), c.scoped)
 	if len(pairs) == 0 {
 		return nil
 	}
@@ -243,21 +243,27 @@ func authorizedActions(op *registry.Operation, used secondaries) []registry.IAMA
 	return compactActions(out)
 }
 
-// pairsOf pairs each action with every touched resource of its service, in
-// first-touch order (an sts action with IAM roles); an action with none is
-// paired with any resource when it is of the operation's own service
-// (opService), and is not asked about otherwise. It is the access
-// recorder's pairing (ARCHITECTURE.md 17) without its S3 bucket folding: an
-// S3 object stays the object.
-func pairsOf(actions []registry.IAMAction, opService string, touched []aws.ARN) []Pair {
+// pairsOf pairs each action with the resources of its service it applies
+// to (an sts action with IAM roles): those its WithResourcesFor options
+// resolved when scoped names it, else every touched one, in first-touch
+// order (iam-enforcement-surfaces.md 12.6). An action with none is paired
+// with any resource when it is of the operation's own service (opService),
+// and is not asked about otherwise. It is the access recorder's pairing
+// (ARCHITECTURE.md 17) without its S3 bucket folding: an S3 object stays
+// the object.
+func pairsOf(actions []registry.IAMAction, opService string, touched []aws.ARN, scoped scoping) []Pair {
 	var pairs []Pair
 	for _, a := range actions {
+		resources, named := scoped[a]
+		if !named {
+			resources = touched
+		}
 		service := a.Prefix
 		if service == "sts" {
 			service = "iam"
 		}
 		before := len(pairs)
-		for _, r := range touched {
+		for _, r := range resources {
 			if r.Service == service {
 				pairs = append(pairs, Pair{Action: a, Resource: ResourceARN{ARN: r}})
 			}
@@ -276,10 +282,13 @@ func pairsOf(actions []registry.IAMAction, opService string, touched []aws.ARN) 
 // before Write, holding no cell lock. It returns nil when the call may go
 // on, else the error the handler returns.
 //
-// The resource is touched whatever the verdict, so the journal and the
-// access record list it. Action may be any service's (iam:PassRole from
-// Lambda); keys are condition keys only the handler knows. Like step 8 it
-// asks nothing when authorization is off or the call is a platform call.
+// The resource is touched whatever the verdict, so the journal lists it,
+// and the access record keeps the action on it, whatever the verdict and
+// whether or not an Authorizer runs, so a policy rendered from the record
+// grants what the handler asked about (iam-enforcement-surfaces.md 12.6).
+// Action may be any service's (iam:PassRole from Lambda); keys are
+// condition keys only the handler knows. Like step 8 it asks nothing when
+// authorization is off or the call is a platform call.
 // Asking while holding a cell lock, about the zero ARN, or for a call that
 // names no modeled operation is a caller bug: Internal, and the Authorizer
 // is not asked.
@@ -292,12 +301,13 @@ func Authorize(ctx context.Context, c *Call, action registry.IAMAction, resource
 	case c.op == nil:
 		return awserr.Internalf(&AuthorizeError{Op: c.opID, Action: action, Reason: "the call names no modeled operation, so it has no denial identity"})
 	}
+	pair := Pair{Action: action, Resource: ResourceARN{ARN: resource}}
 	c.Touch(resource)
+	c.asked(pair)
 	if _, platform := c.mode.(AsPlatform); c.k.authorizer == nil || platform {
 		return nil
 	}
-	q := AuthzQuery{Pairs: []Pair{{Action: action, Resource: ResourceARN{ARN: resource}}}, Keys: keys}
-	return verdictError(c, c.k.authorizer.Authorize(ctx, c, q))
+	return verdictError(c, c.k.authorizer.Authorize(ctx, c, AuthzQuery{Pairs: []Pair{pair}, Keys: keys}))
 }
 
 // AuthorizedOps lists, as ref.OperationID strings in registry order, the

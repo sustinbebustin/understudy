@@ -127,7 +127,7 @@ type ResourcePolicy struct {
 	Source    string `json:"source"`
 	// SourceAccount is the aws:SourceAccount the delivery sends, so a
 	// statement carries exactly the keys AWS sends; omitted when it sends
-	// none. Not set yet.
+	// none, as EventBridge sends none to Lambda.
 	SourceAccount string `json:"sourceAccount,omitempty"`
 }
 

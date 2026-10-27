@@ -3,6 +3,7 @@ package kernel
 import (
 	"context"
 	"maps"
+	"slices"
 	"sync"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -10,11 +11,20 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
-// pendingOption is a bind option this build accepts for every input type and
-// does not apply yet.
-type pendingOption struct{}
+// resourcesFor is one WithResourcesFor option: the actions it names and
+// how to resolve the resources they apply to.
+type resourcesFor[In any] struct {
+	actions []registry.IAMAction
+	resolve func(*Call, *In) []aws.ARN
+}
 
-func (pendingOption) apply(any) bool { return true }
+func (o resourcesFor[In]) apply(cfg any) bool {
+	c, ok := cfg.(*bindConfig[In])
+	if ok {
+		c.scoped = append(c.scoped, o)
+	}
+	return ok
+}
 
 // WithResourcesFor declares, from a call's valid input, the resources the
 // named actions apply to, such as CopyObject's source for s3:GetObject and
@@ -25,10 +35,67 @@ func (pendingOption) apply(any) bool { return true }
 // own service and no pair otherwise. Every other action keeps the pairing
 // with every touched resource of its service (iam-enforcement-surfaces.md
 // 12.6).
-//
-// Not implemented yet: the option is accepted and has no effect.
-func WithResourcesFor[In any](_ []registry.IAMAction, _ func(c *Call, in *In) []aws.ARN) BindOption {
-	return pendingOption{}
+func WithResourcesFor[In any](actions []registry.IAMAction, resolve func(c *Call, in *In) []aws.ARN) BindOption {
+	return resourcesFor[In]{actions: slices.Clone(actions), resolve: resolve}
+}
+
+// scoping is what a call's WithResourcesFor options resolved: for each
+// named action, the resources it applies to, without repeats; nil for a
+// binding without the option.
+type scoping map[registry.IAMAction][]aws.ARN
+
+// resources returns every resource s holds, in the order its actions were
+// resolved, without repeats.
+func (s scoping) resources(order []registry.IAMAction) []aws.ARN {
+	var out []aws.ARN
+	for _, a := range order {
+		for _, r := range s[a] {
+			if !slices.Contains(out, r) {
+				out = append(out, r)
+			}
+		}
+	}
+	return out
+}
+
+// scope resolves every WithResourcesFor option for the input in; nil
+// without one.
+func (cfg *bindConfig[In]) scope(c *Call, in *In) (scoping, []aws.ARN) {
+	if len(cfg.scoped) == 0 {
+		return nil, nil
+	}
+	out := scoping{}
+	var order []registry.IAMAction
+	for _, o := range cfg.scoped {
+		arns := o.resolve(c, in)
+		for _, a := range o.actions {
+			if _, seen := out[a]; !seen {
+				out[a] = nil
+				order = append(order, a)
+			}
+			for _, r := range arns {
+				if !slices.Contains(out[a], r) {
+					out[a] = append(out[a], r)
+				}
+			}
+		}
+	}
+	return out, out.resources(order)
+}
+
+// erasedScope is scope for the type-erased binding; nil without a
+// WithResourcesFor option.
+func (cfg *bindConfig[In]) erasedScope() func(c *Call, in any) (scoping, []aws.ARN) {
+	if len(cfg.scoped) == 0 {
+		return nil
+	}
+	return func(c *Call, in any) (scoping, []aws.ARN) {
+		typed, ok := in.(*In)
+		if !ok {
+			return nil, nil
+		}
+		return cfg.scope(c, typed)
+	}
 }
 
 // AuthorizedAfterResolve moves step 8 for the operation into its handler,
@@ -114,7 +181,7 @@ func (c *Call) authorizeDeferred() *awserr.Error {
 		return nil
 	}
 	d.once.Do(func() {
-		pairs := pairsOf(authorizedActions(c.op, d.used), c.op.Service.IAMPrefix, c.Touched())
+		pairs := pairsOf(authorizedActions(c.op, d.used), c.op.Service.IAMPrefix, c.Touched(), c.scoped)
 		if len(pairs) == 0 {
 			return
 		}

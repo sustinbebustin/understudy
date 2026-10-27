@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"slices"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/access"
@@ -152,6 +153,9 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 		return Failure{Err: err}, nil
 	}
 	c.Touch(bnd.resources(c, in.In)...)
+	scoped, resolved := bnd.scoping(c, in.In)
+	c.scoped = scoped
+	c.Touch(resolved...)
 	*used = bnd.secondaries(c, in.In)
 	if err := k.authorize(ctx, c, bnd, *used, bnd.conditionKeys(c, in.In)); err != nil {
 		return Failure{Err: err}, nil
@@ -377,12 +381,15 @@ func (k *Kernel) journalFault(ctx context.Context, c *Call, inj fault.Injection)
 	}
 }
 
-// recordAccess records the IAM actions the call used (step 11), as
-// recordedActions selects them from the operation's list and what its
-// binding declared. It records nothing for an anonymous caller, a service
-// acting on its own behalf (AsPlatform), which no policy grants, or an
-// internal operation that declares no action. Dispatch skips it for an
-// injected fault and for an Unauthenticated request.
+// recordAccess records the pairs the call needed (step 11): the actions
+// recordedActions selects from the operation's list and what its binding
+// declared, each paired as step 8 pairs it (pairsOf, with the binding's
+// WithResourcesFor scoping), then each pair the handler asked about
+// through Authorize. It records nothing for an anonymous caller, a service
+// acting on its own behalf (AsPlatform), which no policy grants, or a call
+// with no pair, such as an internal operation that declares no action.
+// Dispatch skips it for an injected fault and for an Unauthenticated
+// request.
 func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used secondaries) {
 	if _, platform := c.mode.(AsPlatform); k.access == nil || c.op == nil || platform {
 		return
@@ -392,7 +399,14 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used sec
 		return
 	}
 	actions := k.recordedActions(ctx, c, used)
-	if len(actions) == 0 {
+	touched := c.Touched()
+	pairs := pairsOf(actions, c.op.Service.IAMPrefix, touched, c.scoped)
+	for _, p := range c.authorizedPairs() {
+		if !slices.Contains(pairs, p) {
+			pairs = append(pairs, p)
+		}
+	}
+	if len(pairs) == 0 {
 		return
 	}
 	var outcome access.Outcome = access.Succeeded{}
@@ -408,7 +422,8 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used sec
 		Mode:      accessMode(c.mode),
 		Service:   c.op.Service.IAMPrefix,
 		Actions:   actions,
-		Resources: c.Touched(),
+		Resources: touched,
+		Pairs:     accessPairs(pairs),
 		Outcome:   outcome,
 		At:        c.admitted.Wire(),
 	})
@@ -416,6 +431,21 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used sec
 		k.log.LogAttrs(ctx, slog.LevelWarn, "access recorder refused a call",
 			slog.String("op", c.label), slog.String("request_id", string(c.id)), slog.String("error", err.Error()))
 	}
+}
+
+// accessPairs maps step 8's pairs onto the access record's.
+func accessPairs(pairs []Pair) []access.Pair {
+	out := make([]access.Pair, 0, len(pairs))
+	for _, p := range pairs {
+		var scope access.Scope = access.AnyResource{}
+		switch r := p.Resource.(type) {
+		case ResourceARN:
+			scope = access.OnResource{ARN: r.ARN}
+		case AnyResource:
+		}
+		out = append(out, access.Pair{Action: p.Action, Resource: scope})
+	}
+	return out
 }
 
 // accessPrincipal maps a caller onto the access recorder's principals: a
@@ -442,7 +472,7 @@ func accessMode(m PrincipalMode) access.Mode {
 	case AsExecutionRole:
 		return access.AsExecutionRole{}
 	case AsService:
-		return access.AsService{Source: m.Source}
+		return access.AsService{Source: m.Source, SourceAccount: m.SourceAccount}
 	case AsPlatform:
 		// recordAccess records no AsPlatform call; Direct keeps the switch
 		// whole.
