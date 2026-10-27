@@ -181,7 +181,7 @@ func (s *stepper) run(j job) {
 		s.timedOut()
 	case taskTimeoutJob:
 		// The timer is the task's own, so the task is in flight.
-		if t, ok := s.takeTask(j.task); ok {
+		if t, _, ok := s.takeTask(j.task); ok {
 			s.fr = t.fr
 			s.taskError(t, "TimedOut", StateError{Name: errTimeout})
 		}

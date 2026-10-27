@@ -194,6 +194,35 @@ func TestLateResultTimesOut(t *testing.T) {
 	}
 }
 
+// A retried Task's timeout counts from the retry's own start, not from the
+// state's first entry: TimeoutSeconds bounds each attempt, from its
+// LambdaFunctionStarted (stepfunctions-asl.md 8.6). With a retry interval
+// longer than the timeout, a retry answered in time succeeds.
+func TestTaskTimeoutCountsFromEachAttempt(t *testing.T) {
+	d := newDriver(t, fmt.Sprintf(legacyTask,
+		`"TimeoutSeconds":10,"Retry":[{"ErrorEquals":["States.ALL"],"IntervalSeconds":30,"MaxAttempts":1}],`, ""), rules())
+	calls := 0
+	d.answer = func(inv asl.InvokeLambda, at time.Time) asl.Event {
+		calls++
+		if calls == 1 {
+			return asl.LambdaFailed{At: at.Add(time.Second), Task: inv.Task, Err: asl.StateError{Name: "Boom"}}
+		}
+		return asl.LambdaSucceeded{At: at.Add(time.Second), Task: inv.Task, Output: document.Map{}}
+	}
+	d.start(`{}`)
+	if o := d.runToEnd(20); !isSucceeded(o) {
+		t.Fatalf("outcome = %#v, want Succeeded; history:\n%s", o, d.shape())
+	}
+	if at := d.event("LambdaFunctionSucceeded").Timestamp; !at.Equal(t0.Add(32 * time.Second)) {
+		t.Errorf("retry succeeded at +%v, want +32s", at.Sub(t0))
+	}
+}
+
+func isSucceeded(o asl.Outcome) bool {
+	_, ok := o.(asl.Succeeded)
+	return ok
+}
+
 // An execution saved with a task in flight and loaded again takes the
 // result the way the original does, the task timeout included.
 func TestTaskPersistenceRoundTrip(t *testing.T) {

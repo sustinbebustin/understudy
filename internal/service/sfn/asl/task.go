@@ -205,20 +205,22 @@ func invokeArguments(params document.Value) (function string, payload document.V
 	return function, payload, nil
 }
 
-// takeTask removes the in-flight task id and withdraws its timeout; false
+// takeTask removes the in-flight task id and withdraws its timeout, giving
+// the instant the timeout was armed for (zero when none is armed); false
 // when the execution is not waiting on it.
-func (s *stepper) takeTask(id TaskID) (inflight, bool) {
+func (s *stepper) takeTask(id TaskID) (t inflight, deadline time.Time, ok bool) {
 	i := slices.IndexFunc(s.x.tasks, func(t inflight) bool { return t.invoke.Task == id })
 	if i < 0 {
-		return inflight{}, false
+		return inflight{}, time.Time{}, false
 	}
-	t := s.x.tasks[i]
+	t = s.x.tasks[i]
 	s.x.tasks = slices.Delete(s.x.tasks, i, i+1)
 	if j := slices.IndexFunc(s.x.timers, func(a armed) bool { return a.id == t.timer }); j >= 0 {
+		deadline = s.x.timers[j].at
 		s.x.timers = slices.Delete(s.x.timers, j, j+1)
 		s.cancels = append(s.cancels, CancelTimer{Timer: t.timer})
 	}
-	return t, true
+	return t, deadline, true
 }
 
 // answered takes the task a Lambda result at answers. applies is false when
@@ -230,7 +232,7 @@ func (s *stepper) takeTask(id TaskID) (inflight, bool) {
 // loses to it: the task times out there and the result is dropped
 // (stepfunctions-asl.md 8.6, 9.1).
 func (s *stepper) answered(id TaskID, at time.Time) (t inflight, applies, ok bool) {
-	t, applies = s.takeTask(id)
+	t, deadline, applies := s.takeTask(id)
 	s.fr = t.fr
 	switch {
 	case !applies:
@@ -240,9 +242,10 @@ func (s *stepper) answered(id TaskID, at time.Time) (t inflight, applies, ok boo
 		s.abort("", "")
 		return inflight{}, true, false
 	}
-	// The task started in the step that entered its state, so its timeout
-	// counts from enteredAt (8.6: from LambdaFunctionStarted or TaskStarted).
-	if deadline := t.enteredAt.Add(t.invoke.Timeout); !at.Before(deadline) {
+	// The deadline is the attempt's own timeout timer, armed in the step
+	// that started it (8.6: from LambdaFunctionStarted or TaskStarted), so a
+	// retry counts from its own start, not the state's entry.
+	if !deadline.IsZero() && !at.Before(deadline) {
 		s.at = deadline
 		s.taskError(t, "TimedOut", StateError{Name: errTimeout})
 		return inflight{}, true, false
