@@ -59,24 +59,6 @@ func (s *Service) lookup(scope aws.Scope, canonical string) (Parameter, bool) {
 // one.
 func (p *Parameter) latest() Version { return p.Versions[len(p.Versions)-1] }
 
-// plainText is the text of a String or StringList value. Not implemented
-// yet: a SecureString value, which PutParameter does not store yet.
-func plainText(v value) (string, *awserr.Error) {
-	switch v := v.(type) {
-	case plainValue:
-		return v.Text, nil
-	case sealedValue:
-	}
-	return "", awserr.Internalf(&sealedReadError{})
-}
-
-// sealedReadError is a read of a SecureString value before reads decrypt.
-type sealedReadError struct{}
-
-func (*sealedReadError) Error() string {
-	return "ssm: a SecureString value was stored, but reading one is not implemented yet"
-}
-
 // PutParameter limits (ssm-parameters.md 6.1, 7.9).
 const (
 	// maxVersions is how many versions a parameter retains.
@@ -95,9 +77,12 @@ func errTagsWithOverwrite() *awserr.Error {
 }
 
 // putParameter creates a parameter, or with Overwrite writes its next
-// version. Not implemented yet: SecureString, which answers NotImplemented
-// naming it.
-func (s *Service) putParameter(_ context.Context, c *kernel.Call, in *ssmapi.PutParameterInput) (*ssmapi.PutParameterOutput, *awserr.Error) {
+// version. A SecureString value is encrypted through KMS after every other
+// check passes (contract 4.1 row 15) and before the cell is taken: the
+// request is checked against the stored parameter once to learn the key,
+// then again in the cell, which refuses with TooManyUpdates if a
+// concurrent write changed the key or type in between.
+func (s *Service) putParameter(ctx context.Context, c *kernel.Call, in *ssmapi.PutParameterInput) (*ssmapi.PutParameterOutput, *awserr.Error) {
 	const op = "PutParameter"
 	if err := checkReserved(op, in.Name); err != nil {
 		return nil, err
@@ -121,17 +106,22 @@ func (s *Service) putParameter(_ context.Context, c *kernel.Call, in *ssmapi.Put
 		return nil, ssmapi.ErrTooManyTagsError()
 	}
 	w := write{op: op, name: n, in: in, tags: tags, at: c.Admitted(), user: identity.Render(c.Principal())}
+	planned, err := readState(s, scope, func(st *State) planned { p, err := w.apply(st, overwrite); return planned{p, err} }).unpack()
+	if err != nil {
+		return nil, err
+	}
+	var sealed *sealedValue
+	if sv, ok := planned.latest().Value.(sealedValue); ok {
+		v, err := s.seal(ctx, c, scope, n.canonical, sv.KeyRef, in.Value)
+		if err != nil {
+			return nil, err
+		}
+		sealed = &v
+	}
 	v, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (Version, *awserr.Error) {
-		prev, exists := st.Parameters[n.canonical]
-		var p Parameter
-		var err *awserr.Error
-		switch {
-		case !exists:
-			p, err = w.create(st)
-		case !overwrite:
-			err = errAlreadyExists()
-		default:
-			p, err = w.next(st, prev)
+		p, err := w.apply(st, overwrite)
+		if err == nil {
+			err = w.fillSealed(&p.Versions[len(p.Versions)-1], sealed)
 		}
 		if err != nil {
 			tx.Unchanged()
@@ -156,6 +146,46 @@ type write struct {
 	tags []Tag
 	at   clock.Instant
 	user string
+}
+
+// planned is the outcome of checking a write against a read of the state.
+type planned struct {
+	p   Parameter
+	err *awserr.Error
+}
+
+func (p planned) unpack() (Parameter, *awserr.Error) { return p.p, p.err }
+
+// apply is the parameter st holds after the write, without storing it.
+// st is not modified. A SecureString version's value is a sealedValue
+// naming its key with no ciphertext yet; fillSealed supplies it.
+func (w write) apply(st *State, overwrite bool) (Parameter, *awserr.Error) {
+	prev, exists := st.Parameters[w.name.canonical]
+	switch {
+	case !exists:
+		return w.create(st)
+	case !overwrite:
+		return Parameter{}, errAlreadyExists()
+	}
+	return w.next(st, prev)
+}
+
+// fillSealed puts the ciphertext KMS returned into v, the version apply
+// built in the cell. sealed is nil when the check before encrypting found
+// no SecureString. A key or type that differs from that check's means a
+// concurrent write changed the parameter in between; nothing is written.
+func (w write) fillSealed(v *Version, sealed *sealedValue) *awserr.Error {
+	want, secure := v.Value.(sealedValue)
+	switch {
+	case !secure && sealed == nil:
+		return nil
+	case secure && sealed != nil && sealed.KeyRef == want.KeyRef:
+		v.Value = *sealed
+		return nil
+	}
+	return ssmapi.ErrTooManyUpdates(fmt.Sprintf(
+		"Parameter %q changed type or KMS key while this request encrypted its value, so nothing was written. Try the request again.",
+		w.name.spelling))
 }
 
 // create is the parameter a create writes: version 1, with DataType text
@@ -214,10 +244,13 @@ func (w write) next(st *State, prev Parameter) (Parameter, *awserr.Error) {
 func (w write) version(st *State, base Version, current *tier) (Version, *awserr.Error) {
 	in := w.in
 	v := base
-	v.Value = plainValue{Text: in.Value}
 	v.LastModified, v.LastModifiedUser = w.at, w.user
 	if in.Type != nil {
 		v.Type = paramType(*in.Type)
+	}
+	v.Value = plainValue{Text: in.Value}
+	if v.Type == paramType(ssmapi.ParameterTypeSecureString) {
+		v.Value = sealedValue{KeyRef: keyRefFor(in.KeyId, base.Value)}
 	}
 	if in.Description != nil {
 		v.Description = nil
@@ -270,11 +303,8 @@ func (w write) valueRules(st *State, v Version, current *tier) (Version, *awserr
 		return Version{}, err
 	}
 	v.Tier = t
-	if v.Type == paramType(ssmapi.ParameterTypeSecureString) {
-		if t == tierAdvanced {
-			return Version{}, errUnsupported(w.op, "an Advanced-tier SecureString (understudy stores only Standard SecureString values)")
-		}
-		return Version{}, errFeatureNotYet(w.op, "SecureString")
+	if v.Type == paramType(ssmapi.ParameterTypeSecureString) && t == tierAdvanced {
+		return Version{}, errUnsupported(w.op, "an Advanced-tier SecureString (understudy stores only Standard SecureString values)")
 	}
 	if err := w.checkSize(t); err != nil {
 		return Version{}, err
@@ -320,7 +350,7 @@ func addTags(tags []Tag, add []ssmapi.Tag) []Tag {
 
 // getParameter reads a parameter's latest version by name or ARN. Not
 // implemented yet: a version or label selector.
-func (s *Service) getParameter(_ context.Context, c *kernel.Call, in *ssmapi.GetParameterInput) (*ssmapi.GetParameterOutput, *awserr.Error) {
+func (s *Service) getParameter(ctx context.Context, c *kernel.Call, in *ssmapi.GetParameterInput) (*ssmapi.GetParameterOutput, *awserr.Error) {
 	const op = "GetParameter"
 	if err := checkReserved(op, in.Name); err != nil {
 		return nil, err
@@ -338,7 +368,7 @@ func (s *Service) getParameter(_ context.Context, c *kernel.Call, in *ssmapi.Get
 		return nil, errNotFound()
 	}
 	v := p.latest()
-	text, err := plainText(v.Value)
+	text, err := s.valueText(ctx, c, scope, p.Name, v.Value, in.WithDecryption != nil && *in.WithDecryption)
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +432,7 @@ func (s *Service) describeParameters(_ context.Context, c *kernel.Call, in *ssma
 	for _, p := range found {
 		v := p.latest()
 		out.Parameters = append(out.Parameters, ssmapi.ParameterMetadata{
-			Name: new(p.Name), ARN: new(parameterARN(scope, p.Name).String()), Type: new(ssmapi.ParameterType(v.Type)),
+			Name: new(p.Name), ARN: new(parameterARN(scope, p.Name).String()), Type: new(ssmapi.ParameterType(v.Type)), KeyId: keyIDOf(v.Value),
 			LastModifiedDate: new(v.LastModified.Wire()), LastModifiedUser: new(v.LastModifiedUser),
 			Description: v.Description, AllowedPattern: v.AllowedPattern, Version: v.Number,
 			Tier: new(ssmapi.ParameterTier(v.Tier)), Policies: []ssmapi.ParameterInlinePolicy{}, DataType: new(v.DataType),
