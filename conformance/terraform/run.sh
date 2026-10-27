@@ -50,7 +50,7 @@ phase_timeout="${CONFORMANCE_PHASE_TIMEOUT:-900}"
 
 # Each service runs in an account of its own: understudy derives the account
 # from a 12-digit access key, so services never see each other's resources.
-all_services=(sqs sns s3 dynamodb kms secretsmanager iam lambda logs events cloudwatch)
+all_services=(sqs sns s3 dynamodb kms secretsmanager iam lambda logs events cloudwatch apigatewayv2)
 declare -A accounts=(
   [sqs]=100000000001
   [sns]=100000000002
@@ -63,6 +63,7 @@ declare -A accounts=(
   [logs]=100000000009
   [events]=100000000010
   [cloudwatch]=100000000011
+  [apigatewayv2]=100000000012
 )
 phases=(apply-create plan-create-no-changes apply-update plan-update-no-changes destroy nothing-left)
 
@@ -341,20 +342,94 @@ skip_rest() {
   done
 }
 
+# expect_json URL STATUS FILTER requests URL and succeeds when it answers
+# STATUS with a body the jq FILTER holds for (a FILTER of - skips the body);
+# otherwise it prints what came back.
+expect_json() {
+  local url=$1 want=$2 filter=$3 body status
+  body=$(mktemp "$run_dir/body.XXXXXX")
+  status=$(curl -sS -o "$body" -w '%{http_code}' "$url") || status="curl exit $?"
+  if [[ "$status" != "$want" ]] || { [[ "$filter" != - ]] && ! jq -e "$filter" "$body" >/dev/null 2>&1; }; then
+    echo "GET $url answered $status $(head -c 400 "$body"); expected $want, body filter $filter"
+    rm -f -- "$body"
+    return 1
+  fi
+  rm -f -- "$body"
+}
+
+# check_apigatewayv2 STEP calls the HTTP API's routes through the path
+# fallback, with the API id taken from api_endpoint, never invoke_url
+# (apigateway-http.md 9.7, 13.6): each payload format, the $default stage
+# and the named stage, which serves GET /extra only after the update has
+# replaced its deployment.
+check_apigatewayv2() {
+  local step=$1 api_endpoint id base deployment color=blue extra_status=404 extra_filter=-
+  api_endpoint=$(tf apigatewayv2 output -raw apigatewayv2_api_endpoint) || {
+    echo "terraform output apigatewayv2_api_endpoint failed"
+    return 1
+  }
+  id=${api_endpoint#*://}
+  id=${id%%.*}
+  base="$endpoint/_understudy/execute-api/$id"
+  if [[ "$step" == update ]]; then
+    color=green extra_status=200 extra_filter='.route == "GET /extra" and .stage == "live"'
+  fi
+  # shellcheck disable=SC2016 # $default is the stage's name, not a variable
+  expect_json "$base/hello" 200 '.version == "2.0" and .route == "GET /hello" and .stage == "$default"' &&
+    expect_json "$base/pets/rex" 200 '.version == "1.0" and .route == "/pets/{name}" and .pathParameters.name == "rex"' &&
+    expect_json "$base/live/hello" 200 ".stage == \"live\" and .stageVariables.color == \"$color\"" &&
+    expect_json "$base/live/extra" "$extra_status" "$extra_filter" || return 1
+  deployment=$(tf apigatewayv2 output -raw apigatewayv2_live_deployment_id) || {
+    echo "terraform output apigatewayv2_live_deployment_id failed"
+    return 1
+  }
+  if [[ "$step" == create ]]; then
+    printf '%s' "$deployment" >"$run_dir/apigatewayv2-deployment"
+  elif [[ "$deployment" == "$(cat "$run_dir/apigatewayv2-deployment")" ]]; then
+    echo "the update kept deployment $deployment; its triggers should have replaced it"
+    return 1
+  fi
+}
+
+# check SERVICE STEP runs check_SERVICE, when there is one, after an apply,
+# and records it as SERVICE/check-STEP.
+check() {
+  local svc=$1 step=$2 detail status=0
+  declare -F "check_$svc" >/dev/null || return 0
+  detail=$("check_$svc" "$step" 2>&1) || status=$?
+  if ((status == 0)); then
+    record "$svc/check-$step" PASS ""
+  else
+    record "$svc/check-$step" FAIL "$detail"
+  fi
+}
+
+# skip_check SERVICE STEP REASON records SERVICE/check-STEP as skipped when
+# the service has a check.
+skip_check() {
+  declare -F "check_$1" >/dev/null || return 0
+  record "$1/check-$2" SKIP "$3"
+}
+
 # lifecycle SERVICE runs every phase of one service.
 lifecycle() {
   local svc=$1 last_step=create
   if apply "$svc" apply-create create; then
+    check "$svc" create
     plan_clean "$svc" plan-create-no-changes create
     last_step=update
     if apply "$svc" apply-update update; then
+      check "$svc" update
       plan_clean "$svc" plan-update-no-changes update
     else
+      skip_check "$svc" update "apply-update failed"
       record "$svc/plan-update-no-changes" SKIP "apply-update failed"
     fi
   else
+    skip_check "$svc" create "apply-create failed"
     record "$svc/plan-create-no-changes" SKIP "apply-create failed"
     record "$svc/apply-update" SKIP "apply-create failed"
+    skip_check "$svc" update "apply-create failed"
     record "$svc/plan-update-no-changes" SKIP "apply-create failed"
   fi
   local status=0

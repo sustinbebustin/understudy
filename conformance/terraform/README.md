@@ -1,15 +1,15 @@
 # Terraform conformance suite
 
-Checks that the Terraform AWS provider can manage every phase 1 resource type against understudy as it would against AWS. For each service the suite runs:
+Checks that the Terraform AWS provider can manage every phase 1 resource type, and API Gateway HTTP APIs, against understudy as it would against AWS. For each service the suite runs:
 
-1. `apply` of the initial configuration;
+1. `apply` of the initial configuration, then, for `apigatewayv2`, `check-create`: requests to its routes through the path fallback;
 2. `plan -detailed-exitcode`, which must report no changes (read fidelity);
-3. `apply` of an update that changes several attributes of every resource;
+3. `apply` of an update that changes several attributes of every resource, then, for `apigatewayv2`, `check-update`;
 4. `plan -detailed-exitcode` again, which must report no changes;
 5. `destroy`;
 6. a check that the Terraform state is empty and that understudy holds nothing in the service's account. The only exceptions are the ones AWS also keeps after a delete: customer managed KMS keys in `PendingDeletion`, and AWS managed keys.
 
-Expected behavior comes from the research in `docs/research/` (`tf-messaging.md`, `tf-storage.md`, `tf-compute.md`, `tf-remaining.md`), which documents what provider 6.68.0 sends and what it needs back. The suite asserts AWS behavior, never an understudy quirk.
+Expected behavior comes from the research in `docs/research/` (`tf-messaging.md`, `tf-storage.md`, `tf-compute.md`, `tf-remaining.md`, and `apigateway-http.md` 9 for `apigatewayv2`), which documents what provider 6.68.0 sends and what it needs back. The suite asserts AWS behavior, never an understudy quirk.
 
 ## Running
 
@@ -45,17 +45,20 @@ Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scrip
 | Path | Contents |
 |---|---|
 | `provider.tf` | Provider and Terraform settings, and the variables every service shares. |
-| `<service>.tf` | One self-contained configuration per service: `sqs`, `sns`, `s3`, `dynamodb`, `kms`, `secretsmanager`, `iam`, `lambda`, `logs`, `events` (EventBridge) and `cloudwatch` (metric alarms). Resources from other services that a configuration needs, such as the queue an S3 notification targets, are declared in that file and marked as fixtures. |
+| `<service>.tf` | One self-contained configuration per service: `sqs`, `sns`, `s3`, `dynamodb`, `kms`, `secretsmanager`, `iam`, `lambda`, `logs`, `events` (EventBridge), `cloudwatch` (metric alarms) and `apigatewayv2` (API Gateway HTTP APIs). Resources from other services that a configuration needs, such as the queue an S3 notification targets, are declared in that file and marked as fixtures. |
 | `.terraform.lock.hcl` | Pinned provider checksums, copied into every working directory (`init -lockfile=readonly`). |
 | `functions/go-worker` | The Go worker for `provided.al2023`, standard library only, its own module. |
 | `functions/python-handler` | The Python handler for `python3.13`. |
 | `functions/python-layer` | The layer the Python function uses: a module under `python/`, which Lambda extracts to `/opt/python`. |
+| `functions/python-http-api` | The Python handler behind `apigatewayv2`'s routes, answering either payload format with the route, stage and payload format it saw. |
 
 The `step` variable selects the scenario: `create` is the initial configuration and `update` the changed one. Each file's header says what the update changes.
 
-Resource names start with `tfc-<service>`. Each service signs with a 12-digit access key from which understudy derives a separate account (`100000000001` to `100000000011`, in the order of the table above). So one service never sees another's resources, and the leftover check can ask understudy for exactly one account.
+Resource names start with `tfc-<service>`. Each service signs with a 12-digit access key from which understudy derives a separate account (`100000000001` to `100000000012`, in the order of the table above). So one service never sees another's resources, and the leftover check can ask understudy for exactly one account.
 
 The provider is configured as the research documents for a custom endpoint (`tf-messaging.md` 1.2): the endpoint comes from `AWS_ENDPOINT_URL`, set by `scripts/sealed`, and the provider block sets `skip_credentials_validation`, `skip_requesting_account_id`, `skip_metadata_api_check` and `s3_use_path_style`. The endpoint is an IP literal, so S3 must use path style.
+
+With `skip_credentials_validation` the provider has no account id, so `aws_apigatewayv2_api.execution_arn` reads `arn:aws:execute-api:<region>::<api-id>` (`apigateway-http.md` 9.7). Dropping the flag gives the provider the account, and then every `aws_s3_bucket` fails on the S3 Control host `<account>.127.0.0.1`. So `apigatewayv2.tf` asserts the account-less `execution_arn` and builds its `aws_lambda_permission` source ARN from `data.aws_caller_identity`. It reads the API id from `api_endpoint`, since `invoke_url` always names `amazonaws.com`.
 
 ## Results and evidence
 
