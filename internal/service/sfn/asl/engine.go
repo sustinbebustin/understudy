@@ -32,8 +32,8 @@ const maxDataBytes = 262_144
 // timer or task x does not know, anything after the outcome) returns x
 // unchanged with no events or effects.
 //
-// Start, TimerFired, Stop and MachineDeleting apply. LambdaSucceeded and
-// LambdaFailed do not apply yet: no built state waits on a task.
+// LambdaSucceeded and LambdaFailed apply only to a task in flight: a late
+// result after the task timed out is dropped (stepfunctions-asl.md 9.1).
 // MachineDeleting writes no event and asks for nothing: under
 // Rules.AbortOnDelete it marks the execution, which ends ABORTED at its
 // next transition instead of taking it.
@@ -48,6 +48,7 @@ func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Even
 	}
 	s := stepper{d: d, rules: rules, src: src, x: x}
 	s.x.timers = slices.Clone(x.timers)
+	s.x.tasks = slices.Clone(x.tasks)
 	switch ev := ev.(type) {
 	case Start:
 		s.start(ev)
@@ -64,6 +65,28 @@ func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Even
 			break
 		}
 		s.run(fired.job)
+	case LambdaSucceeded:
+		t, ok := s.takeTask(ev.Task)
+		if !ok {
+			return x, nil, nil
+		}
+		s.at = ev.At
+		if s.x.deleting {
+			s.abort("", "")
+			break
+		}
+		s.lambdaSucceeded(t, ev.Output)
+	case LambdaFailed:
+		t, ok := s.takeTask(ev.Task)
+		if !ok {
+			return x, nil, nil
+		}
+		s.at = ev.At
+		if s.x.deleting {
+			s.abort("", "")
+			break
+		}
+		s.taskError(t, "Failed", ev.Err)
 	case Stop:
 		s.at = ev.At
 		s.abort(ev.Error, ev.Cause)
@@ -118,6 +141,7 @@ func (s *stepper) end(o Outcome) {
 		s.cancels = append(s.cancels, CancelTimer{Timer: t.id})
 	}
 	s.x.timers = nil
+	s.x.tasks = nil
 	s.x.outcome = o
 	s.finish = []Effect{Finish{Outcome: o}}
 }
@@ -151,6 +175,11 @@ func (s *stepper) run(j job) {
 		s.waitExit(j)
 	case deadlineJob:
 		s.timedOut()
+	case taskTimeoutJob:
+		// The timer is the task's own, so the task is in flight.
+		if t, ok := s.takeTask(j.task); ok {
+			s.taskError(t, "TimedOut", StateError{Name: errTimeout})
+		}
 	}
 }
 
@@ -192,7 +221,7 @@ func (s *stepper) step(j stepJob) {
 	// A state writes at most its entered and exited events before the
 	// execution's last event; reaching the quota fails the execution
 	// (inferred, ASL-16).
-	if s.x.lastEvent+3 > maxHistoryEvents {
+	if s.x.lastEvent+4 > maxHistoryEvents {
 		s.fail(errRuntime, "The execution reached the limit of "+strconv.Itoa(maxHistoryEvents)+" history events.", s.x.lastEvent)
 		return
 	}
@@ -233,7 +262,9 @@ func (s *stepper) step(j stepJob) {
 		s.choice(st, j)
 	case waitState:
 		s.wait(st, j)
-	case taskState, parallelState, mapState:
+	case taskState:
+		s.task(st, j)
+	case parallelState, mapState:
 		// Parse accepts these types only under features whose runtime has
 		// not landed, which the service does not accept yet.
 		s.fail(errRuntime, "The state '"+j.state+"' is of a type this engine does not run yet.", j.previous)

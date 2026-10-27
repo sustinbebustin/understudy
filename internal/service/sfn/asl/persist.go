@@ -19,6 +19,25 @@ type executionRecord struct {
 	Context  string        `json:"context,omitempty"`
 	Outcome  outcomeRecord `json:"outcome,omitzero"`
 	Deleting bool          `json:"deleting,omitempty"`
+	LastTask int64         `json:"lastTask,omitempty"`
+	Tasks    []taskRecord  `json:"tasks,omitempty"`
+}
+
+// taskRecord is a persisted in-flight task.
+type taskRecord struct {
+	Task     int64  `json:"task"`
+	Resource int    `json:"resource"`
+	Function string `json:"function"`
+	// Payload is the payload's JSON text; "" when lambda:invoke sends none.
+	Payload string `json:"payload,omitempty"`
+	// TimeoutSeconds is the task timeout, always whole seconds.
+	TimeoutSeconds int64     `json:"timeoutSeconds"`
+	State          string    `json:"state"`
+	Input          string    `json:"input"`
+	EnteredAt      time.Time `json:"enteredAt"`
+	Entered        int64     `json:"entered"`
+	Started        int64     `json:"started"`
+	Timer          int64     `json:"timer"`
 }
 
 type timerRecord struct {
@@ -45,9 +64,14 @@ type waitRecord struct {
 
 type deadlineRecord struct{}
 
-func (stepRecord) isJobRecord()     {}
-func (waitRecord) isJobRecord()     {}
-func (deadlineRecord) isJobRecord() {}
+type taskTimeoutRecord struct {
+	Task int64 `json:"task"`
+}
+
+func (stepRecord) isJobRecord()        {}
+func (waitRecord) isJobRecord()        {}
+func (deadlineRecord) isJobRecord()    {}
+func (taskTimeoutRecord) isJobRecord() {}
 
 // outcomeRecord is the persisted outcome.
 type outcomeRecord interface{ isOutcomeRecord() }
@@ -78,6 +102,7 @@ func recordCodec() (jsonx.Codec, error) {
 		jsonx.Variant[jobRecord, stepRecord]("step"),
 		jsonx.Variant[jobRecord, waitRecord]("wait"),
 		jsonx.Variant[jobRecord, deadlineRecord]("deadline"),
+		jsonx.Variant[jobRecord, taskTimeoutRecord]("task-timeout"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, err
@@ -101,9 +126,24 @@ func (x Execution) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	r := executionRecord{Started: x.started, LastEvent: x.lastEvent, LastTimer: int64(x.lastTimer), Deleting: x.deleting}
+	r := executionRecord{
+		Started: x.started, LastEvent: x.lastEvent, LastTimer: int64(x.lastTimer), Deleting: x.deleting,
+		LastTask: int64(x.lastTask),
+	}
 	if x.context != nil {
 		r.Context = text(x.context)
+	}
+	for i := range x.tasks {
+		t := &x.tasks[i]
+		tr := taskRecord{
+			Task: int64(t.invoke.Task), Resource: int(t.invoke.Resource), Function: t.invoke.Function,
+			TimeoutSeconds: int64(t.invoke.Timeout / time.Second), State: t.state, Input: text(t.input), EnteredAt: t.enteredAt,
+			Entered: t.entered, Started: t.started, Timer: int64(t.timer),
+		}
+		if t.invoke.Payload != nil {
+			tr.Payload = text(t.invoke.Payload)
+		}
+		r.Tasks = append(r.Tasks, tr)
 	}
 	for _, t := range x.timers {
 		tr := timerRecord{ID: int64(t.id), At: t.at}
@@ -114,6 +154,8 @@ func (x Execution) MarshalJSON() ([]byte, error) {
 			tr.Job = waitRecord{State: j.state, Output: text(j.output), Entered: j.entered}
 		case deadlineJob:
 			tr.Job = deadlineRecord{}
+		case taskTimeoutJob:
+			tr.Job = taskTimeoutRecord{Task: int64(j.task)}
 		}
 		r.Timers = append(r.Timers, tr)
 	}
@@ -163,10 +205,20 @@ func (x *Execution) UnmarshalJSON(b []byte) error {
 			t.job = waitJob{state: j.State, output: output, entered: j.Entered}
 		case deadlineRecord:
 			t.job = deadlineJob{}
+		case taskTimeoutRecord:
+			t.job = taskTimeoutJob{task: TaskID(j.Task)}
 		default:
 			return fmt.Errorf("asl: timer %d of a saved execution has no job; the execution cannot be resumed", tr.ID)
 		}
 		out.timers = append(out.timers, t)
+	}
+	out.lastTask = TaskID(r.LastTask)
+	for i := range r.Tasks {
+		t, err := readTask(&r.Tasks[i])
+		if err != nil {
+			return err
+		}
+		out.tasks = append(out.tasks, t)
 	}
 	switch o := r.Outcome.(type) {
 	case succeededRecord:
@@ -184,6 +236,34 @@ func (x *Execution) UnmarshalJSON(b []byte) error {
 	}
 	*x = out
 	return nil
+}
+
+// readTask reads a persisted in-flight task.
+func readTask(tr *taskRecord) (inflight, error) {
+	input, err := parseText(tr.Input, "task input")
+	if err != nil {
+		return inflight{}, err
+	}
+	var payload document.Value
+	if tr.Payload != "" {
+		if payload, err = parseText(tr.Payload, "task payload"); err != nil {
+			return inflight{}, err
+		}
+	}
+	kind := ResourceKind(tr.Resource)
+	if kind != FunctionARN && kind != LambdaInvoke {
+		return inflight{}, fmt.Errorf("asl: task %d of a saved execution has resource kind %d, want %d or %d; the snapshot is corrupt",
+			tr.Task, tr.Resource, FunctionARN, LambdaInvoke)
+	}
+	return inflight{
+		invoke:    InvokeLambda{Task: TaskID(tr.Task), Resource: kind, Function: tr.Function, Payload: payload, Timeout: time.Duration(tr.TimeoutSeconds) * time.Second},
+		state:     tr.State,
+		input:     input,
+		enteredAt: tr.EnteredAt,
+		entered:   tr.Entered,
+		started:   tr.Started,
+		timer:     TimerID(tr.Timer),
+	}, nil
 }
 
 // parseText reads JSON text written by text; what names it in the error.

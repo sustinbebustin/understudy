@@ -66,22 +66,30 @@ func (s *stepper) passThrough(name string, io paths, raw document.Value) (docume
 // entered event. A States.Runtime cause starts with the recorded prefix
 // naming the state (stepfunctions-asl.md 4.6).
 func (s *stepper) stateFailed(name string, entered int64, f Failure) {
+	s.stateFailedAfter(name, entered, entered, f)
+}
+
+// stateFailedAfter is stateFailed for a state that wrote events after its
+// entered event: ExecutionFailed points at last, the last of them
+// (stepfunctions-asl.md 11.2 rule 8), while a States.Runtime cause still
+// names the entered event.
+func (s *stepper) stateFailedAfter(name string, entered, last int64, f Failure) {
 	if t, ok := f.(Terminal); ok && t.Name == errRuntime {
 		t.Cause = runtimeCause(name, entered, t.Cause)
 		f = t
 	}
-	s.raise(f, entered)
+	s.raise(f, last)
 }
 
 // raise ends the execution with f, whose cause is complete; ExecutionFailed
-// points at entered. No state built here has Retry or Catch, so a StateError
+// points at last. No state built here has Retry or Catch, so a StateError
 // ends the execution too.
-func (s *stepper) raise(f Failure, entered int64) {
+func (s *stepper) raise(f Failure, last int64) {
 	switch f := f.(type) {
 	case Terminal:
-		s.fail(f.Name, f.Cause, entered)
+		s.fail(f.Name, f.Cause, last)
 	case StateError:
-		s.fail(f.Name, f.Cause, entered)
+		s.fail(f.Name, f.Cause, last)
 	}
 }
 

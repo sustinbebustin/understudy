@@ -26,6 +26,26 @@ type Execution struct {
 	// deleting is set by MachineDeleting under Rules.AbortOnDelete: the
 	// next transition ends the execution ABORTED.
 	deleting bool
+	// lastTask is the id of the last Lambda invocation asked for.
+	lastTask TaskID
+	// tasks are the Lambda invocations awaiting a result, in TaskID order.
+	tasks []inflight
+}
+
+// inflight is one Task state waiting on its Lambda invocation.
+type inflight struct {
+	invoke InvokeLambda
+	// state is the Task state's name; input its raw input, which ResultPath
+	// places the result into.
+	state string
+	input document.Value
+	// enteredAt is when the state was entered: $$.State.EnteredTime.
+	enteredAt time.Time
+	// entered and started are the ids of its TaskStateEntered and its
+	// LambdaFunctionStarted or TaskStarted events.
+	entered, started int64
+	// timer is the task timeout's timer.
+	timer TimerID
 }
 
 // armed is one armed timer and what it does when it fires.
@@ -35,7 +55,8 @@ type armed struct {
 	job job
 }
 
-// job is what a timer does: stepJob, waitJob or deadlineJob.
+// job is what a timer does: stepJob, waitJob, deadlineJob or
+// taskTimeoutJob.
 type job interface{ isJob() }
 
 // stepJob runs one state: the state named state on input, its first event
@@ -58,9 +79,14 @@ type waitJob struct {
 // one-year limit has passed.
 type deadlineJob struct{}
 
-func (stepJob) isJob()     {}
-func (waitJob) isJob()     {}
-func (deadlineJob) isJob() {}
+// taskTimeoutJob fails the Task waiting on task with States.Timeout: its
+// TimeoutSeconds has passed (stepfunctions-asl.md 8.6).
+type taskTimeoutJob struct{ task TaskID }
+
+func (stepJob) isJob()        {}
+func (waitJob) isJob()        {}
+func (deadlineJob) isJob()    {}
+func (taskTimeoutJob) isJob() {}
 
 // Outcome reports how the execution ended; false while it runs or before
 // Start.
@@ -81,10 +107,13 @@ func (x Execution) Timers() []ArmTimer {
 
 // InFlight lists the Lambda tasks x is waiting on, in TaskID order: what the
 // service invokes again after a snapshot load (the StartExecution coverage
-// note). No built state invokes Lambda yet, so it lists none.
+// note).
 func (x Execution) InFlight() []InvokeLambda {
-	_ = x
-	return nil
+	out := make([]InvokeLambda, 0, len(x.tasks))
+	for i := range x.tasks {
+		out = append(out, x.tasks[i].invoke)
+	}
+	return out
 }
 
 // Outcome is how an execution ended: Succeeded, Failed, TimedOut or Aborted.
