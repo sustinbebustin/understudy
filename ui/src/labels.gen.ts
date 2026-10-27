@@ -29,6 +29,7 @@ export const vias = [
   "sts-assume-role",
   "lambda-code",
   "lambda-destination",
+  "apigateway-integration",
 ] as const;
 
 export const mechanisms = [
@@ -70,4 +71,6 @@ export const idKinds = [
   "events-event-id",
   "s3-ssec-salt",
   "lambda-record-key",
+  "apigateway-api-id",
+  "apigateway-child-id",
 ] as const;

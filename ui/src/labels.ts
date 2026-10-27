@@ -30,6 +30,7 @@ export const viaLabels: Readonly<Record<string, string>> = {
   "sts-assume-role": "STS AssumeRole",
   "lambda-code": "Lambda code fetch",
   "lambda-destination": "Lambda destination",
+  "apigateway-integration": "API Gateway integration",
 };
 
 export const mechanismLabels: Readonly<Record<string, string>> = {
@@ -72,6 +73,8 @@ export const idKindLabels: Readonly<Record<string, string>> = {
   "events-event-id": "EventBridge event ID",
   "s3-ssec-salt": "S3 SSE-C key salt",
   "lambda-record-key": "Lambda record object key",
+  "apigateway-api-id": "API Gateway API ID",
+  "apigateway-child-id": "API Gateway route, integration or deployment ID",
 };
 
 // label returns table's label for name, or name when it has none.
