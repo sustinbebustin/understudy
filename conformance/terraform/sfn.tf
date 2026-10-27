@@ -1,6 +1,7 @@
 # Step Functions: an execution role and a Standard state machine of one Pass
-# state, with tags. The update step changes the tags; the definition stays,
-# since UpdateStateMachine is not built yet (stepfunctions-api.md 11.1).
+# state, with tags and logging to a log group through the ":*" ARN
+# DescribeLogGroups gives (stepfunctions-api.md 5.1). The update step changes
+# the definition and the tags (stepfunctions-api.md 11.1).
 
 data "aws_iam_policy_document" "states_assume" {
   statement {
@@ -19,6 +20,10 @@ resource "aws_iam_role" "states" {
   assume_role_policy = data.aws_iam_policy_document.states_assume.json
 }
 
+resource "aws_cloudwatch_log_group" "states" {
+  name = "/aws/vendedlogs/states/${var.name_prefix}-pass"
+}
+
 resource "aws_sfn_state_machine" "pass" {
   name     = "${var.name_prefix}-pass"
   role_arn = aws_iam_role.states.arn
@@ -26,9 +31,15 @@ resource "aws_sfn_state_machine" "pass" {
     Comment = "One Pass state"
     StartAt = "Hello"
     States = {
-      Hello = { Type = "Pass", Result = { greeting = "hello" }, End = true }
+      Hello = { Type = "Pass", Result = { greeting = local.updated ? "hello again" : "hello" }, End = true }
     }
   })
+
+  logging_configuration {
+    level                  = "ALL"
+    include_execution_data = true
+    log_destination        = "${aws_cloudwatch_log_group.states.arn}:*"
+  }
 
   tags = merge(
     { Purpose = "tracer" },
