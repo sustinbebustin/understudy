@@ -6,17 +6,23 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"io/fs"
 	"maps"
 	"net/url"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/pool/pooltest"
 )
 
 // The test account's layer ARNs.
@@ -631,6 +637,84 @@ func TestLayersSurviveASnapshot(t *testing.T) {
 		call(h, lambdaapi.OpGetLayerVersionPolicy, &lambdaapi.GetLayerVersionPolicyInput{LayerName: "shared", VersionNumber: 1})
 		if next := h.publish("shared", pythonLayer(t)); next.Version != 3 {
 			t.Errorf("publish after the import = version %d, want 3", next.Version)
+		}
+	})
+}
+
+// ResourcePolicy answers a layer version ARN with the policy
+// GetLayerVersionPolicy returns, so an authorizer can read who may use the
+// version (lambda-destinations-layers.md 7.4): none before a statement, the
+// statements after, and nothing to read for a version that does not exist.
+func TestResourcePolicyReadsALayerVersionsPermissions(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		t := h.T
+		version, err := aws.ParseARN(deref(h.publish("shared", pythonLayer(t)).LayerVersionArn))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if doc, ok := h.svc.ResourcePolicy(version); !ok || doc != nil {
+			t.Fatalf("ResourcePolicy of a version without statements = %+v, %t; want no policy for an existing version", doc, ok)
+		}
+		call(h, lambdaapi.OpAddLayerVersionPermission, &lambdaapi.AddLayerVersionPermissionInput{
+			LayerName: "shared", VersionNumber: 1, StatementId: "s1", Action: "lambda:GetLayerVersion", Principal: "111111111111",
+		})
+		if doc, ok := h.svc.ResourcePolicy(version); !ok || doc == nil || len(doc.Statements) != 1 || doc.Statements[0].Sid != "s1" {
+			t.Errorf("ResourcePolicy after AddLayerVersionPermission = %+v, %t; want the one statement", doc, ok)
+		}
+		gone := version
+		gone.Resource = "layer:shared:2"
+		if doc, ok := h.svc.ResourcePolicy(gone); ok || doc != nil {
+			t.Errorf("ResourcePolicy of a missing version = %+v, %t; want none", doc, ok)
+		}
+	})
+}
+
+// A function's layers fill /opt: the launcher gets the merged tree of the
+// function's layers, in order, as an absolute directory holding every
+// layer's files; functions naming the same layers in the same order share
+// one tree; a function without layers leaves the image's /opt alone
+// (lambda-destinations-layers.md 8.1, 11.5.5).
+func TestInvokeGivesTheLauncherTheMergedLayers(t *testing.T) {
+	runExec(t, pooltest.Echo, func(h *execHarness) {
+		t := h.T
+		h.publish("a", layerArchive(t, map[string]string{"python/a.py": "A = 1\n"}))
+		h.publish("b", layerArchive(t, map[string]string{"python/b.py": "B = 2\n", "bin/tool": "#!/bin/sh\n"}))
+		for _, name := range []string{"fn", "twin"} {
+			in := zipFunction(t, name)
+			in.Layers = []string{layerPrefix + "a:1", layerPrefix + "b:1"}
+			call(h.harness, lambdaapi.OpCreateFunction, in)
+		}
+		h.createFunction("plain")
+		for _, name := range []string{"fn", "twin", "plain"} {
+			h.invoke(invokeInput(name, `{}`))
+		}
+		opts := map[string]string{}
+		for _, spec := range h.started() {
+			code, ok := spec.Code.(launcher.ZipCode)
+			if !ok {
+				t.Fatalf("%s started with %T, want zip code", spec.Function.Name, spec.Code)
+			}
+			opts[spec.Function.Name] = code.Opt
+		}
+		opt := opts["fn"]
+		if !filepath.IsAbs(opt) {
+			t.Fatalf("fn's layer directory = %q, want an absolute path", opt)
+		}
+		root, err := os.OpenRoot(opt)
+		if err != nil {
+			t.Fatalf("opening fn's layer directory: %v", err)
+		}
+		defer root.Close()
+		for name, want := range map[string]string{"python/a.py": "A = 1\n", "python/b.py": "B = 2\n", "bin/tool": "#!/bin/sh\n"} {
+			if got, err := fs.ReadFile(root.FS(), name); err != nil || string(got) != want {
+				t.Errorf("%s in fn's layer directory = %q, %v; want %q", name, got, err, want)
+			}
+		}
+		if opts["twin"] != opt {
+			t.Errorf("twin's layer directory = %q, want fn's %q: the same layers in the same order", opts["twin"], opt)
+		}
+		if opts["plain"] != "" {
+			t.Errorf("plain's layer directory = %q, want none", opts["plain"])
 		}
 	})
 }
