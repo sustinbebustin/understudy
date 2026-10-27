@@ -219,6 +219,27 @@ aws apigatewayv2 create-stage --api-id o6tvc1uf6b --stage-name auto --auto-deplo
 
 `--access-log-settings` (its format must include `$context.requestId`), `--default-route-settings` and `--route-settings` are stored and returned but change nothing: understudy writes no access log records and throttles nothing. `delete-access-log-settings` and `delete-route-settings` remove them.
 
+## Terraform
+
+`aws_apigatewayv2_api`, `_integration`, `_route`, `_stage` and `_deployment` apply, plan again with no changes, update and destroy with provider 6.68.0 and the provider block in [terraform.md](terraform.md); `conformance/terraform/apigatewayv2.tf` is a complete configuration. Two attributes need care at understudy's endpoint:
+
+- `execution_arn` has no account, `arn:aws:execute-api:us-east-1::<api-id>`, because `skip_credentials_validation` leaves the provider without one, and dropping that setting breaks S3 buckets. Build the permission's source ARN from `data.aws_caller_identity` instead:
+
+  ```hcl
+  data "aws_caller_identity" "current" {}
+
+  resource "aws_lambda_permission" "api" {
+    action        = "lambda:InvokeFunction"
+    function_name = aws_lambda_function.hello.function_name
+    principal     = "apigateway.amazonaws.com"
+    source_arn    = "arn:aws:execute-api:us-east-1:${data.aws_caller_identity.current.account_id}:${aws_apigatewayv2_api.hello.id}/*/*"
+  }
+  ```
+
+- `invoke_url` on a stage always names `amazonaws.com`. Call the API at `api_endpoint`, or at `/_understudy/execute-api/<api-id>/...`.
+
+A deployment with `triggers` and `create_before_destroy` is replaced on an update: Terraform creates the new deployment, points the stage at it, then deletes the old one, which understudy refuses while a stage serves it. Hash the attributes that change what the API serves (route keys and targets, integration URIs), not whole resource objects: the provider reads empty maps such as `request_models` back as `{}` on the first refresh after a create, so a hash of the objects changes and the second plan replaces the deployment again.
+
 ## What answers NotImplemented for now
 
 Requests understudy cannot serve as AWS would are refused with `NotImplemented` (501), naming what is missing, and change nothing:
