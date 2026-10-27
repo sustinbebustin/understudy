@@ -108,8 +108,7 @@ func importRules() []importRule {
 		{"internal/delivery", []string{"internal/aws", "internal/ref"}},
 		// The shared stream log: pure, keyed by stream ARN, with instants of
 		// the emulator clock's type and the wait key its appends wake
-		// (dynamodb-streams.md 11.1). ARCHITECTURE.md section 2 gains it
-		// with the 8a docs.
+		// (dynamodb-streams.md 11.1; ARCHITECTURE.md 2).
 		{"internal/shardlog", []string{"internal/aws", "internal/clock", "internal/store"}},
 		// The payload format 2.0 builders function URLs and API Gateway
 		// share (ARCHITECTURE.md 14.7).
