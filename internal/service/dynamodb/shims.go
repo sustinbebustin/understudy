@@ -139,6 +139,13 @@ func (s *Service) updateTable(ctx context.Context, c *kernel.Call, in *dynamodba
 		a.shim.stream = minted.members(c.Scope())
 		a.shim.seen = &localStreamSeen{}
 	}
+	if _, disabling := change.(streamDisabled); disabling {
+		release, cerr := s.closingStream(ctx, c, name)
+		if cerr != nil {
+			return kernel.RawResponse{}, cerr
+		}
+		defer release()
+	}
 	var resp kernel.RawResponse
 	if shimOnly(in) {
 		a.shim.under = "TableDescription"

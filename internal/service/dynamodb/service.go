@@ -228,15 +228,22 @@ func (s *Service) createTable(ctx context.Context, c *kernel.Call, in *dynamodba
 
 // deleteTable forwards the delete of a table the name resolves to exactly,
 // answers it DELETING as AWS does, and forgets the table Local deleted,
-// with its TTL sweep.
+// with its TTL sweep. A table with an enabled stream is deleted under its
+// stream lock once Local holds none of its records the log lacks
+// (closingStream).
 func (s *Service) deleteTable(ctx context.Context, c *kernel.Call, in *dynamodbapi.DeleteTableInput, w kernel.Wire) (kernel.RawResponse, *awserr.Error) {
 	a := tableAnswer(in.TableName)
 	a.shim = s.described(c.Scope(), in.TableName, dynamodbapi.TableStatusDeleting)
+	name := tableName(in.TableName)
+	release, err := s.closingStream(ctx, c, name)
+	if err != nil {
+		return kernel.RawResponse{}, err
+	}
+	defer release()
 	resp, err := s.forward(ctx, c, in, w, a, []string{in.TableName})
 	if err != nil || resp.Status != http.StatusOK {
 		return resp, err
 	}
-	name := tableName(in.TableName)
 	_, err = kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		if _, ok := st.Tables[name]; !ok {
 			tx.Unchanged()

@@ -3,6 +3,7 @@ package dynamodb_test
 import (
 	"encoding/json"
 	"math/big"
+	"net/http"
 	"slices"
 	"strings"
 	"testing"
@@ -77,6 +78,85 @@ func TestConsecutiveFailedDrainsKeepTheFirstInstant(t *testing.T) {
 		changes := h.stateChanges(arn)
 		if len(changes) == 0 || changes[len(changes)-1] != "DrainFailed->Draining" || !slices.Contains(changes, "Draining->DrainFailed") {
 			h.Errorf("journaled changes %v, want failures then DrainFailed->Draining last", changes)
+		}
+	})
+}
+
+// Disabling the stream, or deleting the table, while a failed drain is
+// pending drains it first: the record stays readable on the closed shard
+// with its write's instant, as AWS keeps a disabled or deleted table's
+// records for 24 hours (dynamodb-streams.md 5.3, 5.4, 11.1 item 3: nothing
+// is dropped).
+func TestClosingAStreamDrainsAPendingFailedDrain(t *testing.T) {
+	for _, closing := range []struct {
+		name, op, body string
+	}{
+		{"disable", "UpdateTable", `{"TableName":"Orders","StreamSpecification":{"StreamEnabled":false}}`},
+		{"delete table", "DeleteTable", `{"TableName":"Orders"}`},
+	} {
+		t.Run(closing.name, func(t *testing.T) {
+			runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
+				arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
+				h.ls.setFail(true)
+				at := h.Clock.Now()
+				h.put("Orders", "a")
+				h.ls.setFail(false)
+				h.mustCall(closing.op, closing.body)
+				if d := h.describe(arn); d.StreamStatus != "DISABLED" {
+					h.Errorf("StreamStatus = %s, want DISABLED", d.StreamStatus)
+				}
+				got := h.allRecords(arn)
+				if len(got) != 1 {
+					h.Fatalf("%d records on the closed shard, want the failed drain's 1", len(got))
+				}
+				if want := big.NewRat(at.Wire().Unix(), 1); epochSeconds(got[0].Dynamodb.ApproximateCreationDateTime).Cmp(want) != 0 {
+					h.Errorf("record at %s, want its write's %s", got[0].Dynamodb.ApproximateCreationDateTime, want.FloatString(0))
+				}
+			})
+		})
+	}
+}
+
+// Drains that keep failing journal one change to DrainFailed, not one per
+// retry: a retry that fails again changes no state.
+func TestRepeatedDrainFailuresJournalOneChange(t *testing.T) {
+	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
+		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
+		h.ls.setFail(true)
+		h.put("Orders", "a")
+		h.advance(3 * time.Second)
+		h.settle()
+		h.put("Orders", "b")
+		h.ls.setFail(false)
+		h.put("Orders", "c")
+		if got, want := h.stateChanges(arn), []string{"Draining->DrainFailed", "DrainFailed->Draining"}; !slices.Equal(got, want) {
+			h.Errorf("journaled changes %v, want %v", got, want)
+		}
+	})
+}
+
+// A disable that cannot drain a pending failed drain is refused with a 500
+// before it reaches Local, and the stream stays enabled with its record
+// still to come, rather than closing a shard that lacks it.
+func TestDisableRefusedWhileTheDrainStillFails(t *testing.T) {
+	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
+		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
+		h.ls.setFail(true)
+		h.put("Orders", "a")
+		updates := h.localSaw("UpdateTable")
+		if r := h.setStream(""); r.Status != http.StatusInternalServerError || !strings.Contains(r.Body, "table and stream are unchanged") {
+			h.Errorf("disable = %d %s, want 500 saying the table and stream are unchanged", r.Status, r.Body)
+		}
+		if n := h.localSaw("UpdateTable"); n != updates {
+			h.Errorf("Local saw %d UpdateTable calls, want %d: the refused disable must not reach it", n, updates)
+		}
+		h.ls.setFail(false)
+		if d := h.describe(arn); d.StreamStatus != "ENABLED" {
+			h.Errorf("StreamStatus = %s, want ENABLED", d.StreamStatus)
+		}
+		h.mustCall("UpdateTable", `{"TableName":"Orders","StreamSpecification":{"StreamEnabled":false}}`)
+		if got := h.allRecords(arn); len(got) != 1 {
+			h.Errorf("%d records after the retried disable, want 1", len(got))
 		}
 	})
 }

@@ -3,6 +3,7 @@ package dynamodb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -100,6 +101,8 @@ func (s *Service) feeding(ctx context.Context, c *kernel.Call, streamed []string
 	}
 	scope := c.Scope()
 	defer s.feedLocks.lock(scope, streamed)()
+	// A failed drain is kept pending, retried and journaled by drain; the
+	// write's answer stays as it was (dynamodb-streams.md 11.1 item 3).
 	for _, t := range streamed {
 		s.drainFailed(ctx, c, scope, t)
 	}
@@ -163,38 +166,94 @@ func (s *Service) onDrainRetry(c *kernel.Call, key clock.TimerKey, _ clock.Insta
 	}
 	s.kernel.Go(kernel.InvocationRunning, func(ctx context.Context) {
 		defer s.feedLocks.lock(k.scope, []string{k.table})()
+		// A drain that fails again arms the next retry itself.
 		s.drainFailed(ctx, c, k.scope, k.table)
 	})
 }
 
 // drainFailed drains table's stream when its last drain failed; the
-// records take the failed write's stamp.
-func (s *Service) drainFailed(ctx context.Context, c *kernel.Call, scope aws.Scope, table string) {
-	if _, feed, ok := s.enabledStream(scope, table); ok && feed.failed != nil {
-		s.drain(ctx, c, scope, table, *feed.failed)
+// records take the failed write's stamp. It reports whether the log caught
+// up, as drain does.
+func (s *Service) drainFailed(ctx context.Context, c *kernel.Call, scope aws.Scope, table string) (caughtUp bool) {
+	if t, ok := s.enabledStream(scope, table); ok && t.feed.failed != nil {
+		return s.drain(ctx, c, scope, table, *t.feed.failed)
 	}
+	return true
 }
 
-// enabledStream is the enabled stream of table in scope with a copy of its
-// feed position.
-func (s *Service) enabledStream(scope aws.Scope, table string) (Stream, localFeed, bool) {
+// closingStream takes table's stream lock for a call that closes its
+// stream, an UpdateTable disabling it or a DeleteTable, and first drains a
+// pending failed drain: with the lock held no write is between its forward
+// and its drain, so once the drain succeeds Local holds no record the log
+// lacks, and closing the shard drops nothing (dynamodb-streams.md 11.1
+// item 3). The caller holds the lock until the stream is closed in the
+// state. A drain that fails again refuses the call before it reaches
+// Local, as the closed shard would otherwise lack those records; the
+// table, its stream and the pending records are unchanged.
+func (s *Service) closingStream(ctx context.Context, c *kernel.Call, table string) (release func(), err *awserr.Error) {
+	scope := c.Scope()
+	if _, ok := s.enabledStream(scope, table); !ok {
+		return func() {}, nil
+	}
+	release = s.feedLocks.lock(scope, []string{table})
+	if !s.drainFailed(ctx, c, scope, table) {
+		release()
+		return nil, errLocalUnavailable("copy the stream records DynamoDB Local still holds for table "+table+" before closing its stream, so the call was not sent and the table and stream are unchanged", errDrainFailed)
+	}
+	return release, nil
+}
+
+// errDrainFailed is a drain that failed; drain logs its cause.
+var errDrainFailed = errors.New("reading DynamoDB Local's stream failed (the server log has the cause)")
+
+// feedTarget is what a drain needs of a table's enabled stream, copied out
+// of the state: its label, which with the table names it, its ARN, the ARN
+// of Local's stream, and the feed's position.
+type feedTarget struct {
+	label    clock.Instant
+	arn      aws.ARN
+	localARN string
+	feed     localFeed
+}
+
+// enabledStream is the enabled stream of table in scope as a feedTarget.
+func (s *Service) enabledStream(scope aws.Scope, table string) (feedTarget, bool) {
 	cell, ok := s.cells.Lookup(scope)
 	if !ok {
-		return Stream{}, localFeed{}, false
+		return feedTarget{}, false
 	}
 	type found struct {
-		st   Stream
-		feed localFeed
-		ok   bool
+		t   feedTarget
+		arn string
+		ok  bool
 	}
 	f := store.Read(cell, func(st *State) found {
 		l, ok := st.latestStream(table)
 		if !ok || !l.Enabled {
 			return found{}
 		}
-		return found{st: l, feed: l.log.feed, ok: true}
+		return found{t: feedTarget{label: l.Label, localARN: l.localARN(), feed: l.log.feed}, arn: l.arn(scope), ok: true}
 	})
-	return f.st, f.feed, f.ok
+	if !f.ok {
+		return feedTarget{}, false
+	}
+	arn, err := aws.ParseARN(f.arn)
+	if err != nil {
+		return feedTarget{}, false
+	}
+	f.t.arn = arn
+	return f.t, true
+}
+
+// enabledLog is the log of table's enabled stream labeled label, false when
+// that stream is no longer enabled or no longer in the state, as after a
+// snapshot load or a reset.
+func (st *State) enabledLog(table string, label clock.Instant) (*streamLog, bool) {
+	l, ok := st.latestStream(table)
+	if !ok || !l.Enabled || l.Label.Compare(label) != 0 {
+		return nil, false
+	}
+	return l.log, true
 }
 
 // drain copies the records Local appended to its stream of table in scope
@@ -209,45 +268,62 @@ func (s *Service) enabledStream(scope aws.Scope, table string) (Stream, localFee
 // table or drainRetry later (dynamodb-streams.md 11.1 item 3); the write's
 // answer stays as it was. While a failed drain is pending, every drain
 // stamps with the failed write's stamp: Local's records carry nothing that
-// tells which of several writes made them.
-func (s *Service) drain(ctx context.Context, c *kernel.Call, scope aws.Scope, table string, stamp writeStamp) {
-	st, feed, ok := s.enabledStream(scope, table)
+// tells which of several writes made them. drain reports whether the log
+// caught up: false only for a failed drain, true when it appended, or when
+// the table has no enabled stream.
+func (s *Service) drain(ctx context.Context, c *kernel.Call, scope aws.Scope, table string, stamp writeStamp) (caughtUp bool) {
+	t, ok := s.enabledStream(scope, table)
 	if !ok {
-		return
+		return true
 	}
-	arn, err := aws.ParseARN(st.arn(scope))
-	if err != nil {
-		return
+	if t.feed.failed != nil {
+		stamp = *t.feed.failed
 	}
-	if feed.failed != nil {
-		stamp = *feed.failed
-	}
-	p, err := s.pull(ctx, c.Admitted(), scope, st.localARN(), feed)
+	p, err := s.pull(ctx, c.Admitted(), scope, t.localARN, t.feed)
 	if err == nil {
-		err = s.appendPulled(c, scope, st, arn, p, stamp)
+		err = s.appendPulled(c, scope, table, t, p, stamp)
 	}
 	if err != nil {
 		s.kernel.Log().LogAttrs(ctx, slog.LevelWarn, "draining DynamoDB Local's stream failed; its records stay in Local and are drained at the next write to the table or a second of emulator time later",
-			slog.String("stream", arn.String()), slog.String("error", err.Error()))
-		s.failDrain(c, scope, st, stamp)
+			slog.String("stream", t.arn.String()), slog.String("error", err.Error()))
+		s.failDrain(c, scope, table, t.label, stamp)
 		s.kernel.Timers().Scheduler().Arm(s.drains.Key(tableKey{scope: scope, table: table}.path()), s.kernel.Clock().Now().Add(drainRetry))
-		c.Record(ctx, scope, journal.StateChange{Resource: arn, From: "Draining", To: "DrainFailed"})
-		return
+		if t.feed.failed == nil {
+			// Only the first failure is a change of state; a retry that
+			// fails again leaves the stream DrainFailed.
+			c.Record(ctx, scope, journal.StateChange{Resource: t.arn, From: "Draining", To: "DrainFailed"})
+		}
+		return false
 	}
-	if feed.failed != nil {
-		c.Record(ctx, scope, journal.StateChange{Resource: arn, From: "DrainFailed", To: "Draining"})
+	if t.feed.failed != nil {
+		c.Record(ctx, scope, journal.StateChange{Resource: t.arn, From: "DrainFailed", To: "Draining"})
 	}
+	return true
 }
 
-// appendPulled appends p's records to st's log stamped with stamp, moves
-// the feed's saved position past them and clears a pending failed drain,
-// after applying the stream lifetimes (State.expire).
-func (s *Service) appendPulled(c *kernel.Call, scope aws.Scope, st Stream, arn aws.ARN, p pulled, stamp writeStamp) error {
+// appendPulled appends p's records to the log of t, table's enabled
+// stream, stamped with stamp, moves the feed's saved position past them and
+// clears a pending failed drain, after applying the stream lifetimes
+// (State.expire). A stream no longer enabled in the state, as after a
+// snapshot load or a reset, takes nothing: a load maps its restored stream
+// to Local's tip.
+func (s *Service) appendPulled(c *kernel.Call, scope aws.Scope, table string, t feedTarget, p pulled, stamp writeStamp) error {
 	_, werr := kernel.Write(c, s.cells, scope, func(state *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		expired := state.expire(now)
-		log := st.log
+		log, ok := state.enabledLog(table, t.label)
+		if !ok || len(p.records) == 0 {
+			if ok {
+				log.feed.shard, log.feed.failed = p.shard, nil
+			}
+			if !expired {
+				tx.Unchanged()
+			}
+			return struct{}{}, nil
+		}
+		// An enabled stream's shard is open (disableStream and
+		// tableDeleted close it as they disable it), so Append cannot
+		// refuse; log.feed.last follows each record appended.
 		log.feed.shard = p.shard
-		log.feed.failed = nil
 		for _, r := range p.records {
 			v := r.value
 			v.EventID = s.kernel.IDs().StreamEventID()
@@ -257,13 +333,8 @@ func (s *Service) appendPulled(c *kernel.Call, scope aws.Scope, st Stream, arn a
 			}
 			log.feed.last = r.seq
 		}
-		if len(p.records) == 0 {
-			if !expired {
-				tx.Unchanged()
-			}
-			return struct{}{}, nil
-		}
-		tx.Wake(shardlog.WaitKey(arn))
+		log.feed.failed = nil
+		tx.Wake(shardlog.WaitKey(t.arn))
 		return struct{}{}, nil
 	})
 	if werr != nil {
@@ -272,15 +343,15 @@ func (s *Service) appendPulled(c *kernel.Call, scope aws.Scope, st Stream, arn a
 	return nil
 }
 
-// failDrain keeps stamp as st's pending failed drain unless an earlier one
-// is pending.
-func (s *Service) failDrain(c *kernel.Call, scope aws.Scope, st Stream, stamp writeStamp) {
+// failDrain keeps stamp as the pending failed drain of table's enabled
+// stream labeled label, unless an earlier one is pending.
+func (s *Service) failDrain(c *kernel.Call, scope aws.Scope, table string, label clock.Instant, stamp writeStamp) {
 	// The feed's position is not saved state, so the write changes nothing
 	// a snapshot holds; it only needs the cell's lock.
-	_, _ = kernel.Write(c, s.cells, scope, func(_ *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+	_, _ = kernel.Write(c, s.cells, scope, func(state *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		tx.Unchanged()
-		if st.log.feed.failed == nil {
-			st.log.feed.failed = &stamp
+		if log, ok := state.enabledLog(table, label); ok && log.feed.failed == nil {
+			log.feed.failed = &stamp
 		}
 		return struct{}{}, nil
 	})
