@@ -108,7 +108,7 @@ A delivery-phase rule acts on understudy's own deliveries between services rathe
 understudy faults add --phase delivery --mechanism sns-to-sqs --drop --next 1
 ```
 
-The mechanisms are `sns-to-sqs`, `sns-to-lambda`, `sns-to-http`, `s3-to-sqs`, `s3-to-sns`, `s3-to-lambda`, `events-to-lambda`, `events-to-sqs`, `events-to-sns` and `events-to-events` (an EventBridge rule's event bus target). A request-phase rule with `--origin internal` fails the internal call itself instead, which drives the source's own retry policy: SNS retries a failed SQS delivery on its AWS schedule (on the [emulator clock](clock.md)) and then sends it to the subscription's dead-letter queue.
+The mechanisms are `sns-to-sqs`, `sns-to-lambda`, `sns-to-http`, `s3-to-sqs`, `s3-to-sns`, `s3-to-lambda`, `events-to-lambda`, `events-to-sqs`, `events-to-sns`, `events-to-events` (an EventBridge rule's event bus target), and `lambda-to-sqs`, `lambda-to-sns`, `lambda-to-lambda`, `lambda-to-events` and `lambda-to-s3` (an asynchronous invocation's record to a destination, or its event to the function's dead-letter queue or topic). A request-phase rule with `--origin internal` fails the internal call itself instead, which drives the source's own retry policy: SNS retries a failed SQS delivery on its AWS schedule (on the [emulator clock](clock.md)) and then sends it to the subscription's dead-letter queue.
 
 An HTTP endpoint is in no service, so a rule for `sns-to-http` sets no `--service`. `--http-status` and `--http-timeout` answer such an attempt without a receiver, which drives SNS's HTTP retry schedule ([SNS HTTP delivery](sns-http.md#retries-and-dead-letters)): a 429, a 5xx or a timeout is retried, and any other status is a permanent failure.
 

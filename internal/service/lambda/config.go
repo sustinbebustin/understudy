@@ -421,7 +421,10 @@ func deref[T any](p *T) T {
 // invoke path.
 
 func (s *Service) bindEventInvokeConfigs(b lambdaapi.Binder) {
-	const note = "asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything"
+	// Asynchronous invocations apply MaximumRetryAttempts,
+	// MaximumEventAgeInSeconds and DestinationConfig (async.go); the gaps
+	// are lambda-destinations-layers.md 11.1's.
+	const note = "the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried"
 	b.PutFunctionEventInvokeConfig(s.putEventInvokeConfig, partial(note))
 	b.UpdateFunctionEventInvokeConfig(s.updateEventInvokeConfig, partial(note))
 	b.GetFunctionEventInvokeConfig(s.getEventInvokeConfig, full())

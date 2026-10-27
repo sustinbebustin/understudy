@@ -30,7 +30,7 @@ Filters combine. `--since` counts back in emulator time. `--limit N` keeps the n
 | Kind | Recorded when |
 |---|---|
 | `api-call` | Any call, from a client or between services, with its outcome |
-| `delivery` | An SNS, S3 or EventBridge delivery attempt: delivered, filtered, retrying, dead-lettered, dropped or refused |
+| `delivery` | An SNS, S3 or EventBridge delivery attempt, or a Lambda asynchronous invocation's record or dead letter: delivered, filtered, retrying, dead-lettered, dropped or refused |
 | `invocation` | A Lambda invocation ends: cold or warm, duration, outcome |
 | `timer-fired` | A timer on the emulator clock fires |
 | `state-change` | A resource changes state |

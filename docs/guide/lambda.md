@@ -154,7 +154,7 @@ On a Linux host functions reach only the AWS API and the read-only health and cl
 
 ## Limitations
 
-- Asynchronous invocation destinations are stored and not delivered.
+- An asynchronous invocation's record or dead letter that cannot be delivered is journaled and not retried; the execution role's permission to reach a destination is recorded, not checked.
 - `EphemeralStorage` is validated but not enforced; reserved and provisioned concurrency are stored.
 - The LocalStack convention of creating a function from the `hot-reload` bucket is not supported; use `understudy lambda hot-reload` or the configuration file.
 - A fault rule scoped to a resource matches Lambda's `Invoke` only; scope rules on other Lambda operations by operation, account or region.

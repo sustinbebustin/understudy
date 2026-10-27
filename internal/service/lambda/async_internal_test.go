@@ -12,8 +12,9 @@ import (
 // The queue's schedule over any sequence of attempt results: a function
 // error is retried at most the configured number of times, first after 60
 // seconds and then after 120; a requeue backs off from 1 second doubling to
-// at most 5 minutes; nothing is attempted past the event's maximum age; a
-// delivered event is finished.
+// at most 5 minutes; nothing is attempted at or past the event's maximum
+// age, so with a 60-second age a failure is not retried
+// (lambda-destinations-layers.md finding 3); a delivered event is finished.
 func TestAsyncScheduleProperties(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		cfg := asyncConfig{
@@ -44,17 +45,19 @@ func TestAsyncScheduleProperties(t *testing.T) {
 			case dropped:
 				switch r.(type) {
 				case functionFailed:
-					if failures+1 <= cfg.retries && now.Add(retryDelayAfter(failures+1)).Sub(start) <= cfg.maxAge {
+					if failures+1 <= cfg.retries && now.Add(retryDelayAfter(failures+1)).Sub(start) < cfg.maxAge {
 						rt.Fatalf("dropped after %d failures with %d retries allowed and the age within %s: %s", failures+1, cfg.retries, cfg.maxAge, p.reason)
 					}
 				case requeued:
-					if now.Add(requeueDelay(requeues+1)).Sub(start) <= cfg.maxAge {
+					if now.Add(requeueDelay(requeues+1)).Sub(start) < cfg.maxAge {
 						rt.Fatalf("dropped a requeue within the maximum age: %s", p.reason)
 					}
-				case delivered, discarded:
+				case delivered, discarded, vanished:
 					rt.Fatalf("a %T attempt dropped the event", r)
 				}
 				return
+			case abandoned:
+				rt.Fatalf("a %T attempt abandoned the event", r)
 			case retryAt:
 				next := p.event
 				var want time.Duration
@@ -68,13 +71,13 @@ func TestAsyncScheduleProperties(t *testing.T) {
 				case requeued:
 					requeues++
 					want = min(time.Second<<(requeues-1), 5*time.Minute)
-				case delivered, discarded:
+				case delivered, discarded, vanished:
 					rt.Fatalf("a %T attempt planned a retry", r)
 				}
 				if got := next.Due.Sub(now); got != want || next.Running {
 					rt.Fatalf("next attempt %s after the last (running %v), want %s", got, next.Running, want)
 				}
-				if next.Due.Sub(start) > cfg.maxAge {
+				if next.Due.Sub(start) >= cfg.maxAge {
 					rt.Fatalf("attempt planned at age %s past the maximum %s", next.Due.Sub(start), cfg.maxAge)
 				}
 				ev, now = next, next.Due

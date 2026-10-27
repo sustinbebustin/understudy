@@ -51,7 +51,7 @@ const (
 // measured them at most 0.3 ms behind).
 const defaultLogSettle = 20 * time.Millisecond
 
-const invokeNote = "an alias with weighted routing always runs its primary version; asynchronous invocations retry but do not deliver to destinations or dead-letter queues; " +
+const invokeNote = "an alias with weighted routing always runs its primary version; " +
 	"LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing"
 
 // The data plane's decisions the architecture leaves open:
@@ -370,7 +370,7 @@ func (x *Execution) resolve(r functionRef) (target, *awserr.Error) {
 			return target{}, errService(fmt.Sprintf("Lambda cannot run %s: its stored execution role %q is not an ARN (%v). Set a valid role with UpdateFunctionConfiguration.", r.qualifiedARN(), v.Config.Role, perr))
 		}
 		v.Config.Environment = maps.Clone(v.Config.Environment)
-		t := target{ref: r, version: v, invoked: invokedARN(r), role: role, incarnation: f.Incarnation, unreserved: st.unreserved(""), async: asyncConfigOf(f, r.qualifier)}
+		t := target{ref: r, version: v, invoked: invokedARN(r), role: role, incarnation: f.Incarnation, unreserved: st.unreserved(""), async: asyncConfigOf(f, v, r.qualifier)}
 		if v.Number == latest {
 			t.generation = generation
 		}

@@ -443,7 +443,8 @@ type Cors struct {
 }
 
 // EventInvokeConfig is an asynchronous invocation configuration. The
-// asynchronous queue applies its limits; its destinations are stored only.
+// asynchronous queue applies its limits and sends records to its
+// destinations (async.go).
 type EventInvokeConfig struct {
 	MaximumRetryAttempts     *int32        `json:"maximumRetryAttempts,omitempty"`
 	MaximumEventAgeInSeconds *int32        `json:"maximumEventAgeInSeconds,omitempty"`

@@ -601,14 +601,14 @@ Internal operations:
 | CreateFunction | partial | aws-doc, 1 of 5 claims | layers, PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only |
 | CreateFunctionUrlConfig | partial | third-party-recorded, 2 of 2 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
 | GetFunction | partial | aws-doc, 1 of 3 claims | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
-| Invoke | partial | third-party-recorded, 2 of 2 claims | an alias with weighted routing always runs its primary version; asynchronous invocations retry but do not deliver to destinations or dead-letter queues; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
+| Invoke | partial | inferred, 4 of 8 claims | an alias with weighted routing always runs its primary version; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
 | PublishVersion | partial | aws-doc, 1 of 3 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
-| PutFunctionEventInvokeConfig | partial | third-party-recorded, 2 of 2 claims | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
+| PutFunctionEventInvokeConfig | partial | inferred, 1 of 3 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
 | UpdateAlias | partial | third-party-recorded, 2 of 2 claims | weighted routing is stored, not applied to invocations |
 | UpdateEventSourceMapping | partial | inferred, 6 of 9 claims | SQS queues only; serve polls the queue and invokes the function with each batch |
 | UpdateFunctionCode | partial | aws-doc, 1 of 3 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
 | UpdateFunctionConfiguration | partial | inferred, 1 of 4 claims | layers and DurableConfig are refused; code signing and VPC networking are stored only |
-| UpdateFunctionEventInvokeConfig | partial | third-party-recorded, 2 of 2 claims | asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything |
+| UpdateFunctionEventInvokeConfig | partial | third-party-recorded, 2 of 2 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
 | UpdateFunctionUrlConfig | partial | third-party-recorded, 2 of 2 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
 | AddLayerVersionPermission | unbound | unassessed |  |
 | CheckpointDurableExecution | unbound | unassessed |  |
@@ -1059,11 +1059,12 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-110 switches: 1 aws-recorded, 2 third-party-recorded, 16 aws-doc, 91 inferred.
+116 switches: 1 aws-recorded, 3 third-party-recorded, 17 aws-doc, 95 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
 | `s3.encryption.after-delete` | `default-sse-s3` | aws-recorded | docs/research/s3-ssec-object-lock.md#2-what-the-repos-recordings-already-settled | none: s3/R06/02-get-encryption-after-delete.json is recorded; the replayer skips S3's REST requests |
+| `lambda.destination.eventbridge-resources-order` | `bus-then-function` | third-party-recorded | docs/research/lambda-destinations-layers.md#44-eventbridge | none: unrecorded: LDL-10 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `s3.object-lock.bypass-without-lock` | `refused` | third-party-recorded | docs/research/s3-ssec-object-lock.md#73-the-bypass-header-on-a-bucket-without-object-lock | none: unrecorded: S3SOL-23 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `sns.listing.pending-arn` | `PendingConfirmation` | third-party-recorded | docs/research/sns.md#34-listing | none: no project recording lists a pending subscription; third-party-recorded (sns-http-delivery.md 2.2) |
 | `cloudwatch.get-metric-data.start-rounding` | `by-age` | aws-doc | docs/research/secrets-logs-events-alarms.md#53-getmetricdata | none: unrecorded: no recording shows GetMetricData's period boundaries |
@@ -1071,6 +1072,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `events.delete-bus.with-rules` | `rejected` | aws-doc | docs/research/eventbridge-buses.md#35-deleteeventbus | none: unrecorded: EBB-01 (eventbridge-buses.md 12) records it |
 | `iam.assumeRole` | `strict` | aws-doc | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions | none: the switch decides AssumeRole of a role IAM does not hold, which no recording asks; sts/R15#06-assume-denied names a role that exists, refused by its trust policy |
 | `kms.pending-deletion.crypto-error` | `KMSInvalidStateException` | aws-doc | docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix | none: kms/R15/02-pending-encrypt.json and the other 02-pending steps are recorded; no scenario replays kms/R15 yet |
+| `lambda.destination.sns-oversize` | `delivery-failure` | aws-doc | docs/research/lambda-destinations-layers.md#42-sns | none: unrecorded: LDL-05 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `lambda.stateTransitions` | `final` | aws-doc | docs/ARCHITECTURE.md#9-the-clock | none: a deliberate default (ARCHITECTURE.md 9), which a recording of AWS's transient states does not change |
 | `logs.delivery.retention-days` | `2` | aws-doc | https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html | none: unrecorded: no recording creates a DELIVERY-class log group |
 | `logs.retention.expiry` | `at-expiry` | aws-doc | docs/research/secrets-logs-events-alarms.md#32-retention | none: AWS deletes expired events lazily, typically within 72 hours, so no recording pins the instant |
@@ -1104,6 +1106,10 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `events.schedule.restart` | `on-schedule-change-or-enable` | inferred | docs/research/secrets-logs-events-alarms.md#42-schedule-expressions-rate-and-cron | none: events/R14 records the EnableRule half only, as arrival times (02-enable.time, 02-arrivals-after-enable.jsonl) a scenario does not replay; a PutRule schedule change is unrecorded |
 | `events.update-bus.omitted-members` | `kept` | inferred | docs/research/eventbridge-buses.md#34-updateeventbus | none: unrecorded: EBB-04 (eventbridge-buses.md 12) records it |
 | `kms.cross-account.management-error` | `NotFoundException` | inferred | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyPolicy.html | none: unrecorded: no recording names another account's key |
+| `lambda.async.qualifier-config` | `invoked-qualifier-only` | inferred | docs/research/lambda-destinations-layers.md#24-which-configuration-an-invocation-uses | none: unrecorded: LDL-01 is queued in docs/research/lambda-destinations-layers.md 12 |
+| `lambda.destination.delivery-retry` | `none` | inferred | docs/research/lambda-destinations-layers.md#46-when-delivery-fails | none: unrecorded: LDL-09 is queued in docs/research/lambda-destinations-layers.md 12 |
+| `lambda.destination.lambda-invocation-type` | `Event` | inferred | docs/research/lambda-destinations-layers.md#43-lambda | none: unrecorded: LDL-06 is queued in docs/research/lambda-destinations-layers.md 12 |
+| `lambda.destination.record-function-arn` | `invoked-qualifier` | inferred | docs/research/lambda-destinations-layers.md#32-fields | none: unrecorded: LDL-01 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `lambda.esm-filter.bare-number` | `numeric-or-text` | inferred | docs/research/matching-engines.md#10 | none: recorded in lambda/R03 (H7a-01-create, H7a-02-create); the replayer skips REST and Docker steps |
 | `lambda.esm-filter.empty-input` | `matchable` | inferred | docs/research/matching-engines.md#10 | none: unrecorded for Lambda: matching-engines.md H1 covers SNS and EventBridge only |
 | `lambda.esm-filter.exactly-operator` | `rejected` | inferred | docs/research/matching-engines.md#5.1 | none: recorded in lambda/R03 (H13-11-create); the replayer skips REST and Docker steps |
