@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/auth"
@@ -67,6 +68,16 @@ type toService struct {
 	reasons []reason
 }
 
+// legacyQuery is a POST signed for a service of Options.LegacyQuery that
+// names its operation in an Action query parameter and carries no
+// X-Amz-Target: the legacy Query protocol AWS also serves for it, which
+// understudy does not (rule 8; ssm-parameters.md 2.3).
+type legacyQuery struct {
+	svc     *registry.Service
+	action  string
+	reasons []reason
+}
+
 // notEmulated is a request signed for a service understudy does not
 // emulate (rule 8).
 type notEmulated struct {
@@ -108,6 +119,7 @@ func (toUnknown) isRoute()    {}
 func (toRaw) isRoute()        {}
 func (toLink) isRoute()       {}
 func (toService) isRoute()    {}
+func (legacyQuery) isRoute()  {}
 func (notEmulated) isRoute()  {}
 func (misscoped) isRoute()    {}
 func (unclaimed) isRoute()    {}
@@ -628,8 +640,25 @@ func (c *claimer) signedElsewhere(signed string) (route, bool) {
 		return rt, true
 	}
 	svc := candidates[0]
+	if rt, ok := c.legacyQuery(svc); ok {
+		return rt, true
+	}
 	c.decline(8, "the request is signed for %s, which no protocol rule claimed", svc.ID)
 	return toService{svc: svc, reasons: c.reasons}, true
+}
+
+// legacyQuery claims, for a service of Options.LegacyQuery, a POST with an
+// Action query parameter and no X-Amz-Target: the legacy Query protocol,
+// answered 501 rather than as the service's unknown operation, so the
+// client learns that the protocol is missing, not the operation
+// (ssm-parameters.md 2.3, 12.1).
+func (c *claimer) legacyQuery(svc *registry.Service) (route, bool) {
+	action := c.r.URL.Query().Get("Action")
+	if !slices.Contains(c.h.opts.LegacyQuery, svc.ID) || c.r.Method != http.MethodPost || action == "" || c.r.Header.Get("X-Amz-Target") != "" {
+		return nil, false
+	}
+	c.decline(8, "the request is signed for %s and names %s in an Action query parameter without X-Amz-Target: the legacy Query protocol, which understudy does not serve", svc.ID, action)
+	return legacyQuery{svc: svc, action: action, reasons: c.reasons}, true
 }
 
 // restCandidates matches the request against the route table of each REST

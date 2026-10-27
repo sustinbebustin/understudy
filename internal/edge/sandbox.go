@@ -32,7 +32,7 @@ func policyOf(rt route) csp {
 		return rt.policy
 	case toExecuteAPI:
 		return rt.policy
-	case toAdmin, toOperation, toUnknown, toRaw, toService, notEmulated, misscoped, unclaimed, toLocalStack:
+	case toAdmin, toOperation, toUnknown, toRaw, toService, legacyQuery, notEmulated, misscoped, unclaimed, toLocalStack:
 	}
 	return cspAsWritten
 }

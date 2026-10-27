@@ -88,6 +88,31 @@ func jsonMediaType(p ref.ProtocolID) string {
 	return ""
 }
 
+// legacyQuery answers a legacy Query request (rule 8) with 501
+// NotImplemented in the service's JSON envelope, naming the protocol, the
+// action and the X-Amz-Target that reaches the same operation, and
+// journals it as Unclaimed with the rule trace.
+func (h *Handler) legacyQuery(ctx context.Context, x *exchange, rt legacyQuery) {
+	h.journalUnclaimed(ctx, x, rt.reasons)
+	e := &awserr.Error{
+		ID: awserr.NotImplemented(),
+		Message: "understudy does not serve the legacy Query protocol (?Action=" + rt.action + " without X-Amz-Target) for " + string(rt.svc.ID) +
+			", which AWS also accepts. Send the JSON 1.1 request instead, with X-Amz-Target: " + rt.svc.JSONTargetPrefix + "." + rt.action +
+			", as the AWS SDKs and CLI do. Nothing was changed.",
+		Origin: awserr.Generic{},
+	}
+	for _, p := range rt.svc.Protocols {
+		if family, ok := awserr.FamilyOf(p); !ok || family != awserr.JSONFamily {
+			continue
+		}
+		if codec, ok := h.opts.Codecs[p]; ok {
+			h.write(ctx, x, codec.EncodeError(x.r, rt.svc, string(x.id), e))
+			return
+		}
+	}
+	h.answerUnrouted(ctx, x, e)
+}
+
 // notEmulated answers a request signed for a service understudy does not
 // emulate (ec2, rds, kinesis, ...) with 501 NotImplemented, outside every
 // SDK's retry set, naming the service and the ones understudy emulates.

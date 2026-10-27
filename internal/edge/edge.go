@@ -100,9 +100,9 @@ type Options struct {
 	// LegacyQuery lists the JSON services AWS also serves over the legacy
 	// Query protocol, which understudy does not (SSM, ssm-parameters.md
 	// 2.3). A POST signed for one of them that carries an Action query
-	// parameter and no X-Amz-Target is to answer 501 NotImplemented naming
-	// the legacy Query protocol, journaled Unclaimed. Not implemented yet:
-	// the edge does not read it.
+	// parameter and no X-Amz-Target answers 501 NotImplemented naming the
+	// legacy Query protocol, journaled Unclaimed (ARCHITECTURE.md 4.1 rule
+	// 8).
 	LegacyQuery []ref.ServiceID
 	// Log receives edge diagnostics; nil discards them.
 	Log *slog.Logger
@@ -290,6 +290,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.dispatchRaw(ctx, x, toRaw{op: rt.op}, a, parseErr)
 	case toService:
 		h.answerForService(ctx, x, rt.svc, rt.reasons)
+	case legacyQuery:
+		h.legacyQuery(ctx, x, rt)
 	case notEmulated:
 		h.notEmulated(ctx, x, rt)
 	case misscoped:
@@ -312,7 +314,7 @@ func (h *Handler) refusedPage(ctx context.Context, x *exchange, rt route) bool {
 	switch rt.(type) {
 	case toAdmin, toLink, toExecuteAPI:
 		return false
-	case toOperation, toUnknown, toRaw, toService, notEmulated, misscoped, unclaimed, toLocalStack:
+	case toOperation, toUnknown, toRaw, toService, legacyQuery, notEmulated, misscoped, unclaimed, toLocalStack:
 	}
 	why, refused := h.crossSitePage(x.r)
 	if !refused {
