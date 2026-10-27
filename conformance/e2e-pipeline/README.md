@@ -40,6 +40,7 @@ One file per service, so a fixer can own one service at a time; the platform fea
 | `sns_test.go` | filter policies in both scopes, the SQS envelope, subscription attributes |
 | `sqs_test.go` | partial batch failures redriven to the DLQ after maxReceiveCount, redrive policy attributes |
 | `lambda_test.go` | the three packages, mapping settings, the SQS event record, batching window and batch size, the container image, the function URL (payload 2.0) |
+| `lambda_destinations_test.go` | an asynchronous invocation that fails into its on-failure queue and its dead-letter queue |
 | `dynamodb_test.go` | the conditional lock, TTL expiry on the emulator clock |
 | `s3_test.go` | SSE-KMS by bucket default, ListObjectsV2 with a delimiter |
 | `kms_test.go` | alias, Encrypt and Decrypt, a disabled key blocking SSE-KMS reads |
