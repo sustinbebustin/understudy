@@ -151,12 +151,21 @@ func (s *Service) Switches() []fidelity.Entry {
 		// (aws-doc); the message is inferred.
 		authz.DenialSwitch("sns.denial.text", "AuthorizationError 403 with the grammar of 4.1", evidence.Inferred, "3.2", "IAM-ENF-03",
 			s.bindings.AuthorizedOps(snsapi.Service())),
-		deliverySourceAccount(), subscribePolicyCheck(),
+		deliverySourceAccount(), subscribePolicyCheck(), defaultPolicyDirectCalls(s.bindings.AuthorizedOps(snsapi.Service())),
 	}
 	for _, sw := range httpSwitches() {
 		entries = append(entries, sw.Entry())
 	}
 	return append(entries, filterpolicy.Switches()...)
+}
+
+// defaultPolicyDirectCalls is how the default topic policy, whose one
+// statement is conditioned on AWS:SourceOwner, decides a direct call:
+// understudy never supplies that key to a call made straight to SNS, so
+// the statement does not match and a same-account caller needs an
+// identity-policy allow (iam-enforcement-surfaces.md 7.2, IAM-ENF-17).
+func defaultPolicyDirectCalls(ops []string) fidelity.Entry {
+	return authz.EnforcementSwitch("sns.default-policy.direct-calls", "identity-policy-required", evidence.Inferred, "7.2", "IAM-ENF-17", ops)
 }
 
 // deliverySourceAccount is whether SNS sends aws:SourceAccount, the topic's

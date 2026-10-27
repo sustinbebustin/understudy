@@ -1066,25 +1066,25 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| ConfirmSubscription | full | inferred, 1 of 3 claims |  |
-| CreateTopic | full | inferred, 1 of 3 claims |  |
-| DeleteTopic | full | inferred, 2 of 4 claims |  |
-| GetSubscriptionAttributes | full | inferred, 2 of 4 claims |  |
-| GetTopicAttributes | full | inferred, 1 of 3 claims |  |
-| ListSubscriptions | full | inferred, 1 of 4 claims |  |
-| ListSubscriptionsByTopic | full | inferred, 1 of 4 claims |  |
-| ListTagsForResource | full | inferred, 1 of 3 claims |  |
-| ListTopics | full | inferred, 1 of 3 claims |  |
-| TagResource | full | inferred, 1 of 3 claims |  |
-| Unsubscribe | full | inferred, 3 of 5 claims |  |
-| UntagResource | full | inferred, 1 of 3 claims |  |
-| AddPermission | partial | inferred, 1 of 3 claims | statements are stored in the topic Policy, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
-| Publish | partial | inferred, 20 of 22 claims | fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, without jitter; under iam.enforce=enforce an sqs or lambda delivery the endpoint's policy refuses is not retried and goes to the RedrivePolicy queue, else is dropped; other http and https endpoints, email and email-json receive nothing |
-| PublishBatch | partial | inferred, 19 of 21 claims | fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, without jitter; under iam.enforce=enforce an sqs or lambda delivery the endpoint's policy refuses is not retried and goes to the RedrivePolicy queue, else is dropped; other http and https endpoints, email and email-json receive nothing |
-| RemovePermission | partial | inferred, 1 of 3 claims | statements are stored in the topic Policy, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
-| SetSubscriptionAttributes | partial | inferred, 10 of 12 claims | DeliveryPolicy healthyRetryPolicy, throttlePolicy and requestPolicy apply to http and https deliveries; sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced |
-| SetTopicAttributes | partial | inferred, 1 of 3 claims | Policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never applied; the http defaults in DeliveryPolicy apply to http and https subscriptions |
-| Subscribe | partial | inferred, 21 of 23 claims | sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; the endpoint's policy is not checked at Subscribe (sns.subscribe.policy-check), so under iam.enforce=enforce a policy that refuses SNS refuses each delivery; http and https endpoints get a signed SubscriptionConfirmation when their host and port are in sns.httpDelivery.allow, and otherwise stay subscribed with a readable token but receive nothing; email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced |
+| ConfirmSubscription | full | inferred, 2 of 4 claims |  |
+| CreateTopic | full | inferred, 2 of 4 claims |  |
+| DeleteTopic | full | inferred, 3 of 5 claims |  |
+| GetSubscriptionAttributes | full | inferred, 3 of 5 claims |  |
+| GetTopicAttributes | full | inferred, 2 of 4 claims |  |
+| ListSubscriptions | full | inferred, 2 of 5 claims |  |
+| ListSubscriptionsByTopic | full | inferred, 2 of 5 claims |  |
+| ListTagsForResource | full | inferred, 2 of 4 claims |  |
+| ListTopics | full | inferred, 2 of 4 claims |  |
+| TagResource | full | inferred, 2 of 4 claims |  |
+| Unsubscribe | full | inferred, 4 of 6 claims |  |
+| UntagResource | full | inferred, 2 of 4 claims |  |
+| AddPermission | partial | inferred, 2 of 4 claims | statements are stored in the topic Policy, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
+| Publish | partial | inferred, 21 of 23 claims | fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, without jitter; under iam.enforce=enforce an sqs or lambda delivery the endpoint's policy refuses is not retried and goes to the RedrivePolicy queue, else is dropped; other http and https endpoints, email and email-json receive nothing |
+| PublishBatch | partial | inferred, 20 of 22 claims | fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, without jitter; under iam.enforce=enforce an sqs or lambda delivery the endpoint's policy refuses is not retried and goes to the RedrivePolicy queue, else is dropped; other http and https endpoints, email and email-json receive nothing |
+| RemovePermission | partial | inferred, 2 of 4 claims | statements are stored in the topic Policy, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
+| SetSubscriptionAttributes | partial | inferred, 11 of 13 claims | DeliveryPolicy healthyRetryPolicy, throttlePolicy and requestPolicy apply to http and https deliveries; sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced |
+| SetTopicAttributes | partial | inferred, 2 of 4 claims | Policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never applied; the http defaults in DeliveryPolicy apply to http and https subscriptions |
+| Subscribe | partial | inferred, 22 of 24 claims | sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; the endpoint's policy is not checked at Subscribe (sns.subscribe.policy-check), so under iam.enforce=enforce a policy that refuses SNS refuses each delivery; http and https endpoints get a signed SubscriptionConfirmation when their host and port are in sns.httpDelivery.allow, and otherwise stay subscribed with a readable token but receive nothing; email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced |
 | CheckIfPhoneNumberIsOptedOut | unbound | unassessed |  |
 | CreatePlatformApplication | unbound | unassessed |  |
 | CreatePlatformEndpoint | unbound | unassessed |  |
@@ -1174,7 +1174,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-167 switches: 1 aws-recorded, 5 third-party-recorded, 20 aws-doc, 141 inferred.
+168 switches: 1 aws-recorded, 5 third-party-recorded, 20 aws-doc, 142 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1301,6 +1301,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `secretsmanager.list-secrets.all-filter-match` | `any-word,word-prefix` | inferred | https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.list-secrets.filter-combination` | `and-across-filters,or-across-values` | inferred | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.restore.not-scheduled` | `no-op` | inferred | docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven | none: secretsmanager/R15/05-restore-live.json is recorded; no scenario replays secretsmanager/R15 yet |
+| `sns.default-policy.direct-calls` | `identity-policy-required` | inferred | docs/research/iam-enforcement-surfaces.md#7.2 | none: unrecorded: IAM-ENF-17 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `sns.delete-topic.detached-retention` | `48h0m0s` | inferred | docs/research/sns.md#22-topic-attributes | none: sns/R16/06-list-subscriptions-after-delete.json shows the subscriptions 5 s after DeleteTopic; how long they stay is unrecorded |
 | `sns.delivery.source-account` | `present` | inferred | docs/research/iam-enforcement-surfaces.md#8.1 | none: unrecorded: IAM-ENF-18 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `sns.denial.text` | `AuthorizationError 403 with the grammar of 4.1` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-03 waits in the recording queue (iam-enforcement-surfaces.md 13) |
