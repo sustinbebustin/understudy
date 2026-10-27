@@ -54,6 +54,9 @@ func (s *Service) attach(c *kernel.Call, h holder, arn string) *awserr.Error {
 	if err != nil {
 		return err
 	}
+	if err := s.holderExists(c, h); err != nil {
+		return err
+	}
 	account := c.Scope().Account
 	touched, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (aws.ARN, *awserr.Error) {
 		have, entity, err := h.get(st)
@@ -80,6 +83,9 @@ func (s *Service) attach(c *kernel.Call, h holder, arn string) *awserr.Error {
 }
 
 func (s *Service) detach(c *kernel.Call, h holder, arn string) *awserr.Error {
+	if err := s.holderExists(c, h); err != nil {
+		return err
+	}
 	touched, err := kernel.Write(c, s.cells, c.Scope().Account, func(st *State, _ clock.Instant, _ *kernel.Tx) (aws.ARN, *awserr.Error) {
 		have, entity, err := h.get(st)
 		if err != nil {

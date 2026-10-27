@@ -275,6 +275,9 @@ func (s *Service) bindTags(b iamapi.Binder) {
 
 // tag adds or replaces tags on the entity e reaches.
 func (s *Service) tag(c *kernel.Call, e tagged, add []iamapi.Tag) *awserr.Error {
+	if err := s.taggedExists(c, e); err != nil {
+		return err
+	}
 	arn, err := kernel.Write(c, s.cells, c.Scope().Account, func(st *State, _ clock.Instant, _ *kernel.Tx) (aws.ARN, *awserr.Error) {
 		have, arn, err := e.get(st)
 		if err != nil {
@@ -295,6 +298,9 @@ func (s *Service) tag(c *kernel.Call, e tagged, add []iamapi.Tag) *awserr.Error 
 
 // untag removes tags from the entity e reaches.
 func (s *Service) untag(c *kernel.Call, e tagged, keys []string) *awserr.Error {
+	if err := s.taggedExists(c, e); err != nil {
+		return err
+	}
 	arn, err := kernel.Write(c, s.cells, c.Scope().Account, func(st *State, _ clock.Instant, _ *kernel.Tx) (aws.ARN, *awserr.Error) {
 		have, arn, err := e.get(st)
 		if err != nil {

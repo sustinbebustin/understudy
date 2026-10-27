@@ -49,6 +49,9 @@ func (s *Service) createAccessKey(_ context.Context, c *kernel.Call, in *iamapi.
 	case namedUser:
 		name = who.name
 	}
+	if err := s.userExists(c, name); err != nil {
+		return nil, err
+	}
 	account := c.Scope().Account
 	type created struct {
 		user User
@@ -148,6 +151,9 @@ func (s *Service) changeAccessKey(c *kernel.Call, userName *string, id string, c
 		return errNoSuchAccessKey(id)
 	case namedUser:
 		name = who.name
+	}
+	if err := s.userExists(c, name); err != nil {
+		return err
 	}
 	account := c.Scope().Account
 	u, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (User, *awserr.Error) {

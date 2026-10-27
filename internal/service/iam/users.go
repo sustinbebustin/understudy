@@ -130,6 +130,9 @@ func (s *Service) getUser(_ context.Context, c *kernel.Call, in *iamapi.GetUserI
 // changeUser applies change to the named user under the account's cell
 // and touches it.
 func (s *Service) changeUser(c *kernel.Call, name string, change func(st *State, u User) (User, *awserr.Error)) *awserr.Error {
+	if err := s.userExists(c, name); err != nil {
+		return err
+	}
 	account := c.Scope().Account
 	u, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (User, *awserr.Error) {
 		u, err := st.user(name)
@@ -152,6 +155,9 @@ func (s *Service) changeUser(c *kernel.Call, name string, change func(st *State,
 // updateUser renames a user or moves it to a new path.
 func (s *Service) updateUser(_ context.Context, c *kernel.Call, in *iamapi.UpdateUserInput) (*iamapi.UpdateUserOutput, *awserr.Error) {
 	if err := checkPath("newPath", in.NewPath); err != nil {
+		return nil, err
+	}
+	if err := s.userExists(c, in.UserName); err != nil {
 		return nil, err
 	}
 	account := c.Scope().Account
@@ -186,6 +192,9 @@ func (s *Service) updateUser(_ context.Context, c *kernel.Call, in *iamapi.Updat
 // so attached policies, inline policies and access keys each refuse the
 // delete.
 func (s *Service) deleteUser(_ context.Context, c *kernel.Call, in *iamapi.DeleteUserInput) (*iamapi.DeleteUserOutput, *awserr.Error) {
+	if err := s.userExists(c, in.UserName); err != nil {
+		return nil, err
+	}
 	account := c.Scope().Account
 	u, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (User, *awserr.Error) {
 		u, err := st.user(in.UserName)

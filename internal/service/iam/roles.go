@@ -156,6 +156,9 @@ func (s *Service) getRole(ctx context.Context, c *kernel.Call, in *iamapi.GetRol
 // changeRole applies change to the named role under the account's cell
 // and touches it.
 func (s *Service) changeRole(c *kernel.Call, name string, change func(st *State, r Role) (Role, *awserr.Error)) (Role, *awserr.Error) {
+	if err := s.roleExists(c, name); err != nil {
+		return Role{}, err
+	}
 	account := c.Scope().Account
 	r, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (Role, *awserr.Error) {
 		r, err := st.role(name)
@@ -238,6 +241,9 @@ func (s *Service) deleteRolePermissionsBoundary(_ context.Context, c *kernel.Cal
 // itself, so instance profile membership, attached policies and inline
 // policies each refuse the delete, checked in moto's order.
 func (s *Service) deleteRole(_ context.Context, c *kernel.Call, in *iamapi.DeleteRoleInput) (*iamapi.DeleteRoleOutput, *awserr.Error) {
+	if err := s.roleExists(c, in.RoleName); err != nil {
+		return nil, err
+	}
 	account := c.Scope().Account
 	r, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (Role, *awserr.Error) {
 		r, err := st.role(in.RoleName)

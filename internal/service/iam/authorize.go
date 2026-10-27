@@ -116,6 +116,56 @@ func (s *Service) declareRoles(b *kernel.Binder) {
 	kernel.Declare(b, iamapi.OpListInstanceProfilesForRole, roleNamed(s, func(in *iamapi.ListInstanceProfilesForRoleInput) string { return in.RoleName })...)
 }
 
+// exists answers the error find returns for a missing entity, read before
+// a write that resolves the entity again under the cell's lock: an
+// operation authorized once it resolved its entity is asked at its first
+// Write, so a missing entity is answered before that, existence first
+// (kernel.AuthorizedAfterResolve; resolvedFirst).
+func (s *Service) exists(c *kernel.Call, find func(st *State) *awserr.Error) *awserr.Error {
+	_, err := view(s, c.Scope().Account, func(st *State) (struct{}, *awserr.Error) { return struct{}{}, find(st) })
+	return err
+}
+
+// userExists is exists for the user name.
+func (s *Service) userExists(c *kernel.Call, name string) *awserr.Error {
+	return s.exists(c, func(st *State) *awserr.Error {
+		_, err := st.user(name)
+		return err
+	})
+}
+
+// roleExists is exists for the role name.
+func (s *Service) roleExists(c *kernel.Call, name string) *awserr.Error {
+	return s.exists(c, func(st *State) *awserr.Error {
+		_, err := st.role(name)
+		return err
+	})
+}
+
+// profileExists is exists for the instance profile name.
+func (s *Service) profileExists(c *kernel.Call, name string) *awserr.Error {
+	return s.exists(c, func(st *State) *awserr.Error {
+		_, err := st.instanceProfile(name)
+		return err
+	})
+}
+
+// holderExists is exists for the role or user whose policies h holds.
+func (s *Service) holderExists(c *kernel.Call, h holder) *awserr.Error {
+	return s.exists(c, func(st *State) *awserr.Error {
+		_, _, err := h.get(st)
+		return err
+	})
+}
+
+// taggedExists is exists for the entity whose tags e reaches.
+func (s *Service) taggedExists(c *kernel.Call, e tagged) *awserr.Error {
+	return s.exists(c, func(st *State) *awserr.Error {
+		_, _, err := e.get(st)
+		return err
+	})
+}
+
 // resolved authorizes an operation once its handler resolved the entity:
 // resolve names the entity's ARN from the state before the handler, false
 // for one that does not exist, which the handler then answers before

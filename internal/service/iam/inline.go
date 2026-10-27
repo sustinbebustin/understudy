@@ -72,6 +72,9 @@ func (s *Service) putInline(c *kernel.Call, h holder, name, doc string) *awserr.
 	if err := checkIdentityPolicy(doc); err != nil {
 		return err
 	}
+	if err := s.holderExists(c, h); err != nil {
+		return err
+	}
 	arn, err := kernel.Write(c, s.cells, c.Scope().Account, func(st *State, _ clock.Instant, _ *kernel.Tx) (aws.ARN, *awserr.Error) {
 		have, arn, err := h.get(st)
 		if err != nil {
@@ -125,6 +128,9 @@ func (s *Service) getInline(c *kernel.Call, h holder, name string) (InlinePolicy
 }
 
 func (s *Service) deleteInline(c *kernel.Call, h holder, name string) *awserr.Error {
+	if err := s.holderExists(c, h); err != nil {
+		return err
+	}
 	arn, err := kernel.Write(c, s.cells, c.Scope().Account, func(st *State, _ clock.Instant, _ *kernel.Tx) (aws.ARN, *awserr.Error) {
 		have, arn, err := h.get(st)
 		if err != nil {
