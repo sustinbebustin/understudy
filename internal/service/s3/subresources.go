@@ -222,7 +222,7 @@ const (
 
 func (s *Service) bindPolicy(b s3api.Binder) {
 	// iam-enforcement-surfaces.md 12.7.
-	evaluated := registry.Partial{Note: "the policy is stored and echoed, and evaluated only when iam.enforce is advise or enforce; access points and ACL grants are not evaluated"}
+	evaluated := registry.Partial{Note: "the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated, and Block Public Access is not applied (PutPublicAccessBlock)"}
 	get := func(in *s3api.GetBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetBucketPolicy(reader(s, get, func(_ *s3api.GetBucketPolicyInput, b *Bucket) (*s3api.GetBucketPolicyOutput, *awserr.Error) {
 		if b.Policy == "" {
@@ -684,7 +684,7 @@ func (s *Service) bindPublicAccessBlock(b s3api.Binder) {
 	b.PutPublicAccessBlock(writer[s3api.PutPublicAccessBlockInput, s3api.PutPublicAccessBlockOutput](s, put, func(in *s3api.PutPublicAccessBlockInput, b *Bucket) *awserr.Error {
 		b.PublicAccessBlock = publicAccessBlock(in.PublicAccessBlockConfiguration)
 		return nil
-	}), stored("the public access block is"), touches(put),
+	}), registry.StoredOnly{Note: blockPublicAccessNote}, touches(put),
 		kernel.WithCheck(func(in *s3api.PutPublicAccessBlockInput) *awserr.Error {
 			if c := in.PublicAccessBlockConfiguration; c.BlockPublicAcls == nil && c.IgnorePublicAcls == nil && c.BlockPublicPolicy == nil && c.RestrictPublicBuckets == nil {
 				return errInvalidRequest("Must specify at least one configuration.")
@@ -697,6 +697,15 @@ func (s *Service) bindPublicAccessBlock(b s3api.Binder) {
 		return nil
 	}), stored("the public access block is"), touches(del))
 }
+
+// blockPublicAccessNote is PutPublicAccessBlock's coverage note. In one
+// account only BlockPublicPolicy, at PutBucketPolicy, and BlockPublicAcls,
+// at ACL writes, change an outcome (iam-enforcement-surfaces.md 7.3, 12.2),
+// and understudy applies neither under any iam.enforce mode: which policies
+// AWS counts as public is not researched, and refusing only some would let
+// the rest pass as checked.
+const blockPublicAccessNote = "the public access block is stored and echoed; not applied under any iam.enforce mode, " +
+	"where AWS refuses PutBucketPolicy with a public policy while BlockPublicPolicy is true and a public ACL while BlockPublicAcls is true"
 
 // publicAccessBlock is the stored form of a put: every flag present, an
 // absent one false, as Terraform reads all four back (tf-storage.md 2.6).

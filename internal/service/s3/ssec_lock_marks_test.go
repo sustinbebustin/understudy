@@ -38,7 +38,10 @@ func TestSSECAndObjectLockCoverageMarks(t *testing.T) {
 		partNote     = "chunk signatures are verified under sigv4 verify"
 		answeredNote = "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"
 		deleteNote   = "no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention"
-		notifyNote   = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions; s3:ObjectRetention:Put is stored but sends nothing"
+		notifyNote   = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +
+			"destination validation checks existence and refuses FIFO queues and topics, not permissions, where AWS refuses a destination whose policy does not admit S3; " +
+			"under iam.enforce=enforce such a destination refuses each notification, which is dropped (s3.notification.delivery-denied); " +
+			"s3:ObjectRetention:Put is stored but sends nothing"
 	)
 	marks := map[string]registry.BindCoverage{
 		"PutObject":                          registry.Partial{Note: putNote},

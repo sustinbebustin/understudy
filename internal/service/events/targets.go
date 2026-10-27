@@ -24,6 +24,8 @@ func (s *Service) bindTargets(b eventbridgeapi.Binder) {
 	b.PutTargets(s.putTargets,
 		registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; " +
 			"RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; " +
+			"RoleArn is not assumed, so under iam.enforce=enforce every function, queue and topic delivery is decided for events.amazonaws.com against the target's policy, and one it refuses is not retried " +
+			"and goes to the dead-letter queue with ERROR_CODE NO_PERMISSIONS (events.delivery.denied-code), else is dropped; no topic policy is added (events.put-targets.sns-policy); " +
 			"a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, " +
 			"or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; " +
 			"a rule on another account's or region's bus answers NotImplemented"},

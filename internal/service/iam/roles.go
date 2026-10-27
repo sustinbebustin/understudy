@@ -19,7 +19,7 @@ const defaultMaxSessionDuration = 3600
 
 // bindRoles binds the role control plane and the internal ResolveRole.
 func (s *Service) bindRoles(b iamapi.Binder) {
-	const trust = "the trust policy is validated and stored, and evaluated by AssumeRole only when iam.enforce is advise or enforce"
+	const trust = "the trust policy is validated and stored, evaluated by AssumeRole under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce"
 	b.CreateRole(s.createRole, registry.Partial{Note: trust + "; as PermissionsBoundary, " + catalogueMembership})
 	b.GetRole(s.getRole, resolvedPartial(), kernel.AuthorizedInHandler())
 	b.UpdateRole(s.updateRole, resolvedPartial())
@@ -43,7 +43,7 @@ func (st *State) role(name string) (Role, *awserr.Error) {
 
 // boundaryNote is the coverage note of PutRolePermissionsBoundary and
 // PutUserPermissionsBoundary.
-const boundaryNote = "the boundary is stored, and evaluated only when iam.enforce is advise or enforce; " + catalogueMembership
+const boundaryNote = "the boundary is stored, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " + catalogueMembership
 
 // boundary checks a permissions boundary ARN, which named resolved among
 // the AWS managed policies: a catalogued AWS managed policy or a customer

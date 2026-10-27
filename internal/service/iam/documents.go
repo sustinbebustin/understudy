@@ -24,7 +24,7 @@ const (
 
 // identityDocumentNote is the coverage note of the operations that store an
 // identity policy checkIdentityPolicy validates.
-const identityDocumentNote = "the document is validated and stored, and evaluated only when iam.enforce is advise or enforce; " +
+const identityDocumentNote = "the document is validated and stored, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
 	"the S3 region rule exempts the regional S3 resource types of the Service Authorization Reference " +
 	"(access grants, batch jobs, Storage Lens, multi-Region access point requests), which moto refuses, " +
 	"and whether IAM accepts them is UNVERIFIED (iam-evaluation.md 10.6)"

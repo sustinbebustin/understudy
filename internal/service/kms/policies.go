@@ -17,7 +17,7 @@ const policyName = "default"
 // returned as sent, and evaluated under iam.enforce advise and enforce.
 func (s *Service) bindPolicies(b kmsapi.Binder) {
 	b.GetKeyPolicy(s.getKeyPolicy, registry.Full{})
-	b.PutKeyPolicy(s.putKeyPolicy, registry.Partial{Note: "the policy is parsed and stored verbatim, and evaluated only when iam.enforce is advise or enforce; grants are not evaluated; the lockout safety check is not run"})
+	b.PutKeyPolicy(s.putKeyPolicy, registry.Partial{Note: "the policy is parsed and stored verbatim, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; grants are not evaluated; the lockout safety check is not run"})
 	b.ListKeyPolicies(s.listKeyPolicies, registry.Full{})
 }
 

@@ -20,7 +20,7 @@ import (
 // topic's stored Policy, evaluated under iam.enforce advise and enforce
 // (iam-enforcement-surfaces.md 12.7).
 func (s *Service) bindPermissions(b snsapi.Binder) {
-	const note = "statements are stored in the topic Policy and evaluated only when iam.enforce is advise or enforce; " +
+	const note = "statements are stored in the topic Policy, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
 		"conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key"
 	b.AddPermission(s.addPermission, registry.Partial{Note: note},
 		arnResource(func(in *snsapi.AddPermissionInput) string { return in.TopicArn }))

@@ -34,8 +34,17 @@ func (s *Service) bindNotification(b s3api.Binder) {
 	put := func(in *s3api.PutBucketNotificationConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
-	b.PutBucketNotificationConfiguration(s.putNotification, registry.Partial{Note: "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions; s3:ObjectRetention:Put is stored but sends nothing"}, touches(put))
+	b.PutBucketNotificationConfiguration(s.putNotification, registry.Partial{Note: notificationNote}, touches(put))
 }
+
+// notificationNote is PutBucketNotificationConfiguration's coverage note.
+// AWS refuses a destination whose policy does not admit S3 at validation
+// (iam-enforcement-surfaces.md 8.3); understudy checks no policy there, so
+// under iam.enforce=enforce the refusal comes at each delivery instead.
+const notificationNote = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +
+	"destination validation checks existence and refuses FIFO queues and topics, not permissions, where AWS refuses a destination whose policy does not admit S3; " +
+	"under iam.enforce=enforce such a destination refuses each notification, which is dropped (s3.notification.delivery-denied); " +
+	"s3:ObjectRetention:Put is stored but sends nothing"
 
 // notificationPut is a configuration that passed admission and its own
 // checks, with the home of the bucket it is for.

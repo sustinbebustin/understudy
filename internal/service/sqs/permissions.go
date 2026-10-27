@@ -24,7 +24,7 @@ const maxPermissionActions = 7
 // statements of the stored Policy attribute, evaluated under iam.enforce
 // advise and enforce (iam-enforcement-surfaces.md 12.7).
 func (s *Service) bindPermissions(b sqsapi.Binder) {
-	stored := registry.Partial{Note: "statements are stored in the queue's Policy attribute and evaluated only when iam.enforce is advise or enforce; " +
+	stored := registry.Partial{Note: "statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
 		"conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key"}
 	b.AddPermission(s.addPermission, stored,
 		kernel.WithCheck(checkAddPermission),
