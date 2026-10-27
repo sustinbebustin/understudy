@@ -1,0 +1,57 @@
+{
+  "golden": 19,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/scenarios/test_base_scenarios.snapshot.json:L26326",
+  "test": "test_invalid_jsonpath[INVALID_JSONPATH_IN_STRING_EXPR_JSONPATH]",
+  "validated": "2025-01-02",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/scenarios/statemachines/invalid_jsonpath_in_string_expr_jsonpath.json5",
+  "definition": {
+    "StartAt": "pass",
+    "States": {
+      "pass": {
+        "Type": "Pass",
+        "Parameters": {
+          "value.$": "$.no_such_jsonpath"
+        },
+        "End": true
+      }
+    }
+  },
+  "input": {"int-literal": 0},
+  "placeholders": {
+    "<json-input:1>": "{\"int-literal\":0}"
+  },
+  "history": [
+    {
+      "executionStartedEventDetails": {
+        "input": {"int-literal": 0},
+        "inputDetails": {"truncated": false},
+        "roleArn": "snf_role_arn"
+      },
+      "id": 1,
+      "previousEventId": 0,
+      "timestamp": "timestamp",
+      "type": "ExecutionStarted"
+    },
+    {
+      "id": 2,
+      "previousEventId": 0,
+      "stateEnteredEventDetails": {
+        "input": {"int-literal": 0},
+        "inputDetails": {"truncated": false},
+        "name": "pass"
+      },
+      "timestamp": "timestamp",
+      "type": "PassStateEntered"
+    },
+    {
+      "executionFailedEventDetails": {
+        "cause": "An error occurred while executing the state 'pass' (entered at the event id #2). The JSONPath '$.no_such_jsonpath' specified for the field 'value.$' could not be found in the input '<json-input:1>'",
+        "error": "States.Runtime"
+      },
+      "id": 3,
+      "previousEventId": 2,
+      "timestamp": "timestamp",
+      "type": "ExecutionFailed"
+    }
+  ]
+}
