@@ -72,6 +72,9 @@ type State struct {
 	// the label DynamoDB Local mints as it re-creates the table, and is not
 	// listed (the streamLabels coverage clause).
 	Streams []Stream `json:"-"`
+	// iteratorKey signs the scope's shard iterators; drawn on the first
+	// GetShardIterator. Like Streams, not saved in snapshots yet.
+	iteratorKey []byte
 }
 
 func newState(aws.Scope) State { return State{Tables: map[string]Table{}} }

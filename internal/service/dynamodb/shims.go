@@ -137,6 +137,7 @@ func (s *Service) updateTable(ctx context.Context, c *kernel.Call, in *dynamodba
 	if e, ok := change.(streamEnabled); ok {
 		minted = s.mint(c.Scope(), name, e.viewType, c.Admitted())
 		a.shim.stream = minted.members(c.Scope())
+		a.shim.seen = &localStreamSeen{}
 	}
 	var resp kernel.RawResponse
 	if shimOnly(in) {
@@ -156,9 +157,10 @@ func (s *Service) updateTable(ctx context.Context, c *kernel.Call, in *dynamodba
 		st.Tables[name] = t.updated(in, c.Admitted(), sse)
 		switch change.(type) {
 		case streamEnabled:
+			minted.adopt(a.shim.seen)
 			st.Streams = append(st.Streams, minted)
 		case streamDisabled:
-			st.disableStream(name)
+			st.disableStream(name, c.Admitted())
 		case streamKept:
 		}
 		return struct{}{}, nil

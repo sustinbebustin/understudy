@@ -134,12 +134,6 @@ func TestEveryOperationLocalServesIsBound(t *testing.T) {
 			if slices.Contains(labelled, op.ID.Name) && (!partial || !strings.Contains(p.Note, "stream labels are not saved in snapshots yet")) {
 				h.Errorf("%s: coverage %#v does not list the stream-label deviation", op.ID.Name, bound.Coverage)
 			}
-			// The stream these answers name is listed but cannot be read
-			// (dynamodb-streams.md 11.2).
-			const noStreams = "LatestStreamArn names a stream ListStreams lists, but the stream cannot be read yet: DynamoDB Streams' DescribeStream, GetShardIterator and GetRecords answer 501"
-			if slices.Contains(labelled, op.ID.Name) && (!partial || !strings.Contains(p.Note, noStreams)) {
-				h.Errorf("%s: coverage %#v does not say the stream cannot be read", op.ID.Name, bound.Coverage)
-			}
 		}
 	})
 }

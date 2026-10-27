@@ -1,12 +1,16 @@
 package dynamodb
 
 import (
+	"fmt"
+	"hash/crc32"
 	"slices"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/shardlog"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -27,6 +31,64 @@ type Stream struct {
 	// TableGone is set when the table was deleted: a table created again
 	// under the name starts without a stream.
 	TableGone bool
+	// log holds the stream's records. Every copy of the Stream shares it,
+	// and it is read and changed only under the cell's lock.
+	log *streamLog
+}
+
+// streamLog is a stream's records and the feed's place in Local's stream.
+type streamLog struct {
+	// keys is the table's key schema, from Local's answer that enabled the
+	// stream; DescribeStream reports it.
+	keys []dynamodbstreamsapi.KeySchemaElement
+	// shard is the stream's one shard (dynamodb-streams.md 11.1 item 1).
+	shard *shardlog.Shard[streamRecord]
+	// feed is how far the feed has read Local's stream of the table.
+	feed localFeed
+}
+
+// streamRecord is one record of the log: what the feed copied from Local's
+// record and what understudy stamps itself (dynamodb-streams.md 11.1 item
+// 4). The sequence number and arrival instant are the shard entry's.
+type streamRecord struct {
+	EventID   string `json:"eventID"`
+	EventName string `json:"eventName"`
+	Keys      image  `json:"keys"`
+	NewImage  image  `json:"newImage,omitempty"`
+	OldImage  image  `json:"oldImage,omitempty"`
+	SizeBytes int64  `json:"sizeBytes"`
+	// TTL marks a delete by the TTL sweeper, whose record carries
+	// userIdentity (dynamodb-streams.md 7.5).
+	TTL bool `json:"ttl,omitempty"`
+}
+
+// localFeed is the feed's place in DynamoDB Local's stream of a table.
+type localFeed struct {
+	// label is Local's LatestStreamLabel, which with Local's fixed account
+	// and region names Local's stream (localARN).
+	label string
+	// shard is Local's shard id; empty until a drain described the stream.
+	shard string
+	// last is the SequenceNumber of the last Local record the feed
+	// appended; empty before the first.
+	last string
+}
+
+// localARN is the ARN of Local's stream of the table, as Local minted it:
+// Local refuses understudy's (dynamodb-streams.md 8.3 row 1).
+func (s Stream) localARN() string {
+	return aws.ARN{
+		Partition: "aws", Service: "dynamodb", Region: localRegion, Account: localAccount,
+		Resource: "table/" + s.Table + "/stream/" + s.log.feed.label,
+	}.String()
+}
+
+// shardID is the stream's one shard id in AWS's form
+// shardId-<20 digits>-<8 hex> (dynamodb-streams.md 4.2): the label
+// instant's Unix milliseconds and the CRC-32 of the stream ARN, so it is
+// the same on every run.
+func shardID(arn string, label clock.Instant) string {
+	return fmt.Sprintf("shardId-%020d-%08x", label.Wire().UnixMilli(), crc32.ChecksumIEEE([]byte(arn)))
 }
 
 // streamLabelLayout is a stream label: the instant in UTC to the
@@ -74,21 +136,23 @@ func (st *State) streamLabel(name string, now clock.Instant) clock.Instant {
 }
 
 // disableStream disables the enabled stream of the table name, if it has
-// one.
-func (st *State) disableStream(name string) {
+// one, closing its shard at (dynamodb-streams.md 5.3).
+func (st *State) disableStream(name string, at clock.Instant) {
 	for i := range st.Streams {
 		if s := &st.Streams[i]; s.Table == name && !s.TableGone {
 			s.Enabled = false
+			s.log.shard.Close(at)
 		}
 	}
 }
 
 // tableDeleted marks every stream of the table name disabled and gone with
-// its table.
-func (st *State) tableDeleted(name string) {
+// its table, closing its shard at (dynamodb-streams.md 5.4).
+func (st *State) tableDeleted(name string, at clock.Instant) {
 	for i := range st.Streams {
 		if s := &st.Streams[i]; s.Table == name {
 			s.Enabled, s.TableGone = false, true
+			s.log.shard.Close(at)
 		}
 	}
 }
@@ -159,7 +223,28 @@ func (s *Service) mint(scope aws.Scope, name string, v dynamodbapi.StreamViewTyp
 	if cell, ok := s.cells.Lookup(scope); ok {
 		label = store.Read(cell, func(st *State) clock.Instant { return st.streamLabel(name, now) })
 	}
-	return Stream{Table: name, Label: label, ViewType: v, Enabled: true}
+	st := Stream{Table: name, Label: label, ViewType: v, Enabled: true}
+	info := shardlog.ShardInfo{ID: shardID(st.arn(scope), label), Opened: label}
+	st.log = &streamLog{shard: shardlog.NewShard[streamRecord](info, s.sequencer())}
+	return st
+}
+
+// sequencer numbers stream records as the dynamodb.streams.sequence-number
+// switch says (dynamodb-streams.md 4.3, DDBS-09).
+func (s *Service) sequencer() shardlog.Sequencer {
+	return shardlog.DecimalCounter{Digits: streamSeqDigits, FirstAtStart: s.streamSeq == SequenceStartEqualsFirst}
+}
+
+// streamSeqDigits is the length of a shard's StartingSequenceNumber under
+// either value of the switch: 21 digits, as AWS's examples start
+// (dynamodb-streams.md 4.3).
+const streamSeqDigits = 21
+
+// adopt records what Local's answer said of the stream minted by the call
+// it answered (seen), so the feed can find Local's stream.
+func (s Stream) adopt(seen *localStreamSeen) {
+	s.log.keys = seen.keys
+	s.log.feed.label = seen.label
 }
 
 // streams is a copy of the streams minted in scope, oldest first.

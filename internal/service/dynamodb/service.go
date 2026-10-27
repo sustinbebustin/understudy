@@ -24,6 +24,11 @@ type Service struct {
 	kernel *kernel.Kernel
 	// sweeps are the TTL sweep timers.
 	sweeps *sweeper
+	// streamSeq is the dynamodb.streams.sequence-number switch.
+	streamSeq StreamSequence
+	// feedLocks are the stream locks of the tables, each held across a
+	// write and the drain that follows it (dynamodb-streams.md 11.1 item 2).
+	feedLocks feedLocks
 }
 
 // The service is the snapshot and reset view of its shim state.
@@ -34,9 +39,10 @@ var _ kernel.Stateful = (*Service)(nil)
 // Local sees them, and coverage lists them.
 func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{
-		local:  o.Local,
-		cells:  store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
-		kernel: d.Kernel,
+		local:     o.Local,
+		cells:     store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
+		kernel:    d.Kernel,
+		streamSeq: o.StreamSequence,
 	}
 	if s.local == nil {
 		s.local = noLocal{}
@@ -84,9 +90,6 @@ const (
 	// mints the labels (dynamodb-streams.md 11.1 item 6), but snapshots do
 	// not keep them yet (State.Streams).
 	streamLabels = "aws-differs: dynamodb-local: stream labels are not saved in snapshots yet, so a table re-created by snapshot load or reset carries the new LatestStreamLabel DynamoDB Local mints, and ListStreams does not list that stream"
-	// noStreams goes on the same operations: the stream is listed, but no
-	// record of it is served (dynamodb-streams.md 11.2).
-	noStreams = "LatestStreamArn names a stream ListStreams lists, but the stream cannot be read yet: DynamoDB Streams' DescribeStream, GetShardIterator and GetRecords answer 501"
 )
 
 // notes joins coverage notes into one Partial.
@@ -94,13 +97,13 @@ func notes(ns ...string) registry.Partial { return registry.Partial{Note: string
 
 func (s *Service) bindTables(b dynamodbapi.Binder) {
 	createTable := named(func(in *dynamodbapi.CreateTableInput) string { return in.TableName })
-	b.CreateTableRaw(s.createTable, notes(caseTwins, streamLabels, noStreams), tables(createTable))
+	b.CreateTableRaw(s.createTable, notes(caseTwins, streamLabels), tables(createTable))
 	deleteTable := named(func(in *dynamodbapi.DeleteTableInput) string { return in.TableName })
 	b.DeleteTableRaw(s.deleteTable, registry.Full{}, tables(deleteTable))
 	describeTable := named(func(in *dynamodbapi.DescribeTableInput) string { return in.TableName })
-	b.DescribeTableRaw(s.describeTable, notes(streamLabels, noStreams), tables(describeTable))
+	b.DescribeTableRaw(s.describeTable, notes(streamLabels), tables(describeTable))
 	updateTable := named(func(in *dynamodbapi.UpdateTableInput) string { return in.TableName })
-	b.UpdateTableRaw(s.updateTable, notes(streamLabels, noStreams), tables(updateTable))
+	b.UpdateTableRaw(s.updateTable, notes(streamLabels), tables(updateTable))
 	b.ListTablesRaw(passthrough(s, noTables, plainAnswer[dynamodbapi.ListTablesInput]), registry.Full{})
 	b.DescribeLimitsRaw(passthrough(s, noTables, plainAnswer[dynamodbapi.DescribeLimitsInput]), registry.Full{})
 }
@@ -109,11 +112,11 @@ func (s *Service) bindItems(b dynamodbapi.Binder) {
 	getItem := named(func(in *dynamodbapi.GetItemInput) string { return in.TableName })
 	b.GetItemRaw(passthrough(s, getItem, echoed(getItem)), notes(noThroughput), tables(getItem))
 	putItem := named(func(in *dynamodbapi.PutItemInput) string { return in.TableName })
-	b.PutItemRaw(ttlWrites(s, passthrough(s, putItem, echoed(putItem)), putItemWrites), notes(noThroughput, noConflicts), tables(putItem))
+	b.PutItemRaw(ttlWrites(s, fed(s, passthrough(s, putItem, echoed(putItem)), putItem), putItemWrites), notes(noThroughput, noConflicts), tables(putItem))
 	updateItem := named(func(in *dynamodbapi.UpdateItemInput) string { return in.TableName })
-	b.UpdateItemRaw(ttlWrites(s, passthrough(s, updateItem, echoed(updateItem)), updateItemWrites), notes(noThroughput, noConflicts), tables(updateItem))
+	b.UpdateItemRaw(ttlWrites(s, fed(s, passthrough(s, updateItem, echoed(updateItem)), updateItem), updateItemWrites), notes(noThroughput, noConflicts), tables(updateItem))
 	deleteItem := named(func(in *dynamodbapi.DeleteItemInput) string { return in.TableName })
-	b.DeleteItemRaw(passthrough(s, deleteItem, echoed(deleteItem)), notes(noThroughput, noConflicts), tables(deleteItem))
+	b.DeleteItemRaw(fed(s, passthrough(s, deleteItem, echoed(deleteItem)), deleteItem), notes(noThroughput, noConflicts), tables(deleteItem))
 	query := named(func(in *dynamodbapi.QueryInput) string { return in.TableName })
 	b.QueryRaw(passthrough(s, query, echoed(query)), notes(noThroughput), tables(query))
 	scan := named(func(in *dynamodbapi.ScanInput) string { return in.TableName })
@@ -199,6 +202,7 @@ func (s *Service) createTable(ctx context.Context, c *kernel.Call, in *dynamodba
 	if e, ok := streamChangeOf(in.StreamSpecification).(streamEnabled); ok {
 		minted = new(s.mint(c.Scope(), name, e.viewType, c.Admitted()))
 		a.shim.stream = minted.members(c.Scope())
+		a.shim.seen = &localStreamSeen{}
 	}
 	resp, err := s.forward(ctx, c, in, w, a, []string{in.TableName})
 	if err != nil || resp.Status != http.StatusOK {
@@ -207,6 +211,7 @@ func (s *Service) createTable(ctx context.Context, c *kernel.Call, in *dynamodba
 	_, err = kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
 		st.Tables[name] = record
 		if minted != nil {
+			minted.adopt(a.shim.seen)
 			st.Streams = append(st.Streams, *minted)
 		}
 		return struct{}{}, nil
@@ -231,7 +236,7 @@ func (s *Service) deleteTable(ctx context.Context, c *kernel.Call, in *dynamodba
 			return struct{}{}, nil
 		}
 		delete(st.Tables, name)
-		st.tableDeleted(name)
+		st.tableDeleted(name, c.Admitted())
 		return struct{}{}, nil
 	})
 	s.sweeps.forget(tableKey{scope: c.Scope(), table: name})
