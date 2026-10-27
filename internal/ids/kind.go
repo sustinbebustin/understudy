@@ -63,6 +63,11 @@ const (
 	// KindSFNMathRandom draws an unseeded States.MathRandom value
 	// (stepfunctions-asl.md 5.2).
 	KindSFNMathRandom
+	// KindSFNJitter seeds each Step Functions execution's FULL retry jitter
+	// (stepfunctions-asl.md 8.3), apart from delivery jitter (KindJitter),
+	// so EventBridge deliveries never shift an execution's retry delays
+	// (ADR 0018).
+	KindSFNJitter
 
 	// endKind follows the last kind and is no kind: kindCount counts up to
 	// it, so a new kind is one line above it plus its String case.
@@ -140,6 +145,8 @@ func (k Kind) String() string {
 		return "sfn-uuid"
 	case KindSFNMathRandom:
 		return "sfn-math-random"
+	case KindSFNJitter:
+		return "sfn-jitter"
 	}
 	return fmt.Sprintf("kind(%d)", uint8(k))
 }

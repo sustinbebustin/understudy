@@ -55,6 +55,7 @@ var kindNames = []struct {
 	{ids.KindSFNRevisionID, "sfn-revision-id"},
 	{ids.KindSFNUUID, "sfn-uuid"},
 	{ids.KindSFNMathRandom, "sfn-math-random"},
+	{ids.KindSFNJitter, "sfn-jitter"},
 }
 
 // declaredKinds walks the kinds from the first until String falls back to

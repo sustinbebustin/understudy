@@ -85,6 +85,7 @@ export const idKindLabels: Readonly<Record<string, string>> = {
   "sfn-revision-id": "Step Functions revision ID",
   "sfn-uuid": "Step Functions States.UUID",
   "sfn-math-random": "Step Functions States.MathRandom",
+  "sfn-jitter": "Step Functions retry jitter seed",
 };
 
 // label returns table's label for name, or name when it has none.
