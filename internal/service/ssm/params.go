@@ -2,7 +2,9 @@ package ssm
 
 import (
 	"context"
+	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -75,9 +77,27 @@ func (*sealedReadError) Error() string {
 	return "ssm: a SecureString value was stored, but reading one is not implemented yet"
 }
 
-// putParameter creates a String parameter. Not implemented yet: overwrite,
-// the other types, tiers, data types, AllowedPattern, tags and policies,
-// each of which answers NotImplemented naming it.
+// PutParameter limits (ssm-parameters.md 6.1, 7.9).
+const (
+	// maxVersions is how many versions a parameter retains.
+	maxVersions = 100
+	// maxTags is how many tags a parameter can carry.
+	maxTags = 50
+)
+
+// errTagsWithOverwrite is PutParameter's answer for Tags with Overwrite
+// true (ssm-parameters.md 7.1, 12.4). It is given for a name that does not
+// exist yet too. UNVERIFIED (SSM-03), ssm-parameters.md 7.1.
+func errTagsWithOverwrite() *awserr.Error {
+	return ssmapi.ErrValidationException("Invalid request: tags and overwrite can't be used together. " +
+		"To create a parameter with tags, please remove overwrite flag. " +
+		"To update tags for an existing parameter, please use AddTagsToResource or RemoveTagsFromResource.")
+}
+
+// putParameter creates a parameter, or with Overwrite writes its next
+// version. Not implemented yet: SecureString, tiers other than Standard,
+// DataTypes other than text, AllowedPattern, value sizes and policies, each
+// of which answers NotImplemented naming it.
 func (s *Service) putParameter(_ context.Context, c *kernel.Call, in *ssmapi.PutParameterInput) (*ssmapi.PutParameterOutput, *awserr.Error) {
 	const op = "PutParameter"
 	if err := checkReserved(op, in.Name); err != nil {
@@ -88,15 +108,12 @@ func (s *Service) putParameter(_ context.Context, c *kernel.Call, in *ssmapi.Put
 	if err != nil {
 		return nil, err
 	}
+	overwrite := in.Overwrite != nil && *in.Overwrite
 	switch {
 	case in.Policies != nil:
 		return nil, errFeatureNotYet(op, "Policies")
-	case len(in.Tags) > 0:
-		return nil, errFeatureNotYet(op, "Tags")
-	case in.Type == nil || *in.Type != ssmapi.ParameterTypeString:
-		return nil, errFeatureNotYet(op, "a Type other than String")
-	case in.KeyId != nil:
-		return nil, errFeatureNotYet(op, "KeyId")
+	case in.Type != nil && *in.Type == ssmapi.ParameterTypeSecureString:
+		return nil, errFeatureNotYet(op, "SecureString")
 	case in.Tier != nil && *in.Tier != ssmapi.ParameterTierStandard:
 		return nil, errFeatureNotYet(op, "a Tier other than Standard")
 	case in.DataType != nil && *in.DataType != defaultDataType:
@@ -105,32 +122,170 @@ func (s *Service) putParameter(_ context.Context, c *kernel.Call, in *ssmapi.Put
 		// Terraform sends AllowedPattern "" when none is configured
 		// (ssm-parameters.md 10.1), which is no pattern.
 		return nil, errFeatureNotYet(op, "AllowedPattern")
+	case len(in.Tags) > 0 && overwrite:
+		return nil, errTagsWithOverwrite()
 	}
-	user := identity.Render(c.Principal())
-	_, err = kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
-		if _, ok := st.Parameters[n.canonical]; ok {
-			if in.Overwrite != nil && *in.Overwrite {
-				return struct{}{}, errFeatureNotYet(op, "Overwrite")
-			}
-			return struct{}{}, errAlreadyExists()
+	tags := addTags(nil, in.Tags)
+	if len(tags) > maxTags {
+		return nil, ssmapi.ErrTooManyTagsError()
+	}
+	w := write{name: n, in: in, tags: tags, at: c.Admitted(), user: identity.Render(c.Principal())}
+	v, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (Version, *awserr.Error) {
+		prev, exists := st.Parameters[n.canonical]
+		var p Parameter
+		var err *awserr.Error
+		switch {
+		case !exists:
+			p, err = w.create()
+		case !overwrite:
+			err = errAlreadyExists()
+		default:
+			p, err = w.next(prev)
 		}
-		st.Parameters[n.canonical] = Parameter{
-			Name: n.canonical,
-			Versions: []Version{{
-				Number: 1, Type: paramType(ssmapi.ParameterTypeString), Value: plainValue{Text: in.Value},
-				Description: in.Description, DataType: defaultDataType, Tier: tier(ssmapi.ParameterTierStandard),
-				LastModified: c.Admitted(), LastModifiedUser: user,
-			}},
-			LastVersion: 1,
-			Labels:      map[string]int64{},
+		if err != nil {
+			tx.Unchanged()
+			return Version{}, err
 		}
-		return struct{}{}, nil
+		st.Parameters[n.canonical] = p
+		return p.latest(), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	c.Touch(parameterARN(scope, n.canonical))
-	return &ssmapi.PutParameterOutput{Version: 1, Tier: new(ssmapi.ParameterTierStandard)}, nil
+	return &ssmapi.PutParameterOutput{Version: v.Number, Tier: new(ssmapi.ParameterTier(v.Tier))}, nil
+}
+
+// write is one PutParameter request, validated up to what needs the stored
+// parameter.
+type write struct {
+	name name
+	in   *ssmapi.PutParameterInput
+	tags []Tag
+	at   clock.Instant
+	user string
+}
+
+// create is the parameter a create writes: version 1, with DataType text
+// and tier Standard unless given (ssm-parameters.md 4.2, 4.3).
+func (w write) create() (Parameter, *awserr.Error) {
+	if w.in.Type == nil {
+		// UNVERIFIED (SSM-11), ssm-parameters.md 7.1: AWS's code and text.
+		return Parameter{}, ssmapi.ErrValidationException(fmt.Sprintf(
+			"Parameter %q does not exist, so this request creates it, and a create needs a Type: String, StringList or SecureString.", w.name.spelling))
+	}
+	v, err := w.version(Version{
+		Number: 1, Type: paramType(*w.in.Type), DataType: defaultDataType, Tier: tier(ssmapi.ParameterTierStandard),
+	})
+	if err != nil {
+		return Parameter{}, err
+	}
+	return Parameter{Name: w.name.canonical, Versions: []Version{v}, LastVersion: 1, Labels: map[string]int64{}, Tags: w.tags}, nil
+}
+
+// next is prev with the overwrite's version appended. Every overwrite
+// creates a version, one identical to the latest included (UNVERIFIED
+// (SSM-08), ssm-parameters.md 6.1). Past 100 versions the oldest is
+// dropped, unless a label names it (ssm-parameters.md 6.1, 12.4); numbers
+// keep counting from LastVersion (UNVERIFIED (SSM-30), ssm-parameters.md
+// 6.1).
+func (w write) next(prev Parameter) (Parameter, *awserr.Error) {
+	base := prev.latest()
+	base.Number = prev.LastVersion + 1
+	v, err := w.version(base)
+	if err != nil {
+		return Parameter{}, err
+	}
+	kept := prev.Versions
+	if len(kept) >= maxVersions {
+		oldest := kept[0].Number
+		for _, labeled := range prev.Labels {
+			if labeled == oldest {
+				return Parameter{}, ssmapi.ErrParameterMaxVersionLimitExceeded(fmt.Sprintf(
+					"You attempted to create a new version of %s by calling the PutParameter API with the overwrite flag. "+
+						"Version %d, the oldest version, can't be deleted because it has a label associated with it. "+
+						"Move the label to another version of the parameter, and try again.", prev.Name, oldest))
+			}
+		}
+		kept = kept[len(kept)-maxVersions+1:]
+	}
+	p := prev
+	p.Versions = append(slices.Clone(kept), v)
+	p.LastVersion = v.Number
+	return p, nil
+}
+
+// version is base with the request's fields applied. Under switch
+// ssm.put.omitted-fields (preserved) a field the request leaves out keeps
+// base's value (ssm-parameters.md 7.1); an empty Description or
+// AllowedPattern clears it (UNVERIFIED (SSM-10), ssm-parameters.md 7.1:
+// Terraform sends AllowedPattern "" whenever none is configured).
+func (w write) version(base Version) (Version, *awserr.Error) {
+	in := w.in
+	v := base
+	v.Value = plainValue{Text: in.Value}
+	v.LastModified, v.LastModifiedUser = w.at, w.user
+	if in.Type != nil {
+		v.Type = paramType(*in.Type)
+	}
+	if in.Description != nil {
+		v.Description = nil
+		if *in.Description != "" {
+			v.Description = new(*in.Description)
+		}
+	}
+	if in.AllowedPattern != nil {
+		v.AllowedPattern = nil
+		if *in.AllowedPattern != "" {
+			v.AllowedPattern = new(*in.AllowedPattern)
+		}
+	}
+	if in.DataType != nil {
+		v.DataType = *in.DataType
+	}
+	if in.KeyId != nil && v.Type != paramType(ssmapi.ParameterTypeSecureString) {
+		// UNVERIFIED (SSM-11), ssm-parameters.md 7.1: AWS's code and text.
+		return Version{}, ssmapi.ErrValidationException(fmt.Sprintf(
+			"Parameter %q is a %s, and KeyId applies only to a SecureString. Remove KeyId, or write the parameter as a SecureString.", w.name.spelling, v.Type))
+	}
+	if hasReference(in.Value) {
+		// UNVERIFIED (SSM-11 step 05), ssm-parameters.md 4.1: the doc
+		// forbids such values; AWS's code and text are unrecorded.
+		return Version{}, ssmapi.ErrValidationException(fmt.Sprintf(
+			"Parameter %q was not written: its value holds text wrapped in double braces ({{...}}), "+
+				"and a parameter value can't reference or nest another parameter.", w.name.spelling))
+	}
+	if v.Type != base.Type && strings.HasPrefix(w.name.canonical, "/") {
+		// A hierarchical parameter keeps its type; a root parameter may
+		// change it, as Terraform does against AWS. UNVERIFIED (SSM-09),
+		// ssm-parameters.md 4.1.
+		return Version{}, ssmapi.ErrHierarchyTypeMismatchException(fmt.Sprintf(
+			"Parameter %q is a %s, and a parameter in a hierarchy can't change its type to %s. Create a new parameter with another name instead.",
+			w.name.spelling, base.Type, v.Type))
+	}
+	return v, nil
+}
+
+// hasReference reports a value holding {{ followed later by }}, which a
+// parameter value can't contain (ssm-parameters.md 4.1 [D]).
+func hasReference(value string) bool {
+	_, after, ok := strings.Cut(value, "{{")
+	return ok && strings.Contains(after, "}}")
+}
+
+// addTags is tags with add applied in order: a new key is appended, an
+// existing key takes the new value (AddTagsToResource "Adds or
+// overwrites", ssm-parameters.md 7.9). tags is not modified.
+func addTags(tags []Tag, add []ssmapi.Tag) []Tag {
+	out := slices.Clone(tags)
+	for _, t := range add {
+		if i := slices.IndexFunc(out, func(o Tag) bool { return o.Key == t.Key }); i >= 0 {
+			out[i].Value = t.Value
+			continue
+		}
+		out = append(out, Tag{Key: t.Key, Value: t.Value})
+	}
+	return out
 }
 
 // getParameter reads a parameter's latest version by name or ARN. Not
