@@ -11,17 +11,22 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
-// resourcesFor is one WithResourcesFor option: the actions it names and
-// how to resolve the resources they apply to.
-type resourcesFor[In any] struct {
+// scopedResources is one WithResourcesFor option, type-erased: the actions it
+// names and how to resolve the resources they apply to from a valid input.
+// It is erased where the option is built, not per binding, so operations
+// without the option stamp out no code for it (ADR 0001's binary budget).
+type scopedResources struct {
 	actions []registry.IAMAction
-	resolve func(*Call, *In) []aws.ARN
+	resolve func(c *Call, in any) []aws.ARN
 }
+
+// resourcesFor is the option WithResourcesFor returns for input type In.
+type resourcesFor[In any] scopedResources
 
 func (o resourcesFor[In]) apply(cfg any) bool {
 	c, ok := cfg.(*bindConfig[In])
 	if ok {
-		c.scoped = append(c.scoped, o)
+		c.erased.scoped = append(c.erased.scoped, scopedResources(o))
 	}
 	return ok
 }
@@ -36,7 +41,16 @@ func (o resourcesFor[In]) apply(cfg any) bool {
 // with every touched resource of its service (iam-enforcement-surfaces.md
 // 12.6).
 func WithResourcesFor[In any](actions []registry.IAMAction, resolve func(c *Call, in *In) []aws.ARN) BindOption {
-	return resourcesFor[In]{actions: slices.Clone(actions), resolve: resolve}
+	return resourcesFor[In]{
+		actions: slices.Clone(actions),
+		resolve: func(c *Call, in any) []aws.ARN {
+			typed, ok := in.(*In)
+			if !ok {
+				return nil
+			}
+			return resolve(c, typed)
+		},
+	}
 }
 
 // scoping is what a call's WithResourcesFor options resolved: for each
@@ -58,15 +72,16 @@ func (s scoping) resources(order []registry.IAMAction) []aws.ARN {
 	return out
 }
 
-// scope resolves every WithResourcesFor option for the input in; nil
-// without one.
-func (cfg *bindConfig[In]) scope(c *Call, in *In) (scoping, []aws.ARN) {
-	if len(cfg.scoped) == 0 {
+// scope resolves every WithResourcesFor option in scoped for the valid input
+// in: the resources each named action applies to, and all of them in order
+// to touch; nil without an option.
+func scope(scoped []scopedResources, c *Call, in any) (scoping, []aws.ARN) {
+	if len(scoped) == 0 {
 		return nil, nil
 	}
 	out := scoping{}
 	var order []registry.IAMAction
-	for _, o := range cfg.scoped {
+	for _, o := range scoped {
 		arns := o.resolve(c, in)
 		for _, a := range o.actions {
 			if _, seen := out[a]; !seen {
@@ -83,26 +98,15 @@ func (cfg *bindConfig[In]) scope(c *Call, in *In) (scoping, []aws.ARN) {
 	return out, out.resources(order)
 }
 
-// erasedScope is scope for the type-erased binding; nil without a
-// WithResourcesFor option.
-func (cfg *bindConfig[In]) erasedScope() func(c *Call, in any) (scoping, []aws.ARN) {
-	if len(cfg.scoped) == 0 {
-		return nil
-	}
-	return func(c *Call, in any) (scoping, []aws.ARN) {
-		typed, ok := in.(*In)
-		if !ok {
-			return nil, nil
-		}
-		return cfg.scope(c, typed)
-	}
-}
-
 // AuthorizedAfterResolve moves step 8 for the operation into its handler,
-// for a handler that resolves its resource by name: the kernel asks about the
-// binding's pairs over the resources the call touched, at the first of the
-// call's Write, its first Invoke or the handler's successful return, and once
-// only. A denial is what that Write or Invoke returns, before it takes a lock
+// for an operation whose resource is named indirectly (an alias, a secret
+// name): the kernel asks about the binding's pairs over the resources the
+// call touched, at the first of the call's Write, its first Invoke or the
+// handler's successful return, and once only. Those resources are what the
+// binding's WithResources resolved at step 7, before the handler ran, not
+// what the handler resolves again under its own read or write: a change
+// that lands between the two, such as an UpdateAlias retargeting the alias,
+// leaves the call asked about the resource step 7 resolved. A denial is what that Write or Invoke returns, before it takes a lock
 // or calls; at the return it replaces the handler's output. A handler error
 // before any of those is answered unauthorized, existence first. With several
 // of AuthorizedInHandler, NeverAuthorized and AuthorizedAfterResolve, the
@@ -110,12 +114,15 @@ func (cfg *bindConfig[In]) erasedScope() func(c *Call, in any) (scoping, []aws.A
 // awserr.Denial through unchanged.
 func AuthorizedAfterResolve() BindOption { return authorizationOption(afterResolve) }
 
-type conditionKeysOption[In any] func(*Call, *In) ConditionKeys
+// conditionKeysOption is the option WithConditionKeys returns for input type
+// In, its supplier type-erased where the option is built, as for
+// scopedResources.
+type conditionKeysOption[In any] func(c *Call, in any) ConditionKeys
 
 func (o conditionKeysOption[In]) apply(cfg any) bool {
 	c, ok := cfg.(*bindConfig[In])
 	if ok {
-		c.keys = append(c.keys, o)
+		c.erased.keys = append(c.erased.keys, o)
 	}
 	return ok
 }
@@ -127,36 +134,27 @@ func (o conditionKeysOption[In]) apply(cfg any) bool {
 // later options replacing earlier ones key by key. A key with no values is
 // one the request does not carry.
 func WithConditionKeys[In any](supply func(c *Call, in *In) ConditionKeys) BindOption {
-	return conditionKeysOption[In](supply)
-}
-
-// conditionKeys returns the union of every WithConditionKeys option's keys
-// for the input in, a later option's key replacing an earlier one's; nil
-// without an option.
-func (cfg *bindConfig[In]) conditionKeys(c *Call, in *In) ConditionKeys {
-	if len(cfg.keys) == 0 {
-		return nil
-	}
-	out := ConditionKeys{}
-	for _, supply := range cfg.keys {
-		maps.Copy(out, supply(c, in))
-	}
-	return out
-}
-
-// erasedKeys is conditionKeys for the type-erased binding; nil without a
-// WithConditionKeys option.
-func (cfg *bindConfig[In]) erasedKeys() func(c *Call, in any) ConditionKeys {
-	if len(cfg.keys) == 0 {
-		return nil
-	}
-	return func(c *Call, in any) ConditionKeys {
+	return conditionKeysOption[In](func(c *Call, in any) ConditionKeys {
 		typed, ok := in.(*In)
 		if !ok {
 			return nil
 		}
-		return cfg.conditionKeys(c, typed)
+		return supply(c, typed)
+	})
+}
+
+// conditionKeys returns the union of every WithConditionKeys option's keys
+// in keys for the valid input in, a later option's key replacing an earlier
+// one's; nil without an option.
+func conditionKeys(keys []func(*Call, any) ConditionKeys, c *Call, in any) ConditionKeys {
+	if len(keys) == 0 {
+		return nil
 	}
+	out := ConditionKeys{}
+	for _, supply := range keys {
+		maps.Copy(out, supply(c, in))
+	}
+	return out
 }
 
 // deferred is the authorization an AuthorizedAfterResolve binding's call

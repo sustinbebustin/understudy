@@ -80,7 +80,12 @@ func (cfg *bindConfig[In]) declare(c *Call, in *In) []registry.IAMAction {
 // takes no options, applies nothing and is a mistake Kernel.BindErr
 // reports, as is an option of another input type.
 func Declare[In, Out any](b *Binder, op Op[In, Out], opts ...BindOption) {
-	desc := op.desc
+	b.declare(op.desc, opts)
+}
+
+// declare is Declare without its type parameters, so its body is compiled
+// once rather than per operation (ADR 0001's binary budget).
+func (b *Binder) declare(desc *registry.Operation, opts []BindOption) {
 	switch {
 	case desc == nil:
 		b.k.recordBindErr(&BindError{Problem: NilOperation, Service: b.svc.ID})

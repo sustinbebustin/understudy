@@ -34,14 +34,31 @@ type bindConfig[In any] struct {
 	validators []func(*In) []awserr.Violation
 	checks     []func(*In) *awserr.Error
 	resources  []func(*Call, *In) []aws.ARN
-	scoped     []resourcesFor[In]
 	actions    []func(*Call, *In) []registry.IAMAction
-	keys       []func(*Call, *In) ConditionKeys
+	erased     erasedConfig
 	// count is the last WithItemCount; nil without one.
 	count func(*In) int
 	// authorization is the last AuthorizedInHandler, NeverAuthorized or
 	// AuthorizedAfterResolve; atStep8 without one.
 	authorization authorization
+}
+
+// erasedConfig is what a binding's options add that does not depend on its
+// input type: WithResourcesFor and WithConditionKeys erase it where the
+// option is built. It sits apart from bindConfig's typed fields so the code
+// that handles it is compiled once, not per input type (ADR 0001's binary
+// budget).
+type erasedConfig struct {
+	scoped []scopedResources
+	keys   []func(*Call, any) ConditionKeys
+}
+
+// clone returns a copy of e that shares no backing array with it. It is
+// not inlined, which would stamp it into every bindConfig[In].clone.
+//
+//go:noinline
+func (e erasedConfig) clone() erasedConfig {
+	return erasedConfig{scoped: slices.Clone(e.scoped), keys: slices.Clone(e.keys)}
 }
 
 // validate runs step 7 over in: the generated validator and the typed
@@ -229,9 +246,8 @@ func (cfg *bindConfig[In]) clone() bindConfig[In] {
 		validators:    slices.Clone(cfg.validators),
 		checks:        slices.Clone(cfg.checks),
 		resources:     slices.Clone(cfg.resources),
-		scoped:        slices.Clone(cfg.scoped),
 		actions:       slices.Clone(cfg.actions),
-		keys:          slices.Clone(cfg.keys),
+		erased:        cfg.erased.clone(),
 		count:         cfg.count,
 		authorization: cfg.authorization,
 	}
@@ -269,8 +285,8 @@ func configured[In any](b *Binder, id ref.OperationID, base bindConfig[In], opts
 			}
 			return cfg.count(typed)
 		},
-		keys:  cfg.erasedKeys(),
-		scope: cfg.erasedScope(),
+		keys:   cfg.erased.keys,
+		scoped: cfg.erased.scoped,
 		redact: func(in any) ([]byte, error) {
 			if r, ok := in.(interface{ Redact() *In }); ok {
 				return json.Marshal(r.Redact())
@@ -341,14 +357,14 @@ type binding struct {
 	// items counts a valid input's transaction items (WithItemCount); 0
 	// without the option.
 	items func(in any) int
-	// keys are the request condition keys a valid input supplies
+	// keys supply the request condition keys of a valid input
 	// (WithConditionKeys); nil without the option and for raw HTTP
 	// bindings.
-	keys func(c *Call, in any) ConditionKeys
-	// scope resolves what a valid input's WithResourcesFor options name: the
-	// resources each named action applies to, and all of them in order to
-	// touch; nil without the option and for raw HTTP bindings.
-	scope func(c *Call, in any) (scoping, []aws.ARN)
+	keys []func(c *Call, in any) ConditionKeys
+	// scoped name, for a valid input, the resources each named action
+	// applies to (WithResourcesFor); nil without the option and for raw HTTP
+	// bindings.
+	scoped []scopedResources
 	// actions are the IAM actions a valid input declares used besides the
 	// primary (WithActions, WithoutSecondaryActions); nil when the binding
 	// declares none, so its calls record the operation's whole list.
@@ -367,19 +383,13 @@ type binding struct {
 // input in: the resources each named action applies to, and all of them to
 // touch; nil without the option.
 func (bnd *binding) scoping(c *Call, in any) (scoping, []aws.ARN) {
-	if bnd.scope == nil {
-		return nil, nil
-	}
-	return bnd.scope(c, in)
+	return scope(bnd.scoped, c, in)
 }
 
 // conditionKeys returns the request condition keys the binding's
 // WithConditionKeys options supply for the valid input in; nil without one.
 func (bnd *binding) conditionKeys(c *Call, in any) ConditionKeys {
-	if bnd.keys == nil {
-		return nil
-	}
-	return bnd.keys(c, in)
+	return conditionKeys(bnd.keys, c, in)
 }
 
 // Bindings is a kernel's binding table, indexed by service and
