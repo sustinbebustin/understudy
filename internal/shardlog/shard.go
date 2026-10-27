@@ -120,6 +120,25 @@ func (s *Shard[R]) Resolve(p Position) Position {
 	return p
 }
 
+// Pin is Resolve for a position an iterator carries past later trims:
+// TrimHorizon becomes At the oldest untrimmed record, or After the trim
+// point of a shard trimmed empty, so a read once that record is trimmed is
+// a *TrimmedError rather than a silent skip. An empty shard never trimmed
+// keeps TrimHorizon.
+func (s *Shard[R]) Pin(p Position) Position {
+	p = s.Resolve(p)
+	if _, horizon := p.(TrimHorizon); !horizon {
+		return p
+	}
+	switch {
+	case len(s.st.Entries) > 0:
+		return At{Seq: s.st.Entries[0].Seq}
+	case s.st.Trimmed != "":
+		return After{Seq: s.st.Trimmed}
+	}
+	return p
+}
+
 // rest returns the untrimmed entries a read from the resolved position p
 // starts with, or a *TrimmedError.
 func (s *Shard[R]) rest(p Position) ([]Entry[R], error) {

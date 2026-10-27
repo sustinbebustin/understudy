@@ -61,6 +61,32 @@ func TestRecordsKeepTheArrivalForAMappingRead(t *testing.T) {
 	})
 }
 
+// A TRIM_HORIZON iterator taken before a trim whose next record is then
+// trimmed is refused at GetRecords with TrimmedDataAccessException ("one
+// whose next record was trimmed before it was used", dynamodb-streams.md
+// 5.5), as AFTER_SEQUENCE_NUMBER and AT_SEQUENCE_NUMBER iterators are; one
+// taken on an empty shard never trimmed reads what arrives later.
+func TestTrimHorizonIteratorIsRefusedAfterItsRecordIsTrimmed(t *testing.T) {
+	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
+		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
+		shard := h.describe(arn).Shards[0].ShardID
+		empty := h.iterator(arn, shard, "TRIM_HORIZON", "")
+		h.put("Orders", "a")
+		if got := h.records(empty, 0).Records; len(got) != 1 {
+			h.Errorf("TRIM_HORIZON taken on the empty shard read %d records, want 1", len(got))
+		}
+		h.advance(24*time.Hour - time.Millisecond)
+		h.settle()
+		pending := h.iterator(arn, shard, "TRIM_HORIZON", "")
+		h.advance(time.Millisecond)
+		h.settle()
+		e := h.errorOf(h.streamsCall("GetRecords", `{"ShardIterator":"`+pending+`"}`, defaultCaller()), http.StatusBadRequest)
+		if e.Type != "com.amazonaws.dynamodb.v20120810#TrimmedDataAccessException" || e.text() != trimmedText {
+			h.Errorf("GetRecords from a TRIM_HORIZON iterator past the trim: %+v", e)
+		}
+	})
+}
+
 // Trimming drops only the records 24 hours old (dynamodb-streams.md 5.5,
 // aws-doc): a record an hour younger is still read from TRIM_HORIZON and
 // from AFTER_SEQUENCE_NUMBER of the trimmed record, and is trimmed in its

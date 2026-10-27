@@ -198,7 +198,9 @@ func (s *Streams) getShardIterator(ctx context.Context, c *kernel.Call, in *dyna
 		if in.ShardId != shard.Info().ID {
 			return nil, false, dynamodbstreamsapi.ErrResourceNotFoundException(textShardMissing)
 		}
-		pos = shard.Resolve(pos)
+		// Pinned, so an iterator whose next record is trimmed before it is
+		// used answers TrimmedDataAccessException (dynamodb-streams.md 5.5).
+		pos = shard.Pin(pos)
 		if _, _, err := shard.Read(pos, 1, 1, recordSize); err != nil {
 			return nil, false, readError(err)
 		}

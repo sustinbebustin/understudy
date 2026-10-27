@@ -20,7 +20,8 @@ type Iterator struct {
 	// refuses its predecessor's iterators.
 	Created clock.Instant
 	Shard   string
-	// Pos is resolved at issue: TrimHorizon, At or After.
+	// Pos is resolved at issue (Shard.Pin): At or After, or TrimHorizon on
+	// an empty shard never trimmed.
 	Pos    Position
 	Issued clock.Instant
 }
