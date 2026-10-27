@@ -5,13 +5,10 @@
 package jsonpath
 
 import (
-	"errors"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 )
-
-var errNotImplemented = errors.New("jsonpath: evaluation is not implemented yet")
 
 // Kind is the grammar a path is parsed with.
 type Kind int
@@ -27,6 +24,9 @@ const (
 
 // Path is a parsed path, built only by Parse.
 type Path struct {
+	// src is the path as written, which runtime errors quote
+	// (stepfunctions-asl.md 4.6).
+	src string
 	// context is true for a "$$" path, which reads the context object.
 	context bool
 	steps   []step
@@ -93,9 +93,13 @@ func (p Path) String() string {
 // definite path returns its one node or a *MissingError; an indefinite one
 // (wildcard, slice, union, "..", filter) returns a document.List, empty when
 // nothing matches (stepfunctions-asl.md 4.5).
-//
-// Not implemented yet: it fails.
 func (p Path) Eval(input, context document.Value) (document.Value, error) {
-	_, _, _ = p, input, context
-	return nil, errNotImplemented
+	root := input
+	if p.context {
+		root = context
+	}
+	if p.definite() {
+		return p.evalDefinite(root)
+	}
+	return document.List(selectAll([]document.Value{root}, p.steps)), nil
 }

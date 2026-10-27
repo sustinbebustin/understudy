@@ -38,7 +38,9 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 // AcceptedFeatures is the set of definition features whose runtime has
 // landed; Create and Validate parse with it, so any other construct is
 // refused with code UNSUPPORTED_BY_UNDERSTUDY.
-func AcceptedFeatures() asl.Features { return asl.NewFeatures(asl.FeatPass, asl.FeatSucceed) }
+func AcceptedFeatures() asl.Features {
+	return asl.NewFeatures(asl.FeatPass, asl.FeatSucceed, asl.FeatPathDialect)
+}
 
 // The coverage notes of the bound operations.
 const (

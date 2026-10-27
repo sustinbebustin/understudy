@@ -14,6 +14,8 @@ import (
 //sumtype:decl
 type step interface {
 	write(b *strings.Builder)
+	// selectFrom appends to out what the step selects from v.
+	selectFrom(v document.Value, out []document.Value) []document.Value
 }
 
 // child selects an object member: .name or ['name'].
@@ -193,7 +195,7 @@ func (p *parser) eat(prefix string) bool {
 }
 
 func (p *parser) path() (Path, error) {
-	var out Path
+	out := Path{src: p.src}
 	if !p.eat("$") {
 		return Path{}, p.syntax("a path starts with $")
 	}
