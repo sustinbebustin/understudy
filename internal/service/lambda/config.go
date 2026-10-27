@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"maps"
 	"slices"
-	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -449,12 +448,12 @@ type eventInvokeInput struct {
 	dest         *lambdaapi.DestinationConfig
 }
 
-func (s *Service) putEventInvokeConfig(_ context.Context, c *kernel.Call, in *lambdaapi.PutFunctionEventInvokeConfigInput) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
-	return s.storeEventInvoke(c, in.FunctionName, in.Qualifier, eventInvokeInput{in.MaximumRetryAttempts, in.MaximumEventAgeInSeconds, in.DestinationConfig}, true)
+func (s *Service) putEventInvokeConfig(ctx context.Context, c *kernel.Call, in *lambdaapi.PutFunctionEventInvokeConfigInput) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
+	return s.storeEventInvoke(ctx, c, in.FunctionName, in.Qualifier, eventInvokeInput{in.MaximumRetryAttempts, in.MaximumEventAgeInSeconds, in.DestinationConfig}, true)
 }
 
-func (s *Service) updateEventInvokeConfig(_ context.Context, c *kernel.Call, in *lambdaapi.UpdateFunctionEventInvokeConfigInput) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
-	return s.storeEventInvoke(c, in.FunctionName, in.Qualifier, eventInvokeInput{in.MaximumRetryAttempts, in.MaximumEventAgeInSeconds, in.DestinationConfig}, false)
+func (s *Service) updateEventInvokeConfig(ctx context.Context, c *kernel.Call, in *lambdaapi.UpdateFunctionEventInvokeConfigInput) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
+	return s.storeEventInvoke(ctx, c, in.FunctionName, in.Qualifier, eventInvokeInput{in.MaximumRetryAttempts, in.MaximumEventAgeInSeconds, in.DestinationConfig}, false)
 }
 
 // eventInvokeNotFound is the answer for a configuration that is not
@@ -465,8 +464,11 @@ func (r functionRef) eventInvokeNotFound() *awserr.Error {
 }
 
 // storeEventInvoke stores a configuration: replaced whole by Put, merged
-// by Update into one that must exist (lambda-api.md 7.7).
-func (s *Service) storeEventInvoke(c *kernel.Call, name string, qualifier *string, in eventInvokeInput, replace bool) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
+// by Update into one that must exist (lambda-api.md 7.7). The function is
+// checked first, then each destination (checkDestinations); the write
+// checks the function and its own scope's destination functions again,
+// since they may change while other services are asked about the rest.
+func (s *Service) storeEventInvoke(ctx context.Context, c *kernel.Call, name string, qualifier *string, in eventInvokeInput, replace bool) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
 	ref, err := parseFunctionRef(c, name, qualifier)
 	if err != nil {
 		return nil, err
@@ -474,26 +476,28 @@ func (s *Service) storeEventInvoke(c *kernel.Call, name string, qualifier *strin
 	if in.retries == nil && in.age == nil && in.dest == nil {
 		return nil, errEventInvokeNoSettings()
 	}
+	if _, err := view(s, ref.scope, func(st *State) (EventInvokeConfig, *awserr.Error) { return st.eventInvokeBase(ref, replace) }); err != nil {
+		return nil, err
+	}
+	var dests []configuredDestination
+	if in.dest != nil {
+		if dests, err = s.checkDestinations(ctx, c, ref, in.dest); err != nil {
+			return nil, err
+		}
+	}
 	out, err := write(s, c, ref.scope, func(st *State, now clock.Instant, _ *kernel.Tx) (lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
-		f, _, err := st.lookup(ref)
+		cfg, err := st.eventInvokeBase(ref, replace)
 		if err != nil {
-			return lambdaapi.FunctionEventInvokeConfig{}, errEventInvokeFunctionMissing()
+			return lambdaapi.FunctionEventInvokeConfig{}, err
 		}
-		cfg, stored := f.EventInvoke[ref.eventInvokeKey()]
-		switch {
-		case replace:
-			cfg = EventInvokeConfig{}
-		case !stored:
-			return lambdaapi.FunctionEventInvokeConfig{}, ref.eventInvokeNotFound()
-		}
-		if in.dest != nil {
-			if err := st.checkDestinations(ref, in.dest); err != nil {
+		for _, d := range dests {
+			if err := st.recheckDestination(ref, d); err != nil {
 				return lambdaapi.FunctionEventInvokeConfig{}, err
 			}
 		}
 		cfg = cfg.with(in, replace)
 		cfg.Modified = now
-		f = f.clone()
+		f := st.Functions[ref.name].clone()
 		if f.EventInvoke == nil {
 			f.EventInvoke = map[string]EventInvokeConfig{}
 		}
@@ -506,6 +510,24 @@ func (s *Service) storeEventInvoke(c *kernel.Call, name string, qualifier *strin
 	}
 	touch(c, ref.qualifiedARN())
 	return &out, nil
+}
+
+// eventInvokeBase is the configuration a Put or Update starts from:
+// nothing for Put, which replaces it whole, and for Update the stored one,
+// which must exist. The function and its qualifier must exist for both.
+func (st *State) eventInvokeBase(ref functionRef, replace bool) (EventInvokeConfig, *awserr.Error) {
+	f, _, err := st.lookup(ref)
+	if err != nil {
+		return EventInvokeConfig{}, errEventInvokeFunctionMissing()
+	}
+	cfg, stored := f.EventInvoke[ref.eventInvokeKey()]
+	switch {
+	case replace:
+		return EventInvokeConfig{}, nil
+	case !stored:
+		return EventInvokeConfig{}, ref.eventInvokeNotFound()
+	}
+	return cfg, nil
 }
 
 // with returns cfg updated with the settings that in carries; with
@@ -536,40 +558,6 @@ func destinations(d *lambdaapi.DestinationConfig) (success, failure string) {
 		failure = deref(d.OnFailure.Destination)
 	}
 	return success, failure
-}
-
-// checkDestinations refuses a destination that is the function itself, a
-// function that does not exist, or a service Lambda does not deliver to
-// (S3 is an on-failure destination only).
-func (st *State) checkDestinations(ref functionRef, d *lambdaapi.DestinationConfig) *awserr.Error {
-	success, failure := destinations(d)
-	for _, side := range []struct {
-		arn       string
-		onFailure bool
-	}{{success, false}, {failure, true}} {
-		if side.arn == "" {
-			continue
-		}
-		a, err := aws.ParseARN(side.arn)
-		switch {
-		case err != nil:
-			return errDestinationConfig(success, failure)
-		case a.Service == "lambda":
-			target, ok := strings.CutPrefix(a.Resource, "function:")
-			if !ok {
-				return errDestinationConfig(success, failure)
-			}
-			if name, _, _ := strings.Cut(target, ":"); name == ref.name {
-				return errDestinationSelf()
-			} else if _, ok := st.Functions[name]; !ok {
-				return errDestinationMissing(side.arn)
-			}
-		case a.Service == "sqs", a.Service == "sns", a.Service == "events", a.Service == "s3" && side.onFailure:
-		default:
-			return errDestinationConfig(success, failure)
-		}
-	}
-	return nil
 }
 
 // renderEventInvoke reports a configuration: FunctionArn qualified, with

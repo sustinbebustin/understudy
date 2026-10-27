@@ -27,6 +27,11 @@ func asyncSwitches() []fidelity.Switch[string] {
 		// gets the defaults, not $LATEST's (asyncConfigOf).
 		sw("lambda.async.qualifier-config", "invoked-qualifier-only", evidence.Inferred, "24-which-configuration-an-invocation-uses", "LDL-01",
 			"lambda.Invoke", "lambda.PutFunctionEventInvokeConfig"),
+		// A queue, topic, bus or bucket named as a destination is looked up
+		// when it is configured, and a missing one is refused in the words
+		// of a missing destination function (checkDestination).
+		sw("lambda.destination.config-existence-check", "all", evidence.Inferred, "23-validation-at-configuration", "LDL-08",
+			"lambda.PutFunctionEventInvokeConfig", "lambda.UpdateFunctionEventInvokeConfig"),
 		// A record's functionArn is the invoked qualifier's: :$LATEST for
 		// the unqualified function, :<alias> or :<version> otherwise
 		// (sendRecords).

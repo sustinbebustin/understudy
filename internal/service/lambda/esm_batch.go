@@ -128,8 +128,8 @@ func windowOpen(m *Mapping, h *held, now clock.Instant) (clock.Instant, bool) {
 	return closes, now.Before(closes)
 }
 
-// lambdaService is the service principal an event source mapping invokes
-// its function as.
+// lambdaService is Lambda's service principal: an event source mapping
+// invokes its function as it, and Lambda looks a destination up as it.
 const lambdaService = "lambda.amazonaws.com"
 
 // invoke runs the function synchronously on pl's batch through Invoke, as

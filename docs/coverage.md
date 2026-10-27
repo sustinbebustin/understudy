@@ -603,12 +603,12 @@ Internal operations:
 | GetFunction | partial | aws-doc, 1 of 3 claims | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
 | Invoke | partial | inferred, 4 of 8 claims | an alias with weighted routing always runs its primary version; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
 | PublishVersion | partial | aws-doc, 1 of 3 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
-| PutFunctionEventInvokeConfig | partial | inferred, 1 of 3 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
+| PutFunctionEventInvokeConfig | partial | inferred, 2 of 4 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
 | UpdateAlias | partial | third-party-recorded, 2 of 2 claims | weighted routing is stored, not applied to invocations |
 | UpdateEventSourceMapping | partial | inferred, 6 of 9 claims | SQS queues only; serve polls the queue and invokes the function with each batch |
 | UpdateFunctionCode | partial | aws-doc, 1 of 3 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
 | UpdateFunctionConfiguration | partial | inferred, 1 of 4 claims | layers and DurableConfig are refused; code signing and VPC networking are stored only |
-| UpdateFunctionEventInvokeConfig | partial | third-party-recorded, 2 of 2 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
+| UpdateFunctionEventInvokeConfig | partial | inferred, 1 of 3 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
 | UpdateFunctionUrlConfig | partial | third-party-recorded, 2 of 2 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
 | AddLayerVersionPermission | unbound | unassessed |  |
 | CheckpointDurableExecution | unbound | unassessed |  |
@@ -1059,7 +1059,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-116 switches: 1 aws-recorded, 3 third-party-recorded, 17 aws-doc, 95 inferred.
+117 switches: 1 aws-recorded, 3 third-party-recorded, 17 aws-doc, 96 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1107,6 +1107,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `events.update-bus.omitted-members` | `kept` | inferred | docs/research/eventbridge-buses.md#34-updateeventbus | none: unrecorded: EBB-04 (eventbridge-buses.md 12) records it |
 | `kms.cross-account.management-error` | `NotFoundException` | inferred | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyPolicy.html | none: unrecorded: no recording names another account's key |
 | `lambda.async.qualifier-config` | `invoked-qualifier-only` | inferred | docs/research/lambda-destinations-layers.md#24-which-configuration-an-invocation-uses | none: unrecorded: LDL-01 is queued in docs/research/lambda-destinations-layers.md 12 |
+| `lambda.destination.config-existence-check` | `all` | inferred | docs/research/lambda-destinations-layers.md#23-validation-at-configuration | none: unrecorded: LDL-08 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `lambda.destination.delivery-retry` | `none` | inferred | docs/research/lambda-destinations-layers.md#46-when-delivery-fails | none: unrecorded: LDL-09 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `lambda.destination.lambda-invocation-type` | `Event` | inferred | docs/research/lambda-destinations-layers.md#43-lambda | none: unrecorded: LDL-06 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `lambda.destination.record-function-arn` | `invoked-qualifier` | inferred | docs/research/lambda-destinations-layers.md#32-fields | none: unrecorded: LDL-01 is queued in docs/research/lambda-destinations-layers.md 12 |
