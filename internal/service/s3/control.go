@@ -32,11 +32,16 @@ const (
 	maxControlBody = 64 << 10
 )
 
+// controlNote states the S3 Control tag operations' gap under iam.enforce:
+// as raw bindings they reach no kernel step 8 and ask kernel.Authorize
+// nothing (ARCHITECTURE.md 4).
+const controlNote = "not authorized under any iam.enforce mode: under iam.enforce=enforce a caller whose policies do not allow the action is served"
+
 // bindControl binds the S3 Control tag operations.
 func (s *Service) bindControl(b s3api.Binder) {
-	b.ListTagsForResource(s.listTagsForResource, registry.Full{})
-	b.TagResource(s.tagResource, registry.Full{})
-	b.UntagResource(s.untagResource, registry.Full{})
+	b.ListTagsForResource(s.listTagsForResource, registry.Partial{Note: controlNote})
+	b.TagResource(s.tagResource, registry.Partial{Note: controlNote})
+	b.UntagResource(s.untagResource, registry.Partial{Note: controlNote})
 }
 
 // controlCall reads the bucket an S3 Control tag request names and touches

@@ -778,7 +778,7 @@ Raw operations:
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
 | DownloadFunctionCode | full | unassessed |  |
-| InvokeFunctionUrl | partial | unassessed | BUFFERED only: a RESPONSE_STREAM URL answers buffered; AWS_IAM requires a SigV4 signature, verified under sigv4 verify, and IAM policies are not enforced |
+| InvokeFunctionUrl | partial | unassessed | BUFFERED only: a RESPONSE_STREAM URL answers buffered; AWS_IAM requires a SigV4 signature, verified under sigv4 verify, and no identity or resource policy is evaluated for it under any iam.enforce mode |
 
 ### logs
 
@@ -1030,9 +1030,9 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| ListTagsForResource | full | inferred, 1 of 1 claim |  |
-| TagResource | full | inferred, 1 of 2 claims |  |
-| UntagResource | full | inferred, 1 of 1 claim |  |
+| ListTagsForResource | partial | inferred, 1 of 1 claim | not authorized under any iam.enforce mode: under iam.enforce=enforce a caller whose policies do not allow the action is served |
+| TagResource | partial | inferred, 1 of 2 claims | not authorized under any iam.enforce mode: under iam.enforce=enforce a caller whose policies do not allow the action is served |
+| UntagResource | partial | inferred, 1 of 1 claim | not authorized under any iam.enforce mode: under iam.enforce=enforce a caller whose policies do not allow the action is served |
 
 ### secretsmanager
 

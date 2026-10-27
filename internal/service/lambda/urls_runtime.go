@@ -25,7 +25,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-const urlNote = "BUFFERED only: a RESPONSE_STREAM URL answers buffered; AWS_IAM requires a SigV4 signature, verified under sigv4 verify, and IAM policies are not enforced"
+const urlNote = "BUFFERED only: a RESPONSE_STREAM URL answers buffered; AWS_IAM requires a SigV4 signature, verified under sigv4 verify, and no identity or resource policy is evaluated for it under any iam.enforce mode"
 
 // functionURL is the URL a function URL configuration answers on:
 // http://<url-id>.lambda-url.<region>.localhost:<port>/, on the port the
