@@ -10,6 +10,7 @@ Suites that check understudy from the outside, each a separate module or project
 | `aws-cli/` | the AWS CLI | `conformance/aws-cli/run.sh` |
 | `terraform/` | Terraform: apply, a no-change plan, an update, destroy | `conformance/terraform/run.sh` |
 | `e2e-pipeline/` | the event-driven pipeline end to end | `conformance/e2e-pipeline/run.sh` |
+| `patterns/` | serverless-patterns as their READMEs run them, through Terraform | `conformance/patterns/run.sh` |
 
 ## DynamoDB
 
