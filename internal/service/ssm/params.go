@@ -101,6 +101,9 @@ func (s *Service) putParameter(ctx context.Context, c *kernel.Call, in *ssmapi.P
 	if len(tags) > maxTags {
 		return nil, ssmapi.ErrTooManyTagsError()
 	}
+	// LastModifiedUser is the caller's principal ARN as SigV4 resolved it,
+	// the assumed-role session ARN for a role session. UNVERIFIED (SSM-24),
+	// ssm-parameters.md 9.1.
 	w := write{op: op, name: n, in: in, tags: tags, at: c.Admitted(), user: identity.Render(c.Principal())}
 	planned, err := readState(s, scope, func(st *State) planned { p, err := w.apply(st, overwrite); return planned{p, err} }).unpack()
 	if err != nil {
@@ -192,11 +195,26 @@ func (w write) create(st *State) (Parameter, *awserr.Error) {
 		return Parameter{}, ssmapi.ErrValidationException(fmt.Sprintf(
 			"Parameter %q does not exist, so this request creates it, and a create needs a Type: String, StringList or SecureString.", w.name.spelling))
 	}
-	v, err := w.version(st, Version{Number: 1, Type: paramType(*w.in.Type), DataType: defaultDataType}, nil)
+	t, err := w.requestType()
+	if err != nil {
+		return Parameter{}, err
+	}
+	v, err := w.version(st, Version{Number: 1, Type: t, DataType: defaultDataType}, nil)
 	if err != nil {
 		return Parameter{}, err
 	}
 	return Parameter{Name: w.name.canonical, Versions: []Version{v}, LastVersion: 1, Labels: map[string]int64{}, Tags: w.tags}, nil
+}
+
+// requestType is the request's Type, which is present, in the closed set.
+// The generated enum check refuses any other value before the handler
+// runs, so one reaching here is a bug in that check.
+func (w write) requestType() (paramType, *awserr.Error) {
+	t, ok := parseType(*w.in.Type)
+	if !ok {
+		return "", awserr.Internalf(fmt.Errorf("ssm: PutParameter Type %q passed the generated enum check but is not String, StringList or SecureString", *w.in.Type))
+	}
+	return t, nil
 }
 
 // next is prev with the overwrite's version appended. Every overwrite
@@ -242,10 +260,16 @@ func (w write) version(st *State, base Version, current *tier) (Version, *awserr
 	v := base
 	v.LastModified, v.LastModifiedUser = w.at, w.user
 	if in.Type != nil {
-		v.Type = paramType(*in.Type)
+		t, err := w.requestType()
+		if err != nil {
+			return Version{}, err
+		}
+		v.Type = t
 	}
+	// An empty Value is accepted. UNVERIFIED (SSM-11 step 03),
+	// ssm-parameters.md 7.1.
 	v.Value = plainValue{Text: in.Value}
-	if v.Type == paramType(ssmapi.ParameterTypeSecureString) {
+	if v.Type == typeSecureString {
 		v.Value = sealedValue{KeyRef: keyRefFor(in.KeyId, base.Value)}
 	}
 	if in.Description != nil {
@@ -263,7 +287,7 @@ func (w write) version(st *State, base Version, current *tier) (Version, *awserr
 	if in.DataType != nil {
 		v.DataType = *in.DataType
 	}
-	if in.KeyId != nil && v.Type != paramType(ssmapi.ParameterTypeSecureString) {
+	if in.KeyId != nil && v.Type != typeSecureString {
 		// UNVERIFIED (SSM-11), ssm-parameters.md 7.1: AWS's code and text.
 		return Version{}, ssmapi.ErrValidationException(fmt.Sprintf(
 			"Parameter %q is a %s, and KeyId applies only to a SecureString. Remove KeyId, or write the parameter as a SecureString.", w.name.spelling, v.Type))
@@ -299,7 +323,7 @@ func (w write) valueRules(st *State, v Version, current *tier) (Version, *awserr
 		return Version{}, err
 	}
 	v.Tier = t
-	if v.Type == paramType(ssmapi.ParameterTypeSecureString) && t == tierAdvanced {
+	if v.Type == typeSecureString && t == tierAdvanced {
 		return Version{}, errUnsupported(w.op, "an Advanced-tier SecureString (understudy stores only Standard SecureString values)")
 	}
 	if err := w.checkSize(t); err != nil {
@@ -330,6 +354,8 @@ func hasReference(value string) bool {
 }
 
 // deleteParameter drops a parameter with its versions, labels and tags.
+// The name can be created again at once, as version 1 with no tags.
+// UNVERIFIED (SSM-26), ssm-parameters.md 7.7.
 func (s *Service) deleteParameter(_ context.Context, c *kernel.Call, in *ssmapi.DeleteParameterInput) (*ssmapi.DeleteParameterOutput, *awserr.Error) {
 	if err := checkReserved("DeleteParameter", in.Name); err != nil {
 		return nil, err

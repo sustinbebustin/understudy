@@ -1,6 +1,9 @@
 package ssm
 
 import (
+	"fmt"
+
+	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
@@ -72,14 +75,54 @@ type Tag struct {
 	Value string `json:"value"`
 }
 
-// paramType is a parameter's type (ssm-parameters.md 4.1): "String",
-// "StringList" or "SecureString", the wire spellings.
+// paramType is a parameter's type (ssm-parameters.md 4.1), one of the
+// three constants below, which are the wire spellings. A value enters only
+// through parseType or a snapshot import, which UnmarshalText checks.
 type paramType string
 
-// tier is a stored tier, "Standard" or "Advanced". Intelligent-Tiering is
-// resolved at write time and never stored; a parameter's tier only goes
+const (
+	typeString       = paramType(ssmapi.ParameterTypeString)
+	typeStringList   = paramType(ssmapi.ParameterTypeStringList)
+	typeSecureString = paramType(ssmapi.ParameterTypeSecureString)
+)
+
+// parseType is the closed paramType of a request's Type; false for a value
+// outside the model's enum, which the generated constraint check refuses
+// before a handler runs.
+func parseType(t ssmapi.ParameterType) (paramType, bool) {
+	switch p := paramType(t); p {
+	case typeString, typeStringList, typeSecureString:
+		return p, true
+	}
+	return "", false
+}
+
+// UnmarshalText refuses a snapshot whose stored type is not one of the
+// three.
+func (p *paramType) UnmarshalText(b []byte) error {
+	t, ok := parseType(ssmapi.ParameterType(b))
+	if !ok {
+		return fmt.Errorf("ssm: stored parameter type %q is not String, StringList or SecureString", b)
+	}
+	*p = t
+	return nil
+}
+
+// tier is a stored tier, tierStandard or tierAdvanced. Intelligent-Tiering
+// is resolved at write time and never stored; a parameter's tier only goes
 // from Standard to Advanced (ssm-parameters.md 4.2).
 type tier string
+
+// UnmarshalText refuses a snapshot whose stored tier is neither Standard
+// nor Advanced.
+func (t *tier) UnmarshalText(b []byte) error {
+	switch v := tier(b); v {
+	case tierStandard, tierAdvanced:
+		*t = v
+		return nil
+	}
+	return fmt.Errorf("ssm: stored tier %q is neither Standard nor Advanced", b)
+}
 
 // value is a version's value: the text of a String or StringList, or the
 // KMS ciphertext of a SecureString.
@@ -87,7 +130,9 @@ type tier string
 //sumtype:decl
 type value interface{ isValue() }
 
-// plainValue is a String or StringList value, stored verbatim.
+// plainValue is a String or StringList value, stored verbatim: a
+// StringList is neither split nor trimmed. UNVERIFIED (SSM-28),
+// ssm-parameters.md 4.1.
 type plainValue struct {
 	Text string `json:"text"`
 }
