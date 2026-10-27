@@ -50,9 +50,9 @@ func queueBodies(t *testing.T, c *admin.Client, endpoint, queue string) []string
 	return bodies
 }
 
-// deliveryOutcomes are the outcome kinds of the journaled deliveries to
-// target, in journal order.
-func deliveryOutcomes(t *testing.T, c *admin.Client, target string) []string {
+// outcomesTo are the outcome kinds of the journaled deliveries to target,
+// in journal order.
+func outcomesTo(t *testing.T, c *admin.Client, target string) []string {
 	t.Helper()
 	page, err := c.JournalEvents(t.Context(), admin.JournalQuery{Kind: "delivery", Limit: 1000})
 	if err != nil {
@@ -112,7 +112,7 @@ func TestEnforceDeliversS3NotificationsWithTheBucketOwnersAccount(t *testing.T) 
 			if created != c.delivered {
 				t.Errorf("queue holds %q; want the ObjectCreated record delivered = %v", bodies, c.delivered)
 			}
-			outcomes := deliveryOutcomes(t, client, queueARN)
+			outcomes := outcomesTo(t, client, queueARN)
 			if !c.delivered && (len(outcomes) == 0 || slices.ContainsFunc(outcomes, func(k string) bool { return k != "dropped" })) {
 				t.Errorf("delivery outcomes = %q, want every notification dropped", outcomes)
 			}
@@ -182,7 +182,7 @@ func TestEnforceRefusesEventBridgeToATopicWithItsDefaultPolicy(t *testing.T) {
 	if _, err := c.Settle(t.Context(), 10*time.Second); err != nil {
 		t.Fatal(err)
 	}
-	if got := deliveryOutcomes(t, c, topic); len(got) != 1 || got[0] != "dropped" {
+	if got := outcomesTo(t, c, topic); len(got) != 1 || got[0] != "dropped" {
 		t.Errorf("delivery outcomes = %q, want one dropped attempt", got)
 	}
 	denied := enforcementAdvisories(t, c, "access-denied")
@@ -233,7 +233,7 @@ func TestEnforceDeliversSNSWithTheTopicsAccountAndDeadLettersARefusal(t *testing
 	if got := queueBodies(t, c, endpoint, "letters"); len(got) != 1 || !strings.Contains(got[0], "hello") {
 		t.Errorf("dead-letter queue holds %q, want the refused notification", got)
 	}
-	if got := deliveryOutcomes(t, c, "arn:aws:sqs:us-east-1:000000000000:refuses"); len(got) != 1 || got[0] != "dead-lettered" {
+	if got := outcomesTo(t, c, "arn:aws:sqs:us-east-1:000000000000:refuses"); len(got) != 1 || got[0] != "dead-lettered" {
 		t.Errorf("delivery outcomes to the refusing queue = %q, want one dead-lettered attempt", got)
 	}
 	for name, want := range map[string]string{"sns.delivery.source-account": "present", "sns.subscribe.policy-check": "none"} {

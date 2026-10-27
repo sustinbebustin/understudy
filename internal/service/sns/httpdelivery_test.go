@@ -292,13 +292,17 @@ func TestHTTPSwitchesAreListed(t *testing.T) {
 }
 
 // The coverage marks of sns-http-delivery.md 8.1, with the allow-list
-// named by its setting, sns.httpDelivery.allow.
+// named by its setting, sns.httpDelivery.allow, and each stored policy's
+// and delivery's behavior under iam.enforce (iam-enforcement-surfaces.md
+// 8.2, 12.7).
 func TestHTTPCoverageNotes(t *testing.T) {
 	publishNote := "fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, " +
 		"with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, " +
-		"without jitter; other http and https endpoints, email and email-json receive nothing"
+		"without jitter; under iam.enforce=enforce an sqs or lambda delivery the endpoint's policy refuses is not retried and goes to the RedrivePolicy queue, else is dropped; " +
+		"other http and https endpoints, email and email-json receive nothing"
 	marks := map[string]registry.BindCoverage{
 		"Subscribe": registry.Partial{Note: "sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; " +
+			"the endpoint's policy is not checked at Subscribe (sns.subscribe.policy-check), so under iam.enforce=enforce a policy that refuses SNS refuses each delivery; " +
 			"http and https endpoints get a signed SubscriptionConfirmation when their host and port are in sns.httpDelivery.allow, " +
 			"and otherwise stay subscribed with a readable token but receive nothing; email and email-json stay subscribed with a readable token but receive nothing; " +
 			"sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced"},
@@ -306,7 +310,8 @@ func TestHTTPCoverageNotes(t *testing.T) {
 		"PublishBatch": registry.Partial{Note: publishNote},
 		"SetSubscriptionAttributes": registry.Partial{Note: "DeliveryPolicy healthyRetryPolicy, throttlePolicy and requestPolicy apply to http and https deliveries; " +
 			"sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced"},
-		"SetTopicAttributes": registry.Partial{Note: "Policy, KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never enforced; " +
+		"SetTopicAttributes": registry.Partial{Note: "Policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
+			"KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never applied; " +
 			"the http defaults in DeliveryPolicy apply to http and https subscriptions"},
 		"UnsubscribeLink": registry.Partial{Note: "the UnsubscribeConfirmation reaches the endpoint only when its host and port are in sns.httpDelivery.allow; " +
 			"its Token and SubscribeURL do not restore the subscription"},
