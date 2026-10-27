@@ -512,7 +512,7 @@ PY
 hook_message() {
   local i body
   for i in $(seq 1 100); do
-    body=$(jq -r --arg t "$1" 'select(.type == $t) | .body' "$HOOK_LOG" | tail -n 1)
+    body=$(jq -rs --arg t "$1" 'map(select(.type == $t)) | last | .body // empty' "$HOOK_LOG")
     if [ -n "$body" ]; then
       printf '%s' "$body"
       return 0
