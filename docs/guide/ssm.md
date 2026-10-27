@@ -35,7 +35,7 @@ Writing the name again needs `--overwrite`, which adds version 2. Without it the
 An error occurred (ParameterAlreadyExists) when calling the PutParameter operation: The parameter already exists. To overwrite this value, set the overwrite option in the request to true.
 ```
 
-A parameter keeps its last 100 versions. A name with more than one level must begin with a slash, and a first level beginning with `aws` or `ssm`, in any case, is reserved: `/ssm-config` is refused with `ValidationException`, as AWS refuses it.
+A parameter keeps its last 100 versions. A name with more than one level must begin with a slash, and a first level beginning with `aws` or `ssm`, in any case, is reserved: understudy refuses `/ssm-config` with `ValidationException`. AWS documents the reservation, but which error it answers, and whether it catches a reserved first level after a leading slash, is unrecorded (SSM-04).
 
 ## SecureString
 
@@ -66,7 +66,9 @@ aHVudGVyMg==
 
 ```text
 An error occurred (InvalidKeyId) when calling the GetParameter operation: arn:aws:kms:us-east-1:000000000000:key/4ae7c0e1-bc0c-4664-b9df-e736b2cfde41 is disabled.
-``` The plaintext of a SecureString never appears in the journal, the logs or a snapshot, which holds only the ciphertext.
+```
+
+The plaintext of a SecureString never appears in the journal, the logs or a snapshot, which holds only the ciphertext.
 
 ## By path, and several at once
 
@@ -180,6 +182,18 @@ curl -s --aws-sigv4 aws:amz:us-east-1:ssm --user test:test -X POST \
 
 ```text
 {"__type":"NotImplemented","message":"understudy does not serve the legacy Query protocol (?Action=GetParameter without X-Amz-Target) for ssm, which AWS also accepts. Send the JSON 1.1 request instead, with X-Amz-Target: AmazonSSM.GetParameter, as the AWS SDKs and CLI do. Nothing was changed."}
+```
+
+The same request with the parameters in a form body (`Content-Type: application/x-www-form-urlencoded`) answers the same 501, naming `AmazonSSM.<Action>` since understudy does not read the body. AWS's answer to that form is unrecorded:
+
+```sh
+curl -s --aws-sigv4 aws:amz:us-east-1:ssm --user test:test -X POST \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  --data 'Action=GetParameter&Name=%2Forders%2Fdb%2Fhost' http://127.0.0.1:4566/
+```
+
+```text
+{"__type":"NotImplemented","message":"understudy does not serve the legacy Query protocol (a form body without X-Amz-Target) for ssm, which AWS also accepts. Send the JSON 1.1 request instead, with X-Amz-Target: AmazonSSM.<Action>, as the AWS SDKs and CLI do. Nothing was changed."}
 ```
 
 The AWS SDKs and the AWS CLI send JSON 1.1 and are unaffected.
