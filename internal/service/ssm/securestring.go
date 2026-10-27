@@ -51,8 +51,8 @@ func keyRefFor(requested *string, base value) string {
 // ssm.amazonaws.com for the default key, so a default-key SecureString
 // needs no KMS permission of the caller and records no kms action under
 // it. UNVERIFIED (SSM-22 step 08), ssm-parameters.md 5.6.
-func (s *Service) kmsTarget(ctx context.Context, c *kernel.Call, scope aws.Scope, keyRef string) (kernel.Target, *awserr.Error) {
-	managed, err := s.isDefaultKey(ctx, c, scope, keyRef)
+func (s *Service) kmsTarget(ctx context.Context, c *kernel.Call, scope aws.Scope, keyRef string, p kmsPurpose) (kernel.Target, *awserr.Error) {
+	managed, err := s.isDefaultKey(ctx, c, scope, keyRef, p)
 	if err != nil {
 		return kernel.Target{}, err
 	}
@@ -69,7 +69,7 @@ func (s *Service) kmsTarget(ctx context.Context, c *kernel.Call, scope aws.Scope
 // id or key ARN when KMS lists that alias for it, asked as Parameter Store
 // itself. A key KMS does not find is not the managed key; Encrypt or
 // Decrypt then reports it.
-func (s *Service) isDefaultKey(ctx context.Context, c *kernel.Call, scope aws.Scope, keyRef string) (bool, *awserr.Error) {
+func (s *Service) isDefaultKey(ctx context.Context, c *kernel.Call, scope aws.Scope, keyRef string, p kmsPurpose) (bool, *awserr.Error) {
 	if strings.HasPrefix(keyRef, "alias/") {
 		return keyRef == defaultKey, nil
 	}
@@ -86,7 +86,7 @@ func (s *Service) isDefaultKey(ctx context.Context, c *kernel.Call, scope aws.Sc
 	case err.ID.Shape == kmsapi.IdentityNotFoundException().Shape:
 		return false, nil
 	}
-	return false, kmsFailure("ListAliases", err)
+	return false, kmsFailure("ListAliases", p, err)
 }
 
 // seal encrypts plaintext as the value of the parameter canonical of scope
@@ -94,7 +94,7 @@ func (s *Service) isDefaultKey(ctx context.Context, c *kernel.Call, scope aws.Sc
 // (ssm-parameters.md 5.2). It runs before the caller takes its cell, since
 // an internal call under a cell lock is a bug (ARCHITECTURE.md 8 rule 1).
 func (s *Service) seal(ctx context.Context, c *kernel.Call, scope aws.Scope, canonical, keyRef, plaintext string) (sealedValue, *awserr.Error) {
-	t, err := s.kmsTarget(ctx, c, scope, keyRef)
+	t, err := s.kmsTarget(ctx, c, scope, keyRef, forWrite)
 	if err != nil {
 		return sealedValue{}, err
 	}
@@ -104,7 +104,7 @@ func (s *Service) seal(ctx context.Context, c *kernel.Call, scope aws.Scope, can
 		EncryptionContext: encryptionContext(parameterARN(scope, canonical)),
 	})
 	if err != nil {
-		return sealedValue{}, kmsFailure("Encrypt", err)
+		return sealedValue{}, kmsFailure("Encrypt", forWrite, err)
 	}
 	return sealedValue{Ciphertext: out.CiphertextBlob, KeyRef: keyRef}, nil
 }
@@ -112,7 +112,7 @@ func (s *Service) seal(ctx context.Context, c *kernel.Call, scope aws.Scope, can
 // open decrypts a SecureString value of the parameter canonical of scope.
 // Like seal, it runs outside any cell.
 func (s *Service) open(ctx context.Context, c *kernel.Call, scope aws.Scope, canonical string, v sealedValue) (string, *awserr.Error) {
-	t, err := s.kmsTarget(ctx, c, scope, v.KeyRef)
+	t, err := s.kmsTarget(ctx, c, scope, v.KeyRef, forRead)
 	if err != nil {
 		return "", err
 	}
@@ -121,7 +121,7 @@ func (s *Service) open(ctx context.Context, c *kernel.Call, scope aws.Scope, can
 		EncryptionContext: encryptionContext(parameterARN(scope, canonical)),
 	})
 	if err != nil {
-		return "", kmsFailure("Decrypt", err)
+		return "", kmsFailure("Decrypt", forRead, err)
 	}
 	return string(out.Plaintext), nil
 }
@@ -160,19 +160,33 @@ func keyIDOf(v value) *string {
 	return nil
 }
 
-// kmsFailure is Parameter Store's answer for a failed KMS call op: a KMS
-// client error, an access denial included, is InvalidKeyId carrying KMS's
-// message (ssm-parameters.md 5.5, 12.3; inferred beyond the documented
-// disabled key); a KMS server error is InternalServerError naming the
-// call; an understudy bug passes through.
-func kmsFailure(op string, err *awserr.Error) *awserr.Error {
+// kmsPurpose is what a KMS call was for, which decides what a failure
+// tells the caller stayed unchanged.
+type kmsPurpose int
+
+const (
+	forWrite kmsPurpose = iota + 1 // sealing a value PutParameter would store
+	forRead                        // opening a value a read would return
+)
+
+// kmsFailure is Parameter Store's answer for a failed KMS call op made for
+// p: a KMS client error, an access denial included, is InvalidKeyId
+// carrying KMS's message (ssm-parameters.md 5.5, 12.3; inferred beyond the
+// documented disabled key); a KMS server error is InternalServerError
+// naming the call and what was left as it was; an understudy bug passes
+// through.
+func kmsFailure(op string, p kmsPurpose, err *awserr.Error) *awserr.Error {
 	if _, internal := err.Origin.(awserr.Internal); internal {
 		return err
 	}
 	if err.ID.Status >= 500 {
+		outcome := "Nothing was written; try the request again."
+		if p == forRead {
+			outcome = "The value was not returned and the parameter is unchanged; try the request again."
+		}
 		return ssmapi.ErrInternalServerError(fmt.Sprintf(
-			"The KMS %s call for this SecureString parameter failed with %s (%d): %s Nothing was written; try the request again.",
-			op, err.ID.Shape, err.ID.Status, err.Message))
+			"The KMS %s call for this SecureString parameter failed with %s (%d): %s %s",
+			op, err.ID.Shape, err.ID.Status, err.Message, outcome))
 	}
 	return ssmapi.ErrInvalidKeyId(err.Message)
 }
