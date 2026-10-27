@@ -25,14 +25,14 @@ type Cell[S any] struct {
 // R must never alias S: return values or explicit clones. A caller that holds
 // on to a cell checks Retired inside fn (see Retired).
 func Update[S, R any](c *Cell[S], fn func(s *S) (r R, mutated bool)) R {
-	c.gate.Enter()
-	defer c.gate.Leave()
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	r, mutated := fn(&c.s)
-	if mutated {
-		c.rev++
-	}
+	var r R
+	locked(c.gate, &c.mu, func() {
+		var mutated bool
+		r, mutated = fn(&c.s)
+		if mutated {
+			c.rev++
+		}
+	})
 	return r
 }
 
@@ -40,11 +40,20 @@ func Update[S, R any](c *Cell[S], fn func(s *S) (r R, mutated bool)) R {
 // changing the revision. fn must not mutate the state, and R must never alias
 // S: return values or explicit clones.
 func Read[S, R any](c *Cell[S], fn func(s *S) R) R {
-	c.gate.Enter()
-	defer c.gate.Leave()
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return fn(&c.s)
+	var r R
+	locked(c.gate, &c.mu, func() { r = fn(&c.s) })
+	return r
+}
+
+// locked runs fn under g's shared side and mu, releasing both even when fn
+// panics. It holds Update's and Read's deferred unlocks, so they are compiled
+// once rather than per state and result type (ADR 0001's binary budget).
+func locked(g *Gate, mu *sync.Mutex, fn func()) {
+	g.Enter()
+	defer g.Leave()
+	mu.Lock()
+	defer mu.Unlock()
+	fn()
 }
 
 // Rev reports how many Updates have mutated the cell since it was created.
