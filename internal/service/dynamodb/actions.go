@@ -136,29 +136,33 @@ func transactScoped(kind transactKind) kernel.BindOption {
 	})
 }
 
-// statementActions declares the PartiQL action each statement's verb needs
-// besides dynamodb:PartiQLSelect, the operation's primary: INSERT
-// dynamodb:PartiQLInsert, UPDATE dynamodb:PartiQLUpdate, DELETE
-// dynamodb:PartiQLDelete, whatever white space follows the verb
-// (writesItems reads it the same way). A statement with another verb adds
-// nothing, and Local answers it.
+// statementActions declares the PartiQL actions an input's statements need
+// besides dynamodb:PartiQLSelect, the operation's primary (partiQLActions).
 func statementActions[In any](statements func(*In) []string) kernel.BindOption {
-	verbs := map[string]registry.IAMAction{
-		"INSERT": dynamoAction("PartiQLInsert"),
-		"UPDATE": dynamoAction("PartiQLUpdate"),
-		"DELETE": dynamoAction("PartiQLDelete"),
-	}
-	return kernel.WithActions(func(_ *kernel.Call, in *In) []registry.IAMAction {
-		var out []registry.IAMAction
-		for _, st := range statements(in) {
-			words := strings.Fields(st)
-			if len(words) == 0 {
-				continue
-			}
-			if a, ok := verbs[strings.ToUpper(words[0])]; ok {
-				out = append(out, a)
-			}
+	return kernel.WithActions(func(_ *kernel.Call, in *In) []registry.IAMAction { return partiQLActions(statements(in)) })
+}
+
+// partiQLActions returns the PartiQL action each statement's verb needs
+// besides dynamodb:PartiQLSelect, in statement order: INSERT
+// dynamodb:PartiQLInsert, UPDATE dynamodb:PartiQLUpdate, DELETE
+// dynamodb:PartiQLDelete, in any case and whatever white space follows the
+// verb (writesItems reads it the same way). A statement with another verb
+// adds nothing, and Local answers it.
+func partiQLActions(statements []string) []registry.IAMAction {
+	var out []registry.IAMAction
+	for _, st := range statements {
+		words := strings.Fields(st)
+		if len(words) == 0 {
+			continue
 		}
-		return out
-	})
+		switch strings.ToUpper(words[0]) {
+		case "INSERT":
+			out = append(out, dynamoAction("PartiQLInsert"))
+		case "UPDATE":
+			out = append(out, dynamoAction("PartiQLUpdate"))
+		case "DELETE":
+			out = append(out, dynamoAction("PartiQLDelete"))
+		}
+	}
+	return out
 }
