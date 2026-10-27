@@ -39,8 +39,8 @@ const servicePrincipal = "apigateway.amazonaws.com"
 // 13.3): it finds the API the host or path fallback names, selects the stage and
 // the route of the stage's deployment, checks that the function's resource
 // policy lets API Gateway invoke it, invokes it synchronously with the
-// payload format 2.0 event and answers with the response read from its
-// output. The answers the gateway gives itself are the switches'. A
+// event of the integration's payload format and answers with the response
+// read from its output. The answers the gateway gives itself are the switches'. A
 // request understudy cannot serve as AWS would is answered 501, and a
 // failure of the emulator is returned for the edge to render.
 func (s *Service) invoke(ctx context.Context, c *kernel.Call, r *http.Request, w http.ResponseWriter) *awserr.Error {
@@ -265,9 +265,8 @@ func (a *API) selectRoute(owner aws.Scope, addr address, method string, origin b
 
 // unemulated names what of the integration understudy cannot run as AWS
 // would, and what to change instead; what is "" for a Lambda proxy
-// integration of payload format 2.0 with nothing a request would need
-// applied (the unit's scope: these are stored and answer 501 when a
-// request reaches them).
+// integration with nothing a request would need applied (the unit's
+// scope: these are stored and answer 501 when a request reaches them).
 func (i *Integration) unemulated() (what, instead string) {
 	switch {
 	case i.Type == apigatewayv2api.IntegrationTypeHttpProxy:
@@ -287,8 +286,6 @@ func (i *Integration) unemulated() (what, instead string) {
 		return "parameter mapping (responseParameters)", "Remove the integration's responseParameters."
 	case i.URI != nil && strings.Contains(*i.URI, stageVariableRef):
 		return "stage variables in integrationUri", "Name the function in the integration's integrationUri."
-	case i.PayloadFormatVersion == payloadV1:
-		return "payload format 1.0 yet", "Use payloadFormatVersion 2.0."
 	}
 	return "", ""
 }
@@ -357,8 +354,8 @@ func (d *Deployment) table() (route.Table, error) {
 }
 
 // invokeFunction runs a request's Lambda proxy integration: the resource
-// policy check, the payload format 2.0 event, the synchronous invocation
-// and the response read from its output.
+// policy check, the event of the integration's payload format, the
+// synchronous invocation and the response read from its output.
 func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Request, w http.ResponseWriter, t toFunction, body []byte, requestID string) *awserr.Error {
 	uri := deref(t.integration.URI, "")
 	fn, ok := lambdaFunction(uri)
@@ -378,7 +375,7 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 		return writeAnswer(w, PermissionSwitch().Value.Denial)
 	}
 	failures := FailureAnswersSwitch().Value
-	event, eerr := httpevent.EventV2(eventRequest(c, r, t.rawPath, body), httpevent.Context{
+	event, eerr := t.event(eventRequest(c, r, t.rawPath, body), httpevent.Context{
 		AccountID:    t.owner.Account.String(),
 		APIID:        t.apiID,
 		DomainName:   t.domain,
@@ -409,14 +406,43 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 	if out.FunctionError != nil {
 		return writeAnswer(w, failures.FunctionError)
 	}
-	resp, perr := httpevent.InferV2With(out.Payload, httpevent.V2Defaults{ContentType: PayloadSwitch().Value.DefaultContentType})
+	resp, perr := t.response(out.Payload)
 	if perr != nil {
 		s.k.Log().LogAttrs(ctx, slog.LevelWarn, "API Gateway answered the function's malformed response with its function-error answer",
-			slog.String("api", t.apiID), slog.String("route", t.routeKey), slog.String("problem", perr.Error()))
+			slog.String("api", t.apiID), slog.String("route", t.routeKey), slog.String("payload_format", t.integration.PayloadFormatVersion), slog.String("problem", perr.Error()))
 		return writeAnswer(w, failures.FunctionError)
 	}
 	resp.Write(w)
 	return nil
+}
+
+// event is the request event of the integration's payload format: 1.0 as
+// an HTTP API reports it (apigateway-http.md 5.2), else 2.0 (5.1).
+func (t toFunction) event(r httpevent.Request, c httpevent.Context) ([]byte, error) {
+	if t.integration.PayloadFormatVersion == payloadV1 {
+		return httpevent.EventV1(r, c, httpevent.HTTPAPI{})
+	}
+	return httpevent.EventV2(r, c)
+}
+
+// response reads the function's output under the integration's payload
+// format (apigateway-http.md 5.3, 5.4). A response that sets no
+// Content-Type gets the apigatewayv2.payload.unrecorded switch's
+// DefaultContentType: a structured 2.0 response, and a 1.0 response,
+// since an HTTP API has one default for both (4.5; inferred, APIGW2-09).
+func (t toFunction) response(payload []byte) (httpevent.Response, error) {
+	contentType := PayloadSwitch().Value.DefaultContentType
+	if t.integration.PayloadFormatVersion != payloadV1 {
+		return httpevent.InferV2With(payload, httpevent.V2Defaults{ContentType: contentType})
+	}
+	resp, err := httpevent.InferV1(payload)
+	if err != nil {
+		return httpevent.Response{}, err
+	}
+	if resp.Header.Get("Content-Type") == "" {
+		resp.Header.Set("Content-Type", contentType)
+	}
+	return resp, nil
 }
 
 // lambdaRefused answers an invocation Lambda refused: Lambda without
