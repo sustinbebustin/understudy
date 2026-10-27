@@ -21,8 +21,9 @@
 //     attempts one at a time in that order, so the request-phase rules and
 //     seeded ids of their target calls follow it too. Before any of that,
 //     an attempt of a throttled SNS HTTP subscription that comes too soon
-//     after the subscription's last one is re-armed for when the throttle
-//     allows it, spending no retry and no rule budget (pacer).
+//     after the subscription's last one, or before a slot an earlier
+//     paced attempt holds, is re-armed once for a slot of its own,
+//     spending no retry and no rule budget (pacer).
 //  2. When a PolicySource is set, access.Advise checks the target's stored
 //     resource policy and a would-deny becomes a journal Advisory; the
 //     attempt is made anyway. An events-to-events delivery is not checked:

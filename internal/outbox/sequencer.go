@@ -50,6 +50,13 @@ func (s *sequencer) pop() (*attempt, bool) {
 	return a, true
 }
 
+// idle reports whether s has no attempt queued and no drain running.
+func (s *sequencer) idle() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return !s.draining && len(s.queue) == 0
+}
+
 // sequence runs a on s after every attempt handed to s before it: the
 // engine's sequencer, or a throttled subscription's (pacer).
 func (e *engine) sequence(s *sequencer, a *attempt) {
