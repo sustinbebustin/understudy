@@ -107,7 +107,9 @@ type DropDelivery struct{}
 type HTTPStatus struct{ Status int }
 
 // HTTPTimeout ends an HTTP delivery attempt as a timed-out exchange
-// without contacting the endpoint or waiting. Delivery phase only, as
+// without contacting the endpoint or waiting. Its retry is scheduled from
+// the end of the 15-second deadline it stands for, which is later than the
+// attempt only on a running or scaled clock. Delivery phase only, as
 // HTTPStatus.
 type HTTPTimeout struct{}
 

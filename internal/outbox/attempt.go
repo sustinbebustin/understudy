@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -130,10 +131,17 @@ type attempt struct {
 // time: a Delivery-phase latency rule holds it, it invokes a function
 // synchronously, which waits for the function to run, or it posts to an
 // HTTP endpoint, which waits on the network. Such an attempt runs on its
-// own goroutine, so its target call is not ordered with the others.
+// own goroutine, so its target call is not ordered with the others. One a
+// rule drops, or answers in place of its HTTP endpoint, makes no target
+// call, so it stays on the sequencer, and its dead letter keeps the firing
+// order.
 func (a *attempt) blocks() bool {
-	if _, delayed := a.decision.(fault.Delay); delayed {
+	switch a.decision.(type) {
+	case fault.Delay:
 		return true
+	case fault.Drop, fault.RespondHTTP, fault.TimeOutHTTP:
+		return false
+	case fault.None, fault.Fail, fault.FailAfterCommit, fault.FailStatusOK, nil:
 	}
 	switch t := a.entry.Request.Target.(type) {
 	case delivery.LambdaFunction:
@@ -219,9 +227,9 @@ func (a *attempt) end(ctx context.Context, err *awserr.Error) (journal.DeliveryO
 // other 4xx and whether a permanent failure goes to the DLQ (SNSH-05). A
 // request egress refused, or one with no client to send it, is Refused:
 // never retried or dead-lettered (7.3). The retry delay runs from the end
-// of the attempt (attemptEnd). The exchange is kept for the attempt's
-// Delivery event.
-func (a *attempt) endHTTP(ctx context.Context, r httpResult) (journal.DeliveryOutcome, bool) {
+// of the attempt (attemptEnd), waited of wall time after due. The exchange
+// is kept for the attempt's Delivery event.
+func (a *attempt) endHTTP(ctx context.Context, r httpResult, waited time.Duration) (journal.DeliveryOutcome, bool) {
 	a.exchange = exchangeOf(r, a.took)
 	if ctx.Err() != nil {
 		return nil, false
@@ -231,8 +239,8 @@ func (a *attempt) endHTTP(ctx context.Context, r httpResult) (journal.DeliveryOu
 		return journal.Delivered{}, true
 	case httpRetry:
 		ended := a.due
-		if a.took > 0 {
-			ended = attemptEnd(a.e.k.Clock().Mode(), a.due, a.took)
+		if waited > 0 {
+			ended = attemptEnd(a.e.k.Clock().Mode(), a.due, waited)
 		}
 		return a.retry(ctx, endpointError{reason: r.reason}, ended)
 	case httpPermanent:
@@ -256,10 +264,13 @@ func (a *attempt) retry(ctx context.Context, f failure, ended clock.Instant) (jo
 // faults applies the attempt's Delivery-phase decision: it journals each
 // rule hit, waits out a delay, drops the attempt or answers an HTTP attempt
 // without its endpoint, an injected status as a real answer of that status
-// and an injected timeout as a timed-out exchange, neither taking any time
-// (sns-http-delivery.md 8.2 item 2). decided is true when a rule decided
-// the attempt; ok is false when the kernel stopped during an injected
-// delay.
+// and an injected timeout as a timed-out exchange (sns-http-delivery.md 8.2
+// item 2). Neither waits or records a duration, but an injected timeout's
+// retry is scheduled from the end of the 15-second deadline it stands for
+// (3.1), as a real timeout's is under a running or scaled clock; on a
+// frozen clock that end is the due instant. decided is true when a rule
+// decided the attempt; ok is false when the kernel stopped during an
+// injected delay.
 func (a *attempt) faults(ctx context.Context) (outcome journal.DeliveryOutcome, decided, ok bool) {
 	decision := a.decision
 	for {
@@ -269,11 +280,11 @@ func (a *attempt) faults(ctx context.Context) (outcome journal.DeliveryOutcome, 
 			return journal.Dropped{Reason: fmt.Sprintf("fault rule %s dropped the attempt", d.Rule)}, true, true
 		case fault.RespondHTTP:
 			a.journal(ctx, journal.FaultInjected{Rule: d.Rule, Hit: d.Hit, Of: d.Of})
-			outcome, ok := a.endHTTP(ctx, statusResult(d.Status))
+			outcome, ok := a.endHTTP(ctx, statusResult(d.Status), 0)
 			return outcome, true, ok
 		case fault.TimeOutHTTP:
 			a.journal(ctx, journal.FaultInjected{Rule: d.Rule, Hit: d.Hit, Of: d.Of})
-			outcome, ok := a.endHTTP(ctx, httpRetry{reason: fmt.Sprintf("fault rule %s timed out the attempt", d.Rule)})
+			outcome, ok := a.endHTTP(ctx, httpRetry{reason: fmt.Sprintf("fault rule %s timed out the attempt", d.Rule)}, egress.DefaultTimeout)
 			return outcome, true, ok
 		case fault.Delay:
 			a.journal(ctx, journal.FaultInjected{Rule: d.Rule, Hit: d.Hit, Of: d.Of})

@@ -43,7 +43,7 @@ func (a *attempt) send(ctx context.Context, t delivery.Target) (journal.Delivery
 		elapsed := a.e.k.Clock().Stopwatch()
 		r := postHTTP(ctx, a.e.egress, t)
 		a.took = elapsed()
-		return a.endHTTP(ctx, r)
+		return a.endHTTP(ctx, r, a.took)
 	}
 	return a.end(ctx, awserr.Internalf(&RequestError{Field: "Target", Reason: "is nil"}))
 }

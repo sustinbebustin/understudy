@@ -242,8 +242,9 @@ type HTTPStatus struct {
 }
 
 // HTTPTimeout ends an HTTP delivery attempt as a timed-out exchange
-// without contacting the endpoint or waiting. Delivery phase only, and
-// sns-to-http attempts only, as HTTPStatus.
+// without contacting the endpoint or waiting; the outbox schedules its
+// retry from the end of the 15-second deadline it stands for. Delivery
+// phase only, and sns-to-http attempts only, as HTTPStatus.
 type HTTPTimeout struct{}
 
 func (Error) isAction()         {}

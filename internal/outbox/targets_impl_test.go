@@ -374,14 +374,14 @@ func TestEndHTTPOutcomes(t *testing.T) {
 		}},
 	}
 	for _, c := range cases {
-		got, ok := httpAttempt(t, c.policy).endHTTP(t.Context(), c.result)
+		got, ok := httpAttempt(t, c.policy).endHTTP(t.Context(), c.result, 0)
 		if !ok || !c.want(got) {
 			t.Errorf("%s: endHTTP(%#v) = %#v, %t", c.name, c.result, got, ok)
 		}
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	if got, ok := httpAttempt(t, delivery.SNSManaged{}).endHTTP(ctx, httpAccepted{status: 200}); ok {
+	if got, ok := httpAttempt(t, delivery.SNSManaged{}).endHTTP(ctx, httpAccepted{status: 200}, 0); ok {
 		t.Errorf("endHTTP after the kernel stopped = %#v, want no outcome", got)
 	}
 }

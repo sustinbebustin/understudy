@@ -4,12 +4,16 @@ import (
 	"context"
 	"net/http"
 	"slices"
+	"strconv"
 	"testing"
 	"testing/synctest"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
+	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/journal"
@@ -155,6 +159,95 @@ func TestSNSHTTPLatencyThenInjectedStatus(t *testing.T) {
 			k.Errorf("fault events = %+v, want the latency hit, then the status hit", rules)
 		}
 	})
+}
+
+// HTTP attempts a delivery-phase rule answers make no network call, so
+// they stay on the sequencer: attempts due at one instant dead-letter in
+// the order they fire, not in the order goroutines run (ADR 0018).
+func TestSNSHTTPFaultAnsweredAttemptsDeadLetterInFiringOrder(t *testing.T) {
+	const n = 16
+	r := answeringHook(http.StatusOK)
+	runHTTP(t, r, func(k *kerneltest.K, o *outbox.Outbox) {
+		if _, err := k.Faults.Add(fault.Rule{
+			Match: fault.Match{Mechanisms: []delivery.Mechanism{delivery.SNSToHTTP}}, Phase: fault.Delivery,
+			Action: fault.HTTPStatus{Status: http.StatusNotFound}, Trigger: fault.Always{},
+		}); err != nil {
+			k.Fatal(err)
+		}
+		q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil })
+		dlq := arn("sqs", "orders-dlq")
+		cause := source(k)
+		want := make([]string, n)
+		for i := range n {
+			req := toHook(k, "http://127.0.0.1:8080/hook", delivery.HTTPNotification, defaultHTTPPolicy())
+			target, ok := req.Target.(delivery.HTTPEndpoint)
+			if !ok {
+				k.Fatal("target is not an HTTPEndpoint")
+			}
+			want[i] = "message " + strconv.Itoa(i)
+			target.Body = []byte(want[i])
+			req.Target, req.DLQ = target, &dlq
+			enqueue(k, o, req, cause)
+		}
+		settled(k)
+		sent := q.sent()
+		got := make([]string, 0, len(sent))
+		for _, s := range sent {
+			got = append(got, s.in.MessageBody)
+		}
+		if !slices.Equal(got, want) {
+			k.Errorf("dead letters in order %q, want %q", got, want)
+		}
+		if n := len(r.requests()); n != 0 {
+			k.Errorf("the endpoint got %d requests, want none", n)
+		}
+	})
+}
+
+// Under a running clock an injected timeout's retry is scheduled from the
+// end of the 15-second deadline it stands for, as a real timeout's is: AWS
+// "retries about 35 seconds after the previous attempt" under the default
+// 20 s delay (sns-http-delivery.md 3.1, 6.3). An injected status takes no
+// time, so its retry is 20 s after the attempt. Neither records a duration.
+func TestSNSHTTPInjectedTimeoutCountsItsDeadline(t *testing.T) {
+	cases := []struct {
+		name   string
+		action fault.Action
+		next   time.Duration
+	}{
+		{"http-timeout", fault.HTTPTimeout{}, 35 * time.Second},
+		{"http-status", fault.HTTPStatus{Status: http.StatusServiceUnavailable}, 20 * time.Second},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r := answeringHook(http.StatusOK)
+			kerneltest.Run(t, func(k *kerneltest.K) {
+				o := outbox.New()
+				if err := o.Bind(k.Kernel, outbox.Options{Faults: k.Faults, Egress: egressFor(k, r)}); err != nil {
+					k.Fatal(err)
+				}
+				if _, err := k.Faults.Add(fault.Rule{
+					Match: fault.Match{Mechanisms: []delivery.Mechanism{delivery.SNSToHTTP}}, Phase: fault.Delivery,
+					Action: c.action, Trigger: fault.NextN{N: 1},
+				}); err != nil {
+					k.Fatal(err)
+				}
+				t0 := k.Clock.Now()
+				enqueue(k, o, toHook(k, "http://127.0.0.1:8080/hook", delivery.HTTPNotification, defaultHTTPPolicy()), source(k))
+				settled(k)
+				events, ds := httpDeliveries(k)
+				if len(ds) != 1 || events[0].At != t0 {
+					k.Fatalf("deliveries = %+v, want the injected attempt at once", ds)
+				}
+				if want := (journal.Retrying{Next: t0.Add(c.next)}); ds[0].Outcome != want {
+					k.Errorf("outcome = %#v, want retrying at +%v", ds[0].Outcome, c.next)
+				}
+				if x := ds[0].HTTP; x == nil || x.Duration != 0 {
+					k.Errorf("exchange = %+v, want no duration", x)
+				}
+			}, kerneltest.Mode(clock.Running{}), kerneltest.Services(sqsapi.Service(), lambdaapi.Service(), snsapi.Service()))
+		})
+	}
 }
 
 // A drop-delivery rule drops an HTTP attempt before it is made, so its

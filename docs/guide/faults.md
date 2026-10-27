@@ -42,7 +42,7 @@ S3 object calls (`GetObject`, `HeadObject`, `GetObjectAttributes`, `PutObject`, 
 | Error in a 200 | `--status-ok SHAPE` | S3's `CopyObject`, `UploadPartCopy` and `CompleteMultipartUpload` only: a 200 response with an error body |
 | Drop | `--drop` | Delivery phase only: the target never receives the delivery |
 | HTTP status | `--http-status 503` | Delivery phase, `sns-to-http` only: the attempt gets this status (100 to 599) without contacting the endpoint |
-| HTTP timeout | `--http-timeout` | Delivery phase, `sns-to-http` only: the attempt ends as a timed-out exchange at once, without contacting the endpoint |
+| HTTP timeout | `--http-timeout` | Delivery phase, `sns-to-http` only: the attempt ends as a timed-out exchange at once, without contacting the endpoint; its retry is scheduled from the end of the 15-second deadline, which on a running clock is 15 seconds after the attempt |
 
 | Trigger | Flag |
 |---|---|
