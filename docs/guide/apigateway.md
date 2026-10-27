@@ -67,7 +67,22 @@ curl -i http://localhost:4566/_understudy/execute-api/wfod7wzey6/hello
 
 `http://<api-id>.execute-api.localhost:4566` serves the API too, in its own region; a host naming another region answers `403 {"message":"Forbidden"}`, as an unknown API id does. An API of any account is reached by its id alone.
 
-The function gets the payload format 2.0 event. Its `rawPath` is the path the API sees, a named stage's segment included, and `requestContext.domainName` is the host the request named, or on the path fallback the `ApiEndpoint` host name. Every answer on the path fallback carries `Content-Security-Policy: sandbox`, since it shares understudy's origin (ADR 0020); the host is an origin of its own and gets none.
+The function gets the event of its integration's payload format. Under 2.0, `rawPath` is the path the API sees, a named stage's segment included, and `requestContext.domainName` is the host the request named, or on the path fallback the `ApiEndpoint` host name. Every answer on the path fallback carries `Content-Security-Policy: sandbox`, since it shares understudy's origin (ADR 0020); the host is an origin of its own and gets none.
+
+Under `--payload-format-version 1.0` the function gets the 1.0 event and must answer in the 1.0 format (`statusCode`, `headers`, `multiValueHeaders`, `body`, `isBase64Encoded`); any other output, a bare string included, answers `500 {"message":"Internal Server Error"}`. With a handler that returns some of its event's members and `"multiValueHeaders": {"x-many": ["a", "b"]}`:
+
+```sh
+curl -i 'http://localhost:4566/_understudy/execute-api/nhkese1z20/pets/rex?q=1&q=2' -H 'X-H: first' -H 'X-H: last'
+# HTTP/1.1 200 OK
+# Content-Type: text/plain; charset=utf-8
+# X-Many: a
+# X-Many: b
+#
+# {"version": "1.0", "resource": "/pets/{id}", "path": "/pets/rex", "queryStringParameters": {"q": "1"},
+#  "multiValueQueryStringParameters": {"q": ["1", "2"]}, "x-h": ["last", ["first", "last"]]}
+```
+
+The single-value maps keep a repeated header's last value and a repeated query parameter's first, as AWS's documented example does. `path` includes a named stage's segment, `resource` is the route's path (`$default` for the `$default` route), and a 1.0 response without a `Content-Type` gets `text/plain; charset=utf-8`, as a 2.0 response with a `statusCode` does. AWS has not been recorded on these choices; [coverage.md](../coverage.md) lists them.
 
 `update-api --disable-execute-api-endpoint` turns off both forms from that call on: requests answer `403 {"message":"Forbidden"}` until `--no-disable-execute-api-endpoint`.
 
@@ -123,7 +138,7 @@ aws apigatewayv2 delete-integration --api-id vsstkl7iok --integration-id 7tvrwuh
 # integration 7tvrwuh of API vsstkl7iok is the target of routes wa0s05t, uzmc2mg; delete them or change their targets first
 ```
 
-Only a Lambda proxy integration with payload format 2.0 runs. HTTP proxy integrations, AWS service integrations (`--integration-subtype`), private integrations (`--connection-type VPC_LINK`) and Lambda integrations with payload format 1.0 are stored, and so is a Lambda integration with `--credentials-arn`, `--request-parameters`, `--response-parameters` or a stage variable in its URI, but a request that reaches one answers 501 and runs nothing:
+Only a Lambda proxy integration runs. HTTP proxy integrations, AWS service integrations (`--integration-subtype`) and private integrations (`--connection-type VPC_LINK`) are stored, and so is a Lambda integration with `--credentials-arn`, `--request-parameters`, `--response-parameters` or a stage variable in its URI, but a request that reaches one answers 501 and runs nothing:
 
 ```sh
 curl http://localhost:4566/_understudy/execute-api/vsstkl7iok/legacy/x

@@ -67,7 +67,7 @@ internal/
   ruler/                        Event Ruler core: compiled pattern ADT, Match; per-service allow-lists and limits
   logsfilter/                   CloudWatch Logs filter pattern compiler and matcher
   schedexpr/                    EventBridge rate and cron parser, next-fire
-  httpevent/                    Lambda payload format 2.0 request event and response inference, shared by function URLs and HTTP APIs
+  httpevent/                    Lambda payload format 2.0 request event and response inference, shared by function URLs and HTTP APIs; the 1.0 event and response of API Gateway
   policydoc/                    IAM policy document parse and validate; least-privilege rendering
   policycatalogue/              the AWS managed policy catalogue: validated model, canonical JSON codec, lazy embedded load (gunzip, then parse)
   docker/                       Engine API client over the unix socket: typed errors, stdcopy, progress, events
