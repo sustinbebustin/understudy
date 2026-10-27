@@ -2,9 +2,12 @@ package iam
 
 import (
 	"log/slog"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
@@ -22,6 +25,8 @@ type Service struct {
 	codec     jsonx.Codec
 	cells     *store.Partitioned[aws.AccountID, State]
 	catalogue policycatalogue.Loader
+	// bindings names the operations a denial can answer, for the switches.
+	bindings *kernel.Bindings
 }
 
 // New binds the IAM operations understudy implements. Every other IAM
@@ -35,6 +40,7 @@ func New(d kernel.ServiceDeps, opts Options) *Service {
 		codec:     codec,
 		cells:     store.NewPartitioned(d.Kernel.Gate(), store.Codec{Marshal: codec.Marshal, Unmarshal: codec.Unmarshal}, newState),
 		catalogue: opts.Catalogue,
+		bindings:  d.Kernel.Bindings(),
 	}
 	b := iamapi.NewBinder(d.Binder)
 	s.bindRoles(b)
@@ -49,6 +55,33 @@ func New(d kernel.ServiceDeps, opts Options) *Service {
 	return s
 }
 
-// Switches lists no behaviors: every IAM choice without AWS evidence is a
-// documented decision of the package, none a switchable behavior.
-func (*Service) Switches() []fidelity.Entry { return nil }
+// Switches lists the behaviors of IAM evaluation chosen without
+// AWS-recorded evidence: IAM's denial identity (iam-enforcement-surfaces.md
+// 12.8) and the evaluation switches (authz.Switches), which IAM reports.
+// The rules a policy document is evaluated by govern the operations that
+// store one; the grammar and the enforcement order govern every operation
+// a denial answers.
+func (s *Service) Switches() []fidelity.Entry {
+	authorized := s.bindings.AuthorizedOps(iamapi.Service())
+	evaluation := authz.SwitchesOf("iam", nil)
+	out := make([]fidelity.Entry, 0, 1+len(evaluation))
+	out = append(out, authz.DenialSwitch("iam.denial.identity", "AccessDenied 403 with the IAM namespace", evidence.Inferred, "3.2", "IAM-ENF-10", authorized))
+	for _, e := range evaluation {
+		e.Ops = documentOps()
+		if e.Name == "iam.denial.grammar" || strings.HasPrefix(e.Name, "iam.enforce.") {
+			e.Ops = authorized
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
+// documentOps are the IAM operations that store a policy document IAM
+// evaluation reads: identity policies, trust policies and permissions
+// boundaries.
+func documentOps() []string {
+	return []string{
+		"iam.CreatePolicy", "iam.CreatePolicyVersion", "iam.PutUserPolicy", "iam.PutRolePolicy",
+		"iam.CreateRole", "iam.UpdateAssumeRolePolicy", "iam.PutUserPermissionsBoundary", "iam.PutRolePermissionsBoundary",
+	}
+}

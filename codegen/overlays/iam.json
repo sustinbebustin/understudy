@@ -16,7 +16,7 @@
           },
           {
             "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: code AccessDenied, Type Sender, 403 in the IAM namespace envelope, inferred from the recorded STS denial (testdata/parity/sts/R15/06-assume-denied.json) and Terraform matching 'AccessDenied: .+ with an explicit deny' (3.2); the CommonErrors page's AccessDeniedException is a template (3.3); proposed switch iam.denial.identity (12.8, added with enforcement) until recording IAM-ENF-10",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: code AccessDenied, Type Sender, 403 in the IAM namespace envelope, inferred from the recorded STS denial (testdata/parity/sts/R15/06-assume-denied.json) and Terraform matching 'AccessDenied: .+ with an explicit deny' (3.2); the CommonErrors page's AccessDeniedException is a template (3.3); switch iam.denial.identity (12.8) until recording IAM-ENF-10",
             "covers": ["dev.understudy#denialError"]
           },
           {

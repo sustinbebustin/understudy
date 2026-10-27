@@ -21,9 +21,11 @@ import (
 const maxPermissionActions = 7
 
 // bindPermissions binds AddPermission and RemovePermission, which edit the
-// statements of the stored Policy attribute; nothing enforces them.
+// statements of the stored Policy attribute, evaluated under iam.enforce
+// advise and enforce (iam-enforcement-surfaces.md 12.7).
 func (s *Service) bindPermissions(b sqsapi.Binder) {
-	stored := registry.StoredOnly{Note: "statements are stored in the queue's Policy attribute and not enforced"}
+	stored := registry.Partial{Note: "statements are stored in the queue's Policy attribute and evaluated only when iam.enforce is advise or enforce; " +
+		"conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key"}
 	b.AddPermission(s.addPermission, stored,
 		kernel.WithCheck(checkAddPermission),
 		queueByURL(func(in *sqsapi.AddPermissionInput) string { return in.QueueUrl }))

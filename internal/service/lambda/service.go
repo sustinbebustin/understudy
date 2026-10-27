@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
@@ -181,11 +182,16 @@ func lambdaAction(name string) registry.IAMAction {
 
 // Switches lists the behaviors chosen without AWS-recorded evidence: the
 // state transitions, the asynchronous queue's, destinations' and layers'
-// choices and the event source mapping filter engine's choices. The
-// transitions govern the calls that create or change a function or mapping
-// and the reads that report its state.
+// choices, the event source mapping filter engine's choices and Lambda's
+// denial body (iam-enforcement-surfaces.md 12.8). The transitions govern
+// the calls that create or change a function or mapping and the reads that
+// report its state.
 func (s *Service) Switches() []fidelity.Entry {
-	entries := []fidelity.Entry{fidelity.Switch[string]{
+	// AccessDeniedException 403 is recorded for another account's ARN
+	// (third-party); the same-account body is inferred.
+	denial := authz.DenialSwitch("lambda.denial.body", `AccessDeniedException 403, {"Message":"<grammar of 4.1>"}`, evidence.Inferred, "3.2", "IAM-ENF-11",
+		s.k.Bindings().AuthorizedOps(lambdaapi.Service()))
+	entries := []fidelity.Entry{denial, fidelity.Switch[string]{
 		Name:  "lambda.stateTransitions",
 		Value: s.opts.StateTransitions.String(),
 		Label: evidence.AWSDoc,

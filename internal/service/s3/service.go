@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -359,7 +360,10 @@ func (s *Service) Scopes() []aws.Scope {
 	return out
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence.
+// Switches lists the behaviors chosen without AWS-recorded evidence, last
+// those of IAM enforcement: S3's denial text (iam-enforcement-surfaces.md
+// 12.8) and the root's bucket-policy lockout rule (6.3), which governs the
+// bucket policy operations.
 func (s *Service) Switches() []fidelity.Entry {
 	return slices.Concat([]fidelity.Entry{
 		encryptionAfterDelete().Entry(),
@@ -367,7 +371,10 @@ func (s *Service) Switches() []fidelity.Entry {
 		publicACLAtCreate().Entry(),
 		tagLimits().Entry(),
 		lifecycleRuleLimits().Entry(),
-	}, ssecSwitches(), objectLockSwitches())
+	}, ssecSwitches(), objectLockSwitches(), []fidelity.Entry{
+		authz.DenialSwitch("s3.denial.text", "the S3 variant of 4.2: a quoted resource, \", with policy ARN:\", Access Denied outside the owner's account",
+			evidence.AWSDoc, "4.2", "IAM-ENF-12", s.k.Bindings().AuthorizedOps(s3api.Service())),
+	}, authz.SwitchesOf("s3", []string{"s3.GetBucketPolicy", "s3.PutBucketPolicy", "s3.DeleteBucketPolicy"}))
 }
 
 // bucketOperations are the operations bound in s's kernel that address an

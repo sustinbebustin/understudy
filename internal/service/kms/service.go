@@ -2,6 +2,7 @@ package kms
 
 import (
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -43,9 +44,15 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	return s
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence.
-func (*Service) Switches() []fidelity.Entry {
-	return []fidelity.Entry{pendingCryptoError().Entry(), crossAccountManagementError().Entry()}
+// Switches lists the behaviors chosen without AWS-recorded evidence: the
+// service's own, its denial status (iam-enforcement-surfaces.md 12.8) and
+// how a key policy limits a role (iam-evaluation.md 4.3), which governs the
+// operations that store a key policy.
+func (s *Service) Switches() []fidelity.Entry {
+	return append([]fidelity.Entry{
+		pendingCryptoError().Entry(), crossAccountManagementError().Entry(),
+		authz.DenialSwitch("kms.denial.status", "400", evidence.Inferred, "3.2", "IAM-ENF-05", s.k.Bindings().AuthorizedOps(kmsapi.Service())),
+	}, authz.SwitchesOf("kms", []string{"kms.CreateKey", "kms.PutKeyPolicy"})...)
 }
 
 // crossAccountManagementError is the error a key management operation

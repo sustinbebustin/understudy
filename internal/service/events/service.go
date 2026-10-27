@@ -2,6 +2,7 @@ package events
 
 import (
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -162,14 +163,16 @@ func detailIntegerRange() fidelity.Switch[string] {
 }
 
 // Switches lists the behaviors chosen without AWS-recorded evidence: the
-// service's own and those of its Event Ruler profile, with the label,
-// operations and settling step rulerSwitches states for each.
+// service's own, the status of a denial (iam-enforcement-surfaces.md 12.8)
+// and those of its Event Ruler profile, with the label, operations and
+// settling step rulerSwitches states for each.
 func (s *Service) Switches() []fidelity.Entry {
 	profile := ruler.Switches(s.profile)
 	table := rulerSwitches()
 	buses := busSwitches()
-	out := make([]fidelity.Entry, 0, 3+len(buses)+len(profile))
-	out = append(out, rateRestart().Entry(), unmatchedInputPath().Entry(), detailIntegerRange().Entry())
+	out := make([]fidelity.Entry, 0, 4+len(buses)+len(profile))
+	out = append(out, rateRestart().Entry(), unmatchedInputPath().Entry(), detailIntegerRange().Entry(),
+		authz.DenialSwitch("events.denial.status", "AccessDeniedException 400", evidence.Inferred, "3.2", "IAM-ENF-08", s.k.Bindings().AuthorizedOps(eventbridgeapi.Service())))
 	for _, sw := range buses {
 		out = append(out, sw.Entry())
 	}

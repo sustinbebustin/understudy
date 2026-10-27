@@ -21,7 +21,7 @@
           },
           {
             "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the code AccessDeniedException is the KMS CommonErrors template's and Terraform's (3.2); its 400 status follows the recorded Logs and Secrets Manager denials, not the template's 403, proposed switch kms.denial.status (12.8, added with enforcement), until recording IAM-ENF-05",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the code AccessDeniedException is the KMS CommonErrors template's and Terraform's (3.2); its 400 status follows the recorded Logs and Secrets Manager denials, not the template's 403, switch kms.denial.status (12.8), until recording IAM-ENF-05",
             "covers": ["dev.understudy#denialError"]
           }
         ]

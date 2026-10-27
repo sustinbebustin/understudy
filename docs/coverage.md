@@ -121,14 +121,14 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | cloudwatch | 55 | 1 | 2 | 9 | 43 | 0 | 0 |
 | dynamodb | 58 | 6 | 2 | 18 | 32 | 0 | 0 |
 | eventbridge | 57 | 6 | 3 | 13 | 35 | 0 | 0 |
-| iam | 180 | 42 | 6 | 16 | 116 | 1 | 0 |
-| kms | 54 | 19 | 3 | 5 | 27 | 0 | 0 |
-| lambda | 88 | 30 | 3 | 17 | 38 | 0 | 2 |
+| iam | 180 | 10 | 1 | 53 | 116 | 1 | 0 |
+| kms | 54 | 16 | 2 | 9 | 27 | 0 | 0 |
+| lambda | 88 | 30 | 2 | 18 | 38 | 0 | 2 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
-| s3 | 112 | 22 | 42 | 22 | 26 | 0 | 3 |
-| secretsmanager | 23 | 12 | 1 | 2 | 8 | 0 | 0 |
-| sns | 42 | 12 | 2 | 5 | 23 | 0 | 3 |
-| sqs | 23 | 16 | 2 | 5 | 0 | 2 | 0 |
+| s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
+| secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
+| sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
+| sqs | 23 | 16 | 0 | 7 | 0 | 2 | 0 |
 | sts | 11 | 1 | 0 | 2 | 8 | 0 | 0 |
 
 ### apigatewayv2
@@ -249,18 +249,18 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| DeleteAlarms | full | third-party-recorded, 3 of 3 claims |  |
-| DisableAlarmActions | stored-only | third-party-recorded, 2 of 2 claims | ActionsEnabled is stored and echoed; alarm actions never run |
-| EnableAlarmActions | stored-only | third-party-recorded, 2 of 2 claims | ActionsEnabled is stored and echoed; alarm actions never run |
-| DescribeAlarms | partial | third-party-recorded, 2 of 2 claims | metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing |
-| GetMetricData | partial | aws-doc, 1 of 3 claims | MetricStat queries with SampleCount, Average, Sum, Minimum or Maximum; metric math, Metrics Insights and percentiles answer 501; LabelOptions is ignored |
-| ListMetrics | partial | third-party-recorded, 2 of 2 claims | no linked accounts: IncludeLinkedAccounts and OwningAccount select nothing more |
-| ListTagsForResource | partial | third-party-recorded, 2 of 2 claims | alarms only: insight rules and metric streams are never stored |
-| PutMetricAlarm | partial | aws-doc, 1 of 3 claims | stored and echoed; alarms are never evaluated, so their state changes only through SetAlarmState, and their actions never run |
-| PutMetricData | partial | inferred, 1 of 4 claims | entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution |
-| SetAlarmState | partial | third-party-recorded, 4 of 4 claims | the state is set and echoed; no action runs and no evaluation follows |
-| TagResource | partial | third-party-recorded, 2 of 2 claims | alarms only: insight rules and metric streams are never stored |
-| UntagResource | partial | third-party-recorded, 2 of 2 claims | alarms only: insight rules and metric streams are never stored |
+| DeleteAlarms | full | inferred, 1 of 4 claims |  |
+| DisableAlarmActions | stored-only | inferred, 1 of 3 claims | ActionsEnabled is stored and echoed; alarm actions never run |
+| EnableAlarmActions | stored-only | inferred, 1 of 3 claims | ActionsEnabled is stored and echoed; alarm actions never run |
+| DescribeAlarms | partial | inferred, 1 of 3 claims | metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing |
+| GetMetricData | partial | inferred, 1 of 4 claims | MetricStat queries with SampleCount, Average, Sum, Minimum or Maximum; metric math, Metrics Insights and percentiles answer 501; LabelOptions is ignored |
+| ListMetrics | partial | inferred, 1 of 3 claims | no linked accounts: IncludeLinkedAccounts and OwningAccount select nothing more |
+| ListTagsForResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
+| PutMetricAlarm | partial | inferred, 1 of 4 claims | stored and echoed; alarms are never evaluated, so their state changes only through SetAlarmState, and their actions never run |
+| PutMetricData | partial | inferred, 2 of 5 claims | entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution |
+| SetAlarmState | partial | inferred, 1 of 5 claims | the state is set and echoed; no action runs and no evaluation follows |
+| TagResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
+| UntagResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
 | AssociateDatasetKmsKey | unbound | unassessed |  |
 | CreateResourceMetricsConfiguration | unbound | unassessed |  |
 | DeleteAlarmMuteRule | unbound | unassessed |  |
@@ -309,32 +309,32 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| DeleteTable | full | third-party-recorded, 2 of 2 claims |  |
-| DescribeLimits | full | third-party-recorded, 2 of 2 claims |  |
-| ListTables | full | third-party-recorded, 2 of 2 claims |  |
-| ListTagsOfResource | full | third-party-recorded, 2 of 2 claims |  |
-| TagResource | full | third-party-recorded, 2 of 2 claims |  |
-| UntagResource | full | third-party-recorded, 2 of 2 claims |  |
-| DescribeContinuousBackups | stored-only | third-party-recorded, 2 of 2 claims | point-in-time recovery is recorded and described; no backups are taken, and the restore operations are not implemented |
-| UpdateContinuousBackups | stored-only | third-party-recorded, 2 of 2 claims | point-in-time recovery is recorded and described; no backups are taken, and the restore operations are not implemented |
-| BatchExecuteStatement | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: requests are never throttled; inject com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
-| BatchGetItem | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
-| BatchWriteItem | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
-| CreateTable | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: table names are case-insensitive, so a name that differs from an existing table's only in case is refused with ResourceInUseException; aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one; StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501 |
-| DeleteItem | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
-| DescribeTable | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one; StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501 |
-| DescribeTimeToLive | partial | third-party-recorded, 2 of 2 claims | aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; the one change per hour AWS allows is not enforced |
-| ExecuteStatement | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule; aws-differs: dynamodb-local: Limit is ignored; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
-| ExecuteTransaction | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons; the injected error's top-level message key, the bytes of a None reason and ExecuteTransaction's message text and reasons are UNVERIFIED (smithy-protocol-tests.md 12.4); aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
-| GetItem | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
-| PutItem | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
-| Query | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
-| Scan | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: Segment and TotalSegments are ignored, so a parallel scan reads sequentially |
-| TransactGetItems | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons; the injected error's top-level message key, the bytes of a None reason and ExecuteTransaction's message text and reasons are UNVERIFIED (smithy-protocol-tests.md 12.4) |
-| TransactWriteItems | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons; the injected error's top-level message key, the bytes of a None reason and ExecuteTransaction's message text and reasons are UNVERIFIED (smithy-protocol-tests.md 12.4) |
-| UpdateItem | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
-| UpdateTable | partial | third-party-recorded, 2 of 2 claims | aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one; StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501 |
-| UpdateTimeToLive | partial | third-party-recorded, 2 of 2 claims | aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; the one change per hour AWS allows is not enforced |
+| DeleteTable | full | inferred, 1 of 3 claims |  |
+| DescribeLimits | full | inferred, 1 of 3 claims |  |
+| ListTables | full | inferred, 1 of 3 claims |  |
+| ListTagsOfResource | full | inferred, 1 of 3 claims |  |
+| TagResource | full | inferred, 1 of 3 claims |  |
+| UntagResource | full | inferred, 1 of 3 claims |  |
+| DescribeContinuousBackups | stored-only | inferred, 1 of 3 claims | point-in-time recovery is recorded and described; no backups are taken, and the restore operations are not implemented |
+| UpdateContinuousBackups | stored-only | inferred, 1 of 3 claims | point-in-time recovery is recorded and described; no backups are taken, and the restore operations are not implemented |
+| BatchExecuteStatement | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: requests are never throttled; inject com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
+| BatchGetItem | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
+| BatchWriteItem | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
+| CreateTable | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: table names are case-insensitive, so a name that differs from an existing table's only in case is refused with ResourceInUseException; aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one; StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501 |
+| DeleteItem | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
+| DescribeTable | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one; StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501 |
+| DescribeTimeToLive | partial | inferred, 1 of 3 claims | aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; the one change per hour AWS allows is not enforced |
+| ExecuteStatement | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule; aws-differs: dynamodb-local: Limit is ignored; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
+| ExecuteTransaction | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons; the injected error's top-level message key, the bytes of a None reason and ExecuteTransaction's message text and reasons are UNVERIFIED (smithy-protocol-tests.md 12.4); aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table |
+| GetItem | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
+| PutItem | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
+| Query | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
+| Scan | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: Segment and TotalSegments are ignored, so a parallel scan reads sequentially |
+| TransactGetItems | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons; the injected error's top-level message key, the bytes of a None reason and ExecuteTransaction's message text and reasons are UNVERIFIED (smithy-protocol-tests.md 12.4) |
+| TransactWriteItems | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons; the injected error's top-level message key, the bytes of a None reason and ExecuteTransaction's message text and reasons are UNVERIFIED (smithy-protocol-tests.md 12.4) |
+| UpdateItem | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
+| UpdateTable | partial | inferred, 1 of 3 claims | aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one; StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501 |
+| UpdateTimeToLive | partial | inferred, 1 of 3 claims | aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; the one change per hour AWS allows is not enforced |
 | CreateBackup | unbound | unassessed |  |
 | CreateGlobalTable | unbound | unassessed |  |
 | DeleteBackup | unbound | unassessed |  |
@@ -372,28 +372,28 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| DeleteEventBus | full | aws-doc, 1 of 3 claims |  |
-| ListEventBuses | full | inferred, 2 of 4 claims |  |
-| ListTagsForResource | full | third-party-recorded, 2 of 2 claims |  |
-| TagResource | full | third-party-recorded, 2 of 2 claims |  |
-| TestEventPattern | full | contradicted (events/R14/H14-01.json), 5 of 25 claims |  |
-| UntagResource | full | third-party-recorded, 2 of 2 claims |  |
-| PutPermission | stored-only | inferred, 1 of 3 claims | statements are stored in the bus Policy that DescribeEventBus returns; not enforced |
-| RemovePermission | stored-only | inferred, 2 of 4 claims | statements are removed from the bus Policy; not enforced |
-| UpdateEventBus | stored-only | inferred, 2 of 4 claims | Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged |
-| CreateEventBus | partial | inferred, 2 of 4 claims | custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged |
-| DeleteRule | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
-| DescribeEventBus | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
-| DescribeRule | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
-| DisableRule | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
-| EnableRule | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
-| ListRuleNamesByTarget | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
-| ListRules | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
-| ListTargetsByRule | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
-| PutEvents | partial | contradicted (events/R14/H14-02.json), 1 of 10 claims | default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
-| PutRule | partial | contradicted (events/R14/H14-01.json), 1 of 8 claims | default and custom buses of the caller's account and region; ScheduleExpression only on the default bus, as AWS; RoleArn is stored, not used; a rule on another account's or region's bus answers NotImplemented |
-| PutTargets | partial | inferred, 2 of 5 claims | Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented |
-| RemoveTargets | partial | third-party-recorded, 2 of 2 claims | another account's or region's bus answers NotImplemented |
+| DeleteEventBus | full | inferred, 1 of 4 claims |  |
+| ListEventBuses | full | inferred, 3 of 5 claims |  |
+| ListTagsForResource | full | inferred, 1 of 3 claims |  |
+| TagResource | full | inferred, 1 of 3 claims |  |
+| TestEventPattern | full | contradicted (events/R14/H14-01.json), 5 of 26 claims |  |
+| UntagResource | full | inferred, 1 of 3 claims |  |
+| PutPermission | stored-only | inferred, 2 of 4 claims | statements are stored in the bus Policy that DescribeEventBus returns; not enforced |
+| RemovePermission | stored-only | inferred, 3 of 5 claims | statements are removed from the bus Policy; not enforced |
+| UpdateEventBus | stored-only | inferred, 3 of 5 claims | Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged |
+| CreateEventBus | partial | inferred, 3 of 5 claims | custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged |
+| DeleteRule | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
+| DescribeEventBus | partial | inferred, 2 of 4 claims | another account's or region's bus answers NotImplemented |
+| DescribeRule | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
+| DisableRule | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
+| EnableRule | partial | inferred, 2 of 4 claims | another account's or region's bus answers NotImplemented |
+| ListRuleNamesByTarget | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
+| ListRules | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
+| ListTargetsByRule | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
+| PutEvents | partial | contradicted (events/R14/H14-02.json), 1 of 11 claims | default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
+| PutRule | partial | contradicted (events/R14/H14-01.json), 1 of 9 claims | default and custom buses of the caller's account and region; ScheduleExpression only on the default bus, as AWS; RoleArn is stored, not used; a rule on another account's or region's bus answers NotImplemented |
+| PutTargets | partial | inferred, 3 of 6 claims | Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, or an event bus target of the rule's account with Input, InputPath or InputTransformer, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented |
+| RemoveTargets | partial | inferred, 1 of 3 claims | another account's or region's bus answers NotImplemented |
 | ActivateEventSource | unbound | unassessed |  |
 | CancelReplay | unbound | unassessed |  |
 | CreateApiDestination | unbound | unassessed |  |
@@ -434,70 +434,70 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| AddRoleToInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
-| CreateInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteAccessKey | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
-| DeletePolicy | full | third-party-recorded, 2 of 2 claims |  |
-| DeletePolicyVersion | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteRole | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteRolePermissionsBoundary | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteRolePolicy | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteUser | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteUserPermissionsBoundary | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteUserPolicy | full | third-party-recorded, 2 of 2 claims |  |
-| DetachRolePolicy | full | third-party-recorded, 2 of 2 claims |  |
-| DetachUserPolicy | full | third-party-recorded, 2 of 2 claims |  |
-| GetInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
-| GetRole | full | third-party-recorded, 2 of 2 claims |  |
-| GetRolePolicy | full | third-party-recorded, 2 of 2 claims |  |
-| GetUserPolicy | full | third-party-recorded, 2 of 2 claims |  |
-| ListAttachedRolePolicies | full | third-party-recorded, 2 of 2 claims |  |
-| ListAttachedUserPolicies | full | third-party-recorded, 2 of 2 claims |  |
-| ListInstanceProfileTags | full | third-party-recorded, 2 of 2 claims |  |
-| ListInstanceProfiles | full | third-party-recorded, 2 of 2 claims |  |
-| ListInstanceProfilesForRole | full | third-party-recorded, 2 of 2 claims |  |
-| ListPolicyTags | full | third-party-recorded, 2 of 2 claims |  |
-| ListRolePolicies | full | third-party-recorded, 2 of 2 claims |  |
-| ListRoleTags | full | third-party-recorded, 2 of 2 claims |  |
-| ListRoles | full | third-party-recorded, 2 of 2 claims |  |
-| ListUserPolicies | full | third-party-recorded, 2 of 2 claims |  |
-| ListUserTags | full | third-party-recorded, 2 of 2 claims |  |
-| ListUsers | full | third-party-recorded, 2 of 2 claims |  |
-| RemoveRoleFromInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
-| SetDefaultPolicyVersion | full | third-party-recorded, 2 of 2 claims |  |
-| TagInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
-| TagPolicy | full | third-party-recorded, 2 of 2 claims |  |
-| TagRole | full | third-party-recorded, 2 of 2 claims |  |
-| TagUser | full | third-party-recorded, 2 of 2 claims |  |
-| UntagInstanceProfile | full | third-party-recorded, 2 of 2 claims |  |
-| UntagPolicy | full | third-party-recorded, 2 of 2 claims |  |
-| UntagRole | full | third-party-recorded, 2 of 2 claims |  |
-| UntagUser | full | third-party-recorded, 2 of 2 claims |  |
-| UpdateRole | full | third-party-recorded, 2 of 2 claims |  |
-| UpdateRoleDescription | full | third-party-recorded, 2 of 2 claims |  |
-| CreatePolicy | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced; the S3 region rule exempts the regional S3 resource types of the Service Authorization Reference (access grants, batch jobs, Storage Lens, multi-Region access point requests), which moto refuses, and whether IAM accepts them is UNVERIFIED (iam-evaluation.md 10.6) |
-| CreatePolicyVersion | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced; the S3 region rule exempts the regional S3 resource types of the Service Authorization Reference (access grants, batch jobs, Storage Lens, multi-Region access point requests), which moto refuses, and whether IAM accepts them is UNVERIFIED (iam-evaluation.md 10.6) |
-| PutRolePolicy | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced; the S3 region rule exempts the regional S3 resource types of the Service Authorization Reference (access grants, batch jobs, Storage Lens, multi-Region access point requests), which moto refuses, and whether IAM accepts them is UNVERIFIED (iam-evaluation.md 10.6) |
-| PutUserPolicy | stored-only | third-party-recorded, 2 of 2 claims | the document is validated and stored, not enforced; the S3 region rule exempts the regional S3 resource types of the Service Authorization Reference (access grants, batch jobs, Storage Lens, multi-Region access point requests), which moto refuses, and whether IAM accepts them is UNVERIFIED (iam-evaluation.md 10.6) |
-| UpdateAccessKey | stored-only | third-party-recorded, 2 of 2 claims | an Inactive key still authenticates, since understudy does not enforce IAM |
-| UpdateAssumeRolePolicy | stored-only | third-party-recorded, 2 of 2 claims | the trust policy is validated and stored, not enforced |
-| AttachRolePolicy | partial | third-party-recorded, 2 of 2 claims | the attachment is stored, not enforced; an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity; every catalogued policy attaches, service-linked role policies included, though the IAM model documents PolicyNotAttachable for them |
-| AttachUserPolicy | partial | third-party-recorded, 2 of 2 claims | the attachment is stored, not enforced; an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity; every catalogued policy attaches, service-linked role policies included, though the IAM model documents PolicyNotAttachable for them |
-| CreateAccessKey | partial | third-party-recorded, 2 of 2 claims | only for IAM users: root user access keys are not managed, so a root caller must name a user |
-| CreateRole | partial | third-party-recorded, 2 of 2 claims | the trust policy is validated and stored, not enforced; as PermissionsBoundary, an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity |
-| CreateUser | partial | third-party-recorded, 2 of 2 claims | as PermissionsBoundary, an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity |
-| GetPolicy | partial | third-party-recorded, 2 of 2 claims | AWS managed policies come from the shipped catalogue (iam-evaluation.md 10): CreateDate and UpdateDate have minute precision, PolicyId is derived, AttachmentCount counts this emulator's attachments, and only the default version exists, so another VersionId answers NoSuchEntity; IsAttachable is true for every catalogued policy, service-linked role policies included, and PermissionsBoundaryUsageCount counts this emulator's boundaries; the guide publishes neither and AWS's values are not recorded (iam-evaluation.md 10.5); Description is the guide's text, not recorded against IAM (iam-evaluation.md 10.5) |
-| GetPolicyVersion | partial | third-party-recorded, 2 of 2 claims | AWS managed policies come from the shipped catalogue (iam-evaluation.md 10): CreateDate and UpdateDate have minute precision, PolicyId is derived, AttachmentCount counts this emulator's attachments, and only the default version exists, so another VersionId answers NoSuchEntity; the document is the guide's text and the version's CreateDate is the policy's UpdateDate, neither recorded against IAM (iam-evaluation.md 10.5) |
-| GetUser | partial | third-party-recorded, 2 of 2 claims | without UserName, a root caller gets its root identity with the Unix epoch as CreateDate, since account creation is not tracked |
-| ListAccessKeys | partial | third-party-recorded, 2 of 2 claims | root user access keys are not managed, so a root caller that names no user lists none |
-| ListEntitiesForPolicy | partial | third-party-recorded, 2 of 2 claims | groups are not implemented, so PolicyGroups is always empty |
-| ListGroupsForUser | partial | third-party-recorded, 2 of 2 claims | groups are not implemented, so a user belongs to none |
-| ListPolicies | partial | third-party-recorded, 2 of 2 claims | AWS managed policies come from the shipped catalogue (iam-evaluation.md 10): CreateDate and UpdateDate have minute precision, PolicyId is derived, AttachmentCount counts this emulator's attachments, and only the default version exists, so another VersionId answers NoSuchEntity; IsAttachable is true for every catalogued policy, service-linked role policies included, and PermissionsBoundaryUsageCount counts this emulator's boundaries; the guide publishes neither and AWS's values are not recorded (iam-evaluation.md 10.5); with both kinds listed, policies are ordered by name regardless of case, then by ARN, an order no recording covers |
-| ListPolicyVersions | partial | third-party-recorded, 2 of 2 claims | AWS managed policies come from the shipped catalogue (iam-evaluation.md 10): CreateDate and UpdateDate have minute precision, PolicyId is derived, AttachmentCount counts this emulator's attachments, and only the default version exists, so another VersionId answers NoSuchEntity; the version's CreateDate is the policy's UpdateDate, not recorded against IAM (iam-evaluation.md 10.5) |
-| PutRolePermissionsBoundary | partial | third-party-recorded, 2 of 2 claims | the boundary is stored, not enforced; an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity |
-| PutUserPermissionsBoundary | partial | third-party-recorded, 2 of 2 claims | the boundary is stored, not enforced; an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity |
-| UpdateUser | partial | third-party-recorded, 2 of 2 claims | access keys minted before a rename or a path change still resolve to the user's old name and path |
+| CreateInstanceProfile | full | inferred, 4 of 6 claims |  |
+| DeletePolicy | full | inferred, 4 of 6 claims |  |
+| DeletePolicyVersion | full | inferred, 4 of 6 claims |  |
+| ListInstanceProfiles | full | inferred, 4 of 6 claims |  |
+| ListPolicyTags | full | inferred, 4 of 6 claims |  |
+| ListRoles | full | inferred, 4 of 6 claims |  |
+| ListUsers | full | inferred, 4 of 6 claims |  |
+| SetDefaultPolicyVersion | full | inferred, 4 of 6 claims |  |
+| TagPolicy | full | inferred, 4 of 6 claims |  |
+| UntagPolicy | full | inferred, 4 of 6 claims |  |
+| UpdateAccessKey | stored-only | inferred, 4 of 6 claims | an Inactive key still authenticates, since understudy does not check a key's status; under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| AddRoleToInstanceProfile | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| AttachRolePolicy | partial | inferred, 4 of 6 claims | the attachment is stored, and evaluated only when iam.enforce is advise or enforce; an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity; every catalogued policy attaches, service-linked role policies included, though the IAM model documents PolicyNotAttachable for them; under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| AttachUserPolicy | partial | inferred, 4 of 6 claims | the attachment is stored, and evaluated only when iam.enforce is advise or enforce; an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity; every catalogued policy attaches, service-linked role policies included, though the IAM model documents PolicyNotAttachable for them; under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| CreateAccessKey | partial | inferred, 4 of 6 claims | only for IAM users: root user access keys are not managed, so a root caller must name a user; under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| CreatePolicy | partial | inferred, 15 of 18 claims | the document is validated and stored, and evaluated only when iam.enforce is advise or enforce; the S3 region rule exempts the regional S3 resource types of the Service Authorization Reference (access grants, batch jobs, Storage Lens, multi-Region access point requests), which moto refuses, and whether IAM accepts them is UNVERIFIED (iam-evaluation.md 10.6) |
+| CreatePolicyVersion | partial | inferred, 15 of 18 claims | the document is validated and stored, and evaluated only when iam.enforce is advise or enforce; the S3 region rule exempts the regional S3 resource types of the Service Authorization Reference (access grants, batch jobs, Storage Lens, multi-Region access point requests), which moto refuses, and whether IAM accepts them is UNVERIFIED (iam-evaluation.md 10.6) |
+| CreateRole | partial | inferred, 15 of 18 claims | the trust policy is validated and stored, and evaluated by AssumeRole only when iam.enforce is advise or enforce; as PermissionsBoundary, an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity |
+| CreateUser | partial | inferred, 4 of 6 claims | as PermissionsBoundary, an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity |
+| DeleteAccessKey | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| DeleteInstanceProfile | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| DeleteRole | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| DeleteRolePermissionsBoundary | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| DeleteRolePolicy | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| DeleteUser | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| DeleteUserPermissionsBoundary | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| DeleteUserPolicy | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| DetachRolePolicy | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| DetachUserPolicy | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| GetInstanceProfile | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| GetPolicy | partial | inferred, 4 of 6 claims | AWS managed policies come from the shipped catalogue (iam-evaluation.md 10): CreateDate and UpdateDate have minute precision, PolicyId is derived, AttachmentCount counts this emulator's attachments, and only the default version exists, so another VersionId answers NoSuchEntity; IsAttachable is true for every catalogued policy, service-linked role policies included, and PermissionsBoundaryUsageCount counts this emulator's boundaries; the guide publishes neither and AWS's values are not recorded (iam-evaluation.md 10.5); Description is the guide's text, not recorded against IAM (iam-evaluation.md 10.5) |
+| GetPolicyVersion | partial | inferred, 4 of 6 claims | AWS managed policies come from the shipped catalogue (iam-evaluation.md 10): CreateDate and UpdateDate have minute precision, PolicyId is derived, AttachmentCount counts this emulator's attachments, and only the default version exists, so another VersionId answers NoSuchEntity; the document is the guide's text and the version's CreateDate is the policy's UpdateDate, neither recorded against IAM (iam-evaluation.md 10.5) |
+| GetRole | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| GetRolePolicy | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| GetUser | partial | inferred, 4 of 6 claims | without UserName, a root caller gets its root identity with the Unix epoch as CreateDate, since account creation is not tracked; under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| GetUserPolicy | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| ListAccessKeys | partial | inferred, 4 of 6 claims | root user access keys are not managed, so a root caller that names no user lists none; under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| ListAttachedRolePolicies | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| ListAttachedUserPolicies | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| ListEntitiesForPolicy | partial | inferred, 4 of 6 claims | groups are not implemented, so PolicyGroups is always empty |
+| ListGroupsForUser | partial | inferred, 4 of 6 claims | groups are not implemented, so a user belongs to none; under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| ListInstanceProfileTags | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| ListInstanceProfilesForRole | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| ListPolicies | partial | inferred, 4 of 6 claims | AWS managed policies come from the shipped catalogue (iam-evaluation.md 10): CreateDate and UpdateDate have minute precision, PolicyId is derived, AttachmentCount counts this emulator's attachments, and only the default version exists, so another VersionId answers NoSuchEntity; IsAttachable is true for every catalogued policy, service-linked role policies included, and PermissionsBoundaryUsageCount counts this emulator's boundaries; the guide publishes neither and AWS's values are not recorded (iam-evaluation.md 10.5); with both kinds listed, policies are ordered by name regardless of case, then by ARN, an order no recording covers |
+| ListPolicyVersions | partial | inferred, 4 of 6 claims | AWS managed policies come from the shipped catalogue (iam-evaluation.md 10): CreateDate and UpdateDate have minute precision, PolicyId is derived, AttachmentCount counts this emulator's attachments, and only the default version exists, so another VersionId answers NoSuchEntity; the version's CreateDate is the policy's UpdateDate, not recorded against IAM (iam-evaluation.md 10.5) |
+| ListRolePolicies | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| ListRoleTags | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| ListUserPolicies | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| ListUserTags | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| PutRolePermissionsBoundary | partial | inferred, 15 of 18 claims | the boundary is stored, and evaluated only when iam.enforce is advise or enforce; an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity; under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| PutRolePolicy | partial | inferred, 15 of 18 claims | the document is validated and stored, and evaluated only when iam.enforce is advise or enforce; the S3 region rule exempts the regional S3 resource types of the Service Authorization Reference (access grants, batch jobs, Storage Lens, multi-Region access point requests), which moto refuses, and whether IAM accepts them is UNVERIFIED (iam-evaluation.md 10.6); under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| PutUserPermissionsBoundary | partial | inferred, 15 of 18 claims | the boundary is stored, and evaluated only when iam.enforce is advise or enforce; an AWS managed policy ARN must be in the shipped catalogue (iam-evaluation.md 10), so a policy AWS published after the catalogue was retrieved is NoSuchEntity; under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| PutUserPolicy | partial | inferred, 15 of 18 claims | the document is validated and stored, and evaluated only when iam.enforce is advise or enforce; the S3 region rule exempts the regional S3 resource types of the Service Authorization Reference (access grants, batch jobs, Storage Lens, multi-Region access point requests), which moto refuses, and whether IAM accepts them is UNVERIFIED (iam-evaluation.md 10.6); under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| RemoveRoleFromInstanceProfile | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| TagInstanceProfile | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| TagRole | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| TagUser | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| UntagInstanceProfile | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| UntagRole | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| UntagUser | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| UpdateAssumeRolePolicy | partial | inferred, 15 of 18 claims | the trust policy is validated and stored, and evaluated by AssumeRole only when iam.enforce is advise or enforce; under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| UpdateRole | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| UpdateRoleDescription | partial | inferred, 4 of 6 claims | under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
+| UpdateUser | partial | inferred, 4 of 6 claims | access keys minted before a rename or a path change still resolve to the user's old name and path, so under iam.enforce they are denied as a user IAM does not hold; under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource) |
 | AcceptDelegationRequest | unbound | unassessed |  |
 | AcquireRole | unbound | unassessed |  |
 | AddClientIDToOpenIDConnectProvider | unbound | unassessed |  |
@@ -625,33 +625,33 @@ Internal operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| CancelKeyDeletion | full | inferred, 1 of 6 claims |  |
-| CreateAlias | full | aws-doc, 3 of 7 claims |  |
-| DeleteAlias | full | aws-doc, 3 of 5 claims |  |
-| DescribeKey | full | aws-doc, 2 of 4 claims |  |
-| DisableKey | full | inferred, 1 of 6 claims |  |
-| EnableKey | full | inferred, 1 of 6 claims |  |
-| Encrypt | full | aws-doc, 5 of 8 claims |  |
-| GenerateDataKeyWithoutPlaintext | full | aws-doc, 5 of 8 claims |  |
-| GetKeyPolicy | full | inferred, 1 of 6 claims |  |
-| GetKeyRotationStatus | full | aws-doc, 3 of 5 claims |  |
-| ListAliases | full | inferred, 1 of 5 claims |  |
-| ListKeyPolicies | full | inferred, 1 of 6 claims |  |
-| ListKeys | full | aws-doc, 1 of 3 claims |  |
-| ListResourceTags | full | inferred, 1 of 4 claims |  |
-| ScheduleKeyDeletion | full | inferred, 1 of 7 claims |  |
-| TagResource | full | inferred, 1 of 5 claims |  |
-| UntagResource | full | inferred, 1 of 5 claims |  |
-| UpdateAlias | full | aws-doc, 3 of 5 claims |  |
-| UpdateKeyDescription | full | inferred, 1 of 6 claims |  |
-| DisableKeyRotation | stored-only | inferred, 1 of 7 claims | the rotation status and period are stored and reported; key material is never rotated |
-| EnableKeyRotation | stored-only | inferred, 1 of 7 claims | the rotation status and period are stored and reported; key material is never rotated |
-| PutKeyPolicy | stored-only | inferred, 1 of 6 claims | the policy is parsed and stored verbatim, not enforced; the lockout safety check is not run |
-| CreateKey | partial | aws-doc, 1 of 3 claims | symmetric encryption keys with AWS_KMS origin only: other key specs, key usages, origins, custom key stores and multi-Region keys answer UnsupportedOperationException; the key policy is parsed and stored, the lockout safety check is not run |
-| Decrypt | partial | aws-doc, 5 of 8 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException, as do DryRunModifiers |
-| GenerateDataKey | partial | aws-doc, 5 of 8 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException |
-| GenerateRandom | partial | aws-doc, 1 of 3 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException; custom key stores do not exist |
-| ReEncrypt | partial | aws-doc, 5 of 8 claims | DryRunModifiers answer UnsupportedOperationException |
+| CancelKeyDeletion | full | inferred, 2 of 7 claims |  |
+| CreateAlias | full | inferred, 1 of 8 claims |  |
+| DeleteAlias | full | inferred, 1 of 6 claims |  |
+| DisableKey | full | inferred, 2 of 7 claims |  |
+| EnableKey | full | inferred, 2 of 7 claims |  |
+| GetKeyPolicy | full | inferred, 2 of 7 claims |  |
+| GetKeyRotationStatus | full | inferred, 1 of 6 claims |  |
+| ListAliases | full | inferred, 2 of 6 claims |  |
+| ListKeyPolicies | full | inferred, 2 of 7 claims |  |
+| ListKeys | full | inferred, 1 of 4 claims |  |
+| ListResourceTags | full | inferred, 2 of 5 claims |  |
+| ScheduleKeyDeletion | full | inferred, 2 of 8 claims |  |
+| TagResource | full | inferred, 2 of 6 claims |  |
+| UntagResource | full | inferred, 2 of 6 claims |  |
+| UpdateAlias | full | inferred, 1 of 6 claims |  |
+| UpdateKeyDescription | full | inferred, 2 of 7 claims |  |
+| DisableKeyRotation | stored-only | inferred, 2 of 8 claims | the rotation status and period are stored and reported; key material is never rotated |
+| EnableKeyRotation | stored-only | inferred, 2 of 8 claims | the rotation status and period are stored and reported; key material is never rotated |
+| CreateKey | partial | inferred, 2 of 5 claims | symmetric encryption keys with AWS_KMS origin only: other key specs, key usages, origins, custom key stores and multi-Region keys answer UnsupportedOperationException; the key policy is parsed and stored, the lockout safety check is not run |
+| Decrypt | partial | inferred, 1 of 9 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException, as do DryRunModifiers; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (iam.enforce.missing-resource) |
+| DescribeKey | partial | inferred, 1 of 5 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (iam.enforce.missing-resource) |
+| Encrypt | partial | inferred, 1 of 9 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (iam.enforce.missing-resource) |
+| GenerateDataKey | partial | inferred, 1 of 9 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (iam.enforce.missing-resource) |
+| GenerateDataKeyWithoutPlaintext | partial | inferred, 1 of 9 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (iam.enforce.missing-resource) |
+| GenerateRandom | partial | inferred, 1 of 4 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException; custom key stores do not exist |
+| PutKeyPolicy | partial | inferred, 3 of 8 claims | the policy is parsed and stored verbatim, and evaluated only when iam.enforce is advise or enforce; grants are not evaluated; the lockout safety check is not run |
+| ReEncrypt | partial | inferred, 1 of 9 claims | DryRunModifiers answer UnsupportedOperationException; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (iam.enforce.missing-resource) |
 | ConnectCustomKeyStore | unbound | unassessed |  |
 | CreateCustomKeyStore | unbound | unassessed |  |
 | CreateGrant | unbound | unassessed |  |
@@ -684,56 +684,56 @@ Internal operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| DeleteAlias | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteEventSourceMapping | full | aws-doc, 1 of 3 claims |  |
-| DeleteFunction | full | third-party-recorded, 3 of 3 claims |  |
-| DeleteFunctionConcurrency | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteFunctionEventInvokeConfig | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteFunctionUrlConfig | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteLayerVersion | full | third-party-recorded, 2 of 2 claims |  |
-| GetAccountSettings | full | third-party-recorded, 2 of 2 claims |  |
-| GetAlias | full | third-party-recorded, 2 of 2 claims |  |
-| GetEventSourceMapping | full | aws-doc, 1 of 3 claims |  |
-| GetFunctionConcurrency | full | third-party-recorded, 2 of 2 claims |  |
-| GetFunctionConfiguration | full | aws-doc, 1 of 3 claims |  |
-| GetFunctionEventInvokeConfig | full | third-party-recorded, 2 of 2 claims |  |
-| GetFunctionUrlConfig | full | third-party-recorded, 2 of 2 claims |  |
-| GetLayerVersionPolicy | full | third-party-recorded, 2 of 2 claims |  |
-| GetPolicy | full | third-party-recorded, 2 of 2 claims |  |
-| ListAliases | full | third-party-recorded, 2 of 2 claims |  |
-| ListEventSourceMappings | full | third-party-recorded, 2 of 2 claims |  |
-| ListFunctionEventInvokeConfigs | full | third-party-recorded, 2 of 2 claims |  |
-| ListFunctionUrlConfigs | full | third-party-recorded, 2 of 2 claims |  |
-| ListFunctions | full | third-party-recorded, 2 of 2 claims |  |
-| ListLayerVersions | full | inferred, 1 of 3 claims |  |
-| ListLayers | full | third-party-recorded, 3 of 3 claims |  |
-| ListTags | full | third-party-recorded, 2 of 2 claims |  |
-| ListVersionsByFunction | full | third-party-recorded, 2 of 2 claims |  |
-| PutFunctionConcurrency | full | third-party-recorded, 2 of 2 claims |  |
-| RemoveLayerVersionPermission | full | third-party-recorded, 2 of 2 claims |  |
-| RemovePermission | full | third-party-recorded, 2 of 2 claims |  |
-| TagResource | full | third-party-recorded, 2 of 2 claims |  |
-| UntagResource | full | third-party-recorded, 2 of 2 claims |  |
-| AddLayerVersionPermission | stored-only | third-party-recorded, 2 of 2 claims | statements are stored and returned by GetLayerVersionPolicy; another account's use of the layer is advised, not refused |
-| AddPermission | stored-only | third-party-recorded, 2 of 2 claims | statements are stored and returned by GetPolicy, not enforced |
-| GetFunctionCodeSigningConfig | stored-only | third-party-recorded, 2 of 2 claims | code signing is not enforced; no function has a configuration |
-| CreateAlias | partial | third-party-recorded, 2 of 2 claims | weighted routing is stored, not applied to invocations |
-| CreateEventSourceMapping | partial | inferred, 6 of 10 claims | SQS queues only; serve polls the queue and invokes the function with each batch |
-| CreateFunction | partial | inferred, 2 of 7 claims | a layer version is found only if it was published to understudy, which never fetches layers from AWS; PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only |
-| CreateFunctionUrlConfig | partial | third-party-recorded, 2 of 2 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
-| GetFunction | partial | aws-doc, 1 of 3 claims | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
-| GetLayerVersion | partial | third-party-recorded, 2 of 2 claims | Content.Location is a link understudy serves the archive at, not a presigned S3 URL |
-| GetLayerVersionByArn | partial | third-party-recorded, 2 of 2 claims | Content.Location is a link understudy serves the archive at, not a presigned S3 URL |
-| Invoke | partial | inferred, 5 of 9 claims | an alias with weighted routing always runs its primary version; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
-| PublishLayerVersion | partial | third-party-recorded, 2 of 2 claims | S3ObjectStorageMode REFERENCE is stored and the archive is copied as with COPY; the account code-storage quota is not enforced; layers are never signed |
-| PublishVersion | partial | aws-doc, 1 of 3 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
-| PutFunctionEventInvokeConfig | partial | inferred, 2 of 4 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
-| UpdateAlias | partial | third-party-recorded, 2 of 2 claims | weighted routing is stored, not applied to invocations |
-| UpdateEventSourceMapping | partial | inferred, 6 of 9 claims | SQS queues only; serve polls the queue and invokes the function with each batch |
-| UpdateFunctionCode | partial | aws-doc, 1 of 3 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
-| UpdateFunctionConfiguration | partial | inferred, 3 of 6 claims | a layer version is found only if it was published to understudy, which never fetches layers from AWS; DurableConfig is refused; code signing and VPC networking are stored only |
-| UpdateFunctionEventInvokeConfig | partial | inferred, 1 of 3 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
-| UpdateFunctionUrlConfig | partial | third-party-recorded, 2 of 2 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
+| DeleteAlias | full | inferred, 1 of 3 claims |  |
+| DeleteEventSourceMapping | full | inferred, 1 of 4 claims |  |
+| DeleteFunction | full | inferred, 1 of 4 claims |  |
+| DeleteFunctionConcurrency | full | inferred, 1 of 3 claims |  |
+| DeleteFunctionEventInvokeConfig | full | inferred, 1 of 3 claims |  |
+| DeleteFunctionUrlConfig | full | inferred, 1 of 3 claims |  |
+| DeleteLayerVersion | full | inferred, 1 of 3 claims |  |
+| GetAccountSettings | full | inferred, 1 of 3 claims |  |
+| GetAlias | full | inferred, 1 of 3 claims |  |
+| GetEventSourceMapping | full | inferred, 1 of 4 claims |  |
+| GetFunctionConcurrency | full | inferred, 1 of 3 claims |  |
+| GetFunctionConfiguration | full | inferred, 1 of 4 claims |  |
+| GetFunctionEventInvokeConfig | full | inferred, 1 of 3 claims |  |
+| GetFunctionUrlConfig | full | inferred, 1 of 3 claims |  |
+| GetLayerVersionPolicy | full | inferred, 1 of 3 claims |  |
+| GetPolicy | full | inferred, 1 of 3 claims |  |
+| ListAliases | full | inferred, 1 of 3 claims |  |
+| ListEventSourceMappings | full | inferred, 1 of 3 claims |  |
+| ListFunctionEventInvokeConfigs | full | inferred, 1 of 3 claims |  |
+| ListFunctionUrlConfigs | full | inferred, 1 of 3 claims |  |
+| ListFunctions | full | inferred, 1 of 3 claims |  |
+| ListLayerVersions | full | inferred, 2 of 4 claims |  |
+| ListLayers | full | inferred, 1 of 4 claims |  |
+| ListTags | full | inferred, 1 of 3 claims |  |
+| ListVersionsByFunction | full | inferred, 1 of 3 claims |  |
+| PutFunctionConcurrency | full | inferred, 1 of 3 claims |  |
+| RemoveLayerVersionPermission | full | inferred, 1 of 3 claims |  |
+| RemovePermission | full | inferred, 1 of 3 claims |  |
+| TagResource | full | inferred, 1 of 3 claims |  |
+| UntagResource | full | inferred, 1 of 3 claims |  |
+| AddLayerVersionPermission | stored-only | inferred, 1 of 3 claims | statements are stored and returned by GetLayerVersionPolicy; another account's use of the layer is advised, not refused |
+| GetFunctionCodeSigningConfig | stored-only | inferred, 1 of 3 claims | code signing is not enforced; no function has a configuration |
+| AddPermission | partial | inferred, 1 of 3 claims | statements are stored and returned by GetPolicy, and evaluated for function URLs with AuthType NONE, and for calls and service deliveries only when iam.enforce is advise or enforce |
+| CreateAlias | partial | inferred, 1 of 3 claims | weighted routing is stored, not applied to invocations |
+| CreateEventSourceMapping | partial | inferred, 7 of 11 claims | SQS queues only; serve polls the queue and invokes the function with each batch |
+| CreateFunction | partial | inferred, 3 of 8 claims | a layer version is found only if it was published to understudy, which never fetches layers from AWS; PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only |
+| CreateFunctionUrlConfig | partial | inferred, 1 of 3 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
+| GetFunction | partial | inferred, 1 of 4 claims | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
+| GetLayerVersion | partial | inferred, 1 of 3 claims | Content.Location is a link understudy serves the archive at, not a presigned S3 URL |
+| GetLayerVersionByArn | partial | inferred, 1 of 3 claims | Content.Location is a link understudy serves the archive at, not a presigned S3 URL |
+| Invoke | partial | inferred, 6 of 10 claims | an alias with weighted routing always runs its primary version; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
+| PublishLayerVersion | partial | inferred, 1 of 3 claims | S3ObjectStorageMode REFERENCE is stored and the archive is copied as with COPY; the account code-storage quota is not enforced; layers are never signed |
+| PublishVersion | partial | inferred, 1 of 4 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
+| PutFunctionEventInvokeConfig | partial | inferred, 3 of 5 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
+| UpdateAlias | partial | inferred, 1 of 3 claims | weighted routing is stored, not applied to invocations |
+| UpdateEventSourceMapping | partial | inferred, 7 of 10 claims | SQS queues only; serve polls the queue and invokes the function with each batch |
+| UpdateFunctionCode | partial | inferred, 1 of 4 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
+| UpdateFunctionConfiguration | partial | inferred, 4 of 7 claims | a layer version is found only if it was published to understudy, which never fetches layers from AWS; DurableConfig is refused; code signing and VPC networking are stored only |
+| UpdateFunctionEventInvokeConfig | partial | inferred, 2 of 4 claims | the execution role's permission to reach a destination is recorded, not checked; a failed delivery is journaled and not retried |
+| UpdateFunctionUrlConfig | partial | inferred, 1 of 3 claims | the URL is served (see InvokeFunctionUrl); InvokeMode RESPONSE_STREAM answers buffered and CORS is applied as stored |
 | CheckpointDurableExecution | unbound | unassessed |  |
 | CreateCapacityProvider | unbound | unassessed |  |
 | CreateCodeSigningConfig | unbound | unassessed |  |
@@ -784,24 +784,24 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| CreateLogStream | full | unassessed |  |
-| DeleteLogGroup | full | unassessed |  |
-| DeleteLogStream | full | unassessed |  |
-| DeleteRetentionPolicy | full | unassessed |  |
-| DescribeLogStreams | full | unassessed |  |
-| ListTagsLogGroup | full | unassessed |  |
-| PutLogGroupDeletionProtection | full | unassessed |  |
-| TagLogGroup | full | unassessed |  |
-| UntagLogGroup | full | unassessed |  |
-| CreateLogGroup | partial | aws-doc, 1 of 1 claim | kmsKeyId must name an enabled KMS key and is stored and echoed; events are not encrypted with it |
-| DescribeLogGroups | partial | aws-doc, 1 of 1 claim | no linked accounts: accountIdentifiers and includeLinkedAccounts select nothing more |
-| FilterLogEvents | partial | inferred, 2 of 3 claims | unmask is ignored: no data protection policies; logStreamNames that name no stream are skipped |
-| GetLogEvents | partial | aws-doc, 1 of 1 claim | unmask is ignored: no data protection policies |
-| ListTagsForResource | partial | unassessed | log groups only; destination and delivery ARNs name no resource |
-| PutLogEvents | partial | aws-doc, 1 of 1 claim | entity is accepted and ignored; sequenceToken is ignored, as AWS documents |
-| PutRetentionPolicy | partial | aws-doc, 1 of 1 claim | events expire exactly at timestamp plus retention on the emulator clock, not lazily within 72 hours |
-| TagResource | partial | unassessed | log groups only; destination and delivery ARNs name no resource |
-| UntagResource | partial | unassessed | log groups only; destination and delivery ARNs name no resource |
+| CreateLogStream | full | third-party-recorded, 1 of 1 claim |  |
+| DeleteLogGroup | full | third-party-recorded, 1 of 1 claim |  |
+| DeleteLogStream | full | third-party-recorded, 1 of 1 claim |  |
+| DeleteRetentionPolicy | full | third-party-recorded, 1 of 1 claim |  |
+| DescribeLogStreams | full | third-party-recorded, 1 of 1 claim |  |
+| ListTagsLogGroup | full | third-party-recorded, 1 of 1 claim |  |
+| PutLogGroupDeletionProtection | full | third-party-recorded, 1 of 1 claim |  |
+| TagLogGroup | full | third-party-recorded, 1 of 1 claim |  |
+| UntagLogGroup | full | third-party-recorded, 1 of 1 claim |  |
+| CreateLogGroup | partial | aws-doc, 1 of 2 claims | kmsKeyId must name an enabled KMS key and is stored and echoed; events are not encrypted with it |
+| DescribeLogGroups | partial | aws-doc, 1 of 2 claims | no linked accounts: accountIdentifiers and includeLinkedAccounts select nothing more |
+| FilterLogEvents | partial | inferred, 2 of 4 claims | unmask is ignored: no data protection policies; logStreamNames that name no stream are skipped |
+| GetLogEvents | partial | aws-doc, 1 of 2 claims | unmask is ignored: no data protection policies |
+| ListTagsForResource | partial | third-party-recorded, 1 of 1 claim | log groups only; destination and delivery ARNs name no resource |
+| PutLogEvents | partial | aws-doc, 1 of 2 claims | entity is accepted and ignored; sequenceToken is ignored, as AWS documents |
+| PutRetentionPolicy | partial | aws-doc, 1 of 2 claims | events expire exactly at timestamp plus retention on the emulator clock, not lazily within 72 hours |
+| TagResource | partial | third-party-recorded, 1 of 1 claim | log groups only; destination and delivery ARNs name no resource |
+| UntagResource | partial | third-party-recorded, 1 of 1 claim | log groups only; destination and delivery ARNs name no resource |
 | AssociateKmsKey | unbound | unassessed |  |
 | AssociateSourceToS3TableIntegration | unbound | unassessed |  |
 | CancelExportTask | unbound | unassessed |  |
@@ -913,92 +913,92 @@ Internal operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| CreateBucket | full | aws-doc, 2 of 4 claims |  |
-| DeleteBucket | full | inferred, 1 of 2 claims |  |
-| DeleteBucketEncryption | full | inferred, 2 of 3 claims |  |
-| DeleteBucketTagging | full | inferred, 1 of 2 claims |  |
-| DeleteObjectTagging | full | inferred, 1 of 2 claims |  |
-| GetBucketEncryption | full | inferred, 2 of 5 claims |  |
-| GetBucketLocation | full | inferred, 1 of 2 claims |  |
-| GetBucketNotificationConfiguration | full | inferred, 1 of 3 claims |  |
-| GetBucketTagging | full | inferred, 1 of 3 claims |  |
-| GetBucketVersioning | full | inferred, 1 of 3 claims |  |
-| GetObjectAttributes | full | inferred, 4 of 6 claims |  |
-| GetObjectLegalHold | full | inferred, 3 of 4 claims |  |
-| GetObjectLockConfiguration | full | inferred, 1 of 3 claims |  |
-| GetObjectRetention | full | inferred, 4 of 5 claims |  |
-| GetObjectTagging | full | inferred, 1 of 2 claims |  |
-| HeadBucket | full | inferred, 1 of 3 claims |  |
-| ListMultipartUploads | full | inferred, 1 of 3 claims |  |
-| ListParts | full | inferred, 2 of 4 claims |  |
-| PutBucketEncryption | full | inferred, 3 of 5 claims |  |
-| PutBucketTagging | full | inferred, 1 of 4 claims |  |
-| PutObjectLegalHold | full | inferred, 2 of 3 claims |  |
-| PutObjectTagging | full | inferred, 1 of 2 claims |  |
-| DeleteBucketAnalyticsConfiguration | stored-only | inferred, 1 of 2 claims | the analytics configuration is stored and echoed; not applied |
-| DeleteBucketCors | stored-only | inferred, 1 of 2 claims | the CORS configuration is stored and echoed; not applied |
-| DeleteBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 2 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
-| DeleteBucketInventoryConfiguration | stored-only | inferred, 1 of 2 claims | the inventory configuration is stored and echoed; not applied |
-| DeleteBucketLifecycle | stored-only | inferred, 1 of 2 claims | the lifecycle rules are stored and echoed; not applied |
-| DeleteBucketMetricsConfiguration | stored-only | inferred, 1 of 2 claims | the metrics configuration is stored and echoed; not applied |
-| DeleteBucketPolicy | stored-only | inferred, 1 of 2 claims | the policy is stored and echoed; not applied |
-| DeleteBucketReplication | stored-only | inferred, 1 of 2 claims | the replication configuration is stored and echoed; not applied |
-| DeleteBucketWebsite | stored-only | inferred, 1 of 2 claims | the website configuration is stored and echoed; not applied |
-| DeletePublicAccessBlock | stored-only | inferred, 1 of 2 claims | the public access block is stored and echoed; not applied |
-| GetBucketAccelerateConfiguration | stored-only | inferred, 1 of 3 claims | the transfer acceleration status is stored and echoed; not applied |
-| GetBucketAcl | stored-only | inferred, 1 of 2 claims | the access control list is stored and echoed; not applied |
-| GetBucketAnalyticsConfiguration | stored-only | inferred, 1 of 3 claims | the analytics configuration is stored and echoed; not applied |
-| GetBucketCors | stored-only | inferred, 1 of 3 claims | the CORS configuration is stored and echoed; not applied |
-| GetBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 3 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
-| GetBucketInventoryConfiguration | stored-only | inferred, 1 of 3 claims | the inventory configuration is stored and echoed; not applied |
-| GetBucketLifecycleConfiguration | stored-only | inferred, 1 of 3 claims | the lifecycle rules are stored and echoed; not applied |
-| GetBucketLogging | stored-only | inferred, 1 of 3 claims | the logging configuration is stored and echoed; not applied |
-| GetBucketMetricsConfiguration | stored-only | inferred, 1 of 3 claims | the metrics configuration is stored and echoed; not applied |
-| GetBucketPolicy | stored-only | inferred, 1 of 3 claims | the policy is stored and echoed; not applied |
-| GetBucketReplication | stored-only | inferred, 1 of 3 claims | the replication configuration is stored and echoed; not applied |
-| GetBucketRequestPayment | stored-only | inferred, 1 of 3 claims | the payer is stored and echoed; not applied |
-| GetBucketWebsite | stored-only | inferred, 1 of 3 claims | the website configuration is stored and echoed; not applied |
-| GetPublicAccessBlock | stored-only | inferred, 1 of 3 claims | the public access block is stored and echoed; not applied |
-| ListBucketAnalyticsConfigurations | stored-only | inferred, 1 of 2 claims | the analytics configuration is stored and echoed; not applied |
-| ListBucketIntelligentTieringConfigurations | stored-only | inferred, 1 of 2 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
-| ListBucketInventoryConfigurations | stored-only | inferred, 1 of 2 claims | the inventory configuration is stored and echoed; not applied |
-| ListBucketMetricsConfigurations | stored-only | inferred, 1 of 2 claims | the metrics configuration is stored and echoed; not applied |
-| PutBucketAccelerateConfiguration | stored-only | inferred, 1 of 2 claims | the transfer acceleration status is stored and echoed; not applied |
-| PutBucketAcl | stored-only | inferred, 1 of 2 claims | the access control list is stored and echoed; not applied |
-| PutBucketAnalyticsConfiguration | stored-only | inferred, 1 of 3 claims | the analytics configuration is stored and echoed; not applied |
-| PutBucketCors | stored-only | inferred, 1 of 2 claims | the CORS configuration is stored and echoed; not applied |
-| PutBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 3 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
-| PutBucketInventoryConfiguration | stored-only | inferred, 1 of 3 claims | the inventory configuration is stored and echoed; not applied |
-| PutBucketLifecycleConfiguration | stored-only | inferred, 1 of 4 claims | the lifecycle rules are stored and echoed; not applied |
-| PutBucketLogging | stored-only | inferred, 1 of 2 claims | the logging configuration is stored and echoed; not applied |
-| PutBucketMetricsConfiguration | stored-only | inferred, 1 of 3 claims | the metrics configuration is stored and echoed; not applied |
-| PutBucketPolicy | stored-only | inferred, 1 of 3 claims | the policy is stored and echoed; not applied |
-| PutBucketReplication | stored-only | inferred, 1 of 2 claims | the replication configuration is stored and echoed; not applied |
-| PutBucketRequestPayment | stored-only | inferred, 1 of 2 claims | the payer is stored and echoed; not applied |
-| PutBucketWebsite | stored-only | inferred, 1 of 2 claims | the website configuration is stored and echoed; not applied |
-| PutPublicAccessBlock | stored-only | inferred, 1 of 2 claims | the public access block is stored and echoed; not applied |
-| AbortMultipartUpload | partial | inferred, 1 of 2 claims | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
-| CompleteMultipartUpload | partial | inferred, 5 of 7 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
-| CopyObject | partial | inferred, 14 of 17 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
-| CreateMultipartUpload | partial | inferred, 9 of 12 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
-| DeleteBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| DeleteObject | partial | inferred, 2 of 4 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
-| DeleteObjects | partial | inferred, 2 of 4 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
-| GetBucketOwnershipControls | partial | inferred, 1 of 3 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| GetObject | partial | inferred, 5 of 8 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify; x-amz-checksum-mode is accepted in any case, and a value other than ENABLED is refused with InvalidArgument, where AWS's answer is UNVERIFIED (s3.md 5.8, recording S3-01) |
-| HeadObject | partial | inferred, 6 of 10 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify; x-amz-checksum-mode is accepted in any case, and a value other than ENABLED is refused with InvalidArgument, where AWS's answer is UNVERIFIED (s3.md 5.8, recording S3-01) |
-| ListBuckets | partial | third-party-recorded, 1 of 1 claim | general purpose buckets only; no directory buckets |
-| ListObjectVersions | partial | inferred, 1 of 3 claims | no RestoreStatus |
-| ListObjects | partial | inferred, 1 of 3 claims | no RestoreStatus |
-| ListObjectsV2 | partial | inferred, 1 of 3 claims | no RestoreStatus |
-| PutBucketNotificationConfiguration | partial | inferred, 1 of 2 claims | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions; s3:ObjectRetention:Put is stored but sends nothing |
-| PutBucketOwnershipControls | partial | inferred, 1 of 2 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| PutBucketVersioning | partial | inferred, 1 of 2 claims | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
-| PutObject | partial | inferred, 11 of 14 claims | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
-| PutObjectLockConfiguration | partial | inferred, 2 of 3 claims | DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored |
-| PutObjectRetention | partial | inferred, 6 of 7 claims | event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent |
-| UploadPart | partial | inferred, 5 of 7 claims | chunk signatures are verified under sigv4 verify |
-| UploadPartCopy | partial | inferred, 7 of 9 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
+| CreateBucket | full | aws-doc, 3 of 5 claims |  |
+| DeleteBucket | full | inferred, 1 of 3 claims |  |
+| DeleteBucketEncryption | full | inferred, 2 of 4 claims |  |
+| DeleteBucketTagging | full | inferred, 1 of 3 claims |  |
+| DeleteObjectTagging | full | inferred, 1 of 3 claims |  |
+| GetBucketEncryption | full | inferred, 2 of 6 claims |  |
+| GetBucketLocation | full | inferred, 1 of 3 claims |  |
+| GetBucketNotificationConfiguration | full | inferred, 1 of 4 claims |  |
+| GetBucketTagging | full | inferred, 1 of 4 claims |  |
+| GetBucketVersioning | full | inferred, 1 of 4 claims |  |
+| GetObjectAttributes | full | inferred, 4 of 7 claims |  |
+| GetObjectLegalHold | full | inferred, 3 of 5 claims |  |
+| GetObjectLockConfiguration | full | inferred, 1 of 4 claims |  |
+| GetObjectRetention | full | inferred, 4 of 6 claims |  |
+| GetObjectTagging | full | inferred, 1 of 3 claims |  |
+| HeadBucket | full | inferred, 1 of 4 claims |  |
+| ListMultipartUploads | full | inferred, 1 of 4 claims |  |
+| ListParts | full | inferred, 2 of 5 claims |  |
+| PutBucketEncryption | full | inferred, 3 of 6 claims |  |
+| PutBucketTagging | full | inferred, 1 of 5 claims |  |
+| PutObjectLegalHold | full | inferred, 2 of 4 claims |  |
+| PutObjectTagging | full | inferred, 1 of 3 claims |  |
+| DeleteBucketAnalyticsConfiguration | stored-only | inferred, 1 of 3 claims | the analytics configuration is stored and echoed; not applied |
+| DeleteBucketCors | stored-only | inferred, 1 of 3 claims | the CORS configuration is stored and echoed; not applied |
+| DeleteBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 3 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
+| DeleteBucketInventoryConfiguration | stored-only | inferred, 1 of 3 claims | the inventory configuration is stored and echoed; not applied |
+| DeleteBucketLifecycle | stored-only | inferred, 1 of 3 claims | the lifecycle rules are stored and echoed; not applied |
+| DeleteBucketMetricsConfiguration | stored-only | inferred, 1 of 3 claims | the metrics configuration is stored and echoed; not applied |
+| DeleteBucketReplication | stored-only | inferred, 1 of 3 claims | the replication configuration is stored and echoed; not applied |
+| DeleteBucketWebsite | stored-only | inferred, 1 of 3 claims | the website configuration is stored and echoed; not applied |
+| DeletePublicAccessBlock | stored-only | inferred, 1 of 3 claims | the public access block is stored and echoed; not applied |
+| GetBucketAccelerateConfiguration | stored-only | inferred, 1 of 4 claims | the transfer acceleration status is stored and echoed; not applied |
+| GetBucketAcl | stored-only | inferred, 1 of 3 claims | the access control list is stored and echoed; not applied |
+| GetBucketAnalyticsConfiguration | stored-only | inferred, 1 of 4 claims | the analytics configuration is stored and echoed; not applied |
+| GetBucketCors | stored-only | inferred, 1 of 4 claims | the CORS configuration is stored and echoed; not applied |
+| GetBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 4 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
+| GetBucketInventoryConfiguration | stored-only | inferred, 1 of 4 claims | the inventory configuration is stored and echoed; not applied |
+| GetBucketLifecycleConfiguration | stored-only | inferred, 1 of 4 claims | the lifecycle rules are stored and echoed; not applied |
+| GetBucketLogging | stored-only | inferred, 1 of 4 claims | the logging configuration is stored and echoed; not applied |
+| GetBucketMetricsConfiguration | stored-only | inferred, 1 of 4 claims | the metrics configuration is stored and echoed; not applied |
+| GetBucketReplication | stored-only | inferred, 1 of 4 claims | the replication configuration is stored and echoed; not applied |
+| GetBucketRequestPayment | stored-only | inferred, 1 of 4 claims | the payer is stored and echoed; not applied |
+| GetBucketWebsite | stored-only | inferred, 1 of 4 claims | the website configuration is stored and echoed; not applied |
+| GetPublicAccessBlock | stored-only | inferred, 1 of 4 claims | the public access block is stored and echoed; not applied |
+| ListBucketAnalyticsConfigurations | stored-only | inferred, 1 of 3 claims | the analytics configuration is stored and echoed; not applied |
+| ListBucketIntelligentTieringConfigurations | stored-only | inferred, 1 of 3 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
+| ListBucketInventoryConfigurations | stored-only | inferred, 1 of 3 claims | the inventory configuration is stored and echoed; not applied |
+| ListBucketMetricsConfigurations | stored-only | inferred, 1 of 3 claims | the metrics configuration is stored and echoed; not applied |
+| PutBucketAccelerateConfiguration | stored-only | inferred, 1 of 3 claims | the transfer acceleration status is stored and echoed; not applied |
+| PutBucketAcl | stored-only | inferred, 1 of 3 claims | the access control list is stored and echoed; not applied |
+| PutBucketAnalyticsConfiguration | stored-only | inferred, 1 of 4 claims | the analytics configuration is stored and echoed; not applied |
+| PutBucketCors | stored-only | inferred, 1 of 3 claims | the CORS configuration is stored and echoed; not applied |
+| PutBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 4 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
+| PutBucketInventoryConfiguration | stored-only | inferred, 1 of 4 claims | the inventory configuration is stored and echoed; not applied |
+| PutBucketLifecycleConfiguration | stored-only | inferred, 1 of 5 claims | the lifecycle rules are stored and echoed; not applied |
+| PutBucketLogging | stored-only | inferred, 1 of 3 claims | the logging configuration is stored and echoed; not applied |
+| PutBucketMetricsConfiguration | stored-only | inferred, 1 of 4 claims | the metrics configuration is stored and echoed; not applied |
+| PutBucketReplication | stored-only | inferred, 1 of 3 claims | the replication configuration is stored and echoed; not applied |
+| PutBucketRequestPayment | stored-only | inferred, 1 of 3 claims | the payer is stored and echoed; not applied |
+| PutBucketWebsite | stored-only | inferred, 1 of 3 claims | the website configuration is stored and echoed; not applied |
+| PutPublicAccessBlock | stored-only | inferred, 1 of 3 claims | the public access block is stored and echoed; not applied |
+| AbortMultipartUpload | partial | inferred, 1 of 3 claims | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
+| CompleteMultipartUpload | partial | inferred, 5 of 8 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
+| CopyObject | partial | inferred, 14 of 18 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
+| CreateMultipartUpload | partial | inferred, 9 of 13 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
+| DeleteBucketOwnershipControls | partial | inferred, 1 of 3 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
+| DeleteBucketPolicy | partial | inferred, 2 of 4 claims | the policy is stored and echoed, and evaluated only when iam.enforce is advise or enforce; access points and ACL grants are not evaluated |
+| DeleteObject | partial | inferred, 2 of 5 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
+| DeleteObjects | partial | inferred, 2 of 5 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
+| GetBucketOwnershipControls | partial | inferred, 1 of 4 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
+| GetBucketPolicy | partial | inferred, 2 of 5 claims | the policy is stored and echoed, and evaluated only when iam.enforce is advise or enforce; access points and ACL grants are not evaluated |
+| GetObject | partial | inferred, 5 of 9 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify; x-amz-checksum-mode is accepted in any case, and a value other than ENABLED is refused with InvalidArgument, where AWS's answer is UNVERIFIED (s3.md 5.8, recording S3-01) |
+| HeadObject | partial | inferred, 6 of 11 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify; x-amz-checksum-mode is accepted in any case, and a value other than ENABLED is refused with InvalidArgument, where AWS's answer is UNVERIFIED (s3.md 5.8, recording S3-01) |
+| ListBuckets | partial | aws-doc, 1 of 2 claims | general purpose buckets only; no directory buckets |
+| ListObjectVersions | partial | inferred, 1 of 4 claims | no RestoreStatus |
+| ListObjects | partial | inferred, 1 of 4 claims | no RestoreStatus |
+| ListObjectsV2 | partial | inferred, 1 of 4 claims | no RestoreStatus |
+| PutBucketNotificationConfiguration | partial | inferred, 1 of 3 claims | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions; s3:ObjectRetention:Put is stored but sends nothing |
+| PutBucketOwnershipControls | partial | inferred, 1 of 3 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
+| PutBucketPolicy | partial | inferred, 2 of 5 claims | the policy is stored and echoed, and evaluated only when iam.enforce is advise or enforce; access points and ACL grants are not evaluated |
+| PutBucketVersioning | partial | inferred, 1 of 3 claims | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
+| PutObject | partial | inferred, 11 of 15 claims | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
+| PutObjectLockConfiguration | partial | inferred, 2 of 4 claims | DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored |
+| PutObjectRetention | partial | inferred, 6 of 8 claims | event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent |
+| UploadPart | partial | inferred, 5 of 8 claims | chunk signatures are verified under sigv4 verify |
+| UploadPartCopy | partial | inferred, 7 of 10 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
 | CreateBucketMetadataConfiguration | unbound | unassessed |  |
 | CreateBucketMetadataTableConfiguration | unbound | unassessed |  |
 | CreateSession | unbound | unassessed |  |
@@ -1038,21 +1038,21 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| DeleteResourcePolicy | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteSecret | full | third-party-recorded, 2 of 2 claims |  |
-| DescribeSecret | full | aws-doc, 1 of 3 claims |  |
-| GetResourcePolicy | full | third-party-recorded, 2 of 2 claims |  |
-| GetSecretValue | full | aws-doc, 1 of 3 claims |  |
-| ListSecretVersionIds | full | aws-doc, 1 of 3 claims |  |
-| ListSecrets | full | inferred, 2 of 5 claims |  |
-| RestoreSecret | full | inferred, 1 of 3 claims |  |
-| TagResource | full | third-party-recorded, 2 of 2 claims |  |
-| UntagResource | full | third-party-recorded, 2 of 2 claims |  |
-| UpdateSecret | full | third-party-recorded, 2 of 2 claims |  |
-| UpdateSecretVersionStage | full | third-party-recorded, 2 of 2 claims |  |
-| PutResourcePolicy | stored-only | third-party-recorded, 2 of 2 claims | the policy is parsed and stored verbatim, not enforced; BlockPublicPolicy is not evaluated |
-| CreateSecret | partial | third-party-recorded, 2 of 2 claims | AddReplicaRegions (replication) answers NotImplemented |
-| PutSecretValue | partial | third-party-recorded, 2 of 2 claims | RotationToken is accepted and ignored: rotation is not implemented |
+| ListSecrets | full | inferred, 2 of 6 claims |  |
+| CreateSecret | partial | third-party-recorded, 3 of 3 claims | AddReplicaRegions (replication) answers NotImplemented |
+| DeleteResourcePolicy | partial | third-party-recorded, 3 of 3 claims | under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource) |
+| DeleteSecret | partial | third-party-recorded, 3 of 3 claims | under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource) |
+| DescribeSecret | partial | aws-doc, 1 of 4 claims | under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource) |
+| GetResourcePolicy | partial | third-party-recorded, 3 of 3 claims | under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource) |
+| GetSecretValue | partial | aws-doc, 1 of 4 claims | under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource) |
+| ListSecretVersionIds | partial | aws-doc, 1 of 4 claims | under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource) |
+| PutResourcePolicy | partial | third-party-recorded, 3 of 3 claims | the policy is parsed and stored verbatim, and evaluated only when iam.enforce is advise or enforce; BlockPublicPolicy is not evaluated; under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource) |
+| PutSecretValue | partial | third-party-recorded, 3 of 3 claims | RotationToken is accepted and ignored: rotation is not implemented; under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource) |
+| RestoreSecret | partial | inferred, 1 of 4 claims | under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource) |
+| TagResource | partial | third-party-recorded, 3 of 3 claims | under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource) |
+| UntagResource | partial | third-party-recorded, 3 of 3 claims | under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource) |
+| UpdateSecret | partial | third-party-recorded, 3 of 3 claims | under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource) |
+| UpdateSecretVersionStage | partial | third-party-recorded, 3 of 3 claims | under iam.enforce, a secret that does not exist answers ResourceNotFoundException before authorization (iam.enforce.missing-resource) |
 | BatchGetSecretValue | unbound | unassessed |  |
 | CancelRotateSecret | unbound | unassessed |  |
 | GetRandomPassword | unbound | unassessed |  |
@@ -1066,25 +1066,25 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| ConfirmSubscription | full | third-party-recorded, 2 of 2 claims |  |
-| CreateTopic | full | third-party-recorded, 2 of 2 claims |  |
-| DeleteTopic | full | inferred, 1 of 3 claims |  |
-| GetSubscriptionAttributes | full | inferred, 1 of 3 claims |  |
-| GetTopicAttributes | full | third-party-recorded, 2 of 2 claims |  |
-| ListSubscriptions | full | third-party-recorded, 3 of 3 claims |  |
-| ListSubscriptionsByTopic | full | third-party-recorded, 3 of 3 claims |  |
-| ListTagsForResource | full | third-party-recorded, 2 of 2 claims |  |
-| ListTopics | full | third-party-recorded, 2 of 2 claims |  |
-| TagResource | full | third-party-recorded, 2 of 2 claims |  |
-| Unsubscribe | full | inferred, 2 of 4 claims |  |
-| UntagResource | full | third-party-recorded, 2 of 2 claims |  |
-| AddPermission | stored-only | third-party-recorded, 2 of 2 claims | statements are stored in the topic Policy; not enforced |
-| RemovePermission | stored-only | third-party-recorded, 2 of 2 claims | statements are stored in the topic Policy; not enforced |
-| Publish | partial | inferred, 18 of 20 claims | fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, without jitter; other http and https endpoints, email and email-json receive nothing |
-| PublishBatch | partial | inferred, 18 of 20 claims | fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, without jitter; other http and https endpoints, email and email-json receive nothing |
-| SetSubscriptionAttributes | partial | inferred, 9 of 11 claims | DeliveryPolicy healthyRetryPolicy, throttlePolicy and requestPolicy apply to http and https deliveries; sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced |
-| SetTopicAttributes | partial | third-party-recorded, 2 of 2 claims | Policy, KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never enforced; the http defaults in DeliveryPolicy apply to http and https subscriptions |
-| Subscribe | partial | inferred, 18 of 20 claims | sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; http and https endpoints get a signed SubscriptionConfirmation when their host and port are in sns.httpDelivery.allow, and otherwise stay subscribed with a readable token but receive nothing; email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced |
+| ConfirmSubscription | full | inferred, 1 of 3 claims |  |
+| CreateTopic | full | inferred, 1 of 3 claims |  |
+| DeleteTopic | full | inferred, 2 of 4 claims |  |
+| GetSubscriptionAttributes | full | inferred, 2 of 4 claims |  |
+| GetTopicAttributes | full | inferred, 1 of 3 claims |  |
+| ListSubscriptions | full | inferred, 1 of 4 claims |  |
+| ListSubscriptionsByTopic | full | inferred, 1 of 4 claims |  |
+| ListTagsForResource | full | inferred, 1 of 3 claims |  |
+| ListTopics | full | inferred, 1 of 3 claims |  |
+| TagResource | full | inferred, 1 of 3 claims |  |
+| Unsubscribe | full | inferred, 3 of 5 claims |  |
+| UntagResource | full | inferred, 1 of 3 claims |  |
+| AddPermission | partial | inferred, 1 of 3 claims | statements are stored in the topic Policy and evaluated only when iam.enforce is advise or enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
+| Publish | partial | inferred, 19 of 21 claims | fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, without jitter; other http and https endpoints, email and email-json receive nothing |
+| PublishBatch | partial | inferred, 19 of 21 claims | fan-out to sqs and lambda subscriptions, and to http and https subscriptions whose host and port are in sns.httpDelivery.allow, after their filter policies, with raw or enveloped delivery, the DeliveryPolicy retry schedule and the RedrivePolicy dead-letter queue; every backoffFunction steps linearly from minDelayTarget to maxDelayTarget, without jitter; other http and https endpoints, email and email-json receive nothing |
+| RemovePermission | partial | inferred, 1 of 3 claims | statements are stored in the topic Policy and evaluated only when iam.enforce is advise or enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
+| SetSubscriptionAttributes | partial | inferred, 10 of 12 claims | DeliveryPolicy healthyRetryPolicy, throttlePolicy and requestPolicy apply to http and https deliveries; sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced |
+| SetTopicAttributes | partial | inferred, 1 of 3 claims | Policy, KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never enforced; the http defaults in DeliveryPolicy apply to http and https subscriptions |
+| Subscribe | partial | inferred, 19 of 21 claims | sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; http and https endpoints get a signed SubscriptionConfirmation when their host and port are in sns.httpDelivery.allow, and otherwise stay subscribed with a readable token but receive nothing; email and email-json stay subscribed with a readable token but receive nothing; sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced |
 | CheckIfPhoneNumberIsOptedOut | unbound | unassessed |  |
 | CreatePlatformApplication | unbound | unassessed |  |
 | CreatePlatformEndpoint | unbound | unassessed |  |
@@ -1121,29 +1121,29 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| CancelMessageMoveTask | full | third-party-recorded, 2 of 2 claims |  |
-| CreateQueue | full | inferred, 2 of 6 claims |  |
-| DeleteQueue | full | third-party-recorded, 3 of 3 claims |  |
-| GetQueueAttributes | full | third-party-recorded, 3 of 3 claims |  |
-| GetQueueUrl | full | third-party-recorded, 3 of 3 claims |  |
-| ListDeadLetterSourceQueues | full | third-party-recorded, 3 of 3 claims |  |
-| ListMessageMoveTasks | full | third-party-recorded, 2 of 2 claims |  |
-| ListQueueTags | full | third-party-recorded, 3 of 3 claims |  |
-| ListQueues | full | third-party-recorded, 2 of 2 claims |  |
-| PurgeQueue | full | third-party-recorded, 3 of 3 claims |  |
-| SendMessage | full | inferred, 4 of 17 claims |  |
-| SendMessageBatch | full | inferred, 4 of 7 claims |  |
-| SetQueueAttributes | full | aws-doc, 1 of 4 claims |  |
-| StartMessageMoveTask | full | aws-doc, 1 of 3 claims |  |
-| TagQueue | full | third-party-recorded, 3 of 3 claims |  |
-| UntagQueue | full | third-party-recorded, 3 of 3 claims |  |
-| AddPermission | stored-only | aws-doc, 1 of 4 claims | statements are stored in the queue's Policy attribute and not enforced |
-| RemovePermission | stored-only | third-party-recorded, 3 of 3 claims | statements are stored in the queue's Policy attribute and not enforced |
-| ChangeMessageVisibility | partial | contradicted (sqs/R01/05-cmv-stale.json), 3 of 9 claims | an older receipt handle of a message received again since is refused with InvalidParameterValue, where AWS answers 200 |
-| ChangeMessageVisibilityBatch | partial | contradicted (sqs/R01/06-cmv-batch.json), 1 of 7 claims | an older receipt handle of a message received again since, or one of another queue, fails as not available for a visibility change, where AWS reports the first successful and fails the second as not valid for this queue; the answer's members are in model order, not AWS's alphabetical order |
-| DeleteMessage | partial | contradicted (sqs/R01/03-recv-after-6s.json), 3 of 13 claims | an older receipt handle of a FIFO message received again since succeeds, where AWS answers 400 "The receipt handle has expired." |
-| DeleteMessageBatch | partial | contradicted (sqs/R01/03-recv-after-6s.json), 2 of 6 claims | a receipt handle of another queue is reported successful and deletes nothing, where AWS fails it as not valid for this queue; the answer's members are in model order, not AWS's alphabetical order |
-| ReceiveMessage | partial | contradicted (sqs/R01/02-recv1.json), 17 of 28 claims | a message's members are in model order and its Attributes sorted by name, where AWS writes the members in alphabetical order and the Attributes in an order of its own |
+| CancelMessageMoveTask | full | inferred, 2 of 4 claims |  |
+| CreateQueue | full | inferred, 4 of 8 claims |  |
+| DeleteQueue | full | inferred, 2 of 5 claims |  |
+| GetQueueAttributes | full | inferred, 2 of 5 claims |  |
+| GetQueueUrl | full | inferred, 2 of 5 claims |  |
+| ListDeadLetterSourceQueues | full | inferred, 2 of 5 claims |  |
+| ListMessageMoveTasks | full | inferred, 2 of 4 claims |  |
+| ListQueueTags | full | inferred, 2 of 5 claims |  |
+| ListQueues | full | inferred, 2 of 4 claims |  |
+| PurgeQueue | full | inferred, 2 of 5 claims |  |
+| SendMessage | full | inferred, 6 of 19 claims |  |
+| SendMessageBatch | full | inferred, 6 of 9 claims |  |
+| SetQueueAttributes | full | inferred, 2 of 6 claims |  |
+| StartMessageMoveTask | full | inferred, 2 of 5 claims |  |
+| TagQueue | full | inferred, 2 of 5 claims |  |
+| UntagQueue | full | inferred, 2 of 5 claims |  |
+| AddPermission | partial | inferred, 2 of 6 claims | statements are stored in the queue's Policy attribute and evaluated only when iam.enforce is advise or enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
+| ChangeMessageVisibility | partial | contradicted (sqs/R01/05-cmv-stale.json), 3 of 11 claims | an older receipt handle of a message received again since is refused with InvalidParameterValue, where AWS answers 200 |
+| ChangeMessageVisibilityBatch | partial | contradicted (sqs/R01/06-cmv-batch.json), 1 of 9 claims | an older receipt handle of a message received again since, or one of another queue, fails as not available for a visibility change, where AWS reports the first successful and fails the second as not valid for this queue; the answer's members are in model order, not AWS's alphabetical order |
+| DeleteMessage | partial | contradicted (sqs/R01/03-recv-after-6s.json), 3 of 15 claims | an older receipt handle of a FIFO message received again since succeeds, where AWS answers 400 "The receipt handle has expired." |
+| DeleteMessageBatch | partial | contradicted (sqs/R01/03-recv-after-6s.json), 2 of 8 claims | a receipt handle of another queue is reported successful and deletes nothing, where AWS fails it as not valid for this queue; the answer's members are in model order, not AWS's alphabetical order |
+| ReceiveMessage | partial | contradicted (sqs/R01/02-recv1.json), 17 of 30 claims | a message's members are in model order and its Attributes sorted by name, where AWS writes the members in alphabetical order and the Attributes in an order of its own |
+| RemovePermission | partial | inferred, 2 of 5 claims | statements are stored in the queue's Policy attribute and evaluated only when iam.enforce is advise or enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
 
 Internal operations:
 
@@ -1157,7 +1157,7 @@ Internal operations:
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
 | GetCallerIdentity | full | third-party-recorded, 2 of 2 claims |  |
-| AssumeRole | partial | contradicted (sts/R15/06-assume-denied.json), 4 of 7 claims | the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated and stored on the session but not enforced; PolicyArns are not checked to exist in the role's account, which AWS requires (iam-evaluation.md 2.7); a chained session inherits its caller's transitive tags and source identity, and a request that sets a tag key or source identity its caller passes on keeps its own value, where AWS's answer is unrecorded; the inline session policy is validated as an IAM identity policy, whose S3 region rule exempts the regional S3 resource types moto refuses, UNVERIFIED (iam-evaluation.md 10.6); MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012); the answer leaves out PackedPolicySize, SessionTokenSize and SessionTokenUtilization, which AWS sends |
+| AssumeRole | partial | contradicted (sts/R15/06-assume-denied.json), 4 of 8 claims | the role's trust policy, the caller's sts:AssumeRole permission and the session policies, tags and source identity stored on the session are evaluated only when iam.enforce is advise, which journals each denial, or enforce, which answers it; PolicyArns are not checked to exist in the role's account, which AWS requires (iam-evaluation.md 2.7); a chained session inherits its caller's transitive tags and source identity, and a request that sets a tag key or source identity its caller passes on keeps its own value, where AWS's answer is unrecorded; the inline session policy is validated as an IAM identity policy, whose S3 region rule exempts the regional S3 resource types moto refuses, UNVERIFIED (iam-evaluation.md 10.6); MFA is accepted and not checked; the account root user may assume roles when iam.enforce is off or advise, which AWS refuses, because unminted keys resolve to root (ADR 0012), and is refused when it is enforce; the answer leaves out PackedPolicySize, SessionTokenSize and SessionTokenUtilization, which AWS sends |
 | GetSessionToken | partial | third-party-recorded, 2 of 2 claims | MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused only under sigv4 verify |
 | AssumeRoleWithSAML | unbound | unassessed |  |
 | AssumeRoleWithWebIdentity | unbound | unassessed |  |
@@ -1174,24 +1174,28 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-125 switches: 1 aws-recorded, 3 third-party-recorded, 17 aws-doc, 104 inferred.
+155 switches: 1 aws-recorded, 5 third-party-recorded, 19 aws-doc, 130 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
 | `s3.encryption.after-delete` | `default-sse-s3` | aws-recorded | docs/research/s3-ssec-object-lock.md#2-what-the-repos-recordings-already-settled | none: s3/R06/02-get-encryption-after-delete.json is recorded; the replayer skips S3's REST requests |
 | `lambda.destination.eventbridge-resources-order` | `bus-then-function` | third-party-recorded | docs/research/lambda-destinations-layers.md#44-eventbridge | none: unrecorded: LDL-10 is queued in docs/research/lambda-destinations-layers.md 12 |
+| `logs.denial.status` | `AccessDeniedException 400` | third-party-recorded | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-07 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `s3.object-lock.bypass-without-lock` | `refused` | third-party-recorded | docs/research/s3-ssec-object-lock.md#73-the-bypass-header-on-a-bucket-without-object-lock | none: unrecorded: S3SOL-23 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `secretsmanager.denial.status` | `AccessDeniedException 400, body key Message` | third-party-recorded | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-06 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `sns.listing.pending-arn` | `PendingConfirmation` | third-party-recorded | docs/research/sns.md#34-listing | none: no project recording lists a pending subscription; third-party-recorded (sns-http-delivery.md 2.2) |
 | `cloudwatch.get-metric-data.start-rounding` | `by-age` | aws-doc | docs/research/secrets-logs-events-alarms.md#53-getmetricdata | none: unrecorded: no recording shows GetMetricData's period boundaries |
 | `events.bus-target.cross-account-role` | `required` | aws-doc | docs/research/eventbridge-buses.md#63-cross-account | none: unrecorded: EBB-09 (eventbridge-buses.md 12) records it |
 | `events.delete-bus.with-rules` | `rejected` | aws-doc | docs/research/eventbridge-buses.md#35-deleteeventbus | none: unrecorded: EBB-01 (eventbridge-buses.md 12) records it |
 | `iam.assumeRole` | `strict` | aws-doc | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions | none: the switch decides AssumeRole of a role IAM does not hold, which no recording asks; sts/R15#06-assume-denied names a role that exists, refused by its trust policy |
+| `iam.context.mfa-present` | `false-in-sessions` | aws-doc | docs/research/iam-evaluation.md#8.1 | none: unrecorded: IAM-EVAL-26 waits in the recording queue (iam-evaluation.md 13) |
 | `kms.pending-deletion.crypto-error` | `KMSInvalidStateException` | aws-doc | docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix | none: kms/R15/02-pending-encrypt.json and the other 02-pending steps are recorded; no scenario replays kms/R15 yet |
 | `lambda.destination.sns-oversize` | `delivery-failure` | aws-doc | docs/research/lambda-destinations-layers.md#42-sns | none: unrecorded: LDL-05 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `lambda.stateTransitions` | `final` | aws-doc | docs/ARCHITECTURE.md#9-the-clock | none: a deliberate default (ARCHITECTURE.md 9), which a recording of AWS's transient states does not change |
 | `logs.delivery.retention-days` | `2` | aws-doc | https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html | none: unrecorded: no recording creates a DELIVERY-class log group |
 | `logs.retention.expiry` | `at-expiry` | aws-doc | docs/research/secrets-logs-events-alarms.md#32-retention | none: AWS deletes expired events lazily, typically within 72 hours, so no recording pins the instant |
 | `s3.create-bucket.public-acl` | `InvalidBucketAclWithObjectOwnership` | aws-doc | docs/research/s3.md#32-createbucket | none: unrecorded: no recording creates a bucket with a public canned ACL under BucketOwnerEnforced |
+| `s3.denial.text` | `the S3 variant of 4.2: a quoted resource, ", with policy ARN:", Access Denied outside the owner's account` | aws-doc | docs/research/iam-enforcement-surfaces.md#4.2 | none: unrecorded: IAM-ENF-12 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `s3.lifecycle.rule-limits` | `InvalidArgument` | aws-doc | https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html | none: s3/R12/12-lifecycle-transition-7-standard-ia.json, the other 12-lifecycle steps and 15-lifecycle-glacier-then-onezone-ia.json are recorded; the replayer skips S3's REST requests |
 | `s3.sse-c.plain-http` | `refused` | aws-doc | docs/research/s3-ssec-object-lock.md#39-https | none: unrecorded: S3SOL-02 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.tagging.limits` | `InvalidTag` | aws-doc | docs/research/s3.md#429-bucket-tagging | none: unrecorded: no recording exceeds a bucket tag limit |
@@ -1204,7 +1208,9 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `apigatewayv2.lambda.permission` | `{<api-id>/<stage>/<METHOD>/<route path without its leading slash>, the route key's template and ANY as written; <api-id>/<stage>/$default for the $default route {500 Internal Server Error}}` | inferred | docs/research/apigateway-http.md#55-invocation-credentials-and-the-resource-policy | none: unrecorded: APIGW2-11 (apigateway-http.md 14) records it |
 | `apigatewayv2.payload.unrecorded` | `{false true text/plain; charset=utf-8 false last first}` | inferred | docs/research/apigateway-http.md#51-payload-format-20-request-event | none: unrecorded: APIGW2-07, APIGW2-08 and APIGW2-09 (apigateway-http.md 14) records it |
 | `apigatewayv2.route.matching` | `{{true true false} {404 Not Found}}` | inferred | docs/research/apigateway-http.md#44-methods-head-trailing-slashes-case-and-decoding | none: unrecorded: APIGW2-05 (apigateway-http.md 14) records it |
+| `cloudwatch.denial.identity` | `AccessDenied 403 over Query; __type com.amazon.coral.service#AccessDeniedException with header AccessDenied;Sender over JSON and CBOR` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-09 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `cloudwatch.put-metric-data.timestamp-window` | `wall-or-emulator` | inferred | docs/research/secrets-logs-events-alarms.md#52-putmetricdata | none: AWS has one clock: which of understudy's two the windows read is understudy's choice, which no recording settles |
+| `dynamodb.denial.type` | `__type com.amazon.coral.service#AccessDeniedException, 400` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-04 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `events.bus-policy.remove-all-without-policy` | `ResourceNotFoundException` | inferred | docs/research/eventbridge-buses.md#43-removepermission | none: unrecorded: EBB-06 (eventbridge-buses.md 12) records it |
 | `events.bus-policy.remove-last-statement` | `policy-removed` | inferred | docs/research/eventbridge-buses.md#43-removepermission | none: unrecorded: EBB-06 (eventbridge-buses.md 12) records it |
 | `events.bus-target.forwarded-time-resources` | `kept` | inferred | docs/research/eventbridge-buses.md#62-an-event-bus-as-a-target | none: unrecorded: EBB-08 (eventbridge-buses.md 12) records it |
@@ -1212,6 +1218,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `events.bus-target.same-account-event-id` | `kept` | inferred | docs/research/eventbridge-buses.md#62-an-event-bus-as-a-target | none: unrecorded: EBB-08 (eventbridge-buses.md 12) records it |
 | `events.bus.kms-key-check` | `none` | inferred | docs/research/eventbridge-buses.md#31-createeventbus | none: unrecorded: EBB-05 (eventbridge-buses.md 12) records it |
 | `events.default-bus.creation-time` | `first-use` | inferred | docs/research/eventbridge-buses.md#36-the-default-bus | none: unrecorded: EBB-07 (eventbridge-buses.md 12) records it |
+| `events.denial.status` | `AccessDeniedException 400` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-08 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `events.input-path.unmatched` | `not-delivered` | inferred | docs/research/secrets-logs-events-alarms.md#45-targets | none: unrecorded: no recording delivers to a target whose InputPath selects nothing |
 | `events.list-buses.order` | `by-name` | inferred | docs/research/eventbridge-buses.md#33-listeventbuses | none: unrecorded: EBB-07 (eventbridge-buses.md 12) records it |
 | `events.pattern.bare-number` | `numeric-or-text` | inferred | docs/research/matching-engines.md#10 | none: events/R14's H8 steps do not decide it: both values answer false for a string |
@@ -1225,8 +1232,26 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `events.put-events.detail-integer-range` | `MalformedDetail` | inferred | https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html | none: unrecorded: no recording sends a Detail integer outside the signed 64-bit range |
 | `events.schedule.restart` | `on-schedule-change-or-enable` | inferred | docs/research/secrets-logs-events-alarms.md#42-schedule-expressions-rate-and-cron | none: events/R14 records the EnableRule half only, as arrival times (02-enable.time, 02-arrivals-after-enable.jsonl) a scenario does not replay; a PutRule schedule change is unrecorded |
 | `events.update-bus.omitted-members` | `kept` | inferred | docs/research/eventbridge-buses.md#34-updateeventbus | none: unrecorded: EBB-04 (eventbridge-buses.md 12) records it |
+| `iam.condition.bool-variables` | `substituted` | inferred | docs/research/iam-evaluation.md#6.6 | none: unrecorded: IAM-EVAL-01 waits in the recording queue (iam-evaluation.md 13) |
+| `iam.condition.empty-value` | `null` | inferred | docs/research/iam-evaluation.md#6.11 | none: unrecorded: IAM-EVAL-05 waits in the recording queue (iam-evaluation.md 13) |
+| `iam.condition.ipv6-default-prefix` | `128` | inferred | docs/research/iam-evaluation.md#6.8 | none: unrecorded: IAM-EVAL-07 waits in the recording queue (iam-evaluation.md 13) |
+| `iam.condition.multivalued-plain-operator` | `any-value` | inferred | docs/research/iam-evaluation.md#6.12 | none: unrecorded: IAM-EVAL-02 waits in the recording queue (iam-evaluation.md 13) |
+| `iam.context.secure-transport` | `assume-tls` | inferred | docs/research/iam-evaluation.md#8.2 | none: none needed: AWS's own value is always true for its HTTPS endpoints, so the choice is understudy's (iam-enforcement-surfaces.md 12.8) |
+| `iam.context.service-principal-identity-keys` | `absent` | inferred | docs/research/iam-evaluation.md#2.9 | none: unrecorded: IAM-EVAL-33 waits in the recording queue (iam-evaluation.md 13) |
+| `iam.denial.grammar` | `iam-4.1, one reason, on resource on explicit denials` | inferred | docs/research/iam-enforcement-surfaces.md#4.1 | none: unrecorded: IAM-ENF-15 waits in the recording queue (iam-enforcement-surfaces.md 13) |
+| `iam.denial.identity` | `AccessDenied 403 with the IAM namespace` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-10 waits in the recording queue (iam-enforcement-surfaces.md 13) |
+| `iam.enforce.missing-resource` | `deny-first` | inferred | docs/research/iam-enforcement-surfaces.md#5.3 | none: unrecorded: IAM-ENF-14 waits in the recording queue (iam-enforcement-surfaces.md 13) |
+| `iam.enforce.order` | `validate-first` | inferred | docs/research/iam-enforcement-surfaces.md#5.3 | none: unrecorded: IAM-ENF-13 waits in the recording queue (iam-enforcement-surfaces.md 13) |
+| `iam.not-principal.match` | `account-and-principal` | inferred | docs/research/iam-evaluation.md#5.4 | none: unrecorded: IAM-EVAL-18 waits in the recording queue (iam-evaluation.md 13) |
+| `iam.resource-tag.case-duplicates` | `absent` | inferred | docs/research/iam-evaluation.md#6.13 | none: unrecorded: IAM-EVAL-31 waits in the recording queue (iam-evaluation.md 13) |
+| `iam.variables.unresolved` | `value-null` | inferred | docs/research/iam-evaluation.md#7.3 | none: unrecorded: IAM-EVAL-16 waits in the recording queue (iam-evaluation.md 13) |
+| `iam.wildcard-principal.role-session` | `direct` | inferred | docs/research/iam-evaluation.md#2.3 | none: unrecorded: IAM-EVAL-19 waits in the recording queue (iam-evaluation.md 13) |
+| `iam.wildcard-principal.service` | `matches` | inferred | docs/research/iam-evaluation.md#2.9 | none: unrecorded: IAM-EVAL-33 waits in the recording queue (iam-evaluation.md 13) |
 | `kms.cross-account.management-error` | `NotFoundException` | inferred | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyPolicy.html | none: unrecorded: no recording names another account's key |
+| `kms.denial.status` | `400` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-05 waits in the recording queue (iam-enforcement-surfaces.md 13) |
+| `kms.key-policy.role-boundary` | `limited` | inferred | docs/research/iam-evaluation.md#4.3 | none: unrecorded: IAM-EVAL-27 waits in the recording queue (iam-evaluation.md 13) |
 | `lambda.async.qualifier-config` | `invoked-qualifier-only` | inferred | docs/research/lambda-destinations-layers.md#24-which-configuration-an-invocation-uses | none: unrecorded: LDL-01 is queued in docs/research/lambda-destinations-layers.md 12 |
+| `lambda.denial.body` | `AccessDeniedException 403, {"Message":"<grammar of 4.1>"}` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-11 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `lambda.destination.config-existence-check` | `all` | inferred | docs/research/lambda-destinations-layers.md#23-validation-at-configuration | none: unrecorded: LDL-08 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `lambda.destination.delivery-retry` | `none` | inferred | docs/research/lambda-destinations-layers.md#46-when-delivery-fails | none: unrecorded: LDL-09 is queued in docs/research/lambda-destinations-layers.md 12 |
 | `lambda.destination.lambda-invocation-type` | `Event` | inferred | docs/research/lambda-destinations-layers.md#43-lambda | none: unrecorded: LDL-06 is queued in docs/research/lambda-destinations-layers.md 12 |
@@ -1255,6 +1280,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `s3.object-lock.headers-without-lock` | `InvalidRequest` | inferred | docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument | none: unrecorded: S3SOL-17 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.object-lock.mode-upgrade` | `refused` | inferred | docs/research/s3-ssec-object-lock.md#64-putobjectretention-and-getobjectretention | none: unrecorded: S3SOL-19 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.object-lock.retain-until-format` | `milliseconds` | inferred | docs/research/s3-ssec-object-lock.md#67-response-headers-on-get-and-head | none: unrecorded: S3SOL-12 is queued in docs/research/s3-ssec-object-lock.md 12 |
+| `s3.root.bucket-policy-lockout` | `get-put-delete` | inferred | docs/research/iam-enforcement-surfaces.md#6.3 | none: unrecorded: IAM-ENF-31 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `s3.sse-c.blocked-write` | `AccessDenied` | inferred | docs/research/s3-ssec-object-lock.md#43-what-the-block-refuses | none: unrecorded: S3SOL-01 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.sse-c.complete-headers` | `checked-when-sent` | inferred | docs/research/s3-ssec-object-lock.md#36-multipart-uploads | none: unrecorded: S3SOL-08 is queued in docs/research/s3-ssec-object-lock.md 12 |
 | `s3.sse-c.copy-source-not-applicable` | `InvalidRequest` | inferred | docs/research/s3-ssec-object-lock.md#35-copyobject-and-uploadpartcopy | none: unrecorded: S3SOL-06 is queued in docs/research/s3-ssec-object-lock.md 12 |
@@ -1266,6 +1292,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `secretsmanager.list-secrets.filter-combination` | `and-across-filters,or-across-values` | inferred | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.restore.not-scheduled` | `no-op` | inferred | docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven | none: secretsmanager/R15/05-restore-live.json is recorded; no scenario replays secretsmanager/R15 yet |
 | `sns.delete-topic.detached-retention` | `48h0m0s` | inferred | docs/research/sns.md#22-topic-attributes | none: sns/R16/06-list-subscriptions-after-delete.json shows the subscriptions 5 s after DeleteTopic; how long they stay is unrecorded |
+| `sns.denial.text` | `AuthorizationError 403 with the grammar of 4.1` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-03 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `sns.fifo.duplicate` | `fresh-message-id-no-delivery` | inferred | docs/research/sns.md#43-fifo-publish | none: unrecorded: no recording shows what a FIFO publish inside the deduplication window answers |
 | `sns.fifo.sequence-number` | `20-digit-decimal-per-topic` | inferred | docs/research/sns.md#43-fifo-publish | none: sns/R16/04-publish-fifo.json holds one SequenceNumber, which does not show how the numbers count |
 | `sns.filter-policy.anything-but-arrays` | `any-element` | inferred | docs/research/matching-engines.md#4.3 | none: recorded in sns/R09 (T08, H4); no scenario replays sns/R09 yet |
@@ -1297,12 +1324,15 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sns.http.unsubscribe-confirmation` | `unauthenticated-only` | inferred | docs/research/sns-http-delivery.md#24-unsubscribing-and-the-unsubscribeconfirmation | none: unrecorded: the sns-http-delivery.md recording queue holds SNSH-15 |
 | `sns.lambda.attribute-type` | `as-published` | inferred | docs/research/sns.md#9-conflicts-between-sources | none: logs/R16/01-lambda-events.json is recorded; no scenario replays it, as the delivery runs a Lambda function under Docker |
 | `sqs.batch.unset-visibility-timeout` | `zero` | inferred | docs/research/sqs.md#62-sendmessagebatch-and-the-other-batch-apis | none: unrecorded: sqs/R01#06-cmv-batch sets VisibilityTimeout on every entry |
+| `sqs.denial.json-identity` | `header AccessDenied;Sender, __type com.amazon.coral.service#AccessDeniedException, 403` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-01 waits in the recording queue (iam-enforcement-surfaces.md 13) |
+| `sqs.denial.query-text` | `AccessDenied 403, Access to the resource <queue url> is denied., the URL on the endpoint the client addressed` | inferred | docs/research/iam-enforcement-surfaces.md#4.3 | none: unrecorded: IAM-ENF-02 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `sqs.fifo.content-dedup-id` | `lowercase-hex-sha256` | inferred | docs/research/sqs.md#82-deduplication | none: sqs/R01#07-fifo-recv1 holds the value, but the step differs on JSON member order, so a claim there would read contradicted for another reason |
 | `sqs.fifo.duplicate` | `original-message-id-and-sequence` | inferred | docs/research/sqs.md#82-deduplication | none: unrecorded: no recording shows what a suppressed FIFO duplicate send answers |
 | `sqs.fifo.receipt-expiry` | `delete-and-change-visibility` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | none: sqs/R01#07-fifo-delete-expired records the DeleteMessage half only; ChangeMessageVisibility on an expired FIFO handle is unrecorded |
 | `sqs.fifo.sequence-number` | `20-digit-decimal-per-queue` | inferred | docs/research/sqs.md#3-identifiers-and-formats | none: sqs/R01#07-fifo-recv1 records the 20-digit form but not how the numbers count |
 | `sqs.queueDeletedRecently` | `ignore` | inferred | docs/ARCHITECTURE.md#9-the-clock | none: a deliberate departure from AWS (ARCHITECTURE.md 9), which a recording does not change |
 | `sqs.visibility.ceiling-from` | `latest-receive` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | none: unrecorded: no recording reaches the 12-hour ceiling |
+| `sts.denial.reason` | `omitted` | inferred | docs/research/iam-enforcement-surfaces.md#4.3 | none: unrecorded: IAM-ENF-16 waits in the recording queue (iam-enforcement-surfaces.md 13); sts/R15#06-assume-denied records only the implicit trust denial, whose text this value reproduces |
 
 ### Overlay entries
 
@@ -1396,7 +1426,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#LayerVersionArn` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8368-L8377: AWS prints the pattern without the model's anchors and without its outer group (docs/research/lambda-destinations-layers.md#64-getlayerversion-and-getlayerversionbyarn) (validated 2026-01-12) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#ListLayersRequest$CompatibleRuntime` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8296: the filter is checked against a 56-value internal list, not the model's enum (docs/research/lambda-destinations-layers.md#65-listlayers-and-listlayerversions) (validated 2026-01-12) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#NumericLatestPublishedOrAliasQualifier` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7779: AWS matches the whole value against either branch of the model's top-level alternation, so 'invalid-qualifier-with-?-char' fails it (validated 2025-11-25) |
-| third-party-recorded | logs.json | `com.amazonaws.cloudwatchlogs#Logs_20140328` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDeniedException answers 400 for a non-IAM denial (PutSubscriptionFilter with another account's Lambda ARN, https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/logs/test_logs_subscription_filters.snapshot.json#L157-L165, 3.2); the status of an IAM denial falls under proposed switch logs.denial.status (12.8, added with enforcement) until recording IAM-ENF-07 (validated 2026-02-06) |
+| third-party-recorded | logs.json | `com.amazonaws.cloudwatchlogs#Logs_20140328` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDeniedException answers 400 for a non-IAM denial (PutSubscriptionFilter with another account's Lambda ARN, https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/logs/test_logs_subscription_filters.snapshot.json#L157-L165, 3.2); the status of an IAM denial falls under switch logs.denial.status (12.8) until recording IAM-ENF-07 (validated 2026-02-06) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#AmazonS3` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2880 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#AmazonS3` | dev.understudy#malformedRequestError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L1526 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#AuthorizationHeaderMalformed` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L18208 (validated 2026-02-21) |
@@ -1453,7 +1483,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#XAmzContentSHA256Mismatch` |  | https://github.com/minio/minio-go/blob/master/s3-error.go: XAmzContentSHA256Mismatch, The provided 'x-amz-content-sha256' header does not match what was computed. |
 | third-party-recorded | secretsmanager.json | `com.amazonaws.secretsmanager#AccessDeniedException` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/secretsmanager/test_secretsmanager.snapshot.json#L4011-L4019: RotateSecret against a function whose policy refuses secretsmanager.amazonaws.com answers AccessDeniedException, 400, body key Message (docs/research/iam-enforcement-surfaces.md#32-per-service-identity); the model declares no such shape (validated 2024-03-15) |
 | third-party-recorded | secretsmanager.json | `com.amazonaws.secretsmanager#secretsmanager` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/secretsmanager/test_secretsmanager.snapshot.json#L891 (validated 2024-03-15) |
-| third-party-recorded | secretsmanager.json | `com.amazonaws.secretsmanager#secretsmanager` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: AccessDeniedException answers 400 with body key Message for a non-IAM denial (RotateSecret, https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/secretsmanager/test_secretsmanager.snapshot.json#L4011-L4019, 3.2); the status of an IAM denial falls under proposed switch secretsmanager.denial.status (12.8, added with enforcement) until recording IAM-ENF-06 (validated 2024-03-15) |
+| third-party-recorded | secretsmanager.json | `com.amazonaws.secretsmanager#secretsmanager` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: AccessDeniedException answers 400 with body key Message for a non-IAM denial (RotateSecret, https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/secretsmanager/test_secretsmanager.snapshot.json#L4011-L4019, 3.2); the status of an IAM denial falls under switch secretsmanager.denial.status (12.8) until recording IAM-ENF-06 (validated 2024-03-15) |
 | third-party-recorded | ses.json | `com.amazonaws.ses#InvalidParameterValue` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/ses/test_ses.snapshot.json#L592-L735 (validated 2024-07-30) |
 | third-party-recorded | sfn.json | `com.amazonaws.sfn#CharacterRestrictedName` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/stepfunctions/v2/test_sfn_api_aliasing.snapshot.json#L132-L152 (validated 2025-04-09) |
 | third-party-recorded | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sns/test_sns.snapshot.json#L1823 (validated 2024-11-15) |
@@ -1505,7 +1535,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-doc | protocoltests.json | `aws.protocoltests.restjson.validation#RestJsonValidation` | dev.understudy#validationError | https://github.com/smithy-lang/smithy/blob/1.74.0/smithy-aws-protocol-tests/model/restJson1/validation/malformed-length.smithy |
 | aws-doc | protocoltests.json | `aws.protocoltests.restjson.validation#RestJsonValidation` | dev.understudy#malformedRequestError | https://github.com/smithy-lang/smithy/blob/1.74.0/smithy-aws-protocol-tests/model/restJson1/malformedRequests/malformed-request-body.smithy |
 | aws-doc | s3.json | `com.amazonaws.s3#AccessControlListNotSupported` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html |
-| aws-doc | s3.json | `com.amazonaws.s3#AmazonS3` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDenied (403) and https://docs.aws.amazon.com/AmazonS3/latest/userguide/troubleshoot-403-errors.html (3.1, 3.2); the message text falls under proposed switch s3.denial.text (12.8, added with enforcement) |
+| aws-doc | s3.json | `com.amazonaws.s3#AmazonS3` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDenied (403) and https://docs.aws.amazon.com/AmazonS3/latest/userguide/troubleshoot-403-errors.html (3.1, 3.2); the message text falls under switch s3.denial.text (12.8) |
 | aws-doc | s3.json | `com.amazonaws.s3#AmazonS3` | dev.understudy#throttleError | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
 | aws-doc | s3.json | `com.amazonaws.s3#EntityTooLarge` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: EntityTooLarge, 400, Your proposed upload exceeds the maximum allowed object size. |
 | aws-doc | s3.json | `com.amazonaws.s3#ExpiredToken` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
@@ -1519,7 +1549,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-doc | s3.json | `com.amazonaws.s3#PermanentRedirect` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html: PermanentRedirect is 301 Moved Permanently, which Smithy's httpError (4xx and 5xx only) cannot state |
 | aws-doc | s3.json | `com.amazonaws.s3#SlowDown` |  | https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html |
 | aws-doc | secretsmanager.json | `com.amazonaws.secretsmanager#secretsmanager` | dev.understudy#throttleError | https://docs.aws.amazon.com/secretsmanager/latest/apireference/CommonErrors.html |
-| aws-doc | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AuthorizationErrorException (awsQueryError AuthorizationError, 403, 'Indicates that the user has been denied access to the requested resource.') on 42 operations (3.1); the message text falls under proposed switch sns.denial.text (12.8, added with enforcement) until recording IAM-ENF-03 |
+| aws-doc | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AuthorizationErrorException (awsQueryError AuthorizationError, 403, 'Indicates that the user has been denied access to the requested resource.') on 42 operations (3.1); the message text falls under switch sns.denial.text (12.8) until recording IAM-ENF-03 |
 | aws-doc | sqs.json | `com.amazonaws.sqs#AmazonSQS` | smithy.api#xmlNamespace | https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_DeleteMessage.html |
 | aws-doc | sqs.json | `com.amazonaws.sqs#CreateQueueRequest$QueueName` | smithy.api#length, smithy.api#pattern | https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-queues.html |
 | aws-doc | sqs.json | `com.amazonaws.sqs#SendMessageRequest$DelaySeconds` | smithy.api#range | https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html |
@@ -1534,22 +1564,22 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | apigatewayv2.json | `com.amazonaws.apigatewayv2#ApiGatewayV2` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the API Gateway v2 denial; the model's own AccessDeniedException is taken; UNVERIFIED until recording IAM-ENF-34 or APIGW2-15 (docs/research/apigateway-http.md#1416-apigw2-15-control-plane-iam-denials-and-resources, step 01 repeats IAM-ENF-34), either of which settles status, error type and text |
 | inferred | apigatewayv2.json | `com.amazonaws.apigatewayv2#ApiGatewayV2` | dev.understudy#throttleError | docs/research/apigateway-http.md#23-errors: the model's only 429 shape is TooManyRequestsException while the API Reference names the 429 model LimitExceededException; which name AWS sends is UNVERIFIED until recording APIGW2-02 |
 | inferred | apigatewayv2.json | `com.amazonaws.apigatewayv2#ApiGatewayV2` | dev.understudy#validationError | docs/research/apigateway-http.md#135-limits-and-validation: every constraint failure is BadRequestException (400), resting only on the API Reference naming BadRequestException the 400 model, 'One of the parameters in the request is invalid' (https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis-apiid.html, ReimportApi and UpdateApi); no v2 recording shows a model-constraint failure. UNVERIFIED: the identity, not only the message text. REST APIs share v2's signing name and host (apigateway-http.md finding 3) and their API Reference also lists only BadRequestException for 400 (https://docs.aws.amazon.com/apigateway/latest/api/API_PutIntegration.html), yet REST answers model enum and pattern failures with ValidationException and the Coral text: https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L3089 (IntegrationType 'HTTPS_PROXY' against the five-value enum v2 also has, AWS-validated 2024-04-15) and https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L4067 (a pattern failure, AWS-validated 2025-06-18), keeping BadRequestException for handler checks such as https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L169; that is why apigateway.json picks ValidationException. apigateway-http.md 12 item 11 records this conflict. Recordings APIGW2-01 case 17 (TimeoutInMillis 30001, a model range check) and case 17b (create-integration --integration-type HTTPS_PROXY, a model enum check) settle identity and text |
-| inferred | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: CloudWatch models no denial shape (3.1); Query code AccessDenied, 403, and over JSON and CBOR the __type com.amazon.coral.service#AccessDeniedException with x-amzn-query-error AccessDenied;Sender are inferred, proposed switch cloudwatch.denial.identity (12.8, added with enforcement), until recording IAM-ENF-09 |
+| inferred | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: CloudWatch models no denial shape (3.1); Query code AccessDenied, 403, and over JSON and CBOR the __type com.amazon.coral.service#AccessDeniedException with x-amzn-query-error AccessDenied;Sender are inferred, switch cloudwatch.denial.identity (12.8), until recording IAM-ENF-09 |
 | inferred | common.json | `com.amazon.coral.service#AccessDenied` | smithy.api#httpError, dev.understudy#jsonType | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: 403 follows the recorded STS AccessDenied (testdata/parity/sts/R15/06-assume-denied.json), and the JSON __type com.amazon.coral.service#AccessDeniedException is the generic JSON identity's; both UNVERIFIED for the services that answer a denial with this shape until recordings IAM-ENF-01, IAM-ENF-02, IAM-ENF-09, IAM-ENF-10 and IAM-ENF-38 |
 | inferred | common.json | `com.amazon.coral.service#RequestEntityTooLargeException` | aws.protocols#awsQueryError | docs/research/error-matrix.md 3: the Query template lists no such code; the Query code drops the Exception suffix, as the Query codes of the auth family do |
 | inferred | common.json | `dev.understudy#NotImplemented` |  | docs/adr/0003-operation-binding-and-coverage.md: understudy's own code for a modeled operation no handler is bound to; 501 is outside every SDK's retry set |
-| inferred | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the developer guide lists AccessDeniedException under HTTP 400 for a signing failure (3.2); that an IAM denial answers it, at 400 with __type com.amazon.coral.service#AccessDeniedException, is inferred, proposed switch dynamodb.denial.type (12.8, added with enforcement), until recording IAM-ENF-04 |
+| inferred | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the developer guide lists AccessDeniedException under HTTP 400 for a signing failure (3.2); that an IAM denial answers it, at 400 with __type com.amazon.coral.service#AccessDeniedException, is inferred, switch dynamodb.denial.type (12.8), until recording IAM-ENF-04 |
 | inferred | dynamodbstreams.json | `com.amazon.coral.service#AccessDeniedException` |  | docs/research/iam-enforcement-surfaces.md#32-per-service-identity: the DynamoDB developer guide lists AccessDeniedException under HTTP 400; the Streams endpoint is assumed to answer as DynamoDB does, UNVERIFIED until recording IAM-ENF-35 |
 | inferred | dynamodbstreams.json | `com.amazonaws.dynamodbstreams#DynamoDBStreams_20120810` | dev.understudy#throttleError | docs/research/dynamodb-streams.md#33-error-shapes: the DynamoDB API Reference CommonErrors page lists ThrottlingException, HTTP 400, with no namespace; the Streams endpoint's one recorded generic error carries com.amazon.coral.service# (3.2), but the __type a Streams error carries is UNVERIFIED until recording DDBS-01, and 11.2 names LimitExceededException for the per-shard reader limit |
 | inferred | dynamodbstreams.json | `com.amazonaws.dynamodbstreams#DynamoDBStreams_20120810` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Streams denial, so it follows DynamoDB's row (com.amazon.coral.service#AccessDeniedException at 400); UNVERIFIED until recording IAM-ENF-35 |
 | inferred | dynamodbstreams.json | `com.amazonaws.dynamodbstreams#DynamoDBStreams_20120810` | dev.understudy#validationError | docs/research/dynamodb-streams.md#65-error-and-validation-texts: DynamoDB Local answers the Limit 0 range violation with the Coral constraint text and its own checks with com.amazon.coral.validate#ValidationException (5.1, 6.4), but skips length checks and answers enum, required and digit violations with 500 InternalFailure (8.3 row 11); AWS documents ValidationException on GetShardIterator; AWS's class for constraint failures is UNVERIFIED until recording DDBS-02 |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#AWSEvents` | dev.understudy#throttleError | docs/research/error-matrix.md#512-eventbridge-json-11 |
-| inferred | eventbridge.json | `com.amazonaws.eventbridge#AWSEvents` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDeniedException (client, no httpError, so 400) is declared on CreateConnection and UpdateConnection only (3.1); that an IAM denial answers it at 400 rather than the CommonErrors template's 403 is inferred, proposed switch events.denial.status (12.8, added with enforcement), until recording IAM-ENF-08 |
+| inferred | eventbridge.json | `com.amazonaws.eventbridge#AWSEvents` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDeniedException (client, no httpError, so 400) is declared on CreateConnection and UpdateConnection only (3.1); that an IAM denial answers it at 400 rather than the CommonErrors template's 403 is inferred, switch events.denial.status (12.8), until recording IAM-ENF-08 |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#CreateEventBus` |  | docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing the name default, a name with /, and the 101st bus are unrecorded (EBB-02) |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#PathParameter` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#PutPermission` |  | docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing a Policy sent with a statement member, a statement missing a member, a Policy that is not a policy document, and a policy over 10,240 characters are unrecorded (EBB-06) |
 | inferred | eventbridge.json | `com.amazonaws.eventbridge#PutTargets` |  | docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing a cross-account event bus target without a RoleArn or with Input, InputPath or InputTransformer are unrecorded (EBB-09) |
-| inferred | iam.json | `com.amazonaws.iam#AWSIdentityManagementV20100508` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: code AccessDenied, Type Sender, 403 in the IAM namespace envelope, inferred from the recorded STS denial (testdata/parity/sts/R15/06-assume-denied.json) and Terraform matching 'AccessDenied: .+ with an explicit deny' (3.2); the CommonErrors page's AccessDeniedException is a template (3.3); proposed switch iam.denial.identity (12.8, added with enforcement) until recording IAM-ENF-10 |
+| inferred | iam.json | `com.amazonaws.iam#AWSIdentityManagementV20100508` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: code AccessDenied, Type Sender, 403 in the IAM namespace envelope, inferred from the recorded STS denial (testdata/parity/sts/R15/06-assume-denied.json) and Terraform matching 'AccessDenied: .+ with an explicit deny' (3.2); the CommonErrors page's AccessDeniedException is a template (3.3); switch iam.denial.identity (12.8) until recording IAM-ENF-10 |
 | inferred | iam.json | `com.amazonaws.iam#ResolveRole` |  | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions: STS AssumeRole succeeds only if the role exists, and the same path mints Lambda execution-role credentials; STS reads the role from IAM through this operation |
 | inferred | iam.json | `com.amazonaws.iam#ResolveRoleRequest` |  | docs/research/iam-sts-kms.md#42-assumerole: AssumeRole names the role by ARN |
 | inferred | iam.json | `com.amazonaws.iam#ResolveRoleResponse` |  | docs/research/iam-sts-kms.md#42-assumerole: the session needs the role's id for AssumedRoleId and its MaxSessionDuration for the DurationSeconds check |
@@ -1558,8 +1588,8 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | kinesis.json | `com.amazonaws.kinesis#Kinesis_20131202` | dev.understudy#throttleError | docs/research/kinesis.md#137-fault-injection: one service-wide throttle identity is wrong for the control plane, so this takes the note's recommended data-plane identity ProvisionedThroughputExceededException (PutRecord, PutRecords, GetRecords, GetShardIterator) and leaves control-plane fault rules to name LimitExceededException explicitly; the control-plane code is UNVERIFIED until recording KIN-23 |
 | inferred | kinesis.json | `com.amazonaws.kinesis#Kinesis_20131202` | dev.understudy#validationError | docs/research/kinesis.md#133-limits-and-validation: the constraint-failure identity is UNVERIFIED, so generated validators answer the Coral ValidationException until recording KIN-07 settles it against InvalidArgumentException |
 | inferred | kms.json | `com.amazonaws.kms#AccessDeniedException` |  | docs/research/iam-enforcement-surfaces.md#32-per-service-identity: the model declares no denial shape (3.1); code AccessDeniedException with body key message, and 400 by the JSON client-error default as recorded for Logs and Secrets Manager; the status is UNVERIFIED until recording IAM-ENF-05 |
-| inferred | kms.json | `com.amazonaws.kms#TrentService` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the code AccessDeniedException is the KMS CommonErrors template's and Terraform's (3.2); its 400 status follows the recorded Logs and Secrets Manager denials, not the template's 403, proposed switch kms.denial.status (12.8, added with enforcement), until recording IAM-ENF-05 |
-| inferred | lambda.json | `com.amazonaws.lambda#AWSGirApiService` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: AccessDeniedException, 403, is recorded for another account's function ARN with Message null (3.2, third-party-recorded); that a same-account IAM denial answers it with the grammar in Message is inferred, proposed switch lambda.denial.body (12.8, added with enforcement), until recording IAM-ENF-11 |
+| inferred | kms.json | `com.amazonaws.kms#TrentService` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the code AccessDeniedException is the KMS CommonErrors template's and Terraform's (3.2); its 400 status follows the recorded Logs and Secrets Manager denials, not the template's 403, switch kms.denial.status (12.8), until recording IAM-ENF-05 |
+| inferred | lambda.json | `com.amazonaws.lambda#AWSGirApiService` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: AccessDeniedException, 403, is recorded for another account's function ARN with Message null (3.2, third-party-recorded); that a same-account IAM denial answers it with the grammar in Message is inferred, switch lambda.denial.body (12.8), until recording IAM-ENF-11 |
 | inferred | lambda.json | `com.amazonaws.lambda#Alias` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!^[0-9]+$)([a-zA-Z0-9-_]+)$ is one or more of the class with at least one non-digit |
 | inferred | lambda.json | `com.amazonaws.lambda#CollectionName` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(^(?!(system\x2e)))(^[_a-zA-Z0-9])([^$]*)$ is a word character, then anything but $, not starting with system. |
 | inferred | lambda.json | `com.amazonaws.lambda#FunctionUrlFunctionName` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: the qualifier (?!\d+$)[0-9a-zA-Z-_]+ is one or more of the class with at least one non-digit |
@@ -1610,7 +1640,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | sfn.json | `com.amazonaws.sfn#AWSStepFunctions` | dev.understudy#validationError | docs/research/stepfunctions-api.md#32-error-identities-and-statuses: code ValidationException, HTTP 400, a top-level message member and the Coral grammar are recorded against AWS (LocalStack, validated 2024-07-01) at https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/stepfunctions/v2/test_sfn_api.snapshot.json#L1882-L1892; botocore strips the namespace, so UNVERIFIED (SFN-01): the raw __type namespace com.amazon.coral.validate#; recording-queue SFN-01 (stepfunctions-api.md 14.2) settles it |
 | inferred | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#throttleError | docs/research/error-matrix.md#53-sns-query |
 | inferred | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#throttleError, dev.understudy#unknownOperationError, dev.understudy#validationError | docs/research/error-matrix.md#51-sqs-json-10 |
-| inferred | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the Query code AccessDenied is documented (3.2); the 403 status and the JSON __type com.amazon.coral.service#AccessDeniedException with x-amzn-query-error AccessDenied;Sender are inferred, proposed switches sqs.denial.json-identity and sqs.denial.query-text (12.8, added with enforcement), until recordings IAM-ENF-01 and IAM-ENF-02 |
+| inferred | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#denialError | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the Query code AccessDenied is documented (3.2); the 403 status and the JSON __type com.amazon.coral.service#AccessDeniedException with x-amzn-query-error AccessDenied;Sender are inferred, switches sqs.denial.json-identity and sqs.denial.query-text (12.8), until recordings IAM-ENF-01 and IAM-ENF-02 |
 | inferred | sqs.json | `com.amazonaws.sqs#CreateQueueRequest$QueueName` | dev.understudy#validationError | Reason text from LocalStack https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/localstack-core/localstack/services/sqs/provider.py#L124-L138 and moto https://github.com/getmoto/moto/blob/636f64616f5efa7ec53a7bbf76cfb2f4bde5eda2/moto/sqs/models.py#L303-L311 (no recording shows AWS's text; docs/research/sqs.md#24-error-catalog); the Value/Reason frame is the one the recorded MessageGroupId and MaxNumberOfMessages texts use. Preferred over the developer guide example 'Must be an alphanumeric String of 1 to 80 in length.', whose frame no recording shows and which contradicts the quotas page that allows hyphens and underscores. |
 | inferred | sqs.json | `com.amazonaws.sqs#HoldVisibility` |  | docs/adr/0006-clock-domains-and-scheduler.md |
 | inferred | sqs.json | `com.amazonaws.sqs#HoldVisibilityMode` |  | docs/adr/0006-clock-domains-and-scheduler.md |

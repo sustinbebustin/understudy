@@ -17,7 +17,7 @@ import (
 const maxPolicyBytes = 20_480
 
 func (s *Service) bindPermissions(b lambdaapi.Binder) {
-	b.AddPermission(s.addPermission, stored("statements are stored and returned by GetPolicy, not enforced"))
+	b.AddPermission(s.addPermission, partial("statements are stored and returned by GetPolicy, and evaluated for function URLs with AuthType NONE, and for calls and service deliveries only when iam.enforce is advise or enforce"))
 	b.GetPolicy(s.getPolicy, full())
 	b.RemovePermission(s.removePermission, full())
 }

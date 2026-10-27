@@ -2,6 +2,7 @@ package sqs
 
 import (
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -213,13 +214,21 @@ func policyLimits() fidelity.Switch[string] {
 	}
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence.
+// Switches lists the behaviors chosen without AWS-recorded evidence, with
+// SQS's denial identity per protocol (iam-enforcement-surfaces.md 12.8).
 func (s *Service) Switches() []fidelity.Entry {
+	authorized := s.k.Bindings().AuthorizedOps(sqsapi.Service())
 	return []fidelity.Entry{
 		staleReceipt().Entry(), s.deletedRecently().Entry(), movedIdentity().Entry(),
 		visibilityCeiling().Entry(), fifoReceiptExpiry().Entry(), fifoDuplicate().Entry(),
 		contentDedupFormat().Entry(), sequenceFormat().Entry(), batchUnsetVisibility().Entry(),
 		policyLimits().Entry(),
+		authz.DenialSwitch("sqs.denial.json-identity", "header AccessDenied;Sender, __type com.amazon.coral.service#AccessDeniedException, 403",
+			evidence.Inferred, "3.2", "IAM-ENF-01", authorized),
+		// The text form is aws-doc; which URL it names and the status are
+		// inferred (iam-enforcement-surfaces.md 4.3).
+		authz.DenialSwitch("sqs.denial.query-text", "AccessDenied 403, Access to the resource <queue url> is denied., the URL on the endpoint the client addressed",
+			evidence.Inferred, "4.3", "IAM-ENF-02", authorized),
 	}
 }
 

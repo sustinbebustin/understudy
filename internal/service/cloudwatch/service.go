@@ -2,6 +2,7 @@ package cloudwatch
 
 import (
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -62,7 +63,13 @@ func startRounding() fidelity.Switch[string] {
 	}
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence.
-func (*Service) Switches() []fidelity.Entry {
-	return []fidelity.Entry{timestampWindow().Entry(), startRounding().Entry()}
+// Switches lists the behaviors chosen without AWS-recorded evidence, with
+// the identity of a denial per protocol (iam-enforcement-surfaces.md 12.8).
+func (s *Service) Switches() []fidelity.Entry {
+	return []fidelity.Entry{
+		timestampWindow().Entry(), startRounding().Entry(),
+		authz.DenialSwitch("cloudwatch.denial.identity",
+			"AccessDenied 403 over Query; __type com.amazon.coral.service#AccessDeniedException with header AccessDenied;Sender over JSON and CBOR",
+			evidence.Inferred, "3.2", "IAM-ENF-09", s.k.Bindings().AuthorizedOps(cloudwatchapi.Service())),
+	}
 }

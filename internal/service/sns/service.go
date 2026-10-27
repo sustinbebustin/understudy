@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/evidence"
@@ -30,6 +31,8 @@ type Service struct {
 	// awsName is Options.AWSName: the hosts HTTP deliveries' links never
 	// name.
 	awsName func(host string) bool
+	// bindings names the operations a denial can answer, for the switches.
+	bindings *kernel.Bindings
 }
 
 // New binds the SNS operations understudy implements. Every other SNS
@@ -43,6 +46,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		policies: filterpolicy.NewCache(),
 		tlsPort:  o.TLSPort,
 		awsName:  o.AWSName,
+		bindings: d.Kernel.Bindings(),
 	}
 	b := snsapi.NewBinder(d.Binder)
 	s.bindTopics(b)
@@ -137,11 +141,16 @@ func detachedRetention() fidelity.Switch[time.Duration] {
 }
 
 // Switches lists the behaviors chosen without AWS-recorded evidence, http
-// delivery's and filter policy evaluation's among them.
+// delivery's, filter policy evaluation's and SNS's denial text
+// (iam-enforcement-surfaces.md 12.8) among them.
 func (s *Service) Switches() []fidelity.Entry {
 	entries := []fidelity.Entry{
 		pendingInListings().Entry(), fifoSequence().Entry(), lambdaAttributeTypes().Entry(), fifoDuplicate().Entry(),
 		detachedRetention().Entry(),
+		// The code and status are the model's AuthorizationErrorException
+		// (aws-doc); the message is inferred.
+		authz.DenialSwitch("sns.denial.text", "AuthorizationError 403 with the grammar of 4.1", evidence.Inferred, "3.2", "IAM-ENF-03",
+			s.bindings.AuthorizedOps(snsapi.Service())),
 	}
 	for _, sw := range httpSwitches() {
 		entries = append(entries, sw.Entry())

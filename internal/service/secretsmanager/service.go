@@ -2,6 +2,7 @@ package secretsmanager
 
 import (
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/evidence"
@@ -113,9 +114,13 @@ func firstError(errs ...*awserr.Error) *awserr.Error {
 	return nil
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence.
-func (*Service) Switches() []fidelity.Entry {
+// Switches lists the behaviors chosen without AWS-recorded evidence, with
+// the status of a denial (iam-enforcement-surfaces.md 12.8;
+// third-party-recorded for a denial that is not IAM's).
+func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
+		authz.DenialSwitch("secretsmanager.denial.status", "AccessDeniedException 400, body key Message", evidence.ThirdPartyRecorded, "3.2", "IAM-ENF-06",
+			s.k.Bindings().AuthorizedOps(secretsmanagerapi.Service())),
 		fidelity.Switch[string]{
 			Name:    "secretsmanager.list-secrets.filter-combination",
 			Value:   "and-across-filters,or-across-values",

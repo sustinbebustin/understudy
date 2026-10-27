@@ -42,7 +42,7 @@
           },
           {
             "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: AccessDeniedException, 403, is recorded for another account's function ARN with Message null (3.2, third-party-recorded); that a same-account IAM denial answers it with the grammar in Message is inferred, proposed switch lambda.denial.body (12.8, added with enforcement), until recording IAM-ENF-11",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: AccessDeniedException, 403, is recorded for another account's function ARN with Message null (3.2, third-party-recorded); that a same-account IAM denial answers it with the grammar in Message is inferred, switch lambda.denial.body (12.8), until recording IAM-ENF-11",
             "covers": ["dev.understudy#denialError"]
           }
         ]

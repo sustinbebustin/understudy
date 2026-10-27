@@ -48,7 +48,7 @@
           },
           {
             "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the Query code AccessDenied is documented (3.2); the 403 status and the JSON __type com.amazon.coral.service#AccessDeniedException with x-amzn-query-error AccessDenied;Sender are inferred, proposed switches sqs.denial.json-identity and sqs.denial.query-text (12.8, added with enforcement), until recordings IAM-ENF-01 and IAM-ENF-02",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the Query code AccessDenied is documented (3.2); the 403 status and the JSON __type com.amazon.coral.service#AccessDeniedException with x-amzn-query-error AccessDenied;Sender are inferred, switches sqs.denial.json-identity and sqs.denial.query-text (12.8), until recordings IAM-ENF-01 and IAM-ENF-02",
             "covers": ["dev.understudy#denialError"]
           }
         ]

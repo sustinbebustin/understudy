@@ -2,6 +2,7 @@ package logs
 
 import (
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -118,12 +119,15 @@ func deliveryRetention() fidelity.Switch[int32] {
 // Switches lists the behaviors chosen without AWS-recorded evidence: the
 // filter-pattern questions logsfilter leaves open, with the label,
 // operations and settling step filterSwitches states for each, the
-// retention rule and the DELIVERY class's fixed retention.
+// retention rule, the DELIVERY class's fixed retention and the status of a
+// denial (iam-enforcement-surfaces.md 12.8; third-party-recorded for a
+// denial that is not IAM's).
 func (s *Service) Switches() []fidelity.Entry {
 	switches := s.filter.Switches()
 	table := filterSwitches()
-	out := make([]fidelity.Entry, 0, 2+len(switches))
-	out = append(out, expiryRule().Entry(), deliveryRetention().Entry())
+	out := make([]fidelity.Entry, 0, 3+len(switches))
+	out = append(out, expiryRule().Entry(), deliveryRetention().Entry(),
+		authz.DenialSwitch("logs.denial.status", "AccessDeniedException 400", evidence.ThirdPartyRecorded, "3.2", "IAM-ENF-07", s.k.Bindings().AuthorizedOps(logsapi.Service())))
 	for _, sw := range switches {
 		m := table[sw.Name]
 		out = append(out, fidelity.Switch[string]{

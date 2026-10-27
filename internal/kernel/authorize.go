@@ -300,6 +300,23 @@ func Authorize(ctx context.Context, c *Call, action registry.IAMAction, resource
 	return verdictError(c, c.k.authorizer.Authorize(ctx, c, q))
 }
 
+// AuthorizedOps lists, as ref.OperationID strings in registry order, the
+// modeled operations of svc bound in this kernel whose calls the Authorizer
+// may deny with svc's denial identity: every bound one but a raw HTTP
+// binding and a NeverAuthorized one. A service's denial switches govern
+// them (iam-enforcement-surfaces.md 12.8).
+func (b *Bindings) AuthorizedOps(svc *registry.Service) []string {
+	var out []string
+	for _, op := range svc.Operations {
+		bnd, ok := b.lookup(op)
+		if !ok || op.Kind != registry.Modeled || bnd.raw || bnd.authorization == never {
+			continue
+		}
+		out = append(out, op.ID.String())
+	}
+	return out
+}
+
 // AuthorizeError is a kernel.Authorize the kernel refuses to ask about.
 type AuthorizeError struct {
 	Op     ref.OperationID

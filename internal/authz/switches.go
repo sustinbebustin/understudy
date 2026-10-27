@@ -1,6 +1,9 @@
 package authz
 
 import (
+	"slices"
+	"strings"
+
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 )
@@ -13,11 +16,10 @@ const (
 
 // Switches are the evaluation and context switches (iam-evaluation.md 12.3,
 // iam-enforcement-surfaces.md 12.8), each at the one value understudy
-// implements; the IAM service reports them. The values are what
-// policydoc.Evaluate, Decide, BuildContext and Denial.Message follow; the
-// enforce pair (iam.enforce.order, iam.enforce.missing-resource) is what the
-// kernel's step 8 follows. No entry lists its Ops until the IAM service
-// reports these switches.
+// implements. The values are what policydoc.Evaluate, Decide, BuildContext
+// and Denial.Message follow; the enforce pair (iam.enforce.order,
+// iam.enforce.missing-resource) is what the kernel's step 8 follows. No
+// entry lists its Ops: the service that reports it names them (SwitchesOf).
 func Switches() []fidelity.Entry {
 	inferred := evidence.Inferred
 	return []fidelity.Entry{
@@ -53,6 +55,30 @@ func Switches() []fidelity.Entry {
 		researchSwitch("iam.enforce.order", "validate-first", inferred, enforcementNote, "5.3", "IAM-ENF-13"),
 		researchSwitch("iam.enforce.missing-resource", "deny-first", inferred, enforcementNote, "5.3", "IAM-ENF-14"),
 	}
+}
+
+// SwitchesOf are the Switches a service reports, those whose names begin
+// with service and a dot, each governing ops: IAM reports the evaluation
+// switches, KMS and S3 their own (iam-evaluation.md 12.3,
+// iam-enforcement-surfaces.md 12.8).
+func SwitchesOf(service string, ops []string) []fidelity.Entry {
+	var out []fidelity.Entry
+	for _, e := range Switches() {
+		if strings.HasPrefix(e.Name, service+".") {
+			e.Ops = slices.Clone(ops)
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// DenialSwitch is a service's switch of iam-enforcement-surfaces.md 12.8
+// for how it answers a denial: value chosen in section of the note, backed
+// by label, settled by the recording queue item record, governing ops.
+func DenialSwitch(name, value string, label evidence.Label, section, record string, ops []string) fidelity.Entry {
+	e := researchSwitch(name, value, label, enforcementNote, section, record)
+	e.Ops = slices.Clone(ops)
+	return e
 }
 
 // grammarValue is switch iam.denial.grammar's value: the reason clauses of

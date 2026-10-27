@@ -712,9 +712,11 @@ func TestReceiveSelectsAttributesAndDigestsWhatItReturns(t *testing.T) {
 	})
 }
 
-// Every SQS operation, HoldVisibility included, is bound: in full, or
-// stored only for the permission operations, which edit the Policy
-// attribute nothing enforces.
+// Every SQS operation, HoldVisibility included, is bound and none is
+// stored only: the permission operations edit the Policy attribute, which
+// iam.enforce evaluates, so they are partial (iam-enforcement-surfaces.md
+// 12.7; the version before 05-iam held them stored only, as nothing
+// enforced the Policy).
 func TestEveryOperationIsBound(t *testing.T) {
 	run(t, func(h *harness) {
 		for _, o := range sqsapi.Service().Operations {
@@ -724,7 +726,8 @@ func TestEveryOperationIsBound(t *testing.T) {
 				continue
 			}
 			_, stored := bound.Coverage.(registry.StoredOnly)
-			if permission := o.ID.Name == "AddPermission" || o.ID.Name == "RemovePermission"; stored != permission {
+			_, partial := bound.Coverage.(registry.Partial)
+			if permission := o.ID.Name == "AddPermission" || o.ID.Name == "RemovePermission"; stored || (permission && !partial) {
 				h.Errorf("%s is bound %T", o.ID.Name, bound.Coverage)
 			}
 		}

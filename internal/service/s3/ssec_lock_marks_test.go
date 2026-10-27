@@ -102,7 +102,9 @@ type wantSwitch struct {
 // s3-ssec-object-lock.md 11.4 after its earlier five, in that table's
 // order, each pointing at its section and its recording-queue item and
 // settled by no scenario yet (section 12); s3.encryption.after-delete is
-// now backed by the recording of section 2.
+// now backed by the recording of section 2. IAM enforcement's two S3
+// switches (s3.denial.text, s3.root.bucket-policy-lockout) follow them
+// (05-iam contract 11.6, 3.7).
 func TestSSECAndObjectLockSwitches(t *testing.T) {
 	plainHTTPOps := []string{"s3.PutObject", "s3.CopyObject", "s3.CreateMultipartUpload", "s3.UploadPart", "s3.UploadPartCopy", "s3.CompleteMultipartUpload", "s3.GetObject", "s3.HeadObject", "s3.GetObjectAttributes"}
 	inferred := evidence.Inferred
@@ -135,13 +137,13 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 		// The switches the service declared before this unit, which stay
 		// first: encryption after delete, cross-account access, public ACLs
 		// at create, tag limits and lifecycle rule limits.
-		const earlier = 5
-		if len(entries) != earlier+len(want) {
+		const earlier, enforcement = 5, 2
+		if len(entries) != earlier+len(want)+enforcement {
 			names := make([]string, len(entries))
 			for i, e := range entries {
 				names[i] = e.Name
 			}
-			t.Fatalf("Switches lists %d switches %v, want the earlier %d and these %d", len(entries), names, earlier, len(want))
+			t.Fatalf("Switches lists %d switches %v, want the earlier %d, these %d and IAM enforcement's %d", len(entries), names, earlier, len(want), enforcement)
 		}
 		for i, w := range want {
 			e := entries[earlier+i]

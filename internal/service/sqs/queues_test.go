@@ -127,6 +127,10 @@ func TestSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 			"sqs.fifo.sequence-number":           "20-digit-decimal-per-queue",
 			"sqs.batch.unset-visibility-timeout": "zero",
 			"sqs.policy.limits":                  "bytes-and-statements",
+			// IAM enforcement's denial identity per protocol (05-iam
+			// contract 11.5; iam-enforcement-surfaces.md 12.8).
+			"sqs.denial.json-identity": "header AccessDenied;Sender, __type com.amazon.coral.service#AccessDeniedException, 403",
+			"sqs.denial.query-text":    "AccessDenied 403, Access to the resource <queue url> is denied., the URL on the endpoint the client addressed",
 		}
 		if !maps.Equal(got, want) {
 			h.Errorf("switches = %v, want %v", got, want)

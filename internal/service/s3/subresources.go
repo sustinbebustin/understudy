@@ -221,28 +221,31 @@ const (
 )
 
 func (s *Service) bindPolicy(b s3api.Binder) {
+	// iam-enforcement-surfaces.md 12.7.
+	evaluated := registry.Partial{Note: "the policy is stored and echoed, and evaluated only when iam.enforce is advise or enforce; access points and ACL grants are not evaluated"}
 	get := func(in *s3api.GetBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetBucketPolicy(reader(s, get, func(_ *s3api.GetBucketPolicyInput, b *Bucket) (*s3api.GetBucketPolicyOutput, *awserr.Error) {
 		if b.Policy == "" {
 			return nil, notConfigured(s3api.NotConfiguredGetBucketPolicy(noSuchBucketPolicyMessage), b)
 		}
 		return &s3api.GetBucketPolicyOutput{Policy: new(b.Policy)}, nil
-	}), stored("the policy is"), touches(get))
+	}), evaluated, touches(get))
 	put := func(in *s3api.PutBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketPolicy(writer[s3api.PutBucketPolicyInput, s3api.PutBucketPolicyOutput](s, put, func(in *s3api.PutBucketPolicyInput, b *Bucket) *awserr.Error {
 		b.Policy = in.Policy
 		return nil
-	}), stored("the policy is"), touches(put),
+	}), evaluated, touches(put),
 		kernel.WithCheck(func(in *s3api.PutBucketPolicyInput) *awserr.Error { return checkPolicy(in.Policy) }))
 	del := func(in *s3api.DeleteBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketPolicy(writer[s3api.DeleteBucketPolicyInput, s3api.DeleteBucketPolicyOutput](s, del, func(_ *s3api.DeleteBucketPolicyInput, b *Bucket) *awserr.Error {
 		b.Policy = ""
 		return nil
-	}), stored("the policy is"), touches(del))
+	}), evaluated, touches(del))
 }
 
 // checkPolicy checks a bucket policy's form only: a JSON object with a
-// Statement. understudy stores policies and evaluates none.
+// Statement. A policy that does not parse is stored and, under iam.enforce,
+// makes the bucket's calls unevaluable (iam-enforcement-surfaces.md 12.10).
 func checkPolicy(doc string) *awserr.Error {
 	trimmed := bytes.TrimSpace([]byte(doc))
 	if len(trimmed) == 0 || trimmed[0] != '{' || !json.Valid(trimmed) {

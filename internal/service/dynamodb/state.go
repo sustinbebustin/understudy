@@ -6,8 +6,11 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
@@ -146,6 +149,12 @@ func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 // Scopes returns the accounts and regions that hold a state cell.
 func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) }
 
-// Switches lists no behaviors: every deviation is Local's, listed in
-// coverage.
-func (*Service) Switches() []fidelity.Entry { return nil }
+// Switches lists the identity of a denial, which understudy answers before
+// forwarding (iam-enforcement-surfaces.md 12.1, 12.8); every other
+// deviation is Local's, listed in coverage.
+func (s *Service) Switches() []fidelity.Entry {
+	return []fidelity.Entry{
+		authz.DenialSwitch("dynamodb.denial.type", "__type com.amazon.coral.service#AccessDeniedException, 400", evidence.Inferred, "3.2", "IAM-ENF-04",
+			s.kernel.Bindings().AuthorizedOps(dynamodbapi.Service())),
+	}
+}
