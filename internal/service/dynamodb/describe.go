@@ -40,15 +40,18 @@ type shimmed struct {
 	// under renames the member holding the description: an UpdateTable
 	// answered from Local's DescribeTable moves Table to TableDescription.
 	under string
+	// stream replaces Local's LatestStreamArn and LatestStreamLabel with
+	// understudy's (dynamodb-streams.md 11.1 item 6); nil keeps Local's.
+	stream *streamMembers
 }
 
 // described is how the description of name in scope is completed.
 func (s *Service) described(scope aws.Scope, name string, status dynamodbapi.TableStatus) *shimmed {
-	t, ok := s.lookup(scope, tableName(name))
-	if !ok {
-		return &shimmed{status: status}
+	d := &shimmed{status: status, stream: s.latestStream(scope, tableName(name))}
+	if t, ok := s.lookup(scope, tableName(name)); ok {
+		d.table = &t
 	}
-	return &shimmed{table: &t, status: status}
+	return d
 }
 
 // describeTable forwards DescribeTable and completes the description.
@@ -102,6 +105,10 @@ func (d *shimmed) patch(desc document.Map) document.Map {
 		indexStatus = dynamodbapi.IndexStatusCreating
 	}
 	patchIndexes(desc, t, indexStatus)
+	if d.stream != nil {
+		desc = setMember(desc, "LatestStreamArn", document.String(d.stream.arn))
+		desc = setMember(desc, "LatestStreamLabel", document.String(d.stream.label))
+	}
 	if t == nil {
 		return desc
 	}

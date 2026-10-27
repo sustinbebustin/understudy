@@ -131,7 +131,13 @@ func (s *Service) updateTable(ctx context.Context, c *kernel.Call, in *dynamodba
 	// The answer and the record carry the same instant, c's admission, so
 	// the UpdateTable answer and the next DescribeTable agree.
 	next := current.updated(in, c.Admitted(), sse)
-	a.shim = &shimmed{table: &next, status: dynamodbapi.TableStatusUpdating}
+	a.shim = &shimmed{table: &next, status: dynamodbapi.TableStatusUpdating, stream: s.latestStream(c.Scope(), name)}
+	change := streamChangeOf(in.StreamSpecification)
+	var minted Stream
+	if e, ok := change.(streamEnabled); ok {
+		minted = s.mint(c.Scope(), name, e.viewType, c.Admitted())
+		a.shim.stream = minted.members(c.Scope())
+	}
 	var resp kernel.RawResponse
 	if shimOnly(in) {
 		a.shim.under = "TableDescription"
@@ -142,9 +148,20 @@ func (s *Service) updateTable(ctx context.Context, c *kernel.Call, in *dynamodba
 	if err != nil || resp.Status != http.StatusOK {
 		return resp, err
 	}
-	_, err = s.alter(c, name, dynamodbapi.ErrResourceNotFoundException(awsNotFound(name)), func(t *Table, _ clock.Instant) *awserr.Error {
-		*t = t.updated(in, c.Admitted(), sse)
-		return nil
+	_, err = kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+		t, ok := st.Tables[name]
+		if !ok {
+			return struct{}{}, dynamodbapi.ErrResourceNotFoundException(awsNotFound(name))
+		}
+		st.Tables[name] = t.updated(in, c.Admitted(), sse)
+		switch change.(type) {
+		case streamEnabled:
+			st.Streams = append(st.Streams, minted)
+		case streamDisabled:
+			st.disableStream(name)
+		case streamKept:
+		}
+		return struct{}{}, nil
 	})
 	return resp, err
 }

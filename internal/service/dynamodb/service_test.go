@@ -128,14 +128,15 @@ func TestEveryOperationLocalServesIsBound(t *testing.T) {
 			if ok && partial && slices.Contains(forwarded, op.ID.Name) && !strings.HasPrefix(p.Note, "aws-differs: dynamodb-local: ") {
 				h.Errorf("%s: partial note %q does not say how Local differs", op.ID.Name, p.Note)
 			}
-			// ADR 0009 amendment: Local's stream labels change across a
-			// snapshot load or reset, listed where answers carry them.
-			if slices.Contains(labelled, op.ID.Name) && (!partial || !strings.Contains(p.Note, "LatestStreamLabel is minted by DynamoDB Local")) {
+			// ADR 0009 amendment: stream labels change across a snapshot
+			// load or reset until snapshots keep them, listed where answers
+			// carry them.
+			if slices.Contains(labelled, op.ID.Name) && (!partial || !strings.Contains(p.Note, "stream labels are not saved in snapshots yet")) {
 				h.Errorf("%s: coverage %#v does not list the stream-label deviation", op.ID.Name, bound.Coverage)
 			}
-			// The stream these answers name cannot be read: DynamoDB
-			// Streams is not emulated (dynamodb-streams.md 11.2).
-			const noStreams = "StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501"
+			// The stream these answers name is listed but cannot be read
+			// (dynamodb-streams.md 11.2).
+			const noStreams = "LatestStreamArn names a stream ListStreams lists, but the stream cannot be read yet: DynamoDB Streams' DescribeStream, GetShardIterator and GetRecords answer 501"
 			if slices.Contains(labelled, op.ID.Name) && (!partial || !strings.Contains(p.Note, noStreams)) {
 				h.Errorf("%s: coverage %#v does not say the stream cannot be read", op.ID.Name, bound.Coverage)
 			}

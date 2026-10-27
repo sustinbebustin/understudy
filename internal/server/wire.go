@@ -19,6 +19,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
@@ -876,6 +877,11 @@ func wiredServices() []wiredService {
 		{api{dynamodbapi.Service(), dynamodbapi.ThrottleError(), dynamodbapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			c.dynamodb = dynamodb.New(d, dynamodb.Options{Local: c.local})
 			return c.dynamodb
+		}},
+		// DynamoDB Streams serves DynamoDB's stream log, so its row follows
+		// DynamoDB's (ADR 0019).
+		{api{dynamodbstreamsapi.Service(), dynamodbstreamsapi.ThrottleError(), dynamodbstreamsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			return dynamodb.NewStreams(d, c.dynamodb)
 		}},
 		{api{lambdaapi.Service(), lambdaapi.ThrottleError(), lambdaapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			c.lambda, c.lambdaDeps = lambda.New(d, lambda.Options{StateTransitions: c.switches.LambdaTransitions, Images: c.images}), d

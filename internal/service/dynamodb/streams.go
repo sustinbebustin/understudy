@@ -1,7 +1,9 @@
 package dynamodb
 
 import (
+	"cmp"
 	"context"
+	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -16,8 +18,9 @@ import (
 // Streams is Amazon DynamoDB Streams, a second service on the signing name
 // dynamodb (ADR 0019) served from the DynamoDB service's stream log
 // (dynamodb-streams.md 11.1, ADR 0014 amendment of 2026-10-26). It holds
-// no state of its own. It is not wired yet, and its operations answer 501:
-// not implemented yet.
+// no state of its own. ListStreams is served; DescribeStream,
+// GetShardIterator and GetRecords are unbound and answer 501, as the log
+// holds no records yet.
 type Streams struct {
 	svc *Service
 }
@@ -25,23 +28,20 @@ type Streams struct {
 // The Streams service is a Stateful with nothing to save.
 var _ kernel.Stateful = (*Streams)(nil)
 
-// NewStreams binds the four DynamoDB Streams operations, reading svc's log.
+// listStreamsNote is ListStreams' coverage note: the answers DynamoDB
+// Local gives where AWS's are unrecorded (dynamodb-streams.md 6.1, 6.5;
+// DDBS-03, DDBS-08), and that a deleted table's stream is never deleted.
+const listStreamsNote = "a TableName naming no table returns an empty list, a disabled stream stays listed, and LastEvaluatedStreamArn is set only when more streams follow; " +
+	"AWS's answers to all three, and the Limit text (DynamoDB Local's), are UNVERIFIED (dynamodb-streams.md 6.1, 6.5); " +
+	"aws-differs: understudy: a deleted table's stream stays listed, where AWS deletes it 24 hours after its table (dynamodb-streams.md 5.4)"
+
+// NewStreams binds the DynamoDB Streams operations understudy serves,
+// reading svc's log.
 func NewStreams(d kernel.ServiceDeps, svc *Service) *Streams {
 	s := &Streams{svc: svc}
 	b := dynamodbstreamsapi.NewBinder(d.Binder)
-	const note = "not implemented yet"
-	b.ListStreams(streamsNotImplemented[dynamodbstreamsapi.ListStreamsInput, dynamodbstreamsapi.ListStreamsOutput], notes(note))
-	b.DescribeStream(streamsNotImplemented[dynamodbstreamsapi.DescribeStreamInput, dynamodbstreamsapi.DescribeStreamOutput], notes(note))
-	b.GetShardIterator(streamsNotImplemented[dynamodbstreamsapi.GetShardIteratorInput, dynamodbstreamsapi.GetShardIteratorOutput], notes(note))
-	b.GetRecords(streamsNotImplemented[dynamodbstreamsapi.GetRecordsInput, dynamodbstreamsapi.GetRecordsOutput], notes(note))
+	b.ListStreams(s.listStreams, notes(listStreamsNote))
 	return s
-}
-
-// streamsNotImplemented answers every Streams operation until it is built.
-//
-//nolint:unparam // not implemented yet: no Streams operation answers anything but 501
-func streamsNotImplemented[In, Out any](context.Context, *kernel.Call, *In) (*Out, *awserr.Error) {
-	return nil, dynamodbstreamsapi.ErrNotImplemented("understudy does not serve DynamoDB Streams yet: not implemented yet")
 }
 
 // Name returns "dynamodbstreams".
@@ -69,5 +69,60 @@ func (*Streams) Resources(aws.Scope) []kernel.Resource { return nil }
 // Scopes returns DynamoDB's scopes, where the streams are.
 func (s *Streams) Scopes() []aws.Scope { return s.svc.Scopes() }
 
-// Switches lists the stream switches. Not implemented yet: none.
+// Switches lists the stream switches: none yet, as no stream record is
+// served.
 func (*Streams) Switches() []fidelity.Entry { return nil }
+
+// listStreamsMax is ListStreams' largest Limit and its default ("The upper
+// limit is 100", dynamodb-streams.md 6.1).
+const listStreamsMax = 100
+
+// listStreams lists the streams of the caller's account and region from
+// the log, newest label first and ties by ARN (the aws-doc example's
+// order, dynamodb-streams.md 6.1): every stream, or those of the table
+// TableName names exactly. A page ends after Limit streams;
+// LastEvaluatedStreamArn names its last only when more follow, and
+// ExclusiveStartStreamArn continues after it (an ARN not listed starts
+// from the first).
+func (s *Streams) listStreams(ctx context.Context, c *kernel.Call, in *dynamodbstreamsapi.ListStreamsInput) (*dynamodbstreamsapi.ListStreamsOutput, *awserr.Error) {
+	if err := s.svc.serving(ctx, c); err != nil {
+		return nil, err
+	}
+	limit := listStreamsMax
+	if in.Limit != nil {
+		if *in.Limit > listStreamsMax {
+			// DynamoDB Local's text, observed (dynamodb-streams.md 6.1, 6.5; DDBS-02).
+			return nil, dynamodbstreamsapi.ErrValidationException("One or more parameter values were invalid: Limit cannot be greater than the maximum allowed size: 100")
+		}
+		limit = int(*in.Limit)
+	}
+	scope := c.Scope()
+	all := s.svc.streams(scope)
+	if in.TableName != nil {
+		all = slices.DeleteFunc(all, func(st Stream) bool { return st.Table != *in.TableName })
+	}
+	type listed struct {
+		Stream
+		arn string
+	}
+	rows := make([]listed, len(all))
+	for i, st := range all {
+		rows[i] = listed{Stream: st, arn: st.arn(scope)}
+	}
+	slices.SortFunc(rows, func(a, b listed) int {
+		return cmp.Or(b.Label.Compare(a.Label), cmp.Compare(a.arn, b.arn))
+	})
+	if in.ExclusiveStartStreamArn != nil {
+		if i := slices.IndexFunc(rows, func(r listed) bool { return r.arn == *in.ExclusiveStartStreamArn }); i >= 0 {
+			rows = rows[i+1:]
+		}
+	}
+	out := &dynamodbstreamsapi.ListStreamsOutput{Streams: []dynamodbstreamsapi.Stream{}}
+	for _, r := range rows[:min(limit, len(rows))] {
+		out.Streams = append(out.Streams, dynamodbstreamsapi.Stream{StreamArn: new(r.arn), TableName: new(r.Table), StreamLabel: new(r.label())})
+	}
+	if len(rows) > limit {
+		out.LastEvaluatedStreamArn = new(rows[limit-1].arn)
+	}
+	return out, nil
+}

@@ -80,12 +80,13 @@ const (
 	parallelScan   = "aws-differs: dynamodb-local: Segment and TotalSegments are ignored, so a parallel scan reads sequentially"
 	statementLimit = "aws-differs: dynamodb-local: Limit is ignored"
 	// streamLabels goes on the operations whose answers carry
-	// LatestStreamLabel (ADR 0009 amendment, ARCHITECTURE.md 15).
-	streamLabels = "aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one"
-	// noStreams goes on the same operations: Local keeps the stream, but
-	// understudy does not serve DynamoDB Streams, whose calls answer 501
-	// (dynamodb-streams.md 11.2).
-	noStreams = "StreamSpecification is accepted and LatestStreamArn is returned, but the stream cannot be read yet: DynamoDB Streams answers 501"
+	// LatestStreamLabel (ADR 0009 amendment, ARCHITECTURE.md 15): understudy
+	// mints the labels (dynamodb-streams.md 11.1 item 6), but snapshots do
+	// not keep them yet (State.Streams).
+	streamLabels = "aws-differs: dynamodb-local: stream labels are not saved in snapshots yet, so a table re-created by snapshot load or reset carries the new LatestStreamLabel DynamoDB Local mints, and ListStreams does not list that stream"
+	// noStreams goes on the same operations: the stream is listed, but no
+	// record of it is served (dynamodb-streams.md 11.2).
+	noStreams = "LatestStreamArn names a stream ListStreams lists, but the stream cannot be read yet: DynamoDB Streams' DescribeStream, GetShardIterator and GetRecords answer 501"
 )
 
 // notes joins coverage notes into one Partial.
@@ -194,12 +195,20 @@ func (s *Service) createTable(ctx context.Context, c *kernel.Call, in *dynamodba
 	}
 	a := tableAnswer(in.TableName)
 	a.shim = &shimmed{table: &record, status: dynamodbapi.TableStatusCreating}
+	var minted *Stream
+	if e, ok := streamChangeOf(in.StreamSpecification).(streamEnabled); ok {
+		minted = new(s.mint(c.Scope(), name, e.viewType, c.Admitted()))
+		a.shim.stream = minted.members(c.Scope())
+	}
 	resp, err := s.forward(ctx, c, in, w, a, []string{in.TableName})
 	if err != nil || resp.Status != http.StatusOK {
 		return resp, err
 	}
 	_, err = kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
 		st.Tables[name] = record
+		if minted != nil {
+			st.Streams = append(st.Streams, *minted)
+		}
 		return struct{}{}, nil
 	})
 	return resp, err
@@ -222,6 +231,7 @@ func (s *Service) deleteTable(ctx context.Context, c *kernel.Call, in *dynamodba
 			return struct{}{}, nil
 		}
 		delete(st.Tables, name)
+		st.tableDeleted(name)
 		return struct{}{}, nil
 	})
 	s.sweeps.forget(tableKey{scope: c.Scope(), table: name})

@@ -67,6 +67,11 @@ func (e *MissingBillingError) Error() string {
 type State struct {
 	// Tables is keyed by table name as created.
 	Tables map[string]Table `json:"tables"`
+	// Streams are the streams minted in the scope, oldest first. They are
+	// not saved in snapshots yet: after a load, a table's stream carries
+	// the label DynamoDB Local mints as it re-creates the table, and is not
+	// listed (the streamLabels coverage clause).
+	Streams []Stream `json:"-"`
 }
 
 func newState(aws.Scope) State { return State{Tables: map[string]Table{}} }
