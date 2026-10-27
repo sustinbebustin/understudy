@@ -791,3 +791,82 @@ def handler(event, context):
     _, url = function_url(code)
     status, _, raw = call_url(endpoint, url, "GET", "/")
     assert status == 200 and raw == bytes(range(256))
+
+
+STREAM_HANDLER = """
+def handler(event, context):
+    for record in event["Records"]:
+        print("conformance-stream", record["eventName"], record["dynamodb"]["Keys"]["id"]["S"], record["eventSourceARN"], record["eventVersion"])
+"""
+
+
+@pytest.mark.dynamodb
+def test_dynamodb_stream_mapping(
+    lambda_: Any,
+    dynamodb: Any,
+    logs: Any,
+    admin: Admin,
+    cleanup: Any,
+    make_function: Callable[..., dict[str, Any]],
+    make_mapping: Callable[..., dict[str, Any]],
+) -> None:
+    table = uniq("conf-esm-stream")
+    arn = dynamodb.create_table(
+        TableName=table,
+        KeySchema=[{"AttributeName": "id", "KeyType": "HASH"}],
+        AttributeDefinitions=[{"AttributeName": "id", "AttributeType": "S"}],
+        BillingMode="PAY_PER_REQUEST",
+        StreamSpecification={"StreamEnabled": True, "StreamViewType": "NEW_IMAGE"},
+    )["TableDescription"]["LatestStreamArn"]
+    cleanup.add(dynamodb.delete_table, TableName=table)
+    dynamodb.get_waiter("table_exists").wait(TableName=table, WaiterConfig={"Delay": 1, "MaxAttempts": 30})
+    function = make_function(STREAM_HANDLER)["FunctionName"]
+
+    # lambda-stream-sources.md 3.3 rows 1 and 4 (third-party-recorded LS-API:L12333-L12343, LS-D:L4478-L4494).
+    with raises("InvalidParameterValueException") as no_position:
+        lambda_.create_event_source_mapping(FunctionName=function, EventSourceArn=arn)
+    assert no_position.value.response["Error"]["Message"] == (
+        "1 validation error detected: Value null at 'startingPosition' failed to satisfy constraint: Member must not be null."
+    )
+    missing = arn.replace("/stream/", "x/stream/")
+    with raises("InvalidParameterValueException") as not_found:
+        lambda_.create_event_source_mapping(FunctionName=function, EventSourceArn=missing, StartingPosition="TRIM_HORIZON")
+    assert not_found.value.response["Error"]["Message"] == f"Stream not found: {missing}"
+
+    # lambda-stream-sources.md 3.5 (third-party-recorded LS-D:L246-L271).
+    mapping = make_mapping(function, arn, StartingPosition="TRIM_HORIZON")
+    for key, want in {
+        "BatchSize": 100,
+        "BisectBatchOnFunctionError": False,
+        "DestinationConfig": {"OnFailure": {}},
+        "FunctionResponseTypes": [],
+        "LastProcessingResult": "No records processed",
+        "MaximumBatchingWindowInSeconds": 0,
+        "MaximumRecordAgeInSeconds": -1,
+        "MaximumRetryAttempts": -1,
+        "ParallelizationFactor": 1,
+        "StartingPosition": "TRIM_HORIZON",
+        "StateTransitionReason": "User action",
+        "TumblingWindowInSeconds": 0,
+    }.items():
+        assert mapping[key] == want, key
+    eventually(
+        lambda: lambda_.get_event_source_mapping(UUID=mapping["UUID"]),
+        lambda m: m["State"] == "Enabled",
+        what="the mapping to be Enabled",
+    )
+
+    dynamodb.put_item(TableName=table, Item={"id": {"S": "hello"}})
+
+    def seen() -> list[str]:
+        admin.settle()
+        return _log_messages(logs, function, "conformance-stream")
+
+    lines = eventually(seen, lambda s: len(s) == 1, timeout=60, what="the stream record to reach the function")
+    # dynamodb-streams.md 7.8: eventSourceARN is the stream; eventVersion 1.1 (ESM-SNAP:L73).
+    assert lines[0].split()[1:] == ["INSERT", "hello", arn, "1.1"]
+    eventually(
+        lambda: lambda_.get_event_source_mapping(UUID=mapping["UUID"]),
+        lambda m: m["LastProcessingResult"] == "OK",
+        what="LastProcessingResult OK",
+    )
